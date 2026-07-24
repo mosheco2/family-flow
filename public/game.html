@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>משחק חי — OneFlow</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  body { font-family: 'Segoe UI', Arial, sans-serif; background: #0f172a; color: #f1f5f9; min-height: 100vh; }
+  .opt-btn { transition: all .15s; border: 2px solid transparent; }
+  .opt-btn:hover { transform: scale(1.02); }
+  .opt-btn.selected { border-color: #6366f1; }
+  .opt-btn.correct { background: #16a34a !important; border-color: #22c55e; }
+  .opt-btn.wrong { background: #dc2626 !important; border-color: #ef4444; }
+  @keyframes countdown { from { stroke-dashoffset: 0; } to { stroke-dashoffset: 283; } }
+  .timer-ring { transform-origin: center; transform: rotate(-90deg); }
+  @keyframes fadein { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+  .fadein { animation: fadein .3s ease; }
+  .opt-colors { background: #1e293b; }
+  .opt-colors:nth-child(1) { border-left: 4px solid #6366f1; }
+  .opt-colors:nth-child(2) { border-left: 4px solid #f59e0b; }
+  .opt-colors:nth-child(3) { border-left: 4px solid #10b981; }
+  .opt-colors:nth-child(4) { border-left: 4px solid #ef4444; }
+</style>
+</head>
+<body>
+
+<!-- Auth overlay -->
+<div id="auth-screen" class="hidden fixed inset-0 bg-slate-900 z-50 flex items-center justify-center p-4">
+  <div class="bg-slate-800 rounded-2xl p-6 w-full max-w-sm shadow-2xl">
+    <div class="text-center mb-6">
+      <div class="text-4xl mb-2">🏆</div>
+      <h2 class="text-xl font-bold">הצטרפות למשחק</h2>
+      <p class="text-slate-400 text-sm mt-1" id="auth-game-title"></p>
+    </div>
+    <!-- Toggle -->
+    <div class="flex bg-slate-700 rounded-lg p-1 mb-5">
+      <button onclick="showAuthTab('login')" id="tab-login" class="flex-1 py-2 rounded-md text-sm font-medium transition bg-indigo-600 text-white">כניסה</button>
+      <button onclick="showAuthTab('register')" id="tab-register" class="flex-1 py-2 rounded-md text-sm font-medium transition text-slate-300">הרשמה</button>
+    </div>
+    <!-- Login -->
+    <div id="auth-login">
+      <input id="lg-code" placeholder="קוד משפחה" class="w-full bg-slate-700 rounded-lg px-4 py-3 mb-3 text-sm outline-none focus:ring-2 focus:ring-indigo-500">
+      <input id="lg-nick" placeholder="שם משתמש" class="w-full bg-slate-700 rounded-lg px-4 py-3 mb-3 text-sm outline-none focus:ring-2 focus:ring-indigo-500">
+      <input id="lg-pass" type="password" placeholder="סיסמה" class="w-full bg-slate-700 rounded-lg px-4 py-3 mb-4 text-sm outline-none focus:ring-2 focus:ring-indigo-500">
+      <button onclick="doLogin()" class="w-full bg-indigo-600 hover:bg-indigo-700 py-3 rounded-lg font-bold text-sm transition">כניסה למשחק</button>
+    </div>
+    <!-- Register -->
+    <div id="auth-register" class="hidden">
+      <input id="rg-name" placeholder="שם פרטי" class="w-full bg-slate-700 rounded-lg px-4 py-3 mb-3 text-sm outline-none focus:ring-2 focus:ring-indigo-500">
+      <input id="rg-family" placeholder="שם משפחה" class="w-full bg-slate-700 rounded-lg px-4 py-3 mb-3 text-sm outline-none focus:ring-2 focus:ring-indigo-500">
+      <input id="rg-phone" placeholder="טלפון" class="w-full bg-slate-700 rounded-lg px-4 py-3 mb-3 text-sm outline-none focus:ring-2 focus:ring-indigo-500">
+      <input id="rg-pass" type="password" placeholder="סיסמה (לפחות 4 תווים)" class="w-full bg-slate-700 rounded-lg px-4 py-3 mb-4 text-sm outline-none focus:ring-2 focus:ring-indigo-500">
+      <button onclick="doRegister()" class="w-full bg-indigo-600 hover:bg-indigo-700 py-3 rounded-lg font-bold text-sm transition">הרשמה והצטרפות</button>
+    </div>
+    <p id="auth-err" class="text-red-400 text-xs text-center mt-3 hidden"></p>
+  </div>
+</div>
+
+<!-- Main game -->
+<div id="game-screen" class="hidden min-h-screen flex flex-col">
+  <!-- Header -->
+  <div class="bg-slate-800 px-4 py-3 flex items-center justify-between shadow">
+    <div>
+      <div class="font-bold text-sm" id="g-title"></div>
+      <div class="text-xs text-slate-400" id="g-biz"></div>
+    </div>
+    <div class="flex items-center gap-3">
+      <div class="text-xs text-slate-400"><span id="g-participants">0</span> משתתפים</div>
+      <div class="bg-indigo-600 text-white text-xs px-2 py-1 rounded-lg font-bold">ניקוד: <span id="g-score">0</span></div>
+    </div>
+  </div>
+
+  <!-- Waiting screen -->
+  <div id="screen-waiting" class="hidden flex-1 flex flex-col items-center justify-center p-6 fadein">
+    <div class="text-6xl mb-4 animate-bounce">⏳</div>
+    <h2 class="text-2xl font-bold mb-2">ממתינים להתחלה</h2>
+    <p class="text-slate-400 text-sm mb-6">המשחק יתחיל בקרוב...</p>
+    <div class="bg-slate-800 rounded-xl px-6 py-4 text-center">
+      <div class="text-3xl font-bold text-indigo-400" id="w-participants">0</div>
+      <div class="text-sm text-slate-400">משתתפים מחוברים</div>
+    </div>
+    <div class="mt-6 text-slate-500 text-xs">🏆 פרס: <span id="w-prize" class="text-yellow-400 font-bold"></span></div>
+  </div>
+
+  <!-- Question screen -->
+  <div id="screen-question" class="hidden flex-1 flex flex-col p-4 fadein">
+    <!-- Progress + timer -->
+    <div class="flex items-center justify-between mb-4">
+      <div class="text-sm text-slate-400">שאלה <span id="q-num">1</span> מתוך <span id="q-total">1</span></div>
+      <div class="relative w-14 h-14">
+        <svg class="w-14 h-14" viewBox="0 0 100 100">
+          <circle cx="50" cy="50" r="45" fill="none" stroke="#1e293b" stroke-width="8"/>
+          <circle id="timer-ring" cx="50" cy="50" r="45" fill="none" stroke="#6366f1" stroke-width="8"
+            stroke-dasharray="283" stroke-dashoffset="0" class="timer-ring"/>
+        </svg>
+        <div class="absolute inset-0 flex items-center justify-center font-bold text-lg" id="timer-text">20</div>
+      </div>
+    </div>
+    <!-- Question -->
+    <div class="bg-slate-800 rounded-2xl p-5 mb-5 shadow-lg">
+      <p class="text-lg font-bold leading-relaxed text-center" id="q-text"></p>
+    </div>
+    <!-- Options -->
+    <div class="grid grid-cols-1 gap-3" id="q-opts"></div>
+  </div>
+
+  <!-- Answer result -->
+  <div id="screen-answer-result" class="hidden flex-1 flex flex-col items-center justify-center p-6 fadein">
+    <div class="text-7xl mb-4" id="ar-emoji">✅</div>
+    <h2 class="text-2xl font-bold mb-2" id="ar-title">נכון!</h2>
+    <p class="text-slate-400 text-sm mb-4" id="ar-correct-text"></p>
+    <div class="bg-slate-800 rounded-xl px-6 py-3">
+      <div class="text-center text-sm text-slate-400">הניקוד שלי</div>
+      <div class="text-3xl font-bold text-indigo-400 text-center" id="ar-score">0</div>
+    </div>
+  </div>
+
+  <!-- Leaderboard between questions -->
+  <div id="screen-leaderboard" class="hidden flex-1 flex flex-col p-6 fadein">
+    <h2 class="text-xl font-bold text-center mb-4">🏆 מובילים</h2>
+    <div id="lb-list" class="space-y-3"></div>
+  </div>
+
+  <!-- End screen -->
+  <div id="screen-end" class="hidden flex-1 flex flex-col items-center justify-center p-6 fadein">
+    <div class="text-6xl mb-4">🎉</div>
+    <h2 class="text-2xl font-bold mb-2">המשחק הסתיים!</h2>
+    <div id="end-winner" class="bg-yellow-500/20 border border-yellow-500/40 rounded-2xl px-6 py-4 text-center mb-4">
+      <div class="text-sm text-yellow-400 mb-1">🥇 המנצח/ת</div>
+      <div class="text-xl font-bold" id="end-winner-name"></div>
+    </div>
+    <div class="bg-slate-800 rounded-xl px-6 py-4 text-center mb-4">
+      <div class="text-sm text-slate-400">הפרס</div>
+      <div class="text-lg font-bold text-yellow-400" id="end-prize"></div>
+    </div>
+    <div class="text-slate-400 text-sm">הניקוד שלי: <span class="text-white font-bold" id="end-my-score">0</span></div>
+  </div>
+
+  <!-- Disabled screen -->
+  <div id="screen-disabled" class="hidden flex-1 flex flex-col items-center justify-center p-6 fadein">
+    <div class="text-6xl mb-4">🔒</div>
+    <h2 class="text-xl font-bold mb-2">המשחק הסתיים</h2>
+    <p class="text-slate-400 text-sm">תודה על השתתפותך!</p>
+  </div>
+</div>
+
+<script>
+const gameCode = location.pathname.split('/').pop().toUpperCase();
+let currentUser = null;
+let currentGroup = null;
+let myScore = 0;
+let pollingInterval = null;
+let lastQuestionId = null;
+let answerSubmitted = false;
+let timerInterval = null;
+let currentGameId = null;
+
+// Load session
+try {
+  const s = JSON.parse(localStorage.getItem('ofl_session') || 'null');
+  if (s && s.user && s.group) { currentUser = s.user; currentGroup = s.group; }
+} catch(e) {}
+
+window.onload = async () => {
+  // Get game title first
+  const stateRes = await fetch(`/api/live-games/${gameCode}/state`).catch(() => null);
+  if (!stateRes || !stateRes.ok) { showDisabled(); return; }
+  const state = await stateRes.json();
+  document.getElementById('auth-game-title').textContent = state.title || '';
+
+  if (state.status === 'disabled') { showDisabled(); return; }
+
+  if (!currentUser) {
+    document.getElementById('auth-screen').classList.remove('hidden');
+    return;
+  }
+  startGame(state);
+};
+
+function showDisabled() {
+  document.getElementById('game-screen').classList.remove('hidden');
+  showScreen('disabled');
+}
+
+function showAuthTab(tab) {
+  document.getElementById('auth-login').classList.toggle('hidden', tab !== 'login');
+  document.getElementById('auth-register').classList.toggle('hidden', tab !== 'register');
+  document.getElementById('tab-login').className = tab === 'login'
+    ? 'flex-1 py-2 rounded-md text-sm font-medium transition bg-indigo-600 text-white'
+    : 'flex-1 py-2 rounded-md text-sm font-medium transition text-slate-300';
+  document.getElementById('tab-register').className = tab === 'register'
+    ? 'flex-1 py-2 rounded-md text-sm font-medium transition bg-indigo-600 text-white'
+    : 'flex-1 py-2 rounded-md text-sm font-medium transition text-slate-300';
+}
+
+function showAuthErr(msg) {
+  const el = document.getElementById('auth-err');
+  el.textContent = msg; el.classList.remove('hidden');
+}
+
+async function doLogin() {
+  const groupCode = document.getElementById('lg-code').value.trim();
+  const nickname = document.getElementById('lg-nick').value.trim();
+  const password = document.getElementById('lg-pass').value.trim();
+  if (!groupCode || !nickname || !password) return showAuthErr('יש למלא את כל השדות');
+  const r = await fetch('/api/login', { method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ groupCode, nickname, password }) });
+  const data = await r.json();
+  if (!data.success) return showAuthErr(data.error || 'שגיאת התחברות');
+  currentUser = data.user; currentGroup = data.group;
+  localStorage.setItem('ofl_session', JSON.stringify({ user: data.user, group: data.group }));
+  document.getElementById('auth-screen').classList.add('hidden');
+  const stateRes = await fetch(`/api/live-games/${gameCode}/state`);
+  const state = await stateRes.json();
+  startGame(state);
+}
+
+async function doRegister() {
+  const firstName = document.getElementById('rg-name').value.trim();
+  const lastName = document.getElementById('rg-family').value.trim();
+  const phone = document.getElementById('rg-phone').value.trim();
+  const password = document.getElementById('rg-pass').value.trim();
+  if (!firstName || !lastName || !phone || !password) return showAuthErr('יש למלא את כל השדות');
+  if (password.length < 4) return showAuthErr('סיסמה חייבת להיות לפחות 4 תווים');
+  const r = await fetch('/api/groups', { method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({
+      type: 'FAMILY',
+      groupName: `משפחת ${lastName}`,
+      adminEmail: `game_${Date.now()}@oneflow.temp`,
+      adminNickname: `${firstName} ${lastName}`,
+      firstName, lastName, password, phone,
+      city: 'לא צוין',
+      registrationSource: `game:${gameCode}`
+    })
+  });
+  const data = await r.json();
+  if (!data.success) return showAuthErr(data.error || 'שגיאת הרשמה');
+  currentUser = data.user; currentGroup = data.group;
+  localStorage.setItem('ofl_session', JSON.stringify({ user: data.user, group: data.group }));
+  document.getElementById('auth-screen').classList.add('hidden');
+  const stateRes = await fetch(`/api/live-games/${gameCode}/state`);
+  const state = await stateRes.json();
+  startGame(state);
+}
+
+async function startGame(state) {
+  document.getElementById('game-screen').classList.remove('hidden');
+  document.getElementById('g-title').textContent = state.title || '';
+  document.getElementById('g-biz').textContent = state.business_name || '';
+  document.getElementById('w-prize').textContent = state.prize || '';
+
+  // Join
+  await fetch(`/api/live-games/${gameCode}/join`, {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ userId: currentUser?.id, displayName: currentUser?.nickname || 'שחקן' })
+  });
+  const g = await fetch(`/api/live-games/${gameCode}/state`).then(r=>r.json());
+  currentGameId = null; // will be fetched from state implicitly
+
+  renderState(state);
+  pollingInterval = setInterval(pollState, 1000);
+}
+
+async function pollState() {
+  try {
+    const r = await fetch(`/api/live-games/${gameCode}/state`);
+    if (!r.ok) return;
+    const state = await r.json();
+    renderState(state);
+  } catch(e) {}
+}
+
+function renderState(state) {
+  document.getElementById('g-participants').textContent = state.participants_count || 0;
+  document.getElementById('w-participants').textContent = state.participants_count || 0;
+  document.getElementById('g-score').textContent = myScore;
+
+  if (state.status === 'disabled') { clearInterval(pollingInterval); showScreen('disabled'); return; }
+  if (state.status === 'waiting') { showScreen('waiting'); return; }
+  if (state.status === 'ended') {
+    clearInterval(pollingInterval);
+    showEndScreen(state);
+    return;
+  }
+  if (state.status === 'active' && state.current_question) {
+    const q = state.current_question;
+    if (q.id !== lastQuestionId) {
+      lastQuestionId = q.id;
+      answerSubmitted = false;
+      showQuestion(q, state.current_question_index, state.total_questions);
+    }
+  }
+}
+
+function showScreen(name) {
+  ['waiting','question','answer-result','leaderboard','end','disabled'].forEach(s => {
+    document.getElementById(`screen-${s}`).classList.add('hidden');
+  });
+  document.getElementById(`screen-${name}`).classList.remove('hidden');
+}
+
+function showQuestion(q, idx, total) {
+  showScreen('question');
+  document.getElementById('q-num').textContent = idx + 1;
+  document.getElementById('q-total').textContent = total;
+  document.getElementById('q-text').textContent = q.question;
+  const optsEl = document.getElementById('q-opts');
+  optsEl.innerHTML = '';
+  const opts = Array.isArray(q.opts) ? q.opts : JSON.parse(q.opts);
+  opts.forEach((opt, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'opt-btn opt-colors w-full text-right px-5 py-4 rounded-xl text-sm font-medium';
+    btn.textContent = opt;
+    btn.onclick = () => submitAnswer(q.id, i, btn, opts, q.correct_index);
+    optsEl.appendChild(btn);
+  });
+  startTimer(q.time_seconds || 20, q.id, opts, q.correct_index);
+}
+
+let timerStart = null;
+function startTimer(seconds, questionId, opts, correctIndex) {
+  clearInterval(timerInterval);
+  const ring = document.getElementById('timer-ring');
+  const text = document.getElementById('timer-text');
+  const total = seconds;
+  let remaining = seconds;
+  timerStart = Date.now();
+  ring.style.animation = 'none';
+  ring.style.strokeDashoffset = '0';
+
+  timerInterval = setInterval(() => {
+    remaining--;
+    text.textContent = remaining;
+    const pct = (total - remaining) / total;
+    ring.style.strokeDashoffset = (283 * pct).toFixed(1);
+    if (remaining <= 5) ring.style.stroke = '#ef4444';
+    else ring.style.stroke = '#6366f1';
+    if (remaining <= 0) {
+      clearInterval(timerInterval);
+      if (!answerSubmitted) {
+        // time's up — show correct answer
+        const btns = document.querySelectorAll('#q-opts .opt-btn');
+        btns.forEach((b, i) => { if (i === correctIndex) b.classList.add('correct'); });
+        setTimeout(() => showAnswerResult(false, opts[correctIndex]), 1000);
+      }
+    }
+  }, 1000);
+}
+
+async function submitAnswer(questionId, answerIndex, btn, opts, correctIndex) {
+  if (answerSubmitted) return;
+  answerSubmitted = true;
+  clearInterval(timerInterval);
+  const responseTimeMs = Date.now() - (timerStart || Date.now());
+  const r = await fetch(`/api/live-games/${gameCode}/answer`, {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ userId: currentUser?.id, questionId, answerIndex, responseTimeMs })
+  });
+  const data = await r.json();
+  const btns = document.querySelectorAll('#q-opts .opt-btn');
+  btns.forEach((b, i) => {
+    b.disabled = true;
+    if (i === correctIndex) b.classList.add('correct');
+    else if (i === answerIndex && !data.is_correct) b.classList.add('wrong');
+  });
+  if (data.is_correct) {
+    const timeSec = 20;
+    const speed = Math.max(0, timeSec * 1000 - responseTimeMs);
+    const gained = Math.round(100 + (speed / (timeSec * 1000)) * 900);
+    myScore += gained;
+    document.getElementById('g-score').textContent = myScore;
+  }
+  setTimeout(() => showAnswerResult(data.is_correct, opts[correctIndex]), 1200);
+}
+
+function showAnswerResult(isCorrect, correctAnswer) {
+  showScreen('answer-result');
+  document.getElementById('ar-emoji').textContent = isCorrect ? '✅' : '❌';
+  document.getElementById('ar-title').textContent = isCorrect ? 'נכון! כל הכבוד!' : 'לא נכון...';
+  document.getElementById('ar-correct-text').textContent = `התשובה הנכונה: ${correctAnswer}`;
+  document.getElementById('ar-score').textContent = myScore;
+}
+
+async function showEndScreen(state) {
+  showScreen('end');
+  document.getElementById('end-prize').textContent = state.prize || '';
+  document.getElementById('end-my-score').textContent = myScore;
+  // Get leaderboard
+  try {
+    // Need game id — fetch from a known endpoint
+    const lb = await fetch(`/api/live-games/${gameCode}/state`).then(r=>r.json());
+    // Fetch leaderboard via game id stored differently
+  } catch(e) {}
+  document.getElementById('end-winner-name').textContent = '...טוען';
+}
+</script>
+</body>
+</html>

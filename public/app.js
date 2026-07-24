@@ -101,6 +101,9 @@ window.onload = async () => {
 
     const failsafeTimer = setTimeout(() => { const preloader = getEl('app-preloader'); if (preloader && !preloader.classList.contains('hidden')) { hidePreloaderAndShowAuth('login'); } }, 7000);
     const urlParams = new URLSearchParams(window.location.search); const inviteCode = urlParams.get('code'); const inviteRole = urlParams.get('role');
+    // שמירת קוד רפרל אם הגיע דרך קישור חבר
+    const refCode = urlParams.get('ref');
+    if (refCode) localStorage.setItem('ofl_referral_code', refCode.toUpperCase());
     if (inviteCode) { getEl('join-code').value = inviteCode; if(inviteRole) { getEl('join-role').value = inviteRole; try { setJoinRole(inviteRole); } catch(e) {} } clearTimeout(failsafeTimer); hidePreloaderAndShowAuth('join'); return; }
 
     // מביא ads מוקדם — splash צריך להופיע לכולם (גם אנונימי/אינקוגניטו)
@@ -593,12 +596,14 @@ async function handleCreate(e) {
         const _familyNickname = val('create-family-nickname') || '';
         const _adminNickname = _lastName ? `${_firstName} ${_lastName}`.trim() : _firstName;
         if (!_city.trim()) { showToast('error', 'עיר היא שדה חובה'); toggleLoader('login', false); return; }
-        const res = await fetch(`${API}/groups`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ type: _cType, groupName: val('create-group-name'), adminEmail: val('create-email'), adminNickname: _adminNickname, firstName: _firstName, lastName: _lastName, city: _city, familyNickname: _familyNickname, birthYear: _birthYear, password: val('create-password'), phone: _cPhone }) });
+        const _referralGroupCode = localStorage.getItem('ofl_referral_code') || undefined;
+        const res = await fetch(`${API}/groups`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ type: _cType, groupName: val('create-group-name'), adminEmail: val('create-email'), adminNickname: _adminNickname, firstName: _firstName, lastName: _lastName, city: _city, familyNickname: _familyNickname, birthYear: _birthYear, password: val('create-password'), phone: _cPhone, referralGroupCode: _referralGroupCode }) });
         const data = await res.json(); 
-        if(data.success) { 
-            currentUser = data.user; currentGroup = data.group; 
+        if(data.success) {
+            currentUser = data.user; currentGroup = data.group;
+            localStorage.removeItem('ofl_referral_code');
             saveSession(currentUser, currentGroup);
-            if (currentGroup.type === 'BUSINESS' && !window.location.pathname.includes('business.html')) { window.location.href = '/business.html'; return; } 
+            if (currentGroup.type === 'BUSINESS' && !window.location.pathname.includes('business.html')) { window.location.href = '/business.html'; return; }
             else if (currentGroup.type !== 'BUSINESS' && window.location.pathname.includes('business.html')) { window.location.href = '/'; return; }
             try {
                 await loadDashboard(); 
@@ -4366,6 +4371,13 @@ async function submitFinalCheckout() {
 async function copyList(tripId) { if(!confirm('האם לייבא את דרישת הרכש מחדש?')) return; await fetch(`${API}/shopping/copy`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({tripId, userId: currentUser.id}) }); getEl('history-modal').classList.add('hidden'); showToast('success', 'הדרישה הועתקה!'); fetchData(); }
 
 function openInviteModal() { const codeSpan = getEl('display-group-code'); if (currentGroup && currentGroup.group_code) { codeSpan.innerText = currentGroup.group_code; } else { codeSpan.innerText = 'שגיאה: חסר קוד'; } getEl('invite-modal').classList.remove('hidden'); }
+function shareReferralLink() {
+  if (!currentGroup || !currentGroup.group_code) return showToast('error', 'קוד משפחה לא זמין');
+  const link = `${window.location.origin}/?ref=${currentGroup.group_code}`;
+  const text = `הצטרפו ל-OneFlow Life! 🚀\nניהול כסף משפחתי, משחקים, משימות ועוד.\nנרשמים דרך הקישור:\n${link}`;
+  if (navigator.share) navigator.share({ title: 'OneFlow Life', text, url: link }).catch(()=>{});
+  else window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+}
 function sendWhatsAppInvite(role) { 
     if (!currentGroup || !currentGroup.group_code) return showToast('error', 'קוד משפחה לא זמין כרגע'); const url = window.location.origin; const joinLink = `${url}/?code=${currentGroup.group_code}&role=${role}`; 
     let text = role === 'ADMIN' ? `היי! פתחנו בנק משפחתי ב-Oneflow Life 🚀\n\nהוגדרת כמנהל/ת במערכת.\nקוד המשפחה שלנו הוא: ${currentGroup.group_code}\nכניסה מהירה:\n🔗 ${joinLink}` : `היי! עברנו להתנהל עם Oneflow Life 🚀\n\nקוד המשפחה לכניסה הוא: ${currentGroup.group_code}\nלחץ על הקישור כדי להתחבר:\n🔗 ${joinLink}`; 

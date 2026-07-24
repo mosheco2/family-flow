@@ -411,7 +411,7 @@ window.switchSATab = function(tabId) {
     if (tabId === 'legal') loadLegalDocs();
 
     if (tabId === 'adslots') window.renderAdSlotsPanel && window.renderAdSlotsPanel();
-    const allTabs = ['dashboard', 'pulse', 'devops', 'support', 'stats', 'comm', 'biz', 'inbox', 'content', 'clients', 'hr', 'partners', 'finance', 'sysmap', 'legal', 'templates', 'adslots', 'auditlog', 'archive', 'games', 'feed'];
+    const allTabs = ['dashboard', 'pulse', 'devops', 'support', 'stats', 'comm', 'biz', 'inbox', 'content', 'clients', 'hr', 'partners', 'finance', 'sysmap', 'legal', 'templates', 'adslots', 'auditlog', 'archive', 'games', 'feed', 'livegames'];
     let activeTabTitle = 'לוח בקרה';
 
     allTabs.forEach(t => {
@@ -443,7 +443,7 @@ window.switchSATab = function(tabId) {
         hr:'נציגים וצוותים', partners:'שותפים', finance:'פיננסים',
         sysmap:'מפת המערכת', legal:'מסמכים משפטיים', templates:'ניהול תבניות עסקים', adslots:'שטחי פרסום',
         auditlog:'לוג אירועים קריטיים', archive:'ארכיון סביבות מחוקות',
-        games:'משחקי ילדים', feed:'פיד קהילתי'
+        games:'משחקי ילדים', feed:'פיד קהילתי', livegames:'משחקים חיים'
     };
     activeTabTitle = _tabTitles[tabId] || tabId;
 
@@ -474,6 +474,7 @@ window.switchSATab = function(tabId) {
     if (tabId === 'templates') window.loadBizTemplates && window.loadBizTemplates();
     if (tabId === 'games') loadSAGames();
     if (tabId === 'feed') loadSACommunityFeed();
+    if (tabId === 'livegames') loadSALiveGames();
 
     // Update group button active state + sub-nav bar
     _updateSAGroupNav(tabId);
@@ -487,6 +488,7 @@ const SA_GROUPS = {
     finance:    { tabs: ['finance'],                    labels: [],                                  icons: [],                                         default: 'finance' },
     supportdev: { tabs: ['support', 'devops'],          labels: ['קריאות שירות', 'פיתוח ומוצר'],    icons: ['fa-headset', 'fa-code'],                  default: 'support' },
     contentmkt: { tabs: ['content', 'inbox', 'legal', 'adslots', 'games'],  labels: ['מיתוג ותוכן', 'שיווק', 'משפטי', 'שטחי פרסום', 'משחקי ילדים'], icons: ['fa-image', 'fa-bullhorn', 'fa-file-contract', 'fa-rectangle-ad', 'fa-gamepad'], default: 'content' },
+    livegamesgrp: { tabs: ['livegames'], labels: ['משחקים חיים'], icons: ['fa-bolt'], default: 'livegames' },
     partners:   { tabs: ['partners'],                   labels: [],                                  icons: [],                                         default: 'partners' },
     system:     { tabs: ['hr', 'sysmap', 'auditlog', 'archive'], labels: ['צוות ונציגים', 'מפת המערכת', 'לוג אירועים', 'ארכיון מחוקים'], icons: ['fa-user-tie', 'fa-map', 'fa-shield-halved', 'fa-box-archive'], default: 'hr' },
     templates:  { tabs: ['templates'],                  labels: ['תבניות עסקים'],                    icons: ['fa-layer-group'],                          default: 'templates' },
@@ -1812,7 +1814,7 @@ function renderSAGroups() {
             const roleLabel = u.role === 'ADMIN' ? 'הורה/מנהל' : u.role === 'SENIOR' ? 'בכיר' : 'בן משפחה/עובד';
             return `
             <div class="flex justify-between items-center bg-slate-50 p-2 mt-1 rounded border border-slate-100 text-sm">
-                <span>${safeStr(fmtUserName(u) || u.nickname)} <span class="text-[10px] text-slate-400">(${roleLabel})</span> ${phoneBadge}</span>
+                <span>${safeStr(fmtUserName(u) || u.nickname)} <span class="text-[10px] text-slate-400">(${roleLabel})</span> ${phoneBadge}${u.registration_source && u.registration_source !== 'self' ? `<span class="text-[10px] text-purple-600 bg-purple-50 border border-purple-100 px-1.5 py-0.5 rounded-full mr-1" title="מקור הרשמה">${safeStr(u.registration_source)}</span>` : ''}</span>
                 <div class="flex gap-1">
                     <button onclick="openSAEditUserModal(${u.id})" class="text-blue-400 hover:text-blue-600 bg-white p-1 rounded shadow-sm transition"><i class="fa-solid fa-pen"></i></button>
                     <button onclick="saDeleteUser(${u.id})" class="text-red-400 hover:text-red-600 bg-white p-1 rounded shadow-sm transition"><i class="fa-solid fa-trash"></i></button>
@@ -10169,4 +10171,225 @@ async function uploadTriviaQuestions(event) {
     btn.innerHTML = orig;
   }
   event.target.value = '';
+}
+
+// ===== LIVE GAMES — SUPER ADMIN =====
+
+let _lgEditId = null;
+
+async function loadSALiveGames() {
+  const el = document.getElementById('sa-view-livegames');
+  if (!el) return;
+  el.innerHTML = `<div class="p-6 space-y-4">
+    <div class="flex items-center justify-between">
+      <h2 class="text-xl font-bold text-slate-100">משחקים חיים</h2>
+      <button onclick="openLGEditor(null)" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-sm font-bold transition"><i class="fa-solid fa-plus ml-2"></i>משחק חדש</button>
+    </div>
+    <div id="lg-list" class="space-y-3"><div class="text-slate-400 text-sm">טוען...</div></div>
+  </div>`;
+  await _fetchLGList();
+}
+
+async function _fetchLGList() {
+  const saToken = localStorage.getItem('ofl_sa_token');
+  const r = await fetch('/api/live-games', { headers: { Authorization: saToken } });
+  const data = await r.json();
+  const el = document.getElementById('lg-list');
+  if (!el) return;
+  if (!data.games || !data.games.length) { el.innerHTML = '<div class="text-slate-400 text-sm">אין משחקים עדיין</div>'; return; }
+  const statusLabel = { waiting:'ממתין', active:'פעיל', ended:'הסתיים', disabled:'מושבת' };
+  const statusColor = { waiting:'bg-slate-600', active:'bg-green-600', ended:'bg-slate-500', disabled:'bg-red-600' };
+  el.innerHTML = data.games.map(g => `
+    <div class="bg-slate-800 rounded-2xl p-4 flex items-center justify-between gap-4">
+      <div class="flex-1 min-w-0">
+        <div class="flex items-center gap-2 mb-1">
+          <span class="font-bold text-slate-100 truncate">${g.title}</span>
+          <span class="text-xs px-2 py-0.5 rounded-full text-white ${statusColor[g.status] || 'bg-slate-600'}">${statusLabel[g.status] || g.status}</span>
+        </div>
+        <div class="text-xs text-slate-400">קוד: <span class="font-mono text-indigo-400 font-bold">${g.game_code}</span> · ${g.participants_count} משתתפים · ${g.prize || 'אין פרס'}</div>
+      </div>
+      <div class="flex gap-2 shrink-0">
+        <button onclick="openLGControl('${g.id}','${g.game_code}')" class="bg-slate-700 hover:bg-slate-600 text-white px-3 py-2 rounded-lg text-xs transition"><i class="fa-solid fa-gamepad"></i></button>
+        <button onclick="openLGEditor(${g.id})" class="bg-slate-700 hover:bg-slate-600 text-white px-3 py-2 rounded-lg text-xs transition"><i class="fa-solid fa-pen"></i></button>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function openLGEditor(id) {
+  _lgEditId = id;
+  const saToken = localStorage.getItem('ofl_sa_token');
+  let game = null, questions = [];
+  if (id) {
+    const r = await fetch(`/api/live-games/${id}`, { headers: { Authorization: saToken } });
+    const data = await r.json();
+    game = data.game; questions = data.questions || [];
+  }
+  const modal = document.createElement('div');
+  modal.id = 'lg-editor-modal';
+  modal.className = 'fixed inset-0 bg-black/70 z-[200] flex items-center justify-center p-4';
+  modal.innerHTML = `
+    <div class="bg-slate-800 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl">
+      <div class="flex items-center justify-between p-5 border-b border-slate-700">
+        <h3 class="font-bold text-lg">${id ? 'עריכת משחק' : 'משחק חדש'}</h3>
+        <button onclick="document.getElementById('lg-editor-modal').remove()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+      </div>
+      <div class="p-5 space-y-4">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div class="md:col-span-3"><label class="block text-xs text-slate-400 mb-1">שם האירוע / המשחק</label>
+            <input id="lg-title" value="${game?.title || ''}" class="w-full bg-slate-700 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500"></div>
+          <div><label class="block text-xs text-slate-400 mb-1">שם עסק (אופציונלי)</label>
+            <input id="lg-biz" value="${game?.business_name || ''}" class="w-full bg-slate-700 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500"></div>
+          <div class="md:col-span-2"><label class="block text-xs text-slate-400 mb-1">פרס</label>
+            <input id="lg-prize" value="${game?.prize || ''}" class="w-full bg-slate-700 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-500"></div>
+        </div>
+        <div>
+          <div class="flex items-center justify-between mb-3">
+            <h4 class="font-bold text-sm">שאלות</h4>
+            <button onclick="_lgAddQuestion()" class="text-xs bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg transition">+ הוסף שאלה</button>
+          </div>
+          <div id="lg-questions-list" class="space-y-4"></div>
+        </div>
+        <button onclick="_saveLGGame()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-xl font-bold text-sm transition">שמור משחק</button>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  window._lgQuestions = questions.map(q => ({ question: q.question, opts: Array.isArray(q.opts) ? q.opts : JSON.parse(q.opts), correct_index: q.correct_index, time_seconds: q.time_seconds || 20 }));
+  _renderLGQuestions();
+}
+
+function _renderLGQuestions() {
+  const el = document.getElementById('lg-questions-list');
+  if (!el) return;
+  el.innerHTML = window._lgQuestions.map((q, i) => `
+    <div class="bg-slate-700 rounded-xl p-4 space-y-3">
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-bold text-slate-300">שאלה ${i+1}</span>
+        <div class="flex gap-2">
+          <input type="number" value="${q.time_seconds || 20}" min="5" max="60" onchange="window._lgQuestions[${i}].time_seconds=parseInt(this.value)"
+            class="w-16 bg-slate-600 rounded px-2 py-1 text-xs outline-none text-center" title="שניות">
+          <span class="text-xs text-slate-400 self-center">שנ'</span>
+          <button onclick="window._lgQuestions.splice(${i},1);_renderLGQuestions()" class="text-red-400 hover:text-red-300 text-xs px-2"><i class="fa-solid fa-trash"></i></button>
+        </div>
+      </div>
+      <input value="${q.question.replace(/"/g,'&quot;')}" onchange="window._lgQuestions[${i}].question=this.value"
+        placeholder="טקסט השאלה" class="w-full bg-slate-600 rounded-lg px-3 py-2 text-sm outline-none">
+      <div class="grid grid-cols-2 gap-2">
+        ${q.opts.map((opt, j) => `
+          <div class="flex items-center gap-2">
+            <input type="radio" name="correct-${i}" ${q.correct_index===j?'checked':''} onchange="window._lgQuestions[${i}].correct_index=${j}" class="accent-green-500 shrink-0">
+            <input value="${opt.replace(/"/g,'&quot;')}" onchange="window._lgQuestions[${i}].opts[${j}]=this.value"
+              placeholder="תשובה ${j+1}" class="flex-1 bg-slate-600 rounded-lg px-2 py-1.5 text-xs outline-none ${q.correct_index===j?'ring-1 ring-green-500':''}">
+          </div>`).join('')}
+      </div>
+    </div>`).join('');
+}
+
+function _lgAddQuestion() {
+  window._lgQuestions.push({ question: '', opts: ['','','',''], correct_index: 0, time_seconds: 20 });
+  _renderLGQuestions();
+}
+
+async function _saveLGGame() {
+  const saToken = localStorage.getItem('ofl_sa_token');
+  const body = {
+    title: document.getElementById('lg-title').value.trim(),
+    business_name: document.getElementById('lg-biz').value.trim(),
+    prize: document.getElementById('lg-prize').value.trim(),
+    questions: window._lgQuestions
+  };
+  if (!body.title) return alert('יש להזין שם לאירוע');
+  const url = _lgEditId ? `/api/live-games/${_lgEditId}` : '/api/live-games';
+  const method = _lgEditId ? 'PUT' : 'POST';
+  const r = await fetch(url, { method, headers: { 'Content-Type':'application/json', Authorization: saToken }, body: JSON.stringify(body) });
+  const data = await r.json();
+  if (!data.success) return alert('שגיאה: ' + (data.error || 'לא ידועה'));
+  document.getElementById('lg-editor-modal')?.remove();
+  await _fetchLGList();
+  if (!_lgEditId && data.game) openLGControl(data.game.id, data.game.game_code);
+}
+
+function openLGControl(gameId, gameCode) {
+  const modal = document.createElement('div');
+  modal.id = 'lg-control-modal';
+  modal.className = 'fixed inset-0 bg-black/70 z-[200] flex items-center justify-center p-4';
+  const gameLink = `https://oneflowlife.co.il/game/${gameCode}`;
+  const waText = encodeURIComponent(`🏆 הצטרפו למשחק הטריוויה!\n${gameLink}`);
+  modal.innerHTML = `
+    <div class="bg-slate-800 rounded-2xl w-full max-w-lg shadow-2xl">
+      <div class="flex items-center justify-between p-5 border-b border-slate-700">
+        <h3 class="font-bold text-lg">ניהול משחק</h3>
+        <button onclick="document.getElementById('lg-control-modal').remove()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+      </div>
+      <div class="p-5 space-y-4">
+        <!-- Link & QR -->
+        <div class="bg-slate-700 rounded-xl p-4">
+          <div class="text-xs text-slate-400 mb-1">קישור למשחק</div>
+          <div class="font-mono text-indigo-400 text-sm break-all mb-3">${gameLink}</div>
+          <div class="flex gap-2">
+            <button onclick="navigator.clipboard.writeText('${gameLink}');this.textContent='✅ הועתק!';setTimeout(()=>this.textContent='העתק קישור',2000)"
+              class="flex-1 bg-slate-600 hover:bg-slate-500 text-white py-2 rounded-lg text-xs transition">העתק קישור</button>
+            <a href="https://wa.me/?text=${waText}" target="_blank"
+              class="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 rounded-lg text-xs text-center transition">שלח ב-WhatsApp</a>
+          </div>
+        </div>
+        <!-- Participants counter -->
+        <div class="bg-slate-700 rounded-xl p-4 text-center">
+          <div class="text-3xl font-bold text-indigo-400" id="lg-ctrl-count">-</div>
+          <div class="text-xs text-slate-400">משתתפים מחוברים</div>
+        </div>
+        <!-- Controls -->
+        <div class="grid grid-cols-2 gap-3">
+          <button onclick="_lgSetStatus(${gameId},'active')" class="bg-green-600 hover:bg-green-700 text-white py-3 rounded-xl text-sm font-bold transition">▶ התחל משחק</button>
+          <button onclick="_lgNextQuestion(${gameId})" class="bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-xl text-sm font-bold transition">שאלה הבאה ▶</button>
+          <button onclick="_lgSetStatus(${gameId},'ended')" class="bg-slate-600 hover:bg-slate-500 text-white py-3 rounded-xl text-sm font-bold transition">סיים משחק</button>
+          <button onclick="_lgSetStatus(${gameId},'disabled')" class="bg-red-700 hover:bg-red-800 text-white py-3 rounded-xl text-sm font-bold transition">כבה משחק</button>
+        </div>
+        <div id="lg-ctrl-msg" class="text-center text-xs text-slate-400"></div>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  // Poll participants
+  _lgControlPoll(gameId, gameCode);
+}
+
+let _lgCtrlPollInt = null;
+function _lgControlPoll(gameId, gameCode) {
+  clearInterval(_lgCtrlPollInt);
+  _lgCtrlPollInt = setInterval(async () => {
+    const r = await fetch(`/api/live-games/${gameCode}/state`).catch(()=>null);
+    if (!r) return;
+    const d = await r.json();
+    const el = document.getElementById('lg-ctrl-count');
+    if (el) el.textContent = d.participants_count || 0;
+    const msg = document.getElementById('lg-ctrl-msg');
+    if (msg) msg.textContent = `שאלה ${(d.current_question_index||0)+1} מתוך ${d.total_questions||0} · סטטוס: ${d.status}`;
+  }, 2000);
+  // Stop when modal closes
+  const obs = new MutationObserver(() => {
+    if (!document.getElementById('lg-control-modal')) { clearInterval(_lgCtrlPollInt); obs.disconnect(); }
+  });
+  obs.observe(document.body, { childList: true });
+}
+
+async function _lgSetStatus(gameId, status) {
+  const saToken = localStorage.getItem('ofl_sa_token');
+  const labels = { active:'מתחיל...', ended:'מסיים...', disabled:'מכבה...' };
+  const r = await fetch(`/api/live-games/${gameId}/status`, {
+    method: 'PUT', headers: { 'Content-Type':'application/json', Authorization: saToken },
+    body: JSON.stringify({ status })
+  });
+  const d = await r.json();
+  const msg = document.getElementById('lg-ctrl-msg');
+  if (msg) msg.textContent = d.success ? `✅ ${labels[status]||status}` : '❌ ' + d.error;
+}
+
+async function _lgNextQuestion(gameId) {
+  const saToken = localStorage.getItem('ofl_sa_token');
+  const r = await fetch(`/api/live-games/${gameId}/next-question`, {
+    method: 'POST', headers: { Authorization: saToken }
+  });
+  const d = await r.json();
+  const msg = document.getElementById('lg-ctrl-msg');
+  if (msg) msg.textContent = d.ended ? '🏁 המשחק הסתיים!' : d.success ? `✅ שאלה ${(d.current_question_index||0)+1}` : '❌ ' + d.error;
 }

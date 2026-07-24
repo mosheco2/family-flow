@@ -198,6 +198,9 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
             <button id="btn-sa-group-templates" onclick="switchSAGroup('templates')" class="hidden flex">
               <i class="fa-solid fa-layer-group" style="color:#10b981"></i> תבניות עסקים
             </button>
+            <button id="btn-sa-group-livegamesgrp" onclick="switchSAGroup('livegamesgrp')" class="hidden flex">
+              <i class="fa-solid fa-bolt" style="color:#fbbf24"></i> משחקים חיים
+            </button>
           </div>
           <div class="sb-footer">
             <button onclick="logoutSA()" class="sb-logout">
@@ -3178,6 +3181,13 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                 <div id="sa-feed-tab-content"></div>
               </div>
             </div><!-- /sa-view-feed -->
+
+            <!-- ══════════════════════════════════════════════════ -->
+            <!-- משחקים חיים view                                   -->
+            <!-- ══════════════════════════════════════════════════ -->
+            <div id="sa-view-livegames" class="hidden fade-in">
+              <!-- content rendered by loadSALiveGames() -->
+            </div><!-- /sa-view-livegames -->
 
             <!-- ══════════════════════════════════════════════════ -->
             <!-- תבניות עסקים view                                  -->
