@@ -1850,20 +1850,41 @@ function renderSAGroups() {
         }
 
         const gPlan = g.plan || (g.is_premium ? 'enterprise' : 'standard');
-        const planBadges = { standard: '<span class="bg-slate-100 text-slate-600 text-[9px] px-2 py-0.5 rounded-full font-bold ml-2 border border-slate-200">Standard</span>', premium: '<span class="bg-amber-100 text-amber-700 text-[9px] px-2 py-0.5 rounded-full font-bold ml-2 border border-amber-200">⭐ Premium</span>', enterprise: '<span class="bg-gradient-to-r from-indigo-500 to-purple-500 text-white text-[9px] px-2 py-0.5 rounded-full font-bold ml-2">Enterprise ♾️</span>' };
+        const planBadges = {
+            solo: '<span class="bg-slate-200 text-slate-700 text-[9px] px-2 py-0.5 rounded-full font-bold ml-2 border border-slate-300">Solo</span>',
+            member: '<span class="bg-violet-100 text-violet-700 text-[9px] px-2 py-0.5 rounded-full font-bold ml-2 border border-violet-200">Member 👨‍👩‍👧</span>',
+            standard: '<span class="bg-slate-100 text-slate-600 text-[9px] px-2 py-0.5 rounded-full font-bold ml-2 border border-slate-200">Standard</span>',
+            premium: '<span class="bg-amber-100 text-amber-700 text-[9px] px-2 py-0.5 rounded-full font-bold ml-2 border border-amber-200">⭐ Premium</span>',
+            enterprise: '<span class="bg-gradient-to-r from-indigo-500 to-purple-500 text-white text-[9px] px-2 py-0.5 rounded-full font-bold ml-2">Enterprise ♾️</span>'
+        };
         const isPro = planBadges[gPlan] || planBadges.standard;
         const aiTokens = gPlan === 'enterprise' ? '∞' : gPlan === 'premium' ? `${g.ai_tokens ?? 50}/50` : `${g.ai_tokens ?? 10}/10`;
         const planSelector = `<select onchange="saPlanChange(${g.id}, this.value)" class="text-[10px] border border-slate-200 rounded px-2 py-1 bg-white font-bold text-slate-700 cursor-pointer hover:border-indigo-400 transition">
+            <option value="solo" ${gPlan==='solo'?'selected':''}>Solo</option>
+            <option value="member" ${gPlan==='member'?'selected':''}>👨‍👩‍👧 Member</option>
             <option value="standard" ${gPlan==='standard'?'selected':''}>Standard — 10/יום</option>
             <option value="premium" ${gPlan==='premium'?'selected':''}>⭐ Premium — 50/יום</option>
             <option value="enterprise" ${gPlan==='enterprise'?'selected':''}>♾️ Enterprise — ללא הגבלה</option>
         </select>`;
+        // תג סטטוס חשבון
+        let accountStatusBadge = '';
+        if (g.account_status === 'pending_activation') {
+            accountStatusBadge = '<span class="bg-amber-100 text-amber-700 text-[9px] px-2 py-0.5 rounded-full font-bold ml-2 border border-amber-200 animate-pulse">⏳ ממתין לאישור</span>';
+        } else if (g.account_status === 'frozen') {
+            const frozenAt = g.frozen_at ? new Date(g.frozen_at) : null;
+            const daysLeft = frozenAt ? Math.max(0, 30 - Math.floor((Date.now() - frozenAt.getTime()) / 86400000)) : '?';
+            accountStatusBadge = `<span class="bg-blue-100 text-blue-700 text-[9px] px-2 py-0.5 rounded-full font-bold ml-2 border border-blue-200">❄️ מוקפא — ${daysLeft} ימים לארכיב</span>`;
+        } else if (g.account_status === 'archived') {
+            accountStatusBadge = '<span class="bg-gray-100 text-gray-500 text-[9px] px-2 py-0.5 rounded-full font-bold ml-2 border border-gray-200">📦 ארכיב</span>';
+        }
         const typeBadge = g.member_type === 'member' ? '<span class="bg-violet-100 text-violet-700 text-[10px] px-2 py-0.5 rounded-full font-bold ml-2 border border-violet-200"><i class="fa-solid fa-link mr-1"></i> חבר ONEFLOW</span>' : g.type === 'BUSINESS' ? '<span class="bg-blue-100 text-blue-700 text-[10px] px-2 py-0.5 rounded-full font-bold ml-2 border border-blue-200"><i class="fa-solid fa-briefcase mr-1"></i> עסק</span>' : '<span class="bg-emerald-100 text-emerald-700 text-[10px] px-2 py-0.5 rounded-full font-bold ml-2 border border-emerald-200"><i class="fa-solid fa-house mr-1"></i> משפחה</span>';
         const createdDate = g.created_at ? new Date(g.created_at).toLocaleDateString('he-IL') : 'לא ידוע';
 
         const adminUser = saAllUsers.find(u => u.group_id === g.id && u.role === 'ADMIN') || saAllUsers.find(u => u.group_id === g.id);
         const impersonateBtn = adminUser ? `<button onclick="impersonateGroup(${g.id}, ${adminUser.id})" class="bg-slate-800 text-white px-3 py-1 rounded text-[10px] font-bold hover:bg-slate-700 transition flex items-center gap-1 shadow-sm"><i class="fa-solid fa-user-secret"></i> כניסה לסביבה</button>` : '';
         const upgradeBtn = g.member_type === 'member' ? `<button onclick="saUpgradeToFamily(${g.id})" class="bg-violet-100 text-violet-700 px-3 py-1 rounded text-[10px] font-bold hover:bg-violet-200 transition"><i class="fa-solid fa-arrow-up-right-dots mr-1"></i> שדרג למשפחה</button>` : '';
+        const unfreezeBtn = g.account_status === 'frozen' ? `<button onclick="saUnfreezeGroup(${g.id})" class="bg-blue-100 text-blue-700 px-3 py-1 rounded text-[10px] font-bold hover:bg-blue-200 transition"><i class="fa-solid fa-snowflake mr-1"></i> בטל הקפאה</button>` : '';
+        const resendSoloBtn = g.account_status === 'pending_activation' ? `<button onclick="saResendSoloCredentials(${g.id})" class="bg-amber-100 text-amber-700 px-3 py-1 rounded text-[10px] font-bold hover:bg-amber-200 transition"><i class="fa-solid fa-paper-plane mr-1"></i> שלח פרטי כניסה שוב</button>` : '';
 
         gHtml += `
         <div class="${g.member_type === 'member' ? 'bg-violet-50 rounded-xl border-2 border-violet-300 mb-2 overflow-hidden shadow-sm' : 'bg-white rounded-xl border border-slate-200 mb-2 overflow-hidden shadow-sm'}">
@@ -1872,7 +1893,7 @@ function renderSAGroups() {
                 <div class="flex items-center">
                     <div class="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center ml-3"><i class="fa-solid ${g.type === 'BUSINESS' ? 'fa-building' : 'fa-users'}"></i></div>
                     <div>
-                        <h3 class="font-bold text-slate-800 text-sm flex items-center">${safeStr(fmtGroupName(g))} ${isPro} ${typeBadge}</h3>
+                        <h3 class="font-bold text-slate-800 text-sm flex items-center flex-wrap gap-1">${safeStr(fmtGroupName(g))} ${isPro} ${typeBadge} ${accountStatusBadge}</h3>
                         <p class="text-xs text-slate-500 font-mono tracking-widest mt-0.5">קוד: ${g.group_code} | ⚡ ${aiTokens} | <span class="font-sans text-[10px]">הוקם: ${createdDate}</span></p>
                     </div>
                 </div>
@@ -1884,6 +1905,8 @@ function renderSAGroups() {
                     <div class="flex gap-2">
                         ${impersonateBtn}
                         ${upgradeBtn}
+                        ${unfreezeBtn}
+                        ${resendSoloBtn}
                         <button onclick="openSAEditGroupModal(${g.id}, '${safeStr(fmtGroupName(g))}', '${safeStr(g.admin_email)}')" class="bg-blue-100 text-blue-700 px-3 py-1 rounded text-[10px] font-bold hover:bg-blue-200 transition"><i class="fa-solid fa-pen"></i> ערוך פרטים</button>
                         ${planSelector}
                         <button onclick="openSnapshotsModal(${g.id},'${safeStr(fmtGroupName(g))}')" class="bg-indigo-100 text-indigo-700 px-3 py-1 rounded text-[10px] font-bold hover:bg-indigo-200 transition"><i class="fa-solid fa-clock-rotate-left"></i> גיבויים</button>
@@ -1947,6 +1970,23 @@ async function saInlineSaveModules(groupId) {
 
 // Placeholder for onChange - save button handles actual save
 function saInlineToggleModule(groupId) { /* visual only - click שמור to save */ }
+
+async function saUnfreezeGroup(groupId) {
+    if (!confirm('לבטל הקפאה של חשבון זה? החשבון יחזור לסטטוס active.')) return;
+    try {
+        const res = await fetch(`${API}/sa/groups/${groupId}/unfreeze`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ saToken: localStorage.getItem('ofl_sa_token') }) });
+        const data = await res.json();
+        if (data.success) { showToast('success', 'הקפאה בוטלה בהצלחה'); await loadSAData(); }
+        else showToast('error', data.error || 'שגיאה בביטול הקפאה');
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+}
+
+async function saResendSoloCredentials(groupId) {
+    const g = saAllGroups.find(x => x.id === groupId);
+    if (!g) return;
+    const pwd = g.solo_temp_password || '****';
+    showToast('info', `קוד: ${g.group_code} | סיסמה זמנית: ${pwd} — העתק ושלח ללקוח`);
+}
 
 async function saUpgradeToFamily(groupId) {
     if (!confirm('לשדרג סביבה זו מ"חבר ONEFLOW" למשפחה רגילה?\nהפעולה תשנה את סוג הגישה של החשבון.')) return;
@@ -2197,7 +2237,7 @@ async function saTogglePremium(id, enable) {
 }
 
 async function saPlanChange(id, plan) {
-    const labels = { standard: 'Standard', premium: 'Premium', enterprise: 'Enterprise' };
+    const labels = { solo: 'Solo', member: 'Member', standard: 'Standard', premium: 'Premium', enterprise: 'Enterprise' };
     if (!confirm(`לשנות רמת רישוי ל-${labels[plan] || plan}?`)) { renderSAGroups(); return; }
     try {
         const res = await fetch(`${API}/superadmin/groups/${id}/plan`, {
@@ -2207,8 +2247,8 @@ async function saPlanChange(id, plan) {
         const data = await res.json();
         if (data.success) {
             const g = saAllGroups.find(x => x.id === id);
-            if (g) { g.plan = plan; g.is_premium = plan === 'enterprise'; }
-            showToast('success', `רמת רישוי שונתה ל-${labels[plan]}!`);
+            if (g) { g.plan = plan; g.is_premium = plan === 'enterprise'; if (plan === 'member') g.member_type = 'member'; }
+            showToast('success', `רמת רישוי שונתה ל-${labels[plan] || plan}!`);
             renderSAGroups();
         } else showToast('error', data.error || 'שגיאה בעדכון');
     } catch (e) { showToast('error', 'שגיאת רשת'); }
