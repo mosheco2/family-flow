@@ -1598,6 +1598,8 @@ async function loadDashboard() {
     } finally {
         const preloader = getEl('app-preloader');
         const finalizeLoad = async () => {
+            // בדיקת חשבון SOLO ממתין לאישור
+            if (currentGroup?.account_status === 'pending_activation' && currentUser?.role === 'ADMIN') { showSoloActivationModal(); return; }
             // בדוק אם משתמש חבר חייב לשנות סיסמה בכניסה ראשונה
             if (currentUser?.must_change_password) { showForcePasswordChange(); return; }
             const showedWelcome = await checkGlobalWelcome(); if (!showedWelcome) { checkAndStartTour(forceTourStart); forceTourStart = false; }
@@ -1626,6 +1628,73 @@ async function checkGlobalWelcome() {
     } catch(e) {}
     return false;
 }
+
+function showSoloActivationModal() {
+    const existing = document.getElementById('solo-activation-overlay');
+    if (existing) existing.remove();
+    const bizName = currentGroup?.created_by_business_name || 'העסק';
+    const el = document.createElement('div');
+    el.id = 'solo-activation-overlay';
+    el.style.cssText = 'position:fixed;inset:0;z-index:99999;background:#0f172a;overflow-y:auto;padding:20px;direction:rtl;';
+    el.innerHTML = `
+        <div style="background:white;border-radius:24px;padding:28px 24px;width:100%;max-width:380px;text-align:right;margin:40px auto;">
+            <div style="text-align:center;margin-bottom:20px;">
+                <div style="font-size:48px;margin-bottom:8px;">🎉</div>
+                <div style="font-size:19px;font-weight:900;color:#1e293b;">ברוך הבא ל-ONEFLOW LIFE!</div>
+                <div style="font-size:13px;color:#64748b;margin-top:8px;line-height:1.5;">${safeStr(bizName)} פתחו עבורך חשבון SOLO אישי.<br>כדי להפעיל את החשבון, הגדר סיסמה חדשה.</div>
+            </div>
+            <div id="solo-act-error" style="display:none;background:#fef2f2;border:1px solid #fca5a5;border-radius:12px;padding:10px 14px;font-size:12px;color:#dc2626;margin-bottom:12px;"></div>
+            <div style="background:#f8fafc;border-radius:16px;padding:16px;margin-bottom:16px;">
+                <div style="font-size:11px;font-weight:800;color:#7c3aed;margin-bottom:12px;">🔒 הגדרת סיסמה אישית</div>
+                <div style="margin-bottom:12px;">
+                    <label style="font-size:11px;font-weight:700;color:#475569;display:block;margin-bottom:6px;">סיסמה חדשה (לפחות 4 תווים)</label>
+                    <input id="solo-act-pw1" type="password" placeholder="הקלד סיסמה..." style="width:100%;border:1.5px solid #e2e8f0;border-radius:12px;padding:12px 14px;font-size:14px;outline:none;box-sizing:border-box;" />
+                </div>
+                <div>
+                    <label style="font-size:11px;font-weight:700;color:#475569;display:block;margin-bottom:6px;">אימות סיסמה</label>
+                    <input id="solo-act-pw2" type="password" placeholder="הקלד שוב..." style="width:100%;border:1.5px solid #e2e8f0;border-radius:12px;padding:12px 14px;font-size:14px;outline:none;box-sizing:border-box;" />
+                </div>
+            </div>
+            <div style="background:#eff6ff;border-radius:16px;padding:14px;margin-bottom:20px;font-size:12px;color:#1e40af;line-height:1.5;">
+                💡 לאחר האישור תוכל להשתמש בכל תכונות ONEFLOW LIFE כגון ניהול משפחה, מטבעות, ועוד.
+            </div>
+            <button onclick="window._submitSoloActivation()" style="width:100%;background:linear-gradient(135deg,#7c3aed,#4f46e5);color:white;border:none;border-radius:14px;padding:14px;font-size:15px;font-weight:900;cursor:pointer;">הפעל את החשבון שלי ✅</button>
+        </div>`;
+    document.body.appendChild(el);
+    document.getElementById('solo-act-pw1')?.focus();
+}
+
+window._submitSoloActivation = async function() {
+    const pw1 = (document.getElementById('solo-act-pw1')?.value || '').trim();
+    const pw2 = (document.getElementById('solo-act-pw2')?.value || '').trim();
+    const errEl = document.getElementById('solo-act-error');
+    const showErr = msg => { if(errEl) { errEl.textContent = msg; errEl.style.display = 'block'; } };
+    if (!pw1 || pw1.length < 4) { showErr('סיסמה חייבת להכיל לפחות 4 תווים'); return; }
+    if (pw1 !== pw2) { showErr('הסיסמאות אינן תואמות'); return; }
+    if (errEl) errEl.style.display = 'none';
+    const btn = document.querySelector('#solo-activation-overlay button');
+    if (btn) { btn.disabled = true; btn.textContent = 'מפעיל...'; }
+    try {
+        const r = await fetch('/api/solo/activate', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ groupId: currentGroup.id, userId: currentUser.id, newPassword: pw1 })
+        }).then(x => x.json());
+        if (r.success) {
+            currentGroup.account_status = 'active';
+            const s = JSON.parse(localStorage.getItem('ofl_session') || '{}');
+            if (s.group) { s.group.account_status = 'active'; saveSession(s.user, s.group); }
+            document.getElementById('solo-activation-overlay')?.remove();
+            showToast('success', 'החשבון הופעל בהצלחה! ברוך הבא 🎉');
+            try { await checkGlobalWelcome(); } catch(e) {}
+        } else {
+            showErr(r.error || 'שגיאה בהפעלת החשבון');
+            if (btn) { btn.disabled = false; btn.textContent = 'הפעל את החשבון שלי ✅'; }
+        }
+    } catch(e) {
+        showErr('שגיאת תקשורת — נסה שוב');
+        if (btn) { btn.disabled = false; btn.textContent = 'הפעל את החשבון שלי ✅'; }
+    }
+};
 
 function showForcePasswordChange() {
     const existing = document.getElementById('force-pw-overlay');

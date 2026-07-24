@@ -1810,7 +1810,7 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
 // אישור חשבון SOLO בכניסה ראשונה (שינוי סיסמה + activation)
 app.post('/api/solo/activate', async (req, res) => {
     const { groupId, userId, newPassword } = req.body;
-    if (!groupId || !userId || !newPassword || newPassword.length < 6)
+    if (!groupId || !userId || !newPassword || newPassword.length < 4)
         return res.status(400).json({ error: 'נתונים חסרים או סיסמה קצרה מדי' });
     try {
         await pool.query(
