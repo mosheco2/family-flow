@@ -328,6 +328,10 @@ pool.connect()
       console.log('✅ Connected to DB (Pool)');
       
       try { await client.query('ALTER TABLE transactions ADD COLUMN IF NOT EXISTS is_recurring BOOLEAN DEFAULT FALSE'); } catch(e) {}
+      try { await client.query('ALTER TABLE tasks ADD COLUMN IF NOT EXISTS is_recurring BOOLEAN DEFAULT FALSE'); } catch(e) {}
+      try { await client.query("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS recurring_days TEXT DEFAULT ''"); } catch(e) {}
+      try { await client.query('ALTER TABLE tasks ADD COLUMN IF NOT EXISTS last_completed_at TIMESTAMP'); } catch(e) {}
+      try { await client.query('ALTER TABLE tasks ADD COLUMN IF NOT EXISTS created_by INT REFERENCES users(id)'); } catch(e) {}
       try { await client.query(`ALTER TABLE game_assignments ADD COLUMN IF NOT EXISTS start_level INTEGER DEFAULT 1`); } catch(e) {}
       try { await client.query(`ALTER TABLE game_assignments ADD COLUMN IF NOT EXISTS finance_age INT DEFAULT NULL`); } catch(e) {}
 try { await client.query(`ALTER TABLE game_assignments ADD COLUMN IF NOT EXISTS level_progress JSONB DEFAULT '{}'`); } catch(e) {}
@@ -5824,10 +5828,15 @@ app.post('/api/admin/payday', async (req, res) => {
 
 app.post('/api/tasks', async (req, res) => {
     try {
-        const { title, reward, assignedTo, days, status, groupId, requireAiCheck } = req.body;
-        const deadline = days ? new Date(Date.now() + days * 24 * 60 * 60 * 1000) : null;
+        const { title, reward, assignedTo, days, status, groupId, requireAiCheck, isRecurring, recurringDays, createdBy } = req.body;
+        const deadline = (!isRecurring && days) ? new Date(Date.now() + days * 24 * 60 * 60 * 1000) : null;
         const aiCheck = requireAiCheck !== undefined ? requireAiCheck : true;
-        await pool.query('INSERT INTO tasks (group_id, title, reward, assigned_to, deadline, status, require_ai_check) VALUES ($1, $2, $3, $4, $5, $6, $7)', [groupId, title, parseFloat(reward)||0, assignedTo, deadline, status, aiCheck]);
+        const recurring = !!isRecurring;
+        const rDays = recurring ? (recurringDays || '') : '';
+        await pool.query(
+            'INSERT INTO tasks (group_id, title, reward, assigned_to, deadline, status, require_ai_check, is_recurring, recurring_days, created_by) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)',
+            [groupId, title, parseFloat(reward)||0, assignedTo, deadline, status, aiCheck, recurring, rDays, createdBy || null]
+        );
         await logActivity(groupId, assignedTo || null, null, 'task', 'task_created', `משימה חדשה: ${title}`);
         res.json({success:true});
     } catch(e) { res.status(500).json({error: e.message}); }
@@ -5838,6 +5847,12 @@ app.post('/api/tasks/update', async (req, res) => {
         const { taskId, status, finalReward } = req.body;
         const tRes = await pool.query('SELECT * FROM tasks WHERE id=$1', [taskId]);
         const t = tRes.rows[0]; const rew = finalReward !== undefined ? (parseFloat(finalReward)||0) : (parseFloat(t.reward)||0);
+        // משימה חוזרת שסומנה כ"בוצע" — רק מעדכן last_completed_at, לא משנה סטטוס
+        if (t.is_recurring && status === 'done') {
+            await pool.query('UPDATE tasks SET last_completed_at=NOW() WHERE id=$1', [taskId]);
+            await logActivity(t.group_id, t.assigned_to, null, 'task', 'task_done', `משימה חוזרת בוצעה: ${t.title}`);
+            return res.json({success:true, recurring:true});
+        }
         await pool.query('BEGIN');
         await pool.query('UPDATE tasks SET status=$1, reward=$2 WHERE id=$3', [status, rew, taskId]);
         if (status === 'approved') {

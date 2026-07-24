@@ -1569,7 +1569,7 @@ async function loadDashboard() {
         const profileUp = getEl('profile-upgrade-section');
         if (profileUp && currentGroup && currentGroup.is_premium) { profileUp.innerHTML = '<p class="text-sm font-bold text-green-600 text-center py-2 flex items-center justify-center gap-2"><i class="fa-solid fa-check-circle"></i> החשבון שלכם משודרג ל-Pro</p>'; }
     } else {
-        ['btn-self-task','bank-child-view','academy-user-view'].forEach(id => { const el=getEl(id); if(el) el.classList.remove('hidden'); });
+        ['btn-self-task','btn-child-add-task','bank-child-view','academy-user-view'].forEach(id => { const el=getEl(id); if(el) el.classList.remove('hidden'); });
         setTimeout(loadChildFlwWallet, 500);
         const profileUp = getEl('profile-upgrade-section'); if(profileUp) profileUp.classList.add('hidden');
         getEl('card-name').innerText = (currentUser.nickname || '').toUpperCase(); getEl('card-allowance').innerText = `₪${currentUser.allowance_amount || 0}`; getEl('card-interest').innerText = `${currentUser.interest_rate || 0}%`;
@@ -2028,24 +2028,40 @@ function setTaskMode(mode) {
 
 function closeTaskModal() { getEl('task-modal').classList.add('hidden'); }
 
+function setTaskType(type) {
+    const isRecurring = type === 'recurring';
+    getEl('btn-task-type-once').className = 'flex-1 py-1.5 rounded-lg text-xs font-bold transition ' + (isRecurring ? 'text-slate-500 hover:text-blue-600' : 'bg-white text-blue-600 shadow-sm');
+    getEl('btn-task-type-recurring').className = 'flex-1 py-1.5 rounded-lg text-xs font-bold transition ' + (isRecurring ? 'bg-white text-indigo-600 shadow-sm' : 'text-slate-500 hover:text-indigo-600');
+    getEl('task-once-settings').classList.toggle('hidden', isRecurring);
+    getEl('task-recurring-settings').classList.toggle('hidden', !isRecurring);
+}
+
 function openTaskModal(isSelf = false) {
     getEl('task-modal').classList.remove('hidden'); getEl('task-is-self').value = isSelf;
     getEl('task-days').value = ''; getEl('task-title').value = ''; getEl('task-reward').value = ''; getEl('ai-task-topic').value = ''; getEl('ai-task-results').classList.add('hidden');
     const aiCheckEl = getEl('task-require-ai-check'); if (aiCheckEl) aiCheckEl.value = 'true';
     const knob = getEl('ai-check-knob');
     if (knob) { knob.classList.remove('translate-x-1'); knob.classList.add('translate-x-6'); }
-    setTaskMode('manual'); const toggles = getEl('task-mode-toggles'); const assigneeContainer = getEl('task-assignee-container'); const rewardInput = getEl('task-reward'); const assigneeSelect = getEl('task-assignee');
+    // איפוס ימים
+    document.querySelectorAll('.task-day-cb').forEach(cb => cb.checked = false);
+    setTaskType('once');
+    setTaskMode('manual');
+    const toggles = getEl('task-mode-toggles'); const assigneeContainer = getEl('task-assignee-container'); const rewardInput = getEl('task-reward'); const assigneeSelect = getEl('task-assignee');
 
-    if(isSelf) { 
-        getEl('task-modal-title').innerText = 'מעשה טוב'; toggles.classList.add('hidden'); assigneeContainer.classList.add('hidden'); rewardInput.placeholder = 'כמה מגיע לי? (₪)'; 
-    } else { 
-        getEl('task-modal-title').innerText = 'יצירת משימה'; toggles.classList.remove('hidden'); assigneeContainer.classList.remove('hidden'); rewardInput.placeholder = 'תגמול (₪)';
+    if(isSelf) {
+        getEl('task-modal-title').innerText = 'מעשה טוב'; toggles.classList.add('hidden'); assigneeContainer.classList.add('hidden'); rewardInput.placeholder = 'כמה מגיע לי? (₪)';
+    } else {
+        getEl('task-modal-title').innerText = 'משימה חדשה'; toggles.classList.remove('hidden'); assigneeContainer.classList.remove('hidden'); rewardInput.placeholder = 'תגמול בונוס (₪) - אופציונלי';
         if(membersCache) {
-            assigneeSelect.innerHTML = '<option value="" disabled selected>בחרו ילד/ה...</option>'; let hasChildren = false;
-            membersCache.forEach(m => { if (m.role !== 'ADMIN') { assigneeSelect.innerHTML += `<option value="${m.id}">${safeStr(fmtUserName(m) || m.nickname)}</option>`; hasChildren = true; } });
-            if (!hasChildren) assigneeSelect.innerHTML = '<option value="" disabled selected>אין ילדים רשומים</option>';
+            // "אני" תמיד ראשון + כל שאר חברי המשפחה
+            assigneeSelect.innerHTML = `<option value="${currentUser.id}">👤 אני (${safeStr(fmtUserName(currentUser) || currentUser.nickname)})</option>`;
+            membersCache.forEach(m => {
+                if (String(m.id) !== String(currentUser.id)) {
+                    assigneeSelect.innerHTML += `<option value="${m.id}">${safeStr(fmtUserName(m) || m.nickname)}</option>`;
+                }
+            });
         }
-    } 
+    }
 }
 
 async function generateAITasks() {
@@ -2091,15 +2107,26 @@ function toggleAiCheck() {
 }
 
 async function submitTask() {
-    const isSelf = val('task-is-self') === 'true'; const assignee = isSelf ? currentUser.id : val('task-assignee'); const reward = val('task-reward'); const title = val('task-title'); const days = val('task-days');
+    const isSelf = val('task-is-self') === 'true';
+    const assignee = isSelf ? currentUser.id : val('task-assignee');
+    const reward = val('task-reward'); const title = val('task-title'); const days = val('task-days');
     const requireAiCheck = getEl('task-require-ai-check') ? getEl('task-require-ai-check').value === 'true' : true;
-    if(!isSelf && !assignee) return showToast('error', 'יש לבחור ילד למשימה'); if(!title) return showToast('error', 'יש לכתוב מה לעשות במשימה');
+    const isRecurring = !isSelf && getEl('btn-task-type-recurring')?.classList.contains('bg-white');
+    const recurringDays = isRecurring ? [...document.querySelectorAll('.task-day-cb:checked')].map(cb => cb.value).join(',') : '';
+    if(!isSelf && !assignee) return showToast('error', 'יש לבחור עבור מי המשימה');
+    if(!title) return showToast('error', 'יש לכתוב מה לעשות במשימה');
+    if(isRecurring && !recurringDays) return showToast('error', 'יש לסמן לפחות יום אחד לרוטינה');
     const btn = getEl('btn-submit-task'); if (btn) { btn.disabled = true; btn.innerText = 'שומר...'; }
     const statusToSend = isSelf ? 'done' : 'pending';
     try {
-        const res = await fetch(`${API}/tasks`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ title: title, reward: reward || 0, assignedTo: assignee, days: days, status: statusToSend, groupId: currentGroup.id, requireAiCheck }) });
+        const res = await fetch(`${API}/tasks`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ title, reward: reward || 0, assignedTo: assignee, days, status: statusToSend, groupId: currentGroup.id, requireAiCheck, isRecurring, recurringDays, createdBy: currentUser.id }) });
         const data = await res.json();
-        if(data.success) { if(isSelf) triggerConfetti(); closeTaskModal(); showToast('success', isSelf ? 'נשלח לאישור ההורה!' : 'משימה נוצרה בהצלחה!'); fetchData(); } else showToast('error', data.error || 'שגיאה ביצירת משימה');
+        if(data.success) {
+            if(isSelf) triggerConfetti();
+            closeTaskModal();
+            const msg = isSelf ? 'נשלח לאישור ההורה!' : isRecurring ? 'רוטינה נוספה בהצלחה! 🔁' : 'משימה נוצרה בהצלחה!';
+            showToast('success', msg); fetchData();
+        } else showToast('error', data.error || 'שגיאה ביצירת משימה');
     } catch(e) { showToast('error', 'שגיאת תקשורת'); } finally { if (btn) { btn.disabled = false; btn.innerText = 'צור משימה'; } }
 }
 
@@ -2453,19 +2480,80 @@ async function submitTaskApproval() {
 }
 
 function renderTasks(tasks) {
+    const DAY_NAMES = ['א','ב','ג','ד','ה','ו','ש'];
+    const todayDay = new Date().getDay(); // 0=Sun
+    const todayMidnight = new Date(); todayMidnight.setHours(0,0,0,0);
+
     const list = getEl('tasks-list'); if(!list) return; let htmlStr = ''; let count = 0;
     tasks.forEach(t => {
-        const isMyTask = String(t.assigned_to) === String(currentUser.id); const isAdmin = currentUser.role === 'ADMIN'; if (!isMyTask && !isAdmin) return; count++;
+        const isMyTask = String(t.assigned_to) === String(currentUser.id);
+        const isAdmin = currentUser.role === 'ADMIN';
+        if (!isMyTask && !isAdmin) return;
+
+        // רוטינה: בדיקה אם היום הוא יום פעיל + אם לא בוצעה היום
+        let recurringBadge = ''; let recurringDoneToday = false;
+        if (t.is_recurring) {
+            const days = (t.recurring_days || '').split(',').filter(Boolean).map(Number);
+            const isActiveDay = days.includes(todayDay);
+            const lastDone = t.last_completed_at ? new Date(t.last_completed_at) : null;
+            recurringDoneToday = lastDone && lastDone >= todayMidnight;
+            const dayLabels = days.map(d => DAY_NAMES[d]).join(' ');
+            recurringBadge = `<span class="text-[9px] bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded-full font-bold ml-1">🔁 ${dayLabels}</span>`;
+            // הסתרת רוטינה אם היום לא יום פעיל ולא בוצעה היום (לא מוסתרים — מוצגות תמיד, רק badge שינוי)
+            if (!isActiveDay && !recurringDoneToday) {
+                recurringBadge += `<span class="text-[9px] bg-slate-100 text-slate-400 px-1.5 py-0.5 rounded-full font-bold ml-1">לא היום</span>`;
+            }
+        }
+
+        count++;
         let statusColor = 'bg-white border-slate-50'; let statusBadge = ''; let actionBtn = '';
-        if (t.status === 'pending') { if (isMyTask) { actionBtn = `<button onclick="clickTaskProof(${t.id}, '${safeStr(t.title)}')" class="bg-blue-600 text-white px-3 py-1.5 rounded-xl text-xs font-bold shadow-md hover:bg-blue-700 transition flex items-center gap-1"><i class="fa-solid fa-camera"></i> סיימתי</button>`; } else { statusBadge = `<span class="text-[10px] bg-slate-100 text-slate-500 px-2 py-1 rounded-lg">ממתין לילד</span>`; } } 
-        else if (t.status === 'done') { statusColor = 'bg-yellow-50 border-yellow-100'; if (isAdmin) { actionBtn = `<button onclick="openApproveTaskModal(${t.id}, '${safeStr(t.title)}', ${t.reward})" class="bg-green-500 text-white px-4 py-1.5 rounded-xl text-xs font-bold shadow-md">אשר ושלם</button>`; } else { statusBadge = `<span class="text-xs text-orange-500 font-bold bg-orange-50 px-2 py-1 rounded-lg">בבדיקה</span>`; } } 
-        else if (t.status === 'approved') { statusColor = 'bg-green-50 border-green-100'; statusBadge = `<span class="text-xs text-green-600 font-bold"><i class="fa-solid fa-check"></i> בוצע</span>`; }
+
+        if (t.is_recurring) {
+            if (recurringDoneToday) {
+                statusColor = 'bg-green-50 border-green-100';
+                statusBadge = `<span class="text-xs text-green-600 font-bold"><i class="fa-solid fa-check"></i> בוצע היום</span>`;
+            } else if (isMyTask) {
+                const days = (t.recurring_days || '').split(',').filter(Boolean).map(Number);
+                if (days.includes(todayDay)) {
+                    actionBtn = `<button onclick="updateTask(${t.id},'done')" class="bg-blue-600 text-white px-3 py-1.5 rounded-xl text-xs font-bold shadow-md hover:bg-blue-700 transition">✓ סיימתי</button>`;
+                }
+            } else if (isAdmin) {
+                statusBadge = `<span class="text-[10px] bg-slate-100 text-slate-500 px-2 py-1 rounded-lg">פעיל</span>`;
+            }
+        } else {
+            if (t.status === 'pending') {
+                if (isMyTask) { actionBtn = `<button onclick="clickTaskProof(${t.id}, '${safeStr(t.title)}')" class="bg-blue-600 text-white px-3 py-1.5 rounded-xl text-xs font-bold shadow-md hover:bg-blue-700 transition flex items-center gap-1"><i class="fa-solid fa-camera"></i> סיימתי</button>`; }
+                else { statusBadge = `<span class="text-[10px] bg-slate-100 text-slate-500 px-2 py-1 rounded-lg">ממתין</span>`; }
+            } else if (t.status === 'done') {
+                statusColor = 'bg-yellow-50 border-yellow-100';
+                if (isAdmin) { actionBtn = `<button onclick="openApproveTaskModal(${t.id}, '${safeStr(t.title)}', ${t.reward})" class="bg-green-500 text-white px-4 py-1.5 rounded-xl text-xs font-bold shadow-md">אשר ושלם</button>`; }
+                else { statusBadge = `<span class="text-xs text-orange-500 font-bold bg-orange-50 px-2 py-1 rounded-lg">בבדיקה</span>`; }
+            } else if (t.status === 'approved') {
+                statusColor = 'bg-green-50 border-green-100';
+                statusBadge = `<span class="text-xs text-green-600 font-bold"><i class="fa-solid fa-check"></i> בוצע</span>`;
+            }
+        }
+
         const rewardDisplay = t.reward > 0 ? `<span class="text-xs font-bold text-blue-600 bg-blue-50 px-1.5 rounded">₪${t.reward}</span>` : `<span class="text-[10px] font-bold text-gray-500 bg-gray-100 px-1.5 rounded">אישי</span>`;
-        let deadlineBadge = ''; if (t.deadline && t.status === 'pending') { const diff = Math.ceil((new Date(t.deadline) - new Date()) / (1000 * 60 * 60 * 24)); if (diff > 0) deadlineBadge = `<span class="text-orange-500 bg-orange-50 px-1.5 py-0.5 rounded text-[9px] ml-2 font-bold"><i class="fa-regular fa-clock"></i> עוד ${diff} ימ'</span>`; else deadlineBadge = `<span class="text-red-500 bg-red-50 px-1.5 py-0.5 rounded text-[9px] ml-2 font-bold"><i class="fa-regular fa-clock"></i> פג תוקף!</span>`; }
-        const dateStr = t.created_at ? new Date(t.created_at).toLocaleDateString('he-IL') : ''; const dateBadge = dateStr ? `<span class="text-[9px] text-slate-400 mr-2"><i class="fa-regular fa-calendar"></i> ${dateStr}</span>` : '';
-        htmlStr += `<div class="card-modern p-4 flex justify-between items-center mb-2 rounded-2xl border shadow-sm ${statusColor}"><div><p class="font-bold text-slate-800">${safeStr(t.title)} ${deadlineBadge}</p><div class="flex items-center gap-2 mt-1"><span class="text-xs text-slate-500">${safeStr(t.assignee_name)}</span>${rewardDisplay}${dateBadge}</div></div><div class="flex flex-col items-end gap-1">${actionBtn}${statusBadge}</div></div>`;
+        let deadlineBadge = '';
+        if (!t.is_recurring && t.deadline && t.status === 'pending') {
+            const diff = Math.ceil((new Date(t.deadline) - new Date()) / (1000*60*60*24));
+            deadlineBadge = diff > 0 ? `<span class="text-orange-500 bg-orange-50 px-1.5 py-0.5 rounded text-[9px] ml-2 font-bold"><i class="fa-regular fa-clock"></i> עוד ${diff} ימ'</span>` : `<span class="text-red-500 bg-red-50 px-1.5 py-0.5 rounded text-[9px] ml-2 font-bold"><i class="fa-regular fa-clock"></i> פג תוקף!</span>`;
+        }
+        const dateStr = t.created_at ? new Date(t.created_at).toLocaleDateString('he-IL') : '';
+        const dateBadge = dateStr ? `<span class="text-[9px] text-slate-400 mr-2"><i class="fa-regular fa-calendar"></i> ${dateStr}</span>` : '';
+        const assigneeBadge = isAdmin && t.assignee_name ? `<span class="text-xs text-slate-500">${safeStr(t.assignee_name)}</span>` : '';
+
+        htmlStr += `<div class="card-modern p-4 flex justify-between items-center mb-2 rounded-2xl border shadow-sm ${statusColor}">
+            <div class="flex-1 min-w-0 ml-2">
+                <p class="font-bold text-slate-800">${safeStr(t.title)} ${deadlineBadge}</p>
+                <div class="flex items-center flex-wrap gap-1 mt-1">${assigneeBadge}${rewardDisplay}${recurringBadge}${dateBadge}</div>
+            </div>
+            <div class="flex flex-col items-end gap-1 shrink-0">${actionBtn}${statusBadge}</div>
+        </div>`;
     });
-    if (count === 0) list.innerHTML = '<div class="text-center py-8 text-slate-400 text-sm">אין משימות פתוחות</div>'; else list.innerHTML = htmlStr;
+    if (count === 0) list.innerHTML = '<div class="text-center py-8 text-slate-400 text-sm">אין משימות פתוחות</div>';
+    else list.innerHTML = htmlStr;
 }
 
 async function updateTask(id, s) { if(s==='done' || s==='completed_self') triggerConfetti(); await fetch(`${API}/tasks/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({taskId:id, status:s})}); fetchData(); }
