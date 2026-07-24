@@ -22718,7 +22718,6 @@ app.get('/api/kids/assignments/:childId', async (req, res) => {
       JOIN games_catalog g ON g.id = ga.game_id
       WHERE ga.child_user_id = $1
         AND ga.status = 'active'
-        AND (ga.expires_at IS NULL OR ga.expires_at > NOW())
       ORDER BY ga.assigned_at DESC
     `, [req.params.childId]);
 
@@ -22869,7 +22868,7 @@ app.post('/api/kids/quests', async (req, res) => {
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// קווסטים פעילים לילד
+// קווסטים פעילים לילד (כולל פגי תוקף לארכיון)
 app.get('/api/kids/quests/:childId', async (req, res) => {
   try {
     const quests = await pool.query(`
@@ -22878,7 +22877,6 @@ app.get('/api/kids/quests/:childId', async (req, res) => {
       LEFT JOIN kid_quest_questions qq ON qq.quest_id = q.id
       WHERE q.child_user_id = $1
         AND q.status = 'active'
-        AND (q.due_date IS NULL OR q.due_date > NOW())
       GROUP BY q.id
       ORDER BY q.created_at DESC
     `, [req.params.childId]);

@@ -2421,21 +2421,50 @@ async function movePantryToCart(pantryId, itemName, unit) { await fetch(`${API}/
 function renderChildTodo() {
     const todoSection = getEl('child-todo-section'); const todoList = getEl('child-todo-list');
     if (!todoSection || !todoList) return; if (currentUser.role === 'ADMIN') { todoSection.classList.add('hidden'); return; }
-    let hasItems = false; let htmlStr = '';
-    const myTasks = allTasks.filter(t => String(t.assigned_to) === String(currentUser.id) && t.status === 'pending');
-    myTasks.forEach(t => {
-        hasItems = true; let dMsg = ''; if (t.deadline) { const diff = Math.ceil((new Date(t.deadline) - new Date()) / (1000 * 60 * 60 * 24)); dMsg = diff > 0 ? ` • <span class="text-orange-500">עוד ${diff} ימים</span>` : ` • <span class="text-red-500">פג תוקף!</span>`; }
-        const dateStr = t.created_at ? new Date(t.created_at).toLocaleDateString('he-IL') : '';
-        htmlStr += `<div class="bg-white p-3 rounded-2xl border border-blue-100 shadow-sm flex justify-between items-center cursor-pointer hover:bg-blue-50 transition mb-2" onclick="switchTab('tasks')"><div class="flex items-center gap-3"><div class="w-10 h-10 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center"><i class="fa-solid fa-list-check"></i></div><div><h4 class="font-bold text-slate-800 text-sm">${safeStr(t.title)}</h4><p class="text-[10px] text-slate-500"><i class="fa-regular fa-calendar"></i> ${dateStr} • משימה • תגמול: ₪${t.reward}${dMsg}</p></div></div><i class="fa-solid fa-chevron-left text-slate-300"></i></div>`;
+    const now = Date.now(); const oneDayMs = 24 * 60 * 60 * 1000;
+    let allItems = [];
+    // Tasks
+    allTasks.filter(t => String(t.assigned_to) === String(currentUser.id) && t.status === 'pending').forEach(t => {
+        const expiry = t.deadline ? new Date(t.deadline).getTime() : null;
+        allItems.push({ type: 'task', title: t.title, expiry, assignDate: t.created_at ? new Date(t.created_at).getTime() : 0, reward: t.reward, rewardUnit: '₪' });
     });
-    const myQuizzes = bundlesCache.filter(b => b.status === 'assigned');
-    myQuizzes.forEach(b => {
-        hasItems = true; const reward = (b.custom_reward !== null && b.custom_reward !== undefined) ? b.custom_reward : b.default_reward; let deadlineMsg = "";
-        if (b.deadline) { const diff = Math.ceil((new Date(b.deadline) - new Date()) / (1000 * 60 * 60 * 24)); deadlineMsg = diff > 0 ? ` • <span class="text-orange-500">עוד ${diff} ימים</span>` : ` • <span class="text-red-500">פג תוקף!</span>`; }
-        const dateStr = b.assigned_at ? new Date(b.assigned_at).toLocaleDateString('he-IL') : '';
-        htmlStr += `<div class="bg-white p-3 rounded-2xl border border-purple-100 shadow-sm flex justify-between items-center cursor-pointer hover:bg-purple-50 transition mb-2" onclick="switchTab('academy')"><div class="flex items-center gap-3"><div class="w-10 h-10 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center"><i class="fa-solid fa-graduation-cap"></i></div><div><h4 class="font-bold text-slate-800 text-sm">${safeStr(b.title)}</h4><p class="text-[10px] text-slate-500"><i class="fa-regular fa-calendar"></i> ${dateStr} • אתגר לימודי • תגמול: ₪${reward}${deadlineMsg}</p></div></div><i class="fa-solid fa-chevron-left text-slate-300"></i></div>`;
+    // Quizzes
+    bundlesCache.filter(b => b.status === 'assigned').forEach(b => {
+        const expiry = b.deadline ? new Date(b.deadline).getTime() : null;
+        const reward = (b.custom_reward !== null && b.custom_reward !== undefined) ? b.custom_reward : b.default_reward;
+        allItems.push({ type: 'quiz', title: b.title, expiry, assignDate: b.assigned_at ? new Date(b.assigned_at).getTime() : 0, reward, rewardUnit: '₪' });
     });
-    if (hasItems) { todoList.innerHTML = htmlStr; todoSection.classList.remove('hidden'); } else { todoList.innerHTML = ''; todoSection.classList.add('hidden'); }
+    // Games
+    (window.kidGameAssignments || []).filter(g => (g.rounds_left || (g.rounds_total - (g.rounds_used||0))) > 0).forEach(g => {
+        const expiry = g.expires_at ? new Date(g.expires_at).getTime() : null;
+        allItems.push({ type: 'game', title: g.title, expiry, assignDate: g.assigned_at ? new Date(g.assigned_at).getTime() : 0, reward: g.flw_per_round, rewardUnit: 'FLW' });
+    });
+    if (allItems.length === 0) { todoList.innerHTML = ''; todoSection.classList.add('hidden'); return; }
+    // Priority: expiring within 1 day → show 2 soonest; else 2 newest assigned
+    const expiring = allItems.filter(i => i.expiry && i.expiry - now <= oneDayMs && i.expiry > now - oneDayMs).sort((a,b) => a.expiry - b.expiry);
+    const chosen = expiring.length > 0 ? expiring.slice(0, 2) : allItems.sort((a,b) => b.assignDate - a.assignDate).slice(0, 2);
+    todoList.innerHTML = chosen.map(item => {
+        const { type, title, expiry, assignDate, reward, rewardUnit } = item;
+        let dMsg = ''; if (expiry) { const diff = Math.ceil((expiry - now) / (1000 * 60 * 60 * 24)); dMsg = diff > 0 ? `<span class="text-orange-500"> • עוד ${diff} ימים</span>` : `<span class="text-red-500"> • פג תוקף!</span>`; }
+        const aDateStr = assignDate ? new Date(assignDate).toLocaleDateString('he-IL') : '—';
+        const tDateStr = expiry ? new Date(expiry).toLocaleDateString('he-IL') : '—';
+        const [border, bg, icon, tab] = type === 'task'
+            ? ['border-blue-100','hover:bg-blue-50','<i class="fa-solid fa-list-check text-blue-600"></i>','tasks']
+            : type === 'quiz'
+            ? ['border-purple-100','hover:bg-purple-50','<i class="fa-solid fa-graduation-cap text-purple-600"></i>','academy']
+            : ['border-violet-100','hover:bg-violet-50','<span>🎮</span>','academy'];
+        return `<div class="bg-white p-3 rounded-2xl border ${border} shadow-sm flex justify-between items-center cursor-pointer ${bg} transition mb-2" onclick="switchTab('${tab}')">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-full flex items-center justify-center bg-slate-100">${icon}</div>
+                <div>
+                    <h4 class="font-bold text-slate-800 text-sm">${safeStr(title)}</h4>
+                    <p class="text-[10px] text-slate-500">${aDateStr} ← ${tDateStr} • ${rewardUnit === '₪' ? '₪' : '🪙'}${reward} ${rewardUnit === 'FLW' ? 'FLW' : ''}${dMsg}</p>
+                </div>
+            </div>
+            <i class="fa-solid fa-chevron-left text-slate-300"></i>
+        </div>`;
+    }).join('');
+    todoSection.classList.remove('hidden');
 }
 
 function renderChildDashboard() {
@@ -3494,13 +3523,18 @@ function renderMyAssignments(bundles) {
     // subject emoji map
     const subjectEmoji = { math:'🔢', english:'🔤', reading:'📖', financial:'💰', science:'🔬', history:'🏛️', default:'📝' };
 
+    let archiveHtml = '';
+    const now = Date.now();
     if (Array.isArray(bundles)) {
         bundles.forEach(b => {
             const reward = b.custom_reward !== null ? b.custom_reward : b.default_reward;
             const emoji = subjectEmoji[b.type] || subjectEmoji.default;
-            if (b.status === 'assigned') {
+            const isExpired = b.deadline && new Date(b.deadline).getTime() < now;
+            if (b.status === 'assigned' && !isExpired) {
                 actCount++; totalEarn += parseFloat(reward) || 0;
                 const daysBadge = _acadDaysBadge(b.deadline);
+                const aDateStr = b.assigned_at ? new Date(b.assigned_at).toLocaleDateString('he-IL') : '';
+                const tDateStr = b.deadline ? new Date(b.deadline).toLocaleDateString('he-IL') : '—';
                 list.innerHTML += `
                 <div class="relative bg-white rounded-2xl border-2 border-amber-200 shadow-sm overflow-hidden mb-3">
                     <div class="absolute top-0 right-0 bottom-0 w-1.5 bg-gradient-to-b from-amber-400 to-orange-400 rounded-r-2xl"></div>
@@ -3513,6 +3547,7 @@ function renderMyAssignments(bundles) {
                                     <span class="text-xs font-black text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">💰 ₪${reward}</span>
                                     ${daysBadge}
                                 </div>
+                                <div class="text-[10px] text-slate-400 mt-1">הוקצה: ${aDateStr} • יעד: ${tDateStr}</div>
                             </div>
                         </div>
                         <button onclick="startQuiz(${b.bundle_id})"
@@ -3520,6 +3555,17 @@ function renderMyAssignments(bundles) {
                             <i class="fa-solid fa-play text-xs"></i> התחל מבחן
                         </button>
                     </div>
+                </div>`;
+            } else if (b.status === 'assigned' && isExpired) {
+                // פג תוקף — ארכיון
+                archiveHtml += `
+                <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 flex items-center gap-3 mb-2 opacity-70">
+                    <span class="text-xl">⏰</span>
+                    <div class="flex-1 min-w-0">
+                        <div class="font-bold text-slate-500 text-sm truncate">${safeStr(b.title)}</div>
+                        <div class="text-[10px] text-slate-400">פג תוקף: ${new Date(b.deadline).toLocaleDateString('he-IL')}</div>
+                    </div>
+                    <span class="text-[10px] font-black px-2 py-1 rounded-lg bg-slate-200 text-slate-500">פג תוקף</span>
                 </div>`;
             } else {
                 histCount++;
@@ -3547,10 +3593,19 @@ function renderMyAssignments(bundles) {
         list.innerHTML = `<div class="text-center py-6 bg-slate-50 rounded-2xl border border-dashed border-slate-200"><div class="text-3xl mb-2">📭</div><p class="text-slate-400 text-sm font-bold">אין מבחנים פתוחים כרגע</p></div>`;
     }
 
-    // hero stats
+    // ארכיון מבחנים שפג תוקפם
+    if (archiveHtml) {
+        list.innerHTML += `<div id="quiz-archive-section" class="mt-4"><div class="flex items-center gap-2 mb-2"><span class="text-sm font-black text-slate-400">🗄️ ארכיון — פג תוקף</span></div>${archiveHtml}</div>`;
+    }
+
+    // hero stats (clickable)
     const statTasks = getEl('acad-stat-tasks');
     const statEarn = getEl('acad-stat-earn');
-    if (statTasks) { statTasks.textContent = `📝 ${actCount} מבחנים`; }
+    if (statTasks) {
+        statTasks.textContent = `📝 ${actCount} מבחנים`;
+        statTasks.style.cursor = 'pointer';
+        statTasks.onclick = () => { const el = getEl('my-assignments-list'); if(el) el.scrollIntoView({behavior:'smooth'}); };
+    }
     if (statEarn && totalEarn > 0) { statEarn.textContent = `💰 עד ₪${totalEarn} לרווח`; statEarn.classList.remove('hidden'); }
 
     if (histCount > 0 && histCont) histCont.classList.remove('hidden');
@@ -14992,6 +15047,11 @@ async function openAssignGameModal() {
         <label style="font-size:0.85rem;font-weight:700;color:#555;display:block;margin-bottom:0.4rem">FLW kid לסיבוב מוצלח</label>
         <input type="number" id="assign-flw" value="10" min="1" max="50"
           style="width:100%;padding:0.8rem;border:2px solid #E0E0E0;
+                 border-radius:12px;font-size:1rem;margin-bottom:1rem;">
+
+        <label style="font-size:0.85rem;font-weight:700;color:#555;display:block;margin-bottom:0.4rem">מקסימום ימים לסיום (אופציונלי)</label>
+        <input type="number" id="assign-game-days" placeholder="ללא הגבלה" min="1" max="365"
+          style="width:100%;padding:0.8rem;border:2px solid #E0E0E0;
                  border-radius:12px;font-size:1rem;margin-bottom:1.5rem;">
 
         <button onclick="submitGameAssignment()"
@@ -15082,6 +15142,8 @@ function setRounds(el, n) {
 async function submitGameAssignment() {
   const childId = _selectedChildIdForGame;
   const flw     = document.getElementById('assign-flw')?.value || 10;
+  const days    = parseInt(document.getElementById('assign-game-days')?.value) || null;
+  const expiresAt = days ? new Date(Date.now() + days * 86400000).toISOString() : null;
 
   if(!childId) return alert('נא לבחור ילד');
   if(!_selectedGameId) return alert('נא לבחור משחק');
@@ -15098,7 +15160,8 @@ async function submitGameAssignment() {
         flwPerRound: parseInt(flw) || 10,
         parentUserId: currentUser?.id,
         startLevel: _selectedLevel || 1,
-        financeAge: parseInt(document.getElementById('finance-age-select')?.value) || null
+        financeAge: parseInt(document.getElementById('finance-age-select')?.value) || null,
+        expiresAt
       })
     });
     const data = await res.json();
@@ -15531,11 +15594,16 @@ async function loadKidAcademy() {
         const quests      = questRes.status  === 'fulfilled' ? (questRes.value.quests   || []) : [];
 
         let html = '';
+        let archiveHtml = '';
+        const now = Date.now();
 
         // ── משחקים ──
-        if (assignments.length > 0) {
-            html += `<div class="flex items-center gap-2 mb-3"><span class="text-base font-black text-slate-700">🎮 המשחקים שלי</span><span class="bg-violet-100 text-violet-700 text-xs font-black px-2 py-0.5 rounded-full">${assignments.length}</span></div>`;
-            assignments.forEach(a => {
+        const activeGames = assignments.filter(a => !(a.expires_at && new Date(a.expires_at).getTime() < now));
+        const expiredGames = assignments.filter(a => a.expires_at && new Date(a.expires_at).getTime() < now);
+
+        if (activeGames.length > 0) {
+            html += `<div id="kid-games-section" class="flex items-center gap-2 mb-3"><span class="text-base font-black text-slate-700">🎮 המשחקים שלי</span><span class="bg-violet-100 text-violet-700 text-xs font-black px-2 py-0.5 rounded-full">${activeGames.length}</span></div>`;
+            activeGames.forEach(a => {
                 const roundsLeft = a.rounds_left != null ? a.rounds_left : (a.rounds_total - (a.rounds_used || 0));
                 const roundsUsed = a.rounds_used || 0;
                 const roundsTotal = a.rounds_total || 0;
@@ -15545,6 +15613,15 @@ async function loadKidAcademy() {
                     ? (roundsLeft <= 2 ? `<span class="text-[10px] font-black bg-red-50 text-red-500 px-2 py-0.5 rounded-full">🔥 נשארו ${roundsLeft}</span>` : `<span class="text-[10px] font-black bg-violet-50 text-violet-600 px-2 py-0.5 rounded-full">🎯 ${roundsLeft} סיבובים</span>`)
                     : `<span class="text-[10px] font-black bg-slate-100 text-slate-400 px-2 py-0.5 rounded-full">✅ הושלם</span>`;
                 const flwBadge = `<span class="text-[10px] font-black bg-yellow-50 text-yellow-600 border border-yellow-200 px-2 py-0.5 rounded-full">🪙 ${a.flw_per_round} FLW/סיבוב</span>`;
+                // Progress pct
+                const pct = roundsTotal > 0 ? Math.round((roundsUsed / roundsTotal) * 100) : 0;
+                const pctBadge = roundsTotal > 0 ? `<span class="text-[10px] font-black bg-slate-50 text-slate-500 px-2 py-0.5 rounded-full">📊 ${pct}% הושלם</span>` : '';
+                // Dates
+                const aDateStr = a.assigned_at ? new Date(a.assigned_at).toLocaleDateString('he-IL') : '';
+                const expStr = a.expires_at ? new Date(a.expires_at).toLocaleDateString('he-IL') : '—';
+                const daysLeft = a.expires_at ? Math.ceil((new Date(a.expires_at).getTime() - now) / 86400000) : null;
+                const totalDays = (a.assigned_at && a.expires_at) ? Math.ceil((new Date(a.expires_at).getTime() - new Date(a.assigned_at).getTime()) / 86400000) : null;
+                const daysLine = daysLeft !== null ? `<div class="text-[10px] text-slate-400 mt-1">הוקצה: ${aDateStr} • יעד: ${expStr}${totalDays ? ` • ${daysLeft}/${totalDays} ימים` : ''}</div>` : (aDateStr ? `<div class="text-[10px] text-slate-400 mt-1">הוקצה: ${aDateStr}</div>` : '');
 
                 html += `
                 <div class="relative bg-white rounded-2xl border-2 ${canPlay ? 'border-violet-200' : 'border-slate-100'} shadow-sm overflow-hidden mb-3">
@@ -15554,8 +15631,9 @@ async function loadKidAcademy() {
                             <div class="w-12 h-12 rounded-2xl ${canPlay ? 'bg-violet-50' : 'bg-slate-50'} flex items-center justify-center text-2xl shrink-0 border ${canPlay ? 'border-violet-100' : 'border-slate-100'}">${a.thumbnail_emoji || '🎮'}</div>
                             <div class="flex-1 min-w-0">
                                 <div class="font-black text-slate-800 text-sm leading-tight mb-1.5">${safeStr(a.title)}</div>
-                                <div class="flex items-center gap-1.5 flex-wrap">${leftBadge}${flwBadge}</div>
+                                <div class="flex items-center gap-1.5 flex-wrap">${leftBadge}${flwBadge}${pctBadge}</div>
                                 ${progressBar}
+                                ${daysLine}
                             </div>
                         </div>
                         ${canPlay ? `
@@ -15569,15 +15647,28 @@ async function loadKidAcademy() {
                 </div>`;
             });
 
-            // עדכון hero stat
+            // עדכון hero stat (clickable)
             const statGames = getEl('acad-stat-games');
-            if (statGames) { statGames.textContent = `🎮 ${assignments.length} משחקים`; statGames.classList.remove('hidden'); }
+            if (statGames) {
+                statGames.textContent = `🎮 ${activeGames.length} משחקים`;
+                statGames.classList.remove('hidden');
+                statGames.style.cursor = 'pointer';
+                statGames.onclick = () => { const el = document.getElementById('kid-games-section'); if(el) el.scrollIntoView({behavior:'smooth'}); };
+            }
         }
 
         // ── קווסטים ──
-        if (quests.length > 0) {
-            html += `<div class="flex items-center gap-2 mb-3 mt-2"><span class="text-base font-black text-slate-700">🎯 קווסטים</span><span class="bg-emerald-100 text-emerald-700 text-xs font-black px-2 py-0.5 rounded-full">${quests.length}</span></div>`;
-            quests.forEach(q => {
+        const activeQuests = quests.filter(q => !(q.due_date && new Date(q.due_date).getTime() < now));
+        const expiredQuests = quests.filter(q => q.due_date && new Date(q.due_date).getTime() < now);
+
+        if (activeQuests.length > 0) {
+            html += `<div id="kid-quests-section" class="flex items-center gap-2 mb-3 mt-2"><span class="text-base font-black text-slate-700">🎯 קווסטים</span><span class="bg-emerald-100 text-emerald-700 text-xs font-black px-2 py-0.5 rounded-full">${activeQuests.length}</span></div>`;
+            activeQuests.forEach(q => {
+                const aDateStr = q.assigned_at ? new Date(q.assigned_at).toLocaleDateString('he-IL') : '';
+                const dueStr = q.due_date ? new Date(q.due_date).toLocaleDateString('he-IL') : '—';
+                const daysLeft = q.due_date ? Math.ceil((new Date(q.due_date).getTime() - now) / 86400000) : null;
+                const totalDays = (q.assigned_at && q.due_date) ? Math.ceil((new Date(q.due_date).getTime() - new Date(q.assigned_at).getTime()) / 86400000) : null;
+                const daysLine = daysLeft !== null ? `<div class="text-[10px] text-slate-400 mt-1">הוקצה: ${aDateStr} • יעד: ${dueStr}${totalDays ? ` • ${daysLeft}/${totalDays} ימים` : ''}</div>` : (aDateStr ? `<div class="text-[10px] text-slate-400 mt-1">הוקצה: ${aDateStr}</div>` : '');
                 html += `
                 <div class="relative bg-white rounded-2xl border-2 border-emerald-200 shadow-sm overflow-hidden mb-3">
                     <div class="absolute top-0 right-0 bottom-0 w-1.5 bg-gradient-to-b from-emerald-400 to-teal-500 rounded-r-2xl"></div>
@@ -15590,10 +15681,11 @@ async function loadKidAcademy() {
                                     <span class="text-[10px] font-black bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded-full">🪙 ${q.flw_reward} FLW</span>
                                     <span class="text-[10px] font-black bg-slate-50 text-slate-500 px-2 py-0.5 rounded-full">📋 ${q.question_count} שאלות</span>
                                 </div>
+                                ${daysLine}
                                 ${q.description ? `<p class="text-xs text-slate-500 mt-1 leading-relaxed">${safeStr(q.description)}</p>` : ''}
                             </div>
                         </div>
-                        <button onclick="startQuest(${q.id},'${safeStr(q.title).replace(/'/g,"\\'")}',${q.flw_reward},${q.pass_score})"
+                        <button onclick="startQuest(${q.id},'${safeStr(q.title).replace(/'/g,"\\'")}',${q.flw_reward},${q.pass_score},'${q.due_date||''}')"
                             class="mt-3 w-full text-white py-2.5 rounded-xl font-black text-sm shadow-md shadow-emerald-200 active:scale-95 transition flex items-center justify-center gap-2"
                             style="background:linear-gradient(135deg,#10B981,#059669)">
                             <span>🚀</span> התחל קווסט!
@@ -15603,7 +15695,28 @@ async function loadKidAcademy() {
             });
         }
 
-        if (assignments.length === 0 && quests.length === 0) {
+        // ── ארכיון (פג תוקף) ──
+        expiredGames.forEach(a => {
+            archiveHtml += `<div class="bg-slate-50 p-3 rounded-xl border border-slate-200 flex items-center gap-3 mb-2 opacity-70">
+                <span class="text-xl">${a.thumbnail_emoji || '🎮'}</span>
+                <div class="flex-1 min-w-0"><div class="font-bold text-slate-500 text-sm truncate">${safeStr(a.title)}</div>
+                <div class="text-[10px] text-slate-400">פג תוקף: ${new Date(a.expires_at).toLocaleDateString('he-IL')}</div></div>
+                <span class="text-[10px] font-black px-2 py-1 rounded-lg bg-slate-200 text-slate-500">פג תוקף</span>
+            </div>`;
+        });
+        expiredQuests.forEach(q => {
+            archiveHtml += `<div class="bg-slate-50 p-3 rounded-xl border border-slate-200 flex items-center gap-3 mb-2 opacity-70">
+                <span class="text-xl">🎯</span>
+                <div class="flex-1 min-w-0"><div class="font-bold text-slate-500 text-sm truncate">${safeStr(q.title)}</div>
+                <div class="text-[10px] text-slate-400">פג תוקף: ${new Date(q.due_date).toLocaleDateString('he-IL')}</div></div>
+                <span class="text-[10px] font-black px-2 py-1 rounded-lg bg-slate-200 text-slate-500">פג תוקף</span>
+            </div>`;
+        });
+        if (archiveHtml) {
+            html += `<div class="mt-4"><div class="flex items-center gap-2 mb-2"><span class="text-sm font-black text-slate-400">🗄️ ארכיון — פג תוקף</span></div>${archiveHtml}</div>`;
+        }
+
+        if (activeGames.length === 0 && activeQuests.length === 0 && !archiveHtml) {
             html = `<div class="text-center py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
                 <div class="text-4xl mb-2">🎮</div>
                 <p class="text-slate-500 font-bold text-sm">אין משחקים עדיין</p>
@@ -15617,7 +15730,8 @@ async function loadKidAcademy() {
     }
 }
 
-async function startQuest(questId, title, flwReward, passScore) {
+async function startQuest(questId, title, flwReward, passScore, dueDate) {
+  if (dueDate && new Date(dueDate).getTime() < Date.now()) return showToast('error', 'הקווסט הזה פג תוקף');
   try {
     const res = await fetch(`/api/kids/quests/${questId}/questions`);
     const data = await res.json();
