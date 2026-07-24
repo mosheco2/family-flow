@@ -2036,31 +2036,47 @@ function setTaskType(type) {
     getEl('task-recurring-settings').classList.toggle('hidden', !isRecurring);
 }
 
-function openTaskModal(isSelf = false) {
-    getEl('task-modal').classList.remove('hidden'); getEl('task-is-self').value = isSelf;
+function openGoodDeedModal() {
+    const el = getEl('good-deed-modal'); if (!el) return;
+    getEl('gd-title').value = ''; getEl('gd-reward').value = '';
+    el.classList.remove('hidden');
+    setTimeout(() => getEl('gd-title').focus(), 80);
+}
+function closeGoodDeedModal() { getEl('good-deed-modal')?.classList.add('hidden'); }
+async function submitGoodDeed() {
+    const title = (getEl('gd-title')?.value || '').trim();
+    const reward = getEl('gd-reward')?.value || 0;
+    if (!title) return showToast('error', 'כתבי מה עשית 😊');
+    try {
+        const res = await fetch(`${API}/tasks`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ title, reward: reward || 0, assignedTo: currentUser.id, days: null, status: 'done', groupId: currentGroup.id, requireAiCheck: false, createdBy: currentUser.id }) });
+        const data = await res.json();
+        if (data.success) { triggerConfetti(); closeGoodDeedModal(); showToast('success', 'נשלח לאישור ההורה! 🌟'); fetchData(); }
+        else showToast('error', data.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+}
+
+function openTaskModal() {
+    getEl('task-modal').classList.remove('hidden');
+    getEl('task-is-self').value = 'false';
     getEl('task-days').value = ''; getEl('task-title').value = ''; getEl('task-reward').value = ''; getEl('ai-task-topic').value = ''; getEl('ai-task-results').classList.add('hidden');
     const aiCheckEl = getEl('task-require-ai-check'); if (aiCheckEl) aiCheckEl.value = 'true';
     const knob = getEl('ai-check-knob');
     if (knob) { knob.classList.remove('translate-x-1'); knob.classList.add('translate-x-6'); }
-    // איפוס ימים
     document.querySelectorAll('.task-day-cb').forEach(cb => cb.checked = false);
     setTaskType('once');
     setTaskMode('manual');
-    const toggles = getEl('task-mode-toggles'); const assigneeContainer = getEl('task-assignee-container'); const rewardInput = getEl('task-reward'); const assigneeSelect = getEl('task-assignee');
-
-    if(isSelf) {
-        getEl('task-modal-title').innerText = 'מעשה טוב'; toggles.classList.add('hidden'); assigneeContainer.classList.add('hidden'); rewardInput.placeholder = 'כמה מגיע לי? (₪)';
-    } else {
-        getEl('task-modal-title').innerText = 'משימה חדשה'; toggles.classList.remove('hidden'); assigneeContainer.classList.remove('hidden'); rewardInput.placeholder = 'תגמול בונוס (₪) - אופציונלי';
-        if(membersCache) {
-            // "אני" תמיד ראשון + כל שאר חברי המשפחה
-            assigneeSelect.innerHTML = `<option value="${currentUser.id}">👤 אני (${safeStr(fmtUserName(currentUser) || currentUser.nickname)})</option>`;
-            membersCache.forEach(m => {
-                if (String(m.id) !== String(currentUser.id)) {
-                    assigneeSelect.innerHTML += `<option value="${m.id}">${safeStr(fmtUserName(m) || m.nickname)}</option>`;
-                }
-            });
-        }
+    getEl('task-modal-title').innerText = 'משימה חדשה';
+    getEl('task-mode-toggles').classList.remove('hidden');
+    getEl('task-assignee-container').classList.remove('hidden');
+    getEl('task-reward').placeholder = 'תגמול בונוס (₪) - אופציונלי';
+    const assigneeSelect = getEl('task-assignee');
+    if (membersCache && assigneeSelect) {
+        assigneeSelect.innerHTML = `<option value="${currentUser.id}">👤 אני (${safeStr(fmtUserName(currentUser) || currentUser.nickname)})</option>`;
+        membersCache.forEach(m => {
+            if (String(m.id) !== String(currentUser.id)) {
+                assigneeSelect.innerHTML += `<option value="${m.id}">${safeStr(fmtUserName(m) || m.nickname)}</option>`;
+            }
+        });
     }
 }
 
@@ -2107,25 +2123,22 @@ function toggleAiCheck() {
 }
 
 async function submitTask() {
-    const isSelf = val('task-is-self') === 'true';
-    const assignee = isSelf ? currentUser.id : val('task-assignee');
+    const assignee = val('task-assignee');
     const reward = val('task-reward'); const title = val('task-title'); const days = val('task-days');
     const requireAiCheck = getEl('task-require-ai-check') ? getEl('task-require-ai-check').value === 'true' : true;
-    const isRecurring = !isSelf && getEl('btn-task-type-recurring')?.classList.contains('bg-white');
+    const isRecurring = getEl('btn-task-type-recurring')?.classList.contains('bg-white');
     const recurringDays = isRecurring ? [...document.querySelectorAll('.task-day-cb:checked')].map(cb => cb.value).join(',') : '';
-    if(!isSelf && !assignee) return showToast('error', 'יש לבחור עבור מי המשימה');
-    if(!title) return showToast('error', 'יש לכתוב מה לעשות במשימה');
-    if(isRecurring && !recurringDays) return showToast('error', 'יש לסמן לפחות יום אחד לרוטינה');
+    if (!assignee) return showToast('error', 'יש לבחור עבור מי המשימה');
+    if (!title) return showToast('error', 'יש לכתוב מה לעשות במשימה');
+    if (isRecurring && !recurringDays) return showToast('error', 'יש לסמן לפחות יום אחד לרוטינה');
     const btn = getEl('btn-submit-task'); if (btn) { btn.disabled = true; btn.innerText = 'שומר...'; }
-    const statusToSend = isSelf ? 'done' : 'pending';
     try {
-        const res = await fetch(`${API}/tasks`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ title, reward: reward || 0, assignedTo: assignee, days, status: statusToSend, groupId: currentGroup.id, requireAiCheck, isRecurring, recurringDays, createdBy: currentUser.id }) });
+        const res = await fetch(`${API}/tasks`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ title, reward: reward || 0, assignedTo: assignee, days, status: 'pending', groupId: currentGroup.id, requireAiCheck, isRecurring, recurringDays, createdBy: currentUser.id }) });
         const data = await res.json();
-        if(data.success) {
-            if(isSelf) triggerConfetti();
+        if (data.success) {
             closeTaskModal();
-            const msg = isSelf ? 'נשלח לאישור ההורה!' : isRecurring ? 'רוטינה נוספה בהצלחה! 🔁' : 'משימה נוצרה בהצלחה!';
-            showToast('success', msg); fetchData();
+            showToast('success', isRecurring ? 'רוטינה נוספה בהצלחה! 🔁' : 'משימה נוצרה בהצלחה!');
+            fetchData();
         } else showToast('error', data.error || 'שגיאה ביצירת משימה');
     } catch(e) { showToast('error', 'שגיאת תקשורת'); } finally { if (btn) { btn.disabled = false; btn.innerText = 'צור משימה'; } }
 }
