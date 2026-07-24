@@ -1012,11 +1012,13 @@
                                 <div class="flex items-start justify-between">
                                     <div class="flex-1">
                                         <div class="text-2xl font-black mb-0.5">האקדמיה 🎓</div>
-                                        <div class="text-purple-200 text-xs mb-3">למד · ענה נכון · הרוויח כסף!</div>
+                                        <div class="text-purple-200 text-xs mb-3">למד · ענה נכון · תרוויח מטבעות פלואו קיד!</div>
+                                        <!-- Filter tabs -->
                                         <div id="academy-hero-stats" class="flex gap-2 flex-wrap">
-                                            <span id="acad-stat-tasks" class="bg-white/20 text-white text-xs font-bold px-2.5 py-1 rounded-full"></span>
-                                            <span id="acad-stat-games" class="bg-white/20 text-white text-xs font-bold px-2.5 py-1 rounded-full hidden"></span>
+                                            <span id="acad-stat-tasks" onclick="filterAcademy('quizzes')" class="bg-white/30 text-white text-xs font-bold px-2.5 py-1 rounded-full cursor-pointer transition-all"></span>
+                                            <span id="acad-stat-games" onclick="filterAcademy('games')" class="bg-white/20 text-white text-xs font-bold px-2.5 py-1 rounded-full cursor-pointer transition-all hidden"></span>
                                             <span id="acad-stat-earn" class="bg-yellow-400 text-yellow-900 text-xs font-black px-2.5 py-1 rounded-full hidden"></span>
+                                            <span id="acad-stat-archive" onclick="filterAcademy('archive')" class="bg-white/20 text-white text-xs font-bold px-2.5 py-1 rounded-full cursor-pointer transition-all hidden">🗄️ ארכיון</span>
                                         </div>
                                     </div>
                                     <div class="text-5xl opacity-90 ml-2">🧠</div>
@@ -1027,10 +1029,23 @@
                             </div>
 
                             <!-- מטלות מבחנים -->
-                            <div id="my-assignments-list" class="space-y-3 mb-4"></div>
+                            <div id="my-assignments-wrap">
+                                <div id="my-assignments-list" class="space-y-3 mb-4"></div>
+                            </div>
 
                             <!-- משחקים + קווסטים -->
-                            <div id="kid-academy-content" class="mb-4"></div>
+                            <div id="kid-academy-wrap">
+                                <div id="kid-academy-content" class="mb-4"></div>
+                            </div>
+
+                            <!-- ארכיון (פגי תוקף) -->
+                            <div id="kid-archive-wrap" class="hidden">
+                                <div class="flex items-center gap-2 mb-3 px-1">
+                                    <span class="text-slate-500 text-sm font-black">🗄️ ארכיון — פג תוקף</span>
+                                    <div class="flex-1 h-px bg-slate-200"></div>
+                                </div>
+                                <div id="kid-archive-list" class="space-y-2 mb-4"></div>
+                            </div>
 
                             <!-- היסטוריה -->
                             <div id="academy-history-container" class="hidden mt-2">

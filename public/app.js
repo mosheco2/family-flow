@@ -3510,6 +3510,57 @@ function _acadDaysBadge(deadline) {
     return `<span class="text-[10px] font-bold bg-blue-50 text-blue-500 px-2 py-0.5 rounded-full">📅 עוד ${diff} ימים</span>`;
 }
 
+function _updateArchiveTab() {
+    const archiveList = getEl('kid-archive-list');
+    const statArchive = getEl('acad-stat-archive');
+    if (!statArchive || !archiveList) return;
+    if (archiveList.children.length > 0) {
+        statArchive.textContent = `🗄️ ארכיון (${archiveList.children.length})`;
+        statArchive.classList.remove('hidden');
+    }
+}
+
+function filterAcademy(filter) {
+    const quizWrap    = getEl('my-assignments-wrap');
+    const gamesWrap   = getEl('kid-academy-wrap');
+    const archiveWrap = getEl('kid-archive-wrap');
+    const histCont    = getEl('academy-history-container');
+    const statTasks   = getEl('acad-stat-tasks');
+    const statGames   = getEl('acad-stat-games');
+    const statArchive = getEl('acad-stat-archive');
+
+    // active state style
+    const active   = 'bg-white text-purple-700 font-black';
+    const inactive = 'bg-white/20 text-white font-bold';
+    [statTasks, statGames, statArchive].forEach(el => { if(el) { el.className = el.className.replace('bg-white text-purple-700 font-black','').replace('bg-white/20 text-white font-bold','') + ' ' + inactive; } });
+
+    if (filter === 'quizzes') {
+        if(quizWrap) quizWrap.classList.remove('hidden');
+        if(gamesWrap) gamesWrap.classList.add('hidden');
+        if(archiveWrap) archiveWrap.classList.add('hidden');
+        if(histCont) histCont.classList.add('hidden');
+        if(statTasks) { statTasks.className = statTasks.className.replace(inactive, active); }
+    } else if (filter === 'games') {
+        if(quizWrap) quizWrap.classList.add('hidden');
+        if(gamesWrap) gamesWrap.classList.remove('hidden');
+        if(archiveWrap) archiveWrap.classList.add('hidden');
+        if(histCont) histCont.classList.add('hidden');
+        if(statGames) { statGames.className = statGames.className.replace(inactive, active); }
+    } else if (filter === 'archive') {
+        if(quizWrap) quizWrap.classList.add('hidden');
+        if(gamesWrap) gamesWrap.classList.add('hidden');
+        if(archiveWrap) archiveWrap.classList.remove('hidden');
+        if(histCont) histCont.classList.add('hidden');
+        if(statArchive) { statArchive.className = statArchive.className.replace(inactive, active); }
+    } else {
+        // all
+        if(quizWrap) quizWrap.classList.remove('hidden');
+        if(gamesWrap) gamesWrap.classList.remove('hidden');
+        if(archiveWrap) archiveWrap.classList.add('hidden');
+    }
+    window._acadFilter = filter;
+}
+
 function renderMyAssignments(bundles) {
     const list = getEl('my-assignments-list');
     const histList = getEl('academy-history-list');
@@ -3523,7 +3574,10 @@ function renderMyAssignments(bundles) {
     // subject emoji map
     const subjectEmoji = { math:'🔢', english:'🔤', reading:'📖', financial:'💰', science:'🔬', history:'🏛️', default:'📝' };
 
-    let archiveHtml = '';
+    const archiveList = getEl('kid-archive-list');
+    if (archiveList) archiveList.innerHTML = '';
+    const statArchive = getEl('acad-stat-archive');
+    if (statArchive) statArchive.classList.add('hidden');
     const now = Date.now();
     if (Array.isArray(bundles)) {
         bundles.forEach(b => {
@@ -3558,12 +3612,12 @@ function renderMyAssignments(bundles) {
                 </div>`;
             } else if (b.status === 'assigned' && isExpired) {
                 // פג תוקף — ארכיון
-                archiveHtml += `
+                if (archiveList) archiveList.innerHTML += `
                 <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 flex items-center gap-3 mb-2 opacity-70">
                     <span class="text-xl">⏰</span>
                     <div class="flex-1 min-w-0">
                         <div class="font-bold text-slate-500 text-sm truncate">${safeStr(b.title)}</div>
-                        <div class="text-[10px] text-slate-400">פג תוקף: ${new Date(b.deadline).toLocaleDateString('he-IL')}</div>
+                        <div class="text-[10px] text-slate-400">📝 מבחן • פג תוקף: ${new Date(b.deadline).toLocaleDateString('he-IL')}</div>
                     </div>
                     <span class="text-[10px] font-black px-2 py-1 rounded-lg bg-slate-200 text-slate-500">פג תוקף</span>
                 </div>`;
@@ -3593,20 +3647,12 @@ function renderMyAssignments(bundles) {
         list.innerHTML = `<div class="text-center py-6 bg-slate-50 rounded-2xl border border-dashed border-slate-200"><div class="text-3xl mb-2">📭</div><p class="text-slate-400 text-sm font-bold">אין מבחנים פתוחים כרגע</p></div>`;
     }
 
-    // ארכיון מבחנים שפג תוקפם
-    if (archiveHtml) {
-        list.innerHTML += `<div id="quiz-archive-section" class="mt-4"><div class="flex items-center gap-2 mb-2"><span class="text-sm font-black text-slate-400">🗄️ ארכיון — פג תוקף</span></div>${archiveHtml}</div>`;
-    }
-
-    // hero stats (clickable)
+    // hero stats
     const statTasks = getEl('acad-stat-tasks');
     const statEarn = getEl('acad-stat-earn');
-    if (statTasks) {
-        statTasks.textContent = `📝 ${actCount} מבחנים`;
-        statTasks.style.cursor = 'pointer';
-        statTasks.onclick = () => { const el = getEl('my-assignments-list'); if(el) el.scrollIntoView({behavior:'smooth'}); };
-    }
+    if (statTasks) { statTasks.textContent = `📝 ${actCount} מבחנים`; }
     if (statEarn && totalEarn > 0) { statEarn.textContent = `💰 עד ₪${totalEarn} לרווח`; statEarn.classList.remove('hidden'); }
+    _updateArchiveTab();
 
     if (histCount > 0 && histCont) histCont.classList.remove('hidden');
     else if (histCont) histCont.classList.add('hidden');
@@ -15647,14 +15693,9 @@ async function loadKidAcademy() {
                 </div>`;
             });
 
-            // עדכון hero stat (clickable)
+            // עדכון hero stat
             const statGames = getEl('acad-stat-games');
-            if (statGames) {
-                statGames.textContent = `🎮 ${activeGames.length} משחקים`;
-                statGames.classList.remove('hidden');
-                statGames.style.cursor = 'pointer';
-                statGames.onclick = () => { const el = document.getElementById('kid-games-section'); if(el) el.scrollIntoView({behavior:'smooth'}); };
-            }
+            if (statGames) { statGames.textContent = `🎮 ${activeGames.length} משחקים`; statGames.classList.remove('hidden'); }
         }
 
         // ── קווסטים ──
@@ -15695,28 +15736,29 @@ async function loadKidAcademy() {
             });
         }
 
-        // ── ארכיון (פג תוקף) ──
-        expiredGames.forEach(a => {
-            archiveHtml += `<div class="bg-slate-50 p-3 rounded-xl border border-slate-200 flex items-center gap-3 mb-2 opacity-70">
-                <span class="text-xl">${a.thumbnail_emoji || '🎮'}</span>
-                <div class="flex-1 min-w-0"><div class="font-bold text-slate-500 text-sm truncate">${safeStr(a.title)}</div>
-                <div class="text-[10px] text-slate-400">פג תוקף: ${new Date(a.expires_at).toLocaleDateString('he-IL')}</div></div>
-                <span class="text-[10px] font-black px-2 py-1 rounded-lg bg-slate-200 text-slate-500">פג תוקף</span>
-            </div>`;
-        });
-        expiredQuests.forEach(q => {
-            archiveHtml += `<div class="bg-slate-50 p-3 rounded-xl border border-slate-200 flex items-center gap-3 mb-2 opacity-70">
-                <span class="text-xl">🎯</span>
-                <div class="flex-1 min-w-0"><div class="font-bold text-slate-500 text-sm truncate">${safeStr(q.title)}</div>
-                <div class="text-[10px] text-slate-400">פג תוקף: ${new Date(q.due_date).toLocaleDateString('he-IL')}</div></div>
-                <span class="text-[10px] font-black px-2 py-1 rounded-lg bg-slate-200 text-slate-500">פג תוקף</span>
-            </div>`;
-        });
-        if (archiveHtml) {
-            html += `<div class="mt-4"><div class="flex items-center gap-2 mb-2"><span class="text-sm font-black text-slate-400">🗄️ ארכיון — פג תוקף</span></div>${archiveHtml}</div>`;
+        // ── ארכיון (פג תוקף) → כתיבה לדיב הנפרד ──
+        const archiveList = getEl('kid-archive-list');
+        if (archiveList) {
+            expiredGames.forEach(a => {
+                archiveList.innerHTML += `<div class="bg-slate-50 p-3 rounded-xl border border-slate-200 flex items-center gap-3 mb-2 opacity-70">
+                    <span class="text-xl">${a.thumbnail_emoji || '🎮'}</span>
+                    <div class="flex-1 min-w-0"><div class="font-bold text-slate-500 text-sm truncate">${safeStr(a.title)}</div>
+                    <div class="text-[10px] text-slate-400">🎮 משחק • פג תוקף: ${new Date(a.expires_at).toLocaleDateString('he-IL')}</div></div>
+                    <span class="text-[10px] font-black px-2 py-1 rounded-lg bg-slate-200 text-slate-500">פג תוקף</span>
+                </div>`;
+            });
+            expiredQuests.forEach(q => {
+                archiveList.innerHTML += `<div class="bg-slate-50 p-3 rounded-xl border border-slate-200 flex items-center gap-3 mb-2 opacity-70">
+                    <span class="text-xl">🎯</span>
+                    <div class="flex-1 min-w-0"><div class="font-bold text-slate-500 text-sm truncate">${safeStr(q.title)}</div>
+                    <div class="text-[10px] text-slate-400">🎯 קווסט • פג תוקף: ${new Date(q.due_date).toLocaleDateString('he-IL')}</div></div>
+                    <span class="text-[10px] font-black px-2 py-1 rounded-lg bg-slate-200 text-slate-500">פג תוקף</span>
+                </div>`;
+            });
         }
+        _updateArchiveTab();
 
-        if (activeGames.length === 0 && activeQuests.length === 0 && !archiveHtml) {
+        if (activeGames.length === 0 && activeQuests.length === 0) {
             html = `<div class="text-center py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
                 <div class="text-4xl mb-2">🎮</div>
                 <p class="text-slate-500 font-bold text-sm">אין משחקים עדיין</p>
