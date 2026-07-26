@@ -8725,6 +8725,9 @@ function enforcePermissions() {
     // וידוא שהמשתמש לא תקוע בטאב נעול
     const activeTabs = document.querySelectorAll('.tab-active');
     activeTabs.forEach(activeBtn => {
+        const tabId = activeBtn.id ? activeBtn.id.replace('tab-', '') : '';
+        // אל תרדיר אם הטאב בפועל מותר לפי userTabs
+        if (userTabs.includes(tabId)) return;
         if (activeBtn.style.display === 'none' || activeBtn.classList.contains('locked-module')) {
             if(activeBtn.id !== 'tab-feed') switchTab('feed');
         }

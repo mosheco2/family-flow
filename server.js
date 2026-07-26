@@ -6008,7 +6008,7 @@ app.post('/api/admin/change-role', async (req, res) => {
         const autoPerms = newRole === 'ADMIN'
             ? { tabs: ['feed','shop','tasks','budget','members','goals','pantry','loans','academy','cashflow'] }
             : newRole === 'CHILD'
-            ? { tabs: ['feed','shop','tasks','goals','academy'] }
+            ? { tabs: ['feed','shop','tasks','goals','academy','bank','cashflow','community'] }
             : { tabs: ['feed'] };
         await pool.query('UPDATE users SET role=$1, permissions=$2 WHERE id=$3', [newRole, JSON.stringify(autoPerms), userId]);
         res.json({ success: true });
