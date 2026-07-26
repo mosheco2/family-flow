@@ -24996,6 +24996,18 @@ app.post('/api/live-games/:id/next-question', verifySA, async (req, res) => {
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// מחיקת משחק
+app.delete('/api/live-games/:id', verifySA, async (req, res) => {
+  try {
+    const id = req.params.id;
+    await pool.query(`DELETE FROM live_game_answers WHERE question_id IN (SELECT id FROM live_game_questions WHERE game_id=$1)`, [id]);
+    await pool.query(`DELETE FROM live_game_participants WHERE game_id=$1`, [id]);
+    await pool.query(`DELETE FROM live_game_questions WHERE game_id=$1`, [id]);
+    await pool.query(`DELETE FROM live_games WHERE id=$1`, [id]);
+    res.json({ success: true });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // איפוס משחק מחדש
 app.put('/api/live-games/:id/restart', verifySA, async (req, res) => {
   try {
