@@ -10532,7 +10532,7 @@ async function openLGControl(gameId, gameCode) {
             <div class="absolute top-0 left-0 right-0 h-6 bg-slate-900 flex items-center justify-center z-10">
               <div class="w-16 h-1.5 bg-slate-600 rounded-full"></div>
             </div>
-            <iframe id="lg-preview-frame" src="${localLink}" class="w-full h-full border-0 pt-6" sandbox="allow-scripts allow-same-origin allow-forms"></iframe>
+            <iframe id="lg-preview-frame" src="${localLink}?preview=1" class="w-full h-full border-0 pt-6" sandbox="allow-scripts allow-same-origin allow-forms"></iframe>
           </div>
           <div class="text-center mt-2">
             <a href="${localLink}" target="_blank" class="text-indigo-400 text-xs hover:underline">פתח בחלון נפרד ↗</a>

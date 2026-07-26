@@ -264,6 +264,8 @@ function _detectJoinSource() {
   return 'direct';
 }
 
+const isPreviewMode = new URLSearchParams(location.search).get('preview') === '1';
+
 window.onload = async () => {
   const stateRes = await fetch(`/api/live-games/${gameCode}/state`).catch(() => null);
   if (!stateRes || !stateRes.ok) { showDisabledDirect(); return; }
@@ -273,6 +275,16 @@ window.onload = async () => {
   document.getElementById('auth-game-prize').textContent = state.prize ? `🏆 פרס: ${state.prize}` : '';
 
   if (state.status === 'disabled' || state.status === 'ended') { showDisabledDirect(); return; }
+
+  // מצב תצוגה מוקדמת מ-SA — לא מצטרפים
+  if (isPreviewMode) {
+    _applyGameAssets(state);
+    showScreen('waiting');
+    document.getElementById('w-title').textContent = state.title || '';
+    document.getElementById('w-prize').textContent = state.prize || '';
+    pollingInterval = setInterval(pollState, 2000);
+    return;
+  }
 
   if (currentUser) {
     await joinAndStart(state);
