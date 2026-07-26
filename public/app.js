@@ -2008,11 +2008,14 @@ async function fetchData() {
             }
         } else {
             const balEl = getEl('user-balance');
+            const childBal = parseFloat(data.user.computed_balance ?? currentUser.balance ?? 0);
             if (balEl) {
-                const childBal = parseFloat(data.user.computed_balance ?? currentUser.balance ?? 0);
                 balEl.innerText = `₪${childBal.toFixed(2)}`;
                 balEl.className = `text-3xl font-bold font-mono tracking-tight mt-1 ${childBal >= 0 ? 'text-green-500' : 'text-red-500'}`;
             }
+            // עדכון כרטיס יתרה בדף הבית של ילד
+            const childBalDisplay = getEl('child-balance-display');
+            if (childBalDisplay) childBalDisplay.innerText = `₪${childBal.toFixed(2)}`;
         }
         
         allTasks = Array.isArray(data.tasks) ? data.tasks : []; bundlesCache = Array.isArray(data.quiz_bundles) ? data.quiz_bundles : []; pantryCache = Array.isArray(data.pantry) ? data.pantry : [];
@@ -15319,7 +15322,7 @@ async function loadChildFlwWallet() {
         if (el('kid-flw-lifetime')) el('kid-flw-lifetime').textContent = Math.floor(w.lifetime_flw || 0);
         if (el('kid-flw-redeemed')) el('kid-flw-redeemed').textContent = Math.floor(w.redeemed_flw || 0);
         if (el('kid-flw-value-ils')) el('kid-flw-value-ils').textContent = `₪${(balance * valueIls).toFixed(2)}`;
-        if (el('child-balance-display')) el('child-balance-display').textContent = `🪙${Math.floor(balance)}`;
+        // child-balance-display מציג יתרה כספית (₪) — לא דורסים כאן
 
         window._kidFlwBalance = balance;
         window._kidFlwValueIls = valueIls;
