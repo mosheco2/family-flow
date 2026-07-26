@@ -10416,7 +10416,7 @@ async function openLGControl(gameId, gameCode) {
         <!-- TAB: Waiting Room -->
         <div id="lg-panel-waiting" class="hidden space-y-3">
           <div class="flex items-center justify-between">
-            <div class="text-xs text-slate-400">משתמשים שנכנסו לקישור וממתינים לאישורך</div>
+            <div class="text-xs text-slate-300">משתמשים שנכנסו לקישור וממתינים לאישורך</div>
             <button onclick="_lgApproveAll(${gameId})" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-xs font-bold transition">✅ אשר הכל</button>
           </div>
           <div id="lg-waiting-list" class="space-y-2 max-h-96 overflow-y-auto">
@@ -10427,7 +10427,7 @@ async function openLGControl(gameId, gameCode) {
         <!-- TAB: Results / Leaderboard -->
         <div id="lg-panel-results" class="hidden space-y-3">
           <div class="flex items-center justify-between">
-            <div class="text-xs text-slate-400">טבלת תוצאות סופית</div>
+            <div class="text-xs text-slate-300">טבלת תוצאות סופית</div>
             <button onclick="_lgLoadResults(${gameId})" class="bg-slate-600 hover:bg-slate-500 text-white px-3 py-1.5 rounded-lg text-xs transition">רענן</button>
           </div>
           <div id="lg-results-list" class="space-y-2 max-h-96 overflow-y-auto">
@@ -10438,7 +10438,7 @@ async function openLGControl(gameId, gameCode) {
 
         <!-- TAB: Preview -->
         <div id="lg-panel-preview" class="hidden">
-          <div class="text-xs text-slate-400 mb-2">תצוגת שחקן בתוך הממשק — המשחק פועל בזמן אמת לפי הסטטוס הנוכחי</div>
+          <div class="text-xs text-slate-300 mb-2">תצוגת שחקן בתוך הממשק — המשחק פועל בזמן אמת לפי הסטטוס הנוכחי</div>
           <div class="flex gap-2 mb-3">
             <button onclick="_lgSetStatus(${gameId},'waiting').then(()=>document.getElementById('lg-preview-frame').src=document.getElementById('lg-preview-frame').src)"
               class="bg-slate-600 hover:bg-slate-500 text-white px-3 py-1.5 rounded-lg text-xs transition">אפס למצב המתנה</button>
@@ -10605,10 +10605,10 @@ async function _lgLoadWaitingRoom(gameId) {
   el.innerHTML = d.participants.map(p => `
     <div class="flex items-center justify-between bg-slate-700/80 rounded-xl px-3 py-2.5 gap-2">
       <div class="flex-1 min-w-0">
-        <div class="text-sm font-medium truncate">${p.display_name || 'אנונימי'}</div>
+        <div class="text-sm font-medium text-slate-100 truncate">${p.display_name || 'אנונימי'}</div>
         <div class="flex items-center gap-2 mt-0.5">
           <span class="text-[10px] px-1.5 py-0.5 rounded-full ${p.approved ? 'bg-green-700/60 text-green-300' : 'bg-amber-700/60 text-amber-300'}">${p.approved ? '✅ מאושר' : '⏳ ממתין'}</span>
-          ${p.group_name ? `<span class="text-xs text-slate-400">${p.group_name}</span>` : ''}
+          ${p.group_name ? `<span class="text-xs text-slate-300">${p.group_name}</span>` : ''}
           ${p.registration_source && p.registration_source !== 'self' ? `<span class="text-[10px] bg-purple-900/50 text-purple-300 px-1.5 py-0.5 rounded-full">${p.registration_source}</span>` : ''}
         </div>
       </div>
@@ -10647,7 +10647,7 @@ async function _lgLoadResults(gameId) {
   el.innerHTML = d.leaderboard.map((p,i) => `
     <div class="flex items-center gap-3 bg-slate-700/80 rounded-xl px-3 py-2.5 ${i===0 ? 'ring-2 ring-yellow-500/60' : ''}">
       <div class="text-lg w-6 text-center">${medals[i] || `${i+1}`}</div>
-      <div class="flex-1 font-medium text-sm">${p.display_name || p.nickname || 'שחקן'}</div>
+      <div class="flex-1 font-medium text-sm text-slate-100">${p.display_name || p.nickname || 'שחקן'}</div>
       <div class="font-bold text-indigo-300 tabular-nums">${p.score.toLocaleString()}</div>
     </div>`).join('');
   window._lgLastLeaderboard = d.leaderboard;
