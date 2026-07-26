@@ -102,6 +102,30 @@
   </div>
 </div>
 
+<!-- Join confirmation (for logged-in users) -->
+<div id="join-confirm-screen" class="hidden fixed inset-0 bg-slate-900 z-50 flex flex-col">
+  <div class="brand-gradient px-5 pt-12 pb-8 text-center">
+    <div class="text-4xl mb-2">⚡</div>
+    <div class="text-lg font-black tracking-wide text-white">OneFlow Life</div>
+  </div>
+  <div class="mx-4 -mt-4 bg-slate-800 rounded-2xl px-5 py-4 shadow-xl border border-white/10 mb-5">
+    <div class="flex items-center gap-3">
+      <div class="text-3xl">🏆</div>
+      <div>
+        <div class="font-bold text-slate-100" id="confirm-game-title">טוען...</div>
+        <div class="text-xs text-slate-400" id="confirm-game-prize"></div>
+      </div>
+    </div>
+  </div>
+  <div class="flex-1 flex flex-col items-center justify-center px-6">
+    <div class="text-6xl mb-4">👋</div>
+    <h2 class="text-xl font-bold mb-2 text-center">שלום, <span id="confirm-player-name"></span>!</h2>
+    <p class="text-slate-400 text-sm mb-8 text-center">רוצה להצטרף למשחק?</p>
+    <button onclick="confirmJoin()" class="w-full max-w-xs brand-gradient py-4 rounded-xl font-bold text-base shadow-lg mb-3">הצטרף למשחק ▶</button>
+    <button onclick="window.location.href='/'" class="w-full max-w-xs text-slate-400 text-sm py-3">חזרה לדף הבית</button>
+  </div>
+</div>
+
 <!-- Main game -->
 <div id="game-screen" class="hidden min-h-screen flex flex-col">
   <!-- Header -->
@@ -210,20 +234,25 @@
 <div id="sponsor-splash" class="hidden fixed inset-0 bg-black/90 z-50 flex items-end justify-center p-0 fadein">
   <div class="bg-slate-800 rounded-t-3xl w-full max-w-sm shadow-2xl border-t border-white/10">
     <div class="px-7 pt-6 pb-7 text-center">
-      <!-- שורת לוגואים: דמות + לוגו חסות זה לצד זה (או כל אחד לבד) -->
-      <div id="splash-logos-row" style="display:none;justify-content:center;align-items:flex-end;gap:20px;margin-bottom:16px;min-height:90px">
-        <!-- דמות — ימין -->
-        <img id="splash-character" src="" alt="" style="width:86px;height:auto;background:transparent;display:block;flex-shrink:0;object-fit:contain">
-        <!-- לוגו חסות — שמאל -->
-        <img id="splash-sponsor-logo" src="" alt="" style="max-height:70px;max-width:110px;object-fit:contain;display:block;background:transparent;border-radius:10px;flex-shrink:0;align-self:center">
+      <!-- שורת לוגואים: דמות + לוגו חסות זה לצד זה -->
+      <div id="splash-logos-row" style="display:none;justify-content:center;align-items:center;gap:0;margin-bottom:16px">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:6px;flex:1">
+          <img id="splash-character" src="" alt="" style="width:96px;height:96px;background:transparent;object-fit:contain;filter:drop-shadow(0 2px 8px rgba(0,0,0,0.5))">
+          <span style="font-size:10px;color:#94a3b8;letter-spacing:.08em;text-transform:uppercase">מארח</span>
+        </div>
+        <div style="width:1px;height:80px;background:rgba(255,255,255,0.15);flex-shrink:0"></div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:6px;flex:1">
+          <img id="splash-sponsor-logo" src="" alt="" style="width:96px;height:96px;object-fit:contain;background:transparent;border-radius:12px">
+          <span style="font-size:10px;color:#94a3b8;letter-spacing:.08em;text-transform:uppercase">חסות</span>
+        </div>
       </div>
       <!-- fallback: רק דמות -->
-      <div id="splash-char-only" style="display:none;justify-content:center;margin-bottom:12px;min-height:90px;align-items:flex-end">
-        <img id="splash-character-only" src="" alt="" style="width:86px;height:auto;background:transparent;display:block;object-fit:contain">
+      <div id="splash-char-only" style="display:none;justify-content:center;margin-bottom:16px">
+        <img id="splash-character-only" src="" alt="" style="width:96px;height:96px;background:transparent;object-fit:contain;filter:drop-shadow(0 2px 8px rgba(0,0,0,0.5))">
       </div>
       <!-- fallback: רק לוגו חסות -->
-      <div id="splash-logo-only" style="display:none;justify-content:center;align-items:center;margin-bottom:12px">
-        <img id="splash-sponsor-logo-only" src="" alt="" style="max-height:64px;object-fit:contain;display:block;background:transparent;border-radius:8px">
+      <div id="splash-logo-only" style="display:none;justify-content:center;align-items:center;margin-bottom:16px">
+        <img id="splash-sponsor-logo-only" src="" alt="" style="width:96px;height:96px;object-fit:contain;background:transparent;border-radius:12px">
       </div>
       <div id="splash-emoji-wrap" class="text-5xl mb-3">🎯</div>
       <div class="text-xs text-slate-400 uppercase tracking-widest mb-1">בחסות</div>
@@ -303,7 +332,12 @@ window.onload = async () => {
   }
 
   if (currentUser) {
-    await joinAndStart(state);
+    // מציג מסך אישור — לא מצטרפים אוטומטית
+    document.getElementById('confirm-game-title').textContent = state.title || 'משחק טריוויה';
+    document.getElementById('confirm-game-prize').textContent = state.prize ? `🏆 פרס: ${state.prize}` : '';
+    document.getElementById('confirm-player-name').textContent = currentUser.nickname || currentUser.first_name || 'שחקן';
+    window._pendingGameState = state;
+    document.getElementById('join-confirm-screen').classList.remove('hidden');
     return;
   }
 
@@ -386,6 +420,11 @@ let myApproved = false;
 let sponsorShown = false;
 let lastNotifySentAt = null;
 
+async function confirmJoin() {
+  document.getElementById('join-confirm-screen').classList.add('hidden');
+  await joinAndStart(window._pendingGameState || {});
+}
+
 async function joinAndStart(state) {
   document.getElementById('game-screen').classList.remove('hidden');
   document.getElementById('g-title').textContent = state.title || '';
@@ -403,7 +442,7 @@ async function joinAndStart(state) {
   myApproved = joinData.approved || false;
 
   // Show sponsor splash if not yet shown
-  if (!sponsorShown && (state.sponsor_name || state.sponsor_text)) {
+  if (!sponsorShown && (state.sponsor_name || state.sponsor_text || state.sponsor_logo || state.character_image)) {
     showSponsorSplash(state);
     // Polling starts after splash is closed
   } else {
@@ -469,13 +508,13 @@ async function pollState() {
 function _applyGameAssets(state) {
   if (state.sponsor_logo) {
     const hLogo = document.getElementById('g-sponsor-logo');
-    if (hLogo) { hLogo.src = state.sponsor_logo; hLogo.classList.remove('hidden'); }
+    if (hLogo) { hLogo.src = state.sponsor_logo; hLogo.style.display = 'inline-block'; }
     const eLogo = document.getElementById('end-sponsor-logo');
-    if (eLogo) { eLogo.src = state.sponsor_logo; eLogo.classList.remove('hidden'); }
+    if (eLogo) { eLogo.src = state.sponsor_logo; eLogo.style.display = 'block'; }
   }
   if (state.character_image) {
     const cf = document.getElementById('game-character-float');
-    if (cf) { cf.src = state.character_image; cf.classList.remove('hidden'); }
+    if (cf) { cf.src = state.character_image; cf.style.display = 'block'; }
   }
 }
 

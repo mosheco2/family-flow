@@ -25129,7 +25129,7 @@ app.get('/api/live-games/:id/leaderboard', async (req, res) => {
       `SELECT lgp.display_name, lgp.score, u.nickname
        FROM live_game_participants lgp
        LEFT JOIN users u ON u.id = lgp.user_id
-       WHERE lgp.game_id=$1
+       WHERE lgp.game_id=$1 AND lgp.approved=true
        ORDER BY lgp.score DESC LIMIT 20`,
       [req.params.id]
     );
