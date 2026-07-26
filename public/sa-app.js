@@ -10597,6 +10597,17 @@ async function _lgAssignVisible(gameId) {
   showToast(d.success ? 'success' : 'error', d.success ? `נשלחה הודעה ל-${d.assigned} קבוצות ✓` : d.error || 'שגיאה');
 }
 
+function _lgSourceLabel(src) {
+  if (!src) return '';
+  if (src === 'inbox') return 'אינבוקס';
+  if (src === 'whatsapp') return 'WhatsApp';
+  if (src === 'telegram') return 'Telegram';
+  if (src === 'direct') return 'ישיר';
+  if (src === 'direct-internal') return 'פנימי';
+  if (src === 'external') return 'חיצוני';
+  return src;
+}
+
 // ── חדר המתנה ──
 async function _lgLoadWaitingRoom(gameId) {
   const el = document.getElementById('lg-waiting-list');
@@ -10613,6 +10624,7 @@ async function _lgLoadWaitingRoom(gameId) {
           <span class="text-[10px] px-1.5 py-0.5 rounded-full ${p.approved ? 'bg-green-700/60 text-green-300' : 'bg-amber-700/60 text-amber-300'}">${p.approved ? '✅ מאושר' : '⏳ ממתין'}</span>
           ${p.group_name ? `<span class="text-xs text-slate-300">${p.group_name}</span>` : ''}
           ${p.registration_source && p.registration_source !== 'self' ? `<span class="text-[10px] bg-purple-900/50 text-purple-300 px-1.5 py-0.5 rounded-full">${p.registration_source}</span>` : ''}
+          ${p.join_source ? `<span class="text-[10px] bg-slate-600 text-slate-300 px-1.5 py-0.5 rounded-full" title="מקור כניסה למשחק">📍 ${_lgSourceLabel(p.join_source)}</span>` : ''}
         </div>
       </div>
       <div class="flex gap-1.5 shrink-0">

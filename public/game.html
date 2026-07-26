@@ -235,6 +235,20 @@ try {
   if (s && s.user && s.group) { currentUser = s.user; currentGroup = s.group; }
 } catch(e) {}
 
+// זיהוי מקור כניסה
+function _detectJoinSource() {
+  const ref = document.referrer || '';
+  if (ref.includes('/inbox') || ref.includes('inbox')) return 'inbox';
+  if (ref.includes('wa.me') || ref.includes('whatsapp')) return 'whatsapp';
+  if (ref.includes('t.me') || ref.includes('telegram')) return 'telegram';
+  if (ref.includes('oneflowlife') || ref.includes(location.hostname)) return 'direct-internal';
+  if (ref) return 'external';
+  // ניסיון לקרוא פרמטר UTM מה-URL
+  const utm = new URLSearchParams(location.search).get('src') || new URLSearchParams(location.search).get('utm_source');
+  if (utm) return utm;
+  return 'direct';
+}
+
 window.onload = async () => {
   const stateRes = await fetch(`/api/live-games/${gameCode}/state`).catch(() => null);
   if (!stateRes || !stateRes.ok) { showDisabledDirect(); return; }
@@ -340,7 +354,7 @@ async function joinAndStart(state) {
 
   const joinRes = await fetch(`/api/live-games/${gameCode}/join`, {
     method: 'POST', headers: {'Content-Type':'application/json'},
-    body: JSON.stringify({ userId: currentUser?.id, displayName: currentUser?.nickname || currentUser?.first_name || 'שחקן', groupId: currentGroup?.id || null })
+    body: JSON.stringify({ userId: currentUser?.id, displayName: currentUser?.nickname || currentUser?.first_name || 'שחקן', groupId: currentGroup?.id || null, joinSource: _detectJoinSource() })
   });
   const joinData = await joinRes.json();
   myApproved = joinData.approved || false;

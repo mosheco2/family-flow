@@ -24154,6 +24154,7 @@ app.get('/api/community/feed/search', async (req, res) => {
   try { await pool.query(`ALTER TABLE live_games ADD COLUMN IF NOT EXISTS is_hidden BOOLEAN NOT NULL DEFAULT false`); } catch(e) {}
   try { await pool.query(`ALTER TABLE live_game_participants ADD COLUMN IF NOT EXISTS approved BOOLEAN NOT NULL DEFAULT false`); } catch(e) {}
   try { await pool.query(`ALTER TABLE live_game_participants ADD COLUMN IF NOT EXISTS group_id INT REFERENCES family_groups(id) ON DELETE SET NULL`); } catch(e) {}
+  try { await pool.query(`ALTER TABLE live_game_participants ADD COLUMN IF NOT EXISTS join_source VARCHAR(100) DEFAULT NULL`); } catch(e) {}
 
   // flow_config: referral_join if not exists
   try {
@@ -24957,7 +24958,7 @@ app.post('/api/live-games/:id/next-question', verifySA, async (req, res) => {
 // הצטרפות שחקן
 app.post('/api/live-games/:game_code/join', async (req, res) => {
   try {
-    const { userId, displayName, groupId } = req.body;
+    const { userId, displayName, groupId, joinSource } = req.body;
     const g = await pool.query(`SELECT * FROM live_games WHERE game_code=$1`, [req.params.game_code.toUpperCase()]);
     if (!g.rows.length) return res.status(404).json({ error: 'משחק לא נמצא' });
     const game = g.rows[0];
@@ -24966,8 +24967,8 @@ app.post('/api/live-games/:game_code/join', async (req, res) => {
     if (game.status === 'ended') return res.status(403).json({ error: 'המשחק הסתיים' });
     // insert participant — approved=false until admin approves
     await pool.query(
-      `INSERT INTO live_game_participants (game_id, user_id, display_name, group_id, approved) VALUES ($1,$2,$3,$4,false) ON CONFLICT (game_id, user_id) DO NOTHING`,
-      [game.id, userId || null, displayName || 'אנונימי', groupId || null]
+      `INSERT INTO live_game_participants (game_id, user_id, display_name, group_id, approved, join_source) VALUES ($1,$2,$3,$4,false,$5) ON CONFLICT (game_id, user_id) DO NOTHING`,
+      [game.id, userId || null, displayName || 'אנונימי', groupId || null, joinSource || null]
     );
     // check if already approved (returning participant)
     const existing = await pool.query('SELECT approved FROM live_game_participants WHERE game_id=$1 AND user_id=$2', [game.id, userId || null]);
@@ -25071,7 +25072,7 @@ app.get('/api/live-games/:id/leaderboard', async (req, res) => {
 app.get('/api/live-games/:id/waiting-room', verifySA, async (req, res) => {
   try {
     const rows = await pool.query(
-      `SELECT lgp.id, lgp.user_id, lgp.display_name, lgp.approved, lgp.joined_at, lgp.group_id,
+      `SELECT lgp.id, lgp.user_id, lgp.display_name, lgp.approved, lgp.joined_at, lgp.group_id, lgp.join_source,
               u.phone, u.registration_source, fg.name as group_name
        FROM live_game_participants lgp
        LEFT JOIN users u ON u.id = lgp.user_id
