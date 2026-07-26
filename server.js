@@ -24868,26 +24868,11 @@ app.post('/api/live-games', verifySA, async (req, res) => {
       [title, prize || null, business_name || null, sponsor_name||null, sponsor_text||null, whatsapp_text||null, !!is_public, community_id||null, code]
     );
     const gameId = g.rows[0].id;
-    // שמירת תמונות
-    const imgDir = 'public/uploads/game-assets';
-    fs.mkdirSync(imgDir, { recursive: true });
-    let sponsorLogo = null, characterImage = null;
-    if (sponsor_logo_data) {
-      const b64 = sponsor_logo_data.replace(/^data:image\/[^;]+;base64,/, '');
-      const fname = `logo_${gameId}_${Date.now()}.png`;
-      fs.writeFileSync(`${imgDir}/${fname}`, Buffer.from(b64, 'base64'));
-      sponsorLogo = `/uploads/game-assets/${fname}`;
-    }
-    if (character_image_data) {
-      const b64 = character_image_data.replace(/^data:image\/[^;]+;base64,/, '');
-      const fname = `char_${gameId}_${Date.now()}.png`;
-      fs.writeFileSync(`${imgDir}/${fname}`, Buffer.from(b64, 'base64'));
-      characterImage = `/uploads/game-assets/${fname}`;
-    }
+    // שמירת תמונות ישירות ב-DB (עמיד בפני restart)
+    const sponsorLogo = sponsor_logo_data || null;
+    const characterImage = character_image_data || null;
     if (sponsorLogo || characterImage) {
       await pool.query('UPDATE live_games SET sponsor_logo=$1, character_image=$2 WHERE id=$3', [sponsorLogo, characterImage, gameId]);
-      g.rows[0].sponsor_logo = sponsorLogo;
-      g.rows[0].character_image = characterImage;
     }
     if (questions && questions.length) {
       for (let i = 0; i < questions.length; i++) {
@@ -24907,25 +24892,13 @@ app.put('/api/live-games/:id', verifySA, async (req, res) => {
   try {
     const { title, prize, business_name, sponsor_name, sponsor_text, whatsapp_text, is_public, is_hidden, community_id, questions, sponsor_logo_data, character_image_data } = req.body;
     const gid = req.params.id;
-    // שמירת תמונות חדשות אם הועלו
-    const imgDir = 'public/uploads/game-assets';
-    fs.mkdirSync(imgDir, { recursive: true });
+    // שמירת תמונות חדשות ב-DB אם הועלו
+    const baseParams = [title, prize || null, business_name || null, sponsor_name||null, sponsor_text||null, whatsapp_text||null, !!is_public, !!is_hidden, community_id||null, gid];
     let logoSet = '', charSet = '';
-    const logoParams = [], charParams = [];
-    if (sponsor_logo_data) {
-      const b64 = sponsor_logo_data.replace(/^data:image\/[^;]+;base64,/, '');
-      const fname = `logo_${gid}_${Date.now()}.png`;
-      fs.writeFileSync(`${imgDir}/${fname}`, Buffer.from(b64, 'base64'));
-      logoSet = `, sponsor_logo='/uploads/game-assets/${fname}'`;
-    }
-    if (character_image_data) {
-      const b64 = character_image_data.replace(/^data:image\/[^;]+;base64,/, '');
-      const fname = `char_${gid}_${Date.now()}.png`;
-      fs.writeFileSync(`${imgDir}/${fname}`, Buffer.from(b64, 'base64'));
-      charSet = `, character_image='/uploads/game-assets/${fname}'`;
-    }
+    if (sponsor_logo_data) { baseParams.push(sponsor_logo_data); logoSet = `, sponsor_logo=$${baseParams.length}`; }
+    if (character_image_data) { baseParams.push(character_image_data); charSet = `, character_image=$${baseParams.length}`; }
     await pool.query(`UPDATE live_games SET title=$1, prize=$2, business_name=$3, sponsor_name=$4, sponsor_text=$5, whatsapp_text=$6, is_public=$7, is_hidden=$8, community_id=$9${logoSet}${charSet} WHERE id=$10`,
-      [title, prize || null, business_name || null, sponsor_name||null, sponsor_text||null, whatsapp_text||null, !!is_public, !!is_hidden, community_id||null, gid]);
+      baseParams);
     if (questions) {
       await pool.query('DELETE FROM live_game_questions WHERE game_id=$1', [gid]);
       for (let i = 0; i < questions.length; i++) {
@@ -25076,6 +25049,28 @@ app.post('/api/live-games/:game_code/answer', async (req, res) => {
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// הגשת תמונות משחק מה-DB (עמיד בפני restart)
+app.get('/api/live-games/:game_code/image/:type', async (req, res) => {
+  try {
+    const col = req.params.type === 'logo' ? 'sponsor_logo' : 'character_image';
+    const g = await pool.query(`SELECT ${col} FROM live_games WHERE game_code=$1`, [req.params.game_code.toUpperCase()]);
+    if (!g.rows.length || !g.rows[0][col]) return res.status(404).end();
+    const data = g.rows[0][col];
+    // תמיכה בשני פורמטים: data URI ישן ו-path ישן
+    if (data.startsWith('data:')) {
+      const match = data.match(/^data:([^;]+);base64,(.+)$/);
+      if (!match) return res.status(400).end();
+      const buf = Buffer.from(match[2], 'base64');
+      res.set('Content-Type', match[1]).set('Cache-Control', 'public, max-age=86400').send(buf);
+    } else {
+      // path ישן — נסה לשרת מהקובץ
+      const filePath = path.join(__dirname, 'public', data);
+      if (fs.existsSync(filePath)) res.sendFile(filePath);
+      else res.status(404).end();
+    }
+  } catch(e) { res.status(500).end(); }
+});
+
 // מצב נוכחי (polling)
 app.get('/api/live-games/:game_code/state', async (req, res) => {
   try {
@@ -25114,8 +25109,8 @@ app.get('/api/live-games/:game_code/state', async (req, res) => {
       business_name: game.business_name,
       sponsor_name: game.sponsor_name,
       sponsor_text: game.sponsor_text,
-      sponsor_logo: game.sponsor_logo,
-      character_image: game.character_image,
+      sponsor_logo: game.sponsor_logo ? `/api/live-games/${game.game_code}/image/logo` : null,
+      character_image: game.character_image ? `/api/live-games/${game.game_code}/image/char` : null,
       my_approved: myApproved,
       notify_sent_at: game.notify_sent_at
     });
