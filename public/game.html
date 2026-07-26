@@ -205,27 +205,32 @@
 </div>
 
 <!-- Sponsor splash modal -->
-<div id="sponsor-splash" class="hidden fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-6 fadein">
-  <div class="bg-slate-800 rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl border border-white/10 relative">
-    <div id="splash-logo-wrap" class="hidden mb-4 flex justify-center">
-      <img id="splash-sponsor-logo" src="" alt="" class="h-16 object-contain mx-auto rounded-lg">
+<div id="sponsor-splash" class="hidden fixed inset-0 bg-black/90 z-50 flex items-end justify-center p-0 fadein">
+  <div class="bg-slate-800 rounded-t-3xl w-full max-w-sm shadow-2xl border-t border-white/10 relative overflow-visible">
+    <!-- דמות מלווה — בולטת מעל הכרטיס -->
+    <div id="splash-char-wrap" class="hidden absolute -top-28 left-1/2 -translate-x-1/2 pointer-events-none" style="width:110px">
+      <img id="splash-character" src="" alt="" style="width:110px;height:auto;background:transparent;display:block">
     </div>
-    <div id="splash-emoji-wrap" class="text-5xl mb-4">🎯</div>
-    <div class="text-xs text-slate-400 uppercase tracking-widest mb-1">בחסות</div>
-    <div class="text-2xl font-black text-white mb-3" id="splash-sponsor-name"></div>
-    <div class="text-base font-bold text-indigo-300 mb-4" id="splash-game-title"></div>
-    <p class="text-slate-300 text-sm mb-6 leading-relaxed" id="splash-sponsor-text"></p>
-    <div id="splash-prize-row" class="hidden bg-yellow-500/20 border border-yellow-500/30 rounded-xl px-4 py-3 mb-6">
-      <div class="text-xs text-yellow-400">🏆 פרס</div>
-      <div class="font-bold text-yellow-300" id="splash-prize"></div>
+    <div class="px-7 pt-10 pb-7 text-center">
+      <div id="splash-logo-wrap" class="hidden mb-3 flex justify-center">
+        <img id="splash-sponsor-logo" src="" alt="" class="h-14 object-contain mx-auto rounded-lg">
+      </div>
+      <div id="splash-emoji-wrap" class="text-5xl mb-3">🎯</div>
+      <div class="text-xs text-slate-400 uppercase tracking-widest mb-1">בחסות</div>
+      <div class="text-2xl font-black text-white mb-2" id="splash-sponsor-name"></div>
+      <div class="text-base font-bold text-indigo-300 mb-3" id="splash-game-title"></div>
+      <p class="text-slate-300 text-sm mb-5 leading-relaxed" id="splash-sponsor-text"></p>
+      <div id="splash-prize-row" class="hidden bg-yellow-500/20 border border-yellow-500/30 rounded-xl px-4 py-3 mb-5">
+        <div class="text-xs text-yellow-400">🏆 פרס</div>
+        <div class="font-bold text-yellow-300" id="splash-prize"></div>
+      </div>
+      <button onclick="closeSponsorSplash()" class="w-full brand-gradient py-4 rounded-xl font-black text-lg shadow-lg">בואו נשחק! ▶</button>
     </div>
-    <img id="splash-character" src="" alt="" class="hidden absolute -bottom-6 -left-4 w-28 object-contain pointer-events-none drop-shadow-xl">
-    <button onclick="closeSponsorSplash()" class="w-full brand-gradient py-4 rounded-xl font-black text-lg shadow-lg">בואו נשחק! ▶</button>
   </div>
 </div>
 
 <!-- Floating character overlay (shown during game) -->
-<img id="game-character-float" src="" alt="" class="hidden fixed bottom-0 right-2 w-20 md:w-28 object-contain pointer-events-none z-20 drop-shadow-2xl" style="filter:drop-shadow(0 4px 12px rgba(0,0,0,0.5))">
+<img id="game-character-float" src="" alt="" class="hidden fixed bottom-0 right-3 pointer-events-none z-20" style="width:90px;height:auto;background:transparent;filter:drop-shadow(0 -2px 8px rgba(0,0,0,0.4))">
 
 <script>
 const gameCode = location.pathname.split('/').pop().toUpperCase();
@@ -396,10 +401,12 @@ function showSponsorSplash(state) {
     if (logoWrap) logoWrap.classList.remove('hidden');
     document.getElementById('splash-emoji-wrap')?.classList.add('hidden');
   }
-  // דמות מלווה בחלונית
+  // דמות מלווה בחלונית — בולטת מעל הכרטיס
   if (state.character_image) {
     const sc = document.getElementById('splash-character');
-    if (sc) { sc.src = state.character_image; sc.classList.remove('hidden'); }
+    const sw = document.getElementById('splash-char-wrap');
+    if (sc) sc.src = state.character_image;
+    if (sw) sw.classList.remove('hidden');
   }
   document.getElementById('sponsor-splash').classList.remove('hidden');
 }
