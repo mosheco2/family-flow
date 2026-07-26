@@ -51,8 +51,8 @@ const port = process.env.PORT || 3000;
 
 app.use(compression());
 app.use(cors());
-app.use(express.json({limit: '5mb'}));
-app.use(express.urlencoded({limit: '5mb', extended: true}));
+app.use(express.json({limit: '20mb'}));
+app.use(express.urlencoded({limit: '20mb', extended: true}));
 // Serve WebP automatically when browser supports it and WebP version exists
 app.use((req, res, next) => {
     if (/\.(png|jpe?g)$/i.test(req.path) && (req.headers.accept || '').includes('image/webp')) {

@@ -10218,6 +10218,7 @@ async function _fetchLGList() {
 
 function _lgHandleLogoUpload(e) {
   const file = e.target.files[0]; if (!file) return;
+  if (file.size > 5 * 1024 * 1024) { alert('הקובץ גדול מדי (מקסימום 5MB)'); e.target.value = ''; return; }
   const reader = new FileReader();
   reader.onload = ev => {
     window._lgLogoData = ev.target.result;
@@ -10228,6 +10229,7 @@ function _lgHandleLogoUpload(e) {
 }
 function _lgHandleCharUpload(e) {
   const file = e.target.files[0]; if (!file) return;
+  if (file.size > 5 * 1024 * 1024) { alert('הקובץ גדול מדי (מקסימום 5MB)'); e.target.value = ''; return; }
   const reader = new FileReader();
   reader.onload = ev => {
     window._lgCharData = ev.target.result;
@@ -10384,30 +10386,39 @@ function _lgAddQuestion() {
 }
 
 async function _saveLGGame() {
-  const saToken = localStorage.getItem('ofl_sa_token');
-  const body = {
-    title: document.getElementById('lg-title').value.trim(),
-    business_name: document.getElementById('lg-biz').value.trim(),
-    prize: document.getElementById('lg-prize').value.trim(),
-    sponsor_name: document.getElementById('lg-sponsor-name').value.trim(),
-    sponsor_text: document.getElementById('lg-sponsor-text').value.trim(),
-    whatsapp_text: document.getElementById('lg-wa-text').value.trim(),
-    is_public: document.getElementById('lg-is-public').checked,
-    is_hidden: document.getElementById('lg-is-hidden').checked,
-    community_id: document.getElementById('lg-community-id')?.value || null,
-    questions: window._lgQuestions
-  };
-  if (window._lgLogoData) body.sponsor_logo_data = window._lgLogoData;
-  if (window._lgCharData) body.character_image_data = window._lgCharData;
-  if (!body.title) return alert('יש להזין שם לאירוע');
-  const url = _lgEditId ? `/api/live-games/${_lgEditId}` : '/api/live-games';
-  const method = _lgEditId ? 'PUT' : 'POST';
-  const r = await fetch(url, { method, headers: { 'Content-Type':'application/json', Authorization: saToken }, body: JSON.stringify(body) });
-  const data = await r.json();
-  if (!data.success) return alert('שגיאה: ' + (data.error || 'לא ידועה'));
-  document.getElementById('lg-editor-modal')?.remove();
-  await _fetchLGList();
-  if (!_lgEditId && data.game) openLGControl(data.game.id, data.game.game_code);
+  const btn = document.querySelector('#lg-editor-modal button[onclick="_saveLGGame()"]');
+  if (btn) { btn.disabled = true; btn.textContent = 'שומר...'; }
+  try {
+    const saToken = localStorage.getItem('ofl_sa_token');
+    const body = {
+      title: document.getElementById('lg-title').value.trim(),
+      business_name: document.getElementById('lg-biz').value.trim(),
+      prize: document.getElementById('lg-prize').value.trim(),
+      sponsor_name: document.getElementById('lg-sponsor-name').value.trim(),
+      sponsor_text: document.getElementById('lg-sponsor-text').value.trim(),
+      whatsapp_text: document.getElementById('lg-wa-text').value.trim(),
+      is_public: document.getElementById('lg-is-public').checked,
+      is_hidden: document.getElementById('lg-is-hidden').checked,
+      community_id: document.getElementById('lg-community-id')?.value || null,
+      questions: window._lgQuestions
+    };
+    if (window._lgLogoData) body.sponsor_logo_data = window._lgLogoData;
+    if (window._lgCharData) body.character_image_data = window._lgCharData;
+    if (!body.title) { alert('יש להזין שם לאירוע'); return; }
+    const url = _lgEditId ? `/api/live-games/${_lgEditId}` : '/api/live-games';
+    const method = _lgEditId ? 'PUT' : 'POST';
+    const r = await fetch(url, { method, headers: { 'Content-Type':'application/json', Authorization: saToken }, body: JSON.stringify(body) });
+    if (!r.ok) { alert('שגיאת שרת: ' + r.status); return; }
+    const data = await r.json();
+    if (!data.success) { alert('שגיאה: ' + (data.error || 'לא ידועה')); return; }
+    document.getElementById('lg-editor-modal')?.remove();
+    await _fetchLGList();
+    if (!_lgEditId && data.game) openLGControl(data.game.id, data.game.game_code);
+  } catch(e) {
+    alert('שגיאה: ' + e.message);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'שמור משחק'; }
+  }
 }
 
 async function openLGControl(gameId, gameCode) {
