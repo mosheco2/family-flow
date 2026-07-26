@@ -8666,8 +8666,8 @@ const ROLE_DEFAULTS = {
 
 function enforcePermissions() {
     if (!currentUser || !currentGroup) return;
-    // ילד על טאב קהילה — לא נוגעים לו
-    if (currentUser.role === 'CHILD' && window._currentFamilyTab === 'community') {
+    // קהילה — לעולם לא מרדיירדים ממנה ולא מסתירים את הכפתור
+    if (window._currentFamilyTab === 'community') {
         const commBtn = getEl('tab-community');
         if (commBtn) { commBtn.style.display = 'inline-block'; commBtn.classList.remove('locked-module','opacity-60','grayscale'); }
         return;

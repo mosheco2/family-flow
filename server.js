@@ -6006,10 +6006,10 @@ app.post('/api/admin/change-role', async (req, res) => {
         if (!targetRes.rows.length || targetRes.rows[0].group_id !== adminRes.rows[0].group_id) return res.status(403).json({ error: 'משתמש לא שייך לאותה קבוצה' });
         // הרשאות אוטומטיות לפי תפקיד
         const autoPerms = newRole === 'ADMIN'
-            ? { tabs: ['feed','shop','tasks','budget','members','goals','pantry','loans','academy','cashflow'] }
+            ? { tabs: ['feed','shop','tasks','budget','members','goals','pantry','loans','academy','cashflow','community'] }
             : newRole === 'CHILD'
             ? { tabs: ['feed','shop','tasks','goals','academy','bank','cashflow','community'] }
-            : { tabs: ['feed'] };
+            : { tabs: ['feed','community'] };
         await pool.query('UPDATE users SET role=$1, permissions=$2 WHERE id=$3', [newRole, JSON.stringify(autoPerms), userId]);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
