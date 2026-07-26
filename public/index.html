@@ -1146,13 +1146,16 @@
                         <span id="notif-bell-badge" style="display:none;position:absolute;top:-4px;right:-4px;background:#EF4444;color:white;border-radius:50%;min-width:16px;height:16px;font-size:0.6rem;font-weight:900;align-items:center;justify-content:center;padding:0 3px"></span>
                       </button>
                     </div>
-                    <div class="grid grid-cols-5 gap-2 mb-4" id="comm-nav-grid">
+                    <div class="grid grid-cols-3 gap-2 mb-2" id="comm-nav-grid">
                         <button onclick="switchFamCommunityTab('manage')" class="flex flex-col items-center justify-center gap-1 py-3 rounded-2xl bg-slate-100 text-slate-700 hover:bg-orange-50 hover:text-orange-600 transition text-[11px] font-bold">
                             <i class="fa-solid fa-people-group text-base text-orange-400"></i>ניהול קהילות
                         </button>
                         <button onclick="switchFamCommunityTab('promos')" class="relative flex flex-col items-center justify-center gap-1 py-3 rounded-2xl bg-slate-100 text-slate-700 hover:bg-pink-50 hover:text-pink-600 transition text-[11px] font-bold">
                             <i class="fa-solid fa-percent text-base text-pink-400"></i>מבצעים
                             <span id="comm-promos-count-badge" class="hidden bg-red-500 text-white text-[8px] font-black px-1 rounded-full absolute -top-1 -right-1 min-w-[16px] h-[16px] flex items-center justify-center"></span>
+                        </button>
+                        <button onclick="switchFamCommunityTab('games')" class="flex flex-col items-center justify-center gap-1 py-3 rounded-2xl bg-slate-100 text-slate-700 hover:bg-indigo-50 hover:text-indigo-600 transition text-[11px] font-bold">
+                            <i class="fa-solid fa-gamepad text-base text-indigo-400"></i>משחקים
                         </button>
                         <button onclick="switchFamCommunityTab('news')" class="flex flex-col items-center justify-center gap-1 py-3 rounded-2xl bg-slate-100 text-slate-700 hover:bg-sky-50 hover:text-sky-600 transition text-[11px] font-bold">
                             <i class="fa-solid fa-newspaper text-base text-sky-400"></i>חדשות
@@ -1186,6 +1189,24 @@
                             <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 px-1">מבצעים מומלצים</p>
                             <div id="comm-home-banners-feed" class="space-y-3">
                                 <p class="text-xs text-slate-400 text-center py-8">טוען...</p>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- View: Games (משחקים חיים) -->
+                    <div id="fam-comm-view-games" class="hidden pb-20">
+                        <div class="flex items-center gap-2 mb-4">
+                            <button onclick="switchFamCommunityTab('home')" class="text-slate-400 hover:text-slate-600 transition"><i class="fa-solid fa-arrow-right"></i></button>
+                            <h3 class="font-bold text-slate-700 text-base">🎮 משחקים חיים</h3>
+                        </div>
+                        <div id="comm-games-view-list" class="space-y-3">
+                            <p class="text-xs text-slate-400 text-center py-8">טוען משחקים...</p>
+                        </div>
+                        <div id="comm-games-admin-section" class="hidden mt-6">
+                            <div class="border-t border-slate-100 pt-4">
+                                <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-3 px-1">ניהול משחקים (מנהל)</p>
+                                <button onclick="openCreateLiveGameModal()" class="w-full bg-indigo-600 text-white font-bold py-3 rounded-2xl text-sm hover:bg-indigo-700 transition flex items-center justify-center gap-2">
+                                    <i class="fa-solid fa-plus"></i> יצירת משחק חדש
+                                </button>
                             </div>
                         </div>
                     </div>

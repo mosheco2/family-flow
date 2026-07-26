@@ -4512,6 +4512,31 @@ async function loadCommHomeGames() {
   }
 }
 
+async function loadCommGamesView() {
+  const el = document.getElementById('comm-games-view-list');
+  const adminSection = document.getElementById('comm-games-admin-section');
+  if (!el) return;
+
+  // הצג כפתור ניהול למנהלים
+  if (adminSection && currentUser && currentUser.role === 'ADMIN') {
+    adminSection.classList.remove('hidden');
+  }
+
+  const communityId = myConnectedCommunitiesCache?.[0]?.id;
+  if (!communityId) {
+    el.innerHTML = '<div class="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-center"><i class="fa-solid fa-house-flag text-2xl text-amber-400 mb-2 block"></i><p class="text-sm font-bold text-amber-800 mb-1">עדיין לא מחוברים לקהילה</p><p class="text-xs text-amber-600">חיבור לקהילה נדרש להשתתפות במשחקים</p></div>';
+    return;
+  }
+  el.innerHTML = '<p class="text-xs text-slate-400 text-center py-8">טוען משחקים...</p>';
+  try {
+    const r = await fetch(`/api/community/${communityId}/live-games`);
+    const d = await r.json();
+    _renderGamesIntoEl(el, d.games);
+  } catch(e) {
+    el.innerHTML = '<div class="text-slate-400 text-xs text-center py-3">שגיאה בטעינת משחקים</div>';
+  }
+}
+
 // ============================================================
 // --- SUPERMARKET MODE (Feature 2) ---
 // ============================================================
@@ -5536,7 +5561,7 @@ let myCashbackCache = []; // [{community_id, community_name, balance, total_earn
 
 function switchFamCommunityTab(tab) {
     localStorage.setItem('ofl_comm_tab', tab);
-    ['home', 'manage', 'benefits', 'promos', 'news', 'feed', 'notifications'].forEach(t => {
+    ['home', 'manage', 'benefits', 'promos', 'news', 'feed', 'notifications', 'games'].forEach(t => {
         const view = document.getElementById(`fam-comm-view-${t}`);
         if (view) view.classList.add('hidden');
     });
@@ -5548,6 +5573,7 @@ function switchFamCommunityTab(tab) {
     if (tab === 'benefits') renderFamCommunityBenefits();
     if (tab === 'feed') { loadFeedSection(); }
     if (tab === 'notifications') { loadNotificationsTab(); }
+    if (tab === 'games') { loadCommGamesView(); }
     if (tab === 'news') {
         const communityId = myConnectedCommunitiesCache?.[0]?.id;
         if (communityId) loadCommunityArticles(communityId);
@@ -8722,12 +8748,23 @@ function enforcePermissions() {
         });
     }
 
+    // ילד — וודא שטאב קהילה תמיד גלוי ולא נעול
+    if (currentUser.role === 'CHILD') {
+        const commBtn = getEl('tab-community');
+        if (commBtn) {
+            commBtn.style.display = 'inline-block';
+            commBtn.classList.remove('locked-module', 'opacity-60', 'grayscale');
+        }
+    }
+
     // וידוא שהמשתמש לא תקוע בטאב נעול
     const activeTabs = document.querySelectorAll('.tab-active');
     activeTabs.forEach(activeBtn => {
         const tabId = activeBtn.id ? activeBtn.id.replace('tab-', '') : '';
         // אל תרדיר אם הטאב בפועל מותר לפי userTabs
         if (userTabs.includes(tabId)) return;
+        // ילד לעולם לא מועבר מטאב קהילה
+        if (currentUser.role === 'CHILD' && tabId === 'community') return;
         if (activeBtn.style.display === 'none' || activeBtn.classList.contains('locked-module')) {
             if(activeBtn.id !== 'tab-feed') switchTab('feed');
         }
