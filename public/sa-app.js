@@ -10190,7 +10190,8 @@ async function loadSALiveGames() {
   await _fetchLGList();
 }
 
-async function _lgDeleteGame(id, title) {
+async function _lgDeleteGame(id, btnEl) {
+  const title = btnEl?.dataset?.title || 'משחק זה';
   if (!confirm(`למחוק את המשחק "${title}"?\nכל השאלות, המשתתפים והתוצאות יימחקו לצמיתות.`)) return;
   const saToken = localStorage.getItem('ofl_sa_token');
   try {
@@ -10222,7 +10223,7 @@ async function _fetchLGList() {
       <div class="flex gap-2 shrink-0">
         <button onclick="openLGControl('${g.id}','${g.game_code}')" class="bg-slate-700 hover:bg-slate-600 text-white px-3 py-2 rounded-lg text-xs transition"><i class="fa-solid fa-gamepad"></i></button>
         <button onclick="openLGEditor(${g.id})" class="bg-slate-700 hover:bg-slate-600 text-white px-3 py-2 rounded-lg text-xs transition"><i class="fa-solid fa-pen"></i></button>
-        <button onclick="_lgDeleteGame(${g.id},'${g.title.replace(/'/g,'\\'')}')" class="bg-red-800 hover:bg-red-700 text-white px-3 py-2 rounded-lg text-xs transition"><i class="fa-solid fa-trash"></i></button>
+        <button onclick="_lgDeleteGame(${g.id},this)" data-title="${g.title.replace(/"/g,'&quot;')}" class="bg-red-800 hover:bg-red-700 text-white px-3 py-2 rounded-lg text-xs transition"><i class="fa-solid fa-trash"></i></button>
       </div>
     </div>
   `).join('');
