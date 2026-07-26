@@ -24154,6 +24154,7 @@ app.get('/api/community/feed/search', async (req, res) => {
   try { await pool.query(`ALTER TABLE live_games ADD COLUMN IF NOT EXISTS is_hidden BOOLEAN NOT NULL DEFAULT false`); } catch(e) {}
   try { await pool.query(`ALTER TABLE live_games ADD COLUMN IF NOT EXISTS sponsor_logo TEXT`); } catch(e) {}
   try { await pool.query(`ALTER TABLE live_games ADD COLUMN IF NOT EXISTS character_image TEXT`); } catch(e) {}
+  try { await pool.query(`ALTER TABLE live_games ADD COLUMN IF NOT EXISTS img_version INT NOT NULL DEFAULT 1`); } catch(e) {}
   try { await pool.query(`ALTER TABLE live_game_participants ADD COLUMN IF NOT EXISTS approved BOOLEAN NOT NULL DEFAULT false`); } catch(e) {}
   try { await pool.query(`ALTER TABLE live_game_participants ADD COLUMN IF NOT EXISTS group_id INT REFERENCES family_groups(id) ON DELETE SET NULL`); } catch(e) {}
   try { await pool.query(`ALTER TABLE live_game_participants ADD COLUMN IF NOT EXISTS join_source VARCHAR(100) DEFAULT NULL`); } catch(e) {}
@@ -24872,7 +24873,7 @@ app.post('/api/live-games', verifySA, async (req, res) => {
     const sponsorLogo = sponsor_logo_data || null;
     const characterImage = character_image_data || null;
     if (sponsorLogo || characterImage) {
-      await pool.query('UPDATE live_games SET sponsor_logo=$1, character_image=$2 WHERE id=$3', [sponsorLogo, characterImage, gameId]);
+      await pool.query('UPDATE live_games SET sponsor_logo=$1, character_image=$2, img_version=1 WHERE id=$3', [sponsorLogo, characterImage, gameId]);
     }
     if (questions && questions.length) {
       for (let i = 0; i < questions.length; i++) {
@@ -24891,13 +24892,15 @@ app.post('/api/live-games', verifySA, async (req, res) => {
 app.put('/api/live-games/:id', verifySA, async (req, res) => {
   try {
     const { title, prize, business_name, sponsor_name, sponsor_text, whatsapp_text, is_public, is_hidden, community_id, questions, sponsor_logo_data, character_image_data } = req.body;
-    const gid = req.params.id;
+    const gid = parseInt(req.params.id, 10);
+    if (!gid) return res.status(400).json({ error: 'מזהה משחק לא תקין' });
     // שמירת תמונות חדשות ב-DB אם הועלו
     const baseParams = [title, prize || null, business_name || null, sponsor_name||null, sponsor_text||null, whatsapp_text||null, !!is_public, !!is_hidden, community_id||null, gid];
-    let logoSet = '', charSet = '';
+    let logoSet = '', charSet = '', versionBump = '';
     if (sponsor_logo_data) { baseParams.push(sponsor_logo_data); logoSet = `, sponsor_logo=$${baseParams.length}`; }
     if (character_image_data) { baseParams.push(character_image_data); charSet = `, character_image=$${baseParams.length}`; }
-    await pool.query(`UPDATE live_games SET title=$1, prize=$2, business_name=$3, sponsor_name=$4, sponsor_text=$5, whatsapp_text=$6, is_public=$7, is_hidden=$8, community_id=$9${logoSet}${charSet} WHERE id=$10`,
+    if (sponsor_logo_data || character_image_data) versionBump = ', img_version=img_version+1';
+    await pool.query(`UPDATE live_games SET title=$1, prize=$2, business_name=$3, sponsor_name=$4, sponsor_text=$5, whatsapp_text=$6, is_public=$7, is_hidden=$8, community_id=$9${logoSet}${charSet}${versionBump} WHERE id=$10`,
       baseParams);
     if (questions) {
       await pool.query('DELETE FROM live_game_questions WHERE game_id=$1', [gid]);
@@ -24922,9 +24925,10 @@ app.get('/api/live-games/:id', verifySA, async (req, res) => {
     const qs = await pool.query('SELECT * FROM live_game_questions WHERE game_id=$1 ORDER BY order_num', [req.params.id]);
     const participants = await pool.query('SELECT COUNT(*) FROM live_game_participants WHERE game_id=$1', [req.params.id]);
     // החזר URL לתמונות במקום data URI ענק
+    const iv = game.img_version || 1;
     const gameOut = { ...game,
-      sponsor_logo: game.sponsor_logo ? `/api/live-games/${game.game_code}/image/logo` : null,
-      character_image: game.character_image ? `/api/live-games/${game.game_code}/image/char` : null
+      sponsor_logo: game.sponsor_logo ? `/api/live-games/${game.game_code}/image/logo?v=${iv}` : null,
+      character_image: game.character_image ? `/api/live-games/${game.game_code}/image/char?v=${iv}` : null
     };
     res.json({ game: gameOut, questions: qs.rows, participants_count: parseInt(participants.rows[0].count) });
   } catch(e) { res.status(500).json({ error: e.message }); }
@@ -25057,6 +25061,7 @@ app.post('/api/live-games/:game_code/answer', async (req, res) => {
 
 // הגשת תמונות משחק מה-DB (עמיד בפני restart)
 async function _serveGameImage(res, data) {
+  res.set('Cache-Control', 'no-store'); // תמיד טרי — חשוב אחרי עדכון תמונה
   if (!data) return res.status(404).end();
   if (data.startsWith('data:')) {
     const semi = data.indexOf(';base64,');
@@ -25064,7 +25069,7 @@ async function _serveGameImage(res, data) {
     const mime = data.slice(5, semi);
     const b64 = data.slice(semi + 8).trim();
     const buf = Buffer.from(b64, 'base64');
-    return res.set('Content-Type', mime).set('Cache-Control', 'public, max-age=86400').send(buf);
+    return res.set('Content-Type', mime).send(buf);
   }
   // נתיב ישן — נסה לשרת מהקובץ
   const filePath = path.join(__dirname, 'public', data);
@@ -25117,8 +25122,8 @@ app.get('/api/live-games/:game_code/state', async (req, res) => {
       business_name: game.business_name,
       sponsor_name: game.sponsor_name,
       sponsor_text: game.sponsor_text,
-      sponsor_logo: game.sponsor_logo ? `/api/live-games/${game.game_code}/image/logo` : null,
-      character_image: game.character_image ? `/api/live-games/${game.game_code}/image/char` : null,
+      sponsor_logo: game.sponsor_logo ? `/api/live-games/${game.game_code}/image/logo?v=${game.img_version||1}` : null,
+      character_image: game.character_image ? `/api/live-games/${game.game_code}/image/char?v=${game.img_version||1}` : null,
       my_approved: myApproved,
       notify_sent_at: game.notify_sent_at
     });

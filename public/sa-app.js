@@ -10421,8 +10421,9 @@ async function _saveLGGame() {
     const url = _lgEditId ? `/api/live-games/${_lgEditId}` : '/api/live-games';
     const method = _lgEditId ? 'PUT' : 'POST';
     const r = await fetch(url, { method, headers: { 'Content-Type':'application/json', Authorization: saToken }, body: JSON.stringify(body) });
-    if (!r.ok) { alert('שגיאת שרת: ' + r.status); return; }
-    const data = await r.json();
+    const respText = await r.text();
+    if (!r.ok) { alert('שגיאת שרת: ' + r.status + '\n' + respText); return; }
+    let data; try { data = JSON.parse(respText); } catch(e) { alert('שגיאת JSON: ' + respText); return; }
     if (!data.success) { alert('שגיאה: ' + (data.error || 'לא ידועה')); return; }
     document.getElementById('lg-editor-modal')?.remove();
     await _fetchLGList();
