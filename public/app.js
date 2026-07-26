@@ -3171,7 +3171,8 @@ async function loadKidsOverview() {
 
     kids.forEach(k => {
       const initials = (k.nickname || '?')[0].toUpperCase();
-      const flw = parseFloat(k.flw_balance || 0).toFixed(0);
+      const flwRaw = parseFloat(k.flw_balance || 0);
+      const flw = flwRaw.toFixed(0);
       const open = k.open_quests || 0;
       const games = k.games || [];
       const activeGames = games.filter(g => g.status === 'active');
@@ -3216,7 +3217,7 @@ async function loadKidsOverview() {
             </div>
             <div class="min-w-0">
               <div class="font-bold text-slate-800 text-xs truncate">${k.nickname}</div>
-              <div class="text-[10px] text-yellow-600 font-bold">🪙 ${flw} FLW kid</div>
+              <div class="text-[10px] ${flwRaw > 0 ? 'text-yellow-600 font-bold' : 'text-slate-400 font-medium'}">🪙 ${flw} מטבעות</div>
             </div>
           </div>
           <!-- סטטוס אתגרים -->

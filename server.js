@@ -22545,7 +22545,7 @@ app.get('/api/kids/parent-overview/:groupId', async (req, res) => {
         COALESCE(w.balance_flw, 0) as flw_balance
       FROM users u
       LEFT JOIN flw_kid_wallets w ON w.child_user_id = u.id
-      WHERE u.group_id = $1 AND u.role != 'ADMIN' AND u.status = 'active'
+      WHERE u.group_id = $1 AND u.role = 'CHILD' AND u.status = 'active'
       ORDER BY u.nickname
     `, [gid]);
 
