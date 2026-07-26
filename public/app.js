@@ -4386,6 +4386,35 @@ function sendWhatsAppInvite(role) {
 
 function toggleFab() { getEl('fab-container').classList.toggle('fab-open'); }
 
+// ── משחקים חיים בטאב קהילה ──
+async function loadCommGames(communityId) {
+  const el = document.getElementById('comm-games-list');
+  if (!el) return;
+  try {
+    const r = await fetch(`/api/community/${communityId}/live-games`);
+    const d = await r.json();
+    if (!d.games || !d.games.length) {
+      el.innerHTML = '<div class="text-slate-400 text-xs text-center py-3">אין משחקים פעילים כרגע</div>';
+      return;
+    }
+    const statusLabel = { waiting:'ממתין להתחלה', active:'🔴 פעיל עכשיו', ended:'הסתיים' };
+    el.innerHTML = d.games.map(g => `
+      <div class="bg-indigo-50 border border-indigo-200 rounded-2xl p-3 flex items-center justify-between gap-3">
+        <div class="flex-1 min-w-0 text-right">
+          <div class="font-bold text-indigo-900 text-sm truncate">${g.title || 'משחק טריוויה'}</div>
+          ${g.sponsor_name ? `<div class="text-[10px] text-indigo-600">בחסות ${g.sponsor_name}</div>` : ''}
+          ${g.prize ? `<div class="text-[10px] text-amber-600 font-medium">🏆 ${g.prize}</div>` : ''}
+          <div class="text-[10px] text-indigo-400 mt-0.5">${statusLabel[g.status] || g.status}</div>
+        </div>
+        <a href="/game/${g.game_code}" class="shrink-0 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-2 rounded-xl transition">
+          ${g.status === 'active' ? '▶ הצטרף עכשיו' : 'כניסה'}
+        </a>
+      </div>`).join('');
+  } catch(e) {
+    el.innerHTML = '<div class="text-slate-400 text-xs text-center py-3">שגיאה בטעינת משחקים</div>';
+  }
+}
+
 // ============================================================
 // --- SUPERMARKET MODE (Feature 2) ---
 // ============================================================
@@ -6225,6 +6254,14 @@ function renderFamilyCommunities() {
             }
             commListHtml += `</div>`;
 
+            // אזור משחקים חיים
+            commListHtml += `<div class="mt-5" id="comm-games-section">
+              <h3 class="font-bold text-slate-800 mb-3 text-sm"><i class="fa-solid fa-bolt text-indigo-500"></i> משחקים חיים</h3>
+              <div id="comm-games-list" class="space-y-2">
+                <div class="text-slate-400 text-xs text-center py-3">טוען משחקים...</div>
+              </div>
+            </div>`;
+
             let dynContainer = getEl('join-dyn-comm-list');
             if (!dynContainer) {
                 dynContainer = document.createElement('div');
@@ -6232,6 +6269,8 @@ function renderFamilyCommunities() {
                 joinView.appendChild(dynContainer);
             }
             dynContainer.innerHTML = commListHtml;
+            // load games for first community
+            if (approvedComms.length > 0) loadCommGames(approvedComms[0].id);
         } else {
             if (joinSection) joinSection.classList.remove('hidden');
             if (connectedInfo) connectedInfo.classList.add('hidden');

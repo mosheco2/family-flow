@@ -22,6 +22,12 @@
   .brand-gradient { background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); }
   input { color: #f1f5f9 !important; }
   input::placeholder { color: #64748b !important; }
+  @keyframes firework { 0%{transform:scale(0) rotate(0deg);opacity:1} 100%{transform:scale(1.5) rotate(720deg);opacity:0} }
+  .firework { position:fixed; pointer-events:none; font-size:2rem; animation:firework 1.2s ease-out forwards; }
+  @keyframes pulse-glow { 0%,100%{box-shadow:0 0 20px #fbbf24} 50%{box-shadow:0 0 60px #fbbf24, 0 0 100px #f59e0b} }
+  .winner-glow { animation: pulse-glow 1.5s ease-in-out infinite; }
+  @keyframes spin-slow { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+  .spin-slow { animation: spin-slow 3s linear infinite; }
 </style>
 </head>
 <body>
@@ -106,6 +112,19 @@
     </div>
   </div>
 
+  <!-- Pending approval screen -->
+  <div id="screen-pending" class="hidden flex-1 flex flex-col items-center justify-center p-6 fadein">
+    <div class="text-7xl mb-5">🚪</div>
+    <h2 class="text-xl font-bold mb-2 text-center">ממתין לאישור המנהל</h2>
+    <p class="text-slate-400 text-sm mb-6 text-center">בקשתך נקלטה. המנהל יאשר את כניסתך בקרוב.</p>
+    <div class="flex gap-2 mb-2">
+      <div class="w-2 h-2 rounded-full bg-indigo-400 animate-bounce" style="animation-delay:0ms"></div>
+      <div class="w-2 h-2 rounded-full bg-indigo-400 animate-bounce" style="animation-delay:150ms"></div>
+      <div class="w-2 h-2 rounded-full bg-indigo-400 animate-bounce" style="animation-delay:300ms"></div>
+    </div>
+    <div class="mt-6 text-slate-500 text-xs">שחקן: <span class="text-slate-300" id="pending-player-name"></span></div>
+  </div>
+
   <!-- Waiting screen -->
   <div id="screen-waiting" class="hidden flex-1 flex flex-col items-center justify-center p-6 fadein">
     <div class="text-7xl mb-5 animate-bounce">⏳</div>
@@ -149,20 +168,27 @@
     </div>
   </div>
 
-  <!-- End screen -->
-  <div id="screen-end" class="hidden flex-1 flex flex-col items-center justify-center p-6 fadein">
-    <div class="text-7xl mb-5">🎉</div>
-    <h2 class="text-2xl font-bold mb-2">המשחק הסתיים!</h2>
-    <div id="end-winner" class="bg-yellow-500/20 border border-yellow-500/40 rounded-2xl px-6 py-4 text-center mb-4 w-full max-w-xs">
-      <div class="text-sm text-yellow-400 mb-1">🥇 המנצח/ת</div>
-      <div class="text-xl font-bold" id="end-winner-name">—</div>
+  <!-- End screen (fireworks) -->
+  <div id="screen-end" class="hidden flex-1 flex flex-col items-center justify-center p-6 fadein relative overflow-hidden">
+    <div id="fireworks-container"></div>
+    <div class="text-7xl mb-3 spin-slow">🎉</div>
+    <h2 class="text-2xl font-bold mb-1">המשחק הסתיים!</h2>
+    <p class="text-slate-400 text-sm mb-5">תודה על ההשתתפות</p>
+    <div id="end-winner" class="winner-glow bg-yellow-500/20 border-2 border-yellow-500/60 rounded-2xl px-8 py-5 text-center mb-4 w-full max-w-xs">
+      <div class="text-3xl mb-1">🥇</div>
+      <div class="text-sm text-yellow-400 mb-1">המנצח/ת</div>
+      <div class="text-2xl font-black text-yellow-300" id="end-winner-name">—</div>
     </div>
-    <div class="bg-slate-800 rounded-xl px-6 py-4 text-center mb-4 border border-slate-700">
-      <div class="text-xs text-slate-400">הפרס</div>
+    <div class="bg-slate-800 rounded-xl px-6 py-4 text-center mb-3 border border-slate-700 w-full max-w-xs">
+      <div class="text-xs text-slate-400 mb-1">🏆 הפרס</div>
       <div class="text-base font-bold text-yellow-400" id="end-prize"></div>
     </div>
-    <div class="text-slate-400 text-sm mb-6">הניקוד שלי: <span class="text-white font-bold" id="end-my-score">0</span></div>
-    <a href="/" class="text-indigo-400 text-sm border border-indigo-700/50 px-5 py-2 rounded-xl hover:bg-indigo-900/30 transition">כניסה ל-OneFlow Life ←</a>
+    <div class="bg-slate-800/60 rounded-xl px-6 py-3 text-center mb-6 border border-slate-700/50 w-full max-w-xs">
+      <div class="text-xs text-slate-400 mb-0.5">הניקוד שלי</div>
+      <div class="text-3xl font-black text-indigo-300" id="end-my-score">0</div>
+    </div>
+    <div id="end-leaderboard" class="w-full max-w-xs space-y-2 mb-6"></div>
+    <button onclick="window.location.href='/'" class="brand-gradient text-white font-bold px-8 py-3 rounded-xl shadow-lg text-sm transition hover:opacity-90">כניסה ל-OneFlow Life ←</button>
   </div>
 
   <!-- Disabled screen -->
@@ -170,7 +196,23 @@
     <div class="text-6xl mb-4">🔒</div>
     <h2 class="text-xl font-bold mb-2">המשחק הסתיים</h2>
     <p class="text-slate-400 text-sm mb-6">תודה על השתתפותך!</p>
-    <a href="/" class="text-indigo-400 text-sm border border-indigo-700/50 px-5 py-2 rounded-xl hover:bg-indigo-900/30 transition">כניסה ל-OneFlow Life ←</a>
+    <button onclick="window.location.href='/'" class="brand-gradient text-white font-bold px-6 py-3 rounded-xl text-sm">כניסה ל-OneFlow Life ←</button>
+  </div>
+</div>
+
+<!-- Sponsor splash modal -->
+<div id="sponsor-splash" class="hidden fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-6 fadein">
+  <div class="bg-slate-800 rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl border border-white/10">
+    <div class="text-5xl mb-4">🎯</div>
+    <div class="text-xs text-slate-400 uppercase tracking-widest mb-1">בחסות</div>
+    <div class="text-2xl font-black text-white mb-3" id="splash-sponsor-name"></div>
+    <div class="text-base font-bold text-indigo-300 mb-4" id="splash-game-title"></div>
+    <p class="text-slate-300 text-sm mb-6 leading-relaxed" id="splash-sponsor-text"></p>
+    <div id="splash-prize-row" class="hidden bg-yellow-500/20 border border-yellow-500/30 rounded-xl px-4 py-3 mb-6">
+      <div class="text-xs text-yellow-400">🏆 פרס</div>
+      <div class="font-bold text-yellow-300" id="splash-prize"></div>
+    </div>
+    <button onclick="closeSponsorSplash()" class="w-full brand-gradient py-4 rounded-xl font-black text-lg shadow-lg">בואו נשחק! ▶</button>
   </div>
 </div>
 
@@ -192,24 +234,20 @@ try {
 } catch(e) {}
 
 window.onload = async () => {
-  // Fetch game state first
   const stateRes = await fetch(`/api/live-games/${gameCode}/state`).catch(() => null);
   if (!stateRes || !stateRes.ok) { showDisabledDirect(); return; }
   const state = await stateRes.json();
 
-  // Set auth screen game info
   document.getElementById('auth-game-title').textContent = state.title || 'משחק טריוויה';
   document.getElementById('auth-game-prize').textContent = state.prize ? `🏆 פרס: ${state.prize}` : '';
 
   if (state.status === 'disabled' || state.status === 'ended') { showDisabledDirect(); return; }
 
-  // If already logged in — go straight to game
   if (currentUser) {
     await joinAndStart(state);
     return;
   }
 
-  // Show auth screen
   document.getElementById('auth-screen').classList.remove('hidden');
 };
 
@@ -285,29 +323,63 @@ async function doRegister() {
   await joinAndStart(await stateRes.json());
 }
 
+let myApproved = false;
+let sponsorShown = false;
+
 async function joinAndStart(state) {
   document.getElementById('game-screen').classList.remove('hidden');
   document.getElementById('g-title').textContent = state.title || '';
   document.getElementById('w-title').textContent = state.title || '';
   document.getElementById('w-prize').textContent = state.prize || '';
   document.getElementById('w-player-name').textContent = currentUser?.nickname || currentUser?.first_name || '';
+  document.getElementById('pending-player-name').textContent = currentUser?.nickname || currentUser?.first_name || '';
   document.getElementById('end-prize').textContent = state.prize || '';
 
-  // Join game
-  await fetch(`/api/live-games/${gameCode}/join`, {
+  const joinRes = await fetch(`/api/live-games/${gameCode}/join`, {
     method: 'POST', headers: {'Content-Type':'application/json'},
-    body: JSON.stringify({ userId: currentUser?.id, displayName: currentUser?.nickname || 'שחקן' })
+    body: JSON.stringify({ userId: currentUser?.id, displayName: currentUser?.nickname || currentUser?.first_name || 'שחקן', groupId: currentGroup?.id || null })
   });
+  const joinData = await joinRes.json();
+  myApproved = joinData.approved || false;
 
-  renderState(state);
-  pollingInterval = setInterval(pollState, 1000);
+  // Show sponsor splash if not yet shown
+  if (!sponsorShown && (state.sponsor_name || state.sponsor_text)) {
+    showSponsorSplash(state);
+    // Polling starts after splash is closed
+  } else {
+    renderState(state);
+    pollingInterval = setInterval(pollState, 1000);
+  }
+}
+
+function showSponsorSplash(state) {
+  sponsorShown = true;
+  document.getElementById('splash-sponsor-name').textContent = state.sponsor_name || '';
+  document.getElementById('splash-game-title').textContent = state.title || '';
+  document.getElementById('splash-sponsor-text').textContent = state.sponsor_text || '';
+  if (state.prize) {
+    document.getElementById('splash-prize').textContent = state.prize;
+    document.getElementById('splash-prize-row').classList.remove('hidden');
+  }
+  document.getElementById('sponsor-splash').classList.remove('hidden');
+}
+
+function closeSponsorSplash() {
+  document.getElementById('sponsor-splash').classList.add('hidden');
+  fetch(`/api/live-games/${gameCode}/state?userId=${currentUser?.id || ''}`).then(r=>r.json()).then(state => {
+    renderState(state);
+    pollingInterval = setInterval(pollState, 1000);
+  });
 }
 
 async function pollState() {
   try {
-    const r = await fetch(`/api/live-games/${gameCode}/state`);
+    const uid = currentUser?.id ? `?userId=${currentUser.id}` : '';
+    const r = await fetch(`/api/live-games/${gameCode}/state${uid}`);
     if (!r.ok) return;
-    renderState(await r.json());
+    const state = await r.json();
+    myApproved = state.my_approved ?? myApproved;
+    renderState(state);
   } catch(e) {}
 }
 
@@ -318,6 +390,10 @@ function renderState(state) {
 
   if (state.status === 'disabled') { clearInterval(pollingInterval); showScreen('disabled'); return; }
   if (state.status === 'ended') { clearInterval(pollingInterval); showEndScreen(state); return; }
+
+  // Waiting for approval
+  if (!myApproved) { showScreen('pending'); return; }
+
   if (state.status === 'waiting') { showScreen('waiting'); return; }
   if (state.status === 'active' && state.current_question) {
     const q = state.current_question;
@@ -330,7 +406,7 @@ function renderState(state) {
 }
 
 function showScreen(name) {
-  ['waiting','question','answer-result','end','disabled'].forEach(s =>
+  ['pending','waiting','question','answer-result','end','disabled'].forEach(s =>
     document.getElementById(`screen-${s}`).classList.add('hidden'));
   document.getElementById(`screen-${name}`).classList.remove('hidden');
 }
@@ -416,14 +492,43 @@ async function showEndScreen(state) {
   showScreen('end');
   document.getElementById('end-my-score').textContent = myScore;
   document.getElementById('end-prize').textContent = state.prize || '';
-  // Try leaderboard
+  launchFireworks();
+  // Load leaderboard
   try {
-    const r2 = await fetch(`/api/live-games/${gameCode}/state`);
-    const s2 = await r2.json();
-    // Find game id via a second lookup if needed - use game state's game_id if available
-    const lbRes = await fetch(`/api/live-games/${gameCode.toLowerCase()}/state`);
+    const r = await fetch(`/api/live-games/${state.game_id || gameCode}/leaderboard`);
+    const d = await r.json();
+    if (d.leaderboard && d.leaderboard.length) {
+      const winner = d.leaderboard[0];
+      document.getElementById('end-winner-name').textContent = winner.display_name || winner.nickname || '—';
+      const medals = ['🥇','🥈','🥉'];
+      const lbEl = document.getElementById('end-leaderboard');
+      lbEl.innerHTML = d.leaderboard.slice(0,5).map((p,i) => `
+        <div class="flex items-center gap-3 bg-slate-800/80 rounded-xl px-3 py-2">
+          <span class="text-base w-6 text-center">${medals[i] || (i+1)}</span>
+          <span class="flex-1 text-sm">${p.display_name || p.nickname}</span>
+          <span class="text-indigo-300 font-bold tabular-nums text-sm">${(p.score||0).toLocaleString()}</span>
+        </div>`).join('');
+    }
   } catch(e) {}
-  document.getElementById('end-winner-name').textContent = '—';
+  // redirect to home after 15 seconds
+  setTimeout(() => { window.location.href = '/'; }, 15000);
+}
+
+function launchFireworks() {
+  const emojis = ['🎆','🎇','✨','🌟','💫','🎊','🎉'];
+  const container = document.getElementById('fireworks-container');
+  let count = 0;
+  const interval = setInterval(() => {
+    if (count++ > 20) { clearInterval(interval); return; }
+    const fw = document.createElement('div');
+    fw.className = 'firework';
+    fw.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+    fw.style.left = Math.random() * 100 + 'vw';
+    fw.style.top = Math.random() * 80 + 'vh';
+    fw.style.animationDuration = (0.8 + Math.random() * 0.8) + 's';
+    container.appendChild(fw);
+    setTimeout(() => fw.remove(), 1500);
+  }, 300);
 }
 </script>
 </body>

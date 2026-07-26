@@ -24115,6 +24115,15 @@ app.get('/api/community/feed/search', async (req, res) => {
     `);
   } catch(e) {}
 
+  // live games — new columns
+  try { await pool.query(`ALTER TABLE live_games ADD COLUMN IF NOT EXISTS sponsor_name TEXT`); } catch(e) {}
+  try { await pool.query(`ALTER TABLE live_games ADD COLUMN IF NOT EXISTS sponsor_text TEXT`); } catch(e) {}
+  try { await pool.query(`ALTER TABLE live_games ADD COLUMN IF NOT EXISTS whatsapp_text TEXT`); } catch(e) {}
+  try { await pool.query(`ALTER TABLE live_games ADD COLUMN IF NOT EXISTS is_public BOOLEAN NOT NULL DEFAULT false`); } catch(e) {}
+  try { await pool.query(`ALTER TABLE live_games ADD COLUMN IF NOT EXISTS is_hidden BOOLEAN NOT NULL DEFAULT false`); } catch(e) {}
+  try { await pool.query(`ALTER TABLE live_game_participants ADD COLUMN IF NOT EXISTS approved BOOLEAN NOT NULL DEFAULT false`); } catch(e) {}
+  try { await pool.query(`ALTER TABLE live_game_participants ADD COLUMN IF NOT EXISTS group_id INT REFERENCES family_groups(id) ON DELETE SET NULL`); } catch(e) {}
+
   // flow_config: referral_join if not exists
   try {
     await pool.query(`INSERT INTO flow_config (key, personal_amount, community_amount, description) VALUES ('referral_join', 20, 0, 'הפניית חבר שנרשם למערכת') ON CONFLICT (key) DO NOTHING`);
@@ -24807,7 +24816,7 @@ function generateGameCode() {
 // יצירת משחק
 app.post('/api/live-games', verifySA, async (req, res) => {
   try {
-    const { title, prize, business_name, questions } = req.body;
+    const { title, prize, business_name, sponsor_name, sponsor_text, whatsapp_text, is_public, questions } = req.body;
     if (!title) return res.status(400).json({ error: 'כותרת חובה' });
     let code;
     for (let i = 0; i < 10; i++) {
@@ -24816,8 +24825,8 @@ app.post('/api/live-games', verifySA, async (req, res) => {
       if (!exists.rows.length) break;
     }
     const g = await pool.query(
-      `INSERT INTO live_games (title, prize, business_name, game_code, status) VALUES ($1,$2,$3,$4,'waiting') RETURNING *`,
-      [title, prize || null, business_name || null, code]
+      `INSERT INTO live_games (title, prize, business_name, sponsor_name, sponsor_text, whatsapp_text, is_public, game_code, status) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'waiting') RETURNING *`,
+      [title, prize || null, business_name || null, sponsor_name||null, sponsor_text||null, whatsapp_text||null, !!is_public, code]
     );
     const gameId = g.rows[0].id;
     if (questions && questions.length) {
@@ -24836,9 +24845,9 @@ app.post('/api/live-games', verifySA, async (req, res) => {
 // עדכון משחק
 app.put('/api/live-games/:id', verifySA, async (req, res) => {
   try {
-    const { title, prize, business_name, questions } = req.body;
-    await pool.query(`UPDATE live_games SET title=$1, prize=$2, business_name=$3 WHERE id=$4`,
-      [title, prize || null, business_name || null, req.params.id]);
+    const { title, prize, business_name, sponsor_name, sponsor_text, whatsapp_text, is_public, is_hidden, questions } = req.body;
+    await pool.query(`UPDATE live_games SET title=$1, prize=$2, business_name=$3, sponsor_name=$4, sponsor_text=$5, whatsapp_text=$6, is_public=$7, is_hidden=$8 WHERE id=$9`,
+      [title, prize || null, business_name || null, sponsor_name||null, sponsor_text||null, whatsapp_text||null, !!is_public, !!is_hidden, req.params.id]);
     if (questions) {
       await pool.query('DELETE FROM live_game_questions WHERE game_id=$1', [req.params.id]);
       for (let i = 0; i < questions.length; i++) {
@@ -24912,17 +24921,23 @@ app.post('/api/live-games/:id/next-question', verifySA, async (req, res) => {
 // הצטרפות שחקן
 app.post('/api/live-games/:game_code/join', async (req, res) => {
   try {
-    const { userId, displayName } = req.body;
+    const { userId, displayName, groupId } = req.body;
     const g = await pool.query(`SELECT * FROM live_games WHERE game_code=$1`, [req.params.game_code.toUpperCase()]);
     if (!g.rows.length) return res.status(404).json({ error: 'משחק לא נמצא' });
     const game = g.rows[0];
+    if (game.is_hidden) return res.status(403).json({ error: 'המשחק אינו זמין' });
     if (game.status === 'disabled') return res.status(403).json({ error: 'המשחק הסתיים' });
     if (game.status === 'ended') return res.status(403).json({ error: 'המשחק הסתיים' });
+    // insert participant — approved=false until admin approves
     await pool.query(
-      `INSERT INTO live_game_participants (game_id, user_id, display_name) VALUES ($1,$2,$3) ON CONFLICT (game_id, user_id) DO NOTHING`,
-      [game.id, userId || null, displayName || 'אנונימי']
+      `INSERT INTO live_game_participants (game_id, user_id, display_name, group_id, approved) VALUES ($1,$2,$3,$4,false) ON CONFLICT (game_id, user_id) DO NOTHING`,
+      [game.id, userId || null, displayName || 'אנונימי', groupId || null]
     );
-    res.json({ success: true, game_id: game.id, status: game.status });
+    // check if already approved (returning participant)
+    const existing = await pool.query('SELECT approved FROM live_game_participants WHERE game_id=$1 AND user_id=$2', [game.id, userId || null]);
+    const approved = existing.rows[0]?.approved || false;
+    res.json({ success: true, game_id: game.id, status: game.status, approved,
+      sponsor_name: game.sponsor_name, sponsor_text: game.sponsor_text, title: game.title, prize: game.prize });
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -24961,10 +24976,17 @@ app.post('/api/live-games/:game_code/answer', async (req, res) => {
 // מצב נוכחי (polling)
 app.get('/api/live-games/:game_code/state', async (req, res) => {
   try {
+    const { userId } = req.query;
     const g = await pool.query(`SELECT * FROM live_games WHERE game_code=$1`, [req.params.game_code.toUpperCase()]);
     if (!g.rows.length) return res.status(404).json({ error: 'משחק לא נמצא' });
     const game = g.rows[0];
+    if (game.is_hidden) return res.status(403).json({ error: 'המשחק אינו זמין' });
     let currentQuestion = null;
+    let myApproved = false;
+    if (userId) {
+      const p = await pool.query('SELECT approved FROM live_game_participants WHERE game_id=$1 AND user_id=$2', [game.id, userId]);
+      myApproved = p.rows[0]?.approved || false;
+    }
     if (game.status === 'active') {
       const qs = await pool.query(
         `SELECT * FROM live_game_questions WHERE game_id=$1 ORDER BY order_num LIMIT 1 OFFSET $2`,
@@ -24975,7 +24997,7 @@ app.get('/api/live-games/:game_code/state', async (req, res) => {
         currentQuestion = { id: q.id, question: q.question, opts: q.opts, time_seconds: q.time_seconds, order_num: q.order_num };
       }
     }
-    const participants = await pool.query('SELECT COUNT(*) FROM live_game_participants WHERE game_id=$1', [game.id]);
+    const participants = await pool.query('SELECT COUNT(*) FROM live_game_participants WHERE game_id=$1 AND approved=true', [game.id]);
     const totalQ = await pool.query('SELECT COUNT(*) FROM live_game_questions WHERE game_id=$1', [game.id]);
     res.json({
       status: game.status,
@@ -24985,7 +25007,10 @@ app.get('/api/live-games/:game_code/state', async (req, res) => {
       participants_count: parseInt(participants.rows[0].count),
       title: game.title,
       prize: game.prize,
-      business_name: game.business_name
+      business_name: game.business_name,
+      sponsor_name: game.sponsor_name,
+      sponsor_text: game.sponsor_text,
+      my_approved: myApproved
     });
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -25002,6 +25027,84 @@ app.get('/api/live-games/:id/leaderboard', async (req, res) => {
       [req.params.id]
     );
     res.json({ leaderboard: rows.rows });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// חדר המתנה — רשימת ממתינים לאישור
+app.get('/api/live-games/:id/waiting-room', verifySA, async (req, res) => {
+  try {
+    const rows = await pool.query(
+      `SELECT lgp.id, lgp.user_id, lgp.display_name, lgp.approved, lgp.joined_at, lgp.group_id,
+              u.phone, u.registration_source, fg.name as group_name
+       FROM live_game_participants lgp
+       LEFT JOIN users u ON u.id = lgp.user_id
+       LEFT JOIN family_groups fg ON fg.id = lgp.group_id
+       WHERE lgp.game_id=$1
+       ORDER BY lgp.joined_at ASC`, [req.params.id]);
+    res.json({ participants: rows.rows });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// אישור / דחייה של משתתף
+app.post('/api/live-games/:id/approve', verifySA, async (req, res) => {
+  try {
+    const { participantIds, approved } = req.body;
+    if (!participantIds || !participantIds.length) return res.status(400).json({ error: 'חסרים ID' });
+    await pool.query(
+      `UPDATE live_game_participants SET approved=$1 WHERE game_id=$2 AND id = ANY($3::int[])`,
+      [!!approved, req.params.id, participantIds]
+    );
+    res.json({ success: true });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// אישור כולל לכל הממתינים
+app.post('/api/live-games/:id/approve-all', verifySA, async (req, res) => {
+  try {
+    await pool.query(`UPDATE live_game_participants SET approved=true WHERE game_id=$1 AND approved=false`, [req.params.id]);
+    res.json({ success: true });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// שליחת הודעת התראה "המשחק עומד להתחיל" לכל המשתתפים המאושרים
+app.post('/api/live-games/:id/notify-start', verifySA, async (req, res) => {
+  try {
+    const game = await pool.query('SELECT * FROM live_games WHERE id=$1', [req.params.id]);
+    if (!game.rows.length) return res.status(404).json({ error: 'משחק לא נמצא' });
+    const g = game.rows[0];
+    const link = `https://oneflowlife.co.il/game/${g.game_code}`;
+    const msg = `⏰ המשחק "${g.title}" עומד להתחיל! מהרו להיכנס: ${link}`;
+    const parts = await pool.query(`SELECT group_id FROM live_game_participants WHERE game_id=$1 AND approved=true AND group_id IS NOT NULL`, [req.params.id]);
+    let sent = 0;
+    for (const p of parts.rows) {
+      try {
+        await pool.query(`INSERT INTO alert_notifications (group_id, trigger_type, message, reference_key) VALUES ($1,'live_game',$2,$3)`, [p.group_id, msg, `game:${g.game_code}`]);
+        sent++;
+      } catch(e) {}
+    }
+    res.json({ success: true, sent });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// משחקים ציבוריים לקהילה (לאזור הקהילה בממשק המשפחה)
+app.get('/api/community/:id/live-games', async (req, res) => {
+  try {
+    const rows = await pool.query(
+      `SELECT id, title, prize, business_name, sponsor_name, sponsor_text, game_code, status
+       FROM live_games
+       WHERE is_public=true AND is_hidden=false AND status IN ('waiting','active')
+       ORDER BY created_at DESC LIMIT 10`
+    );
+    res.json({ games: rows.rows });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// hide/show משחק (SA)
+app.patch('/api/live-games/:id/visibility', verifySA, async (req, res) => {
+  try {
+    const { is_hidden } = req.body;
+    await pool.query(`UPDATE live_games SET is_hidden=$1 WHERE id=$2`, [!!is_hidden, req.params.id]);
+    res.json({ success: true });
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
