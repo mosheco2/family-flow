@@ -7278,25 +7278,29 @@ app.post('/api/store/catalog/generate-image', async (req, res) => {
 
         const hfToken = process.env.HF_TOKEN;
 
-        // תרגום לאנגלית
-        let enName = productName;
-        let enDesc = description;
-        let enCat = category || '';
+        // בניית פרומפט ייעודי בעברית→אנגלית עם Gemini
+        let finalPrompt = '';
         if (apiKey) {
             try {
-                const translatePrompt = `Translate the following food/product info from Hebrew to English for use in an AI image generation prompt. Return ONLY a JSON object with keys "name", "description", "category" — no extra text.\n\nName: ${productName}\nDescription: ${description}\nCategory: ${category || ''}`;
-                const translated = await callGeminiDirect(translatePrompt);
-                const cleaned = translated.replace(/```json|```/g, '').trim();
-                const parsed = JSON.parse(cleaned);
-                if (parsed.name) enName = parsed.name;
-                if (parsed.description) enDesc = parsed.description;
-                if (parsed.category) enCat = parsed.category;
+                const geminiPromptRequest = `You are a professional AI image prompt engineer for product photography.
+Create a short, specific English image generation prompt (max 40 words) for this product:
+Name: ${productName}
+Description: ${description}
+Category: ${category || ''}
+
+Requirements:
+- Start with "product photography,"
+- Describe the SPECIFIC product visually (color, shape, texture, packaging)
+- Studio style: clean white background, professional lighting, centered
+- Photorealistic, high quality
+Return ONLY the prompt text, nothing else.`;
+                finalPrompt = (await callGeminiDirect(geminiPromptRequest)).trim().replace(/^["']|["']$/g, '');
             } catch(e) {}
         }
-
-        let finalPrompt = `product photography, studio photo of ${enName}. ${enDesc}`;
-        if (enCat) finalPrompt += `. Category: ${enCat}`;
-        finalPrompt += `. Professional studio lighting, clean white background, product centered, high quality commercial photo, photorealistic`;
+        // Fallback: simple English prompt from original Hebrew (transliterated)
+        if (!finalPrompt) {
+            finalPrompt = `product photography, studio photo of ${productName}, ${description}, clean white background, professional lighting, photorealistic, high quality commercial photo`;
+        }
 
         // helper: fetch image binary → base64
         const fetchImageBase64 = async (url, opts) => {
