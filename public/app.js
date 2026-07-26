@@ -4515,13 +4515,7 @@ async function loadCommHomeGames() {
 
 async function loadCommGamesView() {
   const el = document.getElementById('comm-games-view-list');
-  const adminSection = document.getElementById('comm-games-admin-section');
   if (!el) return;
-
-  // הצג כפתור ניהול למנהלים
-  if (adminSection && currentUser && currentUser.role === 'ADMIN') {
-    adminSection.classList.remove('hidden');
-  }
 
   const communityId = myConnectedCommunitiesCache?.[0]?.id || 0;
   const groupId = currentGroup?.id;
