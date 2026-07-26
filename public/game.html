@@ -597,29 +597,43 @@ function startTimer(seconds, questionId, opts, correctIndex) {
   }, 1000);
 }
 
-async function submitAnswer(questionId, answerIndex, btn, opts, correctIndex, timeSec) {
+function submitAnswer(questionId, answerIndex, btn, opts, correctIndex, timeSec) {
   if (answerSubmitted) return;
   answerSubmitted = true;
   clearInterval(timerInterval);
   const responseTimeMs = Date.now() - (timerStart || Date.now());
-  const r = await fetch(`/api/live-games/${gameCode}/answer`, {
+
+  // פידבק מיידי — לפני תשובת השרת
+  document.querySelectorAll('#q-opts .opt-btn').forEach(b => { b.disabled = true; });
+  btn.style.opacity = '0.7';
+  btn.style.borderColor = '#818cf8';
+
+  fetch(`/api/live-games/${gameCode}/answer`, {
     method: 'POST', headers: {'Content-Type':'application/json'},
     body: JSON.stringify({ userId: currentUser?.id, questionId, answerIndex, responseTimeMs })
+  }).then(r => r.json()).then(data => {
+    const serverCorrectIdx = data.correct_index ?? correctIndex;
+    btn.style.opacity = '';
+    btn.style.borderColor = '';
+    document.querySelectorAll('#q-opts .opt-btn').forEach((b, i) => {
+      if (i === serverCorrectIdx) b.classList.add('correct');
+      else if (i === answerIndex && !data.is_correct) b.classList.add('wrong');
+    });
+    if (data.is_correct) {
+      const ts = timeSec || 20;
+      const speed = Math.max(0, ts * 1000 - responseTimeMs);
+      myScore += Math.round(100 + (speed / (ts * 1000)) * 900);
+      document.getElementById('g-score').textContent = myScore;
+    }
+    setTimeout(() => showAnswerResult(data.is_correct, opts[serverCorrectIdx]), 1300);
+  }).catch(() => {
+    // גיבוי: שגיאת רשת — הצג לפי correct_index מקומי
+    document.querySelectorAll('#q-opts .opt-btn').forEach((b, i) => {
+      if (i === correctIndex) b.classList.add('correct');
+      else if (i === answerIndex) b.classList.add('wrong');
+    });
+    setTimeout(() => showAnswerResult(answerIndex === correctIndex, opts[correctIndex]), 1300);
   });
-  const data = await r.json();
-  const serverCorrectIdx = data.correct_index ?? correctIndex;
-  document.querySelectorAll('#q-opts .opt-btn').forEach((b, i) => {
-    b.disabled = true;
-    if (i === serverCorrectIdx) b.classList.add('correct');
-    else if (i === answerIndex && !data.is_correct) b.classList.add('wrong');
-  });
-  if (data.is_correct) {
-    const ts = timeSec || 20;
-    const speed = Math.max(0, ts * 1000 - responseTimeMs);
-    myScore += Math.round(100 + (speed / (ts * 1000)) * 900);
-    document.getElementById('g-score').textContent = myScore;
-  }
-  setTimeout(() => showAnswerResult(data.is_correct, opts[serverCorrectIdx]), 1300);
 }
 
 function showAnswerResult(isCorrect, correctAnswer) {
