@@ -10537,7 +10537,7 @@ function _lgBuildUserRows(users) {
     rows.push(`
       <div class="flex items-center justify-between bg-slate-700/80 rounded-xl px-3 py-2.5 gap-2">
         <div class="flex-1 min-w-0">
-          <div class="text-sm font-medium truncate">${u.nickname || ''} ${u.first_name || ''} ${u.last_name || ''}</div>
+          <div class="text-sm font-medium text-slate-100 truncate">${u.nickname || ''} ${u.first_name || ''} ${u.last_name || ''}</div>
           <div class="flex items-center gap-1 flex-wrap mt-0.5">${srcBadge}${u.phone ? `<span class="text-xs text-slate-400">${u.phone}</span>` : '<span class="text-xs text-red-400">ללא טלפון</span>'}</div>
         </div>
         <div class="flex gap-1.5 shrink-0">
