@@ -10248,15 +10248,21 @@ async function openLGEditor(id) {
             <textarea id="lg-sponsor-text" rows="2" placeholder="טקסט שיופיע לשחקן בכניסה למשחק (אופציונלי)" class="w-full bg-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 placeholder-slate-500 outline-none focus:ring-2 focus:ring-indigo-500 resize-none">${game?.sponsor_text || ''}</textarea></div>
           <div class="md:col-span-3"><label class="block text-xs text-slate-400 mb-1">טקסט הודעת וואטסאפ (ישלח עם קישור)</label>
             <textarea id="lg-wa-text" rows="3" placeholder="אם ריק, יישלח טקסט ברירת מחדל" class="w-full bg-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 placeholder-slate-500 outline-none focus:ring-2 focus:ring-indigo-500 resize-none">${game?.whatsapp_text || ''}</textarea></div>
-          <div class="md:col-span-3 flex gap-4">
+          <div class="md:col-span-3 flex gap-4 flex-wrap">
             <label class="flex items-center gap-2 cursor-pointer">
-              <input type="checkbox" id="lg-is-public" ${game?.is_public ? 'checked' : ''} class="accent-indigo-500 w-4 h-4">
+              <input type="checkbox" id="lg-is-public" ${game?.is_public ? 'checked' : ''} onchange="_lgTogglePublicRow(this.checked)" class="accent-indigo-500 w-4 h-4">
               <span class="text-xs text-slate-300">פתוח לכל חברי הקהילה (מופיע בלוח הקהילה)</span>
             </label>
             <label class="flex items-center gap-2 cursor-pointer">
               <input type="checkbox" id="lg-is-hidden" ${game?.is_hidden ? 'checked' : ''} class="accent-red-500 w-4 h-4">
               <span class="text-xs text-red-400">הסתר משחק (חסום גם ויזואלית)</span>
             </label>
+          </div>
+          <div id="lg-community-row" class="${game?.is_public ? '' : 'hidden'} md:col-span-3">
+            <label class="block text-xs text-slate-400 mb-1">קהילה (ריק = כל הקהילות)</label>
+            <select id="lg-community-id" class="w-full bg-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 outline-none focus:ring-2 focus:ring-indigo-500">
+              <option value="">כל הקהילות</option>
+            </select>
           </div>
         </div>
         <div>
@@ -10273,6 +10279,24 @@ async function openLGEditor(id) {
   window._lgGameMeta = { is_public: game?.is_public || false, is_hidden: game?.is_hidden || false };
   window._lgQuestions = questions.map(q => ({ question: q.question, opts: Array.isArray(q.opts) ? q.opts : JSON.parse(q.opts), correct_index: q.correct_index, time_seconds: q.time_seconds || 20 }));
   _renderLGQuestions();
+  // load communities for dropdown
+  const saToken = localStorage.getItem('ofl_sa_token');
+  fetch('/api/sa/communities-list', { headers:{ Authorization: saToken } }).then(r=>r.json()).then(d => {
+    const sel = document.getElementById('lg-community-id');
+    if (!sel || !d.communities) return;
+    d.communities.forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c.id;
+      opt.textContent = `${c.name}${c.city ? ' · ' + c.city : ''}`;
+      if (game?.community_id && String(game.community_id) === String(c.id)) opt.selected = true;
+      sel.appendChild(opt);
+    });
+  }).catch(()=>{});
+}
+
+function _lgTogglePublicRow(checked) {
+  const row = document.getElementById('lg-community-row');
+  if (row) row.classList.toggle('hidden', !checked);
 }
 
 function _renderLGQuestions() {
@@ -10318,6 +10342,7 @@ async function _saveLGGame() {
     whatsapp_text: document.getElementById('lg-wa-text').value.trim(),
     is_public: document.getElementById('lg-is-public').checked,
     is_hidden: document.getElementById('lg-is-hidden').checked,
+    community_id: document.getElementById('lg-community-id')?.value || null,
     questions: window._lgQuestions
   };
   if (!body.title) return alert('יש להזין שם לאירוע');

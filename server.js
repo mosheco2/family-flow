@@ -24116,6 +24116,7 @@ app.get('/api/community/feed/search', async (req, res) => {
   } catch(e) {}
 
   // live games — new columns
+  try { await pool.query(`ALTER TABLE live_games ADD COLUMN IF NOT EXISTS community_id INT REFERENCES communities(id) ON DELETE SET NULL`); } catch(e) {}
   try { await pool.query(`ALTER TABLE live_games ADD COLUMN IF NOT EXISTS sponsor_name TEXT`); } catch(e) {}
   try { await pool.query(`ALTER TABLE live_games ADD COLUMN IF NOT EXISTS sponsor_text TEXT`); } catch(e) {}
   try { await pool.query(`ALTER TABLE live_games ADD COLUMN IF NOT EXISTS whatsapp_text TEXT`); } catch(e) {}
@@ -24816,7 +24817,7 @@ function generateGameCode() {
 // יצירת משחק
 app.post('/api/live-games', verifySA, async (req, res) => {
   try {
-    const { title, prize, business_name, sponsor_name, sponsor_text, whatsapp_text, is_public, questions } = req.body;
+    const { title, prize, business_name, sponsor_name, sponsor_text, whatsapp_text, is_public, community_id, questions } = req.body;
     if (!title) return res.status(400).json({ error: 'כותרת חובה' });
     let code;
     for (let i = 0; i < 10; i++) {
@@ -24825,8 +24826,8 @@ app.post('/api/live-games', verifySA, async (req, res) => {
       if (!exists.rows.length) break;
     }
     const g = await pool.query(
-      `INSERT INTO live_games (title, prize, business_name, sponsor_name, sponsor_text, whatsapp_text, is_public, game_code, status) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'waiting') RETURNING *`,
-      [title, prize || null, business_name || null, sponsor_name||null, sponsor_text||null, whatsapp_text||null, !!is_public, code]
+      `INSERT INTO live_games (title, prize, business_name, sponsor_name, sponsor_text, whatsapp_text, is_public, community_id, game_code, status) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'waiting') RETURNING *`,
+      [title, prize || null, business_name || null, sponsor_name||null, sponsor_text||null, whatsapp_text||null, !!is_public, community_id||null, code]
     );
     const gameId = g.rows[0].id;
     if (questions && questions.length) {
@@ -24845,9 +24846,9 @@ app.post('/api/live-games', verifySA, async (req, res) => {
 // עדכון משחק
 app.put('/api/live-games/:id', verifySA, async (req, res) => {
   try {
-    const { title, prize, business_name, sponsor_name, sponsor_text, whatsapp_text, is_public, is_hidden, questions } = req.body;
-    await pool.query(`UPDATE live_games SET title=$1, prize=$2, business_name=$3, sponsor_name=$4, sponsor_text=$5, whatsapp_text=$6, is_public=$7, is_hidden=$8 WHERE id=$9`,
-      [title, prize || null, business_name || null, sponsor_name||null, sponsor_text||null, whatsapp_text||null, !!is_public, !!is_hidden, req.params.id]);
+    const { title, prize, business_name, sponsor_name, sponsor_text, whatsapp_text, is_public, is_hidden, community_id, questions } = req.body;
+    await pool.query(`UPDATE live_games SET title=$1, prize=$2, business_name=$3, sponsor_name=$4, sponsor_text=$5, whatsapp_text=$6, is_public=$7, is_hidden=$8, community_id=$9 WHERE id=$10`,
+      [title, prize || null, business_name || null, sponsor_name||null, sponsor_text||null, whatsapp_text||null, !!is_public, !!is_hidden, community_id||null, req.params.id]);
     if (questions) {
       await pool.query('DELETE FROM live_game_questions WHERE game_id=$1', [req.params.id]);
       for (let i = 0; i < questions.length; i++) {
@@ -25093,9 +25094,19 @@ app.get('/api/community/:id/live-games', async (req, res) => {
       `SELECT id, title, prize, business_name, sponsor_name, sponsor_text, game_code, status
        FROM live_games
        WHERE is_public=true AND is_hidden=false AND status IN ('waiting','active')
-       ORDER BY created_at DESC LIMIT 10`
+         AND (community_id IS NULL OR community_id=$1)
+       ORDER BY created_at DESC LIMIT 10`,
+      [req.params.id]
     );
     res.json({ games: rows.rows });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// רשימת קהילות למשחק
+app.get('/api/sa/communities-list', verifySA, async (req, res) => {
+  try {
+    const rows = await pool.query(`SELECT id, name, city FROM communities WHERE status='active' ORDER BY name LIMIT 100`);
+    res.json({ communities: rows.rows });
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
