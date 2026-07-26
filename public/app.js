@@ -4498,13 +4498,13 @@ async function loadCommGames(communityId) {
 async function loadCommHomeGames() {
   const el = document.getElementById('comm-home-games-list');
   if (!el) return;
-  const communityId = myConnectedCommunitiesCache?.[0]?.id;
-  if (!communityId) {
-    el.innerHTML = '<div class="text-slate-400 text-xs text-center py-3">אין קהילה מחוברת</div>';
-    return;
-  }
+  const communityId = myConnectedCommunitiesCache?.[0]?.id || 0;
+  const groupId = currentGroup?.id;
   try {
-    const r = await fetch(`/api/community/${communityId}/live-games`);
+    const url = groupId
+      ? `/api/community/${communityId}/live-games?groupId=${groupId}`
+      : `/api/community/${communityId}/live-games`;
+    const r = await fetch(url);
     const d = await r.json();
     _renderGamesIntoEl(el, d.games);
   } catch(e) {
@@ -4522,14 +4522,14 @@ async function loadCommGamesView() {
     adminSection.classList.remove('hidden');
   }
 
-  const communityId = myConnectedCommunitiesCache?.[0]?.id;
-  if (!communityId) {
-    el.innerHTML = '<div class="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-center"><i class="fa-solid fa-house-flag text-2xl text-amber-400 mb-2 block"></i><p class="text-sm font-bold text-amber-800 mb-1">עדיין לא מחוברים לקהילה</p><p class="text-xs text-amber-600">חיבור לקהילה נדרש להשתתפות במשחקים</p></div>';
-    return;
-  }
+  const communityId = myConnectedCommunitiesCache?.[0]?.id || 0;
+  const groupId = currentGroup?.id;
   el.innerHTML = '<p class="text-xs text-slate-400 text-center py-8">טוען משחקים...</p>';
   try {
-    const r = await fetch(`/api/community/${communityId}/live-games`);
+    const url = groupId
+      ? `/api/community/${communityId}/live-games?groupId=${groupId}`
+      : `/api/community/${communityId}/live-games`;
+    const r = await fetch(url);
     const d = await r.json();
     _renderGamesIntoEl(el, d.games);
   } catch(e) {
@@ -8666,6 +8666,12 @@ const ROLE_DEFAULTS = {
 
 function enforcePermissions() {
     if (!currentUser || !currentGroup) return;
+    // ילד על טאב קהילה — לא נוגעים לו
+    if (currentUser.role === 'CHILD' && window._currentFamilyTab === 'community') {
+        const commBtn = getEl('tab-community');
+        if (commBtn) { commBtn.style.display = 'inline-block'; commBtn.classList.remove('locked-module','opacity-60','grayscale'); }
+        return;
+    }
     const isAdmin = currentUser.role === 'ADMIN';
     let userTabs = [];
     try {
