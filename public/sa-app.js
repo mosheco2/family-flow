@@ -10506,6 +10506,7 @@ function _lgTab(name) {
   });
   if (name === 'waiting' && window._lgCurrentGameId) _lgLoadWaitingRoom(window._lgCurrentGameId);
   if (name === 'results' && window._lgCurrentGameId) _lgLoadResults(window._lgCurrentGameId);
+  if (name === 'send') _lgSearchTesters('');
 }
 
 let _lgVisibleGroupIds = [];
@@ -10555,17 +10556,19 @@ async function _lgSearchTesters(q) {
   const el = document.getElementById('lg-tester-results');
   let users = (saAllUsers || []).filter(u => {
     const g = (saAllGroups || []).find(gr => gr.id === u.group_id);
-    if (!g || g.type !== 'FAMILY') return false;
-    if (_lgSourceFilter) {
-      if (_lgSourceFilter === 'referral:') return (u.registration_source || '').startsWith('referral:');
-      return (u.registration_source || '') === _lgSourceFilter;
+    if (!g) return false;
+    const src = u.registration_source || '';
+    if (_lgSourceFilter === 'self') return !src || src === 'self';
+    if (_lgSourceFilter === 'referral:') return src.startsWith('referral:');
+    if (_lgSourceFilter) return src === _lgSourceFilter;
+    // הכל — חיפוש חופשי
+    if (q && q.length >= 2) {
+      return u.phone?.includes(q) || u.nickname?.includes(q) || u.first_name?.includes(q) ||
+        u.last_name?.includes(q) || src.includes(q) || g.name?.includes(q);
     }
-    if (!q || q.length < 2) return !_lgSourceFilter ? false : true;
-    return u.phone?.includes(q) || u.nickname?.includes(q) || u.first_name?.includes(q) ||
-      u.last_name?.includes(q) || (u.registration_source || '').includes(q) || g.name?.includes(q);
+    return true; // הכל ללא חיפוש — מציג הכל
   });
-  if (!_lgSourceFilter && (!q || q.length < 2)) { el.innerHTML = '<div class="text-slate-400 text-xs text-center py-2">הקלד לחיפוש או בחר מקור למעלה</div>'; _lgVisibleGroupIds = []; return; }
-  users = users.slice(0, 20);
+  users = users.slice(0, 30);
   const rows = _lgBuildUserRows(users);
   el.innerHTML = rows.length ? rows.join('') : '<div class="text-slate-400 text-xs text-center py-2">לא נמצאו תוצאות</div>';
 }
