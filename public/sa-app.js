@@ -10302,7 +10302,7 @@ async function openLGEditor(id) {
                   <i class="fa-solid fa-upload"></i> בחר תמונה
                   <input type="file" accept="image/png,image/jpeg,image/webp" class="hidden" onchange="_lgHandleLogoUpload(event)">
                 </label>
-                <div id="lg-logo-preview" class="text-xs text-slate-400">${game?.sponsor_logo ? `<img src="${game.sponsor_logo}" class="h-10 rounded">` : 'לא נבחר'}</div>
+                <div id="lg-logo-preview" class="text-xs text-slate-400">${game?.sponsor_logo ? `<img src="${game.sponsor_logo}" class="h-10 rounded" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'text-yellow-400',textContent:'⚠ יש לטעון מחדש'}))">` : 'לא נבחר'}</div>
               </div>
             </div>
             <div>
@@ -10312,7 +10312,7 @@ async function openLGEditor(id) {
                   <i class="fa-solid fa-upload"></i> בחר תמונה
                   <input type="file" accept="image/png,image/jpeg,image/webp" class="hidden" onchange="_lgHandleCharUpload(event)">
                 </label>
-                <div id="lg-char-preview" class="text-xs text-slate-400">${game?.character_image ? `<img src="${game.character_image}" class="h-10 rounded">` : 'לא נבחר'}</div>
+                <div id="lg-char-preview" class="text-xs text-slate-400">${game?.character_image ? `<img src="${game.character_image}" class="h-10 rounded" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'text-yellow-400',textContent:'⚠ יש לטעון מחדש'}))">` : 'לא נבחר'}</div>
               </div>
             </div>
           </div>

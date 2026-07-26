@@ -24918,9 +24918,15 @@ app.get('/api/live-games/:id', verifySA, async (req, res) => {
   try {
     const g = await pool.query('SELECT * FROM live_games WHERE id=$1', [req.params.id]);
     if (!g.rows.length) return res.status(404).json({ error: 'לא נמצא' });
+    const game = g.rows[0];
     const qs = await pool.query('SELECT * FROM live_game_questions WHERE game_id=$1 ORDER BY order_num', [req.params.id]);
     const participants = await pool.query('SELECT COUNT(*) FROM live_game_participants WHERE game_id=$1', [req.params.id]);
-    res.json({ game: g.rows[0], questions: qs.rows, participants_count: parseInt(participants.rows[0].count) });
+    // החזר URL לתמונות במקום data URI ענק
+    const gameOut = { ...game,
+      sponsor_logo: game.sponsor_logo ? `/api/live-games/${game.game_code}/image/logo` : null,
+      character_image: game.character_image ? `/api/live-games/${game.game_code}/image/char` : null
+    };
+    res.json({ game: gameOut, questions: qs.rows, participants_count: parseInt(participants.rows[0].count) });
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -25050,24 +25056,26 @@ app.post('/api/live-games/:game_code/answer', async (req, res) => {
 });
 
 // הגשת תמונות משחק מה-DB (עמיד בפני restart)
+async function _serveGameImage(res, data) {
+  if (!data) return res.status(404).end();
+  if (data.startsWith('data:')) {
+    const semi = data.indexOf(';base64,');
+    if (semi === -1) return res.status(400).end();
+    const mime = data.slice(5, semi);
+    const b64 = data.slice(semi + 8).trim();
+    const buf = Buffer.from(b64, 'base64');
+    return res.set('Content-Type', mime).set('Cache-Control', 'public, max-age=86400').send(buf);
+  }
+  // נתיב ישן — נסה לשרת מהקובץ
+  const filePath = path.join(__dirname, 'public', data);
+  if (fs.existsSync(filePath)) return res.sendFile(filePath);
+  res.status(404).end();
+}
 app.get('/api/live-games/:game_code/image/:type', async (req, res) => {
   try {
     const col = req.params.type === 'logo' ? 'sponsor_logo' : 'character_image';
-    const g = await pool.query(`SELECT ${col} FROM live_games WHERE game_code=$1`, [req.params.game_code.toUpperCase()]);
-    if (!g.rows.length || !g.rows[0][col]) return res.status(404).end();
-    const data = g.rows[0][col];
-    // תמיכה בשני פורמטים: data URI ישן ו-path ישן
-    if (data.startsWith('data:')) {
-      const match = data.match(/^data:([^;]+);base64,(.+)$/);
-      if (!match) return res.status(400).end();
-      const buf = Buffer.from(match[2], 'base64');
-      res.set('Content-Type', match[1]).set('Cache-Control', 'public, max-age=86400').send(buf);
-    } else {
-      // path ישן — נסה לשרת מהקובץ
-      const filePath = path.join(__dirname, 'public', data);
-      if (fs.existsSync(filePath)) res.sendFile(filePath);
-      else res.status(404).end();
-    }
+    const g = await pool.query(`SELECT ${col} FROM live_games WHERE UPPER(game_code)=UPPER($1)`, [req.params.game_code]);
+    await _serveGameImage(res, g.rows[0]?.[col] || null);
   } catch(e) { res.status(500).end(); }
 });
 
