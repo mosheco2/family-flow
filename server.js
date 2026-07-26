@@ -24117,6 +24117,7 @@ app.get('/api/community/feed/search', async (req, res) => {
 
   // live games — new columns
   try { await pool.query(`ALTER TABLE live_games ADD COLUMN IF NOT EXISTS community_id INT REFERENCES communities(id) ON DELETE SET NULL`); } catch(e) {}
+  try { await pool.query(`ALTER TABLE live_games ADD COLUMN IF NOT EXISTS notify_sent_at TIMESTAMPTZ`); } catch(e) {}
   try { await pool.query(`ALTER TABLE live_games ADD COLUMN IF NOT EXISTS sponsor_name TEXT`); } catch(e) {}
   try { await pool.query(`ALTER TABLE live_games ADD COLUMN IF NOT EXISTS sponsor_text TEXT`); } catch(e) {}
   try { await pool.query(`ALTER TABLE live_games ADD COLUMN IF NOT EXISTS whatsapp_text TEXT`); } catch(e) {}
@@ -24774,6 +24775,11 @@ app.post('/api/live-games/:id/assign', verifySA, async (req, res) => {
           `INSERT INTO alert_notifications (group_id, trigger_type, message, reference_key) VALUES ($1,'live_game',$2,$3)`,
           [gid, notifMsg, `game:${g.game_code}`]
         );
+        // גם לתיבת דואר נכנס
+        await pool.query(
+          `INSERT INTO inbox_messages (group_id, sender_type, sender_name, subject, content) VALUES ($1,'system','OneFlow Life',$2,$3)`,
+          [gid, `הוזמנת למשחק: ${g.title}`, notifMsg]
+        );
         assigned++;
       } catch(e) {}
     }
@@ -25011,7 +25017,8 @@ app.get('/api/live-games/:game_code/state', async (req, res) => {
       business_name: game.business_name,
       sponsor_name: game.sponsor_name,
       sponsor_text: game.sponsor_text,
-      my_approved: myApproved
+      my_approved: myApproved,
+      notify_sent_at: game.notify_sent_at
     });
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -25080,9 +25087,15 @@ app.post('/api/live-games/:id/notify-start', verifySA, async (req, res) => {
     for (const p of parts.rows) {
       try {
         await pool.query(`INSERT INTO alert_notifications (group_id, trigger_type, message, reference_key) VALUES ($1,'live_game',$2,$3)`, [p.group_id, msg, `game:${g.game_code}`]);
+        await pool.query(
+          `INSERT INTO inbox_messages (group_id, sender_type, sender_name, subject, content) VALUES ($1,'system','OneFlow Life',$2,$3)`,
+          [p.group_id, `⏰ ${g.title} — המשחק עומד להתחיל!`, msg]
+        );
         sent++;
       } catch(e) {}
     }
+    // mark notify time so players' polling picks it up
+    await pool.query(`UPDATE live_games SET notify_sent_at=NOW() WHERE id=$1`, [req.params.id]);
     res.json({ success: true, sent });
   } catch(e) { res.status(500).json({ error: e.message }); }
 });

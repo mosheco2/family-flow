@@ -10407,10 +10407,10 @@ async function openLGControl(gameId, gameCode) {
             <button onclick="_lgNextQuestion(${gameId})" class="bg-indigo-600 hover:bg-indigo-700 text-white py-3 rounded-xl text-sm font-bold transition">שאלה הבאה ▶</button>
             <button onclick="_lgNotifyStart(${gameId})" class="bg-amber-600 hover:bg-amber-700 text-white py-3 rounded-xl text-sm font-bold transition">⏰ שלח התראת התחלה</button>
             <button onclick="_lgSetStatus(${gameId},'ended')" class="bg-slate-600 hover:bg-slate-500 text-white py-3 rounded-xl text-sm font-bold transition">סיים משחק</button>
-            <button onclick="_lgToggleHidden(${gameId})" class="bg-orange-700 hover:bg-orange-800 text-white py-3 rounded-xl text-sm font-bold transition">🙈 הסתר / הצג</button>
+            <button id="lg-hidden-btn" onclick="_lgToggleHidden(${gameId})" class="${gMeta.is_hidden ? 'bg-yellow-600 hover:bg-yellow-700' : 'bg-orange-700 hover:bg-orange-800'} text-white py-3 rounded-xl text-sm font-bold transition">${gMeta.is_hidden ? '👁️ הצג משחק' : '🙈 הסתר משחק'}</button>
             <button onclick="_lgSetStatus(${gameId},'disabled')" class="bg-red-700 hover:bg-red-800 text-white py-3 rounded-xl text-sm font-bold transition">🚫 כבה משחק</button>
           </div>
-          <div id="lg-ctrl-msg" class="text-center text-xs text-slate-400 mt-3"></div>
+          <div id="lg-ctrl-msg" class="text-center text-xs text-slate-100 mt-3"></div>
         </div>
 
         <!-- TAB: Waiting Room -->
@@ -10677,6 +10677,11 @@ async function _lgToggleHidden(gameId) {
   const newHidden = !d.game?.is_hidden;
   await fetch(`/api/live-games/${gameId}/visibility`, { method:'PATCH', headers:{'Content-Type':'application/json', Authorization: saToken}, body: JSON.stringify({ is_hidden: newHidden }) });
   showToast('success', newHidden ? 'המשחק הוסתר 🙈' : 'המשחק גלוי שוב 👁️');
+  const btn = document.getElementById('lg-hidden-btn');
+  if (btn) {
+    btn.textContent = newHidden ? '👁️ הצג משחק' : '🙈 הסתר משחק';
+    btn.className = `${newHidden ? 'bg-yellow-600 hover:bg-yellow-700' : 'bg-orange-700 hover:bg-orange-800'} text-white py-3 rounded-xl text-sm font-bold transition`;
+  }
   _fetchLGList();
 }
 
@@ -10690,7 +10695,8 @@ function _lgControlPoll(gameId, gameCode) {
     const el = document.getElementById('lg-ctrl-count');
     if (el) el.textContent = d.participants_count || 0;
     const msg = document.getElementById('lg-ctrl-msg');
-    if (msg) msg.textContent = `שאלה ${(d.current_question_index||0)+1} מתוך ${d.total_questions||0} · סטטוס: ${d.status}`;
+    const statusHe = { waiting:'ממתין', active:'פעיל', ended:'הסתיים', disabled:'מושבת' };
+    if (msg) msg.textContent = `שאלה ${(d.current_question_index||0)+1} מתוך ${d.total_questions||0} · סטטוס: ${statusHe[d.status]||d.status}`;
   }, 2000);
   // Stop when modal closes
   const obs = new MutationObserver(() => {

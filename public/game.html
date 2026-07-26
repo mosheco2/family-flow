@@ -28,6 +28,8 @@
   .winner-glow { animation: pulse-glow 1.5s ease-in-out infinite; }
   @keyframes spin-slow { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
   .spin-slow { animation: spin-slow 3s linear infinite; }
+  @keyframes slidedown { from{transform:translateY(-80px);opacity:0} to{transform:translateY(0);opacity:1} }
+  .game-toast { animation: slidedown .4s ease; font-family: 'Segoe UI', Arial, sans-serif; }
 </style>
 </head>
 <body>
@@ -325,6 +327,7 @@ async function doRegister() {
 
 let myApproved = false;
 let sponsorShown = false;
+let lastNotifySentAt = null;
 
 async function joinAndStart(state) {
   document.getElementById('game-screen').classList.remove('hidden');
@@ -379,6 +382,11 @@ async function pollState() {
     if (!r.ok) return;
     const state = await r.json();
     myApproved = state.my_approved ?? myApproved;
+    // detect new "game starting" notification from admin
+    if (state.notify_sent_at && state.notify_sent_at !== lastNotifySentAt) {
+      lastNotifySentAt = state.notify_sent_at;
+      showGameToast('⏰ המשחק עומד להתחיל! התכוננו...');
+    }
     renderState(state);
   } catch(e) {}
 }
@@ -512,6 +520,14 @@ async function showEndScreen(state) {
   } catch(e) {}
   // redirect to home after 15 seconds
   setTimeout(() => { window.location.href = '/'; }, 15000);
+}
+
+function showGameToast(msg) {
+  const el = document.createElement('div');
+  el.className = 'game-toast fixed top-4 right-4 left-4 z-[999] bg-amber-500 text-slate-900 font-bold text-center py-4 px-5 rounded-2xl shadow-2xl text-sm';
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 5000);
 }
 
 function launchFireworks() {

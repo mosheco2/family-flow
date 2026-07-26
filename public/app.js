@@ -12718,17 +12718,18 @@ async function _memberLoadNotifications(groupId) {
         const unread = notifs.filter(n => !n.is_read);
         if (!notifs.length) { el.innerHTML = ''; return; }
         const statusDot = unread.length ? `<span style="background:#ef4444;color:white;font-size:10px;font-weight:700;border-radius:999px;padding:1px 7px;margin-right:6px;">${unread.length}</span>` : '';
-        el.innerHTML = `<div style="background:white;border:1px solid #e2e8f0;border-radius:20px;padding:14px;box-shadow:0 1px 4px rgba(0,0,0,0.06);">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-                <button onclick="_memberMarkAllNotifsRead(${groupId})" style="background:none;border:none;font-size:11px;color:#94a3b8;cursor:pointer;">סמן הכל כנקרא</button>
-                <div style="font-size:13px;font-weight:800;color:#1e293b;text-align:right;">${statusDot}עדכונים מהעסקים שלך</div>
+        el.innerHTML = `<div class="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+            <div class="flex items-center justify-between mb-3">
+                <button onclick="_memberMarkAllNotifsRead(${groupId})" class="text-[11px] text-slate-400 hover:text-slate-600 transition">סמן הכל כנקרא</button>
+                <div class="text-sm font-bold text-slate-800 flex items-center gap-2">${statusDot}עדכונים מהמערכת</div>
             </div>
             ${notifs.slice(0,5).map(n => {
                 const dt = new Date(n.created_at).toLocaleDateString('he-IL',{day:'numeric',month:'numeric',hour:'2-digit',minute:'2-digit'});
-                const unreadStyle = !n.is_read ? 'background:#f0fdf4;border-right:3px solid #10b981;' : '';
-                return `<div style="padding:8px 0;${unreadStyle}border-bottom:1px solid #f1f5f9;text-align:right;">
-                    <div style="font-size:12px;color:#1e293b;font-weight:${n.is_read?'500':'700'}">${n.message}</div>
-                    <div style="font-size:10px;color:#94a3b8;margin-top:2px;">${dt}</div>
+                const isLiveGame = (n.trigger_type||'') === 'live_game';
+                const icon = isLiveGame ? '🎮' : '🔔';
+                return `<div class="py-2.5 border-b border-slate-100 last:border-0 text-right ${!n.is_read ? 'bg-emerald-50 -mx-4 px-4 border-r-2 border-r-emerald-400' : ''}">
+                    <div class="text-sm ${n.is_read ? 'text-slate-600 font-medium' : 'text-slate-800 font-bold'}">${icon} ${n.message}</div>
+                    <div class="text-[11px] text-slate-400 mt-0.5">${dt}</div>
                 </div>`;
             }).join('')}
         </div>`;
