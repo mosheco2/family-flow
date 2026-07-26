@@ -10280,7 +10280,6 @@ async function openLGEditor(id) {
   window._lgQuestions = questions.map(q => ({ question: q.question, opts: Array.isArray(q.opts) ? q.opts : JSON.parse(q.opts), correct_index: q.correct_index, time_seconds: q.time_seconds || 20 }));
   _renderLGQuestions();
   // load communities for dropdown
-  const saToken = localStorage.getItem('ofl_sa_token');
   fetch('/api/sa/communities-list', { headers:{ Authorization: saToken } }).then(r=>r.json()).then(d => {
     const sel = document.getElementById('lg-community-id');
     if (!sel || !d.communities) return;
