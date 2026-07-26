@@ -109,6 +109,7 @@
       <div class="font-bold text-sm text-white" id="g-title"></div>
     </div>
     <div class="flex items-center gap-3">
+      <img id="g-sponsor-logo" src="" alt="" class="hidden h-7 object-contain rounded opacity-90">
       <div class="text-xs text-white/70"><span id="g-participants">0</span> משתתפים</div>
       <div class="bg-white/20 text-white text-xs px-3 py-1.5 rounded-lg font-bold">🏅 <span id="g-score">0</span></div>
     </div>
@@ -175,7 +176,8 @@
     <div id="fireworks-container"></div>
     <div class="text-7xl mb-3 spin-slow">🎉</div>
     <h2 class="text-2xl font-bold mb-1">המשחק הסתיים!</h2>
-    <p class="text-slate-400 text-sm mb-5">תודה על ההשתתפות</p>
+    <p class="text-slate-400 text-sm mb-3">תודה על ההשתתפות</p>
+    <img id="end-sponsor-logo" src="" alt="" class="hidden h-10 object-contain mb-4 opacity-80 rounded">
     <div id="end-winner" class="winner-glow bg-yellow-500/20 border-2 border-yellow-500/60 rounded-2xl px-8 py-5 text-center mb-4 w-full max-w-xs">
       <div class="text-3xl mb-1">🥇</div>
       <div class="text-sm text-yellow-400 mb-1">המנצח/ת</div>
@@ -204,8 +206,11 @@
 
 <!-- Sponsor splash modal -->
 <div id="sponsor-splash" class="hidden fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-6 fadein">
-  <div class="bg-slate-800 rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl border border-white/10">
-    <div class="text-5xl mb-4">🎯</div>
+  <div class="bg-slate-800 rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl border border-white/10 relative">
+    <div id="splash-logo-wrap" class="hidden mb-4 flex justify-center">
+      <img id="splash-sponsor-logo" src="" alt="" class="h-16 object-contain mx-auto rounded-lg">
+    </div>
+    <div id="splash-emoji-wrap" class="text-5xl mb-4">🎯</div>
     <div class="text-xs text-slate-400 uppercase tracking-widest mb-1">בחסות</div>
     <div class="text-2xl font-black text-white mb-3" id="splash-sponsor-name"></div>
     <div class="text-base font-bold text-indigo-300 mb-4" id="splash-game-title"></div>
@@ -214,9 +219,13 @@
       <div class="text-xs text-yellow-400">🏆 פרס</div>
       <div class="font-bold text-yellow-300" id="splash-prize"></div>
     </div>
+    <img id="splash-character" src="" alt="" class="hidden absolute -bottom-6 -left-4 w-28 object-contain pointer-events-none drop-shadow-xl">
     <button onclick="closeSponsorSplash()" class="w-full brand-gradient py-4 rounded-xl font-black text-lg shadow-lg">בואו נשחק! ▶</button>
   </div>
 </div>
+
+<!-- Floating character overlay (shown during game) -->
+<img id="game-character-float" src="" alt="" class="hidden fixed bottom-0 right-2 w-20 md:w-28 object-contain pointer-events-none z-20 drop-shadow-2xl" style="filter:drop-shadow(0 4px 12px rgba(0,0,0,0.5))">
 
 <script>
 const gameCode = location.pathname.split('/').pop().toUpperCase();
@@ -379,6 +388,19 @@ function showSponsorSplash(state) {
     document.getElementById('splash-prize').textContent = state.prize;
     document.getElementById('splash-prize-row').classList.remove('hidden');
   }
+  // לוגו חסות
+  if (state.sponsor_logo) {
+    const logoWrap = document.getElementById('splash-logo-wrap');
+    const logoImg = document.getElementById('splash-sponsor-logo');
+    if (logoImg) logoImg.src = state.sponsor_logo;
+    if (logoWrap) logoWrap.classList.remove('hidden');
+    document.getElementById('splash-emoji-wrap')?.classList.add('hidden');
+  }
+  // דמות מלווה בחלונית
+  if (state.character_image) {
+    const sc = document.getElementById('splash-character');
+    if (sc) { sc.src = state.character_image; sc.classList.remove('hidden'); }
+  }
   document.getElementById('sponsor-splash').classList.remove('hidden');
 }
 
@@ -407,7 +429,21 @@ async function pollState() {
   } catch(e) {}
 }
 
+function _applyGameAssets(state) {
+  if (state.sponsor_logo) {
+    const hLogo = document.getElementById('g-sponsor-logo');
+    if (hLogo) { hLogo.src = state.sponsor_logo; hLogo.classList.remove('hidden'); }
+    const eLogo = document.getElementById('end-sponsor-logo');
+    if (eLogo) { eLogo.src = state.sponsor_logo; eLogo.classList.remove('hidden'); }
+  }
+  if (state.character_image) {
+    const cf = document.getElementById('game-character-float');
+    if (cf) { cf.src = state.character_image; cf.classList.remove('hidden'); }
+  }
+}
+
 function renderState(state) {
+  _applyGameAssets(state);
   document.getElementById('g-participants').textContent = state.participants_count || 0;
   document.getElementById('w-participants').textContent = state.participants_count || 0;
   document.getElementById('g-score').textContent = myScore;

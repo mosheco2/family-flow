@@ -10216,8 +10216,39 @@ async function _fetchLGList() {
   `).join('');
 }
 
+function _lgHandleLogoUpload(e) {
+  const file = e.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    window._lgLogoData = ev.target.result;
+    const p = document.getElementById('lg-logo-preview');
+    if (p) p.innerHTML = `<img src="${ev.target.result}" class="h-10 rounded"><span class="text-green-400 mr-1">✓</span>`;
+  };
+  reader.readAsDataURL(file);
+}
+function _lgHandleCharUpload(e) {
+  const file = e.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    window._lgCharData = ev.target.result;
+    const p = document.getElementById('lg-char-preview');
+    if (p) p.innerHTML = `<img src="${ev.target.result}" class="h-10 rounded"><span class="text-green-400 mr-1">✓</span>`;
+  };
+  reader.readAsDataURL(file);
+}
+async function _lgRestartGame(gameId) {
+  if (!confirm('להתחיל את המשחק מחדש? כל הניקוד ותשובות יימחקו!')) return;
+  const saToken = localStorage.getItem('ofl_sa_token');
+  const r = await fetch(`/api/live-games/${gameId}/restart`, { method: 'PUT', headers: { Authorization: saToken } });
+  const d = await r.json();
+  const msg = document.getElementById('lg-ctrl-msg');
+  if (d.success) { if (msg) { msg.textContent = '✅ המשחק אופס — מצב: המתנה'; setTimeout(() => { msg.textContent = ''; }, 3000); } }
+  else alert('שגיאה: ' + d.error);
+}
+
 async function openLGEditor(id) {
   _lgEditId = id;
+  window._lgLogoData = null; window._lgCharData = null;
   const saToken = localStorage.getItem('ofl_sa_token');
   let game = null, questions = [];
   if (id) {
@@ -10248,6 +10279,28 @@ async function openLGEditor(id) {
             <textarea id="lg-sponsor-text" rows="2" placeholder="טקסט שיופיע לשחקן בכניסה למשחק (אופציונלי)" class="w-full bg-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 placeholder-slate-500 outline-none focus:ring-2 focus:ring-indigo-500 resize-none">${game?.sponsor_text || ''}</textarea></div>
           <div class="md:col-span-3"><label class="block text-xs text-slate-400 mb-1">טקסט הודעת וואטסאפ (ישלח עם קישור)</label>
             <textarea id="lg-wa-text" rows="3" placeholder="אם ריק, יישלח טקסט ברירת מחדל" class="w-full bg-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 placeholder-slate-500 outline-none focus:ring-2 focus:ring-indigo-500 resize-none">${game?.whatsapp_text || ''}</textarea></div>
+          <div class="md:col-span-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs text-slate-400 mb-1">לוגו נותן חסות (PNG)</label>
+              <div class="flex items-center gap-2">
+                <label class="cursor-pointer bg-slate-700 hover:bg-slate-600 rounded-lg px-3 py-2 text-xs text-slate-300 transition flex items-center gap-1">
+                  <i class="fa-solid fa-upload"></i> בחר תמונה
+                  <input type="file" accept="image/png,image/jpeg,image/webp" class="hidden" onchange="_lgHandleLogoUpload(event)">
+                </label>
+                <div id="lg-logo-preview" class="text-xs text-slate-400">${game?.sponsor_logo ? `<img src="${game.sponsor_logo}" class="h-10 rounded">` : 'לא נבחר'}</div>
+              </div>
+            </div>
+            <div>
+              <label class="block text-xs text-slate-400 mb-1">דמות מלווה (PNG)</label>
+              <div class="flex items-center gap-2">
+                <label class="cursor-pointer bg-slate-700 hover:bg-slate-600 rounded-lg px-3 py-2 text-xs text-slate-300 transition flex items-center gap-1">
+                  <i class="fa-solid fa-upload"></i> בחר תמונה
+                  <input type="file" accept="image/png,image/jpeg,image/webp" class="hidden" onchange="_lgHandleCharUpload(event)">
+                </label>
+                <div id="lg-char-preview" class="text-xs text-slate-400">${game?.character_image ? `<img src="${game.character_image}" class="h-10 rounded">` : 'לא נבחר'}</div>
+              </div>
+            </div>
+          </div>
           <div class="md:col-span-3 flex gap-4 flex-wrap">
             <label class="flex items-center gap-2 cursor-pointer">
               <input type="checkbox" id="lg-is-public" ${game?.is_public ? 'checked' : ''} onchange="_lgTogglePublicRow(this.checked)" class="accent-indigo-500 w-4 h-4">
@@ -10344,6 +10397,8 @@ async function _saveLGGame() {
     community_id: document.getElementById('lg-community-id')?.value || null,
     questions: window._lgQuestions
   };
+  if (window._lgLogoData) body.sponsor_logo_data = window._lgLogoData;
+  if (window._lgCharData) body.character_image_data = window._lgCharData;
   if (!body.title) return alert('יש להזין שם לאירוע');
   const url = _lgEditId ? `/api/live-games/${_lgEditId}` : '/api/live-games';
   const method = _lgEditId ? 'PUT' : 'POST';
@@ -10409,6 +10464,7 @@ async function openLGControl(gameId, gameCode) {
             <button onclick="_lgSetStatus(${gameId},'ended')" class="bg-slate-600 hover:bg-slate-500 text-white py-3 rounded-xl text-sm font-bold transition">סיים משחק</button>
             <button id="lg-hidden-btn" onclick="_lgToggleHidden(${gameId})" class="${gMeta.is_hidden ? 'bg-yellow-600 hover:bg-yellow-700' : 'bg-orange-700 hover:bg-orange-800'} text-white py-3 rounded-xl text-sm font-bold transition">${gMeta.is_hidden ? '👁️ הצג משחק' : '🙈 הסתר משחק'}</button>
             <button onclick="_lgSetStatus(${gameId},'disabled')" class="bg-red-700 hover:bg-red-800 text-white py-3 rounded-xl text-sm font-bold transition">🚫 כבה משחק</button>
+            <button onclick="_lgRestartGame(${gameId})" class="col-span-2 bg-purple-700 hover:bg-purple-800 text-white py-3 rounded-xl text-sm font-bold transition">🔄 התחל מחדש (אפס ניקוד)</button>
           </div>
           <div id="lg-ctrl-msg" class="text-center text-xs text-slate-100 mt-3"></div>
         </div>
