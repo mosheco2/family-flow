@@ -6515,47 +6515,58 @@ app.post('/api/ai/generate-image', async (req, res) => {
         }
 
         const hfToken = process.env.HF_TOKEN;
-        if (!hfToken) return res.json({ success: false, error: 'HF_TOKEN חסר בהגדרות השרת' });
+        const imgW = type === 'banner' ? 1024 : 512;
+        const imgH = type === 'banner' ? 576  : 512;
 
-        const hfWidth  = type === 'banner' ? 1024 : 512;
-        const hfHeight = type === 'banner' ? 576  : 512;
+        const fetchImgB64 = async (url, opts) => {
+            const r = await fetch(url, opts);
+            if (!r.ok) throw new Error(`${r.status} ${await r.text().catch(()=>'')}`);
+            const buf = await r.arrayBuffer();
+            return { base64: Buffer.from(buf).toString('base64'), contentType: r.headers.get('content-type') || 'image/jpeg' };
+        };
 
-        // ניסיון ראשון: FLUX via together provider
-        let hfRes;
-        try {
-            hfRes = await fetch('https://router.huggingface.co/together/models/black-forest-labs/FLUX.1-schnell', {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${hfToken}`, 'Content-Type': 'application/json' },
-                body: JSON.stringify({ inputs: finalPrompt, parameters: { width: hfWidth, height: hfHeight } }),
-                signal: AbortSignal.timeout(28000)
-            });
-            if (!hfRes.ok) throw new Error(`together provider: ${hfRes.status}`);
-        } catch (fetchErr) {
-            // Fallback: SDXL on hf-inference (stable and widely supported)
-            console.log('FLUX together failed, fallback to SDXL:', fetchErr.message);
-            hfRes = await fetch('https://router.huggingface.co/hf-inference/models/stabilityai/stable-diffusion-xl-base-1.0', {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${hfToken}`, 'Content-Type': 'application/json', 'x-wait-for-model': 'true' },
-                body: JSON.stringify({ inputs: finalPrompt, parameters: { width: hfWidth, height: hfHeight } }),
-                signal: AbortSignal.timeout(35000)
-            });
+        let result = null;
+        const errors = [];
+
+        // 1. nebius provider (FLUX)
+        if (hfToken && !result) {
+            try {
+                result = await fetchImgB64('https://router.huggingface.co/nebius/models/black-forest-labs/flux-schnell', {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${hfToken}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ inputs: finalPrompt, parameters: { width: imgW, height: imgH } }),
+                    signal: AbortSignal.timeout(30000)
+                });
+            } catch(e) { errors.push('nebius:' + e.message); }
         }
 
-        if (hfRes.status === 503) {
-            const errData = await hfRes.json().catch(() => ({}));
-            const eta = errData.estimated_time ? `בעוד כ-${Math.ceil(errData.estimated_time)} שניות` : 'בעוד כדקה';
-            return res.json({ success: false, error: `מודל AI בטעינה, נסה שוב ${eta}` });
-        }
-        if (!hfRes.ok) {
-            const errText = await hfRes.text().catch(() => '');
-            console.error('HF error:', hfRes.status, errText);
-            return res.json({ success: false, error: `שגיאת שירות AI (${hfRes.status}): ${errText.slice(0,100)}` });
+        // 2. together provider (FLUX)
+        if (hfToken && !result) {
+            try {
+                result = await fetchImgB64('https://router.huggingface.co/together/models/black-forest-labs/FLUX.1-schnell', {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${hfToken}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ inputs: finalPrompt, parameters: { width: imgW, height: imgH } }),
+                    signal: AbortSignal.timeout(30000)
+                });
+            } catch(e) { errors.push('together:' + e.message); }
         }
 
-        const buffer = await hfRes.arrayBuffer();
-        const base64 = Buffer.from(buffer).toString('base64');
-        const contentType = hfRes.headers.get('content-type') || 'image/jpeg';
-        res.json({ success: true, imageUrl: `data:${contentType};base64,${base64}` });
+        // 3. Pollinations.ai — חינמי, ללא מפתח
+        if (!result) {
+            try {
+                const seed = Math.floor(Math.random() * 99999);
+                const polUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(finalPrompt)}?width=${imgW}&height=${imgH}&model=flux&nologo=true&seed=${seed}`;
+                result = await fetchImgB64(polUrl, { signal: AbortSignal.timeout(45000) });
+            } catch(e) { errors.push('pollinations:' + e.message); }
+        }
+
+        if (!result) {
+            console.error('All image providers failed:', errors);
+            return res.json({ success: false, error: 'שירות יצירת התמונות אינו זמין כרגע — נסה שוב מאוחר יותר' });
+        }
+
+        res.json({ success: true, imageUrl: `data:${result.contentType};base64,${result.base64}` });
     } catch(e) {
         console.error('Image Gen Error:', e.message);
         res.json({ success: false, error: 'שגיאה ביצירת תמונה: ' + (e.message || 'נסה שוב.') });
@@ -7266,9 +7277,8 @@ app.post('/api/store/catalog/generate-image', async (req, res) => {
         if (!groupId || !productName || !description) return res.status(400).json({ error: 'שם מוצר ותיאור נדרשים' });
 
         const hfToken = process.env.HF_TOKEN;
-        if (!hfToken) return res.json({ success: false, error: 'HF_TOKEN חסר בהגדרות השרת' });
 
-        // תרגום לאנגלית לפני שליחה ל-FLUX (המודל לא מבין עברית)
+        // תרגום לאנגלית
         let enName = productName;
         let enDesc = description;
         let enCat = category || '';
@@ -7281,53 +7291,64 @@ app.post('/api/store/catalog/generate-image', async (req, res) => {
                 if (parsed.name) enName = parsed.name;
                 if (parsed.description) enDesc = parsed.description;
                 if (parsed.category) enCat = parsed.category;
-            } catch(translateErr) {
-                console.log('Translation skipped, using original:', translateErr.message);
-            }
+            } catch(e) {}
         }
 
-        // בנה prompt אנגלי ממוקד
-        let finalPrompt = `product photography, studio photo of ${enName}`;
-        finalPrompt += `. ${enDesc}`;
+        let finalPrompt = `product photography, studio photo of ${enName}. ${enDesc}`;
         if (enCat) finalPrompt += `. Category: ${enCat}`;
-        finalPrompt += `. Professional studio lighting, bright natural light, clean white background, product centered and focused, high quality commercial photo, photorealistic, 8k resolution, sharp details, appetizing presentation`;
+        finalPrompt += `. Professional studio lighting, clean white background, product centered, high quality commercial photo, photorealistic`;
 
-        // ניסיון ראשון: FLUX via together provider
-        let hfRes;
-        try {
-            hfRes = await fetch('https://router.huggingface.co/together/models/black-forest-labs/FLUX.1-schnell', {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${hfToken}`, 'Content-Type': 'application/json' },
-                body: JSON.stringify({ inputs: finalPrompt, parameters: { width: 512, height: 512 } }),
-                signal: AbortSignal.timeout(28000)
-            });
-            if (!hfRes.ok) throw new Error(`together provider: ${hfRes.status}`);
-        } catch (fetchErr) {
-            // Fallback: SDXL on hf-inference
-            console.log('FLUX together failed, fallback to SDXL:', fetchErr.message);
-            hfRes = await fetch('https://router.huggingface.co/hf-inference/models/stabilityai/stable-diffusion-xl-base-1.0', {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${hfToken}`, 'Content-Type': 'application/json', 'x-wait-for-model': 'true' },
-                body: JSON.stringify({ inputs: finalPrompt, parameters: { width: 512, height: 512 } }),
-                signal: AbortSignal.timeout(35000)
-            });
+        // helper: fetch image binary → base64
+        const fetchImageBase64 = async (url, opts) => {
+            const r = await fetch(url, opts);
+            if (!r.ok) throw new Error(`${r.status} ${await r.text().catch(()=>'')}`);
+            const buf = await r.arrayBuffer();
+            const ct = r.headers.get('content-type') || 'image/jpeg';
+            return { base64: Buffer.from(buf).toString('base64'), contentType: ct };
+        };
+
+        let result = null;
+        const errors = [];
+
+        // 1. HF: nebius provider (FLUX)
+        if (hfToken && !result) {
+            try {
+                result = await fetchImageBase64('https://router.huggingface.co/nebius/models/black-forest-labs/flux-schnell', {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${hfToken}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ inputs: finalPrompt, parameters: { width: 512, height: 512 } }),
+                    signal: AbortSignal.timeout(30000)
+                });
+            } catch(e) { errors.push('nebius:' + e.message); }
         }
 
-        if (hfRes.status === 503) {
-            const errData = await hfRes.json().catch(() => ({}));
-            const eta = errData.estimated_time ? `בעוד כ-${Math.ceil(errData.estimated_time)} שניות` : 'בעוד כדקה';
-            return res.json({ success: false, error: `מודל AI בטעינה, נסה שוב ${eta}` });
-        }
-        if (!hfRes.ok) {
-            const errText = await hfRes.text().catch(() => '');
-            console.error('HF error:', hfRes.status, errText);
-            return res.json({ success: false, error: `שגיאת שירות AI (${hfRes.status}): ${errText.slice(0,100)}` });
+        // 2. HF: together provider (FLUX)
+        if (hfToken && !result) {
+            try {
+                result = await fetchImageBase64('https://router.huggingface.co/together/models/black-forest-labs/FLUX.1-schnell', {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${hfToken}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ inputs: finalPrompt, parameters: { width: 512, height: 512 } }),
+                    signal: AbortSignal.timeout(30000)
+                });
+            } catch(e) { errors.push('together:' + e.message); }
         }
 
-        const buffer = await hfRes.arrayBuffer();
-        const base64 = Buffer.from(buffer).toString('base64');
-        const contentType = hfRes.headers.get('content-type') || 'image/jpeg';
-        res.json({ success: true, imageUrl: `data:${contentType};base64,${base64}` });
+        // 3. Pollinations.ai — חינמי, ללא מפתח, תמיד עובד
+        if (!result) {
+            try {
+                const seed = Math.floor(Math.random() * 99999);
+                const polUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(finalPrompt)}?width=512&height=512&model=flux&nologo=true&seed=${seed}`;
+                result = await fetchImageBase64(polUrl, { signal: AbortSignal.timeout(40000) });
+            } catch(e) { errors.push('pollinations:' + e.message); }
+        }
+
+        if (!result) {
+            console.error('All image providers failed:', errors);
+            return res.json({ success: false, error: 'שירות יצירת התמונות אינו זמין כרגע — נסה שוב מאוחר יותר' });
+        }
+
+        res.json({ success: true, imageUrl: `data:${result.contentType};base64,${result.base64}` });
     } catch(e) {
         console.error('Product Image Gen Error:', e.message);
         res.json({ success: false, error: 'שגיאה ביצירת תמונה: ' + (e.message || 'נסה שוב.') });
