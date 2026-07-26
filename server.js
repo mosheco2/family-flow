@@ -6520,24 +6520,24 @@ app.post('/api/ai/generate-image', async (req, res) => {
         const hfWidth  = type === 'banner' ? 1024 : 512;
         const hfHeight = type === 'banner' ? 576  : 512;
 
-        // Use HF router endpoint (newer, more reliable)
-        const hfEndpoint = `https://router.huggingface.co/hf-inference/models/black-forest-labs/FLUX.1-schnell`;
+        // ניסיון ראשון: FLUX via together provider
         let hfRes;
         try {
-            hfRes = await fetch(hfEndpoint, {
+            hfRes = await fetch('https://router.huggingface.co/together/models/black-forest-labs/FLUX.1-schnell', {
                 method: 'POST',
-                headers: { 'Authorization': `Bearer ${hfToken}`, 'Content-Type': 'application/json', 'x-wait-for-model': 'true' },
+                headers: { 'Authorization': `Bearer ${hfToken}`, 'Content-Type': 'application/json' },
                 body: JSON.stringify({ inputs: finalPrompt, parameters: { width: hfWidth, height: hfHeight } }),
                 signal: AbortSignal.timeout(28000)
             });
+            if (!hfRes.ok) throw new Error(`together provider: ${hfRes.status}`);
         } catch (fetchErr) {
-            // Router failed - fallback to legacy endpoint
-            console.log('Router failed, trying legacy endpoint:', fetchErr.message);
-            hfRes = await fetch('https://api-inference.huggingface.co/models/black-forest-labs/FLUX.1-schnell', {
+            // Fallback: SDXL on hf-inference (stable and widely supported)
+            console.log('FLUX together failed, fallback to SDXL:', fetchErr.message);
+            hfRes = await fetch('https://router.huggingface.co/hf-inference/models/stabilityai/stable-diffusion-xl-base-1.0', {
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${hfToken}`, 'Content-Type': 'application/json', 'x-wait-for-model': 'true' },
                 body: JSON.stringify({ inputs: finalPrompt, parameters: { width: hfWidth, height: hfHeight } }),
-                signal: AbortSignal.timeout(28000)
+                signal: AbortSignal.timeout(35000)
             });
         }
 
@@ -7292,22 +7292,24 @@ app.post('/api/store/catalog/generate-image', async (req, res) => {
         if (enCat) finalPrompt += `. Category: ${enCat}`;
         finalPrompt += `. Professional studio lighting, bright natural light, clean white background, product centered and focused, high quality commercial photo, photorealistic, 8k resolution, sharp details, appetizing presentation`;
 
-        const hfEndpoint = `https://router.huggingface.co/hf-inference/models/black-forest-labs/FLUX.1-schnell`;
+        // ניסיון ראשון: FLUX via together provider
         let hfRes;
         try {
-            hfRes = await fetch(hfEndpoint, {
+            hfRes = await fetch('https://router.huggingface.co/together/models/black-forest-labs/FLUX.1-schnell', {
                 method: 'POST',
-                headers: { 'Authorization': `Bearer ${hfToken}`, 'Content-Type': 'application/json', 'x-wait-for-model': 'true' },
+                headers: { 'Authorization': `Bearer ${hfToken}`, 'Content-Type': 'application/json' },
                 body: JSON.stringify({ inputs: finalPrompt, parameters: { width: 512, height: 512 } }),
                 signal: AbortSignal.timeout(28000)
             });
+            if (!hfRes.ok) throw new Error(`together provider: ${hfRes.status}`);
         } catch (fetchErr) {
-            console.log('Router failed, trying legacy endpoint:', fetchErr.message);
-            hfRes = await fetch('https://api-inference.huggingface.co/models/black-forest-labs/FLUX.1-schnell', {
+            // Fallback: SDXL on hf-inference
+            console.log('FLUX together failed, fallback to SDXL:', fetchErr.message);
+            hfRes = await fetch('https://router.huggingface.co/hf-inference/models/stabilityai/stable-diffusion-xl-base-1.0', {
                 method: 'POST',
                 headers: { 'Authorization': `Bearer ${hfToken}`, 'Content-Type': 'application/json', 'x-wait-for-model': 'true' },
                 body: JSON.stringify({ inputs: finalPrompt, parameters: { width: 512, height: 512 } }),
-                signal: AbortSignal.timeout(28000)
+                signal: AbortSignal.timeout(35000)
             });
         }
 
