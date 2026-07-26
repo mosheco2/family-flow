@@ -24988,10 +24988,12 @@ app.post('/api/live-games/:game_code/answer', async (req, res) => {
     const q = await pool.query('SELECT * FROM live_game_questions WHERE id=$1 AND game_id=$2', [questionId, game.id]);
     if (!q.rows.length) return res.status(404).json({ error: 'שאלה לא נמצאה' });
     const question = q.rows[0];
-    const isCorrect = parseInt(answerIndex) === question.correct_index;
+    const isTimeout = parseInt(answerIndex) === -1;
+    const isCorrect = !isTimeout && parseInt(answerIndex) === question.correct_index;
     // חסימת תשובה כפולה
     const dup = await pool.query('SELECT id FROM live_game_answers WHERE question_id=$1 AND user_id=$2', [questionId, userId]);
-    if (dup.rows.length) return res.json({ success: true, already_answered: true, is_correct: isCorrect });
+    if (dup.rows.length) return res.json({ success: true, already_answered: true, is_correct: isCorrect, correct_index: question.correct_index });
+    if (isTimeout) return res.json({ success: true, is_correct: false, correct_index: question.correct_index });
     await pool.query(
       `INSERT INTO live_game_answers (game_id, question_id, user_id, answer_index, is_correct, response_time_ms) VALUES ($1,$2,$3,$4,$5,$6)`,
       [game.id, questionId, userId || null, answerIndex, isCorrect, responseTimeMs || null]

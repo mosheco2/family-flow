@@ -468,11 +468,16 @@ function startTimer(seconds, questionId, opts, correctIndex) {
       clearInterval(timerInterval);
       if (!answerSubmitted) {
         answerSubmitted = true;
-        document.querySelectorAll('#q-opts .opt-btn').forEach((b, i) => {
-          b.disabled = true;
-          if (i === correctIndex) b.classList.add('correct');
-        });
-        setTimeout(() => showAnswerResult(false, opts[correctIndex]), 1200);
+        document.querySelectorAll('#q-opts .opt-btn').forEach(b => b.disabled = true);
+        // שולחים בקשת תשובה עם null כדי לקבל את correct_index מהשרת
+        fetch(`/api/live-games/${gameCode}/answer`, {
+          method: 'POST', headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({ userId: currentUser?.id, questionId, answerIndex: -1, responseTimeMs: seconds * 1000 })
+        }).then(r => r.json()).then(data => {
+          const idx = data.correct_index;
+          document.querySelectorAll('#q-opts .opt-btn').forEach((b, i) => { if (i === idx) b.classList.add('correct'); });
+          setTimeout(() => showAnswerResult(false, idx != null ? opts[idx] : null), 1200);
+        }).catch(() => setTimeout(() => showAnswerResult(false, null), 1200));
       }
     }
   }, 1000);
@@ -488,9 +493,10 @@ async function submitAnswer(questionId, answerIndex, btn, opts, correctIndex, ti
     body: JSON.stringify({ userId: currentUser?.id, questionId, answerIndex, responseTimeMs })
   });
   const data = await r.json();
+  const serverCorrectIdx = data.correct_index ?? correctIndex;
   document.querySelectorAll('#q-opts .opt-btn').forEach((b, i) => {
     b.disabled = true;
-    if (i === correctIndex) b.classList.add('correct');
+    if (i === serverCorrectIdx) b.classList.add('correct');
     else if (i === answerIndex && !data.is_correct) b.classList.add('wrong');
   });
   if (data.is_correct) {
@@ -499,14 +505,15 @@ async function submitAnswer(questionId, answerIndex, btn, opts, correctIndex, ti
     myScore += Math.round(100 + (speed / (ts * 1000)) * 900);
     document.getElementById('g-score').textContent = myScore;
   }
-  setTimeout(() => showAnswerResult(data.is_correct, opts[correctIndex]), 1300);
+  setTimeout(() => showAnswerResult(data.is_correct, opts[serverCorrectIdx]), 1300);
 }
 
 function showAnswerResult(isCorrect, correctAnswer) {
   showScreen('answer-result');
   document.getElementById('ar-emoji').textContent = isCorrect ? '✅' : '❌';
   document.getElementById('ar-title').textContent = isCorrect ? 'נכון! כל הכבוד!' : 'לא נכון...';
-  document.getElementById('ar-correct-text').textContent = `התשובה הנכונה: ${correctAnswer}`;
+  const correctEl = document.getElementById('ar-correct-text');
+  correctEl.textContent = correctAnswer ? `התשובה הנכונה: ${correctAnswer}` : 'הזמן נגמר';
   document.getElementById('ar-score').textContent = myScore;
 }
 
