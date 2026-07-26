@@ -25039,6 +25039,7 @@ app.get('/api/live-games/:game_code/state', async (req, res) => {
     const participants = await pool.query('SELECT COUNT(*) FROM live_game_participants WHERE game_id=$1 AND approved=true', [game.id]);
     const totalQ = await pool.query('SELECT COUNT(*) FROM live_game_questions WHERE game_id=$1', [game.id]);
     res.json({
+      game_id: game.id,
       status: game.status,
       current_question_index: game.current_question_index,
       total_questions: parseInt(totalQ.rows[0].count),

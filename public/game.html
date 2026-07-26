@@ -223,6 +223,7 @@ const gameCode = location.pathname.split('/').pop().toUpperCase();
 let currentUser = null;
 let currentGroup = null;
 let myScore = 0;
+let gameId = null;
 let pollingInterval = null;
 let lastQuestionId = null;
 let answerSubmitted = false;
@@ -395,6 +396,7 @@ async function pollState() {
     const r = await fetch(`/api/live-games/${gameCode}/state${uid}`);
     if (!r.ok) return;
     const state = await r.json();
+    if (state.game_id) gameId = state.game_id;
     myApproved = state.my_approved ?? myApproved;
     // detect new "game starting" notification from admin
     if (state.notify_sent_at && state.notify_sent_at !== lastNotifySentAt) {
@@ -524,7 +526,7 @@ async function showEndScreen(state) {
   launchFireworks();
   // Load leaderboard
   try {
-    const r = await fetch(`/api/live-games/${state.game_id || gameCode}/leaderboard`);
+    const r = await fetch(`/api/live-games/${gameId || state.game_id}/leaderboard`);
     const d = await r.json();
     if (d.leaderboard && d.leaderboard.length) {
       const winner = d.leaderboard[0];
