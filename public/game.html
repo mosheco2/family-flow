@@ -206,14 +206,20 @@
 
 <!-- Sponsor splash modal -->
 <div id="sponsor-splash" class="hidden fixed inset-0 bg-black/90 z-50 flex items-end justify-center p-0 fadein">
-  <div class="bg-slate-800 rounded-t-3xl w-full max-w-sm shadow-2xl border-t border-white/10 relative overflow-visible">
-    <!-- דמות מלווה — בולטת מעל הכרטיס -->
-    <div id="splash-char-wrap" class="hidden absolute -top-28 left-1/2 -translate-x-1/2 pointer-events-none" style="width:110px">
-      <img id="splash-character" src="" alt="" style="width:110px;height:auto;background:transparent;display:block">
-    </div>
-    <div class="px-7 pt-10 pb-7 text-center">
-      <div id="splash-logo-wrap" class="hidden mb-3 flex justify-center">
-        <img id="splash-sponsor-logo" src="" alt="" class="h-14 object-contain mx-auto rounded-lg">
+  <div class="bg-slate-800 rounded-t-3xl w-full max-w-sm shadow-2xl border-t border-white/10">
+    <div class="px-7 pt-6 pb-7 text-center">
+      <!-- שורת לוגואים: דמות + לוגו חסות זה לצד זה -->
+      <div id="splash-logos-row" style="display:none;justify-content:center;align-items:flex-end;gap:16px;margin-bottom:16px">
+        <img id="splash-character" src="" alt="" style="width:90px;height:auto;background:transparent;display:block;flex-shrink:0">
+        <img id="splash-sponsor-logo" src="" alt="" style="max-height:72px;max-width:120px;object-fit:contain;display:block;background:transparent;border-radius:8px;flex-shrink:0">
+      </div>
+      <!-- fallback: רק דמות -->
+      <div id="splash-char-only" style="display:none;justify-content:center;margin-bottom:12px">
+        <img id="splash-character-only" src="" alt="" style="width:90px;height:auto;background:transparent;display:block">
+      </div>
+      <!-- fallback: רק לוגו חסות -->
+      <div id="splash-logo-only" style="display:none;justify-content:center;margin-bottom:12px">
+        <img id="splash-sponsor-logo-only" src="" alt="" style="max-height:64px;object-fit:contain;display:block;background:transparent;border-radius:8px;margin:0 auto">
       </div>
       <div id="splash-emoji-wrap" class="text-5xl mb-3">🎯</div>
       <div class="text-xs text-slate-400 uppercase tracking-widest mb-1">בחסות</div>
@@ -405,20 +411,22 @@ function showSponsorSplash(state) {
     document.getElementById('splash-prize').textContent = state.prize;
     document.getElementById('splash-prize-row').classList.remove('hidden');
   }
-  // לוגו חסות
-  if (state.sponsor_logo) {
-    const logoWrap = document.getElementById('splash-logo-wrap');
-    const logoImg = document.getElementById('splash-sponsor-logo');
-    if (logoImg) logoImg.src = state.sponsor_logo;
-    if (logoWrap) logoWrap.classList.remove('hidden');
-    document.getElementById('splash-emoji-wrap')?.classList.add('hidden');
+  const hasLogo = !!state.sponsor_logo;
+  const hasChar = !!state.character_image;
+  if (hasLogo || hasChar) {
+    document.getElementById('splash-emoji-wrap').style.display = 'none';
   }
-  // דמות מלווה בחלונית — בולטת מעל הכרטיס
-  if (state.character_image) {
-    const sc = document.getElementById('splash-character');
-    const sw = document.getElementById('splash-char-wrap');
-    if (sc) sc.src = state.character_image;
-    if (sw) sw.classList.remove('hidden');
+  if (hasLogo && hasChar) {
+    // שניהם יחד — שורה אחת
+    document.getElementById('splash-character').src = state.character_image;
+    document.getElementById('splash-sponsor-logo').src = state.sponsor_logo;
+    document.getElementById('splash-logos-row').style.display = 'flex';
+  } else if (hasChar) {
+    document.getElementById('splash-character-only').src = state.character_image;
+    document.getElementById('splash-char-only').style.display = 'flex';
+  } else if (hasLogo) {
+    document.getElementById('splash-sponsor-logo-only').src = state.sponsor_logo;
+    document.getElementById('splash-logo-only').style.display = 'flex';
   }
   document.getElementById('sponsor-splash').classList.remove('hidden');
 }
