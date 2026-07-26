@@ -22741,7 +22741,7 @@ app.post('/api/kids/award-flw', async (req, res) => {
         await pool.query(`
             INSERT INTO game_sessions (child_user_id, game_id, score, flw_earned, duration_seconds)
             VALUES ($1, $2, $3, $4, $5)
-        `, [userId, gameId, score, actualFlw, durationSeconds || 0]);
+        `, [userId, gameId || null, score, actualFlw, durationSeconds || 0]);
 
         await pool.query(`
             INSERT INTO flw_kid_wallets (child_user_id, family_group_id, balance_flw, lifetime_flw)

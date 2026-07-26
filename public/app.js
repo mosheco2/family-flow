@@ -2977,6 +2977,9 @@ function renderUnifiedFeed() {
         
         // ── FLOW balance widget (הורים/מנהלים בלבד) ──────────────
         let flowWidgetHtml = '';
+        if (currentUser.role !== 'ADMIN') {
+            flowWidgetHtml = `<div id="kid-flw-widget">${_renderKidFlwWidget(null, null)}</div>`;
+        }
         if (currentUser.role === 'ADMIN' && typeof familyFlowBalance !== 'undefined') {
             const flowBal = Math.floor(familyFlowBalance);
             const ilsVal = Math.floor(flowBal / 100) * 10;
@@ -3876,7 +3879,7 @@ function renderMyAssignments(bundles) {
                                 <div class="text-[10px] text-slate-400 mt-1">הוקצה: ${aDateStr} • יעד: ${tDateStr}</div>
                             </div>
                         </div>
-                        <button onclick="startQuiz(${b.bundle_id})"
+                        <button onclick="startQuizReview(${b.bundle_id})"
                             class="mt-3 w-full bg-gradient-to-l from-amber-500 to-orange-500 text-white py-2.5 rounded-xl font-black text-sm shadow-md shadow-amber-200 active:scale-95 transition flex items-center justify-center gap-2">
                             <i class="fa-solid fa-play text-xs"></i> התחל מבחן
                         </button>
@@ -3956,6 +3959,60 @@ async function requestChallenge(bundleId = null) {
     } catch(e) { showToast('error', 'שגיאה בתקשורת'); } finally { if(btn) { btn.disabled = false; btn.innerText = '🙋‍♂️ הגרל אתגר מהיר'; } }
 }
 
+async function startQuizReview(bundleId) {
+    const bundle = bundlesCache.find(b => b.bundle_id == bundleId); if(!bundle) return;
+    let qs = [];
+    try {
+        const res = await fetch(`${API}/academy/bundles/${bundleId}`);
+        const data = await res.json();
+        qs = data.bundle?.questions || [];
+    } catch(e) {}
+    if (!qs.length) { startQuiz(bundleId); return; }
+    let idx = 0;
+    const pairs = qs.map(q => {
+        const answer = q.options[q.correct] || '';
+        // חלץ את מילת המפתח מהשאלה
+        const heToEn = q.q.match(/['"״](.*?)['"״]/);
+        const enToHe = q.q.match(/של\s+(.+?)[\?？]?$/);
+        let word = heToEn ? heToEn[1] : (enToHe ? enToHe[1].trim() : q.q);
+        return { word, answer };
+    });
+
+    let modal = getEl('quiz-review-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'quiz-review-modal';
+        modal.className = 'fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[200] p-4';
+        document.body.appendChild(modal);
+    }
+
+    function renderReviewCard() {
+        const p = pairs[idx];
+        const isLast = idx === pairs.length - 1;
+        modal.innerHTML = `
+          <div class="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6 flex flex-col items-center gap-4 text-center">
+            <div class="text-xs font-bold text-violet-400 uppercase tracking-widest">📖 לומדים לפני המבחן</div>
+            <div class="text-xs text-slate-400">${idx + 1} / ${pairs.length}</div>
+            <div class="w-full bg-violet-50 border-2 border-violet-200 rounded-2xl p-5 flex flex-col items-center gap-3">
+              <div class="text-2xl font-black text-violet-800">${safeStr(p.word)}</div>
+              <div class="text-slate-400 text-sm">↓</div>
+              <div class="text-2xl font-black text-indigo-600">${safeStr(p.answer)}</div>
+            </div>
+            <div class="flex gap-3 w-full mt-2">
+              ${idx > 0 ? `<button onclick="window._reviewPrev()" class="flex-1 bg-slate-100 text-slate-600 font-bold py-3 rounded-xl">◀ הקודם</button>` : ''}
+              ${isLast
+                ? `<button onclick="window._reviewStart(${bundleId})" class="flex-1 bg-indigo-600 text-white font-black py-3 rounded-xl shadow-md">✅ מוכן! התחל מבחן</button>`
+                : `<button onclick="window._reviewNext()" class="flex-1 bg-violet-600 text-white font-bold py-3 rounded-xl">הבא ▶</button>`}
+            </div>
+          </div>`;
+    }
+
+    window._reviewNext = () => { idx = Math.min(idx + 1, pairs.length - 1); renderReviewCard(); };
+    window._reviewPrev = () => { idx = Math.max(idx - 1, 0); renderReviewCard(); };
+    window._reviewStart = (bid) => { modal.remove(); startQuiz(bid); };
+    renderReviewCard();
+}
+
 async function startQuiz(bundleId) {
     const bundleMeta = bundlesCache.find(b => b.bundle_id == bundleId); if(!bundleMeta) return;
     try {
@@ -3966,8 +4023,7 @@ async function startQuiz(bundleId) {
         currentQuizData = { ...bundleMeta, questions: data.bundle.questions, text_content: data.bundle.text_content };
         currentQuestionIndex = 0; quizScore = 0; currentWrongAnswers = [];
         getEl('quiz-title').innerText = bundleMeta.title; getEl('btn-tutor').classList.add('hidden');
-        const textContainer = getEl('quiz-text-container');
-        if (data.bundle.text_content) { textContainer.innerHTML = `<p>${data.bundle.text_content}</p>`; textContainer.classList.remove('hidden'); } else { textContainer.classList.add('hidden'); }
+        getEl('quiz-text-container').classList.add('hidden');
         getEl('quiz-runner-modal').classList.remove('hidden'); renderQuestion();
     } catch(e) { showToast('error', 'שגיאה בטעינת המבחן'); }
 }
@@ -4003,6 +4059,21 @@ async function finishQuiz() {
     if (passed) triggerConfetti();
     if (!window._parentPreviewMode) {
         await fetch(`${API}/academy/submit`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: currentUser.id, bundleId: currentQuizData.bundle_id, score: finalScore, groupId: currentGroup.id }) });
+        if (passed && currentUser.role !== 'ADMIN') {
+            const flwReward = Math.max(5, Math.min(20, Math.round((currentQuizData.custom_reward || currentQuizData.default_reward || 10) * 1.5)));
+            try {
+                const awardRes = await fetch(`${API}/kids/award-flw`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ userId: currentUser.id, gameId: null, score: finalScore, flwEarned: flwReward, durationSeconds: 0 }) });
+                const awardData = await awardRes.json();
+                if (awardData.flwEarned > 0) {
+                    const descEl = getEl('quiz-msg-desc');
+                    if (descEl) descEl.innerHTML += `<br><span style="color:#7c3aed;font-weight:900;">🪙 +${awardData.flwEarned} FLW לארנק שלך!</span>`;
+                    kidFlwBalance = parseFloat(awardData.newBalance || kidFlwBalance);
+                    triggerCoinAnimation(kidFlwBalance);
+                    const numEl = getEl('header-flw-num');
+                    if (numEl) numEl.textContent = Math.floor(kidFlwBalance);
+                }
+            } catch(e) {}
+        }
         fetchData();
     }
 }
@@ -6298,6 +6369,7 @@ function renderFamilyCommunities() {
     // ── Community Feed: Promotions + Bundles ─────────────────
     loadCommunityFeed();
     loadFamilyFlowWallet();
+    loadKidFLWWallet();
     if (myConnectedCommunitiesCache.length > 0) loadMyReferralCode();
 
     // ── Initiatives (appended inside join view) ───────────────
@@ -6614,6 +6686,52 @@ function launchFlowConfetti() {
     setTimeout(() => wrap.remove(), 3800);
 }
 
+// ─── KID FLW WALLET ──────────────────────────────────────────
+
+let kidFlwBalance = 0;
+let _kidFlwInitialized = false;
+
+async function loadKidFLWWallet() {
+    if (!currentUser || currentUser.role === 'ADMIN') return;
+    try {
+        const res = await fetch(`${API}/kids/wallet/${currentUser.id}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        const prevBal = kidFlwBalance;
+        kidFlwBalance = parseFloat(data.wallet?.balance_flw || 0);
+        const chip = getEl('header-flw-chip');
+        const numEl = getEl('header-flw-num');
+        if (chip) {
+            if (numEl) numEl.textContent = Math.floor(kidFlwBalance);
+            chip.classList.remove('hidden');
+            chip.classList.add('flex');
+            if (_kidFlwInitialized && kidFlwBalance > prevBal) triggerCoinAnimation(kidFlwBalance);
+        }
+        _kidFlwInitialized = true;
+        const kidWidget = getEl('kid-flw-widget');
+        if (kidWidget) kidWidget.innerHTML = _renderKidFlwWidget(data.wallet, data.config);
+    } catch(e) {}
+}
+
+function _renderKidFlwWidget(wallet, config) {
+    const bal = parseFloat(wallet?.balance_flw || 0);
+    const lifetime = parseFloat(wallet?.lifetime_flw || 0);
+    const valueIls = parseFloat(config?.flw_value_ils || 0.10);
+    const ilsVal = (bal * valueIls).toFixed(2);
+    return `
+        <div style="background:linear-gradient(135deg,#7c3aed,#6d28d9,#4c1d95);border-radius:20px;padding:14px 18px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 4px 20px rgba(124,58,237,0.35);position:relative;overflow:hidden;">
+            <div style="position:absolute;inset:0;background:radial-gradient(circle at 80% 50%,rgba(255,255,255,0.12),transparent 60%);pointer-events:none;"></div>
+            <div style="display:flex;align-items:center;gap:12px;">
+                <div style="background:rgba(255,255,255,0.2);border-radius:14px;width:44px;height:44px;display:flex;align-items:center;justify-content:center;font-size:22px;">🪙</div>
+                <div>
+                    <div style="color:rgba(255,255,255,0.85);font-size:11px;font-weight:600;margin-bottom:2px;">הארנק שלי</div>
+                    <div style="color:white;font-size:26px;font-weight:900;line-height:1;">${Math.floor(bal)} <span style="font-size:14px;">FLW</span></div>
+                    <div style="color:rgba(255,255,255,0.75);font-size:10px;margin-top:2px;">שווה ₪${ilsVal} • כולל חיים: ${Math.floor(lifetime)}</div>
+                </div>
+            </div>
+        </div>`;
+}
+
 // ─── FLOW WALLET (FAMILY) ────────────────────────────────────
 
 let familyFlowBalance = 0;
@@ -6657,6 +6775,7 @@ function triggerCoinAnimation(newBalance) {
 
 async function loadFamilyFlowWallet() {
     if (!currentGroup || currentGroup.type !== 'FAMILY') return;
+    if (currentUser && currentUser.role !== 'ADMIN') return;
     try {
         const res = await fetch(`${API}/flow/wallet/family/${currentGroup.id}`);
         if (!res.ok) return;
