@@ -4458,29 +4458,55 @@ function sendWhatsAppInvite(role) {
 function toggleFab() { getEl('fab-container').classList.toggle('fab-open'); }
 
 // ── משחקים חיים בטאב קהילה ──
+function _renderGamesIntoEl(el, games) {
+  if (!el) return;
+  if (!games || !games.length) {
+    el.innerHTML = '<div class="text-slate-400 text-xs text-center py-3">אין משחקים פעילים כרגע</div>';
+    return;
+  }
+  const canGame = typeof checkCommPerm === 'function' ? checkCommPerm('can_live_game') : true;
+  const statusLabel = { waiting:'ממתין להתחלה', active:'🔴 פעיל עכשיו', ended:'הסתיים' };
+  el.innerHTML = games.map(g => {
+    const joinBtn = canGame
+      ? `<a href="/game/${g.game_code}" class="shrink-0 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-2 rounded-xl transition">${g.status === 'active' ? '▶ הצטרף עכשיו' : 'כניסה'}</a>`
+      : `<span class="shrink-0 bg-slate-200 text-slate-400 text-xs font-bold px-4 py-2 rounded-xl cursor-not-allowed" title="אין הרשאה להשתתף במשחקים">🔒 חסום</span>`;
+    return `
+    <div class="bg-indigo-50 border border-indigo-200 rounded-2xl p-3 flex items-center justify-between gap-3">
+      <div class="flex-1 min-w-0 text-right">
+        <div class="font-bold text-indigo-900 text-sm truncate">${g.title || 'משחק טריוויה'}</div>
+        ${g.sponsor_name ? `<div class="text-[10px] text-indigo-600">בחסות ${g.sponsor_name}</div>` : ''}
+        ${g.prize ? `<div class="text-[10px] text-amber-600 font-medium">🏆 ${g.prize}</div>` : ''}
+        <div class="text-[10px] text-indigo-400 mt-0.5">${statusLabel[g.status] || g.status}</div>
+      </div>
+      ${joinBtn}
+    </div>`;
+  }).join('');
+}
+
 async function loadCommGames(communityId) {
   const el = document.getElementById('comm-games-list');
   if (!el) return;
   try {
     const r = await fetch(`/api/community/${communityId}/live-games`);
     const d = await r.json();
-    if (!d.games || !d.games.length) {
-      el.innerHTML = '<div class="text-slate-400 text-xs text-center py-3">אין משחקים פעילים כרגע</div>';
-      return;
-    }
-    const statusLabel = { waiting:'ממתין להתחלה', active:'🔴 פעיל עכשיו', ended:'הסתיים' };
-    el.innerHTML = d.games.map(g => `
-      <div class="bg-indigo-50 border border-indigo-200 rounded-2xl p-3 flex items-center justify-between gap-3">
-        <div class="flex-1 min-w-0 text-right">
-          <div class="font-bold text-indigo-900 text-sm truncate">${g.title || 'משחק טריוויה'}</div>
-          ${g.sponsor_name ? `<div class="text-[10px] text-indigo-600">בחסות ${g.sponsor_name}</div>` : ''}
-          ${g.prize ? `<div class="text-[10px] text-amber-600 font-medium">🏆 ${g.prize}</div>` : ''}
-          <div class="text-[10px] text-indigo-400 mt-0.5">${statusLabel[g.status] || g.status}</div>
-        </div>
-        <a href="/game/${g.game_code}" class="shrink-0 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-2 rounded-xl transition">
-          ${g.status === 'active' ? '▶ הצטרף עכשיו' : 'כניסה'}
-        </a>
-      </div>`).join('');
+    _renderGamesIntoEl(el, d.games);
+  } catch(e) {
+    el.innerHTML = '<div class="text-slate-400 text-xs text-center py-3">שגיאה בטעינת משחקים</div>';
+  }
+}
+
+async function loadCommHomeGames() {
+  const el = document.getElementById('comm-home-games-list');
+  if (!el) return;
+  const communityId = myConnectedCommunitiesCache?.[0]?.id;
+  if (!communityId) {
+    el.innerHTML = '<div class="text-slate-400 text-xs text-center py-3">אין קהילה מחוברת</div>';
+    return;
+  }
+  try {
+    const r = await fetch(`/api/community/${communityId}/live-games`);
+    const d = await r.json();
+    _renderGamesIntoEl(el, d.games);
   } catch(e) {
     el.innerHTML = '<div class="text-slate-400 text-xs text-center py-3">שגיאה בטעינת משחקים</div>';
   }
@@ -5516,7 +5542,7 @@ function switchFamCommunityTab(tab) {
     });
     const activeView = document.getElementById(`fam-comm-view-${tab}`);
     if (activeView) activeView.classList.remove('hidden');
-    if (tab === 'home') loadCommHomeBanners();
+    if (tab === 'home') { loadCommHomeBanners(); loadCommHomeGames(); }
     if (tab === 'manage') switchFamCommSubTab('join');
     if (tab === 'promos') loadCommunityFeed();
     if (tab === 'benefits') renderFamCommunityBenefits();
@@ -6077,6 +6103,7 @@ async function fetchCommunityData() {
             myConnectedCommunitiesCache = data.communities || [];
             myCommunityBusinessesCache = data.businesses || [];
             renderFamilyCommunities();
+            loadCommHomeGames();
             // polling אוטומטי כשיש קהילות בהמתנה — מאפשר רענון ללא פעולת משתמש
             const hasPending = myConnectedCommunitiesCache.some(c => c.status === 'pending');
             if (hasPending && !window._pendingCommRefresh) {
@@ -8619,6 +8646,8 @@ function enforcePermissions() {
         const perms = typeof currentUser.permissions === 'string' ? JSON.parse(currentUser.permissions) : (currentUser.permissions || {});
         const hasCustomTabs = perms.tabs && perms.tabs.length > 1;
         userTabs = hasCustomTabs ? perms.tabs : (ROLE_DEFAULTS[currentUser.role] || ROLE_DEFAULTS['MEMBER']);
+        // ילד תמיד מקבל גישה לקהילה (גם אם הרשאות מותאמות לא כוללות אותה)
+        if (currentUser.role === 'CHILD' && !userTabs.includes('community')) userTabs = [...userTabs, 'community'];
     } catch(e) { userTabs = ROLE_DEFAULTS[currentUser.role] || ROLE_DEFAULTS['MEMBER']; }
 
     // קריאת הרשאות הפיצ'רים מהסופר-אדמין (Feature Flags)
@@ -9281,28 +9310,49 @@ window.saveFamilyPhoto = async function() {
 window.openPermissionsModal = function(userId, userName, encodedPermsStr) {
     document.getElementById('perms-user-id').value = userId;
     document.getElementById('perms-user-name').innerText = userName;
-    
+
     let userTabs = [];
+    let commPerms = {};
     try {
         const decodedStr = decodeURIComponent(encodedPermsStr);
         const p = JSON.parse(decodedStr);
         userTabs = p.tabs || [];
+        commPerms = p.community || {};
     } catch(e) {
-        userTabs = ['feed']; 
+        userTabs = ['feed'];
     }
-    
+
     const container = document.getElementById('perms-checkboxes');
-    container.innerHTML = ALL_TABS.map(tab => {
+    const tabsHtml = ALL_TABS.map(tab => {
         const isFeed = tab.id === 'feed';
         const isChecked = isFeed || userTabs.includes(tab.id);
         return `
         <label class="flex items-center gap-3 p-3 bg-slate-50 rounded-xl border border-slate-100 cursor-pointer hover:border-blue-200 transition">
             <input type="checkbox" value="${tab.id}" class="perm-cb w-4 h-4 accent-blue-600 rounded" ${isChecked ? 'checked' : ''} ${isFeed ? 'disabled' : ''}>
             <span class="text-sm font-bold text-slate-700">${tab.name}</span>
-        </label>
-        `;
+        </label>`;
     }).join('');
-    
+
+    const COMM_FEATURES = [
+        { key: 'can_order',     label: '🛒 ביצוע הזמנות בעסקים' },
+        { key: 'can_post_feed', label: '📢 פרסום בפיד הקהילה' },
+        { key: 'can_poll',      label: '📊 השתתפות בסקרים (POL)' },
+        { key: 'can_live_game', label: '🎮 השתתפות במשחקים חיים' },
+        { key: 'can_store',     label: '🏪 כניסה לחנויות עסקים' },
+    ];
+    const commHtml = `
+    <div class="mt-5 border-t border-slate-100 pt-4">
+        <p class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">הרשאות קהילה ועסקים</p>
+        ${COMM_FEATURES.map(f => {
+            const isOn = commPerms[f.key] !== false; // ברירת מחדל: מותר
+            return `<label class="flex items-center gap-3 p-3 bg-emerald-50 rounded-xl border border-emerald-100 cursor-pointer hover:border-emerald-300 transition mb-2">
+                <input type="checkbox" value="${f.key}" class="perm-comm-cb w-4 h-4 accent-emerald-600 rounded" ${isOn ? 'checked' : ''}>
+                <span class="text-sm font-bold text-slate-700">${f.label}</span>
+            </label>`;
+        }).join('')}
+    </div>`;
+
+    container.innerHTML = tabsHtml + commHtml;
     document.getElementById('permissions-modal').classList.remove('hidden');
 };
 
@@ -9310,24 +9360,28 @@ window.savePermissions = async function() {
     const userId = document.getElementById('perms-user-id').value;
     const cbs = document.querySelectorAll('.perm-cb');
     const selectedTabs = Array.from(cbs).filter(cb => cb.checked || cb.disabled).map(cb => cb.value);
-    
+
+    const commCbs = document.querySelectorAll('.perm-comm-cb');
+    const communityPerms = {};
+    commCbs.forEach(cb => { communityPerms[cb.value] = cb.checked; });
+
     const btn = document.getElementById('btn-save-perms');
     btn.disabled = true;
     btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> שומר...';
-    
+
     try {
         const apiPath = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:') ? 'http://localhost:3000/api' : '/api';
         const res = await fetch(`${apiPath}/users/${userId}/permissions`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json', 'Authorization': localStorage.getItem('ofl_token') || '' },
-            body: JSON.stringify({ tabs: selectedTabs })
+            body: JSON.stringify({ tabs: selectedTabs, community: communityPerms })
         });
-        
+
         const data = await res.json();
         if (data.success) {
             showToast('success', 'הרשאות עודכנו בהצלחה!');
             document.getElementById('permissions-modal').classList.add('hidden');
-            fetchMembers(); 
+            fetchMembers();
         } else {
             showToast('error', data.error || 'שגיאה בעדכון הרשאות');
         }
@@ -9338,6 +9392,15 @@ window.savePermissions = async function() {
         btn.innerText = 'שמור הרשאות';
     }
 };
+
+// פונקציית עזר לבדיקת הרשאת קהילה של המשתמש הנוכחי
+function checkCommPerm(key) {
+    try {
+        const perms = typeof currentUser.permissions === 'string' ? JSON.parse(currentUser.permissions) : (currentUser.permissions || {});
+        const commPerms = perms.community || {};
+        return commPerms[key] !== false; // ברירת מחדל: מותר
+    } catch(e) { return true; }
+}
 // ==========================================
 // OVERRIDE: תצוגת קריאות שירות (תמיכה) למשפחה
 // ==========================================
@@ -17333,6 +17396,7 @@ function previewPostImage(input) {
 }
 
 async function submitNewPost() {
+  if (!checkCommPerm('can_post_feed')) { showToast('error', 'אין לך הרשאה לפרסם בפיד הקהילה'); return; }
   const content = document.getElementById('new-post-content')?.value?.trim();
   const communityId = document.getElementById('new-post-community')?.value;
   const groupIdRaw = document.getElementById('new-post-group')?.value;

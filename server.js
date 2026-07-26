@@ -5968,13 +5968,15 @@ app.get('/api/group/members', async (req, res) => {
 
 app.put('/api/users/:id/permissions', async (req, res) => {
     try {
-        const { tabs, role } = req.body;
+        const { tabs, role, community } = req.body;
         if (!tabs.includes('feed')) tabs.push('feed');
+        const permsObj = { tabs };
+        if (community) permsObj.community = community;
         
         if (role) {
-            await pool.query('UPDATE users SET permissions = $1, role = $2 WHERE id = $3', [JSON.stringify({ tabs }), role, req.params.id]);
+            await pool.query('UPDATE users SET permissions = $1, role = $2 WHERE id = $3', [JSON.stringify(permsObj), role, req.params.id]);
         } else {
-            await pool.query('UPDATE users SET permissions = $1 WHERE id = $2', [JSON.stringify({ tabs }), req.params.id]);
+            await pool.query('UPDATE users SET permissions = $1 WHERE id = $2', [JSON.stringify(permsObj), req.params.id]);
         }
         res.json({ success: true });
     } catch(e) { 
