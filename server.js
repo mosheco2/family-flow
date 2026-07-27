@@ -24904,7 +24904,8 @@ app.put('/api/live-games/:id', verifySA, async (req, res) => {
     if (sponsor_logo_data || character_image_data) versionBump = ', img_version=img_version+1';
     await pool.query(`UPDATE live_games SET title=$1, prize=$2, business_name=$3, sponsor_name=$4, sponsor_text=$5, whatsapp_text=$6, is_public=$7, is_hidden=$8, community_id=$9${logoSet}${charSet}${versionBump} WHERE id=$10`,
       baseParams);
-    if (questions) {
+    // מעדכן שאלות רק אם הגיעו שאלות — מניעת מחיקה בשגגה כשהמערך ריק
+    if (Array.isArray(questions) && questions.length > 0) {
       await pool.query('DELETE FROM live_game_questions WHERE game_id=$1', [gid]);
       for (let i = 0; i < questions.length; i++) {
         const q = questions[i];

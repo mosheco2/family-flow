@@ -10751,7 +10751,7 @@ async function _lgLoadResults(gameId) {
         <div class="font-medium text-sm text-slate-100">${p.display_name || p.nickname || 'שחקן'}</div>
         <div class="text-[10px] text-slate-400">${p.phone ? `📱 ${p.phone}` : ''}${p.user_id ? ` · #${p.user_id}` : ''}</div>
       </div>
-      <div class="font-bold text-indigo-300 tabular-nums">${p.score.toLocaleString()}</div>
+      <div class="font-bold text-indigo-300 tabular-nums">${(p.score||0).toLocaleString()}</div>
     </div>`).join('');
   window._lgLastLeaderboard = d.leaderboard;
 }
