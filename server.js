@@ -25219,9 +25219,11 @@ app.get('/api/community/:id/live-games', async (req, res) => {
     const groupId = req.query.groupId || null;
     let rows;
     if (groupId) {
-      // שלוף את כל קהילות המשפחה המאושרות מה-DB (לא נסמוך על communityId מהלקוח)
+      // שלוף את כל קהילות המשפחה המאושרות — גם מטבלת family_communities וגם מ-family_groups.community_id
       const commRes = await pool.query(
-        `SELECT community_id FROM family_communities WHERE group_id=$1 AND status='approved'`,
+        `SELECT community_id FROM family_communities WHERE group_id=$1 AND status='approved'
+         UNION
+         SELECT community_id FROM family_groups WHERE id=$1 AND community_id IS NOT NULL`,
         [groupId]
       );
       const commIds = commRes.rows.map(r => r.community_id);
