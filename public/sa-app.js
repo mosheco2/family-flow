@@ -10425,9 +10425,13 @@ async function _saveLGGame() {
     if (!r.ok) { alert('שגיאת שרת: ' + r.status + '\n' + respText); return; }
     let data; try { data = JSON.parse(respText); } catch(e) { alert('שגיאת JSON: ' + respText); return; }
     if (!data.success) { alert('שגיאה: ' + (data.error || 'לא ידועה')); return; }
+    const wasEdit = !!_lgEditId;
     document.getElementById('lg-editor-modal')?.remove();
     await _fetchLGList();
-    if (!_lgEditId && data.game) openLGControl(data.game.id, data.game.game_code);
+    if (!wasEdit && data.game) openLGControl(data.game.id, data.game.game_code);
+    if (wasEdit && body.is_public && data.status && !['waiting','active'].includes(data.status)) {
+      setTimeout(() => alert(`✅ המשחק נשמר!\n\n⚠️ שים לב: המשחק במצב "${data.status}" ולא יופיע לקהילה.\nכדי שיופיע — פתח את לוח השליטה ולחץ על "🔄 התחל מחדש (אפס ניקוד)".`), 300);
+    }
   } catch(e) {
     alert('שגיאה: ' + e.message);
   } finally {

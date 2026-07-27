@@ -24914,7 +24914,8 @@ app.put('/api/live-games/:id', verifySA, async (req, res) => {
         );
       }
     }
-    res.json({ success: true });
+    const cur = await pool.query('SELECT status FROM live_games WHERE id=$1', [gid]);
+    res.json({ success: true, status: cur.rows[0]?.status });
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -25218,17 +25219,23 @@ app.get('/api/community/:id/live-games', async (req, res) => {
     const groupId = req.query.groupId || null;
     let rows;
     if (groupId) {
-      // כולל: משחקים פומביים לכל הקהילות + לקהילה ספציפית + שויכו ישירות לקבוצה
+      // שלוף את כל קהילות המשפחה המאושרות מה-DB (לא נסמוך על communityId מהלקוח)
+      const commRes = await pool.query(
+        `SELECT community_id FROM family_communities WHERE group_id=$1 AND status='approved'`,
+        [groupId]
+      );
+      const commIds = commRes.rows.map(r => r.community_id);
+      // כולל: משחקים פומביים לכל הקהילות + לקהילות של המשפחה + שויכו ישירות לקבוצה
       rows = await pool.query(
         `SELECT DISTINCT id, title, prize, business_name, sponsor_name, sponsor_text, game_code, status
          FROM live_games
          WHERE is_hidden=false AND status IN ('waiting','active')
            AND (
-             (is_public=true AND (community_id IS NULL OR community_id=$1))
+             (is_public=true AND (community_id IS NULL OR community_id = ANY($1)))
              OR id IN (SELECT game_id FROM live_game_assignments WHERE group_id=$2)
            )
          ORDER BY id DESC LIMIT 10`,
-        [communityId, groupId]
+        [commIds.length > 0 ? commIds : [0], groupId]
       );
     } else {
       rows = await pool.query(

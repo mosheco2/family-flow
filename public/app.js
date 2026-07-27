@@ -4499,10 +4499,15 @@ async function loadCommGames(communityId) {
   }
 }
 
+function _getApprovedCommunityId() {
+  const approved = myConnectedCommunitiesCache.filter(c => (c.status || 'approved') === 'approved');
+  return approved[0]?.id || 0;
+}
+
 async function loadCommHomeGames() {
   const el = document.getElementById('comm-home-games-list');
   if (!el) return;
-  const communityId = myConnectedCommunitiesCache?.[0]?.id || 0;
+  const communityId = _getApprovedCommunityId();
   const groupId = currentGroup?.id;
   try {
     const url = groupId
@@ -4520,7 +4525,7 @@ async function loadCommGamesView() {
   const el = document.getElementById('comm-games-view-list');
   if (!el) return;
 
-  const communityId = myConnectedCommunitiesCache?.[0]?.id || 0;
+  const communityId = _getApprovedCommunityId();
   const groupId = currentGroup?.id;
   el.innerHTML = '<p class="text-xs text-slate-400 text-center py-8">טוען משחקים...</p>';
   try {
