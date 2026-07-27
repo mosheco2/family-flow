@@ -2934,6 +2934,10 @@ async function openSACommunityModal(id) {
     }
     getEl('sa-edit-comm-fam-count').innerText = comm.family_count || 0; getEl('sa-edit-comm-biz-count').innerText = comm.business_count || 0;
     const searchInput = getEl('sa-search-comm-fam'); if (searchInput) searchInput.value = '';
+    _saAssignSelected = new Set();
+    const assignList = getEl('sa-assign-fam-list'); if (assignList) assignList.innerHTML = '';
+    const assignCnt = getEl('sa-assign-fam-count'); if (assignCnt) assignCnt.textContent = 'לא נבחרו משפחות';
+    const assignSearch = getEl('sa-assign-fam-search'); if (assignSearch) assignSearch.value = '';
     const famList = getEl('sa-edit-comm-families'); const bizList = getEl('sa-edit-comm-businesses');
     famList.innerHTML = '<p class="text-xs text-slate-400 p-2">טוען נתונים...</p>'; bizList.innerHTML = '<p class="text-xs text-slate-400 p-2">טוען נתונים...</p>';
     getEl('sa-community-modal').classList.remove('hidden');
@@ -2987,6 +2991,59 @@ function renderSAUsersAppoint(query = '') {
         </div>`).join('');
 }
 function filterSAUsersAppoint() { const q = getEl('sa-users-appoint-search')?.value || ''; renderSAUsersAppoint(q); }
+
+// ── שיוך יזום משפחות לקהילה ──
+let _saAssignSelected = new Set();
+
+function saAssignFamSearch(q) {
+  const el = getEl('sa-assign-fam-list'); if (!el) return;
+  const commId = parseInt(getEl('sa-edit-comm-id')?.value || '0');
+  const alreadyIds = new Set(currentCommFamiliesCache.map(f => f.id));
+  const term = (q || '').toLowerCase().trim();
+  const candidates = (saAllGroups || []).filter(g =>
+    g.type === 'FAMILY' && !alreadyIds.has(g.id) &&
+    (!term || (g.name||'').toLowerCase().includes(term) ||
+               (g.group_code||'').toLowerCase().includes(term) ||
+               (g.admin_email||'').toLowerCase().includes(term))
+  ).slice(0, 30);
+  if (!candidates.length) { el.innerHTML = '<p class="text-xs text-slate-400 text-center py-2">לא נמצאו משפחות שאינן בקהילה</p>'; return; }
+  el.innerHTML = candidates.map(g => {
+    const checked = _saAssignSelected.has(g.id);
+    return `<label class="flex items-center gap-2 bg-white rounded-lg px-3 py-2 border ${checked ? 'border-emerald-400 bg-emerald-50' : 'border-slate-100'} cursor-pointer hover:bg-emerald-50 transition text-xs">
+      <input type="checkbox" value="${g.id}" onchange="saAssignToggle(${g.id},this.checked)" ${checked ? 'checked' : ''} class="accent-emerald-600">
+      <span class="font-bold text-slate-700 flex-1">${safeStr(g.name)}</span>
+      <span class="font-mono text-[10px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">${safeStr(g.group_code||'')}</span>
+      ${g.admin_email ? `<span class="text-[10px] text-slate-400">${safeStr(g.admin_email)}</span>` : ''}
+    </label>`;
+  }).join('');
+}
+
+function saAssignToggle(groupId, checked) {
+  if (checked) _saAssignSelected.add(groupId); else _saAssignSelected.delete(groupId);
+  const cnt = _saAssignSelected.size;
+  const el = getEl('sa-assign-fam-count');
+  if (el) el.textContent = cnt ? `נבחרו ${cnt} משפחות` : 'לא נבחרו משפחות';
+}
+
+async function saAssignFamilies() {
+  const commId = parseInt(getEl('sa-edit-comm-id')?.value || '0');
+  if (!commId) return;
+  if (!_saAssignSelected.size) { showToast('error', 'יש לסמן לפחות משפחה אחת'); return; }
+  try {
+    const r = await fetch(`${API}/sa/communities/${commId}/assign-families`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: saToken },
+      body: JSON.stringify({ groupIds: [..._saAssignSelected] })
+    });
+    const d = await r.json();
+    if (d.success) {
+      showToast('success', `${d.assigned} משפחות שויכו לקהילה ✓`);
+      _saAssignSelected.clear();
+      const cnt = getEl('sa-assign-fam-count'); if (cnt) cnt.textContent = 'לא נבחרו משפחות';
+      openSACommunityModal(commId); // רענן
+    } else showToast('error', d.error || 'שגיאה בשיוך');
+  } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+}
 
 async function setSACommunityManager(commId, groupId, isManager) {
     try {

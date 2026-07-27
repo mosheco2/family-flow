@@ -3319,6 +3319,22 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                 <div id="sa-users-appoint-list" class="space-y-1.5 max-h-44 overflow-y-auto modal-scroll"></div>
             </div>
 
+            <!-- שיוך יזום משפחות -->
+            <div class="mt-4 border border-emerald-200 rounded-xl p-3 bg-emerald-50">
+                <div class="flex justify-between items-center mb-2">
+                    <h4 class="font-bold text-emerald-800 text-xs"><i class="fa-solid fa-user-plus ml-1"></i>שיוך משפחות לקהילה</h4>
+                </div>
+                <input type="text" id="sa-assign-fam-search" oninput="saAssignFamSearch(this.value)"
+                    class="w-full bg-white border border-emerald-200 rounded-lg py-1.5 px-3 text-xs outline-none focus:border-emerald-400 mb-2" placeholder="חיפוש משפחה לפי שם / קוד / מייל...">
+                <div id="sa-assign-fam-list" class="space-y-1 max-h-48 overflow-y-auto modal-scroll mb-2"></div>
+                <div class="flex justify-between items-center">
+                    <span id="sa-assign-fam-count" class="text-[10px] text-emerald-700">לא נבחרו משפחות</span>
+                    <button onclick="saAssignFamilies()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-1.5 rounded-lg text-xs font-bold transition">
+                        <i class="fa-solid fa-link ml-1"></i>שייך לקהילה
+                    </button>
+                </div>
+            </div>
+
             <div class="mt-4 flex justify-between items-center border-t border-slate-100 pt-4">
                 <button onclick="deleteSACommunity()" class="text-red-500 hover:bg-red-50 px-4 py-2 rounded-lg font-bold text-sm transition"><i class="fa-solid fa-trash"></i> מחק קהילה לגמרי</button>
                 <button onclick="document.getElementById('sa-community-modal').classList.add('hidden')" class="bg-slate-100 text-slate-600 px-6 py-2 rounded-lg font-bold hover:bg-slate-200 transition">סגור</button>

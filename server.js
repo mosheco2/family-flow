@@ -10822,6 +10822,25 @@ app.put('/api/sa/communities/:commId/set-manager', verifySA, async (req, res) =>
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// שיוך יזום משפחות לקהילה (סופר אדמין)
+app.post('/api/sa/communities/:commId/assign-families', verifySA, async (req, res) => {
+  try {
+    const { commId } = req.params;
+    const { groupIds } = req.body;
+    if (!Array.isArray(groupIds) || !groupIds.length) return res.status(400).json({ error: 'נדרש מערך groupIds' });
+    let assigned = 0;
+    for (const gid of groupIds) {
+      const r = await pool.query(
+        `INSERT INTO family_communities (group_id, community_id, status) VALUES ($1,$2,'approved')
+         ON CONFLICT (group_id, community_id) DO UPDATE SET status='approved'`,
+        [gid, commId]
+      );
+      if (r.rowCount) assigned++;
+    }
+    res.json({ success: true, assigned });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // סיכום פיננסי גלובלי (סופר אדמין)
 app.get('/api/sa/finance-summary', verifySA, async (req, res) => {
     try {
