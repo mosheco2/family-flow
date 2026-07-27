@@ -10504,7 +10504,8 @@ async function openLGControl(gameId, gameCode) {
             <div class="text-xs text-slate-300">משתמשים שנכנסו לקישור וממתינים לאישורך</div>
             <button onclick="_lgApproveAll(${gameId})" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg text-xs font-bold transition">✅ אשר הכל</button>
           </div>
-          <div id="lg-waiting-list" class="space-y-2 max-h-96 overflow-y-auto">
+          <div id="lg-waiting-kpi"></div>
+          <div id="lg-waiting-list" class="space-y-2 max-h-80 overflow-y-auto">
             <div class="text-slate-400 text-xs text-center py-4">טוען...</div>
           </div>
         </div>
@@ -10700,8 +10701,33 @@ async function _lgLoadWaitingRoom(gameId) {
   const saToken = localStorage.getItem('ofl_sa_token');
   const r = await fetch(`/api/live-games/${gameId}/waiting-room`, { headers: { Authorization: saToken } });
   const d = await r.json();
-  if (!d.participants || !d.participants.length) { el.innerHTML = '<div class="text-slate-400 text-xs text-center py-4">אין משתתפים עדיין</div>'; return; }
+  if (!d.participants || !d.participants.length) {
+    const kpiEl = document.getElementById('lg-waiting-kpi');
+    if (kpiEl) kpiEl.innerHTML = '';
+    el.innerHTML = '<div class="text-slate-400 text-xs text-center py-4">אין משתתפים עדיין</div>';
+    return;
+  }
   const now = Date.now();
+  // KPI counts
+  const totalPending  = d.participants.filter(p => !p.approved).length;
+  const totalApproved = d.participants.filter(p =>  p.approved).length;
+  const totalActive   = d.participants.filter(p => p.last_seen_at && (now - new Date(p.last_seen_at).getTime()) < 8000).length;
+  const kpiEl = document.getElementById('lg-waiting-kpi');
+  if (kpiEl) kpiEl.innerHTML = `
+    <div class="grid grid-cols-3 gap-2 mb-3">
+      <div class="bg-amber-900/40 border border-amber-600/40 rounded-xl px-3 py-2.5 text-center">
+        <div class="text-2xl font-bold text-amber-300 tabular-nums">${totalPending}</div>
+        <div class="text-[10px] text-amber-400 mt-0.5">⏳ ממתינים</div>
+      </div>
+      <div class="bg-green-900/40 border border-green-600/40 rounded-xl px-3 py-2.5 text-center">
+        <div class="text-2xl font-bold text-green-300 tabular-nums">${totalApproved}</div>
+        <div class="text-[10px] text-green-400 mt-0.5">✅ מאושרים</div>
+      </div>
+      <div class="bg-indigo-900/40 border border-indigo-500/40 rounded-xl px-3 py-2.5 text-center">
+        <div class="text-2xl font-bold text-indigo-300 tabular-nums">${totalActive}</div>
+        <div class="text-[10px] text-indigo-400 mt-0.5">🟢 פעילים עכשיו</div>
+      </div>
+    </div>`;
   el.innerHTML = d.participants.map(p => {
     const seenMs = p.last_seen_at ? now - new Date(p.last_seen_at).getTime() : Infinity;
     const online = seenMs < 8000;
