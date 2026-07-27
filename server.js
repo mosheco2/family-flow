@@ -122,10 +122,23 @@ async function sendSMSviaTwilio(to, body) {
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false },
-  max: 5,
+  max: 20,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 5000,
 });
+
+// ── Live game state cache (200ms TTL) ──
+// מפחית עומס DB: במקום N שאילתות/שנייה, שאילתה אחת כל 200ms לכל משחק
+const _lgStateCache = new Map(); // game_code → { data, ts }
+const LG_CACHE_TTL = 200;
+function _lgCacheGet(code) {
+  const e = _lgStateCache.get(code);
+  if (!e) return null;
+  if (Date.now() - e.ts > LG_CACHE_TTL) { _lgStateCache.delete(code); return null; }
+  return e.data;
+}
+function _lgCacheSet(code, data) { _lgStateCache.set(code, { data, ts: Date.now() }); }
+function _lgCacheInvalidate(code) { if (code) _lgStateCache.delete(code); }
 
 // ── BUILTIN QUESTS DATA (shared between startup seed and manual seed endpoint) ──
 const BUILTIN_QUESTS_DATA = [
@@ -24976,6 +24989,8 @@ app.put('/api/live-games/:id/status', verifySA, async (req, res) => {
   try {
     const { status } = req.body;
     if (!['waiting','active','ended','disabled'].includes(status)) return res.status(400).json({ error: 'סטטוס לא תקין' });
+    const gRes = await pool.query('SELECT game_code FROM live_games WHERE id=$1', [req.params.id]);
+    _lgCacheInvalidate(gRes.rows[0]?.game_code);
     if (status === 'active') {
       const qCheck = await pool.query('SELECT COUNT(*) FROM live_game_questions WHERE game_id=$1', [req.params.id]);
       if (parseInt(qCheck.rows[0].count) === 0) return res.status(400).json({ error: 'לא נמצאו שאלות במשחק זה. יש להוסיף שאלות לפני ההתחלה.' });
@@ -24992,9 +25007,11 @@ app.post('/api/live-games/:id/next-question', verifySA, async (req, res) => {
   try {
     const g = await pool.query('SELECT * FROM live_games WHERE id=$1', [req.params.id]);
     if (!g.rows.length) return res.status(404).json({ error: 'לא נמצא' });
+    const game = g.rows[0];
     const qCount = await pool.query('SELECT COUNT(*) FROM live_game_questions WHERE game_id=$1', [req.params.id]);
     const total = parseInt(qCount.rows[0].count);
-    const next = g.rows[0].current_question_index + 1;
+    const next = game.current_question_index + 1;
+    _lgCacheInvalidate(game.game_code);
     if (next >= total) {
       await pool.query(`UPDATE live_games SET status='ended', current_question_index=$1 WHERE id=$2`, [next, req.params.id]);
       res.json({ success: true, ended: true });
@@ -25021,6 +25038,8 @@ app.delete('/api/live-games/:id', verifySA, async (req, res) => {
 app.put('/api/live-games/:id/restart', verifySA, async (req, res) => {
   try {
     const id = req.params.id;
+    const gRes = await pool.query('SELECT game_code FROM live_games WHERE id=$1', [id]);
+    _lgCacheInvalidate(gRes.rows[0]?.game_code);
     await pool.query(`UPDATE live_games SET status='waiting', current_question_index=0 WHERE id=$1`, [id]);
     await pool.query(`DELETE FROM live_game_answers WHERE question_id IN (SELECT id FROM live_game_questions WHERE game_id=$1)`, [id]);
     await pool.query(`UPDATE live_game_participants SET score=0 WHERE game_id=$1`, [id]);
@@ -25110,52 +25129,80 @@ app.get('/api/live-games/:game_code/image/:type', async (req, res) => {
   } catch(e) { res.status(500).end(); }
 });
 
-// מצב נוכחי (polling)
+// מצב נוכחי (polling) — עם cache 200ms לחלק הסטטי
 app.get('/api/live-games/:game_code/state', async (req, res) => {
   try {
     const { userId } = req.query;
-    const g = await pool.query(`SELECT * FROM live_games WHERE game_code=$1`, [req.params.game_code.toUpperCase()]);
-    if (!g.rows.length) return res.status(404).json({ error: 'משחק לא נמצא' });
-    const game = g.rows[0];
-    if (game.is_hidden) return res.status(403).json({ error: 'המשחק אינו זמין' });
-    let currentQuestion = null;
+    const code = req.params.game_code.toUpperCase();
+
+    // חלק דינמי פר-משתמש: last_seen_at + approved (מחוץ ל-cache)
     let myApproved = false;
     if (userId) {
-      const p = await pool.query('SELECT approved FROM live_game_participants WHERE game_id=$1 AND user_id=$2', [game.id, userId]);
+      const p = await pool.query(
+        'SELECT approved FROM live_game_participants WHERE game_id=(SELECT id FROM live_games WHERE game_code=$1) AND user_id=$2',
+        [code, userId]
+      );
       myApproved = p.rows[0]?.approved || false;
       if (myApproved) {
-        pool.query('UPDATE live_game_participants SET last_seen_at=NOW() WHERE game_id=$1 AND user_id=$2', [game.id, userId]).catch(()=>{});
+        pool.query(
+          'UPDATE live_game_participants SET last_seen_at=NOW() WHERE game_id=(SELECT id FROM live_games WHERE game_code=$1) AND user_id=$2',
+          [code, userId]
+        ).catch(()=>{});
       }
     }
-    if (game.status === 'active') {
-      const qs = await pool.query(
-        `SELECT * FROM live_game_questions WHERE game_id=$1 ORDER BY order_num LIMIT 1 OFFSET $2`,
-        [game.id, game.current_question_index]
+
+    // חלק סטטי: מצב משחק, שאלה נוכחית, ספירות — נשמר ב-cache 200ms
+    let shared = _lgCacheGet(code);
+    if (!shared) {
+      const g = await pool.query(`SELECT * FROM live_games WHERE game_code=$1`, [code]);
+      if (!g.rows.length) return res.status(404).json({ error: 'משחק לא נמצא' });
+      const game = g.rows[0];
+      if (game.is_hidden) return res.status(403).json({ error: 'המשחק אינו זמין' });
+
+      let currentQuestion = null;
+      let answeredCount = 0;
+      if (game.status === 'active') {
+        const qs = await pool.query(
+          `SELECT * FROM live_game_questions WHERE game_id=$1 ORDER BY order_num LIMIT 1 OFFSET $2`,
+          [game.id, game.current_question_index]
+        );
+        if (qs.rows.length) {
+          const q = qs.rows[0];
+          currentQuestion = { id: q.id, question: q.question, opts: q.opts, time_seconds: q.time_seconds, order_num: q.order_num };
+          const ac = await pool.query(
+            'SELECT COUNT(*) FROM live_game_answers WHERE question_id=$1', [q.id]
+          );
+          answeredCount = parseInt(ac.rows[0].count);
+        }
+      }
+      const participants = await pool.query(
+        'SELECT COUNT(*) FROM live_game_participants WHERE game_id=$1 AND approved=true', [game.id]
       );
-      if (qs.rows.length) {
-        const q = qs.rows[0];
-        currentQuestion = { id: q.id, question: q.question, opts: q.opts, time_seconds: q.time_seconds, order_num: q.order_num };
-      }
+      const totalQ = await pool.query(
+        'SELECT COUNT(*) FROM live_game_questions WHERE game_id=$1', [game.id]
+      );
+
+      shared = {
+        game_id: game.id,
+        status: game.status,
+        current_question_index: game.current_question_index,
+        total_questions: parseInt(totalQ.rows[0].count),
+        current_question: currentQuestion,
+        participants_count: parseInt(participants.rows[0].count),
+        answered_count: answeredCount,
+        title: game.title,
+        prize: game.prize,
+        business_name: game.business_name,
+        sponsor_name: game.sponsor_name,
+        sponsor_text: game.sponsor_text,
+        sponsor_logo: game.sponsor_logo ? `/api/live-games/${game.game_code}/image/logo?v=${game.img_version||1}` : null,
+        character_image: game.character_image ? `/api/live-games/${game.game_code}/image/char?v=${game.img_version||1}` : null,
+        notify_sent_at: game.notify_sent_at,
+      };
+      _lgCacheSet(code, shared);
     }
-    const participants = await pool.query('SELECT COUNT(*) FROM live_game_participants WHERE game_id=$1 AND approved=true', [game.id]);
-    const totalQ = await pool.query('SELECT COUNT(*) FROM live_game_questions WHERE game_id=$1', [game.id]);
-    res.json({
-      game_id: game.id,
-      status: game.status,
-      current_question_index: game.current_question_index,
-      total_questions: parseInt(totalQ.rows[0].count),
-      current_question: currentQuestion,
-      participants_count: parseInt(participants.rows[0].count),
-      title: game.title,
-      prize: game.prize,
-      business_name: game.business_name,
-      sponsor_name: game.sponsor_name,
-      sponsor_text: game.sponsor_text,
-      sponsor_logo: game.sponsor_logo ? `/api/live-games/${game.game_code}/image/logo?v=${game.img_version||1}` : null,
-      character_image: game.character_image ? `/api/live-games/${game.game_code}/image/char?v=${game.img_version||1}` : null,
-      my_approved: myApproved,
-      notify_sent_at: game.notify_sent_at
-    });
+
+    res.json({ ...shared, my_approved: myApproved });
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 

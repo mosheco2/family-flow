@@ -10554,7 +10554,18 @@ async function openLGControl(gameId, gameCode) {
           </div>
           <div class="bg-slate-700 rounded-xl p-4 text-center mb-3">
             <div class="text-3xl font-bold text-indigo-400" id="lg-ctrl-count">-</div>
-            <div class="text-xs text-slate-400">משתתפים מחוברים</div>
+            <div class="text-xs text-slate-400">משתתפים מאושרים</div>
+          </div>
+          <div class="bg-slate-700 rounded-xl p-3 mb-3 flex items-center justify-between gap-3">
+            <div class="text-xs text-slate-400">ענו על השאלה הנוכחית</div>
+            <div class="flex items-center gap-1.5">
+              <span class="text-lg font-bold text-emerald-400" id="lg-ctrl-answered">-</span>
+              <span class="text-slate-500 text-xs">מתוך</span>
+              <span class="text-lg font-bold text-slate-300" id="lg-ctrl-answered-total">-</span>
+              <div id="lg-ctrl-answered-bar" class="w-20 h-2 bg-slate-600 rounded-full overflow-hidden ml-1">
+                <div id="lg-ctrl-answered-fill" class="h-full bg-emerald-500 rounded-full transition-all duration-300" style="width:0%"></div>
+              </div>
+            </div>
           </div>
           <div class="grid grid-cols-2 gap-3">
             <button onclick="_lgSetStatus(${gameId},'active')" class="bg-green-600 hover:bg-green-700 text-white py-3 rounded-xl text-sm font-bold transition">▶ התחל משחק</button>
@@ -10930,6 +10941,15 @@ function _lgControlPoll(gameId, gameCode) {
     const d = await r.json();
     const el = document.getElementById('lg-ctrl-count');
     if (el) el.textContent = d.participants_count || 0;
+    // ספירת תשובות לשאלה הנוכחית
+    const answered = d.answered_count || 0;
+    const total = d.participants_count || 0;
+    const ansEl = document.getElementById('lg-ctrl-answered');
+    const totEl = document.getElementById('lg-ctrl-answered-total');
+    const fillEl = document.getElementById('lg-ctrl-answered-fill');
+    if (ansEl) ansEl.textContent = d.status === 'active' ? answered : '-';
+    if (totEl) totEl.textContent = d.status === 'active' ? total : '-';
+    if (fillEl) fillEl.style.width = (d.status === 'active' && total > 0) ? `${Math.round(answered/total*100)}%` : '0%';
     const msg = document.getElementById('lg-ctrl-msg');
     const statusHe = { waiting:'ממתין', active:'פעיל', ended:'הסתיים', disabled:'מושבת' };
     if (msg) msg.textContent = `שאלה ${(d.current_question_index||0)+1} מתוך ${d.total_questions||0} · סטטוס: ${statusHe[d.status]||d.status}`;
