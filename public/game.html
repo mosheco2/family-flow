@@ -217,6 +217,7 @@
       <div class="text-xs text-slate-400 mb-0.5">הניקוד שלי</div>
       <div class="text-3xl font-black text-indigo-300" id="end-my-score">0</div>
     </div>
+    <div id="end-my-rank" class="text-center font-bold text-sm text-indigo-300 mb-4"></div>
     <div id="end-leaderboard" class="w-full max-w-xs space-y-2 mb-6"></div>
     <button onclick="window.location.href='/'" class="brand-gradient text-white font-bold px-8 py-3 rounded-xl shadow-lg text-sm transition hover:opacity-90">כניסה ל-OneFlow Life ←</button>
   </div>
@@ -670,13 +671,32 @@ async function showEndScreen(state) {
       const winner = d.leaderboard[0];
       document.getElementById('end-winner-name').textContent = winner.display_name || winner.nickname || '—';
       const medals = ['🥇','🥈','🥉'];
+      const myUserId = currentUser?.id;
+      // מציאת דירוג השחקן הנוכחי לפי user_id
+      const myRank = myUserId ? d.leaderboard.findIndex(p => p.user_id && String(p.user_id) === String(myUserId)) : -1;
+      // חיווי מיקום אישי
+      const myRankEl = document.getElementById('end-my-rank');
+      if (myRankEl) {
+        if (myRank === 0) {
+          myRankEl.textContent = '🏆 אתה הזוכה!';
+          myRankEl.className = 'text-center font-black text-xl text-yellow-300 mb-4';
+        } else if (myRank > 0) {
+          myRankEl.textContent = `📍 מקום ${myRank + 1} מתוך ${d.leaderboard.length}`;
+          myRankEl.className = 'text-center font-bold text-sm text-indigo-300 mb-4';
+        } else {
+          myRankEl.textContent = '';
+        }
+      }
       const lbEl = document.getElementById('end-leaderboard');
-      lbEl.innerHTML = d.leaderboard.slice(0,5).map((p,i) => `
-        <div class="flex items-center gap-3 bg-slate-800/80 rounded-xl px-3 py-2">
+      lbEl.innerHTML = d.leaderboard.slice(0,5).map((p,i) => {
+        const isMe = myUserId && p.user_id && String(p.user_id) === String(myUserId);
+        return `
+        <div class="flex items-center gap-3 rounded-xl px-3 py-2 ${isMe ? 'bg-indigo-700/60 border border-indigo-400/60 ring-1 ring-indigo-400' : 'bg-slate-800/80'}">
           <span class="text-base w-6 text-center">${medals[i] || (i+1)}</span>
-          <span class="flex-1 text-sm">${p.display_name || p.nickname}</span>
+          <span class="flex-1 text-sm ${isMe ? 'font-bold text-white' : ''}">${p.display_name || p.nickname}${isMe ? ' ← אתה' : ''}</span>
           <span class="text-indigo-300 font-bold tabular-nums text-sm">${(p.score||0).toLocaleString()}</span>
-        </div>`).join('');
+        </div>`;
+      }).join('');
     }
   } catch(e) {}
   // redirect to home after 15 seconds

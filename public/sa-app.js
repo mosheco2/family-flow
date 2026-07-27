@@ -10747,7 +10747,10 @@ async function _lgLoadResults(gameId) {
   el.innerHTML = d.leaderboard.map((p,i) => `
     <div class="flex items-center gap-3 bg-slate-700/80 rounded-xl px-3 py-2.5 ${i===0 ? 'ring-2 ring-yellow-500/60' : ''}">
       <div class="text-lg w-6 text-center">${medals[i] || `${i+1}`}</div>
-      <div class="flex-1 font-medium text-sm text-slate-100">${p.display_name || p.nickname || 'שחקן'}</div>
+      <div class="flex-1 min-w-0">
+        <div class="font-medium text-sm text-slate-100">${p.display_name || p.nickname || 'שחקן'}</div>
+        <div class="text-[10px] text-slate-400">${p.phone ? `📱 ${p.phone}` : ''}${p.user_id ? ` · #${p.user_id}` : ''}</div>
+      </div>
       <div class="font-bold text-indigo-300 tabular-nums">${p.score.toLocaleString()}</div>
     </div>`).join('');
   window._lgLastLeaderboard = d.leaderboard;
@@ -10756,7 +10759,7 @@ async function _lgLoadResults(gameId) {
 function _lgCopyResults(gameId) {
   const lb = window._lgLastLeaderboard;
   if (!lb || !lb.length) { alert('טען את התוצאות קודם'); return; }
-  const text = lb.map((p,i) => `${i+1}. ${p.display_name || p.nickname} — ${p.score} נקודות`).join('\n');
+  const text = lb.map((p,i) => `${i+1}. ${p.display_name || p.nickname}${p.phone ? ` (${p.phone})` : ''} — ${p.score} נקודות`).join('\n');
   navigator.clipboard.writeText(`🏆 תוצאות המשחק:\n${text}`);
   showToast('success','הועתק ✓');
 }

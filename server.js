@@ -25139,7 +25139,7 @@ app.get('/api/live-games/:game_code/state', async (req, res) => {
 app.get('/api/live-games/:id/leaderboard', async (req, res) => {
   try {
     const rows = await pool.query(
-      `SELECT lgp.display_name, lgp.score, u.nickname
+      `SELECT lgp.id as participant_id, lgp.user_id, lgp.display_name, lgp.score, u.nickname, u.phone
        FROM live_game_participants lgp
        LEFT JOIN users u ON u.id = lgp.user_id
        WHERE lgp.game_id=$1 AND lgp.approved=true
