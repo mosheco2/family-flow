@@ -279,6 +279,7 @@ let myScore = 0;
 let gameId = null;
 let pollingInterval = null;
 let lastQuestionId = null;
+let lastGameStatus = null;
 let answerSubmitted = false;
 let timerInterval = null;
 let timerStart = null;
@@ -527,8 +528,15 @@ function renderState(state) {
   if (state.status === 'disabled') { clearInterval(pollingInterval); showScreen('disabled'); return; }
   if (state.status === 'ended') { clearInterval(pollingInterval); showEndScreen(state); return; }
 
-  // Waiting for approval
-  if (!myApproved) { showScreen('pending'); return; }
+  // כשהמשחק עובר מסטטוס אחר ל-'active' — מאפסים lastQuestionId כדי שהשאלה תוצג תמיד
+  if (lastGameStatus !== 'active' && state.status === 'active') {
+    lastQuestionId = null;
+    answerSubmitted = false;
+  }
+  lastGameStatus = state.status;
+
+  // Waiting for approval (preview mode bypasses this check)
+  if (!myApproved && !isPreviewMode) { showScreen('pending'); return; }
 
   if (state.status === 'waiting') { showScreen('waiting'); return; }
   if (state.status === 'active' && state.current_question) {
