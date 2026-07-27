@@ -10701,22 +10701,32 @@ async function _lgLoadWaitingRoom(gameId) {
   const r = await fetch(`/api/live-games/${gameId}/waiting-room`, { headers: { Authorization: saToken } });
   const d = await r.json();
   if (!d.participants || !d.participants.length) { el.innerHTML = '<div class="text-slate-400 text-xs text-center py-4">אין משתתפים עדיין</div>'; return; }
-  el.innerHTML = d.participants.map(p => `
-    <div class="flex items-center justify-between bg-slate-700/80 rounded-xl px-3 py-2.5 gap-2">
+  const now = Date.now();
+  el.innerHTML = d.participants.map(p => {
+    const seenMs = p.last_seen_at ? now - new Date(p.last_seen_at).getTime() : Infinity;
+    const online = seenMs < 8000;
+    const recent = !online && seenMs < 30000;
+    const onlineBadge = online
+      ? '<span class="text-[10px] bg-green-500/20 text-green-300 border border-green-500/40 px-1.5 py-0.5 rounded-full">🟢 פעיל עכשיו</span>'
+      : recent
+        ? '<span class="text-[10px] bg-slate-600 text-slate-300 px-1.5 py-0.5 rounded-full">⚪ לא פעיל</span>'
+        : '';
+    return `<div class="flex items-center justify-between bg-slate-700/80 rounded-xl px-3 py-2.5 gap-2${online ? ' ring-1 ring-green-500/30' : ''}">
       <div class="flex-1 min-w-0">
         <div class="text-sm font-medium text-slate-100 truncate">${p.display_name || 'אנונימי'}</div>
-        <div class="flex items-center gap-2 mt-0.5">
+        <div class="flex items-center gap-2 mt-0.5 flex-wrap">
           <span class="text-[10px] px-1.5 py-0.5 rounded-full ${p.approved ? 'bg-green-700/60 text-green-300' : 'bg-amber-700/60 text-amber-300'}">${p.approved ? '✅ מאושר' : '⏳ ממתין'}</span>
+          ${onlineBadge}
           ${p.group_name ? `<span class="text-xs text-slate-300">${p.group_name}</span>` : ''}
-          ${p.registration_source && p.registration_source !== 'self' ? `<span class="text-[10px] bg-purple-900/50 text-purple-300 px-1.5 py-0.5 rounded-full">${p.registration_source}</span>` : ''}
-          ${p.join_source ? `<span class="text-[10px] bg-slate-600 text-slate-300 px-1.5 py-0.5 rounded-full" title="מקור כניסה למשחק">📍 ${_lgSourceLabel(p.join_source)}</span>` : ''}
+          ${p.join_source ? `<span class="text-[10px] bg-slate-600 text-slate-300 px-1.5 py-0.5 rounded-full">📍 ${_lgSourceLabel(p.join_source)}</span>` : ''}
         </div>
       </div>
       <div class="flex gap-1.5 shrink-0">
         ${!p.approved ? `<button onclick="_lgApproveOne(${gameId},${p.id})" class="bg-green-600 hover:bg-green-700 text-white px-2.5 py-1.5 rounded-lg text-xs transition font-bold">אשר</button>` : ''}
         <button onclick="_lgRejectOne(${gameId},${p.id})" class="bg-red-700/60 hover:bg-red-700 text-white px-2 py-1.5 rounded-lg text-xs transition">✕</button>
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 async function _lgApproveOne(gameId, participantId) {

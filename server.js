@@ -24160,6 +24160,7 @@ app.get('/api/community/feed/search', async (req, res) => {
   try { await pool.query(`ALTER TABLE live_game_participants ADD COLUMN IF NOT EXISTS approved BOOLEAN NOT NULL DEFAULT false`); } catch(e) {}
   try { await pool.query(`ALTER TABLE live_game_participants ADD COLUMN IF NOT EXISTS group_id INT REFERENCES family_groups(id) ON DELETE SET NULL`); } catch(e) {}
   try { await pool.query(`ALTER TABLE live_game_participants ADD COLUMN IF NOT EXISTS join_source VARCHAR(100) DEFAULT NULL`); } catch(e) {}
+  try { await pool.query(`ALTER TABLE live_game_participants ADD COLUMN IF NOT EXISTS last_seen_at TIMESTAMPTZ`); } catch(e) {}
 
   // flow_config: referral_join if not exists
   try {
@@ -25103,6 +25104,9 @@ app.get('/api/live-games/:game_code/state', async (req, res) => {
     if (userId) {
       const p = await pool.query('SELECT approved FROM live_game_participants WHERE game_id=$1 AND user_id=$2', [game.id, userId]);
       myApproved = p.rows[0]?.approved || false;
+      if (myApproved) {
+        pool.query('UPDATE live_game_participants SET last_seen_at=NOW() WHERE game_id=$1 AND user_id=$2', [game.id, userId]).catch(()=>{});
+      }
     }
     if (game.status === 'active') {
       const qs = await pool.query(
@@ -25156,7 +25160,7 @@ app.get('/api/live-games/:id/leaderboard', async (req, res) => {
 app.get('/api/live-games/:id/waiting-room', verifySA, async (req, res) => {
   try {
     const rows = await pool.query(
-      `SELECT lgp.id, lgp.user_id, lgp.display_name, lgp.approved, lgp.joined_at, lgp.group_id, lgp.join_source,
+      `SELECT lgp.id, lgp.user_id, lgp.display_name, lgp.approved, lgp.joined_at, lgp.group_id, lgp.join_source, lgp.last_seen_at,
               u.phone, u.registration_source, fg.name as group_name
        FROM live_game_participants lgp
        LEFT JOIN users u ON u.id = lgp.user_id
