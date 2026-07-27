@@ -2935,16 +2935,16 @@ async function openSACommunityModal(id) {
     getEl('sa-edit-comm-fam-count').innerText = comm.family_count || 0; getEl('sa-edit-comm-biz-count').innerText = comm.business_count || 0;
     const searchInput = getEl('sa-search-comm-fam'); if (searchInput) searchInput.value = '';
     _saAssignSelected = new Set();
-    const assignList = getEl('sa-assign-fam-list'); if (assignList) assignList.innerHTML = '';
     const assignCnt = getEl('sa-assign-fam-count'); if (assignCnt) assignCnt.textContent = 'לא נבחרו משפחות';
     const assignSearch = getEl('sa-assign-fam-search'); if (assignSearch) assignSearch.value = '';
+    const assignType = getEl('sa-assign-fam-type'); if (assignType) assignType.value = '';
     const famList = getEl('sa-edit-comm-families'); const bizList = getEl('sa-edit-comm-businesses');
     famList.innerHTML = '<p class="text-xs text-slate-400 p-2">טוען נתונים...</p>'; bizList.innerHTML = '<p class="text-xs text-slate-400 p-2">טוען נתונים...</p>';
     getEl('sa-community-modal').classList.remove('hidden');
     try {
         const res = await fetch(`${API}/sa/communities/${id}/details`, { headers: { 'Authorization': saToken || '' } }); const data = await res.json();
         if(data.success) {
-            currentCommFamiliesCache = data.families || []; renderSACommFamilies(); renderSAUsersAppoint();
+            currentCommFamiliesCache = data.families || []; renderSACommFamilies(); renderSAUsersAppoint(); saAssignFamRender();
             if(data.businesses.length === 0) { bizList.innerHTML = '<p class="text-xs text-slate-400 p-2 bg-slate-50 border border-dashed rounded-lg text-center mt-2">אין עסקים נותני הנחה.</p>'; } 
             else { bizList.innerHTML = data.businesses.map(b => `<div class="bg-white p-2.5 rounded-lg border border-slate-100 shadow-sm mb-1.5 text-xs flex justify-between items-center"><span class="font-bold text-slate-700 flex items-center gap-2"><i class="fa-solid fa-store text-slate-300"></i> ${safeStr(b.name)}<span class="font-mono text-[10px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">${safeStr(b.group_code||'')}</span></span><span class="text-green-600 font-bold bg-green-50 px-2 py-1 rounded border border-green-100">${b.discount_pct}% הנחה</span></div>`).join(''); }
         }
@@ -2995,25 +2995,35 @@ function filterSAUsersAppoint() { const q = getEl('sa-users-appoint-search')?.va
 // ── שיוך יזום משפחות לקהילה ──
 let _saAssignSelected = new Set();
 
-function saAssignFamSearch(q) {
+const _saAssignPlanLabel = { solo: { text:'SOLO', cls:'bg-sky-100 text-sky-700' }, standard: { text:'Standard', cls:'bg-slate-100 text-slate-600' }, member: { text:'Member', cls:'bg-violet-100 text-violet-700' }, enterprise: { text:'Enterprise', cls:'bg-amber-100 text-amber-700' } };
+
+function saAssignFamSearch(q) { saAssignFamRender(); } // backward compat
+
+function saAssignFamRender() {
   const el = getEl('sa-assign-fam-list'); if (!el) return;
-  const commId = parseInt(getEl('sa-edit-comm-id')?.value || '0');
   const alreadyIds = new Set(currentCommFamiliesCache.map(f => f.id));
-  const term = (q || '').toLowerCase().trim();
-  const candidates = (saAllGroups || []).filter(g =>
-    g.type === 'FAMILY' && !alreadyIds.has(g.id) &&
-    (!term || (g.name||'').toLowerCase().includes(term) ||
-               (g.group_code||'').toLowerCase().includes(term) ||
-               (g.admin_email||'').toLowerCase().includes(term))
-  ).slice(0, 30);
+  const term = (getEl('sa-assign-fam-search')?.value || '').toLowerCase().trim();
+  const typeFilter = getEl('sa-assign-fam-type')?.value || '';
+  const candidates = (saAllGroups || []).filter(g => {
+    if (g.type !== 'FAMILY') return false;
+    if (alreadyIds.has(g.id)) return false;
+    const plan = g.plan || 'standard';
+    if (typeFilter && plan !== typeFilter) return false;
+    if (term) return (g.name||'').toLowerCase().includes(term) ||
+                     (g.group_code||'').toLowerCase().includes(term) ||
+                     (g.admin_email||'').toLowerCase().includes(term);
+    return true;
+  }).slice(0, 50);
   if (!candidates.length) { el.innerHTML = '<p class="text-xs text-slate-400 text-center py-2">לא נמצאו משפחות שאינן בקהילה</p>'; return; }
   el.innerHTML = candidates.map(g => {
     const checked = _saAssignSelected.has(g.id);
+    const plan = g.plan || 'standard';
+    const badge = _saAssignPlanLabel[plan] || { text: plan, cls: 'bg-slate-100 text-slate-500' };
     return `<label class="flex items-center gap-2 bg-white rounded-lg px-3 py-2 border ${checked ? 'border-emerald-400 bg-emerald-50' : 'border-slate-100'} cursor-pointer hover:bg-emerald-50 transition text-xs">
       <input type="checkbox" value="${g.id}" onchange="saAssignToggle(${g.id},this.checked)" ${checked ? 'checked' : ''} class="accent-emerald-600">
-      <span class="font-bold text-slate-700 flex-1">${safeStr(g.name)}</span>
+      <span class="font-bold text-slate-700 flex-1 truncate">${safeStr(g.name)}</span>
+      <span class="text-[10px] font-bold px-1.5 py-0.5 rounded ${badge.cls}">${badge.text}</span>
       <span class="font-mono text-[10px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">${safeStr(g.group_code||'')}</span>
-      ${g.admin_email ? `<span class="text-[10px] text-slate-400">${safeStr(g.admin_email)}</span>` : ''}
     </label>`;
   }).join('');
 }

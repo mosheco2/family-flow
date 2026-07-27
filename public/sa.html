@@ -3324,8 +3324,17 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                 <div class="flex justify-between items-center mb-2">
                     <h4 class="font-bold text-emerald-800 text-xs"><i class="fa-solid fa-user-plus ml-1"></i>שיוך משפחות לקהילה</h4>
                 </div>
-                <input type="text" id="sa-assign-fam-search" oninput="saAssignFamSearch(this.value)"
-                    class="w-full bg-white border border-emerald-200 rounded-lg py-1.5 px-3 text-xs outline-none focus:border-emerald-400 mb-2" placeholder="חיפוש משפחה לפי שם / קוד / מייל...">
+                <div class="flex gap-2 mb-2 flex-wrap">
+                    <select id="sa-assign-fam-type" onchange="saAssignFamRender()" class="bg-white border border-emerald-200 rounded-lg py-1 px-2 text-xs outline-none focus:border-emerald-400">
+                        <option value="">כל הסוגים</option>
+                        <option value="solo">SOLO</option>
+                        <option value="standard">Standard</option>
+                        <option value="member">Member (OneFlow)</option>
+                        <option value="enterprise">Enterprise</option>
+                    </select>
+                    <input type="text" id="sa-assign-fam-search" oninput="saAssignFamRender()"
+                        class="flex-1 bg-white border border-emerald-200 rounded-lg py-1 px-3 text-xs outline-none focus:border-emerald-400" placeholder="חיפוש לפי שם / קוד / מייל...">
+                </div>
                 <div id="sa-assign-fam-list" class="space-y-1 max-h-48 overflow-y-auto modal-scroll mb-2"></div>
                 <div class="flex justify-between items-center">
                     <span id="sa-assign-fam-count" class="text-[10px] text-emerald-700">לא נבחרו משפחות</span>
