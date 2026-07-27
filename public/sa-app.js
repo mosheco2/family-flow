@@ -10787,18 +10787,19 @@ async function _lgLoadResults(gameId) {
     return;
   }
   const lb = d.leaderboard;
-  const totalAll      = lb.length;
-  const totalApproved = lb.filter(p => p.approved !== false).length;
-  const topScore      = lb[0]?.score || 0;
+  const now2 = Date.now();
+  const totalAll    = lb.length;
+  const totalActive = lb.filter(p => p.last_seen_at && (now2 - new Date(p.last_seen_at).getTime()) < 8000).length;
+  const topScore    = lb[0]?.score || 0;
   if (kpiEl) kpiEl.innerHTML = `
     <div class="grid grid-cols-3 gap-2 mb-1">
       <div class="bg-slate-700/60 border border-slate-600/40 rounded-xl px-3 py-2.5 text-center">
         <div class="text-2xl font-bold text-slate-100 tabular-nums">${totalAll}</div>
-        <div class="text-[10px] text-slate-400 mt-0.5">👥 משתתפים</div>
+        <div class="text-[10px] text-slate-400 mt-0.5">👥 סה״כ שיחקו</div>
       </div>
-      <div class="bg-green-900/40 border border-green-600/40 rounded-xl px-3 py-2.5 text-center">
-        <div class="text-2xl font-bold text-green-300 tabular-nums">${totalApproved}</div>
-        <div class="text-[10px] text-green-400 mt-0.5">✅ מאושרים</div>
+      <div class="bg-indigo-900/40 border border-indigo-500/40 rounded-xl px-3 py-2.5 text-center">
+        <div class="text-2xl font-bold text-indigo-300 tabular-nums">${totalActive}</div>
+        <div class="text-[10px] text-indigo-400 mt-0.5">🟢 פעילים עכשיו</div>
       </div>
       <div class="bg-yellow-900/40 border border-yellow-600/40 rounded-xl px-3 py-2.5 text-center">
         <div class="text-2xl font-bold text-yellow-300 tabular-nums">${topScore.toLocaleString()}</div>

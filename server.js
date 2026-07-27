@@ -25145,7 +25145,7 @@ app.get('/api/live-games/:id/leaderboard', async (req, res) => {
   try {
     const saMode = req.query.sa === '1'; // כאשר SA קורא — מחזיר את כל המשתתפים (גם לא-מאושרים)
     const rows = await pool.query(
-      `SELECT lgp.id as participant_id, lgp.user_id, lgp.display_name, lgp.score, lgp.approved, u.nickname, u.phone
+      `SELECT lgp.id as participant_id, lgp.user_id, lgp.display_name, lgp.score, lgp.approved, lgp.last_seen_at, u.nickname, u.phone
        FROM live_game_participants lgp
        LEFT JOIN users u ON u.id = lgp.user_id
        WHERE lgp.game_id=$1 ${saMode ? '' : 'AND lgp.approved=true'}
