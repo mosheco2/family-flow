@@ -2944,7 +2944,10 @@ async function openSACommunityModal(id) {
     try {
         const res = await fetch(`${API}/sa/communities/${id}/details`, { headers: { 'Authorization': saToken || '' } }); const data = await res.json();
         if(data.success) {
-            currentCommFamiliesCache = data.families || []; renderSACommFamilies(); renderSAUsersAppoint(); saAssignFamRender();
+            currentCommFamiliesCache = data.families || [];
+            const famCountEl = getEl('sa-edit-comm-fam-count');
+            if (famCountEl) famCountEl.innerText = currentCommFamiliesCache.length;
+            renderSACommFamilies(); renderSAUsersAppoint(); saAssignFamRender();
             if(data.businesses.length === 0) { bizList.innerHTML = '<p class="text-xs text-slate-400 p-2 bg-slate-50 border border-dashed rounded-lg text-center mt-2">אין עסקים נותני הנחה.</p>'; } 
             else { bizList.innerHTML = data.businesses.map(b => `<div class="bg-white p-2.5 rounded-lg border border-slate-100 shadow-sm mb-1.5 text-xs flex justify-between items-center"><span class="font-bold text-slate-700 flex items-center gap-2"><i class="fa-solid fa-store text-slate-300"></i> ${safeStr(b.name)}<span class="font-mono text-[10px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">${safeStr(b.group_code||'')}</span></span><span class="text-green-600 font-bold bg-green-50 px-2 py-1 rounded border border-green-100">${b.discount_pct}% הנחה</span></div>`).join(''); }
         }

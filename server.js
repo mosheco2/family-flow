@@ -10033,8 +10033,8 @@ app.get('/api/sa/communities', async (req, res) => {
     try {
         const result = await pool.query(`
             SELECT c.*,
-                (SELECT COUNT(*) FROM family_communities WHERE community_id = c.id) as family_count,
-                (SELECT COUNT(u.id) FROM users u JOIN family_communities fc ON u.group_id = fc.group_id WHERE fc.community_id = c.id) as users_count,
+                (SELECT COUNT(*) FROM family_communities fc JOIN family_groups fg ON fg.id=fc.group_id WHERE fc.community_id = c.id AND fg.type='FAMILY') as family_count,
+                (SELECT COUNT(u.id) FROM users u JOIN family_communities fc ON u.group_id = fc.group_id JOIN family_groups fg ON fg.id=fc.group_id WHERE fc.community_id = c.id AND fg.type='FAMILY') as users_count,
                 (SELECT COUNT(*) FROM community_businesses WHERE community_id = c.id AND status='approved') as business_count
             FROM communities c
             ORDER BY c.created_at DESC
