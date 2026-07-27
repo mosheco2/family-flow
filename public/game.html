@@ -230,41 +230,39 @@
   </div>
 </div>
 
-<!-- Sponsor splash modal -->
-<div id="sponsor-splash" class="hidden fixed inset-0 bg-black/90 z-50 flex items-end justify-center p-0 fadein">
-  <div class="bg-slate-800 rounded-t-3xl w-full max-w-sm shadow-2xl border-t border-white/10">
-    <div class="px-7 pt-6 pb-7 text-center">
-      <!-- שורת לוגואים: דמות + לוגו חסות זה לצד זה -->
-      <div id="splash-logos-row" style="display:none;justify-content:center;align-items:center;gap:0;margin-bottom:16px">
-        <div style="display:flex;flex-direction:column;align-items:center;gap:6px;flex:1">
-          <img id="splash-character" src="" alt="" style="width:140px;height:140px;background:transparent;object-fit:contain;filter:drop-shadow(0 4px 12px rgba(0,0,0,0.6))">
-          <span style="font-size:10px;color:#94a3b8;letter-spacing:.08em;text-transform:uppercase">מארח</span>
-        </div>
-        <div style="width:1px;height:100px;background:rgba(255,255,255,0.15);flex-shrink:0;margin-top:20px"></div>
-        <div style="display:flex;flex-direction:column;align-items:center;gap:6px;flex:1">
-          <img id="splash-sponsor-logo" src="" alt="" style="width:100px;height:100px;object-fit:contain;background:transparent;border-radius:14px;margin-top:20px">
-          <span style="font-size:10px;color:#94a3b8;letter-spacing:.08em;text-transform:uppercase">חסות</span>
-        </div>
+<!-- Sponsor splash modal — full screen -->
+<div id="sponsor-splash" class="hidden fixed inset-0 z-50 fadein" style="background:#0f172a;display:none;flex-direction:column;align-items:center;justify-content:center;padding:24px;">
+  <div style="width:100%;max-width:400px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:0;">
+    <!-- שורת לוגואים: דמות + לוגו חסות זה לצד זה -->
+    <div id="splash-logos-row" style="display:none;justify-content:center;align-items:flex-end;gap:0;margin-bottom:20px;width:100%">
+      <div style="display:flex;flex-direction:column;align-items:center;gap:8px;flex:1">
+        <img id="splash-sponsor-logo" src="" alt="" style="width:110px;height:110px;object-fit:contain;background:transparent;border-radius:16px">
+        <span style="font-size:11px;color:#94a3b8;letter-spacing:.08em">חסות</span>
       </div>
-      <!-- fallback: רק דמות -->
-      <div id="splash-char-only" style="display:none;justify-content:center;margin-bottom:16px">
-        <img id="splash-character-only" src="" alt="" style="width:140px;height:140px;background:transparent;object-fit:contain;filter:drop-shadow(0 4px 12px rgba(0,0,0,0.6))">
+      <div style="width:1px;height:80px;background:rgba(255,255,255,0.12);flex-shrink:0;margin-bottom:24px"></div>
+      <div style="display:flex;flex-direction:column;align-items:center;gap:8px;flex:1">
+        <img id="splash-character" src="" alt="" style="width:130px;height:130px;background:transparent;object-fit:contain;filter:drop-shadow(0 4px 16px rgba(99,102,241,0.5))">
+        <span style="font-size:11px;color:#94a3b8;letter-spacing:.08em">מארח</span>
       </div>
-      <!-- fallback: רק לוגו חסות -->
-      <div id="splash-logo-only" style="display:none;justify-content:center;align-items:center;margin-bottom:16px">
-        <img id="splash-sponsor-logo-only" src="" alt="" style="width:110px;height:110px;object-fit:contain;background:transparent;border-radius:14px">
-      </div>
-      <div id="splash-emoji-wrap" class="text-5xl mb-3">🎯</div>
-      <div class="text-xs text-slate-400 uppercase tracking-widest mb-1">בחסות</div>
-      <div class="text-2xl font-black text-white mb-2" id="splash-sponsor-name"></div>
-      <div class="text-base font-bold text-indigo-300 mb-3" id="splash-game-title"></div>
-      <p class="text-slate-300 text-sm mb-5 leading-relaxed" id="splash-sponsor-text"></p>
-      <div id="splash-prize-row" class="hidden bg-yellow-500/20 border border-yellow-500/30 rounded-xl px-4 py-3 mb-5">
-        <div class="text-xs text-yellow-400">🏆 פרס</div>
-        <div class="font-bold text-yellow-300" id="splash-prize"></div>
-      </div>
-      <button onclick="closeSponsorSplash()" class="w-full brand-gradient py-4 rounded-xl font-black text-lg shadow-lg">בואו נשחק! ▶</button>
     </div>
+    <!-- fallback: רק דמות -->
+    <div id="splash-char-only" style="display:none;justify-content:center;margin-bottom:20px">
+      <img id="splash-character-only" src="" alt="" style="width:150px;height:150px;background:transparent;object-fit:contain;filter:drop-shadow(0 4px 16px rgba(99,102,241,0.5))">
+    </div>
+    <!-- fallback: רק לוגו חסות -->
+    <div id="splash-logo-only" style="display:none;justify-content:center;align-items:center;margin-bottom:20px">
+      <img id="splash-sponsor-logo-only" src="" alt="" style="width:120px;height:120px;object-fit:contain;background:transparent;border-radius:18px">
+    </div>
+    <div id="splash-emoji-wrap" style="font-size:56px;margin-bottom:12px">🎯</div>
+    <div style="font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px">בחסות</div>
+    <div style="font-size:22px;font-weight:900;color:#fff;margin-bottom:8px;line-height:1.2" id="splash-sponsor-name"></div>
+    <div style="font-size:16px;font-weight:700;color:#818cf8;margin-bottom:10px" id="splash-game-title"></div>
+    <p style="color:#94a3b8;font-size:14px;line-height:1.6;margin-bottom:20px" id="splash-sponsor-text"></p>
+    <div id="splash-prize-row" class="hidden" style="background:rgba(234,179,8,0.15);border:1px solid rgba(234,179,8,0.3);border-radius:14px;padding:12px 20px;margin-bottom:20px;width:100%">
+      <div style="font-size:11px;color:#fbbf24">🏆 פרס</div>
+      <div style="font-weight:700;color:#fde68a;font-size:15px" id="splash-prize"></div>
+    </div>
+    <button onclick="closeSponsorSplash()" style="width:100%;background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;font-weight:900;font-size:18px;padding:18px;border-radius:16px;border:none;cursor:pointer;box-shadow:0 4px 20px rgba(99,102,241,0.4)">בואו נשחק! ▶</button>
   </div>
 </div>
 
@@ -459,7 +457,7 @@ function showSponsorSplash(state) {
   document.getElementById('splash-sponsor-text').textContent = state.sponsor_text || '';
   if (state.prize) {
     document.getElementById('splash-prize').textContent = state.prize;
-    document.getElementById('splash-prize-row').classList.remove('hidden');
+    document.getElementById('splash-prize-row').style.display = 'block';
   }
   const hasLogo = !!state.sponsor_logo;
   const hasChar = !!state.character_image;
@@ -478,12 +476,13 @@ function showSponsorSplash(state) {
     document.getElementById('splash-sponsor-logo-only').src = state.sponsor_logo;
     document.getElementById('splash-logo-only').style.display = 'flex';
   }
-  document.getElementById('sponsor-splash').classList.remove('hidden');
+  document.getElementById('sponsor-splash').style.display = 'flex';
 }
 
 function closeSponsorSplash() {
-  document.getElementById('sponsor-splash').classList.add('hidden');
+  document.getElementById('sponsor-splash').style.display = 'none';
   fetch(`/api/live-games/${gameCode}/state?userId=${currentUser?.id || ''}`).then(r=>r.json()).then(state => {
+    myApproved = state.my_approved ?? myApproved;
     renderState(state);
     pollingInterval = setInterval(pollState, 1000);
   });
