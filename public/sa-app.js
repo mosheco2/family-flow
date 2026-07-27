@@ -10516,7 +10516,8 @@ async function openLGControl(gameId, gameCode) {
             <div class="text-xs text-slate-300">טבלת תוצאות סופית</div>
             <button onclick="_lgLoadResults(${gameId})" class="bg-slate-600 hover:bg-slate-500 text-white px-3 py-1.5 rounded-lg text-xs transition">רענן</button>
           </div>
-          <div id="lg-results-list" class="space-y-2 max-h-96 overflow-y-auto">
+          <div id="lg-results-kpi"></div>
+          <div id="lg-results-list" class="space-y-2 max-h-80 overflow-y-auto">
             <div class="text-slate-400 text-xs text-center py-4">לחץ על רענן לטעינת התוצאות</div>
           </div>
           <button onclick="_lgCopyResults(${gameId})" class="w-full bg-indigo-700 hover:bg-indigo-600 text-white py-2.5 rounded-lg text-xs font-bold transition">📋 העתק טבלת תוצאות</button>
@@ -10779,7 +10780,31 @@ async function _lgLoadResults(gameId) {
   const saToken = localStorage.getItem('ofl_sa_token');
   const r = await fetch(`/api/live-games/${gameId}/leaderboard?sa=1`, { headers: { Authorization: saToken } });
   const d = await r.json();
-  if (!d.leaderboard || !d.leaderboard.length) { el.innerHTML = '<div class="text-slate-400 text-xs text-center py-4">אין תוצאות עדיין</div>'; return; }
+  const kpiEl = document.getElementById('lg-results-kpi');
+  if (!d.leaderboard || !d.leaderboard.length) {
+    if (kpiEl) kpiEl.innerHTML = '';
+    el.innerHTML = '<div class="text-slate-400 text-xs text-center py-4">אין תוצאות עדיין</div>';
+    return;
+  }
+  const lb = d.leaderboard;
+  const totalAll      = lb.length;
+  const totalApproved = lb.filter(p => p.approved !== false).length;
+  const topScore      = lb[0]?.score || 0;
+  if (kpiEl) kpiEl.innerHTML = `
+    <div class="grid grid-cols-3 gap-2 mb-1">
+      <div class="bg-slate-700/60 border border-slate-600/40 rounded-xl px-3 py-2.5 text-center">
+        <div class="text-2xl font-bold text-slate-100 tabular-nums">${totalAll}</div>
+        <div class="text-[10px] text-slate-400 mt-0.5">👥 משתתפים</div>
+      </div>
+      <div class="bg-green-900/40 border border-green-600/40 rounded-xl px-3 py-2.5 text-center">
+        <div class="text-2xl font-bold text-green-300 tabular-nums">${totalApproved}</div>
+        <div class="text-[10px] text-green-400 mt-0.5">✅ מאושרים</div>
+      </div>
+      <div class="bg-yellow-900/40 border border-yellow-600/40 rounded-xl px-3 py-2.5 text-center">
+        <div class="text-2xl font-bold text-yellow-300 tabular-nums">${topScore.toLocaleString()}</div>
+        <div class="text-[10px] text-yellow-400 mt-0.5">🏆 ניקוד מוביל</div>
+      </div>
+    </div>`;
   const medals = ['🥇','🥈','🥉'];
   el.innerHTML = d.leaderboard.map((p,i) => `
     <div class="flex items-center gap-3 bg-slate-700/80 rounded-xl px-3 py-2.5 ${i===0 ? 'ring-2 ring-yellow-500/60' : ''}">
