@@ -127,7 +127,7 @@
 </div>
 
 <!-- Main game -->
-<div id="game-screen" class="hidden min-h-screen flex flex-col">
+<div id="game-screen" class="hidden fixed inset-0 flex flex-col overflow-hidden">
   <!-- Header -->
   <div class="brand-gradient px-4 py-3 flex items-center justify-between shadow-lg">
     <div>
@@ -168,7 +168,7 @@
   </div>
 
   <!-- Question screen -->
-  <div id="screen-question" class="hidden flex-1 flex flex-col p-4 fadein">
+  <div id="screen-question" class="hidden flex-1 flex flex-col p-4 fadein overflow-y-auto">
     <div class="flex items-center justify-between mb-4">
       <div class="text-sm text-slate-400">שאלה <span id="q-num">1</span>/<span id="q-total">1</span></div>
       <div class="relative w-14 h-14">
@@ -198,7 +198,7 @@
   </div>
 
   <!-- End screen (fireworks) -->
-  <div id="screen-end" class="hidden flex-1 flex flex-col items-center justify-center p-6 fadein relative overflow-hidden">
+  <div id="screen-end" class="hidden flex-1 flex flex-col items-center justify-center p-6 fadein relative overflow-y-auto">
     <div id="fireworks-container"></div>
     <div class="text-7xl mb-3 spin-slow">🎉</div>
     <h2 class="text-2xl font-bold mb-1">המשחק הסתיים!</h2>
@@ -539,12 +539,17 @@ function renderState(state) {
   if (!myApproved && !isPreviewMode) { showScreen('pending'); return; }
 
   if (state.status === 'waiting') { showScreen('waiting'); return; }
-  if (state.status === 'active' && state.current_question) {
-    const q = state.current_question;
-    if (q.id !== lastQuestionId) {
-      lastQuestionId = q.id;
-      answerSubmitted = false;
-      showQuestion(q, state.current_question_index, state.total_questions);
+  if (state.status === 'active') {
+    if (state.current_question) {
+      const q = state.current_question;
+      if (q.id !== lastQuestionId) {
+        lastQuestionId = q.id;
+        answerSubmitted = false;
+        showQuestion(q, state.current_question_index, state.total_questions);
+      }
+    } else {
+      // active אבל עדיין אין שאלה זמינה — ממשיכים להמתין
+      showScreen('waiting');
     }
   }
 }

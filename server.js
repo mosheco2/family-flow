@@ -24953,6 +24953,8 @@ app.put('/api/live-games/:id/status', verifySA, async (req, res) => {
     const { status } = req.body;
     if (!['waiting','active','ended','disabled'].includes(status)) return res.status(400).json({ error: 'סטטוס לא תקין' });
     if (status === 'active') {
+      const qCheck = await pool.query('SELECT COUNT(*) FROM live_game_questions WHERE game_id=$1', [req.params.id]);
+      if (parseInt(qCheck.rows[0].count) === 0) return res.status(400).json({ error: 'לא נמצאו שאלות במשחק זה. יש להוסיף שאלות לפני ההתחלה.' });
       await pool.query(`UPDATE live_games SET status='active', current_question_index=0 WHERE id=$1`, [req.params.id]);
     } else {
       await pool.query('UPDATE live_games SET status=$1 WHERE id=$2', [status, req.params.id]);
