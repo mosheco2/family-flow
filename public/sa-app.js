@@ -10740,7 +10740,8 @@ async function _lgApproveAll(gameId) {
 async function _lgLoadResults(gameId) {
   const el = document.getElementById('lg-results-list');
   if (!el) return;
-  const r = await fetch(`/api/live-games/${gameId}/leaderboard`);
+  const saToken = localStorage.getItem('ofl_sa_token');
+  const r = await fetch(`/api/live-games/${gameId}/leaderboard?sa=1`, { headers: { Authorization: saToken } });
   const d = await r.json();
   if (!d.leaderboard || !d.leaderboard.length) { el.innerHTML = '<div class="text-slate-400 text-xs text-center py-4">אין תוצאות עדיין</div>'; return; }
   const medals = ['🥇','🥈','🥉'];
@@ -10748,7 +10749,7 @@ async function _lgLoadResults(gameId) {
     <div class="flex items-center gap-3 bg-slate-700/80 rounded-xl px-3 py-2.5 ${i===0 ? 'ring-2 ring-yellow-500/60' : ''}">
       <div class="text-lg w-6 text-center">${medals[i] || `${i+1}`}</div>
       <div class="flex-1 min-w-0">
-        <div class="font-medium text-sm text-slate-100">${p.display_name || p.nickname || 'שחקן'}</div>
+        <div class="font-medium text-sm text-slate-100">${p.display_name || p.nickname || 'שחקן'}${p.approved === false ? ' <span style="font-size:9px;background:#7f1d1d;color:#fca5a5;padding:1px 5px;border-radius:4px">לא מאושר</span>' : ''}</div>
         <div class="text-[10px] text-slate-400">${p.phone ? `📱 ${p.phone}` : ''}${p.user_id ? ` · #${p.user_id}` : ''}</div>
       </div>
       <div class="font-bold text-indigo-300 tabular-nums">${(p.score||0).toLocaleString()}</div>
