@@ -24150,6 +24150,8 @@ app.get('/api/community/feed/search', async (req, res) => {
   try { await pool.query(`ALTER TABLE live_games ADD COLUMN IF NOT EXISTS sponsor_name TEXT`); } catch(e) {}
   try { await pool.query(`ALTER TABLE live_games ADD COLUMN IF NOT EXISTS sponsor_text TEXT`); } catch(e) {}
   try { await pool.query(`ALTER TABLE live_games ADD COLUMN IF NOT EXISTS whatsapp_text TEXT`); } catch(e) {}
+  // ניקוי whatsapp_text שמכיל ספירת משתתפים (נשמר בגרסה ישנה)
+  try { await pool.query(`UPDATE live_games SET whatsapp_text = NULL WHERE whatsapp_text LIKE '%משתתפים%'`); } catch(e) {}
   try { await pool.query(`ALTER TABLE live_games ADD COLUMN IF NOT EXISTS is_public BOOLEAN NOT NULL DEFAULT false`); } catch(e) {}
   try { await pool.query(`ALTER TABLE live_games ADD COLUMN IF NOT EXISTS is_hidden BOOLEAN NOT NULL DEFAULT false`); } catch(e) {}
   try { await pool.query(`ALTER TABLE live_games ADD COLUMN IF NOT EXISTS sponsor_logo TEXT`); } catch(e) {}
