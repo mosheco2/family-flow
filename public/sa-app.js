@@ -75,7 +75,8 @@ window.applyUserPermissions = function() {
         'pulse': 'open', 'dashboard': 'open', 'clients': 'open', 'sysmap': 'open', 'legal': 'open', 'templates': 'open',
         'support': 'support', 'devops': 'devops', 'stats': 'stats',
         'comm': 'comm', 'biz': 'biz', 'content': 'content',
-        'hr': 'users', 'inbox': 'marketing', 'partners': 'all', 'finance': 'stats'
+        'hr': 'users', 'inbox': 'marketing', 'partners': 'all', 'finance': 'stats',
+        'marketing': 'marketing'
     };
 
     function canAccessTab(tab) {
@@ -411,7 +412,7 @@ window.switchSATab = function(tabId) {
     if (tabId === 'legal') loadLegalDocs();
 
     if (tabId === 'adslots') window.renderAdSlotsPanel && window.renderAdSlotsPanel();
-    const allTabs = ['dashboard', 'pulse', 'devops', 'support', 'stats', 'comm', 'biz', 'inbox', 'content', 'clients', 'hr', 'partners', 'finance', 'sysmap', 'legal', 'templates', 'adslots', 'auditlog', 'archive', 'games', 'feed', 'livegames'];
+    const allTabs = ['dashboard', 'pulse', 'devops', 'support', 'stats', 'comm', 'biz', 'inbox', 'content', 'clients', 'hr', 'partners', 'finance', 'sysmap', 'legal', 'templates', 'adslots', 'auditlog', 'archive', 'games', 'feed', 'livegames', 'marketing'];
     let activeTabTitle = 'לוח בקרה';
 
     allTabs.forEach(t => {
@@ -443,7 +444,7 @@ window.switchSATab = function(tabId) {
         hr:'נציגים וצוותים', partners:'שותפים', finance:'פיננסים',
         sysmap:'מפת המערכת', legal:'מסמכים משפטיים', templates:'ניהול תבניות עסקים', adslots:'שטחי פרסום',
         auditlog:'לוג אירועים קריטיים', archive:'ארכיון סביבות מחוקות',
-        games:'משחקי ילדים', feed:'פיד קהילתי', livegames:'משחקים חיים'
+        games:'משחקי ילדים', feed:'פיד קהילתי', livegames:'משחקים חיים', marketing:'שיווק והשקות'
     };
     activeTabTitle = _tabTitles[tabId] || tabId;
 
@@ -475,6 +476,7 @@ window.switchSATab = function(tabId) {
     if (tabId === 'games') loadSAGames();
     if (tabId === 'feed') loadSACommunityFeed();
     if (tabId === 'livegames') loadSALiveGames();
+    if (tabId === 'marketing') window.saMarketingInit && window.saMarketingInit();
 
     // Update group button active state + sub-nav bar
     _updateSAGroupNav(tabId);
@@ -487,7 +489,7 @@ const SA_GROUPS = {
     customers:  { tabs: ['comm', 'biz', 'clients', 'feed'],  labels: ['קהילות', 'עסקים', 'קבוצות', 'פיד קהילתי'],  icons: ['fa-users-rays', 'fa-store', 'fa-users', 'fa-rss'],  default: 'comm' },
     finance:    { tabs: ['finance'],                    labels: [],                                  icons: [],                                         default: 'finance' },
     supportdev: { tabs: ['support', 'devops'],          labels: ['קריאות שירות', 'פיתוח ומוצר'],    icons: ['fa-headset', 'fa-code'],                  default: 'support' },
-    contentmkt: { tabs: ['content', 'inbox', 'legal', 'adslots', 'games'],  labels: ['מיתוג ותוכן', 'שיווק', 'משפטי', 'שטחי פרסום', 'משחקי ילדים'], icons: ['fa-image', 'fa-bullhorn', 'fa-file-contract', 'fa-rectangle-ad', 'fa-gamepad'], default: 'content' },
+    contentmkt: { tabs: ['content', 'inbox', 'legal', 'adslots', 'games', 'marketing'],  labels: ['מיתוג ותוכן', 'שיווק', 'משפטי', 'שטחי פרסום', 'משחקי ילדים', 'שיווק והשקות'], icons: ['fa-image', 'fa-bullhorn', 'fa-file-contract', 'fa-rectangle-ad', 'fa-gamepad', 'fa-whatsapp'], default: 'content' },
     livegamesgrp: { tabs: ['livegames'], labels: ['משחקים חיים'], icons: ['fa-bolt'], default: 'livegames' },
     partners:   { tabs: ['partners'],                   labels: [],                                  icons: [],                                         default: 'partners' },
     system:     { tabs: ['hr', 'sysmap', 'auditlog', 'archive'], labels: ['צוות ונציגים', 'מפת המערכת', 'לוג אירועים', 'ארכיון מחוקים'], icons: ['fa-user-tie', 'fa-map', 'fa-shield-halved', 'fa-box-archive'], default: 'hr' },
@@ -10982,3 +10984,221 @@ async function _lgNextQuestion(gameId) {
   const msg = document.getElementById('lg-ctrl-msg');
   if (msg) msg.textContent = d.ended ? '🏁 המשחק הסתיים!' : d.success ? `✅ שאלה ${(d.current_question_index||0)+1}` : '❌ ' + d.error;
 }
+
+// ===== שיווק והשקות — קמפיינים בווצאפ =====
+
+let _mktCampaigns = [];
+let _mktCurrentId = null;
+let _mktImages = [];
+let _mktActiveGender = 'male'; // 'male' | 'female'
+
+window.saMarketingInit = async function() {
+    const list = document.getElementById('sa-marketing-list');
+    if (list) list.innerHTML = '<div class="text-center text-slate-400 py-8">טוען...</div>';
+    try {
+        const r = await fetch(`${API}/sa/marketing-campaigns`, { headers: { Authorization: saToken } });
+        const d = await r.json();
+        _mktCampaigns = d.campaigns || [];
+        saMarketingRenderList(_mktCampaigns);
+    } catch(e) {
+        if (list) list.innerHTML = '<div class="text-center text-red-400 py-8">שגיאה בטעינה</div>';
+    }
+};
+
+window.saMarketingRenderList = function(campaigns) {
+    const list = document.getElementById('sa-marketing-list');
+    if (!list) return;
+    if (!campaigns.length) {
+        list.innerHTML = '<div class="text-center text-slate-400 py-12"><i class="fa-solid fa-inbox text-3xl mb-3 block opacity-30"></i>אין קמפיינים עדיין. לחצו "קמפיין חדש" כדי להתחיל.</div>';
+        return;
+    }
+    list.innerHTML = campaigns.map(c => {
+        const date = c.updated_at ? new Date(c.updated_at).toLocaleDateString('he-IL') : '';
+        const sector = c.sector ? `<span class="bg-indigo-50 text-indigo-700 text-[10px] font-bold px-2 py-0.5 rounded-full border border-indigo-100">${c.sector}</span>` : '';
+        const imgs = (c.images||[]).length ? `<span class="text-slate-400 text-xs"><i class="fa-solid fa-image mr-0.5"></i>${c.images.length}</span>` : '';
+        return `<div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex items-start justify-between gap-3 hover:shadow-md transition">
+          <div class="flex-1 min-w-0">
+            <div class="font-bold text-slate-800 text-sm mb-0.5 truncate">${c.title}</div>
+            ${c.subtitle ? `<div class="text-xs text-slate-500 truncate mb-1">${c.subtitle}</div>` : ''}
+            <div class="flex items-center gap-2 flex-wrap">${sector}${imgs}<span class="text-slate-400 text-[10px]">${date}</span></div>
+          </div>
+          <div class="flex items-center gap-1.5 flex-shrink-0">
+            <button onclick="saMarketingOpenEditor(${c.id})" title="עריכה" class="w-8 h-8 rounded-xl bg-slate-50 hover:bg-indigo-50 hover:text-indigo-600 text-slate-500 flex items-center justify-center text-sm transition"><i class="fa-solid fa-pen"></i></button>
+            <button onclick="saMarketingDuplicate(${c.id})" title="שכפל" class="w-8 h-8 rounded-xl bg-slate-50 hover:bg-amber-50 hover:text-amber-600 text-slate-500 flex items-center justify-center text-sm transition"><i class="fa-solid fa-copy"></i></button>
+            <button onclick="saMarketingDelete(${c.id})" title="מחק" class="w-8 h-8 rounded-xl bg-slate-50 hover:bg-red-50 hover:text-red-600 text-slate-500 flex items-center justify-center text-sm transition"><i class="fa-solid fa-trash"></i></button>
+          </div>
+        </div>`;
+    }).join('');
+};
+
+window.saMarketingOpenEditor = function(idOrData) {
+    const editor = document.getElementById('sa-marketing-editor');
+    if (!editor) return;
+    let campaign = null;
+    if (typeof idOrData === 'object') {
+        campaign = idOrData;
+    } else if (idOrData) {
+        campaign = _mktCampaigns.find(c => c.id === idOrData);
+    }
+    _mktCurrentId = campaign ? campaign.id : null;
+    _mktImages = campaign ? [...(campaign.images || [])] : [];
+    _mktActiveGender = 'male';
+    document.getElementById('mkt-title').value = campaign ? (campaign.title || '') : '';
+    document.getElementById('mkt-subtitle').value = campaign ? (campaign.subtitle || '') : '';
+    document.getElementById('mkt-sector').value = campaign ? (campaign.sector || '') : '';
+    document.getElementById('mkt-body-male').value = campaign ? (campaign.body_male || '') : '';
+    document.getElementById('mkt-body-female').value = campaign ? (campaign.body_female || '') : '';
+    saMarketingSetGender('male');
+    saMarketingRenderImages();
+    editor.classList.remove('hidden');
+    editor.scrollIntoView({ behavior: 'smooth', block: 'start' });
+};
+
+window.saMarketingCloseEditor = function() {
+    const editor = document.getElementById('sa-marketing-editor');
+    if (editor) editor.classList.add('hidden');
+    _mktCurrentId = null;
+    _mktImages = [];
+};
+
+window.saMarketingSetGender = function(gender) {
+    _mktActiveGender = gender;
+    const male = document.getElementById('mkt-body-male');
+    const female = document.getElementById('mkt-body-female');
+    const btnM = document.getElementById('mkt-btn-male');
+    const btnF = document.getElementById('mkt-btn-female');
+    if (gender === 'male') {
+        if (male) male.classList.remove('hidden');
+        if (female) female.classList.add('hidden');
+        if (btnM) { btnM.style.background='#4f46e5'; btnM.style.color='white'; btnM.style.borderColor='#4338ca'; }
+        if (btnF) { btnF.style.background='#f8fafc'; btnF.style.color='#475569'; btnF.style.borderColor='#e2e8f0'; }
+    } else {
+        if (male) male.classList.add('hidden');
+        if (female) female.classList.remove('hidden');
+        if (btnF) { btnF.style.background='#4f46e5'; btnF.style.color='white'; btnF.style.borderColor='#4338ca'; }
+        if (btnM) { btnM.style.background='#f8fafc'; btnM.style.color='#475569'; btnM.style.borderColor='#e2e8f0'; }
+    }
+};
+
+function _mktActiveTextarea() {
+    return document.getElementById(_mktActiveGender === 'male' ? 'mkt-body-male' : 'mkt-body-female');
+}
+
+window.saMarketingApplyFormat = function(fmt) {
+    const ta = _mktActiveTextarea();
+    if (!ta) return;
+    const start = ta.selectionStart, end = ta.selectionEnd;
+    const selected = ta.value.substring(start, end);
+    let wrapped;
+    if (fmt === 'bold')   wrapped = `*${selected}*`;
+    else if (fmt === 'italic') wrapped = `_${selected}_`;
+    else if (fmt === 'strike') wrapped = `~${selected}~`;
+    else return;
+    ta.value = ta.value.substring(0, start) + wrapped + ta.value.substring(end);
+    ta.focus();
+    ta.selectionStart = start;
+    ta.selectionEnd = start + wrapped.length;
+};
+
+window.saMarketingInsertEmoji = function(emoji) {
+    const ta = _mktActiveTextarea();
+    if (!ta) return;
+    const pos = ta.selectionStart;
+    ta.value = ta.value.substring(0, pos) + emoji + ta.value.substring(pos);
+    ta.focus();
+    ta.selectionStart = ta.selectionEnd = pos + emoji.length;
+    document.getElementById('mkt-emoji-picker')?.classList.add('hidden');
+};
+
+window.saMarketingToggleEmoji = function() {
+    const picker = document.getElementById('mkt-emoji-picker');
+    if (picker) picker.classList.toggle('hidden');
+};
+
+window.saMarketingSave = async function() {
+    const title = document.getElementById('mkt-title')?.value.trim();
+    if (!title) { showToast('error', 'נא להזין כותרת לקמפיין'); return; }
+    const payload = {
+        title,
+        subtitle: document.getElementById('mkt-subtitle')?.value.trim() || null,
+        sector: document.getElementById('mkt-sector')?.value.trim() || null,
+        body_male: document.getElementById('mkt-body-male')?.value || null,
+        body_female: document.getElementById('mkt-body-female')?.value || null,
+        images: _mktImages
+    };
+    try {
+        const url = _mktCurrentId
+            ? `${API}/sa/marketing-campaigns/${_mktCurrentId}`
+            : `${API}/sa/marketing-campaigns`;
+        const method = _mktCurrentId ? 'PUT' : 'POST';
+        const r = await fetch(url, { method, headers: { 'Content-Type': 'application/json', Authorization: saToken }, body: JSON.stringify(payload) });
+        const d = await r.json();
+        if (!d.success) throw new Error(d.error || 'שגיאה');
+        showToast('success', _mktCurrentId ? 'הקמפיין עודכן' : 'הקמפיין נשמר');
+        saMarketingCloseEditor();
+        await saMarketingInit();
+    } catch(e) {
+        showToast('error', 'שגיאה בשמירה: ' + e.message);
+    }
+};
+
+window.saMarketingDelete = async function(id) {
+    if (!confirm('למחוק את הקמפיין?')) return;
+    try {
+        const r = await fetch(`${API}/sa/marketing-campaigns/${id}`, { method: 'DELETE', headers: { Authorization: saToken } });
+        const d = await r.json();
+        if (!d.success) throw new Error(d.error);
+        showToast('success', 'הקמפיין נמחק');
+        _mktCampaigns = _mktCampaigns.filter(c => c.id !== id);
+        saMarketingRenderList(_mktCampaigns);
+        if (_mktCurrentId === id) saMarketingCloseEditor();
+    } catch(e) {
+        showToast('error', 'שגיאה במחיקה');
+    }
+};
+
+window.saMarketingDuplicate = async function(id) {
+    const src = _mktCampaigns.find(c => c.id === id);
+    if (!src) return;
+    const copy = { ...src, title: 'עותק של ' + src.title, id: null };
+    saMarketingOpenEditor(copy);
+    _mktCurrentId = null; // force POST
+};
+
+window.saMarketingWaSend = function() {
+    const ta = _mktActiveTextarea();
+    const text = ta ? ta.value.trim() : '';
+    if (!text) { showToast('error', 'אין טקסט לשליחה'); return; }
+    window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank');
+};
+
+window.saMarketingUploadImage = async function(input) {
+    if (!input.files || !input.files.length) return;
+    if (_mktImages.length >= 5) { showToast('error', 'ניתן להעלות עד 5 תמונות'); return; }
+    const file = input.files[0];
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        _mktImages.push(e.target.result);
+        saMarketingRenderImages();
+    };
+    reader.readAsDataURL(file);
+    input.value = '';
+};
+
+window.saMarketingRemoveImage = function(idx) {
+    _mktImages.splice(idx, 1);
+    saMarketingRenderImages();
+};
+
+window.saMarketingRenderImages = function() {
+    const container = document.getElementById('mkt-images-preview');
+    if (!container) return;
+    if (!_mktImages.length) {
+        container.innerHTML = '<span class="text-slate-400 text-xs">אין תמונות</span>';
+        return;
+    }
+    container.innerHTML = _mktImages.map((src, i) =>
+        `<div class="relative inline-block"><img src="${src}" class="w-20 h-20 object-cover rounded-xl border border-slate-200 shadow-sm">
+        <button onclick="saMarketingRemoveImage(${i})" class="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center hover:bg-red-600 transition"><i class="fa-solid fa-xmark"></i></button></div>`
+    ).join('');
+};

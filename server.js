@@ -24194,6 +24194,19 @@ app.get('/api/community/feed/search', async (req, res) => {
   try { await pool.query(`ALTER TABLE live_game_participants ADD COLUMN IF NOT EXISTS join_source VARCHAR(100) DEFAULT NULL`); } catch(e) {}
   try { await pool.query(`ALTER TABLE live_game_participants ADD COLUMN IF NOT EXISTS last_seen_at TIMESTAMPTZ`); } catch(e) {}
 
+  // טבלת תבניות קמפיינים שיווקיים (WhatsApp)
+  try { await pool.query(`CREATE TABLE IF NOT EXISTS marketing_campaigns (
+    id SERIAL PRIMARY KEY,
+    title TEXT NOT NULL,
+    subtitle TEXT,
+    body_male TEXT,
+    body_female TEXT,
+    sector TEXT,
+    images JSONB DEFAULT '[]',
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+  )`); } catch(e) {}
+
   // flow_config: referral_join if not exists
   try {
     await pool.query(`INSERT INTO flow_config (key, personal_amount, community_amount, description) VALUES ('referral_join', 20, 0, 'הפניית חבר שנרשם למערכת') ON CONFLICT (key) DO NOTHING`);
@@ -25370,4 +25383,46 @@ app.listen(port, () => {
         for (const q of idxQueries) { try { await pool.query(q); } catch(e) {} }
         console.log('Performance indexes ensured.');
     }, 5000);
+});
+
+// ===== SA — ניהול תבניות קמפיינים שיווקיים (WhatsApp) =====
+
+app.get('/api/sa/marketing-campaigns', verifySA, async (req, res) => {
+    try {
+        const r = await pool.query(`SELECT * FROM marketing_campaigns ORDER BY updated_at DESC`);
+        res.json({ success: true, campaigns: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/sa/marketing-campaigns', verifySA, async (req, res) => {
+    try {
+        const { title, subtitle, body_male, body_female, sector, images } = req.body;
+        if (!title) return res.status(400).json({ error: 'title required' });
+        const r = await pool.query(
+            `INSERT INTO marketing_campaigns (title, subtitle, body_male, body_female, sector, images)
+             VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
+            [title, subtitle||null, body_male||null, body_female||null, sector||null, JSON.stringify(images||[])]
+        );
+        res.json({ success: true, campaign: r.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/sa/marketing-campaigns/:id', verifySA, async (req, res) => {
+    try {
+        const { title, subtitle, body_male, body_female, sector, images } = req.body;
+        const r = await pool.query(
+            `UPDATE marketing_campaigns SET title=$1, subtitle=$2, body_male=$3, body_female=$4, sector=$5, images=$6, updated_at=NOW()
+             WHERE id=$7 RETURNING *`,
+            [title, subtitle||null, body_male||null, body_female||null, sector||null, JSON.stringify(images||[]), req.params.id]
+        );
+        if (!r.rows[0]) return res.status(404).json({ error: 'not found' });
+        res.json({ success: true, campaign: r.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/sa/marketing-campaigns/:id', verifySA, async (req, res) => {
+    try {
+        await pool.query(`DELETE FROM marketing_campaigns WHERE id=$1`, [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
 });

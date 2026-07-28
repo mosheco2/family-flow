@@ -3264,6 +3264,139 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
 
             </div><!-- /sa-view-templates -->
 
+            <!-- ══════════════════════════════════════════════════════════ -->
+            <!--  שיווק והשקות — תבניות קמפיינים ווצאפ                    -->
+            <!-- ══════════════════════════════════════════════════════════ -->
+            <div id="sa-view-marketing" class="hidden space-y-6 fade-in" style="max-width:900px">
+
+              <!-- כותרת + כפתור חדש -->
+              <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+                <div class="flex items-center justify-between flex-wrap gap-3">
+                  <div>
+                    <h2 class="text-xl font-black text-slate-800 flex items-center gap-2">
+                      <i class="fa-brands fa-whatsapp text-green-500"></i> תבניות קמפיינים ווצאפ
+                    </h2>
+                    <p class="text-xs text-slate-400 mt-0.5">צרו, ערכו ושלחו תבניות שיווקיות ישירות לווצאפ</p>
+                  </div>
+                  <button onclick="saMarketingOpenEditor(null)"
+                    class="bg-green-600 hover:bg-green-700 text-white text-sm font-bold px-5 py-2.5 rounded-xl flex items-center gap-2 transition shadow-sm shadow-green-600/20">
+                    <i class="fa-solid fa-plus"></i> קמפיין חדש
+                  </button>
+                </div>
+              </div>
+
+              <!-- גלריית קמפיינים -->
+              <div id="sa-marketing-list" class="space-y-3">
+                <div class="text-center text-slate-400 py-8">טוען...</div>
+              </div>
+
+              <!-- עורך קמפיין -->
+              <div id="sa-marketing-editor" class="hidden bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-5">
+                <div class="flex items-center justify-between mb-1">
+                  <h3 class="font-black text-slate-800 text-base flex items-center gap-2">
+                    <i class="fa-solid fa-pen-to-square text-indigo-500"></i> עריכת קמפיין
+                  </h3>
+                  <button onclick="saMarketingCloseEditor()" class="w-8 h-8 bg-slate-100 rounded-full text-slate-500 flex items-center justify-center hover:bg-slate-200 transition">
+                    <i class="fa-solid fa-xmark"></i>
+                  </button>
+                </div>
+
+                <!-- שדות בסיסיים -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div class="md:col-span-2">
+                    <label class="text-xs font-bold text-slate-500 block mb-1">כותרת <span class="text-red-400">*</span></label>
+                    <input id="mkt-title" type="text" class="modern-input" placeholder="שם הקמפיין...">
+                  </div>
+                  <div>
+                    <label class="text-xs font-bold text-slate-500 block mb-1">תחום / סקטור</label>
+                    <input id="mkt-sector" type="text" class="modern-input" placeholder="למשל: יופי, בריאות, נדל״ן...">
+                  </div>
+                </div>
+                <div>
+                  <label class="text-xs font-bold text-slate-500 block mb-1">תת-כותרת</label>
+                  <input id="mkt-subtitle" type="text" class="modern-input" placeholder="משפט תיאורי קצר (אופציונלי)...">
+                </div>
+
+                <!-- גוף ההודעה -->
+                <div>
+                  <label class="text-xs font-bold text-slate-500 block mb-2">גוף ההודעה</label>
+
+                  <!-- בחירת מגדר -->
+                  <div class="flex gap-2 mb-3">
+                    <button id="mkt-btn-male" onclick="saMarketingSetGender('male')"
+                      style="background:#4f46e5;color:white;border:1px solid #4338ca;border-radius:0.6rem;padding:0.35rem 1rem;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:Rubik,sans-serif;transition:all 0.15s;">
+                      <i class="fa-solid fa-person" style="margin-left:4px"></i>זכר
+                    </button>
+                    <button id="mkt-btn-female" onclick="saMarketingSetGender('female')"
+                      style="background:#f8fafc;color:#475569;border:1px solid #e2e8f0;border-radius:0.6rem;padding:0.35rem 1rem;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:Rubik,sans-serif;transition:all 0.15s;">
+                      <i class="fa-solid fa-person-dress" style="margin-left:4px"></i>נקבה
+                    </button>
+                  </div>
+
+                  <!-- סרגל כלים ווצאפ -->
+                  <div class="flex items-center gap-1.5 mb-2 flex-wrap">
+                    <button onclick="saMarketingApplyFormat('bold')" title="מודגש (*text*)"
+                      class="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-black transition border border-slate-200"><b>B</b></button>
+                    <button onclick="saMarketingApplyFormat('italic')" title="נטוי (_text_)"
+                      class="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs transition border border-slate-200"><i>I</i></button>
+                    <button onclick="saMarketingApplyFormat('strike')" title="קו חוצה (~text~)"
+                      class="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs transition border border-slate-200"><s>S</s></button>
+                    <div class="relative">
+                      <button onclick="saMarketingToggleEmoji()" title="אמוג׳י"
+                        class="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs transition border border-slate-200">😊</button>
+                      <div id="mkt-emoji-picker" class="hidden absolute top-9 right-0 bg-white border border-slate-200 rounded-2xl shadow-xl p-3 z-50 w-64">
+                        <div id="mkt-emoji-grid" class="grid grid-cols-8 gap-1 text-lg"></div>
+                      </div>
+                    </div>
+                    <span class="text-slate-300 mx-1">|</span>
+                    <button onclick="saMarketingWaSend()" title="שלח בווצאפ"
+                      class="px-4 py-1.5 rounded-lg bg-green-500 hover:bg-green-600 text-white text-xs font-bold transition flex items-center gap-1.5 shadow-sm">
+                      <i class="fa-brands fa-whatsapp"></i> שלח בווצאפ
+                    </button>
+                  </div>
+
+                  <!-- טקסט זכר -->
+                  <textarea id="mkt-body-male" rows="8"
+                    class="modern-input resize-none font-mono text-sm leading-relaxed"
+                    style="direction:rtl"
+                    placeholder="כתבו את גוף ההודעה לנמען זכר...&#10;&#10;לעיצוב ווצאפ:&#10;*מודגש* | _נטוי_ | ~קו חוצה~"></textarea>
+
+                  <!-- טקסט נקבה -->
+                  <textarea id="mkt-body-female" rows="8"
+                    class="modern-input resize-none font-mono text-sm leading-relaxed hidden"
+                    style="direction:rtl"
+                    placeholder="כתבו את גוף ההודעה לנמענת נקבה..."></textarea>
+                </div>
+
+                <!-- תמונות -->
+                <div>
+                  <label class="text-xs font-bold text-slate-500 block mb-2">
+                    תמונות <span class="text-slate-400 font-normal">(עד 5)</span>
+                  </label>
+                  <div id="mkt-images-preview" class="flex flex-wrap gap-3 mb-3 items-center">
+                    <span class="text-slate-400 text-xs">אין תמונות</span>
+                  </div>
+                  <label class="inline-flex items-center gap-2 cursor-pointer bg-slate-50 hover:bg-slate-100 border border-slate-200 border-dashed text-slate-500 text-sm font-medium px-4 py-2 rounded-xl transition">
+                    <i class="fa-solid fa-upload text-indigo-400"></i> העלה תמונה
+                    <input type="file" accept="image/*" class="hidden" onchange="saMarketingUploadImage(this)">
+                  </label>
+                </div>
+
+                <!-- שמירה -->
+                <div class="flex items-center gap-3 pt-2 border-t border-slate-100 flex-wrap">
+                  <button onclick="saMarketingSave()"
+                    class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold px-6 py-2.5 rounded-xl flex items-center gap-2 transition shadow-sm shadow-indigo-600/20">
+                    <i class="fa-solid fa-floppy-disk"></i> שמור קמפיין
+                  </button>
+                  <button onclick="saMarketingCloseEditor()"
+                    class="bg-slate-100 hover:bg-slate-200 text-slate-600 text-sm font-medium px-5 py-2.5 rounded-xl transition">
+                    ביטול
+                  </button>
+                </div>
+              </div>
+
+            </div><!-- /sa-view-marketing -->
+
         </main>
       </div>
     </div> <div id="sa-community-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[9999] flex items-center justify-center p-4">
@@ -4564,5 +4697,159 @@ async function bizImgDelete(slot) {
         </div>
     </div>
 </div>
+
+<!-- ══════════════════════════════════════════════════════════ -->
+<!--  שיווק והשקות — תבניות קמפיינים ווצאפ                    -->
+<!-- ══════════════════════════════════════════════════════════ -->
+<div id="sa-view-marketing" class="hidden space-y-6 fade-in" style="max-width:900px">
+
+  <!-- כותרת + כפתור חדש -->
+  <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+    <div class="flex items-center justify-between flex-wrap gap-3">
+      <div>
+        <h2 class="text-xl font-black text-slate-800 flex items-center gap-2">
+          <i class="fa-brands fa-whatsapp text-green-500"></i> תבניות קמפיינים ווצאפ
+        </h2>
+        <p class="text-xs text-slate-400 mt-0.5">צרו, ערכו ושלחו תבניות שיווקיות ישירות לווצאפ</p>
+      </div>
+      <button onclick="saMarketingOpenEditor(null)"
+        class="bg-green-600 hover:bg-green-700 text-white text-sm font-bold px-5 py-2.5 rounded-xl flex items-center gap-2 transition shadow-sm shadow-green-600/20">
+        <i class="fa-solid fa-plus"></i> קמפיין חדש
+      </button>
+    </div>
+  </div>
+
+  <!-- גלריית קמפיינים -->
+  <div id="sa-marketing-list" class="space-y-3">
+    <div class="text-center text-slate-400 py-8">טוען...</div>
+  </div>
+
+  <!-- עורך קמפיין -->
+  <div id="sa-marketing-editor" class="hidden bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-5">
+    <div class="flex items-center justify-between mb-1">
+      <h3 class="font-black text-slate-800 text-base flex items-center gap-2">
+        <i class="fa-solid fa-pen-to-square text-indigo-500"></i> עריכת קמפיין
+      </h3>
+      <button onclick="saMarketingCloseEditor()" class="w-8 h-8 bg-slate-100 rounded-full text-slate-500 flex items-center justify-center hover:bg-slate-200 transition">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    </div>
+
+    <!-- שדות בסיסיים -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div class="md:col-span-2">
+        <label class="text-xs font-bold text-slate-500 block mb-1">כותרת <span class="text-red-400">*</span></label>
+        <input id="mkt-title" type="text" class="modern-input" placeholder="שם הקמפיין...">
+      </div>
+      <div>
+        <label class="text-xs font-bold text-slate-500 block mb-1">תחום / סקטור</label>
+        <input id="mkt-sector" type="text" class="modern-input" placeholder="למשל: יופי, בריאות, נדל״ן...">
+      </div>
+    </div>
+    <div>
+      <label class="text-xs font-bold text-slate-500 block mb-1">תת-כותרת</label>
+      <input id="mkt-subtitle" type="text" class="modern-input" placeholder="משפט תיאורי קצר (אופציונלי)...">
+    </div>
+
+    <!-- סרגל עיצוב ווצאפ -->
+    <div>
+      <label class="text-xs font-bold text-slate-500 block mb-2">גוף ההודעה</label>
+
+      <!-- בחירת מגדר -->
+      <div class="flex gap-2 mb-3">
+        <button id="mkt-btn-male" onclick="saMarketingSetGender('male')"
+          style="background:#4f46e5;color:white;border:1px solid #4338ca;border-radius:0.6rem;padding:0.35rem 1rem;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:Rubik,sans-serif;transition:all 0.15s;">
+          <i class="fa-solid fa-person ml-1"></i>זכר
+        </button>
+        <button id="mkt-btn-female" onclick="saMarketingSetGender('female')"
+          style="background:#f8fafc;color:#475569;border:1px solid #e2e8f0;border-radius:0.6rem;padding:0.35rem 1rem;font-size:0.78rem;font-weight:700;cursor:pointer;font-family:Rubik,sans-serif;transition:all 0.15s;">
+          <i class="fa-solid fa-person-dress ml-1"></i>נקבה
+        </button>
+      </div>
+
+      <!-- סרגל כלים ווצאפ -->
+      <div class="flex items-center gap-1.5 mb-2 flex-wrap">
+        <button onclick="saMarketingApplyFormat('bold')" title="מודגש (*text*)"
+          class="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-black transition border border-slate-200">
+          <b>B</b>
+        </button>
+        <button onclick="saMarketingApplyFormat('italic')" title="נטוי (_text_)"
+          class="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs transition border border-slate-200">
+          <i>I</i>
+        </button>
+        <button onclick="saMarketingApplyFormat('strike')" title="קו חוצה (~text~)"
+          class="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs transition border border-slate-200">
+          <s>S</s>
+        </button>
+        <div class="relative">
+          <button onclick="saMarketingToggleEmoji()" title="אמוג׳י"
+            class="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs transition border border-slate-200">
+            😊
+          </button>
+          <div id="mkt-emoji-picker" class="hidden absolute top-9 right-0 bg-white border border-slate-200 rounded-2xl shadow-xl p-3 z-50 w-64">
+            <div class="grid grid-cols-8 gap-1">
+              <?php /* emojis rendered by JS */ ?>
+            </div>
+            <div id="mkt-emoji-grid" class="grid grid-cols-8 gap-1 text-lg"></div>
+          </div>
+        </div>
+        <span class="text-slate-300 mx-1">|</span>
+        <button onclick="saMarketingWaSend()" title="שלח בווצאפ"
+          class="px-4 py-1.5 rounded-lg bg-green-500 hover:bg-green-600 text-white text-xs font-bold transition flex items-center gap-1.5 shadow-sm">
+          <i class="fa-brands fa-whatsapp"></i> שלח בווצאפ
+        </button>
+      </div>
+
+      <!-- טקסט זכר -->
+      <textarea id="mkt-body-male" rows="8"
+        class="modern-input resize-none font-mono text-sm leading-relaxed"
+        style="direction:rtl"
+        placeholder="כתבו את גוף ההודעה לנמען זכר...&#10;&#10;לעיצוב ווצאפ:&#10;*מודגש* | _נטוי_ | ~קו חוצה~"></textarea>
+
+      <!-- טקסט נקבה (מוסתר כברירת מחדל) -->
+      <textarea id="mkt-body-female" rows="8"
+        class="modern-input resize-none font-mono text-sm leading-relaxed hidden"
+        style="direction:rtl"
+        placeholder="כתבו את גוף ההודעה לנמענת נקבה..."></textarea>
+    </div>
+
+    <!-- תמונות -->
+    <div>
+      <label class="text-xs font-bold text-slate-500 block mb-2">
+        תמונות <span class="text-slate-400 font-normal">(עד 5)</span>
+      </label>
+      <div id="mkt-images-preview" class="flex flex-wrap gap-3 mb-3 items-center">
+        <span class="text-slate-400 text-xs">אין תמונות</span>
+      </div>
+      <label class="inline-flex items-center gap-2 cursor-pointer bg-slate-50 hover:bg-slate-100 border border-slate-200 border-dashed text-slate-500 text-sm font-medium px-4 py-2 rounded-xl transition">
+        <i class="fa-solid fa-upload text-indigo-400"></i> העלה תמונה
+        <input type="file" accept="image/*" class="hidden" onchange="saMarketingUploadImage(this)">
+      </label>
+    </div>
+
+    <!-- כפתורי שמירה -->
+    <div class="flex items-center gap-3 pt-2 border-t border-slate-100 flex-wrap">
+      <button onclick="saMarketingSave()"
+        class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold px-6 py-2.5 rounded-xl flex items-center gap-2 transition shadow-sm shadow-indigo-600/20">
+        <i class="fa-solid fa-floppy-disk"></i> שמור קמפיין
+      </button>
+      <button onclick="saMarketingCloseEditor()"
+        class="bg-slate-100 hover:bg-slate-200 text-slate-600 text-sm font-medium px-5 py-2.5 rounded-xl transition">
+        ביטול
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+// אתחול גריד אמוג'י בעת טעינת הדף
+(function() {
+  const EMOJIS = ['😀','😊','😍','🎉','🔥','💪','✅','👋','🙏','💯','⭐','🎁','💎','🚀','❤️','💚','📱','📢','🛒','🏷️','💅','👗','🌸','✨','🎶','🍕','☕','🌟','💡','📅','🎯','🏆','👍','🤩','😎','🌺','💐','🍀','🦋','🌈'];
+  const grid = document.getElementById('mkt-emoji-grid');
+  if (grid) {
+    grid.innerHTML = EMOJIS.map(e => `<button onclick="saMarketingInsertEmoji('${e}')" class="text-xl hover:scale-125 transition-transform w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100">${e}</button>`).join('');
+  }
+})();
+</script>
 </body>
 </html>
