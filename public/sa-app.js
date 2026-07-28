@@ -11009,13 +11009,13 @@ window.saMarketingRenderList = function(campaigns) {
     const list = document.getElementById('sa-marketing-list');
     if (!list) return;
     if (!campaigns.length) {
-        list.innerHTML = '<div class="text-center text-slate-400 py-12"><i class="fa-solid fa-inbox text-3xl mb-3 block opacity-30"></i>אין קמפיינים עדיין. לחצו "קמפיין חדש" כדי להתחיל.</div>';
+        list.innerHTML = '<div class="text-center text-slate-400 py-12 text-3xl mb-3">📭<br><span class="text-sm">אין קמפיינים עדיין. לחצו "קמפיין חדש" כדי להתחיל.</span></div>';
         return;
     }
     list.innerHTML = campaigns.map(c => {
         const date = c.updated_at ? new Date(c.updated_at).toLocaleDateString('he-IL') : '';
         const sector = c.sector ? `<span class="bg-indigo-50 text-indigo-700 text-[10px] font-bold px-2 py-0.5 rounded-full border border-indigo-100">${c.sector}</span>` : '';
-        const imgs = (c.images||[]).length ? `<span class="text-slate-400 text-xs"><i class="fa-solid fa-image mr-0.5"></i>${c.images.length}</span>` : '';
+        const imgs = (c.images||[]).length ? `<span class="text-slate-400 text-xs">🖼 ${c.images.length}</span>` : '';
         return `<div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 flex items-start justify-between gap-3 hover:shadow-md transition">
           <div class="flex-1 min-w-0">
             <div class="font-bold text-slate-800 text-sm mb-0.5 truncate">${c.title}</div>
@@ -11023,9 +11023,9 @@ window.saMarketingRenderList = function(campaigns) {
             <div class="flex items-center gap-2 flex-wrap">${sector}${imgs}<span class="text-slate-400 text-[10px]">${date}</span></div>
           </div>
           <div class="flex items-center gap-1.5 flex-shrink-0">
-            <button onclick="saMarketingOpenEditor(${c.id})" title="עריכה" class="w-8 h-8 rounded-xl bg-slate-50 hover:bg-indigo-50 hover:text-indigo-600 text-slate-500 flex items-center justify-center text-sm transition"><i class="fa-solid fa-pen"></i></button>
-            <button onclick="saMarketingDuplicate(${c.id})" title="שכפל" class="w-8 h-8 rounded-xl bg-slate-50 hover:bg-amber-50 hover:text-amber-600 text-slate-500 flex items-center justify-center text-sm transition"><i class="fa-solid fa-copy"></i></button>
-            <button onclick="saMarketingDelete(${c.id})" title="מחק" class="w-8 h-8 rounded-xl bg-slate-50 hover:bg-red-50 hover:text-red-600 text-slate-500 flex items-center justify-center text-sm transition"><i class="fa-solid fa-trash"></i></button>
+            <button onclick="saMarketingOpenEditor(${c.id})" title="עריכה" class="w-8 h-8 rounded-xl bg-slate-50 hover:bg-indigo-50 hover:text-indigo-600 text-slate-500 flex items-center justify-center text-sm transition">✏️</button>
+            <button onclick="saMarketingDuplicate(${c.id})" title="שכפל" class="w-8 h-8 rounded-xl bg-slate-50 hover:bg-amber-50 hover:text-amber-600 text-slate-500 flex items-center justify-center text-sm transition">📋</button>
+            <button onclick="saMarketingDelete(${c.id})" title="מחק" class="w-8 h-8 rounded-xl bg-slate-50 hover:bg-red-50 hover:text-red-600 text-slate-500 flex items-center justify-center text-sm transition">🗑</button>
           </div>
         </div>`;
     }).join('');
@@ -11167,9 +11167,34 @@ window.saMarketingDuplicate = async function(id) {
 
 window.saMarketingWaSend = function() {
     const ta = _mktActiveTextarea();
-    const text = ta ? ta.value.trim() : '';
-    if (!text) { showToast('error', 'אין טקסט לשליחה'); return; }
-    window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank');
+    const body = ta ? ta.value.trim() : '';
+    if (!body) { showToast('error', 'אין טקסט לשליחה'); return; }
+    const title = document.getElementById('mkt-title')?.value.trim() || '';
+    const subtitle = document.getElementById('mkt-subtitle')?.value.trim() || '';
+    let fullText = '';
+    if (title) fullText += `*${title}*\n`;
+    if (subtitle) fullText += `_${subtitle}_\n`;
+    if (title || subtitle) fullText += '\n';
+    fullText += body;
+    if (_mktImages.length) {
+        fullText += `\n\n📎 *${_mktImages.length} תמונות מצורפות — יש לשלוח בנפרד*`;
+    }
+    if (_mktImages.length) {
+        const modal = document.createElement('div');
+        modal.className = 'fixed inset-0 bg-black/60 flex items-center justify-center z-50';
+        modal.innerHTML = `<div class="bg-white rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl">
+            <h3 class="font-bold text-slate-800 text-lg mb-2 text-right">📤 שליחה לווצאפ</h3>
+            <p class="text-sm text-slate-600 mb-4 text-right">הקמפיין כולל ${_mktImages.length} תמונות. ווצאפ לא מאפשר שליחת תמונות בקישור — שמור/העתק אותן לפני השליחה.</p>
+            <div class="flex flex-wrap gap-2 mb-4 justify-center">${_mktImages.map((src,i)=>`<img src="${src}" class="w-16 h-16 object-cover rounded-xl border border-slate-200">`).join('')}</div>
+            <div class="flex gap-2">
+                <button onclick="this.closest('.fixed').remove()" class="flex-1 px-4 py-2 bg-slate-100 text-slate-700 rounded-xl text-sm font-medium hover:bg-slate-200 transition">ביטול</button>
+                <button onclick="window.open('https://wa.me/?text='+encodeURIComponent(${JSON.stringify(fullText)}), '_blank'); this.closest('.fixed').remove();" class="flex-1 px-4 py-2 bg-green-500 text-white rounded-xl text-sm font-medium hover:bg-green-600 transition">📲 פתח ווצאפ</button>
+            </div>
+        </div>`;
+        document.body.appendChild(modal);
+    } else {
+        window.open('https://wa.me/?text=' + encodeURIComponent(fullText), '_blank');
+    }
 };
 
 window.saMarketingUploadImage = async function(input) {
