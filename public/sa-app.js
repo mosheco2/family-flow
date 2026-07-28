@@ -11165,7 +11165,7 @@ window.saMarketingDuplicate = async function(id) {
     _mktCurrentId = null; // force POST
 };
 
-window.saMarketingWaSend = function() {
+window.saMarketingWaSend = async function() {
     const ta = _mktActiveTextarea();
     const body = ta ? ta.value.trim() : '';
     if (!body) { showToast('error', 'אין טקסט לשליחה'); return; }
@@ -11176,25 +11176,30 @@ window.saMarketingWaSend = function() {
     if (subtitle) fullText += `_${subtitle}_\n`;
     if (title || subtitle) fullText += '\n';
     fullText += body;
-    if (_mktImages.length) {
-        fullText += `\n\n📎 *${_mktImages.length} תמונות מצורפות — יש לשלוח בנפרד*`;
+
+    if (_mktImages.length && navigator.canShare) {
+        try {
+            const files = _mktImages.map((dataUrl, i) => {
+                const [meta, b64] = dataUrl.split(',');
+                const mime = meta.match(/:(.*?);/)[1];
+                const ext = mime.split('/')[1] || 'jpg';
+                const bytes = atob(b64);
+                const arr = new Uint8Array(bytes.length);
+                for (let j = 0; j < bytes.length; j++) arr[j] = bytes.charCodeAt(j);
+                return new File([arr], `image${i + 1}.${ext}`, { type: mime });
+            });
+            const shareData = { text: fullText, files };
+            if (navigator.canShare(shareData)) {
+                await navigator.share(shareData);
+                return;
+            }
+        } catch (e) {
+            if (e.name !== 'AbortError') console.warn('share failed', e);
+            else return;
+        }
     }
-    if (_mktImages.length) {
-        const modal = document.createElement('div');
-        modal.className = 'fixed inset-0 bg-black/60 flex items-center justify-center z-50';
-        modal.innerHTML = `<div class="bg-white rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl">
-            <h3 class="font-bold text-slate-800 text-lg mb-2 text-right">📤 שליחה לווצאפ</h3>
-            <p class="text-sm text-slate-600 mb-4 text-right">הקמפיין כולל ${_mktImages.length} תמונות. ווצאפ לא מאפשר שליחת תמונות בקישור — שמור/העתק אותן לפני השליחה.</p>
-            <div class="flex flex-wrap gap-2 mb-4 justify-center">${_mktImages.map((src,i)=>`<img src="${src}" class="w-16 h-16 object-cover rounded-xl border border-slate-200">`).join('')}</div>
-            <div class="flex gap-2">
-                <button onclick="this.closest('.fixed').remove()" class="flex-1 px-4 py-2 bg-slate-100 text-slate-700 rounded-xl text-sm font-medium hover:bg-slate-200 transition">ביטול</button>
-                <button onclick="window.open('https://wa.me/?text='+encodeURIComponent(${JSON.stringify(fullText)}), '_blank'); this.closest('.fixed').remove();" class="flex-1 px-4 py-2 bg-green-500 text-white rounded-xl text-sm font-medium hover:bg-green-600 transition">📲 פתח ווצאפ</button>
-            </div>
-        </div>`;
-        document.body.appendChild(modal);
-    } else {
-        window.open('https://wa.me/?text=' + encodeURIComponent(fullText), '_blank');
-    }
+    // fallback: text only via wa.me
+    window.open('https://wa.me/?text=' + encodeURIComponent(fullText), '_blank');
 };
 
 window.saMarketingUploadImage = async function(input) {
