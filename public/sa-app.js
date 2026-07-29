@@ -11204,7 +11204,7 @@ window.saMarketingWaSend = async function() {
 
 window.saMarketingUploadImage = async function(input) {
     if (!input.files || !input.files.length) return;
-    if (_mktImages.length >= 5) { showToast('error', 'ניתן להעלות עד 5 תמונות'); return; }
+    if (_mktImages.length >= 10) { showToast('error', 'ניתן להעלות עד 10 תמונות'); return; }
     const file = input.files[0];
     const reader = new FileReader();
     reader.onload = function(e) {

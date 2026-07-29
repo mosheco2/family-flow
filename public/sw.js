@@ -1,4 +1,4 @@
-const CACHE_NAME = 'family-flow-v105';
+const CACHE_NAME = 'family-flow-v106';
 const STATIC_ASSETS = [
   '/index.html', '/app.js', '/business.html', '/business-app.js',
   '/manifest.json', '/manifest-business.json', '/favicon.png',
