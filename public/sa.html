@@ -3369,15 +3369,22 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                 </div>
 
                 <!-- תמונות -->
+                <!-- תמונות לפי סלייד -->
+                <div>
+                  <label class="text-xs font-bold text-slate-500 block mb-1">תמונות לכל סלייד בדף הנחיתה</label>
+                  <p class="text-[11px] text-slate-400 mb-3">שייך תמונה לכל שלב בהצגה — תמונה מתאימה לכותרת הסלייד תחזק את המסר</p>
+                  <div id="mkt-slide-images-grid" class="grid grid-cols-3 gap-3 mb-4"></div>
+                </div>
+                <!-- תמונות ווצאפ -->
                 <div>
                   <label class="text-xs font-bold text-slate-500 block mb-2">
-                    תמונות <span class="text-slate-400 font-normal">(עד 10)</span>
+                    תמונות לשליחה בווצאפ <span class="text-slate-400 font-normal">(עד 10)</span>
                   </label>
                   <div id="mkt-images-preview" class="flex flex-wrap gap-3 mb-3 items-center">
                     <span class="text-slate-400 text-xs">אין תמונות</span>
                   </div>
                   <label class="inline-flex items-center gap-2 cursor-pointer bg-slate-50 hover:bg-slate-100 border border-slate-200 border-dashed text-slate-500 text-sm font-medium px-4 py-2 rounded-xl transition">
-                    <i class="fa-solid fa-upload text-indigo-400"></i> העלה תמונה
+                    📤 העלה תמונה לווצאפ
                     <input type="file" accept="image/*" class="hidden" onchange="saMarketingUploadImage(this)">
                   </label>
                 </div>
@@ -4813,16 +4820,23 @@ async function bizImgDelete(slot) {
         placeholder="כתבו את גוף ההודעה לנמענת נקבה..."></textarea>
     </div>
 
-    <!-- תמונות -->
+    <!-- תמונות לפי סלייד -->
+    <div>
+      <label class="text-xs font-bold text-slate-500 block mb-1">תמונות לכל סלייד בדף הנחיתה</label>
+      <p class="text-[11px] text-slate-400 mb-3">שייך תמונה לכל שלב בהצגה — תמונה מתאימה לכותרת הסלייד תחזק את המסר</p>
+      <div id="mkt-slide-images-grid" class="grid grid-cols-3 gap-3 mb-4"></div>
+    </div>
+
+    <!-- תמונות כלליות לשליחה בווצאפ -->
     <div>
       <label class="text-xs font-bold text-slate-500 block mb-2">
-        תמונות <span class="text-slate-400 font-normal">(עד 10)</span>
+        תמונות לשליחה בווצאפ <span class="text-slate-400 font-normal">(עד 10)</span>
       </label>
       <div id="mkt-images-preview" class="flex flex-wrap gap-3 mb-3 items-center">
         <span class="text-slate-400 text-xs">אין תמונות</span>
       </div>
       <label class="inline-flex items-center gap-2 cursor-pointer bg-slate-50 hover:bg-slate-100 border border-slate-200 border-dashed text-slate-500 text-sm font-medium px-4 py-2 rounded-xl transition">
-        <i class="fa-solid fa-upload text-indigo-400"></i> העלה תמונה
+        📤 העלה תמונה לווצאפ
         <input type="file" accept="image/*" class="hidden" onchange="saMarketingUploadImage(this)">
       </label>
     </div>

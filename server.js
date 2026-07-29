@@ -24203,9 +24203,11 @@ app.get('/api/community/feed/search', async (req, res) => {
     body_female TEXT,
     sector TEXT,
     images JSONB DEFAULT '[]',
+    slide_images JSONB DEFAULT '{}',
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
   )`); } catch(e) {}
+  try { await pool.query(`ALTER TABLE marketing_campaigns ADD COLUMN IF NOT EXISTS slide_images JSONB DEFAULT '{}'`); } catch(e) {}
 
   // flow_config: referral_join if not exists
   try {
@@ -25420,12 +25422,12 @@ app.get('/api/sa/marketing-campaigns', verifySA, async (req, res) => {
 
 app.post('/api/sa/marketing-campaigns', verifySA, async (req, res) => {
     try {
-        const { title, subtitle, body_male, body_female, sector, images } = req.body;
+        const { title, subtitle, body_male, body_female, sector, images, slide_images } = req.body;
         if (!title) return res.status(400).json({ error: 'title required' });
         const r = await pool.query(
-            `INSERT INTO marketing_campaigns (title, subtitle, body_male, body_female, sector, images)
-             VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
-            [title, subtitle||null, body_male||null, body_female||null, sector||null, JSON.stringify(images||[])]
+            `INSERT INTO marketing_campaigns (title, subtitle, body_male, body_female, sector, images, slide_images)
+             VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+            [title, subtitle||null, body_male||null, body_female||null, sector||null, JSON.stringify(images||[]), JSON.stringify(slide_images||{})]
         );
         res.json({ success: true, campaign: r.rows[0] });
     } catch(e) { res.status(500).json({ error: e.message }); }
@@ -25433,11 +25435,11 @@ app.post('/api/sa/marketing-campaigns', verifySA, async (req, res) => {
 
 app.put('/api/sa/marketing-campaigns/:id', verifySA, async (req, res) => {
     try {
-        const { title, subtitle, body_male, body_female, sector, images } = req.body;
+        const { title, subtitle, body_male, body_female, sector, images, slide_images } = req.body;
         const r = await pool.query(
-            `UPDATE marketing_campaigns SET title=$1, subtitle=$2, body_male=$3, body_female=$4, sector=$5, images=$6, updated_at=NOW()
-             WHERE id=$7 RETURNING *`,
-            [title, subtitle||null, body_male||null, body_female||null, sector||null, JSON.stringify(images||[]), req.params.id]
+            `UPDATE marketing_campaigns SET title=$1, subtitle=$2, body_male=$3, body_female=$4, sector=$5, images=$6, slide_images=$7, updated_at=NOW()
+             WHERE id=$8 RETURNING *`,
+            [title, subtitle||null, body_male||null, body_female||null, sector||null, JSON.stringify(images||[]), JSON.stringify(slide_images||{}), req.params.id]
         );
         if (!r.rows[0]) return res.status(404).json({ error: 'not found' });
         res.json({ success: true, campaign: r.rows[0] });

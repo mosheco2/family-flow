@@ -10990,7 +10990,20 @@ async function _lgNextQuestion(gameId) {
 let _mktCampaigns = [];
 let _mktCurrentId = null;
 let _mktImages = [];
+let _mktSlideImages = {}; // { hero: base64, pain: base64, ... }
 let _mktActiveGender = 'male'; // 'male' | 'female'
+
+const MKT_SLIDE_DEFS = [
+  { key: 'hero',     icon: '🏠', label: 'Hero — דף כניסה ראשי',          sub: 'חזון. שליטה.' },
+  { key: 'pain',     icon: '😫', label: 'כאב — הבעיות שאתם מכירים',      sub: 'עושים סוף לכאוס התפעולי' },
+  { key: 'solution', icon: '💡', label: 'פתרון — מגדל פיקוח אחד',         sub: 'מגדל פיקוח אחד לכל העסק' },
+  { key: 'features', icon: '⭐', label: 'פיצ׳רים — מה תקבלו',             sub: 'בדיוק למה שאתם צריכים' },
+  { key: 'auto',     icon: '🤖', label: 'אוטומציה — המערכת עובדת לבד',    sub: 'המערכת עובדת — גם כשאתם לא' },
+  { key: 'radar',    icon: '🎯', label: 'הרדאר — חיבור לקהילות',          sub: 'חיבור לקהילות מרובות' },
+  { key: 'winwin',   icon: '🤝', label: 'כלכלה מעגלית — כולם מרוויחים',  sub: 'כלכלה מעגלית שבה כולם מרוויחים' },
+  { key: 'proof',    icon: '🌟', label: 'הוכחה — כבר איתנו בפיילוט',      sub: 'עדויות מלקוחות מרוצים' },
+  { key: 'cta',      icon: '🚀', label: 'CTA — הצטרפות לפיילוט',          sub: 'העסק בכף ידך. הצטרפו לפיילוט' },
+];
 
 window.saMarketingInit = async function() {
     const list = document.getElementById('sa-marketing-list');
@@ -11042,6 +11055,7 @@ window.saMarketingOpenEditor = function(idOrData) {
     }
     _mktCurrentId = campaign ? campaign.id : null;
     _mktImages = campaign ? [...(campaign.images || [])] : [];
+    _mktSlideImages = campaign ? {...(campaign.slide_images || {})} : {};
     _mktActiveGender = 'male';
     document.getElementById('mkt-title').value = campaign ? (campaign.title || '') : '';
     document.getElementById('mkt-subtitle').value = campaign ? (campaign.subtitle || '') : '';
@@ -11050,6 +11064,7 @@ window.saMarketingOpenEditor = function(idOrData) {
     document.getElementById('mkt-body-female').value = campaign ? (campaign.body_female || '') : '';
     saMarketingSetGender('male');
     saMarketingRenderImages();
+    saMarketingRenderSlideImages();
     editor.classList.remove('hidden');
     editor.scrollIntoView({ behavior: 'smooth', block: 'start' });
 };
@@ -11059,6 +11074,7 @@ window.saMarketingCloseEditor = function() {
     if (editor) editor.classList.add('hidden');
     _mktCurrentId = null;
     _mktImages = [];
+    _mktSlideImages = {};
 };
 
 window.saMarketingSetGender = function(gender) {
@@ -11124,7 +11140,8 @@ window.saMarketingSave = async function() {
         sector: document.getElementById('mkt-sector')?.value.trim() || null,
         body_male: document.getElementById('mkt-body-male')?.value || null,
         body_female: document.getElementById('mkt-body-female')?.value || null,
-        images: _mktImages
+        images: _mktImages,
+        slide_images: _mktSlideImages
     };
     try {
         const url = _mktCurrentId
@@ -11229,6 +11246,47 @@ window.saMarketingRenderImages = function() {
     }
     container.innerHTML = _mktImages.map((src, i) =>
         `<div class="relative inline-block"><img src="${src}" class="w-20 h-20 object-cover rounded-xl border border-slate-200 shadow-sm">
-        <button onclick="saMarketingRemoveImage(${i})" class="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center hover:bg-red-600 transition"><i class="fa-solid fa-xmark"></i></button></div>`
+        <button onclick="saMarketingRemoveImage(${i})" class="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center hover:bg-red-600 transition">✕</button></div>`
     ).join('');
+};
+
+window.saMarketingRenderSlideImages = function() {
+    const container = document.getElementById('mkt-slide-images-grid');
+    if (!container) return;
+    container.innerHTML = MKT_SLIDE_DEFS.map(s => {
+        const src = _mktSlideImages[s.key] || '';
+        return `<div class="bg-slate-50 border border-slate-200 rounded-xl p-3 flex flex-col gap-2">
+          <div class="flex items-center gap-2">
+            <span class="text-lg">${s.icon}</span>
+            <div>
+              <div class="text-xs font-bold text-slate-700 leading-tight">${s.label}</div>
+              <div class="text-[10px] text-slate-400">${s.sub}</div>
+            </div>
+          </div>
+          ${src
+            ? `<div class="relative"><img src="${src}" class="w-full h-24 object-cover rounded-lg border border-slate-200">
+               <button onclick="saMarketingRemoveSlideImage('${s.key}')" class="absolute top-1 left-1 w-5 h-5 bg-red-500 text-white rounded-full text-[10px] flex items-center justify-center hover:bg-red-600 transition">✕</button></div>`
+            : `<label class="flex flex-col items-center justify-center h-24 border-2 border-dashed border-slate-300 rounded-lg cursor-pointer hover:border-indigo-400 hover:bg-indigo-50 transition text-slate-400 text-xs gap-1">
+               <span class="text-xl">📷</span><span>העלה תמונה</span>
+               <input type="file" accept="image/*" class="hidden" onchange="saMarketingUploadSlideImage(this,'${s.key}')"></label>`
+          }
+        </div>`;
+    }).join('');
+};
+
+window.saMarketingUploadSlideImage = function(input, slotKey) {
+    if (!input.files || !input.files.length) return;
+    const file = input.files[0];
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        _mktSlideImages[slotKey] = e.target.result;
+        saMarketingRenderSlideImages();
+    };
+    reader.readAsDataURL(file);
+    input.value = '';
+};
+
+window.saMarketingRemoveSlideImage = function(slotKey) {
+    delete _mktSlideImages[slotKey];
+    saMarketingRenderSlideImages();
 };
