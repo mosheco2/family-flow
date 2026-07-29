@@ -751,6 +751,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const saved = sessionStorage.getItem('bizType');
   if (saved && BIZ_DATA[saved]) {
     applyBiz(saved);
+    loadCampaignForBiz(saved);
     goToSlide(1);
   } else {
     goToSlide(0);
@@ -834,6 +835,8 @@ function goToSlide(n) {
 function nextSlide() { if (current < TOTAL-1) goToSlide(current+1); }
 function prevSlide() { if (current > 1) goToSlide(current-1); }
 
+const SLIDE_SLOTS = ['hero','pain','solution','features','auto','radar','winwin','proof','cta'];
+
 function applyBiz(type) {
   selectedBiz = type;
   const d = BIZ_DATA[type];
@@ -846,10 +849,54 @@ function applyBiz(type) {
     `<div class="feature-card"><div class="fc-icon">${f.i}</div><div class="fc-title">${f.t}</div><div class="fc-desc">${f.d}</div></div>`).join('');
 }
 
+function applyCampaign(c) {
+  if (!c) return;
+  const images = c.images || [];
+  // תמונות — מחלק לפי סליידים בסדר
+  images.forEach((src, i) => {
+    const slot = SLIDE_SLOTS[i];
+    if (!slot) return;
+    const wrap = document.getElementById('img-' + slot);
+    const img  = document.getElementById('img-' + slot + '-tag');
+    if (!wrap || !img) return;
+    img.src = src;
+    wrap.style.display = 'flex';
+  });
+
+  // טקסט — מוסיף badge + quote box בסלייד hero
+  const heroEl = document.getElementById('slide-hero');
+  const existing = heroEl.querySelector('.campaign-box');
+  if (existing) existing.remove();
+
+  const parts = [];
+  if (c.title)    parts.push(`<div style="font-size:.95rem;font-weight:900;color:var(--accent);margin-bottom:.2rem">${c.title}</div>`);
+  if (c.subtitle) parts.push(`<div style="font-size:.78rem;color:var(--muted);margin-bottom:.35rem">${c.subtitle}</div>`);
+  const body = (c.body_male || c.body_female || '').replace(/\*([^*]+)\*/g,'<strong>$1</strong>').replace(/_([^_]+)_/g,'<em>$1</em>').replace(/~([^~]+)~/g,'<s>$1</s>').replace(/\n/g,'<br>');
+  if (body) parts.push(`<div style="font-size:.75rem;color:var(--text);line-height:1.6;white-space:pre-wrap">${body}</div>`);
+
+  if (!parts.length) return;
+
+  const box = document.createElement('div');
+  box.className = 'campaign-box';
+  box.style.cssText = 'width:100%;max-width:520px;background:rgba(0,212,170,.07);border:1px solid rgba(0,212,170,.25);border-radius:1rem;padding:.75rem 1rem;margin-top:.6rem;text-align:right;position:relative;z-index:1';
+  box.innerHTML = parts.join('');
+
+  const inner = heroEl.querySelector('[style*="text-align:center"]') || heroEl.querySelector('div');
+  if (inner) inner.appendChild(box); else heroEl.appendChild(box);
+}
+
+function loadCampaignForBiz(type) {
+  fetch('/api/public/campaign?biz=' + encodeURIComponent(type))
+    .then(r => r.ok ? r.json() : {})
+    .then(d => { if (d.campaign) applyCampaign(d.campaign); })
+    .catch(() => {});
+}
+
 function selectBiz(type) {
   if (!BIZ_DATA[type]) return;
   sessionStorage.setItem('bizType', type);
   applyBiz(type);
+  loadCampaignForBiz(type);
   goToSlide(1);
 }
 </script>

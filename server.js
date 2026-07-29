@@ -25385,6 +25385,30 @@ app.listen(port, () => {
     }, 5000);
 });
 
+// ===== Public — קמפיין שיווקי לפי סוג עסק =====
+const BIZ_SECTOR_KEYWORDS = {
+  restaurant: ['restaurant','מסעדה','מסעדות','אוכל','food'],
+  beauty:     ['beauty','יופי','קוסמטיקה','אסטטיקה','סלון'],
+  sport:      ['sport','ספורט','חוגים','כושר','gym'],
+  maintenance:['maintenance','תיקונים','שירותים','technician','אינסטלציה','חשמל'],
+  professional:['professional','ייעוץ','מומחים','עורך דין','רואה חשבון'],
+  logistics:  ['logistics','לוגיסטיקה','משלוחים','הובלה']
+};
+app.get('/api/public/campaign', async (req, res) => {
+  try {
+    const biz = (req.query.biz || '').toLowerCase().trim();
+    const keywords = BIZ_SECTOR_KEYWORDS[biz] || [biz];
+    const conditions = keywords.map((_, i) => `LOWER(sector) ILIKE $${i+1}`).join(' OR ');
+    const params = keywords.map(k => `%${k}%`);
+    const r = await pool.query(
+      `SELECT id, title, subtitle, body_male, body_female, sector, images FROM marketing_campaigns
+       WHERE ${conditions} ORDER BY updated_at DESC LIMIT 1`,
+      params
+    );
+    res.json({ success: true, campaign: r.rows[0] || null });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // ===== SA — ניהול תבניות קמפיינים שיווקיים (WhatsApp) =====
 
 app.get('/api/sa/marketing-campaigns', verifySA, async (req, res) => {
