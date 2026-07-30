@@ -11301,27 +11301,70 @@ window.saMarketingRemoveSlideImage = function(slotKey) {
 // ═══════════════════════════════════════════════════
 // WhatsApp — SA Hub
 // ═══════════════════════════════════════════════════
+const WA_TYPE_META = [
+    { key:'owner_checkin',   label:'שכחת שעון כניסה',    group:'👤 בעל העסק' },
+    { key:'owner_order',     label:'הזמנה חדשה',          group:'👤 בעל העסק' },
+    { key:'owner_task_due',  label:'משימה באיחור',         group:'👤 בעל העסק' },
+    { key:'owner_inventory', label:'מלאי נמוך',            group:'👤 בעל העסק' },
+    { key:'owner_plan',      label:'תכנון מחר (19:00)',    group:'👤 בעל העסק' },
+    { key:'employee_shift',  label:'תזכורת משמרת',         group:'👷 עובדים' },
+    { key:'employee_task',   label:'משימה חדשה שהוקצתה',  group:'👷 עובדים' },
+    { key:'employee_pay',    label:'עדכון תשלום שכר',      group:'👷 עובדים' },
+    { key:'customer_order',  label:'אישור קבלת הזמנה',    group:'🛍️ לקוחות' },
+    { key:'customer_ready',  label:'הזמנה מוכנה',          group:'🛍️ לקוחות' },
+    { key:'customer_promo',  label:'מבצע מיוחד',           group:'🛍️ לקוחות' },
+    { key:'customer_review', label:'בקשת דירוג',           group:'🛍️ לקוחות' },
+];
+
 async function loadSAWhatsAppHub() {
     const hub = document.getElementById('sa-whatsapp-hub');
     if (!hub) return;
     hub.innerHTML = `<div class="p-4 text-center text-slate-400"><i class="fa-solid fa-spinner fa-spin"></i> טוען...</div>`;
     try {
-        const [statsRes, logRes] = await Promise.all([
+        const [statsRes, logRes, defsRes, customRes] = await Promise.all([
             saFetch('/api/sa/whatsapp-stats'),
-            saFetch('/api/sa/whatsapp-log?limit=100')
+            saFetch('/api/sa/whatsapp-log?limit=100'),
+            saFetch('/api/sa/whatsapp-global-defaults'),
+            saFetch('/api/sa/whatsapp-customized')
         ]);
         const stats = statsRes;
         const log = logRes.log || [];
-        const typeLabels = {
-            missing_checkin: 'שכחת שעון', checkin_summary: 'סיכום נוכחות', new_order: 'הזמנה חדשה',
-            task_due: 'משימה באיחור', low_inventory: 'מלאי נמוך', plan_tomorrow: 'תכנון מחר',
-            order_received: 'אישור הזמנה', order_ready: 'הזמנה מוכנה'
-        };
+        const defs = defsRes.defaults || {};
+        const customized = customRes.customized || [];
+        const typeLabels = {};
+        WA_TYPE_META.forEach(t => { typeLabels[t.key] = t.label; typeLabels['missing_checkin'] = 'שכחת שעון'; typeLabels['new_order'] = 'הזמנה חדשה'; typeLabels['task_due'] = 'משימה באיחור'; typeLabels['low_inventory'] = 'מלאי נמוך'; typeLabels['plan_tomorrow'] = 'תכנון מחר'; typeLabels['order_received'] = 'אישור הזמנה'; typeLabels['order_ready'] = 'הזמנה מוכנה'; typeLabels['checkin_summary'] = 'סיכום נוכחות'; });
+
+        // בנה שורות טבלת ברירות מחדל גלובליות
+        const groups = [...new Set(WA_TYPE_META.map(t=>t.group))];
+        let globalRows = '';
+        groups.forEach(g => {
+            globalRows += `<tr class="bg-slate-50"><td colspan="2" class="px-3 py-1.5 text-[11px] font-bold text-slate-500 uppercase tracking-wide">${g}</td></tr>`;
+            WA_TYPE_META.filter(t=>t.group===g).forEach(t => {
+                const on = defs[t.key] !== false;
+                globalRows += `<tr class="border-t border-slate-100 hover:bg-slate-50">
+                    <td class="px-3 py-2 text-sm text-slate-700">${t.label}</td>
+                    <td class="px-3 py-2 text-left">
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" class="sr-only peer wa-global-toggle" data-key="${t.key}" ${on?'checked':''}>
+                            <div class="w-9 h-5 bg-slate-200 rounded-full peer peer-checked:bg-[#25D366] after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-4"></div>
+                        </label>
+                    </td>
+                </tr>`;
+            });
+        });
+
+        // עסקים עם התאמות
+        const customBadges = customized.map(c => `
+            <div class="flex items-center justify-between p-2.5 rounded-xl border border-amber-200 bg-amber-50">
+                <span class="text-sm font-bold text-slate-700">${c.name}</span>
+                <button onclick="openSAWhatsAppModal(${c.group_id},'${c.name.replace(/'/g,"\\'")}','overrides')" class="text-xs text-amber-700 font-bold bg-amber-100 px-2 py-1 rounded-lg hover:bg-amber-200 transition">⚙️ ראה עקיפות</button>
+            </div>`).join('');
+
         hub.innerHTML = `
         <div class="p-4 max-w-4xl mx-auto space-y-5">
             <div class="flex items-center gap-3 mb-2">
                 <div class="w-10 h-10 bg-[#25D366]/10 rounded-xl flex items-center justify-center text-[#25D366] text-xl"><i class="fa-brands fa-whatsapp"></i></div>
-                <div><h2 class="font-black text-slate-800 text-lg">מרכז WhatsApp — סופר אדמין</h2><p class="text-xs text-slate-500">מעקב וניהול כלל הודעות WhatsApp במערכת</p></div>
+                <div><h2 class="font-black text-slate-800 text-lg">מרכז WhatsApp — סופר אדמין</h2><p class="text-xs text-slate-500">ניהול גלובלי + התאמות לעסקים ספציפיים</p></div>
             </div>
 
             <!-- כרטיסי סטטיסטיקה -->
@@ -11339,12 +11382,39 @@ async function loadSAWhatsAppHub() {
                     <p class="text-xs text-slate-500 mt-1">נשלחו בהצלחה</p>
                 </div>
                 <div class="bg-white rounded-2xl border p-4 shadow-sm text-center">
-                    <p class="text-2xl font-black text-red-500">${(stats.byStatus||[]).find(s=>s.status==='error')?.cnt || 0}</p>
-                    <p class="text-xs text-slate-500 mt-1">שגיאות</p>
+                    <p class="text-2xl font-black text-amber-500">${customized.length}</p>
+                    <p class="text-xs text-slate-500 mt-1">עסקים עם התאמות</p>
                 </div>
             </div>
 
-            <!-- לוג מלא -->
+            <!-- ברירות מחדל גלובליות -->
+            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                <div class="p-4 border-b bg-slate-50 flex justify-between items-center">
+                    <div>
+                        <p class="font-bold text-slate-800">⚙️ ברירות מחדל גלובליות</p>
+                        <p class="text-xs text-slate-500 mt-0.5">חלות על כל העסקים שאין להם עקיפה ספציפית</p>
+                    </div>
+                    <button onclick="saveGlobalWADefaults()" class="bg-[#25D366] text-white text-xs font-bold px-4 py-2 rounded-xl hover:bg-[#1ebd58] transition">
+                        <i class="fa-solid fa-floppy-disk ml-1"></i> שמור
+                    </button>
+                </div>
+                <table class="w-full text-sm">
+                    <tbody>${globalRows}</tbody>
+                </table>
+            </div>
+
+            <!-- עסקים עם התאמות ספציפיות -->
+            ${customized.length > 0 ? `
+            <div class="bg-white rounded-2xl border border-amber-200 shadow-sm p-4">
+                <div class="flex items-center gap-2 mb-3">
+                    <span class="text-amber-500 text-lg">⚙️</span>
+                    <p class="font-bold text-slate-800">עסקים עם התאמות ספציפיות</p>
+                    <span class="bg-amber-100 text-amber-700 text-xs font-bold px-2 py-0.5 rounded-full">${customized.length}</span>
+                </div>
+                <div class="space-y-2">${customBadges}</div>
+            </div>` : ''}
+
+            <!-- לוג הודעות -->
             <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
                 <div class="p-4 border-b flex justify-between items-center">
                     <p class="font-bold text-slate-700">לוג הודעות אחרון</p>
@@ -11354,15 +11424,13 @@ async function loadSAWhatsAppHub() {
                 <table class="w-full text-xs">
                     <thead class="bg-slate-50"><tr class="text-slate-500">
                         <th class="text-right p-3">עסק</th><th class="text-right p-3">סוג הודעה</th>
-                        <th class="text-right p-3">נמען</th><th class="text-right p-3">טלפון</th>
-                        <th class="text-right p-3">סטטוס</th><th class="text-right p-3">זמן</th>
+                        <th class="text-right p-3">נמען</th><th class="text-right p-3">סטטוס</th><th class="text-right p-3">זמן</th>
                     </tr></thead>
                     <tbody>
                     ${log.map(l => `<tr class="border-t hover:bg-slate-50">
                         <td class="p-3 font-medium">${l.biz_name || '—'}</td>
                         <td class="p-3">${typeLabels[l.message_type] || l.message_type}</td>
-                        <td class="p-3 text-slate-600">${l.recipient_name || '—'}</td>
-                        <td class="p-3 font-mono text-slate-400">${l.recipient_phone || '—'}</td>
+                        <td class="p-3 text-slate-600">${l.recipient_name || l.recipient_phone || '—'}</td>
                         <td class="p-3"><span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${l.status==='sent'?'bg-green-100 text-green-700':l.status==='no_config'?'bg-amber-100 text-amber-700':'bg-red-100 text-red-700'}">${l.status==='sent'?'✓ נשלח':l.status==='no_config'?'⚙ אין הגדרה':'✗ שגיאה'}</span></td>
                         <td class="p-3 text-slate-400">${new Date(l.sent_at).toLocaleString('he-IL',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}</td>
                     </tr>`).join('')}
@@ -11374,54 +11442,142 @@ async function loadSAWhatsAppHub() {
     } catch(e) { hub.innerHTML = `<div class="p-4 text-red-500">שגיאה: ${e.message}</div>`; }
 }
 
-async function openSAWhatsAppModal(groupId, bizName) {
+async function saveGlobalWADefaults() {
+    const payload = {};
+    document.querySelectorAll('.wa-global-toggle').forEach(cb => { payload[cb.dataset.key] = cb.checked; });
     try {
-        const [statsRes, settingsRes] = await Promise.all([
+        const d = await saFetch('/api/sa/whatsapp-global-defaults', { method: 'PUT', body: JSON.stringify(payload) });
+        if (d.success) showToast('success', 'ברירות מחדל גלובליות נשמרו!');
+        else showToast('error', d.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+}
+
+async function openSAWhatsAppModal(groupId, bizName, tab) {
+    const modal = document.createElement('div');
+    modal.id = 'wa-modal-' + groupId;
+    modal.className = 'fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4';
+    modal.innerHTML = `<div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6">
+        <div class="flex justify-between items-start mb-4">
+            <div>
+                <h3 class="font-black text-slate-800"><i class="fa-brands fa-whatsapp text-[#25D366] ml-1"></i> ${bizName}</h3>
+                <p class="text-xs text-slate-500 mt-0.5">הגדרות WhatsApp לעסק זה</p>
+            </div>
+            <button onclick="document.getElementById('wa-modal-${groupId}').remove()" class="text-slate-400 hover:text-slate-700 text-xl">✕</button>
+        </div>
+        <div id="wa-modal-body-${groupId}" class="text-center py-6 text-slate-400"><i class="fa-solid fa-spinner fa-spin"></i></div>
+    </div>`;
+    document.body.appendChild(modal);
+    await _renderSAWhatsAppModalBody(groupId, tab || 'stats');
+}
+
+async function _renderSAWhatsAppModalBody(groupId, activeTab) {
+    const body = document.getElementById(`wa-modal-body-${groupId}`);
+    if (!body) return;
+    try {
+        const [statsRes, settingsRes, ovsRes] = await Promise.all([
             saFetch(`/api/sa/whatsapp-stats/${groupId}`),
-            saFetch(`/api/biz/whatsapp-settings/${groupId}`)
+            saFetch(`/api/biz/whatsapp-settings/${groupId}`),
+            saFetch(`/api/sa/whatsapp-overrides/${groupId}`)
         ]);
         const total = statsRes.total || 0;
         const byType = statsRes.byType || [];
         const enabled = settingsRes.settings?.enabled || false;
-        const typeLabels = {
-            missing_checkin:'שכחת שעון',checkin_summary:'סיכום נוכחות',new_order:'הזמנה חדשה',
-            task_due:'משימה באיחור',low_inventory:'מלאי נמוך',plan_tomorrow:'תכנון מחר',
-            order_received:'אישור הזמנה',order_ready:'הזמנה מוכנה'
-        };
-        const modal = document.createElement('div');
-        modal.className = 'fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4';
-        modal.innerHTML = `
-        <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
-            <div class="flex justify-between items-start mb-4">
-                <div>
-                    <h3 class="font-black text-slate-800">WhatsApp — ${bizName}</h3>
-                    <p class="text-xs text-slate-500 mt-1">📱 ${total} הודעות החודש</p>
+        const { defaults, overrides, effective } = ovsRes;
+        const hasOverrides = Object.keys(overrides||{}).some(k => overrides[k] !== null && overrides[k] !== undefined);
+
+        // בנה שורות override
+        const groups = [...new Set(WA_TYPE_META.map(t=>t.group))];
+        let ovRows = '';
+        groups.forEach(g => {
+            ovRows += `<tr class="bg-slate-50"><td colspan="3" class="px-3 py-1.5 text-[11px] font-bold text-slate-400 uppercase tracking-wide">${g}</td></tr>`;
+            WA_TYPE_META.filter(t=>t.group===g).forEach(t => {
+                const ov = overrides?.[`ov_${t.key}`];
+                const globalVal = defaults?.[t.key] !== false;
+                const effVal = effective?.[t.key] !== false;
+                const ovState = ov === null || ov === undefined ? 'inherit' : (ov ? 'force_on' : 'force_off');
+                ovRows += `<tr class="border-t border-slate-100 hover:bg-slate-50" id="wa-ov-row-${t.key}">
+                    <td class="px-3 py-2 text-sm text-slate-700">${t.label}</td>
+                    <td class="px-3 py-2 text-xs text-slate-400">גלובלי: <span class="${globalVal?'text-green-600':'text-red-400'} font-bold">${globalVal?'✓':'✗'}</span></td>
+                    <td class="px-3 py-2">
+                        <select class="wa-ov-select text-xs border border-slate-200 rounded-lg px-2 py-1 bg-white" data-key="${t.key}">
+                            <option value="inherit" ${ovState==='inherit'?'selected':''}>⟳ כמו גלובלי</option>
+                            <option value="force_on" ${ovState==='force_on'?'selected':''}>✅ כפה פתוח</option>
+                            <option value="force_off" ${ovState==='force_off'?'selected':''}>🚫 חסום</option>
+                        </select>
+                    </td>
+                </tr>`;
+            });
+        });
+
+        body.innerHTML = `
+            <!-- מתג הפעלה -->
+            <div class="flex items-center justify-between p-3 bg-slate-50 rounded-xl mb-4">
+                <span class="text-sm font-bold text-slate-700">מצב מערכת לעסק</span>
+                <div class="flex items-center gap-2">
+                    <span class="text-xs ${enabled?'text-green-600':'text-slate-400'} font-bold">${enabled?'פעיל':'כבוי'}</span>
+                    <button onclick="toggleSAWhatsApp(${groupId}, ${!enabled}, this)" class="${enabled?'bg-red-100 text-red-700':'bg-[#25D366] text-white'} text-xs font-bold px-3 py-1.5 rounded-lg transition">
+                        ${enabled?'כבה':'הפעל'}
+                    </button>
                 </div>
-                <button onclick="this.closest('.fixed').remove()" class="text-slate-400 hover:text-slate-700 text-xl">✕</button>
             </div>
-            <div class="flex items-center justify-between mb-4 p-3 bg-slate-50 rounded-xl">
-                <span class="text-sm font-bold text-slate-700">מצב מערכת</span>
-                <span class="px-3 py-1 rounded-full text-xs font-bold ${enabled?'bg-green-100 text-green-700':'bg-slate-200 text-slate-500'}">${enabled?'✓ פעיל':'כבוי'}</span>
+
+            <!-- סטטיסטיקות -->
+            <div class="flex gap-3 mb-4">
+                <div class="flex-1 bg-[#25D366]/10 rounded-xl p-3 text-center">
+                    <p class="text-xl font-black text-[#25D366]">${total}</p>
+                    <p class="text-[11px] text-slate-500">הודעות החודש</p>
+                </div>
+                ${byType.slice(0,3).map(t=>`<div class="flex-1 bg-slate-50 rounded-xl p-3 text-center"><p class="text-base font-black text-slate-700">${t.cnt}</p><p class="text-[10px] text-slate-400">${t.message_type}</p></div>`).join('')}
             </div>
-            <div class="space-y-2 mb-4">
-                ${byType.map(t=>`<div class="flex justify-between text-sm"><span class="text-slate-600">${typeLabels[t.message_type]||t.message_type}</span><span class="font-bold text-slate-800">${t.cnt}</span></div>`).join('')}
-                ${byType.length===0?'<p class="text-xs text-slate-400 text-center py-2">אין הודעות עדיין</p>':''}
+
+            <!-- עקיפות per-type -->
+            <div class="border border-slate-200 rounded-xl overflow-hidden mb-4">
+                <div class="p-3 bg-slate-50 border-b flex items-center gap-2">
+                    <span class="font-bold text-slate-700 text-sm">התאמות לעסק זה</span>
+                    ${hasOverrides ? '<span class="bg-amber-100 text-amber-700 text-[10px] font-bold px-2 py-0.5 rounded-full">⚙️ יש עקיפות</span>' : '<span class="text-[11px] text-slate-400">עוקב אחר הגלובלי</span>'}
+                </div>
+                <table class="w-full text-xs"><tbody>${ovRows}</tbody></table>
             </div>
+
             <div class="flex gap-2">
-                <button onclick="toggleSAWhatsApp(${groupId}, ${!enabled}, this)" class="flex-1 ${enabled?'bg-red-100 text-red-700':'bg-[#25D366] text-white'} font-bold py-2.5 rounded-xl text-sm transition">
-                    ${enabled?'⏸ כבה התראות':'▶ הפעל התראות'}
+                <button onclick="saveSAWhatsAppOverrides(${groupId})" class="flex-1 bg-indigo-600 text-white font-bold py-2.5 rounded-xl text-sm hover:bg-indigo-700 transition">
+                    <i class="fa-solid fa-floppy-disk ml-1"></i> שמור עקיפות
                 </button>
-                <button onclick="this.closest('.fixed').remove()" class="flex-1 bg-slate-100 text-slate-700 font-bold py-2.5 rounded-xl text-sm">סגור</button>
-            </div>
-        </div>`;
-        document.body.appendChild(modal);
-    } catch(e) { showToast('error', 'שגיאה בטעינה'); }
+                <button onclick="clearSAWhatsAppOverrides(${groupId})" class="bg-slate-100 text-slate-600 font-bold py-2.5 px-4 rounded-xl text-sm hover:bg-slate-200 transition" title="אפס הכל לגלובלי">
+                    <i class="fa-solid fa-rotate-left"></i>
+                </button>
+            </div>`;
+    } catch(e) { body.innerHTML = `<div class="text-red-500 text-sm">${e.message}</div>`; }
+}
+
+async function saveSAWhatsAppOverrides(groupId) {
+    const overrides = {};
+    document.querySelectorAll('.wa-ov-select').forEach(sel => {
+        const v = sel.value;
+        overrides[sel.dataset.key] = v === 'inherit' ? null : v === 'force_on';
+    });
+    try {
+        const d = await saFetch(`/api/sa/whatsapp-overrides/${groupId}`, { method: 'PUT', body: JSON.stringify({ overrides }) });
+        if (d.success) { showToast('success', 'עקיפות נשמרו!'); loadSAWhatsAppHub(); }
+        else showToast('error', d.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+}
+
+async function clearSAWhatsAppOverrides(groupId) {
+    if (!confirm('לאפס את כל ההתאמות של עסק זה ולחזור לברירת המחדל הגלובלית?')) return;
+    const overrides = {};
+    WA_TYPE_META.forEach(t => { overrides[t.key] = null; });
+    try {
+        const d = await saFetch(`/api/sa/whatsapp-overrides/${groupId}`, { method: 'PUT', body: JSON.stringify({ overrides }) });
+        if (d.success) { showToast('success', 'אופס לגלובלי!'); document.getElementById('wa-modal-' + groupId)?.remove(); loadSAWhatsAppHub(); }
+        else showToast('error', d.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
 }
 
 async function toggleSAWhatsApp(groupId, enable, btn) {
     try {
         const d = await saFetch(`/api/sa/whatsapp-settings/${groupId}`, { method: 'PATCH', body: JSON.stringify({ enabled: enable }) });
-        if (d.success) { showToast('success', enable ? 'הופעל!' : 'כובה!'); btn.closest('.fixed').remove(); }
+        if (d.success) { showToast('success', enable ? 'הופעל!' : 'כובה!'); btn.closest('.fixed')?.remove(); }
         else showToast('error', d.error || 'שגיאה');
     } catch(e) { showToast('error', 'שגיאת תקשורת'); }
 }

@@ -3079,7 +3079,29 @@ async function initDB() {
             );
             CREATE INDEX IF NOT EXISTS idx_whatsapp_log_group_sent ON whatsapp_log(group_id, sent_at DESC);
             CREATE INDEX IF NOT EXISTS idx_whatsapp_log_type_phone ON whatsapp_log(message_type, recipient_phone, sent_at DESC);
+            CREATE TABLE IF NOT EXISTS whatsapp_global_defaults (
+                id INTEGER PRIMARY KEY DEFAULT 1 CHECK (id=1),
+                owner_checkin BOOLEAN DEFAULT true,
+                owner_order BOOLEAN DEFAULT true,
+                owner_task_due BOOLEAN DEFAULT true,
+                owner_inventory BOOLEAN DEFAULT true,
+                owner_plan BOOLEAN DEFAULT true,
+                employee_shift BOOLEAN DEFAULT true,
+                employee_task BOOLEAN DEFAULT true,
+                employee_pay BOOLEAN DEFAULT true,
+                customer_order BOOLEAN DEFAULT true,
+                customer_ready BOOLEAN DEFAULT true,
+                customer_promo BOOLEAN DEFAULT true,
+                customer_review BOOLEAN DEFAULT true,
+                updated_at TIMESTAMP DEFAULT NOW()
+            );
+            INSERT INTO whatsapp_global_defaults (id) VALUES (1) ON CONFLICT (id) DO NOTHING;
         `);
+        // עמודות override על whatsapp_settings (NULL=גלובלי, true=כפה פתוח, false=כפה חסום)
+        const ovCols = ['owner_checkin','owner_order','owner_task_due','owner_inventory','owner_plan','employee_shift','employee_task','employee_pay','customer_order','customer_ready','customer_promo','customer_review'];
+        for (const col of ovCols) {
+            try { await pool.query(`ALTER TABLE whatsapp_settings ADD COLUMN IF NOT EXISTS ov_${col} BOOLEAN DEFAULT NULL`); } catch(e) {}
+        }
     } catch (e) { console.error('WhatsApp tables init error:', e.message); }
     try {
         await pool.query(`
@@ -25862,5 +25884,94 @@ app.patch('/api/sa/whatsapp-settings/:groupId', verifySA, async (req, res) => {
         const { enabled } = req.body;
         await pool.query(`INSERT INTO whatsapp_settings (group_id, enabled) VALUES ($1,$2) ON CONFLICT (group_id) DO UPDATE SET enabled=$2, updated_at=NOW()`, [parseInt(groupId), !!enabled]);
         res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ═══════════════════════════════════════════
+// WhatsApp — Global Defaults + Per-Business Overrides (SA)
+// ═══════════════════════════════════════════
+
+const WA_TYPE_KEYS = ['owner_checkin','owner_order','owner_task_due','owner_inventory','owner_plan','employee_shift','employee_task','employee_pay','customer_order','customer_ready','customer_promo','customer_review'];
+
+app.get('/api/sa/whatsapp-global-defaults', verifySA, async (req, res) => {
+    try {
+        const r = await pool.query(`SELECT * FROM whatsapp_global_defaults WHERE id=1`);
+        res.json({ success: true, defaults: r.rows[0] || {} });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/sa/whatsapp-global-defaults', verifySA, async (req, res) => {
+    try {
+        const sets = WA_TYPE_KEYS.map((k,i) => `${k}=$${i+1}`).join(', ');
+        const vals = WA_TYPE_KEYS.map(k => !!req.body[k]);
+        await pool.query(`UPDATE whatsapp_global_defaults SET ${sets}, updated_at=NOW() WHERE id=1`, vals);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// קבלת override לעסק ספציפי (+ ברירת מחדל גלובלית + effective)
+app.get('/api/sa/whatsapp-overrides/:groupId', verifySA, async (req, res) => {
+    try {
+        const gid = parseInt(req.params.groupId);
+        const [gDef, ov] = await Promise.all([
+            pool.query(`SELECT * FROM whatsapp_global_defaults WHERE id=1`),
+            pool.query(`SELECT ${WA_TYPE_KEYS.map(k=>`ov_${k}`).join(',')} FROM whatsapp_settings WHERE group_id=$1`, [gid])
+        ]);
+        const defaults = gDef.rows[0] || {};
+        const overrides = ov.rows[0] || {};
+        const effective = {};
+        WA_TYPE_KEYS.forEach(k => {
+            effective[k] = overrides[`ov_${k}`] !== null && overrides[`ov_${k}`] !== undefined ? overrides[`ov_${k}`] : (defaults[k] !== undefined ? defaults[k] : true);
+        });
+        res.json({ success: true, defaults, overrides, effective });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/sa/whatsapp-overrides/:groupId', verifySA, async (req, res) => {
+    try {
+        const gid = parseInt(req.params.groupId);
+        // overrides: { owner_checkin: true/false/null, ... }
+        const ovs = req.body.overrides || {};
+        const sets = WA_TYPE_KEYS.map((k,i) => `ov_${k}=$${i+2}`).join(', ');
+        const vals = [gid, ...WA_TYPE_KEYS.map(k => ovs[k] === null || ovs[k] === undefined ? null : !!ovs[k])];
+        await pool.query(
+            `INSERT INTO whatsapp_settings (group_id, ${WA_TYPE_KEYS.map(k=>`ov_${k}`).join(',')})
+             VALUES ($1, ${WA_TYPE_KEYS.map((_,i)=>`$${i+2}`).join(',')})
+             ON CONFLICT (group_id) DO UPDATE SET ${sets}, updated_at=NOW()`,
+            vals
+        );
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// רשימת עסקים עם override כלשהו
+app.get('/api/sa/whatsapp-customized', verifySA, async (req, res) => {
+    try {
+        const cols = WA_TYPE_KEYS.map(k=>`ov_${k}`).join(' IS NOT NULL OR ') + ' IS NOT NULL';
+        const r = await pool.query(
+            `SELECT ws.group_id, fg.name, ${WA_TYPE_KEYS.map(k=>`ws.ov_${k}`).join(',')}
+             FROM whatsapp_settings ws JOIN family_groups fg ON fg.id=ws.group_id
+             WHERE ${cols}`,
+        );
+        res.json({ success: true, customized: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// WhatsApp effective settings — public endpoint for BIZ side
+app.get('/api/biz/whatsapp-effective/:groupId', async (req, res) => {
+    try {
+        const gid = parseInt(req.params.groupId);
+        const [gDef, ov] = await Promise.all([
+            pool.query(`SELECT * FROM whatsapp_global_defaults WHERE id=1`),
+            pool.query(`SELECT ${WA_TYPE_KEYS.map(k=>`ov_${k}`).join(',')} FROM whatsapp_settings WHERE group_id=$1`, [gid])
+        ]);
+        const defaults = gDef.rows[0] || {};
+        const overrides = ov.rows[0] || {};
+        const effective = {};
+        WA_TYPE_KEYS.forEach(k => {
+            const ov_val = overrides[`ov_${k}`];
+            effective[k] = (ov_val !== null && ov_val !== undefined) ? ov_val : (defaults[k] !== undefined ? defaults[k] : true);
+        });
+        res.json({ success: true, effective });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });

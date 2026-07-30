@@ -52562,18 +52562,30 @@ async function loadBizWhatsAppSettings() {
     if (!el) return;
     el.innerHTML = `<div class="p-4 text-center text-slate-400"><i class="fa-solid fa-spinner fa-spin"></i> טוען...</div>`;
     try {
-        const [sRes, lRes] = await Promise.all([
+        const [sRes, lRes, ovsRes] = await Promise.all([
             apiFetch(`/api/biz/whatsapp-settings/${gid}`),
-            apiFetch(`/api/biz/whatsapp-log/${gid}?limit=30`)
+            apiFetch(`/api/biz/whatsapp-log/${gid}?limit=30`),
+            apiFetch(`/api/biz/whatsapp-effective/${gid}`).catch(() => ({ effective: null }))
         ]);
         const s = sRes.settings || {};
         const log = lRes.log || [];
+        const effective = ovsRes.effective || null;
 
-        const toggle = (key, label) => `
-            <label class="flex items-center gap-3 py-2 cursor-pointer">
-                <input type="checkbox" class="w-5 h-5 rounded accent-green-500 wa-toggle" data-key="${key}" ${s[key] ? 'checked' : ''}>
-                <span class="text-sm text-slate-700">${label}</span>
-            </label>`;
+        // toggle שמתחשב בהרשאות SA: אם SA חסם — מוסתר לחלוטין
+        const toggle = (key, saKey, label) => {
+            const saAllowed = !effective || effective[saKey] !== false;
+            if (!saAllowed) return `
+                <div class="flex items-center gap-3 py-2 opacity-40">
+                    <span class="w-5 h-5 flex items-center justify-center text-slate-400">🚫</span>
+                    <span class="text-sm text-slate-400 line-through">${label}</span>
+                    <span class="text-[10px] text-red-400 font-bold mr-auto">חסום ע"י מנהל</span>
+                </div>`;
+            return `
+                <label class="flex items-center gap-3 py-2 cursor-pointer">
+                    <input type="checkbox" class="w-5 h-5 rounded accent-green-500 wa-toggle" data-key="${key}" ${s[key] ? 'checked' : ''}>
+                    <span class="text-sm text-slate-700">${label}</span>
+                </label>`;
+        };
 
         el.innerHTML = `
         <div class="p-4 max-w-2xl mx-auto space-y-5">
@@ -52597,24 +52609,24 @@ async function loadBizWhatsAppSettings() {
             <!-- קבוצות הגדרות -->
             <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm">
                 <p class="font-bold text-slate-700 mb-3 text-sm">📋 התראות לבעל העסק</p>
-                ${toggle('notify_owner_checkin', 'עובד לא דיפק שעון כניסה')}
-                ${toggle('notify_owner_order', 'הזמנה חדשה בחנות')}
-                ${toggle('notify_owner_task_due', 'משימה שעבר מועדה')}
-                ${toggle('notify_owner_inventory', 'מלאי נמוך (יומי 9:00)')}
-                ${toggle('notify_owner_plan', 'תזכורת תכנון מחר (19:00)')}
+                ${toggle('notify_owner_checkin', 'owner_checkin', 'עובד לא דיפק שעון כניסה')}
+                ${toggle('notify_owner_order', 'owner_order', 'הזמנה חדשה בחנות')}
+                ${toggle('notify_owner_task_due', 'owner_task_due', 'משימה שעבר מועדה')}
+                ${toggle('notify_owner_inventory', 'owner_inventory', 'מלאי נמוך (יומי 9:00)')}
+                ${toggle('notify_owner_plan', 'owner_plan', 'תזכורת תכנון מחר (19:00)')}
             </div>
             <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm">
                 <p class="font-bold text-slate-700 mb-3 text-sm">👷 התראות לעובדים</p>
-                ${toggle('notify_employee_shift', 'תזכורת משמרת מחר')}
-                ${toggle('notify_employee_task', 'משימה חדשה שהוקצתה')}
-                ${toggle('notify_employee_pay', 'עדכון תשלום שכר')}
+                ${toggle('notify_employee_shift', 'employee_shift', 'תזכורת משמרת מחר')}
+                ${toggle('notify_employee_task', 'employee_task', 'משימה חדשה שהוקצתה')}
+                ${toggle('notify_employee_pay', 'employee_pay', 'עדכון תשלום שכר')}
             </div>
             <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm">
                 <p class="font-bold text-slate-700 mb-3 text-sm">🛍️ התראות ללקוחות</p>
-                ${toggle('notify_customer_order', 'אישור קבלת הזמנה')}
-                ${toggle('notify_customer_ready', 'הזמנה מוכנה')}
-                ${toggle('notify_customer_promo', 'מבצע מיוחד')}
-                ${toggle('notify_customer_review', 'בקשת דירוג')}
+                ${toggle('notify_customer_order', 'customer_order', 'אישור קבלת הזמנה')}
+                ${toggle('notify_customer_ready', 'customer_ready', 'הזמנה מוכנה')}
+                ${toggle('notify_customer_promo', 'customer_promo', 'מבצע מיוחד')}
+                ${toggle('notify_customer_review', 'customer_review', 'בקשת דירוג')}
             </div>
 
             <button onclick="saveBizWhatsAppSettings()" class="w-full bg-[#25D366] text-white font-bold py-3 rounded-2xl shadow-md hover:bg-[#1ebd58] transition">
