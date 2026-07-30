@@ -11673,59 +11673,59 @@ async function openWATypeModal(editId) {
     }
     const modal = document.createElement('div');
     modal.id = 'wa-type-modal';
-    modal.className = 'fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem;';
     modal.innerHTML = `
-    <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[92vh] overflow-y-auto p-6">
-        <div class="flex justify-between items-center mb-5">
-            <h3 class="font-black text-slate-800 text-lg">${editId ? '✏️ עריכת סוג התראה' : '➕ סוג התראה חדש'}</h3>
-            <button onclick="document.getElementById('wa-type-modal').remove()" class="text-slate-400 hover:text-slate-700 text-xl">✕</button>
+    <div style="background:#fff;border-radius:1rem;box-shadow:0 20px 60px rgba(0,0,0,0.3);max-width:32rem;width:100%;max-height:92vh;overflow-y:auto;padding:1.5rem;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem;">
+            <h3 style="font-weight:900;color:#1e293b;font-size:1.1rem;">${editId ? '✏️ עריכת סוג התראה' : '➕ סוג התראה חדש'}</h3>
+            <button onclick="document.getElementById('wa-type-modal').remove()" style="background:none;border:none;font-size:1.25rem;color:#94a3b8;cursor:pointer;">✕</button>
         </div>
 
-        <div class="space-y-4">
+        <div style="display:flex;flex-direction:column;gap:1rem;">
             <div>
-                <label class="block text-xs font-bold text-slate-600 mb-1">שם ההתראה *</label>
-                <input id="wat-name" type="text" value="${existing?.name||''}" placeholder="לדוגמה: תזכורת חוב פתוח" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100">
+                <label style="display:block;font-size:0.75rem;font-weight:700;color:#475569;margin-bottom:0.25rem;">שם ההתראה *</label>
+                <input id="wat-name" type="text" value="${existing?.name||''}" placeholder="לדוגמה: תזכורת חוב פתוח" style="width:100%;border:1px solid #e2e8f0;border-radius:0.75rem;padding:0.6rem 0.75rem;font-size:0.875rem;outline:none;box-sizing:border-box;">
             </div>
             <div>
-                <label class="block text-xs font-bold text-slate-600 mb-1">תיאור (אופציונלי)</label>
-                <input id="wat-desc" type="text" value="${existing?.description||''}" placeholder="הסבר קצר על ההתראה" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100">
+                <label style="display:block;font-size:0.75rem;font-weight:700;color:#475569;margin-bottom:0.25rem;">תיאור (אופציונלי)</label>
+                <input id="wat-desc" type="text" value="${existing?.description||''}" placeholder="הסבר קצר על ההתראה" style="width:100%;border:1px solid #e2e8f0;border-radius:0.75rem;padding:0.6rem 0.75rem;font-size:0.875rem;outline:none;box-sizing:border-box;">
             </div>
-            <div class="grid grid-cols-2 gap-3">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">
                 <div>
-                    <label class="block text-xs font-bold text-slate-600 mb-1">מתי יוצאת *</label>
-                    <select id="wat-hook" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-indigo-400 bg-white">
+                    <label style="display:block;font-size:0.75rem;font-weight:700;color:#475569;margin-bottom:0.25rem;">מתי יוצאת *</label>
+                    <select id="wat-hook" style="width:100%;border:1px solid #e2e8f0;border-radius:0.75rem;padding:0.6rem 0.75rem;font-size:0.875rem;outline:none;background:#fff;box-sizing:border-box;">
                         ${WA_HOOKS.map(h=>`<option value="${h.value}" ${existing?.trigger_hook===h.value?'selected':''}>${h.label}</option>`).join('')}
                     </select>
                 </div>
                 <div>
-                    <label class="block text-xs font-bold text-slate-600 mb-1">למי *</label>
-                    <select id="wat-recipient" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-indigo-400 bg-white">
+                    <label style="display:block;font-size:0.75rem;font-weight:700;color:#475569;margin-bottom:0.25rem;">למי *</label>
+                    <select id="wat-recipient" style="width:100%;border:1px solid #e2e8f0;border-radius:0.75rem;padding:0.6rem 0.75rem;font-size:0.875rem;outline:none;background:#fff;box-sizing:border-box;">
                         ${WA_RECIPIENTS.map(r=>`<option value="${r.value}" ${existing?.recipient_type===r.value?'selected':''}>${r.label}</option>`).join('')}
                     </select>
                 </div>
             </div>
             <div>
-                <label class="block text-xs font-bold text-slate-600 mb-1">תוכן ההודעה *</label>
-                <textarea id="wat-template" rows="4" placeholder="כתוב את ההודעה כאן..." class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 resize-none">${existing?.message_template||''}</textarea>
-                <div class="mt-2 p-3 bg-slate-50 rounded-xl">
-                    <p class="text-[11px] font-bold text-slate-500 mb-1">משתנים זמינים — לחץ להוסיף:</p>
-                    <div class="flex flex-wrap gap-1.5">
-                        ${['{שם_עסק}','{שם_עובד}','{שם_לקוח}','{מנהל}'].map(v=>`<button type="button" onclick="document.getElementById('wat-template').value+=this.dataset.v" data-v="${v}" class="text-[11px] bg-indigo-100 text-indigo-700 px-2 py-1 rounded-lg font-mono hover:bg-indigo-200 transition">${v}</button>`).join('')}
+                <label style="display:block;font-size:0.75rem;font-weight:700;color:#475569;margin-bottom:0.25rem;">תוכן ההודעה *</label>
+                <textarea id="wat-template" rows="4" placeholder="כתוב את ההודעה כאן..." style="width:100%;border:1px solid #e2e8f0;border-radius:0.75rem;padding:0.6rem 0.75rem;font-size:0.875rem;outline:none;resize:none;box-sizing:border-box;">${existing?.message_template||''}</textarea>
+                <div style="margin-top:0.5rem;padding:0.75rem;background:#f8fafc;border-radius:0.75rem;">
+                    <p style="font-size:0.7rem;font-weight:700;color:#64748b;margin-bottom:0.4rem;">משתנים זמינים — לחץ להוסיף:</p>
+                    <div style="display:flex;flex-wrap:wrap;gap:0.375rem;">
+                        ${['{שם_עסק}','{שם_עובד}','{שם_לקוח}','{מנהל}'].map(v=>`<button type="button" onclick="document.getElementById('wat-template').value+=this.dataset.v" data-v="${v}" style="font-size:0.7rem;background:#e0e7ff;color:#4338ca;padding:0.2rem 0.5rem;border-radius:0.4rem;border:none;cursor:pointer;font-family:monospace;">${v}</button>`).join('')}
                     </div>
                 </div>
             </div>
             <div>
-                <label class="block text-xs font-bold text-slate-600 mb-1">שעות מינימום בין שליחות חוזרת</label>
-                <input id="wat-dedup" type="number" min="0" max="168" value="${existing?.dedup_hours??23}" class="w-32 border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-indigo-400">
-                <span class="text-xs text-slate-400 mr-2">שעות (0 = ללא הגבלה)</span>
+                <label style="display:block;font-size:0.75rem;font-weight:700;color:#475569;margin-bottom:0.25rem;">שעות מינימום בין שליחות חוזרת</label>
+                <input id="wat-dedup" type="number" min="0" max="168" value="${existing?.dedup_hours??23}" style="width:7rem;border:1px solid #e2e8f0;border-radius:0.75rem;padding:0.6rem 0.75rem;font-size:0.875rem;outline:none;">
+                <span style="font-size:0.75rem;color:#94a3b8;margin-right:0.5rem;">שעות (0 = ללא הגבלה)</span>
             </div>
         </div>
 
-        <div class="flex gap-3 mt-6">
-            <button onclick="saveWAType(${editId||'null'})" class="flex-1 bg-indigo-600 text-white font-bold py-3 rounded-xl hover:bg-indigo-700 transition">
-                <i class="fa-solid fa-floppy-disk ml-1"></i> ${editId ? 'עדכן' : 'צור התראה'}
+        <div style="display:flex;gap:0.75rem;margin-top:1.5rem;">
+            <button onclick="saveWAType(${editId||'null'})" style="flex:1;background:#4f46e5;color:#fff;font-weight:700;padding:0.75rem;border-radius:0.75rem;border:none;cursor:pointer;font-size:0.9rem;">
+                💾 ${editId ? 'עדכן' : 'צור התראה'}
             </button>
-            <button onclick="document.getElementById('wa-type-modal').remove()" class="bg-slate-100 text-slate-600 font-bold py-3 px-5 rounded-xl hover:bg-slate-200 transition">ביטול</button>
+            <button onclick="document.getElementById('wa-type-modal').remove()" style="background:#f1f5f9;color:#475569;font-weight:700;padding:0.75rem 1.25rem;border-radius:0.75rem;border:none;cursor:pointer;">ביטול</button>
         </div>
     </div>`;
     document.body.appendChild(modal);
