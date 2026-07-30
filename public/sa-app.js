@@ -11510,8 +11510,8 @@ async function saveGlobalWADefaults() {
 async function openSAWhatsAppModal(groupId, bizName, tab) {
     const modal = document.createElement('div');
     modal.id = 'wa-modal-' + groupId;
-    modal.className = 'fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4';
-    modal.innerHTML = `<div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6">
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem;';
+    modal.innerHTML = `<div style="background:#fff;border-radius:1rem;box-shadow:0 20px 60px rgba(0,0,0,0.3);max-width:32rem;width:100%;max-height:90vh;overflow-y:auto;padding:1.5rem;">
         <div class="flex justify-between items-start mb-4">
             <div>
                 <h3 class="font-black text-slate-800"><i class="fa-brands fa-whatsapp text-[#25D366] ml-1"></i> ${bizName}</h3>
