@@ -345,6 +345,10 @@ pool.connect()
       try { await client.query("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS recurring_days TEXT DEFAULT ''"); } catch(e) {}
       try { await client.query('ALTER TABLE tasks ADD COLUMN IF NOT EXISTS last_completed_at TIMESTAMP'); } catch(e) {}
       try { await client.query('ALTER TABLE tasks ADD COLUMN IF NOT EXISTS created_by INT REFERENCES users(id)'); } catch(e) {}
+      try { await client.query(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS priority VARCHAR(10) DEFAULT 'medium'`); } catch(e) {}
+      try { await client.query(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS proof_image_url TEXT`); } catch(e) {}
+      try { await client.query(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW()`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS task_comments (id SERIAL PRIMARY KEY, task_id INT REFERENCES tasks(id) ON DELETE CASCADE, user_id INT REFERENCES users(id) ON DELETE CASCADE, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, text TEXT NOT NULL, created_at TIMESTAMPTZ DEFAULT NOW())`); } catch(e) {}
       try { await client.query(`ALTER TABLE game_assignments ADD COLUMN IF NOT EXISTS start_level INTEGER DEFAULT 1`); } catch(e) {}
       try { await client.query(`ALTER TABLE game_assignments ADD COLUMN IF NOT EXISTS finance_age INT DEFAULT NULL`); } catch(e) {}
 try { await client.query(`ALTER TABLE game_assignments ADD COLUMN IF NOT EXISTS level_progress JSONB DEFAULT '{}'`); } catch(e) {}
@@ -3995,6 +3999,82 @@ function scheduleNextMidnightSnapshot() {
 }
 scheduleNextMidnightSnapshot();
 
+// ===== Auto-dispatch משימות חוזרות (כל 5 דקות) =====
+async function dispatchRecurringTasks() {
+    try {
+        const dayNames = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
+        const now = new Date();
+        const todayName = dayNames[now.getDay()];
+        const hourNow = now.getHours();
+        // שעת פרסום: 08:00 בלבד
+        if (hourNow < 8) return;
+        const rTasks = await pool.query(`SELECT * FROM tasks WHERE is_recurring=TRUE AND status='pending'`);
+        for (const t of rTasks.rows) {
+            if (!t.recurring_days || !t.recurring_days.includes(todayName)) continue;
+            // בדוק אם כבר פורסמה היום
+            const existing = await pool.query(
+                `SELECT id FROM tasks WHERE group_id=$1 AND title=$2 AND assigned_to=$3 AND is_recurring=FALSE AND created_at::date=CURRENT_DATE`,
+                [t.group_id, t.title, t.assigned_to]
+            );
+            if (existing.rows.length > 0) continue;
+            // פרסם עותק חד-פעמי עם deadline מחר
+            const deadline = new Date(now); deadline.setDate(deadline.getDate() + 1);
+            await pool.query(
+                `INSERT INTO tasks (group_id, title, reward, assigned_to, deadline, status, require_ai_check, is_recurring, recurring_days, created_by, priority) VALUES ($1,$2,$3,$4,$5,'pending',$6,FALSE,'',$7,$8)`,
+                [t.group_id, t.title, t.reward, t.assigned_to, deadline, t.require_ai_check, t.created_by, t.priority || 'medium']
+            );
+        }
+    } catch(e) { console.error('[RECURRING] error:', e.message); }
+}
+setInterval(dispatchRecurringTasks, 5 * 60 * 1000); // כל 5 דקות
+dispatchRecurringTasks(); // גם בהפעלה
+
+// ===== ניקוי חודשי של תמונות הוכחה מ-Cloudinary (ה-1 לחודש) =====
+async function monthlyCloudinaryCleanup() {
+    try {
+        const settingsRes = await pool.query(`SELECT key, value FROM system_settings WHERE key IN ('cloudinary_cloud_name', 'cloudinary_api_secret')`);
+        const settings = Object.fromEntries(settingsRes.rows.map(r => [r.key, r.value]));
+        const cloudName = settings['cloudinary_cloud_name'];
+        const apiSecret = settings['cloudinary_api_secret'];
+        if (!cloudName || !apiSecret) return;
+        // מצא משימות עם תמונות מחודש שעבר
+        const startOfMonth = new Date(); startOfMonth.setDate(1); startOfMonth.setHours(0,0,0,0);
+        const oldTasks = await pool.query(
+            `SELECT id, proof_image_url FROM tasks WHERE proof_image_url IS NOT NULL AND updated_at < $1`,
+            [startOfMonth]
+        );
+        for (const row of oldTasks.rows) {
+            try {
+                const url = row.proof_image_url;
+                // חלץ public_id מה-URL
+                const match = url.match(/\/upload\/(?:v\d+\/)?(.+)\.[^.]+$/);
+                if (!match) continue;
+                const publicId = match[1];
+                // Cloudinary delete API
+                const timestamp = Math.floor(Date.now() / 1000);
+                const crypto = require('crypto');
+                const sig = crypto.createHash('sha1').update(`public_id=${publicId}&timestamp=${timestamp}${apiSecret}`).digest('hex');
+                await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/destroy`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ public_id: publicId, timestamp, signature: sig, api_key: '' })
+                });
+                await pool.query('UPDATE tasks SET proof_image_url=NULL WHERE id=$1', [row.id]);
+            } catch(e2) { console.error('[CLOUDINARY_CLEANUP]', e2.message); }
+        }
+        console.log(`[CLOUDINARY_CLEANUP] processed ${oldTasks.rows.length} tasks`);
+    } catch(e) { console.error('[CLOUDINARY_CLEANUP] error:', e.message); }
+}
+// הפעל ב-1 לחודש
+function scheduleMonthlyCleanup() {
+    const now = new Date();
+    const next = new Date(now.getFullYear(), now.getMonth() + 1, 1, 3, 0, 0);
+    const ms = next.getTime() - now.getTime();
+    setTimeout(() => { monthlyCloudinaryCleanup(); scheduleMonthlyCleanup(); }, ms);
+}
+scheduleMonthlyCleanup();
+
+
 // רשימת snapshots לסביבה מסוימת
 app.get('/api/sa/groups/:id/snapshots', verifySA, async (req, res) => {
     try {
@@ -4729,7 +4809,7 @@ app.post('/api/sa/ads', verifySA, async (req, res) => {
 
 // נתיבים גנריים לניהול system_settings מה-SA
 // נתיב ציבורי לקריאת הגדרות preloader (ללא אימות)
-const PUBLIC_READABLE_SETTINGS = ['preloader_text'];
+const PUBLIC_READABLE_SETTINGS = ['preloader_text', 'cloudinary_cloud_name', 'cloudinary_upload_preset'];
 app.get('/api/public/settings/:key', async (req, res) => {
     try {
         const key = req.params.key;
@@ -5348,7 +5428,7 @@ app.get('/api/data/:userId', async (req, res) => {
         // Parallel fetch of all independent data (including admin balance)
         const [adminBalRes, tasks, pantry, shoppingList, goals, allBundles, userBundles, gameAssignments] = await Promise.all([
             pool.query("SELECT COALESCE(SUM(CASE WHEN type = 'income' THEN amount ELSE -amount END), 0) as total FROM transactions t JOIN users u ON t.user_id = u.id WHERE t.group_id = $1 AND u.role = 'ADMIN'", [group.id]),
-            pool.query('SELECT t.*, u.nickname as assignee_name FROM tasks t LEFT JOIN users u ON t.assigned_to = u.id WHERE t.group_id = $1 ORDER BY t.created_at DESC LIMIT 200', [group.id]),
+            pool.query(`SELECT t.*, u.nickname as assignee_name FROM tasks t LEFT JOIN users u ON t.assigned_to = u.id WHERE t.group_id = $1 ORDER BY CASE WHEN t.priority='high' THEN 1 WHEN t.priority='low' THEN 3 ELSE 2 END, t.created_at DESC LIMIT 200`, [group.id]),
             pool.query('SELECT * FROM pantry WHERE group_id = $1 ORDER BY updated_at DESC', [group.id]),
             pool.query('SELECT sl.*, u.nickname as requester_name FROM shopping_list sl LEFT JOIN users u ON sl.requester_id = u.id WHERE sl.group_id = $1 ORDER BY sl.added_at DESC', [group.id]),
             pool.query('SELECT g.*, u.nickname as owner_name FROM goals g LEFT JOIN users u ON g.target_user_id = u.id WHERE g.user_id = $1 OR g.target_user_id = $1', [user.id]),
@@ -6137,18 +6217,96 @@ app.post('/api/admin/payday', async (req, res) => {
 
 app.post('/api/tasks', async (req, res) => {
     try {
-        const { title, reward, assignedTo, days, status, groupId, requireAiCheck, isRecurring, recurringDays, createdBy } = req.body;
+        const { title, reward, assignedTo, days, status, groupId, requireAiCheck, isRecurring, recurringDays, createdBy, priority } = req.body;
         const deadline = (!isRecurring && days) ? new Date(Date.now() + days * 24 * 60 * 60 * 1000) : null;
         const aiCheck = requireAiCheck !== undefined ? requireAiCheck : true;
         const recurring = !!isRecurring;
         const rDays = recurring ? (recurringDays || '') : '';
+        const prio = priority || 'medium';
         await pool.query(
-            'INSERT INTO tasks (group_id, title, reward, assigned_to, deadline, status, require_ai_check, is_recurring, recurring_days, created_by) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)',
-            [groupId, title, parseFloat(reward)||0, assignedTo, deadline, status, aiCheck, recurring, rDays, createdBy || null]
+            'INSERT INTO tasks (group_id, title, reward, assigned_to, deadline, status, require_ai_check, is_recurring, recurring_days, created_by, priority) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)',
+            [groupId, title, parseFloat(reward)||0, assignedTo, deadline, status, aiCheck, recurring, rDays, createdBy || null, prio]
         );
         await logActivity(groupId, assignedTo || null, null, 'task', 'task_created', `משימה חדשה: ${title}`);
         res.json({success:true});
     } catch(e) { res.status(500).json({error: e.message}); }
+});
+
+// יצירת משימה מרובה עובדים
+app.post('/api/tasks/bulk', async (req, res) => {
+    try {
+        const { assignees, title, reward, days, groupId, requireAiCheck, isRecurring, recurringDays, createdBy, priority } = req.body;
+        if (!assignees || !Array.isArray(assignees) || assignees.length === 0) return res.status(400).json({ error: 'assignees required' });
+        const deadline = (!isRecurring && days) ? new Date(Date.now() + days * 24 * 60 * 60 * 1000) : null;
+        const aiCheck = requireAiCheck !== undefined ? requireAiCheck : true;
+        const recurring = !!isRecurring;
+        const rDays = recurring ? (recurringDays || '') : '';
+        const prio = priority || 'medium';
+        for (const assignedTo of assignees) {
+            await pool.query(
+                'INSERT INTO tasks (group_id, title, reward, assigned_to, deadline, status, require_ai_check, is_recurring, recurring_days, created_by, priority) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)',
+                [groupId, title, parseFloat(reward)||0, assignedTo, deadline, 'pending', aiCheck, recurring, rDays, createdBy || null, prio]
+            );
+            await logActivity(groupId, assignedTo, null, 'task', 'task_created', `משימה חדשה: ${title}`);
+        }
+        res.json({ success: true, count: assignees.length });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// עריכת משימה קיימת (admin בלבד, status=pending בלבד)
+app.patch('/api/tasks/:id', async (req, res) => {
+    try {
+        const { title, reward, days, priority } = req.body;
+        const tRes = await pool.query('SELECT * FROM tasks WHERE id=$1', [req.params.id]);
+        if (!tRes.rows[0]) return res.status(404).json({ error: 'not found' });
+        const t = tRes.rows[0];
+        if (t.status !== 'pending') return res.status(400).json({ error: 'ניתן לערוך רק משימות בסטטוס pending' });
+        const deadline = days ? new Date(Date.now() + days * 24 * 60 * 60 * 1000) : t.deadline;
+        await pool.query(
+            'UPDATE tasks SET title=$1, reward=$2, deadline=$3, priority=$4, updated_at=NOW() WHERE id=$5',
+            [title || t.title, parseFloat(reward) ?? t.reward, deadline, priority || t.priority, req.params.id]
+        );
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// שמירת הוכחת תמונה (Cloudinary URL)
+app.post('/api/tasks/:id/proof', async (req, res) => {
+    try {
+        const { proofImageUrl } = req.body;
+        if (!proofImageUrl) return res.status(400).json({ error: 'proofImageUrl required' });
+        const tRes = await pool.query('SELECT * FROM tasks WHERE id=$1', [req.params.id]);
+        if (!tRes.rows[0]) return res.status(404).json({ error: 'not found' });
+        await pool.query('UPDATE tasks SET proof_image_url=$1, status=\'done\', updated_at=NOW() WHERE id=$2', [proofImageUrl, req.params.id]);
+        const t = tRes.rows[0];
+        await logActivity(t.group_id, t.assigned_to, null, 'task', 'task_done', `משימה הושלמה (עם תמונה): ${t.title}`);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// תגובות על משימה
+app.get('/api/tasks/:id/comments', async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT tc.*, u.nickname as user_name FROM task_comments tc LEFT JOIN users u ON tc.user_id = u.id WHERE tc.task_id = $1 ORDER BY tc.created_at ASC`,
+            [req.params.id]
+        );
+        res.json({ comments: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/tasks/:id/comments', async (req, res) => {
+    try {
+        const { text, userId, groupId } = req.body;
+        if (!text || !userId) return res.status(400).json({ error: 'text and userId required' });
+        const result = await pool.query(
+            'INSERT INTO task_comments (task_id, user_id, group_id, text) VALUES ($1,$2,$3,$4) RETURNING *',
+            [req.params.id, userId, groupId, text]
+        );
+        const userRes = await pool.query('SELECT nickname FROM users WHERE id=$1', [userId]);
+        const comment = { ...result.rows[0], user_name: userRes.rows[0]?.nickname };
+        res.json({ success: true, comment });
+    } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 app.post('/api/tasks/update', async (req, res) => {

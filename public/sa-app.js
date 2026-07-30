@@ -8465,23 +8465,27 @@ const AD_SLOT_DEFS = [
 window.saveCldConfig = async function() {
     const cloudName = document.getElementById('cld-cloud-name')?.value?.trim();
     const preset = document.getElementById('cld-upload-preset')?.value?.trim();
+    const apiSecret = document.getElementById('cld-api-secret')?.value?.trim();
     const statusEl = document.getElementById('cld-config-status');
-    if (!cloudName || !preset) { if(statusEl){statusEl.textContent='❌ יש למלא שני השדות'; statusEl.className='text-xs font-bold text-red-600'; statusEl.classList.remove('hidden');} return; }
+    if (!cloudName || !preset) { if(statusEl){statusEl.textContent='❌ יש למלא Cloud Name ו-Preset'; statusEl.className='text-xs font-bold text-red-600'; statusEl.classList.remove('hidden');} return; }
     try {
-        await Promise.all([
+        const saves = [
             fetch(`${API}/sa/settings`, { method:'POST', headers:{'Content-Type':'application/json', Authorization:saToken}, body: JSON.stringify({key:'cloudinary_cloud_name', value:cloudName}) }),
             fetch(`${API}/sa/settings`, { method:'POST', headers:{'Content-Type':'application/json', Authorization:saToken}, body: JSON.stringify({key:'cloudinary_upload_preset', value:preset}) }),
-        ]);
+        ];
+        if (apiSecret) saves.push(fetch(`${API}/sa/settings`, { method:'POST', headers:{'Content-Type':'application/json', Authorization:saToken}, body: JSON.stringify({key:'cloudinary_api_secret', value:apiSecret}) }));
+        await Promise.all(saves);
         if(statusEl){statusEl.textContent='✅ נשמר!'; statusEl.className='text-xs font-bold text-green-600'; statusEl.classList.remove('hidden'); setTimeout(()=>statusEl.classList.add('hidden'),2500);}
     } catch(e) { if(statusEl){statusEl.textContent='❌ שגיאה'; statusEl.className='text-xs font-bold text-red-600'; statusEl.classList.remove('hidden');} }
 };
 
 async function loadCldConfig() {
     try {
-        const res = await fetch(`${API}/sa/settings/cloudinary_cloud_name,cloudinary_upload_preset,preloader_text`, { headers:{Authorization:saToken} });
+        const res = await fetch(`${API}/sa/settings/cloudinary_cloud_name,cloudinary_upload_preset,cloudinary_api_secret,preloader_text`, { headers:{Authorization:saToken} });
         const data = await res.json();
         if(data.cloudinary_cloud_name) document.getElementById('cld-cloud-name').value = data.cloudinary_cloud_name;
         if(data.cloudinary_upload_preset) document.getElementById('cld-upload-preset').value = data.cloudinary_upload_preset;
+        if(data.cloudinary_api_secret) { const el = document.getElementById('cld-api-secret'); if(el) el.value = data.cloudinary_api_secret; }
         if(data.preloader_text) { const el = document.getElementById('preloader-text-input'); if(el) el.value = data.preloader_text; }
     } catch(e){}
 }
