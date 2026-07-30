@@ -3142,7 +3142,9 @@ initDB();
 // WhatsApp CRON
 // ═══════════════════════════════════════════
 async function runWhatsAppCron() {
+    console.log('[WA-CRON] tick');
     try {
+        await ensureWhatsAppTables();
         const settingsRes = await pool.query(`SELECT ws.*, fg.name as biz_name FROM whatsapp_settings ws JOIN family_groups fg ON fg.id=ws.group_id WHERE ws.enabled=true AND fg.type='BUSINESS'`);
         console.log(`[WA-CRON] businesses with WA enabled: ${settingsRes.rows.length}`);
         for (const s of settingsRes.rows) {
@@ -3260,7 +3262,7 @@ async function runWhatsAppCron() {
                 } catch(e) {}
             }
         }
-    } catch (e) { console.error('WhatsApp cron error:', e.message); }
+    } catch (e) { console.error('[WA-CRON] error:', e.message); }
 
     // סוגי התראות דינמיים מהDB
     try {
