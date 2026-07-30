@@ -3143,17 +3143,23 @@ async function runWhatsAppCron() {
             const groupId = s.group_id;
             const bizName = s.biz_name;
 
-            // Owner phone
-            const ownerRes = await pool.query(`SELECT phone FROM users WHERE id=(SELECT owner_user_id FROM family_groups WHERE id=$1) LIMIT 1`, [groupId]);
-            const ownerPhone = ownerRes.rows[0]?.phone;
-            console.log(`[WA-CRON] group=${groupId} biz="${bizName}" ownerPhone=${ownerPhone} notify_order=${s.notify_owner_order}`);
+            // Owner phone — try owner_user_id first, then ADMIN role
+            let ownerPhone = null;
+            const ownerRes = await pool.query(`SELECT phone FROM users WHERE id=(SELECT owner_user_id FROM family_groups WHERE id=$1) AND phone IS NOT NULL AND phone!='' LIMIT 1`, [groupId]);
+            if (ownerRes.rows[0]?.phone) {
+                ownerPhone = ownerRes.rows[0].phone;
+            } else {
+                const adminRes = await pool.query(`SELECT phone FROM users WHERE group_id=$1 AND role='ADMIN' AND phone IS NOT NULL AND phone!='' LIMIT 1`, [groupId]);
+                ownerPhone = adminRes.rows[0]?.phone || null;
+            }
+            console.log(`[WA-CRON] group=${groupId} biz="${bizName}" ownerPhone=${ownerPhone} notify_order=${s.owner_order}`);
 
             const now = new Date();
             const hh = now.getHours();
             const mm = now.getMinutes();
 
             // 1. בדיקת שכחת שעון כניסה (8:00-8:05, כל יום)
-            if (s.notify_owner_checkin && ownerPhone && hh === 8 && mm < 5) {
+            if (s.owner_checkin && ownerPhone && hh === 8 && mm < 5) {
                 try {
                     const today = now.toISOString().slice(0,10);
                     // employees with shift today but no punch_in
@@ -3183,7 +3189,7 @@ async function runWhatsAppCron() {
             }
 
             // 2. הזמנות חדשות שלא טופלו (כל דקה)
-            if (s.notify_owner_order && ownerPhone) {
+            if (s.owner_order && ownerPhone) {
                 try {
                     const newOrders = await pool.query(`SELECT id, customer_name, customer_phone, total_amount FROM store_orders WHERE group_id=$1 AND status='new' AND created_at > NOW() - INTERVAL '2 minutes'`, [groupId]);
                     console.log(`[WA-CRON] group=${groupId} new orders in last 2min: ${newOrders.rows.length}`);
@@ -3198,7 +3204,7 @@ async function runWhatsAppCron() {
                             await pool.query(`INSERT INTO whatsapp_log (group_id,message_type,recipient_type,recipient_phone,content,status) VALUES ($1,'new_order_owner_${ord.id}','internal',$2,'dedup marker','sent')`, [groupId, ownerPhone]).catch(()=>{});
                         }
                         // התראה ללקוח (אישור קבלת הזמנה)
-                        if (s.notify_customer_order && ord.customer_phone) {
+                        if (s.customer_order && ord.customer_phone) {
                             const alreadyCust = await checkAlreadySent(pool, groupId, 'new_order_cust_' + ord.id, ord.customer_phone, 1);
                             if (!alreadyCust) {
                                 await sendWhatsApp(pool, groupId, ord.customer_phone, bizName, `✅ שלום ${ord.customer_name || ''}! קיבלנו את ההזמנה שלך (₪${ord.total_amount || 0}). נעדכן אותך כשתהיה מוכנה 🙏`, null, 'customer', ord.customer_name || 'לקוח', 'customer_order');
@@ -3210,7 +3216,7 @@ async function runWhatsAppCron() {
             }
 
             // 3. משימות שפג תוקפן (כל דקה)
-            if (s.notify_owner_task_due && ownerPhone) {
+            if (s.owner_task_due && ownerPhone) {
                 try {
                     const overdue = await pool.query(
                         `SELECT id, title, assignee_id FROM tasks WHERE group_id=$1 AND status='active' AND due_date < NOW() AND due_date > NOW() - INTERVAL '2 minutes'`,
@@ -3227,7 +3233,7 @@ async function runWhatsAppCron() {
             }
 
             // 4. התראת מלאי נמוך (יומית 9:00)
-            if (s.notify_owner_inventory && ownerPhone && hh === 9 && mm < 2) {
+            if (s.owner_inventory && ownerPhone && hh === 9 && mm < 2) {
                 try {
                     const already = await checkAlreadySent(pool, groupId, 'low_inventory', ownerPhone, 20);
                     if (!already) {
@@ -3241,7 +3247,7 @@ async function runWhatsAppCron() {
             }
 
             // 5. תזכורת תכנון מחר (19:00)
-            if (s.notify_owner_plan && ownerPhone && hh === 19 && mm < 2) {
+            if (s.owner_plan && ownerPhone && hh === 19 && mm < 2) {
                 try {
                     const already = await checkAlreadySent(pool, groupId, 'plan_tomorrow', ownerPhone, 20);
                     if (!already) {
@@ -25886,7 +25892,7 @@ app.put('/api/biz/whatsapp-settings/:groupId', async (req, res) => {
             INSERT INTO whatsapp_settings (group_id, enabled, notify_owner_checkin, notify_owner_order, notify_owner_task_due, notify_owner_inventory, notify_owner_plan, notify_employee_shift, notify_employee_task, notify_employee_pay, notify_customer_order, notify_customer_ready, notify_customer_promo, notify_customer_review, updated_at)
             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,NOW())
             ON CONFLICT (group_id) DO UPDATE SET enabled=$2, notify_owner_checkin=$3, notify_owner_order=$4, notify_owner_task_due=$5, notify_owner_inventory=$6, notify_owner_plan=$7, notify_employee_shift=$8, notify_employee_task=$9, notify_employee_pay=$10, notify_customer_order=$11, notify_customer_ready=$12, notify_customer_promo=$13, notify_customer_review=$14, updated_at=NOW()`,
-            [parseInt(groupId), !!s.enabled, !!s.notify_owner_checkin, !!s.notify_owner_order, !!s.notify_owner_task_due, !!s.notify_owner_inventory, !!s.notify_owner_plan, !!s.notify_employee_shift, !!s.notify_employee_task, !!s.notify_employee_pay, !!s.notify_customer_order, !!s.notify_customer_ready, !!s.notify_customer_promo, !!s.notify_customer_review]
+            [parseInt(groupId), !!s.enabled, !!s.owner_checkin, !!s.owner_order, !!s.owner_task_due, !!s.owner_inventory, !!s.owner_plan, !!s.notify_employee_shift, !!s.notify_employee_task, !!s.notify_employee_pay, !!s.customer_order, !!s.notify_customer_ready, !!s.notify_customer_promo, !!s.notify_customer_review]
         );
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
@@ -25906,12 +25912,12 @@ app.post('/api/biz/whatsapp/order-notify', async (req, res) => {
     try {
         const { groupId, customerPhone, customerName, messageType, orderId } = req.body;
         if (!groupId || !customerPhone || !messageType) return res.status(400).json({ error: 'missing params' });
-        const settingsRes = await pool.query(`SELECT ws.enabled, ws.notify_customer_order, ws.notify_customer_ready, fg.name FROM whatsapp_settings ws JOIN family_groups fg ON fg.id=ws.group_id WHERE ws.group_id=$1`, [parseInt(groupId)]);
+        const settingsRes = await pool.query(`SELECT ws.enabled, ws.customer_order, ws.notify_customer_ready, fg.name FROM whatsapp_settings ws JOIN family_groups fg ON fg.id=ws.group_id WHERE ws.group_id=$1`, [parseInt(groupId)]);
         if (!settingsRes.rows[0]?.enabled) return res.json({ success: false, reason: 'disabled' });
         const s = settingsRes.rows[0];
         const bizName = s.name;
         let content = '';
-        if (messageType === 'order_received' && s.notify_customer_order) content = `שלום ${customerName || 'לקוח'}, קיבלנו את ההזמנה שלך (#${orderId})! נעדכן אותך כשתהיה מוכנה. תודה 🙏`;
+        if (messageType === 'order_received' && s.customer_order) content = `שלום ${customerName || 'לקוח'}, קיבלנו את ההזמנה שלך (#${orderId})! נעדכן אותך כשתהיה מוכנה. תודה 🙏`;
         else if (messageType === 'order_ready' && s.notify_customer_ready) content = `שלום ${customerName || 'לקוח'}, ההזמנה שלך (#${orderId}) מוכנה לאיסוף / למשלוח! 🎉`;
         else return res.json({ success: false, reason: 'type_disabled' });
         const already = await checkAlreadySent(pool, parseInt(groupId), messageType + '_' + orderId, customerPhone, 2);
