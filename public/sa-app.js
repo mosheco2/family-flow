@@ -11309,6 +11309,25 @@ window.saMarketingRemoveSlideImage = function(slotKey) {
 // ═══════════════════════════════════════════════════
 // WhatsApp — SA Hub
 // ═══════════════════════════════════════════════════
+const WA_HOOKS = [
+    { value: 'cron_minute',    label: 'כל דקה (Cron)' },
+    { value: 'cron_daily',     label: 'כל יום (Cron)' },
+    { value: 'new_order',      label: 'הזמנה חדשה' },
+    { value: 'order_ready',    label: 'הזמנה מוכנה' },
+    { value: 'new_task',       label: 'משימה חדשה' },
+    { value: 'task_due',       label: 'משימה באיחור' },
+    { value: 'missing_checkin',label: 'שכחת שעון כניסה' },
+    { value: 'low_inventory',  label: 'מלאי נמוך' },
+    { value: 'plan_tomorrow',  label: 'תכנון מחר (19:00)' },
+    { value: 'employee_pay',   label: 'עדכון תשלום שכר' },
+];
+
+const WA_RECIPIENTS = [
+    { value: 'owner',    label: 'בעל העסק' },
+    { value: 'employee', label: 'עובד' },
+    { value: 'customer', label: 'לקוח' },
+];
+
 const WA_TYPE_META = [
     { key:'owner_checkin',   label:'שכחת שעון כניסה',    group:'👤 בעל העסק' },
     { key:'owner_order',     label:'הזמנה חדשה',          group:'👤 בעל העסק' },
