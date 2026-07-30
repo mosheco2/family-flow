@@ -11774,3 +11774,15 @@ async function deleteWAType(id) {
         else showToast('error', d.error||'שגיאה');
     } catch(e) { showToast('error', 'שגיאת תקשורת'); }
 }
+
+// חשיפה גלובלית של פונקציות WhatsApp לשימוש מ-onclick
+window.loadSAWhatsAppHub = loadSAWhatsAppHub;
+window.saveGlobalWADefaults = saveGlobalWADefaults;
+window.openSAWhatsAppModal = openSAWhatsAppModal;
+window.saveSAWhatsAppOverrides = saveSAWhatsAppOverrides;
+window.clearSAWhatsAppOverrides = clearSAWhatsAppOverrides;
+window.toggleSAWhatsApp = toggleSAWhatsApp;
+window.openWATypeModal = openWATypeModal;
+window.saveWAType = saveWAType;
+window.toggleWAType = toggleWAType;
+window.deleteWAType = deleteWAType;
