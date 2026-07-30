@@ -2,6 +2,14 @@
 
 const API = window.location.hostname === 'localhost' ? 'http://localhost:3000/api' : '/api';
 const getEl = id => document.getElementById(id);
+
+async function saFetch(path, opts = {}) {
+    const token = saToken || localStorage.getItem('ofl_sa_token');
+    const url = path.startsWith('http') ? path : `${API}${path.startsWith('/api') ? path.slice(4) : (path.startsWith('/') ? path : '/' + path)}`;
+    const headers = { 'Authorization': token, ...(opts.body ? { 'Content-Type': 'application/json' } : {}), ...(opts.headers || {}) };
+    const res = await fetch(url, { ...opts, headers });
+    return res.json();
+}
 const val = id => getEl(id) ? getEl(id).value : '';
 const safeStr = str => (str || '').toString().replace(/'/g, "\\'").replace(/"/g, "&quot;");
 
