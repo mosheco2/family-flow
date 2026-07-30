@@ -1,4 +1,5 @@
 require('dotenv').config();
+const { sendWhatsApp, checkAlreadySent } = require('./services/whatsapp');
 const express = require('express');
 const compression = require('compression');
 const { Pool } = require('pg');
@@ -3045,6 +3046,43 @@ app.post('/api/ai/chat', verifySA, async (req, res) => {
 async function initDB() {
     try {
         await pool.query(`
+            CREATE TABLE IF NOT EXISTS whatsapp_settings (
+                id SERIAL PRIMARY KEY,
+                group_id INTEGER UNIQUE REFERENCES family_groups(id) ON DELETE CASCADE,
+                enabled BOOLEAN DEFAULT false,
+                notify_owner_checkin BOOLEAN DEFAULT true,
+                notify_owner_order BOOLEAN DEFAULT true,
+                notify_owner_task_due BOOLEAN DEFAULT true,
+                notify_owner_inventory BOOLEAN DEFAULT true,
+                notify_owner_plan BOOLEAN DEFAULT true,
+                notify_employee_shift BOOLEAN DEFAULT true,
+                notify_employee_task BOOLEAN DEFAULT true,
+                notify_employee_pay BOOLEAN DEFAULT true,
+                notify_customer_order BOOLEAN DEFAULT true,
+                notify_customer_ready BOOLEAN DEFAULT true,
+                notify_customer_promo BOOLEAN DEFAULT true,
+                notify_customer_review BOOLEAN DEFAULT true,
+                created_at TIMESTAMP DEFAULT NOW(),
+                updated_at TIMESTAMP DEFAULT NOW()
+            );
+            CREATE TABLE IF NOT EXISTS whatsapp_log (
+                id SERIAL PRIMARY KEY,
+                group_id INTEGER REFERENCES family_groups(id) ON DELETE CASCADE,
+                message_type VARCHAR(50) NOT NULL,
+                recipient_type VARCHAR(20) NOT NULL,
+                recipient_name TEXT,
+                recipient_phone VARCHAR(20),
+                content TEXT,
+                status VARCHAR(20) DEFAULT 'sent',
+                error_msg TEXT,
+                sent_at TIMESTAMP DEFAULT NOW()
+            );
+            CREATE INDEX IF NOT EXISTS idx_whatsapp_log_group_sent ON whatsapp_log(group_id, sent_at DESC);
+            CREATE INDEX IF NOT EXISTS idx_whatsapp_log_type_phone ON whatsapp_log(message_type, recipient_phone, sent_at DESC);
+        `);
+    } catch (e) { console.error('WhatsApp tables init error:', e.message); }
+    try {
+        await pool.query(`
             CREATE TABLE IF NOT EXISTS internal_messages (
                 id SERIAL PRIMARY KEY,
                 title TEXT,
@@ -3065,6 +3103,117 @@ async function initDB() {
     } catch (e) { console.error('DB Init Error:', e); }
 }
 initDB();
+
+// ═══════════════════════════════════════════
+// WhatsApp CRON
+// ═══════════════════════════════════════════
+async function runWhatsAppCron() {
+    try {
+        const settingsRes = await pool.query(`SELECT ws.*, fg.name as biz_name FROM whatsapp_settings ws JOIN family_groups fg ON fg.id=ws.group_id WHERE ws.enabled=true AND fg.type='BUSINESS'`);
+        for (const s of settingsRes.rows) {
+            const groupId = s.group_id;
+            const bizName = s.biz_name;
+
+            // Owner phone
+            const ownerRes = await pool.query(`SELECT phone FROM users WHERE id=(SELECT owner_user_id FROM family_groups WHERE id=$1) LIMIT 1`, [groupId]);
+            const ownerPhone = ownerRes.rows[0]?.phone;
+
+            const now = new Date();
+            const hh = now.getHours();
+            const mm = now.getMinutes();
+
+            // 1. בדיקת שכחת שעון כניסה (8:00-8:05, כל יום)
+            if (s.notify_owner_checkin && ownerPhone && hh === 8 && mm < 5) {
+                try {
+                    const today = now.toISOString().slice(0,10);
+                    // employees with shift today but no punch_in
+                    const shiftTasks = await pool.query(
+                        `SELECT u.full_name, u.phone FROM tasks t JOIN users u ON u.id=t.assignee_id WHERE t.group_id=$1 AND t.title LIKE $2 AND t.status='active'`,
+                        [groupId, `SHIFT|${today}|%`]
+                    );
+                    for (const emp of shiftTasks.rows) {
+                        if (!emp.phone) continue;
+                        const alreadyClockedIn = await pool.query(
+                            `SELECT id FROM time_clock WHERE user_id=(SELECT id FROM users WHERE phone=$1 AND group_id=$2 LIMIT 1) AND DATE(punch_in)=$3 LIMIT 1`,
+                            [emp.phone, groupId, today]
+                        );
+                        if (alreadyClockedIn.rows.length === 0) {
+                            const already = await checkAlreadySent(pool, groupId, 'missing_checkin', emp.phone, 20);
+                            if (!already) {
+                                await sendWhatsApp(pool, groupId, emp.phone, bizName, `שלום ${emp.full_name}, שכחת לדפוק שעון כניסה היום! אנא עדכן את הנוכחות שלך.`, null, 'employee', emp.full_name, 'missing_checkin');
+                            }
+                        }
+                    }
+                    // notify owner summary
+                    const already = await checkAlreadySent(pool, groupId, 'checkin_summary', ownerPhone, 20);
+                    if (!already && shiftTasks.rows.length > 0) {
+                        await sendWhatsApp(pool, groupId, ownerPhone, bizName, `📋 ${shiftTasks.rows.length} עובד/ים במשמרת היום. בדוק נוכחות.`, null, 'owner', 'מנהל', 'checkin_summary');
+                    }
+                } catch(e) {}
+            }
+
+            // 2. הזמנות חדשות שלא טופלו (כל דקה)
+            if (s.notify_owner_order && ownerPhone) {
+                try {
+                    const newOrders = await pool.query(`SELECT id, customer_name FROM store_orders WHERE group_id=$1 AND status='new' AND created_at > NOW() - INTERVAL '2 minutes'`, [groupId]);
+                    for (const ord of newOrders.rows) {
+                        const already = await checkAlreadySent(pool, groupId, 'new_order_' + ord.id, ownerPhone, 1);
+                        if (!already) {
+                            await sendWhatsApp(pool, groupId, ownerPhone, bizName, `🛍️ הזמנה חדשה מ-${ord.customer_name || 'לקוח'}! כנס למערכת לטיפול.`, null, 'owner', 'מנהל', 'new_order');
+                            await pool.query(`INSERT INTO whatsapp_log (group_id,message_type,recipient_type,recipient_phone,content,status) VALUES ($1,'new_order_${ord.id}','internal',$2,'dedup marker','sent')`, [groupId, ownerPhone]).catch(()=>{});
+                        }
+                    }
+                } catch(e) {}
+            }
+
+            // 3. משימות שפג תוקפן (כל דקה)
+            if (s.notify_owner_task_due && ownerPhone) {
+                try {
+                    const overdue = await pool.query(
+                        `SELECT id, title, assignee_id FROM tasks WHERE group_id=$1 AND status='active' AND due_date < NOW() AND due_date > NOW() - INTERVAL '2 minutes'`,
+                        [groupId]
+                    );
+                    for (const task of overdue.rows) {
+                        const already = await checkAlreadySent(pool, groupId, 'task_due_' + task.id, ownerPhone, 23);
+                        if (!already) {
+                            await sendWhatsApp(pool, groupId, ownerPhone, bizName, `⚠️ המשימה "${task.title}" עברה את מועד הביצוע!`, null, 'owner', 'מנהל', 'task_due');
+                            await pool.query(`INSERT INTO whatsapp_log (group_id,message_type,recipient_type,recipient_phone,content,status) VALUES ($1,'task_due_${task.id}','internal',$2,'dedup','sent')`, [groupId, ownerPhone]).catch(()=>{});
+                        }
+                    }
+                } catch(e) {}
+            }
+
+            // 4. התראת מלאי נמוך (יומית 9:00)
+            if (s.notify_owner_inventory && ownerPhone && hh === 9 && mm < 2) {
+                try {
+                    const already = await checkAlreadySent(pool, groupId, 'low_inventory', ownerPhone, 20);
+                    if (!already) {
+                        const lowItems = await pool.query(`SELECT name, quantity, min_quantity FROM pantry WHERE group_id=$1 AND min_quantity IS NOT NULL AND quantity <= min_quantity`, [groupId]);
+                        if (lowItems.rows.length > 0) {
+                            const list = lowItems.rows.map(i => `• ${i.name}: ${i.quantity}/${i.min_quantity}`).join('\n');
+                            await sendWhatsApp(pool, groupId, ownerPhone, bizName, `📦 התראת מלאי נמוך:\n${list}`, null, 'owner', 'מנהל', 'low_inventory');
+                        }
+                    }
+                } catch(e) {}
+            }
+
+            // 5. תזכורת תכנון מחר (19:00)
+            if (s.notify_owner_plan && ownerPhone && hh === 19 && mm < 2) {
+                try {
+                    const already = await checkAlreadySent(pool, groupId, 'plan_tomorrow', ownerPhone, 20);
+                    if (!already) {
+                        const tomorrow = new Date(now); tomorrow.setDate(tomorrow.getDate()+1);
+                        const tStr = tomorrow.toISOString().slice(0,10);
+                        const shifts = await pool.query(`SELECT COUNT(*) as cnt FROM tasks WHERE group_id=$1 AND title LIKE $2`, [groupId, `SHIFT|${tStr}|%`]);
+                        const cnt = parseInt(shifts.rows[0]?.cnt) || 0;
+                        await sendWhatsApp(pool, groupId, ownerPhone, bizName, `📅 תזכורת: מחר ${cnt} משמרת/ות מתוכננת/ות. בדוק את היומן!`, null, 'owner', 'מנהל', 'plan_tomorrow');
+                    }
+                } catch(e) {}
+            }
+        }
+    } catch (e) { console.error('WhatsApp cron error:', e.message); }
+}
+setTimeout(() => { runWhatsAppCron(); setInterval(runWhatsAppCron, 60 * 1000); }, 30 * 1000);
         // יישור קו עם שאר המערכת: שימוש במודל 2.5 המעודכן שעובד על המפתח שלך
         const model = getGenAIInstance().getGenerativeModel({ model: "gemini-2.5-flash" });
         
@@ -25607,6 +25756,111 @@ app.put('/api/sa/marketing-campaigns/:id', verifySA, async (req, res) => {
 app.delete('/api/sa/marketing-campaigns/:id', verifySA, async (req, res) => {
     try {
         await pool.query(`DELETE FROM marketing_campaigns WHERE id=$1`, [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ═══════════════════════════════════════════
+// WhatsApp — BIZ API Routes
+// ═══════════════════════════════════════════
+
+app.get('/api/biz/whatsapp-settings/:groupId', async (req, res) => {
+    try {
+        const { groupId } = req.params;
+        const r = await pool.query(`SELECT * FROM whatsapp_settings WHERE group_id=$1`, [parseInt(groupId)]);
+        if (r.rows.length === 0) {
+            return res.json({ success: true, settings: { group_id: parseInt(groupId), enabled: false, notify_owner_checkin: true, notify_owner_order: true, notify_owner_task_due: true, notify_owner_inventory: true, notify_owner_plan: true, notify_employee_shift: true, notify_employee_task: true, notify_employee_pay: true, notify_customer_order: true, notify_customer_ready: true, notify_customer_promo: true, notify_customer_review: true } });
+        }
+        res.json({ success: true, settings: r.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/biz/whatsapp-settings/:groupId', async (req, res) => {
+    try {
+        const { groupId } = req.params;
+        const s = req.body;
+        await pool.query(`
+            INSERT INTO whatsapp_settings (group_id, enabled, notify_owner_checkin, notify_owner_order, notify_owner_task_due, notify_owner_inventory, notify_owner_plan, notify_employee_shift, notify_employee_task, notify_employee_pay, notify_customer_order, notify_customer_ready, notify_customer_promo, notify_customer_review, updated_at)
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,NOW())
+            ON CONFLICT (group_id) DO UPDATE SET enabled=$2, notify_owner_checkin=$3, notify_owner_order=$4, notify_owner_task_due=$5, notify_owner_inventory=$6, notify_owner_plan=$7, notify_employee_shift=$8, notify_employee_task=$9, notify_employee_pay=$10, notify_customer_order=$11, notify_customer_ready=$12, notify_customer_promo=$13, notify_customer_review=$14, updated_at=NOW()`,
+            [parseInt(groupId), !!s.enabled, !!s.notify_owner_checkin, !!s.notify_owner_order, !!s.notify_owner_task_due, !!s.notify_owner_inventory, !!s.notify_owner_plan, !!s.notify_employee_shift, !!s.notify_employee_task, !!s.notify_employee_pay, !!s.notify_customer_order, !!s.notify_customer_ready, !!s.notify_customer_promo, !!s.notify_customer_review]
+        );
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/biz/whatsapp-log/:groupId', async (req, res) => {
+    try {
+        const { groupId } = req.params;
+        const limit = Math.min(parseInt(req.query.limit) || 50, 200);
+        const r = await pool.query(`SELECT * FROM whatsapp_log WHERE group_id=$1 ORDER BY sent_at DESC LIMIT $2`, [parseInt(groupId), limit]);
+        res.json({ success: true, log: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// שליחת התראת הזמנה ללקוח (triggered by order events)
+app.post('/api/biz/whatsapp/order-notify', async (req, res) => {
+    try {
+        const { groupId, customerPhone, customerName, messageType, orderId } = req.body;
+        if (!groupId || !customerPhone || !messageType) return res.status(400).json({ error: 'missing params' });
+        const settingsRes = await pool.query(`SELECT ws.enabled, ws.notify_customer_order, ws.notify_customer_ready, fg.name FROM whatsapp_settings ws JOIN family_groups fg ON fg.id=ws.group_id WHERE ws.group_id=$1`, [parseInt(groupId)]);
+        if (!settingsRes.rows[0]?.enabled) return res.json({ success: false, reason: 'disabled' });
+        const s = settingsRes.rows[0];
+        const bizName = s.name;
+        let content = '';
+        if (messageType === 'order_received' && s.notify_customer_order) content = `שלום ${customerName || 'לקוח'}, קיבלנו את ההזמנה שלך (#${orderId})! נעדכן אותך כשתהיה מוכנה. תודה 🙏`;
+        else if (messageType === 'order_ready' && s.notify_customer_ready) content = `שלום ${customerName || 'לקוח'}, ההזמנה שלך (#${orderId}) מוכנה לאיסוף / למשלוח! 🎉`;
+        else return res.json({ success: false, reason: 'type_disabled' });
+        const already = await checkAlreadySent(pool, parseInt(groupId), messageType + '_' + orderId, customerPhone, 2);
+        if (already) return res.json({ success: false, reason: 'already_sent' });
+        await sendWhatsApp(pool, parseInt(groupId), customerPhone, bizName, content, null, 'customer', customerName, messageType);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ═══════════════════════════════════════════
+// WhatsApp — SA API Routes
+// ═══════════════════════════════════════════
+
+app.get('/api/sa/whatsapp-stats', verifySA, async (req, res) => {
+    try {
+        const total = await pool.query(`SELECT COUNT(*) as cnt FROM whatsapp_log WHERE sent_at > NOW() - INTERVAL '30 days'`);
+        const byType = await pool.query(`SELECT message_type, COUNT(*) as cnt FROM whatsapp_log WHERE sent_at > NOW() - INTERVAL '30 days' GROUP BY message_type ORDER BY cnt DESC`);
+        const byStatus = await pool.query(`SELECT status, COUNT(*) as cnt FROM whatsapp_log WHERE sent_at > NOW() - INTERVAL '30 days' GROUP BY status`);
+        const activeBiz = await pool.query(`SELECT COUNT(DISTINCT group_id) as cnt FROM whatsapp_settings WHERE enabled=true`);
+        res.json({ success: true, total: parseInt(total.rows[0].cnt), byType: byType.rows, byStatus: byStatus.rows, activeBiz: parseInt(activeBiz.rows[0].cnt) });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/sa/whatsapp-log', verifySA, async (req, res) => {
+    try {
+        const limit = Math.min(parseInt(req.query.limit) || 100, 500);
+        const { groupId, msgType, status } = req.query;
+        let conditions = ['1=1'];
+        let params = [];
+        if (groupId) { conditions.push(`wl.group_id=$${params.length+1}`); params.push(parseInt(groupId)); }
+        if (msgType) { conditions.push(`wl.message_type=$${params.length+1}`); params.push(msgType); }
+        if (status) { conditions.push(`wl.status=$${params.length+1}`); params.push(status); }
+        params.push(limit);
+        const r = await pool.query(`SELECT wl.*, fg.name as biz_name FROM whatsapp_log wl JOIN family_groups fg ON fg.id=wl.group_id WHERE ${conditions.join(' AND ')} ORDER BY wl.sent_at DESC LIMIT $${params.length}`, params);
+        res.json({ success: true, log: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/sa/whatsapp-stats/:groupId', verifySA, async (req, res) => {
+    try {
+        const { groupId } = req.params;
+        const r = await pool.query(`SELECT message_type, COUNT(*) as cnt FROM whatsapp_log WHERE group_id=$1 AND sent_at > NOW() - INTERVAL '30 days' GROUP BY message_type ORDER BY cnt DESC`, [parseInt(groupId)]);
+        const total = r.rows.reduce((a,b) => a + parseInt(b.cnt), 0);
+        res.json({ success: true, total, byType: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.patch('/api/sa/whatsapp-settings/:groupId', verifySA, async (req, res) => {
+    try {
+        const { groupId } = req.params;
+        const { enabled } = req.body;
+        await pool.query(`INSERT INTO whatsapp_settings (group_id, enabled) VALUES ($1,$2) ON CONFLICT (group_id) DO UPDATE SET enabled=$2, updated_at=NOW()`, [parseInt(groupId), !!enabled]);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });

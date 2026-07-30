@@ -2404,7 +2404,7 @@ window._reportsExportPDF = function() {
 function switchTab(t) {
     // עסקי יופי: הפנה מ-customers ל-beauty_clients
     if (t === 'customers' && currentGroup?.business_type === 'beauty') t = 'beauty_clients';
-    ['feed','timeclock','shifts','calendar','shop','pantry','equipment','sales','pos','foodcost','customers','bank','cashflow','budget','forecast','tasks','deliveries','academy','community','members','surveys','settings','role-dashboard','beauty_calendar','beauty_clients','beauty_inventory','beauty_commissions','beauty_services','beauty_subscriptions','beauty_rfq','beauty_practitioners','logistics_orders','logistics_drivers','logistics_vehicles','logistics_pricing','logistics_cod','logistics_rfq','logistics_routes','logistics_tracking','logistics_reports','logistics_customers','logistics_invoices','reviews','cases','timelog','content','leads','documents','biz-ads'].forEach(x => {
+    ['feed','timeclock','shifts','calendar','shop','pantry','equipment','sales','pos','foodcost','customers','bank','cashflow','budget','forecast','tasks','deliveries','academy','community','members','surveys','settings','role-dashboard','beauty_calendar','beauty_clients','beauty_inventory','beauty_commissions','beauty_services','beauty_subscriptions','beauty_rfq','beauty_practitioners','logistics_orders','logistics_drivers','logistics_vehicles','logistics_pricing','logistics_cod','logistics_rfq','logistics_routes','logistics_tracking','logistics_reports','logistics_customers','logistics_invoices','reviews','cases','timelog','content','leads','documents','biz-ads','whatsapp-alerts'].forEach(x => {
         const el = getEl(`content-${x}`); if(el) el.classList.add('hidden');
         const btn = getEl(`tab-${x}`); if(btn) btn.classList.remove('tab-active');
     });
@@ -2512,6 +2512,7 @@ function switchTab(t) {
     if (t === 'leads')     try { renderProfessionalLeadsTab(); } catch(e) {}
     if (t === 'documents') try { renderDocumentsTab(); } catch(e) {}
     if (t === 'biz-ads') try { renderBizAdsTab(); } catch(e) {}
+    if (t === 'whatsapp-alerts') try { loadBizWhatsAppSettings(); } catch(e) {}
     if (t === 'reports')   try { renderUnifiedReportsTab(); } catch(e) {}
     if (t === 'reviews')               try { loadReviews(); } catch(e) {}
     if (t === 'settings')              { try { renderSettingsHub(); } catch(e) {} try { const _w = document.getElementById('biz-main-content-wrap'); if(_w) _w.scrollTop = 0; } catch(e) {} document.documentElement.scrollTop = 0; document.body.scrollTop = 0; window.scrollTo({ top: 0, behavior: 'instant' }); }
@@ -3298,7 +3299,8 @@ const ALL_TABS = [
     { id: 'content',   name: 'תוכן האתר 🌐' },
     { id: 'leads',     name: 'פניות נכנסות 📥' },
     { id: 'documents', name: 'מסמכים 📄' },
-    { id: 'reports',   name: 'דוחות 📊' }
+    { id: 'reports',   name: 'דוחות 📊' },
+    { id: 'whatsapp-alerts', name: 'התראות WhatsApp 📱' }
 ];
 
 const ROLE_DEFAULTS = {
@@ -4746,7 +4748,7 @@ const GNAV_GROUPS = {
     sales:     ['pos','sales','customers','cases','leads','deliveries','reviews','beauty_services','beauty_subscriptions','beauty_clients','beauty_rfq'],
     inventory: ['shop','pantry','equipment','foodcost','beauty_inventory'],
     finance:   ['bank','cashflow','budget','timelog','forecast','beauty_commissions','reports'],
-    more:      ['community','surveys','content','documents','biz-ads','settings']
+    more:      ['community','surveys','content','documents','biz-ads','whatsapp-alerts','settings']
 };
 
 // שמירת האב המקורי של כל dropdown לצורך החזרה
@@ -52550,3 +52552,104 @@ window.deleteBizFeedPost = async function(postId) {
         } else showToast('error', d.error || 'שגיאה');
     } catch(e2) { showToast('error', 'שגיאת תקשורת'); }
 };
+
+// ═══════════════════════════════════════════════════
+// WhatsApp התראות — BIZ Side
+// ═══════════════════════════════════════════════════
+async function loadBizWhatsAppSettings() {
+    const gid = currentGroup?.id; if (!gid) return;
+    const el = getEl('content-whatsapp-alerts');
+    if (!el) return;
+    el.innerHTML = `<div class="p-4 text-center text-slate-400"><i class="fa-solid fa-spinner fa-spin"></i> טוען...</div>`;
+    try {
+        const [sRes, lRes] = await Promise.all([
+            apiFetch(`/api/biz/whatsapp-settings/${gid}`),
+            apiFetch(`/api/biz/whatsapp-log/${gid}?limit=30`)
+        ]);
+        const s = sRes.settings || {};
+        const log = lRes.log || [];
+
+        const toggle = (key, label) => `
+            <label class="flex items-center gap-3 py-2 cursor-pointer">
+                <input type="checkbox" class="w-5 h-5 rounded accent-green-500 wa-toggle" data-key="${key}" ${s[key] ? 'checked' : ''}>
+                <span class="text-sm text-slate-700">${label}</span>
+            </label>`;
+
+        el.innerHTML = `
+        <div class="p-4 max-w-2xl mx-auto space-y-5">
+            <div class="flex items-center gap-3 mb-2">
+                <div class="w-10 h-10 bg-[#25D366]/10 rounded-xl flex items-center justify-center text-[#25D366] text-xl"><i class="fa-brands fa-whatsapp"></i></div>
+                <div><h2 class="font-black text-slate-800 text-lg">התראות WhatsApp</h2><p class="text-xs text-slate-500">שלח הודעות אוטומטיות לבעל העסק, עובדים ולקוחות</p></div>
+            </div>
+
+            <!-- מתג ראשי -->
+            <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm flex items-center justify-between">
+                <div>
+                    <p class="font-bold text-slate-800">הפעלת המערכת</p>
+                    <p class="text-xs text-slate-500 mt-0.5">הפעל / כבה את כל ההתראות</p>
+                </div>
+                <label class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" id="wa-main-toggle" class="sr-only peer" ${s.enabled ? 'checked' : ''}>
+                    <div class="w-11 h-6 bg-slate-200 peer-focus:ring-2 peer-focus:ring-green-500 rounded-full peer peer-checked:after:translate-x-full peer-checked:bg-[#25D366] after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
+                </label>
+            </div>
+
+            <!-- קבוצות הגדרות -->
+            <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm">
+                <p class="font-bold text-slate-700 mb-3 text-sm">📋 התראות לבעל העסק</p>
+                ${toggle('notify_owner_checkin', 'עובד לא דיפק שעון כניסה')}
+                ${toggle('notify_owner_order', 'הזמנה חדשה בחנות')}
+                ${toggle('notify_owner_task_due', 'משימה שעבר מועדה')}
+                ${toggle('notify_owner_inventory', 'מלאי נמוך (יומי 9:00)')}
+                ${toggle('notify_owner_plan', 'תזכורת תכנון מחר (19:00)')}
+            </div>
+            <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm">
+                <p class="font-bold text-slate-700 mb-3 text-sm">👷 התראות לעובדים</p>
+                ${toggle('notify_employee_shift', 'תזכורת משמרת מחר')}
+                ${toggle('notify_employee_task', 'משימה חדשה שהוקצתה')}
+                ${toggle('notify_employee_pay', 'עדכון תשלום שכר')}
+            </div>
+            <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm">
+                <p class="font-bold text-slate-700 mb-3 text-sm">🛍️ התראות ללקוחות</p>
+                ${toggle('notify_customer_order', 'אישור קבלת הזמנה')}
+                ${toggle('notify_customer_ready', 'הזמנה מוכנה')}
+                ${toggle('notify_customer_promo', 'מבצע מיוחד')}
+                ${toggle('notify_customer_review', 'בקשת דירוג')}
+            </div>
+
+            <button onclick="saveBizWhatsAppSettings()" class="w-full bg-[#25D366] text-white font-bold py-3 rounded-2xl shadow-md hover:bg-[#1ebd58] transition">
+                <i class="fa-solid fa-floppy-disk ml-1"></i> שמור הגדרות
+            </button>
+
+            <!-- היסטוריה -->
+            <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm">
+                <p class="font-bold text-slate-700 mb-3 text-sm">📜 היסטוריית הודעות אחרונות</p>
+                ${log.length === 0 ? '<p class="text-xs text-slate-400 text-center py-4">אין הודעות עדיין</p>' : `
+                <div class="overflow-x-auto">
+                <table class="w-full text-xs">
+                    <thead><tr class="text-slate-500 border-b"><th class="text-right pb-2">סוג</th><th class="text-right pb-2">נמען</th><th class="text-right pb-2">סטטוס</th><th class="text-right pb-2">זמן</th></tr></thead>
+                    <tbody>
+                    ${log.map(l => `<tr class="border-b border-slate-50 hover:bg-slate-50">
+                        <td class="py-1.5 font-medium">${l.message_type}</td>
+                        <td class="py-1.5 text-slate-600">${l.recipient_name || l.recipient_phone || '—'}</td>
+                        <td class="py-1.5"><span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${l.status==='sent'?'bg-green-100 text-green-700':'bg-red-100 text-red-700'}">${l.status==='sent'?'נשלח':'שגיאה'}</span></td>
+                        <td class="py-1.5 text-slate-400">${new Date(l.sent_at).toLocaleString('he-IL',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}</td>
+                    </tr>`).join('')}
+                    </tbody>
+                </table>
+                </div>`}
+            </div>
+        </div>`;
+    } catch(e) { if (el) el.innerHTML = `<div class="p-4 text-red-500">שגיאה בטעינה</div>`; }
+}
+
+async function saveBizWhatsAppSettings() {
+    const gid = currentGroup?.id; if (!gid) return;
+    const payload = { enabled: !!document.getElementById('wa-main-toggle')?.checked };
+    document.querySelectorAll('.wa-toggle').forEach(cb => { payload[cb.dataset.key] = cb.checked; });
+    try {
+        const d = await apiFetch(`/api/biz/whatsapp-settings/${gid}`, { method: 'PUT', body: JSON.stringify(payload) });
+        if (d.success) showToast('success', 'הגדרות נשמרו!');
+        else showToast('error', d.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+}

@@ -201,6 +201,9 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
             <button id="btn-sa-group-livegamesgrp" onclick="switchSAGroup('livegamesgrp')" class="hidden flex">
               <i class="fa-solid fa-bolt" style="color:#fbbf24"></i> משחקים חיים
             </button>
+            <button id="btn-sa-group-whatsapp" onclick="switchSAGroup('whatsapp')" class="hidden flex">
+              <i class="fa-brands fa-whatsapp" style="color:#25D366"></i> WhatsApp התראות
+            </button>
           </div>
           <div class="sb-footer">
             <button onclick="logoutSA()" class="sb-logout">
@@ -497,6 +500,10 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                 </div><!-- /vt-partners-pilot -->
 
                 </div><!-- /sa-view-partners -->
+
+                <div id="sa-view-whatsapp" class="hidden fade-in">
+                    <div id="sa-whatsapp-hub"></div>
+                </div>
 
                 <div id="sa-view-pulse" class="hidden fade-in">
 

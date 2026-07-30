@@ -477,6 +477,7 @@ window.switchSATab = function(tabId) {
     if (tabId === 'feed') loadSACommunityFeed();
     if (tabId === 'livegames') loadSALiveGames();
     if (tabId === 'marketing') window.saMarketingInit && window.saMarketingInit();
+    if (tabId === 'whatsapp') loadSAWhatsAppHub();
 
     // Update group button active state + sub-nav bar
     _updateSAGroupNav(tabId);
@@ -494,6 +495,7 @@ const SA_GROUPS = {
     partners:   { tabs: ['partners'],                   labels: [],                                  icons: [],                                         default: 'partners' },
     system:     { tabs: ['hr', 'sysmap', 'auditlog', 'archive'], labels: ['צוות ונציגים', 'מפת המערכת', 'לוג אירועים', 'ארכיון מחוקים'], icons: ['fa-user-tie', 'fa-map', 'fa-shield-halved', 'fa-box-archive'], default: 'hr' },
     templates:  { tabs: ['templates'],                  labels: ['תבניות עסקים'],                    icons: ['fa-layer-group'],                          default: 'templates' },
+    whatsapp:   { tabs: ['whatsapp'],                   labels: ['מרכז WhatsApp'],                   icons: ['fa-whatsapp'],                             default: 'whatsapp' },
 };
 
 function _getGroupForTab(tabId) {
@@ -1915,6 +1917,7 @@ function renderSAGroups() {
                         ${planSelector}
                         <button onclick="openSnapshotsModal(${g.id},'${safeStr(fmtGroupName(g))}')" class="bg-indigo-100 text-indigo-700 px-3 py-1 rounded text-[10px] font-bold hover:bg-indigo-200 transition"><i class="fa-solid fa-clock-rotate-left"></i> גיבויים</button>
                         <button onclick="saDeleteGroup(${g.id})" class="bg-red-100 text-red-600 px-3 py-1 rounded text-[10px] font-bold hover:bg-red-200 transition"><i class="fa-solid fa-trash"></i> מחיקה</button>
+                        ${g.type==='BUSINESS' ? `<button onclick="openSAWhatsAppModal(${g.id},'${safeStr(fmtGroupName(g))}')" class="bg-[#25D366]/10 text-[#25D366] px-3 py-1 rounded text-[10px] font-bold hover:bg-[#25D366]/20 transition" id="wa-badge-${g.id}"><i class="fa-brands fa-whatsapp"></i> 📱 WA</button>` : ''}
                     </div>
                 </div>
                 ${uHtml}
@@ -11294,3 +11297,131 @@ window.saMarketingRemoveSlideImage = function(slotKey) {
     delete _mktSlideImages[slotKey];
     saMarketingRenderSlideImages();
 };
+
+// ═══════════════════════════════════════════════════
+// WhatsApp — SA Hub
+// ═══════════════════════════════════════════════════
+async function loadSAWhatsAppHub() {
+    const hub = document.getElementById('sa-whatsapp-hub');
+    if (!hub) return;
+    hub.innerHTML = `<div class="p-4 text-center text-slate-400"><i class="fa-solid fa-spinner fa-spin"></i> טוען...</div>`;
+    try {
+        const [statsRes, logRes] = await Promise.all([
+            saFetch('/api/sa/whatsapp-stats'),
+            saFetch('/api/sa/whatsapp-log?limit=100')
+        ]);
+        const stats = statsRes;
+        const log = logRes.log || [];
+        const typeLabels = {
+            missing_checkin: 'שכחת שעון', checkin_summary: 'סיכום נוכחות', new_order: 'הזמנה חדשה',
+            task_due: 'משימה באיחור', low_inventory: 'מלאי נמוך', plan_tomorrow: 'תכנון מחר',
+            order_received: 'אישור הזמנה', order_ready: 'הזמנה מוכנה'
+        };
+        hub.innerHTML = `
+        <div class="p-4 max-w-4xl mx-auto space-y-5">
+            <div class="flex items-center gap-3 mb-2">
+                <div class="w-10 h-10 bg-[#25D366]/10 rounded-xl flex items-center justify-center text-[#25D366] text-xl"><i class="fa-brands fa-whatsapp"></i></div>
+                <div><h2 class="font-black text-slate-800 text-lg">מרכז WhatsApp — סופר אדמין</h2><p class="text-xs text-slate-500">מעקב וניהול כלל הודעות WhatsApp במערכת</p></div>
+            </div>
+
+            <!-- כרטיסי סטטיסטיקה -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div class="bg-white rounded-2xl border p-4 shadow-sm text-center">
+                    <p class="text-2xl font-black text-[#25D366]">${stats.total || 0}</p>
+                    <p class="text-xs text-slate-500 mt-1">הודעות החודש</p>
+                </div>
+                <div class="bg-white rounded-2xl border p-4 shadow-sm text-center">
+                    <p class="text-2xl font-black text-indigo-600">${stats.activeBiz || 0}</p>
+                    <p class="text-xs text-slate-500 mt-1">עסקים פעילים</p>
+                </div>
+                <div class="bg-white rounded-2xl border p-4 shadow-sm text-center">
+                    <p class="text-2xl font-black text-green-600">${(stats.byStatus||[]).find(s=>s.status==='sent')?.cnt || 0}</p>
+                    <p class="text-xs text-slate-500 mt-1">נשלחו בהצלחה</p>
+                </div>
+                <div class="bg-white rounded-2xl border p-4 shadow-sm text-center">
+                    <p class="text-2xl font-black text-red-500">${(stats.byStatus||[]).find(s=>s.status==='error')?.cnt || 0}</p>
+                    <p class="text-xs text-slate-500 mt-1">שגיאות</p>
+                </div>
+            </div>
+
+            <!-- לוג מלא -->
+            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                <div class="p-4 border-b flex justify-between items-center">
+                    <p class="font-bold text-slate-700">לוג הודעות אחרון</p>
+                    <span class="text-xs text-slate-400">${log.length} רשומות</span>
+                </div>
+                <div class="overflow-x-auto">
+                <table class="w-full text-xs">
+                    <thead class="bg-slate-50"><tr class="text-slate-500">
+                        <th class="text-right p-3">עסק</th><th class="text-right p-3">סוג הודעה</th>
+                        <th class="text-right p-3">נמען</th><th class="text-right p-3">טלפון</th>
+                        <th class="text-right p-3">סטטוס</th><th class="text-right p-3">זמן</th>
+                    </tr></thead>
+                    <tbody>
+                    ${log.map(l => `<tr class="border-t hover:bg-slate-50">
+                        <td class="p-3 font-medium">${l.biz_name || '—'}</td>
+                        <td class="p-3">${typeLabels[l.message_type] || l.message_type}</td>
+                        <td class="p-3 text-slate-600">${l.recipient_name || '—'}</td>
+                        <td class="p-3 font-mono text-slate-400">${l.recipient_phone || '—'}</td>
+                        <td class="p-3"><span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${l.status==='sent'?'bg-green-100 text-green-700':l.status==='no_config'?'bg-amber-100 text-amber-700':'bg-red-100 text-red-700'}">${l.status==='sent'?'✓ נשלח':l.status==='no_config'?'⚙ אין הגדרה':'✗ שגיאה'}</span></td>
+                        <td class="p-3 text-slate-400">${new Date(l.sent_at).toLocaleString('he-IL',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}</td>
+                    </tr>`).join('')}
+                    </tbody>
+                </table>
+                </div>
+            </div>
+        </div>`;
+    } catch(e) { hub.innerHTML = `<div class="p-4 text-red-500">שגיאה: ${e.message}</div>`; }
+}
+
+async function openSAWhatsAppModal(groupId, bizName) {
+    try {
+        const [statsRes, settingsRes] = await Promise.all([
+            saFetch(`/api/sa/whatsapp-stats/${groupId}`),
+            saFetch(`/api/biz/whatsapp-settings/${groupId}`)
+        ]);
+        const total = statsRes.total || 0;
+        const byType = statsRes.byType || [];
+        const enabled = settingsRes.settings?.enabled || false;
+        const typeLabels = {
+            missing_checkin:'שכחת שעון',checkin_summary:'סיכום נוכחות',new_order:'הזמנה חדשה',
+            task_due:'משימה באיחור',low_inventory:'מלאי נמוך',plan_tomorrow:'תכנון מחר',
+            order_received:'אישור הזמנה',order_ready:'הזמנה מוכנה'
+        };
+        const modal = document.createElement('div');
+        modal.className = 'fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4';
+        modal.innerHTML = `
+        <div class="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
+            <div class="flex justify-between items-start mb-4">
+                <div>
+                    <h3 class="font-black text-slate-800">WhatsApp — ${bizName}</h3>
+                    <p class="text-xs text-slate-500 mt-1">📱 ${total} הודעות החודש</p>
+                </div>
+                <button onclick="this.closest('.fixed').remove()" class="text-slate-400 hover:text-slate-700 text-xl">✕</button>
+            </div>
+            <div class="flex items-center justify-between mb-4 p-3 bg-slate-50 rounded-xl">
+                <span class="text-sm font-bold text-slate-700">מצב מערכת</span>
+                <span class="px-3 py-1 rounded-full text-xs font-bold ${enabled?'bg-green-100 text-green-700':'bg-slate-200 text-slate-500'}">${enabled?'✓ פעיל':'כבוי'}</span>
+            </div>
+            <div class="space-y-2 mb-4">
+                ${byType.map(t=>`<div class="flex justify-between text-sm"><span class="text-slate-600">${typeLabels[t.message_type]||t.message_type}</span><span class="font-bold text-slate-800">${t.cnt}</span></div>`).join('')}
+                ${byType.length===0?'<p class="text-xs text-slate-400 text-center py-2">אין הודעות עדיין</p>':''}
+            </div>
+            <div class="flex gap-2">
+                <button onclick="toggleSAWhatsApp(${groupId}, ${!enabled}, this)" class="flex-1 ${enabled?'bg-red-100 text-red-700':'bg-[#25D366] text-white'} font-bold py-2.5 rounded-xl text-sm transition">
+                    ${enabled?'⏸ כבה התראות':'▶ הפעל התראות'}
+                </button>
+                <button onclick="this.closest('.fixed').remove()" class="flex-1 bg-slate-100 text-slate-700 font-bold py-2.5 rounded-xl text-sm">סגור</button>
+            </div>
+        </div>`;
+        document.body.appendChild(modal);
+    } catch(e) { showToast('error', 'שגיאה בטעינה'); }
+}
+
+async function toggleSAWhatsApp(groupId, enable, btn) {
+    try {
+        const d = await saFetch(`/api/sa/whatsapp-settings/${groupId}`, { method: 'PATCH', body: JSON.stringify({ enabled: enable }) });
+        if (d.success) { showToast('success', enable ? 'הופעל!' : 'כובה!'); btn.closest('.fixed').remove(); }
+        else showToast('error', d.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+}
