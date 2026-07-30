@@ -4403,8 +4403,8 @@ window.renderTasks = function(tasks) {
         let statusColor = 'bg-white border-slate-100'; let statusBadge = ''; let actionBtn = '';
 
         const deleteBtn = isAdmin ? `<button onclick="deleteTask(${t.id})" class="text-slate-300 hover:text-red-500 bg-slate-50 w-7 h-7 rounded-lg flex items-center justify-center transition border border-slate-100" title="בטל משימה"><i class="fa-solid fa-trash-can text-xs"></i></button>` : '';
-        const editBtn = (isAdmin && t.status === 'pending' && !isSop) ? `<button onclick="openEditTaskModal(${t.id}, '${displayTitle.replace(/'/g,\"\\\'")}', ${t.reward||0}, '${t.priority||'medium'}')" class="text-slate-300 hover:text-blue-500 bg-slate-50 w-7 h-7 rounded-lg flex items-center justify-center transition border border-slate-100" title="ערוך משימה"><i class="fa-solid fa-pen text-xs"></i></button>` : '';
-        const commentsBtn = `<button onclick="openTaskComments(${t.id}, '${displayTitle.replace(/'/g,\"\\\'")}' )" class="text-slate-300 hover:text-purple-500 bg-slate-50 w-7 h-7 rounded-lg flex items-center justify-center transition border border-slate-100" title="תגובות"><i class="fa-solid fa-comment text-xs"></i></button>`;
+        const editBtn = (isAdmin && t.status === 'pending' && !isSop) ? `<button onclick="openEditTaskModal(${t.id}, '${displayTitle.replace(/'/g,"\\'")}', ${t.reward||0}, '${t.priority||'medium'}')" class="text-slate-300 hover:text-blue-500 bg-slate-50 w-7 h-7 rounded-lg flex items-center justify-center transition border border-slate-100" title="ערוך משימה"><i class="fa-solid fa-pen text-xs"></i></button>` : '';
+        const commentsBtn = `<button onclick="openTaskComments(${t.id}, '${displayTitle.replace(/'/g,"\\'")}' )" class="text-slate-300 hover:text-purple-500 bg-slate-50 w-7 h-7 rounded-lg flex items-center justify-center transition border border-slate-100" title="תגובות"><i class="fa-solid fa-comment text-xs"></i></button>`;
 
         if (t.status === 'pending') {
             if (isMyTask) {
