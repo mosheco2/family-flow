@@ -3144,6 +3144,7 @@ initDB();
 async function runWhatsAppCron() {
     try {
         const settingsRes = await pool.query(`SELECT ws.*, fg.name as biz_name FROM whatsapp_settings ws JOIN family_groups fg ON fg.id=ws.group_id WHERE ws.enabled=true AND fg.type='BUSINESS'`);
+        console.log(`[WA-CRON] businesses with WA enabled: ${settingsRes.rows.length}`);
         for (const s of settingsRes.rows) {
             const groupId = s.group_id;
             const bizName = s.biz_name;
@@ -3151,6 +3152,7 @@ async function runWhatsAppCron() {
             // Owner phone
             const ownerRes = await pool.query(`SELECT phone FROM users WHERE id=(SELECT owner_user_id FROM family_groups WHERE id=$1) LIMIT 1`, [groupId]);
             const ownerPhone = ownerRes.rows[0]?.phone;
+            console.log(`[WA-CRON] group=${groupId} biz="${bizName}" ownerPhone=${ownerPhone} notify_order=${s.notify_owner_order}`);
 
             const now = new Date();
             const hh = now.getHours();
@@ -3190,11 +3192,15 @@ async function runWhatsAppCron() {
             if (s.notify_owner_order && ownerPhone) {
                 try {
                     const newOrders = await pool.query(`SELECT id, customer_name, customer_phone, total_amount FROM store_orders WHERE group_id=$1 AND status='new' AND created_at > NOW() - INTERVAL '2 minutes'`, [groupId]);
+                    console.log(`[WA-CRON] group=${groupId} new orders in last 2min: ${newOrders.rows.length}`);
                     for (const ord of newOrders.rows) {
                         // התראה לבעל עסק
                         const alreadyOwner = await checkAlreadySent(pool, groupId, 'new_order_owner_' + ord.id, ownerPhone, 1);
+                        console.log(`[WA-CRON] order=${ord.id} alreadyOwner=${alreadyOwner}`);
                         if (!alreadyOwner) {
-                            await sendWhatsApp(pool, groupId, ownerPhone, bizName, `🛍️ הזמנה חדשה מ-${ord.customer_name || 'לקוח'}! סכום: ₪${ord.total_amount || 0}. כנס למערכת לטיפול.`, null, 'owner', 'מנהל', 'new_order');
+                            console.log(`[WA-CRON] sending to owner ${ownerPhone}`);
+                            const waResult = await sendWhatsApp(pool, groupId, ownerPhone, bizName, `🛍️ הזמנה חדשה מ-${ord.customer_name || 'לקוח'}! סכום: ₪${ord.total_amount || 0}. כנס למערכת לטיפול.`, null, 'owner', 'מנהל', 'new_order');
+                            console.log(`[WA-CRON] owner send result:`, JSON.stringify(waResult));
                             await pool.query(`INSERT INTO whatsapp_log (group_id,message_type,recipient_type,recipient_phone,content,status) VALUES ($1,'new_order_owner_${ord.id}','internal',$2,'dedup marker','sent')`, [groupId, ownerPhone]).catch(()=>{});
                         }
                         // התראה ללקוח (אישור קבלת הזמנה)
