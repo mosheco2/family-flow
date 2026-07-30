@@ -10039,7 +10039,7 @@ window.switchSAContentTab = function(tab) {
 
 async function initSABizFeedBadge() {
     try {
-        const res = await fetch('/api/sa/community/biz-posts/pending-count');
+        const res = await fetch('/api/sa/community/biz-posts/pending-count', { headers: { 'Authorization': saToken || localStorage.getItem('ofl_sa_token') || '' } });
         const data = await res.json();
         const badge = document.getElementById('sa-biz-posts-badge');
         if (!badge) return;
