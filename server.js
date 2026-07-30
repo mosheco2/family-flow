@@ -3096,6 +3096,18 @@ async function initDB() {
                 updated_at TIMESTAMP DEFAULT NOW()
             );
             INSERT INTO whatsapp_global_defaults (id) VALUES (1) ON CONFLICT (id) DO NOTHING;
+            CREATE TABLE IF NOT EXISTS whatsapp_notification_types (
+                id SERIAL PRIMARY KEY,
+                name VARCHAR(100) NOT NULL,
+                description TEXT,
+                trigger_hook VARCHAR(50) NOT NULL,
+                recipient_type VARCHAR(20) NOT NULL DEFAULT 'owner',
+                message_template TEXT NOT NULL,
+                dedup_hours INTEGER DEFAULT 23,
+                enabled BOOLEAN DEFAULT true,
+                created_at TIMESTAMP DEFAULT NOW(),
+                updated_at TIMESTAMP DEFAULT NOW()
+            );
         `);
         // עמודות override על whatsapp_settings (NULL=גלובלי, true=כפה פתוח, false=כפה חסום)
         const ovCols = ['owner_checkin','owner_order','owner_task_due','owner_inventory','owner_plan','employee_shift','employee_task','employee_pay','customer_order','customer_ready','customer_promo','customer_review'];
@@ -3234,6 +3246,58 @@ async function runWhatsAppCron() {
             }
         }
     } catch (e) { console.error('WhatsApp cron error:', e.message); }
+
+    // סוגי התראות דינמיים מהDB
+    try {
+        const now2 = new Date();
+        const hh2 = now2.getHours();
+        const mm2 = now2.getMinutes();
+        const timeStr = `${String(hh2).padStart(2,'0')}:${String(mm2).padStart(2,'0')}`;
+
+        const dynTypes = await pool.query(`SELECT * FROM whatsapp_notification_types WHERE enabled=true`);
+        if (dynTypes.rows.length === 0) return;
+
+        const bizList = await pool.query(
+            `SELECT fg.id, fg.name, fg.owner_user_id, ws.enabled as wa_enabled
+             FROM family_groups fg LEFT JOIN whatsapp_settings ws ON ws.group_id=fg.id
+             WHERE fg.type='BUSINESS' AND ws.enabled=true`
+        );
+
+        for (const biz of bizList.rows) {
+            const ownerRes = await pool.query(`SELECT phone, full_name FROM users WHERE id=$1 LIMIT 1`, [biz.owner_user_id]);
+            const ownerPhone = ownerRes.rows[0]?.phone;
+            const ownerName = ownerRes.rows[0]?.full_name || 'מנהל';
+
+            for (const nt of dynTypes.rows) {
+                const hook = nt.trigger_hook;
+                // בדיקת תנאי זמן
+                const isMinutely = hook === 'every_minute';
+                const isDailyMatch = hook.startsWith('daily_') && hook.slice(6) === timeStr;
+                if (!isMinutely && !isDailyMatch) continue;
+
+                // בחר נמען ומספר טלפון
+                let targetPhone = null, targetName = null;
+                if (nt.recipient_type === 'owner') { targetPhone = ownerPhone; targetName = ownerName; }
+                // עובד / לקוח דורשים לוגיקה ספציפית — כרגע שולחים לבעלים
+                else { targetPhone = ownerPhone; targetName = ownerName; }
+
+                if (!targetPhone) continue;
+
+                const dedupKey = `custom_${nt.id}`;
+                const already = await checkAlreadySent(pool, biz.id, dedupKey, targetPhone, nt.dedup_hours || 23);
+                if (already) continue;
+
+                // החלפת משתנים בתבנית
+                const content = nt.message_template
+                    .replace(/\{שם_עסק\}/g, biz.name)
+                    .replace(/\{שם_עובד\}/g, targetName)
+                    .replace(/\{שם_לקוח\}/g, targetName)
+                    .replace(/\{מנהל\}/g, ownerName);
+
+                await sendWhatsApp(pool, biz.id, targetPhone, biz.name, content, null, nt.recipient_type, targetName, dedupKey);
+            }
+        }
+    } catch (e) { console.error('WhatsApp dynamic types cron error:', e.message); }
 }
 setTimeout(() => { runWhatsAppCron(); setInterval(runWhatsAppCron, 60 * 1000); }, 30 * 1000);
         // יישור קו עם שאר המערכת: שימוש במודל 2.5 המעודכן שעובד על המפתח שלך
@@ -25973,5 +26037,55 @@ app.get('/api/biz/whatsapp-effective/:groupId', async (req, res) => {
             effective[k] = (ov_val !== null && ov_val !== undefined) ? ov_val : (defaults[k] !== undefined ? defaults[k] : true);
         });
         res.json({ success: true, effective });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ═══════════════════════════════════════════
+// WhatsApp — Dynamic Notification Types (SA CRUD)
+// ═══════════════════════════════════════════
+app.get('/api/sa/whatsapp-types', verifySA, async (req, res) => {
+    try {
+        const r = await pool.query(`SELECT * FROM whatsapp_notification_types ORDER BY created_at ASC`);
+        res.json({ success: true, types: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/sa/whatsapp-types', verifySA, async (req, res) => {
+    try {
+        const { name, description, trigger_hook, recipient_type, message_template, dedup_hours } = req.body;
+        if (!name || !trigger_hook || !message_template) return res.status(400).json({ error: 'שדות חובה חסרים' });
+        const r = await pool.query(
+            `INSERT INTO whatsapp_notification_types (name, description, trigger_hook, recipient_type, message_template, dedup_hours)
+             VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
+            [name, description||null, trigger_hook, recipient_type||'owner', message_template, parseInt(dedup_hours)||23]
+        );
+        res.json({ success: true, type: r.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/sa/whatsapp-types/:id', verifySA, async (req, res) => {
+    try {
+        const { name, description, trigger_hook, recipient_type, message_template, dedup_hours, enabled } = req.body;
+        const r = await pool.query(
+            `UPDATE whatsapp_notification_types SET name=$1, description=$2, trigger_hook=$3, recipient_type=$4, message_template=$5, dedup_hours=$6, enabled=$7, updated_at=NOW()
+             WHERE id=$8 RETURNING *`,
+            [name, description||null, trigger_hook, recipient_type||'owner', message_template, parseInt(dedup_hours)||23, enabled !== false, req.params.id]
+        );
+        if (!r.rows[0]) return res.status(404).json({ error: 'לא נמצא' });
+        res.json({ success: true, type: r.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.patch('/api/sa/whatsapp-types/:id/toggle', verifySA, async (req, res) => {
+    try {
+        const r = await pool.query(`UPDATE whatsapp_notification_types SET enabled=NOT enabled, updated_at=NOW() WHERE id=$1 RETURNING enabled`, [req.params.id]);
+        res.json({ success: true, enabled: r.rows[0]?.enabled });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/sa/whatsapp-types/:id', verifySA, async (req, res) => {
+    try {
+        await pool.query(`DELETE FROM whatsapp_notification_types WHERE id=$1`, [req.params.id]);
+        res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });

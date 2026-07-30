@@ -11321,16 +11321,18 @@ async function loadSAWhatsAppHub() {
     if (!hub) return;
     hub.innerHTML = `<div class="p-4 text-center text-slate-400"><i class="fa-solid fa-spinner fa-spin"></i> טוען...</div>`;
     try {
-        const [statsRes, logRes, defsRes, customRes] = await Promise.all([
+        const [statsRes, logRes, defsRes, customRes, typesRes] = await Promise.all([
             saFetch('/api/sa/whatsapp-stats'),
             saFetch('/api/sa/whatsapp-log?limit=100'),
             saFetch('/api/sa/whatsapp-global-defaults'),
-            saFetch('/api/sa/whatsapp-customized')
+            saFetch('/api/sa/whatsapp-customized'),
+            saFetch('/api/sa/whatsapp-types')
         ]);
         const stats = statsRes;
         const log = logRes.log || [];
         const defs = defsRes.defaults || {};
         const customized = customRes.customized || [];
+        const dynTypes = typesRes.types || [];
         const typeLabels = {};
         WA_TYPE_META.forEach(t => { typeLabels[t.key] = t.label; typeLabels['missing_checkin'] = 'שכחת שעון'; typeLabels['new_order'] = 'הזמנה חדשה'; typeLabels['task_due'] = 'משימה באיחור'; typeLabels['low_inventory'] = 'מלאי נמוך'; typeLabels['plan_tomorrow'] = 'תכנון מחר'; typeLabels['order_received'] = 'אישור הזמנה'; typeLabels['order_ready'] = 'הזמנה מוכנה'; typeLabels['checkin_summary'] = 'סיכום נוכחות'; });
 
@@ -11413,6 +11415,46 @@ async function loadSAWhatsAppHub() {
                 </div>
                 <div class="space-y-2">${customBadges}</div>
             </div>` : ''}
+
+            <!-- סוגי התראות דינמיים -->
+            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                <div class="p-4 border-b bg-slate-50 flex justify-between items-center">
+                    <div>
+                        <p class="font-bold text-slate-800">➕ סוגי התראות מותאמים</p>
+                        <p class="text-xs text-slate-500 mt-0.5">הוסף התראות חדשות ללא קוד — פועלות על כל העסקים הפעילים</p>
+                    </div>
+                    <button onclick="openWATypeModal()" class="bg-indigo-600 text-white text-xs font-bold px-4 py-2 rounded-xl hover:bg-indigo-700 transition">
+                        <i class="fa-solid fa-plus ml-1"></i> סוג חדש
+                    </button>
+                </div>
+                ${dynTypes.length === 0
+                    ? `<div class="p-6 text-center text-slate-400 text-sm">אין סוגי התראות מותאמים עדיין.<br><span class="text-xs">לחץ על "סוג חדש" להוסיף.</span></div>`
+                    : `<table class="w-full text-xs">
+                        <thead class="bg-slate-50 border-b"><tr class="text-slate-500">
+                            <th class="text-right p-3">שם</th>
+                            <th class="text-right p-3">טריגר</th>
+                            <th class="text-right p-3">נמען</th>
+                            <th class="text-right p-3">מצב</th>
+                            <th class="p-3"></th>
+                        </tr></thead>
+                        <tbody>
+                        ${dynTypes.map(t => `<tr class="border-t hover:bg-slate-50" id="wa-type-row-${t.id}">
+                            <td class="p-3 font-bold text-slate-700">${t.name}<br><span class="text-slate-400 font-normal">${t.description||''}</span></td>
+                            <td class="p-3 font-mono text-slate-500">${_waHookLabel(t.trigger_hook)}</td>
+                            <td class="p-3">${_waRecipientLabel(t.recipient_type)}</td>
+                            <td class="p-3">
+                                <button onclick="toggleWAType(${t.id}, this)" class="px-2 py-1 rounded-full text-[10px] font-bold transition ${t.enabled ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-slate-200 text-slate-500 hover:bg-slate-300'}">
+                                    ${t.enabled ? '✓ פעיל' : '⏸ מושהה'}
+                                </button>
+                            </td>
+                            <td class="p-3 flex gap-1.5 justify-end">
+                                <button onclick="openWATypeModal(${t.id})" class="text-indigo-500 hover:text-indigo-700 bg-indigo-50 w-7 h-7 rounded-lg flex items-center justify-center transition" title="ערוך"><i class="fa-solid fa-pen text-xs"></i></button>
+                                <button onclick="deleteWAType(${t.id})" class="text-red-400 hover:text-red-600 bg-red-50 w-7 h-7 rounded-lg flex items-center justify-center transition" title="מחק"><i class="fa-solid fa-trash text-xs"></i></button>
+                            </td>
+                        </tr>`).join('')}
+                        </tbody>
+                    </table>`}
+            </div>
 
             <!-- לוג הודעות -->
             <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
@@ -11579,5 +11621,148 @@ async function toggleSAWhatsApp(groupId, enable, btn) {
         const d = await saFetch(`/api/sa/whatsapp-settings/${groupId}`, { method: 'PATCH', body: JSON.stringify({ enabled: enable }) });
         if (d.success) { showToast('success', enable ? 'הופעל!' : 'כובה!'); btn.closest('.fixed')?.remove(); }
         else showToast('error', d.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+}
+
+// ══════════════════════════════════════════════
+// WhatsApp — Dynamic Notification Types CRUD UI
+// ══════════════════════════════════════════════
+
+const WA_HOOKS = [
+    { value: 'every_minute',  label: 'כל דקה (אירועים בזמן אמת)' },
+    { value: 'daily_07:00',   label: 'כל יום 07:00' },
+    { value: 'daily_08:00',   label: 'כל יום 08:00' },
+    { value: 'daily_09:00',   label: 'כל יום 09:00' },
+    { value: 'daily_10:00',   label: 'כל יום 10:00' },
+    { value: 'daily_12:00',   label: 'כל יום 12:00' },
+    { value: 'daily_14:00',   label: 'כל יום 14:00' },
+    { value: 'daily_17:00',   label: 'כל יום 17:00' },
+    { value: 'daily_19:00',   label: 'כל יום 19:00' },
+    { value: 'daily_21:00',   label: 'כל יום 21:00' },
+];
+
+const WA_RECIPIENTS = [
+    { value: 'owner',    label: '👤 בעל העסק' },
+    { value: 'employee', label: '👷 עובדים' },
+    { value: 'customer', label: '🛍️ לקוחות' },
+];
+
+function _waHookLabel(hook) {
+    return WA_HOOKS.find(h=>h.value===hook)?.label || hook;
+}
+function _waRecipientLabel(r) {
+    return WA_RECIPIENTS.find(x=>x.value===r)?.label || r;
+}
+
+async function openWATypeModal(editId) {
+    let existing = null;
+    if (editId) {
+        try {
+            const r = await saFetch('/api/sa/whatsapp-types');
+            existing = (r.types||[]).find(t=>t.id===editId);
+        } catch(e) {}
+    }
+    const modal = document.createElement('div');
+    modal.id = 'wa-type-modal';
+    modal.className = 'fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4';
+    modal.innerHTML = `
+    <div class="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[92vh] overflow-y-auto p-6">
+        <div class="flex justify-between items-center mb-5">
+            <h3 class="font-black text-slate-800 text-lg">${editId ? '✏️ עריכת סוג התראה' : '➕ סוג התראה חדש'}</h3>
+            <button onclick="document.getElementById('wa-type-modal').remove()" class="text-slate-400 hover:text-slate-700 text-xl">✕</button>
+        </div>
+
+        <div class="space-y-4">
+            <div>
+                <label class="block text-xs font-bold text-slate-600 mb-1">שם ההתראה *</label>
+                <input id="wat-name" type="text" value="${existing?.name||''}" placeholder="לדוגמה: תזכורת חוב פתוח" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100">
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-slate-600 mb-1">תיאור (אופציונלי)</label>
+                <input id="wat-desc" type="text" value="${existing?.description||''}" placeholder="הסבר קצר על ההתראה" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100">
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">מתי יוצאת *</label>
+                    <select id="wat-hook" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-indigo-400 bg-white">
+                        ${WA_HOOKS.map(h=>`<option value="${h.value}" ${existing?.trigger_hook===h.value?'selected':''}>${h.label}</option>`).join('')}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1">למי *</label>
+                    <select id="wat-recipient" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-indigo-400 bg-white">
+                        ${WA_RECIPIENTS.map(r=>`<option value="${r.value}" ${existing?.recipient_type===r.value?'selected':''}>${r.label}</option>`).join('')}
+                    </select>
+                </div>
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-slate-600 mb-1">תוכן ההודעה *</label>
+                <textarea id="wat-template" rows="4" placeholder="כתוב את ההודעה כאן..." class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 resize-none">${existing?.message_template||''}</textarea>
+                <div class="mt-2 p-3 bg-slate-50 rounded-xl">
+                    <p class="text-[11px] font-bold text-slate-500 mb-1">משתנים זמינים — לחץ להוסיף:</p>
+                    <div class="flex flex-wrap gap-1.5">
+                        ${['{שם_עסק}','{שם_עובד}','{שם_לקוח}','{מנהל}'].map(v=>`<button type="button" onclick="document.getElementById('wat-template').value+=this.dataset.v" data-v="${v}" class="text-[11px] bg-indigo-100 text-indigo-700 px-2 py-1 rounded-lg font-mono hover:bg-indigo-200 transition">${v}</button>`).join('')}
+                    </div>
+                </div>
+            </div>
+            <div>
+                <label class="block text-xs font-bold text-slate-600 mb-1">שעות מינימום בין שליחות חוזרת</label>
+                <input id="wat-dedup" type="number" min="0" max="168" value="${existing?.dedup_hours??23}" class="w-32 border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-indigo-400">
+                <span class="text-xs text-slate-400 mr-2">שעות (0 = ללא הגבלה)</span>
+            </div>
+        </div>
+
+        <div class="flex gap-3 mt-6">
+            <button onclick="saveWAType(${editId||'null'})" class="flex-1 bg-indigo-600 text-white font-bold py-3 rounded-xl hover:bg-indigo-700 transition">
+                <i class="fa-solid fa-floppy-disk ml-1"></i> ${editId ? 'עדכן' : 'צור התראה'}
+            </button>
+            <button onclick="document.getElementById('wa-type-modal').remove()" class="bg-slate-100 text-slate-600 font-bold py-3 px-5 rounded-xl hover:bg-slate-200 transition">ביטול</button>
+        </div>
+    </div>`;
+    document.body.appendChild(modal);
+}
+
+async function saveWAType(editId) {
+    const name = document.getElementById('wat-name')?.value.trim();
+    const trigger_hook = document.getElementById('wat-hook')?.value;
+    const message_template = document.getElementById('wat-template')?.value.trim();
+    if (!name || !message_template) { showToast('error', 'שם ותוכן הם שדות חובה'); return; }
+    const payload = {
+        name,
+        description: document.getElementById('wat-desc')?.value.trim()||null,
+        trigger_hook,
+        recipient_type: document.getElementById('wat-recipient')?.value||'owner',
+        message_template,
+        dedup_hours: parseInt(document.getElementById('wat-dedup')?.value)||23,
+        enabled: true
+    };
+    try {
+        const d = editId
+            ? await saFetch(`/api/sa/whatsapp-types/${editId}`, { method: 'PUT', body: JSON.stringify(payload) })
+            : await saFetch('/api/sa/whatsapp-types', { method: 'POST', body: JSON.stringify(payload) });
+        if (d.success) {
+            showToast('success', editId ? 'עודכן!' : 'נוצר!');
+            document.getElementById('wa-type-modal')?.remove();
+            loadSAWhatsAppHub();
+        } else { showToast('error', d.error || 'שגיאה'); }
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+}
+
+async function toggleWAType(id, btn) {
+    try {
+        const d = await saFetch(`/api/sa/whatsapp-types/${id}/toggle`, { method: 'PATCH' });
+        if (d.success) {
+            btn.className = `px-2 py-1 rounded-full text-[10px] font-bold transition ${d.enabled ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-slate-200 text-slate-500 hover:bg-slate-300'}`;
+            btn.textContent = d.enabled ? '✓ פעיל' : '⏸ מושהה';
+        }
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+}
+
+async function deleteWAType(id) {
+    if (!confirm('למחוק סוג התראה זה לצמיתות?')) return;
+    try {
+        const d = await saFetch(`/api/sa/whatsapp-types/${id}`, { method: 'DELETE' });
+        if (d.success) { document.getElementById(`wa-type-row-${id}`)?.remove(); showToast('success', 'נמחק'); }
+        else showToast('error', d.error||'שגיאה');
     } catch(e) { showToast('error', 'שגיאת תקשורת'); }
 }
