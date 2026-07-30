@@ -3193,6 +3193,9 @@ async function runWhatsAppCron() {
                 try {
                     const newOrders = await pool.query(`SELECT id, customer_name, customer_phone, total_amount FROM store_orders WHERE group_id=$1 AND status='new' AND created_at > NOW() - INTERVAL '2 minutes'`, [groupId]);
                     console.log(`[WA-CRON] group=${groupId} new orders in last 2min: ${newOrders.rows.length}`);
+                    // debug: show all recent orders regardless of status/group
+                    const debugOrders = await pool.query(`SELECT id, group_id, status, created_at FROM store_orders WHERE created_at > NOW() - INTERVAL '5 minutes' ORDER BY created_at DESC LIMIT 5`);
+                    if (debugOrders.rows.length) console.log(`[WA-CRON-DEBUG] recent orders:`, JSON.stringify(debugOrders.rows));
                     for (const ord of newOrders.rows) {
                         // התראה לבעל עסק
                         const alreadyOwner = await checkAlreadySent(pool, groupId, 'new_order_owner_' + ord.id, ownerPhone, 1);
