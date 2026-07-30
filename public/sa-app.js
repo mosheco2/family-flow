@@ -1925,7 +1925,7 @@ function renderSAGroups() {
                         ${planSelector}
                         <button onclick="openSnapshotsModal(${g.id},'${safeStr(fmtGroupName(g))}')" class="bg-indigo-100 text-indigo-700 px-3 py-1 rounded text-[10px] font-bold hover:bg-indigo-200 transition"><i class="fa-solid fa-clock-rotate-left"></i> גיבויים</button>
                         <button onclick="saDeleteGroup(${g.id})" class="bg-red-100 text-red-600 px-3 py-1 rounded text-[10px] font-bold hover:bg-red-200 transition"><i class="fa-solid fa-trash"></i> מחיקה</button>
-                        ${g.type==='BUSINESS' ? `<button onclick="openSAWhatsAppModal(${g.id},'${safeStr(fmtGroupName(g))}')" id="wa-badge-${g.id}" class="${g.wa_enabled ? 'bg-[#25D366] text-white' : 'bg-slate-100 text-slate-400'} px-3 py-1 rounded text-[10px] font-bold hover:opacity-80 transition" title="${g.wa_enabled ? 'WhatsApp פעיל' : 'WhatsApp כבוי'}"><i class="fa-brands fa-whatsapp"></i> WA ${g.wa_enabled ? '✅' : '⬜'}</button>` : ''}
+                        ${g.type==='BUSINESS' ? `<button onclick="openSAWhatsAppModal(${g.id},'${safeStr(fmtGroupName(g))}')" id="wa-badge-${g.id}" style="${g.wa_enabled ? 'background:#25D366;color:#fff;' : 'background:#f1f5f9;color:#94a3b8;'}padding:0.25rem 0.75rem;border-radius:0.375rem;font-size:0.625rem;font-weight:700;cursor:pointer;border:none;" title="${g.wa_enabled ? 'WhatsApp פעיל' : 'WhatsApp כבוי'}"><i class="fa-brands fa-whatsapp"></i> WA ${g.wa_enabled ? '✅' : '⬜'}</button>` : ''}
                     </div>
                 </div>
                 ${uHtml}
@@ -11637,7 +11637,7 @@ async function toggleSAWhatsApp(groupId, enable, btn) {
             // עדכון כפתור WA בשורת העסק
             const badge = document.getElementById(`wa-badge-${groupId}`);
             if (badge) {
-                badge.className = `${enable ? 'bg-[#25D366] text-white' : 'bg-slate-100 text-slate-400'} px-3 py-1 rounded text-[10px] font-bold hover:opacity-80 transition`;
+                badge.style.cssText = (enable ? 'background:#25D366;color:#fff;' : 'background:#f1f5f9;color:#94a3b8;') + 'padding:0.25rem 0.75rem;border-radius:0.375rem;font-size:0.625rem;font-weight:700;cursor:pointer;border:none;';
                 badge.title = enable ? 'WhatsApp פעיל' : 'WhatsApp כבוי';
                 badge.innerHTML = `<i class="fa-brands fa-whatsapp"></i> WA ${enable ? '✅' : '⬜'}`;
             }
