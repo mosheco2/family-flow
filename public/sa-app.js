@@ -1925,7 +1925,7 @@ function renderSAGroups() {
                         ${planSelector}
                         <button onclick="openSnapshotsModal(${g.id},'${safeStr(fmtGroupName(g))}')" class="bg-indigo-100 text-indigo-700 px-3 py-1 rounded text-[10px] font-bold hover:bg-indigo-200 transition"><i class="fa-solid fa-clock-rotate-left"></i> גיבויים</button>
                         <button onclick="saDeleteGroup(${g.id})" class="bg-red-100 text-red-600 px-3 py-1 rounded text-[10px] font-bold hover:bg-red-200 transition"><i class="fa-solid fa-trash"></i> מחיקה</button>
-                        ${g.type==='BUSINESS' ? `<button onclick="openSAWhatsAppModal(${g.id},'${safeStr(fmtGroupName(g))}')" class="bg-[#25D366]/10 text-[#25D366] px-3 py-1 rounded text-[10px] font-bold hover:bg-[#25D366]/20 transition" id="wa-badge-${g.id}"><i class="fa-brands fa-whatsapp"></i> 📱 WA</button>` : ''}
+                        ${g.type==='BUSINESS' ? `<button onclick="openSAWhatsAppModal(${g.id},'${safeStr(fmtGroupName(g))}')" id="wa-badge-${g.id}" class="${g.wa_enabled ? 'bg-[#25D366] text-white' : 'bg-slate-100 text-slate-400'} px-3 py-1 rounded text-[10px] font-bold hover:opacity-80 transition" title="${g.wa_enabled ? 'WhatsApp פעיל' : 'WhatsApp כבוי'}"><i class="fa-brands fa-whatsapp"></i> WA ${g.wa_enabled ? '✅' : '⬜'}</button>` : ''}
                     </div>
                 </div>
                 ${uHtml}
@@ -2409,6 +2409,11 @@ async function saveSAEditGroup() {
             });
         }
 
+        // עדכון טלפון בזיכרון המקומי
+        if (adminPhone !== undefined) {
+            const adminUserIdx = saAllUsers.findIndex(u => u.group_id === parseInt(id) && u.role === 'ADMIN');
+            if (adminUserIdx > -1) saAllUsers[adminUserIdx].phone = adminPhone;
+        }
         showToast('success', 'פרטי הסביבה עודכנו בהצלחה!');
         getEl('sa-edit-group-modal').classList.add('hidden');
         renderSAGroups();
