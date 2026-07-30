@@ -2300,6 +2300,28 @@ async function submitGoodDeed() {
     } catch(e) { showToast('error', 'שגיאת תקשורת'); }
 }
 
+function setFamilyTaskPriority(p) {
+    getEl('task-priority').value = p;
+    ['high','medium','low'].forEach(k => {
+        const b = getEl('fam-pri-' + k);
+        if (!b) return;
+        b.className = b.className.replace('border-2 border-yellow-400','border').replace('border-2 border-red-400','border').replace('border-2 border-green-400','border');
+    });
+    const active = getEl('fam-pri-' + p);
+    if (active) active.className = active.className.replace(/border\b/,'border-2 border-' + (p==='high'?'red':p==='medium'?'yellow':'green') + '-400');
+}
+function setEditFamilyTaskPriority(p) {
+    getEl('edit-ftask-priority').value = p;
+    ['high','medium','low'].forEach(k => {
+        const b = getEl('edit-fam-pri-' + k);
+        if (!b) return;
+        b.className = b.className.replace(/border-2\s/g,'').replace(/border-(red|yellow|green)-400/,'border-slate-200');
+    });
+    const colMap = {high:'red-400',medium:'yellow-400',low:'green-400'};
+    const active = getEl('edit-fam-pri-' + p);
+    if (active) active.classList.add('border-2','border-' + colMap[p]);
+}
+
 function openTaskModal() {
     getEl('task-modal').classList.remove('hidden');
     getEl('task-is-self').value = 'false';
@@ -2310,18 +2332,18 @@ function openTaskModal() {
     document.querySelectorAll('.task-day-cb').forEach(cb => cb.checked = false);
     setTaskType('once');
     setTaskMode('manual');
+    setFamilyTaskPriority('medium');
     getEl('task-modal-title').innerText = 'משימה חדשה';
     getEl('task-mode-toggles').classList.remove('hidden');
     getEl('task-assignee-container').classList.remove('hidden');
     getEl('task-reward').placeholder = 'תגמול בונוס (₪) - אופציונלי';
-    const assigneeSelect = getEl('task-assignee');
-    if (membersCache && assigneeSelect) {
-        assigneeSelect.innerHTML = `<option value="${currentUser.id}">👤 אני (${safeStr(fmtUserName(currentUser) || currentUser.nickname)})</option>`;
-        membersCache.forEach(m => {
-            if (String(m.id) !== String(currentUser.id)) {
-                assigneeSelect.innerHTML += `<option value="${m.id}">${safeStr(fmtUserName(m) || m.nickname)}</option>`;
-            }
-        });
+    const listEl = getEl('task-assignees-list');
+    if (membersCache && listEl) {
+        const all = [currentUser, ...membersCache.filter(m => String(m.id) !== String(currentUser.id))];
+        listEl.innerHTML = all.map(m => {
+            const name = safeStr(fmtUserName(m) || m.nickname);
+            return `<label class="flex items-center gap-1 cursor-pointer bg-white border border-slate-200 rounded-xl px-2 py-1 hover:bg-blue-50 transition"><input type="checkbox" class="task-assignee-cb" value="${m.id}"><span class="text-xs font-bold text-slate-700">${name}</span></label>`;
+        }).join('');
     }
 }
 
@@ -2368,18 +2390,25 @@ function toggleAiCheck() {
 }
 
 async function submitTask() {
-    const assignee = val('task-assignee');
+    const assignees = [...document.querySelectorAll('.task-assignee-cb:checked')].map(cb => cb.value);
     const reward = val('task-reward'); const title = val('task-title'); const days = val('task-days');
+    const priority = getEl('task-priority')?.value || 'medium';
     const requireAiCheck = getEl('task-require-ai-check') ? getEl('task-require-ai-check').value === 'true' : true;
     const isRecurring = getEl('btn-task-type-recurring')?.classList.contains('bg-white');
     const recurringDays = isRecurring ? [...document.querySelectorAll('.task-day-cb:checked')].map(cb => cb.value).join(',') : '';
-    if (!assignee) return showToast('error', 'יש לבחור עבור מי המשימה');
+    if (!assignees.length) return showToast('error', 'יש לבחור לפחות חבר משפחה אחד');
     if (!title) return showToast('error', 'יש לכתוב מה לעשות במשימה');
     if (isRecurring && !recurringDays) return showToast('error', 'יש לסמן לפחות יום אחד לרוטינה');
     const btn = getEl('btn-submit-task'); if (btn) { btn.disabled = true; btn.innerText = 'שומר...'; }
     try {
-        const res = await fetch(`${API}/tasks`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ title, reward: reward || 0, assignedTo: assignee, days, status: 'pending', groupId: currentGroup.id, requireAiCheck, isRecurring, recurringDays, createdBy: currentUser.id }) });
-        const data = await res.json();
+        let res, data;
+        if (assignees.length === 1) {
+            res = await fetch(`${API}/tasks`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ title, reward: reward || 0, assignedTo: assignees[0], days, status: 'pending', groupId: currentGroup.id, requireAiCheck, isRecurring, recurringDays, createdBy: currentUser.id, priority }) });
+            data = await res.json();
+        } else {
+            res = await fetch(`${API}/tasks/bulk`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ title, reward: reward || 0, assignees, days, groupId: currentGroup.id, requireAiCheck, isRecurring, recurringDays, createdBy: currentUser.id, priority }) });
+            data = await res.json();
+        }
         if (data.success) {
             closeTaskModal();
             showToast('success', isRecurring ? 'רוטינה נוספה בהצלחה! 🔁' : 'משימה נוצרה בהצלחה!');
@@ -2823,12 +2852,15 @@ function renderTasks(tasks) {
         }
 
         count++;
-        let statusColor = 'bg-white border-slate-50'; let statusBadge = ''; let actionBtn = '';
+        let statusColor = 'bg-white border-slate-50'; let statusBadge = ''; let actionBtn = ''; let adminBtns = '';
+
+        const priMap = {high:'🔴',medium:'🟡',low:'🟢'};
+        const priBadge = t.priority && t.priority !== 'medium' ? `<span class="text-[9px] font-bold ml-1">${priMap[t.priority]||''}</span>` : '';
 
         if (t.is_recurring) {
             if (recurringDoneToday) {
                 statusColor = 'bg-green-50 border-green-100';
-                statusBadge = `<span class="text-xs text-green-600 font-bold"><i class="fa-solid fa-check"></i> בוצע היום</span>`;
+                statusBadge = `<span class="text-xs text-green-600 font-bold">✓ בוצע היום</span>`;
             } else if (isMyTask) {
                 const days = (t.recurring_days || '').split(',').filter(Boolean).map(Number);
                 if (days.includes(todayDay)) {
@@ -2839,15 +2871,37 @@ function renderTasks(tasks) {
             }
         } else {
             if (t.status === 'pending') {
-                if (isMyTask) { actionBtn = `<button onclick="clickTaskProof(${t.id}, '${safeStr(t.title)}')" class="bg-blue-600 text-white px-3 py-1.5 rounded-xl text-xs font-bold shadow-md hover:bg-blue-700 transition flex items-center gap-1"><i class="fa-solid fa-camera"></i> סיימתי</button>`; }
-                else { statusBadge = `<span class="text-[10px] bg-slate-100 text-slate-500 px-2 py-1 rounded-lg">ממתין</span>`; }
+                if (isMyTask) {
+                    if (t.require_ai_check) {
+                        actionBtn = `<button onclick="clickTaskProof(${t.id}, '${safeStr(t.title)}')" class="bg-blue-600 text-white px-3 py-1.5 rounded-xl text-xs font-bold shadow-md hover:bg-blue-700 transition flex items-center gap-1">📷 סיימתי</button>`;
+                    } else {
+                        actionBtn = `<button onclick="clickFamilyTaskProofCloudinary(${t.id})" class="bg-blue-600 text-white px-3 py-1.5 rounded-xl text-xs font-bold shadow-md hover:bg-blue-700 transition flex items-center gap-1">📷 סיימתי</button>`;
+                    }
+                } else if (isAdmin) {
+                    adminBtns = `<button onclick="openEditFamilyTaskModal(${t.id},'${safeStr(t.title)}',${t.reward||0},'${t.priority||'medium'}')" class="text-slate-400 hover:text-blue-600 text-sm px-1" title="עריכה">✏️</button><button onclick="openFamilyTaskComments(${t.id},'${safeStr(t.title)}')" class="text-slate-400 hover:text-blue-600 text-sm px-1" title="תגובות">💬</button>`;
+                    statusBadge = `<span class="text-[10px] bg-slate-100 text-slate-500 px-2 py-1 rounded-lg">ממתין</span>`;
+                }
             } else if (t.status === 'done') {
                 statusColor = 'bg-yellow-50 border-yellow-100';
-                if (isAdmin) { actionBtn = `<button onclick="openApproveTaskModal(${t.id}, '${safeStr(t.title)}', ${t.reward})" class="bg-green-500 text-white px-4 py-1.5 rounded-xl text-xs font-bold shadow-md">אשר ושלם</button>`; }
-                else { statusBadge = `<span class="text-xs text-orange-500 font-bold bg-orange-50 px-2 py-1 rounded-lg">בבדיקה</span>`; }
+                if (isAdmin) {
+                    actionBtn = `<button onclick="openApproveTaskModal(${t.id}, '${safeStr(t.title)}', ${t.reward})" class="bg-green-500 text-white px-4 py-1.5 rounded-xl text-xs font-bold shadow-md">אשר ושלם</button>`;
+                    adminBtns = `<button onclick="openFamilyTaskComments(${t.id},'${safeStr(t.title)}')" class="text-slate-400 hover:text-blue-600 text-sm px-1" title="תגובות">💬</button>`;
+                    if (t.proof_image_url) adminBtns += `<a href="${t.proof_image_url}" target="_blank" class="text-slate-400 hover:text-green-600 text-sm px-1" title="הוכחה">🖼</a>`;
+                } else {
+                    statusBadge = `<span class="text-xs text-orange-500 font-bold bg-orange-50 px-2 py-1 rounded-lg">בבדיקה</span>`;
+                    adminBtns = `<button onclick="openFamilyTaskComments(${t.id},'${safeStr(t.title)}')" class="text-slate-400 hover:text-blue-600 text-sm px-1" title="תגובות">💬</button>`;
+                }
             } else if (t.status === 'approved') {
                 statusColor = 'bg-green-50 border-green-100';
-                statusBadge = `<span class="text-xs text-green-600 font-bold"><i class="fa-solid fa-check"></i> בוצע</span>`;
+                statusBadge = `<span class="text-xs text-green-600 font-bold">✓ בוצע</span>`;
+            } else if (t.status === 'rejected') {
+                statusColor = 'bg-red-50 border-red-100';
+                if (isMyTask) {
+                    actionBtn = `<button onclick="clickFamilyTaskProofCloudinary(${t.id})" class="bg-red-500 text-white px-3 py-1.5 rounded-xl text-xs font-bold shadow-md">📷 שלח שוב</button>`;
+                    statusBadge = `<span class="text-[10px] text-red-500 bg-red-50 px-2 py-1 rounded-lg">הוחזר</span>`;
+                } else if (isAdmin) {
+                    statusBadge = `<span class="text-[10px] text-red-500 bg-red-50 px-2 py-1 rounded-lg">הוחזר</span>`;
+                }
             }
         }
 
@@ -2855,18 +2909,23 @@ function renderTasks(tasks) {
         let deadlineBadge = '';
         if (!t.is_recurring && t.deadline && t.status === 'pending') {
             const diff = Math.ceil((new Date(t.deadline) - new Date()) / (1000*60*60*24));
-            deadlineBadge = diff > 0 ? `<span class="text-orange-500 bg-orange-50 px-1.5 py-0.5 rounded text-[9px] ml-2 font-bold"><i class="fa-regular fa-clock"></i> עוד ${diff} ימ'</span>` : `<span class="text-red-500 bg-red-50 px-1.5 py-0.5 rounded text-[9px] ml-2 font-bold"><i class="fa-regular fa-clock"></i> פג תוקף!</span>`;
+            deadlineBadge = diff > 0 ? `<span class="text-orange-500 bg-orange-50 px-1.5 py-0.5 rounded text-[9px] ml-2 font-bold">⏰ עוד ${diff} ימ'</span>` : `<span class="text-red-500 bg-red-50 px-1.5 py-0.5 rounded text-[9px] ml-2 font-bold">⏰ פג תוקף!</span>`;
         }
         const dateStr = t.created_at ? new Date(t.created_at).toLocaleDateString('he-IL') : '';
-        const dateBadge = dateStr ? `<span class="text-[9px] text-slate-400 mr-2"><i class="fa-regular fa-calendar"></i> ${dateStr}</span>` : '';
+        const dateBadge = dateStr ? `<span class="text-[9px] text-slate-400 mr-2">📅 ${dateStr}</span>` : '';
         const assigneeBadge = isAdmin && t.assignee_name ? `<span class="text-xs text-slate-500">${safeStr(t.assignee_name)}</span>` : '';
 
-        htmlStr += `<div class="card-modern p-4 flex justify-between items-center mb-2 rounded-2xl border shadow-sm ${statusColor}">
-            <div class="flex-1 min-w-0 ml-2">
-                <p class="font-bold text-slate-800">${safeStr(t.title)} ${deadlineBadge}</p>
-                <div class="flex items-center flex-wrap gap-1 mt-1">${assigneeBadge}${rewardDisplay}${recurringBadge}${dateBadge}</div>
+        htmlStr += `<div class="card-modern p-4 mb-2 rounded-2xl border shadow-sm ${statusColor}">
+            <div class="flex justify-between items-center">
+                <div class="flex-1 min-w-0 ml-2">
+                    <p class="font-bold text-slate-800">${priBadge}${safeStr(t.title)} ${deadlineBadge}</p>
+                    <div class="flex items-center flex-wrap gap-1 mt-1">${assigneeBadge}${rewardDisplay}${recurringBadge}${dateBadge}</div>
+                </div>
+                <div class="flex flex-col items-end gap-1 shrink-0">
+                    ${actionBtn}${statusBadge}
+                    <div class="flex gap-0.5 mt-1">${adminBtns}</div>
+                </div>
             </div>
-            <div class="flex flex-col items-end gap-1 shrink-0">${actionBtn}${statusBadge}</div>
         </div>`;
     });
     if (count === 0) list.innerHTML = '<div class="text-center py-8 text-slate-400 text-sm">אין משימות פתוחות</div>';
@@ -2874,6 +2933,106 @@ function renderTasks(tasks) {
 }
 
 async function updateTask(id, s) { if(s==='done' || s==='completed_self') triggerConfetti(); await fetch(`${API}/tasks/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({taskId:id, status:s})}); fetchData(); }
+
+function openEditFamilyTaskModal(id, title, reward, priority) {
+    getEl('edit-ftask-id').value = id;
+    getEl('edit-ftask-title').value = title;
+    getEl('edit-ftask-reward').value = reward || '';
+    getEl('edit-ftask-days').value = '';
+    setEditFamilyTaskPriority(priority || 'medium');
+    getEl('edit-family-task-modal').classList.remove('hidden');
+}
+async function submitEditFamilyTask() {
+    const id = getEl('edit-ftask-id').value;
+    const title = getEl('edit-ftask-title').value.trim();
+    const reward = getEl('edit-ftask-reward').value;
+    const days = getEl('edit-ftask-days').value;
+    const priority = getEl('edit-ftask-priority').value;
+    if (!title) return showToast('error', 'יש לכתוב כותרת');
+    try {
+        const res = await fetch(`${API}/tasks/${id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ title, reward, days: days || undefined, priority }) });
+        const data = await res.json();
+        if (data.success) { getEl('edit-family-task-modal').classList.add('hidden'); showToast('success', 'המשימה עודכנה'); fetchData(); }
+        else showToast('error', data.error || 'שגיאה בעדכון');
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+}
+
+async function rejectFamilyTask() {
+    const id = getEl('approve-task-id').value;
+    getEl('approve-task-modal').classList.add('hidden');
+    const res = await fetch(`${API}/tasks/update`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ taskId: id, status: 'rejected' }) });
+    const data = await res.json();
+    if (data.success) { showToast('success', 'המשימה הוחזרה לילד'); fetchData(); }
+    else showToast('error', data.error || 'שגיאה');
+}
+
+let _ftaskCloudinaryTaskId = null;
+function clickFamilyTaskProofCloudinary(taskId) {
+    _ftaskCloudinaryTaskId = taskId;
+    getEl('family-task-cloudinary-upload').click();
+}
+async function handleFamilyTaskProofCloudinaryUpload(event) {
+    const file = event.target.files[0]; if (!file || !_ftaskCloudinaryTaskId) return;
+    event.target.value = '';
+    try {
+        const [cnRes, upRes] = await Promise.all([
+            fetch(`${API}/settings/public/cloudinary_cloud_name`).then(r=>r.json()),
+            fetch(`${API}/settings/public/cloudinary_upload_preset`).then(r=>r.json())
+        ]);
+        const cloudName = cnRes.value; const uploadPreset = upRes.value;
+        if (!cloudName || !uploadPreset) return showToast('error', 'הגדרות Cloudinary חסרות');
+        showToast('info', 'מעלה תמונה...');
+        const formData = new FormData(); formData.append('file', file); formData.append('upload_preset', uploadPreset);
+        const upR = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, { method:'POST', body: formData });
+        const upData = await upR.json();
+        if (!upData.secure_url) return showToast('error', 'שגיאה בהעלאה');
+        const res = await fetch(`${API}/tasks/${_ftaskCloudinaryTaskId}/proof`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ proofImageUrl: upData.secure_url }) });
+        const data = await res.json();
+        if (data.success) { triggerConfetti(); showToast('success', 'הוכחה נשלחה! ממתין לאישור ההורה 🌟'); fetchData(); }
+        else showToast('error', data.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+}
+
+function openFamilyTaskComments(taskId, title) {
+    getEl('ftask-comments-task-id').value = taskId;
+    getEl('ftask-comments-title').innerText = title;
+    getEl('ftask-comment-input').value = '';
+    getEl('family-task-comments-modal').classList.remove('hidden');
+    loadFamilyTaskComments(taskId);
+}
+async function loadFamilyTaskComments(taskId) {
+    const listEl = getEl('ftask-comments-list');
+    listEl.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">טוען...</p>';
+    try {
+        const res = await fetch(`${API}/tasks/${taskId}/comments`);
+        const data = await res.json();
+        const comments = data.comments || [];
+        if (!comments.length) { listEl.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">אין הערות עדיין</p>'; return; }
+        listEl.innerHTML = comments.map(c => {
+            const isMe = String(c.user_id) === String(currentUser.id);
+            const time = c.created_at ? new Date(c.created_at).toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'}) : '';
+            return `<div class="flex ${isMe?'justify-end':'justify-start'}">
+                <div class="max-w-[80%] ${isMe?'bg-blue-600 text-white':'bg-slate-100 text-slate-800'} rounded-2xl px-3 py-2">
+                    ${!isMe?`<p class="text-[10px] font-bold opacity-60 mb-0.5">${safeStr(c.user_name||'')}</p>`:''}
+                    <p class="text-sm">${safeStr(c.text)}</p>
+                    <p class="text-[9px] opacity-50 mt-0.5 text-left">${time}</p>
+                </div>
+            </div>`;
+        }).join('');
+        listEl.scrollTop = listEl.scrollHeight;
+    } catch(e) { listEl.innerHTML = '<p class="text-xs text-red-400 text-center py-4">שגיאה בטעינה</p>'; }
+}
+async function addFamilyTaskComment() {
+    const taskId = getEl('ftask-comments-task-id').value;
+    const text = (getEl('ftask-comment-input').value || '').trim();
+    if (!text) return;
+    getEl('ftask-comment-input').value = '';
+    try {
+        const res = await fetch(`${API}/tasks/${taskId}/comments`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ text, userId: currentUser.id, groupId: currentGroup.id }) });
+        const data = await res.json();
+        if (data.success) loadFamilyTaskComments(taskId);
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+}
 
 function buildAndRenderFeed() {
     try {

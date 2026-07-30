@@ -2033,7 +2033,8 @@
             <h3 class="text-xl font-bold mb-4 text-center text-slate-800" id="task-modal-title">משימה חדשה</h3>
             <input type="hidden" id="task-is-self" value="false">
             <div id="task-global-settings" class="bg-slate-50 p-4 rounded-xl border border-slate-100 mb-4 space-y-3">
-                <div id="task-assignee-container"><label class="text-xs font-bold text-slate-500 mb-1 block">עבור מי המשימה?</label><select id="task-assignee" class="modern-input bg-white py-2 text-sm"></select></div>
+                <div id="task-assignee-container"><label class="text-xs font-bold text-slate-500 mb-1 block">עבור מי המשימה?</label><div id="task-assignees-list" class="flex flex-wrap gap-2 min-h-[32px]"></div></div>
+                <div><label class="text-xs font-bold text-slate-500 mb-1 block">עדיפות:</label><div class="flex gap-2"><button type="button" id="fam-pri-high" onclick="setFamilyTaskPriority('high')" class="flex-1 py-1.5 rounded-lg text-xs font-bold border border-red-200 bg-red-50 text-red-600">🔴 דחוף</button><button type="button" id="fam-pri-medium" onclick="setFamilyTaskPriority('medium')" class="flex-1 py-1.5 rounded-lg text-xs font-bold border-2 border-yellow-400 bg-yellow-50 text-yellow-700">🟡 רגיל</button><button type="button" id="fam-pri-low" onclick="setFamilyTaskPriority('low')" class="flex-1 py-1.5 rounded-lg text-xs font-bold border border-green-200 bg-green-50 text-green-600">🟢 נמוך</button></div><input type="hidden" id="task-priority" value="medium"></div>
                 <!-- סוג משימה: חד-פעמית / רוטינה -->
                 <div class="flex gap-1 bg-slate-100 p-1 rounded-xl">
                     <button type="button" id="btn-task-type-once" onclick="setTaskType('once')" class="flex-1 py-1.5 rounded-lg text-xs font-bold bg-white text-blue-600 shadow-sm transition">חד-פעמית</button>
@@ -2099,12 +2100,52 @@
             <input type="hidden" id="approve-task-id">
             <label class="text-xs font-bold text-slate-400 block mb-1">אישור תגמול/בונוס סופי (₪):</label>
             <input type="number" id="approve-task-reward" class="modern-input mb-6 text-center text-xl font-bold" placeholder="סכום">
-            <div class="flex gap-3">
+            <div class="flex gap-2">
                 <button onclick="document.getElementById('approve-task-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500 transition hover:bg-slate-200">ביטול</button>
+                <button onclick="rejectFamilyTask()" class="flex-1 bg-red-100 text-red-600 py-3 rounded-xl font-bold transition hover:bg-red-200">החזר</button>
                 <button onclick="submitTaskApproval()" class="flex-1 bg-green-500 text-white py-3 rounded-xl font-bold shadow-lg shadow-green-200 transition hover:bg-green-600">אשר ושלם</button>
             </div>
         </div>
     </div>
+
+    <!-- עריכת משימה (הורה בלבד) -->
+    <div id="edit-family-task-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[50] flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl">
+            <h3 class="text-lg font-bold mb-4 text-center text-slate-800">✏️ עריכת משימה</h3>
+            <input type="hidden" id="edit-ftask-id">
+            <div class="space-y-3">
+                <div><label class="text-xs font-bold text-slate-500 block mb-1">מה לעשות?</label><input type="text" id="edit-ftask-title" class="modern-input text-sm"></div>
+                <div><label class="text-xs font-bold text-slate-500 block mb-1">תגמול (₪)</label><input type="number" id="edit-ftask-reward" class="modern-input text-sm"></div>
+                <div><label class="text-xs font-bold text-slate-500 block mb-1">תוקף (ימים מהיום)</label><input type="number" id="edit-ftask-days" class="modern-input text-sm" placeholder="ללא שינוי"></div>
+                <div><label class="text-xs font-bold text-slate-500 block mb-1">עדיפות:</label><div class="flex gap-2"><button type="button" id="edit-fam-pri-high" onclick="setEditFamilyTaskPriority('high')" class="flex-1 py-1.5 rounded-lg text-xs font-bold border border-red-200 bg-red-50 text-red-600">🔴 דחוף</button><button type="button" id="edit-fam-pri-medium" onclick="setEditFamilyTaskPriority('medium')" class="flex-1 py-1.5 rounded-lg text-xs font-bold border border-yellow-200 bg-yellow-50 text-yellow-700">🟡 רגיל</button><button type="button" id="edit-fam-pri-low" onclick="setEditFamilyTaskPriority('low')" class="flex-1 py-1.5 rounded-lg text-xs font-bold border border-green-200 bg-green-50 text-green-600">🟢 נמוך</button></div><input type="hidden" id="edit-ftask-priority" value="medium"></div>
+            </div>
+            <div class="flex gap-3 mt-5">
+                <button onclick="document.getElementById('edit-family-task-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button>
+                <button onclick="submitEditFamilyTask()" class="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold shadow-lg shadow-blue-200">שמור</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- תגובות על משימה -->
+    <div id="family-task-comments-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[50] flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl flex flex-col max-h-[85vh]">
+            <div class="flex items-center justify-between mb-3">
+                <h3 class="text-base font-bold text-slate-800">💬 <span id="ftask-comments-title">שיחה</span></h3>
+                <button onclick="document.getElementById('family-task-comments-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 text-xl font-bold">✕</button>
+            </div>
+            <input type="hidden" id="ftask-comments-task-id">
+            <div id="ftask-comments-list" class="flex-1 overflow-y-auto space-y-2 mb-3 min-h-[120px]">
+                <p class="text-xs text-slate-400 text-center py-4">טוען...</p>
+            </div>
+            <div class="flex gap-2 border-t border-slate-100 pt-3">
+                <input type="text" id="ftask-comment-input" class="modern-input flex-1 text-sm py-2" placeholder="כתוב הערה..." onkeydown="if(event.key==='Enter')addFamilyTaskComment()">
+                <button onclick="addFamilyTaskComment()" class="bg-blue-600 text-white px-4 py-2 rounded-xl font-bold text-sm">שלח</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- העלאת הוכחת תמונה ללא AI -->
+    <input type="file" id="family-task-cloudinary-upload" accept="image/*" capture="environment" class="hidden" onchange="handleFamilyTaskProofCloudinaryUpload(event)">
 
     <div id="familai-advisor-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[60] flex items-center justify-center p-4">
         <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl relative overflow-hidden max-h-[90vh] overflow-y-auto modal-scroll">
