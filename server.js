@@ -3034,14 +3034,6 @@ app.post('/api/support/tickets/:id/reply', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 // ראוט עוזרת AI למנהל המערכת (Super Admin) - חיבור מעודכן למנוע Gemini 2.5 Flash
-app.post('/api/ai/chat', verifySA, async (req, res) => {
-    try {
-        const { message } = req.body;
-        
-        if (!getGenAIInstance()) {
-            return res.status(500).json({ success: false, error: 'מפתח Gemini אינו מוגדר בשרת.' });
-        }
-
         // פונקציה לווידוא תקינות טבלאות בעליית השרת
 async function initDB() {
     try {
@@ -3317,6 +3309,14 @@ async function runWhatsAppCron() {
     } catch (e) { console.error('WhatsApp dynamic types cron error:', e.message); }
 }
 setTimeout(() => { runWhatsAppCron(); setInterval(runWhatsAppCron, 60 * 1000); }, 30 * 1000);
+app.post('/api/ai/chat', verifySA, async (req, res) => {
+    try {
+        const { message } = req.body;
+        
+        if (!getGenAIInstance()) {
+            return res.status(500).json({ success: false, error: 'מפתח Gemini אינו מוגדר בשרת.' });
+        }
+
         // יישור קו עם שאר המערכת: שימוש במודל 2.5 המעודכן שעובד על המפתח שלך
         const model = getGenAIInstance().getGenerativeModel({ model: "gemini-2.5-flash" });
         
