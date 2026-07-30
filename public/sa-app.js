@@ -11632,8 +11632,20 @@ async function clearSAWhatsAppOverrides(groupId) {
 async function toggleSAWhatsApp(groupId, enable, btn) {
     try {
         const d = await saFetch(`/api/sa/whatsapp-settings/${groupId}`, { method: 'PATCH', body: JSON.stringify({ enabled: enable }) });
-        if (d.success) { showToast('success', enable ? 'הופעל!' : 'כובה!'); btn.closest('.fixed')?.remove(); }
-        else showToast('error', d.error || 'שגיאה');
+        if (d.success) {
+            showToast('success', enable ? 'הופעל!' : 'כובה!');
+            // עדכון כפתור WA בשורת העסק
+            const badge = document.getElementById(`wa-badge-${groupId}`);
+            if (badge) {
+                badge.className = `${enable ? 'bg-[#25D366] text-white' : 'bg-slate-100 text-slate-400'} px-3 py-1 rounded text-[10px] font-bold hover:opacity-80 transition`;
+                badge.title = enable ? 'WhatsApp פעיל' : 'WhatsApp כבוי';
+                badge.innerHTML = `<i class="fa-brands fa-whatsapp"></i> WA ${enable ? '✅' : '⬜'}`;
+            }
+            // עדכון בזיכרון
+            const gi = saAllGroups.findIndex(g => g.id === groupId);
+            if (gi > -1) saAllGroups[gi].wa_enabled = enable;
+            btn.closest('.fixed')?.remove();
+        } else showToast('error', d.error || 'שגיאה');
     } catch(e) { showToast('error', 'שגיאת תקשורת'); }
 }
 
