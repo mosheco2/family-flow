@@ -420,7 +420,7 @@ window.switchSATab = function(tabId) {
     if (tabId === 'legal') loadLegalDocs();
 
     if (tabId === 'adslots') window.renderAdSlotsPanel && window.renderAdSlotsPanel();
-    const allTabs = ['dashboard', 'pulse', 'devops', 'support', 'stats', 'comm', 'biz', 'inbox', 'content', 'clients', 'hr', 'partners', 'finance', 'sysmap', 'legal', 'templates', 'adslots', 'auditlog', 'archive', 'games', 'feed', 'livegames', 'marketing'];
+    const allTabs = ['dashboard', 'pulse', 'devops', 'support', 'stats', 'comm', 'biz', 'inbox', 'content', 'clients', 'hr', 'partners', 'finance', 'sysmap', 'legal', 'templates', 'adslots', 'auditlog', 'archive', 'games', 'feed', 'livegames', 'marketing', 'whatsapp'];
     let activeTabTitle = 'לוח בקרה';
 
     allTabs.forEach(t => {
