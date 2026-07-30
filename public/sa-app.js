@@ -11663,6 +11663,7 @@ function _waRecipientLabel(r) {
 }
 
 async function openWATypeModal(editId) {
+    try {
     let existing = null;
     if (editId) {
         try {
@@ -11728,6 +11729,7 @@ async function openWATypeModal(editId) {
         </div>
     </div>`;
     document.body.appendChild(modal);
+    } catch(e) { console.error('openWATypeModal error:', e); alert('שגיאה בפתיחת החלון: ' + e.message); }
 }
 
 async function saveWAType(editId) {
