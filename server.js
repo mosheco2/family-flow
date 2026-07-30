@@ -25908,8 +25908,96 @@ app.post('/api/biz/whatsapp/order-notify', async (req, res) => {
 // WhatsApp — SA API Routes
 // ═══════════════════════════════════════════
 
+let _waTablesEnsured = false;
+async function ensureWhatsAppTables() {
+    if (_waTablesEnsured) return;
+    await pool.query(`
+        CREATE TABLE IF NOT EXISTS whatsapp_settings (
+            id SERIAL PRIMARY KEY,
+            group_id INTEGER UNIQUE NOT NULL,
+            enabled BOOLEAN DEFAULT false,
+            phone_owner TEXT,
+            phone_employee TEXT,
+            owner_checkin BOOLEAN DEFAULT true,
+            owner_order BOOLEAN DEFAULT true,
+            owner_task_due BOOLEAN DEFAULT true,
+            owner_inventory BOOLEAN DEFAULT true,
+            owner_plan BOOLEAN DEFAULT true,
+            employee_shift BOOLEAN DEFAULT true,
+            employee_task BOOLEAN DEFAULT true,
+            employee_pay BOOLEAN DEFAULT true,
+            customer_order BOOLEAN DEFAULT true,
+            customer_ready BOOLEAN DEFAULT true,
+            customer_promo BOOLEAN DEFAULT false,
+            customer_review BOOLEAN DEFAULT false,
+            ov_owner_checkin BOOLEAN,
+            ov_owner_order BOOLEAN,
+            ov_owner_task_due BOOLEAN,
+            ov_owner_inventory BOOLEAN,
+            ov_owner_plan BOOLEAN,
+            ov_employee_shift BOOLEAN,
+            ov_employee_task BOOLEAN,
+            ov_employee_pay BOOLEAN,
+            ov_customer_order BOOLEAN,
+            ov_customer_ready BOOLEAN,
+            ov_customer_promo BOOLEAN,
+            ov_customer_review BOOLEAN,
+            updated_at TIMESTAMP DEFAULT NOW()
+        )
+    `);
+    await pool.query(`
+        CREATE TABLE IF NOT EXISTS whatsapp_log (
+            id SERIAL PRIMARY KEY,
+            group_id INTEGER,
+            recipient_type TEXT,
+            recipient_name TEXT,
+            phone TEXT,
+            message_type TEXT,
+            message_body TEXT,
+            status TEXT DEFAULT 'sent',
+            error_msg TEXT,
+            sent_at TIMESTAMP DEFAULT NOW()
+        )
+    `);
+    await pool.query(`
+        CREATE TABLE IF NOT EXISTS whatsapp_global_defaults (
+            id INTEGER PRIMARY KEY DEFAULT 1,
+            owner_checkin BOOLEAN DEFAULT true,
+            owner_order BOOLEAN DEFAULT true,
+            owner_task_due BOOLEAN DEFAULT true,
+            owner_inventory BOOLEAN DEFAULT true,
+            owner_plan BOOLEAN DEFAULT true,
+            employee_shift BOOLEAN DEFAULT true,
+            employee_task BOOLEAN DEFAULT true,
+            employee_pay BOOLEAN DEFAULT true,
+            customer_order BOOLEAN DEFAULT true,
+            customer_ready BOOLEAN DEFAULT true,
+            customer_promo BOOLEAN DEFAULT false,
+            customer_review BOOLEAN DEFAULT false,
+            updated_at TIMESTAMP DEFAULT NOW()
+        )
+    `);
+    await pool.query(`INSERT INTO whatsapp_global_defaults (id) VALUES (1) ON CONFLICT DO NOTHING`);
+    await pool.query(`
+        CREATE TABLE IF NOT EXISTS whatsapp_notification_types (
+            id SERIAL PRIMARY KEY,
+            name VARCHAR(100) NOT NULL,
+            description TEXT,
+            trigger_hook VARCHAR(50) NOT NULL,
+            recipient_type VARCHAR(20) NOT NULL DEFAULT 'owner',
+            message_template TEXT NOT NULL,
+            dedup_hours INTEGER DEFAULT 23,
+            enabled BOOLEAN DEFAULT true,
+            created_at TIMESTAMP DEFAULT NOW(),
+            updated_at TIMESTAMP DEFAULT NOW()
+        )
+    `);
+    _waTablesEnsured = true;
+}
+
 app.get('/api/sa/whatsapp-stats', verifySA, async (req, res) => {
     try {
+        await ensureWhatsAppTables();
         const total = await pool.query(`SELECT COUNT(*) as cnt FROM whatsapp_log WHERE sent_at > NOW() - INTERVAL '30 days'`);
         const byType = await pool.query(`SELECT message_type, COUNT(*) as cnt FROM whatsapp_log WHERE sent_at > NOW() - INTERVAL '30 days' GROUP BY message_type ORDER BY cnt DESC`);
         const byStatus = await pool.query(`SELECT status, COUNT(*) as cnt FROM whatsapp_log WHERE sent_at > NOW() - INTERVAL '30 days' GROUP BY status`);
@@ -25920,6 +26008,7 @@ app.get('/api/sa/whatsapp-stats', verifySA, async (req, res) => {
 
 app.get('/api/sa/whatsapp-log', verifySA, async (req, res) => {
     try {
+        await ensureWhatsAppTables();
         const limit = Math.min(parseInt(req.query.limit) || 100, 500);
         const { groupId, msgType, status } = req.query;
         let conditions = ['1=1'];
@@ -25959,6 +26048,7 @@ const WA_TYPE_KEYS = ['owner_checkin','owner_order','owner_task_due','owner_inve
 
 app.get('/api/sa/whatsapp-global-defaults', verifySA, async (req, res) => {
     try {
+        await ensureWhatsAppTables();
         const r = await pool.query(`SELECT * FROM whatsapp_global_defaults WHERE id=1`);
         res.json({ success: true, defaults: r.rows[0] || {} });
     } catch(e) { res.status(500).json({ error: e.message }); }
@@ -26011,6 +26101,7 @@ app.put('/api/sa/whatsapp-overrides/:groupId', verifySA, async (req, res) => {
 // רשימת עסקים עם override כלשהו
 app.get('/api/sa/whatsapp-customized', verifySA, async (req, res) => {
     try {
+        await ensureWhatsAppTables();
         const cols = WA_TYPE_KEYS.map(k=>`ov_${k}`).join(' IS NOT NULL OR ') + ' IS NOT NULL';
         const r = await pool.query(
             `SELECT ws.group_id, fg.name, ${WA_TYPE_KEYS.map(k=>`ws.ov_${k}`).join(',')}
@@ -26045,6 +26136,7 @@ app.get('/api/biz/whatsapp-effective/:groupId', async (req, res) => {
 // ═══════════════════════════════════════════
 app.get('/api/sa/whatsapp-types', verifySA, async (req, res) => {
     try {
+        await ensureWhatsAppTables();
         const r = await pool.query(`SELECT * FROM whatsapp_notification_types ORDER BY created_at ASC`);
         res.json({ success: true, types: r.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
@@ -26052,6 +26144,7 @@ app.get('/api/sa/whatsapp-types', verifySA, async (req, res) => {
 
 app.post('/api/sa/whatsapp-types', verifySA, async (req, res) => {
     try {
+        await ensureWhatsAppTables();
         const { name, description, trigger_hook, recipient_type, message_template, dedup_hours } = req.body;
         if (!name || !trigger_hook || !message_template) return res.status(400).json({ error: 'שדות חובה חסרים' });
         const r = await pool.query(
