@@ -26138,6 +26138,29 @@ async function initKolHaamTables() {
                 );
             }
         }
+        // טבלאות אלה נדרשות ע"י שאילתת הפיד — חייבות להיווצר כבר ב-Phase 1
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS content_engagement_metrics (
+                content_item_id INT PRIMARY KEY REFERENCES content_items(id) ON DELETE CASCADE,
+                likes_count INT DEFAULT 0,
+                comments_count INT DEFAULT 0,
+                saves_count INT DEFAULT 0,
+                shares_count INT DEFAULT 0,
+                current_trending_score FLOAT DEFAULT 0,
+                last_scored_at TIMESTAMP NULL,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS editor_picks (
+                id SERIAL PRIMARY KEY,
+                content_item_id INT REFERENCES content_items(id) ON DELETE CASCADE,
+                note TEXT,
+                pinned_until DATE,
+                created_by_sa VARCHAR(120),
+                created_at TIMESTAMPTZ DEFAULT NOW()
+            )
+        `);
         _khPhase1Ready = true;
         console.log('[kol-haam] tables ready');
     } catch(e) {

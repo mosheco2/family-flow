@@ -184,8 +184,15 @@ const KH = {
             </div>`;
         }
 
+        if (data.error) {
+            el.innerHTML = sortBar + `<div class="empty-state"><div class="ei">⚠️</div><p>שגיאה בטעינת הפיד: ${esc(data.error)}</p></div>`;
+            return;
+        }
         if (!items.length && !strips) {
-            el.innerHTML = sortBar + '<div class="empty-state"><div class="ei">📭</div><p>אין תוכן עדיין בקטגוריה זו</p></div>';
+            const cta = CTX.groupId
+                ? `<button class="kh-btn kh-btn-primary" onclick="KH.nav('editor')" style="margin-top:.75rem">✍️ כתוב את הכתבה הראשונה</button>`
+                : '';
+            el.innerHTML = sortBar + `<div class="empty-state"><div class="ei">📭</div><p>אין תוכן עדיין${STATE.categoryId ? ' בקטגוריה זו' : ' בפיד'}</p>${cta}</div>`;
             return;
         }
         el.innerHTML = sortBar + strips + `<div class="feed-grid">${items.map(it => KH.renderFeedCard(it)).join('')}</div>`;
