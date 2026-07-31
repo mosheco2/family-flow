@@ -26000,6 +26000,9 @@ app.get('/game/:game_code', (req, res) => {
 app.get('/kol-haam', (req, res) => {
   res.sendFile('kol-haam.html', { root: 'public' });
 });
+app.get('/kol-haam/collection/:slug', (req, res) => {
+  res.sendFile('kol-haam.html', { root: 'public' });
+});
 
 // ============================================================
 // קול העם — Phase 1: DB Schema + API
@@ -28500,6 +28503,535 @@ app.get('/api/kol-haam/leaderboard', async (req, res) => {
             LIMIT $${paramOffset}
         `, params);
         res.json({ success: true, authors: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+
+// ═══════════════════════════════════════════════════════════════
+// קול העם — Phase 4: AI Copilot, חיפוש, תגיות, סדרות, אוספים
+// ═══════════════════════════════════════════════════════════════
+
+async function initKolHaamPhase4Tables() {
+    try {
+        // user_collections (משתמש group_id כבעלים — עקבי עם Phase 1-3)
+        await pool.query(`CREATE TABLE IF NOT EXISTS user_collections (
+            id SERIAL PRIMARY KEY,
+            owner_group_id INT NOT NULL,
+            title VARCHAR(100) NOT NULL,
+            description TEXT NULL,
+            is_public BOOLEAN DEFAULT FALSE,
+            share_slug VARCHAR(50) UNIQUE NULL,
+            created_at TIMESTAMPTZ DEFAULT NOW(),
+            updated_at TIMESTAMPTZ NULL
+        )`);
+
+        await pool.query(`CREATE TABLE IF NOT EXISTS user_collection_items (
+            collection_id INT REFERENCES user_collections(id) ON DELETE CASCADE,
+            content_item_id INT REFERENCES content_items(id) ON DELETE CASCADE,
+            added_at TIMESTAMPTZ DEFAULT NOW(),
+            PRIMARY KEY (collection_id, content_item_id)
+        )`);
+
+        // ai_copilot_usage_log (group_id במקום user_id — עקבי עם המערכת)
+        await pool.query(`CREATE TABLE IF NOT EXISTS ai_copilot_usage_log (
+            id SERIAL PRIMARY KEY,
+            content_item_id INT REFERENCES content_items(id) ON DELETE CASCADE,
+            group_id INT NOT NULL,
+            action_type VARCHAR(30) NOT NULL,
+            result_summary TEXT NULL,
+            flagged BOOLEAN DEFAULT FALSE,
+            created_at TIMESTAMPTZ DEFAULT NOW()
+        )`);
+
+        // Search index — אינדקס GIN לחיפוש עברי
+        await pool.query(`CREATE EXTENSION IF NOT EXISTS pg_trgm`).catch(() => {});
+        await pool.query(`CREATE INDEX IF NOT EXISTS idx_content_trgm_title ON content_items USING GIN (title gin_trgm_ops)`).catch(() => {});
+        await pool.query(`CREATE INDEX IF NOT EXISTS idx_content_trgm_subtitle ON content_items USING GIN (COALESCE(subtitle,'') gin_trgm_ops)`).catch(() => {});
+
+        console.log('[KolHaam Phase4] Tables initialized');
+    } catch(e) {
+        console.error('[KolHaam Phase4] init error:', e.message);
+    }
+}
+initKolHaamPhase4Tables();
+
+// ── Helper: קריאה ל-Claude API ─────────────────────────────────
+async function callClaudeKH(messages, maxTokens = 1200) {
+    if (!process.env.ANTHROPIC_API_KEY) throw new Error('ANTHROPIC_API_KEY חסר');
+    const r = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+            'x-api-key': process.env.ANTHROPIC_API_KEY,
+            'anthropic-version': '2023-06-01',
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: maxTokens, messages })
+    });
+    const data = await r.json();
+    return data.content?.[0]?.text || '';
+}
+
+// ── AI Copilot ─────────────────────────────────────────────────
+app.post('/api/kol-haam/content/:id/ai-copilot', async (req, res) => {
+    try {
+        const { actions = [], groupId, communityId } = req.body;
+        if (!groupId) return res.status(400).json({ error: 'groupId נדרש' });
+
+        // בדיקת מכסה יומית: 10 קריאות ליום
+        const usageToday = await pool.query(
+            `SELECT COUNT(*) FROM ai_copilot_usage_log WHERE group_id=$1 AND created_at::date = CURRENT_DATE`,
+            [groupId]
+        );
+        if (parseInt(usageToday.rows[0].count) >= 10) {
+            return res.status(429).json({ error: 'הגעת למכסת השימוש היומית בעוזר הכתיבה (10 קריאות ביום)' });
+        }
+
+        // טעינת הכתבה
+        const itemRes = await pool.query(
+            `SELECT ci.*, ap.community_id FROM content_items ci JOIN author_profiles ap ON ap.id=ci.author_profile_id WHERE ci.id=$1`,
+            [req.params.id]
+        );
+        if (!itemRes.rows[0]) return res.status(404).json({ error: 'לא נמצא' });
+        const it = itemRes.rows[0];
+
+        const plainText = (it.content_html || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+        const result = {};
+        let flagged = false;
+        const flagDetails = [];
+
+        // ── grammar + title + subtitle + summary + tags (קריאה אחת ל-AI) ──
+        const wantAI = actions.filter(a => ['grammar','title','subtitle','summary','tags'].includes(a));
+        if (wantAI.length > 0) {
+            const prompt = `אתה עורך תוכן ישראלי מנוסה. עזור לכותב לשפר את הכתבה הבאה.
+
+כותרת: ${it.title}
+תת-כותרת: ${it.subtitle || ''}
+תוכן: ${plainText.slice(0, 3000)}
+
+החזר JSON בלבד (ללא markdown) עם המבנה הבא:
+{
+  "grammar": {"corrections": [{"original": "...", "suggested": "..."}], "corrected_full_text": "טקסט מתוקן..."},
+  "title_suggestions": ["הצעה 1", "הצעה 2", "הצעה 3"],
+  "subtitle_suggestions": ["הצעה 1", "הצעה 2"],
+  "summary": "תקציר 3-5 שורות...",
+  "tag_suggestions": ["תגית1", "תגית2", "תגית3", "תגית4"]
+}
+
+פעל רק על הפעולות שנדרשות: ${wantAI.join(', ')}
+השאר שדות לא נדרשים ריקים ([] או "").`;
+
+            const raw = await callClaudeKH([{ role: 'user', content: prompt }], 1500);
+            try {
+                const parsed = JSON.parse(raw.replace(/```json\n?|\n?```/g, '').trim());
+                if (actions.includes('grammar')) result.grammar = parsed.grammar || { corrections: [], corrected_full_text: '' };
+                if (actions.includes('title')) result.title_suggestions = parsed.title_suggestions || [];
+                if (actions.includes('subtitle')) result.subtitle_suggestions = parsed.subtitle_suggestions || [];
+                if (actions.includes('summary')) result.summary = parsed.summary || '';
+                if (actions.includes('tags')) result.tag_suggestions = parsed.tag_suggestions || [];
+            } catch(pe) {
+                result.ai_parse_error = 'לא ניתן לעבד את תשובת ה-AI';
+            }
+        }
+
+        // ── duplicate_check ──
+        if (actions.includes('duplicate_check')) {
+            const dupes = await pool.query(`
+                SELECT id, title, similarity(title, $1) as sim
+                FROM content_items
+                WHERE id != $2
+                  AND status IN ('PUBLISHED_LOCAL','PUBLISHED_GLOBAL')
+                  AND similarity(title, $1) > 0.35
+                ORDER BY sim DESC LIMIT 5
+            `, [it.title, it.id]).catch(async () => {
+                // fallback אם pg_trgm לא זמין
+                return await pool.query(`
+                    SELECT id, title, 0.5 as sim
+                    FROM content_items
+                    WHERE id != $1
+                      AND status IN ('PUBLISHED_LOCAL','PUBLISHED_GLOBAL')
+                      AND title ILIKE $2
+                    LIMIT 5
+                `, [it.id, `%${it.title.split(' ').slice(0,3).join('%')}%`]);
+            });
+            result.duplicate_check = {
+                found_similar: dupes.rows.length > 0,
+                similar_items: dupes.rows.map(r => ({ id: r.id, title: r.title, similarity_score: parseFloat(r.sim) }))
+            };
+        }
+
+        // ── safety_scan ──
+        if (actions.includes('safety_scan')) {
+            const safetyPrompt = `בדוק את הטקסט הבא לאיתור בעיות:
+
+"${plainText.slice(0, 2000)}"
+
+החזר JSON בלבד:
+{
+  "offensive_language": false,
+  "defamation_risk": false,
+  "personal_info_exposed": false,
+  "copied_content_suspected": false,
+  "flags": []
+}
+
+אם יש בעיה, הוסף הסבר קצר לשדה flags כמערך של מחרוזות.`;
+
+            const safetyRaw = await callClaudeKH([{ role: 'user', content: safetyPrompt }], 400);
+            try {
+                const safety = JSON.parse(safetyRaw.replace(/```json\n?|\n?```/g, '').trim());
+                result.safety_scan = safety;
+                flagged = safety.offensive_language || safety.defamation_risk || safety.personal_info_exposed || safety.copied_content_suspected;
+                if (flagged) {
+                    // שלח התראה ל-ZM
+                    pool.query(
+                        `INSERT INTO content_reports (content_item_id, reporter_group_id, reason, notes)
+                         VALUES ($1,$2,'SAFETY_AI_FLAG',$3) ON CONFLICT DO NOTHING`,
+                        [it.id, groupId, `[AI Safety Scan] ${(safety.flags||[]).join('; ')}`]
+                    ).catch(() => {});
+                }
+            } catch(pe) {
+                result.safety_scan = { offensive_language: false, defamation_risk: false, personal_info_exposed: false, copied_content_suspected: false, flags: [] };
+            }
+        }
+
+        // ── cover_suggestion ──
+        if (actions.includes('cover_suggestion')) {
+            const coverPrompt = `הצע 3 ביטויי חיפוש בעברית ובאנגלית לתמונת שער מתאימה לכתבה בנושא: "${it.title}". החזר JSON: {"queries": ["...", "...", "..."]}`;
+            const coverRaw = await callClaudeKH([{ role: 'user', content: coverPrompt }], 200);
+            try {
+                const coverData = JSON.parse(coverRaw.replace(/```json\n?|\n?```/g, '').trim());
+                result.cover_image_suggestions = coverData.queries || [];
+            } catch(e) { result.cover_image_suggestions = []; }
+        }
+
+        // ── רישום שימוש ──
+        await pool.query(
+            `INSERT INTO ai_copilot_usage_log (content_item_id, group_id, action_type, result_summary, flagged)
+             VALUES ($1,$2,$3,$4,$5)`,
+            [it.id, groupId, actions.join(','), JSON.stringify(result).slice(0, 500), flagged]
+        );
+
+        res.json({ success: true, result, flagged });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── מנוע חיפוש גלובלי ─────────────────────────────────────────
+app.get('/api/kol-haam/search', async (req, res) => {
+    try {
+        const { q, type, scope, date_range, community_id, page = 1, limit = 20 } = req.query;
+        if (!q || q.trim().length < 2) return res.json({ success: true, items: [], total: 0 });
+        const query = q.trim();
+        const offset = (parseInt(page) - 1) * parseInt(limit);
+        const params = [];
+
+        let where = `ci.status IN ('PUBLISHED_LOCAL','PUBLISHED_GLOBAL') AND COALESCE(ci.is_quarantined,FALSE)=FALSE`;
+
+        // חיפוש טקסט — ILIKE (תואם לעברית)
+        params.push(`%${query}%`);
+        where += ` AND (ci.title ILIKE $${params.length} OR ci.subtitle ILIKE $${params.length} OR fg.name ILIKE $${params.length} OR EXISTS(SELECT 1 FROM content_items_tags cit2 JOIN content_tags ct2 ON ct2.id=cit2.tag_id WHERE cit2.content_item_id=ci.id AND ct2.name ILIKE $${params.length}))`;
+
+        if (type) { params.push(type); where += ` AND ci.content_type=$${params.length}`; }
+        if (scope === 'global') { where += ` AND ci.status='PUBLISHED_GLOBAL'`; }
+        else if (community_id) { params.push(parseInt(community_id)); where += ` AND (ci.community_id=$${params.length} OR ci.status='PUBLISHED_GLOBAL')`; }
+        if (date_range && date_range !== 'all') {
+            const intervals = { today: '1 day', week: '7 days', month: '30 days', year: '365 days' };
+            if (intervals[date_range]) where += ` AND ci.published_at >= NOW()-INTERVAL '${intervals[date_range]}'`;
+        }
+
+        params.push(parseInt(limit), offset);
+        const r = await pool.query(`
+            SELECT ci.id, ci.title, ci.subtitle, ci.cover_image_url, ci.content_type, ci.published_at, ci.status,
+                   ci.author_profile_id, fg.name as author_name, ap.badge_level, ap.is_revoked,
+                   cc.title as category_title, co.name as community_name,
+                   COALESCE(cem.likes_count,0) as likes_count,
+                   COALESCE(cem.comments_count,0) as comments_count,
+                   COALESCE(cem.current_trending_score,0) as trending_score
+            FROM content_items ci
+            JOIN content_categories cc ON cc.id=ci.category_id
+            JOIN communities co ON co.id=ci.community_id
+            JOIN author_profiles ap ON ap.id=ci.author_profile_id
+            JOIN family_groups fg ON fg.id=ap.family_group_id
+            LEFT JOIN content_engagement_metrics cem ON cem.content_item_id=ci.id
+            WHERE ${where}
+            ORDER BY cem.current_trending_score DESC NULLS LAST, ci.published_at DESC
+            LIMIT $${params.length - 1} OFFSET $${params.length}
+        `, params);
+        res.json({ success: true, items: r.rows, query });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── תגיות ─────────────────────────────────────────────────────
+app.get('/api/kol-haam/tags/popular', async (req, res) => {
+    try {
+        const { community_id, limit = 30 } = req.query;
+        const r = await pool.query(`
+            SELECT ct.name, ct.usage_count,
+                   COUNT(DISTINCT cit.content_item_id) as content_count
+            FROM content_tags ct
+            JOIN content_items_tags cit ON cit.tag_id=ct.id
+            JOIN content_items ci ON ci.id=cit.content_item_id
+            WHERE ci.status IN ('PUBLISHED_LOCAL','PUBLISHED_GLOBAL')
+              AND COALESCE(ci.is_quarantined,FALSE)=FALSE
+            GROUP BY ct.id, ct.name, ct.usage_count
+            ORDER BY ct.usage_count DESC
+            LIMIT $1
+        `, [parseInt(limit)]);
+        res.json({ success: true, tags: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/kol-haam/tags/:tag_name', async (req, res) => {
+    try {
+        const { scope, date_range, community_id, page = 1, limit = 20 } = req.query;
+        const tagName = decodeURIComponent(req.params.tag_name).toLowerCase();
+        const offset = (parseInt(page)-1)*parseInt(limit);
+        let where = `ci.status IN ('PUBLISHED_LOCAL','PUBLISHED_GLOBAL') AND COALESCE(ci.is_quarantined,FALSE)=FALSE`;
+        const params = [tagName];
+        if (scope === 'global') where += ` AND ci.status='PUBLISHED_GLOBAL'`;
+        else if (community_id) { params.push(parseInt(community_id)); where += ` AND (ci.community_id=$${params.length} OR ci.status='PUBLISHED_GLOBAL')`; }
+        if (date_range && date_range !== 'all') {
+            const intervals = { today:'1 day', week:'7 days', month:'30 days', year:'365 days' };
+            if (intervals[date_range]) where += ` AND ci.published_at >= NOW()-INTERVAL '${intervals[date_range]}'`;
+        }
+        params.push(parseInt(limit), offset);
+        const r = await pool.query(`
+            SELECT ci.id, ci.title, ci.subtitle, ci.cover_image_url, ci.content_type, ci.published_at,
+                   ci.author_profile_id, fg.name as author_name, ap.badge_level, ap.is_revoked,
+                   cc.title as category_title, co.name as community_name,
+                   COALESCE(cem.likes_count,0) as likes_count, COALESCE(cem.comments_count,0) as comments_count,
+                   COALESCE(cem.current_trending_score,0) as trending_score
+            FROM content_items ci
+            JOIN content_categories cc ON cc.id=ci.category_id
+            JOIN communities co ON co.id=ci.community_id
+            JOIN author_profiles ap ON ap.id=ci.author_profile_id
+            JOIN family_groups fg ON fg.id=ap.family_group_id
+            LEFT JOIN content_engagement_metrics cem ON cem.content_item_id=ci.id
+            WHERE ${where}
+              AND EXISTS(SELECT 1 FROM content_items_tags cit JOIN content_tags ct ON ct.id=cit.tag_id WHERE cit.content_item_id=ci.id AND ct.name=$1)
+            ORDER BY cem.current_trending_score DESC NULLS LAST, ci.published_at DESC
+            LIMIT $${params.length-1} OFFSET $${params.length}
+        `, params);
+        const tagInfo = await pool.query(`SELECT name, usage_count FROM content_tags WHERE name=$1`, [tagName]);
+        res.json({ success: true, tag: tagInfo.rows[0] || { name: tagName, usage_count: 0 }, items: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── ניהול סדרות ────────────────────────────────────────────────
+app.post('/api/kol-haam/series', async (req, res) => {
+    try {
+        const { title, groupId, communityId } = req.body;
+        if (!title || !groupId) return res.status(400).json({ error: 'שדות חובה חסרים' });
+        const ap = await getOrCreateAuthorProfile(groupId, communityId);
+        const r = await pool.query(
+            `INSERT INTO content_series (title, author_profile_id) VALUES ($1,$2) RETURNING *`,
+            [title.trim(), ap.id]
+        );
+        res.json({ success: true, series: r.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/kol-haam/series/my', async (req, res) => {
+    try {
+        const { groupId, communityId } = req.query;
+        if (!groupId) return res.status(400).json({ error: 'groupId נדרש' });
+        const ap = await getOrCreateAuthorProfile(groupId, communityId);
+        const r = await pool.query(
+            `SELECT cs.*, COUNT(ci.id) as chapter_count
+             FROM content_series cs
+             LEFT JOIN content_items ci ON ci.series_id=cs.id
+             WHERE cs.author_profile_id=$1
+             GROUP BY cs.id ORDER BY cs.created_at DESC`,
+            [ap.id]
+        );
+        res.json({ success: true, series: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/kol-haam/series/:id', async (req, res) => {
+    try {
+        const cs = await pool.query(
+            `SELECT cs.*, ap.display_name as author_name, fg.name as group_name
+             FROM content_series cs
+             JOIN author_profiles ap ON ap.id=cs.author_profile_id
+             JOIN family_groups fg ON fg.id=ap.family_group_id
+             WHERE cs.id=$1`, [req.params.id]
+        );
+        if (!cs.rows[0]) return res.status(404).json({ error: 'לא נמצא' });
+        const chapters = await pool.query(`
+            SELECT ci.id, ci.title, ci.series_chapter_number, ci.status, ci.published_at,
+                   COALESCE(cem.likes_count,0) as likes_count
+            FROM content_items ci
+            LEFT JOIN content_engagement_metrics cem ON cem.content_item_id=ci.id
+            WHERE ci.series_id=$1
+            ORDER BY ci.series_chapter_number ASC NULLS LAST, ci.created_at ASC
+        `, [req.params.id]);
+        res.json({ success: true, series: cs.rows[0], chapters: chapters.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/kol-haam/content/:id/series', async (req, res) => {
+    try {
+        const { groupId, series_id, series_chapter_number } = req.body;
+        const ci = await pool.query(`SELECT author_profile_id FROM content_items WHERE id=$1`, [req.params.id]);
+        if (!ci.rows[0]) return res.status(404).json({ error: 'לא נמצא' });
+        const ap = await pool.query(`SELECT family_group_id FROM author_profiles WHERE id=$1`, [ci.rows[0].author_profile_id]);
+        if (String(ap.rows[0]?.family_group_id) !== String(groupId)) return res.status(403).json({ error: 'אין הרשאה' });
+        await pool.query(`UPDATE content_items SET series_id=$1, series_chapter_number=$2, updated_at=NOW() WHERE id=$3`,
+            [series_id || null, series_chapter_number || null, req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── היסטוריית גרסאות ───────────────────────────────────────────
+app.get('/api/kol-haam/content/:id/versions', async (req, res) => {
+    try {
+        const { groupId } = req.query;
+        // בדיקת בעלות / ZM / SA
+        const ci = await pool.query(`SELECT ci.author_profile_id, ap.family_group_id FROM content_items ci JOIN author_profiles ap ON ap.id=ci.author_profile_id WHERE ci.id=$1`, [req.params.id]);
+        if (!ci.rows[0]) return res.status(404).json({ error: 'לא נמצא' });
+        const isOwner = String(ci.rows[0].family_group_id) === String(groupId);
+        // ZM check
+        const zmSess = groupId ? await pool.query(`SELECT 1 FROM zone_manager_sessions WHERE group_id=$1 AND is_active=TRUE`, [groupId]).catch(() => ({ rows: [] })) : { rows: [] };
+        if (!isOwner && !zmSess.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
+
+        const r = await pool.query(`
+            SELECT cvh.version_number, cvh.created_at, cvh.title, cvh.editor_user_id,
+                   u.name as editor_name
+            FROM content_version_history cvh
+            LEFT JOIN users u ON u.id=cvh.editor_user_id
+            WHERE cvh.content_item_id=$1
+            ORDER BY cvh.version_number DESC
+        `, [req.params.id]);
+        res.json({ success: true, versions: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── אוספים ─────────────────────────────────────────────────────
+app.post('/api/kol-haam/collections', async (req, res) => {
+    try {
+        const { groupId, title, description, is_public = false } = req.body;
+        if (!groupId || !title) return res.status(400).json({ error: 'שדות חובה חסרים' });
+        const r = await pool.query(
+            `INSERT INTO user_collections (owner_group_id, title, description, is_public) VALUES ($1,$2,$3,$4) RETURNING *`,
+            [groupId, title.trim(), description || null, is_public]
+        );
+        res.json({ success: true, collection: r.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/kol-haam/my-collections', async (req, res) => {
+    try {
+        const { groupId } = req.query;
+        if (!groupId) return res.status(400).json({ error: 'groupId נדרש' });
+        const r = await pool.query(`
+            SELECT uc.*, COUNT(uci.content_item_id) as item_count
+            FROM user_collections uc
+            LEFT JOIN user_collection_items uci ON uci.collection_id=uc.id
+            WHERE uc.owner_group_id=$1
+            GROUP BY uc.id ORDER BY uc.created_at DESC
+        `, [groupId]);
+        res.json({ success: true, collections: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/kol-haam/collections/:id', async (req, res) => {
+    try {
+        const { groupId } = req.query;
+        const col = await pool.query(`SELECT * FROM user_collections WHERE id=$1`, [req.params.id]);
+        if (!col.rows[0]) return res.status(404).json({ error: 'לא נמצא' });
+        const c = col.rows[0];
+        if (!c.is_public && String(c.owner_group_id) !== String(groupId)) return res.status(403).json({ error: 'אין הרשאה' });
+        const items = await pool.query(`
+            SELECT ci.id, ci.title, ci.subtitle, ci.cover_image_url, ci.content_type, ci.published_at,
+                   fg.name as author_name, ap.badge_level, ap.is_revoked, ci.author_profile_id,
+                   cc.title as category_title, co.name as community_name, uci.added_at,
+                   COALESCE(cem.likes_count,0) as likes_count
+            FROM user_collection_items uci
+            JOIN content_items ci ON ci.id=uci.content_item_id
+            JOIN content_categories cc ON cc.id=ci.category_id
+            JOIN communities co ON co.id=ci.community_id
+            JOIN author_profiles ap ON ap.id=ci.author_profile_id
+            JOIN family_groups fg ON fg.id=ap.family_group_id
+            LEFT JOIN content_engagement_metrics cem ON cem.content_item_id=ci.id
+            WHERE uci.collection_id=$1
+            ORDER BY uci.added_at DESC
+        `, [req.params.id]);
+        res.json({ success: true, collection: c, items: items.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/kol-haam/collections/public/:slug', async (req, res) => {
+    try {
+        const col = await pool.query(`SELECT * FROM user_collections WHERE share_slug=$1 AND is_public=TRUE`, [req.params.slug]);
+        if (!col.rows[0]) return res.status(404).json({ error: 'אוסף לא נמצא' });
+        req.params.id = col.rows[0].id;
+        req.query.groupId = col.rows[0].owner_group_id;
+        // delegate to the id handler inline
+        const c = col.rows[0];
+        const items = await pool.query(`
+            SELECT ci.id, ci.title, ci.subtitle, ci.cover_image_url, ci.content_type, ci.published_at,
+                   fg.name as author_name, ci.author_profile_id,
+                   cc.title as category_title, co.name as community_name, uci.added_at
+            FROM user_collection_items uci
+            JOIN content_items ci ON ci.id=uci.content_item_id
+            JOIN content_categories cc ON cc.id=ci.category_id
+            JOIN communities co ON co.id=ci.community_id
+            JOIN author_profiles ap ON ap.id=ci.author_profile_id
+            JOIN family_groups fg ON fg.id=ap.family_group_id
+            WHERE uci.collection_id=$1
+            ORDER BY uci.added_at DESC
+        `, [c.id]);
+        res.json({ success: true, collection: c, items: items.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/kol-haam/collections/:id', async (req, res) => {
+    try {
+        const { groupId, title, description, is_public } = req.body;
+        const col = await pool.query(`SELECT owner_group_id FROM user_collections WHERE id=$1`, [req.params.id]);
+        if (!col.rows[0] || String(col.rows[0].owner_group_id) !== String(groupId)) return res.status(403).json({ error: 'אין הרשאה' });
+
+        let slug = col.rows[0].share_slug;
+        // יצירת share_slug בפעם הראשונה שהופך לציבורי
+        if (is_public && !slug) {
+            slug = Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
+        }
+
+        const r = await pool.query(
+            `UPDATE user_collections SET title=COALESCE($1,title), description=$2, is_public=$3, share_slug=$4, updated_at=NOW() WHERE id=$5 RETURNING *`,
+            [title, description || null, is_public !== undefined ? is_public : col.rows[0].is_public, slug, req.params.id]
+        );
+        res.json({ success: true, collection: r.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/kol-haam/collections/:id', async (req, res) => {
+    try {
+        const { groupId } = req.body;
+        const col = await pool.query(`SELECT owner_group_id FROM user_collections WHERE id=$1`, [req.params.id]);
+        if (!col.rows[0] || String(col.rows[0].owner_group_id) !== String(groupId)) return res.status(403).json({ error: 'אין הרשאה' });
+        await pool.query(`DELETE FROM user_collections WHERE id=$1`, [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/kol-haam/collections/:id/items', async (req, res) => {
+    try {
+        const { groupId, content_item_id } = req.body;
+        const col = await pool.query(`SELECT owner_group_id FROM user_collections WHERE id=$1`, [req.params.id]);
+        if (!col.rows[0] || String(col.rows[0].owner_group_id) !== String(groupId)) return res.status(403).json({ error: 'אין הרשאה' });
+        await pool.query(`INSERT INTO user_collection_items (collection_id, content_item_id) VALUES ($1,$2) ON CONFLICT DO NOTHING`, [req.params.id, content_item_id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/kol-haam/collections/:id/items/:content_item_id', async (req, res) => {
+    try {
+        const { groupId } = req.body;
+        const col = await pool.query(`SELECT owner_group_id FROM user_collections WHERE id=$1`, [req.params.id]);
+        if (!col.rows[0] || String(col.rows[0].owner_group_id) !== String(groupId)) return res.status(403).json({ error: 'אין הרשאה' });
+        await pool.query(`DELETE FROM user_collection_items WHERE collection_id=$1 AND content_item_id=$2`, [req.params.id, req.params.content_item_id]);
+        res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 

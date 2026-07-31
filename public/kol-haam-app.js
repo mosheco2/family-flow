@@ -90,6 +90,10 @@ const KH = {
         else if (view === 'zm-reports') KH.loadZMReports();
         else if (view === 'following') KH.loadFollowingFeed();
         else if (view === 'author') KH.loadAuthor(params.id);
+        else if (view === 'search') KH.doSearch();
+        else if (view === 'tag') KH.loadTagPage(params.tag);
+        else if (view === 'collections') KH.loadCollections();
+        else if (view === 'collection') KH.loadCollection(params.id);
     },
 
     back() {
@@ -232,7 +236,7 @@ const KH = {
         const it = data.item;
         const userState = stateData || { reaction: null, saved: false };
         const tags = Array.isArray(it.tags) ? it.tags : (typeof it.tags === 'string' ? JSON.parse(it.tags || '[]') : []);
-        const tagsHtml = tags.length ? `<div class="content-tags">${tags.map(t => `<span class="tag-chip">#${esc(t)}</span>`).join('')}</div>` : '';
+        const tagsHtml = tags.length ? `<div class="content-tags">${tags.map(t => `<span class="tag-chip tag-chip-link" onclick="KH.nav('tag',{tag:'${esc(t).replace(/'/g,'\\\'')}'})"">#${esc(t)}</span>`).join('')}</div>` : '';
         const seriesNav = (it.prev_chapter_id || it.next_chapter_id) ? `
             <div class="series-nav">
                 ${it.prev_chapter_id ? `<button class="series-nav-btn" onclick="KH.nav('content',{id:${it.prev_chapter_id}})">← פרק קודם: ${esc(it.prev_chapter_title||'')}</button>` : '<div></div>'}
@@ -273,7 +277,13 @@ const KH = {
                 ${it.updated_at ? `<span>עודכן: ${fmtDate(it.updated_at)}</span>` : ''}
                 <span>⏱ ${it.reading_time_minutes} דק' קריאה</span>
             </div>
-            <div style="display:flex;gap:.5rem;margin-bottom:.5rem;flex-wrap:wrap">${editBtn}${deleteBtn}${CTX.isSA ? `<button class="kh-btn kh-btn-outline kh-btn-sm" onclick="KH.addEditorPick(${it.id})">⭐ בחירת עורך</button>` : ''}</div>
+            <div style="display:flex;gap:.5rem;margin-bottom:.5rem;flex-wrap:wrap">
+                ${editBtn}${deleteBtn}
+                ${CTX.isSA ? `<button class="kh-btn kh-btn-outline kh-btn-sm" onclick="KH.addEditorPick(${it.id})">⭐ בחירת עורך</button>` : ''}
+                <button class="kh-btn kh-btn-outline kh-btn-sm" onclick="KH.openAddToCollection(${it.id})" title="הוסף לאוסף">📚 אוסף</button>
+                <button id="kh-print-btn" class="kh-btn kh-btn-outline kh-btn-sm" onclick="KH.printContent()" title="הדפס / PDF">🖨️ הדפס</button>
+                ${(isOwner || CTX.isZM || CTX.isSA) ? `<button class="kh-btn kh-btn-outline kh-btn-sm" onclick="KH.showVersionHistory(${it.id})">🕐 גרסאות</button>` : ''}
+            </div>
             ${engBar}
             <div class="content-html">${it.content_html}</div>
             ${tagsHtml}
@@ -658,15 +668,44 @@ const KH = {
                 <textarea class="field-input" id="ed-summary" rows="2" placeholder="משפט או שניים שמסכמים את הכתבה...">${esc(existing?.quick_summary_20s||'')}</textarea>
             </div>
 
+            <!-- שיוך לסדרה -->
+            <div class="field-group">
+                <label class="field-label">חלק מסדרה? <span style="color:var(--muted2);font-weight:400">(אופציונלי)</span></label>
+                <div style="display:flex;gap:.4rem;align-items:center">
+                    <select class="field-select" id="ed-series" style="flex:1">
+                        <option value="">ללא סדרה</option>
+                    </select>
+                    <button class="kh-btn kh-btn-outline kh-btn-sm" onclick="KH.createSeriesFromEditor()">+ סדרה חדשה</button>
+                </div>
+                <input class="field-input" id="ed-series-chapter" type="number" min="1" placeholder="מספר פרק..." value="${existing?.series_chapter_number||''}" style="margin-top:.35rem;width:120px">
+            </div>
+
             <!-- כפתורי פעולה -->
             <div class="editor-actions">
                 <button class="kh-btn kh-btn-outline" onclick="KH.saveDraft()"><i class="fa-solid fa-floppy-disk"></i> שמור כטיוטה</button>
                 <button class="kh-btn kh-btn-primary" onclick="KH.submitContent()"><i class="fa-solid fa-paper-plane"></i> שלח לאישור</button>
             </div>
+
+            ${itemId ? KH.renderAICopilot(itemId) : '<div class="ai-panel"><div class="ai-panel-title">🤖 עוזר הכתיבה AI</div><div style="font-size:.82rem;color:var(--muted)">שמור קודם כטיוטה כדי להפעיל את עוזר הכתיבה</div></div>'}
         `;
 
         KH.renderTagChips();
         KH.onCategoryChange();
+
+        // טעינת סדרות לדרופדאון
+        if (CTX.groupId) {
+            khFetch(`${API}/series/my?groupId=${CTX.groupId}&communityId=${CTX.communityId||''}`).then(d => {
+                const sel = document.getElementById('ed-series');
+                if (!sel) return;
+                (d.series || []).forEach(s => {
+                    const opt = document.createElement('option');
+                    opt.value = s.id;
+                    opt.textContent = `${esc(s.title)} (${s.chapter_count||0} פרקים)`;
+                    if (existing?.series_id === s.id) opt.selected = true;
+                    sel.appendChild(opt);
+                });
+            }).catch(() => {});
+        }
     },
 
     selectType(type) {
@@ -793,7 +832,28 @@ const KH = {
             coverImageUrl: document.getElementById('ed-cover-url')?.value || '',
             contentHtml: document.getElementById('rte-body')?.innerHTML || '',
             tags: [...STATE.tags],
+            seriesId: document.getElementById('ed-series')?.value || null,
+            seriesChapterNumber: parseInt(document.getElementById('ed-series-chapter')?.value) || null,
         };
+    },
+
+    createSeriesFromEditor: async function() {
+        const title = prompt('שם הסדרה החדשה:');
+        if (!title || !title.trim()) return;
+        const d = await khFetch(`${API}/series`, {
+            method: 'POST', body: JSON.stringify({ title, groupId: CTX.groupId, communityId: CTX.communityId })
+        });
+        if (d.success) {
+            const sel = document.getElementById('ed-series');
+            if (sel) {
+                const opt = document.createElement('option');
+                opt.value = d.series.id;
+                opt.textContent = esc(d.series.title) + ' (0 פרקים)';
+                opt.selected = true;
+                sel.appendChild(opt);
+            }
+            khToast('success', 'סדרה נוצרה');
+        }
     },
 
     async saveDraft() {
@@ -1276,6 +1336,355 @@ function badgeHtml(level, isRevoked) {
     return '';
 }
 
+// ── Phase 4: Search, Tags, Collections, AI Copilot, Versions ──
+
+// Search
+KH.doSearch = async function(page = 1) {
+    const q = document.getElementById('kh-search-input')?.value?.trim() || STATE.lastSearchQuery || '';
+    if (!q) return;
+    STATE.lastSearchQuery = q;
+    STATE.view = 'search';
+    showView('view-search');
+    const listEl = document.getElementById('search-results-list');
+    const countEl = document.getElementById('search-result-count');
+    const titleEl = document.getElementById('search-results-title');
+    if (page === 1) listEl.innerHTML = '<div class="kh-spinner"></div>';
+    titleEl.textContent = `תוצאות עבור "${q}"`;
+
+    const type = document.getElementById('sf-type')?.value || '';
+    const scope = document.getElementById('sf-scope')?.value || '';
+    const dateRange = document.getElementById('sf-date')?.value || 'all';
+
+    const params = new URLSearchParams({ q, page, limit: 20 });
+    if (type) params.set('type', type);
+    if (scope) params.set('scope', scope);
+    if (dateRange !== 'all') params.set('date_range', dateRange);
+    if (CTX.communityId) params.set('community_id', CTX.communityId);
+
+    const d = await khFetch(`${API}/search?${params}`);
+    const items = d.items || [];
+    countEl.textContent = items.length ? `נמצאו ${items.length} תוצאות` : '';
+    if (page === 1) listEl.innerHTML = '';
+    if (!items.length && page === 1) {
+        listEl.innerHTML = '<div class="kh-empty">לא נמצאו תוצאות לחיפוש זה</div>';
+        return;
+    }
+    items.forEach(it => {
+        const div = document.createElement('div');
+        div.innerHTML = KH.renderFeedCard(it);
+        listEl.appendChild(div.firstElementChild);
+    });
+};
+
+// Tag page
+KH.loadTagPage = async function(tagName, page = 1) {
+    STATE.currentTag = tagName;
+    showView('view-tag');
+    STATE.view = 'tag';
+    document.getElementById('tag-page-title').textContent = `#${tagName}`;
+    const listEl = document.getElementById('tag-page-list');
+    if (page === 1) listEl.innerHTML = '<div class="kh-spinner"></div>';
+
+    const params = new URLSearchParams({ page, limit: 20 });
+    if (CTX.communityId) params.set('community_id', CTX.communityId);
+    const d = await khFetch(`${API}/tags/${encodeURIComponent(tagName)}?${params}`);
+    const items = d.items || [];
+    if (page === 1) listEl.innerHTML = `<div style="font-size:.78rem;color:var(--muted);margin-bottom:.5rem">${d.tag?.usage_count||0} שימושים</div>`;
+    if (!items.length && page === 1) { listEl.innerHTML += '<div class="kh-empty">אין תוכן בתגית זו עדיין</div>'; return; }
+    items.forEach(it => {
+        const div = document.createElement('div');
+        div.innerHTML = KH.renderFeedCard(it);
+        listEl.appendChild(div.firstElementChild);
+    });
+};
+
+// Collections
+KH.loadCollections = async function() {
+    const el = document.getElementById('collections-list');
+    el.innerHTML = '<div class="kh-spinner"></div>';
+    if (!CTX.groupId) { el.innerHTML = '<div class="kh-empty">יש להיכנס עם קבוצה</div>'; return; }
+    const d = await khFetch(`${API}/my-collections?groupId=${CTX.groupId}`);
+    const cols = d.collections || [];
+    if (!cols.length) { el.innerHTML = '<div class="kh-empty">אין אוספים עדיין — צור אוסף חדש</div>'; return; }
+    el.innerHTML = cols.map(c => `
+        <div class="collection-card" onclick="KH.loadCollection(${c.id})">
+            <div class="collection-card-title">${esc(c.title)}</div>
+            <div class="collection-card-meta">${c.item_count||0} פריטים · ${c.is_public ? '🌐 ציבורי' : '🔒 פרטי'}</div>
+            ${c.is_public && c.share_slug ? `<div style="font-size:.72rem;color:var(--primary);margin-top:.25rem">קישור שיתוף: /kol-haam/collection/${esc(c.share_slug)}</div>` : ''}
+        </div>`).join('');
+};
+
+KH.loadCollection = async function(colId) {
+    STATE.currentCollectionId = colId;
+    showView('view-collection');
+    STATE.view = 'collection';
+    const el = document.getElementById('collection-view-content');
+    el.innerHTML = '<div class="kh-spinner"></div>';
+    const d = await khFetch(`${API}/collections/${colId}?groupId=${CTX.groupId||''}`);
+    if (!d.success) { el.innerHTML = '<div class="kh-empty">שגיאה בטעינה</div>'; return; }
+    const c = d.collection;
+    document.getElementById('collection-view-title').textContent = esc(c.title);
+    const isOwner = String(c.owner_group_id) === String(CTX.groupId);
+
+    el.innerHTML = `
+        ${c.description ? `<div style="font-size:.82rem;color:var(--muted);padding:.5rem .75rem">${esc(c.description)}</div>` : ''}
+        ${isOwner ? `<div style="padding:.5rem .75rem;display:flex;gap:.5rem;flex-wrap:wrap">
+            <label class="collection-toggle">
+                <input type="checkbox" ${c.is_public ? 'checked' : ''} onchange="KH.toggleCollectionPublic(${c.id}, this.checked)">
+                ציבורי ${c.is_public && c.share_slug ? `<a style="font-size:.7rem" onclick="event.stopPropagation()">🔗</a>` : ''}
+            </label>
+            ${c.is_public && c.share_slug ? `<button class="kh-btn kh-btn-outline kh-btn-sm" onclick="KH.copyShareLink('${esc(c.share_slug)}')">העתק קישור</button>` : ''}
+            <button class="kh-btn kh-btn-danger kh-btn-sm" onclick="KH.deleteCollection(${c.id})">מחק אוסף</button>
+        </div>` : ''}
+        <div id="col-items-list" style="padding:.5rem .75rem;display:flex;flex-direction:column;gap:.4rem">
+            ${(d.items||[]).length ? (d.items||[]).map(it => `
+                <div class="feed-card-wrap" style="position:relative">
+                    <div class="feed-card" onclick="KH.nav('content',{id:${it.id}})">
+                        <div class="feed-card-body">
+                            <div class="feed-card-title">${esc(it.title)}</div>
+                            <div class="feed-card-footer"><span>${esc(it.author_name||'')}</span><span>${esc(it.community_name||'')}</span></div>
+                        </div>
+                    </div>
+                    ${isOwner ? `<button class="kh-btn kh-btn-danger kh-btn-sm" style="position:absolute;top:.5rem;left:.5rem" onclick="event.stopPropagation();KH.removeFromCollection(${c.id},${it.id})">×</button>` : ''}
+                </div>`).join('')
+            : '<div class="kh-empty">האוסף ריק — הוסף תוכן דרך כפתור "הוסף לאוסף" בעמוד כתבה</div>'}
+        </div>`;
+};
+
+KH.showCreateCollection = async function() {
+    const title = prompt('שם האוסף:');
+    if (!title || !title.trim()) return;
+    if (!CTX.groupId) { khToast('error', 'יש להיכנס עם קבוצה'); return; }
+    const d = await khFetch(`${API}/collections`, { method: 'POST', body: JSON.stringify({ groupId: CTX.groupId, title }) });
+    if (d.success) { khToast('success', 'האוסף נוצר'); KH.loadCollections(); }
+};
+
+KH.showCreateCollectionModal = async function() {
+    const title = prompt('שם האוסף החדש:');
+    if (!title || !title.trim()) return;
+    if (!CTX.groupId) { khToast('error', 'יש להיכנס עם קבוצה'); return; }
+    const d = await khFetch(`${API}/collections`, { method: 'POST', body: JSON.stringify({ groupId: CTX.groupId, title }) });
+    if (d.success) {
+        khToast('success', 'האוסף נוצר');
+        KH.openAddToCollection(STATE.addToCollectionContentId);
+    }
+};
+
+KH.openAddToCollection = async function(contentId) {
+    if (!CTX.groupId) { khToast('error', 'יש להיכנס כדי להוסיף לאוסף'); return; }
+    STATE.addToCollectionContentId = contentId;
+    const d = await khFetch(`${API}/my-collections?groupId=${CTX.groupId}`);
+    const cols = d.collections || [];
+    const listEl = document.getElementById('collection-modal-list');
+    listEl.innerHTML = cols.length ? cols.map(c => `
+        <button class="kh-btn kh-btn-outline" style="justify-content:space-between" onclick="KH.addToCollection(${c.id},${contentId})">
+            <span>${esc(c.title)}</span><span style="font-size:.72rem;color:var(--muted)">${c.item_count||0} פריטים</span>
+        </button>`).join('')
+        : '<div class="kh-empty" style="font-size:.8rem">אין אוספים עדיין</div>';
+    document.getElementById('kh-collection-modal').classList.add('show');
+};
+
+KH.closeCollectionModal = function() { document.getElementById('kh-collection-modal').classList.remove('show'); };
+
+KH.addToCollection = async function(colId, contentId) {
+    const d = await khFetch(`${API}/collections/${colId}/items`, {
+        method: 'POST', body: JSON.stringify({ groupId: CTX.groupId, content_item_id: contentId })
+    });
+    if (d.success) { khToast('success', 'נוסף לאוסף'); KH.closeCollectionModal(); }
+    else khToast('error', d.error || 'שגיאה');
+};
+
+KH.removeFromCollection = async function(colId, contentId) {
+    if (!confirm('להסיר מהאוסף?')) return;
+    const d = await khFetch(`${API}/collections/${colId}/items/${contentId}`, {
+        method: 'DELETE', body: JSON.stringify({ groupId: CTX.groupId })
+    });
+    if (d.success) { khToast('success', 'הוסר'); KH.loadCollection(colId); }
+};
+
+KH.toggleCollectionPublic = async function(colId, isPublic) {
+    const d = await khFetch(`${API}/collections/${colId}`, {
+        method: 'PUT', body: JSON.stringify({ groupId: CTX.groupId, is_public: isPublic })
+    });
+    if (d.success) { khToast('success', isPublic ? 'הפך לציבורי' : 'הפך לפרטי'); KH.loadCollection(colId); }
+};
+
+KH.copyShareLink = function(slug) {
+    const url = `${location.origin}/kol-haam/collection/${slug}`;
+    navigator.clipboard?.writeText(url).then(() => khToast('success', 'הקישור הועתק'))
+        .catch(() => khToast('info', url));
+};
+
+KH.deleteCollection = async function(colId) {
+    if (!confirm('למחוק את האוסף לצמיתות?')) return;
+    const d = await khFetch(`${API}/collections/${colId}`, {
+        method: 'DELETE', body: JSON.stringify({ groupId: CTX.groupId })
+    });
+    if (d.success) { khToast('success', 'האוסף נמחק'); KH.nav('collections'); }
+};
+
+// Version history
+KH.showVersionHistory = async function(contentId) {
+    const el = document.getElementById('versions-modal-list');
+    el.innerHTML = '<div class="kh-spinner"></div>';
+    document.getElementById('kh-versions-modal').classList.add('show');
+    const d = await khFetch(`${API}/content/${contentId}/versions?groupId=${CTX.groupId||''}`);
+    const versions = d.versions || [];
+    if (!versions.length) { el.innerHTML = '<div class="kh-empty">אין גרסאות קודמות</div>'; return; }
+    el.innerHTML = versions.map(v => `
+        <div class="version-row">
+            <span class="version-num">v${v.version_number}</span>
+            <span style="flex:1;font-size:.8rem">${esc(v.title || '')}</span>
+            <span style="color:var(--muted);font-size:.72rem">${v.created_at ? new Date(v.created_at).toLocaleDateString('he-IL') : ''}</span>
+            <span style="font-size:.72rem;color:var(--muted)">${esc(v.editor_name || '')}</span>
+        </div>`).join('');
+};
+
+// Print
+KH.printContent = function() {
+    window.print();
+};
+
+// AI Copilot
+KH._aiSelectedActions = new Set(['grammar','title','summary','safety_scan']);
+
+KH.renderAICopilot = function(contentId) {
+    return `<div class="ai-panel" id="ai-copilot-panel">
+        <div class="ai-panel-title">🤖 עוזר הכתיבה AI
+            <span style="font-size:.7rem;color:var(--muted);font-weight:400">עד 10 קריאות ביום</span>
+        </div>
+        <div class="ai-action-btns">
+            ${[
+                ['grammar','✏️ תיקון דקדוק'],['title','💡 כותרות'],['subtitle','📝 תת-כותרת'],
+                ['summary','📋 תקציר'],['tags','🏷️ תגיות'],['duplicate_check','🔍 כפילויות'],
+                ['safety_scan','🛡️ בדיקת בטיחות'],['cover_suggestion','🖼️ תמונת שער']
+            ].map(([k,l]) => `<button class="ai-action-btn ${KH._aiSelectedActions.has(k)?'selected':''}"
+                onclick="KH.toggleAIAction('${k}',this)">${l}</button>`).join('')}
+        </div>
+        <button class="kh-btn kh-btn-primary kh-btn-sm" onclick="KH.runAICopilot(${contentId})" id="ai-run-btn">▶ הפעל עוזר</button>
+        <div id="ai-results"></div>
+    </div>`;
+};
+
+KH.toggleAIAction = function(key, btn) {
+    if (KH._aiSelectedActions.has(key)) { KH._aiSelectedActions.delete(key); btn.classList.remove('selected'); }
+    else { KH._aiSelectedActions.add(key); btn.classList.add('selected'); }
+};
+
+KH.runAICopilot = async function(contentId) {
+    if (!CTX.groupId) { khToast('error', 'יש להיכנס עם קבוצה'); return; }
+    const btn = document.getElementById('ai-run-btn');
+    const resultsEl = document.getElementById('ai-results');
+    if (btn) { btn.textContent = '⏳ מעבד...'; btn.disabled = true; }
+    resultsEl.innerHTML = '<div class="kh-spinner"></div>';
+
+    const d = await khFetch(`${API}/content/${contentId}/ai-copilot`, {
+        method: 'POST',
+        body: JSON.stringify({ actions: [...KH._aiSelectedActions], groupId: CTX.groupId, communityId: CTX.communityId })
+    });
+    if (btn) { btn.textContent = '▶ הפעל שוב'; btn.disabled = false; }
+
+    if (!d.success) { resultsEl.innerHTML = `<div class="ai-safety-flag">${esc(d.error || 'שגיאה')}</div>`; return; }
+    const r = d.result;
+    let html = '';
+
+    if (d.flagged) {
+        html += `<div class="ai-safety-flag">⚠️ בדיקת הבטיחות זיהתה חשד לבעיה. דיווח נשלח ל-ZM לידיעה. תוכל להמשיך ולשלוח לאישור.</div>`;
+    }
+
+    if (r.grammar?.corrections?.length) {
+        html += `<div class="ai-result-section"><div class="ai-result-label">✏️ תיקוני דקדוק (${r.grammar.corrections.length})</div>
+            ${r.grammar.corrections.slice(0,8).map(c => `<div class="ai-correction-item">
+                <span class="ai-correction-orig">${esc(c.original)}</span>
+                <span>→</span>
+                <span class="ai-correction-sugg">${esc(c.suggested)}</span>
+                <button class="kh-btn kh-btn-outline kh-btn-sm" style="font-size:.7rem" onclick="KH.applyGrammar('${esc(c.original).replace(/'/g,'\\\'').replace(/"/g,'&quot;')}','${esc(c.suggested).replace(/'/g,'\\\'').replace(/"/g,'&quot;')}')">החל</button>
+            </div>`).join('')}
+            ${r.grammar.corrected_full_text ? `<button class="kh-btn kh-btn-primary kh-btn-sm" style="margin-top:.35rem" onclick="KH.applyFullCorrection()">החל את כל התיקונים</button>` : ''}
+        </div>`;
+        KH._aiGrammarFullText = r.grammar.corrected_full_text;
+    }
+
+    if (r.title_suggestions?.length) {
+        html += `<div class="ai-result-section"><div class="ai-result-label">💡 הצעות לכותרת</div>
+            ${r.title_suggestions.map(t => `<span class="ai-suggestion-chip" onclick="KH.applyTitle('${esc(t).replace(/'/g,'\\\'')}')">${esc(t)}</span>`).join('')}
+        </div>`;
+    }
+    if (r.subtitle_suggestions?.length) {
+        html += `<div class="ai-result-section"><div class="ai-result-label">📝 הצעות לתת-כותרת</div>
+            ${r.subtitle_suggestions.map(t => `<span class="ai-suggestion-chip" onclick="KH.applySubtitle('${esc(t).replace(/'/g,'\\\'')}')">${esc(t)}</span>`).join('')}
+        </div>`;
+    }
+    if (r.summary) {
+        html += `<div class="ai-result-section"><div class="ai-result-label">📋 תקציר מוצע</div>
+            <div style="font-size:.82rem;white-space:pre-wrap">${esc(r.summary)}</div>
+            <button class="kh-btn kh-btn-outline kh-btn-sm" style="margin-top:.3rem" onclick="KH.applySummary()">החל תקציר</button>
+        </div>`;
+        KH._aiSummary = r.summary;
+    }
+    if (r.tag_suggestions?.length) {
+        html += `<div class="ai-result-section"><div class="ai-result-label">🏷️ תגיות מוצעות</div>
+            ${r.tag_suggestions.map(t => `<span class="ai-suggestion-chip" onclick="KH.applyTag('${esc(t).replace(/'/g,'\\\'')}')">${esc(t)}</span>`).join('')}
+        </div>`;
+    }
+    if (r.duplicate_check) {
+        const dc = r.duplicate_check;
+        html += `<div class="ai-result-section"><div class="ai-result-label">🔍 כפילויות</div>
+            ${dc.found_similar ? `<div style="color:var(--warn);font-size:.82rem">⚠️ נמצאו ${dc.similar_items.length} כתבות דומות:</div>
+                ${dc.similar_items.map(s => `<div style="font-size:.8rem;padding:.2rem 0"><span style="color:var(--muted)">(${Math.round(s.similarity_score*100)}%)</span> ${esc(s.title)}</div>`).join('')}`
+            : '<div style="color:var(--success);font-size:.82rem">✅ לא נמצאו כתבות דומות</div>'}
+        </div>`;
+    }
+    if (r.safety_scan) {
+        const ss = r.safety_scan;
+        const issues = Object.entries(ss).filter(([k,v]) => k !== 'flags' && v === true);
+        html += `<div class="ai-result-section"><div class="ai-result-label">🛡️ בדיקת בטיחות</div>
+            ${issues.length ? issues.map(([k]) => `<div style="color:var(--danger);font-size:.8rem">⚠️ ${k}</div>`).join('')
+            : '<div style="color:var(--success);font-size:.8rem">✅ לא נמצאו בעיות</div>'}
+            ${(ss.flags||[]).length ? `<div style="font-size:.78rem;color:var(--danger)">${ss.flags.join('; ')}</div>` : ''}
+        </div>`;
+    }
+    if (r.cover_image_suggestions?.length) {
+        html += `<div class="ai-result-section"><div class="ai-result-label">🖼️ הצעות לתמונת שער</div>
+            ${r.cover_image_suggestions.map(q => `<div style="font-size:.8rem;padding:.15rem 0;color:var(--muted)">🔎 ${esc(q)}</div>`).join('')}
+        </div>`;
+    }
+
+    resultsEl.innerHTML = html || '<div class="kh-empty">אין תוצאות</div>';
+};
+
+KH.applyTitle = function(title) {
+    const el = document.getElementById('kh-title');
+    if (el) { el.value = title; khToast('success', 'כותרת הוחלה'); }
+};
+KH.applySubtitle = function(sub) {
+    const el = document.getElementById('kh-subtitle');
+    if (el) { el.value = sub; khToast('success', 'תת-כותרת הוחלה'); }
+};
+KH.applySummary = function() {
+    const el = document.getElementById('kh-summary');
+    if (el && KH._aiSummary) { el.value = KH._aiSummary; khToast('success', 'תקציר הוחל'); }
+};
+KH.applyTag = function(tag) {
+    if (!STATE.tags) STATE.tags = [];
+    if (!STATE.tags.includes(tag)) { STATE.tags.push(tag); }
+    const tagsEl = document.getElementById('kh-tags-display');
+    if (tagsEl) tagsEl.innerHTML = STATE.tags.map(t => `<span class="tag-chip">#${esc(t)} <span onclick="KH.removeTag('${esc(t)}')">×</span></span>`).join('');
+    khToast('success', `תגית "${tag}" נוספה`);
+};
+KH.applyGrammar = function(original, suggested) {
+    const editor = document.getElementById('kh-content-editor');
+    if (!editor) return;
+    editor.innerHTML = editor.innerHTML.replace(new RegExp(original.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'), 'g'), suggested);
+    khToast('success', 'תיקון הוחל');
+};
+KH.applyFullCorrection = function() {
+    const editor = document.getElementById('kh-content-editor');
+    if (!editor || !KH._aiGrammarFullText) return;
+    editor.innerHTML = KH._aiGrammarFullText.replace(/\n/g, '<br>');
+    khToast('success', 'כל התיקונים הוחלו');
+};
+
 // ── Utilities ─────────────────────────────────────────────────
 function esc(s) {
     if (!s) return '';
@@ -1307,6 +1716,23 @@ async function init() {
     scroll.innerHTML = STATE.categories.map(c => `
         <button class="cat-chip" onclick="KH.setCategory(${c.id},this)">${esc(c.title)}</button>
     `).join('');
+
+    // Public collection via slug URL
+    const slugMatch = location.pathname.match(/\/kol-haam\/collection\/([^/]+)/);
+    if (slugMatch) {
+        const slug = slugMatch[1];
+        khFetch(`${API}/collections/public/${slug}`).then(d => {
+            if (d.success) {
+                STATE.currentCollectionId = d.collection.id;
+                document.getElementById('collection-view-title').textContent = esc(d.collection.title);
+                const el = document.getElementById('collection-view-content');
+                el.innerHTML = (d.items||[]).map(it => KH.renderFeedCard(it)).join('') || '<div class="kh-empty">האוסף ריק</div>';
+                showView('view-collection');
+                STATE.view = 'collection';
+            }
+        }).catch(() => {});
+        return;
+    }
 
     // Load initial feed
     KH.loadFeed();

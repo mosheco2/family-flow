@@ -271,6 +271,49 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Ro
   .feed-card-body{padding:.6rem}
   .feed-card-footer{margin-top:.4rem}
 }
+/* ── Phase 4: Search, Tags, Collections, Print ── */
+.kh-search-wrap{display:flex;align-items:center;gap:.4rem;padding:.4rem .75rem;background:var(--header);border-bottom:1px solid var(--border)}
+.kh-search-input{flex:1;border:1px solid var(--border);border-radius:.4rem;padding:.35rem .6rem;font-size:.85rem;background:var(--bg);color:var(--text);outline:none}
+.kh-search-input:focus{border-color:var(--primary)}
+.search-filters{display:flex;flex-wrap:wrap;gap:.4rem;padding:.5rem .75rem;border-bottom:1px solid var(--border)}
+.search-filter-btn{padding:.25rem .5rem;border:1px solid var(--border);border-radius:.3rem;font-size:.72rem;cursor:pointer;background:var(--bg);color:var(--muted)}
+.search-filter-btn.active{background:var(--primary);color:#fff;border-color:var(--primary)}
+.search-result-count{font-size:.75rem;color:var(--muted);padding:.25rem .75rem}
+.tag-cloud{display:flex;flex-wrap:wrap;gap:.4rem;padding:.75rem}
+.tag-chip-link{padding:.25rem .55rem;background:var(--primary-light);color:var(--primary);border-radius:999px;font-size:.75rem;cursor:pointer;font-weight:600}
+.tag-chip-link:hover{background:var(--primary);color:#fff}
+.collection-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:.75rem;cursor:pointer}
+.collection-card-title{font-weight:700;font-size:.92rem}
+.collection-card-meta{font-size:.72rem;color:var(--muted);margin-top:.2rem}
+.collection-toggle{display:flex;align-items:center;gap:.4rem;font-size:.78rem;cursor:pointer}
+.version-row{display:flex;gap:.5rem;align-items:center;padding:.4rem 0;border-bottom:1px solid var(--border);font-size:.8rem}
+.version-num{background:var(--primary-light);color:var(--primary);padding:.1rem .4rem;border-radius:.3rem;font-weight:700}
+/* AI Copilot */
+.ai-panel{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:.75rem;margin-top:.75rem}
+.ai-panel-title{font-weight:700;font-size:.88rem;margin-bottom:.5rem;display:flex;align-items:center;gap:.4rem}
+.ai-action-btns{display:flex;flex-wrap:wrap;gap:.35rem;margin-bottom:.5rem}
+.ai-action-btn{padding:.25rem .55rem;border:1px solid var(--primary);border-radius:.3rem;font-size:.72rem;cursor:pointer;background:var(--primary-light);color:var(--primary)}
+.ai-action-btn.selected{background:var(--primary);color:#fff}
+.ai-result-section{margin-top:.5rem;border-top:1px solid var(--border);padding-top:.5rem}
+.ai-result-label{font-size:.75rem;font-weight:700;color:var(--muted);margin-bottom:.25rem}
+.ai-correction-item{display:flex;align-items:flex-start;gap:.4rem;padding:.3rem 0;border-bottom:1px solid var(--border);font-size:.8rem}
+.ai-correction-orig{color:var(--danger);text-decoration:line-through}
+.ai-correction-sugg{color:var(--success)}
+.ai-safety-flag{background:#fee2e2;border:1px solid var(--danger);border-radius:.4rem;padding:.5rem .75rem;font-size:.82rem;color:#991b1b;margin-top:.5rem}
+.ai-suggestion-chip{display:inline-flex;align-items:center;gap:.3rem;background:var(--primary-light);color:var(--primary);padding:.2rem .5rem;border-radius:.3rem;font-size:.78rem;cursor:pointer;margin:.15rem}
+.ai-suggestion-chip:hover{background:var(--primary);color:#fff}
+/* Modal overlay generic */
+.kh-modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;display:none;align-items:center;justify-content:center}
+.kh-modal-overlay.show{display:flex}
+.kh-modal-box{background:var(--card);border-radius:var(--radius);padding:1.25rem;width:min(92vw,400px);max-height:80vh;overflow-y:auto;display:flex;flex-direction:column;gap:.6rem}
+.kh-modal-title{font-weight:700;font-size:1rem}
+/* Print */
+@media print{
+  #kh-header,#scope-bar,.engagement-bar,.comments-section,.content-back,.feed-sort-bar,.kh-strip,.kh-footer-bar,#kh-print-btn{display:none!important}
+  .kh-body-wrap,.view{overflow:visible!important;height:auto!important}
+  body{font-size:12pt}
+  .content-title{font-size:18pt}
+}
 /* ── Phase 3: Author profile ── */
 .author-hero{display:flex;flex-direction:column;align-items:center;padding:1.5rem 1rem 1rem;gap:.75rem;text-align:center}
 .author-avatar-lg{width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid var(--primary)}
@@ -311,11 +354,18 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Ro
       <button class="kh-btn-icon" onclick="KH.nav('my-content')" title="התוכן שלי"><i class="fa-solid fa-list-check"></i></button>
       <button class="kh-btn-icon" onclick="KH.nav('saved')" title="שמורים שלי"><i class="fa-solid fa-star"></i></button>
       <button class="kh-btn-icon" onclick="KH.nav('following')" title="עוקב אחרי"><i class="fa-solid fa-user-group"></i></button>
+      <button class="kh-btn-icon" onclick="KH.nav('collections')" title="האוספים שלי"><i class="fa-solid fa-book-bookmark"></i></button>
       <button class="kh-btn-icon" id="btn-zm-queue" onclick="KH.nav('zm-queue')" title="תור אישורים" style="display:none"><i class="fa-solid fa-inbox"></i></button>
       <button class="kh-btn-icon" id="btn-sa-queue" onclick="KH.nav('sa-queue')" title="אישורים ארציים" style="display:none"><i class="fa-solid fa-globe"></i></button>
       <button class="kh-btn-icon" onclick="KH.nav('editor')" title="כתוב כתבה חדשה" style="background:var(--primary);color:#fff"><i class="fa-solid fa-plus"></i></button>
     </div>
   </header>
+
+  <!-- Search bar -->
+  <div class="kh-search-wrap">
+    <input class="kh-search-input" id="kh-search-input" type="search" placeholder="🔍 חיפוש בקול העם..." onkeydown="if(event.key==='Enter')KH.doSearch()">
+    <button class="kh-btn kh-btn-outline kh-btn-sm" onclick="KH.doSearch()">חיפוש</button>
+  </div>
 
   <!-- Scope + Categories bar -->
   <div id="scope-bar">
@@ -423,6 +473,60 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Ro
       <div id="zm-reports-list-view"><div class="kh-spinner"></div></div>
     </div>
 
+    <!-- Search results view -->
+    <div id="view-search" class="view">
+      <div class="section-header">
+        <span class="section-title" id="search-results-title">תוצאות חיפוש</span>
+        <button class="kh-btn kh-btn-outline kh-btn-sm" onclick="KH.nav('feed')">← פיד</button>
+      </div>
+      <div class="search-filters">
+        <select id="sf-type" class="search-filter-btn" onchange="KH.doSearch()">
+          <option value="">כל הסוגים</option>
+          <option value="ARTICLE">כתבה</option><option value="NEWS">חדשות</option>
+          <option value="OPINION">דעה</option><option value="QA_QUESTION">שאלה</option>
+          <option value="STORY">סיפור</option><option value="GUIDE">מדריך</option>
+        </select>
+        <select id="sf-scope" class="search-filter-btn" onchange="KH.doSearch()">
+          <option value="">כל הרמות</option>
+          <option value="local">מקומי</option><option value="global">ארצי</option>
+        </select>
+        <select id="sf-date" class="search-filter-btn" onchange="KH.doSearch()">
+          <option value="all">כל הזמנים</option>
+          <option value="today">היום</option><option value="week">שבוע</option>
+          <option value="month">חודש</option><option value="year">שנה</option>
+        </select>
+      </div>
+      <div id="search-result-count" class="search-result-count"></div>
+      <div id="search-results-list" style="padding:.5rem .75rem"><div class="kh-spinner"></div></div>
+    </div>
+
+    <!-- Tag page view -->
+    <div id="view-tag" class="view">
+      <div class="section-header">
+        <span class="section-title" id="tag-page-title">#תגית</span>
+        <button class="kh-btn kh-btn-outline kh-btn-sm" onclick="KH.back()">← חזרה</button>
+      </div>
+      <div id="tag-page-list" style="padding:.5rem .75rem"><div class="kh-spinner"></div></div>
+    </div>
+
+    <!-- Collections list view -->
+    <div id="view-collections" class="view">
+      <div class="section-header">
+        <span class="section-title">📚 האוספים שלי</span>
+        <button class="kh-btn kh-btn-primary kh-btn-sm" onclick="KH.showCreateCollection()">+ חדש</button>
+      </div>
+      <div id="collections-list" style="padding:.75rem;display:flex;flex-direction:column;gap:.5rem"><div class="kh-spinner"></div></div>
+    </div>
+
+    <!-- Single collection view -->
+    <div id="view-collection" class="view">
+      <div class="section-header">
+        <span class="section-title" id="collection-view-title">אוסף</span>
+        <button class="kh-btn kh-btn-outline kh-btn-sm" onclick="KH.nav('collections')">← אוספים</button>
+      </div>
+      <div id="collection-view-content"><div class="kh-spinner"></div></div>
+    </div>
+
     <!-- Author profile view -->
     <div id="view-author" class="view">
       <div class="section-header">
@@ -473,6 +577,25 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Ro
       <button class="kh-btn kh-btn-outline" onclick="KH.closeReport()">ביטול</button>
       <button class="kh-btn kh-btn-danger" onclick="KH.submitReport()">שלח דיווח</button>
     </div>
+  </div>
+</div>
+
+<!-- Modal: הוסף לאוסף -->
+<div id="kh-collection-modal" class="kh-modal-overlay">
+  <div class="kh-modal-box">
+    <div class="kh-modal-title">📚 הוסף לאוסף</div>
+    <div id="collection-modal-list" style="display:flex;flex-direction:column;gap:.4rem"></div>
+    <button class="kh-btn kh-btn-outline kh-btn-sm" onclick="KH.showCreateCollectionModal()">+ צור אוסף חדש</button>
+    <button class="kh-btn kh-btn-outline" onclick="KH.closeCollectionModal()">סגור</button>
+  </div>
+</div>
+
+<!-- Modal: היסטוריית גרסאות -->
+<div id="kh-versions-modal" class="kh-modal-overlay">
+  <div class="kh-modal-box">
+    <div class="kh-modal-title">🕐 היסטוריית עריכות</div>
+    <div id="versions-modal-list"></div>
+    <button class="kh-btn kh-btn-outline" onclick="document.getElementById('kh-versions-modal').classList.remove('show')">סגור</button>
   </div>
 </div>
 
