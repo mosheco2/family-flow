@@ -976,15 +976,42 @@ function updateClock() {
 setInterval(updateClock, 1000); updateClock();
 
 // ── Navigation ────────────────────────────────────────────────────────────────
+let _saWin = null; // reference to the SA window
+
 function nav(tab, sub) {
-  const url = '/sa.html';
-  const msg = sub ? `← ${tab} › ${sub}` : `← ${tab}`;
-  showToast(msg);
+  showToast(sub ? `← ${tab} › ${sub}` : `← ${tab}`);
   setTimeout(() => {
-    const win = window.opener || (window.parent !== window ? window.parent : null);
-    if (win && win.switchSATab) { win.switchSATab(tab); if(sub && win._saSetGroupFilter) win._saSetGroupFilter(sub); }
-    else window.open(`${url}?tab=${tab}${sub?'&sub='+sub:''}`, '_blank');
-  }, 400);
+    // 1. Try window.opener (opened from sa.html link)
+    try {
+      if (window.opener && !window.opener.closed && window.opener.switchSATab) {
+        _saWin = window.opener;
+        _saWin.focus();
+        _saWin.switchSATab(tab);
+        if (sub) setTimeout(() => {
+          if (tab === 'clients' && _saWin._saSetGroupFilter) _saWin._saSetGroupFilter(sub);
+          else if (_saWin.switchViewTab) _saWin.switchViewTab(tab, sub);
+        }, 300);
+        return;
+      }
+    } catch(e) {}
+
+    // 2. Try existing SA window reference
+    try {
+      if (_saWin && !_saWin.closed && _saWin.switchSATab) {
+        _saWin.focus();
+        _saWin.switchSATab(tab);
+        if (sub) setTimeout(() => {
+          if (tab === 'clients' && _saWin._saSetGroupFilter) _saWin._saSetGroupFilter(sub);
+          else if (_saWin.switchViewTab) _saWin.switchViewTab(tab, sub);
+        }, 300);
+        return;
+      }
+    } catch(e) {}
+
+    // 3. Open/reuse SA tab with URL params
+    const url = `/sa.html?tab=${encodeURIComponent(tab)}${sub ? '&sub='+encodeURIComponent(sub) : ''}`;
+    _saWin = window.open(url, 'sa-main');
+  }, 250);
 }
 function showToast(msg) {
   const t = document.getElementById('toast');

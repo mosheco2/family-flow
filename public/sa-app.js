@@ -57,14 +57,28 @@ window.onload = () => {
             window._saPendingRefresh = setInterval(() => loadSAPendingRequests(), 60000);
         }
 
-        // פתיחה אוטומטית של טיקט מ-URL param (למשל מ-qa-book.html)
-        const urlTicket = new URLSearchParams(window.location.search).get('ticket');
+        // פתיחה אוטומטית של טיקט / טאב מ-URL param
+        const urlParams = new URLSearchParams(window.location.search);
+        const urlTicket = urlParams.get('ticket');
+        const urlTab    = urlParams.get('tab');
+        const urlSub    = urlParams.get('sub');
+
         if (urlTicket) {
             window.switchSATab('support');
             setTimeout(async () => {
                 if (!saTicketsCache.length && typeof loadSATickets === 'function') await loadSATickets();
                 openSATicketModal(parseInt(urlTicket));
             }, 800);
+        } else if (urlTab) {
+            setTimeout(() => {
+                window.switchSATab(urlTab);
+                if (urlSub) {
+                    setTimeout(() => {
+                        if (urlTab === 'clients' && window._saSetGroupFilter) window._saSetGroupFilter(urlSub);
+                        else if (typeof switchViewTab === 'function') switchViewTab(urlTab, urlSub);
+                    }, 300);
+                }
+            }, 200);
         } else {
             window.switchSATab('pulse');
         }
