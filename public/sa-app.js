@@ -11482,13 +11482,12 @@ async function loadSAWhatsAppHub() {
                 </div>
                 <div style="padding:1rem;display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
                     ${TPL_DEFS.map(t => {
-                        const curVal = (globalTpls[`tpl_${t.key}`] || '').replace(/</g,'&lt;');
-                        const defVal = (WA_DEFAULTS_JS[t.key] || '').replace(/"/g,'&quot;');
+                        const curVal = (globalTpls[`tpl_${t.key}`] || WA_DEFAULTS_JS[t.key] || '').replace(/</g,'&lt;');
                         return `<div>
                             <label style="font-weight:700;font-size:0.8rem;color:#1e293b;display:block;margin-bottom:0.2rem;">${t.label}</label>
                             <span style="font-size:0.7rem;color:#94a3b8;display:block;margin-bottom:0.3rem;">משתנים: ${t.vars}</span>
-                            <textarea id="wa-gtpl-${t.key}" placeholder="${defVal}" style="width:100%;padding:0.4rem;border:1px solid #e2e8f0;border-radius:0.375rem;font-size:0.75rem;min-height:70px;resize:vertical;font-family:inherit;direction:rtl;box-sizing:border-box;">${curVal}</textarea>
-                            <button onclick="document.getElementById('wa-gtpl-${t.key}').value=''" style="font-size:0.7rem;color:#94a3b8;background:none;border:none;cursor:pointer;padding:0;">↺ אפס לדיפולט</button>
+                            <textarea id="wa-gtpl-${t.key}" style="width:100%;padding:0.4rem;border:1px solid #e2e8f0;border-radius:0.375rem;font-size:0.75rem;min-height:70px;resize:vertical;font-family:inherit;direction:rtl;box-sizing:border-box;">${curVal}</textarea>
+                            <button onclick="resetWAGlobalTpl('${t.key}')" style="font-size:0.7rem;color:#94a3b8;background:none;border:none;cursor:pointer;padding:0;">↺ אפס לדיפולט</button>
                         </div>`;
                     }).join('')}
                 </div>
@@ -11615,7 +11614,10 @@ async function saveSAWhatsAppTemplates(groupId) {
     const keys = ['owner_order','customer_order','owner_checkin','checkin_summary','owner_task_due','low_inventory','plan_tomorrow'];
     for (const k of keys) {
         const el = document.getElementById(`wa-tpl-${k}-${groupId}`);
-        if (el) body[`tpl_${k}`] = el.value.trim() || null;
+        if (el) {
+            const val = el.value.trim();
+            body[`tpl_${k}`] = (val && val !== WA_DEFAULTS_JS[k]) ? val : null;
+        }
     }
     try {
         const d = await saFetch(`/api/sa/whatsapp-settings/${groupId}`, {method:'PATCH', body:JSON.stringify(body)});
@@ -11624,11 +11626,26 @@ async function saveSAWhatsAppTemplates(groupId) {
     } catch(e) { showToast('error', 'שגיאת תקשורת'); }
 }
 
+function resetWAGlobalTpl(key) {
+    const el = document.getElementById(`wa-gtpl-${key}`);
+    if (el) el.value = WA_DEFAULTS_JS[key] || '';
+}
+function resetWABizTpl(key, groupId) {
+    const el = document.getElementById(`wa-tpl-${key}-${groupId}`);
+    if (el) el.value = WA_DEFAULTS_JS[key] || '';
+}
+window.resetWAGlobalTpl = resetWAGlobalTpl;
+window.resetWABizTpl = resetWABizTpl;
+
 async function saveGlobalWATemplates() {
     const body = {};
     TPL_DEFS.forEach(t => {
         const el = document.getElementById(`wa-gtpl-${t.key}`);
-        if (el) body[`tpl_${t.key}`] = el.value.trim() || null;
+        if (el) {
+            const val = el.value.trim();
+            // שמור null אם זהה לדיפולט (כדי לא לזהם את ה-DB)
+            body[`tpl_${t.key}`] = (val && val !== WA_DEFAULTS_JS[t.key]) ? val : null;
+        }
     });
     try {
         const d = await saFetch('/api/sa/whatsapp-global-templates', {method:'PATCH', body:JSON.stringify(body)});
@@ -11723,13 +11740,12 @@ async function _renderSAWhatsAppModalBody(groupId, activeTab) {
                     📝 תבניות הודעות WhatsApp
                 </div>
                 ${TPL_DEFS.map(t => {
-                    const curVal = settings[`tpl_${t.key}`] || '';
-                    const defVal = WA_DEFAULTS_JS[t.key] || '';
+                    const curVal = (settings[`tpl_${t.key}`] || WA_DEFAULTS_JS[t.key] || '').replace(/</g,'&lt;');
                     return `<div style="margin-bottom:1rem;">
                         <label style="font-weight:700;font-size:0.875rem;color:#1e293b;display:block;margin-bottom:0.25rem;">${t.label}</label>
                         <span style="font-size:0.75rem;color:#64748b;margin-bottom:0.25rem;display:block;">משתנים זמינים: ${t.vars}</span>
-                        <textarea id="wa-tpl-${t.key}-${groupId}" style="width:100%;padding:0.5rem;border:1px solid #e2e8f0;border-radius:0.375rem;font-size:0.8rem;min-height:80px;resize:vertical;font-family:inherit;direction:rtl;box-sizing:border-box;" placeholder="${defVal.replace(/"/g,'&quot;')}">${curVal}</textarea>
-                        <button onclick="document.getElementById('wa-tpl-${t.key}-${groupId}').value=''" style="font-size:0.7rem;color:#94a3b8;background:none;border:none;cursor:pointer;padding:0;margin-top:0.25rem;">↺ אפס לדיפולט</button>
+                        <textarea id="wa-tpl-${t.key}-${groupId}" style="width:100%;padding:0.5rem;border:1px solid #e2e8f0;border-radius:0.375rem;font-size:0.8rem;min-height:80px;resize:vertical;font-family:inherit;direction:rtl;box-sizing:border-box;">${curVal}</textarea>
+                        <button onclick="resetWABizTpl('${t.key}', ${groupId})" style="font-size:0.7rem;color:#94a3b8;background:none;border:none;cursor:pointer;padding:0;margin-top:0.25rem;">↺ אפס לדיפולט</button>
                     </div>`;
                 }).join('')}
                 <button onclick="saveSAWhatsAppTemplates(${groupId})" style="background:#25D366;color:#fff;border:none;padding:0.5rem 1.5rem;border-radius:0.5rem;font-weight:700;cursor:pointer;width:100%;margin-top:0.5rem;font-size:0.9rem;">
