@@ -434,7 +434,8 @@ window.switchSATab = function(tabId) {
     if (tabId === 'legal') loadLegalDocs();
 
     if (tabId === 'adslots') window.renderAdSlotsPanel && window.renderAdSlotsPanel();
-    const allTabs = ['dashboard', 'pulse', 'devops', 'support', 'stats', 'comm', 'biz', 'inbox', 'content', 'clients', 'hr', 'partners', 'finance', 'sysmap', 'legal', 'templates', 'adslots', 'auditlog', 'archive', 'games', 'feed', 'livegames', 'marketing', 'whatsapp'];
+    const allTabs = ['dashboard', 'pulse', 'devops', 'support', 'stats', 'comm', 'biz', 'inbox', 'content', 'clients', 'hr', 'partners', 'finance', 'sysmap', 'legal', 'templates', 'adslots', 'auditlog', 'archive', 'games', 'feed', 'livegames', 'marketing', 'whatsapp', 'kol-haam'];
+    if (tabId === 'kol-haam') loadSAKolHaamQueue();
     let activeTabTitle = 'לוח בקרה';
 
     allTabs.forEach(t => {
@@ -466,7 +467,8 @@ window.switchSATab = function(tabId) {
         hr:'נציגים וצוותים', partners:'שותפים', finance:'פיננסים',
         sysmap:'מפת המערכת', legal:'מסמכים משפטיים', templates:'ניהול תבניות עסקים', adslots:'שטחי פרסום',
         auditlog:'לוג אירועים קריטיים', archive:'ארכיון סביבות מחוקות',
-        games:'משחקי ילדים', feed:'פיד קהילתי', livegames:'משחקים חיים', marketing:'שיווק והשקות'
+        games:'משחקי ילדים', feed:'פיד קהילתי', livegames:'משחקים חיים', marketing:'שיווק והשקות',
+        'kol-haam': 'קול העם'
     };
     activeTabTitle = _tabTitles[tabId] || tabId;
 
@@ -512,7 +514,7 @@ const SA_GROUPS = {
     customers:  { tabs: ['comm', 'biz', 'clients', 'feed'],  labels: ['קהילות', 'עסקים', 'סביבות', 'פיד קהילתי'],  icons: ['fa-users-rays', 'fa-store', 'fa-users', 'fa-rss'],  default: 'comm' },
     finance:    { tabs: ['finance'],                    labels: [],                                  icons: [],                                         default: 'finance' },
     supportdev: { tabs: ['support', 'devops'],          labels: ['קריאות שירות', 'פיתוח ומוצר'],    icons: ['fa-headset', 'fa-code'],                  default: 'support' },
-    contentmkt: { tabs: ['content', 'inbox', 'legal', 'adslots', 'games', 'marketing'],  labels: ['מיתוג ותוכן', 'שיווק', 'משפטי', 'שטחי פרסום', 'משחקי ילדים', 'שיווק והשקות'], icons: ['fa-image', 'fa-bullhorn', 'fa-file-contract', 'fa-rectangle-ad', 'fa-gamepad', 'fa-whatsapp'], default: 'content' },
+    contentmkt: { tabs: ['content', 'inbox', 'legal', 'adslots', 'games', 'marketing', 'kol-haam'],  labels: ['מיתוג ותוכן', 'שיווק', 'משפטי', 'שטחי פרסום', 'משחקי ילדים', 'שיווק והשקות', 'קול העם'], icons: ['fa-image', 'fa-bullhorn', 'fa-file-contract', 'fa-rectangle-ad', 'fa-gamepad', 'fa-whatsapp', 'fa-bullhorn'], default: 'content' },
     livegamesgrp: { tabs: ['livegames'], labels: ['משחקים חיים'], icons: ['fa-bolt'], default: 'livegames' },
     partners:   { tabs: ['partners'],                   labels: [],                                  icons: [],                                         default: 'partners' },
     system:     { tabs: ['hr', 'sysmap', 'auditlog', 'archive'], labels: ['צוות ונציגים', 'מפת המערכת', 'לוג אירועים', 'ארכיון מחוקים'], icons: ['fa-user-tie', 'fa-map', 'fa-shield-halved', 'fa-box-archive'], default: 'hr' },
@@ -11956,3 +11958,144 @@ window.openWATypeModal = openWATypeModal;
 window.saveWAType = saveWAType;
 window.toggleWAType = toggleWAType;
 window.deleteWAType = deleteWAType;
+
+// ══════════════════════════════════════════════════
+// קול העם — תור אישור SA
+// ══════════════════════════════════════════════════
+async function loadSAKolHaamQueue() {
+    const container = document.getElementById('sa-kol-haam-content');
+    if (!container) return;
+    container.innerHTML = '<div class="text-center py-12 text-slate-400">טוען...</div>';
+    try {
+        const [queueRes, catsRes, delRes] = await Promise.all([
+            saFetch('/api/kol-haam/sa/queue'),
+            saFetch('/api/kol-haam/sa/categories'),
+            saFetch('/api/kol-haam/sa/delete-requests')
+        ]);
+        const items = queueRes.items || [];
+        const cats = catsRes.categories || [];
+        const delReqs = delRes.requests || [];
+        container.innerHTML = `
+          <div class="space-y-6">
+            <!-- כותרת -->
+            <div class="bg-gradient-to-r from-indigo-600 to-violet-600 rounded-2xl p-5 text-white shadow-lg">
+              <h2 class="text-xl font-bold mb-1">📣 קול העם — ניהול SA</h2>
+              <p class="text-indigo-100 text-sm">אישור תוכן גלובלי, ניהול קטגוריות, בקשות מחיקה</p>
+            </div>
+            <!-- תור אישור -->
+            <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+              <h3 class="font-bold text-slate-800 mb-4 flex items-center gap-2">
+                <span class="bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full text-xs font-bold">${items.length}</span>
+                ממתין לאישור גלובלי
+              </h3>
+              ${items.length === 0
+                ? '<p class="text-center text-slate-400 py-8">אין פריטים ממתינים 🎉</p>'
+                : items.map(item => `
+                  <div class="border border-slate-200 rounded-xl p-4 mb-3">
+                    <div class="flex justify-between items-start gap-3">
+                      <div class="flex-1 min-w-0">
+                        <div class="font-bold text-slate-800 text-sm mb-1">${safeStr(item.title)}</div>
+                        <div class="text-xs text-slate-500 mb-2">${safeStr(item.community_name||'')} · ${safeStr(item.type_label||item.content_type||'')} · ${new Date(item.published_at||item.created_at).toLocaleDateString('he-IL')}</div>
+                        ${item.summary ? `<p class="text-xs text-slate-600 bg-slate-50 rounded-lg p-2 mb-2">${safeStr(item.summary)}</p>` : ''}
+                      </div>
+                      ${item.cover_image_url ? `<img src="${safeStr(item.cover_image_url)}" class="w-16 h-16 rounded-xl object-cover shrink-0">` : ''}
+                    </div>
+                    <div class="flex gap-2 mt-3">
+                      <button onclick="saKHApprove(${item.id})" class="bg-green-600 text-white text-xs font-bold px-4 py-2 rounded-xl hover:bg-green-700 transition">✔ אשר גלובלי</button>
+                      <button onclick="saKHReject(${item.id})" class="bg-red-500 text-white text-xs font-bold px-4 py-2 rounded-xl hover:bg-red-600 transition">✖ דחה</button>
+                    </div>
+                  </div>`).join('')}
+            </div>
+            <!-- בקשות מחיקה -->
+            <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+              <h3 class="font-bold text-slate-800 mb-4 flex items-center gap-2">
+                <span class="bg-red-100 text-red-700 px-2 py-0.5 rounded-full text-xs font-bold">${delReqs.length}</span>
+                בקשות מחיקה
+              </h3>
+              ${delReqs.length === 0
+                ? '<p class="text-center text-slate-400 py-4">אין בקשות מחיקה</p>'
+                : delReqs.map(r => `
+                  <div class="border border-red-100 rounded-xl p-3 mb-2 bg-red-50 flex justify-between items-center gap-2">
+                    <div class="text-xs text-slate-700">
+                      <span class="font-bold">${safeStr(r.title)}</span>
+                      <span class="text-slate-500 ml-2">סיבה: ${safeStr(r.reason||'לא צוינה')}</span>
+                    </div>
+                    <button onclick="saKHDelete(${r.id})" class="bg-red-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg hover:bg-red-700 transition shrink-0">מחק</button>
+                  </div>`).join('')}
+            </div>
+            <!-- קטגוריות גלובליות -->
+            <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+              <div class="flex justify-between items-center mb-4">
+                <h3 class="font-bold text-slate-800">קטגוריות גלובליות</h3>
+                <button onclick="saKHAddCategory()" class="bg-indigo-600 text-white text-xs font-bold px-3 py-2 rounded-xl hover:bg-indigo-700 transition">+ הוסף</button>
+              </div>
+              <div id="sa-kh-cats-list">
+                ${cats.filter(c => c.scope_level === 'GLOBAL').map(c => `
+                  <div class="flex justify-between items-center py-2 border-b border-slate-100 text-sm">
+                    <span class="font-medium text-slate-700">${safeStr(c.icon||'')} ${safeStr(c.name)}</span>
+                    <button onclick="saKHDeleteCategory(${c.id})" class="text-red-400 hover:text-red-600 text-xs transition">מחק</button>
+                  </div>`).join('')}
+              </div>
+            </div>
+          </div>`;
+    } catch(e) {
+        container.innerHTML = `<div class="text-center py-12 text-red-400">שגיאה בטעינה: ${e.message}</div>`;
+    }
+}
+
+async function saKHApprove(id) {
+    if (!confirm('לאשר פרסום גלובלי?')) return;
+    try {
+        const d = await saFetch(`/api/kol-haam/sa/${id}/approve`, { method: 'POST' });
+        if (d.success) { showToast('success', 'אושר לפרסום גלובלי'); loadSAKolHaamQueue(); }
+        else showToast('error', d.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+}
+
+async function saKHReject(id) {
+    const reason = prompt('סיבת דחייה (אופציונלי):') || '';
+    try {
+        const d = await saFetch(`/api/kol-haam/sa/${id}/reject`, { method: 'POST', body: JSON.stringify({ reason }) });
+        if (d.success) { showToast('success', 'נדחה — נשאר בפרסום מקומי'); loadSAKolHaamQueue(); }
+        else showToast('error', d.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+}
+
+async function saKHDelete(id) {
+    if (!confirm('למחוק את הפריט לצמיתות?')) return;
+    try {
+        const d = await saFetch(`/api/kol-haam/sa/${id}/delete`, { method: 'DELETE' });
+        if (d.success) { showToast('success', 'נמחק'); loadSAKolHaamQueue(); }
+        else showToast('error', d.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+}
+
+async function saKHAddCategory() {
+    const name = prompt('שם קטגוריה גלובלית חדשה:');
+    if (!name) return;
+    const icon = prompt('אייקון (אמוג\'י):') || '📌';
+    try {
+        const d = await saFetch('/api/kol-haam/sa/categories', {
+            method: 'POST',
+            body: JSON.stringify({ name, icon, scope_level: 'GLOBAL' })
+        });
+        if (d.success) { showToast('success', 'קטגוריה נוספה'); loadSAKolHaamQueue(); }
+        else showToast('error', d.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+}
+
+async function saKHDeleteCategory(id) {
+    if (!confirm('למחוק קטגוריה?')) return;
+    try {
+        const d = await saFetch(`/api/kol-haam/sa/categories/${id}`, { method: 'DELETE' });
+        if (d.success) { showToast('success', 'קטגוריה נמחקה'); loadSAKolHaamQueue(); }
+        else showToast('error', d.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+}
+
+window.loadSAKolHaamQueue = loadSAKolHaamQueue;
+window.saKHApprove = saKHApprove;
+window.saKHReject = saKHReject;
+window.saKHDelete = saKHDelete;
+window.saKHAddCategory = saKHAddCategory;
+window.saKHDeleteCategory = saKHDeleteCategory;

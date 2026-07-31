@@ -25996,6 +25996,743 @@ app.get('/game/:game_code', (req, res) => {
   res.sendFile('game.html', { root: 'public' });
 });
 
+// route לדף קול העם
+app.get('/kol-haam', (req, res) => {
+  res.sendFile('kol-haam.html', { root: 'public' });
+});
+
+// ============================================================
+// קול העם — Phase 1: DB Schema + API
+// ============================================================
+
+async function initKolHaamTables() {
+    try {
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS author_profiles (
+                id SERIAL PRIMARY KEY,
+                family_group_id INT NOT NULL REFERENCES family_groups(id) ON DELETE CASCADE,
+                home_community_id INT NOT NULL REFERENCES communities(id),
+                badge_level VARCHAR(20) DEFAULT 'DEFAULT',
+                last_published_at TIMESTAMP NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(family_group_id)
+            )
+        `);
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS content_categories (
+                id SERIAL PRIMARY KEY,
+                title VARCHAR(100) NOT NULL,
+                scope_level VARCHAR(10) NOT NULL CHECK (scope_level IN ('GLOBAL', 'LOCAL')),
+                community_id INT NULL REFERENCES communities(id),
+                is_default BOOLEAN DEFAULT FALSE,
+                is_active BOOLEAN DEFAULT TRUE,
+                created_by_user_id INT NULL REFERENCES users(id),
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS content_tags (
+                id SERIAL PRIMARY KEY,
+                name VARCHAR(50) UNIQUE NOT NULL,
+                usage_count INT DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS content_series (
+                id SERIAL PRIMARY KEY,
+                title VARCHAR(200) NOT NULL,
+                author_profile_id INT NOT NULL REFERENCES author_profiles(id),
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS content_items (
+                id SERIAL PRIMARY KEY,
+                author_profile_id INT NOT NULL REFERENCES author_profiles(id),
+                category_id INT NOT NULL REFERENCES content_categories(id),
+                community_id INT NOT NULL REFERENCES communities(id),
+                content_type VARCHAR(20) NOT NULL CHECK (content_type IN ('ARTICLE','QA_QUESTION','SUCCESS_STORY','WIKI_GUIDE')),
+                scope_type VARCHAR(10) NOT NULL CHECK (scope_type IN ('LOCAL','GLOBAL')),
+                status VARCHAR(15) NOT NULL DEFAULT 'DRAFT' CHECK (status IN ('DRAFT','PENDING_ZM','PENDING_SA','PUBLISHED_LOCAL','PUBLISHED_GLOBAL','REJECTED')),
+                title VARCHAR(255) NOT NULL,
+                subtitle TEXT NULL,
+                quick_summary_20s TEXT NULL,
+                cover_image_url TEXT NULL,
+                content_html TEXT NOT NULL,
+                reading_time_minutes INT DEFAULT 1,
+                series_id INT NULL REFERENCES content_series(id),
+                series_chapter_number INT NULL,
+                zm_approval_status VARCHAR(15) DEFAULT 'PENDING' CHECK (zm_approval_status IN ('PENDING','APPROVED','REJECTED')),
+                zm_rejection_note TEXT NULL,
+                sa_approval_status VARCHAR(15) DEFAULT 'NOT_APPLICABLE' CHECK (sa_approval_status IN ('NOT_APPLICABLE','PENDING','APPROVED','REJECTED')),
+                sa_rejection_note TEXT NULL,
+                is_pinned_local BOOLEAN DEFAULT FALSE,
+                is_pinned_global BOOLEAN DEFAULT FALSE,
+                comments_enabled BOOLEAN DEFAULT TRUE,
+                deletion_requested BOOLEAN DEFAULT FALSE,
+                deletion_requested_by INT NULL REFERENCES users(id),
+                views_count INT DEFAULT 0,
+                published_at TIMESTAMP NULL,
+                updated_at TIMESTAMP NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS content_items_tags (
+                content_item_id INT REFERENCES content_items(id) ON DELETE CASCADE,
+                tag_id INT REFERENCES content_tags(id) ON DELETE CASCADE,
+                PRIMARY KEY (content_item_id, tag_id)
+            )
+        `);
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS content_version_history (
+                id SERIAL PRIMARY KEY,
+                content_item_id INT NOT NULL REFERENCES content_items(id) ON DELETE CASCADE,
+                version_number INT NOT NULL,
+                title VARCHAR(255) NOT NULL,
+                subtitle TEXT NULL,
+                content_html TEXT NOT NULL,
+                editor_user_id INT NOT NULL REFERENCES users(id),
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS draft_collaborators (
+                content_item_id INT REFERENCES content_items(id) ON DELETE CASCADE,
+                user_id INT REFERENCES users(id) ON DELETE CASCADE,
+                added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (content_item_id, user_id)
+            )
+        `);
+        // זריעת קטגוריות גלובליות (פעם אחת בלבד)
+        const globalCats = ['חינוך ומשפחה','צרכנות ויוקר המחיה','חדשות ועדכונים','פתרונות מהקהילה'];
+        for (const title of globalCats) {
+            await pool.query(
+                `INSERT INTO content_categories (title, scope_level, community_id, is_default)
+                 SELECT $1, 'GLOBAL', NULL, TRUE
+                 WHERE NOT EXISTS (SELECT 1 FROM content_categories WHERE title=$1 AND scope_level='GLOBAL')`,
+                [title]
+            );
+        }
+        // זריעת קטגוריות מקומיות לכל קהילה קיימת
+        const localDefaults = ['ועד שכונה ופיתוח','גינות ופארקים','אירועים קהילתיים'];
+        const communities = await pool.query(`SELECT id FROM communities`);
+        for (const comm of communities.rows) {
+            for (const title of localDefaults) {
+                await pool.query(
+                    `INSERT INTO content_categories (title, scope_level, community_id, is_default)
+                     SELECT $1, 'LOCAL', $2, TRUE
+                     WHERE NOT EXISTS (SELECT 1 FROM content_categories WHERE title=$1 AND scope_level='LOCAL' AND community_id=$2)`,
+                    [title, comm.id]
+                );
+            }
+        }
+        console.log('[kol-haam] tables ready');
+    } catch(e) {
+        console.error('[kol-haam] initKolHaamTables error:', e.message);
+    }
+}
+initKolHaamTables();
+
+// ─── helper: get or create author profile ───────────────────
+async function getOrCreateAuthorProfile(groupId, communityId) {
+    const ex = await pool.query(`SELECT id FROM author_profiles WHERE family_group_id=$1`, [groupId]);
+    if (ex.rows.length) return ex.rows[0].id;
+    const commId = communityId || (await pool.query(`SELECT community_id FROM family_groups WHERE id=$1`, [groupId])).rows[0]?.community_id;
+    if (!commId) throw new Error('קהילה לא נמצאה');
+    const ins = await pool.query(
+        `INSERT INTO author_profiles (family_group_id, home_community_id) VALUES ($1,$2) RETURNING id`,
+        [groupId, commId]
+    );
+    return ins.rows[0].id;
+}
+
+// ─── helper: seed local categories for a new community ──────
+async function seedLocalCategories(communityId) {
+    const localDefaults = ['ועד שכונה ופיתוח','גינות ופארקים','אירועים קהילתיים'];
+    for (const title of localDefaults) {
+        await pool.query(
+            `INSERT INTO content_categories (title, scope_level, community_id, is_default)
+             SELECT $1, 'LOCAL', $2, TRUE
+             WHERE NOT EXISTS (SELECT 1 FROM content_categories WHERE title=$1 AND scope_level='LOCAL' AND community_id=$2)`,
+            [title, communityId]
+        );
+    }
+}
+
+// ─── hook: seed categories when SA creates a community ──────
+const _origSACommCreate = app._router.stack.find(l => l.route?.path === '/api/sa/communities' && l.route?.methods?.post);
+// We patch community creation by wrapping new communities — done inline below when routes are registered
+
+// ─── פיד ציבורי ─────────────────────────────────────────────
+app.get('/api/kol-haam/feed', async (req, res) => {
+    try {
+        const { scope, category, community_id, page = 1 } = req.query;
+        const limit = 20;
+        const offset = (parseInt(page) - 1) * limit;
+        let where = `ci.status IN ('PUBLISHED_LOCAL','PUBLISHED_GLOBAL')`;
+        const params = [];
+        if (scope === 'global') {
+            where += ` AND ci.status = 'PUBLISHED_GLOBAL'`;
+        } else if (community_id) {
+            params.push(parseInt(community_id));
+            where += ` AND (ci.community_id = $${params.length} OR ci.status = 'PUBLISHED_GLOBAL')`;
+        }
+        if (category) {
+            params.push(parseInt(category));
+            where += ` AND ci.category_id = $${params.length}`;
+        }
+        params.push(limit, offset);
+        const r = await pool.query(`
+            SELECT ci.id, ci.title, ci.subtitle, ci.cover_image_url, ci.content_type, ci.scope_type,
+                   ci.status, ci.reading_time_minutes, ci.views_count, ci.published_at, ci.is_pinned_local, ci.is_pinned_global,
+                   cc.title as category_title, co.name as community_name,
+                   fg.name as author_name, ap.badge_level
+            FROM content_items ci
+            JOIN content_categories cc ON cc.id = ci.category_id
+            JOIN communities co ON co.id = ci.community_id
+            JOIN author_profiles ap ON ap.id = ci.author_profile_id
+            JOIN family_groups fg ON fg.id = ap.family_group_id
+            WHERE ${where}
+            ORDER BY ci.is_pinned_local DESC, ci.is_pinned_global DESC, ci.published_at DESC
+            LIMIT $${params.length - 1} OFFSET $${params.length}
+        `, params);
+        res.json({ success: true, items: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── פריט בודד ───────────────────────────────────────────────
+app.get('/api/kol-haam/content/:id', async (req, res) => {
+    try {
+        const r = await pool.query(`
+            SELECT ci.*, cc.title as category_title, cc.scope_level as category_scope_level,
+                   co.name as community_name, fg.name as author_name, ap.badge_level,
+                   ap.family_group_id as author_group_id,
+                   COALESCE(
+                       (SELECT json_agg(ct.name) FROM content_items_tags cit JOIN content_tags ct ON ct.id=cit.tag_id WHERE cit.content_item_id=ci.id),
+                       '[]'
+                   ) as tags,
+                   prev_ch.id as prev_chapter_id, prev_ch.title as prev_chapter_title,
+                   next_ch.id as next_chapter_id, next_ch.title as next_chapter_title
+            FROM content_items ci
+            JOIN content_categories cc ON cc.id = ci.category_id
+            JOIN communities co ON co.id = ci.community_id
+            JOIN author_profiles ap ON ap.id = ci.author_profile_id
+            JOIN family_groups fg ON fg.id = ap.family_group_id
+            LEFT JOIN content_items prev_ch ON prev_ch.series_id = ci.series_id AND prev_ch.series_chapter_number = ci.series_chapter_number - 1
+            LEFT JOIN content_items next_ch ON next_ch.series_id = ci.series_id AND next_ch.series_chapter_number = ci.series_chapter_number + 1
+            WHERE ci.id = $1
+        `, [req.params.id]);
+        if (!r.rows.length) return res.status(404).json({ error: 'לא נמצא' });
+        // update views (non-blocking)
+        pool.query(`UPDATE content_items SET views_count = views_count + 1 WHERE id=$1`, [req.params.id]).catch(()=>{});
+        res.json({ success: true, item: r.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── קטגוריות לקהילה ─────────────────────────────────────────
+app.get('/api/kol-haam/categories', async (req, res) => {
+    try {
+        const { community_id } = req.query;
+        const r = await pool.query(`
+            SELECT * FROM content_categories
+            WHERE is_active = TRUE AND (
+                scope_level = 'GLOBAL'
+                ${community_id ? `OR (scope_level = 'LOCAL' AND community_id = $1)` : ''}
+            )
+            ORDER BY scope_level DESC, title
+        `, community_id ? [parseInt(community_id)] : []);
+        res.json({ success: true, categories: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── היסטוריית גרסאות ────────────────────────────────────────
+app.get('/api/kol-haam/content/:id/versions', async (req, res) => {
+    try {
+        const r = await pool.query(`
+            SELECT cvh.*, u.nickname as editor_name
+            FROM content_version_history cvh
+            JOIN users u ON u.id = cvh.editor_user_id
+            WHERE cvh.content_item_id = $1
+            ORDER BY cvh.version_number DESC
+        `, [req.params.id]);
+        res.json({ success: true, versions: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── יצירת תוכן ──────────────────────────────────────────────
+app.post('/api/kol-haam/content', async (req, res) => {
+    try {
+        const { groupId, userId, communityId, categoryId, contentType, scopeType,
+                title, subtitle, quickSummary, coverImageUrl, contentHtml, tags, seriesId, seriesChapterNumber } = req.body;
+        if (!groupId || !categoryId || !contentType || !title || contentHtml === undefined)
+            return res.status(400).json({ error: 'שדות חובה חסרים' });
+        // validate scope vs category
+        const cat = await pool.query(`SELECT scope_level FROM content_categories WHERE id=$1`, [categoryId]);
+        if (!cat.rows.length) return res.status(400).json({ error: 'קטגוריה לא קיימת' });
+        const effectiveScope = cat.rows[0].scope_level === 'LOCAL' ? 'LOCAL' : (scopeType || 'LOCAL');
+        const authorId = await getOrCreateAuthorProfile(groupId, communityId);
+        const commId = communityId || (await pool.query(`SELECT community_id FROM family_groups WHERE id=$1`, [groupId])).rows[0]?.community_id;
+        const words = (contentHtml || '').replace(/<[^>]*>/g, ' ').split(/\s+/).filter(Boolean).length;
+        const readingTime = Math.max(1, Math.ceil(words / 200));
+        const r = await pool.query(`
+            INSERT INTO content_items (author_profile_id, category_id, community_id, content_type, scope_type,
+                title, subtitle, quick_summary_20s, cover_image_url, content_html, reading_time_minutes, series_id, series_chapter_number)
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING id
+        `, [authorId, categoryId, commId, contentType, effectiveScope, title, subtitle||null, quickSummary||null, coverImageUrl||null, contentHtml, readingTime, seriesId||null, seriesChapterNumber||null]);
+        const itemId = r.rows[0].id;
+        // תגיות
+        if (tags && tags.length) {
+            for (const tagName of tags.slice(0, 10)) {
+                const t = await pool.query(`INSERT INTO content_tags (name) VALUES ($1) ON CONFLICT (name) DO UPDATE SET usage_count=content_tags.usage_count+1 RETURNING id`, [tagName.trim().toLowerCase()]);
+                await pool.query(`INSERT INTO content_items_tags VALUES ($1,$2) ON CONFLICT DO NOTHING`, [itemId, t.rows[0].id]);
+            }
+        }
+        res.json({ success: true, id: itemId });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── עדכון טיוטה ─────────────────────────────────────────────
+app.put('/api/kol-haam/content/:id', async (req, res) => {
+    try {
+        const { groupId, userId, title, subtitle, quickSummary, coverImageUrl, contentHtml, categoryId, scopeType, tags, seriesId, seriesChapterNumber } = req.body;
+        const item = await pool.query(`
+            SELECT ci.*, ap.family_group_id FROM content_items ci JOIN author_profiles ap ON ap.id=ci.author_profile_id WHERE ci.id=$1
+        `, [req.params.id]);
+        if (!item.rows.length) return res.status(404).json({ error: 'לא נמצא' });
+        const it = item.rows[0];
+        // רק כותב או שותף עריכה יכול לערוך טיוטה
+        const isCollaborator = (await pool.query(`SELECT 1 FROM draft_collaborators WHERE content_item_id=$1 AND user_id=$2`, [it.id, userId])).rows.length > 0;
+        if (String(it.family_group_id) !== String(groupId) && !isCollaborator)
+            return res.status(403).json({ error: 'אין הרשאה' });
+        if (!['DRAFT','REJECTED'].includes(it.status))
+            return res.status(400).json({ error: 'לא ניתן לערוך פריט בסטטוס זה' });
+        const words = (contentHtml || it.content_html).replace(/<[^>]*>/g, ' ').split(/\s+/).filter(Boolean).length;
+        const readingTime = Math.max(1, Math.ceil(words / 200));
+        // שמירת גרסה
+        const vNum = (await pool.query(`SELECT COALESCE(MAX(version_number),0)+1 as n FROM content_version_history WHERE content_item_id=$1`, [it.id])).rows[0].n;
+        await pool.query(`INSERT INTO content_version_history (content_item_id, version_number, title, subtitle, content_html, editor_user_id) VALUES ($1,$2,$3,$4,$5,$6)`,
+            [it.id, vNum, it.title, it.subtitle, it.content_html, userId]);
+        // עדכון
+        let newCat = categoryId || it.category_id;
+        const cat = await pool.query(`SELECT scope_level FROM content_categories WHERE id=$1`, [newCat]);
+        const effectiveScope = cat.rows[0]?.scope_level === 'LOCAL' ? 'LOCAL' : (scopeType || it.scope_type);
+        await pool.query(`
+            UPDATE content_items SET title=$1, subtitle=$2, quick_summary_20s=$3, cover_image_url=$4, content_html=$5,
+                category_id=$6, scope_type=$7, reading_time_minutes=$8, series_id=$9, series_chapter_number=$10, updated_at=NOW()
+            WHERE id=$11
+        `, [title||it.title, subtitle||null, quickSummary||null, coverImageUrl||it.cover_image_url, contentHtml||it.content_html, newCat, effectiveScope, readingTime, seriesId||it.series_id, seriesChapterNumber||it.series_chapter_number, it.id]);
+        // תגיות — עדכון
+        if (tags) {
+            await pool.query(`DELETE FROM content_items_tags WHERE content_item_id=$1`, [it.id]);
+            for (const tagName of tags.slice(0, 10)) {
+                const t = await pool.query(`INSERT INTO content_tags (name) VALUES ($1) ON CONFLICT (name) DO UPDATE SET usage_count=content_tags.usage_count+1 RETURNING id`, [tagName.trim().toLowerCase()]);
+                await pool.query(`INSERT INTO content_items_tags VALUES ($1,$2) ON CONFLICT DO NOTHING`, [it.id, t.rows[0].id]);
+            }
+        }
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── מחיקת טיוטה ─────────────────────────────────────────────
+app.delete('/api/kol-haam/content/:id', async (req, res) => {
+    try {
+        const { groupId } = req.body;
+        const item = await pool.query(`SELECT ci.status, ap.family_group_id FROM content_items ci JOIN author_profiles ap ON ap.id=ci.author_profile_id WHERE ci.id=$1`, [req.params.id]);
+        if (!item.rows.length) return res.status(404).json({ error: 'לא נמצא' });
+        if (String(item.rows[0].family_group_id) !== String(groupId))
+            return res.status(403).json({ error: 'אין הרשאה' });
+        if (item.rows[0].status !== 'DRAFT') return res.status(400).json({ error: 'ניתן למחוק רק טיוטות' });
+        await pool.query(`DELETE FROM content_items WHERE id=$1`, [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── שליחה לאישור ────────────────────────────────────────────
+app.post('/api/kol-haam/content/:id/submit', async (req, res) => {
+    try {
+        const { groupId } = req.body;
+        const item = await pool.query(`SELECT ci.*, ap.family_group_id FROM content_items ci JOIN author_profiles ap ON ap.id=ci.author_profile_id WHERE ci.id=$1`, [req.params.id]);
+        if (!item.rows.length) return res.status(404).json({ error: 'לא נמצא' });
+        if (String(item.rows[0].family_group_id) !== String(groupId)) return res.status(403).json({ error: 'אין הרשאה' });
+        if (item.rows[0].status !== 'DRAFT') return res.status(400).json({ error: 'ניתן לשלוח רק טיוטה' });
+        await pool.query(`UPDATE content_items SET status='PENDING_ZM', zm_approval_status='PENDING', updated_at=NOW() WHERE id=$1`, [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── שיתוף טיוטה לבן משפחה ───────────────────────────────────
+app.post('/api/kol-haam/content/:id/collaborators', async (req, res) => {
+    try {
+        const { groupId, userId } = req.body;
+        const item = await pool.query(`SELECT ci.status, ap.family_group_id FROM content_items ci JOIN author_profiles ap ON ap.id=ci.author_profile_id WHERE ci.id=$1`, [req.params.id]);
+        if (!item.rows.length) return res.status(404).json({ error: 'לא נמצא' });
+        if (String(item.rows[0].family_group_id) !== String(groupId)) return res.status(403).json({ error: 'אין הרשאה' });
+        await pool.query(`INSERT INTO draft_collaborators (content_item_id, user_id) VALUES ($1,$2) ON CONFLICT DO NOTHING`, [req.params.id, userId]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── הטיוטות שלי ─────────────────────────────────────────────
+app.get('/api/kol-haam/my-drafts', async (req, res) => {
+    try {
+        const { groupId, userId } = req.query;
+        const r = await pool.query(`
+            SELECT ci.id, ci.title, ci.subtitle, ci.content_type, ci.status, ci.updated_at, ci.created_at,
+                   ap.family_group_id as owner_group_id,
+                   CASE WHEN ap.family_group_id = $1 THEN false ELSE true END as is_shared
+            FROM content_items ci
+            JOIN author_profiles ap ON ap.id = ci.author_profile_id
+            WHERE ci.status IN ('DRAFT','REJECTED') AND (
+                ap.family_group_id = $1
+                OR ci.id IN (SELECT content_item_id FROM draft_collaborators WHERE user_id = $2)
+            )
+            ORDER BY COALESCE(ci.updated_at, ci.created_at) DESC
+        `, [groupId, userId]);
+        res.json({ success: true, drafts: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── התוכן שלי ───────────────────────────────────────────────
+app.get('/api/kol-haam/my-content', async (req, res) => {
+    try {
+        const { groupId } = req.query;
+        const r = await pool.query(`
+            SELECT ci.id, ci.title, ci.content_type, ci.status, ci.scope_type,
+                   ci.zm_approval_status, ci.zm_rejection_note,
+                   ci.sa_approval_status, ci.sa_rejection_note,
+                   ci.views_count, ci.published_at, ci.created_at,
+                   cc.title as category_title
+            FROM content_items ci
+            JOIN content_categories cc ON cc.id = ci.category_id
+            JOIN author_profiles ap ON ap.id = ci.author_profile_id
+            WHERE ap.family_group_id = $1
+            ORDER BY ci.created_at DESC
+        `, [groupId]);
+        res.json({ success: true, items: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── קטגוריות — יצירה (ZM) ───────────────────────────────────
+app.post('/api/kol-haam/categories', verifyZoneManager, async (req, res) => {
+    try {
+        const { title, communityId } = req.body;
+        if (!title || !communityId) return res.status(400).json({ error: 'שדות חובה חסרים' });
+        // וודא שה-ZM מנהל קהילה זו
+        const zmCom = await pool.query(`SELECT c.id FROM communities c JOIN manager_zones mz ON mz.id=c.zone_id WHERE mz.manager_id=$1 AND c.id=$2`, [req.zmSession.managerId, communityId]);
+        if (!zmCom.rows.length) return res.status(403).json({ error: 'אין הרשאה לקהילה זו' });
+        const r = await pool.query(`INSERT INTO content_categories (title, scope_level, community_id) VALUES ($1,'LOCAL',$2) RETURNING *`, [title, communityId]);
+        res.json({ success: true, category: r.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/kol-haam/categories/:id', verifyZoneManager, async (req, res) => {
+    try {
+        const { title } = req.body;
+        const cat = await pool.query(`SELECT c.id, c.community_id FROM content_categories c WHERE c.id=$1 AND c.scope_level='LOCAL'`, [req.params.id]);
+        if (!cat.rows.length) return res.status(404).json({ error: 'לא נמצא' });
+        const zmCom = await pool.query(`SELECT c.id FROM communities c JOIN manager_zones mz ON mz.id=c.zone_id WHERE mz.manager_id=$1 AND c.id=$2`, [req.zmSession.managerId, cat.rows[0].community_id]);
+        if (!zmCom.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
+        await pool.query(`UPDATE content_categories SET title=$1 WHERE id=$2`, [title, req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/kol-haam/categories/:id', verifyZoneManager, async (req, res) => {
+    try {
+        const cat = await pool.query(`SELECT c.community_id FROM content_categories c WHERE c.id=$1 AND c.scope_level='LOCAL'`, [req.params.id]);
+        if (!cat.rows.length) return res.status(404).json({ error: 'לא נמצא' });
+        const zmCom = await pool.query(`SELECT c.id FROM communities c JOIN manager_zones mz ON mz.id=c.zone_id WHERE mz.manager_id=$1 AND c.id=$2`, [req.zmSession.managerId, cat.rows[0].community_id]);
+        if (!zmCom.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
+        const inUse = await pool.query(`SELECT 1 FROM content_items WHERE category_id=$1 AND status NOT IN ('DRAFT','REJECTED') LIMIT 1`, [req.params.id]);
+        if (inUse.rows.length) return res.status(400).json({ error: 'יש תוכן פעיל בקטגוריה זו' });
+        await pool.query(`DELETE FROM content_categories WHERE id=$1`, [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── ZM — תור אישורים ────────────────────────────────────────
+app.get('/api/kol-haam/zm/pending', verifyZoneManager, async (req, res) => {
+    try {
+        const r = await pool.query(`
+            SELECT ci.id, ci.title, ci.subtitle, ci.content_type, ci.scope_type, ci.cover_image_url,
+                   ci.created_at, ci.zm_rejection_note,
+                   cc.title as category_title, co.name as community_name, co.id as community_id,
+                   fg.name as author_name
+            FROM content_items ci
+            JOIN content_categories cc ON cc.id = ci.category_id
+            JOIN communities co ON co.id = ci.community_id
+            JOIN author_profiles ap ON ap.id = ci.author_profile_id
+            JOIN family_groups fg ON fg.id = ap.family_group_id
+            JOIN manager_zones mz ON mz.id = co.zone_id
+            WHERE ci.status = 'PENDING_ZM' AND mz.manager_id = $1
+            ORDER BY ci.created_at ASC
+        `, [req.zmSession.managerId]);
+        res.json({ success: true, items: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/kol-haam/zm/:id/approve', verifyZoneManager, async (req, res) => {
+    try {
+        const item = await pool.query(`
+            SELECT ci.*, co.zone_id FROM content_items ci JOIN communities co ON co.id=ci.community_id WHERE ci.id=$1
+        `, [req.params.id]);
+        if (!item.rows.length) return res.status(404).json({ error: 'לא נמצא' });
+        const it = item.rows[0];
+        if (it.status !== 'PENDING_ZM') return res.status(400).json({ error: 'סטטוס שגוי' });
+        // וודא שה-ZM מנהל את הקהילה
+        const zmCheck = await pool.query(`SELECT 1 FROM manager_zones WHERE id=$1 AND manager_id=$2`, [it.zone_id, req.zmSession.managerId]);
+        if (!zmCheck.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
+        const isGlobal = it.scope_type === 'GLOBAL';
+        await pool.query(`
+            UPDATE content_items SET
+                zm_approval_status = 'APPROVED',
+                status = $1,
+                sa_approval_status = $2,
+                published_at = CASE WHEN published_at IS NULL THEN NOW() ELSE published_at END,
+                updated_at = NOW()
+            WHERE id = $3
+        `, [
+            isGlobal ? 'PENDING_SA' : 'PUBLISHED_LOCAL',  // אם גלובלי → כנס לתור SA, אחרת פרסם מקומית
+            isGlobal ? 'PENDING' : 'NOT_APPLICABLE',
+            it.id
+        ]);
+        // אם גלובלי — published_at נרשם כבר (מקומי), אבל status=PENDING_SA
+        if (isGlobal) {
+            await pool.query(`UPDATE content_items SET status='PENDING_SA', published_at=NOW() WHERE id=$1`, [it.id]);
+        }
+        // עדכון last_published_at בפרופיל הכותב
+        if (!isGlobal) {
+            await pool.query(`UPDATE author_profiles SET last_published_at=NOW() WHERE id=$1`, [it.author_profile_id]);
+        }
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/kol-haam/zm/:id/reject', verifyZoneManager, async (req, res) => {
+    try {
+        const { note } = req.body;
+        if (!note?.trim()) return res.status(400).json({ error: 'נדרשת הערת דחייה' });
+        const item = await pool.query(`SELECT ci.*, co.zone_id FROM content_items ci JOIN communities co ON co.id=ci.community_id WHERE ci.id=$1`, [req.params.id]);
+        if (!item.rows.length) return res.status(404).json({ error: 'לא נמצא' });
+        const zmCheck = await pool.query(`SELECT 1 FROM manager_zones WHERE id=$1 AND manager_id=$2`, [item.rows[0].zone_id, req.zmSession.managerId]);
+        if (!zmCheck.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
+        await pool.query(`UPDATE content_items SET status='REJECTED', zm_approval_status='REJECTED', zm_rejection_note=$1, updated_at=NOW() WHERE id=$2`, [note, req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── SA — תור אישורים ארציים ─────────────────────────────────
+app.get('/api/kol-haam/sa/pending-global', verifySA, async (req, res) => {
+    try {
+        const r = await pool.query(`
+            SELECT ci.id, ci.title, ci.subtitle, ci.content_type, ci.cover_image_url,
+                   ci.created_at, ci.sa_rejection_note,
+                   cc.title as category_title, co.name as community_name,
+                   fg.name as author_name
+            FROM content_items ci
+            JOIN content_categories cc ON cc.id = ci.category_id
+            JOIN communities co ON co.id = ci.community_id
+            JOIN author_profiles ap ON ap.id = ci.author_profile_id
+            JOIN family_groups fg ON fg.id = ap.family_group_id
+            WHERE ci.status = 'PENDING_SA' AND ci.sa_approval_status = 'PENDING'
+            ORDER BY ci.published_at ASC
+        `);
+        res.json({ success: true, items: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/kol-haam/sa/:id/approve', verifySA, async (req, res) => {
+    try {
+        await pool.query(`
+            UPDATE content_items SET status='PUBLISHED_GLOBAL', sa_approval_status='APPROVED',
+                published_at=CASE WHEN published_at IS NULL THEN NOW() ELSE published_at END, updated_at=NOW()
+            WHERE id=$1 AND status='PENDING_SA'
+        `, [req.params.id]);
+        await pool.query(`UPDATE author_profiles SET last_published_at=NOW() WHERE id=(SELECT author_profile_id FROM content_items WHERE id=$1)`, [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/kol-haam/sa/:id/reject', verifySA, async (req, res) => {
+    try {
+        const { note } = req.body;
+        if (!note?.trim()) return res.status(400).json({ error: 'נדרשת הערת דחייה' });
+        // נשאר PUBLISHED_LOCAL, רק status ארצי נדחה
+        await pool.query(`
+            UPDATE content_items SET status='PUBLISHED_LOCAL', sa_approval_status='REJECTED', sa_rejection_note=$1, updated_at=NOW()
+            WHERE id=$2
+        `, [note, req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/kol-haam/sa/:id/upgrade-to-global', verifySA, async (req, res) => {
+    try {
+        const item = await pool.query(`SELECT ci.*, cc.scope_level FROM content_items ci JOIN content_categories cc ON cc.id=ci.category_id WHERE ci.id=$1`, [req.params.id]);
+        if (!item.rows.length) return res.status(404).json({ error: 'לא נמצא' });
+        const it = item.rows[0];
+        if (it.scope_level !== 'GLOBAL') return res.status(400).json({ error: 'הקטגוריה אינה גלובלית. יש לשנות קטגוריה לגלובלית תחילה.' });
+        if (it.status !== 'PUBLISHED_LOCAL') return res.status(400).json({ error: 'ניתן לשדרג רק כתבות מפורסמות מקומית' });
+        await pool.query(`UPDATE content_items SET scope_type='GLOBAL', status='PUBLISHED_GLOBAL', sa_approval_status='APPROVED', updated_at=NOW() WHERE id=$1`, [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── בקשת מחיקה (כותב/ZM) ────────────────────────────────────
+app.post('/api/kol-haam/content/:id/request-deletion', async (req, res) => {
+    try {
+        const { userId } = req.body;
+        await pool.query(`UPDATE content_items SET deletion_requested=TRUE, deletion_requested_by=$1, updated_at=NOW() WHERE id=$2`, [userId, req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/kol-haam/sa/deletion-requests', verifySA, async (req, res) => {
+    try {
+        const r = await pool.query(`
+            SELECT ci.id, ci.title, ci.status, ci.deletion_requested_by,
+                   u.nickname as requester_name, co.name as community_name
+            FROM content_items ci
+            JOIN communities co ON co.id = ci.community_id
+            LEFT JOIN users u ON u.id = ci.deletion_requested_by
+            WHERE ci.deletion_requested = TRUE
+            ORDER BY ci.updated_at DESC
+        `);
+        res.json({ success: true, items: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/kol-haam/sa/content/:id/request-deletion/approve', verifySA, async (req, res) => {
+    try {
+        await pool.query(`DELETE FROM content_items WHERE id=$1`, [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/kol-haam/sa/content/:id/request-deletion/reject', verifySA, async (req, res) => {
+    try {
+        await pool.query(`UPDATE content_items SET deletion_requested=FALSE, deletion_requested_by=NULL, updated_at=NOW() WHERE id=$1`, [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/kol-haam/sa/content/:id', verifySA, async (req, res) => {
+    try {
+        await pool.query(`DELETE FROM content_items WHERE id=$1`, [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── SA — קטגוריות ארציות ────────────────────────────────────
+app.post('/api/kol-haam/sa/global-categories', verifySA, async (req, res) => {
+    try {
+        const { title } = req.body;
+        if (!title) return res.status(400).json({ error: 'שדות חובה חסרים' });
+        const r = await pool.query(`INSERT INTO content_categories (title, scope_level) VALUES ($1,'GLOBAL') RETURNING *`, [title]);
+        res.json({ success: true, category: r.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/kol-haam/sa/global-categories/:id', verifySA, async (req, res) => {
+    try {
+        const { title, isActive } = req.body;
+        await pool.query(`UPDATE content_categories SET title=COALESCE($1,title), is_active=COALESCE($2,is_active) WHERE id=$3 AND scope_level='GLOBAL'`, [title, isActive, req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── SA — כל התוכן (overview) ────────────────────────────────
+app.get('/api/kol-haam/sa/all-content', verifySA, async (req, res) => {
+    try {
+        const { status, page = 1 } = req.query;
+        const limit = 30, offset = (parseInt(page) - 1) * limit;
+        const where = status ? `WHERE ci.status = $1` : '';
+        const params = status ? [status, limit, offset] : [limit, offset];
+        const r = await pool.query(`
+            SELECT ci.id, ci.title, ci.status, ci.content_type, ci.scope_type,
+                   ci.views_count, ci.published_at, ci.deletion_requested,
+                   co.name as community_name, fg.name as author_name, cc.title as category_title
+            FROM content_items ci
+            JOIN communities co ON co.id = ci.community_id
+            JOIN author_profiles ap ON ap.id = ci.author_profile_id
+            JOIN family_groups fg ON fg.id = ap.family_group_id
+            JOIN content_categories cc ON cc.id = ci.category_id
+            ${where}
+            ORDER BY ci.created_at DESC
+            LIMIT $${params.length - 1} OFFSET $${params.length}
+        `, params);
+        res.json({ success: true, items: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── תגיות — autocomplete ─────────────────────────────────────
+app.get('/api/kol-haam/tags', async (req, res) => {
+    try {
+        const { q } = req.query;
+        const r = await pool.query(`SELECT name FROM content_tags WHERE name ILIKE $1 ORDER BY usage_count DESC LIMIT 10`, [`%${q || ''}%`]);
+        res.json({ success: true, tags: r.rows.map(t => t.name) });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── hook: זריעת קטגוריות מקומיות בעת יצירת קהילה חדשה ──────
+// נרשם כ-patch על endpoint קיים — מוסיף seeding אחרי INSERT
+// (מחליף את הגרסה המקורית של POST /api/sa/communities)
+(function patchCommunityCreation() {
+    const router = app._router;
+    if (!router) return;
+    const layers = router.stack;
+    for (const layer of layers) {
+        if (layer.route && layer.route.path === '/api/sa/communities' && layer.route.methods.post) {
+            const originalHandlers = [...layer.route.stack];
+            layer.route.stack = [];
+            layer.route.post(async (req, res, next) => {
+                // שמירת res.json המקורי כדי לתפוס את ה-INSERT id
+                const origJson = res.json.bind(res);
+                res.json = async (body) => {
+                    origJson(body);
+                    if (body?.success) {
+                        try {
+                            const newComm = await pool.query(`SELECT id FROM communities ORDER BY id DESC LIMIT 1`);
+                            if (newComm.rows.length) await seedLocalCategories(newComm.rows[0].id);
+                        } catch(e) { console.error('[kol-haam] seed error:', e.message); }
+                    }
+                };
+                next();
+            });
+            for (const h of originalHandlers) layer.route.stack.push(h);
+            break;
+        }
+    }
+})();
+
+// ─── hook: זריעה גם ב-user-create ────────────────────────────
+(function patchUserCommunityCreate() {
+    const router = app._router;
+    if (!router) return;
+    for (const layer of router.stack) {
+        if (layer.route && layer.route.path === '/api/community/user-create' && layer.route.methods.post) {
+            const originalHandlers = [...layer.route.stack];
+            layer.route.stack = [];
+            layer.route.post(async (req, res, next) => {
+                const origJson = res.json.bind(res);
+                res.json = async (body) => {
+                    origJson(body);
+                    if (body?.success && body?.community?.id) {
+                        seedLocalCategories(body.community.id).catch(e => console.error('[kol-haam] seed error:', e.message));
+                    }
+                };
+                next();
+            });
+            for (const h of originalHandlers) layer.route.stack.push(h);
+            break;
+        }
+    }
+})();
+
+// ─── end קול העם Phase 1 ─────────────────────────────────────
+
 app.listen(port, () => {
     console.log(`Server is running on port ${port}`);
     // Create performance indexes in background (non-blocking, sequential to avoid pool pressure)

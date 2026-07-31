@@ -486,6 +486,7 @@
                       <button onclick="switchTab('academy');closeFamilyNavDropdowns()" class="w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition flex items-center gap-2" id="fgdrop-academy">🎓 אקדמיה</button>
                       <button onclick="switchTab('community');closeFamilyNavDropdowns()" class="w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition flex items-center gap-2" id="fgdrop-community">🏘️ קהילה</button>
                       <button onclick="switchTab('members');closeFamilyNavDropdowns()" class="w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition flex items-center gap-2" id="fgdrop-members">👥 ניהול</button>
+                      <button onclick="switchTab('kol-haam');closeFamilyNavDropdowns()" class="w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition flex items-center gap-2" id="fgdrop-kol-haam">📣 קול העם</button>
                     </div>
                   </div>
 
@@ -520,6 +521,7 @@
                             <button onclick="switchTab('community')" id="tab-community" class="tab-btn shrink-0">הקהילה שלי 🏘️</button>
                             <button onclick="switchTab('members')" id="tab-members" class="tab-btn shrink-0">ניהול 👥</button>
                             <button onclick="switchTab('home-maintenance')" id="tab-home-maintenance" class="tab-btn shrink-0">ניהול הבית 🔧<span id="tab-home-maintenance-badge" class="hidden ml-1 bg-red-500 text-white text-[9px] font-black rounded-full px-1.5 py-0.5"></span></button>
+                            <button onclick="switchTab('kol-haam')" id="tab-kol-haam" class="tab-btn shrink-0">קול העם 📣</button>
                         </div>
                         <button onclick="scrollTabs(-1)" class="scroll-btn left"><i class="fa-solid fa-chevron-left"></i></button>
                     </div>
@@ -3235,6 +3237,11 @@
       <button onclick="closeFamilyHelp()" class="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold text-sm hover:bg-indigo-700 transition">הבנתי, סגור</button>
     </div>
   </div>
+</div>
+
+<!-- קול העם -->
+<div id="content-kol-haam" class="hidden" style="height:calc(100dvh - 100px)">
+  <iframe id="kol-haam-iframe" style="width:100%;height:100%;border:none" allow="clipboard-write"></iframe>
 </div>
 
 </body>

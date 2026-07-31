@@ -663,7 +663,7 @@ function logout() { localStorage.removeItem('ofl_session'); window.location.href
 function scrollTabs(direction) { getEl('slider-scroll').scrollBy({ left: direction * -150, behavior: 'smooth' }); }
 
 function switchTab(t) { 
-    ['feed','tasks','shop','myorders','bank','cashflow','community','academy','members','budget','pantry','recipes','forecast','home-maintenance'].forEach(x => { 
+    ['feed','tasks','shop','myorders','bank','cashflow','community','academy','members','budget','pantry','recipes','forecast','home-maintenance','kol-haam'].forEach(x => { 
         const el = getEl(`content-${x}`); if(el) el.classList.add('hidden'); 
         const btn = getEl(`tab-${x}`); if(btn) btn.classList.remove('tab-active'); 
     }); 
@@ -696,6 +696,20 @@ function switchTab(t) { 
         if (currentUser && currentUser.role === 'CHILD') try { loadChildFlwWallet(); } catch(e) {}
         if (currentUser && currentUser.role === 'ADMIN') try { loadFlwKidParentPanel(); } catch(e) {}
     }
+    if (t === 'kol-haam') try { loadKolHaamIframe(); } catch(e) {}
+}
+
+function loadKolHaamIframe() {
+    const iframe = document.getElementById('kol-haam-iframe');
+    if (!iframe) return;
+    if (iframe.src && iframe.src.includes('/kol-haam')) return; // כבר טעון
+    const u = currentUser || {};
+    const grp = (currentGroup && currentGroup.id) || '';
+    const cid = (currentGroup && currentGroup.community_id) || '';
+    const role = u.role === 'ADMIN' ? 'admin' : 'member';
+    const commName = (myConnectedCommunitiesCache && myConnectedCommunitiesCache[0] && myConnectedCommunitiesCache[0].name) || '';
+    const name = encodeURIComponent(commName);
+    iframe.src = `/kol-haam?userId=${u.id || ''}&groupId=${grp}&communityId=${cid}&role=${role}&communityName=${name}`;
 }
 
 let myOrdersCache = [];

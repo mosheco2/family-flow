@@ -256,7 +256,7 @@ async function loadDashboard() {
 }
 
 function zmSwitchTab(tab) {
-    ['zones','biz-requests','marketing','leads','inbox','commissions','content'].forEach(t => {
+    ['zones','biz-requests','marketing','leads','inbox','commissions','content','kol-haam'].forEach(t => {
         const view = document.getElementById(`zmview-${t}`);
         const btn = document.getElementById(`zmtab-${t}`);
         if (view) view.classList.add('hidden');
@@ -272,6 +272,7 @@ function zmSwitchTab(tab) {
     if (tab === 'inbox') loadInbox();
     if (tab === 'biz-requests') zmLoadPendingBiz();
     if (tab === 'content') zmLoadContent();
+    if (tab === 'kol-haam') zmLoadKolHaamQueue();
 }
 
 async function zmLoadPendingBiz() {
@@ -1606,4 +1607,91 @@ async function zmDeleteArticle(id) {
         await fetch(`${API}/zm/articles/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
         zmLoadContent();
     } catch(e) { zmShowToast('error', 'שגיאה'); }
+}
+
+// ══════════════════════════════════════════════════
+// קול העם — תור אישור ZM
+// ══════════════════════════════════════════════════
+async function zmLoadKolHaamQueue() {
+    const container = document.getElementById('zm-kol-haam-content');
+    if (!container) return;
+    container.innerHTML = '<div class="text-center py-8 text-slate-400">טוען...</div>';
+    try {
+        const r = await fetch(`${API}/kol-haam/zm/queue`, {
+            headers: { 'Authorization': zmToken }
+        });
+        const data = await r.json();
+        const items = data.items || [];
+        // update badge
+        const badge = document.getElementById('zm-kh-badge');
+        if (badge) {
+            badge.textContent = items.length;
+            badge.classList.toggle('hidden', items.length === 0);
+        }
+        if (items.length === 0) {
+            container.innerHTML = '<div class="text-center py-12 text-slate-400">אין תוכן ממתין לאישור 🎉</div>';
+            return;
+        }
+        container.innerHTML = `
+          <div class="bg-gradient-to-r from-indigo-600 to-violet-600 rounded-2xl p-4 text-white shadow-lg mb-4">
+            <h2 class="text-lg font-bold">📣 קול העם — תוכן ממתין לאישור</h2>
+            <p class="text-indigo-100 text-xs mt-0.5">${items.length} פריטים ממתינים לבדיקה</p>
+          </div>
+          <div class="space-y-3">
+            ${items.map(item => `
+              <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
+                <div class="flex justify-between items-start gap-3 mb-3">
+                  <div class="flex-1 min-w-0">
+                    <div class="font-bold text-slate-800 text-sm mb-1">${escapeHtml(item.title)}</div>
+                    <div class="text-xs text-slate-500">${escapeHtml(item.author_name||'')} · ${escapeHtml(item.community_name||'')} · ${new Date(item.created_at).toLocaleDateString('he-IL')}</div>
+                    <div class="mt-1.5">
+                      <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${item.scope_type==='GLOBAL'?'bg-purple-100 text-purple-700':'bg-blue-100 text-blue-700'}">
+                        ${item.scope_type==='GLOBAL'?'🌍 גלובלי':'🏘️ מקומי'}
+                      </span>
+                    </div>
+                    ${item.summary ? `<p class="text-xs text-slate-600 bg-slate-50 rounded-lg p-2 mt-2">${escapeHtml(item.summary)}</p>` : ''}
+                  </div>
+                  ${item.cover_image_url ? `<img src="${item.cover_image_url}" class="w-16 h-16 rounded-xl object-cover shrink-0">` : ''}
+                </div>
+                <div class="flex gap-2">
+                  <button onclick="zmKHApprove(${item.id})" class="flex-1 bg-green-600 text-white text-xs font-bold py-2 rounded-xl hover:bg-green-700 transition">✔ אשר</button>
+                  <button onclick="zmKHReject(${item.id})" class="flex-1 bg-red-500 text-white text-xs font-bold py-2 rounded-xl hover:bg-red-600 transition">✖ דחה</button>
+                </div>
+              </div>`).join('')}
+          </div>`;
+    } catch(e) {
+        container.innerHTML = `<div class="text-center py-8 text-red-400">שגיאה: ${e.message}</div>`;
+    }
+}
+
+function escapeHtml(str) {
+    if (!str) return '';
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+async function zmKHApprove(id) {
+    if (!confirm('לאשר פרסום?')) return;
+    try {
+        const r = await fetch(`${API}/kol-haam/zm/${id}/approve`, {
+            method: 'POST',
+            headers: { 'Authorization': zmToken, 'Content-Type': 'application/json' }
+        });
+        const d = await r.json();
+        if (d.success) { zmShowToast('success', 'תוכן אושר לפרסום!'); zmLoadKolHaamQueue(); }
+        else zmShowToast('error', d.error || 'שגיאה');
+    } catch(e) { zmShowToast('error', 'שגיאת תקשורת'); }
+}
+
+async function zmKHReject(id) {
+    const reason = prompt('סיבת דחייה (אופציונלי):') || '';
+    try {
+        const r = await fetch(`${API}/kol-haam/zm/${id}/reject`, {
+            method: 'POST',
+            headers: { 'Authorization': zmToken, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ reason })
+        });
+        const d = await r.json();
+        if (d.success) { zmShowToast('info', 'תוכן נדחה'); zmLoadKolHaamQueue(); }
+        else zmShowToast('error', d.error || 'שגיאה');
+    } catch(e) { zmShowToast('error', 'שגיאת תקשורת'); }
 }

@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>קול העם</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f8fafc;--card:#fff;--border:#e2e8f0;
+  --primary:#4f46e5;--primary-dark:#3730a3;--primary-light:#ede9fe;
+  --success:#10b981;--warn:#f59e0b;--danger:#ef4444;
+  --text:#1e293b;--muted:#64748b;--muted2:#94a3b8;
+  --header:#fff;--radius:0.75rem;
+}
+html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);overflow:hidden}
+#app{height:100dvh;display:flex;flex-direction:column;overflow:hidden}
+
+/* ── Header ── */
+#kh-header{background:var(--header);border-bottom:1px solid var(--border);padding:0 1rem;height:52px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.kh-logo{font-size:1.1rem;font-weight:900;color:var(--primary);display:flex;align-items:center;gap:.4rem}
+.kh-logo span{font-size:.75rem;color:var(--muted);font-weight:500}
+.kh-header-actions{display:flex;gap:.5rem;align-items:center}
+.kh-btn-icon{width:36px;height:36px;border:none;background:var(--primary-light);color:var(--primary);border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:.9rem;transition:.15s}
+.kh-btn-icon:hover{background:var(--primary);color:#fff}
+
+/* ── Scope Toggle ── */
+#scope-bar{background:var(--header);border-bottom:1px solid var(--border);padding:.5rem 1rem;display:flex;gap:.5rem;align-items:center;flex-shrink:0}
+.scope-btn{padding:.3rem .85rem;border-radius:999px;border:1px solid var(--border);background:none;font-size:.78rem;font-weight:700;color:var(--muted);cursor:pointer;transition:.15s}
+.scope-btn.active{background:var(--primary);color:#fff;border-color:var(--primary)}
+#cat-scroll{display:flex;gap:.4rem;overflow-x:auto;scrollbar-width:none;flex:1}
+#cat-scroll::-webkit-scrollbar{display:none}
+.cat-chip{padding:.25rem .7rem;border-radius:999px;border:1px solid var(--border);background:var(--card);font-size:.72rem;font-weight:600;color:var(--muted);cursor:pointer;white-space:nowrap;transition:.15s;flex-shrink:0}
+.cat-chip.active{background:var(--primary-light);color:var(--primary);border-color:var(--primary)}
+
+/* ── Scrollable content area ── */
+#kh-body{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}
+
+/* ── Views ── */
+.view{display:none;height:100%}
+.view.active{display:block}
+
+/* ── Feed ── */
+#view-feed{padding:.75rem}
+.feed-grid{display:flex;flex-direction:column;gap:.6rem}
+.feed-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;cursor:pointer;transition:.15s;display:flex;gap:.75rem;padding:.75rem}
+.feed-card:hover{border-color:var(--primary);box-shadow:0 2px 8px rgba(79,70,229,.1)}
+.feed-card-img{width:80px;height:70px;border-radius:.5rem;object-fit:cover;flex-shrink:0;background:var(--primary-light);display:flex;align-items:center;justify-content:center;font-size:1.8rem}
+.feed-card-body{flex:1;min-width:0}
+.feed-card-meta{display:flex;gap:.4rem;align-items:center;margin-bottom:.25rem;flex-wrap:wrap}
+.type-badge{padding:.1rem .45rem;border-radius:.25rem;font-size:.62rem;font-weight:800;letter-spacing:.01em}
+.type-ARTICLE{background:#dbeafe;color:#1d4ed8}
+.type-QA_QUESTION{background:#fef3c7;color:#92400e}
+.type-SUCCESS_STORY{background:#d1fae5;color:#065f46}
+.type-WIKI_GUIDE{background:#ede9fe;color:#5b21b6}
+.feed-card-title{font-size:.9rem;font-weight:800;color:var(--text);line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.feed-card-sub{font-size:.75rem;color:var(--muted);margin-top:.2rem;display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden}
+.feed-card-footer{display:flex;gap:.5rem;align-items:center;margin-top:.4rem}
+.feed-card-footer span{font-size:.68rem;color:var(--muted2)}
+.pin-badge{background:#fef3c7;color:#92400e;font-size:.6rem;font-weight:800;padding:.1rem .35rem;border-radius:.25rem}
+
+/* ── Single content view ── */
+#view-content{overflow-y:auto;padding:1rem}
+.content-back{display:flex;align-items:center;gap:.5rem;cursor:pointer;color:var(--primary);font-size:.85rem;font-weight:700;margin-bottom:1rem}
+.content-cover{width:100%;max-height:220px;object-fit:cover;border-radius:var(--radius);margin-bottom:1rem}
+.content-category-label{font-size:.72rem;font-weight:700;color:var(--primary);text-transform:uppercase;letter-spacing:.04em;margin-bottom:.4rem}
+.content-title{font-size:1.5rem;font-weight:900;line-height:1.25;margin-bottom:.5rem}
+.content-subtitle{font-size:1rem;color:var(--muted);margin-bottom:.75rem;line-height:1.5}
+.content-byline{display:flex;gap:.75rem;font-size:.75rem;color:var(--muted2);margin-bottom:.5rem;flex-wrap:wrap;align-items:center}
+.content-byline strong{color:var(--muted)}
+.content-html{font-size:.95rem;line-height:1.8;color:var(--text)}
+.content-html h1,.content-html h2,.content-html h3{font-weight:800;margin:1.2rem 0 .5rem;line-height:1.3}
+.content-html h1{font-size:1.4rem}.content-html h2{font-size:1.2rem}.content-html h3{font-size:1rem}
+.content-html p{margin-bottom:.8rem}
+.content-html ul,.content-html ol{margin:.5rem 0 .8rem 1.2rem}
+.content-html li{margin-bottom:.25rem}
+.content-html strong{font-weight:800}
+.content-html em{font-style:italic}
+.content-tags{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:1rem;padding-top:.75rem;border-top:1px solid var(--border)}
+.tag-chip{padding:.25rem .6rem;background:var(--primary-light);color:var(--primary);border-radius:999px;font-size:.72rem;font-weight:700}
+.series-nav{display:flex;justify-content:space-between;gap:.5rem;margin-top:1.25rem;padding-top:.75rem;border-top:1px solid var(--border)}
+.series-nav-btn{flex:1;padding:.5rem .75rem;border-radius:var(--radius);border:1px solid var(--border);background:var(--card);font-size:.8rem;font-weight:700;color:var(--primary);cursor:pointer;text-align:center;transition:.15s}
+.series-nav-btn:hover{background:var(--primary);color:#fff;border-color:var(--primary)}
+
+/* ── Editor ── */
+#view-editor{overflow-y:auto;padding:1rem}
+.editor-back{display:flex;align-items:center;gap:.5rem;cursor:pointer;color:var(--primary);font-size:.85rem;font-weight:700;margin-bottom:1rem}
+.field-group{margin-bottom:.85rem}
+.field-label{font-size:.78rem;font-weight:700;color:var(--muted);margin-bottom:.3rem;display:block}
+.field-input{width:100%;padding:.55rem .75rem;border:1.5px solid var(--border);border-radius:.5rem;font-size:.9rem;font-family:inherit;color:var(--text);background:var(--card);transition:.15s;outline:none}
+.field-input:focus{border-color:var(--primary)}
+.field-select{width:100%;padding:.55rem .75rem;border:1.5px solid var(--border);border-radius:.5rem;font-size:.9rem;font-family:inherit;background:var(--card);cursor:pointer;outline:none}
+.field-select:focus{border-color:var(--primary)}
+.type-cards{display:grid;grid-template-columns:1fr 1fr;gap:.5rem;margin-bottom:.3rem}
+.type-card{border:2px solid var(--border);border-radius:.6rem;padding:.6rem .5rem;cursor:pointer;text-align:center;transition:.15s}
+.type-card.selected{border-color:var(--primary);background:var(--primary-light)}
+.type-card .tc-icon{font-size:1.3rem;margin-bottom:.2rem}
+.type-card .tc-label{font-size:.72rem;font-weight:800;color:var(--text)}
+.type-card .tc-desc{font-size:.62rem;color:var(--muted);margin-top:.1rem}
+.scope-toggle-row{display:flex;gap:.5rem;margin-top:.3rem}
+.scope-toggle-btn{flex:1;padding:.45rem;border-radius:.5rem;border:1.5px solid var(--border);background:none;font-size:.78rem;font-weight:700;cursor:pointer;color:var(--muted);transition:.15s}
+.scope-toggle-btn.active{border-color:var(--primary);background:var(--primary-light);color:var(--primary)}
+.scope-info{font-size:.72rem;color:var(--muted);margin-top:.35rem;padding:.4rem .6rem;background:#f8fafc;border-radius:.4rem;border-right:3px solid var(--primary-light)}
+
+/* ── Rich Text Editor ── */
+.rte-toolbar{display:flex;gap:4px;padding:.4rem;border:1.5px solid var(--border);border-bottom:none;border-radius:.5rem .5rem 0 0;background:#f8fafc;flex-wrap:wrap}
+.rte-btn{width:28px;height:28px;border:1px solid transparent;border-radius:.3rem;background:none;cursor:pointer;font-size:.8rem;display:flex;align-items:center;justify-content:center;color:var(--muted);transition:.1s}
+.rte-btn:hover{background:var(--border);color:var(--text)}
+.rte-btn.active{background:var(--primary-light);color:var(--primary);border-color:var(--primary)}
+.rte-divider{width:1px;height:20px;background:var(--border);margin:0 2px}
+#rte-body{min-height:200px;padding:.75rem;border:1.5px solid var(--border);border-radius:0 0 .5rem .5rem;font-size:.9rem;line-height:1.8;outline:none;background:var(--card);direction:rtl}
+#rte-body:focus{border-color:var(--primary)}
+#rte-body:empty::before{content:attr(data-placeholder);color:var(--muted2)}
+
+/* ── Tags input ── */
+.tags-input-wrap{border:1.5px solid var(--border);border-radius:.5rem;padding:.4rem .5rem;display:flex;flex-wrap:wrap;gap:.3rem;min-height:42px;cursor:text;background:var(--card)}
+.tags-input-wrap:focus-within{border-color:var(--primary)}
+.tags-input-wrap input{border:none;outline:none;font-size:.85rem;font-family:inherit;min-width:80px;flex:1;background:transparent}
+.tag-rm{padding:.15rem .45rem;background:var(--primary-light);color:var(--primary);border-radius:999px;font-size:.7rem;font-weight:700;display:flex;align-items:center;gap:.2rem;cursor:pointer}
+.tag-rm button{background:none;border:none;cursor:pointer;color:var(--primary);font-size:.7rem;padding:0;line-height:1}
+.tags-suggestions{position:absolute;z-index:50;background:var(--card);border:1px solid var(--border);border-radius:.5rem;box-shadow:0 4px 12px rgba(0,0,0,.1);max-height:160px;overflow-y:auto}
+.tags-suggestion-item{padding:.4rem .75rem;font-size:.82rem;cursor:pointer;transition:.1s}
+.tags-suggestion-item:hover{background:var(--primary-light);color:var(--primary)}
+
+/* ── Buttons ── */
+.kh-btn{padding:.6rem 1.25rem;border-radius:.5rem;border:none;font-size:.85rem;font-weight:700;cursor:pointer;transition:.15s;display:inline-flex;align-items:center;gap:.4rem}
+.kh-btn-primary{background:var(--primary);color:#fff}
+.kh-btn-primary:hover{background:var(--primary-dark)}
+.kh-btn-outline{background:none;border:1.5px solid var(--border);color:var(--muted)}
+.kh-btn-outline:hover{border-color:var(--primary);color:var(--primary)}
+.kh-btn-success{background:var(--success);color:#fff}
+.kh-btn-danger{background:var(--danger);color:#fff}
+.kh-btn-sm{padding:.35rem .75rem;font-size:.76rem}
+.editor-actions{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:1rem;padding-top:.75rem;border-top:1px solid var(--border)}
+
+/* ── My Drafts / My Content ── */
+#view-my-drafts,#view-my-content{overflow-y:auto;padding:.75rem}
+.section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem}
+.section-title{font-size:1rem;font-weight:900}
+.content-list-item{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:.75rem;margin-bottom:.5rem;display:flex;gap:.75rem;align-items:flex-start}
+.content-list-item-body{flex:1;min-width:0}
+.content-list-item-title{font-size:.9rem;font-weight:800;margin-bottom:.2rem}
+.content-list-item-meta{font-size:.72rem;color:var(--muted2)}
+.status-badge{display:inline-flex;align-items:center;gap:.25rem;padding:.15rem .5rem;border-radius:.3rem;font-size:.65rem;font-weight:800}
+.s-DRAFT{background:#f1f5f9;color:#475569}
+.s-PENDING_ZM{background:#fef3c7;color:#92400e}
+.s-PENDING_SA{background:#ede9fe;color:#5b21b6}
+.s-PUBLISHED_LOCAL{background:#d1fae5;color:#065f46}
+.s-PUBLISHED_GLOBAL{background:#dbeafe;color:#1d4ed8}
+.s-REJECTED{background:#fee2e2;color:#991b1b}
+.rejection-note{font-size:.75rem;color:var(--danger);background:#fee2e2;padding:.35rem .5rem;border-radius:.35rem;margin-top:.3rem;line-height:1.4}
+.item-actions{display:flex;gap:.35rem;flex-shrink:0;flex-wrap:wrap}
+
+/* ── ZM / SA panels ── */
+#view-zm-queue,#view-sa-queue{overflow-y:auto;padding:.75rem}
+.queue-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:.75rem;margin-bottom:.5rem}
+.queue-card-header{display:flex;gap:.5rem;align-items:flex-start;margin-bottom:.5rem}
+.queue-card-img{width:56px;height:50px;border-radius:.4rem;object-fit:cover;background:var(--primary-light);display:flex;align-items:center;justify-content:center;font-size:1.4rem;flex-shrink:0}
+.queue-card-title{font-size:.9rem;font-weight:800;margin-bottom:.2rem}
+.queue-card-meta{font-size:.72rem;color:var(--muted2)}
+.reject-form{margin-top:.5rem;display:none}
+.reject-form.open{display:block}
+.reject-textarea{width:100%;padding:.45rem .6rem;border:1.5px solid var(--border);border-radius:.4rem;font-size:.82rem;font-family:inherit;resize:none;outline:none;height:70px}
+.reject-textarea:focus{border-color:var(--danger)}
+
+/* ── Image upload ── */
+.img-upload-area{border:2px dashed var(--border);border-radius:.5rem;padding:1.2rem;text-align:center;cursor:pointer;transition:.15s;color:var(--muted2);font-size:.82rem}
+.img-upload-area:hover{border-color:var(--primary);color:var(--primary)}
+.img-preview{width:100%;max-height:160px;object-fit:cover;border-radius:.5rem;margin-top:.4rem}
+
+/* ── Toast ── */
+#kh-toast{position:fixed;bottom:1rem;right:50%;transform:translateX(50%);background:#1e293b;color:#fff;padding:.6rem 1.2rem;border-radius:999px;font-size:.82rem;font-weight:700;opacity:0;transition:.25s;pointer-events:none;z-index:9999;white-space:nowrap}
+#kh-toast.show{opacity:1}
+
+/* ── Empty state ── */
+.empty-state{text-align:center;padding:3rem 1rem;color:var(--muted2)}
+.empty-state .ei{font-size:2.5rem;margin-bottom:.5rem}
+.empty-state p{font-size:.85rem}
+
+/* ── Loading ── */
+.kh-spinner{width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:spin .7s linear infinite;margin:2rem auto}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── Confirm modal ── */
+#kh-confirm{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:9998;align-items:center;justify-content:center;padding:1rem}
+#kh-confirm.show{display:flex}
+.kh-confirm-box{background:var(--card);border-radius:var(--radius);padding:1.25rem;max-width:340px;width:100%}
+.kh-confirm-box h3{font-size:.95rem;font-weight:800;margin-bottom:.5rem}
+.kh-confirm-box p{font-size:.82rem;color:var(--muted);margin-bottom:1rem;line-height:1.5}
+.kh-confirm-box .actions{display:flex;gap:.5rem;justify-content:flex-end}
+
+/* ── Cover upload preview ── */
+#cover-preview-wrap{margin-top:.5rem}
+
+/* ── Responsive ── */
+@media(min-width:600px){
+  .feed-grid{display:grid;grid-template-columns:1fr 1fr;gap:.75rem}
+  .feed-card{flex-direction:column;padding:0;overflow:hidden}
+  .feed-card-img{width:100%;height:140px;border-radius:0}
+  .feed-card-body{padding:.6rem}
+  .feed-card-footer{margin-top:.4rem}
+}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- Header -->
+  <header id="kh-header">
+    <div class="kh-logo">
+      📣 <div><div>קול העם</div><span id="kh-community-name"></span></div>
+    </div>
+    <div class="kh-header-actions">
+      <button class="kh-btn-icon" onclick="KH.nav('my-drafts')" title="הטיוטות שלי"><i class="fa-solid fa-file-pen"></i></button>
+      <button class="kh-btn-icon" onclick="KH.nav('my-content')" title="התוכן שלי"><i class="fa-solid fa-list-check"></i></button>
+      <button class="kh-btn-icon" id="btn-zm-queue" onclick="KH.nav('zm-queue')" title="תור אישורים" style="display:none"><i class="fa-solid fa-inbox"></i></button>
+      <button class="kh-btn-icon" id="btn-sa-queue" onclick="KH.nav('sa-queue')" title="אישורים ארציים" style="display:none"><i class="fa-solid fa-globe"></i></button>
+      <button class="kh-btn-icon" onclick="KH.nav('editor')" title="כתוב כתבה חדשה" style="background:var(--primary);color:#fff"><i class="fa-solid fa-plus"></i></button>
+    </div>
+  </header>
+
+  <!-- Scope + Categories bar -->
+  <div id="scope-bar">
+    <button class="scope-btn active" data-scope="local" onclick="KH.setScope('local',this)">🏠 הקהילה שלי</button>
+    <button class="scope-btn" data-scope="global" onclick="KH.setScope('global',this)">🌍 כל הארץ</button>
+    <div id="cat-scroll"></div>
+  </div>
+
+  <!-- Body -->
+  <div id="kh-body">
+
+    <!-- Feed -->
+    <div id="view-feed" class="view active">
+      <div id="view-feed-inner" style="padding:.75rem">
+        <div class="kh-spinner"></div>
+      </div>
+    </div>
+
+    <!-- Single content -->
+    <div id="view-content" class="view">
+      <div class="content-back" onclick="KH.back()"><i class="fa-solid fa-arrow-right"></i> חזרה</div>
+      <div id="content-inner"></div>
+    </div>
+
+    <!-- Editor -->
+    <div id="view-editor" class="view">
+      <div class="editor-back" onclick="KH.back()"><i class="fa-solid fa-arrow-right"></i> חזרה</div>
+      <div id="editor-inner"></div>
+    </div>
+
+    <!-- My Drafts -->
+    <div id="view-my-drafts" class="view">
+      <div class="section-header">
+        <span class="section-title">✍️ הטיוטות שלי</span>
+        <button class="kh-btn kh-btn-primary kh-btn-sm" onclick="KH.nav('editor')"><i class="fa-solid fa-plus"></i> חדש</button>
+      </div>
+      <div id="drafts-list"><div class="kh-spinner"></div></div>
+    </div>
+
+    <!-- My Content -->
+    <div id="view-my-content" class="view">
+      <div class="section-header">
+        <span class="section-title">📚 התוכן שלי</span>
+      </div>
+      <div id="my-content-list"><div class="kh-spinner"></div></div>
+    </div>
+
+    <!-- ZM Queue -->
+    <div id="view-zm-queue" class="view">
+      <div class="section-header">
+        <span class="section-title">📥 תור אישורים — קהילה</span>
+        <button class="kh-btn kh-btn-outline kh-btn-sm" onclick="KH.loadZMQueue()"><i class="fa-solid fa-refresh"></i></button>
+      </div>
+      <div id="zm-queue-categories" style="margin-bottom:.75rem"></div>
+      <div id="zm-queue-list"><div class="kh-spinner"></div></div>
+    </div>
+
+    <!-- SA Queue -->
+    <div id="view-sa-queue" class="view">
+      <div class="section-header">
+        <span class="section-title">🌍 אישורים ארציים</span>
+        <button class="kh-btn kh-btn-outline kh-btn-sm" onclick="KH.loadSAQueue()"><i class="fa-solid fa-refresh"></i></button>
+      </div>
+      <div id="sa-deletion-section" style="margin-bottom:1rem"></div>
+      <div id="sa-queue-list"><div class="kh-spinner"></div></div>
+      <div style="margin-top:1.25rem">
+        <div class="section-header"><span class="section-title">📂 קטגוריות ארציות</span>
+          <button class="kh-btn kh-btn-primary kh-btn-sm" onclick="KH.showAddGlobalCat()"><i class="fa-solid fa-plus"></i> הוסף</button>
+        </div>
+        <div id="sa-global-cats"></div>
+      </div>
+    </div>
+
+  </div><!-- /kh-body -->
+</div><!-- /app -->
+
+<div id="kh-toast"></div>
+
+<div id="kh-confirm">
+  <div class="kh-confirm-box">
+    <h3 id="kh-confirm-title"></h3>
+    <p id="kh-confirm-msg"></p>
+    <div class="actions">
+      <button class="kh-btn kh-btn-outline" onclick="KH.confirmResolve(false)">ביטול</button>
+      <button class="kh-btn kh-btn-primary" id="kh-confirm-ok" onclick="KH.confirmResolve(true)">אישור</button>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="kh-file-input" accept="image/*" style="display:none">
+
+<script src="/kol-haam-app.js"></script>
+</body>
+</html>
