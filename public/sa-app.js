@@ -447,7 +447,7 @@ window.switchSATab = function(tabId) {
     const _tabTitles = {
         pulse:'דופק מערכת', stats:'דוחות ופיננסים', dashboard:'ספר מוצר',
         support:'קריאות שירות', devops:'פיתוח ומוצר',
-        comm:'קהילות', biz:'עסקים', clients:'קבוצות',
+        comm:'קהילות', biz:'עסקים', clients:'סביבות',
         inbox:'שיווק והשקות', content:'מיתוג ותוכן',
         hr:'נציגים וצוותים', partners:'שותפים', finance:'פיננסים',
         sysmap:'מפת המערכת', legal:'מסמכים משפטיים', templates:'ניהול תבניות עסקים', adslots:'שטחי פרסום',
@@ -495,7 +495,7 @@ window.switchSATab = function(tabId) {
 
 const SA_GROUPS = {
     home:       { tabs: ['pulse', 'stats'],             labels: ['דופק מערכת', 'דוחות'],           icons: ['fa-heart-pulse', 'fa-chart-line'],       default: 'pulse' },
-    customers:  { tabs: ['comm', 'biz', 'clients', 'feed'],  labels: ['קהילות', 'עסקים', 'קבוצות', 'פיד קהילתי'],  icons: ['fa-users-rays', 'fa-store', 'fa-users', 'fa-rss'],  default: 'comm' },
+    customers:  { tabs: ['comm', 'biz', 'clients', 'feed'],  labels: ['קהילות', 'עסקים', 'סביבות', 'פיד קהילתי'],  icons: ['fa-users-rays', 'fa-store', 'fa-users', 'fa-rss'],  default: 'comm' },
     finance:    { tabs: ['finance'],                    labels: [],                                  icons: [],                                         default: 'finance' },
     supportdev: { tabs: ['support', 'devops'],          labels: ['קריאות שירות', 'פיתוח ומוצר'],    icons: ['fa-headset', 'fa-code'],                  default: 'support' },
     contentmkt: { tabs: ['content', 'inbox', 'legal', 'adslots', 'games', 'marketing'],  labels: ['מיתוג ותוכן', 'שיווק', 'משפטי', 'שטחי פרסום', 'משחקי ילדים', 'שיווק והשקות'], icons: ['fa-image', 'fa-bullhorn', 'fa-file-contract', 'fa-rectangle-ad', 'fa-gamepad', 'fa-whatsapp'], default: 'content' },
@@ -1810,12 +1810,36 @@ async function saveWelcomeMsg(type = 'FAMILY') {
     } catch (e) { showToast('error', 'תקלת תקשורת בשמירת ההודעה'); }
 }
 
+let _saGroupTypeFilter = 'all';
+function _renderGroupTypeFilters() {
+    const cont = getEl('sa-group-type-filters');
+    if (!cont) return;
+    const opts = [
+        { key: 'all',     label: 'הכל',      icon: 'fa-layer-group' },
+        { key: 'FAMILY',  label: 'משפחות',   icon: 'fa-house' },
+        { key: 'BUSINESS',label: 'עסקים',    icon: 'fa-briefcase' },
+    ];
+    cont.innerHTML = opts.map(o => {
+        const active = _saGroupTypeFilter === o.key;
+        return `<button onclick="window._saSetGroupFilter('${o.key}')" style="display:inline-flex;align-items:center;gap:5px;padding:0.35rem 0.85rem;border-radius:999px;font-size:0.75rem;font-weight:700;cursor:pointer;border:1.5px solid ${active ? '#4f46e5' : '#e2e8f0'};background:${active ? '#4f46e5' : '#f8fafc'};color:${active ? '#fff' : '#475569'};transition:all 0.15s;"><i class="fa-solid ${o.icon}" style="font-size:11px;"></i>${o.label}</button>`;
+    }).join('');
+}
+window._saSetGroupFilter = function(type) {
+    _saGroupTypeFilter = type;
+    _renderGroupTypeFilters();
+    renderSAGroups();
+};
 function renderSAGroups() {
     const groupsList = getEl('sa-groups-list');
     if (!groupsList) return;
+    _renderGroupTypeFilters();
     let gHtml = '';
     const term = val('sa-search-group').toLowerCase();
-    const filteredGroups = saAllGroups.filter(g => (g.name && g.name.toLowerCase().includes(term)) || (g.group_code && g.group_code.toLowerCase().includes(term)));
+    const filteredGroups = saAllGroups.filter(g => {
+        const matchTerm = (g.name && g.name.toLowerCase().includes(term)) || (g.group_code && g.group_code.toLowerCase().includes(term));
+        const matchType = _saGroupTypeFilter === 'all' || g.type === _saGroupTypeFilter;
+        return matchTerm && matchType;
+    });
     if (filteredGroups.length === 0) { groupsList.innerHTML = '<p class="text-slate-400 text-sm text-center py-4">לא נמצאו סביבות התואמות לחיפוש.</p>'; return; }
 
     filteredGroups.forEach(g => {
