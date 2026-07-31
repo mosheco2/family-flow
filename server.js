@@ -123,9 +123,9 @@ async function sendSMSviaTwilio(to, body) {
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false },
-  max: 20,
+  max: 25,
   idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 5000,
+  connectionTimeoutMillis: 10000,
 });
 
 // ── Live game state cache (200ms TTL) ──
@@ -27966,7 +27966,9 @@ app.delete('/api/sa/whatsapp-types/:id', verifySA, async (req, res) => {
 // קול העם — Phase 3: מוניטין, הישגים, Follow, Editor Picks, FLOW
 // ═══════════════════════════════════════════════════════════════
 
+let _khPhase3Ready = false;
 async function initKolHaamPhase3Tables() {
+    if (_khPhase3Ready) return;
     try {
         // ALTER author_profiles
         const apCols = await pool.query(`SELECT column_name FROM information_schema.columns WHERE table_name='author_profiles'`);
@@ -28068,12 +28070,14 @@ async function initKolHaamPhase3Tables() {
             );
         }
 
+        _khPhase3Ready = true;
         console.log('[KolHaam Phase3] Tables initialized');
     } catch(e) {
         console.error('[KolHaam Phase3] init error:', e.message);
     }
 }
-initKolHaamPhase3Tables();
+// דחיית ה-init ל-10 שניות אחרי סטארטאפ — מונע flood על pool
+setTimeout(() => initKolHaamPhase3Tables(), 10000);
 
 // ── Helper: award FLOW to author's family wallet ──────────────
 async function awardFlow(authorProfileId, contentItemId, rewardReason, amount) {
@@ -28204,7 +28208,8 @@ async function runPhase3DailyCron() {
     }
 }
 setInterval(runPhase3DailyCron, 24 * 60 * 60 * 1000);
-runPhase3DailyCron();
+// דחיית ריצה ראשונה ל-60 שניות אחרי סטארטאפ
+setTimeout(runPhase3DailyCron, 60000);
 
 // ── Cron: article of week / most shared (weekly) ─────────────
 async function runPhase3WeeklyCron() {
@@ -28265,7 +28270,7 @@ setInterval(runPhase3MonthlyCron, 30 * 24 * 60 * 60 * 1000);
 // GET public author profile
 app.get('/api/kol-haam/authors/:id', async (req, res) => {
     try {
-        await initKolHaamPhase3Tables();
+
         const { groupId } = req.query;
         const r = await pool.query(`
             SELECT ap.*,
@@ -28371,7 +28376,7 @@ app.get('/api/kol-haam/my-following-feed', async (req, res) => {
 // SA: add editor pick
 app.post('/api/kol-haam/sa/editor-picks', verifySA, async (req, res) => {
     try {
-        await initKolHaamPhase3Tables();
+
         const { content_item_id, note, pinned_until } = req.body;
         if (!content_item_id) return res.status(400).json({ error: 'content_item_id נדרש' });
 
@@ -28394,7 +28399,7 @@ app.post('/api/kol-haam/sa/editor-picks', verifySA, async (req, res) => {
 // SA: list editor picks
 app.get('/api/kol-haam/sa/editor-picks', verifySA, async (req, res) => {
     try {
-        await initKolHaamPhase3Tables();
+
         const r = await pool.query(`
             SELECT ep.*, ci.title, ci.cover_image_url, ci.status,
                    ap.display_name as author_name
@@ -28418,7 +28423,7 @@ app.delete('/api/kol-haam/sa/editor-picks/:id', verifySA, async (req, res) => {
 // GET current editor picks (public)
 app.get('/api/kol-haam/editor-picks/current', async (req, res) => {
     try {
-        await initKolHaamPhase3Tables();
+
         const r = await pool.query(`
             SELECT ep.id as pick_id, ep.note, ep.pinned_until,
                    ci.id, ci.title, ci.summary, ci.cover_image_url, ci.content_type, ci.published_at,
@@ -28511,7 +28516,9 @@ app.get('/api/kol-haam/leaderboard', async (req, res) => {
 // קול העם — Phase 4: AI Copilot, חיפוש, תגיות, סדרות, אוספים
 // ═══════════════════════════════════════════════════════════════
 
+let _khPhase4Ready = false;
 async function initKolHaamPhase4Tables() {
+    if (_khPhase4Ready) return;
     try {
         // user_collections (משתמש group_id כבעלים — עקבי עם Phase 1-3)
         await pool.query(`CREATE TABLE IF NOT EXISTS user_collections (
@@ -28548,12 +28555,13 @@ async function initKolHaamPhase4Tables() {
         await pool.query(`CREATE INDEX IF NOT EXISTS idx_content_trgm_title ON content_items USING GIN (title gin_trgm_ops)`).catch(() => {});
         await pool.query(`CREATE INDEX IF NOT EXISTS idx_content_trgm_subtitle ON content_items USING GIN (COALESCE(subtitle,'') gin_trgm_ops)`).catch(() => {});
 
+        _khPhase4Ready = true;
         console.log('[KolHaam Phase4] Tables initialized');
     } catch(e) {
         console.error('[KolHaam Phase4] init error:', e.message);
     }
 }
-initKolHaamPhase4Tables();
+setTimeout(() => initKolHaamPhase4Tables(), 20000);
 
 // ── Helper: קריאה ל-Claude API ─────────────────────────────────
 async function callClaudeKH(messages, maxTokens = 1200) {
