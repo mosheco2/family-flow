@@ -538,7 +538,7 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
 
                     <!-- ─── KPI ROW 1: ישויות ─── -->
                     <div class="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-2 mb-2">
-                        <div class="bg-white rounded-xl border border-amber-100 shadow-sm p-3 cursor-pointer hover:shadow-md transition" onclick="switchSATab('clients')">
+                        <div class="bg-white rounded-xl border border-amber-100 shadow-sm p-3 cursor-pointer hover:shadow-md transition" onclick="switchSATab('clients');setTimeout(()=>window._saSetGroupFilter('BUSINESS'),250)">
                             <div class="flex items-center justify-between mb-2">
                                 <span class="w-6 h-6 rounded-lg bg-amber-50 flex items-center justify-center"><i class="fa-solid fa-briefcase text-amber-500 text-[10px]"></i></span>
                                 <span class="text-[8px] font-black text-amber-400 uppercase">עסקים</span>
@@ -547,7 +547,7 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                             <div class="text-[9px] text-slate-400 mt-1">+<span id="d2-biz-24h">0</span> היום</div>
                         </div>
 
-                        <div class="bg-white rounded-xl border border-emerald-100 shadow-sm p-3 cursor-pointer hover:shadow-md transition" onclick="switchSATab('stats')">
+                        <div class="bg-white rounded-xl border border-emerald-100 shadow-sm p-3 cursor-pointer hover:shadow-md transition" onclick="switchSATab('clients');setTimeout(()=>window._saSetGroupFilter('FAMILY'),250)">
                             <div class="flex items-center justify-between mb-2">
                                 <span class="w-6 h-6 rounded-lg bg-emerald-50 flex items-center justify-center"><i class="fa-solid fa-house-chimney-user text-emerald-500 text-[10px]"></i></span>
                                 <span class="text-[8px] font-black text-emerald-400 uppercase">משפחות</span>
@@ -565,7 +565,7 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                             <div class="text-[9px] text-slate-400 mt-1"><span id="d2-connections">0</span> חיבורים</div>
                         </div>
 
-                        <div class="bg-white rounded-xl border border-slate-100 shadow-sm p-3">
+                        <div class="bg-white rounded-xl border border-slate-100 shadow-sm p-3 cursor-pointer hover:shadow-md transition" onclick="switchSATab('clients');setTimeout(()=>window._saSetGroupFilter('all'),250)">
                             <div class="flex items-center justify-between mb-2">
                                 <span class="w-6 h-6 rounded-lg bg-slate-50 flex items-center justify-center"><i class="fa-solid fa-users text-slate-500 text-[10px]"></i></span>
                                 <span class="text-[8px] font-black text-slate-400 uppercase">משתמשים</span>
@@ -574,7 +574,7 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                             <div class="text-[9px] text-emerald-500 font-bold mt-1"><span id="d2-online-now">0</span> מחוברים עכשיו</div>
                         </div>
 
-                        <div class="bg-white rounded-xl border border-purple-100 shadow-sm p-3 cursor-pointer hover:shadow-md transition" onclick="switchSATab('content')">
+                        <div class="bg-white rounded-xl border border-purple-100 shadow-sm p-3 cursor-pointer hover:shadow-md transition" onclick="switchSATab('pulse')">
                             <div class="flex items-center justify-between mb-2">
                                 <span class="w-6 h-6 rounded-lg bg-purple-50 flex items-center justify-center"><i class="fa-solid fa-robot text-purple-500 text-[10px]"></i></span>
                                 <span class="text-[8px] font-black text-purple-400 uppercase">AI חודש</span>
@@ -604,7 +604,7 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                             <div class="text-[9px] mt-1" id="kpi-sla-label"><span class="text-red-500 font-bold" id="d2-urgent-tickets">0</span> <span class="text-slate-400">דחופות</span></div>
                         </div>
 
-                        <div class="bg-white rounded-xl border border-yellow-100 shadow-sm p-3 cursor-pointer hover:shadow-md transition" onclick="switchSATab('finance')">
+                        <div class="bg-white rounded-xl border border-yellow-100 shadow-sm p-3 cursor-pointer hover:shadow-md transition" onclick="switchSATab('finance');setTimeout(()=>switchViewTab('finance','dues'),250)">
                             <div class="flex items-center justify-between mb-2">
                                 <span class="w-6 h-6 rounded-lg bg-yellow-50 flex items-center justify-center"><i class="fa-solid fa-file-invoice-dollar text-yellow-500 text-[10px]"></i></span>
                                 <span class="text-[8px] font-black text-yellow-500 uppercase">חובות</span>
@@ -631,7 +631,7 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                             <div class="text-[9px] mt-1"><span class="text-orange-500 font-bold" id="d2-zm-pending">0</span> <span class="text-slate-400">ממתינים</span></div>
                         </div>
 
-                        <div class="bg-white rounded-xl border border-pink-100 shadow-sm p-3">
+                        <div class="bg-white rounded-xl border border-pink-100 shadow-sm p-3 cursor-pointer hover:shadow-md transition" onclick="switchSATab('finance');setTimeout(()=>switchViewTab('finance','wallets'),250)">
                             <div class="flex items-center justify-between mb-2">
                                 <span class="w-6 h-6 rounded-lg bg-pink-50 flex items-center justify-center"><i class="fa-solid fa-coins text-pink-400 text-[10px]"></i></span>
                                 <span class="text-[8px] font-black text-pink-400 uppercase">Flow מטבעות</span>
