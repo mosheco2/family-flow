@@ -125,13 +125,16 @@ const KH = {
     async loadFeed(sort) {
         STATE.feedSort = sort || STATE.feedSort || 'trending';
         const el = document.getElementById('view-feed-inner');
+        if (!el) return;
         el.innerHTML = '<div class="kh-spinner"></div>';
         const params = new URLSearchParams({ scope: STATE.scope, sort: STATE.feedSort });
         if (STATE.scope === 'local' && CTX.communityId) params.set('community_id', CTX.communityId);
         if (STATE.categoryId) params.set('category', STATE.categoryId);
 
+        let data, trendingData, hotData, picksData;
+        try {
         // load trending strips + main feed in parallel (only on homepage, no category filter)
-        const [data, trendingData, hotData, picksData] = await Promise.all([
+        [data, trendingData, hotData, picksData] = await Promise.all([
             khFetch(`${API}/feed?${params}`),
             !STATE.categoryId ? khFetch(`${API}/feed/trending?community_id=${CTX.communityId||''}&limit=8`) : Promise.resolve(null),
             !STATE.categoryId ? khFetch(`${API}/feed/hot-comments?community_id=${CTX.communityId||''}&limit=5`) : Promise.resolve(null),
@@ -196,6 +199,9 @@ const KH = {
             return;
         }
         el.innerHTML = sortBar + strips + `<div class="feed-grid">${items.map(it => KH.renderFeedCard(it)).join('')}</div>`;
+        } catch(e) {
+            el.innerHTML = `<div class="empty-state"><div class="ei">⚠️</div><p>שגיאה: ${esc(e.message)}</p></div>`;
+        }
     },
 
     renderFeedCard(it) {
@@ -1750,4 +1756,7 @@ async function init() {
     });
 }
 
-init();
+init().catch(e => {
+    const el = document.getElementById('view-feed-inner');
+    if (el) el.innerHTML = `<div class="empty-state"><div class="ei">⚠️</div><p>שגיאת אתחול: ${esc(e.message)}</p></div>`;
+});
