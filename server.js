@@ -26222,6 +26222,7 @@ async function ensureWhatsAppTables() {
     // migrate existing whatsapp_log table — add new columns if missing
     await pool.query(`ALTER TABLE whatsapp_log ADD COLUMN IF NOT EXISTS phone TEXT`).catch(()=>{});
     await pool.query(`ALTER TABLE whatsapp_log ADD COLUMN IF NOT EXISTS message_body TEXT`).catch(()=>{});
+    await pool.query(`ALTER TABLE whatsapp_log ADD COLUMN IF NOT EXISTS sent_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`).catch(()=>{});
     await pool.query(`
         CREATE TABLE IF NOT EXISTS whatsapp_notification_types (
             id SERIAL PRIMARY KEY,

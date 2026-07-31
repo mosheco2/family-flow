@@ -12,7 +12,7 @@ function formatPhone(raw) {
 function buildMessage(businessName, content, linkUrl) {
     let msg = `*${businessName}*\n\n${content}`;
     if (linkUrl) msg += `\n\n🔗 ${linkUrl}`;
-    msg += `\n\n—\n_הודעה זו נשלחה דרך מערכת Oneflow_`;
+    msg += `\n\n—\n_הודעה זו נשלחה דרך מערכת Oneflow Life_`;
     return msg;
 }
 
