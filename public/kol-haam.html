@@ -190,6 +190,76 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Ro
 .kh-confirm-box p{font-size:.82rem;color:var(--muted);margin-bottom:1rem;line-height:1.5}
 .kh-confirm-box .actions{display:flex;gap:.5rem;justify-content:flex-end}
 
+/* ── Phase 2: Engagement bar ── */
+.engagement-bar{display:flex;gap:.4rem;flex-wrap:wrap;margin:.75rem 0;padding:.6rem;background:var(--bg);border-radius:.6rem;border:1px solid var(--border)}
+.eng-btn{padding:.35rem .7rem;border-radius:.4rem;border:1.5px solid var(--border);background:var(--card);font-size:.82rem;font-weight:700;cursor:pointer;color:var(--muted);transition:.15s;display:inline-flex;align-items:center;gap:.25rem}
+.eng-btn:hover{border-color:var(--primary);color:var(--primary)}
+.eng-btn.eng-active{background:var(--primary-light);border-color:var(--primary);color:var(--primary)}
+.eng-btn.eng-dislike.eng-active{background:#fee2e2;border-color:var(--danger);color:var(--danger)}
+
+/* ── Feed sort bar ── */
+.feed-sort-bar{display:flex;gap:.5rem;margin-bottom:.75rem}
+.feed-sort-btn{padding:.35rem .85rem;border-radius:999px;border:1.5px solid var(--border);background:var(--card);font-size:.8rem;font-weight:700;cursor:pointer;color:var(--muted);transition:.15s}
+.feed-sort-btn.active{background:var(--primary);border-color:var(--primary);color:#fff}
+
+/* ── Trending strips ── */
+.kh-strip{margin-bottom:1rem}
+.kh-strip-title{font-size:.85rem;font-weight:900;margin-bottom:.4rem;color:var(--text)}
+.kh-strip-scroll{display:flex;gap:.6rem;overflow-x:auto;padding-bottom:.4rem;-webkit-overflow-scrolling:touch}
+.kh-strip-scroll::-webkit-scrollbar{height:3px}
+.kh-strip-scroll::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+.kh-strip-card{flex:0 0 120px;background:var(--card);border:1px solid var(--border);border-radius:.6rem;overflow:hidden;cursor:pointer;transition:.15s}
+.kh-strip-card:hover{border-color:var(--primary)}
+.kh-strip-img{width:120px;height:72px;object-fit:cover;background:var(--primary-light);display:flex;align-items:center;justify-content:center;font-size:1.4rem}
+.kh-strip-title-sm{font-size:.72rem;font-weight:700;padding:.3rem .4rem;line-height:1.3;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.kh-strip-meta{font-size:.65rem;color:var(--muted2);padding:.2rem .4rem .3rem}
+
+/* ── Comments ── */
+.comments-section{padding-top:1rem;border-top:1px solid var(--border);margin-top:1rem}
+.comments-title{font-size:.95rem;font-weight:900;margin-bottom:.75rem}
+.comment-add-form{display:flex;flex-direction:column;gap:.4rem;margin-bottom:.75rem}
+.comment-input{padding:.45rem .6rem;border:1.5px solid var(--border);border-radius:.4rem;font-size:.85rem;font-family:inherit;resize:none;outline:none;width:100%;background:var(--card);color:var(--text)}
+.comment-input:focus{border-color:var(--primary)}
+.comments-sort-bar{display:flex;gap:.3rem;margin-bottom:.75rem;flex-wrap:wrap}
+.csort-btn{padding:.3rem .65rem;border-radius:999px;border:1px solid var(--border);background:var(--card);font-size:.74rem;font-weight:700;cursor:pointer;color:var(--muted);transition:.12s}
+.csort-btn.active{background:var(--primary);border-color:var(--primary);color:#fff}
+.comment-item{padding:.6rem 0;border-bottom:1px solid var(--border)}
+.comment-header{display:flex;align-items:center;gap:.4rem;flex-wrap:wrap;margin-bottom:.25rem}
+.comment-time{font-size:.68rem;color:var(--muted2)}
+.comment-body{font-size:.85rem;line-height:1.6;color:var(--text);white-space:pre-wrap}
+.comment-actions{display:flex;gap:.3rem;margin-top:.35rem;flex-wrap:wrap}
+.cact-btn{padding:.2rem .5rem;border-radius:.3rem;border:1px solid var(--border);background:none;font-size:.72rem;font-weight:700;cursor:pointer;color:var(--muted);transition:.12s}
+.cact-btn:hover{color:var(--primary)}
+.cact-btn.eng-active{color:var(--primary);border-color:var(--primary)}
+.cact-solution{color:var(--success);border-color:var(--success)}
+.cact-danger{color:var(--danger);border-color:var(--danger)}
+.cact-report{color:var(--muted2)}
+.reply-form{margin-top:.4rem;display:flex;flex-direction:column;gap:.3rem}
+.reply-form.hidden{display:none}
+.comment-solution{border-right:3px solid var(--success);padding-right:.5rem;background:#f0fdf4;border-radius:.35rem;margin:.3rem 0}
+.solution-badge{display:inline-block;background:#d1fae5;color:#065f46;font-size:.7rem;font-weight:800;padding:.15rem .5rem;border-radius:.3rem;margin-bottom:.25rem}
+.mgmt-badge{background:#ede9fe;color:#5b21b6;font-size:.68rem;font-weight:700;padding:.1rem .4rem;border-radius:.25rem}
+.solution-votes{font-size:.72rem;color:var(--muted2);margin-top:.2rem}
+
+/* ── Report modal ── */
+#kh-report-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9998;align-items:center;justify-content:center;padding:1rem}
+#kh-report-modal.show{display:flex}
+.kh-report-box{background:var(--card);border-radius:var(--radius);padding:1.25rem;max-width:340px;width:100%;max-height:90vh;overflow-y:auto}
+.kh-report-box h3{font-size:.95rem;font-weight:800;margin-bottom:.75rem}
+.report-reason-opt{display:flex;align-items:center;gap:.5rem;padding:.35rem 0;font-size:.84rem;cursor:pointer}
+.report-reason-opt input{accent-color:var(--primary)}
+#report-notes{width:100%;padding:.45rem .6rem;border:1.5px solid var(--border);border-radius:.4rem;font-size:.82rem;font-family:inherit;margin-top:.6rem;resize:none;height:60px;outline:none;background:var(--bg);color:var(--text)}
+#report-notes:focus{border-color:var(--primary)}
+
+/* ── Reports panel (ZM queue) ── */
+.report-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:.75rem;margin-bottom:.5rem}
+.report-header{display:flex;justify-content:space-between;margin-bottom:.35rem}
+.report-reason-badge{font-size:.7rem;font-weight:800;background:#fee2e2;color:#991b1b;padding:.15rem .5rem;border-radius:.3rem}
+.report-date{font-size:.68rem;color:var(--muted2)}
+.report-target{font-size:.82rem;font-weight:600;margin-bottom:.25rem}
+.report-reporter{font-size:.72rem;color:var(--muted2);margin-bottom:.4rem}
+.report-actions{display:flex;gap:.35rem;flex-wrap:wrap}
+
 /* ── Cover upload preview ── */
 #cover-preview-wrap{margin-top:.5rem}
 
@@ -214,6 +284,7 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Ro
     <div class="kh-header-actions">
       <button class="kh-btn-icon" onclick="KH.nav('my-drafts')" title="הטיוטות שלי"><i class="fa-solid fa-file-pen"></i></button>
       <button class="kh-btn-icon" onclick="KH.nav('my-content')" title="התוכן שלי"><i class="fa-solid fa-list-check"></i></button>
+      <button class="kh-btn-icon" onclick="KH.nav('saved')" title="שמורים שלי"><i class="fa-solid fa-star"></i></button>
       <button class="kh-btn-icon" id="btn-zm-queue" onclick="KH.nav('zm-queue')" title="תור אישורים" style="display:none"><i class="fa-solid fa-inbox"></i></button>
       <button class="kh-btn-icon" id="btn-sa-queue" onclick="KH.nav('sa-queue')" title="אישורים ארציים" style="display:none"><i class="fa-solid fa-globe"></i></button>
       <button class="kh-btn-icon" onclick="KH.nav('editor')" title="כתוב כתבה חדשה" style="background:var(--primary);color:#fff"><i class="fa-solid fa-plus"></i></button>
@@ -290,6 +361,32 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Ro
         </div>
         <div id="sa-global-cats"></div>
       </div>
+      <!-- דיווחים SA -->
+      <div style="margin-top:1.5rem">
+        <div class="section-header">
+          <span class="section-title">🚨 דיווחים</span>
+          <button class="kh-btn kh-btn-outline kh-btn-sm" onclick="KH.loadZMReports()">רענן</button>
+        </div>
+        <div id="zm-reports-list"></div>
+      </div>
+    </div>
+
+    <!-- Saved items view -->
+    <div id="view-saved" class="view">
+      <div class="section-header">
+        <span class="section-title">⭐ שמורים שלי</span>
+        <button class="kh-btn kh-btn-outline kh-btn-sm" onclick="KH.back()">← חזרה</button>
+      </div>
+      <div id="saved-list"><div class="kh-spinner"></div></div>
+    </div>
+
+    <!-- ZM reports view -->
+    <div id="view-zm-reports" class="view">
+      <div class="section-header">
+        <span class="section-title">🚨 דיווחים — ZM</span>
+        <button class="kh-btn kh-btn-outline kh-btn-sm" onclick="KH.back()">← חזרה</button>
+      </div>
+      <div id="zm-reports-list-view"><div class="kh-spinner"></div></div>
     </div>
 
   </div><!-- /kh-body -->
@@ -304,6 +401,26 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Ro
     <div class="actions">
       <button class="kh-btn kh-btn-outline" onclick="KH.confirmResolve(false)">ביטול</button>
       <button class="kh-btn kh-btn-primary" id="kh-confirm-ok" onclick="KH.confirmResolve(true)">אישור</button>
+    </div>
+  </div>
+</div>
+
+<!-- Report modal -->
+<div id="kh-report-modal">
+  <div class="kh-report-box">
+    <h3>⚠️ דיווח על תוכן</h3>
+    <div>
+      <label class="report-reason-opt"><input type="radio" name="report-reason" value="SPAM"> ספאם</label>
+      <label class="report-reason-opt"><input type="radio" name="report-reason" value="MISLEADING"> מידע מטעה</label>
+      <label class="report-reason-opt"><input type="radio" name="report-reason" value="OFFENSIVE"> תוכן פוגעני</label>
+      <label class="report-reason-opt"><input type="radio" name="report-reason" value="COPYRIGHT"> זכויות יוצרים</label>
+      <label class="report-reason-opt"><input type="radio" name="report-reason" value="COMMERCIAL"> פרסום מסחרי</label>
+      <label class="report-reason-opt"><input type="radio" name="report-reason" value="PERSONAL_INFO"> מידע אישי</label>
+    </div>
+    <textarea id="report-notes" placeholder="הערות נוספות (אופציונלי)..."></textarea>
+    <div style="display:flex;gap:.5rem;margin-top:.75rem;justify-content:flex-end">
+      <button class="kh-btn kh-btn-outline" onclick="KH.closeReport()">ביטול</button>
+      <button class="kh-btn kh-btn-danger" onclick="KH.submitReport()">שלח דיווח</button>
     </div>
   </div>
 </div>

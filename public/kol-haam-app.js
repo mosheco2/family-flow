@@ -86,6 +86,8 @@ const KH = {
         else if (view === 'my-content') KH.loadMyContent();
         else if (view === 'zm-queue') KH.loadZMQueue();
         else if (view === 'sa-queue') KH.loadSAQueue();
+        else if (view === 'saved') KH.loadSaved();
+        else if (view === 'zm-reports') KH.loadZMReports();
     },
 
     back() {
@@ -114,19 +116,58 @@ const KH = {
     },
 
     // ── Feed ────────────────────────────────────────────────
-    async loadFeed() {
+    async loadFeed(sort) {
+        STATE.feedSort = sort || STATE.feedSort || 'trending';
         const el = document.getElementById('view-feed-inner');
         el.innerHTML = '<div class="kh-spinner"></div>';
-        const params = new URLSearchParams({ scope: STATE.scope });
+        const params = new URLSearchParams({ scope: STATE.scope, sort: STATE.feedSort });
         if (STATE.scope === 'local' && CTX.communityId) params.set('community_id', CTX.communityId);
         if (STATE.categoryId) params.set('category', STATE.categoryId);
-        const data = await khFetch(`${API}/feed?${params}`);
+
+        // load trending strips + main feed in parallel (only on homepage, no category filter)
+        const [data, trendingData, hotData] = await Promise.all([
+            khFetch(`${API}/feed?${params}`),
+            !STATE.categoryId ? khFetch(`${API}/feed/trending?community_id=${CTX.communityId||''}&limit=8`) : Promise.resolve(null),
+            !STATE.categoryId ? khFetch(`${API}/feed/hot-comments?community_id=${CTX.communityId||''}&limit=5`) : Promise.resolve(null),
+        ]);
+
         const items = data.items || [];
-        if (!items.length) {
-            el.innerHTML = '<div class="empty-state"><div class="ei">📭</div><p>אין תוכן עדיין בקטגוריה זו</p></div>';
+        const sortBar = `<div class="feed-sort-bar">
+            <button class="feed-sort-btn ${STATE.feedSort==='trending'?'active':''}" onclick="KH.loadFeed('trending')">🔥 חמים</button>
+            <button class="feed-sort-btn ${STATE.feedSort==='new'?'active':''}" onclick="KH.loadFeed('new')">🆕 חדשים</button>
+        </div>`;
+
+        let strips = '';
+        if (trendingData && (trendingData.items||[]).length) {
+            strips += `<div class="kh-strip">
+                <div class="kh-strip-title">🔥 הכי חמים עכשיו</div>
+                <div class="kh-strip-scroll">${(trendingData.items||[]).map(it => `
+                    <div class="kh-strip-card" onclick="KH.nav('content',{id:${it.id}})">
+                        ${it.cover_image_url ? `<img class="kh-strip-img" src="${it.cover_image_url}" alt="">` : `<div class="kh-strip-img">${TYPE_ICONS[it.content_type]||'📄'}</div>`}
+                        <div class="kh-strip-title-sm">${esc(it.title)}</div>
+                        <div class="kh-strip-meta">👍${it.likes_count||0} 💬${it.comments_count||0}</div>
+                    </div>`).join('')}
+                </div>
+            </div>`;
+        }
+        if (hotData && (hotData.items||[]).length) {
+            strips += `<div class="kh-strip">
+                <div class="kh-strip-title">💬 התגובות החמות</div>
+                <div class="kh-strip-scroll">${(hotData.items||[]).map(it => `
+                    <div class="kh-strip-card" onclick="KH.nav('content',{id:${it.id}})">
+                        ${it.cover_image_url ? `<img class="kh-strip-img" src="${it.cover_image_url}" alt="">` : `<div class="kh-strip-img">💬</div>`}
+                        <div class="kh-strip-title-sm">${esc(it.title)}</div>
+                        <div class="kh-strip-meta">💬 ${it.recent_comments} ב-6 שעות</div>
+                    </div>`).join('')}
+                </div>
+            </div>`;
+        }
+
+        if (!items.length && !strips) {
+            el.innerHTML = sortBar + '<div class="empty-state"><div class="ei">📭</div><p>אין תוכן עדיין בקטגוריה זו</p></div>';
             return;
         }
-        el.innerHTML = `<div class="feed-grid">${items.map(it => KH.renderFeedCard(it)).join('')}</div>`;
+        el.innerHTML = sortBar + strips + `<div class="feed-grid">${items.map(it => KH.renderFeedCard(it)).join('')}</div>`;
     },
 
     renderFeedCard(it) {
@@ -134,12 +175,13 @@ const KH = {
             ? `<img class="feed-card-img" src="${it.cover_image_url}" alt="" loading="lazy">`
             : `<div class="feed-card-img">${TYPE_ICONS[it.content_type] || '📄'}</div>`;
         const pin = it.is_pinned_global ? '<span class="pin-badge">📌 מוצמד</span>' : it.is_pinned_local ? '<span class="pin-badge">📌</span>' : '';
+        const engagement = `<span>👍 ${it.likes_count||0}</span><span>💬 ${it.comments_count||0}</span>`;
         return `<div class="feed-card" onclick="KH.nav('content',{id:${it.id}})">
             ${img}
             <div class="feed-card-body">
                 <div class="feed-card-meta">
                     <span class="type-badge type-${it.content_type}">${TYPE_LABELS[it.content_type]}</span>
-                    <span style="font-size:.65rem;color:var(--muted2)">${it.category_title}</span>
+                    <span style="font-size:.65rem;color:var(--muted2)">${esc(it.category_title)}</span>
                     ${pin}
                 </div>
                 <div class="feed-card-title">${esc(it.title)}</div>
@@ -147,7 +189,7 @@ const KH = {
                 <div class="feed-card-footer">
                     <span>🏘️ ${esc(it.community_name)}</span>
                     <span>⏱ ${it.reading_time_minutes} דק'</span>
-                    <span>👁 ${it.views_count || 0}</span>
+                    ${engagement}
                     <span>${fmtDate(it.published_at)}</span>
                 </div>
             </div>
@@ -156,10 +198,18 @@ const KH = {
 
     // ── Single content ───────────────────────────────────────
     async loadContent(id) {
+        STATE.currentContentId = id;
         document.getElementById('content-inner').innerHTML = '<div class="kh-spinner"></div>';
-        const data = await khFetch(`${API}/content/${id}`);
+        // register view
+        if (CTX.userId) khFetch(`${API}/content/${id}/view`, { method:'POST', body:JSON.stringify({ user_id: CTX.userId }) }).catch(()=>{});
+
+        const [data, stateData] = await Promise.all([
+            khFetch(`${API}/content/${id}`),
+            CTX.userId ? khFetch(`${API}/content/${id}/user-state?user_id=${CTX.userId}`) : Promise.resolve({ reaction: null, saved: false })
+        ]);
         if (!data.success) { document.getElementById('content-inner').innerHTML = '<p>שגיאה בטעינה</p>'; return; }
         const it = data.item;
+        const userState = stateData || { reaction: null, saved: false };
         const tags = Array.isArray(it.tags) ? it.tags : (typeof it.tags === 'string' ? JSON.parse(it.tags || '[]') : []);
         const tagsHtml = tags.length ? `<div class="content-tags">${tags.map(t => `<span class="tag-chip">#${esc(t)}</span>`).join('')}</div>` : '';
         const seriesNav = (it.prev_chapter_id || it.next_chapter_id) ? `
@@ -167,10 +217,29 @@ const KH = {
                 ${it.prev_chapter_id ? `<button class="series-nav-btn" onclick="KH.nav('content',{id:${it.prev_chapter_id}})">← פרק קודם: ${esc(it.prev_chapter_title||'')}</button>` : '<div></div>'}
                 ${it.next_chapter_id ? `<button class="series-nav-btn" onclick="KH.nav('content',{id:${it.next_chapter_id}})">פרק הבא: ${esc(it.next_chapter_title||'')} →</button>` : '<div></div>'}
             </div>` : '';
-        const shareBtn = `<button class="kh-btn kh-btn-outline kh-btn-sm" onclick="KH.share(${it.id},'${esc(it.title).replace(/'/g,"\\'")}')"><i class="fa-solid fa-share-nodes"></i> שיתוף</button>`;
         const isOwner = String(it.author_group_id) === String(CTX.groupId);
         const editBtn = isOwner && ['DRAFT','REJECTED'].includes(it.status) ? `<button class="kh-btn kh-btn-outline kh-btn-sm" onclick="KH.nav('editor',{itemId:${it.id}})"><i class="fa-solid fa-pen"></i> ערוך</button>` : '';
         const deleteBtn = isOwner && it.status !== 'DRAFT' && !it.deletion_requested ? `<button class="kh-btn kh-btn-danger kh-btn-sm" onclick="KH.requestDeletion(${it.id})"><i class="fa-solid fa-flag"></i> בקש מחיקה</button>` : '';
+
+        const engBar = `<div class="engagement-bar" id="eng-bar-${id}">
+            <button class="eng-btn ${userState.reaction==='LIKE'?'eng-active':''}" id="btn-like-${id}" onclick="KH.react(${id},'LIKE')">
+                👍 <span id="like-count-${id}">${it.likes_count||0}</span>
+            </button>
+            <button class="eng-btn ${userState.reaction==='DISLIKE'?'eng-active eng-dislike':''}" id="btn-dislike-${id}" onclick="KH.react(${id},'DISLIKE')">
+                👎 <span id="dislike-count-${id}">${it.dislikes_count||0}</span>
+            </button>
+            <button class="eng-btn ${userState.saved?'eng-active':''}" id="btn-save-${id}" onclick="KH.toggleSave(${id})">
+                ⭐ <span id="save-count-${id}">${it.saves_count||0}</span>
+            </button>
+            <button class="eng-btn" onclick="KH.share(${id},'${esc(it.title).replace(/'/g,"\\'")}')">
+                📤 שיתוף
+            </button>
+            <button class="eng-btn" onclick="document.getElementById('comments-section').scrollIntoView({behavior:'smooth'})">
+                💬 <span>${it.comments_count||0}</span>
+            </button>
+            <button class="eng-btn" onclick="KH.openReport(${id}, null)">⚠️</button>
+        </div>`;
+
         document.getElementById('content-inner').innerHTML = `
             ${it.cover_image_url ? `<img class="content-cover" src="${it.cover_image_url}" alt="">` : ''}
             <div class="content-category-label">${esc(it.category_title)} ${it.scope_type === 'GLOBAL' ? '🌍' : '🏠'}</div>
@@ -183,21 +252,200 @@ const KH = {
                 ${it.updated_at ? `<span>עודכן: ${fmtDate(it.updated_at)}</span>` : ''}
                 <span>⏱ ${it.reading_time_minutes} דק' קריאה</span>
             </div>
-            <div style="display:flex;gap:.5rem;margin-bottom:1rem">${shareBtn}${editBtn}${deleteBtn}</div>
+            <div style="display:flex;gap:.5rem;margin-bottom:.5rem">${editBtn}${deleteBtn}</div>
+            ${engBar}
             <div class="content-html">${it.content_html}</div>
             ${tagsHtml}
             ${seriesNav}
+            ${it.comments_enabled !== false ? `<div id="comments-section" class="comments-section"></div>` : '<p style="color:var(--muted2);text-align:center;margin:1rem 0">התגובות מושבתות לפריט זה</p>'}
         `;
+
+        if (it.comments_enabled !== false) {
+            KH.loadComments(id, it.content_type);
+        }
+    },
+
+    async react(id, type) {
+        if (!CTX.userId) { toast('יש להתחבר כדי להגיב', 'error'); return; }
+        const r = await khFetch(`${API}/content/${id}/react`, { method:'POST', body:JSON.stringify({ user_id: CTX.userId, type }) });
+        if (r.success) {
+            const m = r.metrics || {};
+            const el = document.getElementById(`like-count-${id}`);
+            const el2 = document.getElementById(`dislike-count-${id}`);
+            if (el) el.textContent = m.likes_count || 0;
+            if (el2) el2.textContent = m.dislikes_count || 0;
+            const likeBtn = document.getElementById(`btn-like-${id}`);
+            const dislikeBtn = document.getElementById(`btn-dislike-${id}`);
+            if (likeBtn) likeBtn.classList.toggle('eng-active', r.userReaction === 'LIKE');
+            if (dislikeBtn) dislikeBtn.classList.toggle('eng-active', r.userReaction === 'DISLIKE');
+            if (dislikeBtn) dislikeBtn.classList.toggle('eng-dislike', r.userReaction === 'DISLIKE');
+        }
+    },
+
+    async toggleSave(id) {
+        if (!CTX.userId) { toast('יש להתחבר כדי לשמור', 'error'); return; }
+        const r = await khFetch(`${API}/content/${id}/save`, { method:'POST', body:JSON.stringify({ user_id: CTX.userId }) });
+        if (r.success) {
+            const btn = document.getElementById(`btn-save-${id}`);
+            if (btn) btn.classList.toggle('eng-active', r.saved);
+            toast(r.saved ? 'נשמר לקריאה מאוחר יותר ⭐' : 'הוסר מהשמורים', 'success');
+        }
     },
 
     share(id, title) {
         const url = `${location.origin}/kol-haam?view=content&id=${id}`;
         const text = `קרא/י: ${title}\n${url}`;
+        // log share
+        if (CTX.userId) khFetch(`${API}/content/${id}/share`, { method:'POST', body:JSON.stringify({ user_id: CTX.userId, channel: 'whatsapp' }) }).catch(()=>{});
         if (navigator.share) {
             navigator.share({ title, text, url }).catch(() => {});
         } else {
             location.href = `https://wa.me/?text=${encodeURIComponent(text)}`;
         }
+    },
+
+    // ── Comments ─────────────────────────────────────────────
+    async loadComments(contentId, contentType, sort = 'top') {
+        const section = document.getElementById('comments-section');
+        if (!section) return;
+        section.innerHTML = '<div class="kh-spinner"></div>';
+        const data = await khFetch(`${API}/content/${contentId}/comments?sort=${sort}&user_id=${CTX.userId||''}`);
+        const comments = data.comments || [];
+
+        const sortBar = `<div class="comments-sort-bar">
+            <button class="csort-btn ${sort==='top'?'active':''}" onclick="KH.loadComments(${contentId},'${contentType}','top')">הכי אהובות</button>
+            <button class="csort-btn ${sort==='new'?'active':''}" onclick="KH.loadComments(${contentId},'${contentType}','new')">חדשות</button>
+            <button class="csort-btn ${sort==='author'?'active':''}" onclick="KH.loadComments(${contentId},'${contentType}','author')">הכותב</button>
+            <button class="csort-btn ${sort==='management'?'active':''}" onclick="KH.loadComments(${contentId},'${contentType}','management')">הנהלה</button>
+        </div>`;
+
+        const addForm = `<div class="comment-add-form">
+            <textarea id="new-comment-text" class="comment-input" placeholder="הוסף תגובה..." rows="2"></textarea>
+            <button class="kh-btn kh-btn-primary" onclick="KH.addComment(${contentId}, null)">שלח</button>
+        </div>`;
+
+        const renderComment = (c, depth = 0) => {
+            const indent = depth * 16;
+            const solutionBadge = c.is_solution_marked ? '<span class="solution-badge">✓ פתרון נבחר</span>' : '';
+            const mgmtBadge = c.is_from_zm_or_sa ? '<span class="mgmt-badge">👤 הנהלה</span>' : '';
+            const editedMark = c.is_edited ? '<span style="color:var(--muted2);font-size:.65rem">[נערכה]</span>' : '';
+            const pinIcon = c.is_pinned_by_author ? '📌 ' : '';
+            const solutionClass = c.is_solution_marked ? 'comment-solution' : '';
+            const likeClass = c.userLiked ? 'eng-active' : '';
+            const canMarkSolution = contentType === 'QA_QUESTION' && !c.is_solution_marked;
+            const repliesHtml = (c.replies||[]).map(r => renderComment(r, depth+1)).join('');
+            return `<div class="comment-item ${solutionClass}" id="comment-${c.id}" style="margin-right:${indent}px">
+                ${solutionBadge}
+                <div class="comment-header">
+                    <strong>${esc(pinIcon+c.author_name)}</strong>
+                    ${mgmtBadge}
+                    <span class="comment-time">${fmtDate(c.created_at)}</span>
+                    ${editedMark}
+                </div>
+                <div class="comment-body">${esc(c.content_text)}</div>
+                ${c.solution_upvotes > 0 ? `<div class="solution-votes">🔼 ${c.solution_upvotes} הצבעות כפתרון</div>` : ''}
+                <div class="comment-actions">
+                    <button class="cact-btn ${likeClass}" onclick="KH.likeComment(${c.id},this)">👍 ${c.likes_count||0}</button>
+                    ${depth < 3 ? `<button class="cact-btn" onclick="KH.toggleReply(${c.id},${contentId})">↩ תגובה</button>` : ''}
+                    ${canMarkSolution ? `<button class="cact-btn cact-solution" onclick="KH.markSolution(${contentId},${c.id})">✓ סמן כפתרון</button>` : ''}
+                    ${c.is_solution_marked ? `<button class="cact-btn" onclick="KH.upvoteSolution(${c.id})">🔼 הצבע כפתרון</button>` : ''}
+                    <button class="cact-btn cact-report" onclick="KH.openReport(null,${c.id})">⚠️</button>
+                    ${(CTX.isZM||CTX.isSA) ? `<button class="cact-btn cact-danger" onclick="KH.hideComment(${c.id})">🙈 הסתר</button>` : ''}
+                </div>
+                <div id="reply-form-${c.id}" class="reply-form hidden">
+                    <textarea id="reply-text-${c.id}" class="comment-input" placeholder="כתוב תגובה..." rows="2"></textarea>
+                    <button class="kh-btn kh-btn-primary" onclick="KH.addComment(${contentId},${c.id})">שלח</button>
+                </div>
+                ${repliesHtml}
+            </div>`;
+        };
+
+        section.innerHTML = `
+            <h3 class="comments-title">💬 תגובות (${comments.length})</h3>
+            ${addForm}
+            ${sortBar}
+            <div class="comments-list">${comments.map(c => renderComment(c)).join('')}</div>
+        `;
+    },
+
+    async addComment(contentId, parentId) {
+        if (!CTX.userId) { toast('יש להתחבר כדי לכתוב תגובה', 'error'); return; }
+        const textEl = parentId ? document.getElementById(`reply-text-${parentId}`) : document.getElementById('new-comment-text');
+        const text = textEl?.value?.trim();
+        if (!text) { toast('יש לכתוב טקסט', 'error'); return; }
+        const r = await khFetch(`${API}/content/${contentId}/comments`, {
+            method: 'POST',
+            body: JSON.stringify({ user_id: CTX.userId, content_text: text, parent_comment_id: parentId || null })
+        });
+        if (r.success) {
+            textEl.value = '';
+            if (parentId) document.getElementById(`reply-form-${parentId}`)?.classList.add('hidden');
+            KH.loadComments(contentId, null, 'new');
+        } else {
+            toast(r.error || 'שגיאה בשליחת תגובה', 'error');
+        }
+    },
+
+    toggleReply(commentId, contentId) {
+        const form = document.getElementById(`reply-form-${commentId}`);
+        if (form) form.classList.toggle('hidden');
+    },
+
+    async likeComment(commentId, btn) {
+        if (!CTX.userId) { toast('יש להתחבר', 'error'); return; }
+        const r = await khFetch(`${API}/comments/${commentId}/like`, { method:'POST', body:JSON.stringify({ user_id: CTX.userId }) });
+        if (r.success) {
+            btn.classList.toggle('eng-active', r.liked);
+            const count = parseInt(btn.textContent.replace(/[^0-9]/g,'')) || 0;
+            btn.textContent = `👍 ${r.liked ? count+1 : Math.max(0,count-1)}`;
+        }
+    },
+
+    async markSolution(contentId, commentId) {
+        const r = await khFetch(`${API}/content/${contentId}/mark-solution/${commentId}`, { method:'POST', body:JSON.stringify({ user_id: CTX.userId }) });
+        if (r.success) { toast('פתרון סומן ✓', 'success'); KH.loadComments(contentId, 'QA_QUESTION'); }
+        else toast(r.error||'שגיאה', 'error');
+    },
+
+    async upvoteSolution(commentId) {
+        const r = await khFetch(`${API}/comments/${commentId}/upvote-solution`, { method:'POST', body:JSON.stringify({ user_id: CTX.userId }) });
+        if (r.success) toast(`הצבעה נרשמה 🔼 (${r.solution_upvotes})`, 'success');
+        else toast(r.error||'שגיאה', 'error');
+    },
+
+    async hideComment(commentId) {
+        const ok = await confirm('הסתרת תגובה', 'להסתיר תגובה זו?', 'הסתר', false);
+        if (!ok) return;
+        const r = await khFetch(`${API}/comments/${commentId}`, { method:'DELETE' });
+        if (r.success) {
+            document.getElementById(`comment-${commentId}`)?.remove();
+            toast('תגובה הוסתרה', 'success');
+        }
+    },
+
+    // ── Report modal ──────────────────────────────────────────
+    openReport(contentId, commentId) {
+        STATE.reportTarget = { contentId, commentId };
+        document.getElementById('kh-report-modal')?.classList.add('show');
+    },
+
+    closeReport() {
+        document.getElementById('kh-report-modal')?.classList.remove('show');
+        STATE.reportTarget = null;
+    },
+
+    async submitReport() {
+        if (!CTX.userId) { toast('יש להתחבר', 'error'); return; }
+        const reason = document.querySelector('input[name="report-reason"]:checked')?.value;
+        if (!reason) { toast('יש לבחור סיבה', 'error'); return; }
+        const notes = document.getElementById('report-notes')?.value || '';
+        const { contentId, commentId } = STATE.reportTarget || {};
+        const r = await khFetch(`${API}/report`, {
+            method: 'POST',
+            body: JSON.stringify({ content_item_id: contentId, comment_id: commentId, user_id: CTX.userId, reason, notes })
+        });
+        if (r.success) { toast('הדיווח נשלח', 'success'); KH.closeReport(); }
+        else toast(r.error||'שגיאה', 'error');
     },
 
     async requestDeletion(id) {
@@ -206,6 +454,61 @@ const KH = {
         const r = await khFetch(`${API}/content/${id}/request-deletion`, { method: 'POST', body: JSON.stringify({ userId: CTX.userId }) });
         if (r.success) toast('בקשת המחיקה נשלחה', 'success');
         else toast(r.error || 'שגיאה', 'error');
+    },
+
+    // ── Saved items ──────────────────────────────────────────
+    async loadSaved() {
+        const el = document.getElementById('saved-list');
+        if (!el) { KH.nav('saved'); return; }
+        el.innerHTML = '<div class="kh-spinner"></div>';
+        if (!CTX.userId) { el.innerHTML = '<div class="empty-state"><p>יש להתחבר</p></div>'; return; }
+        const data = await khFetch(`${API}/my-saved?user_id=${CTX.userId}`);
+        const items = data.items || [];
+        if (!items.length) { el.innerHTML = '<div class="empty-state"><div class="ei">⭐</div><p>אין פריטים שמורים</p></div>'; return; }
+        el.innerHTML = items.map(it => `
+            <div class="feed-card" onclick="KH.nav('content',{id:${it.id}})">
+                <div class="feed-card-body">
+                    <div class="feed-card-meta"><span class="type-badge type-${it.content_type}">${TYPE_LABELS[it.content_type]||it.content_type}</span></div>
+                    <div class="feed-card-title">${esc(it.title)}</div>
+                    <div class="feed-card-footer"><span>נשמר: ${fmtDate(it.saved_at)}</span></div>
+                </div>
+            </div>`).join('');
+    },
+
+    // ── ZM: Reports ──────────────────────────────────────────
+    async loadZMReports() {
+        const el = document.getElementById('zm-reports-list') || document.getElementById('zm-reports-list-view');
+        if (!el) return;
+        el.innerHTML = '<div class="kh-spinner"></div>';
+        const data = await khFetch(`${API}/zm/reports`);
+        const reports = data.reports || [];
+        if (!reports.length) { el.innerHTML = '<p class="empty-state">אין דיווחים ממתינים</p>'; return; }
+        el.innerHTML = reports.map(r => `
+            <div class="report-card">
+                <div class="report-header">
+                    <span class="report-reason-badge">${r.reason}</span>
+                    <span class="report-date">${fmtDate(r.created_at)}</span>
+                </div>
+                <div class="report-target">${r.item_title ? `📄 ${esc(r.item_title)}` : `💬 ${esc(r.comment_text||'').slice(0,80)}`}</div>
+                <div class="report-reporter">מדווח: ${esc(r.reporter_name)}</div>
+                <div class="report-actions">
+                    <button class="kh-btn kh-btn-outline kh-btn-sm" onclick="KH.resolveReport(${r.id},'dismiss')">התעלם</button>
+                    ${r.comment_id ? `<button class="kh-btn kh-btn-danger kh-btn-sm" onclick="KH.resolveReport(${r.id},'hide_comment')">הסתר תגובה</button>` : ''}
+                    ${r.content_item_id ? `<button class="kh-btn kh-btn-danger kh-btn-sm" onclick="KH.resolveReport(${r.id},'unpublish_content')">בטל פרסום</button>` : ''}
+                </div>
+            </div>`).join('');
+    },
+
+    async resolveReport(reportId, action) {
+        const r = await khFetch(`${API}/reports/${reportId}/resolve`, { method:'POST', body:JSON.stringify({ action }) });
+        if (r.success) { toast('טופל', 'success'); KH.loadZMReports(); }
+        else toast(r.error||'שגיאה', 'error');
+    },
+
+    async unQuarantine(contentId) {
+        const r = await khFetch(`${API}/content/${contentId}/un-quarantine`, { method:'POST' });
+        if (r.success) toast('שוחרר מהסגר', 'success');
+        else toast(r.error||'שגיאה', 'error');
     },
 
     // ── Editor ───────────────────────────────────────────────

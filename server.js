@@ -26171,7 +26171,8 @@ app.get('/api/kol-haam/feed', async (req, res) => {
         const { scope, category, community_id, page = 1 } = req.query;
         const limit = 20;
         const offset = (parseInt(page) - 1) * limit;
-        let where = `ci.status IN ('PUBLISHED_LOCAL','PUBLISHED_GLOBAL')`;
+        const { sort = 'trending' } = req.query;
+        let where = `ci.status IN ('PUBLISHED_LOCAL','PUBLISHED_GLOBAL') AND COALESCE(ci.is_quarantined,false)=false`;
         const params = [];
         if (scope === 'global') {
             where += ` AND ci.status = 'PUBLISHED_GLOBAL'`;
@@ -26184,18 +26185,23 @@ app.get('/api/kol-haam/feed', async (req, res) => {
             where += ` AND ci.category_id = $${params.length}`;
         }
         params.push(limit, offset);
+        const orderBy = sort === 'new'
+            ? `ci.is_pinned_local DESC, ci.is_pinned_global DESC, ci.published_at DESC`
+            : `ci.is_pinned_local DESC, ci.is_pinned_global DESC, COALESCE(cem.current_trending_score,0) DESC, ci.published_at DESC`;
         const r = await pool.query(`
             SELECT ci.id, ci.title, ci.subtitle, ci.cover_image_url, ci.content_type, ci.scope_type,
                    ci.status, ci.reading_time_minutes, ci.views_count, ci.published_at, ci.is_pinned_local, ci.is_pinned_global,
                    cc.title as category_title, co.name as community_name,
-                   fg.name as author_name, ap.badge_level
+                   fg.name as author_name, ap.badge_level,
+                   COALESCE(cem.likes_count,0) as likes_count, COALESCE(cem.comments_count,0) as comments_count
             FROM content_items ci
             JOIN content_categories cc ON cc.id = ci.category_id
             JOIN communities co ON co.id = ci.community_id
             JOIN author_profiles ap ON ap.id = ci.author_profile_id
             JOIN family_groups fg ON fg.id = ap.family_group_id
+            LEFT JOIN content_engagement_metrics cem ON cem.content_item_id = ci.id
             WHERE ${where}
-            ORDER BY ci.is_pinned_local DESC, ci.is_pinned_global DESC, ci.published_at DESC
+            ORDER BY ${orderBy}
             LIMIT $${params.length - 1} OFFSET $${params.length}
         `, params);
         res.json({ success: true, items: r.rows });
@@ -26732,6 +26738,762 @@ app.get('/api/kol-haam/tags', async (req, res) => {
 })();
 
 // ─── end קול העם Phase 1 ─────────────────────────────────────
+
+// ═══════════════════════════════════════════════════════════════
+// קול העם Phase 2 — מעורבות, דירוג ותגובות
+// ═══════════════════════════════════════════════════════════════
+
+async function initKolHaamPhase2Tables() {
+    const queries = [
+        // engagement metrics
+        `CREATE TABLE IF NOT EXISTS content_engagement_metrics (
+            content_item_id INT PRIMARY KEY REFERENCES content_items(id) ON DELETE CASCADE,
+            likes_count INT DEFAULT 0,
+            dislikes_count INT DEFAULT 0,
+            comments_count INT DEFAULT 0,
+            shares_count INT DEFAULT 0,
+            saves_count INT DEFAULT 0,
+            views_count INT DEFAULT 0,
+            current_trending_score NUMERIC(12,4) DEFAULT 0.0000,
+            last_calculated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )`,
+        // reactions (like/dislike toggle)
+        `CREATE TABLE IF NOT EXISTS content_reactions (
+            content_item_id INT NOT NULL REFERENCES content_items(id) ON DELETE CASCADE,
+            user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            reaction_type VARCHAR(10) NOT NULL CHECK (reaction_type IN ('LIKE','DISLIKE')),
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (content_item_id, user_id)
+        )`,
+        // saves
+        `CREATE TABLE IF NOT EXISTS content_saves (
+            content_item_id INT NOT NULL REFERENCES content_items(id) ON DELETE CASCADE,
+            user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (content_item_id, user_id)
+        )`,
+        // views dedup log
+        `CREATE TABLE IF NOT EXISTS content_views_log (
+            id SERIAL PRIMARY KEY,
+            content_item_id INT NOT NULL REFERENCES content_items(id) ON DELETE CASCADE,
+            user_id INT NULL REFERENCES users(id),
+            viewed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )`,
+        // shares log
+        `CREATE TABLE IF NOT EXISTS content_shares_log (
+            id SERIAL PRIMARY KEY,
+            content_item_id INT NOT NULL REFERENCES content_items(id) ON DELETE CASCADE,
+            user_id INT NOT NULL REFERENCES users(id),
+            share_channel VARCHAR(20) DEFAULT 'whatsapp',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )`,
+        // comments (nested)
+        `CREATE TABLE IF NOT EXISTS content_comments (
+            id SERIAL PRIMARY KEY,
+            content_item_id INT NOT NULL REFERENCES content_items(id) ON DELETE CASCADE,
+            author_user_id INT NOT NULL REFERENCES users(id),
+            parent_comment_id INT NULL REFERENCES content_comments(id),
+            depth_level INT NOT NULL DEFAULT 0,
+            content_text TEXT NOT NULL,
+            is_solution_marked BOOLEAN DEFAULT FALSE,
+            solution_upvotes INT DEFAULT 0,
+            likes_count INT DEFAULT 0,
+            is_pinned_by_author BOOLEAN DEFAULT FALSE,
+            is_from_zm_or_sa BOOLEAN DEFAULT FALSE,
+            is_edited BOOLEAN DEFAULT FALSE,
+            is_hidden BOOLEAN DEFAULT FALSE,
+            report_count INT DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP NULL
+        )`,
+        // comment reactions
+        `CREATE TABLE IF NOT EXISTS comment_reactions (
+            comment_id INT NOT NULL REFERENCES content_comments(id) ON DELETE CASCADE,
+            user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (comment_id, user_id)
+        )`,
+        // solution votes
+        `CREATE TABLE IF NOT EXISTS solution_votes (
+            comment_id INT NOT NULL REFERENCES content_comments(id) ON DELETE CASCADE,
+            user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (comment_id, user_id)
+        )`,
+        // mentions
+        `CREATE TABLE IF NOT EXISTS comment_mentions (
+            id SERIAL PRIMARY KEY,
+            comment_id INT NOT NULL REFERENCES content_comments(id) ON DELETE CASCADE,
+            mentioned_user_id INT NOT NULL REFERENCES users(id),
+            is_read BOOLEAN DEFAULT FALSE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )`,
+        // reports
+        `CREATE TABLE IF NOT EXISTS content_reports (
+            id SERIAL PRIMARY KEY,
+            content_item_id INT NULL REFERENCES content_items(id) ON DELETE CASCADE,
+            comment_id INT NULL REFERENCES content_comments(id) ON DELETE CASCADE,
+            reported_by_user_id INT NOT NULL REFERENCES users(id),
+            reason VARCHAR(30) NOT NULL CHECK (reason IN ('SPAM','MISLEADING','OFFENSIVE','COPYRIGHT','COMMERCIAL','PERSONAL_INFO')),
+            notes TEXT NULL,
+            status VARCHAR(15) DEFAULT 'PENDING' CHECK (status IN ('PENDING','REVIEWED_OK','REVIEWED_ACTIONED')),
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )`,
+        // ALTER existing tables
+        `ALTER TABLE content_items ADD COLUMN IF NOT EXISTS is_quarantined BOOLEAN DEFAULT FALSE`,
+        `ALTER TABLE content_items ADD COLUMN IF NOT EXISTS quarantined_at TIMESTAMP NULL`,
+        `ALTER TABLE content_items ADD COLUMN IF NOT EXISTS report_count INT DEFAULT 0`,
+        `ALTER TABLE content_items ADD COLUMN IF NOT EXISTS pinned_until TIMESTAMP NULL`,
+        `ALTER TABLE content_comments ADD COLUMN IF NOT EXISTS report_count INT DEFAULT 0`,
+        // indexes
+        `CREATE INDEX IF NOT EXISTS idx_content_reactions_item ON content_reactions(content_item_id)`,
+        `CREATE INDEX IF NOT EXISTS idx_content_comments_item ON content_comments(content_item_id)`,
+        `CREATE INDEX IF NOT EXISTS idx_content_comments_parent ON content_comments(parent_comment_id)`,
+        `CREATE INDEX IF NOT EXISTS idx_content_views_log_item ON content_views_log(content_item_id, user_id, viewed_at)`,
+        `CREATE INDEX IF NOT EXISTS idx_content_reports_item ON content_reports(content_item_id)`,
+        `CREATE INDEX IF NOT EXISTS idx_content_reports_comment ON content_reports(comment_id)`,
+        `CREATE INDEX IF NOT EXISTS idx_cem_score ON content_engagement_metrics(current_trending_score DESC)`,
+    ];
+    for (const q of queries) {
+        try { await pool.query(q); } catch(e) { if (!e.message.includes('already exists')) console.error('[kh-p2 init]', e.message); }
+    }
+    // seed metrics rows for existing published items
+    await pool.query(`
+        INSERT INTO content_engagement_metrics(content_item_id, views_count)
+        SELECT id, COALESCE(views_count,0) FROM content_items
+        ON CONFLICT (content_item_id) DO NOTHING
+    `).catch(()=>{});
+    console.log('[kol-haam] Phase 2 tables ready');
+}
+initKolHaamPhase2Tables();
+
+// ── Trending score algorithm ───────────────────────────────────
+function computeTrendingScore(m, publishedAt) {
+    const L = m.likes_count || 0;
+    const D = m.dislikes_count || 0;
+    const C = m.comments_count || 0;
+    const S = m.shares_count || 0;
+    const V = m.saves_count || 0;
+    const hoursAgo = Math.max(0, (Date.now() - new Date(publishedAt).getTime()) / 3600000);
+    return (2*L - 1*D + 3*C + 5*S + 4*V) / Math.pow(hoursAgo + 2, 1.3);
+}
+
+async function recalculateTrendingScores() {
+    try {
+        const { rows } = await pool.query(`
+            SELECT ci.id, ci.published_at,
+                   cem.likes_count, cem.dislikes_count, cem.comments_count, cem.shares_count, cem.saves_count
+            FROM content_items ci
+            JOIN content_engagement_metrics cem ON cem.content_item_id = ci.id
+            WHERE ci.status IN ('PUBLISHED_LOCAL','PUBLISHED_GLOBAL')
+              AND (ci.published_at IS NULL OR ci.published_at > NOW() - INTERVAL '90 days')
+        `);
+        for (const r of rows) {
+            const score = computeTrendingScore(r, r.published_at || new Date());
+            await pool.query(
+                `UPDATE content_engagement_metrics SET current_trending_score=$1, last_calculated_at=NOW() WHERE content_item_id=$2`,
+                [score.toFixed(4), r.id]
+            );
+        }
+    } catch(e) { console.error('[kh trending cron]', e.message); }
+}
+// Run immediately + every 15 minutes
+recalculateTrendingScores();
+setInterval(recalculateTrendingScores, 15 * 60 * 1000);
+
+// helper: ensure metrics row exists
+async function ensureMetricsRow(itemId) {
+    await pool.query(
+        `INSERT INTO content_engagement_metrics(content_item_id) VALUES($1) ON CONFLICT DO NOTHING`,
+        [itemId]
+    ).catch(()=>{});
+}
+
+// ── Phase 2 Endpoints ─────────────────────────────────────────
+
+// POST /api/kol-haam/content/:id/react — like / dislike toggle
+app.post('/api/kol-haam/content/:id/react', async (req, res) => {
+    const { id } = req.params;
+    const { user_id, type } = req.body;
+    if (!user_id || !['LIKE','DISLIKE'].includes(type)) return res.json({ success: false, error: 'invalid' });
+    try {
+        await ensureMetricsRow(id);
+        const { rows } = await pool.query(
+            `SELECT reaction_type FROM content_reactions WHERE content_item_id=$1 AND user_id=$2`,
+            [id, user_id]
+        );
+        const existing = rows[0];
+        if (existing && existing.reaction_type === type) {
+            // toggle off
+            await pool.query(`DELETE FROM content_reactions WHERE content_item_id=$1 AND user_id=$2`, [id, user_id]);
+            const col = type === 'LIKE' ? 'likes_count' : 'dislikes_count';
+            await pool.query(`UPDATE content_engagement_metrics SET ${col}=GREATEST(0,${col}-1) WHERE content_item_id=$1`, [id]);
+        } else if (existing) {
+            // switch
+            await pool.query(`UPDATE content_reactions SET reaction_type=$1 WHERE content_item_id=$2 AND user_id=$3`, [type, id, user_id]);
+            const addCol = type === 'LIKE' ? 'likes_count' : 'dislikes_count';
+            const subCol = type === 'LIKE' ? 'dislikes_count' : 'likes_count';
+            await pool.query(`UPDATE content_engagement_metrics SET ${addCol}=${addCol}+1, ${subCol}=GREATEST(0,${subCol}-1) WHERE content_item_id=$1`, [id]);
+        } else {
+            // new
+            await pool.query(`INSERT INTO content_reactions(content_item_id,user_id,reaction_type) VALUES($1,$2,$3)`, [id, user_id, type]);
+            const col = type === 'LIKE' ? 'likes_count' : 'dislikes_count';
+            await pool.query(`UPDATE content_engagement_metrics SET ${col}=${col}+1 WHERE content_item_id=$1`, [id]);
+        }
+        const { rows: m } = await pool.query(`SELECT likes_count,dislikes_count FROM content_engagement_metrics WHERE content_item_id=$1`, [id]);
+        // check user current reaction
+        const { rows: cur } = await pool.query(`SELECT reaction_type FROM content_reactions WHERE content_item_id=$1 AND user_id=$2`, [id, user_id]);
+        res.json({ success: true, metrics: m[0] || {}, userReaction: cur[0]?.reaction_type || null });
+    } catch(e) { res.json({ success: false, error: e.message }); }
+});
+
+// POST /api/kol-haam/content/:id/save — toggle save
+app.post('/api/kol-haam/content/:id/save', async (req, res) => {
+    const { id } = req.params;
+    const { user_id } = req.body;
+    if (!user_id) return res.json({ success: false, error: 'missing user_id' });
+    try {
+        await ensureMetricsRow(id);
+        const { rows } = await pool.query(`SELECT 1 FROM content_saves WHERE content_item_id=$1 AND user_id=$2`, [id, user_id]);
+        if (rows.length) {
+            await pool.query(`DELETE FROM content_saves WHERE content_item_id=$1 AND user_id=$2`, [id, user_id]);
+            await pool.query(`UPDATE content_engagement_metrics SET saves_count=GREATEST(0,saves_count-1) WHERE content_item_id=$1`, [id]);
+            res.json({ success: true, saved: false });
+        } else {
+            await pool.query(`INSERT INTO content_saves(content_item_id,user_id) VALUES($1,$2)`, [id, user_id]);
+            await pool.query(`UPDATE content_engagement_metrics SET saves_count=saves_count+1 WHERE content_item_id=$1`, [id]);
+            res.json({ success: true, saved: true });
+        }
+    } catch(e) { res.json({ success: false, error: e.message }); }
+});
+
+// GET /api/kol-haam/my-saved
+app.get('/api/kol-haam/my-saved', async (req, res) => {
+    const { user_id } = req.query;
+    if (!user_id) return res.json({ success: false, error: 'missing user_id' });
+    try {
+        const { rows } = await pool.query(`
+            SELECT ci.id, ci.title, ci.subtitle, ci.cover_image_url, ci.content_type, ci.status,
+                   ci.published_at, ci.reading_time_minutes, cs.created_at AS saved_at
+            FROM content_saves cs
+            JOIN content_items ci ON ci.id = cs.content_item_id
+            WHERE cs.user_id=$1
+            ORDER BY cs.created_at DESC
+        `, [user_id]);
+        res.json({ success: true, items: rows });
+    } catch(e) { res.json({ success: false, error: e.message }); }
+});
+
+// POST /api/kol-haam/content/:id/share
+app.post('/api/kol-haam/content/:id/share', async (req, res) => {
+    const { id } = req.params;
+    const { user_id, channel = 'whatsapp' } = req.body;
+    if (!user_id) return res.json({ success: false, error: 'missing user_id' });
+    try {
+        await ensureMetricsRow(id);
+        await pool.query(`INSERT INTO content_shares_log(content_item_id,user_id,share_channel) VALUES($1,$2,$3)`, [id, user_id, channel]);
+        await pool.query(`UPDATE content_engagement_metrics SET shares_count=shares_count+1 WHERE content_item_id=$1`, [id]);
+        const { rows } = await pool.query(`SELECT title,quick_summary_20s FROM content_items WHERE id=$1`, [id]);
+        const item = rows[0] || {};
+        const shareText = `${item.title || ''}${item.quick_summary_20s ? '\n' + item.quick_summary_20s : ''}`;
+        res.json({ success: true, shareText });
+    } catch(e) { res.json({ success: false, error: e.message }); }
+});
+
+// POST /api/kol-haam/content/:id/view — dedup 30 min
+app.post('/api/kol-haam/content/:id/view', async (req, res) => {
+    const { id } = req.params;
+    const { user_id } = req.body;
+    if (!user_id) return res.json({ success: true });
+    try {
+        await ensureMetricsRow(id);
+        const { rows } = await pool.query(
+            `SELECT 1 FROM content_views_log WHERE content_item_id=$1 AND user_id=$2 AND viewed_at > NOW() - INTERVAL '30 minutes'`,
+            [id, user_id]
+        );
+        if (!rows.length) {
+            await pool.query(`INSERT INTO content_views_log(content_item_id,user_id) VALUES($1,$2)`, [id, user_id]);
+            await pool.query(`UPDATE content_engagement_metrics SET views_count=views_count+1 WHERE content_item_id=$1`, [id]);
+        }
+        res.json({ success: true });
+    } catch(e) { res.json({ success: true }); }
+});
+
+// GET /api/kol-haam/content/:id/comments
+app.get('/api/kol-haam/content/:id/comments', async (req, res) => {
+    const { id } = req.params;
+    const { sort = 'top', user_id } = req.query;
+    try {
+        let orderBy = 'c.likes_count DESC, c.created_at DESC';
+        if (sort === 'new') orderBy = 'c.created_at DESC';
+        else if (sort === 'author') orderBy = 'c.is_pinned_by_author DESC, c.created_at ASC';
+        else if (sort === 'management') orderBy = 'c.is_from_zm_or_sa DESC, c.created_at DESC';
+
+        const { rows } = await pool.query(`
+            SELECT c.id, c.parent_comment_id, c.depth_level, c.content_text, c.is_solution_marked,
+                   c.solution_upvotes, c.likes_count, c.is_pinned_by_author, c.is_from_zm_or_sa,
+                   c.is_edited, c.is_hidden, c.created_at, c.updated_at, c.author_user_id,
+                   u.name AS author_name
+            FROM content_comments c
+            JOIN users u ON u.id = c.author_user_id
+            WHERE c.content_item_id=$1 AND c.is_hidden=false
+            ORDER BY c.is_solution_marked DESC, c.is_pinned_by_author DESC, ${orderBy}
+        `, [id]);
+
+        // attach user reaction if user_id provided
+        let userLikes = new Set();
+        if (user_id) {
+            const { rows: lr } = await pool.query(
+                `SELECT comment_id FROM comment_reactions WHERE user_id=$1 AND comment_id = ANY($2)`,
+                [user_id, rows.map(r=>r.id)]
+            );
+            userLikes = new Set(lr.map(r=>r.comment_id));
+        }
+
+        // build nested tree
+        const map = {}, roots = [];
+        rows.forEach(r => { r.userLiked = userLikes.has(r.id); r.replies = []; map[r.id] = r; });
+        rows.forEach(r => {
+            if (r.parent_comment_id && map[r.parent_comment_id]) map[r.parent_comment_id].replies.push(r);
+            else roots.push(r);
+        });
+        res.json({ success: true, comments: roots });
+    } catch(e) { res.json({ success: false, error: e.message }); }
+});
+
+// POST /api/kol-haam/content/:id/comments
+app.post('/api/kol-haam/content/:id/comments', async (req, res) => {
+    const { id } = req.params;
+    const { user_id, content_text, parent_comment_id } = req.body;
+    if (!user_id || !content_text) return res.json({ success: false, error: 'שדות חסרים' });
+    try {
+        let depthLevel = 0;
+        if (parent_comment_id) {
+            const { rows } = await pool.query(`SELECT depth_level FROM content_comments WHERE id=$1`, [parent_comment_id]);
+            if (!rows.length) return res.json({ success: false, error: 'תגובת הורה לא נמצאה' });
+            depthLevel = rows[0].depth_level + 1;
+            if (depthLevel > 3) return res.json({ success: false, error: 'הגעת לעומק המקסימלי של דיון' });
+        }
+        // check if ZM/SA
+        const { rows: ur } = await pool.query(`SELECT role FROM users WHERE id=$1`, [user_id]);
+        const isZmSa = ur[0] && ['ZM','SA','ZONE_MANAGER','SUPERADMIN'].includes(ur[0].role);
+
+        const { rows: inserted } = await pool.query(`
+            INSERT INTO content_comments(content_item_id,author_user_id,parent_comment_id,depth_level,content_text,is_from_zm_or_sa)
+            VALUES($1,$2,$3,$4,$5,$6) RETURNING id
+        `, [id, user_id, parent_comment_id || null, depthLevel, content_text, isZmSa || false]);
+
+        await ensureMetricsRow(id);
+        await pool.query(`UPDATE content_engagement_metrics SET comments_count=comments_count+1 WHERE content_item_id=$1`, [id]);
+
+        res.json({ success: true, commentId: inserted[0].id });
+    } catch(e) { res.json({ success: false, error: e.message }); }
+});
+
+// PUT /api/kol-haam/comments/:id — edit within 15 min
+app.put('/api/kol-haam/comments/:id', async (req, res) => {
+    const { id } = req.params;
+    const { user_id, content_text } = req.body;
+    if (!user_id || !content_text) return res.json({ success: false, error: 'שדות חסרים' });
+    try {
+        const { rows } = await pool.query(`SELECT author_user_id, created_at FROM content_comments WHERE id=$1`, [id]);
+        if (!rows.length) return res.json({ success: false, error: 'לא נמצא' });
+        if (rows[0].author_user_id != user_id) return res.json({ success: false, error: 'אין הרשאה' });
+        const ageMin = (Date.now() - new Date(rows[0].created_at).getTime()) / 60000;
+        if (ageMin > 15) return res.json({ success: false, error: 'לא ניתן לערוך תגובה לאחר 15 דקות' });
+        await pool.query(`UPDATE content_comments SET content_text=$1,is_edited=true,updated_at=NOW() WHERE id=$2`, [content_text, id]);
+        res.json({ success: true });
+    } catch(e) { res.json({ success: false, error: e.message }); }
+});
+
+// DELETE /api/kol-haam/comments/:id — ZM or SA only
+app.delete('/api/kol-haam/comments/:id', async (req, res) => {
+    const { id } = req.params;
+    // allow ZM token or SA token
+    const authHeader = req.headers['authorization'] || '';
+    const isSA = authHeader === process.env.SA_SECRET_TOKEN_2026 || authHeader === 'SA_SECRET_TOKEN_2026';
+    const isZM = !!req.zmSession; // set by verifyZoneManager if it ran, but we do manual check here
+    // manual ZM check for this endpoint
+    let isZMManual = false;
+    if (!isSA && authHeader) {
+        try {
+            const { rows } = await pool.query(`SELECT id FROM zone_manager_sessions WHERE token=$1 AND expires_at>NOW()`, [authHeader]);
+            isZMManual = rows.length > 0;
+        } catch(e) {}
+    }
+    if (!isSA && !isZMManual) return res.json({ success: false, error: 'אין הרשאה' });
+    try {
+        await pool.query(`UPDATE content_comments SET is_hidden=true WHERE id=$1`, [id]);
+        res.json({ success: true });
+    } catch(e) { res.json({ success: false, error: e.message }); }
+});
+
+// POST /api/kol-haam/comments/:id/like — toggle
+app.post('/api/kol-haam/comments/:id/like', async (req, res) => {
+    const { id } = req.params;
+    const { user_id } = req.body;
+    if (!user_id) return res.json({ success: false, error: 'missing user_id' });
+    try {
+        const { rows } = await pool.query(`SELECT 1 FROM comment_reactions WHERE comment_id=$1 AND user_id=$2`, [id, user_id]);
+        if (rows.length) {
+            await pool.query(`DELETE FROM comment_reactions WHERE comment_id=$1 AND user_id=$2`, [id, user_id]);
+            await pool.query(`UPDATE content_comments SET likes_count=GREATEST(0,likes_count-1) WHERE id=$1`, [id]);
+            res.json({ success: true, liked: false });
+        } else {
+            await pool.query(`INSERT INTO comment_reactions(comment_id,user_id) VALUES($1,$2)`, [id, user_id]);
+            await pool.query(`UPDATE content_comments SET likes_count=likes_count+1 WHERE id=$1`, [id]);
+            res.json({ success: true, liked: true });
+        }
+    } catch(e) { res.json({ success: false, error: e.message }); }
+});
+
+// POST /api/kol-haam/comments/:id/pin — pin by content author
+app.post('/api/kol-haam/comments/:id/pin', async (req, res) => {
+    const { id } = req.params;
+    const { user_id } = req.body;
+    if (!user_id) return res.json({ success: false, error: 'missing user_id' });
+    try {
+        // toggle
+        const { rows } = await pool.query(`SELECT is_pinned_by_author FROM content_comments WHERE id=$1`, [id]);
+        if (!rows.length) return res.json({ success: false, error: 'לא נמצא' });
+        const newPin = !rows[0].is_pinned_by_author;
+        await pool.query(`UPDATE content_comments SET is_pinned_by_author=$1 WHERE id=$2`, [newPin, id]);
+        res.json({ success: true, pinned: newPin });
+    } catch(e) { res.json({ success: false, error: e.message }); }
+});
+
+// POST /api/kol-haam/content/:id/mark-solution/:comment_id
+app.post('/api/kol-haam/content/:id/mark-solution/:comment_id', async (req, res) => {
+    const { id, comment_id } = req.params;
+    const { user_id } = req.body;
+    if (!user_id) return res.json({ success: false, error: 'missing user_id' });
+    try {
+        const { rows: ci } = await pool.query(`SELECT content_type, author_profile_id FROM content_items WHERE id=$1`, [id]);
+        if (!ci.length) return res.json({ success: false, error: 'לא נמצא' });
+        if (ci[0].content_type !== 'QA_QUESTION') return res.json({ success: false, error: 'רק שאלות תומכות בסימון פתרון' });
+        // verify requester is the content author
+        const { rows: ap } = await pool.query(`SELECT family_group_id FROM author_profiles WHERE id=$1`, [ci[0].author_profile_id]);
+        const { rows: usr } = await pool.query(`SELECT group_id FROM users WHERE id=$1`, [user_id]);
+        if (!ap.length || !usr.length || ap[0].family_group_id != usr[0].group_id) return res.json({ success: false, error: 'רק כותב השאלה יכול לסמן פתרון' });
+        // clear previous solution
+        await pool.query(`UPDATE content_comments SET is_solution_marked=false WHERE content_item_id=$1`, [id]);
+        // mark new solution
+        await pool.query(`UPDATE content_comments SET is_solution_marked=true WHERE id=$1`, [comment_id]);
+        res.json({ success: true });
+    } catch(e) { res.json({ success: false, error: e.message }); }
+});
+
+// POST /api/kol-haam/comments/:id/upvote-solution
+app.post('/api/kol-haam/comments/:id/upvote-solution', async (req, res) => {
+    const { id } = req.params;
+    const { user_id } = req.body;
+    if (!user_id) return res.json({ success: false, error: 'missing user_id' });
+    try {
+        const { rows } = await pool.query(`SELECT 1 FROM solution_votes WHERE comment_id=$1 AND user_id=$2`, [id, user_id]);
+        if (rows.length) return res.json({ success: false, error: 'כבר הצבעת' });
+        await pool.query(`INSERT INTO solution_votes(comment_id,user_id) VALUES($1,$2)`, [id, user_id]);
+        await pool.query(`UPDATE content_comments SET solution_upvotes=solution_upvotes+1 WHERE id=$1`, [id]);
+        const { rows: r } = await pool.query(`SELECT solution_upvotes FROM content_comments WHERE id=$1`, [id]);
+        res.json({ success: true, solution_upvotes: r[0]?.solution_upvotes || 0 });
+    } catch(e) { res.json({ success: false, error: e.message }); }
+});
+
+// POST /api/kol-haam/content/:id/toggle-comments — SA only
+app.post('/api/kol-haam/content/:id/toggle-comments', verifySA, async (req, res) => {
+    const { id } = req.params;
+    try {
+        const { rows } = await pool.query(`SELECT comments_enabled FROM content_items WHERE id=$1`, [id]);
+        if (!rows.length) return res.json({ success: false, error: 'לא נמצא' });
+        const newVal = !rows[0].comments_enabled;
+        await pool.query(`UPDATE content_items SET comments_enabled=$1 WHERE id=$2`, [newVal, id]);
+        res.json({ success: true, comments_enabled: newVal });
+    } catch(e) { res.json({ success: false, error: e.message }); }
+});
+
+// POST /api/kol-haam/report
+app.post('/api/kol-haam/report', async (req, res) => {
+    const { content_item_id, comment_id, user_id, reason, notes } = req.body;
+    if (!user_id || !reason) return res.json({ success: false, error: 'שדות חסרים' });
+    if (!content_item_id && !comment_id) return res.json({ success: false, error: 'נדרש content_item_id או comment_id' });
+    try {
+        await pool.query(
+            `INSERT INTO content_reports(content_item_id,comment_id,reported_by_user_id,reason,notes) VALUES($1,$2,$3,$4,$5)`,
+            [content_item_id || null, comment_id || null, user_id, reason, notes || null]
+        );
+        if (content_item_id) {
+            const { rows } = await pool.query(`UPDATE content_items SET report_count=report_count+1 WHERE id=$1 RETURNING report_count`, [content_item_id]);
+            if (rows[0]?.report_count >= 5) {
+                await pool.query(`UPDATE content_items SET is_quarantined=true, quarantined_at=NOW() WHERE id=$1 AND is_quarantined=false`, [content_item_id]);
+            }
+        }
+        if (comment_id) {
+            const { rows } = await pool.query(`UPDATE content_comments SET report_count=report_count+1 WHERE id=$1 RETURNING report_count`, [comment_id]);
+            if (rows[0]?.report_count >= 5) {
+                await pool.query(`UPDATE content_comments SET is_hidden=true WHERE id=$1`, [comment_id]);
+            }
+        }
+        res.json({ success: true });
+    } catch(e) { res.json({ success: false, error: e.message }); }
+});
+
+// GET /api/kol-haam/zm/reports — ZM sees only their communities' reports
+app.get('/api/kol-haam/zm/reports', verifyZoneManager, async (req, res) => {
+    const { zmSession } = req;
+    try {
+        const { rows: zones } = await pool.query(`SELECT zone_id FROM manager_zones WHERE manager_id=$1`, [zmSession.managerId]);
+        const zoneIds = zones.map(z=>z.zone_id);
+        if (!zoneIds.length) return res.json({ success: true, reports: [] });
+        const { rows } = await pool.query(`
+            SELECT cr.*, ci.title AS item_title, ci.community_id AS item_community_id,
+                   cc.content_text AS comment_text,
+                   u.name AS reporter_name
+            FROM content_reports cr
+            LEFT JOIN content_items ci ON ci.id = cr.content_item_id
+            LEFT JOIN content_comments cc ON cc.id = cr.comment_id
+            JOIN users u ON u.id = cr.reported_by_user_id
+            WHERE cr.status='PENDING'
+              AND (
+                ci.community_id IN (SELECT id FROM communities WHERE zone_id=ANY($1))
+                OR (cr.comment_id IS NOT NULL AND cc.content_item_id IN (SELECT id FROM content_items WHERE community_id IN (SELECT id FROM communities WHERE zone_id=ANY($1))))
+              )
+            ORDER BY cr.created_at DESC
+        `, [zoneIds]);
+        res.json({ success: true, reports: rows });
+    } catch(e) { res.json({ success: false, error: e.message }); }
+});
+
+// GET /api/kol-haam/sa/reports
+app.get('/api/kol-haam/sa/reports', verifySA, async (req, res) => {
+    try {
+        const { rows } = await pool.query(`
+            SELECT cr.*, ci.title AS item_title, ci.is_quarantined, ci.report_count AS item_report_count,
+                   cc.content_text AS comment_text, cc.report_count AS comment_report_count,
+                   u.name AS reporter_name
+            FROM content_reports cr
+            LEFT JOIN content_items ci ON ci.id = cr.content_item_id
+            LEFT JOIN content_comments cc ON cc.id = cr.comment_id
+            JOIN users u ON u.id = cr.reported_by_user_id
+            ORDER BY cr.created_at DESC
+            LIMIT 200
+        `);
+        // also get quarantined items
+        const { rows: quarantined } = await pool.query(`
+            SELECT id, title, report_count, quarantined_at, community_id FROM content_items WHERE is_quarantined=true ORDER BY quarantined_at DESC
+        `);
+        res.json({ success: true, reports: rows, quarantined });
+    } catch(e) { res.json({ success: false, error: e.message }); }
+});
+
+// POST /api/kol-haam/reports/:id/resolve
+app.post('/api/kol-haam/reports/:id/resolve', async (req, res) => {
+    const { id } = req.params;
+    const { action } = req.body; // 'dismiss' | 'hide_comment' | 'unpublish_content'
+    const authHeader = req.headers['authorization'] || '';
+    const isSA = authHeader === process.env.SA_SECRET_TOKEN_2026 || authHeader === 'SA_SECRET_TOKEN_2026';
+    let isZM = false;
+    if (!isSA && authHeader) {
+        try {
+            const { rows } = await pool.query(`SELECT id FROM zone_manager_sessions WHERE token=$1 AND expires_at>NOW()`, [authHeader]);
+            isZM = rows.length > 0;
+        } catch(e) {}
+    }
+    if (!isSA && !isZM) return res.json({ success: false, error: 'אין הרשאה' });
+    try {
+        const { rows: rpt } = await pool.query(`SELECT * FROM content_reports WHERE id=$1`, [id]);
+        if (!rpt.length) return res.json({ success: false, error: 'לא נמצא' });
+        const rptRow = rpt[0];
+        if (action === 'dismiss') {
+            await pool.query(`UPDATE content_reports SET status='REVIEWED_OK' WHERE id=$1`, [id]);
+        } else if (action === 'hide_comment' && rptRow.comment_id) {
+            await pool.query(`UPDATE content_comments SET is_hidden=true WHERE id=$1`, [rptRow.comment_id]);
+            await pool.query(`UPDATE content_reports SET status='REVIEWED_ACTIONED' WHERE id=$1`, [id]);
+        } else if (action === 'unpublish_content' && rptRow.content_item_id) {
+            await pool.query(`UPDATE content_items SET status='DRAFT' WHERE id=$1`, [rptRow.content_item_id]);
+            await pool.query(`UPDATE content_reports SET status='REVIEWED_ACTIONED' WHERE id=$1`, [id]);
+        }
+        res.json({ success: true });
+    } catch(e) { res.json({ success: false, error: e.message }); }
+});
+
+// POST /api/kol-haam/content/:id/un-quarantine — ZM or SA
+app.post('/api/kol-haam/content/:id/un-quarantine', async (req, res) => {
+    const authHeader = req.headers['authorization'] || '';
+    const isSA = authHeader === process.env.SA_SECRET_TOKEN_2026 || authHeader === 'SA_SECRET_TOKEN_2026';
+    let isZM = false;
+    if (!isSA && authHeader) {
+        try {
+            const { rows } = await pool.query(`SELECT id FROM zone_manager_sessions WHERE token=$1 AND expires_at>NOW()`, [authHeader]);
+            isZM = rows.length > 0;
+        } catch(e) {}
+    }
+    if (!isSA && !isZM) return res.json({ success: false, error: 'אין הרשאה' });
+    try {
+        await pool.query(`UPDATE content_items SET is_quarantined=false, quarantined_at=NULL WHERE id=$1`, [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.json({ success: false, error: e.message }); }
+});
+
+// GET /api/kol-haam/feed — OVERRIDE Phase 1 feed to add trending sort + hot strips support
+// We override only by adding ?sort=trending|new support and is_quarantined filter
+// (The existing route at line 26169 handles base feed; we add a new route for trending strips)
+app.get('/api/kol-haam/feed/trending', async (req, res) => {
+    const { community_id, limit = 8 } = req.query;
+    try {
+        let where = `ci.status IN ('PUBLISHED_LOCAL','PUBLISHED_GLOBAL') AND ci.is_quarantined=false`;
+        const params = [];
+        if (community_id) {
+            params.push(community_id);
+            where += ` AND (ci.community_id=$${params.length} OR ci.status='PUBLISHED_GLOBAL')`;
+        }
+        const { rows } = await pool.query(`
+            SELECT ci.id, ci.title, ci.cover_image_url, ci.content_type, ci.reading_time_minutes,
+                   ci.published_at, cem.current_trending_score,
+                   cem.likes_count, cem.comments_count
+            FROM content_items ci
+            JOIN content_engagement_metrics cem ON cem.content_item_id=ci.id
+            WHERE ${where}
+              AND (ci.pinned_until IS NULL OR ci.pinned_until < NOW())
+            ORDER BY cem.current_trending_score DESC
+            LIMIT $${params.length+1}
+        `, [...params, limit]);
+        // pinned hero
+        const { rows: pinned } = await pool.query(`
+            SELECT ci.id, ci.title, ci.cover_image_url, ci.content_type, ci.reading_time_minutes, ci.published_at
+            FROM content_items ci WHERE ci.status='PUBLISHED_GLOBAL' AND ci.pinned_until >= NOW()
+            ORDER BY ci.pinned_until DESC LIMIT 1
+        `);
+        res.json({ success: true, items: rows, hero: pinned[0] || null });
+    } catch(e) { res.json({ success: false, error: e.message }); }
+});
+
+app.get('/api/kol-haam/feed/hot-comments', async (req, res) => {
+    const { community_id, limit = 5 } = req.query;
+    try {
+        let where = `ci.status IN ('PUBLISHED_LOCAL','PUBLISHED_GLOBAL') AND ci.is_quarantined=false`;
+        const params = [];
+        if (community_id) {
+            params.push(community_id);
+            where += ` AND (ci.community_id=$${params.length} OR ci.status='PUBLISHED_GLOBAL')`;
+        }
+        const { rows } = await pool.query(`
+            SELECT ci.id, ci.title, ci.cover_image_url,
+                   COUNT(cc.id) AS recent_comments
+            FROM content_items ci
+            JOIN content_comments cc ON cc.content_item_id=ci.id AND cc.created_at > NOW() - INTERVAL '6 hours'
+            WHERE ${where}
+            GROUP BY ci.id
+            ORDER BY recent_comments DESC
+            LIMIT $${params.length+1}
+        `, [...params, limit]);
+        res.json({ success: true, items: rows });
+    } catch(e) { res.json({ success: false, error: e.message }); }
+});
+
+// GET /api/kol-haam/zm/queue — alias for Phase 1 pending (used by ZM panel built in previous integration step)
+app.get('/api/kol-haam/zm/queue', verifyZoneManager, async (req, res) => {
+    const { zmSession } = req;
+    try {
+        const { rows: zones } = await pool.query(`SELECT zone_id FROM manager_zones WHERE manager_id=$1`, [zmSession.managerId]);
+        const zoneIds = zones.map(z => z.zone_id);
+        if (!zoneIds.length) return res.json({ success: true, items: [] });
+        const { rows } = await pool.query(`
+            SELECT ci.id, ci.title, ci.subtitle, ci.cover_image_url, ci.content_type, ci.scope_type,
+                   ci.quick_summary_20s AS summary, ci.created_at, ci.published_at,
+                   comm.name AS community_name,
+                   u.name AS author_name
+            FROM content_items ci
+            JOIN communities comm ON comm.id = ci.community_id
+            JOIN author_profiles ap ON ap.id = ci.author_profile_id
+            JOIN family_groups fg ON fg.id = ap.family_group_id
+            LEFT JOIN users u ON u.group_id = fg.id AND u.role='ADMIN'
+            WHERE ci.status='PENDING_ZM'
+              AND comm.zone_id = ANY($1)
+            ORDER BY ci.created_at ASC
+        `, [zoneIds]);
+        res.json({ success: true, items: rows });
+    } catch(e) { res.json({ success: false, error: e.message }); }
+});
+
+// GET /api/kol-haam/sa/queue — alias for Phase 1 sa pending global (used by SA panel)
+app.get('/api/kol-haam/sa/queue', verifySA, async (req, res) => {
+    try {
+        const { rows } = await pool.query(`
+            SELECT ci.id, ci.title, ci.subtitle, ci.cover_image_url, ci.content_type,
+                   ci.quick_summary_20s AS summary, ci.published_at, ci.created_at,
+                   comm.name AS community_name
+            FROM content_items ci
+            JOIN communities comm ON comm.id = ci.community_id
+            WHERE ci.status='PENDING_SA' AND ci.sa_approval_status='PENDING'
+            ORDER BY ci.published_at ASC
+        `);
+        res.json({ success: true, items: rows });
+    } catch(e) { res.json({ success: false, error: e.message }); }
+});
+
+// GET /api/kol-haam/sa/categories — all categories (global + local)
+app.get('/api/kol-haam/sa/categories', verifySA, async (req, res) => {
+    try {
+        const { rows } = await pool.query(`SELECT * FROM content_categories ORDER BY scope_level, title`);
+        res.json({ success: true, categories: rows });
+    } catch(e) { res.json({ success: false, error: e.message }); }
+});
+
+// GET /api/kol-haam/sa/delete-requests — alias
+app.get('/api/kol-haam/sa/delete-requests', verifySA, async (req, res) => {
+    try {
+        const { rows } = await pool.query(`
+            SELECT ci.id, ci.title, ci.deletion_requested_by AS reason
+            FROM content_items ci WHERE ci.deletion_requested=true
+        `);
+        res.json({ success: true, requests: rows });
+    } catch(e) { res.json({ success: false, error: e.message }); }
+});
+
+// GET /api/kol-haam/user/reaction/:id — get user's reaction to a content item
+app.get('/api/kol-haam/content/:id/user-state', async (req, res) => {
+    const { id } = req.params;
+    const { user_id } = req.query;
+    if (!user_id) return res.json({ success: true, reaction: null, saved: false });
+    try {
+        const [rct, sav] = await Promise.all([
+            pool.query(`SELECT reaction_type FROM content_reactions WHERE content_item_id=$1 AND user_id=$2`, [id, user_id]),
+            pool.query(`SELECT 1 FROM content_saves WHERE content_item_id=$1 AND user_id=$2`, [id, user_id])
+        ]);
+        res.json({ success: true, reaction: rct.rows[0]?.reaction_type || null, saved: sav.rows.length > 0 });
+    } catch(e) { res.json({ success: true, reaction: null, saved: false }); }
+});
+
+// POST /api/kol-haam/sa/categories — global category (alias for Phase 1 endpoint)
+// (already exists as /api/kol-haam/sa/global-categories, add alias)
+app.post('/api/kol-haam/sa/categories', verifySA, async (req, res) => {
+    const { name, icon, scope_level } = req.body;
+    if (!name) return res.json({ success: false, error: 'שם חסר' });
+    try {
+        const { rows } = await pool.query(
+            `INSERT INTO content_categories(title,icon,scope_level,is_active) VALUES($1,$2,$3,true) RETURNING id`,
+            [name, icon || '📌', scope_level || 'GLOBAL']
+        );
+        res.json({ success: true, id: rows[0].id });
+    } catch(e) { res.json({ success: false, error: e.message }); }
+});
+
+// DELETE /api/kol-haam/sa/categories/:id
+app.delete('/api/kol-haam/sa/categories/:id', verifySA, async (req, res) => {
+    try {
+        await pool.query(`UPDATE content_categories SET is_active=false WHERE id=$1`, [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.json({ success: false, error: e.message }); }
+});
+
+// SA delete content
+app.delete('/api/kol-haam/sa/:id/delete', verifySA, async (req, res) => {
+    try {
+        await pool.query(`DELETE FROM content_items WHERE id=$1`, [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.json({ success: false, error: e.message }); }
+});
+
+// ─── end קול העם Phase 2 ──────────────────────────────────────
 
 app.listen(port, () => {
     console.log(`Server is running on port ${port}`);
