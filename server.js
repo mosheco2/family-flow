@@ -14555,7 +14555,8 @@ app.get('/:alias', (req, res, next) => {
     const alias = req.params.alias;
     
     // התעלם מנתיבים של ה-API, בקשות המכילות נקודה (כמו תמונות, קבצי JS/CSS) או סקריפטים של המערכת
-    if (alias.startsWith('api') || alias.includes('.') || alias === 'setup-db') {
+    const RESERVED_ROUTES = ['setup-db', 'kol-haam', 'game', 'sa-bigscreen'];
+    if (alias.startsWith('api') || alias.includes('.') || RESERVED_ROUTES.includes(alias)) {
         return next();
     }
 

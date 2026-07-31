@@ -1,4 +1,4 @@
-const CACHE_NAME = 'family-flow-v123';
+const CACHE_NAME = 'family-flow-v124';
 const STATIC_ASSETS = [
   '/index.html', '/app.js', '/business.html', '/business-app.js',
   '/manifest.json', '/manifest-business.json', '/favicon.png',
@@ -26,8 +26,8 @@ self.addEventListener('fetch', event => {
     return;
   }
   if (event.request.method !== 'GET') return;
-  // HTML + JS files: network-first (always fresh)
-  if (url.pathname.endsWith('.html') || url.pathname.endsWith('.js') || url.pathname === '/') {
+  // HTML + JS files + dynamic routes: network-first (always fresh)
+  if (url.pathname.endsWith('.html') || url.pathname.endsWith('.js') || url.pathname === '/' || url.pathname === '/kol-haam' || url.pathname.startsWith('/kol-haam/')) {
     event.respondWith(
       fetch(event.request).then(res => {
         if (res && res.status === 200) {
