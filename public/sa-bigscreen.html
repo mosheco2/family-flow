@@ -82,8 +82,8 @@ body::before{content:'';position:fixed;inset:0;
 .ph{display:flex;align-items:center;justify-content:space-between;gap:6px;
   padding:7px 11px;border-bottom:1px solid var(--border);
   background:rgba(255,255,255,.02);flex-shrink:0}
-.pt{font-size:8px;font-weight:900;text-transform:uppercase;letter-spacing:.1em;color:var(--muted2)}
-.plive{display:flex;align-items:center;gap:3px;font-size:8px;font-weight:700;color:var(--cyan)}
+.pt{font-size:12px;font-weight:800;letter-spacing:.02em;color:#fff}
+.plive{display:flex;align-items:center;gap:3px;font-size:9px;font-weight:700;color:var(--cyan)}
 .plive-dot{width:5px;height:5px;border-radius:50%;background:var(--cyan);animation:pdot 1.5s infinite}
 
 /* ─── KPI TILES ─── */
@@ -94,10 +94,9 @@ body::before{content:'';position:fixed;inset:0;
 .ktile::after{content:'↗';position:absolute;top:5px;left:7px;font-size:7px;
   color:var(--muted);opacity:0;transition:opacity .15s}
 .ktile:hover::after{opacity:1}
-.kl{font-size:7px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;
-  color:var(--muted2);margin-bottom:4px}
-.kv{font-size:22px;font-weight:900;font-variant-numeric:tabular-nums;line-height:1}
-.ks{font-size:8px;color:var(--muted2);margin-top:3px;font-variant-numeric:tabular-nums}
+.kl{font-size:11px;font-weight:700;color:#fff;margin-bottom:5px}
+.kv{font-size:26px;font-weight:900;font-variant-numeric:tabular-nums;line-height:1}
+.ks{font-size:10px;color:var(--muted2);margin-top:4px;font-variant-numeric:tabular-nums}
 
 /* Wide KPI (1 col full width) */
 .ktile-wide{background:var(--card);padding:10px 14px;cursor:pointer;
@@ -105,34 +104,34 @@ body::before{content:'';position:fixed;inset:0;
   justify-content:space-between;border-bottom:1px solid var(--border)}
 .ktile-wide:last-child{border-bottom:none}
 .ktile-wide:hover{background:var(--card2)}
-.kwl{font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted2)}
-.kwv{font-size:16px;font-weight:900;font-variant-numeric:tabular-nums;line-height:1.1}
-.kws{font-size:7px;color:var(--muted2);margin-top:2px}
+.kwl{font-size:11px;font-weight:700;color:#fff}
+.kwv{font-size:20px;font-weight:900;font-variant-numeric:tabular-nums;line-height:1.1}
+.kws{font-size:10px;color:var(--muted2);margin-top:2px}
 
 /* ─── LIVE FEED ─── */
 #feed{display:flex;flex-direction:column;gap:2px;padding:5px;
   height:100%;overflow-y:auto;scroll-behavior:smooth}
 #feed::-webkit-scrollbar{width:2px}
 #feed::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
-.frow{display:flex;align-items:flex-start;gap:7px;padding:5px 7px;
+.frow{display:flex;align-items:flex-start;gap:7px;padding:6px 8px;
   border-radius:var(--rs);background:rgba(255,255,255,.02);
   border-right:2px solid transparent;cursor:pointer;
-  transition:background .12s;flex-shrink:0;font-size:10px}
+  transition:background .12s;flex-shrink:0;font-size:12px}
 .frow:hover{background:var(--card2)}
 .frow.new{animation:fin .35s ease}
 @keyframes fin{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:translateY(0)}}
-.fi{font-size:11px;flex-shrink:0;margin-top:1px}
+.fi{font-size:14px;flex-shrink:0;margin-top:1px}
 .fc{flex:1;min-width:0}
-.fm{color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.fmeta{font-size:8px;color:var(--muted2);margin-top:1px}
-.ft{font-size:8px;color:var(--muted);white-space:nowrap;font-variant-numeric:tabular-nums}
+.fm{color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}
+.fmeta{font-size:10px;color:var(--muted2);margin-top:2px}
+.ft{font-size:10px;color:var(--muted);white-space:nowrap;font-variant-numeric:tabular-nums}
 
 /* ─── BARS ─── */
 .bar-row{display:flex;flex-direction:column;gap:5px;padding:6px 11px}
 .bar-item{display:flex;flex-direction:column;gap:2px}
 .bar-top{display:flex;justify-content:space-between;align-items:baseline}
-.bar-name{font-size:9px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:160px}
-.bar-val{font-size:9px;font-weight:800;font-variant-numeric:tabular-nums}
+.bar-name{font-size:11px;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:180px}
+.bar-val{font-size:11px;font-weight:800;font-variant-numeric:tabular-nums}
 .bar-track{height:3px;background:var(--border);border-radius:2px;overflow:hidden}
 .bar-fill{height:100%;border-radius:2px;transition:width .8s ease}
 
@@ -141,13 +140,13 @@ body::before{content:'';position:fixed;inset:0;
 .spark-b{flex:1;min-width:3px;border-radius:1px;opacity:.8;transition:height .5s}
 
 /* ─── TICKET ROWS ─── */
-.trow{display:flex;align-items:center;gap:6px;padding:5px 8px;
+.trow{display:flex;align-items:center;gap:6px;padding:7px 9px;
   border-radius:var(--rs);background:rgba(255,255,255,.02);
-  border:1px solid var(--border);cursor:pointer;font-size:9px}
+  border:1px solid var(--border);cursor:pointer;font-size:11px}
 .trow:hover{background:var(--card2)}
-.tdot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
-.ttxt{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text)}
-.ttime{font-size:7px;color:var(--muted2);white-space:nowrap}
+.tdot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.ttxt{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#fff;font-weight:600}
+.ttime{font-size:10px;color:var(--muted2);white-space:nowrap}
 
 /* ─── ZM ROWS ─── */
 .zmrow{display:flex;align-items:center;justify-content:space-between;
@@ -155,9 +154,9 @@ body::before{content:'';position:fixed;inset:0;
   transition:background .12s}
 .zmrow:last-child{border-bottom:none}
 .zmrow:hover{background:var(--card2)}
-.zmn{font-size:10px;font-weight:600;color:var(--text)}
-.zms{font-size:8px;color:var(--muted2)}
-.zmbadge{font-size:8px;font-weight:800;padding:2px 7px;border-radius:10px}
+.zmn{font-size:12px;font-weight:700;color:#fff}
+.zms{font-size:10px;color:var(--muted2)}
+.zmbadge{font-size:10px;font-weight:800;padding:2px 8px;border-radius:10px}
 .zmbadge.ok{background:rgba(16,185,129,.12);color:var(--emerald)}
 .zmbadge.warn{background:rgba(245,158,11,.12);color:var(--gold)}
 .zmbadge.red{background:rgba(239,68,68,.12);color:var(--red)}
@@ -171,12 +170,11 @@ body::before{content:'';position:fixed;inset:0;
 #bottom{background:var(--panel);border:1px solid var(--border);
   border-radius:var(--r);padding:6px 12px;
   display:flex;align-items:center;gap:8px;flex-shrink:0;overflow:hidden}
-.bl{font-size:7px;font-weight:800;color:var(--muted2);text-transform:uppercase;
-  letter-spacing:.1em;white-space:nowrap}
+.bl{font-size:10px;font-weight:800;color:#fff;white-space:nowrap}
 #bchips{display:flex;gap:5px;overflow-x:auto;flex:1}
 #bchips::-webkit-scrollbar{display:none}
 .bchip{display:flex;align-items:center;gap:4px;flex-shrink:0;
-  padding:3px 9px;border-radius:20px;font-size:8px;font-weight:700;
+  padding:5px 12px;border-radius:20px;font-size:11px;font-weight:700;
   cursor:pointer;border:1px solid;white-space:nowrap;transition:opacity .15s}
 .bchip:hover{opacity:.8}
 .bc-red{background:rgba(239,68,68,.1);color:#FCA5A5;border-color:rgba(239,68,68,.3)}
@@ -199,6 +197,57 @@ body::before{content:'';position:fixed;inset:0;
 
 *{scrollbar-width:thin;scrollbar-color:var(--border) transparent}
 @media(prefers-reduced-motion:reduce){.logo-dot,.plive-dot,.hchip-red{animation:none}}
+
+/* ─── MOBILE ─── */
+@media(max-width:768px){
+  html,body{overflow:auto}
+
+  #root{height:auto;min-height:100vh;padding:6px;gap:5px;overflow:auto}
+
+  /* Header mobile */
+  #hdr{flex-wrap:wrap;gap:6px;padding:8px 10px}
+  .logo{font-size:11px}
+  #clock{font-size:16px}
+  #clock-date{font-size:9px}
+  #screen-nav{display:none}  /* screens hidden on mobile — single scroll layout */
+  #rotate-progress{display:none}
+  .hchip{font-size:10px;padding:5px 10px}
+
+  /* Screens: mobile = stacked single column */
+  #screens{height:auto;overflow:visible}
+  .screen{display:none!important}
+  .screen.visible{display:none!important}
+  #mobile-view{display:flex!important}
+
+  /* KPI tiles bigger tap targets */
+  .ktile{padding:12px 13px}
+  .kl{font-size:12px}
+  .kv{font-size:28px}
+  .ks{font-size:11px}
+  .ktile-wide{padding:12px 14px}
+  .kwl{font-size:12px}
+  .kwv{font-size:22px}
+  .zmrow{padding:10px 12px}
+  .zmn{font-size:13px}
+  .frow{font-size:13px;padding:8px 10px}
+
+  /* Bottom bar */
+  #bottom{flex-wrap:wrap;gap:6px;padding:8px 10px;height:auto}
+  #bchips{flex-wrap:wrap;overflow:visible}
+  .bchip{font-size:12px;padding:6px 13px}
+}
+
+/* Mobile-only view container */
+#mobile-view{display:none;flex-direction:column;gap:6px}
+#mob-screen-tabs{display:flex;gap:4px;overflow-x:auto;padding-bottom:2px}
+#mob-screen-tabs::-webkit-scrollbar{display:none}
+.mob-tab{flex-shrink:0;padding:6px 14px;border-radius:20px;font-size:12px;
+  font-weight:800;border:1px solid var(--border);background:transparent;
+  color:var(--muted2);cursor:pointer;transition:all .2s}
+.mob-tab.active{background:var(--cyan);color:#000;border-color:var(--cyan)}
+.mob-section{display:none;flex-direction:column;gap:6px}
+.mob-section.visible{display:flex}
+.mob-col{display:flex;flex-direction:column;gap:6px}
 </style>
 </head>
 <body>
@@ -731,6 +780,156 @@ body::before{content:'';position:fixed;inset:0;
   </div>
 </div>
 
+<!-- ═══ MOBILE VIEW ═══ -->
+<div id="mobile-view">
+  <!-- Tab bar -->
+  <div id="mob-screen-tabs">
+    <button class="mob-tab active" onclick="mobTab(0,this)">🏠 ראשי</button>
+    <button class="mob-tab" onclick="mobTab(1,this)">💰 פיננסים</button>
+    <button class="mob-tab" onclick="mobTab(2,this)">🎧 פעילות</button>
+    <button class="mob-tab" onclick="mobTab(3,this)">🗺️ שותפים</button>
+  </div>
+
+  <!-- MOB: ראשי -->
+  <div class="mob-section visible" id="mob-0">
+    <div class="mob-col">
+      <div class="panel">
+        <div class="ph"><span class="pt">ישויות</span><span class="plive"><span class="plive-dot"></span>חי</span></div>
+        <div class="kgrid">
+          <div class="ktile" onclick="nav('clients','BUSINESS')"><div class="kl">עסקים</div><div class="kv c-gold" id="m0-biz">--</div><div class="ks" id="m0-biz24"></div></div>
+          <div class="ktile" onclick="nav('clients','FAMILY')"><div class="kl">משפחות</div><div class="kv c-em" id="m0-fam">--</div><div class="ks" id="m0-fam24"></div></div>
+          <div class="ktile" onclick="nav('comm')"><div class="kl">קהילות</div><div class="kv c-cyan" id="m0-comm">--</div><div class="ks" id="m0-conn"></div></div>
+          <div class="ktile" onclick="nav('clients')"><div class="kl">משתמשים</div><div class="kv c-txt" id="m0-users">--</div><div class="ks" id="m0-online"></div></div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="ph"><span class="pt">GMV עסקאות</span></div>
+        <div class="kgrid">
+          <div class="ktile" onclick="nav('finance','overview')"><div class="kl">החודש</div><div class="kv c-em" id="m0-gmv-m">--</div><div class="ks" id="m0-ord-m"></div></div>
+          <div class="ktile" onclick="nav('finance','overview')"><div class="kl">היום</div><div class="kv c-cyan" id="m0-gmv-d">--</div><div class="ks" id="m0-ord-d"></div></div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="ph"><span class="pt">פיננסים</span></div>
+        <div class="ktile-wide" onclick="nav('finance','overview')"><div><div class="kwl">עמלות החודש</div><div class="kwv c-em" id="m0-comm-m">--</div></div><span>💰</span></div>
+        <div class="ktile-wide" onclick="nav('finance','dues')"><div><div class="kwl">חוב פתוח</div><div class="kwv c-gold" id="m0-debt">--</div><div class="kws" id="m0-debt-cnt"></div></div><span>⚠️</span></div>
+        <div class="ktile-wide" onclick="nav('finance','wallets')"><div><div class="kwl">Flow משפחות</div><div class="kwv c-pink" id="m0-fl-fam">--</div></div><span>🪙</span></div>
+        <div class="ktile-wide" onclick="nav('finance','wallets')"><div><div class="kwl">Flow עסקים</div><div class="kwv c-blue" id="m0-fl-biz">--</div></div><span>🪙</span></div>
+      </div>
+      <div class="panel">
+        <div class="ph"><span class="pt">תמיכה</span></div>
+        <div class="kgrid">
+          <div class="ktile" onclick="nav('support')"><div class="kl">פתוחות</div><div class="kv c-red" id="m0-open">--</div></div>
+          <div class="ktile" onclick="nav('support')"><div class="kl">דחופות</div><div class="kv c-gold" id="m0-urgent">--</div></div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="ph"><span class="pt">WhatsApp</span></div>
+        <div class="kgrid">
+          <div class="ktile" onclick="nav('whatsapp')"><div class="kl">מחוברים</div><div class="kv c-wa" id="m0-wa-biz">--</div><div class="ks">עסקים</div></div>
+          <div class="ktile" onclick="nav('whatsapp')"><div class="kl">היום</div><div class="kv c-wa" id="m0-wa-today">--</div><div class="ks" id="m0-wa-month"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MOB: פיננסים -->
+  <div class="mob-section" id="mob-1">
+    <div class="mob-col">
+      <div class="panel">
+        <div class="ph"><span class="pt">GMV חנויות</span></div>
+        <div class="kgrid">
+          <div class="ktile" onclick="nav('finance','overview')"><div class="kl">החודש</div><div class="kv c-em" id="m1-gmv-m">--</div><div class="ks" id="m1-ord-m"></div></div>
+          <div class="ktile" onclick="nav('finance','overview')"><div class="kl">היום</div><div class="kv c-cyan" id="m1-gmv-d">--</div><div class="ks" id="m1-ord-d"></div></div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="ph"><span class="pt">עמלות ופיננסים</span></div>
+        <div class="kgrid">
+          <div class="ktile" onclick="nav('finance','overview')"><div class="kl">עמלות החודש</div><div class="kv c-em" id="m1-comm-m">--</div></div>
+          <div class="ktile" onclick="nav('finance','overview')"><div class="kl">סה"כ</div><div class="kv c-cyan" id="m1-comm-t">--</div></div>
+          <div class="ktile" onclick="nav('finance','dues')"><div class="kl">חוב (₪)</div><div class="kv c-gold" id="m1-debt-a">--</div></div>
+          <div class="ktile" onclick="nav('finance','dues')"><div class="kl">עסקים חייבים</div><div class="kv c-red" id="m1-debt-c">--</div></div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="ph"><span class="pt">Flow מטבעות</span></div>
+        <div class="ktile-wide" onclick="nav('finance','wallets')"><div><div class="kwl">משפחות</div><div class="kwv c-pink" id="m1-fl-fam">--</div><div class="kws" id="m1-fl-fam-c"></div></div><span>🏠</span></div>
+        <div class="ktile-wide" onclick="nav('finance','wallets')"><div><div class="kwl">עסקים</div><div class="kwv c-blue" id="m1-fl-biz">--</div><div class="kws" id="m1-fl-biz-c"></div></div><span>🏪</span></div>
+        <div class="ktile-wide" onclick="nav('finance','wallets')"><div><div class="kwl">קהילות</div><div class="kwv c-cyan" id="m1-fl-comm">--</div><div class="kws" id="m1-fl-comm-c"></div></div><span>🌍</span></div>
+      </div>
+      <div class="panel">
+        <div class="ph"><span class="pt">פרסום</span></div>
+        <div class="kgrid">
+          <div class="ktile" onclick="nav('adslots','orders')"><div class="kl">ממתינות</div><div class="kv c-gold" id="m1-ban-p">--</div></div>
+          <div class="ktile" onclick="nav('adslots')"><div class="kl">פעילים</div><div class="kv c-blue" id="m1-ban-a">--</div></div>
+          <div class="ktile" onclick="nav('finance','adsbilling')"><div class="kl">הכנסות</div><div class="kv c-em" id="m1-ban-r">--</div></div>
+          <div class="ktile" onclick="nav('partners')"><div class="kl">ZM יתרה</div><div class="kv c-gold" id="m1-zm-bal">--</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MOB: פעילות -->
+  <div class="mob-section" id="mob-2">
+    <div class="mob-col">
+      <div class="panel">
+        <div class="ph"><span class="pt">תמיכה</span></div>
+        <div class="kgrid">
+          <div class="ktile" onclick="nav('support')"><div class="kl">פתוחות</div><div class="kv c-red" id="m2-open">--</div></div>
+          <div class="ktile" onclick="nav('support')"><div class="kl">דחופות</div><div class="kv c-gold" id="m2-urgent">--</div></div>
+          <div class="ktile" onclick="nav('support')"><div class="kl">נסגרו 24ש'</div><div class="kv c-em" id="m2-closed">--</div></div>
+          <div class="ktile" onclick="nav('comm')"><div class="kl">ממתינים</div><div class="kv c-cyan" id="m2-pend">--</div></div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="ph"><span class="pt">AI שימוש</span></div>
+        <div class="kgrid">
+          <div class="ktile" onclick="nav('pulse')"><div class="kl">היום</div><div class="kv c-pur" id="m2-ai-t">--</div></div>
+          <div class="ktile" onclick="nav('pulse')"><div class="kl">30 יום</div><div class="kv c-pur" id="m2-ai-m">--</div></div>
+        </div>
+        <div class="bar-row" style="padding-top:8px">
+          <div style="font-size:11px;color:#fff;font-weight:700;margin-bottom:4px">TOP 5</div>
+          <div id="m2-ai-bars"></div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="ph"><span class="pt">WhatsApp</span></div>
+        <div class="kgrid">
+          <div class="ktile" onclick="nav('whatsapp')"><div class="kl">מחוברים</div><div class="kv c-wa" id="m2-wa-b">--</div></div>
+          <div class="ktile" onclick="nav('whatsapp')"><div class="kl">היום</div><div class="kv c-wa" id="m2-wa-t">--</div></div>
+          <div class="ktile" onclick="nav('whatsapp')"><div class="kl">החודש</div><div class="kv c-wa" id="m2-wa-m">--</div></div>
+          <div class="ktile" onclick="nav('whatsapp')"><div class="kl">שגיאות</div><div class="kv c-red" id="m2-wa-e">--</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MOB: שותפים -->
+  <div class="mob-section" id="mob-3">
+    <div class="mob-col">
+      <div class="panel">
+        <div class="ph"><span class="pt">מנהלי אזור</span></div>
+        <div class="kgrid">
+          <div class="ktile" onclick="nav('partners')"><div class="kl">פעילים</div><div class="kv c-em" id="m3-zm-a">--</div></div>
+          <div class="ktile" onclick="nav('partners')"><div class="kl">ממתינים</div><div class="kv c-gold" id="m3-zm-p">--</div></div>
+          <div class="ktile" onclick="nav('partners')"><div class="kl">הונפק</div><div class="kv c-cyan" id="m3-zm-e">--</div></div>
+          <div class="ktile" onclick="nav('partners')"><div class="kl">יתרה לתשלום</div><div class="kv c-gold" id="m3-zm-b">--</div></div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="ph"><span class="pt">רשימת ZM</span></div>
+        <div id="m3-zm-list"></div>
+      </div>
+      <div class="panel">
+        <div class="ph"><span class="pt">ממתינים לטיפול</span></div>
+        <div id="m3-pending"></div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /mobile-view -->
+
 </div><!-- /root -->
 
 <div id="toast"></div>
@@ -990,6 +1189,9 @@ function renderAll(d) {
 
   // ── Bottom chips ──
   renderBottomChips(e, tk, f, bn);
+
+  // ── Mobile ──
+  renderMobile(d);
 }
 
 // ── Render helpers ────────────────────────────────────────────────────────────
@@ -1205,6 +1407,65 @@ function addFeedRow(ev, isNew) {
     <div class="ft">${fmtTime(ev.created_at)}</div>`;
   feed.insertBefore(row, feed.firstChild);
   if (feed.children.length > 80) feed.removeChild(feed.lastChild);
+}
+
+// ── Mobile tab switching ──────────────────────────────────────────────────────
+let mobCurrent = 0;
+function mobTab(n, btn) {
+  document.getElementById(`mob-${mobCurrent}`).classList.remove('visible');
+  document.querySelectorAll('.mob-tab').forEach(b=>b.classList.remove('active'));
+  mobCurrent = n;
+  document.getElementById(`mob-${n}`).classList.add('visible');
+  btn.classList.add('active');
+}
+
+// ── Mobile data bind ──────────────────────────────────────────────────────────
+function renderMobile(d) {
+  const e = d.entities||{}, f=d.finance||{}, or=d.orders||{};
+  const fl=d.flow||{}, wa=d.whatsapp||{}, ai=d.ai||{}, zm=d.zm_finance||{};
+  const tk=d.tickets||{}, bn=d.banner||{};
+  const zmBal = (parseFloat(zm.total_earned)||0)-(parseFloat(zm.total_paid)||0);
+
+  // MOB 0
+  set('m0-biz',fmt(e.businesses)); set('m0-biz24','+'+fmt(e.biz_24h)+' היום');
+  set('m0-fam',fmt(e.families)); set('m0-fam24','+'+fmt(e.fam_24h)+' היום');
+  set('m0-comm',fmt(e.communities)); set('m0-conn',fmt(e.connections)+' חיבורים');
+  set('m0-users',fmt(e.total_users));
+  document.getElementById('m0-online').innerHTML=`<span class="c-em">● ${fmt(e.online_now)}</span> מחוברים`;
+  set('m0-gmv-m',fmtIls(or.gmv_month)); set('m0-ord-m',fmt(or.orders_month)+' הזמנות');
+  set('m0-gmv-d',fmtIls(or.gmv_today)); set('m0-ord-d',fmt(or.orders_today)+' הזמנות');
+  set('m0-comm-m',fmtIls(f.month_commission));
+  set('m0-debt',fmtIls(f.debt_amount)); set('m0-debt-cnt',fmt(f.debt_count)+' עסקים');
+  set('m0-fl-fam',fmtCoin(fl.family?.balance)); set('m0-fl-biz',fmtCoin(fl.business?.balance));
+  set('m0-open',fmt(tk.open_cnt)); set('m0-urgent',fmt(tk.urgent_cnt));
+  set('m0-wa-biz',fmt(wa.active_businesses)); set('m0-wa-today',fmt(wa.today_sent));
+  set('m0-wa-month',fmt(wa.month_sent)+' החודש');
+
+  // MOB 1
+  set('m1-gmv-m',fmtIls(or.gmv_month)); set('m1-ord-m',fmt(or.orders_month)+' הזמנות');
+  set('m1-gmv-d',fmtIls(or.gmv_today)); set('m1-ord-d',fmt(or.orders_today)+' הזמנות');
+  set('m1-comm-m',fmtIls(f.month_commission)); set('m1-comm-t',fmtIls(f.total_commission));
+  set('m1-debt-a',fmtIls(f.debt_amount)); set('m1-debt-c',fmt(f.debt_count));
+  set('m1-fl-fam',fmtCoin(fl.family?.balance)); set('m1-fl-fam-c',fmt(fl.family?.count)+' ארנקים');
+  set('m1-fl-biz',fmtCoin(fl.business?.balance)); set('m1-fl-biz-c',fmt(fl.business?.count)+' ארנקים');
+  set('m1-fl-comm',fmtCoin(fl.community?.balance)); set('m1-fl-comm-c',fmt(fl.community?.count)+' ארנקים');
+  set('m1-ban-p',fmt(bn.pending_orders)); set('m1-ban-a',fmt(bn.active_banners));
+  set('m1-ban-r',fmtIls(bn.ads_revenue_month)); set('m1-zm-bal',fmtIls(zmBal));
+
+  // MOB 2
+  set('m2-open',fmt(tk.open_cnt)); set('m2-urgent',fmt(tk.urgent_cnt));
+  set('m2-closed',fmt(tk.closed_24h));
+  set('m2-pend',fmt((parseInt(e.biz_joins_pending)||0)+(parseInt(e.communities_pending)||0)+(parseInt(e.fam_joins_pending)||0)));
+  set('m2-ai-t',fmt(ai.today_calls)); set('m2-ai-m',fmt(ai.month_calls));
+  set('m2-wa-b',fmt(wa.active_businesses)); set('m2-wa-t',fmt(wa.today_sent));
+  set('m2-wa-m',fmt(wa.month_sent)); set('m2-wa-e',fmt(wa.month_errors));
+  renderAIBars('m2-ai-bars', ai.top_biz||[]);
+
+  // MOB 3
+  set('m3-zm-a',fmt(zm.active_count)); set('m3-zm-p',fmt(e.zm_pending));
+  set('m3-zm-e',fmtIls(zm.total_earned)); set('m3-zm-b',fmtIls(zmBal));
+  renderZMList('m3-zm-list', d.zm_list||[]);
+  renderPendingList('m3-pending', e);
 }
 
 // ── Poll intervals ────────────────────────────────────────────────────────────
