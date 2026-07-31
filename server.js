@@ -26008,7 +26008,9 @@ app.get('/kol-haam/collection/:slug', (req, res) => {
 // קול העם — Phase 1: DB Schema + API
 // ============================================================
 
+let _khPhase1Ready = false;
 async function initKolHaamTables() {
+    if (_khPhase1Ready) return;
     try {
         await pool.query(`
             CREATE TABLE IF NOT EXISTS author_profiles (
@@ -26131,12 +26133,13 @@ async function initKolHaamTables() {
                 );
             }
         }
+        _khPhase1Ready = true;
         console.log('[kol-haam] tables ready');
     } catch(e) {
         console.error('[kol-haam] initKolHaamTables error:', e.message);
     }
 }
-initKolHaamTables();
+setTimeout(() => initKolHaamTables(), 5000);
 
 // ─── helper: get or create author profile ───────────────────
 async function getOrCreateAuthorProfile(groupId, communityId) {
@@ -26753,7 +26756,9 @@ app.get('/api/kol-haam/tags', async (req, res) => {
 // קול העם Phase 2 — מעורבות, דירוג ותגובות
 // ═══════════════════════════════════════════════════════════════
 
+let _khPhase2Ready = false;
 async function initKolHaamPhase2Tables() {
+    if (_khPhase2Ready) return;
     const queries = [
         // engagement metrics
         `CREATE TABLE IF NOT EXISTS content_engagement_metrics (
@@ -26873,9 +26878,10 @@ async function initKolHaamPhase2Tables() {
         SELECT id, COALESCE(views_count,0) FROM content_items
         ON CONFLICT (content_item_id) DO NOTHING
     `).catch(()=>{});
+    _khPhase2Ready = true;
     console.log('[kol-haam] Phase 2 tables ready');
 }
-initKolHaamPhase2Tables();
+setTimeout(() => initKolHaamPhase2Tables(), 7500);
 
 // ── Trending score algorithm ───────────────────────────────────
 function computeTrendingScore(m, publishedAt) {
