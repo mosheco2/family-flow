@@ -5574,6 +5574,19 @@ app.get('/api/settings/login-mode', async (req, res) => {
 });
 
 // alias for /api/system/settings (used by sa-app.js loadSAAssistantLogo)
+// ── Health check — אבחון מהיר ──────────────────────────────────
+app.get('/health', async (req, res) => {
+    const start = Date.now();
+    try {
+        const r = await pool.query('SELECT 1 as ok, NOW() as ts');
+        res.json({ status: 'ok', db: 'connected', ts: r.rows[0].ts, ms: Date.now()-start,
+            pool: { total: pool.totalCount, idle: pool.idleCount, waiting: pool.waitingCount } });
+    } catch(e) {
+        res.status(503).json({ status: 'error', db: 'failed', error: e.message, ms: Date.now()-start,
+            pool: { total: pool.totalCount, idle: pool.idleCount, waiting: pool.waitingCount } });
+    }
+});
+
 app.get('/api/system/settings', async (req, res) => res.redirect('/api/system/public-config'));
 
 app.get('/api/system/public-config', async (req, res) => {
@@ -15044,22 +15057,7 @@ app.post('/api/sa/ai/generate-qa', verifySA, async (req, res) => {
 });
 
 // ראוט למשיכת הגדרות ציבוריות למסך התחברות
-app.get('/api/system/public-config', async (req, res) => {
-    try {
-        const mockConfig = {
-            success: true,
-            globalAiLogo: '/logo.png', 
-            loginSlides: [
-                { image: 'https://images.unsplash.com/photo-1511895426328-dc8714191300?q=80&w=1000&auto=format&fit=crop' }, 
-                { image: 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?q=80&w=1000&auto=format&fit=crop' },  
-                { image: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?q=80&w=1000&auto=format&fit=crop' }   
-            ]
-        };
-        res.json(mockConfig);
-    } catch(e) {
-        res.status(500).json({ error: 'Failed to fetch config' });
-    }
-});
+// (duplicate route removed — real /api/system/public-config is defined earlier)
 
 // ============================================================
 // QA TEST RESULTS — שמירת תוצאות בדיקה per test per env
