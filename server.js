@@ -3153,7 +3153,10 @@ function applyWATpl(tpl, vars) {
     return msg;
 }
 
+let _waRunning = false;
 async function runWhatsAppCron() {
+    if (_waRunning) return;
+    _waRunning = true;
     console.log('[WA-CRON] tick');
     try {
         await ensureWhatsAppTables();
@@ -3224,16 +3227,14 @@ async function runWhatsAppCron() {
                         console.log(`[WA-CRON] order=${ord.id} alreadyOwner=${alreadyOwner}`);
                         if (!alreadyOwner) {
                             console.log(`[WA-CRON] sending to owner ${ownerPhone}`);
-                            const waResult = await sendWhatsApp(pool, groupId, ownerPhone, bizName, applyWATpl(s.tpl_owner_order || gDef.tpl_owner_order || WA_DEFAULTS.owner_order, {שם_לקוח: ord.customer_name || 'לקוח', סכום: ord.total_amount || 0, שם_עסק: bizName}), null, 'owner', 'מנהל', 'new_order');
+                            const waResult = await sendWhatsApp(pool, groupId, ownerPhone, bizName, applyWATpl(s.tpl_owner_order || gDef.tpl_owner_order || WA_DEFAULTS.owner_order, {שם_לקוח: ord.customer_name || 'לקוח', סכום: ord.total_amount || 0, שם_עסק: bizName}), null, 'owner', 'מנהל', 'new_order_owner_' + ord.id);
                             console.log(`[WA-CRON] owner send result:`, JSON.stringify(waResult));
-                            await pool.query(`INSERT INTO whatsapp_log (group_id,message_type,recipient_type,phone,message_body,status) VALUES ($1,'new_order_owner_${ord.id}','internal',$2,'dedup marker','sent')`, [groupId, ownerPhone]).catch(()=>{});
                         }
                         // התראה ללקוח (אישור קבלת הזמנה)
                         if (s.customer_order && ord.customer_phone) {
                             const alreadyCust = await checkAlreadySent(pool, groupId, 'new_order_cust_' + ord.id, ord.customer_phone, 1);
                             if (!alreadyCust) {
-                                await sendWhatsApp(pool, groupId, ord.customer_phone, bizName, applyWATpl(s.tpl_customer_order || gDef.tpl_customer_order || WA_DEFAULTS.customer_order, {שם_לקוח: ord.customer_name || '', סכום: ord.total_amount || 0, שם_עסק: bizName}), null, 'customer', ord.customer_name || 'לקוח', 'customer_order');
-                                await pool.query(`INSERT INTO whatsapp_log (group_id,message_type,recipient_type,phone,message_body,status) VALUES ($1,'new_order_cust_${ord.id}','internal',$2,'dedup marker','sent')`, [groupId, ord.customer_phone]).catch(()=>{});
+                                await sendWhatsApp(pool, groupId, ord.customer_phone, bizName, applyWATpl(s.tpl_customer_order || gDef.tpl_customer_order || WA_DEFAULTS.customer_order, {שם_לקוח: ord.customer_name || '', סכום: ord.total_amount || 0, שם_עסק: bizName}), null, 'customer', ord.customer_name || 'לקוח', 'new_order_cust_' + ord.id);
                             }
                         }
                     }
@@ -3250,8 +3251,7 @@ async function runWhatsAppCron() {
                     for (const task of overdue.rows) {
                         const already = await checkAlreadySent(pool, groupId, 'task_due_' + task.id, ownerPhone, 23);
                         if (!already) {
-                            await sendWhatsApp(pool, groupId, ownerPhone, bizName, applyWATpl(s.tpl_owner_task_due || gDef.tpl_owner_task_due || WA_DEFAULTS.owner_task_due, {שם_משימה: task.title, שם_עסק: bizName}), null, 'owner', 'מנהל', 'task_due');
-                            await pool.query(`INSERT INTO whatsapp_log (group_id,message_type,recipient_type,phone,message_body,status) VALUES ($1,'task_due_${task.id}','internal',$2,'dedup','sent')`, [groupId, ownerPhone]).catch(()=>{});
+                            await sendWhatsApp(pool, groupId, ownerPhone, bizName, applyWATpl(s.tpl_owner_task_due || gDef.tpl_owner_task_due || WA_DEFAULTS.owner_task_due, {שם_משימה: task.title, שם_עסק: bizName}), null, 'owner', 'מנהל', 'task_due_' + task.id);
                         }
                     }
                 } catch(e) {}
@@ -3338,6 +3338,7 @@ async function runWhatsAppCron() {
             }
         }
     } catch (e) { console.error('WhatsApp dynamic types cron error:', e.message); }
+    finally { _waRunning = false; }
 }
 setTimeout(() => { runWhatsAppCron(); setInterval(runWhatsAppCron, 60 * 1000); }, 30 * 1000);
 app.post('/api/ai/chat', verifySA, async (req, res) => {
