@@ -3106,6 +3106,10 @@ async function initDB() {
         for (const col of ovCols) {
             try { await pool.query(`ALTER TABLE whatsapp_settings ADD COLUMN IF NOT EXISTS ov_${col} BOOLEAN DEFAULT NULL`); } catch(e) {}
         }
+        const tplCols = ['owner_order','customer_order','owner_checkin','checkin_summary','owner_task_due','low_inventory','plan_tomorrow'];
+        for (const col of tplCols) {
+            try { await pool.query(`ALTER TABLE whatsapp_settings ADD COLUMN IF NOT EXISTS tpl_${col} TEXT DEFAULT NULL`); } catch(e) {}
+        }
     } catch (e) { console.error('WhatsApp tables init error:', e.message); }
     try {
         await pool.query(`
@@ -3133,6 +3137,22 @@ initDB();
 // ═══════════════════════════════════════════
 // WhatsApp CRON
 // ═══════════════════════════════════════════
+const WA_DEFAULTS = {
+    owner_order: '🛍️ הזמנה חדשה מ-{שם_לקוח}! סכום: ₪{סכום}.\nכנס לניהול: https://oneflowlife.co.il',
+    customer_order: '✅ שלום {שם_לקוח}! קיבלנו את ההזמנה שלך (₪{סכום}).\nנעדכן אותך כשתהיה מוכנה 🙏\nhttps://oneflowlife.co.il',
+    owner_checkin: 'שלום {שם_עובד}, שכחת לדפוק שעון כניסה היום! אנא עדכן את הנוכחות שלך.\nhttps://oneflowlife.co.il',
+    checkin_summary: '📋 {כמות_עובדים} עובד/ים במשמרת היום. בדוק נוכחות.\nhttps://oneflowlife.co.il',
+    owner_task_due: '⚠️ המשימה "{שם_משימה}" עברה את מועד הביצוע!\nhttps://oneflowlife.co.il',
+    low_inventory: '📦 התראת מלאי נמוך:\n{רשימת_מלאי}\nhttps://oneflowlife.co.il',
+    plan_tomorrow: '📅 תזכורת: מחר {כמות_משמרות} משמרת/ות מתוכננת/ות. בדוק את היומן!\nhttps://oneflowlife.co.il'
+};
+
+function applyWATpl(tpl, vars) {
+    let msg = tpl;
+    for (const [k, v] of Object.entries(vars)) msg = msg.replace(new RegExp(`\\{${k}\\}`, 'g'), v ?? '');
+    return msg;
+}
+
 async function runWhatsAppCron() {
     console.log('[WA-CRON] tick');
     try {
@@ -3176,14 +3196,14 @@ async function runWhatsAppCron() {
                         if (alreadyClockedIn.rows.length === 0) {
                             const already = await checkAlreadySent(pool, groupId, 'missing_checkin', emp.phone, 20);
                             if (!already) {
-                                await sendWhatsApp(pool, groupId, emp.phone, bizName, `שלום ${emp.full_name}, שכחת לדפוק שעון כניסה היום! אנא עדכן את הנוכחות שלך.`, null, 'employee', emp.full_name, 'missing_checkin');
+                                await sendWhatsApp(pool, groupId, emp.phone, bizName, applyWATpl(s.tpl_owner_checkin || WA_DEFAULTS.owner_checkin, {שם_עובד: emp.full_name, שם_עסק: bizName}), null, 'employee', emp.full_name, 'missing_checkin');
                             }
                         }
                     }
                     // notify owner summary
                     const already = await checkAlreadySent(pool, groupId, 'checkin_summary', ownerPhone, 20);
                     if (!already && shiftTasks.rows.length > 0) {
-                        await sendWhatsApp(pool, groupId, ownerPhone, bizName, `📋 ${shiftTasks.rows.length} עובד/ים במשמרת היום. בדוק נוכחות.`, null, 'owner', 'מנהל', 'checkin_summary');
+                        await sendWhatsApp(pool, groupId, ownerPhone, bizName, applyWATpl(s.tpl_checkin_summary || WA_DEFAULTS.checkin_summary, {כמות_עובדים: shiftTasks.rows.length, שם_עסק: bizName}), null, 'owner', 'מנהל', 'checkin_summary');
                     }
                 } catch(e) {}
             }
@@ -3202,7 +3222,7 @@ async function runWhatsAppCron() {
                         console.log(`[WA-CRON] order=${ord.id} alreadyOwner=${alreadyOwner}`);
                         if (!alreadyOwner) {
                             console.log(`[WA-CRON] sending to owner ${ownerPhone}`);
-                            const waResult = await sendWhatsApp(pool, groupId, ownerPhone, bizName, `🛍️ הזמנה חדשה מ-${ord.customer_name || 'לקוח'}! סכום: ₪${ord.total_amount || 0}. כנס למערכת לטיפול.`, null, 'owner', 'מנהל', 'new_order');
+                            const waResult = await sendWhatsApp(pool, groupId, ownerPhone, bizName, applyWATpl(s.tpl_owner_order || WA_DEFAULTS.owner_order, {שם_לקוח: ord.customer_name || 'לקוח', סכום: ord.total_amount || 0, שם_עסק: bizName}), null, 'owner', 'מנהל', 'new_order');
                             console.log(`[WA-CRON] owner send result:`, JSON.stringify(waResult));
                             await pool.query(`INSERT INTO whatsapp_log (group_id,message_type,recipient_type,recipient_phone,content,status) VALUES ($1,'new_order_owner_${ord.id}','internal',$2,'dedup marker','sent')`, [groupId, ownerPhone]).catch(()=>{});
                         }
@@ -3210,7 +3230,7 @@ async function runWhatsAppCron() {
                         if (s.customer_order && ord.customer_phone) {
                             const alreadyCust = await checkAlreadySent(pool, groupId, 'new_order_cust_' + ord.id, ord.customer_phone, 1);
                             if (!alreadyCust) {
-                                await sendWhatsApp(pool, groupId, ord.customer_phone, bizName, `✅ שלום ${ord.customer_name || ''}! קיבלנו את ההזמנה שלך (₪${ord.total_amount || 0}). נעדכן אותך כשתהיה מוכנה 🙏`, null, 'customer', ord.customer_name || 'לקוח', 'customer_order');
+                                await sendWhatsApp(pool, groupId, ord.customer_phone, bizName, applyWATpl(s.tpl_customer_order || WA_DEFAULTS.customer_order, {שם_לקוח: ord.customer_name || '', סכום: ord.total_amount || 0, שם_עסק: bizName}), null, 'customer', ord.customer_name || 'לקוח', 'customer_order');
                                 await pool.query(`INSERT INTO whatsapp_log (group_id,message_type,recipient_type,recipient_phone,content,status) VALUES ($1,'new_order_cust_${ord.id}','internal',$2,'dedup marker','sent')`, [groupId, ord.customer_phone]).catch(()=>{});
                             }
                         }
@@ -3228,7 +3248,7 @@ async function runWhatsAppCron() {
                     for (const task of overdue.rows) {
                         const already = await checkAlreadySent(pool, groupId, 'task_due_' + task.id, ownerPhone, 23);
                         if (!already) {
-                            await sendWhatsApp(pool, groupId, ownerPhone, bizName, `⚠️ המשימה "${task.title}" עברה את מועד הביצוע!`, null, 'owner', 'מנהל', 'task_due');
+                            await sendWhatsApp(pool, groupId, ownerPhone, bizName, applyWATpl(s.tpl_owner_task_due || WA_DEFAULTS.owner_task_due, {שם_משימה: task.title, שם_עסק: bizName}), null, 'owner', 'מנהל', 'task_due');
                             await pool.query(`INSERT INTO whatsapp_log (group_id,message_type,recipient_type,recipient_phone,content,status) VALUES ($1,'task_due_${task.id}','internal',$2,'dedup','sent')`, [groupId, ownerPhone]).catch(()=>{});
                         }
                     }
@@ -3243,7 +3263,7 @@ async function runWhatsAppCron() {
                         const lowItems = await pool.query(`SELECT name, quantity, min_quantity FROM pantry WHERE group_id=$1 AND min_quantity IS NOT NULL AND quantity <= min_quantity`, [groupId]);
                         if (lowItems.rows.length > 0) {
                             const list = lowItems.rows.map(i => `• ${i.name}: ${i.quantity}/${i.min_quantity}`).join('\n');
-                            await sendWhatsApp(pool, groupId, ownerPhone, bizName, `📦 התראת מלאי נמוך:\n${list}`, null, 'owner', 'מנהל', 'low_inventory');
+                            await sendWhatsApp(pool, groupId, ownerPhone, bizName, applyWATpl(s.tpl_low_inventory || WA_DEFAULTS.low_inventory, {רשימת_מלאי: list, שם_עסק: bizName}), null, 'owner', 'מנהל', 'low_inventory');
                         }
                     }
                 } catch(e) {}
@@ -3258,7 +3278,7 @@ async function runWhatsAppCron() {
                         const tStr = tomorrow.toISOString().slice(0,10);
                         const shifts = await pool.query(`SELECT COUNT(*) as cnt FROM tasks WHERE group_id=$1 AND title LIKE $2`, [groupId, `SHIFT|${tStr}|%`]);
                         const cnt = parseInt(shifts.rows[0]?.cnt) || 0;
-                        await sendWhatsApp(pool, groupId, ownerPhone, bizName, `📅 תזכורת: מחר ${cnt} משמרת/ות מתוכננת/ות. בדוק את היומן!`, null, 'owner', 'מנהל', 'plan_tomorrow');
+                        await sendWhatsApp(pool, groupId, ownerPhone, bizName, applyWATpl(s.tpl_plan_tomorrow || WA_DEFAULTS.plan_tomorrow, {כמות_משמרות: cnt, שם_עסק: bizName}), null, 'owner', 'מנהל', 'plan_tomorrow');
                     }
                 } catch(e) {}
             }
@@ -26060,8 +26080,15 @@ app.get('/api/sa/whatsapp-stats/:groupId', verifySA, async (req, res) => {
 app.patch('/api/sa/whatsapp-settings/:groupId', verifySA, async (req, res) => {
     try {
         const { groupId } = req.params;
-        const { enabled } = req.body;
-        await pool.query(`INSERT INTO whatsapp_settings (group_id, enabled) VALUES ($1,$2) ON CONFLICT (group_id) DO UPDATE SET enabled=$2, updated_at=NOW()`, [parseInt(groupId), !!enabled]);
+        const s = req.body;
+        await pool.query(`INSERT INTO whatsapp_settings (group_id, enabled) VALUES ($1,$2) ON CONFLICT (group_id) DO UPDATE SET enabled=$2, updated_at=NOW()`, [parseInt(groupId), !!s.enabled]);
+        const tplFields = ['owner_order','customer_order','owner_checkin','checkin_summary','owner_task_due','low_inventory','plan_tomorrow'];
+        for (const field of tplFields) {
+            if (s[`tpl_${field}`] !== undefined) {
+                await pool.query(`UPDATE whatsapp_settings SET tpl_${field}=$1, updated_at=NOW() WHERE group_id=$2`,
+                    [s[`tpl_${field}`] || null, parseInt(groupId)]);
+            }
+        }
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });

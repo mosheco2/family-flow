@@ -11525,6 +11525,40 @@ async function openSAWhatsAppModal(groupId, bizName, tab) {
     await _renderSAWhatsAppModalBody(groupId, tab || 'stats');
 }
 
+const WA_DEFAULTS_JS = {
+    owner_order: '🛍️ הזמנה חדשה מ-{שם_לקוח}! סכום: ₪{סכום}.\nכנס לניהול: https://oneflowlife.co.il',
+    customer_order: '✅ שלום {שם_לקוח}! קיבלנו את ההזמנה שלך (₪{סכום}).\nנעדכן אותך כשתהיה מוכנה 🙏\nhttps://oneflowlife.co.il',
+    owner_checkin: 'שלום {שם_עובד}, שכחת לדפוק שעון כניסה היום! אנא עדכן את הנוכחות שלך.\nhttps://oneflowlife.co.il',
+    checkin_summary: '📋 {כמות_עובדים} עובד/ים במשמרת היום. בדוק נוכחות.\nhttps://oneflowlife.co.il',
+    owner_task_due: '⚠️ המשימה "{שם_משימה}" עברה את מועד הביצוע!\nhttps://oneflowlife.co.il',
+    low_inventory: '📦 התראת מלאי נמוך:\n{רשימת_מלאי}\nhttps://oneflowlife.co.il',
+    plan_tomorrow: '📅 תזכורת: מחר {כמות_משמרות} משמרת/ות מתוכננת/ות. בדוק את היומן!\nhttps://oneflowlife.co.il'
+};
+
+const TPL_DEFS = [
+    {key:'owner_order', label:'הזמנה חדשה — לבעל עסק', vars:'{שם_לקוח}, {סכום}, {שם_עסק}'},
+    {key:'customer_order', label:'הזמנה חדשה — ללקוח', vars:'{שם_לקוח}, {סכום}, {שם_עסק}'},
+    {key:'owner_checkin', label:'שכחת שעון כניסה — לעובד', vars:'{שם_עובד}, {שם_עסק}'},
+    {key:'checkin_summary', label:'סיכום משמרת — לבעל עסק', vars:'{כמות_עובדים}, {שם_עסק}'},
+    {key:'owner_task_due', label:'משימה שפג תוקפה — לבעל עסק', vars:'{שם_משימה}, {שם_עסק}'},
+    {key:'low_inventory', label:'מלאי נמוך — לבעל עסק', vars:'{רשימת_מלאי}, {שם_עסק}'},
+    {key:'plan_tomorrow', label:'תזכורת תכנון מחר — לבעל עסק', vars:'{כמות_משמרות}, {שם_עסק}'},
+];
+
+async function saveSAWhatsAppTemplates(groupId) {
+    const body = {};
+    const keys = ['owner_order','customer_order','owner_checkin','checkin_summary','owner_task_due','low_inventory','plan_tomorrow'];
+    for (const k of keys) {
+        const el = document.getElementById(`wa-tpl-${k}-${groupId}`);
+        if (el) body[`tpl_${k}`] = el.value.trim() || null;
+    }
+    try {
+        const d = await saFetch(`/api/sa/whatsapp-settings/${groupId}`, {method:'PATCH', body:JSON.stringify(body)});
+        if (d.success) showToast('success', 'תבניות נשמרו!');
+        else showToast('error', d.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+}
+
 async function _renderSAWhatsAppModalBody(groupId, activeTab) {
     const body = document.getElementById(`wa-modal-body-${groupId}`);
     if (!body) return;
@@ -11537,6 +11571,7 @@ async function _renderSAWhatsAppModalBody(groupId, activeTab) {
         const total = statsRes.total || 0;
         const byType = statsRes.byType || [];
         const enabled = settingsRes.settings?.enabled || false;
+        const settings = settingsRes.settings || {};
         const { defaults, overrides, effective } = ovsRes;
         const hasOverrides = Object.keys(overrides||{}).some(k => overrides[k] !== null && overrides[k] !== undefined);
 
@@ -11600,6 +11635,26 @@ async function _renderSAWhatsAppModalBody(groupId, activeTab) {
                 </button>
                 <button onclick="clearSAWhatsAppOverrides(${groupId})" class="bg-slate-100 text-slate-600 font-bold py-2.5 px-4 rounded-xl text-sm hover:bg-slate-200 transition" title="אפס הכל לגלובלי">
                     <i class="fa-solid fa-rotate-left"></i>
+                </button>
+            </div>
+
+            <!-- תבניות הודעות -->
+            <div style="margin-top:1.5rem;">
+                <div style="font-weight:700;font-size:0.95rem;color:#1e293b;margin-bottom:0.75rem;padding-bottom:0.5rem;border-bottom:2px solid #e2e8f0;">
+                    📝 תבניות הודעות WhatsApp
+                </div>
+                ${TPL_DEFS.map(t => {
+                    const curVal = settings[`tpl_${t.key}`] || '';
+                    const defVal = WA_DEFAULTS_JS[t.key] || '';
+                    return `<div style="margin-bottom:1rem;">
+                        <label style="font-weight:700;font-size:0.875rem;color:#1e293b;display:block;margin-bottom:0.25rem;">${t.label}</label>
+                        <span style="font-size:0.75rem;color:#64748b;margin-bottom:0.25rem;display:block;">משתנים זמינים: ${t.vars}</span>
+                        <textarea id="wa-tpl-${t.key}-${groupId}" style="width:100%;padding:0.5rem;border:1px solid #e2e8f0;border-radius:0.375rem;font-size:0.8rem;min-height:80px;resize:vertical;font-family:inherit;direction:rtl;box-sizing:border-box;" placeholder="${defVal.replace(/"/g,'&quot;')}">${curVal}</textarea>
+                        <button onclick="document.getElementById('wa-tpl-${t.key}-${groupId}').value=''" style="font-size:0.7rem;color:#94a3b8;background:none;border:none;cursor:pointer;padding:0;margin-top:0.25rem;">↺ אפס לדיפולט</button>
+                    </div>`;
+                }).join('')}
+                <button onclick="saveSAWhatsAppTemplates(${groupId})" style="background:#25D366;color:#fff;border:none;padding:0.5rem 1.5rem;border-radius:0.5rem;font-weight:700;cursor:pointer;width:100%;margin-top:0.5rem;font-size:0.9rem;">
+                    💾 שמור תבניות
                 </button>
             </div>`;
     } catch(e) { body.innerHTML = `<div class="text-red-500 text-sm">${e.message}</div>`; }
@@ -11799,6 +11854,7 @@ window.loadSAWhatsAppHub = loadSAWhatsAppHub;
 window.saveGlobalWADefaults = saveGlobalWADefaults;
 window.openSAWhatsAppModal = openSAWhatsAppModal;
 window.saveSAWhatsAppOverrides = saveSAWhatsAppOverrides;
+window.saveSAWhatsAppTemplates = saveSAWhatsAppTemplates;
 window.clearSAWhatsAppOverrides = clearSAWhatsAppOverrides;
 window.toggleSAWhatsApp = toggleSAWhatsApp;
 window.openWATypeModal = openWATypeModal;
