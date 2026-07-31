@@ -4899,7 +4899,7 @@ app.delete('/api/sa/staff/:id', verifySA, async (req, res) => {
 // --- עריכת שם סביבה (משפחה/עסק) והאימייל שלה מהאדמין כולל הרשאות מודולים ---
 app.put('/api/sa/groups/:id', async (req, res) => {
     try {
-        const { name, adminEmail, features, city, streetAddress, adminPhone, lastName, familyNickname, bizType, contactName } = req.body;
+        const { name, adminEmail, features, city, streetAddress, adminPhone, adminFirstName, lastName, familyNickname, bizType, contactName } = req.body;
         const vals = [name, adminEmail ? adminEmail.toLowerCase().trim() : null];
         const sets = ['name=$1', 'admin_email=$2'];
         if (features !== undefined) { vals.push(JSON.stringify(features)); sets.push(`features=$${vals.length}`); }
@@ -4911,9 +4911,12 @@ app.put('/api/sa/groups/:id', async (req, res) => {
         if (contactName !== undefined) { vals.push(contactName || null); sets.push(`contact_name=$${vals.length}`); }
         vals.push(req.params.id);
         await pool.query(`UPDATE family_groups SET ${sets.join(', ')} WHERE id=$${vals.length}`, vals);
-        // עדכון טלפון מנהל בטבלת users
+        // עדכון פרטי מנהל בטבלת users
         if (adminPhone !== undefined) {
             await pool.query(`UPDATE users SET phone=$1 WHERE group_id=$2 AND role='ADMIN'`, [adminPhone || null, req.params.id]);
+        }
+        if (adminFirstName !== undefined) {
+            await pool.query(`UPDATE users SET first_name=$1 WHERE group_id=$2 AND role='ADMIN'`, [adminFirstName || null, req.params.id]);
         }
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
@@ -5616,7 +5619,7 @@ app.post('/api/admin/send-credentials', async (req, res) => {
 
 app.post('/api/join', async (req, res) => {
     try {
-        const { groupCode, nickname, birthYear, password, role, email, employee_role_type } = req.body;
+        const { groupCode, nickname, birthYear, password, role, email, employee_role_type, firstName, lastName } = req.body;
         if (!groupCode || !nickname || !password || !email) return res.status(400).json({ error: 'חסרים נתונים חובה' });
         
         const gRes = await pool.query('SELECT id FROM family_groups WHERE group_code = $1', [groupCode.toUpperCase()]);
@@ -5634,8 +5637,8 @@ app.post('/api/join', async (req, res) => {
 
         const joinEmail = (email || '').trim().toLowerCase() || null;
         await pool.query(
-            `INSERT INTO users (group_id, nickname, birth_year, password_hash, role, status, phone, email, employee_role_type) VALUES ($1, $2, $3, $4, $5, 'pending', $6, $7, $8)`,
-            [group.id, nickname, bYear, password, reqRole, joinPhone, joinEmail, employee_role_type || null]
+            `INSERT INTO users (group_id, nickname, first_name, last_name, birth_year, password_hash, role, status, phone, email, employee_role_type) VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending', $8, $9, $10)`,
+            [group.id, nickname, firstName || null, lastName || null, bYear, password, reqRole, joinPhone, joinEmail, employee_role_type || null]
         );
         res.json({ success: true });
     } catch (e) { 

@@ -411,7 +411,10 @@
                     <input type="text" id="create-group-name" required placeholder="שם המשפחה / העסק" class="modern-input">
                     <input type="email" id="create-email" required placeholder="מייל מנהל (לשחזור וניהול)" class="modern-input border-blue-200 bg-blue-50/30">
                     <input type="tel" id="create-phone" placeholder="מספר טלפון (חובה מגיל 10)" class="modern-input" dir="ltr">
-                    <input type="text" id="create-nickname" required placeholder="שם מנהל" class="modern-input">
+                    <div class="flex gap-3">
+                        <input type="text" id="create-first-name" required placeholder="שם פרטי" class="modern-input">
+                        <input type="text" id="create-last-name" required placeholder="שם משפחה" class="modern-input">
+                    </div>
                     <input type="number" id="create-year" required placeholder="שנת לידה" class="modern-input">
                     <input type="password" id="create-password" required placeholder="סיסמה" class="modern-input">
                     <div class="flex flex-col gap-3 mt-1 bg-slate-50 p-4 rounded-xl border border-slate-100">
@@ -436,7 +439,10 @@
                     <input type="hidden" id="join-role" value="MEMBER">
                     <input type="hidden" id="join-role-type" value="">
                     <input type="text" id="join-code" required placeholder="קוד כניסה (משפחה/עסק)" class="modern-input font-mono text-center tracking-widest uppercase text-blue-600 font-bold">
-                    <input type="text" id="join-nickname" required placeholder="השם שלך" class="modern-input">
+                    <div class="flex gap-3">
+                        <input type="text" id="join-first-name" required placeholder="שם פרטי" class="modern-input">
+                        <input type="text" id="join-last-name" required placeholder="שם משפחה" class="modern-input">
+                    </div>
                     <input type="email" id="join-email" required placeholder="כתובת אימייל" class="modern-input" dir="ltr">
                     <input type="number" id="join-year" required placeholder="שנת לידה" class="modern-input">
                     <input type="tel" id="join-phone" placeholder="מספר טלפון (חובה מגיל 10)" class="modern-input" dir="ltr">

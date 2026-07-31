@@ -345,7 +345,10 @@
                 <form onsubmit="handleJoin(event)" class="space-y-4">
                     <input type="hidden" id="join-role" value="MEMBER">
                     <input type="text" id="join-code" required placeholder="קוד כניסה (משפחה/עסק)" class="modern-input font-mono text-center tracking-widest uppercase text-blue-600 font-bold">
-                    <input type="text" id="join-nickname" required placeholder="השם שלך" class="modern-input">
+                    <div class="flex gap-3">
+                        <input type="text" id="join-first-name" required placeholder="שם פרטי" class="modern-input">
+                        <input type="text" id="join-last-name" required placeholder="שם משפחה" class="modern-input">
+                    </div>
                     <input type="number" id="join-year" required placeholder="שנת לידה" class="modern-input">
                     <input type="email" id="join-email" required placeholder="כתובת מייל" class="modern-input">
                     <input type="tel" id="join-phone" placeholder="מספר טלפון (חובה מגיל 10)" class="modern-input" dir="ltr">

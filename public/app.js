@@ -634,7 +634,10 @@ async function handleJoin(e) {
     e.preventDefault(); if(!getEl('join-tos').checked) return showToast('error', 'יש לאשר את התקנון כדי להמשיך'); forceTourStart = true; 
     const _jPhone = val('join-phone');
     if (_requiresPhone(val('join-year')) && !_jPhone.trim()) { showToast('error', 'מספר טלפון הוא שדה חובה מגיל 10'); return; }
-    const res = await fetch(`${API}/join`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ groupCode: val('join-code'), role: val('join-role'), nickname: val('join-nickname'), birthYear: val('join-year'), email: val('join-email'), password: val('join-password'), phone: _jPhone }) });
+    const _firstName = val('join-first-name') || '';
+    const _lastName = val('join-last-name') || '';
+    const _nickname = [_firstName, _lastName].filter(Boolean).join(' ') || val('join-nickname') || '';
+    const res = await fetch(`${API}/join`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ groupCode: val('join-code'), role: val('join-role'), nickname: _nickname, firstName: _firstName, lastName: _lastName, birthYear: val('join-year'), email: val('join-email'), password: val('join-password'), phone: _jPhone }) });
     const d=await res.json(); 
     if(d.success) { showToast('success', 'בקשתך נשלחה בהצלחה! יש להמתין לאישור מנהל הסביבה.'); window.history.replaceState({}, document.title, window.location.pathname); switchView('login'); } else showToast('error', d.error); 
 }

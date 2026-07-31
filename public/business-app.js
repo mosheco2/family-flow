@@ -1961,7 +1961,10 @@ async function handleCreate(e) {
     try { 
         const _cPhone = val('create-phone');
         if (_requiresPhone(val('create-year')) && !_cPhone.trim()) { showToast('error', 'מספר טלפון הוא שדה חובה מגיל 10'); toggleLoader('login', false); return; }
-        const res = await fetch(`${API}/groups`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ type: val('create-type'), groupName: val('create-group-name'), adminEmail: val('create-email'), adminNickname: val('create-nickname'), birthYear: val('create-year'), password: val('create-password'), phone: _cPhone }) }); 
+        const _firstName = val('create-first-name') || '';
+        const _lastName = val('create-last-name') || '';
+        const _adminNickname = [_firstName, _lastName].filter(Boolean).join(' ') || val('create-nickname') || '';
+        const res = await fetch(`${API}/groups`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ type: val('create-type'), groupName: val('create-group-name'), adminEmail: val('create-email'), adminNickname: _adminNickname, firstName: _firstName, lastName: _lastName, birthYear: val('create-year'), password: val('create-password'), phone: _cPhone }) });
         const data = await res.json(); 
         if(data.success) { 
             currentUser = data.user; currentGroup = data.group; localStorage.setItem('ofl_session', JSON.stringify({user:currentUser, group:currentGroup})); 
@@ -1991,7 +1994,10 @@ async function handleJoin(e) {
     e.preventDefault(); if(!getEl('join-tos').checked) return showToast('error', 'יש לאשר את התקנון כדי להמשיך');
     const _jPhone = val('join-phone');
     if (_requiresPhone(val('join-year')) && !_jPhone.trim()) { showToast('error', 'מספר טלפון הוא שדה חובה מגיל 10'); return; }
-    const res = await fetch(`${API}/join`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ groupCode: val('join-code'), role: val('join-role'), nickname: val('join-nickname'), birthYear: val('join-year'), password: val('join-password'), phone: _jPhone, email: val('join-email'), employee_role_type: (document.getElementById('join-role-type')?.value || null) || null }) });
+    const _firstName = val('join-first-name') || '';
+    const _lastName = val('join-last-name') || '';
+    const _nickname = [_firstName, _lastName].filter(Boolean).join(' ') || val('join-nickname') || '';
+    const res = await fetch(`${API}/join`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ groupCode: val('join-code'), role: val('join-role'), nickname: _nickname, firstName: _firstName, lastName: _lastName, birthYear: val('join-year'), password: val('join-password'), phone: _jPhone, email: val('join-email'), employee_role_type: (document.getElementById('join-role-type')?.value || null) || null }) });
     const d=await res.json(); 
     if(d.success) { showToast('success', 'בקשתך נשלחה בהצלחה! יש להמתין לאישור מנהל הסביבה.'); window.history.replaceState({}, document.title, window.location.pathname); switchView('login'); } else showToast('error', d.error); 
 }

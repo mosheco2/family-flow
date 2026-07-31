@@ -2315,6 +2315,8 @@ function openSAEditGroupModal(id, name, email) {
     if (bizFields) bizFields.classList.toggle('hidden', !isBusiness);
 
     if (isFamily) {
+        const adminUser2 = saAllUsers.find(u => u.group_id === id && u.role === 'ADMIN');
+        setV('sa-edit-group-first-name', adminUser2?.first_name || '');
         setV('sa-edit-group-last-name', group?.last_name || '');
         setV('sa-edit-group-family-nickname', group?.family_nickname || '');
     }
@@ -2372,6 +2374,7 @@ async function saveSAEditGroup() {
     const adminPhone = val('sa-edit-group-admin-phone') || '';
     const city = val('sa-edit-group-city') || '';
     const streetAddress = val('sa-edit-group-address') || '';
+    const firstName = val('sa-edit-group-first-name') || '';
     const lastName = val('sa-edit-group-last-name') || '';
     const familyNickname = val('sa-edit-group-family-nickname') || '';
     const bizType = (() => { const el = getEl('sa-edit-group-biz-type'); return el ? el.value : ''; })();
@@ -2429,7 +2432,7 @@ async function saveSAEditGroup() {
             }
             await fetch(`${API}/sa/groups/${id}`, {
                 method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
-                body: JSON.stringify({ name, adminEmail, features: flags, ...extraGroupFields, lastName, familyNickname, bizType, contactName })
+                body: JSON.stringify({ name, adminEmail, features: flags, ...extraGroupFields, adminFirstName: firstName, lastName, familyNickname, bizType, contactName })
             });
         }
 
