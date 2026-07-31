@@ -19,7 +19,7 @@ function buildMessage(businessName, content, linkUrl) {
 async function checkAlreadySent(pool, groupId, messageType, recipientPhone, withinHours = 23) {
     try {
         const r = await pool.query(
-            `SELECT id FROM whatsapp_log WHERE group_id=$1 AND message_type=$2 AND recipient_phone=$3 AND sent_at > NOW() - INTERVAL '${parseInt(withinHours)} hours' LIMIT 1`,
+            `SELECT id FROM whatsapp_log WHERE group_id=$1 AND message_type=$2 AND phone=$3 AND sent_at > NOW() - INTERVAL '${parseInt(withinHours)} hours' LIMIT 1`,
             [groupId, messageType, recipientPhone]
         );
         return r.rows.length > 0;
@@ -67,7 +67,7 @@ async function sendWhatsApp(pool, groupId, phone, businessName, content, linkUrl
 
     try {
         await pool.query(
-            `INSERT INTO whatsapp_log (group_id, message_type, recipient_type, recipient_name, recipient_phone, content, status, error_msg)
+            `INSERT INTO whatsapp_log (group_id, message_type, recipient_type, recipient_name, phone, message_body, status, error_msg)
              VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
             [groupId, messageType, recipientType, recipientName || '', formattedPhone || phone, content,
              errorMsg ? 'error' : (status === 'pending' ? 'sent' : status), errorMsg]

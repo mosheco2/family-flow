@@ -11344,6 +11344,7 @@ async function loadSAWhatsAppHub() {
         const stats = statsRes;
         const log = logRes.log || [];
         const defs = defsRes.defaults || {};
+        const globalTpls = defsRes.defaults || {};
         const customized = customRes.customized || [];
         const dynTypes = typesRes.types || [];
         const typeLabels = {};
@@ -11428,6 +11429,29 @@ async function loadSAWhatsAppHub() {
                 </div>
                 <div class="space-y-2">${customBadges}</div>
             </div>` : ''}
+
+            <!-- תבניות הודעות גלובליות -->
+            <div style="background:#fff;border-radius:1rem;border:1px solid #e2e8f0;box-shadow:0 1px 3px rgba(0,0,0,0.06);overflow:hidden;">
+                <div style="padding:1rem;border-bottom:1px solid #e2e8f0;background:#f8fafc;display:flex;justify-content:space-between;align-items:center;">
+                    <div>
+                        <p style="font-weight:700;color:#1e293b;">📝 תבניות הודעות — ברירת מחדל גלובלית</p>
+                        <p style="font-size:0.75rem;color:#64748b;margin-top:0.25rem;">חלות על כל העסקים שאין להם תבנית ספציפית. השאר ריק לשימוש בטקסט הסטנדרטי.</p>
+                    </div>
+                    <button onclick="saveGlobalWATemplates()" style="background:#25D366;color:#fff;border:none;padding:0.4rem 1rem;border-radius:0.5rem;font-weight:700;cursor:pointer;font-size:0.8rem;">💾 שמור</button>
+                </div>
+                <div style="padding:1rem;display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+                    ${TPL_DEFS.map(t => {
+                        const curVal = (globalTpls[`tpl_${t.key}`] || '').replace(/</g,'&lt;');
+                        const defVal = (WA_DEFAULTS_JS[t.key] || '').replace(/"/g,'&quot;');
+                        return `<div>
+                            <label style="font-weight:700;font-size:0.8rem;color:#1e293b;display:block;margin-bottom:0.2rem;">${t.label}</label>
+                            <span style="font-size:0.7rem;color:#94a3b8;display:block;margin-bottom:0.3rem;">משתנים: ${t.vars}</span>
+                            <textarea id="wa-gtpl-${t.key}" placeholder="${defVal}" style="width:100%;padding:0.4rem;border:1px solid #e2e8f0;border-radius:0.375rem;font-size:0.75rem;min-height:70px;resize:vertical;font-family:inherit;direction:rtl;box-sizing:border-box;">${curVal}</textarea>
+                            <button onclick="document.getElementById('wa-gtpl-${t.key}').value=''" style="font-size:0.7rem;color:#94a3b8;background:none;border:none;cursor:pointer;padding:0;">↺ אפס לדיפולט</button>
+                        </div>`;
+                    }).join('')}
+                </div>
+            </div>
 
             <!-- סוגי התראות דינמיים -->
             <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
@@ -11558,6 +11582,20 @@ async function saveSAWhatsAppTemplates(groupId) {
         else showToast('error', d.error || 'שגיאה');
     } catch(e) { showToast('error', 'שגיאת תקשורת'); }
 }
+
+async function saveGlobalWATemplates() {
+    const body = {};
+    TPL_DEFS.forEach(t => {
+        const el = document.getElementById(`wa-gtpl-${t.key}`);
+        if (el) body[`tpl_${t.key}`] = el.value.trim() || null;
+    });
+    try {
+        const d = await saFetch('/api/sa/whatsapp-global-templates', {method:'PATCH', body:JSON.stringify(body)});
+        if (d.success) showToast('success', 'תבניות גלובליות נשמרו!');
+        else showToast('error', d.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+}
+window.saveGlobalWATemplates = saveGlobalWATemplates;
 
 async function _renderSAWhatsAppModalBody(groupId, activeTab) {
     const body = document.getElementById(`wa-modal-body-${groupId}`);
