@@ -123,9 +123,11 @@ async function sendSMSviaTwilio(to, body) {
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false },
-  max: 25,
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 10000,
+  max: 20,
+  idleTimeoutMillis: 10000,
+  connectionTimeoutMillis: 15000,
+  keepAlive: true,
+  keepAliveInitialDelayMillis: 10000,
 });
 
 // ── Live game state cache (200ms TTL) ──
@@ -340,6 +342,7 @@ const BUILTIN_QUESTS_DATA = [
 pool.connect()
   .then(async (client) => {
       console.log('✅ Connected to DB (Pool)');
+      try {
       
       try { await client.query('ALTER TABLE transactions ADD COLUMN IF NOT EXISTS is_recurring BOOLEAN DEFAULT FALSE'); } catch(e) {}
       try { await client.query('ALTER TABLE tasks ADD COLUMN IF NOT EXISTS is_recurring BOOLEAN DEFAULT FALSE'); } catch(e) {}
@@ -2516,7 +2519,11 @@ app.get('/api/solo/search-by-phone', async (req, res) => {
 
       // ===== END COMMUNITY FEED SYSTEM =====
 
-      client.release();
+      } catch(e) {
+          console.error('[startup migration] error:', e.message);
+      } finally {
+          client.release();
+      }
       runQuestLibrarySeed().catch(e => console.error('quest seed via function:', e.message));
   })
   .catch(err => console.error('Connection Error', err.stack));
@@ -4311,7 +4318,7 @@ async function dispatchRecurringTasks() {
     } catch(e) { console.error('[RECURRING] error:', e.message); }
 }
 setInterval(dispatchRecurringTasks, 5 * 60 * 1000); // כל 5 דקות
-dispatchRecurringTasks(); // גם בהפעלה
+setTimeout(dispatchRecurringTasks, 90000); // דחייה 90 שניות מסטארטאפ
 
 // ===== ניקוי חודשי של תמונות הוכחה מ-Cloudinary (ה-1 לחודש) =====
 async function monthlyCloudinaryCleanup() {
@@ -26913,8 +26920,8 @@ async function recalculateTrendingScores() {
         }
     } catch(e) { console.error('[kh trending cron]', e.message); }
 }
-// Run immediately + every 15 minutes
-recalculateTrendingScores();
+// Run 2 minutes after startup (to avoid exhausting pool) + every 15 minutes
+setTimeout(recalculateTrendingScores, 2 * 60 * 1000);
 setInterval(recalculateTrendingScores, 15 * 60 * 1000);
 
 // helper: ensure metrics row exists
