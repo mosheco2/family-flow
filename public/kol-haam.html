@@ -271,6 +271,31 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Ro
   .feed-card-body{padding:.6rem}
   .feed-card-footer{margin-top:.4rem}
 }
+/* ── Phase 3: Author profile ── */
+.author-hero{display:flex;flex-direction:column;align-items:center;padding:1.5rem 1rem 1rem;gap:.75rem;text-align:center}
+.author-avatar-lg{width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid var(--primary)}
+.author-avatar-placeholder{width:80px;height:80px;border-radius:50%;background:var(--primary-light);display:flex;align-items:center;justify-content:center;font-size:2rem;border:3px solid var(--primary)}
+.badge-tag{display:inline-flex;align-items:center;gap:.3rem;padding:.2rem .6rem;border-radius:999px;font-size:.7rem;font-weight:600}
+.badge-LOCAL_LEADER{background:#fef3c7;color:#92400e}
+.badge-GLOBAL_LEADER{background:#dbeafe;color:#1e40af}
+.badge-LEGACY{background:#f3f4f6;color:#6b7280}
+.badge-DEFAULT{display:none}
+.author-stats{display:flex;gap:1.5rem;justify-content:center}
+.author-stat{text-align:center}
+.author-stat strong{display:block;font-size:1.1rem;font-weight:700}
+.author-stat span{font-size:.75rem;color:var(--muted)}
+.follow-btn{min-width:100px}
+.follow-btn.following{background:var(--primary-light);color:var(--primary);border:1px solid var(--primary)}
+.achievement-grid{display:flex;flex-wrap:wrap;gap:.5rem;padding:.5rem 0}
+.ach-chip{display:inline-flex;align-items:center;gap:.3rem;background:var(--primary-light);color:var(--primary);padding:.3rem .65rem;border-radius:999px;font-size:.72rem;font-weight:600}
+.editor-pick-badge{position:absolute;top:.5rem;right:.5rem;background:#f59e0b;color:#fff;padding:.15rem .45rem;border-radius:.3rem;font-size:.65rem;font-weight:700;z-index:2}
+.feed-card-wrap{position:relative}
+.leaderboard-item{display:flex;align-items:center;gap:.75rem;padding:.65rem .75rem;border-bottom:1px solid var(--border)}
+.lb-rank{font-weight:700;color:var(--muted);min-width:1.5rem;text-align:center}
+.lb-avatar{width:36px;height:36px;border-radius:50%;object-fit:cover;background:var(--primary-light);display:flex;align-items:center;justify-content:center;font-size:1.1rem}
+.lb-info{flex:1}
+.lb-name{font-weight:600;font-size:.88rem}
+.lb-flow{margin-right:auto;font-size:.8rem;color:var(--primary);font-weight:700}
 </style>
 </head>
 <body>
@@ -285,6 +310,7 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Ro
       <button class="kh-btn-icon" onclick="KH.nav('my-drafts')" title="הטיוטות שלי"><i class="fa-solid fa-file-pen"></i></button>
       <button class="kh-btn-icon" onclick="KH.nav('my-content')" title="התוכן שלי"><i class="fa-solid fa-list-check"></i></button>
       <button class="kh-btn-icon" onclick="KH.nav('saved')" title="שמורים שלי"><i class="fa-solid fa-star"></i></button>
+      <button class="kh-btn-icon" onclick="KH.nav('following')" title="עוקב אחרי"><i class="fa-solid fa-user-group"></i></button>
       <button class="kh-btn-icon" id="btn-zm-queue" onclick="KH.nav('zm-queue')" title="תור אישורים" style="display:none"><i class="fa-solid fa-inbox"></i></button>
       <button class="kh-btn-icon" id="btn-sa-queue" onclick="KH.nav('sa-queue')" title="אישורים ארציים" style="display:none"><i class="fa-solid fa-globe"></i></button>
       <button class="kh-btn-icon" onclick="KH.nav('editor')" title="כתוב כתבה חדשה" style="background:var(--primary);color:#fff"><i class="fa-solid fa-plus"></i></button>
@@ -361,6 +387,14 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Ro
         </div>
         <div id="sa-global-cats"></div>
       </div>
+      <!-- בחירת עורך SA -->
+      <div style="margin-top:1.5rem">
+        <div class="section-header">
+          <span class="section-title">⭐ בחירת עורך</span>
+          <button class="kh-btn kh-btn-outline kh-btn-sm" onclick="KH.loadEditorPicksSA()">רענן</button>
+        </div>
+        <div id="sa-editor-picks-list"></div>
+      </div>
       <!-- דיווחים SA -->
       <div style="margin-top:1.5rem">
         <div class="section-header">
@@ -387,6 +421,23 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Ro
         <button class="kh-btn kh-btn-outline kh-btn-sm" onclick="KH.back()">← חזרה</button>
       </div>
       <div id="zm-reports-list-view"><div class="kh-spinner"></div></div>
+    </div>
+
+    <!-- Author profile view -->
+    <div id="view-author" class="view">
+      <div class="section-header">
+        <button class="kh-btn kh-btn-outline kh-btn-sm" onclick="KH.back()">← חזרה</button>
+      </div>
+      <div id="author-profile-content"><div class="kh-spinner"></div></div>
+    </div>
+
+    <!-- Following feed view -->
+    <div id="view-following" class="view">
+      <div class="section-header">
+        <span class="section-title">👥 עוקב אחרי</span>
+        <button class="kh-btn kh-btn-outline kh-btn-sm" onclick="KH.nav('feed')">← פיד</button>
+      </div>
+      <div id="following-feed-list"><div class="kh-spinner"></div></div>
     </div>
 
   </div><!-- /kh-body -->

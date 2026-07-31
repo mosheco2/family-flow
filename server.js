@@ -26192,7 +26192,8 @@ app.get('/api/kol-haam/feed', async (req, res) => {
             SELECT ci.id, ci.title, ci.subtitle, ci.cover_image_url, ci.content_type, ci.scope_type,
                    ci.status, ci.reading_time_minutes, ci.views_count, ci.published_at, ci.is_pinned_local, ci.is_pinned_global,
                    cc.title as category_title, co.name as community_name,
-                   fg.name as author_name, ap.badge_level,
+                   fg.name as author_name, ap.badge_level, ap.is_revoked, ci.author_profile_id,
+                   EXISTS(SELECT 1 FROM editor_picks ep WHERE ep.content_item_id=ci.id AND (ep.pinned_until IS NULL OR ep.pinned_until>=CURRENT_DATE)) as is_editor_pick,
                    COALESCE(cem.likes_count,0) as likes_count, COALESCE(cem.comments_count,0) as comments_count
             FROM content_items ci
             JOIN content_categories cc ON cc.id = ci.category_id
@@ -26213,7 +26214,8 @@ app.get('/api/kol-haam/content/:id', async (req, res) => {
     try {
         const r = await pool.query(`
             SELECT ci.*, cc.title as category_title, cc.scope_level as category_scope_level,
-                   co.name as community_name, fg.name as author_name, ap.badge_level,
+                   co.name as community_name, fg.name as author_name,
+                   ap.badge_level as author_badge_level, ap.is_revoked as author_is_revoked,
                    ap.family_group_id as author_group_id,
                    COALESCE(
                        (SELECT json_agg(ct.name) FROM content_items_tags cit JOIN content_tags ct ON ct.id=cit.tag_id WHERE cit.content_item_id=ci.id),
@@ -26511,6 +26513,11 @@ app.post('/api/kol-haam/zm/:id/approve', verifyZoneManager, async (req, res) => 
         // עדכון last_published_at בפרופיל הכותב
         if (!isGlobal) {
             await pool.query(`UPDATE author_profiles SET last_published_at=NOW() WHERE id=$1`, [it.author_profile_id]);
+            // FIRST_PUBLISH achievement
+            const prevCount = await pool.query(`SELECT COUNT(*) FROM content_items WHERE author_profile_id=$1 AND status IN ('PUBLISHED_LOCAL','PUBLISHED_GLOBAL')`, [it.author_profile_id]);
+            if (parseInt(prevCount.rows[0].count) <= 1) {
+                checkAndAwardAchievements(it.author_profile_id, 'FIRST_PUBLISH', it.id).catch(()=>{});
+            }
         }
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
@@ -27951,3 +27958,548 @@ app.delete('/api/sa/whatsapp-types/:id', verifySA, async (req, res) => {
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
+
+// ═══════════════════════════════════════════════════════════════
+// קול העם — Phase 3: מוניטין, הישגים, Follow, Editor Picks, FLOW
+// ═══════════════════════════════════════════════════════════════
+
+async function initKolHaamPhase3Tables() {
+    try {
+        // ALTER author_profiles
+        const apCols = await pool.query(`SELECT column_name FROM information_schema.columns WHERE table_name='author_profiles'`);
+        const apColNames = apCols.rows.map(r => r.column_name);
+        const apAlters = [
+            ['local_streak_count', 'INT DEFAULT 0'],
+            ['global_streak_count', 'INT DEFAULT 0'],
+            ['is_revoked', 'BOOLEAN DEFAULT FALSE'],
+            ['revoked_until', 'TIMESTAMPTZ'],
+            ['total_earned_flow', 'INT DEFAULT 0'],
+            ['badge_achieved_at', 'TIMESTAMPTZ'],
+        ];
+        for (const [col, def] of apAlters) {
+            if (!apColNames.includes(col)) {
+                await pool.query(`ALTER TABLE author_profiles ADD COLUMN ${col} ${def}`);
+            }
+        }
+
+        // ALTER content_engagement_metrics
+        const cemCols = await pool.query(`SELECT column_name FROM information_schema.columns WHERE table_name='content_engagement_metrics'`);
+        const cemColNames = cemCols.rows.map(r => r.column_name);
+        if (!cemColNames.includes('peak_score_first_week')) {
+            await pool.query(`ALTER TABLE content_engagement_metrics ADD COLUMN peak_score_first_week NUMERIC(12,4) DEFAULT 0`);
+        }
+
+        // Update badge_level CHECK if needed — add LEGACY via drop/re-add constraint
+        try {
+            await pool.query(`ALTER TABLE author_profiles DROP CONSTRAINT IF EXISTS author_profiles_badge_level_check`);
+            await pool.query(`ALTER TABLE author_profiles ADD CONSTRAINT author_profiles_badge_level_check CHECK (badge_level IN ('DEFAULT','LOCAL_LEADER','GLOBAL_LEADER','LEGACY'))`);
+        } catch(e) { /* ignore */ }
+
+        // achievement_types
+        await pool.query(`CREATE TABLE IF NOT EXISTS achievement_types (
+            id SERIAL PRIMARY KEY,
+            key VARCHAR(60) UNIQUE NOT NULL,
+            title VARCHAR(120) NOT NULL,
+            description TEXT,
+            icon VARCHAR(10) DEFAULT '🏆',
+            flow_reward INT DEFAULT 0,
+            scope VARCHAR(20) DEFAULT 'local',
+            created_at TIMESTAMPTZ DEFAULT NOW()
+        )`);
+
+        // author_achievements
+        await pool.query(`CREATE TABLE IF NOT EXISTS author_achievements (
+            id SERIAL PRIMARY KEY,
+            author_profile_id INT REFERENCES author_profiles(id) ON DELETE CASCADE,
+            achievement_type_id INT REFERENCES achievement_types(id),
+            content_item_id INT REFERENCES content_items(id) ON DELETE SET NULL,
+            earned_at TIMESTAMPTZ DEFAULT NOW(),
+            UNIQUE(author_profile_id, achievement_type_id, content_item_id)
+        )`);
+
+        // author_followers
+        await pool.query(`CREATE TABLE IF NOT EXISTS author_followers (
+            id SERIAL PRIMARY KEY,
+            follower_group_id INT NOT NULL,
+            following_profile_id INT REFERENCES author_profiles(id) ON DELETE CASCADE,
+            created_at TIMESTAMPTZ DEFAULT NOW(),
+            UNIQUE(follower_group_id, following_profile_id)
+        )`);
+
+        // editor_picks
+        await pool.query(`CREATE TABLE IF NOT EXISTS editor_picks (
+            id SERIAL PRIMARY KEY,
+            content_item_id INT REFERENCES content_items(id) ON DELETE CASCADE,
+            note TEXT,
+            pinned_until DATE,
+            created_by_sa VARCHAR(120),
+            created_at TIMESTAMPTZ DEFAULT NOW()
+        )`);
+
+        // content_flow_rewards
+        await pool.query(`CREATE TABLE IF NOT EXISTS content_flow_rewards (
+            id SERIAL PRIMARY KEY,
+            author_profile_id INT REFERENCES author_profiles(id),
+            content_item_id INT REFERENCES content_items(id) ON DELETE SET NULL,
+            reward_reason VARCHAR(60) NOT NULL,
+            amount INT NOT NULL,
+            awarded_at TIMESTAMPTZ DEFAULT NOW()
+        )`);
+
+        // Seed achievement types
+        const achTypes = [
+            { key: 'FIRST_PUBLISH',    title: 'כתבה ראשונה',      description: 'פרסמת את הכתבה הראשונה שלך', icon: '✍️',  flow: 10,  scope: 'local' },
+            { key: 'FIRST_LOCAL_PICK', title: 'בחירת עורך מקומי', description: 'נבחרת לבחירת עורך ברמה מקומית', icon: '⭐', flow: 25,  scope: 'local' },
+            { key: 'FIRST_GLOBAL_PICK',title: 'בחירת עורך ארצי',  description: 'נבחרת לבחירת עורך ברמה ארצית', icon: '🌟', flow: 50,  scope: 'global' },
+            { key: 'LOCAL_LEADER',     title: 'מוביל קהילתי',      description: 'השגת תג מוביל קהילתי', icon: '🏅',          flow: 30,  scope: 'local' },
+            { key: 'GLOBAL_LEADER',    title: 'מוביל ארצי',        description: 'השגת תג מוביל ארצי', icon: '🌍',            flow: 100, scope: 'global' },
+            { key: 'ARTICLE_OF_WEEK',  title: 'כתבת השבוע',       description: 'כתבתך נבחרה לכתבת השבוע', icon: '🏆',       flow: 40,  scope: 'global' },
+            { key: 'ARTICLE_OF_MONTH', title: 'כתבת החודש',       description: 'כתבתך נבחרה לכתבת החודש', icon: '🥇',       flow: 100, scope: 'global' },
+            { key: 'MOST_SHARED_WEEK', title: 'הכי משותפת',       description: 'כתבתך הייתה הכי משותפת בשבוע', icon: '📤',  flow: 30,  scope: 'global' },
+        ];
+        for (const a of achTypes) {
+            await pool.query(
+                `INSERT INTO achievement_types (key, title, description, icon, flow_reward, scope)
+                 VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT (key) DO UPDATE SET title=$2, description=$3, icon=$4, flow_reward=$5`,
+                [a.key, a.title, a.description, a.icon, a.flow, a.scope]
+            );
+        }
+
+        console.log('[KolHaam Phase3] Tables initialized');
+    } catch(e) {
+        console.error('[KolHaam Phase3] init error:', e.message);
+    }
+}
+initKolHaamPhase3Tables();
+
+// ── Helper: award FLOW to author's family wallet ──────────────
+async function awardFlow(authorProfileId, contentItemId, rewardReason, amount) {
+    try {
+        const apRes = await pool.query(`SELECT group_id FROM author_profiles WHERE id=$1`, [authorProfileId]);
+        if (!apRes.rows[0]) return;
+        const groupId = apRes.rows[0].group_id;
+
+        await pool.query(
+            `INSERT INTO flow_wallets (entity_type, entity_id, balance) VALUES ('family',$1,$2)
+             ON CONFLICT (entity_type, entity_id) DO UPDATE SET balance=flow_wallets.balance+$2, updated_at=NOW()`,
+            [groupId, amount]
+        );
+        await pool.query(
+            `INSERT INTO flow_transactions (entity_type, entity_id, amount, action_key, description, reference_id)
+             VALUES ('family',$1,$2,$3,$4,$5)`,
+            [groupId, amount, rewardReason, `תגמול קול העם: ${rewardReason}`, contentItemId || null]
+        );
+        await pool.query(
+            `INSERT INTO content_flow_rewards (author_profile_id, content_item_id, reward_reason, amount)
+             VALUES ($1,$2,$3,$4)`,
+            [authorProfileId, contentItemId || null, rewardReason, amount]
+        );
+        await pool.query(
+            `UPDATE author_profiles SET total_earned_flow=COALESCE(total_earned_flow,0)+$1 WHERE id=$2`,
+            [amount, authorProfileId]
+        );
+    } catch(e) {
+        console.error('[awardFlow] error:', e.message);
+    }
+}
+
+// ── Helper: check and award achievements ─────────────────────
+async function checkAndAwardAchievements(authorProfileId, triggerKey, contentItemId) {
+    try {
+        const at = await pool.query(`SELECT id, key, flow_reward FROM achievement_types WHERE key=$1`, [triggerKey]);
+        if (!at.rows[0]) return;
+        const ach = at.rows[0];
+
+        const exists = await pool.query(
+            `SELECT id FROM author_achievements WHERE author_profile_id=$1 AND achievement_type_id=$2`,
+            [authorProfileId, ach.id]
+        );
+        if (exists.rows[0] && triggerKey !== 'ARTICLE_OF_WEEK' && triggerKey !== 'ARTICLE_OF_MONTH' && triggerKey !== 'MOST_SHARED_WEEK') return;
+
+        await pool.query(
+            `INSERT INTO author_achievements (author_profile_id, achievement_type_id, content_item_id)
+             VALUES ($1,$2,$3) ON CONFLICT DO NOTHING`,
+            [authorProfileId, ach.id, contentItemId || null]
+        );
+        if (ach.flow_reward > 0) await awardFlow(authorProfileId, contentItemId, triggerKey, ach.flow_reward);
+    } catch(e) {
+        console.error('[checkAndAwardAchievements] error:', e.message);
+    }
+}
+
+// ── Cron: update peak_score_first_week + streaks (daily) ─────
+async function runPhase3DailyCron() {
+    try {
+        // Update peak_score_first_week for items in their first week
+        await pool.query(`
+            UPDATE content_engagement_metrics cem
+            SET peak_score_first_week = GREATEST(COALESCE(cem.peak_score_first_week,0), COALESCE(cem.current_trending_score,0))
+            FROM content_items ci
+            WHERE cem.content_item_id = ci.id
+              AND ci.published_at >= NOW() - INTERVAL '7 days'
+              AND ci.status IN ('PUBLISHED_LOCAL','PUBLISHED_GLOBAL')
+        `);
+
+        // Check streak upgrades: items that crossed 7 days old
+        const streakItems = await pool.query(`
+            SELECT ci.id, ci.author_profile_id, ci.status,
+                   cem.peak_score_first_week,
+                   ap.badge_level, ap.local_streak_count, ap.global_streak_count
+            FROM content_items ci
+            JOIN content_engagement_metrics cem ON cem.content_item_id=ci.id
+            JOIN author_profiles ap ON ap.id=ci.author_profile_id
+            WHERE ci.published_at BETWEEN NOW()-INTERVAL '8 days' AND NOW()-INTERVAL '7 days'
+              AND ci.status IN ('PUBLISHED_LOCAL','PUBLISHED_GLOBAL')
+        `);
+
+        for (const item of streakItems.rows) {
+            const profileId = item.author_profile_id;
+            const peak = parseFloat(item.peak_score_first_week) || 0;
+
+            if (item.status === 'PUBLISHED_GLOBAL' && peak >= 250) {
+                const newGlobal = (item.global_streak_count || 0) + 1;
+                let newBadge = item.badge_level;
+                if (newGlobal >= 3 && item.badge_level !== 'GLOBAL_LEADER') {
+                    newBadge = 'GLOBAL_LEADER';
+                    await pool.query(`UPDATE author_profiles SET badge_level=$1, badge_achieved_at=NOW() WHERE id=$2`, [newBadge, profileId]);
+                    await checkAndAwardAchievements(profileId, 'GLOBAL_LEADER', null);
+                }
+                await pool.query(`UPDATE author_profiles SET global_streak_count=$1 WHERE id=$2`, [newGlobal, profileId]);
+            } else if (peak >= 50) {
+                const newLocal = (item.local_streak_count || 0) + 1;
+                let newBadge = item.badge_level;
+                if (newLocal >= 3 && item.badge_level === 'DEFAULT') {
+                    newBadge = 'LOCAL_LEADER';
+                    await pool.query(`UPDATE author_profiles SET badge_level=$1, badge_achieved_at=NOW() WHERE id=$2`, [newBadge, profileId]);
+                    await checkAndAwardAchievements(profileId, 'LOCAL_LEADER', null);
+                }
+                await pool.query(`UPDATE author_profiles SET local_streak_count=$1 WHERE id=$2`, [newLocal, profileId]);
+            }
+        }
+
+        // LEGACY decay: 60 days no published content
+        await pool.query(`
+            UPDATE author_profiles ap
+            SET badge_level='LEGACY'
+            WHERE ap.badge_level IN ('LOCAL_LEADER','GLOBAL_LEADER')
+              AND NOT EXISTS (
+                  SELECT 1 FROM content_items ci
+                  WHERE ci.author_profile_id=ap.id
+                    AND ci.status IN ('PUBLISHED_LOCAL','PUBLISHED_GLOBAL')
+                    AND ci.published_at >= NOW()-INTERVAL '60 days'
+              )
+        `);
+
+        // Revocation expiry
+        await pool.query(`
+            UPDATE author_profiles SET is_revoked=FALSE, revoked_until=NULL
+            WHERE is_revoked=TRUE AND revoked_until IS NOT NULL AND revoked_until <= NOW()
+        `);
+
+    } catch(e) {
+        console.error('[Phase3 daily cron] error:', e.message);
+    }
+}
+setInterval(runPhase3DailyCron, 24 * 60 * 60 * 1000);
+runPhase3DailyCron();
+
+// ── Cron: article of week / most shared (weekly) ─────────────
+async function runPhase3WeeklyCron() {
+    try {
+        // Article of the week: highest peak_score_first_week published in last 7 days
+        const aow = await pool.query(`
+            SELECT ci.id, ci.author_profile_id
+            FROM content_items ci
+            JOIN content_engagement_metrics cem ON cem.content_item_id=ci.id
+            WHERE ci.status IN ('PUBLISHED_LOCAL','PUBLISHED_GLOBAL')
+              AND ci.published_at >= NOW()-INTERVAL '7 days'
+            ORDER BY cem.peak_score_first_week DESC LIMIT 1
+        `);
+        if (aow.rows[0]) {
+            await checkAndAwardAchievements(aow.rows[0].author_profile_id, 'ARTICLE_OF_WEEK', aow.rows[0].id);
+        }
+
+        // Most shared this week
+        const ms = await pool.query(`
+            SELECT ci.id, ci.author_profile_id, COUNT(csl.id) as share_cnt
+            FROM content_items ci
+            LEFT JOIN content_shares_log csl ON csl.content_item_id=ci.id AND csl.shared_at >= NOW()-INTERVAL '7 days'
+            WHERE ci.status IN ('PUBLISHED_LOCAL','PUBLISHED_GLOBAL')
+            GROUP BY ci.id, ci.author_profile_id
+            ORDER BY share_cnt DESC LIMIT 1
+        `);
+        if (ms.rows[0] && ms.rows[0].share_cnt > 0) {
+            await checkAndAwardAchievements(ms.rows[0].author_profile_id, 'MOST_SHARED_WEEK', ms.rows[0].id);
+        }
+    } catch(e) {
+        console.error('[Phase3 weekly cron] error:', e.message);
+    }
+}
+setInterval(runPhase3WeeklyCron, 7 * 24 * 60 * 60 * 1000);
+
+// ── Cron: article of month (monthly) ─────────────────────────
+async function runPhase3MonthlyCron() {
+    try {
+        const aom = await pool.query(`
+            SELECT ci.id, ci.author_profile_id
+            FROM content_items ci
+            JOIN content_engagement_metrics cem ON cem.content_item_id=ci.id
+            WHERE ci.status IN ('PUBLISHED_LOCAL','PUBLISHED_GLOBAL')
+              AND ci.published_at >= NOW()-INTERVAL '30 days'
+            ORDER BY cem.peak_score_first_week DESC LIMIT 1
+        `);
+        if (aom.rows[0]) {
+            await checkAndAwardAchievements(aom.rows[0].author_profile_id, 'ARTICLE_OF_MONTH', aom.rows[0].id);
+        }
+    } catch(e) {
+        console.error('[Phase3 monthly cron] error:', e.message);
+    }
+}
+setInterval(runPhase3MonthlyCron, 30 * 24 * 60 * 60 * 1000);
+
+// ── Phase 3 API Endpoints ─────────────────────────────────────
+
+// GET public author profile
+app.get('/api/kol-haam/authors/:id', async (req, res) => {
+    try {
+        await initKolHaamPhase3Tables();
+        const { groupId } = req.query;
+        const r = await pool.query(`
+            SELECT ap.*,
+                   CASE WHEN ap.is_revoked THEN 'DEFAULT' ELSE ap.badge_level END as effective_badge_level,
+                   (SELECT COUNT(*) FROM author_followers WHERE following_profile_id=ap.id) as followers_count,
+                   (SELECT COUNT(*) FROM content_items WHERE author_profile_id=ap.id AND status IN ('PUBLISHED_LOCAL','PUBLISHED_GLOBAL')) as published_count
+            FROM author_profiles ap
+            WHERE ap.id=$1
+        `, [req.params.id]);
+        if (!r.rows[0]) return res.status(404).json({ error: 'לא נמצא' });
+
+        let isFollowing = false;
+        if (groupId) {
+            const f = await pool.query(`SELECT 1 FROM author_followers WHERE follower_group_id=$1 AND following_profile_id=$2`, [groupId, req.params.id]);
+            isFollowing = f.rows.length > 0;
+        }
+
+        const achievements = await pool.query(`
+            SELECT at.key, at.title, at.icon, aa.earned_at
+            FROM author_achievements aa
+            JOIN achievement_types at ON at.id=aa.achievement_type_id
+            WHERE aa.author_profile_id=$1
+            ORDER BY aa.earned_at DESC
+        `, [req.params.id]);
+
+        res.json({ success: true, author: r.rows[0], isFollowing, achievements: achievements.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// GET author's published content
+app.get('/api/kol-haam/authors/:id/content', async (req, res) => {
+    try {
+        const { page = 1, limit = 10 } = req.query;
+        const offset = (parseInt(page)-1) * parseInt(limit);
+        const r = await pool.query(`
+            SELECT ci.id, ci.title, ci.summary, ci.cover_image_url, ci.content_type,
+                   ci.published_at, ci.status,
+                   COALESCE(cem.likes_count,0) as likes_count,
+                   COALESCE(cem.comments_count,0) as comments_count,
+                   COALESCE(cem.views_count,0) as views_count
+            FROM content_items ci
+            LEFT JOIN content_engagement_metrics cem ON cem.content_item_id=ci.id
+            WHERE ci.author_profile_id=$1
+              AND ci.status IN ('PUBLISHED_LOCAL','PUBLISHED_GLOBAL')
+            ORDER BY ci.published_at DESC
+            LIMIT $2 OFFSET $3
+        `, [req.params.id, parseInt(limit), offset]);
+        res.json({ success: true, items: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// POST follow/unfollow author
+app.post('/api/kol-haam/authors/:id/follow', async (req, res) => {
+    try {
+        const { groupId } = req.body;
+        if (!groupId) return res.status(400).json({ error: 'groupId נדרש' });
+        const authorId = parseInt(req.params.id);
+
+        const existing = await pool.query(
+            `SELECT id FROM author_followers WHERE follower_group_id=$1 AND following_profile_id=$2`,
+            [groupId, authorId]
+        );
+        if (existing.rows[0]) {
+            await pool.query(`DELETE FROM author_followers WHERE follower_group_id=$1 AND following_profile_id=$2`, [groupId, authorId]);
+            res.json({ success: true, following: false });
+        } else {
+            await pool.query(`INSERT INTO author_followers (follower_group_id, following_profile_id) VALUES ($1,$2)`, [groupId, authorId]);
+            res.json({ success: true, following: true });
+        }
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// GET following feed
+app.get('/api/kol-haam/my-following-feed', async (req, res) => {
+    try {
+        const { groupId, page = 1, limit = 20 } = req.query;
+        if (!groupId) return res.status(400).json({ error: 'groupId נדרש' });
+        const offset = (parseInt(page)-1) * parseInt(limit);
+        const r = await pool.query(`
+            SELECT ci.id, ci.title, ci.summary, ci.cover_image_url, ci.content_type,
+                   ci.published_at, ci.status, ci.author_profile_id,
+                   ap.display_name as author_name, ap.avatar_url as author_avatar,
+                   ap.badge_level, ap.is_revoked,
+                   CASE WHEN ap.is_revoked THEN 'DEFAULT' ELSE ap.badge_level END as effective_badge_level,
+                   COALESCE(cem.likes_count,0) as likes_count,
+                   COALESCE(cem.comments_count,0) as comments_count,
+                   COALESCE(cem.current_trending_score,0) as trending_score
+            FROM content_items ci
+            JOIN author_profiles ap ON ap.id=ci.author_profile_id
+            LEFT JOIN content_engagement_metrics cem ON cem.content_item_id=ci.id
+            WHERE ci.status IN ('PUBLISHED_LOCAL','PUBLISHED_GLOBAL')
+              AND COALESCE(ci.is_quarantined,FALSE)=FALSE
+              AND ci.author_profile_id IN (
+                  SELECT following_profile_id FROM author_followers WHERE follower_group_id=$1
+              )
+            ORDER BY ci.published_at DESC
+            LIMIT $2 OFFSET $3
+        `, [groupId, parseInt(limit), offset]);
+        res.json({ success: true, items: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// SA: add editor pick
+app.post('/api/kol-haam/sa/editor-picks', verifySA, async (req, res) => {
+    try {
+        await initKolHaamPhase3Tables();
+        const { content_item_id, note, pinned_until } = req.body;
+        if (!content_item_id) return res.status(400).json({ error: 'content_item_id נדרש' });
+
+        // Verify content exists and is published
+        const ci = await pool.query(`SELECT id, author_profile_id, status FROM content_items WHERE id=$1`, [content_item_id]);
+        if (!ci.rows[0]) return res.status(404).json({ error: 'תוכן לא נמצא' });
+
+        await pool.query(`INSERT INTO editor_picks (content_item_id, note, pinned_until, created_by_sa) VALUES ($1,$2,$3,'SA')
+                          ON CONFLICT DO NOTHING`, [content_item_id, note||null, pinned_until||null]);
+
+        // Award achievement
+        const ap = ci.rows[0];
+        const scope = ap.status === 'PUBLISHED_GLOBAL' ? 'FIRST_GLOBAL_PICK' : 'FIRST_LOCAL_PICK';
+        await checkAndAwardAchievements(ap.author_profile_id, scope, content_item_id);
+
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// SA: list editor picks
+app.get('/api/kol-haam/sa/editor-picks', verifySA, async (req, res) => {
+    try {
+        await initKolHaamPhase3Tables();
+        const r = await pool.query(`
+            SELECT ep.*, ci.title, ci.cover_image_url, ci.status,
+                   ap.display_name as author_name
+            FROM editor_picks ep
+            JOIN content_items ci ON ci.id=ep.content_item_id
+            JOIN author_profiles ap ON ap.id=ci.author_profile_id
+            ORDER BY ep.created_at DESC
+        `);
+        res.json({ success: true, picks: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// SA: delete editor pick
+app.delete('/api/kol-haam/sa/editor-picks/:id', verifySA, async (req, res) => {
+    try {
+        await pool.query(`DELETE FROM editor_picks WHERE id=$1`, [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// GET current editor picks (public)
+app.get('/api/kol-haam/editor-picks/current', async (req, res) => {
+    try {
+        await initKolHaamPhase3Tables();
+        const r = await pool.query(`
+            SELECT ep.id as pick_id, ep.note, ep.pinned_until,
+                   ci.id, ci.title, ci.summary, ci.cover_image_url, ci.content_type, ci.published_at,
+                   ci.author_profile_id, ap.display_name as author_name, ap.avatar_url as author_avatar,
+                   ap.badge_level, ap.is_revoked,
+                   CASE WHEN ap.is_revoked THEN 'DEFAULT' ELSE ap.badge_level END as effective_badge_level,
+                   COALESCE(cem.likes_count,0) as likes_count,
+                   COALESCE(cem.comments_count,0) as comments_count
+            FROM editor_picks ep
+            JOIN content_items ci ON ci.id=ep.content_item_id
+            JOIN author_profiles ap ON ap.id=ci.author_profile_id
+            LEFT JOIN content_engagement_metrics cem ON cem.content_item_id=ci.id
+            WHERE ci.status IN ('PUBLISHED_LOCAL','PUBLISHED_GLOBAL')
+              AND COALESCE(ci.is_quarantined,FALSE)=FALSE
+              AND (ep.pinned_until IS NULL OR ep.pinned_until >= CURRENT_DATE)
+            ORDER BY ep.created_at DESC
+            LIMIT 5
+        `);
+        res.json({ success: true, picks: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// SA: revoke author
+app.post('/api/kol-haam/sa/authors/:id/revoke', verifySA, async (req, res) => {
+    try {
+        const { reason, days = 30 } = req.body;
+        await pool.query(
+            `UPDATE author_profiles SET is_revoked=TRUE, revoked_until=NOW()+($1 || ' days')::INTERVAL,
+             local_streak_count=0, global_streak_count=0 WHERE id=$2`,
+            [days, req.params.id]
+        );
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// SA: un-revoke author
+app.post('/api/kol-haam/sa/authors/:id/un-revoke', verifySA, async (req, res) => {
+    try {
+        await pool.query(`UPDATE author_profiles SET is_revoked=FALSE, revoked_until=NULL WHERE id=$1`, [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// GET my author profile (includes achievements + flow earned)
+app.get('/api/kol-haam/my-profile', async (req, res) => {
+    try {
+        const { groupId, communityId } = req.query;
+        if (!groupId) return res.status(400).json({ error: 'groupId נדרש' });
+        const ap = await getOrCreateAuthorProfile(groupId, communityId);
+        const achievements = await pool.query(`
+            SELECT at.key, at.title, at.icon, aa.earned_at, ci.title as content_title
+            FROM author_achievements aa
+            JOIN achievement_types at ON at.id=aa.achievement_type_id
+            LEFT JOIN content_items ci ON ci.id=aa.content_item_id
+            WHERE aa.author_profile_id=$1
+            ORDER BY aa.earned_at DESC
+        `, [ap.id]);
+        res.json({ success: true, profile: { ...ap, effective_badge_level: ap.is_revoked ? 'DEFAULT' : ap.badge_level }, achievements: achievements.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Award FIRST_PUBLISH on first content published (called from existing publish flow via hook)
+// We'll hook into the existing status-change endpoint
+const _origPublishContent = null; // marker
+// Register a DB trigger via periodic check instead — handled in FIRST_PUBLISH check below
+
+// GET leaderboard (top authors by total_earned_flow or published_count)
+app.get('/api/kol-haam/leaderboard', async (req, res) => {
+    try {
+        const { communityId, scope = 'local', limit = 10 } = req.query;
+        let whereClause = communityId ? `AND ap.community_id=$1` : '';
+        const params = communityId ? [communityId, parseInt(limit)] : [parseInt(limit)];
+        const paramOffset = communityId ? 2 : 1;
+        const r = await pool.query(`
+            SELECT ap.id, ap.display_name, ap.avatar_url, ap.badge_level, ap.is_revoked,
+                   CASE WHEN ap.is_revoked THEN 'DEFAULT' ELSE ap.badge_level END as effective_badge_level,
+                   COALESCE(ap.total_earned_flow,0) as total_earned_flow,
+                   (SELECT COUNT(*) FROM content_items ci WHERE ci.author_profile_id=ap.id AND ci.status IN ('PUBLISHED_LOCAL','PUBLISHED_GLOBAL')) as published_count
+            FROM author_profiles ap
+            WHERE TRUE ${whereClause}
+            ORDER BY total_earned_flow DESC
+            LIMIT $${paramOffset}
+        `, params);
+        res.json({ success: true, authors: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+

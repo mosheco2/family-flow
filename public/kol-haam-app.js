@@ -88,6 +88,8 @@ const KH = {
         else if (view === 'sa-queue') KH.loadSAQueue();
         else if (view === 'saved') KH.loadSaved();
         else if (view === 'zm-reports') KH.loadZMReports();
+        else if (view === 'following') KH.loadFollowingFeed();
+        else if (view === 'author') KH.loadAuthor(params.id);
     },
 
     back() {
@@ -125,10 +127,11 @@ const KH = {
         if (STATE.categoryId) params.set('category', STATE.categoryId);
 
         // load trending strips + main feed in parallel (only on homepage, no category filter)
-        const [data, trendingData, hotData] = await Promise.all([
+        const [data, trendingData, hotData, picksData] = await Promise.all([
             khFetch(`${API}/feed?${params}`),
             !STATE.categoryId ? khFetch(`${API}/feed/trending?community_id=${CTX.communityId||''}&limit=8`) : Promise.resolve(null),
             !STATE.categoryId ? khFetch(`${API}/feed/hot-comments?community_id=${CTX.communityId||''}&limit=5`) : Promise.resolve(null),
+            !STATE.categoryId ? khFetch(`${API}/editor-picks/current`) : Promise.resolve(null),
         ]);
 
         const items = data.items || [];
@@ -163,6 +166,20 @@ const KH = {
             </div>`;
         }
 
+        // Editor picks strip
+        if (picksData && (picksData.picks||[]).length) {
+            strips += `<div class="kh-strip">
+                <div class="kh-strip-title">⭐ בחירת העורך</div>
+                <div class="kh-strip-scroll">${(picksData.picks||[]).map(p => `
+                    <div class="kh-strip-card" onclick="KH.nav('content',{id:${p.id}})">
+                        ${p.cover_image_url ? `<img class="kh-strip-img" src="${p.cover_image_url}" alt="">` : `<div class="kh-strip-img">📰</div>`}
+                        <div class="kh-strip-title-sm">${esc(p.title)}</div>
+                        <div class="kh-strip-meta">${esc(p.author_name||'')} ${badgeHtml(p.badge_level, p.is_revoked)}</div>
+                    </div>`).join('')}
+                </div>
+            </div>`;
+        }
+
         if (!items.length && !strips) {
             el.innerHTML = sortBar + '<div class="empty-state"><div class="ei">📭</div><p>אין תוכן עדיין בקטגוריה זו</p></div>';
             return;
@@ -176,7 +193,11 @@ const KH = {
             : `<div class="feed-card-img">${TYPE_ICONS[it.content_type] || '📄'}</div>`;
         const pin = it.is_pinned_global ? '<span class="pin-badge">📌 מוצמד</span>' : it.is_pinned_local ? '<span class="pin-badge">📌</span>' : '';
         const engagement = `<span>👍 ${it.likes_count||0}</span><span>💬 ${it.comments_count||0}</span>`;
-        return `<div class="feed-card" onclick="KH.nav('content',{id:${it.id}})">
+        const authorName = it.author_name ? esc(it.author_name) : '';
+        const authorBadge = badgeHtml(it.badge_level, it.is_revoked);
+        const editorBadge = it.is_editor_pick ? '<span class="editor-pick-badge">⭐ בחירת עורך</span>' : '';
+        return `<div class="feed-card-wrap"><div class="feed-card" onclick="KH.nav('content',{id:${it.id}})">
+            ${editorBadge}
             ${img}
             <div class="feed-card-body">
                 <div class="feed-card-meta">
@@ -187,13 +208,13 @@ const KH = {
                 <div class="feed-card-title">${esc(it.title)}</div>
                 ${it.subtitle ? `<div class="feed-card-sub">${esc(it.subtitle)}</div>` : ''}
                 <div class="feed-card-footer">
-                    <span>🏘️ ${esc(it.community_name)}</span>
+                    ${authorName ? `<span onclick="event.stopPropagation();KH.nav('author',{id:${it.author_profile_id}})" style="cursor:pointer;color:var(--primary)">${authorName} ${authorBadge}</span>` : `<span>🏘️ ${esc(it.community_name)}</span>`}
                     <span>⏱ ${it.reading_time_minutes} דק'</span>
                     ${engagement}
                     <span>${fmtDate(it.published_at)}</span>
                 </div>
             </div>
-        </div>`;
+        </div></div>`;
     },
 
     // ── Single content ───────────────────────────────────────
@@ -246,13 +267,13 @@ const KH = {
             <h1 class="content-title">${esc(it.title)}</h1>
             ${it.subtitle ? `<p class="content-subtitle">${esc(it.subtitle)}</p>` : ''}
             <div class="content-byline">
-                <span>✍️ <strong>${esc(it.author_name)}</strong></span>
+                <span>✍️ <strong style="cursor:pointer;color:var(--primary)" onclick="KH.nav('author',{id:${it.author_profile_id}})">${esc(it.author_name)}</strong> ${badgeHtml(it.author_badge_level, it.author_is_revoked)}</span>
                 <span>🏘️ ${esc(it.community_name)}</span>
                 <span>📅 ${fmtDate(it.published_at)}</span>
                 ${it.updated_at ? `<span>עודכן: ${fmtDate(it.updated_at)}</span>` : ''}
                 <span>⏱ ${it.reading_time_minutes} דק' קריאה</span>
             </div>
-            <div style="display:flex;gap:.5rem;margin-bottom:.5rem">${editBtn}${deleteBtn}</div>
+            <div style="display:flex;gap:.5rem;margin-bottom:.5rem;flex-wrap:wrap">${editBtn}${deleteBtn}${CTX.isSA ? `<button class="kh-btn kh-btn-outline kh-btn-sm" onclick="KH.addEditorPick(${it.id})">⭐ בחירת עורך</button>` : ''}</div>
             ${engBar}
             <div class="content-html">${it.content_html}</div>
             ${tagsHtml}
@@ -1016,6 +1037,9 @@ const KH = {
 
         // Global categories
         KH.loadGlobalCats();
+
+        // Editor picks
+        KH.loadEditorPicksSA();
     },
 
     async loadGlobalCats() {
@@ -1076,6 +1100,181 @@ const KH = {
         else toast(r.error || 'שגיאה', 'error');
     },
 };
+
+// ── Phase 3: Author profile, Follow, Editor picks ─────────────
+
+KH.loadAuthor = async function(authorId) {
+    STATE.view = 'author';
+    showView('view-author');
+    const el = document.getElementById('author-profile-content');
+    el.innerHTML = '<div class="kh-spinner"></div>';
+
+    const [pd, cd] = await Promise.all([
+        khFetch(`${API}/authors/${authorId}?groupId=${CTX.groupId||''}`),
+        khFetch(`${API}/authors/${authorId}/content?limit=10`)
+    ]);
+    if (!pd.success) { el.innerHTML = '<p class="kh-empty">שגיאה בטעינה</p>'; return; }
+
+    const a = pd.author;
+    const badge = a.effective_badge_level || 'DEFAULT';
+    const badgeLabel = { LOCAL_LEADER:'🏅 מוביל קהילתי', GLOBAL_LEADER:'🌍 מוביל ארצי', LEGACY:'⏳ Legacy' }[badge] || '';
+
+    const avatarHtml = a.avatar_url
+        ? `<img src="${esc(a.avatar_url)}" class="author-avatar-lg" alt="">`
+        : `<div class="author-avatar-placeholder">👤</div>`;
+
+    const achHtml = pd.achievements.length
+        ? `<div class="achievement-grid">${pd.achievements.map(a2 =>
+            `<span class="ach-chip" title="${esc(a2.earned_at?.slice(0,10)||'')}">
+                ${esc(a2.icon)} ${esc(a2.title)}
+            </span>`).join('')}</div>`
+        : '<p class="kh-empty" style="font-size:.8rem">אין הישגים עדיין</p>';
+
+    const isFollowing = pd.isFollowing;
+    const isSelf = String(a.group_id) === String(CTX.groupId);
+
+    el.innerHTML = `
+        <div class="author-hero">
+            ${avatarHtml}
+            <div>
+                <strong style="font-size:1.1rem">${esc(a.display_name || 'כותב')}</strong>
+                ${badgeLabel ? `<div style="margin-top:.3rem"><span class="badge-tag badge-${badge}">${badgeLabel}</span></div>` : ''}
+            </div>
+            <div class="author-stats">
+                <div class="author-stat"><strong>${a.published_count||0}</strong><span>כתבות</span></div>
+                <div class="author-stat"><strong>${a.followers_count||0}</strong><span>עוקבים</span></div>
+                <div class="author-stat"><strong>${a.total_earned_flow||0}</strong><span>FLW</span></div>
+            </div>
+            ${!isSelf ? `<button class="kh-btn ${isFollowing?'follow-btn following':'kh-btn-primary follow-btn'}"
+                id="follow-btn-${a.id}" onclick="KH.toggleFollow(${a.id},this)">
+                ${isFollowing ? '✓ עוקב' : '+ עקוב'}
+            </button>` : ''}
+        </div>
+        <div style="padding:.5rem 1rem">
+            <h4 style="font-size:.85rem;color:var(--muted);margin-bottom:.4rem">🏆 הישגים</h4>
+            ${achHtml}
+        </div>
+        <div style="padding:.5rem 1rem">
+            <h4 style="font-size:.85rem;color:var(--muted);margin-bottom:.5rem">📝 כתבות מפורסמות</h4>
+            ${(cd.items||[]).map(it => `
+                <div class="feed-card" onclick="KH.loadContent(${it.id})" style="cursor:pointer;margin-bottom:.5rem">
+                    <div class="feed-card-meta" style="font-size:.75rem;color:var(--muted)">
+                        ${it.published_at ? new Date(it.published_at).toLocaleDateString('he-IL') : ''}
+                    </div>
+                    <div class="feed-card-title">${esc(it.title)}</div>
+                    <div class="feed-card-stats" style="font-size:.75rem;color:var(--muted);display:flex;gap:.75rem;margin-top:.35rem">
+                        <span>❤️ ${it.likes_count||0}</span>
+                        <span>💬 ${it.comments_count||0}</span>
+                        <span>👁 ${it.views_count||0}</span>
+                    </div>
+                </div>`).join('') || '<p class="kh-empty" style="font-size:.8rem">אין כתבות</p>'}
+        </div>`;
+};
+
+KH.toggleFollow = async function(authorId, btn) {
+    if (!CTX.groupId) { khToast('error','יש להיכנס עם קבוצה כדי לעקוב'); return; }
+    const d = await khFetch(`${API}/authors/${authorId}/follow`, {
+        method: 'POST', body: JSON.stringify({ groupId: CTX.groupId })
+    });
+    if (!d.success) return;
+    if (d.following) {
+        btn.textContent = '✓ עוקב';
+        btn.className = 'kh-btn follow-btn following';
+    } else {
+        btn.textContent = '+ עקוב';
+        btn.className = 'kh-btn kh-btn-primary follow-btn';
+    }
+};
+
+KH.loadFollowingFeed = async function(page = 1) {
+    const el = document.getElementById('following-feed-list');
+    if (page === 1) el.innerHTML = '<div class="kh-spinner"></div>';
+    if (!CTX.groupId) { el.innerHTML = '<p class="kh-empty">יש להיכנס כדי לראות עדכונים</p>'; return; }
+    const d = await khFetch(`${API}/my-following-feed?groupId=${CTX.groupId}&page=${page}&limit=20`);
+    const items = d.items || [];
+    if (page === 1) el.innerHTML = '';
+    if (!items.length && page === 1) { el.innerHTML = '<p class="kh-empty">אין פוסטים — עקוב אחרי כותבים כדי לראות עדכונים</p>'; return; }
+    items.forEach(it => {
+        const div = document.createElement('div');
+        div.innerHTML = KH.renderFeedCard(it);
+        el.appendChild(div.firstElementChild);
+    });
+};
+
+// Editor picks strip rendering (called in loadFeed)
+KH.loadEditorPicksStrip = async function(container) {
+    const d = await khFetch(`${API}/editor-picks/current`);
+    const picks = d.picks || [];
+    if (!picks.length) return;
+    const html = `
+        <div style="padding:.5rem .75rem 0">
+            <div class="kh-strip-label">⭐ בחירת העורך</div>
+        </div>
+        <div class="kh-strip-scroll">
+            ${picks.map(p => `
+                <div class="kh-strip-card" onclick="KH.loadContent(${p.id})">
+                    ${p.cover_image_url ? `<img src="${esc(p.cover_image_url)}" class="kh-strip-img" alt="">` : '<div class="kh-strip-img" style="background:var(--primary-light);display:flex;align-items:center;justify-content:center;font-size:1.5rem">📰</div>'}
+                    <div class="kh-strip-card-title">${esc(p.title)}</div>
+                    <div style="font-size:.65rem;color:var(--muted)">${esc(p.author_name||'')}</div>
+                </div>`).join('')}
+        </div>`;
+    const el = document.createElement('div');
+    el.innerHTML = html;
+    container.insertBefore(el, container.firstChild);
+};
+
+// SA editor picks management (extend existing SA queue view)
+KH.loadEditorPicksSA = async function() {
+    const d = await khFetch(`${API}/sa/editor-picks`);
+    const picks = d.picks || [];
+    const el = document.getElementById('sa-editor-picks-list');
+    if (!el) return;
+    el.innerHTML = picks.length ? picks.map(p => `
+        <div class="report-card">
+            <div class="report-header">
+                <span class="report-reason-badge">⭐ בחירת עורך</span>
+                <span style="font-size:.75rem;color:var(--muted)">${p.created_at?.slice(0,10)||''}</span>
+            </div>
+            <strong>${esc(p.title)}</strong>
+            <div style="font-size:.8rem;color:var(--muted)">${esc(p.author_name||'')} · ${p.status||''}</div>
+            ${p.note ? `<div style="font-size:.8rem;margin-top:.25rem">${esc(p.note)}</div>` : ''}
+            <button class="kh-btn kh-btn-danger kh-btn-sm" style="margin-top:.4rem" onclick="KH.removeEditorPick(${p.id})">הסר</button>
+        </div>`).join('')
+        : '<p class="kh-empty">אין בחירות עורך כרגע</p>';
+};
+
+KH.addEditorPick = async function(contentId) {
+    const note = prompt('הערת עורך (אופציונלי):') || '';
+    const d = await khFetch(`${API}/sa/editor-picks`, {
+        method: 'POST', body: JSON.stringify({ content_item_id: contentId, note })
+    });
+    if (d.success) { khToast('success', 'נוסף לבחירת עורך'); KH.loadEditorPicksSA(); }
+    else khToast('error', d.error || 'שגיאה');
+};
+
+KH.removeEditorPick = async function(pickId) {
+    if (!confirm('להסיר מבחירת עורך?')) return;
+    const d = await khFetch(`${API}/sa/editor-picks/${pickId}`, { method: 'DELETE' });
+    if (d.success) { khToast('success', 'הוסר'); KH.loadEditorPicksSA(); }
+};
+
+KH.revokeAuthor = async function(authorId) {
+    const days = parseInt(prompt('משך הרחקה בימים (ברירת מחדל: 30):') || '30') || 30;
+    const d = await khFetch(`${API}/sa/authors/${authorId}/revoke`, {
+        method: 'POST', body: JSON.stringify({ days })
+    });
+    if (d.success) khToast('success', 'הכותב הורחק');
+    else khToast('error', d.error || 'שגיאה');
+};
+
+// Badge helper
+function badgeHtml(level, isRevoked) {
+    const effective = isRevoked ? 'DEFAULT' : level;
+    if (effective === 'LOCAL_LEADER') return '<span class="badge-tag badge-LOCAL_LEADER">🏅 מוביל קהילתי</span>';
+    if (effective === 'GLOBAL_LEADER') return '<span class="badge-tag badge-GLOBAL_LEADER">🌍 מוביל ארצי</span>';
+    if (effective === 'LEGACY') return '<span class="badge-tag badge-LEGACY">⏳ Legacy</span>';
+    return '';
+}
 
 // ── Utilities ─────────────────────────────────────────────────
 function esc(s) {
