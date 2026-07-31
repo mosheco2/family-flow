@@ -1,0 +1,1218 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Oneflow · Control Center</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+:root{
+  --bg:#090C13;--panel:#111827;--card:#1C2333;--card2:#232C42;
+  --border:#1E2D45;--cyan:#22D3EE;--cyan-dim:#0E7490;
+  --gold:#F59E0B;--emerald:#10B981;--red:#EF4444;
+  --purple:#A78BFA;--pink:#F472B6;--blue:#60A5FA;
+  --text:#E2E8F0;--muted:#475569;--muted2:#64748B;
+  --r:10px;--rs:6px;
+}
+
+html,body{height:100%;width:100%;background:var(--bg);color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;
+  direction:rtl;overflow:hidden;font-size:13px;-webkit-font-smoothing:antialiased}
+
+body::before{content:'';position:fixed;inset:0;
+  background-image:linear-gradient(rgba(34,211,238,.03) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(34,211,238,.03) 1px,transparent 1px);
+  background-size:48px 48px;pointer-events:none;z-index:0}
+
+#root{position:relative;z-index:1;display:flex;flex-direction:column;
+  height:100vh;padding:8px;gap:6px}
+
+/* ─── HEADER ─── */
+#hdr{display:flex;align-items:center;gap:10px;background:var(--panel);
+  border:1px solid var(--border);border-radius:var(--r);padding:8px 14px;flex-shrink:0}
+
+.logo{display:flex;align-items:center;gap:7px;font-size:10px;font-weight:900;
+  letter-spacing:.12em;color:var(--cyan);text-transform:uppercase;white-space:nowrap}
+.logo-dot{width:7px;height:7px;border-radius:50%;background:var(--cyan);
+  box-shadow:0 0 8px var(--cyan);animation:pdot 2s infinite}
+@keyframes pdot{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.6;transform:scale(.85)}}
+
+.sys-dot{display:flex;align-items:center;gap:4px;font-size:8px;color:var(--muted2);font-weight:600}
+.sys-dot span{width:6px;height:6px;border-radius:50%;background:var(--emerald);box-shadow:0 0 4px var(--emerald)}
+
+#clock{font-size:20px;font-weight:900;font-variant-numeric:tabular-nums;
+  color:var(--text);letter-spacing:-.02em}
+#clock-date{font-size:8px;color:var(--muted2);margin-top:1px}
+
+/* Screen nav dots */
+#screen-nav{display:flex;align-items:center;gap:6px}
+.snav-btn{display:flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;
+  font-size:9px;font-weight:800;cursor:pointer;border:1px solid var(--border);
+  background:transparent;color:var(--muted2);transition:all .2s;white-space:nowrap}
+.snav-btn.active{background:var(--cyan);color:#000;border-color:var(--cyan)}
+.snav-btn:hover:not(.active){background:var(--card);color:var(--text)}
+.pin-icon{font-size:9px}
+
+#rotate-progress{height:2px;background:var(--border);border-radius:1px;
+  overflow:hidden;width:60px;flex-shrink:0}
+#rotate-bar{height:100%;background:var(--cyan);width:0%;transition:width .5s linear}
+
+.hchip{display:flex;align-items:center;gap:4px;padding:4px 9px;border-radius:20px;
+  font-size:9px;font-weight:800;cursor:pointer;white-space:nowrap}
+.hchip-red{background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.3);
+  color:#FCA5A5;animation:bp 2s infinite}
+.hchip-gold{background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.25);color:#FCD34D}
+.hchip-blue{background:rgba(96,165,250,.1);border:1px solid rgba(96,165,250,.25);color:#93C5FD}
+@keyframes bp{0%,100%{border-color:rgba(239,68,68,.3)}50%{border-color:rgba(239,68,68,.7)}}
+
+/* ─── SCREENS ─── */
+#screens{flex:1;min-height:0;position:relative}
+.screen{display:none;height:100%;
+  display:grid;grid-template-columns:260px 1fr 260px;gap:6px}
+.screen.hidden{display:none!important}
+.screen.visible{display:grid}
+
+.col{display:flex;flex-direction:column;gap:6px;min-height:0;overflow:hidden}
+
+/* ─── PANEL ─── */
+.panel{background:var(--card);border:1px solid var(--border);
+  border-radius:var(--r);overflow:hidden;flex-shrink:0}
+.panel.grow{flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden}
+.ph{display:flex;align-items:center;justify-content:space-between;gap:6px;
+  padding:7px 11px;border-bottom:1px solid var(--border);
+  background:rgba(255,255,255,.02);flex-shrink:0}
+.pt{font-size:8px;font-weight:900;text-transform:uppercase;letter-spacing:.1em;color:var(--muted2)}
+.plive{display:flex;align-items:center;gap:3px;font-size:8px;font-weight:700;color:var(--cyan)}
+.plive-dot{width:5px;height:5px;border-radius:50%;background:var(--cyan);animation:pdot 1.5s infinite}
+
+/* ─── KPI TILES ─── */
+.kgrid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border)}
+.ktile{background:var(--card);padding:9px 11px;cursor:pointer;
+  transition:background .15s;position:relative;overflow:hidden}
+.ktile:hover{background:var(--card2)}
+.ktile::after{content:'↗';position:absolute;top:5px;left:7px;font-size:7px;
+  color:var(--muted);opacity:0;transition:opacity .15s}
+.ktile:hover::after{opacity:1}
+.kl{font-size:7px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;
+  color:var(--muted2);margin-bottom:4px}
+.kv{font-size:22px;font-weight:900;font-variant-numeric:tabular-nums;line-height:1}
+.ks{font-size:8px;color:var(--muted2);margin-top:3px;font-variant-numeric:tabular-nums}
+
+/* Wide KPI (1 col full width) */
+.ktile-wide{background:var(--card);padding:10px 14px;cursor:pointer;
+  transition:background .15s;display:flex;align-items:center;
+  justify-content:space-between;border-bottom:1px solid var(--border)}
+.ktile-wide:last-child{border-bottom:none}
+.ktile-wide:hover{background:var(--card2)}
+.kwl{font-size:8px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted2)}
+.kwv{font-size:16px;font-weight:900;font-variant-numeric:tabular-nums;line-height:1.1}
+.kws{font-size:7px;color:var(--muted2);margin-top:2px}
+
+/* ─── LIVE FEED ─── */
+#feed{display:flex;flex-direction:column;gap:2px;padding:5px;
+  height:100%;overflow-y:auto;scroll-behavior:smooth}
+#feed::-webkit-scrollbar{width:2px}
+#feed::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+.frow{display:flex;align-items:flex-start;gap:7px;padding:5px 7px;
+  border-radius:var(--rs);background:rgba(255,255,255,.02);
+  border-right:2px solid transparent;cursor:pointer;
+  transition:background .12s;flex-shrink:0;font-size:10px}
+.frow:hover{background:var(--card2)}
+.frow.new{animation:fin .35s ease}
+@keyframes fin{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:translateY(0)}}
+.fi{font-size:11px;flex-shrink:0;margin-top:1px}
+.fc{flex:1;min-width:0}
+.fm{color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fmeta{font-size:8px;color:var(--muted2);margin-top:1px}
+.ft{font-size:8px;color:var(--muted);white-space:nowrap;font-variant-numeric:tabular-nums}
+
+/* ─── BARS ─── */
+.bar-row{display:flex;flex-direction:column;gap:5px;padding:6px 11px}
+.bar-item{display:flex;flex-direction:column;gap:2px}
+.bar-top{display:flex;justify-content:space-between;align-items:baseline}
+.bar-name{font-size:9px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:160px}
+.bar-val{font-size:9px;font-weight:800;font-variant-numeric:tabular-nums}
+.bar-track{height:3px;background:var(--border);border-radius:2px;overflow:hidden}
+.bar-fill{height:100%;border-radius:2px;transition:width .8s ease}
+
+/* ─── SPARKLINE ─── */
+.spark{display:flex;align-items:flex-end;gap:2px;height:28px}
+.spark-b{flex:1;min-width:3px;border-radius:1px;opacity:.8;transition:height .5s}
+
+/* ─── TICKET ROWS ─── */
+.trow{display:flex;align-items:center;gap:6px;padding:5px 8px;
+  border-radius:var(--rs);background:rgba(255,255,255,.02);
+  border:1px solid var(--border);cursor:pointer;font-size:9px}
+.trow:hover{background:var(--card2)}
+.tdot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.ttxt{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text)}
+.ttime{font-size:7px;color:var(--muted2);white-space:nowrap}
+
+/* ─── ZM ROWS ─── */
+.zmrow{display:flex;align-items:center;justify-content:space-between;
+  padding:7px 11px;border-bottom:1px solid var(--border);cursor:pointer;
+  transition:background .12s}
+.zmrow:last-child{border-bottom:none}
+.zmrow:hover{background:var(--card2)}
+.zmn{font-size:10px;font-weight:600;color:var(--text)}
+.zms{font-size:8px;color:var(--muted2)}
+.zmbadge{font-size:8px;font-weight:800;padding:2px 7px;border-radius:10px}
+.zmbadge.ok{background:rgba(16,185,129,.12);color:var(--emerald)}
+.zmbadge.warn{background:rgba(245,158,11,.12);color:var(--gold)}
+.zmbadge.red{background:rgba(239,68,68,.12);color:var(--red)}
+
+/* ─── CHART 24H ─── */
+#ch24{display:flex;align-items:flex-end;gap:2px;height:70px;padding:0 2px}
+.ch24-b{flex:1;border-radius:2px 2px 0 0;transition:height .4s}
+.ch24-b.now{box-shadow:0 0 6px var(--cyan)}
+
+/* ─── BOTTOM BAR ─── */
+#bottom{background:var(--panel);border:1px solid var(--border);
+  border-radius:var(--r);padding:6px 12px;
+  display:flex;align-items:center;gap:8px;flex-shrink:0;overflow:hidden}
+.bl{font-size:7px;font-weight:800;color:var(--muted2);text-transform:uppercase;
+  letter-spacing:.1em;white-space:nowrap}
+#bchips{display:flex;gap:5px;overflow-x:auto;flex:1}
+#bchips::-webkit-scrollbar{display:none}
+.bchip{display:flex;align-items:center;gap:4px;flex-shrink:0;
+  padding:3px 9px;border-radius:20px;font-size:8px;font-weight:700;
+  cursor:pointer;border:1px solid;white-space:nowrap;transition:opacity .15s}
+.bchip:hover{opacity:.8}
+.bc-red{background:rgba(239,68,68,.1);color:#FCA5A5;border-color:rgba(239,68,68,.3)}
+.bc-gold{background:rgba(245,158,11,.1);color:#FCD34D;border-color:rgba(245,158,11,.3)}
+.bc-blue{background:rgba(96,165,250,.1);color:#93C5FD;border-color:rgba(96,165,250,.3)}
+.bc-teal{background:rgba(20,184,166,.1);color:#5EEAD4;border-color:rgba(20,184,166,.3)}
+.bc-pink{background:rgba(244,114,182,.1);color:#F9A8D4;border-color:rgba(244,114,182,.3)}
+
+/* colors */
+.c-cyan{color:var(--cyan)}.c-em{color:var(--emerald)}.c-gold{color:var(--gold)}
+.c-red{color:var(--red)}.c-pur{color:var(--purple)}.c-pink{color:var(--pink)}
+.c-blue{color:var(--blue)}.c-txt{color:var(--text)}.c-wa{color:#25D366}
+
+/* Toast */
+#toast{position:fixed;top:16px;left:50%;transform:translateX(-50%);
+  background:var(--cyan);color:#000;font-size:10px;font-weight:800;
+  padding:6px 16px;border-radius:20px;z-index:9999;pointer-events:none;
+  opacity:0;transition:opacity .3s}
+#toast.show{opacity:1}
+
+*{scrollbar-width:thin;scrollbar-color:var(--border) transparent}
+@media(prefers-reduced-motion:reduce){.logo-dot,.plive-dot,.hchip-red{animation:none}}
+</style>
+</head>
+<body>
+
+<div id="root">
+
+<!-- ═══ HEADER ═══ -->
+<div id="hdr">
+  <div class="logo"><div class="logo-dot"></div>ONEFLOW&nbsp;·&nbsp;CONTROL&nbsp;CENTER</div>
+
+  <div style="display:flex;align-items:center;gap:8px;margin-right:4px">
+    <div class="sys-dot"><span id="sdb"></span>DB</div>
+    <div class="sys-dot"><span id="sapi"></span>API</div>
+  </div>
+
+  <div style="display:flex;flex-direction:column;align-items:center">
+    <div id="clock">00:00:00</div>
+    <div id="clock-date"></div>
+  </div>
+
+  <div style="flex:1"></div>
+
+  <!-- Screen nav -->
+  <div id="screen-nav">
+    <button class="snav-btn active" onclick="selectScreen(0)" id="snav-0">🏠 ראשי</button>
+    <button class="snav-btn" onclick="selectScreen(1)" id="snav-1">💰 פיננסים</button>
+    <button class="snav-btn" onclick="selectScreen(2)" id="snav-2">🎧 פעילות</button>
+    <button class="snav-btn" onclick="selectScreen(3)" id="snav-3">🗺️ שותפים</button>
+    <button onclick="togglePin()" id="pin-btn" style="background:transparent;border:1px solid var(--border);border-radius:20px;padding:4px 9px;font-size:9px;font-weight:800;color:var(--muted2);cursor:pointer" title="קבע מסך">📌 קבע</button>
+  </div>
+
+  <div id="rotate-progress"><div id="rotate-bar"></div></div>
+
+  <div id="hchip-urgent" class="hchip hchip-red" style="display:none" onclick="nav('support')"></div>
+  <div id="hchip-zm" class="hchip hchip-gold" style="display:none" onclick="nav('partners')"></div>
+  <div id="hchip-banner" class="hchip hchip-blue" style="display:none" onclick="nav('adslots')"></div>
+</div>
+
+<!-- ═══ SCREENS ═══ -->
+<div id="screens">
+
+  <!-- ══ SCREEN 0: ראשי ══ -->
+  <div class="screen visible" id="sc-0">
+
+    <!-- עמודה ימין: ישויות -->
+    <div class="col">
+      <div class="panel">
+        <div class="ph"><span class="pt">ישויות במערכת</span><span class="plive"><span class="plive-dot"></span>חי</span></div>
+        <div class="kgrid">
+          <div class="ktile" onclick="nav('clients','BUSINESS')" title="עסקים">
+            <div class="kl">עסקים</div>
+            <div class="kv c-gold" id="v0-biz">--</div>
+            <div class="ks"><span class="c-cyan" id="v0-biz24">+0</span> היום</div>
+          </div>
+          <div class="ktile" onclick="nav('clients','FAMILY')" title="משפחות">
+            <div class="kl">משפחות</div>
+            <div class="kv c-em" id="v0-fam">--</div>
+            <div class="ks"><span class="c-cyan" id="v0-fam24">+0</span> היום</div>
+          </div>
+          <div class="ktile" onclick="nav('comm')" title="קהילות">
+            <div class="kl">קהילות</div>
+            <div class="kv c-cyan" id="v0-comm">--</div>
+            <div class="ks"><span id="v0-conn">0</span> חיבורים</div>
+          </div>
+          <div class="ktile" onclick="nav('clients')" title="משתמשים">
+            <div class="kl">משתמשים</div>
+            <div class="kv c-txt" id="v0-users">--</div>
+            <div class="ks" id="v0-online"><span class="c-em">● 0</span> מחוברים</div>
+          </div>
+        </div>
+        <div style="padding:7px 11px 9px;border-top:1px solid var(--border)">
+          <div style="font-size:7px;color:var(--muted2);font-weight:700;text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px">גידול 7 ימים</div>
+          <div class="spark" id="spark-growth"></div>
+          <div style="display:flex;gap:10px;margin-top:4px">
+            <span style="font-size:7px;color:var(--gold);font-weight:700">■ עסקים</span>
+            <span style="font-size:7px;color:var(--emerald);font-weight:700">■ משפחות</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="ph"><span class="pt">תמיכה</span><span class="c-red" style="font-size:7px;font-weight:800" id="v0-sla-warn"></span></div>
+        <div class="kgrid">
+          <div class="ktile" onclick="nav('support')">
+            <div class="kl">פתוחות</div>
+            <div class="kv c-red" id="v0-open">--</div>
+            <div class="ks">קריאות</div>
+          </div>
+          <div class="ktile" onclick="nav('support')">
+            <div class="kl">דחופות</div>
+            <div class="kv c-gold" id="v0-urgent">--</div>
+            <div class="ks">עדיפות גבוהה</div>
+          </div>
+        </div>
+        <div style="padding:5px" id="v0-tickets-list"></div>
+      </div>
+
+      <div class="panel grow">
+        <div class="ph"><span class="pt">מנהלי אזור</span><span onclick="nav('partners')" style="font-size:7px;font-weight:700;color:var(--cyan);cursor:pointer">הכל ›</span></div>
+        <div id="v0-zm-list"></div>
+      </div>
+    </div>
+
+    <!-- עמודה מרכז: פיד חי -->
+    <div class="col">
+      <div class="panel grow">
+        <div class="ph">
+          <span class="pt">פיד פעולות</span>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span id="feed-count" style="font-size:7px;font-weight:700;color:var(--muted2)">טוען...</span>
+            <span class="plive"><span class="plive-dot"></span>בזמן אמת</span>
+          </div>
+        </div>
+        <div style="flex:1;overflow:hidden"><div id="feed"></div></div>
+      </div>
+    </div>
+
+    <!-- עמודה שמאל: פיננסים + WA -->
+    <div class="col">
+      <div class="panel">
+        <div class="ph"><span class="pt">עסקאות חנויות</span><span onclick="nav('finance','overview')" style="font-size:7px;font-weight:700;color:var(--cyan);cursor:pointer">פירוט ›</span></div>
+        <div class="ktile-wide" onclick="nav('finance','overview')">
+          <div><div class="kwl">GMV החודש</div><div class="kwv c-em" id="v0-gmv-m">--</div><div class="kws" id="v0-orders-m">-- הזמנות</div></div>
+          <span style="font-size:13px">🛍️</span>
+        </div>
+        <div class="ktile-wide" onclick="nav('finance','overview')">
+          <div><div class="kwl">GMV היום</div><div class="kwv c-cyan" id="v0-gmv-d">--</div><div class="kws" id="v0-orders-d">-- הזמנות</div></div>
+          <span style="font-size:13px">📈</span>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="ph"><span class="pt">פיננסים</span></div>
+        <div class="ktile-wide" onclick="nav('finance','overview')">
+          <div><div class="kwl">עמלות החודש</div><div class="kwv c-em" id="v0-comm-m">--</div></div>
+          <span style="font-size:13px">💰</span>
+        </div>
+        <div class="ktile-wide" onclick="nav('finance','dues')">
+          <div><div class="kwl">חוב פתוח</div><div class="kwv c-gold" id="v0-debt">--</div><div class="kws" id="v0-debt-cnt">-- עסקים</div></div>
+          <span style="font-size:13px">⚠️</span>
+        </div>
+        <div class="ktile-wide" onclick="nav('finance','wallets')">
+          <div>
+            <div class="kwl">Flow · משפחות</div>
+            <div class="kwv c-pink" id="v0-flow-fam">--</div>
+          </div>
+          <span style="font-size:11px">🪙</span>
+        </div>
+        <div class="ktile-wide" onclick="nav('finance','wallets')">
+          <div>
+            <div class="kwl">Flow · עסקים</div>
+            <div class="kwv c-blue" id="v0-flow-biz">--</div>
+          </div>
+          <span style="font-size:11px">🪙</span>
+        </div>
+      </div>
+
+      <div class="panel grow">
+        <div class="ph"><span class="pt">WhatsApp</span><span onclick="nav('whatsapp')" style="font-size:7px;font-weight:700;color:#25D366;cursor:pointer">האב ›</span></div>
+        <div class="kgrid">
+          <div class="ktile" onclick="nav('whatsapp')">
+            <div class="kl">מחוברים</div>
+            <div class="kv c-wa" id="v0-wa-biz">--</div>
+            <div class="ks">עסקים</div>
+          </div>
+          <div class="ktile" onclick="nav('whatsapp')">
+            <div class="kl">נשלחו היום</div>
+            <div class="kv c-wa" id="v0-wa-today">--</div>
+            <div class="ks" id="v0-wa-month">-- החודש</div>
+          </div>
+        </div>
+        <div style="padding:7px 11px 9px;border-top:1px solid var(--border)">
+          <div class="ph" style="border:none;padding:0 0 5px 0">
+            <span class="pt">פרסום</span>
+            <span onclick="nav('adslots')" style="font-size:7px;font-weight:700;color:var(--cyan);cursor:pointer">ניהול ›</span>
+          </div>
+          <div class="kgrid" style="border-radius:var(--rs);overflow:hidden">
+            <div class="ktile" onclick="nav('adslots','orders')">
+              <div class="kl">ממתינות</div>
+              <div class="kv c-gold" id="v0-banner-pend">--</div>
+              <div class="ks">הזמנות</div>
+            </div>
+            <div class="ktile" onclick="nav('adslots')">
+              <div class="kl">פעילים</div>
+              <div class="kv c-blue" id="v0-banner-act">--</div>
+              <div class="ks">באנרים</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ SCREEN 1: פיננסים ══ -->
+  <div class="screen hidden" id="sc-1">
+
+    <!-- ימין: GMV + Orders -->
+    <div class="col">
+      <div class="panel">
+        <div class="ph"><span class="pt">תעבורת עסקאות (GMV)</span><span style="font-size:7px;color:var(--muted2)">חנויות ציבוריות</span></div>
+        <div class="kgrid">
+          <div class="ktile" onclick="nav('finance','overview')">
+            <div class="kl">החודש</div>
+            <div class="kv c-em" id="v1-gmv-m">--</div>
+            <div class="ks" id="v1-orders-m">-- הזמנות</div>
+          </div>
+          <div class="ktile" onclick="nav('finance','overview')">
+            <div class="kl">היום</div>
+            <div class="kv c-cyan" id="v1-gmv-d">--</div>
+            <div class="ks" id="v1-orders-d">-- הזמנות</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="ph"><span class="pt">מטבעות Flow</span></div>
+        <div class="ktile-wide" onclick="nav('finance','wallets')">
+          <div><div class="kwl">ארנקי משפחות</div><div class="kwv c-pink" id="v1-flow-fam">--</div><div class="kws" id="v1-flow-fam-cnt">-- ארנקים</div></div>
+          <span style="font-size:13px">🏠</span>
+        </div>
+        <div class="ktile-wide" onclick="nav('finance','wallets')">
+          <div><div class="kwl">ארנקי עסקים</div><div class="kwv c-blue" id="v1-flow-biz">--</div><div class="kws" id="v1-flow-biz-cnt">-- ארנקים</div></div>
+          <span style="font-size:13px">🏪</span>
+        </div>
+        <div class="ktile-wide" onclick="nav('finance','wallets')">
+          <div><div class="kwl">ארנקי קהילות</div><div class="kwv c-cyan" id="v1-flow-comm">--</div><div class="kws" id="v1-flow-comm-cnt">-- ארנקים</div></div>
+          <span style="font-size:13px">🌍</span>
+        </div>
+      </div>
+
+      <div class="panel grow">
+        <div class="ph"><span class="pt">פרסום ובאנרים</span></div>
+        <div class="ktile-wide" onclick="nav('adslots','orders')">
+          <div><div class="kwl">ממתינות לאישור</div><div class="kwv c-gold" id="v1-ban-pend">--</div></div>
+          <span>📢</span>
+        </div>
+        <div class="ktile-wide" onclick="nav('adslots')">
+          <div><div class="kwl">באנרים פעילים</div><div class="kwv c-blue" id="v1-ban-act">--</div></div>
+          <span>🖼️</span>
+        </div>
+        <div class="ktile-wide" onclick="nav('finance','adsbilling')">
+          <div><div class="kwl">הכנסות פרסום החודש</div><div class="kwv c-em" id="v1-ban-rev">--</div></div>
+          <span>💸</span>
+        </div>
+        <div class="ktile-wide" onclick="nav('finance','adsbilling')">
+          <div><div class="kwl">תשלומי פרסום ממתינים</div><div class="kwv c-gold" id="v1-billing-pend">--</div></div>
+          <span>⏳</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- מרכז: עמלות + חוב + top חייבים -->
+    <div class="col">
+      <div class="panel">
+        <div class="ph"><span class="pt">עמלות פלטפורמה</span></div>
+        <div class="kgrid">
+          <div class="ktile" onclick="nav('finance','overview')">
+            <div class="kl">החודש</div>
+            <div class="kv c-em" id="v1-comm-m">--</div>
+            <div class="ks" id="v1-cb-m">קאשבק: --</div>
+          </div>
+          <div class="ktile" onclick="nav('finance','overview')">
+            <div class="kl">סה"כ</div>
+            <div class="kv c-cyan" id="v1-comm-t">--</div>
+            <div class="ks">מצטבר</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="ph"><span class="pt">חובות פתוחים</span><span onclick="nav('finance','dues')" style="font-size:7px;font-weight:700;color:var(--red);cursor:pointer">טיפול ›</span></div>
+        <div class="kgrid">
+          <div class="ktile" onclick="nav('finance','dues')">
+            <div class="kl">סכום חוב</div>
+            <div class="kv c-gold" id="v1-debt-amt">--</div>
+          </div>
+          <div class="ktile" onclick="nav('finance','dues')">
+            <div class="kl">עסקים חייבים</div>
+            <div class="kv c-red" id="v1-debt-cnt">--</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel grow">
+        <div class="ph"><span class="pt">Top חייבים</span></div>
+        <div class="bar-row" id="v1-debtors"></div>
+      </div>
+    </div>
+
+    <!-- שמאל: ZM כספים -->
+    <div class="col">
+      <div class="panel">
+        <div class="ph"><span class="pt">עמלות מנהלי אזור</span></div>
+        <div class="ktile-wide" onclick="nav('partners')">
+          <div><div class="kwl">סך הונפק</div><div class="kwv c-cyan" id="v1-zm-earned">--</div></div>
+          <span>💼</span>
+        </div>
+        <div class="ktile-wide" onclick="nav('partners')">
+          <div><div class="kwl">שולם</div><div class="kwv c-em" id="v1-zm-paid">--</div></div>
+          <span>✅</span>
+        </div>
+        <div class="ktile-wide" onclick="nav('partners')">
+          <div><div class="kwl">יתרה לתשלום</div><div class="kwv c-gold" id="v1-zm-balance">--</div></div>
+          <span>⏳</span>
+        </div>
+        <div class="ktile-wide" onclick="nav('partners')">
+          <div><div class="kwl">ZM פעילים</div><div class="kwv c-txt" id="v1-zm-active">--</div></div>
+          <span>👤</span>
+        </div>
+      </div>
+
+      <div class="panel grow">
+        <div class="ph"><span class="pt">Top ZM · יתרה</span></div>
+        <div id="v1-zm-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ SCREEN 2: פעילות ══ -->
+  <div class="screen hidden" id="sc-2">
+
+    <!-- ימין: תמיכה -->
+    <div class="col">
+      <div class="panel">
+        <div class="ph"><span class="pt">תמיכה & SLA</span></div>
+        <div class="kgrid">
+          <div class="ktile" onclick="nav('support')">
+            <div class="kl">פתוחות</div>
+            <div class="kv c-red" id="v2-open">--</div>
+          </div>
+          <div class="ktile" onclick="nav('support')">
+            <div class="kl">דחופות</div>
+            <div class="kv c-gold" id="v2-urgent">--</div>
+          </div>
+          <div class="ktile" onclick="nav('support')">
+            <div class="kl">נסגרו 24ש'</div>
+            <div class="kv c-em" id="v2-closed">--</div>
+          </div>
+          <div class="ktile" onclick="nav('support')">
+            <div class="kl">ממתינות</div>
+            <div class="kv c-blue" id="v2-billing-pend">--</div>
+            <div class="ks">חשבוניות</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel grow">
+        <div class="ph"><span class="pt">קריאות פתוחות</span></div>
+        <div style="padding:5px;display:flex;flex-direction:column;gap:3px" id="v2-ticket-list"></div>
+      </div>
+    </div>
+
+    <!-- מרכז: גרף 24 שעות -->
+    <div class="col">
+      <div class="panel grow" style="display:flex;flex-direction:column">
+        <div class="ph"><span class="pt">פעילות 24 שעות</span><span style="font-size:7px;color:var(--muted2)">הזמנות + משתמשים + קריאות</span></div>
+        <div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;padding:12px 10px 8px">
+          <div id="ch24" style="flex:1;min-height:60px"></div>
+          <div style="display:flex;justify-content:space-between;margin-top:4px">
+            <span style="font-size:7px;color:var(--muted2)">00:00</span>
+            <span style="font-size:7px;color:var(--muted2)">06:00</span>
+            <span style="font-size:7px;color:var(--muted2)">12:00</span>
+            <span style="font-size:7px;color:var(--muted2)">18:00</span>
+            <span style="font-size:7px;color:var(--muted2)">עכשיו</span>
+          </div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="ph"><span class="pt">ממתינים לטיפול</span></div>
+        <div class="kgrid">
+          <div class="ktile" onclick="nav('comm')">
+            <div class="kl">קהילות</div>
+            <div class="kv c-cyan" id="v2-pend-comm">--</div>
+          </div>
+          <div class="ktile" onclick="nav('comm')">
+            <div class="kl">חיבורי עסקים</div>
+            <div class="kv c-gold" id="v2-pend-biz">--</div>
+          </div>
+          <div class="ktile" onclick="nav('comm')">
+            <div class="kl">מבצעים</div>
+            <div class="kv c-purple" id="v2-pend-promo">--</div>
+          </div>
+          <div class="ktile" onclick="nav('clients')">
+            <div class="kl">הצטרפויות</div>
+            <div class="kv c-blue" id="v2-pend-fam">--</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- שמאל: AI + WA -->
+    <div class="col">
+      <div class="panel">
+        <div class="ph"><span class="pt">שימוש AI</span><span onclick="nav('pulse')" style="font-size:7px;font-weight:700;color:var(--purple);cursor:pointer">פולס ›</span></div>
+        <div class="kgrid">
+          <div class="ktile" onclick="nav('pulse')">
+            <div class="kl">היום</div>
+            <div class="kv c-pur" id="v2-ai-today">--</div>
+            <div class="ks">קריאות</div>
+          </div>
+          <div class="ktile" onclick="nav('pulse')">
+            <div class="kl">30 יום</div>
+            <div class="kv c-pur" id="v2-ai-month">--</div>
+            <div class="ks">קריאות</div>
+          </div>
+        </div>
+        <div class="bar-row" style="padding-top:7px">
+          <div style="font-size:7px;color:var(--muted2);font-weight:700;text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px">TOP 5 עסקים</div>
+          <div id="v2-ai-bars"></div>
+        </div>
+      </div>
+
+      <div class="panel grow">
+        <div class="ph"><span class="pt">WhatsApp</span></div>
+        <div class="kgrid">
+          <div class="ktile" onclick="nav('whatsapp')">
+            <div class="kl">מחוברים</div>
+            <div class="kv c-wa" id="v2-wa-biz">--</div>
+            <div class="ks">עסקים</div>
+          </div>
+          <div class="ktile" onclick="nav('whatsapp')">
+            <div class="kl">היום</div>
+            <div class="kv c-wa" id="v2-wa-today">--</div>
+            <div class="ks">הודעות</div>
+          </div>
+          <div class="ktile" onclick="nav('whatsapp')">
+            <div class="kl">החודש</div>
+            <div class="kv c-wa" id="v2-wa-month">--</div>
+          </div>
+          <div class="ktile" onclick="nav('whatsapp')">
+            <div class="kl">שגיאות</div>
+            <div class="kv c-red" id="v2-wa-err">--</div>
+            <div class="ks">30 יום</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ SCREEN 3: שותפים ══ -->
+  <div class="screen hidden" id="sc-3">
+
+    <!-- ימין: ZM KPIs -->
+    <div class="col">
+      <div class="panel">
+        <div class="ph"><span class="pt">מנהלי אזור</span></div>
+        <div class="kgrid">
+          <div class="ktile" onclick="nav('partners')">
+            <div class="kl">פעילים</div>
+            <div class="kv c-em" id="v3-zm-active">--</div>
+          </div>
+          <div class="ktile" onclick="nav('partners')">
+            <div class="kl">ממתינים</div>
+            <div class="kv c-gold" id="v3-zm-pend">--</div>
+          </div>
+          <div class="ktile" onclick="nav('partners')">
+            <div class="kl">הונפק</div>
+            <div class="kv c-cyan" id="v3-zm-earned">--</div>
+          </div>
+          <div class="ktile" onclick="nav('partners')">
+            <div class="kl">יתרה לתשלום</div>
+            <div class="kv c-gold" id="v3-zm-balance">--</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel grow">
+        <div class="ph"><span class="pt">ישויות</span></div>
+        <div class="kgrid">
+          <div class="ktile" onclick="nav('clients','BUSINESS')">
+            <div class="kl">עסקים</div>
+            <div class="kv c-gold" id="v3-biz">--</div>
+          </div>
+          <div class="ktile" onclick="nav('clients','FAMILY')">
+            <div class="kl">משפחות</div>
+            <div class="kv c-em" id="v3-fam">--</div>
+          </div>
+          <div class="ktile" onclick="nav('comm')">
+            <div class="kl">קהילות</div>
+            <div class="kv c-cyan" id="v3-comm">--</div>
+          </div>
+          <div class="ktile" onclick="nav('comm')">
+            <div class="kl">חיבורים</div>
+            <div class="kv c-blue" id="v3-conn">--</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- מרכז: רשימת ZM -->
+    <div class="col">
+      <div class="panel grow">
+        <div class="ph"><span class="pt">רשימת מנהלי אזור</span><span onclick="nav('partners')" style="font-size:7px;font-weight:700;color:var(--cyan);cursor:pointer">ניהול ›</span></div>
+        <div id="v3-zm-full"></div>
+      </div>
+    </div>
+
+    <!-- שמאל: Pilot Waitlist + ממתינים -->
+    <div class="col">
+      <div class="panel">
+        <div class="ph"><span class="pt">רשימת המתנה (Pilot)</span></div>
+        <div class="kgrid">
+          <div class="ktile" onclick="nav('partners')">
+            <div class="kl">ממתינים</div>
+            <div class="kv c-gold" id="v3-pilot-pend">--</div>
+          </div>
+          <div class="ktile" onclick="nav('partners')">
+            <div class="kl">הצטרפו</div>
+            <div class="kv c-em" id="v3-pilot-joined">--</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel grow">
+        <div class="ph"><span class="pt">ממתינים לאישור</span></div>
+        <div id="v3-pending-list" style="display:flex;flex-direction:column"></div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /screens -->
+
+<!-- ═══ BOTTOM BAR ═══ -->
+<div id="bottom">
+  <span class="bl">פעולות</span>
+  <div id="bchips"></div>
+  <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;border-right:1px solid var(--border);padding-right:8px;margin-right:2px">
+    <span style="font-size:7px;color:var(--muted2);font-weight:700">רענון</span>
+    <span style="font-size:7px;color:var(--cyan);font-weight:800" id="last-update">--</span>
+  </div>
+</div>
+
+</div><!-- /root -->
+
+<div id="toast"></div>
+
+<script>
+// ── Auth ──────────────────────────────────────────────────────────────────────
+const SA_TOKEN = localStorage.getItem('saToken') || 'SA_SECRET_TOKEN_2026';
+const saFetch = (url, opts={}) => fetch(url, {
+  ...opts, headers: { 'Authorization': SA_TOKEN, 'Content-Type':'application/json', ...(opts.headers||{}) }
+});
+
+// ── Number formatting ─────────────────────────────────────────────────────────
+function fmt(n, pfx='') {
+  n = parseFloat(n) || 0;
+  if (n >= 1000000) return pfx + (n/1000000).toFixed(1) + 'M';
+  if (n >= 10000)   return pfx + (n/1000).toFixed(1) + 'K';
+  if (n >= 1000)    return pfx + (n/1000).toFixed(1) + 'K';
+  return pfx + Math.round(n).toLocaleString('he-IL');
+}
+function fmtIls(n) { return fmt(n, '₪'); }
+function fmtCoin(n) { return fmt(n) + ' 🪙'; }
+function set(id, v) { const el=document.getElementById(id); if(el) el.textContent = v; }
+function timeAgo(ts) {
+  const s = Math.floor((Date.now() - new Date(ts)) / 1000);
+  if (s < 60) return `${s}ש'`;
+  if (s < 3600) return `${Math.floor(s/60)}ד'`;
+  return `${Math.floor(s/3600)}ש'`;
+}
+function fmtTime(ts) {
+  const d = new Date(ts);
+  return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}:${String(d.getSeconds()).padStart(2,'0')}`;
+}
+
+// ── Clock ─────────────────────────────────────────────────────────────────────
+function updateClock() {
+  const now = new Date();
+  const he = new Intl.DateTimeFormat('he-IL',{weekday:'long',day:'numeric',month:'long'}).format(now);
+  const h = String(now.getHours()).padStart(2,'0');
+  const m = String(now.getMinutes()).padStart(2,'0');
+  const s = String(now.getSeconds()).padStart(2,'0');
+  document.getElementById('clock').textContent = `${h}:${m}:${s}`;
+  document.getElementById('clock-date').textContent = he;
+}
+setInterval(updateClock, 1000); updateClock();
+
+// ── Navigation ────────────────────────────────────────────────────────────────
+function nav(tab, sub) {
+  const url = '/sa.html';
+  const msg = sub ? `← ${tab} › ${sub}` : `← ${tab}`;
+  showToast(msg);
+  setTimeout(() => {
+    const win = window.opener || (window.parent !== window ? window.parent : null);
+    if (win && win.switchSATab) { win.switchSATab(tab); if(sub && win._saSetGroupFilter) win._saSetGroupFilter(sub); }
+    else window.open(`${url}?tab=${tab}${sub?'&sub='+sub:''}`, '_blank');
+  }, 400);
+}
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+// ── Screen rotation ───────────────────────────────────────────────────────────
+let currentScreen = 0, pinned = false, rotateTimer = null, progressTimer = null, progressStart = null;
+const ROTATE_MS = 20000;
+
+function selectScreen(n, fromUser=true) {
+  if (fromUser) { pinned = false; updatePinBtn(); }
+  document.getElementById(`sc-${currentScreen}`).classList.add('hidden');
+  document.getElementById(`sc-${currentScreen}`).classList.remove('visible');
+  currentScreen = n;
+  document.getElementById(`sc-${n}`).classList.remove('hidden');
+  document.getElementById(`sc-${n}`).classList.add('visible');
+  document.querySelectorAll('.snav-btn').forEach((b,i) => b.classList.toggle('active', i===n));
+  if (!pinned) startRotateTimer();
+}
+
+function startRotateTimer() {
+  clearTimeout(rotateTimer); clearInterval(progressTimer);
+  const bar = document.getElementById('rotate-bar');
+  bar.style.width = '0%'; bar.style.transition = 'none';
+  progressStart = Date.now();
+  requestAnimationFrame(() => {
+    bar.style.transition = `width ${ROTATE_MS}ms linear`;
+    bar.style.width = '100%';
+  });
+  rotateTimer = setTimeout(() => {
+    if (!pinned) selectScreen((currentScreen+1)%4, false);
+  }, ROTATE_MS);
+}
+
+function togglePin() {
+  pinned = !pinned;
+  updatePinBtn();
+  if (pinned) {
+    clearTimeout(rotateTimer);
+    const bar = document.getElementById('rotate-bar');
+    bar.style.transition = 'none'; bar.style.width = '0%';
+  } else {
+    startRotateTimer();
+  }
+}
+function updatePinBtn() {
+  const btn = document.getElementById('pin-btn');
+  btn.textContent = pinned ? '📌 קבוע' : '📌 קבע';
+  btn.style.color = pinned ? 'var(--cyan)' : 'var(--muted2)';
+  btn.style.borderColor = pinned ? 'var(--cyan)' : 'var(--border)';
+}
+
+startRotateTimer();
+
+// ── DATA: Load stats ──────────────────────────────────────────────────────────
+let lastData = null;
+
+async function loadStats() {
+  try {
+    const r = await saFetch('/api/sa/bigscreen-stats');
+    if (!r.ok) return;
+    const d = await r.json();
+    if (!d.success) return;
+    lastData = d;
+    renderAll(d);
+    set('last-update', fmtTime(new Date()));
+    document.getElementById('sdb').style.background = 'var(--emerald)';
+    document.getElementById('sapi').style.background = 'var(--emerald)';
+  } catch(e) {
+    document.getElementById('sdb').style.background = 'var(--red)';
+    document.getElementById('sapi').style.background = 'var(--red)';
+  }
+}
+
+function renderAll(d) {
+  const e = d.entities || {};
+  const f = d.finance || {};
+  const zm = d.zm_finance || {};
+  const fl = d.flow || {};
+  const bn = d.banner || {};
+  const wa = d.whatsapp || {};
+  const ai = d.ai || {};
+  const or = d.orders || {};
+  const tk = d.tickets || {};
+
+  // ── Header chips ──
+  const urgCnt = parseInt(tk.urgent_cnt)||0;
+  const zmPend = parseInt(e.zm_pending)||0;
+  const banPend = parseInt(e.banner_pending)||0;
+
+  const cUrg = document.getElementById('hchip-urgent');
+  if (urgCnt > 0) { cUrg.style.display='flex'; cUrg.textContent=`⚠️ ${urgCnt} קריאות דחופות`; }
+  else cUrg.style.display='none';
+
+  const cZm = document.getElementById('hchip-zm');
+  if (zmPend > 0) { cZm.style.display='flex'; cZm.textContent=`🗺️ ${zmPend} ZM ממתינים`; }
+  else cZm.style.display='none';
+
+  const cBan = document.getElementById('hchip-banner');
+  if (banPend > 0) { cBan.style.display='flex'; cBan.textContent=`📢 ${banPend} הזמנות פרסום`; }
+  else cBan.style.display='none';
+
+  // ── Screen 0: ראשי ──
+  set('v0-biz', fmt(e.businesses));
+  set('v0-biz24', '+'+fmt(e.biz_24h));
+  set('v0-fam', fmt(e.families));
+  set('v0-fam24', '+'+fmt(e.fam_24h));
+  set('v0-comm', fmt(e.communities));
+  set('v0-conn', fmt(e.connections));
+  set('v0-users', fmt(e.total_users));
+  document.getElementById('v0-online').innerHTML = `<span class="c-em">● ${fmt(e.online_now)}</span> מחוברים`;
+  set('v0-open', fmt(tk.open_cnt)); set('v0-urgent', fmt(tk.urgent_cnt));
+  const slaWarn = parseInt(tk.urgent_cnt) > 0 ? `⚠️ ${tk.urgent_cnt} דחופות` : '';
+  set('v0-sla-warn', slaWarn);
+  set('v0-gmv-m', fmtIls(or.gmv_month));
+  set('v0-orders-m', fmt(or.orders_month)+' הזמנות');
+  set('v0-gmv-d', fmtIls(or.gmv_today));
+  set('v0-orders-d', fmt(or.orders_today)+' הזמנות');
+  set('v0-comm-m', fmtIls(f.month_commission));
+  set('v0-debt', fmtIls(f.debt_amount));
+  set('v0-debt-cnt', fmt(f.debt_count)+' עסקים');
+  set('v0-flow-fam', fmtCoin(fl.family?.balance));
+  set('v0-flow-biz', fmtCoin(fl.business?.balance));
+  set('v0-wa-biz', fmt(wa.active_businesses));
+  set('v0-wa-today', fmt(wa.today_sent));
+  set('v0-wa-month', fmt(wa.month_sent)+' החודש');
+  set('v0-banner-pend', fmt(bn.pending_orders));
+  set('v0-banner-act', fmt(bn.active_banners));
+
+  // ZM list screen 0
+  renderZMList('v0-zm-list', d.zm_list || []);
+
+  // Tickets list screen 0
+  renderTicketChips('v0-tickets-list', []);
+
+  // Spark 7 days
+  renderSpark('spark-growth', d.growth || []);
+
+  // ── Screen 1: פיננסים ──
+  set('v1-gmv-m', fmtIls(or.gmv_month));
+  set('v1-orders-m', fmt(or.orders_month)+' הזמנות');
+  set('v1-gmv-d', fmtIls(or.gmv_today));
+  set('v1-orders-d', fmt(or.orders_today)+' הזמנות');
+  set('v1-comm-m', fmtIls(f.month_commission));
+  set('v1-cb-m', 'קאשבק: '+fmtIls(f.month_cashback));
+  set('v1-comm-t', fmtIls(f.total_commission));
+  set('v1-debt-amt', fmtIls(f.debt_amount));
+  set('v1-debt-cnt', fmt(f.debt_count));
+  set('v1-zm-earned', fmtIls(zm.total_earned));
+  set('v1-zm-paid', fmtIls(zm.total_paid));
+  const zmBal = (parseFloat(zm.total_earned)||0) - (parseFloat(zm.total_paid)||0);
+  set('v1-zm-balance', fmtIls(zmBal));
+  set('v1-zm-active', fmt(zm.active_count));
+  set('v1-flow-fam', fmtCoin(fl.family?.balance));
+  set('v1-flow-fam-cnt', fmt(fl.family?.count)+' ארנקים');
+  set('v1-flow-biz', fmtCoin(fl.business?.balance));
+  set('v1-flow-biz-cnt', fmt(fl.business?.count)+' ארנקים');
+  set('v1-flow-comm', fmtCoin(fl.community?.balance));
+  set('v1-flow-comm-cnt', fmt(fl.community?.count)+' ארנקים');
+  set('v1-ban-pend', fmt(bn.pending_orders));
+  set('v1-ban-act', fmt(bn.active_banners));
+  set('v1-ban-rev', fmtIls(bn.ads_revenue_month));
+  set('v1-billing-pend', fmt(e.billing_pending));
+
+  renderDebtors('v1-debtors', d.debtors || []);
+  renderZMList('v1-zm-list', d.zm_list || []);
+
+  // ── Screen 2: פעילות ──
+  set('v2-open', fmt(tk.open_cnt));
+  set('v2-urgent', fmt(tk.urgent_cnt));
+  set('v2-closed', fmt(tk.closed_24h));
+  set('v2-billing-pend', fmt(e.billing_pending));
+  set('v2-pend-comm', fmt(e.communities_pending));
+  set('v2-pend-biz', fmt(e.biz_joins_pending));
+  set('v2-pend-promo', fmt(e.promos_pending));
+  set('v2-pend-fam', fmt(e.fam_joins_pending));
+  set('v2-ai-today', fmt(ai.today_calls));
+  set('v2-ai-month', fmt(ai.month_calls));
+  set('v2-wa-biz', fmt(wa.active_businesses));
+  set('v2-wa-today', fmt(wa.today_sent));
+  set('v2-wa-month', fmt(wa.month_sent));
+  set('v2-wa-err', fmt(wa.month_errors));
+
+  renderAIBars('v2-ai-bars', ai.top_biz || []);
+  renderActivity24h(d.activity24h || []);
+  renderTicketList('v2-ticket-list', d.feed || []);
+
+  // ── Screen 3: שותפים ──
+  set('v3-zm-active', fmt(zm.active_count));
+  set('v3-zm-pend', fmt(e.zm_pending));
+  set('v3-zm-earned', fmtIls(zm.total_earned));
+  set('v3-zm-balance', fmtIls(zmBal));
+  set('v3-biz', fmt(e.businesses));
+  set('v3-fam', fmt(e.families));
+  set('v3-comm', fmt(e.communities));
+  set('v3-conn', fmt(e.connections));
+
+  renderZMFull('v3-zm-full', d.zm_list || []);
+  renderPendingList('v3-pending-list', e);
+
+  // ── Bottom chips ──
+  renderBottomChips(e, tk, f, bn);
+}
+
+// ── Render helpers ────────────────────────────────────────────────────────────
+function renderSpark(id, growth) {
+  const el = document.getElementById(id); if (!el) return;
+  el.innerHTML = '';
+  const days = 7;
+  for (let i = 0; i < days; i++) {
+    const g = growth[i] || { biz:0, fam:0 };
+    const maxBiz = Math.max(...growth.map(x=>parseInt(x.biz)||0), 1);
+    const maxFam = Math.max(...growth.map(x=>parseInt(x.fam)||0), 1);
+    const bh = Math.max(8, Math.round((parseInt(g.biz)||0)/maxBiz*100));
+    const fh = Math.max(8, Math.round((parseInt(g.fam)||0)/maxFam*100));
+    const pair = document.createElement('div');
+    pair.style.cssText='display:flex;align-items:flex-end;gap:1px;flex:1';
+    pair.innerHTML=`<div style="flex:1;background:${i===days-1?'var(--gold)':'rgba(245,158,11,.45)'};height:${bh}%;border-radius:1px"></div>
+      <div style="flex:1;background:${i===days-1?'var(--emerald)':'rgba(16,185,129,.45)'};height:${fh}%;border-radius:1px"></div>`;
+    el.appendChild(pair);
+  }
+}
+
+function renderZMList(id, list) {
+  const el = document.getElementById(id); if (!el) return;
+  el.innerHTML = list.length ? '' : '<div style="padding:10px 11px;font-size:9px;color:var(--muted2)">אין נתונים</div>';
+  list.forEach(zm => {
+    const b = parseFloat(zm.balance)||0;
+    el.insertAdjacentHTML('beforeend',`
+      <div class="zmrow" onclick="nav('partners')">
+        <div><div class="zmn">${zm.name||'—'}</div><div class="zms">${zm.zone_count||0} אזורים</div></div>
+        <span class="zmbadge ${b>0?'ok':'warn'}">${fmtIls(b)}</span>
+      </div>`);
+  });
+}
+
+function renderZMFull(id, list) {
+  const el = document.getElementById(id); if (!el) return;
+  el.innerHTML = '';
+  list.forEach(zm => {
+    const b = parseFloat(zm.balance)||0;
+    el.insertAdjacentHTML('beforeend',`
+      <div class="zmrow" onclick="nav('partners')" style="padding:9px 11px">
+        <div>
+          <div class="zmn">${zm.name||'—'}</div>
+          <div class="zms">${zm.zone_count||0} אזורים · <span class="${b>500?'c-gold':'c-em'}">${fmtIls(b)} יתרה</span></div>
+        </div>
+        <span class="zmbadge ${zm.status==='active'?'ok':'warn'}">${zm.status==='active'?'פעיל':'ממתין'}</span>
+      </div>`);
+  });
+}
+
+function renderDebtors(id, debtors) {
+  const el = document.getElementById(id); if (!el) return;
+  el.innerHTML = '';
+  const max = Math.max(...debtors.map(d=>parseFloat(d.debt)||0), 1);
+  debtors.forEach(d => {
+    const pct = Math.round((parseFloat(d.debt)||0)/max*100);
+    el.insertAdjacentHTML('beforeend',`
+      <div class="bar-item" onclick="nav('finance','dues')" style="cursor:pointer">
+        <div class="bar-top">
+          <span class="bar-name">${d.biz_name||'—'}</span>
+          <span class="bar-val c-gold">${fmtIls(d.debt)}</span>
+        </div>
+        <div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:var(--gold)"></div></div>
+      </div>`);
+  });
+}
+
+function renderAIBars(id, topBiz) {
+  const el = document.getElementById(id); if (!el) return;
+  el.innerHTML = '';
+  if (!Array.isArray(topBiz) || !topBiz.length) {
+    el.innerHTML = '<div style="font-size:8px;color:var(--muted2);padding:4px 0">אין נתונים</div>'; return;
+  }
+  const max = Math.max(...topBiz.map(b=>parseInt(b.calls)||0), 1);
+  topBiz.forEach(b => {
+    const pct = Math.round((parseInt(b.calls)||0)/max*100);
+    el.insertAdjacentHTML('beforeend',`
+      <div class="bar-item" style="cursor:pointer" onclick="nav('pulse')">
+        <div class="bar-top">
+          <span class="bar-name">${b.name||'—'}</span>
+          <span class="bar-val c-pur">${fmt(b.calls)}</span>
+        </div>
+        <div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:var(--purple)"></div></div>
+      </div>`);
+  });
+}
+
+function renderActivity24h(data) {
+  const el = document.getElementById('ch24'); if (!el) return;
+  el.innerHTML = '';
+  const vals = data.map(r => parseInt(r.cnt)||0);
+  const maxV = Math.max(...vals, 1);
+  const nowH = new Date().getHours();
+  vals.forEach((v, i) => {
+    const h = parseInt(data[i]?.hour ?? i);
+    const isNow = h === nowH;
+    const pct = Math.max(4, Math.round(v/maxV*100));
+    const bar = document.createElement('div');
+    bar.className = 'ch24-b' + (isNow?' now':'');
+    bar.style.cssText = `flex:1;background:${isNow?'var(--cyan)':'rgba(34,211,238,.25)'};height:${pct}%;border-radius:2px 2px 0 0`;
+    bar.title = `${String(h).padStart(2,'0')}:00 — ${v} אירועים`;
+    el.appendChild(bar);
+  });
+}
+
+function renderTicketList(id, feedItems) {
+  const el = document.getElementById(id); if (!el) return;
+  const tickets = feedItems.filter(f=>f.event_type==='ticket').slice(0,6);
+  if (!tickets.length) { el.innerHTML='<div style="padding:6px 8px;font-size:8px;color:var(--muted2)">אין קריאות פתוחות</div>'; return; }
+  el.innerHTML = tickets.map(t=>`
+    <div class="trow" onclick="nav('support')">
+      <div class="tdot" style="background:var(--gold)"></div>
+      <div class="ttxt">${t.label||'קריאה'}</div>
+      <div class="ttime">${timeAgo(t.created_at)}</div>
+    </div>`).join('');
+}
+
+function renderTicketChips(id, _) {
+  // placeholder — real tickets come from feed
+}
+
+function renderPendingList(id, e) {
+  const el = document.getElementById(id); if (!el) return;
+  const items = [
+    { label:'קהילות ממתינות', cnt:e.communities_pending, color:'var(--cyan)', tab:'comm' },
+    { label:'חיבורי עסקים', cnt:e.biz_joins_pending, color:'var(--gold)', tab:'comm' },
+    { label:'הצטרפויות משפחות', cnt:e.fam_joins_pending, color:'var(--blue)', tab:'clients' },
+    { label:'מבצעים קהילתיים', cnt:e.promos_pending, color:'var(--purple)', tab:'comm' },
+    { label:'ZM ממתינים', cnt:e.zm_pending, color:'var(--gold)', tab:'partners' },
+    { label:'הזמנות פרסום', cnt:e.banner_pending, color:'var(--cyan)', tab:'adslots' },
+  ].filter(i=>parseInt(i.cnt)>0);
+
+  el.innerHTML = items.length
+    ? items.map(i=>`
+      <div class="ktile-wide" onclick="nav('${i.tab}')">
+        <div><div class="kwl">${i.label}</div><div class="kwv" style="color:${i.color}">${fmt(i.cnt)}</div></div>
+        <span style="font-size:12px">›</span>
+      </div>`).join('')
+    : '<div style="padding:10px 11px;font-size:9px;color:var(--muted2)">הכל תקין ✓</div>';
+
+  set('v3-pilot-pend', fmt(e.zm_pending));
+  set('v3-pilot-joined', '--');
+}
+
+function renderBottomChips(e, tk, f, bn) {
+  const chips = [];
+  if (parseInt(tk.urgent_cnt)>0) chips.push({cls:'bc-red', txt:`⚠️ ${tk.urgent_cnt} קריאות דחופות`, tab:'support'});
+  if (parseFloat(f.debt_amount)>0) chips.push({cls:'bc-gold', txt:`💰 חוב ₪${fmt(f.debt_amount)} — ${f.debt_count} עסקים`, tab:'finance'});
+  if (parseInt(bn.pending_orders)>0) chips.push({cls:'bc-blue', txt:`📢 ${bn.pending_orders} הזמנות פרסום`, tab:'adslots'});
+  if (parseInt(e.zm_pending)>0) chips.push({cls:'bc-teal', txt:`🗺️ ${e.zm_pending} ZM ממתינים`, tab:'partners'});
+  if (parseInt(e.promos_pending)>0) chips.push({cls:'bc-pink', txt:`🌍 ${e.promos_pending} מבצעים ממתינים`, tab:'comm'});
+  if (parseInt(e.biz_joins_pending)>0) chips.push({cls:'bc-blue', txt:`🏪 ${e.biz_joins_pending} בקשות חיבור`, tab:'comm'});
+  if (parseInt(e.communities_pending)>0) chips.push({cls:'bc-teal', txt:`🌐 ${e.communities_pending} קהילות ממתינות`, tab:'comm'});
+
+  const el = document.getElementById('bchips');
+  el.innerHTML = chips.length
+    ? chips.map(c=>`<div class="bchip ${c.cls}" onclick="nav('${c.tab}')">${c.txt}</div>`).join('')
+    : '<div class="bchip bc-teal">✅ אין פעולות ממתינות</div>';
+}
+
+// ── DATA: Activity feed polling ───────────────────────────────────────────────
+let lastFeedTs = new Date(Date.now() - 86400000).toISOString(); // last 24h on first load
+let feedItems = [];
+let feedCount = 0;
+
+const EVENT_META = {
+  order:  { icon:'🛍️', color:'var(--gold)',    fmtMain: ev => `הזמנה — ${fmtIls(ev.amount)} · ${ev.label||''}`, tab:'clients' },
+  user:   { icon:'👤', color:'var(--emerald)', fmtMain: ev => `הצטרפות — ${ev.label||''}`, tab:'clients' },
+  ticket: { icon:'💬', color:'var(--red)',      fmtMain: ev => `קריאת תמיכה — ${ev.label||''}`, tab:'support' },
+  banner: { icon:'📢', color:'var(--blue)',     fmtMain: ev => `הזמנת פרסום — ${ev.label||''} ${ev.amount?fmtIls(ev.amount):''}`, tab:'adslots' },
+  flow:   { icon:'🪙', color:'var(--pink)',     fmtMain: ev => `Flow — ${ev.label||''} · ${fmt(ev.amount)} מטבעות`, tab:'finance' },
+};
+
+async function loadFeed() {
+  try {
+    const r = await saFetch(`/api/sa/activity-feed?since=${encodeURIComponent(lastFeedTs)}`);
+    if (!r.ok) return;
+    const d = await r.json();
+    if (!d.success || !d.events?.length) return;
+    lastFeedTs = d.server_time;
+    d.events.forEach(ev => addFeedRow(ev, true));
+  } catch(e) {}
+}
+
+async function loadFeedInitial() {
+  try {
+    const r = await saFetch(`/api/sa/activity-feed?since=${encodeURIComponent(lastFeedTs)}`);
+    if (!r.ok) return;
+    const d = await r.json();
+    if (!d.success) return;
+    lastFeedTs = d.server_time;
+    if (d.events?.length) {
+      [...d.events].reverse().forEach(ev => addFeedRow(ev, false));
+    }
+  } catch(e) {}
+}
+
+function addFeedRow(ev, isNew) {
+  feedCount++;
+  set('feed-count', `${feedCount} פעולות`);
+  const meta = EVENT_META[ev.event_type] || { icon:'●', color:'var(--muted)', fmtMain:()=>ev.label||'פעולה', tab:'pulse' };
+  const feed = document.getElementById('feed');
+  const row = document.createElement('div');
+  row.className = 'frow' + (isNew?' new':'');
+  row.style.borderRightColor = meta.color;
+  row.onclick = () => nav(meta.tab);
+  row.innerHTML = `
+    <div class="fi">${meta.icon}</div>
+    <div class="fc">
+      <div class="fm">${meta.fmtMain(ev)}</div>
+      <div class="fmeta">${ev.entity||''}</div>
+    </div>
+    <div class="ft">${fmtTime(ev.created_at)}</div>`;
+  feed.insertBefore(row, feed.firstChild);
+  if (feed.children.length > 80) feed.removeChild(feed.lastChild);
+}
+
+// ── Poll intervals ────────────────────────────────────────────────────────────
+loadStats();
+loadFeedInitial().then(() => {
+  setInterval(loadFeed, 10000);    // feed: every 10s
+  setInterval(loadStats, 30000);   // stats: every 30s
+});
+</script>
+</body>
+</html>

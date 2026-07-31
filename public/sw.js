@@ -1,8 +1,8 @@
-const CACHE_NAME = 'family-flow-v119';
+const CACHE_NAME = 'family-flow-v120';
 const STATIC_ASSETS = [
   '/index.html', '/app.js', '/business.html', '/business-app.js',
   '/manifest.json', '/manifest-business.json', '/favicon.png',
-  '/icons/icon-192x192.png', '/icons/icon-512x512.png'
+  '/icons/icon-192x192.png', '/icons/icon-512x512.png', '/sa-bigscreen.html'
 ];
 
 self.addEventListener('install', event => {

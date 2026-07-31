@@ -5315,6 +5315,195 @@ app.get('/api/sa/dashboard', verifySA, async (req, res) => {
     }
 });
 
+// ── BIG SCREEN: unified dashboard stats ──────────────────────────────────────
+app.get('/api/sa/bigscreen-stats', verifySA, async (req, res) => {
+    try {
+        const safe = (q, def, params) => pool.query(q, params).catch(() => ({ rows: def }));
+        const [
+            entitiesR, ticketsR, financeR, zmFinR, zmListR,
+            flowWalletsR, bannerR, waR, aiR, ordersR, growthR, activity24hR, feedR
+        ] = await Promise.all([
+            // ── ישויות ──
+            pool.query(`SELECT
+                (SELECT COUNT(*) FROM family_groups WHERE type='FAMILY' AND member_type!='member') as families,
+                (SELECT COUNT(*) FROM family_groups WHERE type='BUSINESS') as businesses,
+                (SELECT COUNT(*) FROM family_groups WHERE type='FAMILY' AND created_at > NOW()-INTERVAL '24 hours') as fam_24h,
+                (SELECT COUNT(*) FROM family_groups WHERE type='BUSINESS' AND created_at > NOW()-INTERVAL '24 hours') as biz_24h,
+                (SELECT COUNT(*) FROM communities WHERE status='active') as communities,
+                (SELECT COUNT(*) FROM communities WHERE status='pending') as communities_pending,
+                (SELECT COUNT(*) FROM community_businesses WHERE status='approved') as connections,
+                (SELECT COUNT(*) FROM users) as total_users,
+                (SELECT COUNT(*) FROM users WHERE last_seen > NOW()-INTERVAL '3 minutes') as online_now,
+                (SELECT COUNT(*) FROM community_businesses WHERE status IN ('pending','zm_pending')) as biz_joins_pending,
+                (SELECT COUNT(*) FROM family_communities WHERE status='pending') as fam_joins_pending,
+                (SELECT COUNT(*) FROM community_promotions WHERE status='pending') as promos_pending,
+                (SELECT COUNT(*) FROM zone_managers WHERE status='pending') as zm_pending,
+                (SELECT COUNT(*) FROM banner_orders WHERE status='pending') as banner_pending,
+                (SELECT COUNT(*) FROM billing_records WHERE payment_status='pending') as billing_pending
+            `),
+            // ── תמיכה ──
+            safe(`SELECT
+                COUNT(*) FILTER (WHERE status='open') as open_cnt,
+                COUNT(*) FILTER (WHERE status='open' AND priority='high') as urgent_cnt,
+                COUNT(*) FILTER (WHERE status='closed' AND updated_at > NOW()-INTERVAL '24 hours') as closed_24h
+                FROM support_tickets`, [{ open_cnt:0, urgent_cnt:0, closed_24h:0 }]),
+            // ── פיננסים ──
+            safe(`SELECT
+                COALESCE(SUM(amount_ils) FILTER (WHERE payment_status='paid' AND created_at > NOW()-INTERVAL '30 days'),0) as month_commission,
+                COALESCE(SUM(cash_amount) FILTER (WHERE payment_status='paid' AND created_at > NOW()-INTERVAL '30 days'),0) as month_cashback,
+                COALESCE(SUM(amount_ils) FILTER (WHERE payment_status!='paid'),0) as debt_amount,
+                COUNT(*) FILTER (WHERE payment_status!='paid') as debt_count,
+                COALESCE(SUM(amount_ils) FILTER (WHERE payment_status='paid'),0) as total_commission
+                FROM billing_records`, [{ month_commission:0, month_cashback:0, debt_amount:0, debt_count:0, total_commission:0 }]),
+            // ── ZM פיננסים ──
+            safe(`SELECT
+                COALESCE(SUM(total_commissions),0) as total_earned,
+                COALESCE(SUM(total_paid),0) as total_paid,
+                COUNT(*) FILTER (WHERE status='active') as active_count
+                FROM zone_managers`, [{ total_earned:0, total_paid:0, active_count:0 }]),
+            // ── ZM רשימה ──
+            safe(`SELECT zm.name, zm.status,
+                (SELECT COUNT(*) FROM manager_zones WHERE manager_id=zm.id) as zone_count,
+                COALESCE(zm.total_commissions,0)-COALESCE(zm.total_paid,0) as balance
+                FROM zone_managers zm WHERE zm.status='active' ORDER BY balance DESC LIMIT 5`, []),
+            // ── Flow ארנקים לפי סוג ──
+            safe(`SELECT entity_type, COALESCE(SUM(balance),0) as total_balance, COUNT(*) as wallet_count
+                FROM flow_wallets GROUP BY entity_type`, []),
+            // ── פרסום ──
+            safe(`SELECT
+                COUNT(*) FILTER (WHERE status='pending') as pending_orders,
+                COUNT(*) FILTER (WHERE status='active') as active_banners,
+                COALESCE(SUM(br.amount_ils) FILTER (WHERE br.payment_status='paid' AND br.created_at > NOW()-INTERVAL '30 days'),0) as ads_revenue_month
+                FROM banner_orders bo
+                LEFT JOIN billing_records br ON br.reference_id=bo.id::text AND br.record_type='banner'`, [{ pending_orders:0, active_banners:0, ads_revenue_month:0 }]),
+            // ── WhatsApp ──
+            safe(`SELECT
+                (SELECT COUNT(*) FROM whatsapp_settings WHERE enabled=true) as active_businesses,
+                COUNT(*) FILTER (WHERE sent_at > NOW()-INTERVAL '30 days') as month_sent,
+                COUNT(*) FILTER (WHERE sent_at > CURRENT_DATE) as today_sent,
+                COUNT(*) FILTER (WHERE status='error' AND sent_at > NOW()-INTERVAL '30 days') as month_errors
+                FROM whatsapp_log`, [{ active_businesses:0, month_sent:0, today_sent:0, month_errors:0 }]),
+            // ── AI ──
+            safe(`SELECT
+                COUNT(*) FILTER (WHERE created_at > CURRENT_DATE) as today_calls,
+                COUNT(*) FILTER (WHERE created_at > NOW()-INTERVAL '30 days') as month_calls,
+                json_agg(top ORDER BY top.calls DESC) as top_biz
+                FROM (
+                    SELECT fg.name, COUNT(*) as calls
+                    FROM ai_usage_log al JOIN family_groups fg ON fg.id=al.group_id
+                    WHERE al.created_at > NOW()-INTERVAL '30 days'
+                    GROUP BY fg.id, fg.name ORDER BY calls DESC LIMIT 5
+                ) top`, [{ today_calls:0, month_calls:0, top_biz:null }]),
+            // ── GMV חנויות ציבוריות ──
+            safe(`SELECT
+                COALESCE(SUM(total_amount) FILTER (WHERE created_at > NOW()-INTERVAL '30 days' AND status NOT IN ('cancelled','rejected')),0) as gmv_month,
+                COALESCE(SUM(total_amount) FILTER (WHERE created_at > CURRENT_DATE AND status NOT IN ('cancelled','rejected')),0) as gmv_today,
+                COUNT(*) FILTER (WHERE created_at > NOW()-INTERVAL '30 days' AND status NOT IN ('cancelled','rejected')) as orders_month,
+                COUNT(*) FILTER (WHERE created_at > CURRENT_DATE AND status NOT IN ('cancelled','rejected')) as orders_today
+                FROM store_orders`, [{ gmv_month:0, gmv_today:0, orders_month:0, orders_today:0 }]),
+            // ── גידול 7 ימים ──
+            safe(`SELECT DATE(created_at) as day,
+                COUNT(*) FILTER (WHERE type='BUSINESS') as biz,
+                COUNT(*) FILTER (WHERE type='FAMILY') as fam
+                FROM family_groups WHERE created_at > NOW()-INTERVAL '7 days'
+                GROUP BY day ORDER BY day`, []),
+            // ── גרף 24 שעות ──
+            safe(`SELECT EXTRACT(HOUR FROM h) as hour, COALESCE(cnt,0) as cnt
+                FROM generate_series(NOW()-INTERVAL '23 hours', NOW(), '1 hour') h
+                LEFT JOIN (
+                    SELECT DATE_TRUNC('hour', created_at) as hr, COUNT(*) as cnt
+                    FROM (
+                        SELECT created_at FROM store_orders WHERE created_at > NOW()-INTERVAL '24 hours'
+                        UNION ALL SELECT created_at FROM users WHERE created_at > NOW()-INTERVAL '24 hours'
+                        UNION ALL SELECT created_at FROM support_tickets WHERE created_at > NOW()-INTERVAL '24 hours'
+                    ) ev GROUP BY hr
+                ) ac ON DATE_TRUNC('hour', h)=ac.hr
+                ORDER BY h`, []),
+            // ── פיד אחרון ──
+            safe(`SELECT * FROM (
+                SELECT 'order' as event_type, so.id, so.customer_name as label, fg.name as entity, so.total_amount as amount, so.created_at
+                FROM store_orders so JOIN family_groups fg ON fg.id=so.group_id
+                WHERE so.created_at > NOW()-INTERVAL '24 hours' AND so.status NOT IN ('cancelled','rejected')
+                UNION ALL
+                SELECT 'user', u.id, COALESCE(u.first_name||' '||u.last_name, u.nickname,'—'), fg.name, NULL, u.created_at
+                FROM users u JOIN family_groups fg ON fg.id=u.group_id
+                WHERE u.created_at > NOW()-INTERVAL '24 hours'
+                UNION ALL
+                SELECT 'ticket', t.id, t.subject, fg.name, NULL, t.created_at
+                FROM support_tickets t LEFT JOIN family_groups fg ON fg.id=t.group_id
+                WHERE t.created_at > NOW()-INTERVAL '24 hours'
+                UNION ALL
+                SELECT 'banner', bo.id, bs.name, fg.name, bo.total_price, bo.created_at
+                FROM banner_orders bo JOIN banner_slots bs ON bs.id=bo.slot_id LEFT JOIN family_groups fg ON fg.id=bo.business_id
+                WHERE bo.created_at > NOW()-INTERVAL '24 hours'
+                UNION ALL
+                SELECT 'flow', ft.id, ft.description, COALESCE(fg.name, c.name, '—'), ft.amount, ft.created_at
+                FROM flow_transactions ft
+                LEFT JOIN family_groups fg ON ft.entity_type IN ('family','business') AND fg.id=ft.entity_id
+                LEFT JOIN communities c ON ft.entity_type='community' AND c.id=ft.entity_id
+                WHERE ft.created_at > NOW()-INTERVAL '24 hours' AND ft.amount > 0
+            ) ev ORDER BY created_at DESC LIMIT 50`, [])
+        ]);
+
+        const flowByType = {};
+        (flowWalletsR.rows || []).forEach(r => { flowByType[r.entity_type] = { balance: parseFloat(r.total_balance)||0, count: parseInt(r.wallet_count)||0 }; });
+
+        res.json({
+            success: true,
+            entities: entitiesR.rows[0],
+            tickets: ticketsR.rows[0],
+            finance: financeR.rows[0],
+            zm_finance: zmFinR.rows[0],
+            zm_list: zmListR.rows,
+            flow: flowByType,
+            banner: bannerR.rows[0],
+            whatsapp: waR.rows[0],
+            ai: { ...(aiR.rows[0] || {}), top_biz: aiR.rows[0]?.top_biz || [] },
+            orders: ordersR.rows[0],
+            growth: growthR.rows,
+            activity24h: activity24hR.rows,
+            feed: feedR.rows
+        });
+    } catch(e) {
+        console.error('[SA BigScreen]', e.message);
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+// ── BIG SCREEN: activity feed (polling, since param) ─────────────────────────
+app.get('/api/sa/activity-feed', verifySA, async (req, res) => {
+    try {
+        const since = req.query.since ? new Date(req.query.since) : new Date(Date.now() - 60000);
+        const safe = (q, p) => pool.query(q, p).catch(() => ({ rows: [] }));
+        const [ordersR, usersR, ticketsR, bannersR, flowR] = await Promise.all([
+            safe(`SELECT 'order' as event_type, so.id, so.customer_name as label, fg.name as entity, so.total_amount as amount, so.created_at
+                FROM store_orders so JOIN family_groups fg ON fg.id=so.group_id
+                WHERE so.created_at > $1 AND so.status NOT IN ('cancelled','rejected') ORDER BY so.created_at DESC LIMIT 20`, [since]),
+            safe(`SELECT 'user' as event_type, u.id, COALESCE(u.first_name||' '||u.last_name, u.nickname,'—') as label, fg.name as entity, NULL::numeric as amount, u.created_at
+                FROM users u JOIN family_groups fg ON fg.id=u.group_id WHERE u.created_at > $1 ORDER BY u.created_at DESC LIMIT 20`, [since]),
+            safe(`SELECT 'ticket' as event_type, t.id, t.subject as label, COALESCE(fg.name,'—') as entity, NULL::numeric as amount, t.created_at
+                FROM support_tickets t LEFT JOIN family_groups fg ON fg.id=t.group_id WHERE t.created_at > $1 ORDER BY t.created_at DESC LIMIT 10`, [since]),
+            safe(`SELECT 'banner' as event_type, bo.id, bs.name as label, COALESCE(fg.name,'—') as entity, bo.total_price as amount, bo.created_at
+                FROM banner_orders bo JOIN banner_slots bs ON bs.id=bo.slot_id LEFT JOIN family_groups fg ON fg.id=bo.business_id
+                WHERE bo.created_at > $1 ORDER BY bo.created_at DESC LIMIT 10`, [since]),
+            safe(`SELECT 'flow' as event_type, ft.id, ft.description as label, COALESCE(fg.name, c.name,'—') as entity, ft.amount, ft.created_at
+                FROM flow_transactions ft
+                LEFT JOIN family_groups fg ON ft.entity_type IN ('family','business') AND fg.id=ft.entity_id
+                LEFT JOIN communities c ON ft.entity_type='community' AND c.id=ft.entity_id
+                WHERE ft.created_at > $1 AND ft.amount > 0 ORDER BY ft.created_at DESC LIMIT 10`, [since])
+        ]);
+
+        const events = [...ordersR.rows, ...usersR.rows, ...ticketsR.rows, ...bannersR.rows, ...flowR.rows]
+            .sort((a,b) => new Date(b.created_at) - new Date(a.created_at))
+            .slice(0, 30);
+
+        res.json({ success: true, events, server_time: new Date().toISOString() });
+    } catch(e) {
+        console.error('[SA Feed]', e.message);
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
 app.post('/api/superadmin/banners', verifySA, async (req, res) => {
     const { topText, topLink, topImg, bottomText, bottomLink, bottomImg, bizTopText, bizTopLink, bizTopImg, bizBottomText, bizBottomLink, bizBottomImg, globalAiLogo, loginSlides } = req.body;
     const items = [ 
