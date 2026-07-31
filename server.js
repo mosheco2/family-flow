@@ -28274,7 +28274,7 @@ async function runPhase3MonthlyCron() {
         console.error('[Phase3 monthly cron] error:', e.message);
     }
 }
-setInterval(runPhase3MonthlyCron, 30 * 24 * 60 * 60 * 1000);
+setInterval(runPhase3MonthlyCron, 24 * 24 * 60 * 60 * 1000); // 24 ימים — 30 ימים מעל ה-32bit limit
 
 // ── Phase 3 API Endpoints ─────────────────────────────────────
 
