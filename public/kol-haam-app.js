@@ -67,6 +67,16 @@ function fmtDate(d) {
     return new Date(d).toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', year: '2-digit' });
 }
 
+// ── khToast alias (some code uses khToast, some uses toast) ──────────
+function khToast(type, msg) { toast(msg, type); }
+
+// ── showView helper (used by author/search/tag/collection loaders) ──
+function showView(id) {
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    const el = document.getElementById(id);
+    if (el) { el.classList.add('active'); const body = document.getElementById('kh-body'); if(body) body.scrollTop = 0; }
+}
+
 // ── Navigation ────────────────────────────────────────────────
 const KH = {
     nav(view, params = {}) {
@@ -506,7 +516,10 @@ const KH = {
         if (!el) { KH.nav('saved'); return; }
         el.innerHTML = '<div class="kh-spinner"></div>';
         if (!CTX.userId) { el.innerHTML = '<div class="empty-state"><p>יש להתחבר</p></div>'; return; }
-        const data = await khFetch(`${API}/my-saved?user_id=${CTX.userId}`);
+        let data;
+        try { data = await khFetch(`${API}/my-saved?user_id=${CTX.userId}`); }
+        catch(e) { el.innerHTML = `<div class="empty-state"><div class="ei">⚠️</div><p>שגיאה: ${esc(e.message)}</p></div>`; return; }
+        if (data.error) { el.innerHTML = `<div class="empty-state"><div class="ei">⚠️</div><p>${esc(data.error)}</p></div>`; return; }
         const items = data.items || [];
         if (!items.length) { el.innerHTML = '<div class="empty-state"><div class="ei">⭐</div><p>אין פריטים שמורים</p></div>'; return; }
         el.innerHTML = items.map(it => `
@@ -915,7 +928,10 @@ const KH = {
     async loadDrafts() {
         const el = document.getElementById('drafts-list');
         el.innerHTML = '<div class="kh-spinner"></div>';
-        const d = await khFetch(`${API}/my-drafts?groupId=${CTX.groupId}&userId=${CTX.userId}`);
+        let d;
+        try { d = await khFetch(`${API}/my-drafts?groupId=${CTX.groupId}&userId=${CTX.userId}`); }
+        catch(e) { el.innerHTML = `<div class="empty-state"><div class="ei">⚠️</div><p>שגיאה: ${esc(e.message)}</p></div>`; return; }
+        if (d.error) { el.innerHTML = `<div class="empty-state"><div class="ei">⚠️</div><p>${esc(d.error)}</p></div>`; return; }
         const items = d.drafts || [];
         if (!items.length) { el.innerHTML = '<div class="empty-state"><div class="ei">✍️</div><p>אין טיוטות עדיין</p></div>'; return; }
         el.innerHTML = items.map(it => `
@@ -949,7 +965,10 @@ const KH = {
     async loadMyContent() {
         const el = document.getElementById('my-content-list');
         el.innerHTML = '<div class="kh-spinner"></div>';
-        const d = await khFetch(`${API}/my-content?groupId=${CTX.groupId}`);
+        let d;
+        try { d = await khFetch(`${API}/my-content?groupId=${CTX.groupId}`); }
+        catch(e) { el.innerHTML = `<div class="empty-state"><div class="ei">⚠️</div><p>שגיאה: ${esc(e.message)}</p></div>`; return; }
+        if (d.error) { el.innerHTML = `<div class="empty-state"><div class="ei">⚠️</div><p>${esc(d.error)}</p></div>`; return; }
         const items = d.items || [];
         if (!items.length) { el.innerHTML = '<div class="empty-state"><div class="ei">📚</div><p>לא פרסמת תוכן עדיין</p></div>'; return; }
         el.innerHTML = items.map(it => `
@@ -1174,6 +1193,9 @@ const KH = {
     },
 };
 
+// make KH explicitly global so onclick="KH.nav(...)" always works
+window.KH = KH;
+
 // ── Phase 3: Author profile, Follow, Editor picks ─────────────
 
 KH.loadAuthor = async function(authorId) {
@@ -1263,7 +1285,10 @@ KH.loadFollowingFeed = async function(page = 1) {
     const el = document.getElementById('following-feed-list');
     if (page === 1) el.innerHTML = '<div class="kh-spinner"></div>';
     if (!CTX.groupId) { el.innerHTML = '<p class="kh-empty">יש להיכנס כדי לראות עדכונים</p>'; return; }
-    const d = await khFetch(`${API}/my-following-feed?groupId=${CTX.groupId}&page=${page}&limit=20`);
+    let d;
+    try { d = await khFetch(`${API}/my-following-feed?groupId=${CTX.groupId}&page=${page}&limit=20`); }
+    catch(e) { if (page===1) el.innerHTML = `<div class="empty-state"><div class="ei">⚠️</div><p>שגיאה: ${esc(e.message)}</p></div>`; return; }
+    if (d.error) { if (page===1) el.innerHTML = `<div class="empty-state"><div class="ei">⚠️</div><p>${esc(d.error)}</p></div>`; return; }
     const items = d.items || [];
     if (page === 1) el.innerHTML = '';
     if (!items.length && page === 1) { el.innerHTML = '<p class="kh-empty">אין פוסטים — עקוב אחרי כותבים כדי לראות עדכונים</p>'; return; }
@@ -1416,7 +1441,10 @@ KH.loadCollections = async function() {
     const el = document.getElementById('collections-list');
     el.innerHTML = '<div class="kh-spinner"></div>';
     if (!CTX.groupId) { el.innerHTML = '<div class="kh-empty">יש להיכנס עם קבוצה</div>'; return; }
-    const d = await khFetch(`${API}/my-collections?groupId=${CTX.groupId}`);
+    let d;
+    try { d = await khFetch(`${API}/my-collections?groupId=${CTX.groupId}`); }
+    catch(e) { el.innerHTML = `<div class="kh-empty">⚠️ שגיאה: ${esc(e.message)}</div>`; return; }
+    if (d.error) { el.innerHTML = `<div class="kh-empty">⚠️ ${esc(d.error)}</div>`; return; }
     const cols = d.collections || [];
     if (!cols.length) { el.innerHTML = '<div class="kh-empty">אין אוספים עדיין — צור אוסף חדש</div>'; return; }
     el.innerHTML = cols.map(c => `

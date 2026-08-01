@@ -709,7 +709,7 @@ function loadKolHaamIframe() {
     const role = u.role === 'ADMIN' ? 'admin' : 'member';
     const commName = (myConnectedCommunitiesCache && myConnectedCommunitiesCache[0] && myConnectedCommunitiesCache[0].name) || '';
     const name = encodeURIComponent(commName);
-    iframe.src = `/kol-haam?userId=${u.id || ''}&groupId=${grp}&communityId=${cid}&role=${role}&communityName=${name}&_v=9d2a8d8`;
+    iframe.src = `/kol-haam?userId=${u.id || ''}&groupId=${grp}&communityId=${cid}&role=${role}&communityName=${name}&_v=b3f7e91`;
 }
 
 let myOrdersCache = [];
