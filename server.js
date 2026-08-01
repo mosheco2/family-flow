@@ -4356,11 +4356,16 @@ async function monthlyCloudinaryCleanup() {
         console.log(`[CLOUDINARY_CLEANUP] processed ${oldTasks.rows.length} tasks`);
     } catch(e) { console.error('[CLOUDINARY_CLEANUP] error:', e.message); }
 }
-// הפעל ב-1 לחודש
+// הפעל ב-1 לחודש — פיצול לחלקים כדי לא לחרוג מ-INT32_MAX (2147483647ms ≈ 24.8 יום)
 function scheduleMonthlyCleanup() {
     const now = new Date();
     const next = new Date(now.getFullYear(), now.getMonth() + 1, 1, 3, 0, 0);
-    const ms = next.getTime() - now.getTime();
+    let ms = next.getTime() - now.getTime();
+    const MAX_SAFE = 20 * 24 * 60 * 60 * 1000; // 20 יום — תמיד מתחת ל-INT32_MAX
+    if (ms > MAX_SAFE) {
+        setTimeout(() => scheduleMonthlyCleanup(), MAX_SAFE);
+        return;
+    }
     setTimeout(() => { monthlyCloudinaryCleanup(); scheduleMonthlyCleanup(); }, ms);
 }
 scheduleMonthlyCleanup();
@@ -28298,7 +28303,7 @@ async function runPhase3MonthlyCron() {
         console.error('[Phase3 monthly cron] error:', e.message);
     }
 }
-setInterval(runPhase3MonthlyCron, 24 * 24 * 60 * 60 * 1000); // 24 ימים — 30 ימים מעל ה-32bit limit
+setInterval(runPhase3MonthlyCron, 20 * 24 * 60 * 60 * 1000); // 20 ימים — בטוח מתחת ל-INT32_MAX
 
 // ── Phase 3 API Endpoints ─────────────────────────────────────
 
