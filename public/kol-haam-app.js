@@ -1889,7 +1889,13 @@ function statusLabel(s) {
 // ── Init ──────────────────────────────────────────────────────
 async function init() {
     // Community name
-    if (CTX.communityName) document.getElementById('kh-community-name').textContent = decodeURIComponent(CTX.communityName);
+    if (CTX.communityName) {
+        const name = decodeURIComponent(CTX.communityName);
+        const el = document.getElementById('kh-community-name');
+        const wrap = document.getElementById('kh-community-name-wrap');
+        if (el) el.textContent = name;
+        if (wrap) wrap.style.display = '';
+    }
 
     // Show ZM / SA buttons
     if (CTX.isZM) document.getElementById('btn-zm-queue').style.display = '';
