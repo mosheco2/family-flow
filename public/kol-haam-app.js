@@ -115,6 +115,7 @@ const KH = {
         STATE.scope = scope;
         STATE.categoryId = null;
         document.querySelectorAll('.scope-btn').forEach(b => b.classList.toggle('active', b === btn));
+        document.querySelectorAll('.kh-nav-link').forEach(l => l.classList.remove('active'));
         document.querySelectorAll('.cat-chip').forEach(c => c.classList.remove('active'));
         KH.loadFeed();
     },
@@ -122,6 +123,7 @@ const KH = {
     setCategory(id, chip) {
         STATE.categoryId = id;
         document.querySelectorAll('.cat-chip').forEach(c => c.classList.toggle('active', c === chip));
+        document.querySelectorAll('.kh-nav-link').forEach(l => l.classList.toggle('active', l === chip));
         KH.loadFeed();
     },
 
@@ -273,7 +275,7 @@ const KH = {
             const leadHtml = lead ? `<div class="feed-catblock-lead" onclick="KH.nav('content',{id:${lead.id}})">
                 <div class="feed-catblock-img-wrap">${imgEl}${editorBadge}</div>
                 <div class="feed-catblock-lead-title">${esc(lead.title)}</div>
-            </div>` : `<div class="feed-catblock-img-wrap"><div class="feed-catblock-img-placeholder">📁</div></div>`;
+            </div>` : `<div class="feed-catblock-img-wrap" style="background:#F5F5F2;"><div class="feed-catblock-img-placeholder" style="color:#C9C9C0;font-size:.9rem;font-family:Heebo,sans-serif;">אין כתבות עדיין</div></div>`;
             const subHtml = sub.map(it => `<div class="feed-catblock-item" onclick="KH.nav('content',{id:${it.id}})">
                 <span class="feed-catblock-bullet">•</span><span>${esc(it.title)}</span>
             </div>`).join('');
@@ -292,33 +294,41 @@ const KH = {
     },
 
     renderFeedSolutions(qa, success) {
-        if (!qa && !success) return '';
-        const qaCard = qa ? `<div class="feed-solutions-card feed-solutions-card-gold">
-            <div class="feed-solutions-label feed-solutions-label-gold">השאלה החמה של היום</div>
-            <h3 class="feed-solutions-title">${esc(qa.title)}</h3>
-            ${qa.subtitle ? `<p class="feed-solutions-body">${esc(qa.subtitle)}</p>` : ''}
-            <div class="feed-solutions-footer">
-                <button class="feed-solutions-btn feed-solutions-btn-primary" onclick="KH.nav('content',{id:${qa.id}})">הצע פתרון</button>
-                <span class="feed-solutions-stat">💬 ${qa.comments_count||0} תשובות · 👍 ${qa.likes_count||0}</span>
-            </div>
-        </div>` : '';
-        const successCard = success ? `<div class="feed-solutions-card feed-solutions-card-teal">
-            <div class="feed-solutions-label feed-solutions-label-teal">סיפור ההצלחה של השבוע</div>
-            <h3 class="feed-solutions-title">${esc(success.title)}</h3>
-            ${success.subtitle ? `<p class="feed-solutions-body">${esc(success.subtitle)}</p>` : ''}
-            <div class="feed-solutions-footer">
-                <button class="feed-solutions-btn feed-solutions-btn-secondary" onclick="KH.nav('content',{id:${success.id}})">קרא את הסיפור</button>
-                ${success.community_name ? `<span class="feed-solutions-stat">קהילת ${esc(success.community_name)}</span>` : ''}
-            </div>
-        </div>` : '';
+        const qaTitle = qa ? esc(qa.title) : 'איך מארגנים הסעה משותפת לחוגים בלי אפליקציה בתשלום?';
+        const qaBody = qa ? (qa.subtitle ? `<p class="feed-solutions-body">${esc(qa.subtitle)}</p>` : '') : '<p class="feed-solutions-body">14 הורים מהשכונה, 3 ימים בשבוע, לוח זמנים שמשתנה כל חודש. שלוש הצעות כבר על השולחן.</p>';
+        const qaStats = qa ? `💬 ${qa.comments_count||0} תשובות · 👍 ${qa.likes_count||0}` : '💬 23 תשובות · 👍 61';
+        const qaClick = qa ? `KH.nav('content',{id:${qa.id}})` : `KH.nav('editor')`;
+        const successTitle = success ? esc(success.title) : 'גן הירק השכונתי שהתחיל מ־4 עציצים במרפסת';
+        const successBody = success ? (success.subtitle ? `<p class="feed-solutions-body">${esc(success.subtitle)}</p>` : '') : '<p class="feed-solutions-body">שאלה שנשאלה כאן לפני שנה הפכה ל־120 מ״ר של גינה משותפת. הנה כל השלבים, כולל מה לא עבד.</p>';
+        const successSource = success ? (success.community_name ? `קהילת ${esc(success.community_name)}` : 'קהילת רמת־אלה') : 'קהילת רמת־אלה';
+        const successClick = success ? `KH.nav('content',{id:${success.id}})` : 'void 0';
         return `<div class="feed-solutions-wrap">
-            <div class="feed-solutions-hdr">
-                <img src="/kol-haam-assets/images/ui/ROBOTAI.webp" alt="" class="feed-solutions-robot">
-                <h2 class="feed-solutions-hdr-title">פתרונות מהקהילה</h2>
-                <a>כל הפתרונות ←</a>
+        <div class="feed-solutions-hdr">
+            <img src="/kol-haam-assets/images/ui/ROBOTAI.webp" alt="" class="feed-solutions-robot">
+            <h2 class="feed-solutions-hdr-title">פתרונות מהקהילה</h2>
+            <a>כל הפתרונות ←</a>
+        </div>
+        <div class="feed-solutions-cards">
+            <div class="feed-solutions-card feed-solutions-card-gold">
+                <div class="feed-solutions-label feed-solutions-label-gold">השאלה החמה של היום</div>
+                <h3 class="feed-solutions-title">${qaTitle}</h3>
+                ${qaBody}
+                <div class="feed-solutions-footer">
+                    <button class="feed-solutions-btn feed-solutions-btn-primary" onclick="${qaClick}">הצע פתרון</button>
+                    <span class="feed-solutions-stat">${qaStats}</span>
+                </div>
             </div>
-            <div class="feed-solutions-cards">${qaCard}${successCard}</div>
-        </div>`;
+            <div class="feed-solutions-card feed-solutions-card-teal">
+                <div class="feed-solutions-label feed-solutions-label-teal">סיפור ההצלחה של השבוע</div>
+                <h3 class="feed-solutions-title">${successTitle}</h3>
+                ${successBody}
+                <div class="feed-solutions-footer">
+                    <button class="feed-solutions-btn feed-solutions-btn-secondary" onclick="${successClick}">קרא את הסיפור</button>
+                    <span class="feed-solutions-stat">${successSource}</span>
+                </div>
+            </div>
+        </div>
+    </div>`;
     },
 
     renderFeedCard(it) {
@@ -1897,6 +1907,13 @@ async function init() {
     if (scroll) scroll.innerHTML = STATE.categories.map(c => `
         <button class="cat-chip" onclick="KH.setCategory(${c.id},this)">${esc(c.title)}</button>
     `).join('');
+    // Populate editorial nav links
+    const navEl = document.getElementById('kh-nav-links');
+    if (navEl && STATE.categories.length) {
+        navEl.innerHTML = STATE.categories.map(c =>
+            `<a class="kh-nav-link" onclick="KH.setCategory(${c.id},this)">${esc(c.title)}</a>`
+        ).join('');
+    }
 
     // Public collection via slug URL
     const slugMatch = location.pathname.match(/\/kol-haam\/collection\/([^/]+)/);

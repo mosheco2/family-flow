@@ -507,39 +507,67 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Ro
 .feed-kh-footer{margin-top:32px;padding:20px 0;border-top:1px dashed #C9C9C0;display:flex;flex-wrap:wrap;gap:12px 24px;font-size:13px;color:#8A8A82;}
 .feed-kh-footer a{color:#1F7A72;text-decoration:none;cursor:pointer;}
 .feed-kh-footer a:hover{color:#16294D;}
+
+/* ── Editorial header redesign ── */
+#kh-header{background:#fff;border-bottom:1px solid #DDDDD4;position:sticky;top:0;z-index:20;padding:0;height:auto;box-shadow:none;font-family:'Heebo',sans-serif;}
+.kh-hdr-row1{padding:10px 16px;display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;}
+.kh-hdr-start{display:flex;align-items:center;gap:8px;flex-shrink:0;}
+.kh-back-btn{background:none;border:none;cursor:pointer;color:#8A8A82;font-size:1rem;padding:.25rem .45rem;border-radius:.3rem;line-height:1;}
+.kh-back-btn:hover{color:#16294D;}
+.kh-hdr-logo-img{height:clamp(30px,5vw,44px);width:auto;object-fit:contain;}
+.kh-hdr-scope-wrap{display:flex;background:#EFEFEC;border:1px solid #DDDDD4;border-radius:999px;padding:3px;flex-shrink:0;}
+.kh-hdr-scope-wrap .scope-btn{border:none!important;background:transparent!important;color:#16294D!important;border-radius:999px;padding:7px 14px;font-size:13px;font-weight:700;cursor:pointer;font-family:'Heebo',sans-serif;white-space:nowrap;transition:.15s;}
+.kh-hdr-scope-wrap .scope-btn.active{background:#16294D!important;color:#fff!important;}
+.kh-hdr-search-wrap{flex:1 1 150px;display:flex;align-items:center;gap:8px;border:1px dashed #C9C9C0;border-radius:999px;padding:0 14px;min-height:40px;background:#FBFBF8;}
+.kh-hdr-search-input{flex:1;border:none;background:transparent;outline:none;font-size:13px;color:#16294D;font-family:'Heebo',sans-serif;}
+#kh-header .kh-header-actions{display:flex;gap:5px;align-items:center;flex-shrink:0;}
+#kh-header .kh-btn-icon{width:33px;height:33px;border:1px solid #DDDDD4;background:#fff;color:#8A8A82;border-radius:50%;font-size:.85rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.15s;}
+#kh-header .kh-btn-icon:hover{background:#1F7A72;color:#fff;border-color:#1F7A72;}
+.kh-nav-links{padding:0 16px 10px;display:flex;flex-wrap:wrap;gap:8px 18px;}
+.kh-nav-link{font-size:14px;font-weight:500;color:#16294D;cursor:pointer;text-decoration:none;padding:2px 0;border-bottom:2px solid transparent;transition:.15s;font-family:'Heebo',sans-serif;}
+.kh-nav-link:hover{color:#1F7A72;}
+.kh-nav-link.active{color:#1F7A72;border-bottom-color:#1F7A72;}
+#scope-bar{border-bottom:1px solid #DDDDD4;padding:6px 16px;background:#fff;}
+#scope-bar>.scope-btn{display:none!important;}
+.kh-search-wrap{display:none!important;}
+.feed-wrap{font-family:'Heebo',sans-serif;}
 </style>
 </head>
 <body>
 <div id="app">
 
-  <!-- Header -->
+  <!-- Header — editorial -->
   <header id="kh-header">
-    <div class="kh-logo" style="display:flex;align-items:center;gap:.5rem">
-      <button id="btn-kh-back" onclick="window.parent.closeKolHaamOverlay&&window.parent.closeKolHaamOverlay()" title="חזרה לאפליקציה" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:1.1rem;padding:.2rem .4rem;border-radius:.4rem;line-height:1"><i class="fa-solid fa-arrow-right"></i></button>
-      📣 <div><div>קול העם</div><span id="kh-community-name"></span></div>
+    <div class="kh-hdr-row1">
+      <div class="kh-hdr-start">
+        <button id="btn-kh-back" onclick="window.parent.closeKolHaamOverlay&&window.parent.closeKolHaamOverlay()" title="חזרה לאפליקציה" class="kh-back-btn"><i class="fa-solid fa-arrow-right"></i></button>
+        <img src="/kol-haam-assets/images/ui/LOGO.png" alt="ONE flow LIFE" class="kh-hdr-logo-img" onerror="this.style.display='none'">
+        <span id="kh-community-name" style="font-size:11px;color:#8A8A82;font-family:'Heebo',sans-serif;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
+      </div>
+      <div class="kh-hdr-scope-wrap">
+        <button class="scope-btn active" data-scope="local" onclick="KH.setScope('local',this)">🏠 הקהילה שלי</button>
+        <button class="scope-btn" data-scope="global" onclick="KH.setScope('global',this)">🌍 כל הארץ</button>
+      </div>
+      <div class="kh-hdr-search-wrap">
+        <span style="color:#8A8A82;">🔍</span>
+        <input class="kh-hdr-search-input" id="kh-search-input" type="search" placeholder="חיפוש בכתבות, קהילות ותגיות" onkeydown="if(event.key==='Enter')KH.doSearch()">
+      </div>
+      <div class="kh-header-actions">
+        <button class="kh-btn-icon" onclick="KH.nav('my-drafts')" title="הטיוטות שלי"><i class="fa-solid fa-file-pen"></i></button>
+        <button class="kh-btn-icon" onclick="KH.nav('my-content')" title="התוכן שלי"><i class="fa-solid fa-list-check"></i></button>
+        <button class="kh-btn-icon" onclick="KH.nav('saved')" title="שמורים שלי"><i class="fa-solid fa-star"></i></button>
+        <button class="kh-btn-icon" onclick="KH.nav('following')" title="עוקב אחרי"><i class="fa-solid fa-user-group"></i></button>
+        <button class="kh-btn-icon" onclick="KH.nav('collections')" title="האוספים שלי"><i class="fa-solid fa-book-bookmark"></i></button>
+        <button class="kh-btn-icon" id="btn-zm-queue" onclick="KH.nav('zm-queue')" title="תור אישורים" style="display:none"><i class="fa-solid fa-inbox"></i></button>
+        <button class="kh-btn-icon" id="btn-sa-queue" onclick="KH.nav('sa-queue')" title="אישורים ארציים" style="display:none"><i class="fa-solid fa-globe"></i></button>
+        <button class="kh-btn-icon" onclick="KH.nav('editor')" title="כתוב כתבה חדשה" style="background:#1F7A72;color:#fff;border-color:#1F7A72;"><i class="fa-solid fa-plus"></i></button>
+      </div>
     </div>
-    <div class="kh-header-actions">
-      <button class="kh-btn-icon" onclick="KH.nav('my-drafts')" title="הטיוטות שלי"><i class="fa-solid fa-file-pen"></i></button>
-      <button class="kh-btn-icon" onclick="KH.nav('my-content')" title="התוכן שלי"><i class="fa-solid fa-list-check"></i></button>
-      <button class="kh-btn-icon" onclick="KH.nav('saved')" title="שמורים שלי"><i class="fa-solid fa-star"></i></button>
-      <button class="kh-btn-icon" onclick="KH.nav('following')" title="עוקב אחרי"><i class="fa-solid fa-user-group"></i></button>
-      <button class="kh-btn-icon" onclick="KH.nav('collections')" title="האוספים שלי"><i class="fa-solid fa-book-bookmark"></i></button>
-      <button class="kh-btn-icon" id="btn-zm-queue" onclick="KH.nav('zm-queue')" title="תור אישורים" style="display:none"><i class="fa-solid fa-inbox"></i></button>
-      <button class="kh-btn-icon" id="btn-sa-queue" onclick="KH.nav('sa-queue')" title="אישורים ארציים" style="display:none"><i class="fa-solid fa-globe"></i></button>
-      <button class="kh-btn-icon" onclick="KH.nav('editor')" title="כתוב כתבה חדשה" style="background:var(--primary);color:#fff"><i class="fa-solid fa-plus"></i></button>
-    </div>
+    <nav class="kh-nav-links" id="kh-nav-links"></nav>
   </header>
 
-  <!-- Search bar -->
-  <div class="kh-search-wrap">
-    <input class="kh-search-input" id="kh-search-input" type="search" placeholder="🔍 חיפוש בקול העם..." onkeydown="if(event.key==='Enter')KH.doSearch()">
-    <button class="kh-btn kh-btn-outline kh-btn-sm" onclick="KH.doSearch()">חיפוש</button>
-  </div>
-
-  <!-- Scope + Categories bar -->
+  <!-- Scope bar: category chips only (scope buttons now in header) -->
   <div id="scope-bar">
-    <button class="scope-btn active" data-scope="local" onclick="KH.setScope('local',this)">🏠 הקהילה שלי</button>
-    <button class="scope-btn" data-scope="global" onclick="KH.setScope('global',this)">🌍 כל הארץ</button>
     <div id="cat-scroll"></div>
   </div>
 
@@ -548,7 +576,7 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Ro
 
     <!-- Feed -->
     <div id="view-feed" class="view active">
-      <div id="view-feed-inner" style="padding:.75rem">
+      <div id="view-feed-inner">
         <div class="kh-spinner"></div>
       </div>
     </div>
