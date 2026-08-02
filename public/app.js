@@ -729,6 +729,15 @@ function closeKolHaamOverlay() {
     switchTab('feed');
 }
 
+// handler להודעות מה-iframe של קול העם
+window.addEventListener('message', function(e) {
+    if (!e.data || typeof e.data !== 'object') return;
+    if (e.data.type === 'OPEN_URL' && e.data.url) {
+        window.open(e.data.url, '_blank', 'noopener,noreferrer');
+    }
+    if (e.data.type === 'KH_CLOSE') closeKolHaamOverlay();
+});
+
 let myOrdersCache = [];
 
 // --- Auto-refresh כל 20 שניות כשב-myorders ---

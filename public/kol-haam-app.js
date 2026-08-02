@@ -505,7 +505,7 @@ const KH = {
         if (navigator.share) {
             navigator.share({ title, text, url }).catch(() => {});
         } else {
-            location.href = `https://wa.me/?text=${encodeURIComponent(text)}`;
+            window.parent.postMessage({ type: 'OPEN_URL', url: `https://wa.me/?text=${encodeURIComponent(text)}` }, '*');
         }
     },
 
@@ -1610,7 +1610,7 @@ KH.loadEditorPicksStrip = async function(container) {
         </div>
         <div class="kh-strip-scroll">
             ${picks.map(p => `
-                <div class="kh-strip-card" onclick="KH.loadContent(${p.id})">
+                <div class="kh-strip-card" onclick="KH.nav('content',{id:${p.id}})">
                     ${p.cover_image_url ? `<img src="${esc(p.cover_image_url)}" class="kh-strip-img" alt="">` : '<div class="kh-strip-img" style="background:var(--primary-light);display:flex;align-items:center;justify-content:center;font-size:1.5rem">📰</div>'}
                     <div class="kh-strip-card-title">${esc(p.title)}</div>
                     <div style="font-size:.65rem;color:var(--muted)">${esc(p.author_name||'')}</div>
