@@ -696,37 +696,38 @@ function switchTab(t) { 
         if (currentUser && currentUser.role === 'CHILD') try { loadChildFlwWallet(); } catch(e) {}
         if (currentUser && currentUser.role === 'ADMIN') try { loadFlwKidParentPanel(); } catch(e) {}
     }
-    if (t === 'kol-haam') try { loadKolHaamIframe(); } catch(e) {}
+    if (t === 'kol-haam') try { openKolHaamOverlay(); } catch(e) {}
 }
 
-function resizeKolHaamContainer() {
-    const container = document.getElementById('content-kol-haam');
-    if (!container || container.classList.contains('hidden')) return;
-    // מחשבים גובה זמין: viewport פחות ה-header הדביק ופחות ה-floating pill בתחתית
-    const stickyEl = document.querySelector('#dashboard-container .sticky');
-    const headerH = stickyEl ? (stickyEl.getBoundingClientRect().bottom) : 120;
-    const bannerEl = document.getElementById('app-banner-top-wrap');
-    const bannerH = (bannerEl && !bannerEl.classList.contains('hidden')) ? bannerEl.offsetHeight : 0;
-    const bottomH = 112; // שווה ל-pb-28 (7rem)
-    const availH = window.innerHeight - headerH - bannerH - bottomH;
-    container.style.height = Math.max(availH, 250) + 'px';
-    container.style.flex = 'none';
-}
-
-function loadKolHaamIframe() {
-    const iframe = document.getElementById('kol-haam-iframe');
-    if (!iframe) return;
-    resizeKolHaamContainer();
-    if (iframe.src && iframe.src.includes('/kol-haam')) return; // כבר טעון
+function openKolHaamOverlay() {
+    // קול העם נפתח כ-overlay מלא-מסך (כמו המשחקים)
+    if (document.getElementById('kol-haam-overlay')) {
+        document.getElementById('kol-haam-overlay').style.display = 'flex';
+        return;
+    }
     const u = currentUser || {};
     const grp = (currentGroup && currentGroup.id) || '';
     const cid = (currentGroup && currentGroup.community_id) || '';
     const role = u.role === 'ADMIN' ? 'admin' : 'member';
     const commName = (myConnectedCommunitiesCache && myConnectedCommunitiesCache[0] && myConnectedCommunitiesCache[0].name) || '';
     const name = encodeURIComponent(commName);
-    iframe.src = `/kol-haam?userId=${u.id || ''}&groupId=${grp}&communityId=${cid}&role=${role}&communityName=${name}&_v=b3f7e91`;
+    const src = `/kol-haam?userId=${u.id || ''}&groupId=${grp}&communityId=${cid}&role=${role}&communityName=${name}&_v=c9a1f23`;
+
+    const overlay = document.createElement('div');
+    overlay.id = 'kol-haam-overlay';
+    overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;z-index:9998;display:flex;flex-direction:column;background:#f8fafc';
+    overlay.innerHTML = `<iframe src="${src}" style="flex:1;border:none;width:100%;height:100%" allow="clipboard-write"></iframe>`;
+    document.body.appendChild(overlay);
+    document.body.style.overflow = 'hidden';
 }
-window.addEventListener('resize', () => { if (window._currentFamilyTab === 'kol-haam') resizeKolHaamContainer(); });
+
+function closeKolHaamOverlay() {
+    const ov = document.getElementById('kol-haam-overlay');
+    if (ov) ov.style.display = 'none';
+    document.body.style.overflow = '';
+    // החזר את ה-tab הקודם
+    switchTab('feed');
+}
 
 let myOrdersCache = [];
 
