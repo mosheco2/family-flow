@@ -26311,7 +26311,7 @@ app.post('/api/kol-haam/seed-demo', async (req, res) => {
     const log = [];
     try {
         // 1. מצא את קבוצת המשפחה NWP701
-        const grpR = await pool.query(`SELECT id, name FROM family_groups WHERE invite_code='NWP701'`);
+        const grpR = await pool.query(`SELECT id, name FROM family_groups WHERE group_code='NWP701'`);
         if (!grpR.rows.length) return res.status(404).json({ error: 'משפחה NWP701 לא נמצאה' });
         const groupId = grpR.rows[0].id;
         const groupName = grpR.rows[0].name;
