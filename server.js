@@ -27281,8 +27281,18 @@ app.post('/api/sa/kol-haam/seed-sample', verifySA, async (req, res) => {
         if (!communities.length) { await client.query('ROLLBACK'); return res.json({ success: false, error: 'אין קהילות במערכת' }); }
         const communityId = communities[0].id;
 
-        const { rows: profiles } = await client.query(`SELECT ap.id FROM author_profiles ap LIMIT 1`);
-        if (!profiles.length) { await client.query('ROLLBACK'); return res.json({ success: false, error: 'אין פרופילי כותבים במערכת' }); }
+        let { rows: profiles } = await client.query(`SELECT ap.id FROM author_profiles ap LIMIT 1`);
+        if (!profiles.length) {
+            // מציאת family_group לשימוש בפרופיל הדוגמה
+            const { rows: fgs } = await client.query(`SELECT id FROM family_groups LIMIT 1`);
+            if (!fgs.length) { await client.query('ROLLBACK'); return res.json({ success: false, error: 'אין משתמשים במערכת — יש להירשם תחילה' }); }
+            const { rows: inserted } = await client.query(`
+                INSERT INTO author_profiles (family_group_id, home_community_id)
+                VALUES ($1, $2)
+                ON CONFLICT (family_group_id) DO UPDATE SET home_community_id=EXCLUDED.home_community_id
+                RETURNING id`, [fgs[0].id, communityId]);
+            profiles = inserted;
+        }
         const authorProfileId = profiles[0].id;
 
         const { rows: cats } = await client.query(`SELECT id FROM content_categories LIMIT 1`);
