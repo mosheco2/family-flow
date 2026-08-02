@@ -406,8 +406,8 @@ const KH = {
         document.getElementById('content-inner').innerHTML = `
         <div class="cv-page">
             ${it.cover_image_url
-                ? `<div class="cv-hero"><img class="cv-hero-img" src="${it.cover_image_url}" alt=""><span class="cv-badge">${esc(it.category_title)||''}</span></div>`
-                : `<div class="cv-hero"><div class="cv-hero-placeholder">📣</div><span class="cv-badge">${esc(it.category_title)||''}</span></div>`}
+                ? `<figure class="cv-hero"><img class="cv-hero-img" src="${it.cover_image_url}" alt="${esc(it.title)}"><span class="cv-badge">${esc(it.category_title)||''}</span>${it.cover_photo_credit ? `<figcaption class="cv-hero-figcaption">צילום: ${esc(it.cover_photo_credit)}</figcaption>` : ''}</figure>`
+                : `<figure class="cv-hero"><div class="cv-hero-placeholder">📣</div><span class="cv-badge">${esc(it.category_title)||''}</span></figure>`}
             <div class="cv-inner">
                 <article class="cv-article">
                     <h1 class="cv-h1">${esc(it.title)}</h1>
@@ -520,6 +520,7 @@ const KH = {
         </div>`;
 
         const addForm = `<div class="cv-comment-form-wrap">
+            <div style="font-size:12px;color:#8A8A82;margin-bottom:10px;">התגובה תפורסם בשם הקהילה שלך. אנא שמרו על שיח מכבד.</div>
             <textarea id="new-comment-text" class="cv-comment-txt" placeholder="כתבו תגובה…" rows="3"></textarea>
             <div><button class="cv-comment-submit" onclick="KH.addComment(${contentId}, null)">פרסמו תגובה</button></div>
         </div>`;
