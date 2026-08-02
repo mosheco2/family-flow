@@ -26295,6 +26295,256 @@ app.get('/api/kol-haam/categories', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// ─── זריעת תוכן לדוגמא ───────────────────────────────────────
+app.post('/api/kol-haam/seed-demo', async (req, res) => {
+    if (req.body.secret !== 'SEED_DEMO_2026') return res.status(403).json({ error: 'אסור' });
+    const log = [];
+    try {
+        // 1. מצא את קבוצת המשפחה NWP701
+        const grpR = await pool.query(`SELECT id, name FROM family_groups WHERE invite_code='NWP701'`);
+        if (!grpR.rows.length) return res.status(404).json({ error: 'משפחה NWP701 לא נמצאה' });
+        const groupId = grpR.rows[0].id;
+        const groupName = grpR.rows[0].name;
+        log.push(`✓ קבוצה: ${groupName} (id=${groupId})`);
+
+        // 2. מצא משתמשים
+        const usersR = await pool.query(`SELECT id, name, nickname, email FROM users WHERE family_group_id=$1 OR group_id=$1`, [groupId]);
+        if (!usersR.rows.length) return res.status(404).json({ error: 'לא נמצאו משתמשים לקבוצה זו' });
+        const user1 = usersR.rows[0];
+        const user2 = usersR.rows[1] || usersR.rows[0];
+        log.push(`✓ משתמשים: ${usersR.rows.map(u=>u.name||u.nickname).join(', ')}`);
+
+        // 3. מצא קהילה משויכת
+        const commR = await pool.query(
+            `SELECT c.id, c.name FROM communities c
+             JOIN family_communities fc ON fc.community_id=c.id
+             WHERE fc.group_id=$1 AND fc.status='approved' LIMIT 1`,
+            [groupId]
+        );
+        if (!commR.rows.length) return res.status(404).json({ error: 'אין קהילה מאושרת למשפחה זו' });
+        const commId = commR.rows[0].id;
+        const commName = commR.rows[0].name;
+        log.push(`✓ קהילה: ${commName} (id=${commId})`);
+
+        // 4. צור/מצא author_profile
+        let apR = await pool.query(`SELECT id FROM author_profiles WHERE family_group_id=$1`, [groupId]);
+        let apId;
+        if (apR.rows.length) {
+            apId = apR.rows[0].id;
+        } else {
+            const ins = await pool.query(
+                `INSERT INTO author_profiles (family_group_id, home_community_id) VALUES ($1,$2) RETURNING id`,
+                [groupId, commId]
+            );
+            apId = ins.rows[0].id;
+        }
+        log.push(`✓ author_profile id=${apId}`);
+
+        // 5. קטגוריות
+        const catsR = await pool.query(
+            `SELECT id, title FROM content_categories WHERE is_active=TRUE AND (scope_level='GLOBAL' OR (scope_level='LOCAL' AND community_id=$1)) ORDER BY scope_level DESC, id LIMIT 10`,
+            [commId]
+        );
+        const cats = catsR.rows;
+        if (!cats.length) return res.status(400).json({ error: 'אין קטגוריות' });
+        const getCat = (keyword) => cats.find(c => c.title.includes(keyword)) || cats[0];
+        log.push(`✓ קטגוריות: ${cats.map(c=>c.title).join(', ')}`);
+
+        const img = (name) => `/kol-haam-assets/images/content/${name}`;
+        const imgCover = (name) => `/kol-haam-assets/images/covers/${name}`;
+
+        // helper: upsert tag
+        const upsertTag = async (name) => {
+            await pool.query(`INSERT INTO content_tags (name) VALUES ($1) ON CONFLICT(name) DO UPDATE SET usage_count=content_tags.usage_count+1`, [name]);
+            const t = await pool.query(`SELECT id FROM content_tags WHERE name=$1`, [name]);
+            return t.rows[0].id;
+        };
+        const addTag = async (itemId, tagName) => {
+            const tagId = await upsertTag(tagName);
+            await pool.query(`INSERT INTO content_items_tags VALUES ($1,$2) ON CONFLICT DO NOTHING`, [itemId, tagId]);
+        };
+        const ensureMetrics = async (itemId) => {
+            await pool.query(
+                `INSERT INTO content_engagement_metrics (content_item_id, likes_count, comments_count)
+                 VALUES ($1,$2,$3) ON CONFLICT(content_item_id) DO NOTHING`,
+                [itemId, Math.floor(Math.random()*200)+20, 0]
+            );
+        };
+
+        const createItem = async (type, catId, title, subtitle, summary, html, coverUrl, status='PUBLISHED_LOCAL') => {
+            const words = html.replace(/<[^>]+>/g,'').split(/\s+/).length;
+            const readingTime = Math.max(1, Math.ceil(words/200));
+            const r = await pool.query(`
+                INSERT INTO content_items
+                (author_profile_id, category_id, community_id, content_type, scope_type, status,
+                 title, subtitle, quick_summary_20s, cover_image_url, content_html,
+                 reading_time_minutes, cover_photo_credit, published_at)
+                VALUES ($1,$2,$3,$4,'LOCAL',$5,$6,$7,$8,$9,$10,$11,$12,NOW())
+                RETURNING id`,
+                [apId, catId, commId, type, status,
+                 title, subtitle,
+                 JSON.stringify(typeof summary === 'string' ? [summary] : summary),
+                 coverUrl, html, readingTime,
+                 `${user1.name||user1.nickname} / קהילת ${commName}`]
+            );
+            await ensureMetrics(r.rows[0].id);
+            return r.rows[0].id;
+        };
+
+        const addComment = async (itemId, userId, text, parentId=null) => {
+            const r = await pool.query(`
+                INSERT INTO content_comments (content_item_id, author_user_id, parent_comment_id, depth_level, content_text)
+                VALUES ($1,$2,$3,$4,$5) RETURNING id`,
+                [itemId, userId, parentId, parentId ? 1 : 0, text]
+            );
+            await pool.query(`UPDATE content_engagement_metrics SET comments_count=comments_count+1 WHERE content_item_id=$1`, [itemId]);
+            return r.rows[0].id;
+        };
+
+        // ── סדרה: לוח הקיץ המשותף (3 פרקים) ──
+        let seriesId;
+        const serR = await pool.query(`SELECT id FROM content_series WHERE title='לוח הקיץ המשותף — מהרעיון למציאות' AND author_profile_id=$1`, [apId]);
+        if (serR.rows.length) {
+            seriesId = serR.rows[0].id;
+        } else {
+            const si = await pool.query(`INSERT INTO content_series (title, author_profile_id) VALUES ($1,$2) RETURNING id`,
+                ['לוח הקיץ המשותף — מהרעיון למציאות', apId]);
+            seriesId = si.rows[0].id;
+        }
+
+        const eduCat = getCat('חינוך');
+        const ch1Id = await createItem('ARTICLE', eduCat.id,
+            '[דוגמה] החופש הגדול נגמר בפלוס: שבע משפחות בנו לוח קיץ משותף וחסכו 4,300 ₪ לילד',
+            'בלי עמותה, בלי תקציב עירוני ובלי אפליקציה בתשלום — גיליון אחד משותף, תורנות של הורה אחראי ליום, ו-38 ימי חופש שעברו בלי פאניקה.',
+            ['הצלחנו לחסוך 4,300 ₪ לילד בזכות שיתוף פעולה פשוט','לוח גוגל משותף + הורה אחראי ליום = חופש מנוהל','גייסנו 7 משפחות תוך שבועיים בקבוצת הווטסאפ של השכונה'],
+            `<p><span style="float:inline-start;font-size:56px;line-height:.85;font-weight:900;padding-inline-end:10px;padding-top:4px;color:#16294D;">ב</span>פברואר האחרון ישבנו שבע משפחות בסלון ועל השולחן היה מפתח אחד: לא לשלם 5,000 ₪ לקייטנה שהילדים לא אוהבים. התוצאה הפתיעה אפילו אותנו.</p>
+<p>הרעיון פשוט: כל הורה מקבל יום בשבוע. הוא אחראי על 14 ילדים — שלו ושל השאר. שאר ימות השבוע — חופשי. לא שעות עבודה אבודות, לא נסיעות מיותרות.</p>
+<h3>מה צריך כדי להתחיל אצלכם</h3>
+<p>לפי הקבוצה, שלושה תנאים: בין חמש לשמונה משפחות (פחות מזה נופל על אדם אחד), יותר מזה — לוגו ליניהול), ילדים בטווח גילים של עד ארבע שנים, ומרחק הליכה סביר בין הבתים. אחרי זה נשאר רק להחליט על התאריכים ולנעול.</p>
+<p>התבנית של הגיליון פתוחה לכל חברי הקהילה, והקבוצה מציעה ייעוץ שיחת יעוץ של חצי שעה למי שרוצה להקים קבוצה דומה.</p>
+<figure style="margin:26px 0 0"><img src="${img('inner-1-fridge-schedule.png')}" alt="לוח הקיץ המשותף — תורנות הורים לפי ימים"><figcaption>לוח הקיץ המשותף, תלוי בשבעה מקררים בו-זמנית. צילום: ${user2.name||user2.nickname}</figcaption></figure>
+<h3>הכסף: מה זה באמת חסך</h3>
+<p>העלות הישירה של הקייטנה עמדה על כ-800 ₪ לילד: 350 ₪ קופה משותפת לחומרים, 300 ₪ לשלושת הטיולים, ועוד כ-150 ₪ ארוחות. מול זה, החלופה בשוק — קייטנה עירונית ואחריה קייטנה פרטית — עמדה על כ-5,100 ₪ לילד.</p>`,
+            imgCover('hero-summer-calendar.png')
+        );
+        await pool.query(`UPDATE content_items SET series_id=$1, series_chapter_number=1 WHERE id=$2`, [seriesId, ch1Id]);
+        await addTag(ch1Id, 'חופש הגדול'); await addTag(ch1Id, 'משפחות'); await addTag(ch1Id, 'קייטנה');
+        await addComment(ch1Id, user1.id, 'אנחנו עשינו משהו דומה בשכונה שלנו — עבד מצוין!');
+        const c1reply = await addComment(ch1Id, user2.id, 'כמה ימים בשבוע לכל הורה?');
+        await addComment(ch1Id, user1.id, 'יום אחד בשבוע. יוצא 5 הורים לשבוע, 38 ימים מכוסים כמעט לגמרי.', c1reply);
+        log.push(`✓ כתבה סדרה פרק 1: id=${ch1Id}`);
+
+        const ch2Id = await createItem('ARTICLE', eduCat.id,
+            'התבנית המלאה לניהול לוח הקיץ — להורדה ולשימוש חופשי',
+            'הגיליון שהוריד 240 פעם בחודש הראשון — עם הוראות מפורטות וטיפים מהשטח.',
+            ['גיליון גוגל מוכן להורדה עם כל הפונקציות','מסביר צעד אחר צעד איך לחלק ימים בהוגנות','כולל ניהול היעדרויות וחילופים'],
+            `<p>אחרי שהכתבה על לוח הקיץ המשותף פורסמה, קיבלנו עשרות פניות מהורים שרוצים את הגיליון עצמו. הנה הוא — עם הסברים.</p>
+<h3>מה יש בגיליון</h3>
+<p>הגיליון מחולק לשלושה חלקים: לוח חודשי עם ציון ההורה האחראי לכל יום, דף ניהול היעדרויות, ודף תיאום טיולים. כל שינוי מתעדכן בזמן אמת לכל שבע המשפחות.</p>
+<figure style="margin:26px 0 0"><img src="${img('inner-2-water-day.png')}" alt="יום מים — פעילות שמחה"><figcaption>יום המים — אחת הפעילויות המוצלחות של הקיץ</figcaption></figure>
+<h3>כיצד להתאים לקבוצה שלכם</h3>
+<p>עדכנו את מספר המשפחות בתא הייעודי ב-A1 — הגיליון יסדר אוטומטית את כל החלוקה. אם יש הורה שלא יכול ביום מסוים, יש לו "בנק ימים" שמנהל את ההחלפות.</p>`,
+            img('cat-1.png')
+        );
+        await pool.query(`UPDATE content_items SET series_id=$1, series_chapter_number=2 WHERE id=$2`, [seriesId, ch2Id]);
+        await addTag(ch2Id, 'חופש הגדול'); await addTag(ch2Id, 'כלי עבודה');
+        await addComment(ch2Id, user2.id, 'שאלה — האם הגיליון עובד גם עם 10 משפחות?');
+        await addComment(ch2Id, user1.id, 'כן, הוא גמיש. ראינו קבוצות עד 12 משפחות שעובדות איתו.');
+        log.push(`✓ כתבה סדרה פרק 2: id=${ch2Id}`);
+
+        const ch3Id = await createItem('ARTICLE', eduCat.id,
+            'מה עושים כשהמשפחה פורשת באמצע — ניהול משברים בלוח קהילתי',
+            'שלוש סיטואציות שנתקלנו בהן ואיך פתרנו אותן בלי לפגוע ביחסים.',
+            ['תמיד תשאירו "יום רזרבה" בלוח','הסכם כתוב מראש חוסך ויכוחים','קבוצת וואטסאפ נפרדת לתיאומים דחופים'],
+            `<p>בקיץ הראשון הכל עבד חלק. בקיץ השני — שתי משפחות יצאו לחופשה באותו שבוע ואחת החליטה ברגע האחרון שהיא לא יכולה. הנה מה שלמדנו.</p>
+<h3>משבר 1: היעדרות לא מתוכננת</h3>
+<p>פתרון: "יום רזרבה" שוטף שכל הורה שלא השתמש בו עד סוף החודש — זוכה לבונוס חצי יום בחודש הבא. יצרנו תמריץ פשוט.</p>
+<h3>משבר 2: משפחה שיוצאת מהקבוצה</h3>
+<p>חלקנו את ימיה בין שאר ההורים, כל אחד קיבל יום אחד נוסף בחודש. אף אחד לא התנגד.</p>`,
+            img('cat-5.png')
+        );
+        await pool.query(`UPDATE content_items SET series_id=$1, series_chapter_number=3 WHERE id=$2`, [seriesId, ch3Id]);
+        await addTag(ch3Id, 'חופש הגדול'); await addTag(ch3Id, 'פתרון בעיות');
+        await addComment(ch3Id, user1.id, 'המשבר השני קרה לנו ממש — הטיפ עם חלוקת הימים הציל את הקבוצה!');
+        log.push(`✓ כתבה סדרה פרק 3: id=${ch3Id}`);
+
+        // ── כתבות עצמאיות ──
+        const czCat = getCat('צרכנות') || getCat('פתרונות') || cats[0];
+        const art4Id = await createItem('ARTICLE', czCat.id,
+            'המקלט שהפך למעבדת רובוטיקה — כל השלבים',
+            'שנה וחצי, 40 מתנדבים ותרומת ציוד אחת גדולה — כך הפך מקלט נטוש למרכז חדשנות שמשרת 300 ילדים בשבוע.',
+            ['תקציב כספי: אפס שקלים — הכול התנדבות ותרומות','40 מתנדבים מפעילים 12 חוגים שבועיים','המודל נבדק לשכפול בארבע רשויות נוספות'],
+            `<p><span style="float:inline-start;font-size:56px;line-height:.85;font-weight:900;padding-inline-end:10px;padding-top:4px;color:#16294D;">ב</span>ערב חורף אחד בפברואר 2024 נפגשו שבעה הורים בחדר הישיבות של מרכז הקהילה. על השולחן היה מפתח אחד ותוכנית אחת: להפוך את המקלט שמתחת לבית הספר היסודי למשהו שילדים ירצו להיכנס אליו מרצון.</p>
+<h3>התרומה שהפכה את הקערה</h3>
+<p>חברת הייטק אזורית החליפה מעבדה שלמה ותרמה 22 מחשבים, שלוש מדפסות תלת-ממד ושתי זרועות רובוטיות. שווי מוערך: כ-400 אלף שקל. עלות בפועל: יומיים של הובלה.</p>
+<blockquote>״לא ביקשנו כסף אף פעם. ביקשנו דברים שכבר עמדו לאנשים בצד ומפריעים להם.״</blockquote>
+<h3>מה קורה שם עכשיו</h3>
+<p>בשעות אחר הצהריים החלל מלא. הקבוצה הבוגרת בונה רחפן מיפוי לחלקות חקלאיות; הצעירים עובדים על רובוטים לתחרות בית ספרית.</p>`,
+            img('hot-lab.png')
+        );
+        await addTag(art4Id, 'קהילה'); await addTag(art4Id, 'חינוך'); await addTag(art4Id, 'התנדבות');
+        await addComment(art4Id, user2.id, 'פרויקט מדהים! איך מצטרפים כמתנדבים?');
+        await addComment(art4Id, user1.id, 'יש ערב פתוח ראשון בכל חודש, פרטים בפייסבוק של הקהילה');
+        log.push(`✓ כתבה עצמאית: id=${art4Id}`);
+
+        const art5Id = await createItem('ARTICLE', getCat('חדשות') || cats[0],
+            'הספרייה השכונתית שנפתחה בשעתיים — סיפור הצלחה של ניהול קהילתי',
+            'ארון ספרים אחד על מדרגות בניין הפך לספרייה של 800 ספרים עם 150 חברים פעילים.',
+            ['800 ספרים, 150 חברים, 0 תקציב רשותי','ניהול ע"י אפליקציה חינמית בלבד','6 ספריות נוספות נפתחו בשכונות שכנות'],
+            `<p>הכל התחיל מארון ספרים שמישהו הוציא למדרגות בניין ברחוב הרצל. יומיים אחר כך — 40 ספרים נוספים. שבוע אחר כך — ארון שני. היום: 800 ספרים, 150 חברים רשומים ומנהלת מתנדבת שמגיעה שלוש פעמים בשבוע.</p>
+<h3>האפליקציה שמנהלת הכל</h3>
+<p>כל ספר סרוק עם ברקוד, כל השאלה מתועדת. ההמתנה לספר פופולרי — שבועיים בממוצע. אין קנסות, יש רק "תזכורת חמה" אחרי שלושה שבועות.</p>`,
+            img('hot-books.png')
+        );
+        await addTag(art5Id, 'קהילה'); await addTag(art5Id, 'ספרייה'); await addTag(art5Id, 'יוזמה קהילתית');
+        await addComment(art5Id, user1.id, 'האם ניתן לתרום ספרים? יש לנו קופסה שלמה בבית');
+        await addComment(art5Id, user2.id, 'כן! אפשר להשאיר בכניסה לבניין כל יום עד 20:00');
+        log.push(`✓ כתבה עצמאית 2: id=${art5Id}`);
+
+        // ── שאלה חמה ──
+        const solutionsCat = getCat('פתרונות') || cats[0];
+        const qa1Id = await createItem('QA_QUESTION', solutionsCat.id,
+            'איך מארגנים הסעה משותפת לחוגים בלי אפליקציה בתשלום?',
+            '14 הורים מהשכונה, 3 ימים בשבוע, לוח זמנים שמשתנה כל חודש. שלוש הצעות כבר על השולחן.',
+            'מחפשים פתרון פשוט לניהול הסעות שיתופיות לחוגים שלא עולה כסף',
+            `<p>אנחנו קבוצה של 14 הורים מהשכונה. הילדים הולכים לחוגים 3 ימים בשבוע, בשעות שונות, בשני מיקומים. כרגע כל אחד נוסע בנפרד — זה מגעיל מבחינת זמן ודלק.</p>
+<p>ניסינו וואטסאפ — כאוס. ניסינו גוגל שיטס — אף אחד לא מעדכן. מה עובד לכם?</p>`,
+            img('talk-people.png')
+        );
+        await pool.query(`UPDATE content_items SET likes_count=61 WHERE id=$1`, [qa1Id]);
+        await pool.query(`UPDATE content_engagement_metrics SET likes_count=61, comments_count=4 WHERE content_item_id=$1`, [qa1Id]);
+        await addTag(qa1Id, 'הסעות'); await addTag(qa1Id, 'חוגים'); await addTag(qa1Id, 'שיתוף פעולה');
+        const qa1c1 = await addComment(qa1Id, user1.id, 'אנחנו משתמשים ב-Famieo — אפליקציה חינמית לניהול תורנויות. עובד מעולה לשלוש שנים.');
+        await addComment(qa1Id, user2.id, 'ניסיתם פשוט לקבוע יום קבוע לכל הורה? בלי אפליקציה בכלל?', qa1c1);
+        await addComment(qa1Id, user1.id, 'זה הפתרון שעבד לנו הכי טוב — תורנות שבועית, כל הורה יודע מראש את היום שלו');
+        log.push(`✓ שאלה: id=${qa1Id}`);
+
+        // ── סיפור הצלחה ──
+        const success1Id = await createItem('SUCCESS_STORY', solutionsCat.id,
+            'גן הירק השכונתי שהתחיל מ-4 עציצים במרפסת',
+            'שאלה שנשאלה כאן לפני שנה הפכה ל-120 מ"ר של גינה משותפת. הנה כל השלבים, כולל מה לא עבד.',
+            ['120 מ"ר של גינה שכונתית פעילה','30 משפחות שותפות בגינה','0 תקציב עירוני — הכל תרומות ועבודת מתנדבים'],
+            `<p>לפני שנה פרסמתי כאן שאלה: "האם מישהו מעוניין להקים גינת ירק קהילתית?" קיבלתי 47 תגובות תוך 24 שעות. לא ציפיתי לזה.</p>
+<h3>שלב 1: מצאנו קרקע</h3>
+<p>פינת החניון הנטוש בקצה הרחוב. הרשות הסכימה ל"הסדר ניסיוני" של שנה — ולא שאלה יותר מדי שאלות.</p>
+<h3>שלב 2: בנינו את הגדרות</h3>
+<p>תרומת 12 לבנים מאחד השכנים, עץ מחסן של שני, צבע משלישי. שלושה סופי שבוע של עבודה.</p>
+<h3>מה לא עבד</h3>
+<p>מערכת ההשקיה האוטומטית — נשברה פעמיים. חזרנו לדלי. עכשיו יש תורנות השקיה — כל משפחה שבוע.</p>`,
+            img('cat-2.png')
+        );
+        await pool.query(`UPDATE content_engagement_metrics SET likes_count=89 WHERE content_item_id=$1`, [success1Id]);
+        await addTag(success1Id, 'גינה קהילתית'); await addTag(success1Id, 'קיימות'); await addTag(success1Id, 'הצלחה');
+        await addComment(success1Id, user2.id, 'מדהים! האם יש עוד מקום להצטרף?');
+        await addComment(success1Id, user1.id, 'תמיד! פנה למנהלת הגינה דרך הפרופיל שלה כאן');
+        log.push(`✓ סיפור הצלחה: id=${success1Id}`);
+
+        res.json({ success: true, log, created: { series_id: seriesId, items: [ch1Id,ch2Id,ch3Id,art4Id,art5Id,qa1Id,success1Id] } });
+    } catch(e) {
+        res.status(500).json({ error: e.message, log });
+    }
+});
+
 // ─── היסטוריית גרסאות ────────────────────────────────────────
 app.get('/api/kol-haam/content/:id/versions', async (req, res) => {
     try {
