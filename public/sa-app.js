@@ -11979,8 +11979,16 @@ async function loadSAKolHaamQueue() {
           <div class="space-y-6">
             <!-- כותרת -->
             <div class="bg-gradient-to-r from-indigo-600 to-violet-600 rounded-2xl p-5 text-white shadow-lg">
-              <h2 class="text-xl font-bold mb-1">📣 קול העם — ניהול SA</h2>
-              <p class="text-indigo-100 text-sm">אישור תוכן גלובלי, ניהול קטגוריות, בקשות מחיקה</p>
+              <div class="flex justify-between items-start gap-3 flex-wrap">
+                <div>
+                  <h2 class="text-xl font-bold mb-1">📣 קול העם — ניהול SA</h2>
+                  <p class="text-indigo-100 text-sm">אישור תוכן גלובלי, ניהול קטגוריות, בקשות מחיקה</p>
+                </div>
+                <button onclick="saKHSeedSample()" id="sa-kh-seed-btn"
+                  class="bg-white/20 hover:bg-white/30 text-white text-xs font-bold px-4 py-2 rounded-xl border border-white/30 transition whitespace-nowrap">
+                  🌱 הזן נתוני דוגמה
+                </button>
+              </div>
             </div>
             <!-- תור אישור -->
             <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
@@ -12041,6 +12049,26 @@ async function loadSAKolHaamQueue() {
     } catch(e) {
         container.innerHTML = `<div class="text-center py-12 text-red-400">שגיאה בטעינה: ${e.message}</div>`;
     }
+}
+
+async function saKHSeedSample() {
+    const btn = document.getElementById('sa-kh-seed-btn');
+    if (!confirm('ליצור כתבת דוגמה עם תגובות? (פעולה חד-פעמית)')) return;
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ יוצר...'; }
+    try {
+        const d = await saFetch('/api/sa/kol-haam/seed-sample', { method: 'POST' });
+        if (d.success) {
+            showToast('success', `נתוני דוגמה נוצרו — כתבה #${d.content_item_id}`);
+            setTimeout(() => {
+                if (confirm(`הכתבה נוצרה (#${d.content_item_id}). לפתוח אותה בקול העם?`)) {
+                    document.querySelector('[data-tab="kol-haam"]')?.click();
+                }
+            }, 500);
+        } else {
+            showToast('error', d.error || 'שגיאה ביצירת דוגמה');
+        }
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+    finally { if (btn) { btn.disabled = false; btn.textContent = '🌱 הזן נתוני דוגמה'; } }
 }
 
 async function saKHApprove(id) {
