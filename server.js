@@ -26893,6 +26893,8 @@ async function initKolHaamPhase2Tables() {
         `ALTER TABLE content_items ADD COLUMN IF NOT EXISTS quarantined_at TIMESTAMP NULL`,
         `ALTER TABLE content_items ADD COLUMN IF NOT EXISTS report_count INT DEFAULT 0`,
         `ALTER TABLE content_items ADD COLUMN IF NOT EXISTS pinned_until TIMESTAMP NULL`,
+        `ALTER TABLE content_items ADD COLUMN IF NOT EXISTS series_id INT NULL`,
+        `ALTER TABLE content_items ADD COLUMN IF NOT EXISTS series_chapter_number INT NULL`,
         `ALTER TABLE content_comments ADD COLUMN IF NOT EXISTS report_count INT DEFAULT 0`,
         // indexes
         `CREATE INDEX IF NOT EXISTS idx_content_reactions_item ON content_reactions(content_item_id)`,
@@ -28346,7 +28348,7 @@ app.get('/api/kol-haam/authors/:id/content', async (req, res) => {
         const { page = 1, limit = 10 } = req.query;
         const offset = (parseInt(page)-1) * parseInt(limit);
         const r = await pool.query(`
-            SELECT ci.id, ci.title, ci.summary, ci.cover_image_url, ci.content_type,
+            SELECT ci.id, ci.title, ci.subtitle, ci.cover_image_url, ci.content_type,
                    ci.published_at, ci.status,
                    COALESCE(cem.likes_count,0) as likes_count,
                    COALESCE(cem.comments_count,0) as comments_count,
@@ -28390,16 +28392,17 @@ app.get('/api/kol-haam/my-following-feed', async (req, res) => {
         if (!groupId) return res.status(400).json({ error: 'groupId נדרש' });
         const offset = (parseInt(page)-1) * parseInt(limit);
         const r = await pool.query(`
-            SELECT ci.id, ci.title, ci.summary, ci.cover_image_url, ci.content_type,
+            SELECT ci.id, ci.title, ci.subtitle, ci.cover_image_url, ci.content_type,
                    ci.published_at, ci.status, ci.author_profile_id,
-                   ap.display_name as author_name, ap.avatar_url as author_avatar,
+                   fg.name as author_name, NULL::text as author_avatar,
                    ap.badge_level, ap.is_revoked,
-                   CASE WHEN ap.is_revoked THEN 'DEFAULT' ELSE ap.badge_level END as effective_badge_level,
+                   CASE WHEN COALESCE(ap.is_revoked,FALSE) THEN 'DEFAULT' ELSE ap.badge_level END as effective_badge_level,
                    COALESCE(cem.likes_count,0) as likes_count,
                    COALESCE(cem.comments_count,0) as comments_count,
                    COALESCE(cem.current_trending_score,0) as trending_score
             FROM content_items ci
             JOIN author_profiles ap ON ap.id=ci.author_profile_id
+            JOIN family_groups fg ON fg.id=ap.family_group_id
             LEFT JOIN content_engagement_metrics cem ON cem.content_item_id=ci.id
             WHERE ci.status IN ('PUBLISHED_LOCAL','PUBLISHED_GLOBAL')
               AND COALESCE(ci.is_quarantined,FALSE)=FALSE
@@ -28466,15 +28469,16 @@ app.get('/api/kol-haam/editor-picks/current', async (req, res) => {
 
         const r = await pool.query(`
             SELECT ep.id as pick_id, ep.note, ep.pinned_until,
-                   ci.id, ci.title, ci.summary, ci.cover_image_url, ci.content_type, ci.published_at,
-                   ci.author_profile_id, ap.display_name as author_name, ap.avatar_url as author_avatar,
+                   ci.id, ci.title, ci.subtitle, ci.cover_image_url, ci.content_type, ci.published_at,
+                   ci.author_profile_id, fg.name as author_name, NULL::text as author_avatar,
                    ap.badge_level, ap.is_revoked,
-                   CASE WHEN ap.is_revoked THEN 'DEFAULT' ELSE ap.badge_level END as effective_badge_level,
+                   CASE WHEN COALESCE(ap.is_revoked,FALSE) THEN 'DEFAULT' ELSE ap.badge_level END as effective_badge_level,
                    COALESCE(cem.likes_count,0) as likes_count,
                    COALESCE(cem.comments_count,0) as comments_count
             FROM editor_picks ep
             JOIN content_items ci ON ci.id=ep.content_item_id
             JOIN author_profiles ap ON ap.id=ci.author_profile_id
+            JOIN family_groups fg ON fg.id=ap.family_group_id
             LEFT JOIN content_engagement_metrics cem ON cem.content_item_id=ci.id
             WHERE ci.status IN ('PUBLISHED_LOCAL','PUBLISHED_GLOBAL')
               AND COALESCE(ci.is_quarantined,FALSE)=FALSE
