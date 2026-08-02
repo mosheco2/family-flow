@@ -26318,11 +26318,11 @@ app.post('/api/kol-haam/seed-demo', async (req, res) => {
         log.push(`✓ קבוצה: ${groupName} (id=${groupId})`);
 
         // 2. מצא משתמשים
-        const usersR = await pool.query(`SELECT id, name, nickname, email FROM users WHERE family_group_id=$1 OR group_id=$1`, [groupId]);
+        const usersR = await pool.query(`SELECT id, nickname, full_name, email FROM users WHERE family_group_id=$1 OR group_id=$1`, [groupId]);
         if (!usersR.rows.length) return res.status(404).json({ error: 'לא נמצאו משתמשים לקבוצה זו' });
         const user1 = usersR.rows[0];
         const user2 = usersR.rows[1] || usersR.rows[0];
-        log.push(`✓ משתמשים: ${usersR.rows.map(u=>u.name||u.nickname).join(', ')}`);
+        log.push(`✓ משתמשים: ${usersR.rows.map(u=>u.full_name||u.nickname).join(', ')}`);
 
         // 3. מצא קהילה משויכת
         const commR = await pool.query(
@@ -26395,7 +26395,7 @@ app.post('/api/kol-haam/seed-demo', async (req, res) => {
                  title, subtitle,
                  JSON.stringify(typeof summary === 'string' ? [summary] : summary),
                  coverUrl, html, readingTime,
-                 `${user1.name||user1.nickname} / קהילת ${commName}`]
+                 `${user1.full_name||user1.nickname} / קהילת ${commName}`]
             );
             await ensureMetrics(r.rows[0].id);
             return r.rows[0].id;
@@ -26432,7 +26432,7 @@ app.post('/api/kol-haam/seed-demo', async (req, res) => {
 <h3>מה צריך כדי להתחיל אצלכם</h3>
 <p>לפי הקבוצה, שלושה תנאים: בין חמש לשמונה משפחות (פחות מזה נופל על אדם אחד), יותר מזה — לוגו ליניהול), ילדים בטווח גילים של עד ארבע שנים, ומרחק הליכה סביר בין הבתים. אחרי זה נשאר רק להחליט על התאריכים ולנעול.</p>
 <p>התבנית של הגיליון פתוחה לכל חברי הקהילה, והקבוצה מציעה ייעוץ שיחת יעוץ של חצי שעה למי שרוצה להקים קבוצה דומה.</p>
-<figure style="margin:26px 0 0"><img src="${img('inner-1-fridge-schedule.png')}" alt="לוח הקיץ המשותף — תורנות הורים לפי ימים"><figcaption>לוח הקיץ המשותף, תלוי בשבעה מקררים בו-זמנית. צילום: ${user2.name||user2.nickname}</figcaption></figure>
+<figure style="margin:26px 0 0"><img src="${img('inner-1-fridge-schedule.png')}" alt="לוח הקיץ המשותף — תורנות הורים לפי ימים"><figcaption>לוח הקיץ המשותף, תלוי בשבעה מקררים בו-זמנית. צילום: ${user2.full_name||user2.nickname}</figcaption></figure>
 <h3>הכסף: מה זה באמת חסך</h3>
 <p>העלות הישירה של הקייטנה עמדה על כ-800 ₪ לילד: 350 ₪ קופה משותפת לחומרים, 300 ₪ לשלושת הטיולים, ועוד כ-150 ₪ ארוחות. מול זה, החלופה בשוק — קייטנה עירונית ואחריה קייטנה פרטית — עמדה על כ-5,100 ₪ לילד.</p>`,
             imgCover('hero-summer-calendar.png')
