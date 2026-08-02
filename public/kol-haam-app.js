@@ -376,12 +376,14 @@ const KH = {
         const it = data.item;
         const userState = stateData || { reaction: null, saved: false };
         const tags = Array.isArray(it.tags) ? it.tags : (typeof it.tags === 'string' ? JSON.parse(it.tags || '[]') : []);
-        const tagsHtml = tags.length ? `<div class="content-tags">${tags.map(t => `<span class="tag-chip tag-chip-link" onclick="KH.nav('tag',{tag:'${esc(t).replace(/'/g,'\\\'')}'})"">#${esc(t)}</span>`).join('')}</div>` : '';
+        const tagsHtml = tags.length ? `<div class="cv-tags"><span class="cv-tag-label">תגיות:</span>${tags.map(t => `<span class="cv-tag" onclick="KH.nav('tag',{tag:'${esc(t).replace(/'/g,'\\\'')}'})"">${esc(t)}</span>`).join('')}</div>` : '';
+        const seriesChapterInfo = (it.series_name && it.chapter_number && it.total_chapters) ? `<span style="font-family:monospace;font-size:11px;color:#8A8A82;white-space:nowrap;">סדרה · ${it.chapter_number} מתוך ${it.total_chapters}</span>` : '';
         const seriesNav = (it.prev_chapter_id || it.next_chapter_id) ? `
-            <div class="series-nav">
-                ${it.prev_chapter_id ? `<button class="series-nav-btn" onclick="KH.nav('content',{id:${it.prev_chapter_id}})">← פרק קודם: ${esc(it.prev_chapter_title||'')}</button>` : '<div></div>'}
-                ${it.next_chapter_id ? `<button class="series-nav-btn" onclick="KH.nav('content',{id:${it.next_chapter_id}})">פרק הבא: ${esc(it.next_chapter_title||'')} →</button>` : '<div></div>'}
-            </div>` : '';
+            <nav class="cv-series-nav">
+                ${it.prev_chapter_id ? `<button class="cv-series-nav-btn" onclick="KH.nav('content',{id:${it.prev_chapter_id}})">← פרק קודם: ${esc(it.prev_chapter_title||'')}</button>` : '<div></div>'}
+                ${seriesChapterInfo}
+                ${it.next_chapter_id ? `<button class="cv-series-nav-btn" onclick="KH.nav('content',{id:${it.next_chapter_id}})">פרק הבא: ${esc(it.next_chapter_title||'')} →</button>` : '<div></div>'}
+            </nav>` : '';
         const isOwner = String(it.author_group_id) === String(CTX.groupId);
         const editBtn = isOwner && ['DRAFT','REJECTED'].includes(it.status) ? `<button class="kh-btn kh-btn-outline kh-btn-sm" onclick="KH.nav('editor',{itemId:${it.id}})"><i class="fa-solid fa-pen"></i> ערוך</button>` : '';
         const deleteBtn = isOwner && it.status !== 'DRAFT' && !it.deletion_requested ? `<button class="kh-btn kh-btn-danger kh-btn-sm" onclick="KH.requestDeletion(${it.id})"><i class="fa-solid fa-flag"></i> בקש מחיקה</button>` : '';
@@ -396,17 +398,23 @@ const KH = {
             <button class="cv-eng-btn" onclick="KH.openReport(${id},null)" title="דיווח">⚠️</button>
         </div>`;
 
-        const seriesAside = (it.prev_chapter_id || it.next_chapter_id) ? `
+        const seriesChapters = [
+            it.prev_chapter_id ? { id: it.prev_chapter_id, title: it.prev_chapter_title || 'פרק קודם' } : null,
+            it.next_chapter_id ? { id: it.next_chapter_id, title: it.next_chapter_title || 'פרק הבא' } : null
+        ].filter(Boolean);
+        const seriesAside = seriesChapters.length ? `
         <div class="cv-series-box">
             <div class="cv-series-box-title">עוד בסדרה</div>
-            ${it.prev_chapter_id ? `<div class="cv-series-link" onclick="KH.nav('content',{id:${it.prev_chapter_id}})"><div class="cv-series-thumb"></div><span>${esc(it.prev_chapter_title||'פרק קודם')}</span></div>` : ''}
-            ${it.next_chapter_id ? `<div class="cv-series-link" onclick="KH.nav('content',{id:${it.next_chapter_id}})"><div class="cv-series-thumb"></div><span>${esc(it.next_chapter_title||'פרק הבא')}</span></div>` : ''}
+            ${seriesChapters.map(c => `<div class="cv-series-link" onclick="KH.nav('content',{id:${c.id}})"><div class="cv-series-thumb"></div><span>${esc(c.title)}</span></div>`).join('')}
         </div>` : '';
 
+        const figCaption = `<figcaption class="cv-hero-figcaption">צילום: ${it.cover_photo_credit ? esc(it.cover_photo_credit) : `קהילת ${esc(it.community_name||'')}`}</figcaption>`;
+        const breadcrumb = `<div class="cv-breadcrumb"><span class="cv-bc-link" onclick="KH.nav('feed')">בית</span><span class="cv-bc-sep">›</span><span class="cv-bc-link" onclick="KH.nav('feed')">קהילה</span><span class="cv-bc-sep">›</span><span class="cv-bc-cur">${esc(it.category_title||it.community_name||'כתבה')}</span></div>`;
         document.getElementById('content-inner').innerHTML = `
         <div class="cv-page">
+            ${breadcrumb}
             ${it.cover_image_url
-                ? `<figure class="cv-hero"><img class="cv-hero-img" src="${it.cover_image_url}" alt="${esc(it.title)}"><span class="cv-badge">${esc(it.category_title)||''}</span>${it.cover_photo_credit ? `<figcaption class="cv-hero-figcaption">צילום: ${esc(it.cover_photo_credit)}</figcaption>` : ''}</figure>`
+                ? `<figure class="cv-hero"><img class="cv-hero-img" src="${it.cover_image_url}" alt="${esc(it.title)}"><span class="cv-badge">${esc(it.category_title)||''}</span>${figCaption}</figure>`
                 : `<figure class="cv-hero"><div class="cv-hero-placeholder">📣</div><span class="cv-badge">${esc(it.category_title)||''}</span></figure>`}
             <div class="cv-inner">
                 <article class="cv-article">
