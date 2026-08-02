@@ -269,50 +269,70 @@ const KH = {
         const editBtn = isOwner && ['DRAFT','REJECTED'].includes(it.status) ? `<button class="kh-btn kh-btn-outline kh-btn-sm" onclick="KH.nav('editor',{itemId:${it.id}})"><i class="fa-solid fa-pen"></i> ערוך</button>` : '';
         const deleteBtn = isOwner && it.status !== 'DRAFT' && !it.deletion_requested ? `<button class="kh-btn kh-btn-danger kh-btn-sm" onclick="KH.requestDeletion(${it.id})"><i class="fa-solid fa-flag"></i> בקש מחיקה</button>` : '';
 
-        const engBar = `<div class="engagement-bar" id="eng-bar-${id}">
-            <button class="eng-btn ${userState.reaction==='LIKE'?'eng-active':''}" id="btn-like-${id}" onclick="KH.react(${id},'LIKE')">
-                👍 <span id="like-count-${id}">${it.likes_count||0}</span>
-            </button>
-            <button class="eng-btn ${userState.reaction==='DISLIKE'?'eng-active eng-dislike':''}" id="btn-dislike-${id}" onclick="KH.react(${id},'DISLIKE')">
-                👎 <span id="dislike-count-${id}">${it.dislikes_count||0}</span>
-            </button>
-            <button class="eng-btn ${userState.saved?'eng-active':''}" id="btn-save-${id}" onclick="KH.toggleSave(${id})">
-                ⭐ <span id="save-count-${id}">${it.saves_count||0}</span>
-            </button>
-            <button class="eng-btn" onclick="KH.share(${id},'${esc(it.title).replace(/'/g,"\\'")}')">
-                📤 שיתוף
-            </button>
-            <button class="eng-btn" onclick="document.getElementById('comments-section').scrollIntoView({behavior:'smooth'})">
-                💬 <span>${it.comments_count||0}</span>
-            </button>
-            <button class="eng-btn" onclick="KH.openReport(${id}, null)">⚠️</button>
+        const engBar = `<div class="cv-eng-bar" id="eng-bar-${id}">
+            <button class="cv-eng-btn ${userState.reaction==='LIKE'?'cv-active-like':''}" id="btn-like-${id}" onclick="KH.react(${id},'LIKE')">👍 <span id="like-count-${id}">${it.likes_count||0}</span></button>
+            <button class="cv-eng-btn ${userState.reaction==='DISLIKE'?'cv-active-dislike':''}" id="btn-dislike-${id}" onclick="KH.react(${id},'DISLIKE')">👎 <span id="dislike-count-${id}">${it.dislikes_count||0}</span></button>
+            <button class="cv-eng-btn" onclick="(function(){const s=document.getElementById('comments-section');if(s)s.scrollIntoView({behavior:'smooth'});})()">💬 <span>${it.comments_count||0}</span></button>
+            <button class="cv-eng-btn ${userState.saved?'cv-active-save':''}" id="btn-save-${id}" onclick="KH.toggleSave(${id})">⭐ <span id="save-count-${id}">${it.saves_count||0}</span></button>
+            <button class="cv-eng-btn" id="kh-print-btn" onclick="KH.printContent()">🖨️</button>
+            <div class="cv-eng-share"><button class="cv-eng-btn" onclick="KH.share(${id},'${esc(it.title).replace(/'/g,"\\'")}')">📤 שיתוף</button></div>
+            <button class="cv-eng-btn" onclick="KH.openReport(${id},null)" title="דיווח">⚠️</button>
         </div>`;
 
+        const seriesAside = (it.prev_chapter_id || it.next_chapter_id) ? `
+        <div class="cv-series-box">
+            <div class="cv-series-box-title">עוד בסדרה</div>
+            ${it.prev_chapter_id ? `<div class="cv-series-link" onclick="KH.nav('content',{id:${it.prev_chapter_id}})"><div class="cv-series-thumb"></div><span>${esc(it.prev_chapter_title||'פרק קודם')}</span></div>` : ''}
+            ${it.next_chapter_id ? `<div class="cv-series-link" onclick="KH.nav('content',{id:${it.next_chapter_id}})"><div class="cv-series-thumb"></div><span>${esc(it.next_chapter_title||'פרק הבא')}</span></div>` : ''}
+        </div>` : '';
+
         document.getElementById('content-inner').innerHTML = `
-            ${it.cover_image_url ? `<img class="content-cover" src="${it.cover_image_url}" alt="">` : ''}
-            <div class="content-category-label">${esc(it.category_title)} ${it.scope_type === 'GLOBAL' ? '🌍' : '🏠'}</div>
-            <h1 class="content-title">${esc(it.title)}</h1>
-            ${it.subtitle ? `<p class="content-subtitle">${esc(it.subtitle)}</p>` : ''}
-            <div class="content-byline">
-                <span>✍️ <strong style="cursor:pointer;color:var(--primary)" onclick="KH.nav('author',{id:${it.author_profile_id}})">${esc(it.author_name)}</strong> ${badgeHtml(it.author_badge_level, it.author_is_revoked)}</span>
-                <span>🏘️ ${esc(it.community_name)}</span>
-                <span>📅 ${fmtDate(it.published_at)}</span>
-                ${it.updated_at ? `<span>עודכן: ${fmtDate(it.updated_at)}</span>` : ''}
-                <span>⏱ ${it.reading_time_minutes} דק' קריאה</span>
+        <div class="cv-page">
+            ${it.cover_image_url
+                ? `<div class="cv-hero"><img class="cv-hero-img" src="${it.cover_image_url}" alt=""><span class="cv-badge">${esc(it.category_title)||''}</span></div>`
+                : `<div class="cv-hero"><div class="cv-hero-placeholder">📣</div><span class="cv-badge">${esc(it.category_title)||''}</span></div>`}
+            <div class="cv-inner">
+                <article class="cv-article">
+                    <h1 class="cv-h1">${esc(it.title)}</h1>
+                    ${it.subtitle ? `<h2 class="cv-h2">${esc(it.subtitle)}</h2>` : ''}
+                    <div class="cv-meta">
+                        <div class="cv-meta-left">
+                            <div class="cv-avatar"></div>
+                            <span>מאת: <strong style="color:#16294D;cursor:pointer" onclick="KH.nav('author',{id:${it.author_profile_id}})">${esc(it.author_name)}</strong> ${badgeHtml(it.author_badge_level, it.author_is_revoked)}</span>
+                            <span class="cv-sep">|</span>
+                            <span style="color:#1F7A72">🏘️ ${esc(it.community_name)}</span>
+                            ${it.scope_type === 'GLOBAL' ? '<span style="font-size:11px;color:#8A8A82">🌍 גלובלי</span>' : ''}
+                        </div>
+                        <div class="cv-meta-right">
+                            <span>פורסם: ${fmtDate(it.published_at)}</span>
+                            ${it.updated_at ? `<span class="cv-sep">|</span><span>עודכן: ${fmtDate(it.updated_at)}</span>` : ''}
+                            <span class="cv-sep">|</span>
+                            <span>🕒 ${it.reading_time_minutes} דק' קריאה</span>
+                        </div>
+                    </div>
+                    <div class="content-html">${it.content_html}</div>
+                    ${seriesNav}
+                    ${tagsHtml}
+                    ${engBar}
+                    <div class="cv-admin-row">
+                        ${editBtn}${deleteBtn}
+                        ${CTX.isSA ? `<button class="kh-btn kh-btn-outline kh-btn-sm" onclick="KH.addEditorPick(${it.id})">⭐ בחירת עורך</button>` : ''}
+                        <button class="kh-btn kh-btn-outline kh-btn-sm" onclick="KH.openAddToCollection(${it.id})">📚 אוסף</button>
+                        ${(isOwner || CTX.isZM || CTX.isSA) ? `<button class="kh-btn kh-btn-outline kh-btn-sm" onclick="KH.showVersionHistory(${it.id})">🕐 גרסאות</button>` : ''}
+                    </div>
+                    ${it.comments_enabled !== false ? `<div id="comments-section" class="comments-section" style="margin-top:32px"></div>` : '<p style="color:#8A8A82;text-align:center;margin:1.5rem 0">התגובות מושבתות לפריט זה</p>'}
+                </article>
+                <aside class="cv-aside">
+                    <div class="cv-newsletter">
+                        <img src="/kol-haam-assets/ROBOTAI.webp" alt="" style="width:76px;height:76px;object-fit:contain;display:block;margin:0 auto 6px;" onerror="this.style.display='none'">
+                        <div class="cv-newsletter-title">שליטה חכמה, זרימה אחת</div>
+                        <div class="cv-newsletter-sub">הצטרפו לניוזלטר הקהילתי — כתבה אחת בשבוע.</div>
+                        <button class="cv-newsletter-cta">הרשמה</button>
+                    </div>
+                    ${seriesAside}
+                </aside>
             </div>
-            <div style="display:flex;gap:.5rem;margin-bottom:.5rem;flex-wrap:wrap">
-                ${editBtn}${deleteBtn}
-                ${CTX.isSA ? `<button class="kh-btn kh-btn-outline kh-btn-sm" onclick="KH.addEditorPick(${it.id})">⭐ בחירת עורך</button>` : ''}
-                <button class="kh-btn kh-btn-outline kh-btn-sm" onclick="KH.openAddToCollection(${it.id})" title="הוסף לאוסף">📚 אוסף</button>
-                <button id="kh-print-btn" class="kh-btn kh-btn-outline kh-btn-sm" onclick="KH.printContent()" title="הדפס / PDF">🖨️ הדפס</button>
-                ${(isOwner || CTX.isZM || CTX.isSA) ? `<button class="kh-btn kh-btn-outline kh-btn-sm" onclick="KH.showVersionHistory(${it.id})">🕐 גרסאות</button>` : ''}
-            </div>
-            ${engBar}
-            <div class="content-html">${it.content_html}</div>
-            ${tagsHtml}
-            ${seriesNav}
-            ${it.comments_enabled !== false ? `<div id="comments-section" class="comments-section"></div>` : '<p style="color:var(--muted2);text-align:center;margin:1rem 0">התגובות מושבתות לפריט זה</p>'}
-        `;
+        </div>`;
 
         if (it.comments_enabled !== false) {
             KH.loadComments(id, it.content_type);
@@ -366,16 +386,16 @@ const KH = {
         const data = await khFetch(`${API}/content/${contentId}/comments?sort=${sort}&user_id=${CTX.userId||''}`);
         const comments = data.comments || [];
 
-        const sortBar = `<div class="comments-sort-bar">
-            <button class="csort-btn ${sort==='top'?'active':''}" onclick="KH.loadComments(${contentId},'${contentType}','top')">הכי אהובות</button>
-            <button class="csort-btn ${sort==='new'?'active':''}" onclick="KH.loadComments(${contentId},'${contentType}','new')">חדשות</button>
-            <button class="csort-btn ${sort==='author'?'active':''}" onclick="KH.loadComments(${contentId},'${contentType}','author')">הכותב</button>
-            <button class="csort-btn ${sort==='management'?'active':''}" onclick="KH.loadComments(${contentId},'${contentType}','management')">הנהלה</button>
+        const sortBar = `<div class="cv-sort-bar">
+            <button class="cv-csort-btn ${sort==='top'?'active':''}" onclick="KH.loadComments(${contentId},'${contentType}','top')">הכי אהובות</button>
+            <button class="cv-csort-btn ${sort==='new'?'active':''}" onclick="KH.loadComments(${contentId},'${contentType}','new')">חדשות</button>
+            <button class="cv-csort-btn ${sort==='author'?'active':''}" onclick="KH.loadComments(${contentId},'${contentType}','author')">הכותב</button>
+            <button class="cv-csort-btn ${sort==='management'?'active':''}" onclick="KH.loadComments(${contentId},'${contentType}','management')">הנהלה</button>
         </div>`;
 
-        const addForm = `<div class="comment-add-form">
-            <textarea id="new-comment-text" class="comment-input" placeholder="הוסף תגובה..." rows="2"></textarea>
-            <button class="kh-btn kh-btn-primary" onclick="KH.addComment(${contentId}, null)">שלח</button>
+        const addForm = `<div class="cv-comment-form-wrap">
+            <textarea id="new-comment-text" class="cv-comment-txt" placeholder="כתבו תגובה…" rows="3"></textarea>
+            <div><button class="cv-comment-submit" onclick="KH.addComment(${contentId}, null)">פרסמו תגובה</button></div>
         </div>`;
 
         const renderComment = (c, depth = 0) => {
@@ -415,9 +435,11 @@ const KH = {
         };
 
         section.innerHTML = `
-            <h3 class="comments-title">💬 תגובות (${comments.length})</h3>
+            <div class="cv-comments-header">
+                <h3 class="cv-comments-title">תגובות (${comments.length})</h3>
+                ${sortBar}
+            </div>
             ${addForm}
-            ${sortBar}
             <div class="comments-list">${comments.map(c => renderComment(c)).join('')}</div>
         `;
     },
