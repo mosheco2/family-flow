@@ -26318,7 +26318,7 @@ app.post('/api/kol-haam/seed-demo', async (req, res) => {
         log.push(`✓ קבוצה: ${groupName} (id=${groupId})`);
 
         // 2. מצא משתמשים
-        const usersR = await pool.query(`SELECT id, nickname, email FROM users WHERE family_group_id=$1 OR group_id=$1`, [groupId]);
+        const usersR = await pool.query(`SELECT id, nickname, email FROM users WHERE group_id=$1`, [groupId]);
         if (!usersR.rows.length) return res.status(404).json({ error: 'לא נמצאו משתמשים לקבוצה זו' });
         const user1 = usersR.rows[0];
         const user2 = usersR.rows[1] || usersR.rows[0];
