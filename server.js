@@ -27289,39 +27289,52 @@ app.post('/api/sa/kol-haam/seed-sample', verifySA, async (req, res) => {
         const categoryId = cats.length ? cats[0].id : null;
 
         const tldrJson = JSON.stringify([
-            'לוח הקיץ המשפחתי שומר על שגרה בזמן שכולם בבית',
-            'חלוקת אחריות לפי גיל מפחיתה עומס על ההורים',
-            'יום מים שבועי הפך להיות הרגע הכי נחכה לו בשבוע',
-            'המקרר כמרכז הפיקוד — כלל הזהב של קיץ מאורגן'
+            'שבע משפחות מרמת־אלה חילקו ביניהן את 38 ימי החופש הגדול בתורנות יומית.',
+            'כל הורה לקח 5–6 ימים בלבד, וקיבל בתמורה 32 ימים מכוסים.',
+            'העלות לילד ירדה מכ־5,100 ₪ בקייטנות לכ־800 ₪ — חומרים וכניסות בלבד.',
+            'הכלי היחיד: גיליון משותף עם עמודה לכל יום ושורה לכל ילד.',
+            'שלוש קבוצות נוספות בשכונה אימצו את המודל כבר הקיץ.'
         ]);
 
         const contentHtml = `
-<p>קיץ. המילה הזאת מעוררת בילדים ציפייה שאין לה גבולות — ובהורים, בדרך כלל, פרפרים שונים לגמרי בבטן. שישה שבועות בלי בית-ספר, בלי מסגרת, בלי השעה שבה מישהו אחר אחראי על הילדים שלך.</p>
-<p>אבל מה אם הכל יכול להיות שונה? מה אם הקיץ יהפוך מאתגר מנהלי למנוע של קשר משפחתי?</p>
+<p>במרץ האחרון, בקבוצת הוואטסאפ של כיתה ג׳2, מישהי כתבה משפט שכולם חשבו ואף אחד לא אמר: ״אני לא יכולה לעשות עוד קיץ כזה.״ תוך שעתיים היו שם 60 הודעות. תוך שבועיים ישבו שבעה הורים במרפסת עם גיליון ריק פתוח על מסך של לפטופ.</p>
+<p>מה שיצא משם לא היה עמותה, לא חוג ולא קייטנה. זו הייתה טבלה. אבל הטבלה הזו כיסתה 38 ימי חופש עבור תשעה ילדים בגילי 6 עד 11, והורידה את ההוצאה המשפחתית הממוצעת בקרוב ל־85 אחוז.</p>
+<h3>הבעיה: 38 ימים ושני הורים עובדים</h3>
+<p>שנת הלימודים נגמרת ב־20 ביוני. הצהרון נסגר יומיים לפני. הקייטנה העירונית מכסה שלושה שבועות, בשעות 8:00–13:00, ועולה כ־1,400 ₪ לילד. נשארים כשלושה שבועות פתוחים באוגוסט, בדיוק כשמאגר ימי החופשה של רוב ההורים כבר ריק.</p>
+<p>״עשינו את החשבון על הנייר בפעם הראשונה,״ מספרת רונית לוי, אחת משבע האמהות בקבוצה. ״שלושה ילדים, קייטנה פרטית באוגוסט, פלוס מטפלת לשעתיים בסוף היום. הגענו ל־15 אלף שקל. פשוט הפסקנו לספור.״</p>
 <figure>
-  <img src="/kol-haam-assets/images/content/inner-1-fridge-schedule.png" alt="לוח שבועי על המקרר" onerror="this.parentElement.style.display='none'">
-  <figcaption>לוח השבוע שהוצמד למקרר — כלל הזהב של קיץ מאורגן</figcaption>
+  <img src="/kol-haam-assets/images/content/inner-1-fridge-schedule.png" alt="לוח הקיץ המודפס על המקרר" onerror="this.parentElement.style.display='none'">
+  <figcaption>לוח הקיץ המודפס, גרסה 4. כל צבע הוא הורה תורן. צילום: דנה פרץ</figcaption>
 </figure>
-<p>הסוד הוא לא לתכנן פחות — אלא לתכנן נכון. לוח קיץ משפחתי טוב כולל שלושה מרכיבים: <strong>שגרה גמישה</strong>, <strong>אחריות לפי גיל</strong>, ו<strong>רגעי שיא שכולם מצפים להם</strong>.</p>
-<h3>שגרה גמישה — לא קשיחה</h3>
-<p>ילדים (ומבוגרים) זקוקים למסגרת, אפילו בחופש. לא לוח זמנים של דקה לדקה — אלא קצב יומי קבוע. בוקר: ארוחה משותפת + מטלה אחת קטנה. צהריים: פעילות חופשית או מאורגנת. אחה"צ: זמן שקט ואז ארוחת ערב משפחתית.</p>
+<h3>איך בנו את הלוח</h3>
+<p>הכלל היחיד שנקבע בפגישה הראשונה: הורה תורן אחד ליום, אחראי מ־8:30 עד 15:00, לכל הילדים שנרשמו לאותו יום. לא חובה לקחת את כולם — מי שמסוגל לחמישה ילדים לוקח חמישה, מי שיכול לשלושה מסמן שלושה.</p>
+<p>כל הורה בחר מראש את הימים שנוח לו: יום עבודה מהבית, יום שישי קצר, או יום שממילא לקח חופש. אחרי סבב אחד של בחירות נשארו תשעה ימים יתומים. אותם חילקו בהגרלה, וזה לקח שבע דקות.</p>
+<p>התוכן של כל יום נקבע לפי מה שלהורה התורן ממילא נוח: יום מים בגינה, יום אפייה, יום ספרייה עירונית, יום סרט בסלון עם מזגן. שלושה ימים בקיץ כולם יצאו יחד לטיול משותף במימון קופה קטנה של 150 ₪ למשפחה.</p>
+<blockquote>״הטעות שלנו בהתחלה הייתה לנסות לתכנן פעילות מושקעת לכל יום. אחרי שבוע הבנו שהילדים מבסוטים הכי הרבה מיום שבו לא קורה כלום.״<br><cite>— רונית לוי, מארגנת הקבוצה</cite></blockquote>
+<h3>מה השתבש</h3>
+<p>שני דברים. הראשון: בשבוע השלישי אחד הילדים חלה, וההורה התורן גילה בשמונה בבוקר שהוא מארח חמישה ילדים בזמן שהוא בעצמו לא ישן. מאז נוסף כלל ״הורה גיבוי״ — שם שני לכל יום, שמתבקש רק במקרה חירום.</p>
+<p>השני: אחת המשפחות פרשה באמצע יולי בגלל נסיעה לחו״ל שלא דווחה מראש, ופתאום היו שני ימים בלי אחראי. הפתרון היה פשוט ולא נעים — לוח הזמנים ננעל ב־1 ביוני, ושינוי אחרי התאריך הזה מחייב למצוא מחליף בעצמך.</p>
+<p>״זה לא היה חלק,״ אומרת לוי. ״אבל אף אחד לא הפסיק לדבר עם אף אחד, וזה בעצם המדד היחיד שחשוב לנו.״</p>
 <figure>
-  <img src="/kol-haam-assets/images/content/inner-2-water-day.png" alt="יום מים משפחתי" onerror="this.parentElement.style.display='none'">
-  <figcaption>יום המים השבועי — הרגע הכי נחכה לו</figcaption>
+  <img src="/kol-haam-assets/images/content/inner-2-water-day.png" alt="יום מים בחצר המשותפת" onerror="this.parentElement.style.display='none'">
+  <figcaption>יום מים בחצר המשותפת, 14 ביולי. תשעה ילדים, הורה תורן אחד. צילום: דנה פרץ</figcaption>
 </figure>
-<h3>יום מים — המנוע הסודי</h3>
-<p>אחת הדרכים הכי אפקטיביות לגרום לילדים לשתף פעולה כל השבוע היא להבטיח להם ״יום מים״ קבוע. צינור, ספרינקלר, בלוני מים — לא משנה. הציפייה לאותו יום הופכת את שאר הימים לסבירים יותר.</p>
-<p>כל הפרטים, הטמפלטים ולוח הקיץ המלא — בתגובות למטה. שתפו מה עובד אצלכם 💬</p>`;
+<h3>הכסף: מה זה באמת חסך</h3>
+<p>העלות הישירה של הקיץ למשפחה עמדה על כ־800 ₪ לילד: 350 ₪ קופה משותפת לחומרים, 300 ₪ לשלושת הטיולים, ועוד כ־150 ₪ ארוחות. מול זה, החלופה שתומחרה במרץ — קייטנה עירונית ואחריה קייטנה פרטית — עמדה על כ־5,100 ₪ לילד.</p>
+<p>אבל המספר שההורים מזכירים ראשון הוא אחר: ימי חופשה. במקום שני הורים שמפצלים 15 ימי חופשה כל אחד, כל הורה ניצל בממוצע 5.5 ימים. השאר נשמרו לחגי תשרי.</p>
+<h3>מה צריך כדי להתחיל אצלכם</h3>
+<p>לפי הקבוצה, שלושה תנאים: בין חמש לשמונה משפחות (פחות מזה נופל על אדם אחד, יותר מזה הופך לניהול), ילדים בטווח גילים של עד ארבע שנים, ומרחק הליכה סביר בין הבתים. אחרי זה נשאר רק להחליט על התאריך שבו הלוח ננעל.</p>
+<p>התבנית של הגיליון פתוחה לכל חברי הקהילה, והקבוצה מציעה שיחת ייעוץ של חצי שעה למי שרוצה להקים קבוצה דומה לקראת חופשת סוכות.</p>`;
 
         const { rows: [item] } = await client.query(`
             INSERT INTO content_items
                 (title, subtitle, content_html, content_type, status, community_id, author_profile_id, category_id,
                  cover_image_url, reading_time_minutes, quick_summary_20s, is_sample_data, published_at)
-            VALUES ($1,$2,$3,'ARTICLE','PUBLISHED',$4,$5,$6,$7,4,$8,TRUE,NOW())
+            VALUES ($1,$2,$3,'ARTICLE','PUBLISHED',$4,$5,$6,$7,4,$8,TRUE,'2026-08-15T09:00:00Z')
             RETURNING id`,
             [
-                '[דוגמה] לוח קיץ משפחתי — איך שומרים על שפיות כשכולם בבית',
-                'המדריך המלא לקיץ מאורגן: לוחות, תפקידים, יום מים ועוד',
+                '[דוגמה] החופש הגדול נגמר בפלוס: שבע משפחות בנו לוח קיץ משותף וחסכו 4,300 ₪ לילד',
+                'בלי עמותה, בלי תקציב עירוני ובלי אפליקציה בתשלום — גיליון אחד משותף, תורנות של הורה אחראי ליום, ו־38 ימי חופש שעברו בלי פאניקה של יום ראשון בבוקר',
                 contentHtml,
                 communityId, authorProfileId, categoryId,
                 '/kol-haam-assets/images/covers/hero-summer-calendar.png',
@@ -27330,38 +27343,39 @@ app.post('/api/sa/kol-haam/seed-sample', verifySA, async (req, res) => {
         );
         const itemId = item.id;
 
-        // 4 תגובות ראשיות
+        // 4 תגובות ראשיות (מסעיף 10 בחבילת התוכן)
         const commentRows = await Promise.all([
-            client.query(`INSERT INTO content_comments (content_item_id,author_profile_id,body,likes_count,is_pinned) VALUES ($1,$2,$3,12,TRUE) RETURNING id`,
-                [itemId, authorProfileId, 'יום המים אצלנו הפך לאגדה. הילדים כבר שואלים ביום ראשון "מתי יום מים?". שווה כל טיפת מים על הדשא 💧']),
-            client.query(`INSERT INTO content_comments (content_item_id,author_profile_id,body,likes_count) VALUES ($1,$2,$3,8) RETURNING id`,
-                [itemId, authorProfileId, 'שיתפתי את הפוסט הזה בקבוצת ההורים ותוך שעה היו 30 לייקים. כולם מחפשים את אותו הדבר — פשטות עם שפיות.']),
-            client.query(`INSERT INTO content_comments (content_item_id,author_profile_id,body,likes_count) VALUES ($1,$2,$3,5) RETURNING id`,
-                [itemId, authorProfileId, 'שאלה — הלוח שאתם מציעים מתאים גם לבית עם ילד בספקטרום? אנחנו צריכים מסגרת יציבה יותר מהרגיל.']),
-            client.query(`INSERT INTO content_comments (content_item_id,author_profile_id,body,likes_count) VALUES ($1,$2,$3,3) RETURNING id`,
-                [itemId, authorProfileId, 'כבר יישמנו ב-2 ימים ראשונים של הקיץ. ילד בן 7 עשה את המיטה שלו בלי שביקשנו. נס של ממש 🙌']),
+            client.query(`INSERT INTO content_comments (content_item_id,author_profile_id,body,likes_count) VALUES ($1,$2,$3,47) RETURNING id`,
+                [itemId, authorProfileId, 'ניסינו משהו דומה לפני שנתיים וזה קרס בשבוע השני, בדיוק בגלל מה שכתוב כאן — אף אחד לא הגדיר מי הגיבוי. הכלל של השם השני לכל יום הוא הדבר שחסר לנו. שומרת את הכתבה לפני סוכות.']),
+            client.query(`INSERT INTO content_comments (content_item_id,author_profile_id,body,likes_count) VALUES ($1,$2,$3,63) RETURNING id`,
+                [itemId, authorProfileId, 'המספר שתפס אותי הוא לא 4,300 ₪ אלא 5.5 ימי חופשה במקום 15. בשביל הורה עצמאי זה ההבדל בין קיץ לבין חודש בלי הכנסה.']),
+            client.query(`INSERT INTO content_comments (content_item_id,author_profile_id,body,likes_count) VALUES ($1,$2,$3,28) RETURNING id`,
+                [itemId, authorProfileId, 'שאלה פרקטית: מה עם ביטוח? אם ילד נופל בחצר של הורה אחר, מי אחראי? זה הדבר היחיד שעוצר אותנו אצלנו בשכונה.']),
+            client.query(`INSERT INTO content_comments (content_item_id,author_profile_id,body,likes_count) VALUES ($1,$2,$3,12) RETURNING id`,
+                [itemId, authorProfileId, 'אצלנו זה לא יעבוד — טווח הגילים בשכונה הוא מגיל 4 עד 13. ילד בן 12 לא הולך להסכים ליום מים בגינה עם בני שש.']),
         ]);
         const [c1, c2, c3, c4] = commentRows.map(r => r.rows[0].id);
 
-        // 7 תגובות-בנות (sub-replies)
+        // 7 תגובות-בנות (מסעיף 10 בחבילת התוכן)
         await Promise.all([
-            // לתגובה 1
-            client.query(`INSERT INTO content_comments (content_item_id,author_profile_id,body,parent_comment_id,likes_count) VALUES ($1,$2,$3,$4,4) RETURNING id`,
-                [itemId, authorProfileId, 'אצלנו הוספנו כלל אחד: מי שמסדר את הגינה לפני — מקבל את הספרינקלר ראשון 😄', c1]),
-            client.query(`INSERT INTO content_comments (content_item_id,author_profile_id,body,parent_comment_id,likes_count) VALUES ($1,$2,$3,$4,2) RETURNING id`,
-                [itemId, authorProfileId, 'אנחנו עושים גרסת מרפסת — אין לנו גינה. עובד מעולה גם ככה!', c1]),
-            client.query(`INSERT INTO content_comments (content_item_id,author_profile_id,body,parent_comment_id,likes_count) VALUES ($1,$2,$3,$4,6) RETURNING id`,
-                [itemId, authorProfileId, 'ממש אותו דבר אצלנו. הפוסט הזה הבית שלנו 😂', c2]),
-            // לתגובה 3
-            client.query(`INSERT INTO content_comments (content_item_id,author_profile_id,body,parent_comment_id,likes_count) VALUES ($1,$2,$3,$4,9) RETURNING id`,
-                [itemId, authorProfileId, 'כן! אנחנו בדיוק באותו מצב. מה שעובד אצלנו: הלוח ויזואלי לגמרי — תמונות במקום מילים, ושגרה קבועה ביותר בשעת השינה.', c3]),
-            client.query(`INSERT INTO content_comments (content_item_id,author_profile_id,body,parent_comment_id,likes_count) VALUES ($1,$2,$3,$4,5) RETURNING id`,
-                [itemId, authorProfileId, 'ממליצה גם על אפליקציית "Chorely" — יש גרסה ויזואלית מיוחדת לילדים עם קשיים. שינתה לנו את הקיץ לחלוטין.', c3]),
-            // לתגובה 4
-            client.query(`INSERT INTO content_comments (content_item_id,author_profile_id,body,parent_comment_id,likes_count) VALUES ($1,$2,$3,$4,7) RETURNING id`,
-                [itemId, authorProfileId, 'הייתי בספקנות גדולה לפני שניסינו. עכשיו הילד שלי (9) שואל אותי כל יום "מה המשימה שלי היום?" 🥹', c4]),
-            client.query(`INSERT INTO content_comments (content_item_id,author_profile_id,body,parent_comment_id,likes_count) VALUES ($1,$2,$3,$4,3) RETURNING id`,
-                [itemId, authorProfileId, 'שבוע שני אצלנו — ילדת 5 כבר מסדרת כלים בעצמה. לא מאמינה לעצמי.', c4]),
+            // לתגובה 1 — דנה כ.
+            client.query(`INSERT INTO content_comments (content_item_id,author_profile_id,body,parent_comment_id,likes_count) VALUES ($1,$2,$3,$4,0) RETURNING id`,
+                [itemId, authorProfileId, 'דנה, בקבוצה בפועל הגיבוי הופעל רק שלוש פעמים בכל הקיץ. עצם זה שיש שם כתוב מוריד את החרדה גם כשלא משתמשים בו.', c1]),
+            client.query(`INSERT INTO content_comments (content_item_id,author_profile_id,body,parent_comment_id,likes_count) VALUES ($1,$2,$3,$4,0) RETURNING id`,
+                [itemId, authorProfileId, 'ואם אפשר להוסיף — הגיבוי צריך להיות הורה שממילא עובד מהבית באותו יום, אחרת זה לא באמת גיבוי.', c1]),
+            // לתגובה 2 — אבי ל.
+            client.query(`INSERT INTO content_comments (content_item_id,author_profile_id,body,parent_comment_id,likes_count) VALUES ($1,$2,$3,$4,0) RETURNING id`,
+                [itemId, authorProfileId, 'בדיוק. אני עצמאית ולקחתי שני ימי תורנות בשישי — יום שממילא אני לא עובדת בו. יצא שלא הפסדתי שקל.', c2]),
+            // לתגובה 3 — מרים ש.
+            client.query(`INSERT INTO content_comments (content_item_id,author_profile_id,body,parent_comment_id,likes_count) VALUES ($1,$2,$3,$4,0) RETURNING id`,
+                [itemId, authorProfileId, 'ברוב פוליסות ביטוח הדירה יש כיסוי צד ג׳ שחל גם על אורחים בבית. שווה לוודא מול הסוכן לפני הקיץ, זו שיחה של חמש דקות.', c3]),
+            client.query(`INSERT INTO content_comments (content_item_id,author_profile_id,body,parent_comment_id,likes_count) VALUES ($1,$2,$3,$4,0) RETURNING id`,
+                [itemId, authorProfileId, 'הוספנו לפרק הבא בסדרה סעיף שלם על זה, כולל נוסח הודעה קצר שההורים החתימו אחד את השני. לא מסמך משפטי — אבל מסדר ציפיות.', c3]),
+            // לתגובה 4 — תומר ג.
+            client.query(`INSERT INTO content_comments (content_item_id,author_profile_id,body,parent_comment_id,likes_count) VALUES ($1,$2,$3,$4,0) RETURNING id`,
+                [itemId, authorProfileId, 'פיצלנו בדיוק בגלל זה. יש קבוצה שנייה בשכונה של גילי 11–14, והתורנות שם היא בעיקר ליווי לבריכה ולמתנ״ס, לא אירוח בבית.', c4]),
+            client.query(`INSERT INTO content_comments (content_item_id,author_profile_id,body,parent_comment_id,likes_count) VALUES ($1,$2,$3,$4,0) RETURNING id`,
+                [itemId, authorProfileId, 'רעיון מעולה לפצל לפי גיל. אצלנו זה בדיוק הבעיה — אבל מעולם לא חשבנו על שתי קבוצות מקבילות.', c4]),
         ]);
 
         await client.query('COMMIT');
