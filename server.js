@@ -27295,8 +27295,14 @@ app.post('/api/sa/kol-haam/seed-sample', verifySA, async (req, res) => {
         }
         const authorProfileId = profiles[0].id;
 
-        const { rows: cats } = await client.query(`SELECT id FROM content_categories LIMIT 1`);
-        const categoryId = cats.length ? cats[0].id : null;
+        let { rows: cats } = await client.query(`SELECT id FROM content_categories LIMIT 1`);
+        if (!cats.length) {
+            const { rows: newCat } = await client.query(`
+                INSERT INTO content_categories (title, scope_level, community_id)
+                VALUES ('משפחה וחינוך', 'GLOBAL', NULL) RETURNING id`);
+            cats = newCat;
+        }
+        const categoryId = cats[0].id;
 
         const tldrJson = JSON.stringify([
             'שבע משפחות מרמת־אלה חילקו ביניהן את 38 ימי החופש הגדול בתורנות יומית.',
