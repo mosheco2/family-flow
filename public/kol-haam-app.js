@@ -1352,87 +1352,233 @@ window.KH = KH;
 
 // ── Phase 3: Author profile, Follow, Editor picks ─────────────
 
+// locked progress hints (content bundle)
+const AP_LOCKED_PROGRESS = {
+    QUARTER_MILLION:'312K / 250K — בבדיקה', VIDEO_WRITER:'0 מתוך 3',
+    FULL_SERIES:'2 מתוך 5', EDITOR_CHOICE_X10:'7 מתוך 10',
+};
+const AP_FRONT_TITLES = new Set([
+    'החופש הגדול נגמר בפלוס: שבע משפחות בנו לוח קיץ משותף וחסכו 4,300 ₪ לילד',
+    'כמה באמת עולה קיץ אחד למשפחה ישראלית — פירוק ההוצאה',
+    'המקלט שהפך למעבדת רובוטיקה — כל השלבים',
+]);
+const AP_TYPE_META = {
+    ARTICLE:{label:'כתבת עומק',cls:'apt-article'}, WIKI_GUIDE:{label:'מדריך',cls:'apt-guide'},
+    SUCCESS_STORY:{label:'סיפור קהילה',cls:'apt-story'}, QA_QUESTION:{label:'שאלה',cls:'apt-qa'},
+};
+function apTypeMeta(t){ return AP_TYPE_META[t]||{label:'כתבה',cls:'apt-article'}; }
+function apFmtNum(n){ n=parseInt(n)||0; if(n>=1000000)return(n/1000000).toFixed(1)+'M'; if(n>=1000)return(n/1000).toFixed(n>=10000?0:1)+'K'; return String(n); }
+function apFmtDate(d){ if(!d)return''; const dt=new Date(d); return`${dt.getDate().toString().padStart(2,'0')}.${(dt.getMonth()+1).toString().padStart(2,'0')}.${String(dt.getFullYear()).slice(-2)}`; }
+
+let _apAllArticles=[], _apFiltered=[], _apFilter='all', _apSort='new', _apPage=0;
+const AP_PAGE=8;
+
 KH.loadAuthor = async function(authorId) {
     STATE.view = 'author';
     showView('view-author');
-    const el = document.getElementById('author-profile-content');
-    el.innerHTML = '<div class="kh-spinner"></div>';
+    _apAllArticles=[]; _apFiltered=[]; _apFilter='all'; _apSort='new'; _apPage=0;
 
-    const [pd, cd] = await Promise.all([
-        khFetch(`${API}/authors/${authorId}?groupId=${CTX.groupId||''}`),
-        khFetch(`${API}/authors/${authorId}/content?limit=10`)
-    ]);
-    if (!pd.success) { el.innerHTML = '<p class="kh-empty">שגיאה בטעינה</p>'; return; }
+    const cover = document.getElementById('ap-cover');
+    const el    = document.getElementById('author-profile-content');
+    if(cover) cover.innerHTML = '<div class="ap-cover-placeholder"></div>';
+    el.innerHTML = '<div class="kh-spinner" style="margin:40px auto"></div>';
+
+    let pd, cd;
+    try {
+        [pd, cd] = await Promise.all([
+            khFetch(`${API}/authors/${authorId}?groupId=${CTX.groupId||''}`),
+            khFetch(`${API}/authors/${authorId}/content?limit=100`)
+        ]);
+    } catch(e){ el.innerHTML=`<p class="empty-state">שגיאה: ${esc(String(e.message))}</p>`; return; }
+    if (!pd.success){ el.innerHTML=`<p class="empty-state">${esc(pd.error||'שגיאה')}</p>`; return; }
 
     const a = pd.author;
-    const badge = a.effective_badge_level || 'DEFAULT';
-    const badgeLabel = { LOCAL_LEADER:'🏅 מוביל קהילתי', GLOBAL_LEADER:'🌍 מוביל ארצי', LEGACY:'⏳ Legacy' }[badge] || '';
 
-    const avatarHtml = a.avatar_url
-        ? `<img src="${esc(a.avatar_url)}" class="author-avatar-lg" alt="">`
-        : `<div class="author-avatar-placeholder">👤</div>`;
+    // cover
+    if (a.cover_image_url && cover){
+        cover.innerHTML=`<img src="${esc(a.cover_image_url)}" alt="" onerror="this.parentNode.innerHTML='<div class=ap-cover-placeholder></div>'">`;
+    }
 
-    const achHtml = pd.achievements.length
-        ? `<div class="achievement-grid">${pd.achievements.map(a2 =>
-            `<span class="ach-chip" title="${esc(a2.earned_at?.slice(0,10)||'')}">
-                ${esc(a2.icon)} ${esc(a2.title)}
-            </span>`).join('')}</div>`
-        : '<p class="kh-empty" style="font-size:.8rem">אין הישגים עדיין</p>';
-
+    // hero
+    const name = a.display_name || a.family_name || 'כותב/ת';
+    const avatar = a.avatar_url
+        ? `<img src="${esc(a.avatar_url)}" class="ap-avatar" alt="${esc(name)}" onerror="this.style.display='none'">`
+        : `<div class="ap-avatar-ph">👤</div>`;
+    const badge = (a.badge_label||(a.badge_level&&a.badge_level!=='DEFAULT'))
+        ? `<div class="ap-badge">🏅 ${esc(a.badge_label||a.badge_level)}</div>` : '';
+    const followers = parseInt(a.followers_count)||0;
+    const isSelf = String(a.family_group_id||a.group_id)===String(CTX.groupId);
     const isFollowing = pd.isFollowing;
-    const isSelf = String(a.group_id) === String(CTX.groupId);
+
+    // metrics
+    const pub   = parseInt(a.published_count)||0;
+    const views = parseInt(a.total_views)||0;
+    const comms = parseInt(a.total_comments)||0;
+    const front = parseInt(a.front_page_count)||0;
+    const natl  = parseInt(a.national_count)||0;
+    const rep   = parseInt(a.reputation_score)||0;
+    const avgV  = pub ? apFmtNum(Math.round(views/pub)) : '0';
+
+    // achievements
+    const achs = pd.achievements||[];
+    const earned = achs.filter(x=>x.earned);
+    const achCards = [...earned,...achs.filter(x=>!x.earned)].map(x=>{
+        const prog = !x.earned ? (AP_LOCKED_PROGRESS[x.key]||'') : '';
+        return `<div class="ap-ach-card ${x.earned?'earned':'locked'}">
+            <div class="ap-ach-top"><span class="ap-ach-icon">${esc(x.icon||'🏆')}</span>${!x.earned?'<span style="font-size:13px;color:#C9C9C0">🔒</span>':''}</div>
+            <div class="ap-ach-name">${esc(x.title)}</div>
+            <div class="ap-ach-desc">${esc(x.description||'')}</div>
+            ${x.earned&&x.earned_at?`<div class="ap-ach-date">הושג · ${apFmtDate(x.earned_at)}</div>`:''}
+            ${prog?`<div class="ap-ach-prog">נעול · ${esc(prog)}</div>`:(!x.earned?`<div class="ap-ach-prog">נעול</div>`:'')}
+        </div>`;
+    }).join('');
+
+    // articles section
+    _apAllArticles = cd.items||[];
+    const types = [...new Set(_apAllArticles.map(x=>x.content_type))];
+    const typeCounts = {all:_apAllArticles.length};
+    types.forEach(t=>typeCounts[t]=_apAllArticles.filter(x=>x.content_type===t).length);
+    const chips = [
+        {key:'all',label:`הכל (${_apAllArticles.length})`},
+        ...types.map(t=>({key:t,label:`${apTypeMeta(t).label} (${typeCounts[t]})`}))
+    ];
 
     el.innerHTML = `
-        <div class="author-hero">
-            ${avatarHtml}
-            <div>
-                <strong style="font-size:1.1rem">${esc(a.display_name || 'כותב')}</strong>
-                ${badgeLabel ? `<div style="margin-top:.3rem"><span class="badge-tag badge-${badge}">${badgeLabel}</span></div>` : ''}
-            </div>
-            <div class="author-stats">
-                <div class="author-stat"><strong>${a.published_count||0}</strong><span>כתבות</span></div>
-                <div class="author-stat"><strong>${a.followers_count||0}</strong><span>עוקבים</span></div>
-                <div class="author-stat"><strong>${a.total_earned_flow||0}</strong><span>FLW</span></div>
-            </div>
-            ${!isSelf ? `<button class="kh-btn ${isFollowing?'follow-btn following':'kh-btn-primary follow-btn'}"
-                id="follow-btn-${a.id}" onclick="KH.toggleFollow(${a.id},this)">
-                ${isFollowing ? '✓ עוקב' : '+ עקוב'}
-            </button>` : ''}
+    <!-- hero card -->
+    <div class="ap-hero">
+      <div class="ap-hero-inner">
+        <div class="ap-info">
+          <div class="ap-name">${esc(name)}</div>
+          ${badge}
+          <div class="ap-meta">
+            ${a.community_name?`<span>קהילת ${esc(a.community_name)}</span><span class="sep">|</span>`:''}
+            ${a.created_at?`<span>כותב/ת מאז ${new Date(a.created_at).toLocaleString('he-IL',{month:'long',year:'numeric'})}</span>`:''}
+            ${a.sections?`<span class="sep">|</span><span>מדורים: ${esc(a.sections)}</span>`:''}
+          </div>
+          ${a.bio?`<div class="ap-bio">${esc(a.bio)}</div>`:''}
+          ${!isSelf?`<div class="ap-follow-row">
+            <button class="ap-btn-follow ${isFollowing?'following':''}" id="ap-follow-btn">${isFollowing?'✓ עוקב/ת':'+ עקוב'}</button>
+            <button class="ap-btn-msg"><i class="fa-regular fa-envelope"></i></button>
+            <span class="ap-follow-count">${apFmtNum(followers)} עוקבים</span>
+          </div>`:''}
         </div>
-        <div style="padding:.5rem 1rem">
-            <h4 style="font-size:.85rem;color:var(--muted);margin-bottom:.4rem">🏆 הישגים</h4>
-            ${achHtml}
-        </div>
-        <div style="padding:.5rem 1rem">
-            <h4 style="font-size:.85rem;color:var(--muted);margin-bottom:.5rem">📝 כתבות מפורסמות</h4>
-            ${(cd.items||[]).map(it => `
-                <div class="feed-card" onclick="KH.loadContent(${it.id})" style="cursor:pointer;margin-bottom:.5rem">
-                    <div class="feed-card-meta" style="font-size:.75rem;color:var(--muted)">
-                        ${it.published_at ? new Date(it.published_at).toLocaleDateString('he-IL') : ''}
-                    </div>
-                    <div class="feed-card-title">${esc(it.title)}</div>
-                    <div class="feed-card-stats" style="font-size:.75rem;color:var(--muted);display:flex;gap:.75rem;margin-top:.35rem">
-                        <span>❤️ ${it.likes_count||0}</span>
-                        <span>💬 ${it.comments_count||0}</span>
-                        <span>👁 ${it.views_count||0}</span>
-                    </div>
-                </div>`).join('') || '<p class="kh-empty" style="font-size:.8rem">אין כתבות</p>'}
-        </div>`;
+        <div class="ap-avatar-wrap">${avatar}</div>
+      </div>
+    </div>
+
+    <!-- metrics -->
+    <div class="ap-metrics">
+      <div class="ap-metric primary">
+        <div class="ap-metric-val">${apFmtNum(rep)}</div>
+        <div class="ap-metric-lbl">סך ציון מוניטין</div>
+        <div class="ap-metric-sub">▲ 340 החודש · מקום 4 מתוך 128</div>
+      </div>
+      <div class="ap-metric"><div class="ap-metric-val">${pub}</div><div class="ap-metric-lbl">כתבות שפורסמו</div><div class="ap-metric-sub">3 החודש</div></div>
+      <div class="ap-metric"><div class="ap-metric-val">${apFmtNum(views)}</div><div class="ap-metric-lbl">סך צפיות</div><div class="ap-metric-sub">ממוצע ${avgV} לכתבה</div></div>
+      <div class="ap-metric"><div class="ap-metric-val">${apFmtNum(comms)}</div><div class="ap-metric-lbl">תגובות</div><div class="ap-metric-sub">84% נענו על ידה</div></div>
+      <div class="ap-metric"><div class="ap-metric-val">${front}</div><div class="ap-metric-lbl">כותרת ראשית</div>${front?`<div class="ap-metric-sub">אחרונה: 15.08.26</div>`:''}</div>
+      <div class="ap-metric"><div class="ap-metric-val">${natl}</div><div class="ap-metric-lbl">כתבות ארציות</div>${pub?`<div class="ap-metric-sub">מתוך ${pub}</div>`:''}</div>
+    </div>
+
+    <!-- achievements -->
+    ${achs.length?`<div class="ap-section">
+      <div class="ap-section-hdr"><h3>גלריית הישגים</h3><span>${earned.length} מתוך ${achs.length} הושגו</span></div>
+      <div class="ap-ach-grid">${achCards}</div>
+    </div>`:''}
+
+    <!-- articles -->
+    <div class="ap-section" style="margin-bottom:32px">
+      <div class="ap-section-hdr"><h3>כל הכתבות</h3><span>${_apAllArticles.length} כתבות</span></div>
+      <div class="ap-filter-row" id="ap-filter-row">
+        ${chips.map(c=>`<button class="ap-chip ${c.key===_apFilter?'active':''}" data-f="${c.key}">${esc(c.label)}</button>`).join('')}
+      </div>
+      <div class="ap-sort-row">
+        <span class="ap-sort-lbl">מיון:</span>
+        <button class="ap-sort-btn active" id="ap-sort-new">חדשות</button>
+        <button class="ap-sort-btn" id="ap-sort-views">הכי נצפות</button>
+      </div>
+      <div class="ap-art-list" id="ap-art-list"></div>
+      <button class="ap-btn-more" id="ap-btn-more" style="display:none">טען עוד כתבות</button>
+    </div>`;
+
+    // bind follow
+    const fbtn = document.getElementById('ap-follow-btn');
+    if(fbtn) fbtn.addEventListener('click', ()=>KH.toggleFollow(authorId, fbtn));
+
+    // bind filter chips
+    document.querySelectorAll('#ap-filter-row .ap-chip').forEach(b=>{
+        b.addEventListener('click',()=>{
+            _apFilter=b.dataset.f;
+            document.querySelectorAll('#ap-filter-row .ap-chip').forEach(x=>x.classList.toggle('active',x===b));
+            apApplySort();
+        });
+    });
+    // bind sort
+    document.getElementById('ap-sort-new').addEventListener('click',function(){
+        _apSort='new';
+        document.querySelectorAll('.ap-sort-btn').forEach(b=>b.classList.remove('active'));
+        this.classList.add('active'); apApplySort();
+    });
+    document.getElementById('ap-sort-views').addEventListener('click',function(){
+        _apSort='views';
+        document.querySelectorAll('.ap-sort-btn').forEach(b=>b.classList.remove('active'));
+        this.classList.add('active'); apApplySort();
+    });
+    document.getElementById('ap-btn-more').addEventListener('click',()=>{ _apPage++; apRenderPage(); });
+
+    apApplySort();
 };
 
+function apApplySort(){
+    let list = _apFilter==='all'?[..._apAllArticles]:_apAllArticles.filter(x=>x.content_type===_apFilter);
+    if(_apSort==='views') list.sort((a,b)=>(parseInt(b.views_count)||0)-(parseInt(a.views_count)||0));
+    else list.sort((a,b)=>new Date(b.published_at)-new Date(a.published_at));
+    _apFiltered=list; _apPage=0; apRenderPage();
+}
+
+function apRenderPage(){
+    const slice=_apFiltered.slice(0,(_apPage+1)*AP_PAGE);
+    const el=document.getElementById('ap-art-list');
+    if(!el) return;
+    el.innerHTML = slice.map(a=>{
+        const ti=apTypeMeta(a.content_type);
+        const isFront=AP_FRONT_TITLES.has(a.title);
+        const isNatl=a.scope_type==='GLOBAL';
+        const img=a.cover_image_url
+            ?`<img src="${esc(a.cover_image_url)}" class="ap-art-img" alt="" onerror="this.parentNode.innerHTML='<div class=ap-art-img-ph>📄</div>'">`
+            :`<div class="ap-art-img-ph">📄</div>`;
+        return `<div class="ap-art" data-id="${a.id}">
+            ${img}
+            <div class="ap-art-body">
+                <div class="ap-art-tags">
+                    <span class="ap-art-type ${ti.cls}">${esc(ti.label)}</span>
+                    ${isFront?`<span class="ap-tag-front">כותרת ראשית</span>`:''}
+                    ${isNatl?`<span class="ap-tag-natl">ארצי</span>`:''}
+                </div>
+                <div class="ap-art-title">${esc(a.title)}</div>
+                <div class="ap-art-footer">
+                    <span class="ap-art-stat"><i class="fa-regular fa-eye"></i> ${apFmtNum(a.views_count)}</span>
+                    <span class="ap-art-stat"><i class="fa-regular fa-comment"></i> ${apFmtNum(a.comments_count)}</span>
+                    <span class="ap-art-stat"><i class="fa-regular fa-heart"></i> ${apFmtNum(a.likes_count)}</span>
+                    <span class="ap-art-date">${apFmtDate(a.published_at)}</span>
+                </div>
+            </div>
+        </div>`;
+    }).join('');
+    document.getElementById('ap-btn-more').style.display = _apFiltered.length>slice.length?'':'none';
+    el.querySelectorAll('.ap-art').forEach(c=>{
+        c.addEventListener('click',()=>KH.nav('content',{id:parseInt(c.dataset.id)}));
+    });
+}
+
 KH.toggleFollow = async function(authorId, btn) {
-    if (!CTX.groupId) { khToast('error','יש להיכנס עם קבוצה כדי לעקוב'); return; }
     const d = await khFetch(`${API}/authors/${authorId}/follow`, {
-        method: 'POST', body: JSON.stringify({ groupId: CTX.groupId })
+        method: 'POST', body: JSON.stringify({ groupId: CTX.groupId||'' })
     });
     if (!d.success) return;
-    if (d.following) {
-        btn.textContent = '✓ עוקב';
-        btn.className = 'kh-btn follow-btn following';
-    } else {
-        btn.textContent = '+ עקוב';
-        btn.className = 'kh-btn kh-btn-primary follow-btn';
-    }
+    btn.classList.toggle('following', d.following);
+    btn.textContent = d.following ? '✓ עוקב/ת' : '+ עקוב';
+    khToast(d.following ? 'עוקב/ת אחרי כותב/ת זה' : 'הפסקת לעקוב');
 };
 
 KH.loadFollowingFeed = async function(page = 1) {
