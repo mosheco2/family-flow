@@ -11988,6 +11988,10 @@ async function loadSAKolHaamQueue() {
                   class="bg-white/20 hover:bg-white/30 text-white text-xs font-bold px-4 py-2 rounded-xl border border-white/30 transition whitespace-nowrap">
                   🌱 הזן נתוני דוגמה
                 </button>
+                <button onclick="saKHSeedAuthor()" id="sa-kh-seed-author-btn"
+                  class="bg-white/20 hover:bg-white/30 text-white text-xs font-bold px-4 py-2 rounded-xl border border-white/30 transition whitespace-nowrap">
+                  👤 מיכל אשד — דוגמת כותב
+                </button>
               </div>
             </div>
             <!-- תור אישור -->
@@ -12069,6 +12073,28 @@ async function saKHSeedSample() {
         }
     } catch(e) { showToast('error', 'שגיאת תקשורת: ' + e.message); }
     finally { if (btn) { btn.disabled = false; btn.textContent = '🌱 הזן נתוני דוגמה'; } }
+}
+
+async function saKHSeedAuthor() {
+    const btn = document.getElementById('sa-kh-seed-author-btn');
+    if (!confirm('ליצור פרופיל כותב לדוגמה — מיכל אשד (8 כתבות + 6 הישגים)?')) return;
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ יוצר...'; }
+    try {
+        const d = await fetch('/api/kol-haam/seed-author-sample', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ secret: 'SEED_DEMO_2026' })
+        }).then(r => r.json());
+        if (d.success) {
+            showToast('success', `מיכל אשד נוצרה! authorId=${d.authorId}`);
+            if (d.authorId) {
+                setTimeout(() => window.open(`/kol-haam-author.html?id=${d.authorId}`, '_blank'), 500);
+            }
+        } else {
+            showToast('error', d.error || 'שגיאה ביצירת כותב');
+        }
+    } catch(e) { showToast('error', 'שגיאת תקשורת: ' + e.message); }
+    finally { if (btn) { btn.disabled = false; btn.textContent = '👤 מיכל אשד — דוגמת כותב'; } }
 }
 
 async function saKHApprove(id) {

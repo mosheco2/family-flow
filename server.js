@@ -26014,6 +26014,9 @@ app.get('/kol-haam', (req, res) => {
 app.get('/kol-haam/collection/:slug', (req, res) => {
   res.sendFile('kol-haam.html', { root: 'public' });
 });
+app.get('/kol-haam-author', (req, res) => {
+  res.sendFile('kol-haam-author.html', { root: 'public' });
+});
 
 // ============================================================
 // קול העם — Phase 1: DB Schema + API
@@ -28724,10 +28727,17 @@ app.get('/api/kol-haam/authors/:id', async (req, res) => {
         const { groupId } = req.query;
         const r = await pool.query(`
             SELECT ap.*,
-                   CASE WHEN ap.is_revoked THEN 'DEFAULT' ELSE ap.badge_level END as effective_badge_level,
+                   fg.name as family_name,
+                   COALESCE(comm.name,'') as community_name,
+                   CASE WHEN COALESCE(ap.is_revoked,FALSE) THEN 'DEFAULT' ELSE ap.badge_level END as effective_badge_level,
                    (SELECT COUNT(*) FROM author_followers WHERE following_profile_id=ap.id) as followers_count,
-                   (SELECT COUNT(*) FROM content_items WHERE author_profile_id=ap.id AND status IN ('PUBLISHED_LOCAL','PUBLISHED_GLOBAL')) as published_count
+                   (SELECT COUNT(*) FROM content_items WHERE author_profile_id=ap.id AND status IN ('PUBLISHED_LOCAL','PUBLISHED_GLOBAL')) as published_count,
+                   COALESCE((SELECT SUM(cem.views_count) FROM content_items ci2 JOIN content_engagement_metrics cem ON cem.content_item_id=ci2.id WHERE ci2.author_profile_id=ap.id),0) as total_views,
+                   COALESCE((SELECT SUM(cem.comments_count) FROM content_items ci2 JOIN content_engagement_metrics cem ON cem.content_item_id=ci2.id WHERE ci2.author_profile_id=ap.id),0) as total_comments,
+                   (SELECT COUNT(*) FROM content_items WHERE author_profile_id=ap.id AND scope_type='GLOBAL' AND status IN ('PUBLISHED_LOCAL','PUBLISHED_GLOBAL')) as national_count
             FROM author_profiles ap
+            JOIN family_groups fg ON fg.id=ap.family_group_id
+            LEFT JOIN communities comm ON comm.id=ap.home_community_id
             WHERE ap.id=$1
         `, [req.params.id]);
         if (!r.rows[0]) return res.status(404).json({ error: 'לא נמצא' });
@@ -28738,15 +28748,25 @@ app.get('/api/kol-haam/authors/:id', async (req, res) => {
             isFollowing = f.rows.length > 0;
         }
 
-        const achievements = await pool.query(`
-            SELECT at.key, at.title, at.icon, aa.earned_at
+        // earned achievements
+        const earned = await pool.query(`
+            SELECT at.key, at.title, at.description, at.icon, aa.earned_at
             FROM author_achievements aa
             JOIN achievement_types at ON at.id=aa.achievement_type_id
             WHERE aa.author_profile_id=$1
-            ORDER BY aa.earned_at DESC
+            ORDER BY aa.earned_at ASC
         `, [req.params.id]);
 
-        res.json({ success: true, author: r.rows[0], isFollowing, achievements: achievements.rows });
+        // all achievement types (for locked display)
+        const allTypes = await pool.query(`SELECT key, title, description, icon FROM achievement_types ORDER BY id`);
+        const earnedKeys = new Set(earned.rows.map(a => a.key));
+        const achievements = allTypes.rows.map(at => ({
+            ...at,
+            earned: earnedKeys.has(at.key),
+            earned_at: earned.rows.find(a => a.key === at.key)?.earned_at || null
+        }));
+
+        res.json({ success: true, author: r.rows[0], isFollowing, achievements });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -28791,6 +28811,158 @@ app.post('/api/kol-haam/authors/:id/follow', async (req, res) => {
             res.json({ success: true, following: true });
         }
     } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// POST seed מיכל אשד author sample
+app.post('/api/kol-haam/seed-author-sample', async (req, res) => {
+    try {
+        const { secret } = req.body;
+        if (secret !== 'SEED_DEMO_2026') return res.status(403).json({ error: 'אסור' });
+
+        await initKolHaamTables();
+        await initKolHaamPhase3Tables();
+
+        // ensure extra columns on author_profiles
+        const apCols = await pool.query(`SELECT column_name FROM information_schema.columns WHERE table_name='author_profiles'`);
+        const apColNames = apCols.rows.map(r => r.column_name);
+        const extraCols = [
+            ['display_name', 'VARCHAR(200)'],
+            ['bio', 'TEXT'],
+            ['cover_image_url', 'TEXT'],
+            ['avatar_url', 'TEXT'],
+            ['reputation_score', 'INT DEFAULT 0'],
+            ['sections', 'TEXT'],
+            ['badge_label', 'VARCHAR(200)'],
+            ['front_page_count', 'INT DEFAULT 0'],
+        ];
+        for (const [col, def] of extraCols) {
+            if (!apColNames.includes(col)) {
+                await pool.query(`ALTER TABLE author_profiles ADD COLUMN ${col} ${def}`);
+            }
+        }
+
+        // find or create a suitable family group and community for sample author
+        let grpR = await pool.query(`SELECT id FROM family_groups WHERE group_code='NWP701'`);
+        if (!grpR.rows[0]) return res.status(400).json({ error: 'משפחה NWP701 לא נמצאה — הרץ seed-demo קודם' });
+        const groupId = grpR.rows[0].id;
+
+        let commR = await pool.query(`SELECT id FROM communities LIMIT 1`);
+        if (!commR.rows[0]) return res.status(400).json({ error: 'אין קהילות במערכת' });
+        const commId = commR.rows[0].id;
+
+        // upsert author profile
+        let apR = await pool.query(`SELECT id FROM author_profiles WHERE family_group_id=$1`, [groupId]);
+        let apId;
+        if (apR.rows[0]) {
+            apId = apR.rows[0].id;
+            await pool.query(`
+                UPDATE author_profiles SET
+                    display_name='[דוגמה] מיכל אשד',
+                    bio='כותבת על מה שמשפחות עושות כשאין תקציב ואין מי שיסדר. מחפשת סיפורים עם מספרים אמיתיים ולוח זמנים שאפשר להעתיק.',
+                    cover_image_url='images/author/cover.png',
+                    avatar_url='images/author/avatar.png',
+                    badge_level='LOCAL_LEADER',
+                    badge_label='כותבת מוסמכת · דרגה 3',
+                    reputation_score=8420,
+                    sections='משפחה וחינוך · כלכלת בית',
+                    front_page_count=9,
+                    home_community_id=$2
+                WHERE id=$1
+            `, [apId, commId]);
+        } else {
+            const ins = await pool.query(`
+                INSERT INTO author_profiles (family_group_id, home_community_id, display_name, bio, cover_image_url, avatar_url, badge_level, badge_label, reputation_score, sections, front_page_count)
+                VALUES ($1,$2,'[דוגמה] מיכל אשד','כותבת על מה שמשפחות עושות כשאין תקציב ואין מי שיסדר. מחפשת סיפורים עם מספרים אמיתיים ולוח זמנים שאפשר להעתיק.','images/author/cover.png','images/author/avatar.png','LOCAL_LEADER','כותבת מוסמכת · דרגה 3',8420,'משפחה וחינוך · כלכלת בית',9)
+                RETURNING id
+            `, [groupId, commId]);
+            apId = ins.rows[0].id;
+        }
+
+        // upsert achievement_types
+        const achTypes = [
+            { key:'CERTIFIED_WRITER',   title:'כותבת מוסמכת',      description:'עברה את מסלול ההסמכה של המערכת הקהילתית.',          icon:'🏅' },
+            { key:'FRONT_PAGE_X5',      title:'כותרת ראשית ×5',    description:'חמש כתבות שהובילו את דף הבית.',                      icon:'📰' },
+            { key:'DATA_INVESTIGATOR',  title:'תחקירנית נתונים',    description:'שלוש כתבות המבוססות על איסוף נתונים עצמאי.',         icon:'🔍' },
+            { key:'COMMUNITY_RESPONDER',title:'משיבה לקהילה',       description:'מענה ל-80% מהתגובות במשך שישה חודשים רצופים.',       icon:'💬' },
+            { key:'NATIONAL_ECHO',      title:'הדהוד ארצי',         description:'כתבה שאומצה בארבע קהילות נוספות.',                   icon:'🌍' },
+            { key:'MENTOR',             title:'מנטורית',             description:'ליוותה שני כותבים חדשים בצעדיהם הראשונים.',          icon:'🤝' },
+            { key:'QUARTER_MILLION',    title:'רבע מיליון',          description:'חצייה של 250 אלף צפיות מצטברות.',                    icon:'📈' },
+            { key:'VIDEO_WRITER',       title:'כתבת וידאו',          description:'פרסום שלוש כתבות בפורמט וידאו.',                     icon:'🎥' },
+            { key:'FULL_SERIES',        title:'סדרה מלאה',           description:'השלמת סדרה בת חמישה פרקים.',                         icon:'📚' },
+            { key:'EDITOR_CHOICE_X10',  title:'בחירת העורך ×10',    description:'עשר כתבות שסומנו כבחירת העורך.',                     icon:'⭐' },
+        ];
+        const atIds = {};
+        for (const at of achTypes) {
+            const r = await pool.query(`
+                INSERT INTO achievement_types (key,title,description,icon) VALUES ($1,$2,$3,$4)
+                ON CONFLICT (key) DO UPDATE SET title=$2, description=$3, icon=$4
+                RETURNING id
+            `, [at.key, at.title, at.description, at.icon]);
+            atIds[at.key] = r.rows[0].id;
+        }
+
+        // grant earned achievements
+        const earnedKeys = ['CERTIFIED_WRITER','FRONT_PAGE_X5','DATA_INVESTIGATOR','COMMUNITY_RESPONDER','NATIONAL_ECHO','MENTOR'];
+        const earnedDates = {
+            CERTIFIED_WRITER:'2024-03-15',FRONT_PAGE_X5:'2026-01-20',DATA_INVESTIGATOR:'2026-04-10',
+            COMMUNITY_RESPONDER:'2026-06-05',NATIONAL_ECHO:'2026-08-01',MENTOR:'2026-07-12'
+        };
+        for (const key of earnedKeys) {
+            await pool.query(`
+                INSERT INTO author_achievements (author_profile_id, achievement_type_id, earned_at)
+                VALUES ($1,$2,$3::timestamptz)
+                ON CONFLICT (author_profile_id, achievement_type_id, content_item_id) DO NOTHING
+            `, [apId, atIds[key], earnedDates[key]]);
+        }
+
+        // find or create content category
+        let catR = await pool.query(`SELECT id FROM content_categories WHERE scope_level='GLOBAL' LIMIT 1`);
+        let catId = catR.rows[0]?.id;
+        if (!catId) {
+            const nc = await pool.query(`INSERT INTO content_categories (title,scope_level,is_default) VALUES ('כללי','GLOBAL',TRUE) RETURNING id`);
+            catId = nc.rows[0].id;
+        }
+
+        // helper: upsert article
+        const upsertArticle = async (title, type, subtitle, coverUrl, readingTime, publishedAt, scopeType) => {
+            const existing = await pool.query(`SELECT id FROM content_items WHERE title=$1 AND author_profile_id=$2 AND is_sample_data=TRUE`, [title, apId]);
+            if (existing.rows[0]) return existing.rows[0].id;
+            const r = await pool.query(`
+                INSERT INTO content_items (author_profile_id, category_id, community_id, content_type, scope_type, status, title, subtitle, content_html, cover_image_url, reading_time_minutes, is_sample_data, published_at)
+                VALUES ($1,$2,$3,$4,$5,'PUBLISHED_GLOBAL',$6,$7,'<p>[תוכן לדוגמה]</p>',$8,$9,TRUE,$10::timestamptz)
+                RETURNING id
+            `, [apId, catId, commId, type, scopeType, title, subtitle, coverUrl, readingTime, publishedAt]);
+            return r.rows[0].id;
+        };
+
+        const articles = [
+            { title:'החופש הגדול נגמר בפלוס: שבע משפחות בנו לוח קיץ משותף וחסכו 4,300 ₪ לילד', type:'ARTICLE', subtitle:'גיליון אחד משותף, תורנות של הורה אחראי ליום, ו-38 ימי חופש שעברו בלי פאניקה.', cover:'images/home/cat-1.png', time:8, date:'2026-08-15', scope:'GLOBAL', views:18400, likes:214, comments:10 },
+            { title:'התבנית המלאה של לוח הקיץ — להורדה, לשכפול ולשימוש חופשי', type:'WIKI_GUIDE', subtitle:'שלושה גיליונות, רשימת כללים אחת וטופס הסכמה קצר בין ההורים.', cover:'images/home/cat-2.png', time:4, date:'2026-08-18', scope:'GLOBAL', views:9200, likes:96, comments:34 },
+            { title:'כמה באמת עולה קיץ אחד למשפחה ישראלית — פירוק ההוצאה', type:'ARTICLE', subtitle:'בדקנו 42 משפחות בארבע רשויות. הפער בין הזולה ליקרה: פי 3.8.', cover:'images/home/talk-4.png', time:12, date:'2026-08-02', scope:'GLOBAL', views:24100, likes:341, comments:87 },
+            { title:'הגינה שהוקמה על חניון נטוש — ומה קרה כשהעירייה גילתה', type:'SUCCESS_STORY', subtitle:'שמונה חודשים, 26 מתנדבים ובקשה אחת שאושרה ברגע האחרון.', cover:'images/home/cat-6.png', time:7, date:'2026-07-21', scope:'LOCAL', views:11800, likes:178, comments:52 },
+            { title:'הצהרון נסגר, ואף אחד לא באמת חייב לכם הסבר', type:'ARTICLE', subtitle:'למה ההודעה מגיעה תמיד באוגוסט, ומה אפשר לדרוש בפועל.', cover:'images/home/hot-5.png', time:5, date:'2026-07-11', scope:'LOCAL', views:15600, likes:402, comments:143 },
+            { title:'איך מארגנים הסעה משותפת לחוגים בלי אפליקציה בתשלום', type:'WIKI_GUIDE', subtitle:'ארבעה מודלים שנוסו בשכונה, כולל זה שנכשל ולמה.', cover:'images/home/hot-5.png', time:6, date:'2026-06-28', scope:'LOCAL', views:7400, likes:88, comments:29 },
+            { title:'המקלט שהפך למעבדת רובוטיקה — כל השלבים', type:'ARTICLE', subtitle:'18 חודשים, 40 מתנדבים ותרומת ציוד אחת ששינתה את התמונה.', cover:'images/home/cat-1.png', time:10, date:'2026-06-09', scope:'GLOBAL', views:21300, likes:289, comments:64 },
+            { title:'הספרייה השכונתית שנפתחה בשעתיים', type:'SUCCESS_STORY', subtitle:'קריאה אחת בקבוצת הוואטסאפ, 380 ספרים ומדף אחד שנקנה בכסף אמיתי.', cover:'images/home/cat-2.png', time:3, date:'2026-05-17', scope:'LOCAL', views:6900, likes:74, comments:21 },
+        ];
+
+        const articleIds = [];
+        for (const a of articles) {
+            const id = await upsertArticle(a.title, a.type, a.subtitle, a.cover, a.time, a.date, a.scope);
+            articleIds.push({ id, ...a });
+        }
+
+        // update engagement metrics
+        for (const a of articleIds) {
+            await pool.query(`
+                INSERT INTO content_engagement_metrics (content_item_id, views_count, likes_count, comments_count)
+                VALUES ($1,$2,$3,$4)
+                ON CONFLICT (content_item_id) DO UPDATE SET views_count=$2, likes_count=$3, comments_count=$4
+            `, [a.id, a.views, a.likes, a.comments]).catch(()=>{});
+        }
+
+        res.json({ success: true, authorId: apId, articles: articleIds.length, message: 'מיכל אשד נוצרה בהצלחה' });
+    } catch(e) { console.error('seed-author-sample', e); res.status(500).json({ error: e.message }); }
 });
 
 // GET following feed
