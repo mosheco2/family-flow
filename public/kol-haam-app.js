@@ -197,11 +197,11 @@ const KH = {
                 const cta = CTX.groupId
                     ? `<button class="kh-btn kh-btn-primary" onclick="KH.nav('editor')" style="margin-top:.75rem">✍️ כתוב את הכתבה הראשונה</button>`
                     : '';
-                el.innerHTML = `<div class="empty-state" style="padding:2rem"><div class="ei">📭</div><p>אין תוכן עדיין</p>${cta}</div>` + footerHtml;
+                el.innerHTML = `<div class="feed-wrap"><div class="empty-state" style="padding:2rem"><div class="ei">📭</div><p>אין תוכן עדיין</p>${cta}</div>${footerHtml}</div>`;
                 return;
             }
 
-            el.innerHTML = heroHtml + strip1 + strip2 + catGridHtml + solutionsHtml + footerHtml;
+            el.innerHTML = `<div class="feed-wrap">${heroHtml}${strip1}${strip2}${catGridHtml}${solutionsHtml}${footerHtml}</div>`;
         } catch(e) {
             el.innerHTML = `<div class="empty-state" style="padding:2rem"><div class="ei">⚠️</div><p>שגיאה: ${esc(e.message)}</p></div>`;
         }
