@@ -699,9 +699,24 @@ function switchTab(t) { 
     if (t === 'kol-haam') try { loadKolHaamIframe(); } catch(e) {}
 }
 
+function resizeKolHaamContainer() {
+    const container = document.getElementById('content-kol-haam');
+    if (!container || container.classList.contains('hidden')) return;
+    // מחשבים גובה זמין: viewport פחות ה-header הדביק ופחות ה-floating pill בתחתית
+    const stickyEl = document.querySelector('#dashboard-container .sticky');
+    const headerH = stickyEl ? (stickyEl.getBoundingClientRect().bottom) : 120;
+    const bannerEl = document.getElementById('app-banner-top-wrap');
+    const bannerH = (bannerEl && !bannerEl.classList.contains('hidden')) ? bannerEl.offsetHeight : 0;
+    const bottomH = 112; // שווה ל-pb-28 (7rem)
+    const availH = window.innerHeight - headerH - bannerH - bottomH;
+    container.style.height = Math.max(availH, 250) + 'px';
+    container.style.flex = 'none';
+}
+
 function loadKolHaamIframe() {
     const iframe = document.getElementById('kol-haam-iframe');
     if (!iframe) return;
+    resizeKolHaamContainer();
     if (iframe.src && iframe.src.includes('/kol-haam')) return; // כבר טעון
     const u = currentUser || {};
     const grp = (currentGroup && currentGroup.id) || '';
@@ -711,6 +726,7 @@ function loadKolHaamIframe() {
     const name = encodeURIComponent(commName);
     iframe.src = `/kol-haam?userId=${u.id || ''}&groupId=${grp}&communityId=${cid}&role=${role}&communityName=${name}&_v=b3f7e91`;
 }
+window.addEventListener('resize', () => { if (window._currentFamilyTab === 'kol-haam') resizeKolHaamContainer(); });
 
 let myOrdersCache = [];
 

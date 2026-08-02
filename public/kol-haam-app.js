@@ -1751,10 +1751,12 @@ async function init() {
     }
 
     // Load categories for chips
-    const d = await khFetch(`${API}/categories?community_id=${CTX.communityId || ''}`);
-    STATE.categories = d.categories || [];
+    let catData;
+    try { catData = await khFetch(`${API}/categories?community_id=${CTX.communityId || ''}`); }
+    catch(e) { catData = { categories: [] }; }
+    STATE.categories = (catData && catData.categories) || [];
     const scroll = document.getElementById('cat-scroll');
-    scroll.innerHTML = STATE.categories.map(c => `
+    if (scroll) scroll.innerHTML = STATE.categories.map(c => `
         <button class="cat-chip" onclick="KH.setCategory(${c.id},this)">${esc(c.title)}</button>
     `).join('');
 
