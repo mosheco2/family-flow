@@ -27344,9 +27344,9 @@ app.post('/api/sa/kol-haam/seed-sample', verifySA, async (req, res) => {
 
         const { rows: [item] } = await client.query(`
             INSERT INTO content_items
-                (title, subtitle, content_html, content_type, status, community_id, author_profile_id, category_id,
+                (title, subtitle, content_html, content_type, scope_type, status, community_id, author_profile_id, category_id,
                  cover_image_url, reading_time_minutes, quick_summary_20s, is_sample_data, published_at)
-            VALUES ($1,$2,$3,'ARTICLE','PUBLISHED',$4,$5,$6,$7,4,$8,TRUE,'2026-08-15T09:00:00Z')
+            VALUES ($1,$2,$3,'ARTICLE','LOCAL','PUBLISHED_LOCAL',$4,$5,$6,$7,4,$8,TRUE,'2026-08-15T09:00:00Z')
             RETURNING id`,
             [
                 '[דוגמה] החופש הגדול נגמר בפלוס: שבע משפחות בנו לוח קיץ משותף וחסכו 4,300 ₪ לילד',
