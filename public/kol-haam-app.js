@@ -136,82 +136,189 @@ const KH = {
         STATE.feedSort = sort || STATE.feedSort || 'trending';
         const el = document.getElementById('view-feed-inner');
         if (!el) return;
-        el.innerHTML = '<div class="kh-spinner"></div>';
-        const params = new URLSearchParams({ scope: STATE.scope, sort: STATE.feedSort });
+        el.innerHTML = '<div class="kh-spinner" style="padding:2rem 0"></div>';
+        const params = new URLSearchParams({ scope: STATE.scope, sort: STATE.feedSort, limit: 30 });
         if (STATE.scope === 'local' && CTX.communityId) params.set('community_id', CTX.communityId);
         if (STATE.categoryId) params.set('category', STATE.categoryId);
 
-        let data, trendingData, hotData, picksData;
         try {
-        // load trending strips + main feed in parallel (only on homepage, no category filter)
-        [data, trendingData, hotData, picksData] = await Promise.all([
-            khFetch(`${API}/feed?${params}`),
-            !STATE.categoryId ? khFetch(`${API}/feed/trending?community_id=${CTX.communityId||''}&limit=8`) : Promise.resolve(null),
-            !STATE.categoryId ? khFetch(`${API}/feed/hot-comments?community_id=${CTX.communityId||''}&limit=5`) : Promise.resolve(null),
-            !STATE.categoryId ? khFetch(`${API}/editor-picks/current`) : Promise.resolve(null),
-        ]);
+            // Category filter → simple card grid
+            if (STATE.categoryId) {
+                const data = await khFetch(`${API}/feed?${params}`);
+                const items = data.items || [];
+                if (data.error) { el.innerHTML = `<div class="empty-state"><div class="ei">⚠️</div><p>${esc(data.error)}</p></div>`; return; }
+                if (!items.length) { el.innerHTML = `<div class="empty-state" style="padding:2rem"><div class="ei">📭</div><p>אין תוכן בקטגוריה זו</p></div>`; return; }
+                el.innerHTML = `<div class="feed-grid" style="padding:.75rem">${items.map(it => KH.renderFeedCard(it)).join('')}</div>`;
+                return;
+            }
 
-        const items = data.items || [];
-        const sortBar = `<div class="feed-sort-bar">
-            <button class="feed-sort-btn ${STATE.feedSort==='trending'?'active':''}" onclick="KH.loadFeed('trending')">🔥 חמים</button>
-            <button class="feed-sort-btn ${STATE.feedSort==='new'?'active':''}" onclick="KH.loadFeed('new')">🆕 חדשים</button>
-        </div>`;
+            // Full homepage — parallel loads
+            const [data, trendingData, hotData] = await Promise.all([
+                khFetch(`${API}/feed?${params}`),
+                khFetch(`${API}/feed/trending?community_id=${CTX.communityId||''}&limit=8`),
+                khFetch(`${API}/feed/hot-comments?community_id=${CTX.communityId||''}&limit=5`),
+            ]);
 
-        let strips = '';
-        if (trendingData && (trendingData.items||[]).length) {
-            strips += `<div class="kh-strip">
-                <div class="kh-strip-title">🔥 הכי חמים עכשיו</div>
-                <div class="kh-strip-scroll">${(trendingData.items||[]).map(it => `
-                    <div class="kh-strip-card" onclick="KH.nav('content',{id:${it.id}})">
-                        ${it.cover_image_url ? `<img class="kh-strip-img" src="${it.cover_image_url}" alt="">` : `<div class="kh-strip-img">${TYPE_ICONS[it.content_type]||'📄'}</div>`}
-                        <div class="kh-strip-title-sm">${esc(it.title)}</div>
-                        <div class="kh-strip-meta">👍${it.likes_count||0} 💬${it.comments_count||0}</div>
-                    </div>`).join('')}
-                </div>
-            </div>`;
-        }
-        if (hotData && (hotData.items||[]).length) {
-            strips += `<div class="kh-strip">
-                <div class="kh-strip-title">💬 התגובות החמות</div>
-                <div class="kh-strip-scroll">${(hotData.items||[]).map(it => `
-                    <div class="kh-strip-card" onclick="KH.nav('content',{id:${it.id}})">
-                        ${it.cover_image_url ? `<img class="kh-strip-img" src="${it.cover_image_url}" alt="">` : `<div class="kh-strip-img">💬</div>`}
-                        <div class="kh-strip-title-sm">${esc(it.title)}</div>
-                        <div class="kh-strip-meta">💬 ${it.recent_comments} ב-6 שעות</div>
-                    </div>`).join('')}
-                </div>
-            </div>`;
-        }
+            const items = data.items || [];
+            const trending = trendingData?.items || [];
+            const hot = hotData?.items || [];
 
-        // Editor picks strip
-        if (picksData && (picksData.picks||[]).length) {
-            strips += `<div class="kh-strip">
-                <div class="kh-strip-title">⭐ בחירת העורך</div>
-                <div class="kh-strip-scroll">${(picksData.picks||[]).map(p => `
-                    <div class="kh-strip-card" onclick="KH.nav('content',{id:${p.id}})">
-                        ${p.cover_image_url ? `<img class="kh-strip-img" src="${p.cover_image_url}" alt="">` : `<div class="kh-strip-img">📰</div>`}
-                        <div class="kh-strip-title-sm">${esc(p.title)}</div>
-                        <div class="kh-strip-meta">${esc(p.author_name||'')} ${badgeHtml(p.badge_level, p.is_revoked)}</div>
-                    </div>`).join('')}
-                </div>
-            </div>`;
-        }
+            if (data.error && !items.length && !trending.length) {
+                el.innerHTML = `<div class="empty-state" style="padding:2rem"><div class="ei">⚠️</div><p>שגיאה: ${esc(data.error)}</p></div>`;
+                return;
+            }
 
-        if (data.error) {
-            el.innerHTML = sortBar + `<div class="empty-state"><div class="ei">⚠️</div><p>שגיאה בטעינת הפיד: ${esc(data.error)}</p></div>`;
-            return;
-        }
-        if (!items.length && !strips) {
-            const cta = CTX.groupId
-                ? `<button class="kh-btn kh-btn-primary" onclick="KH.nav('editor')" style="margin-top:.75rem">✍️ כתוב את הכתבה הראשונה</button>`
-                : '';
-            el.innerHTML = sortBar + `<div class="empty-state"><div class="ei">📭</div><p>אין תוכן עדיין${STATE.categoryId ? ' בקטגוריה זו' : ' בפיד'}</p>${cta}</div>`;
-            return;
-        }
-        el.innerHTML = sortBar + strips + `<div class="feed-grid">${items.map(it => KH.renderFeedCard(it)).join('')}</div>`;
+            // ── Hero
+            const hero = items[0];
+            const heroHtml = hero ? KH.renderFeedHero(hero) : '';
+
+            // ── Strips
+            const strip1 = trending.length ? KH.renderFeedStrip('🔥 הכי חמים עכשיו', trending,
+                c => `👁 ${(c.views_count||c.likes_count||0).toLocaleString('he-IL')}`) : '';
+            const strip2 = hot.length ? KH.renderFeedStrip('💬 התגובות החמות', hot,
+                c => `💬 ${c.recent_comments||c.comments_count||0}`) : '';
+
+            // ── Category grid (group remaining items by category)
+            const restItems = items.slice(1);
+            const catGridHtml = KH.renderFeedCatGrid(restItems);
+
+            // ── Solutions module (QA + SUCCESS from all items)
+            const qa = items.find(i => i.content_type === 'QA_QUESTION');
+            const success = items.find(i => i.content_type === 'SUCCESS_STORY');
+            const solutionsHtml = KH.renderFeedSolutions(qa, success);
+
+            // ── Footer
+            const footerHtml = `<footer class="feed-kh-footer">
+                <span>ONE flow LIFE · מגזין קהילתי</span>
+                <a>אודות</a><a>כתבו לנו</a><a>תנאי שימוש</a><a>נגישות</a>
+            </footer>`;
+
+            if (!hero && !trending.length && !hot.length) {
+                const cta = CTX.groupId
+                    ? `<button class="kh-btn kh-btn-primary" onclick="KH.nav('editor')" style="margin-top:.75rem">✍️ כתוב את הכתבה הראשונה</button>`
+                    : '';
+                el.innerHTML = `<div class="empty-state" style="padding:2rem"><div class="ei">📭</div><p>אין תוכן עדיין</p>${cta}</div>` + footerHtml;
+                return;
+            }
+
+            el.innerHTML = heroHtml + strip1 + strip2 + catGridHtml + solutionsHtml + footerHtml;
         } catch(e) {
-            el.innerHTML = `<div class="empty-state"><div class="ei">⚠️</div><p>שגיאה: ${esc(e.message)}</p></div>`;
+            el.innerHTML = `<div class="empty-state" style="padding:2rem"><div class="ei">⚠️</div><p>שגיאה: ${esc(e.message)}</p></div>`;
         }
+    },
+
+    renderFeedHero(it) {
+        const editorBadge = it.is_editor_pick ? `<span class="feed-hero-editor-badge">⭐ בחירת העורך</span>` : '';
+        const imgEl = it.cover_image_url
+            ? `<img src="${it.cover_image_url}" alt="" style="width:100%;height:100%;object-fit:cover;display:block;">`
+            : `<div class="feed-hero-img-placeholder">${TYPE_ICONS[it.content_type]||'📰'}</div>`;
+        const communityName = it.community_name ? esc(it.community_name) : '';
+        return `<div class="feed-hero" onclick="KH.nav('content',{id:${it.id}})">
+            <div class="feed-hero-img-wrap">${imgEl}${editorBadge}</div>
+            <div class="feed-hero-body">
+                <div class="feed-hero-tags">
+                    <span class="feed-hero-pill">הכתבה המובילה</span>
+                    ${communityName ? `<span class="feed-hero-community">קהילת ${communityName}</span>` : ''}
+                </div>
+                <h1 class="feed-hero-title">${esc(it.title)}</h1>
+                ${it.subtitle ? `<p class="feed-hero-lead">${esc(it.subtitle)}</p>` : ''}
+                <div class="feed-hero-meta">
+                    ${it.author_name ? `<span>מאת ${esc(it.author_name)}</span><span>·</span>` : ''}
+                    <span>🕒 ${it.reading_time_minutes||1} דק׳</span>
+                    <span>·</span><span>💬 ${it.comments_count||0}</span>
+                    <span>·</span><span>👍 ${it.likes_count||0}</span>
+                </div>
+            </div>
+        </div>`;
+    },
+
+    renderFeedStrip(title, items, statFn) {
+        const cards = items.map(it => {
+            const imgEl = it.cover_image_url
+                ? `<img src="${it.cover_image_url}" alt="" style="width:100%;height:100%;object-fit:cover;display:block;">`
+                : `<div class="feed-strip-card-img-placeholder">${TYPE_ICONS[it.content_type]||'📄'}</div>`;
+            const editorBadge = it.is_editor_pick ? `<span class="feed-strip-card-editor">⭐ בחירת העורך</span>` : '';
+            return `<div class="feed-strip-card" onclick="KH.nav('content',{id:${it.id}})">
+                <div class="feed-strip-card-img-wrap">${imgEl}${editorBadge}<span class="feed-strip-card-stat">${statFn(it)}</span></div>
+                <div class="feed-strip-card-body">
+                    <div class="feed-strip-card-community">${esc(it.community_name||it.category_title||'')}</div>
+                    <div class="feed-strip-card-title">${esc(it.title)}</div>
+                </div>
+            </div>`;
+        }).join('');
+        return `<div class="feed-strip-wrap">
+            <div class="feed-section-hdr"><h2>${title}</h2><a>לכל הכתבות ←</a></div>
+            <div class="feed-strip-scroll">${cards}</div>
+        </div>`;
+    },
+
+    renderFeedCatGrid(items) {
+        const cats = STATE.categories.slice(0, 6);
+        if (!cats.length) return '';
+        // group items by category_id
+        const bycat = {};
+        items.forEach(it => {
+            const k = it.category_id;
+            if (!bycat[k]) bycat[k] = [];
+            bycat[k].push(it);
+        });
+        const blocks = cats.map(cat => {
+            const catItems = bycat[cat.id] || [];
+            const lead = catItems[0];
+            const sub = catItems.slice(1, 4);
+            const imgEl = lead?.cover_image_url
+                ? `<img src="${lead.cover_image_url}" alt="" style="width:100%;height:100%;object-fit:cover;display:block;">`
+                : `<div class="feed-catblock-img-placeholder">📁</div>`;
+            const editorBadge = lead?.is_editor_pick ? `<span class="feed-catblock-editor-badge">⭐ בחירת העורך</span>` : '';
+            const leadHtml = lead ? `<div class="feed-catblock-lead" onclick="KH.nav('content',{id:${lead.id}})">
+                <div class="feed-catblock-img-wrap">${imgEl}${editorBadge}</div>
+                <div class="feed-catblock-lead-title">${esc(lead.title)}</div>
+            </div>` : `<div class="feed-catblock-img-wrap"><div class="feed-catblock-img-placeholder">📁</div></div>`;
+            const subHtml = sub.map(it => `<div class="feed-catblock-item" onclick="KH.nav('content',{id:${it.id}})">
+                <span class="feed-catblock-bullet">•</span><span>${esc(it.title)}</span>
+            </div>`).join('');
+            return `<div class="feed-catblock">
+                <div class="feed-catblock-hdr">
+                    <h3>${esc(cat.title)}</h3>
+                    <a onclick="KH.setCategory(${cat.id}, null)">עוד ←</a>
+                </div>
+                ${leadHtml}${subHtml}
+            </div>`;
+        }).join('');
+        return `<div class="feed-catgrid-wrap">
+            <div class="feed-section-hdr"><h2>לפי מדורים</h2></div>
+            <div class="feed-catgrid">${blocks}</div>
+        </div>`;
+    },
+
+    renderFeedSolutions(qa, success) {
+        if (!qa && !success) return '';
+        const qaCard = qa ? `<div class="feed-solutions-card feed-solutions-card-gold">
+            <div class="feed-solutions-label feed-solutions-label-gold">השאלה החמה של היום</div>
+            <h3 class="feed-solutions-title">${esc(qa.title)}</h3>
+            ${qa.subtitle ? `<p class="feed-solutions-body">${esc(qa.subtitle)}</p>` : ''}
+            <div class="feed-solutions-footer">
+                <button class="feed-solutions-btn feed-solutions-btn-primary" onclick="KH.nav('content',{id:${qa.id}})">הצע פתרון</button>
+                <span class="feed-solutions-stat">💬 ${qa.comments_count||0} תשובות · 👍 ${qa.likes_count||0}</span>
+            </div>
+        </div>` : '';
+        const successCard = success ? `<div class="feed-solutions-card feed-solutions-card-teal">
+            <div class="feed-solutions-label feed-solutions-label-teal">סיפור ההצלחה של השבוע</div>
+            <h3 class="feed-solutions-title">${esc(success.title)}</h3>
+            ${success.subtitle ? `<p class="feed-solutions-body">${esc(success.subtitle)}</p>` : ''}
+            <div class="feed-solutions-footer">
+                <button class="feed-solutions-btn feed-solutions-btn-secondary" onclick="KH.nav('content',{id:${success.id}})">קרא את הסיפור</button>
+                ${success.community_name ? `<span class="feed-solutions-stat">קהילת ${esc(success.community_name)}</span>` : ''}
+            </div>
+        </div>` : '';
+        return `<div class="feed-solutions-wrap">
+            <div class="feed-solutions-hdr">
+                <img src="/kol-haam-assets/images/ui/ROBOTAI.webp" alt="" class="feed-solutions-robot">
+                <h2 class="feed-solutions-hdr-title">פתרונות מהקהילה</h2>
+                <a>כל הפתרונות ←</a>
+            </div>
+            <div class="feed-solutions-cards">${qaCard}${successCard}</div>
+        </div>`;
     },
 
     renderFeedCard(it) {
