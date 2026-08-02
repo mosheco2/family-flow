@@ -27359,39 +27359,40 @@ app.post('/api/sa/kol-haam/seed-sample', verifySA, async (req, res) => {
         );
         const itemId = item.id;
 
+        // מציאת user_id לתגובות
+        const { rows: users } = await client.query(`SELECT id FROM users LIMIT 1`);
+        if (!users.length) { await client.query('ROLLBACK'); return res.json({ success: false, error: 'אין משתמשים במערכת' }); }
+        const userId = users[0].id;
+
         // 4 תגובות ראשיות (מסעיף 10 בחבילת התוכן)
         const commentRows = await Promise.all([
-            client.query(`INSERT INTO content_comments (content_item_id,author_profile_id,body,likes_count) VALUES ($1,$2,$3,47) RETURNING id`,
-                [itemId, authorProfileId, 'ניסינו משהו דומה לפני שנתיים וזה קרס בשבוע השני, בדיוק בגלל מה שכתוב כאן — אף אחד לא הגדיר מי הגיבוי. הכלל של השם השני לכל יום הוא הדבר שחסר לנו. שומרת את הכתבה לפני סוכות.']),
-            client.query(`INSERT INTO content_comments (content_item_id,author_profile_id,body,likes_count) VALUES ($1,$2,$3,63) RETURNING id`,
-                [itemId, authorProfileId, 'המספר שתפס אותי הוא לא 4,300 ₪ אלא 5.5 ימי חופשה במקום 15. בשביל הורה עצמאי זה ההבדל בין קיץ לבין חודש בלי הכנסה.']),
-            client.query(`INSERT INTO content_comments (content_item_id,author_profile_id,body,likes_count) VALUES ($1,$2,$3,28) RETURNING id`,
-                [itemId, authorProfileId, 'שאלה פרקטית: מה עם ביטוח? אם ילד נופל בחצר של הורה אחר, מי אחראי? זה הדבר היחיד שעוצר אותנו אצלנו בשכונה.']),
-            client.query(`INSERT INTO content_comments (content_item_id,author_profile_id,body,likes_count) VALUES ($1,$2,$3,12) RETURNING id`,
-                [itemId, authorProfileId, 'אצלנו זה לא יעבוד — טווח הגילים בשכונה הוא מגיל 4 עד 13. ילד בן 12 לא הולך להסכים ליום מים בגינה עם בני שש.']),
+            client.query(`INSERT INTO content_comments (content_item_id,author_user_id,content_text,likes_count) VALUES ($1,$2,$3,47) RETURNING id`,
+                [itemId, userId, 'ניסינו משהו דומה לפני שנתיים וזה קרס בשבוע השני, בדיוק בגלל מה שכתוב כאן — אף אחד לא הגדיר מי הגיבוי. הכלל של השם השני לכל יום הוא הדבר שחסר לנו. שומרת את הכתבה לפני סוכות.']),
+            client.query(`INSERT INTO content_comments (content_item_id,author_user_id,content_text,likes_count) VALUES ($1,$2,$3,63) RETURNING id`,
+                [itemId, userId, 'המספר שתפס אותי הוא לא 4,300 ₪ אלא 5.5 ימי חופשה במקום 15. בשביל הורה עצמאי זה ההבדל בין קיץ לבין חודש בלי הכנסה.']),
+            client.query(`INSERT INTO content_comments (content_item_id,author_user_id,content_text,likes_count) VALUES ($1,$2,$3,28) RETURNING id`,
+                [itemId, userId, 'שאלה פרקטית: מה עם ביטוח? אם ילד נופל בחצר של הורה אחר, מי אחראי? זה הדבר היחיד שעוצר אותנו אצלנו בשכונה.']),
+            client.query(`INSERT INTO content_comments (content_item_id,author_user_id,content_text,likes_count) VALUES ($1,$2,$3,12) RETURNING id`,
+                [itemId, userId, 'אצלנו זה לא יעבוד — טווח הגילים בשכונה הוא מגיל 4 עד 13. ילד בן 12 לא הולך להסכים ליום מים בגינה עם בני שש.']),
         ]);
         const [c1, c2, c3, c4] = commentRows.map(r => r.rows[0].id);
 
         // 7 תגובות-בנות (מסעיף 10 בחבילת התוכן)
         await Promise.all([
-            // לתגובה 1 — דנה כ.
-            client.query(`INSERT INTO content_comments (content_item_id,author_profile_id,body,parent_comment_id,likes_count) VALUES ($1,$2,$3,$4,0) RETURNING id`,
-                [itemId, authorProfileId, 'דנה, בקבוצה בפועל הגיבוי הופעל רק שלוש פעמים בכל הקיץ. עצם זה שיש שם כתוב מוריד את החרדה גם כשלא משתמשים בו.', c1]),
-            client.query(`INSERT INTO content_comments (content_item_id,author_profile_id,body,parent_comment_id,likes_count) VALUES ($1,$2,$3,$4,0) RETURNING id`,
-                [itemId, authorProfileId, 'ואם אפשר להוסיף — הגיבוי צריך להיות הורה שממילא עובד מהבית באותו יום, אחרת זה לא באמת גיבוי.', c1]),
-            // לתגובה 2 — אבי ל.
-            client.query(`INSERT INTO content_comments (content_item_id,author_profile_id,body,parent_comment_id,likes_count) VALUES ($1,$2,$3,$4,0) RETURNING id`,
-                [itemId, authorProfileId, 'בדיוק. אני עצמאית ולקחתי שני ימי תורנות בשישי — יום שממילא אני לא עובדת בו. יצא שלא הפסדתי שקל.', c2]),
-            // לתגובה 3 — מרים ש.
-            client.query(`INSERT INTO content_comments (content_item_id,author_profile_id,body,parent_comment_id,likes_count) VALUES ($1,$2,$3,$4,0) RETURNING id`,
-                [itemId, authorProfileId, 'ברוב פוליסות ביטוח הדירה יש כיסוי צד ג׳ שחל גם על אורחים בבית. שווה לוודא מול הסוכן לפני הקיץ, זו שיחה של חמש דקות.', c3]),
-            client.query(`INSERT INTO content_comments (content_item_id,author_profile_id,body,parent_comment_id,likes_count) VALUES ($1,$2,$3,$4,0) RETURNING id`,
-                [itemId, authorProfileId, 'הוספנו לפרק הבא בסדרה סעיף שלם על זה, כולל נוסח הודעה קצר שההורים החתימו אחד את השני. לא מסמך משפטי — אבל מסדר ציפיות.', c3]),
-            // לתגובה 4 — תומר ג.
-            client.query(`INSERT INTO content_comments (content_item_id,author_profile_id,body,parent_comment_id,likes_count) VALUES ($1,$2,$3,$4,0) RETURNING id`,
-                [itemId, authorProfileId, 'פיצלנו בדיוק בגלל זה. יש קבוצה שנייה בשכונה של גילי 11–14, והתורנות שם היא בעיקר ליווי לבריכה ולמתנ״ס, לא אירוח בבית.', c4]),
-            client.query(`INSERT INTO content_comments (content_item_id,author_profile_id,body,parent_comment_id,likes_count) VALUES ($1,$2,$3,$4,0) RETURNING id`,
-                [itemId, authorProfileId, 'רעיון מעולה לפצל לפי גיל. אצלנו זה בדיוק הבעיה — אבל מעולם לא חשבנו על שתי קבוצות מקבילות.', c4]),
+            client.query(`INSERT INTO content_comments (content_item_id,author_user_id,content_text,parent_comment_id,likes_count,depth_level) VALUES ($1,$2,$3,$4,0,1) RETURNING id`,
+                [itemId, userId, 'דנה, בקבוצה בפועל הגיבוי הופעל רק שלוש פעמים בכל הקיץ. עצם זה שיש שם כתוב מוריד את החרדה גם כשלא משתמשים בו.', c1]),
+            client.query(`INSERT INTO content_comments (content_item_id,author_user_id,content_text,parent_comment_id,likes_count,depth_level) VALUES ($1,$2,$3,$4,0,1) RETURNING id`,
+                [itemId, userId, 'ואם אפשר להוסיף — הגיבוי צריך להיות הורה שממילא עובד מהבית באותו יום, אחרת זה לא באמת גיבוי.', c1]),
+            client.query(`INSERT INTO content_comments (content_item_id,author_user_id,content_text,parent_comment_id,likes_count,depth_level) VALUES ($1,$2,$3,$4,0,1) RETURNING id`,
+                [itemId, userId, 'בדיוק. אני עצמאית ולקחתי שני ימי תורנות בשישי — יום שממילא אני לא עובדת בו. יצא שלא הפסדתי שקל.', c2]),
+            client.query(`INSERT INTO content_comments (content_item_id,author_user_id,content_text,parent_comment_id,likes_count,depth_level) VALUES ($1,$2,$3,$4,0,1) RETURNING id`,
+                [itemId, userId, 'ברוב פוליסות ביטוח הדירה יש כיסוי צד ג׳ שחל גם על אורחים בבית. שווה לוודא מול הסוכן לפני הקיץ, זו שיחה של חמש דקות.', c3]),
+            client.query(`INSERT INTO content_comments (content_item_id,author_user_id,content_text,parent_comment_id,likes_count,depth_level) VALUES ($1,$2,$3,$4,0,1) RETURNING id`,
+                [itemId, userId, 'הוספנו לפרק הבא בסדרה סעיף שלם על זה, כולל נוסח הודעה קצר שההורים החתימו אחד את השני. לא מסמך משפטי — אבל מסדר ציפיות.', c3]),
+            client.query(`INSERT INTO content_comments (content_item_id,author_user_id,content_text,parent_comment_id,likes_count,depth_level) VALUES ($1,$2,$3,$4,0,1) RETURNING id`,
+                [itemId, userId, 'פיצלנו בדיוק בגלל זה. יש קבוצה שנייה בשכונה של גילי 11–14, והתורנות שם היא בעיקר ליווי לבריכה ולמתנ״ס, לא אירוח בבית.', c4]),
+            client.query(`INSERT INTO content_comments (content_item_id,author_user_id,content_text,parent_comment_id,likes_count,depth_level) VALUES ($1,$2,$3,$4,0,1) RETURNING id`,
+                [itemId, userId, 'רעיון מעולה לפצל לפי גיל. אצלנו זה בדיוק הבעיה — אבל מעולם לא חשבנו על שתי קבוצות מקבילות.', c4]),
         ]);
 
         await client.query('COMMIT');
