@@ -5,6 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>קול העם</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;700;900&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -62,7 +65,7 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Ro
 .pin-badge{background:#fef3c7;color:#92400e;font-size:.6rem;font-weight:800;padding:.1rem .35rem;border-radius:.25rem}
 
 /* ── Single content view ── */
-#view-content{overflow-y:auto;padding:1rem}
+#view-content{overflow-y:auto;padding:0}
 .content-back{display:flex;align-items:center;gap:.5rem;cursor:pointer;color:var(--primary);font-size:.85rem;font-weight:700;margin-bottom:1rem}
 .content-cover{width:100%;max-height:220px;object-fit:cover;border-radius:var(--radius);margin-bottom:1rem}
 .content-category-label{font-size:.72rem;font-weight:700;color:var(--primary);text-transform:uppercase;letter-spacing:.04em;margin-bottom:.4rem}
@@ -340,6 +343,67 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Ro
 .lb-info{flex:1}
 .lb-name{font-weight:600;font-size:.88rem}
 .lb-flow{margin-right:auto;font-size:.8rem;color:var(--primary);font-weight:700}
+
+/* ── Content View Redesign (cv-*) ── */
+#view-content .content-back{padding:.6rem 1rem;margin:0;border-bottom:1px solid #DDDDD4;background:#EFEFEC;position:sticky;top:0;z-index:5;}
+.cv-page{background:#EFEFEC;min-height:100%;padding-bottom:80px;font-family:'Heebo',system-ui,sans-serif;}
+.cv-inner{max-width:1100px;margin:0 auto;padding:0 16px;display:flex;flex-wrap:wrap;gap:28px;align-items:flex-start;}
+.cv-article{flex:1 1 440px;min-width:0;}
+.cv-aside{flex:1 1 240px;min-width:0;position:sticky;top:52px;display:flex;flex-direction:column;gap:14px;margin-top:22px;}
+.cv-hero{position:relative;}
+.cv-hero-img{width:100%;aspect-ratio:16/7;object-fit:cover;display:block;}
+.cv-hero-placeholder{width:100%;aspect-ratio:16/7;background:#D5D5CD;display:flex;align-items:center;justify-content:center;font-size:2.5rem;}
+.cv-badge{position:absolute;top:14px;inset-inline-start:14px;background:#E8A33D;color:#16294D;font-size:12px;font-weight:700;padding:5px 12px;border-radius:4px;letter-spacing:.01em;}
+.cv-h1{font-size:clamp(22px,4.8vw,38px);line-height:1.18;font-weight:900;color:#111;margin:20px 0 0;text-wrap:pretty;}
+.cv-h2{font-size:clamp(15px,2.3vw,19px);line-height:1.5;font-weight:400;color:#6E6E66;margin:10px 0 0;text-wrap:pretty;}
+.cv-meta{margin-top:16px;padding:11px 0;border-top:1px solid #DDDDD4;border-bottom:1px solid #DDDDD4;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;font-size:13px;color:#4A4A44;}
+.cv-meta-left{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.cv-avatar{width:34px;height:34px;border-radius:50%;background:#E3E3DC;flex-shrink:0;border:1px solid #C9C9C0;}
+.cv-meta-right{display:flex;align-items:center;gap:7px;color:#8A8A82;font-size:12px;flex-wrap:wrap;}
+.cv-sep{color:#C9C9C0;}
+.cv-article .content-html{font-size:clamp(15px,1.7vw,17px);line-height:1.85;color:#22221E;margin-top:20px;}
+.cv-article .content-html h3{font-size:clamp(17px,2.8vw,22px);font-weight:700;color:#111;margin:30px 0 10px;}
+.cv-article .content-html h2{font-size:clamp(18px,3vw,24px);font-weight:700;color:#111;margin:30px 0 10px;}
+.cv-article .content-html h1{font-size:clamp(20px,3.5vw,28px);font-weight:800;color:#111;margin:30px 0 10px;}
+.cv-article .content-html p{margin:12px 0 0;}
+.cv-article .content-html blockquote{margin:22px 0;padding:14px 18px;background:#fff;border:1px solid #DDDDD4;border-inline-start:5px solid #16294D;font-size:clamp(15px,2vw,18px);line-height:1.6;font-weight:500;color:#16294D;}
+.cv-article .content-html figure figcaption{font-size:12px;color:#8A8A82;padding-top:5px;border-inline-start:3px solid #E8A33D;padding-inline-start:9px;margin-top:5px;}
+.cv-article .content-html img{max-width:100%;border-radius:4px;}
+.cv-series-nav{margin-top:28px;padding:13px 15px;background:#fff;border:1px solid #C9C9C0;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;}
+.cv-series-nav-btn{font-size:14px;font-weight:500;color:#1F7A72;background:none;border:none;cursor:pointer;padding:4px 0;font-family:'Heebo',sans-serif;}
+.cv-series-nav-btn:hover{color:#16294D;}
+.cv-tags{margin-top:20px;display:flex;flex-wrap:wrap;gap:7px;padding-top:14px;border-top:1px solid #DDDDD4;}
+.cv-tag-label{font-size:12px;color:#8A8A82;align-self:center;margin-inline-end:3px;}
+.cv-tag{font-size:13px;padding:5px 13px;border-radius:999px;border:1px solid #C9C9C0;background:#fff;color:#16294D;cursor:pointer;font-family:'Heebo',sans-serif;transition:.15s;}
+.cv-tag:hover{background:#1F7A72;color:#fff;border-color:#1F7A72;}
+.cv-eng-bar{margin-top:16px;padding:9px 11px;background:#fff;border:1px solid #DDDDD4;display:flex;flex-wrap:wrap;align-items:center;gap:6px;position:sticky;bottom:8px;z-index:10;}
+.cv-eng-btn{display:inline-flex;align-items:center;gap:5px;padding:7px 13px;border-radius:999px;border:1px solid #C9C9C0;background:#fff;color:#16294D;font-size:13px;font-weight:500;cursor:pointer;min-height:38px;font-family:'Heebo',sans-serif;transition:.15s;}
+.cv-eng-btn:hover{border-color:#1F7A72;color:#1F7A72;}
+.cv-eng-btn.cv-active-like{background:#1F7A72;color:#fff;border-color:#1F7A72;}
+.cv-eng-btn.cv-active-dislike{background:#16294D;color:#fff;border-color:#16294D;}
+.cv-eng-btn.cv-active-save{background:#E8A33D;color:#16294D;border-color:#E8A33D;}
+.cv-eng-share{margin-inline-start:auto;}
+.cv-admin-row{display:flex;gap:.4rem;flex-wrap:wrap;margin-top:.7rem;padding:.5rem 0;border-top:1px solid #DDDDD4;}
+.cv-admin-row:empty{display:none;}
+.cv-newsletter{background:#16294D;color:#fff;padding:16px;text-align:center;}
+.cv-newsletter-title{font-size:14px;font-weight:700;margin-top:8px;}
+.cv-newsletter-sub{font-size:12px;line-height:1.5;color:#B9C6DC;margin-top:5px;}
+.cv-newsletter-cta{background:#E8A33D;color:#16294D;border:none;border-radius:999px;padding:9px 18px;font-size:13px;font-weight:700;cursor:pointer;margin-top:10px;width:100%;font-family:'Heebo',sans-serif;}
+.cv-series-box{background:#fff;border:1px solid #C9C9C0;padding:13px;}
+.cv-series-box-title{font-size:11px;font-weight:700;color:#8A8A82;letter-spacing:.04em;margin-bottom:9px;}
+.cv-series-link{display:flex;gap:8px;padding:7px 0;border-bottom:1px solid #EFEFEC;color:#16294D;cursor:pointer;font-size:13px;line-height:1.4;}
+.cv-series-link:hover{color:#1F7A72;}
+.cv-series-thumb{flex:0 0 52px;height:39px;background:#E3E3DC;border:1px solid #C9C9C0;flex-shrink:0;}
+.cv-comments-header{display:flex;align-items:baseline;justify-content:space-between;gap:14px;border-bottom:2px solid #16294D;padding-bottom:9px;margin-bottom:16px;}
+.cv-comments-title{font-size:20px;font-weight:700;color:#111;margin:0;}
+.cv-comment-form-wrap{background:#fff;border:1px solid #DDDDD4;padding:13px;margin-bottom:14px;}
+.cv-comment-txt{width:100%;box-sizing:border-box;min-height:72px;padding:10px;border:1px solid #DDDDD4;background:#FBFBF8;font-size:14px;line-height:1.6;resize:vertical;font-family:'Heebo',sans-serif;outline:none;margin-top:0;}
+.cv-comment-submit{background:#1F7A72;color:#fff;border:none;border-radius:999px;padding:9px 22px;font-size:14px;font-weight:700;cursor:pointer;min-height:40px;font-family:'Heebo',sans-serif;margin-top:9px;}
+.cv-sort-bar{display:flex;gap:5px;}
+.cv-csort-btn{padding:5px 12px;font-size:12px;border-radius:999px;cursor:pointer;border:1px solid #C9C9C0;background:#fff;color:#16294D;font-family:'Heebo',sans-serif;transition:.15s;}
+.cv-csort-btn.active{background:#16294D;color:#fff;border-color:#16294D;}
+
+@media(max-width:680px){.cv-aside{position:static;top:auto;}}
 </style>
 </head>
 <body>
@@ -389,7 +453,7 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Ro
     <!-- Single content -->
     <div id="view-content" class="view">
       <div class="content-back" onclick="KH.back()"><i class="fa-solid fa-arrow-right"></i> חזרה</div>
-      <div id="content-inner"></div>
+      <div id="content-inner" style="height:calc(100% - 38px);overflow-y:auto;"></div>
     </div>
 
     <!-- Editor -->
