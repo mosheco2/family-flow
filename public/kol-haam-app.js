@@ -333,7 +333,7 @@ const KH = {
                 </article>
                 <aside class="cv-aside">
                     <div class="cv-newsletter">
-                        <img src="/kol-haam-assets/ROBOTAI.webp" alt="" style="width:76px;height:76px;object-fit:contain;display:block;margin:0 auto 6px;" onerror="this.style.display='none'">
+                        <img src="/kol-haam-assets/images/ui/ROBOTAI.webp" alt="" style="width:76px;height:76px;object-fit:contain;display:block;margin:0 auto 6px;" onerror="this.style.display='none'">
                         <div class="cv-newsletter-title">שליטה חכמה, זרימה אחת</div>
                         <div class="cv-newsletter-sub">הצטרפו לניוזלטר הקהילתי — כתבה אחת בשבוע.</div>
                         <button class="cv-newsletter-cta">הרשמה</button>

@@ -27299,14 +27299,14 @@ app.post('/api/sa/kol-haam/seed-sample', verifySA, async (req, res) => {
 <p>קיץ. המילה הזאת מעוררת בילדים ציפייה שאין לה גבולות — ובהורים, בדרך כלל, פרפרים שונים לגמרי בבטן. שישה שבועות בלי בית-ספר, בלי מסגרת, בלי השעה שבה מישהו אחר אחראי על הילדים שלך.</p>
 <p>אבל מה אם הכל יכול להיות שונה? מה אם הקיץ יהפוך מאתגר מנהלי למנוע של קשר משפחתי?</p>
 <figure>
-  <img src="/kol-haam-assets/inner-1-fridge-schedule.png" alt="לוח שבועי על המקרר" onerror="this.parentElement.style.display='none'">
+  <img src="/kol-haam-assets/images/content/inner-1-fridge-schedule.png" alt="לוח שבועי על המקרר" onerror="this.parentElement.style.display='none'">
   <figcaption>לוח השבוע שהוצמד למקרר — כלל הזהב של קיץ מאורגן</figcaption>
 </figure>
 <p>הסוד הוא לא לתכנן פחות — אלא לתכנן נכון. לוח קיץ משפחתי טוב כולל שלושה מרכיבים: <strong>שגרה גמישה</strong>, <strong>אחריות לפי גיל</strong>, ו<strong>רגעי שיא שכולם מצפים להם</strong>.</p>
 <h3>שגרה גמישה — לא קשיחה</h3>
 <p>ילדים (ומבוגרים) זקוקים למסגרת, אפילו בחופש. לא לוח זמנים של דקה לדקה — אלא קצב יומי קבוע. בוקר: ארוחה משותפת + מטלה אחת קטנה. צהריים: פעילות חופשית או מאורגנת. אחה"צ: זמן שקט ואז ארוחת ערב משפחתית.</p>
 <figure>
-  <img src="/kol-haam-assets/inner-2-water-day.png" alt="יום מים משפחתי" onerror="this.parentElement.style.display='none'">
+  <img src="/kol-haam-assets/images/content/inner-2-water-day.png" alt="יום מים משפחתי" onerror="this.parentElement.style.display='none'">
   <figcaption>יום המים השבועי — הרגע הכי נחכה לו</figcaption>
 </figure>
 <h3>יום מים — המנוע הסודי</h3>
@@ -27324,7 +27324,7 @@ app.post('/api/sa/kol-haam/seed-sample', verifySA, async (req, res) => {
                 'המדריך המלא לקיץ מאורגן: לוחות, תפקידים, יום מים ועוד',
                 contentHtml,
                 communityId, authorProfileId, categoryId,
-                '/kol-haam-assets/hero-summer-calendar.png',
+                '/kol-haam-assets/images/covers/hero-summer-calendar.png',
                 tldrJson
             ]
         );
