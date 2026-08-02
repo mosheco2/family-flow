@@ -26896,6 +26896,7 @@ async function initKolHaamPhase2Tables() {
         `ALTER TABLE content_items ADD COLUMN IF NOT EXISTS series_id INT NULL`,
         `ALTER TABLE content_items ADD COLUMN IF NOT EXISTS series_chapter_number INT NULL`,
         `ALTER TABLE content_comments ADD COLUMN IF NOT EXISTS report_count INT DEFAULT 0`,
+        `ALTER TABLE content_items ADD COLUMN IF NOT EXISTS is_sample_data BOOLEAN DEFAULT FALSE`,
         // indexes
         `CREATE INDEX IF NOT EXISTS idx_content_reactions_item ON content_reactions(content_item_id)`,
         `CREATE INDEX IF NOT EXISTS idx_content_comments_item ON content_comments(content_item_id)`,
@@ -27260,6 +27261,117 @@ app.post('/api/kol-haam/content/:id/toggle-comments', verifySA, async (req, res)
         await pool.query(`UPDATE content_items SET comments_enabled=$1 WHERE id=$2`, [newVal, id]);
         res.json({ success: true, comments_enabled: newVal });
     } catch(e) { res.json({ success: false, error: e.message }); }
+});
+
+// POST /api/sa/kol-haam/seed-sample — SA only, inserts sample article + comments
+app.post('/api/sa/kol-haam/seed-sample', verifySA, async (req, res) => {
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        // בדיקה שכבר לא קיים דוגמה כזו
+        const existing = await client.query(`SELECT id FROM content_items WHERE title LIKE '[דוגמה]%' AND is_sample_data=TRUE LIMIT 1`);
+        if (existing.rows.length) {
+            await client.query('ROLLBACK');
+            return res.json({ success: false, error: 'דוגמה כבר קיימת (id=' + existing.rows[0].id + ')' });
+        }
+
+        // מציאת קהילה ופרופיל כותב לדוגמה
+        const { rows: communities } = await client.query(`SELECT id FROM communities LIMIT 1`);
+        if (!communities.length) { await client.query('ROLLBACK'); return res.json({ success: false, error: 'אין קהילות במערכת' }); }
+        const communityId = communities[0].id;
+
+        const { rows: profiles } = await client.query(`SELECT ap.id FROM author_profiles ap LIMIT 1`);
+        if (!profiles.length) { await client.query('ROLLBACK'); return res.json({ success: false, error: 'אין פרופילי כותבים במערכת' }); }
+        const authorProfileId = profiles[0].id;
+
+        const { rows: cats } = await client.query(`SELECT id FROM content_categories LIMIT 1`);
+        const categoryId = cats.length ? cats[0].id : null;
+
+        const tldrJson = JSON.stringify([
+            'לוח הקיץ המשפחתי שומר על שגרה בזמן שכולם בבית',
+            'חלוקת אחריות לפי גיל מפחיתה עומס על ההורים',
+            'יום מים שבועי הפך להיות הרגע הכי נחכה לו בשבוע',
+            'המקרר כמרכז הפיקוד — כלל הזהב של קיץ מאורגן'
+        ]);
+
+        const contentHtml = `
+<p>קיץ. המילה הזאת מעוררת בילדים ציפייה שאין לה גבולות — ובהורים, בדרך כלל, פרפרים שונים לגמרי בבטן. שישה שבועות בלי בית-ספר, בלי מסגרת, בלי השעה שבה מישהו אחר אחראי על הילדים שלך.</p>
+<p>אבל מה אם הכל יכול להיות שונה? מה אם הקיץ יהפוך מאתגר מנהלי למנוע של קשר משפחתי?</p>
+<figure>
+  <img src="/kol-haam-assets/inner-1-fridge-schedule.png" alt="לוח שבועי על המקרר" onerror="this.parentElement.style.display='none'">
+  <figcaption>לוח השבוע שהוצמד למקרר — כלל הזהב של קיץ מאורגן</figcaption>
+</figure>
+<p>הסוד הוא לא לתכנן פחות — אלא לתכנן נכון. לוח קיץ משפחתי טוב כולל שלושה מרכיבים: <strong>שגרה גמישה</strong>, <strong>אחריות לפי גיל</strong>, ו<strong>רגעי שיא שכולם מצפים להם</strong>.</p>
+<h3>שגרה גמישה — לא קשיחה</h3>
+<p>ילדים (ומבוגרים) זקוקים למסגרת, אפילו בחופש. לא לוח זמנים של דקה לדקה — אלא קצב יומי קבוע. בוקר: ארוחה משותפת + מטלה אחת קטנה. צהריים: פעילות חופשית או מאורגנת. אחה"צ: זמן שקט ואז ארוחת ערב משפחתית.</p>
+<figure>
+  <img src="/kol-haam-assets/inner-2-water-day.png" alt="יום מים משפחתי" onerror="this.parentElement.style.display='none'">
+  <figcaption>יום המים השבועי — הרגע הכי נחכה לו</figcaption>
+</figure>
+<h3>יום מים — המנוע הסודי</h3>
+<p>אחת הדרכים הכי אפקטיביות לגרום לילדים לשתף פעולה כל השבוע היא להבטיח להם ״יום מים״ קבוע. צינור, ספרינקלר, בלוני מים — לא משנה. הציפייה לאותו יום הופכת את שאר הימים לסבירים יותר.</p>
+<p>כל הפרטים, הטמפלטים ולוח הקיץ המלא — בתגובות למטה. שתפו מה עובד אצלכם 💬</p>`;
+
+        const { rows: [item] } = await client.query(`
+            INSERT INTO content_items
+                (title, subtitle, content_html, content_type, status, community_id, author_profile_id, category_id,
+                 cover_image_url, reading_time_minutes, quick_summary_20s, is_sample_data, published_at)
+            VALUES ($1,$2,$3,'ARTICLE','PUBLISHED',$4,$5,$6,$7,4,$8,TRUE,NOW())
+            RETURNING id`,
+            [
+                '[דוגמה] לוח קיץ משפחתי — איך שומרים על שפיות כשכולם בבית',
+                'המדריך המלא לקיץ מאורגן: לוחות, תפקידים, יום מים ועוד',
+                contentHtml,
+                communityId, authorProfileId, categoryId,
+                '/kol-haam-assets/hero-summer-calendar.png',
+                tldrJson
+            ]
+        );
+        const itemId = item.id;
+
+        // 4 תגובות ראשיות
+        const commentRows = await Promise.all([
+            client.query(`INSERT INTO content_comments (content_item_id,author_profile_id,body,likes_count,is_pinned) VALUES ($1,$2,$3,12,TRUE) RETURNING id`,
+                [itemId, authorProfileId, 'יום המים אצלנו הפך לאגדה. הילדים כבר שואלים ביום ראשון "מתי יום מים?". שווה כל טיפת מים על הדשא 💧']),
+            client.query(`INSERT INTO content_comments (content_item_id,author_profile_id,body,likes_count) VALUES ($1,$2,$3,8) RETURNING id`,
+                [itemId, authorProfileId, 'שיתפתי את הפוסט הזה בקבוצת ההורים ותוך שעה היו 30 לייקים. כולם מחפשים את אותו הדבר — פשטות עם שפיות.']),
+            client.query(`INSERT INTO content_comments (content_item_id,author_profile_id,body,likes_count) VALUES ($1,$2,$3,5) RETURNING id`,
+                [itemId, authorProfileId, 'שאלה — הלוח שאתם מציעים מתאים גם לבית עם ילד בספקטרום? אנחנו צריכים מסגרת יציבה יותר מהרגיל.']),
+            client.query(`INSERT INTO content_comments (content_item_id,author_profile_id,body,likes_count) VALUES ($1,$2,$3,3) RETURNING id`,
+                [itemId, authorProfileId, 'כבר יישמנו ב-2 ימים ראשונים של הקיץ. ילד בן 7 עשה את המיטה שלו בלי שביקשנו. נס של ממש 🙌']),
+        ]);
+        const [c1, c2, c3, c4] = commentRows.map(r => r.rows[0].id);
+
+        // 7 תגובות-בנות (sub-replies)
+        await Promise.all([
+            // לתגובה 1
+            client.query(`INSERT INTO content_comments (content_item_id,author_profile_id,body,parent_comment_id,likes_count) VALUES ($1,$2,$3,$4,4) RETURNING id`,
+                [itemId, authorProfileId, 'אצלנו הוספנו כלל אחד: מי שמסדר את הגינה לפני — מקבל את הספרינקלר ראשון 😄', c1]),
+            client.query(`INSERT INTO content_comments (content_item_id,author_profile_id,body,parent_comment_id,likes_count) VALUES ($1,$2,$3,$4,2) RETURNING id`,
+                [itemId, authorProfileId, 'אנחנו עושים גרסת מרפסת — אין לנו גינה. עובד מעולה גם ככה!', c1]),
+            client.query(`INSERT INTO content_comments (content_item_id,author_profile_id,body,parent_comment_id,likes_count) VALUES ($1,$2,$3,$4,6) RETURNING id`,
+                [itemId, authorProfileId, 'ממש אותו דבר אצלנו. הפוסט הזה הבית שלנו 😂', c2]),
+            // לתגובה 3
+            client.query(`INSERT INTO content_comments (content_item_id,author_profile_id,body,parent_comment_id,likes_count) VALUES ($1,$2,$3,$4,9) RETURNING id`,
+                [itemId, authorProfileId, 'כן! אנחנו בדיוק באותו מצב. מה שעובד אצלנו: הלוח ויזואלי לגמרי — תמונות במקום מילים, ושגרה קבועה ביותר בשעת השינה.', c3]),
+            client.query(`INSERT INTO content_comments (content_item_id,author_profile_id,body,parent_comment_id,likes_count) VALUES ($1,$2,$3,$4,5) RETURNING id`,
+                [itemId, authorProfileId, 'ממליצה גם על אפליקציית "Chorely" — יש גרסה ויזואלית מיוחדת לילדים עם קשיים. שינתה לנו את הקיץ לחלוטין.', c3]),
+            // לתגובה 4
+            client.query(`INSERT INTO content_comments (content_item_id,author_profile_id,body,parent_comment_id,likes_count) VALUES ($1,$2,$3,$4,7) RETURNING id`,
+                [itemId, authorProfileId, 'הייתי בספקנות גדולה לפני שניסינו. עכשיו הילד שלי (9) שואל אותי כל יום "מה המשימה שלי היום?" 🥹', c4]),
+            client.query(`INSERT INTO content_comments (content_item_id,author_profile_id,body,parent_comment_id,likes_count) VALUES ($1,$2,$3,$4,3) RETURNING id`,
+                [itemId, authorProfileId, 'שבוע שני אצלנו — ילדת 5 כבר מסדרת כלים בעצמה. לא מאמינה לעצמי.', c4]),
+        ]);
+
+        await client.query('COMMIT');
+        res.json({ success: true, content_item_id: itemId, message: 'נתוני דוגמה נוצרו בהצלחה' });
+    } catch(e) {
+        await client.query('ROLLBACK');
+        res.status(500).json({ success: false, error: e.message });
+    } finally {
+        client.release();
+    }
 });
 
 // POST /api/kol-haam/report

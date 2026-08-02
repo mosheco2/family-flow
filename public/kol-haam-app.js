@@ -310,6 +310,15 @@ const KH = {
                             <span>🕒 ${it.reading_time_minutes} דק' קריאה</span>
                         </div>
                     </div>
+                    ${(()=>{
+                        if(!it.quick_summary_20s) return '';
+                        try {
+                            const items = JSON.parse(it.quick_summary_20s);
+                            if(Array.isArray(items) && items.length)
+                                return `<div class="cv-tldr"><div class="cv-tldr-label">תקציר ב־20 שניות</div><ul>${items.map(i=>`<li>${esc(i)}</li>`).join('')}</ul></div>`;
+                        } catch(e) {}
+                        return `<div class="cv-tldr"><p>${esc(it.quick_summary_20s)}</p></div>`;
+                    })()}
                     <div class="content-html">${it.content_html}</div>
                     ${seriesNav}
                     ${tagsHtml}
