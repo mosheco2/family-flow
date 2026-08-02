@@ -26388,14 +26388,13 @@ app.post('/api/kol-haam/seed-demo', async (req, res) => {
                 INSERT INTO content_items
                 (author_profile_id, category_id, community_id, content_type, scope_type, status,
                  title, subtitle, quick_summary_20s, cover_image_url, content_html,
-                 reading_time_minutes, cover_photo_credit, published_at)
-                VALUES ($1,$2,$3,$4,'LOCAL',$5,$6,$7,$8,$9,$10,$11,$12,NOW())
+                 reading_time_minutes, published_at)
+                VALUES ($1,$2,$3,$4,'LOCAL',$5,$6,$7,$8,$9,$10,$11,NOW())
                 RETURNING id`,
                 [apId, catId, commId, type, status,
                  title, subtitle,
                  JSON.stringify(typeof summary === 'string' ? [summary] : summary),
-                 coverUrl, html, readingTime,
-                 `${user1.nickname} / קהילת ${commName}`]
+                 coverUrl, html, readingTime]
             );
             await ensureMetrics(r.rows[0].id);
             return r.rows[0].id;
