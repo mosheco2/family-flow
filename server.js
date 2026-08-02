@@ -27342,13 +27342,19 @@ app.get('/api/kol-haam/content/:id/comments', async (req, res) => {
         else if (sort === 'management') orderBy = 'c.is_from_zm_or_sa DESC, c.created_at DESC';
 
         const { rows } = await pool.query(`
-            SELECT c.id, c.parent_comment_id, c.depth_level, c.content_text, c.is_solution_marked,
-                   c.solution_upvotes, c.likes_count, c.is_pinned_by_author, c.is_from_zm_or_sa,
-                   c.is_edited, c.is_hidden, c.created_at, c.updated_at, c.author_user_id,
-                   u.name AS author_name
+            SELECT c.id, c.parent_comment_id, c.depth_level, c.content_text,
+                   COALESCE(c.is_solution_marked, false) as is_solution_marked,
+                   COALESCE(c.solution_upvotes, 0) as solution_upvotes,
+                   COALESCE(c.likes_count, 0) as likes_count,
+                   COALESCE(c.is_pinned_by_author, false) as is_pinned_by_author,
+                   COALESCE(c.is_from_zm_or_sa, false) as is_from_zm_or_sa,
+                   COALESCE(c.is_edited, false) as is_edited,
+                   c.created_at, c.updated_at, c.author_user_id,
+                   COALESCE(u.nickname, u.email, 'משתמש') AS author_name
             FROM content_comments c
             JOIN users u ON u.id = c.author_user_id
-            WHERE c.content_item_id=$1 AND c.is_hidden=false
+            WHERE c.content_item_id=$1
+              AND COALESCE(c.is_hidden, false) = false
             ORDER BY c.is_solution_marked DESC, c.is_pinned_by_author DESC, ${orderBy}
         `, [id]);
 
