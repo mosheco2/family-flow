@@ -12053,21 +12053,21 @@ async function loadSAKolHaamQueue() {
 
 async function saKHSeedSample() {
     const btn = document.getElementById('sa-kh-seed-btn');
-    if (!confirm('ליצור כתבת דוגמה עם תגובות? (פעולה חד-פעמית)')) return;
+    if (!confirm('ליצור תוכן דוגמה מלא (סדרה + כתבות + שאלות + סיפורי הצלחה) ממשפחה NWP701?')) return;
     if (btn) { btn.disabled = true; btn.textContent = '⏳ יוצר...'; }
     try {
-        const d = await saFetch('/api/sa/kol-haam/seed-sample', { method: 'POST' });
+        const d = await fetch('/api/kol-haam/seed-demo', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ secret: 'SEED_DEMO_2026' })
+        }).then(r => r.json());
         if (d.success) {
-            showToast('success', `נתוני דוגמה נוצרו — כתבה #${d.content_item_id}`);
-            setTimeout(() => {
-                if (confirm(`הכתבה נוצרה (#${d.content_item_id}). לפתוח אותה בקול העם?`)) {
-                    document.querySelector('[data-tab="kol-haam"]')?.click();
-                }
-            }, 500);
+            showToast('success', `נתוני דוגמה נוצרו! ${d.log ? d.log.join(' | ') : ''}`);
+            setTimeout(() => loadSAKolHaamQueue(), 1000);
         } else {
             showToast('error', d.error || 'שגיאה ביצירת דוגמה');
         }
-    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+    } catch(e) { showToast('error', 'שגיאת תקשורת: ' + e.message); }
     finally { if (btn) { btn.disabled = false; btn.textContent = '🌱 הזן נתוני דוגמה'; } }
 }
 

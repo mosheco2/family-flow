@@ -26262,12 +26262,22 @@ app.get('/api/kol-haam/content/:id', async (req, res) => {
                        '[]'
                    ) as tags,
                    prev_ch.id as prev_chapter_id, prev_ch.title as prev_chapter_title,
-                   next_ch.id as next_chapter_id, next_ch.title as next_chapter_title
+                   next_ch.id as next_chapter_id, next_ch.title as next_chapter_title,
+                   cs.title as series_name,
+                   ci.series_chapter_number as chapter_number,
+                   (SELECT COUNT(*) FROM content_items sc WHERE sc.series_id = ci.series_id) as total_chapters,
+                   COALESCE(
+                       (SELECT json_agg(json_build_object('id', sc.id, 'title', sc.title, 'chapter_number', sc.series_chapter_number)
+                                ORDER BY sc.series_chapter_number)
+                        FROM content_items sc WHERE sc.series_id = ci.series_id AND ci.series_id IS NOT NULL),
+                       '[]'
+                   ) as series_chapters
             FROM content_items ci
             JOIN content_categories cc ON cc.id = ci.category_id
             JOIN communities co ON co.id = ci.community_id
             JOIN author_profiles ap ON ap.id = ci.author_profile_id
             JOIN family_groups fg ON fg.id = ap.family_group_id
+            LEFT JOIN content_series cs ON cs.id = ci.series_id
             LEFT JOIN content_items prev_ch ON prev_ch.series_id = ci.series_id AND prev_ch.series_chapter_number = ci.series_chapter_number - 1
             LEFT JOIN content_items next_ch ON next_ch.series_id = ci.series_id AND next_ch.series_chapter_number = ci.series_chapter_number + 1
             WHERE ci.id = $1

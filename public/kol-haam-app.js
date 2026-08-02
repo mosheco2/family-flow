@@ -398,14 +398,11 @@ const KH = {
             <button class="cv-eng-btn" onclick="KH.openReport(${id},null)" title="דיווח">⚠️</button>
         </div>`;
 
-        const seriesChapters = [
-            it.prev_chapter_id ? { id: it.prev_chapter_id, title: it.prev_chapter_title || 'פרק קודם' } : null,
-            it.next_chapter_id ? { id: it.next_chapter_id, title: it.next_chapter_title || 'פרק הבא' } : null
-        ].filter(Boolean);
-        const seriesAside = seriesChapters.length ? `
+        const allChapters = Array.isArray(it.series_chapters) ? it.series_chapters.filter(c => c.id !== id) : [];
+        const seriesAside = (it.series_name && allChapters.length) ? `
         <div class="cv-series-box">
-            <div class="cv-series-box-title">עוד בסדרה</div>
-            ${seriesChapters.map(c => `<div class="cv-series-link" onclick="KH.nav('content',{id:${c.id}})"><div class="cv-series-thumb"></div><span>${esc(c.title)}</span></div>`).join('')}
+            <div class="cv-series-box-title">עוד בסדרה · ${esc(it.series_name)}</div>
+            ${allChapters.map(c => `<div class="cv-series-link" onclick="KH.nav('content',{id:${c.id}})"><div class="cv-series-thumb"></div><div><div style="font-size:11px;color:#8A8A82;margin-bottom:2px">פרק ${c.chapter_number}</div><span>${esc(c.title)}</span></div></div>`).join('')}
         </div>` : '';
 
         const figCaption = `<figcaption class="cv-hero-figcaption">צילום: ${it.cover_photo_credit ? esc(it.cover_photo_credit) : `קהילת ${esc(it.community_name||'')}`}</figcaption>`;
