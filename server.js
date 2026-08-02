@@ -26496,7 +26496,7 @@ app.post('/api/kol-haam/seed-demo', async (req, res) => {
         await addComment(art4Id, user1.id, 'יש ערב פתוח ראשון בכל חודש, פרטים בפייסבוק של הקהילה');
         log.push(`✓ כתבה עצמאית: id=${art4Id}`);
 
-        const art5Id = await createItem('ARTICLE', getCat('חדשות') || cats[0],
+        const art5Id = await createItem('ARTICLE', (getCat('חדשות') || cats[0]).id,
             'הספרייה השכונתית שנפתחה בשעתיים — סיפור הצלחה של ניהול קהילתי',
             'ארון ספרים אחד על מדרגות בניין הפך לספרייה של 800 ספרים עם 150 חברים פעילים.',
             ['800 ספרים, 150 חברים, 0 תקציב רשותי','ניהול ע"י אפליקציה חינמית בלבד','6 ספריות נוספות נפתחו בשכונות שכנות'],
@@ -26520,7 +26520,7 @@ app.post('/api/kol-haam/seed-demo', async (req, res) => {
 <p>ניסינו וואטסאפ — כאוס. ניסינו גוגל שיטס — אף אחד לא מעדכן. מה עובד לכם?</p>`,
             img('talk-people.png')
         );
-        await pool.query(`UPDATE content_items SET likes_count=61 WHERE id=$1`, [qa1Id]);
+        await pool.query(`UPDATE content_engagement_metrics SET likes_count=61 WHERE content_item_id=$1`, [qa1Id]).catch(()=>{});
         await pool.query(`UPDATE content_engagement_metrics SET likes_count=61, comments_count=4 WHERE content_item_id=$1`, [qa1Id]);
         await addTag(qa1Id, 'הסעות'); await addTag(qa1Id, 'חוגים'); await addTag(qa1Id, 'שיתוף פעולה');
         const qa1c1 = await addComment(qa1Id, user1.id, 'אנחנו משתמשים ב-Famieo — אפליקציה חינמית לניהול תורנויות. עובד מעולה לשלוש שנים.');
