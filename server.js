@@ -26129,8 +26129,8 @@ async function initKolHaamTables() {
         for (const title of globalCats) {
             await pool.query(
                 `INSERT INTO content_categories (title, scope_level, community_id, is_default)
-                 SELECT $1, 'GLOBAL', NULL, TRUE
-                 WHERE NOT EXISTS (SELECT 1 FROM content_categories WHERE title=$1 AND scope_level='GLOBAL')`,
+                 SELECT $1::text, 'GLOBAL', NULL, TRUE
+                 WHERE NOT EXISTS (SELECT 1 FROM content_categories WHERE title=$1::text AND scope_level='GLOBAL')`,
                 [title]
             );
         }
@@ -26141,8 +26141,8 @@ async function initKolHaamTables() {
             for (const title of localDefaults) {
                 await pool.query(
                     `INSERT INTO content_categories (title, scope_level, community_id, is_default)
-                     SELECT $1, 'LOCAL', $2, TRUE
-                     WHERE NOT EXISTS (SELECT 1 FROM content_categories WHERE title=$1 AND scope_level='LOCAL' AND community_id=$2)`,
+                     SELECT $1::text, 'LOCAL', $2::int, TRUE
+                     WHERE NOT EXISTS (SELECT 1 FROM content_categories WHERE title=$1::text AND scope_level='LOCAL' AND community_id=$2::int)`,
                     [title, comm.id]
                 );
             }
