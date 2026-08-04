@@ -29135,7 +29135,6 @@ app.post('/api/kol-haam/seed-full-demo', async (req, res) => {
             const exF = await client.query(`SELECT 1 FROM author_followers WHERE follower_group_id=$1 AND following_profile_id=$2`, [groupId, michalApId]);
             if (!exF.rows.length) {
                 await client.query(`INSERT INTO author_followers(follower_group_id,following_profile_id) VALUES($1,$2)`, [groupId, michalApId]);
-                await client.query(`UPDATE author_profiles SET followers_count=followers_count+1 WHERE id=$1`, [michalApId]);
                 followCount++;
             }
         }
@@ -29143,7 +29142,6 @@ app.post('/api/kol-haam/seed-full-demo', async (req, res) => {
         const exSelf = await client.query(`SELECT 1 FROM author_followers WHERE follower_group_id=$1 AND following_profile_id=$2`, [groupId, authorId]);
         if (!exSelf.rows.length) {
             await client.query(`INSERT INTO author_followers(follower_group_id,following_profile_id) VALUES($1,$2)`, [groupId, authorId]);
-            await client.query(`UPDATE author_profiles SET followers_count=followers_count+1 WHERE id=$1`, [authorId]);
             followCount++;
         }
         log.push(`following: ${followCount} עקיבות נוצרו`);
