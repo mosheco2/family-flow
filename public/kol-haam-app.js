@@ -723,7 +723,7 @@ const KH = {
         el.innerHTML = reports.map(r => `
             <div class="report-card">
                 <div class="report-header">
-                    <span class="report-reason-badge">${r.reason}</span>
+                    <span class="report-reason-badge">${esc(r.reason)}</span>
                     <span class="report-date">${fmtDate(r.created_at)}</span>
                 </div>
                 <div class="report-target">${r.item_title ? `📄 ${esc(r.item_title)}` : `💬 ${esc(r.comment_text||'').slice(0,80)}`}</div>

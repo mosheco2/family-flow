@@ -1,5 +1,28 @@
 require('dotenv').config();
 const { sendWhatsApp, checkAlreadySent } = require('./services/whatsapp');
+const DOMPurify = require('isomorphic-dompurify');
+
+// ─── KH content sanitizer ────────────────────────────────────────
+// Strips everything not in the whitelist. Runs server-side only.
+const KH_SANITIZE_CONFIG = {
+    ALLOWED_TAGS: [
+        'b','strong','i','em','u','s','mark',
+        'p','div','h2','h3','h4','br','hr','blockquote',
+        'ul','ol','li',
+        'table','thead','tbody','tr','th','td',
+        'a','img','span',
+    ],
+    ALLOWED_ATTR: ['href','title','src','alt','width','height','class'],
+    ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i,
+    FORBID_TAGS: ['script','iframe','object','embed','form','input','style','link','meta','base'],
+    FORBID_ATTR: ['style','id','onerror','onload','onclick','onmouseover','onfocus',
+                  'onblur','onchange','onsubmit','onkeydown','onkeyup','onkeypress'],
+};
+function sanitizeKHHtml(html) {
+    if (!html || typeof html !== 'string') return html;
+    return DOMPurify.sanitize(html, KH_SANITIZE_CONFIG);
+}
+// ─────────────────────────────────────────────────────────────────
 const express = require('express');
 const compression = require('compression');
 const { Pool } = require('pg');
@@ -26620,13 +26643,14 @@ app.post('/api/kol-haam/content', async (req, res) => {
         const effectiveScope = cat.rows[0].scope_level === 'LOCAL' ? 'LOCAL' : (scopeType || 'LOCAL');
         const authorId = await getOrCreateAuthorProfile(groupId, communityId);
         const commId = communityId || (await pool.query(`SELECT community_id FROM family_groups WHERE id=$1`, [groupId])).rows[0]?.community_id;
-        const words = (contentHtml || '').replace(/<[^>]*>/g, ' ').split(/\s+/).filter(Boolean).length;
+        const cleanHtml = sanitizeKHHtml(contentHtml);
+        const words = (cleanHtml || '').replace(/<[^>]*>/g, ' ').split(/\s+/).filter(Boolean).length;
         const readingTime = Math.max(1, Math.ceil(words / 200));
         const r = await pool.query(`
             INSERT INTO content_items (author_profile_id, category_id, community_id, content_type, scope_type,
                 title, subtitle, quick_summary_20s, cover_image_url, content_html, reading_time_minutes, series_id, series_chapter_number)
             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING id
-        `, [authorId, categoryId, commId, contentType, effectiveScope, title, subtitle||null, quickSummary||null, coverImageUrl||null, contentHtml, readingTime, seriesId||null, seriesChapterNumber||null]);
+        `, [authorId, categoryId, commId, contentType, effectiveScope, title, subtitle||null, quickSummary||null, coverImageUrl||null, cleanHtml, readingTime, seriesId||null, seriesChapterNumber||null]);
         const itemId = r.rows[0].id;
         // תגיות
         if (tags && tags.length) {
@@ -26654,7 +26678,8 @@ app.put('/api/kol-haam/content/:id', async (req, res) => {
             return res.status(403).json({ error: 'אין הרשאה' });
         if (!['DRAFT','REJECTED'].includes(it.status))
             return res.status(400).json({ error: 'לא ניתן לערוך פריט בסטטוס זה' });
-        const words = (contentHtml || it.content_html).replace(/<[^>]*>/g, ' ').split(/\s+/).filter(Boolean).length;
+        const cleanHtml = sanitizeKHHtml(contentHtml || it.content_html);
+        const words = cleanHtml.replace(/<[^>]*>/g, ' ').split(/\s+/).filter(Boolean).length;
         const readingTime = Math.max(1, Math.ceil(words / 200));
         // שמירת גרסה
         const vNum = (await pool.query(`SELECT COALESCE(MAX(version_number),0)+1 as n FROM content_version_history WHERE content_item_id=$1`, [it.id])).rows[0].n;
@@ -26668,7 +26693,7 @@ app.put('/api/kol-haam/content/:id', async (req, res) => {
             UPDATE content_items SET title=$1, subtitle=$2, quick_summary_20s=$3, cover_image_url=$4, content_html=$5,
                 category_id=$6, scope_type=$7, reading_time_minutes=$8, series_id=$9, series_chapter_number=$10, updated_at=NOW()
             WHERE id=$11
-        `, [title||it.title, subtitle||null, quickSummary||null, coverImageUrl||it.cover_image_url, contentHtml||it.content_html, newCat, effectiveScope, readingTime, seriesId||it.series_id, seriesChapterNumber||it.series_chapter_number, it.id]);
+        `, [title||it.title, subtitle||null, quickSummary||null, coverImageUrl||it.cover_image_url, cleanHtml, newCat, effectiveScope, readingTime, seriesId||it.series_id, seriesChapterNumber||it.series_chapter_number, it.id]);
         // תגיות — עדכון
         if (tags) {
             await pool.query(`DELETE FROM content_items_tags WHERE content_item_id=$1`, [it.id]);
