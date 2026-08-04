@@ -28977,8 +28977,12 @@ app.post('/api/kol-haam/seed-list-sample', async (req, res) => {
         const groupId = grpR.rows[0].id;
 
         const commR = await pool.query(`SELECT community_id FROM family_groups WHERE id=$1`, [groupId]);
-        const communityId = commR.rows[0]?.community_id;
-        if (!communityId) return res.status(400).json({ error: 'community_id לא נמצא' });
+        let communityId = commR.rows[0]?.community_id;
+        if (!communityId) {
+            const fallbackComm = await pool.query(`SELECT id FROM communities LIMIT 1`);
+            communityId = fallbackComm.rows[0]?.id;
+        }
+        if (!communityId) return res.status(400).json({ error: 'לא נמצאה קהילה במערכת' });
 
         // ensure author profile exists
         let apR = await pool.query(`SELECT id FROM author_profiles WHERE family_group_id=$1`, [groupId]);
@@ -29087,7 +29091,12 @@ app.post('/api/kol-haam/seed-full-demo', async (req, res) => {
         const groupId = grpR.rows[0].id;
 
         const commR = await client.query(`SELECT community_id FROM family_groups WHERE id=$1`, [groupId]);
-        const communityId = commR.rows[0].community_id;
+        let communityId = commR.rows[0]?.community_id;
+        if (!communityId) {
+            const fallbackComm = await client.query(`SELECT id FROM communities LIMIT 1`);
+            communityId = fallbackComm.rows[0]?.id;
+        }
+        if (!communityId) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'לא נמצאה קהילה במערכת' }); }
 
         const userR = await client.query(`SELECT id FROM users WHERE group_id=$1 LIMIT 1`, [groupId]);
         if (!userR.rows[0]) return res.status(400).json({ error: 'לא נמצא משתמש לקבוצה NWP701' });
