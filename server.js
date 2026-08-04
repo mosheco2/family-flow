@@ -28937,18 +28937,17 @@ app.post('/api/kol-haam/seed-author-sample', async (req, res) => {
 
         // helper: upsert article — always updates cover_image_url so re-seeding fixes broken paths
         const upsertArticle = async (title, type, subtitle, coverUrl, readingTime, publishedAt, scopeType) => {
-            const r = await pool.query(`
-                INSERT INTO content_items (author_profile_id, category_id, community_id, content_type, scope_type, status, title, subtitle, content_html, cover_image_url, reading_time_minutes, is_sample_data, published_at)
-                VALUES ($1,$2,$3,$4,$5,'PUBLISHED_LOCAL',$6,$7,'<p>[תוכן לדוגמה]</p>',$8,$9,TRUE,$10::timestamptz)
-                ON CONFLICT DO NOTHING
-                RETURNING id
-            `, [apId, catId, commId, type, scopeType, title, subtitle, coverUrl, readingTime, publishedAt]);
-            if (r.rows[0]) return r.rows[0].id;
             const ex = await pool.query(`SELECT id FROM content_items WHERE title=$1 AND author_profile_id=$2 AND is_sample_data=TRUE`, [title, apId]);
             if (ex.rows[0]) {
                 await pool.query(`UPDATE content_items SET cover_image_url=$1 WHERE id=$2`, [coverUrl, ex.rows[0].id]);
                 return ex.rows[0].id;
             }
+            const r = await pool.query(`
+                INSERT INTO content_items (author_profile_id, category_id, community_id, content_type, scope_type, status, title, subtitle, content_html, cover_image_url, reading_time_minutes, is_sample_data, published_at)
+                VALUES ($1,$2,$3,$4,$5,'PUBLISHED_LOCAL',$6,$7,'<p>[תוכן לדוגמה]</p>',$8,$9,TRUE,$10::timestamptz)
+                RETURNING id
+            `, [apId, catId, commId, type, scopeType, title, subtitle, coverUrl, readingTime, publishedAt]);
+            return r.rows[0].id;
         };
 
         const articles = [
