@@ -62,12 +62,16 @@ function confirm(title, msg, okLabel = 'אישור', danger = false) {
 // ── Format helpers ────────────────────────────────────────────
 const TYPE_LABELS = { ARTICLE: 'כתבה', QA_QUESTION: 'שאלה', SUCCESS_STORY: 'סיפור הצלחה', WIKI_GUIDE: 'מדריך' };
 const TYPE_ICONS  = { ARTICLE: '📰', QA_QUESTION: '❓', SUCCESS_STORY: '🏆', WIKI_GUIDE: '📖' };
-// מחזיר HTML של תמונה עם fallback לאמוג'י כשהתמונה נשברת
+// fallback גלובלי — מוחלף ע"י onerror ב-img
+window.khImgFallback = function(el) {
+    const icon = el.getAttribute('data-ph') || '📰';
+    const cls  = el.className || '';
+    el.outerHTML = `<div class="${cls}" style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:2rem;background:var(--primary-light)">${icon}</div>`;
+};
 function khCoverImg(url, icon, cls, style) {
-    const ph = `<div class="${cls||''}" style="${style||'width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:2rem;background:var(--primary-light)'}">${icon||'📰'}</div>`;
-    if (!url) return ph;
-    const esc64 = ph.replace(/"/g,"'").replace(/</g,'\\x3C').replace(/>/g,'\\x3E');
-    return `<img src="${url}" alt="" class="${cls||''}" style="${style||'width:100%;height:100%;object-fit:cover;display:block'}" onerror="this.outerHTML='${esc64}'">`;
+    const phStyle = style || 'width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:2rem;background:var(--primary-light)';
+    if (!url) return `<div class="${cls||''}" style="${phStyle}">${icon||'📰'}</div>`;
+    return `<img src="${url}" alt="" class="${cls||''}" style="${style||'width:100%;height:100%;object-fit:cover;display:block'}" data-ph="${icon||'📰'}" onerror="khImgFallback(this)">`;
 }
 function fmtDate(d) {
     if (!d) return '';
