@@ -26375,8 +26375,8 @@ app.post('/api/kol-haam/seed-demo', async (req, res) => {
         const getCat = (keyword) => cats.find(c => c.title.includes(keyword)) || cats[0];
         log.push(`✓ קטגוריות: ${cats.map(c=>c.title).join(', ')}`);
 
-        const img = (name) => `/kol-haam-assets/images/content/${name}`;
-        const imgCover = (name) => name === 'hero-summer-calendar.png' ? `/kol-haam-assets/images/covers/${name}` : `/kol-haam-assets/images/content/${name}`;
+        const img = (name) => `https://picsum.photos/seed/${name.replace(/\.[^.]+$/,'')}/800/500`;
+        const imgCover = (name) => `https://picsum.photos/seed/${name.replace(/\.[^.]+$/,'')}/1200/600`;
 
         // helper: upsert tag
         const upsertTag = async (name) => {
@@ -28829,25 +28829,24 @@ app.post('/api/kol-haam/authors/:id/follow', async (req, res) => {
 app.post('/api/kol-haam/fix-covers', async (req, res) => {
     if (req.body.secret !== 'SEED_DEMO_2026') return res.status(403).json({ error: 'אסור' });
     const COVERS = [
-        '/kol-haam-assets/images/content/cat-1.png',
-        '/kol-haam-assets/images/content/cat-2.png',
-        '/kol-haam-assets/images/content/talk-4.png',
-        '/kol-haam-assets/images/content/cat-6.png',
-        '/kol-haam-assets/images/content/hot-5.png',
-        '/kol-haam-assets/images/content/hot-2.png',
-        '/kol-haam-assets/images/content/cat-5.png',
-        '/kol-haam-assets/images/content/talk-1.png',
-        '/kol-haam-assets/images/content/cat-lab.png',
-        '/kol-haam-assets/images/content/hot-4.png',
-        '/kol-haam-assets/images/content/hot-books.png',
-        '/kol-haam-assets/images/content/talk-5.png',
+        'https://picsum.photos/seed/family01/800/500',
+        'https://picsum.photos/seed/community02/800/500',
+        'https://picsum.photos/seed/children03/800/500',
+        'https://picsum.photos/seed/park04/800/500',
+        'https://picsum.photos/seed/school05/800/500',
+        'https://picsum.photos/seed/garden06/800/500',
+        'https://picsum.photos/seed/meeting07/800/500',
+        'https://picsum.photos/seed/library08/800/500',
+        'https://picsum.photos/seed/playground09/800/500',
+        'https://picsum.photos/seed/neighborhood10/800/500',
+        'https://picsum.photos/seed/education11/800/500',
+        'https://picsum.photos/seed/volunteer12/800/500',
     ];
     try {
-        // שלב 1: הבא את כל כתבות הדוגמה ללא cover או עם נתיב שבור
+        // עדכן את כל כתבות הדוגמה — גם ישנות וגם כאלה עם נתיב שבור
         const rows = await pool.query(`
             SELECT id FROM content_items
             WHERE is_sample_data=TRUE
-              AND (cover_image_url IS NULL OR cover_image_url NOT LIKE '/kol-haam-assets%')
             ORDER BY id
         `);
         let updated = 0;
@@ -28990,14 +28989,14 @@ app.post('/api/kol-haam/seed-author-sample', async (req, res) => {
         };
 
         const articles = [
-            { title:'החופש הגדול נגמר בפלוס: שבע משפחות בנו לוח קיץ משותף וחסכו 4,300 ₪ לילד', type:'ARTICLE', subtitle:'גיליון אחד משותף, תורנות של הורה אחראי ליום, ו-38 ימי חופש שעברו בלי פאניקה.', cover:'/kol-haam-assets/images/content/cat-1.png', time:8, date:'2026-08-15', scope:'GLOBAL', views:18400, likes:214, comments:10 },
-            { title:'התבנית המלאה של לוח הקיץ — להורדה, לשכפול ולשימוש חופשי', type:'WIKI_GUIDE', subtitle:'שלושה גיליונות, רשימת כללים אחת וטופס הסכמה קצר בין ההורים.', cover:'/kol-haam-assets/images/content/cat-2.png', time:4, date:'2026-08-18', scope:'GLOBAL', views:9200, likes:96, comments:34 },
-            { title:'כמה באמת עולה קיץ אחד למשפחה ישראלית — פירוק ההוצאה', type:'ARTICLE', subtitle:'בדקנו 42 משפחות בארבע רשויות. הפער בין הזולה ליקרה: פי 3.8.', cover:'/kol-haam-assets/images/content/talk-4.png', time:12, date:'2026-08-02', scope:'GLOBAL', views:24100, likes:341, comments:87 },
-            { title:'הגינה שהוקמה על חניון נטוש — ומה קרה כשהעירייה גילתה', type:'SUCCESS_STORY', subtitle:'שמונה חודשים, 26 מתנדבים ובקשה אחת שאושרה ברגע האחרון.', cover:'/kol-haam-assets/images/content/cat-6.png', time:7, date:'2026-07-21', scope:'LOCAL', views:11800, likes:178, comments:52 },
-            { title:'הצהרון נסגר, ואף אחד לא באמת חייב לכם הסבר', type:'ARTICLE', subtitle:'למה ההודעה מגיעה תמיד באוגוסט, ומה אפשר לדרוש בפועל.', cover:'/kol-haam-assets/images/content/hot-5.png', time:5, date:'2026-07-11', scope:'LOCAL', views:15600, likes:402, comments:143 },
-            { title:'איך מארגנים הסעה משותפת לחוגים בלי אפליקציה בתשלום', type:'WIKI_GUIDE', subtitle:'ארבעה מודלים שנוסו בשכונה, כולל זה שנכשל ולמה.', cover:'/kol-haam-assets/images/content/hot-5.png', time:6, date:'2026-06-28', scope:'LOCAL', views:7400, likes:88, comments:29 },
-            { title:'המקלט שהפך למעבדת רובוטיקה — כל השלבים', type:'ARTICLE', subtitle:'18 חודשים, 40 מתנדבים ותרומת ציוד אחת ששינתה את התמונה.', cover:'/kol-haam-assets/images/content/cat-1.png', time:10, date:'2026-06-09', scope:'GLOBAL', views:21300, likes:289, comments:64 },
-            { title:'הספרייה השכונתית שנפתחה בשעתיים', type:'SUCCESS_STORY', subtitle:'קריאה אחת בקבוצת הוואטסאפ, 380 ספרים ומדף אחד שנקנה בכסף אמיתי.', cover:'/kol-haam-assets/images/content/cat-2.png', time:3, date:'2026-05-17', scope:'LOCAL', views:6900, likes:74, comments:21 },
+            { title:'החופש הגדול נגמר בפלוס: שבע משפחות בנו לוח קיץ משותף וחסכו 4,300 ₪ לילד', type:'ARTICLE', subtitle:'גיליון אחד משותף, תורנות של הורה אחראי ליום, ו-38 ימי חופש שעברו בלי פאניקה.', cover:'https://picsum.photos/seed/summer-families/800/500', time:8, date:'2026-08-15', scope:'GLOBAL', views:18400, likes:214, comments:10 },
+            { title:'התבנית המלאה של לוח הקיץ — להורדה, לשכפול ולשימוש חופשי', type:'WIKI_GUIDE', subtitle:'שלושה גיליונות, רשימת כללים אחת וטופס הסכמה קצר בין ההורים.', cover:'https://picsum.photos/seed/planning-table/800/500', time:4, date:'2026-08-18', scope:'GLOBAL', views:9200, likes:96, comments:34 },
+            { title:'כמה באמת עולה קיץ אחד למשפחה ישראלית — פירוק ההוצאה', type:'ARTICLE', subtitle:'בדקנו 42 משפחות בארבע רשויות. הפער בין הזולה ליקרה: פי 3.8.', cover:'https://picsum.photos/seed/budget-family/800/500', time:12, date:'2026-08-02', scope:'GLOBAL', views:24100, likes:341, comments:87 },
+            { title:'הגינה שהוקמה על חניון נטוש — ומה קרה כשהעירייה גילתה', type:'SUCCESS_STORY', subtitle:'שמונה חודשים, 26 מתנדבים ובקשה אחת שאושרה ברגע האחרון.', cover:'https://picsum.photos/seed/community-garden/800/500', time:7, date:'2026-07-21', scope:'LOCAL', views:11800, likes:178, comments:52 },
+            { title:'הצהרון נסגר, ואף אחד לא באמת חייב לכם הסבר', type:'ARTICLE', subtitle:'למה ההודעה מגיעה תמיד באוגוסט, ומה אפשר לדרוש בפועל.', cover:'https://picsum.photos/seed/kids-school/800/500', time:5, date:'2026-07-11', scope:'LOCAL', views:15600, likes:402, comments:143 },
+            { title:'איך מארגנים הסעה משותפת לחוגים בלי אפליקציה בתשלום', type:'WIKI_GUIDE', subtitle:'ארבעה מודלים שנוסו בשכונה, כולל זה שנכשל ולמה.', cover:'https://picsum.photos/seed/carpool-street/800/500', time:6, date:'2026-06-28', scope:'LOCAL', views:7400, likes:88, comments:29 },
+            { title:'המקלט שהפך למעבדת רובוטיקה — כל השלבים', type:'ARTICLE', subtitle:'18 חודשים, 40 מתנדבים ותרומת ציוד אחת ששינתה את התמונה.', cover:'https://picsum.photos/seed/tech-lab-kids/800/500', time:10, date:'2026-06-09', scope:'GLOBAL', views:21300, likes:289, comments:64 },
+            { title:'הספרייה השכונתית שנפתחה בשעתיים', type:'SUCCESS_STORY', subtitle:'קריאה אחת בקבוצת הוואטסאפ, 380 ספרים ומדף אחד שנקנה בכסף אמיתי.', cover:'https://picsum.photos/seed/local-library/800/500', time:3, date:'2026-05-17', scope:'LOCAL', views:6900, likes:74, comments:21 },
         ];
 
         const articleIds = [];
@@ -29072,7 +29071,7 @@ app.post('/api/kol-haam/seed-list-sample', async (req, res) => {
         const now = new Date();
         const ago = days => new Date(now - days * 86400000).toISOString();
 
-        const COVERS = ['/kol-haam-assets/images/content/hot-4.png','/kol-haam-assets/images/content/cat-2.png','/kol-haam-assets/images/content/cat-lab.png','/kol-haam-assets/images/content/talk-4.png','/kol-haam-assets/images/content/cat-1.png','/kol-haam-assets/images/content/hot-5.png','/kol-haam-assets/images/content/hot-2.png','/kol-haam-assets/images/content/cat-6.png','/kol-haam-assets/images/content/talk-1.png','/kol-haam-assets/images/content/talk-5.png'];
+        const COVERS = ['https://picsum.photos/seed/daycare-form/800/500','https://picsum.photos/seed/shadow-net-garden/800/500','https://picsum.photos/seed/school-supply/800/500','https://picsum.photos/seed/summer-cost/800/500','https://picsum.photos/seed/calendar-kids/800/500','https://picsum.photos/seed/nursery-closed/800/500','https://picsum.photos/seed/carpooling/800/500','https://picsum.photos/seed/robotics-shelter/800/500','https://picsum.photos/seed/pta-budget/800/500','https://picsum.photos/seed/community-talk/800/500'];
         const ARTICLES = [
             { d: 0.04,  type:'QA_QUESTION',   scope:'LOCAL',  title:'[דוגמה] רישום לצהרונים נפתח היום ב־20:00 — ומה כדאי להכין מראש',      subtitle:'שלושה מסמכים, מספר קופה אחד ושלב אחד שאפשר לעשות עכשיו כדי לא להיתקע בטופס.',  author:'רותם גל',     views:2100,  likes:44,  comments:18 },
             { d: 0.17,  type:'SUCCESS_STORY',  scope:'LOCAL',  title:'[דוגמה] הגן שהוסיף מסך צל בשבת אחת — התמונות מהחצר',                   subtitle:'שבעה הורים, שני סולמות והיתר שהתקבל יומיים לפני. עלות סופית: 1,850 ₪.',          author:'מיכל אשד',    views:3400,  likes:91,  comments:27 },
@@ -29248,7 +29247,7 @@ app.post('/api/kol-haam/seed-full-demo', async (req, res) => {
             { title: '[טיוטה] רעיונות לפעילות קיץ עם הילדים', subtitle: 'רשמים ומחשבות שעדיין בעיצוב', type: 'ARTICLE' },
             { title: '[טיוטה] שאלה על לוח חופשות תשפ"ו', subtitle: 'מישהו יודע מתי בדיוק מתחיל סמסטר ב?', type: 'QA_QUESTION' },
         ];
-        const draftCovers = ['/kol-haam-assets/images/content/hot-books.png','/kol-haam-assets/images/content/talk-people.png'];
+        const draftCovers = ['https://picsum.photos/seed/draft-summer/800/500','https://picsum.photos/seed/draft-question/800/500'];
         for (let di = 0; di < draftItems.length; di++) {
             const item = draftItems[di];
             const ex = await client.query(`SELECT id,cover_image_url FROM content_items WHERE title=$1 AND is_sample_data=TRUE`, [item.title]);
@@ -29273,7 +29272,7 @@ app.post('/api/kol-haam/seed-full-demo', async (req, res) => {
         if (!exZM.rows[0]) {
             const ins = await client.query(`
                 INSERT INTO content_items(community_id,category_id,author_profile_id,content_type,scope_type,status,zm_approval_status,title,subtitle,content_html,cover_image_url,reading_time_minutes,is_sample_data)
-                VALUES($1,$2,$3,'ARTICLE','LOCAL','PENDING_ZM','PENDING',$4,$5,$6,'/kol-haam-assets/images/content/cat-5.png',4,TRUE) RETURNING id`,
+                VALUES($1,$2,$3,'ARTICLE','LOCAL','PENDING_ZM','PENDING',$4,$5,$6,'https://picsum.photos/seed/zm-queue-plan/800/500',4,TRUE) RETURNING id`,
                 [communityId, catId, authorId, zmTitle, 'הצעה מפורטת לאירועי הקהילה בשנה הקרובה', `<p>תכנית מפורטת עם 12 פעילויות קהילתיות, תקציב מוצע ולוחות זמנים.</p>`]
             );
             await client.query(`INSERT INTO content_engagement_metrics(content_item_id) VALUES($1) ON CONFLICT DO NOTHING`, [ins.rows[0].id]);
@@ -29288,7 +29287,7 @@ app.post('/api/kol-haam/seed-full-demo', async (req, res) => {
         if (!exSA.rows[0]) {
             const ins = await client.query(`
                 INSERT INTO content_items(community_id,category_id,author_profile_id,content_type,scope_type,status,sa_approval_status,title,subtitle,content_html,cover_image_url,reading_time_minutes,is_sample_data,published_at)
-                VALUES($1,$2,$3,'ARTICLE','GLOBAL','PENDING_SA','PENDING',$4,$5,$6,'/kol-haam-assets/images/content/talk-1.png',6,TRUE,NOW()) RETURNING id`,
+                VALUES($1,$2,$3,'ARTICLE','GLOBAL','PENDING_SA','PENDING',$4,$5,$6,'https://picsum.photos/seed/sa-queue-law/800/500',6,TRUE,NOW()) RETURNING id`,
                 [communityId, catId, authorId, saTitle, 'ניתוח מעמיק של תיקון החוק החדש והשלכותיו על משפחות', `<p>מאמר ניתוח מקיף על חוק חינוך חינם ומשמעויותיו.</p>`]
             );
             await client.query(`INSERT INTO content_engagement_metrics(content_item_id) VALUES($1) ON CONFLICT DO NOTHING`, [ins.rows[0].id]);
