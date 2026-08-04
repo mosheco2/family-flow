@@ -27991,23 +27991,29 @@ app.post('/api/kol-haam/seed-approval-queue', async (req, res) => {
         await client.query('BEGIN');
         const log = [];
 
-        // Find a sample community + zone
+        // Find a community with a zone (no is_sample_data on communities table)
         const commR = await client.query(`
-            SELECT c.id, c.zone_id FROM communities c
+            SELECT c.id FROM communities c
             WHERE c.zone_id IS NOT NULL
-            ORDER BY c.is_sample_data DESC NULLS LAST, c.id ASC LIMIT 1
+            ORDER BY c.id ASC LIMIT 1
         `);
         if (!commR.rows[0]) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'אין קהילות עם zone — הרץ seed-demo קודם' }); }
         const { id: communityId } = commR.rows[0];
 
-        // Find an author_profile in that community
+        // Find any author_profile (column is home_community_id, not community_id)
         const apR = await client.query(`
             SELECT ap.id FROM author_profiles ap
-            WHERE ap.community_id=$1
-            ORDER BY ap.is_sample_data DESC NULLS LAST, ap.id ASC LIMIT 1
+            WHERE ap.home_community_id=$1
+            ORDER BY ap.id ASC LIMIT 1
         `, [communityId]);
-        if (!apR.rows[0]) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'אין author_profile בקהילה — הרץ seed-full-demo קודם' }); }
-        const authorId = apR.rows[0].id;
+        if (!apR.rows[0]) {
+            // fallback: any author_profile
+            const apFallback = await client.query(`SELECT id FROM author_profiles ORDER BY id ASC LIMIT 1`);
+            if (!apFallback.rows[0]) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'אין author_profile — הרץ seed-full-demo קודם' }); }
+            var authorId = apFallback.rows[0].id;
+        } else {
+            var authorId = apR.rows[0].id;
+        }
 
         // Find a category
         const catR = await client.query(`SELECT id FROM content_categories ORDER BY id ASC LIMIT 1`);
@@ -29010,11 +29016,11 @@ app.post('/api/kol-haam/authors/:id/follow', async (req, res) => {
 app.post('/api/kol-haam/seed-editor-draft', async (req, res) => {
     if (req.body.secret !== 'SEED_DEMO_2026') return res.status(403).json({ error: 'אסור' });
     try {
-        // מצא author profile ו-community לדוגמה
+        // מצא author profile ו-community לדוגמה (home_community_id, ללא עמודת is_sample_data)
         const apRes = await pool.query(
-            `SELECT ap.id, ap.community_id FROM author_profiles ap WHERE ap.is_sample_data=TRUE LIMIT 1`
+            `SELECT ap.id, ap.home_community_id AS community_id FROM author_profiles ap ORDER BY ap.id ASC LIMIT 1`
         );
-        if (!apRes.rows[0]) return res.status(400).json({ error: 'אין author profile לדוגמה — הרץ קודם seed-author-sample' });
+        if (!apRes.rows[0]) return res.status(400).json({ error: 'אין author profile — הרץ קודם seed-author-sample' });
         const { id: apId, community_id: commId } = apRes.rows[0];
 
         // מצא קטגוריה
