@@ -12436,10 +12436,10 @@ img{max-width:100%;border-radius:8px}h1,h2,h3{font-weight:700}</style></head>
             </div>
             ${item.subtitle ? `<p class="text-sm text-slate-600 mb-3 italic">${safeStr(item.subtitle)}</p>` : ''}
           </div>
-          <iframe sandbox="allow-same-origin"
+          <!-- אל תוסיף allow-scripts. בשילוב עם allow-same-origin זה מבטל את ה-sandbox לחלוטין. אין סניטציה במערכת. -->
+          <iframe sandbox=""
             srcdoc="${sanitizedDoc.replace(/"/g,'&quot;')}"
-            style="width:100%;min-height:300px;max-height:60vh;border:1px solid #e2e8f0;border-radius:12px;overflow:auto"
-            onload="try{this.style.height=Math.min(this.contentDocument.body.scrollHeight+32,window.innerHeight*0.6)+'px'}catch(e){}"
+            style="width:100%;height:70vh;border:1px solid #e2e8f0;border-radius:12px;overflow:auto"
           ></iframe>
           <div class="mt-4 pt-4 border-t border-slate-100 text-xs text-slate-500 flex items-center gap-2">
             <span>✏️ עריכת תוכן מתבצעת ע"י הכותב בעורך שבצד המשפחה</span>
