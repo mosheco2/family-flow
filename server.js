@@ -28965,6 +28965,113 @@ app.post('/api/kol-haam/seed-author-sample', async (req, res) => {
     } catch(e) { console.error('seed-author-sample', e); res.status(500).json({ error: e.message }); }
 });
 
+// POST seed-list-sample — זריעת 10 כתבות לרשימה גנרית (תגית / חיפוש / קטגוריה)
+app.post('/api/kol-haam/seed-list-sample', async (req, res) => {
+    try {
+        const { secret } = req.body;
+        if (secret !== 'SEED_DEMO_2026') return res.status(403).json({ error: 'אסור' });
+
+        // find group + community (NWP701)
+        const grpR = await pool.query(`SELECT id FROM family_groups WHERE group_code='NWP701'`);
+        if (!grpR.rows[0]) return res.status(400).json({ error: 'משפחה NWP701 לא נמצאה — הרץ seed-demo קודם' });
+        const groupId = grpR.rows[0].id;
+
+        const commR = await pool.query(`SELECT community_id FROM family_groups WHERE id=$1`, [groupId]);
+        const communityId = commR.rows[0]?.community_id;
+        if (!communityId) return res.status(400).json({ error: 'community_id לא נמצא' });
+
+        // ensure author profile exists
+        let apR = await pool.query(`SELECT id FROM author_profiles WHERE family_group_id=$1`, [groupId]);
+        if (!apR.rows[0]) {
+            apR = await pool.query(
+                `INSERT INTO author_profiles(family_group_id,home_community_id,badge_level,status)
+                 VALUES($1,$2,'DEFAULT','ACTIVE') RETURNING id`,
+                [groupId, communityId]
+            );
+        }
+        const authorProfileId = apR.rows[0].id;
+
+        // ensure category
+        let catR = await pool.query(
+            `SELECT id FROM content_categories WHERE title='חינוך ומשפחה' AND scope_level='GLOBAL' LIMIT 1`
+        );
+        if (!catR.rows[0]) {
+            catR = await pool.query(
+                `INSERT INTO content_categories(title,scope_level,community_id,is_default)
+                 VALUES('חינוך ומשפחה','GLOBAL',NULL,TRUE) RETURNING id`
+            );
+        }
+        const catId = catR.rows[0].id;
+
+        // ensure tag
+        const tagR = await pool.query(
+            `INSERT INTO content_tags(name) VALUES('חינוך-ומשפחה')
+             ON CONFLICT(name) DO UPDATE SET name=EXCLUDED.name RETURNING id`
+        );
+        const tagId = tagR.rows[0].id;
+
+        // 10 articles from the content bundle
+        const now = new Date();
+        const ago = days => new Date(now - days * 86400000).toISOString();
+
+        const ARTICLES = [
+            { d: 0.04,  type:'QA_QUESTION',   scope:'LOCAL',  title:'[דוגמה] רישום לצהרונים נפתח היום ב־20:00 — ומה כדאי להכין מראש',      subtitle:'שלושה מסמכים, מספר קופה אחד ושלב אחד שאפשר לעשות עכשיו כדי לא להיתקע בטופס.',  author:'רותם גל',     views:2100,  likes:44,  comments:18 },
+            { d: 0.17,  type:'SUCCESS_STORY',  scope:'LOCAL',  title:'[דוגמה] הגן שהוסיף מסך צל בשבת אחת — התמונות מהחצר',                   subtitle:'שבעה הורים, שני סולמות והיתר שהתקבל יומיים לפני. עלות סופית: 1,850 ₪.',          author:'מיכל אשד',    views:3400,  likes:91,  comments:27 },
+            { d: 0.6,   type:'WIKI_GUIDE',     scope:'GLOBAL', title:'[דוגמה] חוזרים ללימודים: רשימת ציוד שלא צריך לקנות מחדש',              subtitle:'עברנו על רשימות של 12 בתי ספר וסימנו מה חוזר על עצמו לשווא.',                    author:'אבי לוינסון', views:5800,  likes:132, comments:46 },
+            { d: 3,     type:'ARTICLE',        scope:'GLOBAL', title:'[דוגמה] כמה באמת עולה קיץ אחד למשפחה ישראלית — פירוק ההוצאה',          subtitle:'בדקנו 42 משפחות בארבע רשויות. הפער בין הזולה ליקרה: פי 3.8.',                    author:'מיכל אשד',    views:24100, likes:341, comments:87 },
+            { d: 5,     type:'ARTICLE',        scope:'GLOBAL', title:'[דוגמה] החופש הגדול נגמר בפלוס: שבע משפחות בנו לוח קיץ משותף',          subtitle:'גיליון אחד משותף, תורנות של הורה אחראי ליום, ו־38 ימי חופש בלי פאניקה.',        author:'מיכל אשד',    views:18400, likes:214, comments:10 },
+            { d: 14,    type:'ARTICLE',        scope:'LOCAL',  title:'[דוגמה] הצהרון נסגר, ואף אחד לא באמת חייב לכם הסבר',                   subtitle:'למה ההודעה מגיעה תמיד באוגוסט, ומה אפשר לדרוש בפועל מהרשות.',                   author:'מיכל אשד',    views:15600, likes:402, comments:143 },
+            { d: 21,    type:'WIKI_GUIDE',     scope:'LOCAL',  title:'[דוגמה] איך מארגנים הסעה משותפת לחוגים בלי אפליקציה בתשלום',            subtitle:'ארבעה מודלים שנוסו בשכונה, כולל זה שנכשל ולמה.',                                  author:'שירן בן־חמו', views:7400,  likes:88,  comments:29 },
+            { d: 48,    type:'SUCCESS_STORY',  scope:'LOCAL',  title:'[דוגמה] המקלט שהפך למעבדת רובוטיקה — כל השלבים',                        subtitle:'18 חודשים, 40 מתנדבים ותרומת ציוד אחת ששינתה את התמונה.',                        author:'נועה בר־אל',  views:21300, likes:289, comments:64 },
+            { d: 96,    type:'ARTICLE',        scope:'GLOBAL', title:'[דוגמה] ועדי הורים בלי תקציב: מה מותר לגבות ומה כבר לא',               subtitle:'החוזר החדש, מה השתנה בפועל, ואיפה רשויות ממשיכות כרגיל.',                       author:'אבי לוינסון', views:13700, likes:256, comments:112 },
+            { d: 210,   type:'ARTICLE',        scope:'GLOBAL', title:'[דוגמה] שנה של תגובות: מה באמת מרגיז הורים בקהילות',                    subtitle:'ניתחנו 9,400 תגובות מ־11 קהילות. שלושה נושאים תופסים 61% מהשיח.',              author:'רותם גל',     views:31200, likes:517, comments:208 },
+        ];
+
+        const ids = [];
+        for (const a of ARTICLES) {
+            // skip if already seeded (same title)
+            const exists = await pool.query(`SELECT id FROM content_items WHERE title=$1 AND is_sample_data=TRUE LIMIT 1`, [a.title]);
+            if (exists.rows[0]) { ids.push(exists.rows[0].id); continue; }
+
+            const pubAt = ago(a.d);
+            const zmSt = 'APPROVED', saSt = a.scope === 'GLOBAL' ? 'APPROVED' : 'NOT_APPLICABLE';
+            const r = await pool.query(`
+                INSERT INTO content_items
+                  (author_profile_id, category_id, community_id, content_type, scope_type, status,
+                   title, subtitle, content_html, reading_time_minutes,
+                   zm_approval_status, sa_approval_status, published_at, is_sample_data)
+                VALUES($1,$2,$3,$4,$5,'PUBLISHED_LOCAL',$6,$7,$8,3,$9,$10,$11,TRUE)
+                RETURNING id`,
+                [authorProfileId, catId, communityId, a.type, a.scope,
+                 a.title, a.subtitle,
+                 `<p>${a.subtitle}</p>`,
+                 zmSt, saSt, pubAt]
+            );
+            const id = r.rows[0].id;
+            ids.push(id);
+
+            // tag
+            await pool.query(
+                `INSERT INTO content_items_tags(content_item_id, tag_id) VALUES($1,$2) ON CONFLICT DO NOTHING`,
+                [id, tagId]
+            );
+
+            // update tag usage count
+            await pool.query(`UPDATE content_tags SET usage_count=usage_count+1 WHERE id=$1`, [tagId]);
+
+            // metrics
+            await pool.query(`
+                INSERT INTO content_engagement_metrics(content_item_id,likes_count,comments_count,views_count)
+                VALUES($1,$2,$3,$4)
+                ON CONFLICT(content_item_id) DO UPDATE SET views_count=$4,likes_count=$2,comments_count=$3`,
+                [id, a.likes, a.comments, a.views]
+            );
+        }
+
+        res.json({ success: true, ids, tag: 'חינוך-ומשפחה', message: `נזרעו ${ids.length} כתבות לרשימה` });
+    } catch(e) { console.error('seed-list-sample', e); res.status(500).json({ error: e.message }); }
+});
+
 // GET following feed
 app.get('/api/kol-haam/my-following-feed', async (req, res) => {
     try {

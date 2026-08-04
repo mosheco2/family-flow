@@ -102,6 +102,7 @@ const KH = {
         else if (view === 'author') KH.loadAuthor(params.id);
         else if (view === 'search') KH.doSearch();
         else if (view === 'tag') KH.loadTagPage(params.tag);
+        else if (view === 'list') KH.loadList(params.mode || 'tag', params.param || '');
         else if (view === 'collections') KH.loadCollections();
         else if (view === 'collection') KH.loadCollection(params.id);
     },
@@ -2038,6 +2039,267 @@ function statusLabel(s) {
     return m[s] || s;
 }
 
+// ══════════════════════════════════════════════════════════════
+// ── Generic List View (tag / search / category) ───────────────
+// ══════════════════════════════════════════════════════════════
+
+const VL_KIND_COLORS = {
+    ARTICLE:       '#16294D',
+    WIKI_GUIDE:    '#1F7A72',
+    SUCCESS_STORY: '#4A6491',
+    QA_QUESTION:   '#8A5A0E',
+};
+const VL_KIND_LABELS = {
+    ARTICLE:       'כתבת עומק',
+    WIKI_GUIDE:    'מדריך',
+    SUCCESS_STORY: 'סיפור קהילה',
+    QA_QUESTION:   'שאלה',
+};
+
+let _vlAllItems = [];   // כל הפריטים שנטענו מה-API
+let _vlFiltered = [];   // אחרי פילטרים
+let _vlTime = 'all', _vlKind = 'all', _vlScope = 'all', _vlSort = 'new';
+let _vlFollowing = false;
+let _vlMode = 'tag';   // 'tag' | 'search' | 'category'
+let _vlParam = '';     // tagName / query / categoryId
+let _vlTotalFromServer = 0;
+
+KH.loadList = async function(mode, param) {
+    _vlMode = mode;
+    _vlParam = param;
+    _vlTime = 'all'; _vlKind = 'all'; _vlScope = 'all'; _vlSort = 'new';
+    _vlFollowing = false;
+
+    // Reset UI controls
+    document.querySelectorAll('.vl-tab').forEach(b => b.classList.toggle('vl-tab-active', b.dataset.time === 'all'));
+    document.querySelectorAll('#vl-kind-chips .vl-chip').forEach(b => b.classList.toggle('vl-chip-active', b.dataset.kind === 'all'));
+    document.querySelectorAll('.vl-scope').forEach(b => b.classList.toggle('vl-chip-active', b.dataset.scope === 'all'));
+    document.querySelectorAll('.vl-sort-btn').forEach(b => b.classList.toggle('vl-sort-active', b.dataset.sort === 'new'));
+    document.getElementById('vl-q').value = (mode === 'search') ? param : '';
+    document.getElementById('vl-follow-btn').classList.remove('following');
+
+    // Breadcrumb / kicker / H1
+    const bc = document.getElementById('vl-breadcrumb');
+    const kicker = document.getElementById('vl-kicker');
+    const h1 = document.getElementById('vl-h1');
+    const desc = document.getElementById('vl-desc');
+    const followBtn = document.getElementById('vl-follow-btn');
+
+    if (mode === 'tag') {
+        bc.innerHTML = `<a href="#" onclick="KH.nav('feed');return false;">בית</a><span class="sep">›</span><span style="color:#B9C6DC;">תגיות</span>`;
+        kicker.textContent = 'תגית';
+        h1.textContent = `#${param}`;
+        desc.textContent = `כל הכתבות המתויגות ב-#${param}`;
+        followBtn.textContent = '+ עקבו אחרי התגית';
+    } else if (mode === 'search') {
+        bc.innerHTML = `<a href="#" onclick="KH.nav('feed');return false;">בית</a><span class="sep">›</span><span style="color:#B9C6DC;">חיפוש</span>`;
+        kicker.textContent = 'תוצאות חיפוש';
+        h1.textContent = `"${param}"`;
+        desc.textContent = `תוצאות חיפוש עבור "${param}"`;
+        followBtn.style.display = 'none';
+    } else {
+        bc.innerHTML = `<a href="#" onclick="KH.nav('feed');return false;">בית</a><span class="sep">›</span><a href="#" onclick="KH.nav('feed');return false;" style="color:#8FD8CF;">מדורים</a><span class="sep">›</span><span style="color:#B9C6DC;">${esc(param)}</span>`;
+        kicker.textContent = 'מדור';
+        h1.textContent = param;
+        desc.textContent = 'כל מה שנכתב בקהילות — מסודר לפי זמן, סוג תוכן והיקף.';
+        followBtn.textContent = '+ עקבו אחרי המדור';
+        followBtn.style.display = '';
+    }
+
+    // Show view
+    STATE.prevView = STATE.view;
+    STATE.view = 'list';
+    showView('view-list');
+
+    // Fetch
+    document.getElementById('vl-list').innerHTML = '<div class="kh-spinner" style="margin:32px auto"></div>';
+    document.getElementById('vl-empty').style.display = 'none';
+    document.getElementById('vl-result-line').textContent = '';
+    document.getElementById('vl-load-more-wrap').style.display = 'none';
+
+    try {
+        let d;
+        if (mode === 'tag') {
+            const p = new URLSearchParams({ page: 1, limit: 100 });
+            if (CTX.communityId) p.set('community_id', CTX.communityId);
+            d = await khFetch(`${API}/tags/${encodeURIComponent(param)}?${p}`);
+            _vlAllItems = d.items || [];
+            _vlTotalFromServer = _vlAllItems.length;
+        } else if (mode === 'search') {
+            const p = new URLSearchParams({ q: param, page: 1, limit: 100 });
+            if (CTX.communityId) p.set('community_id', CTX.communityId);
+            d = await khFetch(`${API}/search?${p}`);
+            _vlAllItems = d.items || [];
+            _vlTotalFromServer = _vlAllItems.length;
+        } else {
+            // category — use feed endpoint
+            const p = new URLSearchParams({ scope: STATE.scope || 'local', page: 1, limit: 100 });
+            if (CTX.communityId) p.set('community_id', CTX.communityId);
+            if (param) p.set('category_id', param);
+            d = await khFetch(`${API}/feed?${p}`);
+            _vlAllItems = d.items || [];
+            _vlTotalFromServer = _vlAllItems.length;
+        }
+    } catch(e) {
+        document.getElementById('vl-list').innerHTML = `<div class="kh-empty">⚠️ שגיאת טעינה: ${esc(e.message)}</div>`;
+        return;
+    }
+
+    vlApplyFilters();
+};
+
+function vlApplyFilters() {
+    const q = (document.getElementById('vl-q')?.value || '').trim().toLowerCase();
+    const now = new Date();
+    const limits = { today: 1, week: 7, month: 31, year: 365, all: 99999 };
+    const maxDays = limits[_vlTime] || 99999;
+
+    let list = _vlAllItems.filter(it => {
+        if (_vlKind !== 'all' && it.content_type !== _vlKind) return false;
+        if (_vlScope !== 'all' && it.scope_type !== _vlScope) return false;
+        if (q && !(it.title || '').toLowerCase().includes(q)) return false;
+        if (maxDays < 99999 && it.published_at) {
+            const days = (now - new Date(it.published_at)) / 86400000;
+            if (days > maxDays) return false;
+        }
+        return true;
+    });
+
+    if (_vlSort === 'views') {
+        list.sort((a,b) => (parseInt(b.views_count)||0) - (parseInt(a.views_count)||0));
+    } else {
+        list.sort((a,b) => new Date(b.published_at) - new Date(a.published_at));
+    }
+
+    _vlFiltered = list;
+
+    const total = _vlTotalFromServer;
+    const rLine = document.getElementById('vl-result-line');
+    rLine.textContent = `${list.length} כתבות${total > list.length ? ` מתוך ${total}` : ''}`;
+
+    const listEl = document.getElementById('vl-list');
+    const emptyEl = document.getElementById('vl-empty');
+
+    if (!list.length) {
+        listEl.innerHTML = '';
+        emptyEl.style.display = '';
+        emptyEl.innerHTML = `<div class="vl-empty-inner">
+            <div class="vl-empty-title">אין כתבות שתואמות את הסינון</div>
+            <div class="vl-empty-sub">נסו טווח זמן רחב יותר או הסירו את סוג התוכן.</div>
+            <button class="vl-reset-btn" onclick="vlReset()">נקה סינון</button>
+        </div>`;
+        return;
+    }
+    emptyEl.style.display = 'none';
+    listEl.innerHTML = list.map(vlCardHtml).join('');
+    document.getElementById('vl-load-more-wrap').style.display = 'none';
+}
+
+function vlCardHtml(it) {
+    const kindColor = VL_KIND_COLORS[it.content_type] || '#16294D';
+    const kindLabel = VL_KIND_LABELS[it.content_type] || 'כתבה';
+    const isGlobal = it.scope_type === 'GLOBAL';
+    const scopeLabel = isGlobal ? 'ארצי' : 'מקומי';
+    const scopeFg = isGlobal ? '#1F7A72' : '#8A5A0E';
+
+    const pub = it.published_at ? new Date(it.published_at) : null;
+    const nowMs = Date.now();
+    const diffMs = pub ? (nowMs - pub.getTime()) : null;
+    const isNew = diffMs !== null && diffMs < 86400000;
+
+    const imgHtml = it.cover_image_url
+        ? `<img src="${esc(it.cover_image_url)}" alt="" loading="lazy">`
+        : `<div class="vl-card-img-ph">📄</div>`;
+
+    const authorName = it.author_name || it.family_name || '';
+    const community = it.community_name || '';
+    const views = fmtNum(it.views_count || 0);
+    const comments = fmtNum(it.comments_count || 0);
+    const likes = fmtNum(it.likes_count || 0);
+    const when = pub ? vlRelDate(pub) : '';
+
+    return `<div class="vl-card" style="border-inline-start-color:${kindColor}" onclick="KH.nav('content',{id:${it.id}})">
+        <div class="vl-card-img">${imgHtml}</div>
+        <div class="vl-card-body">
+            <div class="vl-card-badges">
+                <span class="vl-badge-kind" style="background:${kindColor}">${esc(kindLabel)}</span>
+                <span class="vl-badge-scope" style="color:${scopeFg};border-color:${scopeFg}">${esc(scopeLabel)}</span>
+                ${isNew ? '<span class="vl-badge-new">חדש היום</span>' : ''}
+            </div>
+            <div class="vl-card-title">${esc(it.title)}</div>
+            ${it.subtitle ? `<div class="vl-card-lead">${esc(it.subtitle)}</div>` : ''}
+            <div class="vl-card-foot">
+                ${authorName ? `<span class="vl-card-author">${esc(authorName)}</span><span class="vl-card-sep">|</span>` : ''}
+                ${community ? `<span>${esc(community)}</span><span class="vl-card-sep">|</span>` : ''}
+                <span>${esc(when)}</span>
+                <span class="vl-card-stats">
+                    <span>👁 ${esc(views)}</span>
+                    <span>💬 ${esc(comments)}</span>
+                    <span>👍 ${esc(likes)}</span>
+                </span>
+            </div>
+        </div>
+    </div>`;
+}
+
+function vlRelDate(d) {
+    const diff = Date.now() - d.getTime();
+    const h = Math.floor(diff / 3600000);
+    const days = Math.floor(diff / 86400000);
+    if (h < 1) return 'לפני פחות משעה';
+    if (h < 24) return `לפני ${h} שעות`;
+    if (days === 1) return 'אתמול';
+    if (days < 7) return `לפני ${days} ימים`;
+    if (days < 14) return 'לפני שבוע';
+    if (days < 30) return `לפני ${Math.floor(days/7)} שבועות`;
+    return d.toLocaleDateString('he-IL', { day:'2-digit', month:'2-digit', year:'2-digit' });
+}
+
+function fmtNum(n) {
+    n = parseInt(n) || 0;
+    if (n >= 1000000) return (n/1000000).toFixed(1) + 'M';
+    if (n >= 1000) return (n/1000).toFixed(n >= 10000 ? 0 : 1) + 'K';
+    return String(n);
+}
+
+function vlSetTime(btn, val) {
+    _vlTime = val;
+    document.querySelectorAll('.vl-tab').forEach(b => b.classList.toggle('vl-tab-active', b === btn));
+    vlApplyFilters();
+}
+function vlSetKind(btn, val) {
+    _vlKind = val;
+    document.querySelectorAll('#vl-kind-chips .vl-chip').forEach(b => b.classList.toggle('vl-chip-active', b === btn));
+    vlApplyFilters();
+}
+function vlSetScope(btn, val) {
+    _vlScope = val;
+    document.querySelectorAll('.vl-scope').forEach(b => b.classList.toggle('vl-chip-active', b === btn));
+    vlApplyFilters();
+}
+function vlSetSort(btn, val) {
+    _vlSort = val;
+    document.querySelectorAll('.vl-sort-btn').forEach(b => b.classList.toggle('vl-sort-active', b === btn));
+    vlApplyFilters();
+}
+function vlToggleFollow() {
+    _vlFollowing = !_vlFollowing;
+    const btn = document.getElementById('vl-follow-btn');
+    btn.classList.toggle('following', _vlFollowing);
+    btn.textContent = _vlFollowing
+        ? (_vlMode === 'tag' ? '✓ עוקבים אחרי התגית' : '✓ עוקבים אחרי המדור')
+        : (_vlMode === 'tag' ? '+ עקבו אחרי התגית' : '+ עקבו אחרי המדור');
+}
+function vlReset() {
+    _vlTime = 'all'; _vlKind = 'all'; _vlScope = 'all';
+    document.querySelectorAll('.vl-tab').forEach(b => b.classList.toggle('vl-tab-active', b.dataset.time === 'all'));
+    document.querySelectorAll('#vl-kind-chips .vl-chip').forEach(b => b.classList.toggle('vl-chip-active', b.dataset.kind === 'all'));
+    document.querySelectorAll('.vl-scope').forEach(b => b.classList.toggle('vl-chip-active', b.dataset.scope === 'all'));
+    document.getElementById('vl-q').value = '';
+    vlApplyFilters();
+}
+function vlLoadMore() { /* paginated load — not needed since we fetch all */ }
+
 // ── Init ──────────────────────────────────────────────────────
 async function init() {
     // Community name
@@ -2071,6 +2333,16 @@ async function init() {
         navEl.innerHTML = STATE.categories.map(c =>
             `<a class="kh-nav-link" onclick="KH.setCategory(${c.id},this)">${esc(c.title)}</a>`
         ).join('');
+    }
+
+    // URL-param deep-linking for list view
+    const _initView = _p.get('view');
+    if (_initView === 'tag') {
+        const tag = _p.get('tag') || '';
+        if (tag) { KH.loadList('tag', tag); return; }
+    } else if (_initView === 'search') {
+        const q = _p.get('q') || '';
+        if (q) { KH.loadList('search', q); return; }
     }
 
     // Public collection via slug URL

@@ -537,6 +537,69 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Ro
 .kh-search-wrap{display:none!important;}
 .feed-wrap{font-family:'Heebo',sans-serif;}
 
+/* ══ Generic List View (tag / search / category) ════════════════ */
+/* head */
+.vl-head{background:#16294D;font-family:'Heebo',sans-serif;}
+.vl-head-inner{max-width:1180px;margin:0 auto;padding:clamp(18px,4vw,34px) 16px;}
+.vl-breadcrumb{display:flex;gap:6px;font-size:13px;color:#8FD8CF;flex-wrap:wrap;margin-bottom:10px;}
+.vl-breadcrumb a{color:#8FD8CF;text-decoration:none;}
+.vl-breadcrumb a:hover{text-decoration:underline;}
+.vl-breadcrumb .sep{color:#4A6491;}
+.vl-head-row{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:16px;}
+.vl-head-text{flex:1 1 320px;min-width:0;}
+.vl-kicker{font-size:13px;font-weight:700;color:#E8A33D;letter-spacing:.06em;margin-bottom:6px;}
+.vl-h1{font-size:clamp(26px,5vw,42px);font-weight:900;color:#fff;line-height:1.15;margin-bottom:8px;}
+.vl-desc{font-size:clamp(14px,1.8vw,16px);line-height:1.6;color:#B9C6DC;max-width:60ch;}
+.vl-head-actions{display:flex;flex-wrap:wrap;gap:10px;align-items:center;}
+.vl-search-wrap{display:flex;align-items:center;gap:8px;background:#0F1E3C;border:1px solid #2A3F63;border-radius:999px;padding:0 16px;min-height:44px;}
+.vl-search-icon{color:#8FD8CF;}
+.vl-search-inp{border:none;background:transparent;outline:none;font-size:14px;color:#fff;width:clamp(120px,24vw,220px);font-family:'Heebo',sans-serif;}
+.vl-search-inp::placeholder{color:#4A6491;}
+.vl-follow-btn{background:#1F7A72;color:#fff;border:1px solid #1F7A72;border-radius:999px;padding:0 22px;min-height:44px;font-size:14px;font-weight:700;cursor:pointer;transition:.15s;font-family:'Heebo',sans-serif;}
+.vl-follow-btn.following{background:#E4F0EE;color:#1F7A72;}
+/* filter bar */
+.vl-filters{background:#fff;border-bottom:1px solid #DDDDD4;position:sticky;top:0;z-index:10;}
+.vl-filters-inner{max-width:1180px;margin:0 auto;padding:10px 16px;display:flex;flex-wrap:wrap;gap:10px;align-items:center;}
+.vl-tab-group{display:flex;flex-wrap:wrap;gap:4px;background:#EFEFEC;border:1px solid #DDDDD4;border-radius:999px;padding:3px;}
+.vl-tab{border:none;cursor:pointer;border-radius:999px;padding:7px 14px;font-size:13px;font-weight:700;background:transparent;color:#16294D;min-height:38px;font-family:'Heebo',sans-serif;transition:.15s;}
+.vl-tab.vl-tab-active{background:#16294D;color:#fff;}
+.vl-chip-row{display:flex;flex-wrap:wrap;gap:5px;}
+.vl-chip{border:1px solid #C9C9C0;background:#fff;color:#16294D;border-radius:999px;padding:7px 14px;font-size:13px;cursor:pointer;min-height:38px;font-family:'Heebo',sans-serif;transition:.15s;}
+.vl-chip.vl-chip-active{background:#1F7A72;color:#fff;border-color:#1F7A72;}
+.vl-chip-gold.vl-chip-active{background:#E8A33D;color:#16294D;border-color:#E8A33D;}
+.vl-right-row{margin-inline-start:auto;}
+/* result bar */
+.vl-result-bar{max-width:1180px;margin:0 auto;padding:12px 16px 0;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;}
+.vl-result-line{font-size:14px;color:#6E6E66;}
+.vl-sort-row{display:flex;align-items:center;gap:8px;}
+.vl-sort-btn{border:none;background:none;cursor:pointer;font-size:13px;font-weight:400;color:#1F7A72;padding:6px 0;text-decoration:none;font-family:'Heebo',sans-serif;}
+.vl-sort-btn.vl-sort-active{font-weight:700;color:#16294D;text-decoration:underline;}
+/* cards */
+.vl-list{max-width:1180px;margin:0 auto;padding:12px 16px 0;display:flex;flex-direction:column;gap:10px;}
+.vl-card{display:flex;flex-wrap:wrap;gap:14px;background:#fff;border:1px solid #DDDDD4;border-inline-start:4px solid #16294D;padding:14px;cursor:pointer;transition:.15s;text-decoration:none;color:#111;}
+.vl-card:hover{border-color:#1F7A72;}
+.vl-card-img{flex:0 0 auto;width:clamp(96px,20vw,210px);aspect-ratio:16/10;background:#16294D;overflow:hidden;position:relative;}
+.vl-card-img img{width:100%;height:100%;object-fit:cover;display:block;}
+.vl-card-img-ph{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:2rem;background:#16294D;}
+.vl-card-body{flex:1 1 260px;min-width:0;display:flex;flex-direction:column;gap:6px;}
+.vl-card-badges{display:flex;flex-wrap:wrap;align-items:center;gap:6px;}
+.vl-badge-kind{font-size:11px;font-weight:700;color:#fff;padding:3px 10px;border-radius:3px;}
+.vl-badge-scope{font-size:11px;font-weight:700;border:1px solid;padding:2px 8px;border-radius:3px;}
+.vl-badge-new{font-size:11px;font-weight:700;color:#fff;background:#C0392B;padding:3px 10px;border-radius:3px;}
+.vl-card-title{font-size:clamp(16px,2.1vw,20px);font-weight:700;line-height:1.32;}
+.vl-card-lead{font-size:14px;line-height:1.6;color:#6E6E66;}
+.vl-card-foot{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin-top:auto;padding-top:6px;font-size:13px;color:#8A8A82;}
+.vl-card-author{color:#16294D;font-weight:500;}
+.vl-card-sep{color:#C9C9C0;}
+.vl-card-stats{margin-inline-start:auto;display:flex;gap:10px;}
+/* empty / load-more */
+.vl-empty{max-width:1180px;margin:0 auto;padding:10px 16px;}
+.vl-empty-inner{background:#fff;border:1px dashed #C9C9C0;padding:40px 20px;text-align:center;}
+.vl-empty-title{font-size:18px;font-weight:700;color:#16294D;}
+.vl-empty-sub{font-size:15px;color:#6E6E66;margin-top:8px;}
+.vl-reset-btn{margin-top:14px;background:#1F7A72;color:#fff;border:none;border-radius:999px;padding:10px 26px;font-size:15px;font-weight:700;cursor:pointer;min-height:44px;font-family:'Heebo',sans-serif;}
+.vl-load-more-btn{background:#fff;border:1px solid #C9C9C0;color:#16294D;border-radius:999px;padding:10px 32px;font-size:15px;font-weight:700;cursor:pointer;min-height:46px;font-family:'Heebo',sans-serif;}
+
 /* ══ Author Profile (in-iframe) ══════════════════════════════════ */
 .ap-topbar{background:#fff;border-bottom:1px solid #DDDDD4;padding:0 16px;height:48px;display:flex;align-items:center;position:sticky;top:0;z-index:10;font-family:'Heebo',sans-serif;}
 .ap-back-btn{background:none;border:none;cursor:pointer;color:#8A8A82;font-size:14px;font-weight:500;display:flex;align-items:center;gap:6px;padding:6px 8px;border-radius:6px;}
@@ -817,6 +880,79 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Ro
         <button class="kh-btn kh-btn-outline kh-btn-sm" onclick="KH.nav('collections')">← אוספים</button>
       </div>
       <div id="collection-view-content"><div class="kh-spinner"></div></div>
+    </div>
+
+    <!-- Generic list view (tag / search / category) -->
+    <div id="view-list" class="view" style="overflow-y:auto;background:#EFEFEC;min-height:100%;">
+      <!-- PAGE HEAD (navy) -->
+      <div class="vl-head">
+        <div class="vl-head-inner">
+          <div class="vl-breadcrumb" id="vl-breadcrumb"></div>
+          <div class="vl-head-row">
+            <div class="vl-head-text">
+              <div class="vl-kicker" id="vl-kicker"></div>
+              <h1 class="vl-h1" id="vl-h1"></h1>
+              <p class="vl-desc" id="vl-desc">כל מה שנכתב בקהילות על ילדים, בתי ספר, חופשים והוצאות הבית — מסודר לפי זמן, סוג תוכן והיקף.</p>
+            </div>
+            <div class="vl-head-actions">
+              <div class="vl-search-wrap">
+                <span class="vl-search-icon">🔍</span>
+                <input id="vl-q" class="vl-search-inp" placeholder="סינון לפי מילה בכותרת" oninput="vlApplyFilters()">
+              </div>
+              <button id="vl-follow-btn" class="vl-follow-btn" onclick="vlToggleFollow()">+ עקבו אחרי</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- STICKY FILTER BAR -->
+      <div class="vl-filters" id="vl-filters">
+        <div class="vl-filters-inner">
+          <!-- time tabs -->
+          <div class="vl-tab-group" id="vl-time-tabs">
+            <button class="vl-tab" data-time="today" onclick="vlSetTime(this,'today')">היום</button>
+            <button class="vl-tab" data-time="week"  onclick="vlSetTime(this,'week')">השבוע</button>
+            <button class="vl-tab" data-time="month" onclick="vlSetTime(this,'month')">החודש</button>
+            <button class="vl-tab" data-time="year"  onclick="vlSetTime(this,'year')">השנה</button>
+            <button class="vl-tab vl-tab-active" data-time="all" onclick="vlSetTime(this,'all')">הכל</button>
+          </div>
+          <!-- kind chips -->
+          <div class="vl-chip-row" id="vl-kind-chips">
+            <button class="vl-chip vl-chip-active" data-kind="all" onclick="vlSetKind(this,'all')">כל הסוגים</button>
+            <button class="vl-chip" data-kind="ARTICLE"       onclick="vlSetKind(this,'ARTICLE')">כתבת עומק</button>
+            <button class="vl-chip" data-kind="WIKI_GUIDE"    onclick="vlSetKind(this,'WIKI_GUIDE')">מדריך</button>
+            <button class="vl-chip" data-kind="SUCCESS_STORY" onclick="vlSetKind(this,'SUCCESS_STORY')">סיפור קהילה</button>
+            <button class="vl-chip" data-kind="QA_QUESTION"   onclick="vlSetKind(this,'QA_QUESTION')">שאלה</button>
+          </div>
+          <!-- scope + sort -->
+          <div class="vl-chip-row vl-right-row">
+            <button class="vl-chip vl-scope vl-chip-gold vl-chip-active" data-scope="all"    onclick="vlSetScope(this,'all')">הכל</button>
+            <button class="vl-chip vl-scope vl-chip-gold" data-scope="LOCAL"   onclick="vlSetScope(this,'LOCAL')">מקומי</button>
+            <button class="vl-chip vl-scope vl-chip-gold" data-scope="GLOBAL"  onclick="vlSetScope(this,'GLOBAL')">ארצי</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- RESULT BAR -->
+      <div class="vl-result-bar">
+        <div class="vl-result-line" id="vl-result-line"></div>
+        <div class="vl-sort-row">
+          <span style="color:#8A8A82;font-size:13px;">מיון:</span>
+          <button class="vl-sort-btn vl-sort-active" data-sort="new"   onclick="vlSetSort(this,'new')">הכי חדשות</button>
+          <button class="vl-sort-btn"                data-sort="views" onclick="vlSetSort(this,'views')">הכי נצפות</button>
+        </div>
+      </div>
+
+      <!-- CARDS -->
+      <div id="vl-list" class="vl-list"></div>
+      <div id="vl-empty" class="vl-empty" style="display:none">
+        <div class="vl-empty-title">אין כתבות שתואמות את הסינון</div>
+        <div class="vl-empty-sub">נסו טווח זמן רחב יותר או הסירו את סוג התוכן.</div>
+        <button class="vl-reset-btn" onclick="vlReset()">נקה סינון</button>
+      </div>
+      <div id="vl-load-more-wrap" style="display:none;padding:10px 16px 24px;text-align:center;">
+        <button class="vl-load-more-btn" onclick="vlLoadMore()">טען עוד כתבות</button>
+      </div>
     </div>
 
     <!-- Author profile view -->
