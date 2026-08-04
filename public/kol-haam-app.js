@@ -414,7 +414,7 @@ const KH = {
         const seriesAside = (it.series_name && allChapters.length) ? `
         <div class="cv-series-box">
             <div class="cv-series-box-title">עוד בסדרה · ${esc(it.series_name)}</div>
-            ${allChapters.map(c => `<div class="cv-series-link" onclick="KH.nav('content',{id:${c.id}})"><div class="cv-series-thumb"></div><div><div style="font-size:11px;color:#8A8A82;margin-bottom:2px">פרק ${c.chapter_number}</div><span>${esc(c.title)}</span></div></div>`).join('')}
+            ${allChapters.map(c => `<div class="cv-series-link" onclick="KH.nav('content',{id:${c.id}})"><div class="cv-series-thumb">${c.cover_image_url ? `<img src="${esc(c.cover_image_url)}" style="width:100%;height:100%;object-fit:cover;display:block;border-radius:4px" onerror="this.style.display='none'">` : ''}</div><div><div style="font-size:11px;color:#8A8A82;margin-bottom:2px">פרק ${c.chapter_number}</div><span>${esc(c.title)}</span></div></div>`).join('')}
         </div>` : '';
 
         const figCaption = `<figcaption class="cv-hero-figcaption">צילום: ${it.cover_photo_credit ? esc(it.cover_photo_credit) : `קהילת ${esc(it.community_name||'')}`}</figcaption>`;

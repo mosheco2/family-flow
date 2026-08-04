@@ -26246,7 +26246,7 @@ app.get('/api/kol-haam/feed', async (req, res) => {
         const r = await pool.query(`
             SELECT ci.id, ci.title, ci.subtitle, ci.cover_image_url, ci.content_type, ci.scope_type,
                    ci.status, ci.reading_time_minutes, ci.views_count, ci.published_at, ci.is_pinned_local, ci.is_pinned_global,
-                   cc.title as category_title, co.name as community_name,
+                   ci.category_id, cc.title as category_title, co.name as community_name,
                    fg.name as author_name, ap.badge_level, ap.is_revoked, ci.author_profile_id,
                    EXISTS(SELECT 1 FROM editor_picks ep WHERE ep.content_item_id=ci.id AND (ep.pinned_until IS NULL OR ep.pinned_until>=CURRENT_DATE)) as is_editor_pick,
                    COALESCE(cem.likes_count,0) as likes_count, COALESCE(cem.comments_count,0) as comments_count
@@ -28962,26 +28962,31 @@ app.post('/api/kol-haam/seed-author-sample', async (req, res) => {
             `, [apId, atIds[key], earnedDates[key]]);
         }
 
-        // find or create content category
-        let catR = await pool.query(`SELECT id FROM content_categories WHERE scope_level='GLOBAL' LIMIT 1`);
-        let catId = catR.rows[0]?.id;
-        if (!catId) {
+        // find or create content categories — get up to 6 so articles spread across "לפי מדורים"
+        let catsR = await pool.query(`SELECT id FROM content_categories WHERE scope_level IN ('GLOBAL','LOCAL') ORDER BY id LIMIT 6`);
+        let catIds = catsR.rows.map(r => r.id);
+        if (!catIds.length) {
             const nc = await pool.query(`INSERT INTO content_categories (title,scope_level,is_default) VALUES ('כללי','GLOBAL',TRUE) RETURNING id`);
-            catId = nc.rows[0].id;
+            catIds = [nc.rows[0].id];
+        }
+        let catId = catIds[0]; // fallback for helpers that use catId directly
+        const catForIndex = (i) => catIds[i % catIds.length]; // rotate through categories
         }
 
-        // helper: upsert article — always updates cover_image_url so re-seeding fixes broken paths
+        // helper: upsert article — always updates cover_image_url and distributes across categories
+        let _artIdx = 0;
         const upsertArticle = async (title, type, subtitle, coverUrl, readingTime, publishedAt, scopeType) => {
+            const thisCatId = catForIndex(_artIdx++);
             const ex = await pool.query(`SELECT id FROM content_items WHERE title=$1 AND author_profile_id=$2 AND is_sample_data=TRUE`, [title, apId]);
             if (ex.rows[0]) {
-                await pool.query(`UPDATE content_items SET cover_image_url=$1 WHERE id=$2`, [coverUrl, ex.rows[0].id]);
+                await pool.query(`UPDATE content_items SET cover_image_url=$1, category_id=$2 WHERE id=$3`, [coverUrl, thisCatId, ex.rows[0].id]);
                 return ex.rows[0].id;
             }
             const r = await pool.query(`
                 INSERT INTO content_items (author_profile_id, category_id, community_id, content_type, scope_type, status, title, subtitle, content_html, cover_image_url, reading_time_minutes, is_sample_data, published_at)
                 VALUES ($1,$2,$3,$4,$5,'PUBLISHED_LOCAL',$6,$7,'<p>[תוכן לדוגמה]</p>',$8,$9,TRUE,$10::timestamptz)
                 RETURNING id
-            `, [apId, catId, commId, type, scopeType, title, subtitle, coverUrl, readingTime, publishedAt]);
+            `, [apId, thisCatId, commId, type, scopeType, title, subtitle, coverUrl, readingTime, publishedAt]);
             return r.rows[0].id;
         };
 
