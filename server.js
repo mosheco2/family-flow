@@ -28971,7 +28971,6 @@ app.post('/api/kol-haam/seed-author-sample', async (req, res) => {
         }
         let catId = catIds[0]; // fallback for helpers that use catId directly
         const catForIndex = (i) => catIds[i % catIds.length]; // rotate through categories
-        }
 
         // helper: upsert article — always updates cover_image_url and distributes across categories
         let _artIdx = 0;
