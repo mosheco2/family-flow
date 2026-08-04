@@ -28825,6 +28825,41 @@ app.post('/api/kol-haam/authors/:id/follow', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// POST fix-covers — מעדכן cover_image_url לכל כתבות הדוגמה שחסרות תמונה
+app.post('/api/kol-haam/fix-covers', async (req, res) => {
+    if (req.body.secret !== 'SEED_DEMO_2026') return res.status(403).json({ error: 'אסור' });
+    const COVERS = [
+        '/kol-haam-assets/images/content/cat-1.png',
+        '/kol-haam-assets/images/content/cat-2.png',
+        '/kol-haam-assets/images/content/talk-4.png',
+        '/kol-haam-assets/images/content/cat-6.png',
+        '/kol-haam-assets/images/content/hot-5.png',
+        '/kol-haam-assets/images/content/hot-2.png',
+        '/kol-haam-assets/images/content/cat-5.png',
+        '/kol-haam-assets/images/content/talk-1.png',
+        '/kol-haam-assets/images/content/cat-lab.png',
+        '/kol-haam-assets/images/content/hot-4.png',
+        '/kol-haam-assets/images/content/hot-books.png',
+        '/kol-haam-assets/images/content/talk-5.png',
+    ];
+    try {
+        // שלב 1: הבא את כל כתבות הדוגמה ללא cover או עם נתיב שבור
+        const rows = await pool.query(`
+            SELECT id FROM content_items
+            WHERE is_sample_data=TRUE
+              AND (cover_image_url IS NULL OR cover_image_url NOT LIKE '/kol-haam-assets%')
+            ORDER BY id
+        `);
+        let updated = 0;
+        for (let i = 0; i < rows.rows.length; i++) {
+            const cover = COVERS[i % COVERS.length];
+            await pool.query(`UPDATE content_items SET cover_image_url=$1 WHERE id=$2`, [cover, rows.rows[i].id]);
+            updated++;
+        }
+        res.json({ success: true, updated, message: `עודכנו ${updated} כתבות` });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // POST seed מיכל אשד author sample
 app.post('/api/kol-haam/seed-author-sample', async (req, res) => {
     try {

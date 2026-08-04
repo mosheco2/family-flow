@@ -12000,6 +12000,10 @@ async function loadSAKolHaamQueue() {
                   class="bg-white/20 hover:bg-white/30 text-white text-xs font-bold px-4 py-2 rounded-xl border border-white/30 transition whitespace-nowrap">
                   🗂️ סיד מלא — כל ה-Views
                 </button>
+                <button onclick="saKHFixCovers()" id="sa-kh-fix-covers-btn"
+                  class="bg-yellow-500/80 hover:bg-yellow-400 text-black text-xs font-bold px-4 py-2 rounded-xl border border-yellow-300 transition whitespace-nowrap">
+                  🖼️ תקן תמונות
+                </button>
               </div>
             </div>
             <!-- תור אישור -->
@@ -12122,6 +12126,20 @@ async function saKHSeedList() {
         }
     } catch(e) { showToast('error', 'שגיאת תקשורת: ' + e.message); }
     finally { if (btn) { btn.disabled = false; btn.textContent = '📋 רשימת כתבות — 10 דוגמאות'; } }
+}
+
+async function saKHFixCovers() {
+    const btn = document.getElementById('sa-kh-fix-covers-btn');
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ מתקן...'; }
+    try {
+        const d = await fetch('/api/kol-haam/fix-covers', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ secret: 'SEED_DEMO_2026' })
+        }).then(r => r.json());
+        if (d.success) showToast('success', d.message || 'תמונות תוקנו!');
+        else showToast('error', d.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת תקשורת: ' + e.message); }
+    finally { if (btn) { btn.disabled = false; btn.textContent = '🖼️ תקן תמונות'; } }
 }
 
 async function saKHSeedFullDemo() {
