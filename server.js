@@ -29239,7 +29239,7 @@ app.post('/api/kol-haam/seed-full-demo', async (req, res) => {
             if (!exRep.rows.length) {
                 await client.query(
                     `INSERT INTO content_reports(content_item_id,reported_by_user_id,reason,notes) VALUES($1,$2,$3,$4)`,
-                    [pubIds[0], userId, 'INAPPROPRIATE', 'דוגמה לדיווח — תוכן שנראה לא מתאים לגיל הילדים']
+                    [pubIds[0], userId, 'OFFENSIVE', 'דוגמה לדיווח — תוכן שנראה לא מתאים לגיל הילדים']
                 );
                 await client.query(`UPDATE content_items SET report_count=COALESCE(report_count,0)+1 WHERE id=$1`, [pubIds[0]]);
                 reportCount++;
