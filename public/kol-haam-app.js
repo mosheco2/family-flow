@@ -62,6 +62,13 @@ function confirm(title, msg, okLabel = 'אישור', danger = false) {
 // ── Format helpers ────────────────────────────────────────────
 const TYPE_LABELS = { ARTICLE: 'כתבה', QA_QUESTION: 'שאלה', SUCCESS_STORY: 'סיפור הצלחה', WIKI_GUIDE: 'מדריך' };
 const TYPE_ICONS  = { ARTICLE: '📰', QA_QUESTION: '❓', SUCCESS_STORY: '🏆', WIKI_GUIDE: '📖' };
+// מחזיר HTML של תמונה עם fallback לאמוג'י כשהתמונה נשברת
+function khCoverImg(url, icon, cls, style) {
+    const ph = `<div class="${cls||''}" style="${style||'width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:2rem;background:var(--primary-light)'}">${icon||'📰'}</div>`;
+    if (!url) return ph;
+    const esc64 = ph.replace(/"/g,"'").replace(/</g,'\\x3C').replace(/>/g,'\\x3E');
+    return `<img src="${url}" alt="" class="${cls||''}" style="${style||'width:100%;height:100%;object-fit:cover;display:block'}" onerror="this.outerHTML='${esc64}'">`;
+}
 function fmtDate(d) {
     if (!d) return '';
     return new Date(d).toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', year: '2-digit' });
@@ -213,7 +220,7 @@ const KH = {
     renderFeedHero(it) {
         const editorBadge = it.is_editor_pick ? `<span class="feed-hero-editor-badge">⭐ בחירת העורך</span>` : '';
         const imgEl = it.cover_image_url
-            ? `<img src="${it.cover_image_url}" alt="" style="width:100%;height:100%;object-fit:cover;display:block;">`
+            ? khCoverImg(it.cover_image_url, TYPE_ICONS[it.content_type]||'📰', '', 'width:100%;height:100%;object-fit:cover;display:block')
             : `<div class="feed-hero-img-placeholder">${TYPE_ICONS[it.content_type]||'📰'}</div>`;
         const communityName = it.community_name ? esc(it.community_name) : '';
         return `<div class="feed-hero" onclick="KH.nav('content',{id:${it.id}})">
@@ -238,7 +245,7 @@ const KH = {
     renderFeedStrip(title, items, statFn) {
         const cards = items.map(it => {
             const imgEl = it.cover_image_url
-                ? `<img src="${it.cover_image_url}" alt="" style="width:100%;height:100%;object-fit:cover;display:block;">`
+                ? khCoverImg(it.cover_image_url, TYPE_ICONS[it.content_type]||'📄', '', 'width:100%;height:100%;object-fit:cover;display:block')
                 : `<div class="feed-strip-card-img-placeholder">${TYPE_ICONS[it.content_type]||'📄'}</div>`;
             const editorBadge = it.is_editor_pick ? `<span class="feed-strip-card-editor">⭐ בחירת העורך</span>` : '';
             return `<div class="feed-strip-card" onclick="KH.nav('content',{id:${it.id}})">
@@ -270,7 +277,7 @@ const KH = {
             const lead = catItems[0];
             const sub = catItems.slice(1, 4);
             const imgEl = lead?.cover_image_url
-                ? `<img src="${lead.cover_image_url}" alt="" style="width:100%;height:100%;object-fit:cover;display:block;">`
+                ? khCoverImg(lead.cover_image_url, '📁', '', 'width:100%;height:100%;object-fit:cover;display:block')
                 : `<div class="feed-catblock-img-placeholder">📁</div>`;
             const editorBadge = lead?.is_editor_pick ? `<span class="feed-catblock-editor-badge">⭐ בחירת העורך</span>` : '';
             const leadHtml = lead ? `<div class="feed-catblock-lead" onclick="KH.nav('content',{id:${lead.id}})">
@@ -334,7 +341,7 @@ const KH = {
 
     renderFeedCard(it) {
         const img = it.cover_image_url
-            ? `<img class="feed-card-img" src="${it.cover_image_url}" alt="" loading="lazy">`
+            ? khCoverImg(it.cover_image_url, TYPE_ICONS[it.content_type]||'📄', 'feed-card-img', '')
             : `<div class="feed-card-img">${TYPE_ICONS[it.content_type] || '📄'}</div>`;
         const pin = it.is_pinned_global ? '<span class="pin-badge">📌 מוצמד</span>' : it.is_pinned_local ? '<span class="pin-badge">📌</span>' : '';
         const engagement = `<span>👍 ${it.likes_count||0}</span><span>💬 ${it.comments_count||0}</span>`;
@@ -1612,7 +1619,7 @@ KH.loadEditorPicksStrip = async function(container) {
         <div class="kh-strip-scroll">
             ${picks.map(p => `
                 <div class="kh-strip-card" onclick="KH.nav('content',{id:${p.id}})">
-                    ${p.cover_image_url ? `<img src="${esc(p.cover_image_url)}" class="kh-strip-img" alt="">` : '<div class="kh-strip-img" style="background:var(--primary-light);display:flex;align-items:center;justify-content:center;font-size:1.5rem">📰</div>'}
+                    ${p.cover_image_url ? khCoverImg(esc(p.cover_image_url), '📰', 'kh-strip-img', '') : '<div class="kh-strip-img" style="background:var(--primary-light);display:flex;align-items:center;justify-content:center;font-size:1.5rem">📰</div>'}
                     <div class="kh-strip-card-title">${esc(p.title)}</div>
                     <div style="font-size:.65rem;color:var(--muted)">${esc(p.author_name||'')}</div>
                 </div>`).join('')}
@@ -2208,7 +2215,7 @@ function vlCardHtml(it) {
     const isNew = diffMs !== null && diffMs < 86400000;
 
     const imgHtml = it.cover_image_url
-        ? `<img src="${esc(it.cover_image_url)}" alt="" loading="lazy">`
+        ? khCoverImg(esc(it.cover_image_url), TYPE_ICONS[it.content_type]||'📄', 'vl-card-img', 'width:100%;height:100%;object-fit:cover;display:block')
         : `<div class="vl-card-img-ph">📄</div>`;
 
     const authorName = it.author_name || it.family_name || '';
