@@ -27937,6 +27937,117 @@ app.get('/api/kol-haam/sa/categories', verifySA, async (req, res) => {
     } catch(e) { res.json({ success: false, error: e.message }); }
 });
 
+// POST /api/kol-haam/seed-approval-queue — seed 5 queue records (3 PENDING_ZM + 2 PENDING_SA)
+app.post('/api/kol-haam/seed-approval-queue', async (req, res) => {
+    if (req.body.secret !== 'SEED_DEMO_2026') return res.status(403).json({ error: 'אסור' });
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+        const log = [];
+
+        // Find a sample community + zone
+        const commR = await client.query(`
+            SELECT c.id, c.zone_id FROM communities c
+            WHERE c.zone_id IS NOT NULL
+            ORDER BY c.is_sample_data DESC NULLS LAST, c.id ASC LIMIT 1
+        `);
+        if (!commR.rows[0]) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'אין קהילות עם zone — הרץ seed-demo קודם' }); }
+        const { id: communityId } = commR.rows[0];
+
+        // Find an author_profile in that community
+        const apR = await client.query(`
+            SELECT ap.id FROM author_profiles ap
+            WHERE ap.community_id=$1
+            ORDER BY ap.is_sample_data DESC NULLS LAST, ap.id ASC LIMIT 1
+        `, [communityId]);
+        if (!apR.rows[0]) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'אין author_profile בקהילה — הרץ seed-full-demo קודם' }); }
+        const authorId = apR.rows[0].id;
+
+        // Find a category
+        const catR = await client.query(`SELECT id FROM content_categories ORDER BY id ASC LIMIT 1`);
+        if (!catR.rows[0]) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'אין קטגוריות' }); }
+        const catId = catR.rows[0].id;
+
+        const QUEUE_ITEMS = [
+            {
+                title: '[אישור ZM] הקמנו ספרייה שיתופית ברחוב — מה שלמדנו בחצי שנה',
+                subtitle: 'חצי שנה של ניסוי שהפך לתשתית קהילתית',
+                type: 'ARTICLE', scope: 'LOCAL',
+                status: 'PENDING_ZM', zm_status: 'PENDING', sa_status: null,
+                cover: 'https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?w=800&h=500&fit=crop&auto=format&q=80',
+                flag: null
+            },
+            {
+                title: '[אישור ZM] מה עושים כשהמעלית בבניין תקועה שבוע?',
+                subtitle: 'שבוע ללא מעלית — שאלה לקהילה',
+                type: 'QA_QUESTION', scope: 'LOCAL',
+                status: 'PENDING_ZM', zm_status: 'PENDING', sa_status: null,
+                cover: 'https://images.unsplash.com/photo-1504307651254-35680f356dfd?w=800&h=500&fit=crop&auto=format&q=80',
+                flag: 'כותב חדש — נדרשת קריאה מלאה'
+            },
+            {
+                title: '[אישור ZM] לוח מקררים: איך חילקנו קניות בין ארבע משפחות',
+                subtitle: 'מדריך מעשי לחלוקת קניות משותפת',
+                type: 'WIKI_GUIDE', scope: 'LOCAL',
+                status: 'PENDING_ZM', zm_status: 'PENDING', sa_status: null,
+                cover: 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=800&h=500&fit=crop&auto=format&q=80',
+                flag: null
+            },
+            {
+                title: '[אישור SA] חסכנו 1,900 ₪ על מים — הסיפור המלא',
+                subtitle: 'איך הפחתנו את צריכת המים ב-40% בשלושה שלבים',
+                type: 'SUCCESS_STORY', scope: 'GLOBAL',
+                status: 'PENDING_SA', zm_status: 'APPROVED', sa_status: 'PENDING',
+                cover: 'https://images.unsplash.com/photo-1559825481-12a05cc00344?w=800&h=500&fit=crop&auto=format&q=80',
+                flag: 'מכיל מספרים — נדרש אימות'
+            },
+            {
+                title: '[אישור SA] מדריך קיץ לחופש הגדול: 14 יום בלי לצאת מהעיר',
+                subtitle: 'תכנית פעילויות יומית לכל הגילאים — ללא עלויות גבוהות',
+                type: 'WIKI_GUIDE', scope: 'GLOBAL',
+                status: 'PENDING_SA', zm_status: 'APPROVED', sa_status: 'PENDING',
+                cover: 'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=800&h=500&fit=crop&auto=format&q=80',
+                flag: null
+            }
+        ];
+
+        let created = 0;
+        for (const item of QUEUE_ITEMS) {
+            const ex = await client.query(`SELECT id FROM content_items WHERE title=$1 AND is_sample_data=TRUE`, [item.title]);
+            if (ex.rows[0]) { log.push(`קיים: ${item.title.slice(0,30)}`); continue; }
+            const ins = await client.query(`
+                INSERT INTO content_items(
+                    community_id, category_id, author_profile_id,
+                    content_type, scope_type, status,
+                    zm_approval_status, sa_approval_status,
+                    title, subtitle, content_html, cover_image_url,
+                    quick_summary_20s, reading_time_minutes, is_sample_data, published_at
+                ) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,4,TRUE,
+                    CASE WHEN $5='GLOBAL' THEN NOW() ELSE NULL END
+                ) RETURNING id`,
+                [
+                    communityId, catId, authorId,
+                    item.type, item.scope, item.status,
+                    item.zm_status, item.sa_status,
+                    item.title, item.subtitle,
+                    `<p>${item.subtitle}</p>`,
+                    item.cover,
+                    item.flag
+                ]
+            );
+            await client.query(`INSERT INTO content_engagement_metrics(content_item_id) VALUES($1) ON CONFLICT DO NOTHING`, [ins.rows[0].id]);
+            created++;
+            log.push(`נוצר (${item.status}): ${item.title.slice(0,35)}`);
+        }
+
+        await client.query('COMMIT');
+        res.json({ success: true, created, log });
+    } catch(e) {
+        await client.query('ROLLBACK');
+        res.status(500).json({ error: e.message });
+    } finally { client.release(); }
+});
+
 // GET /api/kol-haam/sa/delete-requests — alias
 app.get('/api/kol-haam/sa/delete-requests', verifySA, async (req, res) => {
     try {

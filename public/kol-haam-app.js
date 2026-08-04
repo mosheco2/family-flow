@@ -1194,8 +1194,7 @@ const KH = {
 
         const d = await khFetch(`${API}/zm/pending`);
         const items = d.items || [];
-        if (!items.length) { el.innerHTML = '<div class="empty-state"><div class="ei">🎉</div><p>אין כתבות ממתינות לאישור</p></div>'; return; }
-        el.innerHTML = items.map(it => KH.renderQueueCard(it, 'zm')).join('');
+        el.innerHTML = KH.renderQueueTable(items, 'zm');
     },
 
     async loadLocalCats() {
@@ -1228,35 +1227,75 @@ const KH = {
         else toast(r.error || 'שגיאה', 'error');
     },
 
-    renderQueueCard(it, role) {
-        const img = it.cover_image_url
-            ? `<img class="queue-card-img" src="${it.cover_image_url}" alt="" style="width:56px;height:50px;object-fit:cover;border-radius:.4rem">`
-            : `<div class="queue-card-img">${TYPE_ICONS[it.content_type]||'📄'}</div>`;
-        const scopeTag = it.scope_type === 'GLOBAL' ? '<span class="status-badge" style="background:#ede9fe;color:#5b21b6">🌍 בקשה ארצית</span>' : '';
-        return `<div class="queue-card" id="qcard-${it.id}">
-            <div class="queue-card-header">
-                ${img}
-                <div style="flex:1">
-                    <div class="queue-card-title">${esc(it.title)}</div>
-                    <div class="queue-card-meta">✍️ ${esc(it.author_name)} · 🏘️ ${esc(it.community_name)} · ${fmtDate(it.created_at)}</div>
-                    <div style="display:flex;gap:.3rem;margin-top:.25rem">
-                        <span class="type-badge type-${it.content_type}">${TYPE_LABELS[it.content_type]}</span>
-                        ${scopeTag}
+    renderQueueTable(items, role) {
+        if (!items.length) {
+            const emptyIcon = role === 'sa' ? '🌍' : '🎉';
+            const emptyMsg = role === 'sa' ? 'אין כתבות ממתינות לאישור ארצי' : 'אין כתבות ממתינות לאישור';
+            return `<div class="empty-state"><div class="ei">${emptyIcon}</div><p>${emptyMsg}</p></div>`;
+        }
+        const rows = items.map(it => {
+            const typeLabel = TYPE_LABELS[it.content_type] || it.content_type;
+            const isGlobal = it.scope_type === 'GLOBAL';
+            const scopeLabel = isGlobal ? 'ממתין ארצי' : 'ממתין מקומי';
+            const scopeFg = isGlobal ? '#16294D' : '#1F7A72';
+            const scopeBorder = isGlobal ? '#C7D0E0' : '#C9E3DF';
+            const scopeBg = isGlobal ? '#EDF1F8' : '#EAF4F2';
+            const thumb = it.cover_image_url
+                ? `<img src="${esc(it.cover_image_url)}" alt="" style="width:100%;height:100%;object-fit:cover;display:block;">`
+                : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:1.6rem;">${TYPE_ICONS[it.content_type]||'📄'}</div>`;
+            const now = Date.now();
+            const diffH = Math.floor((now - new Date(it.created_at).getTime()) / 3600000);
+            const ageStr = diffH < 24 ? `לפני ${diffH} שעות` : `לפני ${Math.floor(diffH/24)} ימים`;
+            const ageOld = diffH >= 48;
+            const flag = it.summary || null;
+            return `
+            <div id="qrow-${it.id}" style="display:grid;grid-template-columns:104px minmax(240px,1fr) 150px 160px 110px 210px;gap:14px;align-items:center;padding:14px 16px;border-bottom:1px solid #F0F0EA;background:#fff;">
+                <div style="aspect-ratio:16/10;border-radius:8px;overflow:hidden;background:#E8EDF3;position:relative;flex-shrink:0;">
+                    ${thumb}
+                    <span style="position:absolute;top:5px;right:5px;font-size:10px;font-weight:700;color:#16294D;background:rgba(255,255,255,.92);border-radius:4px;padding:2px 6px;">${esc(typeLabel)}</span>
+                </div>
+                <div style="min-width:0;display:flex;flex-direction:column;gap:5px;">
+                    <div style="font-size:15px;font-weight:700;line-height:1.35;color:#16294D;overflow:hidden;text-overflow:ellipsis;">${esc(it.title)}</div>
+                    <div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-size:12px;">
+                        <span style="font-weight:700;color:${scopeFg};border:1px solid ${scopeBorder};background:${scopeBg};border-radius:4px;padding:2px 8px;">${scopeLabel}</span>
+                        ${flag ? `<span style="font-weight:700;color:#B4622A;">⚑ ${esc(flag)}</span>` : ''}
+                    </div>
+                    <div id="reject-form-${it.id}" class="reject-form" style="margin-top:4px;">
+                        <textarea class="reject-textarea" id="reject-note-${it.id}" placeholder="הערת דחייה (חובה)..."></textarea>
+                        <div style="display:flex;gap:.4rem;margin-top:.3rem">
+                            <button class="kh-btn kh-btn-danger kh-btn-sm" onclick="KH.${role}Reject(${it.id})">דחה עם הערה</button>
+                            <button class="kh-btn kh-btn-outline kh-btn-sm" onclick="KH.toggleRejectForm(${it.id})">ביטול</button>
+                        </div>
                     </div>
                 </div>
-            </div>
-            <div style="display:flex;gap:.4rem;flex-wrap:wrap">
-                <button class="kh-btn kh-btn-outline kh-btn-sm" onclick="KH.nav('content',{id:${it.id}})"><i class="fa-solid fa-eye"></i> תצוגה מקדימה</button>
-                <button class="kh-btn kh-btn-success kh-btn-sm" onclick="KH.${role}Approve(${it.id})"><i class="fa-solid fa-check"></i> אשר</button>
-                <button class="kh-btn kh-btn-danger kh-btn-sm" onclick="KH.toggleRejectForm(${it.id})"><i class="fa-solid fa-times"></i> דחה</button>
-            </div>
-            <div class="reject-form" id="reject-form-${it.id}">
-                <textarea class="reject-textarea" id="reject-note-${it.id}" placeholder="הערת דחייה (חובה)..."></textarea>
-                <div style="display:flex;gap:.4rem;margin-top:.3rem">
-                    <button class="kh-btn kh-btn-danger kh-btn-sm" onclick="KH.${role}Reject(${it.id})"><i class="fa-solid fa-times-circle"></i> דחה עם הערה</button>
-                    <button class="kh-btn kh-btn-outline kh-btn-sm" onclick="KH.toggleRejectForm(${it.id})">ביטול</button>
+                <div style="min-width:0;">
+                    <div style="font-size:14px;font-weight:500;color:#16294D;">${esc(it.author_name||'')}</div>
+                </div>
+                <div style="min-width:0;">
+                    <div style="font-size:14px;color:#16294D;">${esc(it.community_name||'')}</div>
+                </div>
+                <div>
+                    <div style="font-size:13px;font-family:monospace;color:#16294D;">${fmtDate(it.created_at)}</div>
+                    <div style="font-size:12px;color:${ageOld ? '#B4622A' : '#8A8A82'};">${ageStr}</div>
+                </div>
+                <div style="display:flex;flex-wrap:wrap;gap:7px;align-items:flex-start;">
+                    <button onclick="KH.nav('content',{id:${it.id}})" style="min-height:36px;padding:0 10px;border:1px solid #E3E3DB;border-radius:9px;background:#fff;color:#6E6E66;font-size:13px;cursor:pointer;">תצוגה</button>
+                    <button onclick="KH.${role}Approve(${it.id})" style="min-height:42px;padding:0 16px;border:none;border-radius:9px;background:#1F7A72;color:#fff;font-size:14px;font-weight:700;cursor:pointer;">אישור</button>
+                    <button onclick="KH.toggleRejectForm(${it.id})" style="min-height:42px;padding:0 14px;border:1px solid #E3D0CA;border-radius:9px;background:#fff;color:#B4361E;font-size:14px;cursor:pointer;">דחייה</button>
+                </div>
+            </div>`;
+        }).join('');
+        return `
+        <div style="background:#fff;border:1px solid #E3E3DB;border-radius:14px;overflow:hidden;">
+            <div style="overflow-x:auto;">
+                <div style="min-width:860px;">
+                    <div style="display:grid;grid-template-columns:104px minmax(240px,1fr) 150px 160px 110px 210px;gap:14px;align-items:center;padding:12px 16px;background:#FBFBF9;border-bottom:1px solid #E3E3DB;font-size:11px;font-weight:700;letter-spacing:.06em;color:#8A8A82;text-transform:uppercase;">
+                        <span>תצוגה</span><span>כותרת</span><span>כותב</span><span>קהילה</span><span>תאריך</span><span>פעולות</span>
+                    </div>
+                    ${rows}
                 </div>
             </div>
+            <div style="padding:10px 16px;font-size:12px;color:#8A8A82;">מציג ${items.length} פריטים ממתינים לאישור</div>
         </div>`;
     },
 
@@ -1268,7 +1307,7 @@ const KH = {
         const ok = await confirm('אישור כתבה', 'לאשר כתבה זו לפרסום?', 'אשר');
         if (!ok) return;
         const r = await khFetch(`${API}/zm/${id}/approve`, { method: 'POST' });
-        if (r.success) { toast('אושר!', 'success'); document.getElementById(`qcard-${id}`)?.remove(); }
+        if (r.success) { toast('אושר!', 'success'); document.getElementById(`qrow-${id}`)?.remove(); }
         else toast(r.error || 'שגיאה', 'error');
     },
 
@@ -1276,7 +1315,7 @@ const KH = {
         const note = document.getElementById(`reject-note-${id}`)?.value.trim();
         if (!note) { toast('יש להזין הערת דחייה', 'error'); return; }
         const r = await khFetch(`${API}/zm/${id}/reject`, { method: 'POST', body: JSON.stringify({ note }) });
-        if (r.success) { toast('נדחה', 'success'); document.getElementById(`qcard-${id}`)?.remove(); }
+        if (r.success) { toast('נדחה', 'success'); document.getElementById(`qrow-${id}`)?.remove(); }
         else toast(r.error || 'שגיאה', 'error');
     },
 
@@ -1305,8 +1344,7 @@ const KH = {
 
         const d = await khFetch(`${API}/sa/pending-global`);
         const items = d.items || [];
-        if (!items.length) { el.innerHTML = '<div class="empty-state"><div class="ei">🌍</div><p>אין כתבות ממתינות לאישור ארצי</p></div>'; }
-        else el.innerHTML = items.map(it => KH.renderQueueCard(it, 'sa')).join('');
+        el.innerHTML = KH.renderQueueTable(items, 'sa');
 
         // Global categories
         KH.loadGlobalCats();
@@ -1347,7 +1385,7 @@ const KH = {
         const ok = await confirm('אישור ארצי', 'לאשר פרסום ארצי?', 'אשר');
         if (!ok) return;
         const r = await khFetch(`${API}/sa/${id}/approve`, { method: 'POST' });
-        if (r.success) { toast('אושר לפרסום ארצי!', 'success'); document.getElementById(`qcard-${id}`)?.remove(); }
+        if (r.success) { toast('אושר לפרסום ארצי!', 'success'); document.getElementById(`qrow-${id}`)?.remove(); }
         else toast(r.error || 'שגיאה', 'error');
     },
 
@@ -1355,7 +1393,7 @@ const KH = {
         const note = document.getElementById(`reject-note-${id}`)?.value.trim();
         if (!note) { toast('יש להזין הערת דחייה', 'error'); return; }
         const r = await khFetch(`${API}/sa/${id}/reject`, { method: 'POST', body: JSON.stringify({ note }) });
-        if (r.success) { toast('נדחה (כתבה נשארת מקומית)', 'success'); document.getElementById(`qcard-${id}`)?.remove(); }
+        if (r.success) { toast('נדחה (כתבה נשארת מקומית)', 'success'); document.getElementById(`qrow-${id}`)?.remove(); }
         else toast(r.error || 'שגיאה', 'error');
     },
 

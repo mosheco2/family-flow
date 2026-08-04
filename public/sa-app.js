@@ -12008,6 +12008,10 @@ async function loadSAKolHaamQueue() {
                   class="bg-purple-500/80 hover:bg-purple-400 text-white text-xs font-bold px-4 py-2 rounded-xl border border-purple-300 transition whitespace-nowrap">
                   ✍️ צור טיוטת עורך
                 </button>
+                <button onclick="saKHSeedApprovalQueue()" id="sa-kh-approval-queue-btn"
+                  class="bg-orange-500/80 hover:bg-orange-400 text-white text-xs font-bold px-4 py-2 rounded-xl border border-orange-300 transition whitespace-nowrap">
+                  📥 seed תור אישורים
+                </button>
               </div>
             </div>
             <!-- תור אישור -->
@@ -12166,6 +12170,24 @@ async function saKHSeedEditorDraft() {
         } else showToast('error', d.error || 'שגיאה');
     } catch(e) { showToast('error', 'שגיאת תקשורת: ' + e.message); }
     finally { if (btn) { btn.disabled = false; btn.textContent = '✍️ צור טיוטת עורך'; } }
+}
+
+async function saKHSeedApprovalQueue() {
+    const btn = document.getElementById('sa-kh-approval-queue-btn');
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ זורע...'; }
+    try {
+        const d = await fetch('/api/kol-haam/seed-approval-queue', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ secret: 'SEED_DEMO_2026' })
+        }).then(r => r.json());
+        if (d.success) {
+            showToast('success', `תור אישורים: ${d.created} רשומות נוצרו. ${(d.log||[]).join(' | ')}`);
+        } else {
+            showToast('error', d.error || 'שגיאה');
+        }
+    } catch(e) { showToast('error', 'שגיאת תקשורת: ' + e.message); }
+    finally { if (btn) { btn.disabled = false; btn.textContent = '📥 seed תור אישורים'; } }
 }
 
 async function saKHSeedFullDemo() {
