@@ -28075,7 +28075,7 @@ app.post('/api/kol-haam/seed-approval-queue', async (req, res) => {
                     title, subtitle, content_html, cover_image_url,
                     quick_summary_20s, reading_time_minutes, is_sample_data, published_at
                 ) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,4,TRUE,
-                    CASE WHEN $5='GLOBAL' THEN NOW() ELSE NULL END
+                    CASE WHEN $5::text='GLOBAL' THEN NOW() ELSE NULL END
                 ) RETURNING id`,
                 [
                     communityId, catId, authorId,
