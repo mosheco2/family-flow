@@ -4892,5 +4892,16 @@ async function bizImgDelete(slot) {
   }
 })();
 </script>
+
+<!-- KH content-view modal -->
+<div id="kh-view-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onclick="if(event.target===this)khCloseViewModal()">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
+    <div class="flex items-center justify-between px-5 py-4 border-b border-slate-100 shrink-0">
+      <span class="font-bold text-slate-800">צפייה בתוכן</span>
+      <button onclick="khCloseViewModal()" class="text-slate-400 hover:text-slate-600 text-xl leading-none transition">✕</button>
+    </div>
+    <div id="kh-view-modal-body" class="overflow-y-auto p-5 flex-1"></div>
+  </div>
+</div>
 </body>
 </html>

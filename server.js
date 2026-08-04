@@ -26997,24 +26997,206 @@ app.put('/api/kol-haam/sa/global-categories/:id', verifySA, async (req, res) => 
 // ─── SA — כל התוכן (overview) ────────────────────────────────
 app.get('/api/kol-haam/sa/all-content', verifySA, async (req, res) => {
     try {
-        const { status, page = 1 } = req.query;
-        const limit = 30, offset = (parseInt(page) - 1) * limit;
-        const where = status ? `WHERE ci.status = $1` : '';
-        const params = status ? [status, limit, offset] : [limit, offset];
-        const r = await pool.query(`
-            SELECT ci.id, ci.title, ci.status, ci.content_type, ci.scope_type,
-                   ci.views_count, ci.published_at, ci.deletion_requested,
-                   co.name as community_name, fg.name as author_name, cc.title as category_title
+        const {
+            status, content_type, community_id, author_search,
+            date_from, date_to, search, is_sample_data,
+            sort_by = 'created_at', sort_dir = 'DESC',
+            page = 1
+        } = req.query;
+        const limit = 25;
+        const offset = (Math.max(1, parseInt(page)) - 1) * limit;
+
+        const ALLOWED_SORT = {
+            created_at: 'ci.created_at', views_count: 'ci.views_count',
+            comments_count: 'COALESCE(cem.comments_count,0)',
+            likes_count: 'COALESCE(cem.likes_count,0)'
+        };
+        const sortCol = ALLOWED_SORT[sort_by] || 'ci.created_at';
+        const sortDir = sort_dir.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
+
+        const conditions = [];
+        const params = [];
+
+        if (status) {
+            const statuses = status.split(',').map(s => s.trim()).filter(Boolean);
+            if (statuses.length === 1) {
+                params.push(statuses[0]);
+                conditions.push(`ci.status = $${params.length}`);
+            } else if (statuses.length > 1) {
+                params.push(statuses);
+                conditions.push(`ci.status = ANY($${params.length}::text[])`);
+            }
+        }
+        if (content_type) { params.push(content_type); conditions.push(`ci.content_type = $${params.length}`); }
+        if (community_id) { params.push(parseInt(community_id)); conditions.push(`ci.community_id = $${params.length}`); }
+        if (author_search) { params.push(`%${author_search}%`); conditions.push(`(ap.pen_name ILIKE $${params.length} OR fg.name ILIKE $${params.length})`); }
+        if (date_from) { params.push(date_from); conditions.push(`ci.created_at >= $${params.length}::date`); }
+        if (date_to) { params.push(date_to); conditions.push(`ci.created_at < ($${params.length}::date + interval '1 day')`); }
+        if (search) { params.push(`%${search}%`); conditions.push(`(ci.title ILIKE $${params.length} OR ci.content_html ILIKE $${params.length})`); }
+        if (is_sample_data === 'true') { conditions.push(`ci.is_sample_data = TRUE`); }
+
+        const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+
+        const countParams = [...params];
+        const countR = await pool.query(`
+            SELECT COUNT(*) as total
             FROM content_items ci
             JOIN communities co ON co.id = ci.community_id
             JOIN author_profiles ap ON ap.id = ci.author_profile_id
             JOIN family_groups fg ON fg.id = ap.family_group_id
             JOIN content_categories cc ON cc.id = ci.category_id
+            LEFT JOIN content_engagement_metrics cem ON cem.content_item_id = ci.id
             ${where}
-            ORDER BY ci.created_at DESC
-            LIMIT $${params.length - 1} OFFSET $${params.length}
+        `, countParams);
+
+        params.push(limit); const limitIdx = params.length;
+        params.push(offset); const offsetIdx = params.length;
+
+        const r = await pool.query(`
+            SELECT ci.id, ci.title, ci.status, ci.content_type, ci.scope_type,
+                   ci.views_count, ci.published_at, ci.created_at,
+                   ci.cover_image_url, ci.is_quarantined, ci.is_sample_data,
+                   ci.deletion_requested, ci.author_profile_id,
+                   co.name AS community_name, co.id AS community_id,
+                   COALESCE(ap.pen_name, fg.name) AS author_name,
+                   cc.title AS category_title,
+                   COALESCE(cem.likes_count, 0) AS likes_count,
+                   COALESCE(cem.comments_count, 0) AS comments_count
+            FROM content_items ci
+            JOIN communities co ON co.id = ci.community_id
+            JOIN author_profiles ap ON ap.id = ci.author_profile_id
+            JOIN family_groups fg ON fg.id = ap.family_group_id
+            JOIN content_categories cc ON cc.id = ci.category_id
+            LEFT JOIN content_engagement_metrics cem ON cem.content_item_id = ci.id
+            ${where}
+            ORDER BY ${sortCol} ${sortDir}
+            LIMIT $${limitIdx} OFFSET $${offsetIdx}
         `, params);
-        res.json({ success: true, items: r.rows });
+
+        res.json({
+            success: true,
+            items: r.rows,
+            total: parseInt(countR.rows[0].total),
+            page: parseInt(page),
+            limit
+        });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/kol-haam/sa/content/:id/unpublish', verifySA, async (req, res) => {
+    try {
+        const id = parseInt(req.params.id);
+        const ci = await pool.query(`SELECT status, title FROM content_items WHERE id=$1`, [id]);
+        if (!ci.rows.length) return res.status(404).json({ error: 'פריט לא נמצא' });
+        const prev = ci.rows[0].status;
+        const title = ci.rows[0].title;
+        let next;
+        if (prev === 'PUBLISHED_GLOBAL') next = 'PUBLISHED_LOCAL';
+        else if (prev === 'PUBLISHED_LOCAL') next = 'DRAFT';
+        else return res.status(400).json({ error: `לא ניתן להוריד מפרסום פריט בסטטוס ${prev}` });
+        await pool.query(`UPDATE content_items SET status=$1, updated_at=NOW() WHERE id=$2`, [next, id]);
+        await pool.query(
+            `INSERT INTO sa_audit_log (action_type, target_type, target_id, target_name, prev_status, new_status, details)
+             VALUES ('unpublish','content_item',$1,$2,$3,$4,'{}')`,
+            [id, title, prev, next]
+        );
+        res.json({ success: true, prev_status: prev, new_status: next });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/kol-haam/sa/content/:id/republish', verifySA, async (req, res) => {
+    try {
+        const id = parseInt(req.params.id);
+        const ci = await pool.query(`SELECT status, title FROM content_items WHERE id=$1`, [id]);
+        if (!ci.rows.length) return res.status(404).json({ error: 'פריט לא נמצא' });
+        const prev = ci.rows[0].status;
+        const title = ci.rows[0].title;
+        let next;
+        if (prev === 'DRAFT') next = 'PUBLISHED_LOCAL';
+        else if (prev === 'PUBLISHED_LOCAL') next = 'PUBLISHED_GLOBAL';
+        else return res.status(400).json({ error: `לא ניתן לפרסם מחדש פריט בסטטוס ${prev}` });
+        const now = new Date();
+        await pool.query(
+            `UPDATE content_items SET status=$1, published_at=COALESCE(published_at,$2), updated_at=$2 WHERE id=$3`,
+            [next, now, id]
+        );
+        await pool.query(
+            `INSERT INTO sa_audit_log (action_type, target_type, target_id, target_name, prev_status, new_status, details)
+             VALUES ('republish','content_item',$1,$2,$3,$4,'{}')`,
+            [id, title, prev, next]
+        );
+        res.json({ success: true, prev_status: prev, new_status: next });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/kol-haam/sa/content/:id/revert-to-draft', verifySA, async (req, res) => {
+    try {
+        const id = parseInt(req.params.id);
+        const ci = await pool.query(`SELECT status, title FROM content_items WHERE id=$1`, [id]);
+        if (!ci.rows.length) return res.status(404).json({ error: 'פריט לא נמצא' });
+        const prev = ci.rows[0].status;
+        const title = ci.rows[0].title;
+        await pool.query(`UPDATE content_items SET status='DRAFT', updated_at=NOW() WHERE id=$1`, [id]);
+        await pool.query(
+            `INSERT INTO sa_audit_log (action_type, target_type, target_id, target_name, prev_status, new_status, details)
+             VALUES ('revert_to_draft','content_item',$1,$2,$3,'DRAFT','{}')`,
+            [id, title, prev]
+        );
+        res.json({ success: true, prev_status: prev, new_status: 'DRAFT' });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/kol-haam/sa/content/bulk-action', verifySA, async (req, res) => {
+    try {
+        const { action, ids, category_id } = req.body;
+        if (!Array.isArray(ids) || ids.length === 0) return res.status(400).json({ error: 'נדרש מערך ids' });
+        if (ids.length > 100) return res.status(400).json({ error: 'מקסימום 100 פריטים בבקשה אחת' });
+        const safeIds = ids.map(Number).filter(n => Number.isInteger(n) && n > 0);
+        if (!safeIds.length) return res.status(400).json({ error: 'מזהים לא תקינים' });
+
+        let affected = 0;
+        if (action === 'delete') {
+            const r = await pool.query(
+                `DELETE FROM content_items WHERE id = ANY($1::int[]) RETURNING id`,
+                [safeIds]
+            );
+            affected = r.rowCount;
+            await pool.query(
+                `INSERT INTO sa_audit_log (action_type, target_type, details)
+                 VALUES ('bulk_delete','content_item',$1)`,
+                [JSON.stringify({ ids: safeIds, count: affected })]
+            );
+        } else if (action === 'unpublish') {
+            const r = await pool.query(
+                `UPDATE content_items
+                 SET status = CASE WHEN status='PUBLISHED_GLOBAL' THEN 'PUBLISHED_LOCAL' ELSE 'DRAFT' END,
+                     updated_at = NOW()
+                 WHERE id = ANY($1::int[]) AND status IN ('PUBLISHED_GLOBAL','PUBLISHED_LOCAL')
+                 RETURNING id`,
+                [safeIds]
+            );
+            affected = r.rowCount;
+            await pool.query(
+                `INSERT INTO sa_audit_log (action_type, target_type, details)
+                 VALUES ('bulk_unpublish','content_item',$1)`,
+                [JSON.stringify({ ids: safeIds, count: affected })]
+            );
+        } else if (action === 'change-category') {
+            if (!category_id) return res.status(400).json({ error: 'נדרש category_id' });
+            const r = await pool.query(
+                `UPDATE content_items SET category_id=$1, updated_at=NOW() WHERE id = ANY($2::int[]) RETURNING id`,
+                [parseInt(category_id), safeIds]
+            );
+            affected = r.rowCount;
+            await pool.query(
+                `INSERT INTO sa_audit_log (action_type, target_type, details)
+                 VALUES ('bulk_change_category','content_item',$1)`,
+                [JSON.stringify({ ids: safeIds, category_id, count: affected })]
+            );
+        } else {
+            return res.status(400).json({ error: `פעולה לא מוכרת: ${action}` });
+        }
+        res.json({ success: true, affected });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -27195,6 +27377,8 @@ async function initKolHaamPhase2Tables() {
         `ALTER TABLE content_items ADD COLUMN IF NOT EXISTS series_chapter_number INT NULL`,
         `ALTER TABLE content_comments ADD COLUMN IF NOT EXISTS report_count INT DEFAULT 0`,
         `ALTER TABLE content_items ADD COLUMN IF NOT EXISTS is_sample_data BOOLEAN DEFAULT FALSE`,
+        `ALTER TABLE sa_audit_log ADD COLUMN IF NOT EXISTS prev_status VARCHAR(20) NULL`,
+        `ALTER TABLE sa_audit_log ADD COLUMN IF NOT EXISTS new_status VARCHAR(20) NULL`,
         // indexes
         `CREATE INDEX IF NOT EXISTS idx_content_reactions_item ON content_reactions(content_item_id)`,
         `CREATE INDEX IF NOT EXISTS idx_content_comments_item ON content_comments(content_item_id)`,

@@ -12053,6 +12053,467 @@ function _khRenderCategories(cats) {
       </div>`;
 }
 
+// ─── Content tab state ──────────────────────────────────────────
+let _khContentFilters = {
+    status: [], content_type: '', community_id: '', author_search: '',
+    date_from: '', date_to: '', search: '', is_sample_data: false,
+    sort_by: 'created_at', sort_dir: 'DESC', page: 1
+};
+let _khSelectedIds = new Set();
+
+const KH_STATUS_META = {
+    DRAFT:            { label: 'טיוטה',          cls: 'bg-slate-100 text-slate-600' },
+    PENDING_ZM:       { label: 'ממתין ZM',        cls: 'bg-amber-100 text-amber-700' },
+    PENDING_SA:       { label: 'ממתין SA',        cls: 'bg-orange-100 text-orange-700' },
+    PUBLISHED_LOCAL:  { label: 'פורסם מקומי',     cls: 'bg-green-100 text-green-700' },
+    PUBLISHED_GLOBAL: { label: 'פורסם גלובלי',    cls: 'bg-indigo-100 text-indigo-700' },
+    REJECTED:         { label: 'נדחה',            cls: 'bg-red-100 text-red-600' },
+    QUARANTINED:      { label: 'בהסגר',           cls: 'bg-red-200 text-red-800' },
+};
+const KH_TYPE_LABELS = {
+    ARTICLE: 'כתבה', QA_QUESTION: 'שאלה', SUCCESS_STORY: 'סיפור הצלחה', WIKI_GUIDE: 'מדריך'
+};
+
+function _khStatusBadge(row) {
+    if (row.is_quarantined) return '<span class="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-red-200 text-red-800">🔒 בהסגר</span>';
+    const m = KH_STATUS_META[row.status] || { label: row.status, cls: 'bg-slate-100 text-slate-600' };
+    return `<span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full ${m.cls}">${m.label}</span>`;
+}
+
+function _khSortArrow(col) {
+    if (_khContentFilters.sort_by !== col) return '<span class="text-slate-300 ml-0.5">⇅</span>';
+    return _khContentFilters.sort_dir === 'ASC'
+        ? '<span class="text-indigo-600 ml-0.5">↑</span>'
+        : '<span class="text-indigo-600 ml-0.5">↓</span>';
+}
+
+function _khToggleSort(col) {
+    if (_khContentFilters.sort_by === col) {
+        _khContentFilters.sort_dir = _khContentFilters.sort_dir === 'DESC' ? 'ASC' : 'DESC';
+    } else {
+        _khContentFilters.sort_by = col;
+        _khContentFilters.sort_dir = 'DESC';
+    }
+    _khContentFilters.page = 1;
+    loadKHContentTab();
+}
+window._khToggleSort = _khToggleSort;
+
+function _khApplyFilters() {
+    const f = _khContentFilters;
+    const statusChecked = [...document.querySelectorAll('.kh-status-cb:checked')].map(el => el.value);
+    f.status = statusChecked;
+    f.content_type  = document.getElementById('kh-filter-type')?.value || '';
+    f.community_id  = document.getElementById('kh-filter-community')?.value || '';
+    f.author_search = document.getElementById('kh-filter-author')?.value || '';
+    f.date_from     = document.getElementById('kh-filter-datefrom')?.value || '';
+    f.date_to       = document.getElementById('kh-filter-dateto')?.value || '';
+    f.search        = document.getElementById('kh-filter-search')?.value || '';
+    f.is_sample_data = document.getElementById('kh-filter-sample')?.checked || false;
+    f.page = 1;
+    _khSelectedIds.clear();
+    loadKHContentTab();
+}
+window._khApplyFilters = _khApplyFilters;
+
+function _khClearFilters() {
+    _khContentFilters = {
+        status: [], content_type: '', community_id: '', author_search: '',
+        date_from: '', date_to: '', search: '', is_sample_data: false,
+        sort_by: 'created_at', sort_dir: 'DESC', page: 1
+    };
+    _khSelectedIds.clear();
+    loadKHContentTab();
+}
+window._khClearFilters = _khClearFilters;
+
+function _khSyncFiltersToURL() {
+    const f = _khContentFilters;
+    const url = new URL(window.location.href);
+    url.searchParams.set('kh_tab', 'content');
+    if (f.status.length) url.searchParams.set('kh_status', f.status.join(','));
+    else url.searchParams.delete('kh_status');
+    if (f.content_type) url.searchParams.set('kh_type', f.content_type);
+    else url.searchParams.delete('kh_type');
+    if (f.community_id) url.searchParams.set('kh_comm', f.community_id);
+    else url.searchParams.delete('kh_comm');
+    if (f.author_search) url.searchParams.set('kh_author', f.author_search);
+    else url.searchParams.delete('kh_author');
+    if (f.date_from) url.searchParams.set('kh_df', f.date_from);
+    else url.searchParams.delete('kh_df');
+    if (f.date_to) url.searchParams.set('kh_dt', f.date_to);
+    else url.searchParams.delete('kh_dt');
+    if (f.search) url.searchParams.set('kh_q', f.search);
+    else url.searchParams.delete('kh_q');
+    if (f.is_sample_data) url.searchParams.set('kh_sample', '1');
+    else url.searchParams.delete('kh_sample');
+    if (f.page > 1) url.searchParams.set('kh_page', f.page);
+    else url.searchParams.delete('kh_page');
+    url.searchParams.set('kh_sort', f.sort_by);
+    url.searchParams.set('kh_dir', f.sort_dir);
+    history.replaceState(null, '', url.toString());
+}
+
+function _khLoadFiltersFromURL() {
+    const p = new URLSearchParams(window.location.search);
+    const f = _khContentFilters;
+    if (p.get('kh_status')) f.status = p.get('kh_status').split(',');
+    if (p.get('kh_type'))   f.content_type = p.get('kh_type');
+    if (p.get('kh_comm'))   f.community_id = p.get('kh_comm');
+    if (p.get('kh_author')) f.author_search = p.get('kh_author');
+    if (p.get('kh_df'))     f.date_from = p.get('kh_df');
+    if (p.get('kh_dt'))     f.date_to = p.get('kh_dt');
+    if (p.get('kh_q'))      f.search = p.get('kh_q');
+    if (p.get('kh_sample')) f.is_sample_data = true;
+    if (p.get('kh_page'))   f.page = parseInt(p.get('kh_page')) || 1;
+    if (p.get('kh_sort'))   f.sort_by = p.get('kh_sort');
+    if (p.get('kh_dir'))    f.sort_dir = p.get('kh_dir');
+}
+
+async function loadKHContentTab() {
+    const body = document.getElementById('sa-kh-tab-body');
+    if (!body) return;
+
+    _khSyncFiltersToURL();
+
+    const f = _khContentFilters;
+    const qs = new URLSearchParams();
+    if (f.status.length) qs.set('status', f.status[0]); // server currently takes one; handled below
+    if (f.content_type)  qs.set('content_type', f.content_type);
+    if (f.community_id)  qs.set('community_id', f.community_id);
+    if (f.author_search) qs.set('author_search', f.author_search);
+    if (f.date_from)     qs.set('date_from', f.date_from);
+    if (f.date_to)       qs.set('date_to', f.date_to);
+    if (f.search)        qs.set('search', f.search);
+    if (f.is_sample_data) qs.set('is_sample_data', 'true');
+    qs.set('sort_by', f.sort_by);
+    qs.set('sort_dir', f.sort_dir);
+    qs.set('page', f.page);
+    // multi-status: send as comma-joined, server handles split
+    if (f.status.length > 0) qs.set('status', f.status.join(','));
+
+    // Show loading state in table area only
+    const existingFilters = body.querySelector('#kh-content-filters-wrap');
+    if (!existingFilters) {
+        body.innerHTML = '<div class="text-center py-12 text-slate-400">טוען...</div>';
+    } else {
+        const tableArea = body.querySelector('#kh-content-table-area');
+        if (tableArea) tableArea.innerHTML = '<div class="text-center py-8 text-slate-400">טוען...</div>';
+    }
+
+    const [res, commRes] = await Promise.all([
+        saFetch(`/api/kol-haam/sa/all-content?${qs}`),
+        existingFilters ? Promise.resolve(null) : saFetch('/api/sa/communities?limit=200').catch(() => null)
+    ]);
+
+    const items = res.items || [];
+    const total = res.total || 0;
+    const comms = commRes ? (commRes.communities || commRes.items || []) : [];
+    const { page, limit = 25 } = res;
+    const from = total === 0 ? 0 : (page - 1) * limit + 1;
+    const to = Math.min(page * limit, total);
+    const totalPages = Math.ceil(total / limit);
+
+    const hasSelection = _khSelectedIds.size > 0;
+
+    const filtersHtml = existingFilters ? existingFilters.outerHTML : `
+      <div id="kh-content-filters-wrap" class="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 mb-4">
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 mb-3">
+          <!-- חיפוש חופשי -->
+          <div class="lg:col-span-2">
+            <input id="kh-filter-search" type="text" placeholder="חיפוש בכותרת / תוכן..."
+              value="${safeStr(f.search)}"
+              class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300">
+          </div>
+          <!-- כותב -->
+          <div>
+            <input id="kh-filter-author" type="text" placeholder="שם כותב..."
+              value="${safeStr(f.author_search)}"
+              class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300">
+          </div>
+          <!-- סוג תוכן -->
+          <div>
+            <select id="kh-filter-type" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300">
+              <option value="">כל הסוגים</option>
+              <option value="ARTICLE" ${f.content_type==='ARTICLE'?'selected':''}>כתבה</option>
+              <option value="QA_QUESTION" ${f.content_type==='QA_QUESTION'?'selected':''}>שאלה</option>
+              <option value="SUCCESS_STORY" ${f.content_type==='SUCCESS_STORY'?'selected':''}>סיפור הצלחה</option>
+              <option value="WIKI_GUIDE" ${f.content_type==='WIKI_GUIDE'?'selected':''}>מדריך</option>
+            </select>
+          </div>
+          <!-- קהילה -->
+          <div>
+            <select id="kh-filter-community" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300">
+              <option value="">כל הקהילות</option>
+              ${comms.map(c=>`<option value="${c.id}" ${String(f.community_id)===String(c.id)?'selected':''}>${safeStr(c.name)}</option>`).join('')}
+            </select>
+          </div>
+          <!-- תאריך מ- -->
+          <div>
+            <input id="kh-filter-datefrom" type="date" value="${safeStr(f.date_from)}"
+              class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300">
+          </div>
+          <!-- תאריך עד -->
+          <div>
+            <input id="kh-filter-dateto" type="date" value="${safeStr(f.date_to)}"
+              class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300">
+          </div>
+        </div>
+        <!-- סטטוסים -->
+        <div class="flex flex-wrap gap-2 mb-3">
+          ${Object.entries(KH_STATUS_META).map(([k,v])=>`
+            <label class="flex items-center gap-1 cursor-pointer">
+              <input type="checkbox" class="kh-status-cb" value="${k}" ${f.status.includes(k)?'checked':''}>
+              <span class="text-xs ${v.cls} px-1.5 py-0.5 rounded-full font-medium">${v.label}</span>
+            </label>`).join('')}
+        </div>
+        <!-- שורה תחתונה -->
+        <div class="flex items-center justify-between gap-3 flex-wrap">
+          <label class="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
+            <input type="checkbox" id="kh-filter-sample" ${f.is_sample_data?'checked':''}>
+            הצג רק נתוני דוגמה
+          </label>
+          <div class="flex gap-2">
+            <button onclick="_khClearFilters()" class="text-xs text-slate-500 hover:text-slate-700 px-3 py-1.5 rounded-xl border border-slate-200 transition">נקה פילטרים</button>
+            <button onclick="_khApplyFilters()" class="text-xs bg-indigo-600 text-white font-bold px-4 py-1.5 rounded-xl hover:bg-indigo-700 transition">חפש</button>
+          </div>
+        </div>
+      </div>`;
+
+    // Bulk action bar (shown only when items selected)
+    const bulkBar = hasSelection ? `
+      <div class="bg-indigo-700 text-white rounded-xl px-4 py-2.5 mb-3 flex items-center gap-3 flex-wrap">
+        <span class="text-sm font-bold">${_khSelectedIds.size} נבחרו</span>
+        <button onclick="khBulkUnpublish()" class="text-xs bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-lg font-bold transition">הורד מפרסום</button>
+        <button onclick="khBulkDelete()" class="text-xs bg-red-500/80 hover:bg-red-500 px-3 py-1.5 rounded-lg font-bold transition">מחק</button>
+        <button onclick="khBulkChangeCategory()" class="text-xs bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-lg font-bold transition">שנה קטגוריה</button>
+        <button onclick="_khSelectedIds.clear();loadKHContentTab()" class="text-xs text-white/70 hover:text-white mr-auto transition">ביטול</button>
+      </div>` : '';
+
+    // Table
+    const tableHtml = `
+      <div id="kh-content-table-area">
+        ${bulkBar}
+        <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+          <div class="flex items-center justify-between px-4 py-3 border-b border-slate-100">
+            <span class="text-sm text-slate-500">מציג ${from}–${to} מתוך ${total}</span>
+            <div class="flex gap-1">
+              <button onclick="_khPage(${page - 1})" ${page <= 1 ? 'disabled' : ''}
+                class="px-3 py-1 text-sm rounded-lg border border-slate-200 disabled:opacity-30 hover:bg-slate-50 transition">→</button>
+              <span class="px-3 py-1 text-sm text-slate-500">עמ׳ ${page} / ${totalPages || 1}</span>
+              <button onclick="_khPage(${page + 1})" ${page >= totalPages ? 'disabled' : ''}
+                class="px-3 py-1 text-sm rounded-lg border border-slate-200 disabled:opacity-30 hover:bg-slate-50 transition">←</button>
+            </div>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm" style="min-width:900px">
+              <thead class="bg-slate-50 border-b border-slate-100">
+                <tr>
+                  <th class="px-3 py-2 text-right w-8">
+                    <input type="checkbox" id="kh-select-all" onclick="khSelectAll(this)"
+                      ${items.length > 0 && items.every(r=>_khSelectedIds.has(r.id)) ? 'checked' : ''}>
+                  </th>
+                  <th class="px-2 py-2 text-right w-12">תמונה</th>
+                  <th class="px-3 py-2 text-right">כותרת</th>
+                  <th class="px-3 py-2 text-right w-24">סוג</th>
+                  <th class="px-3 py-2 text-right w-28">כותב</th>
+                  <th class="px-3 py-2 text-right w-28">קהילה</th>
+                  <th class="px-3 py-2 text-right w-28">סטטוס</th>
+                  <th class="px-2 py-2 text-right w-16 cursor-pointer hover:bg-slate-100 transition" onclick="_khToggleSort('likes_count')">דירוג ${_khSortArrow('likes_count')}</th>
+                  <th class="px-2 py-2 text-right w-16 cursor-pointer hover:bg-slate-100 transition" onclick="_khToggleSort('views_count')">צפיות ${_khSortArrow('views_count')}</th>
+                  <th class="px-2 py-2 text-right w-16 cursor-pointer hover:bg-slate-100 transition" onclick="_khToggleSort('comments_count')">תגובות ${_khSortArrow('comments_count')}</th>
+                  <th class="px-2 py-2 text-right w-24 cursor-pointer hover:bg-slate-100 transition" onclick="_khToggleSort('created_at')">תאריך ${_khSortArrow('created_at')}</th>
+                  <th class="px-3 py-2 text-right w-44">פעולות</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100">
+                ${items.length === 0 ? `<tr><td colspan="12" class="text-center py-12 text-slate-400">אין תוצאות</td></tr>` :
+                  items.map(row => {
+                    const rowBg = row.is_quarantined ? 'bg-red-50' : '';
+                    const checked = _khSelectedIds.has(row.id) ? 'checked' : '';
+                    const typeLabel = KH_TYPE_LABELS[row.content_type] || row.content_type;
+                    const dateStr = row.created_at ? new Date(row.created_at).toLocaleDateString('he-IL') : '—';
+                    return `<tr class="${rowBg} hover:bg-slate-50 transition">
+                      <td class="px-3 py-2">
+                        <input type="checkbox" class="kh-row-cb" value="${row.id}" ${checked}
+                          onchange="khRowCheck(this,${row.id})">
+                      </td>
+                      <td class="px-2 py-2">
+                        ${row.cover_image_url
+                          ? `<img src="${safeStr(row.cover_image_url)}" class="w-10 h-10 rounded-lg object-cover">`
+                          : '<div class="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center text-slate-300 text-xs">📄</div>'}
+                      </td>
+                      <td class="px-3 py-2 max-w-xs">
+                        <div class="font-medium text-slate-800 truncate">${safeStr(row.title)}</div>
+                        <div class="flex gap-1 mt-0.5 flex-wrap">
+                          ${row.is_sample_data ? '<span class="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-full">דוגמה</span>' : ''}
+                        </div>
+                      </td>
+                      <td class="px-3 py-2 text-xs text-slate-500">${typeLabel}</td>
+                      <td class="px-3 py-2 text-xs text-slate-600 truncate max-w-[7rem]">${safeStr(row.author_name||'—')}</td>
+                      <td class="px-3 py-2 text-xs text-slate-500 truncate max-w-[7rem]">${safeStr(row.community_name||'—')}</td>
+                      <td class="px-3 py-2">${_khStatusBadge(row)}</td>
+                      <td class="px-2 py-2 text-xs text-center font-mono">${row.likes_count}</td>
+                      <td class="px-2 py-2 text-xs text-center font-mono">${row.views_count||0}</td>
+                      <td class="px-2 py-2 text-xs text-center font-mono">${row.comments_count}</td>
+                      <td class="px-2 py-2 text-xs text-slate-500 whitespace-nowrap">${dateStr}</td>
+                      <td class="px-3 py-2">
+                        <div class="flex gap-1 flex-wrap">
+                          <button onclick="khViewContent(${row.id})" title="צפה" class="text-indigo-600 hover:text-indigo-800 text-xs px-2 py-1 rounded-lg border border-indigo-200 hover:bg-indigo-50 transition">צפה</button>
+                          <button onclick="khUnpublish(${row.id},'${safeStr(row.title).replace(/'/g,"\\'")}')" title="הורד מפרסום" class="text-amber-600 hover:text-amber-800 text-xs px-2 py-1 rounded-lg border border-amber-200 hover:bg-amber-50 transition">↓ פרסום</button>
+                          <button onclick="khRepublish(${row.id},'${safeStr(row.title).replace(/'/g,"\\'")}')" title="החזר לפרסום" class="text-green-600 hover:text-green-800 text-xs px-2 py-1 rounded-lg border border-green-200 hover:bg-green-50 transition">↑ פרסום</button>
+                          <button onclick="khRevertDraft(${row.id},'${safeStr(row.title).replace(/'/g,"\\'")}')" title="החזר לטיוטה" class="text-slate-500 hover:text-slate-700 text-xs px-2 py-1 rounded-lg border border-slate-200 hover:bg-slate-50 transition">טיוטה</button>
+                          <button onclick="khDeleteContent(${row.id},'${safeStr(row.title).replace(/'/g,"\\'")}')" title="מחק" class="text-red-500 hover:text-red-700 text-xs px-2 py-1 rounded-lg border border-red-200 hover:bg-red-50 transition">מחק</button>
+                        </div>
+                      </td>
+                    </tr>`;
+                  }).join('')}
+              </tbody>
+            </table>
+          </div>
+          <div class="flex justify-center gap-2 px-4 py-3 border-t border-slate-100">
+            <button onclick="_khPage(${page - 1})" ${page <= 1 ? 'disabled' : ''}
+              class="px-4 py-1.5 text-sm rounded-xl border border-slate-200 disabled:opacity-30 hover:bg-slate-50 transition">→ הקודם</button>
+            <button onclick="_khPage(${page + 1})" ${page >= totalPages ? 'disabled' : ''}
+              class="px-4 py-1.5 text-sm rounded-xl border border-slate-200 disabled:opacity-30 hover:bg-slate-50 transition">הבא ←</button>
+          </div>
+        </div>
+      </div>`;
+
+    if (existingFilters) {
+        const tableArea = body.querySelector('#kh-content-table-area');
+        if (tableArea) tableArea.outerHTML = tableHtml;
+    } else {
+        body.innerHTML = filtersHtml + tableHtml;
+    }
+}
+window.loadKHContentTab = loadKHContentTab;
+
+window._khPage = function(p) {
+    _khContentFilters.page = Math.max(1, p);
+    loadKHContentTab();
+};
+
+window.khSelectAll = function(el) {
+    const cbs = document.querySelectorAll('.kh-row-cb');
+    cbs.forEach(cb => {
+        cb.checked = el.checked;
+        const id = parseInt(cb.value);
+        if (el.checked) _khSelectedIds.add(id); else _khSelectedIds.delete(id);
+    });
+    _khRefreshBulkBar();
+};
+window.khRowCheck = function(el, id) {
+    if (el.checked) _khSelectedIds.add(id); else _khSelectedIds.delete(id);
+    _khRefreshBulkBar();
+};
+function _khRefreshBulkBar() {
+    loadKHContentTab();
+}
+
+window.khViewContent = async function(id) {
+    const modal = document.getElementById('kh-view-modal');
+    const body  = document.getElementById('kh-view-modal-body');
+    if (!modal || !body) return;
+    body.innerHTML = '<div class="text-center py-8 text-slate-400">טוען...</div>';
+    modal.classList.remove('hidden');
+    try {
+        const d = await saFetch(`/api/kol-haam/content/${id}`);
+        const item = d.item || d;
+        const sanitizedDoc = `<!DOCTYPE html><html dir="rtl"><head><meta charset="utf-8">
+<style>body{font-family:sans-serif;padding:1rem;direction:rtl;line-height:1.7;color:#1e293b}
+img{max-width:100%;border-radius:8px}h1,h2,h3{font-weight:700}</style></head>
+<body>${(item.content_html||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;')}</body></html>`;
+        // Use srcdoc so content renders as HTML but scripts are blocked by sandbox
+        body.innerHTML = `
+          <div class="mb-4">
+            <h2 class="text-lg font-bold text-slate-800 mb-1">${safeStr(item.title)}</h2>
+            <div class="flex gap-2 flex-wrap text-xs text-slate-500 mb-3">
+              <span>${_khStatusBadge(item)}</span>
+              <span>${KH_TYPE_LABELS[item.content_type]||item.content_type}</span>
+              <span>קהילה: ${safeStr(item.community_name||'—')}</span>
+              <span>${item.views_count||0} צפיות</span>
+            </div>
+            ${item.subtitle ? `<p class="text-sm text-slate-600 mb-3 italic">${safeStr(item.subtitle)}</p>` : ''}
+          </div>
+          <iframe sandbox="allow-same-origin"
+            srcdoc="${sanitizedDoc.replace(/"/g,'&quot;')}"
+            style="width:100%;min-height:300px;max-height:60vh;border:1px solid #e2e8f0;border-radius:12px;overflow:auto"
+            onload="try{this.style.height=Math.min(this.contentDocument.body.scrollHeight+32,window.innerHeight*0.6)+'px'}catch(e){}"
+          ></iframe>
+          <div class="mt-4 pt-4 border-t border-slate-100 text-xs text-slate-500 flex items-center gap-2">
+            <span>✏️ עריכת תוכן מתבצעת ע"י הכותב בעורך שבצד המשפחה</span>
+            <span class="font-medium text-slate-700">${safeStr(item.author_name||item.author_pen_name||'—')}</span>
+          </div>`;
+    } catch(e) {
+        body.innerHTML = `<div class="text-center py-8 text-red-400">שגיאה: ${e.message}</div>`;
+    }
+};
+window.khCloseViewModal = function() {
+    const modal = document.getElementById('kh-view-modal');
+    if (modal) modal.classList.add('hidden');
+};
+
+window.khUnpublish = async function(id, title) {
+    if (!confirm(`הורדת מפרסום: "${title}"?\n\nGLOBAL → LOCAL, LOCAL → DRAFT`)) return;
+    try {
+        const d = await saFetch(`/api/kol-haam/sa/content/${id}/unpublish`, { method: 'POST' });
+        if (d.success) { showToast('success', `${d.prev_status} → ${d.new_status}`); loadKHContentTab(); }
+        else showToast('error', d.error || 'שגיאה');
+    } catch(e) { showToast('error', e.message); }
+};
+window.khRepublish = async function(id, title) {
+    if (!confirm(`החזרה לפרסום: "${title}"?\n\nDRAFT → LOCAL, LOCAL → GLOBAL`)) return;
+    try {
+        const d = await saFetch(`/api/kol-haam/sa/content/${id}/republish`, { method: 'POST' });
+        if (d.success) { showToast('success', `${d.prev_status} → ${d.new_status}`); loadKHContentTab(); }
+        else showToast('error', d.error || 'שגיאה');
+    } catch(e) { showToast('error', e.message); }
+};
+window.khRevertDraft = async function(id, title) {
+    if (!confirm(`החזרה לטיוטה: "${title}"?`)) return;
+    try {
+        const d = await saFetch(`/api/kol-haam/sa/content/${id}/revert-to-draft`, { method: 'POST' });
+        if (d.success) { showToast('success', `${d.prev_status} → DRAFT`); loadKHContentTab(); }
+        else showToast('error', d.error || 'שגיאה');
+    } catch(e) { showToast('error', e.message); }
+};
+window.khDeleteContent = async function(id, title) {
+    if (!confirm(`מחיקה מלאה: "${title}"?\n\nלא ניתן לבטל פעולה זו.`)) return;
+    try {
+        const d = await saFetch(`/api/kol-haam/sa/content/${id}`, { method: 'DELETE' });
+        if (d.success) { showToast('success', 'נמחק'); loadKHContentTab(); }
+        else showToast('error', d.error || 'שגיאה');
+    } catch(e) { showToast('error', e.message); }
+};
+window.khBulkUnpublish = async function() {
+    const ids = [..._khSelectedIds];
+    if (!confirm(`הורדת מפרסום ל-${ids.length} פריטים?`)) return;
+    const d = await saFetch('/api/kol-haam/sa/content/bulk-action', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action:'unpublish',ids}) });
+    if (d.success) { showToast('success', `${d.affected} פריטים הורדו`); _khSelectedIds.clear(); loadKHContentTab(); }
+    else showToast('error', d.error||'שגיאה');
+};
+window.khBulkDelete = async function() {
+    const ids = [..._khSelectedIds];
+    if (!confirm(`מחיקת ${ids.length} פריטים? לא ניתן לבטל פעולה זו.`)) return;
+    const d = await saFetch('/api/kol-haam/sa/content/bulk-action', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action:'delete',ids}) });
+    if (d.success) { showToast('success', `${d.affected} פריטים נמחקו`); _khSelectedIds.clear(); loadKHContentTab(); }
+    else showToast('error', d.error||'שגיאה');
+};
+window.khBulkChangeCategory = async function() {
+    const cats = (_khData.cats||[]).filter(c=>c.scope_level==='GLOBAL');
+    if (!cats.length) { showToast('error','אין קטגוריות גלובליות'); return; }
+    const opts = cats.map(c=>`${c.id}: ${c.title}`).join('\n');
+    const input = prompt(`בחר מזהה קטגוריה:\n${opts}`);
+    if (!input) return;
+    const catId = parseInt(input);
+    if (!catId) { showToast('error','מזהה לא תקין'); return; }
+    const ids = [..._khSelectedIds];
+    const d = await saFetch('/api/kol-haam/sa/content/bulk-action', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({action:'change-category',ids,category_id:catId}) });
+    if (d.success) { showToast('success', `עודכנו ${d.affected} פריטים`); _khSelectedIds.clear(); loadKHContentTab(); }
+    else showToast('error', d.error||'שגיאה');
+};
+
 function _khPlaceholder(label) {
     return `<div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-10 text-center">
       <div class="text-3xl mb-3">🚧</div>
@@ -12085,6 +12546,12 @@ window.switchKHTab = function(key) {
     }
 
     const d = _khData;
+    if (key === 'content') {
+        _khLoadFiltersFromURL();
+        loadKHContentTab();
+        return;
+    }
+
     let html;
     switch (key) {
         case 'approvals':  html = _khRenderApprovals(d.items||[], d.delReqs||[]); break;
