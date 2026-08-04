@@ -26282,7 +26282,7 @@ app.get('/api/kol-haam/content/:id', async (req, res) => {
                    ci.series_chapter_number as chapter_number,
                    (SELECT COUNT(*) FROM content_items sc WHERE sc.series_id = ci.series_id) as total_chapters,
                    COALESCE(
-                       (SELECT json_agg(json_build_object('id', sc.id, 'title', sc.title, 'chapter_number', sc.series_chapter_number)
+                       (SELECT json_agg(json_build_object('id', sc.id, 'title', sc.title, 'chapter_number', sc.series_chapter_number, 'cover_image_url', sc.cover_image_url)
                                 ORDER BY sc.series_chapter_number)
                         FROM content_items sc WHERE sc.series_id = ci.series_id AND ci.series_id IS NOT NULL),
                        '[]'
