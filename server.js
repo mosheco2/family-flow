@@ -26375,8 +26375,31 @@ app.post('/api/kol-haam/seed-demo', async (req, res) => {
         const getCat = (keyword) => cats.find(c => c.title.includes(keyword)) || cats[0];
         log.push(`✓ קטגוריות: ${cats.map(c=>c.title).join(', ')}`);
 
-        const img = (name) => `https://picsum.photos/seed/${name.replace(/\.[^.]+$/,'')}/800/500`;
-        const imgCover = (name) => `https://picsum.photos/seed/${name.replace(/\.[^.]+$/,'')}/1200/600`;
+        // map from filename → topic-relevant loremflickr URL
+        const _imgMap = {
+            'hero-summer-calendar': 'https://loremflickr.com/1200/600/calendar,summer,family,planning?lock=401',
+            'cat-1':    'https://loremflickr.com/800/500/family,summer,outdoor,children?lock=402',
+            'cat-2':    'https://loremflickr.com/800/500/notebook,template,planning,paper?lock=403',
+            'cat-5':    'https://loremflickr.com/800/500/crisis,family,problem,solution?lock=404',
+            'cat-6':    'https://loremflickr.com/800/500/community,garden,urban,volunteer?lock=405',
+            'cat-lab':  'https://loremflickr.com/800/500/laboratory,robotics,technology,youth?lock=406',
+            'cat-people':'https://loremflickr.com/800/500/people,community,group,meeting?lock=407',
+            'hot-2':    'https://loremflickr.com/800/500/news,headline,parents,school?lock=408',
+            'hot-4':    'https://loremflickr.com/800/500/parents,children,home,together?lock=409',
+            'hot-5':    'https://loremflickr.com/800/500/school,notice,parents,announcement?lock=410',
+            'hot-books':'https://loremflickr.com/800/500/books,reading,child,library?lock=411',
+            'hot-lab':  'https://loremflickr.com/800/500/science,experiment,children,school?lock=412',
+            'talk-1':   'https://loremflickr.com/800/500/discussion,community,conversation?lock=413',
+            'talk-2':   'https://loremflickr.com/800/500/parents,talk,meeting,neighborhood?lock=414',
+            'talk-4':   'https://loremflickr.com/800/500/money,budget,coins,expense,family?lock=415',
+            'talk-5':   'https://loremflickr.com/800/500/people,opinion,vote,community?lock=416',
+            'talk-people':'https://loremflickr.com/800/500/diverse,people,community,gathering?lock=417',
+            'inner-1-fridge-schedule':'https://loremflickr.com/800/500/schedule,calendar,fridge,organization?lock=418',
+            'inner-2-water-day':'https://loremflickr.com/800/500/water,splash,children,summer,fun?lock=419',
+            'avatar':   'https://loremflickr.com/200/200/portrait,woman,professional?lock=420',
+        };
+        const img = (name) => _imgMap[name.replace(/\.[^.]+$/,'')] || `https://loremflickr.com/800/500/community,family?lock=499`;
+        const imgCover = img;
 
         // helper: upsert tag
         const upsertTag = async (name) => {
@@ -28829,18 +28852,18 @@ app.post('/api/kol-haam/authors/:id/follow', async (req, res) => {
 app.post('/api/kol-haam/fix-covers', async (req, res) => {
     if (req.body.secret !== 'SEED_DEMO_2026') return res.status(403).json({ error: 'אסור' });
     const COVERS = [
-        'https://picsum.photos/seed/family01/800/500',
-        'https://picsum.photos/seed/community02/800/500',
-        'https://picsum.photos/seed/children03/800/500',
-        'https://picsum.photos/seed/park04/800/500',
-        'https://picsum.photos/seed/school05/800/500',
-        'https://picsum.photos/seed/garden06/800/500',
-        'https://picsum.photos/seed/meeting07/800/500',
-        'https://picsum.photos/seed/library08/800/500',
-        'https://picsum.photos/seed/playground09/800/500',
-        'https://picsum.photos/seed/neighborhood10/800/500',
-        'https://picsum.photos/seed/education11/800/500',
-        'https://picsum.photos/seed/volunteer12/800/500',
+        'https://loremflickr.com/800/500/family,children,summer?lock=101',
+        'https://loremflickr.com/800/500/community,people,neighborhood?lock=102',
+        'https://loremflickr.com/800/500/school,education,kids?lock=103',
+        'https://loremflickr.com/800/500/garden,park,green?lock=104',
+        'https://loremflickr.com/800/500/family,home,parents?lock=105',
+        'https://loremflickr.com/800/500/books,library,reading?lock=106',
+        'https://loremflickr.com/800/500/meeting,volunteer,group?lock=107',
+        'https://loremflickr.com/800/500/playground,children,outdoor?lock=108',
+        'https://loremflickr.com/800/500/technology,robotics,lab?lock=109',
+        'https://loremflickr.com/800/500/street,neighborhood,urban?lock=110',
+        'https://loremflickr.com/800/500/money,budget,finance?lock=111',
+        'https://loremflickr.com/800/500/classroom,teacher,learning?lock=112',
     ];
     try {
         // עדכן את כל כתבות הדוגמה — גם ישנות וגם כאלה עם נתיב שבור
@@ -28989,14 +29012,14 @@ app.post('/api/kol-haam/seed-author-sample', async (req, res) => {
         };
 
         const articles = [
-            { title:'החופש הגדול נגמר בפלוס: שבע משפחות בנו לוח קיץ משותף וחסכו 4,300 ₪ לילד', type:'ARTICLE', subtitle:'גיליון אחד משותף, תורנות של הורה אחראי ליום, ו-38 ימי חופש שעברו בלי פאניקה.', cover:'https://picsum.photos/seed/summer-families/800/500', time:8, date:'2026-08-15', scope:'GLOBAL', views:18400, likes:214, comments:10 },
-            { title:'התבנית המלאה של לוח הקיץ — להורדה, לשכפול ולשימוש חופשי', type:'WIKI_GUIDE', subtitle:'שלושה גיליונות, רשימת כללים אחת וטופס הסכמה קצר בין ההורים.', cover:'https://picsum.photos/seed/planning-table/800/500', time:4, date:'2026-08-18', scope:'GLOBAL', views:9200, likes:96, comments:34 },
-            { title:'כמה באמת עולה קיץ אחד למשפחה ישראלית — פירוק ההוצאה', type:'ARTICLE', subtitle:'בדקנו 42 משפחות בארבע רשויות. הפער בין הזולה ליקרה: פי 3.8.', cover:'https://picsum.photos/seed/budget-family/800/500', time:12, date:'2026-08-02', scope:'GLOBAL', views:24100, likes:341, comments:87 },
-            { title:'הגינה שהוקמה על חניון נטוש — ומה קרה כשהעירייה גילתה', type:'SUCCESS_STORY', subtitle:'שמונה חודשים, 26 מתנדבים ובקשה אחת שאושרה ברגע האחרון.', cover:'https://picsum.photos/seed/community-garden/800/500', time:7, date:'2026-07-21', scope:'LOCAL', views:11800, likes:178, comments:52 },
-            { title:'הצהרון נסגר, ואף אחד לא באמת חייב לכם הסבר', type:'ARTICLE', subtitle:'למה ההודעה מגיעה תמיד באוגוסט, ומה אפשר לדרוש בפועל.', cover:'https://picsum.photos/seed/kids-school/800/500', time:5, date:'2026-07-11', scope:'LOCAL', views:15600, likes:402, comments:143 },
-            { title:'איך מארגנים הסעה משותפת לחוגים בלי אפליקציה בתשלום', type:'WIKI_GUIDE', subtitle:'ארבעה מודלים שנוסו בשכונה, כולל זה שנכשל ולמה.', cover:'https://picsum.photos/seed/carpool-street/800/500', time:6, date:'2026-06-28', scope:'LOCAL', views:7400, likes:88, comments:29 },
-            { title:'המקלט שהפך למעבדת רובוטיקה — כל השלבים', type:'ARTICLE', subtitle:'18 חודשים, 40 מתנדבים ותרומת ציוד אחת ששינתה את התמונה.', cover:'https://picsum.photos/seed/tech-lab-kids/800/500', time:10, date:'2026-06-09', scope:'GLOBAL', views:21300, likes:289, comments:64 },
-            { title:'הספרייה השכונתית שנפתחה בשעתיים', type:'SUCCESS_STORY', subtitle:'קריאה אחת בקבוצת הוואטסאפ, 380 ספרים ומדף אחד שנקנה בכסף אמיתי.', cover:'https://picsum.photos/seed/local-library/800/500', time:3, date:'2026-05-17', scope:'LOCAL', views:6900, likes:74, comments:21 },
+            { title:'החופש הגדול נגמר בפלוס: שבע משפחות בנו לוח קיץ משותף וחסכו 4,300 ₪ לילד', type:'ARTICLE', subtitle:'גיליון אחד משותף, תורנות של הורה אחראי ליום, ו-38 ימי חופש שעברו בלי פאניקה.', cover:'https://loremflickr.com/800/500/family,children,summer,outdoor?lock=201', time:8, date:'2026-08-15', scope:'GLOBAL', views:18400, likes:214, comments:10 },
+            { title:'התבנית המלאה של לוח הקיץ — להורדה, לשכפול ולשימוש חופשי', type:'WIKI_GUIDE', subtitle:'שלושה גיליונות, רשימת כללים אחת וטופס הסכמה קצר בין ההורים.', cover:'https://loremflickr.com/800/500/calendar,planning,notebook,organize?lock=202', time:4, date:'2026-08-18', scope:'GLOBAL', views:9200, likes:96, comments:34 },
+            { title:'כמה באמת עולה קיץ אחד למשפחה ישראלית — פירוק ההוצאה', type:'ARTICLE', subtitle:'בדקנו 42 משפחות בארבע רשויות. הפער בין הזולה ליקרה: פי 3.8.', cover:'https://loremflickr.com/800/500/money,budget,coins,family?lock=203', time:12, date:'2026-08-02', scope:'GLOBAL', views:24100, likes:341, comments:87 },
+            { title:'הגינה שהוקמה על חניון נטוש — ומה קרה כשהעירייה גילתה', type:'SUCCESS_STORY', subtitle:'שמונה חודשים, 26 מתנדבים ובקשה אחת שאושרה ברגע האחרון.', cover:'https://loremflickr.com/800/500/community,garden,urban,green?lock=204', time:7, date:'2026-07-21', scope:'LOCAL', views:11800, likes:178, comments:52 },
+            { title:'הצהרון נסגר, ואף אחד לא באמת חייב לכם הסבר', type:'ARTICLE', subtitle:'למה ההודעה מגיעה תמיד באוגוסט, ומה אפשר לדרוש בפועל.', cover:'https://loremflickr.com/800/500/children,school,classroom,education?lock=205', time:5, date:'2026-07-11', scope:'LOCAL', views:15600, likes:402, comments:143 },
+            { title:'איך מארגנים הסעה משותפת לחוגים בלי אפליקציה בתשלום', type:'WIKI_GUIDE', subtitle:'ארבעה מודלים שנוסו בשכונה, כולל זה שנכשל ולמה.', cover:'https://loremflickr.com/800/500/car,street,parking,neighborhood?lock=206', time:6, date:'2026-06-28', scope:'LOCAL', views:7400, likes:88, comments:29 },
+            { title:'המקלט שהפך למעבדת רובוטיקה — כל השלבים', type:'ARTICLE', subtitle:'18 חודשים, 40 מתנדבים ותרומת ציוד אחת ששינתה את התמונה.', cover:'https://loremflickr.com/800/500/robotics,technology,children,lab?lock=207', time:10, date:'2026-06-09', scope:'GLOBAL', views:21300, likes:289, comments:64 },
+            { title:'הספרייה השכונתית שנפתחה בשעתיים', type:'SUCCESS_STORY', subtitle:'קריאה אחת בקבוצת הוואטסאפ, 380 ספרים ומדף אחד שנקנה בכסף אמיתי.', cover:'https://loremflickr.com/800/500/library,books,reading,shelf?lock=208', time:3, date:'2026-05-17', scope:'LOCAL', views:6900, likes:74, comments:21 },
         ];
 
         const articleIds = [];
@@ -29071,7 +29094,18 @@ app.post('/api/kol-haam/seed-list-sample', async (req, res) => {
         const now = new Date();
         const ago = days => new Date(now - days * 86400000).toISOString();
 
-        const COVERS = ['https://picsum.photos/seed/daycare-form/800/500','https://picsum.photos/seed/shadow-net-garden/800/500','https://picsum.photos/seed/school-supply/800/500','https://picsum.photos/seed/summer-cost/800/500','https://picsum.photos/seed/calendar-kids/800/500','https://picsum.photos/seed/nursery-closed/800/500','https://picsum.photos/seed/carpooling/800/500','https://picsum.photos/seed/robotics-shelter/800/500','https://picsum.photos/seed/pta-budget/800/500','https://picsum.photos/seed/community-talk/800/500'];
+        const COVERS = [
+            'https://loremflickr.com/800/500/registration,form,daycare?lock=301',
+            'https://loremflickr.com/800/500/garden,shade,children,play?lock=302',
+            'https://loremflickr.com/800/500/school,supplies,backpack,pencils?lock=303',
+            'https://loremflickr.com/800/500/money,summer,vacation,family?lock=304',
+            'https://loremflickr.com/800/500/calendar,summer,family,schedule?lock=305',
+            'https://loremflickr.com/800/500/school,closed,door,building?lock=306',
+            'https://loremflickr.com/800/500/car,neighborhood,kids,school?lock=307',
+            'https://loremflickr.com/800/500/robotics,shelter,lab,youth?lock=308',
+            'https://loremflickr.com/800/500/pta,parents,meeting,school?lock=309',
+            'https://loremflickr.com/800/500/community,discussion,people,group?lock=310',
+        ];
         const ARTICLES = [
             { d: 0.04,  type:'QA_QUESTION',   scope:'LOCAL',  title:'[דוגמה] רישום לצהרונים נפתח היום ב־20:00 — ומה כדאי להכין מראש',      subtitle:'שלושה מסמכים, מספר קופה אחד ושלב אחד שאפשר לעשות עכשיו כדי לא להיתקע בטופס.',  author:'רותם גל',     views:2100,  likes:44,  comments:18 },
             { d: 0.17,  type:'SUCCESS_STORY',  scope:'LOCAL',  title:'[דוגמה] הגן שהוסיף מסך צל בשבת אחת — התמונות מהחצר',                   subtitle:'שבעה הורים, שני סולמות והיתר שהתקבל יומיים לפני. עלות סופית: 1,850 ₪.',          author:'מיכל אשד',    views:3400,  likes:91,  comments:27 },
@@ -29247,7 +29281,7 @@ app.post('/api/kol-haam/seed-full-demo', async (req, res) => {
             { title: '[טיוטה] רעיונות לפעילות קיץ עם הילדים', subtitle: 'רשמים ומחשבות שעדיין בעיצוב', type: 'ARTICLE' },
             { title: '[טיוטה] שאלה על לוח חופשות תשפ"ו', subtitle: 'מישהו יודע מתי בדיוק מתחיל סמסטר ב?', type: 'QA_QUESTION' },
         ];
-        const draftCovers = ['https://picsum.photos/seed/draft-summer/800/500','https://picsum.photos/seed/draft-question/800/500'];
+        const draftCovers = ['https://loremflickr.com/800/500/summer,activities,children,ideas?lock=501','https://loremflickr.com/800/500/question,school,calendar,holiday?lock=502'];
         for (let di = 0; di < draftItems.length; di++) {
             const item = draftItems[di];
             const ex = await client.query(`SELECT id,cover_image_url FROM content_items WHERE title=$1 AND is_sample_data=TRUE`, [item.title]);
@@ -29272,7 +29306,7 @@ app.post('/api/kol-haam/seed-full-demo', async (req, res) => {
         if (!exZM.rows[0]) {
             const ins = await client.query(`
                 INSERT INTO content_items(community_id,category_id,author_profile_id,content_type,scope_type,status,zm_approval_status,title,subtitle,content_html,cover_image_url,reading_time_minutes,is_sample_data)
-                VALUES($1,$2,$3,'ARTICLE','LOCAL','PENDING_ZM','PENDING',$4,$5,$6,'https://picsum.photos/seed/zm-queue-plan/800/500',4,TRUE) RETURNING id`,
+                VALUES($1,$2,$3,'ARTICLE','LOCAL','PENDING_ZM','PENDING',$4,$5,$6,'https://loremflickr.com/800/500/community,event,planning,annual?lock=503',4,TRUE) RETURNING id`,
                 [communityId, catId, authorId, zmTitle, 'הצעה מפורטת לאירועי הקהילה בשנה הקרובה', `<p>תכנית מפורטת עם 12 פעילויות קהילתיות, תקציב מוצע ולוחות זמנים.</p>`]
             );
             await client.query(`INSERT INTO content_engagement_metrics(content_item_id) VALUES($1) ON CONFLICT DO NOTHING`, [ins.rows[0].id]);
@@ -29287,7 +29321,7 @@ app.post('/api/kol-haam/seed-full-demo', async (req, res) => {
         if (!exSA.rows[0]) {
             const ins = await client.query(`
                 INSERT INTO content_items(community_id,category_id,author_profile_id,content_type,scope_type,status,sa_approval_status,title,subtitle,content_html,cover_image_url,reading_time_minutes,is_sample_data,published_at)
-                VALUES($1,$2,$3,'ARTICLE','GLOBAL','PENDING_SA','PENDING',$4,$5,$6,'https://picsum.photos/seed/sa-queue-law/800/500',6,TRUE,NOW()) RETURNING id`,
+                VALUES($1,$2,$3,'ARTICLE','GLOBAL','PENDING_SA','PENDING',$4,$5,$6,'https://loremflickr.com/800/500/law,education,free,children,policy?lock=504',6,TRUE,NOW()) RETURNING id`,
                 [communityId, catId, authorId, saTitle, 'ניתוח מעמיק של תיקון החוק החדש והשלכותיו על משפחות', `<p>מאמר ניתוח מקיף על חוק חינוך חינם ומשמעויותיו.</p>`]
             );
             await client.query(`INSERT INTO content_engagement_metrics(content_item_id) VALUES($1) ON CONFLICT DO NOTHING`, [ins.rows[0].id]);
