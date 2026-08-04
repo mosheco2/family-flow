@@ -29109,7 +29109,9 @@ app.post('/api/kol-haam/seed-full-demo', async (req, res) => {
 
         // ── מציאת כתבה פורסמה לשמירה ──────────────────────────────────
         const pubR = await client.query(
-            `SELECT id FROM content_items WHERE family_group_id=$1 AND status='PUBLISHED_LOCAL' ORDER BY id LIMIT 3`, [groupId]
+            `SELECT ci.id FROM content_items ci
+             JOIN author_profiles ap ON ap.id=ci.author_profile_id
+             WHERE ap.family_group_id=$1 AND ci.status='PUBLISHED_LOCAL' ORDER BY ci.id LIMIT 3`, [groupId]
         );
         const pubIds = pubR.rows.map(r => r.id);
 
@@ -29130,17 +29132,17 @@ app.post('/api/kol-haam/seed-full-demo', async (req, res) => {
         let followCount = 0;
         if (michalR.rows[0]) {
             const michalApId = michalR.rows[0].id;
-            const exF = await client.query(`SELECT 1 FROM author_follows WHERE follower_group_id=$1 AND followed_author_id=$2`, [groupId, michalApId]);
+            const exF = await client.query(`SELECT 1 FROM author_followers WHERE follower_group_id=$1 AND following_profile_id=$2`, [groupId, michalApId]);
             if (!exF.rows.length) {
-                await client.query(`INSERT INTO author_follows(follower_group_id,followed_author_id) VALUES($1,$2)`, [groupId, michalApId]);
+                await client.query(`INSERT INTO author_followers(follower_group_id,following_profile_id) VALUES($1,$2)`, [groupId, michalApId]);
                 await client.query(`UPDATE author_profiles SET followers_count=followers_count+1 WHERE id=$1`, [michalApId]);
                 followCount++;
             }
         }
         // עוקבים גם אחרי author עצמו (לגנרציית feed)
-        const exSelf = await client.query(`SELECT 1 FROM author_follows WHERE follower_group_id=$1 AND followed_author_id=$2`, [groupId, authorId]);
+        const exSelf = await client.query(`SELECT 1 FROM author_followers WHERE follower_group_id=$1 AND following_profile_id=$2`, [groupId, authorId]);
         if (!exSelf.rows.length) {
-            await client.query(`INSERT INTO author_follows(follower_group_id,followed_author_id) VALUES($1,$2)`, [groupId, authorId]);
+            await client.query(`INSERT INTO author_followers(follower_group_id,following_profile_id) VALUES($1,$2)`, [groupId, authorId]);
             await client.query(`UPDATE author_profiles SET followers_count=followers_count+1 WHERE id=$1`, [authorId]);
             followCount++;
         }
@@ -29172,6 +29174,14 @@ app.post('/api/kol-haam/seed-full-demo', async (req, res) => {
         }
         log.push(`collections: ${colCount} אוספים נוצרו`);
 
+        // ── מצא category_id (כלשהי לקהילה, או גלובלית) ─────────────────
+        const catR = await client.query(
+            `SELECT id FROM content_categories WHERE (community_id=$1 OR community_id IS NULL) AND scope_level IN ('LOCAL','GLOBAL') ORDER BY id LIMIT 1`,
+            [communityId]
+        );
+        if (!catR.rows[0]) { await client.query('ROLLBACK'); return res.status(400).json({ error: 'אין קטגוריות — הרץ seed-demo קודם' }); }
+        const catId = catR.rows[0].id;
+
         // 4. MY-DRAFTS — 2 טיוטות ─────────────────────────────────────────
         let draftCount = 0;
         const draftItems = [
@@ -29182,9 +29192,9 @@ app.post('/api/kol-haam/seed-full-demo', async (req, res) => {
             const ex = await client.query(`SELECT 1 FROM content_items WHERE title=$1 AND is_sample_data=TRUE`, [di.title]);
             if (!ex.rows.length) {
                 const ins = await client.query(`
-                    INSERT INTO content_items(family_group_id,community_id,author_profile_id,content_type,scope_type,status,title,subtitle,content_html,reading_time_minutes,is_sample_data)
+                    INSERT INTO content_items(community_id,category_id,author_profile_id,content_type,scope_type,status,title,subtitle,content_html,reading_time_minutes,is_sample_data)
                     VALUES($1,$2,$3,$4,'LOCAL','DRAFT',$5,$6,$7,2,TRUE) RETURNING id`,
-                    [groupId, communityId, authorId, di.type, di.title, di.subtitle, `<p>${di.subtitle}</p>`]
+                    [communityId, catId, authorId, di.type, di.title, di.subtitle, `<p>${di.subtitle}</p>`]
                 );
                 await client.query(`INSERT INTO content_engagement_metrics(content_item_id) VALUES($1) ON CONFLICT DO NOTHING`, [ins.rows[0].id]);
                 draftCount++;
@@ -29198,9 +29208,9 @@ app.post('/api/kol-haam/seed-full-demo', async (req, res) => {
         const exZM = await client.query(`SELECT 1 FROM content_items WHERE title=$1 AND is_sample_data=TRUE`, [zmTitle]);
         if (!exZM.rows.length) {
             const ins = await client.query(`
-                INSERT INTO content_items(family_group_id,community_id,author_profile_id,content_type,scope_type,status,zm_approval_status,title,subtitle,content_html,reading_time_minutes,is_sample_data)
+                INSERT INTO content_items(community_id,category_id,author_profile_id,content_type,scope_type,status,zm_approval_status,title,subtitle,content_html,reading_time_minutes,is_sample_data)
                 VALUES($1,$2,$3,'ARTICLE','LOCAL','PENDING_ZM','PENDING',$4,$5,$6,4,TRUE) RETURNING id`,
-                [groupId, communityId, authorId, zmTitle, 'הצעה מפורטת לאירועי הקהילה בשנה הקרובה', `<p>תכנית מפורטת עם 12 פעילויות קהילתיות, תקציב מוצע ולוחות זמנים.</p>`]
+                [communityId, catId, authorId, zmTitle, 'הצעה מפורטת לאירועי הקהילה בשנה הקרובה', `<p>תכנית מפורטת עם 12 פעילויות קהילתיות, תקציב מוצע ולוחות זמנים.</p>`]
             );
             await client.query(`INSERT INTO content_engagement_metrics(content_item_id) VALUES($1) ON CONFLICT DO NOTHING`, [ins.rows[0].id]);
             zmQueueCount++;
@@ -29213,9 +29223,9 @@ app.post('/api/kol-haam/seed-full-demo', async (req, res) => {
         const exSA = await client.query(`SELECT 1 FROM content_items WHERE title=$1 AND is_sample_data=TRUE`, [saTitle]);
         if (!exSA.rows.length) {
             const ins = await client.query(`
-                INSERT INTO content_items(family_group_id,community_id,author_profile_id,content_type,scope_type,status,sa_approval_status,title,subtitle,content_html,reading_time_minutes,is_sample_data,published_at)
+                INSERT INTO content_items(community_id,category_id,author_profile_id,content_type,scope_type,status,sa_approval_status,title,subtitle,content_html,reading_time_minutes,is_sample_data,published_at)
                 VALUES($1,$2,$3,'ARTICLE','GLOBAL','PENDING_SA','PENDING',$4,$5,$6,6,TRUE,NOW()) RETURNING id`,
-                [groupId, communityId, authorId, saTitle, 'ניתוח מעמיק של תיקון החוק החדש והשלכותיו על משפחות', `<p>מאמר ניתוח מקיף על חוק חינוך חינם ומשמעויותיו.</p>`]
+                [communityId, catId, authorId, saTitle, 'ניתוח מעמיק של תיקון החוק החדש והשלכותיו על משפחות', `<p>מאמר ניתוח מקיף על חוק חינוך חינם ומשמעויותיו.</p>`]
             );
             await client.query(`INSERT INTO content_engagement_metrics(content_item_id) VALUES($1) ON CONFLICT DO NOTHING`, [ins.rows[0].id]);
             saQueueCount++;
