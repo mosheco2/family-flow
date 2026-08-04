@@ -12068,7 +12068,7 @@ async function loadSAKolHaamQueue() {
               <div id="sa-kh-cats-list">
                 ${cats.filter(c => c.scope_level === 'GLOBAL').map(c => `
                   <div class="flex justify-between items-center py-2 border-b border-slate-100 text-sm">
-                    <span class="font-medium text-slate-700">${safeStr(c.icon||'')} ${safeStr(c.name)}</span>
+                    <span class="font-medium text-slate-700">${safeStr(c.icon||'')} ${safeStr(c.title)}</span>
                     <button onclick="saKHDeleteCategory(${c.id})" class="text-red-400 hover:text-red-600 text-xs transition">מחק</button>
                   </div>`).join('')}
               </div>
