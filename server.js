@@ -28849,6 +28849,67 @@ app.post('/api/kol-haam/authors/:id/follow', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// POST seed-editor-draft — יוצר טיוטת דוגמה לעורך התוכן
+app.post('/api/kol-haam/seed-editor-draft', async (req, res) => {
+    if (req.body.secret !== 'SEED_DEMO_2026') return res.status(403).json({ error: 'אסור' });
+    try {
+        // מצא author profile ו-community לדוגמה
+        const apRes = await pool.query(
+            `SELECT ap.id, ap.community_id FROM author_profiles ap WHERE ap.is_sample_data=TRUE LIMIT 1`
+        );
+        if (!apRes.rows[0]) return res.status(400).json({ error: 'אין author profile לדוגמה — הרץ קודם seed-author-sample' });
+        const { id: apId, community_id: commId } = apRes.rows[0];
+
+        // מצא קטגוריה
+        const catRes = await pool.query(`SELECT id FROM content_categories WHERE scope_level='GLOBAL' LIMIT 1`);
+        const catId = catRes.rows[0]?.id;
+        if (!catId) return res.status(400).json({ error: 'אין קטגוריות — הרץ קודם seed' });
+
+        const title = 'החופש הגדול נגמר בפלוס: שבע משפחות בנו לוח קיץ משותף';
+        const existing = await pool.query(
+            `SELECT id FROM content_items WHERE title=$1 AND is_sample_data=TRUE LIMIT 1`, [title]
+        );
+        if (existing.rows[0]) {
+            return res.json({ success: true, id: existing.rows[0].id, message: 'טיוטה קיימת' });
+        }
+
+        const coverUrl = 'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=800&h=500&fit=crop&auto=format&q=80';
+        const contentHtml = `<h2>הרעיון שנולד מתוך מצוקה</h2>
+<p>שבע משפחות מרמת־אלה ישבו בוואטסאפ קהילתי בתחילת יוני ושיתפו בעיה אחת: החופש הגדול מאיים, הצהרון נסגר באוגוסט, ולכולם ילדים בגילי חפיפה.</p>
+<p>מיכל אשד, אמא לשתיים, הציעה משהו פשוט: גיליון Google משותף עם 38 ימי חופשה, שם כל הורה מסמן את ימי האחריות שלו.</p>
+<h2>איך זה עבד בפועל</h2>
+<p>כל משפחה קיבלה "ימי מחנה" — בין 4 ל-6 ימים שבהם בית שלה היה "הבסיס". ביתר הימים ילדיה אצל הזוגות האחרים.</p>
+<p>תורנות הורה אחראי ליום: מישהו אחד זמין לכל קריאה, שאר ההורים יכולים לעבוד.</p>
+<h2>התוצאות במספרים</h2>
+<p>38 ימי חופש עברו ללא אירוע חירום אחד שלא נסגר בתוך שעה. עלות לכל משפחה: 0 ₪ נוסף. שעות עבודה שנשמרו: בממוצע 19 ימי עבודה להורה.</p>
+<p>שלוש משפחות מתכננות להמשיך את המודל גם לחגי תשרי.</p>`;
+
+        const r = await pool.query(`
+            INSERT INTO content_items
+                (author_profile_id, category_id, community_id, content_type, scope_type, status,
+                 title, subtitle, content_html, cover_image_url, reading_time_minutes, is_sample_data, quick_summary_20s)
+            VALUES ($1,$2,$3,'ARTICLE','LOCAL','DRAFT',$4,$5,$6,$7,8,TRUE,$8)
+            RETURNING id
+        `, [
+            apId, catId, commId, title,
+            'גיליון אחד משותף, תורנות של הורה אחראי ליום, ו-38 ימי חופש בלי פאניקה.',
+            contentHtml, coverUrl,
+            'שבע משפחות חילקו ביניהן את ימי החופש הגדול בעזרת גיליון Google — ללא עלות נוספת, עם תורנות הורה יומית.'
+        ]);
+        const id = r.rows[0].id;
+
+        // הוסף תגיות
+        for (const tag of ['חופש גדול', 'ארגון משפחה', 'שיתוף פעולה']) {
+            const tRes = await pool.query(`SELECT id FROM content_tags WHERE name=$1`, [tag]);
+            const tagId = tRes.rows[0]?.id || (await pool.query(`INSERT INTO content_tags(name,slug,usage_count) VALUES($1,$2,0) RETURNING id`,
+                [tag, tag.replace(/\s/g,'-')])).rows[0].id;
+            await pool.query(`INSERT INTO content_item_tags(content_item_id,tag_id) VALUES($1,$2) ON CONFLICT DO NOTHING`, [id, tagId]);
+        }
+
+        res.json({ success: true, id, message: 'טיוטה נוצרה', editorUrl: `/kol-haam.html?editDraft=${id}` });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // POST fix-covers — מעדכן cover_image_url לכל כתבה שחסרה תמונת Unsplash תקינה
 app.post('/api/kol-haam/fix-covers', async (req, res) => {
     if (req.body.secret !== 'SEED_DEMO_2026') return res.status(403).json({ error: 'אסור' });

@@ -215,7 +215,10 @@ const KH = {
                 return;
             }
 
-            el.innerHTML = `<div class="feed-wrap">${heroHtml}${strip1}${strip2}${catGridHtml}${solutionsHtml}${footerHtml}</div>`;
+            const writeBtn = CTX.groupId
+                ? `<div style="padding:10px 16px 0;text-align:left;direction:rtl"><button class="kh-btn kh-btn-primary" onclick="KH.nav('editor')" style="font-size:.95rem;padding:.55rem 1.2rem;">✍️ כתוב כתבה חדשה</button></div>`
+                : '';
+            el.innerHTML = `<div class="feed-wrap">${writeBtn}${heroHtml}${strip1}${strip2}${catGridHtml}${solutionsHtml}${footerHtml}</div>`;
         } catch(e) {
             el.innerHTML = `<div class="empty-state" style="padding:2rem"><div class="ei">⚠️</div><p>שגיאה: ${esc(e.message)}</p></div>`;
         }
@@ -905,12 +908,24 @@ const KH = {
     },
 
     selectScope(scope) {
+        if (scope === 'GLOBAL') {
+            const confirmed = window.confirm(
+                '⚠️ שים לב: בחירת פרסום ארצי היא קביעה סופית.\n\n' +
+                'לאחר הגשת הכתבה לאישור, לא ניתן לשנות את ההיקף חזרה למקומי.\n\n' +
+                'האם להמשיך ולבקש הפצה ארצית?'
+            );
+            if (!confirmed) return;
+        }
         document.getElementById('scope-local-btn')?.classList.toggle('active', scope === 'LOCAL');
         document.getElementById('scope-global-btn')?.classList.toggle('active', scope === 'GLOBAL');
         const info = document.getElementById('scope-info');
-        if (info) info.textContent = scope === 'GLOBAL'
-            ? 'הכתבה תפורסם מקומית ותועבר לאישור SA לפרסום ארצי'
-            : 'הכתבה תפורסם בקהילה שלך בלבד';
+        if (info) {
+            info.textContent = scope === 'GLOBAL'
+                ? '⚠️ הכתבה תועבר לאישור ארצי — שינוי זה בלתי הפיך לאחר הגשה'
+                : 'הכתבה תפורסם בקהילה שלך בלבד';
+            info.style.color = scope === 'GLOBAL' ? '#C0392B' : '';
+            info.style.fontWeight = scope === 'GLOBAL' ? '600' : '';
+        }
     },
 
     onCategoryChange() {
@@ -2346,9 +2361,14 @@ async function init() {
         ).join('');
     }
 
-    // URL-param deep-linking for list view
+    // URL-param deep-linking for list view + editor draft
     const _initView = _p.get('view');
-    if (_initView === 'tag') {
+    const _editDraft = _p.get('editDraft');
+    if (_editDraft) {
+        KH.loadFeed().then ? KH.loadFeed().finally(() => KH.nav('editor', { itemId: parseInt(_editDraft) }))
+            : (KH.loadFeed(), setTimeout(() => KH.nav('editor', { itemId: parseInt(_editDraft) }), 300));
+        return;
+    } else if (_initView === 'tag') {
         const tag = _p.get('tag') || '';
         if (tag) { KH.loadList('tag', tag); return; }
     } else if (_initView === 'search') {
