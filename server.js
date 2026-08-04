@@ -29072,6 +29072,173 @@ app.post('/api/kol-haam/seed-list-sample', async (req, res) => {
     } catch(e) { console.error('seed-list-sample', e); res.status(500).json({ error: e.message }); }
 });
 
+// POST /api/kol-haam/seed-full-demo — סיד מקיף לכל ה-views החסרים
+// מכסה: saved, following, collections, zm-queue, sa-queue, zm-reports, my-drafts
+app.post('/api/kol-haam/seed-full-demo', async (req, res) => {
+    if (req.body.secret !== 'SEED_DEMO_2026') return res.status(403).json({ error: 'אסור' });
+    const log = [];
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        // ── מציאת קבוצה + קהילה + משתמש ──────────────────────────────
+        const grpR = await client.query(`SELECT id FROM family_groups WHERE group_code='NWP701'`);
+        if (!grpR.rows[0]) return res.status(400).json({ error: 'NWP701 לא נמצאה — הרץ seed-demo קודם' });
+        const groupId = grpR.rows[0].id;
+
+        const commR = await client.query(`SELECT community_id FROM family_groups WHERE id=$1`, [groupId]);
+        const communityId = commR.rows[0].community_id;
+
+        const userR = await client.query(`SELECT id FROM users WHERE group_id=$1 LIMIT 1`, [groupId]);
+        if (!userR.rows[0]) return res.status(400).json({ error: 'לא נמצא משתמש לקבוצה NWP701' });
+        const userId = userR.rows[0].id;
+
+        // ── מציאת author_profile ────────────────────────────────────────
+        const apR = await client.query(`SELECT id FROM author_profiles WHERE family_group_id=$1 LIMIT 1`, [groupId]);
+        if (!apR.rows[0]) return res.status(400).json({ error: 'לא נמצא author_profile — הרץ seed-demo קודם' });
+        const authorId = apR.rows[0].id;
+
+        // ── מציאת כתבה פורסמה לשמירה ──────────────────────────────────
+        const pubR = await client.query(
+            `SELECT id FROM content_items WHERE family_group_id=$1 AND status='PUBLISHED_LOCAL' ORDER BY id LIMIT 3`, [groupId]
+        );
+        const pubIds = pubR.rows.map(r => r.id);
+
+        // 1. SAVED — שמירת 2 כתבות עבור המשתמש ─────────────────────────
+        let savedCount = 0;
+        for (const cid of pubIds.slice(0, 2)) {
+            const ex = await client.query(`SELECT 1 FROM content_saves WHERE content_item_id=$1 AND user_id=$2`, [cid, userId]);
+            if (!ex.rows.length) {
+                await client.query(`INSERT INTO content_saves(content_item_id,user_id) VALUES($1,$2)`, [cid, userId]);
+                await client.query(`UPDATE content_engagement_metrics SET saves_count=saves_count+1 WHERE content_item_id=$1`, [cid]);
+                savedCount++;
+            }
+        }
+        log.push(`saved: ${savedCount} פריטים נשמרו למשתמש ${userId}`);
+
+        // 2. FOLLOWING — מיכל אשד author follow ──────────────────────────
+        const michalR = await client.query(`SELECT id FROM author_profiles WHERE display_name LIKE '%מיכל אשד%' LIMIT 1`);
+        let followCount = 0;
+        if (michalR.rows[0]) {
+            const michalApId = michalR.rows[0].id;
+            const exF = await client.query(`SELECT 1 FROM author_follows WHERE follower_group_id=$1 AND followed_author_id=$2`, [groupId, michalApId]);
+            if (!exF.rows.length) {
+                await client.query(`INSERT INTO author_follows(follower_group_id,followed_author_id) VALUES($1,$2)`, [groupId, michalApId]);
+                await client.query(`UPDATE author_profiles SET followers_count=followers_count+1 WHERE id=$1`, [michalApId]);
+                followCount++;
+            }
+        }
+        // עוקבים גם אחרי author עצמו (לגנרציית feed)
+        const exSelf = await client.query(`SELECT 1 FROM author_follows WHERE follower_group_id=$1 AND followed_author_id=$2`, [groupId, authorId]);
+        if (!exSelf.rows.length) {
+            await client.query(`INSERT INTO author_follows(follower_group_id,followed_author_id) VALUES($1,$2)`, [groupId, authorId]);
+            await client.query(`UPDATE author_profiles SET followers_count=followers_count+1 WHERE id=$1`, [authorId]);
+            followCount++;
+        }
+        log.push(`following: ${followCount} עקיבות נוצרו`);
+
+        // 3. COLLECTIONS — 2 אוספים עם כתבות ────────────────────────────
+        let colCount = 0;
+        const colTitles = ['מועדפי חינוך', 'קריאה לשבת'];
+        for (let i = 0; i < colTitles.length; i++) {
+            const exCol = await client.query(`SELECT id FROM user_collections WHERE owner_group_id=$1 AND title=$2`, [groupId, colTitles[i]]);
+            let colId;
+            if (exCol.rows[0]) {
+                colId = exCol.rows[0].id;
+            } else {
+                const cr = await client.query(
+                    `INSERT INTO user_collections(owner_group_id,title,description,is_public) VALUES($1,$2,$3,$4) RETURNING id`,
+                    [groupId, colTitles[i], `אוסף לדוגמה — ${colTitles[i]}`, i === 1]
+                );
+                colId = cr.rows[0].id;
+                colCount++;
+            }
+            // הוסף כתבות לאוסף
+            for (const cid of pubIds) {
+                const exCI = await client.query(`SELECT 1 FROM user_collection_items WHERE collection_id=$1 AND content_item_id=$2`, [colId, cid]);
+                if (!exCI.rows.length) {
+                    await client.query(`INSERT INTO user_collection_items(collection_id,content_item_id) VALUES($1,$2)`, [colId, cid]);
+                }
+            }
+        }
+        log.push(`collections: ${colCount} אוספים נוצרו`);
+
+        // 4. MY-DRAFTS — 2 טיוטות ─────────────────────────────────────────
+        let draftCount = 0;
+        const draftItems = [
+            { title: '[טיוטה] רעיונות לפעילות קיץ עם הילדים', subtitle: 'רשמים ומחשבות שעדיין בעיצוב', type: 'ARTICLE' },
+            { title: '[טיוטה] שאלה על לוח חופשות תשפ"ו', subtitle: 'מישהו יודע מתי בדיוק מתחיל סמסטר ב?', type: 'QA_QUESTION' },
+        ];
+        for (const di of draftItems) {
+            const ex = await client.query(`SELECT 1 FROM content_items WHERE title=$1 AND is_sample_data=TRUE`, [di.title]);
+            if (!ex.rows.length) {
+                const ins = await client.query(`
+                    INSERT INTO content_items(family_group_id,community_id,author_profile_id,content_type,scope_type,status,title,subtitle,content_html,reading_time_minutes,is_sample_data)
+                    VALUES($1,$2,$3,$4,'LOCAL','DRAFT',$5,$6,$7,2,TRUE) RETURNING id`,
+                    [groupId, communityId, authorId, di.type, di.title, di.subtitle, `<p>${di.subtitle}</p>`]
+                );
+                await client.query(`INSERT INTO content_engagement_metrics(content_item_id) VALUES($1) ON CONFLICT DO NOTHING`, [ins.rows[0].id]);
+                draftCount++;
+            }
+        }
+        log.push(`drafts: ${draftCount} טיוטות נוצרו`);
+
+        // 5. ZM-QUEUE — כתבה ממתינה לאישור ZM ───────────────────────────
+        let zmQueueCount = 0;
+        const zmTitle = '[ממתין ZM] תוכנית שנתית לפעילויות קהילתיות';
+        const exZM = await client.query(`SELECT 1 FROM content_items WHERE title=$1 AND is_sample_data=TRUE`, [zmTitle]);
+        if (!exZM.rows.length) {
+            const ins = await client.query(`
+                INSERT INTO content_items(family_group_id,community_id,author_profile_id,content_type,scope_type,status,zm_approval_status,title,subtitle,content_html,reading_time_minutes,is_sample_data)
+                VALUES($1,$2,$3,'ARTICLE','LOCAL','PENDING_ZM','PENDING',$4,$5,$6,4,TRUE) RETURNING id`,
+                [groupId, communityId, authorId, zmTitle, 'הצעה מפורטת לאירועי הקהילה בשנה הקרובה', `<p>תכנית מפורטת עם 12 פעילויות קהילתיות, תקציב מוצע ולוחות זמנים.</p>`]
+            );
+            await client.query(`INSERT INTO content_engagement_metrics(content_item_id) VALUES($1) ON CONFLICT DO NOTHING`, [ins.rows[0].id]);
+            zmQueueCount++;
+        }
+        log.push(`zm-queue: ${zmQueueCount} כתבות ממתינות`);
+
+        // 6. SA-QUEUE — כתבה ארצית ממתינה לאישור SA ─────────────────────
+        let saQueueCount = 0;
+        const saTitle = '[ממתין SA] חוק חינוך חינם — מה זה אומר לנו?';
+        const exSA = await client.query(`SELECT 1 FROM content_items WHERE title=$1 AND is_sample_data=TRUE`, [saTitle]);
+        if (!exSA.rows.length) {
+            const ins = await client.query(`
+                INSERT INTO content_items(family_group_id,community_id,author_profile_id,content_type,scope_type,status,sa_approval_status,title,subtitle,content_html,reading_time_minutes,is_sample_data,published_at)
+                VALUES($1,$2,$3,'ARTICLE','GLOBAL','PENDING_SA','PENDING',$4,$5,$6,6,TRUE,NOW()) RETURNING id`,
+                [groupId, communityId, authorId, saTitle, 'ניתוח מעמיק של תיקון החוק החדש והשלכותיו על משפחות', `<p>מאמר ניתוח מקיף על חוק חינוך חינם ומשמעויותיו.</p>`]
+            );
+            await client.query(`INSERT INTO content_engagement_metrics(content_item_id) VALUES($1) ON CONFLICT DO NOTHING`, [ins.rows[0].id]);
+            saQueueCount++;
+        }
+        log.push(`sa-queue: ${saQueueCount} כתבות ממתינות`);
+
+        // 7. ZM-REPORTS — דיווח על כתבה ────────────────────────────────
+        let reportCount = 0;
+        if (pubIds[0]) {
+            const exRep = await client.query(
+                `SELECT 1 FROM content_reports WHERE content_item_id=$1 AND reported_by_user_id=$2`, [pubIds[0], userId]
+            );
+            if (!exRep.rows.length) {
+                await client.query(
+                    `INSERT INTO content_reports(content_item_id,reported_by_user_id,reason,notes) VALUES($1,$2,$3,$4)`,
+                    [pubIds[0], userId, 'INAPPROPRIATE', 'דוגמה לדיווח — תוכן שנראה לא מתאים לגיל הילדים']
+                );
+                await client.query(`UPDATE content_items SET report_count=COALESCE(report_count,0)+1 WHERE id=$1`, [pubIds[0]]);
+                reportCount++;
+            }
+        }
+        log.push(`zm-reports: ${reportCount} דיווחים נוצרו`);
+
+        await client.query('COMMIT');
+        res.json({ success: true, log, message: 'סיד מלא הושלם בהצלחה' });
+    } catch(e) {
+        await client.query('ROLLBACK');
+        console.error('seed-full-demo', e);
+        res.status(500).json({ error: e.message });
+    } finally { client.release(); }
+});
+
 // GET following feed
 app.get('/api/kol-haam/my-following-feed', async (req, res) => {
     try {

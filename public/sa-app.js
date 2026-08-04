@@ -11996,6 +11996,10 @@ async function loadSAKolHaamQueue() {
                   class="bg-white/20 hover:bg-white/30 text-white text-xs font-bold px-4 py-2 rounded-xl border border-white/30 transition whitespace-nowrap">
                   📋 רשימת כתבות — 10 דוגמאות
                 </button>
+                <button onclick="saKHSeedFullDemo()" id="sa-kh-seed-full-btn"
+                  class="bg-white/20 hover:bg-white/30 text-white text-xs font-bold px-4 py-2 rounded-xl border border-white/30 transition whitespace-nowrap">
+                  🗂️ סיד מלא — כל ה-Views
+                </button>
               </div>
             </div>
             <!-- תור אישור -->
@@ -12118,6 +12122,25 @@ async function saKHSeedList() {
         }
     } catch(e) { showToast('error', 'שגיאת תקשורת: ' + e.message); }
     finally { if (btn) { btn.disabled = false; btn.textContent = '📋 רשימת כתבות — 10 דוגמאות'; } }
+}
+
+async function saKHSeedFullDemo() {
+    const btn = document.getElementById('sa-kh-seed-full-btn');
+    if (!confirm('לזרוע תוכן לדוגמה בכל ה-Views (saved, following, collections, drafts, zm-queue, sa-queue, reports)?')) return;
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ זורע...'; }
+    try {
+        const d = await fetch('/api/kol-haam/seed-full-demo', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ secret: 'SEED_DEMO_2026' })
+        }).then(r => r.json());
+        if (d.success) {
+            showToast('success', 'סיד מלא הושלם! ' + (d.log || []).join(' | '));
+        } else {
+            showToast('error', d.error || 'שגיאה');
+        }
+    } catch(e) { showToast('error', 'שגיאת תקשורת: ' + e.message); }
+    finally { if (btn) { btn.disabled = false; btn.textContent = '🗂️ סיד מלא — כל ה-Views'; } }
 }
 
 async function saKHApprove(id) {
