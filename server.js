@@ -28935,16 +28935,20 @@ app.post('/api/kol-haam/seed-author-sample', async (req, res) => {
             catId = nc.rows[0].id;
         }
 
-        // helper: upsert article
+        // helper: upsert article — always updates cover_image_url so re-seeding fixes broken paths
         const upsertArticle = async (title, type, subtitle, coverUrl, readingTime, publishedAt, scopeType) => {
-            const existing = await pool.query(`SELECT id FROM content_items WHERE title=$1 AND author_profile_id=$2 AND is_sample_data=TRUE`, [title, apId]);
-            if (existing.rows[0]) return existing.rows[0].id;
             const r = await pool.query(`
                 INSERT INTO content_items (author_profile_id, category_id, community_id, content_type, scope_type, status, title, subtitle, content_html, cover_image_url, reading_time_minutes, is_sample_data, published_at)
                 VALUES ($1,$2,$3,$4,$5,'PUBLISHED_LOCAL',$6,$7,'<p>[תוכן לדוגמה]</p>',$8,$9,TRUE,$10::timestamptz)
+                ON CONFLICT DO NOTHING
                 RETURNING id
             `, [apId, catId, commId, type, scopeType, title, subtitle, coverUrl, readingTime, publishedAt]);
-            return r.rows[0].id;
+            if (r.rows[0]) return r.rows[0].id;
+            const ex = await pool.query(`SELECT id FROM content_items WHERE title=$1 AND author_profile_id=$2 AND is_sample_data=TRUE`, [title, apId]);
+            if (ex.rows[0]) {
+                await pool.query(`UPDATE content_items SET cover_image_url=$1 WHERE id=$2`, [coverUrl, ex.rows[0].id]);
+                return ex.rows[0].id;
+            }
         };
 
         const articles = [
@@ -29030,6 +29034,7 @@ app.post('/api/kol-haam/seed-list-sample', async (req, res) => {
         const now = new Date();
         const ago = days => new Date(now - days * 86400000).toISOString();
 
+        const COVERS = ['/kol-haam-assets/images/content/hot-4.png','/kol-haam-assets/images/content/cat-2.png','/kol-haam-assets/images/content/cat-lab.png','/kol-haam-assets/images/content/talk-4.png','/kol-haam-assets/images/content/cat-1.png','/kol-haam-assets/images/content/hot-5.png','/kol-haam-assets/images/content/hot-2.png','/kol-haam-assets/images/content/cat-6.png','/kol-haam-assets/images/content/talk-1.png','/kol-haam-assets/images/content/talk-5.png'];
         const ARTICLES = [
             { d: 0.04,  type:'QA_QUESTION',   scope:'LOCAL',  title:'[דוגמה] רישום לצהרונים נפתח היום ב־20:00 — ומה כדאי להכין מראש',      subtitle:'שלושה מסמכים, מספר קופה אחד ושלב אחד שאפשר לעשות עכשיו כדי לא להיתקע בטופס.',  author:'רותם גל',     views:2100,  likes:44,  comments:18 },
             { d: 0.17,  type:'SUCCESS_STORY',  scope:'LOCAL',  title:'[דוגמה] הגן שהוסיף מסך צל בשבת אחת — התמונות מהחצר',                   subtitle:'שבעה הורים, שני סולמות והיתר שהתקבל יומיים לפני. עלות סופית: 1,850 ₪.',          author:'מיכל אשד',    views:3400,  likes:91,  comments:27 },
@@ -29044,23 +29049,30 @@ app.post('/api/kol-haam/seed-list-sample', async (req, res) => {
         ];
 
         const ids = [];
-        for (const a of ARTICLES) {
-            // skip if already seeded (same title)
-            const exists = await pool.query(`SELECT id FROM content_items WHERE title=$1 AND is_sample_data=TRUE LIMIT 1`, [a.title]);
-            if (exists.rows[0]) { ids.push(exists.rows[0].id); continue; }
+        for (let i = 0; i < ARTICLES.length; i++) {
+            const a = ARTICLES[i];
+            const coverUrl = COVERS[i % COVERS.length];
+            // update cover if already seeded with wrong/empty URL
+            const exists = await pool.query(`SELECT id, cover_image_url FROM content_items WHERE title=$1 AND is_sample_data=TRUE LIMIT 1`, [a.title]);
+            if (exists.rows[0]) {
+                if (!exists.rows[0].cover_image_url || !exists.rows[0].cover_image_url.startsWith('/kol-haam-assets')) {
+                    await pool.query(`UPDATE content_items SET cover_image_url=$1 WHERE id=$2`, [coverUrl, exists.rows[0].id]);
+                }
+                ids.push(exists.rows[0].id); continue;
+            }
 
             const pubAt = ago(a.d);
             const zmSt = 'APPROVED', saSt = a.scope === 'GLOBAL' ? 'APPROVED' : 'NOT_APPLICABLE';
             const r = await pool.query(`
                 INSERT INTO content_items
                   (author_profile_id, category_id, community_id, content_type, scope_type, status,
-                   title, subtitle, content_html, reading_time_minutes,
+                   title, subtitle, content_html, cover_image_url, reading_time_minutes,
                    zm_approval_status, sa_approval_status, published_at, is_sample_data)
-                VALUES($1,$2,$3,$4,$5,'PUBLISHED_LOCAL',$6,$7,$8,3,$9,$10,$11,TRUE)
+                VALUES($1,$2,$3,$4,$5,'PUBLISHED_LOCAL',$6,$7,$8,$9,3,$10,$11,$12,TRUE)
                 RETURNING id`,
                 [authorProfileId, catId, communityId, a.type, a.scope,
                  a.title, a.subtitle,
-                 `<p>${a.subtitle}</p>`,
+                 `<p>${a.subtitle}</p>`, coverUrl,
                  zmSt, saSt, pubAt]
             );
             const id = r.rows[0].id;
@@ -29198,13 +29210,17 @@ app.post('/api/kol-haam/seed-full-demo', async (req, res) => {
             { title: '[טיוטה] רעיונות לפעילות קיץ עם הילדים', subtitle: 'רשמים ומחשבות שעדיין בעיצוב', type: 'ARTICLE' },
             { title: '[טיוטה] שאלה על לוח חופשות תשפ"ו', subtitle: 'מישהו יודע מתי בדיוק מתחיל סמסטר ב?', type: 'QA_QUESTION' },
         ];
-        for (const di of draftItems) {
-            const ex = await client.query(`SELECT 1 FROM content_items WHERE title=$1 AND is_sample_data=TRUE`, [di.title]);
-            if (!ex.rows.length) {
+        const draftCovers = ['/kol-haam-assets/images/content/hot-books.png','/kol-haam-assets/images/content/talk-people.png'];
+        for (let di = 0; di < draftItems.length; di++) {
+            const item = draftItems[di];
+            const ex = await client.query(`SELECT id,cover_image_url FROM content_items WHERE title=$1 AND is_sample_data=TRUE`, [item.title]);
+            if (ex.rows[0]) {
+                if (!ex.rows[0].cover_image_url) await client.query(`UPDATE content_items SET cover_image_url=$1 WHERE id=$2`, [draftCovers[di], ex.rows[0].id]);
+            } else {
                 const ins = await client.query(`
-                    INSERT INTO content_items(community_id,category_id,author_profile_id,content_type,scope_type,status,title,subtitle,content_html,reading_time_minutes,is_sample_data)
-                    VALUES($1,$2,$3,$4,'LOCAL','DRAFT',$5,$6,$7,2,TRUE) RETURNING id`,
-                    [communityId, catId, authorId, di.type, di.title, di.subtitle, `<p>${di.subtitle}</p>`]
+                    INSERT INTO content_items(community_id,category_id,author_profile_id,content_type,scope_type,status,title,subtitle,content_html,cover_image_url,reading_time_minutes,is_sample_data)
+                    VALUES($1,$2,$3,$4,'LOCAL','DRAFT',$5,$6,$7,$8,2,TRUE) RETURNING id`,
+                    [communityId, catId, authorId, item.type, item.title, item.subtitle, `<p>${item.subtitle}</p>`, draftCovers[di]]
                 );
                 await client.query(`INSERT INTO content_engagement_metrics(content_item_id) VALUES($1) ON CONFLICT DO NOTHING`, [ins.rows[0].id]);
                 draftCount++;
@@ -29215,11 +29231,11 @@ app.post('/api/kol-haam/seed-full-demo', async (req, res) => {
         // 5. ZM-QUEUE — כתבה ממתינה לאישור ZM ───────────────────────────
         let zmQueueCount = 0;
         const zmTitle = '[ממתין ZM] תוכנית שנתית לפעילויות קהילתיות';
-        const exZM = await client.query(`SELECT 1 FROM content_items WHERE title=$1 AND is_sample_data=TRUE`, [zmTitle]);
-        if (!exZM.rows.length) {
+        const exZM = await client.query(`SELECT id,cover_image_url FROM content_items WHERE title=$1 AND is_sample_data=TRUE`, [zmTitle]);
+        if (!exZM.rows[0]) {
             const ins = await client.query(`
-                INSERT INTO content_items(community_id,category_id,author_profile_id,content_type,scope_type,status,zm_approval_status,title,subtitle,content_html,reading_time_minutes,is_sample_data)
-                VALUES($1,$2,$3,'ARTICLE','LOCAL','PENDING_ZM','PENDING',$4,$5,$6,4,TRUE) RETURNING id`,
+                INSERT INTO content_items(community_id,category_id,author_profile_id,content_type,scope_type,status,zm_approval_status,title,subtitle,content_html,cover_image_url,reading_time_minutes,is_sample_data)
+                VALUES($1,$2,$3,'ARTICLE','LOCAL','PENDING_ZM','PENDING',$4,$5,$6,'/kol-haam-assets/images/content/cat-5.png',4,TRUE) RETURNING id`,
                 [communityId, catId, authorId, zmTitle, 'הצעה מפורטת לאירועי הקהילה בשנה הקרובה', `<p>תכנית מפורטת עם 12 פעילויות קהילתיות, תקציב מוצע ולוחות זמנים.</p>`]
             );
             await client.query(`INSERT INTO content_engagement_metrics(content_item_id) VALUES($1) ON CONFLICT DO NOTHING`, [ins.rows[0].id]);
@@ -29230,11 +29246,11 @@ app.post('/api/kol-haam/seed-full-demo', async (req, res) => {
         // 6. SA-QUEUE — כתבה ארצית ממתינה לאישור SA ─────────────────────
         let saQueueCount = 0;
         const saTitle = '[ממתין SA] חוק חינוך חינם — מה זה אומר לנו?';
-        const exSA = await client.query(`SELECT 1 FROM content_items WHERE title=$1 AND is_sample_data=TRUE`, [saTitle]);
-        if (!exSA.rows.length) {
+        const exSA = await client.query(`SELECT id,cover_image_url FROM content_items WHERE title=$1 AND is_sample_data=TRUE`, [saTitle]);
+        if (!exSA.rows[0]) {
             const ins = await client.query(`
-                INSERT INTO content_items(community_id,category_id,author_profile_id,content_type,scope_type,status,sa_approval_status,title,subtitle,content_html,reading_time_minutes,is_sample_data,published_at)
-                VALUES($1,$2,$3,'ARTICLE','GLOBAL','PENDING_SA','PENDING',$4,$5,$6,6,TRUE,NOW()) RETURNING id`,
+                INSERT INTO content_items(community_id,category_id,author_profile_id,content_type,scope_type,status,sa_approval_status,title,subtitle,content_html,cover_image_url,reading_time_minutes,is_sample_data,published_at)
+                VALUES($1,$2,$3,'ARTICLE','GLOBAL','PENDING_SA','PENDING',$4,$5,$6,'/kol-haam-assets/images/content/talk-1.png',6,TRUE,NOW()) RETURNING id`,
                 [communityId, catId, authorId, saTitle, 'ניתוח מעמיק של תיקון החוק החדש והשלכותיו על משפחות', `<p>מאמר ניתוח מקיף על חוק חינוך חינם ומשמעויותיו.</p>`]
             );
             await client.query(`INSERT INTO content_engagement_metrics(content_item_id) VALUES($1) ON CONFLICT DO NOTHING`, [ins.rows[0].id]);
