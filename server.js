@@ -28067,6 +28067,7 @@ app.post('/api/kol-haam/seed-approval-queue', async (req, res) => {
         for (const item of QUEUE_ITEMS) {
             const ex = await client.query(`SELECT id FROM content_items WHERE title=$1 AND is_sample_data=TRUE`, [item.title]);
             if (ex.rows[0]) { log.push(`קיים: ${item.title.slice(0,30)}`); continue; }
+            const publishedAt = item.scope === 'GLOBAL' ? new Date() : null;
             const ins = await client.query(`
                 INSERT INTO content_items(
                     community_id, category_id, author_profile_id,
@@ -28074,9 +28075,8 @@ app.post('/api/kol-haam/seed-approval-queue', async (req, res) => {
                     zm_approval_status, sa_approval_status,
                     title, subtitle, content_html, cover_image_url,
                     quick_summary_20s, reading_time_minutes, is_sample_data, published_at
-                ) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,4,TRUE,
-                    CASE WHEN $5::text='GLOBAL' THEN NOW() ELSE NULL END
-                ) RETURNING id`,
+                ) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,4,TRUE,$14)
+                RETURNING id`,
                 [
                     communityId, catId, authorId,
                     item.type, item.scope, item.status,
@@ -28084,7 +28084,8 @@ app.post('/api/kol-haam/seed-approval-queue', async (req, res) => {
                     item.title, item.subtitle,
                     `<p>${item.subtitle}</p>`,
                     item.cover,
-                    item.flag
+                    item.flag,
+                    publishedAt
                 ]
             );
             await client.query(`INSERT INTO content_engagement_metrics(content_item_id) VALUES($1) ON CONFLICT DO NOTHING`, [ins.rows[0].id]);
