@@ -1,26 +1,31 @@
 require('dotenv').config();
 const { sendWhatsApp, checkAlreadySent } = require('./services/whatsapp');
-const DOMPurify = require('isomorphic-dompurify');
+const sanitizeHtml = require('sanitize-html');
 
 // ─── KH content sanitizer ────────────────────────────────────────
 // Strips everything not in the whitelist. Runs server-side only.
-const KH_SANITIZE_CONFIG = {
-    ALLOWED_TAGS: [
+// Do NOT add 'script' to allowedTags — sanitize-html blocks it by default.
+const KH_SANITIZE_OPTIONS = {
+    allowedTags: [
         'b','strong','i','em','u','s','mark',
         'p','div','h2','h3','h4','br','hr','blockquote',
         'ul','ol','li',
         'table','thead','tbody','tr','th','td',
         'a','img','span',
     ],
-    ALLOWED_ATTR: ['href','title','src','alt','width','height','class'],
-    ALLOWED_URI_REGEXP: /^(?:(?:https?|mailto):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i,
-    FORBID_TAGS: ['script','iframe','object','embed','form','input','style','link','meta','base'],
-    FORBID_ATTR: ['style','id','onerror','onload','onclick','onmouseover','onfocus',
-                  'onblur','onchange','onsubmit','onkeydown','onkeyup','onkeypress'],
+    allowedAttributes: {
+        'a':   ['href','title'],
+        'img': ['src','alt','width','height'],
+        '*':   ['class'],
+    },
+    allowedSchemes: ['http','https','mailto'],
+    allowedSchemesByTag: { img: ['http','https'] },
+    // Drop style and id from every element (CSS injection / DOM collision prevention)
+    disallowedTagsMode: 'discard',
 };
 function sanitizeKHHtml(html) {
     if (!html || typeof html !== 'string') return html;
-    return DOMPurify.sanitize(html, KH_SANITIZE_CONFIG);
+    return sanitizeHtml(html, KH_SANITIZE_OPTIONS);
 }
 // ─────────────────────────────────────────────────────────────────
 const express = require('express');
