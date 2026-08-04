@@ -129,7 +129,13 @@ const KH = {
         document.querySelectorAll('.scope-btn').forEach(b => b.classList.toggle('active', b === btn));
         document.querySelectorAll('.kh-nav-link').forEach(l => l.classList.remove('active'));
         document.querySelectorAll('.cat-chip').forEach(c => c.classList.remove('active'));
-        KH.loadFeed();
+        if (scope === 'following') {
+            showView('view-following');
+            STATE.view = 'following';
+            KH.loadFollowingFeed();
+        } else {
+            KH.loadFeed();
+        }
     },
 
     setCategory(id, chip) {
@@ -649,6 +655,11 @@ const KH = {
     // ── Report modal ──────────────────────────────────────────
     openReport(contentId, commentId) {
         STATE.reportTarget = { contentId, commentId };
+        const titleEl = document.getElementById('kh-report-title');
+        if (titleEl) titleEl.textContent = commentId ? '⚠️ דיווח על תגובה' : '⚠️ דיווח על תוכן';
+        document.querySelectorAll('input[name="report-reason"]').forEach(r => { r.checked = false; });
+        const notes = document.getElementById('report-notes');
+        if (notes) notes.value = '';
         document.getElementById('kh-report-modal')?.classList.add('show');
     },
 
@@ -1865,29 +1876,54 @@ KH.showCreateCollection = async function() {
     if (d.success) { khToast('success', 'האוסף נוצר'); KH.loadCollections(); }
 };
 
-KH.showCreateCollectionModal = async function() {
-    const title = prompt('שם האוסף החדש:');
-    if (!title || !title.trim()) return;
+KH.showCreateCollectionModal = function() { KH.showNewCollectionField(); };
+
+KH.showNewCollectionField = function() {
+    const wrap = document.getElementById('kh-new-col-wrap');
+    const trigger = document.getElementById('kh-new-col-trigger');
+    if (wrap) { wrap.style.display = 'flex'; }
+    if (trigger) trigger.style.display = 'none';
+    document.getElementById('kh-new-col-input')?.focus();
+};
+
+KH.hideNewCollectionField = function() {
+    const wrap = document.getElementById('kh-new-col-wrap');
+    const trigger = document.getElementById('kh-new-col-trigger');
+    if (wrap) { wrap.style.display = 'none'; }
+    if (trigger) trigger.style.display = '';
+    const inp = document.getElementById('kh-new-col-input');
+    if (inp) inp.value = '';
+};
+
+KH.createCollectionInline = async function() {
+    const inp = document.getElementById('kh-new-col-input');
+    const title = inp?.value.trim();
+    if (!title) { khToast('error', 'יש להזין שם לאוסף'); return; }
     if (!CTX.groupId) { khToast('error', 'יש להיכנס עם קבוצה'); return; }
     const d = await khFetch(`${API}/collections`, { method: 'POST', body: JSON.stringify({ groupId: CTX.groupId, title }) });
     if (d.success) {
         khToast('success', 'האוסף נוצר');
+        KH.hideNewCollectionField();
         KH.openAddToCollection(STATE.addToCollectionContentId);
+    } else {
+        khToast('error', d.error || 'שגיאה');
     }
 };
 
 KH.openAddToCollection = async function(contentId) {
     if (!CTX.groupId) { khToast('error', 'יש להיכנס כדי להוסיף לאוסף'); return; }
     STATE.addToCollectionContentId = contentId;
+    KH.hideNewCollectionField();
+    const listEl = document.getElementById('collection-modal-list');
+    listEl.innerHTML = '<div class="kh-spinner" style="margin:.5rem auto"></div>';
+    document.getElementById('kh-collection-modal').classList.add('show');
     const d = await khFetch(`${API}/my-collections?groupId=${CTX.groupId}`);
     const cols = d.collections || [];
-    const listEl = document.getElementById('collection-modal-list');
     listEl.innerHTML = cols.length ? cols.map(c => `
-        <button class="kh-btn kh-btn-outline" style="justify-content:space-between" onclick="KH.addToCollection(${c.id},${contentId})">
-            <span>${esc(c.title)}</span><span style="font-size:.72rem;color:var(--muted)">${c.item_count||0} פריטים</span>
+        <button class="kh-btn kh-btn-outline" style="justify-content:space-between;text-align:right" onclick="KH.addToCollection(${c.id},${contentId})">
+            <span>${esc(c.title)}</span><span style="font-size:.72rem;color:var(--muted);flex-shrink:0">${c.item_count||0} פריטים</span>
         </button>`).join('')
-        : '<div class="kh-empty" style="font-size:.8rem">אין אוספים עדיין</div>';
-    document.getElementById('kh-collection-modal').classList.add('show');
+        : '<div class="kh-empty" style="font-size:.8rem">אין אוספים עדיין — צור אחד למטה</div>';
 };
 
 KH.closeCollectionModal = function() { document.getElementById('kh-collection-modal').classList.remove('show'); };

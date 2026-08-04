@@ -705,6 +705,7 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Ro
       <div class="kh-hdr-scope-wrap">
         <button class="scope-btn active" data-scope="local" onclick="KH.setScope('local',this)">🏠 הקהילה שלי</button>
         <button class="scope-btn" data-scope="global" onclick="KH.setScope('global',this)">🌍 כל הארץ</button>
+        <button class="scope-btn" data-scope="following" onclick="KH.setScope('following',this)">👥 עוקב אחרי</button>
       </div>
       <div class="kh-hdr-search-wrap">
         <span style="color:#8A8A82;">🔍</span>
@@ -995,14 +996,14 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Ro
 <!-- Report modal -->
 <div id="kh-report-modal">
   <div class="kh-report-box">
-    <h3>⚠️ דיווח על תוכן</h3>
+    <h3 id="kh-report-title">⚠️ דיווח על תוכן</h3>
     <div>
       <label class="report-reason-opt"><input type="radio" name="report-reason" value="SPAM"> ספאם</label>
       <label class="report-reason-opt"><input type="radio" name="report-reason" value="MISLEADING"> מידע מטעה</label>
       <label class="report-reason-opt"><input type="radio" name="report-reason" value="OFFENSIVE"> תוכן פוגעני</label>
       <label class="report-reason-opt"><input type="radio" name="report-reason" value="COPYRIGHT"> זכויות יוצרים</label>
-      <label class="report-reason-opt"><input type="radio" name="report-reason" value="COMMERCIAL"> פרסום מסחרי</label>
-      <label class="report-reason-opt"><input type="radio" name="report-reason" value="PERSONAL_INFO"> מידע אישי</label>
+      <label class="report-reason-opt"><input type="radio" name="report-reason" value="COMMERCIAL"> פרסום מסחרי אסור</label>
+      <label class="report-reason-opt"><input type="radio" name="report-reason" value="PERSONAL_INFO"> חשיפת מידע אישי</label>
     </div>
     <textarea id="report-notes" placeholder="הערות נוספות (אופציונלי)..."></textarea>
     <div style="display:flex;gap:.5rem;margin-top:.75rem;justify-content:flex-end">
@@ -1017,7 +1018,14 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Ro
   <div class="kh-modal-box">
     <div class="kh-modal-title">📚 הוסף לאוסף</div>
     <div id="collection-modal-list" style="display:flex;flex-direction:column;gap:.4rem"></div>
-    <button class="kh-btn kh-btn-outline kh-btn-sm" onclick="KH.showCreateCollectionModal()">+ צור אוסף חדש</button>
+    <div id="kh-new-col-wrap" style="display:none;flex-direction:column;gap:.4rem;border-top:1px solid var(--border);padding-top:.5rem;margin-top:.25rem">
+      <input id="kh-new-col-input" class="kh-search-input" placeholder="שם האוסף החדש..." style="flex:none">
+      <div style="display:flex;gap:.4rem">
+        <button class="kh-btn kh-btn-primary kh-btn-sm" style="flex:1" onclick="KH.createCollectionInline()">צור ושמור</button>
+        <button class="kh-btn kh-btn-outline kh-btn-sm" onclick="KH.hideNewCollectionField()">ביטול</button>
+      </div>
+    </div>
+    <button class="kh-btn kh-btn-outline kh-btn-sm" id="kh-new-col-trigger" onclick="KH.showNewCollectionField()">➕ צור אוסף חדש</button>
     <button class="kh-btn kh-btn-outline" onclick="KH.closeCollectionModal()">סגור</button>
   </div>
 </div>

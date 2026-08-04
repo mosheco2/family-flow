@@ -27937,6 +27937,52 @@ app.get('/api/kol-haam/sa/categories', verifySA, async (req, res) => {
     } catch(e) { res.json({ success: false, error: e.message }); }
 });
 
+// POST /api/kol-haam/seed-version-history — seed content_version_history records for UI demo
+app.post('/api/kol-haam/seed-version-history', async (req, res) => {
+    if (req.body.secret !== 'SEED_DEMO_2026') return res.status(403).json({ error: 'אסור' });
+    try {
+        // Find a sample published content item to attach versions to
+        const itemR = await pool.query(`
+            SELECT ci.id, ci.title, ci.subtitle, ci.content_html
+            FROM content_items ci
+            WHERE ci.is_sample_data = TRUE
+              AND ci.status IN ('PUBLISHED_LOCAL','PUBLISHED_GLOBAL','PENDING_ZM','PENDING_SA')
+            ORDER BY ci.id ASC LIMIT 1
+        `);
+        if (!itemR.rows[0]) return res.status(400).json({ error: 'אין content items — הרץ seed-full-demo קודם' });
+        const item = itemR.rows[0];
+
+        // Find a user to be the "editor"
+        const userR = await pool.query(`SELECT id FROM users ORDER BY id ASC LIMIT 1`);
+        if (!userR.rows[0]) return res.status(400).json({ error: 'אין משתמשים' });
+        const editorId = userR.rows[0].id;
+
+        // Check how many versions already exist
+        const existing = await pool.query(`SELECT COUNT(*) FROM content_version_history WHERE content_item_id=$1`, [item.id]);
+        if (parseInt(existing.rows[0].count) >= 3) {
+            return res.json({ success: true, created: 0, log: [`גרסאות קיימות לפריט ${item.id}`] });
+        }
+
+        const VERSIONS = [
+            { v: 1, title: item.title + ' [טיוטה ראשונה]', html: '<p>גרסה ראשונית של הכתבה — לפני עריכה.</p>', daysAgo: 7 },
+            { v: 2, title: item.title + ' [לאחר משוב]', html: '<p>גרסה שניה — לאחר הערות הקהילה.</p>', daysAgo: 3 },
+            { v: 3, title: item.title, html: item.content_html, daysAgo: 1 },
+        ];
+
+        let created = 0;
+        for (const ver of VERSIONS) {
+            const ex = await pool.query(`SELECT 1 FROM content_version_history WHERE content_item_id=$1 AND version_number=$2`, [item.id, ver.v]);
+            if (ex.rows.length) continue;
+            await pool.query(`
+                INSERT INTO content_version_history(content_item_id, version_number, title, subtitle, content_html, editor_user_id, created_at)
+                VALUES($1,$2,$3,$4,$5,$6, NOW() - INTERVAL '${ver.daysAgo} days')
+            `, [item.id, ver.v, ver.title, item.subtitle || '', ver.html, editorId]);
+            created++;
+        }
+        res.json({ success: true, created, contentItemId: item.id, log: [`נוצרו ${created} גרסאות לפריט "${item.title.slice(0,30)}"`] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // POST /api/kol-haam/seed-approval-queue — seed 5 queue records (3 PENDING_ZM + 2 PENDING_SA)
 app.post('/api/kol-haam/seed-approval-queue', async (req, res) => {
     if (req.body.secret !== 'SEED_DEMO_2026') return res.status(403).json({ error: 'אסור' });

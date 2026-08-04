@@ -12012,6 +12012,10 @@ async function loadSAKolHaamQueue() {
                   class="bg-orange-500/80 hover:bg-orange-400 text-white text-xs font-bold px-4 py-2 rounded-xl border border-orange-300 transition whitespace-nowrap">
                   📥 seed תור אישורים
                 </button>
+                <button onclick="saKHSeedVersionHistory()" id="sa-kh-versions-btn"
+                  class="bg-slate-500/80 hover:bg-slate-400 text-white text-xs font-bold px-4 py-2 rounded-xl border border-slate-300 transition whitespace-nowrap">
+                  🕐 seed גרסאות
+                </button>
               </div>
             </div>
             <!-- תור אישור -->
@@ -12188,6 +12192,24 @@ async function saKHSeedApprovalQueue() {
         }
     } catch(e) { showToast('error', 'שגיאת תקשורת: ' + e.message); }
     finally { if (btn) { btn.disabled = false; btn.textContent = '📥 seed תור אישורים'; } }
+}
+
+async function saKHSeedVersionHistory() {
+    const btn = document.getElementById('sa-kh-versions-btn');
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ זורע...'; }
+    try {
+        const d = await fetch('/api/kol-haam/seed-version-history', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ secret: 'SEED_DEMO_2026' })
+        }).then(r => r.json());
+        if (d.success) {
+            showToast('success', `גרסאות: ${d.created} נוצרו. ${(d.log||[]).join(' | ')}`);
+        } else {
+            showToast('error', d.error || 'שגיאה');
+        }
+    } catch(e) { showToast('error', 'שגיאת תקשורת: ' + e.message); }
+    finally { if (btn) { btn.disabled = false; btn.textContent = '🕐 seed גרסאות'; } }
 }
 
 async function saKHSeedFullDemo() {
