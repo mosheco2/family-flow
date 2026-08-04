@@ -26376,7 +26376,7 @@ app.post('/api/kol-haam/seed-demo', async (req, res) => {
         log.push(`✓ קטגוריות: ${cats.map(c=>c.title).join(', ')}`);
 
         const img = (name) => `/kol-haam-assets/images/content/${name}`;
-        const imgCover = (name) => `/kol-haam-assets/images/covers/${name}`;
+        const imgCover = (name) => name === 'hero-summer-calendar.png' ? `/kol-haam-assets/images/covers/${name}` : `/kol-haam-assets/images/content/${name}`;
 
         // helper: upsert tag
         const upsertTag = async (name) => {
@@ -26446,10 +26446,10 @@ app.post('/api/kol-haam/seed-demo', async (req, res) => {
 <h3>מה צריך כדי להתחיל אצלכם</h3>
 <p>לפי הקבוצה, שלושה תנאים: בין חמש לשמונה משפחות (פחות מזה נופל על אדם אחד), יותר מזה — לוגו ליניהול), ילדים בטווח גילים של עד ארבע שנים, ומרחק הליכה סביר בין הבתים. אחרי זה נשאר רק להחליט על התאריכים ולנעול.</p>
 <p>התבנית של הגיליון פתוחה לכל חברי הקהילה, והקבוצה מציעה ייעוץ שיחת יעוץ של חצי שעה למי שרוצה להקים קבוצה דומה.</p>
-<figure style="margin:26px 0 0"><img src="${img('inner-1-fridge-schedule.svg')}" alt="לוח הקיץ המשותף — תורנות הורים לפי ימים"><figcaption>לוח הקיץ המשותף, תלוי בשבעה מקררים בו-זמנית. צילום: ${user2.nickname}</figcaption></figure>
+<figure style="margin:26px 0 0"><img src="${img('inner-1-fridge-schedule.png')}" alt="לוח הקיץ המשותף — תורנות הורים לפי ימים"><figcaption>לוח הקיץ המשותף, תלוי בשבעה מקררים בו-זמנית. צילום: ${user2.nickname}</figcaption></figure>
 <h3>הכסף: מה זה באמת חסך</h3>
 <p>העלות הישירה של הקייטנה עמדה על כ-800 ₪ לילד: 350 ₪ קופה משותפת לחומרים, 300 ₪ לשלושת הטיולים, ועוד כ-150 ₪ ארוחות. מול זה, החלופה בשוק — קייטנה עירונית ואחריה קייטנה פרטית — עמדה על כ-5,100 ₪ לילד.</p>`,
-            imgCover('hero-summer-calendar.svg')
+            imgCover('hero-summer-calendar.png')
         );
         await pool.query(`UPDATE content_items SET series_id=$1, series_chapter_number=1 WHERE id=$2`, [seriesId, ch1Id]);
         await addTag(ch1Id, 'חופש הגדול'); await addTag(ch1Id, 'משפחות'); await addTag(ch1Id, 'קייטנה');
@@ -26465,10 +26465,10 @@ app.post('/api/kol-haam/seed-demo', async (req, res) => {
             `<p>אחרי שהכתבה על לוח הקיץ המשותף פורסמה, קיבלנו עשרות פניות מהורים שרוצים את הגיליון עצמו. הנה הוא — עם הסברים.</p>
 <h3>מה יש בגיליון</h3>
 <p>הגיליון מחולק לשלושה חלקים: לוח חודשי עם ציון ההורה האחראי לכל יום, דף ניהול היעדרויות, ודף תיאום טיולים. כל שינוי מתעדכן בזמן אמת לכל שבע המשפחות.</p>
-<figure style="margin:26px 0 0"><img src="${img('inner-2-water-day.svg')}" alt="יום מים — פעילות שמחה"><figcaption>יום המים — אחת הפעילויות המוצלחות של הקיץ</figcaption></figure>
+<figure style="margin:26px 0 0"><img src="${img('inner-2-water-day.png')}" alt="יום מים — פעילות שמחה"><figcaption>יום המים — אחת הפעילויות המוצלחות של הקיץ</figcaption></figure>
 <h3>כיצד להתאים לקבוצה שלכם</h3>
 <p>עדכנו את מספר המשפחות בתא הייעודי ב-A1 — הגיליון יסדר אוטומטית את כל החלוקה. אם יש הורה שלא יכול ביום מסוים, יש לו "בנק ימים" שמנהל את ההחלפות.</p>`,
-            img('cat-1.svg')
+            img('cat-1.png')
         );
         await pool.query(`UPDATE content_items SET series_id=$1, series_chapter_number=2 WHERE id=$2`, [seriesId, ch2Id]);
         await addTag(ch2Id, 'חופש הגדול'); await addTag(ch2Id, 'כלי עבודה');
@@ -26485,7 +26485,7 @@ app.post('/api/kol-haam/seed-demo', async (req, res) => {
 <p>פתרון: "יום רזרבה" שוטף שכל הורה שלא השתמש בו עד סוף החודש — זוכה לבונוס חצי יום בחודש הבא. יצרנו תמריץ פשוט.</p>
 <h3>משבר 2: משפחה שיוצאת מהקבוצה</h3>
 <p>חלקנו את ימיה בין שאר ההורים, כל אחד קיבל יום אחד נוסף בחודש. אף אחד לא התנגד.</p>`,
-            img('cat-5.svg')
+            img('cat-5.png')
         );
         await pool.query(`UPDATE content_items SET series_id=$1, series_chapter_number=3 WHERE id=$2`, [seriesId, ch3Id]);
         await addTag(ch3Id, 'חופש הגדול'); await addTag(ch3Id, 'פתרון בעיות');
@@ -26504,7 +26504,7 @@ app.post('/api/kol-haam/seed-demo', async (req, res) => {
 <blockquote>״לא ביקשנו כסף אף פעם. ביקשנו דברים שכבר עמדו לאנשים בצד ומפריעים להם.״</blockquote>
 <h3>מה קורה שם עכשיו</h3>
 <p>בשעות אחר הצהריים החלל מלא. הקבוצה הבוגרת בונה רחפן מיפוי לחלקות חקלאיות; הצעירים עובדים על רובוטים לתחרות בית ספרית.</p>`,
-            img('hot-lab.svg')
+            img('cat-lab.png')
         );
         await addTag(art4Id, 'קהילה'); await addTag(art4Id, 'חינוך'); await addTag(art4Id, 'התנדבות');
         await addComment(art4Id, user2.id, 'פרויקט מדהים! איך מצטרפים כמתנדבים?');
@@ -26518,7 +26518,7 @@ app.post('/api/kol-haam/seed-demo', async (req, res) => {
             `<p>הכל התחיל מארון ספרים שמישהו הוציא למדרגות בניין ברחוב הרצל. יומיים אחר כך — 40 ספרים נוספים. שבוע אחר כך — ארון שני. היום: 800 ספרים, 150 חברים רשומים ומנהלת מתנדבת שמגיעה שלוש פעמים בשבוע.</p>
 <h3>האפליקציה שמנהלת הכל</h3>
 <p>כל ספר סרוק עם ברקוד, כל השאלה מתועדת. ההמתנה לספר פופולרי — שבועיים בממוצע. אין קנסות, יש רק "תזכורת חמה" אחרי שלושה שבועות.</p>`,
-            img('hot-books.svg')
+            img('hot-books.png')
         );
         await addTag(art5Id, 'קהילה'); await addTag(art5Id, 'ספרייה'); await addTag(art5Id, 'יוזמה קהילתית');
         await addComment(art5Id, user1.id, 'האם ניתן לתרום ספרים? יש לנו קופסה שלמה בבית');
@@ -26533,7 +26533,7 @@ app.post('/api/kol-haam/seed-demo', async (req, res) => {
             'מחפשים פתרון פשוט לניהול הסעות שיתופיות לחוגים שלא עולה כסף',
             `<p>אנחנו קבוצה של 14 הורים מהשכונה. הילדים הולכים לחוגים 3 ימים בשבוע, בשעות שונות, בשני מיקומים. כרגע כל אחד נוסע בנפרד — זה מגעיל מבחינת זמן ודלק.</p>
 <p>ניסינו וואטסאפ — כאוס. ניסינו גוגל שיטס — אף אחד לא מעדכן. מה עובד לכם?</p>`,
-            img('talk-people.svg')
+            img('talk-people.png')
         );
         await pool.query(`UPDATE content_engagement_metrics SET likes_count=61 WHERE content_item_id=$1`, [qa1Id]).catch(()=>{});
         await pool.query(`UPDATE content_engagement_metrics SET likes_count=61, comments_count=4 WHERE content_item_id=$1`, [qa1Id]);
@@ -26555,7 +26555,7 @@ app.post('/api/kol-haam/seed-demo', async (req, res) => {
 <p>תרומת 12 לבנים מאחד השכנים, עץ מחסן של שני, צבע משלישי. שלושה סופי שבוע של עבודה.</p>
 <h3>מה לא עבד</h3>
 <p>מערכת ההשקיה האוטומטית — נשברה פעמיים. חזרנו לדלי. עכשיו יש תורנות השקיה — כל משפחה שבוע.</p>`,
-            img('cat-2.svg')
+            img('cat-2.png')
         );
         await pool.query(`UPDATE content_engagement_metrics SET likes_count=89 WHERE content_item_id=$1`, [success1Id]);
         await addTag(success1Id, 'גינה קהילתית'); await addTag(success1Id, 'קיימות'); await addTag(success1Id, 'הצלחה');
@@ -28948,14 +28948,14 @@ app.post('/api/kol-haam/seed-author-sample', async (req, res) => {
         };
 
         const articles = [
-            { title:'החופש הגדול נגמר בפלוס: שבע משפחות בנו לוח קיץ משותף וחסכו 4,300 ₪ לילד', type:'ARTICLE', subtitle:'גיליון אחד משותף, תורנות של הורה אחראי ליום, ו-38 ימי חופש שעברו בלי פאניקה.', cover:'images/home/cat-1.svg', time:8, date:'2026-08-15', scope:'GLOBAL', views:18400, likes:214, comments:10 },
-            { title:'התבנית המלאה של לוח הקיץ — להורדה, לשכפול ולשימוש חופשי', type:'WIKI_GUIDE', subtitle:'שלושה גיליונות, רשימת כללים אחת וטופס הסכמה קצר בין ההורים.', cover:'images/home/cat-2.svg', time:4, date:'2026-08-18', scope:'GLOBAL', views:9200, likes:96, comments:34 },
-            { title:'כמה באמת עולה קיץ אחד למשפחה ישראלית — פירוק ההוצאה', type:'ARTICLE', subtitle:'בדקנו 42 משפחות בארבע רשויות. הפער בין הזולה ליקרה: פי 3.8.', cover:'images/home/talk-4.svg', time:12, date:'2026-08-02', scope:'GLOBAL', views:24100, likes:341, comments:87 },
-            { title:'הגינה שהוקמה על חניון נטוש — ומה קרה כשהעירייה גילתה', type:'SUCCESS_STORY', subtitle:'שמונה חודשים, 26 מתנדבים ובקשה אחת שאושרה ברגע האחרון.', cover:'images/home/cat-6.svg', time:7, date:'2026-07-21', scope:'LOCAL', views:11800, likes:178, comments:52 },
-            { title:'הצהרון נסגר, ואף אחד לא באמת חייב לכם הסבר', type:'ARTICLE', subtitle:'למה ההודעה מגיעה תמיד באוגוסט, ומה אפשר לדרוש בפועל.', cover:'images/home/hot-5.svg', time:5, date:'2026-07-11', scope:'LOCAL', views:15600, likes:402, comments:143 },
-            { title:'איך מארגנים הסעה משותפת לחוגים בלי אפליקציה בתשלום', type:'WIKI_GUIDE', subtitle:'ארבעה מודלים שנוסו בשכונה, כולל זה שנכשל ולמה.', cover:'images/home/hot-5.svg', time:6, date:'2026-06-28', scope:'LOCAL', views:7400, likes:88, comments:29 },
-            { title:'המקלט שהפך למעבדת רובוטיקה — כל השלבים', type:'ARTICLE', subtitle:'18 חודשים, 40 מתנדבים ותרומת ציוד אחת ששינתה את התמונה.', cover:'images/home/cat-1.svg', time:10, date:'2026-06-09', scope:'GLOBAL', views:21300, likes:289, comments:64 },
-            { title:'הספרייה השכונתית שנפתחה בשעתיים', type:'SUCCESS_STORY', subtitle:'קריאה אחת בקבוצת הוואטסאפ, 380 ספרים ומדף אחד שנקנה בכסף אמיתי.', cover:'images/home/cat-2.svg', time:3, date:'2026-05-17', scope:'LOCAL', views:6900, likes:74, comments:21 },
+            { title:'החופש הגדול נגמר בפלוס: שבע משפחות בנו לוח קיץ משותף וחסכו 4,300 ₪ לילד', type:'ARTICLE', subtitle:'גיליון אחד משותף, תורנות של הורה אחראי ליום, ו-38 ימי חופש שעברו בלי פאניקה.', cover:'/kol-haam-assets/images/content/cat-1.png', time:8, date:'2026-08-15', scope:'GLOBAL', views:18400, likes:214, comments:10 },
+            { title:'התבנית המלאה של לוח הקיץ — להורדה, לשכפול ולשימוש חופשי', type:'WIKI_GUIDE', subtitle:'שלושה גיליונות, רשימת כללים אחת וטופס הסכמה קצר בין ההורים.', cover:'/kol-haam-assets/images/content/cat-2.png', time:4, date:'2026-08-18', scope:'GLOBAL', views:9200, likes:96, comments:34 },
+            { title:'כמה באמת עולה קיץ אחד למשפחה ישראלית — פירוק ההוצאה', type:'ARTICLE', subtitle:'בדקנו 42 משפחות בארבע רשויות. הפער בין הזולה ליקרה: פי 3.8.', cover:'/kol-haam-assets/images/content/talk-4.png', time:12, date:'2026-08-02', scope:'GLOBAL', views:24100, likes:341, comments:87 },
+            { title:'הגינה שהוקמה על חניון נטוש — ומה קרה כשהעירייה גילתה', type:'SUCCESS_STORY', subtitle:'שמונה חודשים, 26 מתנדבים ובקשה אחת שאושרה ברגע האחרון.', cover:'/kol-haam-assets/images/content/cat-6.png', time:7, date:'2026-07-21', scope:'LOCAL', views:11800, likes:178, comments:52 },
+            { title:'הצהרון נסגר, ואף אחד לא באמת חייב לכם הסבר', type:'ARTICLE', subtitle:'למה ההודעה מגיעה תמיד באוגוסט, ומה אפשר לדרוש בפועל.', cover:'/kol-haam-assets/images/content/hot-5.png', time:5, date:'2026-07-11', scope:'LOCAL', views:15600, likes:402, comments:143 },
+            { title:'איך מארגנים הסעה משותפת לחוגים בלי אפליקציה בתשלום', type:'WIKI_GUIDE', subtitle:'ארבעה מודלים שנוסו בשכונה, כולל זה שנכשל ולמה.', cover:'/kol-haam-assets/images/content/hot-5.png', time:6, date:'2026-06-28', scope:'LOCAL', views:7400, likes:88, comments:29 },
+            { title:'המקלט שהפך למעבדת רובוטיקה — כל השלבים', type:'ARTICLE', subtitle:'18 חודשים, 40 מתנדבים ותרומת ציוד אחת ששינתה את התמונה.', cover:'/kol-haam-assets/images/content/cat-1.png', time:10, date:'2026-06-09', scope:'GLOBAL', views:21300, likes:289, comments:64 },
+            { title:'הספרייה השכונתית שנפתחה בשעתיים', type:'SUCCESS_STORY', subtitle:'קריאה אחת בקבוצת הוואטסאפ, 380 ספרים ומדף אחד שנקנה בכסף אמיתי.', cover:'/kol-haam-assets/images/content/cat-2.png', time:3, date:'2026-05-17', scope:'LOCAL', views:6900, likes:74, comments:21 },
         ];
 
         const articleIds = [];
