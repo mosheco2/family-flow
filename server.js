@@ -26647,7 +26647,17 @@ app.post('/api/kol-haam/content', async (req, res) => {
         if (!cat.rows.length) return res.status(400).json({ error: 'קטגוריה לא קיימת' });
         const effectiveScope = cat.rows[0].scope_level === 'LOCAL' ? 'LOCAL' : (scopeType || 'LOCAL');
         const authorId = await getOrCreateAuthorProfile(groupId, communityId);
-        const commId = communityId || (await pool.query(`SELECT community_id FROM family_groups WHERE id=$1`, [groupId])).rows[0]?.community_id;
+        let commId = communityId;
+        if (!commId) {
+            const cr = await pool.query(
+                `SELECT community_id FROM family_communities WHERE group_id=$1 AND status='approved'
+                 UNION SELECT community_id FROM family_groups WHERE id=$1 AND community_id IS NOT NULL
+                 LIMIT 1`,
+                [groupId]
+            );
+            commId = cr.rows[0]?.community_id;
+        }
+        if (!commId) return res.status(400).json({ error: 'לא נמצאה קהילה משויכת למשפחה זו' });
         const cleanHtml = sanitizeKHHtml(contentHtml);
         const words = (cleanHtml || '').replace(/<[^>]*>/g, ' ').split(/\s+/).filter(Boolean).length;
         const readingTime = Math.max(1, Math.ceil(words / 200));
