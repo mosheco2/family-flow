@@ -28849,13 +28849,13 @@ app.post('/api/kol-haam/authors/:id/follow', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// POST fix-covers — מעדכן cover_image_url לכל כתבות הדוגמה שחסרות תמונה
+// POST fix-covers — מעדכן cover_image_url לכל כתבה שחסרה תמונת Unsplash תקינה
 app.post('/api/kol-haam/fix-covers', async (req, res) => {
     if (req.body.secret !== 'SEED_DEMO_2026') return res.status(403).json({ error: 'אסור' });
-    // Unsplash photo IDs — curated for Israeli family/community content
     const U = (id, w=800, h=500) => `https://images.unsplash.com/photo-${id}?w=${w}&h=${h}&fit=crop&auto=format&q=80`;
+    // 20 curated Unsplash IDs — family/community/education topics
     const COVERS = [
-        U('1529156069898-49953e39b3ac'),  // משפחה בפעילות קיץ חיצונית
+        U('1529156069898-49953e39b3ac'),  // משפחה פעילות קיץ חיצונית
         U('1511895426328-dc8714191011'),  // משפחה ביחד בבית
         U('1503676260728-1c00da094a0b'),  // ילדים בכיתה
         U('1416879595882-3373a0480b5b'),  // גינה ירוקה קהילתית
@@ -28866,13 +28866,22 @@ app.post('/api/kol-haam/fix-covers', async (req, res) => {
         U('1485827404703-89b55fcc595e'),  // רובוטיקה וטכנולוגיה
         U('1449965408869-eaa3f722e40d'),  // רחוב שכונתי
         U('1579621970563-ebec7560ff3e'),  // מטבעות ותקציב
-        U('1507003211169-0a1dd7228f2d'),  // ספרים בקרוב
+        U('1507003211169-0a1dd7228f2d'),  // ספרים
+        U('1427504494785-3a9ca7044f45'),  // הורים וילדים יחד
+        U('1551966775-a4daa581b400'),     // ישיבת קהילה
+        U('1602520268571-9316f2d65a67'),  // ילדים עם מחשב
+        U('1491438590914-bc09fcaaf77a'),  // הורים בשיחה
+        U('1456513080510-7bf3a84b82f8'),  // ספר פתוח
+        U('1488521787816-4ad896d918a1'),  // ילדים בפארק
+        U('1543269865-cbf427effbad'),     // אמא וילד מחייכים
+        U('1472162072942-cd5147eb3902'),  // עיר ושכונה
     ];
     try {
-        // עדכן את כל כתבות הדוגמה — גם ישנות וגם כאלה עם נתיב שבור
+        // עדכן את כל הכתבות שאין להן URL של images.unsplash.com
         const rows = await pool.query(`
             SELECT id FROM content_items
-            WHERE is_sample_data=TRUE
+            WHERE cover_image_url IS NULL
+               OR cover_image_url NOT LIKE '%images.unsplash.com%'
             ORDER BY id
         `);
         let updated = 0;
@@ -28881,7 +28890,7 @@ app.post('/api/kol-haam/fix-covers', async (req, res) => {
             await pool.query(`UPDATE content_items SET cover_image_url=$1 WHERE id=$2`, [cover, rows.rows[i].id]);
             updated++;
         }
-        res.json({ success: true, updated, message: `עודכנו ${updated} כתבות` });
+        res.json({ success: true, updated, message: `עודכנו ${updated} כתבות עם תמונות Unsplash` });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
