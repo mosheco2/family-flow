@@ -11962,6 +11962,139 @@ window.deleteWAType = deleteWAType;
 // ══════════════════════════════════════════════════
 // קול העם — תור אישור SA
 // ══════════════════════════════════════════════════
+// ─── KH SA Tab state ───────────────────────────────────────────
+let _khTabCache = {};   // tab key → rendered HTML string (lazy cache)
+let _khData = {};       // fetched API data shared across tabs
+
+const KH_SA_TABS = [
+    { key: 'approvals',   label: 'אישורים' },
+    { key: 'content',     label: 'תוכן' },
+    { key: 'reports',     label: 'דיווחים' },
+    { key: 'comments',    label: 'תגובות' },
+    { key: 'authors',     label: 'כותבים' },
+    { key: 'categories',  label: 'קטגוריות ותגיות' },
+    { key: 'economy',     label: 'כלכלת FLOW' },
+    { key: 'settings',    label: 'הגדרות' },
+    { key: 'analytics',   label: 'אנליטיקס' },
+];
+
+function _khTabBar(activeKey) {
+    return `<div class="flex gap-1 border-b border-slate-200 mb-5 overflow-x-auto pb-0 scrollbar-hide" id="sa-kh-tabbar">
+      ${KH_SA_TABS.map(t => {
+        const active = t.key === activeKey;
+        return `<button onclick="switchKHTab('${t.key}')"
+          class="whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-t-xl transition border-b-2 ${active
+            ? 'border-indigo-600 text-indigo-700 bg-indigo-50'
+            : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50'}"
+          data-kh-tab="${t.key}">${t.label}</button>`;
+      }).join('')}
+    </div>`;
+}
+
+function _khRenderApprovals(items, delReqs) {
+    return `
+      <!-- תור אישור -->
+      <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 mb-5">
+        <h3 class="font-bold text-slate-800 mb-4 flex items-center gap-2">
+          <span class="bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full text-xs font-bold">${items.length}</span>
+          ממתין לאישור גלובלי
+        </h3>
+        ${items.length === 0
+          ? '<p class="text-center text-slate-400 py-8">אין פריטים ממתינים 🎉</p>'
+          : items.map(item => `
+            <div class="border border-slate-200 rounded-xl p-4 mb-3">
+              <div class="flex justify-between items-start gap-3">
+                <div class="flex-1 min-w-0">
+                  <div class="font-bold text-slate-800 text-sm mb-1">${safeStr(item.title)}</div>
+                  <div class="text-xs text-slate-500 mb-2">${safeStr(item.community_name||'')} · ${safeStr(item.type_label||item.content_type||'')} · ${new Date(item.published_at||item.created_at).toLocaleDateString('he-IL')}</div>
+                  ${item.summary ? `<p class="text-xs text-slate-600 bg-slate-50 rounded-lg p-2 mb-2">${safeStr(item.summary)}</p>` : ''}
+                </div>
+                ${item.cover_image_url ? `<img src="${safeStr(item.cover_image_url)}" class="w-16 h-16 rounded-xl object-cover shrink-0">` : ''}
+              </div>
+              <div class="flex gap-2 mt-3">
+                <button onclick="saKHApprove(${item.id})" class="bg-green-600 text-white text-xs font-bold px-4 py-2 rounded-xl hover:bg-green-700 transition">✔ אשר גלובלי</button>
+                <button onclick="saKHReject(${item.id})" class="bg-red-500 text-white text-xs font-bold px-4 py-2 rounded-xl hover:bg-red-600 transition">✖ דחה</button>
+              </div>
+            </div>`).join('')}
+      </div>
+      <!-- בקשות מחיקה -->
+      <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+        <h3 class="font-bold text-slate-800 mb-4 flex items-center gap-2">
+          <span class="bg-red-100 text-red-700 px-2 py-0.5 rounded-full text-xs font-bold">${delReqs.length}</span>
+          בקשות מחיקה
+        </h3>
+        ${delReqs.length === 0
+          ? '<p class="text-center text-slate-400 py-4">אין בקשות מחיקה</p>'
+          : delReqs.map(r => `
+            <div class="border border-red-100 rounded-xl p-3 mb-2 bg-red-50 flex justify-between items-center gap-2">
+              <div class="text-xs text-slate-700">
+                <span class="font-bold">${safeStr(r.title)}</span>
+                <span class="text-slate-500 ml-2">סיבה: ${safeStr(r.reason||'לא צוינה')}</span>
+              </div>
+              <button onclick="saKHDelete(${r.id})" class="bg-red-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg hover:bg-red-700 transition shrink-0">מחק</button>
+            </div>`).join('')}
+      </div>`;
+}
+
+function _khRenderCategories(cats) {
+    return `
+      <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="font-bold text-slate-800">קטגוריות גלובליות</h3>
+          <button onclick="saKHAddCategory()" class="bg-indigo-600 text-white text-xs font-bold px-3 py-2 rounded-xl hover:bg-indigo-700 transition">+ הוסף</button>
+        </div>
+        <div id="sa-kh-cats-list">
+          ${cats.filter(c => c.scope_level === 'GLOBAL').map(c => `
+            <div class="flex justify-between items-center py-2 border-b border-slate-100 text-sm">
+              <span class="font-medium text-slate-700">${safeStr(c.icon||'')} ${safeStr(c.title)}</span>
+              <button onclick="saKHDeleteCategory(${c.id})" class="text-red-400 hover:text-red-600 text-xs transition">מחק</button>
+            </div>`).join('')}
+        </div>
+      </div>`;
+}
+
+function _khPlaceholder(label) {
+    return `<div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-10 text-center">
+      <div class="text-3xl mb-3">🚧</div>
+      <div class="font-bold text-slate-700 mb-1">${label}</div>
+      <div class="text-sm text-slate-400">בפיתוח</div>
+    </div>`;
+}
+
+window.switchKHTab = function(key) {
+    // Update URL without reload
+    const url = new URL(window.location.href);
+    url.searchParams.set('kh_tab', key);
+    history.replaceState(null, '', url.toString());
+
+    // Update tab bar active state
+    document.querySelectorAll('[data-kh-tab]').forEach(btn => {
+        const isActive = btn.dataset.khTab === key;
+        btn.className = `whitespace-nowrap px-4 py-2.5 text-sm font-medium rounded-t-xl transition border-b-2 ${isActive
+            ? 'border-indigo-600 text-indigo-700 bg-indigo-50'
+            : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50'}`;
+    });
+
+    // Render tab content (lazy: use cache when available)
+    const body = document.getElementById('sa-kh-tab-body');
+    if (!body) return;
+
+    if (_khTabCache[key]) {
+        body.innerHTML = _khTabCache[key];
+        return;
+    }
+
+    const d = _khData;
+    let html;
+    switch (key) {
+        case 'approvals':  html = _khRenderApprovals(d.items||[], d.delReqs||[]); break;
+        case 'categories': html = _khRenderCategories(d.cats||[]); break;
+        default:           html = _khPlaceholder(KH_SA_TABS.find(t=>t.key===key)?.label||key);
+    }
+    _khTabCache[key] = html;
+    body.innerHTML = html;
+};
+
 async function loadSAKolHaamQueue() {
     const container = document.getElementById('sa-kol-haam-content');
     if (!container) return;
@@ -11972,13 +12105,22 @@ async function loadSAKolHaamQueue() {
             saFetch('/api/kol-haam/sa/categories'),
             saFetch('/api/kol-haam/sa/delete-requests')
         ]);
-        const items = queueRes.items || [];
-        const cats = catsRes.categories || [];
-        const delReqs = delRes.requests || [];
+        // Store fetched data globally for lazy tab rendering
+        _khData = {
+            items: queueRes.items || [],
+            cats: catsRes.categories || [],
+            delReqs: delRes.requests || [],
+        };
+        _khTabCache = {}; // clear cache on full reload
+
+        // Determine active tab from URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const activeTab = urlParams.get('kh_tab') || 'approvals';
+
         container.innerHTML = `
-          <div class="space-y-6">
-            <!-- כותרת -->
-            <div class="bg-gradient-to-r from-indigo-600 to-violet-600 rounded-2xl p-5 text-white shadow-lg">
+          <div>
+            <!-- באנר כלים וסיד — נשאר מעל הטאבים -->
+            <div class="bg-gradient-to-r from-indigo-600 to-violet-600 rounded-2xl p-5 text-white shadow-lg mb-5">
               <div class="flex justify-between items-start gap-3 flex-wrap">
                 <div>
                   <h2 class="text-xl font-bold mb-1">📣 קול העם — ניהול SA</h2>
@@ -12018,62 +12160,14 @@ async function loadSAKolHaamQueue() {
                 </button>
               </div>
             </div>
-            <!-- תור אישור -->
-            <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
-              <h3 class="font-bold text-slate-800 mb-4 flex items-center gap-2">
-                <span class="bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full text-xs font-bold">${items.length}</span>
-                ממתין לאישור גלובלי
-              </h3>
-              ${items.length === 0
-                ? '<p class="text-center text-slate-400 py-8">אין פריטים ממתינים 🎉</p>'
-                : items.map(item => `
-                  <div class="border border-slate-200 rounded-xl p-4 mb-3">
-                    <div class="flex justify-between items-start gap-3">
-                      <div class="flex-1 min-w-0">
-                        <div class="font-bold text-slate-800 text-sm mb-1">${safeStr(item.title)}</div>
-                        <div class="text-xs text-slate-500 mb-2">${safeStr(item.community_name||'')} · ${safeStr(item.type_label||item.content_type||'')} · ${new Date(item.published_at||item.created_at).toLocaleDateString('he-IL')}</div>
-                        ${item.summary ? `<p class="text-xs text-slate-600 bg-slate-50 rounded-lg p-2 mb-2">${safeStr(item.summary)}</p>` : ''}
-                      </div>
-                      ${item.cover_image_url ? `<img src="${safeStr(item.cover_image_url)}" class="w-16 h-16 rounded-xl object-cover shrink-0">` : ''}
-                    </div>
-                    <div class="flex gap-2 mt-3">
-                      <button onclick="saKHApprove(${item.id})" class="bg-green-600 text-white text-xs font-bold px-4 py-2 rounded-xl hover:bg-green-700 transition">✔ אשר גלובלי</button>
-                      <button onclick="saKHReject(${item.id})" class="bg-red-500 text-white text-xs font-bold px-4 py-2 rounded-xl hover:bg-red-600 transition">✖ דחה</button>
-                    </div>
-                  </div>`).join('')}
-            </div>
-            <!-- בקשות מחיקה -->
-            <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
-              <h3 class="font-bold text-slate-800 mb-4 flex items-center gap-2">
-                <span class="bg-red-100 text-red-700 px-2 py-0.5 rounded-full text-xs font-bold">${delReqs.length}</span>
-                בקשות מחיקה
-              </h3>
-              ${delReqs.length === 0
-                ? '<p class="text-center text-slate-400 py-4">אין בקשות מחיקה</p>'
-                : delReqs.map(r => `
-                  <div class="border border-red-100 rounded-xl p-3 mb-2 bg-red-50 flex justify-between items-center gap-2">
-                    <div class="text-xs text-slate-700">
-                      <span class="font-bold">${safeStr(r.title)}</span>
-                      <span class="text-slate-500 ml-2">סיבה: ${safeStr(r.reason||'לא צוינה')}</span>
-                    </div>
-                    <button onclick="saKHDelete(${r.id})" class="bg-red-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg hover:bg-red-700 transition shrink-0">מחק</button>
-                  </div>`).join('')}
-            </div>
-            <!-- קטגוריות גלובליות -->
-            <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
-              <div class="flex justify-between items-center mb-4">
-                <h3 class="font-bold text-slate-800">קטגוריות גלובליות</h3>
-                <button onclick="saKHAddCategory()" class="bg-indigo-600 text-white text-xs font-bold px-3 py-2 rounded-xl hover:bg-indigo-700 transition">+ הוסף</button>
-              </div>
-              <div id="sa-kh-cats-list">
-                ${cats.filter(c => c.scope_level === 'GLOBAL').map(c => `
-                  <div class="flex justify-between items-center py-2 border-b border-slate-100 text-sm">
-                    <span class="font-medium text-slate-700">${safeStr(c.icon||'')} ${safeStr(c.title)}</span>
-                    <button onclick="saKHDeleteCategory(${c.id})" class="text-red-400 hover:text-red-600 text-xs transition">מחק</button>
-                  </div>`).join('')}
-              </div>
-            </div>
+            <!-- סרגל טאבים -->
+            ${_khTabBar(activeTab)}
+            <!-- גוף הטאב הפעיל -->
+            <div id="sa-kh-tab-body"></div>
           </div>`;
+
+        // Render active tab
+        switchKHTab(activeTab);
     } catch(e) {
         container.innerHTML = `<div class="text-center py-12 text-red-400">שגיאה בטעינה: ${e.message}</div>`;
     }
