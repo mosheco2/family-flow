@@ -12625,6 +12625,10 @@ async function loadSAKolHaamQueue() {
                   class="bg-slate-500/80 hover:bg-slate-400 text-white text-xs font-bold px-4 py-2 rounded-xl border border-slate-300 transition whitespace-nowrap">
                   🕐 seed גרסאות
                 </button>
+                <button onclick="saKHScanUnsafe()" id="sa-kh-scan-btn"
+                  class="bg-red-600/80 hover:bg-red-500 text-white text-xs font-bold px-4 py-2 rounded-xl border border-red-400 transition whitespace-nowrap">
+                  🔍 סרוק תוכן מסוכן
+                </button>
               </div>
             </div>
             <!-- סרגל טאבים -->
@@ -12639,6 +12643,139 @@ async function loadSAKolHaamQueue() {
         container.innerHTML = `<div class="text-center py-12 text-red-400">שגיאה בטעינה: ${e.message}</div>`;
     }
 }
+
+// ─── סריקת תוכן מסוכן ────────────────────────────────────────────────
+async function saKHScanUnsafe() {
+    const btn = document.getElementById('sa-kh-scan-btn');
+    if (btn) { btn.disabled = true; btn.textContent = '⏳ סורק...'; }
+    try {
+        const data = await saFetch('/api/kol-haam/sa/scan-unsafe-html');
+        if (btn) { btn.disabled = false; btn.textContent = '🔍 סרוק תוכן מסוכן'; }
+        const findings = data.findings || [];
+
+        // Build modal
+        const existing = document.getElementById('kh-scan-modal');
+        if (existing) existing.remove();
+
+        const rowsHtml = findings.length === 0
+            ? `<div class="py-10 text-center text-slate-400 text-sm">✅ לא נמצאו ממצאים — כל התוכן תקין (נסרקו ${data.scanned || 0} פריטים)</div>`
+            : findings.map((f, idx) => {
+                const ctxPre  = f.context?.pre  || '';
+                const ctxHit  = f.context?.hit  || '';
+                const ctxPost = f.context?.post || '';
+                const escapedPre  = ctxPre.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+                const escapedHit  = ctxHit.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+                const escapedPost = ctxPost.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+                const statusLabel = {
+                    DRAFT:'טיוטה', PENDING_ZM:'ממתין ZM', PENDING_SA:'ממתין SA',
+                    PUBLISHED_LOCAL:'פורסם מקומי', PUBLISHED_GLOBAL:'פורסם גלובלי',
+                    REJECTED:'נדחה', ARCHIVED:'ארכיון'
+                }[f.status] || f.status;
+                return `<tr id="kh-scan-row-${f.item_id}-${idx}" class="border-b border-slate-100 hover:bg-slate-50 align-top">
+                  <td class="px-3 py-3 text-sm font-semibold text-slate-800 max-w-[160px]">${safeStr(f.title)}</td>
+                  <td class="px-3 py-3 text-xs text-slate-500">${safeStr(f.author_name)}<br><span class="text-slate-400">${safeStr(f.community_name)}</span></td>
+                  <td class="px-3 py-3 text-xs text-slate-500">${safeStr(statusLabel)}</td>
+                  <td class="px-3 py-3">
+                    <span class="inline-block text-xs font-bold px-2 py-1 rounded-lg bg-red-50 text-red-700 border border-red-200 whitespace-nowrap">${safeStr(f.threat_badge)}</span>
+                    <div class="text-xs text-slate-500 mt-1 max-w-[200px]">${safeStr(f.explanation)}</div>
+                  </td>
+                  <td class="px-3 py-3 font-mono text-[11px] text-slate-600 max-w-[220px]">
+                    <span class="text-slate-400">${escapedPre}</span><span class="bg-red-100 text-red-800 font-bold px-0.5 rounded">${escapedHit}</span><span class="text-slate-400">${escapedPost}</span>
+                  </td>
+                  <td class="px-3 py-3 whitespace-nowrap">
+                    <button onclick="khViewContentScan(${f.item_id})" class="text-xs px-2 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold mr-1 transition">👁️ צפה</button>
+                    <button onclick="khCleanHtml(${f.item_id},'${safeStr(f.title).replace(/'/g,'\\\'')}')" class="text-xs px-2 py-1 rounded-lg bg-amber-100 hover:bg-amber-200 text-amber-800 font-bold mr-1 transition">🧹 נקה</button>
+                    <button onclick="khMarkSafe(${f.item_id},${idx})" class="text-xs px-2 py-1 rounded-lg bg-green-100 hover:bg-green-200 text-green-800 font-bold transition">✅ תקין</button>
+                  </td>
+                </tr>`;
+            }).join('');
+
+        const summaryText = findings.length > 0
+            ? `נמצאו <strong>${findings.length}</strong> ממצאים ב-${data.scanned} פריטים שנסרקו`
+            : `לא נמצאו ממצאים — נסרקו ${data.scanned} פריטים`;
+
+        document.body.insertAdjacentHTML('beforeend', `
+          <div id="kh-scan-modal" class="fixed inset-0 z-[9999] bg-black/50 flex items-center justify-center p-4" onclick="if(event.target.id==='kh-scan-modal')document.getElementById('kh-scan-modal').remove()">
+            <div class="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col overflow-hidden">
+              <div class="flex items-center justify-between px-5 py-4 border-b border-slate-100 shrink-0 bg-gradient-to-r from-red-50 to-orange-50">
+                <div>
+                  <span class="font-bold text-slate-800 text-base">🔍 סריקת תוכן מסוכן</span>
+                  <p class="text-sm text-slate-500 mt-0.5">${summaryText}</p>
+                </div>
+                <button onclick="document.getElementById('kh-scan-modal').remove()" class="text-slate-400 hover:text-slate-600 text-xl leading-none transition font-bold">✕</button>
+              </div>
+              ${findings.length > 0 ? `
+              <div class="overflow-auto flex-1">
+                <table class="w-full text-right border-collapse">
+                  <thead class="bg-slate-50 sticky top-0 z-10">
+                    <tr class="text-xs text-slate-500 font-semibold border-b border-slate-200">
+                      <th class="px-3 py-2 text-right">כותרת</th>
+                      <th class="px-3 py-2 text-right">מחבר / קהילה</th>
+                      <th class="px-3 py-2 text-right">סטטוס</th>
+                      <th class="px-3 py-2 text-right">איום</th>
+                      <th class="px-3 py-2 text-right">הקשר</th>
+                      <th class="px-3 py-2 text-right">פעולה</th>
+                    </tr>
+                  </thead>
+                  <tbody id="kh-scan-results-body">${rowsHtml}</tbody>
+                </table>
+              </div>` : `<div class="flex-1 flex items-center justify-center">${rowsHtml}</div>`}
+              <div class="px-5 py-3 border-t border-slate-100 text-xs text-slate-400 text-center shrink-0">
+                אין כפתור "נקה הכל". כל פריט מטופל בנפרד לפי שיקול דעת.
+              </div>
+            </div>
+          </div>`);
+    } catch(e) {
+        if (btn) { btn.disabled = false; btn.textContent = '🔍 סרוק תוכן מסוכן'; }
+        alert('שגיאה בסריקה: ' + e.message);
+    }
+}
+
+window.khViewContentScan = function(id) {
+    // Close scan modal and open view modal
+    document.getElementById('kh-scan-modal')?.remove();
+    window.khViewContent(id);
+};
+
+window.khCleanHtml = async function(id, title) {
+    if (!confirm(`לנקות את ה-HTML של הכתבה "${title}"?\nהמקור יגובה אוטומטית לפני הניקוי.`)) return;
+    try {
+        // Preview first
+        const prev = await saFetch(`/api/kol-haam/sa/content/${id}/clean-html?preview=1`, { method: 'POST' });
+        const escapedOrig    = (prev.original || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        const escapedCleaned = (prev.cleaned  || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+        const ok = confirm(
+            `תצוגה מקדימה לפני ניקוי:\n\n— לפני —\n${(prev.original||'').slice(0,300)}\n\n— אחרי —\n${(prev.cleaned||'').slice(0,300)}\n\nלאשר ניקוי?`
+        );
+        if (!ok) return;
+
+        await saFetch(`/api/kol-haam/sa/content/${id}/clean-html`, { method: 'POST' });
+        // Remove all rows for this item from scan table
+        document.querySelectorAll(`[id^="kh-scan-row-${id}-"]`).forEach(r => r.remove());
+        const tbody = document.getElementById('kh-scan-results-body');
+        if (tbody && !tbody.querySelector('tr')) {
+            tbody.innerHTML = '<tr><td colspan="6" class="py-8 text-center text-green-600 text-sm font-bold">✅ כל הממצאים לפריט זה טופלו</td></tr>';
+        }
+        alert(`✅ ה-HTML של "${title}" נוקה בהצלחה. גיבוי נשמר.`);
+    } catch(e) {
+        alert('שגיאה בניקוי: ' + e.message);
+    }
+};
+
+window.khMarkSafe = async function(id, idx) {
+    try {
+        await saFetch(`/api/kol-haam/sa/content/${id}/mark-safe`, { method: 'POST' });
+        // Remove all rows for this item from scan table
+        document.querySelectorAll(`[id^="kh-scan-row-${id}-"]`).forEach(r => r.remove());
+        const tbody = document.getElementById('kh-scan-results-body');
+        if (tbody && !tbody.querySelector('tr')) {
+            tbody.innerHTML = '<tr><td colspan="6" class="py-8 text-center text-green-600 text-sm font-bold">✅ כל הממצאים טופלו</td></tr>';
+        }
+    } catch(e) {
+        alert('שגיאה: ' + e.message);
+    }
+};
 
 async function saKHSeedSample() {
     const btn = document.getElementById('sa-kh-seed-btn');
