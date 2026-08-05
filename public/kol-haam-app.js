@@ -28,6 +28,49 @@ const STATE = {
     confirmResolve: null,
 };
 
+// ── Autosave state ────────────────────────────────────────────
+let _khAutoSaveTimer    = null;
+let _khCurrentHash      = '';   // מתעדכן בכל הקלדה
+let _khLastSavedHash    = '';   // מתעדכן רק אחרי שמירה מוצלחת
+let _khLastSavedAt      = null; // Date | null
+
+function _khContentHash() {
+    const title = document.getElementById('ed-title')?.value || '';
+    const body  = document.getElementById('rte-body')?.innerHTML || '';
+    return title + '|' + body;
+}
+
+function _khSetAutosaveStatus(state) {
+    const el = document.getElementById('kh-autosave-status');
+    if (!el) return;
+    if (state === 'saving') {
+        el.textContent = 'שומר...';
+        el.className = 'kh-autosave-status saving';
+    } else if (state === 'saved') {
+        const mins = _khLastSavedAt ? Math.round((Date.now() - _khLastSavedAt) / 60000) : 0;
+        el.textContent = mins < 1 ? 'נשמר זה עתה' : `נשמר לפני ${mins} דק'`;
+        el.className = 'kh-autosave-status saved';
+    } else {
+        el.textContent = 'לא נשמר';
+        el.className = 'kh-autosave-status unsaved';
+    }
+}
+
+function teardownEditor() {
+    if (_khAutoSaveTimer) { clearInterval(_khAutoSaveTimer); _khAutoSaveTimer = null; }
+    window.removeEventListener('beforeunload', _khBeforeUnload);
+    _khCurrentHash = '';
+    _khLastSavedHash = '';
+}
+
+function _khBeforeUnload(e) {
+    _khCurrentHash = _khContentHash();
+    if (_khCurrentHash !== _khLastSavedHash) {
+        e.preventDefault();
+        e.returnValue = '';
+    }
+}
+
 // ── Fetch helpers ─────────────────────────────────────────────
 function khFetch(url, opts = {}) {
     const headers = { 'Content-Type': 'application/json', ...(opts.headers || {}) };
@@ -91,6 +134,7 @@ function showView(id) {
 // ── Navigation ────────────────────────────────────────────────
 const KH = {
     nav(view, params = {}) {
+        if (STATE.view === 'editor' && view !== 'editor') teardownEditor();
         STATE.prevView = STATE.view;
         STATE.view = view;
         document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
@@ -887,8 +931,9 @@ const KH = {
             </div>
 
             <!-- כפתורי פעולה -->
-            <div class="editor-actions">
+            <div class="editor-actions" style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap">
                 <button class="kh-btn kh-btn-outline" onclick="KH.saveDraft()"><i class="fa-solid fa-floppy-disk"></i> שמור כטיוטה</button>
+                <span id="kh-autosave-status" class="kh-autosave-status" style="font-size:.78rem;color:var(--muted)"></span>
                 <button class="kh-btn kh-btn-primary" onclick="KH.submitContent()"><i class="fa-solid fa-paper-plane"></i> שלח לאישור</button>
             </div>
 
@@ -912,6 +957,43 @@ const KH = {
                 });
             }).catch(() => {});
         }
+
+        // ── Autosave setup ────────────────────────────────────
+        teardownEditor(); // ניקוי מהפעם הקודמת אם קיים
+        _khLastSavedHash = _khContentHash(); // hash בסיס — התוכן הנוכחי (טיוטה קיימת)
+        _khCurrentHash   = _khLastSavedHash;
+        if (itemId) { // אם יש טיוטה קיימת, סמן כנשמרה
+            _khLastSavedAt = new Date();
+            _khSetAutosaveStatus('saved');
+        }
+        window.addEventListener('beforeunload', _khBeforeUnload);
+        _khAutoSaveTimer = setInterval(async () => {
+            _khCurrentHash = _khContentHash();
+            if (_khCurrentHash === _khLastSavedHash) return;
+            if (!document.getElementById('ed-title')) { teardownEditor(); return; } // העורך לא קיים
+            _khSetAutosaveStatus('saving');
+            try {
+                const payload = KH.collectEditorPayload();
+                if (!payload.title || !payload.categoryId) { _khSetAutosaveStatus('unsaved'); return; }
+                let r;
+                if (STATE.editingItemId) {
+                    r = await khFetch(`${API}/content/${STATE.editingItemId}`, { method: 'PUT', body: JSON.stringify(payload) });
+                } else {
+                    r = await khFetch(`${API}/content`, { method: 'POST', body: JSON.stringify(payload) });
+                    if (r.success) STATE.editingItemId = r.id;
+                }
+                if (r.success) {
+                    _khLastSavedHash = _khCurrentHash;
+                    _khLastSavedAt   = new Date();
+                    _khSetAutosaveStatus('saved');
+                } else {
+                    _khSetAutosaveStatus('unsaved');
+                }
+            } catch(e) { _khSetAutosaveStatus('unsaved'); }
+        }, 30_000);
+
+        // עדכון טקסט "נשמר לפני X" כל דקה
+        setInterval(() => { if (_khLastSavedAt) _khSetAutosaveStatus('saved'); }, 60_000);
     },
 
     selectType(type) {
@@ -1006,28 +1088,96 @@ const KH = {
     async onCoverFile(e) {
         const file = e.target.files[0]; if (!file) return;
         e.target.value = '';
+        const uploadArea = document.querySelector('.img-upload-area');
+        const errEl = document.getElementById('cover-upload-error');
+        if (errEl) errEl.remove();
+
+        const _setUploading = (on) => {
+            if (!uploadArea) return;
+            if (on) {
+                uploadArea.classList.add('uploading');
+                uploadArea.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מעלה תמונה...';
+            } else {
+                uploadArea.classList.remove('uploading');
+                uploadArea.innerHTML = '<i class="fa-solid fa-image"></i> ' + (document.getElementById('ed-cover-url')?.value ? 'החלף תמונה' : 'לחץ להעלאת תמונת שער');
+            }
+        };
+
+        const _showError = async (detail) => {
+            if (uploadArea) {
+                const div = document.createElement('div');
+                div.id = 'cover-upload-error';
+                div.style.cssText = 'color:#c0392b;font-size:.82rem;margin-top:.4rem;font-weight:600';
+                div.textContent = 'העלאת התמונה נכשלה. נסה שוב או פנה לתמיכה.';
+                uploadArea.insertAdjacentElement('afterend', div);
+            }
+            toast('העלאת התמונה נכשלה', 'error');
+            // לוג לשרת — מוגן ב-groupId
+            if (CTX.groupId) {
+                fetch(`${API}/client-error-log`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ groupId: CTX.groupId, message: 'cover upload failed', context: String(detail).slice(0, 500) }),
+                }).catch(() => {});
+            }
+        };
+
+        _setUploading(true);
         try {
             const [cnRes, upRes] = await Promise.all([
                 fetch('/api/public/settings/cloudinary_cloud_name').then(r => r.json()),
                 fetch('/api/public/settings/cloudinary_upload_preset').then(r => r.json()),
             ]);
             const cloudName = cnRes.value; const preset = upRes.value;
-            if (!cloudName || !preset) { toast('הגדרות Cloudinary חסרות', 'error'); return; }
-            toast('מעלה תמונה...');
+            if (!cloudName || !preset) {
+                await _showError('missing cloudinary config');
+                return;
+            }
             const fd = new FormData(); fd.append('file', file); fd.append('upload_preset', preset);
             const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, { method: 'POST', body: fd });
             const data = await res.json();
-            if (!data.secure_url) { toast('שגיאה בהעלאה', 'error'); return; }
-            document.getElementById('ed-cover-url').value = data.secure_url;
-            let prev = document.getElementById('cover-preview');
-            if (!prev) {
-                prev = document.createElement('img');
-                prev.id = 'cover-preview'; prev.className = 'img-preview';
-                document.getElementById('cover-preview-wrap').appendChild(prev);
+            if (!data.secure_url) {
+                await _showError(`no secure_url: ${JSON.stringify(data).slice(0,200)}`);
+                return;
             }
-            prev.src = data.secure_url;
+            document.getElementById('ed-cover-url').value = data.secure_url;
+            const wrap = document.getElementById('cover-preview-wrap');
+            if (wrap) {
+                let prev = document.getElementById('cover-preview');
+                if (!prev) { prev = document.createElement('img'); prev.id = 'cover-preview'; prev.className = 'img-preview'; wrap.appendChild(prev); }
+                prev.src = data.secure_url;
+                // כפתור הסר תמונה
+                let removeBtn = document.getElementById('cover-remove-btn');
+                if (!removeBtn) {
+                    removeBtn = document.createElement('button');
+                    removeBtn.id = 'cover-remove-btn';
+                    removeBtn.type = 'button';
+                    removeBtn.className = 'kh-btn kh-btn-outline kh-btn-sm';
+                    removeBtn.style.cssText = 'margin-top:.4rem;font-size:.78rem';
+                    removeBtn.textContent = '🗑️ הסר תמונה';
+                    removeBtn.onclick = () => KH.removeCover();
+                    wrap.appendChild(removeBtn);
+                }
+            }
             toast('תמונה הועלתה', 'success');
-        } catch(err) { toast('שגיאת תקשורת', 'error'); }
+        } catch(err) {
+            await _showError(err?.message || 'network error');
+        } finally {
+            _setUploading(false);
+        }
+    },
+
+    removeCover() {
+        const url = document.getElementById('ed-cover-url');
+        if (url) url.value = '';
+        const prev = document.getElementById('cover-preview');
+        if (prev) prev.remove();
+        const btn = document.getElementById('cover-remove-btn');
+        if (btn) btn.remove();
+        const err = document.getElementById('cover-upload-error');
+        if (err) err.remove();
+        const uploadArea = document.querySelector('.img-upload-area');
+        if (uploadArea) uploadArea.innerHTML = '<i class="fa-solid fa-image"></i> לחץ להעלאת תמונת שער';
     },
 
     // ── Save / Submit ────────────────────────────────────────
@@ -1078,6 +1228,7 @@ const KH = {
         const payload = KH.collectEditorPayload();
         if (!payload.title) { toast('יש להזין כותרת', 'error'); return; }
         if (!payload.categoryId) { toast('יש לבחור קטגוריה', 'error'); return; }
+        _khSetAutosaveStatus('saving');
         try {
             let r;
             if (STATE.editingItemId) {
@@ -1086,9 +1237,19 @@ const KH = {
                 r = await khFetch(`${API}/content`, { method: 'POST', body: JSON.stringify(payload) });
                 if (r.success) STATE.editingItemId = r.id;
             }
-            if (r.success) toast('טיוטה נשמרה', 'success');
-            else toast(r.error || 'שגיאה', 'error');
-        } catch(e) { toast('שגיאת תקשורת', 'error'); }
+            if (r.success) {
+                _khLastSavedHash = _khContentHash();
+                _khLastSavedAt   = new Date();
+                _khSetAutosaveStatus('saved');
+                toast('טיוטה נשמרה', 'success');
+            } else {
+                _khSetAutosaveStatus('unsaved');
+                toast(r.error || 'שגיאה', 'error');
+            }
+        } catch(e) {
+            _khSetAutosaveStatus('unsaved');
+            toast('שגיאת תקשורת', 'error');
+        }
     },
 
     async submitContent() {

@@ -27389,6 +27389,36 @@ app.post('/api/kol-haam/sa/content/:id/mark-safe', verifySA, async (req, res) =>
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// ─── לוג שגיאות צד-לקוח (קול העם) ───────────────────────────
+// rate limit: 10 req/min per groupId
+const _khErrLog = new Map(); // groupId -> { count, resetAt }
+app.post('/api/kol-haam/client-error-log', async (req, res) => {
+    try {
+        const { groupId, message, context } = req.body;
+        if (!groupId) return res.status(400).json({ error: 'groupId חסר' });
+
+        // בדיקת groupId תקין ב-DB (אותו pattern כמו שאר endpoints FAMILY)
+        const grp = await pool.query(`SELECT id FROM family_groups WHERE id=$1 LIMIT 1`, [parseInt(groupId)]);
+        if (!grp.rows.length) return res.status(403).json({ error: 'Unauthorized' });
+
+        // rate limit פשוט: 10 קריאות לדקה למשתמש
+        const now = Date.now();
+        const entry = _khErrLog.get(groupId);
+        if (entry && now < entry.resetAt) {
+            if (entry.count >= 10) return res.status(429).json({ error: 'Too many requests' });
+            entry.count++;
+        } else {
+            _khErrLog.set(groupId, { count: 1, resetAt: now + 60_000 });
+        }
+
+        // חיתוך + ניקוי שורות חדשות (מניעת log injection)
+        const safeMsg = String(message || '').slice(0, 500).replace(/[\r\n]/g, ' ');
+        const safeCtx = String(context  || '').slice(0, 500).replace(/[\r\n]/g, ' ');
+        console.error(`[KH-CLIENT-ERROR] group=${groupId} msg=${safeMsg} ctx=${safeCtx}`);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // ─── תגיות — autocomplete ─────────────────────────────────────
 app.get('/api/kol-haam/tags', async (req, res) => {
     try {
@@ -27568,6 +27598,7 @@ async function initKolHaamPhase2Tables() {
         `ALTER TABLE content_items ADD COLUMN IF NOT EXISTS is_sample_data BOOLEAN DEFAULT FALSE`,
         `ALTER TABLE sa_audit_log ADD COLUMN IF NOT EXISTS prev_status VARCHAR(20) NULL`,
         `ALTER TABLE sa_audit_log ADD COLUMN IF NOT EXISTS new_status VARCHAR(20) NULL`,
+        `ALTER TABLE content_items ALTER COLUMN scope_type SET DEFAULT 'LOCAL'`,
         // indexes
         `CREATE INDEX IF NOT EXISTS idx_content_reactions_item ON content_reactions(content_item_id)`,
         `CREATE INDEX IF NOT EXISTS idx_content_comments_item ON content_comments(content_item_id)`,
