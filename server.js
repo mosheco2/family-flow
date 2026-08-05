@@ -26823,9 +26823,10 @@ app.put('/api/kol-haam/content/:id', verifyFamily, async (req, res) => {
 });
 
 // ─── מחיקת טיוטה ─────────────────────────────────────────────
-app.delete('/api/kol-haam/content/:id', async (req, res) => {
+app.delete('/api/kol-haam/content/:id', verifyFamily, async (req, res) => {
     try {
-        const { groupId } = req.body;
+        // const { groupId } = req.body; // ← ישן — rollback: החזר שורה זו
+        const groupId = req.familyAuth.groupId;
         const item = await pool.query(`SELECT ci.status, ap.family_group_id FROM content_items ci JOIN author_profiles ap ON ap.id=ci.author_profile_id WHERE ci.id=$1`, [req.params.id]);
         if (!item.rows.length) return res.status(404).json({ error: 'לא נמצא' });
         if (String(item.rows[0].family_group_id) !== String(groupId))
@@ -26837,9 +26838,10 @@ app.delete('/api/kol-haam/content/:id', async (req, res) => {
 });
 
 // ─── שליחה לאישור ────────────────────────────────────────────
-app.post('/api/kol-haam/content/:id/submit', async (req, res) => {
+app.post('/api/kol-haam/content/:id/submit', verifyFamily, async (req, res) => {
     try {
-        const { groupId } = req.body;
+        // const { groupId } = req.body; // ← ישן — rollback: החזר שורה זו
+        const groupId = req.familyAuth.groupId;
         const item = await pool.query(`SELECT ci.*, ap.family_group_id FROM content_items ci JOIN author_profiles ap ON ap.id=ci.author_profile_id WHERE ci.id=$1`, [req.params.id]);
         if (!item.rows.length) return res.status(404).json({ error: 'לא נמצא' });
         if (String(item.rows[0].family_group_id) !== String(groupId)) return res.status(403).json({ error: 'אין הרשאה' });
@@ -26850,12 +26852,21 @@ app.post('/api/kol-haam/content/:id/submit', async (req, res) => {
 });
 
 // ─── שיתוף טיוטה לבן משפחה ───────────────────────────────────
-app.post('/api/kol-haam/content/:id/collaborators', async (req, res) => {
+app.post('/api/kol-haam/content/:id/collaborators', verifyFamily, async (req, res) => {
     try {
-        const { groupId, userId } = req.body;
+        // const { groupId, userId } = req.body; // ← ישן — rollback: החזר שורה זו
+        // groupId מגיע מהטוקן; userId (המשתמש שמתווסף) עדיין מה-body
+        const groupId = req.familyAuth.groupId;
+        const { userId } = req.body;
+        // (1) בדיקת בעלות — המבקש הוא בעל הכתבה
         const item = await pool.query(`SELECT ci.status, ap.family_group_id FROM content_items ci JOIN author_profiles ap ON ap.id=ci.author_profile_id WHERE ci.id=$1`, [req.params.id]);
         if (!item.rows.length) return res.status(404).json({ error: 'לא נמצא' });
         if (String(item.rows[0].family_group_id) !== String(groupId)) return res.status(403).json({ error: 'אין הרשאה' });
+        // (2) בדיקה שה-collaborator שייך לאותה קבוצה (לא userId שרירותי מכל משפחה)
+        if (userId) {
+            const uCheck = await pool.query(`SELECT 1 FROM users WHERE id=$1 AND group_id=$2`, [userId, groupId]);
+            if (!uCheck.rows.length) return res.status(400).json({ error: 'המשתמש אינו חבר בקבוצה זו' });
+        }
         await pool.query(`INSERT INTO draft_collaborators (content_item_id, user_id) VALUES ($1,$2) ON CONFLICT DO NOTHING`, [req.params.id, userId]);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
@@ -27073,10 +27084,20 @@ app.post('/api/kol-haam/sa/:id/upgrade-to-global', verifySA, async (req, res) =>
 });
 
 // ─── בקשת מחיקה (כותב/ZM) ────────────────────────────────────
-app.post('/api/kol-haam/content/:id/request-deletion', async (req, res) => {
+app.post('/api/kol-haam/content/:id/request-deletion', verifyFamily, async (req, res) => {
     try {
-        const { userId } = req.body;
-        await pool.query(`UPDATE content_items SET deletion_requested=TRUE, deletion_requested_by=$1, updated_at=NOW() WHERE id=$2`, [userId, req.params.id]);
+        // const { userId } = req.body; // ← ישן — rollback: החזר שורה זו
+        // userId מגיע מהטוקן; נוספה בדיקת בעלות שלא הייתה קיימת
+        const item = await pool.query(
+            `SELECT ap.family_group_id FROM content_items ci JOIN author_profiles ap ON ap.id=ci.author_profile_id WHERE ci.id=$1`,
+            [req.params.id]
+        );
+        if (!item.rows.length) return res.status(404).json({ error: 'לא נמצא' });
+        if (String(item.rows[0].family_group_id) !== String(req.familyAuth.groupId))
+            return res.status(403).json({ error: 'אין הרשאה' });
+        // בקשת מחיקה בלבד — לא מחיקה מיידית. אישור ZM/SA נדרש דרך /api/kol-haam/sa/deletion-requests
+        await pool.query(`UPDATE content_items SET deletion_requested=TRUE, deletion_requested_by=$1, updated_at=NOW() WHERE id=$2`,
+            [req.familyAuth.userId, req.params.id]);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -27807,9 +27828,10 @@ app.post('/api/kol-haam/content/:id/react', verifyFamily, async (req, res) => {
 });
 
 // POST /api/kol-haam/content/:id/save — toggle save
-app.post('/api/kol-haam/content/:id/save', async (req, res) => {
+app.post('/api/kol-haam/content/:id/save', verifyFamily, async (req, res) => {
     const { id } = req.params;
-    const { user_id } = req.body;
+    // const { user_id } = req.body; // ← ישן — rollback: החזר שורה זו
+    const user_id = req.familyAuth.userId;
     if (!user_id) return res.json({ success: false, error: 'missing user_id' });
     try {
         await ensureMetricsRow(id);
@@ -27844,9 +27866,11 @@ app.get('/api/kol-haam/my-saved', async (req, res) => {
 });
 
 // POST /api/kol-haam/content/:id/share
-app.post('/api/kol-haam/content/:id/share', async (req, res) => {
+app.post('/api/kol-haam/content/:id/share', verifyFamily, async (req, res) => {
     const { id } = req.params;
-    const { user_id, channel = 'whatsapp' } = req.body;
+    // const { user_id } = req.body; // ← ישן — rollback: החזר שורה זו
+    const user_id = req.familyAuth.userId;
+    const { channel = 'whatsapp' } = req.body;
     if (!user_id) return res.json({ success: false, error: 'missing user_id' });
     try {
         await ensureMetricsRow(id);
@@ -27959,9 +27983,11 @@ app.post('/api/kol-haam/content/:id/comments', verifyFamily, async (req, res) =>
 });
 
 // PUT /api/kol-haam/comments/:id — edit within 15 min
-app.put('/api/kol-haam/comments/:id', async (req, res) => {
+app.put('/api/kol-haam/comments/:id', verifyFamily, async (req, res) => {
     const { id } = req.params;
-    const { user_id, content_text } = req.body;
+    // const { user_id } = req.body; // ← ישן — rollback: החזר שורה זו
+    const user_id = req.familyAuth.userId;
+    const { content_text } = req.body;
     if (!user_id || !content_text) return res.json({ success: false, error: 'שדות חסרים' });
     try {
         const { rows } = await pool.query(`SELECT author_user_id, created_at FROM content_comments WHERE id=$1`, [id]);
@@ -27997,9 +28023,10 @@ app.delete('/api/kol-haam/comments/:id', async (req, res) => {
 });
 
 // POST /api/kol-haam/comments/:id/like — toggle
-app.post('/api/kol-haam/comments/:id/like', async (req, res) => {
+app.post('/api/kol-haam/comments/:id/like', verifyFamily, async (req, res) => {
     const { id } = req.params;
-    const { user_id } = req.body;
+    // const { user_id } = req.body; // ← ישן — rollback: החזר שורה זו
+    const user_id = req.familyAuth.userId;
     if (!user_id) return res.json({ success: false, error: 'missing user_id' });
     try {
         const { rows } = await pool.query(`SELECT 1 FROM comment_reactions WHERE comment_id=$1 AND user_id=$2`, [id, user_id]);
@@ -28016,14 +28043,23 @@ app.post('/api/kol-haam/comments/:id/like', async (req, res) => {
 });
 
 // POST /api/kol-haam/comments/:id/pin — pin by content author
-app.post('/api/kol-haam/comments/:id/pin', async (req, res) => {
+app.post('/api/kol-haam/comments/:id/pin', verifyFamily, async (req, res) => {
     const { id } = req.params;
-    const { user_id } = req.body;
-    if (!user_id) return res.json({ success: false, error: 'missing user_id' });
+    // const { user_id } = req.body; // ← ישן — rollback: החזר שורה זו
+    // user_id מגיע מהטוקן בלבד; בדיקת בעלות מול כותב הכתבה נוספה (לא הייתה קודם)
     try {
-        // toggle
-        const { rows } = await pool.query(`SELECT is_pinned_by_author FROM content_comments WHERE id=$1`, [id]);
+        // שלוף את התגובה + family_group_id של כותב הכתבה המקורית
+        const { rows } = await pool.query(`
+            SELECT cc.is_pinned_by_author, ap.family_group_id
+            FROM content_comments cc
+            JOIN content_items ci ON ci.id = cc.content_item_id
+            JOIN author_profiles ap ON ap.id = ci.author_profile_id
+            WHERE cc.id=$1
+        `, [id]);
         if (!rows.length) return res.json({ success: false, error: 'לא נמצא' });
+        // רק כותב הכתבה (לא כותב התגובה) יכול לפין
+        if (String(rows[0].family_group_id) !== String(req.familyAuth.groupId))
+            return res.json({ success: false, error: 'רק כותב הכתבה יכול לסמן תגובה' });
         const newPin = !rows[0].is_pinned_by_author;
         await pool.query(`UPDATE content_comments SET is_pinned_by_author=$1 WHERE id=$2`, [newPin, id]);
         res.json({ success: true, pinned: newPin });
@@ -28031,18 +28067,18 @@ app.post('/api/kol-haam/comments/:id/pin', async (req, res) => {
 });
 
 // POST /api/kol-haam/content/:id/mark-solution/:comment_id
-app.post('/api/kol-haam/content/:id/mark-solution/:comment_id', async (req, res) => {
+app.post('/api/kol-haam/content/:id/mark-solution/:comment_id', verifyFamily, async (req, res) => {
     const { id, comment_id } = req.params;
-    const { user_id } = req.body;
-    if (!user_id) return res.json({ success: false, error: 'missing user_id' });
+    // const { user_id } = req.body; // ← ישן — rollback: החזר שורה זו
+    // user_id מגיע מהטוקן; בדיקת בעלות מפושטת — groupId ישירות מהטוקן במקום lookup נוסף ל-users
     try {
         const { rows: ci } = await pool.query(`SELECT content_type, author_profile_id FROM content_items WHERE id=$1`, [id]);
         if (!ci.length) return res.json({ success: false, error: 'לא נמצא' });
         if (ci[0].content_type !== 'QA_QUESTION') return res.json({ success: false, error: 'רק שאלות תומכות בסימון פתרון' });
-        // verify requester is the content author
+        // verify requester is the content author — groupId מהטוקן, לא צריך lookup ל-users
         const { rows: ap } = await pool.query(`SELECT family_group_id FROM author_profiles WHERE id=$1`, [ci[0].author_profile_id]);
-        const { rows: usr } = await pool.query(`SELECT group_id FROM users WHERE id=$1`, [user_id]);
-        if (!ap.length || !usr.length || ap[0].family_group_id != usr[0].group_id) return res.json({ success: false, error: 'רק כותב השאלה יכול לסמן פתרון' });
+        if (!ap.length || String(ap[0].family_group_id) !== String(req.familyAuth.groupId))
+            return res.json({ success: false, error: 'רק כותב השאלה יכול לסמן פתרון' });
         // clear previous solution
         await pool.query(`UPDATE content_comments SET is_solution_marked=false WHERE content_item_id=$1`, [id]);
         // mark new solution
@@ -28052,9 +28088,10 @@ app.post('/api/kol-haam/content/:id/mark-solution/:comment_id', async (req, res)
 });
 
 // POST /api/kol-haam/comments/:id/upvote-solution
-app.post('/api/kol-haam/comments/:id/upvote-solution', async (req, res) => {
+app.post('/api/kol-haam/comments/:id/upvote-solution', verifyFamily, async (req, res) => {
     const { id } = req.params;
-    const { user_id } = req.body;
+    // const { user_id } = req.body; // ← ישן — rollback: החזר שורה זו
+    const user_id = req.familyAuth.userId;
     if (!user_id) return res.json({ success: false, error: 'missing user_id' });
     try {
         const { rows } = await pool.query(`SELECT 1 FROM solution_votes WHERE comment_id=$1 AND user_id=$2`, [id, user_id]);
@@ -28221,8 +28258,10 @@ app.post('/api/sa/kol-haam/seed-sample', verifySA, async (req, res) => {
 });
 
 // POST /api/kol-haam/report
-app.post('/api/kol-haam/report', async (req, res) => {
-    const { content_item_id, comment_id, user_id, reason, notes } = req.body;
+app.post('/api/kol-haam/report', verifyFamily, async (req, res) => {
+    // const { user_id } = req.body; // ← ישן — rollback: החזר שורה זו
+    const user_id = req.familyAuth.userId;
+    const { content_item_id, comment_id, reason, notes } = req.body;
     if (!user_id || !reason) return res.json({ success: false, error: 'שדות חסרים' });
     if (!content_item_id && !comment_id) return res.json({ success: false, error: 'נדרש content_item_id או comment_id' });
     try {
@@ -30743,9 +30782,11 @@ app.get('/api/kol-haam/tags/:tag_name', async (req, res) => {
 });
 
 // ── ניהול סדרות ────────────────────────────────────────────────
-app.post('/api/kol-haam/series', async (req, res) => {
+app.post('/api/kol-haam/series', verifyFamily, async (req, res) => {
     try {
-        const { title, groupId, communityId } = req.body;
+        // const { groupId } = req.body; // ← ישן — rollback: החזר שורה זו
+        const groupId = req.familyAuth.groupId;
+        const { title, communityId } = req.body;
         if (!title || !groupId) return res.status(400).json({ error: 'שדות חובה חסרים' });
         const ap = await getOrCreateAuthorProfile(groupId, communityId);
         const r = await pool.query(
@@ -30795,9 +30836,11 @@ app.get('/api/kol-haam/series/:id', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.put('/api/kol-haam/content/:id/series', async (req, res) => {
+app.put('/api/kol-haam/content/:id/series', verifyFamily, async (req, res) => {
     try {
-        const { groupId, series_id, series_chapter_number } = req.body;
+        // const { groupId } = req.body; // ← ישן — rollback: החזר שורה זו
+        const groupId = req.familyAuth.groupId;
+        const { series_id, series_chapter_number } = req.body;
         const ci = await pool.query(`SELECT author_profile_id FROM content_items WHERE id=$1`, [req.params.id]);
         if (!ci.rows[0]) return res.status(404).json({ error: 'לא נמצא' });
         const ap = await pool.query(`SELECT family_group_id FROM author_profiles WHERE id=$1`, [ci.rows[0].author_profile_id]);
@@ -30833,9 +30876,11 @@ app.get('/api/kol-haam/content/:id/versions', async (req, res) => {
 });
 
 // ── אוספים ─────────────────────────────────────────────────────
-app.post('/api/kol-haam/collections', async (req, res) => {
+app.post('/api/kol-haam/collections', verifyFamily, async (req, res) => {
     try {
-        const { groupId, title, description, is_public = false } = req.body;
+        // const { groupId } = req.body; // ← ישן — rollback: החזר שורה זו
+        const groupId = req.familyAuth.groupId;
+        const { title, description, is_public = false } = req.body;
         if (!groupId || !title) return res.status(400).json({ error: 'שדות חובה חסרים' });
         const r = await pool.query(
             `INSERT INTO user_collections (owner_group_id, title, description, is_public) VALUES ($1,$2,$3,$4) RETURNING *`,
@@ -30911,9 +30956,11 @@ app.get('/api/kol-haam/collections/public/:slug', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.put('/api/kol-haam/collections/:id', async (req, res) => {
+app.put('/api/kol-haam/collections/:id', verifyFamily, async (req, res) => {
     try {
-        const { groupId, title, description, is_public } = req.body;
+        // const { groupId } = req.body; // ← ישן — rollback: החזר שורה זו
+        const groupId = req.familyAuth.groupId;
+        const { title, description, is_public } = req.body;
         const col = await pool.query(`SELECT owner_group_id FROM user_collections WHERE id=$1`, [req.params.id]);
         if (!col.rows[0] || String(col.rows[0].owner_group_id) !== String(groupId)) return res.status(403).json({ error: 'אין הרשאה' });
 
@@ -30931,9 +30978,10 @@ app.put('/api/kol-haam/collections/:id', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.delete('/api/kol-haam/collections/:id', async (req, res) => {
+app.delete('/api/kol-haam/collections/:id', verifyFamily, async (req, res) => {
     try {
-        const { groupId } = req.body;
+        // const { groupId } = req.body; // ← ישן — rollback: החזר שורה זו
+        const groupId = req.familyAuth.groupId;
         const col = await pool.query(`SELECT owner_group_id FROM user_collections WHERE id=$1`, [req.params.id]);
         if (!col.rows[0] || String(col.rows[0].owner_group_id) !== String(groupId)) return res.status(403).json({ error: 'אין הרשאה' });
         await pool.query(`DELETE FROM user_collections WHERE id=$1`, [req.params.id]);
@@ -30941,9 +30989,11 @@ app.delete('/api/kol-haam/collections/:id', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/kol-haam/collections/:id/items', async (req, res) => {
+app.post('/api/kol-haam/collections/:id/items', verifyFamily, async (req, res) => {
     try {
-        const { groupId, content_item_id } = req.body;
+        // const { groupId } = req.body; // ← ישן — rollback: החזר שורה זו
+        const groupId = req.familyAuth.groupId;
+        const { content_item_id } = req.body;
         const col = await pool.query(`SELECT owner_group_id FROM user_collections WHERE id=$1`, [req.params.id]);
         if (!col.rows[0] || String(col.rows[0].owner_group_id) !== String(groupId)) return res.status(403).json({ error: 'אין הרשאה' });
         await pool.query(`INSERT INTO user_collection_items (collection_id, content_item_id) VALUES ($1,$2) ON CONFLICT DO NOTHING`, [req.params.id, content_item_id]);
@@ -30951,9 +31001,10 @@ app.post('/api/kol-haam/collections/:id/items', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.delete('/api/kol-haam/collections/:id/items/:content_item_id', async (req, res) => {
+app.delete('/api/kol-haam/collections/:id/items/:content_item_id', verifyFamily, async (req, res) => {
     try {
-        const { groupId } = req.body;
+        // const { groupId } = req.body; // ← ישן — rollback: החזר שורה זו
+        const groupId = req.familyAuth.groupId;
         const col = await pool.query(`SELECT owner_group_id FROM user_collections WHERE id=$1`, [req.params.id]);
         if (!col.rows[0] || String(col.rows[0].owner_group_id) !== String(groupId)) return res.status(403).json({ error: 'אין הרשאה' });
         await pool.query(`DELETE FROM user_collection_items WHERE collection_id=$1 AND content_item_id=$2`, [req.params.id, req.params.content_item_id]);
