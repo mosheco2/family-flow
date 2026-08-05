@@ -26730,9 +26730,12 @@ app.get('/api/kol-haam/content/:id/versions', async (req, res) => {
 });
 
 // ─── יצירת תוכן ──────────────────────────────────────────────
-app.post('/api/kol-haam/content', async (req, res) => {
+app.post('/api/kol-haam/content', verifyFamily, async (req, res) => {
     try {
-        const { groupId, userId, communityId, categoryId, contentType, scopeType,
+        // groupId ו-userId מגיעים מהטוקן בלבד (req.familyAuth)
+        // const { groupId, userId } = req.body; // ← ישן, לא בשימוש יותר — rollback: החזר שורה זו
+        const groupId = req.familyAuth.groupId;
+        const { communityId, categoryId, contentType, scopeType,
                 title, subtitle, quickSummary, coverImageUrl, contentHtml, tags, seriesId, seriesChapterNumber } = req.body;
         if (!groupId || !categoryId || !contentType || !title || contentHtml === undefined)
             return res.status(400).json({ error: 'שדות חובה חסרים' });
@@ -26773,9 +26776,13 @@ app.post('/api/kol-haam/content', async (req, res) => {
 });
 
 // ─── עדכון טיוטה ─────────────────────────────────────────────
-app.put('/api/kol-haam/content/:id', async (req, res) => {
+app.put('/api/kol-haam/content/:id', verifyFamily, async (req, res) => {
     try {
-        const { groupId, userId, title, subtitle, quickSummary, coverImageUrl, contentHtml, categoryId, scopeType, tags, seriesId, seriesChapterNumber } = req.body;
+        // groupId ו-userId מגיעים מהטוקן בלבד (req.familyAuth)
+        // const { groupId, userId } = req.body; // ← ישן, לא בשימוש יותר — rollback: החזר שורה זו
+        const groupId = req.familyAuth.groupId;
+        const userId  = req.familyAuth.userId;
+        const { title, subtitle, quickSummary, coverImageUrl, contentHtml, categoryId, scopeType, tags, seriesId, seriesChapterNumber } = req.body;
         const item = await pool.query(`
             SELECT ci.*, ap.family_group_id FROM content_items ci JOIN author_profiles ap ON ap.id=ci.author_profile_id WHERE ci.id=$1
         `, [req.params.id]);
@@ -27761,9 +27768,12 @@ async function ensureMetricsRow(itemId) {
 // ── Phase 2 Endpoints ─────────────────────────────────────────
 
 // POST /api/kol-haam/content/:id/react — like / dislike toggle
-app.post('/api/kol-haam/content/:id/react', async (req, res) => {
+app.post('/api/kol-haam/content/:id/react', verifyFamily, async (req, res) => {
     const { id } = req.params;
-    const { user_id, type } = req.body;
+    // user_id מגיע מהטוקן בלבד (req.familyAuth)
+    // const { user_id } = req.body; // ← ישן, לא בשימוש יותר — rollback: החזר שורה זו
+    const user_id = req.familyAuth.userId;
+    const { type } = req.body;
     if (!user_id || !['LIKE','DISLIKE'].includes(type)) return res.json({ success: false, error: 'invalid' });
     try {
         await ensureMetricsRow(id);
@@ -27917,9 +27927,12 @@ app.get('/api/kol-haam/content/:id/comments', async (req, res) => {
 });
 
 // POST /api/kol-haam/content/:id/comments
-app.post('/api/kol-haam/content/:id/comments', async (req, res) => {
+app.post('/api/kol-haam/content/:id/comments', verifyFamily, async (req, res) => {
     const { id } = req.params;
-    const { user_id, content_text, parent_comment_id } = req.body;
+    // user_id מגיע מהטוקן בלבד (req.familyAuth)
+    // const { user_id } = req.body; // ← ישן, לא בשימוש יותר — rollback: החזר שורה זו
+    const user_id = req.familyAuth.userId;
+    const { content_text, parent_comment_id } = req.body;
     if (!user_id || !content_text) return res.json({ success: false, error: 'שדות חסרים' });
     try {
         let depthLevel = 0;
@@ -30484,18 +30497,17 @@ async function callClaudeKH(messages, maxTokens = 1200) {
 }
 
 // ── AI Copilot ─────────────────────────────────────────────────
-app.post('/api/kol-haam/content/:id/ai-copilot', async (req, res) => {
+app.post('/api/kol-haam/content/:id/ai-copilot', verifyFamily, async (req, res) => {
     try {
-        const { actions = [], groupId, communityId } = req.body;
-        if (!groupId) return res.status(400).json({ error: 'groupId נדרש' });
+        // groupId מגיע מהטוקן בלבד (req.familyAuth)
+        // const { groupId } = req.body; // ← ישן, לא בשימוש יותר — rollback: החזר שורה זו
+        const groupId = req.familyAuth.groupId;
+        const { actions = [], communityId } = req.body;
 
-        // בדיקת מכסה יומית: 10 קריאות ליום
-        const usageToday = await pool.query(
-            `SELECT COUNT(*) FROM ai_copilot_usage_log WHERE group_id=$1 AND created_at::date = CURRENT_DATE`,
-            [groupId]
-        );
-        if (parseInt(usageToday.rows[0].count) >= 10) {
-            return res.status(429).json({ error: 'הגעת למכסת השימוש היומית בעוזר הכתיבה (10 קריאות ביום)' });
+        // בדיקת מכסה יומית — דרך checkAICopilotQuota (kh_ai_copilot_usage)
+        const quota = await checkAICopilotQuota(groupId);
+        if (!quota.allowed) {
+            return res.status(429).json({ error: `הגעת למכסת השימוש היומית בעוזר הכתיבה (${quota.dailyLimit} קריאות ביום)` });
         }
 
         // טעינת הכתבה
@@ -30616,14 +30628,16 @@ app.post('/api/kol-haam/content/:id/ai-copilot', async (req, res) => {
             } catch(e) { result.cover_image_suggestions = []; }
         }
 
-        // ── רישום שימוש ──
-        await pool.query(
+        // ── רישום שימוש — עדכון מכסה + לוג מפורט ──
+        await incrementAICopilotUsage(groupId);
+        // ai_copilot_usage_log נשמר לצורך audit trail בלבד (לא לספירת מכסה)
+        pool.query(
             `INSERT INTO ai_copilot_usage_log (content_item_id, group_id, action_type, result_summary, flagged)
              VALUES ($1,$2,$3,$4,$5)`,
             [it.id, groupId, actions.join(','), JSON.stringify(result).slice(0, 500), flagged]
-        );
+        ).catch(() => {});
 
-        res.json({ success: true, result, flagged });
+        res.json({ success: true, result, flagged, quotaUsed: quota.used + 1, quotaLimit: quota.dailyLimit });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 

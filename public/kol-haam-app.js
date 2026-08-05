@@ -75,7 +75,11 @@ function _khBeforeUnload(e) {
 function khFetch(url, opts = {}) {
     const headers = { 'Content-Type': 'application/json', ...(opts.headers || {}) };
     if (CTX.isZM && CTX.zmToken) headers['Authorization'] = `Bearer ${CTX.zmToken}`;
-    if (CTX.isSA) headers['Authorization'] = 'SA_SECRET_TOKEN_2026';
+    else if (CTX.isSA) headers['Authorization'] = 'SA_SECRET_TOKEN_2026';
+    else {
+        // FAMILY user — token stored in localStorage (same origin as iframe)
+        try { const t = localStorage.getItem('ofl_family_token'); if (t) headers['Authorization'] = `Bearer ${t}`; } catch(e) {}
+    }
     return fetch(url, { ...opts, headers }).then(r => r.json());
 }
 
