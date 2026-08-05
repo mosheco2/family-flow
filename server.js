@@ -28562,6 +28562,159 @@ app.delete('/api/kol-haam/sa/:id/delete', verifySA, async (req, res) => {
 
 // ─── end קול העם Phase 2 ──────────────────────────────────────
 
+// ═══════════════════════════════════════════════════════════════
+// FAMILY AUTH — שלב א': תשתית
+// - טבלת family_sessions (sha256 של הטוקן, לא הטוקן עצמו)
+// - verifyFamily middleware
+// - createFamilySession / destroyFamilySession helpers
+// - ai-copilot quota helpers
+// ═══════════════════════════════════════════════════════════════
+
+// ── יצירת טבלאות auth בהפעלה ──────────────────────────────────
+(async () => {
+    try {
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS family_sessions (
+                token_hash  CHAR(64)    PRIMARY KEY,
+                group_id    INT         NOT NULL REFERENCES family_groups(id) ON DELETE CASCADE,
+                user_id     INT         NOT NULL REFERENCES users(id)         ON DELETE CASCADE,
+                created_at  TIMESTAMP   NOT NULL DEFAULT NOW(),
+                last_seen   TIMESTAMP   NOT NULL DEFAULT NOW(),
+                expires_at  TIMESTAMP   NOT NULL,
+                device_hint VARCHAR(100)
+            )
+        `);
+        await pool.query(`CREATE INDEX IF NOT EXISTS idx_family_sessions_expires ON family_sessions(expires_at)`);
+        await pool.query(`CREATE INDEX IF NOT EXISTS idx_family_sessions_group   ON family_sessions(group_id)`);
+
+        // מכסת ai-copilot יומית פר-משפחה
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS kh_ai_copilot_usage (
+                group_id    INT  NOT NULL REFERENCES family_groups(id) ON DELETE CASCADE,
+                usage_date  DATE NOT NULL DEFAULT CURRENT_DATE,
+                call_count  INT  NOT NULL DEFAULT 0,
+                PRIMARY KEY (group_id, usage_date)
+            )
+        `);
+
+        // הגדרה ניתנת לעריכה מה-SA: מכסה יומית ברירת מחדל
+        await pool.query(`
+            INSERT INTO system_settings (key, value, description)
+            VALUES ('kh_ai_copilot_daily_limit', '20', 'מכסת קריאות יומית ל-AI Copilot בקול העם פר-משפחה')
+            ON CONFLICT (key) DO NOTHING
+        `).catch(() => {}); // אם אין טבלת system_settings — ממשיכים
+
+        console.log('[family-auth] tables ready');
+    } catch(e) {
+        console.error('[family-auth init]', e.message);
+    }
+})();
+
+// ── Helpers ───────────────────────────────────────────────────
+
+const crypto_module = require('crypto');
+
+function _hashToken(rawToken) {
+    return crypto_module.createHash('sha256').update(rawToken).digest('hex');
+}
+
+async function createFamilySession(groupId, userId, deviceHint = null) {
+    const rawToken = crypto_module.randomBytes(32).toString('hex'); // 64 hex chars, entropy=256bit
+    const tokenHash = _hashToken(rawToken);
+    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 ימים
+    await pool.query(
+        `INSERT INTO family_sessions (token_hash, group_id, user_id, expires_at, device_hint)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [tokenHash, groupId, userId, expiresAt, deviceHint ? deviceHint.slice(0, 100) : null]
+    );
+    return rawToken; // מוחזר ללקוח — לא נשמר בDB
+}
+
+async function destroyFamilySession(rawToken) {
+    if (!rawToken) return;
+    const tokenHash = _hashToken(rawToken);
+    await pool.query(`DELETE FROM family_sessions WHERE token_hash=$1`, [tokenHash]);
+}
+
+async function destroyAllFamilySessions(groupId) {
+    await pool.query(`DELETE FROM family_sessions WHERE group_id=$1`, [groupId]);
+}
+
+// ── verifyFamily middleware ────────────────────────────────────
+async function verifyFamily(req, res, next) {
+    const authHeader = req.headers.authorization || '';
+    const rawToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : authHeader;
+    if (!rawToken) return res.status(401).json({ error: 'יש להתחבר תחילה' });
+
+    const tokenHash = _hashToken(rawToken);
+    let row;
+    try {
+        const r = await pool.query(
+            `SELECT group_id, user_id, expires_at FROM family_sessions WHERE token_hash=$1`,
+            [tokenHash]
+        );
+        row = r.rows[0];
+    } catch(e) {
+        return res.status(500).json({ error: 'שגיאה פנימית' });
+    }
+
+    if (!row) return res.status(401).json({ error: 'פגישה לא תקינה — יש להתחבר מחדש' });
+
+    if (new Date(row.expires_at) < new Date()) {
+        // מחיקה אסינכרונית — לא חוסמת את התגובה
+        pool.query(`DELETE FROM family_sessions WHERE token_hash=$1`, [tokenHash]).catch(() => {});
+        return res.status(401).json({ error: 'פגישה פגה — יש להתחבר מחדש' });
+    }
+
+    // עדכון last_seen — אסינכרוני, לא חוסם
+    pool.query(
+        `UPDATE family_sessions SET last_seen=NOW() WHERE token_hash=$1`,
+        [tokenHash]
+    ).catch(() => {});
+
+    // groupId ו-userId נגזרים מה-DB בלבד — לא מה-body
+    req.familyAuth = { groupId: row.group_id, userId: row.user_id };
+    next();
+}
+
+// ── AI Copilot quota helpers ──────────────────────────────────
+async function checkAICopilotQuota(groupId) {
+    // קריאת מכסה מה-settings (ניתנת לעריכה מ-SA)
+    let dailyLimit = 20;
+    try {
+        const s = await pool.query(`SELECT value FROM system_settings WHERE key='kh_ai_copilot_daily_limit'`);
+        if (s.rows[0]) dailyLimit = parseInt(s.rows[0].value) || 20;
+    } catch(e) {}
+
+    // UPSERT לשורת השימוש של היום
+    const r = await pool.query(`
+        INSERT INTO kh_ai_copilot_usage (group_id, usage_date, call_count)
+        VALUES ($1, CURRENT_DATE, 0)
+        ON CONFLICT (group_id, usage_date) DO UPDATE SET call_count=kh_ai_copilot_usage.call_count
+        RETURNING call_count
+    `, [groupId]);
+
+    const used = r.rows[0].call_count;
+    return { allowed: used < dailyLimit, used, dailyLimit };
+}
+
+async function incrementAICopilotUsage(groupId) {
+    await pool.query(`
+        INSERT INTO kh_ai_copilot_usage (group_id, usage_date, call_count)
+        VALUES ($1, CURRENT_DATE, 1)
+        ON CONFLICT (group_id, usage_date) DO UPDATE SET call_count=kh_ai_copilot_usage.call_count+1
+    `, [groupId]);
+}
+
+// ── ניקוי sessions פגות — cron יומי ──────────────────────────
+setInterval(async () => {
+    try {
+        const r = await pool.query(`DELETE FROM family_sessions WHERE expires_at < NOW()`);
+        if (r.rowCount > 0) console.log(`[family-auth] cleaned ${r.rowCount} expired sessions`);
+    } catch(e) {}
+}, 24 * 60 * 60 * 1000);
+
+// ─────────────────────────────────────────────────────────────
 app.listen(port, () => {
     console.log(`Server is running on port ${port}`);
     // Create performance indexes in background (non-blocking, sequential to avoid pool pressure)
