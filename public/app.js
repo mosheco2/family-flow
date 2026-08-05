@@ -561,7 +561,7 @@ async function handleLogin(e) {
             currentUser = data.user; currentGroup = data.group;
             // לוגין רגיל — מנקים SA token כדי שבאנר ההשתלטות לא יופיע
             localStorage.removeItem('ofl_sa_token');
-            saveSession(currentUser, currentGroup);
+            saveSession(currentUser, currentGroup, data.token);
             if (currentGroup.type === 'BUSINESS' && !window.location.pathname.includes('business.html')) { window.location.href = '/business.html'; return; }
             else if (currentGroup.type !== 'BUSINESS' && window.location.pathname.includes('business.html')) { window.location.href = '/'; return; }
             await loadDashboard();
@@ -643,23 +643,41 @@ async function handleJoin(e) {
 }
 
 function _slimForSession(obj, ...dropKeys) { const r = Object.assign({}, obj); dropKeys.forEach(k => delete r[k]); return r; }
-function saveSession(u, g) {
+function saveSession(u, g, token) {
     const user = u || currentUser; const group = g || currentGroup;
     const slim = {
         user: _slimForSession(user, 'profile_image', 'password_hash'),
         group: _slimForSession(group, 'logo', 'logo_url', 'image_url')
     };
+    // שמירת הטוקן בנפרד כדי שלא יגדיל את ofl_session (יכול להיות גדול)
+    // localStorage היא הדרך הנכונה ב-WebView (Keychain/Keystore דורשים קוד native)
+    if (token) {
+        try { localStorage.setItem('ofl_family_token', token); } catch(e) {}
+    }
     try {
         localStorage.setItem('ofl_session', JSON.stringify(slim));
     } catch(e) {
         try {
-            Object.keys(localStorage).filter(k => !['ofl_sa_token','ofl_session'].includes(k)).forEach(k => localStorage.removeItem(k));
+            Object.keys(localStorage).filter(k => !['ofl_sa_token','ofl_session','ofl_family_token'].includes(k)).forEach(k => localStorage.removeItem(k));
             localStorage.setItem('ofl_session', JSON.stringify(slim));
         } catch(e2) {}
     }
     if (group && group.id && group.image_url) { try { localStorage.setItem(`ofl_logo_${group.id}`, group.image_url); } catch(e) {} }
 }
-function logout() { localStorage.removeItem('ofl_session'); window.location.href = '/'; }
+function getFamilyToken() { return localStorage.getItem('ofl_family_token') || null; }
+function logout() {
+    const token = getFamilyToken();
+    if (token) {
+        // fire-and-forget — לא מחכים לתגובה, logout מקומי תמיד מצליח
+        fetch(`${API}/logout`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` }
+        }).catch(() => {});
+    }
+    localStorage.removeItem('ofl_session');
+    localStorage.removeItem('ofl_family_token');
+    window.location.href = '/';
+}
 function scrollTabs(direction) { getEl('slider-scroll').scrollBy({ left: direction * -150, behavior: 'smooth' }); }
 
 function switchTab(t) { 

@@ -5901,16 +5901,78 @@ app.post('/api/join', async (req, res) => {
     }
 });
 
+// ── Rate limit על login ────────────────────────────────────────
+// מבנה: key → { attempts, lockedUntil }
+// key = "ip:<ip>" או "code:<group_code>"
+const _loginRateMap = new Map();
+
+function _loginRateKey(type, val) { return `${type}:${val}`; }
+
+function _checkLoginRate(ip, groupCode) {
+    const now = Date.now();
+    const keys = [_loginRateKey('ip', ip), _loginRateKey('code', groupCode)];
+    for (const key of keys) {
+        const entry = _loginRateMap.get(key);
+        if (!entry) continue;
+        if (entry.lockedUntil && now < entry.lockedUntil) {
+            const secsLeft = Math.ceil((entry.lockedUntil - now) / 1000);
+            return { blocked: true, secsLeft };
+        }
+    }
+    return { blocked: false };
+}
+
+function _recordLoginFailure(ip, groupCode) {
+    const now = Date.now();
+    const keys = [_loginRateKey('ip', ip), _loginRateKey('code', groupCode)];
+    for (const key of keys) {
+        const entry = _loginRateMap.get(key) || { attempts: 0, lockedUntil: null };
+        entry.attempts++;
+        // השהיה מצטברת: 3 כשלונות → 30s, 5 → 5min, 10 → 30min
+        if (entry.attempts >= 10)      entry.lockedUntil = now + 30 * 60 * 1000;
+        else if (entry.attempts >= 5)  entry.lockedUntil = now + 5  * 60 * 1000;
+        else if (entry.attempts >= 3)  entry.lockedUntil = now + 30 * 1000;
+        _loginRateMap.set(key, entry);
+    }
+}
+
+function _clearLoginRate(ip, groupCode) {
+    _loginRateMap.delete(_loginRateKey('ip', ip));
+    _loginRateMap.delete(_loginRateKey('code', groupCode));
+}
+
+// ניקוי entries ישנים כל 2 שעות (מניעת memory leak)
+setInterval(() => {
+    const now = Date.now();
+    for (const [k, v] of _loginRateMap) {
+        if (!v.lockedUntil || v.lockedUntil < now - 60 * 60 * 1000) _loginRateMap.delete(k);
+    }
+}, 2 * 60 * 60 * 1000);
+
 app.post('/api/login', async (req, res) => {
     try {
         if (!req.body.groupCode || !req.body.nickname || !req.body.password) {
             return res.status(400).json({ error: 'חסרים פרטי התחברות' });
         }
-        
+
         const cleanCode = req.body.groupCode.toUpperCase().trim();
+        const clientIP = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown').split(',')[0].trim();
+
+        // בדיקת rate limit לפני כל שאילתת DB
+        const rateCheck = _checkLoginRate(clientIP, cleanCode);
+        if (rateCheck.blocked) {
+            return res.status(429).json({
+                error: `יותר מדי ניסיונות כניסה. נסה שוב בעוד ${rateCheck.secsLeft} שניות.`
+            });
+        }
+
         const gRes = await pool.query('SELECT * FROM family_groups WHERE group_code = $1', [cleanCode]);
-        if (gRes.rows.length === 0) return res.status(404).json({ error: 'קוד שגוי. ודאו שאין רווחים מיותרים בסוף הקוד.' });
-        
+        if (gRes.rows.length === 0) {
+            // לא חושפים אם הקוד קיים — הודעה גנרית
+            _recordLoginFailure(clientIP, cleanCode);
+            return res.status(401).json({ error: 'פרטי ההתחברות שגויים' });
+        }
+
         const group = gRes.rows[0];
 
         // חסימת חשבונות מוקפאים/ארכיב
@@ -5927,10 +5989,21 @@ app.post('/api/login', async (req, res) => {
             });
         }
 
-        const uRes = await pool.query('SELECT * FROM users WHERE group_id = $1 AND nickname = $2 AND password_hash = $3', [group.id, req.body.nickname, req.body.password]);
-        
-        if (uRes.rows.length === 0) return res.status(401).json({ error: 'כינוי או סיסמה שגויים' });
-        if (uRes.rows[0].status !== 'active') return res.status(403).json({ error: 'חשבון ממתין לאישור מנהל' });
+        const uRes = await pool.query(
+            'SELECT * FROM users WHERE group_id = $1 AND nickname = $2 AND password_hash = $3',
+            [group.id, req.body.nickname, req.body.password]
+        );
+
+        if (uRes.rows.length === 0) {
+            _recordLoginFailure(clientIP, cleanCode);
+            return res.status(401).json({ error: 'כינוי או סיסמה שגויים' });
+        }
+        if (uRes.rows[0].status !== 'active') {
+            return res.status(403).json({ error: 'חשבון ממתין לאישור מנהל' });
+        }
+
+        // כניסה מוצלחת — מאפסים rate limit
+        _clearLoginRate(clientIP, cleanCode);
 
         // שליפת שם העסק שיצר את החשבון (לחשבונות SOLO)
         let createdByBusinessName = null;
@@ -5941,10 +6014,31 @@ app.post('/api/login', async (req, res) => {
             } catch(e) {}
         }
 
-        res.json({ success: true, user: uRes.rows[0], group: { ...group, created_by_business_name: createdByBusinessName } });
-    } catch (e) { 
+        // יצירת session token
+        const deviceHint = (req.headers['user-agent'] || '').slice(0, 100);
+        const rawToken = await createFamilySession(group.id, uRes.rows[0].id, deviceHint);
+
+        // מחזירים את אותו מבנה תגובה קיים + שדה token בנוסף
+        res.json({
+            success: true,
+            user: uRes.rows[0],
+            group: { ...group, created_by_business_name: createdByBusinessName },
+            token: rawToken
+        });
+    } catch (e) {
         console.error("Login Error:", e);
-        res.status(500).json({ error: 'שגיאת שרת: ' + e.message }); 
+        res.status(500).json({ error: 'שגיאת שרת: ' + e.message });
+    }
+});
+
+app.post('/api/logout', async (req, res) => {
+    try {
+        const authHeader = req.headers.authorization || '';
+        const rawToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : authHeader;
+        if (rawToken) await destroyFamilySession(rawToken);
+        res.json({ success: true });
+    } catch(e) {
+        res.json({ success: true }); // logout תמיד מצליח מבחינת הלקוח
     }
 });
 
