@@ -27240,6 +27240,155 @@ app.post('/api/kol-haam/sa/content/bulk-action', verifySA, async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// ─── KH scan / clean / whitelist ──────────────────────────────
+
+// Create support tables on first run
+(async () => {
+    try {
+        await pool.query(`CREATE TABLE IF NOT EXISTS kh_html_backup (
+            id SERIAL PRIMARY KEY,
+            content_item_id INT REFERENCES content_items(id) ON DELETE CASCADE,
+            original_html TEXT NOT NULL,
+            cleaned_at TIMESTAMP DEFAULT NOW(),
+            cleaned_by VARCHAR(100) DEFAULT 'super-admin'
+        )`);
+        await pool.query(`CREATE TABLE IF NOT EXISTS kh_scan_whitelist (
+            content_item_id INT PRIMARY KEY REFERENCES content_items(id) ON DELETE CASCADE,
+            marked_at TIMESTAMP DEFAULT NOW(),
+            marked_by VARCHAR(100) DEFAULT 'super-admin'
+        )`);
+    } catch(e) { console.error('[kh-scan init]', e.message); }
+})();
+
+const KH_THREAT_PATTERNS = [
+    {
+        key: 'script',
+        re: /<script[\s>/]/i,
+        badge: '🔴 סקריפט מוטמע',
+        explanation: 'קוד שירוץ בדפדפן של כל מי שקורא את הכתבה — יכול לגנוב פרטי משתמשים או להשתלט על החשבון',
+    },
+    {
+        key: 'handler',
+        re: /\bon[a-z]{2,}\s*=/i,
+        badge: '🔴 event handler',
+        explanation: 'פקודה שמופעלת אוטומטית בתגובה לאירוע (טעינה, שגיאה, לחיצה) — דרך נפוצה להסתיר קוד זדוני',
+    },
+    {
+        key: 'javascript_uri',
+        re: /javascript\s*:/i,
+        badge: '🔴 קישור javascript:',
+        explanation: 'קישור שמריץ קוד במקום להוביל לאתר — יכול לבצע פעולות בשם המשתמש בלי ידיעתו',
+    },
+    {
+        key: 'iframe',
+        re: /<iframe[\s>/]/i,
+        badge: '🟠 iframe מוטמע',
+        explanation: 'מסגרת שמטמיעה אתר חיצוני בתוך הכתבה — יכולה להציג תוכן מזויף או לגנוב פרטי כניסה',
+    },
+    {
+        key: 'other',
+        re: /<(object|embed|form|input|link|meta|base)[\s>/]/i,
+        badge: '🟡 תגית לא מורשית',
+        explanation: 'תגית HTML שאינה ברשימה המאושרת — אינה אמורה להופיע בתוכן שנכתב דרך העורך',
+    },
+];
+
+function extractContext(html, match, contextLen = 40) {
+    const idx = html.search(match);
+    if (idx === -1) return '';
+    const m = html.match(match);
+    const matchStr = m ? m[0] : '';
+    const start = Math.max(0, idx - contextLen);
+    const end = Math.min(html.length, idx + matchStr.length + contextLen);
+    const pre  = html.slice(start, idx);
+    const hit  = html.slice(idx, idx + matchStr.length);
+    const post = html.slice(idx + matchStr.length, end);
+    return { pre, hit, post };
+}
+
+app.get('/api/kol-haam/sa/scan-unsafe-html', verifySA, async (req, res) => {
+    try {
+        const { rows } = await pool.query(`
+            SELECT ci.id, ci.title, ci.status, ci.content_html,
+                   COALESCE(ap.pen_name, fg.name) AS author_name,
+                   co.name AS community_name
+            FROM content_items ci
+            JOIN author_profiles ap ON ap.id = ci.author_profile_id
+            JOIN family_groups fg ON fg.id = ap.family_group_id
+            JOIN communities co ON co.id = ci.community_id
+            LEFT JOIN kh_scan_whitelist w ON w.content_item_id = ci.id
+            WHERE w.content_item_id IS NULL
+            ORDER BY ci.created_at DESC
+        `);
+
+        const findings = [];
+        for (const row of rows) {
+            const html = row.content_html || '';
+            for (const pattern of KH_THREAT_PATTERNS) {
+                if (pattern.re.test(html)) {
+                    const ctx = extractContext(html, pattern.re);
+                    findings.push({
+                        item_id: row.id,
+                        title: row.title,
+                        author_name: row.author_name,
+                        community_name: row.community_name,
+                        status: row.status,
+                        threat_key: pattern.key,
+                        threat_badge: pattern.badge,
+                        explanation: pattern.explanation,
+                        context: ctx,
+                    });
+                }
+            }
+        }
+        res.json({ success: true, findings, scanned: rows.length });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/kol-haam/sa/content/:id/clean-html', verifySA, async (req, res) => {
+    try {
+        const id = parseInt(req.params.id);
+        const ci = await pool.query(`SELECT title, content_html FROM content_items WHERE id=$1`, [id]);
+        if (!ci.rows.length) return res.status(404).json({ error: 'לא נמצא' });
+        const { title, content_html } = ci.rows[0];
+        const cleaned = sanitizeKHHtml(content_html);
+        if (req.query.preview === '1') {
+            return res.json({ success: true, original: content_html, cleaned });
+        }
+        // Backup original
+        await pool.query(
+            `INSERT INTO kh_html_backup (content_item_id, original_html, cleaned_by) VALUES ($1,$2,'super-admin')`,
+            [id, content_html]
+        );
+        await pool.query(`UPDATE content_items SET content_html=$1, updated_at=NOW() WHERE id=$2`, [cleaned, id]);
+        await pool.query(
+            `INSERT INTO sa_audit_log (action_type, target_type, target_id, target_name, details)
+             VALUES ('clean_html','content_item',$1,$2,'{}')`,
+            [id, title]
+        );
+        res.json({ success: true, original: content_html, cleaned });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/kol-haam/sa/content/:id/mark-safe', verifySA, async (req, res) => {
+    try {
+        const id = parseInt(req.params.id);
+        const ci = await pool.query(`SELECT title FROM content_items WHERE id=$1`, [id]);
+        if (!ci.rows.length) return res.status(404).json({ error: 'לא נמצא' });
+        await pool.query(
+            `INSERT INTO kh_scan_whitelist (content_item_id, marked_by) VALUES ($1,'super-admin')
+             ON CONFLICT (content_item_id) DO UPDATE SET marked_at=NOW()`,
+            [id]
+        );
+        await pool.query(
+            `INSERT INTO sa_audit_log (action_type, target_type, target_id, target_name, details)
+             VALUES ('mark_safe','content_item',$1,$2,'{}')`,
+            [id, ci.rows[0].title]
+        );
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // ─── תגיות — autocomplete ─────────────────────────────────────
 app.get('/api/kol-haam/tags', async (req, res) => {
     try {
