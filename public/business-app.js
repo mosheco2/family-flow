@@ -21645,6 +21645,10 @@ window.approveDeliveryToKitchen = async function(orderId) {
             if (typeof window.refreshAdminTablesData === 'function') try { window.refreshAdminTablesData(); } catch(e) {}
             if (typeof window.renderRestaurantPendingOrders === 'function') try { window.renderRestaurantPendingOrders(); } catch(e) {}
             if (typeof window.fetchStoreOrders === 'function') window.fetchStoreOrders();
+            // רענן KDS מיידית אם הפאנל פתוח
+            if (document.getElementById('admin-kds-panel') && typeof window.kdsRefreshPanel === 'function') {
+                try { window.kdsRefreshPanel(); } catch(e) {}
+            }
         } else {
             showToast('error', data.error || 'שגיאה');
         }
@@ -37897,7 +37901,8 @@ window.openAdminKDSPanel = async function() {
 async function renderCookDashboard(el) {
     const myTasks = (allTasks||[]).filter(t => !t.title?.startsWith('SHIFT|') && (!t.assigned_to || t.assigned_to == currentUser.id) && t.status !== 'done').slice(0,6);
     let lowStock = [], kdsTickets = [];
-    const today = new Date().toISOString().split('T')[0];
+    const todayLocal = new Date();
+    const today = `${todayLocal.getFullYear()}-${String(todayLocal.getMonth()+1).padStart(2,'0')}-${String(todayLocal.getDate()).padStart(2,'0')}`;
     try { const r = await fetch(`/api/pantry/${currentGroup.id}`); const d = await r.json(); lowStock = (d.items||[]).filter(p => p.quantity !== null && p.quantity <= (p.min_quantity||2)).slice(0,5); } catch(e) {}
     // Ensure catalog is loaded so station labels and name-fallback work for cook
     if (!storeCatalogCache || !storeCatalogCache.length) {
@@ -37913,7 +37918,14 @@ async function renderCookDashboard(el) {
             doneIds = raw.map(x => typeof x === 'object' ? x.id : String(x)).filter(Boolean);
         } catch(e2) {}
         kdsTickets = (Array.isArray(orders) ? orders : [])
-            .filter(t => t.created_at?.startsWith(today) && ['pending_approval','new','processing','ready'].includes(t.status) && !doneIds.includes(String(t.id)))
+            .filter(t => {
+                if (!['pending_approval','new','processing','ready'].includes(t.status)) return false;
+                if (doneIds.includes(String(t.id))) return false;
+                if (!t.created_at) return true; // אם אין תאריך — הצג
+                const orderDate = new Date(t.created_at);
+                const od = `${orderDate.getFullYear()}-${String(orderDate.getMonth()+1).padStart(2,'0')}-${String(orderDate.getDate()).padStart(2,'0')}`;
+                return od === today;
+            })
             .slice(0,15);
     } catch(e) {}
 
