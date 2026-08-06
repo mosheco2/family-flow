@@ -7888,7 +7888,7 @@ app.get('/api/store/settings/:groupId', async (req, res) => {
 
 app.post('/api/store/settings', async (req, res) => {
     try {
-        const { groupId, isActive, welcomeMessage, phone, minOrder, slogan, storeType, logoUrl, bannerUrl, openTime, closeTime, whatsappNumber, deliveryFee, includeVat, vatRate, storeAlias, enableTableBooking, bookingMode, enableEventBooking } = req.body;
+        const { groupId, isActive, welcomeMessage, phone, minOrder, slogan, storeType, logoUrl, bannerUrl, openTime, closeTime, whatsappNumber, deliveryFee, includeVat, vatRate, storeAlias, enableTableBooking, bookingMode, enableEventBooking, orderNotificationEmail } = req.body;
 
         try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS open_time VARCHAR(10)`); } catch(e) {}
         try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS close_time VARCHAR(10)`); } catch(e) {}
@@ -7901,6 +7901,7 @@ app.post('/api/store/settings', async (req, res) => {
         try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS enable_table_booking BOOLEAN DEFAULT TRUE`); } catch(e) {}
         try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS booking_mode VARCHAR(20) DEFAULT 'appointments'`); } catch(e) {}
         try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS enable_event_booking BOOLEAN DEFAULT FALSE`); } catch(e) {}
+        try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS order_notification_email VARCHAR(255)`); } catch(e) {}
 
         const isVat = (includeVat === true || String(includeVat) === 'true');
         const vatRateVal = parseFloat(vatRate) || 18;
@@ -7932,13 +7933,15 @@ app.post('/api/store/settings', async (req, res) => {
         const bookingModeVal = bookingMode || 'appointments';
         const enableEventBookingVal = (enableEventBooking === true || String(enableEventBooking) === 'true');
 
+        const orderEmailVal = orderNotificationEmail && orderNotificationEmail.trim() !== '' ? orderNotificationEmail.trim() : null;
+
         await pool.query(`
             INSERT INTO store_settings (
-                group_id, is_active, welcome_message, phone, min_order, slogan, store_type, logo_url, banner_url, open_time, close_time, whatsapp_number, delivery_fee, include_vat, vat_rate, store_alias, enable_table_booking, booking_mode, enable_event_booking
+                group_id, is_active, welcome_message, phone, min_order, slogan, store_type, logo_url, banner_url, open_time, close_time, whatsapp_number, delivery_fee, include_vat, vat_rate, store_alias, enable_table_booking, booking_mode, enable_event_booking, order_notification_email
             ) VALUES ($1, $2, $3, $4, $5, $6, $7,
                 NULLIF($8, 'DELETE'),
                 NULLIF($9, 'DELETE'),
-                $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+                $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
             ON CONFLICT (group_id) DO UPDATE SET
                 is_active = EXCLUDED.is_active,
                 welcome_message = EXCLUDED.welcome_message,
@@ -7965,10 +7968,11 @@ app.post('/api/store/settings', async (req, res) => {
                 store_alias = EXCLUDED.store_alias,
                 enable_table_booking = EXCLUDED.enable_table_booking,
                 booking_mode = EXCLUDED.booking_mode,
-                enable_event_booking = EXCLUDED.enable_event_booking
+                enable_event_booking = EXCLUDED.enable_event_booking,
+                order_notification_email = EXCLUDED.order_notification_email
         `, [
             groupId, isActive, welcomeMessage, phone, parseFloat(minOrder)||0, slogan, storeType,
-            logoUrl || null, bannerUrl || null, openTime || '', closeTime || '', whatsappNumber || '', parseFloat(deliveryFee) || 0, isVat, vatRateVal, aliasVal, enableTableBookingVal, bookingModeVal, enableEventBookingVal
+            logoUrl || null, bannerUrl || null, openTime || '', closeTime || '', whatsappNumber || '', parseFloat(deliveryFee) || 0, isVat, vatRateVal, aliasVal, enableTableBookingVal, bookingModeVal, enableEventBookingVal, orderEmailVal
         ]);
         
         res.json({ success: true });
@@ -8807,8 +8811,13 @@ app.post('/api/store/orders', async (req, res) => {
             } catch(e) {}
         }, 100);
         
-        const gRes = await pool.query('SELECT admin_email, name, send_order_email FROM family_groups WHERE id=$1', [groupId]);
-        if(gRes.rows.length > 0 && gRes.rows[0].admin_email && gRes.rows[0].send_order_email !== false) {
+        const gRes = await pool.query(
+            `SELECT fg.admin_email, fg.name, fg.send_order_email, ss.order_notification_email
+             FROM family_groups fg
+             LEFT JOIN store_settings ss ON ss.group_id = fg.id
+             WHERE fg.id=$1`, [groupId]);
+        const orderEmailDest = gRes.rows[0]?.order_notification_email || gRes.rows[0]?.admin_email;
+        if(gRes.rows.length > 0 && orderEmailDest && gRes.rows[0].send_order_email !== false) {
             const deliveryHtml = isDeliv ? `<p style="margin-top: 10px; padding: 10px; background: #e0e7ff; border-radius: 8px;"><strong>כתובת למשלוח:</strong> ${deliveryDetails?.street || ''} ${deliveryDetails?.house || ''}, ${deliveryDetails?.city || ''}</p>` : '';
             const emailHtml = `<div style="direction:rtl; font-family:Arial; background:#f8fafc; padding:20px; border-radius:10px;">
                 <h2 style="color:#0f172a;">הזמנה חדשה בחנות שלך! 🛍️</h2>
@@ -8820,7 +8829,8 @@ app.post('/api/store/orders', async (req, res) => {
                     <ul>${itemsHtmlList}</ul>
                 </div>
             </div>`;
-            sendSystemEmail(gRes.rows[0].admin_email, `הזמנה חדשה מ-${customerName} - ₪${totalAmount}`, emailHtml);
+            sendSystemEmail(orderEmailDest, `הזמנה חדשה מ-${customerName} - ₪${totalAmount}`, emailHtml)
+                .catch(e => console.error('[store/orders] שגיאת מייל:', e.message));
         }
         
         res.json({ success: true, orderId });

@@ -12066,7 +12066,8 @@ async function saveStoreSettings() {
             vatRate: parseFloat(document.getElementById('store-vat-rate')?.value) || 18,
             storeAlias: storeAlias,
             enableTableBooking: getChecked('store-enable-table-booking'),
-            enableEventBooking: getChecked('store-enable-event-booking')
+            enableEventBooking: getChecked('store-enable-event-booking'),
+            orderNotificationEmail: getVal('store-order-email')
         };
 
         const res = await fetch(`${API}/store/settings`, {
@@ -26670,7 +26671,8 @@ window.fetchStoreSettings = async function() {
             syncInputs('store-open-time', s.open_time || '');
             syncInputs('store-close-time', s.close_time || '');
             syncInputs('store-whatsapp', s.whatsapp_number || '');
-            
+            syncInputs('store-order-email', s.order_notification_email || '');
+
             // עדכון הלינק הציבורי שיוצג (פורמט קצר)
             const displayId = s.store_alias || currentGroup.group_code;
             syncInputs('store-public-link', `${window.location.origin}/${displayId}`);
@@ -26791,7 +26793,8 @@ async function saveStoreSettings() {
             vatRate: parseFloat(document.getElementById('store-vat-rate')?.value) || 18,
             storeAlias: storeAlias,
             enableTableBooking: getChecked('store-enable-table-booking'),
-            enableEventBooking: getChecked('store-enable-event-booking')
+            enableEventBooking: getChecked('store-enable-event-booking'),
+            orderNotificationEmail: getVal('store-order-email')
         };
 
         const res = await fetch(`${API}/store/settings`, {
