@@ -37913,7 +37913,7 @@ async function renderCookDashboard(el) {
             doneIds = raw.map(x => typeof x === 'object' ? x.id : String(x)).filter(Boolean);
         } catch(e2) {}
         kdsTickets = (Array.isArray(orders) ? orders : [])
-            .filter(t => t.created_at?.startsWith(today) && ['new','processing','ready'].includes(t.status) && !doneIds.includes(String(t.id)))
+            .filter(t => t.created_at?.startsWith(today) && ['pending_approval','new','processing','ready'].includes(t.status) && !doneIds.includes(String(t.id)))
             .slice(0,15);
     } catch(e) {}
 
