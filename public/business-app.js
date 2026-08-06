@@ -1085,6 +1085,11 @@ window.injectBusinessUI = function() {
                                 </div>
                                 <p class="text-[10px] text-slate-400">כל אזור מגדיר עלות משלוח ומינימום הזמנה. בעת הזמנת משלוח בקופה — יוצג בורר אזור.</p>
                             </div>
+                            <div class="bg-slate-50 p-4 rounded-xl border border-slate-100 mt-4">
+                                <label class="text-xs font-bold text-slate-700 block mb-1.5"><i class="fa-solid fa-envelope text-indigo-500"></i> מייל לקבלת הזמנות:</label>
+                                <input type="email" id="store-order-email" class="modern-input py-2 text-sm bg-white" placeholder="example@gmail.com" dir="ltr">
+                                <p class="text-[10px] text-slate-400 mt-1.5">כתובת המייל שאליה יישלחו התראות על הזמנות חדשות. ריק = ברירת מחדל (מייל הנהלת החשבון).</p>
+                            </div>
                             <button id="btn-save-store-settings" onclick="window.saveStoreSettings()" class="w-full mt-6 bg-slate-800 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-slate-700 transition text-sm">שמור הגדרות חנות</button>
                         </div>
                     </div>
