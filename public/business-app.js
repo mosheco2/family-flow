@@ -14039,7 +14039,7 @@ async function submitStoreProduct() {
 
 async function toggleStoreProduct(id, isAvailable) { await fetch(`${API}/store/catalog/toggle`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ itemId: id, isAvailable }) }); fetchStoreCatalog(); }
 
-async function deleteStoreProduct(id) { if(!await window._uiConfirm('למחוק מוצר זה לחלוטין?', {danger:true, okLabel:'מחק'})) return; await fetch(`${API}/store/catalog/${id}`, { method: 'DELETE' }); showToast('info', 'המוצר נמחק מהחנות'); fetchStoreCatalog(); }
+async function deleteStoreProduct(id) { if(!await window._uiConfirm('למחוק מוצר זה לחלוטין?', {danger:true, okLabel:'מחק'})) return; await fetch(`${API}/store/catalog/${id}`, { method: 'DELETE', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ groupId: currentGroup.id }) }); showToast('info', 'המוצר נמחק מהחנות'); fetchStoreCatalog(); }
 
 // פונקציית חילוץ מידע נסתר (Meta) ממשלוחים
 function getDeliveryMeta(order) {

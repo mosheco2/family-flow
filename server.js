@@ -8050,7 +8050,14 @@ app.post('/api/store/catalog/toggle', async (req, res) => {
 });
 
 app.delete('/api/store/catalog/:id', async (req, res) => {
-    try { await pool.query('DELETE FROM store_catalog WHERE id=$1', [req.params.id]); res.json({ success: true }); } catch(e) { res.status(500).json({ error: e.message }); }
+    // old: DELETE FROM store_catalog WHERE id=$1  (no ownership check)
+    try {
+        const { groupId } = req.body;
+        if (!groupId) return res.status(400).json({ error: 'groupId נדרש' });
+        const result = await pool.query('DELETE FROM store_catalog WHERE id=$1 AND group_id=$2 RETURNING id', [req.params.id, groupId]);
+        if (result.rowCount === 0) return res.status(404).json({ error: 'פריט לא נמצא או אין הרשאה' });
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 // --- Bulk import products from PDF scan ---
