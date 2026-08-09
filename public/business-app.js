@@ -1940,13 +1940,19 @@ function openTosModal(e, docKey) {
 }
 function closeTosModal() { const modal = getEl('tos-modal'); if(modal) modal.classList.add('hidden'); }
 
+function _saveSession(user, group, newToken) {
+    const existing = JSON.parse(localStorage.getItem('ofl_session') || '{}');
+    const token = newToken !== undefined ? newToken : (existing.token || null);
+    localStorage.setItem('ofl_session', JSON.stringify({ user, group, token }));
+}
+
 async function handleLogin(e) { 
     e.preventDefault(); toggleLoader('login', true);
     try { 
         const res = await fetch(`${API}/login`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ groupCode: val('login-code'), nickname: val('login-nickname'), password: val('login-password') }) });
         const data = await res.json();
         if(data.success) {
-            currentUser = data.user; currentGroup = data.group; localStorage.setItem('ofl_session', JSON.stringify({user:currentUser, group:currentGroup, token:data.token})); 
+            currentUser = data.user; currentGroup = data.group; _saveSession(currentUser, currentGroup, data.token);
             if (currentGroup.type === 'BUSINESS' && !window.location.pathname.includes('business.html')) { window.location.href = '/business.html'; return; } 
             else if (currentGroup.type !== 'BUSINESS' && window.location.pathname.includes('business.html')) { window.location.href = '/'; return; }
             loadDashboard(); // תיקון קריטי: טעינת הנתונים והעברה מיידית לדשבורד
@@ -1972,7 +1978,7 @@ async function handleCreate(e) {
         const res = await fetch(`${API}/groups`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ type: val('create-type'), groupName: val('create-group-name'), adminEmail: val('create-email'), adminNickname: _adminNickname, firstName: _firstName, lastName: _lastName, birthYear: val('create-year'), password: val('create-password'), phone: _cPhone }) });
         const data = await res.json(); 
         if(data.success) { 
-            currentUser = data.user; currentGroup = data.group; localStorage.setItem('ofl_session', JSON.stringify({user:currentUser, group:currentGroup})); 
+            currentUser = data.user; currentGroup = data.group; _saveSession(currentUser, currentGroup); 
             if (currentGroup.type === 'BUSINESS' && !window.location.pathname.includes('business.html')) { window.location.href = '/business.html'; return; } 
             else if (currentGroup.type !== 'BUSINESS' && window.location.pathname.includes('business.html')) { window.location.href = '/'; return; }
             loadDashboard(); // תיקון קריטי: טעינת הנתונים והעברה מיידית לדשבורד
@@ -3863,7 +3869,7 @@ if(data.group) {
                 if(data.group[k] !== undefined) currentGroup[k] = data.group[k];
             });
 
-            localStorage.setItem('ofl_session', JSON.stringify({user: currentUser, group: currentGroup}));
+            _saveSession(currentUser, currentGroup);
             setTimeout(() => { enforcePermissions(); applyBusinessTypeFilter(); window._applyBizVisibility && window._applyBizVisibility(); }, 100);
             
             try { if(typeof updateBatteryUI === 'function') updateBatteryUI(); } catch(e){}
@@ -7573,7 +7579,7 @@ window.saveProfileNickname = async function() {
         const data = await r.json();
         if (data.success) {
             currentUser.nickname = nick;
-            localStorage.setItem('ofl_session', JSON.stringify({ user: currentUser, group: currentGroup }));
+            _saveSession(currentUser, currentGroup);
             const dashNick = document.getElementById('dash-nickname'); if (dashNick) dashNick.innerText = nick;
             showToast('success', 'השם עודכן בהצלחה ✅');
         } else showToast('error', data.error || 'שגיאה בשמירה');
@@ -19229,7 +19235,7 @@ async function nextWizardStep() {
         try {
             await fetch(`${API}/groups/onboard`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ groupId: currentGroup.id }) });
             currentGroup.is_onboarded = true;
-            localStorage.setItem('ofl_session', JSON.stringify({user: currentUser, group: currentGroup})); // <-- התיקון שמונע קפיצה ברענון!
+            _saveSession(currentUser, currentGroup); // <-- התיקון שמונע קפיצה ברענון!
             getEl('onboarding-wizard-modal').classList.add('hidden');
             triggerConfetti(); fetchData(); fetchStoreCatalog(); fetchStoreSettings();
         } catch(e) {}
@@ -35953,7 +35959,7 @@ async function renderShiftManagerDashboard(el) {
         if (sd && sd.table_count) {
             currentGroup.table_count = parseInt(sd.table_count);
             if (sd.auto_approve_max_guests !== undefined) currentGroup.auto_approve_max_guests = sd.auto_approve_max_guests;
-            localStorage.setItem('ofl_session', JSON.stringify({user: currentUser, group: currentGroup}));
+            _saveSession(currentUser, currentGroup);
         }
     } catch(e) {}
     const isRestaurant = (currentGroup.business_type === 'restaurant' || currentGroup.business_type === 'cafe');
@@ -37415,7 +37421,7 @@ async function renderWaiterDashboard(el) {
         if (sd && sd.table_count) {
             currentGroup.table_count = parseInt(sd.table_count);
             if (sd.auto_approve_max_guests !== undefined) currentGroup.auto_approve_max_guests = sd.auto_approve_max_guests;
-            localStorage.setItem('ofl_session', JSON.stringify({user: currentUser, group: currentGroup}));
+            _saveSession(currentUser, currentGroup);
         }
     } catch(e) {}
 
@@ -38507,7 +38513,7 @@ async function saveBusinessSettings() {
         currentGroup.business_type = typeId;
         currentGroup.table_count = tableCount;
         currentGroup.send_order_email = sendEmail;
-        localStorage.setItem('ofl_session', JSON.stringify({user: currentUser, group: currentGroup}));
+        _saveSession(currentUser, currentGroup);
         document.getElementById('biz-settings-modal')?.remove();
         showToast('success', 'הגדרות נשמרו בהצלחה');
         applyBusinessTypeFilter();
