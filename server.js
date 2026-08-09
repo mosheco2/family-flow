@@ -29184,16 +29184,23 @@ async function verifyBizOrLegacy(req, res, next) {
                 [tokenHash]
             );
             const row = r.rows[0];
-            if (row && new Date(row.expires_at) >= new Date() && row.session_type === 'biz') {
+            if (row && new Date(row.expires_at) >= new Date()) {
+                if (row.session_type !== 'biz') {
+                    return res.status(403).json({ error: 'נדרש token מסוג עסקי' });
+                }
                 pool.query(`UPDATE family_sessions SET last_seen=NOW() WHERE token_hash=$1`, [tokenHash]).catch(() => {});
                 req.bizAuth = { groupId: row.group_id, userId: row.user_id, fromToken: true };
                 return next();
             }
         } catch(e) {}
+        // token קיים בheader אבל פג תוקף / לא נמצא ב-DB
+        return res.status(401).json({ error: 'token לא תקף' });
     }
 
-    // fallback legacy — groupId מה-body כמו היום
-    req.bizAuth = { groupId: req.body?.groupId || req.query?.groupId || null, userId: null, fromToken: false };
+    // אין Authorization header — legacy fallback
+    const legacyGroupId = req.body?.groupId || req.query?.groupId || null;
+    console.warn(`[verifyBizOrLegacy] legacy fallback — no token, groupId=${legacyGroupId}, path=${req.path}`);
+    req.bizAuth = { groupId: legacyGroupId, userId: null, fromToken: false };
     next();
 }
 
