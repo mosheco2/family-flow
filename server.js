@@ -6756,8 +6756,35 @@ app.post('/api/admin/change-role', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.delete('/api/users/:id', async (req, res) => {
-    try { await pool.query('DELETE FROM users WHERE id=$1', [req.params.id]); res.json({success:true}); } catch(e) { res.status(500).json({error: e.message}); }
+app.delete('/api/users/:id', verifyFamily, async (req, res) => {
+    try {
+        const adminUserId = req.familyAuth.userId;
+        const adminGroupId = req.familyAuth.groupId;
+        const targetId = parseInt(req.params.id);
+
+        // רק ADMIN יכול למחוק
+        const adminCheck = await pool.query('SELECT role FROM users WHERE id=$1 AND group_id=$2', [adminUserId, adminGroupId]);
+        if (!adminCheck.rows.length || adminCheck.rows[0].role !== 'ADMIN') {
+            return res.status(403).json({ error: 'נדרשת הרשאת מנהל' });
+        }
+
+        // המשתמש הנמחק חייב להיות באותה קבוצה
+        const targetCheck = await pool.query('SELECT id, role FROM users WHERE id=$1 AND group_id=$2', [targetId, adminGroupId]);
+        if (!targetCheck.rows.length) {
+            return res.status(404).json({ error: 'משתמש לא נמצא בקבוצה' });
+        }
+
+        // חסימה: ADMIN יחיד לא יכול למחוק את עצמו
+        if (targetId === adminUserId) {
+            const adminCount = await pool.query("SELECT COUNT(*) FROM users WHERE group_id=$1 AND role='ADMIN' AND status='active'", [adminGroupId]);
+            if (parseInt(adminCount.rows[0].count) <= 1) {
+                return res.status(403).json({ error: 'לא ניתן למחוק את המנהל היחיד בקבוצה' });
+            }
+        }
+
+        await pool.query('DELETE FROM users WHERE id=$1', [targetId]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 // ניהול משפחה — עריכת פרטי משתמש מלאים (מנהל בלבד)
