@@ -8007,6 +8007,9 @@ app.patch('/api/store/catalog/:groupId/reorder', verifyBizOrLegacy, async (req, 
         if (!groupId) return res.status(400).json({ error: 'groupId נדרש' });
         const { order } = req.body; // order = [id, id, id, ...]
         if (!Array.isArray(order)) return res.status(400).json({ error: 'order array required' });
+        // ownership check: ודא שהקבוצה קיימת לפני עדכון
+        const grpCheck = await pool.query('SELECT id FROM family_groups WHERE id=$1', [groupId]);
+        if (!grpCheck.rows.length) return res.status(404).json({ error: 'קבוצה לא נמצאה' });
         for (let i = 0; i < order.length; i++) {
             await pool.query('UPDATE store_catalog SET sort_order=$1 WHERE id=$2 AND group_id=$3', [i, order[i], groupId]);
         }
