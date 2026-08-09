@@ -4961,7 +4961,7 @@ app.delete('/api/sa/staff/:id', verifySA, async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 // --- עריכת שם סביבה (משפחה/עסק) והאימייל שלה מהאדמין כולל הרשאות מודולים ---
-app.put('/api/sa/groups/:id', async (req, res) => {
+app.put('/api/sa/groups/:id', verifySA, async (req, res) => {
     try {
         const { name, adminEmail, features, city, streetAddress, adminPhone, adminFirstName, lastName, familyNickname, bizType, contactName } = req.body;
         const vals = [name, adminEmail ? adminEmail.toLowerCase().trim() : null];
@@ -4974,7 +4974,8 @@ app.put('/api/sa/groups/:id', async (req, res) => {
         if (bizType !== undefined && bizType) { vals.push(bizType); sets.push(`business_type=$${vals.length}`); }
         if (contactName !== undefined) { vals.push(contactName || null); sets.push(`contact_name=$${vals.length}`); }
         vals.push(req.params.id);
-        await pool.query(`UPDATE family_groups SET ${sets.join(', ')} WHERE id=$${vals.length}`, vals);
+        const result = await pool.query(`UPDATE family_groups SET ${sets.join(', ')} WHERE id=$${vals.length}`, vals);
+        if (result.rowCount === 0) return res.status(404).json({ error: 'קבוצה לא נמצאה' });
         // עדכון פרטי מנהל בטבלת users
         if (adminPhone !== undefined) {
             await pool.query(`UPDATE users SET phone=$1 WHERE group_id=$2 AND role='ADMIN'`, [adminPhone || null, req.params.id]);
@@ -4987,14 +4988,16 @@ app.put('/api/sa/groups/:id', async (req, res) => {
 });
 
 // --- עריכת שם משתמש וסיסמה מהאדמין ---
-app.put('/api/sa/users/:id', async (req, res) => {
+app.put('/api/sa/users/:id', verifySA, async (req, res) => {
     try {
         const { nickname, password } = req.body;
+        let result;
         if (password && password.trim() !== '') {
-            await pool.query('UPDATE users SET nickname=$1, password_hash=$2 WHERE id=$3', [nickname, password, req.params.id]);
+            result = await pool.query('UPDATE users SET nickname=$1, password_hash=$2 WHERE id=$3', [nickname, password, req.params.id]);
         } else {
-            await pool.query('UPDATE users SET nickname=$1 WHERE id=$2', [nickname, req.params.id]);
+            result = await pool.query('UPDATE users SET nickname=$1 WHERE id=$2', [nickname, req.params.id]);
         }
+        if (result.rowCount === 0) return res.status(404).json({ error: 'משתמש לא נמצא' });
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -6707,21 +6710,32 @@ app.get('/api/group/members', async (req, res) => {
     } catch(e) { res.status(500).json({error: e.message}); }
 });
 
-app.put('/api/users/:id/permissions', async (req, res) => {
+app.put('/api/users/:id/permissions', verifyFamily, async (req, res) => {
     try {
+        const adminUserId = req.familyAuth.userId;
+        const adminGroupId = req.familyAuth.groupId;
+        const targetId = parseInt(req.params.id);
+
+        const adminCheck = await pool.query('SELECT role FROM users WHERE id=$1 AND group_id=$2', [adminUserId, adminGroupId]);
+        if (!adminCheck.rows.length || adminCheck.rows[0].role !== 'ADMIN') {
+            return res.status(403).json({ error: 'נדרשת הרשאת מנהל' });
+        }
+        const targetCheck = await pool.query('SELECT id FROM users WHERE id=$1 AND group_id=$2', [targetId, adminGroupId]);
+        if (!targetCheck.rows.length) return res.status(404).json({ error: 'משתמש לא נמצא בקבוצה' });
+
         const { tabs, role, community } = req.body;
         if (!tabs.includes('feed')) tabs.push('feed');
         const permsObj = { tabs };
         if (community) permsObj.community = community;
-        
+
         if (role) {
-            await pool.query('UPDATE users SET permissions = $1, role = $2 WHERE id = $3', [JSON.stringify(permsObj), role, req.params.id]);
+            await pool.query('UPDATE users SET permissions = $1, role = $2 WHERE id = $3', [JSON.stringify(permsObj), role, targetId]);
         } else {
-            await pool.query('UPDATE users SET permissions = $1 WHERE id = $2', [JSON.stringify(permsObj), req.params.id]);
+            await pool.query('UPDATE users SET permissions = $1 WHERE id = $2', [JSON.stringify(permsObj), targetId]);
         }
         res.json({ success: true });
-    } catch(e) { 
-        res.status(500).json({ error: e.message }); 
+    } catch(e) {
+        res.status(500).json({ error: e.message });
     }
 });
 
@@ -6799,13 +6813,19 @@ app.get('/api/admin/user-details/:userId', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.put('/api/admin/user-details/:userId', async (req, res) => {
+app.put('/api/admin/user-details/:userId', verifyFamily, async (req, res) => {
     try {
-        const { adminId, nickname, email, phone, password, role } = req.body;
-        const aRes = await pool.query('SELECT group_id, role FROM users WHERE id=$1', [adminId]);
-        if (!aRes.rows.length || aRes.rows[0].role !== 'ADMIN') return res.status(403).json({ error: 'אין הרשאה' });
-        const uRes = await pool.query('SELECT group_id FROM users WHERE id=$1', [req.params.userId]);
-        if (!uRes.rows.length || uRes.rows[0].group_id !== aRes.rows[0].group_id) return res.status(403).json({ error: 'אין הרשאה' });
+        // adminId מהטוקן בלבד — adminId מה-body נדרס לחלוטין
+        const adminUserId = req.familyAuth.userId;
+        const adminGroupId = req.familyAuth.groupId;
+        const targetUserId = req.params.userId;
+
+        const adminCheck = await pool.query('SELECT role FROM users WHERE id=$1 AND group_id=$2', [adminUserId, adminGroupId]);
+        if (!adminCheck.rows.length || adminCheck.rows[0].role !== 'ADMIN') return res.status(403).json({ error: 'אין הרשאה' });
+        const uRes = await pool.query('SELECT group_id FROM users WHERE id=$1 AND group_id=$2', [targetUserId, adminGroupId]);
+        if (!uRes.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
+
+        const { nickname, email, phone, password, role } = req.body;
         const sets = []; const vals = [];
         if (nickname && nickname.trim()) { vals.push(nickname.trim()); sets.push(`nickname=$${vals.length}`); }
         if (email !== undefined) { vals.push(email ? email.trim().toLowerCase() : null); sets.push(`email=$${vals.length}`); }
@@ -6813,7 +6833,7 @@ app.put('/api/admin/user-details/:userId', async (req, res) => {
         if (password && password.trim().length >= 4) { vals.push(password.trim()); sets.push(`password_hash=$${vals.length}`); }
         if (role && ['ADMIN','CHILD','MEMBER'].includes(role)) { vals.push(role); sets.push(`role=$${vals.length}`); }
         if (sets.length === 0) return res.json({ success: true });
-        vals.push(req.params.userId);
+        vals.push(targetUserId);
         await pool.query(`UPDATE users SET ${sets.join(',')} WHERE id=$${vals.length}`, vals);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
@@ -15988,10 +16008,24 @@ app.get('/api/users/:userId/phone', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.put('/api/users/:userId/phone', async (req, res) => {
+app.put('/api/users/:userId/phone', verifyFamily, async (req, res) => {
     try {
+        const requesterId = req.familyAuth.userId;
+        const requesterGroupId = req.familyAuth.groupId;
+        const targetId = parseInt(req.params.userId);
+
+        const targetCheck = await pool.query('SELECT group_id FROM users WHERE id=$1 AND group_id=$2', [targetId, requesterGroupId]);
+        if (!targetCheck.rows.length) return res.status(404).json({ error: 'משתמש לא נמצא בקבוצה' });
+
+        if (requesterId !== targetId) {
+            const adminCheck = await pool.query('SELECT role FROM users WHERE id=$1', [requesterId]);
+            if (!adminCheck.rows.length || adminCheck.rows[0].role !== 'ADMIN') {
+                return res.status(403).json({ error: 'נדרשת הרשאת מנהל לשינוי פרטי משתמש אחר' });
+            }
+        }
+
         const { phone } = req.body;
-        await pool.query('UPDATE users SET phone=$1 WHERE id=$2', [phone, req.params.userId]);
+        await pool.query('UPDATE users SET phone=$1 WHERE id=$2', [phone, targetId]);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -16003,10 +16037,24 @@ app.get('/api/users/:userId/email', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.put('/api/users/:userId/email', async (req, res) => {
+app.put('/api/users/:userId/email', verifyFamily, async (req, res) => {
     try {
+        const requesterId = req.familyAuth.userId;
+        const requesterGroupId = req.familyAuth.groupId;
+        const targetId = parseInt(req.params.userId);
+
+        const targetCheck = await pool.query('SELECT group_id FROM users WHERE id=$1 AND group_id=$2', [targetId, requesterGroupId]);
+        if (!targetCheck.rows.length) return res.status(404).json({ error: 'משתמש לא נמצא בקבוצה' });
+
+        if (requesterId !== targetId) {
+            const adminCheck = await pool.query('SELECT role FROM users WHERE id=$1', [requesterId]);
+            if (!adminCheck.rows.length || adminCheck.rows[0].role !== 'ADMIN') {
+                return res.status(403).json({ error: 'נדרשת הרשאת מנהל לשינוי פרטי משתמש אחר' });
+            }
+        }
+
         const { email } = req.body;
-        await pool.query('UPDATE users SET email=$1 WHERE id=$2', [email || null, req.params.userId]);
+        await pool.query('UPDATE users SET email=$1 WHERE id=$2', [email || null, targetId]);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -17504,20 +17552,44 @@ app.patch('/api/groups/:id/table-settings', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.patch('/api/users/:id/profile', async (req, res) => {
+app.patch('/api/users/:id/profile', verifyFamily, async (req, res) => {
     try {
+        const requesterId = req.familyAuth.userId;
+        const requesterGroupId = req.familyAuth.groupId;
+        const targetId = parseInt(req.params.id);
+
+        const targetCheck = await pool.query('SELECT group_id FROM users WHERE id=$1 AND group_id=$2', [targetId, requesterGroupId]);
+        if (!targetCheck.rows.length) return res.status(404).json({ error: 'משתמש לא נמצא בקבוצה' });
+
+        if (requesterId !== targetId) {
+            const adminCheck = await pool.query('SELECT role FROM users WHERE id=$1', [requesterId]);
+            if (!adminCheck.rows.length || adminCheck.rows[0].role !== 'ADMIN') {
+                return res.status(403).json({ error: 'נדרשת הרשאת מנהל לשינוי פרטי משתמש אחר' });
+            }
+        }
+
         const { nickname } = req.body;
         if (!nickname || !nickname.trim()) return res.status(400).json({ error: 'nickname required' });
-        await pool.query('UPDATE users SET nickname=$1 WHERE id=$2', [nickname.trim(), req.params.id]);
+        await pool.query('UPDATE users SET nickname=$1 WHERE id=$2', [nickname.trim(), targetId]);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.patch('/api/users/:id/role-type', async (req, res) => {
+app.patch('/api/users/:id/role-type', verifyFamily, async (req, res) => {
     try {
+        const adminUserId = req.familyAuth.userId;
+        const adminGroupId = req.familyAuth.groupId;
+        const targetId = parseInt(req.params.id);
+
+        const adminCheck = await pool.query('SELECT role FROM users WHERE id=$1 AND group_id=$2', [adminUserId, adminGroupId]);
+        if (!adminCheck.rows.length || adminCheck.rows[0].role !== 'ADMIN') {
+            return res.status(403).json({ error: 'נדרשת הרשאת מנהל' });
+        }
+        const targetCheck = await pool.query('SELECT id FROM users WHERE id=$1 AND group_id=$2', [targetId, adminGroupId]);
+        if (!targetCheck.rows.length) return res.status(404).json({ error: 'משתמש לא נמצא בקבוצה' });
+
         const { employee_role_type } = req.body;
-        await pool.query('UPDATE users SET employee_role_type=$1 WHERE id=$2',
-            [employee_role_type || null, req.params.id]);
+        await pool.query('UPDATE users SET employee_role_type=$1 WHERE id=$2', [employee_role_type || null, targetId]);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
