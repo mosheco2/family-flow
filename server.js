@@ -8000,20 +8000,26 @@ app.get('/api/store/catalog/:groupId', async (req, res) => {
 });
 
 // שמירת סדר גרירה לקטלוג
-app.patch('/api/store/catalog/:groupId/reorder', async (req, res) => {
+app.patch('/api/store/catalog/:groupId/reorder', verifyBizOrLegacy, async (req, res) => {
     try {
+        // token גובר על URL param — מונע reorder לקטלוג של עסק אחר
+        const groupId = req.bizAuth.groupId || req.params.groupId;
+        if (!groupId) return res.status(400).json({ error: 'groupId נדרש' });
         const { order } = req.body; // order = [id, id, id, ...]
         if (!Array.isArray(order)) return res.status(400).json({ error: 'order array required' });
         for (let i = 0; i < order.length; i++) {
-            await pool.query('UPDATE store_catalog SET sort_order=$1 WHERE id=$2 AND group_id=$3', [i, order[i], req.params.groupId]);
+            await pool.query('UPDATE store_catalog SET sort_order=$1 WHERE id=$2 AND group_id=$3', [i, order[i], groupId]);
         }
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/store/catalog', async (req, res) => {
+app.post('/api/store/catalog', verifyBizOrLegacy, async (req, res) => {
     try {
-        const { groupId, name, description, price, category, imageUrl, optionsText, badgeText, badgeColor, productType, longDescription, kitchenStation, isComplimentary } = req.body;
+        // token גובר על body — מונע "תקיעת" מוצר לקטלוג של עסק אחר
+        const groupId = req.bizAuth.groupId || req.body.groupId;
+        if (!groupId) return res.status(400).json({ error: 'groupId נדרש' });
+        const { name, description, price, category, imageUrl, optionsText, badgeText, badgeColor, productType, longDescription, kitchenStation, isComplimentary } = req.body;
 
         const countRes = await pool.query('SELECT COUNT(*) FROM store_catalog WHERE group_id=$1', [groupId]);
         const grpPlan = await pool.query('SELECT plan, is_premium FROM family_groups WHERE id=$1', [groupId]);
@@ -8046,10 +8052,13 @@ app.put('/api/store/catalog/:id', verifyBizOrLegacy, async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/store/catalog/toggle', async (req, res) => {
+app.post('/api/store/catalog/toggle', verifyBizOrLegacy, async (req, res) => {
     try {
+        const groupId = req.bizAuth.groupId;
+        if (!groupId) return res.status(400).json({ error: 'groupId נדרש' });
         const { itemId, isAvailable } = req.body;
-        await pool.query('UPDATE store_catalog SET is_available=$1 WHERE id=$2', [isAvailable, itemId]);
+        const result = await pool.query('UPDATE store_catalog SET is_available=$1 WHERE id=$2 AND group_id=$3 RETURNING id', [isAvailable, itemId, groupId]);
+        if (result.rowCount === 0) return res.status(404).json({ error: 'פריט לא נמצא או אין הרשאה' });
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
