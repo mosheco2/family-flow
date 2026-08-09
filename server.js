@@ -8494,9 +8494,16 @@ app.get('/api/store/employee-popups/:groupId', async (req, res) => {
 });
 
 // --- הצעות מחיר (Quotes) ---
-app.post('/api/store/quotes', async (req, res) => {
+app.post('/api/store/quotes', verifyBizOrLegacy, async (req, res) => {
     try {
-        const { groupId, customerName, customerPhone, items, totalAmount, notes, familyGroupId } = req.body;
+        // token גובר על body — מונע יצירת הצעה תחת עסק אחר
+        const groupId = req.bizAuth.groupId || req.body.groupId;
+        if (!groupId) return res.status(400).json({ error: 'groupId נדרש' });
+        if (!req.bizAuth.fromToken) {
+            const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
+            console.log(`[QUOTES_LEGACY] groupId=${groupId} ip=${ip} ts=${new Date().toISOString()}`);
+        }
+        const { customerName, customerPhone, items, totalAmount, notes, familyGroupId } = req.body;
         const result = await pool.query(
             `INSERT INTO store_orders (group_id, customer_name, customer_phone, total_amount, status, notes, items, family_group_id, created_at)
              VALUES ($1, $2, $3, $4, 'quote', $5, $6, $7, CURRENT_TIMESTAMP) RETURNING id`,
@@ -8541,8 +8548,12 @@ app.get('/api/store/quotes/family/:familyGroupId', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/api/store/quotes/:groupId', async (req, res) => {
+app.get('/api/store/quotes/:groupId', verifyBizOrLegacy, async (req, res) => {
     try {
+        // אם יש token — ה-groupId בURL חייב להתאים לעסק המאומת
+        if (req.bizAuth.fromToken && String(req.bizAuth.groupId) !== String(req.params.groupId)) {
+            return res.status(403).json({ error: 'אין הרשאה לצפות בהצעות של עסק אחר' });
+        }
         const result = await pool.query(
             `SELECT so.*, mbl.status AS link_status
              FROM store_orders so
