@@ -406,6 +406,7 @@ try { await client.query(`ALTER TABLE game_assignments ADD COLUMN IF NOT EXISTS 
       try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS customer_confirmed_at TIMESTAMP`); } catch(e) {}
       try { await client.query(`ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS confirm_token VARCHAR(64)`); } catch(e) {}
       try { await client.query(`ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS supplier_confirmed_at TIMESTAMP`); } catch(e) {}
+      try { await client.query(`ALTER TABLE family_sessions ADD COLUMN IF NOT EXISTS session_type VARCHAR(20) DEFAULT 'family'`); } catch(e) {}
 
       // ============ COMMUNITY CASHBACK SYSTEM ============
       try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS owner_user_id INT REFERENCES users(id) ON DELETE SET NULL`); } catch(e) {}
@@ -6016,7 +6017,7 @@ app.post('/api/login', async (req, res) => {
 
         // יצירת session token
         const deviceHint = (req.headers['user-agent'] || '').slice(0, 100);
-        const rawToken = await createFamilySession(group.id, uRes.rows[0].id, deviceHint);
+        const rawToken = await createFamilySession(group.id, uRes.rows[0].id, deviceHint, group.type === 'BUSINESS' ? 'biz' : 'family');
 
         // מחזירים את אותו מבנה תגובה קיים + שדה token בנוסף
         res.json({
@@ -28781,14 +28782,14 @@ function _hashToken(rawToken) {
     return crypto_module.createHash('sha256').update(rawToken).digest('hex');
 }
 
-async function createFamilySession(groupId, userId, deviceHint = null) {
+async function createFamilySession(groupId, userId, deviceHint = null, sessionType = 'family') {
     const rawToken = crypto_module.randomBytes(32).toString('hex'); // 64 hex chars, entropy=256bit
     const tokenHash = _hashToken(rawToken);
     const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 ימים
     await pool.query(
-        `INSERT INTO family_sessions (token_hash, group_id, user_id, expires_at, device_hint)
-         VALUES ($1, $2, $3, $4, $5)`,
-        [tokenHash, groupId, userId, expiresAt, deviceHint ? deviceHint.slice(0, 100) : null]
+        `INSERT INTO family_sessions (token_hash, group_id, user_id, expires_at, device_hint, session_type)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [tokenHash, groupId, userId, expiresAt, deviceHint ? deviceHint.slice(0, 100) : null, sessionType]
     );
     return rawToken; // מוחזר ללקוח — לא נשמר בDB
 }
@@ -28837,6 +28838,65 @@ async function verifyFamily(req, res, next) {
 
     // groupId ו-userId נגזרים מה-DB בלבד — לא מה-body
     req.familyAuth = { groupId: row.group_id, userId: row.user_id };
+    next();
+}
+
+// ── verifyBiz middleware ───────────────────────────────────────
+// בודק טוקן תקין + session_type==='biz'. לא מחובר לאף endpoint עדיין.
+async function verifyBiz(req, res, next) {
+    const authHeader = req.headers.authorization || '';
+    const rawToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : authHeader;
+    if (!rawToken) return res.status(401).json({ error: 'נדרש token להתחברות עסקית' });
+
+    const tokenHash = _hashToken(rawToken);
+    let row;
+    try {
+        const r = await pool.query(
+            `SELECT group_id, user_id, expires_at, session_type FROM family_sessions WHERE token_hash=$1`,
+            [tokenHash]
+        );
+        row = r.rows[0];
+    } catch(e) {
+        return res.status(500).json({ error: 'שגיאה פנימית' });
+    }
+
+    if (!row) return res.status(401).json({ error: 'פגישה לא תקינה — יש להתחבר מחדש' });
+    if (new Date(row.expires_at) < new Date()) {
+        pool.query(`DELETE FROM family_sessions WHERE token_hash=$1`, [tokenHash]).catch(() => {});
+        return res.status(401).json({ error: 'פגישה פגה — יש להתחבר מחדש' });
+    }
+    if (row.session_type !== 'biz') return res.status(403).json({ error: 'גישה מורשית לעסקים בלבד' });
+
+    pool.query(`UPDATE family_sessions SET last_seen=NOW() WHERE token_hash=$1`, [tokenHash]).catch(() => {});
+    req.bizAuth = { groupId: row.group_id, userId: row.user_id };
+    next();
+}
+
+// ── verifyBizOrLegacy middleware ───────────────────────────────
+// אם יש טוקן תקין — groupId מה-session; אחרת — fallback ל-groupId מה-body (legacy).
+// לא מחובר לאף endpoint עדיין.
+async function verifyBizOrLegacy(req, res, next) {
+    const authHeader = req.headers.authorization || '';
+    const rawToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : authHeader;
+
+    if (rawToken) {
+        const tokenHash = _hashToken(rawToken);
+        try {
+            const r = await pool.query(
+                `SELECT group_id, user_id, expires_at, session_type FROM family_sessions WHERE token_hash=$1`,
+                [tokenHash]
+            );
+            const row = r.rows[0];
+            if (row && new Date(row.expires_at) >= new Date() && row.session_type === 'biz') {
+                pool.query(`UPDATE family_sessions SET last_seen=NOW() WHERE token_hash=$1`, [tokenHash]).catch(() => {});
+                req.bizAuth = { groupId: row.group_id, userId: row.user_id, fromToken: true };
+                return next();
+            }
+        } catch(e) {}
+    }
+
+    // fallback legacy — groupId מה-body כמו היום
+    req.bizAuth = { groupId: req.body?.groupId || req.query?.groupId || null, userId: null, fromToken: false };
     next();
 }
 

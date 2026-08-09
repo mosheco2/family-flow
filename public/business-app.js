@@ -1943,10 +1943,10 @@ function closeTosModal() { const modal = getEl('tos-modal'); if(modal) modal.cla
 async function handleLogin(e) { 
     e.preventDefault(); toggleLoader('login', true);
     try { 
-        const res = await fetch(`${API}/login`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ groupCode: val('login-code'), nickname: val('login-nickname'), password: val('login-password') }) }); 
-        const data = await res.json(); 
-        if(data.success) { 
-            currentUser = data.user; currentGroup = data.group; localStorage.setItem('ofl_session', JSON.stringify({user:currentUser, group:currentGroup})); 
+        const res = await fetch(`${API}/login`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ groupCode: val('login-code'), nickname: val('login-nickname'), password: val('login-password') }) });
+        const data = await res.json();
+        if(data.success) {
+            currentUser = data.user; currentGroup = data.group; localStorage.setItem('ofl_session', JSON.stringify({user:currentUser, group:currentGroup, token:data.token})); 
             if (currentGroup.type === 'BUSINESS' && !window.location.pathname.includes('business.html')) { window.location.href = '/business.html'; return; } 
             else if (currentGroup.type !== 'BUSINESS' && window.location.pathname.includes('business.html')) { window.location.href = '/'; return; }
             loadDashboard(); // תיקון קריטי: טעינת הנתונים והעברה מיידית לדשבורד
