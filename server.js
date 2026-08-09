@@ -407,6 +407,17 @@ try { await client.query(`ALTER TABLE game_assignments ADD COLUMN IF NOT EXISTS 
       try { await client.query(`ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS confirm_token VARCHAR(64)`); } catch(e) {}
       try { await client.query(`ALTER TABLE purchase_orders ADD COLUMN IF NOT EXISTS supplier_confirmed_at TIMESTAMP`); } catch(e) {}
       try { await client.query(`ALTER TABLE family_sessions ADD COLUMN IF NOT EXISTS session_type VARCHAR(20) DEFAULT 'family'`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS family_audit_log (
+        id SERIAL PRIMARY KEY,
+        action VARCHAR(50) NOT NULL,
+        performed_by_user_id INTEGER NOT NULL,
+        group_id INTEGER NOT NULL,
+        target_user_id INTEGER,
+        amount NUMERIC,
+        extra_type VARCHAR(20),
+        reason TEXT,
+        created_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) {}
 
       // ============ COMMUNITY CASHBACK SYSTEM ============
       try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS owner_user_id INT REFERENCES users(id) ON DELETE SET NULL`); } catch(e) {}
@@ -6811,15 +6822,46 @@ app.post('/api/users/:id/set-first-password', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/admin/adjust-balance', async (req, res) => {
+app.post('/api/admin/adjust-balance', verifyFamily, async (req, res) => {
     try {
-        const { adminId, groupId, childId, type, amount, reason } = req.body;
+        // adminId מה-body מתעלמים לחלוטין — משתמשים אך ורק בטוקן
+        const adminUserId = req.familyAuth.userId;
+        const adminGroupId = req.familyAuth.groupId;
+
+        // שכבה 2: ודא שהמשתמש הוא ADMIN באותה קבוצה
+        const adminCheck = await pool.query(
+            `SELECT role FROM users WHERE id=$1 AND group_id=$2`,
+            [adminUserId, adminGroupId]
+        );
+        if (!adminCheck.rows.length || adminCheck.rows[0].role !== 'ADMIN') {
+            return res.status(403).json({ error: 'נדרשת הרשאת מנהל' });
+        }
+
+        const { childId, type, amount, reason } = req.body;
+
+        // שכבה 3: ודא ש-childId שייך לאותה קבוצה
+        const childCheck = await pool.query(
+            `SELECT id FROM users WHERE id=$1 AND group_id=$2`,
+            [childId, adminGroupId]
+        );
+        if (!childCheck.rows.length) {
+            return res.status(404).json({ error: 'ילד לא נמצא בקבוצה' });
+        }
+
         const actAmount = type === 'deduct' ? -(parseFloat(amount)||0) : (parseFloat(amount)||0);
         await pool.query('UPDATE users SET balance = balance + $1 WHERE id=$2', [actAmount, childId]);
-        await pool.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type) VALUES ($1, $2, $3, $4, 'other', $5)`, [childId, groupId, parseFloat(amount)||0, reason, type === 'deduct' ? 'expense' : 'income']);
-        await logActivity(groupId, childId || null, null, 'finance', 'balance_adjust', `הפרשת דמי כיס: ₪${amount} — ${reason || ''}`);
-        res.json({success:true});
-    } catch(e) { res.status(500).json({error: e.message}); }
+        await pool.query(
+            `INSERT INTO transactions (user_id, group_id, amount, description, category, type) VALUES ($1, $2, $3, $4, 'other', $5)`,
+            [childId, adminGroupId, parseFloat(amount)||0, reason, type === 'deduct' ? 'expense' : 'income']
+        );
+        // audit log — performed_by_user_id מהטוקן בלבד
+        await pool.query(
+            `INSERT INTO family_audit_log (action, performed_by_user_id, group_id, target_user_id, amount, extra_type, reason) VALUES ('adjust_balance', $1, $2, $3, $4, $5, $6)`,
+            [adminUserId, adminGroupId, childId, parseFloat(amount)||0, type, reason || null]
+        );
+        await logActivity(adminGroupId, childId || null, null, 'finance', 'balance_adjust', `הפרשת דמי כיס: ₪${amount} — ${reason || ''}`);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 app.post('/api/admin/update-settings', async (req, res) => {
