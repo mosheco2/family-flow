@@ -5801,9 +5801,10 @@ app.put('/api/groups/:id/doc-settings', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/groups/onboard', async (req, res) => {
+app.post('/api/groups/onboard', verifyBizOrLegacy, async (req, res) => {
     try {
-        const { groupId } = req.body;
+        const groupId = req.bizAuth.groupId;
+        if (!groupId) return res.status(400).json({ error: 'groupId נדרש' });
         await pool.query('UPDATE family_groups SET is_onboarded = TRUE WHERE id = $1', [groupId]);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
@@ -8982,17 +8983,19 @@ app.post('/api/store/quotes/:id/prepare-send', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/store/quotes/:id/approve', async (req, res) => {
+app.post('/api/store/quotes/:id/approve', verifyBizOrLegacy, async (req, res) => {
     try {
         const { targetDatetime } = req.body;
         const quoteId = req.params.id;
-        
+        const groupId = req.bizAuth.groupId;
+        if (!groupId) return res.status(400).json({ error: 'groupId נדרש' });
+
         // הופך את הצעת המחיר להזמנה במקום לייצר שורה כפולה!
         const updateRes = await pool.query(
-            `UPDATE store_orders 
-             SET status = 'new', quote_status = 'approved', target_datetime = $1, created_at = CURRENT_TIMESTAMP 
-             WHERE id = $2 AND status = 'quote' RETURNING *`,
-            [targetDatetime || null, quoteId]
+            `UPDATE store_orders
+             SET status = 'new', quote_status = 'approved', target_datetime = $1, created_at = CURRENT_TIMESTAMP
+             WHERE id = $2 AND group_id = $3 AND status = 'quote' RETURNING *`,
+            [targetDatetime || null, quoteId, groupId]
         );
 
         if (updateRes.rows.length === 0) return res.status(404).json({ error: 'ההצעה לא נמצאה או שכבר אושרה' });
@@ -9245,10 +9248,12 @@ app.patch('/api/store/quotes/:id/customer-response', async (req, res) => {
 });
 
 // --- המרת הצעת מחיר לפקודת עבודה ---
-app.post('/api/store/quotes/:id/to-work-order', async (req, res) => {
+app.post('/api/store/quotes/:id/to-work-order', verifyBizOrLegacy, async (req, res) => {
     try {
         const quoteId = req.params.id;
-        const q = await pool.query('SELECT * FROM store_orders WHERE id=$1', [quoteId]);
+        const groupId = req.bizAuth.groupId;
+        if (!groupId) return res.status(400).json({ error: 'groupId נדרש' });
+        const q = await pool.query('SELECT * FROM store_orders WHERE id=$1 AND group_id=$2', [quoteId, groupId]);
         if (!q.rows.length) return res.status(404).json({ error: 'הצעה לא נמצאה' });
         const quote = q.rows[0];
         // חלץ כותרת מ-metaData אם יש
