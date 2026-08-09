@@ -6609,31 +6609,47 @@ app.post('/api/transaction', async (req, res) => {
     } catch(e) { res.status(500).json({error: e.message}); }
 });
 
-app.put('/api/transaction/:id', async (req, res) => {
+app.put('/api/transaction/:id', verifyFamily, async (req, res) => {
     try {
-        const { amount, description, category, requesterId, groupId } = req.body;
-        const oldTx = await pool.query('SELECT amount, type, user_id FROM transactions WHERE id=$1', [req.params.id]);
-        if(oldTx.rows.length===0) return res.status(404).json({error:'Not found'});
+        const adminUserId = req.familyAuth.userId;
+        const adminGroupId = req.familyAuth.groupId;
+
+        const adminCheck = await pool.query('SELECT role FROM users WHERE id=$1 AND group_id=$2', [adminUserId, adminGroupId]);
+        if (!adminCheck.rows.length || adminCheck.rows[0].role !== 'ADMIN') return res.status(403).json({ error: 'נדרשת הרשאת מנהל' });
+
+        const oldTx = await pool.query('SELECT amount, type, user_id, group_id FROM transactions WHERE id=$1', [req.params.id]);
+        if (oldTx.rows.length === 0) return res.status(404).json({ error: 'Not found' });
+        if (String(oldTx.rows[0].group_id) !== String(adminGroupId)) return res.status(403).json({ error: 'אין הרשאה' });
+
+        const { amount, description, category } = req.body;
         const tx = oldTx.rows[0]; const diff = parseFloat(amount) - parseFloat(tx.amount);
         await pool.query('UPDATE transactions SET amount=$1, description=$2, category=$3 WHERE id=$4', [parseFloat(amount)||0, description, category, req.params.id]);
         if (diff !== 0) {
             if(tx.type === 'expense') await pool.query('UPDATE users SET balance = balance - $1 WHERE id=$2', [diff, tx.user_id]);
             else await pool.query('UPDATE users SET balance = balance + $1 WHERE id=$2', [diff, tx.user_id]);
         }
-        res.json({success:true});
-    } catch(e) { res.status(500).json({error: e.message}); }
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.delete('/api/transaction/:id', async (req, res) => {
+app.delete('/api/transaction/:id', verifyFamily, async (req, res) => {
     try {
+        const adminUserId = req.familyAuth.userId;
+        const adminGroupId = req.familyAuth.groupId;
+
+        const adminCheck = await pool.query('SELECT role FROM users WHERE id=$1 AND group_id=$2', [adminUserId, adminGroupId]);
+        if (!adminCheck.rows.length || adminCheck.rows[0].role !== 'ADMIN') return res.status(403).json({ error: 'נדרשת הרשאת מנהל' });
+
         const txRes = await pool.query('SELECT * FROM transactions WHERE id=$1', [req.params.id]);
-        if(txRes.rows.length===0) return res.status(404).json({error:'Not found'});
+        if (txRes.rows.length === 0) return res.status(404).json({ error: 'Not found' });
+        if (String(txRes.rows[0].group_id) !== String(adminGroupId)) return res.status(403).json({ error: 'אין הרשאה' });
+
         const tx = txRes.rows[0];
         await pool.query('DELETE FROM transactions WHERE id=$1', [req.params.id]);
         if(tx.type === 'expense') await pool.query('UPDATE users SET balance = balance + $1 WHERE id=$2', [tx.amount, tx.user_id]);
         else await pool.query('UPDATE users SET balance = balance - $1 WHERE id=$2', [tx.amount, tx.user_id]);
-        res.json({success:true});
-    } catch(e) { res.status(500).json({error: e.message}); }
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 // ============================================================
@@ -9530,8 +9546,14 @@ app.post('/api/store/customers', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.put('/api/store/customers/:id', async (req, res) => {
+app.put('/api/store/customers/:id', verifyBizOrLegacy, async (req, res) => {
     try {
+        const bizGroupId = req.bizAuth.groupId;
+        if (!bizGroupId) return res.status(400).json({ error: 'groupId נדרש' });
+
+        const ownerCheck = await pool.query('SELECT group_id FROM store_customers WHERE id=$1 AND group_id=$2', [req.params.id, bizGroupId]);
+        if (!ownerCheck.rows.length) return res.status(404).json({ error: 'לקוח לא נמצא או אין הרשאה' });
+
         const { name, companyName, phone, email, businessId, notes, familyGroupId, groupId, adminName } = req.body;
         await pool.query(
             `UPDATE store_customers SET name=$1, company_name=$2, phone=$3, email=$4, business_id=$5, notes=$6, family_group_id=$7 WHERE id=$8`,
@@ -9551,9 +9573,12 @@ app.put('/api/store/customers/:id', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.delete('/api/store/customers/:id', async (req, res) => {
+app.delete('/api/store/customers/:id', verifyBizOrLegacy, async (req, res) => {
     try {
-        await pool.query('DELETE FROM store_customers WHERE id=$1', [req.params.id]);
+        const bizGroupId = req.bizAuth.groupId;
+        if (!bizGroupId) return res.status(400).json({ error: 'groupId נדרש' });
+        const result = await pool.query('DELETE FROM store_customers WHERE id=$1 AND group_id=$2', [req.params.id, bizGroupId]);
+        if (result.rowCount === 0) return res.status(404).json({ error: 'לקוח לא נמצא או אין הרשאה' });
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -10563,9 +10588,12 @@ app.post('/api/store/coupons', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.delete('/api/store/coupons/:id', async (req, res) => {
+app.delete('/api/store/coupons/:id', verifyBizOrLegacy, async (req, res) => {
     try {
-        await pool.query('DELETE FROM store_coupons WHERE id=$1', [req.params.id]);
+        const bizGroupId = req.bizAuth.groupId;
+        if (!bizGroupId) return res.status(400).json({ error: 'groupId נדרש' });
+        const result = await pool.query('DELETE FROM store_coupons WHERE id=$1 AND group_id=$2', [req.params.id, bizGroupId]);
+        if (result.rowCount === 0) return res.status(404).json({ error: 'קופון לא נמצא או אין הרשאה' });
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -10617,8 +10645,12 @@ app.post('/api/store/promotions', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.put('/api/store/promotions/:id', async (req, res) => {
+app.put('/api/store/promotions/:id', verifyBizOrLegacy, async (req, res) => {
     try {
+        const bizGroupId = req.bizAuth.groupId;
+        if (!bizGroupId) return res.status(400).json({ error: 'groupId נדרש' });
+        const ownerCheck = await pool.query('SELECT id FROM store_promotions WHERE id=$1 AND group_id=$2', [req.params.id, bizGroupId]);
+        if (!ownerCheck.rows.length) return res.status(404).json({ error: 'מבצע לא נמצא או אין הרשאה' });
         const { title, promoType, promoValue, targetType, targetIds, startDate, endDate, showInBanner, showInTab, bgColor } = req.body;
         const result = await pool.query(
             'UPDATE store_promotions SET title=$1, promo_type=$2, promo_value=$3, target_type=$4, target_ids=$5, start_date=$6, end_date=$7, show_in_banner=$8, show_in_tab=$9, bg_color=$10 WHERE id=$11 RETURNING *',
@@ -10628,17 +10660,23 @@ app.put('/api/store/promotions/:id', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.delete('/api/store/promotions/:id', async (req, res) => {
+app.delete('/api/store/promotions/:id', verifyBizOrLegacy, async (req, res) => {
     try {
-        await pool.query('DELETE FROM store_promotions WHERE id = $1', [req.params.id]);
+        const bizGroupId = req.bizAuth.groupId;
+        if (!bizGroupId) return res.status(400).json({ error: 'groupId נדרש' });
+        const result = await pool.query('DELETE FROM store_promotions WHERE id=$1 AND group_id=$2', [req.params.id, bizGroupId]);
+        if (result.rowCount === 0) return res.status(404).json({ error: 'מבצע לא נמצא או אין הרשאה' });
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.put('/api/store/promotions/toggle/:id', async (req, res) => {
+app.put('/api/store/promotions/toggle/:id', verifyBizOrLegacy, async (req, res) => {
     try {
+        const bizGroupId = req.bizAuth.groupId;
+        if (!bizGroupId) return res.status(400).json({ error: 'groupId נדרש' });
         const { isActive } = req.body;
-        await pool.query('UPDATE store_promotions SET is_active = $1 WHERE id = $2', [isActive, req.params.id]);
+        const result = await pool.query('UPDATE store_promotions SET is_active=$1 WHERE id=$2 AND group_id=$3', [isActive, req.params.id, bizGroupId]);
+        if (result.rowCount === 0) return res.status(404).json({ error: 'מבצע לא נמצא או אין הרשאה' });
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
