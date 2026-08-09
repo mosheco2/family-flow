@@ -8031,14 +8031,17 @@ app.post('/api/store/catalog', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.put('/api/store/catalog/:id', async (req, res) => {
+app.put('/api/store/catalog/:id', verifyBizOrLegacy, async (req, res) => {
     try {
+        const groupId = req.bizAuth.groupId;
+        if (!groupId) return res.status(400).json({ error: 'groupId נדרש' });
         const { name, description, price, category, imageUrl, optionsText, badgeText, badgeColor, productType, longDescription, kitchenStation, isComplimentary } = req.body;
 
         const result = await pool.query(
-            'UPDATE store_catalog SET name=$1, description=$2, price=$3, category=$4, image_url=COALESCE($5, image_url), options_text=$6, badge_text=$7, badge_color=$8, product_type=$9, long_description=$10, sku=$11, kitchen_station=$12, is_complimentary=$13 WHERE id=$14 RETURNING *',
-            [name, description, parseFloat(price)||0, category, imageUrl, optionsText, badgeText || null, badgeColor || 'red', productType || 'retail', longDescription || '', req.body.sku || '', kitchenStation || 'other', isComplimentary ? true : false, req.params.id]
+            'UPDATE store_catalog SET name=$1, description=$2, price=$3, category=$4, image_url=COALESCE($5, image_url), options_text=$6, badge_text=$7, badge_color=$8, product_type=$9, long_description=$10, sku=$11, kitchen_station=$12, is_complimentary=$13 WHERE id=$14 AND group_id=$15 RETURNING *',
+            [name, description, parseFloat(price)||0, category, imageUrl, optionsText, badgeText || null, badgeColor || 'red', productType || 'retail', longDescription || '', req.body.sku || '', kitchenStation || 'other', isComplimentary ? true : false, req.params.id, groupId]
         );
+        if (result.rowCount === 0) return res.status(404).json({ error: 'פריט לא נמצא או אין הרשאה' });
         res.json({ success: true, item: result.rows[0] });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -8063,9 +8066,11 @@ app.delete('/api/store/catalog/:id', async (req, res) => {
 });
 
 // --- Bulk import products from PDF scan ---
-app.post('/api/store/catalog/bulk-import', async (req, res) => {
+app.post('/api/store/catalog/bulk-import', verifyBizOrLegacy, async (req, res) => {
     try {
-        const { groupId, products } = req.body;
+        // groupId תמיד מ-req.bizAuth — לא מהפריטים עצמם, כדי למנוע זיוף ownership
+        const groupId = req.bizAuth.groupId;
+        const { products } = req.body;
         if (!groupId || !Array.isArray(products) || !products.length)
             return res.status(400).json({ error: 'נתונים חסרים' });
         const countRes = await pool.query('SELECT COUNT(*) FROM store_catalog WHERE group_id=$1', [groupId]);
@@ -8079,6 +8084,7 @@ app.post('/api/store/catalog/bulk-import', async (req, res) => {
             return res.status(400).json({ error: `הגעת למגבלת ${limit} המוצרים. שדרג לתוכנית גבוהה יותר.` });
         let inserted = 0;
         for (const p of toInsert) {
+            // groupId קבוע מ-req.bizAuth — p.groupId אם קיים נדרס ומתעלמים ממנו
             await pool.query(
                 'INSERT INTO store_catalog (group_id, name, description, price, category, sku, product_type) VALUES ($1,$2,$3,$4,$5,$6,$7)',
                 [groupId, (p.name||'').trim(), p.description || '', parseFloat(p.price)||0, p.category || 'כללי', p.sku || '', 'retail']
