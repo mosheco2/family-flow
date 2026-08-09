@@ -6864,6 +6864,21 @@ app.post('/api/admin/adjust-balance', verifyFamily, async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+app.get('/api/admin/audit-log', verifyFamily, async (req, res) => {
+    try {
+        const adminUserId = req.familyAuth.userId;
+        const adminGroupId = req.familyAuth.groupId;
+        const adminCheck = await pool.query('SELECT role FROM users WHERE id=$1 AND group_id=$2', [adminUserId, adminGroupId]);
+        if (!adminCheck.rows.length || adminCheck.rows[0].role !== 'ADMIN') return res.status(403).json({ error: 'נדרשת הרשאת מנהל' });
+        const limit = Math.min(parseInt(req.query.limit) || 20, 100);
+        const rows = await pool.query(
+            `SELECT id, action, performed_by_user_id, group_id, target_user_id, amount, extra_type, reason, created_at FROM family_audit_log WHERE group_id=$1 ORDER BY created_at DESC LIMIT $2`,
+            [adminGroupId, limit]
+        );
+        res.json({ logs: rows.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 app.post('/api/admin/update-settings', async (req, res) => {
     try { const { userId, allowance, interest } = req.body; await pool.query('UPDATE users SET allowance_amount=$1, interest_rate=$2 WHERE id=$3', [parseFloat(allowance)||0, parseFloat(interest)||0, userId]); res.json({success:true}); } 
     catch(e) { res.status(500).json({error: e.message}); }
