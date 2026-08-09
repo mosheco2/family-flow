@@ -8556,10 +8556,16 @@ app.get('/api/store/quotes/:groupId', async (req, res) => {
         res.json({ success: true, quotes: result.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
-app.put('/api/store/quotes/:id', async (req, res) => {
+app.put('/api/store/quotes/:id', verifyBizOrLegacy, async (req, res) => {
     try {
+        const groupId = req.bizAuth.groupId || req.body.groupId;
+        if (!groupId) return res.status(400).json({ error: 'groupId נדרש' });
         const { customerName, customerPhone, items, totalAmount, notes } = req.body;
         const orderId = req.params.id;
+
+        // ownership check — group_id של ה-quote (העסק), לא familyGroupId
+        const own = await pool.query('SELECT id FROM store_orders WHERE id=$1 AND group_id=$2', [orderId, groupId]);
+        if (!own.rows.length) return res.status(404).json({ error: 'הצעה לא נמצאה או אין הרשאה' });
 
         // extract title from metadata item if present
         let quoteTitle = null;
@@ -8963,10 +8969,14 @@ app.patch('/api/store/orders/:id/target-date', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.patch('/api/store/quotes/:id/status', async (req, res) => {
+app.patch('/api/store/quotes/:id/status', verifyBizOrLegacy, async (req, res) => {
     try {
+        const groupId = req.bizAuth.groupId || req.body.groupId;
+        if (!groupId) return res.status(400).json({ error: 'groupId נדרש' });
         const { quoteStatus } = req.body;
-        await pool.query(`UPDATE store_orders SET quote_status=$1 WHERE id=$2 AND status='quote'`, [quoteStatus, req.params.id]);
+        // group_id = בעלות העסק על ה-quote
+        const r = await pool.query(`UPDATE store_orders SET quote_status=$1 WHERE id=$2 AND group_id=$3 AND status='quote' RETURNING id`, [quoteStatus, req.params.id, groupId]);
+        if (!r.rows.length) return res.status(404).json({ error: 'הצעה לא נמצאה או אין הרשאה' });
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -8995,11 +9005,14 @@ app.get('/api/store/orders/my/:userId', async (req, res) => {
     }
 });
 // --- אישור הצעת מחיר והפיכתה להזמנה במקום ---
-app.post('/api/store/quotes/:id/prepare-send', async (req, res) => {
+app.post('/api/store/quotes/:id/prepare-send', verifyBizOrLegacy, async (req, res) => {
     try {
+        const groupId = req.bizAuth.groupId || req.body.groupId;
+        if (!groupId) return res.status(400).json({ error: 'groupId נדרש' });
         const token = require('crypto').randomBytes(24).toString('hex');
-        const r = await pool.query('UPDATE store_orders SET confirm_token=$1 WHERE id=$2 RETURNING id', [token, req.params.id]);
-        if (!r.rows.length) return res.status(404).json({ error: 'הצעה לא נמצאה' });
+        // group_id = בעלות העסק על ה-quote
+        const r = await pool.query('UPDATE store_orders SET confirm_token=$1 WHERE id=$2 AND group_id=$3 RETURNING id', [token, req.params.id, groupId]);
+        if (!r.rows.length) return res.status(404).json({ error: 'הצעה לא נמצאה או אין הרשאה' });
         const baseUrl = process.env.APP_URL || `https://${req.get('host')}`;
         res.json({ confirmUrl: `${baseUrl}/c/q/${req.params.id}/${token}` });
     } catch(e) { res.status(500).json({ error: e.message }); }
@@ -9153,12 +9166,15 @@ app.get('/api/store/lookup-oneflow', async (req, res) => {
 });
 
 // --- שליחת הצעת מחיר ב-OneFlow ללקוח משפחה ---
-app.post('/api/store/quotes/:id/send-to-oneflow', async (req, res) => {
+app.post('/api/store/quotes/:id/send-to-oneflow', verifyBizOrLegacy, async (req, res) => {
     try {
-        const { familyGroupId } = req.body;
+        const bizGroupId = req.bizAuth.groupId || req.body.groupId; // בעלות העסק על ה-quote
+        if (!bizGroupId) return res.status(400).json({ error: 'groupId נדרש' });
+        const { familyGroupId } = req.body; // יעד השליחה ללקוח — שדה עסקי נפרד
         const quoteId = req.params.id;
-        const q = await pool.query('SELECT * FROM store_orders WHERE id=$1', [quoteId]);
-        if (!q.rows.length) return res.status(404).json({ error: 'הצעה לא נמצאה' });
+        // group_id = store_orders.group_id (העסק), לא familyGroupId (המשפחה)
+        const q = await pool.query('SELECT * FROM store_orders WHERE id=$1 AND group_id=$2', [quoteId, bizGroupId]);
+        if (!q.rows.length) return res.status(404).json({ error: 'הצעה לא נמצאה או אין הרשאה' });
         const quote = q.rows[0];
         // קשר ל-family_group_id, עדכון סטטוס, אפס תגובת לקוח קיימת (שליחה מחדש), הוסף אירוע היסטוריה
         const isResend = !!(quote.customer_response_type);
@@ -9194,13 +9210,16 @@ app.post('/api/store/quotes/:id/send-to-oneflow', async (req, res) => {
 });
 
 // --- קישור הצעת מחיר ל-OneFlow ללא שליחה (שלב 1 — בקשת שיוך בלבד) ---
-app.post('/api/store/quotes/:id/link-only', async (req, res) => {
+app.post('/api/store/quotes/:id/link-only', verifyBizOrLegacy, async (req, res) => {
     try {
-        const { familyGroupId } = req.body;
+        const bizGroupId = req.bizAuth.groupId || req.body.groupId; // בעלות העסק על ה-quote
+        if (!bizGroupId) return res.status(400).json({ error: 'groupId נדרש' });
+        const { familyGroupId } = req.body; // יעד הקישור ללקוח — שדה עסקי נפרד
         const quoteId = req.params.id;
         if (!familyGroupId) return res.status(400).json({ error: 'familyGroupId נדרש' });
-        const q = await pool.query('SELECT * FROM store_orders WHERE id=$1', [quoteId]);
-        if (!q.rows.length) return res.status(404).json({ error: 'הצעה לא נמצאה' });
+        // group_id = store_orders.group_id (העסק), לא familyGroupId (המשפחה)
+        const q = await pool.query('SELECT * FROM store_orders WHERE id=$1 AND group_id=$2', [quoteId, bizGroupId]);
+        if (!q.rows.length) return res.status(404).json({ error: 'הצעה לא נמצאה או אין הרשאה' });
         const quote = q.rows[0];
         // עדכן family_group_id על ההצעה (ללא שינוי quote_status)
         await pool.query(`UPDATE store_orders SET family_group_id=$1 WHERE id=$2 AND (family_group_id IS NULL OR family_group_id=$1)`,
@@ -9315,16 +9334,19 @@ app.post('/api/store/quotes/:id/to-work-order', verifyBizOrLegacy, async (req, r
 });
 
 // --- הודעת עסק ללקוח בהצעת מחיר ---
-app.post('/api/store/quotes/:id/business-message', async (req, res) => {
+app.post('/api/store/quotes/:id/business-message', verifyBizOrLegacy, async (req, res) => {
     try {
+        const groupId = req.bizAuth.groupId || req.body.groupId;
+        if (!groupId) return res.status(400).json({ error: 'groupId נדרש' });
         const { text } = req.body;
         if (!text || !text.trim()) return res.status(400).json({ error: 'הודעה ריקה' });
         const histEvent = JSON.stringify({ type: 'business_message', actor: 'business', ts: new Date().toISOString(), text: text.trim() });
+        // group_id = בעלות העסק על ה-quote
         const r = await pool.query(
-            `UPDATE store_orders SET quote_history = COALESCE(quote_history, '[]'::jsonb) || $2::jsonb WHERE id=$1 RETURNING id`,
-            [req.params.id, `[${histEvent}]`]
+            `UPDATE store_orders SET quote_history = COALESCE(quote_history, '[]'::jsonb) || $2::jsonb WHERE id=$1 AND group_id=$3 RETURNING id`,
+            [req.params.id, `[${histEvent}]`, groupId]
         );
-        if (!r.rows.length) return res.status(404).json({ error: 'הצעה לא נמצאה' });
+        if (!r.rows.length) return res.status(404).json({ error: 'הצעה לא נמצאה או אין הרשאה' });
         // התראה ללקוח
         const q = await pool.query('SELECT family_group_id, customer_name, group_id FROM store_orders WHERE id=$1', [req.params.id]);
         if (q.rows.length && q.rows[0].family_group_id) {
