@@ -1942,7 +1942,9 @@ function closeTosModal() { const modal = getEl('tos-modal'); if(modal) modal.cla
 
 function _saveSession(user, group, newToken) {
     const existing = JSON.parse(localStorage.getItem('ofl_session') || '{}');
-    const token = newToken !== undefined ? newToken : (existing.token || null);
+    const token = newToken !== undefined ? newToken
+                : (existing.token || localStorage.getItem('ofl_family_token') || null);
+    if (token) { try { localStorage.setItem('ofl_family_token', token); } catch(e) {} }
     localStorage.setItem('ofl_session', JSON.stringify({ user, group, token }));
 }
 
