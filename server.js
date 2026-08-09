@@ -1,4 +1,5 @@
 require('dotenv').config();
+const bcrypt = require('bcryptjs');
 const { sendWhatsApp, checkAlreadySent } = require('./services/whatsapp');
 const sanitizeHtml = require('sanitize-html');
 
@@ -1890,7 +1891,7 @@ app.post('/api/solo/activate', async (req, res) => {
             `UPDATE family_groups SET account_status='active', solo_temp_password=NULL WHERE id=$1 AND account_status='pending_activation'`,
             [groupId]
         );
-        await pool.query(`UPDATE users SET password_hash=$1, must_change_password=false WHERE id=$2`, [newPassword, userId]);
+        await pool.query(`UPDATE users SET password_hash=$1, must_change_password=false WHERE id=$2`, [await bcrypt.hash(newPassword, 10), userId]);
         // עדכון סטטוס הקישור לעסק לactive
         await pool.query(
             `UPDATE member_business_links SET status='active' WHERE member_group_id=$1 AND status='pending'`,
@@ -4779,21 +4780,26 @@ app.post('/api/superadmin/login', async (req, res) => {
         
         // 1. קודם כל בודקים אם קיים משתמש צוות (RBAC) עם המייל והסיסמה האלו
         const userRes = await pool.query(`
-            SELECT u.id, u.name, u.email, u.status, t.name as team_name, t.permissions 
-            FROM sa_users u 
-            LEFT JOIN sa_teams t ON u.team_id = t.id 
-            WHERE u.email = $1 AND u.password_hash = $2
-        `, [code, password]);
-        
+            SELECT u.id, u.name, u.email, u.status, u.password_hash, t.name as team_name, t.permissions
+            FROM sa_users u
+            LEFT JOIN sa_teams t ON u.team_id = t.id
+            WHERE u.email = $1
+        `, [code]);
+
         if (userRes.rows.length > 0) {
             const user = userRes.rows[0];
-            if (user.status !== 'active') return res.status(403).json({ error: 'החשבון שלך נחסם. פנה למנהל המערכת.' });
-            
-            return res.json({ 
-                success: true, 
-                token: 'SA_SECRET_TOKEN_2026', 
-                user: { id: user.id, name: user.name, email: user.email, team: user.team_name, permissions: user.permissions || [] } 
-            });
+            const storedH = user.password_hash || '';
+            const saPassOk = storedH.startsWith('$2')
+                ? await bcrypt.compare(password, storedH)
+                : password === storedH;
+            if (saPassOk) {
+                if (user.status !== 'active') return res.status(403).json({ error: 'החשבון שלך נחסם. פנה למנהל המערכת.' });
+                return res.json({
+                    success: true,
+                    token: 'SA_SECRET_TOKEN_2026',
+                    user: { id: user.id, name: user.name, email: user.email, team: user.team_name, permissions: user.permissions || [] }
+                });
+            }
         }
 
         // 2. אם לא מצאנו משתמש צוות, נבדוק פרטי מנהל-על מ-system_settings
@@ -4926,8 +4932,8 @@ app.post('/api/sa/staff', verifySA, async (req, res) => {
     try {
         const { name, email, password, teamId } = req.body;
         const result = await pool.query(
-            'INSERT INTO sa_users (name, email, password_hash, team_id) VALUES ($1, $2, $3, $4) RETURNING id, name, email, status', 
-            [name, email, password, teamId || null]
+            'INSERT INTO sa_users (name, email, password_hash, team_id) VALUES ($1, $2, $3, $4) RETURNING id, name, email, status',
+            [name, email, await bcrypt.hash(password, 10), teamId || null]
         );
         res.json({ success: true, user: result.rows[0] });
     } catch(e) { 
@@ -4941,8 +4947,8 @@ app.put('/api/sa/staff/:id', verifySA, async (req, res) => {
         const { name, email, password, teamId, status } = req.body;
         if (password && password.trim() !== '') {
             await pool.query(
-                'UPDATE sa_users SET name=$1, email=$2, password_hash=$3, team_id=$4, status=$5 WHERE id=$6', 
-                [name, email, password, teamId || null, status, req.params.id]
+                'UPDATE sa_users SET name=$1, email=$2, password_hash=$3, team_id=$4, status=$5 WHERE id=$6',
+                [name, email, await bcrypt.hash(password, 10), teamId || null, status, req.params.id]
             );
         } else {
             await pool.query(
@@ -4993,7 +4999,7 @@ app.put('/api/sa/users/:id', verifySA, async (req, res) => {
         const { nickname, password } = req.body;
         let result;
         if (password && password.trim() !== '') {
-            result = await pool.query('UPDATE users SET nickname=$1, password_hash=$2 WHERE id=$3', [nickname, password, req.params.id]);
+            result = await pool.query('UPDATE users SET nickname=$1, password_hash=$2 WHERE id=$3', [nickname, await bcrypt.hash(password, 10), req.params.id]);
         } else {
             result = await pool.query('UPDATE users SET nickname=$1 WHERE id=$2', [nickname, req.params.id]);
         }
@@ -5058,7 +5064,7 @@ app.patch('/api/superadmin/users/:id', verifySA, async (req, res) => {
         if (email !== undefined)    { vals.push(email || null); sets.push(`email=$${vals.length}`); }
         if (role !== undefined)     { vals.push(role); sets.push(`role=$${vals.length}`); }
         if (status !== undefined)   { vals.push(status); sets.push(`status=$${vals.length}`); }
-        if (new_password && new_password.trim()) { vals.push(new_password.trim()); sets.push(`password_hash=$${vals.length}`); }
+        if (new_password && new_password.trim()) { vals.push(await bcrypt.hash(new_password.trim(), 10)); sets.push(`password_hash=$${vals.length}`); }
         if (sets.length === 0) return res.status(400).json({ error: 'no fields to update' });
         vals.push(req.params.id);
         await pool.query(`UPDATE users SET ${sets.join(',')} WHERE id=$${vals.length}`, vals);
@@ -5750,7 +5756,7 @@ app.post('/api/groups', async (req, res) => {
 
         const uRes = await dbClient.query(
             `INSERT INTO users (group_id, nickname, first_name, last_name, birth_year, password_hash, role, status, phone, registration_source) VALUES ($1, $2, $3, $4, $5, $6, 'ADMIN', 'active', $7, $8) RETURNING *`,
-            [group.id, adminNickname, firstName, lastName || null, birthYear, req.body.password, phone, registrationSource]
+            [group.id, adminNickname, firstName, lastName || null, birthYear, await bcrypt.hash(req.body.password, 10), phone, registrationSource]
         );
 
         await dbClient.query(
@@ -5908,7 +5914,7 @@ app.post('/api/join', async (req, res) => {
         const joinEmail = (email || '').trim().toLowerCase() || null;
         await pool.query(
             `INSERT INTO users (group_id, nickname, first_name, last_name, birth_year, password_hash, role, status, phone, email, employee_role_type) VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending', $8, $9, $10)`,
-            [group.id, nickname, firstName || null, lastName || null, bYear, password, reqRole, joinPhone, joinEmail, employee_role_type || null]
+            [group.id, nickname, firstName || null, lastName || null, bYear, await bcrypt.hash(password, 10), reqRole, joinPhone, joinEmail, employee_role_type || null]
         );
         res.json({ success: true });
     } catch (e) { 
@@ -6006,15 +6012,35 @@ app.post('/api/login', async (req, res) => {
         }
 
         const uRes = await pool.query(
-            'SELECT * FROM users WHERE group_id = $1 AND nickname = $2 AND password_hash = $3',
-            [group.id, req.body.nickname, req.body.password]
+            'SELECT * FROM users WHERE group_id = $1 AND nickname = $2',
+            [group.id, req.body.nickname]
         );
 
         if (uRes.rows.length === 0) {
             _recordLoginFailure(clientIP, cleanCode);
             return res.status(401).json({ error: 'כינוי או סיסמה שגויים' });
         }
-        if (uRes.rows[0].status !== 'active') {
+
+        const userRow = uRes.rows[0];
+        const storedHash = userRow.password_hash || '';
+        const inputPass = req.body.password;
+        let passOk = false;
+        if (storedHash.startsWith('$2')) {
+            passOk = await bcrypt.compare(inputPass, storedHash);
+        } else {
+            // legacy plain text — upgrade on success
+            passOk = (inputPass === storedHash);
+            if (passOk) {
+                const newHash = await bcrypt.hash(inputPass, 10);
+                await pool.query('UPDATE users SET password_hash=$1 WHERE id=$2', [newHash, userRow.id]);
+            }
+        }
+        if (!passOk) {
+            _recordLoginFailure(clientIP, cleanCode);
+            return res.status(401).json({ error: 'כינוי או סיסמה שגויים' });
+        }
+
+        if (userRow.status !== 'active') {
             return res.status(403).json({ error: 'חשבון ממתין לאישור מנהל' });
         }
 
@@ -6032,12 +6058,12 @@ app.post('/api/login', async (req, res) => {
 
         // יצירת session token
         const deviceHint = (req.headers['user-agent'] || '').slice(0, 100);
-        const rawToken = await createFamilySession(group.id, uRes.rows[0].id, deviceHint, group.type === 'BUSINESS' ? 'biz' : 'family');
+        const rawToken = await createFamilySession(group.id, userRow.id, deviceHint, group.type === 'BUSINESS' ? 'biz' : 'family');
 
         // מחזירים את אותו מבנה תגובה קיים + שדה token בנוסף
         res.json({
             success: true,
-            user: uRes.rows[0],
+            user: userRow,
             group: { ...group, created_by_business_name: createdByBusinessName },
             token: rawToken
         });
@@ -6855,14 +6881,23 @@ app.put('/api/admin/user-details/:userId', verifyFamily, async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/users/:id/password', async (req, res) => {
+app.post('/api/users/:id/password', verifyFamily, async (req, res) => {
     try {
+        const callerId = req.familyAuth.userId;
+        const targetId = parseInt(req.params.id);
+        if (callerId !== targetId) return res.status(403).json({ error: 'אין הרשאה לשנות סיסמה של משתמש אחר' });
         const { oldPassword, newPassword } = req.body;
-        const u = await pool.query('SELECT password_hash FROM users WHERE id=$1', [req.params.id]);
-        if(u.rows[0].password_hash !== oldPassword) return res.status(401).json({error: 'סיסמה נוכחית שגויה'});
-        await pool.query('UPDATE users SET password_hash=$1 WHERE id=$2', [newPassword, req.params.id]);
-        res.json({success:true});
-    } catch(e) { res.status(500).json({error: e.message}); }
+        if (!newPassword || newPassword.length < 4) return res.status(400).json({ error: 'סיסמה חדשה חייבת להכיל לפחות 4 תווים' });
+        const u = await pool.query('SELECT password_hash FROM users WHERE id=$1', [targetId]);
+        if (!u.rows.length) return res.status(404).json({ error: 'משתמש לא נמצא' });
+        const stored = u.rows[0].password_hash || '';
+        const oldOk = stored.startsWith('$2')
+            ? await bcrypt.compare(oldPassword, stored)
+            : oldPassword === stored;
+        if (!oldOk) return res.status(401).json({ error: 'סיסמה נוכחית שגויה' });
+        await pool.query('UPDATE users SET password_hash=$1 WHERE id=$2', [await bcrypt.hash(newPassword, 10), targetId]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 // First-login password set (for member accounts created by business — no old password required)
@@ -6874,7 +6909,7 @@ app.post('/api/users/:id/set-first-password', async (req, res) => {
         if (!u.rows.length) return res.status(404).json({ error: 'משתמש לא נמצא' });
         if (!u.rows[0].must_change_password) return res.status(403).json({ error: 'לא ניתן לאפס סיסמה בשלב זה' });
         const sets = ['password_hash=$1', 'must_change_password=false'];
-        const vals = [newPassword];
+        const vals = [await bcrypt.hash(newPassword, 10)];
         if (id_number !== undefined && String(id_number).trim() !== '') { vals.push(String(id_number).trim()); sets.push(`id_number=$${vals.length}`); }
         if (email !== undefined && String(email).trim() !== '') { vals.push(String(email).trim().toLowerCase()); sets.push(`email=$${vals.length}`); }
         const by = parseInt(birth_year);
@@ -11968,7 +12003,7 @@ app.post('/api/zone-manager/register', async (req, res) => {
             if (s === 'active') return res.status(400).json({ error: 'כתובת מייל זו כבר רשומה ופעילה במערכת' });
             return res.status(400).json({ error: 'כתובת מייל זו כבר רשומה' });
         }
-        await pool.query(`INSERT INTO zone_managers (name, email, phone, password_hash, status, commission_pct) VALUES ($1,$2,$3,$4,'pending',5)`, [name, email, phone || null, password]);
+        await pool.query(`INSERT INTO zone_managers (name, email, phone, password_hash, status, commission_pct) VALUES ($1,$2,$3,$4,'pending',5)`, [name, email, phone || null, await bcrypt.hash(password, 10)]);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -12007,7 +12042,7 @@ app.post('/api/zone-manager/reset-password', async (req, res) => {
         if (!token || !password || password.length < 6) return res.status(400).json({ error: 'טוקן או סיסמה לא תקינים' });
         const reset = zmPasswordResets.get(token);
         if (!reset || reset.expires < Date.now()) return res.status(400).json({ error: 'הקישור לא תקף או שפג תוקפו — בקש קישור חדש' });
-        await pool.query("UPDATE zone_managers SET password_hash=$1 WHERE id=$2", [password, reset.managerId]);
+        await pool.query("UPDATE zone_managers SET password_hash=$1 WHERE id=$2", [await bcrypt.hash(password, 10), reset.managerId]);
         zmPasswordResets.delete(token);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
@@ -12016,9 +12051,17 @@ app.post('/api/zone-manager/reset-password', async (req, res) => {
 app.post('/api/zone-manager/login', async (req, res) => {
     try {
         const { email, password } = req.body;
-        const result = await pool.query('SELECT * FROM zone_managers WHERE email=$1 AND password_hash=$2 AND status=$3', [email, password, 'active']);
+        const result = await pool.query('SELECT * FROM zone_managers WHERE email=$1 AND status=$2', [email, 'active']);
         if (!result.rows.length) return res.status(401).json({ error: 'פרטי גישה שגויים' });
         const mgr = result.rows[0];
+        const zmHash = mgr.password_hash || '';
+        const zmOk = zmHash.startsWith('$2')
+            ? await bcrypt.compare(password, zmHash)
+            : password === zmHash;
+        if (!zmOk) return res.status(401).json({ error: 'פרטי גישה שגויים' });
+        if (zmOk && !zmHash.startsWith('$2')) {
+            await pool.query('UPDATE zone_managers SET password_hash=$1 WHERE id=$2', [await bcrypt.hash(password, 10), mgr.id]);
+        }
         const token = `ZM_${mgr.id}_${Date.now()}_${Math.random().toString(36).slice(2)}`;
         zoneManagerSessions.set(token, { managerId: mgr.id, name: mgr.name, email: mgr.email });
         res.json({ success: true, token, manager: { id: mgr.id, name: mgr.name, email: mgr.email, commission_pct: mgr.commission_pct } });
@@ -12323,7 +12366,7 @@ app.post('/api/sa/zone-managers', verifySA, async (req, res) => {
         if (!name || !email || !password) return res.status(400).json({ error: 'חסרים שדות חובה' });
         const result = await pool.query(
             `INSERT INTO zone_managers (name, email, phone, password_hash, commission_pct, notes) VALUES ($1,$2,$3,$4,$5,$6) RETURNING id`,
-            [name, email, phone || null, password, commission_pct || 5, notes || null]);
+            [name, email, phone || null, await bcrypt.hash(password, 10), commission_pct || 5, notes || null]);
         res.json({ success: true, id: result.rows[0].id });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -12340,7 +12383,7 @@ app.put('/api/sa/zone-managers/:id', verifySA, async (req, res) => {
         if (commission_pct !== undefined) add('commission_pct', commission_pct);
         if (notes !== undefined) add('notes', notes);
         if (status !== undefined) add('status', status);
-        if (password) add('password_hash', password);
+        if (password) add('password_hash', await bcrypt.hash(password, 10));
         if (!sets.length) return res.json({ success: true });
         vals.push(req.params.id);
         await pool.query(`UPDATE zone_managers SET ${sets.join(',')} WHERE id=$${vals.length}`, vals);
