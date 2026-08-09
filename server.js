@@ -8022,6 +8022,10 @@ app.post('/api/store/catalog', verifyBizOrLegacy, async (req, res) => {
         // token גובר על body — מונע "תקיעת" מוצר לקטלוג של עסק אחר
         const groupId = req.bizAuth.groupId || req.body.groupId;
         if (!groupId) return res.status(400).json({ error: 'groupId נדרש' });
+        if (!req.bizAuth.fromToken) {
+            const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
+            console.log(`[CATALOG_LEGACY] groupId=${groupId} ip=${ip} ts=${new Date().toISOString()}`);
+        }
         const { name, description, price, category, imageUrl, optionsText, badgeText, badgeColor, productType, longDescription, kitchenStation, isComplimentary } = req.body;
 
         const countRes = await pool.query('SELECT COUNT(*) FROM store_catalog WHERE group_id=$1', [groupId]);
