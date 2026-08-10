@@ -29852,6 +29852,155 @@ app.post('/api/menu/public/:slug/request', async (req, res) => {
 
 // ===== END MENU PUBLIC API =====
 
+// ===== MENU QUOTE REQUEST ACTIONS =====
+
+app.patch('/api/menu-quote-requests/:id/status', verifyBizOrLegacy, async (req, res) => {
+    const bizGroupId = req.bizAuth.groupId;
+    if (!bizGroupId) return res.status(401).json({ error: 'נדרש token' });
+
+    const ALLOWED_STATUSES = ['pending', 'viewed', 'closed'];
+    const newStatus = req.body.status;
+    if (!newStatus || !ALLOWED_STATUSES.includes(newStatus))
+        return res.status(400).json({ error: `סטטוס לא תקין. מותר: ${ALLOWED_STATUSES.join(', ')}` });
+
+    try {
+        const own = await pool.query(
+            `SELECT id, status, viewed_at FROM menu_quote_requests WHERE id=$1 AND group_id=$2`,
+            [req.params.id, bizGroupId]
+        );
+        if (!own.rows.length) return res.status(404).json({ error: 'בקשה לא נמצאה' });
+
+        const setViewedAt = newStatus === 'viewed' && own.rows[0].viewed_at === null;
+        const r = await pool.query(
+            `UPDATE menu_quote_requests
+             SET status=$1 ${setViewedAt ? ', viewed_at=NOW()' : ''}
+             WHERE id=$2
+             RETURNING *`,
+            [newStatus, req.params.id]
+        );
+        res.json(r.rows[0]);
+    } catch(e) {
+        console.error('PATCH /menu-quote-requests/:id/status:', e.message);
+        res.status(500).json({ error: 'שגיאת שרת' });
+    }
+});
+
+app.post('/api/menu-quote-requests/:id/convert', verifyBizOrLegacy, async (req, res) => {
+    const bizGroupId = req.bizAuth.groupId;
+    if (!bizGroupId) return res.status(401).json({ error: 'נדרש token' });
+
+    try {
+        const mqrRes = await pool.query(`
+            SELECT mqr.*, mt.base_price_per_person, mt.name AS template_name
+            FROM menu_quote_requests mqr
+            JOIN menu_templates mt ON mt.id = mqr.template_id
+            WHERE mqr.id=$1 AND mqr.group_id=$2
+        `, [req.params.id, bizGroupId]);
+
+        if (!mqrRes.rows.length) return res.status(404).json({ error: 'בקשה לא נמצאה' });
+        const mqr = mqrRes.rows[0];
+
+        if (mqr.status === 'converted') {
+            const reqNum = 'HG-' + String(mqr.id).padStart(4, '0');
+            return res.status(400).json({
+                error: `כבר הומר להצעה מספר ${reqNum} (הזמנה #${mqr.linked_order_id})`
+            });
+        }
+
+        // בניית items[] מה-selections
+        const selections = mqr.selections || {};
+        const allItemIds = Object.values(selections).flat().map(Number).filter(Boolean);
+
+        let itemsList = [];
+        if (allItemIds.length) {
+            const itemsRes = await pool.query(`
+                SELECT mi.id, mi.name, mi.custom_price, mi.catalog_item_id,
+                       sc.name AS cat_name, sc.price AS cat_price
+                FROM menu_items mi
+                LEFT JOIN store_catalog sc ON sc.id = mi.catalog_item_id
+                WHERE mi.id=ANY($1)
+            `, [allItemIds]);
+
+            const itemMap = {};
+            itemsRes.rows.forEach(r => { itemMap[r.id] = r; });
+
+            for (const [, ids] of Object.entries(selections)) {
+                for (const itemId of ids) {
+                    const mi = itemMap[Number(itemId)];
+                    if (!mi) continue;
+                    const name = mi.cat_name || mi.name;
+                    const price = mi.custom_price != null ? parseFloat(mi.custom_price)
+                                : mi.cat_price != null   ? parseFloat(mi.cat_price) : 0;
+                    itemsList.push({ name, quantity: 1, price, row_total: price, item_type: 'selection' });
+                }
+            }
+        }
+
+        // שורת מחיר בסיס
+        const basePPP = parseFloat(mqr.base_price_per_person) || 0;
+        const guestCount = mqr.guest_count || 0;
+        if (basePPP > 0 && guestCount > 0) {
+            const rowTotal = basePPP * guestCount;
+            itemsList.unshift({
+                name: `מחיר בסיס לאורח × ${guestCount}`,
+                quantity: guestCount,
+                price: basePPP,
+                row_total: rowTotal,
+                item_type: 'base_price'
+            });
+        }
+
+        const totalAmount = itemsList.reduce((s, i) => s + i.row_total, 0);
+
+        // טרנזקציה אטומית
+        const txClient = await pool.connect();
+        try {
+            await txClient.query('BEGIN');
+
+            const orderRes = await txClient.query(`
+                INSERT INTO store_orders
+                  (group_id, customer_name, customer_phone, total_amount,
+                   items, notes, status, order_source)
+                VALUES ($1,$2,$3,$4,$5,$6,'new','menu_request')
+                RETURNING id
+            `, [
+                bizGroupId,
+                mqr.customer_name,
+                mqr.customer_phone,
+                totalAmount,
+                JSON.stringify(itemsList),
+                mqr.custom_notes || null
+            ]);
+
+            const orderId = orderRes.rows[0].id;
+
+            await txClient.query(`
+                UPDATE menu_quote_requests
+                SET status='converted', linked_order_id=$1
+                WHERE id=$2
+            `, [orderId, req.params.id]);
+
+            await txClient.query('COMMIT');
+
+            res.json({
+                orderId,
+                quoteId: parseInt(req.params.id),
+                request_number: 'HG-' + String(req.params.id).padStart(4, '0')
+            });
+        } catch(e) {
+            await txClient.query('ROLLBACK').catch(() => {});
+            throw e;
+        } finally {
+            txClient.release();
+        }
+    } catch(e) {
+        console.error('POST /menu-quote-requests/:id/convert:', e.message);
+        res.status(500).json({ error: 'שגיאת שרת' });
+    }
+});
+
+// ===== END MENU QUOTE REQUEST ACTIONS =====
+
 // ===== END MENU TEMPLATES API =====
 
 // ── verifyBizOrLegacy middleware ───────────────────────────────
