@@ -245,6 +245,7 @@ async function renderLanding() {
 
     document.getElementById('app').innerHTML = `
       ${heroHtml()}
+      ${backBarHtml()}
       <div class="wiz-body" style="padding-bottom:60px">
         ${hasSections ? `
         <h2 class="step-title" style="margin-bottom:6px">התפריט שלנו</h2>
@@ -828,8 +829,67 @@ function buildFullPdfSource() {
 }
 
 function exportMenuPDF() {
-    buildFullPdfSource();
+    if (_mode === 'catalog' && _catItems.length) {
+        buildCatalogPdfSource();
+    } else {
+        buildFullPdfSource();
+    }
     window.print();
+}
+
+function buildCatalogPdfSource() {
+    const cats = [...new Set(_catItems.map(i => i.category).filter(Boolean))];
+    const grouped = cats.length
+        ? cats.map(cat => ({ name: cat, items: _catItems.filter(i => i.category === cat) }))
+        : [{ name: null, items: _catItems }];
+
+    const sectionsHtml = grouped.map(g => {
+        const itemCards = g.items.map(item => `
+          <div style="background:#fff;border:1.5px solid #E5DCCB;border-radius:8px;padding:12px 14px;display:flex;align-items:flex-start;gap:12px;margin-bottom:8px;page-break-inside:avoid">
+            <div style="flex:1;min-width:0">
+              <div style="font-size:13.5px;font-weight:500;color:#241E19;margin-bottom:2px">${esc(item.name)}</div>
+              ${item.description ? `<div style="font-size:12px;color:#5C5148;line-height:1.5;margin-top:2px">${esc(item.description)}</div>` : ''}
+              ${item.price > 0 ? `<div style="font-size:12.5px;color:#6B2434;font-weight:600;margin-top:6px">₪${num(item.price)}</div>` : ''}
+            </div>
+            ${item.image_url ? `<img src="${esc(item.image_url)}" style="width:56px;height:56px;object-fit:cover;border-radius:6px;flex-shrink:0;border:1px solid #E5DCCB">` : ''}
+          </div>`).join('');
+        return `
+          <div style="margin-bottom:28px;page-break-inside:avoid">
+            ${g.name ? `<div style="font-size:10px;font-weight:700;color:#6B2434;letter-spacing:.2em;text-transform:uppercase;padding-bottom:8px;border-bottom:1.5px solid #6B2434;margin-bottom:10px">${esc(g.name)}</div>` : ''}
+            ${itemCards}
+          </div>`;
+    }).join('');
+
+    const metaParts = [];
+    if (_d.min_guests && _d.max_guests) metaParts.push(`אורחים: <strong style="color:#FBF7EF">${_d.min_guests}–${_d.max_guests}</strong>`);
+
+    const heroInner = `
+      <div style="position:relative;min-height:200px;background:#241E19;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end;margin:-20px -20px 28px;page-break-inside:avoid">
+        ${_d.cover_image_url ? `<img src="${esc(_d.cover_image_url)}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.38">` : ''}
+        <div style="position:relative;padding:28px 24px 22px;display:flex;align-items:flex-end;gap:16px">
+          ${_d.logo_url ? `<img src="${esc(_d.logo_url)}" style="width:60px;height:60px;border-radius:6px;object-fit:cover;border:2px solid rgba(255,255,255,.18);flex-shrink:0">` : ''}
+          <div style="flex:1;min-width:0">
+            <div style="font-size:9px;letter-spacing:.3em;color:#6B2434;text-transform:uppercase;margin-bottom:6px">קטלוג מנות</div>
+            <div style="font-size:28px;font-weight:500;color:#FBF7EF;line-height:1.2;margin-bottom:5px">${esc(_d.name)}</div>
+            ${_d.slogan ? `<div style="font-size:13px;font-weight:300;color:#C8BFB0">${esc(_d.slogan)}</div>` : ''}
+            ${metaParts.length ? `<div style="display:flex;gap:18px;font-size:12px;color:#C8BFB0;margin-top:8px">${metaParts.join('')}</div>` : ''}
+          </div>
+        </div>
+      </div>`;
+
+    const contactBar = (_d.contact_phone||_d.contact_address) ? `
+      <div style="margin-top:28px;padding-top:12px;border-top:1px solid #E5DCCB;font-size:11px;color:#9C8C71;display:flex;gap:18px;flex-wrap:wrap">
+        ${_d.contact_phone ? `<span>📞 ${esc(_d.contact_phone)}</span>` : ''}
+        ${_d.contact_address ? `<span>📍 ${esc(_d.contact_address)}</span>` : ''}
+      </div>` : '';
+
+    buildPrintTarget(`
+      <div style="font-family:system-ui,sans-serif;direction:rtl;background:#FBF7EF;padding:20px;min-height:100vh">
+        ${heroInner}
+        ${sectionsHtml}
+        ${contactBar}
+      </div>
+    `);
 }
 
 function exportAndShareWa() {
