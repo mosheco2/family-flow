@@ -52771,10 +52771,11 @@ function _mtRenderList(root) {
         const price = t.base_price_per_person ? `₪${Number(t.base_price_per_person).toLocaleString('he-IL')} לאיש` : '';
         const guests = (t.min_guests || t.max_guests) ? `${t.min_guests || ''}–${t.max_guests || ''} אורחים` : '';
         const btnData = [
-            [`_mtOpenEditor(${t.id})`,           'fa-pen',       '#6366f1', 'ערוך'],
-            [`_mtDuplicate(${t.id})`,             'fa-copy',      '#94a3b8', 'שכפל'],
-            [`_mtCopyLink('${_mtEsc(t.public_slug)}')`, 'fa-link', '#94a3b8', 'קישור'],
-            [`_mtPreview('${_mtEsc(t.public_slug)}')`,  'fa-eye',  '#94a3b8', 'תצוגה'],
+            [`_mtOpenEditor(${t.id})`,           'fa-pen',            '#6366f1', 'ערוך'],
+            [`_mtDuplicate(${t.id})`,             'fa-copy',           '#94a3b8', 'שכפל'],
+            [`_mtCopyLink('${_mtEsc(t.public_slug)}')`, 'fa-link',    '#94a3b8', 'קישור'],
+            [`_mtPreview('${_mtEsc(t.public_slug)}')`,  'fa-eye',     '#94a3b8', 'תצוגה'],
+            [`_mtExportPDF('${_mtEsc(t.public_slug)}','${_mtEsc(t.name)}')`, 'fa-file-pdf', '#dc2626', 'PDF'],
             [`_mtDeleteConfirm(${t.id},'${_mtEsc(t.name)}')`, 'fa-trash-can', '#ef4444', 'מחק'],
         ];
         return `
@@ -52799,7 +52800,7 @@ function _mtRenderList(root) {
                     ${t.item_count ? `<span style="background:#f1f5f9;color:#475569;font-size:11px;padding:2px 7px;border-radius:4px">${t.item_count} פריטים</span>` : ''}
                 </div>
             </div>
-            <div style="padding:9px 11px;border-top:1px solid #f1f5f9;display:grid;grid-template-columns:repeat(5,1fr);gap:5px">
+            <div style="padding:9px 11px;border-top:1px solid #f1f5f9;display:grid;grid-template-columns:repeat(6,1fr);gap:5px">
                 ${btnData.map(([fn, icon, color, label]) => `
                 <button onclick="${fn}" style="padding:7px 4px;border:1px solid #e2e8f0;border-radius:6px;background:#fff;font-size:11px;color:${color};cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;min-height:38px" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='#fff'">
                     <i class="fa-regular ${icon}" style="font-size:11px"></i>${label}
@@ -53352,6 +53353,15 @@ window._mtDelItem = async function(itemId, sectionId) {
 };
 
 // ======= LIST ACTIONS =======
+window._mtExportPDF = function(slug, name) {
+    if (!slug) { showToast('error', 'יש לפרסם את התפריט תחילה (הגדר כציבורי ושמור)'); return; }
+    showToast('info', 'מכין PDF...');
+    const url = `/menu/${slug}?pdf=1`;
+    const w = window.open(url, '_blank', 'width=900,height=700');
+    if (!w) { showToast('error', 'חסום חלון קופץ — אפשר זאת בדפדפן ונסה שוב'); return; }
+    // הדף עצמו יזהה ?pdf=1 ויציג כפתור הדפסה ישירות
+};
+
 window._mtCopyLink = function(slug) {
     if (!slug) { _mtToast('אין קישור ציבורי', 'err'); return; }
     const url = `${location.origin}/menu/${slug}`;
