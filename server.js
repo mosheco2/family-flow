@@ -29304,6 +29304,130 @@ app.get('/api/menu-quote-requests', verifyBizOrLegacy, async (req, res) => {
     }
 });
 
+// ===== MENU TEMPLATES WRITE API =====
+
+function _menuSlug(name) {
+    const base = (name || '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '')
+        .slice(0, 20) || 'menu';
+    const suffix = require('crypto').randomBytes(3).toString('hex');
+    return `${base}-${suffix}`;
+}
+
+app.post('/api/menu-templates', verifyBizOrLegacy, async (req, res) => {
+    const bizGroupId = req.bizAuth.groupId;
+    if (!bizGroupId) return res.status(401).json({ error: 'נדרש token' });
+
+    const name = (req.body.name || '').trim();
+    if (!name) return res.status(400).json({ error: 'שם התבנית נדרש' });
+
+    const minG = req.body.min_guests !== undefined ? parseInt(req.body.min_guests) : null;
+    const maxG = req.body.max_guests !== undefined ? parseInt(req.body.max_guests) : null;
+    if (minG !== null && (isNaN(minG) || minG < 1))
+        return res.status(400).json({ error: 'min_guests חייב להיות מספר חיובי' });
+    if (maxG !== null && (isNaN(maxG) || maxG < 1))
+        return res.status(400).json({ error: 'max_guests חייב להיות מספר חיובי' });
+    if (minG !== null && maxG !== null && maxG < minG)
+        return res.status(400).json({ error: 'max_guests חייב להיות גדול מ-min_guests' });
+
+    const basePrice = req.body.base_price_per_person !== undefined
+        ? parseFloat(req.body.base_price_per_person) : 0;
+    if (isNaN(basePrice) || basePrice < 0)
+        return res.status(400).json({ error: 'base_price_per_person חייב להיות מספר אי-שלילי' });
+
+    try {
+        let slug, attempts = 0;
+        while (attempts < 5) {
+            slug = _menuSlug(name);
+            const exists = await pool.query(
+                'SELECT id FROM menu_templates WHERE public_slug=$1', [slug]
+            );
+            if (!exists.rows.length) break;
+            attempts++;
+            if (attempts === 5) return res.status(500).json({ error: 'שגיאת שרת — נסה שנית' });
+        }
+
+        const r = await pool.query(`
+            INSERT INTO menu_templates
+              (group_id, template_type, name, description, event_type,
+               min_guests, max_guests, base_price_per_person,
+               is_active, is_public, public_slug)
+            VALUES ($1,'menu',$2,$3,$4,$5,$6,$7,$8,$9,$10)
+            RETURNING *
+        `, [
+            bizGroupId, name,
+            req.body.description || null,
+            req.body.event_type || null,
+            minG, maxG, basePrice,
+            req.body.is_active !== undefined ? req.body.is_active : true,
+            req.body.is_public !== undefined ? req.body.is_public : false,
+            slug
+        ]);
+        res.status(201).json(r.rows[0]);
+    } catch(e) {
+        console.error('/api/menu-templates POST:', e.message);
+        res.status(500).json({ error: 'שגיאת שרת' });
+    }
+});
+
+app.put('/api/menu-templates/:id', verifyBizOrLegacy, async (req, res) => {
+    const bizGroupId = req.bizAuth.groupId;
+    if (!bizGroupId) return res.status(401).json({ error: 'נדרש token' });
+
+    try {
+        const own = await pool.query(
+            `SELECT id FROM menu_templates WHERE id=$1 AND group_id=$2 AND template_type='menu'`,
+            [req.params.id, bizGroupId]
+        );
+        if (!own.rows.length) return res.status(404).json({ error: 'תבנית לא נמצאה' });
+
+        // ולידציית min/max מול ערכים קיימים ב-DB
+        if (req.body.min_guests !== undefined || req.body.max_guests !== undefined) {
+            const cur = await pool.query(
+                'SELECT min_guests, max_guests FROM menu_templates WHERE id=$1', [req.params.id]
+            );
+            const effectiveMin = req.body.min_guests !== undefined
+                ? parseInt(req.body.min_guests) : (cur.rows[0].min_guests ?? 1);
+            const effectiveMax = req.body.max_guests !== undefined
+                ? parseInt(req.body.max_guests) : cur.rows[0].max_guests;
+            if (effectiveMin !== null && !isNaN(effectiveMin) && effectiveMin < 1)
+                return res.status(400).json({ error: 'min_guests חייב להיות מספר חיובי' });
+            if (effectiveMax !== null && !isNaN(effectiveMax) && effectiveMax < 1)
+                return res.status(400).json({ error: 'max_guests חייב להיות מספר חיובי' });
+            if (effectiveMax !== null && effectiveMin !== null &&
+                !isNaN(effectiveMax) && !isNaN(effectiveMin) && effectiveMax < effectiveMin)
+                return res.status(400).json({ error: 'max_guests חייב להיות גדול מ-min_guests' });
+        }
+
+        const allowed = ['name','description','event_type','min_guests',
+                         'max_guests','base_price_per_person','is_active','is_public'];
+        const sets = [], vals = [];
+        for (const f of allowed) {
+            if (req.body[f] !== undefined) {
+                vals.push(req.body[f]);
+                sets.push(`${f}=$${vals.length}`);
+            }
+        }
+        if (!sets.length) return res.status(400).json({ error: 'לא נשלחו שדות לעדכון' });
+
+        sets.push(`updated_at=NOW()`);
+        vals.push(req.params.id, bizGroupId);
+        const r = await pool.query(
+            `UPDATE menu_templates SET ${sets.join(',')}
+             WHERE id=$${vals.length - 1} AND group_id=$${vals.length}
+             RETURNING *`,
+            vals
+        );
+        res.json(r.rows[0]);
+    } catch(e) {
+        console.error('/api/menu-templates/:id PUT:', e.message);
+        res.status(500).json({ error: 'שגיאת שרת' });
+    }
+});
+
+// ===== END MENU TEMPLATES WRITE API =====
+
 // ===== END MENU TEMPLATES API =====
 
 // ── verifyBizOrLegacy middleware ───────────────────────────────
