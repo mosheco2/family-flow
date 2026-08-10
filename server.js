@@ -29241,7 +29241,7 @@ async function verifyBiz(req, res, next) {
 
 app.get('/api/menu-templates', verifyBizOrLegacy, async (req, res) => {
     const bizGroupId = req.bizAuth.groupId;
-    if (!bizGroupId) return res.status(400).json({ error: 'groupId נדרש' });
+    if (!bizGroupId) return res.status(401).json({ error: 'נדרש token' });
     try {
         const r = await pool.query(`
             SELECT mt.*,
@@ -29263,7 +29263,7 @@ app.get('/api/menu-templates', verifyBizOrLegacy, async (req, res) => {
 
 app.get('/api/menu-templates/:id', verifyBizOrLegacy, async (req, res) => {
     const bizGroupId = req.bizAuth.groupId;
-    if (!bizGroupId) return res.status(400).json({ error: 'groupId נדרש' });
+    if (!bizGroupId) return res.status(401).json({ error: 'נדרש token' });
     try {
         const tmpl = await pool.query(
             `SELECT * FROM menu_templates WHERE id=$1 AND group_id=$2 AND template_type='menu'`,
@@ -29288,7 +29288,7 @@ app.get('/api/menu-templates/:id', verifyBizOrLegacy, async (req, res) => {
 
 app.get('/api/menu-quote-requests', verifyBizOrLegacy, async (req, res) => {
     const bizGroupId = req.bizAuth.groupId;
-    if (!bizGroupId) return res.status(400).json({ error: 'groupId נדרש' });
+    if (!bizGroupId) return res.status(401).json({ error: 'נדרש token' });
     try {
         const r = await pool.query(`
             SELECT mqr.*, mt.name AS template_name
