@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>תפריט</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@400;500;700&family=Assistant:wght@300;400;500;600&display=swap');
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:       #FBF7EF;
+  --surface:  #FFFFFF;
+  --border:   #E5DCCB;
+  --ink:      #241E19;
+  --ink2:     #5C5148;
+  --ink3:     #9C8C71;
+  --accent:   #6B2434;
+  --accent2:  #4E1926;
+  --sand:     #E7DFD0;
+}
+
+html { background: var(--sand); }
+
+body {
+  font-family: 'Assistant', Helvetica, sans-serif;
+  color: var(--ink);
+  background: var(--sand);
+  min-height: 100vh;
+}
+
+/* ── header ── */
+.page-header {
+  background: var(--ink);
+  color: #FBF7EF;
+  padding: clamp(28px, 5vw, 52px) clamp(20px, 6vw, 80px);
+}
+
+.page-header .eyebrow {
+  font-size: 10.5px;
+  letter-spacing: .28em;
+  color: var(--accent);
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+
+.page-header h1 {
+  font-family: 'Frank Ruhl Libre', serif;
+  font-size: clamp(28px, 5vw, 48px);
+  font-weight: 500;
+  line-height: 1.2;
+  margin-bottom: 14px;
+}
+
+.page-header .meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 22px;
+  font-size: 13.5px;
+  font-weight: 300;
+  color: #C8BFB0;
+}
+
+.page-header .meta strong {
+  color: #FBF7EF;
+  font-weight: 500;
+}
+
+/* ── description ── */
+.desc-bar {
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  padding: 18px clamp(20px, 6vw, 80px);
+  font-size: 14px;
+  font-weight: 300;
+  color: var(--ink2);
+  line-height: 1.7;
+}
+
+/* ── main ── */
+.page-body {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: clamp(28px, 5vw, 52px) clamp(16px, 4vw, 40px) 80px;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* ── section ── */
+.menu-section {
+  border-bottom: 1px solid var(--border);
+  padding: 32px 0;
+}
+.menu-section:last-child { border-bottom: none; }
+
+.section-head {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.section-head h2 {
+  font-family: 'Frank Ruhl Libre', serif;
+  font-size: clamp(17px, 2.5vw, 22px);
+  font-weight: 500;
+}
+
+.section-badge {
+  font-size: 10px;
+  letter-spacing: .18em;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  padding: 2px 8px;
+  border-radius: 3px;
+}
+
+.section-desc {
+  font-size: 13px;
+  font-weight: 300;
+  color: var(--ink3);
+  margin-bottom: 18px;
+  line-height: 1.7;
+}
+
+/* ── items grid ── */
+.items-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr));
+  gap: 1px;
+  border: 1px solid var(--border);
+  background: var(--border);
+}
+
+.item-card {
+  background: var(--surface);
+  padding: 16px 18px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.item-info { flex: 1; min-width: 0; }
+
+.item-name {
+  font-size: 14.5px;
+  font-weight: 500;
+  color: var(--ink);
+  margin-bottom: 3px;
+}
+
+.item-desc {
+  font-size: 12.5px;
+  font-weight: 300;
+  color: var(--ink3);
+  line-height: 1.55;
+}
+
+.item-allergens {
+  font-size: 11px;
+  color: var(--ink3);
+  margin-top: 5px;
+  font-weight: 300;
+}
+
+.item-price {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent);
+  white-space: nowrap;
+  padding-top: 2px;
+  font-variant-numeric: tabular-nums;
+}
+
+.item-included {
+  font-size: 11px;
+  color: var(--ink3);
+  font-weight: 300;
+}
+
+/* ── states ── */
+.state-center {
+  min-height: 40vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: var(--ink3);
+  font-size: 15px;
+  font-weight: 300;
+}
+
+.spinner {
+  width: 32px; height: 32px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin .8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── footer ── */
+.page-footer {
+  text-align: center;
+  padding: 28px 20px;
+  font-size: 12px;
+  color: var(--ink3);
+  font-weight: 300;
+  border-top: 1px solid var(--border);
+  background: var(--bg);
+}
+</style>
+</head>
+<body>
+
+<div id="app">
+  <div class="state-center"><div class="spinner"></div><span>טוען תפריט…</span></div>
+</div>
+
+<script>
+(async () => {
+  const slug = location.pathname.replace(/^\/menu\//, '').trim();
+  if (!slug) { renderError('כתובת תפריט לא תקינה'); return; }
+
+  let data;
+  try {
+    const res = await fetch('/api/menu/public/' + encodeURIComponent(slug));
+    if (res.status === 404) { renderError('התפריט לא נמצא או אינו זמין לצפייה'); return; }
+    if (!res.ok) { renderError('שגיאה בטעינת התפריט'); return; }
+    data = await res.json();
+  } catch(e) {
+    renderError('שגיאת תקשורת — נסה לרענן את העמוד');
+    return;
+  }
+
+  document.title = data.name + ' — תפריט';
+  renderMenu(data);
+})();
+
+function renderMenu(d) {
+  const eventLabels = {
+    wedding:'חתונה', bar_mitzvah:'בר/בת מצווה', birthday:'יום הולדת',
+    corporate:'אירוע עסקי', other:'אירוע'
+  };
+  const evLabel = eventLabels[d.event_type] || d.event_type || '';
+
+  const metaParts = [];
+  if (evLabel) metaParts.push(`סוג אירוע: <strong>${evLabel}</strong>`);
+  if (d.base_price_per_person) metaParts.push(`מחיר לאיש: <strong>₪${Number(d.base_price_per_person).toLocaleString('he')}</strong>`);
+  const guests = [d.min_guests, d.max_guests].filter(Boolean);
+  if (guests.length === 2) metaParts.push(`אורחים: <strong>${guests[0]}–${guests[1]}</strong>`);
+  else if (guests.length === 1) metaParts.push(`מינימום אורחים: <strong>${guests[0]}</strong>`);
+
+  const sections = (d.sections || []).map(sec => {
+    const items = (sec.items || []).filter(i => i.is_available !== false);
+    if (!items.length) return '';
+
+    const badges = [];
+    if (sec.is_required) badges.push('<span class="section-badge">חובה</span>');
+    if (sec.min_choices && sec.max_choices && sec.min_choices !== sec.max_choices)
+      badges.push(`<span class="section-badge">בחירת ${sec.min_choices}–${sec.max_choices}</span>`);
+    else if (sec.max_choices === 1)
+      badges.push('<span class="section-badge">בחירה אחת</span>');
+
+    const itemsHtml = items.map(item => {
+      const priceHtml = item.price > 0
+        ? `<div class="item-price">+₪${Number(item.price).toLocaleString('he')}</div>`
+        : `<div class="item-included">כלול</div>`;
+
+      return `
+        <div class="item-card">
+          <div class="item-info">
+            <div class="item-name">${esc(item.name)}</div>
+            ${item.description ? `<div class="item-desc">${esc(item.description)}</div>` : ''}
+            ${item.allergens ? `<div class="item-allergens">אלרגנים: ${esc(item.allergens)}</div>` : ''}
+          </div>
+          ${priceHtml}
+        </div>`;
+    }).join('');
+
+    return `
+      <div class="menu-section">
+        <div class="section-head">
+          <h2>${esc(sec.name)}</h2>
+          ${badges.join('')}
+        </div>
+        ${sec.description ? `<div class="section-desc">${esc(sec.description)}</div>` : ''}
+        <div class="items-grid">${itemsHtml}</div>
+      </div>`;
+  }).join('');
+
+  document.getElementById('app').innerHTML = `
+    <header class="page-header">
+      ${evLabel ? `<div class="eyebrow">${evLabel}</div>` : ''}
+      <h1>${esc(d.name)}</h1>
+      ${metaParts.length ? `<div class="meta">${metaParts.join('<span style="color:#4E3E30">·</span>')}</div>` : ''}
+    </header>
+    ${d.description ? `<div class="desc-bar">${esc(d.description)}</div>` : ''}
+    <main class="page-body">${sections || '<div class="state-center"><span>אין פריטים להצגה</span></div>'}</main>
+    <footer class="page-footer">powered by OneFlow Life</footer>`;
+}
+
+function renderError(msg) {
+  document.getElementById('app').innerHTML =
+    `<div class="state-center"><span style="font-size:32px">🍽️</span><span>${msg}</span></div>`;
+}
+
+function esc(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+</body>
+</html>

@@ -32248,3 +32248,8 @@ app.delete('/api/kol-haam/collections/:id/items/:content_item_id', verifyFamily,
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+
+// ── תצוגת תפריט ציבורי ────────────────────────────────────────
+app.get('/menu/:slug', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'menu.html'));
+});
