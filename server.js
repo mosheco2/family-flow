@@ -29668,6 +29668,190 @@ app.delete('/api/menu-items/:id', verifyBizOrLegacy, async (req, res) => {
 
 // ===== END MENU SECTIONS & ITEMS API =====
 
+// ===== MENU PUBLIC API =====
+
+const _menuPublicRateMap = new Map();
+setInterval(() => {
+    const now = Date.now();
+    for (const [k, v] of _menuPublicRateMap) {
+        if (now - v.windowStart > 3600 * 1000) _menuPublicRateMap.delete(k);
+    }
+}, 3600 * 1000);
+
+function _checkMenuPublicRate(ip) {
+    const now = Date.now();
+    let entry = _menuPublicRateMap.get(ip);
+    if (!entry || now - entry.windowStart > 3600 * 1000) {
+        entry = { count: 0, windowStart: now };
+    }
+    if (entry.count >= 5) {
+        const secsLeft = Math.ceil((3600 * 1000 - (now - entry.windowStart)) / 1000);
+        return { blocked: true, secsLeft };
+    }
+    entry.count++;
+    _menuPublicRateMap.set(ip, entry);
+    return { blocked: false };
+}
+
+function _sanitizePlainText(text) {
+    if (!text || typeof text !== 'string') return null;
+    return sanitizeHtml(text, { allowedTags: [], allowedAttributes: {} }).trim() || null;
+}
+
+app.get('/api/menu/public/:slug', async (req, res) => {
+    try {
+        const tmplRes = await pool.query(
+            `SELECT id,name,description,event_type,min_guests,max_guests,
+                    base_price_per_person,group_id
+             FROM menu_templates
+             WHERE public_slug=$1 AND is_active=true AND is_public=true AND template_type='menu'`,
+            [req.params.slug]
+        );
+        if (!tmplRes.rows.length) return res.status(404).json({ error: 'תבנית לא נמצאה' });
+
+        const tmpl = tmplRes.rows[0];
+        const sectionsRes = await pool.query(`
+            SELECT ms.*,
+                   COALESCE(json_agg(mi.* ORDER BY mi.sort_order) FILTER (WHERE mi.id IS NOT NULL), '[]') AS items
+            FROM menu_sections ms
+            LEFT JOIN menu_items mi ON mi.section_id = ms.id
+            WHERE ms.template_id=$1
+            GROUP BY ms.id
+            ORDER BY ms.sort_order
+        `, [tmpl.id]);
+
+        // reference חי מ-store_catalog לכל item עם catalog_item_id
+        const catalogIds = [];
+        sectionsRes.rows.forEach(s => s.items.forEach(i => { if (i.catalog_item_id) catalogIds.push(i.catalog_item_id); }));
+        let catMap = {};
+        if (catalogIds.length) {
+            const catRes = await pool.query(
+                'SELECT id,name,price FROM store_catalog WHERE id=ANY($1)', [catalogIds]
+            );
+            catRes.rows.forEach(r => { catMap[r.id] = r; });
+        }
+
+        const sections = sectionsRes.rows.map(s => ({
+            id: s.id, name: s.name, description: s.description,
+            min_choices: s.min_choices, max_choices: s.max_choices,
+            is_required: s.is_required, sort_order: s.sort_order,
+            price_modifier: s.price_modifier,
+            items: s.items.map(i => ({
+                id: i.id, name: i.catalog_item_id && catMap[i.catalog_item_id] ? catMap[i.catalog_item_id].name : i.name,
+                description: i.description,
+                price: i.custom_price != null ? i.custom_price : (catMap[i.catalog_item_id]?.price ?? null),
+                image_url: i.image_url, allergens: i.allergens,
+                is_available: i.is_available, sort_order: i.sort_order,
+                catalog_item_id: i.catalog_item_id
+            }))
+        }));
+
+        const { group_id, ...tmplPublic } = tmpl;
+        res.json({ ...tmplPublic, sections });
+    } catch(e) {
+        console.error('GET /api/menu/public/:slug:', e.message);
+        res.status(500).json({ error: 'שגיאת שרת' });
+    }
+});
+
+app.post('/api/menu/public/:slug/request', async (req, res) => {
+    const clientIP = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown').split(',')[0].trim();
+    const rateCheck = _checkMenuPublicRate(clientIP);
+    if (rateCheck.blocked) return res.status(429).json({ error: `יותר מדי בקשות. נסה שנית בעוד ${rateCheck.secsLeft} שניות.` });
+
+    try {
+        const tmplRes = await pool.query(
+            `SELECT id,group_id,min_guests,max_guests FROM menu_templates
+             WHERE public_slug=$1 AND is_active=true AND is_public=true AND template_type='menu'`,
+            [req.params.slug]
+        );
+        if (!tmplRes.rows.length) return res.status(404).json({ error: 'תבנית לא נמצאה' });
+        const tmpl = tmplRes.rows[0];
+
+        // ולידציה בסיסית
+        const customerName = _sanitizePlainText(req.body.customer_name);
+        if (!customerName) return res.status(400).json({ error: 'שם הלקוח נדרש' });
+
+        const customerPhone = (req.body.customer_phone || '').trim();
+        if (!customerPhone || customerPhone.length < 7 || customerPhone.length > 15 || !/^[0-9+\-() ]+$/.test(customerPhone))
+            return res.status(400).json({ error: 'מספר טלפון לא תקין' });
+
+        if (req.body.event_date) {
+            const todayIL = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jerusalem' });
+            const inputDate = new Date(req.body.event_date).toISOString().slice(0, 10);
+            if (inputDate < todayIL) return res.status(400).json({ error: 'תאריך האירוע לא יכול להיות בעבר' });
+        }
+
+        if (req.body.guest_count !== undefined) {
+            const gc = parseInt(req.body.guest_count);
+            if (isNaN(gc) || gc < 1) return res.status(400).json({ error: 'מספר אורחים לא תקין' });
+            if (tmpl.min_guests && gc < tmpl.min_guests) return res.status(400).json({ error: `מינימום אורחים: ${tmpl.min_guests}` });
+            if (tmpl.max_guests && gc > tmpl.max_guests) return res.status(400).json({ error: `מקסימום אורחים: ${tmpl.max_guests}` });
+        }
+
+        // ולידציית selections
+        const selections = req.body.selections || {};
+        if (typeof selections !== 'object' || Array.isArray(selections))
+            return res.status(400).json({ error: 'selections לא תקין' });
+
+        const sectionsRes = await pool.query(
+            `SELECT id,min_choices,max_choices,is_required,name FROM menu_sections WHERE template_id=$1`,
+            [tmpl.id]
+        );
+        const sectionMap = {};
+        sectionsRes.rows.forEach(s => { sectionMap[s.id] = s; });
+
+        for (const [secIdStr, itemIds] of Object.entries(selections)) {
+            const secId = parseInt(secIdStr);
+            if (!sectionMap[secId]) return res.status(400).json({ error: `section_id ${secId} לא שייך לתבנית זו` });
+            if (!Array.isArray(itemIds)) return res.status(400).json({ error: `selections[${secId}] חייב להיות מערך` });
+            const sec = sectionMap[secId];
+            if (itemIds.length < sec.min_choices) return res.status(400).json({ error: `${sec.name}: נדרשות לפחות ${sec.min_choices} בחירות` });
+            if (itemIds.length > sec.max_choices) return res.status(400).json({ error: `${sec.name}: מותרות לכל היותר ${sec.max_choices} בחירות` });
+            if (itemIds.length > 0) {
+                const validItems = await pool.query(
+                    'SELECT id FROM menu_items WHERE id=ANY($1) AND section_id=$2',
+                    [itemIds.map(Number), secId]
+                );
+                if (validItems.rows.length !== itemIds.length)
+                    return res.status(400).json({ error: `items לא תקינים ב-section ${sec.name}` });
+            }
+        }
+        // בדיקת sections חובה שלא נשלחו
+        for (const sec of sectionsRes.rows) {
+            if (sec.is_required && !selections[sec.id]) {
+                const chosen = (selections[sec.id] || []).length;
+                if (chosen < sec.min_choices) return res.status(400).json({ error: `${sec.name}: בחירה זו חובה` });
+            }
+        }
+
+        const customNotes = _sanitizePlainText(req.body.custom_notes);
+        const r = await pool.query(`
+            INSERT INTO menu_quote_requests
+              (template_id, group_id, customer_name, customer_phone, customer_email,
+               event_date, guest_count, selections, custom_notes, source, status)
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'public_form','pending')
+            RETURNING id
+        `, [
+            tmpl.id, tmpl.group_id,
+            customerName, customerPhone,
+            _sanitizePlainText(req.body.customer_email),
+            req.body.event_date || null,
+            req.body.guest_count ? parseInt(req.body.guest_count) : null,
+            JSON.stringify(selections),
+            customNotes
+        ]);
+
+        const reqNumber = 'HG-' + String(r.rows[0].id).padStart(4, '0');
+        res.status(201).json({ success: true, request_number: reqNumber });
+    } catch(e) {
+        console.error('POST /api/menu/public/:slug/request:', e.message);
+        res.status(500).json({ error: 'שגיאת שרת' });
+    }
+});
+
+// ===== END MENU PUBLIC API =====
+
 // ===== END MENU TEMPLATES API =====
 
 // ── verifyBizOrLegacy middleware ───────────────────────────────
