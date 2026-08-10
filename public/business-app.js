@@ -219,7 +219,7 @@ window.onload = async () => {
             const session = JSON.parse(saved); 
             if(session && session.user && session.group) { 
                 if (session.group.type !== 'BUSINESS') { window.location.href = '/'; return; }
-                currentUser = session.user; currentGroup = session.group; clearTimeout(failsafeTimer); loadDashboard(); return; 
+                currentUser = session.user; currentGroup = session.group; window._bizToken = session.token || null; clearTimeout(failsafeTimer); loadDashboard(); return;
             }
         } catch(e) { localStorage.removeItem('ofl_session'); } 
     }
@@ -1955,7 +1955,7 @@ async function handleLogin(e) {
         const res = await fetch(`${API}/login`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ groupCode: val('login-code'), nickname: val('login-nickname'), password: val('login-password') }) });
         const data = await res.json();
         if(data.success) {
-            currentUser = data.user; currentGroup = data.group; _saveSession(currentUser, currentGroup, data.token);
+            currentUser = data.user; currentGroup = data.group; window._bizToken = data.token || null; _saveSession(currentUser, currentGroup, data.token);
             if (currentGroup.type === 'BUSINESS' && !window.location.pathname.includes('business.html')) { window.location.href = '/business.html'; return; } 
             else if (currentGroup.type !== 'BUSINESS' && window.location.pathname.includes('business.html')) { window.location.href = '/'; return; }
             loadDashboard(); // תיקון קריטי: טעינת הנתונים והעברה מיידית לדשבורד
@@ -12168,7 +12168,7 @@ window.loadBusinessGallery = async function() {
     const grid = document.getElementById('biz-gallery-grid');
     if (!grid || !currentGroup) return;
     try {
-        const res = await fetch(`${API}/store/gallery/${currentGroup.id}`, { headers: { Authorization: `Bearer ${currentUser?.token}` } });
+        const res = await fetch(`${API}/store/gallery/${currentGroup.id}`, { headers: { Authorization: `Bearer ${window._bizToken}` } });
         const data = await res.json();
         if (!data.success) return;
         const images = data.images || [];
@@ -12199,7 +12199,7 @@ window.uploadGalleryImages = async function() {
                 try {
                     const res = await fetch(`${API}/store/gallery/${currentGroup.id}`, {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${currentUser?.token}` },
+                        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${window._bizToken}` },
                         body: JSON.stringify({ image_url: e.target.result, caption })
                     });
                     const data = await res.json();
@@ -12222,7 +12222,7 @@ window.deleteGalleryImage = async function(id) {
     try {
         const res = await fetch(`${API}/store/gallery/${currentGroup.id}/${id}`, {
             method: 'DELETE',
-            headers: { Authorization: `Bearer ${currentUser?.token}` }
+            headers: { Authorization: `Bearer ${window._bizToken}` }
         });
         const data = await res.json();
         if (data.success) { showToast('success', 'התמונה נמחקה'); window.loadBusinessGallery(); }
@@ -15270,7 +15270,7 @@ let _bizMyBids = [];
 async function loadBizMyBids() {
     if (!currentGroup || !currentGroup.id) return;
     try {
-        const res = await fetch(`${API}/biz/my-pool-bids/${currentGroup.id}`, { headers: { Authorization: `Bearer ${currentUser?.token}` } });
+        const res = await fetch(`${API}/biz/my-pool-bids/${currentGroup.id}`, { headers: { Authorization: `Bearer ${window._bizToken}` } });
         const data = await res.json();
         _bizMyBids = data.success ? (data.bids || []) : [];
         renderBizMyBids();
@@ -15350,7 +15350,7 @@ async function loadBizPoolChatMsgs(poolId) {
     const el = document.getElementById('biz-pool-chat-msgs');
     if (!el) return;
     try {
-        const res = await fetch(`${API}/community/pool/${poolId}/messages`, { headers: { Authorization: `Bearer ${currentUser?.token}` } });
+        const res = await fetch(`${API}/community/pool/${poolId}/messages`, { headers: { Authorization: `Bearer ${window._bizToken}` } });
         const data = await res.json();
         const msgs = data.messages || [];
         if (!msgs.length) { el.innerHTML = '<p class="text-xs text-slate-300 text-center py-4">אין הודעות עדיין</p>'; return; }
@@ -15374,7 +15374,7 @@ window.sendBizPoolMsg = async function(poolId) {
     if (!content) return;
     try {
         await fetch(`${API}/community/pool/${poolId}/message`, {
-            method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${currentUser?.token}` },
+            method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${window._bizToken}` },
             body: JSON.stringify({ senderId: currentGroup.id, senderType: 'business', content })
         });
         if (input) input.value = '';
@@ -15388,7 +15388,7 @@ async function loadBizPools() {
     el.innerHTML = '<p class="text-xs text-slate-400 text-center py-8">טוען פולים...</p>';
     await loadBizMyBids();
     try {
-        const res = await fetch(`${API}/biz/pools/${currentGroup.id}`, { headers: { Authorization: `Bearer ${currentUser?.token}` } });
+        const res = await fetch(`${API}/biz/pools/${currentGroup.id}`, { headers: { Authorization: `Bearer ${window._bizToken}` } });
         const data = await res.json();
         if (!data.success) throw new Error(data.error || 'שגיאה');
         const pools = data.pools || [];
@@ -15449,7 +15449,7 @@ window.archiveBizPool = async function(poolId, btn) {
     if (btn) { btn.disabled = true; btn.textContent = 'מעביר...'; }
     try {
         const res = await fetch(`${API}/community/pool/${poolId}/archive`, {
-            method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${currentUser?.token}` },
+            method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${window._bizToken}` },
             body: JSON.stringify({ viewerId: currentGroup.id, bizArchive: true })
         });
         const data = await res.json();
@@ -15467,7 +15467,7 @@ async function loadBizPoolArchivePage() {
     if (!el || !currentGroup) return;
     el.innerHTML = '<p class="text-xs text-slate-400 text-center py-8">טוען ארכיב...</p>';
     try {
-        const res = await fetch(`${API}/biz/pool-archive/${currentGroup.id}`, { headers: { Authorization: `Bearer ${currentUser?.token}` } });
+        const res = await fetch(`${API}/biz/pool-archive/${currentGroup.id}`, { headers: { Authorization: `Bearer ${window._bizToken}` } });
         const data = await res.json();
         const archived = data.pools || [];
         if (!archived.length) {
@@ -15573,7 +15573,7 @@ async function submitBizPoolBid() {
     if (terms) parts.push(`📌 תנאים: ${terms}`);
     const description = parts.join('\n');
     try {
-        const res = await fetch(`${API}/community/pool/${_bizBidTargetPoolId}/bid`, { method: 'POST', headers: { ...{ Authorization: `Bearer ${currentUser?.token}` }, 'Content-Type': 'application/json' }, body: JSON.stringify({ price, description, businessGroupId: currentGroup.id }) });
+        const res = await fetch(`${API}/community/pool/${_bizBidTargetPoolId}/bid`, { method: 'POST', headers: { ...{ Authorization: `Bearer ${window._bizToken}` }, 'Content-Type': 'application/json' }, body: JSON.stringify({ price, description, businessGroupId: currentGroup.id }) });
         const data = await res.json();
         if (!data.success) throw new Error(data.error || 'שגיאה');
         showToast('✅ הצעה הוגשה בהצלחה! היא תופיע בסקציית "הצעות שהגשתי"', 'success');
@@ -48280,7 +48280,7 @@ async function loadLogisticsCustomers() {
     const el = document.getElementById('content-logistics_customers'); if (!el) return;
     el.innerHTML = `<div class="flex items-center justify-center h-40"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-cyan-500"></div></div>`;
     try {
-        const r = await fetch(`/api/logistics/customers/${currentGroup.id}`, { headers: { Authorization: `Bearer ${currentUser?.token}` } });
+        const r = await fetch(`/api/logistics/customers/${currentGroup.id}`, { headers: { Authorization: `Bearer ${window._bizToken}` } });
         const customers = await r.json();
         renderLogisticsCustomers(customers);
     } catch(e) {
@@ -48432,7 +48432,7 @@ async function saveLogisticsCustomer(e) {
     const url = id ? `/api/logistics/customers/${id}` : '/api/logistics/customers';
     const method = id ? 'PATCH' : 'POST';
     try {
-        const r = await fetch(url, { method, headers: { 'Content-Type':'application/json', Authorization:`Bearer ${currentUser?.token}` }, body: JSON.stringify(body) });
+        const r = await fetch(url, { method, headers: { 'Content-Type':'application/json', Authorization:`Bearer ${window._bizToken}` }, body: JSON.stringify(body) });
         if (!r.ok) throw new Error(await r.text());
         closeLogisticsCustomerModal();
         loadLogisticsCustomers();
@@ -48441,7 +48441,7 @@ async function saveLogisticsCustomer(e) {
 
 async function deleteLogisticsCustomer(id) {
     if (!await window._uiConfirm('למחוק לקוח זה?', {danger:true, okLabel:'מחק'})) return;
-    await fetch(`/api/logistics/customers/${id}`, { method:'DELETE', headers:{ Authorization:`Bearer ${currentUser?.token}` } });
+    await fetch(`/api/logistics/customers/${id}`, { method:'DELETE', headers:{ Authorization:`Bearer ${window._bizToken}` } });
     loadLogisticsCustomers();
 }
 
@@ -48450,7 +48450,7 @@ async function loadLogisticsInvoices() {
     const el = document.getElementById('content-logistics_invoices'); if (!el) return;
     el.innerHTML = `<div class="flex items-center justify-center h-40"><div class="animate-spin rounded-full h-8 w-8 border-b-2 border-violet-500"></div></div>`;
     try {
-        const r = await fetch(`/api/logistics/invoices/${currentGroup.id}`, { headers: { Authorization: `Bearer ${currentUser?.token}` } });
+        const r = await fetch(`/api/logistics/invoices/${currentGroup.id}`, { headers: { Authorization: `Bearer ${window._bizToken}` } });
         const invoices = await r.json();
         renderLogisticsInvoices(invoices);
     } catch(e) {
@@ -48524,13 +48524,13 @@ function renderLogisticsInvoices(invoices) {
 }
 
 async function updateInvoiceStatus(id, status) {
-    await fetch(`/api/logistics/invoices/${id}/status`, { method:'PATCH', headers:{'Content-Type':'application/json', Authorization:`Bearer ${currentUser?.token}`}, body: JSON.stringify({status}) });
+    await fetch(`/api/logistics/invoices/${id}/status`, { method:'PATCH', headers:{'Content-Type':'application/json', Authorization:`Bearer ${window._bizToken}`}, body: JSON.stringify({status}) });
     loadLogisticsInvoices();
 }
 
 async function deleteLogisticsInvoice(id) {
     if (!await window._uiConfirm('למחוק חשבונית זו?', {danger:true, okLabel:'מחק'})) return;
-    await fetch(`/api/logistics/invoices/${id}`, { method:'DELETE', headers:{ Authorization:`Bearer ${currentUser?.token}` } });
+    await fetch(`/api/logistics/invoices/${id}`, { method:'DELETE', headers:{ Authorization:`Bearer ${window._bizToken}` } });
     loadLogisticsInvoices();
 }
 
@@ -48557,8 +48557,8 @@ async function deleteLogisticsInvoice(id) {
                 fetch(`${API}/logistics/dashboard/${currentGroup.id}`).then(r=>r.json()).catch(()=>({})),
                 fetch(`${API}/logistics/orders/${currentGroup.id}?limit=200`).then(r=>r.json()).catch(()=>([])),
                 fetch(`${API}/logistics/cod/${currentGroup.id}`).then(r=>r.json()).catch(()=>({})),
-                fetch(`/api/logistics/customers/${currentGroup.id}`, { headers:{Authorization:`Bearer ${currentUser?.token}`} }).then(r=>r.json()),
-                fetch(`/api/logistics/invoices/${currentGroup.id}`, { headers:{Authorization:`Bearer ${currentUser?.token}`} }).then(r=>r.json()),
+                fetch(`/api/logistics/customers/${currentGroup.id}`, { headers:{Authorization:`Bearer ${window._bizToken}`} }).then(r=>r.json()),
+                fetch(`/api/logistics/invoices/${currentGroup.id}`, { headers:{Authorization:`Bearer ${window._bizToken}`} }).then(r=>r.json()),
             ]);
             const dash   = dashR.status==='fulfilled'   ? dashR.value   : {};
             const orders = ordersR.status==='fulfilled' ? (ordersR.value.orders || ordersR.value || []) : [];
@@ -52721,7 +52721,7 @@ window.loadMenuTemplates = async function() {
     if (!root || !currentGroup?.id) return;
     root.innerHTML = '<div style="padding:40px;text-align:center;color:#94a3b8">טוען תפריטים...</div>';
     try {
-        const res = await fetch('/api/menu-templates', { headers: { Authorization: `Bearer ${currentUser?.token}` } });
+        const res = await fetch('/api/menu-templates', { headers: { Authorization: `Bearer ${window._bizToken}` } });
         if (!res.ok) throw new Error(res.status);
         _mtState.list = await res.json();
     } catch(e) {
@@ -52870,7 +52870,7 @@ async function _mtCreateTemplate() {
     try {
         const res = await fetch('/api/menu-templates', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${currentUser?.token}` },
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${window._bizToken}` },
             body: JSON.stringify({
                 name,
                 event_type: document.getElementById('mt-nt')?.value || null,
@@ -52899,7 +52899,7 @@ window._mtOpenEditor = async function(id) {
     const root = document.getElementById('menu-templates-root');
     if (root) root.innerHTML = '<div style="padding:40px;text-align:center;color:#94a3b8">טוען...</div>';
     try {
-        const res = await fetch(`/api/menu-templates/${id}`, { headers: { Authorization: `Bearer ${currentUser?.token}` } });
+        const res = await fetch(`/api/menu-templates/${id}`, { headers: { Authorization: `Bearer ${window._bizToken}` } });
         if (!res.ok) throw new Error(res.status);
         const data = await res.json();
         _mtState.cur = data;
@@ -53071,7 +53071,7 @@ window._mtBack = async function() {
     _mtState.view = 'list';
     _mtState.cur = null;
     try {
-        const res = await fetch('/api/menu-templates', { headers: { Authorization: `Bearer ${currentUser?.token}` } });
+        const res = await fetch('/api/menu-templates', { headers: { Authorization: `Bearer ${window._bizToken}` } });
         if (res.ok) _mtState.list = await res.json();
     } catch(e) {}
     _mtRender();
@@ -53088,7 +53088,7 @@ window._mtSave = async function() {
     try {
         const res = await fetch(`/api/menu-templates/${t.id}`, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${currentUser?.token}` },
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${window._bizToken}` },
             body: JSON.stringify({
                 name,
                 event_type: f.event_type || null,
@@ -53146,7 +53146,7 @@ async function _mtDoAddSec() {
     try {
         const res = await fetch(`/api/menu-templates/${_mtState.cur.id}/sections`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${currentUser?.token}` },
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${window._bizToken}` },
             body: JSON.stringify({ name, min_choices: minC, max_choices: maxC, is_required: minC > 0 })
         });
         const data = await res.json();
@@ -53169,7 +53169,7 @@ async function _mtDoAddSec() {
 window._mtDelSection = async function(id) {
     if (!confirm('למחוק שלב זה ואת כל פריטיו?')) return;
     try {
-        const res = await fetch(`/api/menu-sections/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${currentUser?.token}` } });
+        const res = await fetch(`/api/menu-sections/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${window._bizToken}` } });
         if (!res.ok) { const d = await res.json(); _mtToast(d.error || 'שגיאה', 'err'); return; }
         _mtState.cur.sections = (_mtState.cur.sections || []).filter(s => s.id !== id);
         _mtRender();
@@ -53220,7 +53220,7 @@ async function _mtDoAddItem(sectionId) {
     try {
         const res = await fetch(`/api/menu-sections/${sectionId}/items`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${currentUser?.token}` },
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${window._bizToken}` },
             body: JSON.stringify({
                 name,
                 description: document.getElementById('mt-id')?.value || null,
@@ -53250,7 +53250,7 @@ window._mtToggleItemA = async function(itemId, sectionId, avail) {
     try {
         await fetch(`/api/menu-items/${itemId}`, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${currentUser?.token}` },
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${window._bizToken}` },
             body: JSON.stringify({ is_available: avail })
         });
         const sec = (_mtState.cur?.sections || []).find(s => s.id === sectionId);
@@ -53260,7 +53260,7 @@ window._mtToggleItemA = async function(itemId, sectionId, avail) {
 
 window._mtDelItem = async function(itemId, sectionId) {
     try {
-        const res = await fetch(`/api/menu-items/${itemId}`, { method: 'DELETE', headers: { Authorization: `Bearer ${currentUser?.token}` } });
+        const res = await fetch(`/api/menu-items/${itemId}`, { method: 'DELETE', headers: { Authorization: `Bearer ${window._bizToken}` } });
         if (!res.ok) { const d = await res.json(); _mtToast(d.error || 'שגיאה', 'err'); return; }
         const sec = (_mtState.cur?.sections || []).find(s => s.id === sectionId);
         if (sec) sec.items = (sec.items || []).filter(i => i.id !== itemId);
@@ -53293,7 +53293,7 @@ window._mtDuplicate = function() { _mtToast('שכפול — בקרוב 🔜'); }
 window._mtDeleteConfirm = async function(id, name) {
     if (!confirm(`למחוק את התפריט "${name}"?\nפעולה זו אינה הפיכה.`)) return;
     try {
-        const res = await fetch(`/api/menu-templates/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${currentUser?.token}` } });
+        const res = await fetch(`/api/menu-templates/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${window._bizToken}` } });
         if (!res.ok) { const d = await res.json(); _mtToast(d.error || 'שגיאה במחיקה', 'err'); return; }
         _mtState.list = _mtState.list.filter(t => t.id !== id);
         _mtRender();
