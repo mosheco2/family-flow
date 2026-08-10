@@ -32429,5 +32429,8 @@ app.delete('/api/kol-haam/collections/:id/items/:content_item_id', verifyFamily,
 
 // ── תצוגת תפריט ציבורי ────────────────────────────────────────
 app.get('/menu/:slug', (req, res) => {
+    res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
     res.sendFile(path.join(__dirname, 'public', 'menu.html'));
 });
