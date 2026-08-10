@@ -29734,19 +29734,34 @@ function _sanitizePlainText(text) {
 app.get('/api/menu/public/:slug', async (req, res) => {
     try {
         const tmplRes = await pool.query(
-            `SELECT mt.id,mt.name,mt.description,mt.event_type,mt.min_guests,mt.max_guests,
-                    mt.base_price_per_person,mt.pricing_mode,mt.cover_image_url,mt.logo_url,mt.slogan,
-                    mt.contact_phone,mt.contact_address,mt.show_related_options,mt.group_id,
-                    COALESCE(ss.store_alias, fg.group_code) AS store_id
-             FROM menu_templates mt
-             JOIN family_groups fg ON fg.id = mt.group_id
-             LEFT JOIN store_settings ss ON ss.group_id = mt.group_id
-             WHERE mt.public_slug=$1 AND mt.is_active=true AND mt.is_public=true AND mt.template_type='menu'`,
+            `SELECT id,name,description,event_type,min_guests,max_guests,
+                    base_price_per_person,pricing_mode,cover_image_url,logo_url,slogan,
+                    contact_phone,contact_address,group_id
+             FROM menu_templates
+             WHERE public_slug=$1 AND is_active=true AND is_public=true AND template_type='menu'`,
             [req.params.slug]
         );
         if (!tmplRes.rows.length) return res.status(404).json({ error: 'תבנית לא נמצאה' });
 
         const tmpl = tmplRes.rows[0];
+
+        // extra fields — resilient to missing columns/rows
+        let showRelated = false, storeId = null, pricingMode = 'per_person';
+        try {
+            const extRes = await pool.query(
+                `SELECT mt.show_related_options, mt.pricing_mode,
+                        COALESCE(ss.store_alias, fg.group_code) AS store_id
+                 FROM menu_templates mt
+                 JOIN family_groups fg ON fg.id = mt.group_id
+                 LEFT JOIN store_settings ss ON ss.group_id = mt.group_id
+                 WHERE mt.id=$1`, [tmpl.id]
+            );
+            if (extRes.rows.length) {
+                showRelated = !!extRes.rows[0].show_related_options;
+                storeId = extRes.rows[0].store_id || null;
+                pricingMode = extRes.rows[0].pricing_mode || 'per_person';
+            }
+        } catch(extErr) { /* columns may not exist yet — graceful skip */ }
         const sectionsRes = await pool.query(`
             SELECT ms.*,
                    COALESCE(json_agg(mi.* ORDER BY mi.sort_order) FILTER (WHERE mi.id IS NOT NULL), '[]') AS items
@@ -29785,7 +29800,7 @@ app.get('/api/menu/public/:slug', async (req, res) => {
         }));
 
         const { group_id, ...tmplPublic } = tmpl;
-        res.json({ ...tmplPublic, sections, store_id: tmpl.store_id });
+        res.json({ ...tmplPublic, pricing_mode: pricingMode, show_related_options: showRelated, store_id: storeId, sections });
     } catch(e) {
         console.error('GET /api/menu/public/:slug:', e.message);
         res.status(500).json({ error: 'שגיאת שרת' });
