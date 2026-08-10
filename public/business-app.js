@@ -53267,7 +53267,25 @@ window._mtDelSection = async function(id) {
 // ======= ADD ITEM MODAL =======
 window._mtAddItemModal = function(sectionId) {
     _mtShowModal('mt-item-modal', `
-    <h3 style="margin:0 0 16px;font-size:16px;font-weight:700;color:#1e293b">הוספת פריט</h3>
+    <h3 style="margin:0 0 14px;font-size:16px;font-weight:700;color:#1e293b">הוספת פריט</h3>
+    <div style="display:flex;gap:0;border-bottom:2px solid #e2e8f0;margin-bottom:16px">
+        <button id="mt-tab-manual" onclick="_mtItemTab('manual',${sectionId})" style="padding:8px 18px;border:none;background:transparent;font-size:13px;font-weight:700;color:#6366f1;border-bottom:2px solid #6366f1;margin-bottom:-2px;cursor:pointer;font-family:inherit">ידנית</button>
+        <button id="mt-tab-catalog" onclick="_mtItemTab('catalog',${sectionId})" style="padding:8px 18px;border:none;background:transparent;font-size:13px;font-weight:600;color:#94a3b8;border-bottom:2px solid transparent;margin-bottom:-2px;cursor:pointer;font-family:inherit">מהקטלוג</button>
+    </div>
+    <div id="mt-tab-content"></div>`, '520px');
+    _mtRenderManualTab(sectionId);
+    setTimeout(() => { const n = document.getElementById('mt-in'); if (n) n.focus(); }, 60);
+};
+
+window._mtItemTab = function(tab, sectionId) {
+    document.getElementById('mt-tab-manual').style.cssText += tab==='manual' ? ';color:#6366f1;border-bottom-color:#6366f1;font-weight:700' : ';color:#94a3b8;border-bottom-color:transparent;font-weight:600';
+    document.getElementById('mt-tab-catalog').style.cssText += tab==='catalog' ? ';color:#6366f1;border-bottom-color:#6366f1;font-weight:700' : ';color:#94a3b8;border-bottom-color:transparent;font-weight:600';
+    if (tab === 'manual') _mtRenderManualTab(sectionId);
+    else _mtRenderCatalogTab(sectionId);
+};
+
+function _mtRenderManualTab(sectionId) {
+    document.getElementById('mt-tab-content').innerHTML = `
     <div style="display:flex;flex-direction:column;gap:12px">
         <div>
             <label style="font-size:12px;color:#64748b;font-weight:600;display:block;margin-bottom:4px">שם הפריט *</label>
@@ -53292,9 +53310,87 @@ window._mtAddItemModal = function(sectionId) {
     <div style="display:flex;gap:8px;margin-top:16px">
         <button onclick="_mtCloseModal('mt-item-modal')" style="${_mtBtnS('ghost')}">ביטול</button>
         <button id="mt-item-add-btn" onclick="_mtDoAddItem(${sectionId})" style="${_mtBtnS('primary')};flex:2">הוסף פריט</button>
-    </div>`);
-    setTimeout(() => { const n = document.getElementById('mt-in'); if (n) n.focus(); }, 60);
+    </div>`;
+    setTimeout(() => { const n = document.getElementById('mt-in'); if (n) n.focus(); }, 30);
+}
+
+async function _mtRenderCatalogTab(sectionId) {
+    const el = document.getElementById('mt-tab-content');
+    el.innerHTML = '<div style="padding:24px;text-align:center;color:#94a3b8;font-size:13px">טוען קטלוג...</div>';
+    let catalog = [];
+    try {
+        const res = await fetch(`/api/store/catalog/${currentGroup.id}`);
+        catalog = res.ok ? await res.json() : [];
+    } catch(e) { catalog = []; }
+    if (!catalog.length) {
+        el.innerHTML = '<div style="padding:24px;text-align:center;color:#94a3b8;font-size:13px">הקטלוג ריק — הוסף מוצרים תחילה בממשק החנות</div>'; return;
+    }
+    window._mtCatalogSel = {};
+    const rows = catalog.map(c => `
+        <label style="display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:7px;cursor:pointer;transition:.12s" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
+            <input type="checkbox" data-cid="${c.id}" data-cname="${_mtEsc(c.name)}" data-cdesc="${_mtEsc(c.description||'')}" data-cprice="${c.price||0}"
+                style="width:16px;height:16px;accent-color:#6366f1;flex-shrink:0"
+                onchange="window._mtCatalogSel[${c.id}]=this.checked;document.getElementById('mt-cat-count').textContent=Object.values(window._mtCatalogSel).filter(Boolean).length||''">
+            <div style="flex:1;min-width:0">
+                <div style="font-size:13.5px;font-weight:600;color:#1e293b">${_mtEsc(c.name)}</div>
+                ${c.description ? `<div style="font-size:12px;color:#64748b;margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_mtEsc(c.description)}</div>` : ''}
+            </div>
+            ${c.price > 0 ? `<span style="font-size:12.5px;font-weight:600;color:#6366f1;white-space:nowrap;font-variant-numeric:tabular-nums">₪${Number(c.price).toLocaleString('he-IL')}</span>` : '<span style="font-size:11px;color:#94a3b8">כלול</span>'}
+        </label>`).join('');
+    el.innerHTML = `
+    <input id="mt-cat-search" placeholder="חיפוש מוצר..." oninput="_mtFilterCatalog(this.value)"
+        style="${_mtInputS()};margin-bottom:10px">
+    <div id="mt-cat-list" style="max-height:300px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:8px;padding:4px">${rows}</div>
+    <div id="mt-item-err" style="color:#ef4444;font-size:12px;min-height:16px;margin-top:7px"></div>
+    <div style="display:flex;gap:8px;margin-top:14px">
+        <button onclick="_mtCloseModal('mt-item-modal')" style="${_mtBtnS('ghost')}">ביטול</button>
+        <button id="mt-item-add-btn" onclick="_mtDoAddFromCatalog(${sectionId})" style="${_mtBtnS('primary')};flex:2">
+            הוסף נבחרים <span id="mt-cat-count" style="background:rgba(255,255,255,.25);border-radius:10px;padding:1px 7px;margin-right:4px;font-size:11px"></span>
+        </button>
+    </div>`;
+    document.getElementById('mt-cat-search').focus();
+}
+
+window._mtFilterCatalog = function(q) {
+    const lq = q.trim().toLowerCase();
+    document.querySelectorAll('#mt-cat-list label').forEach(row => {
+        const name = (row.querySelector('input').dataset.cname || '').toLowerCase();
+        const desc = (row.querySelector('input').dataset.cdesc || '').toLowerCase();
+        row.style.display = (!lq || name.includes(lq) || desc.includes(lq)) ? '' : 'none';
+    });
 };
+
+async function _mtDoAddFromCatalog(sectionId) {
+    const selected = Object.entries(window._mtCatalogSel || {}).filter(([,v]) => v);
+    if (!selected.length) { const e = document.getElementById('mt-item-err'); if (e) e.textContent = 'יש לסמן לפחות פריט אחד'; return; }
+    const btn = document.getElementById('mt-item-add-btn');
+    if (btn) { btn.disabled = true; btn.textContent = '...מוסיף'; }
+    let added = 0, failed = 0;
+    for (const [cidStr] of selected) {
+        const inp = document.querySelector(`#mt-cat-list input[data-cid="${cidStr}"]`);
+        if (!inp) continue;
+        const payload = {
+            name: inp.dataset.cname,
+            description: inp.dataset.cdesc || null,
+            catalog_item_id: parseInt(cidStr),
+            is_available: true,
+        };
+        const price = parseFloat(inp.dataset.cprice);
+        if (price > 0) payload.custom_price = price;
+        try {
+            const res = await fetch(`/api/menu-sections/${sectionId}/items`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${window._bizToken}` },
+                body: JSON.stringify(payload)
+            });
+            if (res.ok) { const d = await res.json(); const sec = (_mtState.cur?.sections||[]).find(s=>s.id===sectionId); if (sec) sec.items = [...(sec.items||[]), d]; added++; }
+            else failed++;
+        } catch(e) { failed++; }
+    }
+    _mtCloseModal('mt-item-modal');
+    _mtRender();
+    _mtToast(failed ? `נוספו ${added}, נכשלו ${failed}` : `נוספו ${added} פריטים מהקטלוג`);
+}
 
 async function _mtDoAddItem(sectionId) {
     const name = (document.getElementById('mt-in')?.value || '').trim();
@@ -53399,12 +53495,12 @@ window._mtDeleteConfirm = async function(id, name) {
 };
 
 // ======= MODAL UTILITIES =======
-function _mtShowModal(id, html) {
+function _mtShowModal(id, html, maxW) {
     _mtCloseModal(id);
     const overlay = document.createElement('div');
     overlay.id = id;
     overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:9998;display:flex;align-items:center;justify-content:center;padding:16px';
-    overlay.innerHTML = `<div style="background:#fff;border-radius:12px;padding:26px;width:100%;max-width:460px;box-shadow:0 20px 60px rgba(0,0,0,.22);max-height:90vh;overflow-y:auto" dir="rtl">${html}</div>`;
+    overlay.innerHTML = `<div style="background:#fff;border-radius:12px;padding:26px;width:100%;max-width:${maxW||'460px'};box-shadow:0 20px 60px rgba(0,0,0,.22);max-height:90vh;overflow-y:auto" dir="rtl">${html}</div>`;
     overlay.addEventListener('click', e => { if (e.target === overlay) _mtCloseModal(id); });
     document.body.appendChild(overlay);
 }
