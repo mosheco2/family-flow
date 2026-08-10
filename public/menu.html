@@ -129,6 +129,7 @@ body{font-family:'Assistant',Helvetica,sans-serif;color:var(--ink);background:va
 <body>
 <div id="app"><div class="state-center"><div class="spinner"></div><span>טוען תפריט…</span></div></div>
 <button class="fab-pdf" id="fab-pdf-btn" onclick="exportMenuPDF()" style="display:none" title="הורד תפריט PDF">⬇ PDF</button>
+<a id="fab-store-btn" style="display:none;position:fixed;bottom:82px;right:14px;z-index:200;align-items:center;gap:6px;padding:9px 16px;background:#fff;color:var(--accent);border:1.5px solid var(--accent);border-radius:24px;font-size:12.5px;font-family:inherit;font-weight:600;cursor:pointer;box-shadow:0 3px 12px rgba(107,36,52,.18);letter-spacing:.03em;text-decoration:none" target="_blank">🛍️ לחנות</a>
 <div id="pdf-print-target"></div>
 
 <script>
@@ -164,16 +165,27 @@ const _isWaMode  = new URLSearchParams(location.search).get('wa')  === '1';
     _d.sections = (_d.sections || []).filter(s => (s.items || []).some(i => i.is_available !== false));
     buildFullPdfSource();
     document.getElementById('fab-pdf-btn').style.display = 'flex';
+    // store button
+    if (_d.store_id) {
+        const storeBtn = document.getElementById('fab-store-btn');
+        storeBtn.href = location.origin + '/storefront.html?store=' + encodeURIComponent(_d.store_id);
+        storeBtn.style.display = 'flex';
+    }
     if (_isPdfMode) { setTimeout(exportMenuPDF, 800); return; }
     if (_isWaMode)  { setTimeout(exportAndShareWa, 800); return; }
-    // if no sections, skip landing and go straight to catalog
-    if (!_d.sections.length) { startCatalogMode(); return; }
+    // routing logic
+    if (!_d.show_related_options) {
+        // no landing: go directly to template wizard or catalog
+        if (_d.sections.length) { _mode = 'template'; }
+        else { startCatalogMode(); return; }
+    }
+    // else: show landing (mode=null)
     render();
 })();
 
 /* ── render router ── */
 function render() {
-    if (_mode === null) { renderLanding(); return; }
+    if (_mode === null) { renderLanding(); return; } // async — ok, fire and forget
     if (_mode === 'catalog') { renderCatalogFlow(); return; }
     const totalSteps = _d.sections.length;
     if (_step < totalSteps) renderStep(_step);
@@ -183,26 +195,68 @@ function render() {
 }
 
 /* ── landing ── */
-function renderLanding() {
+let _relatedMenus = null; // cached related menus
+
+async function renderLanding() {
     const hasSections = _d.sections && _d.sections.length > 0;
+
+    // fetch related menus once
+    if (_d.show_related_options && _relatedMenus === null) {
+        try {
+            const r = await fetch('/api/menu/public/' + encodeURIComponent(slug) + '/related');
+            _relatedMenus = r.ok ? await r.json() : [];
+        } catch(e) { _relatedMenus = []; }
+    }
+
+    const evLabels = {wedding:'חתונה',bar_mitzvah:'בר/בת מצווה',birthday:'יום הולדת',corporate:'אירוע עסקי',other:'אירוע'};
+
+    const relatedSection = (_d.show_related_options) ? `
+      <div style="margin-top:24px;padding-top:22px;border-top:1px solid var(--border)">
+        <div style="font-size:10px;font-weight:700;color:var(--ink3);letter-spacing:.2em;text-transform:uppercase;margin-bottom:12px">אפשרויות נוספות</div>
+        <div style="display:flex;flex-direction:column;gap:9px">
+          ${(_relatedMenus||[]).map(m => `
+          <a href="/menu/${encodeURIComponent(m.public_slug)}" style="display:flex;align-items:center;gap:12px;background:var(--sand);border:1px solid var(--border);border-radius:8px;padding:11px 13px;text-decoration:none;color:inherit">
+            ${m.logo_url ? `<img src="${esc(m.logo_url)}" style="width:36px;height:36px;object-fit:cover;border-radius:5px;flex-shrink:0">` : `<div style="width:36px;height:36px;border-radius:5px;background:var(--border);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">📋</div>`}
+            <div>
+              <div style="font-size:13.5px;font-weight:600;color:var(--ink)">${esc(m.name)}</div>
+              ${m.event_type ? `<div style="font-size:11.5px;color:var(--ink3)">${evLabels[m.event_type]||m.event_type}</div>` : ''}
+            </div>
+            <div style="margin-right:auto;color:var(--ink3);font-size:12px">←</div>
+          </a>`).join('')}
+          <button onclick="startCatalogMode()" style="display:flex;align-items:center;gap:12px;background:var(--sand);border:1px solid var(--border);border-radius:8px;padding:11px 13px;text-align:right;font-family:inherit;cursor:pointer;width:100%">
+            <div style="width:36px;height:36px;border-radius:5px;background:var(--border);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">🛒</div>
+            <div>
+              <div style="font-size:13.5px;font-weight:600;color:var(--ink)">הרכב תפריט חופשי מהקטלוג</div>
+              <div style="font-size:11.5px;color:var(--ink3)">בחר מנות ישירות מהקטלוג שלנו</div>
+            </div>
+            <div style="margin-right:auto;color:var(--ink3);font-size:12px">←</div>
+          </button>
+        </div>
+      </div>` : '';
+
     document.getElementById('app').innerHTML = `
       ${heroHtml()}
       <div class="wiz-body" style="padding-bottom:60px">
-        <h2 class="step-title" style="margin-bottom:8px">כיצד תרצו לבנות את התפריט?</h2>
-        <div class="step-sub">בחרו את הדרך המתאימה לכם</div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;margin-top:8px">
-          ${hasSections ? `
-          <button onclick="startTemplateMode()" style="background:var(--surface);border:1.5px solid var(--border);border-radius:10px;padding:22px 18px;cursor:pointer;text-align:right;transition:.15s;font-family:inherit" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
-            <div style="font-size:28px;margin-bottom:10px">📋</div>
-            <div style="font-size:15px;font-weight:700;color:var(--ink);margin-bottom:6px">בחירה מתפריט מוכן</div>
-            <div style="font-size:12.5px;color:var(--ink3);line-height:1.6">עברו שלב-שלב על הקטגוריות המוגדרות ובחרו מנות מכל קטגוריה</div>
-          </button>` : ''}
-          <button onclick="startCatalogMode()" style="background:var(--surface);border:1.5px solid var(--border);border-radius:10px;padding:22px 18px;cursor:pointer;text-align:right;transition:.15s;font-family:inherit" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
-            <div style="font-size:28px;margin-bottom:10px">🛒</div>
-            <div style="font-size:15px;font-weight:700;color:var(--ink);margin-bottom:6px">הרכבת תפריט חופשית</div>
-            <div style="font-size:12.5px;color:var(--ink3);line-height:1.6">בחרו מנות ופריטים ישירות מהקטלוג שלנו ובנו תפריט בהתאמה אישית</div>
-          </button>
-        </div>
+        ${hasSections ? `
+        <h2 class="step-title" style="margin-bottom:6px">התפריט שלנו</h2>
+        <div class="step-sub" style="margin-bottom:16px">לחצו להתחיל בבחירת המנות</div>
+        <button onclick="startTemplateMode()" style="width:100%;background:var(--accent);color:#FBF7EF;border:none;border-radius:8px;padding:16px 20px;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:14px;text-align:right">
+          <div style="font-size:22px">📋</div>
+          <div style="flex:1">
+            <div style="font-size:15px;font-weight:700;margin-bottom:3px">${esc(_d.name)}</div>
+            <div style="font-size:12.5px;opacity:.85">${_d.slogan ? esc(_d.slogan) : 'בחירה שלב אחר שלב מהקטגוריות'}</div>
+          </div>
+          <div style="font-size:18px;opacity:.7">←</div>
+        </button>` : `
+        <button onclick="startCatalogMode()" style="width:100%;background:var(--accent);color:#FBF7EF;border:none;border-radius:8px;padding:16px 20px;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:14px;text-align:right">
+          <div style="font-size:22px">🛒</div>
+          <div style="flex:1">
+            <div style="font-size:15px;font-weight:700;margin-bottom:3px">הרכב תפריט</div>
+            <div style="font-size:12.5px;opacity:.85">בחר מנות ישירות מהקטלוג שלנו</div>
+          </div>
+          <div style="font-size:18px;opacity:.7">←</div>
+        </button>`}
+        ${relatedSection}
       </div>`;
 }
 
@@ -274,7 +328,7 @@ function renderCatalogBrowse() {
       ${heroHtml()}
       <div class="wiz-body" style="padding-bottom:${cartCount?'110px':'70px'}">
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
-          <button onclick="_mode=null;render()" style="background:transparent;border:none;color:var(--ink3);font-size:13px;cursor:pointer;padding:0;font-family:inherit">← חזרה</button>
+          ${_d.show_related_options ? `<button onclick="_mode=null;render()" style="background:transparent;border:none;color:var(--ink3);font-size:13px;cursor:pointer;padding:0;font-family:inherit">← כל האפשרויות</button>` : '<div></div>'}
           <h2 class="step-title" style="margin:0;flex:1">הרכבת תפריט</h2>
         </div>
         <input type="text" placeholder="חיפוש מנה…" value="${esc(_catFilter)}" oninput="_catFilter=this.value;renderCatalogBrowse()" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:6px;font-size:13px;font-family:inherit;background:var(--surface);color:var(--ink);margin-bottom:10px;box-sizing:border-box;direction:rtl">
@@ -403,7 +457,8 @@ function heroHtml() {
     const evLabel = evLabels[_d.event_type] || '';
     const metaParts = [];
     const _pm = _d.pricing_mode || 'per_person';
-    if (_pm === 'per_person' && _d.base_price_per_person > 0) metaParts.push(`מחיר לאיש: <strong>₪${num(_d.base_price_per_person)}</strong>`);
+    const _isCatalogMode = _mode === 'catalog';
+    if (!_isCatalogMode && _pm === 'per_person' && _d.base_price_per_person > 0) metaParts.push(`מחיר לאיש: <strong>₪${num(_d.base_price_per_person)}</strong>`);
     if (_d.min_guests && _d.max_guests) metaParts.push(`אורחים: <strong>${_d.min_guests}–${_d.max_guests}</strong>`);
     else if (_d.min_guests) metaParts.push(`מינ׳ אורחים: <strong>${_d.min_guests}</strong>`);
 
@@ -412,9 +467,9 @@ function heroHtml() {
       <div class="hero-body">
         ${_d.logo_url ? `<img class="hero-logo" src="${esc(_d.logo_url)}" alt="לוגו">` : ''}
         <div class="hero-text">
-          ${evLabel ? `<div class="hero-eyebrow">${evLabel}</div>` : ''}
-          <h1 class="hero-title">${esc(_d.name)}</h1>
-          ${_d.slogan ? `<div class="hero-slogan">${esc(_d.slogan)}</div>` : ''}
+          ${_isCatalogMode ? `<div class="hero-eyebrow">הרכבת תפריט</div>` : (evLabel ? `<div class="hero-eyebrow">${evLabel}</div>` : '')}
+          <h1 class="hero-title">${_isCatalogMode ? 'בחר מה שמתאים לך' : esc(_d.name)}</h1>
+          ${!_isCatalogMode && _d.slogan ? `<div class="hero-slogan">${esc(_d.slogan)}</div>` : ''}
           ${metaParts.length ? `<div class="hero-meta">${metaParts.join('<span style="opacity:.4">·</span>')}</div>` : ''}
         </div>
       </div>
@@ -472,7 +527,7 @@ function renderStep(idx) {
         <div class="err-msg" id="step-err">${esc(_err)}</div>
       </div>
       <div class="nav-bar">
-        ${idx > 0 ? `<button class="btn-back" onclick="goBack()">חזרה</button>` : '<div></div>'}
+        ${idx > 0 ? `<button class="btn-back" onclick="goBack()">חזרה</button>` : (_d.show_related_options ? `<button class="btn-back" onclick="_mode=null;render()">← כל האפשרויות</button>` : '<div></div>')}
         ${(_d.pricing_mode||'per_person')==='per_item' && calcTotal()>0 ? `<span style="font-size:13px;color:var(--accent);font-weight:700;align-self:center">₪${num(calcTotal())}</span>` : '<div></div>'}
         <button class="btn-next" onclick="nextStep(${sec.id},${sec.min_choices||0},${sec.max_choices},${!!sec.is_required})">הבא ←</button>
       </div>`;

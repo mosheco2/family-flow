@@ -52910,6 +52910,7 @@ window._mtOpenEditor = async function(id) {
             event_type: data.event_type || '',
             description: data.description || '',
             pricing_mode: data.pricing_mode || 'per_person',
+            show_related_options: !!data.show_related_options,
             base_price_per_person: data.base_price_per_person || 0,
             min_guests: data.min_guests || '',
             max_guests: data.max_guests || '',
@@ -52989,6 +52990,9 @@ function _mtRenderEditor(root) {
         </label>
         <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12.5px;color:#64748b">
             <input type="checkbox" id="mt-chk-pub" ${f.is_public ? 'checked' : ''} onchange="_mtEF('is_public',this.checked)" style="width:15px;height:15px;accent-color:#6366f1">ציבורי
+        </label>
+        <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12.5px;color:#64748b" title="הצג בקישור: תפריטים נוספים + הרכבת תפריט מקטלוג">
+            <input type="checkbox" id="mt-chk-related" ${f.show_related_options ? 'checked' : ''} onchange="_mtEF('show_related_options',this.checked)" style="width:15px;height:15px;accent-color:#6366f1">אפשרויות נוספות
         </label>
         ${pUrl ? `<button onclick="_mtCopyLink('${_mtEsc(t.public_slug)}')" style="${_mtBtnS('ghost')};gap:5px"><i class="fa-solid fa-link" style="font-size:11px"></i>קישור</button>` : ''}
         <button id="mt-save-btn" onclick="_mtSave()" style="${_mtBtnS('primary')}">שמור</button>
@@ -53190,6 +53194,7 @@ window._mtSave = async function() {
                 event_type: f.event_type || null,
                 description: f.description || null,
                 pricing_mode: f.pricing_mode || 'per_person',
+                show_related_options: !!f.show_related_options,
                 base_price_per_person: parseFloat(f.base_price_per_person) || 0,
                 min_guests: f.min_guests ? parseInt(f.min_guests) : null,
                 max_guests: f.max_guests ? parseInt(f.max_guests) : null,

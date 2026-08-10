@@ -2590,6 +2590,7 @@ app.get('/api/solo/search-by-phone', async (req, res) => {
           updated_at TIMESTAMP DEFAULT NOW()
       )`); } catch(e) { console.error('menu_templates:', e.message); }
       try { await client.query(`ALTER TABLE menu_templates ADD COLUMN IF NOT EXISTS pricing_mode VARCHAR(20) NOT NULL DEFAULT 'per_person'`); } catch(e) { console.error('menu_templates pricing_mode:', e.message); }
+      try { await client.query(`ALTER TABLE menu_templates ADD COLUMN IF NOT EXISTS show_related_options BOOLEAN DEFAULT FALSE`); } catch(e) { console.error('menu_templates show_related_options:', e.message); }
 
       try { await client.query(`CREATE TABLE IF NOT EXISTS menu_sections (
           id SERIAL PRIMARY KEY,
@@ -29410,7 +29411,7 @@ app.put('/api/menu-templates/:id', verifyBizOrLegacy, async (req, res) => {
         }
 
         const allowed = ['name','description','event_type','min_guests',
-                         'max_guests','base_price_per_person','pricing_mode','is_active','is_public',
+                         'max_guests','base_price_per_person','pricing_mode','show_related_options','is_active','is_public',
                          'cover_image_url','logo_url','slogan','contact_phone',
                          'contact_address','notification_email'];
         const sets = [], vals = [];
@@ -29733,11 +29734,14 @@ function _sanitizePlainText(text) {
 app.get('/api/menu/public/:slug', async (req, res) => {
     try {
         const tmplRes = await pool.query(
-            `SELECT id,name,description,event_type,min_guests,max_guests,
-                    base_price_per_person,pricing_mode,cover_image_url,logo_url,slogan,
-                    contact_phone,contact_address,group_id
-             FROM menu_templates
-             WHERE public_slug=$1 AND is_active=true AND is_public=true AND template_type='menu'`,
+            `SELECT mt.id,mt.name,mt.description,mt.event_type,mt.min_guests,mt.max_guests,
+                    mt.base_price_per_person,mt.pricing_mode,mt.cover_image_url,mt.logo_url,mt.slogan,
+                    mt.contact_phone,mt.contact_address,mt.show_related_options,mt.group_id,
+                    COALESCE(ss.store_alias, fg.group_code) AS store_id
+             FROM menu_templates mt
+             JOIN family_groups fg ON fg.id = mt.group_id
+             LEFT JOIN store_settings ss ON ss.group_id = mt.group_id
+             WHERE mt.public_slug=$1 AND mt.is_active=true AND mt.is_public=true AND mt.template_type='menu'`,
             [req.params.slug]
         );
         if (!tmplRes.rows.length) return res.status(404).json({ error: 'תבנית לא נמצאה' });
@@ -29781,7 +29785,7 @@ app.get('/api/menu/public/:slug', async (req, res) => {
         }));
 
         const { group_id, ...tmplPublic } = tmpl;
-        res.json({ ...tmplPublic, sections });
+        res.json({ ...tmplPublic, sections, store_id: tmpl.store_id });
     } catch(e) {
         console.error('GET /api/menu/public/:slug:', e.message);
         res.status(500).json({ error: 'שגיאת שרת' });
@@ -29910,6 +29914,29 @@ app.post('/api/menu/public/:slug/request', async (req, res) => {
         res.status(201).json({ success: true, request_number: reqNumber });
     } catch(e) {
         console.error('POST /api/menu/public/:slug/request:', e.message);
+        res.status(500).json({ error: 'שגיאת שרת' });
+    }
+});
+
+/* other public menus for the same business */
+app.get('/api/menu/public/:slug/related', async (req, res) => {
+    try {
+        const grpRes = await pool.query(
+            `SELECT mt.group_id FROM menu_templates mt WHERE mt.public_slug=$1 AND mt.is_active=true AND mt.is_public=true`,
+            [req.params.slug]
+        );
+        if (!grpRes.rows.length) return res.json([]);
+        const groupId = grpRes.rows[0].group_id;
+        const r = await pool.query(
+            `SELECT name, public_slug, event_type, cover_image_url, logo_url
+             FROM menu_templates
+             WHERE group_id=$1 AND is_active=true AND is_public=true AND template_type='menu' AND public_slug<>$2
+             ORDER BY created_at DESC LIMIT 10`,
+            [groupId, req.params.slug]
+        );
+        res.json(r.rows);
+    } catch(e) {
+        console.error('GET /api/menu/public/:slug/related:', e.message);
         res.status(500).json({ error: 'שגיאת שרת' });
     }
 });
