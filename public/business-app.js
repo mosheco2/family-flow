@@ -52938,8 +52938,11 @@ function _mtRenderEditor(root) {
         const exp = _mtState.expandedSections[s.id];
         const items = s.items || [];
         const itemsHtml = items.map(i => `
-        <div style="display:flex;align-items:flex-start;gap:8px;padding:7px 0;border-bottom:1px solid #f1f5f9">
-            <i class="fa-solid fa-grip-vertical" style="color:#e2e8f0;font-size:11px;margin-top:3px;flex-shrink:0"></i>
+        <div style="display:flex;align-items:flex-start;gap:8px;padding:8px 0;border-bottom:1px solid #f1f5f9">
+            <i class="fa-solid fa-grip-vertical" style="color:#e2e8f0;font-size:11px;margin-top:4px;flex-shrink:0"></i>
+            ${i.image_url
+                ? `<img src="${_mtEsc(i.image_url)}" style="width:38px;height:38px;object-fit:cover;border-radius:6px;border:1px solid #e2e8f0;flex-shrink:0;cursor:pointer" title="החלף תמונה" onclick="_mtUploadItemImg(${i.id},${s.id})">`
+                : `<button onclick="_mtUploadItemImg(${i.id},${s.id})" title="הוסף תמונה" style="width:38px;height:38px;border:1.5px dashed #cbd5e1;border-radius:6px;background:#f8fafc;color:#94a3b8;font-size:14px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center">🖼</button>`}
             <div style="flex:1;min-width:0">
                 <div style="font-size:13px;font-weight:600;color:${i.is_available !== false ? '#1e293b' : '#94a3b8'}">
                     ${_mtEsc(i.name || '')}${i.custom_price ? ` <span style="color:#6366f1;font-weight:400">+₪${Number(i.custom_price).toLocaleString('he-IL')}</span>` : ''}
@@ -53272,7 +53275,7 @@ window._mtAddItemModal = function(sectionId) {
         <button id="mt-tab-manual" onclick="_mtItemTab('manual',${sectionId})" style="padding:8px 18px;border:none;background:transparent;font-size:13px;font-weight:700;color:#6366f1;border-bottom:2px solid #6366f1;margin-bottom:-2px;cursor:pointer;font-family:inherit">ידנית</button>
         <button id="mt-tab-catalog" onclick="_mtItemTab('catalog',${sectionId})" style="padding:8px 18px;border:none;background:transparent;font-size:13px;font-weight:600;color:#94a3b8;border-bottom:2px solid transparent;margin-bottom:-2px;cursor:pointer;font-family:inherit">מהקטלוג</button>
     </div>
-    <div id="mt-tab-content"></div>`, '520px');
+    <div id="mt-tab-content"></div>`, '540px');
     _mtRenderManualTab(sectionId);
     setTimeout(() => { const n = document.getElementById('mt-in'); if (n) n.focus(); }, 60);
 };
@@ -53306,6 +53309,17 @@ function _mtRenderManualTab(sectionId) {
             </div>
         </div>
     </div>
+
+        <div>
+            <label style="font-size:12px;color:#64748b;font-weight:600;display:block;margin-bottom:4px">תמונה</label>
+            <div style="display:flex;align-items:center;gap:8px">
+                <img id="mt-img-preview" src="" alt="" style="display:none;width:48px;height:48px;object-fit:cover;border-radius:7px;border:1px solid #e2e8f0">
+                <button type="button" onclick="_mtPickItemImg()" style="padding:7px 13px;background:#f1f5f9;border:1px dashed #cbd5e1;border-radius:6px;font-size:12px;color:#475569;cursor:pointer"><i class="fa-solid fa-cloud-arrow-up" style="margin-left:5px"></i>בחר תמונה</button>
+                <button type="button" id="mt-img-remove" onclick="_mtRemoveItemImgPreview()" style="display:none;padding:7px 10px;background:#fff;border:1px solid #fca5a5;border-radius:6px;font-size:12px;color:#dc2626;cursor:pointer">הסר</button>
+            </div>
+            <input type="hidden" id="mt-img-url" value="">
+        </div>
+    </div>
     <div id="mt-item-err" style="color:#ef4444;font-size:12px;min-height:16px;margin-top:7px"></div>
     <div style="display:flex;gap:8px;margin-top:16px">
         <button onclick="_mtCloseModal('mt-item-modal')" style="${_mtBtnS('ghost')}">ביטול</button>
@@ -53328,9 +53342,10 @@ async function _mtRenderCatalogTab(sectionId) {
     window._mtCatalogSel = {};
     const rows = catalog.map(c => `
         <label style="display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:7px;cursor:pointer;transition:.12s" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='transparent'">
-            <input type="checkbox" data-cid="${c.id}" data-cname="${_mtEsc(c.name)}" data-cdesc="${_mtEsc(c.description||'')}" data-cprice="${c.price||0}"
+            <input type="checkbox" data-cid="${c.id}" data-cname="${_mtEsc(c.name)}" data-cdesc="${_mtEsc(c.description||'')}" data-cprice="${c.price||0}" data-cimg="${_mtEsc(c.image_url||'')}"
                 style="width:16px;height:16px;accent-color:#6366f1;flex-shrink:0"
                 onchange="window._mtCatalogSel[${c.id}]=this.checked;document.getElementById('mt-cat-count').textContent=Object.values(window._mtCatalogSel).filter(Boolean).length||''">
+            ${c.image_url ? `<img src="${_mtEsc(c.image_url)}" style="width:36px;height:36px;object-fit:cover;border-radius:6px;border:1px solid #e2e8f0;flex-shrink:0">` : '<div style="width:36px;height:36px;background:#f1f5f9;border-radius:6px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:14px">🍽</div>'}
             <div style="flex:1;min-width:0">
                 <div style="font-size:13.5px;font-weight:600;color:#1e293b">${_mtEsc(c.name)}</div>
                 ${c.description ? `<div style="font-size:12px;color:#64748b;margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_mtEsc(c.description)}</div>` : ''}
@@ -53374,6 +53389,7 @@ async function _mtDoAddFromCatalog(sectionId) {
             description: inp.dataset.cdesc || null,
             catalog_item_id: parseInt(cidStr),
             is_available: true,
+            image_url: inp.dataset.cimg || null,
         };
         const price = parseFloat(inp.dataset.cprice);
         if (price > 0) payload.custom_price = price;
@@ -53401,11 +53417,12 @@ async function _mtDoAddItem(sectionId) {
     const btn = document.getElementById('mt-item-add-btn');
     if (btn) { btn.disabled = true; btn.textContent = '...'; }
     try {
+        const imageUrl = document.getElementById('mt-img-url')?.value || null;
         const res = await fetch(`/api/menu-sections/${sectionId}/items`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${window._bizToken}` },
             body: JSON.stringify(Object.assign(
-                { name, description: document.getElementById('mt-id')?.value || null, allergens: document.getElementById('mt-ia')?.value || null, is_available: true },
+                { name, description: document.getElementById('mt-id')?.value || null, allergens: document.getElementById('mt-ia')?.value || null, is_available: true, image_url: imageUrl },
                 price !== null ? { custom_price: price } : {}
             ))
         });
@@ -53425,6 +53442,79 @@ async function _mtDoAddItem(sectionId) {
         if (btn) { btn.disabled = false; btn.textContent = 'הוסף פריט'; }
     }
 }
+
+window._mtPickItemImg = async function() {
+    const input = document.createElement('input');
+    input.type = 'file'; input.accept = 'image/*';
+    input.onchange = async (e) => {
+        const file = e.target.files[0]; if (!file) return;
+        try {
+            const [sr, pr] = await Promise.all([
+                fetch(`${API}/public/settings/cloudinary_cloud_name`),
+                fetch(`${API}/public/settings/cloudinary_upload_preset`)
+            ]);
+            const cloudName = (await sr.json()).value;
+            const preset = (await pr.json()).value;
+            if (!cloudName || !preset) { const e2 = document.getElementById('mt-item-err'); if(e2) e2.textContent='הגדרות Cloudinary חסרות'; return; }
+            const dataUrl = await new Promise(resolve => compressImage(file, 800, 800, 0.85, resolve));
+            const blob = await fetch(dataUrl).then(r => r.blob());
+            const fd = new FormData();
+            fd.append('file', blob, 'item-img.jpg');
+            fd.append('upload_preset', preset);
+            fd.append('folder', 'family-flow-menu-items');
+            const upData = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, { method: 'POST', body: fd }).then(r => r.json());
+            if (!upData.secure_url) { const e2 = document.getElementById('mt-item-err'); if(e2) e2.textContent='שגיאה בהעלאה'; return; }
+            document.getElementById('mt-img-url').value = upData.secure_url;
+            const prev = document.getElementById('mt-img-preview');
+            prev.src = upData.secure_url; prev.style.display = 'block';
+            document.getElementById('mt-img-remove').style.display = '';
+        } catch(err) { const e2 = document.getElementById('mt-item-err'); if(e2) e2.textContent='שגיאה בהעלאה'; }
+    };
+    input.click();
+};
+
+window._mtRemoveItemImgPreview = function() {
+    document.getElementById('mt-img-url').value = '';
+    const prev = document.getElementById('mt-img-preview');
+    prev.src = ''; prev.style.display = 'none';
+    document.getElementById('mt-img-remove').style.display = 'none';
+};
+
+window._mtUploadItemImg = async function(itemId, sectionId) {
+    const input = document.createElement('input');
+    input.type = 'file'; input.accept = 'image/*';
+    input.onchange = async (e) => {
+        const file = e.target.files[0]; if (!file) return;
+        try {
+            const [sr, pr] = await Promise.all([
+                fetch(`${API}/public/settings/cloudinary_cloud_name`),
+                fetch(`${API}/public/settings/cloudinary_upload_preset`)
+            ]);
+            const cloudName = (await sr.json()).value;
+            const preset = (await pr.json()).value;
+            if (!cloudName || !preset) { _mtToast('הגדרות Cloudinary חסרות', 'err'); return; }
+            _mtToast('מעלה תמונה...');
+            const dataUrl = await new Promise(resolve => compressImage(file, 800, 800, 0.85, resolve));
+            const blob = await fetch(dataUrl).then(r => r.blob());
+            const fd = new FormData();
+            fd.append('file', blob, 'item-img.jpg');
+            fd.append('upload_preset', preset);
+            fd.append('folder', 'family-flow-menu-items');
+            const upData = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, { method: 'POST', body: fd }).then(r => r.json());
+            if (!upData.secure_url) { _mtToast('שגיאה בהעלאת תמונה', 'err'); return; }
+            await fetch(`/api/menu-items/${itemId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${window._bizToken}` },
+                body: JSON.stringify({ image_url: upData.secure_url })
+            });
+            const sec = (_mtState.cur?.sections || []).find(s => s.id === sectionId);
+            if (sec) { const item = sec.items.find(i => i.id === itemId); if (item) item.image_url = upData.secure_url; }
+            _mtRender();
+            _mtToast('התמונה עודכנה');
+        } catch(err) { _mtToast('שגיאה בהעלאת תמונה', 'err'); }
+    };
+    input.click();
+};
 
 window._mtToggleItemA = async function(itemId, sectionId, avail) {
     try {
