@@ -91,13 +91,17 @@ body{font-family:'Assistant',Helvetica,sans-serif;color:var(--ink);background:va
 .btn-wa{display:inline-flex;align-items:center;gap:7px;padding:11px 22px;background:#25D366;color:#fff;border:none;border-radius:3px;font-size:13.5px;font-family:inherit;font-weight:600;cursor:pointer}
 .btn-wa:hover{background:#1ebe5a}
 /* ── pdf print source (hidden on screen, shown on print) ── */
-#pdf-full-source,#pdf-source{display:none}
 #pdf-print-target{display:none}
 @media print{
-  html,body{background:#fff!important}
   body>*{display:none!important}
-  #pdf-print-target{display:block!important;width:100%!important;padding:20mm 18mm!important;font-family:'Assistant',Helvetica,sans-serif!important;direction:rtl!important;color:#241E19!important}
+  #pdf-print-target{display:block!important;width:100%}
+  *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
 }
+
+
+
+
+
 
 /* ── nav buttons ── */
 .nav-bar{position:fixed;bottom:0;right:0;left:0;background:var(--bg);border-top:1px solid var(--border);padding:12px clamp(14px,5vw,48px);display:flex;gap:10px;justify-content:space-between;z-index:100}
@@ -460,40 +464,56 @@ function buildPrintTarget(content) {
 }
 
 function buildFullPdfSource() {
+    const metaParts = [];
+    if (_d.base_price_per_person > 0) metaParts.push(`מחיר לאיש: <strong style="color:#FBF7EF">₪${num(_d.base_price_per_person)}</strong>`);
+    if (_d.min_guests && _d.max_guests) metaParts.push(`אורחים: <strong style="color:#FBF7EF">${_d.min_guests}–${_d.max_guests}</strong>`);
+
+    const heroInner = `
+      <div style="position:relative;min-height:200px;background:#241E19;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end;margin:-20px -20px 28px;page-break-inside:avoid">
+        ${_d.cover_image_url ? `<img src="${esc(_d.cover_image_url)}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.38">` : ''}
+        <div style="position:relative;padding:28px 24px 22px;display:flex;align-items:flex-end;gap:16px">
+          ${_d.logo_url ? `<img src="${esc(_d.logo_url)}" style="width:60px;height:60px;border-radius:6px;object-fit:cover;border:2px solid rgba(255,255,255,.18);flex-shrink:0">` : ''}
+          <div style="flex:1;min-width:0">
+            <div style="font-size:9px;letter-spacing:.3em;color:#6B2434;text-transform:uppercase;margin-bottom:6px">תפריט</div>
+            <div style="font-size:clamp(22px,5vw,34px);font-weight:500;color:#FBF7EF;line-height:1.2;margin-bottom:5px">${esc(_d.name)}</div>
+            ${_d.slogan ? `<div style="font-size:13px;font-weight:300;color:#C8BFB0">${esc(_d.slogan)}</div>` : ''}
+            ${metaParts.length ? `<div style="display:flex;flex-wrap:wrap;gap:5px 18px;font-size:12px;color:#C8BFB0;margin-top:8px">${metaParts.join('<span style="color:#6B2434">·</span>')}</div>` : ''}
+          </div>
+        </div>
+      </div>`;
+
     const sectionsHtml = (_d.sections || []).map(sec => {
         const items = (sec.items || []).filter(i => i.is_available !== false);
-        const itemRows = items.map(item => `
-          <tr>
-            <td style="padding:8px 10px;border-bottom:1px solid #e5dccb;vertical-align:middle">
-              ${item.image_url ? `<img src="${esc(item.image_url)}" style="width:38px;height:38px;object-fit:cover;border-radius:5px;vertical-align:middle;margin-left:8px">` : ''}
-              <span style="font-size:13px;font-weight:600">${esc(item.name)}</span>
-              ${item.description ? `<div style="font-size:11.5px;color:#5C5148;margin-top:2px">${esc(item.description)}</div>` : ''}
-            </td>
-            <td style="padding:8px 10px;border-bottom:1px solid #e5dccb;font-size:12.5px;color:#6B2434;white-space:nowrap;text-align:left;vertical-align:middle">${item.price > 0 ? `+₪${num(item.price)}` : ''}</td>
-          </tr>`).join('');
+        if (!items.length) return '';
+        const itemCards = items.map(item => `
+          <div style="background:#fff;border:1.5px solid #E5DCCB;border-radius:8px;padding:12px 14px;display:flex;align-items:flex-start;gap:12px;margin-bottom:8px;page-break-inside:avoid">
+            <div style="flex:1;min-width:0">
+              <div style="font-size:13.5px;font-weight:500;color:#241E19;margin-bottom:2px">${esc(item.name)}</div>
+              ${item.description ? `<div style="font-size:12px;color:#5C5148;line-height:1.5;margin-top:2px">${esc(item.description)}</div>` : ''}
+              ${item.price > 0 ? `<div style="font-size:12.5px;color:#6B2434;font-weight:600;margin-top:6px">+₪${num(item.price)}</div>` : ''}
+            </div>
+            ${item.image_url ? `<img src="${esc(item.image_url)}" style="width:56px;height:56px;object-fit:cover;border-radius:6px;flex-shrink:0;border:1px solid #E5DCCB">` : ''}
+          </div>`).join('');
         return `
-          <div style="margin-bottom:24px;page-break-inside:avoid">
-            <div style="font-size:13px;font-weight:700;color:#6B2434;letter-spacing:.1em;padding:6px 0 5px;border-bottom:1.5px solid #6B2434;margin-bottom:2px">${esc(sec.name)}</div>
-            ${sec.description ? `<div style="font-size:11.5px;color:#9C8C71;margin:5px 0 6px">${esc(sec.description)}</div>` : ''}
-            <table style="width:100%;border-collapse:collapse">${itemRows}</table>
+          <div style="margin-bottom:28px;page-break-inside:avoid">
+            <div style="font-size:10px;font-weight:700;color:#6B2434;letter-spacing:.2em;text-transform:uppercase;padding-bottom:8px;border-bottom:1.5px solid #6B2434;margin-bottom:10px">${esc(sec.name)}</div>
+            ${sec.description ? `<div style="font-size:12px;color:#9C8C71;margin-bottom:10px">${esc(sec.description)}</div>` : ''}
+            ${itemCards}
           </div>`;
     }).join('');
 
-    const metaParts = [];
-    if (_d.base_price_per_person > 0) metaParts.push(`מחיר לאיש: ₪${num(_d.base_price_per_person)}`);
-    if (_d.min_guests && _d.max_guests) metaParts.push(`אורחים: ${_d.min_guests}–${_d.max_guests}`);
+    const contactBar = (_d.contact_phone||_d.contact_address) ? `
+      <div style="margin-top:28px;padding-top:12px;border-top:1px solid #E5DCCB;font-size:11px;color:#9C8C71;display:flex;gap:18px;flex-wrap:wrap">
+        ${_d.contact_phone ? `<span>📞 ${esc(_d.contact_phone)}</span>` : ''}
+        ${_d.contact_address ? `<span>📍 ${esc(_d.contact_address)}</span>` : ''}
+      </div>` : '';
 
     buildPrintTarget(`
-      <div style="display:flex;align-items:center;gap:16px;margin-bottom:20px;padding-bottom:14px;border-bottom:2px solid #6B2434">
-        ${_d.logo_url ? `<img src="${esc(_d.logo_url)}" style="width:58px;height:58px;object-fit:cover;border-radius:6px;border:1px solid #e5dccb">` : ''}
-        <div>
-          <div style="font-size:22px;font-weight:700;color:#241E19">${esc(_d.name)}</div>
-          ${_d.slogan ? `<div style="font-size:12px;color:#9C8C71;margin-top:3px">${esc(_d.slogan)}</div>` : ''}
-          ${metaParts.length ? `<div style="font-size:11.5px;color:#5C5148;margin-top:5px">${metaParts.join('  ·  ')}</div>` : ''}
-        </div>
+      <div style="font-family:system-ui,sans-serif;direction:rtl;background:#FBF7EF;padding:20px;min-height:100vh">
+        ${heroInner}
+        ${sectionsHtml}
+        ${contactBar}
       </div>
-      ${sectionsHtml}
-      ${(_d.contact_phone||_d.contact_address) ? `<div style="margin-top:20px;font-size:11px;color:#9C8C71;border-top:1px solid #e5dccb;padding-top:10px">${_d.contact_phone?`📞 ${esc(_d.contact_phone)}  `:''}${_d.contact_address?`📍 ${esc(_d.contact_address)}`:''}</div>` : ''}
     `);
 }
 
