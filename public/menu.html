@@ -133,6 +133,7 @@ let _err = '';
 
 const slug = location.pathname.replace(/^\/menu\//, '').trim();
 const _isPdfMode = new URLSearchParams(location.search).get('pdf') === '1';
+const _isWaMode  = new URLSearchParams(location.search).get('wa')  === '1';
 
 /* ── boot ── */
 (async () => {
@@ -149,6 +150,7 @@ const _isPdfMode = new URLSearchParams(location.search).get('pdf') === '1';
     buildFullPdfSource();
     document.getElementById('fab-pdf-btn').style.display = 'flex';
     if (_isPdfMode) { setTimeout(exportMenuPDF, 800); }
+    if (_isWaMode)  { setTimeout(exportAndShareWa, 800); }
     render();
 })();
 
@@ -528,6 +530,44 @@ async function exportMenuPDF() {
             jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
         }).from(document.getElementById('pdf-full-source')).save();
     } catch(e) { alert('שגיאה ביצירת PDF'); }
+    if (btn) { btn.disabled = false; btn.textContent = '⬇ PDF'; }
+}
+
+async function exportAndShareWa() {
+    if (typeof html2pdf === 'undefined') { alert('טעינת PDF נכשלה — נסה לרענן'); return; }
+    const btn = document.getElementById('fab-pdf-btn');
+    if (btn) { btn.disabled = true; btn.textContent = '...מכין'; }
+    let blob;
+    try {
+        blob = await html2pdf().set({
+            margin: 0,
+            filename: `תפריט-${_d.name}.pdf`,
+            image: { type: 'jpeg', quality: 0.95 },
+            html2canvas: { scale: 2, useCORS: true, allowTaint: true },
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        }).from(document.getElementById('pdf-full-source')).outputPdf('blob');
+    } catch(e) { alert('שגיאה ביצירת PDF'); if (btn) { btn.disabled = false; btn.textContent = '⬇ PDF'; } return; }
+
+    const file = new File([blob], `תפריט-${_d.name}.pdf`, { type: 'application/pdf' });
+    const menuUrl = `${location.origin}${location.pathname}`;
+    const text = `היי, הנה התפריט שלנו — ${_d.name}:\n${menuUrl}`;
+
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        try {
+            await navigator.share({ title: `תפריט ${_d.name}`, text, files: [file] });
+            if (btn) { btn.disabled = false; btn.textContent = '⬇ PDF'; }
+            return;
+        } catch(e) { /* fallthrough */ }
+    }
+
+    // Fallback: הורד PDF + פתח WhatsApp
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `תפריט-${_d.name}.pdf`;
+    a.click();
+    setTimeout(() => {
+        window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank');
+    }, 800);
     if (btn) { btn.disabled = false; btn.textContent = '⬇ PDF'; }
 }
 

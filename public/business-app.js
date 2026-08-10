@@ -53363,9 +53363,8 @@ window._mtExportPDF = function(slug, name) {
 
 window._mtWaShare = function(slug, name) {
     if (!slug) { showToast('error', 'יש לפרסם את התפריט תחילה'); return; }
-    const url = `${location.origin}/menu/${slug}`;
-    const text = `היי, הנה התפריט שלנו ל${name}:\n${url}`;
-    window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank');
+    const w = window.open(`/menu/${slug}?wa=1`, '_blank', 'width=900,height=700');
+    if (!w) { showToast('error', 'חסום חלון קופץ — אפשר זאת בדפדפן ונסה שוב'); }
 };
 
 window._mtCopyLink = function(slug) {
