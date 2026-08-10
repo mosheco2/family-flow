@@ -29428,6 +29428,246 @@ app.put('/api/menu-templates/:id', verifyBizOrLegacy, async (req, res) => {
 
 // ===== END MENU TEMPLATES WRITE API =====
 
+// ===== MENU SECTIONS & ITEMS API =====
+
+// POST /api/menu-templates/:templateId/sections
+app.post('/api/menu-templates/:templateId/sections', verifyBizOrLegacy, async (req, res) => {
+    const bizGroupId = req.bizAuth.groupId;
+    if (!bizGroupId) return res.status(401).json({ error: 'נדרש token' });
+
+    const name = (req.body.name || '').trim();
+    if (!name) return res.status(400).json({ error: 'שם הסקשן נדרש' });
+
+    const minC = req.body.min_choices !== undefined ? parseInt(req.body.min_choices) : 0;
+    const maxC = req.body.max_choices !== undefined ? parseInt(req.body.max_choices) : 1;
+    if (isNaN(minC) || minC < 0) return res.status(400).json({ error: 'min_choices חייב להיות מספר אי-שלילי' });
+    if (isNaN(maxC) || maxC < 0) return res.status(400).json({ error: 'max_choices חייב להיות מספר אי-שלילי' });
+    if (maxC < minC) return res.status(400).json({ error: 'max_choices חייב להיות גדול מ-min_choices' });
+
+    try {
+        const own = await pool.query(
+            `SELECT id FROM menu_templates WHERE id=$1 AND group_id=$2 AND template_type='menu'`,
+            [req.params.templateId, bizGroupId]
+        );
+        if (!own.rows.length) return res.status(404).json({ error: 'תבנית לא נמצאה' });
+
+        let sortOrder = req.body.sort_order !== undefined ? parseInt(req.body.sort_order) : null;
+        if (sortOrder === null || isNaN(sortOrder)) {
+            const maxSort = await pool.query(
+                `SELECT COALESCE(MAX(sort_order),0)+1 AS next FROM menu_sections WHERE template_id=$1`,
+                [req.params.templateId]
+            );
+            sortOrder = maxSort.rows[0].next;
+        }
+
+        const r = await pool.query(`
+            INSERT INTO menu_sections (template_id, name, description, min_choices, max_choices, is_required, sort_order, price_modifier)
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *
+        `, [
+            req.params.templateId, name,
+            req.body.description || null,
+            minC, maxC,
+            req.body.is_required !== undefined ? req.body.is_required : false,
+            sortOrder,
+            req.body.price_modifier !== undefined ? parseFloat(req.body.price_modifier) : 0
+        ]);
+        res.status(201).json(r.rows[0]);
+    } catch(e) {
+        console.error('POST /sections:', e.message);
+        res.status(500).json({ error: 'שגיאת שרת' });
+    }
+});
+
+// PUT /api/menu-sections/:id
+app.put('/api/menu-sections/:id', verifyBizOrLegacy, async (req, res) => {
+    const bizGroupId = req.bizAuth.groupId;
+    if (!bizGroupId) return res.status(401).json({ error: 'נדרש token' });
+
+    try {
+        const own = await pool.query(
+            `SELECT ms.id FROM menu_sections ms
+             JOIN menu_templates mt ON mt.id=ms.template_id
+             WHERE ms.id=$1 AND mt.group_id=$2 AND mt.template_type='menu'`,
+            [req.params.id, bizGroupId]
+        );
+        if (!own.rows.length) return res.status(404).json({ error: 'סקשן לא נמצא' });
+
+        if (req.body.min_choices !== undefined || req.body.max_choices !== undefined) {
+            const cur = await pool.query('SELECT min_choices, max_choices FROM menu_sections WHERE id=$1', [req.params.id]);
+            const effMin = req.body.min_choices !== undefined ? parseInt(req.body.min_choices) : cur.rows[0].min_choices;
+            const effMax = req.body.max_choices !== undefined ? parseInt(req.body.max_choices) : cur.rows[0].max_choices;
+            if (!isNaN(effMin) && effMin < 0) return res.status(400).json({ error: 'min_choices חייב להיות אי-שלילי' });
+            if (!isNaN(effMax) && effMax < 0) return res.status(400).json({ error: 'max_choices חייב להיות אי-שלילי' });
+            if (!isNaN(effMin) && !isNaN(effMax) && effMax < effMin)
+                return res.status(400).json({ error: 'max_choices חייב להיות גדול מ-min_choices' });
+        }
+
+        const allowed = ['name','description','min_choices','max_choices','is_required','sort_order','price_modifier'];
+        const sets = [], vals = [];
+        for (const f of allowed) {
+            if (req.body[f] !== undefined) { vals.push(req.body[f]); sets.push(`${f}=$${vals.length}`); }
+        }
+        if (!sets.length) return res.status(400).json({ error: 'לא נשלחו שדות לעדכון' });
+
+        vals.push(req.params.id);
+        const r = await pool.query(
+            `UPDATE menu_sections SET ${sets.join(',')} WHERE id=$${vals.length} RETURNING *`, vals
+        );
+        res.json(r.rows[0]);
+    } catch(e) {
+        console.error('PUT /sections/:id:', e.message);
+        res.status(500).json({ error: 'שגיאת שרת' });
+    }
+});
+
+// DELETE /api/menu-sections/:id
+app.delete('/api/menu-sections/:id', verifyBizOrLegacy, async (req, res) => {
+    const bizGroupId = req.bizAuth.groupId;
+    if (!bizGroupId) return res.status(401).json({ error: 'נדרש token' });
+
+    try {
+        const own = await pool.query(
+            `SELECT ms.id FROM menu_sections ms
+             JOIN menu_templates mt ON mt.id=ms.template_id
+             WHERE ms.id=$1 AND mt.group_id=$2 AND mt.template_type='menu'`,
+            [req.params.id, bizGroupId]
+        );
+        if (!own.rows.length) return res.status(404).json({ error: 'סקשן לא נמצא' });
+
+        await pool.query('DELETE FROM menu_sections WHERE id=$1', [req.params.id]);
+        res.json({ success: true });
+    } catch(e) {
+        console.error('DELETE /sections/:id:', e.message);
+        res.status(500).json({ error: 'שגיאת שרת' });
+    }
+});
+
+// POST /api/menu-sections/:sectionId/items
+app.post('/api/menu-sections/:sectionId/items', verifyBizOrLegacy, async (req, res) => {
+    const bizGroupId = req.bizAuth.groupId;
+    if (!bizGroupId) return res.status(401).json({ error: 'נדרש token' });
+
+    try {
+        const own = await pool.query(
+            `SELECT mt.group_id FROM menu_sections ms
+             JOIN menu_templates mt ON mt.id=ms.template_id
+             WHERE ms.id=$1 AND mt.group_id=$2 AND mt.template_type='menu'`,
+            [req.params.sectionId, bizGroupId]
+        );
+        if (!own.rows.length) return res.status(404).json({ error: 'סקשן לא נמצא' });
+
+        const catalogId = req.body.catalog_item_id ? parseInt(req.body.catalog_item_id) : null;
+        if (catalogId) {
+            const catCheck = await pool.query(
+                'SELECT id FROM store_catalog WHERE id=$1 AND group_id=$2',
+                [catalogId, bizGroupId]
+            );
+            if (!catCheck.rows.length) return res.status(400).json({ error: 'מוצר קטלוג לא נמצא או לא שייך לעסק זה' });
+        }
+
+        const name = (req.body.name || '').trim();
+        if (!catalogId && !name) return res.status(400).json({ error: 'שם הפריט נדרש כשאין catalog_item_id' });
+
+        let sortOrder = req.body.sort_order !== undefined ? parseInt(req.body.sort_order) : null;
+        if (sortOrder === null || isNaN(sortOrder)) {
+            const maxSort = await pool.query(
+                `SELECT COALESCE(MAX(sort_order),0)+1 AS next FROM menu_items WHERE section_id=$1`,
+                [req.params.sectionId]
+            );
+            sortOrder = maxSort.rows[0].next;
+        }
+
+        const customPrice = req.body.custom_price !== undefined ? parseFloat(req.body.custom_price) : null;
+        if (customPrice !== null && (isNaN(customPrice) || customPrice < 0))
+            return res.status(400).json({ error: 'custom_price חייב להיות מספר אי-שלילי' });
+
+        const r = await pool.query(`
+            INSERT INTO menu_items (section_id, name, description, catalog_item_id, custom_price, image_url, allergens, is_available, sort_order)
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *
+        `, [
+            req.params.sectionId,
+            name || null,
+            req.body.description || null,
+            catalogId,
+            customPrice,
+            req.body.image_url || null,
+            req.body.allergens || null,
+            req.body.is_available !== undefined ? req.body.is_available : true,
+            sortOrder
+        ]);
+        res.status(201).json(r.rows[0]);
+    } catch(e) {
+        console.error('POST /items:', e.message);
+        res.status(500).json({ error: 'שגיאת שרת' });
+    }
+});
+
+// PUT /api/menu-items/:id
+app.put('/api/menu-items/:id', verifyBizOrLegacy, async (req, res) => {
+    const bizGroupId = req.bizAuth.groupId;
+    if (!bizGroupId) return res.status(401).json({ error: 'נדרש token' });
+
+    try {
+        const own = await pool.query(
+            `SELECT mi.id FROM menu_items mi
+             JOIN menu_sections ms ON ms.id=mi.section_id
+             JOIN menu_templates mt ON mt.id=ms.template_id
+             WHERE mi.id=$1 AND mt.group_id=$2 AND mt.template_type='menu'`,
+            [req.params.id, bizGroupId]
+        );
+        if (!own.rows.length) return res.status(404).json({ error: 'פריט לא נמצא' });
+
+        if (req.body.catalog_item_id !== undefined && req.body.catalog_item_id !== null) {
+            const catCheck = await pool.query(
+                'SELECT id FROM store_catalog WHERE id=$1 AND group_id=$2',
+                [parseInt(req.body.catalog_item_id), bizGroupId]
+            );
+            if (!catCheck.rows.length) return res.status(400).json({ error: 'מוצר קטלוג לא נמצא או לא שייך לעסק זה' });
+        }
+
+        const allowed = ['name','description','catalog_item_id','custom_price','image_url','allergens','is_available','sort_order'];
+        const sets = [], vals = [];
+        for (const f of allowed) {
+            if (req.body[f] !== undefined) { vals.push(req.body[f]); sets.push(`${f}=$${vals.length}`); }
+        }
+        if (!sets.length) return res.status(400).json({ error: 'לא נשלחו שדות לעדכון' });
+
+        vals.push(req.params.id);
+        const r = await pool.query(
+            `UPDATE menu_items SET ${sets.join(',')} WHERE id=$${vals.length} RETURNING *`, vals
+        );
+        res.json(r.rows[0]);
+    } catch(e) {
+        console.error('PUT /items/:id:', e.message);
+        res.status(500).json({ error: 'שגיאת שרת' });
+    }
+});
+
+// DELETE /api/menu-items/:id
+app.delete('/api/menu-items/:id', verifyBizOrLegacy, async (req, res) => {
+    const bizGroupId = req.bizAuth.groupId;
+    if (!bizGroupId) return res.status(401).json({ error: 'נדרש token' });
+
+    try {
+        const own = await pool.query(
+            `SELECT mi.id FROM menu_items mi
+             JOIN menu_sections ms ON ms.id=mi.section_id
+             JOIN menu_templates mt ON mt.id=ms.template_id
+             WHERE mi.id=$1 AND mt.group_id=$2 AND mt.template_type='menu'`,
+            [req.params.id, bizGroupId]
+        );
+        if (!own.rows.length) return res.status(404).json({ error: 'פריט לא נמצא' });
+
+        await pool.query('DELETE FROM menu_items WHERE id=$1', [req.params.id]);
+        res.json({ success: true });
+    } catch(e) {
+        console.error('DELETE /items/:id:', e.message);
+        res.status(500).json({ error: 'שגיאת שרת' });
+    }
+});
+
+// ===== END MENU SECTIONS & ITEMS API =====
+
 // ===== END MENU TEMPLATES API =====
 
 // ── verifyBizOrLegacy middleware ───────────────────────────────
