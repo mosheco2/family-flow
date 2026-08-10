@@ -176,7 +176,8 @@ function heroHtml() {
     const evLabels = {wedding:'חתונה',bar_mitzvah:'בר/בת מצווה',birthday:'יום הולדת',corporate:'אירוע עסקי',other:'אירוע'};
     const evLabel = evLabels[_d.event_type] || '';
     const metaParts = [];
-    if (_d.base_price_per_person > 0) metaParts.push(`מחיר לאיש: <strong>₪${num(_d.base_price_per_person)}</strong>`);
+    const _pm = _d.pricing_mode || 'per_person';
+    if (_pm === 'per_person' && _d.base_price_per_person > 0) metaParts.push(`מחיר לאיש: <strong>₪${num(_d.base_price_per_person)}</strong>`);
     if (_d.min_guests && _d.max_guests) metaParts.push(`אורחים: <strong>${_d.min_guests}–${_d.max_guests}</strong>`);
     else if (_d.min_guests) metaParts.push(`מינ׳ אורחים: <strong>${_d.min_guests}</strong>`);
 
@@ -246,6 +247,7 @@ function renderStep(idx) {
       </div>
       <div class="nav-bar">
         ${idx > 0 ? `<button class="btn-back" onclick="goBack()">חזרה</button>` : '<div></div>'}
+        ${(_d.pricing_mode||'per_person')==='per_item' && calcTotal()>0 ? `<span style="font-size:13px;color:var(--accent);font-weight:700;align-self:center">₪${num(calcTotal())}</span>` : '<div></div>'}
         <button class="btn-next" onclick="nextStep(${sec.id},${sec.min_choices||0},${sec.max_choices},${!!sec.is_required})">הבא ←</button>
       </div>`;
     _err = '';
@@ -303,7 +305,7 @@ function renderSummary() {
         <h2 class="step-title">סיכום בחירות</h2>
         <div class="step-sub">בדקו שהכל נכון לפני שממשיכים</div>
         <table class="sum-table">${rows}</table>
-        ${total ? `<div class="total-row"><span class="total-label">סה״כ משוער לאיש</span><span class="total-val">₪${num(total)}</span></div>` : ''}
+        ${total ? `<div class="total-row"><span class="total-label">${(_d.pricing_mode||'per_person')==='per_item' ? 'סה״כ תפריט' : 'סה״כ משוער לאיש'}</span><span class="total-val">₪${num(total)}</span></div>` : ''}
       </div>
       <div class="nav-bar">
         <button class="btn-back" onclick="goBack()">חזרה</button>
@@ -316,15 +318,17 @@ function goToStep(idx) { _step = idx; render(); }
 function goToForm() { _step = _d.sections.length + 1; render(); }
 
 function calcTotal() {
-    if (!_d.base_price_per_person) return 0;
-    let extra = 0;
+    const pm = _d.pricing_mode || 'per_person';
+    let itemsTotal = 0;
     for (const sec of _d.sections) {
         for (const id of (_sel[sec.id] || [])) {
             const item = (sec.items||[]).find(i => i.id === id);
-            if (item && item.price > 0) extra += Number(item.price);
+            if (item && item.price > 0) itemsTotal += Number(item.price);
         }
     }
-    return Number(_d.base_price_per_person) + extra;
+    if (pm === 'per_item') return itemsTotal;
+    if (!_d.base_price_per_person) return 0;
+    return Number(_d.base_price_per_person) + itemsTotal;
 }
 
 /* ── form ── */
@@ -402,7 +406,7 @@ function renderDone() {
           <div class="done-num">${esc(window._reqNumber||'')}</div>
           <div style="font-size:12px;color:var(--ink3);margin-bottom:14px">מספר הפנייה שלך</div>
           <div class="done-sub">תודה! קיבלנו את הבקשה ונחזור אליך בהקדם.</div>
-          ${total ? `<div class="done-total">סה״כ משוער: <strong>₪${num(total)} לאיש</strong></div>` : ''}
+          ${total ? `<div class="done-total">סה״כ${(_d.pricing_mode||'per_person')==='per_item' ? '' : ' משוער'}: <strong>₪${num(total)}${(_d.pricing_mode||'per_person')==='per_item' ? '' : ' לאיש'}</strong></div>` : ''}
           ${(_d.contact_phone||_d.contact_address) ? `
           <div style="font-size:13px;color:var(--ink3);margin-bottom:8px">
             ${_d.contact_phone ? `<div>📞 <a href="tel:${esc(_d.contact_phone)}" style="color:var(--accent)">${esc(_d.contact_phone)}</a></div>` : ''}
@@ -436,7 +440,7 @@ function buildPdfSource(total) {
       </div>
       <div style="font-size:13px;font-weight:700;color:#6B2434;letter-spacing:.12em;margin-bottom:12px">בחירות התפריט</div>
       <table style="width:100%;border-collapse:collapse;margin-bottom:20px">${rows}</table>
-      ${total ? `<div style="display:flex;justify-content:space-between;padding:12px 10px;background:#f9f6f1;border-radius:6px;font-size:14px;margin-bottom:20px"><span style="color:#5C5148">סה״כ משוער לאיש</span><span style="font-weight:700;color:#241E19">₪${num(total)}</span></div>` : ''}
+      ${total ? `<div style="display:flex;justify-content:space-between;padding:12px 10px;background:#f9f6f1;border-radius:6px;font-size:14px;margin-bottom:20px"><span style="color:#5C5148">${(_d.pricing_mode||'per_person')==='per_item' ? 'סה״כ תפריט' : 'סה״כ משוער לאיש'}</span><span style="font-weight:700;color:#241E19">₪${num(total)}</span></div>` : ''}
       <div style="font-size:11.5px;color:#9C8C71;border-top:1px solid #e5dccb;padding-top:14px">
         <div style="font-weight:600;color:#241E19;margin-bottom:6px;font-size:13px">פרטי הפנייה</div>
         <div>שם: ${esc(_form.name||'')}</div>
@@ -465,7 +469,7 @@ function buildPrintTarget(content) {
 
 function buildFullPdfSource() {
     const metaParts = [];
-    if (_d.base_price_per_person > 0) metaParts.push(`מחיר לאיש: <strong style="color:#FBF7EF">₪${num(_d.base_price_per_person)}</strong>`);
+    if ((_d.pricing_mode||'per_person')==='per_person' && _d.base_price_per_person > 0) metaParts.push(`מחיר לאיש: <strong style="color:#FBF7EF">₪${num(_d.base_price_per_person)}</strong>`);
     if (_d.min_guests && _d.max_guests) metaParts.push(`אורחים: <strong style="color:#FBF7EF">${_d.min_guests}–${_d.max_guests}</strong>`);
 
     const heroInner = `

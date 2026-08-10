@@ -52768,7 +52768,7 @@ function _mtEtLabel(v) { return (_MT_ET.find(e => e.v === v) || {l: v || 'כלל
 function _mtRenderList(root) {
     const list = _mtState.list;
     const cards = list.map(t => {
-        const price = t.base_price_per_person ? `₪${Number(t.base_price_per_person).toLocaleString('he-IL')} לאיש` : '';
+        const price = (t.pricing_mode||'per_person')==='per_item' ? 'לפי מנות' : (t.base_price_per_person ? `₪${Number(t.base_price_per_person).toLocaleString('he-IL')} לאיש` : '');
         const guests = (t.min_guests || t.max_guests) ? `${t.min_guests || ''}–${t.max_guests || ''} אורחים` : '';
         const btnData = [
             [`_mtOpenEditor(${t.id})`,           'fa-pen',            '#6366f1', 'ערוך'],
@@ -52909,6 +52909,7 @@ window._mtOpenEditor = async function(id) {
             name: data.name,
             event_type: data.event_type || '',
             description: data.description || '',
+            pricing_mode: data.pricing_mode || 'per_person',
             base_price_per_person: data.base_price_per_person || 0,
             min_guests: data.min_guests || '',
             max_guests: data.max_guests || '',
@@ -53010,11 +53011,19 @@ function _mtRenderEditor(root) {
                             </select>
                         </div>
                         <div>
+                            <label style="font-size:11.5px;color:#64748b;font-weight:600;display:block;margin-bottom:4px">סוג תמחור</label>
+                            <select onchange="_mtEF('pricing_mode',this.value);_mtRenderEditor()" style="${_mtInputS()}">
+                                <option value="per_person"${f.pricing_mode==='per_person'?' selected':''}>מחיר לאיש × מוזמנים</option>
+                                <option value="per_item"${f.pricing_mode==='per_item'?' selected':''}>סכום מחירי המנות</option>
+                            </select>
+                        </div>
+                    </div>
+                    ${f.pricing_mode === 'per_person' ? `
+                    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+                        <div>
                             <label style="font-size:11.5px;color:#64748b;font-weight:600;display:block;margin-bottom:4px">מחיר לאיש (₪)</label>
                             <input type="number" min="0" value="${f.base_price_per_person}" oninput="_mtEF('base_price_per_person',parseFloat(this.value)||0)" style="${_mtInputS()}">
                         </div>
-                    </div>
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
                         <div>
                             <label style="font-size:11.5px;color:#64748b;font-weight:600;display:block;margin-bottom:4px">מינ' אורחים</label>
                             <input type="number" min="1" value="${f.min_guests}" oninput="_mtEF('min_guests',this.value)" placeholder="—" style="${_mtInputS()}">
@@ -53023,7 +53032,10 @@ function _mtRenderEditor(root) {
                             <label style="font-size:11.5px;color:#64748b;font-weight:600;display:block;margin-bottom:4px">מקס' אורחים</label>
                             <input type="number" min="1" value="${f.max_guests}" oninput="_mtEF('max_guests',this.value)" placeholder="ללא הגבלה" style="${_mtInputS()}">
                         </div>
-                    </div>
+                    </div>` : `
+                    <div style="font-size:12px;color:#64748b;background:#f1f5f9;border-radius:6px;padding:10px 12px">
+                        הסה"כ יחושב אוטומטית לפי מחירי המנות שנבחרו. ניתן לערוך את מחיר כל מנה ישירות בשורת המנה למטה.
+                    </div>`}
                     <div>
                         <label style="font-size:11.5px;color:#64748b;font-weight:600;display:block;margin-bottom:4px">תיאור</label>
                         <textarea oninput="_mtEF('description',this.value)" rows="3" style="${_mtInputS()};resize:vertical;line-height:1.6">${_mtEsc(f.description)}</textarea>
@@ -53177,6 +53189,7 @@ window._mtSave = async function() {
                 name,
                 event_type: f.event_type || null,
                 description: f.description || null,
+                pricing_mode: f.pricing_mode || 'per_person',
                 base_price_per_person: parseFloat(f.base_price_per_person) || 0,
                 min_guests: f.min_guests ? parseInt(f.min_guests) : null,
                 max_guests: f.max_guests ? parseInt(f.max_guests) : null,

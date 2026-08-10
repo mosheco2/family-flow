@@ -2581,6 +2581,7 @@ app.get('/api/solo/search-by-phone', async (req, res) => {
           min_guests INT DEFAULT 1,
           max_guests INT,
           base_price_per_person DECIMAL(10,2) DEFAULT 0,
+          pricing_mode VARCHAR(20) NOT NULL DEFAULT 'per_person',
           is_active BOOLEAN DEFAULT TRUE,
           is_public BOOLEAN DEFAULT FALSE,
           public_slug VARCHAR(100) UNIQUE,
@@ -2588,6 +2589,7 @@ app.get('/api/solo/search-by-phone', async (req, res) => {
           created_at TIMESTAMP DEFAULT NOW(),
           updated_at TIMESTAMP DEFAULT NOW()
       )`); } catch(e) { console.error('menu_templates:', e.message); }
+      try { await client.query(`ALTER TABLE menu_templates ADD COLUMN IF NOT EXISTS pricing_mode VARCHAR(20) NOT NULL DEFAULT 'per_person'`); } catch(e) { console.error('menu_templates pricing_mode:', e.message); }
 
       try { await client.query(`CREATE TABLE IF NOT EXISTS menu_sections (
           id SERIAL PRIMARY KEY,
@@ -29354,18 +29356,19 @@ app.post('/api/menu-templates', verifyBizOrLegacy, async (req, res) => {
             if (attempts === 5) return res.status(500).json({ error: 'שגיאת שרת — נסה שנית' });
         }
 
+        const pricingMode = ['per_person','per_item'].includes(req.body.pricing_mode) ? req.body.pricing_mode : 'per_person';
         const r = await pool.query(`
             INSERT INTO menu_templates
               (group_id, template_type, name, description, event_type,
-               min_guests, max_guests, base_price_per_person,
+               min_guests, max_guests, base_price_per_person, pricing_mode,
                is_active, is_public, public_slug)
-            VALUES ($1,'menu',$2,$3,$4,$5,$6,$7,$8,$9,$10)
+            VALUES ($1,'menu',$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
             RETURNING *
         `, [
             bizGroupId, name,
             req.body.description || null,
             req.body.event_type || null,
-            minG, maxG, basePrice,
+            minG, maxG, basePrice, pricingMode,
             req.body.is_active !== undefined ? req.body.is_active : true,
             req.body.is_public !== undefined ? req.body.is_public : false,
             slug
@@ -29407,7 +29410,7 @@ app.put('/api/menu-templates/:id', verifyBizOrLegacy, async (req, res) => {
         }
 
         const allowed = ['name','description','event_type','min_guests',
-                         'max_guests','base_price_per_person','is_active','is_public',
+                         'max_guests','base_price_per_person','pricing_mode','is_active','is_public',
                          'cover_image_url','logo_url','slogan','contact_phone',
                          'contact_address','notification_email'];
         const sets = [], vals = [];
@@ -29731,7 +29734,7 @@ app.get('/api/menu/public/:slug', async (req, res) => {
     try {
         const tmplRes = await pool.query(
             `SELECT id,name,description,event_type,min_guests,max_guests,
-                    base_price_per_person,cover_image_url,logo_url,slogan,
+                    base_price_per_person,pricing_mode,cover_image_url,logo_url,slogan,
                     contact_phone,contact_address,group_id
              FROM menu_templates
              WHERE public_slug=$1 AND is_active=true AND is_public=true AND template_type='menu'`,
