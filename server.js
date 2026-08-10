@@ -2570,6 +2570,74 @@ app.get('/api/solo/search-by-phone', async (req, res) => {
         )
       `); } catch(e) { console.error('community_notifications:', e.message); }
 
+      // ===== MENU TEMPLATES MODULE =====
+      try { await client.query(`CREATE TABLE IF NOT EXISTS menu_templates (
+          id SERIAL PRIMARY KEY,
+          group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+          template_type VARCHAR(20) NOT NULL DEFAULT 'menu' CHECK (template_type IN ('menu','project')),
+          name VARCHAR(200) NOT NULL,
+          description TEXT,
+          event_type VARCHAR(100),
+          min_guests INT DEFAULT 1,
+          max_guests INT,
+          base_price_per_person DECIMAL(10,2) DEFAULT 0,
+          is_active BOOLEAN DEFAULT TRUE,
+          is_public BOOLEAN DEFAULT FALSE,
+          public_slug VARCHAR(100) UNIQUE,
+          cloned_from_id INT REFERENCES menu_templates(id) ON DELETE SET NULL,
+          created_at TIMESTAMP DEFAULT NOW(),
+          updated_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) { console.error('menu_templates:', e.message); }
+
+      try { await client.query(`CREATE TABLE IF NOT EXISTS menu_sections (
+          id SERIAL PRIMARY KEY,
+          template_id INT REFERENCES menu_templates(id) ON DELETE CASCADE,
+          name VARCHAR(200) NOT NULL,
+          description TEXT,
+          min_choices INT DEFAULT 0,
+          max_choices INT DEFAULT 1,
+          is_required BOOLEAN DEFAULT FALSE,
+          sort_order INT DEFAULT 0,
+          price_modifier DECIMAL(10,2) DEFAULT 0
+      )`); } catch(e) { console.error('menu_sections:', e.message); }
+
+      try { await client.query(`CREATE TABLE IF NOT EXISTS menu_items (
+          id SERIAL PRIMARY KEY,
+          section_id INT REFERENCES menu_sections(id) ON DELETE CASCADE,
+          name VARCHAR(200) NOT NULL,
+          description TEXT,
+          catalog_item_id INT REFERENCES store_catalog(id) ON DELETE SET NULL,
+          custom_price DECIMAL(10,2),
+          image_url TEXT,
+          allergens TEXT[],
+          is_available BOOLEAN DEFAULT TRUE,
+          sort_order INT DEFAULT 0
+      )`); } catch(e) { console.error('menu_items:', e.message); }
+
+      try { await client.query(`CREATE TABLE IF NOT EXISTS menu_quote_requests (
+          id SERIAL PRIMARY KEY,
+          template_id INT REFERENCES menu_templates(id) ON DELETE SET NULL,
+          group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+          customer_name VARCHAR(150),
+          customer_phone VARCHAR(50),
+          customer_email VARCHAR(255),
+          event_date DATE,
+          event_type VARCHAR(100),
+          guest_count INT,
+          selections JSONB DEFAULT '{}',
+          custom_notes TEXT,
+          status VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending','viewed','converted','closed')),
+          source VARCHAR(50) DEFAULT 'public_form',
+          linked_order_id INT REFERENCES store_orders(id) ON DELETE SET NULL,
+          created_at TIMESTAMP DEFAULT NOW(),
+          viewed_at TIMESTAMP
+      )`); } catch(e) { console.error('menu_quote_requests:', e.message); }
+
+      try { await client.query(`CREATE INDEX IF NOT EXISTS idx_menu_templates_group ON menu_templates(group_id)`); } catch(e) {}
+      try { await client.query(`CREATE INDEX IF NOT EXISTS idx_menu_templates_slug ON menu_templates(public_slug) WHERE public_slug IS NOT NULL`); } catch(e) {}
+      try { await client.query(`CREATE INDEX IF NOT EXISTS idx_menu_quote_requests_group ON menu_quote_requests(group_id, created_at DESC)`); } catch(e) {}
+      // ===== END MENU TEMPLATES MODULE =====
+
       // ===== END COMMUNITY FEED SYSTEM =====
 
       } catch(e) {
