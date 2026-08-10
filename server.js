@@ -29426,6 +29426,24 @@ app.put('/api/menu-templates/:id', verifyBizOrLegacy, async (req, res) => {
     }
 });
 
+// DELETE /api/menu-templates/:id
+app.delete('/api/menu-templates/:id', verifyBizOrLegacy, async (req, res) => {
+    const bizGroupId = req.bizAuth.groupId;
+    if (!bizGroupId) return res.status(401).json({ error: 'נדרש token' });
+    try {
+        const own = await pool.query(
+            `SELECT id FROM menu_templates WHERE id=$1 AND group_id=$2 AND template_type='menu'`,
+            [req.params.id, bizGroupId]
+        );
+        if (!own.rows.length) return res.status(404).json({ error: 'תבנית לא נמצאה' });
+        await pool.query('DELETE FROM menu_templates WHERE id=$1', [req.params.id]);
+        res.json({ success: true });
+    } catch(e) {
+        console.error('DELETE /api/menu-templates/:id:', e.message);
+        res.status(500).json({ error: 'שגיאת שרת' });
+    }
+});
+
 // ===== END MENU TEMPLATES WRITE API =====
 
 // ===== MENU SECTIONS & ITEMS API =====

@@ -2423,7 +2423,7 @@ window._reportsExportPDF = function() {
 function switchTab(t) {
     // עסקי יופי: הפנה מ-customers ל-beauty_clients
     if (t === 'customers' && currentGroup?.business_type === 'beauty') t = 'beauty_clients';
-    ['feed','timeclock','shifts','calendar','shop','pantry','equipment','sales','pos','foodcost','customers','bank','cashflow','budget','forecast','tasks','deliveries','academy','community','members','surveys','settings','role-dashboard','beauty_calendar','beauty_clients','beauty_inventory','beauty_commissions','beauty_services','beauty_subscriptions','beauty_rfq','beauty_practitioners','logistics_orders','logistics_drivers','logistics_vehicles','logistics_pricing','logistics_cod','logistics_rfq','logistics_routes','logistics_tracking','logistics_reports','logistics_customers','logistics_invoices','reviews','cases','timelog','content','leads','documents','biz-ads','whatsapp-alerts'].forEach(x => {
+    ['feed','timeclock','shifts','calendar','shop','pantry','equipment','sales','pos','foodcost','customers','bank','cashflow','budget','forecast','tasks','deliveries','academy','community','members','surveys','settings','role-dashboard','beauty_calendar','beauty_clients','beauty_inventory','beauty_commissions','beauty_services','beauty_subscriptions','beauty_rfq','beauty_practitioners','logistics_orders','logistics_drivers','logistics_vehicles','logistics_pricing','logistics_cod','logistics_rfq','logistics_routes','logistics_tracking','logistics_reports','logistics_customers','logistics_invoices','reviews','cases','timelog','content','leads','documents','biz-ads','whatsapp-alerts','menu_templates'].forEach(x => {
         const el = getEl(`content-${x}`); if(el) el.classList.add('hidden');
         const btn = getEl(`tab-${x}`); if(btn) btn.classList.remove('tab-active');
     });
@@ -2534,6 +2534,7 @@ function switchTab(t) {
     if (t === 'whatsapp-alerts') try { loadBizWhatsAppSettings(); } catch(e) {}
     if (t === 'reports')   try { renderUnifiedReportsTab(); } catch(e) {}
     if (t === 'reviews')               try { loadReviews(); } catch(e) {}
+    if (t === 'menu_templates')        try { loadMenuTemplates(); } catch(e) {}
     if (t === 'settings')              { try { renderSettingsHub(); } catch(e) {} try { const _w = document.getElementById('biz-main-content-wrap'); if(_w) _w.scrollTop = 0; } catch(e) {} document.documentElement.scrollTop = 0; document.body.scrollTop = 0; window.scrollTo({ top: 0, behavior: 'instant' }); }
 }
 
@@ -3319,7 +3320,8 @@ const ALL_TABS = [
     { id: 'leads',     name: 'פניות נכנסות 📥' },
     { id: 'documents', name: 'מסמכים 📄' },
     { id: 'reports',   name: 'דוחות 📊' },
-    { id: 'whatsapp-alerts', name: 'התראות WhatsApp 📱' }
+    { id: 'whatsapp-alerts', name: 'התראות WhatsApp 📱' },
+    { id: 'menu_templates', name: 'תפריטים 📋' }
 ];
 
 const ROLE_DEFAULTS = {
@@ -4764,7 +4766,7 @@ window.changeFeedPage = function(direction) {
 // ============================================================
 const GNAV_GROUPS = {
     team:      ['timeclock','shifts','calendar','tasks','academy','members','beauty_calendar','beauty_practitioners'],
-    sales:     ['pos','sales','customers','cases','leads','deliveries','reviews','beauty_services','beauty_subscriptions','beauty_clients','beauty_rfq'],
+    sales:     ['pos','sales','customers','cases','leads','deliveries','reviews','menu_templates','beauty_services','beauty_subscriptions','beauty_clients','beauty_rfq'],
     inventory: ['shop','pantry','equipment','foodcost','beauty_inventory'],
     finance:   ['bank','cashflow','budget','timelog','forecast','beauty_commissions','reports'],
     more:      ['community','surveys','content','documents','biz-ads','whatsapp-alerts','settings']
@@ -34389,7 +34391,7 @@ const ROLE_TYPE_TABS = {
 };
 
 const BUSINESS_TYPES = [
-    { id: 'restaurant',         name: 'מסעדה / בית קפה',      icon: '🍕', modules: ['feed','pos','sales','pantry','shop','customers','shifts','timeclock','tasks','cashflow','budget','members','calendar','deliveries','foodcost','kds','reviews','biz-ads','reports'] },
+    { id: 'restaurant',         name: 'מסעדה / בית קפה',      icon: '🍕', modules: ['feed','pos','sales','pantry','shop','customers','shifts','timeclock','tasks','cashflow','budget','members','calendar','deliveries','foodcost','kds','reviews','menu_templates','biz-ads','reports'] },
     { id: 'retail',             name: 'חנות קמעונאית',         icon: '🛍️', modules: ['feed','pos','sales','pantry','shop','customers','cashflow','budget','members','timeclock','tasks','bank','biz-ads','reports'] },
     { id: 'services',           name: 'שירותים מקצועיים',      icon: '💼', modules: ['feed','calendar','tasks','customers','cashflow','budget','members','timeclock','bank','pos','sales','biz-ads','reports'] },
     { id: 'construction',       name: 'בנייה / קבלנות',        icon: '🏗️', modules: ['feed','equipment','tasks','shifts','timeclock','members','cashflow','customers','bank','shop','pantry','budget','biz-ads','reports'] },
@@ -34399,8 +34401,8 @@ const BUSINESS_TYPES = [
     { id: 'beauty',             name: 'יופי / קוסמטיקה',       icon: '💅', modules: ['feed','beauty_calendar','beauty_practitioners','beauty_services','beauty_subscriptions','pos','beauty_clients','beauty_inventory','beauty_commissions','beauty_rfq','timeclock','cashflow','tasks','shop','biz-ads','reports'] },
     { id: 'education',          name: 'חינוך / הדרכה',         icon: '🎓', modules: ['feed','calendar','academy','tasks','members','timeclock','cashflow','customers','pos','biz-ads','reports'] },
     { id: 'sport',              name: 'ספורט / כושר',           icon: '🏋️', modules: ['feed','calendar','pos','sales','customers','members','timeclock','cashflow','tasks','equipment','shifts','biz-ads','reports'] },
-    { id: 'events',             name: 'אירועים / הפקות',       icon: '🎉', modules: ['feed','calendar','tasks','customers','members','timeclock','cashflow','budget','equipment','shifts','shop','biz-ads','reports'] },
-    { id: 'food_production',    name: 'ייצור מזון',             icon: '🏭', modules: ['feed','pantry','shop','sales','customers','tasks','members','shifts','timeclock','cashflow','equipment','deliveries','foodcost','biz-ads','reports'] },
+    { id: 'events',             name: 'אירועים / הפקות',       icon: '🎉', modules: ['feed','calendar','tasks','customers','members','timeclock','cashflow','budget','equipment','shifts','shop','menu_templates','biz-ads','reports'] },
+    { id: 'food_production',    name: 'ייצור מזון',             icon: '🏭', modules: ['feed','pantry','shop','sales','customers','tasks','members','shifts','timeclock','cashflow','equipment','deliveries','foodcost','menu_templates','biz-ads','reports'] },
     { id: 'professional',       name: 'מקצועי / ייעוץ',         icon: '👔', modules: ['feed','sales','customers','cases','leads','timelog','documents','calendar','tasks','cashflow','budget','members','timeclock','bank','content','biz-ads','reports'] },
     { id: 'other',              name: 'אחר / כללי',             icon: '🏢', modules: null }
 ];
@@ -52699,3 +52701,625 @@ async function saveBizWhatsAppSettings() {
         else showToast('error', d.error || 'שגיאה');
     } catch(e) { showToast('error', 'שגיאת תקשורת'); }
 }
+
+// ============================================================
+// --- MENU TEMPLATES MODULE (מודול תפריטים) ---
+// ============================================================
+
+let _mtState = {
+    view: 'list',
+    list: [],
+    cur: null,
+    editForm: {},
+    expandedSections: {},
+    toast: null
+};
+
+window.loadMenuTemplates = async function() {
+    const root = document.getElementById('menu-templates-root');
+    if (!root || !currentGroup?.id) return;
+    root.innerHTML = '<div style="padding:40px;text-align:center;color:#94a3b8">טוען תפריטים...</div>';
+    try {
+        const res = await fetch('/api/menu-templates', { headers: { Authorization: `Bearer ${currentUser?.token}` } });
+        if (!res.ok) throw new Error(res.status);
+        _mtState.list = await res.json();
+    } catch(e) {
+        _mtState.list = [];
+    }
+    _mtState.view = 'list';
+    _mtRender();
+};
+
+function _mtRender() {
+    const root = document.getElementById('menu-templates-root');
+    if (!root) return;
+    if (_mtState.view === 'list') _mtRenderList(root);
+    else _mtRenderEditor(root);
+}
+
+function _mtEsc(s) {
+    return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function _mtToast(msg, type) {
+    let el = document.getElementById('mt-toast');
+    if (!el) {
+        el = document.createElement('div');
+        el.id = 'mt-toast';
+        el.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:99999;padding:11px 24px;border-radius:8px;font-size:13.5px;white-space:nowrap;box-shadow:0 4px 20px rgba(0,0,0,.18);transition:opacity .35s;font-family:inherit';
+        document.body.appendChild(el);
+    }
+    el.textContent = msg;
+    el.style.background = type === 'err' ? '#ef4444' : '#1e293b';
+    el.style.color = '#fff';
+    el.style.opacity = '1';
+    clearTimeout(_mtState.toast);
+    _mtState.toast = setTimeout(() => { el.style.opacity = '0'; }, 3200);
+}
+
+// ======= LIST VIEW =======
+const _MT_ET = [
+    {v:'wedding',l:'חתונה'},{v:'barmitzvah',l:'בר/בת מצווה'},
+    {v:'corporate',l:'אירוע עסקי'},{v:'birthday',l:'יום הולדת'},{v:'general',l:'כללי'}
+];
+function _mtEtLabel(v) { return (_MT_ET.find(e => e.v === v) || {l: v || 'כללי'}).l; }
+
+function _mtRenderList(root) {
+    const list = _mtState.list;
+    const cards = list.map(t => {
+        const price = t.base_price_per_person ? `₪${Number(t.base_price_per_person).toLocaleString('he-IL')} לאיש` : '';
+        const guests = (t.min_guests || t.max_guests) ? `${t.min_guests || ''}–${t.max_guests || ''} אורחים` : '';
+        const btnData = [
+            [`_mtOpenEditor(${t.id})`,           'fa-pen',       '#6366f1', 'ערוך'],
+            [`_mtDuplicate(${t.id})`,             'fa-copy',      '#94a3b8', 'שכפל'],
+            [`_mtCopyLink('${_mtEsc(t.public_slug)}')`, 'fa-link', '#94a3b8', 'קישור'],
+            [`_mtPreview('${_mtEsc(t.public_slug)}')`,  'fa-eye',  '#94a3b8', 'תצוגה'],
+            [`_mtDeleteConfirm(${t.id},'${_mtEsc(t.name)}')`, 'fa-trash-can', '#ef4444', 'מחק'],
+        ];
+        return `
+        <div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 1px 4px rgba(0,0,0,.05)">
+            <div style="height:118px;background:#f1f5f9;position:relative;flex-shrink:0">
+                ${t.image_url ? `<img src="${_mtEsc(t.image_url)}" style="width:100%;height:100%;object-fit:cover">` :
+                    '<div style="height:100%;display:flex;align-items:center;justify-content:center;color:#cbd5e1;font-size:30px">📋</div>'}
+                <span style="position:absolute;top:8px;right:8px;padding:3px 9px;border-radius:999px;font-size:11px;font-weight:600;background:${t.is_active?'#dcfce7':'#fee2e2'};color:${t.is_active?'#16a34a':'#dc2626'}">
+                    ${t.is_active ? 'פעיל' : 'לא פעיל'}
+                </span>
+                ${t.event_type ? `<span style="position:absolute;top:8px;left:8px;padding:3px 9px;border-radius:999px;font-size:11px;background:#e0e7ff;color:#4338ca">${_mtEtLabel(t.event_type)}</span>` : ''}
+            </div>
+            <div style="padding:14px 15px;flex:1;display:flex;flex-direction:column;gap:5px">
+                <div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px">
+                    <span style="font-weight:700;font-size:14.5px;color:#1e293b;line-height:1.3">${_mtEsc(t.name)}</span>
+                    ${price ? `<span style="font-size:13px;color:#6366f1;font-weight:600;white-space:nowrap">${price}</span>` : ''}
+                </div>
+                ${t.description ? `<p style="margin:0;font-size:12.5px;color:#64748b;line-height:1.55;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${_mtEsc(t.description)}</p>` : ''}
+                <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:3px">
+                    ${t.section_count ? `<span style="background:#f1f5f9;color:#475569;font-size:11px;padding:2px 7px;border-radius:4px">${t.section_count} שלבים</span>` : ''}
+                    ${guests ? `<span style="background:#f1f5f9;color:#475569;font-size:11px;padding:2px 7px;border-radius:4px">${guests}</span>` : ''}
+                    ${t.item_count ? `<span style="background:#f1f5f9;color:#475569;font-size:11px;padding:2px 7px;border-radius:4px">${t.item_count} פריטים</span>` : ''}
+                </div>
+            </div>
+            <div style="padding:9px 11px;border-top:1px solid #f1f5f9;display:grid;grid-template-columns:repeat(5,1fr);gap:5px">
+                ${btnData.map(([fn, icon, color, label]) => `
+                <button onclick="${fn}" style="padding:7px 4px;border:1px solid #e2e8f0;border-radius:6px;background:#fff;font-size:11px;color:${color};cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;min-height:38px" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='#fff'">
+                    <i class="fa-regular ${icon}" style="font-size:11px"></i>${label}
+                </button>`).join('')}
+            </div>
+        </div>`;
+    }).join('');
+
+    root.innerHTML = `
+    <div style="padding:16px 4px">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:20px;flex-wrap:wrap">
+            <div>
+                <h2 style="margin:0;font-size:19px;font-weight:700;color:#1e293b">תפריטים 📋</h2>
+                ${list.length ? `<p style="margin:4px 0 0;font-size:12.5px;color:#64748b">${list.length} תבניות תפריט</p>` : ''}
+            </div>
+            <button onclick="_mtNewModal()" style="padding:9px 18px;background:#6366f1;color:#fff;border:none;border-radius:8px;font-size:13.5px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px" onmouseover="this.style.background='#4f46e5'" onmouseout="this.style.background='#6366f1'">
+                <i class="fa-solid fa-plus" style="font-size:11px"></i>תפריט חדש
+            </button>
+        </div>
+        ${list.length === 0 ? `
+        <div style="text-align:center;padding:64px 20px;color:#94a3b8">
+            <div style="font-size:52px;margin-bottom:12px">📋</div>
+            <div style="font-size:16px;font-weight:700;color:#64748b;margin-bottom:6px">עדיין אין תפריטים</div>
+            <div style="font-size:13px;margin-bottom:22px">צור תבנית תפריט ראשונה לאירועים שלך</div>
+            <button onclick="_mtNewModal()" style="padding:11px 28px;background:#6366f1;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer">+ צור תפריט</button>
+        </div>` : `
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(min(300px,100%),1fr));gap:14px">
+            ${cards}
+        </div>`}
+    </div>`;
+}
+
+// ======= MODAL: NEW TEMPLATE =======
+window._mtNewModal = function() {
+    _mtShowModal('mt-new-modal', `
+    <h3 style="margin:0 0 18px;font-size:17px;font-weight:700;color:#1e293b">תפריט חדש</h3>
+    <div style="display:flex;flex-direction:column;gap:13px">
+        <div>
+            <label style="font-size:12px;color:#64748b;font-weight:600;display:block;margin-bottom:5px">שם התפריט *</label>
+            <input id="mt-nn" placeholder="תפריט חתונה קלאסי" style="${_mtInputS()}">
+        </div>
+        <div>
+            <label style="font-size:12px;color:#64748b;font-weight:600;display:block;margin-bottom:5px">סוג אירוע</label>
+            <select id="mt-nt" style="${_mtInputS()}">
+                <option value="">בחר...</option>
+                ${_MT_ET.map(e => `<option value="${e.v}">${e.l}</option>`).join('')}
+            </select>
+        </div>
+        <div>
+            <label style="font-size:12px;color:#64748b;font-weight:600;display:block;margin-bottom:5px">מחיר בסיס לאיש (₪)</label>
+            <input id="mt-np" type="number" min="0" placeholder="0" style="${_mtInputS()}">
+        </div>
+    </div>
+    <div id="mt-new-err" style="color:#ef4444;font-size:12.5px;min-height:16px;margin-top:8px"></div>
+    <div style="display:flex;gap:9px;margin-top:18px">
+        <button onclick="_mtCloseModal('mt-new-modal')" style="${_mtBtnS('ghost')}">ביטול</button>
+        <button id="mt-nc-btn" onclick="_mtCreateTemplate()" style="${_mtBtnS('primary')};flex:2">צור תפריט →</button>
+    </div>`);
+    setTimeout(() => { const n = document.getElementById('mt-nn'); if (n) n.focus(); }, 60);
+};
+
+async function _mtCreateTemplate() {
+    const name = (document.getElementById('mt-nn')?.value || '').trim();
+    const errEl = document.getElementById('mt-new-err');
+    if (!name) { if (errEl) errEl.textContent = 'שם התפריט נדרש'; return; }
+    const btn = document.getElementById('mt-nc-btn');
+    if (btn) { btn.disabled = true; btn.textContent = '...'; }
+    try {
+        const res = await fetch('/api/menu-templates', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${currentUser?.token}` },
+            body: JSON.stringify({
+                name,
+                event_type: document.getElementById('mt-nt')?.value || null,
+                base_price_per_person: parseFloat(document.getElementById('mt-np')?.value) || 0
+            })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+            if (errEl) errEl.textContent = data.error || 'שגיאה';
+            if (btn) { btn.disabled = false; btn.textContent = 'צור תפריט →'; }
+            return;
+        }
+        _mtCloseModal('mt-new-modal');
+        await _mtOpenEditor(data.id);
+    } catch(e) {
+        if (errEl) errEl.textContent = 'שגיאת תקשורת';
+        if (btn) { btn.disabled = false; btn.textContent = 'צור תפריט →'; }
+    }
+}
+
+// ======= EDITOR VIEW =======
+window._mtOpenEditor = async function(id) {
+    _mtState.view = 'editor';
+    _mtState.cur = null;
+    _mtState.expandedSections = {};
+    const root = document.getElementById('menu-templates-root');
+    if (root) root.innerHTML = '<div style="padding:40px;text-align:center;color:#94a3b8">טוען...</div>';
+    try {
+        const res = await fetch(`/api/menu-templates/${id}`, { headers: { Authorization: `Bearer ${currentUser?.token}` } });
+        if (!res.ok) throw new Error(res.status);
+        const data = await res.json();
+        _mtState.cur = data;
+        _mtState.editForm = {
+            name: data.name,
+            event_type: data.event_type || '',
+            description: data.description || '',
+            base_price_per_person: data.base_price_per_person || 0,
+            min_guests: data.min_guests || '',
+            max_guests: data.max_guests || '',
+            is_active: !!data.is_active,
+            is_public: !!data.is_public
+        };
+    } catch(e) {
+        _mtToast('שגיאה בטעינת התפריט', 'err');
+        _mtState.view = 'list';
+    }
+    _mtRender();
+};
+
+function _mtRenderEditor(root) {
+    const t = _mtState.cur;
+    if (!t) { root.innerHTML = '<div style="padding:20px;color:#ef4444">שגיאה בטעינה</div>'; return; }
+    const f = _mtState.editForm;
+    const sections = t.sections || [];
+
+    const sectionsHtml = sections.map(s => {
+        const exp = _mtState.expandedSections[s.id];
+        const items = s.items || [];
+        const itemsHtml = items.map(i => `
+        <div style="display:flex;align-items:flex-start;gap:8px;padding:7px 0;border-bottom:1px solid #f1f5f9">
+            <i class="fa-solid fa-grip-vertical" style="color:#e2e8f0;font-size:11px;margin-top:3px;flex-shrink:0"></i>
+            <div style="flex:1;min-width:0">
+                <div style="font-size:13px;font-weight:600;color:${i.is_available !== false ? '#1e293b' : '#94a3b8'}">
+                    ${_mtEsc(i.name || '')}${i.custom_price ? ` <span style="color:#6366f1;font-weight:400">+₪${Number(i.custom_price).toLocaleString('he-IL')}</span>` : ''}
+                </div>
+                ${i.description ? `<div style="font-size:11.5px;color:#94a3b8;line-height:1.4">${_mtEsc(i.description)}</div>` : ''}
+                ${i.allergens ? `<div style="font-size:10.5px;color:#f97316;margin-top:1px">אלרגנים: ${_mtEsc(i.allergens)}</div>` : ''}
+            </div>
+            <label style="cursor:pointer;font-size:11px;color:#94a3b8;display:flex;align-items:center;gap:3px;white-space:nowrap;flex-shrink:0">
+                <input type="checkbox" ${i.is_available !== false ? 'checked' : ''} onchange="_mtToggleItemA(${i.id},${s.id},this.checked)" style="width:13px;height:13px;accent-color:#6366f1">זמין
+            </label>
+            <button onclick="_mtDelItem(${i.id},${s.id})" style="border:none;background:transparent;color:#fca5a5;cursor:pointer;padding:2px 5px;font-size:12px;flex-shrink:0"><i class="fa-solid fa-xmark"></i></button>
+        </div>`).join('');
+
+        return `
+        <div style="border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;margin-bottom:8px">
+            <div style="display:flex;align-items:center;gap:8px;padding:11px 13px;background:#f8fafc;cursor:pointer;user-select:none" onclick="_mtToggleSec(${s.id})">
+                <i class="fa-solid fa-grip-vertical" style="color:#d1d5db;font-size:12px"></i>
+                <span style="flex:1;font-weight:600;font-size:13.5px;color:#1e293b">${_mtEsc(s.name)}</span>
+                <span style="font-size:11px;color:#94a3b8">${items.length} פריטים</span>
+                <button onclick="event.stopPropagation();_mtDelSection(${s.id})" style="border:none;background:transparent;color:#fca5a5;cursor:pointer;padding:2px 6px;font-size:13px"><i class="fa-solid fa-xmark"></i></button>
+                <i class="fa-solid fa-chevron-${exp ? 'up' : 'down'}" style="color:#94a3b8;font-size:10px"></i>
+            </div>
+            ${exp ? `<div style="padding:12px 13px">
+                ${itemsHtml}
+                <button onclick="_mtAddItemModal(${s.id})" style="width:100%;margin-top:9px;padding:8px;border:1.5px dashed #c7d2fe;border-radius:7px;background:transparent;font-size:12.5px;color:#6366f1;cursor:pointer;font-family:inherit">+ הוסף פריט</button>
+            </div>` : ''}
+        </div>`;
+    }).join('');
+
+    const pUrl = t.public_slug ? `/menu/${t.public_slug}` : '';
+    const prevSections = sections.slice(0, 4).map(s => `
+    <div style="margin-bottom:7px">
+        <div style="font-size:10.5px;font-weight:700;color:#475569;padding-bottom:3px;border-bottom:1px solid #e2e8f0;margin-bottom:4px">${_mtEsc(s.name)}</div>
+        ${(s.items || []).slice(0, 3).map(i => `<div style="font-size:10.5px;color:#64748b;padding:2px 0;border-bottom:1px solid #f8fafc">· ${_mtEsc(i.name || '')}</div>`).join('')}
+    </div>`).join('');
+
+    root.innerHTML = `
+    <div style="position:sticky;top:0;z-index:50;background:#fff;border-bottom:1px solid #e2e8f0;padding:9px 4px;display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin:0 -4px">
+        <button onclick="_mtBack()" style="${_mtBtnS('ghost')};gap:5px"><i class="fa-solid fa-arrow-right" style="font-size:11px"></i>חזרה</button>
+        <span style="flex:1;font-weight:700;font-size:14px;color:#1e293b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_mtEsc(t.name)}</span>
+        <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12.5px;color:#64748b">
+            <input type="checkbox" id="mt-chk-active" ${f.is_active ? 'checked' : ''} onchange="_mtEF('is_active',this.checked)" style="width:15px;height:15px;accent-color:#6366f1">פעיל
+        </label>
+        <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12.5px;color:#64748b">
+            <input type="checkbox" id="mt-chk-pub" ${f.is_public ? 'checked' : ''} onchange="_mtEF('is_public',this.checked)" style="width:15px;height:15px;accent-color:#6366f1">ציבורי
+        </label>
+        ${pUrl ? `<button onclick="_mtCopyLink('${_mtEsc(t.public_slug)}')" style="${_mtBtnS('ghost')};gap:5px"><i class="fa-solid fa-link" style="font-size:11px"></i>קישור</button>` : ''}
+        <button id="mt-save-btn" onclick="_mtSave()" style="${_mtBtnS('primary')}">שמור</button>
+    </div>
+    <div id="mt-ed-grid" style="padding:16px 4px;display:grid;grid-template-columns:1fr min(340px,38%);gap:20px;align-items:start">
+        <div style="display:flex;flex-direction:column;gap:14px">
+            <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:18px">
+                <h3 style="margin:0 0 14px;font-size:14px;font-weight:700;color:#1e293b">פרטי התפריט</h3>
+                <div style="display:flex;flex-direction:column;gap:12px">
+                    <div>
+                        <label style="font-size:11.5px;color:#64748b;font-weight:600;display:block;margin-bottom:4px">שם *</label>
+                        <input id="mt-ef-name" value="${_mtEsc(f.name)}" oninput="_mtEF('name',this.value)" style="${_mtInputS()}">
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+                        <div>
+                            <label style="font-size:11.5px;color:#64748b;font-weight:600;display:block;margin-bottom:4px">סוג אירוע</label>
+                            <select id="mt-ef-et" onchange="_mtEF('event_type',this.value)" style="${_mtInputS()}">
+                                <option value="">—</option>
+                                ${_MT_ET.map(e => `<option value="${e.v}"${f.event_type === e.v ? ' selected' : ''}>${e.l}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div>
+                            <label style="font-size:11.5px;color:#64748b;font-weight:600;display:block;margin-bottom:4px">מחיר לאיש (₪)</label>
+                            <input type="number" min="0" value="${f.base_price_per_person}" oninput="_mtEF('base_price_per_person',parseFloat(this.value)||0)" style="${_mtInputS()}">
+                        </div>
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+                        <div>
+                            <label style="font-size:11.5px;color:#64748b;font-weight:600;display:block;margin-bottom:4px">מינ' אורחים</label>
+                            <input type="number" min="1" value="${f.min_guests}" oninput="_mtEF('min_guests',this.value)" placeholder="—" style="${_mtInputS()}">
+                        </div>
+                        <div>
+                            <label style="font-size:11.5px;color:#64748b;font-weight:600;display:block;margin-bottom:4px">מקס' אורחים</label>
+                            <input type="number" min="1" value="${f.max_guests}" oninput="_mtEF('max_guests',this.value)" placeholder="ללא הגבלה" style="${_mtInputS()}">
+                        </div>
+                    </div>
+                    <div>
+                        <label style="font-size:11.5px;color:#64748b;font-weight:600;display:block;margin-bottom:4px">תיאור</label>
+                        <textarea oninput="_mtEF('description',this.value)" rows="3" style="${_mtInputS()};resize:vertical;line-height:1.6">${_mtEsc(f.description)}</textarea>
+                    </div>
+                </div>
+            </div>
+            <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:18px">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+                    <h3 style="margin:0;font-size:14px;font-weight:700;color:#1e293b">שלבים ופריטים</h3>
+                    <button onclick="_mtAddSecModal()" style="${_mtBtnS('primary')};font-size:12.5px;padding:6px 13px">+ הוסף שלב</button>
+                </div>
+                ${sections.length === 0 ? `
+                <div style="text-align:center;padding:28px;color:#94a3b8;border:1.5px dashed #e2e8f0;border-radius:8px">
+                    <div style="font-size:24px;margin-bottom:7px">🍽️</div>
+                    <div style="font-size:12.5px">הוסף שלב ראשון (ראשונות, עיקריות, קינוחים...)</div>
+                </div>` : sectionsHtml}
+            </div>
+        </div>
+        <div id="mt-prev-col" style="position:sticky;top:56px">
+            <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px">
+                <div style="font-size:11.5px;font-weight:700;color:#94a3b8;letter-spacing:.07em;margin-bottom:12px">תצוגה מקדימה</div>
+                <div style="background:#1e293b;border-radius:8px;padding:7px">
+                    <div style="background:#fafafa;border-radius:5px;overflow:hidden;font-size:12px;direction:rtl">
+                        <div style="background:#e2e8f0;height:72px;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:10px">תמונת באנר</div>
+                        <div style="padding:12px 13px">
+                            <div style="font-weight:700;font-size:14px;color:#1e293b;margin-bottom:4px">${_mtEsc(f.name || t.name)}</div>
+                            ${f.description ? `<div style="font-size:10.5px;color:#64748b;line-height:1.5;margin-bottom:6px">${_mtEsc((f.description || '').substring(0,70))}${(f.description || '').length > 70 ? '...' : ''}</div>` : ''}
+                            ${f.base_price_per_person ? `<div style="font-size:11px;color:#6366f1;font-weight:600;margin-bottom:8px">₪${f.base_price_per_person} לאיש</div>` : ''}
+                            ${prevSections}
+                            ${sections.length > 4 ? `<div style="font-size:10.5px;color:#94a3b8;text-align:center">+${sections.length - 4} שלבים נוספים</div>` : ''}
+                        </div>
+                    </div>
+                </div>
+                ${pUrl ? `<a href="${pUrl}" target="_blank" style="display:block;text-align:center;margin-top:10px;font-size:11.5px;color:#6366f1">פתח כדף לקוח ↗</a>` : ''}
+            </div>
+        </div>
+    </div>`;
+
+    if (window.innerWidth < 760) {
+        const g = document.getElementById('mt-ed-grid');
+        const p = document.getElementById('mt-prev-col');
+        if (g) g.style.gridTemplateColumns = '1fr';
+        if (p) p.style.display = 'none';
+    }
+}
+
+// ======= EDITOR HELPERS =======
+window._mtEF = function(k, v) { _mtState.editForm[k] = v; };
+
+window._mtToggleSec = function(id) {
+    _mtState.expandedSections[id] = !_mtState.expandedSections[id];
+    _mtRender();
+};
+
+window._mtBack = async function() {
+    _mtState.view = 'list';
+    _mtState.cur = null;
+    try {
+        const res = await fetch('/api/menu-templates', { headers: { Authorization: `Bearer ${currentUser?.token}` } });
+        if (res.ok) _mtState.list = await res.json();
+    } catch(e) {}
+    _mtRender();
+};
+
+window._mtSave = async function() {
+    const f = _mtState.editForm;
+    const t = _mtState.cur;
+    if (!t) return;
+    const name = (f.name || '').trim();
+    if (!name) { _mtToast('שם התפריט נדרש', 'err'); return; }
+    const btn = document.getElementById('mt-save-btn');
+    if (btn) { btn.disabled = true; btn.textContent = '...'; }
+    try {
+        const res = await fetch(`/api/menu-templates/${t.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${currentUser?.token}` },
+            body: JSON.stringify({
+                name,
+                event_type: f.event_type || null,
+                description: f.description || null,
+                base_price_per_person: parseFloat(f.base_price_per_person) || 0,
+                min_guests: f.min_guests ? parseInt(f.min_guests) : null,
+                max_guests: f.max_guests ? parseInt(f.max_guests) : null,
+                is_active: f.is_active,
+                is_public: f.is_public
+            })
+        });
+        const data = await res.json();
+        if (!res.ok) { _mtToast(data.error || 'שגיאה', 'err'); }
+        else { _mtState.cur = { ..._mtState.cur, ...data }; _mtToast('נשמר ✓'); }
+    } catch(e) { _mtToast('שגיאת תקשורת', 'err'); }
+    if (btn) { btn.disabled = false; btn.textContent = 'שמור'; }
+};
+
+// ======= ADD SECTION MODAL =======
+window._mtAddSecModal = function() {
+    _mtShowModal('mt-sec-modal', `
+    <h3 style="margin:0 0 16px;font-size:16px;font-weight:700;color:#1e293b">הוספת שלב</h3>
+    <div style="display:flex;flex-direction:column;gap:12px">
+        <div>
+            <label style="font-size:12px;color:#64748b;font-weight:600;display:block;margin-bottom:4px">שם השלב *</label>
+            <input id="mt-sn" placeholder="ראשונות / עיקריות / קינוחים..." style="${_mtInputS()}">
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <div>
+                <label style="font-size:12px;color:#64748b;font-weight:600;display:block;margin-bottom:4px">מינ' בחירות</label>
+                <input id="mt-smin" type="number" min="0" value="0" style="${_mtInputS()}">
+            </div>
+            <div>
+                <label style="font-size:12px;color:#64748b;font-weight:600;display:block;margin-bottom:4px">מקס' בחירות</label>
+                <input id="mt-smax" type="number" min="1" value="99" style="${_mtInputS()}">
+            </div>
+        </div>
+    </div>
+    <div id="mt-sec-err" style="color:#ef4444;font-size:12px;min-height:16px;margin-top:7px"></div>
+    <div style="display:flex;gap:8px;margin-top:16px">
+        <button onclick="_mtCloseModal('mt-sec-modal')" style="${_mtBtnS('ghost')}">ביטול</button>
+        <button id="mt-sec-add-btn" onclick="_mtDoAddSec()" style="${_mtBtnS('primary')};flex:2">הוסף שלב</button>
+    </div>`);
+    setTimeout(() => { const n = document.getElementById('mt-sn'); if (n) n.focus(); }, 60);
+};
+
+async function _mtDoAddSec() {
+    const name = (document.getElementById('mt-sn')?.value || '').trim();
+    const errEl = document.getElementById('mt-sec-err');
+    if (!name) { if (errEl) errEl.textContent = 'שם השלב נדרש'; return; }
+    const minC = parseInt(document.getElementById('mt-smin')?.value) || 0;
+    const maxC = parseInt(document.getElementById('mt-smax')?.value) || 99;
+    const btn = document.getElementById('mt-sec-add-btn');
+    if (btn) { btn.disabled = true; btn.textContent = '...'; }
+    try {
+        const res = await fetch(`/api/menu-templates/${_mtState.cur.id}/sections`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${currentUser?.token}` },
+            body: JSON.stringify({ name, min_choices: minC, max_choices: maxC, is_required: minC > 0 })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+            if (errEl) errEl.textContent = data.error || 'שגיאה';
+            if (btn) { btn.disabled = false; btn.textContent = 'הוסף שלב'; }
+            return;
+        }
+        _mtState.cur.sections = [...(_mtState.cur.sections || []), { ...data, items: [] }];
+        _mtState.expandedSections[data.id] = true;
+        _mtCloseModal('mt-sec-modal');
+        _mtRender();
+        _mtToast('השלב נוסף');
+    } catch(e) {
+        if (errEl) errEl.textContent = 'שגיאת תקשורת';
+        if (btn) { btn.disabled = false; btn.textContent = 'הוסף שלב'; }
+    }
+}
+
+window._mtDelSection = async function(id) {
+    if (!confirm('למחוק שלב זה ואת כל פריטיו?')) return;
+    try {
+        const res = await fetch(`/api/menu-sections/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${currentUser?.token}` } });
+        if (!res.ok) { const d = await res.json(); _mtToast(d.error || 'שגיאה', 'err'); return; }
+        _mtState.cur.sections = (_mtState.cur.sections || []).filter(s => s.id !== id);
+        _mtRender();
+        _mtToast('השלב נמחק');
+    } catch(e) { _mtToast('שגיאת תקשורת', 'err'); }
+};
+
+// ======= ADD ITEM MODAL =======
+window._mtAddItemModal = function(sectionId) {
+    _mtShowModal('mt-item-modal', `
+    <h3 style="margin:0 0 16px;font-size:16px;font-weight:700;color:#1e293b">הוספת פריט</h3>
+    <div style="display:flex;flex-direction:column;gap:12px">
+        <div>
+            <label style="font-size:12px;color:#64748b;font-weight:600;display:block;margin-bottom:4px">שם הפריט *</label>
+            <input id="mt-in" placeholder="אנטריקוט על האש" style="${_mtInputS()}">
+        </div>
+        <div>
+            <label style="font-size:12px;color:#64748b;font-weight:600;display:block;margin-bottom:4px">תיאור</label>
+            <input id="mt-id" placeholder="רוטב יין אדום, 300 גרם..." style="${_mtInputS()}">
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <div>
+                <label style="font-size:12px;color:#64748b;font-weight:600;display:block;margin-bottom:4px">מחיר תוספת (₪)</label>
+                <input id="mt-ip" type="number" min="0" placeholder="0 = כלול" style="${_mtInputS()}">
+            </div>
+            <div>
+                <label style="font-size:12px;color:#64748b;font-weight:600;display:block;margin-bottom:4px">אלרגנים</label>
+                <input id="mt-ia" placeholder="גלוטן, חלב..." style="${_mtInputS()}">
+            </div>
+        </div>
+    </div>
+    <div id="mt-item-err" style="color:#ef4444;font-size:12px;min-height:16px;margin-top:7px"></div>
+    <div style="display:flex;gap:8px;margin-top:16px">
+        <button onclick="_mtCloseModal('mt-item-modal')" style="${_mtBtnS('ghost')}">ביטול</button>
+        <button id="mt-item-add-btn" onclick="_mtDoAddItem(${sectionId})" style="${_mtBtnS('primary')};flex:2">הוסף פריט</button>
+    </div>`);
+    setTimeout(() => { const n = document.getElementById('mt-in'); if (n) n.focus(); }, 60);
+};
+
+async function _mtDoAddItem(sectionId) {
+    const name = (document.getElementById('mt-in')?.value || '').trim();
+    const errEl = document.getElementById('mt-item-err');
+    if (!name) { if (errEl) errEl.textContent = 'שם הפריט נדרש'; return; }
+    const priceVal = document.getElementById('mt-ip')?.value;
+    const price = priceVal && parseFloat(priceVal) > 0 ? parseFloat(priceVal) : null;
+    const btn = document.getElementById('mt-item-add-btn');
+    if (btn) { btn.disabled = true; btn.textContent = '...'; }
+    try {
+        const res = await fetch(`/api/menu-sections/${sectionId}/items`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${currentUser?.token}` },
+            body: JSON.stringify({
+                name,
+                description: document.getElementById('mt-id')?.value || null,
+                custom_price: price,
+                allergens: document.getElementById('mt-ia')?.value || null,
+                is_available: true
+            })
+        });
+        const data = await res.json();
+        if (!res.ok) {
+            if (errEl) errEl.textContent = data.error || 'שגיאה';
+            if (btn) { btn.disabled = false; btn.textContent = 'הוסף פריט'; }
+            return;
+        }
+        const sec = (_mtState.cur?.sections || []).find(s => s.id === sectionId);
+        if (sec) sec.items = [...(sec.items || []), data];
+        _mtCloseModal('mt-item-modal');
+        _mtRender();
+        _mtToast('הפריט נוסף');
+    } catch(e) {
+        if (errEl) errEl.textContent = 'שגיאת תקשורת';
+        if (btn) { btn.disabled = false; btn.textContent = 'הוסף פריט'; }
+    }
+}
+
+window._mtToggleItemA = async function(itemId, sectionId, avail) {
+    try {
+        await fetch(`/api/menu-items/${itemId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${currentUser?.token}` },
+            body: JSON.stringify({ is_available: avail })
+        });
+        const sec = (_mtState.cur?.sections || []).find(s => s.id === sectionId);
+        if (sec) { const item = sec.items.find(i => i.id === itemId); if (item) item.is_available = avail; }
+    } catch(e) { _mtToast('שגיאת תקשורת', 'err'); }
+};
+
+window._mtDelItem = async function(itemId, sectionId) {
+    try {
+        const res = await fetch(`/api/menu-items/${itemId}`, { method: 'DELETE', headers: { Authorization: `Bearer ${currentUser?.token}` } });
+        if (!res.ok) { const d = await res.json(); _mtToast(d.error || 'שגיאה', 'err'); return; }
+        const sec = (_mtState.cur?.sections || []).find(s => s.id === sectionId);
+        if (sec) sec.items = (sec.items || []).filter(i => i.id !== itemId);
+        _mtRender();
+        _mtToast('הפריט נמחק');
+    } catch(e) { _mtToast('שגיאת תקשורת', 'err'); }
+};
+
+// ======= LIST ACTIONS =======
+window._mtCopyLink = function(slug) {
+    if (!slug) { _mtToast('אין קישור ציבורי', 'err'); return; }
+    const url = `${location.origin}/menu/${slug}`;
+    if (navigator.clipboard) {
+        navigator.clipboard.writeText(url).then(() => _mtToast('הקישור הועתק ✓'));
+    } else {
+        const ta = document.createElement('textarea');
+        ta.value = url; document.body.appendChild(ta); ta.select();
+        document.execCommand('copy'); ta.remove();
+        _mtToast('הקישור הועתק ✓');
+    }
+};
+
+window._mtPreview = function(slug) {
+    if (!slug) { _mtToast('אין קישור ציבורי', 'err'); return; }
+    window.open(`/menu/${slug}`, '_blank');
+};
+
+window._mtDuplicate = function() { _mtToast('שכפול — בקרוב 🔜'); };
+
+window._mtDeleteConfirm = async function(id, name) {
+    if (!confirm(`למחוק את התפריט "${name}"?\nפעולה זו אינה הפיכה.`)) return;
+    try {
+        const res = await fetch(`/api/menu-templates/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${currentUser?.token}` } });
+        if (!res.ok) { const d = await res.json(); _mtToast(d.error || 'שגיאה במחיקה', 'err'); return; }
+        _mtState.list = _mtState.list.filter(t => t.id !== id);
+        _mtRender();
+        _mtToast('התפריט נמחק');
+    } catch(e) { _mtToast('שגיאת תקשורת', 'err'); }
+};
+
+// ======= MODAL UTILITIES =======
+function _mtShowModal(id, html) {
+    _mtCloseModal(id);
+    const overlay = document.createElement('div');
+    overlay.id = id;
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.42);z-index:9998;display:flex;align-items:center;justify-content:center;padding:16px';
+    overlay.innerHTML = `<div style="background:#fff;border-radius:12px;padding:26px;width:100%;max-width:460px;box-shadow:0 20px 60px rgba(0,0,0,.22);max-height:90vh;overflow-y:auto" dir="rtl">${html}</div>`;
+    overlay.addEventListener('click', e => { if (e.target === overlay) _mtCloseModal(id); });
+    document.body.appendChild(overlay);
+}
+
+window._mtCloseModal = function(id) { const el = document.getElementById(id); if (el) el.remove(); };
+
+function _mtInputS() {
+    return 'width:100%;padding:8px 11px;border:1.5px solid #e2e8f0;border-radius:7px;font-size:13.5px;outline:none;font-family:inherit;color:#1e293b;background:#fff';
+}
+function _mtBtnS(type) {
+    if (type === 'primary') return 'padding:9px 18px;background:#6366f1;color:#fff;border:none;border-radius:7px;font-size:13.5px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;justify-content:center';
+    return 'padding:9px 14px;background:#fff;color:#64748b;border:1.5px solid #e2e8f0;border-radius:7px;font-size:13.5px;font-weight:500;cursor:pointer;display:inline-flex;align-items:center;justify-content:center';
+}
+// ============================================================
+// --- END MENU TEMPLATES MODULE ---
+// ============================================================
