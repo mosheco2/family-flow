@@ -53030,12 +53030,20 @@ function _mtRenderEditor(root) {
                 <div style="display:flex;flex-direction:column;gap:12px">
                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
                         <div>
-                            <label style="font-size:11.5px;color:#64748b;font-weight:600;display:block;margin-bottom:4px">תמונת כותרת (URL)</label>
-                            <input value="${_mtEsc(f.cover_image_url||'')}" oninput="_mtEF('cover_image_url',this.value)" placeholder="https://..." style="${_mtInputS()}">
+                            <label style="font-size:11.5px;color:#64748b;font-weight:600;display:block;margin-bottom:6px">תמונת כותרת</label>
+                            ${f.cover_image_url ? `<img src="${_mtEsc(f.cover_image_url)}" alt="" style="width:100%;height:88px;object-fit:cover;border-radius:8px;border:1px solid #e2e8f0;display:block;margin-bottom:6px">` : ''}
+                            <div style="display:flex;gap:6px">
+                                <button onclick="_mtUploadImg('cover_image_url')" style="flex:1;padding:7px 10px;background:#f1f5f9;border:1px dashed #cbd5e1;border-radius:6px;font-size:12px;color:#475569;cursor:pointer"><i class="fa-solid fa-cloud-arrow-up" style="margin-left:4px"></i>${f.cover_image_url ? 'החלף' : 'בחר תמונה'}</button>
+                                ${f.cover_image_url ? `<button onclick="_mtEF('cover_image_url','');_mtRenderEditor(document.getElementById('menu-templates-root'))" style="padding:7px 10px;background:#fff;border:1px solid #fca5a5;border-radius:6px;font-size:12px;color:#dc2626;cursor:pointer">הסר</button>` : ''}
+                            </div>
                         </div>
                         <div>
-                            <label style="font-size:11.5px;color:#64748b;font-weight:600;display:block;margin-bottom:4px">לוגו (URL)</label>
-                            <input value="${_mtEsc(f.logo_url||'')}" oninput="_mtEF('logo_url',this.value)" placeholder="https://..." style="${_mtInputS()}">
+                            <label style="font-size:11.5px;color:#64748b;font-weight:600;display:block;margin-bottom:6px">לוגו</label>
+                            ${f.logo_url ? `<img src="${_mtEsc(f.logo_url)}" alt="" style="width:72px;height:72px;object-fit:cover;border-radius:8px;border:1px solid #e2e8f0;display:block;margin-bottom:6px">` : ''}
+                            <div style="display:flex;gap:6px">
+                                <button onclick="_mtUploadImg('logo_url')" style="flex:1;padding:7px 10px;background:#f1f5f9;border:1px dashed #cbd5e1;border-radius:6px;font-size:12px;color:#475569;cursor:pointer"><i class="fa-solid fa-cloud-arrow-up" style="margin-left:4px"></i>${f.logo_url ? 'החלף' : 'בחר תמונה'}</button>
+                                ${f.logo_url ? `<button onclick="_mtEF('logo_url','');_mtRenderEditor(document.getElementById('menu-templates-root'))" style="padding:7px 10px;background:#fff;border:1px solid #fca5a5;border-radius:6px;font-size:12px;color:#dc2626;cursor:pointer">הסר</button>` : ''}
+                            </div>
                         </div>
                     </div>
                     <div>
@@ -53101,6 +53109,37 @@ function _mtRenderEditor(root) {
 
 // ======= EDITOR HELPERS =======
 window._mtEF = function(k, v) { _mtState.editForm[k] = v; };
+
+window._mtUploadImg = async function(field) {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = async (e) => {
+        const file = e.target.files[0]; if (!file) return;
+        try {
+            const [sr, pr] = await Promise.all([
+                fetch(`${API}/public/settings/cloudinary_cloud_name`),
+                fetch(`${API}/public/settings/cloudinary_upload_preset`)
+            ]);
+            const cloudName = (await sr.json()).value;
+            const preset = (await pr.json()).value;
+            if (!cloudName || !preset) { showToast('error', 'הגדרות Cloudinary חסרות — פנה למנהל מערכת'); return; }
+            showToast('info', 'מעלה תמונה...');
+            const dataUrl = await new Promise(resolve => compressImage(file, 1600, 1600, 0.85, resolve));
+            const blob = await fetch(dataUrl).then(r => r.blob());
+            const fd = new FormData();
+            fd.append('file', blob, 'menu-img.jpg');
+            fd.append('upload_preset', preset);
+            fd.append('folder', 'family-flow-menus');
+            const upData = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, { method: 'POST', body: fd }).then(r => r.json());
+            if (!upData.secure_url) { showToast('error', 'שגיאה בהעלאת התמונה'); return; }
+            _mtState.editForm[field] = upData.secure_url;
+            _mtRenderEditor(document.getElementById('menu-templates-root'));
+            showToast('success', 'התמונה הועלתה');
+        } catch(err) { showToast('error', 'שגיאה בהעלאת תמונה'); }
+    };
+    input.click();
+};
 
 window._mtToggleSec = function(id) {
     _mtState.expandedSections[id] = !_mtState.expandedSections[id];

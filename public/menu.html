@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>תפריט</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@400;500;700&family=Assistant:wght@300;400;500;600&display=swap');
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -85,6 +86,13 @@ body{font-family:'Assistant',Helvetica,sans-serif;color:var(--ink);background:va
 .done-num{font-family:'Frank Ruhl Libre',serif;font-size:28px;font-weight:500;margin-bottom:6px}
 .done-sub{font-size:13.5px;font-weight:300;color:var(--ink3);margin-bottom:28px}
 .done-total{font-size:13px;color:var(--ink3);margin-bottom:32px}
+.done-actions{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:24px}
+.btn-pdf{display:inline-flex;align-items:center;gap:7px;padding:11px 22px;background:var(--accent);color:#FBF7EF;border:none;border-radius:3px;font-size:13.5px;font-family:inherit;font-weight:600;cursor:pointer;letter-spacing:.04em}
+.btn-pdf:hover{background:var(--accent2)}
+.btn-wa{display:inline-flex;align-items:center;gap:7px;padding:11px 22px;background:#25D366;color:#fff;border:none;border-radius:3px;font-size:13.5px;font-family:inherit;font-weight:600;cursor:pointer}
+.btn-wa:hover{background:#1ebe5a}
+/* ── pdf print source (hidden) ── */
+#pdf-source{position:absolute;left:-9999px;top:0;width:190mm;font-family:'Assistant',Helvetica,sans-serif;color:#241E19;direction:rtl;text-align:right}
 
 /* ── nav buttons ── */
 .nav-bar{position:fixed;bottom:0;right:0;left:0;background:var(--bg);border-top:1px solid var(--border);padding:12px clamp(14px,5vw,48px);display:flex;gap:10px;justify-content:space-between;z-index:100}
@@ -379,9 +387,85 @@ function renderDone() {
             ${_d.contact_phone ? `<div>📞 <a href="tel:${esc(_d.contact_phone)}" style="color:var(--accent)">${esc(_d.contact_phone)}</a></div>` : ''}
             ${_d.contact_address ? `<div style="margin-top:4px">📍 ${esc(_d.contact_address)}</div>` : ''}
           </div>` : ''}
+          <div class="done-actions">
+            <button class="btn-pdf" onclick="exportPDF()">⬇ הורד PDF</button>
+            <button class="btn-wa" onclick="shareWhatsApp()">שלח בווצאפ ↗</button>
+          </div>
         </div>
       </div>`;
+    buildPdfSource(total);
     window.scrollTo(0,0);
+}
+
+function buildPdfSource(total) {
+    let el = document.getElementById('pdf-source');
+    if (!el) { el = document.createElement('div'); el.id = 'pdf-source'; document.body.appendChild(el); }
+    const rows = _d.sections.map(sec => {
+        const names = (_sel[sec.id]||[]).map(id => {
+            const item = (sec.items||[]).find(i=>i.id===id);
+            return item ? item.name : '';
+        }).filter(Boolean);
+        return `<tr><td style="padding:8px 10px;border-bottom:1px solid #e5dccb;font-size:12px;color:#5C5148;width:110px">${esc(sec.name)}</td><td style="padding:8px 10px;border-bottom:1px solid #e5dccb;font-size:12.5px;font-weight:500">${names.length ? names.join(', ') : '—'}</td></tr>`;
+    }).join('');
+    el.innerHTML = `
+      <div style="padding:28px 32px;background:#FBF7EF;min-height:100%">
+        <div style="display:flex;align-items:center;gap:14px;margin-bottom:22px;border-bottom:1.5px solid #6B2434;padding-bottom:16px">
+          ${_d.logo_url ? `<img src="${esc(_d.logo_url)}" style="width:54px;height:54px;object-fit:cover;border-radius:6px">` : ''}
+          <div>
+            <div style="font-size:20px;font-weight:700;color:#241E19">${esc(_d.name)}</div>
+            ${_d.slogan ? `<div style="font-size:12px;color:#9C8C71;margin-top:3px">${esc(_d.slogan)}</div>` : ''}
+          </div>
+        </div>
+        <div style="font-size:13px;font-weight:700;color:#6B2434;letter-spacing:.12em;margin-bottom:12px">בחירות התפריט</div>
+        <table style="width:100%;border-collapse:collapse;margin-bottom:20px">${rows}</table>
+        ${total ? `<div style="display:flex;justify-content:space-between;padding:12px 10px;background:#fff;border-radius:6px;font-size:14px"><span style="color:#5C5148">סה״כ משוער לאיש</span><span style="font-weight:700;color:#241E19">₪${num(total)}</span></div>` : ''}
+        <div style="margin-top:28px;font-size:11px;color:#9C8C71;border-top:1px solid #e5dccb;padding-top:14px">
+          <div style="font-weight:600;color:#241E19;margin-bottom:6px">פרטי הפנייה</div>
+          <div>שם: ${esc(_form.name||'')}</div>
+          <div>טלפון: ${esc(_form.phone||'')}</div>
+          ${_form.email ? `<div>אימייל: ${esc(_form.email)}</div>` : ''}
+          ${_form.date ? `<div>תאריך: ${esc(_form.date)}</div>` : ''}
+          ${_form.guests ? `<div>מוזמנים: ${esc(_form.guests)}</div>` : ''}
+          ${_form.notes ? `<div>הערות: ${esc(_form.notes)}</div>` : ''}
+          <div style="margin-top:8px">מספר פנייה: <strong>${esc(window._reqNumber||'')}</strong></div>
+        </div>
+        ${(_d.contact_phone||_d.contact_address) ? `<div style="margin-top:18px;font-size:11px;color:#9C8C71">${_d.contact_phone?`📞 ${esc(_d.contact_phone)}  `:''}${_d.contact_address?`📍 ${esc(_d.contact_address)}`:''}</div>` : ''}
+      </div>`;
+}
+
+async function exportPDF() {
+    const el = document.getElementById('pdf-source');
+    if (!el || typeof html2pdf === 'undefined') { alert('טעינת PDF נכשלה — נסה לרענן את הדף'); return; }
+    const btn = document.querySelector('.btn-pdf');
+    if (btn) { btn.disabled = true; btn.textContent = '...מכין'; }
+    try {
+        await html2pdf().set({
+            margin: 0,
+            filename: `תפריט-${esc(_d.name)}-${esc(window._reqNumber||'')}.pdf`,
+            image: { type: 'jpeg', quality: 0.95 },
+            html2canvas: { scale: 2, useCORS: true, allowTaint: true },
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        }).from(el).save();
+        window._pdfBlob = await html2pdf().set({
+            margin: 0,
+            image: { type: 'jpeg', quality: 0.95 },
+            html2canvas: { scale: 2, useCORS: true, allowTaint: true },
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        }).from(el).outputPdf('blob');
+    } catch(e) { alert('שגיאה ביצירת PDF'); }
+    if (btn) { btn.disabled = false; btn.textContent = '⬇ הורד PDF'; }
+}
+
+async function shareWhatsApp() {
+    const menuUrl = window.location.href;
+    const text = `היי! הנה התפריט שבחרתי מ${_d.name}:\n${menuUrl}\nמספר פנייה: ${window._reqNumber||''}`;
+    if (window._pdfBlob && navigator.canShare && navigator.canShare({ files: [new File([window._pdfBlob], 'menu.pdf', { type: 'application/pdf' })] })) {
+        try {
+            await navigator.share({ title: `תפריט ${_d.name}`, text, files: [new File([window._pdfBlob], 'menu.pdf', { type: 'application/pdf' })] });
+            return;
+        } catch(e) { /* fallthrough */ }
+    }
+    window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank');
 }
 
 /* ── utilities ── */
