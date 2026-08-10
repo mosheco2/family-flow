@@ -148,8 +148,10 @@ let _catCategory = '';  // category filter
 let _catView = 'browse'; // 'browse' | 'form' | 'done'
 
 const slug = location.pathname.replace(/^\/menu\//, '').trim();
-const _isPdfMode = new URLSearchParams(location.search).get('pdf') === '1';
-const _isWaMode  = new URLSearchParams(location.search).get('wa')  === '1';
+const _isPdfMode  = new URLSearchParams(location.search).get('pdf')  === '1';
+const _isWaMode   = new URLSearchParams(location.search).get('wa')   === '1';
+const _fromSlug   = new URLSearchParams(location.search).get('from') || null;
+let   _fromName   = null; // populated after load if _fromSlug is set
 
 /* ── boot ── */
 (async () => {
@@ -163,6 +165,13 @@ const _isWaMode  = new URLSearchParams(location.search).get('wa')  === '1';
 
     document.title = _d.name + ' — תפריט';
     _d.sections = (_d.sections || []).filter(s => (s.items || []).some(i => i.is_available !== false));
+    // resolve "from" slug name for back button
+    if (_fromSlug) {
+        try {
+            const fr = await fetch('/api/menu/public/' + encodeURIComponent(_fromSlug));
+            if (fr.ok) { const fd = await fr.json(); _fromName = fd.name || null; }
+        } catch(e) {}
+    }
     buildFullPdfSource();
     document.getElementById('fab-pdf-btn').style.display = 'flex';
     // store button
@@ -215,7 +224,7 @@ async function renderLanding() {
         <div style="font-size:10px;font-weight:700;color:var(--ink3);letter-spacing:.2em;text-transform:uppercase;margin-bottom:12px">אפשרויות נוספות</div>
         <div style="display:flex;flex-direction:column;gap:9px">
           ${(_relatedMenus||[]).map(m => `
-          <a href="/menu/${encodeURIComponent(m.public_slug)}" style="display:flex;align-items:center;gap:12px;background:var(--sand);border:1px solid var(--border);border-radius:8px;padding:11px 13px;text-decoration:none;color:inherit">
+          <a href="/menu/${encodeURIComponent(m.public_slug)}?from=${encodeURIComponent(slug)}" style="display:flex;align-items:center;gap:12px;background:var(--sand);border:1px solid var(--border);border-radius:8px;padding:11px 13px;text-decoration:none;color:inherit">
             ${m.logo_url ? `<img src="${esc(m.logo_url)}" style="width:36px;height:36px;object-fit:cover;border-radius:5px;flex-shrink:0">` : `<div style="width:36px;height:36px;border-radius:5px;background:var(--border);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0">📋</div>`}
             <div>
               <div style="font-size:13.5px;font-weight:600;color:var(--ink)">${esc(m.name)}</div>
@@ -475,11 +484,17 @@ function heroHtml() {
 
 /* ── back-to-landing bar ── */
 function backBarHtml() {
-    if (!_d.show_related_options) return '';
-    return `<div style="background:var(--sand);border-bottom:1px solid var(--border);padding:7px clamp(14px,5vw,48px)">
-      <button onclick="_mode=null;render()" style="background:transparent;border:none;color:var(--ink3);font-size:12px;cursor:pointer;padding:0;font-family:inherit;display:flex;align-items:center;gap:5px">
-        <span style="font-size:14px">←</span> כל האפשרויות
-      </button>
+    const parts = [];
+    if (_fromSlug) {
+        const label = _fromName ? `← חזרה ל${_fromName}` : '← חזרה לתפריט הקודם';
+        parts.push(`<a href="/menu/${encodeURIComponent(_fromSlug)}" style="color:var(--ink3);text-decoration:none;font-size:12px;display:flex;align-items:center;gap:4px">${esc(label)}</a>`);
+    }
+    if (_d.show_related_options) {
+        parts.push(`<button onclick="_mode=null;render()" style="background:transparent;border:none;color:var(--ink3);font-size:12px;cursor:pointer;padding:0;font-family:inherit;display:flex;align-items:center;gap:4px"><span style="font-size:13px">☰</span> כל האפשרויות</button>`);
+    }
+    if (!parts.length) return '';
+    return `<div style="background:var(--sand);border-bottom:1px solid var(--border);padding:7px clamp(14px,5vw,48px);display:flex;align-items:center;gap:16px">
+      ${parts.join('<span style="color:var(--border)">|</span>')}
     </div>`;
 }
 
