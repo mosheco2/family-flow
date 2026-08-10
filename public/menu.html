@@ -134,10 +134,17 @@ body{font-family:'Assistant',Helvetica,sans-serif;color:var(--ink);background:va
 <script>
 /* ── state ── */
 let _d = null;          // template data
-let _step = 0;          // 0..sections.length = summary, +1 = form, +2 = done
-let _sel = {};          // { sectionId: [itemId, ...] }
+let _mode = null;       // null=landing, 'template'=wizard, 'catalog'=catalog builder
+let _step = 0;          // wizard: 0..sections.length = summary, +1 = form, +2 = done
+let _sel = {};          // wizard selections { sectionId: [itemId, ...] }
 let _form = {};         // contact form values
 let _err = '';
+/* catalog builder state */
+let _catItems = [];     // all catalog items
+let _cart = {};         // catalogItemId -> qty
+let _catFilter = '';    // search string
+let _catCategory = '';  // category filter
+let _catView = 'browse'; // 'browse' | 'form' | 'done'
 
 const slug = location.pathname.replace(/^\/menu\//, '').trim();
 const _isPdfMode = new URLSearchParams(location.search).get('pdf') === '1';
@@ -157,18 +164,237 @@ const _isWaMode  = new URLSearchParams(location.search).get('wa')  === '1';
     _d.sections = (_d.sections || []).filter(s => (s.items || []).some(i => i.is_available !== false));
     buildFullPdfSource();
     document.getElementById('fab-pdf-btn').style.display = 'flex';
-    if (_isPdfMode) { setTimeout(exportMenuPDF, 800); }
-    if (_isWaMode)  { setTimeout(exportAndShareWa, 800); }
+    if (_isPdfMode) { setTimeout(exportMenuPDF, 800); return; }
+    if (_isWaMode)  { setTimeout(exportAndShareWa, 800); return; }
+    // if no sections, skip landing and go straight to catalog
+    if (!_d.sections.length) { startCatalogMode(); return; }
     render();
 })();
 
 /* ── render router ── */
 function render() {
+    if (_mode === null) { renderLanding(); return; }
+    if (_mode === 'catalog') { renderCatalogFlow(); return; }
     const totalSteps = _d.sections.length;
     if (_step < totalSteps) renderStep(_step);
     else if (_step === totalSteps) renderSummary();
     else if (_step === totalSteps + 1) renderForm();
     else renderDone();
+}
+
+/* ── landing ── */
+function renderLanding() {
+    const hasSections = _d.sections && _d.sections.length > 0;
+    document.getElementById('app').innerHTML = `
+      ${heroHtml()}
+      <div class="wiz-body" style="padding-bottom:60px">
+        <h2 class="step-title" style="margin-bottom:8px">כיצד תרצו לבנות את התפריט?</h2>
+        <div class="step-sub">בחרו את הדרך המתאימה לכם</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;margin-top:8px">
+          ${hasSections ? `
+          <button onclick="startTemplateMode()" style="background:var(--surface);border:1.5px solid var(--border);border-radius:10px;padding:22px 18px;cursor:pointer;text-align:right;transition:.15s;font-family:inherit" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
+            <div style="font-size:28px;margin-bottom:10px">📋</div>
+            <div style="font-size:15px;font-weight:700;color:var(--ink);margin-bottom:6px">בחירה מתפריט מוכן</div>
+            <div style="font-size:12.5px;color:var(--ink3);line-height:1.6">עברו שלב-שלב על הקטגוריות המוגדרות ובחרו מנות מכל קטגוריה</div>
+          </button>` : ''}
+          <button onclick="startCatalogMode()" style="background:var(--surface);border:1.5px solid var(--border);border-radius:10px;padding:22px 18px;cursor:pointer;text-align:right;transition:.15s;font-family:inherit" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
+            <div style="font-size:28px;margin-bottom:10px">🛒</div>
+            <div style="font-size:15px;font-weight:700;color:var(--ink);margin-bottom:6px">הרכבת תפריט חופשית</div>
+            <div style="font-size:12.5px;color:var(--ink3);line-height:1.6">בחרו מנות ופריטים ישירות מהקטלוג שלנו ובנו תפריט בהתאמה אישית</div>
+          </button>
+        </div>
+      </div>`;
+}
+
+async function startTemplateMode() {
+    _mode = 'template';
+    _step = 0;
+    render();
+}
+
+async function startCatalogMode() {
+    document.getElementById('app').innerHTML = `<div class="state-center"><div class="spinner"></div><span>טוען קטלוג…</span></div>`;
+    try {
+        const res = await fetch('/api/menu/public/' + encodeURIComponent(slug) + '/catalog');
+        if (!res.ok) throw new Error(res.status);
+        _catItems = await res.json();
+    } catch(e) { renderError('שגיאה בטעינת הקטלוג — נסה לרענן'); return; }
+    _cart = {};
+    _catFilter = '';
+    _catCategory = '';
+    _catView = 'browse';
+    _mode = 'catalog';
+    renderCatalogFlow();
+}
+
+/* ── catalog builder ── */
+function renderCatalogFlow() {
+    if (_catView === 'form')  { renderCatalogForm(); return; }
+    if (_catView === 'done')  { renderCatalogDone(); return; }
+    renderCatalogBrowse();
+}
+
+function _catTotal() {
+    return Object.entries(_cart).reduce((s,[id,qty]) => {
+        const it = _catItems.find(i => i.id == id);
+        return s + (it ? Number(it.price||0)*qty : 0);
+    }, 0);
+}
+function _cartCount() { return Object.values(_cart).reduce((s,q) => s+q, 0); }
+
+function renderCatalogBrowse() {
+    const cats = [...new Set(_catItems.map(i => i.category).filter(Boolean))];
+    const q = _catFilter.toLowerCase();
+    const visible = _catItems.filter(i => {
+        if (_catCategory && i.category !== _catCategory) return false;
+        if (q && !(i.name||'').toLowerCase().includes(q) && !(i.description||'').toLowerCase().includes(q)) return false;
+        return true;
+    });
+    const cartCount = _cartCount();
+    const total = _catTotal();
+
+    const itemCards = visible.map(item => {
+        const qty = _cart[item.id] || 0;
+        return `<div style="background:var(--surface);border:1.5px solid ${qty?'var(--accent)':'var(--border)'};border-radius:8px;padding:12px 14px;display:flex;align-items:flex-start;gap:10px">
+          ${item.image_url ? `<img src="${esc(item.image_url)}" style="width:56px;height:56px;object-fit:cover;border-radius:6px;flex-shrink:0;border:1px solid var(--border)">` : ''}
+          <div style="flex:1;min-width:0">
+            <div style="font-size:13.5px;font-weight:500;color:var(--ink);margin-bottom:2px">${esc(item.name)}</div>
+            ${item.description ? `<div style="font-size:11.5px;color:var(--ink3);margin-bottom:4px;line-height:1.5">${esc(item.description)}</div>` : ''}
+            ${item.price > 0 ? `<div style="font-size:12.5px;color:var(--accent);font-weight:600">₪${num(item.price)}</div>` : ''}
+          </div>
+          <div style="display:flex;align-items:center;gap:7px;flex-shrink:0;margin-top:2px">
+            ${qty > 0 ? `<button onclick="catChangeQty(${item.id},-1)" style="width:26px;height:26px;border-radius:50%;border:1.5px solid var(--accent);background:transparent;color:var(--accent);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1">−</button>
+            <span style="font-size:14px;font-weight:700;color:var(--ink);min-width:16px;text-align:center">${qty}</span>` : ''}
+            <button onclick="catChangeQty(${item.id},1)" style="width:26px;height:26px;border-radius:50%;background:var(--accent);border:none;color:#FBF7EF;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1">+</button>
+          </div>
+        </div>`;
+    }).join('');
+
+    document.getElementById('app').innerHTML = `
+      ${heroHtml()}
+      <div class="wiz-body" style="padding-bottom:${cartCount?'110px':'70px'}">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+          <button onclick="_mode=null;render()" style="background:transparent;border:none;color:var(--ink3);font-size:13px;cursor:pointer;padding:0;font-family:inherit">← חזרה</button>
+          <h2 class="step-title" style="margin:0;flex:1">הרכבת תפריט</h2>
+        </div>
+        <input type="text" placeholder="חיפוש מנה…" value="${esc(_catFilter)}" oninput="_catFilter=this.value;renderCatalogBrowse()" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:6px;font-size:13px;font-family:inherit;background:var(--surface);color:var(--ink);margin-bottom:10px;box-sizing:border-box;direction:rtl">
+        ${cats.length > 1 ? `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px">
+          <button onclick="_catCategory='';renderCatalogBrowse()" style="padding:5px 12px;border-radius:20px;border:1.5px solid ${!_catCategory?'var(--accent)':'var(--border)'};background:${!_catCategory?'var(--accent)':'transparent'};color:${!_catCategory?'#FBF7EF':'var(--ink2)'};font-size:12px;cursor:pointer;font-family:inherit">הכל</button>
+          ${cats.map(c=>`<button onclick="_catCategory='${esc(c)}';renderCatalogBrowse()" style="padding:5px 12px;border-radius:20px;border:1.5px solid ${_catCategory===c?'var(--accent)':'var(--border)'};background:${_catCategory===c?'var(--accent)':'transparent'};color:${_catCategory===c?'#FBF7EF':'var(--ink2)'};font-size:12px;cursor:pointer;font-family:inherit">${esc(c)}</button>`).join('')}
+        </div>` : ''}
+        ${visible.length ? `<div class="items-grid">${itemCards}</div>` : `<div style="text-align:center;padding:40px 0;color:var(--ink3);font-size:14px">לא נמצאו פריטים</div>`}
+      </div>
+      ${cartCount ? `<div style="position:fixed;bottom:0;right:0;left:0;background:var(--bg);border-top:1px solid var(--border);padding:12px clamp(14px,5vw,48px);display:flex;align-items:center;gap:12px;z-index:100">
+        <div style="flex:1">
+          <div style="font-size:12px;color:var(--ink3)">${cartCount} פריטים נבחרו</div>
+          ${total>0?`<div style="font-size:14px;font-weight:700;color:var(--accent)">₪${num(total)}</div>`:''}
+        </div>
+        <button onclick="_catView='form';renderCatalogFlow()" style="padding:11px 28px;background:var(--accent);color:#FBF7EF;border:none;border-radius:3px;font-size:13.5px;font-family:inherit;font-weight:600;cursor:pointer;letter-spacing:.04em">המשך לפרטים ←</button>
+      </div>` : ''}`;
+}
+
+window.catChangeQty = function(id, delta) {
+    const cur = _cart[id] || 0;
+    const next = cur + delta;
+    if (next <= 0) delete _cart[id];
+    else _cart[id] = next;
+    renderCatalogBrowse();
+};
+
+function renderCatalogForm() {
+    const cartCount = _cartCount();
+    const total = _catTotal();
+    const cartRows = Object.entries(_cart).map(([id,qty]) => {
+        const it = _catItems.find(i => i.id == id);
+        if (!it) return '';
+        return `<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border)">
+          <span style="flex:1;font-size:13px;color:var(--ink)">${esc(it.name)}</span>
+          <span style="font-size:12px;color:var(--ink3)">${qty}×</span>
+          ${it.price>0?`<span style="font-size:12.5px;font-weight:600;color:var(--accent);min-width:52px;text-align:left">₪${num(it.price*qty)}</span>`:''}
+        </div>`;
+    }).join('');
+    document.getElementById('app').innerHTML = `
+      ${heroHtml()}
+      <div class="wiz-body" style="padding-bottom:140px">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+          <button onclick="_catView='browse';renderCatalogFlow()" style="background:transparent;border:none;color:var(--ink3);font-size:13px;cursor:pointer;padding:0;font-family:inherit">← חזרה לקטלוג</button>
+        </div>
+        <div style="background:var(--surface);border:1.5px solid var(--border);border-radius:8px;padding:14px 16px;margin-bottom:20px">
+          <div style="font-size:12px;font-weight:700;color:var(--accent);letter-spacing:.1em;margin-bottom:10px">סיכום הזמנה (${cartCount} פריטים)</div>
+          ${cartRows}
+          ${total>0?`<div style="display:flex;justify-content:space-between;padding-top:10px;margin-top:4px;font-size:14px"><span style="color:var(--ink2)">סה"כ</span><span style="font-weight:700;color:var(--ink)">₪${num(total)}</span></div>`:''}
+        </div>
+        <h2 class="step-title" style="margin-bottom:6px">פרטי הפנייה</h2>
+        <div class="step-sub">נחזור אליך בהקדם</div>
+        <div class="form-grid">
+          <div class="field"><label>שם מלא *</label><input id="cf-name" value="${esc(_form.name||'')}" oninput="_form.name=this.value" placeholder="ישראל ישראלי"></div>
+          <div class="field"><label>טלפון *</label><input id="cf-phone" type="tel" value="${esc(_form.phone||'')}" oninput="_form.phone=this.value" placeholder="050-0000000"></div>
+          <div class="field"><label>אימייל</label><input id="cf-email" type="email" value="${esc(_form.email||'')}" oninput="_form.email=this.value" placeholder="me@example.com"></div>
+          <div class="field"><label>תאריך האירוע</label><input id="cf-date" type="date" value="${esc(_form.date||'')}" oninput="_form.date=this.value"></div>
+          <div class="field"><label>מספר מוזמנים</label><input id="cf-guests" type="number" min="1" value="${esc(_form.guests||'')}" oninput="_form.guests=this.value"></div>
+          <div class="field full"><label>הערות נוספות</label><textarea id="cf-notes" oninput="_form.notes=this.value" placeholder="כל מה שחשוב לדעת...">${esc(_form.notes||'')}</textarea></div>
+        </div>
+        <div class="err-msg" id="cat-form-err"></div>
+      </div>
+      <div class="nav-bar">
+        <button class="btn-back" onclick="_catView='browse';renderCatalogFlow()">חזרה</button>
+        <button class="btn-next" onclick="submitCatalogForm()">שליחת הבקשה ←</button>
+      </div>`;
+    window.scrollTo(0,0);
+}
+
+async function submitCatalogForm() {
+    const errEl = document.getElementById('cat-form-err');
+    if (!(_form.name||'').trim()) { errEl.textContent = 'שם מלא נדרש'; return; }
+    const ph = (_form.phone||'').trim();
+    if (!ph || ph.length < 7 || !/^[0-9+\-() ]+$/.test(ph)) { errEl.textContent = 'מספר טלפון לא תקין'; return; }
+    const btn = document.querySelector('.btn-next');
+    if (btn) { btn.disabled = true; btn.textContent = '...'; }
+    const cartItems = Object.entries(_cart).map(([id,qty]) => {
+        const it = _catItems.find(i => i.id == id);
+        return it ? { catalog_item_id: Number(id), name: it.name, price: it.price, qty } : null;
+    }).filter(Boolean);
+    try {
+        const res = await fetch('/api/menu/public/' + encodeURIComponent(slug) + '/catalog-request', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                customer_name: _form.name,
+                customer_phone: _form.phone,
+                customer_email: _form.email || null,
+                event_date: _form.date || null,
+                guest_count: _form.guests || null,
+                custom_notes: _form.notes || null,
+                cart_items: cartItems
+            })
+        });
+        const data = await res.json();
+        if (!res.ok) { if (btn) { btn.disabled=false; btn.textContent='שליחת הבקשה ←'; } errEl.textContent = data.error||'שגיאה'; return; }
+        window._reqNumber = data.request_number;
+        _catView = 'done';
+        renderCatalogFlow();
+    } catch(e) { if (btn) { btn.disabled=false; btn.textContent='שליחת הבקשה ←'; } errEl.textContent = 'שגיאת תקשורת — נסה שנית'; }
+}
+
+function renderCatalogDone() {
+    const total = _catTotal();
+    document.getElementById('app').innerHTML = `
+      ${heroHtml()}
+      <div class="wiz-body">
+        <div class="done-wrap">
+          <div class="done-check">✓</div>
+          <div class="done-num">${esc(window._reqNumber||'')}</div>
+          <div style="font-size:12px;color:var(--ink3);margin-bottom:14px">מספר הפנייה שלך</div>
+          <div class="done-sub">תודה! קיבלנו את הבקשה ונחזור אליך בהקדם.</div>
+          ${total ? `<div class="done-total">סה״כ: <strong>₪${num(total)}</strong></div>` : ''}
+          ${(_d.contact_phone||_d.contact_address) ? `
+          <div style="font-size:13px;color:var(--ink3);margin-bottom:8px">
+            ${_d.contact_phone ? `<div>📞 <a href="tel:${esc(_d.contact_phone)}" style="color:var(--accent)">${esc(_d.contact_phone)}</a></div>` : ''}
+            ${_d.contact_address ? `<div style="margin-top:4px">📍 ${esc(_d.contact_address)}</div>` : ''}
+          </div>` : ''}
+        </div>
+      </div>`;
+    window.scrollTo(0,0);
 }
 
 /* ── hero ── */

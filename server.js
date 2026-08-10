@@ -29914,6 +29914,99 @@ app.post('/api/menu/public/:slug/request', async (req, res) => {
     }
 });
 
+/* catalog items for a public menu slug */
+app.get('/api/menu/public/:slug/catalog', async (req, res) => {
+    try {
+        const tmplRes = await pool.query(
+            `SELECT group_id FROM menu_templates WHERE public_slug=$1 AND is_active=true AND is_public=true AND template_type='menu'`,
+            [req.params.slug]
+        );
+        if (!tmplRes.rows.length) return res.status(404).json({ error: 'תבנית לא נמצאה' });
+        const groupId = tmplRes.rows[0].group_id;
+        const catRes = await pool.query(
+            `SELECT id,name,description,price,image_url,category,is_available FROM store_catalog WHERE group_id=$1 AND is_available=true ORDER BY sort_order,id`,
+            [groupId]
+        );
+        res.json(catRes.rows);
+    } catch(e) {
+        console.error('GET /api/menu/public/:slug/catalog:', e.message);
+        res.status(500).json({ error: 'שגיאת שרת' });
+    }
+});
+
+/* catalog-builder request submission */
+app.post('/api/menu/public/:slug/catalog-request', async (req, res) => {
+    const clientIP = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown').split(',')[0].trim();
+    const rateCheck = _checkMenuPublicRate(clientIP);
+    if (rateCheck.blocked) return res.status(429).json({ error: `יותר מדי בקשות. נסה שנית בעוד ${rateCheck.secsLeft} שניות.` });
+    try {
+        const tmplRes = await pool.query(
+            `SELECT id,group_id,name,notification_email FROM menu_templates WHERE public_slug=$1 AND is_active=true AND is_public=true AND template_type='menu'`,
+            [req.params.slug]
+        );
+        if (!tmplRes.rows.length) return res.status(404).json({ error: 'תבנית לא נמצאה' });
+        const tmpl = tmplRes.rows[0];
+
+        const customerName = _sanitizePlainText(req.body.customer_name || '');
+        const customerPhone = _sanitizePlainText(req.body.customer_phone || '');
+        if (!customerName) return res.status(400).json({ error: 'שם לקוח נדרש' });
+        if (!customerPhone || customerPhone.length < 7) return res.status(400).json({ error: 'טלפון לא תקין' });
+
+        const cartItems = Array.isArray(req.body.cart_items) ? req.body.cart_items : [];
+        if (!cartItems.length) return res.status(400).json({ error: 'לא נבחרו פריטים' });
+
+        const customNotes = _sanitizePlainText(req.body.custom_notes);
+        const r = await pool.query(`
+            INSERT INTO menu_quote_requests
+              (template_id, group_id, customer_name, customer_phone, customer_email,
+               event_date, guest_count, selections, custom_notes, source, status)
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'catalog_builder','pending')
+            RETURNING id
+        `, [
+            tmpl.id, tmpl.group_id,
+            customerName, customerPhone,
+            _sanitizePlainText(req.body.customer_email),
+            req.body.event_date || null,
+            req.body.guest_count ? parseInt(req.body.guest_count) : null,
+            JSON.stringify(cartItems),
+            customNotes
+        ]);
+
+        const reqNumber = 'HG-' + String(r.rows[0].id).padStart(4, '0');
+
+        if (tmpl.notification_email) {
+            const itemLines = cartItems.map((it, i) =>
+                `<tr${i%2?' style="background:#f8f4ee"':''}><td style="padding:4px 10px;font-size:13px">${it.name||''}</td><td style="padding:4px 10px;font-size:13px">${it.qty||1}×</td><td style="padding:4px 10px;font-size:13px;color:#6B2434">₪${Number(it.price||0).toLocaleString('he-IL')}</td></tr>`
+            ).join('');
+            const emailHtml = `
+<div dir="rtl" style="font-family:Arial,sans-serif;max-width:560px;margin:auto;color:#1e293b">
+  <div style="background:#241E19;padding:24px 28px;border-radius:8px 8px 0 0">
+    <h2 style="margin:0;color:#FBF7EF;font-size:19px">הרכבת תפריט חדשה — ${tmpl.name}</h2>
+    <div style="color:#9C8C71;font-size:13px;margin-top:4px">מספר פנייה: <strong style="color:#E7DFD0">${reqNumber}</strong></div>
+  </div>
+  <div style="background:#FBF7EF;padding:24px 28px;border:1px solid #E5DCCB;border-top:none;border-radius:0 0 8px 8px">
+    <table style="width:100%;border-collapse:collapse;margin-bottom:16px">
+      <tr><td style="padding:4px 10px;color:#6b7280;font-size:13px">שם</td><td style="padding:4px 10px;font-size:13px;font-weight:600">${customerName}</td></tr>
+      <tr style="background:#f8f4ee"><td style="padding:4px 10px;color:#6b7280;font-size:13px">טלפון</td><td style="padding:4px 10px;font-size:13px">${customerPhone}</td></tr>
+      ${req.body.event_date ? `<tr><td style="padding:4px 10px;color:#6b7280;font-size:13px">תאריך אירוע</td><td style="padding:4px 10px;font-size:13px">${req.body.event_date}</td></tr>` : ''}
+      ${req.body.guest_count ? `<tr style="background:#f8f4ee"><td style="padding:4px 10px;color:#6b7280;font-size:13px">מספר אורחים</td><td style="padding:4px 10px;font-size:13px">${req.body.guest_count}</td></tr>` : ''}
+    </table>
+    <div style="font-size:13px;font-weight:700;color:#6B2434;margin-bottom:8px">פריטים שנבחרו</div>
+    <table style="width:100%;border-collapse:collapse;margin-bottom:16px">${itemLines}</table>
+    ${customNotes ? `<div style="font-size:12px;color:#5C5148;border-top:1px solid #E5DCCB;padding-top:10px">הערות: ${customNotes}</div>` : ''}
+    <div style="font-size:11px;color:#9C8C71;border-top:1px solid #E5DCCB;padding-top:12px;margin-top:12px">OneFlow Life · מערכת ניהול אירועים</div>
+  </div>
+</div>`;
+            sendSystemEmail(tmpl.notification_email, `הרכבת תפריט חדשה: ${tmpl.name} — ${customerName}`, emailHtml).catch(() => {});
+        }
+
+        res.status(201).json({ success: true, request_number: reqNumber });
+    } catch(e) {
+        console.error('POST /api/menu/public/:slug/catalog-request:', e.message);
+        res.status(500).json({ error: 'שגיאת שרת' });
+    }
+});
+
 // ===== END MENU PUBLIC API =====
 
 // ===== MENU QUOTE REQUEST ACTIONS =====
