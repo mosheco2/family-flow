@@ -29756,7 +29756,7 @@ app.get('/api/menu/public/:slug', async (req, res) => {
         let catMap = {};
         if (catalogIds.length) {
             const catRes = await pool.query(
-                'SELECT id,name,price FROM store_catalog WHERE id=ANY($1)', [catalogIds]
+                'SELECT id,name,price,image_url FROM store_catalog WHERE id=ANY($1)', [catalogIds]
             );
             catRes.rows.forEach(r => { catMap[r.id] = r; });
         }
@@ -29770,7 +29770,8 @@ app.get('/api/menu/public/:slug', async (req, res) => {
                 id: i.id, name: i.catalog_item_id && catMap[i.catalog_item_id] ? catMap[i.catalog_item_id].name : i.name,
                 description: i.description,
                 price: i.custom_price != null ? i.custom_price : (catMap[i.catalog_item_id]?.price ?? null),
-                image_url: i.image_url, allergens: i.allergens,
+                image_url: i.image_url || catMap[i.catalog_item_id]?.image_url || null,
+                allergens: i.allergens,
                 is_available: i.is_available, sort_order: i.sort_order,
                 catalog_item_id: i.catalog_item_id
             }))
