@@ -6,314 +6,393 @@
 <title>תפריט</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@400;500;700&family=Assistant:wght@300;400;500;600&display=swap');
-
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-:root {
-  --bg:       #FBF7EF;
-  --surface:  #FFFFFF;
-  --border:   #E5DCCB;
-  --ink:      #241E19;
-  --ink2:     #5C5148;
-  --ink3:     #9C8C71;
-  --accent:   #6B2434;
-  --accent2:  #4E1926;
-  --sand:     #E7DFD0;
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#FBF7EF;--surface:#fff;--border:#E5DCCB;--sand:#E7DFD0;
+  --ink:#241E19;--ink2:#5C5148;--ink3:#9C8C71;
+  --accent:#6B2434;--accent2:#4E1926;
 }
+html{background:var(--sand)}
+body{font-family:'Assistant',Helvetica,sans-serif;color:var(--ink);background:var(--sand);min-height:100vh}
 
-html { background: var(--sand); }
+/* ── hero ── */
+.hero{position:relative;min-height:220px;background:var(--ink);overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end}
+.hero-img{position:absolute;inset:0;object-fit:cover;width:100%;height:100%;opacity:.38}
+.hero-body{position:relative;padding:clamp(24px,5vw,52px) clamp(20px,6vw,72px) clamp(20px,4vw,36px);display:flex;align-items:flex-end;gap:18px}
+.hero-logo{width:64px;height:64px;border-radius:6px;object-fit:cover;border:2px solid rgba(255,255,255,.18);flex-shrink:0}
+.hero-text{flex:1;min-width:0}
+.hero-eyebrow{font-size:10px;letter-spacing:.3em;color:var(--accent);text-transform:uppercase;margin-bottom:7px}
+.hero-title{font-family:'Frank Ruhl Libre',serif;font-size:clamp(22px,4.5vw,40px);font-weight:500;color:#FBF7EF;line-height:1.2;margin-bottom:6px}
+.hero-slogan{font-size:13.5px;font-weight:300;color:#C8BFB0}
+.hero-meta{display:flex;flex-wrap:wrap;gap:5px 18px;font-size:12.5px;color:#C8BFB0;margin-top:10px}
+.hero-meta strong{color:#FBF7EF;font-weight:500}
 
-body {
-  font-family: 'Assistant', Helvetica, sans-serif;
-  color: var(--ink);
-  background: var(--sand);
-  min-height: 100vh;
-}
-
-/* ── header ── */
-.page-header {
-  background: var(--ink);
-  color: #FBF7EF;
-  padding: clamp(28px, 5vw, 52px) clamp(20px, 6vw, 80px);
-}
-
-.page-header .eyebrow {
-  font-size: 10.5px;
-  letter-spacing: .28em;
-  color: var(--accent);
-  text-transform: uppercase;
-  margin-bottom: 10px;
-}
-
-.page-header h1 {
-  font-family: 'Frank Ruhl Libre', serif;
-  font-size: clamp(28px, 5vw, 48px);
-  font-weight: 500;
-  line-height: 1.2;
-  margin-bottom: 14px;
-}
-
-.page-header .meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px 22px;
-  font-size: 13.5px;
-  font-weight: 300;
-  color: #C8BFB0;
-}
-
-.page-header .meta strong {
-  color: #FBF7EF;
-  font-weight: 500;
-}
-
-/* ── description ── */
-.desc-bar {
-  background: var(--bg);
-  border-bottom: 1px solid var(--border);
-  padding: 18px clamp(20px, 6vw, 80px);
-  font-size: 14px;
-  font-weight: 300;
-  color: var(--ink2);
-  line-height: 1.7;
-}
+/* ── progress bar ── */
+.prog-bar{background:var(--bg);border-bottom:1px solid var(--border);padding:14px clamp(16px,5vw,56px);display:flex;align-items:center;gap:0;overflow-x:auto}
+.prog-step{display:flex;align-items:center;gap:0;flex-shrink:0}
+.prog-num{width:28px;height:28px;border-radius:50%;border:1.5px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:10.5px;font-weight:600;color:var(--ink3);background:var(--bg);transition:.2s}
+.prog-num.active{border-color:var(--accent);color:var(--accent);background:#f9f0f2}
+.prog-num.done{border-color:var(--accent);background:var(--accent);color:#fff}
+.prog-label{font-size:11px;color:var(--ink3);margin-right:6px;white-space:nowrap;display:none}
+@media(min-width:600px){.prog-label{display:block}}
+.prog-line{width:24px;height:1px;background:var(--border);margin:0 4px;flex-shrink:0}
+.prog-line.done{background:var(--accent)}
 
 /* ── main ── */
-.page-body {
-  max-width: 880px;
-  margin: 0 auto;
-  padding: clamp(28px, 5vw, 52px) clamp(16px, 4vw, 40px) 80px;
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-}
+.wiz-body{max-width:820px;margin:0 auto;padding:clamp(20px,4vw,44px) clamp(14px,4vw,32px) 120px}
 
-/* ── section ── */
-.menu-section {
-  border-bottom: 1px solid var(--border);
-  padding: 32px 0;
-}
-.menu-section:last-child { border-bottom: none; }
+/* ── step screen ── */
+.step-title{font-family:'Frank Ruhl Libre',serif;font-size:clamp(18px,3vw,26px);font-weight:500;margin-bottom:5px}
+.step-sub{font-size:13px;font-weight:300;color:var(--ink3);margin-bottom:22px;line-height:1.6}
+.items-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(280px,100%),1fr));gap:10px}
+.item-card{background:var(--surface);border:1.5px solid var(--border);border-radius:8px;padding:14px 16px;cursor:pointer;transition:.15s;display:flex;align-items:flex-start;gap:10px;user-select:none}
+.item-card:hover{border-color:var(--accent);background:#fdf7f8}
+.item-card.selected{border-color:var(--accent);background:#fdf7f8}
+.item-sel{width:18px;height:18px;border-radius:50%;border:1.5px solid var(--border);flex-shrink:0;margin-top:2px;transition:.15s;display:flex;align-items:center;justify-content:center}
+.item-card.selected .item-sel{background:var(--accent);border-color:var(--accent)}
+.item-card.selected .item-sel::after{content:'';width:6px;height:6px;border-radius:50%;background:#fff}
+.item-card.multi .item-sel{border-radius:3px}
+.item-card.multi.selected .item-sel::after{content:'✓';font-size:11px;color:#fff;border-radius:0;width:auto;height:auto;background:transparent}
+.item-info{flex:1;min-width:0}
+.item-name{font-size:14px;font-weight:500;color:var(--ink);margin-bottom:2px}
+.item-desc{font-size:12px;font-weight:300;color:var(--ink3);line-height:1.5}
+.item-allergens{font-size:11px;color:#b45309;margin-top:4px}
+.item-price{font-size:12.5px;font-weight:600;color:var(--accent);white-space:nowrap;padding-top:2px;font-variant-numeric:tabular-nums}
 
-.section-head {
-  display: flex;
-  align-items: baseline;
-  gap: 14px;
-  margin-bottom: 20px;
-  flex-wrap: wrap;
-}
+/* ── summary ── */
+.sum-table{width:100%;border-collapse:collapse;margin-bottom:24px}
+.sum-table tr{border-bottom:1px solid var(--border)}
+.sum-table td{padding:13px 4px;font-size:13.5px;vertical-align:top}
+.sum-table .lbl{color:var(--ink3);font-size:11px;letter-spacing:.18em;width:90px;padding-top:16px}
+.sum-table .val{font-weight:500;color:var(--ink)}
+.sum-table .chg button{font-size:11.5px;color:var(--accent);background:transparent;border:1px solid var(--accent);border-radius:4px;padding:3px 10px;cursor:pointer;white-space:nowrap}
+.total-row{display:flex;align-items:center;justify-content:space-between;padding:16px 0;border-top:1.5px solid var(--border);margin-bottom:28px}
+.total-label{font-size:13px;color:var(--ink3)}
+.total-val{font-family:'Frank Ruhl Libre',serif;font-size:22px;font-weight:500;color:var(--ink)}
 
-.section-head h2 {
-  font-family: 'Frank Ruhl Libre', serif;
-  font-size: clamp(17px, 2.5vw, 22px);
-  font-weight: 500;
-}
+/* ── form ── */
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:480px){.form-grid{grid-template-columns:1fr}}
+.field label{font-size:12px;font-weight:600;color:var(--ink3);letter-spacing:.06em;display:block;margin-bottom:5px}
+.field input,.field textarea{width:100%;padding:10px 13px;border:none;border-bottom:1.5px solid var(--border);background:transparent;font-size:16px;font-family:inherit;color:var(--ink);outline:none;transition:.15s;border-radius:0}
+.field input:focus,.field textarea:focus{border-bottom-color:var(--accent)}
+.field textarea{resize:vertical;min-height:80px}
+.field.full{grid-column:1/-1}
 
-.section-badge {
-  font-size: 10px;
-  letter-spacing: .18em;
-  color: var(--accent);
-  border: 1px solid var(--accent);
-  padding: 2px 8px;
-  border-radius: 3px;
-}
+/* ── done screen ── */
+.done-wrap{text-align:center;padding:48px 20px}
+.done-check{width:56px;height:56px;border:1.5px solid var(--ink);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 20px;font-size:22px;color:var(--ink)}
+.done-num{font-family:'Frank Ruhl Libre',serif;font-size:28px;font-weight:500;margin-bottom:6px}
+.done-sub{font-size:13.5px;font-weight:300;color:var(--ink3);margin-bottom:28px}
+.done-total{font-size:13px;color:var(--ink3);margin-bottom:32px}
 
-.section-desc {
-  font-size: 13px;
-  font-weight: 300;
-  color: var(--ink3);
-  margin-bottom: 18px;
-  line-height: 1.7;
-}
+/* ── nav buttons ── */
+.nav-bar{position:fixed;bottom:0;right:0;left:0;background:var(--bg);border-top:1px solid var(--border);padding:12px clamp(14px,5vw,48px);display:flex;gap:10px;justify-content:space-between;z-index:100}
+.btn-back{padding:11px 22px;background:transparent;border:1.5px solid var(--border);border-radius:3px;font-size:13.5px;font-family:inherit;color:var(--ink2);cursor:pointer;font-weight:500}
+.btn-next{padding:11px 28px;background:var(--accent);color:#FBF7EF;border:none;border-radius:3px;font-size:13.5px;font-family:inherit;font-weight:600;cursor:pointer;letter-spacing:.04em;flex:1;max-width:280px}
+.btn-next:hover{background:var(--accent2)}
+.btn-next:disabled{opacity:.5;cursor:default}
 
-/* ── items grid ── */
-.items-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(280px, 100%), 1fr));
-  gap: 1px;
-  border: 1px solid var(--border);
-  background: var(--border);
-}
+/* ── error ── */
+.err-msg{color:var(--accent);font-size:13px;padding:10px 0;min-height:22px}
 
-.item-card {
-  background: var(--surface);
-  padding: 16px 18px;
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 12px;
-}
-
-.item-info { flex: 1; min-width: 0; }
-
-.item-name {
-  font-size: 14.5px;
-  font-weight: 500;
-  color: var(--ink);
-  margin-bottom: 3px;
-}
-
-.item-desc {
-  font-size: 12.5px;
-  font-weight: 300;
-  color: var(--ink3);
-  line-height: 1.55;
-}
-
-.item-allergens {
-  font-size: 11px;
-  color: var(--ink3);
-  margin-top: 5px;
-  font-weight: 300;
-}
-
-.item-price {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--accent);
-  white-space: nowrap;
-  padding-top: 2px;
-  font-variant-numeric: tabular-nums;
-}
-
-.item-included {
-  font-size: 11px;
-  color: var(--ink3);
-  font-weight: 300;
-}
+/* ── contact bar ── */
+.contact-bar{text-align:center;padding:18px 20px;font-size:13px;font-weight:300;color:var(--ink3);border-top:1px solid var(--border);background:var(--bg)}
+.contact-bar a{color:var(--accent);text-decoration:none}
 
 /* ── states ── */
-.state-center {
-  min-height: 40vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  color: var(--ink3);
-  font-size: 15px;
-  font-weight: 300;
-}
-
-.spinner {
-  width: 32px; height: 32px;
-  border: 2px solid var(--border);
-  border-top-color: var(--accent);
-  border-radius: 50%;
-  animation: spin .8s linear infinite;
-}
-@keyframes spin { to { transform: rotate(360deg); } }
-
-/* ── footer ── */
-.page-footer {
-  text-align: center;
-  padding: 28px 20px;
-  font-size: 12px;
-  color: var(--ink3);
-  font-weight: 300;
-  border-top: 1px solid var(--border);
-  background: var(--bg);
-}
+.state-center{min-height:50vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;color:var(--ink3);font-size:15px;font-weight:300}
+.spinner{width:32px;height:32px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
 </style>
 </head>
 <body>
-
-<div id="app">
-  <div class="state-center"><div class="spinner"></div><span>טוען תפריט…</span></div>
-</div>
+<div id="app"><div class="state-center"><div class="spinner"></div><span>טוען תפריט…</span></div></div>
 
 <script>
+/* ── state ── */
+let _d = null;          // template data
+let _step = 0;          // 0..sections.length = summary, +1 = form, +2 = done
+let _sel = {};          // { sectionId: [itemId, ...] }
+let _form = {};         // contact form values
+let _err = '';
+
+const slug = location.pathname.replace(/^\/menu\//, '').trim();
+
+/* ── boot ── */
 (async () => {
-  const slug = location.pathname.replace(/^\/menu\//, '').trim();
-  if (!slug) { renderError('כתובת תפריט לא תקינה'); return; }
+    if (!slug) { renderError('כתובת תפריט לא תקינה'); return; }
+    try {
+        const res = await fetch('/api/menu/public/' + encodeURIComponent(slug));
+        if (res.status === 404) { renderError('התפריט אינו זמין'); return; }
+        if (!res.ok) { renderError('שגיאה בטעינת התפריט'); return; }
+        _d = await res.json();
+    } catch(e) { renderError('שגיאת תקשורת — נסה לרענן'); return; }
 
-  let data;
-  try {
-    const res = await fetch('/api/menu/public/' + encodeURIComponent(slug));
-    if (res.status === 404) { renderError('התפריט לא נמצא או אינו זמין לצפייה'); return; }
-    if (!res.ok) { renderError('שגיאה בטעינת התפריט'); return; }
-    data = await res.json();
-  } catch(e) {
-    renderError('שגיאת תקשורת — נסה לרענן את העמוד');
-    return;
-  }
-
-  document.title = data.name + ' — תפריט';
-  renderMenu(data);
+    document.title = _d.name + ' — תפריט';
+    _d.sections = (_d.sections || []).filter(s => (s.items || []).some(i => i.is_available !== false));
+    render();
 })();
 
-function renderMenu(d) {
-  const eventLabels = {
-    wedding:'חתונה', bar_mitzvah:'בר/בת מצווה', birthday:'יום הולדת',
-    corporate:'אירוע עסקי', other:'אירוע'
-  };
-  const evLabel = eventLabels[d.event_type] || d.event_type || '';
+/* ── render router ── */
+function render() {
+    const totalSteps = _d.sections.length;
+    if (_step < totalSteps) renderStep(_step);
+    else if (_step === totalSteps) renderSummary();
+    else if (_step === totalSteps + 1) renderForm();
+    else renderDone();
+}
 
-  const metaParts = [];
-  if (evLabel) metaParts.push(`סוג אירוע: <strong>${evLabel}</strong>`);
-  if (d.base_price_per_person) metaParts.push(`מחיר לאיש: <strong>₪${Number(d.base_price_per_person).toLocaleString('he')}</strong>`);
-  const guests = [d.min_guests, d.max_guests].filter(Boolean);
-  if (guests.length === 2) metaParts.push(`אורחים: <strong>${guests[0]}–${guests[1]}</strong>`);
-  else if (guests.length === 1) metaParts.push(`מינימום אורחים: <strong>${guests[0]}</strong>`);
+/* ── hero ── */
+function heroHtml() {
+    const evLabels = {wedding:'חתונה',bar_mitzvah:'בר/בת מצווה',birthday:'יום הולדת',corporate:'אירוע עסקי',other:'אירוע'};
+    const evLabel = evLabels[_d.event_type] || '';
+    const metaParts = [];
+    if (_d.base_price_per_person > 0) metaParts.push(`מחיר לאיש: <strong>₪${num(_d.base_price_per_person)}</strong>`);
+    if (_d.min_guests && _d.max_guests) metaParts.push(`אורחים: <strong>${_d.min_guests}–${_d.max_guests}</strong>`);
+    else if (_d.min_guests) metaParts.push(`מינ׳ אורחים: <strong>${_d.min_guests}</strong>`);
 
-  const sections = (d.sections || []).map(sec => {
+    return `<div class="hero">
+      ${_d.cover_image_url ? `<img class="hero-img" src="${esc(_d.cover_image_url)}" alt="">` : ''}
+      <div class="hero-body">
+        ${_d.logo_url ? `<img class="hero-logo" src="${esc(_d.logo_url)}" alt="לוגו">` : ''}
+        <div class="hero-text">
+          ${evLabel ? `<div class="hero-eyebrow">${evLabel}</div>` : ''}
+          <h1 class="hero-title">${esc(_d.name)}</h1>
+          ${_d.slogan ? `<div class="hero-slogan">${esc(_d.slogan)}</div>` : ''}
+          ${metaParts.length ? `<div class="hero-meta">${metaParts.join('<span style="opacity:.4">·</span>')}</div>` : ''}
+        </div>
+      </div>
+    </div>`;
+}
+
+/* ── progress ── */
+function progressHtml(activeIdx) {
+    const steps = _d.sections.map((s,i) => ({ label: s.name, idx: i }));
+    steps.push({ label: 'סיכום', idx: steps.length });
+    return `<div class="prog-bar">${steps.map((s,i) => {
+        const isDone = i < activeIdx;
+        const isActive = i === activeIdx;
+        return `${i > 0 ? `<div class="prog-line${isDone?' done':''}"></div>` : ''}
+        <div class="prog-step">
+          <div class="prog-num${isActive?' active':''}${isDone?' done':''}">${isDone ? '✓' : String(i+1).padStart(2,'0')}</div>
+          <span class="prog-label" style="${isActive?'color:var(--accent);font-weight:600':'color:var(--ink3)'}">${esc(s.label)}</span>
+        </div>`;
+    }).join('')}</div>`;
+}
+
+/* ── step screen ── */
+function renderStep(idx) {
+    const sec = _d.sections[idx];
     const items = (sec.items || []).filter(i => i.is_available !== false);
-    if (!items.length) return '';
+    const isMulti = sec.max_choices > 1;
+    const curSel = _sel[sec.id] || [];
 
-    const badges = [];
-    if (sec.is_required) badges.push('<span class="section-badge">חובה</span>');
-    if (sec.min_choices && sec.max_choices && sec.min_choices !== sec.max_choices)
-      badges.push(`<span class="section-badge">בחירת ${sec.min_choices}–${sec.max_choices}</span>`);
-    else if (sec.max_choices === 1)
-      badges.push('<span class="section-badge">בחירה אחת</span>');
+    const badge = sec.is_required
+        ? (sec.max_choices === 1 ? 'בחרו אחד' : `בחרו ${sec.min_choices}–${sec.max_choices}`)
+        : (sec.max_choices === 1 ? 'בחירה אחת (אופציונלי)' : `עד ${sec.max_choices} (אופציונלי)`);
 
     const itemsHtml = items.map(item => {
-      const priceHtml = item.price > 0
-        ? `<div class="item-price">+₪${Number(item.price).toLocaleString('he')}</div>`
-        : `<div class="item-included">כלול</div>`;
-
-      return `
-        <div class="item-card">
+        const chosen = curSel.includes(item.id);
+        return `<div class="item-card${chosen?' selected':''}${isMulti?' multi':''}" onclick="toggleItem(${sec.id},${item.id},${isMulti},${sec.max_choices})">
+          <div class="item-sel"></div>
           <div class="item-info">
             <div class="item-name">${esc(item.name)}</div>
             ${item.description ? `<div class="item-desc">${esc(item.description)}</div>` : ''}
             ${item.allergens ? `<div class="item-allergens">אלרגנים: ${esc(item.allergens)}</div>` : ''}
           </div>
-          ${priceHtml}
+          ${item.price > 0 ? `<div class="item-price">+₪${num(item.price)}</div>` : ''}
         </div>`;
     }).join('');
 
-    return `
-      <div class="menu-section">
-        <div class="section-head">
-          <h2>${esc(sec.name)}</h2>
-          ${badges.join('')}
-        </div>
-        ${sec.description ? `<div class="section-desc">${esc(sec.description)}</div>` : ''}
+    document.getElementById('app').innerHTML = `
+      ${heroHtml()}
+      ${progressHtml(idx)}
+      <div class="wiz-body">
+        <div style="font-size:10px;letter-spacing:.22em;color:var(--accent);margin-bottom:8px">${String(idx+1).padStart(2,'0')} / ${String(_d.sections.length).padStart(2,'0')}</div>
+        <h2 class="step-title">${esc(sec.name)}</h2>
+        <div class="step-sub">${esc(sec.description || badge)}</div>
         <div class="items-grid">${itemsHtml}</div>
+        <div class="err-msg" id="step-err">${esc(_err)}</div>
+      </div>
+      <div class="nav-bar">
+        ${idx > 0 ? `<button class="btn-back" onclick="goBack()">חזרה</button>` : '<div></div>'}
+        <button class="btn-next" onclick="nextStep(${sec.id},${sec.min_choices||0},${sec.max_choices},${!!sec.is_required})">הבא ←</button>
       </div>`;
-  }).join('');
-
-  document.getElementById('app').innerHTML = `
-    <header class="page-header">
-      ${evLabel ? `<div class="eyebrow">${evLabel}</div>` : ''}
-      <h1>${esc(d.name)}</h1>
-      ${metaParts.length ? `<div class="meta">${metaParts.join('<span style="color:#4E3E30">·</span>')}</div>` : ''}
-    </header>
-    ${d.description ? `<div class="desc-bar">${esc(d.description)}</div>` : ''}
-    <main class="page-body">${sections || '<div class="state-center"><span>אין פריטים להצגה</span></div>'}</main>
-    <footer class="page-footer">powered by OneFlow Life</footer>`;
+    _err = '';
+    window.scrollTo(0,0);
 }
 
+function toggleItem(secId, itemId, isMulti, maxChoices) {
+    const cur = _sel[secId] || [];
+    if (!isMulti) {
+        _sel[secId] = cur.includes(itemId) ? [] : [itemId];
+    } else {
+        if (cur.includes(itemId)) {
+            _sel[secId] = cur.filter(id => id !== itemId);
+        } else {
+            if (cur.length >= maxChoices) { _err = `ניתן לבחור עד ${maxChoices} פריטים`; renderStep(_step); return; }
+            _sel[secId] = [...cur, itemId];
+        }
+    }
+    _err = '';
+    renderStep(_step);
+}
+
+function nextStep(secId, minChoices, maxChoices, isRequired) {
+    const cur = _sel[secId] || [];
+    if (isRequired && cur.length < minChoices) {
+        _err = minChoices === 1 ? 'יש לבחור לפחות פריט אחד' : `יש לבחור לפחות ${minChoices} פריטים`;
+        document.getElementById('step-err').textContent = _err; return;
+    }
+    _step++; render();
+}
+
+function goBack() { if (_step > 0) { _step--; render(); } }
+
+/* ── summary ── */
+function renderSummary() {
+    const rows = _d.sections.map((sec, idx) => {
+        const chosen = (_sel[sec.id] || []);
+        const names = chosen.map(id => {
+            const item = (sec.items||[]).find(i => i.id === id);
+            return item ? item.name : '';
+        }).filter(Boolean);
+        return `<tr class="sum-table">
+          <td class="lbl">${esc(sec.name)}</td>
+          <td class="val">${names.length ? names.map(n=>`<div>${esc(n)}</div>`).join('') : '<span style="color:var(--ink3);font-weight:300">—</span>'}</td>
+          <td class="chg"><button onclick="goToStep(${idx})">שינוי</button></td>
+        </tr>`;
+    }).join('');
+
+    const total = calcTotal();
+
+    document.getElementById('app').innerHTML = `
+      ${heroHtml()}
+      ${progressHtml(_d.sections.length)}
+      <div class="wiz-body">
+        <h2 class="step-title">סיכום בחירות</h2>
+        <div class="step-sub">בדקו שהכל נכון לפני שממשיכים</div>
+        <table class="sum-table">${rows}</table>
+        ${total ? `<div class="total-row"><span class="total-label">סה״כ משוער לאיש</span><span class="total-val">₪${num(total)}</span></div>` : ''}
+      </div>
+      <div class="nav-bar">
+        <button class="btn-back" onclick="goBack()">חזרה</button>
+        <button class="btn-next" onclick="goToForm()">המשך למילוי פרטים ←</button>
+      </div>`;
+    window.scrollTo(0,0);
+}
+
+function goToStep(idx) { _step = idx; render(); }
+function goToForm() { _step = _d.sections.length + 1; render(); }
+
+function calcTotal() {
+    if (!_d.base_price_per_person) return 0;
+    let extra = 0;
+    for (const sec of _d.sections) {
+        for (const id of (_sel[sec.id] || [])) {
+            const item = (sec.items||[]).find(i => i.id === id);
+            if (item && item.price > 0) extra += Number(item.price);
+        }
+    }
+    return Number(_d.base_price_per_person) + extra;
+}
+
+/* ── form ── */
+function renderForm() {
+    document.getElementById('app').innerHTML = `
+      ${heroHtml()}
+      <div class="wiz-body" style="padding-bottom:140px">
+        <h2 class="step-title" style="margin-bottom:6px">פרטי הפנייה</h2>
+        <div class="step-sub">נחזור אליך בהקדם</div>
+        <div class="form-grid">
+          <div class="field"><label>שם מלא *</label><input id="f-name" value="${esc(_form.name||'')}" oninput="_form.name=this.value" placeholder="ישראל ישראלי"></div>
+          <div class="field"><label>טלפון *</label><input id="f-phone" type="tel" value="${esc(_form.phone||'')}" oninput="_form.phone=this.value" placeholder="050-0000000"></div>
+          <div class="field"><label>אימייל</label><input id="f-email" type="email" value="${esc(_form.email||'')}" oninput="_form.email=this.value" placeholder="me@example.com"></div>
+          <div class="field"><label>תאריך האירוע</label><input id="f-date" type="date" value="${esc(_form.date||'')}" oninput="_form.date=this.value"></div>
+          <div class="field"><label>מספר מוזמנים</label><input id="f-guests" type="number" min="1" value="${esc(_form.guests||'')}" oninput="_form.guests=this.value" placeholder="${_d.min_guests||''}"></div>
+          <div class="field full"><label>הערות נוספות</label><textarea id="f-notes" oninput="_form.notes=this.value" placeholder="כל מה שחשוב לדעת...">${esc(_form.notes||'')}</textarea></div>
+        </div>
+        <div class="err-msg" id="form-err"></div>
+      </div>
+      <div class="nav-bar">
+        <button class="btn-back" onclick="goBack()">חזרה לסיכום</button>
+        <button class="btn-next" id="submit-btn" onclick="submitForm()">שליחת הבקשה ←</button>
+      </div>`;
+    window.scrollTo(0,0);
+}
+
+async function submitForm() {
+    const errEl = document.getElementById('form-err');
+    if (!(_form.name||'').trim()) { errEl.textContent = 'שם מלא נדרש'; return; }
+    const ph = (_form.phone||'').trim();
+    if (!ph || ph.length < 7 || !/^[0-9+\-() ]+$/.test(ph)) { errEl.textContent = 'מספר טלפון לא תקין'; return; }
+    if (_d.min_guests && _form.guests && parseInt(_form.guests) < _d.min_guests) {
+        errEl.textContent = `מינימום אורחים: ${_d.min_guests}`; return;
+    }
+    errEl.textContent = '';
+    const btn = document.getElementById('submit-btn');
+    btn.disabled = true; btn.textContent = '...שולח';
+
+    const selections = {};
+    for (const sec of _d.sections) { if ((_sel[sec.id]||[]).length) selections[sec.id] = _sel[sec.id]; }
+
+    try {
+        const res = await fetch('/api/menu/public/' + encodeURIComponent(slug) + '/request', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                customer_name: _form.name.trim(),
+                customer_phone: ph,
+                customer_email: (_form.email||'').trim() || undefined,
+                event_date: _form.date || undefined,
+                guest_count: _form.guests ? parseInt(_form.guests) : undefined,
+                custom_notes: (_form.notes||'').trim() || undefined,
+                selections
+            })
+        });
+        const data = await res.json();
+        if (!res.ok) { errEl.textContent = data.error || 'שגיאה בשליחה'; btn.disabled=false; btn.textContent='שליחת הבקשה ←'; return; }
+        window._reqNumber = data.request_number;
+        _step = _d.sections.length + 2;
+        render();
+    } catch(e) {
+        errEl.textContent = 'שגיאת תקשורת — נסה שוב';
+        btn.disabled=false; btn.textContent='שליחת הבקשה ←';
+    }
+}
+
+/* ── done ── */
+function renderDone() {
+    const total = calcTotal();
+    document.getElementById('app').innerHTML = `
+      ${heroHtml()}
+      <div class="wiz-body">
+        <div class="done-wrap">
+          <div class="done-check">✓</div>
+          <div class="done-num">${esc(window._reqNumber||'')}</div>
+          <div style="font-size:12px;color:var(--ink3);margin-bottom:14px">מספר הפנייה שלך</div>
+          <div class="done-sub">תודה! קיבלנו את הבקשה ונחזור אליך בהקדם.</div>
+          ${total ? `<div class="done-total">סה״כ משוער: <strong>₪${num(total)} לאיש</strong></div>` : ''}
+          ${(_d.contact_phone||_d.contact_address) ? `
+          <div style="font-size:13px;color:var(--ink3);margin-bottom:8px">
+            ${_d.contact_phone ? `<div>📞 <a href="tel:${esc(_d.contact_phone)}" style="color:var(--accent)">${esc(_d.contact_phone)}</a></div>` : ''}
+            ${_d.contact_address ? `<div style="margin-top:4px">📍 ${esc(_d.contact_address)}</div>` : ''}
+          </div>` : ''}
+        </div>
+      </div>`;
+    window.scrollTo(0,0);
+}
+
+/* ── utilities ── */
 function renderError(msg) {
-  document.getElementById('app').innerHTML =
-    `<div class="state-center"><span style="font-size:32px">🍽️</span><span>${msg}</span></div>`;
+    document.getElementById('app').innerHTML = `<div class="state-center"><span style="font-size:32px">🍽️</span><span>${msg}</span></div>`;
 }
-
 function esc(s) {
-  if (!s) return '';
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    if (!s && s !== 0) return '';
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
+function num(n) { return Number(n).toLocaleString('he-IL'); }
 </script>
 </body>
 </html>

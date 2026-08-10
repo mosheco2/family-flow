@@ -52911,7 +52911,13 @@ window._mtOpenEditor = async function(id) {
             min_guests: data.min_guests || '',
             max_guests: data.max_guests || '',
             is_active: !!data.is_active,
-            is_public: !!data.is_public
+            is_public: !!data.is_public,
+            cover_image_url: data.cover_image_url || '',
+            logo_url: data.logo_url || '',
+            slogan: data.slogan || '',
+            contact_phone: data.contact_phone || '',
+            contact_address: data.contact_address || '',
+            notification_email: data.notification_email || ''
         };
     } catch(e) {
         _mtToast('שגיאה בטעינת התפריט', 'err');
@@ -53020,6 +53026,40 @@ function _mtRenderEditor(root) {
                 </div>
             </div>
             <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:18px">
+                <h3 style="margin:0 0 14px;font-size:14px;font-weight:700;color:#1e293b">זהות עסקית בדף הלקוח</h3>
+                <div style="display:flex;flex-direction:column;gap:12px">
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+                        <div>
+                            <label style="font-size:11.5px;color:#64748b;font-weight:600;display:block;margin-bottom:4px">תמונת כותרת (URL)</label>
+                            <input value="${_mtEsc(f.cover_image_url||'')}" oninput="_mtEF('cover_image_url',this.value)" placeholder="https://..." style="${_mtInputS()}">
+                        </div>
+                        <div>
+                            <label style="font-size:11.5px;color:#64748b;font-weight:600;display:block;margin-bottom:4px">לוגו (URL)</label>
+                            <input value="${_mtEsc(f.logo_url||'')}" oninput="_mtEF('logo_url',this.value)" placeholder="https://..." style="${_mtInputS()}">
+                        </div>
+                    </div>
+                    <div>
+                        <label style="font-size:11.5px;color:#64748b;font-weight:600;display:block;margin-bottom:4px">סלוגן</label>
+                        <input value="${_mtEsc(f.slogan||'')}" oninput="_mtEF('slogan',this.value)" placeholder="טעמים שנשארים בזיכרון" style="${_mtInputS()}">
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+                        <div>
+                            <label style="font-size:11.5px;color:#64748b;font-weight:600;display:block;margin-bottom:4px">טלפון לתצוגה</label>
+                            <input value="${_mtEsc(f.contact_phone||'')}" oninput="_mtEF('contact_phone',this.value)" placeholder="050-0000000" style="${_mtInputS()}">
+                        </div>
+                        <div>
+                            <label style="font-size:11.5px;color:#64748b;font-weight:600;display:block;margin-bottom:4px">כתובת לתצוגה</label>
+                            <input value="${_mtEsc(f.contact_address||'')}" oninput="_mtEF('contact_address',this.value)" placeholder="רחוב, עיר" style="${_mtInputS()}">
+                        </div>
+                    </div>
+                    <div>
+                        <label style="font-size:11.5px;color:#64748b;font-weight:600;display:block;margin-bottom:4px">מייל לקבלת פניות *</label>
+                        <input type="email" value="${_mtEsc(f.notification_email||'')}" oninput="_mtEF('notification_email',this.value)" placeholder="info@mybusiness.co.il" style="${_mtInputS()}">
+                        <div style="font-size:11px;color:#94a3b8;margin-top:3px">כאן יגיעו פניות לקוחות שמילאו את הטופס</div>
+                    </div>
+                </div>
+            </div>
+            <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:18px">
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
                     <h3 style="margin:0;font-size:14px;font-weight:700;color:#1e293b">שלבים ופריטים</h3>
                     <button onclick="_mtAddSecModal()" style="${_mtBtnS('primary')};font-size:12.5px;padding:6px 13px">+ הוסף שלב</button>
@@ -53097,7 +53137,13 @@ window._mtSave = async function() {
                 min_guests: f.min_guests ? parseInt(f.min_guests) : null,
                 max_guests: f.max_guests ? parseInt(f.max_guests) : null,
                 is_active: f.is_active,
-                is_public: f.is_public
+                is_public: f.is_public,
+                cover_image_url: f.cover_image_url || null,
+                logo_url: f.logo_url || null,
+                slogan: f.slogan || null,
+                contact_phone: f.contact_phone || null,
+                contact_address: f.contact_address || null,
+                notification_email: f.notification_email || null
             })
         });
         const data = await res.json();

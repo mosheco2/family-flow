@@ -2636,6 +2636,12 @@ app.get('/api/solo/search-by-phone', async (req, res) => {
       try { await client.query(`CREATE INDEX IF NOT EXISTS idx_menu_templates_group ON menu_templates(group_id)`); } catch(e) {}
       try { await client.query(`CREATE INDEX IF NOT EXISTS idx_menu_templates_slug ON menu_templates(public_slug) WHERE public_slug IS NOT NULL`); } catch(e) {}
       try { await client.query(`CREATE INDEX IF NOT EXISTS idx_menu_quote_requests_group ON menu_quote_requests(group_id, created_at DESC)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE menu_templates ADD COLUMN IF NOT EXISTS cover_image_url TEXT`); } catch(e) {}
+      try { await client.query(`ALTER TABLE menu_templates ADD COLUMN IF NOT EXISTS logo_url TEXT`); } catch(e) {}
+      try { await client.query(`ALTER TABLE menu_templates ADD COLUMN IF NOT EXISTS slogan TEXT`); } catch(e) {}
+      try { await client.query(`ALTER TABLE menu_templates ADD COLUMN IF NOT EXISTS contact_phone VARCHAR(30)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE menu_templates ADD COLUMN IF NOT EXISTS contact_address TEXT`); } catch(e) {}
+      try { await client.query(`ALTER TABLE menu_templates ADD COLUMN IF NOT EXISTS notification_email VARCHAR(255)`); } catch(e) {}
       // ===== END MENU TEMPLATES MODULE =====
 
       // ===== END COMMUNITY FEED SYSTEM =====
@@ -29401,7 +29407,9 @@ app.put('/api/menu-templates/:id', verifyBizOrLegacy, async (req, res) => {
         }
 
         const allowed = ['name','description','event_type','min_guests',
-                         'max_guests','base_price_per_person','is_active','is_public'];
+                         'max_guests','base_price_per_person','is_active','is_public',
+                         'cover_image_url','logo_url','slogan','contact_phone',
+                         'contact_address','notification_email'];
         const sets = [], vals = [];
         for (const f of allowed) {
             if (req.body[f] !== undefined) {
@@ -29723,7 +29731,8 @@ app.get('/api/menu/public/:slug', async (req, res) => {
     try {
         const tmplRes = await pool.query(
             `SELECT id,name,description,event_type,min_guests,max_guests,
-                    base_price_per_person,group_id
+                    base_price_per_person,cover_image_url,logo_url,slogan,
+                    contact_phone,contact_address,group_id
              FROM menu_templates
              WHERE public_slug=$1 AND is_active=true AND is_public=true AND template_type='menu'`,
             [req.params.slug]
@@ -29782,7 +29791,7 @@ app.post('/api/menu/public/:slug/request', async (req, res) => {
 
     try {
         const tmplRes = await pool.query(
-            `SELECT id,group_id,min_guests,max_guests FROM menu_templates
+            `SELECT id,group_id,min_guests,max_guests,name,notification_email FROM menu_templates
              WHERE public_slug=$1 AND is_active=true AND is_public=true AND template_type='menu'`,
             [req.params.slug]
         );
@@ -29864,6 +29873,36 @@ app.post('/api/menu/public/:slug/request', async (req, res) => {
         ]);
 
         const reqNumber = 'HG-' + String(r.rows[0].id).padStart(4, '0');
+
+        // שליחת מייל לעסק אם הוגדר notification_email
+        if (tmpl.notification_email) {
+            const eventLabels = { wedding:'חתונה', bar_mitzvah:'בר/בת מצווה', birthday:'יום הולדת', corporate:'אירוע עסקי', other:'אירוע' };
+            const selLines = Object.entries(selections).map(([secId, ids]) => {
+                const sec = sectionMap[secId];
+                return sec ? `<tr><td style="padding:4px 10px;color:#6b7280;font-size:13px">${sec.name}</td><td style="padding:4px 10px;font-size:13px">${ids.length} בחירות</td></tr>` : '';
+            }).join('');
+            const emailHtml = `
+<div dir="rtl" style="font-family:Arial,sans-serif;max-width:560px;margin:auto;color:#1e293b">
+  <div style="background:#241E19;padding:24px 28px;border-radius:8px 8px 0 0">
+    <h2 style="margin:0;color:#FBF7EF;font-size:19px">פנייה חדשה — ${tmpl.name}</h2>
+    <div style="color:#9C8C71;font-size:13px;margin-top:4px">מספר פנייה: <strong style="color:#E7DFD0">${reqNumber}</strong></div>
+  </div>
+  <div style="background:#FBF7EF;padding:24px 28px;border:1px solid #E5DCCB;border-top:none;border-radius:0 0 8px 8px">
+    <table style="width:100%;border-collapse:collapse;margin-bottom:16px">
+      <tr><td style="padding:4px 10px;color:#6b7280;font-size:13px">שם</td><td style="padding:4px 10px;font-size:13px;font-weight:600">${customerName}</td></tr>
+      <tr style="background:#f8f4ee"><td style="padding:4px 10px;color:#6b7280;font-size:13px">טלפון</td><td style="padding:4px 10px;font-size:13px">${customerPhone}</td></tr>
+      ${req.body.customer_email ? `<tr><td style="padding:4px 10px;color:#6b7280;font-size:13px">אימייל</td><td style="padding:4px 10px;font-size:13px">${req.body.customer_email}</td></tr>` : ''}
+      ${req.body.event_date ? `<tr style="background:#f8f4ee"><td style="padding:4px 10px;color:#6b7280;font-size:13px">תאריך אירוע</td><td style="padding:4px 10px;font-size:13px">${req.body.event_date}</td></tr>` : ''}
+      ${req.body.guest_count ? `<tr><td style="padding:4px 10px;color:#6b7280;font-size:13px">מספר אורחים</td><td style="padding:4px 10px;font-size:13px">${req.body.guest_count}</td></tr>` : ''}
+      ${selLines}
+      ${customNotes ? `<tr style="background:#f8f4ee"><td style="padding:4px 10px;color:#6b7280;font-size:13px">הערות</td><td style="padding:4px 10px;font-size:13px">${customNotes}</td></tr>` : ''}
+    </table>
+    <div style="font-size:11px;color:#9C8C71;border-top:1px solid #E5DCCB;padding-top:12px">OneFlow Life · מערכת ניהול אירועים</div>
+  </div>
+</div>`;
+            sendSystemEmail(tmpl.notification_email, `פנייה חדשה לתפריט: ${tmpl.name} — ${customerName}`, emailHtml).catch(() => {});
+        }
+
         res.status(201).json({ success: true, request_number: reqNumber });
     } catch(e) {
         console.error('POST /api/menu/public/:slug/request:', e.message);
