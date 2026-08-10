@@ -326,11 +326,9 @@ function renderCatalogBrowse() {
 
     document.getElementById('app').innerHTML = `
       ${heroHtml()}
+      ${backBarHtml()}
       <div class="wiz-body" style="padding-bottom:${cartCount?'110px':'70px'}">
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
-          ${_d.show_related_options ? `<button onclick="_mode=null;render()" style="background:transparent;border:none;color:var(--ink3);font-size:13px;cursor:pointer;padding:0;font-family:inherit">← כל האפשרויות</button>` : '<div></div>'}
-          <h2 class="step-title" style="margin:0;flex:1">הרכבת תפריט</h2>
-        </div>
+        <h2 class="step-title" style="margin-bottom:14px">הרכבת תפריט</h2>
         <input type="text" placeholder="חיפוש מנה…" value="${esc(_catFilter)}" oninput="_catFilter=this.value;renderCatalogBrowse()" style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:6px;font-size:13px;font-family:inherit;background:var(--surface);color:var(--ink);margin-bottom:10px;box-sizing:border-box;direction:rtl">
         ${cats.length > 1 ? `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px">
           <button onclick="_catCategory='';renderCatalogBrowse()" style="padding:5px 12px;border-radius:20px;border:1.5px solid ${!_catCategory?'var(--accent)':'var(--border)'};background:${!_catCategory?'var(--accent)':'transparent'};color:${!_catCategory?'#FBF7EF':'var(--ink2)'};font-size:12px;cursor:pointer;font-family:inherit">הכל</button>
@@ -369,10 +367,9 @@ function renderCatalogForm() {
     }).join('');
     document.getElementById('app').innerHTML = `
       ${heroHtml()}
+      ${backBarHtml()}
       <div class="wiz-body" style="padding-bottom:140px">
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
-          <button onclick="_catView='browse';renderCatalogFlow()" style="background:transparent;border:none;color:var(--ink3);font-size:13px;cursor:pointer;padding:0;font-family:inherit">← חזרה לקטלוג</button>
-        </div>
+        <button onclick="_catView='browse';renderCatalogFlow()" style="background:transparent;border:none;color:var(--ink3);font-size:13px;cursor:pointer;padding:0;font-family:inherit;margin-bottom:14px;display:block">← חזרה לקטלוג</button>
         <div style="background:var(--surface);border:1.5px solid var(--border);border-radius:8px;padding:14px 16px;margin-bottom:20px">
           <div style="font-size:12px;font-weight:700;color:var(--accent);letter-spacing:.1em;margin-bottom:10px">סיכום הזמנה (${cartCount} פריטים)</div>
           ${cartRows}
@@ -476,6 +473,16 @@ function heroHtml() {
     </div>`;
 }
 
+/* ── back-to-landing bar ── */
+function backBarHtml() {
+    if (!_d.show_related_options) return '';
+    return `<div style="background:var(--sand);border-bottom:1px solid var(--border);padding:7px clamp(14px,5vw,48px)">
+      <button onclick="_mode=null;render()" style="background:transparent;border:none;color:var(--ink3);font-size:12px;cursor:pointer;padding:0;font-family:inherit;display:flex;align-items:center;gap:5px">
+        <span style="font-size:14px">←</span> כל האפשרויות
+      </button>
+    </div>`;
+}
+
 /* ── progress ── */
 function progressHtml(activeIdx) {
     const steps = _d.sections.map((s,i) => ({ label: s.name, idx: i }));
@@ -518,6 +525,7 @@ function renderStep(idx) {
 
     document.getElementById('app').innerHTML = `
       ${heroHtml()}
+      ${backBarHtml()}
       ${progressHtml(idx)}
       <div class="wiz-body">
         <div style="font-size:10px;letter-spacing:.22em;color:var(--accent);margin-bottom:8px">${String(idx+1).padStart(2,'0')} / ${String(_d.sections.length).padStart(2,'0')}</div>
@@ -527,7 +535,7 @@ function renderStep(idx) {
         <div class="err-msg" id="step-err">${esc(_err)}</div>
       </div>
       <div class="nav-bar">
-        ${idx > 0 ? `<button class="btn-back" onclick="goBack()">חזרה</button>` : (_d.show_related_options ? `<button class="btn-back" onclick="_mode=null;render()">← כל האפשרויות</button>` : '<div></div>')}
+        ${idx > 0 ? `<button class="btn-back" onclick="goBack()">חזרה</button>` : '<div></div>'}
         ${(_d.pricing_mode||'per_person')==='per_item' && calcTotal()>0 ? `<span style="font-size:13px;color:var(--accent);font-weight:700;align-self:center">₪${num(calcTotal())}</span>` : '<div></div>'}
         <button class="btn-next" onclick="nextStep(${sec.id},${sec.min_choices||0},${sec.max_choices},${!!sec.is_required})">הבא ←</button>
       </div>`;
@@ -581,6 +589,7 @@ function renderSummary() {
 
     document.getElementById('app').innerHTML = `
       ${heroHtml()}
+      ${backBarHtml()}
       ${progressHtml(_d.sections.length)}
       <div class="wiz-body">
         <h2 class="step-title">סיכום בחירות</h2>
@@ -616,6 +625,7 @@ function calcTotal() {
 function renderForm() {
     document.getElementById('app').innerHTML = `
       ${heroHtml()}
+      ${backBarHtml()}
       <div class="wiz-body" style="padding-bottom:140px">
         <h2 class="step-title" style="margin-bottom:6px">פרטי הפנייה</h2>
         <div class="step-sub">נחזור אליך בהקדם</div>
