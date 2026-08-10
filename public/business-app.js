@@ -53221,13 +53221,10 @@ async function _mtDoAddItem(sectionId) {
         const res = await fetch(`/api/menu-sections/${sectionId}/items`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${window._bizToken}` },
-            body: JSON.stringify({
-                name,
-                description: document.getElementById('mt-id')?.value || null,
-                custom_price: price,
-                allergens: document.getElementById('mt-ia')?.value || null,
-                is_available: true
-            })
+            body: JSON.stringify(Object.assign(
+                { name, description: document.getElementById('mt-id')?.value || null, allergens: document.getElementById('mt-ia')?.value || null, is_available: true },
+                price !== null ? { custom_price: price } : {}
+            ))
         });
         const data = await res.json();
         if (!res.ok) {
