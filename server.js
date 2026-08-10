@@ -29250,7 +29250,7 @@ app.get('/api/menu-templates', verifyBizOrLegacy, async (req, res) => {
             FROM menu_templates mt
             LEFT JOIN menu_sections ms ON ms.template_id = mt.id
             LEFT JOIN menu_items mi ON mi.section_id = ms.id
-            WHERE mt.group_id = $1 AND mt.template_type = 'menu'
+            WHERE mt.group_id = $1 AND mt.template_type = 'menu' AND mt.is_active = true
             GROUP BY mt.id
             ORDER BY mt.created_at DESC
         `, [bizGroupId]);
@@ -29432,11 +29432,14 @@ app.delete('/api/menu-templates/:id', verifyBizOrLegacy, async (req, res) => {
     if (!bizGroupId) return res.status(401).json({ error: 'נדרש token' });
     try {
         const own = await pool.query(
-            `SELECT id FROM menu_templates WHERE id=$1 AND group_id=$2 AND template_type='menu'`,
+            `SELECT id FROM menu_templates WHERE id=$1 AND group_id=$2 AND template_type='menu' AND is_active=true`,
             [req.params.id, bizGroupId]
         );
         if (!own.rows.length) return res.status(404).json({ error: 'תבנית לא נמצאה' });
-        await pool.query('DELETE FROM menu_templates WHERE id=$1', [req.params.id]);
+        await pool.query(
+            `UPDATE menu_templates SET is_active=false, updated_at=NOW() WHERE id=$1 AND group_id=$2 AND template_type='menu'`,
+            [req.params.id, bizGroupId]
+        );
         res.json({ success: true });
     } catch(e) {
         console.error('DELETE /api/menu-templates/:id:', e.message);
