@@ -29237,6 +29237,75 @@ async function verifyBiz(req, res, next) {
     next();
 }
 
+// ===== MENU TEMPLATES API (read-only) =====
+
+app.get('/api/menu-templates', verifyBizOrLegacy, async (req, res) => {
+    const bizGroupId = req.bizAuth.groupId;
+    if (!bizGroupId) return res.status(400).json({ error: 'groupId נדרש' });
+    try {
+        const r = await pool.query(`
+            SELECT mt.*,
+                   COUNT(DISTINCT ms.id)::int AS section_count,
+                   COUNT(DISTINCT mi.id)::int AS item_count
+            FROM menu_templates mt
+            LEFT JOIN menu_sections ms ON ms.template_id = mt.id
+            LEFT JOIN menu_items mi ON mi.section_id = ms.id
+            WHERE mt.group_id = $1 AND mt.template_type = 'menu'
+            GROUP BY mt.id
+            ORDER BY mt.created_at DESC
+        `, [bizGroupId]);
+        res.json(r.rows);
+    } catch(e) {
+        console.error('/api/menu-templates GET:', e.message);
+        res.status(500).json({ error: 'שגיאת שרת' });
+    }
+});
+
+app.get('/api/menu-templates/:id', verifyBizOrLegacy, async (req, res) => {
+    const bizGroupId = req.bizAuth.groupId;
+    if (!bizGroupId) return res.status(400).json({ error: 'groupId נדרש' });
+    try {
+        const tmpl = await pool.query(
+            `SELECT * FROM menu_templates WHERE id=$1 AND group_id=$2 AND template_type='menu'`,
+            [req.params.id, bizGroupId]
+        );
+        if (!tmpl.rows.length) return res.status(404).json({ error: 'תבנית לא נמצאה' });
+        const sections = await pool.query(`
+            SELECT ms.*,
+                   COALESCE(json_agg(mi.* ORDER BY mi.sort_order) FILTER (WHERE mi.id IS NOT NULL), '[]') AS items
+            FROM menu_sections ms
+            LEFT JOIN menu_items mi ON mi.section_id = ms.id
+            WHERE ms.template_id = $1
+            GROUP BY ms.id
+            ORDER BY ms.sort_order
+        `, [req.params.id]);
+        res.json({ ...tmpl.rows[0], sections: sections.rows });
+    } catch(e) {
+        console.error('/api/menu-templates/:id GET:', e.message);
+        res.status(500).json({ error: 'שגיאת שרת' });
+    }
+});
+
+app.get('/api/menu-quote-requests', verifyBizOrLegacy, async (req, res) => {
+    const bizGroupId = req.bizAuth.groupId;
+    if (!bizGroupId) return res.status(400).json({ error: 'groupId נדרש' });
+    try {
+        const r = await pool.query(`
+            SELECT mqr.*, mt.name AS template_name
+            FROM menu_quote_requests mqr
+            LEFT JOIN menu_templates mt ON mt.id = mqr.template_id
+            WHERE mqr.group_id = $1
+            ORDER BY mqr.created_at DESC
+        `, [bizGroupId]);
+        res.json(r.rows);
+    } catch(e) {
+        console.error('/api/menu-quote-requests GET:', e.message);
+        res.status(500).json({ error: 'שגיאת שרת' });
+    }
+});
+
+// ===== END MENU TEMPLATES API =====
+
 // ── verifyBizOrLegacy middleware ───────────────────────────────
 // אם יש טוקן תקין — groupId מה-session; אחרת — fallback ל-groupId מה-body (legacy).
 // לא מחובר לאף endpoint עדיין.
