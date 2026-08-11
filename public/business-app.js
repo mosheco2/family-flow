@@ -973,7 +973,16 @@ window.injectBusinessUI = function() {
                                         <button onclick="window.copyStoreLink()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-4 py-2 rounded-xl font-bold transition shrink-0"><i class="fa-solid fa-copy"></i></button>
                                     </div>
                                 </div>
-                                
+
+                                <div>
+                                    <label class="text-xs font-bold text-slate-500 mb-1 block">קישור ראשי לתפריטים:</label>
+                                    <div class="flex gap-2">
+                                        <input type="text" id="store-menus-link" class="modern-input py-2 text-sm w-full bg-slate-50 text-slate-500 dir-ltr text-left" readonly>
+                                        <button onclick="window.copyMenusLink()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-4 py-2 rounded-xl font-bold transition shrink-0"><i class="fa-solid fa-copy"></i></button>
+                                        <a id="store-menus-link-open" href="#" target="_blank" class="bg-emerald-100 hover:bg-emerald-200 text-emerald-700 px-4 py-2 rounded-xl font-bold transition shrink-0 flex items-center"><i class="fa-solid fa-arrow-up-right-from-square"></i></a>
+                                    </div>
+                                </div>
+
                                 <h4 class="font-black text-slate-800 mb-4 mt-8">עיצוב ומיתוג</h4>
                                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
                                     <div class="bg-slate-50 p-3.5 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between">
@@ -12373,6 +12382,15 @@ function copyStoreLink() {
     if(!link) return;
     navigator.clipboard.writeText(link).then(() => showToast('info', 'לינק החנות הועתק!'));
 }
+
+window.copyMenusLink = function() {
+    const el = document.getElementById('store-menus-link');
+    const link = el ? el.value : '';
+    if (!link) return;
+    navigator.clipboard.writeText(link).then(() => showToast('info', 'קישור התפריטים הועתק!'));
+    const openBtn = document.getElementById('store-menus-link-open');
+    if (openBtn) openBtn.href = link;
+};
 
 async function fetchStoreCatalog() {
     try { const res = await fetch(`${API}/store/catalog/${currentGroup.id}`); storeCatalogCache = await res.json(); renderStoreCatalog(); } catch(e) {}
@@ -26696,6 +26714,13 @@ window.fetchStoreSettings = async function() {
             // עדכון הלינק הציבורי שיוצג (פורמט קצר)
             const displayId = s.store_alias || currentGroup.group_code;
             syncInputs('store-public-link', `${window.location.origin}/${displayId}`);
+
+            // קישור ראשי לתפריטים
+            const menusUrl = `${window.location.origin}/menus/${displayId}`;
+            const menusLinkEl = document.getElementById('store-menus-link');
+            if (menusLinkEl) menusLinkEl.value = menusUrl;
+            const menusOpenBtn = document.getElementById('store-menus-link-open');
+            if (menusOpenBtn) menusOpenBtn.href = menusUrl;
             
             const headerSlogan = document.getElementById('main-header-slogan');
             if (headerSlogan) headerSlogan.innerText = s.slogan || 'Business Control Center';

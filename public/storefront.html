@@ -657,6 +657,7 @@
                 }
 
                 storeData = data;
+                storeData.storeCode = storeCode;
                 let gId = data.groupId || (data.group && data.group.id) || (data.settings && data.settings.group_id);
                 if (!gId && data.catalog && data.catalog.length > 0) gId = data.catalog[0].group_id;
                 storeData.groupId = gId;
@@ -1488,7 +1489,8 @@
                     try { const p = JSON.parse(ci.options_text||'{}'); return Array.isArray(p.complexTypes) ? p.complexTypes : p.complexType ? [p.complexType] : []; } catch(e) { return []; }
                 }))];
                 const _bannerLabel = _allTypes.length ? _allTypes.map(t => _typeLabels[t]||t).join(', ') : 'אירועים, קייטרינג ופרויקטים';
-                complexBanner.innerHTML = `<button onclick="window.filterCategory('complex_view')" class="w-full bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-black py-4 px-5 rounded-2xl shadow-[0_8px_20px_-6px_rgba(16,185,129,0.4)] hover:shadow-lg transition-all flex items-center justify-between group active:scale-95"><div class="flex items-center gap-3"><div class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-md text-xl"><i class="fa-solid fa-bell-concierge"></i></div><div class="text-right"><span class="block text-base leading-tight">${_bannerLabel}</span><span class="block text-[10px] font-medium opacity-80 mt-0.5">תפריטים ומפרטים מיוחדים לבחירה</span></div></div><i class="fa-solid fa-chevron-left bg-white/10 w-8 h-8 rounded-full flex items-center justify-center group-hover:-translate-x-1 transition-transform"></i></button>`;
+                const _menusUrl = `/menus/${storeData.storeCode}`;
+                complexBanner.innerHTML = `<a href="${_menusUrl}" class="w-full bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-black py-4 px-5 rounded-2xl shadow-[0_8px_20px_-6px_rgba(16,185,129,0.4)] hover:shadow-lg transition-all flex items-center justify-between group active:scale-95 no-underline" style="text-decoration:none"><div class="flex items-center gap-3"><div class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-md text-xl"><i class="fa-solid fa-bell-concierge"></i></div><div class="text-right"><span class="block text-base leading-tight">${_bannerLabel}</span><span class="block text-[10px] font-medium opacity-80 mt-0.5">תפריטים ומפרטים מיוחדים לבחירה</span></div></div><i class="fa-solid fa-chevron-left bg-white/10 w-8 h-8 rounded-full flex items-center justify-center group-hover:-translate-x-1 transition-transform"></i></a>`;
                 complexBanner.classList.remove('hidden');
             } else if (complexBanner) {
                 complexBanner.classList.add('hidden');

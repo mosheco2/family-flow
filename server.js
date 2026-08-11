@@ -32434,3 +32434,51 @@ app.get('/menu/:slug', (req, res) => {
     res.set('Expires', '0');
     res.sendFile(path.join(__dirname, 'public', 'menu.html'));
 });
+
+// ── דף תפריטים ראשי (כל התפריטים של עסק) ─────────────────────
+app.get('/menus/:alias', (req, res) => {
+    res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
+    res.sendFile(path.join(__dirname, 'public', 'menus.html'));
+});
+
+// ── API: כל התפריטים הפומביים של עסק לפי alias ────────────────
+app.get('/api/menus/public/:alias', async (req, res) => {
+    try {
+        const alias = req.params.alias;
+        // find group by store_alias or group_code
+        const grpRes = await pool.query(
+            `SELECT fg.id, fg.group_code, fg.name AS group_name,
+                    ss.store_alias, ss.store_name, ss.logo_url AS store_logo,
+                    ss.cover_image_url AS store_cover, ss.contact_phone, ss.contact_address
+             FROM family_groups fg
+             LEFT JOIN store_settings ss ON ss.group_id = fg.id
+             WHERE ss.store_alias = $1 OR fg.group_code = $1
+             LIMIT 1`, [alias]
+        );
+        if (!grpRes.rows.length) return res.status(404).json({ error: 'לא נמצא' });
+        const grp = grpRes.rows[0];
+
+        const menusRes = await pool.query(
+            `SELECT id, name, description, event_type, cover_image_url, logo_url,
+                    slogan, base_price_per_person, pricing_mode, min_guests, max_guests,
+                    public_slug, show_related_options
+             FROM menu_templates
+             WHERE group_id = $1 AND is_active = true AND is_public = true AND template_type = 'menu'
+             ORDER BY created_at ASC`, [grp.id]
+        );
+
+        res.json({
+            business_name: grp.store_name || grp.group_name,
+            logo_url: grp.store_logo,
+            cover_url: grp.store_cover,
+            contact_phone: grp.contact_phone,
+            contact_address: grp.contact_address,
+            menus: menusRes.rows
+        });
+    } catch (e) {
+        console.error('menus public api error', e);
+        res.status(500).json({ error: 'שגיאה' });
+    }
+});

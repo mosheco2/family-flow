@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>תפריטים</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@400;500;700&family=Assistant:wght@300;400;500;600&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#FBF7EF;--surface:#fff;--border:#E5DCCB;--sand:#E7DFD0;
+  --ink:#241E19;--ink2:#5C5148;--ink3:#9C8C71;
+  --accent:#6B2434;--accent2:#4E1926;
+}
+html,body{font-family:'Assistant',Helvetica,sans-serif;color:var(--ink);background:var(--sand);min-height:100vh}
+
+/* hero */
+.hero{position:relative;min-height:200px;background:var(--ink);overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end}
+.hero-img{position:absolute;inset:0;object-fit:cover;width:100%;height:100%;opacity:.38}
+.hero-body{position:relative;padding:clamp(24px,5vw,52px) clamp(20px,6vw,56px) clamp(20px,4vw,32px);display:flex;align-items:flex-end;gap:16px}
+.hero-logo{width:64px;height:64px;border-radius:6px;object-fit:cover;border:2px solid rgba(255,255,255,.18);flex-shrink:0}
+.hero-text{flex:1}
+.hero-eyebrow{font-size:10px;letter-spacing:.3em;color:var(--accent);text-transform:uppercase;margin-bottom:7px}
+.hero-title{font-family:'Frank Ruhl Libre',serif;font-size:clamp(22px,4.5vw,38px);font-weight:500;color:#FBF7EF;line-height:1.2}
+
+/* body */
+.page-body{max-width:860px;margin:0 auto;padding:clamp(20px,4vw,44px) clamp(14px,4vw,32px) 60px}
+.section-title{font-size:11px;font-weight:700;color:var(--ink3);letter-spacing:.22em;text-transform:uppercase;margin-bottom:16px}
+
+/* menu cards */
+.menus-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(320px,100%),1fr));gap:14px;margin-bottom:32px}
+.menu-card{background:var(--surface);border:1.5px solid var(--border);border-radius:10px;overflow:hidden;text-decoration:none;color:inherit;display:flex;flex-direction:column;transition:.15s;cursor:pointer}
+.menu-card:hover{border-color:var(--accent);box-shadow:0 4px 16px rgba(107,36,52,.12);transform:translateY(-1px)}
+.menu-cover{position:relative;height:140px;background:var(--sand);overflow:hidden;flex-shrink:0}
+.menu-cover img{width:100%;height:100%;object-fit:cover}
+.menu-cover-placeholder{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:32px;background:var(--sand)}
+.menu-body{padding:14px 16px 16px;flex:1;display:flex;flex-direction:column;gap:6px}
+.menu-name{font-family:'Frank Ruhl Libre',serif;font-size:17px;font-weight:500;color:var(--ink);line-height:1.3}
+.menu-slogan{font-size:12.5px;font-weight:300;color:var(--ink3);line-height:1.5}
+.menu-meta{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:auto;padding-top:8px;border-top:1px solid var(--border)}
+.menu-tag{font-size:11px;color:var(--ink3)}
+.menu-price{font-size:13px;font-weight:700;color:var(--accent)}
+.menu-arrow{font-size:12px;color:var(--accent);font-weight:700;margin-right:auto}
+
+/* catalog builder */
+.catalog-card{background:var(--surface);border:1.5px dashed var(--border);border-radius:10px;padding:18px 20px;display:flex;align-items:center;gap:14px;text-decoration:none;color:inherit;transition:.15s;cursor:pointer}
+.catalog-card:hover{border-color:var(--accent);background:#fdf7f8}
+.catalog-icon{width:48px;height:48px;border-radius:8px;background:var(--sand);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
+
+/* contact */
+.contact-bar{text-align:center;padding:18px 20px;font-size:13px;font-weight:300;color:var(--ink3);border-top:1px solid var(--border);background:var(--bg)}
+.contact-bar a{color:var(--accent);text-decoration:none}
+
+/* states */
+.state-center{min-height:50vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;color:var(--ink3);font-size:15px;font-weight:300}
+.spinner{width:32px;height:32px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div id="app"><div class="state-center"><div class="spinner"></div><span>טוען תפריטים…</span></div></div>
+
+<script>
+const alias = location.pathname.replace(/^\/menus\//, '').trim();
+const evLabels = {wedding:'חתונה',bar_mitzvah:'בר/בת מצווה',birthday:'יום הולדת',corporate:'אירוע עסקי',other:'אירוע'};
+
+(async () => {
+    if (!alias) { renderError('כתובת לא תקינה'); return; }
+    let d;
+    try {
+        const res = await fetch('/api/menus/public/' + encodeURIComponent(alias));
+        if (res.status === 404) { renderError('העסק אינו זמין'); return; }
+        if (!res.ok) { renderError('שגיאה בטעינת הנתונים'); return; }
+        d = await res.json();
+    } catch(e) { renderError('שגיאת תקשורת — נסה לרענן'); return; }
+
+    document.title = (d.business_name || 'תפריטים') + ' — תפריטים';
+    render(d);
+})();
+
+function render(d) {
+    const menus = d.menus || [];
+
+    const heroHtml = `
+      <div class="hero">
+        ${d.cover_url ? `<img class="hero-img" src="${esc(d.cover_url)}" alt="">` : ''}
+        <div class="hero-body">
+          ${d.logo_url ? `<img class="hero-logo" src="${esc(d.logo_url)}" alt="לוגו">` : ''}
+          <div class="hero-text">
+            <div class="hero-eyebrow">תפריטים</div>
+            <h1 class="hero-title">${esc(d.business_name || '')}</h1>
+          </div>
+        </div>
+      </div>`;
+
+    const menuCards = menus.map(m => {
+        const evLabel = evLabels[m.event_type] || '';
+        const pm = m.pricing_mode || 'per_person';
+        const priceText = pm === 'per_person' && m.base_price_per_person > 0
+            ? `₪${num(m.base_price_per_person)} לאיש`
+            : '';
+        const guestsText = (m.min_guests && m.max_guests) ? `${m.min_guests}–${m.max_guests} אורחים` : '';
+
+        return `<a class="menu-card" href="/menu/${encodeURIComponent(m.public_slug)}">
+          <div class="menu-cover">
+            ${m.cover_image_url ? `<img src="${esc(m.cover_image_url)}" alt="${esc(m.name)}">` : `<div class="menu-cover-placeholder">📋</div>`}
+          </div>
+          <div class="menu-body">
+            ${evLabel ? `<div style="font-size:10px;font-weight:700;color:var(--accent);letter-spacing:.15em;text-transform:uppercase">${evLabel}</div>` : ''}
+            <div class="menu-name">${esc(m.name)}</div>
+            ${m.slogan ? `<div class="menu-slogan">${esc(m.slogan)}</div>` : ''}
+            ${m.description ? `<div class="menu-slogan">${esc(m.description)}</div>` : ''}
+            ${(priceText || guestsText) ? `<div class="menu-meta">
+              ${priceText ? `<span class="menu-price">${priceText}</span>` : ''}
+              ${guestsText ? `<span class="menu-tag">${guestsText}</span>` : ''}
+              <span class="menu-arrow">לבחירה ←</span>
+            </div>` : `<div class="menu-meta"><span class="menu-arrow">לבחירה ←</span></div>`}
+          </div>
+        </a>`;
+    }).join('');
+
+    const catalogSection = `
+      <div style="margin-top:12px">
+        <div class="section-title">הרכבה חופשית</div>
+        <a class="catalog-card" href="/menu/${encodeURIComponent(menus[0]?.public_slug || alias)}?catalog=1">
+          <div class="catalog-icon">🛒</div>
+          <div>
+            <div style="font-size:14px;font-weight:600;color:var(--ink);margin-bottom:3px">הרכב תפריט חופשי מהקטלוג</div>
+            <div style="font-size:12px;color:var(--ink3)">בחר מנות ישירות מהקטלוג שלנו</div>
+          </div>
+          <div style="margin-right:auto;color:var(--accent);font-size:14px">←</div>
+        </a>
+      </div>`;
+
+    const contactBar = (d.contact_phone || d.contact_address) ? `
+      <div class="contact-bar">
+        ${d.contact_phone ? `<a href="tel:${esc(d.contact_phone)}">📞 ${esc(d.contact_phone)}</a>` : ''}
+        ${d.contact_phone && d.contact_address ? ' &nbsp;·&nbsp; ' : ''}
+        ${d.contact_address ? `<span>📍 ${esc(d.contact_address)}</span>` : ''}
+      </div>` : '';
+
+    document.getElementById('app').innerHTML = `
+      ${heroHtml}
+      <div class="page-body">
+        ${menus.length ? `<div class="section-title">התפריטים שלנו</div><div class="menus-grid">${menuCards}</div>` : ''}
+        ${catalogSection}
+      </div>
+      ${contactBar}`;
+}
+
+function renderError(msg) {
+    document.getElementById('app').innerHTML = `<div class="state-center"><span style="font-size:32px">🍽️</span><span>${msg}</span></div>`;
+}
+function esc(s) {
+    if (!s && s !== 0) return '';
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function num(n) { return Number(n).toLocaleString('he-IL'); }
+</script>
+</body>
+</html>
