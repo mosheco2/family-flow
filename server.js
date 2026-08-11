@@ -32445,11 +32445,41 @@ app.delete('/api/kol-haam/collections/:id/items/:content_item_id', verifyFamily,
 
 
 // ── תצוגת תפריט ציבורי ────────────────────────────────────────
-app.get('/menu/:slug', (req, res) => {
+app.get('/menu/:slug', async (req, res) => {
     res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
     res.set('Pragma', 'no-cache');
     res.set('Expires', '0');
-    res.sendFile(path.join(__dirname, 'public', 'menu.html'));
+
+    // inject OG tags for WhatsApp/social preview
+    let ogTitle = 'תפריט', ogImage = '', ogDesc = '';
+    try {
+        const r = await pool.query(
+            `SELECT mt.name, mt.logo_url, mt.cover_image_url, fg.name AS biz_name
+             FROM menu_templates mt
+             JOIN family_groups fg ON fg.id = mt.group_id
+             WHERE mt.public_slug=$1 AND mt.is_active=true AND mt.is_public=true`,
+            [req.params.slug]
+        );
+        if (r.rows.length) {
+            const row = r.rows[0];
+            ogTitle   = row.biz_name ? `${row.biz_name} — תפריט` : 'תפריט';
+            ogImage   = row.logo_url || row.cover_image_url || '';
+            ogDesc    = row.name || '';
+        }
+    } catch(e) { /* fallback to static file */ }
+
+    const fs = require('fs');
+    const menuHtml = fs.readFileSync(path.join(__dirname, 'public', 'menu.html'), 'utf8');
+    const ogTags = `
+    <meta property="og:title"       content="${ogTitle.replace(/"/g,'&quot;')}" />
+    <meta property="og:description" content="${ogDesc.replace(/"/g,'&quot;')}" />
+    <meta property="og:type"        content="website" />
+    ${ogImage ? `<meta property="og:image" content="${ogImage.replace(/"/g,'&quot;')}" />` : ''}
+    <meta name="twitter:card"  content="summary_large_image" />
+    <meta name="twitter:title" content="${ogTitle.replace(/"/g,'&quot;')}" />
+    ${ogImage ? `<meta name="twitter:image" content="${ogImage.replace(/"/g,'&quot;')}" />` : ''}`;
+    const injected = menuHtml.replace('</head>', ogTags + '\n</head>');
+    res.send(injected);
 });
 
 // ── דף תפריטים ראשי (כל התפריטים של עסק) ─────────────────────
