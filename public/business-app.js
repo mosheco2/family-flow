@@ -53921,11 +53921,13 @@ window._mtWaShare = function(slug, name) {
 
 window._mtWaShareFromPanel = function(slug) {
     const d = window._mtPdfDesign;
-    const bizName = window._mtPdfCurrentName || '';
+    const bizName = currentGroup?.name || '';
     const menuUrl = `${location.origin}/menu/${encodeURIComponent(slug)}?palette=${d.palette}&plating=${d.plating}&air=${d.airiness}`;
-    const intro = bizName ? `היי! אנחנו ${bizName} ושמחים לשתף אתכם בתפריט שלנו 🍽️` : 'היי! שמחים לשתף אתכם בתפריט שלנו 🍽️';
-    const text = encodeURIComponent(`${intro}\n${menuUrl}`);
-    window.open(`https://wa.me/?text=${text}`, '_blank');
+    const storeUrl = currentGroup?.group_code ? `${location.origin}/storefront.html?store=${currentGroup.group_code}` : '';
+    const intro = bizName ? `היי! אנחנו ${bizName}, שמחים לשתף אתכם בתפריט שלנו:` : 'היי! שמחים לשתף אתכם בתפריט שלנו:';
+    let msg = `${intro}\n${menuUrl}`;
+    if (storeUrl) msg += `\n\nלשירותים נוספים:\n${storeUrl}`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
 };
 
 window._mtPdfOnly = function(slug, name) {
