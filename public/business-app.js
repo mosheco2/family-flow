@@ -53846,10 +53846,20 @@ window._mtExportPDF = function(slug, name) {
 
     const d = window._mtPdfDesign;
     const palettes = [
-        { val:'bordeaux', label:'בורדו קלאסי' },
-        { val:'olive',    label:'זית ואבן' },
-        { val:'charcoal', label:'פחם ונחושת' },
-        { val:'indigo',   label:'דיו כחול וזהב' },
+        { val:'bordeaux',   label:'בורדו קלאסי',    swatch:'#6B2434' },
+        { val:'olive',      label:'זית ואבן',        swatch:'#4A6741' },
+        { val:'charcoal',   label:'פחם ונחושת',      swatch:'#B87040' },
+        { val:'indigo',     label:'דיו כחול',        swatch:'#2B4A7A' },
+        { val:'rose',       label:'ורד בוקר',        swatch:'#9B4060' },
+        { val:'forest',     label:'יער עמוק',        swatch:'#2C5038' },
+        { val:'saffron',    label:'כרכום וזהב',      swatch:'#9B6818' },
+        { val:'slate',      label:'פלדה קרה',        swatch:'#3A5878' },
+        { val:'terracotta', label:'חמרה מדברית',     swatch:'#8C4030' },
+        { val:'plum',       label:'שזיף בשל',        swatch:'#5C3474' },
+        { val:'teal',       label:'טורקיז ים',       swatch:'#206874' },
+        { val:'noir',       label:'שחור וזהב',       swatch:'#C4A040' },
+        { val:'copper',     label:'נחושת ושרף',      swatch:'#7C4820' },
+        { val:'sage',       label:'מרווה קיץ',       swatch:'#607060' },
     ];
     const platings = [
         { val:'square', label:'ריבועים קלאסיים' },
@@ -53858,12 +53868,14 @@ window._mtExportPDF = function(slug, name) {
         { val:'none',   label:'ללא תמונות' },
     ];
 
-    const chip = (group, val, label) => {
+    const chip = (group, item) => {
+        const val = item.val || item; const label = item.label || item; const swatch = item.swatch || null;
         const active = d[group] === val;
+        const dot = swatch ? `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${swatch};margin-left:5px;flex-shrink:0;border:1px solid rgba(0,0,0,.12)"></span>` : '';
         return `<button onclick="window._mtPdfChip('${group}','${val}')"
           id="mtpdf-${group}-${val}"
-          style="padding:5px 11px;border:1px solid ${active?'#6B2434':'#CBD5E1'};background:${active?'#6B2434':'#fff'};color:${active?'#FBF7EF':'#475569'};font-size:11.5px;font-family:inherit;cursor:pointer;border-radius:2px;transition:.12s"
-          >${label}</button>`;
+          style="padding:5px 10px;border:1px solid ${active?'#6B2434':'#CBD5E1'};background:${active?'#6B2434':'#fff'};color:${active?'#FBF7EF':'#475569'};font-size:11.5px;font-family:inherit;cursor:pointer;border-radius:2px;transition:.12s;display:inline-flex;align-items:center"
+          >${dot}${label}</button>`;
     };
 
     window._mtPdfCurrentSlug = slug;
@@ -53886,11 +53898,11 @@ window._mtExportPDF = function(slug, name) {
           <div style="flex:1;padding:20px 22px 24px;display:flex;flex-direction:column;gap:16px;overflow-y:auto">
             <div>
               <div style="font-size:10px;letter-spacing:.26em;color:#9C8C71;margin-bottom:8px">PALETTE</div>
-              <div style="display:flex;gap:6px;flex-wrap:wrap">${palettes.map(p=>chip('palette',p.val,p.label)).join('')}</div>
+              <div style="display:flex;gap:5px;flex-wrap:wrap">${palettes.map(p=>chip('palette',p)).join('')}</div>
             </div>
             <div>
               <div style="font-size:10px;letter-spacing:.26em;color:#9C8C71;margin-bottom:8px">PLATING</div>
-              <div style="display:flex;gap:6px;flex-wrap:wrap">${platings.map(p=>chip('plating',p.val,p.label)).join('')}</div>
+              <div style="display:flex;gap:6px;flex-wrap:wrap">${platings.map(p=>chip('plating',p)).join('')}</div>
             </div>
             <div>
               <div style="font-size:10px;letter-spacing:.26em;color:#9C8C71;margin-bottom:8px">AIRINESS</div>
