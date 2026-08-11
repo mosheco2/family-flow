@@ -53788,11 +53788,84 @@ window._mtDelItem = async function(itemId, sectionId) {
 };
 
 // ======= LIST ACTIONS =======
+/* ── PDF design state (per-session, shared across all templates) ── */
+window._mtPdfDesign = window._mtPdfDesign || { palette:'bordeaux', plating:'square', airiness:2 };
+
 window._mtExportPDF = function(slug, name) {
     if (!slug) { showToast('error', 'יש לפרסם את התפריט תחילה (הגדר כציבורי ושמור)'); return; }
-    showToast('info', 'מכין PDF...');
-    const w = window.open(`/menu/${slug}?pdf=1`, '_blank', 'width=900,height=700');
-    if (!w) { showToast('error', 'חסום חלון קופץ — אפשר זאת בדפדפן ונסה שוב'); }
+
+    const d = window._mtPdfDesign;
+    const palettes = [
+        { val:'bordeaux', label:'בורדו קלאסי' },
+        { val:'olive',    label:'זית ואבן' },
+        { val:'charcoal', label:'פחם ונחושת' },
+        { val:'indigo',   label:'דיו כחול וזהב' },
+    ];
+    const platings = [
+        { val:'square', label:'ריבועים קלאסיים' },
+        { val:'circle', label:'מדליונים עגולים' },
+        { val:'large',  label:'צלחות גדולות' },
+        { val:'none',   label:'ללא תמונות' },
+    ];
+
+    const chip = (group, val, label) => {
+        const active = d[group] === val;
+        return `<button onclick="window._mtPdfChip('${group}','${val}')"
+          id="mtpdf-${group}-${val}"
+          style="padding:5px 11px;border:1px solid ${active?'#6B2434':'#CBD5E1'};background:${active?'#6B2434':'#fff'};color:${active?'#FBF7EF':'#475569'};font-size:11.5px;font-family:inherit;cursor:pointer;border-radius:2px;transition:.12s"
+          >${label}</button>`;
+    };
+
+    const overlay = document.createElement('div');
+    overlay.id = 'mt-pdf-design-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:9000;background:rgba(20,14,10,.5);display:flex;align-items:flex-end;justify-content:center';
+    overlay.innerHTML = `
+      <div style="width:100%;max-width:600px;background:#FBF7EF;border-top:1px solid #DDD2BE;padding:22px 20px 32px;direction:rtl;font-family:inherit">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
+          <span style="font-family:'Frank Ruhl Libre',serif;font-size:17px;color:#241E19">עיצוב PDF — ${escHtml(name||'תפריט')}</span>
+          <button onclick="document.getElementById('mt-pdf-design-overlay').remove()" style="background:none;border:none;color:#9C8C71;font-size:22px;cursor:pointer;line-height:1;padding:0">×</button>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:14px">
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+            <span style="font-size:10.5px;letter-spacing:.24em;color:#9C8C71;width:54px;flex-shrink:0">palette</span>
+            <div style="display:flex;gap:5px;flex-wrap:wrap">${palettes.map(p=>chip('palette',p.val,p.label)).join('')}</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+            <span style="font-size:10.5px;letter-spacing:.24em;color:#9C8C71;width:54px;flex-shrink:0">plating</span>
+            <div style="display:flex;gap:5px;flex-wrap:wrap">${platings.map(p=>chip('plating',p.val,p.label)).join('')}</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px">
+            <span style="font-size:10.5px;letter-spacing:.24em;color:#9C8C71;width:54px;flex-shrink:0">airiness</span>
+            <input type="range" min="1" max="3" step="1" value="${d.airiness}"
+              oninput="window._mtPdfDesign.airiness=+this.value;document.getElementById('mtpdf-air-val').textContent=this.value"
+              style="flex:1;accent-color:#6B2434;cursor:pointer">
+            <span id="mtpdf-air-val" style="font-size:13px;font-family:'Frank Ruhl Libre',serif;color:#241E19;width:16px;text-align:center">${d.airiness}</span>
+          </div>
+        </div>
+        <button onclick="window._mtPdfConfirm('${escHtml(slug)}')"
+          style="margin-top:20px;width:100%;padding:13px;background:#6B2434;color:#FBF7EF;border:none;font-size:14px;font-family:inherit;font-weight:600;cursor:pointer;letter-spacing:.05em">
+          הורד PDF ↓
+        </button>
+      </div>`;
+    document.body.appendChild(overlay);
+};
+
+window._mtPdfChip = function(group, val) {
+    window._mtPdfDesign[group] = val;
+    document.querySelectorAll(`[id^="mtpdf-${group}-"]`).forEach(el => {
+        const active = el.id === `mtpdf-${group}-${val}`;
+        el.style.background  = active ? '#6B2434' : '#fff';
+        el.style.borderColor = active ? '#6B2434' : '#CBD5E1';
+        el.style.color       = active ? '#FBF7EF' : '#475569';
+    });
+};
+
+window._mtPdfConfirm = function(slug) {
+    document.getElementById('mt-pdf-design-overlay')?.remove();
+    const d = window._mtPdfDesign;
+    const url = `/menu/${encodeURIComponent(slug)}?pdf=1&palette=${d.palette}&plating=${d.plating}&air=${d.airiness}`;
+    const w = window.open(url, '_blank', 'width=900,height=700');
+    if (!w) showToast('error', 'חסום חלון קופץ — אפשר זאת בדפדפן ונסה שוב');
 };
 
 window._mtWaShare = function(slug, name) {
