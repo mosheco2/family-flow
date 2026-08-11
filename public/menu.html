@@ -926,10 +926,10 @@ function _pdfDish(item, showPrice) {
     const p = _PDF_PALETTES[_pdfOpts.palette] || _PDF_PALETTES.bordeaux;
     const photoSz = plating === 'large' ? 90 : 62;
     const photoBlock = plating === 'none' ? '' : `
-        <div class="pdf-dish-photo">
+        <div style="flex-shrink:0">
           ${item.image_url
-            ? `<img src="${esc(item.image_url)}" alt="${esc(item.name)}">`
-            : `<div style="width:${photoSz}px;height:${photoSz}px;background:${p.rule};opacity:.5;display:flex;align-items:center;justify-content:center;font-size:${plating==='large'?28:22}px">🍽</div>`}
+            ? `<img src="${esc(item.image_url)}" alt="${esc(item.name)}" style="display:block;width:${photoSz}px;height:${photoSz}px;object-fit:cover;border-radius:${photoRadius};max-width:${photoSz}px;max-height:${photoSz}px">`
+            : `<div style="width:${photoSz}px;height:${photoSz}px;background:${p.rule};opacity:.5;border-radius:${photoRadius}"></div>`}
         </div>`;
     return `
       <div class="pdf-dish">
@@ -997,7 +997,7 @@ function _pdfBuildSections(sections, selFilter) {
 function _pdfWrap(bizName, titleOverride, sectionsHtml, footnoteHtml) {
     const heroImg = (_d.event_mode && _d.event_image_url) ? _d.event_image_url : _d.cover_image_url;
     const heroBlock = heroImg
-        ? `<div class="pdf-hero-frame"><img src="${esc(heroImg)}" alt=""></div>`
+        ? `<div style="border:1px solid ${p.rule};padding:6px;break-inside:avoid;margin-bottom:0"><img src="${esc(heroImg)}" alt="" style="display:block;width:100%;height:112px;object-fit:cover;max-height:112px"></div>`
         : '';
     const p = _PDF_PALETTES[_pdfOpts.palette] || _PDF_PALETTES.bordeaux;
     const eventBanner = (_d.event_mode && (_d.event_greeting || _d.event_intro)) ? `
