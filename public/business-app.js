@@ -52993,7 +52993,7 @@ function _mtRenderList(root) {
     const list = _mtState.list;
 
     // diagonal stripe SVG pattern for placeholder thumbnail
-    const stripeSvg = `url("data:image/svg+xml,%3Csvg width='20' height='20' viewBox='0 0 20 20' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23c7d2fe' fill-opacity='0.45'%3E%3Cpolygon points='20 10 10 0 0 0 10 10'/%3E%3Cpolygon points='20 20 20 10 10 20'/%3E%3C/g%3E%3C/svg%3E")`;
+    const stripeSvg = "url('data:image/svg+xml,%3Csvg%20width%3D%2220%22%20height%3D%2220%22%20viewBox%3D%220%200%2020%2020%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cg%20fill%3D%22%23c7d2fe%22%20fill-opacity%3D%220.45%22%3E%3Cpolygon%20points%3D%2220%2010%2010%200%200%200%2010%2010%22%2F%3E%3Cpolygon%20points%3D%2220%2020%2020%2010%2010%2020%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E')";
 
     // status badge colors
     const statusStyle = (t) => {
@@ -53251,7 +53251,7 @@ function _mtRenderEditor(root) {
 
     // shared helpers for this render
     const _r = (fn) => `${fn};_mtRenderEditor(document.getElementById('menu-templates-root'))`;
-    const stripeSvgEd = `url("data:image/svg+xml,%3Csvg width='20' height='20' viewBox='0 0 20 20' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23c7d2fe' fill-opacity='0.45'%3E%3Cpolygon points='20 10 10 0 0 0 10 10'/%3E%3Cpolygon points='20 20 20 10 10 20'/%3E%3C/g%3E%3C/svg%3E")`;
+    const stripeSvgEd = "url('data:image/svg+xml,%3Csvg%20width%3D%2220%22%20height%3D%2220%22%20viewBox%3D%220%200%2020%2020%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cg%20fill%3D%22%23c7d2fe%22%20fill-opacity%3D%220.45%22%3E%3Cpolygon%20points%3D%2220%2010%2010%200%200%200%2010%2010%22%2F%3E%3Cpolygon%20points%3D%2220%2020%2020%2010%2010%2020%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E')";
     const secLabel = (txt, required) => `<label style="font-size:11.5px;color:#64748b;font-weight:600;display:block;margin-bottom:4px">${txt}${required ? ' <span style="color:#6366f1">*</span>' : ''}</label>`;
     const cardH = (title, subtitle) => `
       <div style="border-right:4px solid #6366f1;padding-right:12px;margin-bottom:18px">
