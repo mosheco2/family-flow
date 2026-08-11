@@ -100,6 +100,7 @@ body{font-family:'Assistant',Helvetica,sans-serif;color:var(--ink);background:va
   #pdf-print-target{display:block!important;width:100%}
   *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
   @page{size:A4 portrait;margin:0.85in}
+  body{background:white!important}
 }
 
 
@@ -176,6 +177,7 @@ let   _fromName   = null; // populated after load if _fromSlug is set
             if (fr.ok) { const fd = await fr.json(); _fromName = fd.name || null; }
         } catch(e) {}
     }
+    _applyPageDesign();
     buildFullPdfSource(false);
     document.getElementById('fab-pdf-btn').style.display = 'flex';
     // store button
@@ -790,6 +792,34 @@ const _PDF_PALETTES = {
     indigo:   { accent:'#2B4A7A', ink:'#0E1824', rule:'#B8C8DC', ruleSoft:'#C8D8EC', ruleMid:'#A0B4CC', muted:'#485C72', body:'#384E64', desc:'#485C72', paper:'#F6F8FC', diamond:'#2B4A7A', diamondOut:'#A0B4CC' },
 };
 
+
+/* ── apply design options to the public page (palette → CSS vars, plating/airiness → dynamic style) ── */
+function _applyPageDesign() {
+    const p = _PDF_PALETTES[_pdfOpts.palette] || _PDF_PALETTES.bordeaux;
+    const root = document.documentElement;
+    root.style.setProperty('--accent',  p.accent);
+    root.style.setProperty('--accent2', p.ink === '#0E1824' ? '#1E3560' : p.accent + 'CC');
+    root.style.setProperty('--border',  p.ruleSoft);
+    root.style.setProperty('--bg',      p.paper);
+
+    // plating & airiness via dynamic style tag
+    const air = _pdfOpts.airiness || 2;
+    const itemGap   = [8, 10, 14][air-1] + 'px';
+    const cardPad   = [11, 14, 18][air-1] + 'px 14px';
+    const gridGap   = [8, 10, 14][air-1] + 'px';
+    const plating   = _pdfOpts.plating || 'square';
+    const imgRadius = plating === 'circle' ? '50%' : '6px';
+    const imgSize   = plating === 'large' ? '80px' : '56px';
+    const imgDisp   = plating === 'none' ? 'none' : 'block';
+
+    let dyn = document.getElementById('_design-dyn-style');
+    if (!dyn) { dyn = document.createElement('style'); dyn.id = '_design-dyn-style'; document.head.appendChild(dyn); }
+    dyn.textContent = `
+      .items-grid{gap:${gridGap}}
+      .item-card{padding:${cardPad}}
+      .item-card img{width:${imgSize};height:${imgSize};border-radius:${imgRadius};display:${imgDisp}}
+    `;
+}
 
 /* ── full menu PDF via window.print() ── */
 function buildPrintTarget(content) {

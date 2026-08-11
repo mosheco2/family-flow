@@ -53816,36 +53816,62 @@ window._mtExportPDF = function(slug, name) {
           >${label}</button>`;
     };
 
+    window._mtPdfCurrentSlug = slug;
+    const previewUrl = () => `/menu/${encodeURIComponent(slug)}?palette=${d.palette}&plating=${d.plating}&air=${d.airiness}`;
+
     const overlay = document.createElement('div');
     overlay.id = 'mt-pdf-design-overlay';
-    overlay.style.cssText = 'position:fixed;inset:0;z-index:9000;background:rgba(20,14,10,.5);display:flex;align-items:flex-end;justify-content:center';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:9000;background:rgba(20,14,10,.58);display:flex;align-items:center;justify-content:center;padding:16px';
     overlay.innerHTML = `
-      <div style="width:100%;max-width:600px;background:#FBF7EF;border-top:1px solid #DDD2BE;padding:22px 20px 32px;direction:rtl;font-family:inherit">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
-          <span style="font-family:'Frank Ruhl Libre',serif;font-size:17px;color:#241E19">עיצוב PDF — ${escHtml(name||'תפריט')}</span>
-          <button onclick="document.getElementById('mt-pdf-design-overlay').remove()" style="background:none;border:none;color:#9C8C71;font-size:22px;cursor:pointer;line-height:1;padding:0">×</button>
+      <div style="background:#FBF7EF;width:min(860px,100%);max-height:92vh;overflow-y:auto;direction:rtl;font-family:inherit;display:flex;flex-direction:column">
+        <!-- header -->
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:18px 22px 14px;border-bottom:1px solid #DDD2BE;flex-shrink:0">
+          <span style="font-size:16px;font-weight:600;color:#241E19">עיצוב PDF — ${escHtml(name||'תפריט')}</span>
+          <button onclick="document.getElementById('mt-pdf-design-overlay').remove()" style="background:none;border:none;color:#9C8C71;font-size:22px;cursor:pointer;line-height:1;padding:2px 6px">×</button>
         </div>
-        <div style="display:flex;flex-direction:column;gap:14px">
-          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-            <span style="font-size:10.5px;letter-spacing:.24em;color:#9C8C71;width:54px;flex-shrink:0">palette</span>
-            <div style="display:flex;gap:5px;flex-wrap:wrap">${palettes.map(p=>chip('palette',p.val,p.label)).join('')}</div>
+        <!-- body -->
+        <div style="display:flex;gap:0;flex:1;overflow:hidden">
+          <!-- controls column -->
+          <div style="flex:1;padding:20px 22px 24px;display:flex;flex-direction:column;gap:16px;overflow-y:auto">
+            <div>
+              <div style="font-size:10px;letter-spacing:.26em;color:#9C8C71;margin-bottom:8px">PALETTE</div>
+              <div style="display:flex;gap:6px;flex-wrap:wrap">${palettes.map(p=>chip('palette',p.val,p.label)).join('')}</div>
+            </div>
+            <div>
+              <div style="font-size:10px;letter-spacing:.26em;color:#9C8C71;margin-bottom:8px">PLATING</div>
+              <div style="display:flex;gap:6px;flex-wrap:wrap">${platings.map(p=>chip('plating',p.val,p.label)).join('')}</div>
+            </div>
+            <div>
+              <div style="font-size:10px;letter-spacing:.26em;color:#9C8C71;margin-bottom:8px">AIRINESS</div>
+              <div style="display:flex;align-items:center;gap:12px">
+                <input type="range" min="1" max="3" step="1" value="${d.airiness}" id="mtpdf-air-slider"
+                  oninput="window._mtPdfDesign.airiness=+this.value;document.getElementById('mtpdf-air-val').textContent=this.value;window._mtPdfPreviewRefresh()"
+                  style="flex:1;accent-color:#6B2434;cursor:pointer">
+                <span id="mtpdf-air-val" style="font-size:14px;color:#241E19;width:16px;text-align:center">${d.airiness}</span>
+              </div>
+            </div>
+            <div style="margin-top:4px;padding-top:16px;border-top:1px solid #E5DCCB;display:flex;flex-direction:column;gap:8px">
+              <button onclick="window._mtPdfConfirm('${escHtml(slug)}')"
+                style="width:100%;padding:12px;background:#6B2434;color:#FBF7EF;border:none;font-size:13.5px;font-family:inherit;font-weight:600;cursor:pointer;letter-spacing:.04em">
+                הורד PDF ↓
+              </button>
+              <a href="${escHtml(previewUrl())}" id="mtpdf-link-btn" target="_blank"
+                style="display:block;text-align:center;padding:10px;border:1px solid #C9BCA2;color:#5C5148;font-size:12.5px;font-family:inherit;text-decoration:none">
+                פתח קישור ציבורי ↗
+              </a>
+            </div>
           </div>
-          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-            <span style="font-size:10.5px;letter-spacing:.24em;color:#9C8C71;width:54px;flex-shrink:0">plating</span>
-            <div style="display:flex;gap:5px;flex-wrap:wrap">${platings.map(p=>chip('plating',p.val,p.label)).join('')}</div>
-          </div>
-          <div style="display:flex;align-items:center;gap:10px">
-            <span style="font-size:10.5px;letter-spacing:.24em;color:#9C8C71;width:54px;flex-shrink:0">airiness</span>
-            <input type="range" min="1" max="3" step="1" value="${d.airiness}"
-              oninput="window._mtPdfDesign.airiness=+this.value;document.getElementById('mtpdf-air-val').textContent=this.value"
-              style="flex:1;accent-color:#6B2434;cursor:pointer">
-            <span id="mtpdf-air-val" style="font-size:13px;font-family:'Frank Ruhl Libre',serif;color:#241E19;width:16px;text-align:center">${d.airiness}</span>
+          <!-- preview column -->
+          <div style="flex:0 0 340px;border-right:1px solid #DDD2BE;background:#E7DFD0;display:flex;flex-direction:column;align-items:center;padding:14px 12px;gap:8px;overflow:hidden">
+            <div style="font-size:10px;letter-spacing:.24em;color:#9C8C71">תצוגה מקדימה</div>
+            <div style="width:312px;height:560px;background:#241E19;padding:8px;flex-shrink:0;overflow:hidden">
+              <iframe id="mtpdf-preview-frame"
+                src="${escHtml(previewUrl())}"
+                style="width:375px;height:660px;border:none;transform:scale(0.832);transform-origin:top right;background:#FBF7EF">
+              </iframe>
+            </div>
           </div>
         </div>
-        <button onclick="window._mtPdfConfirm('${escHtml(slug)}')"
-          style="margin-top:20px;width:100%;padding:13px;background:#6B2434;color:#FBF7EF;border:none;font-size:14px;font-family:inherit;font-weight:600;cursor:pointer;letter-spacing:.05em">
-          הורד PDF ↓
-        </button>
       </div>`;
     document.body.appendChild(overlay);
 };
@@ -53858,6 +53884,22 @@ window._mtPdfChip = function(group, val) {
         el.style.borderColor = active ? '#6B2434' : '#CBD5E1';
         el.style.color       = active ? '#FBF7EF' : '#475569';
     });
+    window._mtPdfPreviewRefresh();
+};
+
+let _mtPdfPreviewTimer = null;
+window._mtPdfPreviewRefresh = function() {
+    clearTimeout(_mtPdfPreviewTimer);
+    _mtPdfPreviewTimer = setTimeout(() => {
+        const d = window._mtPdfDesign;
+        const slug = window._mtPdfCurrentSlug;
+        if (!slug) return;
+        const url = `/menu/${encodeURIComponent(slug)}?palette=${d.palette}&plating=${d.plating}&air=${d.airiness}`;
+        const fr = document.getElementById('mtpdf-preview-frame');
+        if (fr) fr.src = url;
+        const lb = document.getElementById('mtpdf-link-btn');
+        if (lb) lb.href = url;
+    }, 400);
 };
 
 window._mtPdfConfirm = function(slug) {
