@@ -179,7 +179,7 @@ let   _fromName   = null; // populated after load if _fromSlug is set
             if (fr.ok) { const fd = await fr.json(); _fromName = fd.name || null; }
         } catch(e) {}
     }
-    buildFullPdfSource();
+    buildFullPdfSource(false);
     document.getElementById('fab-pdf-btn').style.display = 'flex';
     // store button
     if (_d.store_id) {
@@ -793,18 +793,9 @@ function _pdfStyles() {
         @media print{
           @page{size:A4 portrait;margin:0.85in}
           *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
-          .pdf-hdr,.pdf-ftr{position:fixed;left:0;right:0;padding:0 0.85in}
-          .pdf-hdr{top:0}
-          .pdf-ftr{bottom:0}
-          .pdf-body-spacer-top{height:36px}
-          .pdf-body-spacer-bot{height:28px}
         }
-        @media screen{
-          .pdf-hdr,.pdf-ftr{display:none}
-          .pdf-body-spacer-top,.pdf-body-spacer-bot{display:none}
-        }
-        .pdf-hdr{display:flex;align-items:center;gap:14px;padding-bottom:10px;border-bottom:1px solid #E5DCCB}
-        .pdf-ftr{display:flex;align-items:center;gap:14px;padding-top:12px;border-top:1px solid #E5DCCB}
+        .pdf-hdr{display:flex;align-items:center;gap:14px;padding-bottom:10px;border-bottom:1px solid #E5DCCB;margin-bottom:0}
+        .pdf-ftr{display:flex;align-items:center;gap:14px;padding-top:12px;border-top:1px solid #E5DCCB;margin-top:28px}
         .pdf-rule{flex:1;height:1px;background:#E5DCCB}
         .pdf-rule-text{font-family:'Assistant',sans-serif;font-size:11.5px;font-weight:300;color:#7A6A50;letter-spacing:.28em;white-space:nowrap}
         .pdf-ftr-text{font-size:12px;font-weight:300;color:#5C5148;white-space:nowrap;letter-spacing:.04em}
@@ -914,99 +905,109 @@ function _pdfTitleSection(businessName, titleOverride) {
       </div>`;
 }
 
-function buildFullPdfSource() {
-    const bizName = _d.name || '';
+function _pdfBuildSections(sections, selFilter) {
+    // selFilter: null = show all, Map of {secId -> [itemId,...]} = show only selected
     const showPrices = (_d.pricing_mode === 'per_item');
-
-    const heroBlock = `
-      <div class="pdf-hero-frame" style="margin-bottom:0">
-        ${_d.cover_image_url
-          ? `<img src="${esc(_d.cover_image_url)}" alt="">`
-          : `<div class="pdf-hero-placeholder">תמונת רקע</div>`}
-      </div>`;
-
-    const sectionsHtml = (_d.sections || []).map(sec => {
-        const items = (sec.items || []).filter(i => i.is_available !== false);
+    return sections.map(sec => {
+        let items = (sec.items || []).filter(i => i.is_available !== false);
+        if (selFilter) {
+            const ids = selFilter[sec.id] || [];
+            items = ids.map(id => items.find(i => i.id === id)).filter(Boolean);
+        }
         if (!items.length) return '';
         const dishesHtml = items.map(item => _pdfDish(item, showPrices)).join('');
         return `
-          <div class="pdf-section-block" style="break-inside:avoid;margin-bottom:6px">
+          <div class="pdf-section-block" style="margin-bottom:6px">
             ${_pdfDivider()}
             <div class="pdf-sec-title">${esc(sec.name)}</div>
-            ${sec.description ? `<div style="font-size:12px;color:#9C8C71;text-align:center;margin-bottom:10px">${esc(sec.description)}</div>` : ''}
+            ${sec.description && !selFilter ? `<div style="font-size:12px;color:#9C8C71;text-align:center;margin-bottom:10px">${esc(sec.description)}</div>` : ''}
             <div class="pdf-dishes-list">${dishesHtml}</div>
           </div>`;
     }).join('');
+}
+
+function _pdfWrap(bizName, titleOverride, sectionsHtml, footnoteHtml) {
+    const heroBlock = _d.cover_image_url
+        ? `<div class="pdf-hero-frame"><img src="${esc(_d.cover_image_url)}" alt=""></div>`
+        : '';
+    return `
+      ${_pdfStyles()}
+      <div style="direction:rtl">
+        ${_pdfHeader(bizName)}
+        ${heroBlock}
+        ${_pdfTitleSection(bizName, titleOverride)}
+        ${sectionsHtml}
+        ${footnoteHtml || ''}
+        ${_pdfFooter()}
+      </div>`;
+}
+
+function buildFullPdfSource(selOnly) {
+    // selOnly=true → show only _sel selections (for summary step PDF)
+    const bizName = _d.name || '';
+    const selFilter = selOnly ? _sel : null;
+    const sectionsHtml = _pdfBuildSections(_d.sections || [], selFilter);
 
     const footnotes = [];
-    if ((_d.pricing_mode||'per_person')==='per_person' && _d.base_price_per_person > 0)
-        footnotes.push(`מחיר לאיש: ₪${num(_d.base_price_per_person)}`);
-    if (_d.min_guests && _d.max_guests)
-        footnotes.push(`${_d.min_guests}–${_d.max_guests} אורחים`);
-    const footnoteHtml = footnotes.length
-        ? `<div class="pdf-footnote">${footnotes.join(' · ')}</div>`
-        : '';
+    if (!selOnly) {
+        if ((_d.pricing_mode||'per_person')==='per_person' && _d.base_price_per_person > 0)
+            footnotes.push(`מחיר לאיש: ₪${num(_d.base_price_per_person)}`);
+        if (_d.min_guests && _d.max_guests)
+            footnotes.push(`${_d.min_guests}–${_d.max_guests} אורחים`);
+    } else {
+        const total = calcTotal();
+        if (total) footnotes.push(`סה"כ: ₪${num(total)}`);
+    }
+    const footnoteHtml = footnotes.length ? `<div class="pdf-footnote">${footnotes.join(' · ')}</div>` : '';
 
-    buildPrintTarget(`
-      ${_pdfStyles()}
-      ${_pdfHeader(bizName)}
-      ${_pdfFooter()}
-      <div class="pdf-body-spacer-top"></div>
-      <div style="direction:rtl">
-        ${heroBlock}
-        ${_pdfTitleSection(bizName)}
-        ${sectionsHtml}
-        ${footnoteHtml}
-      </div>
-      <div class="pdf-body-spacer-bot"></div>
-    `);
+    buildPrintTarget(_pdfWrap(bizName, null, sectionsHtml, footnoteHtml));
 }
 
 function exportMenuPDF() {
-    if (_mode === 'catalog' && _catItems.length) {
-        buildCatalogPdfSource();
+    if (_mode === 'catalog') {
+        // If user has cart items — show only cart; otherwise show full catalog
+        const hasCart = Object.keys(_cart).length > 0;
+        buildCatalogPdfSource(hasCart);
     } else {
-        buildFullPdfSource();
+        // In template mode: if on summary or beyond, show only selected items
+        const onSummaryOrLater = _step >= (_d.sections||[]).length;
+        const hasSelections = Object.values(_sel).some(arr => arr.length > 0);
+        buildFullPdfSource(onSummaryOrLater && hasSelections);
     }
     window.print();
 }
 
-function buildCatalogPdfSource() {
+function buildCatalogPdfSource(cartOnly) {
     const bizName = _d.name || '';
-    const cats = [...new Set(_catItems.map(i => i.category).filter(Boolean))];
+    // Show only cart items when cartOnly=true
+    const sourceItems = cartOnly
+        ? Object.entries(_cart)
+            .map(([id, qty]) => { const it = _catItems.find(i => i.id === Number(id)); return it ? { ...it, _qty: qty } : null; })
+            .filter(Boolean)
+        : _catItems;
+
+    const cats = [...new Set(sourceItems.map(i => i.category).filter(Boolean))];
     const grouped = cats.length
-        ? cats.map(cat => ({ name: cat, items: _catItems.filter(i => i.category === cat) }))
-        : [{ name: null, items: _catItems }];
+        ? cats.map(cat => ({ name: cat, items: sourceItems.filter(i => i.category === cat) }))
+        : [{ name: null, items: sourceItems }];
 
     const sectionsHtml = grouped.map(g => {
         const dishesHtml = g.items.map(item => _pdfDish(item, true)).join('');
         return `
-          <div class="pdf-section-block" style="break-inside:avoid;margin-bottom:6px">
+          <div class="pdf-section-block" style="margin-bottom:6px">
             ${_pdfDivider()}
             ${g.name ? `<div class="pdf-sec-title">${esc(g.name)}</div>` : ''}
             <div class="pdf-dishes-list">${dishesHtml}</div>
           </div>`;
     }).join('');
 
-    const heroBlock = `
-      <div class="pdf-hero-frame" style="margin-bottom:0">
-        ${_d.cover_image_url
-          ? `<img src="${esc(_d.cover_image_url)}" alt="">`
-          : `<div class="pdf-hero-placeholder">תמונת רקע</div>`}
-      </div>`;
+    const total = cartOnly ? Object.entries(_cart).reduce((s,[id,qty]) => {
+        const it = _catItems.find(i => i.id === Number(id));
+        return s + (it ? Number(it.price||0)*qty : 0);
+    }, 0) : 0;
+    const footnoteHtml = total ? `<div class="pdf-footnote">סה"כ: ₪${num(total)}</div>` : '';
 
-    buildPrintTarget(`
-      ${_pdfStyles()}
-      ${_pdfHeader(bizName)}
-      ${_pdfFooter()}
-      <div class="pdf-body-spacer-top"></div>
-      <div style="direction:rtl">
-        ${heroBlock}
-        ${_pdfTitleSection(bizName, 'קטלוג מנות')}
-        ${sectionsHtml}
-      </div>
-      <div class="pdf-body-spacer-bot"></div>
-    `);
+    buildPrintTarget(_pdfWrap(bizName, 'קטלוג מנות', sectionsHtml, footnoteHtml));
 }
 
 function exportAndShareWa() {
