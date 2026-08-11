@@ -8110,10 +8110,12 @@ window.fetchMenuRequests = async function() {
         const data = await res.json();
         window._menuRequestsCache = Array.isArray(data) ? data : (data.requests || []);
         window.renderMenuRequests();
-        // badge
+        // badge — עדכן בשני מקומות: sales tab + אזור תפריטים
         const pending = window._menuRequestsCache.filter(r => r.status === 'pending').length;
         const badge = document.getElementById('menu-requests-badge');
         if (badge) { badge.textContent = pending || ''; badge.classList.toggle('hidden', !pending); }
+        const mtBadge = document.getElementById('mt-requests-badge');
+        if (mtBadge) { mtBadge.textContent = pending || ''; mtBadge.style.display = pending ? 'flex' : 'none'; }
     } catch(e) {
         if (list) list.innerHTML = '<p class="text-center text-red-400 py-8">שגיאה בטעינת הפניות</p>';
     }
@@ -53039,9 +53041,15 @@ function _mtRenderList(root) {
                 <h2 style="margin:0;font-size:19px;font-weight:700;color:#1e293b">תפריטים 📋</h2>
                 ${list.length ? `<p style="margin:4px 0 0;font-size:12.5px;color:#64748b">${list.length} תבניות תפריט</p>` : ''}
             </div>
-            <button onclick="_mtNewModal()" style="padding:9px 18px;background:#6366f1;color:#fff;border:none;border-radius:8px;font-size:13.5px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px" onmouseover="this.style.background='#4f46e5'" onmouseout="this.style.background='#6366f1'">
-                <i class="fa-solid fa-plus" style="font-size:11px"></i>תפריט חדש
-            </button>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                <button onclick="window.switchTab('sales');setTimeout(()=>window.switchSalesTab('menu-requests'),200)" style="padding:9px 16px;background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;position:relative" title="פניות תפריט נכנסות">
+                    <i class="fa-solid fa-bell-concierge" style="font-size:11px"></i>פניות תפריט
+                    <span id="mt-requests-badge" style="display:none;position:absolute;top:-5px;right:-5px;background:#ef4444;color:#fff;border-radius:50%;font-size:9px;font-weight:700;min-width:16px;height:16px;display:flex;align-items:center;justify-content:center;padding:0 3px"></span>
+                </button>
+                <button onclick="_mtNewModal()" style="padding:9px 18px;background:#6366f1;color:#fff;border:none;border-radius:8px;font-size:13.5px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px" onmouseover="this.style.background='#4f46e5'" onmouseout="this.style.background='#6366f1'">
+                    <i class="fa-solid fa-plus" style="font-size:11px"></i>תפריט חדש
+                </button>
+            </div>
         </div>
         ${list.length === 0 ? `
         <div style="text-align:center;padding:64px 20px;color:#94a3b8">
