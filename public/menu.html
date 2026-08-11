@@ -1005,11 +1005,11 @@ function _pdfBuildSections(sections, selFilter) {
 }
 
 function _pdfWrap(bizName, titleOverride, sectionsHtml, footnoteHtml) {
+    const p = _PDF_PALETTES[_pdfOpts.palette] || _PDF_PALETTES.bordeaux;
     const heroImg = (_d.event_mode && _d.event_image_url) ? _d.event_image_url : _d.cover_image_url;
     const heroBlock = heroImg
         ? `<div style="border:1px solid ${p.rule};padding:6px;break-inside:avoid;margin-bottom:0"><img src="${esc(heroImg)}" alt="" style="display:block;width:100%;height:112px;object-fit:cover;max-height:112px"></div>`
         : '';
-    const p = _PDF_PALETTES[_pdfOpts.palette] || _PDF_PALETTES.bordeaux;
     const eventBanner = (_d.event_mode && (_d.event_greeting || _d.event_intro)) ? `
       <div style="background:${p.accent};color:#fff;text-align:center;padding:18px 24px 16px;margin-bottom:0;break-inside:avoid">
         ${_d.event_greeting ? `<div style="font-size:17px;font-weight:700;line-height:1.4;margin-bottom:${_d.event_intro ? '8px' : '0'}">${esc(_d.event_greeting)}</div>` : ''}
