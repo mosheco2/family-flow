@@ -2645,6 +2645,11 @@ app.get('/api/solo/search-by-phone', async (req, res) => {
       try { await client.query(`ALTER TABLE menu_templates ADD COLUMN IF NOT EXISTS contact_phone VARCHAR(30)`); } catch(e) {}
       try { await client.query(`ALTER TABLE menu_templates ADD COLUMN IF NOT EXISTS contact_address TEXT`); } catch(e) {}
       try { await client.query(`ALTER TABLE menu_templates ADD COLUMN IF NOT EXISTS notification_email VARCHAR(255)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE menu_templates ADD COLUMN IF NOT EXISTS event_mode BOOLEAN DEFAULT FALSE`); } catch(e) {}
+      try { await client.query(`ALTER TABLE menu_templates ADD COLUMN IF NOT EXISTS hide_prices BOOLEAN DEFAULT FALSE`); } catch(e) {}
+      try { await client.query(`ALTER TABLE menu_templates ADD COLUMN IF NOT EXISTS event_greeting TEXT`); } catch(e) {}
+      try { await client.query(`ALTER TABLE menu_templates ADD COLUMN IF NOT EXISTS event_intro TEXT`); } catch(e) {}
+      try { await client.query(`ALTER TABLE menu_templates ADD COLUMN IF NOT EXISTS event_image_url TEXT`); } catch(e) {}
       // ===== END MENU TEMPLATES MODULE =====
 
       // ===== END COMMUNITY FEED SYSTEM =====
@@ -29416,7 +29421,8 @@ app.put('/api/menu-templates/:id', verifyBizOrLegacy, async (req, res) => {
         const allowed = ['name','description','event_type','min_guests',
                          'max_guests','base_price_per_person','pricing_mode','show_related_options','is_active','is_public',
                          'cover_image_url','logo_url','slogan','contact_phone',
-                         'contact_address','notification_email'];
+                         'contact_address','notification_email',
+                         'event_mode','hide_prices','event_greeting','event_intro','event_image_url'];
         const sets = [], vals = [];
         for (const f of allowed) {
             if (req.body[f] !== undefined) {
@@ -29739,7 +29745,8 @@ app.get('/api/menu/public/:slug', async (req, res) => {
         const tmplRes = await pool.query(
             `SELECT id,name,description,event_type,min_guests,max_guests,
                     base_price_per_person,pricing_mode,cover_image_url,logo_url,slogan,
-                    contact_phone,contact_address,group_id
+                    contact_phone,contact_address,group_id,
+                    event_mode,hide_prices,event_greeting,event_intro,event_image_url
              FROM menu_templates
              WHERE public_slug=$1 AND is_active=true AND is_public=true AND template_type='menu'`,
             [req.params.slug]

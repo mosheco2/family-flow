@@ -53150,7 +53150,12 @@ window._mtOpenEditor = async function(id) {
             slogan: data.slogan || '',
             contact_phone: data.contact_phone || '',
             contact_address: data.contact_address || '',
-            notification_email: data.notification_email || ''
+            notification_email: data.notification_email || '',
+            event_mode: !!data.event_mode,
+            hide_prices: !!data.hide_prices,
+            event_greeting: data.event_greeting || '',
+            event_intro: data.event_intro || '',
+            event_image_url: data.event_image_url || ''
         };
     } catch(e) {
         _mtToast('שגיאה בטעינת התפריט', 'err');
@@ -53317,6 +53322,47 @@ function _mtRenderEditor(root) {
                     </div>
                 </div>
             </div>
+            <div style="background:#fff;border:2px solid ${f.event_mode ? '#f59e0b' : '#e2e8f0'};border-radius:12px;padding:18px">
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:${f.event_mode ? '16px' : '0'}">
+                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;flex:1">
+                        <input type="checkbox" ${f.event_mode ? 'checked' : ''} onchange="_mtEF('event_mode',this.checked);_mtRenderEditor(document.getElementById('menu-templates-root'))"
+                            style="width:16px;height:16px;accent-color:#f59e0b;cursor:pointer">
+                        <span style="font-size:14px;font-weight:700;color:#1e293b">מצב אירוע — תפריט שולחן</span>
+                    </label>
+                    ${f.event_mode ? '' : '<span style="font-size:11px;color:#94a3b8">הפוך לתפריט לאורחים / שולחן</span>'}
+                </div>
+                ${f.event_mode ? `
+                <div style="display:flex;flex-direction:column;gap:14px">
+                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;background:#fef3c7;border-radius:7px;padding:10px 12px">
+                        <input type="checkbox" ${f.hide_prices ? 'checked' : ''} onchange="_mtEF('hide_prices',this.checked)"
+                            style="width:15px;height:15px;accent-color:#f59e0b;cursor:pointer">
+                        <span style="font-size:13px;color:#92400e;font-weight:600">הסתר מחירים מהתפריט</span>
+                    </label>
+                    <div>
+                        <label style="font-size:11.5px;color:#64748b;font-weight:600;display:block;margin-bottom:4px">ברכת פתיחה לאירוע</label>
+                        <input value="${_mtEsc(f.event_greeting||'')}" oninput="_mtEF('event_greeting',this.value)"
+                            placeholder="ברוכים הבאים לאירוע החתונה של..." style="${_mtInputS()}">
+                        <div style="font-size:11px;color:#94a3b8;margin-top:3px">יופיע בראש התפריט ככותרת פתיחה</div>
+                    </div>
+                    <div>
+                        <label style="font-size:11.5px;color:#64748b;font-weight:600;display:block;margin-bottom:4px">טקסט תיאור האירוע</label>
+                        <textarea oninput="_mtEF('event_intro',this.value)" rows="3"
+                            placeholder="שמחים לארח אתכם בערב מיוחד זה..."
+                            style="${_mtInputS()};resize:vertical;min-height:70px">${_mtEsc(f.event_intro||'')}</textarea>
+                    </div>
+                    <div>
+                        <label style="font-size:11.5px;color:#64748b;font-weight:600;display:block;margin-bottom:6px">תמונת האירוע</label>
+                        ${f.event_image_url ? `<img src="${_mtEsc(f.event_image_url)}" alt="" style="width:100%;height:100px;object-fit:cover;border-radius:8px;border:1px solid #e2e8f0;display:block;margin-bottom:6px">` : ''}
+                        <div style="display:flex;gap:6px">
+                            <button onclick="_mtUploadImg('event_image_url')" style="flex:1;padding:7px 10px;background:#fef3c7;border:1px dashed #f59e0b;border-radius:6px;font-size:12px;color:#92400e;cursor:pointer">
+                                <i class="fa-solid fa-cloud-arrow-up" style="margin-left:4px"></i>${f.event_image_url ? 'החלף תמונת אירוע' : 'בחר תמונת אירוע'}
+                            </button>
+                            ${f.event_image_url ? `<button onclick="_mtEF('event_image_url','');_mtRenderEditor(document.getElementById('menu-templates-root'))" style="padding:7px 10px;background:#fff;border:1px solid #fca5a5;border-radius:6px;font-size:12px;color:#dc2626;cursor:pointer">הסר</button>` : ''}
+                        </div>
+                        <div style="font-size:11px;color:#94a3b8;margin-top:3px">תחליף את תמונת הכותרת הרגילה</div>
+                    </div>
+                </div>` : ''}
+            </div>
             <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:18px">
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
                     <h3 style="margin:0;font-size:14px;font-weight:700;color:#1e293b">שלבים ופריטים</h3>
@@ -53434,7 +53480,12 @@ window._mtSave = async function() {
                 slogan: f.slogan || null,
                 contact_phone: f.contact_phone || null,
                 contact_address: f.contact_address || null,
-                notification_email: f.notification_email || null
+                notification_email: f.notification_email || null,
+                event_mode: !!f.event_mode,
+                hide_prices: !!f.hide_prices,
+                event_greeting: f.event_greeting || null,
+                event_intro: f.event_intro || null,
+                event_image_url: f.event_image_url || null
             })
         });
         const data = await res.json();

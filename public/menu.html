@@ -330,7 +330,7 @@ function renderCatalogBrowse() {
           <div style="flex:1;min-width:0">
             <div style="font-size:13.5px;font-weight:500;color:var(--ink);margin-bottom:2px">${esc(item.name)}</div>
             ${item.description ? `<div style="font-size:11.5px;color:var(--ink3);margin-bottom:4px;line-height:1.5">${esc(item.description)}</div>` : ''}
-            ${item.price > 0 ? `<div style="font-size:12.5px;color:var(--accent);font-weight:600">₪${num(item.price)}</div>` : ''}
+            ${item.price > 0 && !_d.hide_prices ? `<div style="font-size:12.5px;color:var(--accent);font-weight:600">₪${num(item.price)}</div>` : ''}
           </div>
           <div style="display:flex;align-items:center;gap:7px;flex-shrink:0;margin-top:2px">
             ${qty > 0 ? `<button onclick="catChangeQty(${item.id},-1)" style="width:26px;height:26px;border-radius:50%;border:1.5px solid var(--accent);background:transparent;color:var(--accent);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1">−</button>
@@ -475,15 +475,23 @@ function heroHtml() {
     if (_d.min_guests && _d.max_guests) metaParts.push(`אורחים: <strong>${_d.min_guests}–${_d.max_guests}</strong>`);
     else if (_d.min_guests) metaParts.push(`מינ׳ אורחים: <strong>${_d.min_guests}</strong>`);
 
-    return `<div class="hero">
-      ${_d.cover_image_url ? `<img class="hero-img" src="${esc(_d.cover_image_url)}" alt="">` : ''}
+    const heroImg = (_d.event_mode && _d.event_image_url) ? _d.event_image_url : _d.cover_image_url;
+
+    const eventBannerHtml = (_d.event_mode && (_d.event_greeting || _d.event_intro)) ? `
+    <div style="background:var(--accent);color:#fff;text-align:center;padding:22px 24px 20px;direction:rtl">
+      ${_d.event_greeting ? `<div style="font-size:20px;font-weight:700;line-height:1.4;margin-bottom:${_d.event_intro ? '10px' : '0'}">${esc(_d.event_greeting)}</div>` : ''}
+      ${_d.event_intro ? `<div style="font-size:13.5px;opacity:.88;line-height:1.7;white-space:pre-line">${esc(_d.event_intro)}</div>` : ''}
+    </div>` : '';
+
+    return `${eventBannerHtml}<div class="hero">
+      ${heroImg ? `<img class="hero-img" src="${esc(heroImg)}" alt="">` : ''}
       <div class="hero-body">
         ${_d.logo_url ? `<img class="hero-logo" src="${esc(_d.logo_url)}" alt="לוגו">` : ''}
         <div class="hero-text">
           ${_isCatalogMode ? `<div class="hero-eyebrow">הרכבת תפריט</div>` : (evLabel ? `<div class="hero-eyebrow">${evLabel}</div>` : '')}
           <h1 class="hero-title">${_isCatalogMode ? 'בחר מה שמתאים לך' : esc(_d.name)}</h1>
           ${!_isCatalogMode && _d.slogan ? `<div class="hero-slogan">${esc(_d.slogan)}</div>` : ''}
-          ${metaParts.length ? `<div class="hero-meta">${metaParts.join('<span style="opacity:.4">·</span>')}</div>` : ''}
+          ${!_d.event_mode && metaParts.length ? `<div class="hero-meta">${metaParts.join('<span style="opacity:.4">·</span>')}</div>` : ''}
         </div>
       </div>
     </div>`;
@@ -541,7 +549,7 @@ function renderStep(idx) {
             ${item.description ? `<div class="item-desc">${esc(item.description)}</div>` : ''}
             ${item.allergens ? `<div class="item-allergens">אלרגנים: ${esc(item.allergens)}</div>` : ''}
           </div>
-          ${item.price > 0 ? `<div class="item-price">+₪${num(item.price)}</div>` : ''}
+          ${item.price > 0 && !_d.hide_prices ? `<div class="item-price">+₪${num(item.price)}</div>` : ''}
         </div>`;
     }).join('');
 
@@ -929,8 +937,8 @@ function _pdfDish(item, showPrice) {
         <div class="pdf-dish-body">
           <div class="pdf-dish-name">${esc(item.name)}</div>
           ${item.description ? `<div class="pdf-dish-desc">${esc(item.description)}</div>` : ''}
-          ${showPrice && item.price > 0 ? `<div class="pdf-dish-price">₪${num(item.price)}</div>` : ''}
-          ${!showPrice && item.price > 0 ? `<div class="pdf-dish-price">+ ₪${num(item.price)} לאיש</div>` : ''}
+          ${showPrice && item.price > 0 && !_d.hide_prices ? `<div class="pdf-dish-price">₪${num(item.price)}</div>` : ''}
+          ${!showPrice && item.price > 0 && !_d.hide_prices ? `<div class="pdf-dish-price">+ ₪${num(item.price)} לאיש</div>` : ''}
         </div>
       </div>`;
 }
@@ -947,7 +955,7 @@ function _pdfLogoBlock(businessName) {
 function _pdfTitleSection(businessName, titleOverride) {
     const evLabel = { wedding:'חתונה', bar_mitzvah:'בר/בת מצווה', birthday:'יום הולדת', corporate:'אירוע עסקי' }[_d.event_type] || '';
     const metaParts = [];
-    if ((_d.pricing_mode||'per_person')==='per_person' && _d.base_price_per_person > 0) metaParts.push(`₪${num(_d.base_price_per_person)} לאיש`);
+    if (!_d.hide_prices && (_d.pricing_mode||'per_person')==='per_person' && _d.base_price_per_person > 0) metaParts.push(`₪${num(_d.base_price_per_person)} לאיש`);
     if (_d.min_guests && _d.max_guests) metaParts.push(`${_d.min_guests}–${_d.max_guests} אורחים`);
 
     return `
@@ -987,13 +995,21 @@ function _pdfBuildSections(sections, selFilter) {
 }
 
 function _pdfWrap(bizName, titleOverride, sectionsHtml, footnoteHtml) {
-    const heroBlock = _d.cover_image_url
-        ? `<div class="pdf-hero-frame"><img src="${esc(_d.cover_image_url)}" alt=""></div>`
+    const heroImg = (_d.event_mode && _d.event_image_url) ? _d.event_image_url : _d.cover_image_url;
+    const heroBlock = heroImg
+        ? `<div class="pdf-hero-frame"><img src="${esc(heroImg)}" alt=""></div>`
         : '';
+    const p = _PDF_PALETTES[_pdfOpts.palette] || _PDF_PALETTES.bordeaux;
+    const eventBanner = (_d.event_mode && (_d.event_greeting || _d.event_intro)) ? `
+      <div style="background:${p.accent};color:#fff;text-align:center;padding:18px 24px 16px;margin-bottom:0;break-inside:avoid">
+        ${_d.event_greeting ? `<div style="font-size:17px;font-weight:700;line-height:1.4;margin-bottom:${_d.event_intro ? '8px' : '0'}">${esc(_d.event_greeting)}</div>` : ''}
+        ${_d.event_intro ? `<div style="font-size:12px;opacity:.9;line-height:1.7;white-space:pre-line">${esc(_d.event_intro)}</div>` : ''}
+      </div>` : '';
     return `
       ${_pdfStyles()}
       <div style="direction:rtl">
         ${_pdfHeader(bizName)}
+        ${eventBanner}
         ${heroBlock}
         ${_pdfTitleSection(bizName, titleOverride)}
         ${sectionsHtml}
