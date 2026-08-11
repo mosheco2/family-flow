@@ -53266,22 +53266,28 @@ function _mtRenderEditor(root) {
     };
 
     root.innerHTML = `
-    <!-- TOP BAR -->
-    <div style="position:sticky;top:0;z-index:50;background:#fff;border-bottom:1px solid #e8eaf0;padding:10px 4px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 -4px">
-      <button onclick="_mtBack()" style="display:inline-flex;align-items:center;gap:6px;padding:7px 14px;background:#f1f5f9;border:none;border-radius:8px;font-size:13px;color:#475569;cursor:pointer;font-family:inherit;font-weight:500">
-        <i class="fa-solid fa-arrow-right" style="font-size:11px"></i>חזרה
-      </button>
-      <div style="flex:1;min-width:0">
-        <div style="font-weight:800;font-size:15px;color:#1e293b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">עריכת תפריט</div>
-        <div style="font-size:11px;color:#94a3b8;margin-top:1px">כל שינוי נשמר בלחיצה · ${_mtEsc(t.name)}</div>
+    <!-- TOP BAR: two rows -->
+    <div style="position:sticky;top:0;z-index:50;background:#fff;border-bottom:1px solid #e8eaf0;margin:0 -4px">
+      <!-- row 1: back / title / save -->
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 16px 8px">
+        <button onclick="_mtBack()" style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;background:#f1f5f9;border:none;border-radius:8px;font-size:13px;color:#475569;cursor:pointer;font-family:inherit;font-weight:500;flex-shrink:0">
+          <i class="fa-solid fa-arrow-right" style="font-size:11px"></i>חזרה
+        </button>
+        <div style="flex:1;min-width:0;overflow:hidden">
+          <div style="font-weight:800;font-size:15px;color:#1e293b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">עריכת תפריט · ${_mtEsc(t.name)}</div>
+        </div>
+        <div style="display:flex;gap:7px;flex-shrink:0">
+          ${pUrl ? `<button onclick="_mtCopyLink('${_mtEsc(t.public_slug)}')" style="padding:7px 14px;background:#fff;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;color:#475569;cursor:pointer;font-family:inherit">קישור</button>` : ''}
+          <button id="mt-save-btn" onclick="_mtSave()" style="padding:7px 18px;background:#6366f1;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">שמור</button>
+        </div>
       </div>
-      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+      <!-- row 2: toggles + autosave status -->
+      <div style="display:flex;align-items:center;gap:6px;padding:0 16px 9px;flex-wrap:wrap">
         ${toggleChip('פעיל', f.is_active, "_mtEF('is_active',this.checked)")}
         ${toggleChip('קישור ציבורי', f.is_public, "_mtEF('is_public',this.checked)")}
         ${toggleChip('תפריט שולחן', f.event_mode, _r("_mtEF('event_mode',this.checked)"))}
+        <span id="mt-autosave-status" style="margin-right:auto;font-size:11px;color:#94a3b8"></span>
       </div>
-      ${pUrl ? `<button onclick="_mtCopyLink('${_mtEsc(t.public_slug)}')" style="padding:7px 14px;background:#fff;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;color:#475569;cursor:pointer;font-family:inherit">קישור</button>` : ''}
-      <button id="mt-save-btn" onclick="_mtSave()" style="padding:8px 20px;background:#6366f1;color:#fff;border:none;border-radius:8px;font-size:13.5px;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 2px 8px rgba(99,102,241,.3)">שמור</button>
     </div>
 
     <!-- GRID: preview left, forms right -->
@@ -53487,7 +53493,22 @@ function _mtRenderEditor(root) {
 }
 
 // ======= EDITOR HELPERS =======
-window._mtEF = function(k, v) { _mtState.editForm[k] = v; };
+let _mtAutoSaveTimer = null;
+window._mtEF = function(k, v) {
+    _mtState.editForm[k] = v;
+    // debounced auto-save after 1.5s
+    clearTimeout(_mtAutoSaveTimer);
+    const el = document.getElementById('mt-autosave-status');
+    if (el) el.textContent = 'שינויים לא שמורים...';
+    _mtAutoSaveTimer = setTimeout(async () => {
+        const statusEl = document.getElementById('mt-autosave-status');
+        if (statusEl) statusEl.textContent = 'שומר...';
+        await window._mtSave(true);
+        const statusEl2 = document.getElementById('mt-autosave-status');
+        if (statusEl2) statusEl2.textContent = 'נשמר ✓';
+        setTimeout(() => { const s = document.getElementById('mt-autosave-status'); if (s) s.textContent = ''; }, 2500);
+    }, 1500);
+};
 
 window._mtUploadImg = async function(field) {
     const input = document.createElement('input');
@@ -53535,14 +53556,14 @@ window._mtBack = async function() {
     _mtRender();
 };
 
-window._mtSave = async function() {
+window._mtSave = async function(silent) {
     const f = _mtState.editForm;
     const t = _mtState.cur;
     if (!t) return;
     const name = (f.name || '').trim();
-    if (!name) { _mtToast('שם התפריט נדרש', 'err'); return; }
+    if (!name) { if (!silent) _mtToast('שם התפריט נדרש', 'err'); return; }
     const btn = document.getElementById('mt-save-btn');
-    if (btn) { btn.disabled = true; btn.textContent = '...'; }
+    if (btn && !silent) { btn.disabled = true; btn.textContent = '...'; }
     try {
         const res = await fetch(`/api/menu-templates/${t.id}`, {
             method: 'PUT',
@@ -53573,9 +53594,9 @@ window._mtSave = async function() {
         });
         const data = await res.json();
         if (!res.ok) { _mtToast(data.error || 'שגיאה', 'err'); }
-        else { _mtState.cur = { ..._mtState.cur, ...data }; _mtToast('נשמר ✓'); }
-    } catch(e) { _mtToast('שגיאת תקשורת', 'err'); }
-    if (btn) { btn.disabled = false; btn.textContent = 'שמור'; }
+        else { _mtState.cur = { ..._mtState.cur, ...data }; if (!silent) _mtToast('נשמר ✓'); }
+    } catch(e) { if (!silent) _mtToast('שגיאת תקשורת', 'err'); }
+    if (btn && !silent) { btn.disabled = false; btn.textContent = 'שמור'; }
 };
 
 // ======= ADD SECTION MODAL =======
