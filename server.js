@@ -4813,6 +4813,94 @@ app.delete('/api/sa/pilot-waitlist/:id', verifySA, async (req, res) => {
 });
 
 // ============================================================
+// --- BIZ OTP (הרשמה + שחזור סיסמה) ---
+// ============================================================
+const _bizCrypto = require('crypto');
+function _bizHashOtp(code) {
+    return _bizCrypto.createHash('sha256').update(code).digest('hex');
+}
+
+app.post('/api/biz/send-otp', async (req, res) => {
+    try {
+        const { phone, purpose } = req.body;
+        if (!phone || !['register', 'reset_password'].includes(purpose)) {
+            return res.status(400).json({ success: false, error: 'פרמטרים חסרים או לא תקינים' });
+        }
+
+        // rate-limit: מקסימום 3 בקשות לשעה לאותו phone
+        const rlRes = await pool.query(
+            `SELECT COUNT(*) FROM business_otp WHERE phone=$1 AND created_at > NOW() - INTERVAL '1 hour'`,
+            [phone]
+        );
+        if (parseInt(rlRes.rows[0].count) >= 3) {
+            return res.status(429).json({ success: false, error: 'שלחת יותר מדי בקשות. נסה שוב בעוד שעה.' });
+        }
+
+        // מחק OTP ישן לאותו phone+purpose
+        await pool.query(`DELETE FROM business_otp WHERE phone=$1 AND purpose=$2`, [phone, purpose]);
+
+        // צור קוד חדש
+        const code = Math.floor(100000 + Math.random() * 900000).toString();
+        const codeHash = _bizHashOtp(code);
+        const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 דקות
+
+        await pool.query(
+            `INSERT INTO business_otp (phone, code_hash, purpose, expires_at) VALUES ($1, $2, $3, $4)`,
+            [phone, codeHash, purpose, expiresAt]
+        );
+
+        const smsText = `קוד האימות שלך הוא: ${code}. תקף ל-5 דקות.`;
+        await sendSMSviaTwilio(phone, smsText);
+
+        res.json({ success: true });
+    } catch(e) {
+        console.error('biz send-otp error:', e);
+        res.status(500).json({ success: false, error: 'שגיאה בשליחת קוד האימות' });
+    }
+});
+
+app.post('/api/biz/verify-otp', async (req, res) => {
+    try {
+        const { phone, code, purpose } = req.body;
+        if (!phone || !code || !['register', 'reset_password'].includes(purpose)) {
+            return res.status(400).json({ success: false, error: 'פרמטרים חסרים או לא תקינים' });
+        }
+
+        const otpRes = await pool.query(
+            `SELECT * FROM business_otp WHERE phone=$1 AND purpose=$2`,
+            [phone, purpose]
+        );
+        if (otpRes.rows.length === 0) {
+            return res.status(400).json({ success: false, error: 'לא נמצאה בקשת אימות פעילה' });
+        }
+
+        const row = otpRes.rows[0];
+
+        if (new Date() > new Date(row.expires_at)) {
+            await pool.query(`DELETE FROM business_otp WHERE id=$1`, [row.id]);
+            return res.status(400).json({ success: false, error: 'פג תוקף הקוד. בקש קוד חדש.' });
+        }
+
+        if (_bizHashOtp(code) !== row.code_hash) {
+            const newAttempts = row.attempts + 1;
+            if (newAttempts >= 3) {
+                await pool.query(`DELETE FROM business_otp WHERE id=$1`, [row.id]);
+                return res.status(400).json({ success: false, error: 'קוד שגוי 3 פעמים. בקש קוד חדש.' });
+            }
+            await pool.query(`UPDATE business_otp SET attempts=$1 WHERE id=$2`, [newAttempts, row.id]);
+            return res.status(400).json({ success: false, error: `קוד שגוי. נותרו ${3 - newAttempts} ניסיונות.` });
+        }
+
+        // הצלחה — מחק
+        await pool.query(`DELETE FROM business_otp WHERE id=$1`, [row.id]);
+        res.json({ success: true });
+    } catch(e) {
+        console.error('biz verify-otp error:', e);
+        res.status(500).json({ success: false, error: 'שגיאה באימות הקוד' });
+    }
+});
+
+// ============================================================
 // --- SMS OTP LOGIN (SUPER ADMIN MASTER) ---
 // ============================================================
 
