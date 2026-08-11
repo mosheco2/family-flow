@@ -834,6 +834,7 @@ window.injectBusinessUI = function() {
                         <button id="btn-sales-settings" onclick="window.switchSalesTab('settings')" class="flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition"><i class="fa-solid fa-gear text-sm"></i>הגדרות</button>
                         <button id="btn-sales-analytics" onclick="window.switchSalesTab('analytics')" class="flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition"><i class="fa-solid fa-chart-bar text-sm"></i>אנליטיקה</button>
                         <button id="btn-sales-gallery" onclick="window.switchSalesTab('gallery')" class="flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition"><i class="fa-solid fa-images text-sm"></i>גלריה</button>
+                        <button id="btn-sales-menu-requests" onclick="window.switchSalesTab('menu-requests')" class="flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition relative"><i class="fa-solid fa-bell-concierge text-sm"></i>פניות תפריט<span id="menu-requests-badge" class="hidden absolute -top-1 -right-1 bg-red-500 text-white text-[9px] font-black rounded-full min-w-[16px] h-4 flex items-center justify-center px-1"></span></button>
                     </div>
                     
                     <div id="sales-view-orders" class="space-y-4">
@@ -865,6 +866,20 @@ window.injectBusinessUI = function() {
                             <button onclick="window.openNewQuoteModal()" class="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-md hover:bg-indigo-700 transition"><i class="fa-solid fa-plus mr-1"></i> הצעה חדשה</button>
                         </div>
                         <div id="store-quotes-list" class="space-y-3 pb-8"></div>
+                    </div>
+
+                    <div id="sales-view-menu-requests" class="hidden space-y-4">
+                        <div class="flex justify-between items-center mb-2 px-1">
+                            <h4 class="font-bold text-slate-700 text-sm">פניות תפריט נכנסות 🔔</h4>
+                            <select id="menu-requests-filter" onchange="window.renderMenuRequests()" class="modern-input py-1.5 px-3 text-xs font-bold bg-slate-50 border-slate-200 rounded-xl outline-none focus:border-indigo-400">
+                                <option value="all">כל הפניות</option>
+                                <option value="pending">חדשות (טרם נצפו)</option>
+                                <option value="viewed">נצפו</option>
+                                <option value="converted">הומרו להצעה</option>
+                                <option value="closed">סגורות</option>
+                            </select>
+                        </div>
+                        <div id="menu-requests-list" class="space-y-3 pb-8"></div>
                     </div>
 
                     <div id="sales-view-work-orders" class="hidden space-y-4">
@@ -8082,6 +8097,126 @@ async function submitForgotCode() {
         btn.innerText = 'שלח קוד';
     }
 }
+// ============================================================
+// --- פניות תפריט נכנסות (Menu Quote Requests) ---
+// ============================================================
+window._menuRequestsCache = [];
+
+window.fetchMenuRequests = async function() {
+    const list = document.getElementById('menu-requests-list');
+    if (list) list.innerHTML = '<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200"><i class="fa-solid fa-spinner fa-spin mr-2"></i> טוען פניות...</p>';
+    try {
+        const res = await fetch(`${API}/menu-quote-requests`, { headers: { 'Authorization': `Bearer ${window._bizToken}` } });
+        const data = await res.json();
+        window._menuRequestsCache = Array.isArray(data) ? data : (data.requests || []);
+        window.renderMenuRequests();
+        // badge
+        const pending = window._menuRequestsCache.filter(r => r.status === 'pending').length;
+        const badge = document.getElementById('menu-requests-badge');
+        if (badge) { badge.textContent = pending || ''; badge.classList.toggle('hidden', !pending); }
+    } catch(e) {
+        if (list) list.innerHTML = '<p class="text-center text-red-400 py-8">שגיאה בטעינת הפניות</p>';
+    }
+};
+
+window.renderMenuRequests = function() {
+    const list = document.getElementById('menu-requests-list');
+    if (!list) return;
+    const filter = document.getElementById('menu-requests-filter')?.value || 'all';
+    const items = (window._menuRequestsCache || []).filter(r => filter === 'all' || r.status === filter);
+    if (!items.length) {
+        list.innerHTML = '<p class="text-center text-slate-400 py-10 bg-slate-50 rounded-2xl border border-dashed border-slate-200 text-sm">אין פניות תפריט' + (filter !== 'all' ? ' בסטטוס זה' : '') + '</p>';
+        return;
+    }
+    const statusLabels = { pending:'חדשה', viewed:'נצפתה', converted:'הומרה להצעה', closed:'סגורה' };
+    const statusColors = { pending:'bg-amber-100 text-amber-700', viewed:'bg-blue-100 text-blue-700', converted:'bg-emerald-100 text-emerald-700', closed:'bg-slate-100 text-slate-500' };
+    const sourceLabels = { public_form:'אשף תפריט', catalog_builder:'בניית קטלוג' };
+
+    list.innerHTML = items.map(r => {
+        const status = r.status || 'pending';
+        const sBadge = `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${statusColors[status]||'bg-slate-100 text-slate-500'}">${statusLabels[status]||status}</span>`;
+        const sourceLabel = sourceLabels[r.source] || r.source || '';
+        const dt = r.created_at ? new Date(r.created_at).toLocaleString('he-IL',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'}) : '';
+
+        // selections: catalog_builder → array of {name,qty,price}; public_form → {sectionId:[itemIds]}
+        let itemsHtml = '';
+        const sels = r.selections;
+        if (r.source === 'catalog_builder' && Array.isArray(sels) && sels.length) {
+            const total = sels.reduce((s, ci) => s + (ci.price||0)*(ci.qty||1), 0);
+            itemsHtml = `<div class="mt-2 bg-slate-50 rounded-xl p-2 space-y-0.5">
+              ${sels.map(ci => `<div class="text-xs text-slate-600 flex justify-between"><span>${escHtml(ci.name)} × ${ci.qty}</span>${ci.price>0?`<span class="font-bold text-slate-700">₪${((ci.price*ci.qty)).toLocaleString('he-IL')}</span>`:''}</div>`).join('')}
+              ${total>0?`<div class="text-xs font-bold text-slate-800 border-t border-slate-200 pt-1 mt-1 flex justify-between"><span>סה״כ</span><span>₪${total.toLocaleString('he-IL')}</span></div>`:''}
+            </div>`;
+        } else if (sels && typeof sels === 'object' && !Array.isArray(sels) && Object.keys(sels).length) {
+            const flat = Object.values(sels).flat().filter(Boolean);
+            itemsHtml = `<div class="mt-1.5 text-xs text-slate-500 bg-slate-50 rounded-xl p-2">${flat.slice(0,6).map(s=>escHtml(String(s))).join(' · ')}${flat.length>6?` +${flat.length-6} נוספים`:''}</div>`;
+        }
+
+        const convertBtn = (status !== 'converted' && status !== 'closed') ? `<button onclick="window.convertMenuRequest(${r.id})" class="text-xs font-bold bg-indigo-600 text-white px-3 py-1.5 rounded-lg hover:bg-indigo-700 transition">המר להצעת מחיר ←</button>` : '';
+        const closeBtn = (status !== 'converted' && status !== 'closed') ? `<button onclick="window.updateMenuRequestStatus(${r.id},'closed')" class="text-xs font-bold bg-slate-100 text-slate-500 px-3 py-1.5 rounded-lg hover:bg-slate-200 transition">סגור</button>` : '';
+
+        return `<div class="bg-white border ${status==='pending'?'border-amber-300':'border-slate-200'} rounded-2xl p-4 shadow-sm space-y-2" id="mr-card-${r.id}">
+          <div class="flex items-start justify-between gap-2">
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2 flex-wrap">
+                <span class="font-bold text-slate-800 text-sm">${escHtml(r.customer_name||'לא ידוע')}</span>
+                ${sBadge}
+                ${sourceLabel ? `<span class="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full">${sourceLabel}</span>` : ''}
+              </div>
+              ${r.template_name ? `<div class="text-xs text-slate-500 mt-0.5">📋 ${escHtml(r.template_name)}</div>` : ''}
+              <div class="flex flex-wrap gap-x-4 gap-y-0.5 mt-1 text-xs text-slate-500">
+                ${r.customer_phone ? `<a href="tel:${escHtml(r.customer_phone)}" class="text-indigo-600 font-bold">📞 ${escHtml(r.customer_phone)}</a>` : ''}
+                ${r.customer_email ? `<span>✉️ ${escHtml(r.customer_email)}</span>` : ''}
+                ${r.event_date ? `<span>📅 ${escHtml(r.event_date)}</span>` : ''}
+                ${r.guest_count ? `<span>👥 ${r.guest_count} אורחים</span>` : ''}
+              </div>
+              ${itemsHtml}
+              ${r.custom_notes ? `<div class="mt-1.5 text-xs text-slate-500 italic border-r-2 border-slate-200 pr-2">${escHtml(r.custom_notes)}</div>` : ''}
+            </div>
+            <div class="text-[10px] text-slate-400 text-left shrink-0">${dt}</div>
+          </div>
+          <div class="flex gap-2 justify-end pt-1 border-t border-slate-100">
+            ${convertBtn}
+            ${closeBtn}
+          </div>
+        </div>`;
+    }).join('');
+};
+
+window.updateMenuRequestStatus = async function(id, status) {
+    try {
+        await fetch(`${API}/menu-quote-requests/${id}/status`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${window._bizToken}` },
+            body: JSON.stringify({ status })
+        });
+        const r = window._menuRequestsCache.find(x => x.id === id);
+        if (r) r.status = status;
+        window.renderMenuRequests();
+    } catch(e) { showToast('error', 'שגיאה בעדכון סטטוס'); }
+};
+
+window.convertMenuRequest = async function(id) {
+    const card = document.getElementById(`mr-card-${id}`);
+    if (card) card.style.opacity = '0.5';
+    try {
+        const res = await fetch(`${API}/menu-quote-requests/${id}/convert`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${window._bizToken}` }
+        });
+        const data = await res.json();
+        if (!res.ok) { showToast('error', data.error || 'שגיאה בהמרה'); if(card) card.style.opacity='1'; return; }
+        showToast('success', 'הפנייה הומרה להצעת מחיר בהצלחה!');
+        const r = window._menuRequestsCache.find(x => x.id === id);
+        if (r) r.status = 'converted';
+        window.renderMenuRequests();
+        // מעבר ללשונית הצעות מחיר
+        setTimeout(() => window.switchSalesTab('quotes'), 800);
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); if(card) card.style.opacity='1'; }
+};
+
+function escHtml(s) { if (!s && s !== 0) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
 // ============================================================
 // --- מודול חנות ומכירות (Store / E-commerce B2B/B2C) ---
 // ============================================================
@@ -23005,7 +23140,7 @@ setInterval(() => {
 
 window.switchSalesTab = function(subTab) {
     window._currentBizSubTab = 'sales.' + subTab;
-    ['pos', 'orders', 'catalog', 'complex', 'marketing', 'settings', 'quotes', 'analytics', 'reviews', 'work-orders', 'gallery'].forEach(t => {
+    ['pos', 'orders', 'catalog', 'complex', 'marketing', 'settings', 'quotes', 'analytics', 'reviews', 'work-orders', 'gallery', 'menu-requests'].forEach(t => {
         const view = document.getElementById(`sales-view-${t}`); if(view) view.classList.add('hidden');
         const btn = document.getElementById(`btn-sales-${t}`); if(btn) btn.className = 'flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition';
     });
@@ -23069,6 +23204,9 @@ window.switchSalesTab = function(subTab) {
     }
     if (subTab === 'work-orders') {
         if (typeof window.fetchWorkOrders === 'function') window.fetchWorkOrders();
+    }
+    if (subTab === 'menu-requests') {
+        window.fetchMenuRequests();
     }
     if (subTab === 'analytics') {
         setTimeout(() => { if (typeof window.renderAnalytics === 'function') window.renderAnalytics(); }, 150);
