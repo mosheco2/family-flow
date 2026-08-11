@@ -1439,6 +1439,23 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
       try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS module_requests JSONB DEFAULT '[]'`); } catch(e) {}
       // ===== END ONEFLOWLIFE MEMBER FEATURE =====
 
+      // ===== BIZ WIZARD =====
+      try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS managed_modules JSONB DEFAULT '[]'`); } catch(e) {}
+      try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS staff_roles JSONB DEFAULT '[]'`); } catch(e) {}
+      try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS opening_hours JSONB DEFAULT NULL`); } catch(e) {}
+      try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS wizard_completed BOOLEAN DEFAULT FALSE`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS business_otp (
+          id         SERIAL PRIMARY KEY,
+          phone      VARCHAR(20)  NOT NULL,
+          code_hash  VARCHAR(64)  NOT NULL,
+          purpose    VARCHAR(20)  NOT NULL,
+          expires_at TIMESTAMPTZ  NOT NULL,
+          attempts   SMALLINT     NOT NULL DEFAULT 0,
+          created_at TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+      )`); } catch(e) {}
+      try { await client.query(`CREATE INDEX IF NOT EXISTS idx_business_otp_phone ON business_otp(phone)`); } catch(e) {}
+      // ===== END BIZ WIZARD =====
+
       // ===== BEAUTY & COSMETICS MODULE =====
       await client.query(`CREATE TABLE IF NOT EXISTS beauty_practitioners (
         id                     SERIAL PRIMARY KEY,
