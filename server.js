@@ -4849,7 +4849,7 @@ app.post('/api/biz/send-otp', async (req, res) => {
             [phone, codeHash, purpose, expiresAt]
         );
 
-        const smsText = `קוד האימות שלך הוא: ${code}. תקף ל-5 דקות.`;
+        const smsText = `Oneflow Life — קוד האימות שלך: ${code}. תקף ל-5 דקות. אין להעביר קוד זה לאף אחד.`;
         await sendSMSviaTwilio(phone, smsText);
 
         res.json({ success: true });
