@@ -187,7 +187,7 @@ let   _fromName   = null; // populated after load if _fromSlug is set
         storeBtn.style.display = 'flex';
     }
     if (_isPdfMode) { setTimeout(exportMenuPDF, 800); return; }
-    if (_isWaMode)  { setTimeout(exportAndShareWa, 800); return; }
+    if (_isWaMode)  { setTimeout(exportAndShareWa, 800); }
     // routing logic
     if (!_d.show_related_options) {
         // no landing: go directly to template wizard or catalog

@@ -52998,9 +52998,8 @@ function _mtRenderList(root) {
             [`_mtOpenEditor(${t.id})`,           'fa-pen',            '#6366f1', 'ערוך'],
             [`_mtDuplicate(${t.id})`,             'fa-copy',           '#94a3b8', 'שכפל'],
             [`_mtCopyLink('${_mtEsc(t.public_slug)}')`, 'fa-link',    '#94a3b8', 'קישור'],
-            [`_mtPreview('${_mtEsc(t.public_slug)}')`,  'fa-eye',     '#94a3b8', 'תצוגה'],
-            [`_mtExportPDF('${_mtEsc(t.public_slug)}','${_mtEsc(t.name)}')`, 'fa-file-pdf', '#dc2626', 'PDF'],
-            [`_mtWaShare('${_mtEsc(t.public_slug)}','${_mtEsc(t.name)}')`, 'fa-whatsapp', '#25D366', 'ווצאפ'],
+            [`_mtExportPDF('${_mtEsc(t.public_slug)}','${_mtEsc(t.name)}')`, 'fa-eye',     '#6366f1', 'תצוגה מקדימה ושיתוף'],
+            [`_mtPdfOnly('${_mtEsc(t.public_slug)}','${_mtEsc(t.name)}')`, 'fa-file-pdf', '#dc2626', 'PDF'],
             [`_mtDeleteConfirm(${t.id},'${_mtEsc(t.name)}')`, 'fa-trash-can', '#ef4444', 'מחק'],
         ];
         return `
@@ -53826,7 +53825,7 @@ window._mtExportPDF = function(slug, name) {
       <div style="background:#FBF7EF;width:min(860px,100%);max-height:92vh;overflow-y:auto;direction:rtl;font-family:inherit;display:flex;flex-direction:column">
         <!-- header -->
         <div style="display:flex;justify-content:space-between;align-items:center;padding:18px 22px 14px;border-bottom:1px solid #DDD2BE;flex-shrink:0">
-          <span style="font-size:16px;font-weight:600;color:#241E19">עיצוב PDF — ${escHtml(name||'תפריט')}</span>
+          <span style="font-size:16px;font-weight:600;color:#241E19">תצוגה מקדימה ושיתוף — ${escHtml(name||'תפריט')}</span>
           <button onclick="document.getElementById('mt-pdf-design-overlay').remove()" style="background:none;border:none;color:#9C8C71;font-size:22px;cursor:pointer;line-height:1;padding:2px 6px">×</button>
         </div>
         <!-- body -->
@@ -53853,7 +53852,11 @@ window._mtExportPDF = function(slug, name) {
             <div style="margin-top:4px;padding-top:16px;border-top:1px solid #E5DCCB;display:flex;flex-direction:column;gap:8px">
               <button onclick="window._mtPdfConfirm('${escHtml(slug)}')"
                 style="width:100%;padding:12px;background:#6B2434;color:#FBF7EF;border:none;font-size:13.5px;font-family:inherit;font-weight:600;cursor:pointer;letter-spacing:.04em">
-                הורד PDF ↓
+                ↓ הורד PDF
+              </button>
+              <button onclick="window._mtWaShareFromPanel('${escHtml(slug)}')"
+                style="width:100%;padding:11px;background:#25D366;color:#fff;border:none;font-size:13.5px;font-family:inherit;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px">
+                <i class="fa-brands fa-whatsapp"></i> שתף בווצאפ
               </button>
               <a href="${escHtml(previewUrl())}" id="mtpdf-link-btn" target="_blank"
                 style="display:block;text-align:center;padding:10px;border:1px solid #C9BCA2;color:#5C5148;font-size:12.5px;font-family:inherit;text-decoration:none">
@@ -53911,9 +53914,20 @@ window._mtPdfConfirm = function(slug) {
 };
 
 window._mtWaShare = function(slug, name) {
-    if (!slug) { showToast('error', 'יש לפרסם את התפריט תחילה'); return; }
-    const w = window.open(`/menu/${slug}?wa=1`, '_blank', 'width=900,height=700');
-    if (!w) { showToast('error', 'חסום חלון קופץ — אפשר זאת בדפדפן ונסה שוב'); }
+    // פותח את פאנל התצוגה המקדימה (מוזג עם _mtExportPDF)
+    window._mtExportPDF(slug, name);
+};
+
+window._mtWaShareFromPanel = function(slug) {
+    const d = window._mtPdfDesign;
+    const menuUrl = `${location.origin}/menu/${encodeURIComponent(slug)}?palette=${d.palette}&plating=${d.plating}&air=${d.airiness}`;
+    const text = encodeURIComponent(`היי, הנה התפריט שלנו:\n${menuUrl}`);
+    window.open(`https://wa.me/?text=${text}`, '_blank');
+};
+
+window._mtPdfOnly = function(slug, name) {
+    // פותח PDF ישירות בלי פאנל עיצוב (legacy)
+    window._mtExportPDF(slug, name);
 };
 
 window._mtCopyLink = function(slug) {
