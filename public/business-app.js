@@ -52991,75 +52991,109 @@ function _mtEtLabel(v) { return (_MT_ET.find(e => e.v === v) || {l: v || 'כלל
 
 function _mtRenderList(root) {
     const list = _mtState.list;
+
+    // diagonal stripe SVG pattern for placeholder thumbnail
+    const stripeSvg = `url("data:image/svg+xml,%3Csvg width='20' height='20' viewBox='0 0 20 20' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23c7d2fe' fill-opacity='0.45'%3E%3Cpolygon points='20 10 10 0 0 0 10 10'/%3E%3Cpolygon points='20 20 20 10 10 20'/%3E%3C/g%3E%3C/svg%3E")`;
+
+    // status badge colors
+    const statusStyle = (t) => {
+        if (t.is_active) return 'background:#d1fae5;color:#065f46';
+        return 'background:#fee2e2;color:#991b1b';
+    };
+    const statusLabel = (t) => t.is_active ? 'פעיל' : 'לא פעיל';
+
+    // event type pill color map
+    const etColors = { wedding:'#fef3c7;color:#92400e', bar_mitzvah:'#ede9fe;color:#5b21b6', brit:'#dbeafe;color:#1e40af', birthday:'#fce7f3;color:#9d174d', corporate:'#f0fdf4;color:#166534', other:'#f1f5f9;color:#475569' };
+    const etBg = (et) => etColors[et] || etColors.other;
+
     const cards = list.map(t => {
         const price = (t.pricing_mode||'per_person')==='per_item' ? 'לפי מנות' : (t.base_price_per_person ? `₪${Number(t.base_price_per_person).toLocaleString('he-IL')} לאיש` : '');
-        const guests = (t.min_guests || t.max_guests) ? `${t.min_guests || ''}–${t.max_guests || ''} אורחים` : '';
-        const btnData = [
-            [`_mtOpenEditor(${t.id})`,           'fa-pen',            '#6366f1', 'ערוך'],
-            [`_mtDuplicate(${t.id})`,             'fa-copy',           '#94a3b8', 'שכפל'],
-            [`_mtCopyLink('${_mtEsc(t.public_slug)}')`, 'fa-link',    '#94a3b8', 'קישור'],
-            [`_mtExportPDF('${_mtEsc(t.public_slug)}','${_mtEsc(t.name)}')`, 'fa-eye',     '#6366f1', 'תצוגה מקדימה ושיתוף'],
-            [`_mtPdfOnly('${_mtEsc(t.public_slug)}','${_mtEsc(t.name)}')`, 'fa-file-pdf', '#dc2626', 'PDF'],
-            [`_mtDeleteConfirm(${t.id},'${_mtEsc(t.name)}')`, 'fa-trash-can', '#ef4444', 'מחק'],
-        ];
+        const metaParts = [];
+        if (t.item_count)    metaParts.push(`${t.item_count} מנות`);
+        if (t.section_count) metaParts.push(`${t.section_count} קטגוריות`);
+        const meta = metaParts.join(' · ');
+        const [etBgColor, etTxtColor] = (etBg(t.event_type)||'').split(';color:');
+
         return `
-        <div style="background:#fff;border-radius:12px;border:1px solid #e2e8f0;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 1px 4px rgba(0,0,0,.05)">
-            <div style="height:118px;background:#f1f5f9;position:relative;flex-shrink:0">
-                ${t.image_url ? `<img src="${_mtEsc(t.image_url)}" style="width:100%;height:100%;object-fit:cover">` :
-                    '<div style="height:100%;display:flex;align-items:center;justify-content:center;color:#cbd5e1;font-size:30px">📋</div>'}
-                <span style="position:absolute;top:8px;right:8px;padding:3px 9px;border-radius:999px;font-size:11px;font-weight:600;background:${t.is_active?'#dcfce7':'#fee2e2'};color:${t.is_active?'#16a34a':'#dc2626'}">
-                    ${t.is_active ? 'פעיל' : 'לא פעיל'}
-                </span>
-                ${t.event_type ? `<span style="position:absolute;top:8px;left:8px;padding:3px 9px;border-radius:999px;font-size:11px;background:#e0e7ff;color:#4338ca">${_mtEtLabel(t.event_type)}</span>` : ''}
+        <div style="background:#fff;border-radius:16px;border:1px solid #e2e8f0;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 2px 8px rgba(99,102,241,.07)">
+          <!-- thumbnail -->
+          <div style="height:120px;position:relative;flex-shrink:0;background:#eef2ff ${stripeSvg}">
+            ${t.image_url ? `<img src="${_mtEsc(t.image_url)}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover">` : ''}
+            <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;opacity:.18;font-size:13px;color:#6366f1;font-weight:500;pointer-events:none;letter-spacing:.04em">${t.image_url?'':'תמונת תפריט'}</div>
+            <!-- status top-right -->
+            <span style="position:absolute;top:10px;right:10px;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:600;${statusStyle(t)}">${statusLabel(t)}</span>
+            <!-- event type top-left -->
+            ${t.event_type ? `<span style="position:absolute;top:10px;left:10px;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:500;background:${etBgColor};color:${etTxtColor||'#475569'}">${_mtEtLabel(t.event_type)}</span>` : ''}
+          </div>
+          <!-- body -->
+          <div style="padding:14px 16px 10px;flex:1;display:flex;flex-direction:column;gap:2px">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">
+              <span style="font-weight:700;font-size:15px;color:#1e293b;line-height:1.3">${_mtEsc(t.name)}</span>
+              ${price ? `<span style="font-size:13px;color:#6366f1;font-weight:700;white-space:nowrap;flex-shrink:0">${price}</span>` : ''}
             </div>
-            <div style="padding:14px 15px;flex:1;display:flex;flex-direction:column;gap:5px">
-                <div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px">
-                    <span style="font-weight:700;font-size:14.5px;color:#1e293b;line-height:1.3">${_mtEsc(t.name)}</span>
-                    ${price ? `<span style="font-size:13px;color:#6366f1;font-weight:600;white-space:nowrap">${price}</span>` : ''}
-                </div>
-                ${t.description ? `<p style="margin:0;font-size:12.5px;color:#64748b;line-height:1.55;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">${_mtEsc(t.description)}</p>` : ''}
-                <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:3px">
-                    ${t.section_count ? `<span style="background:#f1f5f9;color:#475569;font-size:11px;padding:2px 7px;border-radius:4px">${t.section_count} שלבים</span>` : ''}
-                    ${guests ? `<span style="background:#f1f5f9;color:#475569;font-size:11px;padding:2px 7px;border-radius:4px">${guests}</span>` : ''}
-                    ${t.item_count ? `<span style="background:#f1f5f9;color:#475569;font-size:11px;padding:2px 7px;border-radius:4px">${t.item_count} פריטים</span>` : ''}
-                </div>
-            </div>
-            <div style="padding:9px 11px;border-top:1px solid #f1f5f9;display:grid;grid-template-columns:repeat(7,1fr);gap:5px">
-                ${btnData.map(([fn, icon, color, label]) => `
-                <button onclick="${fn}" style="padding:7px 4px;border:1px solid #e2e8f0;border-radius:6px;background:#fff;font-size:11px;color:${color};cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;min-height:38px" onmouseover="this.style.background='#f8fafc'" onmouseout="this.style.background='#fff'">
-                    <i class="fa-regular ${icon}" style="font-size:11px"></i>${label}
-                </button>`).join('')}
-            </div>
+            ${meta ? `<div style="font-size:12px;color:#94a3b8;margin-top:2px">${meta}</div>` : ''}
+          </div>
+          <!-- main action buttons -->
+          <div style="padding:10px 16px;display:flex;gap:8px">
+            <button onclick="_mtExportPDF('${_mtEsc(t.public_slug)}','${_mtEsc(t.name)}')"
+              style="flex:1;padding:9px 10px;border:1.5px solid #e2e8f0;border-radius:10px;background:#fff;color:#475569;font-size:12.5px;font-family:inherit;font-weight:500;cursor:pointer;white-space:nowrap"
+              onmouseover="this.style.borderColor='#a5b4fc'" onmouseout="this.style.borderColor='#e2e8f0'">
+              תצוגה מקדימה ושיתוף
+            </button>
+            <button onclick="_mtOpenEditor(${t.id})"
+              style="flex:1;padding:9px 10px;border:none;border-radius:10px;background:#6366f1;color:#fff;font-size:12.5px;font-family:inherit;font-weight:600;cursor:pointer;white-space:nowrap"
+              onmouseover="this.style.background='#4f46e5'" onmouseout="this.style.background='#6366f1'">
+              עריך תפריט
+            </button>
+          </div>
+          <!-- secondary action row -->
+          <div style="padding:0 16px 12px;display:flex;align-items:center;gap:0;font-size:12px">
+            <button onclick="_mtDuplicate(${t.id})" style="flex:1;border:none;background:none;color:#64748b;cursor:pointer;padding:4px 0;font-size:12px;font-family:inherit" onmouseover="this.style.color='#6366f1'" onmouseout="this.style.color='#64748b'">שכפל</button>
+            <span style="color:#e2e8f0">|</span>
+            <button onclick="_mtCopyLink('${_mtEsc(t.public_slug)}')" style="flex:1;border:none;background:none;color:#64748b;cursor:pointer;padding:4px 0;font-size:12px;font-family:inherit" onmouseover="this.style.color='#6366f1'" onmouseout="this.style.color='#64748b'">קישור</button>
+            <span style="color:#e2e8f0">|</span>
+            <button onclick="_mtPdfOnly('${_mtEsc(t.public_slug)}','${_mtEsc(t.name)}')" style="flex:1;border:none;background:none;color:#64748b;cursor:pointer;padding:4px 0;font-size:12px;font-family:inherit" onmouseover="this.style.color='#6366f1'" onmouseout="this.style.color='#64748b'">PDF</button>
+            <span style="color:#e2e8f0">|</span>
+            <button onclick="_mtDeleteConfirm(${t.id},'${_mtEsc(t.name)}')" style="flex:1;border:none;background:none;color:#ef4444;cursor:pointer;padding:4px 0;font-size:12px;font-family:inherit" onmouseover="this.style.color='#dc2626'" onmouseout="this.style.color='#ef4444'">מחק</button>
+          </div>
         </div>`;
     }).join('');
 
+    // empty-state card (always shown at end of grid when list exists, or standalone)
+    const emptyCard = `
+      <div onclick="_mtNewModal()" style="border:2px dashed #c7d2fe;border-radius:16px;background:#f8f9ff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:40px 20px;cursor:pointer;min-height:280px;transition:.15s" onmouseover="this.style.borderColor='#6366f1';this.style.background='#eef2ff'" onmouseout="this.style.borderColor='#c7d2fe';this.style.background='#f8f9ff'">
+        <div style="width:44px;height:44px;border-radius:50%;border:2px dashed #a5b4fc;display:flex;align-items:center;justify-content:center;color:#a5b4fc;font-size:22px">+</div>
+        <div style="font-size:14px;font-weight:600;color:#6366f1">תבנית תפריט חדשה</div>
+        <div style="font-size:12px;color:#94a3b8;text-align:center">התחילו מאפס או משכפלו תפריט קיים</div>
+      </div>`;
+
     root.innerHTML = `
     <div style="padding:16px 4px">
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:20px;flex-wrap:wrap">
-            <div>
-                <h2 style="margin:0;font-size:19px;font-weight:700;color:#1e293b">תפריטים 📋</h2>
-                ${list.length ? `<p style="margin:4px 0 0;font-size:12.5px;color:#64748b">${list.length} תבניות תפריט</p>` : ''}
-            </div>
-            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-                <button onclick="window.switchTab('sales');setTimeout(()=>window.switchSalesTab('menu-requests'),200)" style="padding:9px 16px;background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;position:relative" title="פניות תפריט נכנסות">
-                    <i class="fa-solid fa-bell-concierge" style="font-size:11px"></i>פניות תפריט
-                    <span id="mt-requests-badge" style="display:none;position:absolute;top:-5px;right:-5px;background:#ef4444;color:#fff;border-radius:50%;font-size:9px;font-weight:700;min-width:16px;height:16px;display:flex;align-items:center;justify-content:center;padding:0 3px"></span>
-                </button>
-                <button onclick="_mtNewModal()" style="padding:9px 18px;background:#6366f1;color:#fff;border:none;border-radius:8px;font-size:13.5px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px" onmouseover="this.style.background='#4f46e5'" onmouseout="this.style.background='#6366f1'">
-                    <i class="fa-solid fa-plus" style="font-size:11px"></i>תפריט חדש
-                </button>
-            </div>
+      <!-- page header -->
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:22px;flex-wrap:wrap">
+        <div>
+          <h2 style="margin:0;font-size:22px;font-weight:800;color:#1e293b;border-right:4px solid #6366f1;padding-right:12px;line-height:1.2">תפריטים</h2>
+          ${list.length ? `<p style="margin:5px 0 0 0;font-size:12.5px;color:#94a3b8;padding-right:16px">${list.length} תבניות תפריט</p>` : ''}
         </div>
-        ${list.length === 0 ? `
-        <div style="text-align:center;padding:64px 20px;color:#94a3b8">
-            <div style="font-size:52px;margin-bottom:12px">📋</div>
-            <div style="font-size:16px;font-weight:700;color:#64748b;margin-bottom:6px">עדיין אין תפריטים</div>
-            <div style="font-size:13px;margin-bottom:22px">צור תבנית תפריט ראשונה לאירועים שלך</div>
-            <button onclick="_mtNewModal()" style="padding:11px 28px;background:#6366f1;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer">+ צור תפריט</button>
-        </div>` : `
-        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(min(300px,100%),1fr));gap:14px">
-            ${cards}
-        </div>`}
+        <div style="display:flex;gap:8px;align-items:center">
+          <button onclick="window.switchTab('sales');setTimeout(()=>window.switchSalesTab('menu-requests'),200)"
+            style="padding:9px 16px;background:#fff;color:#475569;border:1.5px solid #e2e8f0;border-radius:999px;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:7px;position:relative"
+            onmouseover="this.style.borderColor='#a5b4fc'" onmouseout="this.style.borderColor='#e2e8f0'">
+            פניות התפריט
+            <span id="mt-requests-badge" style="background:#6366f1;color:#fff;border-radius:999px;font-size:11px;font-weight:700;min-width:20px;height:20px;display:inline-flex;align-items:center;justify-content:center;padding:0 6px">0</span>
+          </button>
+          <button onclick="_mtNewModal()"
+            style="padding:10px 20px;background:#6366f1;color:#fff;border:none;border-radius:999px;font-size:13.5px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:7px;box-shadow:0 2px 8px rgba(99,102,241,.35)"
+            onmouseover="this.style.background='#4f46e5'" onmouseout="this.style.background='#6366f1'">
+            <i class="fa-solid fa-plus"></i>תפריט חדש
+          </button>
+        </div>
+      </div>
+      <!-- grid -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(min(290px,100%),1fr));gap:16px">
+        ${cards}
+        ${emptyCard}
+      </div>
     </div>`;
 }
 
