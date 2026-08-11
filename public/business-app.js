@@ -53018,8 +53018,8 @@ function _mtRenderList(root) {
         <div style="background:#fff;border-radius:16px;border:1px solid #e2e8f0;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 2px 8px rgba(99,102,241,.07)">
           <!-- thumbnail -->
           <div style="height:120px;position:relative;flex-shrink:0;background:#eef2ff ${stripeSvg}">
-            ${t.image_url ? `<img src="${_mtEsc(t.image_url)}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover">` : ''}
-            <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;opacity:.18;font-size:13px;color:#6366f1;font-weight:500;pointer-events:none;letter-spacing:.04em">${t.image_url?'':'תמונת תפריט'}</div>
+            ${(t.cover_image_url||t.image_url) ? `<img src="${_mtEsc(t.cover_image_url||t.image_url)}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover">` : ''}
+            <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;opacity:.18;font-size:13px;color:#6366f1;font-weight:500;pointer-events:none;letter-spacing:.04em">${(t.cover_image_url||t.image_url)?'':'תמונת תפריט'}</div>
             <!-- status top-right -->
             <span style="position:absolute;top:10px;right:10px;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:600;${statusStyle(t)}">${statusLabel(t)}</span>
             <!-- event type top-left -->
@@ -53043,7 +53043,7 @@ function _mtRenderList(root) {
             <button onclick="_mtOpenEditor(${t.id})"
               style="flex:1;padding:9px 10px;border:none;border-radius:10px;background:#6366f1;color:#fff;font-size:12.5px;font-family:inherit;font-weight:600;cursor:pointer;white-space:nowrap"
               onmouseover="this.style.background='#4f46e5'" onmouseout="this.style.background='#6366f1'">
-              עריך תפריט
+              ערוך תפריט
             </button>
           </div>
           <!-- secondary action row -->
