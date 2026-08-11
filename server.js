@@ -15034,12 +15034,15 @@ app.get('/:alias', (req, res, next) => {
     const alias = req.params.alias;
     
     // התעלם מנתיבים של ה-API, בקשות המכילות נקודה (כמו תמונות, קבצי JS/CSS) או סקריפטים של המערכת
-    const RESERVED_ROUTES = ['setup-db', 'kol-haam', 'game', 'sa-bigscreen'];
+    const RESERVED_ROUTES = ['setup-db', 'kol-haam', 'game', 'sa-bigscreen', 'menus', 'menu'];
     if (alias.startsWith('api') || alias.includes('.') || RESERVED_ROUTES.includes(alias)) {
         return next();
     }
 
     // הלקוח גלש לכתובת מקוצרת - נגיש לו את ה-HTML של החנות (הכתובת למעלה תישאר נקייה)
+    res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.set('Pragma', 'no-cache');
+    res.set('Expires', '0');
     res.sendFile(path.join(__dirname, 'public', 'storefront.html'));
 });
 // יצירת קריאת שירות חדשה ממשפחה (מחובר לטבלת הליבה support_tickets של הסופר אדמין)
@@ -32450,8 +32453,8 @@ app.get('/api/menus/public/:alias', async (req, res) => {
         // find group by store_alias or group_code
         const grpRes = await pool.query(
             `SELECT fg.id, fg.group_code, fg.name AS group_name,
-                    ss.store_alias, ss.store_name, ss.logo_url AS store_logo,
-                    ss.cover_image_url AS store_cover, ss.contact_phone, ss.contact_address
+                    ss.store_alias, ss.logo_url AS store_logo,
+                    ss.banner_url AS store_cover, ss.phone AS contact_phone, ss.slogan
              FROM family_groups fg
              LEFT JOIN store_settings ss ON ss.group_id = fg.id
              WHERE ss.store_alias = $1 OR fg.group_code = $1
@@ -32470,11 +32473,11 @@ app.get('/api/menus/public/:alias', async (req, res) => {
         );
 
         res.json({
-            business_name: grp.store_name || grp.group_name,
+            business_name: grp.group_name,
             logo_url: grp.store_logo,
             cover_url: grp.store_cover,
             contact_phone: grp.contact_phone,
-            contact_address: grp.contact_address,
+            slogan: grp.slogan,
             menus: menusRes.rows
         });
     } catch (e) {
