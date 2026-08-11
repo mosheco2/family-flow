@@ -53868,76 +53868,107 @@ window._mtExportPDF = function(slug, name) {
         { val:'none',   label:'ללא תמונות' },
     ];
 
-    const chip = (group, item) => {
-        const val = item.val || item; const label = item.label || item; const swatch = item.swatch || null;
-        const active = d[group] === val;
-        const dot = swatch ? `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${swatch};margin-left:5px;flex-shrink:0;border:1px solid rgba(0,0,0,.12)"></span>` : '';
-        return `<button onclick="window._mtPdfChip('${group}','${val}')"
-          id="mtpdf-${group}-${val}"
-          style="padding:5px 10px;border:1px solid ${active?'#6B2434':'#CBD5E1'};background:${active?'#6B2434':'#fff'};color:${active?'#FBF7EF':'#475569'};font-size:11.5px;font-family:inherit;cursor:pointer;border-radius:2px;transition:.12s;display:inline-flex;align-items:center"
-          >${dot}${label}</button>`;
+    const paletteChip = (p) => {
+        const active = d.palette === p.val;
+        return `<button onclick="window._mtPdfChip('palette','${p.val}')"
+          id="mtpdf-palette-${p.val}"
+          style="display:flex;align-items:center;gap:8px;padding:8px 11px;border-radius:22px;border:2px solid ${active?'#2C1A14':'#E2DAD0'};background:${active?'#2C1A14':'#FDFAF6'};color:${active?'#F5F0E8':'#4A3F35'};font-size:12px;font-family:inherit;cursor:pointer;transition:.13s;width:100%;text-align:right">
+          <span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${p.swatch};flex-shrink:0;box-shadow:0 0 0 1.5px rgba(0,0,0,.12)"></span>
+          <span style="font-weight:${active?600:400};flex:1">${p.label}</span>
+        </button>`;
+    };
+    const platingCard = (p) => {
+        const active = d.plating === p.val;
+        const icons = { square:'<rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" stroke-width="1.8" fill="none"/>', circle:'<circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8" fill="none"/>', large:'<rect x="1" y="4" width="22" height="16" rx="2" stroke="currentColor" stroke-width="1.8" fill="none"/>', none:'<line x1="4" y1="4" x2="20" y2="20" stroke="currentColor" stroke-width="1.8"/><line x1="20" y1="4" x2="4" y2="20" stroke="currentColor" stroke-width="1.8"/>' };
+        return `<button onclick="window._mtPdfChip('plating','${p.val}')"
+          id="mtpdf-plating-${p.val}"
+          style="display:flex;flex-direction:column;align-items:center;gap:5px;padding:10px 4px 8px;border-radius:14px;border:2px solid ${active?'#2C1A14':'#E2DAD0'};background:${active?'#2C1A14':'#FDFAF6'};color:${active?'#F5F0E8':'#4A3F35'};font-size:10.5px;font-family:inherit;cursor:pointer;transition:.13s;flex:1;min-width:0">
+          <svg width="24" height="24" viewBox="0 0 24 24" style="flex-shrink:0">${icons[p.val]||''}</svg>
+          <span style="font-weight:${active?600:400};line-height:1.3;text-align:center;word-break:keep-all">${p.label}</span>
+        </button>`;
     };
 
     window._mtPdfCurrentSlug = slug;
     window._mtPdfCurrentName = name || '';
     const previewUrl = () => `/menu/${encodeURIComponent(slug)}?palette=${d.palette}&plating=${d.plating}&air=${d.airiness}`;
+    const publicUrl = () => `/menu/${encodeURIComponent(slug)}?palette=${d.palette}&plating=${d.plating}&air=${d.airiness}`;
 
     const overlay = document.createElement('div');
     overlay.id = 'mt-pdf-design-overlay';
-    overlay.style.cssText = 'position:fixed;inset:0;z-index:9000;background:rgba(20,14,10,.58);display:flex;align-items:center;justify-content:center;padding:16px';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:9000;background:rgba(15,10,8,.68);display:flex;align-items:center;justify-content:center;padding:12px';
     overlay.innerHTML = `
-      <div style="background:#FBF7EF;width:min(860px,100%);max-height:92vh;overflow-y:auto;direction:rtl;font-family:inherit;display:flex;flex-direction:column">
-        <!-- header -->
-        <div style="display:flex;justify-content:space-between;align-items:center;padding:18px 22px 14px;border-bottom:1px solid #DDD2BE;flex-shrink:0">
-          <span style="font-size:16px;font-weight:600;color:#241E19">תצוגה מקדימה ושיתוף — ${escHtml(name||'תפריט')}</span>
-          <button onclick="document.getElementById('mt-pdf-design-overlay').remove()" style="background:none;border:none;color:#9C8C71;font-size:22px;cursor:pointer;line-height:1;padding:2px 6px">×</button>
+      <div style="background:#F3EDE3;width:min(920px,100%);max-height:96vh;border-radius:20px;overflow:hidden;direction:rtl;font-family:inherit;display:flex;flex-direction:column;box-shadow:0 24px 80px rgba(0,0,0,.4)">
+        <!-- top bar -->
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px 12px;flex-shrink:0;background:#EDE6DA;border-bottom:1px solid #DDD5C5">
+          <button onclick="document.getElementById('mt-pdf-design-overlay').remove()"
+            style="width:30px;height:30px;border-radius:50%;border:none;background:#DFD8CC;color:#4A3F35;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;line-height:1;font-weight:300">×</button>
+          <div style="display:flex;align-items:center;gap:10px">
+            <span style="font-size:11px;color:#9C8C78;background:#E5DDD0;padding:4px 10px;border-radius:12px;font-weight:500">A4</span>
+            <span style="font-size:13px;color:#7A6A58">תצוגה מקדימה</span>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:16px;font-weight:700;color:#2C1A14;line-height:1.2">תצוגה מקדימה ושיתוף</div>
+            <div style="font-size:11.5px;color:#8A7A68;margin-top:1px">${escHtml(name||'תפריט')}</div>
+          </div>
         </div>
         <!-- body -->
-        <div style="display:flex;gap:0;flex:1;overflow:hidden">
-          <!-- controls column -->
-          <div style="flex:1;padding:20px 22px 24px;display:flex;flex-direction:column;gap:16px;overflow-y:auto">
-            <div>
-              <div style="font-size:10px;letter-spacing:.26em;color:#9C8C71;margin-bottom:8px">PALETTE</div>
-              <div style="display:flex;gap:5px;flex-wrap:wrap">${palettes.map(p=>chip('palette',p)).join('')}</div>
-            </div>
-            <div>
-              <div style="font-size:10px;letter-spacing:.26em;color:#9C8C71;margin-bottom:8px">PLATING</div>
-              <div style="display:flex;gap:6px;flex-wrap:wrap">${platings.map(p=>chip('plating',p)).join('')}</div>
-            </div>
-            <div>
-              <div style="font-size:10px;letter-spacing:.26em;color:#9C8C71;margin-bottom:8px">AIRINESS</div>
-              <div style="display:flex;align-items:center;gap:12px">
-                <input type="range" min="1" max="3" step="1" value="${d.airiness}" id="mtpdf-air-slider"
-                  oninput="window._mtPdfDesign.airiness=+this.value;document.getElementById('mtpdf-air-val').textContent=this.value;window._mtPdfPreviewRefresh()"
-                  style="flex:1;accent-color:#6B2434;cursor:pointer">
-                <span id="mtpdf-air-val" style="font-size:14px;color:#241E19;width:16px;text-align:center">${d.airiness}</span>
-              </div>
-            </div>
-            <div style="margin-top:4px;padding-top:16px;border-top:1px solid #E5DCCB;display:flex;flex-direction:column;gap:8px">
-              <button onclick="window._mtPdfConfirm('${escHtml(slug)}')"
-                style="width:100%;padding:12px;background:#6B2434;color:#FBF7EF;border:none;font-size:13.5px;font-family:inherit;font-weight:600;cursor:pointer;letter-spacing:.04em">
-                ↓ הורד PDF
-              </button>
-              <button onclick="window._mtWaShareFromPanel('${escHtml(slug)}')"
-                style="width:100%;padding:11px;background:#25D366;color:#fff;border:none;font-size:13.5px;font-family:inherit;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px">
-                <i class="fa-brands fa-whatsapp"></i> שתף בווצאפ
-              </button>
-              <a href="${escHtml(previewUrl())}" id="mtpdf-link-btn" target="_blank"
-                style="display:block;text-align:center;padding:10px;border:1px solid #C9BCA2;color:#5C5148;font-size:12.5px;font-family:inherit;text-decoration:none">
-                פתח קישור ציבורי ↗
-              </a>
-            </div>
-          </div>
-          <!-- preview column -->
-          <div style="flex:0 0 340px;border-right:1px solid #DDD2BE;background:#E7DFD0;display:flex;flex-direction:column;align-items:center;padding:14px 12px;gap:8px;overflow:hidden">
-            <div style="font-size:10px;letter-spacing:.24em;color:#9C8C71">תצוגה מקדימה</div>
-            <div style="width:312px;height:560px;background:#241E19;padding:8px;flex-shrink:0;overflow:hidden">
+        <div style="display:flex;flex:1;min-height:0">
+          <!-- preview (left) -->
+          <div style="flex:0 0 360px;background:#E4DDD3;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:16px 14px;gap:0;overflow:hidden">
+            <div style="width:100%;background:#fff;border-radius:6px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,.18);height:100%;max-height:540px;position:relative">
               <iframe id="mtpdf-preview-frame"
                 src="${escHtml(previewUrl())}"
-                style="width:375px;height:660px;border:none;transform:scale(0.832);transform-origin:top right;background:#FBF7EF">
+                style="width:640px;height:900px;border:none;transform:scale(0.5625);transform-origin:top right;background:#FBF7EF;pointer-events:none">
               </iframe>
             </div>
           </div>
+          <!-- controls (right) -->
+          <div style="flex:1;padding:18px 20px;display:flex;flex-direction:column;gap:18px;overflow-y:auto">
+            <!-- palette -->
+            <div>
+              <div style="font-size:10px;font-weight:600;letter-spacing:.16em;color:#9C8C78;margin-bottom:9px;text-transform:uppercase">פלטת צבעים</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px">
+                ${palettes.map(p=>paletteChip(p)).join('')}
+              </div>
+            </div>
+            <!-- plating -->
+            <div>
+              <div style="font-size:10px;font-weight:600;letter-spacing:.16em;color:#9C8C78;margin-bottom:9px;text-transform:uppercase">סידור תמונות</div>
+              <div style="display:flex;gap:7px">
+                ${platings.map(p=>platingCard(p)).join('')}
+              </div>
+            </div>
+            <!-- airiness -->
+            <div>
+              <div style="font-size:10px;font-weight:600;letter-spacing:.16em;color:#9C8C78;margin-bottom:9px;text-transform:uppercase">אנדריות</div>
+              <div style="display:flex;align-items:center;gap:0;position:relative;padding:0 4px">
+                <input type="range" min="1" max="3" step="1" value="${d.airiness}" id="mtpdf-air-slider"
+                  oninput="window._mtPdfDesign.airiness=+this.value;window._mtPdfPreviewRefresh()"
+                  style="width:100%;accent-color:#2C1A14;cursor:pointer;height:4px">
+              </div>
+              <div style="display:flex;justify-content:space-between;margin-top:4px;font-size:10.5px;color:#9C8C78;padding:0 4px">
+                <span>אורירי</span><span>צפוף</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- bottom bar -->
+        <div style="flex-shrink:0;padding:14px 18px;background:#EDE6DA;border-top:1px solid #DDD5C5;display:flex;flex-direction:column;gap:8px">
+          <button onclick="window._mtPdfConfirm('${escHtml(slug)}')"
+            style="width:100%;padding:13px;background:#2C1A14;color:#F5F0E8;border:none;border-radius:10px;font-size:14px;font-family:inherit;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;letter-spacing:.02em">
+            <i class="fa-solid fa-file-pdf" style="font-size:15px"></i> הורדת PDF
+          </button>
+          <div style="display:flex;gap:8px">
+            <button onclick="window._mtWaShareFromPanel('${escHtml(slug)}')"
+              style="flex:1;padding:10px;background:#FDFAF6;color:#2C1A14;border:1.5px solid #DDD5C5;border-radius:10px;font-size:12.5px;font-family:inherit;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px">
+              <span style="width:8px;height:8px;border-radius:50%;background:#25D366;display:inline-block;flex-shrink:0"></span> שיתוף בווצאפ
+            </button>
+            <button onclick="(()=>{const u='${location.origin}/menu/${encodeURIComponent(slug)}?palette='+window._mtPdfDesign.palette+'&plating='+window._mtPdfDesign.plating+'&air='+window._mtPdfDesign.airiness;navigator.clipboard?.writeText(u).then(()=>_mtToast('הקישור הועתק')).catch(()=>prompt('העתק קישור',u))})()"
+              style="flex:1;padding:10px;background:#FDFAF6;color:#2C1A14;border:1.5px solid #DDD5C5;border-radius:10px;font-size:12.5px;font-family:inherit;font-weight:500;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px">
+              <i class="fa-solid fa-link" style="font-size:13px;opacity:.7"></i> העתקת קישור ציבורי
+            </button>
+          </div>
+          <div style="font-size:10.5px;color:#9C8C78;text-align:center" id="mtpdf-url-label">${location.origin}/menu/${encodeURIComponent(slug)}</div>
         </div>
       </div>`;
     document.body.appendChild(overlay);
@@ -53947,9 +53978,11 @@ window._mtPdfChip = function(group, val) {
     window._mtPdfDesign[group] = val;
     document.querySelectorAll(`[id^="mtpdf-${group}-"]`).forEach(el => {
         const active = el.id === `mtpdf-${group}-${val}`;
-        el.style.background  = active ? '#6B2434' : '#fff';
-        el.style.borderColor = active ? '#6B2434' : '#CBD5E1';
-        el.style.color       = active ? '#FBF7EF' : '#475569';
+        el.style.background  = active ? '#2C1A14' : '#FDFAF6';
+        el.style.borderColor = active ? '#2C1A14' : '#E2DAD0';
+        el.style.color       = active ? '#F5F0E8' : '#4A3F35';
+        const span = el.querySelector('span:last-child');
+        if (span) span.style.fontWeight = active ? '600' : '400';
     });
     window._mtPdfPreviewRefresh();
 };
