@@ -99,6 +99,10 @@ body{font-family:'Assistant',Helvetica,sans-serif;color:var(--ink);background:va
   body>*{display:none!important}
   #pdf-print-target{display:block!important;width:100%}
   *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
+  @page{size:A4 portrait;margin:0.85in}
+  .pdf-hdr,.pdf-ftr{position:fixed;left:0;right:0}
+  .pdf-hdr{top:0}
+  .pdf-ftr{bottom:0}
 }
 
 
@@ -777,57 +781,184 @@ function buildPrintTarget(content) {
     if (el) el.innerHTML = content;
 }
 
-function buildFullPdfSource() {
-    const metaParts = [];
-    if ((_d.pricing_mode||'per_person')==='per_person' && _d.base_price_per_person > 0) metaParts.push(`מחיר לאיש: <strong style="color:#FBF7EF">₪${num(_d.base_price_per_person)}</strong>`);
-    if (_d.min_guests && _d.max_guests) metaParts.push(`אורחים: <strong style="color:#FBF7EF">${_d.min_guests}–${_d.max_guests}</strong>`);
+/* ── shared PDF layout primitives ── */
+function _pdfStyles() {
+    return `
+      <style>
+        @import url('https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@300;400;500&family=Assistant:wght@200;300;400&display=swap');
+        *{box-sizing:border-box;margin:0;padding:0}
+        body{font-family:'Assistant',Helvetica,sans-serif;color:#241E19;background:#FFFDF9;direction:rtl}
+        h1,h2,h3{text-wrap:balance}
+        p,li{text-wrap:pretty}
+        @media print{
+          @page{size:A4 portrait;margin:0.85in}
+          *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
+          .pdf-hdr,.pdf-ftr{position:fixed;left:0;right:0;padding:0 0.85in}
+          .pdf-hdr{top:0}
+          .pdf-ftr{bottom:0}
+          .pdf-body-spacer-top{height:36px}
+          .pdf-body-spacer-bot{height:28px}
+        }
+        @media screen{
+          .pdf-hdr,.pdf-ftr{display:none}
+          .pdf-body-spacer-top,.pdf-body-spacer-bot{display:none}
+        }
+        .pdf-hdr{display:flex;align-items:center;gap:14px;padding-bottom:10px;border-bottom:1px solid #E5DCCB}
+        .pdf-ftr{display:flex;align-items:center;gap:14px;padding-top:12px;border-top:1px solid #E5DCCB}
+        .pdf-rule{flex:1;height:1px;background:#E5DCCB}
+        .pdf-rule-text{font-family:'Assistant',sans-serif;font-size:11.5px;font-weight:300;color:#7A6A50;letter-spacing:.28em;white-space:nowrap}
+        .pdf-ftr-text{font-size:12px;font-weight:300;color:#5C5148;white-space:nowrap;letter-spacing:.04em}
+        .pdf-diamond-lg{width:7px;height:7px;background:#6B2434;transform:rotate(45deg);flex-shrink:0}
+        .pdf-diamond-sm{width:5px;height:5px;border:1px solid #C9BCA2;transform:rotate(45deg);flex-shrink:0}
+        .pdf-div{display:flex;align-items:center;gap:12px;margin:11px 0}
+        .pdf-div-rule{width:48px;height:1px;background:#E5DCCB}
+        .pdf-monogram{display:inline-flex;align-items:center;justify-content:center;width:48px;height:48px;border:1px solid #C9BCA2}
+        .pdf-mono-text{font-family:'Frank Ruhl Libre',serif;font-size:17px;letter-spacing:.05em;color:#241E19}
+        .pdf-eyebrow{font-size:12px;letter-spacing:.34em;color:#7A6A50;margin:16px 0 0}
+        .pdf-title{font-family:'Frank Ruhl Libre',serif;font-weight:400;font-size:34px;line-height:1.2;letter-spacing:.01em;color:#241E19;margin:18px 0 0}
+        .pdf-event-line{font-size:14px;font-weight:300;color:#5C5148;line-height:1.8;margin-top:16px}
+        .pdf-title-div{display:flex;align-items:center;gap:14px;margin-top:18px;justify-content:center}
+        .pdf-title-rule{width:64px;height:1px;background:#DDD2BE}
+        .pdf-sec-title{font-family:'Frank Ruhl Libre',serif;font-size:13px;letter-spacing:.3em;color:#6B2434;text-align:center;margin-bottom:16px}
+        .pdf-dish{display:flex;align-items:center;gap:20px;break-inside:avoid;margin-bottom:10px;justify-content:center}
+        .pdf-dish-photo{flex:0 0 auto;border:1px solid #DDD2BE;padding:4px}
+        .pdf-dish-photo img{display:block;width:62px;height:62px;object-fit:cover}
+        .pdf-dish-body{flex:0 1 340px;text-align:right}
+        .pdf-dish-name{font-family:'Frank Ruhl Libre',serif;font-size:20px;font-weight:400;line-height:1.3;color:#241E19}
+        .pdf-dish-desc{font-size:14px;font-weight:300;font-style:italic;color:#6B6058;line-height:1.55;margin-top:5px}
+        .pdf-dish-price{font-size:13px;font-weight:400;color:#6B2434;margin-top:5px}
+        .pdf-footnote{font-size:13.5px;font-weight:300;color:#5C5148;line-height:1.9;text-align:center;margin-top:20px}
+        .pdf-hero-frame{border:1px solid #DDD2BE;padding:6px;break-inside:avoid;margin-bottom:0}
+        .pdf-hero-frame img{display:block;width:100%;height:112px;object-fit:cover}
+        .pdf-hero-placeholder{width:100%;height:112px;background:#F0EBE2;display:flex;align-items:center;justify-content:center;font-size:12px;color:#9C8C71;letter-spacing:.1em}
+        .pdf-logo-img{width:48px;height:48px;object-fit:cover;border:1px solid #C9BCA2}
+        .pdf-section-block{text-align:center;break-inside:avoid}
+        .pdf-dishes-list{display:flex;flex-direction:column;gap:10px;margin-top:0}
+        .pdf-price-badge{font-size:13px;color:#6B2434;font-weight:500;white-space:nowrap}
+        .pdf-total-row{display:flex;justify-content:space-between;align-items:center;border-top:1px solid #DDD2BE;padding-top:12px;margin-top:12px}
+        .pdf-total-label{font-family:'Frank Ruhl Libre',serif;font-size:15px;color:#241E19}
+        .pdf-total-val{font-family:'Frank Ruhl Libre',serif;font-size:18px;font-weight:500;color:#6B2434}
+      </style>`;
+}
 
-    const heroInner = `
-      <div style="position:relative;min-height:200px;background:#241E19;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end;margin:-20px -20px 28px;page-break-inside:avoid">
-        ${_d.cover_image_url ? `<img src="${esc(_d.cover_image_url)}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.38">` : ''}
-        <div style="position:relative;padding:28px 24px 22px;display:flex;align-items:flex-end;gap:16px">
-          ${_d.logo_url ? `<img src="${esc(_d.logo_url)}" style="width:60px;height:60px;border-radius:6px;object-fit:cover;border:2px solid rgba(255,255,255,.18);flex-shrink:0">` : ''}
-          <div style="flex:1;min-width:0">
-            <div style="font-size:9px;letter-spacing:.3em;color:#6B2434;text-transform:uppercase;margin-bottom:6px">תפריט</div>
-            <div style="font-size:clamp(22px,5vw,34px);font-weight:500;color:#FBF7EF;line-height:1.2;margin-bottom:5px">${esc(_d.name)}</div>
-            ${_d.slogan ? `<div style="font-size:13px;font-weight:300;color:#C8BFB0">${esc(_d.slogan)}</div>` : ''}
-            ${metaParts.length ? `<div style="display:flex;flex-wrap:wrap;gap:5px 18px;font-size:12px;color:#C8BFB0;margin-top:8px">${metaParts.join('<span style="color:#6B2434">·</span>')}</div>` : ''}
-          </div>
+function _pdfHeader(businessName) {
+    return `
+      <div class="pdf-hdr">
+        <span class="pdf-rule"></span>
+        <span class="pdf-rule-text">${esc(businessName||'')}</span>
+        <span class="pdf-rule"></span>
+      </div>`;
+}
+
+function _pdfFooter() {
+    const parts = [];
+    if (_d.contact_phone) parts.push(esc(_d.contact_phone));
+    if (_d.contact_address) parts.push(esc(_d.contact_address));
+    const footerText = parts.join(' · ') || esc(_d.name||'');
+    return `
+      <div class="pdf-ftr">
+        <span class="pdf-rule"></span>
+        <span class="pdf-ftr-text">${footerText}</span>
+        <span class="pdf-rule"></span>
+      </div>`;
+}
+
+function _pdfDivider() {
+    return `<div class="pdf-div"><span class="pdf-div-rule"></span><span class="pdf-diamond-sm"></span><span class="pdf-div-rule"></span></div>`;
+}
+
+function _pdfDish(item, showPrice) {
+    return `
+      <div class="pdf-dish">
+        <div class="pdf-dish-photo">
+          ${item.image_url
+            ? `<img src="${esc(item.image_url)}" alt="${esc(item.name)}">`
+            : `<div style="width:62px;height:62px;background:#F0EBE2;display:flex;align-items:center;justify-content:center;font-size:22px">🍽</div>`}
         </div>
+        <div class="pdf-dish-body">
+          <div class="pdf-dish-name">${esc(item.name)}</div>
+          ${item.description ? `<div class="pdf-dish-desc">${esc(item.description)}</div>` : ''}
+          ${showPrice && item.price > 0 ? `<div class="pdf-dish-price">₪${num(item.price)}</div>` : ''}
+          ${!showPrice && item.price > 0 ? `<div class="pdf-dish-price">+ ₪${num(item.price)} לאיש</div>` : ''}
+        </div>
+      </div>`;
+}
+
+function _pdfLogoBlock(businessName) {
+    // monogram: first letter of business name, or logo image
+    const letter = (businessName||_d.name||'').trim().charAt(0);
+    const logoHtml = _d.logo_url
+        ? `<img class="pdf-logo-img" src="${esc(_d.logo_url)}" alt="">`
+        : `<div class="pdf-monogram"><span class="pdf-mono-text">${esc(letter)}</span></div>`;
+    return logoHtml;
+}
+
+function _pdfTitleSection(businessName, titleOverride) {
+    const evLabel = { wedding:'חתונה', bar_mitzvah:'בר/בת מצווה', birthday:'יום הולדת', corporate:'אירוע עסקי' }[_d.event_type] || '';
+    const metaParts = [];
+    if ((_d.pricing_mode||'per_person')==='per_person' && _d.base_price_per_person > 0) metaParts.push(`₪${num(_d.base_price_per_person)} לאיש`);
+    if (_d.min_guests && _d.max_guests) metaParts.push(`${_d.min_guests}–${_d.max_guests} אורחים`);
+
+    return `
+      <div style="text-align:center;padding-top:20px">
+        ${_pdfLogoBlock(businessName)}
+        <div class="pdf-eyebrow">${evLabel ? esc(evLabel) + ' · ' : ''}${esc(businessName||'')}</div>
+        <h1 class="pdf-title">${esc(titleOverride || _d.name || '')}</h1>
+        <div class="pdf-title-div">
+          <span class="pdf-title-rule"></span>
+          <span class="pdf-diamond-lg"></span>
+          <span class="pdf-title-rule"></span>
+        </div>
+        ${metaParts.length ? `<div class="pdf-event-line">${metaParts.join(' · ')}</div>` : ''}
+        ${_d.slogan && !metaParts.length ? `<div class="pdf-event-line">${esc(_d.slogan)}</div>` : ''}
+      </div>`;
+}
+
+function buildFullPdfSource() {
+    const bizName = _d.name || '';
+    const showPrices = (_d.pricing_mode === 'per_item');
+
+    const heroBlock = `
+      <div class="pdf-hero-frame" style="margin-bottom:0">
+        ${_d.cover_image_url
+          ? `<img src="${esc(_d.cover_image_url)}" alt="">`
+          : `<div class="pdf-hero-placeholder">תמונת רקע</div>`}
       </div>`;
 
     const sectionsHtml = (_d.sections || []).map(sec => {
         const items = (sec.items || []).filter(i => i.is_available !== false);
         if (!items.length) return '';
-        const itemCards = items.map(item => `
-          <div style="background:#fff;border:1.5px solid #E5DCCB;border-radius:8px;padding:12px 14px;display:flex;align-items:flex-start;gap:12px;margin-bottom:8px;page-break-inside:avoid">
-            <div style="flex:1;min-width:0">
-              <div style="font-size:13.5px;font-weight:500;color:#241E19;margin-bottom:2px">${esc(item.name)}</div>
-              ${item.description ? `<div style="font-size:12px;color:#5C5148;line-height:1.5;margin-top:2px">${esc(item.description)}</div>` : ''}
-              ${item.price > 0 ? `<div style="font-size:12.5px;color:#6B2434;font-weight:600;margin-top:6px">+₪${num(item.price)}</div>` : ''}
-            </div>
-            ${item.image_url ? `<img src="${esc(item.image_url)}" style="width:56px;height:56px;object-fit:cover;border-radius:6px;flex-shrink:0;border:1px solid #E5DCCB">` : ''}
-          </div>`).join('');
+        const dishesHtml = items.map(item => _pdfDish(item, showPrices)).join('');
         return `
-          <div style="margin-bottom:28px;page-break-inside:avoid">
-            <div style="font-size:10px;font-weight:700;color:#6B2434;letter-spacing:.2em;text-transform:uppercase;padding-bottom:8px;border-bottom:1.5px solid #6B2434;margin-bottom:10px">${esc(sec.name)}</div>
-            ${sec.description ? `<div style="font-size:12px;color:#9C8C71;margin-bottom:10px">${esc(sec.description)}</div>` : ''}
-            ${itemCards}
+          <div class="pdf-section-block" style="break-inside:avoid;margin-bottom:6px">
+            ${_pdfDivider()}
+            <div class="pdf-sec-title">${esc(sec.name)}</div>
+            ${sec.description ? `<div style="font-size:12px;color:#9C8C71;text-align:center;margin-bottom:10px">${esc(sec.description)}</div>` : ''}
+            <div class="pdf-dishes-list">${dishesHtml}</div>
           </div>`;
     }).join('');
 
-    const contactBar = (_d.contact_phone||_d.contact_address) ? `
-      <div style="margin-top:28px;padding-top:12px;border-top:1px solid #E5DCCB;font-size:11px;color:#9C8C71;display:flex;gap:18px;flex-wrap:wrap">
-        ${_d.contact_phone ? `<span>📞 ${esc(_d.contact_phone)}</span>` : ''}
-        ${_d.contact_address ? `<span>📍 ${esc(_d.contact_address)}</span>` : ''}
-      </div>` : '';
+    const footnotes = [];
+    if ((_d.pricing_mode||'per_person')==='per_person' && _d.base_price_per_person > 0)
+        footnotes.push(`מחיר לאיש: ₪${num(_d.base_price_per_person)}`);
+    if (_d.min_guests && _d.max_guests)
+        footnotes.push(`${_d.min_guests}–${_d.max_guests} אורחים`);
+    const footnoteHtml = footnotes.length
+        ? `<div class="pdf-footnote">${footnotes.join(' · ')}</div>`
+        : '';
 
     buildPrintTarget(`
-      <div style="font-family:system-ui,sans-serif;direction:rtl;background:#FBF7EF;padding:20px;min-height:100vh">
-        ${heroInner}
+      ${_pdfStyles()}
+      ${_pdfHeader(bizName)}
+      ${_pdfFooter()}
+      <div class="pdf-body-spacer-top"></div>
+      <div style="direction:rtl">
+        ${heroBlock}
+        ${_pdfTitleSection(bizName)}
         ${sectionsHtml}
-        ${contactBar}
+        ${footnoteHtml}
       </div>
+      <div class="pdf-body-spacer-bot"></div>
     `);
 }
 
@@ -841,57 +972,40 @@ function exportMenuPDF() {
 }
 
 function buildCatalogPdfSource() {
+    const bizName = _d.name || '';
     const cats = [...new Set(_catItems.map(i => i.category).filter(Boolean))];
     const grouped = cats.length
         ? cats.map(cat => ({ name: cat, items: _catItems.filter(i => i.category === cat) }))
         : [{ name: null, items: _catItems }];
 
     const sectionsHtml = grouped.map(g => {
-        const itemCards = g.items.map(item => `
-          <div style="background:#fff;border:1.5px solid #E5DCCB;border-radius:8px;padding:12px 14px;display:flex;align-items:flex-start;gap:12px;margin-bottom:8px;page-break-inside:avoid">
-            <div style="flex:1;min-width:0">
-              <div style="font-size:13.5px;font-weight:500;color:#241E19;margin-bottom:2px">${esc(item.name)}</div>
-              ${item.description ? `<div style="font-size:12px;color:#5C5148;line-height:1.5;margin-top:2px">${esc(item.description)}</div>` : ''}
-              ${item.price > 0 ? `<div style="font-size:12.5px;color:#6B2434;font-weight:600;margin-top:6px">₪${num(item.price)}</div>` : ''}
-            </div>
-            ${item.image_url ? `<img src="${esc(item.image_url)}" style="width:56px;height:56px;object-fit:cover;border-radius:6px;flex-shrink:0;border:1px solid #E5DCCB">` : ''}
-          </div>`).join('');
+        const dishesHtml = g.items.map(item => _pdfDish(item, true)).join('');
         return `
-          <div style="margin-bottom:28px;page-break-inside:avoid">
-            ${g.name ? `<div style="font-size:10px;font-weight:700;color:#6B2434;letter-spacing:.2em;text-transform:uppercase;padding-bottom:8px;border-bottom:1.5px solid #6B2434;margin-bottom:10px">${esc(g.name)}</div>` : ''}
-            ${itemCards}
+          <div class="pdf-section-block" style="break-inside:avoid;margin-bottom:6px">
+            ${_pdfDivider()}
+            ${g.name ? `<div class="pdf-sec-title">${esc(g.name)}</div>` : ''}
+            <div class="pdf-dishes-list">${dishesHtml}</div>
           </div>`;
     }).join('');
 
-    const metaParts = [];
-    if (_d.min_guests && _d.max_guests) metaParts.push(`אורחים: <strong style="color:#FBF7EF">${_d.min_guests}–${_d.max_guests}</strong>`);
-
-    const heroInner = `
-      <div style="position:relative;min-height:200px;background:#241E19;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end;margin:-20px -20px 28px;page-break-inside:avoid">
-        ${_d.cover_image_url ? `<img src="${esc(_d.cover_image_url)}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.38">` : ''}
-        <div style="position:relative;padding:28px 24px 22px;display:flex;align-items:flex-end;gap:16px">
-          ${_d.logo_url ? `<img src="${esc(_d.logo_url)}" style="width:60px;height:60px;border-radius:6px;object-fit:cover;border:2px solid rgba(255,255,255,.18);flex-shrink:0">` : ''}
-          <div style="flex:1;min-width:0">
-            <div style="font-size:9px;letter-spacing:.3em;color:#6B2434;text-transform:uppercase;margin-bottom:6px">קטלוג מנות</div>
-            <div style="font-size:28px;font-weight:500;color:#FBF7EF;line-height:1.2;margin-bottom:5px">${esc(_d.name)}</div>
-            ${_d.slogan ? `<div style="font-size:13px;font-weight:300;color:#C8BFB0">${esc(_d.slogan)}</div>` : ''}
-            ${metaParts.length ? `<div style="display:flex;gap:18px;font-size:12px;color:#C8BFB0;margin-top:8px">${metaParts.join('')}</div>` : ''}
-          </div>
-        </div>
+    const heroBlock = `
+      <div class="pdf-hero-frame" style="margin-bottom:0">
+        ${_d.cover_image_url
+          ? `<img src="${esc(_d.cover_image_url)}" alt="">`
+          : `<div class="pdf-hero-placeholder">תמונת רקע</div>`}
       </div>`;
 
-    const contactBar = (_d.contact_phone||_d.contact_address) ? `
-      <div style="margin-top:28px;padding-top:12px;border-top:1px solid #E5DCCB;font-size:11px;color:#9C8C71;display:flex;gap:18px;flex-wrap:wrap">
-        ${_d.contact_phone ? `<span>📞 ${esc(_d.contact_phone)}</span>` : ''}
-        ${_d.contact_address ? `<span>📍 ${esc(_d.contact_address)}</span>` : ''}
-      </div>` : '';
-
     buildPrintTarget(`
-      <div style="font-family:system-ui,sans-serif;direction:rtl;background:#FBF7EF;padding:20px;min-height:100vh">
-        ${heroInner}
+      ${_pdfStyles()}
+      ${_pdfHeader(bizName)}
+      ${_pdfFooter()}
+      <div class="pdf-body-spacer-top"></div>
+      <div style="direction:rtl">
+        ${heroBlock}
+        ${_pdfTitleSection(bizName, 'קטלוג מנות')}
         ${sectionsHtml}
-        ${contactBar}
       </div>
+      <div class="pdf-body-spacer-bot"></div>
     `);
 }
 
