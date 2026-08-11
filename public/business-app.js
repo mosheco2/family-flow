@@ -53249,185 +53249,234 @@ function _mtRenderEditor(root) {
         ${(s.items || []).slice(0, 3).map(i => `<div style="font-size:10.5px;color:#64748b;padding:2px 0;border-bottom:1px solid #f8fafc">· ${_mtEsc(i.name || '')}</div>`).join('')}
     </div>`).join('');
 
+    // shared helpers for this render
+    const _r = (fn) => `${fn};_mtRenderEditor(document.getElementById('menu-templates-root'))`;
+    const stripeSvgEd = `url("data:image/svg+xml,%3Csvg width='20' height='20' viewBox='0 0 20 20' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23c7d2fe' fill-opacity='0.45'%3E%3Cpolygon points='20 10 10 0 0 0 10 10'/%3E%3Cpolygon points='20 20 20 10 10 20'/%3E%3C/g%3E%3C/svg%3E")`;
+    const secLabel = (txt, required) => `<label style="font-size:11.5px;color:#64748b;font-weight:600;display:block;margin-bottom:4px">${txt}${required ? ' <span style="color:#6366f1">*</span>' : ''}</label>`;
+    const cardH = (title, subtitle) => `
+      <div style="border-right:4px solid #6366f1;padding-right:12px;margin-bottom:18px">
+        <h3 style="margin:0;font-size:15px;font-weight:800;color:#1e293b">${title}</h3>
+        ${subtitle ? `<div style="font-size:11.5px;color:#94a3b8;margin-top:2px">${subtitle}</div>` : ''}
+      </div>`;
+    const toggleChip = (label, checked, onchange, icon) => {
+        const ic = icon ? `<i class="fa-solid ${icon}" style="font-size:10px"></i>` : '';
+        return `<label style="display:inline-flex;align-items:center;gap:6px;padding:6px 13px;border-radius:999px;border:1.5px solid ${checked?'#6366f1':'#e2e8f0'};background:${checked?'#eef2ff':'#fff'};color:${checked?'#4338ca':'#64748b'};font-size:12.5px;font-weight:${checked?600:400};cursor:pointer;user-select:none;white-space:nowrap">
+          ${ic}<input type="checkbox" ${checked?'checked':''} onchange="${onchange}" style="display:none">${label}${checked?` <i class="fa-solid fa-check" style="font-size:9px;color:#6366f1"></i>`:''}
+        </label>`;
+    };
+
     root.innerHTML = `
-    <div style="position:sticky;top:0;z-index:50;background:#fff;border-bottom:1px solid #e2e8f0;padding:9px 4px;display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin:0 -4px">
-        <button onclick="_mtBack()" style="${_mtBtnS('ghost')};gap:5px"><i class="fa-solid fa-arrow-right" style="font-size:11px"></i>חזרה</button>
-        <span style="flex:1;font-weight:700;font-size:14px;color:#1e293b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_mtEsc(t.name)}</span>
-        <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12.5px;color:#64748b">
-            <input type="checkbox" id="mt-chk-active" ${f.is_active ? 'checked' : ''} onchange="_mtEF('is_active',this.checked)" style="width:15px;height:15px;accent-color:#6366f1">פעיל
-        </label>
-        <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12.5px;color:#64748b">
-            <input type="checkbox" id="mt-chk-pub" ${f.is_public ? 'checked' : ''} onchange="_mtEF('is_public',this.checked)" style="width:15px;height:15px;accent-color:#6366f1">ציבורי
-        </label>
-        <label style="display:flex;align-items:center;gap:5px;cursor:pointer;font-size:12.5px;color:#64748b" title="הצג בקישור: תפריטים נוספים + הרכבת תפריט מקטלוג">
-            <input type="checkbox" id="mt-chk-related" ${f.show_related_options ? 'checked' : ''} onchange="_mtEF('show_related_options',this.checked)" style="width:15px;height:15px;accent-color:#6366f1">אפשרויות נוספות
-        </label>
-        ${pUrl ? `<button onclick="_mtCopyLink('${_mtEsc(t.public_slug)}')" style="${_mtBtnS('ghost')};gap:5px"><i class="fa-solid fa-link" style="font-size:11px"></i>קישור</button>` : ''}
-        <button id="mt-save-btn" onclick="_mtSave()" style="${_mtBtnS('primary')}">שמור</button>
+    <!-- TOP BAR -->
+    <div style="position:sticky;top:0;z-index:50;background:#fff;border-bottom:1px solid #e8eaf0;padding:10px 4px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 -4px">
+      <button onclick="_mtBack()" style="display:inline-flex;align-items:center;gap:6px;padding:7px 14px;background:#f1f5f9;border:none;border-radius:8px;font-size:13px;color:#475569;cursor:pointer;font-family:inherit;font-weight:500">
+        <i class="fa-solid fa-arrow-right" style="font-size:11px"></i>חזרה
+      </button>
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:800;font-size:15px;color:#1e293b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">עריכת תפריט</div>
+        <div style="font-size:11px;color:#94a3b8;margin-top:1px">כל שינוי נשמר בלחיצה · ${_mtEsc(t.name)}</div>
+      </div>
+      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+        ${toggleChip('פעיל', f.is_active, "_mtEF('is_active',this.checked)")}
+        ${toggleChip('קישור ציבורי', f.is_public, "_mtEF('is_public',this.checked)")}
+        ${toggleChip('תפריט שולחן', f.event_mode, _r("_mtEF('event_mode',this.checked)"))}
+      </div>
+      ${pUrl ? `<button onclick="_mtCopyLink('${_mtEsc(t.public_slug)}')" style="padding:7px 14px;background:#fff;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;color:#475569;cursor:pointer;font-family:inherit">קישור</button>` : ''}
+      <button id="mt-save-btn" onclick="_mtSave()" style="padding:8px 20px;background:#6366f1;color:#fff;border:none;border-radius:8px;font-size:13.5px;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 2px 8px rgba(99,102,241,.3)">שמור</button>
     </div>
-    <div id="mt-ed-grid" style="padding:16px 4px;display:grid;grid-template-columns:1fr min(340px,38%);gap:20px;align-items:start">
-        <div style="display:flex;flex-direction:column;gap:14px">
-            <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:18px">
-                <h3 style="margin:0 0 14px;font-size:14px;font-weight:700;color:#1e293b">פרטי התפריט</h3>
-                <div style="display:flex;flex-direction:column;gap:12px">
-                    <div>
-                        <label style="font-size:11.5px;color:#64748b;font-weight:600;display:block;margin-bottom:4px">שם *</label>
-                        <input id="mt-ef-name" value="${_mtEsc(f.name)}" oninput="_mtEF('name',this.value)" style="${_mtInputS()}">
-                    </div>
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-                        <div>
-                            <label style="font-size:11.5px;color:#64748b;font-weight:600;display:block;margin-bottom:4px">סוג אירוע</label>
-                            <select id="mt-ef-et" onchange="_mtEF('event_type',this.value)" style="${_mtInputS()}">
-                                <option value="">—</option>
-                                ${_MT_ET.map(e => `<option value="${e.v}"${f.event_type === e.v ? ' selected' : ''}>${e.l}</option>`).join('')}
-                            </select>
-                        </div>
-                        <div>
-                            <label style="font-size:11.5px;color:#64748b;font-weight:600;display:block;margin-bottom:4px">סוג תמחור</label>
-                            <select onchange="_mtEF('pricing_mode',this.value);_mtRenderEditor()" style="${_mtInputS()}">
-                                <option value="per_person"${f.pricing_mode==='per_person'?' selected':''}>מחיר לאיש × מוזמנים</option>
-                                <option value="per_item"${f.pricing_mode==='per_item'?' selected':''}>סכום מחירי המנות</option>
-                            </select>
-                        </div>
-                    </div>
-                    ${f.pricing_mode === 'per_person' ? `
-                    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
-                        <div>
-                            <label style="font-size:11.5px;color:#64748b;font-weight:600;display:block;margin-bottom:4px">מחיר לאיש (₪)</label>
-                            <input type="number" min="0" value="${f.base_price_per_person}" oninput="_mtEF('base_price_per_person',parseFloat(this.value)||0)" style="${_mtInputS()}">
-                        </div>
-                        <div>
-                            <label style="font-size:11.5px;color:#64748b;font-weight:600;display:block;margin-bottom:4px">מינ' אורחים</label>
-                            <input type="number" min="1" value="${f.min_guests}" oninput="_mtEF('min_guests',this.value)" placeholder="—" style="${_mtInputS()}">
-                        </div>
-                        <div>
-                            <label style="font-size:11.5px;color:#64748b;font-weight:600;display:block;margin-bottom:4px">מקס' אורחים</label>
-                            <input type="number" min="1" value="${f.max_guests}" oninput="_mtEF('max_guests',this.value)" placeholder="ללא הגבלה" style="${_mtInputS()}">
-                        </div>
-                    </div>` : `
-                    <div style="font-size:12px;color:#64748b;background:#f1f5f9;border-radius:6px;padding:10px 12px">
-                        הסה"כ יחושב אוטומטית לפי מחירי המנות שנבחרו. ניתן לערוך את מחיר כל מנה ישירות בשורת המנה למטה.
-                    </div>`}
-                    <div>
-                        <label style="font-size:11.5px;color:#64748b;font-weight:600;display:block;margin-bottom:4px">תיאור</label>
-                        <textarea oninput="_mtEF('description',this.value)" rows="3" style="${_mtInputS()};resize:vertical;line-height:1.6">${_mtEsc(f.description)}</textarea>
-                    </div>
-                </div>
-            </div>
-            <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:18px">
-                <h3 style="margin:0 0 14px;font-size:14px;font-weight:700;color:#1e293b">זהות עסקית בדף הלקוח</h3>
-                <div style="display:flex;flex-direction:column;gap:12px">
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-                        <div>
-                            <label style="font-size:11.5px;color:#64748b;font-weight:600;display:block;margin-bottom:6px">תמונת כותרת</label>
-                            ${f.cover_image_url ? `<img src="${_mtEsc(f.cover_image_url)}" alt="" style="width:100%;height:88px;object-fit:cover;border-radius:8px;border:1px solid #e2e8f0;display:block;margin-bottom:6px">` : ''}
-                            <div style="display:flex;gap:6px">
-                                <button onclick="_mtUploadImg('cover_image_url')" style="flex:1;padding:7px 10px;background:#f1f5f9;border:1px dashed #cbd5e1;border-radius:6px;font-size:12px;color:#475569;cursor:pointer"><i class="fa-solid fa-cloud-arrow-up" style="margin-left:4px"></i>${f.cover_image_url ? 'החלף' : 'בחר תמונה'}</button>
-                                ${f.cover_image_url ? `<button onclick="_mtEF('cover_image_url','');_mtRenderEditor(document.getElementById('menu-templates-root'))" style="padding:7px 10px;background:#fff;border:1px solid #fca5a5;border-radius:6px;font-size:12px;color:#dc2626;cursor:pointer">הסר</button>` : ''}
-                            </div>
-                        </div>
-                        <div>
-                            <label style="font-size:11.5px;color:#64748b;font-weight:600;display:block;margin-bottom:6px">לוגו</label>
-                            ${f.logo_url ? `<img src="${_mtEsc(f.logo_url)}" alt="" style="width:72px;height:72px;object-fit:cover;border-radius:8px;border:1px solid #e2e8f0;display:block;margin-bottom:6px">` : ''}
-                            <div style="display:flex;gap:6px">
-                                <button onclick="_mtUploadImg('logo_url')" style="flex:1;padding:7px 10px;background:#f1f5f9;border:1px dashed #cbd5e1;border-radius:6px;font-size:12px;color:#475569;cursor:pointer"><i class="fa-solid fa-cloud-arrow-up" style="margin-left:4px"></i>${f.logo_url ? 'החלף' : 'בחר תמונה'}</button>
-                                ${f.logo_url ? `<button onclick="_mtEF('logo_url','');_mtRenderEditor(document.getElementById('menu-templates-root'))" style="padding:7px 10px;background:#fff;border:1px solid #fca5a5;border-radius:6px;font-size:12px;color:#dc2626;cursor:pointer">הסר</button>` : ''}
-                            </div>
-                        </div>
-                    </div>
-                    <div>
-                        <label style="font-size:11.5px;color:#64748b;font-weight:600;display:block;margin-bottom:4px">סלוגן</label>
-                        <input value="${_mtEsc(f.slogan||'')}" oninput="_mtEF('slogan',this.value)" placeholder="טעמים שנשארים בזיכרון" style="${_mtInputS()}">
-                    </div>
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-                        <div>
-                            <label style="font-size:11.5px;color:#64748b;font-weight:600;display:block;margin-bottom:4px">טלפון לתצוגה</label>
-                            <input value="${_mtEsc(f.contact_phone||'')}" oninput="_mtEF('contact_phone',this.value)" placeholder="050-0000000" style="${_mtInputS()}">
-                        </div>
-                        <div>
-                            <label style="font-size:11.5px;color:#64748b;font-weight:600;display:block;margin-bottom:4px">כתובת לתצוגה</label>
-                            <input value="${_mtEsc(f.contact_address||'')}" oninput="_mtEF('contact_address',this.value)" placeholder="רחוב, עיר" style="${_mtInputS()}">
-                        </div>
-                    </div>
-                    <div>
-                        <label style="font-size:11.5px;color:#64748b;font-weight:600;display:block;margin-bottom:4px">מייל לקבלת פניות *</label>
-                        <input type="email" value="${_mtEsc(f.notification_email||'')}" oninput="_mtEF('notification_email',this.value)" placeholder="info@mybusiness.co.il" style="${_mtInputS()}">
-                        <div style="font-size:11px;color:#94a3b8;margin-top:3px">כאן יגיעו פניות לקוחות שמילאו את הטופס</div>
-                    </div>
-                </div>
-            </div>
-            <div style="background:#fff;border:2px solid ${f.event_mode ? '#f59e0b' : '#e2e8f0'};border-radius:12px;padding:18px">
-                <div style="display:flex;align-items:center;gap:10px;margin-bottom:${f.event_mode ? '16px' : '0'}">
-                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;flex:1">
-                        <input type="checkbox" ${f.event_mode ? 'checked' : ''} onchange="_mtEF('event_mode',this.checked);_mtRenderEditor(document.getElementById('menu-templates-root'))"
-                            style="width:16px;height:16px;accent-color:#f59e0b;cursor:pointer">
-                        <span style="font-size:14px;font-weight:700;color:#1e293b">מצב אירוע — תפריט שולחן</span>
-                    </label>
-                    ${f.event_mode ? '' : '<span style="font-size:11px;color:#94a3b8">הפוך לתפריט לאורחים / שולחן</span>'}
-                </div>
-                ${f.event_mode ? `
-                <div style="display:flex;flex-direction:column;gap:14px">
-                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;background:#fef3c7;border-radius:7px;padding:10px 12px">
-                        <input type="checkbox" ${f.hide_prices ? 'checked' : ''} onchange="_mtEF('hide_prices',this.checked)"
-                            style="width:15px;height:15px;accent-color:#f59e0b;cursor:pointer">
-                        <span style="font-size:13px;color:#92400e;font-weight:600">הסתר מחירים מהתפריט</span>
-                    </label>
-                    <div>
-                        <label style="font-size:11.5px;color:#64748b;font-weight:600;display:block;margin-bottom:4px">ברכת פתיחה לאירוע</label>
-                        <input value="${_mtEsc(f.event_greeting||'')}" oninput="_mtEF('event_greeting',this.value)"
-                            placeholder="ברוכים הבאים לאירוע החתונה של..." style="${_mtInputS()}">
-                        <div style="font-size:11px;color:#94a3b8;margin-top:3px">יופיע בראש התפריט ככותרת פתיחה</div>
-                    </div>
-                    <div>
-                        <label style="font-size:11.5px;color:#64748b;font-weight:600;display:block;margin-bottom:4px">טקסט תיאור האירוע</label>
-                        <textarea oninput="_mtEF('event_intro',this.value)" rows="3"
-                            placeholder="שמחים לארח אתכם בערב מיוחד זה..."
-                            style="${_mtInputS()};resize:vertical;min-height:70px">${_mtEsc(f.event_intro||'')}</textarea>
-                    </div>
-                    <div>
-                        <label style="font-size:11.5px;color:#64748b;font-weight:600;display:block;margin-bottom:6px">תמונת האירוע</label>
-                        ${f.event_image_url ? `<img src="${_mtEsc(f.event_image_url)}" alt="" style="width:100%;height:100px;object-fit:cover;border-radius:8px;border:1px solid #e2e8f0;display:block;margin-bottom:6px">` : ''}
-                        <div style="display:flex;gap:6px">
-                            <button onclick="_mtUploadImg('event_image_url')" style="flex:1;padding:7px 10px;background:#fef3c7;border:1px dashed #f59e0b;border-radius:6px;font-size:12px;color:#92400e;cursor:pointer">
-                                <i class="fa-solid fa-cloud-arrow-up" style="margin-left:4px"></i>${f.event_image_url ? 'החלף תמונת אירוע' : 'בחר תמונת אירוע'}
-                            </button>
-                            ${f.event_image_url ? `<button onclick="_mtEF('event_image_url','');_mtRenderEditor(document.getElementById('menu-templates-root'))" style="padding:7px 10px;background:#fff;border:1px solid #fca5a5;border-radius:6px;font-size:12px;color:#dc2626;cursor:pointer">הסר</button>` : ''}
-                        </div>
-                        <div style="font-size:11px;color:#94a3b8;margin-top:3px">תחליף את תמונת הכותרת הרגילה</div>
-                    </div>
-                </div>` : ''}
-            </div>
-            <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:18px">
-                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
-                    <h3 style="margin:0;font-size:14px;font-weight:700;color:#1e293b">שלבים ופריטים</h3>
-                    <button onclick="_mtAddSecModal()" style="${_mtBtnS('primary')};font-size:12.5px;padding:6px 13px">+ הוסף שלב</button>
-                </div>
-                ${sections.length === 0 ? `
-                <div style="text-align:center;padding:28px;color:#94a3b8;border:1.5px dashed #e2e8f0;border-radius:8px">
-                    <div style="font-size:24px;margin-bottom:7px">🍽️</div>
-                    <div style="font-size:12.5px">הוסף שלב ראשון (ראשונות, עיקריות, קינוחים...)</div>
-                </div>` : sectionsHtml}
-            </div>
+
+    <!-- GRID: preview left, forms right -->
+    <div id="mt-ed-grid" style="padding:18px 4px;display:grid;grid-template-columns:min(260px,30%) 1fr;gap:20px;align-items:start">
+
+      <!-- LEFT: preview -->
+      <div id="mt-prev-col" style="position:sticky;top:64px;display:flex;flex-direction:column;gap:0">
+        <div style="font-size:11px;font-weight:600;letter-spacing:.1em;color:#94a3b8;margin-bottom:8px;text-transform:uppercase">תצוגה מקדימה</div>
+        ${pUrl ? `<div style="margin-bottom:8px"><span style="display:inline-flex;align-items:center;gap:5px;padding:3px 10px;background:#dcfce7;color:#15803d;font-size:11px;font-weight:600;border-radius:999px"><span style="width:6px;height:6px;border-radius:50%;background:#16a34a;display:inline-block"></span>מחובר לקישור החי</span></div>` : ''}
+        <!-- mini card -->
+        <div style="background:#fff;border-radius:14px;border:1px solid #e2e8f0;overflow:hidden;box-shadow:0 4px 16px rgba(99,102,241,.08)">
+          <div style="height:80px;background:#eef2ff ${stripeSvgEd};position:relative">
+            ${(f.cover_image_url||f.event_image_url) ? `<img src="${_mtEsc(f.cover_image_url||f.event_image_url)}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover">` : `<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:11px;color:#a5b4fc;opacity:.7">תמונת כותרת</div>`}
+          </div>
+          <div style="padding:12px 13px;direction:rtl">
+            <div style="font-weight:800;font-size:14px;color:#1e293b;margin-bottom:3px">${_mtEsc(f.name || t.name)}</div>
+            ${f.base_price_per_person ? `<div style="font-size:12px;color:#6366f1;font-weight:700;margin-bottom:4px">₪${f.base_price_per_person} לאיש</div>` : ''}
+            ${(f.event_type || sections.length) ? `<div style="font-size:11px;color:#94a3b8">${f.event_type ? _mtEtLabel(f.event_type) : ''} ${sections.length ? `· מינ' ${f.min_guests||0} אורחים` : ''}</div>` : ''}
+            ${prevSections}
+            ${sections.length > 4 ? `<div style="font-size:10px;color:#94a3b8;margin-top:4px">+${sections.length - 4} שלבים נוספים</div>` : ''}
+          </div>
         </div>
-        <div id="mt-prev-col" style="position:sticky;top:56px">
-            <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:16px">
-                <div style="font-size:11.5px;font-weight:700;color:#94a3b8;letter-spacing:.07em;margin-bottom:12px">תצוגה מקדימה</div>
-                <div style="background:#1e293b;border-radius:8px;padding:7px">
-                    <div style="background:#fafafa;border-radius:5px;overflow:hidden;font-size:12px;direction:rtl">
-                        <div style="background:#e2e8f0;height:72px;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:10px">תמונת באנר</div>
-                        <div style="padding:12px 13px">
-                            <div style="font-weight:700;font-size:14px;color:#1e293b;margin-bottom:4px">${_mtEsc(f.name || t.name)}</div>
-                            ${f.description ? `<div style="font-size:10.5px;color:#64748b;line-height:1.5;margin-bottom:6px">${_mtEsc((f.description || '').substring(0,70))}${(f.description || '').length > 70 ? '...' : ''}</div>` : ''}
-                            ${f.base_price_per_person ? `<div style="font-size:11px;color:#6366f1;font-weight:600;margin-bottom:8px">₪${f.base_price_per_person} לאיש</div>` : ''}
-                            ${prevSections}
-                            ${sections.length > 4 ? `<div style="font-size:10.5px;color:#94a3b8;text-align:center">+${sections.length - 4} שלבים נוספים</div>` : ''}
-                        </div>
-                    </div>
-                </div>
-                ${pUrl ? `<a href="${pUrl}" target="_blank" style="display:block;text-align:center;margin-top:10px;font-size:11.5px;color:#6366f1">פתח כדף לקוח ↗</a>` : ''}
+        ${pUrl ? `<a href="${pUrl}" target="_blank" style="display:block;text-align:center;margin-top:8px;font-size:12px;color:#6366f1;font-weight:600;text-decoration:none">פתח כדף לקוח ↗</a>
+        <div style="font-size:10.5px;color:#94a3b8;text-align:center;margin-top:5px;line-height:1.4">כך יראו הלקוחות את התפריט בקישור הציבורי</div>` : ''}
+      </div>
+
+      <!-- RIGHT: forms -->
+      <div style="display:flex;flex-direction:column;gap:16px">
+
+        <!-- פרטי התפריט -->
+        <div style="background:#fff;border:1px solid #e8eaf0;border-radius:16px;padding:20px 22px">
+          ${cardH('פרטי התפריט')}
+          <div style="display:flex;flex-direction:column;gap:14px">
+            <div>
+              ${secLabel('שם התפריט', true)}
+              <input id="mt-ef-name" value="${_mtEsc(f.name)}" oninput="_mtEF('name',this.value)" style="${_mtInputS()}">
             </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+              <div>
+                ${secLabel('סוג אירוע')}
+                <select id="mt-ef-et" onchange="_mtEF('event_type',this.value)" style="${_mtInputS()}">
+                  <option value="">—</option>
+                  ${_MT_ET.map(e => `<option value="${e.v}"${f.event_type === e.v ? ' selected' : ''}>${e.l}</option>`).join('')}
+                </select>
+              </div>
+              <div>
+                ${secLabel('סוג תמחור')}
+                <select onchange="_mtEF('pricing_mode',this.value);_mtRenderEditor(document.getElementById('menu-templates-root'))" style="${_mtInputS()}">
+                  <option value="per_person"${f.pricing_mode==='per_person'?' selected':''}>מחיר לאיש × מוזמנים</option>
+                  <option value="per_item"${f.pricing_mode==='per_item'?' selected':''}>סכום מחירי המנות</option>
+                </select>
+              </div>
+            </div>
+            ${f.pricing_mode === 'per_person' ? `
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+              <div>
+                ${secLabel('מחיר לאיש (₪)')}
+                <input type="number" min="0" value="${f.base_price_per_person}" oninput="_mtEF('base_price_per_person',parseFloat(this.value)||0)" style="${_mtInputS()}">
+              </div>
+              <div>
+                ${secLabel("מינ' אורחים")}
+                <input type="number" min="1" value="${f.min_guests||''}" oninput="_mtEF('min_guests',this.value)" placeholder="—" style="${_mtInputS()}">
+              </div>
+              <div>
+                ${secLabel("מקס' אורחים")}
+                <input type="number" min="1" value="${f.max_guests||''}" oninput="_mtEF('max_guests',this.value)" placeholder="ללא הגבלה" style="${_mtInputS()}">
+              </div>
+            </div>` : `<div style="font-size:12px;color:#64748b;background:#f8fafc;border-radius:8px;padding:10px 14px;border:1px solid #f1f5f9">הסה"כ יחושב אוטומטית לפי מחירי המנות שנבחרו.</div>`}
+            <div>
+              ${secLabel('תיאור')}
+              <textarea oninput="_mtEF('description',this.value)" rows="3" placeholder="מה מייחד את התפריט הזה?" style="${_mtInputS()};resize:vertical;line-height:1.6">${_mtEsc(f.description||'')}</textarea>
+            </div>
+          </div>
         </div>
-    </div>`;
+
+        <!-- זהות עסקית -->
+        <div style="background:#fff;border:1px solid #e8eaf0;border-radius:16px;padding:20px 22px">
+          ${cardH('זהות עסקית בדף הלקוח', 'מופיע ללקוח בראש התפריט')}
+          <div style="display:flex;flex-direction:column;gap:14px">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+              <!-- תמונת כותרת -->
+              <div>
+                ${secLabel('תמונת כותרת')}
+                <div style="height:88px;border-radius:10px;overflow:hidden;border:1px solid #e2e8f0;background:#eef2ff ${stripeSvgEd};position:relative;margin-bottom:7px">
+                  ${f.cover_image_url ? `<img src="${_mtEsc(f.cover_image_url)}" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover">` : `<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:10.5px;color:#a5b4fc">600×1200 · תמונת מלאה</div>`}
+                </div>
+                <div style="display:flex;gap:6px">
+                  <button onclick="_mtUploadImg('cover_image_url')" style="flex:1;padding:7px 10px;background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:8px;font-size:12px;color:#475569;cursor:pointer;font-family:inherit">החלף תמונה</button>
+                  ${f.cover_image_url ? `<button onclick="${_r("_mtEF('cover_image_url','')")}" style="padding:7px 12px;background:#fff;border:1.5px solid #fca5a5;border-radius:8px;font-size:12px;color:#dc2626;cursor:pointer;font-family:inherit">הסר</button>` : ''}
+                </div>
+              </div>
+              <!-- לוגו -->
+              <div>
+                ${secLabel('לוגו')}
+                <div style="height:88px;border-radius:10px;overflow:hidden;border:1px solid #e2e8f0;background:#1e293b;position:relative;margin-bottom:7px;display:flex;align-items:center;justify-content:center">
+                  ${f.logo_url ? `<img src="${_mtEsc(f.logo_url)}" style="max-width:80%;max-height:80%;object-fit:contain">` : `<div style="font-size:10.5px;color:#64748b">לוגו · PNG שקוף</div>`}
+                </div>
+                <div style="display:flex;gap:6px">
+                  <button onclick="_mtUploadImg('logo_url')" style="flex:1;padding:7px 10px;background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:8px;font-size:12px;color:#475569;cursor:pointer;font-family:inherit">החלף לוגו</button>
+                  ${f.logo_url ? `<button onclick="${_r("_mtEF('logo_url','')")}" style="padding:7px 12px;background:#fff;border:1.5px solid #fca5a5;border-radius:8px;font-size:12px;color:#dc2626;cursor:pointer;font-family:inherit">הסר</button>` : ''}
+                </div>
+              </div>
+            </div>
+            <div>
+              ${secLabel('סלוגן')}
+              <input value="${_mtEsc(f.slogan||'')}" oninput="_mtEF('slogan',this.value)" placeholder="טעמים שנשארים בזיכרון" style="${_mtInputS()}">
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+              <div>
+                ${secLabel('טלפון לתצוגה')}
+                <input value="${_mtEsc(f.contact_phone||'')}" oninput="_mtEF('contact_phone',this.value)" placeholder="050-0000000" style="${_mtInputS()}">
+              </div>
+              <div>
+                ${secLabel('כתובת לתצוגה')}
+                <input value="${_mtEsc(f.contact_address||'')}" oninput="_mtEF('contact_address',this.value)" placeholder="רחוב, עיר" style="${_mtInputS()}">
+              </div>
+            </div>
+            <div>
+              ${secLabel('מייל לקבלת פניות', true)}
+              <input type="email" value="${_mtEsc(f.notification_email||'')}" oninput="_mtEF('notification_email',this.value)" placeholder="info@mybusiness.co.il" style="${_mtInputS()}">
+              <div style="font-size:11px;color:#94a3b8;margin-top:4px">כאן יגיעו פניות מלקוחות שמילאו את הטופס</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- מצב אירוע -->
+        <div style="background:#fff;border:1px solid ${f.event_mode?'#f59e0b':'#e8eaf0'};border-radius:16px;padding:20px 22px">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:${f.event_mode?'18px':'0'}">
+            <div>
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:3px">
+                <span style="font-size:15px;font-weight:800;color:#1e293b">מצב אירוע — תפריט שולחן</span>
+                ${f.event_mode ? '<span style="padding:2px 9px;background:#dcfce7;color:#15803d;font-size:11px;font-weight:600;border-radius:999px">פעיל</span>' : ''}
+              </div>
+              <div style="font-size:11.5px;color:#94a3b8">תפריט מעוצב להנחה על שולחנות האורחים</div>
+            </div>
+            <!-- toggle switch -->
+            <label style="cursor:pointer;flex-shrink:0;position:relative;display:inline-block;width:44px;height:24px">
+              <input type="checkbox" ${f.event_mode?'checked':''} onchange="${_r("_mtEF('event_mode',this.checked)")}" style="opacity:0;width:0;height:0;position:absolute">
+              <span style="position:absolute;inset:0;background:${f.event_mode?'#6366f1':'#e2e8f0'};border-radius:999px;transition:.2s"></span>
+              <span style="position:absolute;top:3px;${f.event_mode?'right:3px':'left:3px'};width:18px;height:18px;background:#fff;border-radius:50%;transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,.2)"></span>
+            </label>
+          </div>
+          ${f.event_mode ? `
+          <div style="display:flex;flex-direction:column;gap:14px">
+            <label style="display:flex;align-items:center;gap:10px;cursor:pointer;background:#fef3c7;border-radius:10px;padding:11px 14px;border:1px solid #fde68a">
+              <input type="checkbox" ${f.hide_prices?'checked':''} onchange="_mtEF('hide_prices',this.checked)" style="width:16px;height:16px;accent-color:#f59e0b;cursor:pointer;flex-shrink:0">
+              <div>
+                <div style="font-size:13px;color:#92400e;font-weight:700">הסתר מחירים מהתפריט</div>
+                <div style="font-size:11px;color:#b45309;margin-top:1px">מומלץ בתפריטי שולחן לאירוע פנימי</div>
+              </div>
+            </label>
+            <div>
+              ${secLabel('ברכת פתיחה לאירוע')}
+              <input value="${_mtEsc(f.event_greeting||'')}" oninput="_mtEF('event_greeting',this.value)" placeholder="ברוכים הבאים לאירוע החתונה של..." style="${_mtInputS()}">
+              <div style="font-size:11px;color:#94a3b8;margin-top:4px">יופיע בראש התפריט ככותרת פתיחה</div>
+            </div>
+            <div>
+              ${secLabel('טקסט תיאור האירוע')}
+              <textarea oninput="_mtEF('event_intro',this.value)" rows="3" placeholder="שמחים לארח אתכם בערב מיוחד זה..." style="${_mtInputS()};resize:vertical;min-height:70px">${_mtEsc(f.event_intro||'')}</textarea>
+            </div>
+            <div>
+              ${secLabel('תמונת האירוע')}
+              ${f.event_image_url ? `<img src="${_mtEsc(f.event_image_url)}" alt="" style="width:100%;height:100px;object-fit:cover;border-radius:10px;border:1px solid #e2e8f0;display:block;margin-bottom:7px">` : ''}
+              <div style="display:flex;gap:7px">
+                <button onclick="_mtUploadImg('event_image_url')" style="flex:1;padding:10px;background:#fffbeb;border:2px dashed #fcd34d;border-radius:10px;font-size:13px;color:#92400e;cursor:pointer;font-family:inherit;font-weight:500">
+                  ${f.event_image_url ? 'החלף תמונת אירוע' : 'בחר תמונת אירוע'}
+                </button>
+                ${f.event_image_url ? `<button onclick="${_r("_mtEF('event_image_url','')")}" style="padding:10px 14px;background:#fff;border:1.5px solid #fca5a5;border-radius:10px;font-size:12px;color:#dc2626;cursor:pointer;font-family:inherit">הסר</button>` : ''}
+              </div>
+              <div style="font-size:11px;color:#94a3b8;margin-top:4px">החלף את תמונת הכותרת הרגילה</div>
+            </div>
+          </div>` : ''}
+        </div>
+
+        <!-- שלבים ופריטים -->
+        <div style="background:#fff;border:1px solid #e8eaf0;border-radius:16px;padding:20px 22px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
+            <div style="border-right:4px solid #6366f1;padding-right:12px">
+              <h3 style="margin:0;font-size:15px;font-weight:800;color:#1e293b">שלבים ופריטים</h3>
+              <div style="font-size:11.5px;color:#94a3b8;margin-top:2px">${sections.length} שלבים</div>
+            </div>
+            <button onclick="_mtAddSecModal()" style="display:inline-flex;align-items:center;gap:6px;padding:8px 16px;background:#6366f1;color:#fff;border:none;border-radius:999px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;box-shadow:0 2px 8px rgba(99,102,241,.25)">
+              <i class="fa-solid fa-plus" style="font-size:11px"></i>הוסף שלב
+            </button>
+          </div>
+          ${sections.length === 0 ? `
+          <div style="text-align:center;padding:36px 20px;border:2px dashed #e2e8f0;border-radius:12px">
+            <div style="width:44px;height:44px;border-radius:50%;border:2px dashed #c7d2fe;display:flex;align-items:center;justify-content:center;color:#a5b4fc;font-size:22px;margin:0 auto 12px">+</div>
+            <div style="font-size:14px;font-weight:700;color:#64748b;margin-bottom:4px">אין עדיין שלבים בתפריט</div>
+            <div style="font-size:12.5px;color:#94a3b8;line-height:1.5">הוסיפו שלב ראשון — ראשונות, עיקריות, קינוחים — ואז גררו<br>פריטים לתוכו</div>
+          </div>` : sectionsHtml}
+        </div>
+
+      </div><!-- /right forms -->
+    </div><!-- /grid -->`;
 
     if (window.innerWidth < 760) {
         const g = document.getElementById('mt-ed-grid');
