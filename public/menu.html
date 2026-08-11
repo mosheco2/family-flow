@@ -330,7 +330,7 @@ function renderCatalogBrowse() {
           <div style="flex:1;min-width:0">
             <div style="font-size:13.5px;font-weight:500;color:var(--ink);margin-bottom:2px">${esc(item.name)}</div>
             ${item.description ? `<div style="font-size:11.5px;color:var(--ink3);margin-bottom:4px;line-height:1.5">${esc(item.description)}</div>` : ''}
-            ${item.price > 0 && !_d.hide_prices ? `<div style="font-size:12.5px;color:var(--accent);font-weight:600">₪${num(item.price)}</div>` : ''}
+            ${item.price > 0 && !(_d.hide_prices || _d.event_mode) ? `<div style="font-size:12.5px;color:var(--accent);font-weight:600">₪${num(item.price)}</div>` : ''}
           </div>
           <div style="display:flex;align-items:center;gap:7px;flex-shrink:0;margin-top:2px">
             ${qty > 0 ? `<button onclick="catChangeQty(${item.id},-1)" style="width:26px;height:26px;border-radius:50%;border:1.5px solid var(--accent);background:transparent;color:var(--accent);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1">−</button>
@@ -549,7 +549,7 @@ function renderStep(idx) {
             ${item.description ? `<div class="item-desc">${esc(item.description)}</div>` : ''}
             ${item.allergens ? `<div class="item-allergens">אלרגנים: ${esc(item.allergens)}</div>` : ''}
           </div>
-          ${item.price > 0 && !_d.hide_prices ? `<div class="item-price">+₪${num(item.price)}</div>` : ''}
+          ${item.price > 0 && !(_d.hide_prices || _d.event_mode) ? `<div class="item-price">+₪${num(item.price)}</div>` : ''}
         </div>`;
     }).join('');
 
@@ -947,8 +947,8 @@ function _pdfDish(item, showPrice) {
         <div class="pdf-dish-body">
           <div class="pdf-dish-name">${esc(item.name)}</div>
           ${item.description ? `<div class="pdf-dish-desc">${esc(item.description)}</div>` : ''}
-          ${showPrice && item.price > 0 && !_d.hide_prices ? `<div class="pdf-dish-price">₪${num(item.price)}</div>` : ''}
-          ${!showPrice && item.price > 0 && !_d.hide_prices ? `<div class="pdf-dish-price">+ ₪${num(item.price)} לאיש</div>` : ''}
+          ${showPrice && item.price > 0 && !(_d.hide_prices || _d.event_mode) ? `<div class="pdf-dish-price">₪${num(item.price)}</div>` : ''}
+          ${!showPrice && item.price > 0 && !(_d.hide_prices || _d.event_mode) ? `<div class="pdf-dish-price">+ ₪${num(item.price)} לאיש</div>` : ''}
         </div>
       </div>`;
 }
@@ -965,7 +965,7 @@ function _pdfLogoBlock(businessName) {
 function _pdfTitleSection(businessName, titleOverride) {
     const evLabel = { wedding:'חתונה', bar_mitzvah:'בר/בת מצווה', birthday:'יום הולדת', corporate:'אירוע עסקי' }[_d.event_type] || '';
     const metaParts = [];
-    if (!_d.hide_prices && (_d.pricing_mode||'per_person')==='per_person' && _d.base_price_per_person > 0) metaParts.push(`₪${num(_d.base_price_per_person)} לאיש`);
+    if (!(_d.hide_prices || _d.event_mode) && (_d.pricing_mode||'per_person')==='per_person' && _d.base_price_per_person > 0) metaParts.push(`₪${num(_d.base_price_per_person)} לאיש`);
     if (_d.min_guests && _d.max_guests) metaParts.push(`${_d.min_guests}–${_d.max_guests} אורחים`);
 
     return `
