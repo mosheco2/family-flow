@@ -29881,6 +29881,20 @@ app.post('/api/menu/public/:slug/request', async (req, res) => {
             }
         }
 
+        // המרת selections מ-IDs לשמות קריאים לאחסון
+        const allItemIds = Object.values(selections).flat().map(Number).filter(Boolean);
+        const itemNamesRes = allItemIds.length
+            ? await pool.query('SELECT id, name FROM menu_items WHERE id=ANY($1)', [allItemIds])
+            : { rows: [] };
+        const itemNameMap = {};
+        itemNamesRes.rows.forEach(it => { itemNameMap[it.id] = it.name; });
+        const selectionsNamed = {};
+        for (const [secIdStr, itemIds] of Object.entries(selections)) {
+            const secId = parseInt(secIdStr);
+            const secName = sectionMap[secId]?.name || secIdStr;
+            selectionsNamed[secName] = itemIds.map(id => itemNameMap[id] || String(id));
+        }
+
         const customNotes = _sanitizePlainText(req.body.custom_notes);
         const r = await pool.query(`
             INSERT INTO menu_quote_requests
@@ -29894,7 +29908,7 @@ app.post('/api/menu/public/:slug/request', async (req, res) => {
             _sanitizePlainText(req.body.customer_email),
             req.body.event_date || null,
             req.body.guest_count ? parseInt(req.body.guest_count) : null,
-            JSON.stringify(selections),
+            JSON.stringify(selectionsNamed),
             customNotes
         ]);
 

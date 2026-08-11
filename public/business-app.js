@@ -8181,14 +8181,18 @@ window.renderMenuRequests = function() {
             const entries = Object.entries(sels).filter(([,v]) => v && (Array.isArray(v) ? v.length : true));
             if (entries.length) {
                 const allVals = entries.flatMap(([,v]) => Array.isArray(v) ? v : [v]).filter(Boolean);
-                selsSummary = `${allVals.length} בחירות`;
-                selsDetail = `<div class="mt-2 bg-slate-50 rounded-xl p-3 space-y-1.5">
-                  <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">בחירות מהאשף</div>
-                  ${entries.map(([sec, vals]) => {
-                      const vArr = Array.isArray(vals) ? vals : [vals];
-                      return `<div class="text-xs text-slate-700"><span class="font-semibold text-slate-500">${escHtml(sec)}:</span> ${vArr.map(v=>escHtml(String(v))).join(', ')}</div>`;
-                  }).join('')}
-                </div>`;
+                // בקשות ישנות: המפתחות הם מספרי ID — זיהוי לפי מפתח מספרי
+                const isLegacy = entries.every(([k]) => /^\d+$/.test(k));
+                selsSummary = isLegacy ? `${allVals.length} בחירות (בקשה ישנה)` : `${allVals.length} בחירות`;
+                selsDetail = isLegacy
+                    ? `<div class="mt-2 bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-700">בקשה ישנה — הפרטים אוחסנו כמספרי ID ולא כשמות. בקשות חדשות יציגו שמות מלאים.</div>`
+                    : `<div class="mt-2 bg-slate-50 rounded-xl p-3 space-y-1.5">
+                        <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">בחירות מהאשף</div>
+                        ${entries.map(([sec, vals]) => {
+                            const vArr = Array.isArray(vals) ? vals : [vals];
+                            return `<div class="text-xs text-slate-700"><span class="font-semibold text-slate-500">${escHtml(sec)}:</span> ${vArr.map(v=>escHtml(String(v))).join(', ')}</div>`;
+                        }).join('')}
+                      </div>`;
             }
         }
 
