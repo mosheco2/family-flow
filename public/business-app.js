@@ -53922,7 +53922,7 @@ window._mtWaShare = function(slug, name) {
 window._mtWaShareFromPanel = function(slug) {
     const d = window._mtPdfDesign;
     const bizName = window._mtPdfCurrentName || '';
-    const menuUrl = `${location.origin}/menu/${encodeURIComponent(slug)}`;
+    const menuUrl = `${location.origin}/menu/${encodeURIComponent(slug)}?palette=${d.palette}&plating=${d.plating}&air=${d.airiness}`;
     const intro = bizName ? `היי! אנחנו ${bizName} ושמחים לשתף אתכם בתפריט שלנו 🍽️` : 'היי! שמחים לשתף אתכם בתפריט שלנו 🍽️';
     const text = encodeURIComponent(`${intro}\n${menuUrl}`);
     window.open(`https://wa.me/?text=${text}`, '_blank');
