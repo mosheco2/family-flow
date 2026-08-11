@@ -8119,6 +8119,30 @@ window.fetchMenuRequests = async function() {
     }
 };
 
+window._mrExpanded = window._mrExpanded || new Set();
+
+window.toggleMrDetails = function(id) {
+    if (window._mrExpanded.has(id)) window._mrExpanded.delete(id);
+    else window._mrExpanded.add(id);
+    window.renderMenuRequests();
+};
+
+window.copyMenuRequestLink = function(slug) {
+    if (!slug) return;
+    const url = `${location.origin}/menu/${encodeURIComponent(slug)}`;
+    navigator.clipboard.writeText(url).then(() => showToast('success', 'הקישור הועתק ✓'));
+};
+
+window.openMenuEdit = function(slug) {
+    if (!slug) return;
+    // מעבר לעריכת התפריט - החלף ל-tab תפריטים
+    window.switchTab && window.switchTab('menus');
+    setTimeout(() => {
+        const cards = document.querySelectorAll('[data-menu-slug]');
+        cards.forEach(c => { if (c.dataset.menuSlug === slug) c.click(); });
+    }, 400);
+};
+
 window.renderMenuRequests = function() {
     const list = document.getElementById('menu-requests-list');
     if (!list) return;
@@ -8134,28 +8158,57 @@ window.renderMenuRequests = function() {
 
     list.innerHTML = items.map(r => {
         const status = r.status || 'pending';
+        const expanded = window._mrExpanded.has(r.id);
         const sBadge = `<span class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${statusColors[status]||'bg-slate-100 text-slate-500'}">${statusLabels[status]||status}</span>`;
         const sourceLabel = sourceLabels[r.source] || r.source || '';
         const dt = r.created_at ? new Date(r.created_at).toLocaleString('he-IL',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'}) : '';
 
-        // selections: catalog_builder → array of {name,qty,price}; public_form → {sectionId:[itemIds]}
-        let itemsHtml = '';
+        // build selections html
         const sels = r.selections;
+        let selsSummary = '', selsDetail = '';
         if (r.source === 'catalog_builder' && Array.isArray(sels) && sels.length) {
             const total = sels.reduce((s, ci) => s + (ci.price||0)*(ci.qty||1), 0);
-            itemsHtml = `<div class="mt-2 bg-slate-50 rounded-xl p-2 space-y-0.5">
-              ${sels.map(ci => `<div class="text-xs text-slate-600 flex justify-between"><span>${escHtml(ci.name)} × ${ci.qty}</span>${ci.price>0?`<span class="font-bold text-slate-700">₪${((ci.price*ci.qty)).toLocaleString('he-IL')}</span>`:''}</div>`).join('')}
-              ${total>0?`<div class="text-xs font-bold text-slate-800 border-t border-slate-200 pt-1 mt-1 flex justify-between"><span>סה״כ</span><span>₪${total.toLocaleString('he-IL')}</span></div>`:''}
+            selsSummary = `${sels.length} פריטים${total>0?' · ₪'+total.toLocaleString('he-IL'):''}`;
+            selsDetail = `<div class="mt-2 bg-slate-50 rounded-xl p-3 space-y-1">
+              <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">פירוט הזמנה</div>
+              ${sels.map(ci => `<div class="text-xs text-slate-700 flex justify-between gap-2">
+                <span>${escHtml(ci.name)}${ci.qty>1?' <span class="text-slate-400">×'+ci.qty+'</span>':''}</span>
+                ${ci.price>0?`<span class="font-bold text-slate-800 tabular-nums">₪${(ci.price*ci.qty).toLocaleString('he-IL')}</span>`:''}
+              </div>`).join('')}
+              ${total>0?`<div class="text-xs font-bold text-slate-900 border-t border-slate-200 pt-2 mt-2 flex justify-between"><span>סה״כ</span><span class="tabular-nums">₪${total.toLocaleString('he-IL')}</span></div>`:''}
             </div>`;
-        } else if (sels && typeof sels === 'object' && !Array.isArray(sels) && Object.keys(sels).length) {
-            const flat = Object.values(sels).flat().filter(Boolean);
-            itemsHtml = `<div class="mt-1.5 text-xs text-slate-500 bg-slate-50 rounded-xl p-2">${flat.slice(0,6).map(s=>escHtml(String(s))).join(' · ')}${flat.length>6?` +${flat.length-6} נוספים`:''}</div>`;
+        } else if (sels && typeof sels === 'object' && !Array.isArray(sels)) {
+            const entries = Object.entries(sels).filter(([,v]) => v && (Array.isArray(v) ? v.length : true));
+            if (entries.length) {
+                const allVals = entries.flatMap(([,v]) => Array.isArray(v) ? v : [v]).filter(Boolean);
+                selsSummary = `${allVals.length} בחירות`;
+                selsDetail = `<div class="mt-2 bg-slate-50 rounded-xl p-3 space-y-1.5">
+                  <div class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">בחירות מהאשף</div>
+                  ${entries.map(([sec, vals]) => {
+                      const vArr = Array.isArray(vals) ? vals : [vals];
+                      return `<div class="text-xs text-slate-700"><span class="font-semibold text-slate-500">${escHtml(sec)}:</span> ${vArr.map(v=>escHtml(String(v))).join(', ')}</div>`;
+                  }).join('')}
+                </div>`;
+            }
         }
 
-        const convertBtn = (status !== 'converted' && status !== 'closed') ? `<button onclick="window.convertMenuRequest(${r.id})" class="text-xs font-bold bg-indigo-600 text-white px-3 py-1.5 rounded-lg hover:bg-indigo-700 transition">המר להצעת מחיר ←</button>` : '';
-        const closeBtn = (status !== 'converted' && status !== 'closed') ? `<button onclick="window.updateMenuRequestStatus(${r.id},'closed')" class="text-xs font-bold bg-slate-100 text-slate-500 px-3 py-1.5 rounded-lg hover:bg-slate-200 transition">סגור</button>` : '';
+        const hasDetails = !!(selsDetail || r.custom_notes);
+        const toggleBtn = hasDetails ? `<button onclick="window.toggleMrDetails(${r.id})" class="text-[10px] text-indigo-500 hover:text-indigo-700 font-bold flex items-center gap-1 mt-1">${expanded?'▲ הסתר פרטים':'▼ הצג בחירות מלאות'}</button>` : '';
 
-        return `<div class="bg-white border ${status==='pending'?'border-amber-300':'border-slate-200'} rounded-2xl p-4 shadow-sm space-y-2" id="mr-card-${r.id}">
+        const detailsHtml = expanded ? `
+          <div class="mt-1">
+            ${selsDetail}
+            ${r.custom_notes ? `<div class="mt-2 text-xs text-slate-500 italic border-r-2 border-indigo-200 pr-2 py-0.5">${escHtml(r.custom_notes)}</div>` : ''}
+          </div>` : (r.custom_notes && !selsDetail ? `<div class="mt-1 text-xs text-slate-500 italic border-r-2 border-slate-200 pr-2">${escHtml(r.custom_notes)}</div>` : '');
+
+        const menuLink = r.template_slug ? `${location.origin}/menu/${encodeURIComponent(r.template_slug)}` : '';
+        const linkBtns = r.template_slug ? `
+          <button onclick="window.copyMenuRequestLink('${escHtml(r.template_slug)}')" title="העתק קישור תפריט" class="text-xs font-bold bg-slate-100 text-slate-600 px-2.5 py-1.5 rounded-lg hover:bg-slate-200 transition flex items-center gap-1"><i class="fa-solid fa-link text-[10px]"></i>קישור</button>
+          <a href="${escHtml(menuLink)}" target="_blank" title="ערוך תפריט" class="text-xs font-bold bg-slate-100 text-slate-600 px-2.5 py-1.5 rounded-lg hover:bg-slate-200 transition flex items-center gap-1 no-underline"><i class="fa-solid fa-pen-to-square text-[10px]"></i>ערוך תפריט</a>` : '';
+        const convertBtn = (status !== 'converted' && status !== 'closed') ? `<button onclick="window.convertMenuRequest(${r.id})" class="text-xs font-bold bg-indigo-600 text-white px-3 py-1.5 rounded-lg hover:bg-indigo-700 transition">המר להצעת מחיר ←</button>` : '';
+        const closeBtn = (status !== 'converted' && status !== 'closed') ? `<button onclick="window.updateMenuRequestStatus(${r.id},'closed')" class="text-xs font-bold bg-slate-100 text-slate-500 px-2.5 py-1.5 rounded-lg hover:bg-slate-200 transition">סגור</button>` : '';
+
+        return `<div class="bg-white border ${status==='pending'?'border-amber-300':'border-slate-200'} rounded-2xl p-4 shadow-sm" id="mr-card-${r.id}">
           <div class="flex items-start justify-between gap-2">
             <div class="flex-1 min-w-0">
               <div class="flex items-center gap-2 flex-wrap">
@@ -8167,15 +8220,17 @@ window.renderMenuRequests = function() {
               <div class="flex flex-wrap gap-x-4 gap-y-0.5 mt-1 text-xs text-slate-500">
                 ${r.customer_phone ? `<a href="tel:${escHtml(r.customer_phone)}" class="text-indigo-600 font-bold">📞 ${escHtml(r.customer_phone)}</a>` : ''}
                 ${r.customer_email ? `<span>✉️ ${escHtml(r.customer_email)}</span>` : ''}
-                ${r.event_date ? `<span>📅 ${escHtml(r.event_date)}</span>` : ''}
+                ${r.event_date ? `<span>📅 ${new Date(r.event_date).toLocaleDateString('he-IL')}</span>` : ''}
                 ${r.guest_count ? `<span>👥 ${r.guest_count} אורחים</span>` : ''}
               </div>
-              ${itemsHtml}
-              ${r.custom_notes ? `<div class="mt-1.5 text-xs text-slate-500 italic border-r-2 border-slate-200 pr-2">${escHtml(r.custom_notes)}</div>` : ''}
+              ${selsSummary ? `<div class="text-xs text-slate-400 mt-1">🛒 ${selsSummary}</div>` : ''}
+              ${toggleBtn}
+              ${detailsHtml}
             </div>
-            <div class="text-[10px] text-slate-400 text-left shrink-0">${dt}</div>
+            <div class="text-[10px] text-slate-400 text-left shrink-0 mt-0.5">${dt}</div>
           </div>
-          <div class="flex gap-2 justify-end pt-1 border-t border-slate-100">
+          <div class="flex gap-2 justify-end flex-wrap pt-2 mt-2 border-t border-slate-100">
+            ${linkBtns}
             ${convertBtn}
             ${closeBtn}
           </div>

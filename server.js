@@ -29303,7 +29303,7 @@ app.get('/api/menu-quote-requests', verifyBizOrLegacy, async (req, res) => {
     if (!bizGroupId) return res.status(401).json({ error: 'נדרש token' });
     try {
         const r = await pool.query(`
-            SELECT mqr.*, mt.name AS template_name
+            SELECT mqr.*, mt.name AS template_name, mt.public_slug AS template_slug
             FROM menu_quote_requests mqr
             LEFT JOIN menu_templates mt ON mt.id = mqr.template_id
             WHERE mqr.group_id = $1
