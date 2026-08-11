@@ -935,6 +935,7 @@ function _pdfDish(item, showPrice) {
     const plating = _pdfOpts.plating || 'square';
     const p = _PDF_PALETTES[_pdfOpts.palette] || _PDF_PALETTES.bordeaux;
     const photoSz = plating === 'large' ? 90 : 62;
+    const photoRadius = plating === 'circle' ? '50%' : '6px';
     const photoBlock = plating === 'none' ? '' : `
         <div style="flex-shrink:0">
           ${item.image_url
