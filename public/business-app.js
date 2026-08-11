@@ -53923,7 +53923,9 @@ window._mtWaShareFromPanel = function(slug) {
     const d = window._mtPdfDesign;
     const bizName = currentGroup?.name || '';
     const menuUrl = `${location.origin}/menu/${encodeURIComponent(slug)}?palette=${d.palette}&plating=${d.plating}&air=${d.airiness}`;
-    const storeUrl = currentGroup?.group_code ? `${location.origin}/storefront.html?store=${currentGroup.group_code}` : '';
+    const storeAlias = document.getElementById('store-alias-input')?.value?.trim() || '';
+    const storeId = storeAlias || currentGroup?.group_code || '';
+    const storeUrl = storeId ? (storeAlias ? `${location.origin}/${storeAlias}` : `${location.origin}/storefront.html?store=${storeId}`) : '';
     const intro = bizName ? `היי! אנחנו ${bizName}, שמחים לשתף אתכם בתפריט שלנו:` : 'היי! שמחים לשתף אתכם בתפריט שלנו:';
     let msg = `${intro}\n${menuUrl}`;
     if (storeUrl) msg += `\n\nלשירותים נוספים:\n${storeUrl}`;
