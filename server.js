@@ -4950,8 +4950,8 @@ app.post('/api/biz/register', async (req, res) => {
 
         // INSERT family_groups
         const gRes = await pool.query(
-            `INSERT INTO family_groups (name, type, member_type, business_type, wizard_completed, group_code)
-             VALUES ($1, 'BUSINESS', 'biz', 'other', FALSE, $2)
+            `INSERT INTO family_groups (name, type, member_type, business_type, wizard_completed, is_onboarded, group_code)
+             VALUES ($1, 'BUSINESS', 'biz', 'other', FALSE, TRUE, $2)
              RETURNING id`,
             [business_name, 'B' + _bizCrypto.randomBytes(4).toString('hex').toUpperCase().slice(0, 7)]
         );
