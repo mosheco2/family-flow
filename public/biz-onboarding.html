@@ -346,7 +346,7 @@
     }
     function saveSession(d) {
       localStorage.setItem('ofl_session', JSON.stringify({
-        user: { id: d.user_id, nickname: _state.phone, role: 'ADMIN' },
+        user: { id: d.user_id, nickname: d.business_name || _state.phone, role: 'ADMIN' },
         group: { id: d.group_id, type: 'BUSINESS', wizard_completed: d.wizard_completed },
         token: d.token
       }));

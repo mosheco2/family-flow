@@ -4969,7 +4969,7 @@ app.post('/api/biz/register', async (req, res) => {
         const deviceHint = req.headers['user-agent']?.slice(0, 100) || null;
         const token = await createFamilySession(groupId, userId, deviceHint, 'biz');
 
-        res.json({ success: true, token, group_id: groupId, user_id: userId });
+        res.json({ success: true, token, group_id: groupId, user_id: userId, business_name, wizard_completed: false });
     } catch(e) {
         console.error('biz register error:', e.message);
         console.error('biz register stack:', e.stack);
@@ -4985,7 +4985,7 @@ app.post('/api/biz/login', async (req, res) => {
         }
 
         const uRes = await pool.query(
-            `SELECT u.id, u.group_id, u.password_hash, fg.wizard_completed
+            `SELECT u.id, u.group_id, u.password_hash, fg.wizard_completed, fg.name AS business_name
              FROM users u
              JOIN family_groups fg ON fg.id = u.group_id
              WHERE u.phone=$1 AND fg.member_type='biz' AND u.role='ADMIN' AND u.status='active'`,
@@ -5004,7 +5004,7 @@ app.post('/api/biz/login', async (req, res) => {
         const deviceHint = req.headers['user-agent']?.slice(0, 100) || null;
         const token = await createFamilySession(user.group_id, user.id, deviceHint, 'biz');
 
-        res.json({ success: true, token, group_id: user.group_id, user_id: user.id, wizard_completed: user.wizard_completed });
+        res.json({ success: true, token, group_id: user.group_id, user_id: user.id, wizard_completed: user.wizard_completed, business_name: user.business_name });
     } catch(e) {
         console.error('biz login error:', e);
         res.status(500).json({ success: false, error: 'שגיאה בהתחברות' });
