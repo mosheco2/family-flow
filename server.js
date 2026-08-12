@@ -4891,12 +4891,145 @@ app.post('/api/biz/verify-otp', async (req, res) => {
             return res.status(400).json({ success: false, error: `קוד שגוי. נותרו ${3 - newAttempts} ניסיונות.` });
         }
 
-        // הצלחה — מחק
+        // הצלחה — מחק OTP, צור verified_token חד-פעמי (15 דקות)
         await pool.query(`DELETE FROM business_otp WHERE id=$1`, [row.id]);
+        if (purpose === 'register') {
+            const rawVerifiedToken = _bizCrypto.randomBytes(32).toString('hex');
+            const verifiedHash = _bizHashOtp(rawVerifiedToken);
+            const verifiedExpires = new Date(Date.now() + 15 * 60 * 1000);
+            await pool.query(
+                `INSERT INTO business_otp (phone, code_hash, purpose, expires_at) VALUES ($1, $2, 'verified', $3)`,
+                [phone, verifiedHash, verifiedExpires]
+            );
+            return res.json({ success: true, verified_token: rawVerifiedToken });
+        }
         res.json({ success: true });
     } catch(e) {
         console.error('biz verify-otp error:', e);
         res.status(500).json({ success: false, error: 'שגיאה באימות הקוד' });
+    }
+});
+
+// ============================================================
+// --- BIZ REGISTER / LOGIN / ME ---
+// ============================================================
+
+app.post('/api/biz/register', async (req, res) => {
+    try {
+        const { phone, verified_token, password, business_name } = req.body;
+        if (!phone || !verified_token || !password || !business_name) {
+            return res.status(400).json({ success: false, error: 'פרמטרים חסרים' });
+        }
+        if (password.length < 6) {
+            return res.status(400).json({ success: false, error: 'סיסמה חייבת להכיל לפחות 6 תווים' });
+        }
+
+        // אימות verified_token — DELETE אטומי למניעת race condition
+        const vtHash = _bizHashOtp(verified_token);
+        const vtRes = await pool.query(
+            `DELETE FROM business_otp
+             WHERE phone=$1 AND purpose='verified' AND code_hash=$2 AND expires_at > NOW()
+             RETURNING id`,
+            [phone, vtHash]
+        );
+        if (vtRes.rowCount === 0) {
+            return res.status(400).json({ success: false, error: 'אימות הטלפון פג תוקף. יש להתחיל מחדש.' });
+        }
+
+        // בדיקת כפילות — phone קיים בכל תפקיד?
+        const dupRes = await pool.query(`SELECT id FROM users WHERE phone=$1`, [phone]);
+        if (dupRes.rows.length > 0) {
+            return res.status(400).json({ success: false, error: 'מספר טלפון זה כבר רשום במערכת. נסה להתחבר או פנה לתמיכה.' });
+        }
+
+        const passwordHash = await bcrypt.hash(password, 10);
+
+        // INSERT family_groups
+        const gRes = await pool.query(
+            `INSERT INTO family_groups (name, member_type, business_type, wizard_completed, group_code)
+             VALUES ($1, 'biz', 'other', FALSE, $2)
+             RETURNING id`,
+            [business_name, 'BIZ-' + _bizCrypto.randomBytes(4).toString('hex').toUpperCase()]
+        );
+        const groupId = gRes.rows[0].id;
+
+        // INSERT users (admin)
+        const uRes = await pool.query(
+            `INSERT INTO users (group_id, nickname, role, phone, password_hash, status)
+             VALUES ($1, $2, 'ADMIN', $3, $4, 'active')
+             RETURNING id`,
+            [groupId, business_name, phone, passwordHash]
+        );
+        const userId = uRes.rows[0].id;
+
+        const deviceHint = req.headers['user-agent']?.slice(0, 100) || null;
+        const token = await createFamilySession(groupId, userId, deviceHint, 'biz');
+
+        res.json({ success: true, token, group_id: groupId, user_id: userId });
+    } catch(e) {
+        console.error('biz register error:', e);
+        res.status(500).json({ success: false, error: 'שגיאה ביצירת החשבון' });
+    }
+});
+
+app.post('/api/biz/login', async (req, res) => {
+    try {
+        const { phone, password } = req.body;
+        if (!phone || !password) {
+            return res.status(400).json({ success: false, error: 'טלפון וסיסמה נדרשים' });
+        }
+
+        const uRes = await pool.query(
+            `SELECT u.id, u.group_id, u.password_hash, fg.wizard_completed
+             FROM users u
+             JOIN family_groups fg ON fg.id = u.group_id
+             WHERE u.phone=$1 AND fg.member_type='biz' AND u.role='ADMIN' AND u.status='active'`,
+            [phone]
+        );
+        if (uRes.rows.length === 0) {
+            return res.status(400).json({ success: false, error: 'מספר טלפון או סיסמה שגויים' });
+        }
+
+        const user = uRes.rows[0];
+        const passOk = await bcrypt.compare(password, user.password_hash);
+        if (!passOk) {
+            return res.status(400).json({ success: false, error: 'מספר טלפון או סיסמה שגויים' });
+        }
+
+        const deviceHint = req.headers['user-agent']?.slice(0, 100) || null;
+        const token = await createFamilySession(user.group_id, user.id, deviceHint, 'biz');
+
+        res.json({ success: true, token, group_id: user.group_id, user_id: user.id, wizard_completed: user.wizard_completed });
+    } catch(e) {
+        console.error('biz login error:', e);
+        res.status(500).json({ success: false, error: 'שגיאה בהתחברות' });
+    }
+});
+
+app.get('/api/biz/me', verifyBiz, async (req, res) => {
+    try {
+        const { groupId } = req.bizAuth;
+
+        const [gRes, filledRes] = await Promise.all([
+            pool.query(`SELECT * FROM family_groups WHERE id=$1`, [groupId]),
+            pool.query(
+                `SELECT employee_role_type, COUNT(*)::int AS cnt
+                 FROM users
+                 WHERE group_id=$1 AND status='active' AND employee_role_type IS NOT NULL
+                 GROUP BY employee_role_type`,
+                [groupId]
+            )
+        ]);
+
+        if (!gRes.rows[0]) return res.status(404).json({ success: false, error: 'עסק לא נמצא' });
+
+        const filled_by_role = {};
+        for (const r of filledRes.rows) filled_by_role[r.employee_role_type] = r.cnt;
+
+        res.json({ success: true, ...gRes.rows[0], filled_by_role });
+    } catch(e) {
+        console.error('biz me error:', e);
+        res.status(500).json({ success: false, error: 'שגיאה בטעינת נתוני העסק' });
     }
 });
 
