@@ -4949,7 +4949,7 @@ app.post('/api/biz/register', async (req, res) => {
             `INSERT INTO family_groups (name, member_type, business_type, wizard_completed, group_code)
              VALUES ($1, 'biz', 'other', FALSE, $2)
              RETURNING id`,
-            [business_name, 'BIZ-' + _bizCrypto.randomBytes(4).toString('hex').toUpperCase()]
+            [business_name, 'B' + _bizCrypto.randomBytes(4).toString('hex').toUpperCase().slice(0, 7)]
         );
         const groupId = gRes.rows[0].id;
 
