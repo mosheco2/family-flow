@@ -5038,6 +5038,26 @@ app.get('/api/biz/me', verifyBiz, async (req, res) => {
     }
 });
 
+app.patch('/api/biz/wizard/complete', verifyBiz, async (req, res) => {
+    try {
+        const { groupId } = req.bizAuth;
+        const { business_type, managed_modules, staff_roles } = req.body;
+        if (!business_type || !Array.isArray(managed_modules) || !Array.isArray(staff_roles)) {
+            return res.status(400).json({ success: false, error: 'פרמטרים חסרים' });
+        }
+        await pool.query(
+            `UPDATE family_groups
+             SET business_type=$1, managed_modules=$2, staff_roles=$3, wizard_completed=TRUE
+             WHERE id=$4`,
+            [business_type, JSON.stringify(managed_modules), JSON.stringify(staff_roles), groupId]
+        );
+        res.json({ success: true });
+    } catch(e) {
+        console.error('biz wizard/complete error:', e.message);
+        res.status(500).json({ success: false, error: 'שגיאה בשמירת הוויזארד' });
+    }
+});
+
 // ============================================================
 // --- SMS OTP LOGIN (SUPER ADMIN MASTER) ---
 // ============================================================

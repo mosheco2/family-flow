@@ -222,6 +222,79 @@
 
     .section { display: none; }
     .section.active { display: block; }
+
+    /* ── Wizard: choice cards ── */
+    .choice-card {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 14px 16px;
+      border: 2px solid #E2E8F0;
+      border-radius: 14px;
+      cursor: pointer;
+      transition: border-color 0.18s, background 0.18s;
+      position: relative;
+    }
+    .choice-card:hover { border-color: #5B46E5; background: #F8F7FF; }
+    .choice-card.selected { border-color: #5B46E5; background: #F0EFFE; }
+    .choice-check {
+      margin-right: auto;
+      font-size: 16px;
+      color: #5B46E5;
+      font-weight: 700;
+      opacity: 0;
+      transition: opacity 0.15s;
+    }
+    .choice-card.selected .choice-check { opacity: 1; }
+
+    /* ── Wizard: staff roles ── */
+    .role-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      border: 1.5px solid #E2E8F0;
+      border-radius: 12px;
+      margin-bottom: 8px;
+      transition: border-color 0.18s, background 0.18s;
+    }
+    .role-row.selected { border-color: #5B46E5; background: #F0EFFE; }
+    .role-name { font-size: 14px; font-weight: 600; color: #1B2440; cursor: pointer; flex: 1; }
+    .role-counter {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .counter-btn {
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      border: 1.5px solid #CBD5E0;
+      background: #fff;
+      font-size: 18px;
+      line-height: 1;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      color: #4A5568;
+      font-family: 'Heebo', sans-serif;
+      transition: border-color 0.15s;
+    }
+    .counter-btn:hover { border-color: #5B46E5; color: #5B46E5; }
+    .counter-val { font-size: 15px; font-weight: 700; min-width: 20px; text-align: center; }
+
+    /* ── Wizard: progress dots ── */
+    .wiz-progress {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      margin-bottom: 24px;
+    }
+    .wiz-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: #E2E8F0;
+      transition: background 0.2s;
+    }
+    .wiz-dot.active { background: #5B46E5; }
   </style>
 </head>
 <body>
@@ -295,12 +368,133 @@
       </div>
     </div>
 
-    <!-- ══ SECTION: welcome / wizard pending ══ -->
+    <!-- ══ SECTION: welcome ══ -->
     <div id="sec-welcome" class="section">
       <div class="welcome-icon">🎉</div>
-      <div class="welcome-title">ברוך הבא לOneflow!</div>
-      <div class="welcome-sub">החשבון שלך נוצר בהצלחה.<br>שלבי ההתאמה האישית לעסק שלך יגיעו בקרוב.</div>
-      <button class="btn-primary" onclick="enterSystem()">כניסה למערכת</button>
+      <div class="welcome-title" id="welcome-title">ברוך הבא לOneflow!</div>
+      <div class="welcome-sub">החשבון שלך נוצר בהצלחה.<br>עכשיו נגדיר יחד את העסק שלך — 4 שאלות קצרות.</div>
+      <button class="btn-primary" onclick="showSection('sec-biz-type')">בואו נתחיל ←</button>
+    </div>
+
+    <!-- ══ SECTION: wizard 1 — סוג עסק ══ -->
+    <div id="sec-biz-type" class="section">
+      <div class="wiz-progress">
+        <div class="wiz-dot active"></div>
+        <div class="wiz-dot"></div>
+        <div class="wiz-dot"></div>
+        <div class="wiz-dot"></div>
+      </div>
+      <div class="otp-title">מה סוג העסק שלך?</div>
+      <div class="otp-sub">נתאים את המערכת בדיוק לצרכים שלך</div>
+      <div id="msg-biz-type" class="msg"></div>
+      <div style="display:flex; flex-direction:column; gap:10px; margin-top:4px;">
+        <div class="choice-card" data-biz="restaurant" onclick="selectBizType('restaurant')">
+          <span style="font-size:24px;">🍽️</span>
+          <div><div style="font-weight:700;font-size:15px;color:#1B2440;">מסעדנות ומזון</div></div>
+          <span class="choice-check">✓</span>
+        </div>
+        <div class="choice-card" data-biz="beauty" onclick="selectBizType('beauty')">
+          <span style="font-size:24px;">💅</span>
+          <div><div style="font-weight:700;font-size:15px;color:#1B2440;">יופי ואסתטיקה</div></div>
+          <span class="choice-check">✓</span>
+        </div>
+        <div class="choice-card" data-biz="professional" onclick="selectBizType('professional')">
+          <span style="font-size:24px;">💼</span>
+          <div><div style="font-weight:700;font-size:15px;color:#1B2440;">ייעוץ ושירותי מומחים</div></div>
+          <span class="choice-check">✓</span>
+        </div>
+        <div class="choice-card" data-biz="sport" onclick="selectBizType('sport')">
+          <span style="font-size:24px;">🏋️</span>
+          <div><div style="font-weight:700;font-size:15px;color:#1B2440;">ספורט ואימונים</div></div>
+          <span class="choice-check">✓</span>
+        </div>
+        <div class="choice-card" data-biz="logistics" onclick="selectBizType('logistics')">
+          <span style="font-size:24px;">🚚</span>
+          <div><div style="font-weight:700;font-size:15px;color:#1B2440;">שילוח ולוגיסטיקה</div></div>
+          <span class="choice-check">✓</span>
+        </div>
+        <div class="choice-card" data-biz="maintenance_repair" onclick="selectBizType('maintenance_repair')">
+          <span style="font-size:24px;">🔧</span>
+          <div><div style="font-weight:700;font-size:15px;color:#1B2440;">תיקונים ושירותים</div></div>
+          <span class="choice-check">✓</span>
+        </div>
+      </div>
+      <button class="btn-primary" style="margin-top:20px;" onclick="goToManage()">המשך ←</button>
+    </div>
+
+    <!-- ══ SECTION: wizard 2 — מה לנהל ══ -->
+    <div id="sec-manage" class="section">
+      <div class="wiz-progress">
+        <div class="wiz-dot"></div>
+        <div class="wiz-dot active"></div>
+        <div class="wiz-dot"></div>
+        <div class="wiz-dot"></div>
+      </div>
+      <button class="back-link" onclick="showSection('sec-biz-type')">&#8592; חזרה</button>
+      <div class="otp-title">מה תרצה לנהל?</div>
+      <div class="otp-sub">ניתן לבחור יותר מאפשרות אחת</div>
+      <div id="msg-manage" class="msg"></div>
+      <div id="manage-list" style="display:flex; flex-direction:column; gap:10px; margin-top:4px;"></div>
+      <button class="btn-primary" style="margin-top:20px;" onclick="goToStaff()">המשך ←</button>
+    </div>
+
+    <!-- ══ SECTION: wizard 3 — צוות ══ -->
+    <div id="sec-staff" class="section">
+      <div class="wiz-progress">
+        <div class="wiz-dot"></div>
+        <div class="wiz-dot"></div>
+        <div class="wiz-dot active"></div>
+        <div class="wiz-dot"></div>
+      </div>
+      <button class="back-link" onclick="showSection('sec-manage')">&#8592; חזרה</button>
+      <div class="otp-title">מי עובד אצלך?</div>
+      <div class="otp-sub">סמן תפקידים וציין כמה עובדים בכל תפקיד (אפשר לדלג)</div>
+      <div id="msg-staff" class="msg"></div>
+      <div id="staff-list" style="margin-top:4px;"></div>
+      <button class="btn-primary" style="margin-top:20px;" onclick="goToStoreOrFinish()">המשך ←</button>
+    </div>
+
+    <!-- ══ SECTION: wizard 4 — חנות מקוונת ══ -->
+    <div id="sec-store" class="section">
+      <div class="wiz-progress">
+        <div class="wiz-dot"></div>
+        <div class="wiz-dot"></div>
+        <div class="wiz-dot"></div>
+        <div class="wiz-dot active"></div>
+      </div>
+      <button class="back-link" onclick="showSection('sec-staff')">&#8592; חזרה</button>
+      <div class="otp-title">רוצה להפעיל חנות מקוונת?</div>
+      <div class="otp-sub">לקוחות יוכלו לראות את המוצרים שלך ולהזמין ישירות</div>
+      <div id="msg-store" class="msg"></div>
+      <div style="display:flex; flex-direction:column; gap:12px; margin-top:8px;">
+        <div class="choice-card" onclick="setStore(true)">
+          <span style="font-size:24px;">🛍️</span>
+          <div>
+            <div style="font-weight:700;font-size:15px;color:#1B2440;">כן, הפעל עכשיו</div>
+            <div style="font-size:12px;color:#718096;margin-top:2px;">נפתח לך חנות מוכנה לפעולה</div>
+          </div>
+          <span class="choice-check">✓</span>
+        </div>
+        <div class="choice-card" onclick="setStore(false)">
+          <span style="font-size:24px;">⏸️</span>
+          <div>
+            <div style="font-weight:700;font-size:15px;color:#1B2440;">לא כרגע</div>
+            <div style="font-size:12px;color:#718096;margin-top:2px;">אפשר להפעיל מאוחר יותר מהגדרות</div>
+          </div>
+          <span class="choice-check">✓</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ SECTION: finishing (שמירה + שגיאה מובטחת) ══ -->
+    <div id="sec-finishing" class="section">
+      <div style="text-align:center; padding: 24px 0 8px;">
+        <div id="finishing-spinner" style="font-size:36px;">⏳</div>
+        <div class="otp-title" style="margin-top:12px;">שומר את ההגדרות שלך...</div>
+        <div class="otp-sub">רק רגע</div>
+      </div>
+      <div id="msg-finishing" class="msg"></div>
+      <button id="btn-finishing-retry" class="btn-primary" style="display:none; margin-top:16px;" onclick="completeWizard()">נסה שוב</button>
     </div>
 
   </div><!-- /card -->
@@ -314,7 +508,29 @@
       phone: '',
       businessName: '',
       password: '',
-      verifiedToken: null, // חד-פעמי, לא נשמר ב-localStorage
+      verifiedToken: null,
+      // wizard
+      selectedBizType: null,
+      selectedManageKeys: [],
+      staffRoles: [],
+      storeEnabled: null,
+    };
+
+    // ── Wizard data ──
+    const MANAGE_OPTIONS = [
+      { key: 'sell',      modules: ['pos','sales','shop'],                   icon: '🛍️', label: 'למכור מוצרים ושירותים' },
+      { key: 'quotes',    modules: ['sales','cases','leads','calendar'],     icon: '📋', label: 'הצעות מחיר ופרויקטים' },
+      { key: 'team',      modules: ['members','shifts','timeclock','tasks'], icon: '👥', label: 'ניהול צוות ולוגיסטיקה' },
+      { key: 'analytics', modules: ['cashflow','budget','reports'],          icon: '📊', label: 'מעקב וניתוח בלבד' },
+    ];
+
+    const BIZ_STAFF_ROLES = {
+      restaurant:         ['מנהל/ת','מלצר/ית','טבח/ית','קופאי/ת','שליח/ה'],
+      beauty:             ['מטפל/ת','ספר/ית','נציג/ת שירות','קבלן/ית'],
+      professional:       ['יועץ/ת','מנהל/ת פרויקט','נציג/ת שירות','אנליסט/ית'],
+      sport:              ['מאמן/ת','מנהל/ת','נציג/ת שירות'],
+      logistics:          ['נהג/ת','מנהל/ת לוגיסטיקה','מחסנאי/ת','נציג/ת שירות'],
+      maintenance_repair: ['טכנאי/ת','מנהל/ת','נציג/ת שירות'],
     };
 
     // ── Utils ──
@@ -426,7 +642,6 @@
         showMsg('msg-reg', 'הסיסמאות אינן תואמות', 'err'); return;
       }
 
-      // שמירת הנתונים ב-state לשימוש בשלב register אחרי OTP
       _state.phone = phone;
       _state.businessName = businessName;
       _state.password = password;
@@ -464,7 +679,6 @@
       }
       setLoading('otp-verify-btn', true, 'אימות והמשך');
       try {
-        // שלב א: אימות OTP
         const vr = await fetch(`${API}/biz/verify-otp`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json; charset=utf-8' },
@@ -478,7 +692,6 @@
           return;
         }
 
-        // שלב ב: יצירת חשבון
         const rr = await fetch(`${API}/biz/register`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json; charset=utf-8' },
@@ -495,7 +708,6 @@
           return;
         }
 
-        // שמירת session + מעבר למסך ברוך הבא
         saveSession(rd);
         showSection('sec-welcome');
       } catch(e) {
@@ -569,9 +781,183 @@
       }
     }
 
-    // ── Welcome → enter system ──
-    function enterSystem() {
-      window.location.href = 'business.html';
+    // ══ WIZARD functions ══
+
+    // wizard 1 — סוג עסק
+    function selectBizType(type) {
+      _state.selectedBizType = type;
+      document.querySelectorAll('#sec-biz-type .choice-card').forEach(c => {
+        c.classList.toggle('selected', c.dataset.biz === type);
+      });
+      hideMsg('msg-biz-type');
+    }
+
+    function goToManage() {
+      if (!_state.selectedBizType) {
+        showMsg('msg-biz-type', 'יש לבחור סוג עסק', 'err'); return;
+      }
+      renderManageOptions();
+      showSection('sec-manage');
+    }
+
+    // wizard 2 — מה לנהל
+    function renderManageOptions() {
+      const container = document.getElementById('manage-list');
+      container.innerHTML = MANAGE_OPTIONS.map(o => `
+        <div class="choice-card ${_state.selectedManageKeys.includes(o.key) ? 'selected' : ''}"
+             data-manage="${o.key}" onclick="toggleManage('${o.key}')">
+          <span style="font-size:24px;">${o.icon}</span>
+          <div><div style="font-weight:700;font-size:15px;color:#1B2440;">${o.label}</div></div>
+          <span class="choice-check">✓</span>
+        </div>
+      `).join('');
+    }
+
+    function toggleManage(key) {
+      const idx = _state.selectedManageKeys.indexOf(key);
+      if (idx === -1) {
+        _state.selectedManageKeys.push(key);
+      } else {
+        _state.selectedManageKeys.splice(idx, 1);
+      }
+      document.querySelectorAll('#manage-list .choice-card').forEach(c => {
+        c.classList.toggle('selected', _state.selectedManageKeys.includes(c.dataset.manage));
+      });
+      hideMsg('msg-manage');
+    }
+
+    function goToStaff() {
+      if (_state.selectedManageKeys.length === 0) {
+        showMsg('msg-manage', 'יש לבחור לפחות אפשרות אחת', 'err'); return;
+      }
+      renderStaffRoles();
+      showSection('sec-staff');
+    }
+
+    // wizard 3 — צוות
+    function renderStaffRoles() {
+      const roles = BIZ_STAFF_ROLES[_state.selectedBizType] || [];
+      const existing = {};
+      _state.staffRoles.forEach(r => { existing[r.role] = r.count; });
+
+      const container = document.getElementById('staff-list');
+      container.innerHTML = roles.map(role => {
+        const count = existing[role] || 0;
+        const selected = count > 0;
+        const key = encodeURIComponent(role);
+        return `
+          <div class="role-row ${selected ? 'selected' : ''}" id="role-row-${key}">
+            <div class="role-name" onclick="toggleStaffRole('${role.replace(/'/g,"\\'").replace(/\//g,"\\/")}')">
+              ${role}
+            </div>
+            <div class="role-counter" id="counter-${key}" style="display:${selected ? 'flex' : 'none'}">
+              <button class="counter-btn" onclick="changeCount('${role.replace(/'/g,"\\'").replace(/\//g,"\\/")}', -1)">−</button>
+              <span class="counter-val" id="count-${key}">${count || 1}</span>
+              <button class="counter-btn" onclick="changeCount('${role.replace(/'/g,"\\'").replace(/\//g,"\\/")}', 1)">+</button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function toggleStaffRole(role) {
+      const key = encodeURIComponent(role);
+      const idx = _state.staffRoles.findIndex(r => r.role === role);
+      if (idx === -1) {
+        _state.staffRoles.push({ role, count: 1 });
+        document.getElementById(`role-row-${key}`).classList.add('selected');
+        const counter = document.getElementById(`counter-${key}`);
+        if (counter) counter.style.display = 'flex';
+        const countEl = document.getElementById(`count-${key}`);
+        if (countEl) countEl.textContent = '1';
+      } else {
+        _state.staffRoles.splice(idx, 1);
+        document.getElementById(`role-row-${key}`).classList.remove('selected');
+        const counter = document.getElementById(`counter-${key}`);
+        if (counter) counter.style.display = 'none';
+      }
+    }
+
+    function changeCount(role, delta) {
+      const key = encodeURIComponent(role);
+      const item = _state.staffRoles.find(r => r.role === role);
+      if (!item) return;
+      item.count = Math.max(1, item.count + delta);
+      const countEl = document.getElementById(`count-${key}`);
+      if (countEl) countEl.textContent = item.count;
+    }
+
+    // wizard 4 — חנות / סיום
+    function goToStoreOrFinish() {
+      if (_state.selectedManageKeys.includes('sell')) {
+        showSection('sec-store');
+      } else {
+        _state.storeEnabled = false;
+        completeWizard();
+      }
+    }
+
+    function setStore(enabled) {
+      _state.storeEnabled = enabled;
+      completeWizard();
+    }
+
+    // ══ completeWizard — תמיד דרך sec-finishing ══
+    async function completeWizard() {
+      showSection('sec-finishing');
+      document.getElementById('finishing-spinner').style.display = 'block';
+      const msgEl = document.getElementById('msg-finishing');
+      msgEl.style.display = 'none';
+      msgEl.className = 'msg';
+      document.getElementById('btn-finishing-retry').style.display = 'none';
+
+      const session = JSON.parse(localStorage.getItem('ofl_session') || '{}');
+      const token = session && session.token;
+      if (!token) {
+        document.getElementById('finishing-spinner').style.display = 'none';
+        msgEl.textContent = 'שגיאת אימות — אנא התחבר מחדש';
+        msgEl.className = 'msg err show';
+        msgEl.style.display = 'block';
+        return;
+      }
+
+      const managedModules = [...new Set(
+        _state.selectedManageKeys.flatMap(k => {
+          const opt = MANAGE_OPTIONS.find(o => o.key === k);
+          return opt ? opt.modules : [];
+        })
+      )];
+      if (_state.storeEnabled) {
+        ['shop', 'pos'].forEach(m => { if (!managedModules.includes(m)) managedModules.push(m); });
+      }
+
+      try {
+        const res = await fetch(`${API}/biz/wizard/complete`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            business_type: _state.selectedBizType,
+            managed_modules: managedModules,
+            staff_roles: _state.staffRoles
+          })
+        });
+        const d = await res.json();
+        if (!res.ok || !d.success) throw new Error(d.error || 'שגיאה בשמירה');
+
+        if (session.group) session.group.wizard_completed = true;
+        localStorage.setItem('ofl_session', JSON.stringify(session));
+        window.location.href = 'business.html';
+
+      } catch(e) {
+        document.getElementById('finishing-spinner').style.display = 'none';
+        msgEl.textContent = e.message;
+        msgEl.className = 'msg err show';
+        msgEl.style.display = 'block';
+        document.getElementById('btn-finishing-retry').style.display = 'block';
+      }
     }
 
     // ── Init ──
@@ -587,6 +973,16 @@
         verifyOtp();
       }
     });
+
+    // בדיקה אם כבר מחובר עם wizard_completed — redirect ישיר
+    (function checkExistingSession() {
+      try {
+        const s = JSON.parse(localStorage.getItem('ofl_session') || '{}');
+        if (s && s.token && s.group && s.group.wizard_completed) {
+          window.location.href = 'business.html';
+        }
+      } catch(e) {}
+    })();
   </script>
 </body>
 </html>
