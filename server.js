@@ -4967,7 +4967,8 @@ app.post('/api/biz/register', async (req, res) => {
 
         res.json({ success: true, token, group_id: groupId, user_id: userId });
     } catch(e) {
-        console.error('biz register error:', e);
+        console.error('biz register error:', e.message);
+        console.error('biz register stack:', e.stack);
         res.status(500).json({ success: false, error: 'שגיאה ביצירת החשבון' });
     }
 });
