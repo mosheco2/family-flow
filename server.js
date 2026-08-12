@@ -31115,9 +31115,9 @@ setTimeout(() => initKolHaamPhase3Tables(), 10000);
 // ── Helper: award FLOW to author's family wallet ──────────────
 async function awardFlow(authorProfileId, contentItemId, rewardReason, amount) {
     try {
-        const apRes = await pool.query(`SELECT group_id FROM author_profiles WHERE id=$1`, [authorProfileId]);
+        const apRes = await pool.query(`SELECT family_group_id FROM author_profiles WHERE id=$1`, [authorProfileId]);
         if (!apRes.rows[0]) return;
-        const groupId = apRes.rows[0].group_id;
+        const groupId = apRes.rows[0].family_group_id;
 
         await pool.query(
             `INSERT INTO flow_wallets (entity_type, entity_id, balance) VALUES ('family',$1,$2)
