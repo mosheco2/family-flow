@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Oneflow Life — כניסה לעסק</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Heebo', sans-serif;
+      background: #EEF1F6;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px 16px;
+      color: #1B2440;
+    }
+
+    .logo {
+      font-size: 22px;
+      font-weight: 800;
+      color: #5B46E5;
+      letter-spacing: -0.5px;
+      margin-bottom: 28px;
+      text-align: center;
+    }
+    .logo span { color: #1B2440; }
+
+    .card {
+      background: #fff;
+      border-radius: 20px;
+      padding: 36px 32px;
+      width: 100%;
+      max-width: 420px;
+      box-shadow: 0 4px 24px rgba(91,70,229,0.08);
+    }
+
+    /* ── Tabs ── */
+    .tabs {
+      display: flex;
+      background: #F0EFFE;
+      border-radius: 12px;
+      padding: 4px;
+      margin-bottom: 28px;
+      gap: 4px;
+    }
+    .tab-btn {
+      flex: 1;
+      padding: 10px 0;
+      border: none;
+      background: transparent;
+      border-radius: 9px;
+      font-family: 'Heebo', sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+      color: #7B6FBB;
+      cursor: pointer;
+      transition: all 0.18s;
+    }
+    .tab-btn.active {
+      background: #fff;
+      color: #5B46E5;
+      box-shadow: 0 2px 8px rgba(91,70,229,0.12);
+    }
+
+    /* ── Form elements ── */
+    .field-label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: #4A5568;
+      margin-bottom: 6px;
+    }
+    .field-input {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1.5px solid #E2E8F0;
+      border-radius: 12px;
+      font-family: 'Heebo', sans-serif;
+      font-size: 15px;
+      color: #1B2440;
+      background: #FAFBFC;
+      outline: none;
+      transition: border-color 0.18s;
+    }
+    .field-input:focus { border-color: #5B46E5; background: #fff; }
+    .field-input::placeholder { color: #A0AEC0; }
+    .field-input[type="tel"] { direction: ltr; text-align: right; }
+
+    .field-group { margin-bottom: 18px; }
+
+    /* ── Primary button ── */
+    .btn-primary {
+      width: 100%;
+      padding: 13px;
+      background: #5B46E5;
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      font-family: 'Heebo', sans-serif;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.18s, opacity 0.18s;
+      margin-top: 4px;
+    }
+    .btn-primary:hover { background: #4A38C8; }
+    .btn-primary:disabled { opacity: 0.55; cursor: not-allowed; }
+
+    /* ── OTP boxes ── */
+    .otp-title {
+      font-size: 17px;
+      font-weight: 700;
+      color: #1B2440;
+      margin-bottom: 6px;
+    }
+    .otp-sub {
+      font-size: 13px;
+      color: #718096;
+      margin-bottom: 24px;
+      line-height: 1.5;
+    }
+    .otp-boxes {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      margin-bottom: 24px;
+      direction: ltr;
+    }
+    .otp-box {
+      width: 50px;
+      height: 60px;
+      border: 2px solid #E2E8F0;
+      border-radius: 12px;
+      font-family: 'Heebo', sans-serif;
+      font-size: 24px;
+      font-weight: 700;
+      text-align: center;
+      color: #1B2440;
+      background: #FAFBFC;
+      outline: none;
+      transition: border-color 0.18s;
+      caret-color: #5B46E5;
+    }
+    .otp-box:focus { border-color: #5B46E5; background: #fff; }
+    .otp-box.filled { border-color: #5B46E5; }
+
+    .resend-row {
+      text-align: center;
+      margin-top: 16px;
+      font-size: 13px;
+      color: #718096;
+    }
+    .resend-btn {
+      background: none;
+      border: none;
+      color: #5B46E5;
+      font-family: 'Heebo', sans-serif;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      padding: 0;
+      text-decoration: underline;
+    }
+    .resend-btn:disabled { color: #A0AEC0; cursor: not-allowed; text-decoration: none; }
+
+    /* ── Error / info messages ── */
+    .msg {
+      font-size: 13px;
+      font-weight: 500;
+      border-radius: 10px;
+      padding: 10px 14px;
+      margin-bottom: 14px;
+      display: none;
+    }
+    .msg.show { display: block; }
+    .msg.err { background: #FFF5F5; color: #C53030; border: 1px solid #FED7D7; }
+    .msg.info { background: #EFF6FF; color: #1E40AF; border: 1px solid #BFDBFE; }
+    .msg.ok { background: #F0FDF4; color: #166534; border: 1px solid #BBF7D0; }
+
+    /* ── Welcome screen ── */
+    .welcome-icon {
+      font-size: 52px;
+      text-align: center;
+      margin-bottom: 16px;
+    }
+    .welcome-title {
+      font-size: 22px;
+      font-weight: 800;
+      color: #1B2440;
+      text-align: center;
+      margin-bottom: 10px;
+    }
+    .welcome-sub {
+      font-size: 14px;
+      color: #718096;
+      text-align: center;
+      line-height: 1.6;
+      margin-bottom: 28px;
+    }
+
+    /* ── Back link ── */
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 13px;
+      color: #718096;
+      cursor: pointer;
+      margin-bottom: 20px;
+      background: none;
+      border: none;
+      font-family: 'Heebo', sans-serif;
+      padding: 0;
+    }
+    .back-link:hover { color: #5B46E5; }
+
+    .section { display: none; }
+    .section.active { display: block; }
+  </style>
+</head>
+<body>
+
+  <div class="logo">Oneflow <span>Life</span></div>
+
+  <div class="card">
+
+    <!-- ══ SECTION: tabs (register + login) ══ -->
+    <div id="sec-tabs" class="section active">
+      <div class="tabs">
+        <button class="tab-btn active" id="tab-new-btn" onclick="switchTab('new')">חדש כאן</button>
+        <button class="tab-btn" id="tab-login-btn" onclick="switchTab('login')">כבר רשום</button>
+      </div>
+
+      <!-- Register pane -->
+      <div id="pane-new">
+        <div id="msg-reg" class="msg"></div>
+        <div class="field-group">
+          <label class="field-label" for="reg-biz-name">שם העסק</label>
+          <input class="field-input" id="reg-biz-name" type="text" placeholder="לדוגמה: מספרה לוי">
+        </div>
+        <div class="field-group">
+          <label class="field-label" for="reg-phone">מספר טלפון</label>
+          <input class="field-input" id="reg-phone" type="tel" placeholder="05X-XXXXXXX" maxlength="10" inputmode="numeric">
+        </div>
+        <div class="field-group">
+          <label class="field-label" for="reg-pass">סיסמה (6 תווים לפחות)</label>
+          <input class="field-input" id="reg-pass" type="password" placeholder="••••••••">
+        </div>
+        <div class="field-group">
+          <label class="field-label" for="reg-pass2">אימות סיסמה</label>
+          <input class="field-input" id="reg-pass2" type="password" placeholder="••••••••">
+        </div>
+        <button class="btn-primary" id="reg-send-btn" onclick="regSendOtp()">שליחת קוד אימות</button>
+      </div>
+
+      <!-- Login pane -->
+      <div id="pane-login" style="display:none">
+        <div id="msg-login" class="msg"></div>
+        <div class="field-group">
+          <label class="field-label" for="login-phone">מספר טלפון</label>
+          <input class="field-input" id="login-phone" type="tel" placeholder="05X-XXXXXXX" maxlength="10" inputmode="numeric">
+        </div>
+        <div class="field-group">
+          <label class="field-label" for="login-pass">סיסמה</label>
+          <input class="field-input" id="login-pass" type="password" placeholder="••••••••">
+        </div>
+        <button class="btn-primary" id="login-btn" onclick="doLogin()">התחברות</button>
+      </div>
+    </div>
+
+    <!-- ══ SECTION: OTP verification ══ -->
+    <div id="sec-otp" class="section">
+      <button class="back-link" onclick="goBack()">&#8592; חזרה</button>
+      <div class="otp-title">הזינו את קוד האימות</div>
+      <div class="otp-sub" id="otp-sub-text">קוד בן 6 ספרות נשלח למספר שלך</div>
+      <div id="msg-otp" class="msg"></div>
+      <div class="otp-boxes">
+        <input class="otp-box" id="otp-0" type="text" inputmode="numeric" maxlength="1">
+        <input class="otp-box" id="otp-1" type="text" inputmode="numeric" maxlength="1">
+        <input class="otp-box" id="otp-2" type="text" inputmode="numeric" maxlength="1">
+        <input class="otp-box" id="otp-3" type="text" inputmode="numeric" maxlength="1">
+        <input class="otp-box" id="otp-4" type="text" inputmode="numeric" maxlength="1">
+        <input class="otp-box" id="otp-5" type="text" inputmode="numeric" maxlength="1">
+      </div>
+      <button class="btn-primary" id="otp-verify-btn" onclick="verifyOtp()">אימות והמשך</button>
+      <div class="resend-row">
+        לא קיבלתם?
+        <button class="resend-btn" id="resend-btn" onclick="resendOtp()">שליחה חוזרת</button>
+      </div>
+    </div>
+
+    <!-- ══ SECTION: welcome / wizard pending ══ -->
+    <div id="sec-welcome" class="section">
+      <div class="welcome-icon">🎉</div>
+      <div class="welcome-title">ברוך הבא לOneflow!</div>
+      <div class="welcome-sub">החשבון שלך נוצר בהצלחה.<br>שלבי ההתאמה האישית לעסק שלך יגיעו בקרוב.</div>
+      <button class="btn-primary" onclick="enterSystem()">כניסה למערכת</button>
+    </div>
+
+  </div><!-- /card -->
+
+  <script>
+    const API = window.location.hostname === 'localhost' ? 'http://localhost:3000/api' : '/api';
+
+    // ── State ──
+    let _state = {
+      tab: 'new',
+      phone: '',
+      businessName: '',
+      password: '',
+      verifiedToken: null, // חד-פעמי, לא נשמר ב-localStorage
+    };
+
+    // ── Utils ──
+    function showMsg(id, text, type) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.textContent = text;
+      el.className = `msg ${type} show`;
+    }
+    function hideMsg(id) {
+      const el = document.getElementById(id);
+      if (el) { el.className = 'msg'; el.textContent = ''; }
+    }
+    function setLoading(btnId, loading, label) {
+      const btn = document.getElementById(btnId);
+      if (!btn) return;
+      btn.disabled = loading;
+      if (label) btn.textContent = loading ? '...' : label;
+    }
+    function showSection(id) {
+      document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+      document.getElementById(id).classList.add('active');
+    }
+    function normalizePhone(p) {
+      return p.replace(/[-\s]/g, '');
+    }
+    function validatePhone(p) {
+      return /^0[5][0-9]{8}$/.test(p);
+    }
+    function saveSession(d) {
+      localStorage.setItem('ofl_session', JSON.stringify({
+        user: { id: d.user_id, nickname: _state.phone, role: 'ADMIN' },
+        group: { id: d.group_id, type: 'BUSINESS', wizard_completed: d.wizard_completed },
+        token: d.token
+      }));
+    }
+
+    // ── Tab switching ──
+    function switchTab(tab) {
+      _state.tab = tab;
+      document.getElementById('pane-new').style.display = tab === 'new' ? 'block' : 'none';
+      document.getElementById('pane-login').style.display = tab === 'login' ? 'block' : 'none';
+      document.getElementById('tab-new-btn').className = 'tab-btn' + (tab === 'new' ? ' active' : '');
+      document.getElementById('tab-login-btn').className = 'tab-btn' + (tab === 'login' ? ' active' : '');
+      hideMsg('msg-reg'); hideMsg('msg-login');
+    }
+
+    function goBack() {
+      clearOtpBoxes();
+      hideMsg('msg-otp');
+      showSection('sec-tabs');
+    }
+
+    // ── OTP boxes wiring ──
+    function initOtpBoxes() {
+      for (let i = 0; i < 6; i++) {
+        const box = document.getElementById(`otp-${i}`);
+        box.addEventListener('input', e => {
+          const val = e.target.value.replace(/\D/g, '');
+          e.target.value = val ? val[val.length - 1] : '';
+          e.target.classList.toggle('filled', !!e.target.value);
+          if (e.target.value && i < 5) document.getElementById(`otp-${i+1}`).focus();
+        });
+        box.addEventListener('keydown', e => {
+          if (e.key === 'Backspace' && !box.value && i > 0) {
+            document.getElementById(`otp-${i-1}`).focus();
+          }
+        });
+        box.addEventListener('paste', e => {
+          e.preventDefault();
+          const paste = (e.clipboardData || window.clipboardData).getData('text').replace(/\D/g, '').slice(0, 6);
+          for (let j = 0; j < paste.length; j++) {
+            const b = document.getElementById(`otp-${j}`);
+            if (b) { b.value = paste[j]; b.classList.add('filled'); }
+          }
+          const next = document.getElementById(`otp-${Math.min(paste.length, 5)}`);
+          if (next) next.focus();
+        });
+      }
+    }
+    function getOtpValue() {
+      return Array.from({length: 6}, (_, i) => document.getElementById(`otp-${i}`).value).join('');
+    }
+    function clearOtpBoxes() {
+      for (let i = 0; i < 6; i++) {
+        const b = document.getElementById(`otp-${i}`);
+        b.value = ''; b.classList.remove('filled');
+      }
+    }
+
+    // ── Register: validate + send OTP ──
+    async function regSendOtp() {
+      hideMsg('msg-reg');
+      const businessName = document.getElementById('reg-biz-name').value.trim();
+      const phone = normalizePhone(document.getElementById('reg-phone').value.trim());
+      const password = document.getElementById('reg-pass').value;
+      const password2 = document.getElementById('reg-pass2').value;
+
+      if (!businessName) {
+        showMsg('msg-reg', 'יש להזין שם עסק', 'err'); return;
+      }
+      if (!validatePhone(phone)) {
+        showMsg('msg-reg', 'יש להזין מספר טלפון ישראלי תקין (10 ספרות, מתחיל ב-05)', 'err'); return;
+      }
+      if (password.length < 6) {
+        showMsg('msg-reg', 'הסיסמה חייבת להכיל לפחות 6 תווים', 'err'); return;
+      }
+      if (password !== password2) {
+        showMsg('msg-reg', 'הסיסמאות אינן תואמות', 'err'); return;
+      }
+
+      // שמירת הנתונים ב-state לשימוש בשלב register אחרי OTP
+      _state.phone = phone;
+      _state.businessName = businessName;
+      _state.password = password;
+
+      setLoading('reg-send-btn', true, 'שליחת קוד אימות');
+      try {
+        const r = await fetch(`${API}/biz/send-otp`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json; charset=utf-8' },
+          body: JSON.stringify({ phone, purpose: 'register' })
+        });
+        const d = await r.json();
+        if (r.status === 429) {
+          showMsg('msg-reg', 'שלחת יותר מדי בקשות. נסה שוב בעוד שעה.', 'err'); return;
+        }
+        if (!d.success) {
+          showMsg('msg-reg', d.error || 'שגיאה בשליחת הקוד', 'err'); return;
+        }
+        document.getElementById('otp-sub-text').textContent = `קוד בן 6 ספרות נשלח למספר ${phone}`;
+        showSection('sec-otp');
+        setTimeout(() => document.getElementById('otp-0').focus(), 100);
+      } catch(e) {
+        showMsg('msg-reg', 'שגיאת תקשורת. בדקו חיבור לאינטרנט.', 'err');
+      } finally {
+        setLoading('reg-send-btn', false, 'שליחת קוד אימות');
+      }
+    }
+
+    // ── OTP: verify → register ──
+    async function verifyOtp() {
+      hideMsg('msg-otp');
+      const code = getOtpValue();
+      if (code.length < 6) {
+        showMsg('msg-otp', 'יש להזין את כל 6 הספרות', 'err'); return;
+      }
+      setLoading('otp-verify-btn', true, 'אימות והמשך');
+      try {
+        // שלב א: אימות OTP
+        const vr = await fetch(`${API}/biz/verify-otp`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json; charset=utf-8' },
+          body: JSON.stringify({ phone: _state.phone, code, purpose: 'register' })
+        });
+        const vd = await vr.json();
+        if (!vd.success) {
+          showMsg('msg-otp', vd.error || 'קוד שגוי', 'err');
+          clearOtpBoxes();
+          document.getElementById('otp-0').focus();
+          return;
+        }
+
+        // שלב ב: יצירת חשבון
+        const rr = await fetch(`${API}/biz/register`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json; charset=utf-8' },
+          body: JSON.stringify({
+            phone: _state.phone,
+            verified_token: vd.verified_token,
+            password: _state.password,
+            business_name: _state.businessName
+          })
+        });
+        const rd = await rr.json();
+        if (!rd.success) {
+          showMsg('msg-otp', rd.error || 'שגיאה ביצירת החשבון', 'err');
+          return;
+        }
+
+        // שמירת session + מעבר למסך ברוך הבא
+        saveSession(rd);
+        showSection('sec-welcome');
+      } catch(e) {
+        showMsg('msg-otp', 'שגיאת תקשורת. נסו שנית.', 'err');
+      } finally {
+        setLoading('otp-verify-btn', false, 'אימות והמשך');
+      }
+    }
+
+    // ── OTP: resend ──
+    async function resendOtp() {
+      hideMsg('msg-otp');
+      const resendBtn = document.getElementById('resend-btn');
+      resendBtn.disabled = true;
+      try {
+        const r = await fetch(`${API}/biz/send-otp`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json; charset=utf-8' },
+          body: JSON.stringify({ phone: _state.phone, purpose: 'register' })
+        });
+        const d = await r.json();
+        if (r.status === 429) {
+          showMsg('msg-otp', 'שלחת יותר מדי בקשות. נסה שוב בעוד שעה.', 'err');
+        } else if (!d.success) {
+          showMsg('msg-otp', d.error || 'שגיאה בשליחה חוזרת', 'err');
+        } else {
+          showMsg('msg-otp', 'קוד חדש נשלח בהצלחה', 'ok');
+          clearOtpBoxes();
+          document.getElementById('otp-0').focus();
+        }
+      } catch(e) {
+        showMsg('msg-otp', 'שגיאת תקשורת. נסו שנית.', 'err');
+      } finally {
+        setTimeout(() => { resendBtn.disabled = false; }, 30000);
+      }
+    }
+
+    // ── Login ──
+    async function doLogin() {
+      hideMsg('msg-login');
+      const phone = normalizePhone(document.getElementById('login-phone').value.trim());
+      const password = document.getElementById('login-pass').value;
+      if (!validatePhone(phone)) {
+        showMsg('msg-login', 'יש להזין מספר טלפון ישראלי תקין', 'err'); return;
+      }
+      if (!password) {
+        showMsg('msg-login', 'יש להזין סיסמה', 'err'); return;
+      }
+      setLoading('login-btn', true, 'התחברות');
+      try {
+        const r = await fetch(`${API}/biz/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json; charset=utf-8' },
+          body: JSON.stringify({ phone, password })
+        });
+        const d = await r.json();
+        if (!d.success) {
+          showMsg('msg-login', d.error || 'שגיאה בהתחברות', 'err'); return;
+        }
+        _state.phone = phone;
+        saveSession(d);
+        if (d.wizard_completed) {
+          window.location.href = 'business.html';
+        } else {
+          showSection('sec-welcome');
+        }
+      } catch(e) {
+        showMsg('msg-login', 'שגיאת תקשורת. בדקו חיבור לאינטרנט.', 'err');
+      } finally {
+        setLoading('login-btn', false, 'התחברות');
+      }
+    }
+
+    // ── Welcome → enter system ──
+    function enterSystem() {
+      window.location.href = 'business.html';
+    }
+
+    // ── Init ──
+    initOtpBoxes();
+
+    document.addEventListener('keydown', e => {
+      if (e.key !== 'Enter') return;
+      const sec = document.querySelector('.section.active');
+      if (!sec) return;
+      if (sec.id === 'sec-tabs') {
+        _state.tab === 'new' ? regSendOtp() : doLogin();
+      } else if (sec.id === 'sec-otp') {
+        verifyOtp();
+      }
+    });
+  </script>
+</body>
+</html>
