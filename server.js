@@ -4937,10 +4937,13 @@ app.post('/api/biz/register', async (req, res) => {
             return res.status(400).json({ success: false, error: 'אימות הטלפון פג תוקף. יש להתחיל מחדש.' });
         }
 
-        // בדיקת כפילות — phone קיים בכל תפקיד?
-        const dupRes = await pool.query(`SELECT id FROM users WHERE phone=$1`, [phone]);
-        if (dupRes.rows.length > 0) {
-            return res.status(400).json({ success: false, error: 'מספר טלפון זה כבר רשום במערכת. נסה להתחבר או פנה לתמיכה.' });
+        // בדיקת כפילות — phone קיים בכל תפקיד? (מספר dev מוחרג)
+        const DEV_PHONE = '0526626619';
+        if (phone !== DEV_PHONE) {
+            const dupRes = await pool.query(`SELECT id FROM users WHERE phone=$1`, [phone]);
+            if (dupRes.rows.length > 0) {
+                return res.status(400).json({ success: false, error: 'מספר טלפון זה כבר רשום במערכת. נסה להתחבר או פנה לתמיכה.' });
+            }
         }
 
         const passwordHash = await bcrypt.hash(password, 10);
