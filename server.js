@@ -31112,8 +31112,8 @@ async function initKolHaamPhase3Tables() {
 // דחיית ה-init ל-10 שניות אחרי סטארטאפ — מונע flood על pool
 setTimeout(() => initKolHaamPhase3Tables(), 10000);
 
-// ── Helper: award FLOW to author's family wallet ──────────────
-async function awardFlow(authorProfileId, contentItemId, rewardReason, amount) {
+/// ── Helper: award FLOW to author's family wallet (KolHaam) ──────────────
+async function awardKolHaamFlow(authorProfileId, contentItemId, rewardReason, amount) {
     try {
         const apRes = await pool.query(`SELECT family_group_id FROM author_profiles WHERE id=$1`, [authorProfileId]);
         if (!apRes.rows[0]) return;
@@ -31161,7 +31161,7 @@ async function checkAndAwardAchievements(authorProfileId, triggerKey, contentIte
              VALUES ($1,$2,$3) ON CONFLICT DO NOTHING`,
             [authorProfileId, ach.id, contentItemId || null]
         );
-        if (ach.flow_reward > 0) await awardFlow(authorProfileId, contentItemId, triggerKey, ach.flow_reward);
+        if (ach.flow_reward > 0) await awardKolHaamFlow(authorProfileId, contentItemId, triggerKey, ach.flow_reward);
     } catch(e) {
         console.error('[checkAndAwardAchievements] error:', e.message);
     }
