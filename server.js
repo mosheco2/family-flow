@@ -4911,22 +4911,6 @@ app.post('/api/biz/verify-otp', async (req, res) => {
 });
 
 // ============================================================
-// --- DEBUG: Hebrew encoding test (REMOVE AFTER TEST) ---
-// ============================================================
-app.get('/api/debug/hebrew-test', async (req, res) => {
-    try {
-        const r = await pool.query(
-            "INSERT INTO family_groups (name, type, group_code) VALUES ('בדיקת עברית ישירה', 'FAMILY', 'DBGTEST01') RETURNING id, name"
-        );
-        const name = r.rows[0].name;
-        await pool.query("DELETE FROM family_groups WHERE group_code='DBGTEST01'");
-        res.json({ success: true, name, is_hebrew: /[֐-׿]/.test(name) });
-    } catch(e) {
-        res.json({ success: false, error: e.message });
-    }
-});
-
-// ============================================================
 // --- BIZ REGISTER / LOGIN / ME ---
 // ============================================================
 
