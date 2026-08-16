@@ -18,6 +18,10 @@ const OUT_FILE = path.join(__dirname, 'public', 'comic.html');
 const PAGE_COUNT = 20;
 const CHARACTER_PAGES = 4; // 01-04 הן תמונות דמות על רקע לבן
 
+// שמות הדמויות צרובים בתוך התמונות עצמן — חוץ מ-03, שצוירה בלי שם.
+// כאן משלימים בכיתוב HTML רק את מה שחסר, כדי שלא ייווצר שם כפול.
+const MISSING_LABELS = { 3: 'מושיק' };
+
 // ---------------------------------------------------------------------------
 // זיהוי פורמט ומידות — הקבצים נושאים סיומת .png אך חלקם JPEG בפועל,
 // לכן מזהים לפי magic bytes ולא לפי הסיומת.
@@ -104,6 +108,7 @@ function loadPages() {
       file,
       kind,
       isCharacter: i <= CHARACTER_PAGES,
+      label: MISSING_LABELS[i] || '',
       width: size.width,
       height: size.height,
       bytes: buf.length,
@@ -118,8 +123,8 @@ function loadPages() {
 // ---------------------------------------------------------------------------
 
 function renderHtml(pages) {
-  // מניפסט קומפקטי: רוחב, גובה, ודגל "כרטיס דמות"
-  const manifest = pages.map((p) => [p.width, p.height, p.isCharacter ? 1 : 0]);
+  // מניפסט קומפקטי: רוחב, גובה, דגל "כרטיס דמות", וכיתוב שם משלים
+  const manifest = pages.map((p) => [p.width, p.height, p.isCharacter ? 1 : 0, p.label]);
 
   // כל תמונה יושבת ב-<template> — התוכן לא נטען/מפוענח ע"י הדפדפן עד
   // שהעמוד נכנס לחלון הטעינה ואנחנו שולפים את ה-data URI ידנית.
@@ -240,6 +245,19 @@ html,body{
   box-shadow:0 22px 46px rgba(0,0,0,.62),0 1px 0 rgba(255,255,255,.6) inset;
 }
 .sheet.card img{border-radius:12px}
+
+/* כרטיס שהשם בו לא צויר בתוך האיור — פס שם מתחת לאיור.
+   מתחת ולא מעליו, כדי שלא יתנגש בדמות שיורדת עד תחתית הפריים. */
+.sheet.labeled{flex-direction:column}
+.sheet.labeled img{flex:0 0 auto}
+.sheet .cap{
+  flex:0 0 auto;
+  height:var(--cap-h,0px);
+  width:100%;
+  display:flex;align-items:center;justify-content:center;
+  color:#141414;font-weight:800;line-height:1;
+  font-size:var(--cap-fs,20px);
+}
 
 /* צל דינמי שנע לאורך ההיפוך */
 .gloss{
@@ -432,16 +450,32 @@ function gloss(){
    ואז נוצר "מלבן לבן" סביב התמונה בכרטיסי הדמויות. */
 var CARD_PAD = 14;      // תואם ל-padding של .sheet.card
 var CARD_FIT = 0.92;    // כרטיס הדמות מעט קטן מהמסך, כדי שייראה ככרטיס
+var BAND = 0.11;        // גובה פס השם, כיחס מגובה האיור
+var BAND_FS = 0.062;    // גודל הפונט בפס, כיחס מגובה האיור
 
-function fitSheet(sheet, w, h, isCard){
+function fitSheet(sheet, w, h, isCard, label){
   var sw = stage.clientWidth, sh = stage.clientHeight;
   if (!sw || !sh) return;
-  var pad = isCard ? CARD_PAD * 2 : 0;
+  var pad  = isCard ? CARD_PAD * 2 : 0;
   var room = isCard ? CARD_FIT : 1;
-  var scale = Math.min((sw * room - pad) / w, (sh * room - pad) / h);
+  var band = label ? BAND : 0;
+
+  // גובה הקופסה = איור + פס השם + ריפוד. הפס נכנס לחישוב כדי שהכרטיס
+  // כולו ייכנס למסך ולא ידחוף את האיור החוצה.
+  var scale = Math.min((sw * room - pad) / w, (sh * room - pad) / (h * (1 + band)));
   if (!(scale > 0)) return;
-  sheet.style.width  = Math.round(w * scale + pad) + 'px';
-  sheet.style.height = Math.round(h * scale + pad) + 'px';
+
+  var iw = Math.round(w * scale), ih = Math.round(h * scale);
+  sheet.style.width  = (iw + pad) + 'px';
+  sheet.style.height = (ih + Math.round(ih * band) + pad) + 'px';
+
+  if (label){
+    // מידות מפורשות לאיור, אחרת הוא היה נמתח גם על שטח הפס
+    var img = sheet.querySelector('img');
+    if (img){ img.style.width = iw + 'px'; img.style.height = ih + 'px'; }
+    sheet.style.setProperty('--cap-h',  Math.round(ih * band) + 'px');
+    sheet.style.setProperty('--cap-fs', Math.round(ih * BAND_FS) + 'px');
+  }
 }
 
 function fitAll(){
@@ -449,24 +483,33 @@ function fitAll(){
     var i = Number(k);
     if (i === COVER || i === END) return;
     var m = PAGES[i - 1];
-    fitSheet(sheetOf(cache[i]), m[0], m[1], !!m[2]);
+    fitSheet(sheetOf(cache[i]), m[0], m[1], !!m[2], m[3]);
   });
 }
 
 function buildSheet(index){
   var m = PAGES[index - 1];
-  var w = m[0], h = m[1], isCard = !!m[2];
+  var w = m[0], h = m[1], isCard = !!m[2], label = m[3];
 
   var sheet = document.createElement('div');
-  sheet.className = 'sheet' + (isCard ? ' card' : '');
-  fitSheet(sheet, w, h, isCard);
+  sheet.className = 'sheet' + (isCard ? ' card' : '') + (label ? ' labeled' : '');
 
   var img = document.createElement('img');
   img.decoding = 'async';
   img.draggable = false;
-  img.alt = 'עמוד ' + index;
+  img.alt = label ? label : ('עמוד ' + index);
   img.src = srcFor(index);
   sheet.appendChild(img);
+
+  // כיתוב שם רק לעמוד שהשם לא צויר בתוכו
+  if (label){
+    var cap = document.createElement('div');
+    cap.className = 'cap';
+    cap.textContent = label;
+    sheet.appendChild(cap);
+  }
+
+  fitSheet(sheet, w, h, isCard, label);
   sheet.appendChild(gloss());
   return sheet;
 }

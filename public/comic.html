@@ -112,6 +112,19 @@ html,body{
 }
 .sheet.card img{border-radius:12px}
 
+/* כרטיס שהשם בו לא צויר בתוך האיור — פס שם מתחת לאיור.
+   מתחת ולא מעליו, כדי שלא יתנגש בדמות שיורדת עד תחתית הפריים. */
+.sheet.labeled{flex-direction:column}
+.sheet.labeled img{flex:0 0 auto}
+.sheet .cap{
+  flex:0 0 auto;
+  height:var(--cap-h,0px);
+  width:100%;
+  display:flex;align-items:center;justify-content:center;
+  color:#141414;font-weight:800;line-height:1;
+  font-size:var(--cap-fs,20px);
+}
+
 /* צל דינמי שנע לאורך ההיפוך */
 .gloss{
   position:absolute;inset:0;pointer-events:none;
@@ -266,7 +279,7 @@ html,body{
 /* ===========================================================
    נתונים
    =========================================================== */
-var PAGES = [[896,1195,1],[896,1195,1],[896,1195,1],[896,1195,1],[896,1195,0],[1376,768,0],[896,1195,0],[896,1195,0],[896,1195,0],[896,1195,0],[896,1200,0],[896,1195,0],[896,1195,0],[1376,768,0],[896,1195,0],[896,1195,0],[896,1200,0],[896,1195,0],[896,1195,0],[896,1195,0]];        // [w, h, isCharacter]
+var PAGES = [[896,1195,1,""],[896,1195,1,""],[896,1195,1,"מושיק"],[896,1195,1,""],[896,1195,0,""],[1376,768,0,""],[896,1195,0,""],[896,1195,0,""],[896,1195,0,""],[896,1195,0,""],[896,1200,0,""],[896,1195,0,""],[896,1195,0,""],[1376,768,0,""],[896,1195,0,""],[896,1195,0,""],[896,1200,0,""],[896,1195,0,""],[896,1195,0,""],[896,1195,0,""]];        // [w, h, isCharacter]
 var TOTAL = PAGES.length;
 var NAMES = ['כפיר','אורון','חגיגי','מושיק'];
 var STORE_KEY = 'greece-comic-position-v1';
@@ -322,16 +335,32 @@ function gloss(){
    ואז נוצר "מלבן לבן" סביב התמונה בכרטיסי הדמויות. */
 var CARD_PAD = 14;      // תואם ל-padding של .sheet.card
 var CARD_FIT = 0.92;    // כרטיס הדמות מעט קטן מהמסך, כדי שייראה ככרטיס
+var BAND = 0.11;        // גובה פס השם, כיחס מגובה האיור
+var BAND_FS = 0.062;    // גודל הפונט בפס, כיחס מגובה האיור
 
-function fitSheet(sheet, w, h, isCard){
+function fitSheet(sheet, w, h, isCard, label){
   var sw = stage.clientWidth, sh = stage.clientHeight;
   if (!sw || !sh) return;
-  var pad = isCard ? CARD_PAD * 2 : 0;
+  var pad  = isCard ? CARD_PAD * 2 : 0;
   var room = isCard ? CARD_FIT : 1;
-  var scale = Math.min((sw * room - pad) / w, (sh * room - pad) / h);
+  var band = label ? BAND : 0;
+
+  // גובה הקופסה = איור + פס השם + ריפוד. הפס נכנס לחישוב כדי שהכרטיס
+  // כולו ייכנס למסך ולא ידחוף את האיור החוצה.
+  var scale = Math.min((sw * room - pad) / w, (sh * room - pad) / (h * (1 + band)));
   if (!(scale > 0)) return;
-  sheet.style.width  = Math.round(w * scale + pad) + 'px';
-  sheet.style.height = Math.round(h * scale + pad) + 'px';
+
+  var iw = Math.round(w * scale), ih = Math.round(h * scale);
+  sheet.style.width  = (iw + pad) + 'px';
+  sheet.style.height = (ih + Math.round(ih * band) + pad) + 'px';
+
+  if (label){
+    // מידות מפורשות לאיור, אחרת הוא היה נמתח גם על שטח הפס
+    var img = sheet.querySelector('img');
+    if (img){ img.style.width = iw + 'px'; img.style.height = ih + 'px'; }
+    sheet.style.setProperty('--cap-h',  Math.round(ih * band) + 'px');
+    sheet.style.setProperty('--cap-fs', Math.round(ih * BAND_FS) + 'px');
+  }
 }
 
 function fitAll(){
@@ -339,24 +368,33 @@ function fitAll(){
     var i = Number(k);
     if (i === COVER || i === END) return;
     var m = PAGES[i - 1];
-    fitSheet(sheetOf(cache[i]), m[0], m[1], !!m[2]);
+    fitSheet(sheetOf(cache[i]), m[0], m[1], !!m[2], m[3]);
   });
 }
 
 function buildSheet(index){
   var m = PAGES[index - 1];
-  var w = m[0], h = m[1], isCard = !!m[2];
+  var w = m[0], h = m[1], isCard = !!m[2], label = m[3];
 
   var sheet = document.createElement('div');
-  sheet.className = 'sheet' + (isCard ? ' card' : '');
-  fitSheet(sheet, w, h, isCard);
+  sheet.className = 'sheet' + (isCard ? ' card' : '') + (label ? ' labeled' : '');
 
   var img = document.createElement('img');
   img.decoding = 'async';
   img.draggable = false;
-  img.alt = 'עמוד ' + index;
+  img.alt = label ? label : ('עמוד ' + index);
   img.src = srcFor(index);
   sheet.appendChild(img);
+
+  // כיתוב שם רק לעמוד שהשם לא צויר בתוכו
+  if (label){
+    var cap = document.createElement('div');
+    cap.className = 'cap';
+    cap.textContent = label;
+    sheet.appendChild(cap);
+  }
+
+  fitSheet(sheet, w, h, isCard, label);
   sheet.appendChild(gloss());
   return sheet;
 }
