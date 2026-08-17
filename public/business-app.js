@@ -3892,6 +3892,7 @@ if(data.group) {
             currentGroup.features = data.group.features; // סנכרון הרשאות מודולים מהשרת!
             if (data.group.business_type !== undefined) currentGroup.business_type = data.group.business_type;
             if (data.group.licensed_features !== undefined) currentGroup.licensed_features = data.group.licensed_features;
+            if (data.group.managed_modules !== undefined) currentGroup.managed_modules = data.group.managed_modules;
             
             // תאימות לאחור
             ['has_store','has_b2b','has_academy','has_calendar','has_finance','has_inventory','has_crm','has_deliveries','has_foodcost','has_ai'].forEach(k => {
@@ -32303,7 +32304,7 @@ function renderQuickTiles() {
   const tableStates = isRestTile ? getTableStates() : {};
   const occupiedCount = isRestTile ? Object.values(tableStates).filter(s => s === 'occupied' || s === 'awaiting_payment').length : 0;
   const isBeauty = currentGroup?.business_type === 'beauty';
-  const tiles = isBeauty ? [
+  let tiles = isBeauty ? [
     { fa:'fa-calendar-check',    label:'יומן תורים',     badge: null,            tab:'beauty_calendar',    bg:'#fdf2f8', grad:'linear-gradient(135deg,#f472b6,#db2777)', badge_bg:'#be185d' },
     { fa:'fa-address-book',      label:'לקוחות',          badge: null,            tab:'beauty_clients',     bg:'#faf5ff', grad:'linear-gradient(135deg,#a78bfa,#7c3aed)', badge_bg:'#6d28d9' },
     { fa:'fa-flask',             label:'מלאי מקצועי',    badge: null,            tab:'beauty_inventory',   bg:'#ecfdf5', grad:'linear-gradient(135deg,#34d399,#0f766e)', badge_bg:'#0d9488' },
@@ -32329,6 +32330,17 @@ function renderQuickTiles() {
     { fa:'fa-screwdriver-wrench',      label:'פקודות עבודה',    badge: openWoCount||null, tab:'__work_orders__',  bg:'#eef2ff', grad:'linear-gradient(135deg,#818cf8,#4f46e5)', badge_bg:'#4338ca' },
     { fa:'fa-chart-line',              label:'כספים',           badge: null,            tab:'bank',               bg:'#fff1f2', grad:'linear-gradient(135deg,#f43f5e,#be123c)', badge_bg:'#9f1239' },
   ]);
+  const _managed = Array.isArray(currentGroup?.managed_modules) ? currentGroup.managed_modules : [];
+  if (_managed.length > 0) {
+    const PSEUDO_MAP = { '__catalog__': 'sales', '__work_orders__': 'sales' };
+    const INTRINSIC  = ['__tables__', 'kds', '__daily_close__'];
+    const ALWAYS_ON  = ['feed', 'settings', 'biz-ads'];
+    tiles = tiles.filter(t => {
+      if (INTRINSIC.includes(t.tab) || ALWAYS_ON.includes(t.tab)) return true;
+      const mapped = PSEUDO_MAP[t.tab] || t.tab;
+      return _managed.includes(mapped);
+    });
+  }
   container.innerHTML = tiles.map(t => {
     const clickAction = t.tab === '__daily_close__'  ? "window.openDailyCloseReport()" :
                         t.tab === 'kds'             ? "window.openAdminKDSPanel()" :
@@ -34706,7 +34718,11 @@ function applyBusinessTypeFilter() {
     if (currentUser.employee_role_type && ROLE_TYPE_TABS[currentUser.employee_role_type]) {
         ROLE_TYPE_TABS[currentUser.employee_role_type].forEach(t => { if (!userGrantedTabs.includes(t)) userGrantedTabs.push(t); });
     }
-    if (!enabled) {
+    const managed = Array.isArray(currentGroup?.managed_modules) ? currentGroup.managed_modules : [];
+    const hasManagedFilter = managed.length > 0;
+    const ALWAYS_VISIBLE_TABS = ['feed', 'settings', 'biz-ads'];
+
+    if (!enabled && !hasManagedFilter) {
         ALL_TABS.forEach(tab => {
             const tabBtn = getEl(`tab-${tab.id}`);
             if (tabBtn) tabBtn.classList.remove('hidden');
@@ -34719,10 +34735,10 @@ function applyBusinessTypeFilter() {
         });
         return;
     }
-    // tabs always visible for all business types and all future types
-    const ALWAYS_VISIBLE_TABS = ['biz-ads'];
     ALL_TABS.forEach(tab => {
-        const isEnabled = enabled.includes(tab.id) || ALWAYS_VISIBLE_TABS.includes(tab.id);
+        const isEnabled = hasManagedFilter
+            ? (managed.includes(tab.id) || ALWAYS_VISIBLE_TABS.includes(tab.id))
+            : (enabled.includes(tab.id) || ALWAYS_VISIBLE_TABS.includes(tab.id));
         const hasExplicitPermission = userGrantedTabs.includes(tab.id);
         const tabBtn = getEl(`tab-${tab.id}`);
         if (tabBtn) { if (!isEnabled && !isAdminOrManager && !hasExplicitPermission) tabBtn.classList.add('hidden'); else tabBtn.classList.remove('hidden'); }
