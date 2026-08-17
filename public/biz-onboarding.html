@@ -646,6 +646,23 @@
       <button class="btn-finish" id="btn-account-submit" onclick="submitAccountDetails()">כניסה למערכת ←</button>
     </div>
 
+    <!-- ══ SECTION: summary (סיכום והכוונה ראשונית) ══ -->
+    <div id="sec-summary" class="section">
+      <div style="text-align:center; margin-bottom:20px;">
+        <span style="display:inline-block; background:#F0EFFE; color:#5B46E5;
+          font-size:11px; font-weight:700; letter-spacing:0.07em; text-transform:uppercase;
+          padding:4px 12px; border-radius:20px; border:1px solid #D8D2F9;">
+          שלב אחרון ✓
+        </span>
+      </div>
+      <div class="otp-title">המערכת שלך מוכנה! 🎉</div>
+      <div class="otp-sub">הנה כמה דברים שכדאי לדעת כדי להתחיל</div>
+
+      <div id="summary-cards" style="display:flex; flex-direction:column; gap:10px; margin-bottom:24px;"></div>
+
+      <button class="btn-finish" onclick="completeWizard()">בואו נתחיל! ←</button>
+    </div>
+
     <!-- ══ SECTION: finishing (שמירה + שגיאה מובטחת) ══ -->
     <div id="sec-finishing" class="section">
       <div style="text-align:center; padding: 24px 0 8px;">
@@ -1107,7 +1124,49 @@
       const street_address = (street || streetNo) ? `${street} ${streetNo}`.trim() : null;
 
       _state.accountDetails = { email, first, last, city, birth, opening_hours, street_address };
-      completeWizard();
+      showSummary();
+    }
+
+    function showSummary() {
+      const cards = [];
+
+      if (_state.storeEnabled === true) {
+        cards.push({ icon: '🛍️', title: 'החנות שלך מוכנה',
+          text: 'כנס לטאב מכירות וחנות ← הגדרות, שם תמצא את קישור החנות ואת כל ההגדרות שלה' });
+      }
+      if (_state.staffRoles.length > 0) {
+        cards.push({ icon: '👥', title: 'הזמן את הצוות שלך',
+          text: 'כנס לטאב צוות ושלח הזמנות כניסה לתפקידים שסימנת, כדי שיוכלו להתחיל לעבוד' });
+      }
+      if (_state.selectedManageKeys.includes('quotes')) {
+        cards.push({ icon: '📋', title: 'הצעות מחיר ופרויקטים',
+          text: 'כנס לטאב מכירות כדי ליצור את הצעת המחיר הראשונה שלך' });
+      }
+      if (_state.selectedManageKeys.includes('analytics')) {
+        cards.push({ icon: '📊', title: 'מעקב אחרי הביצועים',
+          text: 'כנס לטאב כספים לראות דוחות ומעקב תזרים' });
+      }
+      if (!_state.accountDetails.opening_hours) {
+        cards.push({ icon: '⏰', title: 'השלם פרטי עסק',
+          text: 'כשיהיה לך זמן, השלם שעות פעילות וכתובת בהגדרות ← פרטי עסק' });
+      }
+      if (cards.length === 0) {
+        cards.push({ icon: '🗺️', title: 'התחל להכיר את המערכת',
+          text: 'סייר בתפריט הראשי כדי להכיר את כל האפשרויות העומדות לרשותך' });
+      }
+
+      document.getElementById('summary-cards').innerHTML = cards.map(c => `
+        <div style="display:flex; align-items:flex-start; gap:14px; padding:14px 16px;
+          border:1.5px solid #E2E8F0; border-radius:14px; background:#FAFBFC;">
+          <span style="font-size:22px; flex-shrink:0; margin-top:1px;">${c.icon}</span>
+          <div>
+            <div style="font-weight:700; font-size:14px; color:#1B2440; margin-bottom:3px;">${c.title}</div>
+            <div style="font-size:12.5px; color:#718096; line-height:1.5;">${c.text}</div>
+          </div>
+        </div>
+      `).join('');
+
+      showSection('sec-summary');
     }
 
     // ══ completeWizard — תמיד דרך sec-finishing ══
