@@ -295,6 +295,75 @@
       transition: background 0.2s;
     }
     .wiz-dot.active { background: #5B46E5; }
+
+    /* ── sec-account-details ── */
+    .acc-row-2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:18px; }
+
+    .checkbox-terms {
+      display:flex; align-items:flex-start; gap:10px;
+      padding:12px 14px; background:#FAFBFC;
+      border:1.5px solid #E2E8F0; border-radius:12px;
+      margin-bottom:22px; cursor:pointer;
+    }
+    .checkbox-terms.checked { border-color:#5B46E5; background:#F0EFFE; }
+    .checkbox-terms input { width:17px; height:17px; accent-color:#5B46E5; flex-shrink:0; margin-top:2px; }
+    .checkbox-terms-text { font-size:13px; color:#1B2440; line-height:1.55; }
+    .checkbox-terms-text a { color:#5B46E5; text-decoration:underline; text-underline-offset:2px; }
+
+    .opt-divider { display:flex; align-items:center; gap:10px; margin-bottom:20px; }
+    .opt-divider-line { flex:1; height:1px; background:#E2E8F0; }
+    .opt-divider-chip {
+      font-size:10.5px; font-weight:700; letter-spacing:0.09em; text-transform:uppercase;
+      color:#718096; padding:3px 9px; background:#fff;
+      border:1px solid #E2E8F0; border-radius:20px; white-space:nowrap;
+    }
+    .opt-block {
+      background:#F8F7FF; border:1.5px dashed #E2E8F0;
+      border-radius:14px; padding:18px 16px; margin-bottom:8px;
+    }
+    .opt-block-title { font-size:14px; font-weight:700; color:#1B2440; margin-bottom:3px; }
+    .opt-block-desc  { font-size:12.5px; color:#718096; line-height:1.5; margin-bottom:18px; }
+
+    .day-picker-row { display:flex; gap:5px; margin-bottom:16px; }
+    .day-btn-wiz {
+      width:34px; height:34px; border-radius:50%;
+      border:1.5px solid #E2E8F0; background:#fff;
+      font-family:'Heebo',sans-serif; font-size:12px; font-weight:700; color:#718096;
+      display:flex; align-items:center; justify-content:center;
+      cursor:pointer; flex-shrink:0; transition:all 0.15s;
+    }
+    .day-btn-wiz.on { background:#5B46E5; border-color:#5B46E5; color:#fff; }
+
+    .hours-stacked { display:flex; flex-direction:column; gap:8px; margin-bottom:16px; }
+    .hours-stacked-row { display:flex; align-items:center; gap:10px; }
+    .hours-stacked-lbl { font-size:12.5px; color:#718096; width:42px; flex-shrink:0; text-align:right; }
+    .time-input-wiz {
+      flex:1; padding:10px 12px; border:1.5px solid #E2E8F0; border-radius:10px;
+      font-family:'Heebo',sans-serif; font-size:14px; color:#1B2440;
+      background:#fff; direction:ltr; text-align:center; outline:none;
+      transition:border-color 0.18s;
+    }
+    .time-input-wiz:focus { border-color:#5B46E5; }
+    @media (min-width:500px) {
+      .hours-stacked { flex-direction:row; align-items:center; }
+      .hours-stacked-row { flex:1; }
+    }
+
+    .acc-street-row { display:grid; grid-template-columns:1fr 72px; gap:10px; margin-top:4px; }
+
+    .skip-opt-link {
+      display:block; text-align:center; font-size:12.5px; color:#718096;
+      text-decoration:underline; cursor:pointer; margin:12px 0 18px;
+      background:none; border:none; font-family:'Heebo',sans-serif; width:100%;
+    }
+    .btn-finish {
+      width:100%; padding:13px; background:#22C55E; color:#fff;
+      border:none; border-radius:12px; font-family:'Heebo',sans-serif;
+      font-size:15px; font-weight:700; cursor:pointer;
+      box-shadow:0 4px 16px rgba(34,197,94,0.25); transition:background 0.18s; margin-top:4px;
+    }
+    .btn-finish:hover { background:#16A34A; }
+    .btn-finish:disabled { opacity:0.55; cursor:not-allowed; }
   </style>
 </head>
 <body>
@@ -484,6 +553,97 @@
           <span class="choice-check">✓</span>
         </div>
       </div>
+    </div>
+
+    <!-- ══ SECTION: account-details (מסך 5/5 — פרטי חשבון) ══ -->
+    <div id="sec-account-details" class="section">
+      <div style="text-align:center; margin-bottom:20px;">
+        <span style="display:inline-block; background:#F0EFFE; color:#5B46E5;
+          font-size:11px; font-weight:700; letter-spacing:0.07em; text-transform:uppercase;
+          padding:4px 12px; border-radius:20px; border:1px solid #D8D2F9;">
+          שלב אחרון ✓
+        </span>
+      </div>
+      <div class="otp-title">עוד רגע וסיימנו</div>
+      <div class="otp-sub">פרטי החשבון הנדרשים להשלמת ההרשמה</div>
+      <div id="msg-account" class="msg"></div>
+
+      <div class="field-group">
+        <label class="field-label" for="acc-email">מייל העסק <span style="color:#5B46E5">*</span></label>
+        <input class="field-input" id="acc-email" type="email" placeholder="info@example.co.il" dir="ltr" style="text-align:right;">
+      </div>
+      <div class="acc-row-2">
+        <div>
+          <label class="field-label" for="acc-first">שם פרטי <span style="color:#5B46E5">*</span></label>
+          <input class="field-input" id="acc-first" type="text" placeholder="ישראל">
+        </div>
+        <div>
+          <label class="field-label" for="acc-last">שם משפחה <span style="color:#5B46E5">*</span></label>
+          <input class="field-input" id="acc-last" type="text" placeholder="ישראלי">
+        </div>
+      </div>
+      <div class="acc-row-2">
+        <div>
+          <label class="field-label" for="acc-city">עיר <span style="color:#5B46E5">*</span></label>
+          <input class="field-input" id="acc-city" type="text" placeholder="תל אביב">
+        </div>
+        <div>
+          <label class="field-label" for="acc-birth">שנת לידה <span style="color:#5B46E5">*</span></label>
+          <input class="field-input" id="acc-birth" type="number" min="1940" max="2010" placeholder="1985" dir="ltr" style="text-align:right;">
+        </div>
+      </div>
+
+      <label class="checkbox-terms" id="terms-label" for="acc-terms">
+        <input type="checkbox" id="acc-terms" onchange="toggleTermsStyle()">
+        <div class="checkbox-terms-text">
+          קראתי ואני מאשר/ת את
+          <a href="#" onclick="return false;">תנאי השימוש והתקנון</a>
+          של Oneflow Life
+        </div>
+      </label>
+
+      <div class="opt-divider">
+        <div class="opt-divider-line"></div>
+        <div class="opt-divider-chip">אופציונלי</div>
+        <div class="opt-divider-line"></div>
+      </div>
+
+      <div class="opt-block">
+        <div class="opt-block-title">שעות פעילות וכתובת</div>
+        <div class="opt-block-desc">לא חובה — משפר את מה שהמערכת יכולה לעשות אוטומטית</div>
+
+        <label class="field-label" style="margin-bottom:8px;">ימי פעילות</label>
+        <div class="day-picker-row">
+          <button type="button" class="day-btn-wiz" data-day="0" onclick="toggleDay(this)">א</button>
+          <button type="button" class="day-btn-wiz" data-day="1" onclick="toggleDay(this)">ב</button>
+          <button type="button" class="day-btn-wiz" data-day="2" onclick="toggleDay(this)">ג</button>
+          <button type="button" class="day-btn-wiz" data-day="3" onclick="toggleDay(this)">ד</button>
+          <button type="button" class="day-btn-wiz" data-day="4" onclick="toggleDay(this)">ה</button>
+          <button type="button" class="day-btn-wiz" data-day="5" onclick="toggleDay(this)">ו</button>
+          <button type="button" class="day-btn-wiz" data-day="6" onclick="toggleDay(this)">ש</button>
+        </div>
+
+        <label class="field-label" style="margin-bottom:8px;">שעות פעילות</label>
+        <div class="hours-stacked">
+          <div class="hours-stacked-row">
+            <span class="hours-stacked-lbl">פתיחה</span>
+            <input class="time-input-wiz" id="acc-open" type="time" value="09:00">
+          </div>
+          <div class="hours-stacked-row">
+            <span class="hours-stacked-lbl">סגירה</span>
+            <input class="time-input-wiz" id="acc-close" type="time" value="19:00">
+          </div>
+        </div>
+
+        <label class="field-label" style="margin-bottom:8px;">כתובת</label>
+        <div class="acc-street-row">
+          <input class="field-input" id="acc-street" type="text" placeholder="שם הרחוב">
+          <input class="field-input" id="acc-street-num" type="text" placeholder="מס'" dir="ltr" style="text-align:center;">
+        </div>
+      </div>
+
+      <button type="button" class="skip-opt-link" onclick="clearOptional()">דלג, אשלים בפרופיל מאוחר יותר</button>
+      <button class="btn-finish" id="btn-account-submit" onclick="submitAccountDetails()">כניסה למערכת ←</button>
     </div>
 
     <!-- ══ SECTION: finishing (שמירה + שגיאה מובטחת) ══ -->
@@ -893,12 +1053,60 @@
         showSection('sec-store');
       } else {
         _state.storeEnabled = false;
-        completeWizard();
+        showSection('sec-account-details');
       }
     }
 
     function setStore(enabled) {
       _state.storeEnabled = enabled;
+      showSection('sec-account-details');
+    }
+
+    function toggleTermsStyle() {
+      const checked = document.getElementById('acc-terms').checked;
+      document.getElementById('terms-label').classList.toggle('checked', checked);
+    }
+    function toggleDay(btn) {
+      btn.classList.toggle('on');
+    }
+    function clearOptional() {
+      document.querySelectorAll('.day-btn-wiz').forEach(b => b.classList.remove('on'));
+      document.getElementById('acc-open').value = '';
+      document.getElementById('acc-close').value = '';
+      document.getElementById('acc-street').value = '';
+      document.getElementById('acc-street-num').value = '';
+    }
+    function submitAccountDetails() {
+      hideMsg('msg-account');
+      const email  = document.getElementById('acc-email').value.trim();
+      const first  = document.getElementById('acc-first').value.trim();
+      const last   = document.getElementById('acc-last').value.trim();
+      const city   = document.getElementById('acc-city').value.trim();
+      const birth  = parseInt(document.getElementById('acc-birth').value, 10);
+      const terms  = document.getElementById('acc-terms').checked;
+
+      if (!email || !first || !last || !city || !birth) {
+        return showMsg('msg-account', 'נא למלא את כל שדות החובה', 'err');
+      }
+      if (!terms) {
+        return showMsg('msg-account', 'יש לאשר את התקנון כדי להמשיך', 'err');
+      }
+      if (isNaN(birth) || birth < 1940 || birth > 2010) {
+        return showMsg('msg-account', 'שנת לידה לא תקינה (1940–2010)', 'err');
+      }
+
+      const openVal  = document.getElementById('acc-open').value;
+      const closeVal = document.getElementById('acc-close').value;
+      const street   = document.getElementById('acc-street').value.trim();
+      const streetNo = document.getElementById('acc-street-num').value.trim();
+      const activeDays = [...document.querySelectorAll('.day-btn-wiz.on')].map(b => parseInt(b.dataset.day));
+
+      const opening_hours = (activeDays.length && openVal && closeVal)
+        ? { days: activeDays, open: openVal, close: closeVal }
+        : null;
+      const street_address = (street || streetNo) ? `${street} ${streetNo}`.trim() : null;
+
+      _state.accountDetails = { email, first, last, city, birth, opening_hours, street_address };
       completeWizard();
     }
 
@@ -939,9 +1147,17 @@
             'Authorization': `Bearer ${token}`
           },
           body: JSON.stringify({
-            business_type: _state.selectedBizType,
+            business_type:  _state.selectedBizType,
             managed_modules: managedModules,
-            staff_roles: _state.staffRoles
+            staff_roles:    _state.staffRoles,
+            admin_email:    _state.accountDetails.email,
+            first_name:     _state.accountDetails.first,
+            last_name:      _state.accountDetails.last,
+            city:           _state.accountDetails.city,
+            birth_year:     _state.accountDetails.birth,
+            terms_accepted: true,
+            opening_hours:  _state.accountDetails.opening_hours,
+            street_address: _state.accountDetails.street_address,
           })
         });
         const d = await res.json();

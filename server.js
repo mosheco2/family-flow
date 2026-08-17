@@ -1444,6 +1444,7 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
       try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS staff_roles JSONB DEFAULT '[]'`); } catch(e) {}
       try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS opening_hours JSONB DEFAULT NULL`); } catch(e) {}
       try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS wizard_completed BOOLEAN DEFAULT FALSE`); } catch(e) {}
+      try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS terms_accepted_at TIMESTAMPTZ DEFAULT NULL`); } catch(e) {}
       try { await client.query(`CREATE TABLE IF NOT EXISTS business_otp (
           id         SERIAL PRIMARY KEY,
           phone      VARCHAR(20)  NOT NULL,
@@ -5040,17 +5041,53 @@ app.get('/api/biz/me', verifyBiz, async (req, res) => {
 
 app.patch('/api/biz/wizard/complete', verifyBiz, async (req, res) => {
     try {
-        const { groupId } = req.bizAuth;
-        const { business_type, managed_modules, staff_roles } = req.body;
+        const { groupId, userId } = req.bizAuth;
+        const {
+            business_type, managed_modules, staff_roles,
+            admin_email, first_name, last_name, city, birth_year,
+            terms_accepted,
+            street_address, opening_hours
+        } = req.body;
+
         if (!business_type || !Array.isArray(managed_modules) || !Array.isArray(staff_roles)) {
             return res.status(400).json({ success: false, error: 'פרמטרים חסרים' });
         }
+        if (terms_accepted !== true) {
+            return res.status(400).json({ success: false, error: 'יש לאשר את התקנון' });
+        }
+        if (!admin_email || !first_name || !last_name || !city || !birth_year) {
+            return res.status(400).json({ success: false, error: 'פרטי חשבון חסרים' });
+        }
+        const yr = parseInt(birth_year, 10);
+        if (isNaN(yr) || yr < 1940 || yr > 2010) {
+            return res.status(400).json({ success: false, error: 'שנת לידה לא תקינה (1940–2010)' });
+        }
+
         await pool.query(
             `UPDATE family_groups
-             SET business_type=$1, managed_modules=$2, staff_roles=$3, wizard_completed=TRUE
-             WHERE id=$4`,
-            [business_type, JSON.stringify(managed_modules), JSON.stringify(staff_roles), groupId]
+             SET business_type=$1, managed_modules=$2, staff_roles=$3, wizard_completed=TRUE,
+                 admin_email=$4, city=$5, terms_accepted_at=NOW(),
+                 street_address=$6, opening_hours=$7
+             WHERE id=$8`,
+            [
+                business_type,
+                JSON.stringify(managed_modules),
+                JSON.stringify(staff_roles),
+                admin_email.toLowerCase().trim(),
+                city.trim(),
+                street_address || null,
+                opening_hours ? JSON.stringify(opening_hours) : null,
+                groupId
+            ]
         );
+
+        if (userId) {
+            await pool.query(
+                `UPDATE users SET first_name=$1, last_name=$2, birth_year=$3 WHERE id=$4`,
+                [first_name.trim(), last_name.trim(), yr, userId]
+            );
+        }
+
         res.json({ success: true });
     } catch(e) {
         console.error('biz wizard/complete error:', e.message);
