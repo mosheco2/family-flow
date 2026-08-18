@@ -1223,6 +1223,11 @@
         if (!res.ok || !d.success) throw new Error(d.error || 'שגיאה בשמירה');
 
         if (session.group) session.group.wizard_completed = true;
+        if (session.user && _state.accountDetails) {
+          session.user.first_name = _state.accountDetails.first;
+          session.user.last_name  = _state.accountDetails.last;
+          session.user.nickname   = _state.accountDetails.first;
+        }
         localStorage.setItem('ofl_session', JSON.stringify(session));
         window.location.href = 'business.html';
 
