@@ -60,7 +60,7 @@ const FLAT_PRODUCTS = []; for (const [cat, items] of Object.entries(PRODUCT_DB))
 
 let accState = { 'text-lg': false, 'grayscale': false, 'contrast': false, 'readable-font': false, 'highlight-links': false };
 
-const hidePreloaderAndShowAuth = (view = 'login') => {
+const hidePreloaderAndShowAuth = (view = 'splash') => {
     getEl('auth-container').classList.remove('hidden'); switchView(view);
     const preloader = getEl('app-preloader');
     if (preloader) { preloader.classList.add('opacity-0', 'pointer-events-none'); setTimeout(() => preloader.classList.add('hidden'), 700); }
@@ -92,7 +92,7 @@ window.onload = async () => {
             }
         } catch(e) { localStorage.removeItem('ofl_session'); } 
     }
-    clearTimeout(failsafeTimer); hidePreloaderAndShowAuth('login');
+    clearTimeout(failsafeTimer); hidePreloaderAndShowAuth('splash');
 };
 
 function showToast(t,m) { const el=getEl('toast'); const icon = getEl('toast-icon'); el.classList.remove('hidden'); getEl('toast-message').innerText=m; icon.className=t==='success'?'fa-solid fa-check text-green-400':'fa-solid fa-xmark text-red-400'; setTimeout(()=>el.classList.add('hidden'),3000); }
@@ -282,9 +282,9 @@ function startChildTour() {
     intro.onexit(() => switchTab('feed')); intro.oncomplete(() => switchTab('feed')); intro.start();
 }
 
-function switchView(view) { 
-    ['login','create','join', 'sa-login'].forEach(v => { const el = getEl(`view-${v}`); if(el) el.classList.add('hidden'); }); 
-    const tg = getEl(`view-${view}`); if(tg) tg.classList.remove('hidden'); 
+function switchView(view) {
+    ['splash','login','create','join', 'sa-login'].forEach(v => { const el = getEl(`view-${v}`); if(el) el.classList.add('hidden'); });
+    const tg = getEl(`view-${view}`); if(tg) tg.classList.remove('hidden');
 }
 
 function openTosModal(e) { if(e) { e.preventDefault(); e.stopPropagation(); } const modal = getEl('tos-modal'); if(modal) modal.classList.remove('hidden'); }

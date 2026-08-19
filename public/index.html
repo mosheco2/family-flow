@@ -159,6 +159,11 @@
 
         @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.15); } }
         @keyframes slideUpIn { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
+        .splash-card { display:flex; align-items:center; gap:14px; padding:22px 20px; border-radius:20px; font-size:18px; font-weight:700; border:2px solid #E2E8F0; background:#fff; color:#1B2440; box-shadow:0 2px 12px rgba(0,0,0,0.06); transition:box-shadow .18s,border-color .18s; width:100%; cursor:pointer; }
+        .splash-card:hover { border-color:#5B46E5; box-shadow:0 4px 20px rgba(91,70,229,0.14); }
+        .splash-icon { font-size:32px; line-height:1; flex-shrink:0; }
+        .splash-card-title { font-size:19px; font-weight:700; }
+        .splash-card-sub { font-size:13px; font-weight:400; color:#718096; margin-top:2px; }
     </style>
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#4f46e5">
@@ -274,7 +279,30 @@
                     </div>
             </div>
             
-            <div id="view-login" class="px-8 py-8 flex-1 overflow-y-auto">
+            <!-- SPLASH: בחירת סוג משתמש -->
+            <div id="view-splash" class="px-6 py-8 flex-1 overflow-y-auto flex flex-col justify-center">
+              <h2 class="text-2xl font-bold text-center text-slate-800 mb-1">ברוכים הבאים</h2>
+              <p class="text-center text-slate-400 text-sm mb-8">מה מתאר אותך יותר?</p>
+              <div class="flex flex-col gap-4">
+                <button onclick="splashChoose('FAMILY')" class="splash-card">
+                  <span class="splash-icon">🏠</span>
+                  <div class="text-right flex-1">
+                    <div class="splash-card-title">אני משפחה</div>
+                    <div class="splash-card-sub">ניהול משימות, חיסכון ויעדים משפחתיים</div>
+                  </div>
+                </button>
+                <button onclick="splashChoose('BUSINESS')" class="splash-card">
+                  <span class="splash-icon">💼</span>
+                  <div class="text-right flex-1">
+                    <div class="splash-card-title">אני עסק</div>
+                    <div class="splash-card-sub">ניהול לקוחות, תורים וצוות</div>
+                  </div>
+                </button>
+              </div>
+              <button onclick="switchView('login')" class="text-slate-400 text-sm underline mt-8 text-center block w-full">כבר יש לי חשבון — כניסה</button>
+            </div>
+
+            <div id="view-login" class="px-8 py-8 flex-1 overflow-y-auto hidden">
                 <form onsubmit="handleLogin(event)" class="space-y-5">
                     <input type="text" id="login-code" required class="modern-input font-mono text-center tracking-widest uppercase" placeholder="קוד כניסה (לדוגמה: ABCD12)">
                     <input type="text" id="login-nickname" required class="modern-input" placeholder="כינוי המשתמש שלך">
@@ -2864,6 +2892,12 @@
     </div>
 
     <script>
+        window.splashChoose = function(t) {
+            if (t === 'BUSINESS') { window.location.href = '/biz-onboarding.html'; return; }
+            switchView('create');
+            handleTypeSelection('FAMILY');
+        };
+
         window.handleTypeSelection = function(t) {
             if (t === 'BUSINESS') {
                 window.location.href = '/biz-onboarding.html';
