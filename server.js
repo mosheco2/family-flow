@@ -4955,6 +4955,7 @@ app.post('/api/family/verify-otp', async (req, res) => {
             return res.status(400).json({ success: false, error: `קוד שגוי. נותרו ${3 - newAttempts} ניסיונות.` });
         }
         await pool.query(`DELETE FROM business_otp WHERE id=$1`, [row.id]);
+        await pool.query(`DELETE FROM business_otp WHERE phone=$1 AND purpose='family_verified'`, [phone]);
         const rawVerifiedToken = _bizCrypto.randomBytes(32).toString('hex');
         const verifiedHash = _bizHashOtp(rawVerifiedToken);
         const verifiedExpires = new Date(Date.now() + 15 * 60 * 1000);
