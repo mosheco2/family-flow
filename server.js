@@ -6133,7 +6133,8 @@ app.post('/api/groups', async (req, res) => {
         }
 
         // בדיקת ייחודיות טלפון: אותו טלפון לא יכול להרשם בשתי משפחות שונות
-        if (phone && req.body.type === 'FAMILY') {
+        const SYSTEM_TEST_PHONES = ['972526626619'];
+        if (phone && req.body.type === 'FAMILY' && !SYSTEM_TEST_PHONES.includes(phone.replace(/\D/g, ''))) {
             const phoneCheck = await dbClient.query(
                 `SELECT u.id FROM users u JOIN family_groups fg ON fg.id = u.group_id WHERE u.phone = $1 AND fg.type = 'FAMILY' LIMIT 1`,
                 [phone]
