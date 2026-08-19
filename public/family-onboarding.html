@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Oneflow Life — כניסה למשפחה</title>
+  <title>Oneflow Life — הצטרפות למשפחה</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 
@@ -36,155 +36,131 @@
     }
 
     .logo {
-      font-size: 22px;
-      font-weight: 800;
-      color: #5B46E5;
-      letter-spacing: -0.5px;
-      margin-bottom: 28px;
-      text-align: center;
+      font-size: 22px; font-weight: 800; color: #5B46E5;
+      letter-spacing: -0.5px; margin-bottom: 28px; text-align: center;
     }
     .logo span { color: #1B2440; }
 
     .card {
-      background: #fff;
-      border-radius: 20px;
-      padding: 36px 32px;
-      width: 100%;
-      max-width: 420px;
+      background: #fff; border-radius: 20px; padding: 36px 32px;
+      width: 100%; max-width: 420px;
       box-shadow: 0 4px 24px rgba(91,70,229,0.08);
     }
 
-    .screen-title {
-      font-size: 20px;
-      font-weight: 800;
-      color: #1B2440;
-      margin-bottom: 6px;
-    }
-    .screen-sub {
-      font-size: 13px;
-      color: #718096;
-      margin-bottom: 26px;
-      line-height: 1.55;
-    }
+    .screen-title { font-size: 20px; font-weight: 800; color: #1B2440; margin-bottom: 6px; }
+    .screen-sub { font-size: 13px; color: #718096; margin-bottom: 26px; line-height: 1.55; }
 
-    .field-label {
-      display: block;
-      font-size: 13px;
-      font-weight: 600;
-      color: #4A5568;
-      margin-bottom: 6px;
-    }
+    .field-label { display: block; font-size: 13px; font-weight: 600; color: #4A5568; margin-bottom: 6px; }
     .field-input {
-      width: 100%;
-      padding: 12px 14px;
-      border: 1.5px solid #E2E8F0;
-      border-radius: 12px;
-      font-family: 'Heebo', sans-serif;
-      font-size: 15px;
-      color: #1B2440;
-      background: #FAFBFC;
-      outline: none;
-      transition: border-color 0.15s;
-      margin-bottom: 16px;
+      width: 100%; padding: 12px 14px;
+      border: 1.5px solid #E2E8F0; border-radius: 12px;
+      font-family: 'Heebo', sans-serif; font-size: 15px;
+      color: #1B2440; background: #FAFBFC; outline: none;
+      transition: border-color 0.15s; margin-bottom: 16px;
     }
     .field-input:focus { border-color: #5B46E5; background: #fff; }
     .field-input.ltr { direction: ltr; text-align: left; }
     .field-input.mono { font-family: monospace; text-align: center; letter-spacing: 0.15em; text-transform: uppercase; }
+    .field-row { display: flex; gap: 10px; }
+    .field-row .field-input { flex: 1; }
+
+    .tos-box {
+      background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 12px;
+      padding: 12px 14px; margin-bottom: 16px; display: flex; flex-direction: column; gap: 10px;
+    }
+    .tos-row { display: flex; align-items: flex-start; gap: 8px; }
+    .tos-row input { width: 16px; height: 16px; accent-color: #5B46E5; flex-shrink: 0; margin-top: 2px; }
+    .tos-row span { font-size: 11.5px; color: #4A5568; line-height: 1.5; }
+    .tos-link { color: #5B46E5; font-weight: 700; text-decoration: underline; background: none; border: none; padding: 0; cursor: pointer; font-family: inherit; font-size: inherit; }
 
     .btn-primary {
-      width: 100%;
-      padding: 13px;
-      background: #5B46E5;
-      color: #fff;
-      border: none;
-      border-radius: 12px;
-      font-family: 'Heebo', sans-serif;
-      font-size: 15px;
-      font-weight: 700;
-      cursor: pointer;
-      box-shadow: 0 4px 16px rgba(91,70,229,0.22);
-      margin-top: 4px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
+      width: 100%; padding: 13px; background: #5B46E5; color: #fff;
+      border: none; border-radius: 12px; font-family: 'Heebo', sans-serif;
+      font-size: 15px; font-weight: 700; cursor: pointer;
+      box-shadow: 0 4px 16px rgba(91,70,229,0.22); margin-top: 4px;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
     }
+    .btn-primary.green { background: #22C55E; box-shadow: 0 4px 16px rgba(34,197,94,0.22); }
     .btn-primary:active { opacity: 0.88; }
+    .btn-note { font-size: 10.5px; color: #A0AEC0; text-align: center; margin-top: 8px; }
 
     .loader {
       width: 18px; height: 18px;
-      border: 2.5px solid rgba(255,255,255,0.4);
-      border-top-color: #fff;
-      border-radius: 50%;
-      animation: spin 0.7s linear infinite;
+      border: 2.5px solid rgba(255,255,255,0.4); border-top-color: #fff;
+      border-radius: 50%; animation: spin 0.7s linear infinite;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    .divider {
-      display: flex; align-items: center; gap: 10px;
-      margin: 22px 0 18px;
+    .tabs {
+      display: flex; background: #F0EFFE; border-radius: 12px;
+      padding: 4px; margin-bottom: 28px; gap: 4px;
     }
+    .tab-btn {
+      flex: 1; padding: 10px 0; border: none; background: transparent;
+      border-radius: 9px; font-family: 'Heebo', sans-serif; font-size: 14px;
+      font-weight: 600; color: #7B6FBB; cursor: pointer; transition: all 0.18s;
+    }
+    .tab-btn.active {
+      background: #fff; color: #5B46E5;
+      box-shadow: 0 2px 8px rgba(91,70,229,0.12);
+    }
+
+    .divider { display: flex; align-items: center; gap: 10px; margin: 22px 0 18px; }
     .div-line { flex: 1; height: 1px; background: #E2E8F0; }
     .div-chip {
       font-size: 10.5px; font-weight: 700; letter-spacing: 0.09em;
       text-transform: uppercase; color: #718096;
-      padding: 3px 9px;
-      background: #fff; border: 1px solid #E2E8F0; border-radius: 20px;
-      white-space: nowrap;
+      padding: 3px 9px; background: #fff; border: 1px solid #E2E8F0;
+      border-radius: 20px; white-space: nowrap;
     }
 
-    .link-row {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      margin-top: 4px;
-    }
+    .link-row { display: flex; flex-direction: column; gap: 10px; margin-top: 4px; }
     .link-btn {
       background: none; border: none; padding: 8px 0;
       font-family: 'Heebo', sans-serif; font-size: 13px;
       color: #718096; cursor: pointer; text-decoration: underline;
-      text-underline-offset: 2px;
+      text-underline-offset: 2px; text-align: center; width: 100%;
     }
     .link-btn.primary-link { color: #5B46E5; font-weight: 600; }
+
+    /* views */
+    .view { display: none; }
+    .view.active { display: block; }
 
     /* toast */
     #fo-toast {
       position: fixed; top: 24px; left: 50%; transform: translateX(-50%);
-      background: #1B2440; color: #fff;
-      padding: 12px 20px; border-radius: 30px;
-      font-size: 13px; font-weight: 600;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.18);
-      display: none; z-index: 9999; white-space: nowrap;
-      max-width: 90vw;
+      background: #1B2440; color: #fff; padding: 12px 20px; border-radius: 30px;
+      font-size: 13px; font-weight: 600; box-shadow: 0 4px 20px rgba(0,0,0,0.18);
+      display: none; z-index: 9999; white-space: nowrap; max-width: 90vw;
     }
     #fo-toast.error { background: #E53E3E; }
     #fo-toast.success { background: #22C55E; }
 
-    /* forgot-code modal */
+    /* modal */
     .modal-overlay {
       position: fixed; inset: 0; background: rgba(0,0,0,0.4);
-      display: flex; align-items: center; justify-content: center;
-      z-index: 9990; display: none;
-      padding: 24px;
+      display: none; align-items: center; justify-content: center;
+      z-index: 9990; padding: 24px;
     }
     .modal-overlay.open { display: flex; }
-    .modal-box {
-      background: #fff; border-radius: 20px;
-      padding: 28px 24px; width: 100%; max-width: 380px;
-    }
+    .modal-box { background: #fff; border-radius: 20px; padding: 28px 24px; width: 100%; max-width: 380px; }
     .modal-title { font-size: 17px; font-weight: 800; margin-bottom: 8px; }
     .modal-sub { font-size: 13px; color: #718096; margin-bottom: 20px; line-height: 1.5; }
     .modal-actions { display: flex; gap: 10px; margin-top: 18px; }
     .btn-cancel {
-      flex: 1; padding: 12px; border: 1.5px solid #E2E8F0;
-      border-radius: 12px; background: #fff; font-family: 'Heebo', sans-serif;
-      font-size: 14px; font-weight: 600; color: #718096; cursor: pointer;
+      flex: 1; padding: 12px; border: 1.5px solid #E2E8F0; border-radius: 12px;
+      background: #fff; font-family: 'Heebo', sans-serif; font-size: 14px;
+      font-weight: 600; color: #718096; cursor: pointer;
     }
     .btn-confirm {
-      flex: 1; padding: 12px; background: #5B46E5;
-      border: none; border-radius: 12px; font-family: 'Heebo', sans-serif;
+      flex: 1; padding: 12px; background: #5B46E5; border: none;
+      border-radius: 12px; font-family: 'Heebo', sans-serif;
       font-size: 14px; font-weight: 700; color: #fff; cursor: pointer;
     }
+
+    /* tos modal content */
+    .tos-modal-body { max-height: 60vh; overflow-y: auto; font-size: 13px; color: #4A5568; line-height: 1.7; }
   </style>
 </head>
 <body>
@@ -205,101 +181,316 @@
     </div>
   </div>
 
+  <!-- ToS modal -->
+  <div id="tos-modal" class="modal-overlay">
+    <div class="modal-box">
+      <div class="modal-title">תקנון ותנאי שימוש</div>
+      <div class="tos-modal-body">
+        השימוש במערכת Oneflow Life כפוף לתנאי השימוש של החברה. המידע האישי נשמר בצורה מאובטחת ולא יועבר לצדדים שלישיים ללא הסכמתך. בשימוש במערכת אתה מאשר קבלת תנאים אלו.
+      </div>
+      <div class="modal-actions">
+        <button class="btn-confirm" onclick="document.getElementById('tos-modal').classList.remove('open')">הבנתי</button>
+      </div>
+    </div>
+  </div>
+
   <div class="logo">Oneflow <span>Life</span></div>
 
   <div class="card">
-    <div class="screen-title">כניסה לסביבה משפחתית</div>
-    <div class="screen-sub">הזן את פרטי הכניסה שלך</div>
 
-    <form onsubmit="doLogin(event)">
-      <label class="field-label">קוד כניסה</label>
-      <input type="text" id="fo-code" required class="field-input mono" placeholder="לדוגמה: ABCD12" autocomplete="off" autocapitalize="characters">
-
-      <label class="field-label">כינוי משתמש</label>
-      <input type="text" id="fo-nickname" required class="field-input" placeholder="הכינוי שבחרת">
-
-      <label class="field-label">סיסמה</label>
-      <input type="password" id="fo-password" required class="field-input" placeholder="הסיסמה שלך">
-
-      <button type="submit" class="btn-primary" id="fo-submit-btn">
-        <span id="fo-btn-text">כניסה</span>
-        <div id="fo-loader" class="loader" style="display:none;"></div>
-      </button>
-    </form>
-
-    <div class="divider">
-      <div class="div-line"></div>
-      <div class="div-chip">אפשרויות נוספות</div>
-      <div class="div-line"></div>
+    <!-- טאבים -->
+    <div class="tabs">
+      <button class="tab-btn active" id="tab-login" onclick="showView('login')">כניסה</button>
+      <button class="tab-btn" id="tab-create" onclick="showView('create')">סביבה חדשה</button>
+      <button class="tab-btn" id="tab-join" onclick="showView('join')">הצטרפות</button>
     </div>
 
-    <div class="link-row">
-      <button class="link-btn primary-link" onclick="window.location.href='/'">← חזרה לעמוד הבחירה</button>
-      <button class="link-btn" onclick="openForgot()">שכחתי קוד סביבה</button>
+    <!-- ── VIEW: LOGIN ── -->
+    <div id="view-login" class="view active">
+      <div class="screen-title">כניסה לסביבה משפחתית</div>
+      <div class="screen-sub">הזן את פרטי הכניסה שלך</div>
+
+      <form onsubmit="doLogin(event)">
+        <label class="field-label">קוד כניסה</label>
+        <input type="text" id="fo-code" required class="field-input mono" placeholder="לדוגמה: ABCD12" autocomplete="off" autocapitalize="characters">
+
+        <label class="field-label">כינוי משתמש</label>
+        <input type="text" id="fo-nickname" required class="field-input" placeholder="הכינוי שבחרת">
+
+        <label class="field-label">סיסמה</label>
+        <input type="password" id="fo-password" required class="field-input" placeholder="הסיסמה שלך">
+
+        <button type="submit" class="btn-primary" id="fo-login-btn">
+          <span id="fo-login-text">כניסה</span>
+          <div id="fo-login-loader" class="loader" style="display:none;"></div>
+        </button>
+      </form>
+
+      <div class="divider"><div class="div-line"></div><div class="div-chip">עוד</div><div class="div-line"></div></div>
+      <div class="link-row">
+        <button class="link-btn primary-link" onclick="window.location.href='/'">← חזרה לעמוד הבחירה</button>
+        <button class="link-btn" onclick="openForgot()">שכחתי קוד סביבה</button>
+      </div>
     </div>
-  </div>
+
+    <!-- ── VIEW: CREATE ── -->
+    <div id="view-create" class="view">
+      <div class="screen-title">הקמת סביבה משפחתית</div>
+      <div class="screen-sub">צור סביבה חדשה למשפחה שלך</div>
+
+      <form onsubmit="doCreate(event)">
+        <label class="field-label">שם המשפחה</label>
+        <input type="text" id="fo-c-group-name" required class="field-input" placeholder="משפחת כהן">
+
+        <label class="field-label">מייל מנהל</label>
+        <input type="email" id="fo-c-email" required class="field-input ltr" placeholder="your@email.com">
+
+        <label class="field-label">שם פרטי ושם משפחה</label>
+        <div class="field-row">
+          <input type="text" id="fo-c-first" required class="field-input" placeholder="שם פרטי">
+          <input type="text" id="fo-c-last" required class="field-input" placeholder="שם משפחה">
+        </div>
+
+        <label class="field-label">עיר</label>
+        <input type="text" id="fo-c-city" required class="field-input" placeholder="תל אביב">
+
+        <label class="field-label">כינוי משפחה (אופציונלי)</label>
+        <input type="text" id="fo-c-nickname" class="field-input" placeholder="לדוג׳: כהן">
+
+        <label class="field-label">שנת לידה (מנהל)</label>
+        <input type="number" id="fo-c-year" required class="field-input ltr" placeholder="1985" min="1930" max="2015">
+
+        <label class="field-label">טלפון (אופציונלי)</label>
+        <input type="tel" id="fo-c-phone" class="field-input ltr" placeholder="050-0000000">
+
+        <label class="field-label">סיסמה</label>
+        <input type="password" id="fo-c-password" required class="field-input" placeholder="בחר סיסמה">
+
+        <div class="tos-box">
+          <div class="tos-row">
+            <input type="checkbox" id="fo-c-tos">
+            <span>קראתי ואני מאשר/ת את <button type="button" class="tos-link" onclick="document.getElementById('tos-modal').classList.add('open')">תקנון ותנאי השימוש</button> (חובה)</span>
+          </div>
+          <div class="tos-row">
+            <input type="checkbox" id="fo-c-marketing">
+            <span>אשמח לקבל למייל עדכונים והטבות מ-Oneflow Life (רשות)</span>
+          </div>
+        </div>
+
+        <button type="submit" class="btn-primary green" id="fo-create-btn">
+          <span id="fo-create-text">סיום והרשמה</span>
+          <div id="fo-create-loader" class="loader" style="display:none;"></div>
+        </button>
+        <p class="btn-note">בסיום ההרשמה יווצר קוד ייחודי לסביבה שלכם.</p>
+      </form>
+    </div>
+
+    <!-- ── VIEW: JOIN ── -->
+    <div id="view-join" class="view">
+      <div class="screen-title">הצטרפות לסביבה</div>
+      <div class="screen-sub">הצטרף לסביבה משפחתית קיימת</div>
+
+      <form onsubmit="doJoin(event)">
+        <label class="field-label">קוד כניסה של הסביבה</label>
+        <input type="text" id="fo-j-code" required class="field-input mono" placeholder="לדוגמה: ABCD12" autocapitalize="characters">
+
+        <label class="field-label">שם פרטי ושם משפחה</label>
+        <div class="field-row">
+          <input type="text" id="fo-j-first" required class="field-input" placeholder="שם פרטי">
+          <input type="text" id="fo-j-last" required class="field-input" placeholder="שם משפחה">
+        </div>
+
+        <label class="field-label">שנת לידה</label>
+        <input type="number" id="fo-j-year" required class="field-input ltr" placeholder="1985" min="1930" max="2015">
+
+        <label class="field-label">מייל</label>
+        <input type="email" id="fo-j-email" required class="field-input ltr" placeholder="your@email.com">
+
+        <label class="field-label">טלפון (אופציונלי)</label>
+        <input type="tel" id="fo-j-phone" class="field-input ltr" placeholder="050-0000000">
+
+        <label class="field-label">סיסמה</label>
+        <input type="password" id="fo-j-password" required class="field-input" placeholder="בחר סיסמה">
+
+        <div class="tos-box">
+          <div class="tos-row">
+            <input type="checkbox" id="fo-j-tos">
+            <span>קראתי ואני מאשר/ת את <button type="button" class="tos-link" onclick="document.getElementById('tos-modal').classList.add('open')">תקנון ותנאי השימוש</button> (חובה)</span>
+          </div>
+          <div class="tos-row">
+            <input type="checkbox" id="fo-j-marketing">
+            <span>אשמח לקבל עדכונים והטבות (רשות)</span>
+          </div>
+        </div>
+
+        <button type="submit" class="btn-primary" id="fo-join-btn">
+          <span id="fo-join-text">שלח בקשה</span>
+          <div id="fo-join-loader" class="loader" style="display:none;"></div>
+        </button>
+      </form>
+    </div>
+
+  </div><!-- /card -->
 
   <script>
     const API = '/api';
 
+    // ── view switching ──
+    function showView(v) {
+      ['login','create','join'].forEach(x => {
+        document.getElementById('view-' + x).classList.remove('active');
+        document.getElementById('tab-' + x).classList.remove('active');
+      });
+      document.getElementById('view-' + v).classList.add('active');
+      document.getElementById('tab-' + v).classList.add('active');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    // ── invite link handling (?code=XXX) ──
+    (function(){
+      var params = new URLSearchParams(window.location.search);
+      var code = params.get('code');
+      if (code) {
+        showView('join');
+        var el = document.getElementById('fo-j-code');
+        if (el) { el.value = code.toUpperCase(); }
+      }
+    })();
+
+    // ── toast ──
     function showToast(type, msg) {
-      const el = document.getElementById('fo-toast');
+      var el = document.getElementById('fo-toast');
       el.textContent = msg;
       el.className = type;
       el.style.display = 'block';
-      setTimeout(() => { el.style.display = 'none'; }, 3200);
+      setTimeout(function(){ el.style.display = 'none'; }, 3200);
     }
 
-    function setLoading(on) {
-      document.getElementById('fo-btn-text').style.display = on ? 'none' : 'inline';
-      document.getElementById('fo-loader').style.display = on ? 'block' : 'none';
-      document.getElementById('fo-submit-btn').disabled = on;
+    // ── loader helpers ──
+    function setBtnLoading(prefix, on) {
+      document.getElementById('fo-' + prefix + '-text').style.display = on ? 'none' : 'inline';
+      document.getElementById('fo-' + prefix + '-loader').style.display = on ? 'block' : 'none';
+      document.getElementById('fo-' + prefix + '-btn').disabled = on;
     }
 
+    // ── LOGIN ──
     async function doLogin(e) {
       e.preventDefault();
-      setLoading(true);
+      setBtnLoading('login', true);
       try {
-        const res = await fetch(`${API}/login`, {
+        var res = await fetch(API + '/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             groupCode: document.getElementById('fo-code').value.trim().toUpperCase(),
-            nickname: document.getElementById('fo-nickname').value.trim(),
-            password: document.getElementById('fo-password').value
+            nickname:  document.getElementById('fo-nickname').value.trim(),
+            password:  document.getElementById('fo-password').value
           })
         });
-        const data = await res.json();
+        var data = await res.json();
         if (data.success) {
           localStorage.setItem('ofl_session', JSON.stringify({ user: data.user, group: data.group }));
-          if (data.group.type === 'BUSINESS') {
-            window.location.href = '/business.html';
-          } else {
-            window.location.href = '/';
-          }
+          window.location.href = data.group.type === 'BUSINESS' ? '/business.html' : '/';
         } else {
           showToast('error', data.error || 'שגיאה בכניסה');
         }
       } catch(err) {
         showToast('error', 'שגיאה בחיבור לשרת');
       } finally {
-        setLoading(false);
+        setBtnLoading('login', false);
       }
     }
 
-    function openForgot() { document.getElementById('forgot-modal').classList.add('open'); }
-    function closeForgot() { document.getElementById('forgot-modal').classList.remove('open'); }
-
-    async function submitForgot() {
-      const email = document.getElementById('forgot-email').value.trim();
-      if (!email) return showToast('error', 'יש להזין כתובת מייל');
+    // ── CREATE ──
+    async function doCreate(e) {
+      e.preventDefault();
+      if (!document.getElementById('fo-c-tos').checked) {
+        showToast('error', 'יש לאשר את התקנון כדי להמשיך');
+        return;
+      }
+      setBtnLoading('create', true);
       try {
-        const res = await fetch(`${API}/forgot-code`, {
+        var res = await fetch(API + '/groups', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email })
+          body: JSON.stringify({
+            type:          'FAMILY',
+            groupName:     document.getElementById('fo-c-group-name').value.trim(),
+            adminEmail:    document.getElementById('fo-c-email').value.trim(),
+            adminNickname: document.getElementById('fo-c-nickname').value.trim() || document.getElementById('fo-c-first').value.trim(),
+            firstName:     document.getElementById('fo-c-first').value.trim(),
+            lastName:      document.getElementById('fo-c-last').value.trim(),
+            city:          document.getElementById('fo-c-city').value.trim(),
+            birthYear:     document.getElementById('fo-c-year').value,
+            phone:         document.getElementById('fo-c-phone').value.trim(),
+            password:      document.getElementById('fo-c-password').value
+          })
         });
-        const data = await res.json();
+        var data = await res.json();
+        if (data.success) {
+          localStorage.setItem('ofl_session', JSON.stringify({ user: data.user, group: data.group }));
+          window.location.href = '/';
+        } else {
+          showToast('error', data.error || 'שגיאה ביצירת סביבה');
+        }
+      } catch(err) {
+        showToast('error', 'שגיאה בחיבור לשרת');
+      } finally {
+        setBtnLoading('create', false);
+      }
+    }
+
+    // ── JOIN ──
+    async function doJoin(e) {
+      e.preventDefault();
+      if (!document.getElementById('fo-j-tos').checked) {
+        showToast('error', 'יש לאשר את התקנון כדי להמשיך');
+        return;
+      }
+      setBtnLoading('join', true);
+      try {
+        var res = await fetch(API + '/join', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            groupCode: document.getElementById('fo-j-code').value.trim().toUpperCase(),
+            role:      'MEMBER',
+            nickname:  document.getElementById('fo-j-first').value.trim(),
+            firstName: document.getElementById('fo-j-first').value.trim(),
+            lastName:  document.getElementById('fo-j-last').value.trim(),
+            birthYear: document.getElementById('fo-j-year').value,
+            email:     document.getElementById('fo-j-email').value.trim(),
+            phone:     document.getElementById('fo-j-phone').value.trim(),
+            password:  document.getElementById('fo-j-password').value
+          })
+        });
+        var data = await res.json();
+        if (data.success) {
+          showToast('success', 'בקשתך נשלחה בהצלחה! יש להמתין לאישור מנהל הסביבה.');
+          setTimeout(function(){ showView('login'); }, 2500);
+        } else {
+          showToast('error', data.error || 'שגיאה בהצטרפות');
+        }
+      } catch(err) {
+        showToast('error', 'שגיאה בחיבור לשרת');
+      } finally {
+        setBtnLoading('join', false);
+      }
+    }
+
+    // ── forgot code ──
+    function openForgot() { document.getElementById('forgot-modal').classList.add('open'); }
+    function closeForgot() { document.getElementById('forgot-modal').classList.remove('open'); }
+    async function submitForgot() {
+      var email = document.getElementById('forgot-email').value.trim();
+      if (!email) return showToast('error', 'יש להזין כתובת מייל');
+      try {
+        var res = await fetch(API + '/forgot-code', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: email })
+        });
+        var data = await res.json();
         closeForgot();
         showToast(data.success ? 'success' : 'error', data.message || data.error || 'נשלח');
       } catch(err) {
