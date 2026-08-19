@@ -82,6 +82,7 @@
     }
     .btn-primary.green { background: #22C55E; box-shadow: 0 4px 16px rgba(34,197,94,0.22); }
     .btn-primary:active { opacity: 0.88; }
+    .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
     .btn-note { font-size: 10.5px; color: #A0AEC0; text-align: center; margin-top: 8px; }
 
     .loader {
@@ -127,6 +128,72 @@
     .view { display: none; }
     .view.active { display: block; }
 
+    /* wizard */
+    .wizard-steps {
+      display: flex; gap: 6px; margin-bottom: 24px; align-items: center;
+    }
+    .wizard-step-dot {
+      height: 8px; border-radius: 4px; background: #E2E8F0;
+      transition: all 0.2s; width: 8px;
+    }
+    .wizard-step-dot.done { background: #22C55E; }
+    .wizard-step-dot.active { background: #5B46E5; width: 24px; }
+    .wizard-back {
+      background: none; border: none; color: #718096; font-size: 13px;
+      cursor: pointer; padding: 0; margin-bottom: 14px;
+      font-family: 'Heebo', sans-serif; display: block;
+    }
+    .wizard-back:hover { color: #1B2440; }
+    .wiz-step { display: none; }
+
+    /* member cards */
+    .member-card {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 12px; background: #F8FAFC;
+      border-radius: 10px; margin-bottom: 8px;
+    }
+    .member-card-info { flex: 1; }
+    .member-card-name { font-weight: 700; color: #1B2440; font-size: 13px; }
+    .member-card-sub { color: #718096; font-size: 12px; margin-top: 1px; }
+    .member-card-remove {
+      background: none; border: none; color: #FC8181;
+      cursor: pointer; font-size: 17px; padding: 0 4px; line-height: 1;
+    }
+
+    /* manage grid */
+    .manage-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .manage-item {
+      border: 2px solid #E2E8F0; border-radius: 12px; padding: 14px 10px;
+      cursor: pointer; text-align: center; transition: all 0.15s;
+      font-size: 13px; font-weight: 600; color: #4A5568; user-select: none;
+    }
+    .manage-item:hover { border-color: #B8AEFF; }
+    .manage-item.selected { border-color: #5B46E5; background: #F0EFFE; color: #5B46E5; }
+    .manage-item-icon { font-size: 24px; margin-bottom: 6px; }
+
+    /* invite rows */
+    .invite-row {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 12px; background: #F8FAFC;
+      border-radius: 10px; margin-bottom: 8px;
+    }
+    .invite-name { flex: 1; font-weight: 600; font-size: 13px; color: #1B2440; }
+    .btn-wa {
+      background: #25D366; color: #fff; border: none;
+      border-radius: 8px; padding: 8px 12px;
+      font-family: 'Heebo', sans-serif; font-size: 12px; font-weight: 700;
+      cursor: pointer; text-decoration: none; white-space: nowrap;
+    }
+
+    /* community join row */
+    .community-row { display: flex; gap: 8px; align-items: flex-start; margin-bottom: 6px; }
+    .community-row .field-input { margin-bottom: 0; flex: 1; }
+    .btn-sm {
+      padding: 12px 14px; background: #5B46E5; color: #fff; border: none;
+      border-radius: 12px; font-family: 'Heebo', sans-serif; font-size: 14px;
+      font-weight: 700; cursor: pointer; white-space: nowrap; margin-top: 0;
+    }
+
     /* toast */
     #fo-toast {
       position: fixed; top: 24px; left: 50%; transform: translateX(-50%);
@@ -158,8 +225,6 @@
       border-radius: 12px; font-family: 'Heebo', sans-serif;
       font-size: 14px; font-weight: 700; color: #fff; cursor: pointer;
     }
-
-    /* tos modal content */
     .tos-modal-body { max-height: 60vh; overflow-y: auto; font-size: 13px; color: #4A5568; line-height: 1.7; }
   </style>
 </head>
@@ -233,57 +298,138 @@
       </div>
     </div>
 
-    <!-- ── VIEW: CREATE ── -->
+    <!-- ── VIEW: CREATE (wizard 6 מסכים) ── -->
     <div id="view-create" class="view">
-      <div class="screen-title">הקמת סביבה משפחתית</div>
-      <div class="screen-sub">צור סביבה חדשה למשפחה שלך</div>
 
-      <form onsubmit="doCreate(event)">
-        <label class="field-label">שם המשפחה</label>
-        <input type="text" id="fo-c-group-name" required class="field-input" placeholder="משפחת כהן">
+      <!-- progress dots -->
+      <div class="wizard-steps" id="wiz-dots"></div>
 
-        <label class="field-label">מייל מנהל</label>
-        <input type="email" id="fo-c-email" required class="field-input ltr" placeholder="your@email.com">
+      <!-- מסך 0: טלפון -->
+      <div id="wiz-0" class="wiz-step">
+        <div class="screen-title">הקמת סביבה משפחתית</div>
+        <div class="screen-sub">מה מספר הטלפון שלך? נשלח קוד אימות ב-SMS</div>
+        <label class="field-label">מספר טלפון</label>
+        <input type="tel" id="wiz-phone" class="field-input ltr" placeholder="050-0000000" autocomplete="tel" inputmode="tel">
+        <button class="btn-primary" onclick="wizSendOtp()">
+          <span id="wiz-0-text">שלח קוד</span>
+          <div id="wiz-0-loader" class="loader" style="display:none;"></div>
+        </button>
+      </div>
 
-        <label class="field-label">שם פרטי ושם משפחה</label>
+      <!-- מסך 1: OTP -->
+      <div id="wiz-1" class="wiz-step">
+        <button class="wizard-back" onclick="wizGoTo(0)">← חזרה</button>
+        <div class="screen-title">קוד האימות</div>
+        <div class="screen-sub" id="wiz-1-sub">הזן את הקוד שנשלח לטלפון שלך</div>
+        <label class="field-label">קוד 6 ספרות</label>
+        <input type="text" id="wiz-otp" class="field-input mono" placeholder="000000" maxlength="6" inputmode="numeric" autocomplete="one-time-code">
+        <button class="btn-primary" onclick="wizVerifyOtp()">
+          <span id="wiz-1-text">אימות</span>
+          <div id="wiz-1-loader" class="loader" style="display:none;"></div>
+        </button>
+        <button class="link-btn" onclick="wizResend()" id="wiz-resend-btn" style="margin-top:10px;">שלח שוב</button>
+      </div>
+
+      <!-- מסך 2: פרטי משפחה -->
+      <div id="wiz-2" class="wiz-step">
+        <button class="wizard-back" onclick="wizGoTo(1)">← חזרה</button>
+        <div class="screen-title">פרטי המשפחה</div>
+        <div class="screen-sub">מלא/י את הפרטים לפתיחת הסביבה</div>
+
+        <label class="field-label">שם המשפחה (שם הסביבה)</label>
+        <input type="text" id="wiz-group-name" class="field-input" placeholder='למשל: "משפחת כהן"'>
+
+        <label class="field-label">שם פרטי ושם משפחה — מנהל הסביבה</label>
         <div class="field-row">
-          <input type="text" id="fo-c-first" required class="field-input" placeholder="שם פרטי">
-          <input type="text" id="fo-c-last" required class="field-input" placeholder="שם משפחה">
+          <input type="text" id="wiz-first" class="field-input" placeholder="שם פרטי">
+          <input type="text" id="wiz-last" class="field-input" placeholder="שם משפחה">
         </div>
 
-        <label class="field-label">עיר</label>
-        <input type="text" id="fo-c-city" required class="field-input" placeholder="תל אביב">
+        <label class="field-label">עיר מגורים</label>
+        <input type="text" id="wiz-city" class="field-input" placeholder="תל אביב">
+
+        <label class="field-label">שנת לידה (מנהל הסביבה)</label>
+        <input type="number" id="wiz-year" class="field-input ltr" placeholder="1985" min="1930" max="2015" inputmode="numeric">
+
+        <label class="field-label">כתובת מייל</label>
+        <input type="email" id="wiz-email" class="field-input ltr" placeholder="your@email.com" autocomplete="email">
 
         <label class="field-label">כינוי משפחה (אופציונלי)</label>
-        <input type="text" id="fo-c-nickname" class="field-input" placeholder="לדוג׳: כהן">
-
-        <label class="field-label">שנת לידה (מנהל)</label>
-        <input type="number" id="fo-c-year" required class="field-input ltr" placeholder="1985" min="1930" max="2015">
-
-        <label class="field-label">טלפון (אופציונלי)</label>
-        <input type="tel" id="fo-c-phone" class="field-input ltr" placeholder="050-0000000">
+        <input type="text" id="wiz-family-nick" class="field-input" placeholder='למשל: "הכהנים"'>
 
         <label class="field-label">סיסמה</label>
-        <input type="password" id="fo-c-password" required class="field-input" placeholder="בחר סיסמה">
+        <input type="password" id="wiz-password" class="field-input" placeholder="לפחות 4 תווים" autocomplete="new-password">
 
         <div class="tos-box">
           <div class="tos-row">
-            <input type="checkbox" id="fo-c-tos">
+            <input type="checkbox" id="wiz-tos">
             <span>קראתי ואני מאשר/ת את <button type="button" class="tos-link" onclick="document.getElementById('tos-modal').classList.add('open')">תקנון ותנאי השימוש</button> (חובה)</span>
-          </div>
-          <div class="tos-row">
-            <input type="checkbox" id="fo-c-marketing">
-            <span>אשמח לקבל למייל עדכונים והטבות מ-Oneflow Life (רשות)</span>
           </div>
         </div>
 
-        <button type="submit" class="btn-primary green" id="fo-create-btn">
-          <span id="fo-create-text">סיום והרשמה</span>
-          <div id="fo-create-loader" class="loader" style="display:none;"></div>
+        <button class="btn-primary" onclick="wizCreateFamily()">
+          <span id="wiz-2-text">יצירת הסביבה</span>
+          <div id="wiz-2-loader" class="loader" style="display:none;"></div>
         </button>
-        <p class="btn-note">בסיום ההרשמה יווצר קוד ייחודי לסביבה שלכם.</p>
-      </form>
-    </div>
+      </div>
+
+      <!-- מסך 3: הרכב המשפחה -->
+      <div id="wiz-3" class="wiz-step">
+        <div class="screen-title">הרכב המשפחה</div>
+        <div class="screen-sub">הוסף/י את בני המשפחה שיצטרפו לסביבה (עד 8)</div>
+
+        <div id="wiz-members-list"></div>
+
+        <div id="wiz-add-form">
+          <div class="field-row">
+            <input type="text" id="wiz-m-name" class="field-input" placeholder="שם מלא">
+            <input type="tel" id="wiz-m-phone" class="field-input ltr" placeholder="טלפון" inputmode="tel">
+          </div>
+          <select id="wiz-m-role" class="field-input">
+            <option value="הורה">הורה</option>
+            <option value="ילד">ילד/ה</option>
+            <option value="סבא">סבא / סבתא</option>
+            <option value="אחר">אחר</option>
+          </select>
+          <button class="btn-primary" onclick="wizAddMember()" style="margin-bottom:12px;">
+            + הוסף בן/בת משפחה
+          </button>
+        </div>
+
+        <button class="btn-primary green" onclick="wizGoTo(4)" style="margin-top:4px;">המשך ←</button>
+        <button class="link-btn" onclick="wizGoTo(4)" style="margin-top:6px;">דלג</button>
+      </div>
+
+      <!-- מסך 4: מה לנהל -->
+      <div id="wiz-4" class="wiz-step">
+        <div class="screen-title">מה תרצו לנהל?</div>
+        <div class="screen-sub">בחרו תחומים רלוונטיים — ניתן לשנות בהמשך</div>
+        <div class="manage-grid" id="wiz-manage-grid"></div>
+        <button class="btn-primary green" onclick="wizGoTo(5)" style="margin-top:20px;">המשך ←</button>
+      </div>
+
+      <!-- מסך 5: סיכום + הזמנות -->
+      <div id="wiz-5" class="wiz-step">
+        <div class="screen-title">הסביבה מוכנה! 🎉</div>
+        <div class="screen-sub">קוד הסביבה: <strong id="wiz-group-code" style="color:#5B46E5;letter-spacing:.12em;font-size:16px;"></strong></div>
+
+        <div id="wiz-invite-list" style="margin: 18px 0;"></div>
+
+        <div style="margin-bottom:20px;">
+          <label class="field-label">קוד קהילה (אופציונלי)</label>
+          <div class="community-row">
+            <input type="text" id="wiz-community-code" class="field-input mono" placeholder="קוד קהילה">
+            <button class="btn-sm" onclick="wizJoinCommunity()">הצטרף</button>
+          </div>
+          <p id="wiz-community-msg" style="font-size:12px;margin-top:6px;color:#718096;line-height:1.5;">עדיין לא הצטרפת לקהילה. קהילות פותחות גישה למרקטפלייס הטבות מעסקים מקומיים ולמודול קול העם. תוכל להצטרף בכל שלב מההגדרות.</p>
+        </div>
+
+        <div id="wiz-5-tips" style="margin-top:16px;"></div>
+
+        <button class="btn-primary green" onclick="window.location.href='/'">כניסה לסביבה ←</button>
+      </div>
+
+    </div><!-- /view-create -->
 
     <!-- ── VIEW: JOIN ── -->
     <div id="view-join" class="view">
@@ -333,20 +479,21 @@
   </div><!-- /card -->
 
   <script>
-    const API = '/api';
+    var API = '/api';
 
     // ── view switching ──
     function showView(v) {
-      ['login','create','join'].forEach(x => {
+      ['login','create','join'].forEach(function(x) {
         document.getElementById('view-' + x).classList.remove('active');
         document.getElementById('tab-' + x).classList.remove('active');
       });
       document.getElementById('view-' + v).classList.add('active');
       document.getElementById('tab-' + v).classList.add('active');
+      if (v === 'create') wizGoTo(0);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
-    // ── invite link handling (?code=XXX) ──
+    // ── invite link handling ──
     (function(){
       var params = new URLSearchParams(window.location.search);
       var code = params.get('code');
@@ -370,9 +517,12 @@
 
     // ── loader helpers ──
     function setBtnLoading(prefix, on) {
-      document.getElementById('fo-' + prefix + '-text').style.display = on ? 'none' : 'inline';
-      document.getElementById('fo-' + prefix + '-loader').style.display = on ? 'block' : 'none';
-      document.getElementById('fo-' + prefix + '-btn').disabled = on;
+      var t = document.getElementById('fo-' + prefix + '-text');
+      var l = document.getElementById('fo-' + prefix + '-loader');
+      var b = document.getElementById('fo-' + prefix + '-btn');
+      if (t) t.style.display = on ? 'none' : 'inline';
+      if (l) l.style.display = on ? 'block' : 'none';
+      if (b) b.disabled = on;
     }
 
     // ── LOGIN ──
@@ -400,45 +550,6 @@
         showToast('error', 'שגיאה בחיבור לשרת');
       } finally {
         setBtnLoading('login', false);
-      }
-    }
-
-    // ── CREATE ──
-    async function doCreate(e) {
-      e.preventDefault();
-      if (!document.getElementById('fo-c-tos').checked) {
-        showToast('error', 'יש לאשר את התקנון כדי להמשיך');
-        return;
-      }
-      setBtnLoading('create', true);
-      try {
-        var res = await fetch(API + '/groups', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            type:          'FAMILY',
-            groupName:     document.getElementById('fo-c-group-name').value.trim(),
-            adminEmail:    document.getElementById('fo-c-email').value.trim(),
-            firstName:      document.getElementById('fo-c-first').value.trim(),
-            lastName:       document.getElementById('fo-c-last').value.trim(),
-            familyNickname: document.getElementById('fo-c-nickname').value.trim(),
-            city:           document.getElementById('fo-c-city').value.trim(),
-            birthYear:      document.getElementById('fo-c-year').value,
-            phone:          document.getElementById('fo-c-phone').value.trim(),
-            password:       document.getElementById('fo-c-password').value
-          })
-        });
-        var data = await res.json();
-        if (data.success) {
-          localStorage.setItem('ofl_session', JSON.stringify({ user: data.user, group: data.group }));
-          window.location.href = '/';
-        } else {
-          showToast('error', data.error || 'שגיאה ביצירת סביבה');
-        }
-      } catch(err) {
-        showToast('error', 'שגיאה בחיבור לשרת');
-      } finally {
-        setBtnLoading('create', false);
       }
     }
 
@@ -499,6 +610,324 @@
         showToast('error', 'שגיאת תקשורת');
       }
     }
+
+    // ════════════════════════════════════
+    // ── WIZARD ──
+    // ════════════════════════════════════
+
+    var wiz = {
+      step: 0,
+      phone: '',
+      verifiedToken: '',
+      groupId: null,
+      groupCode: '',
+      members: [],
+      manage: []
+    };
+
+    var MANAGE_OPTIONS = [
+      { key: 'budget',   icon: '💰', label: 'תקציב' },
+      { key: 'tasks',    icon: '✅', label: 'משימות' },
+      { key: 'savings',  icon: '🏦', label: 'חסכונות' },
+      { key: 'shopping', icon: '🛒', label: 'קניות' },
+      { key: 'calendar', icon: '📅', label: 'לוח שנה' },
+      { key: 'recipes',  icon: '🍳', label: 'מתכונים' }
+    ];
+
+    function wizGoTo(step) {
+      document.querySelectorAll('.wiz-step').forEach(function(el){ el.style.display = 'none'; });
+      document.getElementById('wiz-' + step).style.display = 'block';
+      wiz.step = step;
+      wizRenderDots();
+      if (step === 3) wizRenderMembers();
+      if (step === 4) wizRenderManage();
+      if (step === 5) wizRenderStep5();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function wizRenderDots() {
+      var html = '';
+      for (var i = 0; i < 6; i++) {
+        var cls = i < wiz.step ? 'done' : (i === wiz.step ? 'active' : '');
+        html += '<div class="wizard-step-dot ' + cls + '"></div>';
+      }
+      document.getElementById('wiz-dots').innerHTML = html;
+    }
+
+    function wizSetLoading(step, on) {
+      var t = document.getElementById('wiz-' + step + '-text');
+      var l = document.getElementById('wiz-' + step + '-loader');
+      if (t) t.style.display = on ? 'none' : 'inline';
+      if (l) l.style.display = on ? 'block' : 'none';
+    }
+
+    // מסך 0 — שליחת OTP
+    async function wizSendOtp() {
+      var phone = document.getElementById('wiz-phone').value.trim();
+      if (!phone) return showToast('error', 'יש להזין מספר טלפון');
+      wiz.phone = phone;
+      wizSetLoading(0, true);
+      try {
+        var res = await fetch(API + '/family/send-otp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone: phone })
+        });
+        var data = await res.json();
+        if (data.success) {
+          document.getElementById('wiz-1-sub').textContent = 'הזן את הקוד שנשלח ל-' + phone;
+          document.getElementById('wiz-otp').value = '';
+          wizGoTo(1);
+        } else {
+          showToast('error', data.error || 'שגיאה בשליחת הקוד');
+        }
+      } catch(e) {
+        showToast('error', 'שגיאה בחיבור לשרת');
+      } finally {
+        wizSetLoading(0, false);
+      }
+    }
+
+    // מסך 1 — שלח שוב
+    async function wizResend() {
+      var btn = document.getElementById('wiz-resend-btn');
+      btn.disabled = true;
+      try {
+        var res = await fetch(API + '/family/send-otp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone: wiz.phone })
+        });
+        var data = await res.json();
+        showToast(data.success ? 'success' : 'error', data.success ? 'קוד נשלח מחדש' : (data.error || 'שגיאה'));
+      } catch(e) {
+        showToast('error', 'שגיאת תקשורת');
+      } finally {
+        setTimeout(function(){ btn.disabled = false; }, 30000);
+      }
+    }
+
+    // מסך 1 — אימות OTP
+    async function wizVerifyOtp() {
+      var code = document.getElementById('wiz-otp').value.trim();
+      if (code.length !== 6) return showToast('error', 'יש להזין 6 ספרות');
+      wizSetLoading(1, true);
+      try {
+        var res = await fetch(API + '/family/verify-otp', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone: wiz.phone, code: code })
+        });
+        var data = await res.json();
+        if (data.success) {
+          wiz.verifiedToken = data.verified_token;
+          wizGoTo(2);
+        } else {
+          showToast('error', data.error || 'קוד שגוי');
+        }
+      } catch(e) {
+        showToast('error', 'שגיאה בחיבור לשרת');
+      } finally {
+        wizSetLoading(1, false);
+      }
+    }
+
+    // מסך 2 — יצירת סביבה
+    async function wizCreateFamily() {
+      var groupName = document.getElementById('wiz-group-name').value.trim();
+      var firstName = document.getElementById('wiz-first').value.trim();
+      var lastName  = document.getElementById('wiz-last').value.trim();
+      var city      = document.getElementById('wiz-city').value.trim();
+      var year      = document.getElementById('wiz-year').value.trim();
+      var email     = document.getElementById('wiz-email').value.trim();
+      var nick      = document.getElementById('wiz-family-nick').value.trim();
+      var password  = document.getElementById('wiz-password').value;
+      var tos       = document.getElementById('wiz-tos').checked;
+
+      if (!groupName || !firstName || !lastName || !city || !year || !email || !password)
+        return showToast('error', 'יש למלא את כל השדות המסומנים');
+      if (!tos) return showToast('error', 'יש לאשר את התקנון כדי להמשיך');
+      if (password.length < 4) return showToast('error', 'סיסמה חייבת להיות לפחות 4 תווים');
+
+      wizSetLoading(2, true);
+      try {
+        var payload = {
+          type: 'FAMILY',
+          groupName: groupName,
+          adminEmail: email,
+          firstName: firstName,
+          lastName: lastName,
+          city: city,
+          birthYear: parseInt(year),
+          phone: wiz.phone,
+          password: password,
+          verified_token: wiz.verifiedToken
+        };
+        if (nick) payload.familyNickname = nick;
+
+        var res = await fetch(API + '/groups', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        var data = await res.json();
+        if (data.success) {
+          localStorage.setItem('ofl_session', JSON.stringify({ user: data.user, group: data.group }));
+          wiz.groupId   = data.group.id;
+          wiz.groupCode = data.group.group_code;
+          wiz.members   = [];
+          wiz.manage    = [];
+          wizGoTo(3);
+        } else {
+          showToast('error', data.error || 'שגיאה ביצירת הסביבה');
+        }
+      } catch(e) {
+        showToast('error', 'שגיאה בחיבור לשרת');
+      } finally {
+        wizSetLoading(2, false);
+      }
+    }
+
+    // מסך 3 — ניהול בני משפחה
+    function wizRenderMembers() {
+      var list = document.getElementById('wiz-members-list');
+      var html = '';
+      wiz.members.forEach(function(m, i) {
+        html += '<div class="member-card">';
+        html += '<div class="member-card-info">';
+        html += '<div class="member-card-name">' + escHtml(m.name) + '</div>';
+        html += '<div class="member-card-sub">' + escHtml(m.role) + (m.phone ? ' · ' + escHtml(m.phone) : '') + '</div>';
+        html += '</div>';
+        html += '<button class="member-card-remove" onclick="wizRemoveMember(' + i + ')">✕</button>';
+        html += '</div>';
+      });
+      list.innerHTML = html;
+      document.getElementById('wiz-add-form').style.display = wiz.members.length >= 8 ? 'none' : 'block';
+    }
+
+    function wizAddMember() {
+      var name  = document.getElementById('wiz-m-name').value.trim();
+      var phone = document.getElementById('wiz-m-phone').value.trim();
+      var role  = document.getElementById('wiz-m-role').value;
+      if (!name) return showToast('error', 'יש להזין שם');
+      if (phone && !/^[0-9\-\+\s]{7,15}$/.test(phone)) return showToast('error', 'מספר טלפון לא תקין');
+      if (wiz.members.length >= 8) return showToast('error', 'מקסימום 8 בני משפחה');
+      wiz.members.push({ name: name, phone: phone, role: role });
+      document.getElementById('wiz-m-name').value  = '';
+      document.getElementById('wiz-m-phone').value = '';
+      document.getElementById('wiz-m-role').value  = 'הורה';
+      wizRenderMembers();
+    }
+
+    function wizRemoveMember(i) {
+      wiz.members.splice(i, 1);
+      wizRenderMembers();
+    }
+
+    // מסך 4 — מה לנהל
+    function wizRenderManage() {
+      var html = '';
+      MANAGE_OPTIONS.forEach(function(opt) {
+        var sel = wiz.manage.indexOf(opt.key) !== -1 ? ' selected' : '';
+        html += '<div class="manage-item' + sel + '" onclick="wizToggleManage(\'' + opt.key + '\')">';
+        html += '<div class="manage-item-icon">' + opt.icon + '</div>';
+        html += opt.label + '</div>';
+      });
+      document.getElementById('wiz-manage-grid').innerHTML = html;
+    }
+
+    function wizToggleManage(key) {
+      var idx = wiz.manage.indexOf(key);
+      if (idx === -1) wiz.manage.push(key);
+      else wiz.manage.splice(idx, 1);
+      wizRenderManage();
+    }
+
+    // מסך 5 — סיכום + הזמנות
+    var MANAGE_TIPS = {
+      budget:   'ניהול תקציב — תמצא/י אותו בלשונית "תקציב"',
+      tasks:    'משימות משפחתיות — בלשונית "משימות"',
+      savings:  'מעקב חסכונות — בלשונית "כספים"',
+      shopping: 'רשימות קניות — בלשונית "קניות"',
+      calendar: 'לוח שנה משפחתי — בלשונית "לוח שנה"',
+      recipes:  'מתכונים ותפריטים — בלשונית "מתכונים"'
+    };
+    function wizRenderStep5() {
+      document.getElementById('wiz-group-code').textContent = wiz.groupCode;
+      document.getElementById('wiz-community-msg').style.color = '#718096';
+      document.getElementById('wiz-community-msg').textContent = 'עדיין לא הצטרפת לקהילה. קהילות פותחות גישה למרקטפלייס הטבות מעסקים מקומיים ולמודול קול העם. תוכל להצטרף בכל שלב מההגדרות.';
+      document.getElementById('wiz-community-code').value = '';
+
+      var tipsEl = document.getElementById('wiz-5-tips');
+      if (wiz.manage.length > 0 && tipsEl) {
+        var tipHtml = '<div style="background:#F0EFFE;border-radius:12px;padding:14px 16px;">';
+        tipHtml += '<p style="font-size:12px;font-weight:700;color:#5B46E5;margin-bottom:8px;">איפה להתחיל:</p>';
+        tipHtml += '<ul style="margin:0;padding-right:16px;">';
+        wiz.manage.forEach(function(key) {
+          if (MANAGE_TIPS[key]) tipHtml += '<li style="font-size:12px;color:#4A5568;margin-bottom:4px;">' + MANAGE_TIPS[key] + '</li>';
+        });
+        tipHtml += '</ul></div>';
+        tipsEl.innerHTML = tipHtml;
+      } else if (tipsEl) {
+        tipsEl.innerHTML = '';
+      }
+
+      var list = document.getElementById('wiz-invite-list');
+      if (wiz.members.length === 0) {
+        list.innerHTML = '<p style="font-size:13px;color:#718096;margin-bottom:4px;">לא הוספת בני משפחה. תוכל/י להזמין מאוחר יותר מתוך ניהול המשפחה.</p>';
+        return;
+      }
+      var html = '<p style="font-size:13px;font-weight:700;color:#1B2440;margin-bottom:10px;">שלח הזמנות WhatsApp:</p>';
+      wiz.members.forEach(function(m) {
+        var joinLink = window.location.origin + '/family-onboarding.html?code=' + wiz.groupCode;
+        var waText = encodeURIComponent(
+          'היי ' + m.name + ', הצטרף/י לסביבה המשפחתית שלנו ב-Oneflow Life 🏠\n\n' +
+          'קישור הצטרפות:\n' + joinLink + '\n\nקוד הסביבה: ' + wiz.groupCode
+        );
+        var phoneDigits = m.phone ? m.phone.replace(/\D/g, '').replace(/^0/, '972') : '';
+        var waHref = 'https://wa.me/' + (phoneDigits || '') + '?text=' + waText;
+        html += '<div class="invite-row">';
+        html += '<div class="invite-name">' + escHtml(m.name) + ' <span style="color:#718096;font-weight:400;font-size:11px;">(' + escHtml(m.role) + ')</span></div>';
+        html += '<a href="' + waHref + '" target="_blank" rel="noopener" class="btn-wa">WhatsApp ▶</a>';
+        html += '</div>';
+      });
+      list.innerHTML = html;
+    }
+
+    async function wizJoinCommunity() {
+      var code = document.getElementById('wiz-community-code').value.trim().toUpperCase();
+      if (!code) return showToast('error', 'יש להזין קוד קהילה');
+      var msg = document.getElementById('wiz-community-msg');
+      try {
+        var res = await fetch(API + '/community/join', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ groupId: wiz.groupId, code: code })
+        });
+        var data = await res.json();
+        msg.style.display = 'block';
+        if (data.success) {
+          msg.style.color = '#22C55E';
+          msg.textContent = '✓ הצטרפת לקהילה בהצלחה! גישה למרקטפלייס הטבות ולקול העם זמינה עכשיו.';
+        } else if (data.pending) {
+          msg.style.color = '#F6AD55';
+          msg.textContent = '⏳ בקשת ההצטרפות שלך לקהילה נשלחה, ממתינה לאישור מנהל הקהילה. קהילות פותחות גישה למרקטפלייס הטבות ולקול העם.';
+        } else {
+          msg.style.color = '#E53E3E';
+          msg.textContent = data.error || 'קוד קהילה לא תקין';
+        }
+      } catch(e) {
+        showToast('error', 'שגיאה בחיבור לשרת');
+      }
+    }
+
+    // util
+    function escHtml(s) {
+      return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    // אתחול wizard בטעינה
+    wizRenderDots();
   </script>
 </body>
 </html>
