@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Oneflow Life — כניסה למשפחה</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- session check — לפני כל render -->
+  <script>
+    (function(){
+      try {
+        var s = JSON.parse(localStorage.getItem('ofl_session') || 'null');
+        if (s && s.group) {
+          if (s.group.type === 'BUSINESS') { window.location.replace('/business.html'); return; }
+          window.location.replace('/');
+        }
+      } catch(e) { localStorage.removeItem('ofl_session'); }
+    })();
+  </script>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Heebo', sans-serif;
+      background: #EEF1F6;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px 16px 48px;
+      color: #1B2440;
+    }
+
+    .logo {
+      font-size: 22px;
+      font-weight: 800;
+      color: #5B46E5;
+      letter-spacing: -0.5px;
+      margin-bottom: 28px;
+      text-align: center;
+    }
+    .logo span { color: #1B2440; }
+
+    .card {
+      background: #fff;
+      border-radius: 20px;
+      padding: 36px 32px;
+      width: 100%;
+      max-width: 420px;
+      box-shadow: 0 4px 24px rgba(91,70,229,0.08);
+    }
+
+    .screen-title {
+      font-size: 20px;
+      font-weight: 800;
+      color: #1B2440;
+      margin-bottom: 6px;
+    }
+    .screen-sub {
+      font-size: 13px;
+      color: #718096;
+      margin-bottom: 26px;
+      line-height: 1.55;
+    }
+
+    .field-label {
+      display: block;
+      font-size: 13px;
+      font-weight: 600;
+      color: #4A5568;
+      margin-bottom: 6px;
+    }
+    .field-input {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1.5px solid #E2E8F0;
+      border-radius: 12px;
+      font-family: 'Heebo', sans-serif;
+      font-size: 15px;
+      color: #1B2440;
+      background: #FAFBFC;
+      outline: none;
+      transition: border-color 0.15s;
+      margin-bottom: 16px;
+    }
+    .field-input:focus { border-color: #5B46E5; background: #fff; }
+    .field-input.ltr { direction: ltr; text-align: left; }
+    .field-input.mono { font-family: monospace; text-align: center; letter-spacing: 0.15em; text-transform: uppercase; }
+
+    .btn-primary {
+      width: 100%;
+      padding: 13px;
+      background: #5B46E5;
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      font-family: 'Heebo', sans-serif;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      box-shadow: 0 4px 16px rgba(91,70,229,0.22);
+      margin-top: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    .btn-primary:active { opacity: 0.88; }
+
+    .loader {
+      width: 18px; height: 18px;
+      border: 2.5px solid rgba(255,255,255,0.4);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .divider {
+      display: flex; align-items: center; gap: 10px;
+      margin: 22px 0 18px;
+    }
+    .div-line { flex: 1; height: 1px; background: #E2E8F0; }
+    .div-chip {
+      font-size: 10.5px; font-weight: 700; letter-spacing: 0.09em;
+      text-transform: uppercase; color: #718096;
+      padding: 3px 9px;
+      background: #fff; border: 1px solid #E2E8F0; border-radius: 20px;
+      white-space: nowrap;
+    }
+
+    .link-row {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-top: 4px;
+    }
+    .link-btn {
+      background: none; border: none; padding: 8px 0;
+      font-family: 'Heebo', sans-serif; font-size: 13px;
+      color: #718096; cursor: pointer; text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+    .link-btn.primary-link { color: #5B46E5; font-weight: 600; }
+
+    /* toast */
+    #fo-toast {
+      position: fixed; top: 24px; left: 50%; transform: translateX(-50%);
+      background: #1B2440; color: #fff;
+      padding: 12px 20px; border-radius: 30px;
+      font-size: 13px; font-weight: 600;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.18);
+      display: none; z-index: 9999; white-space: nowrap;
+      max-width: 90vw;
+    }
+    #fo-toast.error { background: #E53E3E; }
+    #fo-toast.success { background: #22C55E; }
+
+    /* forgot-code modal */
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.4);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 9990; display: none;
+      padding: 24px;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal-box {
+      background: #fff; border-radius: 20px;
+      padding: 28px 24px; width: 100%; max-width: 380px;
+    }
+    .modal-title { font-size: 17px; font-weight: 800; margin-bottom: 8px; }
+    .modal-sub { font-size: 13px; color: #718096; margin-bottom: 20px; line-height: 1.5; }
+    .modal-actions { display: flex; gap: 10px; margin-top: 18px; }
+    .btn-cancel {
+      flex: 1; padding: 12px; border: 1.5px solid #E2E8F0;
+      border-radius: 12px; background: #fff; font-family: 'Heebo', sans-serif;
+      font-size: 14px; font-weight: 600; color: #718096; cursor: pointer;
+    }
+    .btn-confirm {
+      flex: 1; padding: 12px; background: #5B46E5;
+      border: none; border-radius: 12px; font-family: 'Heebo', sans-serif;
+      font-size: 14px; font-weight: 700; color: #fff; cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="fo-toast"></div>
+
+  <!-- forgot-code modal -->
+  <div id="forgot-modal" class="modal-overlay">
+    <div class="modal-box">
+      <div class="modal-title">שחזור קוד סביבה</div>
+      <div class="modal-sub">הזן את כתובת המייל שנרשמת איתה — נשלח לך את קוד הסביבה.</div>
+      <label class="field-label">כתובת מייל</label>
+      <input type="email" id="forgot-email" class="field-input ltr" placeholder="your@email.com">
+      <div class="modal-actions">
+        <button class="btn-cancel" onclick="closeForgot()">ביטול</button>
+        <button class="btn-confirm" onclick="submitForgot()">שלח</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="logo">Oneflow <span>Life</span></div>
+
+  <div class="card">
+    <div class="screen-title">כניסה לסביבה משפחתית</div>
+    <div class="screen-sub">הזן את פרטי הכניסה שלך</div>
+
+    <form onsubmit="doLogin(event)">
+      <label class="field-label">קוד כניסה</label>
+      <input type="text" id="fo-code" required class="field-input mono" placeholder="לדוגמה: ABCD12" autocomplete="off" autocapitalize="characters">
+
+      <label class="field-label">כינוי משתמש</label>
+      <input type="text" id="fo-nickname" required class="field-input" placeholder="הכינוי שבחרת">
+
+      <label class="field-label">סיסמה</label>
+      <input type="password" id="fo-password" required class="field-input" placeholder="הסיסמה שלך">
+
+      <button type="submit" class="btn-primary" id="fo-submit-btn">
+        <span id="fo-btn-text">כניסה</span>
+        <div id="fo-loader" class="loader" style="display:none;"></div>
+      </button>
+    </form>
+
+    <div class="divider">
+      <div class="div-line"></div>
+      <div class="div-chip">אפשרויות נוספות</div>
+      <div class="div-line"></div>
+    </div>
+
+    <div class="link-row">
+      <button class="link-btn primary-link" onclick="window.location.href='/'">← חזרה לעמוד הבחירה</button>
+      <button class="link-btn" onclick="openForgot()">שכחתי קוד סביבה</button>
+    </div>
+  </div>
+
+  <script>
+    const API = '/api';
+
+    function showToast(type, msg) {
+      const el = document.getElementById('fo-toast');
+      el.textContent = msg;
+      el.className = type;
+      el.style.display = 'block';
+      setTimeout(() => { el.style.display = 'none'; }, 3200);
+    }
+
+    function setLoading(on) {
+      document.getElementById('fo-btn-text').style.display = on ? 'none' : 'inline';
+      document.getElementById('fo-loader').style.display = on ? 'block' : 'none';
+      document.getElementById('fo-submit-btn').disabled = on;
+    }
+
+    async function doLogin(e) {
+      e.preventDefault();
+      setLoading(true);
+      try {
+        const res = await fetch(`${API}/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            groupCode: document.getElementById('fo-code').value.trim().toUpperCase(),
+            nickname: document.getElementById('fo-nickname').value.trim(),
+            password: document.getElementById('fo-password').value
+          })
+        });
+        const data = await res.json();
+        if (data.success) {
+          localStorage.setItem('ofl_session', JSON.stringify({ user: data.user, group: data.group }));
+          if (data.group.type === 'BUSINESS') {
+            window.location.href = '/business.html';
+          } else {
+            window.location.href = '/';
+          }
+        } else {
+          showToast('error', data.error || 'שגיאה בכניסה');
+        }
+      } catch(err) {
+        showToast('error', 'שגיאה בחיבור לשרת');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    function openForgot() { document.getElementById('forgot-modal').classList.add('open'); }
+    function closeForgot() { document.getElementById('forgot-modal').classList.remove('open'); }
+
+    async function submitForgot() {
+      const email = document.getElementById('forgot-email').value.trim();
+      if (!email) return showToast('error', 'יש להזין כתובת מייל');
+      try {
+        const res = await fetch(`${API}/forgot-code`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email })
+        });
+        const data = await res.json();
+        closeForgot();
+        showToast(data.success ? 'success' : 'error', data.message || data.error || 'נשלח');
+      } catch(err) {
+        showToast('error', 'שגיאת תקשורת');
+      }
+    }
+  </script>
+</body>
+</html>

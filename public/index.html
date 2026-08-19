@@ -2894,10 +2894,7 @@
     <script>
         window.splashChoose = function(t) {
             if (t === 'BUSINESS') { window.location.href = '/biz-onboarding.html'; return; }
-            switchView('create');
-            handleTypeSelection('FAMILY');
-            var el = document.getElementById('view-create');
-            if (el) el.scrollTop = 0;
+            window.location.href = '/family-onboarding.html';
         };
 
         window.handleTypeSelection = function(t) {
