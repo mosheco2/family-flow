@@ -8676,7 +8676,7 @@ app.get('/api/store/catalog/:groupId', async (req, res) => {
 });
 
 // שמירת סדר גרירה לקטלוג
-app.patch('/api/store/catalog/:groupId/reorder', verifyBizOrLegacy, async (req, res) => {
+app.patch('/api/store/catalog/:groupId/reorder', verifyBizOrLegacy, requireModule('sales'), async (req, res) => {
     try {
         // token גובר על URL param — מונע reorder לקטלוג של עסק אחר
         const groupId = req.bizAuth.groupId || req.params.groupId;
@@ -8693,7 +8693,7 @@ app.patch('/api/store/catalog/:groupId/reorder', verifyBizOrLegacy, async (req, 
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/store/catalog', verifyBizOrLegacy, async (req, res) => {
+app.post('/api/store/catalog', verifyBizOrLegacy, requireModule('sales'), async (req, res) => {
     try {
         // token גובר על body — מונע "תקיעת" מוצר לקטלוג של עסק אחר
         const groupId = req.bizAuth.groupId || req.body.groupId;
@@ -8720,7 +8720,7 @@ app.post('/api/store/catalog', verifyBizOrLegacy, async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.put('/api/store/catalog/:id', verifyBizOrLegacy, async (req, res) => {
+app.put('/api/store/catalog/:id', verifyBizOrLegacy, requireModule('sales'), async (req, res) => {
     try {
         const groupId = req.bizAuth.groupId;
         if (!groupId) return res.status(400).json({ error: 'groupId נדרש' });
@@ -8735,7 +8735,7 @@ app.put('/api/store/catalog/:id', verifyBizOrLegacy, async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/store/catalog/toggle', verifyBizOrLegacy, async (req, res) => {
+app.post('/api/store/catalog/toggle', verifyBizOrLegacy, requireModule('sales'), async (req, res) => {
     try {
         const groupId = req.bizAuth.groupId;
         if (!groupId) return res.status(400).json({ error: 'groupId נדרש' });
@@ -8758,7 +8758,7 @@ app.delete('/api/store/catalog/:id', async (req, res) => {
 });
 
 // --- Bulk import products from PDF scan ---
-app.post('/api/store/catalog/bulk-import', verifyBizOrLegacy, async (req, res) => {
+app.post('/api/store/catalog/bulk-import', verifyBizOrLegacy, requireModule('sales'), async (req, res) => {
     try {
         // groupId תמיד מ-req.bizAuth — לא מהפריטים עצמם, כדי למנוע זיוף ownership
         const groupId = req.bizAuth.groupId;
@@ -9170,7 +9170,7 @@ app.get('/api/store/employee-popups/:groupId', async (req, res) => {
 });
 
 // --- הצעות מחיר (Quotes) ---
-app.post('/api/store/quotes', verifyBizOrLegacy, async (req, res) => {
+app.post('/api/store/quotes', verifyBizOrLegacy, requireModule('sales'), async (req, res) => {
     try {
         // token גובר על body — מונע יצירת הצעה תחת עסק אחר
         const groupId = req.bizAuth.groupId || req.body.groupId;
@@ -9224,7 +9224,7 @@ app.get('/api/store/quotes/family/:familyGroupId', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/api/store/quotes/:groupId', verifyBizOrLegacy, async (req, res) => {
+app.get('/api/store/quotes/:groupId', verifyBizOrLegacy, requireModule('sales'), async (req, res) => {
     try {
         // אם יש token — ה-groupId בURL חייב להתאים לעסק המאומת
         if (req.bizAuth.fromToken && String(req.bizAuth.groupId) !== String(req.params.groupId)) {
@@ -9243,7 +9243,7 @@ app.get('/api/store/quotes/:groupId', verifyBizOrLegacy, async (req, res) => {
         res.json({ success: true, quotes: result.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
-app.put('/api/store/quotes/:id', verifyBizOrLegacy, async (req, res) => {
+app.put('/api/store/quotes/:id', verifyBizOrLegacy, requireModule('sales'), async (req, res) => {
     try {
         const groupId = req.bizAuth.groupId || req.body.groupId;
         if (!groupId) return res.status(400).json({ error: 'groupId נדרש' });
@@ -9656,7 +9656,7 @@ app.patch('/api/store/orders/:id/target-date', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.patch('/api/store/quotes/:id/status', verifyBizOrLegacy, async (req, res) => {
+app.patch('/api/store/quotes/:id/status', verifyBizOrLegacy, requireModule('sales'), async (req, res) => {
     try {
         const groupId = req.bizAuth.groupId || req.body.groupId;
         if (!groupId) return res.status(400).json({ error: 'groupId נדרש' });
@@ -9692,7 +9692,7 @@ app.get('/api/store/orders/my/:userId', async (req, res) => {
     }
 });
 // --- אישור הצעת מחיר והפיכתה להזמנה במקום ---
-app.post('/api/store/quotes/:id/prepare-send', verifyBizOrLegacy, async (req, res) => {
+app.post('/api/store/quotes/:id/prepare-send', verifyBizOrLegacy, requireModule('sales'), async (req, res) => {
     try {
         const groupId = req.bizAuth.groupId || req.body.groupId;
         if (!groupId) return res.status(400).json({ error: 'groupId נדרש' });
@@ -9705,7 +9705,7 @@ app.post('/api/store/quotes/:id/prepare-send', verifyBizOrLegacy, async (req, re
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/store/quotes/:id/approve', verifyBizOrLegacy, async (req, res) => {
+app.post('/api/store/quotes/:id/approve', verifyBizOrLegacy, requireModule('sales'), async (req, res) => {
     try {
         const { targetDatetime } = req.body;
         const quoteId = req.params.id;
@@ -9853,7 +9853,7 @@ app.get('/api/store/lookup-oneflow', async (req, res) => {
 });
 
 // --- שליחת הצעת מחיר ב-OneFlow ללקוח משפחה ---
-app.post('/api/store/quotes/:id/send-to-oneflow', verifyBizOrLegacy, async (req, res) => {
+app.post('/api/store/quotes/:id/send-to-oneflow', verifyBizOrLegacy, requireModule('sales'), async (req, res) => {
     try {
         const bizGroupId = req.bizAuth.groupId || req.body.groupId; // בעלות העסק על ה-quote
         if (!bizGroupId) return res.status(400).json({ error: 'groupId נדרש' });
@@ -9897,7 +9897,7 @@ app.post('/api/store/quotes/:id/send-to-oneflow', verifyBizOrLegacy, async (req,
 });
 
 // --- קישור הצעת מחיר ל-OneFlow ללא שליחה (שלב 1 — בקשת שיוך בלבד) ---
-app.post('/api/store/quotes/:id/link-only', verifyBizOrLegacy, async (req, res) => {
+app.post('/api/store/quotes/:id/link-only', verifyBizOrLegacy, requireModule('sales'), async (req, res) => {
     try {
         const bizGroupId = req.bizAuth.groupId || req.body.groupId; // בעלות העסק על ה-quote
         if (!bizGroupId) return res.status(400).json({ error: 'groupId נדרש' });
@@ -9976,7 +9976,7 @@ app.patch('/api/store/quotes/:id/customer-response', async (req, res) => {
 });
 
 // --- המרת הצעת מחיר לפקודת עבודה ---
-app.post('/api/store/quotes/:id/to-work-order', verifyBizOrLegacy, async (req, res) => {
+app.post('/api/store/quotes/:id/to-work-order', verifyBizOrLegacy, requireModule('sales'), async (req, res) => {
     try {
         const quoteId = req.params.id;
         const groupId = req.bizAuth.groupId;
@@ -10021,7 +10021,7 @@ app.post('/api/store/quotes/:id/to-work-order', verifyBizOrLegacy, async (req, r
 });
 
 // --- הודעת עסק ללקוח בהצעת מחיר ---
-app.post('/api/store/quotes/:id/business-message', verifyBizOrLegacy, async (req, res) => {
+app.post('/api/store/quotes/:id/business-message', verifyBizOrLegacy, requireModule('sales'), async (req, res) => {
     try {
         const groupId = req.bizAuth.groupId || req.body.groupId;
         if (!groupId) return res.status(400).json({ error: 'groupId נדרש' });
@@ -10102,7 +10102,7 @@ app.post('/api/store/customers', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.put('/api/store/customers/:id', verifyBizOrLegacy, async (req, res) => {
+app.put('/api/store/customers/:id', verifyBizOrLegacy, requireModule('sales'), async (req, res) => {
     try {
         const bizGroupId = req.bizAuth.groupId;
         if (!bizGroupId) return res.status(400).json({ error: 'groupId נדרש' });
@@ -10129,7 +10129,7 @@ app.put('/api/store/customers/:id', verifyBizOrLegacy, async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.delete('/api/store/customers/:id', verifyBizOrLegacy, async (req, res) => {
+app.delete('/api/store/customers/:id', verifyBizOrLegacy, requireModule('sales'), async (req, res) => {
     try {
         const bizGroupId = req.bizAuth.groupId;
         if (!bizGroupId) return res.status(400).json({ error: 'groupId נדרש' });
@@ -11144,7 +11144,7 @@ app.post('/api/store/coupons', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.delete('/api/store/coupons/:id', verifyBizOrLegacy, async (req, res) => {
+app.delete('/api/store/coupons/:id', verifyBizOrLegacy, requireModule('sales'), async (req, res) => {
     try {
         const bizGroupId = req.bizAuth.groupId;
         if (!bizGroupId) return res.status(400).json({ error: 'groupId נדרש' });
@@ -11201,7 +11201,7 @@ app.post('/api/store/promotions', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.put('/api/store/promotions/:id', verifyBizOrLegacy, async (req, res) => {
+app.put('/api/store/promotions/:id', verifyBizOrLegacy, requireModule('sales'), async (req, res) => {
     try {
         const bizGroupId = req.bizAuth.groupId;
         if (!bizGroupId) return res.status(400).json({ error: 'groupId נדרש' });
@@ -11216,7 +11216,7 @@ app.put('/api/store/promotions/:id', verifyBizOrLegacy, async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.delete('/api/store/promotions/:id', verifyBizOrLegacy, async (req, res) => {
+app.delete('/api/store/promotions/:id', verifyBizOrLegacy, requireModule('sales'), async (req, res) => {
     try {
         const bizGroupId = req.bizAuth.groupId;
         if (!bizGroupId) return res.status(400).json({ error: 'groupId נדרש' });
@@ -11226,7 +11226,7 @@ app.delete('/api/store/promotions/:id', verifyBizOrLegacy, async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.put('/api/store/promotions/toggle/:id', verifyBizOrLegacy, async (req, res) => {
+app.put('/api/store/promotions/toggle/:id', verifyBizOrLegacy, requireModule('sales'), async (req, res) => {
     try {
         const bizGroupId = req.bizAuth.groupId;
         if (!bizGroupId) return res.status(400).json({ error: 'groupId נדרש' });
@@ -30698,6 +30698,38 @@ async function verifyBizOrLegacy(req, res, next) {
     console.warn(`[verifyBizOrLegacy] legacy fallback — no token, groupId=${legacyGroupId}, path=${req.path}`);
     req.bizAuth = { groupId: legacyGroupId, userId: null, fromToken: false };
     next();
+}
+
+// ── requireModule middleware ──────────────────────────────────
+// אכיפת managed_modules — רק לעסקים עם token אמיתי (fromToken=true).
+// עסקים legacy (fromToken=false) ועסקים ישנים עם managed_modules ריק → pass-through.
+const _modCache = new Map();
+const _MOD_CACHE_TTL = 60000;
+
+function requireModule(moduleName) {
+    return async (req, res, next) => {
+        if (!req.bizAuth?.fromToken) return next(); // legacy → ללא בדיקה
+        const groupId = req.bizAuth.groupId;
+        if (!groupId) return next();
+        try {
+            let modules;
+            const cached = _modCache.get(String(groupId));
+            if (cached && Date.now() - cached.ts < _MOD_CACHE_TTL) {
+                modules = cached.modules;
+            } else {
+                const r = await pool.query('SELECT managed_modules FROM family_groups WHERE id=$1', [groupId]);
+                modules = r.rows[0]?.managed_modules || null;
+                _modCache.set(String(groupId), { modules, ts: Date.now() });
+            }
+            if (!modules || modules.length === 0) return next(); // עסק ותיק → ללא הגבלה
+            if (!modules.includes(moduleName)) {
+                return res.status(403).json({ error: 'גישה למודול זה אינה כלולה בחבילה שלך', module: moduleName });
+            }
+            next();
+        } catch(e) {
+            next(); // fail-open — לא שוברים עסקים קיימים
+        }
+    };
 }
 
 // ── AI Copilot quota helpers ──────────────────────────────────
