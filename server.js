@@ -5014,9 +5014,9 @@ app.post('/api/biz/login', async (req, res) => {
 
 app.get('/api/biz/me', verifyBiz, async (req, res) => {
     try {
-        const { groupId } = req.bizAuth;
+        const { groupId, userId } = req.bizAuth;
 
-        const [gRes, filledRes] = await Promise.all([
+        const [gRes, filledRes, uRes] = await Promise.all([
             pool.query(`SELECT * FROM family_groups WHERE id=$1`, [groupId]),
             pool.query(
                 `SELECT employee_role_type, COUNT(*)::int AS cnt
@@ -5024,7 +5024,10 @@ app.get('/api/biz/me', verifyBiz, async (req, res) => {
                  WHERE group_id=$1 AND status='active' AND employee_role_type IS NOT NULL
                  GROUP BY employee_role_type`,
                 [groupId]
-            )
+            ),
+            userId
+                ? pool.query(`SELECT first_name, last_name, birth_year FROM users WHERE id=$1`, [userId])
+                : Promise.resolve({ rows: [] })
         ]);
 
         if (!gRes.rows[0]) return res.status(404).json({ success: false, error: 'עסק לא נמצא' });
@@ -5032,7 +5035,12 @@ app.get('/api/biz/me', verifyBiz, async (req, res) => {
         const filled_by_role = {};
         for (const r of filledRes.rows) filled_by_role[r.employee_role_type] = r.cnt;
 
-        res.json({ success: true, ...gRes.rows[0], filled_by_role });
+        const adminUser = uRes.rows[0] || {};
+        res.json({ success: true, ...gRes.rows[0], filled_by_role,
+            first_name: adminUser.first_name || null,
+            last_name:  adminUser.last_name  || null,
+            birth_year: adminUser.birth_year || null,
+        });
     } catch(e) {
         console.error('biz me error:', e);
         res.status(500).json({ success: false, error: 'שגיאה בטעינת נתוני העסק' });
