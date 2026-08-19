@@ -2865,6 +2865,11 @@
 
     <script>
         window.handleTypeSelection = function(t) {
+            if (t === 'BUSINESS') {
+                window.location.href = '/biz-onboarding.html';
+                return;
+            }
+
             document.getElementById('create-type').value = t;
 
             const familyBtn = document.getElementById('type-family');
