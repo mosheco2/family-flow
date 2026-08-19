@@ -2896,6 +2896,8 @@
             if (t === 'BUSINESS') { window.location.href = '/biz-onboarding.html'; return; }
             switchView('create');
             handleTypeSelection('FAMILY');
+            var el = document.getElementById('view-create');
+            if (el) el.scrollTop = 0;
         };
 
         window.handleTypeSelection = function(t) {
