@@ -5551,7 +5551,7 @@ async function saveEditMember() {
         const body = { adminId: currentUser.id, nickname, email, phone, role };
         if (newPassword) body.password = newPassword;
         const res = await fetch(`${API}/admin/user-details/${userId}`, {
-            method: 'PUT', headers: { 'Content-Type': 'application/json' },
+            method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getFamilyToken() || ''}` },
             body: JSON.stringify(body)
         });
         const data = await res.json();
