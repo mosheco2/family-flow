@@ -825,14 +825,23 @@
       wizRenderMembers();
     }
 
-    function wizStep3Next() {
+    async function wizStep3Next() {
       // אם יש שם בשדה — הוסף אוטומטית לפני המעבר
       var name = document.getElementById('wiz-m-name').value.trim();
       if (name) wizAddMember();
-      // wizAddMember מציגה שגיאה אם הנתונים לא תקינים, אז בודקים אם הצליח
-      if (!name || wiz.members.some(function(m){ return m.name === name; })) {
-        wizGoTo(4);
+      if (name && !wiz.members.some(function(m){ return m.name === name; })) return; // ולידציה נכשלה
+
+      // שמירת פרופילי "ממתין להרשמה" בשרת
+      if (wiz.groupId && wiz.members.length > 0) {
+        try {
+          await fetch(API + '/family/pre-invite', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ groupId: wiz.groupId, members: wiz.members })
+          });
+        } catch(e) { /* non-blocking */ }
       }
+      wizGoTo(4);
     }
 
     // מסך 4 — מה לנהל

@@ -4963,6 +4963,38 @@ app.post('/api/family/verify-otp', async (req, res) => {
     } catch(e) { console.error('family verify-otp error:', e); res.status(500).json({ success: false, error: 'שגיאה באימות הקוד' }); }
 });
 
+// ── pre-invite: יצירת פרופילי "ממתין להרשמה" מהוויזארד ──────
+app.post('/api/family/pre-invite', async (req, res) => {
+    try {
+        const { groupId, members } = req.body;
+        if (!groupId || !Array.isArray(members) || members.length === 0)
+            return res.status(400).json({ error: 'פרמטרים חסרים' });
+        const grpRes = await pool.query('SELECT id FROM family_groups WHERE id=$1', [groupId]);
+        if (grpRes.rows.length === 0) return res.status(404).json({ error: 'קבוצה לא נמצאה' });
+        const placeholderHash = await bcrypt.hash('__invited__' + groupId, 10);
+        let created = 0;
+        for (const m of members) {
+            const name = (m.name || '').trim();
+            if (!name) continue;
+            const phone = (m.phone || '').trim() || null;
+            const role = m.role === 'הורה' ? 'MEMBER' : m.role === 'ילד' ? 'CHILD' : 'MEMBER';
+            // דלג אם כבר קיים טלפון זהה בקבוצה
+            if (phone) {
+                const exists = await pool.query(
+                    'SELECT id FROM users WHERE group_id=$1 AND phone=$2', [groupId, phone]);
+                if (exists.rows.length > 0) continue;
+            }
+            await pool.query(
+                `INSERT INTO users (group_id, nickname, first_name, role, phone, password_hash, status)
+                 VALUES ($1, $2, $3, $4, $5, $6, 'invited')`,
+                [groupId, name, name.split(' ')[0], role, phone, placeholderHash]
+            );
+            created++;
+        }
+        res.json({ success: true, created });
+    } catch(e) { console.error('pre-invite error:', e); res.status(500).json({ error: e.message }); }
+});
+
 // ============================================================
 // --- BIZ REGISTER / LOGIN / ME ---
 // ============================================================
@@ -6378,10 +6410,30 @@ app.post('/api/join', async (req, res) => {
         }
 
         const joinEmail = (email || '').trim().toLowerCase() || null;
-        await pool.query(
-            `INSERT INTO users (group_id, nickname, first_name, last_name, birth_year, password_hash, role, status, phone, email, employee_role_type) VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending', $8, $9, $10)`,
-            [group.id, nickname, firstName || null, lastName || null, bYear, await bcrypt.hash(password, 10), reqRole, joinPhone, joinEmail, employee_role_type || null]
-        );
+        const pwHash = await bcrypt.hash(password, 10);
+
+        // אם קיים פרופיל invited עם אותו טלפון — עדכן במקום ליצור חדש
+        let matchedInvited = null;
+        if (joinPhone) {
+            const invRes = await pool.query(
+                `SELECT id FROM users WHERE group_id=$1 AND phone=$2 AND status='invited'`,
+                [group.id, joinPhone]);
+            if (invRes.rows.length > 0) matchedInvited = invRes.rows[0].id;
+        }
+
+        if (matchedInvited) {
+            await pool.query(
+                `UPDATE users SET nickname=$1, first_name=$2, last_name=$3, birth_year=$4,
+                 password_hash=$5, role=$6, status='pending', email=$7, employee_role_type=$8
+                 WHERE id=$9`,
+                [nickname, firstName || null, lastName || null, bYear, pwHash, reqRole, joinEmail, employee_role_type || null, matchedInvited]
+            );
+        } else {
+            await pool.query(
+                `INSERT INTO users (group_id, nickname, first_name, last_name, birth_year, password_hash, role, status, phone, email, employee_role_type) VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending', $8, $9, $10)`,
+                [group.id, nickname, firstName || null, lastName || null, bYear, pwHash, reqRole, joinPhone, joinEmail, employee_role_type || null]
+            );
+        }
         res.json({ success: true });
     } catch (e) { 
         console.error("Join Error:", e);
@@ -7250,7 +7302,10 @@ app.put('/api/users/:id/permissions', verifyFamily, async (req, res) => {
 app.get('/api/admin/pending-users', async (req, res) => {
     try {
         const { groupId } = req.query;
-        const users = await pool.query('SELECT id, nickname, role, birth_year FROM users WHERE group_id=$1 AND status=$2', [groupId, 'pending']);
+        const users = await pool.query(
+            `SELECT id, nickname, role, birth_year, phone, status FROM users
+             WHERE group_id=$1 AND status IN ('pending','invited') ORDER BY status, nickname`,
+            [groupId]);
         res.json(users.rows);
     } catch(e) { res.status(500).json({error: e.message}); }
 });
