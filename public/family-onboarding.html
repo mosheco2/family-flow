@@ -417,13 +417,13 @@
             type:          'FAMILY',
             groupName:     document.getElementById('fo-c-group-name').value.trim(),
             adminEmail:    document.getElementById('fo-c-email').value.trim(),
-            adminNickname: document.getElementById('fo-c-nickname').value.trim() || document.getElementById('fo-c-first').value.trim(),
-            firstName:     document.getElementById('fo-c-first').value.trim(),
-            lastName:      document.getElementById('fo-c-last').value.trim(),
-            city:          document.getElementById('fo-c-city').value.trim(),
-            birthYear:     document.getElementById('fo-c-year').value,
-            phone:         document.getElementById('fo-c-phone').value.trim(),
-            password:      document.getElementById('fo-c-password').value
+            firstName:      document.getElementById('fo-c-first').value.trim(),
+            lastName:       document.getElementById('fo-c-last').value.trim(),
+            familyNickname: document.getElementById('fo-c-nickname').value.trim(),
+            city:           document.getElementById('fo-c-city').value.trim(),
+            birthYear:      document.getElementById('fo-c-year').value,
+            phone:          document.getElementById('fo-c-phone').value.trim(),
+            password:       document.getElementById('fo-c-password').value
           })
         });
         var data = await res.json();
@@ -455,7 +455,7 @@
           body: JSON.stringify({
             groupCode: document.getElementById('fo-j-code').value.trim().toUpperCase(),
             role:      'MEMBER',
-            nickname:  document.getElementById('fo-j-first').value.trim(),
+            nickname:  (document.getElementById('fo-j-first').value.trim() + ' ' + document.getElementById('fo-j-last').value.trim()).trim(),
             firstName: document.getElementById('fo-j-first').value.trim(),
             lastName:  document.getElementById('fo-j-last').value.trim(),
             birthYear: document.getElementById('fo-j-year').value,
