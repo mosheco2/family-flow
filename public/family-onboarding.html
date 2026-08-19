@@ -396,7 +396,7 @@
           </button>
         </div>
 
-        <button class="btn-primary green" onclick="wizGoTo(4)" style="margin-top:4px;">המשך ←</button>
+        <button class="btn-primary green" onclick="wizStep3Next()" style="margin-top:4px;">המשך ←</button>
         <button class="link-btn" onclick="wizGoTo(4)" style="margin-top:6px;">דלג</button>
       </div>
 
@@ -823,6 +823,16 @@
     function wizRemoveMember(i) {
       wiz.members.splice(i, 1);
       wizRenderMembers();
+    }
+
+    function wizStep3Next() {
+      // אם יש שם בשדה — הוסף אוטומטית לפני המעבר
+      var name = document.getElementById('wiz-m-name').value.trim();
+      if (name) wizAddMember();
+      // wizAddMember מציגה שגיאה אם הנתונים לא תקינים, אז בודקים אם הצליח
+      if (!name || wiz.members.some(function(m){ return m.name === name; })) {
+        wizGoTo(4);
+      }
     }
 
     // מסך 4 — מה לנהל
