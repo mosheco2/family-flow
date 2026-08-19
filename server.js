@@ -6125,6 +6125,23 @@ app.post('/api/groups', async (req, res) => {
         dbClient = await pool.connect();
         await dbClient.query('BEGIN');
 
+        // בדיקת verified_token אם נשלח (ויזארד משפחה) — legacy ללא token ממשיך כרגיל
+        if (req.body.verified_token && req.body.type === 'FAMILY') {
+                const vtPhone = (req.body.phone || '').trim();
+                const vtRes = await pool.query(
+                    `SELECT * FROM business_otp WHERE phone=$1 AND purpose='family_verified'`, [vtPhone]);
+                if (vtRes.rows.length === 0) {
+                    await dbClient.query('ROLLBACK');
+                    return res.status(400).json({ error: 'אימות טלפון נדרש. אנא התחל מחדש.' });
+                }
+                const vtRow = vtRes.rows[0];
+                if (new Date() > new Date(vtRow.expires_at) || _bizHashOtp(req.body.verified_token) !== vtRow.code_hash) {
+                    await pool.query(`DELETE FROM business_otp WHERE id=$1`, [vtRow.id]);
+                    await dbClient.query('ROLLBACK');
+                    return res.status(400).json({ error: 'אימות הטלפון פג תוקף. אנא התחל מחדש.' });
+                }
+        }
+
         const reqEmail = (req.body.adminEmail || '').toLowerCase().trim();
 
         // 1. משיכת המייל של הסופר אדמין כדי לאפשר לו לפתוח סביבות ללא הגבלה
@@ -6214,6 +6231,12 @@ app.post('/api/groups', async (req, res) => {
         );
         
         await dbClient.query('COMMIT');
+
+        // מחיקת verified_token לאחר רישום מוצלח
+        if (req.body.verified_token && req.body.type === 'FAMILY') {
+            const vtPhone = (req.body.phone || '').trim();
+            await pool.query(`DELETE FROM business_otp WHERE phone=$1 AND purpose='family_verified'`, [vtPhone]).catch(() => {});
+        }
 
         // זיכוי מטבעות למפנה על הצטרפות חבר
         if (referredByGroupId && req.body.type === 'FAMILY') {
