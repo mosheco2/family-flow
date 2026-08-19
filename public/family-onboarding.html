@@ -355,6 +355,8 @@
         var el = document.getElementById('fo-j-code');
         if (el) { el.value = code.toUpperCase(); }
       }
+      var tab = params.get('tab');
+      if (!code && tab && ['create','join','login'].includes(tab)) { showView(tab); }
     })();
 
     // ── toast ──
