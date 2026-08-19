@@ -283,8 +283,8 @@ function startChildTour() {
 }
 
 function switchView(view) {
-    ['splash','login','create','join', 'sa-login'].forEach(v => { const el = getEl(`view-${v}`); if(el) el.classList.add('hidden'); });
-    const tg = getEl(`view-${view}`); if(tg) tg.classList.remove('hidden');
+    ['splash','login','create','join', 'sa-login'].forEach(v => { const el = getEl(`view-${v}`); if(el) { el.classList.add('hidden'); el.style.display = 'none'; } });
+    const tg = getEl(`view-${view}`); if(tg) { tg.classList.remove('hidden'); tg.style.display = ''; }
 }
 
 function openTosModal(e) { if(e) { e.preventDefault(); e.stopPropagation(); } const modal = getEl('tos-modal'); if(modal) modal.classList.remove('hidden'); }

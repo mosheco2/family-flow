@@ -303,7 +303,7 @@
               <button onclick="window.location.href='/family-onboarding.html'" class="text-slate-400 text-sm underline mt-8 text-center block w-full">כבר יש לי חשבון — כניסה</button>
             </div>
 
-            <div id="view-login" class="px-8 py-8 flex-1 overflow-y-auto hidden">
+            <div id="view-login" class="px-8 py-8 flex-1 overflow-y-auto hidden" style="display:none">
                 <form onsubmit="handleLogin(event)" class="space-y-5">
                     <input type="text" id="login-code" required class="modern-input font-mono text-center tracking-widest uppercase" placeholder="קוד כניסה (לדוגמה: ABCD12)">
                     <input type="text" id="login-nickname" required class="modern-input" placeholder="כינוי המשתמש שלך">
@@ -325,7 +325,7 @@
                </div>
             </div>
             
-            <div id="view-create" class="px-8 py-6 hidden flex-1 overflow-y-auto pb-12">
+            <div id="view-create" class="px-8 py-6 hidden flex-1 overflow-y-auto pb-12" style="display:none">
                 <h2 class="text-2xl font-bold mb-6 text-slate-800">הקמת סביבה חדשה</h2>
                 <form onsubmit="handleCreate(event)" class="space-y-4">
                     <div class="flex gap-3 mb-2">
@@ -369,7 +369,7 @@
                 <button onclick="switchView('login')" class="w-full mt-6 text-slate-400 font-bold">ביטול וחזרה</button>
             </div>
             
-<div id="view-join" class="px-8 py-6 hidden flex-1 overflow-y-auto pb-12">
+<div id="view-join" class="px-8 py-6 hidden flex-1 overflow-y-auto pb-12" style="display:none">
                 <h2 class="text-2xl font-bold mb-6 text-slate-800">הצטרפות</h2>
                 <form onsubmit="handleJoin(event)" class="space-y-4">
                     <input type="hidden" id="join-role" value="MEMBER">
