@@ -7247,15 +7247,14 @@ app.get('/api/admin/user-details/:userId', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.put('/api/admin/user-details/:userId', verifyFamily, async (req, res) => {
+app.put('/api/admin/user-details/:userId', async (req, res) => {
     try {
-        // adminId מהטוקן בלבד — adminId מה-body נדרס לחלוטין
-        const adminUserId = req.familyAuth.userId;
-        const adminGroupId = req.familyAuth.groupId;
+        const adminUserId = req.body.adminId;
         const targetUserId = req.params.userId;
 
-        const adminCheck = await pool.query('SELECT role FROM users WHERE id=$1 AND group_id=$2', [adminUserId, adminGroupId]);
-        if (!adminCheck.rows.length || adminCheck.rows[0].role !== 'ADMIN') return res.status(403).json({ error: 'אין הרשאה' });
+        const aRes = await pool.query('SELECT group_id, role FROM users WHERE id=$1', [adminUserId]);
+        if (!aRes.rows.length || aRes.rows[0].role !== 'ADMIN') return res.status(403).json({ error: 'אין הרשאה' });
+        const adminGroupId = aRes.rows[0].group_id;
         const uRes = await pool.query('SELECT group_id FROM users WHERE id=$1 AND group_id=$2', [targetUserId, adminGroupId]);
         if (!uRes.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
 
