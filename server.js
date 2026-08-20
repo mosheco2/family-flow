@@ -5073,7 +5073,7 @@ app.get('/api/family/marketplace/:groupId', async (req, res) => {
             FROM family_groups fg
             LEFT JOIN store_settings ss ON ss.group_id = fg.id
             LEFT JOIN community_promotions cp ON cp.biz_code = fg.group_code AND cp.valid_until > NOW()
-            WHERE fg.member_type='biz'`;
+            WHERE fg.type='BUSINESS'`;
         const params = [];
         if (category) { params.push(category); bizQuery += ` AND fg.business_category=$${params.length}`; }
         if (q) { params.push('%' + q + '%'); bizQuery += ` AND (fg.name ILIKE $${params.length} OR fg.business_category ILIKE $${params.length})`; }

@@ -615,9 +615,9 @@ async function loadMarketplace() {
   try {
     var res = await fetch(url);
     var data = await res.json();
-    if (data.error) return;
+    if (data.error) { renderAll({ businesses: [], recentlyVisited: [], weeklyDeals: [], flwBalance: 0 }); return; }
     renderAll(data);
-  } catch(e) { console.error('marketplace load error', e); }
+  } catch(e) { console.error('marketplace load error', e); renderAll({ businesses: [], recentlyVisited: [], weeklyDeals: [], flwBalance: 0 }); }
 }
 
 function renderAll(data) {
