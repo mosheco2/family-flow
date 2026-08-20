@@ -5090,14 +5090,13 @@ app.get('/api/family/marketplace/:groupId', async (req, res) => {
             // בדיקה אם store_settings קיים
             const ssCheck = await pool.query(`SELECT 1 FROM information_schema.tables WHERE table_name='store_settings'`);
             const hasSS = ssCheck.rows.length > 0;
-            let bizQuery = `SELECT fg.id, fg.name, fg.image_url, ${catSelect}, ${hasSS ? 'ss.logo_url, ss.phone,' : 'NULL as logo_url, NULL as phone,'} ${hasCP ? 'MAX(cp.discount_pct) as max_discount' : 'NULL as max_discount'} FROM family_groups fg`;
+            let bizQuery = `SELECT fg.id, fg.name, fg.image_url, ${catSelect}, ${hasSS ? 'ss.logo_url, ss.phone,' : 'NULL as logo_url, NULL as phone,'} NULL as max_discount FROM family_groups fg`;
             if (hasSS) bizQuery += ` LEFT JOIN store_settings ss ON ss.group_id = fg.id`;
-            if (hasCP) bizQuery += ` LEFT JOIN community_promotions cp ON cp.biz_code = fg.group_code AND cp.valid_until > NOW()`;
             bizQuery += ` WHERE fg.type='BUSINESS'`;
             const params = [];
             if (category && hasCatCol) { params.push(category); bizQuery += ` AND fg.business_category=$${params.length}`; }
             if (q) { params.push('%' + q + '%'); bizQuery += ` AND fg.name ILIKE $${params.length}`; }
-            bizQuery += ` GROUP BY fg.id, fg.name, fg.image_url${catGroup}${hasSS ? ', ss.logo_url, ss.phone' : ''} ORDER BY ${hasCP ? 'max_discount DESC NULLS LAST,' : ''} fg.name LIMIT 50`;
+            bizQuery += ` GROUP BY fg.id, fg.name, fg.image_url${catGroup}${hasSS ? ', ss.logo_url, ss.phone' : ''} ORDER BY fg.name LIMIT 50`;
             const bizRes = await pool.query(bizQuery, params);
             bizRows = bizRes.rows;
         } catch(e) { console.error('[marketplace] bizRes error:', e.message); }
