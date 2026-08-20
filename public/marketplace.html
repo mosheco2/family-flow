@@ -744,13 +744,14 @@ function openBiz(bizId, bizName) {
       body: JSON.stringify({ businessGroupId: bizId })
     }).catch(function(){});
   }
-  // ניווט ל-storefront — מסר להורה אם בתוך iframe
-  var msg = { action: 'openStorefront', bizId: bizId, bizName: bizName };
-  try { window.parent.postMessage(msg, '*'); } catch(e) {}
-  // fallback — אם פתוח ישירות
-  window.location.href = '/storefront.html?groupId=' + bizId +
+  // ניווט ל-storefront — מסר להורה אם בתוך iframe, אחרת חלון חדש
+  var url = '/storefront.html?groupId=' + bizId +
     (GROUP_ID ? '&familyGroupId=' + GROUP_ID : '') +
     (FAMILY_TOKEN ? '&flowRedeem=1' : '');
+  var msg = { action: 'openStorefront', bizId: bizId, bizName: bizName, url: url };
+  try { window.parent.postMessage(msg, '*'); } catch(e) {}
+  // fallback — פתיחה בחלון חדש (לא משנה את iframe עצמו)
+  if (window.self === window.top) { window.open(url, '_blank'); }
 }
 
 function redeemFlw() {
