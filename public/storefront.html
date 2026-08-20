@@ -631,9 +631,9 @@
 
         async function initStore() {
             const urlParams = new URLSearchParams(window.location.search);
-            let storeCode = urlParams.get('store');
+            let storeCode = urlParams.get('store') || urlParams.get('groupId');
             const communityId = urlParams.get('communityId');
-            
+
             if (!storeCode && window.location.pathname !== '/' && window.location.pathname !== '') {
                 storeCode = window.location.pathname.replace('/', '').trim();
             }

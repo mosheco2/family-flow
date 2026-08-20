@@ -10304,12 +10304,13 @@ app.get('/api/storefront/:code', async (req, res) => {
     try {
         const codeOrAlias = req.params.code;
         
+        const numericId = /^\d+$/.test(codeOrAlias) ? parseInt(codeOrAlias) : null;
         const gRes = await pool.query(`
             SELECT f.id, f.name, f.business_type
             FROM family_groups f
             LEFT JOIN store_settings s ON f.id = s.group_id
-            WHERE f.group_code = $1 OR LOWER(s.store_alias) = LOWER($2)
-        `, [codeOrAlias.toUpperCase(), codeOrAlias.toLowerCase()]);
+            WHERE ($3::int IS NOT NULL AND f.id = $3) OR f.group_code = $1 OR LOWER(s.store_alias) = LOWER($2)
+        `, [codeOrAlias.toUpperCase(), codeOrAlias.toLowerCase(), numericId]);
         
         if (gRes.rows.length === 0) return res.status(404).json({ error: 'חנות לא נמצאה' });
         
@@ -10329,7 +10330,7 @@ app.get('/api/storefront/:code', async (req, res) => {
                     [groupId, req.query.communityId])
                 : Promise.resolve(null)
         ]);
-        const settings = sRes.rows.length > 0 ? sRes.rows[0] : { is_active: false, min_order: 0, welcome_message: '', phone: '', slogan: '', store_type: 'retail', logo_url: null, modifier_presets: '[]', open_time: '', close_time: '', whatsapp_number: '' };
+        const settings = sRes.rows.length > 0 ? sRes.rows[0] : { is_active: true, min_order: 0, welcome_message: '', phone: '', slogan: '', store_type: 'retail', logo_url: null, modifier_presets: '[]', open_time: '', close_time: '', whatsapp_number: '' };
         let communityData = null;
         if (commRes && commRes.rows.length > 0) {
             const row = commRes.rows[0];
