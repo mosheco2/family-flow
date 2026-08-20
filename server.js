@@ -5002,7 +5002,7 @@ app.post('/api/family/pre-invite', async (req, res) => {
 
 app.post('/api/biz/register', async (req, res) => {
     try {
-        const { phone, verified_token, password, business_name } = req.body;
+        const { phone, verified_token, password, business_name, managed_modules } = req.body;
         if (!phone || !verified_token || !password || !business_name) {
             return res.status(400).json({ success: false, error: 'פרמטרים חסרים' });
         }
@@ -5034,11 +5034,13 @@ app.post('/api/biz/register', async (req, res) => {
         const passwordHash = await bcrypt.hash(password, 10);
 
         // INSERT family_groups
+        const modsJson = Array.isArray(managed_modules) && managed_modules.length > 0
+            ? JSON.stringify(managed_modules) : null;
         const gRes = await pool.query(
-            `INSERT INTO family_groups (name, type, member_type, business_type, wizard_completed, is_onboarded, group_code)
-             VALUES ($1, 'BUSINESS', 'biz', 'other', FALSE, TRUE, $2)
+            `INSERT INTO family_groups (name, type, member_type, business_type, wizard_completed, is_onboarded, group_code, managed_modules)
+             VALUES ($1, 'BUSINESS', 'biz', 'other', FALSE, TRUE, $2, $3)
              RETURNING id`,
-            [business_name, 'B' + _bizCrypto.randomBytes(4).toString('hex').toUpperCase().slice(0, 7)]
+            [business_name, 'B' + _bizCrypto.randomBytes(4).toString('hex').toUpperCase().slice(0, 7), modsJson]
         );
         const groupId = gRes.rows[0].id;
 
