@@ -5049,27 +5049,35 @@ app.get('/api/family/marketplace/:groupId', async (req, res) => {
         const hasCatCol = colCheck.rows.length > 0;
 
         // ביקרת לאחרונה (3 אחרונים)
-        const recentRes = await pool.query(
-            `SELECT fg.id, fg.name, fg.image_url${hasCatCol ? ', fg.business_category' : ", NULL as business_category"}
-             FROM family_business_visits fbv
-             JOIN family_groups fg ON fg.id = fbv.business_group_id
-             WHERE fbv.family_group_id=$1
-             ORDER BY fbv.last_visited_at DESC LIMIT 3`,
-            [groupId]
-        );
+        let recentRows = [];
+        try {
+            const recentRes = await pool.query(
+                `SELECT fg.id, fg.name, fg.image_url${hasCatCol ? ', fg.business_category' : ", NULL as business_category"}
+                 FROM family_business_visits fbv
+                 JOIN family_groups fg ON fg.id = fbv.business_group_id
+                 WHERE fbv.family_group_id=$1
+                 ORDER BY fbv.last_visited_at DESC LIMIT 3`,
+                [groupId]
+            );
+            recentRows = recentRes.rows;
+        } catch(e) { console.error('[marketplace] recentRes error:', e.message); }
 
         // הטבת השבוע (2 promotions עם discount הגבוה ביותר)
-        const weeklyRes = await pool.query(
-            `SELECT cp.id, cp.title, cp.discount_pct, cp.valid_until,
-                    fg.id as biz_id, fg.name as biz_name, fg.image_url as biz_logo,
-                    ${hasCatCol ? 'fg.business_category as biz_category,' : "NULL as biz_category,"}
-                    ss.logo_url
-             FROM community_promotions cp
-             JOIN family_groups fg ON fg.group_code = cp.biz_code
-             LEFT JOIN store_settings ss ON ss.group_id = fg.id
-             WHERE cp.valid_until > NOW() AND cp.discount_pct IS NOT NULL
-             ORDER BY cp.discount_pct DESC LIMIT 2`
-        );
+        let weeklyRows = [];
+        try {
+            const weeklyRes = await pool.query(
+                `SELECT cp.id, cp.title, cp.discount_pct, cp.valid_until,
+                        fg.id as biz_id, fg.name as biz_name, fg.image_url as biz_logo,
+                        ${hasCatCol ? 'fg.business_category as biz_category,' : "NULL as biz_category,"}
+                        ss.logo_url
+                 FROM community_promotions cp
+                 JOIN family_groups fg ON fg.group_code = cp.biz_code
+                 LEFT JOIN store_settings ss ON ss.group_id = fg.id
+                 WHERE cp.valid_until > NOW() AND cp.discount_pct IS NOT NULL
+                 ORDER BY cp.discount_pct DESC LIMIT 2`
+            );
+            weeklyRows = weeklyRes.rows;
+        } catch(e) { console.error('[marketplace] weeklyRes error:', e.message); }
 
         // כל העסקים
         const catSelect = hasCatCol ? 'fg.business_category' : 'NULL as business_category';
@@ -5091,8 +5099,8 @@ app.get('/api/family/marketplace/:groupId', async (req, res) => {
         console.log('[marketplace] groupId=%s businesses=%d hasCatCol=%s', groupId, bizRes.rows.length, hasCatCol);
         res.json({
             flwBalance,
-            recentlyVisited: recentRes.rows,
-            weeklyDeals: weeklyRes.rows,
+            recentlyVisited: recentRows,
+            weeklyDeals: weeklyRows,
             businesses: bizRes.rows,
             total: bizRes.rows.length
         });
