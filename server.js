@@ -5088,6 +5088,7 @@ app.get('/api/family/marketplace/:groupId', async (req, res) => {
         bizQuery += ` GROUP BY fg.id, fg.name, fg.image_url${catGroup}, ss.logo_url, ss.phone ORDER BY max_discount DESC NULLS LAST, fg.name LIMIT 50`;
         const bizRes = await pool.query(bizQuery, params);
 
+        console.log('[marketplace] groupId=%s businesses=%d hasCatCol=%s', groupId, bizRes.rows.length, hasCatCol);
         res.json({
             flwBalance,
             recentlyVisited: recentRes.rows,
@@ -5095,7 +5096,7 @@ app.get('/api/family/marketplace/:groupId', async (req, res) => {
             businesses: bizRes.rows,
             total: bizRes.rows.length
         });
-    } catch(e) { console.error('marketplace error:', e); res.status(500).json({ error: e.message }); }
+    } catch(e) { console.error('[marketplace] ERROR:', e.message); res.status(500).json({ error: e.message }); }
 });
 
 // ============================================================
