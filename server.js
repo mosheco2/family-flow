@@ -1457,6 +1457,19 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
       try { await client.query(`CREATE INDEX IF NOT EXISTS idx_business_otp_phone ON business_otp(phone)`); } catch(e) {}
       // ===== END BIZ WIZARD =====
 
+      // ===== MARKETPLACE =====
+      try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS business_category VARCHAR(50) DEFAULT NULL`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS family_business_visits (
+          id                 SERIAL PRIMARY KEY,
+          family_group_id    INTEGER NOT NULL REFERENCES family_groups(id) ON DELETE CASCADE,
+          business_group_id  INTEGER NOT NULL REFERENCES family_groups(id) ON DELETE CASCADE,
+          last_visited_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          visit_count        INTEGER NOT NULL DEFAULT 1,
+          UNIQUE (family_group_id, business_group_id)
+      )`); } catch(e) {}
+      try { await client.query(`CREATE INDEX IF NOT EXISTS idx_fbv_family ON family_business_visits(family_group_id, last_visited_at DESC)`); } catch(e) {}
+      // ===== END MARKETPLACE =====
+
       // ===== BEAUTY & COSMETICS MODULE =====
       await client.query(`CREATE TABLE IF NOT EXISTS beauty_practitioners (
         id                     SERIAL PRIMARY KEY,
@@ -4994,6 +5007,87 @@ app.post('/api/family/pre-invite', async (req, res) => {
         }
         res.json({ success: true, created });
     } catch(e) { console.error('pre-invite error:', e); res.status(500).json({ error: e.message }); }
+});
+
+// ============================================================
+// --- MARKETPLACE ---
+
+// רישום ביקור — familyGroupId מה-token בלבד
+app.post('/api/family/visit-business', verifyFamily, async (req, res) => {
+    try {
+        const familyGroupId = req.familyAuth.groupId;
+        const { businessGroupId } = req.body;
+        if (!businessGroupId) return res.status(400).json({ error: 'businessGroupId חסר' });
+        await pool.query(
+            `INSERT INTO family_business_visits (family_group_id, business_group_id, last_visited_at, visit_count)
+             VALUES ($1, $2, NOW(), 1)
+             ON CONFLICT (family_group_id, business_group_id)
+             DO UPDATE SET last_visited_at=NOW(), visit_count=family_business_visits.visit_count+1`,
+            [familyGroupId, businessGroupId]
+        );
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// נתוני מרקטפלייס
+app.get('/api/family/marketplace/:groupId', async (req, res) => {
+    try {
+        const { groupId } = req.params;
+        const { category, q } = req.query;
+
+        // יתרת FLW
+        const walletRes = await pool.query(
+            `SELECT COALESCE(balance,0) as balance FROM flow_wallets WHERE group_id=$1 AND wallet_type='family'`,
+            [groupId]
+        );
+        const flwBalance = walletRes.rows[0]?.balance || 0;
+
+        // ביקרת לאחרונה (3 אחרונים)
+        const recentRes = await pool.query(
+            `SELECT fg.id, fg.name, fg.image_url, fg.business_category
+             FROM family_business_visits fbv
+             JOIN family_groups fg ON fg.id = fbv.business_group_id
+             WHERE fbv.family_group_id=$1
+             ORDER BY fbv.last_visited_at DESC LIMIT 3`,
+            [groupId]
+        );
+
+        // הטבת השבוע (2 promotions עם discount הגבוה ביותר)
+        const weeklyRes = await pool.query(
+            `SELECT cp.id, cp.title, cp.discount_pct, cp.valid_until,
+                    fg.id as biz_id, fg.name as biz_name, fg.image_url as biz_logo,
+                    fg.business_category as biz_category,
+                    ss.logo_url
+             FROM community_promotions cp
+             JOIN family_groups fg ON fg.group_code = cp.biz_code
+             LEFT JOIN store_settings ss ON ss.group_id = fg.id
+             WHERE cp.valid_until > NOW() AND cp.discount_pct IS NOT NULL
+             ORDER BY cp.discount_pct DESC LIMIT 2`
+        );
+
+        // כל העסקים
+        let bizQuery = `
+            SELECT fg.id, fg.name, fg.image_url, fg.business_category,
+                   ss.logo_url, ss.phone,
+                   MAX(cp.discount_pct) as max_discount
+            FROM family_groups fg
+            LEFT JOIN store_settings ss ON ss.group_id = fg.id
+            LEFT JOIN community_promotions cp ON cp.biz_code = fg.group_code AND cp.valid_until > NOW()
+            WHERE fg.member_type='biz'`;
+        const params = [];
+        if (category) { params.push(category); bizQuery += ` AND fg.business_category=$${params.length}`; }
+        if (q) { params.push('%' + q + '%'); bizQuery += ` AND (fg.name ILIKE $${params.length} OR fg.business_category ILIKE $${params.length})`; }
+        bizQuery += ` GROUP BY fg.id, fg.name, fg.image_url, fg.business_category, ss.logo_url, ss.phone ORDER BY max_discount DESC NULLS LAST, fg.name LIMIT 50`;
+        const bizRes = await pool.query(bizQuery, params);
+
+        res.json({
+            flwBalance,
+            recentlyVisited: recentRes.rows,
+            weeklyDeals: weeklyRes.rows,
+            businesses: bizRes.rows,
+            total: bizRes.rows.length
+        });
+    } catch(e) { console.error('marketplace error:', e); res.status(500).json({ error: e.message }); }
 });
 
 // ============================================================
@@ -26980,6 +27074,11 @@ app.patch('/api/live-games/:id/visibility', verifySA, async (req, res) => {
 // route לדף המשחק
 app.get('/game/:game_code', (req, res) => {
   res.sendFile('game.html', { root: 'public' });
+});
+
+// route למרקטפלייס
+app.get('/marketplace', (req, res) => {
+  res.sendFile('marketplace.html', { root: 'public' });
 });
 
 // route לדף קול העם

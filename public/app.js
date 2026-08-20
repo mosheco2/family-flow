@@ -681,7 +681,7 @@ function logout() {
 function scrollTabs(direction) { getEl('slider-scroll').scrollBy({ left: direction * -150, behavior: 'smooth' }); }
 
 function switchTab(t) { 
-    ['feed','tasks','shop','myorders','bank','cashflow','community','academy','members','budget','pantry','recipes','forecast','home-maintenance','kol-haam'].forEach(x => { 
+    ['feed','tasks','shop','myorders','bank','cashflow','community','marketplace','academy','members','budget','pantry','recipes','forecast','home-maintenance','kol-haam'].forEach(x => { 
         const el = getEl(`content-${x}`); if(el) el.classList.add('hidden'); 
         const btn = getEl(`tab-${x}`); if(btn) btn.classList.remove('tab-active'); 
     }); 
@@ -698,6 +698,7 @@ function switchTab(t) { 
     if (t === 'cashflow') { try { renderCashflow(); } catch(e) {} fetchCashflowData(); }
     if (t === 'budget') try { fetchBudget(); } catch(e) {}
     if (t === 'community') try { fetchCommunityData(); } catch(e) {}
+    if (t === 'marketplace') try { loadMarketplaceTab(); } catch(e) {}
     if (t === 'myorders') {
         try {
             const lastSubTab = sessionStorage.getItem('myorders_sub_tab') || 'orders';
@@ -18116,3 +18117,27 @@ function clearFeedSearch() {
 }
 
 // ===== END COMMUNITY FEED =====
+
+// ===== MARKETPLACE TAB =====
+function loadMarketplaceTab() {
+    var el = document.getElementById('content-marketplace');
+    if (!el) return;
+    if (el.dataset.loaded) return;
+    el.dataset.loaded = '1';
+    var token = localStorage.getItem('familyToken') || localStorage.getItem('token') || '';
+    var groupId = currentGroup && currentGroup.id ? currentGroup.id : '';
+    var name = currentGroup && currentGroup.name ? currentGroup.name : '';
+    var src = '/marketplace?groupId=' + groupId + '&token=' + encodeURIComponent(token) + '&familyName=' + encodeURIComponent(name);
+    el.innerHTML = '<iframe src="' + src + '" style="width:100%;height:calc(100vh - 60px);border:none;display:block;" title="מרקט"></iframe>';
+
+    // handle postMessage from iframe (openStorefront)
+    window.addEventListener('message', function(e) {
+        if (!e.data || e.data.action !== 'openStorefront') return;
+        var bizId = e.data.bizId;
+        var src2 = '/storefront.html?groupId=' + bizId +
+            (groupId ? '&familyGroupId=' + groupId : '') +
+            (token ? '&familyToken=' + token : '');
+        window.open(src2, '_blank');
+    });
+}
+// ===== END MARKETPLACE TAB =====

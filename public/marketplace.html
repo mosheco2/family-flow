@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>מרקט</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+:root {
+  --bg: #ECEAE5;
+  --surface: #F7F6F3;
+  --card: #FFFFFF;
+  --dark: #12140F;
+  --green: #1F4D3D;
+  --green-light: #2D6B55;
+  --text: #12140F;
+  --muted: #7A7870;
+  --border: #D9D7D0;
+  --chip-bg: #FFFFFF;
+  --chip-selected: #12140F;
+  --chip-text-selected: #FFFFFF;
+  --badge-bg: #12140F;
+  --badge-text: #FFFFFF;
+  --discount-bg: #E8F5EE;
+  --discount-text: #1F4D3D;
+  --input-bg: #FFFFFF;
+  --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.10);
+}
+
+html, body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  min-height: 100vh;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* ── Header ── */
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: var(--bg);
+  padding: 14px 16px 10px;
+}
+
+.header-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.header-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.brand-avatar {
+  width: 36px;
+  height: 36px;
+  background: var(--green);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 700;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.brand-name {
+  text-align: right;
+}
+
+.brand-name .title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.2;
+}
+
+.brand-name .sub {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.flw-badge {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--green);
+  cursor: pointer;
+}
+
+.icon-btn {
+  width: 32px;
+  height: 32px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+/* ── Search ── */
+.search-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.search-bar {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--input-bg);
+  border: 1.5px solid var(--border);
+  border-radius: 12px;
+  padding: 9px 14px;
+}
+
+.search-bar input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  font-size: 13px;
+  color: var(--text);
+  outline: none;
+  text-align: right;
+  direction: rtl;
+}
+
+.search-bar input::placeholder { color: var(--muted); }
+
+.search-radio {
+  width: 16px;
+  height: 16px;
+  border: 1.5px solid var(--border);
+  border-radius: 50%;
+  flex-shrink: 0;
+  cursor: pointer;
+  position: relative;
+}
+
+/* ── Filter chips ── */
+.filter-chips {
+  display: flex;
+  gap: 6px;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding-bottom: 2px;
+}
+
+.filter-chips::-webkit-scrollbar { display: none; }
+
+.chip {
+  flex-shrink: 0;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 500;
+  border: 1.5px solid var(--border);
+  background: var(--chip-bg);
+  color: var(--text);
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.chip.active {
+  background: var(--chip-selected);
+  border-color: var(--chip-selected);
+  color: var(--chip-text-selected);
+}
+
+/* ── FLW Banner ── */
+.flw-banner {
+  margin: 14px 16px;
+  background: var(--green);
+  border-radius: 18px;
+  padding: 18px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  direction: rtl;
+}
+
+.flw-banner-text .label {
+  font-size: 12px;
+  color: rgba(255,255,255,0.7);
+  margin-bottom: 2px;
+}
+
+.flw-banner-text .amount {
+  font-size: 28px;
+  font-weight: 700;
+  color: #FFFFFF;
+  line-height: 1.1;
+  direction: ltr;
+  text-align: right;
+}
+
+.flw-redeem-btn {
+  background: rgba(255,255,255,0.18);
+  color: #FFFFFF;
+  border: 1.5px solid rgba(255,255,255,0.35);
+  border-radius: 10px;
+  padding: 8px 18px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+
+.flw-redeem-btn:hover { background: rgba(255,255,255,0.28); }
+
+/* ── Section header ── */
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  margin-bottom: 10px;
+}
+
+.section-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  direction: rtl;
+  text-align: right;
+}
+
+.section-sub {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+/* ── Recently visited ── */
+.recent-row {
+  display: flex;
+  gap: 12px;
+  padding: 0 16px;
+  margin-bottom: 20px;
+  direction: rtl;
+}
+
+.recent-biz {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+}
+
+.recent-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--dark);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 700;
+  font-size: 16px;
+  overflow: hidden;
+}
+
+.recent-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.recent-name {
+  font-size: 11px;
+  color: var(--muted);
+  max-width: 52px;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Weekly deals grid ── */
+.weekly-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  padding: 0 16px;
+  margin-bottom: 20px;
+}
+
+.deal-card {
+  background: var(--card);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+  cursor: pointer;
+  transition: transform 0.15s;
+  direction: rtl;
+}
+
+.deal-card:active { transform: scale(0.97); }
+
+.deal-image {
+  width: 100%;
+  aspect-ratio: 16/10;
+  background: #E8E6E0;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.deal-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.deal-image-placeholder {
+  color: var(--border);
+  font-size: 24px;
+}
+
+.deal-badge {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  background: var(--dark);
+  color: white;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 8px;
+}
+
+.deal-info {
+  padding: 10px 12px 12px;
+}
+
+.deal-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 2px;
+}
+
+.deal-meta {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+/* ── Category filter ── */
+.cat-chips {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding: 0 16px 2px;
+  margin-bottom: 12px;
+  direction: rtl;
+}
+
+.cat-chips::-webkit-scrollbar { display: none; }
+
+/* ── Business list ── */
+.biz-count {
+  font-size: 12px;
+  color: var(--muted);
+  padding: 0 16px;
+  margin-bottom: 8px;
+  direction: rtl;
+}
+
+.biz-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0 16px;
+  padding-bottom: 100px;
+}
+
+.biz-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--card);
+  border-radius: 14px;
+  padding: 12px 14px;
+  cursor: pointer;
+  transition: background 0.12s;
+  direction: rtl;
+}
+
+.biz-row:active { background: #F0EEE9; }
+
+.biz-row-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--dark);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 700;
+  font-size: 15px;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.biz-row-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.biz-row-info {
+  flex: 1;
+  text-align: right;
+}
+
+.biz-row-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.biz-row-meta {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 1px;
+}
+
+.biz-row-discount {
+  flex-shrink: 0;
+  background: var(--discount-bg);
+  color: var(--discount-text);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 8px;
+  min-width: 40px;
+  text-align: center;
+}
+
+/* ── Empty state ── */
+.empty {
+  text-align: center;
+  padding: 48px 24px;
+  color: var(--muted);
+}
+
+.empty-icon { font-size: 36px; margin-bottom: 12px; }
+.empty-text { font-size: 14px; }
+
+/* ── Loading ── */
+.skeleton {
+  background: linear-gradient(90deg, #E8E6E1 25%, #F0EEE9 50%, #E8E6E1 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.2s infinite;
+  border-radius: 10px;
+}
+@keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+
+/* ── Responsive ── */
+@media (min-width: 600px) {
+  .weekly-grid { grid-template-columns: repeat(3, 1fr); }
+  .biz-list { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .biz-row { border-radius: 14px; }
+}
+
+@media (min-width: 900px) {
+  body { max-width: 800px; margin: 0 auto; }
+  .weekly-grid { grid-template-columns: repeat(4, 1fr); }
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-top">
+    <div class="header-actions">
+      <span class="flw-badge" id="flw-top-badge">רל</span>
+      <span class="icon-btn" onclick="loadMarketplace()">↺</span>
+    </div>
+    <div class="header-brand">
+      <div class="brand-name">
+        <div class="title">מרקט</div>
+        <div class="sub">BUSINESS</div>
+      </div>
+      <div class="brand-avatar" id="family-initial">מ</div>
+    </div>
+  </div>
+
+  <div class="search-row">
+    <div class="search-bar">
+      <div class="search-radio" id="near-toggle" onclick="toggleNear()"></div>
+      <input type="text" id="search-input" placeholder="חיפוש עסק, קטגוריה או הטבה"
+             oninput="onSearch(this.value)" />
+    </div>
+  </div>
+
+  <div class="filter-chips">
+    <div class="chip active" data-filter="for-me" onclick="setFilter('for-me',this)">בשבילך</div>
+    <div class="chip" data-filter="all" onclick="setFilter('all',this)">הכל</div>
+    <div class="chip" data-filter="near" onclick="setFilter('near',this)">קרובים אליי</div>
+  </div>
+</div>
+
+<div id="mkt-content">
+  <!-- FLW Banner -->
+  <div class="flw-banner" id="flw-banner">
+    <button class="flw-redeem-btn" onclick="redeemFlw()">מימוש</button>
+    <div class="flw-banner-text">
+      <div class="label">יתרת ההטבות שלך</div>
+      <div class="amount" id="flw-amount">₪ 0</div>
+    </div>
+  </div>
+
+  <!-- Recently visited -->
+  <div id="recent-section" style="display:none">
+    <div class="section-header">
+      <div></div>
+      <div class="section-title">ביקרת לאחרונה</div>
+    </div>
+    <div class="recent-row" id="recent-row"></div>
+  </div>
+
+  <!-- Weekly deals -->
+  <div id="weekly-section" style="display:none">
+    <div class="section-header">
+      <div class="section-sub" id="weekly-sub">מתחדש ביום א׳</div>
+      <div class="section-title">ההטבה של השבוע</div>
+    </div>
+    <div class="weekly-grid" id="weekly-grid"></div>
+  </div>
+
+  <!-- Category filter -->
+  <div class="cat-chips" id="cat-chips">
+    <div class="chip active" data-cat="" onclick="setCategory('',this)">הכל</div>
+    <div class="chip" data-cat="restaurants" onclick="setCategory('restaurants',this)">מסעדות</div>
+    <div class="chip" data-cat="services" onclick="setCategory('services',this)">שרותים</div>
+    <div class="chip" data-cat="home" onclick="setCategory('home',this)">בית ותחזוקה</div>
+    <div class="chip" data-cat="fashion" onclick="setCategory('fashion',this)">אופנה</div>
+    <div class="chip" data-cat="health" onclick="setCategory('health',this)">בריאות</div>
+    <div class="chip" data-cat="beauty" onclick="setCategory('beauty',this)">יופי</div>
+  </div>
+
+  <!-- Business list -->
+  <div class="section-header">
+    <div class="section-sub" id="biz-count-label"></div>
+    <div class="section-title">כל הסביבות</div>
+  </div>
+  <div class="biz-list" id="biz-list">
+    <div class="skeleton" style="height:64px;margin-bottom:4px;border-radius:14px;"></div>
+    <div class="skeleton" style="height:64px;margin-bottom:4px;border-radius:14px;"></div>
+    <div class="skeleton" style="height:64px;margin-bottom:4px;border-radius:14px;"></div>
+  </div>
+</div>
+
+<script>
+var GROUP_ID = null;
+var FAMILY_TOKEN = null;
+var currentCategory = '';
+var searchTimer = null;
+var allBusinesses = [];
+var currentFilter = 'for-me';
+
+// קבלת params מה-URL
+(function() {
+  var p = new URLSearchParams(location.search);
+  GROUP_ID = p.get('groupId') || p.get('group_id');
+  FAMILY_TOKEN = p.get('token') || p.get('familyToken');
+  var name = p.get('familyName') || '';
+  if (name) {
+    document.getElementById('family-initial').textContent = name.charAt(0);
+  }
+})();
+
+// ── Data ──────────────────────────────────────────────────────
+async function loadMarketplace() {
+  if (!GROUP_ID) return;
+  var url = '/api/family/marketplace/' + GROUP_ID;
+  if (currentCategory) url += '?category=' + encodeURIComponent(currentCategory);
+  try {
+    var res = await fetch(url);
+    var data = await res.json();
+    if (data.error) return;
+    renderAll(data);
+  } catch(e) { console.error('marketplace load error', e); }
+}
+
+function renderAll(data) {
+  // FLW
+  var bal = parseFloat(data.flwBalance || 0);
+  document.getElementById('flw-amount').textContent = '₪ ' + bal.toLocaleString('he-IL', {minimumFractionDigits: 0, maximumFractionDigits: 0});
+  document.getElementById('flw-top-badge').textContent = 'רל ' + (bal > 0 ? bal.toFixed(0) : '');
+
+  // Recently visited
+  renderRecent(data.recentlyVisited || []);
+
+  // Weekly deals
+  renderWeekly(data.weeklyDeals || []);
+
+  // Businesses
+  allBusinesses = data.businesses || [];
+  renderBusinesses(allBusinesses);
+}
+
+function renderRecent(items) {
+  var sec = document.getElementById('recent-section');
+  var row = document.getElementById('recent-row');
+  if (!items.length) { sec.style.display = 'none'; return; }
+  sec.style.display = 'block';
+  row.innerHTML = items.map(function(b) {
+    var logo = b.logo_url || b.image_url;
+    var initial = (b.name || '?').charAt(0);
+    var avatarHtml = logo
+      ? '<img src="' + logo + '" alt="">'
+      : initial;
+    return '<div class="recent-biz" onclick="openBiz(' + b.id + ',\'' + esc(b.name) + '\')">' +
+      '<div class="recent-avatar">' + avatarHtml + '</div>' +
+      '<div class="recent-name">' + esc(b.name) + '</div>' +
+      '</div>';
+  }).join('');
+}
+
+function renderWeekly(items) {
+  var sec = document.getElementById('weekly-section');
+  var grid = document.getElementById('weekly-grid');
+  if (!items.length) { sec.style.display = 'none'; return; }
+  sec.style.display = 'block';
+  grid.innerHTML = items.map(function(d) {
+    var logo = d.logo_url || d.biz_logo;
+    var imgHtml = logo
+      ? '<img src="' + logo + '" alt="">'
+      : '<div class="deal-image-placeholder">🏪</div>';
+    var discBadge = d.discount_pct ? '<div class="deal-badge">' + d.discount_pct + '% הנחה</div>' : '';
+    var meta = [d.biz_category, d.valid_until ? 'עד ' + formatDate(d.valid_until) : ''].filter(Boolean).join(' · ');
+    return '<div class="deal-card" onclick="openBiz(' + d.biz_id + ',\'' + esc(d.biz_name) + '\')">' +
+      '<div class="deal-image">' + imgHtml + discBadge + '</div>' +
+      '<div class="deal-info">' +
+        '<div class="deal-name">' + esc(d.biz_name) + '</div>' +
+        '<div class="deal-meta">' + esc(meta) + '</div>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+function renderBusinesses(items) {
+  var list = document.getElementById('biz-list');
+  var label = document.getElementById('biz-count-label');
+  label.textContent = items.length + ' מתוך ' + allBusinesses.length;
+  if (!items.length) {
+    list.innerHTML = '<div class="empty"><div class="empty-icon">🏪</div><div class="empty-text">לא נמצאו עסקים</div></div>';
+    return;
+  }
+  list.innerHTML = items.map(function(b) {
+    var logo = b.logo_url || b.image_url;
+    var initial = (b.name || '?').charAt(0);
+    var avatarHtml = logo ? '<img src="' + logo + '" alt="">' : initial;
+    var meta = [b.business_category ? catLabel(b.business_category) : '', b.city || ''].filter(Boolean).join(' · ');
+    var disc = b.max_discount ? '<div class="biz-row-discount">' + b.max_discount + '%</div>' : '<div class="biz-row-discount" style="visibility:hidden">-</div>';
+    return '<div class="biz-row" onclick="openBiz(' + b.id + ',\'' + esc(b.name) + '\')">' +
+      disc +
+      '<div class="biz-row-info">' +
+        '<div class="biz-row-name">' + esc(b.name) + '</div>' +
+        '<div class="biz-row-meta">' + esc(meta) + '</div>' +
+      '</div>' +
+      '<div class="biz-row-avatar">' + avatarHtml + '</div>' +
+    '</div>';
+  }).join('');
+}
+
+// ── Actions ───────────────────────────────────────────────────
+function setFilter(f, el) {
+  currentFilter = f;
+  document.querySelectorAll('.filter-chips .chip').forEach(function(c) { c.classList.remove('active'); });
+  el.classList.add('active');
+  loadMarketplace();
+}
+
+function setCategory(cat, el) {
+  currentCategory = cat;
+  document.querySelectorAll('#cat-chips .chip').forEach(function(c) { c.classList.remove('active'); });
+  el.classList.add('active');
+  loadMarketplace();
+}
+
+function onSearch(q) {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(function() {
+    if (!q) { renderBusinesses(allBusinesses); return; }
+    var low = q.toLowerCase();
+    var filtered = allBusinesses.filter(function(b) {
+      return (b.name || '').toLowerCase().includes(low) ||
+             (b.business_category || '').toLowerCase().includes(low);
+    });
+    renderBusinesses(filtered);
+  }, 250);
+}
+
+function toggleNear() {
+  var chip = document.querySelector('[data-filter="near"]');
+  if (chip) chip.click();
+}
+
+function openBiz(bizId, bizName) {
+  // רישום ביקור
+  if (FAMILY_TOKEN && GROUP_ID) {
+    fetch('/api/family/visit-business', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + FAMILY_TOKEN },
+      body: JSON.stringify({ businessGroupId: bizId })
+    }).catch(function(){});
+  }
+  // ניווט ל-storefront — מסר להורה אם בתוך iframe
+  var msg = { action: 'openStorefront', bizId: bizId, bizName: bizName };
+  try { window.parent.postMessage(msg, '*'); } catch(e) {}
+  // fallback — אם פתוח ישירות
+  window.location.href = '/storefront.html?groupId=' + bizId +
+    (GROUP_ID ? '&familyGroupId=' + GROUP_ID : '') +
+    (FAMILY_TOKEN ? '&flowRedeem=1' : '');
+}
+
+function redeemFlw() {
+  try { window.parent.postMessage({ action: 'openFlwRedeem' }, '*'); } catch(e) {}
+}
+
+// ── Helpers ───────────────────────────────────────────────────
+function esc(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function formatDate(d) {
+  try {
+    return new Date(d).toLocaleDateString('he-IL', { day:'numeric', month:'numeric' });
+  } catch(e) { return ''; }
+}
+
+function catLabel(cat) {
+  var m = { restaurants:'מסעדות', services:'שרותים', home:'בית ותחזוקה', fashion:'אופנה', health:'בריאות', beauty:'יופי', other:'אחר' };
+  return m[cat] || cat;
+}
+
+// ── Init ─────────────────────────────────────────────────────
+loadMarketplace();
+</script>
+</body>
+</html>
