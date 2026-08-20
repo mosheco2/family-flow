@@ -10442,7 +10442,7 @@ app.post('/api/ai/actions', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/biz/chat-assistant', async (req, res) => {
+app.post('/api/biz/chat-assistant', verifyBiz, async (req, res) => {
     try {
         const { query, context, groupId } = req.body;
         const hasTokens = await handleAITokens(groupId);
@@ -10691,7 +10691,7 @@ ${context}
 });
 
 // ייצוא דוחות CSV (פתיחה ב-Excel)
-app.get('/api/biz/export-report', async (req, res) => {
+app.get('/api/biz/export-report', verifyBiz, async (req, res) => {
     try {
         const { groupId, type } = req.query;
         if (!groupId) return res.status(400).json({ error: 'groupId required' });
@@ -10868,7 +10868,7 @@ app.get('/api/community/my-initiatives/:groupId', async (req, res) => {
 // --- BIZ APP: COMMUNITY ENDPOINTS (צד העסק) ---
 // ============================================================
 
-app.get('/api/biz/communities/my/:bizId', async (req, res) => {
+app.get('/api/biz/communities/my/:bizId', verifyBiz, async (req, res) => {
     try {
         const result = await pool.query(`
             SELECT c.id, c.name, c.city, c.image_url, cb.discount_pct, cb.status,
@@ -10883,7 +10883,7 @@ app.get('/api/biz/communities/my/:bizId', async (req, res) => {
 });
 
 // ── תחומי עניין של קהילה לעסק (ללא צורך בחברות) ────────────────────────────
-app.get('/api/biz/community/:communityId/groups', async (req, res) => {
+app.get('/api/biz/community/:communityId/groups', verifyBiz, async (req, res) => {
     try {
         const r = await pool.query(
             `SELECT id, name, icon_emoji, members_count FROM community_interest_groups WHERE community_id=$1 ORDER BY members_count DESC`,
@@ -10894,7 +10894,7 @@ app.get('/api/biz/community/:communityId/groups', async (req, res) => {
 });
 
 // ── BIZ COMMUNITY FEED POSTS ─────────────────────────────────────────────────
-app.get('/api/biz/feed/stats', async (req, res) => {
+app.get('/api/biz/feed/stats', verifyBiz, async (req, res) => {
     try {
         const bizId = req.query.business_id;
         if (!bizId) return res.status(400).json({ error: 'business_id required' });
@@ -10908,7 +10908,7 @@ app.get('/api/biz/feed/stats', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/api/biz/feed/posts', async (req, res) => {
+app.get('/api/biz/feed/posts', verifyBiz, async (req, res) => {
     try {
         const bizId = req.query.business_id;
         if (!bizId) return res.status(400).json({ error: 'business_id required' });
@@ -10922,7 +10922,7 @@ app.get('/api/biz/feed/posts', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/biz/feed/posts', async (req, res) => {
+app.post('/api/biz/feed/posts', verifyBiz, async (req, res) => {
     try {
         const { business_id, community_id, group_id, content, image_url, post_type, promo_url, valid_until } = req.body;
         if (!business_id || !content) return res.status(400).json({ error: 'חסר תוכן' });
@@ -10935,7 +10935,7 @@ app.post('/api/biz/feed/posts', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.delete('/api/biz/feed/posts/:id', async (req, res) => {
+app.delete('/api/biz/feed/posts/:id', verifyBiz, async (req, res) => {
     try {
         await pool.query(`DELETE FROM community_posts WHERE id=$1 AND biz_post_status='pending'`, [req.params.id]);
         res.json({ success: true });
@@ -10992,7 +10992,7 @@ app.patch('/api/sa/community/biz-posts/:id/hide', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/api/biz/communities/available/:bizId', async (req, res) => {
+app.get('/api/biz/communities/available/:bizId', verifyBiz, async (req, res) => {
     try {
         const result = await pool.query(`
             SELECT c.id, c.name, c.city, c.image_url,
@@ -11007,7 +11007,7 @@ app.get('/api/biz/communities/available/:bizId', async (req, res) => {
 });
 
 // Find communities via another business (discovery through peer business)
-app.get('/api/biz/communities/via-biz/:bizCode/:myBizId', async (req, res) => {
+app.get('/api/biz/communities/via-biz/:bizCode/:myBizId', verifyBiz, async (req, res) => {
     try {
         const biz = await pool.query(`SELECT id, name FROM family_groups WHERE group_code=$1 AND type='BUSINESS'`, [req.params.bizCode.toUpperCase()]);
         if (!biz.rows.length) return res.status(404).json({ error: 'לא נמצא עסק עם קוד זה' });
@@ -11024,7 +11024,7 @@ app.get('/api/biz/communities/via-biz/:bizCode/:myBizId', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/biz/communities/join', async (req, res) => {
+app.post('/api/biz/communities/join', verifyBiz, async (req, res) => {
     try {
         const { communityId, businessId, discountPct } = req.body;
         const zoneRes = await pool.query(`
@@ -11072,7 +11072,7 @@ app.post('/api/community/invite-business', async (req, res) => {
 });
 
 // עסק — הזמנות ממתינות מקהילות
-app.get('/api/biz/community-invitations/:bizId', async (req, res) => {
+app.get('/api/biz/community-invitations/:bizId', verifyBiz, async (req, res) => {
     try {
         const result = await pool.query(
             `SELECT cb.community_id, c.name as comm_name, c.city, cb.created_at
@@ -11084,7 +11084,7 @@ app.get('/api/biz/community-invitations/:bizId', async (req, res) => {
 });
 
 // עסק — אישור הזמנה + קביעת אחוז הנחה → comm_mgr_pending
-app.post('/api/biz/community-invitation/accept', async (req, res) => {
+app.post('/api/biz/community-invitation/accept', verifyBiz, async (req, res) => {
     try {
         const { businessId, communityId, discountPct } = req.body;
         if (discountPct === undefined || discountPct === '') return res.status(400).json({ error: 'יש להזין אחוז הנחה' });
@@ -11097,7 +11097,7 @@ app.post('/api/biz/community-invitation/accept', async (req, res) => {
 });
 
 // עסק — דחיית הזמנה
-app.post('/api/biz/community-invitation/decline', async (req, res) => {
+app.post('/api/biz/community-invitation/decline', verifyBiz, async (req, res) => {
     try {
         const { businessId, communityId } = req.body;
         await pool.query(`DELETE FROM community_businesses WHERE community_id=$1 AND business_id=$2 AND status='biz_invited'`, [communityId, businessId]);
@@ -11105,7 +11105,7 @@ app.post('/api/biz/community-invitation/decline', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.delete('/api/biz/communities/leave/:communityId/:bizId', async (req, res) => {
+app.delete('/api/biz/communities/leave/:communityId/:bizId', verifyBiz, async (req, res) => {
     try {
         await pool.query('DELETE FROM community_businesses WHERE community_id=$1 AND business_id=$2', [req.params.communityId, req.params.bizId]);
         res.json({ success: true });
@@ -11878,7 +11878,7 @@ app.get('/api/sa/community-promos/pending', async (req, res) => {
 });
 
 // עסק — הגשת מבצע קהילה לאישור
-app.post('/api/biz/community/promotions', async (req, res) => {
+app.post('/api/biz/community/promotions', verifyBiz, async (req, res) => {
     try {
         const { businessId, communityId, title, content, discountPct, validUntil, promoType, catalogItemId, productPromoPrice, conditionType, conditionValue, conditionItemId, conditionCategory } = req.body;
         if (!businessId || !communityId || !title) return res.status(400).json({ error: 'חסרים שדות חובה' });
@@ -11899,7 +11899,7 @@ app.post('/api/biz/community/promotions', async (req, res) => {
 });
 
 // עסק — רשימת מבצעי הקהילה של העסק
-app.get('/api/biz/community/promotions/:bizId', async (req, res) => {
+app.get('/api/biz/community/promotions/:bizId', verifyBiz, async (req, res) => {
     try {
         const result = await pool.query(`
             SELECT cp.*, c.name as comm_name
@@ -12707,7 +12707,7 @@ app.put('/api/zone-manager/community-business/discount', verifyZoneManager, asyn
 });
 
 // עסק — עדכון אחוז הנחה עצמי לקהילה (רק לקהילות מאושרות)
-app.put('/api/biz/community-discount', async (req, res) => {
+app.put('/api/biz/community-discount', verifyBiz, async (req, res) => {
     try {
         const { businessId, communityId, discountPct } = req.body;
         const check = await pool.query(`SELECT 1 FROM community_businesses WHERE community_id=$1 AND business_id=$2 AND status='approved'`, [communityId, businessId]);
@@ -13807,7 +13807,7 @@ app.get('/api/community/promotions/:communityId', async (req, res) => {
 });
 
 // Business sees their own promotions (all statuses)
-app.get('/api/biz/community/promotions/:businessId', async (req, res) => {
+app.get('/api/biz/community/promotions/:businessId', verifyBiz, async (req, res) => {
     try {
         const r = await pool.query(
             `SELECT cp.*, c.name as community_name FROM community_promotions cp
@@ -13848,7 +13848,7 @@ app.get('/api/sa/community/promotions', verifySA, async (req, res) => {
 // --- Feature 2: Match Scoring (דירוג "התאמה") ---
 
 // Get communities with match % for a business
-app.get('/api/biz/communities/match/:bizId', async (req, res) => {
+app.get('/api/biz/communities/match/:bizId', verifyBiz, async (req, res) => {
     try {
         const bizId = parseInt(req.params.bizId);
         // Get business data
@@ -14115,7 +14115,7 @@ app.get('/api/sa/communities/map-data', verifySA, async (req, res) => {
 // --- Feature: Community Banner Requests ---
 
 // Business requests a banner for their approved promotion
-app.post('/api/biz/community/promotions/:id/banner-request', async (req, res) => {
+app.post('/api/biz/community/promotions/:id/banner-request', verifyBiz, async (req, res) => {
     try {
         const { businessId } = req.body;
         if (!businessId) return res.status(400).json({ error: 'חסר businessId' });
@@ -23421,7 +23421,7 @@ app.post('/api/community/pool/:id/message', async (req, res) => {
 });
 
 // הצעות שעסק הגיש לפולים
-app.get('/api/biz/my-pool-bids/:bizGroupId', async (req, res) => {
+app.get('/api/biz/my-pool-bids/:bizGroupId', verifyBiz, async (req, res) => {
     try {
         const r = await pool.query(`
             SELECT fpb.id as bid_id, fpb.price, fpb.description, fpb.status as bid_status, fpb.created_at as bid_at,
@@ -23450,7 +23450,7 @@ app.post('/api/community/pool/cleanup', async (req, res) => {
 });
 
 // פולים פתוחים בקהילות שהעסק חבר בהן
-app.get('/api/biz/pools/:bizGroupId', async (req, res) => {
+app.get('/api/biz/pools/:bizGroupId', verifyBiz, async (req, res) => {
     try {
         // עדכון אוטומטי לסטטוס expired
         await pool.query(`
@@ -23509,7 +23509,7 @@ app.get('/api/community/pool/family-archive/:groupId', async (req, res) => {
 });
 
 // ארכיב פולים לעסק — פולים מ-biz_pool_hidden + פולים גלובלי archived שהעסק השתתף בהם
-app.get('/api/biz/pool-archive/:bizGroupId', async (req, res) => {
+app.get('/api/biz/pool-archive/:bizGroupId', verifyBiz, async (req, res) => {
     try {
         const r = await pool.query(`
             SELECT DISTINCT fp.id, fp.title, fp.description, fp.status, fp.created_at,
@@ -23938,7 +23938,7 @@ app.get('/api/sa/clients/:bizId/ledger', async (req, res) => {
 // ============================================================
 
 // GET available banner slots for a business (filtered by community)
-app.get('/api/biz/banner/slots', async (req, res) => {
+app.get('/api/biz/banner/slots', verifyBiz, async (req, res) => {
     try {
         const { communityId } = req.query;
         const slots = await pool.query(`
@@ -23980,7 +23980,7 @@ app.get('/api/biz/banner/slots', async (req, res) => {
 });
 
 // POST submit banner order (business)
-app.post('/api/biz/banner/orders', async (req, res) => {
+app.post('/api/biz/banner/orders', verifyBiz, async (req, res) => {
     try {
         const { business_id, slot_id, community_ids, duration_days, payment_method, notes,
                 coins_used: clientCoins, cash_amount: clientCash, total_price_ils: clientTotal } = req.body;
@@ -24020,7 +24020,7 @@ app.post('/api/biz/banner/orders', async (req, res) => {
 });
 
 // GET business banner orders
-app.get('/api/biz/banner/orders', async (req, res) => {
+app.get('/api/biz/banner/orders', verifyBiz, async (req, res) => {
     try {
         const { business_id } = req.query;
         if (!business_id) return res.status(400).json({error:'business_id חסר'});
@@ -24035,7 +24035,7 @@ app.get('/api/biz/banner/orders', async (req, res) => {
 });
 
 // GET business billing ledger (business side)
-app.get('/api/biz/billing', async (req, res) => {
+app.get('/api/biz/billing', verifyBiz, async (req, res) => {
     try {
         const { business_id } = req.query;
         if (!business_id) return res.status(400).json({error:'business_id חסר'});
@@ -24053,7 +24053,7 @@ app.get('/api/biz/billing', async (req, res) => {
 });
 
 // POST confirm payment + digital signature (business)
-app.post('/api/biz/billing/:id/confirm', async (req, res) => {
+app.post('/api/biz/billing/:id/confirm', verifyBiz, async (req, res) => {
     try {
         const { business_id, signature_data } = req.body;
         if (!signature_data) return res.status(400).json({error:'חתימה דיגיטלית חסרה'});
@@ -26070,7 +26070,7 @@ app.post('/api/sa/feed/groups', verifySA, async (req, res) => {
 // שלב 2 — API צד עסק
 
 // יצירת פוסט עסקי בפיד
-app.post('/api/biz/community/feed-posts', async (req, res) => {
+app.post('/api/biz/community/feed-posts', verifyBiz, async (req, res) => {
   try {
     const { businessId, communityId, postType, content, imageUrl, promoUrl, validUntil } = req.body;
     if (!content?.trim()) return res.status(400).json({ error: 'תוכן ריק' });
@@ -26097,7 +26097,7 @@ app.post('/api/biz/community/feed-posts', async (req, res) => {
 });
 
 // פוסטים של עסק — כולל סטטוס + engagement
-app.get('/api/biz/community/feed-posts/:bizId', async (req, res) => {
+app.get('/api/biz/community/feed-posts/:bizId', verifyBiz, async (req, res) => {
   try {
     const posts = await pool.query(`
       SELECT cp.*,
@@ -26121,7 +26121,7 @@ app.get('/api/biz/community/feed-posts/:bizId', async (req, res) => {
 });
 
 // מחיקת פוסט עסקי (רק pending או rejected)
-app.delete('/api/biz/community/feed-posts/:id', async (req, res) => {
+app.delete('/api/biz/community/feed-posts/:id', verifyBiz, async (req, res) => {
   try {
     const { businessId } = req.body;
     const post = await pool.query(
@@ -30867,7 +30867,7 @@ app.delete('/api/sa/marketing-campaigns/:id', verifySA, async (req, res) => {
 // WhatsApp — BIZ API Routes
 // ═══════════════════════════════════════════
 
-app.get('/api/biz/whatsapp-settings/:groupId', async (req, res) => {
+app.get('/api/biz/whatsapp-settings/:groupId', verifyBiz, async (req, res) => {
     try {
         const { groupId } = req.params;
         const r = await pool.query(`SELECT * FROM whatsapp_settings WHERE group_id=$1`, [parseInt(groupId)]);
@@ -30878,7 +30878,7 @@ app.get('/api/biz/whatsapp-settings/:groupId', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.put('/api/biz/whatsapp-settings/:groupId', async (req, res) => {
+app.put('/api/biz/whatsapp-settings/:groupId', verifyBiz, async (req, res) => {
     try {
         const { groupId } = req.params;
         const s = req.body;
@@ -30892,7 +30892,7 @@ app.put('/api/biz/whatsapp-settings/:groupId', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/api/biz/whatsapp-log/:groupId', async (req, res) => {
+app.get('/api/biz/whatsapp-log/:groupId', verifyBiz, async (req, res) => {
     try {
         const { groupId } = req.params;
         const limit = Math.min(parseInt(req.query.limit) || 50, 200);
@@ -30902,7 +30902,7 @@ app.get('/api/biz/whatsapp-log/:groupId', async (req, res) => {
 });
 
 // שליחת התראת הזמנה ללקוח (triggered by order events)
-app.post('/api/biz/whatsapp/order-notify', async (req, res) => {
+app.post('/api/biz/whatsapp/order-notify', verifyBiz, async (req, res) => {
     try {
         const { groupId, customerPhone, customerName, messageType, orderId } = req.body;
         if (!groupId || !customerPhone || !messageType) return res.status(400).json({ error: 'missing params' });
@@ -31159,7 +31159,7 @@ app.get('/api/sa/whatsapp-customized', verifySA, async (req, res) => {
 });
 
 // WhatsApp effective settings — public endpoint for BIZ side
-app.get('/api/biz/whatsapp-effective/:groupId', async (req, res) => {
+app.get('/api/biz/whatsapp-effective/:groupId', verifyBiz, async (req, res) => {
     try {
         const gid = parseInt(req.params.groupId);
         const [gDef, ov] = await Promise.all([
