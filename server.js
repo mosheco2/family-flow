@@ -5080,29 +5080,35 @@ app.get('/api/family/marketplace/:groupId', async (req, res) => {
         } catch(e) { console.error('[marketplace] weeklyRes error:', e.message); }
 
         // כל העסקים
-        const catSelect = hasCatCol ? 'fg.business_category' : 'NULL as business_category';
-        const catGroup  = hasCatCol ? ', fg.business_category' : '';
-        let bizQuery = `
-            SELECT fg.id, fg.name, fg.image_url, ${catSelect},
-                   ss.logo_url, ss.phone,
-                   MAX(cp.discount_pct) as max_discount
-            FROM family_groups fg
-            LEFT JOIN store_settings ss ON ss.group_id = fg.id
-            LEFT JOIN community_promotions cp ON cp.biz_code = fg.group_code AND cp.valid_until > NOW()
-            WHERE fg.type='BUSINESS'`;
-        const params = [];
-        if (category && hasCatCol) { params.push(category); bizQuery += ` AND fg.business_category=$${params.length}`; }
-        if (q) { params.push('%' + q + '%'); bizQuery += ` AND fg.name ILIKE $${params.length}`; }
-        bizQuery += ` GROUP BY fg.id, fg.name, fg.image_url${catGroup}, ss.logo_url, ss.phone ORDER BY max_discount DESC NULLS LAST, fg.name LIMIT 50`;
-        const bizRes = await pool.query(bizQuery, params);
+        let bizRows = [];
+        try {
+            const catSelect = hasCatCol ? 'fg.business_category' : 'NULL as business_category';
+            const catGroup  = hasCatCol ? ', fg.business_category' : '';
+            // בדיקה אם community_promotions קיים
+            const cpCheck = await pool.query(`SELECT 1 FROM information_schema.tables WHERE table_name='community_promotions'`);
+            const hasCP = cpCheck.rows.length > 0;
+            // בדיקה אם store_settings קיים
+            const ssCheck = await pool.query(`SELECT 1 FROM information_schema.tables WHERE table_name='store_settings'`);
+            const hasSS = ssCheck.rows.length > 0;
+            let bizQuery = `SELECT fg.id, fg.name, fg.image_url, ${catSelect}, ${hasSS ? 'ss.logo_url, ss.phone,' : 'NULL as logo_url, NULL as phone,'} ${hasCP ? 'MAX(cp.discount_pct) as max_discount' : 'NULL as max_discount'} FROM family_groups fg`;
+            if (hasSS) bizQuery += ` LEFT JOIN store_settings ss ON ss.group_id = fg.id`;
+            if (hasCP) bizQuery += ` LEFT JOIN community_promotions cp ON cp.biz_code = fg.group_code AND cp.valid_until > NOW()`;
+            bizQuery += ` WHERE fg.type='BUSINESS'`;
+            const params = [];
+            if (category && hasCatCol) { params.push(category); bizQuery += ` AND fg.business_category=$${params.length}`; }
+            if (q) { params.push('%' + q + '%'); bizQuery += ` AND fg.name ILIKE $${params.length}`; }
+            bizQuery += ` GROUP BY fg.id, fg.name, fg.image_url${catGroup}${hasSS ? ', ss.logo_url, ss.phone' : ''} ORDER BY ${hasCP ? 'max_discount DESC NULLS LAST,' : ''} fg.name LIMIT 50`;
+            const bizRes = await pool.query(bizQuery, params);
+            bizRows = bizRes.rows;
+        } catch(e) { console.error('[marketplace] bizRes error:', e.message); }
 
-        console.log('[marketplace] groupId=%s businesses=%d hasCatCol=%s', groupId, bizRes.rows.length, hasCatCol);
+        console.log('[marketplace] groupId=%s businesses=%d hasCatCol=%s', groupId, bizRows.length, hasCatCol);
         res.json({
             flwBalance,
             recentlyVisited: recentRows,
             weeklyDeals: weeklyRows,
-            businesses: bizRes.rows,
-            total: bizRes.rows.length
+            businesses: bizRows,
+            total: bizRows.length
         });
     } catch(e) { console.error('[marketplace] ERROR:', e.message); res.status(500).json({ error: e.message }); }
 });
