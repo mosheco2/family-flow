@@ -5042,9 +5042,15 @@ app.get('/api/family/marketplace/:groupId', async (req, res) => {
         );
         const flwBalance = walletRes.rows[0]?.balance || 0;
 
+        // בדיקה האם עמודת business_category קיימת
+        const colCheck = await pool.query(
+            `SELECT 1 FROM information_schema.columns WHERE table_name='family_groups' AND column_name='business_category'`
+        );
+        const hasCatCol = colCheck.rows.length > 0;
+
         // ביקרת לאחרונה (3 אחרונים)
         const recentRes = await pool.query(
-            `SELECT fg.id, fg.name, fg.image_url, fg.business_category
+            `SELECT fg.id, fg.name, fg.image_url${hasCatCol ? ', fg.business_category' : ", NULL as business_category"}
              FROM family_business_visits fbv
              JOIN family_groups fg ON fg.id = fbv.business_group_id
              WHERE fbv.family_group_id=$1
@@ -5056,7 +5062,7 @@ app.get('/api/family/marketplace/:groupId', async (req, res) => {
         const weeklyRes = await pool.query(
             `SELECT cp.id, cp.title, cp.discount_pct, cp.valid_until,
                     fg.id as biz_id, fg.name as biz_name, fg.image_url as biz_logo,
-                    fg.business_category as biz_category,
+                    ${hasCatCol ? 'fg.business_category as biz_category,' : "NULL as biz_category,"}
                     ss.logo_url
              FROM community_promotions cp
              JOIN family_groups fg ON fg.group_code = cp.biz_code
@@ -5066,8 +5072,10 @@ app.get('/api/family/marketplace/:groupId', async (req, res) => {
         );
 
         // כל העסקים
+        const catSelect = hasCatCol ? 'fg.business_category' : 'NULL as business_category';
+        const catGroup  = hasCatCol ? ', fg.business_category' : '';
         let bizQuery = `
-            SELECT fg.id, fg.name, fg.image_url, fg.business_category,
+            SELECT fg.id, fg.name, fg.image_url, ${catSelect},
                    ss.logo_url, ss.phone,
                    MAX(cp.discount_pct) as max_discount
             FROM family_groups fg
@@ -5075,9 +5083,9 @@ app.get('/api/family/marketplace/:groupId', async (req, res) => {
             LEFT JOIN community_promotions cp ON cp.biz_code = fg.group_code AND cp.valid_until > NOW()
             WHERE fg.type='BUSINESS'`;
         const params = [];
-        if (category) { params.push(category); bizQuery += ` AND fg.business_category=$${params.length}`; }
-        if (q) { params.push('%' + q + '%'); bizQuery += ` AND (fg.name ILIKE $${params.length} OR fg.business_category ILIKE $${params.length})`; }
-        bizQuery += ` GROUP BY fg.id, fg.name, fg.image_url, fg.business_category, ss.logo_url, ss.phone ORDER BY max_discount DESC NULLS LAST, fg.name LIMIT 50`;
+        if (category && hasCatCol) { params.push(category); bizQuery += ` AND fg.business_category=$${params.length}`; }
+        if (q) { params.push('%' + q + '%'); bizQuery += ` AND fg.name ILIKE $${params.length}`; }
+        bizQuery += ` GROUP BY fg.id, fg.name, fg.image_url${catGroup}, ss.logo_url, ss.phone ORDER BY max_discount DESC NULLS LAST, fg.name LIMIT 50`;
         const bizRes = await pool.query(bizQuery, params);
 
         res.json({
