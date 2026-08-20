@@ -29697,7 +29697,7 @@ async function verifyBiz(req, res, next) {
 
 // ===== MENU TEMPLATES API (read-only) =====
 
-app.get('/api/menu-templates', verifyBizOrLegacy, async (req, res) => {
+app.get('/api/menu-templates', verifyBizOrLegacy, requireModule('menu_templates'), async (req, res) => {
     const bizGroupId = req.bizAuth.groupId;
     if (!bizGroupId) return res.status(401).json({ error: 'נדרש token' });
     try {
@@ -29719,7 +29719,7 @@ app.get('/api/menu-templates', verifyBizOrLegacy, async (req, res) => {
     }
 });
 
-app.get('/api/menu-templates/:id', verifyBizOrLegacy, async (req, res) => {
+app.get('/api/menu-templates/:id', verifyBizOrLegacy, requireModule('menu_templates'), async (req, res) => {
     const bizGroupId = req.bizAuth.groupId;
     if (!bizGroupId) return res.status(401).json({ error: 'נדרש token' });
     try {
@@ -29744,7 +29744,7 @@ app.get('/api/menu-templates/:id', verifyBizOrLegacy, async (req, res) => {
     }
 });
 
-app.get('/api/menu-quote-requests', verifyBizOrLegacy, async (req, res) => {
+app.get('/api/menu-quote-requests', verifyBizOrLegacy, requireModule('menu_templates'), async (req, res) => {
     const bizGroupId = req.bizAuth.groupId;
     if (!bizGroupId) return res.status(401).json({ error: 'נדרש token' });
     try {
@@ -29773,7 +29773,7 @@ function _menuSlug(name) {
     return `${base}-${suffix}`;
 }
 
-app.post('/api/menu-templates', verifyBizOrLegacy, async (req, res) => {
+app.post('/api/menu-templates', verifyBizOrLegacy, requireModule('menu_templates'), async (req, res) => {
     const bizGroupId = req.bizAuth.groupId;
     if (!bizGroupId) return res.status(401).json({ error: 'נדרש token' });
 
@@ -29830,7 +29830,7 @@ app.post('/api/menu-templates', verifyBizOrLegacy, async (req, res) => {
     }
 });
 
-app.put('/api/menu-templates/:id', verifyBizOrLegacy, async (req, res) => {
+app.put('/api/menu-templates/:id', verifyBizOrLegacy, requireModule('menu_templates'), async (req, res) => {
     const bizGroupId = req.bizAuth.groupId;
     if (!bizGroupId) return res.status(401).json({ error: 'נדרש token' });
 
@@ -29889,7 +29889,7 @@ app.put('/api/menu-templates/:id', verifyBizOrLegacy, async (req, res) => {
 });
 
 // DELETE /api/menu-templates/:id
-app.delete('/api/menu-templates/:id', verifyBizOrLegacy, async (req, res) => {
+app.delete('/api/menu-templates/:id', verifyBizOrLegacy, requireModule('menu_templates'), async (req, res) => {
     const bizGroupId = req.bizAuth.groupId;
     if (!bizGroupId) return res.status(401).json({ error: 'נדרש token' });
     try {
@@ -29914,7 +29914,7 @@ app.delete('/api/menu-templates/:id', verifyBizOrLegacy, async (req, res) => {
 // ===== MENU SECTIONS & ITEMS API =====
 
 // POST /api/menu-templates/:templateId/sections
-app.post('/api/menu-templates/:templateId/sections', verifyBizOrLegacy, async (req, res) => {
+app.post('/api/menu-templates/:templateId/sections', verifyBizOrLegacy, requireModule('menu_templates'), async (req, res) => {
     const bizGroupId = req.bizAuth.groupId;
     if (!bizGroupId) return res.status(401).json({ error: 'נדרש token' });
 
@@ -29962,7 +29962,7 @@ app.post('/api/menu-templates/:templateId/sections', verifyBizOrLegacy, async (r
 });
 
 // PUT /api/menu-sections/:id
-app.put('/api/menu-sections/:id', verifyBizOrLegacy, async (req, res) => {
+app.put('/api/menu-sections/:id', verifyBizOrLegacy, requireModule('menu_templates'), async (req, res) => {
     const bizGroupId = req.bizAuth.groupId;
     if (!bizGroupId) return res.status(401).json({ error: 'נדרש token' });
 
@@ -30004,7 +30004,7 @@ app.put('/api/menu-sections/:id', verifyBizOrLegacy, async (req, res) => {
 });
 
 // DELETE /api/menu-sections/:id
-app.delete('/api/menu-sections/:id', verifyBizOrLegacy, async (req, res) => {
+app.delete('/api/menu-sections/:id', verifyBizOrLegacy, requireModule('menu_templates'), async (req, res) => {
     const bizGroupId = req.bizAuth.groupId;
     if (!bizGroupId) return res.status(401).json({ error: 'נדרש token' });
 
@@ -30026,7 +30026,7 @@ app.delete('/api/menu-sections/:id', verifyBizOrLegacy, async (req, res) => {
 });
 
 // POST /api/menu-sections/:sectionId/items
-app.post('/api/menu-sections/:sectionId/items', verifyBizOrLegacy, async (req, res) => {
+app.post('/api/menu-sections/:sectionId/items', verifyBizOrLegacy, requireModule('menu_templates'), async (req, res) => {
     const bizGroupId = req.bizAuth.groupId;
     if (!bizGroupId) return res.status(401).json({ error: 'נדרש token' });
 
@@ -30086,7 +30086,7 @@ app.post('/api/menu-sections/:sectionId/items', verifyBizOrLegacy, async (req, r
 });
 
 // PUT /api/menu-items/:id
-app.put('/api/menu-items/:id', verifyBizOrLegacy, async (req, res) => {
+app.put('/api/menu-items/:id', verifyBizOrLegacy, requireModule('menu_templates'), async (req, res) => {
     const bizGroupId = req.bizAuth.groupId;
     if (!bizGroupId) return res.status(401).json({ error: 'נדרש token' });
 
@@ -30127,7 +30127,7 @@ app.put('/api/menu-items/:id', verifyBizOrLegacy, async (req, res) => {
 });
 
 // DELETE /api/menu-items/:id
-app.delete('/api/menu-items/:id', verifyBizOrLegacy, async (req, res) => {
+app.delete('/api/menu-items/:id', verifyBizOrLegacy, requireModule('menu_templates'), async (req, res) => {
     const bizGroupId = req.bizAuth.groupId;
     if (!bizGroupId) return res.status(401).json({ error: 'נדרש token' });
 
@@ -30518,7 +30518,7 @@ app.post('/api/menu/public/:slug/catalog-request', async (req, res) => {
 
 // ===== MENU QUOTE REQUEST ACTIONS =====
 
-app.patch('/api/menu-quote-requests/:id/status', verifyBizOrLegacy, async (req, res) => {
+app.patch('/api/menu-quote-requests/:id/status', verifyBizOrLegacy, requireModule('menu_templates'), async (req, res) => {
     const bizGroupId = req.bizAuth.groupId;
     if (!bizGroupId) return res.status(401).json({ error: 'נדרש token' });
 
@@ -30549,7 +30549,7 @@ app.patch('/api/menu-quote-requests/:id/status', verifyBizOrLegacy, async (req, 
     }
 });
 
-app.post('/api/menu-quote-requests/:id/convert', verifyBizOrLegacy, async (req, res) => {
+app.post('/api/menu-quote-requests/:id/convert', verifyBizOrLegacy, requireModule('menu_templates'), async (req, res) => {
     const bizGroupId = req.bizAuth.groupId;
     if (!bizGroupId) return res.status(401).json({ error: 'נדרש token' });
 
