@@ -22143,7 +22143,7 @@ setTimeout(() => { runRetentionCron(); setInterval(runRetentionCron, CRON_INTERV
 
 // ===== LOGISTICS / DISTRIBUTION / DELIVERY API =====
 
-app.get('/api/logistics/dashboard/:groupId', async (req, res) => {
+app.get('/api/logistics/dashboard/:groupId', verifyBizOrLegacy, requireModule('logistics'), async (req, res) => {
     try {
         const gid = parseInt(req.params.groupId);
         const [ordersStats, driversCount, codStats, vehicleAlerts] = await Promise.all([
@@ -22178,7 +22178,7 @@ app.get('/api/logistics/dashboard/:groupId', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/api/logistics/orders/:groupId', async (req, res) => {
+app.get('/api/logistics/orders/:groupId', verifyBizOrLegacy, requireModule('logistics'), async (req, res) => {
     try {
         const gid = parseInt(req.params.groupId);
         const { status, driver_id, date, search } = req.query;
@@ -22198,7 +22198,7 @@ app.get('/api/logistics/orders/:groupId', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/logistics/orders', async (req, res) => {
+app.post('/api/logistics/orders', verifyBizOrLegacy, requireModule('logistics'), async (req, res) => {
     try {
         const { group_id, customer_name, customer_phone, customer_email, pickup_address, delivery_address,
                 scheduled_date, scheduled_time_window, weight_kg, package_count, cod_amount,
@@ -22218,7 +22218,7 @@ app.post('/api/logistics/orders', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.patch('/api/logistics/orders/:id/status', async (req, res) => {
+app.patch('/api/logistics/orders/:id/status', verifyBizOrLegacy, requireModule('logistics'), async (req, res) => {
     try {
         const { status, actor_name, notes } = req.body;
         const old = await pool.query('SELECT status, group_id FROM logistics_orders WHERE id=$1', [req.params.id]);
@@ -22253,7 +22253,7 @@ app.patch('/api/logistics/orders/:id/status', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.patch('/api/logistics/orders/:id/assign', async (req, res) => {
+app.patch('/api/logistics/orders/:id/assign', verifyBizOrLegacy, requireModule('logistics'), async (req, res) => {
     try {
         const { driver_id, vehicle_id } = req.body;
         await pool.query(`UPDATE logistics_orders SET driver_id=$1, vehicle_id=$2, status='assigned', updated_at=NOW() WHERE id=$3`,
@@ -22262,7 +22262,7 @@ app.patch('/api/logistics/orders/:id/assign', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.patch('/api/logistics/orders/:id/pod', async (req, res) => {
+app.patch('/api/logistics/orders/:id/pod', verifyBizOrLegacy, requireModule('logistics'), async (req, res) => {
     try {
         const { pod_photo_url, pod_signature_url, pod_barcode } = req.body;
         await pool.query(`UPDATE logistics_orders SET pod_photo_url=$1, pod_signature_url=$2, pod_barcode=$3, status='delivered', delivered_at=NOW(), updated_at=NOW() WHERE id=$4`,
@@ -22271,7 +22271,7 @@ app.patch('/api/logistics/orders/:id/pod', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.patch('/api/logistics/orders/:id/cod', async (req, res) => {
+app.patch('/api/logistics/orders/:id/cod', verifyBizOrLegacy, requireModule('logistics'), async (req, res) => {
     try {
         const { cod_method } = req.body;
         await pool.query(`UPDATE logistics_orders SET cod_collected=true, cod_method=$1, updated_at=NOW() WHERE id=$2`,
@@ -22280,7 +22280,7 @@ app.patch('/api/logistics/orders/:id/cod', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.patch('/api/logistics/orders/:id', async (req, res) => {
+app.patch('/api/logistics/orders/:id', verifyBizOrLegacy, requireModule('logistics'), async (req, res) => {
     try {
         const fields = ['customer_name','customer_phone','customer_email','pickup_address','delivery_address',
                         'scheduled_date','scheduled_time_window','weight_kg','package_count','cod_amount',
@@ -22294,14 +22294,14 @@ app.patch('/api/logistics/orders/:id', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.delete('/api/logistics/orders/:id', async (req, res) => {
+app.delete('/api/logistics/orders/:id', verifyBizOrLegacy, requireModule('logistics'), async (req, res) => {
     try {
         await pool.query(`UPDATE logistics_orders SET status='cancelled', updated_at=NOW() WHERE id=$1`, [req.params.id]);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/api/logistics/drivers/:groupId', async (req, res) => {
+app.get('/api/logistics/drivers/:groupId', verifyBizOrLegacy, requireModule('logistics'), async (req, res) => {
     try {
         const r = await pool.query(`SELECT ld.*, lv.name AS vehicle_name, lv.type AS vehicle_type,
             (SELECT COUNT(*) FROM logistics_orders lo WHERE lo.driver_id=ld.id AND lo.status IN ('assigned','picked_up','in_transit')) AS active_orders
@@ -22311,7 +22311,7 @@ app.get('/api/logistics/drivers/:groupId', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/logistics/drivers', async (req, res) => {
+app.post('/api/logistics/drivers', verifyBizOrLegacy, requireModule('logistics'), async (req, res) => {
     try {
         const { group_id, name, phone, email, vehicle_id, notes } = req.body;
         const r = await pool.query(`INSERT INTO logistics_drivers (group_id, name, phone, email, vehicle_id, notes) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
@@ -22320,7 +22320,7 @@ app.post('/api/logistics/drivers', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.patch('/api/logistics/drivers/:id', async (req, res) => {
+app.patch('/api/logistics/drivers/:id', verifyBizOrLegacy, requireModule('logistics'), async (req, res) => {
     try {
         const fields = ['name','phone','email','vehicle_id','status','is_active','notes'];
         const sets = [], params = [];
@@ -22332,21 +22332,21 @@ app.patch('/api/logistics/drivers/:id', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.delete('/api/logistics/drivers/:id', async (req, res) => {
+app.delete('/api/logistics/drivers/:id', verifyBizOrLegacy, requireModule('logistics'), async (req, res) => {
     try {
         await pool.query(`UPDATE logistics_drivers SET is_active=false WHERE id=$1`, [req.params.id]);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/api/logistics/vehicles/:groupId', async (req, res) => {
+app.get('/api/logistics/vehicles/:groupId', verifyBizOrLegacy, requireModule('logistics'), async (req, res) => {
     try {
         const r = await pool.query(`SELECT * FROM logistics_vehicles WHERE group_id=$1 ORDER BY name`, [req.params.groupId]);
         res.json(r.rows);
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/logistics/vehicles', async (req, res) => {
+app.post('/api/logistics/vehicles', verifyBizOrLegacy, requireModule('logistics'), async (req, res) => {
     try {
         const { group_id, name, type, plate_number, capacity_kg, insurance_expires_at, inspection_expires_at, notes } = req.body;
         const r = await pool.query(`INSERT INTO logistics_vehicles (group_id, name, type, plate_number, capacity_kg, insurance_expires_at, inspection_expires_at, notes) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
@@ -22355,7 +22355,7 @@ app.post('/api/logistics/vehicles', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.patch('/api/logistics/vehicles/:id', async (req, res) => {
+app.patch('/api/logistics/vehicles/:id', verifyBizOrLegacy, requireModule('logistics'), async (req, res) => {
     try {
         const fields = ['name','type','plate_number','capacity_kg','insurance_expires_at','inspection_expires_at','is_active','notes'];
         const sets = [], params = [];
@@ -22367,21 +22367,21 @@ app.patch('/api/logistics/vehicles/:id', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.delete('/api/logistics/vehicles/:id', async (req, res) => {
+app.delete('/api/logistics/vehicles/:id', verifyBizOrLegacy, requireModule('logistics'), async (req, res) => {
     try {
         await pool.query(`UPDATE logistics_vehicles SET is_active=false WHERE id=$1`, [req.params.id]);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/api/logistics/pricing/:groupId', async (req, res) => {
+app.get('/api/logistics/pricing/:groupId', verifyBizOrLegacy, requireModule('logistics'), async (req, res) => {
     try {
         const r = await pool.query(`SELECT * FROM logistics_pricing_zones WHERE group_id=$1 ORDER BY zone_name`, [req.params.groupId]);
         res.json(r.rows);
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/logistics/pricing', async (req, res) => {
+app.post('/api/logistics/pricing', verifyBizOrLegacy, requireModule('logistics'), async (req, res) => {
     try {
         const { group_id, zone_name, base_price, price_per_km, price_per_kg, min_fee } = req.body;
         const r = await pool.query(`INSERT INTO logistics_pricing_zones (group_id, zone_name, base_price, price_per_km, price_per_kg, min_fee) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
@@ -22390,7 +22390,7 @@ app.post('/api/logistics/pricing', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.patch('/api/logistics/pricing/:id', async (req, res) => {
+app.patch('/api/logistics/pricing/:id', verifyBizOrLegacy, requireModule('logistics'), async (req, res) => {
     try {
         const fields = ['zone_name','base_price','price_per_km','price_per_kg','min_fee','is_active'];
         const sets = [], params = [];
@@ -22402,14 +22402,14 @@ app.patch('/api/logistics/pricing/:id', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.delete('/api/logistics/pricing/:id', async (req, res) => {
+app.delete('/api/logistics/pricing/:id', verifyBizOrLegacy, requireModule('logistics'), async (req, res) => {
     try {
         await pool.query('DELETE FROM logistics_pricing_zones WHERE id=$1', [req.params.id]);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/api/logistics/cod/:groupId', async (req, res) => {
+app.get('/api/logistics/cod/:groupId', verifyBizOrLegacy, requireModule('logistics'), async (req, res) => {
     try {
         const gid = parseInt(req.params.groupId);
         const date = req.query.date || new Date().toISOString().split('T')[0];
@@ -22426,7 +22426,7 @@ app.get('/api/logistics/cod/:groupId', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/logistics/cod/close', async (req, res) => {
+app.post('/api/logistics/cod/close', verifyBizOrLegacy, requireModule('logistics'), async (req, res) => {
     try {
         const { driver_id, date, total_deposited, notes, group_id } = req.body;
         const collected = await pool.query(`SELECT COALESCE(SUM(cod_amount),0) AS total FROM logistics_orders WHERE driver_id=$1 AND scheduled_date=$2 AND cod_collected=true`, [driver_id, date]);
@@ -22437,7 +22437,7 @@ app.post('/api/logistics/cod/close', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/api/logistics/rfq/:groupId', async (req, res) => {
+app.get('/api/logistics/rfq/:groupId', verifyBizOrLegacy, requireModule('logistics'), async (req, res) => {
     try {
         const { status } = req.query;
         let q = 'SELECT * FROM logistics_rfq WHERE group_id=$1';
@@ -22449,7 +22449,7 @@ app.get('/api/logistics/rfq/:groupId', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/logistics/rfq', async (req, res) => {
+app.post('/api/logistics/rfq', verifyBizOrLegacy, requireModule('logistics'), async (req, res) => {
     try {
         const { group_id, client_name, client_phone, description, pickup_address, delivery_address, preferred_date } = req.body;
         const r = await pool.query(`INSERT INTO logistics_rfq (group_id, client_name, client_phone, description, pickup_address, delivery_address, preferred_date) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
@@ -22458,7 +22458,7 @@ app.post('/api/logistics/rfq', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.patch('/api/logistics/rfq/:id/message', async (req, res) => {
+app.patch('/api/logistics/rfq/:id/message', verifyBizOrLegacy, requireModule('logistics'), async (req, res) => {
     try {
         const { from, text } = req.body;
         const existing = await pool.query('SELECT messages FROM logistics_rfq WHERE id=$1', [req.params.id]);
@@ -22470,7 +22470,7 @@ app.patch('/api/logistics/rfq/:id/message', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.patch('/api/logistics/rfq/:id/quote', async (req, res) => {
+app.patch('/api/logistics/rfq/:id/quote', verifyBizOrLegacy, requireModule('logistics'), async (req, res) => {
     try {
         const { quote_amount, deposit_amount } = req.body;
         await pool.query(`UPDATE logistics_rfq SET quote_amount=$1, deposit_amount=$2, status='quoted', updated_at=NOW() WHERE id=$3`,
@@ -22479,7 +22479,7 @@ app.patch('/api/logistics/rfq/:id/quote', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.patch('/api/logistics/rfq/:id/status', async (req, res) => {
+app.patch('/api/logistics/rfq/:id/status', verifyBizOrLegacy, requireModule('logistics'), async (req, res) => {
     try {
         const { status } = req.body;
         await pool.query(`UPDATE logistics_rfq SET status=$1, updated_at=NOW() WHERE id=$2`, [status, req.params.id]);
@@ -22487,7 +22487,7 @@ app.patch('/api/logistics/rfq/:id/status', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/api/logistics/reports/:groupId', async (req, res) => {
+app.get('/api/logistics/reports/:groupId', verifyBizOrLegacy, requireModule('logistics'), async (req, res) => {
     try {
         const gid = parseInt(req.params.groupId);
         const period = req.query.period || 'week';
@@ -22517,7 +22517,7 @@ app.get('/api/logistics/reports/:groupId', async (req, res) => {
 });
 
 // ─── Logistics v2: Tracking token generation ──────────────────────────────────
-app.post('/api/logistics/orders/:id/tracking-token', async (req, res) => {
+app.post('/api/logistics/orders/:id/tracking-token', verifyBizOrLegacy, requireModule('logistics'), async (req, res) => {
     try {
         const existing = await pool.query('SELECT tracking_token FROM logistics_orders WHERE id=$1', [req.params.id]);
         if (existing.rows[0]?.tracking_token) return res.json({ token: existing.rows[0].tracking_token });
@@ -22554,7 +22554,7 @@ app.get('/api/logistics/track/:token', async (req, res) => {
 });
 
 // ─── Logistics v2: Failed attempt ─────────────────────────────────────────────
-app.post('/api/logistics/orders/:id/failed-attempt', async (req, res) => {
+app.post('/api/logistics/orders/:id/failed-attempt', verifyBizOrLegacy, requireModule('logistics'), async (req, res) => {
     try {
         const { gps, notes, actor_name } = req.body;
         const cur = await pool.query('SELECT failed_attempts_count, group_id FROM logistics_orders WHERE id=$1', [req.params.id]);
@@ -22571,7 +22571,7 @@ app.post('/api/logistics/orders/:id/failed-attempt', async (req, res) => {
 });
 
 // ─── Logistics v2: Order events timeline ──────────────────────────────────────
-app.get('/api/logistics/orders/:id/events', async (req, res) => {
+app.get('/api/logistics/orders/:id/events', verifyBizOrLegacy, requireModule('logistics'), async (req, res) => {
     try {
         const r = await pool.query(`SELECT * FROM logistics_order_events WHERE order_id=$1 ORDER BY created_at DESC`, [req.params.id]);
         res.json(r.rows);
@@ -22579,7 +22579,7 @@ app.get('/api/logistics/orders/:id/events', async (req, res) => {
 });
 
 // ─── Logistics v2: Driver location update ─────────────────────────────────────
-app.patch('/api/logistics/drivers/:id/location', async (req, res) => {
+app.patch('/api/logistics/drivers/:id/location', verifyBizOrLegacy, requireModule('logistics'), async (req, res) => {
     try {
         const { lat, lng } = req.body;
         await pool.query('UPDATE logistics_drivers SET current_lat=$1, current_lng=$2, location_updated_at=NOW() WHERE id=$3', [lat, lng, req.params.id]);
@@ -22588,7 +22588,7 @@ app.patch('/api/logistics/drivers/:id/location', async (req, res) => {
 });
 
 // ─── Logistics v2: Driver companion — orders for today ────────────────────────
-app.get('/api/logistics/driver-orders/:groupId/:driverId', async (req, res) => {
+app.get('/api/logistics/driver-orders/:groupId/:driverId', verifyBizOrLegacy, requireModule('logistics'), async (req, res) => {
     try {
         const { date } = req.query;
         const d = date || new Date().toISOString().split('T')[0];
@@ -22602,7 +22602,7 @@ app.get('/api/logistics/driver-orders/:groupId/:driverId', async (req, res) => {
 });
 
 // ─── Logistics v2: Routes ─────────────────────────────────────────────────────
-app.get('/api/logistics/routes/:groupId', async (req, res) => {
+app.get('/api/logistics/routes/:groupId', verifyBizOrLegacy, requireModule('logistics'), async (req, res) => {
     try {
         const { date } = req.query;
         const d = date || new Date().toISOString().split('T')[0];
@@ -22620,7 +22620,7 @@ app.get('/api/logistics/routes/:groupId', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/api/logistics/routes/:groupId/:routeId/stops', async (req, res) => {
+app.get('/api/logistics/routes/:groupId/:routeId/stops', verifyBizOrLegacy, requireModule('logistics'), async (req, res) => {
     try {
         const r = await pool.query(`
             SELECT lrs.*, lo.customer_name, lo.delivery_address, lo.status AS order_status,
@@ -22633,7 +22633,7 @@ app.get('/api/logistics/routes/:groupId/:routeId/stops', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/logistics/routes', async (req, res) => {
+app.post('/api/logistics/routes', verifyBizOrLegacy, requireModule('logistics'), async (req, res) => {
     try {
         const { group_id, driver_id, vehicle_id, route_date, name, notes } = req.body;
         const r = await pool.query(`INSERT INTO logistics_routes (group_id, driver_id, vehicle_id, route_date, name, notes)
@@ -22642,7 +22642,7 @@ app.post('/api/logistics/routes', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/logistics/routes/:routeId/stops', async (req, res) => {
+app.post('/api/logistics/routes/:routeId/stops', verifyBizOrLegacy, requireModule('logistics'), async (req, res) => {
     try {
         const { order_id, stop_order, eta } = req.body;
         const r = await pool.query(`INSERT INTO logistics_route_stops (route_id, order_id, stop_order, eta)
@@ -22651,14 +22651,14 @@ app.post('/api/logistics/routes/:routeId/stops', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.patch('/api/logistics/routes/:id/status', async (req, res) => {
+app.patch('/api/logistics/routes/:id/status', verifyBizOrLegacy, requireModule('logistics'), async (req, res) => {
     try {
         await pool.query('UPDATE logistics_routes SET status=$1 WHERE id=$2', [req.body.status, req.params.id]);
         res.json({ ok: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.delete('/api/logistics/routes/:id', async (req, res) => {
+app.delete('/api/logistics/routes/:id', verifyBizOrLegacy, requireModule('logistics'), async (req, res) => {
     try {
         await pool.query('DELETE FROM logistics_routes WHERE id=$1', [req.params.id]);
         res.json({ ok: true });
@@ -22674,14 +22674,14 @@ app.post('/api/logistics/track/:token/leave-at-door', async (req, res) => {
 });
 
 // ─── Logistics v2: Rate cards (advanced pricing rules) ────────────────────────
-app.get('/api/logistics/rate-cards/:groupId', async (req, res) => {
+app.get('/api/logistics/rate-cards/:groupId', verifyBizOrLegacy, requireModule('logistics'), async (req, res) => {
     try {
         const r = await pool.query('SELECT * FROM logistics_rate_cards WHERE group_id=$1 AND is_active=true ORDER BY name', [req.params.groupId]);
         res.json(r.rows);
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/logistics/rate-cards', async (req, res) => {
+app.post('/api/logistics/rate-cards', verifyBizOrLegacy, requireModule('logistics'), async (req, res) => {
     try {
         const { group_id, name, rule_type, condition_key, condition_value, surcharge_amount, surcharge_pct, notes } = req.body;
         const r = await pool.query(`INSERT INTO logistics_rate_cards (group_id, name, rule_type, condition_key, condition_value, surcharge_amount, surcharge_pct, notes)
@@ -22691,7 +22691,7 @@ app.post('/api/logistics/rate-cards', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.patch('/api/logistics/rate-cards/:id', async (req, res) => {
+app.patch('/api/logistics/rate-cards/:id', verifyBizOrLegacy, requireModule('logistics'), async (req, res) => {
     try {
         const fields = ['name','rule_type','condition_key','condition_value','surcharge_amount','surcharge_pct','notes','is_active'];
         const sets = []; const params = [];
@@ -22702,7 +22702,7 @@ app.patch('/api/logistics/rate-cards/:id', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.delete('/api/logistics/rate-cards/:id', async (req, res) => {
+app.delete('/api/logistics/rate-cards/:id', verifyBizOrLegacy, requireModule('logistics'), async (req, res) => {
     try {
         await pool.query('UPDATE logistics_rate_cards SET is_active=false WHERE id=$1', [req.params.id]);
         res.json({ ok: true });
@@ -22710,14 +22710,14 @@ app.delete('/api/logistics/rate-cards/:id', async (req, res) => {
 });
 
 // ─── Logistics: Customers ─────────────────────────────────────────────────────
-app.get('/api/logistics/customers/:groupId', async (req, res) => {
+app.get('/api/logistics/customers/:groupId', verifyBizOrLegacy, requireModule('logistics'), async (req, res) => {
     try {
         const r = await pool.query(`SELECT * FROM logistics_customers WHERE group_id=$1 AND is_active=true ORDER BY name`, [req.params.groupId]);
         res.json(r.rows);
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/logistics/customers', async (req, res) => {
+app.post('/api/logistics/customers', verifyBizOrLegacy, requireModule('logistics'), async (req, res) => {
     try {
         const { group_id, name, phone, email, default_address, customer_type, discount_pct, delivery_instructions, notes } = req.body;
         const r = await pool.query(`INSERT INTO logistics_customers (group_id, name, phone, email, default_address, customer_type, discount_pct, delivery_instructions, notes)
@@ -22727,7 +22727,7 @@ app.post('/api/logistics/customers', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.patch('/api/logistics/customers/:id', async (req, res) => {
+app.patch('/api/logistics/customers/:id', verifyBizOrLegacy, requireModule('logistics'), async (req, res) => {
     try {
         const fields = ['name','phone','email','default_address','customer_type','discount_pct','delivery_instructions','notes'];
         const sets = []; const params = [];
@@ -22739,7 +22739,7 @@ app.patch('/api/logistics/customers/:id', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.delete('/api/logistics/customers/:id', async (req, res) => {
+app.delete('/api/logistics/customers/:id', verifyBizOrLegacy, requireModule('logistics'), async (req, res) => {
     try {
         await pool.query('UPDATE logistics_customers SET is_active=false WHERE id=$1', [req.params.id]);
         res.json({ ok: true });
@@ -22747,7 +22747,7 @@ app.delete('/api/logistics/customers/:id', async (req, res) => {
 });
 
 // ─── Logistics: Invoices ──────────────────────────────────────────────────────
-app.get('/api/logistics/invoices/:groupId', async (req, res) => {
+app.get('/api/logistics/invoices/:groupId', verifyBizOrLegacy, requireModule('logistics'), async (req, res) => {
     try {
         const r = await pool.query(`SELECT li.*, lo.order_number, lo.delivery_address
             FROM logistics_invoices li
@@ -22757,7 +22757,7 @@ app.get('/api/logistics/invoices/:groupId', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.patch('/api/logistics/invoices/:id/status', async (req, res) => {
+app.patch('/api/logistics/invoices/:id/status', verifyBizOrLegacy, requireModule('logistics'), async (req, res) => {
     try {
         const { status } = req.body;
         const extra = status === 'paid' ? ', paid_at=NOW()' : (status === 'sent' ? ', sent_at=NOW()' : '');
@@ -22766,7 +22766,7 @@ app.patch('/api/logistics/invoices/:id/status', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.delete('/api/logistics/invoices/:id', async (req, res) => {
+app.delete('/api/logistics/invoices/:id', verifyBizOrLegacy, requireModule('logistics'), async (req, res) => {
     try {
         await pool.query('DELETE FROM logistics_invoices WHERE id=$1', [req.params.id]);
         res.json({ ok: true });
