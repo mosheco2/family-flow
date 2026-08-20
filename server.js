@@ -5037,7 +5037,7 @@ app.get('/api/family/marketplace/:groupId', async (req, res) => {
 
         // יתרת FLW
         const walletRes = await pool.query(
-            `SELECT COALESCE(balance,0) as balance FROM flow_wallets WHERE group_id=$1 AND wallet_type='family'`,
+            `SELECT COALESCE(balance,0) as balance FROM flow_wallets WHERE entity_type='family' AND entity_id=$1`,
             [groupId]
         );
         const flwBalance = walletRes.rows[0]?.balance || 0;
