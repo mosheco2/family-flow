@@ -13308,7 +13308,7 @@ function _memberBizIcon(type) {
     return icons[type] || '🏢';
 }
 function _memberBizTypeLabel(type) {
-    const labels = { sport:'ספורט / כושר', restaurant:'מסעדה / בית קפה', retail:'חנות', services:'שירותים', construction:'בנייה', maintenance_repair:'תחזוקה', logistics:'לוגיסטיקה', healthcare:'בריאות', beauty:'יופי', education:'חינוך', events:'אירועים', food_production:'ייצור מזון' };
+    const labels = { restaurant:'מסעדה / בית קפה', beauty:'יופי', maintenance_repair:'תיקונים', professional:'מומחים', logistics:'לוגיסטיקה', sport:'ספורט / כושר', other:'אחר', retail:'חנות', services:'שירותים', construction:'בנייה', healthcare:'בריאות', education:'חינוך', events:'אירועים', food_production:'ייצור מזון', expert:'מומחים' };
     return labels[type] || type;
 }
 
