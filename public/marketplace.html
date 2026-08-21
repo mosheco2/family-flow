@@ -621,11 +621,12 @@ html, body {
   <div class="cat-chips" id="cat-chips">
     <div class="chip active" data-cat="" onclick="setCategory('',this)">הכל</div>
     <div class="chip" data-cat="restaurant" onclick="setCategory('restaurant',this)">מסעדות</div>
+    <div class="chip" data-cat="maintenance_repair" onclick="setCategory('maintenance_repair',this)">תיקונים</div>
+    <div class="chip" data-cat="professional" onclick="setCategory('professional',this)">מומחים</div>
     <div class="chip" data-cat="beauty" onclick="setCategory('beauty',this)">יופי</div>
     <div class="chip" data-cat="sport" onclick="setCategory('sport',this)">ספורט</div>
-    <div class="chip" data-cat="expert" onclick="setCategory('expert',this)">מומחים</div>
     <div class="chip" data-cat="logistics" onclick="setCategory('logistics',this)">לוגיסטיקה</div>
-    <div class="chip" data-cat="maintenance_repair" onclick="setCategory('maintenance_repair',this)">תיקונים</div>
+    <div class="chip" data-cat="other" onclick="setCategory('other',this)">אחר</div>
   </div>
 
   <!-- Business list -->
@@ -932,7 +933,7 @@ function formatDate(d) {
 }
 
 function catLabel(cat) {
-  var m = { restaurant:'מסעדות', beauty:'יופי', sport:'ספורט', expert:'מומחים', logistics:'לוגיסטיקה', maintenance_repair:'תיקונים', services:'שרותים', other:'אחר' };
+  var m = { restaurant:'מסעדות', beauty:'יופי', sport:'ספורט', professional:'מומחים', expert:'מומחים', logistics:'לוגיסטיקה', maintenance_repair:'תיקונים', services:'שרותים', other:'אחר' };
   return m[cat] || cat || '';
 }
 
