@@ -1865,7 +1865,8 @@ function renderSAGroups() {
     if (_saGroupsPage >= totalPages) _saGroupsPage = totalPages - 1;
     const pageGroups = filteredGroups.slice(_saGroupsPage * SA_GROUPS_PAGE_SIZE, (_saGroupsPage + 1) * SA_GROUPS_PAGE_SIZE);
 
-    pageGroups.forEach(g => {
+    pageGroups.forEach((g, idx) => {
+        const globalIdx = _saGroupsPage * SA_GROUPS_PAGE_SIZE + idx + 1;
         let uHtml = saAllUsers.filter(u => u.group_id === g.id).map(u => {
             const phoneBadge = u.phone
                 ? `<span class="text-[10px] text-emerald-600 bg-emerald-50 border border-emerald-100 px-1.5 py-0.5 rounded-full mr-1">${safeStr(u.phone)}</span>`
@@ -1952,7 +1953,7 @@ function renderSAGroups() {
             ${g.member_type === 'member' ? '<div class="bg-gradient-to-r from-violet-500 to-purple-600 text-white text-[11px] font-bold px-4 py-1 flex items-center gap-1"><i class=\"fa-solid fa-link\"></i> חבר ONEFLOW</div>' : ''}
             <div class="p-4 cursor-pointer flex justify-between items-center hover:bg-slate-50 transition" onclick="document.getElementById('sa-group-details-${g.id}').classList.toggle('hidden')">
                 <div class="flex items-center">
-                    <div class="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center ml-3"><i class="fa-solid ${g.type === 'BUSINESS' ? 'fa-building' : 'fa-users'}"></i></div>
+                    <div class="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center ml-3 relative"><i class="fa-solid ${g.type === 'BUSINESS' ? 'fa-building' : 'fa-users'}"></i><span style="position:absolute;top:-6px;right:-6px;background:#6366f1;color:#fff;border-radius:999px;font-size:9px;font-weight:800;padding:1px 5px;min-width:18px;text-align:center;line-height:16px;">${globalIdx}</span></div>
                     <div>
                         <h3 class="font-bold text-slate-800 text-sm flex items-center flex-wrap gap-1">${safeStr(fmtGroupName(g))} ${isPro} ${typeBadge} ${accountStatusBadge}</h3>
                         <p class="text-xs text-slate-500 font-mono tracking-widest mt-0.5">קוד: ${g.group_code} | ⚡ ${aiTokens} | <span class="font-sans text-[10px]">הוקם: ${createdDate}</span></p>
