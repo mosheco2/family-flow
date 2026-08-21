@@ -49,57 +49,6 @@ html, body {
   padding: 14px 16px 10px;
 }
 
-.header-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 10px;
-}
-
-.header-brand {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.brand-avatar {
-  width: 36px;
-  height: 36px;
-  background: var(--green);
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  font-weight: 700;
-  font-size: 14px;
-  flex-shrink: 0;
-}
-
-.brand-name {
-  text-align: right;
-}
-
-.brand-name .title {
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--text);
-  line-height: 1.2;
-}
-
-.brand-name .sub {
-  font-size: 10px;
-  letter-spacing: 0.08em;
-  color: var(--muted);
-  text-transform: uppercase;
-}
-
-.header-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
 .flw-badge {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -172,10 +121,25 @@ html, body {
   display: flex;
   gap: 6px;
   flex-wrap: nowrap;
+  align-items: center;
   overflow-x: auto;
   scrollbar-width: none;
   padding-bottom: 2px;
 }
+.filter-chips .icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+  flex-shrink: 0;
+  color: var(--text-muted);
+  transition: background 0.15s;
+}
+.filter-chips .icon-btn:hover { background: var(--bg-alt); }
 
 .filter-chips::-webkit-scrollbar { display: none; }
 
@@ -534,23 +498,6 @@ html, body {
 <body>
 
 <div class="header">
-  <div class="header-top">
-    <div class="header-actions">
-      <span class="flw-badge" id="flw-top-badge">רל</span>
-      <span class="icon-btn" onclick="loadMarketplace()">↺</span>
-      <span class="icon-btn" onclick="navTo('profile')" title="פרופיל" style="margin-right:2px;">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
-      </span>
-    </div>
-    <div class="header-brand">
-      <div class="brand-name">
-        <div class="title">מרקט</div>
-        <div class="sub">BUSINESS</div>
-      </div>
-      <div class="brand-avatar" id="family-initial">מ</div>
-    </div>
-  </div>
-
   <div class="search-row" style="position:relative">
     <div class="search-bar">
       <div class="search-radio" id="near-toggle" onclick="toggleNear()"></div>
@@ -566,6 +513,12 @@ html, body {
     <div class="chip active" data-filter="for-me" onclick="setFilter('for-me',this)">בשבילך</div>
     <div class="chip" data-filter="all" onclick="setFilter('all',this)">הכל</div>
     <div class="chip" data-filter="near" onclick="setFilter('near',this)">קרובים אליי</div>
+    <span class="icon-btn" onclick="loadMarketplace()" title="רענון" style="margin-right:auto;margin-left:4px;">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+    </span>
+    <span class="icon-btn" onclick="navTo('profile')" title="פרופיל">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+    </span>
   </div>
 </div>
 
@@ -663,10 +616,6 @@ var currentFilter = 'for-me';
   var p = new URLSearchParams(location.search);
   GROUP_ID = p.get('groupId') || p.get('group_id');
   FAMILY_TOKEN = p.get('token') || p.get('familyToken');
-  var name = p.get('familyName') || '';
-  if (name) {
-    document.getElementById('family-initial').textContent = name.charAt(0);
-  }
 })();
 
 // ── Data ──────────────────────────────────────────────────────
@@ -686,7 +635,7 @@ function renderAll(data) {
   // FLW
   var bal = parseFloat(data.flwBalance || 0);
   document.getElementById('flw-amount').textContent = '₪ ' + bal.toLocaleString('he-IL', {minimumFractionDigits: 0, maximumFractionDigits: 0});
-  document.getElementById('flw-top-badge').textContent = 'רל ' + (bal > 0 ? bal.toFixed(0) : '');
+  // (flw-top-badge removed)
 
   // Recently visited
   renderRecent(data.recentlyVisited || []);
