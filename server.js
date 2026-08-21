@@ -5092,7 +5092,7 @@ app.get('/api/family/marketplace/:groupId', async (req, res) => {
             const hasSS = ssCheck.rows.length > 0;
             let bizQuery = `SELECT fg.id, fg.name, fg.image_url, ${catSelect}, ${hasSS ? 'ss.logo_url, ss.phone,' : 'NULL as logo_url, NULL as phone,'} NULL as max_discount FROM family_groups fg`;
             if (hasSS) bizQuery += ` LEFT JOIN store_settings ss ON ss.group_id = fg.id`;
-            bizQuery += ` WHERE fg.type='BUSINESS'`;
+            bizQuery += ` WHERE fg.type='BUSINESS' AND (fg.is_deleted=false OR fg.is_deleted IS NULL)`;
             const params = [];
             if (category && hasCatCol) { params.push(category); bizQuery += ` AND fg.business_category=$${params.length}`; }
             if (q) { params.push('%' + q + '%'); bizQuery += ` AND fg.name ILIKE $${params.length}`; }
