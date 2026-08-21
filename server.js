@@ -5062,17 +5062,11 @@ app.get('/api/family/marketplace/:groupId', async (req, res) => {
         );
         const flwBalance = walletRes.rows[0]?.balance || 0;
 
-        // בדיקה האם עמודת business_category קיימת
-        const colCheck = await pool.query(
-            `SELECT 1 FROM information_schema.columns WHERE table_name='family_groups' AND column_name='business_category'`
-        );
-        const hasCatCol = colCheck.rows.length > 0;
-
         // ביקרת לאחרונה (3 אחרונים)
         let recentRows = [];
         try {
             const recentRes = await pool.query(
-                `SELECT fg.id, fg.name, fg.image_url${hasCatCol ? ', fg.business_category' : ", NULL as business_category"}
+                `SELECT fg.id, fg.name, fg.image_url, fg.business_type as business_category
                  FROM family_business_visits fbv
                  JOIN family_groups fg ON fg.id = fbv.business_group_id
                  WHERE fbv.family_group_id=$1
@@ -5088,7 +5082,7 @@ app.get('/api/family/marketplace/:groupId', async (req, res) => {
             const weeklyRes = await pool.query(
                 `SELECT cp.id, cp.title, cp.discount_pct, cp.valid_until,
                         fg.id as biz_id, fg.name as biz_name, fg.image_url as biz_logo,
-                        ${hasCatCol ? 'fg.business_category as biz_category,' : "NULL as biz_category,"}
+                        fg.business_type as biz_category,
                         ss.logo_url
                  FROM community_promotions cp
                  JOIN family_groups fg ON fg.group_code = cp.biz_code
@@ -5102,26 +5096,21 @@ app.get('/api/family/marketplace/:groupId', async (req, res) => {
         // כל העסקים
         let bizRows = [];
         try {
-            const catSelect = hasCatCol ? 'fg.business_category' : 'NULL as business_category';
-            const catGroup  = hasCatCol ? ', fg.business_category' : '';
-            // בדיקה אם community_promotions קיים
-            const cpCheck = await pool.query(`SELECT 1 FROM information_schema.tables WHERE table_name='community_promotions'`);
-            const hasCP = cpCheck.rows.length > 0;
             // בדיקה אם store_settings קיים
             const ssCheck = await pool.query(`SELECT 1 FROM information_schema.tables WHERE table_name='store_settings'`);
             const hasSS = ssCheck.rows.length > 0;
-            let bizQuery = `SELECT fg.id, fg.name, fg.image_url, ${catSelect}, ${hasSS ? 'ss.logo_url, ss.phone,' : 'NULL as logo_url, NULL as phone,'} NULL as max_discount FROM family_groups fg`;
+            let bizQuery = `SELECT fg.id, fg.name, fg.image_url, fg.business_type as business_category, ${hasSS ? 'ss.logo_url, ss.phone,' : 'NULL as logo_url, NULL as phone,'} NULL as max_discount FROM family_groups fg`;
             if (hasSS) bizQuery += ` LEFT JOIN store_settings ss ON ss.group_id = fg.id`;
             bizQuery += ` WHERE fg.type='BUSINESS' AND (fg.is_deleted=false OR fg.is_deleted IS NULL)`;
             const params = [];
-            if (category && hasCatCol) { params.push(category); bizQuery += ` AND fg.business_category ILIKE $${params.length}`; }
+            if (category) { params.push(category); bizQuery += ` AND fg.business_type ILIKE $${params.length}`; }
             if (q) { params.push('%' + q + '%'); bizQuery += ` AND fg.name ILIKE $${params.length}`; }
-            bizQuery += ` GROUP BY fg.id, fg.name, fg.image_url${catGroup}${hasSS ? ', ss.logo_url, ss.phone' : ''} ORDER BY fg.name LIMIT 50`;
+            bizQuery += ` GROUP BY fg.id, fg.name, fg.image_url, fg.business_type${hasSS ? ', ss.logo_url, ss.phone' : ''} ORDER BY fg.name LIMIT 50`;
             const bizRes = await pool.query(bizQuery, params);
             bizRows = bizRes.rows;
         } catch(e) { console.error('[marketplace] bizRes error:', e.message); }
 
-        console.log('[marketplace] groupId=%s businesses=%d hasCatCol=%s', groupId, bizRows.length, hasCatCol);
+        console.log('[marketplace] groupId=%s businesses=%d category=%s', groupId, bizRows.length, category||'all');
         res.json({
             flwBalance,
             recentlyVisited: recentRows,
