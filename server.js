@@ -14668,7 +14668,7 @@ app.get('/api/sa/groups', verifySA, async (req, res) => {
         const params = [`%${search}%`];
         if (type && type !== 'all') params.push(type);
         const r = await pool.query(
-            `SELECT id, name, type FROM family_groups WHERE name ILIKE $1 ${typeFilter} ORDER BY name LIMIT 30`,
+            `SELECT id, name, type, group_code, business_type, is_deleted, account_status FROM family_groups WHERE name ILIKE $1 ${typeFilter} ORDER BY name LIMIT 200`,
             params);
         res.json({ groups: r.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
