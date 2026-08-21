@@ -18128,7 +18128,18 @@ function loadMarketplaceTab() {
     var groupId = currentGroup && currentGroup.id ? currentGroup.id : '';
     var name = currentGroup && currentGroup.name ? currentGroup.name : '';
     var src = '/marketplace?groupId=' + groupId + '&token=' + encodeURIComponent(token) + '&familyName=' + encodeURIComponent(name);
-    el.innerHTML = '<iframe src="' + src + '" style="width:100%;height:100%;border:none;" title="מרקט"></iframe>';
+    var mktIframe = document.createElement('iframe');
+    mktIframe.src = src;
+    mktIframe.title = 'מרקט';
+    mktIframe.style.cssText = 'width:100%;border:none;display:block;';
+    el.appendChild(mktIframe);
+    function _setMktHeight() {
+        var rect = el.getBoundingClientRect();
+        var h = Math.max(window.innerHeight - rect.top, 300);
+        mktIframe.style.height = h + 'px';
+    }
+    requestAnimationFrame(function() { setTimeout(_setMktHeight, 30); });
+    window.addEventListener('resize', _setMktHeight);
 
     // handle postMessage from iframe
     window.addEventListener('message', function(e) {
