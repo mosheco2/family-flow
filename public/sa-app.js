@@ -1827,6 +1827,8 @@ async function saveWelcomeMsg(type = 'FAMILY') {
 }
 
 let _saGroupTypeFilter = 'all';
+let _saGroupsPage = 0;
+const SA_GROUPS_PAGE_SIZE = 25;
 function _renderGroupTypeFilters() {
     const cont = getEl('sa-group-type-filters');
     if (!cont) return;
@@ -1842,6 +1844,7 @@ function _renderGroupTypeFilters() {
 }
 window._saSetGroupFilter = function(type) {
     _saGroupTypeFilter = type;
+    _saGroupsPage = 0;
     _renderGroupTypeFilters();
     renderSAGroups();
 };
@@ -1858,7 +1861,11 @@ function renderSAGroups() {
     });
     if (filteredGroups.length === 0) { groupsList.innerHTML = '<p class="text-slate-400 text-sm text-center py-4">לא נמצאו סביבות התואמות לחיפוש.</p>'; return; }
 
-    filteredGroups.forEach(g => {
+    const totalPages = Math.ceil(filteredGroups.length / SA_GROUPS_PAGE_SIZE);
+    if (_saGroupsPage >= totalPages) _saGroupsPage = totalPages - 1;
+    const pageGroups = filteredGroups.slice(_saGroupsPage * SA_GROUPS_PAGE_SIZE, (_saGroupsPage + 1) * SA_GROUPS_PAGE_SIZE);
+
+    pageGroups.forEach(g => {
         let uHtml = saAllUsers.filter(u => u.group_id === g.id).map(u => {
             const phoneBadge = u.phone
                 ? `<span class="text-[10px] text-emerald-600 bg-emerald-50 border border-emerald-100 px-1.5 py-0.5 rounded-full mr-1">${safeStr(u.phone)}</span>`
@@ -1973,10 +1980,26 @@ function renderSAGroups() {
             </div>
         </div>`;
     });
+    // Pagination bar
+    if (totalPages > 1) {
+        const from = _saGroupsPage * SA_GROUPS_PAGE_SIZE + 1;
+        const to = Math.min((_saGroupsPage + 1) * SA_GROUPS_PAGE_SIZE, filteredGroups.length);
+        const pageButtons = Array.from({length: totalPages}, (_, i) => {
+            const active = i === _saGroupsPage;
+            return `<button onclick="window._saGoPage(${i})" style="min-width:32px;padding:4px 8px;border-radius:8px;font-size:12px;font-weight:700;border:1.5px solid ${active ? '#4f46e5' : '#e2e8f0'};background:${active ? '#4f46e5' : '#f8fafc'};color:${active ? '#fff' : '#475569'};cursor:pointer;">${i+1}</button>`;
+        }).join('');
+        gHtml += `<div style="display:flex;align-items:center;justify-content:space-between;padding:12px 4px;border-top:1px solid #e2e8f0;margin-top:8px;gap:8px;flex-wrap:wrap;">
+            <span style="font-size:12px;color:#64748b;font-weight:600;">${from}–${to} מתוך ${filteredGroups.length}</span>
+            <div style="display:flex;gap:4px;flex-wrap:wrap;">${pageButtons}</div>
+        </div>`;
+    }
+
     groupsList.innerHTML = gHtml;
 }
 
-function filterSAGroups() { renderSAGroups(); }
+window._saGoPage = function(p) { _saGroupsPage = p; renderSAGroups(); };
+
+function filterSAGroups() { _saGroupsPage = 0; renderSAGroups(); }
 
 async function saQuickUnlockModule(groupId, moduleKey) {
     const group = saAllGroups.find(g => g.id === groupId);

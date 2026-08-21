@@ -4694,9 +4694,11 @@ app.post('/api/sa/groups/:id/snapshot', verifySA, async (req, res) => {
 // רשימת סביבות ב-archive (soft deleted)
 app.get('/api/sa/groups/archived', verifySA, async (req, res) => {
     try {
+        const { search = '' } = req.query;
         const result = await pool.query(
             `SELECT id, name, type, business_type, group_code, admin_email, deleted_at
-             FROM family_groups WHERE is_deleted=true ORDER BY deleted_at DESC`
+             FROM family_groups WHERE is_deleted=true AND name ILIKE $1 ORDER BY deleted_at DESC LIMIT 200`,
+            [`%${search}%`]
         );
         res.json({ success: true, groups: result.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
