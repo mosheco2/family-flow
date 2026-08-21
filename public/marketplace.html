@@ -562,12 +562,15 @@ html, body {
     </div>
   </div>
 
-  <div class="search-row">
+  <div class="search-row" style="position:relative">
     <div class="search-bar">
       <div class="search-radio" id="near-toggle" onclick="toggleNear()"></div>
       <input type="text" id="search-input" placeholder="חיפוש עסק, קטגוריה או הטבה"
-             oninput="onSearch(this.value)" />
+             oninput="onSearch(this.value)"
+             onfocus="showSearchResults()"
+             onblur="setTimeout(hideSearchResults,200)" />
     </div>
+    <div id="search-dropdown" style="display:none;position:absolute;top:calc(100% + 4px);right:0;left:0;background:#fff;border:1.5px solid var(--border);border-radius:14px;box-shadow:var(--shadow-md);z-index:50;max-height:260px;overflow-y:auto;direction:rtl;"></div>
   </div>
 
   <div class="filter-chips">
@@ -704,7 +707,7 @@ function renderAll(data) {
 
   // Businesses
   allBusinesses = data.businesses || [];
-  renderBusinesses(allBusinesses);
+  applyCurrentFilter();
 
   // Recommended fallback (when no weekly deals)
   renderRecommended(weekly, allBusinesses);
@@ -799,17 +802,12 @@ function renderBusinesses(items) {
 }
 
 // ── Actions ───────────────────────────────────────────────────
-function setFilter(f, el) {
-  currentFilter = f;
-  document.querySelectorAll('.filter-chips .chip').forEach(function(c) { c.classList.remove('active'); });
-  el.classList.add('active');
-  if (f === 'near') {
+function applyCurrentFilter() {
+  if (currentFilter === 'near') {
     applyNearFilter();
   } else {
-    // "הכל" ו-"בשבילך" — הצג את כל העסקים (client-side sort)
     var sorted = allBusinesses.slice();
-    if (f === 'for-me') {
-      // בשבילך: קודם עסקים עם לוגו (יותר מושקעים) ואח"כ השאר
+    if (currentFilter === 'for-me') {
       sorted.sort(function(a, b) {
         var aHas = !!(a.logo_url || a.image_url) ? 1 : 0;
         var bHas = !!(b.logo_url || b.image_url) ? 1 : 0;
@@ -820,10 +818,16 @@ function setFilter(f, el) {
   }
 }
 
+function setFilter(f, el) {
+  currentFilter = f;
+  document.querySelectorAll('.filter-chips .chip').forEach(function(c) { c.classList.remove('active'); });
+  el.classList.add('active');
+  applyCurrentFilter();
+}
+
 function applyNearFilter() {
   if (!navigator.geolocation) { renderBusinesses(allBusinesses); return; }
   navigator.geolocation.getCurrentPosition(function(pos) {
-    // אין נתוני עיר ב-DB עדיין — מציג הכל עם הודעה
     renderBusinesses(allBusinesses);
     var label = document.getElementById('biz-count-label');
     if (label) label.textContent += ' (מיקום: הכל)';
@@ -842,14 +846,50 @@ function setCategory(cat, el) {
 function onSearch(q) {
   clearTimeout(searchTimer);
   searchTimer = setTimeout(function() {
-    if (!q) { renderBusinesses(allBusinesses); return; }
+    var dd = document.getElementById('search-dropdown');
+    if (!q) {
+      hideSearchResults();
+      applyCurrentFilter();
+      return;
+    }
     var low = q.toLowerCase();
     var filtered = allBusinesses.filter(function(b) {
       return (b.name || '').toLowerCase().includes(low) ||
              (b.business_category || '').toLowerCase().includes(low);
     });
-    renderBusinesses(filtered);
-  }, 250);
+    // הצג dropdown
+    if (dd) {
+      dd.style.display = 'block';
+      if (!filtered.length) {
+        dd.innerHTML = '<div style="padding:14px 16px;color:var(--muted);font-size:13px;text-align:right">לא נמצאו תוצאות</div>';
+      } else {
+        dd.innerHTML = filtered.slice(0,8).map(function(b) {
+          var logo = b.logo_url || b.image_url;
+          var avatar = logo
+            ? '<img src="' + logo + '" style="width:34px;height:34px;border-radius:50%;object-fit:cover;flex-shrink:0">'
+            : '<div style="width:34px;height:34px;border-radius:50%;background:var(--dark);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0">' + esc((b.name||'?').charAt(0)) + '</div>';
+          var cat = b.business_category ? catLabel(b.business_category) : '';
+          return '<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--border)" onclick="openBiz(' + b.id + ',\'' + esc(b.name) + '\');hideSearchResults()">' +
+            avatar +
+            '<div style="flex:1;text-align:right">' +
+              '<div style="font-size:13px;font-weight:600;color:var(--text)">' + esc(b.name) + '</div>' +
+              (cat ? '<div style="font-size:11px;color:var(--muted)">' + esc(cat) + '</div>' : '') +
+            '</div>' +
+          '</div>';
+        }).join('');
+      }
+    }
+  }, 200);
+}
+
+function showSearchResults() {
+  var q = document.getElementById('search-input').value;
+  if (q) onSearch(q);
+}
+
+function hideSearchResults() {
+  var dd = document.getElementById('search-dropdown');
+  if (dd) dd.style.display = 'none';
 }
 
 function toggleNear() {
