@@ -5029,6 +5029,26 @@ app.post('/api/family/visit-business', verifyFamily, async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// היסטוריית ביקורים במרקטפלייס
+app.get('/api/family/marketplace-history/:groupId', verifyFamily, async (req, res) => {
+    try {
+        const { groupId } = req.params;
+        const rows = await pool.query(
+            `SELECT fbv.last_visited_at, fbv.visit_count,
+                    fg.id as biz_id, fg.name as biz_name, fg.image_url,
+                    ss.logo_url
+             FROM family_business_visits fbv
+             JOIN family_groups fg ON fg.id = fbv.business_group_id
+             LEFT JOIN store_settings ss ON ss.group_id = fg.id
+             WHERE fbv.family_group_id=$1
+               AND (fg.is_deleted=false OR fg.is_deleted IS NULL)
+             ORDER BY fbv.last_visited_at DESC LIMIT 50`,
+            [groupId]
+        );
+        res.json({ visits: rows.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // נתוני מרקטפלייס
 app.get('/api/family/marketplace/:groupId', async (req, res) => {
     try {

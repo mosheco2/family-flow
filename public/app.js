@@ -18130,14 +18130,68 @@ function loadMarketplaceTab() {
     var src = '/marketplace?groupId=' + groupId + '&token=' + encodeURIComponent(token) + '&familyName=' + encodeURIComponent(name);
     el.innerHTML = '<iframe src="' + src + '" style="width:100%;height:calc(100vh - 60px);border:none;display:block;" title="מרקט"></iframe>';
 
-    // handle postMessage from iframe (openStorefront)
+    // handle postMessage from iframe
     window.addEventListener('message', function(e) {
-        if (!e.data || e.data.action !== 'openStorefront') return;
-        var bizId = e.data.bizId;
-        var src2 = '/storefront.html?groupId=' + bizId +
-            (groupId ? '&familyGroupId=' + groupId : '') +
-            (token ? '&familyToken=' + token : '');
-        window.open(src2, '_blank');
+        if (!e.data || !e.data.action) return;
+        if (e.data.action === 'openStorefront') {
+            var bizId = e.data.bizId;
+            var src2 = '/storefront.html?groupId=' + bizId +
+                (groupId ? '&familyGroupId=' + groupId : '') +
+                (token ? '&familyToken=' + token : '');
+            window.open(src2, '_blank');
+        } else if (e.data.action === 'openFlwRedeem') {
+            if (typeof openFlowWalletModal === 'function') openFlowWalletModal();
+        } else if (e.data.action === 'openProfile') {
+            openMarketplaceHistory(groupId, token);
+        }
     });
+}
+
+async function openMarketplaceHistory(groupId, token) {
+    var existing = document.getElementById('mkt-history-modal');
+    if (existing) { existing.remove(); return; }
+    var modal = document.createElement('div');
+    modal.id = 'mkt-history-modal';
+    modal.className = 'fixed inset-0 z-[9999] bg-black/50 flex items-end justify-center';
+    modal.innerHTML = '<div class="bg-white rounded-t-3xl shadow-2xl w-full max-w-md p-5 overflow-y-auto" style="max-height:85vh">' +
+        '<div class="flex justify-between items-center mb-4">' +
+          '<button onclick="document.getElementById(\'mkt-history-modal\').remove()" class="text-slate-400 hover:text-red-500 text-2xl leading-none">&times;</button>' +
+          '<h3 class="font-black text-slate-800 text-base">היסטוריית ביקורים במרקט</h3>' +
+        '</div>' +
+        '<div id="mkt-history-body"><div class="text-center text-slate-400 py-8">טוען...</div></div>' +
+    '</div>';
+    modal.addEventListener('click', function(ev) { if (ev.target === modal) modal.remove(); });
+    document.body.appendChild(modal);
+
+    try {
+        var res = await fetch('/api/family/marketplace-history/' + groupId, {
+            headers: token ? { 'Authorization': 'Bearer ' + token } : {}
+        });
+        var data = await res.json();
+        var visits = data.visits || [];
+        var body = document.getElementById('mkt-history-body');
+        if (!visits.length) {
+            body.innerHTML = '<div class="text-center text-slate-400 py-8">אין ביקורים עדיין</div>';
+            return;
+        }
+        body.innerHTML = visits.map(function(v) {
+            var logo = v.logo_url || v.image_url;
+            var avatar = logo
+                ? '<img src="' + logo + '" style="width:40px;height:40px;border-radius:50%;object-fit:cover">'
+                : '<div style="width:40px;height:40px;border-radius:50%;background:#12140F;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px">' + (v.biz_name||'?').charAt(0) + '</div>';
+            var date = '';
+            try { date = new Date(v.last_visited_at).toLocaleDateString('he-IL'); } catch(e) {}
+            return '<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid #eee;direction:rtl">' +
+                avatar +
+                '<div style="flex:1;text-align:right">' +
+                  '<div style="font-weight:600;font-size:14px">' + (v.biz_name||'') + '</div>' +
+                  '<div style="font-size:12px;color:#7A7870">' + date + '</div>' +
+                '</div>' +
+            '</div>';
+        }).join('');
+    } catch(err) {
+        var body2 = document.getElementById('mkt-history-body');
+        if (body2) body2.innerHTML = '<div class="text-center text-red-400 py-8">שגיאה בטעינה</div>';
+    }
 }
 // ===== END MARKETPLACE TAB =====
