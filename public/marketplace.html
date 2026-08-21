@@ -803,7 +803,33 @@ function setFilter(f, el) {
   currentFilter = f;
   document.querySelectorAll('.filter-chips .chip').forEach(function(c) { c.classList.remove('active'); });
   el.classList.add('active');
-  loadMarketplace();
+  if (f === 'near') {
+    applyNearFilter();
+  } else {
+    // "הכל" ו-"בשבילך" — הצג את כל העסקים (client-side sort)
+    var sorted = allBusinesses.slice();
+    if (f === 'for-me') {
+      // בשבילך: קודם עסקים עם לוגו (יותר מושקעים) ואח"כ השאר
+      sorted.sort(function(a, b) {
+        var aHas = !!(a.logo_url || a.image_url) ? 1 : 0;
+        var bHas = !!(b.logo_url || b.image_url) ? 1 : 0;
+        return bHas - aHas;
+      });
+    }
+    renderBusinesses(sorted);
+  }
+}
+
+function applyNearFilter() {
+  if (!navigator.geolocation) { renderBusinesses(allBusinesses); return; }
+  navigator.geolocation.getCurrentPosition(function(pos) {
+    // אין נתוני עיר ב-DB עדיין — מציג הכל עם הודעה
+    renderBusinesses(allBusinesses);
+    var label = document.getElementById('biz-count-label');
+    if (label) label.textContent += ' (מיקום: הכל)';
+  }, function() {
+    renderBusinesses(allBusinesses);
+  });
 }
 
 function setCategory(cat, el) {
@@ -874,13 +900,21 @@ function navTo(tab) {
   document.querySelectorAll('.nav-item').forEach(function(n) { n.classList.remove('active'); });
   var el = document.getElementById('nav-' + tab);
   if (el) el.classList.add('active');
-  if (tab === 'search') {
-    document.getElementById('search-input').focus();
+  if (tab === 'home') {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  } else if (tab === 'search') {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    setTimeout(function() { document.getElementById('search-input').focus(); }, 300);
   } else if (tab === 'deals') {
-    var sec = document.getElementById('weekly-section');
-    if (sec) sec.scrollIntoView({ behavior: 'smooth' });
+    // גלול לסקציית הטבות (שבועי או מומלצים — הראשון הנראה)
+    var weekly = document.getElementById('weekly-section');
+    var rec = document.getElementById('recommended-section');
+    var target = (weekly && weekly.style.display !== 'none') ? weekly : rec;
+    if (target) target.scrollIntoView({ behavior: 'smooth' });
   } else if (tab === 'profile') {
     try { window.parent.postMessage({ action: 'openProfile' }, '*'); } catch(e) {}
+    // fallback — גלול לראש
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 }
 
