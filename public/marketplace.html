@@ -458,6 +458,39 @@ html, body {
 }
 @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
 
+/* ── Pagination ── */
+.biz-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 12px 16px 8px;
+  direction: rtl;
+}
+.pag-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 18px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, border-color 0.15s;
+  flex-shrink: 0;
+}
+.pag-btn:hover:not(:disabled) { background: var(--bg-alt); border-color: var(--green); }
+.pag-btn:disabled { opacity: 0.3; cursor: default; }
+.pag-info {
+  font-size: 13px;
+  color: var(--muted);
+  min-width: 60px;
+  text-align: center;
+}
+
 /* ── Bottom nav (hidden) ── */
 .bottom-nav { display: none; }
 
@@ -572,7 +605,7 @@ html, body {
   </div>
 
   <!-- Business list -->
-  <div class="section-header">
+  <div id="all-biz-section" class="section-header">
     <div class="section-sub" id="biz-count-label"></div>
     <div class="section-title">כל הסביבות</div>
   </div>
@@ -580,6 +613,11 @@ html, body {
     <div class="skeleton" style="height:64px;margin-bottom:4px;border-radius:14px;"></div>
     <div class="skeleton" style="height:64px;margin-bottom:4px;border-radius:14px;"></div>
     <div class="skeleton" style="height:64px;margin-bottom:4px;border-radius:14px;"></div>
+  </div>
+  <div class="biz-pagination" id="biz-pagination" style="display:none;">
+    <button class="pag-btn" id="pag-prev" onclick="bizPageGo(-1)">&#8594;</button>
+    <span class="pag-info" id="pag-info"></span>
+    <button class="pag-btn" id="pag-next" onclick="bizPageGo(1)">&#8592;</button>
   </div>
 </div>
 
@@ -610,6 +648,8 @@ var currentCategory = '';
 var searchTimer = null;
 var allBusinesses = [];
 var currentFilter = 'for-me';
+var _bizPage = 0;
+var BIZ_PAGE_SIZE = 5;
 
 // קבלת params מה-URL
 (function() {
@@ -715,15 +755,30 @@ function renderRecommended(weeklyDeals, businesses) {
   }).join('');
 }
 
+var _bizPageItems = [];
+
 function renderBusinesses(items) {
+  _bizPageItems = items;
+  _bizPage = 0;
+  _renderBizPage();
+}
+
+function _renderBizPage() {
+  var items = _bizPageItems;
   var list = document.getElementById('biz-list');
   var label = document.getElementById('biz-count-label');
+  var pag = document.getElementById('biz-pagination');
+  var totalPages = Math.ceil(items.length / BIZ_PAGE_SIZE);
   label.textContent = items.length + ' מתוך ' + allBusinesses.length;
   if (!items.length) {
     list.innerHTML = '<div class="empty"><div class="empty-icon">🏪</div><div class="empty-text">לא נמצאו עסקים</div></div>';
+    pag.style.display = 'none';
     return;
   }
-  list.innerHTML = items.map(function(b) {
+  var page = _bizPage;
+  var start = page * BIZ_PAGE_SIZE;
+  var slice = items.slice(start, start + BIZ_PAGE_SIZE);
+  list.innerHTML = slice.map(function(b) {
     var logo = b.logo_url || b.image_url;
     var initial = (b.name || '?').charAt(0);
     var avatarHtml = logo ? '<img src="' + logo + '" alt="">' : initial;
@@ -738,6 +793,19 @@ function renderBusinesses(items) {
       '<div class="biz-row-avatar">' + avatarHtml + '</div>' +
     '</div>';
   }).join('');
+  // pagination bar
+  if (totalPages <= 1) { pag.style.display = 'none'; return; }
+  pag.style.display = 'flex';
+  document.getElementById('pag-info').textContent = (page + 1) + ' / ' + totalPages;
+  document.getElementById('pag-prev').disabled = (page === 0);
+  document.getElementById('pag-next').disabled = (page >= totalPages - 1);
+}
+
+function bizPageGo(dir) {
+  var totalPages = Math.ceil(_bizPageItems.length / BIZ_PAGE_SIZE);
+  _bizPage = Math.max(0, Math.min(_bizPage + dir, totalPages - 1));
+  _renderBizPage();
+  document.getElementById('all-biz-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 // ── Actions ───────────────────────────────────────────────────
