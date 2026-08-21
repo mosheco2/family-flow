@@ -5114,7 +5114,7 @@ app.get('/api/family/marketplace/:groupId', async (req, res) => {
             if (hasSS) bizQuery += ` LEFT JOIN store_settings ss ON ss.group_id = fg.id`;
             bizQuery += ` WHERE fg.type='BUSINESS' AND (fg.is_deleted=false OR fg.is_deleted IS NULL)`;
             const params = [];
-            if (category && hasCatCol) { params.push(category); bizQuery += ` AND fg.business_category=$${params.length}`; }
+            if (category && hasCatCol) { params.push(category); bizQuery += ` AND fg.business_category ILIKE $${params.length}`; }
             if (q) { params.push('%' + q + '%'); bizQuery += ` AND fg.name ILIKE $${params.length}`; }
             bizQuery += ` GROUP BY fg.id, fg.name, fg.image_url${catGroup}${hasSS ? ', ss.logo_url, ss.phone' : ''} ORDER BY fg.name LIMIT 50`;
             const bizRes = await pool.query(bizQuery, params);
