@@ -408,7 +408,7 @@ html, body {
   flex-direction: column;
   gap: 2px;
   padding: 0 16px;
-  padding-bottom: 120px;
+  padding-bottom: 24px;
 }
 
 .biz-row {
@@ -494,21 +494,8 @@ html, body {
 }
 @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
 
-/* ── Bottom nav ── */
-.bottom-nav {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  z-index: 30;
-  background: #FFFFFF;
-  border-top: 1px solid var(--border);
-  display: flex;
-  align-items: center;
-  justify-content: space-around;
-  padding: 8px 0 max(8px, env(safe-area-inset-bottom));
-  direction: rtl;
-}
+/* ── Bottom nav (hidden) ── */
+.bottom-nav { display: none; }
 
 .nav-item {
   display: flex;
@@ -551,6 +538,9 @@ html, body {
     <div class="header-actions">
       <span class="flw-badge" id="flw-top-badge">רל</span>
       <span class="icon-btn" onclick="loadMarketplace()">↺</span>
+      <span class="icon-btn" onclick="navTo('profile')" title="פרופיל" style="margin-right:2px;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+      </span>
     </div>
     <div class="header-brand">
       <div class="brand-name">
