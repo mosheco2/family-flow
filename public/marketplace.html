@@ -620,12 +620,12 @@ html, body {
   <!-- Category filter -->
   <div class="cat-chips" id="cat-chips">
     <div class="chip active" data-cat="" onclick="setCategory('',this)">הכל</div>
-    <div class="chip" data-cat="מסעדות" onclick="setCategory('מסעדות',this)">מסעדות</div>
-    <div class="chip" data-cat="יופי" onclick="setCategory('יופי',this)">יופי</div>
-    <div class="chip" data-cat="ספורט" onclick="setCategory('ספורט',this)">ספורט</div>
-    <div class="chip" data-cat="מומחים" onclick="setCategory('מומחים',this)">מומחים</div>
-    <div class="chip" data-cat="לוגיסטיקה" onclick="setCategory('לוגיסטיקה',this)">לוגיסטיקה</div>
-    <div class="chip" data-cat="תיקונים" onclick="setCategory('תיקונים',this)">תיקונים</div>
+    <div class="chip" data-cat="restaurant" onclick="setCategory('restaurant',this)">מסעדות</div>
+    <div class="chip" data-cat="beauty" onclick="setCategory('beauty',this)">יופי</div>
+    <div class="chip" data-cat="sport" onclick="setCategory('sport',this)">ספורט</div>
+    <div class="chip" data-cat="expert" onclick="setCategory('expert',this)">מומחים</div>
+    <div class="chip" data-cat="logistics" onclick="setCategory('logistics',this)">לוגיסטיקה</div>
+    <div class="chip" data-cat="maintenance_repair" onclick="setCategory('maintenance_repair',this)">תיקונים</div>
   </div>
 
   <!-- Business list -->
@@ -932,8 +932,8 @@ function formatDate(d) {
 }
 
 function catLabel(cat) {
-  // ערכים עבריים ישירים מה-DB
-  return cat || '';
+  var m = { restaurant:'מסעדות', beauty:'יופי', sport:'ספורט', expert:'מומחים', logistics:'לוגיסטיקה', maintenance_repair:'תיקונים', services:'שרותים', other:'אחר' };
+  return m[cat] || cat || '';
 }
 
 function navTo(tab) {
