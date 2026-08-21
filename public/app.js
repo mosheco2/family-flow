@@ -688,6 +688,8 @@ function switchTab(t) { 
     const targetContent = getEl(`content-${t}`); if(targetContent) { targetContent.classList.remove('hidden','tab-anim'); void targetContent.offsetWidth; targetContent.classList.add('tab-anim'); }
     const targetBtn = getEl(`tab-${t}`); if(targetBtn) targetBtn.classList.add('tab-active');
     window._currentFamilyTab = t;
+    var wrapper = document.getElementById('main-tabs-wrapper');
+    if (wrapper) wrapper.style.paddingBottom = (t === 'marketplace' || t === 'kol-haam') ? '0' : '';
 
     if (t !== 'shop') { const footer = getEl('cart-footer'); if (footer) footer.classList.add('hidden'); const fab = getEl('fab-container'); if(fab) fab.classList.remove('fab-lifted'); } 
     else { try { renderShopList(); } catch(e) {} }
@@ -18135,11 +18137,13 @@ function loadMarketplaceTab() {
     el.appendChild(mktIframe);
     function _setMktHeight() {
         var rect = el.getBoundingClientRect();
-        var h = Math.max(window.innerHeight - rect.top, 300);
+        var h = Math.max(window.innerHeight - rect.top, 400);
         mktIframe.style.height = h + 'px';
     }
-    requestAnimationFrame(function() { setTimeout(_setMktHeight, 30); });
+    setTimeout(_setMktHeight, 50);
+    setTimeout(_setMktHeight, 300);
     window.addEventListener('resize', _setMktHeight);
+    window.addEventListener('scroll', _setMktHeight, { passive: true });
 
     // handle postMessage from iframe
     window.addEventListener('message', function(e) {
