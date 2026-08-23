@@ -677,6 +677,7 @@ try { await client.query(`ALTER TABLE game_assignments ADD COLUMN IF NOT EXISTS 
       try { await client.query('ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS sm_user_id INT'); } catch(e) {}
       try { await client.query('ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS sm_user_name VARCHAR(100)'); } catch(e) {}
       try { await client.query('ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS sm_started_at TIMESTAMP'); } catch(e) {}
+      try { await client.query('ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS billing_config JSONB'); } catch(e) {}
       try { await client.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS last_seen TIMESTAMP'); } catch(e) {}
       try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS features JSONB DEFAULT '{"store":true,"b2b":true,"academy":true,"calendar":true,"finance":true,"inventory":true,"crm":true,"deliveries":true,"foodcost":true,"ai":true}'::jsonb`); } catch(e) {}
       // מרכז משאבי אנוש והרשאות לסופר אדמין (RBAC)
@@ -3838,6 +3839,20 @@ app.post('/api/sa/sla-matrix', verifySA, async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// ── Per-group Billing Config ───────────────────────────────────────────────
+app.post('/api/sa/groups/:id/billing', verifySA, async (req, res) => {
+    try {
+        const { billing_config } = req.body;
+        if (!billing_config) return res.status(400).json({ error: 'billing_config missing' });
+        const r = await pool.query(
+            'UPDATE family_groups SET billing_config=$1 WHERE id=$2 RETURNING id',
+            [JSON.stringify(billing_config), req.params.id]
+        );
+        if (r.rowCount === 0) return res.status(404).json({ error: 'group not found' });
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // ── Pricing Catalog ────────────────────────────────────────────────────────
 app.get('/api/sa/pricing-catalog', verifySA, async (req, res) => {
     try {
@@ -5771,6 +5786,8 @@ app.put('/api/sa/groups/:id', verifySA, async (req, res) => {
         if (familyNickname !== undefined) { vals.push(familyNickname || null); sets.push(`family_nickname=$${vals.length}`); }
         if (bizType !== undefined && bizType) { vals.push(bizType); sets.push(`business_type=$${vals.length}`); }
         if (contactName !== undefined) { vals.push(contactName || null); sets.push(`contact_name=$${vals.length}`); }
+        const { billingConfig } = req.body;
+        if (billingConfig !== undefined && billingConfig !== null) { vals.push(JSON.stringify(billingConfig)); sets.push(`billing_config=$${vals.length}`); }
         vals.push(req.params.id);
         const result = await pool.query(`UPDATE family_groups SET ${sets.join(', ')} WHERE id=$${vals.length}`, vals);
         if (result.rowCount === 0) return res.status(404).json({ error: 'קבוצה לא נמצאה' });

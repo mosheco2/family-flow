@@ -2426,7 +2426,163 @@ function openSAEditGroupModal(id, name, email) {
         setCb('flag-shifts', f.shifts !== undefined ? f.shifts : true);
     }
 
+    // billing section — only for BUSINESS groups
+    const billingSection = getEl('sa-billing-section');
+    if (billingSection) {
+        if (isBusiness && !isMember) {
+            billingSection.classList.remove('hidden');
+            initBillingSection(group);
+        } else {
+            billingSection.classList.add('hidden');
+        }
+    }
+
     getEl('sa-edit-group-modal').classList.remove('hidden');
+}
+
+// ── Billing Section ─────────────────────────────────────────────────────────
+let _billingGroupId = null;
+
+function _getBillingPriceMap() {
+    const map = {};
+    if (!_pricingCatalog) return map;
+    _pricingCatalog.forEach(g => g.modules.forEach(m => { map[m.id] = m.price || 0; }));
+    return map;
+}
+
+function initBillingSection(group) {
+    _billingGroupId = group?.id || null;
+    const priceMap = _getBillingPriceMap();
+    const catalog = _pricingCatalog || PRICING_CATALOG_DEFAULT;
+
+    // ── populate bundle select ──
+    const sel = getEl('billing-bundle-select');
+    if (sel) {
+        const bizType = group?.business_type || 'other';
+        const bundles = catalog.filter(g => g.bundle);
+        sel.innerHTML = '<option value="">בחירה ידנית של מודולים</option>' +
+            bundles.map(b => {
+                const m = b.modules[0];
+                return `<option value="${b.groupId}" data-price="${m.price}">${b.groupName} — ${m.price}₪/חו׳</option>`;
+            }).join('');
+        // auto-select matching bundle
+        const matchId = `bundle_${bizType}`;
+        const match = bundles.find(b => b.groupId === matchId) ||
+                      (bizType === 'beauty' ? bundles.find(b => b.groupId === 'beauty_bundle') : null) ||
+                      (bizType === 'logistics' ? bundles.find(b => b.groupId === 'logistics_bundle') : null);
+        if (match) sel.value = match.groupId;
+    }
+
+    // ── populate modules grid (non-bundle, non-free) ──
+    const grid = getEl('billing-modules-grid');
+    if (grid) {
+        const nonBundleGroups = catalog.filter(g => !g.bundle);
+        const billing = (() => { try { return typeof group?.billing_config === 'string' ? JSON.parse(group.billing_config) : (group?.billing_config || {}); } catch(e) { return {}; } })();
+        const activeModules = billing.modules || [];
+
+        grid.innerHTML = nonBundleGroups.flatMap(g => g.modules.filter(m => !m.free)).map(m => `
+            <label class="flex items-center gap-2 p-2 rounded-xl cursor-pointer border text-xs transition
+                ${activeModules.includes(m.id) ? 'bg-violet-50 border-violet-300' : 'bg-white border-slate-200 hover:bg-slate-50'}">
+                <input type="checkbox" class="billing-mod-cb w-3.5 h-3.5 accent-violet-600"
+                    data-mod-id="${m.id}" data-mod-price="${priceMap[m.id] || 0}"
+                    ${activeModules.includes(m.id) ? 'checked' : ''}
+                    onchange="recalcBilling()">
+                <span class="font-bold text-slate-700 flex-1">${m.name}</span>
+                <span class="text-slate-400 font-mono">${priceMap[m.id] || 0}₪</span>
+            </label>`).join('');
+    }
+
+    // ── restore saved values ──
+    const billing = (() => { try { return typeof group?.billing_config === 'string' ? JSON.parse(group.billing_config) : (group?.billing_config || {}); } catch(e) { return {}; } })();
+    const euEl = getEl('billing-extra-users');
+    if (euEl) euEl.value = billing.extra_users || 0;
+    const dtEl = getEl('billing-discount-type');
+    if (dtEl) dtEl.value = billing.discount_type || 'pct';
+    const dvEl = getEl('billing-discount-value');
+    if (dvEl) dvEl.value = billing.discount_value || 0;
+
+    recalcBilling();
+}
+
+window.onBillingBundleChange = function() {
+    recalcBilling();
+};
+
+window.recalcBilling = function() {
+    const priceMap = _getBillingPriceMap();
+
+    // bundle price
+    const sel = getEl('billing-bundle-select');
+    let bundlePrice = 0;
+    if (sel && sel.value) {
+        const opt = sel.options[sel.selectedIndex];
+        bundlePrice = parseInt(opt.dataset.price) || 0;
+    }
+
+    // modules price
+    let modulesPrice = bundlePrice;
+    if (!sel || !sel.value) {
+        document.querySelectorAll('.billing-mod-cb:checked').forEach(cb => {
+            modulesPrice += parseInt(cb.dataset.modPrice) || 0;
+        });
+    }
+
+    // users
+    const extraUsers = parseInt(getEl('billing-extra-users')?.value) || 0;
+    const userPrice = (priceMap['user_extra'] || 9) * extraUsers;
+
+    // discount
+    const dType = getEl('billing-discount-type')?.value || 'pct';
+    const dVal = parseFloat(getEl('billing-discount-value')?.value) || 0;
+    let discount = 0;
+    const subtotal = modulesPrice + userPrice;
+    if (dVal > 0) {
+        discount = dType === 'pct' ? Math.round(subtotal * dVal / 100) : Math.min(dVal, subtotal);
+    }
+    const total = Math.max(0, subtotal - discount);
+
+    const fmt = n => n + ' ₪';
+    const s = id => getEl(id);
+    if (s('bill-modules-sum')) s('bill-modules-sum').textContent = fmt(modulesPrice);
+    if (s('bill-users-sum'))   s('bill-users-sum').textContent   = fmt(userPrice);
+    if (s('bill-total'))       s('bill-total').textContent       = fmt(total);
+
+    const discRow = getEl('bill-discount-row');
+    if (discRow) discRow.classList.toggle('hidden', discount === 0);
+    if (s('bill-discount-sum')) s('bill-discount-sum').textContent = '−' + fmt(discount);
+};
+
+function getBillingConfig() {
+    const sel = getEl('billing-bundle-select');
+    const bundleId = sel?.value || '';
+    const activeModules = [];
+    document.querySelectorAll('.billing-mod-cb:checked').forEach(cb => activeModules.push(cb.dataset.modId));
+
+    // calc total
+    const priceMap = _getBillingPriceMap();
+    let modulesPrice = 0;
+    if (bundleId) {
+        const opt = sel.options[sel.selectedIndex];
+        modulesPrice = parseInt(opt?.dataset?.price) || 0;
+    } else {
+        document.querySelectorAll('.billing-mod-cb:checked').forEach(cb => { modulesPrice += parseInt(cb.dataset.modPrice) || 0; });
+    }
+    const extraUsers = parseInt(getEl('billing-extra-users')?.value) || 0;
+    const userPrice = (priceMap['user_extra'] || 9) * extraUsers;
+    const dType = getEl('billing-discount-type')?.value || 'pct';
+    const dVal = parseFloat(getEl('billing-discount-value')?.value) || 0;
+    const subtotal = modulesPrice + userPrice;
+    const discount = dVal > 0 ? (dType === 'pct' ? Math.round(subtotal * dVal / 100) : Math.min(dVal, subtotal)) : 0;
+
+    return {
+        bundle_id: bundleId,
+        modules: activeModules,
+        extra_users: extraUsers,
+        discount_type: dType,
+        discount_value: dVal,
+        monthly_total: Math.max(0, subtotal - discount),
+        updated_at: new Date().toISOString()
+    };
 }
 
 async function saveSAEditGroup() {
@@ -2492,10 +2648,22 @@ async function saveSAEditGroup() {
                     saAllGroups[groupIndex].contact_name = contactName;
                 }
             }
+            const billingConfig = getEl('sa-billing-section') && !getEl('sa-billing-section').classList.contains('hidden')
+                ? getBillingConfig() : null;
+
             await fetch(`${API}/sa/groups/${id}`, {
                 method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
-                body: JSON.stringify({ name, adminEmail, features: flags, ...extraGroupFields, adminFirstName: firstName, lastName, familyNickname, bizType, contactName })
+                body: JSON.stringify({ name, adminEmail, features: flags, ...extraGroupFields, adminFirstName: firstName, lastName, familyNickname, bizType, contactName, billingConfig })
             });
+
+            // save billing separately for reliability
+            if (billingConfig) {
+                if (groupIndex > -1) saAllGroups[groupIndex].billing_config = billingConfig;
+                await fetch(`${API}/sa/groups/${id}/billing`, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+                    body: JSON.stringify({ billing_config: billingConfig })
+                }).catch(() => {});
+            }
         }
 
         // עדכון טלפון בזיכרון המקומי
