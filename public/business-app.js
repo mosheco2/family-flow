@@ -1126,6 +1126,7 @@ window.injectBusinessUI = function() {
                                 <span class="text-xs text-slate-400 italic">טוען...</span>
                             </div>
                             <!-- שורת חיפוש -->
+                            <p class="text-[11px] text-slate-400 mb-1.5">💡 ניתן לחפש שכונה ספציפית — למשל "ראשון לציון מזרח", "נחלת יהודה", "פלורנטין"</p>
                             <div class="flex gap-2 items-center mb-3">
                                 <input id="biz-area-city-input" type="text" placeholder="עיר, שכונה, רחוב..." class="modern-input flex-1 py-2 text-sm" onkeydown="if(event.key==='Enter') window.addBizServiceArea()" autocomplete="off" />
                                 <select id="biz-area-radius" class="modern-input py-2 text-sm w-24">
