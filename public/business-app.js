@@ -54223,9 +54223,10 @@ function _mtBtnS(type) {
 // ============================================================
 window.loadBizServiceAreas = async function() {
     const listEl = document.getElementById('biz-service-areas-list');
-    if (!listEl || !currentGroupId) return;
+    const gid = currentGroup?.id;
+    if (!listEl || !gid) return;
     try {
-        const r = await fetch(`/api/biz/service-areas/${currentGroupId}`);
+        const r = await fetch(`/api/biz/service-areas/${gid}`);
         const data = await r.json();
         const areas = data.areas || [];
         if (!areas.length) {
@@ -54249,8 +54250,10 @@ window.addBizServiceArea = async function() {
     const radius_km = radiusInput ? parseInt(radiusInput.value) : 10;
     const lat = cityInput.dataset.lat ? parseFloat(cityInput.dataset.lat) : null;
     const lng = cityInput.dataset.lng ? parseFloat(cityInput.dataset.lng) : null;
+    const gid = currentGroup?.id;
+    if (!gid) { showToast('error', 'לא מזוהה קבוצה'); return; }
     try {
-        const r = await fetch(`/api/biz/service-areas/${currentGroupId}`, {
+        const r = await fetch(`/api/biz/service-areas/${gid}`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ city, radius_km, lat, lng })
         });
@@ -54331,8 +54334,10 @@ function _initBizNominatimAC() {
 }
 
 window.delBizServiceArea = async function(areaId) {
+    const gid = currentGroup?.id;
+    if (!gid) return;
     try {
-        await fetch(`/api/biz/service-areas/${currentGroupId}/${areaId}`, { method: 'DELETE' });
+        await fetch(`/api/biz/service-areas/${gid}/${areaId}`, { method: 'DELETE' });
         window.loadBizServiceAreas();
     } catch(e) { showToast('error', 'שגיאת תקשורת'); }
 };
