@@ -2100,6 +2100,18 @@ app.post('/api/family/link-request/:id/respond', async (req, res) => {
 });
 
 // SA: הפשרת חשבון מוקפא
+app.post('/api/sa/groups/:id/freeze', verifySA, async (req, res) => {
+    try {
+        const { reason } = req.body;
+        await pool.query(
+            `UPDATE family_groups SET account_status='frozen', frozen_at=NOW(), frozen_reason=$1 WHERE id=$2`,
+            [reason || '', req.params.id]
+        );
+        await logAudit('FREEZE_GROUP', 'GROUP', parseInt(req.params.id), '', { reason });
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 app.post('/api/sa/groups/:id/unfreeze', verifySA, async (req, res) => {
     try {
         await pool.query(
@@ -5103,7 +5115,7 @@ app.get('/api/family/marketplace/:groupId', async (req, res) => {
             const hasSS = ssCheck.rows.length > 0;
             let bizQuery = `SELECT fg.id, fg.name, fg.image_url, fg.business_type as business_category, ${hasSS ? 'ss.logo_url, ss.phone,' : 'NULL as logo_url, NULL as phone,'} NULL as max_discount FROM family_groups fg`;
             if (hasSS) bizQuery += ` LEFT JOIN store_settings ss ON ss.group_id = fg.id`;
-            bizQuery += ` WHERE fg.type='BUSINESS' AND (fg.is_deleted=false OR fg.is_deleted IS NULL)`;
+            bizQuery += ` WHERE fg.type='BUSINESS' AND (fg.is_deleted=false OR fg.is_deleted IS NULL) AND (fg.account_status IS NULL OR fg.account_status NOT IN ('frozen','archived'))`;
             const params = [];
             if (category) { params.push(category); bizQuery += ` AND fg.business_type ILIKE $${params.length}`; }
             if (q) { params.push('%' + q + '%'); bizQuery += ` AND fg.name ILIKE $${params.length}`; }
@@ -10317,14 +10329,15 @@ app.get('/api/storefront/:code', async (req, res) => {
         
         const numericId = /^\d+$/.test(codeOrAlias) ? parseInt(codeOrAlias) : null;
         const gRes = await pool.query(`
-            SELECT f.id, f.name, f.business_type
+            SELECT f.id, f.name, f.business_type, f.account_status
             FROM family_groups f
             LEFT JOIN store_settings s ON f.id = s.group_id
             WHERE ($3::int IS NOT NULL AND f.id = $3) OR f.group_code = $1 OR LOWER(s.store_alias) = LOWER($2)
         `, [codeOrAlias.toUpperCase(), codeOrAlias.toLowerCase(), numericId]);
         
         if (gRes.rows.length === 0) return res.status(404).json({ error: 'חנות לא נמצאה' });
-        
+        if (gRes.rows[0].account_status === 'frozen') return res.status(403).json({ error: 'חנות זו אינה זמינה כרגע.', account_status: 'frozen' });
+
         const groupId = gRes.rows[0].id;
         const groupName = gRes.rows[0].name;
         const businessType = gRes.rows[0].business_type || 'other';

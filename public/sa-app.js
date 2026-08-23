@@ -1946,6 +1946,7 @@ function renderSAGroups() {
         const impersonateBtn = adminUser ? `<button onclick="impersonateGroup(${g.id}, ${adminUser.id})" class="bg-slate-800 text-white px-3 py-1 rounded text-[10px] font-bold hover:bg-slate-700 transition flex items-center gap-1 shadow-sm"><i class="fa-solid fa-user-secret"></i> כניסה לסביבה</button>` : '';
         const upgradeBtn = g.member_type === 'member' ? `<button onclick="saUpgradeToFamily(${g.id})" class="bg-violet-100 text-violet-700 px-3 py-1 rounded text-[10px] font-bold hover:bg-violet-200 transition"><i class="fa-solid fa-arrow-up-right-dots mr-1"></i> שדרג למשפחה</button>` : '';
         const unfreezeBtn = g.account_status === 'frozen' ? `<button onclick="saUnfreezeGroup(${g.id})" class="bg-blue-100 text-blue-700 px-3 py-1 rounded text-[10px] font-bold hover:bg-blue-200 transition"><i class="fa-solid fa-snowflake mr-1"></i> בטל הקפאה</button>` : '';
+        const freezeBtn = g.account_status !== 'frozen' && g.account_status !== 'archived' ? `<button onclick="saFreezeGroup(${g.id},'${safeStr(fmtGroupName(g))}')" class="bg-cyan-100 text-cyan-700 px-3 py-1 rounded text-[10px] font-bold hover:bg-cyan-200 transition"><i class="fa-solid fa-snowflake mr-1"></i> הקפאה</button>` : '';
         const resendSoloBtn = g.account_status === 'pending_activation' ? `<button onclick="saResendSoloCredentials(${g.id})" class="bg-amber-100 text-amber-700 px-3 py-1 rounded text-[10px] font-bold hover:bg-amber-200 transition"><i class="fa-solid fa-paper-plane mr-1"></i> שלח פרטי כניסה שוב</button>` : '';
 
         gHtml += `
@@ -1967,6 +1968,7 @@ function renderSAGroups() {
                     <div class="flex gap-2">
                         ${impersonateBtn}
                         ${upgradeBtn}
+                        ${freezeBtn}
                         ${unfreezeBtn}
                         ${resendSoloBtn}
                         <button onclick="openSAEditGroupModal(${g.id}, '${safeStr(fmtGroupName(g))}', '${safeStr(g.admin_email)}')" class="bg-blue-100 text-blue-700 px-3 py-1 rounded text-[10px] font-bold hover:bg-blue-200 transition"><i class="fa-solid fa-pen"></i> ערוך פרטים</button>
@@ -2049,6 +2051,22 @@ async function saInlineSaveModules(groupId) {
 
 // Placeholder for onChange - save button handles actual save
 function saInlineToggleModule(groupId) { /* visual only - click שמור to save */ }
+
+async function saFreezeGroup(groupId, groupName) {
+    const reason = prompt(`הקפאת סביבה: "${groupName}"\n\nסיבת הקפאה (אופציונלי):`);
+    if (reason === null) return; // ביטול
+    if (!confirm(`להקפיא את הסביבה "${groupName}"?\nהיא לא תהיה נגישה ולא תופיע במרקטפלייס.`)) return;
+    try {
+        const res = await fetch(`${API}/sa/groups/${groupId}/freeze`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+            body: JSON.stringify({ reason })
+        });
+        const data = await res.json();
+        if (data.success) { showToast('success', 'הסביבה הוקפאה בהצלחה'); await loadSAData(); }
+        else showToast('error', data.error || 'שגיאה בהקפאה');
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+}
 
 async function saUnfreezeGroup(groupId) {
     if (!confirm('לבטל הקפאה של חשבון זה? החשבון יחזור לסטטוס active.')) return;
