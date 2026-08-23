@@ -25836,6 +25836,7 @@ app.get('/api/community/feed/search', async (req, res) => {
   // ── SOLO / MEMBER migrations ──
   try { await pool.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS account_status VARCHAR(30) DEFAULT 'active'`); } catch(e) {}
   try { await pool.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS frozen_at TIMESTAMPTZ`); } catch(e) {}
+  try { await pool.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS frozen_reason VARCHAR(200)`); } catch(e) {}
   try { await pool.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS merged_into_group_id INT REFERENCES family_groups(id)`); } catch(e) {}
   try { await pool.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS created_by_business_group_id INT`); } catch(e) {}
   try { await pool.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS solo_temp_password VARCHAR(50)`); } catch(e) {}

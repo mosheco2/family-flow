@@ -1935,7 +1935,8 @@ function renderSAGroups() {
         } else if (g.account_status === 'frozen') {
             const frozenAt = g.frozen_at ? new Date(g.frozen_at) : null;
             const daysLeft = frozenAt ? Math.max(0, 30 - Math.floor((Date.now() - frozenAt.getTime()) / 86400000)) : '?';
-            accountStatusBadge = `<span class="bg-blue-100 text-blue-700 text-[9px] px-2 py-0.5 rounded-full font-bold ml-2 border border-blue-200">❄️ מוקפא — ${daysLeft} ימים לארכיב</span>`;
+            const reasonTip = g.frozen_reason ? ` | סיבה: ${g.frozen_reason}` : '';
+            accountStatusBadge = `<span class="bg-blue-100 text-blue-700 text-[9px] px-2 py-0.5 rounded-full font-bold ml-2 border border-blue-200" title="${reasonTip.trim()}">❄️ מוקפא${reasonTip}</span>`;
         } else if (g.account_status === 'archived') {
             accountStatusBadge = '<span class="bg-gray-100 text-gray-500 text-[9px] px-2 py-0.5 rounded-full font-bold ml-2 border border-gray-200">📦 ארכיב</span>';
         }
