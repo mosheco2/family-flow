@@ -2468,7 +2468,7 @@ function initBillingSection(group) {
         sel.innerHTML = '<option value="">בחירה ידנית של מודולים</option>' +
             bundles.map(b => {
                 const m = b.modules[0];
-                return `<option value="${b.groupId}" data-price="${m.price}">${b.groupName} — ${m.price}₪/חו׳</option>`;
+                return `<option value="${b.groupId}" data-price="${m.price}" data-desc="${(m.desc||'').replace(/"/g,'&quot;')}">${b.groupName} — ${m.price}₪/חו׳</option>`;
             }).join('');
         // auto-select matching bundle
         const matchId = `bundle_${bizType}`;
@@ -2562,6 +2562,25 @@ window.recalcBilling = function() {
     const discRow = getEl('bill-discount-row');
     if (discRow) discRow.classList.toggle('hidden', discount === 0);
     if (s('bill-discount-sum')) s('bill-discount-sum').textContent = '−' + fmt(discount);
+
+    // bundle summary row
+    const bundleRow = getEl('bill-bundle-row');
+    if (bundleRow) {
+        if (sel && sel.value) {
+            const opt = sel.options[sel.selectedIndex];
+            const bundleName = opt.textContent.trim().split('—')[0].trim();
+            bundleRow.classList.remove('hidden');
+            if (s('bill-bundle-name')) s('bill-bundle-name').textContent = '📦 ' + bundleName;
+            if (s('bill-bundle-price')) s('bill-bundle-price').textContent = fmt(bundlePrice);
+            // modules included in bundle
+            const bundleDesc = opt.dataset.desc || '';
+            if (s('bill-bundle-modules')) {
+                s('bill-bundle-modules').textContent = bundleDesc ? 'כולל: ' + bundleDesc : '';
+            }
+        } else {
+            bundleRow.classList.add('hidden');
+        }
+    }
 };
 
 function getBillingConfig() {
