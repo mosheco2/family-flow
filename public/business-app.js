@@ -18179,21 +18179,6 @@ function showBusinessTypeWizardV2(afterSave) {
             </div>
             <div class="flex-1 overflow-y-auto modal-scroll p-5">
                 <div class="grid grid-cols-2 gap-3">${cards}</div>
-                <!-- חנות בלבד — אפשרות מהירה -->
-                <div class="mt-4 pt-4 border-t border-slate-100">
-                    <button type="button" onclick="btWizV2SelectStoreOnly()"
-                        class="w-full flex items-center justify-between gap-3 px-4 py-3.5 rounded-2xl border-2 border-dashed border-emerald-300 bg-emerald-50 hover:bg-emerald-100 transition text-right active:scale-95"
-                        style="touch-action:manipulation;cursor:pointer;">
-                        <div class="flex items-center gap-3">
-                            <span class="text-2xl">🛍️</span>
-                            <div>
-                                <div class="text-sm font-black text-emerald-800">חנות בלבד בשלב זה</div>
-                                <div class="text-[11px] text-emerald-600">הקם חנות מהירה עכשיו — ניתן להוסיף מאפיינים נוספים בהמשך</div>
-                            </div>
-                        </div>
-                        <i class="fa-solid fa-arrow-left text-emerald-500 shrink-0"></i>
-                    </button>
-                </div>
             </div>
             <div class="px-5 py-4 border-t border-slate-100 shrink-0">
                 <button type="button" id="bt-wiz-v2-confirm" onclick="btWizV2Confirm()"
@@ -18244,17 +18229,56 @@ window.btWizV2Confirm = async function() {
         document.getElementById('biz-type-wizard-v2')?.remove();
         if (window._btWizV2AfterSave) { window._btWizV2AfterSave(); return; }
         if (currentGroup.is_onboarded === false) {
-            const _wizFn = typeId === 'other' ? showOnboardingWizard : showOnboardingWizardV2;
-            setTimeout(_wizFn, 300);
+            // מסך ביניים — הקמה מלאה או חנות בלבד
+            setTimeout(function() { _showWizardPathChoice(typeId); }, 300);
         } else {
             showToast('success', `מהות העסק עודכנה ל-${BUSINESS_TYPES.find(b => b.id === typeId)?.name || typeId}`);
         }
     } catch(e) { showToast('error', 'שגיאה בשמירה'); }
 };
 
-// ── חנות בלבד — מסלול מהיר ──────────────────────────────────────────────────
-window.btWizV2SelectStoreOnly = function() {
-    document.getElementById('biz-type-wizard-v2')?.remove();
+function _showWizardPathChoice(typeId) {
+    const bizName = BUSINESS_TYPES.find(b => b.id === typeId)?.name || typeId;
+    const bizIcon = BUSINESS_TYPES.find(b => b.id === typeId)?.icon || '🏢';
+    document.getElementById('wizard-path-choice')?.remove();
+    const html = `<div id="wizard-path-choice" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[99999] flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-sm rounded-[2rem] shadow-2xl overflow-hidden">
+            <div class="bg-gradient-to-r from-indigo-600 to-purple-700 px-6 py-5 text-white text-center">
+                <div class="text-3xl mb-1">${bizIcon}</div>
+                <div class="text-base font-black mb-0.5">${bizName}</div>
+                <p class="text-white/75 text-xs">כיצד תרצה להמשיך?</p>
+            </div>
+            <div class="p-5 space-y-3">
+                <button type="button" onclick="_wizPathFullSetup('${typeId}')"
+                    class="w-full flex items-center gap-4 p-4 rounded-2xl border-2 border-indigo-400 bg-indigo-50 hover:bg-indigo-100 transition text-right active:scale-95">
+                    <span class="text-2xl shrink-0">🚀</span>
+                    <div>
+                        <div class="text-sm font-black text-indigo-800">הקמה מלאה</div>
+                        <div class="text-[11px] text-indigo-600 mt-0.5">אשף שלב-אחר-שלב — פרטים, צוות, שירותים ועוד</div>
+                    </div>
+                </button>
+                <button type="button" onclick="_wizPathStoreOnly('${typeId}')"
+                    class="w-full flex items-center gap-4 p-4 rounded-2xl border-2 border-emerald-400 bg-emerald-50 hover:bg-emerald-100 transition text-right active:scale-95">
+                    <span class="text-2xl shrink-0">🛍️</span>
+                    <div>
+                        <div class="text-sm font-black text-emerald-800">חנות בלבד בשלב זה</div>
+                        <div class="text-[11px] text-emerald-600 mt-0.5">הקם חנות מהירה — ניתן להרחיב שירותים בהמשך לפי הסוג</div>
+                    </div>
+                </button>
+            </div>
+        </div>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+}
+
+window._wizPathFullSetup = function(typeId) {
+    document.getElementById('wizard-path-choice')?.remove();
+    const _wizFn = typeId === 'other' ? showOnboardingWizard : showOnboardingWizardV2;
+    setTimeout(_wizFn, 200);
+};
+
+window._wizPathStoreOnly = function(typeId) {
+    document.getElementById('wizard-path-choice')?.remove();
     const html = `<div id="store-only-wizard-choice" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[99999] flex items-center justify-center p-4">
         <div class="bg-white w-full max-w-sm rounded-[2rem] shadow-2xl overflow-hidden">
             <div class="bg-gradient-to-r from-emerald-500 to-teal-600 px-6 py-5 text-white text-center">
@@ -18279,13 +18303,15 @@ window.btWizV2SelectStoreOnly = function() {
                         <div class="text-[11px] text-slate-400 mt-0.5">כניסה ישירה לממשק — תגדיר את החנות בקצב שלך</div>
                     </div>
                 </button>
-                <button type="button" onclick="document.getElementById('store-only-wizard-choice').remove(); showBusinessTypeWizardV2();"
-                    class="w-full text-xs text-slate-400 py-2 hover:text-slate-600 transition underline">חזור לבחירת סוג עסק</button>
+                <button type="button" onclick="document.getElementById('store-only-wizard-choice').remove(); _showWizardPathChoice('${typeId}');"
+                    class="w-full text-xs text-slate-400 py-2 hover:text-slate-600 transition underline">חזור</button>
             </div>
         </div>
     </div>`;
     document.body.insertAdjacentHTML('beforeend', html);
 };
+
+// ── חנות בלבד — מסלול מהיר ──────────────────────────────────────────────────
 
 window.btWizV2StoreOnlyNow = async function() {
     document.getElementById('store-only-wizard-choice')?.remove();
