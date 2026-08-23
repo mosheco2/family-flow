@@ -975,9 +975,16 @@ function addFamilyArea() {
   var radiusInput = document.getElementById('family-area-radius');
   var city = cityInput ? cityInput.value.trim() : '';
   if (!city) return;
-  var radius_km = radiusInput ? parseInt(radiusInput.value) : 15;
   var lat = cityInput.dataset.lat ? parseFloat(cityInput.dataset.lat) : null;
   var lng = cityInput.dataset.lng ? parseFloat(cityInput.dataset.lng) : null;
+  if (!lat || !lng) {
+    cityInput.style.borderColor = '#f87171';
+    cityInput.placeholder = 'יש לבחור מרשימת ההצעות';
+    setTimeout(function() { cityInput.style.borderColor = ''; cityInput.placeholder = 'עיר / יישוב'; }, 2500);
+    cityInput.focus();
+    return;
+  }
+  var radius_km = radiusInput ? parseInt(radiusInput.value) : 15;
   var isFirst = document.getElementById('family-areas-list').children.length === 0 ||
     document.getElementById('family-areas-list').textContent.includes('אין אזורים');
   fetch('/api/family/preferred-areas/' + GROUP_ID, {
@@ -1009,6 +1016,7 @@ function _initNominatimAC(inputId) {
   input.addEventListener('input', function() {
     var val = input.value.trim();
     clearTimeout(_t);
+    delete input.dataset.lat; delete input.dataset.lng;
     if (val.length < 2) { dd.style.display = 'none'; return; }
     _t = setTimeout(function() {
       var url = 'https://nominatim.openstreetmap.org/search?q=' + encodeURIComponent(val) +

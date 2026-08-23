@@ -54247,9 +54247,10 @@ window.addBizServiceArea = async function() {
     const radiusInput = document.getElementById('biz-area-radius');
     const city = cityInput ? cityInput.value.trim() : '';
     if (!city) { showToast('error', 'נא להזין שם עיר'); return; }
-    const radius_km = radiusInput ? parseInt(radiusInput.value) : 10;
     const lat = cityInput.dataset.lat ? parseFloat(cityInput.dataset.lat) : null;
     const lng = cityInput.dataset.lng ? parseFloat(cityInput.dataset.lng) : null;
+    if (!lat || !lng) { showToast('error', 'יש לבחור מקום מרשימת ההצעות'); cityInput.focus(); return; }
+    const radius_km = radiusInput ? parseInt(radiusInput.value) : 10;
     const gid = currentGroup?.id;
     if (!gid) { showToast('error', 'לא מזוהה קבוצה'); return; }
     try {
