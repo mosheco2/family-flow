@@ -1012,7 +1012,7 @@ function _initNominatimAC(inputId) {
     if (val.length < 2) { dd.style.display = 'none'; return; }
     _t = setTimeout(function() {
       var url = 'https://nominatim.openstreetmap.org/search?q=' + encodeURIComponent(val) +
-        '&format=json&limit=6&countrycodes=il&addressdetails=1&accept-language=he';
+        '&format=json&limit=10&addressdetails=1&accept-language=he&viewbox=34.2,29.4,35.9,33.4&bounded=0';
       fetch(url, { headers: { 'User-Agent': 'family-flow-app/1.0' } })
         .then(function(r) { return r.json(); })
         .then(function(items) {
