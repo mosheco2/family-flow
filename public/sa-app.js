@@ -13098,18 +13098,96 @@ const PRICING_CATALOG_DEFAULT = [
       { id: 'documents',      name: 'מסמכים',          price: 15, free: false, desc: 'ניהול מסמכים פנימיים — חוזים, מדריכים, נהלים' },
     ]
   },
+  // ── חבילות לפי סוג עסק ─────────────────────────────────────────────────
   {
-    groupId: 'beauty_bundle', groupName: 'חבילת יופי (8 מודולים)', color: 'purple', bundle: true,
+    groupId: 'bundle_restaurant', groupName: 'חבילת מסעדה / בית קפה 🍕', color: 'red', bundle: true,
     modules: [
-      { id: 'beauty_all', name: 'חבילת יופי מלאה', price: 89, free: false, bundle: true,
-        desc: 'beauty_calendar, beauty_practitioners, beauty_services, beauty_clients, beauty_inventory, beauty_subscriptions, beauty_commissions, beauty_rfq' },
+      { id: 'bundle_restaurant', name: 'חבילת מסעדה מלאה', price: 249, free: false, bundle: true,
+        desc: 'pos, sales, pantry, shop, customers, shifts, timeclock, tasks, cashflow, budget, members, calendar, deliveries, foodcost, reviews, menu_templates, reports (17 מודולים — חיסכון ~28%)' },
     ]
   },
   {
-    groupId: 'logistics_bundle', groupName: 'חבילת לוגיסטיקה (10 מודולים)', color: 'orange', bundle: true,
+    groupId: 'bundle_retail', groupName: 'חבילת חנות קמעונאית 🛍️', color: 'blue', bundle: true,
+    modules: [
+      { id: 'bundle_retail', name: 'חבילת חנות מלאה', price: 169, free: false, bundle: true,
+        desc: 'pos, sales, pantry, shop, customers, cashflow, budget, members, timeclock, tasks, bank, reports (12 מודולים — חיסכון ~28%)' },
+    ]
+  },
+  {
+    groupId: 'bundle_services', groupName: 'חבילת שירותים מקצועיים 💼', color: 'indigo', bundle: true,
+    modules: [
+      { id: 'bundle_services', name: 'חבילת שירותים מלאה', price: 159, free: false, bundle: true,
+        desc: 'calendar, tasks, customers, cashflow, budget, members, timeclock, bank, pos, sales, reports (11 מודולים — חיסכון ~27%)' },
+    ]
+  },
+  {
+    groupId: 'bundle_construction', groupName: 'חבילת בנייה / קבלנות 🏗️', color: 'amber', bundle: true,
+    modules: [
+      { id: 'bundle_construction', name: 'חבילת קבלנות מלאה', price: 149, free: false, bundle: true,
+        desc: 'equipment, tasks, shifts, timeclock, members, cashflow, customers, bank, shop, pantry, budget, reports (12 מודולים — חיסכון ~29%)' },
+    ]
+  },
+  {
+    groupId: 'bundle_maintenance', groupName: 'חבילת תחזוקה ותיקונים 🔧', color: 'slate', bundle: true,
+    modules: [
+      { id: 'bundle_maintenance_repair', name: 'חבילת תחזוקה מלאה', price: 119, free: false, bundle: true,
+        desc: 'calendar, tasks, customers, members, timeclock, cashflow, pantry, shop, reports (9 מודולים — חיסכון ~28%)' },
+    ]
+  },
+  {
+    groupId: 'bundle_healthcare', groupName: 'חבילת בריאות / קליניקה 🏥', color: 'teal', bundle: true,
+    modules: [
+      { id: 'bundle_healthcare', name: 'חבילת קליניקה מלאה', price: 139, free: false, bundle: true,
+        desc: 'calendar, customers, tasks, members, timeclock, cashflow, bank, pos, pantry, reports (10 מודולים — חיסכון ~28%)' },
+    ]
+  },
+  {
+    groupId: 'bundle_education', groupName: 'חבילת חינוך / הדרכה 🎓', color: 'violet', bundle: true,
+    modules: [
+      { id: 'bundle_education', name: 'חבילת חינוך מלאה', price: 129, free: false, bundle: true,
+        desc: 'calendar, academy, tasks, members, timeclock, cashflow, customers, pos, reports (9 מודולים — חיסכון ~30%)' },
+    ]
+  },
+  {
+    groupId: 'bundle_sport', groupName: 'חבילת ספורט / כושר 🏋️', color: 'green', bundle: true,
+    modules: [
+      { id: 'bundle_sport', name: 'חבילת ספורט מלאה', price: 169, free: false, bundle: true,
+        desc: 'calendar, pos, sales, customers, members, timeclock, cashflow, tasks, equipment, shifts, reports (11 מודולים — חיסכון ~29%)' },
+    ]
+  },
+  {
+    groupId: 'bundle_events', groupName: 'חבילת אירועים / הפקות 🎉', color: 'pink', bundle: true,
+    modules: [
+      { id: 'bundle_events', name: 'חבילת אירועים מלאה', price: 149, free: false, bundle: true,
+        desc: 'calendar, tasks, customers, members, timeclock, cashflow, budget, equipment, shifts, shop, menu_templates, reports (12 מודולים — חיסכון ~31%)' },
+    ]
+  },
+  {
+    groupId: 'bundle_food_production', groupName: 'חבילת ייצור מזון 🏭', color: 'orange', bundle: true,
+    modules: [
+      { id: 'bundle_food_production', name: 'חבילת ייצור מזון מלאה', price: 199, free: false, bundle: true,
+        desc: 'pantry, shop, sales, customers, tasks, members, shifts, timeclock, cashflow, equipment, deliveries, foodcost, menu_templates, reports (14 מודולים — חיסכון ~29%)' },
+    ]
+  },
+  {
+    groupId: 'bundle_professional', groupName: 'חבילת מקצועי / ייעוץ 👔', color: 'blue', bundle: true,
+    modules: [
+      { id: 'bundle_professional', name: 'חבילת ייעוץ מלאה', price: 219, free: false, bundle: true,
+        desc: 'sales, customers, cases, leads, timelog, documents, calendar, tasks, cashflow, budget, members, timeclock, bank, content, reports (15 מודולים — חיסכון ~28%)' },
+    ]
+  },
+  {
+    groupId: 'beauty_bundle', groupName: 'חבילת יופי / קוסמטיקה 💅', color: 'purple', bundle: true,
+    modules: [
+      { id: 'beauty_all', name: 'חבילת יופי מלאה', price: 89, free: false, bundle: true,
+        desc: 'beauty_calendar, beauty_practitioners, beauty_services, beauty_clients, beauty_inventory, beauty_subscriptions, beauty_commissions, beauty_rfq (8 מודולים ייעודיים)' },
+    ]
+  },
+  {
+    groupId: 'logistics_bundle', groupName: 'חבילת לוגיסטיקה / הפצה 🚚', color: 'orange', bundle: true,
     modules: [
       { id: 'logistics_all', name: 'חבילת לוגיסטיקה מלאה', price: 109, free: false, bundle: true,
-        desc: 'logistics_orders, logistics_drivers, logistics_vehicles, logistics_pricing, logistics_cod, logistics_routes, logistics_tracking, logistics_reports, logistics_customers, logistics_invoices' },
+        desc: 'logistics_orders, logistics_drivers, logistics_vehicles, logistics_pricing, logistics_cod, logistics_routes, logistics_tracking, logistics_reports, logistics_customers, logistics_invoices (10 מודולים ייעודיים)' },
     ]
   },
 ];
