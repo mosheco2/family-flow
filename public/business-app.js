@@ -1116,6 +1116,16 @@ window.injectBusinessUI = function() {
                                 <p class="text-[10px] text-slate-400 mt-1.5">כתובת המייל שאליה יישלחו התראות על הזמנות חדשות. ריק = ברירת מחדל (מייל הנהלת החשבון).</p>
                             </div>
                             <button id="btn-save-store-settings" onclick="window.saveStoreSettings()" class="w-full mt-6 bg-slate-800 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-slate-700 transition text-sm">שמור הגדרות חנות</button>
+
+                            <!-- קיצורי דרך לניהול אזורים -->
+                            <div class="grid grid-cols-2 gap-2 mt-3">
+                                <button onclick="window.openServiceAreasSettings()" class="flex items-center justify-center gap-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-sm py-2.5 rounded-xl border border-indigo-200 transition">
+                                    <i class="fa-solid fa-map-location-dot"></i> אזורי שירות
+                                </button>
+                                <button onclick="window.openRadiusZonesSettings()" class="flex items-center justify-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold text-sm py-2.5 rounded-xl border border-emerald-200 transition">
+                                    <i class="fa-solid fa-motorcycle"></i> מעגלי משלוח
+                                </button>
+                            </div>
                         </div>
 
                         <!-- אזורי שירות מרקטפלייס -->
@@ -54424,6 +54434,20 @@ window.openServiceAreasSettings = function() {
             if (el && el.closest('.bg-white')) el.closest('.bg-white').scrollIntoView({ behavior: 'smooth', block: 'start' });
             _initBizNominatimAC();
             _renderBizQuickAreas();
+        }, 400);
+    }, 200);
+};
+
+window.openRadiusZonesSettings = function() {
+    switchTab('sales');
+    setTimeout(function() {
+        if (typeof window.switchSalesTab === 'function') window.switchSalesTab('settings');
+        setTimeout(function() {
+            var el = document.getElementById('biz-radius-zones-list');
+            if (el && el.closest('.bg-white')) el.closest('.bg-white').scrollIntoView({ behavior: 'smooth', block: 'start' });
+            window.loadBizLocation();
+            window.loadBizRadiusZones();
+            _initBizLocationAC();
         }, 400);
     }, 200);
 };

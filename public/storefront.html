@@ -2323,14 +2323,16 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
             let delFee = 0;
             const isDelivery = getEl('is-delivery').value === 'true';
             if (isDelivery && !calc.hasComplexItems) {
-                const hasRadiusZones = storeData?.radiusZones?.length && storeData?.bizLat;
-                if (hasRadiusZones && _computedRadiusDelFee === false) {
-                    // מחוץ לכל המעגלים — הצג אזהרה
+                const bizHasLoc = !!storeData?.bizLat;
+                const hasRadiusZones = storeData?.radiusZones?.length && bizHasLoc;
+                if (bizHasLoc && !storeData?.radiusZones?.length) {
+                    itemsHtml += `<div class="flex items-center gap-2 py-3 mt-2 bg-red-50 px-3 rounded-xl mb-2 border border-red-200"><i class="fa-solid fa-circle-xmark text-red-400"></i><span class="text-red-600 text-sm font-bold">העסק אינו מציע משלוח כרגע</span></div>`;
+                } else if (hasRadiusZones && _computedRadiusDelFee === false) {
                     itemsHtml += `<div class="flex items-center gap-2 py-3 mt-2 bg-red-50 px-3 rounded-xl mb-2 border border-red-200"><i class="fa-solid fa-circle-xmark text-red-400"></i><span class="text-red-600 text-sm font-bold">הכתובת מחוץ לאזור המשלוח של העסק</span></div>`;
                 } else {
                     if (hasRadiusZones && typeof _computedRadiusDelFee === 'number') {
                         delFee = _computedRadiusDelFee;
-                    } else {
+                    } else if (!bizHasLoc) {
                         delFee = parseFloat(storeData.settings?.delivery_fee) || 30;
                     }
                     const feeNote = hasRadiusZones ? `<span class="checkout-radius-fee-note text-[10px] text-slate-400 mr-1"></span>` : '';
@@ -2839,15 +2841,23 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
                 return showToast('error', 'חובה לבחור תאריך משוער לפרויקט / אירוע');
             }
 
-            const _hasRadiusZones = storeData?.radiusZones?.length && storeData?.bizLat;
-            // חסימה: אם מחוץ לכל מעגלי המשלוח
-            if (isDelivery && !calc.hasComplexItems && _hasRadiusZones && _computedRadiusDelFee === false) {
-                btn.disabled = false;
-                btn.innerHTML = `<span>סיום ושליחת הזמנה</span> <i class="fa-solid fa-paper-plane"></i>`;
-                return showToast('error', 'הכתובת שהזנת מחוץ לאזור המשלוח של העסק');
+            const _bizHasLocation = !!storeData?.bizLat;
+            const _hasRadiusZones = storeData?.radiusZones?.length && _bizHasLocation;
+            // חסימה: מערכת מעגלים פעילה (יש מיקום עסק) אבל אין מעגלים, או הלקוח מחוץ לכל המעגלים
+            if (isDelivery && !calc.hasComplexItems && _bizHasLocation) {
+                if (!storeData?.radiusZones?.length) {
+                    btn.disabled = false;
+                    btn.innerHTML = `<span>סיום ושליחת הזמנה</span> <i class="fa-solid fa-paper-plane"></i>`;
+                    return showToast('error', 'העסק אינו מציע משלוח כרגע');
+                }
+                if (_computedRadiusDelFee === false) {
+                    btn.disabled = false;
+                    btn.innerHTML = `<span>סיום ושליחת הזמנה</span> <i class="fa-solid fa-paper-plane"></i>`;
+                    return showToast('error', 'הכתובת שהזנת מחוץ לאזור המשלוח של העסק');
+                }
             }
             const _baseDelFee = parseFloat(storeData.settings?.delivery_fee) || 30;
-            const delFee = (isDelivery && !calc.hasComplexItems) ? (_hasRadiusZones && typeof _computedRadiusDelFee === 'number' ? _computedRadiusDelFee : _baseDelFee) : 0;
+            const delFee = (isDelivery && !calc.hasComplexItems) ? (_hasRadiusZones && typeof _computedRadiusDelFee === 'number' ? _computedRadiusDelFee : (_bizHasLocation ? 0 : _baseDelFee)) : 0;
             const finalTotalWithDelivery = calc.finalTotal + delFee;
 
             let deliveryData = null;
