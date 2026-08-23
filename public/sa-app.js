@@ -1953,6 +1953,11 @@ function renderSAGroups() {
         const freezeBtn = g.account_status !== 'frozen' && g.account_status !== 'archived' ? `<button onclick="saFreezeGroup(${g.id},'${safeStr(fmtGroupName(g))}')" class="bg-cyan-100 text-cyan-700 px-3 py-1 rounded text-[10px] font-bold hover:bg-cyan-200 transition"><i class="fa-solid fa-snowflake mr-1"></i> הקפאה</button>` : '';
         const resendSoloBtn = g.account_status === 'pending_activation' ? `<button onclick="saResendSoloCredentials(${g.id})" class="bg-amber-100 text-amber-700 px-3 py-1 rounded text-[10px] font-bold hover:bg-amber-200 transition"><i class="fa-solid fa-paper-plane mr-1"></i> שלח פרטי כניסה שוב</button>` : '';
 
+        const _billingCfg = (() => { try { return typeof g.billing_config === 'string' ? JSON.parse(g.billing_config) : (g.billing_config || null); } catch(e) { return null; } })();
+        const monthlyBadge = (_billingCfg && _billingCfg.monthly_total > 0)
+            ? `<span class="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full whitespace-nowrap">₪${_billingCfg.monthly_total}/חו׳</span>`
+            : '';
+
         gHtml += `
         <div class="${g.member_type === 'member' ? 'bg-violet-50 rounded-xl border-2 border-violet-300 mb-2 overflow-hidden shadow-sm' : 'bg-white rounded-xl border border-slate-200 mb-2 overflow-hidden shadow-sm'}">
             ${g.member_type === 'member' ? '<div class="bg-gradient-to-r from-violet-500 to-purple-600 text-white text-[11px] font-bold px-4 py-1 flex items-center gap-1"><i class=\"fa-solid fa-link\"></i> חבר ONEFLOW</div>' : ''}
@@ -1960,7 +1965,7 @@ function renderSAGroups() {
                 <div class="flex items-center">
                     <div class="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center ml-3 relative"><i class="fa-solid ${g.type === 'BUSINESS' ? 'fa-building' : 'fa-users'}"></i><span style="position:absolute;top:-6px;right:-6px;background:#6366f1;color:#fff;border-radius:999px;font-size:9px;font-weight:800;padding:1px 5px;min-width:18px;text-align:center;line-height:16px;">${globalIdx}</span></div>
                     <div>
-                        <h3 class="font-bold text-slate-800 text-sm flex items-center flex-wrap gap-1">${safeStr(fmtGroupName(g))} ${isPro} ${typeBadge} ${accountStatusBadge}</h3>
+                        <h3 class="font-bold text-slate-800 text-sm flex items-center flex-wrap gap-1">${safeStr(fmtGroupName(g))} ${isPro} ${typeBadge} ${accountStatusBadge} ${monthlyBadge}</h3>
                         <p class="text-xs text-slate-500 font-mono tracking-widest mt-0.5">קוד: ${g.group_code} | ⚡ ${aiTokens} | <span class="font-sans text-[10px]">הוקם: ${createdDate}</span></p>
                     </div>
                 </div>
@@ -13246,7 +13251,7 @@ const PRICING_CATALOG_DEFAULT = [
   {
     groupId: 'ai', groupName: 'מנוי AI — עוזר חכם', color: 'violet',
     modules: [
-      { id: 'ai_standard',   name: 'Standard',   price: 0,  free: true,  desc: '10 שאילתות AI ליום — כלול בכל חבילה, reset אוטומטי חצות' },
+      { id: 'ai_standard',   name: 'Standard',   price: 0,  free: false, desc: '10 שאילתות AI ליום — reset אוטומטי חצות' },
       { id: 'ai_premium',    name: 'Premium',    price: 29, free: false, desc: '50 שאילתות AI ליום — מתאים לעסקים עם שימוש יומיומי גבוה' },
       { id: 'ai_enterprise', name: 'Enterprise', price: 79, free: false, desc: 'שימוש ללא הגבלה — מתאים לעסקים עם צוות גדול וצרכי AI אינטנסיביים' },
     ]
