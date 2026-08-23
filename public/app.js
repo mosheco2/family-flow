@@ -4707,9 +4707,15 @@ function _applyPillCollapse() {
     });
     if (accessBtn) accessBtn.style.display = _pillCollapsed ? 'none' : '';
 
+    // tooltip הכפתור
+    var collapseBtn = document.getElementById('pill-collapse-btn');
+    if (collapseBtn) {
+        var tip = collapseBtn.querySelector('span');
+        if (tip) tip.textContent = _pillCollapsed ? 'פתח' : 'כווץ';
+    }
     if (icon) {
+        // chevron-left = כיוון כיווץ; 180° = כיוון פתיחה
         icon.style.transform = _pillCollapsed ? 'rotate(180deg)' : 'rotate(0deg)';
-        icon.title = _pillCollapsed ? 'פתח פאנל' : 'כווץ פאנל';
     }
 }
 

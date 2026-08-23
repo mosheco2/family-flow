@@ -1854,15 +1854,25 @@
                 נגישות
             </span>
         </button>
-    </div>
 
-    <!-- כפתור כיווץ פאנל — צד שמאל תחתון -->
-    <button id="pill-collapse-btn"
-            onclick="toggleFloatingPill()"
-            aria-label="כווץ/פתח פאנל"
-            style="position:fixed;bottom:18px;left:8px;z-index:90;width:28px;height:28px;border-radius:50%;background:rgba(255,255,255,0.85);backdrop-filter:blur(8px);border:1px solid rgba(0,0,0,0.08);box-shadow:0 2px 8px rgba(0,0,0,0.12);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all 0.2s;">
-        <i id="pill-collapse-icon" class="fa-solid fa-chevron-right text-slate-400 transition-transform duration-300" style="font-size:11px;"></i>
-    </button>
+        <!-- מפריד לפני כיווץ -->
+        <div id="pill-sep-collapse" class="w-px h-6 bg-slate-200/80 mx-0.5 shrink-0"></div>
+
+        <!-- כפתור כיווץ — בתוך ה-pill -->
+        <button id="pill-collapse-btn"
+                onclick="toggleFloatingPill()"
+                aria-label="כווץ/פתח פאנל"
+                class="relative group w-8 h-8 rounded-full flex items-center justify-center
+                       hover:bg-slate-100 active:scale-95 transition-all duration-150 shrink-0">
+            <i id="pill-collapse-icon" class="fa-solid fa-chevron-left text-slate-400 transition-transform duration-300" style="font-size:11px;"></i>
+            <span class="absolute -top-9 left-1/2 -translate-x-1/2 whitespace-nowrap
+                         text-[10px] font-bold text-white bg-slate-800/90 px-2.5 py-1 rounded-full
+                         opacity-0 scale-95 group-hover:opacity-100 group-hover:scale-100
+                         transition-all duration-150 origin-bottom pointer-events-none">
+                כווץ
+            </span>
+        </button>
+    </div>
 
     <div id="edit-transaction-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[50] flex items-center justify-center p-4">
         <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl max-h-[90vh] overflow-y-auto modal-scroll">
