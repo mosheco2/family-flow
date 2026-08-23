@@ -13244,6 +13244,14 @@ const PRICING_CATALOG_DEFAULT = [
     ]
   },
   {
+    groupId: 'ai', groupName: 'מנוי AI — עוזר חכם', color: 'violet',
+    modules: [
+      { id: 'ai_standard',   name: 'Standard',   price: 0,  free: true,  desc: '10 שאילתות AI ליום — כלול בכל חבילה, reset אוטומטי חצות' },
+      { id: 'ai_premium',    name: 'Premium',    price: 29, free: false, desc: '50 שאילתות AI ליום — מתאים לעסקים עם שימוש יומיומי גבוה' },
+      { id: 'ai_enterprise', name: 'Enterprise', price: 79, free: false, desc: 'שימוש ללא הגבלה — מתאים לעסקים עם צוות גדול וצרכי AI אינטנסיביים' },
+    ]
+  },
+  {
     groupId: 'sales', groupName: 'מכירות ולקוחות', color: 'blue',
     modules: [
       { id: 'sales',      name: 'חנות מקוונת',     price: 49, free: false, desc: 'קטלוג מוצרים/שירותים, הזמנות, הצעות מחיר, קופונים, AI' },
