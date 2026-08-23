@@ -488,7 +488,69 @@
           <span class="choice-check">✓</span>
         </div>
       </div>
-      <button class="btn-primary" style="margin-top:20px;" onclick="goToManage()">המשך ←</button>
+      <button class="btn-primary" style="margin-top:20px;" onclick="goToSetupPath()">המשך ←</button>
+    </div>
+
+    <!-- ══ SECTION: wizard 1b — מסלול הקמה ══ -->
+    <div id="sec-setup-path" class="section">
+      <div class="wiz-progress">
+        <div class="wiz-dot active"></div>
+        <div class="wiz-dot"></div>
+        <div class="wiz-dot"></div>
+        <div class="wiz-dot"></div>
+      </div>
+      <button class="back-link" onclick="showSection('sec-biz-type')">&#8592; חזרה</button>
+      <div class="otp-title">איך תרצה להמשיך?</div>
+      <div class="otp-sub">תוכל תמיד להרחיב שירותים מאוחר יותר</div>
+      <div style="display:flex; flex-direction:column; gap:12px; margin-top:8px;">
+        <div class="choice-card" onclick="goToManage()">
+          <span style="font-size:24px;">🚀</span>
+          <div>
+            <div style="font-weight:700;font-size:15px;color:#1B2440;">הקמה מלאה</div>
+            <div style="font-size:12px;color:#718096;margin-top:2px;">אשף מלא — ניהול, צוות, חנות וכל השירותים</div>
+          </div>
+          <span class="choice-check">✓</span>
+        </div>
+        <div class="choice-card" onclick="goToStoreOnly()">
+          <span style="font-size:24px;">🛍️</span>
+          <div>
+            <div style="font-weight:700;font-size:15px;color:#1B2440;">חנות בלבד בשלב זה</div>
+            <div style="font-size:12px;color:#718096;margin-top:2px;">הקמת חנות מהירה — אפשר להרחיב בהמשך</div>
+          </div>
+          <span class="choice-check">✓</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ SECTION: wizard 1c — חנות בלבד ══ -->
+    <div id="sec-store-only-path" class="section">
+      <div class="wiz-progress">
+        <div class="wiz-dot active"></div>
+        <div class="wiz-dot"></div>
+        <div class="wiz-dot"></div>
+        <div class="wiz-dot"></div>
+      </div>
+      <button class="back-link" onclick="showSection('sec-setup-path')">&#8592; חזרה</button>
+      <div class="otp-title">חנות בלבד</div>
+      <div class="otp-sub">בחר כיצד תרצה להמשיך</div>
+      <div style="display:flex; flex-direction:column; gap:12px; margin-top:8px;">
+        <div class="choice-card" onclick="submitStoreOnlyNow()">
+          <span style="font-size:24px;">⚡</span>
+          <div>
+            <div style="font-weight:700;font-size:15px;color:#1B2440;">בנה את החנות עכשיו</div>
+            <div style="font-size:12px;color:#718096;margin-top:2px;">אשף מהיר — שם, לוגו ומוצרים ראשונים</div>
+          </div>
+          <span class="choice-check">✓</span>
+        </div>
+        <div class="choice-card" onclick="submitStoreOnlyLater()">
+          <span style="font-size:24px;">⏩</span>
+          <div>
+            <div style="font-weight:700;font-size:15px;color:#1B2440;">דלג — אגדיר מאוחר יותר</div>
+            <div style="font-size:12px;color:#718096;margin-top:2px;">כניסה ישירה לממשק בלי האשף</div>
+          </div>
+          <span class="choice-check">✓</span>
+        </div>
+      </div>
     </div>
 
     <!-- ══ SECTION: wizard 2 — מה לנהל ══ -->
@@ -969,12 +1031,36 @@
       hideMsg('msg-biz-type');
     }
 
-    function goToManage() {
+    function goToSetupPath() {
       if (!_state.selectedBizType) {
         showMsg('msg-biz-type', 'יש לבחור סוג עסק', 'err'); return;
       }
+      showSection('sec-setup-path');
+    }
+
+    function goToManage() {
       renderManageOptions();
       showSection('sec-manage');
+    }
+
+    function goToStoreOnly() {
+      showSection('sec-store-only-path');
+    }
+
+    function submitStoreOnlyNow() {
+      if (!_state.selectedBizType) return;
+      _state.storeOnly = true;
+      _state.storeEnabled = true;
+      _state.selectedManageKeys = ['sell'];
+      showSection('sec-account-details');
+    }
+
+    function submitStoreOnlyLater() {
+      if (!_state.selectedBizType) return;
+      _state.storeOnly = true;
+      _state.storeEnabled = false;
+      _state.selectedManageKeys = ['sell'];
+      showSection('sec-account-details');
     }
 
     // wizard 2 — מה לנהל
