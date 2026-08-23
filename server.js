@@ -3838,6 +3838,30 @@ app.post('/api/sa/sla-matrix', verifySA, async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// ── Pricing Catalog ────────────────────────────────────────────────────────
+app.get('/api/sa/pricing-catalog', verifySA, async (req, res) => {
+    try {
+        const r = await pool.query("SELECT value FROM system_settings WHERE key = 'module_pricing_catalog'");
+        if (r.rows.length > 0) {
+            res.json({ catalog: JSON.parse(r.rows[0].value) });
+        } else {
+            res.json({ catalog: [] });
+        }
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/sa/pricing-catalog', verifySA, async (req, res) => {
+    try {
+        const { catalog } = req.body;
+        if (!Array.isArray(catalog)) return res.status(400).json({ error: 'catalog must be an array' });
+        await pool.query(
+            "INSERT INTO system_settings (key, value) VALUES ('module_pricing_catalog', $1) ON CONFLICT (key) DO UPDATE SET value = $1",
+            [JSON.stringify(catalog)]
+        );
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 app.post('/api/superadmin/tickets/:id/assign_and_classify', verifySA, async (req, res) => {
     let dbClient;
     try {

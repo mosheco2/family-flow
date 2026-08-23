@@ -434,7 +434,7 @@ window.switchSATab = function(tabId) {
     if (tabId === 'legal') loadLegalDocs();
 
     if (tabId === 'adslots') window.renderAdSlotsPanel && window.renderAdSlotsPanel();
-    const allTabs = ['dashboard', 'pulse', 'devops', 'support', 'stats', 'comm', 'biz', 'inbox', 'content', 'clients', 'hr', 'partners', 'finance', 'sysmap', 'legal', 'templates', 'adslots', 'auditlog', 'archive', 'games', 'feed', 'livegames', 'marketing', 'whatsapp', 'kol-haam'];
+    const allTabs = ['dashboard', 'pulse', 'devops', 'support', 'stats', 'comm', 'biz', 'inbox', 'content', 'clients', 'hr', 'partners', 'finance', 'sysmap', 'legal', 'templates', 'adslots', 'auditlog', 'archive', 'games', 'feed', 'livegames', 'marketing', 'whatsapp', 'kol-haam', 'pricing'];
     if (tabId === 'kol-haam') loadSAKolHaamQueue();
     let activeTabTitle = 'לוח בקרה';
 
@@ -468,8 +468,10 @@ window.switchSATab = function(tabId) {
         sysmap:'מפת המערכת', legal:'מסמכים משפטיים', templates:'ניהול תבניות עסקים', adslots:'שטחי פרסום',
         auditlog:'לוג אירועים קריטיים', archive:'ארכיון סביבות מחוקות',
         games:'משחקי ילדים', feed:'פיד קהילתי', livegames:'משחקים חיים', marketing:'שיווק והשקות',
-        'kol-haam': 'קול העם'
+        'kol-haam': 'קול העם',
+        pricing: 'מחירון מודולים'
     };
+    if (tabId === 'pricing') renderPricingCatalogView();
     activeTabTitle = _tabTitles[tabId] || tabId;
 
     // עדכון כותרת בסרגל העליון (Topbar)
@@ -520,6 +522,7 @@ const SA_GROUPS = {
     system:     { tabs: ['hr', 'sysmap', 'auditlog', 'archive'], labels: ['צוות ונציגים', 'מפת המערכת', 'לוג אירועים', 'ארכיון מחוקים'], icons: ['fa-user-tie', 'fa-map', 'fa-shield-halved', 'fa-box-archive'], default: 'hr' },
     templates:  { tabs: ['templates'],                  labels: ['תבניות עסקים'],                    icons: ['fa-layer-group'],                          default: 'templates' },
     whatsapp:   { tabs: ['whatsapp'],                   labels: ['מרכז WhatsApp'],                   icons: ['fa-whatsapp'],                             default: 'whatsapp' },
+    pricing:    { tabs: ['pricing'],                    labels: ['מחירון מודולים'],                  icons: ['fa-tags'],                                 default: 'pricing' },
 };
 
 function _getGroupForTab(tabId) {
@@ -13028,3 +13031,236 @@ window.saKHReject = saKHReject;
 window.saKHDelete = saKHDelete;
 window.saKHAddCategory = saKHAddCategory;
 window.saKHDeleteCategory = saKHDeleteCategory;
+
+// ══════════════════════════════════════════════════════════════════
+// מחירון מודולים — SA Pricing Catalog
+// ══════════════════════════════════════════════════════════════════
+
+const PRICING_CATALOG_DEFAULT = [
+  {
+    groupId: 'core', groupName: 'ליבה — תמיד חינמי', color: 'emerald',
+    modules: [
+      { id: 'feed',     name: 'ראשי',     price: 0, free: true,  desc: 'דשבורד ראשי מותאם לתפקיד — KPIs, פיד פעולות, פריטים דחופים' },
+      { id: 'settings', name: 'הגדרות',   price: 0, free: true,  desc: 'הגדרות עסק, צוות, חנות, מועדון לקוחות, אינטגרציות' },
+    ]
+  },
+  {
+    groupId: 'sales', groupName: 'מכירות ולקוחות', color: 'blue',
+    modules: [
+      { id: 'sales',      name: 'חנות מקוונת',     price: 49, free: false, desc: 'קטלוג מוצרים/שירותים, הזמנות, הצעות מחיר, קופונים, AI' },
+      { id: 'pos',        name: 'קופה (POS)',       price: 29, free: false, desc: 'מסך קופה לרכישה פנים-עסקית — עגלה, תשלום, קיוסק' },
+      { id: 'customers',  name: 'לקוחות',          price: 19, free: false, desc: 'מאגר לקוחות, היסטוריית רכישות, פנייה ישירה' },
+      { id: 'calendar',   name: 'יומן ותורים',     price: 19, free: false, desc: 'הגדרת זמינות, קביעת פגישות ותורים, ניהול ביטולים' },
+      { id: 'leads',      name: 'פניות נכנסות',   price: 19, free: false, desc: 'ניהול לידים ופניות — מקורות, סטטוס, המרה' },
+      { id: 'cases',      name: 'תיקים ופרויקטים',price: 25, free: false, desc: 'ניהול עבודות, הזמנות עבודה, תשלומים' },
+      { id: 'deliveries', name: 'שליחויות',        price: 19, free: false, desc: 'ניהול משלוחים, שליחים, אזורים' },
+      { id: 'reviews',    name: 'דירוגים',         price: 15, free: false, desc: 'פידבק לקוחות אחרי הזמנה, דירוגים, תגובות' },
+      { id: 'menu_templates', name: 'תפריטים',     price: 19, free: false, desc: 'יצירה וניהול תבניות תפריט, ייצוא, שיתוף' },
+    ]
+  },
+  {
+    groupId: 'team', groupName: 'ניהול צוות', color: 'indigo',
+    modules: [
+      { id: 'members',   name: 'ניהול צוות',  price: 19, free: false, desc: 'רשימת עובדים, תפקידים, הרשאות, גישה למערכת' },
+      { id: 'timeclock', name: 'נוכחות',       price: 15, free: false, desc: 'כניסה/יציאה מהמשמרת, דוחות שעות, צ׳ק-אין מיקום' },
+      { id: 'shifts',    name: 'משמרות',       price: 15, free: false, desc: 'תכנון לוח משמרות שבועי, תבניות, שינויים' },
+      { id: 'tasks',     name: 'משימות',       price: 15, free: false, desc: 'יצירת משימות, הקצאה, מעקב ביצוע עם תמונה/AI' },
+      { id: 'academy',   name: 'הכשרות',      price: 25, free: false, desc: 'קורסים לעובדים, שאלות, מעקב ביצוע, טוטור AI' },
+    ]
+  },
+  {
+    groupId: 'inventory', groupName: 'מלאי ורכש', color: 'amber',
+    modules: [
+      { id: 'pantry',   name: 'ניהול מלאי',       price: 19, free: false, desc: 'מעקב מלאי שוטף, עדכון כמויות, התראות חסר' },
+      { id: 'shop',     name: 'רכש ארגוני',       price: 15, free: false, desc: 'רשימות קנייה לעסק, היסטוריה, סריקת קבלה בAI' },
+      { id: 'equipment',name: 'ציוד ותחזוקה',     price: 15, free: false, desc: 'ניהול ציוד, תזמון תחזוקה, שיוך טכנאים' },
+      { id: 'foodcost', name: 'תמחור ורווחיות',   price: 19, free: false, desc: 'חישוב עלות מנה מול חומרי גלם, ניהול מתכונים' },
+    ]
+  },
+  {
+    groupId: 'finance', groupName: 'כספים ודוחות', color: 'green',
+    modules: [
+      { id: 'cashflow', name: 'תזרים מזומנים',  price: 25, free: false, desc: 'מעקב הכנסות/הוצאות לפי תקופה, מאזן שוטף' },
+      { id: 'bank',     name: 'כספים',           price: 15, free: false, desc: 'עסקאות, הלוואות, יעדי חיסכון' },
+      { id: 'budget',   name: 'תקציבים',         price: 15, free: false, desc: 'הגדרת תקציב לפי קטגוריה, מעקב ביצוע, תובנות AI' },
+      { id: 'timelog',  name: 'שעות עבודה',      price: 19, free: false, desc: 'יומן שעות לפרויקטים, שיוך לתיקים' },
+      { id: 'forecast', name: 'תשקיף',           price: 25, free: false, desc: 'תחזית פיננסית קצרה-בינונית, תחשיב AI' },
+      { id: 'reports',  name: 'דוחות מאוחדים',  price: 19, free: false, desc: 'דוח מאוחד של כל הפעילות, ייצוא לאקסל/PDF' },
+    ]
+  },
+  {
+    groupId: 'comms', groupName: 'תקשורת ושיווק', color: 'pink',
+    modules: [
+      { id: 'surveys',        name: 'סקרים ועדכונים',  price: 15, free: false, desc: 'יצירת סקרים לעובדים/לקוחות, שליחה, ניתוח תוצאות' },
+      { id: 'community',      name: 'קהילות מחוברות',  price: 19, free: false, desc: 'קהילות OneFlow, שוברים, קאשבק, פיד רכישות' },
+      { id: 'whatsapp_alerts',name: 'התראות WhatsApp', price: 29, free: false, desc: 'כללי התראה אוטומטיים — עובדים, לקוחות, ניהול' },
+      { id: 'content',        name: 'תוכן האתר',       price: 15, free: false, desc: 'עריכת דף הנחיתה/אתר של העסק בפלטפורמה' },
+      { id: 'documents',      name: 'מסמכים',          price: 15, free: false, desc: 'ניהול מסמכים פנימיים — חוזים, מדריכים, נהלים' },
+    ]
+  },
+  {
+    groupId: 'beauty_bundle', groupName: 'חבילת יופי (8 מודולים)', color: 'purple', bundle: true,
+    modules: [
+      { id: 'beauty_all', name: 'חבילת יופי מלאה', price: 89, free: false, bundle: true,
+        desc: 'beauty_calendar, beauty_practitioners, beauty_services, beauty_clients, beauty_inventory, beauty_subscriptions, beauty_commissions, beauty_rfq' },
+    ]
+  },
+  {
+    groupId: 'logistics_bundle', groupName: 'חבילת לוגיסטיקה (10 מודולים)', color: 'orange', bundle: true,
+    modules: [
+      { id: 'logistics_all', name: 'חבילת לוגיסטיקה מלאה', price: 109, free: false, bundle: true,
+        desc: 'logistics_orders, logistics_drivers, logistics_vehicles, logistics_pricing, logistics_cod, logistics_routes, logistics_tracking, logistics_reports, logistics_customers, logistics_invoices' },
+    ]
+  },
+];
+
+// live catalog (loaded from server or default)
+let _pricingCatalog = null;
+
+const COLOR_MAP = {
+  emerald: { bg: 'bg-emerald-50', border: 'border-emerald-200', text: 'text-emerald-700', badge: 'bg-emerald-100 text-emerald-700', icon: 'text-emerald-500' },
+  blue:    { bg: 'bg-blue-50',    border: 'border-blue-200',    text: 'text-blue-700',    badge: 'bg-blue-100 text-blue-700',    icon: 'text-blue-500' },
+  indigo:  { bg: 'bg-indigo-50',  border: 'border-indigo-200',  text: 'text-indigo-700',  badge: 'bg-indigo-100 text-indigo-700', icon: 'text-indigo-500' },
+  amber:   { bg: 'bg-amber-50',   border: 'border-amber-200',   text: 'text-amber-700',   badge: 'bg-amber-100 text-amber-700',  icon: 'text-amber-500' },
+  green:   { bg: 'bg-green-50',   border: 'border-green-200',   text: 'text-green-700',   badge: 'bg-green-100 text-green-700',  icon: 'text-green-500' },
+  pink:    { bg: 'bg-pink-50',    border: 'border-pink-200',    text: 'text-pink-700',    badge: 'bg-pink-100 text-pink-700',    icon: 'text-pink-500' },
+  purple:  { bg: 'bg-purple-50',  border: 'border-purple-200',  text: 'text-purple-700',  badge: 'bg-purple-100 text-purple-700',icon: 'text-purple-500' },
+  orange:  { bg: 'bg-orange-50',  border: 'border-orange-200',  text: 'text-orange-700',  badge: 'bg-orange-100 text-orange-700',icon: 'text-orange-500' },
+};
+
+async function renderPricingCatalogView() {
+  const container = document.getElementById('pricing-groups-container');
+  if (!container) return;
+  container.innerHTML = '<div class="text-center text-slate-400 py-8"><i class="fa-solid fa-spinner fa-spin"></i> טוען מחירון...</div>';
+
+  // Load from server
+  try {
+    const session = JSON.parse(localStorage.getItem('sa_session') || '{}');
+    const token = session.token || '';
+    const res = await fetch('/api/sa/pricing-catalog', { headers: { 'Authorization': 'Bearer ' + token } });
+    if (res.ok) {
+      const d = await res.json();
+      if (d.catalog && d.catalog.length > 0) {
+        _pricingCatalog = d.catalog;
+      } else {
+        _pricingCatalog = JSON.parse(JSON.stringify(PRICING_CATALOG_DEFAULT));
+      }
+    } else {
+      _pricingCatalog = JSON.parse(JSON.stringify(PRICING_CATALOG_DEFAULT));
+    }
+  } catch(e) {
+    _pricingCatalog = JSON.parse(JSON.stringify(PRICING_CATALOG_DEFAULT));
+  }
+
+  _renderPricingGroups();
+  _updatePricingSummary();
+}
+
+function _updatePricingSummary() {
+  if (!_pricingCatalog) return;
+  let total = 0, freeCount = 0, priceCount = 0, priceSum = 0;
+  _pricingCatalog.forEach(g => g.modules.forEach(m => {
+    total++;
+    if (m.free) { freeCount++; }
+    else { priceCount++; priceSum += (m.price || 0); }
+  }));
+  const el = id => document.getElementById(id);
+  if (el('ps-total-modules')) el('ps-total-modules').textContent = total;
+  if (el('ps-free-modules'))  el('ps-free-modules').textContent  = freeCount;
+  if (el('ps-max-price'))     el('ps-max-price').textContent     = priceSum + ' ₪';
+  if (el('ps-avg-price'))     el('ps-avg-price').textContent     = (priceCount > 0 ? Math.round(priceSum / priceCount) : 0) + ' ₪';
+}
+
+function _renderPricingGroups() {
+  const container = document.getElementById('pricing-groups-container');
+  if (!container || !_pricingCatalog) return;
+  container.innerHTML = _pricingCatalog.map((g, gi) => {
+    const c = COLOR_MAP[g.color] || COLOR_MAP.blue;
+    const moduleRows = g.modules.map((m, mi) => `
+      <tr class="hover:bg-slate-50 transition">
+        <td class="px-4 py-3">
+          <span class="inline-block px-2 py-0.5 rounded font-mono text-xs ${c.badge}">${m.id}</span>
+        </td>
+        <td class="px-4 py-3 font-semibold text-slate-800">${m.name}</td>
+        <td class="px-4 py-3 text-xs text-slate-500 max-w-xs">${m.desc}</td>
+        <td class="px-4 py-3 text-center">
+          ${m.free
+            ? `<span class="px-2 py-1 rounded-lg text-xs font-bold bg-emerald-100 text-emerald-700">חינם תמיד</span>`
+            : m.bundle
+              ? `<span class="px-2 py-1 rounded-lg text-xs font-bold bg-purple-100 text-purple-700">חבילה</span>`
+              : `<span class="text-xs text-slate-400">₪</span>`
+          }
+        </td>
+        <td class="px-4 py-3 text-center">
+          ${m.free
+            ? `<span class="text-lg font-black text-emerald-600">0</span>`
+            : `<input type="number" min="0" max="9999" step="1"
+                 value="${m.price || 0}"
+                 onchange="updateModulePrice(${gi},${mi},this.value)"
+                 class="w-20 border border-slate-200 rounded-lg px-2 py-1.5 text-center text-sm font-bold text-slate-800 focus:border-violet-400 focus:outline-none"
+                 ${m.free ? 'disabled' : ''}>`
+          }
+        </td>
+      </tr>`).join('');
+
+    return `
+    <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+      <div class="px-5 py-4 border-b border-slate-100 flex items-center gap-3 ${c.bg}">
+        <i class="fa-solid ${g.bundle ? 'fa-box' : 'fa-layer-group'} ${c.icon}"></i>
+        <h3 class="font-bold ${c.text} text-sm">${g.groupName}</h3>
+        <span class="mr-auto text-xs ${c.badge} px-2 py-0.5 rounded-full font-bold">${g.modules.length} מודולים</span>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="bg-slate-50 border-b border-slate-100">
+              <th class="px-4 py-2.5 text-right text-xs font-bold text-slate-400 uppercase tracking-wider w-36">מזהה</th>
+              <th class="px-4 py-2.5 text-right text-xs font-bold text-slate-400 uppercase tracking-wider w-36">שם</th>
+              <th class="px-4 py-2.5 text-right text-xs font-bold text-slate-400 uppercase tracking-wider">תיאור</th>
+              <th class="px-4 py-2.5 text-center text-xs font-bold text-slate-400 uppercase tracking-wider w-24">סוג</th>
+              <th class="px-4 py-2.5 text-center text-xs font-bold text-slate-400 uppercase tracking-wider w-28">מחיר ₪/חו׳</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-50">${moduleRows}</tbody>
+        </table>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function updateModulePrice(groupIdx, moduleIdx, value) {
+  if (!_pricingCatalog) return;
+  const price = Math.max(0, parseInt(value) || 0);
+  _pricingCatalog[groupIdx].modules[moduleIdx].price = price;
+  _updatePricingSummary();
+}
+
+async function savePricingCatalog() {
+  if (!_pricingCatalog) return;
+  const btn = document.getElementById('btn-save-pricing');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> שומר...'; }
+
+  try {
+    const session = JSON.parse(localStorage.getItem('sa_session') || '{}');
+    const token = session.token || '';
+    const res = await fetch('/api/sa/pricing-catalog', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify({ catalog: _pricingCatalog })
+    });
+    const d = await res.json();
+    if (res.ok && d.success) {
+      showToast('success', 'המחירון נשמר בהצלחה');
+    } else {
+      showToast('error', d.error || 'שגיאה בשמירה');
+    }
+  } catch(e) {
+    showToast('error', 'שגיאת רשת — ' + e.message);
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> שמור מחירון'; }
+  }
+}
+
+window.updateModulePrice    = updateModulePrice;
+window.savePricingCatalog   = savePricingCatalog;
+window.renderPricingCatalogView = renderPricingCatalogView;
