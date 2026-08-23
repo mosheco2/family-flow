@@ -567,12 +567,14 @@ html, body {
       <span onclick="closeAreaSettings()" style="font-size:20px;cursor:pointer;color:var(--muted);">✕</span>
       <h3 style="font-size:16px;font-weight:800;color:var(--text);">📍 האזורים שלי</h3>
     </div>
-    <p style="font-size:12px;color:var(--muted);margin-bottom:14px;text-align:right;">הגדר את הערים והאזורים הרלוונטים לך — כשתלחץ "קרובים אליי" נציג עסקים הפעילים באזורים שלך.</p>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:14px;text-align:right;">הגדר את האזורים הרלוונטים לך — ברמת רחוב, שכונה, עיר או אזור.</p>
     <div id="family-areas-list" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;min-height:28px;"></div>
-    <div style="display:flex;gap:8px;margin-bottom:10px;">
-      <input id="family-area-city-input" type="text" placeholder="עיר / יישוב" onkeydown="if(event.key==='Enter')addFamilyArea()"
+    <div style="display:flex;gap:8px;margin-bottom:8px;">
+      <input id="family-area-city-input" type="text" placeholder="עיר, שכונה, רחוב..." onkeydown="if(event.key==='Enter')addFamilyArea()" autocomplete="off"
         style="flex:1;padding:8px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:14px;font-family:inherit;background:var(--surface);color:var(--text);outline:none;" />
       <select id="family-area-radius" style="padding:8px;border:1.5px solid var(--border);border-radius:10px;font-size:13px;background:var(--surface);color:var(--text);outline:none;">
+        <option value="1">1 ק"מ</option>
+        <option value="2">2 ק"מ</option>
         <option value="5">5 ק"מ</option>
         <option value="10">10 ק"מ</option>
         <option value="15" selected>15 ק"מ</option>
@@ -580,6 +582,12 @@ html, body {
         <option value="30">30 ק"מ</option>
       </select>
       <button onclick="addFamilyArea()" style="background:var(--dark);color:#fff;border:none;border-radius:10px;padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer;">+ הוסף</button>
+    </div>
+    <!-- בחירה מהירה -->
+    <div style="margin-bottom:12px;">
+      <p style="font-size:11px;color:var(--muted);margin-bottom:6px;">בחירה מהירה:</p>
+      <div id="fam-quick-tabs" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px;"></div>
+      <div id="fam-quick-chips" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
     </div>
     <hr style="border:none;border-top:1px solid var(--border);margin:14px 0;" />
     <div style="text-align:center;">
@@ -947,7 +955,10 @@ function openAreaSettings() {
   var modal = document.getElementById('area-settings-modal');
   modal.style.display = 'flex';
   loadFamilyAreas();
-  setTimeout(function() { _initNominatimAC('family-area-city-input'); }, 50);
+  setTimeout(function() {
+    _initNominatimAC('family-area-city-input');
+    _renderFamQuickAreas();
+  }, 50);
 }
 function closeAreaSettings() {
   document.getElementById('area-settings-modal').style.display = 'none';
@@ -996,6 +1007,82 @@ function addFamilyArea() {
       loadFamilyAreas(); _gpsLat = null; _gpsLng = null;
     }
   });
+}
+
+// ── אזורים מהירים ────────────────────────────────────────────────────────────
+var _FAM_QUICK_AREAS = {
+  'ירושלים': [
+    { name: 'ירושלים — מרכז', lat: 31.7767, lng: 35.2345 },
+    { name: 'צפון ירושלים', lat: 31.8100, lng: 35.2100 },
+    { name: 'דרום ירושלים', lat: 31.7400, lng: 35.1900 },
+    { name: 'מזרח ירושלים', lat: 31.7850, lng: 35.2500 },
+    { name: 'מערב ירושלים', lat: 31.7800, lng: 35.1700 },
+    { name: 'גוש עציון', lat: 31.6500, lng: 35.1200 },
+  ],
+  'תל אביב': [
+    { name: 'תל אביב — מרכז', lat: 32.0720, lng: 34.7870 },
+    { name: 'צפון תל אביב', lat: 32.1050, lng: 34.8250 },
+    { name: 'דרום תל אביב', lat: 32.0480, lng: 34.7650 },
+    { name: 'יפו', lat: 32.0500, lng: 34.7500 },
+    { name: 'רמת אביב', lat: 32.1150, lng: 34.8050 },
+  ],
+  'חיפה': [
+    { name: 'חיפה — מרכז', lat: 32.8200, lng: 34.9900 },
+    { name: 'צפון חיפה', lat: 32.8500, lng: 35.0100 },
+    { name: 'דרום חיפה', lat: 32.7900, lng: 34.9600 },
+    { name: 'הכרמל', lat: 32.8000, lng: 34.9700 },
+    { name: 'קריות', lat: 32.8700, lng: 35.0800 },
+  ],
+  'גוש דן': [
+    { name: 'רמת גן', lat: 32.0700, lng: 34.8200 },
+    { name: 'בני ברק', lat: 32.0850, lng: 34.8330 },
+    { name: 'פתח תקווה', lat: 32.0900, lng: 34.8870 },
+    { name: 'חולון', lat: 32.0100, lng: 34.7800 },
+    { name: 'בת ים', lat: 32.0200, lng: 34.7500 },
+    { name: 'ראשל"צ', lat: 31.9640, lng: 34.8040 },
+  ],
+  'שרון ומרכז': [
+    { name: 'נתניה', lat: 32.3200, lng: 34.8600 },
+    { name: 'הרצליה', lat: 32.1650, lng: 34.8430 },
+    { name: 'כפר סבא', lat: 32.1780, lng: 34.9070 },
+    { name: 'רעננה', lat: 32.1840, lng: 34.8710 },
+  ],
+  'דרום': [
+    { name: 'באר שבע', lat: 31.2520, lng: 34.7910 },
+    { name: 'אשדוד', lat: 31.8040, lng: 34.6550 },
+    { name: 'אשקלון', lat: 31.6688, lng: 34.5742 },
+    { name: 'קריית גת', lat: 31.6100, lng: 34.7600 },
+  ],
+  'צפון': [
+    { name: 'נצרת', lat: 32.6990, lng: 35.3030 },
+    { name: 'עכו', lat: 32.9230, lng: 35.0760 },
+    { name: 'נהריה', lat: 33.0070, lng: 35.0980 },
+    { name: 'טבריה', lat: 32.7930, lng: 35.5310 },
+    { name: 'צפת', lat: 32.9650, lng: 35.4960 },
+  ],
+};
+var _famQuickActiveTab = 'ירושלים';
+
+function _renderFamQuickAreas() {
+  var tabsEl = document.getElementById('fam-quick-tabs');
+  var chipsEl = document.getElementById('fam-quick-chips');
+  if (!tabsEl || !chipsEl) return;
+  var cats = Object.keys(_FAM_QUICK_AREAS);
+  tabsEl.innerHTML = cats.map(function(cat) {
+    var active = cat === _famQuickActiveTab;
+    return '<button onclick="_famQuickTab(\'' + cat + '\')" style="padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;border:none;cursor:pointer;background:' + (active ? '#1e293b' : 'var(--chip-bg,#f1f5f9)') + ';color:' + (active ? '#fff' : 'var(--muted)') + ';">' + cat + '</button>';
+  }).join('');
+  chipsEl.innerHTML = (_FAM_QUICK_AREAS[_famQuickActiveTab] || []).map(function(a) {
+    return '<button onclick="_famPickQuick(\'' + a.name.replace(/'/g,"\\'") + '\',' + a.lat + ',' + a.lng + ')" style="padding:5px 12px;border-radius:20px;font-size:12px;border:1.5px solid #ddd6fe;background:#f5f3ff;color:#6d28d9;cursor:pointer;font-weight:600;">' + a.name + '</button>';
+  }).join('');
+}
+function _famQuickTab(cat) {
+  _famQuickActiveTab = cat;
+  _renderFamQuickAreas();
+}
+function _famPickQuick(name, lat, lng) {
+  var inp = document.getElementById('family-area-city-input');
+  if (inp) { inp.value = name; inp.dataset.lat = lat; inp.dataset.lng = lng; inp.focus(); }
 }
 
 // ── Nominatim Autocomplete ────────────────────────────────────────────────────

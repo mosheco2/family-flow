@@ -1121,13 +1121,16 @@ window.injectBusinessUI = function() {
                         <!-- אזורי שירות מרקטפלייס -->
                         <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 mt-4">
                             <h4 class="font-black text-slate-800 mb-1 flex items-center gap-2"><i class="fa-solid fa-map-location-dot text-indigo-500"></i> אזורי שירות — מרקטפלייס</h4>
-                            <p class="text-xs text-slate-500 mb-4">משפחות שיחפשו "קרובים אליי" יראו את העסק שלך רק אם אתה מגדיר את הערים שבהן אתה פעיל.</p>
+                            <p class="text-xs text-slate-500 mb-3">הגדר את האזורים שבהם העסק פעיל — ברמת רחוב, שכונה, עיר או אזור ארצי.</p>
                             <div id="biz-service-areas-list" class="flex flex-wrap gap-2 mb-3 min-h-[32px]">
                                 <span class="text-xs text-slate-400 italic">טוען...</span>
                             </div>
-                            <div class="flex gap-2 items-center">
-                                <input id="biz-area-city-input" type="text" placeholder="שם עיר / יישוב" class="modern-input flex-1 py-2 text-sm" onkeydown="if(event.key==='Enter') window.addBizServiceArea()" />
-                                <select id="biz-area-radius" class="modern-input py-2 text-sm w-28">
+                            <!-- שורת חיפוש -->
+                            <div class="flex gap-2 items-center mb-3">
+                                <input id="biz-area-city-input" type="text" placeholder="עיר, שכונה, רחוב..." class="modern-input flex-1 py-2 text-sm" onkeydown="if(event.key==='Enter') window.addBizServiceArea()" autocomplete="off" />
+                                <select id="biz-area-radius" class="modern-input py-2 text-sm w-24">
+                                    <option value="1">1 ק"מ</option>
+                                    <option value="2">2 ק"מ</option>
                                     <option value="5">5 ק"מ</option>
                                     <option value="10" selected>10 ק"מ</option>
                                     <option value="20">20 ק"מ</option>
@@ -1135,6 +1138,12 @@ window.injectBusinessUI = function() {
                                     <option value="50">50 ק"מ</option>
                                 </select>
                                 <button onclick="window.addBizServiceArea()" class="bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-indigo-700 transition whitespace-nowrap">+ הוסף</button>
+                            </div>
+                            <!-- בחירה מהירה -->
+                            <div id="biz-quick-areas-wrap">
+                                <p class="text-[11px] text-slate-400 mb-1.5">בחירה מהירה — לחץ לבחור, הגדר רדיוס והוסף:</p>
+                                <div id="biz-quick-area-tabs" class="flex gap-1.5 mb-2 flex-wrap"></div>
+                                <div id="biz-quick-area-chips" class="flex gap-1.5 flex-wrap"></div>
                             </div>
                         </div>
                     </div>
@@ -54268,6 +54277,92 @@ window.addBizServiceArea = async function() {
     } catch(e) { showToast('error', 'שגיאת תקשורת'); }
 };
 
+// ── נתוני אזורים מהירים ──────────────────────────────────────────────────────
+const _QUICK_AREAS = {
+    'ירושלים': [
+        { name: 'ירושלים — מרכז', lat: 31.7767, lng: 35.2345 },
+        { name: 'צפון ירושלים', lat: 31.8100, lng: 35.2100 },
+        { name: 'דרום ירושלים', lat: 31.7400, lng: 35.1900 },
+        { name: 'מזרח ירושלים', lat: 31.7850, lng: 35.2500 },
+        { name: 'מערב ירושלים', lat: 31.7800, lng: 35.1700 },
+        { name: 'גוש עציון', lat: 31.6500, lng: 35.1200 },
+    ],
+    'תל אביב': [
+        { name: 'תל אביב — מרכז', lat: 32.0720, lng: 34.7870 },
+        { name: 'צפון תל אביב', lat: 32.1050, lng: 34.8250 },
+        { name: 'דרום תל אביב', lat: 32.0480, lng: 34.7650 },
+        { name: 'יפו', lat: 32.0500, lng: 34.7500 },
+        { name: 'רמת אביב', lat: 32.1150, lng: 34.8050 },
+        { name: 'פלורנטין', lat: 32.0570, lng: 34.7700 },
+    ],
+    'חיפה': [
+        { name: 'חיפה — מרכז', lat: 32.8200, lng: 34.9900 },
+        { name: 'צפון חיפה', lat: 32.8500, lng: 35.0100 },
+        { name: 'דרום חיפה', lat: 32.7900, lng: 34.9600 },
+        { name: 'הכרמל', lat: 32.8000, lng: 34.9700 },
+        { name: 'קריות', lat: 32.8700, lng: 35.0800 },
+        { name: 'נשר', lat: 32.7800, lng: 35.0300 },
+    ],
+    'גוש דן': [
+        { name: 'רמת גן', lat: 32.0700, lng: 34.8200 },
+        { name: 'בני ברק', lat: 32.0850, lng: 34.8330 },
+        { name: 'פתח תקווה', lat: 32.0900, lng: 34.8870 },
+        { name: 'גבעתיים', lat: 32.0670, lng: 34.8120 },
+        { name: 'חולון', lat: 32.0100, lng: 34.7800 },
+        { name: 'בת ים', lat: 32.0200, lng: 34.7500 },
+        { name: 'ראשל"צ', lat: 31.9640, lng: 34.8040 },
+    ],
+    'שרון ומרכז': [
+        { name: 'נתניה', lat: 32.3200, lng: 34.8600 },
+        { name: 'הרצליה', lat: 32.1650, lng: 34.8430 },
+        { name: 'כפר סבא', lat: 32.1780, lng: 34.9070 },
+        { name: 'רעננה', lat: 32.1840, lng: 34.8710 },
+        { name: 'הוד השרון', lat: 32.1500, lng: 34.8900 },
+        { name: 'רמת השרון', lat: 32.1450, lng: 34.8340 },
+    ],
+    'דרום': [
+        { name: 'באר שבע', lat: 31.2520, lng: 34.7910 },
+        { name: 'אשדוד', lat: 31.8040, lng: 34.6550 },
+        { name: 'אשקלון', lat: 31.6688, lng: 34.5742 },
+        { name: 'קריית גת', lat: 31.6100, lng: 34.7600 },
+        { name: 'דימונה', lat: 31.0690, lng: 35.0330 },
+        { name: 'ערד', lat: 31.2580, lng: 35.2130 },
+    ],
+    'צפון': [
+        { name: 'נצרת', lat: 32.6990, lng: 35.3030 },
+        { name: 'עכו', lat: 32.9230, lng: 35.0760 },
+        { name: 'נהריה', lat: 33.0070, lng: 35.0980 },
+        { name: 'טבריה', lat: 32.7930, lng: 35.5310 },
+        { name: 'צפת', lat: 32.9650, lng: 35.4960 },
+        { name: 'כרמיאל', lat: 32.9150, lng: 35.2990 },
+    ],
+};
+
+function _renderBizQuickAreas() {
+    var tabsEl = document.getElementById('biz-quick-area-tabs');
+    var chipsEl = document.getElementById('biz-quick-area-chips');
+    if (!tabsEl || !chipsEl) return;
+    var categories = Object.keys(_QUICK_AREAS);
+    var activeTab = categories[0];
+    function renderTabs() {
+        tabsEl.innerHTML = categories.map(function(cat) {
+            var active = cat === activeTab;
+            return '<button onclick="window._bizQuickTab(\'' + cat + '\')" style="padding:4px 10px;border-radius:20px;font-size:11px;font-weight:700;border:none;cursor:pointer;background:' + (active ? '#6366f1' : '#f1f5f9') + ';color:' + (active ? '#fff' : '#64748b') + ';">' + cat + '</button>';
+        }).join('');
+    }
+    function renderChips() {
+        chipsEl.innerHTML = (_QUICK_AREAS[activeTab] || []).map(function(a) {
+            return '<button onclick="window._bizPickQuickArea(\'' + a.name.replace(/'/g,"\\'") + '\',' + a.lat + ',' + a.lng + ')" style="padding:5px 12px;border-radius:20px;font-size:12px;border:1.5px solid #e0e7ff;background:#f5f3ff;color:#4f46e5;cursor:pointer;font-weight:600;transition:all .15s;" onmouseover="this.style.background=\'#e0e7ff\'" onmouseout="this.style.background=\'#f5f3ff\'">' + a.name + '</button>';
+        }).join('');
+    }
+    window._bizQuickTab = function(cat) { activeTab = cat; renderTabs(); renderChips(); };
+    window._bizPickQuickArea = function(name, lat, lng) {
+        var inp = document.getElementById('biz-area-city-input');
+        if (inp) { inp.value = name; inp.dataset.lat = lat; inp.dataset.lng = lng; inp.focus(); }
+    };
+    renderTabs(); renderChips();
+}
+
 // ── ניווט ישיר לאזורי שירות ────────────────────────────────────────────────────
 window.openServiceAreasSettings = function() {
     switchTab('sales');
@@ -54275,8 +54370,9 @@ window.openServiceAreasSettings = function() {
         if (typeof window.switchSalesTab === 'function') window.switchSalesTab('settings');
         setTimeout(function() {
             var el = document.getElementById('biz-service-areas-list');
-            if (el) el.closest('.bg-white') && el.closest('.bg-white').scrollIntoView({ behavior: 'smooth', block: 'start' });
+            if (el && el.closest('.bg-white')) el.closest('.bg-white').scrollIntoView({ behavior: 'smooth', block: 'start' });
             _initBizNominatimAC();
+            _renderBizQuickAreas();
         }, 400);
     }, 200);
 };
@@ -54347,5 +54443,9 @@ window.delBizServiceArea = async function(areaId) {
 const _origSwitchSalesTab = window.switchSalesTab;
 window.switchSalesTab = function(tab) {
     if (_origSwitchSalesTab) _origSwitchSalesTab(tab);
-    if (tab === 'settings') setTimeout(function() { window.loadBizServiceAreas(); _initBizNominatimAC(); }, 300);
+    if (tab === 'settings') setTimeout(function() {
+        window.loadBizServiceAreas();
+        _initBizNominatimAC();
+        _renderBizQuickAreas();
+    }, 300);
 };
