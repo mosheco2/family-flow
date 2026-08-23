@@ -2478,18 +2478,27 @@ function initBillingSection(group) {
     if (grid) {
         const nonBundleGroups = catalog.filter(g => !g.bundle);
         const billing = (() => { try { return typeof group?.billing_config === 'string' ? JSON.parse(group.billing_config) : (group?.billing_config || {}); } catch(e) { return {}; } })();
-        const activeModules = billing.modules || [];
+        const bizType = group?.business_type || 'other';
+        // מודולים רלוונטיים לסוג עסק — לסימון מוקדם אם אין שמירה קיימת
+        const defaultMods = BIZ_TYPE_MODULES[bizType] || [];
+        const savedMods = billing.modules;
+        const activeModules = Array.isArray(savedMods) ? savedMods : defaultMods;
 
-        grid.innerHTML = nonBundleGroups.flatMap(g => g.modules.filter(m => !m.free)).map(m => `
+        grid.innerHTML = nonBundleGroups.flatMap(g => g.modules.filter(m => !m.free)).map(m => {
+            const isDefault = defaultMods.includes(m.id);
+            const isActive = activeModules.includes(m.id);
+            return `
             <label class="flex items-center gap-2 p-2 rounded-xl cursor-pointer border text-xs transition
-                ${activeModules.includes(m.id) ? 'bg-violet-50 border-violet-300' : 'bg-white border-slate-200 hover:bg-slate-50'}">
+                ${isActive ? 'bg-violet-50 border-violet-300' : isDefault ? 'bg-slate-50 border-slate-200' : 'bg-white border-slate-100 hover:bg-slate-50'}">
                 <input type="checkbox" class="billing-mod-cb w-3.5 h-3.5 accent-violet-600"
                     data-mod-id="${m.id}" data-mod-price="${priceMap[m.id] || 0}"
-                    ${activeModules.includes(m.id) ? 'checked' : ''}
+                    ${isActive ? 'checked' : ''}
                     onchange="recalcBilling()">
                 <span class="font-bold text-slate-700 flex-1">${m.name}</span>
+                ${isDefault ? '<span class="text-[9px] text-slate-400 bg-slate-100 px-1 rounded">מומלץ</span>' : ''}
                 <span class="text-slate-400 font-mono">${priceMap[m.id] || 0}₪</span>
-            </label>`).join('');
+            </label>`;
+        }).join('');
     }
 
     // ── restore saved values ──
@@ -13203,6 +13212,24 @@ window.saKHDeleteCategory = saKHDeleteCategory;
 // ══════════════════════════════════════════════════════════════════
 // מחירון מודולים — SA Pricing Catalog
 // ══════════════════════════════════════════════════════════════════
+
+// מיפוי מודולים לפי סוג עסק — זהה ל-BUSINESS_TYPES ב-business-app.js
+const BIZ_TYPE_MODULES = {
+    restaurant:         ['pos','sales','pantry','shop','customers','shifts','timeclock','tasks','cashflow','budget','members','calendar','deliveries','foodcost','reviews','menu_templates','reports'],
+    retail:             ['pos','sales','pantry','shop','customers','cashflow','budget','members','timeclock','tasks','bank','reports'],
+    services:           ['calendar','tasks','customers','cashflow','budget','members','timeclock','bank','pos','sales','reports'],
+    construction:       ['equipment','tasks','shifts','timeclock','members','cashflow','customers','bank','shop','pantry','budget','reports'],
+    maintenance_repair: ['calendar','tasks','customers','members','timeclock','cashflow','pantry','shop','reports'],
+    logistics:          ['members','timeclock','cashflow','tasks','reports'],  // חבילת לוגיסטיקה מכסה את שאר המודולים
+    healthcare:         ['calendar','customers','tasks','members','timeclock','cashflow','bank','pos','pantry','reports'],
+    beauty:             ['timeclock','cashflow','tasks','shop','reports'],       // חבילת יופי מכסה את שאר המודולים
+    education:          ['calendar','academy','tasks','members','timeclock','cashflow','customers','pos','reports'],
+    sport:              ['calendar','pos','sales','customers','members','timeclock','cashflow','tasks','equipment','shifts','reports'],
+    events:             ['calendar','tasks','customers','members','timeclock','cashflow','budget','equipment','shifts','shop','menu_templates','reports'],
+    food_production:    ['pantry','shop','sales','customers','tasks','members','shifts','timeclock','cashflow','equipment','deliveries','foodcost','menu_templates','reports'],
+    professional:       ['sales','customers','cases','leads','timelog','documents','calendar','tasks','cashflow','budget','members','timeclock','bank','content','reports'],
+    other:              [],
+};
 
 const PRICING_CATALOG_DEFAULT = [
   {
