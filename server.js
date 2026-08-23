@@ -747,6 +747,10 @@ try { await client.query(`ALTER TABLE game_assignments ADD COLUMN IF NOT EXISTS 
       try { await client.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS modifier_presets TEXT`); } catch(e) {}
       try { await client.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS banner_url TEXT`); } catch(e) {}
       try { await client.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS delivery_fee DECIMAL(10,2) DEFAULT 0`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS biz_lat DECIMAL(10,7)`); } catch(e) { console.error('migration biz_lat:', e.message); }
+      try { await client.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS biz_lng DECIMAL(10,7)`); } catch(e) { console.error('migration biz_lng:', e.message); }
+      try { await client.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS biz_address VARCHAR(300)`); } catch(e) { console.error('migration biz_address:', e.message); }
+      try { await client.query(`CREATE TABLE IF NOT EXISTS biz_radius_delivery_zones (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, radius_km INT NOT NULL, delivery_fee DECIMAL(10,2) NOT NULL DEFAULT 0, sort_order INT DEFAULT 0, created_at TIMESTAMP DEFAULT NOW(), UNIQUE(group_id, radius_km))`); } catch(e) { console.error('migration biz_radius_delivery_zones:', e.message); }
       try { await client.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS include_vat BOOLEAN DEFAULT FALSE`); } catch(e) {}
       try { await client.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS vat_rate NUMERIC(5,2) DEFAULT 18`); } catch(e) {}
       try { await client.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS enable_table_booking BOOLEAN DEFAULT TRUE`); } catch(e) {}
@@ -5091,6 +5095,47 @@ app.post('/api/biz/service-areas/:groupId', async (req, res) => {
 app.delete('/api/biz/service-areas/:groupId/:areaId', async (req, res) => {
     try {
         await pool.query('DELETE FROM biz_service_areas WHERE id=$1 AND business_group_id=$2', [req.params.areaId, req.params.groupId]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── מיקום עסק ─────────────────────────────────────────────────────────────────
+app.post('/api/biz/location/:groupId', async (req, res) => {
+    try {
+        const { lat, lng, address } = req.body;
+        await pool.query(
+            `INSERT INTO store_settings (group_id, biz_lat, biz_lng, biz_address) VALUES ($1,$2,$3,$4)
+             ON CONFLICT (group_id) DO UPDATE SET biz_lat=$2, biz_lng=$3, biz_address=$4`,
+            [req.params.groupId, lat, lng, address]
+        );
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── מעגלי משלוח (radius-based) ────────────────────────────────────────────────
+app.get('/api/biz/radius-zones/:groupId', async (req, res) => {
+    try {
+        const r = await pool.query('SELECT * FROM biz_radius_delivery_zones WHERE group_id=$1 ORDER BY radius_km ASC', [req.params.groupId]);
+        res.json({ zones: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/biz/radius-zones/:groupId', async (req, res) => {
+    try {
+        const { radius_km, delivery_fee } = req.body;
+        if (!radius_km) return res.status(400).json({ error: 'חסר רדיוס' });
+        await pool.query(
+            `INSERT INTO biz_radius_delivery_zones (group_id, radius_km, delivery_fee)
+             VALUES ($1,$2,$3) ON CONFLICT (group_id, radius_km) DO UPDATE SET delivery_fee=$3`,
+            [req.params.groupId, parseInt(radius_km), parseFloat(delivery_fee) || 0]
+        );
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/biz/radius-zones/:groupId/:zoneId', async (req, res) => {
+    try {
+        await pool.query('DELETE FROM biz_radius_delivery_zones WHERE id=$1 AND group_id=$2', [req.params.zoneId, req.params.groupId]);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -10450,7 +10495,7 @@ app.get('/api/storefront/:code', async (req, res) => {
         const groupName = gRes.rows[0].name;
         const businessType = gRes.rows[0].business_type || 'other';
 
-        const [sRes, cRes, commRes] = await Promise.all([
+        const [sRes, cRes, commRes, zonesRes] = await Promise.all([
             pool.query('SELECT * FROM store_settings WHERE group_id=$1', [groupId]),
             pool.query('SELECT id, group_id, name, description, long_description, price, original_price, category, product_type, options_text, badge_text, badge_color, sku, sort_order, (image_url IS NOT NULL AND image_url != \'\') as has_image FROM store_catalog WHERE group_id=$1 AND is_available=TRUE ORDER BY sort_order ASC, category, name', [groupId]),
             req.query.communityId
@@ -10460,7 +10505,8 @@ app.get('/api/storefront/:code', async (req, res) => {
                         JOIN communities c ON cb.community_id = c.id
                         WHERE cb.business_id = $1 AND cb.community_id = $2 AND cb.status = 'approved'`,
                     [groupId, req.query.communityId])
-                : Promise.resolve(null)
+                : Promise.resolve(null),
+            pool.query('SELECT * FROM biz_radius_delivery_zones WHERE group_id=$1 ORDER BY radius_km ASC', [groupId])
         ]);
         const settings = sRes.rows.length > 0 ? sRes.rows[0] : { is_active: true, min_order: 0, welcome_message: '', phone: '', slogan: '', store_type: 'retail', logo_url: null, modifier_presets: '[]', open_time: '', close_time: '', whatsapp_number: '' };
         let communityData = null;
@@ -10470,8 +10516,11 @@ app.get('/api/storefront/:code', async (req, res) => {
             const familyCount = parseInt(row.family_count) || 0;
             communityData = { name: row.name, discount_pct: row.discount_pct, min_families: minFamilies, family_count: familyCount, discount_active: familyCount >= minFamilies };
         }
+        const radiusZones = zonesRes.rows;
+        const bizLat = parseFloat(settings.biz_lat) || null;
+        const bizLng = parseFloat(settings.biz_lng) || null;
 
-        res.json({ success: true, groupId, groupName, businessType, settings, catalog: cRes.rows, communityData });
+        res.json({ success: true, groupId, groupName, businessType, settings, catalog: cRes.rows, communityData, radiusZones, bizLat, bizLng });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 

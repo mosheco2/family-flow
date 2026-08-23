@@ -1150,7 +1150,20 @@ window.injectBusinessUI = function() {
 
                         <!-- מעגלי משלוח -->
                         <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 mt-4">
-                            <h4 class="font-black text-slate-800 mb-1 flex items-center gap-2"><i class="fa-solid fa-motorcycle text-emerald-500"></i> מעגלי משלוח</h4>
+                            <h4 class="font-black text-slate-800 mb-1 flex items-center gap-2">
+                                <i class="fa-solid fa-motorcycle text-emerald-500"></i> מעגלי משלוח
+                                <span class="relative group cursor-pointer">
+                                    <span class="w-5 h-5 rounded-full bg-slate-200 text-slate-500 text-[11px] font-bold flex items-center justify-center hover:bg-indigo-100 hover:text-indigo-600 transition select-none">?</span>
+                                    <span class="absolute right-0 top-6 z-50 w-72 bg-slate-800 text-white text-[11px] leading-relaxed rounded-xl p-3 shadow-xl opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-200" style="direction:rtl">
+                                        <strong class="text-emerald-300 block mb-1">איך מעגלי משלוח עובדים?</strong>
+                                        1. הגדר <strong>כתובת מדויקת</strong> לעסק — זו נקודת המרכז.<br>
+                                        2. הוסף <strong>מעגלים</strong> לפי רדיוס (ק"מ) + עלות משלוח.<br>
+                                        3. כשלקוח מזמין משלוח עד הבית, המערכת מחשבת את המרחק האווירי מהעסק ובוחרת את המעגל הקרוב ביותר.<br>
+                                        4. עלות המעגל <strong>מתווספת אוטומטית</strong> לסל הקנייה בחנות.<br>
+                                        <span class="text-slate-300 text-[10px] mt-1 block">לקוח מחוץ לכל המעגלים → עלות המשלוח הכללית</span>
+                                    </span>
+                                </span>
+                            </h4>
                             <p class="text-xs text-slate-500 mb-4">הגדר את מיקום העסק ומעגלי רדיוס משלוח עם עלות — העלות תתווסף אוטומטית בחנות הציבורית.</p>
 
                             <!-- מיקום העסק -->
@@ -54570,6 +54583,7 @@ window.saveBizLocation = async function() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ lat: parseFloat(lat), lng: parseFloat(lng), address: addr })
         });
+        if (!r.ok) { showToast('error', 'שגיאת שרת ' + r.status); return; }
         var data = await r.json();
         if (data.success) {
             showToast('success', 'מיקום העסק נשמר');
@@ -54577,7 +54591,7 @@ window.saveBizLocation = async function() {
             if (disp) { disp.textContent = '✓ ' + addr; disp.classList.remove('hidden'); }
             if (inp) { inp.placeholder = addr; inp.value = ''; }
         } else { showToast('error', data.error || 'שגיאה בשמירה'); }
-    } catch(e) { showToast('error', 'שגיאת רשת'); }
+    } catch(e) { showToast('error', 'שגיאת רשת: ' + e.message); }
 };
 
 window.loadBizRadiusZones = async function() {
@@ -54586,6 +54600,7 @@ window.loadBizRadiusZones = async function() {
     if (!listEl || !gid) return;
     try {
         var r = await fetch('/api/biz/radius-zones/' + gid);
+        if (!r.ok) { listEl.innerHTML = '<p class="text-xs text-red-400 text-center py-2">שגיאה בטעינה (' + r.status + ')</p>'; return; }
         var data = await r.json();
         var zones = data.zones || [];
         if (!zones.length) {
@@ -54604,12 +54619,12 @@ window.loadBizRadiusZones = async function() {
                 '<button onclick="window.delBizRadiusZone(' + z.id + ')" class="text-slate-300 hover:text-red-400 transition text-sm px-2 py-0.5 rounded">✕</button>' +
                 '</div>';
         }).join('');
-    } catch(e) {}
+    } catch(e) { if (listEl) listEl.innerHTML = '<p class="text-xs text-red-400 text-center py-2">שגיאת רשת</p>'; }
 };
 
 window.addBizRadiusZone = async function() {
     var gid = currentGroup?.id;
-    if (!gid) return;
+    if (!gid) { showToast('error', 'לא מזוהה קבוצה — נסה לרענן'); return; }
     var radius = parseInt(document.getElementById('biz-zone-radius')?.value) || 0;
     var fee = parseFloat(document.getElementById('biz-zone-fee')?.value) || 0;
     if (!radius || radius < 1) { showToast('error', 'יש להזין רדיוס תקין (1+)'); return; }
@@ -54619,12 +54634,13 @@ window.addBizRadiusZone = async function() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ radius_km: radius, delivery_fee: fee })
         });
+        if (!r.ok) { var txt = await r.text(); showToast('error', 'שגיאת שרת ' + r.status + (txt ? ': ' + txt.slice(0,80) : '')); return; }
         var data = await r.json();
         if (data.success) {
             showToast('success', 'מעגל נוסף בהצלחה');
             window.loadBizRadiusZones();
         } else { showToast('error', data.error || 'שגיאה'); }
-    } catch(e) { showToast('error', 'שגיאת רשת'); }
+    } catch(e) { showToast('error', 'שגיאת רשת: ' + e.message); }
 };
 
 window.delBizRadiusZone = async function(zoneId) {
@@ -54632,8 +54648,9 @@ window.delBizRadiusZone = async function(zoneId) {
     if (!gid) return;
     try {
         var r = await fetch('/api/biz/radius-zones/' + gid + '/' + zoneId, { method: 'DELETE' });
+        if (!r.ok) { showToast('error', 'שגיאת שרת ' + r.status); return; }
         var data = await r.json();
         if (data.success) { showToast('success', 'מעגל הוסר'); window.loadBizRadiusZones(); }
         else { showToast('error', data.error || 'שגיאה'); }
-    } catch(e) { showToast('error', 'שגיאת רשת'); }
+    } catch(e) { showToast('error', 'שגיאת רשת: ' + e.message); }
 };
