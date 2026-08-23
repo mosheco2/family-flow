@@ -2450,15 +2450,16 @@ let _billingGroupId = null;
 
 function _getBillingPriceMap() {
     const map = {};
-    if (!_pricingCatalog) return map;
-    _pricingCatalog.forEach(g => g.modules.forEach(m => { map[m.id] = m.price || 0; }));
+    const catalog = _pricingCatalog || PRICING_CATALOG_DEFAULT;
+    catalog.forEach(g => g.modules.forEach(m => { map[m.id] = m.price || 0; }));
     return map;
 }
 
 function initBillingSection(group) {
     _billingGroupId = group?.id || null;
     const priceMap = _getBillingPriceMap();
-    const catalog = _pricingCatalog || PRICING_CATALOG_DEFAULT;
+    if (!_pricingCatalog) _pricingCatalog = JSON.parse(JSON.stringify(PRICING_CATALOG_DEFAULT));
+    const catalog = _pricingCatalog;
 
     // ── populate bundle select ──
     const sel = getEl('billing-bundle-select');
@@ -2535,8 +2536,13 @@ window.recalcBilling = function() {
 
     // modules price — חבילה + כל מודול בודד שסומן (תוספות מעל החבילה)
     let modulesPrice = bundlePrice;
+    const checkedMods = [];
     document.querySelectorAll('.billing-mod-cb:checked').forEach(cb => {
-        modulesPrice += parseInt(cb.dataset.modPrice) || 0;
+        const p = parseInt(cb.dataset.modPrice) || 0;
+        modulesPrice += p;
+        const label = cb.closest('label');
+        const name = label ? label.querySelector('span.font-bold')?.textContent?.trim() : cb.dataset.modId;
+        checkedMods.push({ name: name || cb.dataset.modId, price: p });
     });
 
     // users
@@ -2558,6 +2564,19 @@ window.recalcBilling = function() {
     if (s('bill-modules-sum')) s('bill-modules-sum').textContent = fmt(modulesPrice);
     if (s('bill-users-sum'))   s('bill-users-sum').textContent   = fmt(userPrice);
     if (s('bill-total'))       s('bill-total').textContent       = fmt(total);
+
+    // extra modules breakdown
+    const extraModsRow = getEl('bill-extra-mods-row');
+    const extraModsSum = getEl('bill-extra-mods-sum');
+    const extraModsList = getEl('bill-extra-mods-list');
+    if (extraModsRow) {
+        const extraTotal = checkedMods.reduce((acc, m) => acc + m.price, 0);
+        extraModsRow.classList.toggle('hidden', checkedMods.length === 0);
+        if (extraModsSum) extraModsSum.textContent = fmt(extraTotal);
+        if (extraModsList) extraModsList.innerHTML = checkedMods.map(m =>
+            `<div class="flex justify-between"><span>${m.name}</span><span class="font-mono">${m.price} ₪</span></div>`
+        ).join('');
+    }
 
     const discRow = getEl('bill-discount-row');
     if (discRow) discRow.classList.toggle('hidden', discount === 0);
