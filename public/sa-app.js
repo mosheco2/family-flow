@@ -2528,13 +2528,11 @@ window.recalcBilling = function() {
         bundlePrice = parseInt(opt.dataset.price) || 0;
     }
 
-    // modules price
+    // modules price — חבילה + כל מודול בודד שסומן (תוספות מעל החבילה)
     let modulesPrice = bundlePrice;
-    if (!sel || !sel.value) {
-        document.querySelectorAll('.billing-mod-cb:checked').forEach(cb => {
-            modulesPrice += parseInt(cb.dataset.modPrice) || 0;
-        });
-    }
+    document.querySelectorAll('.billing-mod-cb:checked').forEach(cb => {
+        modulesPrice += parseInt(cb.dataset.modPrice) || 0;
+    });
 
     // users
     const extraUsers = parseInt(getEl('billing-extra-users')?.value) || 0;
@@ -2573,9 +2571,8 @@ function getBillingConfig() {
     if (bundleId) {
         const opt = sel.options[sel.selectedIndex];
         modulesPrice = parseInt(opt?.dataset?.price) || 0;
-    } else {
-        document.querySelectorAll('.billing-mod-cb:checked').forEach(cb => { modulesPrice += parseInt(cb.dataset.modPrice) || 0; });
     }
+    document.querySelectorAll('.billing-mod-cb:checked').forEach(cb => { modulesPrice += parseInt(cb.dataset.modPrice) || 0; });
     const extraUsers = parseInt(getEl('billing-extra-users')?.value) || 0;
     const userPrice = (priceMap['user_extra'] || 9) * extraUsers;
     const dType = getEl('billing-discount-type')?.value || 'pct';
