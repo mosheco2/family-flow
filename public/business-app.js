@@ -3987,7 +3987,7 @@ if(data.group) {
 
             // טעינת קטלוג מחירים (פעם אחת)
             if (!window._pricingCatalogBiz) {
-                fetch('/api/biz/pricing-catalog', { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } })
+                fetch('/api/biz/pricing-catalog', { headers: { 'Authorization': `Bearer ${window._bizToken || ''}` } })
                     .then(r => r.ok ? r.json() : { catalog: [] })
                     .then(d => { window._pricingCatalogBiz = d.catalog || []; })
                     .catch(() => {});
@@ -35014,7 +35014,7 @@ window.sendModuleUnlockRequest = async function() {
     try {
         await fetch('/api/biz/module-request', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${window._bizToken || ''}` },
             body: JSON.stringify({ moduleId: tabId, moduleName: tabName, note })
         });
         document.getElementById('mum-form').classList.add('hidden');
@@ -35105,7 +35105,7 @@ window.openModuleCancelRequest = function(moduleId, moduleName) {
     if (!confirm(`לבקש ביטול המודול "${moduleName}"?\nהבקשה תועבר לטיפול ידני.`)) return;
     fetch('/api/biz/module-request', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${window._bizToken || ''}` },
         body: JSON.stringify({ moduleId: 'CANCEL_' + moduleId, moduleName: 'ביטול: ' + moduleName, note: 'בקשת ביטול מודול' })
     }).then(() => showToast('success', 'בקשת הביטול נשלחה — תטופל ידנית'));
 };

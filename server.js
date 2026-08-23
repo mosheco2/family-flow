@@ -3878,7 +3878,7 @@ app.post('/api/sa/pricing-catalog', verifySA, async (req, res) => {
 });
 
 // קטלוג מחירים ציבורי (לקריאה בלבד)
-app.get('/api/biz/pricing-catalog', verifyToken, async (req, res) => {
+app.get('/api/biz/pricing-catalog', verifyBiz, async (req, res) => {
     try {
         const r = await pool.query("SELECT value FROM system_settings WHERE key = 'module_pricing_catalog'");
         if (r.rows.length > 0) return res.json({ catalog: JSON.parse(r.rows[0].value) });
@@ -3889,9 +3889,9 @@ app.get('/api/biz/pricing-catalog', verifyToken, async (req, res) => {
 // ── Module requests (business side) ──────────────────────────────────────────
 
 // לקוח עסק שולח בקשת שחרור מודול
-app.post('/api/biz/module-request', verifyToken, async (req, res) => {
+app.post('/api/biz/module-request', verifyBiz, async (req, res) => {
     const { moduleId, moduleName, note } = req.body;
-    const groupId = req.user?.group_id;
+    const groupId = req.bizAuth?.groupId;
     if (!groupId || !moduleId) return res.status(400).json({ error: 'missing fields' });
     try {
         const req_obj = JSON.stringify({ moduleId, moduleName: moduleName || moduleId, note: note || '', requested_at: new Date().toISOString(), status: 'pending' });
