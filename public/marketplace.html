@@ -551,9 +551,53 @@ html, body {
     <span class="icon-btn" onclick="loadMarketplace()" title="רענון" style="margin-right:auto;margin-left:4px;">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
     </span>
+    <span class="icon-btn" onclick="openAreaSettings()" title="הגדרות אזורים">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    </span>
     <span class="icon-btn" onclick="navTo('profile')" title="פרופיל">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
     </span>
+  </div>
+</div>
+
+<!-- Modal: הגדרות אזורי משפחה -->
+<div id="area-settings-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;align-items:flex-end;justify-content:center;" onclick="if(event.target===this)closeAreaSettings()">
+  <div style="background:var(--surface);border-radius:20px 20px 0 0;width:100%;max-width:480px;padding:24px 20px 32px;direction:rtl;max-height:85vh;overflow-y:auto;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+      <span onclick="closeAreaSettings()" style="font-size:20px;cursor:pointer;color:var(--muted);">✕</span>
+      <h3 style="font-size:16px;font-weight:800;color:var(--text);">📍 האזורים שלי</h3>
+    </div>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:14px;text-align:right;">הגדר את הערים והאזורים הרלוונטים לך — כשתלחץ "קרובים אליי" נציג עסקים הפעילים באזורים שלך.</p>
+    <div id="family-areas-list" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;min-height:28px;"></div>
+    <div style="display:flex;gap:8px;margin-bottom:10px;">
+      <input id="family-area-city-input" type="text" placeholder="עיר / יישוב" onkeydown="if(event.key==='Enter')addFamilyArea()"
+        style="flex:1;padding:8px 12px;border:1.5px solid var(--border);border-radius:10px;font-size:14px;font-family:inherit;background:var(--surface);color:var(--text);outline:none;" />
+      <select id="family-area-radius" style="padding:8px;border:1.5px solid var(--border);border-radius:10px;font-size:13px;background:var(--surface);color:var(--text);outline:none;">
+        <option value="5">5 ק"מ</option>
+        <option value="10">10 ק"מ</option>
+        <option value="15" selected>15 ק"מ</option>
+        <option value="20">20 ק"מ</option>
+        <option value="30">30 ק"מ</option>
+      </select>
+      <button onclick="addFamilyArea()" style="background:var(--dark);color:#fff;border:none;border-radius:10px;padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer;">+ הוסף</button>
+    </div>
+    <hr style="border:none;border-top:1px solid var(--border);margin:14px 0;" />
+    <div style="text-align:center;">
+      <p style="font-size:12px;color:var(--muted);margin-bottom:8px;">או חפש לפי מיקום GPS שלי עכשיו:</p>
+      <div style="display:flex;align-items:center;gap:10px;justify-content:center;flex-wrap:wrap;">
+        <label style="font-size:12px;color:var(--text);">רדיוס:</label>
+        <select id="gps-radius-select" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;background:var(--surface);color:var(--text);">
+          <option value="3">3 ק"מ</option>
+          <option value="5">5 ק"מ</option>
+          <option value="10" selected>10 ק"מ</option>
+          <option value="20">20 ק"מ</option>
+          <option value="30">30 ק"מ</option>
+          <option value="50">50 ק"מ</option>
+        </select>
+        <button onclick="useGpsNow()" style="background:var(--green);color:#fff;border:none;border-radius:10px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer;">📡 השתמש במיקום שלי</button>
+      </div>
+      <div id="gps-status" style="font-size:11px;color:var(--muted);margin-top:6px;"></div>
+    </div>
   </div>
 </div>
 
@@ -834,14 +878,132 @@ function setFilter(f, el) {
   applyCurrentFilter();
 }
 
+var _gpsLat = null, _gpsLng = null, _gpsRadius = 10;
+
 function applyNearFilter() {
-  if (!navigator.geolocation) { renderBusinesses(allBusinesses); return; }
-  navigator.geolocation.getCurrentPosition(function(pos) {
+  var label = document.getElementById('biz-count-label');
+  // אם יש GPS שמור — השתמש בו
+  if (_gpsLat && _gpsLng) {
+    loadMarketplaceNear(_gpsLat, _gpsLng, _gpsRadius);
+    return;
+  }
+  // אם יש אזורים שמורים — טען לפיהם
+  if (GROUP_ID) {
+    fetch('/api/family/preferred-areas/' + GROUP_ID).then(function(r) { return r.json(); }).then(function(data) {
+      var areas = data.areas || [];
+      if (areas.length) {
+        // קח את האזור הראשי (או הראשון)
+        var primary = areas.find(function(a) { return a.is_primary; }) || areas[0];
+        if (primary.lat && primary.lng) {
+          _gpsLat = primary.lat; _gpsLng = primary.lng; _gpsRadius = primary.radius_km || 15;
+          loadMarketplaceNear(_gpsLat, _gpsLng, _gpsRadius);
+        } else {
+          // אזור בלי geocode — טען הכל + הצג הנחיה
+          renderBusinesses(allBusinesses);
+          if (label) label.textContent += ' — הגדר אזורים עם מיקום';
+        }
+      } else {
+        // אין הגדרות — בקש GPS
+        requestGpsAndFilter();
+      }
+    }).catch(function() { requestGpsAndFilter(); });
+  } else {
+    requestGpsAndFilter();
+  }
+}
+
+function requestGpsAndFilter() {
+  var label = document.getElementById('biz-count-label');
+  if (!navigator.geolocation) {
     renderBusinesses(allBusinesses);
-    var label = document.getElementById('biz-count-label');
-    if (label) label.textContent += ' (מיקום: הכל)';
+    if (label) label.textContent += ' — GPS לא זמין';
+    return;
+  }
+  if (label) label.textContent = 'מאתר מיקום...';
+  navigator.geolocation.getCurrentPosition(function(pos) {
+    _gpsLat = pos.coords.latitude; _gpsLng = pos.coords.longitude;
+    _gpsRadius = parseInt(document.getElementById('gps-radius-select')?.value || '10');
+    loadMarketplaceNear(_gpsLat, _gpsLng, _gpsRadius);
   }, function() {
     renderBusinesses(allBusinesses);
+    if (label) label.textContent = 'לא ניתן לאתר מיקום — מציג הכל';
+  });
+}
+
+function loadMarketplaceNear(lat, lng, radius) {
+  var url = '/api/family/marketplace/' + GROUP_ID + '?lat=' + lat + '&lng=' + lng + '&radius=' + radius;
+  if (currentCategory) url += '&category=' + encodeURIComponent(currentCategory);
+  var label = document.getElementById('biz-count-label');
+  if (label) label.textContent = 'טוען עסקים קרובים...';
+  fetch(url).then(function(r) { return r.json(); }).then(function(data) {
+    var businesses = data.businesses || [];
+    renderBusinesses(businesses);
+    if (label) label.textContent = businesses.length + ' עסקים בטווח ' + radius + ' ק"מ';
+  }).catch(function() { renderBusinesses(allBusinesses); });
+}
+
+// ── Modal אזורי משפחה ────────────────────────────────────────
+function openAreaSettings() {
+  var modal = document.getElementById('area-settings-modal');
+  modal.style.display = 'flex';
+  loadFamilyAreas();
+}
+function closeAreaSettings() {
+  document.getElementById('area-settings-modal').style.display = 'none';
+}
+
+function loadFamilyAreas() {
+  if (!GROUP_ID) return;
+  var el = document.getElementById('family-areas-list');
+  if (el) el.innerHTML = '<span style="font-size:12px;color:var(--muted)">טוען...</span>';
+  fetch('/api/family/preferred-areas/' + GROUP_ID).then(function(r) { return r.json(); }).then(function(data) {
+    var areas = data.areas || [];
+    if (!el) return;
+    if (!areas.length) { el.innerHTML = '<span style="font-size:12px;color:var(--muted);font-style:italic">אין אזורים מוגדרים עדיין</span>'; return; }
+    el.innerHTML = areas.map(function(a) {
+      return '<span style="display:inline-flex;align-items:center;gap:5px;background:var(--bg-alt);border:1.5px solid var(--border);border-radius:20px;padding:5px 12px;font-size:12px;font-weight:700;color:var(--text);">' +
+        (a.is_primary ? '⭐ ' : '📍 ') + a.city + ' · ' + a.radius_km + ' ק"מ' +
+        '<button onclick="delFamilyArea(' + a.id + ')" style="background:none;border:none;cursor:pointer;color:var(--muted);font-size:14px;line-height:1;margin-right:2px;">✕</button>' +
+        '</span>';
+    }).join('');
+  }).catch(function() { if (el) el.innerHTML = '<span style="color:red;font-size:12px">שגיאה</span>'; });
+}
+
+function addFamilyArea() {
+  var cityInput = document.getElementById('family-area-city-input');
+  var radiusInput = document.getElementById('family-area-radius');
+  var city = cityInput ? cityInput.value.trim() : '';
+  if (!city) return;
+  var radius_km = radiusInput ? parseInt(radiusInput.value) : 15;
+  var isFirst = document.getElementById('family-areas-list').children.length === 0 ||
+    document.getElementById('family-areas-list').textContent.includes('אין אזורים');
+  fetch('/api/family/preferred-areas/' + GROUP_ID, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ city: city, radius_km: radius_km, is_primary: isFirst })
+  }).then(function(r) { return r.json(); }).then(function(data) {
+    if (data.success) { if (cityInput) cityInput.value = ''; loadFamilyAreas(); _gpsLat = null; _gpsLng = null; }
+  });
+}
+
+function delFamilyArea(areaId) {
+  fetch('/api/family/preferred-areas/' + GROUP_ID + '/' + areaId, { method: 'DELETE' })
+    .then(function() { loadFamilyAreas(); _gpsLat = null; _gpsLng = null; });
+}
+
+function useGpsNow() {
+  var statusEl = document.getElementById('gps-status');
+  var radius = parseInt(document.getElementById('gps-radius-select')?.value || '10');
+  if (!navigator.geolocation) { if (statusEl) statusEl.textContent = 'GPS לא זמין בדפדפן'; return; }
+  if (statusEl) statusEl.textContent = '⏳ מאתר מיקום...';
+  navigator.geolocation.getCurrentPosition(function(pos) {
+    _gpsLat = pos.coords.latitude; _gpsLng = pos.coords.longitude; _gpsRadius = radius;
+    if (statusEl) statusEl.textContent = '✓ מיקום נמצא! סוגר...';
+    setTimeout(function() {
+      closeAreaSettings();
+      setFilter('near', document.querySelector('[data-filter="near"]'));
+    }, 800);
+  }, function() {
+    if (statusEl) statusEl.textContent = '✗ לא ניתן לאתר מיקום — אנא אפשר גישה ל-GPS';
   });
 }
 

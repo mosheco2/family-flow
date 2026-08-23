@@ -5043,6 +5043,87 @@ app.post('/api/family/visit-business', verifyFamily, async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// ── Geocode עיר → lat/lng (Nominatim, ללא API key) ────────────────────────────
+async function geocodeCity(city) {
+    try {
+        const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(city + ', ישראל')}&format=json&limit=1`;
+        const r = await fetch(url, { headers: { 'User-Agent': 'family-flow-app/1.0' } });
+        const data = await r.json();
+        if (data && data[0]) return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+    } catch(e) { console.error('geocodeCity error:', e.message); }
+    return null;
+}
+
+// Haversine מרחק בק"מ
+function haversineKm(lat1, lng1, lat2, lng2) {
+    const R = 6371;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLng = (lng2 - lng1) * Math.PI / 180;
+    const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+// ── אזורי שירות עסק ────────────────────────────────────────────────────────────
+app.get('/api/biz/service-areas/:groupId', async (req, res) => {
+    try {
+        const r = await pool.query('SELECT * FROM biz_service_areas WHERE business_group_id=$1 ORDER BY created_at', [req.params.groupId]);
+        res.json({ areas: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/biz/service-areas/:groupId', async (req, res) => {
+    try {
+        const { city, radius_km = 10 } = req.body;
+        if (!city) return res.status(400).json({ error: 'חסרה עיר' });
+        const geo = await geocodeCity(city);
+        await pool.query(
+            `INSERT INTO biz_service_areas (business_group_id, city, lat, lng, radius_km)
+             VALUES ($1,$2,$3,$4,$5)
+             ON CONFLICT (business_group_id, city) DO UPDATE SET lat=$3, lng=$4, radius_km=$5`,
+            [req.params.groupId, city, geo?.lat || null, geo?.lng || null, radius_km]
+        );
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/biz/service-areas/:groupId/:areaId', async (req, res) => {
+    try {
+        await pool.query('DELETE FROM biz_service_areas WHERE id=$1 AND business_group_id=$2', [req.params.areaId, req.params.groupId]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── אזורי עניין משפחה ─────────────────────────────────────────────────────────
+app.get('/api/family/preferred-areas/:groupId', async (req, res) => {
+    try {
+        const r = await pool.query('SELECT * FROM family_preferred_areas WHERE family_group_id=$1 ORDER BY is_primary DESC, created_at', [req.params.groupId]);
+        res.json({ areas: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/family/preferred-areas/:groupId', async (req, res) => {
+    try {
+        const { city, radius_km = 15, is_primary = false } = req.body;
+        if (!city) return res.status(400).json({ error: 'חסרה עיר' });
+        const geo = await geocodeCity(city);
+        if (is_primary) await pool.query('UPDATE family_preferred_areas SET is_primary=FALSE WHERE family_group_id=$1', [req.params.groupId]);
+        await pool.query(
+            `INSERT INTO family_preferred_areas (family_group_id, city, lat, lng, radius_km, is_primary)
+             VALUES ($1,$2,$3,$4,$5,$6)
+             ON CONFLICT (family_group_id, city) DO UPDATE SET lat=$3, lng=$4, radius_km=$5, is_primary=$6`,
+            [req.params.groupId, city, geo?.lat || null, geo?.lng || null, radius_km, !!is_primary]
+        );
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/family/preferred-areas/:groupId/:areaId', async (req, res) => {
+    try {
+        await pool.query('DELETE FROM family_preferred_areas WHERE id=$1 AND family_group_id=$2', [req.params.areaId, req.params.groupId]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // היסטוריית ביקורים במרקטפלייס
 app.get('/api/family/marketplace-history/:groupId', verifyFamily, async (req, res) => {
     try {
@@ -5067,7 +5148,7 @@ app.get('/api/family/marketplace-history/:groupId', verifyFamily, async (req, re
 app.get('/api/family/marketplace/:groupId', async (req, res) => {
     try {
         const { groupId } = req.params;
-        const { category, q } = req.query;
+        const { category, q, lat, lng, radius } = req.query;
 
         // יתרת FLW
         const walletRes = await pool.query(
@@ -5113,15 +5194,38 @@ app.get('/api/family/marketplace/:groupId', async (req, res) => {
             // בדיקה אם store_settings קיים
             const ssCheck = await pool.query(`SELECT 1 FROM information_schema.tables WHERE table_name='store_settings'`);
             const hasSS = ssCheck.rows.length > 0;
-            let bizQuery = `SELECT fg.id, fg.name, fg.image_url, fg.business_type as business_category, ${hasSS ? 'ss.logo_url, ss.phone,' : 'NULL as logo_url, NULL as phone,'} NULL as max_discount FROM family_groups fg`;
+            // פילטר "קרובים אליי" — JOIN עם biz_service_areas
+            const nearFilter = lat && lng;
+            const userLat = nearFilter ? parseFloat(lat) : null;
+            const userLng = nearFilter ? parseFloat(lng) : null;
+            const userRadius = nearFilter ? (parseFloat(radius) || 15) : null;
+
+            let bizQuery = `SELECT fg.id, fg.name, fg.image_url, fg.business_type as business_category, ${hasSS ? 'ss.logo_url, ss.phone,' : 'NULL as logo_url, NULL as phone,'} NULL as max_discount`;
+            if (nearFilter) {
+                bizQuery += `, MIN(bsa.lat) as biz_lat, MIN(bsa.lng) as biz_lng, MIN(bsa.radius_km) as biz_radius`;
+            }
+            bizQuery += ` FROM family_groups fg`;
             if (hasSS) bizQuery += ` LEFT JOIN store_settings ss ON ss.group_id = fg.id`;
+            if (nearFilter) bizQuery += ` JOIN biz_service_areas bsa ON bsa.business_group_id = fg.id AND bsa.lat IS NOT NULL`;
             bizQuery += ` WHERE fg.type='BUSINESS' AND (fg.is_deleted=false OR fg.is_deleted IS NULL) AND (fg.account_status IS NULL OR fg.account_status NOT IN ('frozen','archived'))`;
             const params = [];
             if (category) { params.push(category); bizQuery += ` AND fg.business_type ILIKE $${params.length}`; }
             if (q) { params.push('%' + q + '%'); bizQuery += ` AND fg.name ILIKE $${params.length}`; }
-            bizQuery += ` GROUP BY fg.id, fg.name, fg.image_url, fg.business_type${hasSS ? ', ss.logo_url, ss.phone' : ''} ORDER BY fg.name LIMIT 50`;
+            bizQuery += ` GROUP BY fg.id, fg.name, fg.image_url, fg.business_type${hasSS ? ', ss.logo_url, ss.phone' : ''}`;
+            bizQuery += ` ORDER BY fg.name LIMIT 200`;
             const bizRes = await pool.query(bizQuery, params);
-            bizRows = bizRes.rows;
+            let rows = bizRes.rows;
+            // סינון מרחק בצד שרת
+            if (nearFilter) {
+                rows = rows.filter(b => {
+                    if (!b.biz_lat || !b.biz_lng) return false;
+                    const dist = haversineKm(userLat, userLng, b.biz_lat, b.biz_lng);
+                    b.distance_km = Math.round(dist * 10) / 10;
+                    return dist <= (b.biz_radius || userRadius);
+                });
+                rows.sort((a, b) => a.distance_km - b.distance_km);
+            }
+            bizRows = rows;
         } catch(e) { console.error('[marketplace] bizRes error:', e.message); }
 
         console.log('[marketplace] groupId=%s businesses=%d category=%s', groupId, bizRows.length, category||'all');
@@ -25840,6 +25944,31 @@ app.get('/api/community/feed/search', async (req, res) => {
   try { await pool.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS merged_into_group_id INT REFERENCES family_groups(id)`); } catch(e) {}
   try { await pool.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS created_by_business_group_id INT`); } catch(e) {}
   try { await pool.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS solo_temp_password VARCHAR(50)`); } catch(e) {}
+
+  // טבלאות אזורי שירות מרקטפלייס
+  try { await pool.query(`
+    CREATE TABLE IF NOT EXISTS biz_service_areas (
+      id SERIAL PRIMARY KEY,
+      business_group_id INT NOT NULL REFERENCES family_groups(id) ON DELETE CASCADE,
+      city VARCHAR(100) NOT NULL,
+      lat DOUBLE PRECISION,
+      lng DOUBLE PRECISION,
+      radius_km INT NOT NULL DEFAULT 10,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )`); } catch(e) {}
+  try { await pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_biz_service_areas_uniq ON biz_service_areas(business_group_id, city)`); } catch(e) {}
+  try { await pool.query(`
+    CREATE TABLE IF NOT EXISTS family_preferred_areas (
+      id SERIAL PRIMARY KEY,
+      family_group_id INT NOT NULL REFERENCES family_groups(id) ON DELETE CASCADE,
+      city VARCHAR(100) NOT NULL,
+      lat DOUBLE PRECISION,
+      lng DOUBLE PRECISION,
+      radius_km INT NOT NULL DEFAULT 15,
+      is_primary BOOLEAN DEFAULT FALSE,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )`); } catch(e) {}
+  try { await pool.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_family_pref_areas_uniq ON family_preferred_areas(family_group_id, city)`); } catch(e) {}
 
   // טבלת בקשות שיוך משפחה
   try {

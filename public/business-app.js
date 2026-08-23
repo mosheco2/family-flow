@@ -1117,6 +1117,26 @@ window.injectBusinessUI = function() {
                             </div>
                             <button id="btn-save-store-settings" onclick="window.saveStoreSettings()" class="w-full mt-6 bg-slate-800 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-slate-700 transition text-sm">שמור הגדרות חנות</button>
                         </div>
+
+                        <!-- אזורי שירות מרקטפלייס -->
+                        <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 mt-4">
+                            <h4 class="font-black text-slate-800 mb-1 flex items-center gap-2"><i class="fa-solid fa-map-location-dot text-indigo-500"></i> אזורי שירות — מרקטפלייס</h4>
+                            <p class="text-xs text-slate-500 mb-4">משפחות שיחפשו "קרובים אליי" יראו את העסק שלך רק אם אתה מגדיר את הערים שבהן אתה פעיל.</p>
+                            <div id="biz-service-areas-list" class="flex flex-wrap gap-2 mb-3 min-h-[32px]">
+                                <span class="text-xs text-slate-400 italic">טוען...</span>
+                            </div>
+                            <div class="flex gap-2 items-center">
+                                <input id="biz-area-city-input" type="text" placeholder="שם עיר / יישוב" class="modern-input flex-1 py-2 text-sm" onkeydown="if(event.key==='Enter') window.addBizServiceArea()" />
+                                <select id="biz-area-radius" class="modern-input py-2 text-sm w-28">
+                                    <option value="5">5 ק"מ</option>
+                                    <option value="10" selected>10 ק"מ</option>
+                                    <option value="20">20 ק"מ</option>
+                                    <option value="30">30 ק"מ</option>
+                                    <option value="50">50 ק"מ</option>
+                                </select>
+                                <button onclick="window.addBizServiceArea()" class="bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-indigo-700 transition whitespace-nowrap">+ הוסף</button>
+                            </div>
+                        </div>
                     </div>
                     
 <div id="sales-view-analytics" class="hidden space-y-4">
@@ -54190,3 +54210,57 @@ function _mtBtnS(type) {
 // ============================================================
 // --- END MENU TEMPLATES MODULE ---
 // ============================================================
+
+// ============================================================
+// --- MARKETPLACE SERVICE AREAS ---
+// ============================================================
+window.loadBizServiceAreas = async function() {
+    const listEl = document.getElementById('biz-service-areas-list');
+    if (!listEl || !currentGroupId) return;
+    try {
+        const r = await fetch(`/api/biz/service-areas/${currentGroupId}`);
+        const data = await r.json();
+        const areas = data.areas || [];
+        if (!areas.length) {
+            listEl.innerHTML = '<span class="text-xs text-slate-400 italic">אין אזורים מוגדרים עדיין</span>';
+            return;
+        }
+        listEl.innerHTML = areas.map(a => `
+            <span class="flex items-center gap-1 bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs font-bold px-3 py-1.5 rounded-full">
+                <i class="fa-solid fa-location-dot text-indigo-400"></i>
+                ${a.city} · ${a.radius_km} ק"מ
+                <button onclick="window.delBizServiceArea(${a.id})" class="mr-1 text-indigo-400 hover:text-red-500 transition" title="הסר">✕</button>
+            </span>`).join('');
+    } catch(e) { if (listEl) listEl.innerHTML = '<span class="text-xs text-red-400">שגיאה בטעינה</span>'; }
+};
+
+window.addBizServiceArea = async function() {
+    const cityInput = document.getElementById('biz-area-city-input');
+    const radiusInput = document.getElementById('biz-area-radius');
+    const city = cityInput ? cityInput.value.trim() : '';
+    if (!city) { showToast('error', 'נא להזין שם עיר'); return; }
+    const radius_km = radiusInput ? parseInt(radiusInput.value) : 10;
+    try {
+        const r = await fetch(`/api/biz/service-areas/${currentGroupId}`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ city, radius_km })
+        });
+        const data = await r.json();
+        if (data.success) { cityInput.value = ''; showToast('success', `"${city}" נוסף`); window.loadBizServiceAreas(); }
+        else showToast('error', data.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
+window.delBizServiceArea = async function(areaId) {
+    try {
+        await fetch(`/api/biz/service-areas/${currentGroupId}/${areaId}`, { method: 'DELETE' });
+        window.loadBizServiceAreas();
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
+// טעינה אוטומטית כשפותחים טאב הגדרות
+const _origSwitchSalesTab = window.switchSalesTab;
+window.switchSalesTab = function(tab) {
+    if (_origSwitchSalesTab) _origSwitchSalesTab(tab);
+    if (tab === 'settings') setTimeout(window.loadBizServiceAreas, 200);
+};
