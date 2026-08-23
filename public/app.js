@@ -4684,6 +4684,42 @@ function sendWhatsAppInvite(role) {
 
 function toggleFab() { getEl('fab-container').classList.toggle('fab-open'); }
 
+// ── כיווץ/פתיחה של floating pill ──────────────────────────────────────────────
+var _pillCollapsed = (localStorage.getItem('pill_collapsed') === '1');
+
+function toggleFloatingPill() {
+    _pillCollapsed = !_pillCollapsed;
+    localStorage.setItem('pill_collapsed', _pillCollapsed ? '1' : '0');
+    _applyPillCollapse();
+}
+
+function _applyPillCollapse() {
+    var pill = document.getElementById('floating-pill');
+    var icon = document.getElementById('pill-collapse-icon');
+    // כל האלמנטים שיוסתרו בכיווץ
+    var ids = ['ai-assistant-wrapper','pill-sep-ai','team-chat-btn-wrapper','pill-sep-access'];
+    // גם נגישות
+    var accessBtn = pill ? pill.querySelector('[aria-label="הגדרות נגישות"]') : null;
+    var sepCollapse = document.getElementById('pill-sep-collapse');
+
+    ids.forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el) el.style.display = _pillCollapsed ? 'none' : '';
+    });
+    if (accessBtn) accessBtn.style.display = _pillCollapsed ? 'none' : '';
+    if (sepCollapse) sepCollapse.style.display = _pillCollapsed ? 'none' : '';
+
+    if (icon) {
+        icon.style.transform = _pillCollapsed ? 'rotate(180deg)' : 'rotate(0deg)';
+        icon.title = _pillCollapsed ? 'פתח פאנל' : 'כווץ פאנל';
+    }
+}
+
+// החל בטעינה
+document.addEventListener('DOMContentLoaded', function() {
+    if (_pillCollapsed) setTimeout(_applyPillCollapse, 300);
+});
+
 // ── משחקים חיים בטאב קהילה ──
 function _renderGamesIntoEl(el, games) {
   if (!el) return;
