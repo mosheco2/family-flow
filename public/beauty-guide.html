@@ -396,6 +396,7 @@ mark { background: #fbcfe8; border-radius: 2px; padding: 0 2px; }
 
   <div class="sidebar-section-label">ממשק לקוח</div>
   <a class="nav-link" href="#storefront" onclick="setActive(this)"><span class="nav-icon">🌐</span> חנות ציבורית</a>
+  <a class="nav-link" href="#radius-delivery" onclick="setActive(this)"><span class="nav-icon">🛵</span> מעגלי משלוח</a>
 
   <div class="sidebar-section-label">עזרה</div>
   <a class="nav-link" href="#faq" onclick="setActive(this)"><span class="nav-icon">❓</span> שאלות נפוצות</a>
@@ -1235,6 +1236,61 @@ mark { background: #fbcfe8; border-radius: 2px; padding: 0 2px; }
     <div class="callout callout-info">
       <span class="callout-icon">🔗</span>
       <div>הקישור לחנות הציבורית נמצא ב: <strong>הגדרות → הגדרות חנות → קישור ציבורי</strong>. ניתן לשתף ב-WhatsApp, אינסטגרם ו-Google Business.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════
+     16a. מעגלי משלוח — הגדרת רדיוס
+═══════════════════════════════════════════════════════ -->
+<section id="radius-delivery" class="section-card">
+  <div class="card-header">
+    <div class="card-icon" style="background:#d1fae5">🛵</div>
+    <div>
+      <div class="card-title">מעגלי משלוח — רדיוס גאוגרפי</div>
+      <div class="card-subtitle">הגדרת עלות משלוח לפי מרחק מהעסק</div>
+    </div>
+  </div>
+  <div class="card-body">
+    <p style="font-size:0.875rem;color:#475569;line-height:1.7;margin-bottom:1.25rem">
+      מערכת מעגלי המשלוח מאפשרת להגדיר <strong>עלויות שונות לפי מרחק</strong> מהסלון. כשלקוחה מזמינה משלוח עד הבית, המערכת מחשבת את המרחק ומוסיפה את העלות הנכונה אוטומטית.
+    </p>
+
+    <div class="screen-section">
+      <div class="screen-section-title">📍 שלב 1 — הגדרת מיקום הסלון</div>
+      <p style="font-size:0.85rem;color:#475569;line-height:1.6;margin-bottom:0.75rem">הנתיב: <strong>מכירות → הגדרות → מעגלי משלוח</strong></p>
+      <div class="field-row"><div class="field-name">חיפוש כתובת</div><div class="field-desc">הקלידי את כתובת הסלון המדויקת — בחרי מרשימת ההצעות שמופיעה (מבוסס OpenStreetMap). חובה לבחור מהרשימה — הקלדה חופשית לא תישמר</div></div>
+      <div class="field-row"><div class="field-name">שמירת מיקום</div><div class="field-desc">לחצי "שמור" — המיקום נשמר כנקודת מוצא לכל חישובי המשלוח</div></div>
+      <div class="field-row"><div class="field-name">דיוק</div><div class="field-desc">ככל שהכתובת מדויקת יותר (רחוב + מספר בית) — החישוב מדויק יותר</div></div>
+    </div>
+
+    <div class="screen-section">
+      <div class="screen-section-title">🎯 שלב 2 — הגדרת מעגלים</div>
+      <p style="font-size:0.85rem;color:#475569;line-height:1.6;margin-bottom:0.75rem">לכל מעגל מגדירים <strong>רדיוס בק"מ</strong> ו<strong>עלות משלוח בש"ח</strong>:</p>
+      <div class="field-row"><div class="field-name">רדיוס (ק"מ)</div><div class="field-desc">מרחק אווירי מהסלון. לדוגמה: 3, 7, 15 ק"מ</div></div>
+      <div class="field-row"><div class="field-name">עלות משלוח</div><div class="field-desc">סכום בש"ח שיתווסף לסל הקנייה. 0 = משלוח חינם לאזור זה</div></div>
+      <div class="field-row"><div class="field-name">לחצי + הוסף</div><div class="field-desc">המעגל נשמר ומופיע ברשימה. ניתן להגדיר כמה מעגלים במקביל</div></div>
+    </div>
+
+    <div class="screen-section">
+      <div class="screen-section-title">💡 דוגמה מעשית</div>
+      <div class="field-row"><div class="field-name">מעגל 1 — 3 ק"מ</div><div class="field-desc">₪0 — משלוח חינם לשכנים קרובים</div></div>
+      <div class="field-row"><div class="field-name">מעגל 2 — 7 ק"מ</div><div class="field-desc">₪15 — אזור העיר</div></div>
+      <div class="field-row"><div class="field-name">מעגל 3 — 15 ק"מ</div><div class="field-desc">₪30 — אזור מטרופולין</div></div>
+      <div style="font-size:0.8rem;color:#64748b;margin-top:0.5rem">לקוחה שגרה 5 ק"מ מהסלון תקבל אוטומטית עלות של ₪15 (המעגל הקרוב ביותר שמכסה אותה)</div>
+    </div>
+
+    <div class="screen-section">
+      <div class="screen-section-title">🔄 איך זה עובד בחנות הציבורית</div>
+      <div class="field-row"><div class="field-name">הזמנת משלוח</div><div class="field-desc">הלקוחה בוחרת "משלוח עד הבית" ומזינה עיר + רחוב + מספר בית</div></div>
+      <div class="field-row"><div class="field-name">חישוב אוטומטי</div><div class="field-desc">המערכת ממפה את הכתובת לקואורדינטות ומחשבת את המרחק מהסלון</div></div>
+      <div class="field-row"><div class="field-name">בחירת מעגל</div><div class="field-desc">נבחר המעגל הקטן ביותר שמכסה את המרחק — עלות המשלוח שלו מתווספת לסל</div></div>
+      <div class="field-row"><div class="field-name">אין מעגל מתאים</div><div class="field-desc">אם הלקוחה מחוץ לכל המעגלים — נגבית עלות המשלוח הכללית שהוגדרה בהגדרות החנות</div></div>
+    </div>
+
+    <div class="callout callout-info">
+      <span class="callout-icon">📌</span>
+      <div><strong>שים לב:</strong> מעגלי משלוח עובדים רק כשמוגדר מיקום לסלון. ללא מיקום — תגבה עלות המשלוח הרגילה. מומלץ להגדיר לפחות 2–3 מעגלים לכיסוי מיטבי.</div>
     </div>
   </div>
 </section>
