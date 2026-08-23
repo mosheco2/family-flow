@@ -4696,9 +4696,7 @@ function toggleFloatingPill() {
 function _applyPillCollapse() {
     var pill = document.getElementById('floating-pill');
     var icon = document.getElementById('pill-collapse-icon');
-    // כל האלמנטים שיוסתרו בכיווץ
-    var ids = ['ai-assistant-wrapper','pill-sep-ai','team-chat-btn-wrapper','pill-sep-access'];
-    // גם נגישות
+    var ids = ['ai-assistant-wrapper','pill-sep-ai','team-chat-btn-wrapper','pill-sep-access','pill-sep-collapse'];
     var accessBtn = pill ? pill.querySelector('[aria-label="הגדרות נגישות"]') : null;
 
     ids.forEach(function(id) {
@@ -4707,14 +4705,27 @@ function _applyPillCollapse() {
     });
     if (accessBtn) accessBtn.style.display = _pillCollapsed ? 'none' : '';
 
-    // tooltip הכפתור
+    // מיקום ה-pill: מכווץ → פינה ימין-תחתון; פתוח → מרכז
+    if (pill) {
+        if (_pillCollapsed) {
+            pill.style.left = 'auto';
+            pill.style.right = '12px';
+            pill.style.transform = 'none';
+            pill.style.bottom = '16px';
+        } else {
+            pill.style.left = '50%';
+            pill.style.right = 'auto';
+            pill.style.transform = 'translateX(-50%)';
+            pill.style.bottom = '';
+        }
+    }
+
     var collapseBtn = document.getElementById('pill-collapse-btn');
     if (collapseBtn) {
         var tip = collapseBtn.querySelector('span');
         if (tip) tip.textContent = _pillCollapsed ? 'פתח' : 'כווץ';
     }
     if (icon) {
-        // chevron-left = כיוון כיווץ; 180° = כיוון פתיחה
         icon.style.transform = _pillCollapsed ? 'rotate(180deg)' : 'rotate(0deg)';
     }
 }
