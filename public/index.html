@@ -1794,19 +1794,6 @@
                 shadow-[0_4px_24px_rgba(0,0,0,0.10),0_0_0_1px_rgba(255,255,255,0.9)]
                 transition-all duration-300">
 
-        <!-- כפתור כיווץ/פתיחה -->
-        <button id="pill-collapse-btn"
-                onclick="toggleFloatingPill()"
-                aria-label="כווץ/פתח פאנל"
-                title="כווץ פאנל"
-                class="relative group">
-            <div class="w-9 h-9 rounded-full flex items-center justify-center
-                        hover:bg-slate-100 active:scale-95 transition-all duration-150">
-                <i id="pill-collapse-icon" class="fa-solid fa-chevron-right text-slate-400 text-[13px] transition-transform duration-300"></i>
-            </div>
-        </button>
-        <div id="pill-sep-collapse" class="w-px h-6 bg-slate-200/80 mx-0.5 shrink-0"></div>
-
         <!-- עוזרת אישית -->
         <div id="ai-assistant-wrapper"
              role="button" tabindex="0" aria-label="עוזרת אישית"
@@ -1868,6 +1855,14 @@
             </span>
         </button>
     </div>
+
+    <!-- כפתור כיווץ פאנל — צד שמאל תחתון -->
+    <button id="pill-collapse-btn"
+            onclick="toggleFloatingPill()"
+            aria-label="כווץ/פתח פאנל"
+            style="position:fixed;bottom:18px;left:8px;z-index:90;width:28px;height:28px;border-radius:50%;background:rgba(255,255,255,0.85);backdrop-filter:blur(8px);border:1px solid rgba(0,0,0,0.08);box-shadow:0 2px 8px rgba(0,0,0,0.12);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all 0.2s;">
+        <i id="pill-collapse-icon" class="fa-solid fa-chevron-right text-slate-400 transition-transform duration-300" style="font-size:11px;"></i>
+    </button>
 
     <div id="edit-transaction-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[50] flex items-center justify-center p-4">
         <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl max-h-[90vh] overflow-y-auto modal-scroll">

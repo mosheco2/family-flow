@@ -4700,14 +4700,12 @@ function _applyPillCollapse() {
     var ids = ['ai-assistant-wrapper','pill-sep-ai','team-chat-btn-wrapper','pill-sep-access'];
     // גם נגישות
     var accessBtn = pill ? pill.querySelector('[aria-label="הגדרות נגישות"]') : null;
-    var sepCollapse = document.getElementById('pill-sep-collapse');
 
     ids.forEach(function(id) {
         var el = document.getElementById(id);
         if (el) el.style.display = _pillCollapsed ? 'none' : '';
     });
     if (accessBtn) accessBtn.style.display = _pillCollapsed ? 'none' : '';
-    if (sepCollapse) sepCollapse.style.display = _pillCollapsed ? 'none' : '';
 
     if (icon) {
         icon.style.transform = _pillCollapsed ? 'rotate(180deg)' : 'rotate(0deg)';
