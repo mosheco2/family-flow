@@ -1160,7 +1160,7 @@ window.injectBusinessUI = function() {
                                         2. הוסף <strong>מעגלים</strong> לפי רדיוס (ק"מ) + עלות משלוח.<br>
                                         3. כשלקוח מזמין משלוח עד הבית, המערכת מחשבת את המרחק האווירי מהעסק ובוחרת את המעגל הקרוב ביותר.<br>
                                         4. עלות המעגל <strong>מתווספת אוטומטית</strong> לסל הקנייה בחנות.<br>
-                                        <span class="text-slate-300 text-[10px] mt-1 block">לקוח מחוץ לכל המעגלים → עלות המשלוח הכללית</span>
+                                        <span class="text-red-300 text-[10px] mt-1 block">⚠️ לקוח מחוץ לכל המעגלים → משלוח לא זמין</span>
                                     </span>
                                 </span>
                             </h4>
