@@ -54240,16 +54240,75 @@ window.addBizServiceArea = async function() {
     const city = cityInput ? cityInput.value.trim() : '';
     if (!city) { showToast('error', 'נא להזין שם עיר'); return; }
     const radius_km = radiusInput ? parseInt(radiusInput.value) : 10;
+    const lat = cityInput.dataset.lat ? parseFloat(cityInput.dataset.lat) : null;
+    const lng = cityInput.dataset.lng ? parseFloat(cityInput.dataset.lng) : null;
     try {
         const r = await fetch(`/api/biz/service-areas/${currentGroupId}`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ city, radius_km })
+            body: JSON.stringify({ city, radius_km, lat, lng })
         });
         const data = await r.json();
-        if (data.success) { cityInput.value = ''; showToast('success', `"${city}" נוסף`); window.loadBizServiceAreas(); }
-        else showToast('error', data.error || 'שגיאה');
+        if (data.success) {
+            cityInput.value = '';
+            delete cityInput.dataset.lat; delete cityInput.dataset.lng;
+            showToast('success', `"${city}" נוסף`);
+            window.loadBizServiceAreas();
+        } else showToast('error', data.error || 'שגיאה');
     } catch(e) { showToast('error', 'שגיאת תקשורת'); }
 };
+
+// ── Nominatim Autocomplete לעסקים ─────────────────────────────────────────────
+function _initBizNominatimAC() {
+    var input = document.getElementById('biz-area-city-input');
+    if (!input || input._acInit) return;
+    input._acInit = true;
+    var wrap = input.parentElement;
+    if (getComputedStyle(wrap).position === 'static') wrap.style.position = 'relative';
+    var dd = document.createElement('div');
+    dd.style.cssText = 'display:none;position:absolute;top:calc(100% + 4px);right:0;left:0;background:#fff;' +
+        'border:1.5px solid #e2e8f0;border-radius:10px;box-shadow:0 6px 20px rgba(0,0,0,.1);z-index:9999;overflow:hidden;';
+    wrap.appendChild(dd);
+    var _t;
+    input.addEventListener('input', function() {
+        var val = input.value.trim();
+        clearTimeout(_t);
+        delete input.dataset.lat; delete input.dataset.lng;
+        if (val.length < 2) { dd.style.display = 'none'; return; }
+        _t = setTimeout(function() {
+            var url = 'https://nominatim.openstreetmap.org/search?q=' + encodeURIComponent(val) +
+                '&format=json&limit=6&countrycodes=il&addressdetails=1&accept-language=he';
+            fetch(url, { headers: { 'User-Agent': 'family-flow-app/1.0' } })
+                .then(function(r) { return r.json(); })
+                .then(function(items) {
+                    if (!items.length) { dd.style.display = 'none'; return; }
+                    dd.innerHTML = items.map(function(item) {
+                        var a = item.address || {};
+                        var short = a.city || a.town || a.village || a.suburb || a.municipality || item.display_name.split(',')[0];
+                        var extra = item.display_name.split(',').slice(1, 3).join(',').trim();
+                        return '<div data-lat="' + item.lat + '" data-lng="' + item.lon + '" data-name="' + short.replace(/"/g,'') + '" ' +
+                            'style="padding:9px 14px;font-size:13px;cursor:pointer;border-bottom:1px solid #f1f5f9;direction:rtl;text-align:right;">' +
+                            '<span style="font-weight:700;color:#1e293b;">' + short + '</span>' +
+                            (extra ? '<span style="font-size:11px;color:#94a3b8;margin-right:6px;">' + extra + '</span>' : '') +
+                            '</div>';
+                    }).join('');
+                    dd.style.display = 'block';
+                    dd.querySelectorAll('div').forEach(function(row) {
+                        row.addEventListener('mouseover', function() { row.style.background = '#f8fafc'; });
+                        row.addEventListener('mouseout', function() { row.style.background = ''; });
+                        row.addEventListener('mousedown', function(e) {
+                            e.preventDefault();
+                            input.value = row.dataset.name;
+                            input.dataset.lat = row.dataset.lat;
+                            input.dataset.lng = row.dataset.lng;
+                            dd.style.display = 'none';
+                        });
+                    });
+                }).catch(function() { dd.style.display = 'none'; });
+        }, 300);
+    });
+    input.addEventListener('blur', function() { setTimeout(function() { dd.style.display = 'none'; }, 200); });
+    input.addEventListener('keydown', function(e) { if (e.key === 'Escape') dd.style.display = 'none'; });
+}
 
 window.delBizServiceArea = async function(areaId) {
     try {
@@ -54262,5 +54321,5 @@ window.delBizServiceArea = async function(areaId) {
 const _origSwitchSalesTab = window.switchSalesTab;
 window.switchSalesTab = function(tab) {
     if (_origSwitchSalesTab) _origSwitchSalesTab(tab);
-    if (tab === 'settings') setTimeout(window.loadBizServiceAreas, 200);
+    if (tab === 'settings') setTimeout(function() { window.loadBizServiceAreas(); _initBizNominatimAC(); }, 300);
 };

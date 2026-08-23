@@ -5073,14 +5073,16 @@ app.get('/api/biz/service-areas/:groupId', async (req, res) => {
 
 app.post('/api/biz/service-areas/:groupId', async (req, res) => {
     try {
-        const { city, radius_km = 10 } = req.body;
+        const { city, radius_km = 10, lat: clientLat, lng: clientLng } = req.body;
         if (!city) return res.status(400).json({ error: 'חסרה עיר' });
-        const geo = await geocodeCity(city);
+        let lat = clientLat ? parseFloat(clientLat) : null;
+        let lng = clientLng ? parseFloat(clientLng) : null;
+        if (!lat || !lng) { const geo = await geocodeCity(city); lat = geo?.lat || null; lng = geo?.lng || null; }
         await pool.query(
             `INSERT INTO biz_service_areas (business_group_id, city, lat, lng, radius_km)
              VALUES ($1,$2,$3,$4,$5)
              ON CONFLICT (business_group_id, city) DO UPDATE SET lat=$3, lng=$4, radius_km=$5`,
-            [req.params.groupId, city, geo?.lat || null, geo?.lng || null, radius_km]
+            [req.params.groupId, city, lat, lng, radius_km]
         );
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
@@ -5103,15 +5105,17 @@ app.get('/api/family/preferred-areas/:groupId', async (req, res) => {
 
 app.post('/api/family/preferred-areas/:groupId', async (req, res) => {
     try {
-        const { city, radius_km = 15, is_primary = false } = req.body;
+        const { city, radius_km = 15, is_primary = false, lat: clientLat, lng: clientLng } = req.body;
         if (!city) return res.status(400).json({ error: 'חסרה עיר' });
-        const geo = await geocodeCity(city);
+        let lat = clientLat ? parseFloat(clientLat) : null;
+        let lng = clientLng ? parseFloat(clientLng) : null;
+        if (!lat || !lng) { const geo = await geocodeCity(city); lat = geo?.lat || null; lng = geo?.lng || null; }
         if (is_primary) await pool.query('UPDATE family_preferred_areas SET is_primary=FALSE WHERE family_group_id=$1', [req.params.groupId]);
         await pool.query(
             `INSERT INTO family_preferred_areas (family_group_id, city, lat, lng, radius_km, is_primary)
              VALUES ($1,$2,$3,$4,$5,$6)
              ON CONFLICT (family_group_id, city) DO UPDATE SET lat=$3, lng=$4, radius_km=$5, is_primary=$6`,
-            [req.params.groupId, city, geo?.lat || null, geo?.lng || null, radius_km, !!is_primary]
+            [req.params.groupId, city, lat, lng, radius_km, !!is_primary]
         );
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
