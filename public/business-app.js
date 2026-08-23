@@ -1147,8 +1147,45 @@ window.injectBusinessUI = function() {
                                 <div id="biz-quick-area-chips" class="flex gap-1.5 flex-wrap"></div>
                             </div>
                         </div>
+
+                        <!-- מעגלי משלוח -->
+                        <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 mt-4">
+                            <h4 class="font-black text-slate-800 mb-1 flex items-center gap-2"><i class="fa-solid fa-motorcycle text-emerald-500"></i> מעגלי משלוח</h4>
+                            <p class="text-xs text-slate-500 mb-4">הגדר את מיקום העסק ומעגלי רדיוס משלוח עם עלות — העלות תתווסף אוטומטית בחנות הציבורית.</p>
+
+                            <!-- מיקום העסק -->
+                            <div class="bg-slate-50 rounded-xl p-3 mb-4 border border-slate-200">
+                                <p class="text-xs font-bold text-slate-600 mb-2">📍 כתובת העסק (נקודת מוצא למשלוחים)</p>
+                                <div id="biz-location-display" class="text-xs text-emerald-600 font-bold mb-2 hidden"></div>
+                                <div class="flex gap-2 relative">
+                                    <input id="biz-location-input" type="text" placeholder="הקלד כתובת מדויקת..." autocomplete="off"
+                                        class="modern-input flex-1 py-2 text-sm" />
+                                    <button onclick="window.saveBizLocation()" class="bg-emerald-600 text-white px-3 py-2 rounded-xl text-sm font-bold hover:bg-emerald-700 transition whitespace-nowrap">שמור</button>
+                                </div>
+                            </div>
+
+                            <!-- רשימת מעגלים -->
+                            <div id="biz-radius-zones-list" class="space-y-2 mb-4"></div>
+
+                            <!-- הוספת מעגל -->
+                            <div class="bg-indigo-50/50 rounded-xl p-3 border border-indigo-100">
+                                <p class="text-xs font-bold text-indigo-700 mb-2">+ הוסף מעגל משלוח</p>
+                                <div class="flex gap-2 items-center">
+                                    <div class="flex flex-col gap-1 flex-1">
+                                        <label class="text-[10px] text-slate-400 font-bold">רדיוס (ק"מ)</label>
+                                        <input id="biz-zone-radius" type="number" min="1" max="100" value="5" class="modern-input py-2 text-sm text-center" />
+                                    </div>
+                                    <div class="flex flex-col gap-1 flex-1">
+                                        <label class="text-[10px] text-slate-400 font-bold">עלות משלוח (₪)</label>
+                                        <input id="biz-zone-fee" type="number" min="0" step="0.5" value="0" class="modern-input py-2 text-sm text-center" placeholder="0 = חינם" />
+                                    </div>
+                                    <button onclick="window.addBizRadiusZone()" class="bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-indigo-700 transition whitespace-nowrap self-end mb-0.5">+ הוסף</button>
+                                </div>
+                                <p class="text-[10px] text-slate-400 mt-1.5">💡 הגדר מספר מעגלים — הלקוח יקבל את עלות המעגל הקרוב ביותר. עלות 0 = משלוח חינם.</p>
+                            </div>
+                        </div>
                     </div>
-                    
+
 <div id="sales-view-analytics" class="hidden space-y-4">
                         <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-4 bg-white p-4 rounded-[2rem] border border-slate-100 shadow-sm">
                             <h4 class="font-bold text-slate-800 text-lg flex items-center gap-2"><i class="fa-solid fa-chart-pie text-indigo-500"></i> דוחות ואנליטיקה</h4>
@@ -54448,5 +54485,155 @@ window.switchSalesTab = function(tab) {
         window.loadBizServiceAreas();
         _initBizNominatimAC();
         _renderBizQuickAreas();
+        window.loadBizLocation();
+        window.loadBizRadiusZones();
+        _initBizLocationAC();
     }, 300);
+};
+
+// ============================================================
+// מעגלי משלוח — Radius Delivery Zones
+// ============================================================
+
+function _initBizLocationAC() {
+    var inp = document.getElementById('biz-location-input');
+    if (!inp || inp.dataset.acInit) return;
+    inp.dataset.acInit = '1';
+    var box = document.createElement('div');
+    box.className = 'absolute z-50 bg-white border border-slate-200 rounded-xl shadow-lg w-full mt-1 max-h-56 overflow-y-auto hidden';
+    box.style.top = '100%';
+    inp.parentNode.style.position = 'relative';
+    inp.parentNode.appendChild(box);
+    var timer;
+    inp.addEventListener('input', function() {
+        clearTimeout(timer);
+        delete inp.dataset.lat; delete inp.dataset.lng;
+        var q = inp.value.trim();
+        if (q.length < 2) { box.classList.add('hidden'); return; }
+        timer = setTimeout(async function() {
+            try {
+                var url = 'https://nominatim.openstreetmap.org/search?q=' + encodeURIComponent(q) +
+                    '&format=json&limit=10&addressdetails=1&accept-language=he&viewbox=34.2,29.4,35.9,33.4&bounded=0';
+                var res = await fetch(url, { headers: { 'User-Agent': 'FamilyFlow/1.0' } });
+                var results = await res.json();
+                if (!results.length) { box.innerHTML = '<div class="p-3 text-xs text-slate-400">לא נמצאו תוצאות</div>'; box.classList.remove('hidden'); return; }
+                box.innerHTML = '';
+                results.forEach(function(r) {
+                    var a = r.address || {};
+                    var name = a.road ? ((a.road) + (a.house_number ? ' ' + a.house_number : '') + ', ' + (a.city || a.town || a.village || '')) : (a.quarter || a.suburb || a.neighbourhood || a.village || a.town || a.city || a.municipality || r.display_name);
+                    var item = document.createElement('div');
+                    item.className = 'px-3 py-2 text-sm cursor-pointer hover:bg-indigo-50 transition border-b border-slate-50 last:border-0';
+                    item.textContent = name;
+                    item.addEventListener('mousedown', function(e) {
+                        e.preventDefault();
+                        inp.value = name;
+                        inp.dataset.lat = r.lat;
+                        inp.dataset.lng = r.lon;
+                        box.classList.add('hidden');
+                    });
+                    box.appendChild(item);
+                });
+                box.classList.remove('hidden');
+            } catch(e) {}
+        }, 350);
+    });
+    document.addEventListener('click', function(e) { if (!inp.parentNode.contains(e.target)) box.classList.add('hidden'); });
+}
+
+window.loadBizLocation = async function() {
+    var gid = currentGroup?.id;
+    if (!gid) return;
+    try {
+        var r = await fetch('/api/biz/location/' + gid);
+        if (!r.ok) return;
+        var data = await r.json();
+        var disp = document.getElementById('biz-location-display');
+        var inp = document.getElementById('biz-location-input');
+        if (data.address) {
+            if (disp) { disp.textContent = '✓ ' + data.address; disp.classList.remove('hidden'); }
+            if (inp) { inp.value = ''; inp.dataset.lat = data.lat; inp.dataset.lng = data.lng; inp.placeholder = data.address; }
+        }
+    } catch(e) {}
+};
+
+window.saveBizLocation = async function() {
+    var inp = document.getElementById('biz-location-input');
+    var lat = inp?.dataset.lat;
+    var lng = inp?.dataset.lng;
+    var addr = inp?.value.trim();
+    var gid = currentGroup?.id;
+    if (!lat || !lng) { showToast('error', 'יש לבחור כתובת מרשימת ההצעות'); return; }
+    if (!gid) return;
+    try {
+        var r = await fetch('/api/biz/location/' + gid, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ lat: parseFloat(lat), lng: parseFloat(lng), address: addr })
+        });
+        var data = await r.json();
+        if (data.success) {
+            showToast('success', 'מיקום העסק נשמר');
+            var disp = document.getElementById('biz-location-display');
+            if (disp) { disp.textContent = '✓ ' + addr; disp.classList.remove('hidden'); }
+            if (inp) { inp.placeholder = addr; inp.value = ''; }
+        } else { showToast('error', data.error || 'שגיאה בשמירה'); }
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
+};
+
+window.loadBizRadiusZones = async function() {
+    var gid = currentGroup?.id;
+    var listEl = document.getElementById('biz-radius-zones-list');
+    if (!listEl || !gid) return;
+    try {
+        var r = await fetch('/api/biz/radius-zones/' + gid);
+        var data = await r.json();
+        var zones = data.zones || [];
+        if (!zones.length) {
+            listEl.innerHTML = '<p class="text-xs text-slate-400 text-center py-2">אין מעגלים מוגדרים עדיין</p>';
+            return;
+        }
+        listEl.innerHTML = zones.map(function(z) {
+            return '<div class="flex items-center justify-between bg-slate-50 rounded-xl px-3 py-2 border border-slate-100">' +
+                '<div class="flex items-center gap-2">' +
+                '<span class="text-emerald-600 font-bold text-sm">📍 ' + z.radius_km + ' ק"מ</span>' +
+                '<span class="text-xs text-slate-400 mx-1">·</span>' +
+                (parseFloat(z.delivery_fee) > 0
+                    ? '<span class="text-slate-600 text-xs font-bold">₪' + parseFloat(z.delivery_fee).toFixed(0) + ' משלוח</span>'
+                    : '<span class="text-emerald-500 text-xs font-bold">חינם</span>') +
+                '</div>' +
+                '<button onclick="window.delBizRadiusZone(' + z.id + ')" class="text-slate-300 hover:text-red-400 transition text-sm px-2 py-0.5 rounded">✕</button>' +
+                '</div>';
+        }).join('');
+    } catch(e) {}
+};
+
+window.addBizRadiusZone = async function() {
+    var gid = currentGroup?.id;
+    if (!gid) return;
+    var radius = parseInt(document.getElementById('biz-zone-radius')?.value) || 0;
+    var fee = parseFloat(document.getElementById('biz-zone-fee')?.value) || 0;
+    if (!radius || radius < 1) { showToast('error', 'יש להזין רדיוס תקין (1+)'); return; }
+    try {
+        var r = await fetch('/api/biz/radius-zones/' + gid, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ radius_km: radius, delivery_fee: fee })
+        });
+        var data = await r.json();
+        if (data.success) {
+            showToast('success', 'מעגל נוסף בהצלחה');
+            window.loadBizRadiusZones();
+        } else { showToast('error', data.error || 'שגיאה'); }
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
+};
+
+window.delBizRadiusZone = async function(zoneId) {
+    var gid = currentGroup?.id;
+    if (!gid) return;
+    try {
+        var r = await fetch('/api/biz/radius-zones/' + gid + '/' + zoneId, { method: 'DELETE' });
+        var data = await r.json();
+        if (data.success) { showToast('success', 'מעגל הוסר'); window.loadBizRadiusZones(); }
+        else { showToast('error', data.error || 'שגיאה'); }
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
 };

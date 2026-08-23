@@ -604,6 +604,56 @@
         const safeStr = str => (str || '').toString().replace(/'/g, "\\'").replace(/"/g, "&quot;");
         const isTrue = val => val === true || val === 'true' || val === 1 || val === '1' || val === 't';
 
+        function _haversineKm(lat1, lng1, lat2, lng2) {
+            const R = 6371, toRad = d => d * Math.PI / 180;
+            const dLat = toRad(lat2 - lat1), dLng = toRad(lng2 - lng1);
+            const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng/2)**2;
+            return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        }
+
+        let _computedRadiusDelFee = null; // null = לא חושב עדיין
+        let _radiusGeoTimer = null;
+
+        async function _geocodeAndCacheDeliveryFee() {
+            const zones = storeData?.radiusZones;
+            const bizLat = parseFloat(storeData?.bizLat);
+            const bizLng = parseFloat(storeData?.bizLng);
+            if (!zones || !zones.length || !bizLat || !bizLng) { _computedRadiusDelFee = null; return; }
+            const city = getEl('cust-city')?.value?.trim();
+            const street = getEl('cust-street')?.value?.trim();
+            const house = getEl('cust-house')?.value?.trim();
+            if (!city) { _computedRadiusDelFee = null; return; }
+            const q = [street, house, city].filter(Boolean).join(' ');
+            try {
+                const url = 'https://nominatim.openstreetmap.org/search?q=' + encodeURIComponent(q) +
+                    '&format=json&limit=1&accept-language=he&viewbox=34.2,29.4,35.9,33.4&bounded=0';
+                const res = await fetch(url, { headers: { 'User-Agent': 'FamilyFlow/1.0' } });
+                const results = await res.json();
+                if (!results.length) { _computedRadiusDelFee = null; return; }
+                const custLat = parseFloat(results[0].lat), custLng = parseFloat(results[0].lon);
+                const distKm = _haversineKm(bizLat, bizLng, custLat, custLng);
+                const sorted = [...zones].sort((a, b) => a.radius_km - b.radius_km);
+                const match = sorted.find(z => distKm <= z.radius_km);
+                _computedRadiusDelFee = match ? parseFloat(match.delivery_fee) : null;
+                // עדכן תצוגת עלות בזמן אמת אם יש
+                const el = document.querySelector('.checkout-radius-fee-note');
+                if (el && match) el.textContent = match.delivery_fee > 0 ? `(${distKm.toFixed(1)} ק"מ מהעסק — עלות: ₪${parseFloat(match.delivery_fee).toFixed(0)})` : `(${distKm.toFixed(1)} ק"מ מהעסק — משלוח חינם)`;
+                else if (el) el.textContent = '';
+            } catch(e) { _computedRadiusDelFee = null; }
+        }
+
+        function _setupRadiusDeliveryListeners() {
+            ['cust-city', 'cust-street', 'cust-house'].forEach(id => {
+                const el = getEl(id);
+                if (!el) return;
+                el.addEventListener('input', () => {
+                    clearTimeout(_radiusGeoTimer);
+                    _computedRadiusDelFee = null;
+                    _radiusGeoTimer = setTimeout(_geocodeAndCacheDeliveryFee, 800);
+                });
+            });
+        }
+
         function showToast(t, m) { 
             const el = getEl('toast'); 
             el.classList.remove('hidden'); 
@@ -789,6 +839,7 @@
                     window.renderPromotionsBanner();
                     window.renderCatalog();
                     loadStorePopups();
+                    setTimeout(_setupRadiusDeliveryListeners, 600);
 
                     // Render the professional branding site into its container
                     await renderProfessionalSite(data);
@@ -2270,8 +2321,14 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
             let delFee = 0;
             const isDelivery = getEl('is-delivery').value === 'true';
             if (isDelivery && !calc.hasComplexItems) {
-                delFee = parseFloat(storeData.settings?.delivery_fee) || 30; 
-                itemsHtml += `<div class="flex justify-between items-center py-3 mt-2 bg-indigo-50/50 px-3 rounded-xl mb-2 border border-indigo-100"><div class="flex items-center gap-3"><div class="w-7 h-7 flex items-center justify-center text-indigo-500"><i class="fa-solid fa-motorcycle"></i></div><span class="font-bold text-indigo-800 text-sm">דמי משלוח</span></div><div class="flex items-center gap-3"><span class="font-bold text-slate-900 text-sm">₪${delFee.toFixed(2)}</span></div></div>`;
+                const hasRadiusZones = storeData?.radiusZones?.length && storeData?.bizLat;
+                if (hasRadiusZones && _computedRadiusDelFee !== null) {
+                    delFee = _computedRadiusDelFee;
+                } else {
+                    delFee = parseFloat(storeData.settings?.delivery_fee) || 30;
+                }
+                const feeNote = hasRadiusZones ? `<span class="checkout-radius-fee-note text-[10px] text-slate-400 mr-1"></span>` : '';
+                itemsHtml += `<div class="flex justify-between items-center py-3 mt-2 bg-indigo-50/50 px-3 rounded-xl mb-2 border border-indigo-100"><div class="flex items-center gap-3"><div class="w-7 h-7 flex items-center justify-center text-indigo-500"><i class="fa-solid fa-motorcycle"></i></div><span class="font-bold text-indigo-800 text-sm">דמי משלוח</span>${feeNote}</div><div class="flex items-center gap-3"><span class="font-bold text-slate-900 text-sm">₪${delFee.toFixed(2)}</span></div></div>`;
             }
             
             getEl('checkout-items').innerHTML = itemsHtml; 
@@ -2775,7 +2832,9 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
                 return showToast('error', 'חובה לבחור תאריך משוער לפרויקט / אירוע');
             }
 
-            const delFee = (isDelivery && !calc.hasComplexItems) ? (parseFloat(storeData.settings?.delivery_fee) || 30) : 0;
+            const _baseDelFee = parseFloat(storeData.settings?.delivery_fee) || 30;
+            const _hasRadiusZones = storeData?.radiusZones?.length && storeData?.bizLat;
+            const delFee = (isDelivery && !calc.hasComplexItems) ? (_hasRadiusZones && _computedRadiusDelFee !== null ? _computedRadiusDelFee : _baseDelFee) : 0;
             const finalTotalWithDelivery = calc.finalTotal + delFee;
 
             let deliveryData = null;
