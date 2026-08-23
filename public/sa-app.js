@@ -13135,9 +13135,7 @@ async function renderPricingCatalogView() {
 
   // Load from server
   try {
-    const session = JSON.parse(localStorage.getItem('sa_session') || '{}');
-    const token = session.token || '';
-    const res = await fetch('/api/sa/pricing-catalog', { headers: { 'Authorization': 'Bearer ' + token } });
+    const res = await fetch('/api/sa/pricing-catalog', { headers: { 'Authorization': saToken } });
     if (res.ok) {
       const d = await res.json();
       if (d.catalog && d.catalog.length > 0) {
@@ -13241,11 +13239,9 @@ async function savePricingCatalog() {
   if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> שומר...'; }
 
   try {
-    const session = JSON.parse(localStorage.getItem('sa_session') || '{}');
-    const token = session.token || '';
     const res = await fetch('/api/sa/pricing-catalog', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
       body: JSON.stringify({ catalog: _pricingCatalog })
     });
     const d = await res.json();
