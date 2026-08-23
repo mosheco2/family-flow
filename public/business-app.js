@@ -38430,6 +38430,13 @@ function renderSettingsHub() {
                     <div class="text-[10px] text-slate-400">רישיון, תפקידים, לקוחות</div>
                 </div>
             </button>`}
+            <button onclick="window.openServiceAreasSettings()" class="flex flex-col items-center gap-2 p-4 hover:bg-indigo-50 transition text-center col-span-2 border-t border-slate-100">
+                <span class="text-2xl">🗺️</span>
+                <div>
+                    <div class="text-xs font-bold text-indigo-700">אזורי שירות — מרקטפלייס</div>
+                    <div class="text-[10px] text-slate-400">ערים שבהן העסק פעיל, חיפוש "קרובים אליי"</div>
+                </div>
+            </button>
         </div>
     </div>` : '';
 
@@ -54255,6 +54262,19 @@ window.addBizServiceArea = async function() {
             window.loadBizServiceAreas();
         } else showToast('error', data.error || 'שגיאה');
     } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
+// ── ניווט ישיר לאזורי שירות ────────────────────────────────────────────────────
+window.openServiceAreasSettings = function() {
+    switchTab('sales');
+    setTimeout(function() {
+        if (typeof window.switchSalesTab === 'function') window.switchSalesTab('settings');
+        setTimeout(function() {
+            var el = document.getElementById('biz-service-areas-list');
+            if (el) el.closest('.bg-white') && el.closest('.bg-white').scrollIntoView({ behavior: 'smooth', block: 'start' });
+            _initBizNominatimAC();
+        }, 400);
+    }, 200);
 };
 
 // ── Nominatim Autocomplete לעסקים ─────────────────────────────────────────────
