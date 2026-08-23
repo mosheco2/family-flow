@@ -3877,6 +3877,79 @@ app.post('/api/sa/pricing-catalog', verifySA, async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// קטלוג מחירים ציבורי (לקריאה בלבד)
+app.get('/api/biz/pricing-catalog', verifyToken, async (req, res) => {
+    try {
+        const r = await pool.query("SELECT value FROM system_settings WHERE key = 'module_pricing_catalog'");
+        if (r.rows.length > 0) return res.json({ catalog: JSON.parse(r.rows[0].value) });
+        res.json({ catalog: [] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── Module requests (business side) ──────────────────────────────────────────
+
+// לקוח עסק שולח בקשת שחרור מודול
+app.post('/api/biz/module-request', verifyToken, async (req, res) => {
+    const { moduleId, moduleName, note } = req.body;
+    const groupId = req.user?.group_id;
+    if (!groupId || !moduleId) return res.status(400).json({ error: 'missing fields' });
+    try {
+        const req_obj = JSON.stringify({ moduleId, moduleName: moduleName || moduleId, note: note || '', requested_at: new Date().toISOString(), status: 'pending' });
+        await pool.query(
+            `UPDATE family_groups
+             SET module_requests = COALESCE(
+                 (SELECT jsonb_agg(r) FROM jsonb_array_elements(COALESCE(module_requests,'[]'::jsonb)) r WHERE r->>'moduleId' != $2),
+                 '[]'::jsonb
+             ) || $3::jsonb
+             WHERE id = $1`,
+            [groupId, moduleId, `[${req_obj}]`]
+        );
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// SA: כל בקשות המודולים הממתינות מעסקים
+app.get('/api/sa/module-requests', verifySA, async (req, res) => {
+    try {
+        const r = await pool.query(
+            `SELECT fg.id as group_id, fg.name, fg.business_type, fg.admin_email,
+                    jsonb_array_elements(COALESCE(fg.module_requests,'[]'::jsonb)) as request
+             FROM family_groups fg
+             WHERE fg.type='BUSINESS' AND fg.module_requests IS NOT NULL AND jsonb_array_length(COALESCE(fg.module_requests,'[]'::jsonb)) > 0
+             ORDER BY fg.name`
+        );
+        res.json({ requests: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// SA: אישור/דחיית בקשת מודול
+app.patch('/api/sa/groups/:id/module-request', verifySA, async (req, res) => {
+    const { moduleId, action, managed_modules } = req.body; // action: 'approve'|'deny'
+    if (!moduleId || !action) return res.status(400).json({ error: 'missing fields' });
+    try {
+        if (action === 'approve' && Array.isArray(managed_modules)) {
+            await pool.query(
+                `UPDATE family_groups SET managed_modules=$1,
+                 module_requests = COALESCE(
+                     (SELECT jsonb_agg(r) FROM jsonb_array_elements(COALESCE(module_requests,'[]'::jsonb)) r WHERE r->>'moduleId' != $2),
+                     '[]'::jsonb
+                 ) WHERE id=$3`,
+                [JSON.stringify(managed_modules), moduleId, req.params.id]
+            );
+        } else {
+            await pool.query(
+                `UPDATE family_groups SET
+                 module_requests = COALESCE(
+                     (SELECT jsonb_agg(r) FROM jsonb_array_elements(COALESCE(module_requests,'[]'::jsonb)) r WHERE r->>'moduleId' != $1),
+                     '[]'::jsonb
+                 ) WHERE id=$2`,
+                [moduleId, req.params.id]
+            );
+        }
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 app.post('/api/superadmin/tickets/:id/assign_and_classify', verifySA, async (req, res) => {
     let dbClient;
     try {

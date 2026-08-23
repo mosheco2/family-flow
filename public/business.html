@@ -4243,6 +4243,43 @@
                 </div>
             </div>
         </div>
+<!-- ── Module Unlock Modal ─────────────────────────────────────────────────── -->
+<div id="module-unlock-modal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm hidden z-[9999] flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden animate-in">
+        <!-- Header -->
+        <div class="bg-gradient-to-br from-violet-600 to-indigo-700 px-6 pt-8 pb-6 text-center text-white relative">
+            <button onclick="closeModuleUnlockModal()" class="absolute top-4 left-4 text-white/60 hover:text-white transition text-lg"><i class="fa-solid fa-xmark"></i></button>
+            <div id="mum-icon" class="text-5xl mb-3 block">🔒</div>
+            <h2 id="mum-name" class="text-xl font-black mb-1">מודול</h2>
+            <div id="mum-price"></div>
+        </div>
+        <!-- Body -->
+        <div class="px-6 py-5">
+            <p id="mum-desc" class="text-sm text-slate-600 leading-relaxed text-right mb-4"></p>
+            <!-- Form -->
+            <div id="mum-form">
+                <input type="hidden" id="mum-tab-id">
+                <input type="hidden" id="mum-tab-name">
+                <div class="mb-4">
+                    <label class="text-xs font-bold text-slate-500 block mb-1.5 text-right">הסבר קצר (אופציונלי)</label>
+                    <textarea id="mum-note" rows="2" placeholder="למה תרצו את המודול הזה?" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm resize-none focus:border-violet-400 focus:outline-none text-right"></textarea>
+                </div>
+                <button onclick="sendModuleUnlockRequest()"
+                    class="w-full bg-gradient-to-l from-violet-600 to-indigo-600 text-white py-3.5 rounded-2xl font-black text-sm hover:opacity-90 transition shadow-md shadow-violet-200 flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-paper-plane"></i> שלח בקשת שחרור
+                </button>
+                <p class="text-[10px] text-slate-400 text-center mt-2">הבקשה תועבר לצוות ותטופל תוך 24 שעות</p>
+            </div>
+            <!-- Sent state -->
+            <div id="mum-sent" class="hidden text-center py-4">
+                <div class="text-4xl mb-3">✅</div>
+                <h3 class="font-black text-slate-700 text-base mb-1">הבקשה נשלחה!</h3>
+                <p class="text-sm text-slate-500">נחזור אליך בהקדם עם אישור שחרור המודול.</p>
+                <button onclick="closeModuleUnlockModal()" class="mt-4 bg-slate-100 text-slate-600 px-6 py-2 rounded-xl font-bold text-sm hover:bg-slate-200 transition">סגור</button>
+            </div>
+        </div>
+    </div>
+</div>
 <div id="support-ticket-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[9999] flex items-center justify-center p-4">
         <div class="bg-white w-full max-w-md rounded-[2rem] p-6 shadow-2xl relative overflow-hidden max-h-[90vh] flex flex-col">
             <button onclick="document.getElementById('support-ticket-modal').classList.add('hidden')" class="absolute top-4 left-4 text-slate-400 hover:text-slate-600 bg-slate-100 w-8 h-8 rounded-full flex items-center justify-center transition z-10"><i class="fa-solid fa-xmark"></i></button>

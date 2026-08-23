@@ -1957,6 +1957,15 @@ function renderSAGroups() {
         const monthlyBadge = (_billingCfg && _billingCfg.monthly_total > 0)
             ? `<span class="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full whitespace-nowrap">₪${_billingCfg.monthly_total}/חו׳</span>`
             : '';
+        const _bizModReqs = (() => { try { return Array.isArray(g.module_requests) ? g.module_requests : JSON.parse(g.module_requests || '[]'); } catch(e) { return []; } })();
+        const _pendingBizReqs = g.type === 'BUSINESS' ? _bizModReqs.filter(r => r?.moduleId && !String(r.moduleId).startsWith('CANCEL_')) : [];
+        const _cancelBizReqs = g.type === 'BUSINESS' ? _bizModReqs.filter(r => r?.moduleId && String(r.moduleId).startsWith('CANCEL_')) : [];
+        const bizReqBadge = _pendingBizReqs.length > 0
+            ? `<span class="text-[10px] font-bold text-orange-700 bg-orange-50 border border-orange-300 px-2 py-0.5 rounded-full whitespace-nowrap animate-pulse">🔔 ${_pendingBizReqs.length} בקשה${_pendingBizReqs.length > 1 ? 'ות' : ''}</span>`
+            : '';
+        const cancelReqBadge = _cancelBizReqs.length > 0
+            ? `<span class="text-[10px] font-bold text-red-600 bg-red-50 border border-red-200 px-2 py-0.5 rounded-full whitespace-nowrap">❌ ${_cancelBizReqs.length} ביטול</span>`
+            : '';
 
         gHtml += `
         <div class="${g.member_type === 'member' ? 'bg-violet-50 rounded-xl border-2 border-violet-300 mb-2 overflow-hidden shadow-sm' : 'bg-white rounded-xl border border-slate-200 mb-2 overflow-hidden shadow-sm'}">
@@ -1965,7 +1974,7 @@ function renderSAGroups() {
                 <div class="flex items-center">
                     <div class="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center ml-3 relative"><i class="fa-solid ${g.type === 'BUSINESS' ? 'fa-building' : 'fa-users'}"></i><span style="position:absolute;top:-6px;right:-6px;background:#6366f1;color:#fff;border-radius:999px;font-size:9px;font-weight:800;padding:1px 5px;min-width:18px;text-align:center;line-height:16px;">${globalIdx}</span></div>
                     <div>
-                        <h3 class="font-bold text-slate-800 text-sm flex items-center flex-wrap gap-1">${safeStr(fmtGroupName(g))} ${isPro} ${typeBadge} ${accountStatusBadge} ${monthlyBadge}</h3>
+                        <h3 class="font-bold text-slate-800 text-sm flex items-center flex-wrap gap-1">${safeStr(fmtGroupName(g))} ${isPro} ${typeBadge} ${accountStatusBadge} ${monthlyBadge} ${bizReqBadge} ${cancelReqBadge}</h3>
                         <p class="text-xs text-slate-500 font-mono tracking-widest mt-0.5">קוד: ${g.group_code} | ⚡ ${aiTokens} | <span class="font-sans text-[10px]">הוקם: ${createdDate}</span></p>
                     </div>
                 </div>
@@ -1989,6 +1998,35 @@ function renderSAGroups() {
                 </div>
                 ${uHtml}
                 ${moduleReqHtml}
+                ${g.type === 'BUSINESS' && (_pendingBizReqs.length > 0 || _cancelBizReqs.length > 0) ? `
+                <div class="mt-3 p-3 bg-orange-50 border border-orange-200 rounded-xl">
+                    <div class="flex items-center gap-2 mb-2">
+                        <i class="fa-solid fa-bell text-orange-500 text-xs"></i>
+                        <h4 class="text-xs font-bold text-orange-700">בקשות מודולים ממתינות</h4>
+                    </div>
+                    ${_pendingBizReqs.map(r => `
+                    <div class="flex items-center justify-between bg-white border border-orange-100 rounded-xl px-3 py-2 mb-1.5 gap-2 flex-wrap">
+                        <div class="flex gap-1.5">
+                            <button onclick="saBizApproveModule(${g.id},'${r.moduleId}')" class="bg-green-100 text-green-700 px-2.5 py-1 rounded-lg text-[10px] font-bold hover:bg-green-200 transition"><i class="fa-solid fa-check"></i> אשר</button>
+                            <button onclick="saBizDenyModule(${g.id},'${r.moduleId}')" class="bg-red-100 text-red-600 px-2.5 py-1 rounded-lg text-[10px] font-bold hover:bg-red-200 transition"><i class="fa-solid fa-xmark"></i> דחה</button>
+                        </div>
+                        <div class="text-right flex-1 min-w-0">
+                            <div class="text-xs font-bold text-slate-700">${r.moduleName || r.moduleId}</div>
+                            ${r.note ? `<div class="text-[10px] text-slate-400 truncate">"${r.note}"</div>` : ''}
+                            <div class="text-[10px] text-slate-300">${r.requested_at ? new Date(r.requested_at).toLocaleDateString('he-IL') : ''}</div>
+                        </div>
+                    </div>`).join('')}
+                    ${_cancelBizReqs.map(r => `
+                    <div class="flex items-center justify-between bg-red-50 border border-red-100 rounded-xl px-3 py-2 mb-1.5 gap-2 flex-wrap">
+                        <div class="flex gap-1.5">
+                            <button onclick="saBizDenyModule(${g.id},'${r.moduleId}')" class="bg-slate-100 text-slate-600 px-2.5 py-1 rounded-lg text-[10px] font-bold hover:bg-slate-200 transition"><i class="fa-solid fa-check"></i> אישרתי ביטול</button>
+                        </div>
+                        <div class="text-right flex-1 min-w-0">
+                            <div class="text-xs font-bold text-red-700">${r.moduleName || r.moduleId}</div>
+                            <div class="text-[10px] text-red-400">בקשת ביטול מודול</div>
+                        </div>
+                    </div>`).join('')}
+                </div>` : ''}
             </div>
         </div>`;
     });
@@ -2012,6 +2050,44 @@ function renderSAGroups() {
 window._saGoPage = function(p) { _saGroupsPage = p; renderSAGroups(); };
 
 function filterSAGroups() { _saGroupsPage = 0; renderSAGroups(); }
+
+window.saBizApproveModule = async function(groupId, moduleId) {
+    const group = saAllGroups.find(g => g.id === groupId);
+    if (!group) return;
+    const current = (() => { try { return Array.isArray(group.managed_modules) ? group.managed_modules : JSON.parse(group.managed_modules || '[]'); } catch(e) { return []; } })();
+    const updated = current.includes(moduleId) ? current : [...current, moduleId];
+    try {
+        const res = await fetch(`${API}/sa/groups/${groupId}/module-request`, {
+            method: 'PATCH', headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+            body: JSON.stringify({ moduleId, action: 'approve', managed_modules: updated })
+        });
+        if (res.ok) {
+            const idx = saAllGroups.findIndex(g => g.id === groupId);
+            if (idx > -1) {
+                saAllGroups[idx].managed_modules = updated;
+                saAllGroups[idx].module_requests = (saAllGroups[idx].module_requests || []).filter(r => r?.moduleId !== moduleId);
+            }
+            showToast('success', 'מודול אושר ונוסף ללקוח ✅');
+            renderSAGroups();
+        }
+    } catch(e) { showToast('error', 'שגיאת שרת'); }
+};
+
+window.saBizDenyModule = async function(groupId, moduleId) {
+    if (!confirm('לדחות/להסיר בקשה זו?')) return;
+    try {
+        const res = await fetch(`${API}/sa/groups/${groupId}/module-request`, {
+            method: 'PATCH', headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+            body: JSON.stringify({ moduleId, action: 'deny' })
+        });
+        if (res.ok) {
+            const idx = saAllGroups.findIndex(g => g.id === groupId);
+            if (idx > -1) saAllGroups[idx].module_requests = (saAllGroups[idx].module_requests || []).filter(r => r?.moduleId !== moduleId);
+            showToast('info', 'בקשה הוסרה');
+            renderSAGroups();
+        }
+    } catch(e) { showToast('error', 'שגיאת שרת'); }
+};
 
 async function saQuickUnlockModule(groupId, moduleKey) {
     const group = saAllGroups.find(g => g.id === groupId);

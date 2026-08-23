@@ -3983,7 +3983,16 @@ if(data.group) {
             if (data.group.business_type !== undefined) currentGroup.business_type = data.group.business_type;
             if (data.group.licensed_features !== undefined) currentGroup.licensed_features = data.group.licensed_features;
             if (data.group.managed_modules !== undefined) currentGroup.managed_modules = data.group.managed_modules;
-            
+            if (data.group.billing_config !== undefined) currentGroup.billing_config = data.group.billing_config;
+
+            // טעינת קטלוג מחירים (פעם אחת)
+            if (!window._pricingCatalogBiz) {
+                fetch('/api/biz/pricing-catalog', { headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` } })
+                    .then(r => r.ok ? r.json() : { catalog: [] })
+                    .then(d => { window._pricingCatalogBiz = d.catalog || []; })
+                    .catch(() => {});
+            }
+
             // תאימות לאחור
             ['has_store','has_b2b','has_academy','has_calendar','has_finance','has_inventory','has_crm','has_deliveries','has_foodcost','has_ai'].forEach(k => {
                 if(data.group[k] !== undefined) currentGroup[k] = data.group[k];
@@ -34914,6 +34923,193 @@ function getEnabledModules() {
     return bType.modules;
 }
 
+// ── Module lock UI ────────────────────────────────────────────────────────────
+
+const MODULE_DESCRIPTIONS = {
+    timeclock:    { icon:'⏱️', name:'שעון נוכחות',      desc:'מעקב שעות כניסה ויציאה, דוחות נוכחות, ניהול חריגות ועוד.' },
+    shifts:       { icon:'🗓️', name:'ניהול משמרות',     desc:'תכנון משמרות שבועיות, שיבוץ עובדים, ייצוא לשכר.' },
+    calendar:     { icon:'🌐', name:'יומן ציבורי',       desc:'יומן תורים ופגישות מקוון שלקוחות יכולים לקבוע לבד.' },
+    tasks:        { icon:'✅', name:'משימות',            desc:'ניהול משימות צוות, תזכורות, תיעדוף ומעקב התקדמות.' },
+    academy:      { icon:'🎓', name:'הכשרות',           desc:'מודולי הדרכה פנים-ארגוניים, בחנים, תעודות.' },
+    members:      { icon:'👥', name:'ניהול צוות',        desc:'ניהול עובדים, תפקידים, הרשאות ומסמכים.' },
+    pos:          { icon:'💰', name:'קופה',              desc:'מערכת קופה דיגיטלית, כרטיסי אשראי, דוחות מכירה.' },
+    sales:        { icon:'🛍️', name:'מכירות',           desc:'מעקב מכירות, הצעות מחיר, חשבוניות ועסקאות.' },
+    customers:    { icon:'🤝', name:'לקוחות',           desc:'CRM מלא: ניהול לקוחות, היסטוריה, תגים ופניות.' },
+    deliveries:   { icon:'🛵', name:'שליחויות',          desc:'ניהול הזמנות שליחות, נהגים ומעקב בזמן אמת.' },
+    reviews:      { icon:'⭐', name:'ביקורות',           desc:'ניהול ביקורות לקוחות, תגובות ודוח ממוצע דירוג.' },
+    foodcost:     { icon:'🍽️', name:'עלות מנה',         desc:'חישוב עלות מתכונים, מעקב רווחיות, ניהול מרכיבים.' },
+    bank:         { icon:'🏦', name:'בנק',              desc:'חשבון בנק משולב, העברות, ניהול חשבונות.' },
+    cashflow:     { icon:'💸', name:'תזרים מזומנים',    desc:'מעקב הכנסות והוצאות, תחזיות תזרים וניתוח גרפי.' },
+    budget:       { icon:'📊', name:'תקציב',            desc:'ניהול תקציב שנתי, הפחתות, השוואה לביצוע.' },
+    forecast:     { icon:'🔮', name:'תחזיות',           desc:'תחזיות מכירה ותזרים מבוססות AI וניתוח היסטורי.' },
+    equipment:    { icon:'🔧', name:'ציוד',             desc:'ניהול ציוד, תחזוקה, לוחות זמנים ועלויות.' },
+    shop:         { icon:'🏪', name:'חנות',             desc:'חנות אונליין, מוצרים, מלאי ופורטל לקוחות.' },
+    pantry:       { icon:'📦', name:'מלאי',             desc:'ניהול מלאי מחסן, הזמנות ספקים ואזהרות מלאי נמוך.' },
+    community:    { icon:'🏘️', name:'קהילה',           desc:'פורום עסקי, הודעות קהילה, אירועים ורשת חברתית.' },
+    surveys:      { icon:'📋', name:'סקרים',            desc:'יצירת סקרים ועריכת דוחות תוצאות.' },
+    content:      { icon:'🌐', name:'אתר תדמית',        desc:'עמוד נחיתה עסקי, תוכן שיווקי, לינקים ל-SEO.' },
+    documents:    { icon:'📄', name:'מסמכים',           desc:'מאגר מסמכים עסקיים, חוזים, קבצים משותפים.' },
+    cases:        { icon:'📁', name:'תיקים',            desc:'ניהול תיקי לקוחות ופרויקטים עם ציר זמן.' },
+    leads:        { icon:'📥', name:'פניות נכנסות',     desc:'ניהול לידים, מעקב המרה ותיעוד תקשורת.' },
+    timelog:      { icon:'⏱️', name:'שעות עבודה',      desc:'דיווח שעות לפרויקט, חשבונית שעתית ודוחות.' },
+    reports:      { icon:'📈', name:'דוחות',            desc:'דוחות מפורטים לכל תחום — מכירות, צוות, כספים.' },
+    menu_templates: { icon:'📋', name:'תבניות תפריט',  desc:'ניהול תפריטים דיגיטליים, QR ועיצוב מותאם.' },
+};
+
+function _addLockToDropBtn(btn, tabId) {
+    if (btn.dataset.locked === '1') return;
+    btn.dataset.locked = '1';
+    btn.dataset.lockedTab = tabId;
+    btn.style.opacity = '0.55';
+    // החלף onclick ל-modal
+    btn.dataset.origOnclick = btn.getAttribute('onclick') || '';
+    btn.setAttribute('onclick', `openModuleUnlockModal('${tabId}');closeNavDropdowns()`);
+    // הוסף אייקון מנעול
+    const lockSpan = document.createElement('span');
+    lockSpan.className = 'module-lock-icon mr-auto text-slate-400';
+    lockSpan.innerHTML = '<i class="fa-solid fa-lock text-[10px]"></i>';
+    btn.appendChild(lockSpan);
+}
+
+function _removeLockFromDropBtn(btn) {
+    if (btn.dataset.locked !== '1') return;
+    btn.dataset.locked = '';
+    btn.style.opacity = '';
+    if (btn.dataset.origOnclick) btn.setAttribute('onclick', btn.dataset.origOnclick);
+    btn.dataset.origOnclick = '';
+    btn.querySelectorAll('.module-lock-icon').forEach(el => el.remove());
+}
+
+window.openModuleUnlockModal = function(tabId) {
+    const info = MODULE_DESCRIPTIONS[tabId] || { icon: '🔒', name: tabId, desc: 'מודול נוסף שניתן לשחרר.' };
+    const catalog = window._pricingCatalogBiz || [];
+    let price = null;
+    catalog.forEach(g => g.modules && g.modules.forEach(m => { if (m.id === tabId && !m.free) price = m.price; }));
+    const priceStr = price !== null ? `<div class="mt-3 inline-flex items-center gap-1.5 bg-violet-50 border border-violet-200 text-violet-700 font-bold px-3 py-1.5 rounded-full text-sm"><i class="fa-solid fa-tag text-xs"></i> ${price} ₪ / חודש</div>` : '';
+
+    const modal = document.getElementById('module-unlock-modal');
+    if (!modal) return;
+    document.getElementById('mum-icon').textContent = info.icon;
+    document.getElementById('mum-name').textContent = info.name;
+    document.getElementById('mum-desc').textContent = info.desc;
+    document.getElementById('mum-price').innerHTML = priceStr;
+    document.getElementById('mum-tab-id').value = tabId;
+    document.getElementById('mum-tab-name').value = info.name;
+    document.getElementById('mum-note').value = '';
+    document.getElementById('mum-sent').classList.add('hidden');
+    document.getElementById('mum-form').classList.remove('hidden');
+    modal.classList.remove('hidden');
+    modal.querySelector('[data-modal-backdrop]')?.addEventListener('click', closeModuleUnlockModal, { once: true });
+};
+
+window.closeModuleUnlockModal = function() {
+    document.getElementById('module-unlock-modal')?.classList.add('hidden');
+};
+
+window.sendModuleUnlockRequest = async function() {
+    const tabId = document.getElementById('mum-tab-id')?.value;
+    const tabName = document.getElementById('mum-tab-name')?.value;
+    const note = document.getElementById('mum-note')?.value || '';
+    if (!tabId) return;
+    try {
+        await fetch('/api/biz/module-request', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+            body: JSON.stringify({ moduleId: tabId, moduleName: tabName, note })
+        });
+        document.getElementById('mum-form').classList.add('hidden');
+        document.getElementById('mum-sent').classList.remove('hidden');
+    } catch(e) {
+        showToast('error', 'שגיאה בשליחת הבקשה');
+    }
+};
+
+// ── My Plan section ───────────────────────────────────────────────────────────
+
+function renderMyPlanSection() {
+    const billing = (() => {
+        try { return typeof currentGroup?.billing_config === 'string' ? JSON.parse(currentGroup.billing_config) : (currentGroup?.billing_config || null); } catch(e) { return null; }
+    })();
+    const managed = Array.isArray(currentGroup?.managed_modules) ? currentGroup.managed_modules : [];
+
+    if (!billing && managed.length === 0) {
+        return `<div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <div class="px-4 py-3 border-b border-slate-100 flex items-center gap-2">
+                <i class="fa-solid fa-box-open text-violet-500 text-sm"></i>
+                <h3 class="font-black text-slate-700 text-sm">החבילה שלי</h3>
+            </div>
+            <div class="p-5 text-center">
+                <div class="text-3xl mb-2">📦</div>
+                <p class="text-slate-500 text-sm font-medium">חבילה טרם הוגדרה</p>
+                <p class="text-slate-400 text-xs mt-1">לפרטים פנה לתמיכה</p>
+            </div>
+        </div>`;
+    }
+
+    const catalog = window._pricingCatalogBiz || [];
+    const priceMap = {};
+    catalog.forEach(g => g.modules && g.modules.forEach(m => { priceMap[m.id] = m; }));
+
+    // bundle name
+    let bundleName = '';
+    let bundlePrice = 0;
+    if (billing?.bundle_id) {
+        const bundleGroup = catalog.find(g => g.groupId === billing.bundle_id);
+        bundleName = bundleGroup?.groupName || '';
+        bundlePrice = bundleGroup?.modules?.[0]?.price || 0;
+    }
+
+    // active modules
+    const activeRows = managed.map(mId => {
+        const info = MODULE_DESCRIPTIONS[mId];
+        const priceInfo = priceMap[mId];
+        if (!info) return '';
+        return `<div class="flex items-center justify-between py-2.5 border-b border-slate-50 last:border-0">
+            <div class="flex items-center gap-2">
+                <button onclick="openModuleCancelRequest('${mId}','${info.name}')" class="text-[10px] text-red-400 hover:text-red-600 font-bold border border-red-100 hover:border-red-300 px-2 py-0.5 rounded-full transition">ביטול</button>
+            </div>
+            <div class="flex items-center gap-2 text-right">
+                <span class="text-xs font-bold text-slate-700">${info.name}</span>
+                <span class="text-base">${info.icon}</span>
+            </div>
+        </div>`;
+    }).join('');
+
+    const totalBadge = billing?.monthly_total > 0
+        ? `<div class="flex justify-between items-center bg-violet-50 border border-violet-100 rounded-xl px-4 py-3 mt-3">
+            <span class="font-black text-violet-700 text-base">${billing.monthly_total} ₪</span>
+            <span class="text-xs text-violet-600 font-bold">סה"כ חודשי</span>
+          </div>` : '';
+
+    return `<div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+            <span class="text-[10px] text-slate-400">${bundleName || 'מודולים בודדים'}</span>
+            <div class="flex items-center gap-2">
+                <i class="fa-solid fa-box-open text-violet-500 text-sm"></i>
+                <h3 class="font-black text-slate-700 text-sm">החבילה שלי</h3>
+            </div>
+        </div>
+        <div class="px-4 py-3">
+            ${bundleName ? `<div class="flex items-center justify-between bg-violet-50 rounded-xl px-3 py-2 mb-3 border border-violet-100">
+                <span class="text-sm font-bold text-violet-700">${bundlePrice > 0 ? bundlePrice + ' ₪/חו׳' : ''}</span>
+                <span class="text-sm font-bold text-violet-800">📦 ${bundleName}</span>
+            </div>` : ''}
+            <div class="text-[10px] font-bold text-slate-400 mb-1 text-right">מודולים פעילים</div>
+            ${activeRows || '<div class="text-xs text-slate-400 py-2 text-right">אין מודולים פעילים</div>'}
+            ${totalBadge}
+        </div>
+    </div>`;
+}
+
+window.openModuleCancelRequest = function(moduleId, moduleName) {
+    if (!confirm(`לבקש ביטול המודול "${moduleName}"?\nהבקשה תועבר לטיפול ידני.`)) return;
+    fetch('/api/biz/module-request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+        body: JSON.stringify({ moduleId: 'CANCEL_' + moduleId, moduleName: 'ביטול: ' + moduleName, note: 'בקשת ביטול מודול' })
+    }).then(() => showToast('success', 'בקשת הביטול נשלחה — תטופל ידנית'));
+};
+
 function applyBusinessTypeFilter() {
     if (!currentUser) return;
     const isAdminOrManager = currentUser.role === 'ADMIN' || currentUser.role === 'MANAGER';
@@ -34949,18 +35145,24 @@ function applyBusinessTypeFilter() {
             ? (managed.includes(tab.id) || ALWAYS_VISIBLE_TABS.includes(tab.id))
             : (enabled.includes(tab.id) || ALWAYS_VISIBLE_TABS.includes(tab.id));
         const hasExplicitPermission = userGrantedTabs.includes(tab.id);
+        const isAccessible = isEnabled || isAdminOrManager || hasExplicitPermission;
+        // מודול שלא רלוונטי לסוג העסק בכלל — מוסתר לגמרי
+        const isRelevantToType = !enabled || enabled.includes(tab.id) || ALWAYS_VISIBLE_TABS.includes(tab.id);
         const tabBtn = getEl(`tab-${tab.id}`);
-        if (tabBtn) { if (!isEnabled && !isAdminOrManager && !hasExplicitPermission) tabBtn.classList.add('hidden'); else tabBtn.classList.remove('hidden'); }
+        if (tabBtn) { if (!isAccessible) tabBtn.classList.add('hidden'); else tabBtn.classList.remove('hidden'); }
         const dropBtn = getEl(`gdrop-${tab.id}`);
         if (dropBtn) {
-            if (!isEnabled && !isAdminOrManager && !hasExplicitPermission) {
+            if (!isRelevantToType) {
+                // לא רלוונטי לסוג עסק זה — מוסתר לגמרי
                 dropBtn.style.display = 'none';
-                dropBtn.style.opacity = '';
-                dropBtn.title = '';
+                _removeLockFromDropBtn(dropBtn);
+            } else if (!isAccessible) {
+                // רלוונטי אבל לא מופעל — מוצג עם מנעול
+                dropBtn.style.display = '';
+                _addLockToDropBtn(dropBtn, tab.id);
             } else {
                 dropBtn.style.display = '';
-                dropBtn.style.opacity = '';
-                dropBtn.title = '';
+                _removeLockFromDropBtn(dropBtn);
             }
         }
     });
@@ -38810,6 +39012,7 @@ function renderSettingsHub() {
             <div class="space-y-4">
                 ${quickCards}
                 ${bizCard}
+                ${renderMyPlanSection()}
                 ${profileSection}
                 ${docSection}
                 ${timerSection}
