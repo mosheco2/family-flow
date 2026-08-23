@@ -18179,6 +18179,21 @@ function showBusinessTypeWizardV2(afterSave) {
             </div>
             <div class="flex-1 overflow-y-auto modal-scroll p-5">
                 <div class="grid grid-cols-2 gap-3">${cards}</div>
+                <!-- חנות בלבד — אפשרות מהירה -->
+                <div class="mt-4 pt-4 border-t border-slate-100">
+                    <button type="button" onclick="btWizV2SelectStoreOnly()"
+                        class="w-full flex items-center justify-between gap-3 px-4 py-3.5 rounded-2xl border-2 border-dashed border-emerald-300 bg-emerald-50 hover:bg-emerald-100 transition text-right active:scale-95"
+                        style="touch-action:manipulation;cursor:pointer;">
+                        <div class="flex items-center gap-3">
+                            <span class="text-2xl">🛍️</span>
+                            <div>
+                                <div class="text-sm font-black text-emerald-800">חנות בלבד בשלב זה</div>
+                                <div class="text-[11px] text-emerald-600">הקם חנות מהירה עכשיו — ניתן להוסיף מאפיינים נוספים בהמשך</div>
+                            </div>
+                        </div>
+                        <i class="fa-solid fa-arrow-left text-emerald-500 shrink-0"></i>
+                    </button>
+                </div>
             </div>
             <div class="px-5 py-4 border-t border-slate-100 shrink-0">
                 <button type="button" id="bt-wiz-v2-confirm" onclick="btWizV2Confirm()"
@@ -18234,6 +18249,83 @@ window.btWizV2Confirm = async function() {
         } else {
             showToast('success', `מהות העסק עודכנה ל-${BUSINESS_TYPES.find(b => b.id === typeId)?.name || typeId}`);
         }
+    } catch(e) { showToast('error', 'שגיאה בשמירה'); }
+};
+
+// ── חנות בלבד — מסלול מהיר ──────────────────────────────────────────────────
+window.btWizV2SelectStoreOnly = function() {
+    document.getElementById('biz-type-wizard-v2')?.remove();
+    const html = `<div id="store-only-wizard-choice" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[99999] flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-sm rounded-[2rem] shadow-2xl overflow-hidden">
+            <div class="bg-gradient-to-r from-emerald-500 to-teal-600 px-6 py-5 text-white text-center">
+                <div class="text-3xl mb-2">🛍️</div>
+                <h2 class="text-lg font-black mb-1">חנות בלבד</h2>
+                <p class="text-white/80 text-xs">בחר כיצד תרצה להמשיך</p>
+            </div>
+            <div class="p-5 space-y-3">
+                <button type="button" onclick="btWizV2StoreOnlyNow()"
+                    class="w-full flex items-center gap-4 p-4 rounded-2xl border-2 border-emerald-400 bg-emerald-50 hover:bg-emerald-100 transition text-right active:scale-95">
+                    <span class="text-2xl shrink-0">⚡</span>
+                    <div>
+                        <div class="text-sm font-black text-emerald-800">בנה את החנות עכשיו</div>
+                        <div class="text-[11px] text-emerald-600 mt-0.5">אשף מהיר — שם, לוגו ומוצרים ראשונים</div>
+                    </div>
+                </button>
+                <button type="button" onclick="btWizV2StoreOnlyLater()"
+                    class="w-full flex items-center gap-4 p-4 rounded-2xl border-2 border-slate-200 bg-slate-50 hover:bg-slate-100 transition text-right active:scale-95">
+                    <span class="text-2xl shrink-0">⏩</span>
+                    <div>
+                        <div class="text-sm font-black text-slate-700">דלג להגדרות חנות מאוחר יותר</div>
+                        <div class="text-[11px] text-slate-400 mt-0.5">כניסה ישירה לממשק — תגדיר את החנות בקצב שלך</div>
+                    </div>
+                </button>
+                <button type="button" onclick="document.getElementById('store-only-wizard-choice').remove(); showBusinessTypeWizardV2();"
+                    class="w-full text-xs text-slate-400 py-2 hover:text-slate-600 transition underline">חזור לבחירת סוג עסק</button>
+            </div>
+        </div>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+};
+
+window.btWizV2StoreOnlyNow = async function() {
+    document.getElementById('store-only-wizard-choice')?.remove();
+    // שמור business_type = 'other' (הכי גנרי — מפעיל מודול חנות)
+    try {
+        await fetch(`/api/groups/${currentGroup.id}/business-settings`, {
+            method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ business_type: 'other', licensed_features: currentGroup.licensed_features || {} })
+        });
+        currentGroup.business_type = 'other';
+        applyBusinessTypeFilter();
+    } catch(e) {}
+    // הפעל ויזארד מסלול store_only (skipInit=true — כבר הגדרנו wizardStepsV2)
+    wizardStepsV2 = ['identity', 'catalog'];
+    currentWizardStepV2 = 0;
+    wizardV2Data = {};
+    setTimeout(function() { showOnboardingWizardV2(true); }, 300);
+};
+
+window.btWizV2StoreOnlyLater = async function() {
+    document.getElementById('store-only-wizard-choice')?.remove();
+    // שמור business_type = 'other', סמן כ-onboarded (דילוג מלא על ויזארד)
+    try {
+        await fetch(`/api/groups/${currentGroup.id}/business-settings`, {
+            method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ business_type: 'other', licensed_features: currentGroup.licensed_features || {} })
+        });
+        currentGroup.business_type = 'other';
+        applyBusinessTypeFilter();
+        // סמן כ-onboarded ← מסיר את הוויזארד מהמסך
+        await fetch(`/api/biz/wizard/complete`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' } });
+        currentGroup.is_onboarded = true;
+        showToast('success', 'ברוכים הבאים! תוכל להגדיר את החנות בטאב מכירות ← הגדרות');
+        // ניווט ישיר להגדרות חנות
+        setTimeout(function() {
+            if (typeof switchTab === 'function') switchTab('sales');
+            setTimeout(function() {
+                if (typeof window.switchSalesTab === 'function') window.switchSalesTab('settings');
+            }, 300);
+        }, 800);
     } catch(e) { showToast('error', 'שגיאה בשמירה'); }
 };
 
@@ -19573,6 +19665,7 @@ const WIZARD_STEPS_BY_TYPE_V2 = {
     services:     ['identity', 'service_types', 'billing_flow', 'first_customer', 'my_role', 'team'],
     professional: ['identity', 'case_type', 'first_case', 'document_template', 'my_role', 'team'],
     other:        ['identity', 'catalog', 'my_role', 'team'],
+    store_only:   ['identity', 'catalog'],
 };
 
 let wizardStepsV2 = [];
@@ -21592,15 +21685,15 @@ function _initWizardV2State() {
     wizardV2Data = {};
 }
 
-window.showOnboardingWizardV2 = function showOnboardingWizardV2() {
+window.showOnboardingWizardV2 = function showOnboardingWizardV2(skipInit) {
     if (document.getElementById('onboarding-wizard-v2-modal')) {
-        _initWizardV2State();
+        if (!skipInit) _initWizardV2State();
         document.getElementById('onboarding-wizard-v2-modal').classList.remove('hidden');
         updateWizardUIV2();
         return;
     }
 
-    _initWizardV2State();
+    if (!skipInit) _initWizardV2State();
 
     const modalHtml = `
     <div id="onboarding-wizard-v2-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[99999] flex items-center justify-center p-2 sm:p-4">
