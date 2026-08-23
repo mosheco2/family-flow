@@ -3430,6 +3430,43 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
 
             </div><!-- /sa-view-marketing -->
 
+            <!-- מחירון מודולים -->
+            <div id="sa-view-pricing" class="hidden fade-in" style="padding:0 0 40px">
+              <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 mb-6">
+                <div class="flex items-center justify-between flex-wrap gap-3">
+                  <div>
+                    <h2 class="text-xl font-bold text-slate-800 flex items-center gap-3 mb-1">
+                      <i class="fa-solid fa-tags text-violet-500"></i> מחירון מודולים
+                    </h2>
+                    <p class="text-sm text-slate-500">כל המחירים המוגדרים כאן ישמשו בחישוב חבילת העסק, בבקשות פתיחת מודול ובממשק העסק.</p>
+                  </div>
+                  <button onclick="savePricingCatalog()" id="btn-save-pricing"
+                    class="flex items-center gap-2 px-5 py-2.5 bg-violet-600 hover:bg-violet-700 text-white text-sm font-bold rounded-xl transition shadow-sm">
+                    <i class="fa-solid fa-floppy-disk"></i> שמור מחירון
+                  </button>
+                </div>
+              </div>
+              <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
+                  <div class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">מודולים במחירון</div>
+                  <div class="text-2xl font-black text-slate-800" id="ps-total-modules">--</div>
+                </div>
+                <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
+                  <div class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">חינמיים תמיד</div>
+                  <div class="text-2xl font-black text-emerald-600" id="ps-free-modules">--</div>
+                </div>
+                <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
+                  <div class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">עלות מקס׳ לעסק</div>
+                  <div class="text-2xl font-black text-violet-600" id="ps-max-price">-- ₪</div>
+                </div>
+                <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
+                  <div class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">עלות ממוצעת</div>
+                  <div class="text-2xl font-black text-slate-700" id="ps-avg-price">-- ₪</div>
+                </div>
+              </div>
+              <div id="pricing-groups-container" class="space-y-6"></div>
+            </div><!-- /sa-view-pricing -->
+
         </main>
       </div>
     </div> <div id="sa-community-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[9999] flex items-center justify-center p-4">
@@ -4896,51 +4933,6 @@ async function bizImgDelete(slot) {
 })();
 </script>
 
-<!-- ══════════════════════════════════════════════════ -->
-<!-- מחירון מודולים view                               -->
-<!-- ══════════════════════════════════════════════════ -->
-<div id="sa-view-pricing" class="hidden fade-in" style="padding:0 0 40px">
-
-  <!-- כותרת -->
-  <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-6 mb-6">
-    <div class="flex items-center justify-between flex-wrap gap-3">
-      <div>
-        <h2 class="text-xl font-bold text-slate-800 flex items-center gap-3 mb-1">
-          <i class="fa-solid fa-tags text-violet-500"></i> מחירון מודולים
-        </h2>
-        <p class="text-sm text-slate-500">כל המחירים המוגדרים כאן ישמשו בחישוב חבילת העסק, בבקשות פתיחת מודול ובממשק העסק.</p>
-      </div>
-      <button onclick="savePricingCatalog()" id="btn-save-pricing"
-        class="flex items-center gap-2 px-5 py-2.5 bg-violet-600 hover:bg-violet-700 text-white text-sm font-bold rounded-xl transition shadow-sm">
-        <i class="fa-solid fa-floppy-disk"></i> שמור מחירון
-      </button>
-    </div>
-  </div>
-
-  <!-- סיכום -->
-  <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6" id="pricing-summary-row">
-    <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
-      <div class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">מודולים במחירון</div>
-      <div class="text-2xl font-black text-slate-800" id="ps-total-modules">--</div>
-    </div>
-    <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
-      <div class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">חינמיים תמיד</div>
-      <div class="text-2xl font-black text-emerald-600" id="ps-free-modules">--</div>
-    </div>
-    <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
-      <div class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">עלות מקס׳ לעסק</div>
-      <div class="text-2xl font-black text-violet-600" id="ps-max-price">-- ₪</div>
-    </div>
-    <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
-      <div class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">עלות ממוצעת</div>
-      <div class="text-2xl font-black text-slate-700" id="ps-avg-price">-- ₪</div>
-    </div>
-  </div>
-
-  <!-- טבלת מחירון לפי קבוצות -->
-  <div id="pricing-groups-container" class="space-y-6"></div>
-
-</div>
 
 <!-- KH content-view modal -->
 <div id="kh-view-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onclick="if(event.target===this)khCloseViewModal()">
