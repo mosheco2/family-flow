@@ -13047,10 +13047,8 @@ const PRICING_CATALOG_DEFAULT = [
   {
     groupId: 'users', groupName: 'משתמשים — עלות לנציג נוסף', color: 'sky',
     modules: [
-      { id: 'user_manager',   name: 'מנהל / בעל עסק נוסף', price: 0,  free: true,  desc: 'המשתמש הראשון (מקים המערכת) — חינם תמיד, כלול בכל חבילה' },
-      { id: 'user_employee',  name: 'עובד (גישה בסיסית)',  price: 9,  free: false, desc: 'נוכחות, משמרות, משימות, פיד — ללא גישה לניהול כספים ולקוחות' },
-      { id: 'user_advanced',  name: 'עובד מתקדם',          price: 15, free: false, desc: 'כל הגישה של עובד בסיסי + מכירות, לקוחות, קופה' },
-      { id: 'user_manager2',  name: 'מנהל נוסף',           price: 25, free: false, desc: 'גישה מלאה לכל מודולי העסק — כמו בעל עסק, ללא הגדרות Super Admin' },
+      { id: 'user_manager',  name: 'מנהל / בעל עסק', price: 0,  free: true,  desc: 'כלול בכל חבילה — תמיד חינם, ללא קשר לסוג העסק או החבילה' },
+      { id: 'user_extra',    name: 'עובד נוסף',        price: 9,  free: false, desc: 'כל עובד נוסף ללא קשר לתפקידו, דרגתו או הרשאותיו — מחיר אחיד לנציג' },
     ]
   },
   {
