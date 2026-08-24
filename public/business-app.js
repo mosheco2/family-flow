@@ -34859,6 +34859,7 @@ const BUSINESS_TYPES = [
     { id: 'events',             name: 'אירועים / הפקות',       icon: '🎉', modules: ['feed','calendar','tasks','customers','members','timeclock','cashflow','budget','equipment','shifts','shop','menu_templates','biz-ads','reports'] },
     { id: 'food_production',    name: 'ייצור מזון',             icon: '🏭', modules: ['feed','pantry','shop','sales','customers','tasks','members','shifts','timeclock','cashflow','equipment','deliveries','foodcost','menu_templates','biz-ads','reports'] },
     { id: 'professional',       name: 'מקצועי / ייעוץ',         icon: '👔', modules: ['feed','sales','customers','cases','leads','timelog','documents','calendar','tasks','cashflow','budget','members','timeclock','bank','content','biz-ads','reports'] },
+    { id: 'store_only',         name: 'חנות בלבד',              icon: '🏪', modules: ['feed','shop','pos','pantry','sales','customers','cashflow','budget','reports','biz-ads'] },
     { id: 'other',              name: 'אחר / כללי',             icon: '🏢', modules: null }
 ];
 
