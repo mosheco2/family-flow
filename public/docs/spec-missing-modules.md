@@ -1,5 +1,5 @@
 # מודולים לא מתועדים — Family-Flow
-> תאריך: 2026-07-22 | מבוסס על סריקת server.js (קוד אמיתי בלבד)
+> תאריך מקורי: 2026-07-22 | עדכון: 24.08.2026 | מבוסס על סריקת server.js (קוד אמיתי בלבד)
 
 ---
 
@@ -15,6 +15,9 @@
 8. [B2B, FlowPool & Banner Ads](#8-b2b-flowpool--banner-ads)
 9. [Community Wallet & Cashback](#9-community-wallet--cashback)
 10. [Public Storefront — חנות ציבורית](#10-public-storefront)
+11. [Live Game Host *(חדש 24.08.2026)*](#11-live-game-host)
+12. [Community Social Feed *(חדש 24.08.2026)*](#12-community-social-feed)
+13. [Family-Business Link & Service Areas *(חדש 24.08.2026)*](#13-family-business-link--service-areas)
 
 ---
 
@@ -319,6 +322,13 @@ Flow עסקי: הצעת מחיר (quote) → המרה ל-Work Order → שיוך
 - **SMS verification**: מייצר קוד 4 ספרות, שולח ב-Twilio, מאמת ב-`verify-table-sms`. הזמנה פגה אחרי 30 דקות.
 - **חיבור ל-calendar**: `calendar_events` עם `reserved_table_number` ו-`call_type='table_reservation'` מאפשרים שיוך הזמנת מקום לאירוע ביומן.
 
+### 5.5 הערת Middleware (עדכון 24.08.2026)
+
+כל endpoints `/api/tables/:groupId/*` (GET + PUT) פתוחים ללא middleware — **זה מכוון**:
+- GET states/bills/assignments: נגיש גם מ-storefront (לקוח רואה שולחנות פנויים) — **אין להוסיף verifyBiz על ה-GET**.
+- PUT endpoints (עדכון מלצרים, חשבוניות): פועלים בתוך ממשק הניהול הפנימי בלבד — **שיקול עתידי**: הוספת verifyBizOrLegacy על PUT.
+- endpoints ציבוריים (`/api/public/restaurants/*`): ציבוריים by design — הזמנת שולחן + SMS.
+
 ---
 
 ## 6. Store Quotes & Kiosk
@@ -377,6 +387,14 @@ Flow עסקי: הצעת מחיר (quote) → המרה ל-Work Order → שיוך
 - **quote_history**: בכל עדכון משמעותי, הגרסה הנוכחית נדחפת ל-`quote_history JSONB array` לפני שינוי.
 - **OneFlow integration**: שליחה ל-OneFlow (external e-signature service) דרך API חיצוני — לא מנוהל ב-DB.
 - **Kiosk flow**: לקוח מזין קוד/טלפון → `kiosk-lookup` מחזיר פרטים → לקוח בוחר מוצרים → `kiosk-order` יוצר הזמנה רגילה ב-`store_orders` עם `order_source='kiosk'`.
+
+### 6.6 הערת Middleware (עדכון 24.08.2026)
+
+- **GET** `/api/store/quotes/family/:familyGroupId` — פתוח בכוונה: לקוח רואה את הצעות המחיר שלו ב-storefront ללא login.
+- **GET** `/api/store/quotes/:groupId` — כבר מוגן: `verifyBizOrLegacy + requireModule('sales')` ✓
+- **POST/PUT/PATCH** quotes — כבר מוגנים: `verifyBizOrLegacy + requireModule('sales')` ✓
+- **Kiosk endpoints** — פתוחים בכוונה: self-service ללא login הוא ה-use case המרכזי.
+- **מסקנה**: אין צורך בשינוי — המצב הנוכחי נכון.
 
 ---
 
@@ -582,6 +600,176 @@ Flow עסקי: הצעת מחיר (quote) → המרה ל-Work Order → שיוך
   - קטלוג שירותי יופי (אם `business_type='beauty'`)
 - **Store Popups**: `store_popups` עם `popup_type='store'` ו-`is_active=true` ו-`expires_at > NOW()`. כוללים `trigger_type` — `none` (מיידי), `after_seconds`, `exit_intent`.
 - **SEO/Public**: כל ה-endpoints הציבוריים הם ללא auth — מאפשרים הטמעה ו-indexing.
+
+---
+
+## 11. Live Game Host
+
+### 11.1 מהו המודול
+
+מודול משחקים חיים מרובי-משתתפים. SA יוצר משחק טריוויה/חידון, קהילות נבחרות רואות אותו, משפחות/ילדים נכנסים עם game_code, מתחרים בזמן אמת, וה-leaderboard מתעדכן. SA שולט על קצב השאלות ומאשר שחקנים.
+
+### 11.2 DB Schema
+
+| טבלה | תיאור | שדות מפתח |
+|------|-------|------------|
+| `live_games` | משחקים חיים | `game_code UNIQUE`, `title`, `description`, `status` (draft/waiting/active/finished), `current_question_index`, `sponsor_logo`, `character_image`, `is_visible` |
+| `live_game_questions` | שאלות | `game_id FK`, `question_text`, `options JSONB`, `correct_answer`, `time_limit_seconds`, `sort_order` |
+| `live_game_participants` | שחקנים | `game_id FK`, `player_name`, `player_type` (child/family), `user_id`, `score`, `is_approved`, `joined_at` |
+| `live_game_answers` | תשובות | `game_id FK`, `participant_id FK`, `question_id FK`, `answer`, `is_correct`, `time_taken_ms`, `points_earned` |
+| `live_game_assignments` | שיוך קהילות | `game_id FK`, `community_id FK`, `assigned_at` |
+
+### 11.3 API Endpoints
+
+> 20 endpoints | 15 עם verifySA, 5 ציבוריים במכוון
+
+| Method | Path | Auth | תיאור |
+|--------|------|------|-------|
+| POST | `/api/live-games` | verifySA | יצירת משחק |
+| PUT | `/api/live-games/:id` | verifySA | עדכון משחק |
+| GET | `/api/live-games/:id` | verifySA | פרטי משחק |
+| GET | `/api/live-games` | verifySA | כל המשחקים |
+| DELETE | `/api/live-games/:id` | verifySA | מחיקת משחק |
+| PUT | `/api/live-games/:id/status` | verifySA | עדכון סטטוס (waiting→active→finished) |
+| POST | `/api/live-games/:id/next-question` | verifySA | מעבר לשאלה הבאה |
+| PUT | `/api/live-games/:id/restart` | verifySA | איפוס משחק |
+| GET | `/api/live-games/:id/waiting-room` | verifySA | שחקנים ממתינים לאישור |
+| POST | `/api/live-games/:id/approve` | verifySA | אישור שחקן בודד |
+| POST | `/api/live-games/:id/approve-all` | verifySA | אישור כל השחקנים |
+| POST | `/api/live-games/:id/notify-start` | verifySA | שליחת הודעת פתיחה |
+| PATCH | `/api/live-games/:id/visibility` | verifySA | שינוי נראות |
+| POST | `/api/live-games/:id/assign` | verifySA | שיוך קהילות למשחק |
+| GET | `/api/live-games/:id/assignments` | verifySA | קהילות משויכות |
+| POST | `/api/live-games/:game_code/join` | ציבורי | הצטרפות לחדר המתנה |
+| POST | `/api/live-games/:game_code/answer` | ציבורי | הגשת תשובה |
+| GET | `/api/live-games/:game_code/state` | ציבורי | מצב משחק נוכחי (polling) |
+| GET | `/api/live-games/:game_code/image/:type` | ציבורי | תמונת לוגו/דמות |
+| GET | `/api/live-games/:id/leaderboard` | ציבורי | לוח תוצאות |
+
+### 11.4 לוגיקה עסקית
+
+- **Game flow**: SA יוצר → שולח לקהילות → `status='waiting'` → שחקנים מצטרפים עם game_code → SA מאשר → `status='active'` → SA מקדם שאלות ידנית → `status='finished'`.
+- **Polling**: שחקנים מבצעים GET `/state` כל כמה שניות — מקבלים את השאלה הנוכחית, מצב, ו-leaderboard.
+- **ניקוד**: `points_earned` = נקודות בסיס מינוס עונש זמן (ממהר = יותר נקודות).
+- **5 endpoints ציבוריים**: join/answer/state/image/leaderboard — מכוון, שחקנים לא מחוברים למערכת.
+
+---
+
+## 12. Community Social Feed
+
+### 12.1 מהו המודול
+
+פיד חברתי קהילתי — משפחות מפרסמות פוסטים, לייקים, תגובות, ושיתופים בתוך הקהילה. כולל: פיד כללי, פיד לפי קבוצות עניין, ספירת לא-נקראו, חיפוש, ופוסטים ציבוריים לשיתוף ב-WhatsApp.
+
+### 12.2 DB Schema
+
+| טבלה | תיאור | שדות מפתח |
+|------|-------|------------|
+| `community_posts` | פוסטים | `community_id FK`, `group_id`, `author_name`, `content TEXT`, `post_type` (text/image/promo/pool), `image_url`, `likes_count`, `comments_count`, `shares_count`, `is_pinned`, `status` (pending/approved/rejected) |
+| `community_post_likes` | לייקים | `post_id FK`, `user_id`, `group_id` — UNIQUE(post_id, user_id) |
+| `community_post_comments` | תגובות | `post_id FK`, `group_id`, `author_name`, `content TEXT` |
+| `community_post_reports` | דיווחים | `post_id FK`, `group_id`, `reason` |
+| `community_post_shares` | שיתופים | `post_id FK`, `group_id`, `shared_to` |
+| `community_interest_groups` | קבוצות עניין | `community_id FK`, `name`, `description`, `icon`, `created_by_group_id` |
+| `community_group_members` | חברי קבוצת עניין | `group_id FK` (interest group), `family_group_id`, UNIQUE composite |
+| `community_feed_reads` | סימון נקרא | `post_id FK`, `family_group_id`, UNIQUE composite |
+| `community_notifications` | התראות קהילה | `family_group_id`, `community_id`, `notification_type`, `reference_id`, `message`, `is_read` |
+
+### 12.3 API Endpoints
+
+> 23 endpoints | **כולם ללא middleware — ⚠️ פגיעות אבטחה פתוחה**
+
+| Method | Path | תיאור |
+|--------|------|-------|
+| GET | `/api/community/feed` | פיד כללי |
+| POST | `/api/community/posts` | פרסום פוסט |
+| POST | `/api/community/feed/mark-read` | סימון כנקרא |
+| GET | `/api/community/feed/unread-counts` | ספירת לא-נקראו |
+| GET | `/api/community/feed/search` | חיפוש בפיד |
+| GET | `/api/community/feed/biz-promos` | מבצעי עסקים בפיד |
+| POST | `/api/community/posts/:id/like` | לייק |
+| GET | `/api/community/posts/:id/comments` | תגובות |
+| POST | `/api/community/posts/:id/comments` | הוספת תגובה |
+| POST | `/api/community/posts/:id/report` | דיווח על פוסט |
+| POST | `/api/community/posts/:id/share` | שיתוף |
+| GET | `/api/community/posts/:id/likers` | מי עשה לייק |
+| GET | `/api/community/posts/:id/sharers` | מי שיתף |
+| GET | `/api/community/posts/:id/public` | פוסט ציבורי (לשיתוף WhatsApp) |
+| GET | `/api/community/notifications` | התראות קהילה |
+| GET | `/api/community/notifications/count` | ספירת התראות |
+| POST | `/api/community/notifications/mark-read` | סימון כנקרא |
+| GET | `/api/community/:communityId/groups` | קבוצות עניין |
+| POST | `/api/community/groups/:id/join` | הצטרפות לקבוצה |
+| POST | `/api/community/groups/:id/leave` | עזיבת קבוצה |
+| POST | `/api/community/groups` | יצירת קבוצת עניין |
+| GET | `/api/community/groups/:id/members` | חברי קבוצה |
+| GET | `/api/community/family-feed/:groupId` | פיד של משפחה ספציפית |
+
+### 12.4 לוגיקה עסקית
+
+- **פיד מאוחד**: `GET /api/community/feed` מחזיר שילוב של פוסטים, מבצעי עסקים, ועדכוני פולים — ממוין לפי `created_at DESC`.
+- **unread counting**: `community_feed_reads` מקיים רשומה לכל פוסט+משפחה שנקרא. `unread-counts` סופר פוסטים ללא רשומה.
+- **קבוצות עניין**: sub-communities בתוך קהילה — חברים לפי תחום (טבע, בישול, ספורט).
+- **⚠️ פגיעות אבטחה**: כל 23 endpoints ללא middleware — כל אחד שיודע את community_id יכול לפרסם פוסטים, להוסיף תגובות, ולסמן נקרא בשם כל קבוצה. **נדרש: verifyFamily על פעולות כתיבה לפחות.**
+
+---
+
+## 13. Family-Business Link & Service Areas
+
+### 13.1 מהו המודול
+
+שלושה מנגנונים גאוגרפיים/חברתיים שלא תועדו:
+1. **family_link_requests** — בקשות קישור **משפחה-למשפחה** (לא משפחה-לעסק). מאפשר ליצור קשרי parent/child/partner בין קבוצות משפחה שונות.
+2. **biz_service_areas** — מרחב השירות הגאוגרפי של עסק (ערים + רדיוס). משמש לפילטר "קרובים אליי" ב-marketplace.
+3. **family_preferred_areas** — אזורי העדפה של משפחה לחיפוש עסקים.
+
+> **הבהרה קריטית**: `family_link_requests` הוא קישור **משפחה-למשפחה** בלבד (role: parent/child/partner). אין כאן קישור לעסק. אין אלגוריתם התאמה אוטומטי — `preferred_areas` ו-`service_areas` קיימים כמנגנון גאוגרפי אך אין endpoint שמחבר ביניהם לצורך המלצות.
+
+### 13.2 DB Schema
+
+| טבלה | תיאור | שדות מפתח |
+|------|-------|------------|
+| `family_link_requests` | בקשות קישור | `requester_group_id FK`, `target_phone`, `role` (parent/child/partner), `status` (pending/accepted/rejected), `target_group_id FK` |
+| `family_preferred_areas` | אזורים מועדפים | `family_group_id FK`, `city`, `lat DOUBLE`, `lng DOUBLE`, `radius_km`, `is_primary BOOLEAN` — UNIQUE(family_group_id, city) |
+| `biz_service_areas` | אזורי שירות עסק | `business_group_id FK`, `city`, `lat DOUBLE`, `lng DOUBLE`, `radius_km` — UNIQUE(business_group_id, city) |
+
+### 13.3 API Endpoints
+
+> 13 endpoints מאומתים (14 לפי ספירה — endpoint אחד TBD) | **כולם ללא middleware**
+
+#### קישורי משפחה-למשפחה
+
+| Method | Path | תיאור |
+|--------|------|-------|
+| POST | `/api/family/link-request` | יצירת בקשת קישור — body: `{requesterGroupId, targetPhone, role}` |
+| GET | `/api/family/link-requests/:groupId` | בקשות קישור של קבוצה |
+| POST | `/api/family/link-request/:id/respond` | אישור/דחייה של בקשה |
+
+#### אזורי שירות עסק
+
+| Method | Path | תיאור |
+|--------|------|-------|
+| GET | `/api/biz/service-areas/:groupId` | אזורי שירות לעסק |
+| POST | `/api/biz/service-areas/:groupId` | הוספת אזור שירות |
+| DELETE | `/api/biz/service-areas/:groupId/:areaId` | מחיקת אזור |
+| POST | `/api/biz/location/:groupId` | עדכון מיקום בסיסי של עסק |
+| GET | `/api/biz/radius-zones/:groupId` | אזורי רדיוס מוגדרים |
+| POST | `/api/biz/radius-zones/:groupId` | הוספת אזור רדיוס |
+| DELETE | `/api/biz/radius-zones/:groupId/:zoneId` | מחיקת אזור רדיוס |
+
+#### אזורי העדפה משפחה
+
+| Method | Path | תיאור |
+|--------|------|-------|
+| GET | `/api/family/preferred-areas/:groupId` | אזורים מועדפים |
+| POST | `/api/family/preferred-areas/:groupId` | הוספת אזור מועדף |
+| DELETE | `/api/family/preferred-areas/:groupId/:areaId` | מחיקת אזור |
+
+### 13.4 לוגיקה עסקית
+
+- **link-request flow**: משפחה A שולחת בקשה לטלפון של משפחה B. אם B קיים במערכת → `target_group_id` מתמלא, B מקבל התראה ויכול לאשר/לדחות. role מגדיר את הכיוון: parent שולט ב-child, partner הוא דו-כיווני.
+- **גאוגרפיה ב-marketplace**: פילטר "קרובים אליי" ב-`GET /api/public/businesses` מבצע `JOIN biz_service_areas bsa ON bsa.business_group_id = fg.id AND bsa.lat IS NOT NULL`. לא נעשה שימוש ב-`family_preferred_areas` לצורך זה כרגע — הם קיימים אך לא מחוברים לאלגוריתם.
+- **⚠️ חסר**: אין endpoint שמחבר `preferred_areas` של משפחה ל-`service_areas` של עסק לצורך המלצות מותאמות אישית.
 
 ---
 
