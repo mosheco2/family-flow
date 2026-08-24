@@ -2538,6 +2538,28 @@ window._reportsExportPDF = function() {
 function switchTab(t) {
     // עסקי יופי: הפנה מ-customers ל-beauty_clients
     if (t === 'customers' && currentGroup?.business_type === 'beauty') t = 'beauty_clients';
+
+    // חסימת ניווט לטאב נעול לפי billing_config
+    const ALWAYS_OPEN = ['feed', 'settings', 'biz-ads'];
+    if (!ALWAYS_OPEN.includes(t)) {
+        const _b = (() => { try { return typeof currentGroup?.billing_config === 'string' ? JSON.parse(currentGroup.billing_config) : (currentGroup?.billing_config || null); } catch(e) { return null; } })();
+        if (_b !== null) {
+            let _bIds = [];
+            if (_b.bundle_id) {
+                const _bg = (window._pricingCatalogBiz || []).find(g => g.groupId === _b.bundle_id);
+                const _dp = (_bg?.modules?.[0]?.desc || '').split('(')[0].trim();
+                _bIds = _dp ? _dp.split(',').map(s => s.trim()).filter(Boolean) : [];
+            }
+            const _iIds = (Array.isArray(_b.modules) ? _b.modules : [])
+                .map(m => typeof m === 'string' ? m : (m.open !== false ? m.id : null)).filter(Boolean);
+            const _open = [...new Set([..._bIds, ..._iIds])];
+            if (!_open.includes(t)) {
+                const info = (typeof MODULE_DESCRIPTIONS !== 'undefined' && MODULE_DESCRIPTIONS[t]) || {};
+                if (typeof window.openLockedModuleModal === 'function') window.openLockedModuleModal(info.name || t);
+                return;
+            }
+        }
+    }
     ['feed','timeclock','shifts','calendar','shop','pantry','equipment','sales','pos','foodcost','customers','bank','cashflow','budget','forecast','tasks','deliveries','academy','community','members','surveys','settings','role-dashboard','beauty_calendar','beauty_clients','beauty_inventory','beauty_commissions','beauty_services','beauty_subscriptions','beauty_rfq','beauty_practitioners','logistics_orders','logistics_drivers','logistics_vehicles','logistics_pricing','logistics_cod','logistics_rfq','logistics_routes','logistics_tracking','logistics_reports','logistics_customers','logistics_invoices','reviews','cases','timelog','content','leads','documents','biz-ads','whatsapp-alerts','menu_templates'].forEach(x => {
         const el = getEl(`content-${x}`); if(el) el.classList.add('hidden');
         const btn = getEl(`tab-${x}`); if(btn) btn.classList.remove('tab-active');
@@ -32552,15 +32574,28 @@ function renderQuickTiles() {
     { fa:'fa-screwdriver-wrench',      label:'פקודות עבודה',    badge: openWoCount||null, tab:'__work_orders__',  bg:'#eef2ff', grad:'linear-gradient(135deg,#818cf8,#4f46e5)', badge_bg:'#4338ca' },
     { fa:'fa-chart-line',              label:'כספים',           badge: null,            tab:'bank',               bg:'#fff1f2', grad:'linear-gradient(135deg,#f43f5e,#be123c)', badge_bg:'#9f1239' },
   ]);
-  const _managed = Array.isArray(currentGroup?.managed_modules) ? currentGroup.managed_modules : [];
-  if (_managed.length > 0) {
+  // סינון tiles לפי billing_config (מקור גישה יחיד)
+  const _billing = (() => { try { return typeof currentGroup?.billing_config === 'string' ? JSON.parse(currentGroup.billing_config) : (currentGroup?.billing_config || null); } catch(e) { return null; } })();
+  if (_billing !== null) {
+    // bundle modules
+    let _bundleIds = [];
+    if (_billing.bundle_id) {
+      const _cat = window._pricingCatalogBiz || [];
+      const _bg = _cat.find(g => g.groupId === _billing.bundle_id);
+      const _desc = (_bg?.modules?.[0]?.desc || '').split('(')[0].trim();
+      _bundleIds = _desc ? _desc.split(',').map(s => s.trim()).filter(Boolean) : [];
+    }
+    const _indivIds = (Array.isArray(_billing.modules) ? _billing.modules : [])
+      .map(m => typeof m === 'string' ? m : (m.open !== false ? m.id : null)).filter(Boolean);
+    const _openIds = [...new Set([..._bundleIds, ..._indivIds])];
+
     const PSEUDO_MAP = { '__catalog__': 'sales', '__work_orders__': 'sales' };
     const INTRINSIC  = ['__tables__', 'kds', '__daily_close__'];
     const ALWAYS_ON  = ['feed', 'settings', 'biz-ads'];
     tiles = tiles.filter(t => {
       if (INTRINSIC.includes(t.tab) || ALWAYS_ON.includes(t.tab)) return true;
       const mapped = PSEUDO_MAP[t.tab] || t.tab;
-      return _managed.includes(mapped);
+      return _openIds.includes(mapped);
     });
   }
   container.innerHTML = tiles.map(t => {
