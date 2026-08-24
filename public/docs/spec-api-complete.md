@@ -1,8 +1,24 @@
 # מפת API מלאה — Family-Flow
 
-> תאריך: 2026-07-22
-> סה"כ endpoints: ~390+ (נמנו מ-server.js)
-> רמות auth: ציבורי | verifyFamily (implicit) | verifyBiz (implicit) | verifySA | verifyZoneManager (verifyZM)
+> תאריך מקורי: 2026-07-22  
+> עדכון אחרון: 24.08.2026 — ביקורת middleware + 3 מודולים חדשים  
+> סה"כ endpoints: ~450+ (נמנו מ-server.js)  
+> רמות auth: ציבורי | verifyBizOrLegacy | requireModule(module) | verifySA | verifyZM
+
+---
+
+## ביקורת Middleware — 24.08.2026
+
+| קבוצת endpoints | סה"כ | עם middleware | פתוחים | הערה |
+|---|---|---|---|---|
+| /api/store/* | 78 | 21 | 57 | 21 עם verifyBizOrLegacy+requireModule('sales') |
+| /api/work-orders/* | 30 | 0 | 30 | כולם פתוחים — דורש טיפול |
+| /api/beauty/* | 47 | 0 | 47 | כולם פתוחים — דורש טיפול |
+| /api/logistics/* | 53 | 51 | 2 | 2 ציבוריים מכוון (track, leave-at-door) |
+| /api/professional-* | 22 | 0 | 22 | כולם פתוחים — דורש טיפול |
+| /api/community/* | 74 | 0 | 74 | כולם פתוחים — by design |
+| /api/biz/* | 54 | 42 | 12 | 42 עם verifyBizOrLegacy, פירוט ברמת שורה TBD |
+| /api/kids/* | 20 | 0 | 20 | כולם פתוחים — דורש טיפול |
 
 ---
 
@@ -260,12 +276,12 @@
 | POST | /api/store/settings | עדכון הגדרות | ציבורי |
 | POST | /api/store/settings/presets | החלת Preset | ציבורי |
 | GET | /api/store/catalog/:groupId | קטלוג מוצרים | ציבורי |
-| PATCH | /api/store/catalog/:groupId/reorder | מיון קטלוג | ציבורי |
-| POST | /api/store/catalog | הוספת מוצר | ציבורי |
-| PUT | /api/store/catalog/:id | עדכון מוצר | ציבורי |
+| PATCH | /api/store/catalog/:groupId/reorder | מיון קטלוג | verifyBizOrLegacy + requireModule('sales') |
+| POST | /api/store/catalog | הוספת מוצר | verifyBizOrLegacy + requireModule('sales') |
+| PUT | /api/store/catalog/:id | עדכון מוצר | verifyBizOrLegacy + requireModule('sales') |
 | DELETE | /api/store/catalog/:id | מחיקת מוצר | ציבורי |
-| POST | /api/store/catalog/toggle | הפעל/כבה מוצר | ציבורי |
-| POST | /api/store/catalog/bulk-import | ייבוא מוצרים בכמות | ציבורי |
+| POST | /api/store/catalog/toggle | הפעל/כבה מוצר | verifyBizOrLegacy + requireModule('sales') |
+| POST | /api/store/catalog/bulk-import | ייבוא מוצרים בכמות | verifyBizOrLegacy + requireModule('sales') |
 | POST | /api/store/catalog/generate-image | יצירת תמונת AI | ציבורי |
 | POST | /api/store/inventory-count | ספירת מלאי | ציבורי |
 | GET | /api/store/orders/:groupId | הזמנות לעסק | ציבורי |
@@ -276,31 +292,31 @@
 | POST | /api/store/orders/:id/customer-feedback | משוב לקוח | ציבורי |
 | GET | /api/store/customers/:groupId | לקוחות CRM | ציבורי |
 | POST | /api/store/customers | יצירת לקוח | ציבורי |
-| PUT | /api/store/customers/:id | עדכון לקוח | ציבורי |
-| DELETE | /api/store/customers/:id | מחיקת לקוח | ציבורי |
+| PUT | /api/store/customers/:id | עדכון לקוח | verifyBizOrLegacy + requireModule('sales') |
+| DELETE | /api/store/customers/:id | מחיקת לקוח | verifyBizOrLegacy + requireModule('sales') |
 | POST | /api/store/customers/:id/send-quote | שליחת הצעת מחיר | ציבורי |
-| GET | /api/store/quotes/:groupId | הצעות מחיר | ציבורי |
+| GET | /api/store/quotes/:groupId | הצעות מחיר | verifyBizOrLegacy + requireModule('sales') |
 | GET | /api/store/quotes/family/:familyGroupId | הצעות למשפחה | ציבורי |
-| POST | /api/store/quotes | יצירת הצעת מחיר | ציבורי |
-| PUT | /api/store/quotes/:id | עדכון הצעה | ציבורי |
-| PATCH | /api/store/quotes/:id/status | עדכון סטטוס הצעה | ציבורי |
+| POST | /api/store/quotes | יצירת הצעת מחיר | verifyBizOrLegacy + requireModule('sales') |
+| PUT | /api/store/quotes/:id | עדכון הצעה | verifyBizOrLegacy + requireModule('sales') |
+| PATCH | /api/store/quotes/:id/status | עדכון סטטוס הצעה | verifyBizOrLegacy + requireModule('sales') |
 | PATCH | /api/store/quotes/:id/customer-response | תגובת לקוח | ציבורי |
-| POST | /api/store/quotes/:id/prepare-send | הכנת שליחה | ציבורי |
-| POST | /api/store/quotes/:id/approve | אישור הצעה | ציבורי |
-| POST | /api/store/quotes/:id/send-to-oneflow | שליחה ל-OneFlow | ציבורי |
-| POST | /api/store/quotes/:id/link-only | יצירת לינק בלבד | ציבורי |
-| POST | /api/store/quotes/:id/business-message | הודעת עסק | ציבורי |
-| POST | /api/store/quotes/:id/to-work-order | המרה ל-Work Order | ציבורי |
+| POST | /api/store/quotes/:id/prepare-send | הכנת שליחה | verifyBizOrLegacy + requireModule('sales') |
+| POST | /api/store/quotes/:id/approve | אישור הצעה | verifyBizOrLegacy + requireModule('sales') |
+| POST | /api/store/quotes/:id/send-to-oneflow | שליחה ל-OneFlow | verifyBizOrLegacy + requireModule('sales') |
+| POST | /api/store/quotes/:id/link-only | יצירת לינק בלבד | verifyBizOrLegacy + requireModule('sales') |
+| POST | /api/store/quotes/:id/business-message | הודעת עסק | verifyBizOrLegacy + requireModule('sales') |
+| POST | /api/store/quotes/:id/to-work-order | המרה ל-Work Order | verifyBizOrLegacy + requireModule('sales') |
 | GET | /api/store/commission-summary/:groupId | סיכום עמלות | ציבורי |
 | GET | /api/store/coupons/:groupId | קופונים לעסק | ציבורי |
 | POST | /api/store/coupons | יצירת קופון | ציבורי |
 | GET | /api/store/coupons/validate | אימות קופון | ציבורי |
-| DELETE | /api/store/coupons/:id | מחיקת קופון | ציבורי |
+| DELETE | /api/store/coupons/:id | מחיקת קופון | verifyBizOrLegacy + requireModule('sales') |
 | GET | /api/store/promotions/:groupId | מבצעים | ציבורי |
 | POST | /api/store/promotions | יצירת מבצע | ציבורי |
-| PUT | /api/store/promotions/:id | עדכון מבצע | ציבורי |
-| DELETE | /api/store/promotions/:id | מחיקת מבצע | ציבורי |
-| PUT | /api/store/promotions/toggle/:id | הפעל/כבה מבצע | ציבורי |
+| PUT | /api/store/promotions/:id | עדכון מבצע | verifyBizOrLegacy + requireModule('sales') |
+| DELETE | /api/store/promotions/:id | מחיקת מבצע | verifyBizOrLegacy + requireModule('sales') |
+| PUT | /api/store/promotions/toggle/:id | הפעל/כבה מבצע | verifyBizOrLegacy + requireModule('sales') |
 | GET | /api/store/popups/:groupId | חלונות קופצים | ציבורי |
 | POST | /api/store/popups | יצירת Popup | ציבורי |
 | PUT | /api/store/popups/:id | עדכון Popup | ציבורי |
@@ -871,3 +887,78 @@
 | POST | /api/page-images/:page/:slot | שמירת תמונה | ציבורי |
 | PATCH | /api/page-images/:page/:slot/toggle | הצג/הסתר | ציבורי |
 | DELETE | /api/page-images/:page/:slot | מחיקת תמונה | ציבורי |
+
+---
+
+## /api/live-games — Live Game Host *(נוסף 24.08.2026)*
+
+> 20 endpoints | 15 עם verifySA, 5 ציבוריים במכוון (join/answer/state/image/leaderboard)
+
+| Method | Path | תיאור | Auth |
+|---|---|---|---|
+| POST | /api/live-games | יצירת משחק חי | verifySA |
+| PUT | /api/live-games/:id | עדכון משחק | verifySA |
+| GET | /api/live-games/:id | פרטי משחק | verifySA |
+| GET | /api/live-games | כל המשחקים | verifySA |
+| DELETE | /api/live-games/:id | מחיקת משחק | verifySA |
+| PUT | /api/live-games/:id/status | עדכון סטטוס | verifySA |
+| POST | /api/live-games/:id/next-question | שאלה הבאה | verifySA |
+| PUT | /api/live-games/:id/restart | אתחול משחק | verifySA |
+| GET | /api/live-games/:id/waiting-room | חדר המתנה | verifySA |
+| POST | /api/live-games/:id/approve | אישור שחקן | verifySA |
+| POST | /api/live-games/:id/approve-all | אישור כולם | verifySA |
+| POST | /api/live-games/:id/notify-start | הודעת פתיחה | verifySA |
+| PATCH | /api/live-games/:id/visibility | שינוי נראות | verifySA |
+| POST | /api/live-games/:id/assign | שיוך קהילות | verifySA |
+| GET | /api/live-games/:id/assignments | שיוכי קהילות | verifySA |
+| POST | /api/live-games/:game_code/join | הצטרפות לחדר | ציבורי |
+| POST | /api/live-games/:game_code/answer | הגשת תשובה | ציבורי |
+| GET | /api/live-games/:game_code/state | מצב משחק | ציבורי |
+| GET | /api/live-games/:game_code/image/:type | תמונת משחק | ציבורי |
+| GET | /api/live-games/:id/leaderboard | לוח תוצאות | ציבורי |
+
+---
+
+## /api/family/link-requests + /api/biz/service-areas + /api/family/preferred-areas *(נוסף 24.08.2026)*
+
+> 13 endpoints אומתו (14 לפי ספירה — endpoint אחד TBD) | כולם ללא middleware
+
+### קישורי משפחה-למשפחה
+
+| Method | Path | תיאור | Auth |
+|---|---|---|---|
+| POST | /api/family/link-request | יצירת בקשת קישור | ציבורי |
+| GET | /api/family/link-requests/:groupId | בקשות קישור לקבוצה | ציבורי |
+| POST | /api/family/link-request/:id/respond | מענה לבקשה | ציבורי |
+
+### אזורי שירות עסק
+
+| Method | Path | תיאור | Auth |
+|---|---|---|---|
+| GET | /api/biz/service-areas/:groupId | אזורי שירות | ציבורי |
+| POST | /api/biz/service-areas/:groupId | הוספת אזור | ציבורי |
+| DELETE | /api/biz/service-areas/:groupId/:areaId | מחיקת אזור | ציבורי |
+| POST | /api/biz/location/:groupId | עדכון מיקום עסק | ציבורי |
+| GET | /api/biz/radius-zones/:groupId | אזורי רדיוס | ציבורי |
+| POST | /api/biz/radius-zones/:groupId | הוספת אזור רדיוס | ציבורי |
+| DELETE | /api/biz/radius-zones/:groupId/:zoneId | מחיקת אזור רדיוס | ציבורי |
+
+### אזורי העדפה משפחה
+
+| Method | Path | תיאור | Auth |
+|---|---|---|---|
+| GET | /api/family/preferred-areas/:groupId | אזורים מועדפים | ציבורי |
+| POST | /api/family/preferred-areas/:groupId | הוספת אזור | ציבורי |
+| DELETE | /api/family/preferred-areas/:groupId/:areaId | מחיקת אזור | ציבורי |
+
+> הערה: endpoint 14 — TBD, לא אומת בסשן זה
+
+---
+
+## Community Social Feed — הערת עדכון *(24.08.2026)*
+
+> Endpoints אלה נמצאים תחת /api/community/ (ראה מקטע קהילה לעיל).  
+> 2 endpoints חסרים מהרשימה הקיימת:  
+> - GET /api/community/posts/:id/likers  
+> - GET /api/community/posts/:id/sharers  
+> סה"כ ספירה: ~23 social feed endpoints תחת /api/community/ — כולם ללא middleware
