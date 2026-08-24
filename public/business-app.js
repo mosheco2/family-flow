@@ -35055,18 +35055,22 @@ function renderMyPlanSection() {
     const priceMap = {};
     catalog.forEach(g => g.modules && g.modules.forEach(m => { priceMap[m.id] = m; }));
 
-    // bundle name
+    // bundle name + price
     let bundleName = '';
     let bundlePrice = 0;
     if (billing?.bundle_id) {
         const bundleGroup = catalog.find(g => g.groupId === billing.bundle_id);
-        bundleName = bundleGroup?.groupName || '';
+        bundleName = bundleGroup?.groupName || billing.bundle_id;
         bundlePrice = bundleGroup?.modules?.[0]?.price || 0;
     }
 
-    // active modules — with price per module
+    // Use billing_config.modules as primary source; fall back to managed_modules
+    const billingModules = Array.isArray(billing?.modules) ? billing.modules : [];
+    const displayModules = billingModules.length > 0 ? billingModules : managed;
+
+    // active modules rows — with price per module
     let calcTotal = 0;
-    const activeRows = managed.map(mId => {
+    const activeRows = displayModules.map(mId => {
         const info = MODULE_DESCRIPTIONS[mId];
         const priceInfo = priceMap[mId];
         if (!info) return '';
@@ -35126,6 +35130,30 @@ function renderMyPlanSection() {
         </div>
     </div>`;
 }
+
+window.saveBusinessName = async function() {
+    const input = document.getElementById('biz-name-edit');
+    if (!input) return;
+    const newName = input.value.trim();
+    if (!newName || newName === currentGroup?.name) return;
+    try {
+        const res = await fetch(`/api/biz/settings/name`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${window._bizToken || ''}` },
+            body: JSON.stringify({ name: newName })
+        });
+        if (res.ok) {
+            if (currentGroup) currentGroup.name = newName;
+            showToast('success', 'שם העסק עודכן');
+        } else {
+            input.value = currentGroup?.name || '';
+            showToast('error', 'שגיאה בעדכון שם');
+        }
+    } catch(e) {
+        input.value = currentGroup?.name || '';
+        showToast('error', 'שגיאת רשת');
+    }
+};
 
 window.openModuleCancelRequest = function(moduleId, moduleName) {
     if (!confirm(`לבקש ביטול המודול "${moduleName}"?\nהבקשה תועבר לטיפול ידני.`)) return;
@@ -38872,8 +38900,10 @@ function renderSettingsHub() {
         </div>
         <div class="flex items-center gap-3 bg-white px-4 py-3 rounded-xl border border-indigo-100 mb-3">
             <span class="text-2xl">${(BUSINESS_TYPES.find(b=>b.id===currentGroup?.business_type)||{}).icon||'🏢'}</span>
-            <div>
-                <div class="text-sm font-bold text-slate-700">${currentGroup?.name||''}</div>
+            <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 mb-0.5">
+                    <input type="text" id="biz-name-edit" value="${safeStr(currentGroup?.name||'')}" class="text-sm font-bold text-slate-700 bg-transparent border-b border-transparent hover:border-indigo-300 focus:border-indigo-500 focus:outline-none flex-1 min-w-0 transition" onblur="window.saveBusinessName()" onkeydown="if(event.key==='Enter')this.blur()"/>
+                </div>
                 <div class="text-[10px] text-slate-400">${(BUSINESS_TYPES.find(b=>b.id===currentGroup?.business_type)||{}).name||'עסק'} · קוד: <span class="font-mono">${currentGroup?.code||''}</span></div>
             </div>
         </div>

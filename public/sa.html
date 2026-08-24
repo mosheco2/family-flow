@@ -3674,8 +3674,11 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
 
             <!-- Business feature flags (for business/family groups) -->
             <div id="sa-flags-section">
+            <div class="bg-blue-50 border border-blue-100 rounded-xl px-3 py-2 mb-3 text-[11px] text-blue-700">
+                <strong>Feature Flags</strong> — שולטים על מה <u>מוצג ומותר</u> לעסק ללא תלות בתשלום (הפעלה/כיבוי של יכולות). לחיוב ומודולים בתשלום ← ראה סקשן "חבילה וחיוב" למטה.
+            </div>
             <div class="flex justify-between items-center mb-3 border-b border-slate-100 pb-2">
-                <h4 class="font-bold text-slate-700 text-sm">מודולים ופיצ'רים פעילים (Feature Flags):</h4>
+                <h4 class="font-bold text-slate-700 text-sm">Feature Flags — יכולות פעילות:</h4>
                 <div class="flex gap-2">
                     <button type="button" onclick="toggleAllSAFlags(true)" class="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded border border-blue-100 hover:bg-blue-100 transition shadow-sm">סמן הכל</button>
                     <button type="button" onclick="toggleAllSAFlags(false)" class="text-[10px] font-bold text-slate-500 bg-slate-50 px-2 py-1 rounded border border-slate-200 hover:bg-slate-100 transition shadow-sm">בטל הכל</button>
@@ -3764,9 +3767,12 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
 
             <!-- ── חבילה וחיוב ───────────────────────────────────────────── -->
             <div id="sa-billing-section" class="hidden mt-6 border-t border-slate-100 pt-5">
-              <h4 class="font-bold text-slate-700 text-sm mb-4 flex items-center gap-2">
+              <h4 class="font-bold text-slate-700 text-sm mb-2 flex items-center gap-2">
                 <i class="fa-solid fa-receipt text-violet-500"></i> חבילה וחיוב חודשי
               </h4>
+              <div class="bg-violet-50 border border-violet-100 rounded-xl px-3 py-2 mb-4 text-[11px] text-violet-700">
+                <strong>חבילה וחיוב</strong> — מה <u>שולם ופעיל בפועל</u> עבור העסק. זה מה שמוצג ללקוח ב"החבילה שלי". Feature Flags למעלה שולטים על יכולות ועל ה-UI בלבד.
+              </div>
 
               <!-- בחירת חבילה -->
               <div class="mb-4">

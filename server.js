@@ -3908,6 +3908,17 @@ app.post('/api/biz/module-request', verifyBiz, async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// BIZ: עדכון שם עסק ע"י מנהל
+app.patch('/api/biz/settings/name', verifyBiz, async (req, res) => {
+    const { name } = req.body;
+    const groupId = req.bizAuth?.groupId;
+    if (!groupId || !name || !name.trim()) return res.status(400).json({ error: 'missing name' });
+    try {
+        await pool.query('UPDATE family_groups SET name=$1 WHERE id=$2', [name.trim(), groupId]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // SA: כל בקשות המודולים הממתינות מעסקים
 app.get('/api/sa/module-requests', verifySA, async (req, res) => {
     try {
