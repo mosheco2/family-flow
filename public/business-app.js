@@ -35146,9 +35146,9 @@ function applyBusinessTypeFilter() {
             ? (managed.includes(tab.id) || ALWAYS_VISIBLE_TABS.includes(tab.id))
             : (enabled.includes(tab.id) || ALWAYS_VISIBLE_TABS.includes(tab.id));
         const hasExplicitPermission = userGrantedTabs.includes(tab.id);
-        const isAccessible = isEnabled || isAdminOrManager || hasExplicitPermission;
-        // מודול שלא רלוונטי לסוג העסק בכלל — מוסתר לגמרי
+        // מודול שלא רלוונטי לסוג העסק בכלל — מוסתר לגמרי (גם עבור מנהלים)
         const isRelevantToType = !enabled || enabled.includes(tab.id) || ALWAYS_VISIBLE_TABS.includes(tab.id);
+        const isAccessible = isRelevantToType && (isEnabled || isAdminOrManager || hasExplicitPermission);
         const tabBtn = getEl(`tab-${tab.id}`);
         if (tabBtn) { if (!isAccessible) tabBtn.classList.add('hidden'); else tabBtn.classList.remove('hidden'); }
         const dropBtn = getEl(`gdrop-${tab.id}`);
@@ -35157,8 +35157,8 @@ function applyBusinessTypeFilter() {
                 // לא רלוונטי לסוג עסק זה — מוסתר לגמרי
                 dropBtn.style.display = 'none';
                 _removeLockFromDropBtn(dropBtn);
-            } else if (!isAccessible) {
-                // רלוונטי אבל לא מופעל — מוצג עם מנעול
+            } else if (!isEnabled) {
+                // רלוונטי אבל לא מופעל — מוצג עם מנעול (גם למנהל)
                 dropBtn.style.display = '';
                 _addLockToDropBtn(dropBtn, tab.id);
             } else {
