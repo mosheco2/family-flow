@@ -2565,10 +2565,13 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                                 btn.classList.add('text-green-800','border-green-400','bg-green-50');
                                 setTimeout(()=>{ btn.innerHTML=origHtml; btn.disabled=false; btn.classList.remove('text-green-800','border-green-400','bg-green-50'); },3000);
                               } else {
-                                btn.innerHTML='<i class="fa-solid fa-xmark text-[10px]"></i> שגיאה';
+                                const errMsg = data.error || 'שגיאה';
+                                const isNoKey = errMsg.includes('No AI key') || errMsg.includes('AI key');
+                                btn.innerHTML=`<i class="fa-solid fa-xmark text-[10px]"></i> ${isNoKey ? 'מפתח AI חסר' : 'שגיאה'}`;
                                 btn.classList.remove('opacity-60');
                                 btn.classList.add('text-red-700','border-red-300');
-                                setTimeout(()=>{ btn.innerHTML=origHtml; btn.disabled=false; btn.classList.remove('text-red-700','border-red-300'); },3000);
+                                btn.title = errMsg;
+                                setTimeout(()=>{ btn.innerHTML=origHtml; btn.disabled=false; btn.classList.remove('text-red-700','border-red-300'); btn.title=''; },5000);
                               }
                             }).catch(()=>{
                               btn.innerHTML='<i class="fa-solid fa-xmark text-[10px]"></i> שגיאה';
