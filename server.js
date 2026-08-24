@@ -27036,27 +27036,106 @@ function _genFamilyEnv(serverJs, appJs, today) {
   return md;
 }
 
-function _genZoneEnv(serverJs, today) {
+function _genZoneEnv(serverJs, zoneAppJs, today) {
   const routes = _extractRoutes(serverJs, '/api/zone');
+  const zmRoutes = _extractRoutes(serverJs, '/api/zone-manager');
+
+  // extract zmSwitchTab tabs
+  const zmTabsM = zoneAppJs.match(/zmSwitchTab.*?\[([^\]]+)\]/);
+  const zmTabs = zmTabsM ? zmTabsM[1].replace(/['"`\s]/g,'').split(',').filter(Boolean) : [];
+
+  // extract lead/status labels
+  const leadTypeM = zoneAppJs.match(/LEAD_TYPE_LABELS\s*=\s*\{([^}]+)\}/);
+  const leadStatusM = zoneAppJs.match(/LEAD_STATUS_LABELS\s*=\s*\{([^}]+)\}/);
+  const actionLabelsM = zoneAppJs.match(/ACTION_LABELS\s*=\s*\{([^}]+)\}/);
+
   let md = `# מפרט טכני — Zone Manager וקהילות (Oneflow Life)\n\n`;
-  md += `> תאריך: ${today}  \n> Backend prefix: \`/api/zone\`\n\n---\n\n`;
-  md += `## 1. תיאור\n\nZone Manager מנהל קהילות גיאוגרפיות, פרסום, לידים ו-WhatsApp alerts.\n\n`;
-  md += `## 2. נתיבי API (${routes.length})\n\n${_routeTable(routes)}\n`;
+  md += `> תאריך: ${today}  \n> קובץ: \`public/zone-manager.html\` + \`zone-manager-app.js\`  \n> Backend prefix: \`/api/zone\` + \`/api/zone-manager\`\n\n---\n\n`;
+  md += `## 1. תיאור\n\nZone Manager מנהל קהילות גיאוגרפיות, אישור עסקים חדשים, קמפיינים שיווקיים, לידים, עמלות ו-WhatsApp alerts.\n\n`;
+
+  if (zmTabs.length) {
+    md += `## 2. טאבים — Zone Manager UI\n\n`;
+    md += `| Tab ID | תיאור |\n|--------|-------|\n`;
+    const tabDesc = { zones:'ניהול קהילות באזור', 'biz-requests':'בקשות עסקים ממתינות', marketing:'קמפיינים שיווקיים', leads:'לידים וגיוס', inbox:'הודעות נכנסות', commissions:'עמלות', content:'תוכן', 'kol-haam':'כל העם' };
+    zmTabs.forEach(t => { md += `| \`${t}\` | ${tabDesc[t] || ''} |\n`; });
+    md += '\n';
+  }
+
+  if (leadTypeM) {
+    md += `## 3. סוגי לידים\n\n`;
+    md += leadTypeM[1].trim().split(',').map(p => `- ${p.replace(/['"`]/g,'').replace(':','**: **').trim()}`).join('\n');
+    md += '\n\n';
+  }
+
+  if (leadStatusM) {
+    md += `## 4. סטטוסי ליד\n\n`;
+    md += leadStatusM[1].trim().split(',').map(p => `- ${p.replace(/['"`]/g,'').replace(':','**: **').trim()}`).join('\n');
+    md += '\n\n';
+  }
+
+  if (actionLabelsM) {
+    md += `## 5. סוגי פעולות CRM\n\n`;
+    md += actionLabelsM[1].trim().split(',').map(p => `- ${p.replace(/['"`]/g,'').replace(':','**: **').trim()}`).join('\n');
+    md += '\n\n';
+  }
+
+  md += `## 6. נתיבי API — zone (${routes.length})\n\n${_routeTable(routes)}\n`;
+  if (zmRoutes.length) md += `## 7. נתיבי API — zone-manager (${zmRoutes.length})\n\n${_routeTable(zmRoutes)}\n`;
   return md;
 }
 
-function _genSAEnv(serverJs, saHtml, today) {
+function _extractSAModules(saAppJs) {
+  const m = saAppJs.match(/const SA_MODULE_LIST\s*=\s*\[([\s\S]*?)\];/);
+  if (!m) return [];
+  const mods = [];
+  const rx = /key\s*:\s*['"`]([^'"`]+)['"`][^}]*icon\s*:\s*['"`]([^'"`]+)['"`][^}]*name\s*:\s*['"`]([^'"`]+)['"`]/g;
+  let t;
+  while ((t = rx.exec(m[1])) !== null) mods.push({ key: t[1], icon: t[2], name: t[3] });
+  return mods;
+}
+
+function _extractKHSATabs(saAppJs) {
+  const m = saAppJs.match(/const KH_SA_TABS\s*=\s*\[([\s\S]*?)\];/);
+  if (!m) return [];
+  const tabs = [];
+  const rx = /key\s*:\s*['"`]([^'"`]+)['"`][^}]*label\s*:\s*['"`]([^'"`]+)['"`]/g;
+  let t;
+  while ((t = rx.exec(m[1])) !== null) tabs.push({ key: t[1], label: t[2] });
+  return tabs;
+}
+
+function _genSAEnv(serverJs, saHtml, saAppJs, today) {
   const routes = _extractRoutes(serverJs, '/api/sa');
-  // extract SA sections from HTML h2/h3 headings or section titles
-  const sections = [...saHtml.matchAll(/class="[^"]*font-black[^"]*"\s*>([^<]{4,60})</g)].map(m => m[1].trim()).filter(s => s.length > 3 && !/^\d/.test(s)).slice(0, 40);
+  const saModules = _extractSAModules(saAppJs);
+  const khTabs = _extractKHSATabs(saAppJs);
+
+  // extract SA nav sections from saHtml
+  const sections = [...saHtml.matchAll(/data-section=['"]([^'"]+)['"]/g)].map(m => m[1]).filter(Boolean).slice(0, 50);
+
   let md = `# מפרט טכני — Super Admin (Oneflow Life)\n\n`;
-  md += `> תאריך: ${today}  \n> קובץ: \`public/sa.html\` + \`sa-app.js\`  \n> Backend prefix: \`/api/sa\`\n\n---\n\n`;
-  md += `## 1. תיאור\n\nSA הוא לוח הבקרה המרכזי לניהול כלל המערכת: לקוחות, עסקים, billing, impersonation, SMS, AI, banners, Zone Managers.\n\n`;
+  md += `> תאריך: ${today}  \n> קבצים: \`public/sa.html\` + \`sa-app.js\`  \n> Backend prefix: \`/api/sa\`\n\n---\n\n`;
+  md += `## 1. תיאור\n\nSA הוא לוח הבקרה המרכזי לניהול כלל המערכת: לקוחות, עסקים, billing, impersonation, SMS, AI, banners, Zone Managers, תוכן ו-KH.\n\n`;
+  md += `## 2. אימות\n\n- Token: \`SA_SECRET_TOKEN_2026\`\n- Headers מקובלים: \`Authorization: Bearer <token>\` או \`x-sa-token: <token>\`\n- Middleware: \`verifySA()\`\n\n`;
+
   if (sections.length) {
-    md += `## 2. סקשנים ב-UI\n\n${sections.map(s => `- ${s}`).join('\n')}\n\n`;
+    md += `## 3. סקשנים ב-UI (data-section)\n\n${sections.map(s => `- \`${s}\``).join('\n')}\n\n`;
   }
-  md += `## 3. נתיבי API (${routes.length})\n\n${_routeTable(routes)}\n`;
-  md += `## 4. אימות\n\n- Token: \`SA_SECRET_TOKEN_2026\` ב-\`Authorization\` header או \`x-sa-token\`\n- Middleware: \`verifySA()\`\n`;
+
+  if (saModules.length) {
+    md += `## 4. מודולי משפחה (SA_MODULE_LIST) — ${saModules.length} מודולים\n\n`;
+    md += `| Key | שם |\n|-----|----|\n`;
+    saModules.forEach(m => { md += `| ${m.icon} \`${m.key}\` | ${m.name} |\n`; });
+    md += '\n';
+  }
+
+  if (khTabs.length) {
+    md += `## 5. טאבים — כל העם (KH_SA_TABS)\n\n`;
+    md += `| Key | תווית |\n|-----|-------|\n`;
+    khTabs.forEach(t => { md += `| \`${t.key}\` | ${t.label} |\n`; });
+    md += '\n';
+  }
+
+  md += `## 6. נתיבי API (${routes.length})\n\n${_routeTable(routes)}\n`;
   return md;
 }
 
@@ -27136,11 +27215,15 @@ app.post('/api/sa/docs/refresh/:doc', verifySA, async (req, res) => {
       if (fs.existsSync(sfPath)) scanContent += fs.readFileSync(sfPath, 'utf8');
     }
 
-    // always load business-app.js for rich module/tab data
+    // always load JS files for rich module/tab data
     const bizAppPath = path.join(__dirname, 'public/business-app.js');
     const bizAppJs = fs.existsSync(bizAppPath) ? fs.readFileSync(bizAppPath, 'utf8') : '';
     const saHtmlPath = path.join(__dirname, 'public/sa.html');
     const saHtml = fs.existsSync(saHtmlPath) ? fs.readFileSync(saHtmlPath, 'utf8') : '';
+    const saAppPath = path.join(__dirname, 'public/sa-app.js');
+    const saAppJs = fs.existsSync(saAppPath) ? fs.readFileSync(saAppPath, 'utf8') : '';
+    const zoneAppPath = path.join(__dirname, 'public/zone-manager-app.js');
+    const zoneAppJs = fs.existsSync(zoneAppPath) ? fs.readFileSync(zoneAppPath, 'utf8') : '';
 
     let newContent = '';
     if (hint === 'api-complete') {
@@ -27158,9 +27241,9 @@ app.post('/api/sa/docs/refresh/:doc', verifySA, async (req, res) => {
       const familyAppJs = fs.existsSync(familyAppPath) ? fs.readFileSync(familyAppPath, 'utf8') : '';
       newContent = _genFamilyEnv(serverJs, familyAppJs, today);
     } else if (doc === 'spec-zone-community') {
-      newContent = _genZoneEnv(serverJs, today);
+      newContent = _genZoneEnv(serverJs, zoneAppJs, today);
     } else if (doc === 'spec-super-admin') {
-      newContent = _genSAEnv(serverJs, saHtml, today);
+      newContent = _genSAEnv(serverJs, saHtml, saAppJs, today);
     } else {
       newContent = _genBizEnv(serverJs, bizAppJs, today);
     }
