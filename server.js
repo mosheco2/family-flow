@@ -4476,10 +4476,10 @@ async function verifyZoneManager(req, res, next) {
 
 function verifySA(req, res, next) {
     const authHeader = req.headers.authorization || '';
-    
-    // חילוץ אקטיבי של הטוקן במידה והוא נשלח עם תחילית Bearer מהדפדפן
-    const token = authHeader.startsWith('Bearer ') ? authHeader.split(' ')[1] : authHeader;
-    
+    const xSaToken  = req.headers['x-sa-token']  || '';
+    const raw = authHeader || xSaToken;
+    const token = raw.startsWith('Bearer ') ? raw.split(' ')[1] : raw;
+
     if (token !== 'SA_SECRET_TOKEN_2026') {
         return res.status(403).json({ error: 'Forbidden' });
     }
