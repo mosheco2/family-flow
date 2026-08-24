@@ -35174,14 +35174,29 @@ function applyBusinessTypeFilter() {
     if (!currentUser) return;
     const isAdminOrManager = currentUser.role === 'ADMIN' || currentUser.role === 'MANAGER';
 
-    // ── מקור יחיד לגישה: billing_config.modules עם open:true ──────────────
+    // ── מקור יחיד לגישה: billing_config ──────────────────────────────────
     const billing = (() => {
         try { return typeof currentGroup?.billing_config === 'string' ? JSON.parse(currentGroup.billing_config) : (currentGroup?.billing_config || null); } catch(e) { return null; }
     })();
-    // normalize: support legacy string array and new [{id,open,billing}] format
+    const hasBillingConfig = billing !== null;
+
+    // bundle modules — parse from catalog desc
+    let bundleOpenIds = [];
+    if (billing?.bundle_id) {
+        const catalog = window._pricingCatalogBiz || [];
+        const bundleGroup = catalog.find(g => g.groupId === billing.bundle_id);
+        const desc = bundleGroup?.modules?.[0]?.desc || '';
+        const descPart = desc.split('(')[0].trim();
+        bundleOpenIds = descPart ? descPart.split(',').map(s => s.trim()).filter(Boolean) : [];
+    }
+
+    // individual modules with open:true
     const billingModules = Array.isArray(billing?.modules) ? billing.modules : [];
-    const openIds = billingModules.map(m => typeof m === 'string' ? m : (m.open !== false ? m.id : null)).filter(Boolean);
-    const hasBillingConfig = billingModules.length > 0;
+    const individualOpenIds = billingModules
+        .map(m => typeof m === 'string' ? m : (m.open !== false ? m.id : null))
+        .filter(Boolean);
+
+    const openIds = [...new Set([...bundleOpenIds, ...individualOpenIds])];
 
     // explicit permissions granted by owner (employees)
     let userGrantedTabs = [];
@@ -35195,14 +35210,13 @@ function applyBusinessTypeFilter() {
 
     const ALWAYS_VISIBLE_TABS = ['feed', 'settings', 'biz-ads'];
 
-    // אם אין billing_config כלל — ADMIN/MANAGER רואה הכל, שאר עובדים — לפי הרשאות
+    // אם אין billing_config כלל — כולם רואים הכל (עסק חדש שטרם הוגדר)
     if (!hasBillingConfig) {
         ALL_TABS.forEach(tab => {
-            const isAccessible = isAdminOrManager || userGrantedTabs.includes(tab.id) || ALWAYS_VISIBLE_TABS.includes(tab.id);
             const tabBtn = getEl(`tab-${tab.id}`);
-            if (tabBtn) { isAccessible ? tabBtn.classList.remove('hidden','locked-module') : tabBtn.classList.add('hidden','locked-module'); }
+            if (tabBtn) tabBtn.classList.remove('hidden', 'locked-module');
             const dropBtn = getEl(`gdrop-${tab.id}`);
-            if (dropBtn) { dropBtn.style.display = ''; isAccessible ? _removeLockFromDropBtn(dropBtn) : _addLockToDropBtn(dropBtn, tab.id); }
+            if (dropBtn) { dropBtn.style.display = ''; _removeLockFromDropBtn(dropBtn); }
         });
         ['team','sales','inventory','finance','more'].forEach(g => { const b = getEl(`gnav-btn-${g}`); if (b) b.style.display = ''; });
         return;
@@ -35211,8 +35225,9 @@ function applyBusinessTypeFilter() {
     ALL_TABS.forEach(tab => {
         const isInBilling = openIds.includes(tab.id) || ALWAYS_VISIBLE_TABS.includes(tab.id);
         const hasExplicitPermission = userGrantedTabs.includes(tab.id);
-        // ADMIN תמיד רואה הכל (גם נעול — כדי לנהל), MANAGER רואה פתוחים + הרשאות
-        const isAccessible = isInBilling || hasExplicitPermission || (currentUser.role === 'ADMIN');
+        // גישה = פתוח ב-billing או הרשאה מפורשת מהמנהל לעובד
+        // גם ADMIN נחסם ממה שלא שולם — רואה נעילה ויכול לבקש שחרור
+        const isAccessible = isInBilling || hasExplicitPermission;
 
         // tabBtn — תמיד קיים בDOM, נעול אם לא נגיש (כדי ש-switchTab wrapper יתפוס)
         const tabBtn = getEl(`tab-${tab.id}`);
