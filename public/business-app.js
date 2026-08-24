@@ -3655,9 +3655,13 @@ if (!window.switchTabOverridden) {
     window.switchTab = function(tabId) {
         const targetBtn = document.getElementById(`tab-${tabId}`);
         if (targetBtn && targetBtn.classList.contains('locked-module')) {
+            if (typeof openModuleUnlockModal === 'function') openModuleUnlockModal(tabId);
+            return;
+        }
+        if (targetBtn && targetBtn.classList.contains('tab-perm-locked')) {
             const modName = targetBtn.dataset.lockedName || 'מודול נבחר';
-            if(typeof openLockedModuleModal === 'function') openLockedModuleModal(modName);
-            return; 
+            if (typeof openLockedModuleModal === 'function') openLockedModuleModal(modName);
+            return;
         }
         originalSwitchTab(tabId);
         setTimeout(enforcePermissions, 50);
@@ -35146,23 +35150,25 @@ function applyBusinessTypeFilter() {
             ? (managed.includes(tab.id) || ALWAYS_VISIBLE_TABS.includes(tab.id))
             : (enabled.includes(tab.id) || ALWAYS_VISIBLE_TABS.includes(tab.id));
         const hasExplicitPermission = userGrantedTabs.includes(tab.id);
-        // מודול שלא רלוונטי לסוג העסק בכלל — מוסתר לגמרי (גם עבור מנהלים)
-        const isRelevantToType = !enabled || enabled.includes(tab.id) || ALWAYS_VISIBLE_TABS.includes(tab.id);
-        const isAccessible = isRelevantToType && (isEnabled || isAdminOrManager || hasExplicitPermission);
+        const isAccessible = isEnabled || (isAdminOrManager && !hasManagedFilter) || hasExplicitPermission;
+
+        // tabBtn — תמיד קיים בDOM, נעול אם לא נגיש (כדי ש-switchTab wrapper יתפוס)
         const tabBtn = getEl(`tab-${tab.id}`);
-        if (tabBtn) { if (!isAccessible) tabBtn.classList.add('hidden'); else tabBtn.classList.remove('hidden'); }
+        if (tabBtn) {
+            if (!isAccessible) {
+                tabBtn.classList.add('hidden', 'locked-module');
+            } else {
+                tabBtn.classList.remove('hidden', 'locked-module');
+            }
+        }
+
+        // dropBtn — תמיד גלוי, נעול אם לא נגיש
         const dropBtn = getEl(`gdrop-${tab.id}`);
         if (dropBtn) {
-            if (!isRelevantToType) {
-                // לא רלוונטי לסוג עסק זה — מוסתר לגמרי
-                dropBtn.style.display = 'none';
-                _removeLockFromDropBtn(dropBtn);
-            } else if (!isEnabled) {
-                // רלוונטי אבל לא מופעל — מוצג עם מנעול (גם למנהל)
-                dropBtn.style.display = '';
+            dropBtn.style.display = '';
+            if (!isAccessible) {
                 _addLockToDropBtn(dropBtn, tab.id);
             } else {
-                dropBtn.style.display = '';
                 _removeLockFromDropBtn(dropBtn);
             }
         }
