@@ -2554,8 +2554,7 @@ function switchTab(t) {
                 .map(m => typeof m === 'string' ? m : (m.open !== false ? m.id : null)).filter(Boolean);
             const _open = [...new Set([..._bIds, ..._iIds])];
             if (!_open.includes(t)) {
-                const info = (typeof MODULE_DESCRIPTIONS !== 'undefined' && MODULE_DESCRIPTIONS[t]) || {};
-                if (typeof window.openLockedModuleModal === 'function') window.openLockedModuleModal(info.name || t);
+                if (typeof window.openModuleUnlockModal === 'function') window.openModuleUnlockModal(t);
                 return;
             }
         }
@@ -34993,7 +34992,15 @@ const MODULE_DESCRIPTIONS = {
     leads:        { icon:'📥', name:'פניות נכנסות',     desc:'ניהול לידים, מעקב המרה ותיעוד תקשורת.' },
     timelog:      { icon:'⏱️', name:'שעות עבודה',      desc:'דיווח שעות לפרויקט, חשבונית שעתית ודוחות.' },
     reports:      { icon:'📈', name:'דוחות',            desc:'דוחות מפורטים לכל תחום — מכירות, צוות, כספים.' },
-    menu_templates: { icon:'📋', name:'תבניות תפריט',  desc:'ניהול תפריטים דיגיטליים, QR ועיצוב מותאם.' },
+    menu_templates:         { icon:'📋', name:'תבניות תפריט',    desc:'ניהול תפריטים דיגיטליים, QR ועיצוב מותאם.' },
+    beauty_calendar:        { icon:'📅', name:'יומן תורים',       desc:'ניהול תורים ופגישות, שיבוץ מטפלות, תזכורות ללקוחות.' },
+    beauty_clients:         { icon:'📋', name:'תיקי לקוחות',      desc:'CRM לקוסמטיקה: היסטוריית טיפולים, אלרגיות, העדפות.' },
+    beauty_inventory:       { icon:'🧴', name:'מלאי מקצועי',      desc:'מעקב מוצרי טיפוח, הזמנות ספקים, עלויות חומרים.' },
+    beauty_services:        { icon:'💎', name:'שירותים וטיפולים', desc:'ניהול רשימת טיפולים, מחירים, משכי זמן ומטפלות.' },
+    beauty_commissions:     { icon:'💵', name:'עמלות מטפלות',     desc:'חישוב עמלות לפי טיפול, דוח תשלומים ופירוט שעות.' },
+    beauty_subscriptions:   { icon:'🎁', name:'מנויים וחבילות',   desc:'ניהול מנויים ללקוחות, מימוש יתרות וחידוש אוטומטי.' },
+    beauty_rfq:             { icon:'📩', name:'בקשות הצעת מחיר',  desc:'ניהול פניות לקוחות להצעות מחיר לטיפולים מיוחדים.' },
+    beauty_practitioners:   { icon:'👩‍⚕️', name:'ניהול מטפלות',   desc:'פרופיל מטפלות, לוחות זמנים, התמחויות וביקורות.' },
 };
 
 function _addLockToDropBtn(btn, tabId) {
