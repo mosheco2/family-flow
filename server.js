@@ -26959,17 +26959,80 @@ function _genBizEnv(serverJs, bizAppJs, today) {
   return md;
 }
 
-function _genFamilyEnv(serverJs, htmlContent, today) {
+// extract ALL_TABS from app.js (family env)
+function _extractFamilyTabs(appJs) {
+  const m = appJs.match(/const ALL_TABS\s*=\s*\[([\s\S]*?)\];/);
+  if (!m) return [];
+  const tabs = [];
+  const rx = /\{\s*id:\s*['"`]([^'"`]+)['"`]\s*,\s*name:\s*['"`]([^'"`]+)['"`]/g;
+  let t;
+  while ((t = rx.exec(m[1])) !== null) tabs.push({ id: t[1], name: t[2] });
+  return tabs;
+}
+
+function _extractFamilyRoles(appJs) {
+  const m = appJs.match(/const ROLE_DEFAULTS\s*=\s*\{([\s\S]*?)\};/);
+  if (!m) return {};
+  const roles = {};
+  const rx = /['"`](\w+)['"`]\s*:\s*\[([^\]]*)\]/g;
+  let r;
+  while ((r = rx.exec(m[1])) !== null) {
+    roles[r[1]] = r[2].replace(/['"`\s]/g,'').split(',').filter(Boolean);
+  }
+  return roles;
+}
+
+function _extractFamilyNavGroups(appJs) {
+  const m = appJs.match(/const FAMILY_GNAV_GROUPS\s*=\s*\{([\s\S]*?)\};/);
+  if (!m) return {};
+  const groups = {};
+  const rx = /(\w+)\s*:\s*\[([^\]]*)\]/g;
+  let g;
+  while ((g = rx.exec(m[1])) !== null) {
+    groups[g[1]] = g[2].replace(/['"`\s]/g,'').split(',').filter(Boolean);
+  }
+  return groups;
+}
+
+function _genFamilyEnv(serverJs, appJs, today) {
   const routes = _extractRoutes(serverJs, '/api/family');
   const authRoutes = _extractRoutes(serverJs, '/api/auth');
-  let md = `# מפרט טכני — סביבת FAMILY (Oneflow Life)\n\n`;
-  md += `> תאריך: ${today}  \n> קובץ: \`public/index.html\`  \n> Backend prefix: \`/api/family\`\n\n---\n\n`;
-  md += `## 1. תיאור\n\nסביבת FAMILY היא הסביבה הצרכנית — ניהול משפחה, קהילה, הזמנות ורכישות.\n\n`;
-  md += `## 2. נתיבי API — Family (${routes.length})\n\n${_routeTable(routes)}\n`;
-  md += `## 3. נתיבי Auth (${authRoutes.length})\n\n${_routeTable(authRoutes)}\n`;
-  // extract community routes
   const commRoutes = _extractRoutes(serverJs, '/api/community');
-  if (commRoutes.length) md += `## 4. נתיבי Community (${commRoutes.length})\n\n${_routeTable(commRoutes)}\n`;
+  const tabs = _extractFamilyTabs(appJs);
+  const roles = _extractFamilyRoles(appJs);
+  const navGroups = _extractFamilyNavGroups(appJs);
+
+  let md = `# מפרט טכני — סביבת FAMILY (Oneflow Life)\n\n`;
+  md += `> תאריך: ${today}  \n> קבצים: \`public/index.html\` + \`app.js\`  \n> Backend prefix: \`/api/family\`\n\n---\n\n`;
+  md += `## 1. תיאור\n\nסביבת FAMILY היא הסביבה הצרכנית — ניהול משפחה, קהילה, הזמנות, רכישות, תקציב וחינוך.\n\n`;
+
+  if (tabs.length) {
+    md += `## 2. טאבים ומסכים (${tabs.length})\n\n`;
+    md += `| ID | שם |\n|----|----|\n`;
+    tabs.forEach(t => { md += `| \`${t.id}\` | ${t.name} |\n`; });
+    md += '\n';
+  }
+
+  if (Object.keys(navGroups).length) {
+    md += `## 3. ניווט — קבוצות (FAMILY_GNAV_GROUPS)\n\n`;
+    Object.entries(navGroups).forEach(([g, tbs]) => {
+      md += `**${g}**: ${tbs.map(t=>`\`${t}\``).join(', ')}\n\n`;
+    });
+  }
+
+  if (Object.keys(roles).length) {
+    md += `## 4. הרשאות לפי תפקיד (ROLE_DEFAULTS)\n\n`;
+    md += `| תפקיד | טאבים זמינים |\n|--------|-------------|\n`;
+    Object.entries(roles).forEach(([role, tbs]) => {
+      md += `| **${role}** | ${tbs.map(t=>`\`${t}\``).join(', ')} |\n`;
+    });
+    md += '\n';
+  }
+
+  md += `## 5. נתיבי API — Family (${routes.length})\n\n${_routeTable(routes)}\n`;
+  md += `## 6. נתיבי Auth (${authRoutes.length})\n\n${_routeTable(authRoutes)}\n`;
+  if (commRoutes.length) md += `## 7. נתיבי Community (${commRoutes.length})\n\n${_routeTable(commRoutes)}\n`;
+
   return md;
 }
 
@@ -27091,7 +27154,9 @@ app.post('/api/sa/docs/refresh/:doc', verifySA, async (req, res) => {
     } else if (doc === 'spec-biz-environment') {
       newContent = _genBizEnv(serverJs, bizAppJs, today);
     } else if (doc === 'spec-family-environment') {
-      newContent = _genFamilyEnv(serverJs, scanContent, today);
+      const familyAppPath = path.join(__dirname, 'public/app.js');
+      const familyAppJs = fs.existsSync(familyAppPath) ? fs.readFileSync(familyAppPath, 'utf8') : '';
+      newContent = _genFamilyEnv(serverJs, familyAppJs, today);
     } else if (doc === 'spec-zone-community') {
       newContent = _genZoneEnv(serverJs, today);
     } else if (doc === 'spec-super-admin') {
