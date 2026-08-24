@@ -35064,14 +35064,21 @@ function renderMyPlanSection() {
         bundlePrice = bundleGroup?.modules?.[0]?.price || 0;
     }
 
-    // active modules
+    // active modules — with price per module
+    let calcTotal = 0;
     const activeRows = managed.map(mId => {
         const info = MODULE_DESCRIPTIONS[mId];
         const priceInfo = priceMap[mId];
         if (!info) return '';
+        const modulePrice = priceInfo?.price || 0;
+        calcTotal += modulePrice;
+        const priceTag = modulePrice > 0
+            ? `<span class="text-[11px] font-bold text-violet-600 ml-1">${modulePrice} ₪</span>`
+            : `<span class="text-[11px] text-slate-300 ml-1">כלול</span>`;
         return `<div class="flex items-center justify-between py-2.5 border-b border-slate-50 last:border-0">
             <div class="flex items-center gap-2">
                 <button onclick="openModuleCancelRequest('${mId}','${info.name}')" class="text-[10px] text-red-400 hover:text-red-600 font-bold border border-red-100 hover:border-red-300 px-2 py-0.5 rounded-full transition">ביטול</button>
+                ${priceTag}
             </div>
             <div class="flex items-center gap-2 text-right">
                 <span class="text-xs font-bold text-slate-700">${info.name}</span>
@@ -35080,9 +35087,22 @@ function renderMyPlanSection() {
         </div>`;
     }).join('');
 
-    const totalBadge = billing?.monthly_total > 0
+    // AI cost row — shown if billing defines it
+    const aiCost = billing?.ai_monthly_cost || 0;
+    const aiRow = aiCost > 0
+        ? `<div class="flex items-center justify-between py-2.5 border-b border-slate-50">
+            <span class="text-[11px] font-bold text-amber-600">${aiCost} ₪</span>
+            <div class="flex items-center gap-2 text-right">
+                <span class="text-xs font-bold text-slate-700">שימוש ב-AI</span>
+                <span class="text-base">🤖</span>
+            </div>
+          </div>` : '';
+
+    // total — prefer DB value, fall back to calculated sum
+    const displayTotal = billing?.monthly_total > 0 ? billing.monthly_total : (bundlePrice + calcTotal + aiCost);
+    const totalBadge = displayTotal > 0
         ? `<div class="flex justify-between items-center bg-violet-50 border border-violet-100 rounded-xl px-4 py-3 mt-3">
-            <span class="font-black text-violet-700 text-base">${billing.monthly_total} ₪</span>
+            <span class="font-black text-violet-700 text-base">${displayTotal} ₪</span>
             <span class="text-xs text-violet-600 font-bold">סה"כ חודשי</span>
           </div>` : '';
 
@@ -35101,6 +35121,7 @@ function renderMyPlanSection() {
             </div>` : ''}
             <div class="text-[10px] font-bold text-slate-400 mb-1 text-right">מודולים פעילים</div>
             ${activeRows || '<div class="text-xs text-slate-400 py-2 text-right">אין מודולים פעילים</div>'}
+            ${aiRow}
             ${totalBadge}
         </div>
     </div>`;
