@@ -26744,6 +26744,43 @@ const DOCS_CONFIG = {
     apiPrefix: null,
     _refreshHint: 'missing-modules',
   },
+  'spec-kol-haam': {
+    file: 'public/docs/spec-kol-haam.md',
+    label: 'כל העם — פלטפורמת תוכן',
+    scanFiles: ['public/kol-haam.html', 'public/kol-haam-author.html'],
+    apiPrefix: '/api/kol-haam',
+  },
+  'spec-storefront': {
+    file: 'public/docs/spec-storefront.md',
+    label: 'Storefront — חזית חנות',
+    scanFiles: ['public/storefront.html'],
+    apiPrefix: '/api/storefront',
+  },
+  'spec-marketplace': {
+    file: 'public/docs/spec-marketplace.md',
+    label: 'Marketplace — מרקטפלייס',
+    scanFiles: ['public/marketplace.html'],
+    apiPrefix: '/api/public',
+  },
+  'spec-onboarding': {
+    file: 'public/docs/spec-onboarding.md',
+    label: 'Onboarding — אונבורדינג',
+    scanFiles: ['public/biz-onboarding.html', 'public/family-onboarding.html'],
+    apiPrefix: '/api/biz',
+  },
+  'spec-menu': {
+    file: 'public/docs/spec-menu.md',
+    label: 'תפריט דיגיטלי',
+    scanFiles: ['public/menu.html', 'public/menus.html'],
+    apiPrefix: '/api/menu',
+  },
+  'spec-games': {
+    file: 'public/docs/spec-games.md',
+    label: 'משחקים חינוכיים',
+    scanFiles: [],
+    apiPrefix: null,
+    _refreshHint: 'games',
+  },
 };
 
 // GET /api/sa/docs/meta — returns mtime for each doc
@@ -27195,6 +27232,149 @@ function _genQaBook(serverJs, today) {
 
   return md;
 }
+function _genKolHaam(serverJs, kolHaamAppJs, today) {
+  const routes = _extractRoutes(serverJs, '/api/kol-haam');
+  // extract KH_SA_TABS from kol-haam-app if present, or from sa-app
+  const khTabsM = kolHaamAppJs.match(/const KH_SA_TABS\s*=\s*\[([\s\S]*?)\];/) ||
+                  ''.match(/x/);
+  // extract switchTab / zmSwitchTab style tabs
+  const tabRefs = [...new Set([
+    ...[...kolHaamAppJs.matchAll(/switchTab\(['"`]([a-z_\-]+)['"`]\)/g)].map(m => m[1]),
+    ...[...kolHaamAppJs.matchAll(/data-tab=['"]([a-z_\-]+)['"]/g)].map(m => m[1]),
+  ])];
+  // extract article/content types
+  const typeLabelsM = kolHaamAppJs.match(/KH_TYPE_LABELS\s*=\s*\{([^}]+)\}/);
+  const statusMetaM = kolHaamAppJs.match(/KH_STATUS_META\s*=\s*\{([^}]+)\}/);
+
+  let md = `# מפרט טכני — כל העם (Kol Haam) — Oneflow Life\n\n`;
+  md += `> תאריך: ${today}  \n> קבצים: \`public/kol-haam.html\` + \`kol-haam-app.js\` + \`kol-haam-author.html\`  \n> Backend prefix: \`/api/kol-haam\`\n\n---\n\n`;
+  md += `## 1. תיאור\n\n"כל העם" היא פלטפורמת תוכן קהילתית — כתבות, עדכונים מקומיים, ניהול כותבים ועריכה. מופיעה כטאב בתוך סביבת המשפחה ובניהול SA נפרד.\n\n`;
+  md += `## 2. ממשקים\n\n| דף | תפקיד |\n|----|--------|\n| \`kol-haam.html\` | ממשק קורא — צפייה בכתבות |\n| \`kol-haam-author.html\` | ממשק כותב — עריכה ופרסום |\n| SA → כל העם | ניהול אישורים, תוכן, כותבים, קטגוריות, כלכלה |\n\n`;
+  if (typeLabelsM) {
+    md += `## 3. סוגי תוכן\n\n`;
+    md += typeLabelsM[1].trim().split(',').map(p => `- ${p.replace(/['"`]/g,'').replace(':','**: ').trim()}`).join('\n');
+    md += '\n\n';
+  }
+  if (statusMetaM) {
+    md += `## 4. סטטוסי תוכן\n\n`;
+    // parse key:{ label:... } structure
+    const pairs = [...statusMetaM[1].matchAll(/(\w+)\s*:\s*\{[^}]*label\s*:\s*['"`]([^'"`]+)['"`]/g)];
+    if (pairs.length) {
+      md += `| סטטוס | תווית |\n|--------|-------|\n`;
+      pairs.forEach(p => { md += `| \`${p[1]}\` | ${p[2]} |\n`; });
+      md += '\n';
+    }
+  }
+  md += `## 5. נתיבי API (${routes.length})\n\n${_routeTable(routes)}\n`;
+  return md;
+}
+
+function _genStorefront(serverJs, sfHtml, today) {
+  const routes = _extractRoutes(serverJs, '/api/storefront');
+  const bizRoutes = _extractRoutes(serverJs, '/api/store');
+  // extract product categories and storefront-specific constants
+  const cats = [...sfHtml.matchAll(/data-category=['"]([^'"]+)['"]/g)].map(m => m[1]).filter(Boolean);
+  const uniqCats = [...new Set(cats)].slice(0, 30);
+  let md = `# מפרט טכני — Storefront (חזית חנות) — Oneflow Life\n\n`;
+  md += `> תאריך: ${today}  \n> קובץ: \`public/storefront.html\`  \n> Backend prefix: \`/api/storefront\` + \`/api/store\`\n\n---\n\n`;
+  md += `## 1. תיאור\n\nStorefront הוא ממשק הלקוח של העסק — עמוד חנות ציבורי שמאפשר צפייה בתפריט, הזמנות, פנייה ויצירת קשר. נגיש ללא login.\n\n`;
+  md += `## 2. יכולות עיקריות\n\n- צפייה בתפריט / קטלוג מוצרים\n- שליחת הזמנה / בקשת הצעת מחיר\n- יצירת קשר עם העסק\n- שיתוף ברשתות חברתיות\n- QR code לינק לחנות\n\n`;
+  if (uniqCats.length) {
+    md += `## 3. קטגוריות מוצרים (מה-HTML)\n\n${uniqCats.map(c=>`- \`${c}\``).join('\n')}\n\n`;
+  }
+  md += `## 4. נתיבי API — storefront (${routes.length})\n\n${_routeTable(routes)}\n`;
+  if (bizRoutes.length) md += `## 5. נתיבי API — store (${bizRoutes.length})\n\n${_routeTable(bizRoutes)}\n`;
+  return md;
+}
+
+function _genMarketplace(serverJs, mpHtml, today) {
+  const routes = _extractRoutes(serverJs, '/api/public');
+  const commRoutes = _extractRoutes(serverJs, '/api/communities');
+  let md = `# מפרט טכני — Marketplace (מרקטפלייס) — Oneflow Life\n\n`;
+  md += `> תאריך: ${today}  \n> קובץ: \`public/marketplace.html\`  \n> Backend prefix: \`/api/public\`\n\n---\n\n`;
+  md += `## 1. תיאור\n\nMARKETPLACE הוא ממשק חיפוש עסקים לצרכן — מאפשר לחפש עסקים לפי קטגוריה, אזור, דירוג. אינטגרציה עם קהילות ו-Zone Manager.\n\n`;
+  md += `## 2. יכולות\n\n- חיפוש עסקים לפי קטגוריה / אזור / מילת מפתח\n- הצגת עסקים בקרבת מיקום\n- סינון לפי דירוג / סוג עסק\n- מעבר ל-Storefront של עסק\n- רשימת קהילות מחוברות\n\n`;
+  // extract filter/category values from HTML
+  const filterBtns = [...mpHtml.matchAll(/data-filter=['"]([^'"]+)['"]/g)].map(m => m[1]).filter(Boolean);
+  const uniqFilters = [...new Set(filterBtns)].slice(0, 30);
+  if (uniqFilters.length) {
+    md += `## 3. פילטרים / קטגוריות\n\n${uniqFilters.map(f=>`- \`${f}\``).join('\n')}\n\n`;
+  }
+  md += `## 4. נתיבי API — public (${routes.length})\n\n${_routeTable(routes)}\n`;
+  if (commRoutes.length) md += `## 5. נתיבי API — communities (${commRoutes.length})\n\n${_routeTable(commRoutes)}\n`;
+  return md;
+}
+
+function _genOnboarding(serverJs, bizOnboardHtml, famOnboardHtml, today) {
+  const bizRoutes = _extractRoutes(serverJs, '/api/biz');
+  const authRoutes = _extractRoutes(serverJs, '/api/auth');
+  // extract wizard steps from onboarding HTML
+  const bizSteps = [...bizOnboardHtml.matchAll(/data-step=['"]?(\d+)['"]?/g)].map(m => m[1]);
+  const bizStepLabels = [...bizOnboardHtml.matchAll(/class="[^"]*step-title[^"]*">([^<]{3,60})</g)].map(m=>m[1].trim());
+  const famSteps = [...famOnboardHtml.matchAll(/data-step=['"]?(\d+)['"]?/g)].map(m => m[1]);
+  const famStepLabels = [...famOnboardHtml.matchAll(/class="[^"]*step-title[^"]*">([^<]{3,60})</g)].map(m=>m[1].trim());
+  let md = `# מפרט טכני — Onboarding (אונבורדינג) — Oneflow Life\n\n`;
+  md += `> תאריך: ${today}  \n> קבצים: \`public/biz-onboarding.html\`, \`public/family-onboarding.html\`\n\n---\n\n`;
+  md += `## 1. תיאור\n\nממשקי האונבורדינג מנחים עסקים ומשפחות בהקמת החשבון הראשוני — בחירת סוג עסק, הגדרת פרופיל ותצוגה ראשונה.\n\n`;
+  md += `## 2. אונבורדינג עסק\n\n`;
+  md += `- שלבים שזוהו: ${[...new Set(bizSteps)].length || '?'}\n`;
+  if (bizStepLabels.length) md += bizStepLabels.map(l=>`- ${l}`).join('\n') + '\n';
+  md += '\n';
+  md += `## 3. אונבורדינג משפחה\n\n`;
+  md += `- שלבים שזוהו: ${[...new Set(famSteps)].length || '?'}\n`;
+  if (famStepLabels.length) md += famStepLabels.map(l=>`- ${l}`).join('\n') + '\n';
+  md += '\n';
+  md += `## 4. כללי Onboarding\n\n- בחירת סוג עסק — **רק** בויזארד ההקמה הראשוני או בהגדרות SA\n- לאחר הגדרה ראשונית אין אפשרות לשנות סוג עסק מהממשק הרגיל\n\n`;
+  md += `## 5. נתיבי API — biz (${bizRoutes.length})\n\n${_routeTable(bizRoutes)}\n`;
+  if (authRoutes.length) md += `## 6. נתיבי API — auth (${authRoutes.length})\n\n${_routeTable(authRoutes)}\n`;
+  return md;
+}
+
+function _genMenu(serverJs, menuHtml, today) {
+  const routes = _extractRoutes(serverJs, '/api/menu');
+  const foodCostRoutes = _extractRoutes(serverJs, '/api/food-cost');
+  const supplierRoutes = _extractRoutes(serverJs, '/api/suppliers');
+  // extract menu sections
+  const sections = [...menuHtml.matchAll(/data-section=['"]([^'"]{2,40})['"]/g)].map(m=>m[1]).filter(Boolean);
+  const uniqSections = [...new Set(sections)].slice(0, 20);
+  let md = `# מפרט טכני — תפריט דיגיטלי — Oneflow Life\n\n`;
+  md += `> תאריך: ${today}  \n> קבצים: \`public/menu.html\`, \`public/menus.html\`  \n> Backend prefix: \`/api/menu\`\n\n---\n\n`;
+  md += `## 1. תיאור\n\nמודול התפריט הדיגיטלי מאפשר לעסקים ליצור ולנהל תפריטים ויזואליים — כולל קטגוריות, פריטים, מחירים, תמונות ותבניות עיצוב.\n\n`;
+  md += `## 2. יכולות\n\n- יצירת תפריט רב-שפות (עברית / אנגלית)\n- ניהול קטגוריות ופריטים עם תמונות\n- QR code לתפריט ציבורי\n- חישוב עלות מזון (Food Cost)\n- ניהול ספקים וחומרי גלם\n- תבניות עיצוב מוכנות\n\n`;
+  if (uniqSections.length) {
+    md += `## 3. סקשנים ב-UI\n\n${uniqSections.map(s=>`- \`${s}\``).join('\n')}\n\n`;
+  }
+  md += `## 4. נתיבי API — menu (${routes.length})\n\n${_routeTable(routes)}\n`;
+  if (foodCostRoutes.length) md += `## 5. נתיבי API — food-cost (${foodCostRoutes.length})\n\n${_routeTable(foodCostRoutes)}\n`;
+  if (supplierRoutes.length) md += `## 6. נתיבי API — suppliers (${supplierRoutes.length})\n\n${_routeTable(supplierRoutes)}\n`;
+  return md;
+}
+
+function _genGames(serverJs, today) {
+  const questRoutes = _extractRoutes(serverJs, '/api/quest-library');
+  const liveGamesRoutes = _extractRoutes(serverJs, '/api/live-games');
+  const games = [
+    { id:'trivia-1', name:'טריביה', file:'games/trivia-1.html', desc:'שאלות ידע כללי עם דירוג וניקוד' },
+    { id:'israel-geo-1', name:'גיאוגרפיה ישראל', file:'games/israel-geo-1.html', desc:'מפה אינטראקטיבית — שאל מה עיר, מי נחל, אין מבצר' },
+    { id:'math-1', name:'מתמטיקה', file:'games/math-1.html', desc:'חישובים ותרגילים מותאמים גיל' },
+    { id:'hebrew-letters-1', name:'אותיות עברית', file:'games/hebrew-letters-1.html', desc:'זיהוי ולמידת האלפבית העברי' },
+    { id:'english-alphabet-1', name:'אנגלית', file:'games/english-alphabet-1.html', desc:'זיהוי אותיות ומילים באנגלית' },
+    { id:'logic-puzzle-1', name:'חידות היגיון', file:'games/logic-puzzle-1.html', desc:'פאזלים ותעלומות לחשיבה ביקורתית' },
+    { id:'time-manager-1', name:'ניהול זמן', file:'games/time-manager-1.html', desc:'משחק סימולציה לניהול לו"ז ומשימות' },
+    { id:'finance-city-1', name:'עיר פיננסית', file:'games/finance-city-1.html', desc:'סימולציה כלכלית — ניהול עיר ותקציב' },
+  ];
+  let md = `# מפרט טכני — משחקים חינוכיים — Oneflow Life\n\n`;
+  md += `> תאריך: ${today}  \n> תיקייה: \`public/games/\`  \n> Backend: \`/api/quest-library\` + \`/api/live-games\`\n\n---\n\n`;
+  md += `## 1. תיאור\n\nמשחקים חינוכיים לילדים בסביבת FAMILY — מותאמים גיל ומשולבים עם מערכת Quests ופרסים. 8 משחקי HTML עצמאיים.\n\n`;
+  md += `## 2. המשחקים (${games.length})\n\n`;
+  md += `| שם | קובץ | תיאור |\n|----|------|--------|\n`;
+  games.forEach(g => { md += `| **${g.name}** | \`${g.file}\` | ${g.desc} |\n`; });
+  md += '\n';
+  md += `## 3. מנגנון Quests\n\n- ספרית שאלות: \`public/games/trivia-questions.json\` (~3.2MB)\n- כל שאלה ממוינת לקטגוריה, רמה וגיל\n- הצלחה במשחק → זיכוי נקודות / מטבעות ב-FAMILY\n- Live Games — תחרות בזמן אמת בין חברי משפחה / קהילה\n\n`;
+  md += `## 4. נתיבי API — quest-library (${questRoutes.length})\n\n${_routeTable(questRoutes)}\n`;
+  if (liveGamesRoutes.length) md += `## 5. נתיבי API — live-games (${liveGamesRoutes.length})\n\n${_routeTable(liveGamesRoutes)}\n`;
+  return md;
+}
 // ── END helpers ────────────────────────────────────────────────────────────────
 
 // POST /api/sa/docs/refresh/:doc — regenerate MD by code scanning (no AI needed)
@@ -27244,6 +27424,24 @@ app.post('/api/sa/docs/refresh/:doc', verifySA, async (req, res) => {
       newContent = _genZoneEnv(serverJs, zoneAppJs, today);
     } else if (doc === 'spec-super-admin') {
       newContent = _genSAEnv(serverJs, saHtml, saAppJs, today);
+    } else if (doc === 'spec-kol-haam') {
+      const khAppPath = path.join(__dirname, 'public/kol-haam-app.js');
+      const khAppJs = fs.existsSync(khAppPath) ? fs.readFileSync(khAppPath, 'utf8') : '';
+      newContent = _genKolHaam(serverJs, khAppJs + saAppJs, today);
+    } else if (doc === 'spec-storefront') {
+      newContent = _genStorefront(serverJs, scanContent, today);
+    } else if (doc === 'spec-marketplace') {
+      newContent = _genMarketplace(serverJs, scanContent, today);
+    } else if (doc === 'spec-onboarding') {
+      const bizOBPath = path.join(__dirname, 'public/biz-onboarding.html');
+      const famOBPath = path.join(__dirname, 'public/family-onboarding.html');
+      const bizOBHtml = fs.existsSync(bizOBPath) ? fs.readFileSync(bizOBPath, 'utf8') : '';
+      const famOBHtml = fs.existsSync(famOBPath) ? fs.readFileSync(famOBPath, 'utf8') : '';
+      newContent = _genOnboarding(serverJs, bizOBHtml, famOBHtml, today);
+    } else if (doc === 'spec-menu') {
+      newContent = _genMenu(serverJs, scanContent, today);
+    } else if (doc === 'spec-games' || hint === 'games') {
+      newContent = _genGames(serverJs, today);
     } else {
       newContent = _genBizEnv(serverJs, bizAppJs, today);
     }
