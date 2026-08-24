@@ -5544,7 +5544,7 @@ app.patch('/api/biz/wizard/complete', verifyBiz, async (req, res) => {
             business_type, managed_modules, staff_roles,
             admin_email, first_name, last_name, city, birth_year,
             terms_accepted,
-            street_address, opening_hours
+            street_address, opening_hours, lat, lng
         } = req.body;
 
         if (!business_type || !Array.isArray(managed_modules) || !Array.isArray(staff_roles)) {
@@ -5561,12 +5561,16 @@ app.patch('/api/biz/wizard/complete', verifyBiz, async (req, res) => {
             return res.status(400).json({ success: false, error: 'שנת לידה לא תקינה (1940–2010)' });
         }
 
+        try { await pool.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS lat DOUBLE PRECISION`); } catch(e) {}
+        try { await pool.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS lng DOUBLE PRECISION`); } catch(e) {}
+
         await pool.query(
             `UPDATE family_groups
              SET business_type=$1, managed_modules=$2, staff_roles=$3, wizard_completed=TRUE,
                  admin_email=$4, city=$5, terms_accepted_at=NOW(),
-                 street_address=$6, opening_hours=$7
-             WHERE id=$8`,
+                 street_address=$6, opening_hours=$7,
+                 lat=$8, lng=$9
+             WHERE id=$10`,
             [
                 business_type,
                 JSON.stringify(managed_modules),
@@ -5575,6 +5579,8 @@ app.patch('/api/biz/wizard/complete', verifyBiz, async (req, res) => {
                 city.trim(),
                 street_address || null,
                 opening_hours ? JSON.stringify(opening_hours) : null,
+                lat ? parseFloat(lat) : null,
+                lng ? parseFloat(lng) : null,
                 groupId
             ]
         );

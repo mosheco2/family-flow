@@ -364,6 +364,23 @@
     }
     .btn-finish:hover { background:#16A34A; }
     .btn-finish:disabled { opacity:0.55; cursor:not-allowed; }
+
+    /* Nominatim autocomplete dropdown */
+    .nom-wrap { position:relative; }
+    .nom-dropdown {
+      position:absolute; top:calc(100% + 4px); left:0; right:0; z-index:9999;
+      background:#fff; border:1.5px solid #C7BEF9; border-radius:12px;
+      box-shadow:0 8px 24px rgba(91,70,229,0.13); overflow:hidden; display:none;
+    }
+    .nom-dropdown.open { display:block; }
+    .nom-item {
+      padding:10px 14px; font-size:13px; color:#1B2440; cursor:pointer;
+      border-bottom:1px solid #F1F0FD; transition:background 0.12s;
+      font-family:'Heebo',sans-serif; line-height:1.4;
+    }
+    .nom-item:last-child { border-bottom:none; }
+    .nom-item:hover, .nom-item.focused { background:#F3F0FF; color:#5B46E5; }
+    .nom-item small { display:block; font-size:11px; color:#94a3b8; }
   </style>
 </head>
 <body>
@@ -647,7 +664,10 @@
       <div class="acc-row-2">
         <div>
           <label class="field-label" for="acc-city">עיר <span style="color:#5B46E5">*</span></label>
-          <input class="field-input" id="acc-city" type="text" placeholder="תל אביב">
+          <div class="nom-wrap">
+            <input class="field-input" id="acc-city" type="text" placeholder="תל אביב" autocomplete="off">
+            <div class="nom-dropdown" id="acc-city-dd"></div>
+          </div>
         </div>
         <div>
           <label class="field-label" for="acc-birth">שנת לידה <span style="color:#5B46E5">*</span></label>
@@ -699,7 +719,10 @@
 
         <label class="field-label" style="margin-bottom:8px;">כתובת</label>
         <div class="acc-street-row">
-          <input class="field-input" id="acc-street" type="text" placeholder="שם הרחוב">
+          <div class="nom-wrap" style="min-width:0;">
+            <input class="field-input" id="acc-street" type="text" placeholder="שם הרחוב" autocomplete="off">
+            <div class="nom-dropdown" id="acc-street-dd"></div>
+          </div>
           <input class="field-input" id="acc-street-num" type="text" placeholder="מס'" dir="ltr" style="text-align:center;">
         </div>
       </div>
@@ -1209,7 +1232,10 @@
         : null;
       const street_address = (street || streetNo) ? `${street} ${streetNo}`.trim() : null;
 
-      _state.accountDetails = { email, first, last, city, birth, opening_hours, street_address };
+      const cityEl = document.getElementById('acc-city');
+      const cityLat = cityEl ? (cityEl.dataset.lat || null) : null;
+      const cityLng = cityEl ? (cityEl.dataset.lng || null) : null;
+      _state.accountDetails = { email, first, last, city, birth, opening_hours, street_address, lat: cityLat, lng: cityLng };
       showSummary();
     }
 
@@ -1303,6 +1329,8 @@
             terms_accepted: true,
             opening_hours:  _state.accountDetails.opening_hours,
             street_address: _state.accountDetails.street_address,
+            lat:            _state.accountDetails.lat,
+            lng:            _state.accountDetails.lng,
           })
         });
         const d = await res.json();
@@ -1325,6 +1353,103 @@
         document.getElementById('btn-finishing-retry').style.display = 'block';
       }
     }
+
+    // ── Nominatim Autocomplete ──
+    (function() {
+      var NOM = 'https://nominatim.openstreetmap.org/search';
+
+      function nomSearch(q, opts) {
+        var params = new URLSearchParams({
+          q: q, format: 'json', limit: 6, addressdetails: 1, countrycodes: 'il',
+          'accept-language': 'he'
+        });
+        if (opts) Object.keys(opts).forEach(k => params.set(k, opts[k]));
+        return fetch(NOM + '?' + params, { headers: { 'User-Agent': 'OneflowBiz/1.0' } }).then(r => r.json());
+      }
+
+      function buildDropdown(ddEl, results, onSelect) {
+        if (!results.length) { ddEl.classList.remove('open'); ddEl.innerHTML = ''; return; }
+        ddEl.innerHTML = results.map((r, i) => {
+          const addr = r.address || {};
+          const city = addr.city || addr.town || addr.village || addr.county || '';
+          const street = addr.road || '';
+          const houseNum = addr.house_number || '';
+          const name = r.display_name;
+          const short = street
+            ? (street + (houseNum ? ' ' + houseNum : '') + (city ? ', ' + city : ''))
+            : (city || name.split(',')[0]);
+          const sub = name.split(',').slice(1, 3).join(',').trim();
+          return `<div class="nom-item" data-idx="${i}"><span>${short}</span><small>${sub}</small></div>`;
+        }).join('');
+        ddEl.classList.add('open');
+        ddEl.querySelectorAll('.nom-item').forEach((el, i) => {
+          el.addEventListener('mousedown', function(e) {
+            e.preventDefault();
+            onSelect(results[i]);
+            ddEl.classList.remove('open');
+            ddEl.innerHTML = '';
+          });
+        });
+      }
+
+      function debounce(fn, ms) {
+        var t; return function() { var a = arguments; clearTimeout(t); t = setTimeout(() => fn.apply(this,a), ms); };
+      }
+
+      // City autocomplete
+      var cityInp = document.getElementById('acc-city');
+      var cityDd  = document.getElementById('acc-city-dd');
+      if (cityInp && cityDd) {
+        var searchCity = debounce(function(q) {
+          if (q.length < 2) { cityDd.classList.remove('open'); return; }
+          nomSearch(q, { featuretype: 'city' }).then(function(results) {
+            buildDropdown(cityDd, results, function(r) {
+              var addr = r.address || {};
+              var name = addr.city || addr.town || addr.village || addr.county || r.display_name.split(',')[0];
+              cityInp.value = name;
+              cityInp.dataset.lat = r.lat;
+              cityInp.dataset.lng = r.lon;
+            });
+          }).catch(function(){});
+        }, 320);
+
+        cityInp.addEventListener('input', function() { searchCity(this.value.trim()); });
+        cityInp.addEventListener('blur', function() { setTimeout(() => { cityDd.classList.remove('open'); }, 150); });
+        document.addEventListener('click', function(e) { if (!cityInp.contains(e.target) && !cityDd.contains(e.target)) cityDd.classList.remove('open'); });
+      }
+
+      // Street autocomplete
+      var streetInp  = document.getElementById('acc-street');
+      var streetDd   = document.getElementById('acc-street-dd');
+      var streetNumInp = document.getElementById('acc-street-num');
+      if (streetInp && streetDd) {
+        var searchStreet = debounce(function(q) {
+          if (q.length < 2) { streetDd.classList.remove('open'); return; }
+          var city = (document.getElementById('acc-city').value || '').trim();
+          var fullQ = city ? q + ', ' + city + ', ישראל' : q + ', ישראל';
+          nomSearch(fullQ).then(function(results) {
+            buildDropdown(streetDd, results, function(r) {
+              var addr = r.address || {};
+              var street = addr.road || r.display_name.split(',')[0];
+              var houseNum = addr.house_number || '';
+              streetInp.value = street;
+              streetInp.dataset.lat = r.lat;
+              streetInp.dataset.lng = r.lon;
+              if (houseNum && streetNumInp) streetNumInp.value = houseNum;
+              if (addr.city || addr.town || addr.village) {
+                var city2 = addr.city || addr.town || addr.village || '';
+                var cityEl = document.getElementById('acc-city');
+                if (cityEl && !cityEl.value.trim()) { cityEl.value = city2; cityEl.dataset.lat = r.lat; cityEl.dataset.lng = r.lon; }
+              }
+            });
+          }).catch(function(){});
+        }, 350);
+
+        streetInp.addEventListener('input', function() { searchStreet(this.value.trim()); });
+        streetInp.addEventListener('blur', function() { setTimeout(() => { streetDd.classList.remove('open'); }, 150); });
+        document.addEventListener('click', function(e) { if (!streetInp.contains(e.target) && !streetDd.contains(e.target)) streetDd.classList.remove('open'); });
+      }
+    })();
 
     // ── Init ──
     initOtpBoxes();
