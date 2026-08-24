@@ -35035,9 +35035,9 @@ function renderMyPlanSection() {
     const billing = (() => {
         try { return typeof currentGroup?.billing_config === 'string' ? JSON.parse(currentGroup.billing_config) : (currentGroup?.billing_config || null); } catch(e) { return null; }
     })();
-    const managed = Array.isArray(currentGroup?.managed_modules) ? currentGroup.managed_modules : [];
+    const managedLegacy = Array.isArray(currentGroup?.managed_modules) ? currentGroup.managed_modules : [];
 
-    if (!billing && managed.length === 0) {
+    if (!billing && managedLegacy.length === 0) {
         return `<div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
             <div class="px-4 py-3 border-b border-slate-100 flex items-center gap-2">
                 <i class="fa-solid fa-box-open text-violet-500 text-sm"></i>
@@ -35064,17 +35064,23 @@ function renderMyPlanSection() {
         bundlePrice = bundleGroup?.modules?.[0]?.price || 0;
     }
 
-    // Use billing_config.modules as primary source; fall back to managed_modules
-    const billingModules = Array.isArray(billing?.modules) ? billing.modules : [];
-    const displayModules = billingModules.length > 0 ? billingModules : managed;
+    // normalize billing.modules — support [{id,open,billing}] and legacy [id]
+    const rawBillingMods = Array.isArray(billing?.modules) ? billing.modules : [];
+    const normBillingMods = rawBillingMods.map(m => typeof m === 'string' ? { id: m, open: true, billing: true } : m);
+    // fall back to managed_modules (legacy)
+    const displayModules = normBillingMods.length > 0
+        ? normBillingMods.filter(m => m.open !== false)  // show open modules
+        : managedLegacy.map(id => ({ id, open: true, billing: true }));
 
-    // active modules rows — with price per module
+    // active modules rows — only billing=true shown with price
     let calcTotal = 0;
-    const activeRows = displayModules.map(mId => {
+    const activeRows = displayModules.map(entry => {
+        const mId = typeof entry === 'string' ? entry : entry.id;
+        const isBilling = typeof entry === 'string' ? true : (entry.billing !== false);
         const info = MODULE_DESCRIPTIONS[mId];
         const priceInfo = priceMap[mId];
         if (!info) return '';
-        const modulePrice = priceInfo?.price || 0;
+        const modulePrice = isBilling ? (priceInfo?.price || 0) : 0;
         calcTotal += modulePrice;
         const priceTag = modulePrice > 0
             ? `<span class="text-[11px] font-bold text-violet-600 ml-1">${modulePrice} ₪</span>`
@@ -35167,8 +35173,17 @@ window.openModuleCancelRequest = function(moduleId, moduleName) {
 function applyBusinessTypeFilter() {
     if (!currentUser) return;
     const isAdminOrManager = currentUser.role === 'ADMIN' || currentUser.role === 'MANAGER';
-    const enabled = getEnabledModules();
-    // גם הרשאות שניתנו מפורשות על ידי הבעלים שומרות על הטאב גלוי
+
+    // ── מקור יחיד לגישה: billing_config.modules עם open:true ──────────────
+    const billing = (() => {
+        try { return typeof currentGroup?.billing_config === 'string' ? JSON.parse(currentGroup.billing_config) : (currentGroup?.billing_config || null); } catch(e) { return null; }
+    })();
+    // normalize: support legacy string array and new [{id,open,billing}] format
+    const billingModules = Array.isArray(billing?.modules) ? billing.modules : [];
+    const openIds = billingModules.map(m => typeof m === 'string' ? m : (m.open !== false ? m.id : null)).filter(Boolean);
+    const hasBillingConfig = billingModules.length > 0;
+
+    // explicit permissions granted by owner (employees)
     let userGrantedTabs = [];
     try {
         const perms = typeof currentUser.permissions === 'string' ? JSON.parse(currentUser.permissions) : (currentUser.permissions || {});
@@ -35177,29 +35192,27 @@ function applyBusinessTypeFilter() {
     if (currentUser.employee_role_type && ROLE_TYPE_TABS[currentUser.employee_role_type]) {
         ROLE_TYPE_TABS[currentUser.employee_role_type].forEach(t => { if (!userGrantedTabs.includes(t)) userGrantedTabs.push(t); });
     }
-    const managed = Array.isArray(currentGroup?.managed_modules) ? currentGroup.managed_modules : [];
-    const hasManagedFilter = managed.length > 0;
+
     const ALWAYS_VISIBLE_TABS = ['feed', 'settings', 'biz-ads'];
 
-    if (!enabled && !hasManagedFilter) {
+    // אם אין billing_config כלל — ADMIN/MANAGER רואה הכל, שאר עובדים — לפי הרשאות
+    if (!hasBillingConfig) {
         ALL_TABS.forEach(tab => {
+            const isAccessible = isAdminOrManager || userGrantedTabs.includes(tab.id) || ALWAYS_VISIBLE_TABS.includes(tab.id);
             const tabBtn = getEl(`tab-${tab.id}`);
-            if (tabBtn) tabBtn.classList.remove('hidden');
+            if (tabBtn) { isAccessible ? tabBtn.classList.remove('hidden','locked-module') : tabBtn.classList.add('hidden','locked-module'); }
             const dropBtn = getEl(`gdrop-${tab.id}`);
-            if (dropBtn) { dropBtn.style.display = ''; dropBtn.style.opacity = ''; dropBtn.title = ''; }
+            if (dropBtn) { dropBtn.style.display = ''; isAccessible ? _removeLockFromDropBtn(dropBtn) : _addLockToDropBtn(dropBtn, tab.id); }
         });
-        ['team','sales','inventory','finance','more'].forEach(group => {
-            const groupBtn = getEl(`gnav-btn-${group}`);
-            if (groupBtn) groupBtn.style.display = '';
-        });
+        ['team','sales','inventory','finance','more'].forEach(g => { const b = getEl(`gnav-btn-${g}`); if (b) b.style.display = ''; });
         return;
     }
+
     ALL_TABS.forEach(tab => {
-        const isEnabled = hasManagedFilter
-            ? (managed.includes(tab.id) || ALWAYS_VISIBLE_TABS.includes(tab.id))
-            : (enabled.includes(tab.id) || ALWAYS_VISIBLE_TABS.includes(tab.id));
+        const isInBilling = openIds.includes(tab.id) || ALWAYS_VISIBLE_TABS.includes(tab.id);
         const hasExplicitPermission = userGrantedTabs.includes(tab.id);
-        const isAccessible = isEnabled || (isAdminOrManager && !hasManagedFilter) || hasExplicitPermission;
+        // ADMIN תמיד רואה הכל (גם נעול — כדי לנהל), MANAGER רואה פתוחים + הרשאות
+        const isAccessible = isInBilling || hasExplicitPermission || (currentUser.role === 'ADMIN');
 
         // tabBtn — תמיד קיים בDOM, נעול אם לא נגיש (כדי ש-switchTab wrapper יתפוס)
         const tabBtn = getEl(`tab-${tab.id}`);

@@ -3579,7 +3579,7 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
         <div class="bg-white w-full max-w-3xl rounded-[2rem] p-6 shadow-2xl relative fade-in max-h-[90vh] overflow-y-auto modal-scroll">
             <button onclick="document.getElementById('sa-edit-group-modal').classList.add('hidden')" class="absolute top-4 left-4 text-slate-400 hover:text-slate-600 bg-slate-100 w-8 h-8 rounded-full flex items-center justify-center transition"><i class="fa-solid fa-xmark"></i></button>
             <h3 class="text-xl font-bold mb-1 text-slate-800"><i class="fa-solid fa-sliders text-blue-500 mr-2"></i> עריכת סביבה וניהול מודולים</h3>
-            <p class="text-xs text-slate-500 mb-5">שליטה בפרטים ובפיצ'רים הפעילים ללקוח (Feature Flags).</p>
+            <p class="text-xs text-slate-500 mb-5">שליטה בפרטים ובחבילת המודולים הפעילים ללקוח.</p>
             
             <input type="hidden" id="sa-edit-group-id">
             
@@ -3672,98 +3672,8 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                 <div id="sa-member-modules-grid" class="grid grid-cols-2 md:grid-cols-3 gap-2 mb-2"></div>
             </div>
 
-            <!-- Business feature flags (for business/family groups) -->
-            <div id="sa-flags-section">
-            <div class="bg-blue-50 border border-blue-100 rounded-xl px-3 py-2 mb-3 text-[11px] text-blue-700">
-                <strong>Feature Flags</strong> — שולטים על מה <u>מוצג ומותר</u> לעסק ללא תלות בתשלום (הפעלה/כיבוי של יכולות). לחיוב ומודולים בתשלום ← ראה סקשן "חבילה וחיוב" למטה.
-            </div>
-            <div class="flex justify-between items-center mb-3 border-b border-slate-100 pb-2">
-                <h4 class="font-bold text-slate-700 text-sm">Feature Flags — יכולות פעילות:</h4>
-                <div class="flex gap-2">
-                    <button type="button" onclick="toggleAllSAFlags(true)" class="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded border border-blue-100 hover:bg-blue-100 transition shadow-sm">סמן הכל</button>
-                    <button type="button" onclick="toggleAllSAFlags(false)" class="text-[10px] font-bold text-slate-500 bg-slate-50 px-2 py-1 rounded border border-slate-200 hover:bg-slate-100 transition shadow-sm">בטל הכל</button>
-                </div>
-            </div>
+            <div id="sa-flags-section" class="hidden"></div>
 
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-2.5 mb-6" id="sa-modules-grid">
-                <label class="flex items-center gap-2.5 p-2.5 bg-white border border-slate-200 rounded-xl cursor-pointer hover:bg-blue-50 transition group">
-                    <input type="checkbox" id="flag-store" class="flag-cb w-4 h-4 accent-blue-600 rounded">
-                    <span class="text-xs font-bold text-slate-700"><i class="fa-solid fa-store text-slate-400 w-4 text-center"></i> חנות ציבורית</span>
-                </label>
-                <label class="flex items-center gap-2.5 p-2.5 bg-white border border-slate-200 rounded-xl cursor-pointer hover:bg-blue-50 transition group">
-                    <input type="checkbox" id="flag-b2b" class="flag-cb w-4 h-4 accent-blue-600 rounded">
-                    <span class="text-xs font-bold text-slate-700"><i class="fa-solid fa-truck-fast text-slate-400 w-4 text-center"></i> מסחר B2B</span>
-                </label>
-                <label class="flex items-center gap-2.5 p-2.5 bg-white border border-slate-200 rounded-xl cursor-pointer hover:bg-blue-50 transition group">
-                    <input type="checkbox" id="flag-crm" class="flag-cb w-4 h-4 accent-blue-600 rounded">
-                    <span class="text-xs font-bold text-slate-700"><i class="fa-solid fa-users text-slate-400 w-4 text-center"></i> מועדון לקוחות</span>
-                </label>
-                <label class="flex items-center gap-2.5 p-2.5 bg-white border border-slate-200 rounded-xl cursor-pointer hover:bg-blue-50 transition group">
-                    <input type="checkbox" id="flag-calendar" class="flag-cb w-4 h-4 accent-blue-600 rounded">
-                    <span class="text-xs font-bold text-slate-700"><i class="fa-regular fa-calendar-check text-slate-400 w-4 text-center"></i> יומן תורים</span>
-                </label>
-
-                <label class="flex items-center gap-2.5 p-2.5 bg-white border border-slate-200 rounded-xl cursor-pointer hover:bg-blue-50 transition group">
-                    <input type="checkbox" id="flag-inventory" class="flag-cb w-4 h-4 accent-blue-600 rounded">
-                    <span class="text-xs font-bold text-slate-700"><i class="fa-solid fa-boxes-stacked text-slate-400 w-4 text-center"></i> קטלוג ומלאי</span>
-                </label>
-                <label class="flex items-center gap-2.5 p-2.5 bg-white border border-slate-200 rounded-xl cursor-pointer hover:bg-blue-50 transition group">
-                    <input type="checkbox" id="flag-foodcost" class="flag-cb w-4 h-4 accent-blue-600 rounded">
-                    <span class="text-xs font-bold text-slate-700"><i class="fa-solid fa-utensils text-slate-400 w-4 text-center"></i> פוד-קוסט</span>
-                </label>
-                <label class="flex items-center gap-2.5 p-2.5 bg-white border border-slate-200 rounded-xl cursor-pointer hover:bg-blue-50 transition group">
-                    <input type="checkbox" id="flag-deliveries" class="flag-cb w-4 h-4 accent-blue-600 rounded">
-                    <span class="text-xs font-bold text-slate-700"><i class="fa-solid fa-motorcycle text-slate-400 w-4 text-center"></i> מערך משלוחים</span>
-                </label>
-                <label class="flex items-center gap-2.5 p-2.5 bg-white border border-slate-200 rounded-xl cursor-pointer hover:bg-blue-50 transition group">
-                    <input type="checkbox" id="flag-shifts" class="flag-cb w-4 h-4 accent-blue-600 rounded">
-                    <span class="text-xs font-bold text-slate-700"><i class="fa-solid fa-calendar-day text-slate-400 w-4 text-center"></i> משמרות</span>
-                </label>
-
-                <label class="flex items-center gap-2.5 p-2.5 bg-white border border-slate-200 rounded-xl cursor-pointer hover:bg-blue-50 transition group">
-                    <input type="checkbox" id="flag-finance" class="flag-cb w-4 h-4 accent-blue-600 rounded">
-                    <span class="text-xs font-bold text-slate-700"><i class="fa-solid fa-cash-register text-slate-400 w-4 text-center"></i> קופה וכספים</span>
-                </label>
-                <label class="flex items-center gap-2.5 p-2.5 bg-white border border-slate-200 rounded-xl cursor-pointer hover:bg-blue-50 transition group">
-                    <input type="checkbox" id="flag-cashflow" class="flag-cb w-4 h-4 accent-blue-600 rounded">
-                    <span class="text-xs font-bold text-slate-700"><i class="fa-solid fa-money-bill-wave text-slate-400 w-4 text-center"></i> תזרים מזומנים</span>
-                </label>
-                <label class="flex items-center gap-2.5 p-2.5 bg-white border border-slate-200 rounded-xl cursor-pointer hover:bg-blue-50 transition group">
-                    <input type="checkbox" id="flag-budget" class="flag-cb w-4 h-4 accent-blue-600 rounded">
-                    <span class="text-xs font-bold text-slate-700"><i class="fa-solid fa-chart-pie text-slate-400 w-4 text-center"></i> יעדים ותקציב</span>
-                </label>
-                <label class="flex items-center gap-2.5 p-2.5 bg-white border border-slate-200 rounded-xl cursor-pointer hover:bg-blue-50 transition group">
-                    <input type="checkbox" id="flag-forecast" class="flag-cb w-4 h-4 accent-blue-600 rounded">
-                    <span class="text-xs font-bold text-slate-700"><i class="fa-solid fa-chart-line text-slate-400 w-4 text-center"></i> תשקיף עתידי</span>
-                </label>
-
-                <label class="flex items-center gap-2.5 p-2.5 bg-white border border-slate-200 rounded-xl cursor-pointer hover:bg-blue-50 transition group">
-                    <input type="checkbox" id="flag-timeclock" class="flag-cb w-4 h-4 accent-blue-600 rounded">
-                    <span class="text-xs font-bold text-slate-700"><i class="fa-regular fa-clock text-slate-400 w-4 text-center"></i> נוכחות</span>
-                </label>
-                <label class="flex items-center gap-2.5 p-2.5 bg-white border border-slate-200 rounded-xl cursor-pointer hover:bg-blue-50 transition group">
-                    <input type="checkbox" id="flag-members" class="flag-cb w-4 h-4 accent-blue-600 rounded">
-                    <span class="text-xs font-bold text-slate-700"><i class="fa-solid fa-users-gear text-slate-400 w-4 text-center"></i> ניהול צוות</span>
-                </label>
-                <label class="flex items-center gap-2.5 p-2.5 bg-white border border-slate-200 rounded-xl cursor-pointer hover:bg-blue-50 transition group">
-                    <input type="checkbox" id="flag-tasks" class="flag-cb w-4 h-4 accent-blue-600 rounded">
-                    <span class="text-xs font-bold text-slate-700"><i class="fa-solid fa-list-check text-slate-400 w-4 text-center"></i> משימות</span>
-                </label>
-                <label class="flex items-center gap-2.5 p-2.5 bg-white border border-slate-200 rounded-xl cursor-pointer hover:bg-blue-50 transition group">
-                    <input type="checkbox" id="flag-academy" class="flag-cb w-4 h-4 accent-blue-600 rounded">
-                    <span class="text-xs font-bold text-slate-700"><i class="fa-solid fa-graduation-cap text-slate-400 w-4 text-center"></i> מרכז הכשרות</span>
-                </label>
-
-                <label class="flex items-center gap-2.5 p-2.5 bg-white border border-slate-200 rounded-xl cursor-pointer hover:bg-blue-50 transition group col-span-2">
-                    <input type="checkbox" id="flag-community" class="flag-cb w-4 h-4 accent-blue-600 rounded">
-                    <span class="text-xs font-bold text-slate-700"><i class="fa-solid fa-city text-slate-400 w-4 text-center"></i> חיבור לקהילות</span>
-                </label>
-                <label class="flex items-center gap-2.5 p-2.5 bg-purple-50 border border-purple-200 rounded-xl cursor-pointer hover:bg-purple-100 transition group col-span-2">
-                    <input type="checkbox" id="flag-ai" class="flag-cb w-4 h-4 accent-purple-600 rounded">
-                    <span class="text-xs font-black text-purple-800"><i class="fa-solid fa-robot text-purple-500 w-4 text-center mr-1"></i> עוזר AI וכלים חכמים</span>
-                </label>
-            </div>
-            </div><!-- /sa-flags-section -->
 
             <!-- ── חבילה וחיוב ───────────────────────────────────────────── -->
             <div id="sa-billing-section" class="hidden mt-6 border-t border-slate-100 pt-5">
@@ -3771,7 +3681,7 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                 <i class="fa-solid fa-receipt text-violet-500"></i> חבילה וחיוב חודשי
               </h4>
               <div class="bg-violet-50 border border-violet-100 rounded-xl px-3 py-2 mb-4 text-[11px] text-violet-700">
-                <strong>חבילה וחיוב</strong> — מה <u>שולם ופעיל בפועל</u> עבור העסק. זה מה שמוצג ללקוח ב"החבילה שלי". Feature Flags למעלה שולטים על יכולות ועל ה-UI בלבד.
+                <strong>חבילה וחיוב</strong> — כל מה שמסומן כ<u>פתוח</u> נגיש ללקוח מכל כיוון. כל מה שמסומן ל<u>חיוב</u> מוצג בפירוט ב"החבילה שלי" ונספר בסה"כ.
               </div>
 
               <!-- בחירת חבילה -->

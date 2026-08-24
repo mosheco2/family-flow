@@ -2566,20 +2566,41 @@ function initBillingSection(group) {
         const savedMods = billing.modules;
         const activeModules = Array.isArray(savedMods) ? savedMods : defaultMods;
 
+        // savedMods: either [{id,open,billing}] (new format) or [id] (legacy)
+        const normSaved = Array.isArray(savedMods)
+            ? savedMods.map(x => typeof x === 'string' ? { id: x, open: true, billing: true } : x)
+            : defaultMods.map(id => ({ id, open: true, billing: true }));
+        const savedMap = {};
+        normSaved.forEach(e => { savedMap[e.id] = e; });
+
         grid.innerHTML = nonBundleGroups.flatMap(g => g.modules.filter(m => !m.free)).map(m => {
             const isDefault = defaultMods.includes(m.id);
-            const isActive = activeModules.includes(m.id);
+            const saved = savedMap[m.id];
+            const isOpen    = saved ? saved.open    : isDefault;
+            const isBilling = saved ? saved.billing : isDefault;
+            const price = priceMap[m.id] || 0;
             return `
-            <label class="flex items-center gap-2 p-2 rounded-xl cursor-pointer border text-xs transition
-                ${isActive ? 'bg-violet-50 border-violet-300' : isDefault ? 'bg-slate-50 border-slate-200' : 'bg-white border-slate-100 hover:bg-slate-50'}">
-                <input type="checkbox" class="billing-mod-cb w-3.5 h-3.5 accent-violet-600"
-                    data-mod-id="${m.id}" data-mod-price="${priceMap[m.id] || 0}"
-                    ${isActive ? 'checked' : ''}
-                    onchange="recalcBilling()">
-                <span class="font-bold text-slate-700 flex-1">${m.name}</span>
-                ${isDefault ? '<span class="text-[9px] text-slate-400 bg-slate-100 px-1 rounded">מומלץ</span>' : ''}
-                <span class="text-slate-400 font-mono">${priceMap[m.id] || 0}₪</span>
-            </label>`;
+            <div class="flex items-center gap-1 p-2 rounded-xl border text-xs transition
+                ${isOpen ? 'bg-violet-50 border-violet-300' : isDefault ? 'bg-slate-50 border-slate-200' : 'bg-white border-slate-100 hover:bg-slate-50'}"
+                data-mod-id="${m.id}">
+                <div class="flex flex-col items-center gap-0.5 shrink-0">
+                    <input type="checkbox" class="billing-mod-open w-3.5 h-3.5 accent-green-600"
+                        data-mod-id="${m.id}" title="פתוח"
+                        ${isOpen ? 'checked' : ''}
+                        onchange="recalcBilling()">
+                    <span class="text-[8px] text-green-600 font-bold leading-none">פתוח</span>
+                </div>
+                <div class="flex flex-col items-center gap-0.5 shrink-0">
+                    <input type="checkbox" class="billing-mod-cb w-3.5 h-3.5 accent-violet-600"
+                        data-mod-id="${m.id}" data-mod-price="${price}" title="לחיוב"
+                        ${isBilling ? 'checked' : ''}
+                        onchange="recalcBilling()">
+                    <span class="text-[8px] text-violet-600 font-bold leading-none">₪</span>
+                </div>
+                <span class="font-bold text-slate-700 flex-1 mr-1">${m.name}</span>
+                ${isDefault ? '<span class="text-[9px] text-slate-400 bg-slate-100 px-1 rounded">ברירת מחדל</span>' : ''}
+                <span class="text-slate-400 font-mono">${price}₪</span>
+            </div>`;
         }).join('');
     }
 
@@ -2610,15 +2631,16 @@ window.recalcBilling = function() {
         bundlePrice = parseInt(opt.dataset.price) || 0;
     }
 
-    // modules price — חבילה + כל מודול בודד שסומן (תוספות מעל החבילה)
+    // modules price — חבילה + מודולים עם billing=true בלבד
     let modulesPrice = bundlePrice;
     const checkedMods = [];
-    document.querySelectorAll('.billing-mod-cb:checked').forEach(cb => {
-        const p = parseInt(cb.dataset.modPrice) || 0;
+    document.querySelectorAll('#billing-modules-grid [data-mod-id]').forEach(div => {
+        const bilCb = div.querySelector('.billing-mod-cb');
+        if (!bilCb || !bilCb.checked) return;
+        const p = parseInt(bilCb.dataset.modPrice) || 0;
         modulesPrice += p;
-        const label = cb.closest('label');
-        const name = label ? label.querySelector('span.font-bold')?.textContent?.trim() : cb.dataset.modId;
-        checkedMods.push({ name: name || cb.dataset.modId, price: p });
+        const nameEl = div.querySelector('span.font-bold');
+        checkedMods.push({ name: nameEl ? nameEl.textContent.trim() : bilCb.dataset.modId, price: p });
     });
 
     // users
@@ -2681,17 +2703,27 @@ window.recalcBilling = function() {
 function getBillingConfig() {
     const sel = getEl('billing-bundle-select');
     const bundleId = sel?.value || '';
-    const activeModules = [];
-    document.querySelectorAll('.billing-mod-cb:checked').forEach(cb => activeModules.push(cb.dataset.modId));
 
-    // calc total
+    // collect modules with open+billing flags
+    const moduleEntries = [];
+    const allModDivs = document.querySelectorAll('#billing-modules-grid [data-mod-id]');
+    allModDivs.forEach(div => {
+        const id = div.dataset.modId;
+        const openCb = div.querySelector('.billing-mod-open');
+        const bilCb  = div.querySelector('.billing-mod-cb');
+        const isOpen = openCb ? openCb.checked : false;
+        const isBil  = bilCb  ? bilCb.checked  : false;
+        if (isOpen || isBil) moduleEntries.push({ id, open: isOpen, billing: isBil });
+    });
+
+    // calc total (only billing=true modules + bundle)
     const priceMap = _getBillingPriceMap();
     let modulesPrice = 0;
     if (bundleId) {
         const opt = sel.options[sel.selectedIndex];
         modulesPrice = parseInt(opt?.dataset?.price) || 0;
     }
-    document.querySelectorAll('.billing-mod-cb:checked').forEach(cb => { modulesPrice += parseInt(cb.dataset.modPrice) || 0; });
+    moduleEntries.filter(e => e.billing).forEach(e => { modulesPrice += parseInt(priceMap[e.id]) || 0; });
     const extraUsers = parseInt(getEl('billing-extra-users')?.value) || 0;
     const userPrice = (priceMap['user_extra'] || 9) * extraUsers;
     const dType = getEl('billing-discount-type')?.value || 'pct';
@@ -2701,7 +2733,7 @@ function getBillingConfig() {
 
     return {
         bundle_id: bundleId,
-        modules: activeModules,
+        modules: moduleEntries,
         extra_users: extraUsers,
         discount_type: dType,
         discount_value: dVal,
@@ -2750,18 +2782,9 @@ async function saveSAEditGroup() {
                 body: JSON.stringify({ modules: unlocked })
             });
         } else {
-            const getCb = (cbId) => { const el = getEl(cbId); return el ? el.checked : true; };
-            const flags = {
-                store: getCb('flag-store'), b2b: getCb('flag-b2b'), academy: getCb('flag-academy'), calendar: getCb('flag-calendar'),
-                finance: getCb('flag-finance'), inventory: getCb('flag-inventory'), crm: getCb('flag-crm'), deliveries: getCb('flag-deliveries'),
-                foodcost: getCb('flag-foodcost'), ai: getCb('flag-ai'), timeclock: getCb('flag-timeclock'), cashflow: getCb('flag-cashflow'),
-                budget: getCb('flag-budget'), forecast: getCb('flag-forecast'), tasks: getCb('flag-tasks'), community: getCb('flag-community'),
-                members: getCb('flag-members'), shifts: getCb('flag-shifts')
-            };
             if (groupIndex > -1) {
                 saAllGroups[groupIndex].name = name;
                 saAllGroups[groupIndex].admin_email = adminEmail;
-                saAllGroups[groupIndex].features = flags;
                 saAllGroups[groupIndex].city = city;
                 saAllGroups[groupIndex].street_address = streetAddress;
                 if (group?.type === 'FAMILY') {
@@ -2778,7 +2801,7 @@ async function saveSAEditGroup() {
 
             await fetch(`${API}/sa/groups/${id}`, {
                 method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
-                body: JSON.stringify({ name, adminEmail, features: flags, ...extraGroupFields, adminFirstName: firstName, lastName, familyNickname, bizType, contactName, billingConfig })
+                body: JSON.stringify({ name, adminEmail, ...extraGroupFields, adminFirstName: firstName, lastName, familyNickname, bizType, contactName, billingConfig })
             });
 
             // save billing separately for reliability
