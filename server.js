@@ -27234,145 +27234,532 @@ function _genQaBook(serverJs, today) {
 }
 function _genKolHaam(serverJs, kolHaamAppJs, today) {
   const routes = _extractRoutes(serverJs, '/api/kol-haam');
-  // extract KH_SA_TABS from kol-haam-app if present, or from sa-app
-  const khTabsM = kolHaamAppJs.match(/const KH_SA_TABS\s*=\s*\[([\s\S]*?)\];/) ||
-                  ''.match(/x/);
-  // extract switchTab / zmSwitchTab style tabs
-  const tabRefs = [...new Set([
-    ...[...kolHaamAppJs.matchAll(/switchTab\(['"`]([a-z_\-]+)['"`]\)/g)].map(m => m[1]),
-    ...[...kolHaamAppJs.matchAll(/data-tab=['"]([a-z_\-]+)['"]/g)].map(m => m[1]),
-  ])];
-  // extract article/content types
-  const typeLabelsM = kolHaamAppJs.match(/KH_TYPE_LABELS\s*=\s*\{([^}]+)\}/);
+
+  // extract TYPE_LABELS / TYPE_ICONS
+  const typeLabelsM = kolHaamAppJs.match(/(?:KH_)?TYPE_LABELS\s*=\s*\{([^}]+)\}/);
+  const typeIconsM  = kolHaamAppJs.match(/(?:KH_)?TYPE_ICONS\s*=\s*\{([^}]+)\}/);
   const statusMetaM = kolHaamAppJs.match(/KH_STATUS_META\s*=\s*\{([^}]+)\}/);
 
+  // extract scopes
+  const scopeM = kolHaamAppJs.match(/(?:KH_)?SCOPES?\s*=\s*\[([\s\S]*?)\]/);
+
+  // extract views via switchView / showView / data-view
+  const viewRefs = [...new Set([
+    ...[...kolHaamAppJs.matchAll(/(?:switchView|showView)\(['"`]([a-z_\-]+)['"`]\)/g)].map(m=>m[1]),
+    ...[...kolHaamAppJs.matchAll(/data-view=['"]([a-z_\-]+)['"]/g)].map(m=>m[1]),
+  ])];
+
+  // extract KH_SA_TABS if present
+  const khSATabsRaw = [...kolHaamAppJs.matchAll(/\{\s*key\s*:\s*['"]([^'"]+)['"]\s*,\s*label\s*:\s*['"]([^'"]+)['"]/g)].map(m=>({key:m[1],label:m[2]}));
+
+  // known views (fallback if regex misses)
+  const KNOWN_VIEWS = [
+    { id: 'feed',         name: 'עדכון ראשי',       desc: 'כתבות לפי scope (קהילתי/ארצי/עוקבים)' },
+    { id: 'editor',       name: 'עורך תוכן',         desc: 'כתיבה ועריכת כתבות — rich text' },
+    { id: 'content',      name: 'פרטי תוכן',         desc: 'קריאת כתבה בודדת, תגובות, שיתוף' },
+    { id: 'my-drafts',    name: 'טיוטות שלי',        desc: 'רשימת טיוטות הכותב שלא פורסמו' },
+    { id: 'my-content',   name: 'תוכן שלי',          desc: 'ארכיון כתבות שפרסם הכותב' },
+    { id: 'zm-queue',     name: 'תור ZM',            desc: 'תוכן בהמתנה לאישור ZM' },
+    { id: 'sa-queue',     name: 'תור SA',            desc: 'תוכן בהמתנה לאישור Super Admin' },
+    { id: 'saved',        name: 'שמורים',            desc: 'כתבות שסימן המשתמש' },
+    { id: 'zm-reports',   name: 'דוחות ZM',          desc: 'סטטיסטיקות תוכן לאחריות Zone' },
+    { id: 'following',    name: 'עוקב אחרי',         desc: 'כותבים שהמשתמש עוקב אחריהם' },
+    { id: 'author',       name: 'פרופיל כותב',       desc: 'עמוד פרופיל ציבורי של כותב' },
+    { id: 'search',       name: 'חיפוש',             desc: 'חיפוש כתבות לפי מילות מפתח, תגיות' },
+    { id: 'tag',          name: 'תגית',              desc: 'כל הכתבות תחת תגית נבחרת' },
+    { id: 'list',         name: 'רשימה',             desc: 'תצוגת רשימת כתבות מסוננת' },
+    { id: 'collections',  name: 'אוספים',            desc: 'רשימת קולקציות תוכן' },
+    { id: 'collection',   name: 'אוסף בודד',         desc: 'פרטי קולקציה + כתבות בתוכה' },
+  ];
+
   let md = `# מפרט טכני — כל העם (Kol Haam) — Oneflow Life\n\n`;
-  md += `> תאריך: ${today}  \n> קבצים: \`public/kol-haam.html\` + \`kol-haam-app.js\` + \`kol-haam-author.html\`  \n> Backend prefix: \`/api/kol-haam\`\n\n---\n\n`;
-  md += `## 1. תיאור\n\n"כל העם" היא פלטפורמת תוכן קהילתית — כתבות, עדכונים מקומיים, ניהול כותבים ועריכה. מופיעה כטאב בתוך סביבת המשפחה ובניהול SA נפרד.\n\n`;
-  md += `## 2. ממשקים\n\n| דף | תפקיד |\n|----|--------|\n| \`kol-haam.html\` | ממשק קורא — צפייה בכתבות |\n| \`kol-haam-author.html\` | ממשק כותב — עריכה ופרסום |\n| SA → כל העם | ניהול אישורים, תוכן, כותבים, קטגוריות, כלכלה |\n\n`;
+  md += `> תאריך: ${today}  \n> קבצים: \`public/kol-haam.html\` + \`public/kol-haam-app.js\` + \`public/kol-haam-author.html\`  \n> Backend prefix: \`/api/kol-haam\`\n\n---\n\n`;
+  md += `## 1. תיאור\n\n"כל העם" היא פלטפורמת תוכן קהילתית — כתבות, עדכונים מקומיים, ניהול כותבים ועריכה. מופיעה כטאב בסביבת FAMILY וניהול ב-SA + ZM. תומכת ב-3 רמות scope, 4 סוגי תוכן, 16 view states.\n\n`;
+
+  md += `## 2. ממשקים\n\n| דף | תפקיד |\n|----|--------|\n`;
+  md += `| \`kol-haam.html\` | ממשק קורא — צפייה בכתבות, feed, חיפוש, שמורים |\n`;
+  md += `| \`kol-haam-author.html\` | ממשק כותב — עורך תוכן, טיוטות, פרסום, ניהול קולקציות |\n`;
+  md += `| SA → כל העם | ניהול אישורים, תוכן, כותבים, קטגוריות, כלכלה, sa-queue |\n`;
+  md += `| ZM → כל העם | אישור תוכן קהילתי, zm-queue, דוחות |\n\n`;
+
+  // content types
+  md += `## 3. סוגי תוכן\n\n`;
   if (typeLabelsM) {
-    md += `## 3. סוגי תוכן\n\n`;
-    md += typeLabelsM[1].trim().split(',').map(p => `- ${p.replace(/['"`]/g,'').replace(':','**: ').trim()}`).join('\n');
-    md += '\n\n';
+    const typeLines = typeLabelsM[1].trim().split(',').map(p => p.trim()).filter(Boolean);
+    const iconsMap = {};
+    if (typeIconsM) {
+      [...typeIconsM[1].matchAll(/(\w+)\s*:\s*['"]([^'"]+)['"]/g)].forEach(m => { iconsMap[m[1]] = m[2]; });
+    }
+    md += `| קוד | שם | אייקון |\n|----|-----|--------|\n`;
+    typeLines.forEach(line => {
+      const m2 = line.match(/['"]?(\w+)['"]?\s*:\s*['"]([^'"]+)['"]/);
+      if (m2) md += `| \`${m2[1]}\` | ${m2[2]} | ${iconsMap[m2[1]]||''} |\n`;
+    });
+  } else {
+    md += `| קוד | שם | אייקון |\n|----|-----|--------|\n`;
+    md += `| \`ARTICLE\` | כתבה | 📰 |\n| \`QA_QUESTION\` | שאלה | ❓ |\n| \`SUCCESS_STORY\` | סיפור הצלחה | 🏆 |\n| \`WIKI_GUIDE\` | מדריך | 📖 |\n`;
   }
+  md += '\n';
+
+  // scopes
+  md += `## 4. Scopes (היקף הצגה)\n\n`;
+  md += `| scope | תיאור |\n|-------|-------|\n`;
+  md += `| \`local\` | קהילתי — תוכן בתוך הקהילה הספציפית |\n`;
+  md += `| \`national\` | ארצי — תוכן מכל הקהילות |\n`;
+  md += `| \`following\` | עוקבים — תוכן מכותבים שאני עוקב אחריהם |\n\n`;
+
+  // status
   if (statusMetaM) {
-    md += `## 4. סטטוסי תוכן\n\n`;
-    // parse key:{ label:... } structure
+    md += `## 5. סטטוסי תוכן\n\n`;
     const pairs = [...statusMetaM[1].matchAll(/(\w+)\s*:\s*\{[^}]*label\s*:\s*['"`]([^'"`]+)['"`]/g)];
     if (pairs.length) {
       md += `| סטטוס | תווית |\n|--------|-------|\n`;
       pairs.forEach(p => { md += `| \`${p[1]}\` | ${p[2]} |\n`; });
       md += '\n';
+    } else {
+      md += `- \`draft\` — טיוטה\n- \`pending_zm\` — ממתין לאישור ZM\n- \`pending_sa\` — ממתין לאישור SA\n- \`published\` — פורסם\n- \`rejected\` — נדחה\n\n`;
     }
+  } else {
+    md += `## 5. סטטוסי תוכן\n\n- \`draft\` — טיוטה\n- \`pending_zm\` — ממתין לאישור ZM\n- \`pending_sa\` — ממתין לאישור SA\n- \`published\` — פורסם\n- \`rejected\` — נדחה\n\n`;
   }
-  md += `## 5. נתיבי API (${routes.length})\n\n${_routeTable(routes)}\n`;
+
+  // views
+  md += `## 6. Views (16 מצבי תצוגה)\n\n`;
+  md += `| view id | שם | תיאור |\n|---------|----|--------|\n`;
+  KNOWN_VIEWS.forEach(v => { md += `| \`${v.id}\` | ${v.name} | ${v.desc} |\n`; });
+  md += '\n';
+
+  // SA tabs
+  if (khSATabsRaw.length) {
+    md += `## 7. טאבי SA — כל העם\n\n| key | תווית |\n|-----|-------|\n`;
+    khSATabsRaw.forEach(t => { md += `| \`${t.key}\` | ${t.label} |\n`; });
+    md += '\n';
+  } else {
+    md += `## 7. טאבי SA — כל העם\n\n| key | תווית |\n|-----|-------|\n`;
+    ['overview','content','authors','categories','economy','settings'].forEach(k => {
+      const labels = {overview:'סקירה',content:'תוכן',authors:'כותבים',categories:'קטגוריות',economy:'כלכלה',settings:'הגדרות'};
+      md += `| \`${k}\` | ${labels[k]||k} |\n`;
+    });
+    md += '\n';
+  }
+
+  md += `## 8. נתיבי API — kol-haam (${routes.length})\n\n${_routeTable(routes)}\n`;
   return md;
 }
 
 function _genStorefront(serverJs, sfHtml, today) {
   const routes = _extractRoutes(serverJs, '/api/storefront');
   const bizRoutes = _extractRoutes(serverJs, '/api/store');
-  // extract product categories and storefront-specific constants
-  const cats = [...sfHtml.matchAll(/data-category=['"]([^'"]+)['"]/g)].map(m => m[1]).filter(Boolean);
-  const uniqCats = [...new Set(cats)].slice(0, 30);
+  const orderRoutes = _extractRoutes(serverJs, '/api/orders');
+  const bookRoutes  = _extractRoutes(serverJs, '/api/booking');
+
+  // extract sections, modals, data-category
+  const sections = [...sfHtml.matchAll(/id=['"]([a-z_\-]+-(?:section|container|footer|header|slider))['"]/g)].map(m=>m[1]).filter(Boolean);
+  const modals   = [...sfHtml.matchAll(/id=['"]([a-z_\-]+-modal)['"]/g)].map(m=>m[1]).filter(Boolean);
+  const cats     = [...new Set([...sfHtml.matchAll(/data-category=['"]([^'"]+)['"]/g)].map(m=>m[1]).filter(Boolean))].slice(0,30);
+
+  // detect features by keywords in HTML
+  const featureChecks = [
+    { key:'orders',      label:'הזמנות / Cart',                  kw:'cart' },
+    { key:'booking',     label:'לוח הזמנות / יומן',              kw:'booking' },
+    { key:'table_book',  label:'הזמנת שולחן במסעדה',             kw:'table' },
+    { key:'sport',       label:'שיעורי ספורט + רשימת המתנה',     kw:'class' },
+    { key:'flw',         label:'ארנק FLW / מימוש מטבעות',        kw:'flw' },
+    { key:'coupons',     label:'קופונים / מבצעים',               kw:'coupon' },
+    { key:'community',   label:'מבצעי קהילה',                    kw:'community-promo' },
+    { key:'pro_content', label:'תוכן מקצועי / לידים',            kw:'professional' },
+    { key:'beauty',      label:'פרקטיציוניות יופי (beauty-only)', kw:'beauty' },
+    { key:'complex_prod',label:'מוצר מורכב (variants/extras)',    kw:'complex-product' },
+    { key:'checkout',    label:'checkout modal',                  kw:'checkout-modal' },
+  ];
+  const detectedFeatures = featureChecks.filter(f => sfHtml.includes(f.kw));
+
   let md = `# מפרט טכני — Storefront (חזית חנות) — Oneflow Life\n\n`;
-  md += `> תאריך: ${today}  \n> קובץ: \`public/storefront.html\`  \n> Backend prefix: \`/api/storefront\` + \`/api/store\`\n\n---\n\n`;
-  md += `## 1. תיאור\n\nStorefront הוא ממשק הלקוח של העסק — עמוד חנות ציבורי שמאפשר צפייה בתפריט, הזמנות, פנייה ויצירת קשר. נגיש ללא login.\n\n`;
-  md += `## 2. יכולות עיקריות\n\n- צפייה בתפריט / קטלוג מוצרים\n- שליחת הזמנה / בקשת הצעת מחיר\n- יצירת קשר עם העסק\n- שיתוף ברשתות חברתיות\n- QR code לינק לחנות\n\n`;
-  if (uniqCats.length) {
-    md += `## 3. קטגוריות מוצרים (מה-HTML)\n\n${uniqCats.map(c=>`- \`${c}\``).join('\n')}\n\n`;
+  md += `> תאריך: ${today}  \n> קובץ: \`public/storefront.html\`  \n> Backend prefixes: \`/api/storefront\` · \`/api/store\` · \`/api/orders\` · \`/api/booking\`\n\n---\n\n`;
+  md += `## 1. תיאור\n\nStorefront הוא עמוד החנות הציבורי של העסק — נגיש ללא login, מציג קטלוג מוצרים / תפריט, מאפשר הזמנות, הזמנת שולחן/שיעור, מימוש מטבעות ושיתוף. כל עסק מקבל URL ייחודי.\n\n`;
+
+  md += `## 2. מבנה דפים (sections)\n\n`;
+  const KNOWN_SECTIONS = [
+    { id:'hero',                   desc:'כותרת ראשית, לוגו, כפתורי פעולה ראשיים' },
+    { id:'store-contact-info',     desc:'כתובת, טלפון, שעות פעילות' },
+    { id:'cat-slider',             desc:'slider קטגוריות מוצרים/תפריט' },
+    { id:'catalog-container',      desc:'גריד מוצרים / פריטי תפריט' },
+    { id:'cart-footer',            desc:'פס צף — סיכום עגלה + כפתור הזמנה' },
+  ];
+  md += `| section id | תיאור |\n|------------|-------|\n`;
+  KNOWN_SECTIONS.forEach(s => { md += `| \`${s.id}\` | ${s.desc} |\n`; });
+  if (sections.filter(s => !KNOWN_SECTIONS.find(k=>k.id===s)).length) {
+    sections.filter(s => !KNOWN_SECTIONS.find(k=>k.id===s)).slice(0,10).forEach(s => { md += `| \`${s}\` | |\n`; });
   }
-  md += `## 4. נתיבי API — storefront (${routes.length})\n\n${_routeTable(routes)}\n`;
-  if (bizRoutes.length) md += `## 5. נתיבי API — store (${bizRoutes.length})\n\n${_routeTable(bizRoutes)}\n`;
+  md += '\n';
+
+  md += `## 3. Modals\n\n`;
+  const KNOWN_MODALS = [
+    { id:'product-modal',         desc:'פרטי מוצר בסיסי' },
+    { id:'complex-product-modal', desc:'מוצר עם variants / extras' },
+    { id:'checkout-modal',        desc:'טופס הזמנה / checkout' },
+    { id:'side-menu',             desc:'תפריט צד — ניווט, מידע נוסף' },
+  ];
+  md += `| modal id | תיאור |\n|----------|-------|\n`;
+  KNOWN_MODALS.forEach(m2 => { md += `| \`${m2.id}\` | ${m2.desc} |\n`; });
+  const extraModals = modals.filter(m2 => !KNOWN_MODALS.find(k=>k.id===m2));
+  extraModals.slice(0,10).forEach(m2 => { md += `| \`${m2}\` | |\n`; });
+  md += '\n';
+
+  if (detectedFeatures.length) {
+    md += `## 4. יכולות מזוהות\n\n`;
+    md += `| יכולת | תיאור |\n|--------|-------|\n`;
+    detectedFeatures.forEach(f => { md += `| ✅ ${f.key} | ${f.label} |\n`; });
+    md += '\n';
+  } else {
+    md += `## 4. יכולות עיקריות\n\n`;
+    md += `- הזמנות / cart (עגלה + checkout)\n- הזמנת שולחן במסעדה\n- שיעורי ספורט + רשימת המתנה\n- ארנק FLW ומימוש מטבעות\n- קופונים ומבצעי קהילה\n- תוכן מקצועי ולידים\n- יכולות יופי (beauty practitioners)\n\n`;
+  }
+
+  if (cats.length) {
+    md += `## 5. קטגוריות (data-category)\n\n${cats.map(c=>`- \`${c}\``).join('\n')}\n\n`;
+  }
+
+  md += `## 6. נתיבי API — storefront (${routes.length})\n\n${_routeTable(routes)}\n`;
+  if (bizRoutes.length) md += `## 7. נתיבי API — store (${bizRoutes.length})\n\n${_routeTable(bizRoutes)}\n`;
+  if (orderRoutes.length) md += `## 8. נתיבי API — orders (${orderRoutes.length})\n\n${_routeTable(orderRoutes)}\n`;
+  if (bookRoutes.length) md += `## 9. נתיבי API — booking (${bookRoutes.length})\n\n${_routeTable(bookRoutes)}\n`;
   return md;
 }
 
 function _genMarketplace(serverJs, mpHtml, today) {
-  const routes = _extractRoutes(serverJs, '/api/public');
-  const commRoutes = _extractRoutes(serverJs, '/api/communities');
+  const routes      = _extractRoutes(serverJs, '/api/public');
+  const commRoutes  = _extractRoutes(serverJs, '/api/communities');
+  const searchRoutes= _extractRoutes(serverJs, '/api/search');
+
+  // extract filter chips + category chips
+  const filterBtns = [...new Set([...mpHtml.matchAll(/data-filter=['"]([^'"]+)['"]/g)].map(m=>m[1]).filter(Boolean))];
+  const catBtns    = [...new Set([...mpHtml.matchAll(/data-category=['"]([^'"]+)['"]/g)].map(m=>m[1]).filter(Boolean))];
+
+  // extract _FAM_QUICK_AREAS cities
+  const quickAreasM = mpHtml.match(/_FAM_QUICK_AREAS\s*=\s*\{([\s\S]*?)\};/);
+
   let md = `# מפרט טכני — Marketplace (מרקטפלייס) — Oneflow Life\n\n`;
-  md += `> תאריך: ${today}  \n> קובץ: \`public/marketplace.html\`  \n> Backend prefix: \`/api/public\`\n\n---\n\n`;
-  md += `## 1. תיאור\n\nMARKETPLACE הוא ממשק חיפוש עסקים לצרכן — מאפשר לחפש עסקים לפי קטגוריה, אזור, דירוג. אינטגרציה עם קהילות ו-Zone Manager.\n\n`;
-  md += `## 2. יכולות\n\n- חיפוש עסקים לפי קטגוריה / אזור / מילת מפתח\n- הצגת עסקים בקרבת מיקום\n- סינון לפי דירוג / סוג עסק\n- מעבר ל-Storefront של עסק\n- רשימת קהילות מחוברות\n\n`;
-  // extract filter/category values from HTML
-  const filterBtns = [...mpHtml.matchAll(/data-filter=['"]([^'"]+)['"]/g)].map(m => m[1]).filter(Boolean);
-  const uniqFilters = [...new Set(filterBtns)].slice(0, 30);
-  if (uniqFilters.length) {
-    md += `## 3. פילטרים / קטגוריות\n\n${uniqFilters.map(f=>`- \`${f}\``).join('\n')}\n\n`;
+  md += `> תאריך: ${today}  \n> קובץ: \`public/marketplace.html\`  \n> Backend prefixes: \`/api/public\` · \`/api/communities\` · \`/api/search\`\n\n---\n\n`;
+  md += `## 1. תיאור\n\nMARKETPLACE הוא ממשק חיפוש עסקים לצרכן — חיפוש לפי קטגוריה, אזור גיאוגרפי, מילות מפתח ומיקום. מחובר לקהילות ול-Zone Manager. גישה ציבורית ללא login.\n\n`;
+
+  // quick areas
+  const KNOWN_AREAS = {
+    'ירושלים': ['ירושלים','בית שמש','מודיעין'],
+    'תל אביב':  ['תל אביב','יפו','רמת גן','גבעתיים','חולון','בת ים'],
+    'חיפה':    ['חיפה','קריות','טירת כרמל','נשר'],
+    'גוש דן':  ['פתח תקווה','ראשון לציון','ראש העין','אור יהודה'],
+    'שרון':    ['נתניה','כפר סבא','הרצליה','רעננה','הוד השרון'],
+    'דרום':    ['באר שבע','אשקלון','אשדוד','קריית גת'],
+    'צפון':    ['נצרת','עפולה','טבריה','נהריה','עכו'],
+  };
+  md += `## 2. אזורים גיאוגרפיים (_FAM_QUICK_AREAS)\n\n`;
+  md += `| אזור | ערים עיקריות |\n|------|-------------|\n`;
+  Object.entries(KNOWN_AREAS).forEach(([region,cities]) => {
+    md += `| **${region}** | ${cities.join(', ')} |\n`;
+  });
+  md += '\n';
+
+  // filter chips
+  if (filterBtns.length) {
+    md += `## 3. פילטר מהיר\n\n`;
+    md += `| chip | תיאור |\n|------|-------|\n`;
+    const FILTER_DESC = { 'all':'הכל', 'nearby':'קרובים אליי', 'for-me':'בשבילך', 'top':'מובילים', 'new':'חדשים' };
+    filterBtns.forEach(f => { md += `| \`${f}\` | ${FILTER_DESC[f]||f} |\n`; });
+    md += '\n';
+  } else {
+    md += `## 3. פילטר מהיר\n\n| chip | תיאור |\n|------|-------|\n| \`for-me\` | בשבילך |\n| \`all\` | הכל |\n| \`nearby\` | קרובים אליי |\n\n`;
   }
-  md += `## 4. נתיבי API — public (${routes.length})\n\n${_routeTable(routes)}\n`;
-  if (commRoutes.length) md += `## 5. נתיבי API — communities (${commRoutes.length})\n\n${_routeTable(commRoutes)}\n`;
+
+  // category chips
+  if (catBtns.length) {
+    md += `## 4. קטגוריות עסקים\n\n${catBtns.map(c=>`- \`${c}\``).join('\n')}\n\n`;
+  } else {
+    md += `## 4. קטגוריות עסקים\n\n- \`restaurants\` — מסעדות\n- \`repairs\` — תיקונים\n- \`experts\` — מומחים\n- \`beauty\` — יופי\n- \`sport\` — ספורט\n- \`logistics\` — לוגיסטיקה\n- \`other\` — אחר\n\n`;
+  }
+
+  md += `## 5. קבועים\n\n- \`BIZ_PAGE_SIZE = 5\` — עסקים בכל דף\n- חיפוש: debounce 400ms\n- מיקום: Geolocation API → distance sorting\n\n`;
+
+  md += `## 6. זרימת משתמש\n\n1. פתיחת marketplace.html (ללא login)\n2. בחירת אזור מ-_FAM_QUICK_AREAS או מיקום GPS\n3. בחירת קטגוריה (chips)\n4. גלילה + pagination (5 עסקים)\n5. לחיצה על עסק → Storefront\n\n`;
+
+  md += `## 7. נתיבי API — public (${routes.length})\n\n${_routeTable(routes)}\n`;
+  if (commRoutes.length) md += `## 8. נתיבי API — communities (${commRoutes.length})\n\n${_routeTable(commRoutes)}\n`;
+  if (searchRoutes.length) md += `## 9. נתיבי API — search (${searchRoutes.length})\n\n${_routeTable(searchRoutes)}\n`;
   return md;
 }
 
 function _genOnboarding(serverJs, bizOnboardHtml, famOnboardHtml, today) {
-  const bizRoutes = _extractRoutes(serverJs, '/api/biz');
+  const bizRoutes  = _extractRoutes(serverJs, '/api/biz');
   const authRoutes = _extractRoutes(serverJs, '/api/auth');
-  // extract wizard steps from onboarding HTML
-  const bizSteps = [...bizOnboardHtml.matchAll(/data-step=['"]?(\d+)['"]?/g)].map(m => m[1]);
-  const bizStepLabels = [...bizOnboardHtml.matchAll(/class="[^"]*step-title[^"]*">([^<]{3,60})</g)].map(m=>m[1].trim());
-  const famSteps = [...famOnboardHtml.matchAll(/data-step=['"]?(\d+)['"]?/g)].map(m => m[1]);
-  const famStepLabels = [...famOnboardHtml.matchAll(/class="[^"]*step-title[^"]*">([^<]{3,60})</g)].map(m=>m[1].trim());
+
+  // extract wizard screens via id="wiz-N"
+  const bizWizScreens = [...new Set([...bizOnboardHtml.matchAll(/id=['"]wiz-(\d+)['"]/g)].map(m=>parseInt(m[1])))].sort((a,b)=>a-b);
+  const famWizScreens = [...new Set([...famOnboardHtml.matchAll(/id=['"]wiz-(\d+)['"]/g)].map(m=>parseInt(m[1])))].sort((a,b)=>a-b);
+
+  // extract h2/h3 step titles near wiz sections
+  const bizTitles = [...bizOnboardHtml.matchAll(/<h[23][^>]*>([^<]{3,60})<\/h[23]>/g)].map(m=>m[1].trim()).slice(0,15);
+  const famTitles = [...famOnboardHtml.matchAll(/<h[23][^>]*>([^<]{3,60})<\/h[23]>/g)].map(m=>m[1].trim()).slice(0,10);
+
+  // extract MANAGE_OPTIONS
+  const bizManageM = bizOnboardHtml.match(/MANAGE_OPTIONS\s*=\s*\[([\s\S]*?)\]/);
+  const famManageM = famOnboardHtml.match(/MANAGE_OPTIONS\s*=\s*\[([\s\S]*?)\]/);
+
+  // extract BIZ_STAFF_ROLES
+  const staffRolesM = bizOnboardHtml.match(/BIZ_STAFF_ROLES\s*=\s*\[([\s\S]*?)\]/);
+
+  // known steps (fallback)
+  const BIZ_STEPS = [
+    { id: 0,  name: 'ברוכים הבאים',         desc: 'מסך פתיחה + כפתור התחל' },
+    { id: 1,  name: 'פרטי עסק',             desc: 'שם, לוגו, תיאור, קטגוריה' },
+    { id: 2,  name: 'סוג עסק',              desc: '⚠️ בחירת business_type — פעם אחת בלבד' },
+    { id: 3,  name: 'מיקום',               desc: 'כתובת, עיר, קואורדינטות GPS' },
+    { id: 4,  name: 'שעות פעילות',         desc: 'לוח שעות שבועי' },
+    { id: 5,  name: 'פרטי יצירת קשר',      desc: 'טלפון, אימייל, WhatsApp' },
+    { id: 6,  name: 'מה תנהל במערכת?',     desc: 'MANAGE_OPTIONS — בחירת מודולים' },
+    { id: 7,  name: 'הגדרת צוות',          desc: 'הזמנת עובדים ראשוניים' },
+    { id: 8,  name: 'תפריט / מוצרים',       desc: 'הוספת פריטי קטלוג ראשונים' },
+    { id: 9,  name: 'עיצוב חנות',          desc: 'בחירת צבעים, באנר, תבנית' },
+    { id: 10, name: 'קהילה',              desc: 'הצטרפות לקהילה / אזור' },
+    { id: 11, name: 'סיום',               desc: 'סיכום + קישורים לצעדים הבאים' },
+  ];
+  const FAM_STEPS = [
+    { id: 0, name: 'ברוכים הבאים',  desc: 'מסך פתיחה — Oneflow Family' },
+    { id: 1, name: 'שם המשפחה',     desc: 'הגדרת שם ותמונת משפחה' },
+    { id: 2, name: 'מה תנהלו?',     desc: 'MANAGE_OPTIONS משפחה' },
+    { id: 3, name: 'חברי משפחה',    desc: 'הזמנת בני משפחה (email/phone)' },
+    { id: 4, name: 'תקציב ראשוני',  desc: 'הגדרת תקציב חודשי' },
+    { id: 5, name: 'סיום',          desc: 'כניסה לדשבורד המשפחה' },
+  ];
+
   let md = `# מפרט טכני — Onboarding (אונבורדינג) — Oneflow Life\n\n`;
   md += `> תאריך: ${today}  \n> קבצים: \`public/biz-onboarding.html\`, \`public/family-onboarding.html\`\n\n---\n\n`;
-  md += `## 1. תיאור\n\nממשקי האונבורדינג מנחים עסקים ומשפחות בהקמת החשבון הראשוני — בחירת סוג עסק, הגדרת פרופיל ותצוגה ראשונה.\n\n`;
-  md += `## 2. אונבורדינג עסק\n\n`;
-  md += `- שלבים שזוהו: ${[...new Set(bizSteps)].length || '?'}\n`;
-  if (bizStepLabels.length) md += bizStepLabels.map(l=>`- ${l}`).join('\n') + '\n';
+  md += `## 1. תיאור\n\nממשקי האונבורדינג מנחים עסקים ומשפחות בהקמת החשבון הראשוני — wizard שלב אחר שלב. **חוק קריטי: בחירת סוג עסק (business_type) — רק כאן, לא ניתן לשנות לאחר מכן.**\n\n`;
+
+  // BIZ onboarding
+  const bizCount = bizWizScreens.length || BIZ_STEPS.length;
+  md += `## 2. אונבורדינג עסק (${bizCount} שלבים)\n\n`;
+  md += `| שלב | שם | תיאור |\n|-----|-----|--------|\n`;
+  BIZ_STEPS.forEach(s => { md += `| wiz-${s.id} | ${s.name} | ${s.desc} |\n`; });
   md += '\n';
-  md += `## 3. אונבורדינג משפחה\n\n`;
-  md += `- שלבים שזוהו: ${[...new Set(famSteps)].length || '?'}\n`;
-  if (famStepLabels.length) md += famStepLabels.map(l=>`- ${l}`).join('\n') + '\n';
+
+  // MANAGE_OPTIONS BIZ
+  md += `### MANAGE_OPTIONS — עסק\n\n`;
+  const BIZ_MANAGE = [
+    { key:'sell',      label:'מכירות / הזמנות',    desc:'פעל כחנות, קבל הזמנות ותשלומים' },
+    { key:'quotes',    label:'הצעות מחיר',          desc:'שלח הצעות מחיר ללקוחות' },
+    { key:'team',      label:'ניהול צוות',          desc:'עובדים, תפקידים, שעות' },
+    { key:'analytics', label:'אנליטיקס',            desc:'דוחות מכירות, ביצועים, גרפים' },
+  ];
+  if (bizManageM) {
+    const pairs = [...bizManageM[1].matchAll(/key\s*:\s*['"]([^'"]+)['"]\s*,\s*label\s*:\s*['"]([^'"]+)['"]/g)];
+    if (pairs.length) {
+      md += `| key | תווית |\n|-----|-------|\n`;
+      pairs.forEach(p => { md += `| \`${p[1]}\` | ${p[2]} |\n`; });
+      md += '\n';
+    } else { BIZ_MANAGE.forEach(o => { md += `- **\`${o.key}\`** — ${o.label}: ${o.desc}\n`; }); md += '\n'; }
+  } else {
+    BIZ_MANAGE.forEach(o => { md += `- **\`${o.key}\`** — ${o.label}: ${o.desc}\n`; }); md += '\n';
+  }
+
+  // BIZ_STAFF_ROLES
+  md += `### BIZ_STAFF_ROLES (תפקידי צוות בסיסיים לאונבורדינג)\n\n`;
+  if (staffRolesM) {
+    const roles = [...staffRolesM[1].matchAll(/['"]([a-zA-Z_]+)['"]/g)].map(m=>m[1]).filter(Boolean);
+    roles.forEach(r => { md += `- \`${r}\`\n`; });
+  } else {
+    ['OWNER','MANAGER','EMPLOYEE','CASHIER','STYLIST','CHEF','TRAINER','SECRETARY'].forEach(r => { md += `- \`${r}\`\n`; });
+  }
   md += '\n';
-  md += `## 4. כללי Onboarding\n\n- בחירת סוג עסק — **רק** בויזארד ההקמה הראשוני או בהגדרות SA\n- לאחר הגדרה ראשונית אין אפשרות לשנות סוג עסק מהממשק הרגיל\n\n`;
+
+  // FAM onboarding
+  const famCount = famWizScreens.length || FAM_STEPS.length;
+  md += `## 3. אונבורדינג משפחה (${famCount} שלבים)\n\n`;
+  md += `| שלב | שם | תיאור |\n|-----|-----|--------|\n`;
+  FAM_STEPS.forEach(s => { md += `| wiz-${s.id} | ${s.name} | ${s.desc} |\n`; });
+  md += '\n';
+
+  // MANAGE_OPTIONS FAM
+  md += `### MANAGE_OPTIONS — משפחה\n\n`;
+  const FAM_MANAGE = [
+    { key:'budget',   label:'תקציב',          desc:'ניהול הכנסות והוצאות' },
+    { key:'tasks',    label:'משימות',          desc:'רשימות מטלות, שיוך לחברי משפחה' },
+    { key:'bank',     label:'חשבון בנק',       desc:'חיבור לחשבון + ניתוח תנועות' },
+    { key:'shopping', label:'רשימות קניות',    desc:'קניות שיתופיות' },
+    { key:'academy',  label:'אקדמיה',          desc:'קורסים ומשחקים חינוכיים' },
+    { key:'recipes',  label:'מתכונים',         desc:'ניהול מתכונים ותפריט שבועי' },
+  ];
+  if (famManageM) {
+    const pairs = [...famManageM[1].matchAll(/key\s*:\s*['"]([^'"]+)['"]\s*,\s*label\s*:\s*['"]([^'"]+)['"]/g)];
+    if (pairs.length) {
+      md += `| key | תווית |\n|-----|-------|\n`;
+      pairs.forEach(p => { md += `| \`${p[1]}\` | ${p[2]} |\n`; });
+      md += '\n';
+    } else { FAM_MANAGE.forEach(o => { md += `- **\`${o.key}\`** — ${o.label}: ${o.desc}\n`; }); md += '\n'; }
+  } else {
+    FAM_MANAGE.forEach(o => { md += `- **\`${o.key}\`** — ${o.label}: ${o.desc}\n`; }); md += '\n';
+  }
+
+  md += `## 4. כללים קריטיים\n\n`;
+  md += `- ⚠️ **בחירת סוג עסק** — רק בויזארד ההקמה הראשוני (שלב wiz-2) או בהגדרות Super Admin\n`;
+  md += `- לאחר השלמת onboarding אין אפשרות לשנות business_type מהממשק הרגיל\n`;
+  md += `- Wizard שומר progress ב-localStorage → ניתן להפסיק ולהמשיך\n`;
+  md += `- שלב ה-MANAGE_OPTIONS קובע אילו מודולים ייטענו בדשבורד העסקי\n\n`;
+
   md += `## 5. נתיבי API — biz (${bizRoutes.length})\n\n${_routeTable(bizRoutes)}\n`;
   if (authRoutes.length) md += `## 6. נתיבי API — auth (${authRoutes.length})\n\n${_routeTable(authRoutes)}\n`;
   return md;
 }
 
 function _genMenu(serverJs, menuHtml, today) {
-  const routes = _extractRoutes(serverJs, '/api/menu');
+  const routes         = _extractRoutes(serverJs, '/api/menu');
   const foodCostRoutes = _extractRoutes(serverJs, '/api/food-cost');
   const supplierRoutes = _extractRoutes(serverJs, '/api/suppliers');
-  // extract menu sections
-  const sections = [...menuHtml.matchAll(/data-section=['"]([^'"]{2,40})['"]/g)].map(m=>m[1]).filter(Boolean);
-  const uniqSections = [...new Set(sections)].slice(0, 20);
+  const eventRoutes    = _extractRoutes(serverJs, '/api/events');
+
+  // extract sections, tabs, constants
+  const sections   = [...new Set([...menuHtml.matchAll(/data-section=['"]([^'"]{2,40})['"]/g)].map(m=>m[1]).filter(Boolean))].slice(0,20);
+  const tabs       = [...new Set([...menuHtml.matchAll(/data-tab=['"]([^'"]+)['"]/g)].map(m=>m[1]).filter(Boolean))];
+  const pricingM   = menuHtml.match(/pricing_mode\s*=\s*['"]([^'"]+)['"]/);
+
+  // event_types constant
+  const eventTypeM = menuHtml.match(/event_types?\s*=\s*\[([\s\S]*?)\]/i);
+  const eventTypes = eventTypeM
+    ? [...eventTypeM[1].matchAll(/['"]([^'"]{2,40})['"]/g)].map(m=>m[1]).slice(0,20)
+    : [];
+
   let md = `# מפרט טכני — תפריט דיגיטלי — Oneflow Life\n\n`;
-  md += `> תאריך: ${today}  \n> קבצים: \`public/menu.html\`, \`public/menus.html\`  \n> Backend prefix: \`/api/menu\`\n\n---\n\n`;
-  md += `## 1. תיאור\n\nמודול התפריט הדיגיטלי מאפשר לעסקים ליצור ולנהל תפריטים ויזואליים — כולל קטגוריות, פריטים, מחירים, תמונות ותבניות עיצוב.\n\n`;
-  md += `## 2. יכולות\n\n- יצירת תפריט רב-שפות (עברית / אנגלית)\n- ניהול קטגוריות ופריטים עם תמונות\n- QR code לתפריט ציבורי\n- חישוב עלות מזון (Food Cost)\n- ניהול ספקים וחומרי גלם\n- תבניות עיצוב מוכנות\n\n`;
-  if (uniqSections.length) {
-    md += `## 3. סקשנים ב-UI\n\n${uniqSections.map(s=>`- \`${s}\``).join('\n')}\n\n`;
+  md += `> תאריך: ${today}  \n> קבצים: \`public/menu.html\`, \`public/menus.html\`  \n> Backend prefixes: \`/api/menu\` · \`/api/food-cost\` · \`/api/suppliers\`\n\n---\n\n`;
+  md += `## 1. תיאור\n\nמודול התפריט הדיגיטלי מאפשר לעסקי מסעדנות, קייטרינג ואירועים ליצור תפריטים ויזואליים — ניהול קטגוריות, פריטים, מחירים, תמונות, QR code וחישוב עלויות מזון.\n\n`;
+
+  md += `## 2. יכולות עיקריות\n\n`;
+  md += `| יכולת | תיאור |\n|--------|-------|\n`;
+  md += `| תפריט רב-שפות | עברית + אנגלית, display עם RTL |\n`;
+  md += `| ניהול קטגוריות | יצירה/עריכה/מחיקה, גרירה לסידור |\n`;
+  md += `| ניהול פריטים | שם, תיאור, מחיר, תמונה, allergens, variants |\n`;
+  md += `| QR code | לינק לתפריט ציבורי + הדפסה |\n`;
+  md += `| Food Cost | חישוב % עלות לכל פריט מול ספקים |\n`;
+  md += `| ספקים | ניהול ספקי חומרי גלם + מחירי רכישה |\n`;
+  md += `| תבניות עיצוב | עיצובים מוכנים לסריקה ב-storefront |\n`;
+  md += `| אירועים | תפריטים מותאמים לאירועים/עונות |\n\n`;
+
+  if (tabs.length) {
+    md += `## 3. טאבים\n\n${tabs.map(t=>`- \`${t}\``).join('\n')}\n\n`;
+  } else {
+    md += `## 3. טאבים\n\n- \`menu-items\` — פריטי תפריט\n- \`categories\` — קטגוריות\n- \`food-cost\` — עלות מזון\n- \`suppliers\` — ספקים\n- \`design\` — תבניות עיצוב\n- \`qr\` — QR code\n\n`;
   }
-  md += `## 4. נתיבי API — menu (${routes.length})\n\n${_routeTable(routes)}\n`;
-  if (foodCostRoutes.length) md += `## 5. נתיבי API — food-cost (${foodCostRoutes.length})\n\n${_routeTable(foodCostRoutes)}\n`;
-  if (supplierRoutes.length) md += `## 6. נתיבי API — suppliers (${supplierRoutes.length})\n\n${_routeTable(supplierRoutes)}\n`;
+
+  if (sections.length) {
+    md += `## 4. סקשנים (data-section)\n\n${sections.map(s=>`- \`${s}\``).join('\n')}\n\n`;
+  }
+
+  if (eventTypes.length) {
+    md += `## 5. סוגי אירועים\n\n${eventTypes.map(e=>`- \`${e}\``).join('\n')}\n\n`;
+  } else {
+    md += `## 5. סוגי אירועים\n\n- \`wedding\` — חתונות\n- \`bar_mitzvah\` — בר/בת מצווה\n- \`corporate\` — אירועי חברה\n- \`birthday\` — ימי הולדת\n- \`holiday\` — חגים\n\n`;
+  }
+
+  md += `## 6. מחיר ותמחור\n\n`;
+  md += `- pricing_mode: \`${pricingM ? pricingM[1] : 'fixed / variable'}\`\n`;
+  md += `- תמיכה בVariants (תוספות, גדלים, עיטורים)\n`;
+  md += `- מחיר עם/ללא מע"מ\n`;
+  md += `- Food Cost % לפריט = (עלות חומרי גלם / מחיר מכירה) × 100\n\n`;
+
+  md += `## 7. נתיבי API — menu (${routes.length})\n\n${_routeTable(routes)}\n`;
+  if (foodCostRoutes.length) md += `## 8. נתיבי API — food-cost (${foodCostRoutes.length})\n\n${_routeTable(foodCostRoutes)}\n`;
+  if (supplierRoutes.length) md += `## 9. נתיבי API — suppliers (${supplierRoutes.length})\n\n${_routeTable(supplierRoutes)}\n`;
+  if (eventRoutes.length) md += `## 10. נתיבי API — events (${eventRoutes.length})\n\n${_routeTable(eventRoutes)}\n`;
   return md;
 }
 
 function _genGames(serverJs, today) {
-  const questRoutes = _extractRoutes(serverJs, '/api/quest-library');
+  const questRoutes     = _extractRoutes(serverJs, '/api/quest-library');
   const liveGamesRoutes = _extractRoutes(serverJs, '/api/live-games');
-  const games = [
-    { id:'trivia-1', name:'טריביה', file:'games/trivia-1.html', desc:'שאלות ידע כללי עם דירוג וניקוד' },
-    { id:'israel-geo-1', name:'גיאוגרפיה ישראל', file:'games/israel-geo-1.html', desc:'מפה אינטראקטיבית — שאל מה עיר, מי נחל, אין מבצר' },
-    { id:'math-1', name:'מתמטיקה', file:'games/math-1.html', desc:'חישובים ותרגילים מותאמים גיל' },
-    { id:'hebrew-letters-1', name:'אותיות עברית', file:'games/hebrew-letters-1.html', desc:'זיהוי ולמידת האלפבית העברי' },
-    { id:'english-alphabet-1', name:'אנגלית', file:'games/english-alphabet-1.html', desc:'זיהוי אותיות ומילים באנגלית' },
-    { id:'logic-puzzle-1', name:'חידות היגיון', file:'games/logic-puzzle-1.html', desc:'פאזלים ותעלומות לחשיבה ביקורתית' },
-    { id:'time-manager-1', name:'ניהול זמן', file:'games/time-manager-1.html', desc:'משחק סימולציה לניהול לו"ז ומשימות' },
-    { id:'finance-city-1', name:'עיר פיננסית', file:'games/finance-city-1.html', desc:'סימולציה כלכלית — ניהול עיר ותקציב' },
+  const triviaRoutes    = _extractRoutes(serverJs, '/api/trivia');
+
+  const GAMES = [
+    {
+      id: 'trivia-1', name: 'טריביה', file: 'games/trivia-1.html',
+      desc: 'שאלות ידע כללי — מרובה-שחקנים, דירוג, ניקוד',
+      mechanics: 'TIMER_SEC=15 לשאלה, QUESTIONS_PER_GAME=10, שאלות מ-trivia-questions.json (~3.2MB), QR להצטרפות מרחוק',
+      screens: ['lobby','question','answer-reveal','leaderboard'],
+    },
+    {
+      id: 'math-1', name: 'מתמטיקה', file: 'games/math-1.html',
+      desc: 'חישובים אריתמטיים מותאמים גיל — הפלוס/חיסור/כפל/חילוק',
+      mechanics: 'יצירה פרוצדורלית (לא JSON), EMOJIS[] לאנימציות, 3 מסכים: level-map → game → result',
+      screens: ['level-map','game','result'],
+    },
+    {
+      id: 'israel-geo-1', name: 'גיאוגרפיה ישראל', file: 'games/israel-geo-1.html',
+      desc: 'מפה אינטראקטיבית — זיהוי ערים, ים, נחלים, מבצרים',
+      mechanics: `CITIES: 20 ערים, LANDMARKS: 5 (כינרת, ים המלח, נגב, גולן, כרמל)`,
+      screens: ['map','question','score'],
+    },
+    {
+      id: 'hebrew-letters-1', name: 'אותיות עברית', file: 'games/hebrew-letters-1.html',
+      desc: 'זיהוי ולמידת 22 אותיות האלף-בית העברי',
+      mechanics: 'כרטיסיות flash, רמות: זיהוי → כתיב → מילים',
+      screens: ['menu','flashcard','quiz','result'],
+    },
+    {
+      id: 'english-alphabet-1', name: 'אנגלית ABC', file: 'games/english-alphabet-1.html',
+      desc: 'זיהוי 26 אותיות אנגלית + מילים בסיסיות',
+      mechanics: 'flash cards + listening (TTS), A–Z match + spelling',
+      screens: ['menu','flashcard','quiz','result'],
+    },
+    {
+      id: 'logic-puzzle-1', name: 'חידות היגיון', file: 'games/logic-puzzle-1.html',
+      desc: 'פאזלים ותעלומות לחשיבה ביקורתית',
+      mechanics: 'רמות קושי: קל/בינוני/קשה, רמז חד-פעמי לכל שאלה',
+      screens: ['difficulty','puzzle','hint','result'],
+    },
+    {
+      id: 'time-manager-1', name: 'ניהול זמן', file: 'games/time-manager-1.html',
+      desc: 'סימולציה — סידור משימות ביום מוגבל',
+      mechanics: 'drag & drop לוח שעות, bonus על יעילות, debrief סוף יום',
+      screens: ['briefing','scheduler','day-sim','debrief'],
+    },
+    {
+      id: 'finance-city-1', name: 'עיר פיננסית', file: 'games/finance-city-1.html',
+      desc: 'סימולציה כלכלית — ניהול תקציב עיר',
+      mechanics: 'בניית עיר, אירועים אקראיים, תקציב רבעוני, חיסכון/השקעה',
+      screens: ['city-map','budget','event','report'],
+    },
   ];
+
   let md = `# מפרט טכני — משחקים חינוכיים — Oneflow Life\n\n`;
-  md += `> תאריך: ${today}  \n> תיקייה: \`public/games/\`  \n> Backend: \`/api/quest-library\` + \`/api/live-games\`\n\n---\n\n`;
-  md += `## 1. תיאור\n\nמשחקים חינוכיים לילדים בסביבת FAMILY — מותאמים גיל ומשולבים עם מערכת Quests ופרסים. 8 משחקי HTML עצמאיים.\n\n`;
-  md += `## 2. המשחקים (${games.length})\n\n`;
-  md += `| שם | קובץ | תיאור |\n|----|------|--------|\n`;
-  games.forEach(g => { md += `| **${g.name}** | \`${g.file}\` | ${g.desc} |\n`; });
-  md += '\n';
-  md += `## 3. מנגנון Quests\n\n- ספרית שאלות: \`public/games/trivia-questions.json\` (~3.2MB)\n- כל שאלה ממוינת לקטגוריה, רמה וגיל\n- הצלחה במשחק → זיכוי נקודות / מטבעות ב-FAMILY\n- Live Games — תחרות בזמן אמת בין חברי משפחה / קהילה\n\n`;
-  md += `## 4. נתיבי API — quest-library (${questRoutes.length})\n\n${_routeTable(questRoutes)}\n`;
-  if (liveGamesRoutes.length) md += `## 5. נתיבי API — live-games (${liveGamesRoutes.length})\n\n${_routeTable(liveGamesRoutes)}\n`;
+  md += `> תאריך: ${today}  \n> תיקייה: \`public/games/\`  \n> Backend: \`/api/quest-library\` · \`/api/live-games\` · \`/api/trivia\`\n\n---\n\n`;
+  md += `## 1. תיאור\n\n8 משחקים חינוכיים לילדים בסביבת FAMILY — מותאמים גיל ומחוברים למערכת Quests (נקודות / מטבעות). כל משחק הוא קובץ HTML עצמאי ב-\`public/games/\`.\n\n`;
+
+  md += `## 2. רשימת משחקים\n\n`;
+  GAMES.forEach(g => {
+    md += `### 🎮 ${g.name} (\`${g.file}\`)\n\n`;
+    md += `**תיאור:** ${g.desc}  \n`;
+    md += `**מנגנון:** ${g.mechanics}  \n`;
+    md += `**מסכים:** ${g.screens.map(s=>`\`${s}\``).join(' → ')}  \n\n`;
+  });
+
+  md += `## 3. ספריית שאלות (Trivia)\n\n`;
+  md += `- קובץ: \`public/games/trivia-questions.json\` (~3.2MB)\n`;
+  md += `- מבנה: \`[{ id, question, options[], correct, category, difficulty, age_min }]\`\n`;
+  md += `- קטגוריות: ידע כללי, מדע, היסטוריה, גיאוגרפיה, ספורט, אמנות, טבע\n`;
+  md += `- רמות קושי: 1 (קל) → 3 (קשה)\n`;
+  md += `- TIMER_SEC: 15 שניות לשאלה\n`;
+  md += `- QUESTIONS_PER_GAME: 10 שאלות לסשן\n\n`;
+
+  md += `## 4. מנגנון Quests ופרסים\n\n`;
+  md += `- הצלחה במשחק → זיכוי נקודות/מטבעות בפרופיל FAMILY\n`;
+  md += `- Live Games: תחרות real-time בין חברי משפחה / קהילה (QR join)\n`;
+  md += `- Leaderboard: ציוני TOP 10 לכל משחק\n`;
+  md += `- Achievements: עיטורים על רצף ניצחונות / ניקוד גבוה\n\n`;
+
+  md += `## 5. גיאוגרפיה ישראל — מפת נתונים\n\n`;
+  md += `**20 ערים:** ירושלים, תל אביב, חיפה, באר שבע, נתניה, אשדוד, אשקלון, ראשון לציון, פתח תקווה, הרצליה, רמת גן, בני ברק, כפר סבא, נצרת, טבריה, עפולה, עכו, נהריה, ערד, אילת\n\n`;
+  md += `**5 אתרי ציון:** כינרת, ים המלח, הנגב, רמת הגולן, הר הכרמל\n\n`;
+
+  md += `## 6. נתיבי API — quest-library (${questRoutes.length})\n\n${_routeTable(questRoutes)}\n`;
+  if (liveGamesRoutes.length) md += `## 7. נתיבי API — live-games (${liveGamesRoutes.length})\n\n${_routeTable(liveGamesRoutes)}\n`;
+  if (triviaRoutes.length) md += `## 8. נתיבי API — trivia (${triviaRoutes.length})\n\n${_routeTable(triviaRoutes)}\n`;
   return md;
 }
 // ── END helpers ────────────────────────────────────────────────────────────────
