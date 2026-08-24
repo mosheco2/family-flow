@@ -2539,6 +2539,7 @@ function initBillingSection(group) {
 
     // ── populate bundle select ──
     const sel = getEl('billing-bundle-select');
+    const existingBilling = (() => { try { return typeof group?.billing_config === 'string' ? JSON.parse(group.billing_config) : (group?.billing_config || null); } catch(e) { return null; } })();
     if (sel) {
         const bizType = group?.business_type || 'other';
         const bundles = catalog.filter(g => g.bundle);
@@ -2547,19 +2548,24 @@ function initBillingSection(group) {
                 const m = b.modules[0];
                 return `<option value="${b.groupId}" data-price="${m.price}" data-desc="${(m.desc||'').replace(/"/g,'&quot;')}">${b.groupName} — ${m.price}₪/חו׳</option>`;
             }).join('');
-        // auto-select matching bundle
-        const matchId = `bundle_${bizType}`;
-        const match = bundles.find(b => b.groupId === matchId) ||
-                      (bizType === 'beauty' ? bundles.find(b => b.groupId === 'beauty_bundle') : null) ||
-                      (bizType === 'logistics' ? bundles.find(b => b.groupId === 'logistics_bundle') : null);
-        if (match) sel.value = match.groupId;
+        if (existingBilling) {
+            // billing_config קיים — כבד את מה שנשמר (גם אם ריק = ביטול חבילה)
+            sel.value = existingBilling.bundle_id || '';
+        } else {
+            // פתיחה ראשונה — auto-select לפי סוג עסק
+            const matchId = `bundle_${bizType}`;
+            const match = bundles.find(b => b.groupId === matchId) ||
+                          (bizType === 'beauty' ? bundles.find(b => b.groupId === 'beauty_bundle') : null) ||
+                          (bizType === 'logistics' ? bundles.find(b => b.groupId === 'logistics_bundle') : null);
+            if (match) sel.value = match.groupId;
+        }
     }
 
     // ── populate modules grid (non-bundle, non-free) ──
     const grid = getEl('billing-modules-grid');
     if (grid) {
         const nonBundleGroups = catalog.filter(g => !g.bundle);
-        const billing = (() => { try { return typeof group?.billing_config === 'string' ? JSON.parse(group.billing_config) : (group?.billing_config || {}); } catch(e) { return {}; } })();
+        const billing = existingBilling || {};
         const bizType = group?.business_type || 'other';
         // מודולים רלוונטיים לסוג עסק — לסימון מוקדם אם אין שמירה קיימת
         const defaultMods = BIZ_TYPE_MODULES[bizType] || [];
@@ -2611,7 +2617,7 @@ function initBillingSection(group) {
     }
 
     // ── restore saved values ──
-    const billing = (() => { try { return typeof group?.billing_config === 'string' ? JSON.parse(group.billing_config) : (group?.billing_config || {}); } catch(e) { return {}; } })();
+    const billing = existingBilling || {};
     const euEl = getEl('billing-extra-users');
     if (euEl) euEl.value = billing.extra_users || 0;
     const dtEl = getEl('billing-discount-type');
