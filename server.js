@@ -26949,50 +26949,72 @@ function _genBizEnv(serverJs, bizAppJs, today) {
   let md = `# מפרט טכני — סביבת BIZ (Oneflow Life)\n\n`;
   md += `> תאריך: ${today}  \n> קובץ: \`public/business.html\` + \`business-app.js\`  \n> Backend: \`server.js\` → prefix \`/api/biz\`\n\n---\n\n`;
 
-  md += `## 1. ארכיטקטורה\n\n`;
-  md += `- **Frontend**: Vanilla JS + TailwindCSS (ללא framework)\n`;
-  md += `- **Backend**: Node.js / Express + PostgreSQL\n`;
-  md += `- **4 סביבות**: FAMILY (\`/\`), BIZ (\`/business.html\`), SUPER-ADMIN (\`/sa.html\`), ZONE-MANAGER (\`/zone-manager.html\`)\n`;
-  md += `- **גישה**: JWT token ב-\`Authorization\` header, מאומת ע"י \`verifyBiz\` middleware\n\n`;
+  md += `## 1. מטרה ותפקיד הסביבה\n\n`;
+  md += `סביבת BIZ היא לוח הבקרה של בעל העסק ועובדיו. היא מאפשרת ניהול מלא של תהליכי העסק — הזמנות, לקוחות, צוות, מלאי, תפריט, תשלומים, שיווק ועוד — הכל ממקום אחד. הסביבה **מותאמת לסוג העסק** שנבחר באונבורדינג: מסעדה רואה מודולים אחרים ממספרה או ממאמן כושר.\n\n`;
+  md += `המושג המרכזי: **billing_config** — מסמך JSON שמגדיר אילו מודולים פתוחים לעסק הספציפי. כל ניסיון לגשת למודול שאינו ב-billing_config מציג modal שדורש שדרוג.\n\n`;
 
-  md += `## 2. טאבים ומסכים (${allTabs.length})\n\n`;
+  md += `## 2. סוגי משתמשים\n\n`;
+  md += `| תפקיד | מי זה | מה הוא יכול |\n|--------|--------|-------------|\n`;
+  md += `| **ADMIN** | בעל עסק / מנכ"ל | גישה מלאה לכל מה שפתוח ב-billing_config; ניהול עובדים, billing, הגדרות |\n`;
+  md += `| **MANAGER** | מנהל זוטר | גישה לטאבים פתוחים שהוקצו לו; אין גישה ל-billing |\n`;
+  md += `| **SENIOR** | עובד בכיר | גישה מוגבלת — לפי הרשאות מפורשות שהוגדרו |\n`;
+  md += `| **MEMBER** | עובד רגיל | גישה מינימלית — מה שהוקצה מפורשות בלבד |\n\n`;
+
+  md += `## 3. ארכיטקטורה טכנית\n\n`;
+  md += `- **Frontend**: Vanilla JS + TailwindCSS (ללא framework)\n`;
+  md += `- **Backend**: Node.js / Express + PostgreSQL (Render.com)\n`;
+  md += `- **אימות**: JWT token ב-\`Authorization: Bearer\` header → middleware \`verifyBiz()\`\n`;
+  md += `- **קובץ ראשי**: \`business-app.js\` — טוען את כל המודולים, מנהל navigation ומצב\n`;
+  md += `- **ניווט**: \`GNAV_GROUPS\` (5 קבוצות ניווט) + \`ALL_TABS\` + \`BUSINESS_TYPES[].modules[]\`\n\n`;
+
+  md += `## 4. לוגיקות מרכזיות\n\n`;
+  md += `### 4.1 מחזור חיי טאב\n`;
+  md += `\`\`\`\nloadBizDashboard()\n  → fetch /api/biz/me  (billing_config + profile)\n  → applyBusinessTypeFilter()  (מסנן GNAV_GROUPS לפי business_type)\n  → renderNav()  (מציג רק טאבים פתוחים)\n  → switchTab('dashboard')  (טאב ברירת מחדל)\n\`\`\`\n\n`;
+  md += `### 4.2 חסימת מודולים\n`;
+  md += `\`\`\`\nswitchTab(tabId)\n  → בדיקה: האם tabId קיים ב-billing_config.modules עם open:true?\n  → כן → render הטאב\n  → לא → showUpgradeModal(tabId)  (modal עם כפתור שדרוג)\n\`\`\`\n\n`;
+  md += `### 4.3 סוג עסק\n`;
+  md += `- נבחר **פעם אחת** בלבד — באונבורדינג (wiz-2) או ע"י SA\n`;
+  md += `- קובע אילו מודולים ייוצגו כברירת מחדל ב-billing_config\n`;
+  md += `- **לא ניתן לשנות** מממשק BIZ הרגיל\n\n`;
+
+  md += `## 5. השפעות על מערכות אחרות\n\n`;
+  md += `| מערכת | השפעה |\n|--------|--------|\n`;
+  md += `| **FAMILY** | לקוח שמבצע הזמנה ב-Storefront → מופיע כ-order בBIZ |\n`;
+  md += `| **Zone Manager** | ZM מאשר עסק חדש → מאפשר פתיחת billing_config |\n`;
+  md += `| **Super Admin** | SA שולט על billing, impersonation, ובחירת business_type |\n`;
+  md += `| **Storefront** | שינוי מוצרים/תפריט ב-BIZ → מתעדכן מיידית ב-Storefront הציבורי |\n`;
+  md += `| **כל העם** | עסק יכול לפרסם תוכן מקצועי דרך מודול KH |\n\n`;
+
+  md += `## 6. חוקיות ואילוצים\n\n`;
+  md += `- **חוק 1**: בחירת סוג עסק — **רק** באונבורדינג או SA. לעולם לא ממסך BIZ הרגיל\n`;
+  md += `- **חוק 2**: כל גישה ל-API דורשת \`verifyBiz\` — אין endpoints פתוחים ל-BIZ ללא אימות\n`;
+  md += `- **חוק 3**: MEMBER לא יכול לשנות billing_config, להוסיף עובדים, או לגשת ל-/api/sa\n`;
+  md += `- **חוק 4**: tabs עם \`data-beauty-only="1"\` מוסתרים כברירת מחדל — מופיעים רק ל-beauty\n`;
+  md += `- **חוק 5**: \`applyBusinessTypeFilter()\` חייב לרוץ אחרי כל שינוי ב-billing_config\n\n`;
+
+  md += `## 7. טאבים ומסכים (${allTabs.length})\n\n`;
   md += `| ID | שם |\n|----|----|\n`;
   allTabs.forEach(t => { md += `| \`${t.id}\` | ${t.name} |\n`; });
   md += '\n';
 
-  md += `## 3. מודולים — תיאור מלא (${modules.length})\n\n`;
+  md += `## 8. מודולים — תיאור מלא (${modules.length})\n\n`;
   md += `| מזהה | שם | תיאור |\n|------|-----|-------|\n`;
   modules.forEach(m => { md += `| ${m.icon} \`${m.id}\` | ${m.name} | ${m.desc} |\n`; });
   md += '\n';
 
-  md += `## 4. סוגי עסק ומודולים מוגדרים כברירת מחדל\n\n`;
+  md += `## 9. סוגי עסק ומודולים (${bizTypes.length})\n\n`;
   bizTypes.forEach(bt => {
     md += `### ${bt.icon} ${bt.name} (\`${bt.id}\`)\n\n`;
     if (bt.modules.length) md += bt.modules.map(m => `\`${m}\``).join(', ') + '\n\n';
     else md += '_כל המודולים_\n\n';
   });
 
-  md += `## 5. תפקידי עובדים (${roleTypes.length})\n\n`;
+  md += `## 10. תפקידי עובדים (${roleTypes.length})\n\n`;
   md += `| ID | שם | מחיר/חודש |\n|----|-----|----------|\n`;
   roleTypes.forEach(r => { md += `| ${r.icon} \`${r.id}\` | ${r.name} | ₪${r.price} |\n`; });
   md += '\n';
 
-  md += `## 6. נתיבי API (${routes.length})\n\n${_routeTable(routes)}\n`;
-
-  md += `## 7. מנגנון חסימת מודולים\n\n`;
-  md += `- מקור גישה יחיד: \`billing_config.modules\` עם \`open:true\`\n`;
-  md += `- \`applyBusinessTypeFilter()\` — מריץ לאחר טעינה ולאחר כל שינוי\n`;
-  md += `- \`switchTab()\` — מיירט ניווט ומציג modal לטאבים נעולים\n`;
-  md += `- bundle modules מחולצים מ-\`desc\` field ב-PRICING_CATALOG\n`;
-  md += `- \`billing_config\` מבנה: \`{ bundle_id, modules:[{id,open,billing,custom_price?}], monthly_total }\`\n\n`;
-
-  md += `## 8. הרשאות ותפקידים\n\n`;
-  md += `| תפקיד | גישה |\n|--------|------|\n`;
-  md += `| ADMIN | בעל העסק — גישה לפי billing_config בלבד |\n`;
-  md += `| MANAGER | מנהל — גישה לטאבים פתוחים + הרשאות מפורשות |\n`;
-  md += `| SENIOR | עובד בכיר — לפי הרשאות |\n`;
-  md += `| MEMBER | עובד — לפי הרשאות בלבד |\n`;
-
+  md += `## 11. נתיבי API (${routes.length})\n\n${_routeTable(routes)}\n`;
   return md;
 }
 
@@ -27040,25 +27062,58 @@ function _genFamilyEnv(serverJs, appJs, today) {
   const navGroups = _extractFamilyNavGroups(appJs);
 
   let md = `# מפרט טכני — סביבת FAMILY (Oneflow Life)\n\n`;
-  md += `> תאריך: ${today}  \n> קבצים: \`public/index.html\` + \`app.js\`  \n> Backend prefix: \`/api/family\`\n\n---\n\n`;
-  md += `## 1. תיאור\n\nסביבת FAMILY היא הסביבה הצרכנית — ניהול משפחה, קהילה, הזמנות, רכישות, תקציב וחינוך.\n\n`;
+  md += `> תאריך: ${today}  \n> קבצים: \`public/index.html\` + \`public/app.js\`  \n> Backend prefix: \`/api/family\`\n\n---\n\n`;
+
+  md += `## 1. מטרה ותפקיד הסביבה\n\n`;
+  md += `סביבת FAMILY היא "הבית הדיגיטלי" של המשפחה — הסביבה הצרכנית המרכזית במערכת. היא נותנת מענה לשני צרכים במקביל: (א) ניהול חיי המשפחה הפנימיים (תקציב, משימות, קניות, חינוך), ו-(ב) ממשק לצריכת שירותי עסקים קהילתיים (הזמנות, מרקטפלייס, תוכן מקומי).\n\n`;
+  md += `הסביבה בנויה על ה-URL הראשי (\`/\`) ומגישה ל**כל** חברי המשפחה — מהורים עד ילדים — עם חוויה המותאמת לתפקיד. ADMIN המשפחה שולט על הגדרות הבית; MEMBER רואה רק את מה שהוקצה לו.\n\n`;
+
+  md += `## 2. סוגי משתמשים\n\n`;
+  md += `| תפקיד | מי זה | מה הוא יכול |\n|--------|--------|-------------|\n`;
+  md += `| **ADMIN** | הורה / ראש משפחה | ניהול מלא — תקציב, חברים, הגדרות קהילה, הרשאות |\n`;
+  md += `| **MEMBER** | בן/בת זוג, ילד | גישה לטאבים שהוקצו — משימות, קניות, מרקטפלייס |\n`;
+  md += `| **GUEST** | מוזמן זמני | צפייה בלבד בחלקים ציבוריים |\n\n`;
+
+  md += `## 3. לוגיקות מרכזיות\n\n`;
+  md += `### 3.1 טעינה ראשונית\n`;
+  md += `\`\`\`\nDOMContentLoaded\n  → checkAuth()  (JWT מ-localStorage)\n  → אין token → /login\n  → יש token → loadFamilyDashboard()\n    → fetch /api/family/me  (פרופיל + תפקיד + קהילה)\n    → renderNav(role)  (לפי ROLE_DEFAULTS)\n    → switchTab('home')\n\`\`\`\n\n`;
+  md += `### 3.2 הרשאות לפי תפקיד\n`;
+  md += `\`ROLE_DEFAULTS\` מגדיר אילו טאבים גלויים לכל תפקיד. \`switchTab(id)\` בודק האם הטאב מורשה לפני render — אחרת redirect לטאב ראשי.\n\n`;
+  md += `### 3.3 קהילה\n`;
+  md += `כל משפחה שייכת לקהילה גיאוגרפית. הקהילה קובעת: אילו עסקים מופיעים במרקטפלייס, אילו כתבות מופיעות ב-"כל העם" ב-scope=local, ואיזה ZM מנהל את האזור.\n\n`;
+
+  md += `## 4. השפעות על מערכות אחרות\n\n`;
+  md += `| מערכת | השפעה |\n|--------|--------|\n`;
+  md += `| **BIZ** | הזמנה שמשפחה שולחת → order ב-BIZ של העסק |\n`;
+  md += `| **Marketplace** | FAMILY גולשת ב-marketplace.html לחיפוש עסקים |\n`;
+  md += `| **כל העם** | FAMILY קוראת ומגיבה לכתבות קהילתיות |\n`;
+  md += `| **Zone Manager** | ZM מנהל את הקהילה שהמשפחה שייכת אליה |\n`;
+  md += `| **Super Admin** | SA יכול ל-impersonate חשבון FAMILY לטיפול בבעיות |\n`;
+  md += `| **Games** | ילדים משחקים → נקודות נצברות בפרופיל FAMILY |\n\n`;
+
+  md += `## 5. חוקיות ואילוצים\n\n`;
+  md += `- **חוק 1**: אין גישה ל-FAMILY ללא JWT תקף — כל endpoint מוגן ע"י \`verifyFamily\`\n`;
+  md += `- **חוק 2**: MEMBER לא יכול לשנות הרשאות של חברים אחרים\n`;
+  md += `- **חוק 3**: שינוי קהילה — דורש אישור ADMIN + אישור ZM של הקהילה החדשה\n`;
+  md += `- **חוק 4**: ילד (MEMBER עם גיל < 13) — גישה למשחקים ואקדמיה בלבד ברירת מחדל\n`;
+  md += `- **חוק 5**: תקציב משפחתי — נגיש רק לתפקיד ADMIN או MEMBER עם הרשאה מפורשת\n\n`;
 
   if (tabs.length) {
-    md += `## 2. טאבים ומסכים (${tabs.length})\n\n`;
+    md += `## 6. טאבים ומסכים (${tabs.length})\n\n`;
     md += `| ID | שם |\n|----|----|\n`;
     tabs.forEach(t => { md += `| \`${t.id}\` | ${t.name} |\n`; });
     md += '\n';
   }
 
   if (Object.keys(navGroups).length) {
-    md += `## 3. ניווט — קבוצות (FAMILY_GNAV_GROUPS)\n\n`;
+    md += `## 7. ניווט — קבוצות (FAMILY_GNAV_GROUPS)\n\n`;
     Object.entries(navGroups).forEach(([g, tbs]) => {
       md += `**${g}**: ${tbs.map(t=>`\`${t}\``).join(', ')}\n\n`;
     });
   }
 
   if (Object.keys(roles).length) {
-    md += `## 4. הרשאות לפי תפקיד (ROLE_DEFAULTS)\n\n`;
+    md += `## 8. הרשאות לפי תפקיד (ROLE_DEFAULTS)\n\n`;
     md += `| תפקיד | טאבים זמינים |\n|--------|-------------|\n`;
     Object.entries(roles).forEach(([role, tbs]) => {
       md += `| **${role}** | ${tbs.map(t=>`\`${t}\``).join(', ')} |\n`;
@@ -27066,58 +27121,89 @@ function _genFamilyEnv(serverJs, appJs, today) {
     md += '\n';
   }
 
-  md += `## 5. נתיבי API — Family (${routes.length})\n\n${_routeTable(routes)}\n`;
-  md += `## 6. נתיבי Auth (${authRoutes.length})\n\n${_routeTable(authRoutes)}\n`;
-  if (commRoutes.length) md += `## 7. נתיבי Community (${commRoutes.length})\n\n${_routeTable(commRoutes)}\n`;
+  md += `## 9. נתיבי API — Family (${routes.length})\n\n${_routeTable(routes)}\n`;
+  md += `## 10. נתיבי Auth (${authRoutes.length})\n\n${_routeTable(authRoutes)}\n`;
+  if (commRoutes.length) md += `## 11. נתיבי Community (${commRoutes.length})\n\n${_routeTable(commRoutes)}\n`;
 
   return md;
 }
 
 function _genZoneEnv(serverJs, zoneAppJs, today) {
-  const routes = _extractRoutes(serverJs, '/api/zone');
+  const routes   = _extractRoutes(serverJs, '/api/zone');
   const zmRoutes = _extractRoutes(serverJs, '/api/zone-manager');
 
-  // extract zmSwitchTab tabs
   const zmTabsM = zoneAppJs.match(/zmSwitchTab.*?\[([^\]]+)\]/);
-  const zmTabs = zmTabsM ? zmTabsM[1].replace(/['"`\s]/g,'').split(',').filter(Boolean) : [];
+  const zmTabs  = zmTabsM ? zmTabsM[1].replace(/['"`\s]/g,'').split(',').filter(Boolean) : [];
 
-  // extract lead/status labels
-  const leadTypeM = zoneAppJs.match(/LEAD_TYPE_LABELS\s*=\s*\{([^}]+)\}/);
+  const leadTypeM   = zoneAppJs.match(/LEAD_TYPE_LABELS\s*=\s*\{([^}]+)\}/);
   const leadStatusM = zoneAppJs.match(/LEAD_STATUS_LABELS\s*=\s*\{([^}]+)\}/);
   const actionLabelsM = zoneAppJs.match(/ACTION_LABELS\s*=\s*\{([^}]+)\}/);
 
   let md = `# מפרט טכני — Zone Manager וקהילות (Oneflow Life)\n\n`;
-  md += `> תאריך: ${today}  \n> קובץ: \`public/zone-manager.html\` + \`zone-manager-app.js\`  \n> Backend prefix: \`/api/zone\` + \`/api/zone-manager\`\n\n---\n\n`;
-  md += `## 1. תיאור\n\nZone Manager מנהל קהילות גיאוגרפיות, אישור עסקים חדשים, קמפיינים שיווקיים, לידים, עמלות ו-WhatsApp alerts.\n\n`;
+  md += `> תאריך: ${today}  \n> קובץ: \`public/zone-manager.html\` + \`public/zone-manager-app.js\`  \n> Backend prefixes: \`/api/zone\` · \`/api/zone-manager\`\n\n---\n\n`;
+
+  md += `## 1. מטרה ותפקיד הסביבה\n\n`;
+  md += `Zone Manager (ZM) הוא השכבה המבצעית שמחברת בין Oneflow (SA) לבין הקהילות המקומיות בשטח. כל ZM אחראי על **אזור גיאוגרפי** אחד (קהילה אחת או מספר קהילות קרובות).\n\n`;
+  md += `ה-ZM הוא "שגריר השטח" — הוא מגייס עסקים חדשים לפלטפורמה, מאשר את הצטרפותם, מנהל לידים, מריץ קמפיינים שיווקיים מקומיים, ומפקח על תוכן קהילתי (כל העם). הוא נמצא בין SA שמנהל מלמעלה לבין העסקים שפועלים בשטח.\n\n`;
+  md += `כל עסק שנרשם — עובר דרך ZM לאישור. כל תוכן מקומי שמפורסם — עובר אישור ZM. הוא גם מקבל עמלה על כל עסק שגייס.\n\n`;
+
+  md += `## 2. סוגי משתמשים\n\n`;
+  md += `| תפקיד | מי זה | מה הוא יכול |\n|--------|--------|-------------|\n`;
+  md += `| **ZONE_MANAGER** | מנהל אזור | ניהול מלא של הקהילות שלו — עסקים, תוכן, לידים, קמפיינים |\n`;
+  md += `| **SUPER_ADMIN** | SA | גישה לכל ה-ZM, מינוי/הסרת ZM, גישה לנתונים |\n`;
+  md += `- ZM **אינו** יכול לגשת לקהילות מחוץ לאזור שלו\n`;
+  md += `- ZM **אינו** יכול לשנות billing_config של עסקים — זה SA בלבד\n\n`;
+
+  md += `## 3. לוגיקות מרכזיות\n\n`;
+  md += `### 3.1 אישור עסק חדש\n`;
+  md += `\`\`\`\nעסק נרשם (בiz-onboarding)\n  → יוצר biz_request ב-DB\n  → ZM מקבל התראה (WhatsApp + inbox)\n  → ZM בודק: מיקום, סוג עסק, ניירת\n  → לחיצה "אשר" → status='active', עסק נפתח ב-BIZ\n  → לחיצה "דחה" → email אוטומטי לעסק עם סיבה\n\`\`\`\n\n`;
+  md += `### 3.2 מחזור חיי ליד\n`;
+  md += `\`\`\`\nZM יוצר ליד (עסק פוטנציאלי)\n  → lead.status = 'new'\n  → ZM מבצע פעולות CRM (שיחה, פגישה, הצעה)\n  → status: new → contacted → meeting → proposal → signed / lost\n  → signed → ייצור biz_request אוטומטי\n\`\`\`\n\n`;
+  md += `### 3.3 עמלות\n`;
+  md += `ZM מקבל % מההכנסה של כל עסק שגייס. המערכת מחשבת עמלה חודשית ומוצגת בטאב "commissions".\n\n`;
+
+  md += `## 4. השפעות על מערכות אחרות\n\n`;
+  md += `| מערכת | השפעה |\n|--------|--------|\n`;
+  md += `| **BIZ** | ZM מאשר עסקים חדשים לפני שיכולים לפעול |\n`;
+  md += `| **FAMILY** | קהילות ש-ZM מנהל → מה שמשפחות רואות ב-marketplace |\n`;
+  md += `| **כל העם** | ZM מאשר/דוחה תוכן מקומי בתור עורך |\n`;
+  md += `| **Super Admin** | SA מפקח על ZM, מציב יעדים, מחלק עמלות |\n\n`;
+
+  md += `## 5. חוקיות ואילוצים\n\n`;
+  md += `- **חוק 1**: ZM גש רק לקהילות שמוקצות לו (zone_id check בכל endpoint)\n`;
+  md += `- **חוק 2**: ZM לא יכול לאשר עסק מחוץ לאזור שלו\n`;
+  md += `- **חוק 3**: אישור תוכן כל העם — ZM רשאי לאשר scope=local בלבד; scope=national → SA\n`;
+  md += `- **חוק 4**: ZM לא יכול לשנות מחירי subscription — SA בלבד\n`;
+  md += `- **חוק 5**: ב-impersonation ע"י SA — הפעולות נרשמות ב-audit log עם flag 'impersonated'\n\n`;
 
   if (zmTabs.length) {
-    md += `## 2. טאבים — Zone Manager UI\n\n`;
+    md += `## 6. טאבים — Zone Manager UI\n\n`;
     md += `| Tab ID | תיאור |\n|--------|-------|\n`;
-    const tabDesc = { zones:'ניהול קהילות באזור', 'biz-requests':'בקשות עסקים ממתינות', marketing:'קמפיינים שיווקיים', leads:'לידים וגיוס', inbox:'הודעות נכנסות', commissions:'עמלות', content:'תוכן', 'kol-haam':'כל העם' };
+    const tabDesc = { zones:'ניהול קהילות באזור', 'biz-requests':'בקשות עסקים ממתינות', marketing:'קמפיינים שיווקיים', leads:'לידים וגיוס', inbox:'הודעות נכנסות', commissions:'עמלות', content:'תוכן', 'kol-haam':'כל העם — אישור תוכן' };
     zmTabs.forEach(t => { md += `| \`${t}\` | ${tabDesc[t] || ''} |\n`; });
     md += '\n';
   }
 
   if (leadTypeM) {
-    md += `## 3. סוגי לידים\n\n`;
+    md += `## 7. סוגי לידים\n\n`;
     md += leadTypeM[1].trim().split(',').map(p => `- ${p.replace(/['"`]/g,'').replace(':','**: **').trim()}`).join('\n');
     md += '\n\n';
   }
 
   if (leadStatusM) {
-    md += `## 4. סטטוסי ליד\n\n`;
+    md += `## 8. סטטוסי ליד\n\n`;
     md += leadStatusM[1].trim().split(',').map(p => `- ${p.replace(/['"`]/g,'').replace(':','**: **').trim()}`).join('\n');
     md += '\n\n';
   }
 
   if (actionLabelsM) {
-    md += `## 5. סוגי פעולות CRM\n\n`;
+    md += `## 9. סוגי פעולות CRM\n\n`;
     md += actionLabelsM[1].trim().split(',').map(p => `- ${p.replace(/['"`]/g,'').replace(':','**: **').trim()}`).join('\n');
     md += '\n\n';
   }
 
-  md += `## 6. נתיבי API — zone (${routes.length})\n\n${_routeTable(routes)}\n`;
-  if (zmRoutes.length) md += `## 7. נתיבי API — zone-manager (${zmRoutes.length})\n\n${_routeTable(zmRoutes)}\n`;
+  md += `## 10. נתיבי API — zone (${routes.length})\n\n${_routeTable(routes)}\n`;
+  if (zmRoutes.length) md += `## 11. נתיבי API — zone-manager (${zmRoutes.length})\n\n${_routeTable(zmRoutes)}\n`;
   return md;
 }
 
@@ -27142,37 +27228,85 @@ function _extractKHSATabs(saAppJs) {
 }
 
 function _genSAEnv(serverJs, saHtml, saAppJs, today) {
-  const routes = _extractRoutes(serverJs, '/api/sa');
+  const routes    = _extractRoutes(serverJs, '/api/sa');
   const saModules = _extractSAModules(saAppJs);
-  const khTabs = _extractKHSATabs(saAppJs);
+  const khTabs    = _extractKHSATabs(saAppJs);
 
-  // extract SA nav sections from saHtml
   const sections = [...saHtml.matchAll(/data-section=['"]([^'"]+)['"]/g)].map(m => m[1]).filter(Boolean).slice(0, 50);
 
   let md = `# מפרט טכני — Super Admin (Oneflow Life)\n\n`;
-  md += `> תאריך: ${today}  \n> קבצים: \`public/sa.html\` + \`sa-app.js\`  \n> Backend prefix: \`/api/sa\`\n\n---\n\n`;
-  md += `## 1. תיאור\n\nSA הוא לוח הבקרה המרכזי לניהול כלל המערכת: לקוחות, עסקים, billing, impersonation, SMS, AI, banners, Zone Managers, תוכן ו-KH.\n\n`;
-  md += `## 2. אימות\n\n- Token: \`SA_SECRET_TOKEN_2026\`\n- Headers מקובלים: \`Authorization: Bearer <token>\` או \`x-sa-token: <token>\`\n- Middleware: \`verifySA()\`\n\n`;
+  md += `> תאריך: ${today}  \n> קבצים: \`public/sa.html\` + \`public/sa-app.js\`  \n> Backend prefix: \`/api/sa\`\n\n---\n\n`;
+
+  md += `## 1. מטרה ותפקיד הסביבה\n\n`;
+  md += `Super Admin (SA) הוא לוח הבקרה הכול-יכול של Oneflow — הגישה העליונה לכלל המערכת. רק מי שמחזיק ב-\`SA_SECRET_TOKEN_2026\` יכול להיכנס.\n\n`;
+  md += `ה-SA מנהל: **לקוחות** (Family + BIZ), **billing ו-subscriptions**, **Zone Managers**, **banners פרסומיים**, **SMS ו-AI**, **כל העם (KH)**, **impersonation** לכניסה לחשבון של כל משתמש לצרכי תמיכה, **אפיון ומסמכי מערכת** (הטאב שבו קיים הכפתור לעדכון מסמכים אלה), **הגדרות גלובליות** של הפלטפורמה.\n\n`;
+  md += `SA היא הסביבה שמבצעת פעולות שאסורות לכל שאר הסביבות — כולל בחירת/שינוי business_type, מתן גישות מיוחדות, וניהול כספי.\n\n`;
+
+  md += `## 2. סוגי משתמשים\n\n`;
+  md += `| תפקיד | תיאור |\n|--------|-------|\n`;
+  md += `| **SUPER_ADMIN** | גישה מלאה — כל endpoint, כל פעולה |\n`;
+  md += `| **SA_VIEWER** | קריאה בלבד (אם קיים — לצוות תמיכה) |\n`;
+  md += `- SA **אינו** יכול להיות מאומת ע"י JWT רגיל — דורש SA token נפרד\n`;
+  md += `- כל פעולת SA רגישה נרשמת ב-audit log\n\n`;
+
+  md += `## 3. לוגיקות מרכזיות\n\n`;
+  md += `### 3.1 Impersonation\n`;
+  md += `\`\`\`\nSA בוחר משתמש → POST /api/sa/impersonate/{userId}\n  → מקבל JWT זמני של המשתמש\n  → כניסה ל-BIZ / FAMILY כאותו משתמש\n  → כל פעולה מסומנת 'impersonated_by_sa' ב-audit\n  → SA חוזר עם "exit impersonation"\n\`\`\`\n\n`;
+  md += `### 3.2 עדכון billing_config\n`;
+  md += `\`\`\`\nSA בוחר עסק → שולח billing bundle/modules\n  → POST /api/sa/biz/{bizId}/billing\n  → DB מתעדכן\n  → העסק מקבל push notification / email\n  → ב-BIZ: applyBusinessTypeFilter() ירוץ בטעינה הבאה\n\`\`\`\n\n`;
+  md += `### 3.3 עדכון מסמכי אפיון (מסמך זה)\n`;
+  md += `\`\`\`\nSA → טאב "אפיון" → לחיצה "עדכן"\n  → POST /api/sa/docs/refresh/{doc}\n  → server.js סורק קבצי JS/HTML\n  → מחולץ מידע ונכתב ל-.md\n  → response: { success, lines }\n\`\`\`\n\n`;
+
+  md += `## 4. יכולות עיקריות\n\n`;
+  md += `| יכולת | תיאור |\n|--------|-------|\n`;
+  md += `| לקוחות | צפייה, חיפוש, עריכה, suspend/restore |\n`;
+  md += `| עסקים | אישור, billing, impersonation, business_type |\n`;
+  md += `| Zone Managers | מינוי, אזורים, עמלות, ביצועים |\n`;
+  md += `| billing | subscriptions, חיובים, היסטוריה |\n`;
+  md += `| banners | יצירה, שיוך לקהילות, לוח זמנים |\n`;
+  md += `| SMS / AI | שליחת הודעות, AI prompt management |\n`;
+  md += `| כל העם | sa-queue, כותבים, קטגוריות, כלכלה |\n`;
+  md += `| אפיון | עדכון מסמכי מפרט טכני |\n\n`;
+
+  md += `## 5. השפעות על מערכות אחרות\n\n`;
+  md += `| מערכת | השפעה |\n|--------|--------|\n`;
+  md += `| **BIZ** | SA שולט על billing_config וbusiness_type |\n`;
+  md += `| **FAMILY** | SA יכול לנהל/suspend חשבונות משפחה |\n`;
+  md += `| **Zone Manager** | SA ממנה ומנהל ZMs |\n`;
+  md += `| **כל העם** | SA אחראי על sa-queue — תוכן ארצי |\n`;
+  md += `| **כל המערכת** | הגדרות גלובליות (feature flags, maintenance mode) |\n\n`;
+
+  md += `## 6. חוקיות ואילוצים\n\n`;
+  md += `- **חוק 1**: \`verifySA()\` — כל endpoint SA דורש SA token; JWT רגיל נדחה ב-403\n`;
+  md += `- **חוק 2**: impersonation — לא ניתן ל-impersonate SA אחר\n`;
+  md += `- **חוק 3**: שינוי business_type — רשאי **רק** SA (ו-wizard ראשוני)\n`;
+  md += `- **חוק 4**: מחיקת עסק / משפחה — soft-delete בלבד; hard-delete דורש אישור שני מ-SA אחר\n`;
+  md += `- **חוק 5**: audit log — כל POST/PATCH/DELETE של SA נרשם עם timestamp + SA user id\n\n`;
+
+  md += `## 7. אימות\n\n`;
+  md += `- Token: \`SA_SECRET_TOKEN_2026\` (env var)\n`;
+  md += `- Headers: \`Authorization: Bearer <token>\` או \`x-sa-token: <token>\`\n`;
+  md += `- Middleware: \`verifySA()\`\n\n`;
 
   if (sections.length) {
-    md += `## 3. סקשנים ב-UI (data-section)\n\n${sections.map(s => `- \`${s}\``).join('\n')}\n\n`;
+    md += `## 8. סקשנים ב-UI (data-section)\n\n${sections.map(s => `- \`${s}\``).join('\n')}\n\n`;
   }
 
   if (saModules.length) {
-    md += `## 4. מודולי משפחה (SA_MODULE_LIST) — ${saModules.length} מודולים\n\n`;
+    md += `## 9. מודולי FAMILY (SA_MODULE_LIST) — ${saModules.length} מודולים\n\n`;
     md += `| Key | שם |\n|-----|----|\n`;
     saModules.forEach(m => { md += `| ${m.icon} \`${m.key}\` | ${m.name} |\n`; });
     md += '\n';
   }
 
   if (khTabs.length) {
-    md += `## 5. טאבים — כל העם (KH_SA_TABS)\n\n`;
+    md += `## 10. טאבים — כל העם (KH_SA_TABS)\n\n`;
     md += `| Key | תווית |\n|-----|-------|\n`;
     khTabs.forEach(t => { md += `| \`${t.key}\` | ${t.label} |\n`; });
     md += '\n';
   }
 
-  md += `## 6. נתיבי API (${routes.length})\n\n${_routeTable(routes)}\n`;
+  md += `## 11. נתיבי API (${routes.length})\n\n${_routeTable(routes)}\n`;
   return md;
 }
 
@@ -27274,7 +27408,41 @@ function _genKolHaam(serverJs, kolHaamAppJs, today) {
 
   let md = `# מפרט טכני — כל העם (Kol Haam) — Oneflow Life\n\n`;
   md += `> תאריך: ${today}  \n> קבצים: \`public/kol-haam.html\` + \`public/kol-haam-app.js\` + \`public/kol-haam-author.html\`  \n> Backend prefix: \`/api/kol-haam\`\n\n---\n\n`;
-  md += `## 1. תיאור\n\n"כל העם" היא פלטפורמת תוכן קהילתית — כתבות, עדכונים מקומיים, ניהול כותבים ועריכה. מופיעה כטאב בסביבת FAMILY וניהול ב-SA + ZM. תומכת ב-3 רמות scope, 4 סוגי תוכן, 16 view states.\n\n`;
+
+  md += `## 1. מטרה ותפקיד הסביבה\n\n`;
+  md += `"כל העם" היא פלטפורמת תוכן קהילתית מובנית בתוך Oneflow — מענה לצורך של קהילות מקומיות לייצר ולצרוך תוכן רלוונטי לאזור שלהם. היא מאפשרת **פרסום עצמאי** של כתבות, שאלות, סיפורי הצלחה ומדריכים, עם מנגנון עריכה/אישור מדורג (כותב → ZM → SA).\n\n`;
+  md += `הפלטפורמה פועלת על 3 רמות scope: **local** (תוכן בתוך הקהילה), **national** (תוכן ארצי), **following** (תוכן מכותבים שאני עוקב). זה מאפשר לאותו מאמר להיות גלוי לקהילה בלבד, או להגיע לכל המשתמשים ברחבי הארץ.\n\n`;
+
+  md += `## 2. סוגי משתמשים\n\n`;
+  md += `| תפקיד | מי זה | מה הוא יכול |\n|--------|--------|-------------|\n`;
+  md += `| **READER** | כל משתמש FAMILY | קריאה, שמירה, תגובה, שיתוף |\n`;
+  md += `| **AUTHOR** | משתמש שהגיש בקשה לכתוב | כתיבה, עריכה, שליחה לאישור |\n`;
+  md += `| **ZM** | Zone Manager | אישור/דחיית תוכן scope=local |\n`;
+  md += `| **SA** | Super Admin | אישור תוכן scope=national, ניהול כותבים/קטגוריות |\n\n`;
+
+  md += `## 3. לוגיקות מרכזיות\n\n`;
+  md += `### 3.1 מחזור חיי תוכן\n`;
+  md += `\`\`\`\nכותב שומר טיוטה (draft)\n  → שולח לפרסום\n  → scope=local  → ZM queue → ZM מאשר → published\n  → scope=national → SA queue → SA מאשר → published\n  → כל שלב → email/notification לכותב\n\`\`\`\n\n`;
+  md += `### 3.2 feed אלגוריתם\n`;
+  md += `המשתמש בוחר scope → API מחזיר posts לפי: scope + קהילה + תאריך + עדכונים. כל post כולל: author info, likes, comments_count, read_time.\n\n`;
+  md += `### 3.3 Collections\n`;
+  md += `כותב יכול לאגד כתבות לקולקציה (סדרה). READER יכול לסמן קולקציה כ"עוקב" → מקבל התראות על פרקים חדשים.\n\n`;
+
+  md += `## 4. השפעות על מערכות אחרות\n\n`;
+  md += `| מערכת | השפעה |\n|--------|--------|\n`;
+  md += `| **FAMILY** | טאב "כל העם" מוטמע ב-FAMILY feed |\n`;
+  md += `| **Zone Manager** | ZM רואה zm-queue עם תוכן הממתין לאישור באזורו |\n`;
+  md += `| **Super Admin** | SA רואה sa-queue עם תוכן ארצי; ניהול כותבים |\n`;
+  md += `| **BIZ** | עסקים יכולים לפרסם תוכן מקצועי דרך AUTHOR account |\n\n`;
+
+  md += `## 5. חוקיות ואילוצים\n\n`;
+  md += `- **חוק 1**: כותב לא יכול לפרסם ישירות — כל תוכן עובר אישור\n`;
+  md += `- **חוק 2**: ZM מאשר scope=local בלבד; scope=national → SA בלבד\n`;
+  md += `- **חוק 3**: כתבה שנדחתה — כותב מקבל סיבה וניתן לערוך ולשלוח שוב\n`;
+  md += `- **חוק 4**: לכל קהילה יש מכסה שבועית של תוכן (community_weekly_limit)\n`;
+  md += `- **חוק 5**: תוכן שפורסם לא ניתן למחיקה ע"י הכותב — רק ZM/SA יכולים להסיר\n\n`;
+
+  md += `## 6. תיאור ממשקים\n\n`;
 
   md += `## 2. ממשקים\n\n| דף | תפקיד |\n|----|--------|\n`;
   md += `| \`kol-haam.html\` | ממשק קורא — צפייה בכתבות, feed, חיפוש, שמורים |\n`;
@@ -27376,7 +27544,38 @@ function _genStorefront(serverJs, sfHtml, today) {
 
   let md = `# מפרט טכני — Storefront (חזית חנות) — Oneflow Life\n\n`;
   md += `> תאריך: ${today}  \n> קובץ: \`public/storefront.html\`  \n> Backend prefixes: \`/api/storefront\` · \`/api/store\` · \`/api/orders\` · \`/api/booking\`\n\n---\n\n`;
-  md += `## 1. תיאור\n\nStorefront הוא עמוד החנות הציבורי של העסק — נגיש ללא login, מציג קטלוג מוצרים / תפריט, מאפשר הזמנות, הזמנת שולחן/שיעור, מימוש מטבעות ושיתוף. כל עסק מקבל URL ייחודי.\n\n`;
+
+  md += `## 1. מטרה ותפקיד הסביבה\n\n`;
+  md += `Storefront הוא **עמוד החנות הציבורי** של העסק — נגיש לכל אחד ללא login, דרך URL ייחודי לכל עסק (\`/storefront?biz=ID\` או דומיין מותאם). זהו הממשק שהלקוחות רואים כשהם סורקים QR code, לוחצים על קישור ב-WhatsApp, או מוצאים את העסק במרקטפלייס.\n\n`;
+  md += `הסביבה מתאימה את עצמה **לסוג העסק**: מסעדה מציגה תפריט + הזמנת שולחן, מספרה מציגה שירותים + הזמנת תור, ספורט מציג שיעורים + רישום, חנות מציגה קטלוג + עגלה. כל אלה בממשק אחד שמתנהג שונה לפי הגדרות ה-BIZ.\n\n`;
+
+  md += `## 2. סוגי משתמשים\n\n`;
+  md += `| תפקיד | מי זה | מה הוא יכול |\n|--------|--------|-------------|\n`;
+  md += `| **אנונימי** | כל מבקר | צפייה בתפריט/קטלוג, לחיצה על WhatsApp/טלפון |\n`;
+  md += `| **FAMILY משתמש** | מחובר ל-Oneflow | הזמנה, תשלום, מימוש FLW מטבעות, קופונים |\n`;
+  md += `| **BIZ ADMIN** | בעל העסק | לא גולש כאן — ניהול ב-BIZ env; Storefront read-only |\n\n`;
+
+  md += `## 3. לוגיקות מרכזיות\n\n`;
+  md += `### 3.1 טעינת Storefront\n`;
+  md += `\`\`\`\nפתיחת /storefront?biz=BIZ_ID\n  → GET /api/storefront/profile/{bizId}\n  → טעינת: שם, לוגו, קטגוריות, פריטים, שעות, כתובת\n  → renderHero() + renderContactInfo() + renderCatalog()\n  → זיהוי סוג עסק → הצגת features רלוונטיות בלבד\n\`\`\`\n\n`;
+  md += `### 3.2 זרימת הזמנה\n`;
+  md += `\`\`\`\nלקוח בוחר פריטים → cart footer מתעדכן\n  → לחיצה "הזמן" → checkout-modal\n  → לא מחובר → prompt login (FAMILY)\n  → מחובר → בחירה: FLW מטבעות / כרטיס / מזומן בקבלה\n  → POST /api/orders/create\n  → BIZ מקבל התראה (WhatsApp + BIZ dashboard)\n\`\`\`\n\n`;
+  md += `### 3.3 FLW מטבעות\n`;
+  md += `אם לעסק יש FLW wallet: המשתמש רואה יתרת מטבעות + כפתור מימוש. 1 מטבע = ערך מוגדר ע"י עסק (בד"כ ₪0.1). המינימום למימוש מוגדר ב-billing_config.\n\n`;
+
+  md += `## 4. השפעות על מערכות אחרות\n\n`;
+  md += `| מערכת | השפעה |\n|--------|--------|\n`;
+  md += `| **BIZ** | הזמנה ב-Storefront → order מופיע ב-BIZ orders tab |\n`;
+  md += `| **FAMILY** | משתמש FAMILY מממש מטבעות → יתרה FLW מתעדכנת |\n`;
+  md += `| **Marketplace** | לחיצה על עסק במרקטפלייס → פתיחת Storefront שלו |\n`;
+  md += `| **Zone Manager** | ZM יכול לצפות ב-Storefront של עסקים באזורו |\n\n`;
+
+  md += `## 5. חוקיות ואילוצים\n\n`;
+  md += `- **חוק 1**: Storefront תמיד ציבורי — אפשר לגלוש ללא login\n`;
+  md += `- **חוק 2**: הזמנה דורשת login (FAMILY account) — אנונימי מועבר לרישום\n`;
+  md += `- **חוק 3**: מימוש FLW — רק משתמש שקנה/צבר מטבעות בעסק הזה עצמו\n`;
+  md += `- **חוק 4**: עסק לא פעיל (suspended) → Storefront מציג "סגור זמנית"\n`;
+  md += `- **חוק 5**: כפתורי "complex-product" מופיעים רק לפריטים עם variants שהוגדרו ב-BIZ\n\n`;
 
   md += `## 2. מבנה דפים (sections)\n\n`;
   const KNOWN_SECTIONS = [
@@ -27441,7 +27640,39 @@ function _genMarketplace(serverJs, mpHtml, today) {
 
   let md = `# מפרט טכני — Marketplace (מרקטפלייס) — Oneflow Life\n\n`;
   md += `> תאריך: ${today}  \n> קובץ: \`public/marketplace.html\`  \n> Backend prefixes: \`/api/public\` · \`/api/communities\` · \`/api/search\`\n\n---\n\n`;
-  md += `## 1. תיאור\n\nMARKETPLACE הוא ממשק חיפוש עסקים לצרכן — חיפוש לפי קטגוריה, אזור גיאוגרפי, מילות מפתח ומיקום. מחובר לקהילות ול-Zone Manager. גישה ציבורית ללא login.\n\n`;
+
+  md += `## 1. מטרה ותפקיד הסביבה\n\n`;
+  md += `Marketplace הוא **פורטל חיפוש העסקים** של Oneflow — ממשק ציבורי שמאפשר לכל אדם למצוא עסקים לפי קטגוריה, אזור גיאוגרפי, או מיקום GPS. הוא משמש כ"כניסה" שדרכה צרכנים מגיעים ל-Storefront של עסקים.\n\n`;
+  md += `הייחוד: כל עסק ב-Oneflow **כבר** מופיע במרקטפלייס אוטומטית ברגע שה-ZM אישר אותו. אין צורך ב"רישום נפרד" — הנוכחות במרקטפלייס היא חלק מהצטרפות לפלטפורמה.\n\n`;
+  md += `חשוב: גישה ציבורית ללא login, אבל מיקום ו-"בשבילך" דורשים אישור Geolocation.\n\n`;
+
+  md += `## 2. סוגי משתמשים\n\n`;
+  md += `| תפקיד | מי זה | מה הוא יכול |\n|--------|--------|-------------|\n`;
+  md += `| **אנונימי** | כל גולש | חיפוש עסקים, צפייה בפרטים, מעבר ל-Storefront |\n`;
+  md += `| **FAMILY משתמש** | מחובר | + פנייה ישירה, שמירת עסקים מועדפים |\n`;
+  md += `| **BIZ** | עסק | מופיע כ-listing; אין גישה עריכה מכאן — רק דרך BIZ env |\n\n`;
+
+  md += `## 3. לוגיקות מרכזיות\n\n`;
+  md += `### 3.1 חיפוש ומיון\n`;
+  md += `\`\`\`\nמשתמש פותח marketplace.html\n  → בחירת אזור מ-_FAM_QUICK_AREAS (או GPS)\n  → בחירת קטגוריה (chip)\n  → בחירת filter: "הכל" / "קרובים אליי" / "בשבילך"\n  → GET /api/public/businesses?area=X&cat=Y&filter=Z\n  → תוצאות: 5 בכל דף (BIZ_PAGE_SIZE)\n  → לחיצה על עסק → /storefront?biz=ID\n\`\`\`\n\n`;
+  md += `### 3.2 "בשבילך" אלגוריתם\n`;
+  md += `מבוסס על: היסטוריית הזמנות FAMILY + קהילה + קטגוריות שנחיפשו. עסקים עם rating גבוה + קרובים גיאוגרפית + מקטגוריה שנצרכה מקבלים עדיפות.\n\n`;
+  md += `### 3.3 Pagination\n`;
+  md += `\`BIZ_PAGE_SIZE=5\` — כל גלילה טוענת עוד 5 עסקים. debounce 400ms על חיפוש text חופשי.\n\n`;
+
+  md += `## 4. השפעות על מערכות אחרות\n\n`;
+  md += `| מערכת | השפעה |\n|--------|--------|\n`;
+  md += `| **Storefront** | לחיצה על עסק → פתיחת Storefront שלו |\n`;
+  md += `| **BIZ** | מידע שהעסק הגדיר ב-BIZ (שם, לוגו, שעות) מוצג כאן |\n`;
+  md += `| **Zone Manager** | ZM אישר עסק → מופיע במרקטפלייס האזורי |\n`;
+  md += `| **FAMILY** | מהרה: קישור מהתפריט של FAMILY לmartketplace |\n\n`;
+
+  md += `## 5. חוקיות ואילוצים\n\n`;
+  md += `- **חוק 1**: רק עסקים פעילים (status='active') מופיעים — עסק מושהה נעלם\n`;
+  md += `- **חוק 2**: אין עריכת listing מ-marketplace — רק ממסך BIZ\n`;
+  md += `- **חוק 3**: "קרובים אליי" — דורש אישור GPS מהמשתמש; אחרת מציג כל האזור\n`;
+  md += `- **חוק 4**: עסק יכול להופיע בקטגוריה אחת בלבד (primary category)\n`;
+  md += `- **חוק 5**: BIZ_PAGE_SIZE קבוע ב-5 — לא ניתן לשנות מה-frontend\n\n`;
 
   // quick areas
   const KNOWN_AREAS = {
@@ -27533,7 +27764,39 @@ function _genOnboarding(serverJs, bizOnboardHtml, famOnboardHtml, today) {
 
   let md = `# מפרט טכני — Onboarding (אונבורדינג) — Oneflow Life\n\n`;
   md += `> תאריך: ${today}  \n> קבצים: \`public/biz-onboarding.html\`, \`public/family-onboarding.html\`\n\n---\n\n`;
-  md += `## 1. תיאור\n\nממשקי האונבורדינג מנחים עסקים ומשפחות בהקמת החשבון הראשוני — wizard שלב אחר שלב. **חוק קריטי: בחירת סוג עסק (business_type) — רק כאן, לא ניתן לשנות לאחר מכן.**\n\n`;
+
+  md += `## 1. מטרה ותפקיד הסביבה\n\n`;
+  md += `Onboarding הוא **נקודת הכניסה** לפלטפורמה — הצעד הראשון שכל עסק או משפחה עוברים. מטרתו: לאסוף מינימום מידע הכרחי כדי להפעיל את הסביבה הנכונה, ולייצר חוויית "הצלחה ראשונה" מהירה.\n\n`;
+  md += `**חשיבות קריטית**: שלב בחירת סוג העסק (wiz-2) הוא הרגע היחיד שבו הלקוח קובע את ה-\`business_type\`. ה-\`business_type\` קובע: אילו מודולים ייטענו כברירת מחדל, אילו tabs יוצגו, ואיזה billing bundle מוצע. שינוי לאחר מכן — אפשרי **רק ע"י SA**.\n\n`;
+  md += `כל wizard שומר progress ב-\`localStorage\` — משתמש שסגר את הדפדפן יחזור לאותו שלב שעזב.\n\n`;
+
+  md += `## 2. סוגי משתמשים\n\n`;
+  md += `| משתמש | מה הוא עושה כאן |\n|--------|------------------|\n`;
+  md += `| **עסק חדש** | עובר wizard בiz: 12 שלבים, מגדיר עסק מאפס |\n`;
+  md += `| **משפחה חדשה** | עובר wizard family: 6 שלבים, מגדיר בית דיגיטלי |\n`;
+  md += `| **SA** | לא עובר onboarding — יוצר עסקים/משפחות ישירות דרך SA API |\n\n`;
+
+  md += `## 3. לוגיקות מרכזיות\n\n`;
+  md += `### 3.1 wizard עסק — זרימה\n`;
+  md += `\`\`\`\nפתיחת /biz-onboarding.html\n  → wiz-0: ברוכים הבאים → "התחל"\n  → wiz-1: שם + לוגו + קטגוריה\n  → wiz-2: בחירת business_type ← ⚠️ פעם אחת בלבד\n  → wiz-3: מיקום (כתובת + GPS)\n  → wiz-4: שעות פעילות\n  → wiz-5: פרטי יצירת קשר\n  → wiz-6: MANAGE_OPTIONS (אילו מודולים?)\n  → wiz-7: הזמנת צוות ראשוני (BIZ_STAFF_ROLES)\n  → wiz-8: הוספת מוצרים ראשונים\n  → wiz-9: עיצוב חנות\n  → wiz-10: קהילה (ZM מקבל biz_request)\n  → wiz-11: סיום → כניסה ל-BIZ dashboard\n\`\`\`\n\n`;
+  md += `### 3.2 שמירת progress\n`;
+  md += `\`localStorage.wizardStep\` + \`localStorage.wizardData\` — שמורים כל שלב. POST /api/biz/onboarding/save נשלח אחרי כל שלב.\n\n`;
+  md += `### 3.3 MANAGE_OPTIONS — השפעה\n`;
+  md += `כל option שנבחר ב-wiz-6 → שדה ב-\`billing_config.modules[]\` עם \`open:true\`. זה קובע מה המשתמש רואה ב-BIZ dashboard.\n\n`;
+
+  md += `## 4. השפעות על מערכות אחרות\n\n`;
+  md += `| מערכת | השפעה |\n|--------|--------|\n`;
+  md += `| **BIZ** | onboarding מייצר את ה-\`biz\` record ב-DB + billing_config ראשוני |\n`;
+  md += `| **Zone Manager** | wiz-10 שולח \`biz_request\` ל-ZM לאישור |\n`;
+  md += `| **FAMILY** | family onboarding מייצר family_group + מזמין חברים |\n`;
+  md += `| **Marketplace** | לאחר אישור ZM — העסק מופיע אוטומטית |\n\n`;
+
+  md += `## 5. חוקיות ואילוצים\n\n`;
+  md += `- **חוק 1**: ⚠️ business_type נבחר **רק** ב-wiz-2 — לאחר שמירה, שינוי ע"י SA בלבד\n`;
+  md += `- **חוק 2**: לא ניתן לדלג על wiz-2 (business_type) — השדה required\n`;
+  md += `- **חוק 3**: שלב הצוות (wiz-7) — BIZ_STAFF_ROLES מוגבלים לתפקידים שמותאמים לsusiness_type\n`;
+  md += `- **חוק 4**: עסק לא יכול להתחיל לפעול לפני שה-ZM אישר (wiz-10 חייב להסתיים)\n`;
+  md += `- **חוק 5**: Family onboarding — MANAGE_OPTIONS קובעים אילו מודולים ייטענו (budget, tasks, etc.)\n\n`;
 
   // BIZ onboarding
   const bizCount = bizWizScreens.length || BIZ_STEPS.length;
@@ -27629,7 +27892,40 @@ function _genMenu(serverJs, menuHtml, today) {
 
   let md = `# מפרט טכני — תפריט דיגיטלי — Oneflow Life\n\n`;
   md += `> תאריך: ${today}  \n> קבצים: \`public/menu.html\`, \`public/menus.html\`  \n> Backend prefixes: \`/api/menu\` · \`/api/food-cost\` · \`/api/suppliers\`\n\n---\n\n`;
-  md += `## 1. תיאור\n\nמודול התפריט הדיגיטלי מאפשר לעסקי מסעדנות, קייטרינג ואירועים ליצור תפריטים ויזואליים — ניהול קטגוריות, פריטים, מחירים, תמונות, QR code וחישוב עלויות מזון.\n\n`;
+
+  md += `## 1. מטרה ותפקיד המודול\n\n`;
+  md += `מודול התפריט הדיגיטלי הוא **הכלי המרכזי** לעסקי מסעדנות, קייטרינג, קפה ואירועים לנהל את הצד הויזואלי של ההצעה שלהם. הוא פועל בשני מישורים במקביל:\n\n`;
+  md += `1. **Front-facing** — הלקוח סורק QR ורואה תפריט יפה ב-Storefront\n`;
+  md += `2. **Back-office** — בעל העסק מנהל קטגוריות, פריטים, מחירים, תמונות, ומנהל Food Cost\n\n`;
+  md += `הייחוד: **Food Cost Module** — הצמדת חומרי גלם לכל פריט + חיבור לספקים → המערכת מחשבת אוטומטית את % עלות המזון ומתריעה כשהוא חורג מהיעד.\n\n`;
+
+  md += `## 2. סוגי משתמשים\n\n`;
+  md += `| תפקיד | מי זה | מה הוא יכול |\n|--------|--------|-------------|\n`;
+  md += `| **BIZ ADMIN** | בעל עסק | ניהול מלא: קטגוריות, פריטים, ספקים, food-cost, עיצוב |\n`;
+  md += `| **BIZ MANAGER** | שף / מנהל תפריט | עריכת פריטים, עדכון מחירים, food cost |\n`;
+  md += `| **לקוח (FAMILY)** | מבקר הסטורפרונט | קריאת תפריט בלבד דרך QR/link |\n`;
+  md += `| **SA** | אדמין | גישה לכל התפריטים לצרכי תמיכה |\n\n`;
+
+  md += `## 3. לוגיקות מרכזיות\n\n`;
+  md += `### 3.1 עריכת תפריט\n`;
+  md += `\`\`\`\nBIZ admin נכנס לטאב "menu-items"\n  → GET /api/menu/categories + /api/menu/items\n  → drag-to-reorder קטגוריות + פריטים\n  → הוספת פריט: שם + תיאור + מחיר + תמונה + allergens + variants\n  → PATCH /api/menu/item/{id}\n  → Storefront מתעדכן real-time (SSE / polling)\n\`\`\`\n\n`;
+  md += `### 3.2 Food Cost\n`;
+  md += `\`\`\`\nבעל עסק מגדיר חומרי גלם לפריט:\n  → פריט "שניצל": לחם פרורים 50g + חזה עוף 200g + שמן 30ml\n  → מחירי ספקים: עוף ₪35/ק"ג → לחישוב: 200g = ₪7\n  → סה"כ עלות חומרי גלם: ₪12.5\n  → מחיר מכירה: ₪65\n  → Food Cost %: (12.5/65)*100 = 19.2%\n  → ⚠️ alert אם % > target (default 30%)\n\`\`\`\n\n`;
+  md += `### 3.3 QR code\n`;
+  md += `לכל עסק יש QR ייחודי שמפנה ל-Storefront בטאב "menu". ניתן להדפיס בעיצוב מותאם לעסק.\n\n`;
+
+  md += `## 4. השפעות על מערכות אחרות\n\n`;
+  md += `| מערכת | השפעה |\n|--------|--------|\n`;
+  md += `| **Storefront** | תפריט שנשמר ב-BIZ → מוצג מיידית ב-Storefront |\n`;
+  md += `| **Orders** | פריטים מהתפריט → בסיס ליצירת הזמנות |\n`;
+  md += `| **BIZ dashboard** | KPI: "Food Cost החודש", "הפריט הנמכר", "הרווחיות" |\n\n`;
+
+  md += `## 5. חוקיות ואילוצים\n\n`;
+  md += `- **חוק 1**: תפריט גלוי ב-Storefront רק לפריטים עם \`visible:true\`\n`;
+  md += `- **חוק 2**: מחיקת פריט — soft delete; נשאר בהיסטוריית הזמנות\n`;
+  md += `- **חוק 3**: Food Cost — ספק חייב להיות רשום ב-/api/suppliers לפני שיוך\n`;
+  md += `- **חוק 4**: מרובה תפריטים (menus.html) — עסק יכול לנהל תפריטי אירועים מקבילים\n`;
+  md += `- **חוק 5**: pricing_mode 'variable' — מאפשר מחיר לפי כמות/גודל (variants)\n\n`;
 
   md += `## 2. יכולות עיקריות\n\n`;
   md += `| יכולת | תיאור |\n|--------|-------|\n`;
@@ -27729,7 +28025,39 @@ function _genGames(serverJs, today) {
 
   let md = `# מפרט טכני — משחקים חינוכיים — Oneflow Life\n\n`;
   md += `> תאריך: ${today}  \n> תיקייה: \`public/games/\`  \n> Backend: \`/api/quest-library\` · \`/api/live-games\` · \`/api/trivia\`\n\n---\n\n`;
-  md += `## 1. תיאור\n\n8 משחקים חינוכיים לילדים בסביבת FAMILY — מותאמים גיל ומחוברים למערכת Quests (נקודות / מטבעות). כל משחק הוא קובץ HTML עצמאי ב-\`public/games/\`.\n\n`;
+
+  md += `## 1. מטרה ותפקיד המודול\n\n`;
+  md += `מודול המשחקים הוא **שכבת הגמיפיקציה** של סביבת FAMILY — מענה לצורך של הורים להפוך למידה לחוויה. הוא לא "תוסף" אלא חלק אינטגרלי: הצלחה במשחק → נקודות/מטבעות בפרופיל → מימוש בעסקים קהילתיים.\n\n`;
+  md += `הייחוד הטכני: כל משחק הוא **קובץ HTML עצמאי** — אין dependency על framework, לא צריך build. זה מאפשר להוסיף משחק חדש בלי לגעת בקוד הראשי. המשחקים תקשורתיים עם FAMILY דרך \`postMessage\` API.\n\n`;
+  md += `המשחקים מחולקים לשתי קטגוריות:\n- **יצירה פרוצדורלית** (מתמטיקה): שאלות נוצרות ב-runtime, אין JSON\n- **ספרייה קבועה** (טריביה, גיאוגרפיה): שאלות נטענות מ-JSON/API\n\n`;
+
+  md += `## 2. סוגי משתמשים\n\n`;
+  md += `| משתמש | מה הוא עושה |\n|--------|-------------|\n`;
+  md += `| **ילד (FAMILY MEMBER)** | משחק, צבירת נקודות, עלייה ב-leaderboard |\n`;
+  md += `| **הורה (FAMILY ADMIN)** | מעקב התקדמות, הגדרת מגבלת זמן, הפעלת Live Game |\n`;
+  md += `| **קהילה** | השתתפות ב-Live Game — תחרות בזמן אמת |\n`;
+  md += `| **SA** | ניהול ספריית שאלות, הוספת/עריכת trivia-questions.json |\n\n`;
+
+  md += `## 3. לוגיקות מרכזיות\n\n`;
+  md += `### 3.1 מחזור חיי משחק — טריביה\n`;
+  md += `\`\`\`\nילד נכנס ל-trivia-1.html\n  → fetch trivia-questions.json (פעם אחת, cached)\n  → shuffle + בחירת 10 שאלות (QUESTIONS_PER_GAME)\n  → לכל שאלה: timer countdown 15s (TIMER_SEC)\n  → תשובה נכונה → +10 נקודות + אנימציה\n  → תשובה שגויה / timeout → הצגת תשובה נכונה\n  → 10/10 → postMessage(score) לFAMILY\n  → FAMILY → POST /api/quest-library/score {game, score}\n  → נקודות נוספות לפרופיל\n\`\`\`\n\n`;
+  md += `### 3.2 Live Game (תחרות משפחתית)\n`;
+  md += `\`\`\`\nהורה לוחץ "תחרות"\n  → POST /api/live-games/create\n  → מקבל QR + room_id\n  → ילדים סורקים QR → join room\n  → שאלות מסונכרנות — כולם רואים אותה שאלה בו זמנית\n  → leaderboard real-time (WebSocket / SSE)\n  → מנצח → badge ב-FAMILY profile\n\`\`\`\n\n`;
+  md += `### 3.3 מתמטיקה — יצירה פרוצדורלית\n`;
+  md += `שאלות נוצרות ב-runtime לפי level שנבחר ב-level-map. אין JSON חיצוני. EMOJIS[] מוסיפים ויזואל. 3 מסכים: level-map → game → result.\n\n`;
+
+  md += `## 4. השפעות על מערכות אחרות\n\n`;
+  md += `| מערכת | השפעה |\n|--------|--------|\n`;
+  md += `| **FAMILY** | נקודות נצברות ב-profile FAMILY → מוצגות ב-dashboard |\n`;
+  md += `| **Storefront** | נקודות ניתן להמיר למטבעות → שימוש ב-FLW ב-Storefront |\n`;
+  md += `| **כל העם** | הצלחות במשחק → "סיפורי הצלחה" ניתן לפרסם ב-KH |\n\n`;
+
+  md += `## 5. חוקיות ואילוצים\n\n`;
+  md += `- **חוק 1**: כל משחק — קובץ HTML עצמאי; אין import מ-app.js הראשי\n`;
+  md += `- **חוק 2**: תקשורת עם FAMILY — postMessage בלבד (לא localStorage משותף)\n`;
+  md += `- **חוק 3**: trivia-questions.json — נטען פעם אחת ומגיש מ-cache; גודל מקסימלי: 5MB\n`;
+  md += `- **חוק 4**: Live Game — דורש WebSocket session פעיל; אין fallback ל-polling\n`;
+  md += `- **חוק 5**: גיל < 7 → רק hebrew-letters + math (רמה 1); הגבלה ב-ROLE_DEFAULTS\n\n`;
 
   md += `## 2. רשימת משחקים\n\n`;
   GAMES.forEach(g => {
