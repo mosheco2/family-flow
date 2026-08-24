@@ -34996,7 +34996,6 @@ window.openModuleUnlockModal = function(tabId) {
     document.getElementById('mum-price').innerHTML = priceStr;
     document.getElementById('mum-tab-id').value = tabId;
     document.getElementById('mum-tab-name').value = info.name;
-    document.getElementById('mum-note').value = '';
     document.getElementById('mum-sent').classList.add('hidden');
     document.getElementById('mum-form').classList.remove('hidden');
     modal.classList.remove('hidden');
@@ -35010,7 +35009,8 @@ window.closeModuleUnlockModal = function() {
 window.sendModuleUnlockRequest = async function() {
     const tabId = document.getElementById('mum-tab-id')?.value;
     const tabName = document.getElementById('mum-tab-name')?.value;
-    const note = document.getElementById('mum-note')?.value || '';
+    const info = MODULE_DESCRIPTIONS[tabId] || {};
+    const note = info.desc || '';
     if (!tabId) return;
     try {
         await fetch('/api/biz/module-request', {
