@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>מיפוי פעלים BIZ — 422 פונקציות</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; background: #f8fafc; color: #1e293b; direction: rtl; line-height: 1.6; }
+  header { background: #4338ca; color: #fff; padding: 28px 40px; }
+  header h1 { font-size: 22px; font-weight: 800; }
+  header p { font-size: 13px; opacity: .8; margin-top: 4px; }
+  .meta { display: flex; gap: 16px; margin-top: 10px; flex-wrap: wrap; }
+  .meta span { background: rgba(255,255,255,.15); border-radius: 20px; padding: 3px 12px; font-size: 12px; }
+  .print-btn { background: #fff; color: #4338ca; border: none; padding: 6px 18px; border-radius: 8px; font-weight: 700; font-size: 13px; cursor: pointer; }
+  .print-btn:hover { background: #e0e7ff; }
+  main { max-width: 1000px; margin: 32px auto; padding: 0 24px 60px; }
+  .summary { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 32px; }
+  .chip { background: #fff; border: 1px solid #e2e8f0; border-radius: 20px; padding: 4px 14px; font-size: 12px; }
+  .chip b { color: #4338ca; }
+  .category { margin-bottom: 24px; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden; background: #fff; }
+  .cat-header { display: flex; justify-content: space-between; align-items: center; padding: 12px 18px; background: #f1f5f9; cursor: pointer; user-select: none; }
+  .cat-title { font-size: 14px; font-weight: 700; }
+  .cat-count { font-size: 11px; background: #e0e7ff; color: #4338ca; padding: 2px 10px; border-radius: 10px; font-weight: 700; }
+  table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  th { text-align: right; padding: 8px 14px; color: #64748b; font-weight: 600; border-bottom: 1px solid #e2e8f0; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
+  td { padding: 7px 14px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  .fn { font-family: monospace; color: #2563eb; font-size: 12px; }
+  .src { color: #94a3b8; font-size: 11px; }
+  @media print {
+    header .print-btn { display: none; }
+    .category { break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px">
+    <div>
+      <h1>⚡ מיפוי פעלים BIZ — 422 פונקציות</h1>
+      <p>סריקה מלאה של onclick / onchange / oninput מ-9 קבצי BIZ, מאורגנת ל-14 קטגוריות</p>
+      <div class="meta">
+        <span>9 קבצים</span>
+        <span>14 קטגוריות</span>
+        <span>422 פונקציות ייחודיות</span>
+        <span>עודכן: 24.08.2026</span>
+      </div>
+    </div>
+    <button class="print-btn" onclick="window.print()">🖨️ הדפס / PDF</button>
+  </div>
+</header>
+
+<main>
+  <div class="summary" id="summary"></div>
+  <div id="cats"></div>
+</main>
+
+<script>
+const CATS = [
+  { title:'1 · פתיחת/סגירת מודאלים', color:'#2563eb', items:[
+    {n:'openAlertModal',d:'פותח מודאל התראה גנרי',s:'business-app.js, common.js'},
+    {n:'openAlertRulesModal',d:'פותח מודאל כללי התראות',s:'business-app.js'},
+    {n:'openAIModal',d:'פותח מודאל AI לסיוע חכם',s:'business-app.js'},
+    {n:'openAccessibilityModal',d:'פותח מודאל הגדרות נגישות',s:'common.js'},
+    {n:'openActivityPanel',d:'פותח פאנל פעילות',s:'business-app.js'},
+    {n:'openAddBudgetCategoryModal',d:'פותח מודאל הוספת קטגוריה תקציב',s:'business-app.js'},
+    {n:'openAssignModal',d:'פותח מודאל שיוך משימה לעובד',s:'business-app.js'},
+    {n:'openB2BCheckout',d:"פותח מודאל צ'קאאוט B2B",s:'business-app.js'},
+    {n:'openBizFeedPostModal',d:'פותח מודאל פוסט לפיד עסקי',s:'business-app.js'},
+    {n:'openBizHelp',d:'פותח חלון עזרה לעסק',s:'business-app.js'},
+    {n:'openBusinessSettingsModal',d:'פותח מודאל הגדרות עסק',s:'business-app.js'},
+    {n:'openCheckoutModal',d:'פותח מודאל סיום הזמנה',s:'storefront.html'},
+    {n:'openCheckoutSummary',d:"פותח סיכום צ'קאאוט",s:'business-app.js'},
+    {n:'openComplexBuilderModal',d:'פותח בונה מוצר מורכב',s:'business-app.js'},
+    {n:'openContactModal',d:'פותח מודאל יצירת קשר',s:'storefront.html'},
+    {n:'openCustomerModal',d:'פותח מודאל פרטי לקוח',s:'business-app.js'},
+    {n:'openCustomerStatusScreen',d:'פותח מסך סטטוס לקוח',s:'business-app.js'},
+    {n:'openEmployeePopupModal',d:'פותח מודאל עריכת פופאפ עובד',s:'business-app.js'},
+    {n:'openEquipmentItemModal',d:'פותח מודאל פריט ציוד',s:'business-app.js'},
+    {n:'openFaultModal',d:'פותח מודאל תקלה',s:'business-app.js'},
+    {n:'openGalleryLightbox',d:'פותח לייטבוקס גלריה',s:'storefront.html'},
+    {n:'openGalleryPage',d:'פותח עמוד גלריה מורחב',s:'storefront.html'},
+    {n:'openGlobalSearch',d:'פותח חיפוש גלובלי',s:'business-app.js'},
+    {n:'openInventoryCountModal',d:'פותח מודאל ספירת מלאי',s:'business-app.js'},
+    {n:'openItemSplitModal',d:'פותח מודאל פיצול פריט בקופה',s:'business-app.js'},
+    {n:'openKioskMode',d:'פותח מצב קיוסק',s:'business-app.js'},
+    {n:'openMaintenanceModal',d:'פותח מודאל תחזוקה',s:'business-app.js'},
+    {n:'openManualPunchModal',d:'פותח מודאל דיווח נוכחות ידני',s:'business-app.js'},
+    {n:'openModuleUnlockModal',d:'פותח מודאל ביטול נעילת מודול',s:'business-app.js'},
+    {n:'openNewAlertRuleForm',d:'פותח טופס כלל התראה חדש',s:'business-app.js'},
+    {n:'openNewQuoteModal',d:'פותח מודאל הצעת מחיר חדשה',s:'business-app.js'},
+    {n:'openNewsletterBuilderModal',d:'פותח בונה ניוזלטר',s:'business-app.js'},
+    {n:'openPOSDiscountModal',d:'פותח מודאל הנחה בקופה',s:'business-app.js'},
+    {n:'openPOSTender',d:'פותח מודאל אמצעי תשלום בקופה',s:'business-app.js'},
+    {n:'openPantryModal',d:'פותח מודאל מחסן/מטבח',s:'business-app.js'},
+    {n:'openPopupManagerModal',d:'פותח מנהל פופאפים',s:'business-app.js'},
+    {n:'openProductWizard',d:'פותח אשף הוספת מוצר',s:'business-app.js'},
+    {n:'openProfileModal',d:'פותח מודאל פרופיל משתמש',s:'business-app.js'},
+    {n:'openPromotionModal',d:'פותח מודאל מבצע',s:'business-app.js'},
+    {n:'openReportBuilderModal',d:'פותח בונה דוחות',s:'business-app.js'},
+    {n:'openSLAModal',d:'פותח מודאל הגדרות SLA',s:'business-app.js'},
+    {n:'openShopModal',d:'פותח מודאל חנות',s:'business-app.js'},
+    {n:'openSportCancelRegistration',d:'פותח ביטול הרשמה לספורט',s:'storefront.html'},
+    {n:'openSportClassRegister',d:'פותח הרשמה לשיעור ספורט',s:'storefront.html'},
+    {n:'openSportPurchaseModal',d:'פותח מודאל רכישה בספורט',s:'storefront.html'},
+    {n:'openSportRFQ',d:'פותח בקשת הצעת מחיר ספורט',s:'storefront.html'},
+    {n:'openSportWaitlist',d:'פותח רשימת המתנה ספורט',s:'storefront.html'},
+    {n:'openStoreImageModal',d:'פותח מודאל תמונת חנות',s:'business-app.js'},
+    {n:'openSupplierModal',d:'פותח מודאל ספק',s:'business-app.js'},
+    {n:'openSupportTicketModal',d:'פותח מודאל כרטיס תמיכה',s:'business-app.js'},
+    {n:'openSurveyBuilder',d:'פותח בונה סקר',s:'business-app.js'},
+    {n:'openSurveysPanel',d:'פותח פאנל סקרים',s:'business-app.js'},
+    {n:'openTableReservationModal',d:'פותח מודאל הזמנת שולחן',s:'storefront.html'},
+    {n:'openTaskModal',d:'פותח מודאל משימה',s:'business-app.js'},
+    {n:'openTechnicianModal',d:'פותח מודאל טכנאי',s:'business-app.js'},
+    {n:'openTosModal',d:'פותח מודאל תנאי שימוש/נגישות',s:'common.js, business.html'},
+    {n:'openTransactionModal',d:'פותח מודאל עסקה',s:'business-app.js'},
+    {n:'openBookingModal',d:'פותח מודאל קביעת תור/אירוע',s:'storefront.html'},
+    {n:'openBalanceAdjustmentModal',d:'פותח מודאל התאמת יתרה לעובד',s:'business-app.js'},
+    {n:'openSmartInviteModal',d:'פותח מודאל הזמנת עובד חכמה',s:'business-app.js'},
+    {n:'openEditTaskModal',d:'פותח מודאל עריכת משימה',s:'business-app.js'},
+    {n:'openTaskComments',d:'פותח תגובות למשימה',s:'business-app.js'},
+    {n:'openPermissionsModal',d:'פותח מודאל הרשאות עובד',s:'business-app.js'},
+    {n:'closeActivityPanel',d:'סוגר פאנל פעילות',s:'business-app.js'},
+    {n:'closeAiBatteryModal',d:'סוגר מודאל מגבלת AI',s:'business-app.js, common.js'},
+    {n:'closeAlertRulesModal',d:'סוגר מודאל כללי התראות',s:'business-app.js'},
+    {n:'closeBarcodeScanner',d:'סוגר סורק ברקוד',s:'business-app.js'},
+    {n:'closeBizFeedPostModal',d:'סוגר מודאל פוסט עסקי',s:'business-app.js'},
+    {n:'closeBizHelp',d:'סוגר חלון עזרה לעסק',s:'business-app.js'},
+    {n:'closeCheckoutModal',d:"סוגר מודאל צ'קאאוט",s:'storefront.html'},
+    {n:'closeComplexProductModal',d:'סוגר מודאל מוצר מורכב',s:'storefront.html'},
+    {n:'closeCustomerStatusScreen',d:'סוגר מסך סטטוס לקוח',s:'business-app.js'},
+    {n:'closeEmpPopupDisplay',d:'סוגר תצוגת פופאפ עובד',s:'business-app.js'},
+    {n:'closeGalleryPage',d:'סוגר עמוד גלריה',s:'storefront.html'},
+    {n:'closeGlobalSearch',d:'סוגר חיפוש גלובלי',s:'business-app.js'},
+    {n:'closeModuleUnlockModal',d:'סוגר מודאל ביטול נעילה',s:'business-app.js'},
+    {n:'closeNlPreviewModal',d:'סוגר תצוגה מקדימה ניוזלטר',s:'business-app.js'},
+    {n:'closeOneflowWizard',d:'סוגר אשף OneFlow',s:'business-app.js'},
+    {n:'closeProductModal',d:'סוגר מודאל מוצר',s:'storefront.html'},
+    {n:'closeQuiz',d:'סוגר מבחן/חידון',s:'business-app.js'},
+    {n:'closeRecipeBuilder',d:'סוגר בונה מתכון',s:'business-app.js'},
+    {n:'closeSidebar',d:'סוגר סייד-בר',s:'business-app.js'},
+    {n:'closeSmsVerificationModal',d:'סוגר מודאל אימות SMS',s:'storefront.html'},
+    {n:'closeSurvey',d:'סוגר סקר',s:'business-app.js'},
+    {n:'closeSurveyBuilder',d:'סוגר בונה סקר',s:'business-app.js'},
+    {n:'closeStorePopup',d:'סוגר פופאפ חנות',s:'storefront.html'},
+    {n:'closeTableReservationModal',d:'סוגר מודאל הזמנת שולחן',s:'storefront.html'},
+    {n:'closeTaskModal',d:'סוגר מודאל משימה',s:'business-app.js'},
+    {n:'closeTeamChatModal',d:"סוגר מודאל צ'אט צוות",s:'business-app.js'},
+    {n:'closeTosModal',d:'סוגר מודאל תנאים',s:'common.js'},
+    {n:'closeWelcomeModal',d:'סוגר מודאל ברוכים הבאים',s:'business-app.js, common.js'},
+  ]},
+  { title:'2 · שמירה/שליחה', color:'#0d9488', items:[
+    {n:'handleLogin',d:'שליחת פרטי התחברות',s:'business.html'},
+    {n:'handleCreate',d:'יצירת ארגון/משפחה חדשה',s:'business.html'},
+    {n:'handleJoin',d:'הצטרפות לארגון קיים',s:'business.html'},
+    {n:'handleSALogin',d:'כניסת מנהל מערכת',s:'business.html'},
+    {n:'saveAllBanners',d:'שומר את כל הבאנרים',s:'business-app.js'},
+    {n:'saveKioskPassword',d:'שומר סיסמת קיוסק',s:'business-app.js'},
+    {n:'saveNewAlertRule',d:'שומר כלל התראה חדש',s:'business-app.js'},
+    {n:'saveNewProduct',d:'שומר מוצר חדש לקטלוג',s:'business-app.js'},
+    {n:'saveRecipeBuilder',d:'שומר מתכון',s:'business-app.js'},
+    {n:'saveSLAConfigs',d:'שומר הגדרות SLA',s:'business-app.js'},
+    {n:'saveStoreSettings',d:'שומר הגדרות חנות',s:'business-app.js'},
+    {n:'saveSurveyAndActivate',d:'שומר סקר ומפעיל',s:'business-app.js'},
+    {n:'saveSurveyDraft',d:'שומר טיוטת סקר',s:'business-app.js'},
+    {n:'saveTourEnabled',d:'שומר הגדרת הצגת טיור',s:'business-app.js'},
+    {n:'saveEmployeePopup',d:'שומר פופאפ עובד',s:'business-app.js'},
+    {n:'saveInventoryCount',d:'שומר ספירת מלאי',s:'business-app.js'},
+    {n:'savePantryBuffer',d:'שומר כמות מינימלית מחסן',s:'business-app.js'},
+    {n:'saveStorePopup',d:'שומר פופאפ חנות',s:'business-app.js'},
+    {n:'submitAccountDetails',d:'שליחת פרטי חשבון באונבורדינג',s:'biz-onboarding.html'},
+    {n:'submitB2BOrders',d:'שליחת הזמנות B2B',s:'business-app.js'},
+    {n:'submitBizAdOrder',d:'שליחת הזמנת פרסום עסקי',s:'business-app.js'},
+    {n:'submitBizCommunityJoin',d:'שליחת בקשה להצטרפות קהילה',s:'business-app.js'},
+    {n:'submitBizFeedPost',d:'שליחת פוסט לפיד עסקי',s:'business-app.js'},
+    {n:'submitBookingRequest',d:'שליחת בקשת הזמנת תור',s:'storefront.html'},
+    {n:'submitCatalogForm',d:'שליחת טופס הזמנה מקטלוג',s:'menu.html'},
+    {n:'submitContactForm',d:'שליחת טופס יצירת קשר',s:'storefront.html'},
+    {n:'submitEditTask',d:'שמירת עריכת משימה',s:'business-app.js'},
+    {n:'submitEditTransaction',d:'שמירת עריכת עסקה',s:'business-app.js'},
+    {n:'submitEventQuote',d:'שליחת הצעת מחיר לאירוע',s:'storefront.html'},
+    {n:'submitManualPunch',d:'שמירת כניסה/יציאה ידנית',s:'business-app.js'},
+    {n:'submitNewQuote',d:'שליחת הצעת מחיר חדשה',s:'business-app.js'},
+    {n:'submitOrder',d:'שליחת הזמנה בחנות',s:'storefront.html'},
+    {n:'submitPantryUse',d:'שליחת שימוש במחסן',s:'business-app.js'},
+    {n:'submitPromotion',d:'שמירת מבצע',s:'business-app.js'},
+    {n:'submitRFQ',d:'שליחת בקשת הצעת מחיר לספק',s:'business-app.js'},
+    {n:'submitReceiveGoods',d:'שמירת קבלת סחורה',s:'business-app.js'},
+    {n:'submitShopItem',d:'שמירת פריט חנות',s:'business-app.js'},
+    {n:'submitStoreProduct',d:'שמירת מוצר בחנות',s:'business-app.js'},
+    {n:'submitSupplier',d:'שמירת ספק',s:'business-app.js'},
+    {n:'submitSupplierProduct',d:'שמירת מוצר ספק',s:'business-app.js'},
+    {n:'submitSupportTicket',d:'שליחת כרטיס תמיכה',s:'business-app.js'},
+    {n:'submitSurvey',d:'שליחת תשובות סקר',s:'survey.html'},
+    {n:'submitTask',d:'שמירת משימה חדשה',s:'business-app.js'},
+    {n:'submitTaskApproval',d:'אישור ביצוע משימה',s:'business-app.js'},
+    {n:'submitTableReservation',d:'שליחת הזמנת שולחן',s:'storefront.html'},
+    {n:'submitComplexProduct',d:'שליחת בחירות מוצר מורכב',s:'storefront.html'},
+    {n:'submitChatMessage',d:"שליחת הודעה בצ'אט צוות",s:'business-app.js'},
+    {n:'submitPermissions',d:'שמירת הרשאות עובד',s:'business-app.js'},
+    {n:'submitBalanceAdjustment',d:'שמירת התאמת יתרת עובד',s:'business-app.js'},
+    {n:'addTaskComment',d:'הוספת תגובה למשימה',s:'business-app.js'},
+    {n:'sendSmartWhatsAppInvite',d:'שליחת הזמנה חכמה ב-WhatsApp',s:'business-app.js'},
+    {n:'completeWizard',d:'סיום האשף (biz-onboarding)',s:'biz-onboarding.html'},
+  ]},
+  { title:'3 · AI', color:'#7c3aed', items:[
+    {n:'generateAIQuiz',d:'יצירת חידון/מבחן באמצעות AI',s:'business-app.js'},
+    {n:'generateAITasks',d:'יצירת משימות אוטומטית עם AI',s:'business-app.js'},
+    {n:'generateBannerAI',d:'יצירת באנר שיווקי עם AI',s:'business-app.js'},
+    {n:'generateQuoteAI',d:'יצירת הצעת מחיר עם AI',s:'business-app.js'},
+    {n:'generateRecipe',d:'יצירת מתכון עם AI',s:'business-app.js'},
+    {n:'generateReport',d:'יצירת דוח עם AI',s:'business-app.js'},
+    {n:'generateStoreProductAI',d:'יצירת תיאור מוצר עם AI',s:'business-app.js'},
+    {n:'generateNLAI',d:'יצירת ניוזלטר עם AI',s:'business-app.js'},
+    {n:'generateNLManual',d:'יצירת ניוזלטר ידנית',s:'business-app.js'},
+    {n:'getAnalyticsAIInsight',d:'תובנת AI לאנליטיקס',s:'business-app.js'},
+    {n:'getBudgetInsight',d:'תובנת AI לתקציב',s:'business-app.js'},
+    {n:'getForecastInsight',d:'תובנת AI לתחזית',s:'business-app.js'},
+    {n:'getPantryInsight',d:'תובנת AI למחסן',s:'business-app.js'},
+    {n:'askTutor',d:'שאלת מדריך AI',s:'business-app.js'},
+    {n:'handleAICatalogUpload',d:'העלאת קטלוג לניתוח AI',s:'business-app.js'},
+    {n:'handleAIResponseCheck',d:'בדיקת תגובת AI והצגת מגבלות',s:'common.js'},
+    {n:'executeWithAIWarning',d:'הרצת פעולת AI עם אזהרת מגבלה',s:'business-app.js'},
+    {n:'generateAvailableTimeSlots',d:'יצירת חריצי זמן פנויים',s:'storefront.html'},
+  ]},
+  { title:'4 · ניווט בין טאבים/מסכים', color:'#d97706', items:[
+    {n:'switchView',d:'מעבר בין מסכי login/create/join',s:'business.html, common.js'},
+    {n:'switchTab',d:'מעבר בין טאבים ראשיים',s:'business-app.js'},
+    {n:'switchBizFlowTab',d:'מעבר בין טאבים BizFlow',s:'business-app.js'},
+    {n:'switchActivityTab',d:'מעבר בין טאבי פעילות',s:'business-app.js'},
+    {n:'switchCustomerTab',d:'מעבר בין טאבי לקוחות',s:'business-app.js'},
+    {n:'switchDeliveryTab',d:'מעבר בין טאבי משלוח',s:'business-app.js'},
+    {n:'switchEquipmentTab',d:'מעבר בין טאבי ציוד',s:'business-app.js'},
+    {n:'switchProcurementTab',d:'מעבר בין טאבי רכש',s:'business-app.js'},
+    {n:'switchBizCommunityTab',d:'מעבר בין טאבי קהילת עסקים',s:'business-app.js'},
+    {n:'switchCfSubTab',d:'מעבר בין טאבי תת-מימון',s:'business-app.js'},
+    {n:'switchSalesTab',d:'מעבר בין טאבי מכירות',s:'business-app.js'},
+    {n:'posQuickNavigate',d:'ניווט מהיר בין מסכי קופה',s:'business-app.js'},
+    {n:'scrollTabs',d:'גלילת טאבים אופקית',s:'business-app.js'},
+    {n:'changeAnalyticsPage',d:'מעבר דף באנליטיקס',s:'business-app.js'},
+    {n:'goBack',d:'חזרה לשלב קודם',s:'biz-onboarding.html, menu.html'},
+    {n:'showSection',d:'הצגת שלב מסוים באונבורדינג',s:'biz-onboarding.html'},
+    {n:'goToSetupPath',d:'מעבר לנתיב הגדרת עסק',s:'biz-onboarding.html'},
+    {n:'goToManage',d:'מעבר לנתיב ניהול',s:'biz-onboarding.html'},
+    {n:'goToStoreOnly',d:'מעבר לנתיב חנות בלבד',s:'biz-onboarding.html'},
+    {n:'goToStaff',d:'מעבר להגדרת צוות',s:'biz-onboarding.html'},
+    {n:'goToStep',d:'מעבר לשלב ספציפי',s:'menu.html'},
+    {n:'goToForm',d:'מעבר לטופס פרטים',s:'menu.html'},
+    {n:'nextStep',d:'מעבר לשלב הבא',s:'menu.html'},
+    {n:'routeAppBasedOnType',d:'ניתוב האפליקציה לפי סוג הארגון',s:'common.js'},
+    {n:'_sportPublicTab',d:'מעבר בין טאבים פומביים ספורט',s:'storefront.html'},
+    {n:'showProfBranding',d:'הצגת מסך מיתוג מקצועי',s:'storefront.html'},
+    {n:'showProfStore',d:'הצגת מסך חנות מקצועית',s:'storefront.html'},
+    {n:'lbNav',d:'ניווט בין תמונות בלייטבוקס',s:'storefront.html'},
+    {n:'openSidebar',d:'פתיחת סייד-בר',s:'business-app.js'},
+  ]},
+  { title:'5 · פעולות על נתונים (CRUD)', color:'#16a34a', items:[
+    {n:'addCatalogLink',d:'הוספת קישור לקטלוג',s:'business-app.js'},
+    {n:'addModifierGroup',d:'הוספת קבוצת תוספות למוצר',s:'business-app.js'},
+    {n:'addOption',d:'הוספת אפשרות בחירה',s:'business-app.js'},
+    {n:'addPizzaTopping',d:'הוספת תוספת פיצה',s:'business-app.js'},
+    {n:'addRBIngredient',d:'הוספת מרכיב למתכון',s:'business-app.js'},
+    {n:'addRBOverhead',d:'הוספת עלות תקורה למתכון',s:'business-app.js'},
+    {n:'addSLARow',d:'הוספת שורת SLA',s:'business-app.js'},
+    {n:'addSurveyQuestion',d:'הוספת שאלה לסקר',s:'business-app.js'},
+    {n:'removeOption',d:'הסרת אפשרות בחירה',s:'business-app.js'},
+    {n:'removeQuestion',d:'הסרת שאלה מסקר',s:'business-app.js'},
+    {n:'deleteTransaction',d:'מחיקת עסקה',s:'business-app.js'},
+    {n:'deleteSurvey',d:'מחיקת סקר',s:'business-app.js'},
+    {n:'editSurvey',d:'עריכת סקר קיים',s:'business-app.js'},
+    {n:'editQuoteFromPreview',d:'עריכת הצעת מחיר מתצוגה',s:'business-app.js'},
+    {n:'copyRecipe',d:'העתקת מתכון',s:'business-app.js'},
+    {n:'loadPreset',d:'טעינת תבנית/פריסט',s:'business-app.js'},
+    {n:'createCustomerFromOrder',d:'יצירת לקוח מתוך הזמנה',s:'business-app.js'},
+    {n:'calcQuoteTotal',d:'חישוב סכום הצעת מחיר',s:'business-app.js'},
+    {n:'bizAdsCalc',d:'חישוב עלות פרסום עסקי',s:'business-app.js'},
+    {n:'fetchBudget',d:'טעינת נתוני תקציב',s:'business-app.js'},
+    {n:'fetchCommissionSummary',d:'טעינת סיכום עמלות',s:'business-app.js'},
+    {n:'fetchMyTickets',d:'טעינת כרטיסי תמיכה שלי',s:'business-app.js'},
+    {n:'fetchTimeclockReport',d:'טעינת דוח שעון נוכחות',s:'business-app.js'},
+    {n:'renderAnalytics',d:'רינדור מסך אנליטיקס',s:'business-app.js'},
+    {n:'renderB2BCatalog',d:'רינדור קטלוג B2B',s:'business-app.js'},
+    {n:'renderCashflow',d:'רינדור תזרים מזומנים',s:'business-app.js'},
+    {n:'renderDashboard',d:'רינדור לוח בקרה',s:'business-app.js'},
+    {n:'renderForecast',d:'רינדור תחזית',s:'business-app.js'},
+    {n:'renderLibrary',d:'רינדור ספריית תוכן',s:'business-app.js'},
+    {n:'renderStoreCustomers',d:'רינדור לקוחות החנות',s:'business-app.js'},
+    {n:'renderStoreOrders',d:'רינדור הזמנות החנות',s:'business-app.js'},
+    {n:'renderPOSCatalog',d:'רינדור קטלוג הקופה',s:'business-app.js'},
+    {n:'renderTeamChat',d:"רינדור צ'אט צוות",s:'business-app.js'},
+    {n:'refreshCatalog',d:'רענון קטלוג',s:'business-app.js'},
+    {n:'updateStoreOrderStatus',d:'עדכון סטטוס הזמנה',s:'business-app.js'},
+    {n:'renderSAGroups',d:'רינדור קבוצות בממשק מנהל',s:'business-app.js, common.js'},
+    {n:'saEditUserModal',d:'עריכת משתמש בממשק מנהל',s:'business-app.js'},
+    {n:'loadBizPoolArchivePage',d:'טעינת ארכיון בריכת עסקים',s:'business-app.js'},
+    {n:'loadBizPools',d:'טעינת בריכות עסקים',s:'business-app.js'},
+    {n:'loadCourierData',d:'טעינת נתוני שליח',s:'business-app.js'},
+    {n:'clearImage',d:'מחיקת תמונה',s:'business-app.js'},
+    {n:'resetCatalogForm',d:'איפוס טופס הקטלוג',s:'business-app.js'},
+    {n:'selectAllRecipePantry',d:'בחירת כל מרכיבי המחסן למתכון',s:'business-app.js'},
+    {n:'applyRoleDefaults',d:'הגדרת ברירות מחדל לתפקיד',s:'business-app.js'},
+    {n:'checkShopUnit',d:'בדיקת יחידת מוצר בחנות',s:'business-app.js'},
+  ]},
+  { title:'6 · קיוסק', color:'#dc2626', items:[
+    {n:'kioskBack',d:'חזרה לשלב קודם בקיוסק',s:'business-app.js'},
+    {n:'kioskGoStep3',d:'מעבר לשלב 3 בקיוסק',s:'business-app.js'},
+    {n:'kioskNext1',d:'מעבר לשלב הבא בקיוסק',s:'business-app.js'},
+    {n:'kioskPhoneLookup',d:'חיפוש לקוח לפי טלפון בקיוסק',s:'business-app.js'},
+    {n:'kioskReset',d:'איפוס קיוסק',s:'business-app.js'},
+    {n:'kioskSkipIdentify',d:'דילוג על זיהוי לקוח בקיוסק',s:'business-app.js'},
+    {n:'kioskSubmitOrder',d:'שליחת הזמנה מהקיוסק',s:'business-app.js'},
+    {n:'confirmKioskExit',d:'אישור יציאה ממצב קיוסק',s:'business-app.js'},
+    {n:'startKioskExitFlow',d:'התחלת תהליך יציאה מקיוסק',s:'business-app.js'},
+    {n:'togglePOSFullscreen',d:'מעבר מלא/חלק בתצוגת קופה',s:'business-app.js'},
+  ]},
+  { title:'7 · ייצוא/הורדה', color:'#b45309', items:[
+    {n:'download360PDF',d:'הורדת דוח 360 כ-PDF',s:'business-app.js'},
+    {n:'downloadCatalogTemplate',d:'הורדת תבנית קטלוג',s:'business-app.js'},
+    {n:'downloadCurrentQuotePDF',d:'הורדת הצעת מחיר כ-PDF',s:'business-app.js'},
+    {n:'downloadReportPDF',d:'הורדת דוח כ-PDF',s:'business-app.js'},
+    {n:'downloadSurveyExcel',d:'הורדת תוצאות סקר כ-Excel',s:'business-app.js'},
+    {n:'downloadSurveyPDF',d:'הורדת תוצאות סקר כ-PDF',s:'business-app.js'},
+    {n:'exportMenuPDF',d:'ייצוא תפריט כ-PDF',s:'menu.html'},
+    {n:'exportPDF',d:'ייצוא הזמנה כ-PDF',s:'menu.html'},
+    {n:'exportTimeclockPDF',d:'ייצוא דוח נוכחות כ-PDF',s:'business-app.js'},
+    {n:'exportNLPDF',d:'ייצוא ניוזלטר כ-PDF',s:'business-app.js'},
+    {n:'exportTeamChat',d:"ייצוא היסטוריית צ'אט",s:'business-app.js'},
+    {n:'generateInventoryPDF',d:'יצירת PDF לספירת מלאי',s:'business-app.js'},
+    {n:'open360Report',d:'פתיחת דוח 360 מקיף',s:'business-app.js'},
+    {n:'copyNLHTML',d:'העתקת HTML של ניוזלטר',s:'business-app.js'},
+    {n:'_reportsExportCSV',d:'ייצוא דוח כ-CSV',s:'business-app.js'},
+    {n:'_reportsExportPDF',d:'ייצוא דוח כ-PDF',s:'business-app.js'},
+    {n:'inventoryCountWhatsApp',d:'שיתוף ספירת מלאי ב-WhatsApp',s:'business-app.js'},
+    {n:'shareQuoteWhatsAppFromPreview',d:'שיתוף הצעת מחיר ב-WhatsApp',s:'business-app.js'},
+  ]},
+  { title:'8 · אימות/כניסה', color:'#1d4ed8', items:[
+    {n:'regSendOtp',d:'שליחת קוד OTP לרישום',s:'biz-onboarding.html'},
+    {n:'doLogin',d:'ביצוע כניסה עם OTP',s:'biz-onboarding.html'},
+    {n:'verifyOtp',d:'אימות קוד OTP',s:'biz-onboarding.html'},
+    {n:'resendOtp',d:'שליחה חוזרת של קוד OTP',s:'biz-onboarding.html'},
+    {n:'verifySmsCode',d:'אימות קוד SMS',s:'storefront.html'},
+    {n:'logout',d:'יציאה מהמערכת',s:'common.js'},
+    {n:'logoutSA',d:'יציאת מנהל מערכת',s:'business-app.js, common.js'},
+    {n:'exitImpersonationMode',d:'יציאה ממצב התחזות',s:'business-app.js'},
+    {n:'handleTypeSelection',d:'בחירת סוג ארגון בעת הרשמה',s:'business.html'},
+    {n:'selectType',d:'בחירת סוג ארגון',s:'common.js'},
+    {n:'sendCredentialsEmail',d:'שליחת אישורי כניסה במייל',s:'business-app.js'},
+    {n:'requestChallenge',d:'בקשת אתגר אימות',s:'business-app.js'},
+  ]},
+  { title:'9 · UI (toggle / scroll / filter)', color:'#475569', items:[
+    {n:'toggleAccordion',d:'פתיחה/סגירת אקורדיון',s:'business-app.js'},
+    {n:'toggleAccess',d:'הפעלה/כיבוי נגישות',s:'common.js'},
+    {n:'toggleAiCheck',d:'הפעלה/כיבוי בדיקת AI',s:'business-app.js'},
+    {n:'toggleCustomDateFilters',d:'הצגה/הסתרת פילטרי תאריך',s:'business-app.js'},
+    {n:'toggleDesktopView',d:'מעבר דסקטופ/מובייל',s:'business-app.js'},
+    {n:'toggleFab',d:'פתיחה/סגירת כפתור FAB',s:'business-app.js'},
+    {n:'toggleNavDropdown',d:'פתיחה/סגירת תפריט ניווט',s:'business-app.js'},
+    {n:'togglePromoTargetInput',d:'הצגת/הסתרת שדה יעד מבצע',s:'business-app.js'},
+    {n:'togglePromoValueInput',d:'הצגת/הסתרת שדה ערך מבצע',s:'business-app.js'},
+    {n:'toggleRecipeCustomInput',d:'הצגת/הסתרת שדה מותאם מתכון',s:'business-app.js'},
+    {n:'toggleTransType',d:'מעבר בין סוגי עסקאות',s:'business-app.js'},
+    {n:'toggleTermsStyle',d:'שינוי סטייל תיבת תנאים',s:'biz-onboarding.html'},
+    {n:'toggleDay',d:'בחירה/ביטול יום בשבוע',s:'biz-onboarding.html'},
+    {n:'toggleManage',d:'פתיחה/סגירת אפשרות ניהול',s:'biz-onboarding.html'},
+    {n:'toggleStaffRole',d:'בחירה/ביטול תפקיד עובד',s:'biz-onboarding.html'},
+    {n:'changeCount',d:'שינוי מספר עובדים בתפקיד',s:'biz-onboarding.html'},
+    {n:'toggleViewMode',d:'מעבר בין תצוגות (רשימה/גריד)',s:'storefront.html'},
+    {n:'toggleDelivery',d:'הפעלה/כיבוי משלוח',s:'storefront.html'},
+    {n:'toggleTargetTime',d:'הצגת/הסתרת שדה זמן יעד',s:'storefront.html'},
+    {n:'toggleAdjustmentType',d:'מעבר בין סוגי התאמה',s:'business-app.js'},
+    {n:'toggleEmpPopupsPanel',d:'פתיחה/סגירת פאנל פופאפי עובדים',s:'business-app.js'},
+    {n:'toggleNewslettersPanel',d:'פתיחה/סגירת פאנל ניוזלטרים',s:'business-app.js'},
+    {n:'toggleStorePopupsPanel',d:'פתיחה/סגירת פאנל פופאפי חנות',s:'business-app.js'},
+    {n:'filterBizAvailableCommunities',d:'פילטור קהילות עסקיות',s:'business-app.js'},
+    {n:'filterFaults',d:'פילטור תקלות',s:'business-app.js'},
+    {n:'filterMaintenance',d:'פילטור משימות תחזוקה',s:'business-app.js'},
+    {n:'filterSuggestions',d:'פילטור הצעות',s:'business-app.js'},
+    {n:'filterSAGroups',d:'פילטור קבוצות בממשק מנהל',s:'business-app.js, common.js'},
+    {n:'clearAnalyticsCategoryFilter',d:'ניקוי פילטר קטגוריה',s:'business-app.js'},
+    {n:'updateReportFormatUI',d:'עדכון ממשק פורמט דוח',s:'business-app.js'},
+    {n:'updateRuleTriggerConfig',d:'עדכון תצורת trigger כלל',s:'business-app.js'},
+    {n:'onProductTypeChange',d:'עדכון ממשק בשינוי סוג מוצר',s:'business-app.js'},
+    {n:'onBizCommunityChange',d:'עדכון ממשק בשינוי קהילה',s:'business-app.js'},
+    {n:'resetAccessibility',d:'איפוס הגדרות נגישות',s:'common.js'},
+    {n:'lbSliderChange',d:'שינוי ערך סליידר בלייטבוקס',s:'storefront.html'},
+    {n:'lbToggleZoom',d:'הגדלה/הקטנה בלייטבוקס',s:'storefront.html'},
+    {n:'applyBannersToDOM',d:'החלת באנרים על ה-DOM',s:'business-app.js, common.js'},
+    {n:'markAllAlertsRead',d:'סימון כל ההתראות כנקראו',s:'business-app.js'},
+    {n:'showCommunityHelp',d:'הצגת עזרה לקהילה',s:'business-app.js'},
+    {n:'checkImpersonationMode',d:'בדיקה אם פעיל מצב התחזות',s:'business-app.js'},
+    {n:'empPopupTriggerChanged',d:'עדכון ממשק בשינוי טריגר פופאפ',s:'business-app.js'},
+    {n:'nlTargetChanged',d:'עדכון ממשק בשינוי יעד ניוזלטר',s:'business-app.js'},
+    {n:'oflTargetChanged',d:'עדכון ממשק בשינוי יעד OneFlow',s:'business-app.js'},
+  ]},
+  { title:'10 · תשלום/עגלה', color:'#0f766e', items:[
+    {n:'addPaymentToSplit',d:'הוספת תשלום לפיצול',s:'business-app.js'},
+    {n:'addTenderShortcut',d:'הוספת קיצור אמצעי תשלום',s:'business-app.js'},
+    {n:'applyFullDiscount',d:'החלת הנחה מלאה בקופה',s:'business-app.js'},
+    {n:'applyPromoCode',d:'החלת קוד קופון',s:'storefront.html'},
+    {n:'clearPOSCart',d:'ניקוי עגלת הקופה',s:'business-app.js'},
+    {n:'clearPOSManualDiscount',d:'ביטול הנחה ידנית בקופה',s:'business-app.js'},
+    {n:'confirmBizPayment',d:'אישור תשלום עסקי',s:'business-app.js'},
+    {n:'finalizePOSOrder',d:'סגירת הזמנה בקופה',s:'business-app.js'},
+    {n:'printPOSReceipt',d:'הדפסת קבלה בקופה',s:'business-app.js'},
+    {n:'setTenderMethod',d:'הגדרת אמצעי תשלום',s:'business-app.js'},
+    {n:'setTenderTip',d:'הגדרת טיפ בתשלום',s:'business-app.js'},
+    {n:'updateTenderTip',d:'עדכון סכום הטיפ',s:'business-app.js'},
+    {n:'updateCart',d:'עדכון עגלת קניות',s:'storefront.html'},
+    {n:'updateModalQty',d:'עדכון כמות במודאל מוצר',s:'storefront.html'},
+    {n:'updateComplexQty',d:'עדכון כמות במוצר מורכב',s:'storefront.html'},
+    {n:'handleComplexQtyInput',d:'עדכון קלט כמות מוצר מורכב',s:'storefront.html'},
+    {n:'handleComplexSelection',d:'עדכון בחירה במוצר מורכב',s:'storefront.html'},
+    {n:'handleModalQtyInput',d:'עדכון קלט כמות במודאל',s:'storefront.html'},
+    {n:'calculateModTotal',d:'חישוב סכום עם תוספות',s:'storefront.html'},
+    {n:'createStoreCoupon',d:'יצירת קופון לחנות',s:'business-app.js'},
+    {n:'checkPOSCustomer',d:'בדיקת לקוח בקופה',s:'business-app.js'},
+    {n:'addPromoProductToCart',d:'הוספת מוצר במבצע לעגלה',s:'storefront.html'},
+    {n:'clearFlowRedeem',d:'ניקוי מימוש נקודות',s:'storefront.html'},
+    {n:'onFlowRedeemInput',d:'עדכון קלט מימוש נקודות',s:'storefront.html'},
+    {n:'resetStoreAfterOrder',d:'איפוס החנות לאחר הזמנה',s:'storefront.html'},
+  ]},
+  { title:'11 · תפריט/חנות', color:'#15803d', items:[
+    {n:'toggleSideMenu',d:'פתיחה/סגירת תפריט צד בחנות',s:'storefront.html'},
+    {n:'filterCategory',d:'פילטור מוצרים לפי קטגוריה',s:'storefront.html'},
+    {n:'scrollCategories',d:'גלילה לקטגוריה בחנות',s:'storefront.html'},
+    {n:'startCatalogMode',d:'הפעלת מצב קטלוג',s:'menu.html'},
+    {n:'startTemplateMode',d:'הפעלת מצב תבנית',s:'menu.html'},
+    {n:'renderCatalogBrowse',d:'רינדור דפדוף קטלוג',s:'menu.html'},
+    {n:'renderCatalogFlow',d:'רינדור תהליך קטלוג',s:'menu.html'},
+    {n:'toggleItem',d:'בחירה/ביטול פריט בתפריט',s:'menu.html'},
+    {n:'catChangeQty',d:'שינוי כמות פריט בקטלוג',s:'menu.html'},
+    {n:'goToPromoSlide',d:'מעבר לשקף מבצע',s:'storefront.html'},
+    {n:'fillPizza',d:'מילוי הזמנת פיצה',s:'storefront.html'},
+    {n:'selectPizzaTopping',d:'בחירת תוספת לפיצה',s:'storefront.html'},
+    {n:'togglePizzaSlice',d:'בחירת חתיכת פיצה',s:'storefront.html'},
+    {n:'selectTableTime',d:'בחירת זמן לשולחן',s:'storefront.html'},
+    {n:'updateTableResGuests',d:'עדכון מספר סועדים',s:'storefront.html'},
+    {n:'broadcastNewsletter',d:'שליחת ניוזלטר לנמענים',s:'business-app.js'},
+    {n:'detectBizCity',d:'זיהוי עיר העסק אוטומטית',s:'business-app.js'},
+    {n:'setBusinessLocation',d:'הגדרת מיקום העסק',s:'business-app.js'},
+    {n:'copyStoreLink',d:'העתקת קישור לחנות',s:'business-app.js'},
+    {n:'uploadGalleryImages',d:'העלאת תמונות לגלריה',s:'business-app.js'},
+  ]},
+  { title:'12 · לוגיסטיקה', color:'#92400e', items:[
+    {n:'approveLeaveDoor',d:'אישור השארת חבילה ליד הדלת',s:'track.html'},
+    {n:'loadTracking',d:'טעינת מידע מעקב משלוח',s:'track.html'},
+    {n:'submitRFQ',d:'שליחת בקשת הצעת מחיר לספקים',s:'business-app.js'},
+    {n:'submitReceiveGoods',d:'אישור קבלת סחורה',s:'business-app.js'},
+    {n:'addSLARow',d:'הוספת שורת SLA',s:'business-app.js'},
+    {n:'saveSLAConfigs',d:'שמירת הגדרות SLA',s:'business-app.js'},
+    {n:'handlePunch',d:'דיווח כניסה/יציאה שליח',s:'business-app.js'},
+    {n:'checkTimeclockStatus',d:'בדיקת סטטוס שעון נוכחות',s:'business-app.js'},
+    {n:'_submitSportRFQ',d:'שליחת הצעת מחיר ספורט',s:'storefront.html'},
+  ]},
+  { title:'13 · סקר', color:'#6d28d9', items:[
+    {n:'submitSurvey',d:'שליחת תשובות סקר',s:'survey.html'},
+    {n:'activateSurvey',d:'הפעלת סקר',s:'business-app.js'},
+    {n:'addSurveyQuestion',d:'הוספת שאלה לסקר',s:'business-app.js'},
+    {n:'closeSurvey',d:'סגירת סקר',s:'business-app.js'},
+    {n:'closeSurveyBuilder',d:'סגירת בונה הסקר',s:'business-app.js'},
+    {n:'copySurveyLink',d:'העתקת קישור לסקר',s:'business-app.js'},
+    {n:'copySurveyLinkAndWhatsApp',d:'שיתוף קישור סקר ב-WhatsApp',s:'business-app.js'},
+    {n:'deleteSurvey',d:'מחיקת סקר',s:'business-app.js'},
+    {n:'downloadSurveyExcel',d:'הורדת תוצאות סקר כ-Excel',s:'business-app.js'},
+    {n:'downloadSurveyPDF',d:'הורדת תוצאות סקר כ-PDF',s:'business-app.js'},
+    {n:'editSurvey',d:'עריכת סקר קיים',s:'business-app.js'},
+    {n:'openSurveyBuilder',d:'פתיחת בונה סקר',s:'business-app.js'},
+    {n:'openSurveysPanel',d:'פתיחת פאנל סקרים',s:'business-app.js'},
+    {n:'removeQuestion',d:'הסרת שאלה מסקר',s:'business-app.js'},
+    {n:'saveSurveyAndActivate',d:'שמירה והפעלה של סקר',s:'business-app.js'},
+    {n:'saveSurveyDraft',d:'שמירת טיוטת סקר',s:'business-app.js'},
+    {n:'shareSurveyWhatsApp',d:'שיתוף סקר ב-WhatsApp',s:'business-app.js'},
+    {n:'showSurveyLink',d:'הצגת קישור לסקר',s:'business-app.js'},
+    {n:'viewSurveyResults',d:'הצגת תוצאות סקר',s:'business-app.js'},
+  ]},
+  { title:'14 · אחר', color:'#64748b', items:[
+    {n:'handleTaskProofUpload',d:'העלאת תמונת הוכחת ביצוע משימה',s:'business.html'},
+    {n:'handleReceiptUpload',d:'העלאת תמונת קבלה/חשבונית',s:'business.html'},
+    {n:'handleTaskProofCloudinaryUpload',d:'העלאת הוכחת משימה ל-Cloudinary',s:'business-app.js'},
+    {n:'handleProductImageBase64',d:'עיבוד תמונת מוצר ל-Base64',s:'business-app.js'},
+    {n:'handleStoreBannerUpload',d:'העלאת באנר לחנות',s:'business-app.js'},
+    {n:'handleStoreLogoUpload',d:'העלאת לוגו לחנות',s:'business-app.js'},
+    {n:'handleEmpPopupImageUpload',d:'העלאת תמונה לפופאפ עובד',s:'business-app.js'},
+    {n:'handleNLLogoUpload',d:'העלאת לוגו לניוזלטר',s:'business-app.js'},
+    {n:'handlePopupImageUpload',d:'העלאת תמונה לפופאפ',s:'business-app.js'},
+    {n:'startBarcodeScan',d:'פתיחת סורק ברקוד',s:'business-app.js'},
+    {n:'importExcelToCatalog',d:'ייבוא קטלוג מ-Excel',s:'business-app.js'},
+    {n:'sendModuleUnlockRequest',d:'שליחת בקשה לביטול נעילת מודול',s:'business-app.js'},
+    {n:'setEditPriority',d:'הגדרת עדיפות בעריכה',s:'business-app.js'},
+    {n:'setTaskMode',d:'הגדרת מצב תצוגת משימות',s:'business-app.js'},
+    {n:'setTaskPriority',d:'הגדרת עדיפות משימה',s:'business-app.js'},
+    {n:'selectBizType',d:'בחירת סוג עסק באונבורדינג',s:'biz-onboarding.html'},
+    {n:'setStore',d:'הגדרה האם לפתוח חנות',s:'biz-onboarding.html'},
+    {n:'submitStoreOnlyNow',d:'פתיחת חנות עכשיו',s:'biz-onboarding.html'},
+    {n:'submitStoreOnlyLater',d:'דחיית הגדרת חנות',s:'biz-onboarding.html'},
+    {n:'sendOneFlowMessage',d:'שליחת הודעת OneFlow',s:'business-app.js'},
+    {n:'sendWhatsAppInvite',d:'שליחת הזמנה ב-WhatsApp',s:'business-app.js'},
+    {n:'upgradeToPremium',d:'שדרוג לפרימיום',s:'common.js'},
+    {n:'clickTaskPhotoProof',d:'לחיצה לצילום הוכחת משימה',s:'business-app.js'},
+    {n:'_showExpertiseDetail',d:'הצגת פרטי מומחיות',s:'storefront.html'},
+    {n:'_closeExpertiseDetail',d:'סגירת פרטי מומחיות',s:'storefront.html'},
+    {n:'_sportSelfCheckin',d:"צ'ק-אין עצמי לפעילות ספורט",s:'storefront.html'},
+    {n:'_sportPublicSignWaiver',d:'חתימה על כתב ויתור ספורט',s:'storefront.html'},
+    {n:'_sportSubmitPublicWaiver',d:'שליחת כתב ויתור ספורט',s:'storefront.html'},
+    {n:'_sportSyncCalendar',d:'סנכרון ללוח שנה',s:'storefront.html'},
+    {n:'_sportSendContactMsg',d:'שליחת הודעת יצירת קשר ספורט',s:'storefront.html'},
+    {n:'_sportShowPurchaseSuccess',d:'הצגת הצלחת רכישה ספורט',s:'storefront.html'},
+    {n:'_submitSportClassRegister',d:'שליחת הרשמה לשיעור ספורט',s:'storefront.html'},
+    {n:'_submitSportPurchase',d:'שליחת רכישה בספורט',s:'storefront.html'},
+    {n:'_submitSportWaitlist',d:'שליחת הצטרפות לרשימת המתנה',s:'storefront.html'},
+    {n:'_sport1ClickConfirm',d:'אישור בקליק אחד בספורט',s:'storefront.html'},
+    {n:'_ofwGoStep',d:'מעבר לשלב ב-OneFlow',s:'business-app.js'},
+    {n:'_ofwSearch',d:'חיפוש ב-OneFlow',s:'business-app.js'},
+    {n:'_ofwSelectNew',d:'בחירת רשומה חדשה ב-OneFlow',s:'business-app.js'},
+    {n:'_ofwSubmit',d:'שליחת OneFlow',s:'business-app.js'},
+    {n:'_dismissPwaBanner',d:'סגירת באנר התקנת PWA',s:'business-app.js'},
+    {n:'_triggerPwaInstall',d:'הפעלת התקנת PWA',s:'business-app.js'},
+    {n:'runGlobalSearch',d:'הרצת חיפוש גלובלי',s:'business-app.js'},
+    {n:'selectBizPostType',d:'בחירת סוג פוסט עסקי',s:'business-app.js'},
+    {n:'openBizFlowWallet',d:'פתיחת ארנק BizFlow',s:'business-app.js'},
+    {n:'_uiConfirm',d:'דיאלוג אישור UI מותאם',s:'business-app.js'},
+    {n:'_uiPrompt',d:'דיאלוג קלט UI מותאם',s:'business-app.js'},
+    {n:'_uiAlert',d:'דיאלוג התראה UI מותאם',s:'business-app.js'},
+    {n:'showOnboardingTour',d:'הצגת סיור הדרכה לאונבורדינג',s:'business-app.js'},
+    {n:'checkAndShowTour',d:'בדיקה והצגת סיור הדרכה',s:'business-app.js'},
+    {n:'previewBizPostImage',d:'תצוגה מקדימה תמונת פוסט',s:'business-app.js'},
+    {n:'updateSACredentials',d:'עדכון פרטי מנהל מערכת',s:'business-app.js'},
+  ]},
+];
+
+// Summary chips
+const summary = document.getElementById('summary');
+const total = CATS.reduce((a,c)=>a+c.items.length,0);
+CATS.forEach(c=>{
+  const chip=document.createElement('div');
+  chip.className='chip';
+  chip.innerHTML=`<b>${c.items.length}</b> ${c.title.replace(/^\d+ · /,'')}`;
+  summary.appendChild(chip);
+});
+const tot=document.createElement('div');
+tot.className='chip';
+tot.style='border-color:#4338ca;font-weight:700';
+tot.innerHTML=`<b style="color:#4338ca">${total}</b> סה"כ`;
+summary.appendChild(tot);
+
+// Build categories
+const cats=document.getElementById('cats');
+CATS.forEach(cat=>{
+  const div=document.createElement('div');
+  div.className='category';
+  div.innerHTML=`
+    <div class="cat-header" onclick="const b=this.nextElementSibling;b.style.display=b.style.display==='none'?'block':'none'">
+      <span class="cat-title" style="color:${cat.color}">${cat.title}</span>
+      <span class="cat-count">${cat.items.length}</span>
+    </div>
+    <div style="display:block">
+      <table>
+        <thead><tr>
+          <th style="width:32%">שם פונקציה</th>
+          <th>תיאור</th>
+          <th style="width:22%">מקור</th>
+        </tr></thead>
+        <tbody>${cat.items.map(i=>`<tr>
+          <td class="fn">${i.n}()</td>
+          <td>${i.d}</td>
+          <td class="src">${i.s}</td>
+        </tr>`).join('')}</tbody>
+      </table>
+    </div>`;
+  cats.appendChild(div);
+});
+</script>
+</body>
+</html>
