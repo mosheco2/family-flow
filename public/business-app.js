@@ -35080,7 +35080,7 @@ function renderMyPlanSection() {
         const info = MODULE_DESCRIPTIONS[mId];
         const priceInfo = priceMap[mId];
         if (!info) return '';
-        const modulePrice = isBilling ? (priceInfo?.price || 0) : 0;
+        const modulePrice = isBilling ? ((entry.custom_price != null ? entry.custom_price : null) ?? priceInfo?.price ?? 0) : 0;
         calcTotal += modulePrice;
         const priceTag = modulePrice > 0
             ? `<span class="text-[11px] font-bold text-violet-600 ml-1">${modulePrice} ₪</span>`

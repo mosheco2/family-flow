@@ -2578,9 +2578,10 @@ function initBillingSection(group) {
             const saved = savedMap[m.id];
             const isOpen    = saved ? saved.open    : isDefault;
             const isBilling = saved ? saved.billing : isDefault;
-            const price = priceMap[m.id] || 0;
+            const catalogPrice = priceMap[m.id] || 0;
+            const customPrice  = (saved && saved.custom_price != null) ? saved.custom_price : '';
             return `
-            <div class="flex items-center gap-1 p-2 rounded-xl border text-xs transition
+            <div class="flex items-center gap-1.5 p-2 rounded-xl border text-xs transition
                 ${isOpen ? 'bg-violet-50 border-violet-300' : isDefault ? 'bg-slate-50 border-slate-200' : 'bg-white border-slate-100 hover:bg-slate-50'}"
                 data-mod-id="${m.id}">
                 <div class="flex flex-col items-center gap-0.5 shrink-0">
@@ -2592,14 +2593,19 @@ function initBillingSection(group) {
                 </div>
                 <div class="flex flex-col items-center gap-0.5 shrink-0">
                     <input type="checkbox" class="billing-mod-cb w-3.5 h-3.5 accent-violet-600"
-                        data-mod-id="${m.id}" data-mod-price="${price}" title="לחיוב"
+                        data-mod-id="${m.id}" data-mod-price="${catalogPrice}" title="לחיוב"
                         ${isBilling ? 'checked' : ''}
                         onchange="recalcBilling()">
                     <span class="text-[8px] text-violet-600 font-bold leading-none">₪</span>
                 </div>
-                <span class="font-bold text-slate-700 flex-1 mr-1">${m.name}</span>
-                ${isDefault ? '<span class="text-[9px] text-slate-400 bg-slate-100 px-1 rounded">ברירת מחדל</span>' : ''}
-                <span class="text-slate-400 font-mono">${price}₪</span>
+                <span class="billing-mod-name font-bold text-slate-700 flex-1 mr-1">${m.name}</span>
+                ${isDefault ? '<span class="text-[9px] text-slate-400 bg-slate-100 px-1 rounded shrink-0">ברירת מחדל</span>' : ''}
+                <input type="number" min="0" placeholder="${catalogPrice}"
+                    value="${customPrice}"
+                    class="billing-mod-price-input w-14 text-center border border-slate-200 rounded-lg px-1 py-0.5 text-[11px] font-mono text-slate-700 bg-white focus:border-violet-400 focus:outline-none shrink-0"
+                    title="מחיר פרטני (ריק = מחיר קטלוג ${catalogPrice}₪)"
+                    oninput="recalcBilling()">
+                <span class="text-slate-300 text-[10px] shrink-0">₪</span>
             </div>`;
         }).join('');
     }
@@ -2637,9 +2643,12 @@ window.recalcBilling = function() {
     document.querySelectorAll('#billing-modules-grid [data-mod-id]').forEach(div => {
         const bilCb = div.querySelector('.billing-mod-cb');
         if (!bilCb || !bilCb.checked) return;
-        const p = parseInt(bilCb.dataset.modPrice) || 0;
+        // custom price input overrides catalog price
+        const priceInput = div.querySelector('.billing-mod-price-input');
+        const customPrice = priceInput ? parseInt(priceInput.value) : NaN;
+        const p = !isNaN(customPrice) ? customPrice : (parseInt(bilCb.dataset.modPrice) || 0);
         modulesPrice += p;
-        const nameEl = div.querySelector('span.font-bold');
+        const nameEl = div.querySelector('.billing-mod-name');
         checkedMods.push({ name: nameEl ? nameEl.textContent.trim() : bilCb.dataset.modId, price: p });
     });
 
@@ -2711,9 +2720,13 @@ function getBillingConfig() {
         const id = div.dataset.modId;
         const openCb = div.querySelector('.billing-mod-open');
         const bilCb  = div.querySelector('.billing-mod-cb');
+        const priceInput = div.querySelector('.billing-mod-price-input');
         const isOpen = openCb ? openCb.checked : false;
         const isBil  = bilCb  ? bilCb.checked  : false;
-        if (isOpen || isBil) moduleEntries.push({ id, open: isOpen, billing: isBil });
+        const customVal = priceInput ? parseInt(priceInput.value) : NaN;
+        const entry = { id, open: isOpen, billing: isBil };
+        if (!isNaN(customVal)) entry.custom_price = customVal;
+        if (isOpen || isBil) moduleEntries.push(entry);
     });
 
     // calc total (only billing=true modules + bundle)
@@ -2723,7 +2736,9 @@ function getBillingConfig() {
         const opt = sel.options[sel.selectedIndex];
         modulesPrice = parseInt(opt?.dataset?.price) || 0;
     }
-    moduleEntries.filter(e => e.billing).forEach(e => { modulesPrice += parseInt(priceMap[e.id]) || 0; });
+    moduleEntries.filter(e => e.billing).forEach(e => {
+        modulesPrice += (e.custom_price != null) ? e.custom_price : (parseInt(priceMap[e.id]) || 0);
+    });
     const extraUsers = parseInt(getEl('billing-extra-users')?.value) || 0;
     const userPrice = (priceMap['user_extra'] || 9) * extraUsers;
     const dType = getEl('billing-discount-type')?.value || 'pct';
