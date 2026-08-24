@@ -26760,131 +26760,141 @@ app.get('/api/sa/docs/meta', verifySA, (req, res) => {
   res.json({ success: true, docs: result });
 });
 
-// POST /api/sa/docs/refresh/:doc — regenerate MD using Claude API
+// ── helpers for code-scan MD generation ───────────────────────────────────────
+function _extractRoutes(serverJs, prefix) {
+  const lines = serverJs.split('\n');
+  const routes = [];
+  lines.forEach((line, i) => {
+    const m = line.match(/app\.(get|post|put|patch|delete)\s*\(\s*['"`]([^'"`]+)/i);
+    if (!m) return;
+    const method = m[1].toUpperCase(), path = m[2];
+    if (prefix && !path.startsWith(prefix)) return;
+    // look for a comment in the 3 lines above
+    let desc = '';
+    for (let j = Math.max(0, i-3); j < i; j++) {
+      const cm = lines[j].match(/\/\/\s*(.+)/);
+      if (cm) desc = cm[1].trim();
+    }
+    routes.push({ method, path, desc });
+  });
+  return routes;
+}
+
+function _extractTables(serverJs) {
+  const lines = serverJs.split('\n');
+  const tables = [];
+  let cur = null;
+  lines.forEach(line => {
+    const tm = line.match(/CREATE TABLE\s+(?:IF NOT EXISTS\s+)?["']?(\w+)["']?/i);
+    if (tm) { cur = { name: tm[1], cols: [] }; tables.push(cur); return; }
+    if (cur) {
+      const cm = line.match(/^\s{2,}["']?(\w+)["']?\s+([\w\s()]+?)(?:\s+(?:NOT NULL|DEFAULT|REFERENCES|PRIMARY|UNIQUE|CHECK).*)?,?\s*$/);
+      if (cm) cur.cols.push({ name: cm[1], type: cm[2].trim() });
+      if (/^\s*\);/.test(line)) cur = null;
+    }
+  });
+  return tables;
+}
+
+function _routeTable(routes) {
+  if (!routes.length) return '_אין routes_\n';
+  const rows = routes.map(r => `| ${r.method} | \`${r.path}\` | ${r.desc || ''} |`).join('\n');
+  return `| Method | Path | תיאור |\n|--------|------|--------|\n${rows}\n`;
+}
+
+function _genApiComplete(serverJs, today) {
+  const allRoutes = _extractRoutes(serverJs, null);
+  const prefixes = ['/api/sa','/api/biz','/api/family','/api/zone','/api/community','/api/admin','/api/auth'];
+  let md = `# מפת API מלאה — Oneflow Life\n\n> תאריך: ${today}  \n> סה"כ: ${allRoutes.length} endpoints\n\n---\n\n`;
+  prefixes.forEach(p => {
+    const r = allRoutes.filter(x => x.path.startsWith(p));
+    if (!r.length) return;
+    md += `## ${p}\n\n${_routeTable(r)}\n`;
+  });
+  const other = allRoutes.filter(x => !prefixes.some(p => x.path.startsWith(p)));
+  if (other.length) md += `## אחר\n\n${_routeTable(other)}\n`;
+  return md;
+}
+
+function _genDbSchema(serverJs, today) {
+  const tables = _extractTables(serverJs);
+  let md = `# סכמת DB מלאה — Oneflow Life\n\n> תאריך: ${today}  \n> סה"כ: ${tables.length} טבלאות\n\n---\n\n`;
+  tables.forEach(t => {
+    md += `## \`${t.name}\`\n\n`;
+    if (t.cols.length) {
+      md += `| עמודה | טיפוס |\n|-------|-------|\n`;
+      t.cols.forEach(c => { md += `| ${c.name} | ${c.type} |\n`; });
+    }
+    md += '\n';
+  });
+  return md;
+}
+
+function _genEnvDoc(label, apiPrefix, serverJs, scanFileContent, today) {
+  const routes = _extractRoutes(serverJs, apiPrefix);
+  // extract tab IDs from HTML/JS (data-tab, switchTab, tab-XXX)
+  const tabMatches = [...(scanFileContent.matchAll(/(?:data-tab|switchTab)\(['"`]([a-z_\-]+)['"`]\)/g))].map(m => m[1]);
+  const tabs = [...new Set(tabMatches)];
+  let md = `# ${label}\n\n> תאריך: ${today}  \n> API prefix: \`${apiPrefix || 'כללי'}\`\n\n---\n\n`;
+  if (tabs.length) {
+    md += `## טאבים / מסכים\n\n${tabs.map(t => `- \`${t}\``).join('\n')}\n\n`;
+  }
+  md += `## נתיבי API (${routes.length})\n\n${_routeTable(routes)}\n`;
+  return md;
+}
+
+function _genMissingModules(serverJs, today) {
+  // extract module IDs from BUSINESS_TYPES and MODULE_DESCRIPTIONS patterns
+  const bizTypes = [...serverJs.matchAll(/id:\s*['"`]([a-z_]+)['"`]/g)].map(m => m[1]);
+  const unique = [...new Set(bizTypes)].slice(0, 100);
+  let md = `# מודולים מתקדמים — Oneflow Life\n\n> תאריך: ${today}\n\n---\n\n`;
+  md += `## מזהי מודולים שנמצאו בקוד\n\n${unique.map(id => `- \`${id}\``).join('\n')}\n`;
+  return md;
+}
+
+function _genQaBook(serverJs, today) {
+  const routes = _extractRoutes(serverJs, null);
+  const gets = routes.filter(r => r.method === 'GET').slice(0, 50);
+  const posts = routes.filter(r => r.method === 'POST').slice(0, 50);
+  let md = `# ספר QA — Oneflow Life\n\n> תאריך: ${today}  \n> בסיס: ${routes.length} endpoints\n\n---\n\n`;
+  md += `## בדיקות GET (smoke tests)\n\n`;
+  gets.forEach(r => { md += `- [ ] \`GET ${r.path}\` — ציפייה: 200/401\n`; });
+  md += `\n## בדיקות POST (edge cases)\n\n`;
+  posts.forEach(r => { md += `- [ ] \`POST ${r.path}\` — ללא body → 400; עם body תקין → 200/201\n`; });
+  md += `\n## בדיקות regression\n\n- [ ] התחברות ויציאה בכל סביבה\n- [ ] יצירה ומחיקה של רשומות ליבה\n- [ ] בדיקת הרשאות: MEMBER לא יכול לגשת ל-/api/sa/\n`;
+  return md;
+}
+// ── END helpers ────────────────────────────────────────────────────────────────
+
+// POST /api/sa/docs/refresh/:doc — regenerate MD by code scanning (no AI needed)
 app.post('/api/sa/docs/refresh/:doc', verifySA, async (req, res) => {
   const { doc } = req.params;
   const cfg = DOCS_CONFIG[doc];
   if (!cfg) return res.status(404).json({ success: false, error: 'Unknown doc' });
-  if (!process.env.ANTHROPIC_API_KEY) return res.status(500).json({ success: false, error: 'No AI key' });
 
   try {
     const docPath = path.join(__dirname, cfg.file);
-    const existingMd = fs.existsSync(docPath) ? fs.readFileSync(docPath, 'utf8') : '';
-
     const serverJs = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
-    const serverLines = serverJs.split('\n');
-
-    // Special refresh logic for the 3 new deep-scan docs
+    const today = new Date().toISOString().slice(0, 10);
     const hint = cfg._refreshHint;
-    let prompt;
 
-    if (hint === 'db-schema') {
-      const tables = serverLines
-        .filter(l => /CREATE TABLE\s+(IF NOT EXISTS\s+)?(\w+)/i.test(l))
-        .map(l => { const m = l.match(/CREATE TABLE\s+(?:IF NOT EXISTS\s+)?(\w+)/i); return m ? m[1] : null; })
-        .filter(Boolean).sort();
-      prompt = `אתה עוזר טכני של מערכת Family-Flow. עדכן את מסמך סכמת ה-DB הבא.
+    let scanContent = '';
+    for (const sf of (cfg.scanFiles || [])) {
+      const sfPath = path.join(__dirname, sf);
+      if (fs.existsSync(sfPath)) scanContent += fs.readFileSync(sfPath, 'utf8');
+    }
 
-מסמך קיים:
-\`\`\`
-${existingMd.slice(0, 6000)}
-\`\`\`
-
-רשימת כל הטבלאות בקוד כיום (${tables.length} טבלאות):
-${tables.join('\n')}
-
-הנחיות:
-1. עדכן את שורת "תאריך:" ל-${new Date().toISOString().slice(0,10)}
-2. עדכן את מספר הטבלאות בכותרת
-3. הוסף טבלאות חדשות שלא קיימות במסמך תחת הקבוצה המתאימה
-4. שמור על פורמט Markdown קיים
-5. החזר את המסמך המלא בלבד`;
-    } else if (hint === 'api-complete') {
-      const routes = serverLines
-        .filter(l => /app\.(get|post|put|patch|delete)\s*\(\s*['"`]/i.test(l))
-        .map(l => { const m = l.match(/app\.(get|post|put|patch|delete)\s*\(\s*['"`]([^'"`]+)/i); return m ? `${m[1].toUpperCase()} ${m[2]}` : null; })
-        .filter(Boolean).sort();
-      prompt = `אתה עוזר טכני של מערכת Family-Flow. עדכן את מסמך מפת ה-API המלאה.
-
-מסמך קיים:
-\`\`\`
-${existingMd.slice(0, 5000)}
-\`\`\`
-
-כל ה-routes בקוד כיום (${routes.length} endpoints):
-\`\`\`
-${routes.slice(0, 500).join('\n')}
-\`\`\`
-
-הנחיות:
-1. עדכן את שורת "תאריך:" ל-${new Date().toISOString().slice(0,10)}
-2. עדכן את מספר ה-endpoints הכולל
-3. הוסף routes חדשים שלא קיימים, תחת ה-domain המתאים
-4. שמור על פורמט טבלה Markdown
-5. החזר את המסמך המלא בלבד`;
+    let newContent = '';
+    if (hint === 'api-complete') {
+      newContent = _genApiComplete(serverJs, today);
+    } else if (hint === 'db-schema') {
+      newContent = _genDbSchema(serverJs, today);
+    } else if (hint === 'missing-modules') {
+      newContent = _genMissingModules(serverJs, today);
+    } else if (doc === 'spec-qa-book') {
+      newContent = _genQaBook(serverJs, today);
     } else {
-      // Standard refresh: read api routes + html snippets
-      let apiRoutes = '';
-      if (cfg.apiPrefix) {
-        const routeLines = serverLines.filter(l => {
-          const m = l.match(/app\.(get|post|put|patch|delete)\s*\(\s*['"`]([^'"`]+)/i);
-          return m && m[2].startsWith(cfg.apiPrefix);
-        });
-        apiRoutes = routeLines.slice(0, 120).join('\n');
-      }
-      let htmlSnippet = '';
-      for (const sf of cfg.scanFiles) {
-        const sfPath = path.join(__dirname, sf);
-        if (fs.existsSync(sfPath)) {
-          const lines = fs.readFileSync(sfPath, 'utf8').split('\n').slice(0, 300);
-          htmlSnippet += `\n--- ${sf} (first 300 lines) ---\n` + lines.join('\n');
-        }
-      }
-      prompt = `אתה עוזר טכני של מערכת Family-Flow. המשימה שלך: עדכן את מסמך האפיון הבא כך שישקף את מצב הקוד הנוכחי.
-
-מסמך קיים (${existingMd.split('\n').length} שורות):
-\`\`\`
-${existingMd.slice(0, 8000)}
-\`\`\`
-
-נתיבי API נוכחיים (${cfg.apiPrefix || 'כללי'}):
-\`\`\`
-${apiRoutes.slice(0, 3000)}
-\`\`\`
-
-${htmlSnippet ? `קטע מקוד HTML:\n\`\`\`\n${htmlSnippet.slice(0,2000)}\n\`\`\`` : ''}
-
-הנחיות:
-1. שמור על מבנה המסמך הקיים ועל פורמט Markdown
-2. עדכן את שורת "תאריך:" לתאריך היום (${new Date().toISOString().slice(0,10)})
-3. עדכן רשימת נתיבי API אם יש שינויים
-4. אל תמחק מידע קיים אלא אם הוא ברור שאינו נכון
-5. החזר את המסמך המלא המעודכן בלבד, ללא הסברים נוספים`;
-    }
-
-    const aiRes = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'x-api-key': process.env.ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 8000,
-        messages: [{ role: 'user', content: prompt }],
-      }),
-    });
-
-    if (!aiRes.ok) {
-      const err = await aiRes.text();
-      return res.status(500).json({ success: false, error: `AI error: ${err.slice(0,200)}` });
-    }
-
-    const aiData = await aiRes.json();
-    const newContent = aiData.content?.[0]?.text || '';
-    if (!newContent || newContent.length < 100) {
-      return res.status(500).json({ success: false, error: 'Empty AI response' });
+      newContent = _genEnvDoc(cfg.label, cfg.apiPrefix, serverJs, scanContent, today);
     }
 
     fs.writeFileSync(docPath, newContent, 'utf8');
