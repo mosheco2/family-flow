@@ -1168,7 +1168,7 @@ const tips  = (isAdmin && help.tips_admin)  ? help.tips_admin  : help.tips;
 | `join` | 🏠 הקהילות שלי | הצטרפות וניהול קהילות |
 | `benefits` | 🏪 עסקים | רשימת עסקים עם הנחות |
 | `news` | 📢 חדשות | מבצעים וחבילות (badge מספרי) |
-| `interests` | 🔍 עניין | (לשונית עניין, בפיתוח) |
+| `interests` | 🔍 עניין | placeholder בלבד — string יחיד ברשימת הטאבים (app.js ~שורה 5900) שמטרתו הסתרה בלבד. אין UI, render, או תוכן תומך כלל. |
 
 ### 15.2 עמוד "הקהילות שלי" (join)
 

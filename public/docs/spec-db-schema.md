@@ -26,7 +26,7 @@
 | `family_groups` | הישות המרכזית — משפחה או עסק | id, name, admin_email, type (family/business), business_type, plan (standard/enterprise), is_premium, features (JSONB), licensed_features (JSONB), location_lat/lng, street_address, city, vat_number, contact_name, table_count, ai_tokens, owner_user_id |
 | `group_licenses` | רישיונות פיצ'ר לכל קבוצה | id, group_id, feature_key, is_active, price_monthly, activated_at |
 | `group_snapshots` | גיבויים של קבוצות (Snapshots) | id, group_id, snapshot_data (JSONB), created_at |
-| `biz_type_visibility` | נראות סוגי עסקים | (ללא פירוט נוסף בקוד) |
+| `biz_type_visibility` | נראות סוגי עסקים | מנגנון feature-flagging לפי סוג עסק — SA מסתיר אלמנטי UI לסוג עסק מסוים. שדות: business_type VARCHAR(50), element_key VARCHAR(200), PK על שניהם. 3 endpoints: GET/POST /api/sa/biz-visibility/:type (verifySA), GET /api/biz-visibility/:type (ציבורי, נקרא בזמן ריצה ע"י business-app.js). |
 | `member_business_links` | קישור בין חברים לעסקים | id, member_group_id, business_group_id, status, token |
 | `user_assignments` | שיוך משתמשים נוסף | (גנרי) |
 | `billing_records` | רשומות חיוב לעסקים | id, business_id, amount, plan_type, status, created_at |

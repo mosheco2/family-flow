@@ -41,7 +41,7 @@ CTX = {
 |---|---|
 | member | `localStorage.getItem('ofl_family_token')` |
 | ZM | `CTX.zmToken` ב-header |
-| SA | `'SA_SECRET_TOKEN_2026'` (header קבוע) |
+| SA | `[TOKEN]` (Authorization header קבוע — ראה משתנה סביבה) |
 
 ---
 
