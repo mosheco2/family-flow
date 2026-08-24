@@ -26767,15 +26767,14 @@ function _extractRoutes(serverJs, prefix) {
   lines.forEach((line, i) => {
     const m = line.match(/app\.(get|post|put|patch|delete)\s*\(\s*['"`]([^'"`]+)/i);
     if (!m) return;
-    const method = m[1].toUpperCase(), path = m[2];
-    if (prefix && !path.startsWith(prefix)) return;
-    // look for a comment in the 3 lines above
+    const method = m[1].toUpperCase(), p = m[2];
+    if (prefix && !p.startsWith(prefix)) return;
     let desc = '';
-    for (let j = Math.max(0, i-3); j < i; j++) {
-      const cm = lines[j].match(/\/\/\s*(.+)/);
-      if (cm) desc = cm[1].trim();
+    for (let j = Math.max(0, i-4); j < i; j++) {
+      const cm = lines[j].match(/\/[\/\*]\s*(.+)/);
+      if (cm && cm[1].trim().length > 3) desc = cm[1].replace(/\*\/$/, '').trim();
     }
-    routes.push({ method, path, desc });
+    routes.push({ method, path: p, desc });
   });
   return routes;
 }
@@ -26785,11 +26784,12 @@ function _extractTables(serverJs) {
   const tables = [];
   let cur = null;
   lines.forEach(line => {
-    const tm = line.match(/CREATE TABLE\s+(?:IF NOT EXISTS\s+)?["']?(\w+)["']?/i);
+    const tm = line.match(/CREATE TABLE\s+(?:IF NOT EXISTS\s+)?["'`]?(\w+)["'`]?/i);
     if (tm) { cur = { name: tm[1], cols: [] }; tables.push(cur); return; }
     if (cur) {
-      const cm = line.match(/^\s{2,}["']?(\w+)["']?\s+([\w\s()]+?)(?:\s+(?:NOT NULL|DEFAULT|REFERENCES|PRIMARY|UNIQUE|CHECK).*)?,?\s*$/);
-      if (cm) cur.cols.push({ name: cm[1], type: cm[2].trim() });
+      const cm = line.match(/^\s{2,}["'`]?(\w+)["'`]?\s+([\w\s()[\]]+?)(?:\s+(?:NOT NULL|DEFAULT|REFERENCES|PRIMARY|UNIQUE|CHECK|GENERATED).*)?,?\s*$/);
+      if (cm && cm[1].toUpperCase() !== 'PRIMARY' && cm[1].toUpperCase() !== 'UNIQUE' && cm[1].toUpperCase() !== 'CHECK' && cm[1].toUpperCase() !== 'CONSTRAINT')
+        cur.cols.push({ name: cm[1], type: cm[2].trim().replace(/\s+/g,' ') });
       if (/^\s*\);/.test(line)) cur = null;
     }
   });
@@ -26798,70 +26798,259 @@ function _extractTables(serverJs) {
 
 function _routeTable(routes) {
   if (!routes.length) return '_אין routes_\n';
-  const rows = routes.map(r => `| ${r.method} | \`${r.path}\` | ${r.desc || ''} |`).join('\n');
+  const rows = routes.map(r => `| \`${r.method}\` | \`${r.path}\` | ${r.desc || ''} |`).join('\n');
   return `| Method | Path | תיאור |\n|--------|------|--------|\n${rows}\n`;
+}
+
+// extract ALL_TABS array from business-app.js
+function _extractAllTabs(bizAppJs) {
+  const m = bizAppJs.match(/const ALL_TABS\s*=\s*\[([\s\S]*?)\];/);
+  if (!m) return [];
+  const tabs = [];
+  const rx = /\{\s*id:\s*['"`]([^'"`]+)['"`]\s*,\s*name:\s*['"`]([^'"`]+)['"`]/g;
+  let t;
+  while ((t = rx.exec(m[1])) !== null) tabs.push({ id: t[1], name: t[2] });
+  return tabs;
+}
+
+// extract BUSINESS_TYPES array
+function _extractBusinessTypes(bizAppJs) {
+  const m = bizAppJs.match(/const BUSINESS_TYPES\s*=\s*\[([\s\S]*?)\];/);
+  if (!m) return [];
+  const types = [];
+  const rx = /\{\s*id:\s*['"`]([^'"`]+)['"`][^}]*name:\s*['"`]([^'"`]+)['"`][^}]*icon:\s*['"`]([^'"`]+)['"`][^}]*modules:\s*(\[[^\]]*\]|null)/g;
+  let t;
+  while ((t = rx.exec(m[1])) !== null) {
+    const mods = t[4] === 'null' ? [] : t[4].replace(/[\[\]'"`\s]/g,'').split(',').filter(Boolean);
+    types.push({ id: t[1], name: t[2], icon: t[3], modules: mods });
+  }
+  return types;
+}
+
+// extract MODULE_DESCRIPTIONS
+function _extractModuleDesc(bizAppJs) {
+  const m = bizAppJs.match(/const MODULE_DESCRIPTIONS\s*=\s*\{([\s\S]*?)\};/);
+  if (!m) return [];
+  const mods = [];
+  const rx = /(\w+):\s*\{\s*icon:\s*['"`]([^'"`]+)['"`]\s*,\s*name:\s*['"`]([^'"`]+)['"`]\s*,\s*desc:\s*['"`]([^'"`]+)['"`]/g;
+  let t;
+  while ((t = rx.exec(m[1])) !== null) mods.push({ id: t[1], icon: t[2], name: t[3], desc: t[4] });
+  return mods;
+}
+
+// extract EMPLOYEE_ROLE_TYPES
+function _extractRoleTypes(bizAppJs) {
+  const m = bizAppJs.match(/const EMPLOYEE_ROLE_TYPES\s*=\s*\[([\s\S]*?)\];/);
+  if (!m) return [];
+  const roles = [];
+  const rx = /\{\s*id:\s*['"`]([^'"`]+)['"`][^}]*name:\s*['"`]([^'"`]+)['"`][^}]*icon:\s*['"`]([^'"`]+)['"`][^}]*price:\s*(\d+)/g;
+  let t;
+  while ((t = rx.exec(m[1])) !== null) roles.push({ id: t[1], name: t[2], icon: t[3], price: t[4] });
+  return roles;
 }
 
 function _genApiComplete(serverJs, today) {
   const allRoutes = _extractRoutes(serverJs, null);
   const prefixes = ['/api/sa','/api/biz','/api/family','/api/zone','/api/community','/api/admin','/api/auth'];
-  let md = `# מפת API מלאה — Oneflow Life\n\n> תאריך: ${today}  \n> סה"כ: ${allRoutes.length} endpoints\n\n---\n\n`;
+  let md = `# מפת API מלאה — Oneflow Life\n\n`;
+  md += `> תאריך: ${today}  \n> סה"כ: **${allRoutes.length} endpoints**\n\n---\n\n`;
+  md += `## סיכום לפי prefix\n\n| Prefix | מספר endpoints |\n|--------|----------------|\n`;
+  prefixes.forEach(p => {
+    const cnt = allRoutes.filter(x => x.path.startsWith(p)).length;
+    if (cnt) md += `| \`${p}\` | ${cnt} |\n`;
+  });
+  const otherCnt = allRoutes.filter(x => !prefixes.some(p => x.path.startsWith(p))).length;
+  if (otherCnt) md += `| אחר | ${otherCnt} |\n`;
+  md += '\n---\n\n';
   prefixes.forEach(p => {
     const r = allRoutes.filter(x => x.path.startsWith(p));
     if (!r.length) return;
-    md += `## ${p}\n\n${_routeTable(r)}\n`;
+    md += `## ${p} (${r.length})\n\n${_routeTable(r)}\n`;
   });
   const other = allRoutes.filter(x => !prefixes.some(p => x.path.startsWith(p)));
-  if (other.length) md += `## אחר\n\n${_routeTable(other)}\n`;
+  if (other.length) md += `## אחר (${other.length})\n\n${_routeTable(other)}\n`;
   return md;
 }
 
 function _genDbSchema(serverJs, today) {
   const tables = _extractTables(serverJs);
-  let md = `# סכמת DB מלאה — Oneflow Life\n\n> תאריך: ${today}  \n> סה"כ: ${tables.length} טבלאות\n\n---\n\n`;
+  // group by name prefix
+  const groups = { משתמשים: [], קהילות: [], עסקים: [], תשלומים: [], תוכן: [], אחר: [] };
   tables.forEach(t => {
-    md += `## \`${t.name}\`\n\n`;
-    if (t.cols.length) {
-      md += `| עמודה | טיפוס |\n|-------|-------|\n`;
-      t.cols.forEach(c => { md += `| ${c.name} | ${c.type} |\n`; });
-    }
-    md += '\n';
+    const n = t.name;
+    if (/^(users|family_groups|family_members|family_communities|communities)/.test(n)) groups['משתמשים'].push(t);
+    else if (/^(community|zone)/.test(n)) groups['קהילות'].push(t);
+    else if (/^(biz|store|orders|products|customers|shifts|timeclock|work_orders|kds)/.test(n)) groups['עסקים'].push(t);
+    else if (/^(payment|billing|invoice|wallet|coins|transactions|subscriptions)/.test(n)) groups['תשלומים'].push(t);
+    else if (/^(posts|comments|notifications|surveys|academy|tickets)/.test(n)) groups['תוכן'].push(t);
+    else groups['אחר'].push(t);
+  });
+  let md = `# סכמת DB מלאה — Oneflow Life\n\n`;
+  md += `> תאריך: ${today}  \n> סה"כ: **${tables.length} טבלאות**\n\n---\n\n`;
+  Object.entries(groups).forEach(([g, tbls]) => {
+    if (!tbls.length) return;
+    md += `## ${g}\n\n`;
+    tbls.forEach(t => {
+      md += `### \`${t.name}\`\n\n`;
+      if (t.cols.length) {
+        md += `| עמודה | טיפוס |\n|-------|-------|\n`;
+        t.cols.forEach(c => { md += `| \`${c.name}\` | ${c.type} |\n`; });
+      }
+      md += '\n';
+    });
   });
   return md;
 }
 
-function _genEnvDoc(label, apiPrefix, serverJs, scanFileContent, today) {
-  const routes = _extractRoutes(serverJs, apiPrefix);
-  // extract tab IDs from HTML/JS (data-tab, switchTab, tab-XXX)
-  const tabMatches = [...(scanFileContent.matchAll(/(?:data-tab|switchTab)\(['"`]([a-z_\-]+)['"`]\)/g))].map(m => m[1]);
-  const tabs = [...new Set(tabMatches)];
-  let md = `# ${label}\n\n> תאריך: ${today}  \n> API prefix: \`${apiPrefix || 'כללי'}\`\n\n---\n\n`;
-  if (tabs.length) {
-    md += `## טאבים / מסכים\n\n${tabs.map(t => `- \`${t}\``).join('\n')}\n\n`;
-  }
-  md += `## נתיבי API (${routes.length})\n\n${_routeTable(routes)}\n`;
+function _genBizEnv(serverJs, bizAppJs, today) {
+  const routes = _extractRoutes(serverJs, '/api/biz');
+  const allTabs = _extractAllTabs(bizAppJs);
+  const bizTypes = _extractBusinessTypes(bizAppJs);
+  const modules = _extractModuleDesc(bizAppJs);
+  const roleTypes = _extractRoleTypes(bizAppJs);
+
+  let md = `# מפרט טכני — סביבת BIZ (Oneflow Life)\n\n`;
+  md += `> תאריך: ${today}  \n> קובץ: \`public/business.html\` + \`business-app.js\`  \n> Backend: \`server.js\` → prefix \`/api/biz\`\n\n---\n\n`;
+
+  md += `## 1. ארכיטקטורה\n\n`;
+  md += `- **Frontend**: Vanilla JS + TailwindCSS (ללא framework)\n`;
+  md += `- **Backend**: Node.js / Express + PostgreSQL\n`;
+  md += `- **4 סביבות**: FAMILY (\`/\`), BIZ (\`/business.html\`), SUPER-ADMIN (\`/sa.html\`), ZONE-MANAGER (\`/zone-manager.html\`)\n`;
+  md += `- **גישה**: JWT token ב-\`Authorization\` header, מאומת ע"י \`verifyBiz\` middleware\n\n`;
+
+  md += `## 2. טאבים ומסכים (${allTabs.length})\n\n`;
+  md += `| ID | שם |\n|----|----|\n`;
+  allTabs.forEach(t => { md += `| \`${t.id}\` | ${t.name} |\n`; });
+  md += '\n';
+
+  md += `## 3. מודולים — תיאור מלא (${modules.length})\n\n`;
+  md += `| מזהה | שם | תיאור |\n|------|-----|-------|\n`;
+  modules.forEach(m => { md += `| ${m.icon} \`${m.id}\` | ${m.name} | ${m.desc} |\n`; });
+  md += '\n';
+
+  md += `## 4. סוגי עסק ומודולים מוגדרים כברירת מחדל\n\n`;
+  bizTypes.forEach(bt => {
+    md += `### ${bt.icon} ${bt.name} (\`${bt.id}\`)\n\n`;
+    if (bt.modules.length) md += bt.modules.map(m => `\`${m}\``).join(', ') + '\n\n';
+    else md += '_כל המודולים_\n\n';
+  });
+
+  md += `## 5. תפקידי עובדים (${roleTypes.length})\n\n`;
+  md += `| ID | שם | מחיר/חודש |\n|----|-----|----------|\n`;
+  roleTypes.forEach(r => { md += `| ${r.icon} \`${r.id}\` | ${r.name} | ₪${r.price} |\n`; });
+  md += '\n';
+
+  md += `## 6. נתיבי API (${routes.length})\n\n${_routeTable(routes)}\n`;
+
+  md += `## 7. מנגנון חסימת מודולים\n\n`;
+  md += `- מקור גישה יחיד: \`billing_config.modules\` עם \`open:true\`\n`;
+  md += `- \`applyBusinessTypeFilter()\` — מריץ לאחר טעינה ולאחר כל שינוי\n`;
+  md += `- \`switchTab()\` — מיירט ניווט ומציג modal לטאבים נעולים\n`;
+  md += `- bundle modules מחולצים מ-\`desc\` field ב-PRICING_CATALOG\n`;
+  md += `- \`billing_config\` מבנה: \`{ bundle_id, modules:[{id,open,billing,custom_price?}], monthly_total }\`\n\n`;
+
+  md += `## 8. הרשאות ותפקידים\n\n`;
+  md += `| תפקיד | גישה |\n|--------|------|\n`;
+  md += `| ADMIN | בעל העסק — גישה לפי billing_config בלבד |\n`;
+  md += `| MANAGER | מנהל — גישה לטאבים פתוחים + הרשאות מפורשות |\n`;
+  md += `| SENIOR | עובד בכיר — לפי הרשאות |\n`;
+  md += `| MEMBER | עובד — לפי הרשאות בלבד |\n`;
+
   return md;
 }
 
-function _genMissingModules(serverJs, today) {
-  // extract module IDs from BUSINESS_TYPES and MODULE_DESCRIPTIONS patterns
-  const bizTypes = [...serverJs.matchAll(/id:\s*['"`]([a-z_]+)['"`]/g)].map(m => m[1]);
-  const unique = [...new Set(bizTypes)].slice(0, 100);
-  let md = `# מודולים מתקדמים — Oneflow Life\n\n> תאריך: ${today}\n\n---\n\n`;
-  md += `## מזהי מודולים שנמצאו בקוד\n\n${unique.map(id => `- \`${id}\``).join('\n')}\n`;
+function _genFamilyEnv(serverJs, htmlContent, today) {
+  const routes = _extractRoutes(serverJs, '/api/family');
+  const authRoutes = _extractRoutes(serverJs, '/api/auth');
+  let md = `# מפרט טכני — סביבת FAMILY (Oneflow Life)\n\n`;
+  md += `> תאריך: ${today}  \n> קובץ: \`public/index.html\`  \n> Backend prefix: \`/api/family\`\n\n---\n\n`;
+  md += `## 1. תיאור\n\nסביבת FAMILY היא הסביבה הצרכנית — ניהול משפחה, קהילה, הזמנות ורכישות.\n\n`;
+  md += `## 2. נתיבי API — Family (${routes.length})\n\n${_routeTable(routes)}\n`;
+  md += `## 3. נתיבי Auth (${authRoutes.length})\n\n${_routeTable(authRoutes)}\n`;
+  // extract community routes
+  const commRoutes = _extractRoutes(serverJs, '/api/community');
+  if (commRoutes.length) md += `## 4. נתיבי Community (${commRoutes.length})\n\n${_routeTable(commRoutes)}\n`;
+  return md;
+}
+
+function _genZoneEnv(serverJs, today) {
+  const routes = _extractRoutes(serverJs, '/api/zone');
+  let md = `# מפרט טכני — Zone Manager וקהילות (Oneflow Life)\n\n`;
+  md += `> תאריך: ${today}  \n> Backend prefix: \`/api/zone\`\n\n---\n\n`;
+  md += `## 1. תיאור\n\nZone Manager מנהל קהילות גיאוגרפיות, פרסום, לידים ו-WhatsApp alerts.\n\n`;
+  md += `## 2. נתיבי API (${routes.length})\n\n${_routeTable(routes)}\n`;
+  return md;
+}
+
+function _genSAEnv(serverJs, saHtml, today) {
+  const routes = _extractRoutes(serverJs, '/api/sa');
+  // extract SA sections from HTML h2/h3 headings or section titles
+  const sections = [...saHtml.matchAll(/class="[^"]*font-black[^"]*"\s*>([^<]{4,60})</g)].map(m => m[1].trim()).filter(s => s.length > 3 && !/^\d/.test(s)).slice(0, 40);
+  let md = `# מפרט טכני — Super Admin (Oneflow Life)\n\n`;
+  md += `> תאריך: ${today}  \n> קובץ: \`public/sa.html\` + \`sa-app.js\`  \n> Backend prefix: \`/api/sa\`\n\n---\n\n`;
+  md += `## 1. תיאור\n\nSA הוא לוח הבקרה המרכזי לניהול כלל המערכת: לקוחות, עסקים, billing, impersonation, SMS, AI, banners, Zone Managers.\n\n`;
+  if (sections.length) {
+    md += `## 2. סקשנים ב-UI\n\n${sections.map(s => `- ${s}`).join('\n')}\n\n`;
+  }
+  md += `## 3. נתיבי API (${routes.length})\n\n${_routeTable(routes)}\n`;
+  md += `## 4. אימות\n\n- Token: \`SA_SECRET_TOKEN_2026\` ב-\`Authorization\` header או \`x-sa-token\`\n- Middleware: \`verifySA()\`\n`;
+  return md;
+}
+
+function _genMissingModules(bizAppJs, today) {
+  const modules = _extractModuleDesc(bizAppJs);
+  const bizTypes = _extractBusinessTypes(bizAppJs);
+  const roleTypes = _extractRoleTypes(bizAppJs);
+
+  let md = `# מודולים מתקדמים — Oneflow Life\n\n`;
+  md += `> תאריך: ${today}\n\n---\n\n`;
+
+  md += `## 1. כל המודולים עם תיאור (${modules.length})\n\n`;
+  md += `| מזהה | שם | תיאור |\n|------|-----|-------|\n`;
+  modules.forEach(m => { md += `| ${m.icon} \`${m.id}\` | ${m.name} | ${m.desc} |\n`; });
+  md += '\n';
+
+  md += `## 2. מודולים לפי סוג עסק\n\n`;
+  bizTypes.forEach(bt => {
+    md += `### ${bt.icon} ${bt.name}\n\`${bt.modules.join('`, `')}\`\n\n`;
+  });
+
+  md += `## 3. תפקידי עובדים\n\n`;
+  md += `| מזהה | שם | מחיר |\n|----|-----|------|\n`;
+  roleTypes.forEach(r => { md += `| ${r.icon} \`${r.id}\` | ${r.name} | ₪${r.price}/חודש |\n`; });
+
   return md;
 }
 
 function _genQaBook(serverJs, today) {
   const routes = _extractRoutes(serverJs, null);
-  const gets = routes.filter(r => r.method === 'GET').slice(0, 50);
-  const posts = routes.filter(r => r.method === 'POST').slice(0, 50);
-  let md = `# ספר QA — Oneflow Life\n\n> תאריך: ${today}  \n> בסיס: ${routes.length} endpoints\n\n---\n\n`;
-  md += `## בדיקות GET (smoke tests)\n\n`;
-  gets.forEach(r => { md += `- [ ] \`GET ${r.path}\` — ציפייה: 200/401\n`; });
-  md += `\n## בדיקות POST (edge cases)\n\n`;
-  posts.forEach(r => { md += `- [ ] \`POST ${r.path}\` — ללא body → 400; עם body תקין → 200/201\n`; });
-  md += `\n## בדיקות regression\n\n- [ ] התחברות ויציאה בכל סביבה\n- [ ] יצירה ומחיקה של רשומות ליבה\n- [ ] בדיקת הרשאות: MEMBER לא יכול לגשת ל-/api/sa/\n`;
+  const gets  = routes.filter(r => r.method === 'GET');
+  const posts  = routes.filter(r => r.method === 'POST');
+  const patches = routes.filter(r => r.method === 'PATCH');
+  const dels   = routes.filter(r => r.method === 'DELETE');
+
+  let md = `# ספר QA — Oneflow Life\n\n`;
+  md += `> תאריך: ${today}  \n> בסיס: **${routes.length} endpoints** (GET:${gets.length} POST:${posts.length} PATCH:${patches.length} DELETE:${dels.length})\n\n---\n\n`;
+
+  const safeGuard = (arr, label, suffix) => {
+    md += `## ${label}\n\n`;
+    arr.slice(0, 80).forEach(r => { md += `- [ ] \`${r.method} ${r.path}\`${r.desc ? ` — ${r.desc}` : ''} ${suffix}\n`; });
+    md += '\n';
+  };
+
+  safeGuard(gets, 'Smoke Tests — GET', '→ ציפייה: 200 (עם token) / 401 (בלי token)');
+  safeGuard(posts, 'Edge Cases — POST', '→ ללא body: 400; body תקין: 200/201');
+  safeGuard(patches, 'Edge Cases — PATCH', '→ שדות חסרים: 400; עדכון תקין: 200');
+  safeGuard(dels, 'Edge Cases — DELETE', '→ ID לא קיים: 404; הצלחה: 200');
+
+  md += `## בדיקות regression\n\n`;
+  md += `- [ ] התחברות ויציאה בכל סביבה (Family / BIZ / SA / ZM)\n`;
+  md += `- [ ] MEMBER לא יכול לגשת ל-\`/api/sa/*\`\n`;
+  md += `- [ ] MEMBER לא יכול לגשת לטאב שלא בbilling_config\n`;
+  md += `- [ ] billing_config bundle — פרסור modules מ-desc\n`;
+  md += `- [ ] switchTab לטאב נעול → modal מוצג\n`;
+  md += `- [ ] עדכון שם עסק inline → נשמר ב-DB\n`;
+
   return md;
 }
 // ── END helpers ────────────────────────────────────────────────────────────────
@@ -26884,17 +27073,31 @@ app.post('/api/sa/docs/refresh/:doc', verifySA, async (req, res) => {
       if (fs.existsSync(sfPath)) scanContent += fs.readFileSync(sfPath, 'utf8');
     }
 
+    // always load business-app.js for rich module/tab data
+    const bizAppPath = path.join(__dirname, 'public/business-app.js');
+    const bizAppJs = fs.existsSync(bizAppPath) ? fs.readFileSync(bizAppPath, 'utf8') : '';
+    const saHtmlPath = path.join(__dirname, 'public/sa.html');
+    const saHtml = fs.existsSync(saHtmlPath) ? fs.readFileSync(saHtmlPath, 'utf8') : '';
+
     let newContent = '';
     if (hint === 'api-complete') {
       newContent = _genApiComplete(serverJs, today);
     } else if (hint === 'db-schema') {
       newContent = _genDbSchema(serverJs, today);
     } else if (hint === 'missing-modules') {
-      newContent = _genMissingModules(serverJs, today);
+      newContent = _genMissingModules(bizAppJs, today);
     } else if (doc === 'spec-qa-book') {
       newContent = _genQaBook(serverJs, today);
+    } else if (doc === 'spec-biz-environment') {
+      newContent = _genBizEnv(serverJs, bizAppJs, today);
+    } else if (doc === 'spec-family-environment') {
+      newContent = _genFamilyEnv(serverJs, scanContent, today);
+    } else if (doc === 'spec-zone-community') {
+      newContent = _genZoneEnv(serverJs, today);
+    } else if (doc === 'spec-super-admin') {
+      newContent = _genSAEnv(serverJs, saHtml, today);
     } else {
-      newContent = _genEnvDoc(cfg.label, cfg.apiPrefix, serverJs, scanContent, today);
+      newContent = _genBizEnv(serverJs, bizAppJs, today);
     }
 
     fs.writeFileSync(docPath, newContent, 'utf8');
