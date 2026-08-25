@@ -12593,8 +12593,9 @@ pool.query(`
 `).catch(e => console.log(e));
 
 // 2. נתיב חכם למשיכת נתוני כל הקהילות שהמשפחה מחוברת אליהן והעסקים שלהן
-app.get('/api/community/info/:groupId', async (req, res) => {
+app.get('/api/community/info/:groupId', verifyFamily, async (req, res) => {
     try {
+        if (parseInt(req.params.groupId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const commsRes = await pool.query(`
             SELECT DISTINCT c.id, c.name, c.city, c.image_url, c.code, c.min_families,
                    COALESCE(fc.status, 'approved') as status,
@@ -13983,9 +13984,10 @@ app.get('/api/community/inbox/:groupId', verifyFamily, async (req, res) => {
 });
 
 // מנהל קהילה — פתיחת שיחה חדשה עם מנהל האזור
-app.post('/api/community/inbox/new', async (req, res) => {
+app.post('/api/community/inbox/new', verifyFamily, async (req, res) => {
     try {
         const { groupId, communityId, subject, content } = req.body;
+        if (parseInt(groupId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         if (!groupId || !communityId || !content) return res.status(400).json({ error: 'חסרים שדות חובה' });
         const managerCheck = await pool.query(
             `SELECT mz.manager_id FROM communities c JOIN manager_zones mz ON mz.id=c.zone_id WHERE c.id=$1`, [communityId]);
@@ -23698,9 +23700,10 @@ app.get('/api/community/pool/:id', async (req, res) => {
 });
 
 // הסרת חברה מהפול (ע"י היוזמת)
-app.post('/api/community/pool/:id/remove-member', async (req, res) => {
+app.post('/api/community/pool/:id/remove-member', verifyFamily, async (req, res) => {
     try {
         const { groupId, initiatorId } = req.body;
+        if (parseInt(initiatorId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const check = await pool.query(
             `SELECT 1 FROM flow_pools WHERE id=$1 AND initiator_type='family' AND initiator_id=$2`,
             [req.params.id, initiatorId]);
@@ -23753,9 +23756,10 @@ app.post('/api/community/pool/:id/bid', verifyBiz, async (req, res) => {
 });
 
 // הצגת הצעות לפול (למנהל ויוזמת)
-app.get('/api/community/pool/:id/bids', async (req, res) => {
+app.get('/api/community/pool/:id/bids', verifyFamily, async (req, res) => {
     try {
         const { viewerId, viewerType } = req.query;
+        if (parseInt(viewerId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const pRes = await pool.query(`SELECT * FROM flow_pools WHERE id=$1`, [req.params.id]);
         if (!pRes.rows.length) return res.status(404).json({ error: 'פול לא נמצא' });
         const fp = pRes.rows[0];
@@ -23775,9 +23779,10 @@ app.get('/api/community/pool/:id/bids', async (req, res) => {
 });
 
 // בחירת הצעה מנצחת
-app.post('/api/community/pool/:id/select-bid', async (req, res) => {
+app.post('/api/community/pool/:id/select-bid', verifyFamily, async (req, res) => {
     try {
         const { bidId, viewerId } = req.body;
+        if (parseInt(viewerId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const pRes = await pool.query(`SELECT * FROM flow_pools WHERE id=$1`, [req.params.id]);
         if (!pRes.rows.length) return res.status(404).json({ error: 'פול לא נמצא' });
         const fp = pRes.rows[0];
@@ -23796,9 +23801,10 @@ app.post('/api/community/pool/:id/select-bid', async (req, res) => {
 });
 
 // פתיחת סיבוב 2 (עסקים חיצוניים)
-app.post('/api/community/pool/:id/open-round2', async (req, res) => {
+app.post('/api/community/pool/:id/open-round2', verifyFamily, async (req, res) => {
     try {
         const { viewerId } = req.body;
+        if (parseInt(viewerId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const pRes = await pool.query(`SELECT * FROM flow_pools WHERE id=$1 AND status='open_r1'`, [req.params.id]);
         if (!pRes.rows.length) return res.status(400).json({ error: 'הפול לא בסיבוב 1' });
         const fp = pRes.rows[0];
@@ -23812,9 +23818,10 @@ app.post('/api/community/pool/:id/open-round2', async (req, res) => {
 });
 
 // ארכיב פול — יוזם (משפחה) משנה סטטוס גלובלי; עסק מסתיר רק בצד שלו
-app.post('/api/community/pool/:id/archive', async (req, res) => {
+app.post('/api/community/pool/:id/archive', verifyFamilyOrBiz, async (req, res) => {
     try {
         const { viewerId, bizArchive } = req.body;
+        if (parseInt(viewerId) !== req.callerAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const pRes = await pool.query(`SELECT * FROM flow_pools WHERE id=$1`, [req.params.id]);
         if (!pRes.rows.length) return res.status(404).json({ error: 'פול לא נמצא' });
         const fp = pRes.rows[0];
@@ -23835,9 +23842,10 @@ app.post('/api/community/pool/:id/archive', async (req, res) => {
 });
 
 // חידוש תוקף פול (יוזם בלבד)
-app.post('/api/community/pool/:id/renew', async (req, res) => {
+app.post('/api/community/pool/:id/renew', verifyFamily, async (req, res) => {
     try {
         const { viewerId, days } = req.body;
+        if (parseInt(viewerId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const pRes = await pool.query(`SELECT * FROM flow_pools WHERE id=$1`, [req.params.id]);
         if (!pRes.rows.length) return res.status(404).json({ error: 'פול לא נמצא' });
         const fp = pRes.rows[0];
@@ -23852,9 +23860,10 @@ app.post('/api/community/pool/:id/renew', async (req, res) => {
 });
 
 // עריכת פול
-app.post('/api/community/pool/:id/edit', async (req, res) => {
+app.post('/api/community/pool/:id/edit', verifyFamily, async (req, res) => {
     try {
         const { viewerId, title, description, maxPrice } = req.body;
+        if (parseInt(viewerId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         if (!viewerId || !title) return res.status(400).json({ error: 'חסרים שדות' });
         const fp = await pool.query(`SELECT * FROM flow_pools WHERE id=$1`, [req.params.id]);
         if (!fp.rows.length) return res.status(404).json({ error: 'פול לא נמצא' });
@@ -23868,9 +23877,10 @@ app.post('/api/community/pool/:id/edit', async (req, res) => {
 });
 
 // החזרת פול מארכיב (יוזם בלבד)
-app.post('/api/community/pool/:id/restore', async (req, res) => {
+app.post('/api/community/pool/:id/restore', verifyFamily, async (req, res) => {
     try {
         const { viewerId } = req.body;
+        if (parseInt(viewerId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const pRes = await pool.query(`SELECT * FROM flow_pools WHERE id=$1`, [req.params.id]);
         if (!pRes.rows.length) return res.status(404).json({ error: 'פול לא נמצא' });
         const fp = pRes.rows[0];
@@ -26069,9 +26079,10 @@ app.post('/api/community/groups', verifyFamily, async (req, res) => {
 });
 
 // הוספת משפחה לקבוצת עניין (על ידי היוצר)
-app.post('/api/community/groups/:id/add-family', async (req, res) => {
+app.post('/api/community/groups/:id/add-family', verifyFamily, async (req, res) => {
   try {
     const { familyId, targetFamilyId } = req.body;
+    if (parseInt(familyId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
     const grp = await pool.query(
       'SELECT * FROM community_interest_groups WHERE id=$1', [req.params.id]);
     if (!grp.rows.length) return res.status(404).json({ error: 'קבוצה לא נמצאה' });
@@ -26094,9 +26105,10 @@ app.post('/api/community/groups/:id/add-family', async (req, res) => {
 });
 
 // הסרת משפחה מקבוצת עניין (על ידי היוצר)
-app.delete('/api/community/groups/:id/remove-family', async (req, res) => {
+app.delete('/api/community/groups/:id/remove-family', verifyFamily, async (req, res) => {
   try {
     const { familyId, targetFamilyId } = req.body;
+    if (parseInt(familyId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
     const grp = await pool.query(
       'SELECT * FROM community_interest_groups WHERE id=$1', [req.params.id]);
     if (!grp.rows.length) return res.status(404).json({ error: 'קבוצה לא נמצאה' });
