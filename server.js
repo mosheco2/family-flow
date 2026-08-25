@@ -22650,9 +22650,10 @@ app.post('/api/beauty/:bizId/services', verifyBiz, async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.patch('/api/beauty/:bizId/services/:id', async (req, res) => {
+app.patch('/api/beauty/:bizId/services/:id', verifyBiz, async (req, res) => {
     try {
         const fields = ['name','category','duration_minutes','price','description','color_hex','requires_patch_test','is_active','commission_pct','allowed_practitioner_ids'];
+        if (parseInt(req.params.bizId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const sets = []; const vals = [];
         fields.forEach(f => { if (req.body[f] !== undefined) { vals.push(req.body[f]); sets.push(`${f}=$${vals.length}`); } });
         if (!sets.length) return res.json({ success: true });
@@ -22663,8 +22664,9 @@ app.patch('/api/beauty/:bizId/services/:id', async (req, res) => {
 });
 
 // ===== BEAUTY SUBSCRIPTION TYPES =====
-app.get('/api/beauty/:bizId/subscription-types', async (req, res) => {
+app.get('/api/beauty/:bizId/subscription-types', verifyBiz, async (req, res) => {
     try {
+        if (parseInt(req.params.bizId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const r = await pool.query(
             `SELECT * FROM beauty_subscription_types WHERE business_group_id=$1 AND is_active=TRUE ORDER BY price`,
             [req.params.bizId]
@@ -22673,9 +22675,10 @@ app.get('/api/beauty/:bizId/subscription-types', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/beauty/:bizId/subscription-types', async (req, res) => {
+app.post('/api/beauty/:bizId/subscription-types', verifyBiz, async (req, res) => {
     try {
         const { name, description, sessions_count, price, validity_days, service_ids } = req.body;
+        if (parseInt(req.params.bizId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         if (!name || !sessions_count) return res.status(400).json({ error: 'name and sessions_count required' });
         const r = await pool.query(
             `INSERT INTO beauty_subscription_types (business_group_id, name, description, sessions_count, price, validity_days, service_ids)
@@ -22687,9 +22690,10 @@ app.post('/api/beauty/:bizId/subscription-types', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.patch('/api/beauty/:bizId/subscription-types/:id', async (req, res) => {
+app.patch('/api/beauty/:bizId/subscription-types/:id', verifyBiz, async (req, res) => {
     try {
         const fields = ['name','description','sessions_count','price','validity_days','service_ids','is_active'];
+        if (parseInt(req.params.bizId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const sets = []; const vals = [];
         fields.forEach(f => { if (req.body[f] !== undefined) { vals.push(f === 'service_ids' ? JSON.stringify(req.body[f]) : req.body[f]); sets.push(`${f}=$${vals.length}`); } });
         if (!sets.length) return res.json({ success: true });
@@ -22700,8 +22704,9 @@ app.patch('/api/beauty/:bizId/subscription-types/:id', async (req, res) => {
 });
 
 // ===== BEAUTY CLIENT SUBSCRIPTIONS =====
-app.get('/api/beauty/:bizId/client-subscriptions/:clientId', async (req, res) => {
+app.get('/api/beauty/:bizId/client-subscriptions/:clientId', verifyBiz, async (req, res) => {
     try {
+        if (parseInt(req.params.bizId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const r = await pool.query(
             `SELECT bcs.*, bst.name AS type_name
              FROM beauty_client_subscriptions bcs
@@ -22714,9 +22719,10 @@ app.get('/api/beauty/:bizId/client-subscriptions/:clientId', async (req, res) =>
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/beauty/:bizId/client-subscriptions', async (req, res) => {
+app.post('/api/beauty/:bizId/client-subscriptions', verifyBiz, async (req, res) => {
     try {
         const { client_record_id, subscription_type_id, sessions_total, subscription_name, validity_days } = req.body;
+        if (parseInt(req.params.bizId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         if (!client_record_id || !sessions_total) return res.status(400).json({ error: 'client_record_id and sessions_total required' });
         const expires = validity_days
             ? new Date(Date.now() + validity_days * 86400000).toISOString().slice(0,10)
@@ -22730,8 +22736,9 @@ app.post('/api/beauty/:bizId/client-subscriptions', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.patch('/api/beauty/:bizId/client-subscriptions/:id/use', async (req, res) => {
+app.patch('/api/beauty/:bizId/client-subscriptions/:id/use', verifyBiz, async (req, res) => {
     try {
+        if (parseInt(req.params.bizId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const r = await pool.query(
             `UPDATE beauty_client_subscriptions
              SET sessions_used = sessions_used + 1,
