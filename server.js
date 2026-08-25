@@ -458,6 +458,12 @@ try { await client.query(`ALTER TABLE game_assignments ADD COLUMN IF NOT EXISTS 
           description TEXT,
           created_at TIMESTAMP DEFAULT NOW()
       )`); } catch(e) {}
+      // TODO: cleanup expired sessions periodically
+      try { await client.query(`CREATE TABLE IF NOT EXISTS sa_sessions (
+          token VARCHAR(64) PRIMARY KEY,
+          expires_at TIMESTAMPTZ NOT NULL,
+          created_at TIMESTAMPTZ DEFAULT NOW()
+      )`); } catch(e) {}
       try { await client.query(`CREATE TABLE IF NOT EXISTS business_platform_dues (
           id SERIAL PRIMARY KEY,
           business_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
@@ -4474,16 +4480,23 @@ async function verifyZoneManager(req, res, next) {
     return res.status(403).json({ error: 'Unauthorized zone manager' });
 }
 
-function verifySA(req, res, next) {
+async function verifySA(req, res, next) {
     const authHeader = req.headers.authorization || '';
     const xSaToken  = req.headers['x-sa-token']  || '';
     const raw = authHeader || xSaToken;
     const token = raw.startsWith('Bearer ') ? raw.split(' ')[1] : raw;
 
-    if (token !== 'SA_SECRET_TOKEN_2026') {
-        return res.status(403).json({ error: 'Forbidden' });
+    if (!token) return res.status(403).json({ error: 'Forbidden' });
+    try {
+        const r = await pool.query(
+            'SELECT 1 FROM sa_sessions WHERE token=$1 AND expires_at > NOW()',
+            [token]
+        );
+        if (r.rowCount === 0) return res.status(403).json({ error: 'Forbidden' });
+        next();
+    } catch(e) {
+        return res.status(500).json({ error: 'Auth error' });
     }
-    next();
 }
 
 // ============================================================
@@ -5660,10 +5673,15 @@ app.post('/api/superadmin/verify-otp', async (req, res) => {
         
         const saUserRes = await pool.query("SELECT value FROM system_settings WHERE key = 'sa_username'");
         const currentCode = saUserRes.rows.length > 0 ? saUserRes.rows[0].value : 'admin';
-        
-        res.json({ 
-            success: true, 
-            token: 'SA_SECRET_TOKEN_2026',
+
+        const saToken = require('crypto').randomBytes(32).toString('hex');
+        await pool.query(
+            "INSERT INTO sa_sessions (token, expires_at) VALUES ($1, NOW() + INTERVAL '8 hours')",
+            [saToken]
+        );
+        res.json({
+            success: true,
+            token: saToken,
             user: { id: 1, name: 'Super Admin Master', role: 'master', email: currentCode, team: 'Management', permissions: ['all'] }
         });
     } catch (e) {
@@ -5691,9 +5709,14 @@ app.post('/api/superadmin/login', async (req, res) => {
                 : password === storedH;
             if (saPassOk) {
                 if (user.status !== 'active') return res.status(403).json({ error: 'החשבון שלך נחסם. פנה למנהל המערכת.' });
+                const saToken = require('crypto').randomBytes(32).toString('hex');
+                await pool.query(
+                    "INSERT INTO sa_sessions (token, expires_at) VALUES ($1, NOW() + INTERVAL '8 hours')",
+                    [saToken]
+                );
                 return res.json({
                     success: true,
-                    token: 'SA_SECRET_TOKEN_2026',
+                    token: saToken,
                     user: { id: user.id, name: user.name, email: user.email, team: user.team_name, permissions: user.permissions || [] }
                 });
             }
@@ -5712,9 +5735,14 @@ app.post('/api/superadmin/login', async (req, res) => {
         // מאפשר כניסה עם שם משתמש או מייל ארגוני
         const codeMatchesMaster = (code === currentUsername) || (currentEmail && code === currentEmail);
         if (codeMatchesMaster && password === currentPass) {
+            const saToken = require('crypto').randomBytes(32).toString('hex');
+            await pool.query(
+                "INSERT INTO sa_sessions (token, expires_at) VALUES ($1, NOW() + INTERVAL '8 hours')",
+                [saToken]
+            );
             res.json({
                 success: true,
-                token: 'SA_SECRET_TOKEN_2026',
+                token: saToken,
                 user: { id: 0, name: 'מנהל על (Master)', email: currentEmail || currentUsername, team: 'Management', permissions: ['all'] }
             });
         } else {
@@ -27238,7 +27266,7 @@ function _genSAEnv(serverJs, saHtml, saAppJs, today) {
   md += `> תאריך: ${today}  \n> קבצים: \`public/sa.html\` + \`public/sa-app.js\`  \n> Backend prefix: \`/api/sa\`\n\n---\n\n`;
 
   md += `## 1. מטרה ותפקיד הסביבה\n\n`;
-  md += `Super Admin (SA) הוא לוח הבקרה הכול-יכול של Oneflow — הגישה העליונה לכלל המערכת. רק מי שמחזיק ב-\`SA_SECRET_TOKEN_2026\` יכול להיכנס.\n\n`;
+  md += `Super Admin (SA) הוא לוח הבקרה הכול-יכול של Oneflow — הגישה העליונה לכלל המערכת. כניסה מחייבת אימות ויצירת session token דינמי.\n\n`;
   md += `ה-SA מנהל: **לקוחות** (Family + BIZ), **billing ו-subscriptions**, **Zone Managers**, **banners פרסומיים**, **SMS ו-AI**, **כל העם (KH)**, **impersonation** לכניסה לחשבון של כל משתמש לצרכי תמיכה, **אפיון ומסמכי מערכת** (הטאב שבו קיים הכפתור לעדכון מסמכים אלה), **הגדרות גלובליות** של הפלטפורמה.\n\n`;
   md += `SA היא הסביבה שמבצעת פעולות שאסורות לכל שאר הסביבות — כולל בחירת/שינוי business_type, מתן גישות מיוחדות, וניהול כספי.\n\n`;
 
@@ -27284,7 +27312,7 @@ function _genSAEnv(serverJs, saHtml, saAppJs, today) {
   md += `- **חוק 5**: audit log — כל POST/PATCH/DELETE של SA נרשם עם timestamp + SA user id\n\n`;
 
   md += `## 7. אימות\n\n`;
-  md += `- Token: \`SA_SECRET_TOKEN_2026\` (env var)\n`;
+  md += `- Token: session token דינמי (נוצר בעת login, מאוחסן ב-sa_sessions)\n`;
   md += `- Headers: \`Authorization: Bearer <token>\` או \`x-sa-token: <token>\`\n`;
   md += `- Middleware: \`verifySA()\`\n\n`;
 
@@ -30580,7 +30608,10 @@ app.delete('/api/kol-haam/comments/:id', async (req, res) => {
     const { id } = req.params;
     // allow ZM token or SA token
     const authHeader = req.headers['authorization'] || '';
-    const isSA = authHeader === process.env.SA_SECRET_TOKEN_2026 || authHeader === 'SA_SECRET_TOKEN_2026';
+    let isSA = false;
+    if (authHeader) {
+        try { const { rows } = await pool.query('SELECT 1 FROM sa_sessions WHERE token=$1 AND expires_at>NOW()', [authHeader]); isSA = rows.length > 0; } catch(e) {}
+    }
     const isZM = !!req.zmSession; // set by verifyZoneManager if it ran, but we do manual check here
     // manual ZM check for this endpoint
     let isZMManual = false;
@@ -30913,7 +30944,7 @@ app.post('/api/kol-haam/reports/:id/resolve', async (req, res) => {
     const { id } = req.params;
     const { action } = req.body; // 'dismiss' | 'hide_comment' | 'unpublish_content'
     const authHeader = req.headers['authorization'] || '';
-    const isSA = authHeader === process.env.SA_SECRET_TOKEN_2026 || authHeader === 'SA_SECRET_TOKEN_2026';
+    let isSA = false; if (authHeader) { try { const { rows: _sar } = await pool.query('SELECT 1 FROM sa_sessions WHERE token=$1 AND expires_at>NOW()', [authHeader]); isSA = _sar.length > 0; } catch(e) {} }
     let isZM = false;
     if (!isSA && authHeader) {
         try {
@@ -30942,7 +30973,7 @@ app.post('/api/kol-haam/reports/:id/resolve', async (req, res) => {
 // POST /api/kol-haam/content/:id/un-quarantine — ZM or SA
 app.post('/api/kol-haam/content/:id/un-quarantine', async (req, res) => {
     const authHeader = req.headers['authorization'] || '';
-    const isSA = authHeader === process.env.SA_SECRET_TOKEN_2026 || authHeader === 'SA_SECRET_TOKEN_2026';
+    let isSA = false; if (authHeader) { try { const { rows: _sar } = await pool.query('SELECT 1 FROM sa_sessions WHERE token=$1 AND expires_at>NOW()', [authHeader]); isSA = _sar.length > 0; } catch(e) {} }
     let isZM = false;
     if (!isSA && authHeader) {
         try {

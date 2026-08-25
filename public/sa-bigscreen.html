@@ -936,7 +936,7 @@ body::before{content:'';position:fixed;inset:0;
 
 <script>
 // ── Auth ──────────────────────────────────────────────────────────────────────
-const SA_TOKEN = localStorage.getItem('saToken') || 'SA_SECRET_TOKEN_2026';
+const SA_TOKEN = localStorage.getItem('ofl_sa_token') || '';
 const saFetch = (url, opts={}) => fetch(url, {
   ...opts, headers: { 'Authorization': SA_TOKEN, 'Content-Type':'application/json', ...(opts.headers||{}) }
 });

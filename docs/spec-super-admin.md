@@ -34,7 +34,7 @@
 2. מערכת שולחת SMS עם OTP בן 6 ספרות (Twilio)
 3. `POST /api/superadmin/send-otp` — שליחת קוד לטלפון `SUPERADMIN_PHONE`
 4. `POST /api/superadmin/verify-otp` — אימות הקוד (תוקף 5 דקות)
-5. מוחזר token: `SA_SECRET_TOKEN_2026`
+5. מוחזר token: session token דינמי (64 תווים hex, תוקף 8 שעות)
 6. משתמש עם `permissions: ['all']` — גישה מלאה לכל המודולים
 
 **פרטי OTP:**
