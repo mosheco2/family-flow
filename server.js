@@ -5207,15 +5207,17 @@ function haversineKm(lat1, lng1, lat2, lng2) {
 }
 
 // ── אזורי שירות עסק ────────────────────────────────────────────────────────────
-app.get('/api/biz/service-areas/:groupId', async (req, res) => {
+app.get('/api/biz/service-areas/:groupId', verifyBiz, async (req, res) => {
     try {
+        if (parseInt(req.params.groupId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const r = await pool.query('SELECT * FROM biz_service_areas WHERE business_group_id=$1 ORDER BY created_at', [req.params.groupId]);
         res.json({ areas: r.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/biz/service-areas/:groupId', async (req, res) => {
+app.post('/api/biz/service-areas/:groupId', verifyBiz, async (req, res) => {
     try {
+        if (parseInt(req.params.groupId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const { city, radius_km = 10, lat: clientLat, lng: clientLng } = req.body;
         if (!city) return res.status(400).json({ error: 'חסרה עיר' });
         let lat = clientLat ? parseFloat(clientLat) : null;
@@ -5231,16 +5233,18 @@ app.post('/api/biz/service-areas/:groupId', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.delete('/api/biz/service-areas/:groupId/:areaId', async (req, res) => {
+app.delete('/api/biz/service-areas/:groupId/:areaId', verifyBiz, async (req, res) => {
     try {
+        if (parseInt(req.params.groupId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         await pool.query('DELETE FROM biz_service_areas WHERE id=$1 AND business_group_id=$2', [req.params.areaId, req.params.groupId]);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 // ── מיקום עסק ─────────────────────────────────────────────────────────────────
-app.post('/api/biz/location/:groupId', async (req, res) => {
+app.post('/api/biz/location/:groupId', verifyBiz, async (req, res) => {
     try {
+        if (parseInt(req.params.groupId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const { lat, lng, address } = req.body;
         await pool.query(
             `INSERT INTO store_settings (group_id, biz_lat, biz_lng, biz_address) VALUES ($1,$2,$3,$4)
@@ -5252,15 +5256,17 @@ app.post('/api/biz/location/:groupId', async (req, res) => {
 });
 
 // ── מעגלי משלוח (radius-based) ────────────────────────────────────────────────
-app.get('/api/biz/radius-zones/:groupId', async (req, res) => {
+app.get('/api/biz/radius-zones/:groupId', verifyBiz, async (req, res) => {
     try {
+        if (parseInt(req.params.groupId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const r = await pool.query('SELECT * FROM biz_radius_delivery_zones WHERE group_id=$1 ORDER BY radius_km ASC', [req.params.groupId]);
         res.json({ zones: r.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/biz/radius-zones/:groupId', async (req, res) => {
+app.post('/api/biz/radius-zones/:groupId', verifyBiz, async (req, res) => {
     try {
+        if (parseInt(req.params.groupId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const { radius_km, delivery_fee } = req.body;
         if (!radius_km) return res.status(400).json({ error: 'חסר רדיוס' });
         await pool.query(
@@ -5272,8 +5278,9 @@ app.post('/api/biz/radius-zones/:groupId', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.delete('/api/biz/radius-zones/:groupId/:zoneId', async (req, res) => {
+app.delete('/api/biz/radius-zones/:groupId/:zoneId', verifyBiz, async (req, res) => {
     try {
+        if (parseInt(req.params.groupId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         await pool.query('DELETE FROM biz_radius_delivery_zones WHERE id=$1 AND group_id=$2', [req.params.zoneId, req.params.groupId]);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
