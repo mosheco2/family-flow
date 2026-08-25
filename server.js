@@ -21675,12 +21675,20 @@ app.get('/api/beauty/:bizId/appointments', verifyBiz, async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/beauty/:bizId/appointments', async (req, res) => {
+app.post('/api/beauty/:bizId/appointments', verifyFamilyOrBiz, async (req, res) => {
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
         const { client_family_id, client_name, client_phone, client_email, client_type, booking_source,
                 deposit_amount, notes, internal_notes, rfq_id, group_booking_ref, segments } = req.body;
+
+        // IDOR check לפי booking_source + type
+        const src = booking_source || 'biz';
+        if (src === 'family') {
+            if (req.callerAuth.type !== 'family' || parseInt(client_family_id) !== req.callerAuth.groupId) { client.release(); return res.status(403).json({ error: 'אין הרשאה' }); }
+        } else {
+            if (req.callerAuth.type !== 'business' || parseInt(req.params.bizId) !== req.callerAuth.groupId) { client.release(); return res.status(403).json({ error: 'אין הרשאה' }); }
+        }
 
         // Validate resource conflicts
         for (const seg of (segments||[])) {
@@ -22530,9 +22538,10 @@ app.get('/api/beauty/:bizId/rfq', verifyBiz, async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/beauty/rfq', async (req, res) => {
+app.post('/api/beauty/rfq', verifyFamily, async (req, res) => {
     try {
         const { business_group_id, client_family_id, service_description } = req.body;
+        if (parseInt(client_family_id) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const r = await pool.query(
             'INSERT INTO beauty_rfq (business_group_id, client_family_id, service_description) VALUES ($1,$2,$3) RETURNING *',
             [business_group_id, client_family_id, service_description]
@@ -22541,9 +22550,11 @@ app.post('/api/beauty/rfq', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.patch('/api/beauty/rfq/:id/questionnaire', async (req, res) => {
+app.patch('/api/beauty/rfq/:id/questionnaire', verifyBiz, async (req, res) => {
     try {
         const { questions } = req.body;
+        const _rfq = await pool.query('SELECT 1 FROM beauty_rfq WHERE id=$1 AND business_group_id=$2', [req.params.id, req.bizAuth.groupId]);
+        if (!_rfq.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
         await pool.query(
             "UPDATE beauty_rfq SET questionnaire_data=$1, status='questionnaire_sent', updated_at=NOW() WHERE id=$2",
             [JSON.stringify({ questions, sent_at: new Date().toISOString() }), req.params.id]
@@ -22552,9 +22563,11 @@ app.patch('/api/beauty/rfq/:id/questionnaire', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/beauty/rfq/:id/client-response', async (req, res) => {
+app.post('/api/beauty/rfq/:id/client-response', verifyFamily, async (req, res) => {
     try {
         const { answers, photos } = req.body;
+        const _rfq = await pool.query('SELECT 1 FROM beauty_rfq WHERE id=$1 AND client_family_id=$2', [req.params.id, req.familyAuth.groupId]);
+        if (!_rfq.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
         const existing = await pool.query('SELECT questionnaire_data FROM beauty_rfq WHERE id=$1', [req.params.id]);
         const qData = existing.rows[0]?.questionnaire_data || {};
         await pool.query(
@@ -22566,9 +22579,11 @@ app.post('/api/beauty/rfq/:id/client-response', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/beauty/rfq/:id/plan', async (req, res) => {
+app.post('/api/beauty/rfq/:id/plan', verifyBiz, async (req, res) => {
     try {
         const { sessions, total_price, payment_link, title } = req.body;
+        const _rfq = await pool.query('SELECT 1 FROM beauty_rfq WHERE id=$1 AND business_group_id=$2', [req.params.id, req.bizAuth.groupId]);
+        if (!_rfq.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
         await pool.query(
             "UPDATE beauty_rfq SET treatment_plan=$1, status='plan_sent', updated_at=NOW() WHERE id=$2",
             [JSON.stringify({ title, sessions, total_price, payment_link, sent_at: new Date().toISOString() }), req.params.id]
@@ -22577,8 +22592,10 @@ app.post('/api/beauty/rfq/:id/plan', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/beauty/rfq/:id/accept', async (req, res) => {
+app.post('/api/beauty/rfq/:id/accept', verifyFamily, async (req, res) => {
     try {
+        const _rfq = await pool.query('SELECT 1 FROM beauty_rfq WHERE id=$1 AND client_family_id=$2', [req.params.id, req.familyAuth.groupId]);
+        if (!_rfq.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
         await pool.query(
             "UPDATE beauty_rfq SET status='accepted', plan_accepted_at=NOW(), updated_at=NOW() WHERE id=$1",
             [req.params.id]
@@ -22587,9 +22604,14 @@ app.post('/api/beauty/rfq/:id/accept', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/beauty/rfq/:id/message', async (req, res) => {
+app.post('/api/beauty/rfq/:id/message', verifyFamilyOrBiz, async (req, res) => {
     try {
         const { from, text } = req.body;
+        const _rfq = await pool.query('SELECT business_group_id, client_family_id FROM beauty_rfq WHERE id=$1', [req.params.id]);
+        if (!_rfq.rows.length) return res.status(404).json({ error: 'לא נמצא' });
+        const { business_group_id, client_family_id } = _rfq.rows[0];
+        const g = req.callerAuth.groupId;
+        if (g !== business_group_id && g !== client_family_id) return res.status(403).json({ error: 'אין הרשאה' });
         const existing = await pool.query('SELECT messages FROM beauty_rfq WHERE id=$1', [req.params.id]);
         const msgs = existing.rows[0]?.messages || [];
         msgs.push({ from, text, ts: new Date().toISOString() });
@@ -22609,8 +22631,9 @@ app.get('/api/beauty/businesses', async (req, res) => {
 });
 
 // family: get own RFQs
-app.get('/api/beauty/rfq/family/:familyId', async (req, res) => {
+app.get('/api/beauty/rfq/family/:familyId', verifyFamily, async (req, res) => {
     try {
+        if (parseInt(req.params.familyId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const r = await pool.query(
             `SELECT br.*, fg.name AS business_name FROM beauty_rfq br
              LEFT JOIN family_groups fg ON fg.id=br.business_group_id
