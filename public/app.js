@@ -665,6 +665,11 @@ function saveSession(u, g, token) {
     if (group && group.id && group.image_url) { try { localStorage.setItem(`ofl_logo_${group.id}`, group.image_url); } catch(e) {} }
 }
 function getFamilyToken() { return localStorage.getItem('ofl_family_token') || null; }
+function communityFetch(url, opts = {}) {
+    const token = getFamilyToken() || '';
+    opts.headers = { ...(opts.headers || {}), Authorization: `Bearer ${token}` };
+    return fetch(url, opts);
+}
 function logout() {
     const token = getFamilyToken();
     if (token) {
@@ -4765,7 +4770,7 @@ async function loadCommGames(communityId) {
   const el = document.getElementById('comm-games-list');
   if (!el) return;
   try {
-    const r = await fetch(`/api/community/${communityId}/live-games`);
+    const r = await communityFetch(`/api/community/${communityId}/live-games`);
     const d = await r.json();
     _renderGamesIntoEl(el, d.games);
   } catch(e) {
@@ -5862,7 +5867,7 @@ async function loadCommunityArticles(communityId) {
     if (!container) return;
     container.innerHTML = '<p class="text-sm text-slate-400 text-center py-4">טוען מאמרים...</p>';
     try {
-        const res = await fetch(`${API}/community/articles/${communityId}`);
+        const res = await communityFetch(`${API}/community/articles/${communityId}`);
         const data = await res.json();
         const articles = data.articles || [];
         if (!articles.length) {
@@ -5915,7 +5920,7 @@ async function loadCommHomeBanners() {
     const el = document.getElementById('comm-home-banners-feed');
     if (!el) return;
     try {
-        const res = await fetch(`${API}/community/approved-banners`);
+        const res = await communityFetch(`${API}/community/approved-banners`);
         const data = await res.json();
         const banners = data.banners || [];
         if (!banners.length) {
@@ -5997,7 +6002,7 @@ async function renderFamPools() {
 
     el.innerHTML = '<p class="text-xs text-slate-400 text-center py-8">טוען...</p>';
     try {
-        const res = await fetch(`${API}/community/pool/community/${commId}`, {});
+        const res = await communityFetch(`${API}/community/pool/community/${commId}`, {});
         const data = await res.json();
         if (!data.success) throw new Error(data.error || 'שגיאה');
         const pools = data.pools || [];
@@ -6070,7 +6075,7 @@ async function createFamPool() {
     };
 
     try {
-        const res = await fetch(`${API}/community/pool`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        const res = await communityFetch(`${API}/community/pool`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
         const data = await res.json();
         if (!data.success) throw new Error(data.error || 'שגיאה');
         showToast('success', '🌊 פול נפתח בהצלחה!');
@@ -6089,7 +6094,7 @@ async function openFamPoolDetail(poolId) {
     modal.classList.remove('hidden');
     body.innerHTML = '<p class="text-xs text-slate-400 text-center py-8">טוען...</p>';
     try {
-        const res = await fetch(`${API}/community/pool/${poolId}`);
+        const res = await communityFetch(`${API}/community/pool/${poolId}`);
         const data = await res.json();
         if (!data.success) throw new Error(data.error || 'שגיאה');
         const p = data.pool;
@@ -6107,7 +6112,7 @@ async function openFamPoolDetail(poolId) {
         let bids = [];
         if (isFamInitiator) {
             try {
-                const bRes = await fetch(`${API}/community/pool/${poolId}/bids?viewerId=${currentGroup.id}&viewerType=family`);
+                const bRes = await communityFetch(`${API}/community/pool/${poolId}/bids?viewerId=${currentGroup.id}&viewerType=family`);
                 const bData = await bRes.json();
                 if (bData.success) bids = bData.bids || [];
             } catch (_) {}
@@ -6196,7 +6201,7 @@ async function openFamPoolDetail(poolId) {
 }
 async function renewFamPool(poolId) {
     try {
-        const res = await fetch(`${API}/community/pool/${poolId}/renew`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ viewerId: currentGroup.id, days: 7 }) });
+        const res = await communityFetch(`${API}/community/pool/${poolId}/renew`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ viewerId: currentGroup.id, days: 7 }) });
         const data = await res.json();
         if (!data.success) throw new Error(data.error || 'שגיאה');
         showToast('success', '🔄 תוקף הפול חודש ל-7 ימים!');
@@ -6207,7 +6212,7 @@ async function renewFamPool(poolId) {
 async function archiveFamPool(poolId) {
     if (!confirm('להעביר את הפול לארכיב?')) return;
     try {
-        const res = await fetch(`${API}/community/pool/${poolId}/archive`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ viewerId: currentGroup.id }) });
+        const res = await communityFetch(`${API}/community/pool/${poolId}/archive`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ viewerId: currentGroup.id }) });
         const data = await res.json();
         if (!data.success) throw new Error(data.error || 'שגיאה');
         showToast('success', '📦 הפול הועבר לארכיב');
@@ -6218,9 +6223,9 @@ async function archiveFamPool(poolId) {
 async function closeFamPool(poolId) {
     if (!confirm('לסגור את הפול כבוע מול עסק?')) return;
     try {
-        const res = await fetch(`${API}/community/pool/${poolId}/select-bid`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ viewerId: currentGroup.id, bidId: null, closeOnly: true }) });
+        const res = await communityFetch(`${API}/community/pool/${poolId}/select-bid`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ viewerId: currentGroup.id, bidId: null, closeOnly: true }) });
         // If no bid, just update status directly
-        const res2 = await fetch(`${API}/community/pool/${poolId}/archive`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ viewerId: currentGroup.id }) });
+        const res2 = await communityFetch(`${API}/community/pool/${poolId}/archive`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ viewerId: currentGroup.id }) });
         showToast('success', '✅ הפול נסגר');
         document.getElementById('modal-pool-detail').classList.add('hidden');
         renderFamPools();
@@ -6233,7 +6238,7 @@ function closePoolDetailModal() {
 async function restoreFamPool(poolId, btn) {
     if (btn) { btn.disabled = true; btn.textContent = 'מחזיר...'; }
     try {
-        const res = await fetch(`${API}/community/pool/${poolId}/restore`, {
+        const res = await communityFetch(`${API}/community/pool/${poolId}/restore`, {
             method: 'POST', headers: {'Content-Type':'application/json'},
             body: JSON.stringify({ viewerId: currentGroup.id })
         });
@@ -6253,7 +6258,7 @@ async function loadFamPoolArchive() {
     if (!el || !currentGroup) return;
     el.innerHTML = '<p class="text-xs text-slate-400 text-center py-8">טוען...</p>';
     try {
-        const res = await fetch(`${API}/community/pool/family-archive/${currentGroup.id}`);
+        const res = await communityFetch(`${API}/community/pool/family-archive/${currentGroup.id}`);
         const data = await res.json();
         const pools = data.pools || [];
         if (!pools.length) {
@@ -6321,7 +6326,7 @@ async function saveEditFamPool(poolId) {
     const maxPrice = parseFloat(document.getElementById('edit-pool-maxprice')?.value) || 0;
     if (!title) { showToast('error', 'חובה להזין כותרת'); return; }
     try {
-        const res = await fetch(`${API}/community/pool/${poolId}/edit`, {
+        const res = await communityFetch(`${API}/community/pool/${poolId}/edit`, {
             method: 'POST', headers: {'Content-Type':'application/json'},
             body: JSON.stringify({ viewerId: currentGroup.id, title, description, maxPrice })
         });
@@ -6336,7 +6341,7 @@ async function saveEditFamPool(poolId) {
 
 async function joinFamPool(poolId) {
     try {
-        const res = await fetch(`${API}/community/pool/${poolId}/join`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ groupId: currentGroup.id }) });
+        const res = await communityFetch(`${API}/community/pool/${poolId}/join`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ groupId: currentGroup.id }) });
         const data = await res.json();
         if (!data.success) throw new Error(data.error || 'שגיאה');
         showToast('success', 'הצטרפת לפול! 🎉');
@@ -6348,7 +6353,7 @@ async function joinFamPool(poolId) {
 async function selectPoolBid(poolId, bidId) {
     if (!confirm('לבחור את ההצעה הזו?')) return;
     try {
-        const res = await fetch(`${API}/community/pool/${poolId}/select-bid`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ bid_id: bidId, bidId, viewerId: currentGroup.id }) });
+        const res = await communityFetch(`${API}/community/pool/${poolId}/select-bid`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ bid_id: bidId, bidId, viewerId: currentGroup.id }) });
         const data = await res.json();
         if (!data.success) throw new Error(data.error || 'שגיאה');
         showToast('success', '✅ הצעה נבחרה!');
@@ -6360,7 +6365,7 @@ async function selectPoolBid(poolId, bidId) {
 async function openFamPoolRound2(poolId) {
     if (!confirm('לפתוח סיבוב 2 לעסקים חיצוניים?')) return;
     try {
-        const res = await fetch(`${API}/community/pool/${poolId}/open-round2`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ viewerId: currentGroup.id }) });
+        const res = await communityFetch(`${API}/community/pool/${poolId}/open-round2`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ viewerId: currentGroup.id }) });
         const data = await res.json();
         if (!data.success) throw new Error(data.error || 'שגיאה');
         showToast('success', '🟣 סיבוב 2 נפתח!');
@@ -6373,7 +6378,7 @@ async function sendPoolMessage(poolId) {
     const content = input ? input.value.trim() : '';
     if (!content) return;
     try {
-        const res = await fetch(`${API}/community/pool/${poolId}/message`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content, sender_type: 'family', sender_id: currentGroup.id }) });
+        const res = await communityFetch(`${API}/community/pool/${poolId}/message`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content, sender_type: 'family', sender_id: currentGroup.id }) });
         const data = await res.json();
         if (!data.success) throw new Error(data.error || 'שגיאה');
         input.value = '';
@@ -6384,7 +6389,7 @@ async function sendPoolMessage(poolId) {
 async function removePoolMember(poolId, groupId) {
     if (!confirm('להסיר משפחה זו מהפול?')) return;
     try {
-        const res = await fetch(`${API}/community/pool/${poolId}/remove-member`, {
+        const res = await communityFetch(`${API}/community/pool/${poolId}/remove-member`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ groupId, initiatorId: currentGroup.id })
         });
@@ -6399,7 +6404,7 @@ async function removePoolMember(poolId, groupId) {
 async function fetchCommunityData() {
     if(!currentGroup || currentGroup.type !== 'FAMILY') return;
     try {
-        const res = await fetch(`${API}/community/info/${currentGroup.id}`);
+        const res = await communityFetch(`${API}/community/info/${currentGroup.id}`);
         const data = await res.json();
         
         if (data.success) {
@@ -6428,7 +6433,7 @@ async function fetchCommunityData() {
 async function fetchCashbackInfo() {
     if(!currentGroup || currentGroup.type !== 'FAMILY') return;
     try {
-        const res = await fetch(`${API}/community/cashback-info/${currentGroup.id}`);
+        const res = await communityFetch(`${API}/community/cashback-info/${currentGroup.id}`);
         const data = await res.json();
         if(data.success) {
             myCashbackCache = data.communities || [];
@@ -6439,7 +6444,7 @@ async function fetchCashbackInfo() {
 
 async function fetchMyInitiatives() {
     try {
-        const res = await fetch(`${API}/community/my-initiatives/${currentGroup.id}`);
+        const res = await communityFetch(`${API}/community/my-initiatives/${currentGroup.id}`);
         const data = await res.json();
         if(data.success) {
             myInitiativesCache = data.initiatives || [];
@@ -6486,7 +6491,7 @@ async function submitNewInitiative() {
     const btn = getEl('btn-submit-init-comm');
     btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> פותח קהילה...';
     try {
-        const res = await fetch(`${API}/community/user-create`, {
+        const res = await communityFetch(`${API}/community/user-create`, {
             method: 'POST', headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({ name, city, groupId: currentGroup.id })
         });
@@ -6776,7 +6781,7 @@ window.openBizCommunityPicker = function(groupCode, bizName, comms) {
 async function loadCommunityFeed() {
     if (!currentGroup || currentGroup.type !== 'FAMILY') return;
     try {
-        const res = await fetch(`${API}/community/family-feed/${currentGroup.id}`);
+        const res = await communityFetch(`${API}/community/family-feed/${currentGroup.id}`);
         if (!res.ok) {
             renderCommunityPromotions([]);
             return;
@@ -6901,7 +6906,7 @@ window.purchaseCommunityBundle = async function(bundleId, btn) {
     btn.disabled = true;
     btn.textContent = '...';
     try {
-        const res = await fetch(`${API}/community/bundles/${bundleId}/purchase`, {
+        const res = await communityFetch(`${API}/community/bundles/${bundleId}/purchase`, {
             method: 'POST', headers: {'Content-Type':'application/json'},
             body: JSON.stringify({ groupId: currentGroup.id })
         });
@@ -6922,7 +6927,7 @@ window.redeemCommunityPromo = async function(promoId, btn) {
     btn.disabled = true;
     btn.textContent = '...';
     try {
-        const res = await fetch(`${API}/community/promotions/${promoId}/redeem`, {
+        const res = await communityFetch(`${API}/community/promotions/${promoId}/redeem`, {
             method: 'POST', headers: {'Content-Type':'application/json'},
             body: JSON.stringify({ groupId: currentGroup.id })
         });
@@ -6979,7 +6984,7 @@ window.submitCommunityReview = async function(bizId) {
     if (!rating) { return; }
     const communityId = myConnectedCommunitiesCache?.[0]?.id || null;
     try {
-        const res = await fetch(`${API}/community/reviews`, {
+        const res = await communityFetch(`${API}/community/reviews`, {
             method: 'POST', headers: {'Content-Type':'application/json'},
             body: JSON.stringify({ familyGroupId: currentGroup.id, businessGroupId: bizId, communityId, rating, text })
         });
@@ -7348,7 +7353,7 @@ window.openFlowRedeemToStore = async function(bal, minR) {
     // Fetch live if cache is empty
     if (!rawBiz.length && currentGroup && currentGroup.id) {
         try {
-            const res = await fetch(`${API}/community/info/${currentGroup.id}`);
+            const res = await communityFetch(`${API}/community/info/${currentGroup.id}`);
             const d = await res.json();
             if (d.success && d.businesses) {
                 myCommunityBusinessesCache = d.businesses;
@@ -7480,7 +7485,7 @@ window.submitFamReferral = async function() {
     const notes = getEl('fam-refer-notes')?.value?.trim();
     if (!bizCode || !communityId) { showToast('error', 'יש למלא קוד עסק וקהילה'); return; }
     try {
-        const res = await fetch(`${API}/community/family-refer`, {
+        const res = await communityFetch(`${API}/community/family-refer`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ groupId: currentGroup.id, bizCode, communityId: parseInt(communityId), notes })
         });
@@ -7526,7 +7531,7 @@ window.joinCommunityByCode = async function(code, name, btn) {
     if (!currentGroup || !code) return;
     btn.disabled = true; btn.textContent = '...';
     try {
-        const res = await fetch(`${API}/community/join`, {
+        const res = await communityFetch(`${API}/community/join`, {
             method: 'POST', headers: {'Content-Type':'application/json'},
             body: JSON.stringify({ groupId: currentGroup.id, code })
         });
@@ -7663,7 +7668,7 @@ window.searchCommunitiesByCity = async function(city) {
 async function loadFamilyCommunityPromos() {
     if (!currentGroup || !currentGroup.id) return;
     try {
-        const res = await fetch(`${API}/community/promos/${currentGroup.id}`);
+        const res = await communityFetch(`${API}/community/promos/${currentGroup.id}`);
         const data = await res.json();
         if (!data.success) return;
         renderFamilyCommunityPromos(data.promos || []);
@@ -7718,7 +7723,7 @@ async function joinCommunityDyn() {
     const referralCode = (getEl('community-referral-input')?.value || '').trim().toUpperCase() || undefined;
 
     try {
-        const res = await fetch(`${API}/community/join`, {
+        const res = await communityFetch(`${API}/community/join`, {
             method: 'POST', headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({ groupId: currentGroup.id, code, referralCode })
         });
@@ -7748,8 +7753,8 @@ async function loadMyReferralCode() {
     if (!currentGroup || currentGroup.type !== 'FAMILY') return;
     try {
         const [codeRes, statsRes] = await Promise.all([
-            fetch(`${API}/community/my-referral-code/${currentGroup.id}`),
-            fetch(`${API}/community/my-referral-stats/${currentGroup.id}`)
+            communityFetch(`${API}/community/my-referral-code/${currentGroup.id}`),
+            communityFetch(`${API}/community/my-referral-stats/${currentGroup.id}`)
         ]);
         if (!codeRes.ok) return;
         const data = await codeRes.json();
@@ -7828,7 +7833,7 @@ window.shareReferralWhatsApp = function() {
 async function leaveCommunity(commId, commName) {
     if(!confirm(`האם אתם בטוחים שברצונכם להתנתק מקהילת ${commName}? לא תוכלו לקבל הנחות מעסקים בקהילה זו.`)) return;
     try {
-        const res = await fetch(`${API}/community/leave/${currentGroup.id}/${commId}`, { method: 'DELETE' });
+        const res = await communityFetch(`${API}/community/leave/${currentGroup.id}/${commId}`, { method: 'DELETE' });
         const data = await res.json();
         if(data.success) {
             showToast('success', `התנתקתם מקהילת ${commName}`);
@@ -7851,7 +7856,7 @@ if (familyOriginalSwitchTab && !window.familySwitchTabOverridden) {
 
 async function openCommunityManagerPanel(commId) {
     try {
-        const res = await fetch(`${API}/community/manager-data/${currentGroup.id}`);
+        const res = await communityFetch(`${API}/community/manager-data/${currentGroup.id}`);
         const data = await res.json();
         if (!data.success) return showToast('error', 'שגיאה בטעינת נתוני קהילה');
 
@@ -7984,7 +7989,7 @@ async function cmPublishArticle(commId) {
     const image_url = document.getElementById(`cm-article-image-${commId}`)?.value.trim() || null;
     if (!title || !body) { showToast('error', 'כותרת ותוכן הם שדות חובה'); return; }
     try {
-        const r = await fetch(`${API}/community/manager/articles`, {
+        const r = await communityFetch(`${API}/community/manager/articles`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${localStorage.getItem('token') || ''}` },
             body: JSON.stringify({ community_id: commId, title, body, image_url, group_id: currentGroup?.id })
@@ -8057,7 +8062,7 @@ window._searchBizForInvite = async function(q, commId) {
     if (!el || !q.trim()) return;
     el.innerHTML = '<p class="text-xs text-slate-400 text-center py-3">טוען...</p>';
     try {
-        const res = await fetch(`${API}/community/search-business?q=${encodeURIComponent(q)}`);
+        const res = await communityFetch(`${API}/community/search-business?q=${encodeURIComponent(q)}`);
         const data = await res.json();
         if (!data.businesses.length) { el.innerHTML = '<p class="text-xs text-slate-400 text-center py-3">לא נמצאו עסקים</p>'; return; }
         el.innerHTML = data.businesses.map(b => `
@@ -8073,7 +8078,7 @@ window._searchBizForInvite = async function(q, commId) {
 
 window.sendBizInvite = async function(commId, bizId) {
     try {
-        const res = await fetch(`${API}/community/invite-business`, {
+        const res = await communityFetch(`${API}/community/invite-business`, {
             method: 'POST', headers: {'Content-Type':'application/json'},
             body: JSON.stringify({ groupId: currentGroup.id, communityId: commId, businessId: bizId })
         });
@@ -8085,7 +8090,7 @@ window.sendBizInvite = async function(commId, bizId) {
 
 window.commMgrApproveFamily = async function(communityId, targetGroupId) {
     try {
-        const res = await fetch(`${API}/community/manager/family/approve`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ groupId: currentGroup.id, communityId, targetGroupId }) });
+        const res = await communityFetch(`${API}/community/manager/family/approve`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ groupId: currentGroup.id, communityId, targetGroupId }) });
         const data = await res.json();
         if (data.success) { showToast('success', 'המשפחה אושרה'); openCommunityManagerPanel(communityId); }
         else showToast('error', data.error || 'שגיאה');
@@ -8094,7 +8099,7 @@ window.commMgrApproveFamily = async function(communityId, targetGroupId) {
 
 window.commMgrRejectFamily = async function(communityId, targetGroupId) {
     try {
-        const res = await fetch(`${API}/community/manager/family/reject`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ groupId: currentGroup.id, communityId, targetGroupId }) });
+        const res = await communityFetch(`${API}/community/manager/family/reject`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ groupId: currentGroup.id, communityId, targetGroupId }) });
         const data = await res.json();
         if (data.success) { showToast('success', 'הבקשה נדחתה'); openCommunityManagerPanel(communityId); }
         else showToast('error', data.error || 'שגיאה');
@@ -8151,7 +8156,7 @@ async function showCMThreadList() {
     const view = document.getElementById('cm-inbox-view');
     view.innerHTML = '<div class="text-center text-slate-400 py-4">טוען...</div>';
     try {
-        const res = await fetch(`${API}/community/inbox/${currentGroup.id}`);
+        const res = await communityFetch(`${API}/community/inbox/${currentGroup.id}`);
         const data = await res.json();
         const threads = data.threads || [];
         if (!threads.length) {
@@ -8186,7 +8191,7 @@ async function openCMThread(threadId) {
     document.getElementById('cm-inbox-footer').classList.add('hidden');
     document.getElementById('cm-reply-input').value = '';
     try {
-        const res = await fetch(`${API}/community/inbox/thread/${threadId}/${currentGroup.id}`);
+        const res = await communityFetch(`${API}/community/inbox/thread/${threadId}/${currentGroup.id}`);
         const data = await res.json();
         if (!data.success) { view.innerHTML = '<div class="text-red-400 text-center py-4">שגיאה</div>'; return; }
         view.innerHTML = `
@@ -8211,7 +8216,7 @@ async function sendCMReply() {
     if (!content || !cmInboxCurrentThreadId) return;
     document.getElementById('cm-reply-input').value = '';
     try {
-        const res = await fetch(`${API}/community/inbox/thread/${cmInboxCurrentThreadId}/reply`, {
+        const res = await communityFetch(`${API}/community/inbox/thread/${cmInboxCurrentThreadId}/reply`, {
             method: 'POST', headers: {'Content-Type':'application/json'},
             body: JSON.stringify({ groupId: currentGroup.id, content })
         });
@@ -8257,7 +8262,7 @@ async function submitCMNewThread(communityId, btn) {
     if (!content) { err.textContent = 'תוכן ההודעה חובה'; err.classList.remove('hidden'); return; }
     btn.disabled = true; btn.textContent = 'שולח...';
     try {
-        const res = await fetch(`${API}/community/inbox/new`, {
+        const res = await communityFetch(`${API}/community/inbox/new`, {
             method: 'POST', headers: {'Content-Type':'application/json'},
             body: JSON.stringify({ groupId: currentGroup.id, communityId, subject, content })
         });
@@ -17202,7 +17207,7 @@ async function loadFeedSection(forceReload = false) {
 
 async function markFeedRead(communityId) {
   try {
-    await fetch(`${API}/community/feed/mark-read`, {
+    await communityFetch(`${API}/community/feed/mark-read`, {
       method: 'POST', headers: {'Content-Type':'application/json'},
       body: JSON.stringify({ familyId: currentGroup?.id, communityId: communityId || null })
     });
@@ -17213,7 +17218,7 @@ async function markFeedRead(communityId) {
 async function loadFeedUnreadCounts() {
   try {
     if (!currentGroup?.id) return;
-    const res = await fetch(`${API}/community/feed/unread-counts?familyId=${currentGroup.id}`);
+    const res = await communityFetch(`${API}/community/feed/unread-counts?familyId=${currentGroup.id}`);
     const data = await res.json();
     if (!data.counts) return;
     // עדכון תג "פיד"
@@ -17280,7 +17285,7 @@ function renderFeedCommunityFilters() {
 
 async function loadGroupFilters(communityId) {
   try {
-    const res = await fetch(`${API}/community/${communityId}/groups?familyId=${currentGroup?.id}`);
+    const res = await communityFetch(`${API}/community/${communityId}/groups?familyId=${currentGroup?.id}`);
     const data = await res.json();
     const container = document.getElementById('feed-group-filter');
     if (!container || !data.groups?.length) return;
@@ -17330,7 +17335,7 @@ async function fetchFeedPosts(reset = false) {
     ...(feedState.groupId ? { groupId: feedState.groupId } : {}),
   });
   try {
-    const res = await fetch(`${API}/community/feed?${params}`);
+    const res = await communityFetch(`${API}/community/feed?${params}`);
     const data = await res.json();
     if (!data.success) return;
     const list = document.getElementById('feed-posts-list');
@@ -17412,7 +17417,7 @@ function renderPostCard(post) {
 
 async function toggleFeedLike(postId, btn) {
   try {
-    const res = await fetch(`${API}/community/posts/${postId}/like`, {
+    const res = await communityFetch(`${API}/community/posts/${postId}/like`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ familyId: currentGroup?.id })
     });
@@ -17477,7 +17482,7 @@ async function openFeedComments(postId) {
   document.body.appendChild(modal);
   modal.onclick = e => { if (e.target === modal) modal.remove(); };
   try {
-    const res = await fetch(`${API}/community/posts/${postId}/comments`);
+    const res = await communityFetch(`${API}/community/posts/${postId}/comments`);
     const data = await res.json();
     const list = document.getElementById('comments-list');
     if (!list) return;
@@ -17507,7 +17512,7 @@ async function submitComment(postId) {
   const content = input?.value?.trim();
   if (!content) return;
   try {
-    await fetch(`${API}/community/posts/${postId}/comments`, {
+    await communityFetch(`${API}/community/posts/${postId}/comments`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ familyId: currentGroup?.id, userId: currentUser?.id, content })
     });
@@ -17534,7 +17539,7 @@ async function showLikersList(postId) {
   list.innerHTML = '<div style="text-align:center;color:#94A3B8;padding:1rem">טוען...</div>';
   modal.style.display = 'flex';
   try {
-    const res = await fetch(`${API}/community/posts/${postId}/likers`);
+    const res = await communityFetch(`${API}/community/posts/${postId}/likers`);
     const data = await res.json();
     if (!data.likers?.length) { list.innerHTML = '<div style="text-align:center;color:#94A3B8;padding:1rem">אין עדיין לייקים</div>'; return; }
     list.innerHTML = data.likers.map(l => `
@@ -17560,7 +17565,7 @@ async function showSharersList(postId) {
   list.innerHTML = '<div style="text-align:center;color:#94A3B8;padding:1rem">טוען...</div>';
   modal.style.display = 'flex';
   try {
-    const res = await fetch(`${API}/community/posts/${postId}/sharers`);
+    const res = await communityFetch(`${API}/community/posts/${postId}/sharers`);
     const data = await res.json();
     if (!data.sharers?.length) { list.innerHTML = '<div style="text-align:center;color:#94A3B8;padding:1rem">אין עדיין שיתופים</div>'; return; }
     list.innerHTML = data.sharers.map(s => `
@@ -17583,7 +17588,7 @@ function shareToWhatsApp(postId, communityName) {
   window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
   // רישום השיתוף בשרת
   try {
-    fetch(`${API}/community/posts/${postId}/share`, {
+    communityFetch(`${API}/community/posts/${postId}/share`, {
       method: 'POST', headers: {'Content-Type':'application/json'},
       body: JSON.stringify({ familyId: currentGroup?.id })
     });
@@ -17597,7 +17602,7 @@ async function checkPostDeepLink() {
   if (!postId) return;
   try {
     const fid = currentGroup?.id || 0;
-    const res = await fetch(`${API}/community/posts/${postId}/public?familyId=${fid}`);
+    const res = await communityFetch(`${API}/community/posts/${postId}/public?familyId=${fid}`);
     const data = await res.json();
     if (!data.success) return;
     if (data.gated) {
@@ -17624,7 +17629,7 @@ async function shareFeedPost(postId) {
   const idx = parseInt(prompt(`לאיזו קהילה לשתף?\n${names}`));
   if (!idx || idx < 1 || idx > other.length) return;
   try {
-    await fetch(`${API}/community/posts/${postId}/share`, {
+    await communityFetch(`${API}/community/posts/${postId}/share`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ familyId: currentGroup?.id, targetCommunityId: other[idx - 1].id })
     });
@@ -17636,7 +17641,7 @@ async function reportFeedPost(postId) {
   const reason = prompt('מה הסיבה לדיווח?\n(אופציונלי)');
   if (reason === null) return;
   try {
-    await fetch(`${API}/community/posts/${postId}/report`, {
+    await communityFetch(`${API}/community/posts/${postId}/report`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ familyId: currentGroup?.id, reason })
     });
@@ -17650,7 +17655,7 @@ async function onNewPostCommunityChange(communityId) {
   if (!row || !sel || !communityId) { if (row) row.style.display = 'none'; return; }
   sel.innerHTML = '<option value="">ללא תחום ספציפי</option>';
   try {
-    const res = await fetch(`${API}/community/${communityId}/groups?familyId=${currentGroup?.id}`);
+    const res = await communityFetch(`${API}/community/${communityId}/groups?familyId=${currentGroup?.id}`);
     const data = await res.json();
     if (data.groups?.length) {
       data.groups.forEach(g => {
@@ -17727,7 +17732,7 @@ async function submitNewPost() {
   if (!content) { showToast('error', 'כתוב משהו לפני פרסום'); return; }
   if (!communityId) { showToast('error', 'בחר קהילה'); return; }
   try {
-    const res = await fetch(`${API}/community/posts`, {
+    const res = await communityFetch(`${API}/community/posts`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         familyId: currentGroup?.id,
@@ -17792,7 +17797,7 @@ function formatTimeAgo(dateStr) {
 async function loadNotifCount() {
   try {
     if (!currentGroup?.id) return;
-    const res = await fetch(`${API}/community/notifications/count?familyId=${currentGroup.id}`);
+    const res = await communityFetch(`${API}/community/notifications/count?familyId=${currentGroup.id}`);
     const data = await res.json();
     const badge = document.getElementById('notif-bell-badge');
     if (!badge) return;
@@ -17810,7 +17815,7 @@ async function loadNotificationsTab() {
   if (!container) return;
   container.innerHTML = '<div style="text-align:center;color:#94A3B8;padding:1rem">טוען...</div>';
   try {
-    const res = await fetch(`${API}/community/notifications?familyId=${currentGroup?.id}&limit=30`);
+    const res = await communityFetch(`${API}/community/notifications?familyId=${currentGroup?.id}&limit=30`);
     const data = await res.json();
     if (!data.notifications?.length) {
       container.innerHTML = '<div style="text-align:center;color:#94A3B8;padding:2rem;font-size:0.85rem">אין התראות עדיין 🔔</div>';
@@ -17854,7 +17859,7 @@ async function loadNotificationsTab() {
 
 async function openNotif(notifId, communityId, postId) {
   try {
-    await fetch(`${API}/community/notifications/mark-read`, {
+    await communityFetch(`${API}/community/notifications/mark-read`, {
       method: 'POST', headers: {'Content-Type':'application/json'},
       body: JSON.stringify({ familyId: currentGroup?.id, notificationId: notifId })
     });
@@ -17871,7 +17876,7 @@ async function openNotif(notifId, communityId, postId) {
 
 async function markAllNotifsRead() {
   try {
-    await fetch(`${API}/community/notifications/mark-read`, {
+    await communityFetch(`${API}/community/notifications/mark-read`, {
       method: 'POST', headers: {'Content-Type':'application/json'},
       body: JSON.stringify({ familyId: currentGroup?.id })
     });
@@ -17947,7 +17952,7 @@ async function loadInterestGroupsForComm(communityId) {
   if (!listEl) return;
   listEl.innerHTML = '<p style="text-align:center;color:#9CA3AF;font-size:0.75rem">טוען...</p>';
   try {
-    const res = await fetch(`${API}/community/${communityId}/groups?familyId=${currentGroup?.id}`);
+    const res = await communityFetch(`${API}/community/${communityId}/groups?familyId=${currentGroup?.id}`);
     const data = await res.json();
     interestGroupsCache[communityId] = data.groups || [];
     if (createBtn) { createBtn.style.display = 'inline-block'; interestPanelCommId = communityId; }
@@ -17981,7 +17986,7 @@ async function loadInterestGroupsForComm(communityId) {
 
 async function joinInterestGroup(groupId, communityId) {
   try {
-    const res = await fetch(`${API}/community/groups/${groupId}/join`, {
+    const res = await communityFetch(`${API}/community/groups/${groupId}/join`, {
       method: 'POST', headers: {'Content-Type':'application/json'},
       body: JSON.stringify({ familyId: currentGroup?.id })
     });
@@ -17995,7 +18000,7 @@ async function joinInterestGroup(groupId, communityId) {
 async function leaveInterestGroup(groupId, communityId) {
   if (!confirm('לעזוב תחום עניין זה?')) return;
   try {
-    const res = await fetch(`${API}/community/groups/${groupId}/leave`, {
+    const res = await communityFetch(`${API}/community/groups/${groupId}/leave`, {
       method: 'POST', headers: {'Content-Type':'application/json'},
       body: JSON.stringify({ familyId: currentGroup?.id })
     });
@@ -18043,7 +18048,7 @@ async function submitCreateGroup() {
   const desc = document.getElementById('new-group-desc')?.value?.trim();
   if (!name) { showToast('error', 'שם התחום חובה'); return; }
   try {
-    const res = await fetch(`${API}/community/groups`, {
+    const res = await communityFetch(`${API}/community/groups`, {
       method: 'POST', headers: {'Content-Type':'application/json'},
       body: JSON.stringify({
         communityId: createGroupCommunityId,
@@ -18069,7 +18074,7 @@ async function openGroupMembersModal(groupId) {
   modal.style.display = 'flex';
   membersList.innerHTML = '<p style="text-align:center;color:#9CA3AF;font-size:0.8rem">טוען...</p>';
   try {
-    const res = await fetch(`${API}/community/groups/${groupId}/members?familyId=${currentGroup?.id}`);
+    const res = await communityFetch(`${API}/community/groups/${groupId}/members?familyId=${currentGroup?.id}`);
     const data = await res.json();
     if (!data.success) { membersList.innerHTML = '<p style="color:#EF4444;font-size:0.8rem">שגיאה</p>'; return; }
     title.textContent = `${data.group.icon_emoji || '💬'} ${data.group.name} — חברים`;
@@ -18102,7 +18107,7 @@ async function openGroupMembersModal(groupId) {
 
 async function addFamilyToGroup(groupId, targetFamilyId) {
   try {
-    const res = await fetch(`${API}/community/groups/${groupId}/add-family`, {
+    const res = await communityFetch(`${API}/community/groups/${groupId}/add-family`, {
       method: 'POST', headers: {'Content-Type':'application/json'},
       body: JSON.stringify({ familyId: currentGroup?.id, targetFamilyId })
     });
@@ -18116,7 +18121,7 @@ async function addFamilyToGroup(groupId, targetFamilyId) {
 async function removeFamilyFromGroup(groupId, targetFamilyId) {
   if (!confirm('להסיר משפחה זו מהקבוצה?')) return;
   try {
-    const res = await fetch(`${API}/community/groups/${groupId}/remove-family`, {
+    const res = await communityFetch(`${API}/community/groups/${groupId}/remove-family`, {
       method: 'DELETE', headers: {'Content-Type':'application/json'},
       body: JSON.stringify({ familyId: currentGroup?.id, targetFamilyId })
     });
@@ -18143,7 +18148,7 @@ async function runFeedSearch() {
     const params = new URLSearchParams({ q, familyId: currentGroup?.id });
     if (feedState.communityId) params.set('communityId', feedState.communityId);
     if (feedState.groupId) params.set('groupId', feedState.groupId);
-    const res = await fetch(`${API}/community/feed/search?${params}`);
+    const res = await communityFetch(`${API}/community/feed/search?${params}`);
     const data = await res.json();
     if (!data.success) { list.innerHTML = '<p style="text-align:center;color:#EF4444;padding:2rem">שגיאה בחיפוש</p>'; return; }
     if (!data.posts?.length) {

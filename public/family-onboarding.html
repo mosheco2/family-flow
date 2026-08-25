@@ -774,6 +774,10 @@
         var data = await res.json();
         if (data.success) {
           localStorage.setItem('ofl_session', JSON.stringify({ user: data.user, group: data.group }));
+          if (data.token) {
+            localStorage.setItem('ofl_family_token', data.token);
+            wiz.familyToken = data.token;
+          }
           wiz.groupId   = data.group.id;
           wiz.groupCode = data.group.group_code;
           wiz.members   = [];
@@ -919,9 +923,10 @@
       if (!code) return showToast('error', 'יש להזין קוד קהילה');
       var msg = document.getElementById('wiz-community-msg');
       try {
+        var token = wiz.familyToken || localStorage.getItem('ofl_family_token') || '';
         var res = await fetch(API + '/community/join', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
           body: JSON.stringify({ groupId: wiz.groupId, code: code })
         });
         var data = await res.json();

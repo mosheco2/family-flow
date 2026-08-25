@@ -6749,10 +6749,16 @@ app.post('/api/groups', async (req, res) => {
             sendSystemEmail(req.body.adminEmail, `הסביבה שלכם ב-${sysType} מוכנה!`, userThanksHtml).catch(e => console.error('Email error:', e));
         }
 
-        res.json({ success: true, user: uRes.rows[0], group: group });
-    } catch (e) { 
+        // יצירת family_session לסביבת FAMILY — מאפשר לאונבורדינג לבצע קריאות מאומתות מיד
+        let familyToken = null;
+        if (req.body.type === 'FAMILY') {
+            try { familyToken = await createFamilySession(group.id, uRes.rows[0].id); } catch(e) {}
+        }
+
+        res.json({ success: true, user: uRes.rows[0], group: group, ...(familyToken ? { token: familyToken } : {}) });
+    } catch (e) {
         if (dbClient) { try { await dbClient.query('ROLLBACK'); } catch(rbErr) {} }
-        if (e.message && e.message.includes('unique constraint')) { res.status(400).json({ error: 'כתובת המייל הזו כבר רשומה במערכת.' }); } 
+        if (e.message && e.message.includes('unique constraint')) { res.status(400).json({ error: 'כתובת המייל הזו כבר רשומה במערכת.' }); }
         else { res.status(500).json({ error: 'שגיאת שרת: ' + e.message }); }
     } finally { if (dbClient) dbClient.release(); }
 });
