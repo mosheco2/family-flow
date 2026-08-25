@@ -147,6 +147,94 @@
 
 ---
 
+## סיווג endpoints — התאמה ישירה מול בדיקת הרשאה
+
+### מפתח
+- **התאמה ישירה** = groupId/familyId בבקשה חייב להיות = `req.familyAuth.groupId`
+- **בדיקת הרשאה** = השדה הראשי (המפעיל) חייב = שלי, אך שדות אחרים (target, viewerId) לא; **או** שצריך בדיקת תפקיד (manager/initiator)
+
+### כל 59 endpoints מסווגים
+
+| # | שורה | Path | סיווג | נימוק |
+|---|---|---|---|---|
+| 1 | 10763 | GET /articles/:communityId | התאמה ישירה | מאמרי הקהילה — שקול להעביר לציבורי |
+| 2 | 11295 | POST /user-create | התאמה ישירה | פרופיל קהילתי של המשפחה הנוכחית |
+| 3 | 11313 | GET /my-initiatives/:groupId | התאמה ישירה | "my" = שלי בדיוק |
+| 4 | 12373 | GET /promos/:groupId | התאמה ישירה | מבצעים פרסונליים של המשפחה שלי |
+| 5 | 12591 | GET /info/:groupId | בדיקת הרשאה | מידע קהילה — כל חבר רשאי לצפות |
+| 6 | 12626 | GET /family-feed/:groupId | התאמה ישירה | פיד אישי של המשפחה שלי |
+| 7 | 12684 | POST /family-refer | התאמה ישירה | groupId = המשפחה המפנה |
+| 8 | 12713 | POST /join | התאמה ישירה | groupId = המשפחה שמצטרפת |
+| 9 | 12749 | DELETE /leave/:groupId/:communityId | התאמה ישירה | ⚠️⚠️ עוזבת הקהילה — groupId = שלי |
+| 10 | 13959 | GET /inbox/:groupId | התאמה ישירה | תיבת הדואר של המשפחה שלי |
+| 11 | 13976 | POST /inbox/new | בדיקת הרשאה | groupId = communityId — שולח הוא מנהל הקהילה |
+| 12 | 13995 | GET /inbox/thread/:threadId/:groupId | התאמה ישירה | צפייה בשרשור שלי |
+| 13 | 14012 | POST /inbox/thread/:threadId/reply | התאמה ישירה | תגובה בשרשור שלי |
+| 14 | 14027 | GET /cashback-info/:groupId | התאמה ישירה | מידע cashback אישי |
+| 15 | 14195 | GET /my-referral-stats/:groupId | התאמה ישירה | "my" = שלי בדיוק |
+| 16 | 14206 | GET /my-referral-code/:groupId | התאמה ישירה | ⚠️⚠️ "my" = שלי בדיוק |
+| 17 | 14373 | POST /refer-business | התאמה ישירה | referrerGroupId = המשפחה המפנה |
+| 18 | 14401 | GET /my-referrals/:groupId | התאמה ישירה | "my" = שלי בדיוק |
+| 19 | 15240 | POST /promotions/:id/redeem | התאמה ישירה | ⚠️⚠️ groupId = הממשת |
+| 20 | 15258 | POST /reviews | התאמה ישירה | familyGroupId = כותב הביקורת |
+| 21 | 15278 | POST /biz-contact | התאמה ישירה | familyGroupId = יוצר הקשר |
+| 22 | 15292 | POST /bundles/:id/purchase | התאמה ישירה | ⚠️⚠️ groupId = הרוכש |
+| 23 | 23617 | POST /pool | התאמה ישירה | initiatorId = יוצר הפול |
+| 24 | 23676 | POST /pool/:id/remove-member | בדיקת הרשאה | initiatorId = יוצר הפול; DB בודק initiator_id |
+| 25 | 23689 | POST /pool/:id/join | התאמה ישירה | groupId = המשפחה שמצטרפת לפול |
+| 26 | 23707 | POST /pool/:id/bid | בדיקת הרשאה | ⚠️⚠️ businessGroupId = עסק מגיש הצעה; isGuest=true עוקף — דורש טיפול נפרד |
+| 27 | 23729 | GET /pool/:id/bids | בדיקת הרשאה | viewerId = initiator **או** community_manager |
+| 28 | 23751 | POST /pool/:id/select-bid | בדיקת הרשאה | initiator או community_manager |
+| 29 | 23772 | POST /pool/:id/open-round2 | בדיקת הרשאה | initiator או community_manager |
+| 30 | 23788 | POST /pool/:id/archive | בדיקת הרשאה | initiator או community_manager |
+| 31 | 23811 | POST /pool/:id/renew | בדיקת הרשאה | initiator או community_manager |
+| 32 | 23828 | POST /pool/:id/edit | בדיקת הרשאה | initiator או community_manager |
+| 33 | 23844 | POST /pool/:id/restore | בדיקת הרשאה | initiator או community_manager |
+| 34 | 23869 | POST /pool/:id/message | בדיקת הרשאה | ⚠️ senderId יכול להיות family **או** business — דורש טיפול נפרד |
+| 35 | 23953 | GET /pool/family-archive/:groupId | התאמה ישירה | ארכיון פולים של המשפחה שלי |
+| 36 | 25545 | GET /feed | התאמה ישירה | familyId מסנן פיד |
+| 37 | 25604 | POST /posts | התאמה ישירה | familyId = יוצר הפוסט |
+| 38 | 25638 | POST /feed/mark-read | התאמה ישירה | familyId = הקורא |
+| 39 | 25668 | GET /feed/unread-counts | התאמה ישירה | familyId = שלי |
+| 40 | 25698 | GET /notifications | התאמה ישירה | target_family_id = שלי |
+| 41 | 25719 | GET /notifications/count | התאמה ישירה | familyId = שלי |
+| 42 | 25731 | POST /notifications/mark-read | התאמה ישירה | ⚠️⚠️ familyId = שלי |
+| 43 | 25750 | POST /posts/:id/like | התאמה ישירה | ⚠️⚠️ familyId = המלייקר |
+| 44 | 25804 | POST /posts/:id/comments | התאמה ישירה | familyId = הכותב |
+| 45 | 25829 | POST /posts/:id/report | התאמה ישירה | ⚠️⚠️ familyId = המדווח |
+| 46 | 25845 | POST /posts/:id/share | התאמה ישירה | familyId = המשתף |
+| 47 | 25949 | POST /groups/:id/join | התאמה ישירה | familyId = המצטרף |
+| 48 | 25971 | POST /groups/:id/leave | התאמה ישירה | ⚠️⚠️ familyId = העוזב |
+| 49 | 25985 | POST /groups | התאמה ישירה | familyId = יוצר הקבוצה |
+| 50 | 26027 | POST /groups/:id/add-family | בדיקת הרשאה | familyId = מנהל (שלי), targetFamilyId = אחר |
+| 51 | 26052 | DELETE /groups/:id/remove-family | בדיקת הרשאה | familyId = מנהל (שלי), targetFamilyId = אחר |
+| 52 | 26104 | GET /feed/search | התאמה ישירה | familyId מסנן תוצאות |
+| 53 | 26684 | GET /feed/biz-promos | התאמה ישירה | familyId = שלי |
+| 54 | 28680 | GET /:id/live-games | התאמה ישירה | groupId = המשפחה הצופה |
+| 55 | 10830 | POST /manager/articles | בדיקת הרשאה | group_id = שלי + is_community_manager |
+| 56 | 11515 | POST /invite-business | בדיקת הרשאה | groupId = שלי + is_community_manager |
+| 57 | 14044 | POST /manager/family/approve | בדיקת הרשאה | groupId = שלי (מנהל), targetGroupId = אחר |
+| 58 | 14055 | POST /manager/family/reject | בדיקת הרשאה | groupId = שלי (מנהל), targetGroupId = אחר |
+| 59 | 14066 | GET /manager-data/:groupId | בדיקת הרשאה | groupId = שלי + is_community_manager |
+
+### סיכום ספירות
+
+| סיווג | כמות |
+|---|---|
+| התאמה ישירה | 40 |
+| בדיקת הרשאה | 19 |
+| **סה"כ** | **59** |
+
+### שלוש תת-קטגוריות ב"בדיקת הרשאה"
+
+**א. המפעיל = שלי, הפעיל = אחר** (שורות 26027, 26052, 14044, 14055) — `familyId` חייב = שלי, `targetFamilyId` חופשי.
+
+**ב. initiator/viewerId = שלי + בדיקת תפקיד ב-DB** (שורות 23676, 23729–23844, 10830, 11515, 14066) — `viewerId` חייב = שלי + `SELECT 1 WHERE initiator_id=$viewerId OR is_community_manager`.
+
+**ג. שני הצדדים לא הכרחי = שלי** (שורות 23707, 23869) — endpoint שמשרת גם BIZ וגם Family; דורש טיפול נפרד: `verifyBiz` **או** `verifyFamily` בהתאם לסוג השולח.
+
+---
+
 ## הערות תכנון לשלב הבא
 
 1. **פגיעות IDOR בכל קטגוריה ב'**: הוספת middleware לבדה לא מספיקה.  
