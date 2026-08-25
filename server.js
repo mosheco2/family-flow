@@ -11869,9 +11869,11 @@ app.get('/api/suppliers/group/:groupId/all-products', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.put('/api/work-orders/:woId/assignees/:userId/cost', async (req, res) => {
+app.put('/api/work-orders/:woId/assignees/:userId/cost', verifyBiz, async (req, res) => {
     try {
         const { hourlyRate, hoursWorked } = req.body;
+        const _wo = await pool.query('SELECT 1 FROM store_orders WHERE id=$1 AND group_id=$2', [req.params.woId, req.bizAuth.groupId]);
+        if (!_wo.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
         await pool.query(
             'UPDATE work_order_assignees SET hourly_rate=$1, hours_worked=$2 WHERE work_order_id=$3 AND user_id=$4',
             [hourlyRate || 0, hoursWorked || 0, req.params.woId, req.params.userId]
@@ -18842,9 +18844,11 @@ app.post('/api/work-orders/new/:groupId', verifyBiz, async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/api/work-orders/detail/:id', async (req, res) => {
+app.get('/api/work-orders/detail/:id', verifyBiz, async (req, res) => {
     try {
         const id = req.params.id;
+        const _wo = await pool.query('SELECT 1 FROM store_orders WHERE id=$1 AND group_id=$2 AND call_type=\'work_order\'', [id, req.bizAuth.groupId]);
+        if (!_wo.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
         const [woRes, assigneesRes, inventoryRes, messagesRes, timelineRes, calendarRes] = await Promise.all([
             pool.query(`SELECT * FROM store_orders WHERE id=$1 AND call_type='work_order'`, [id]),
             pool.query('SELECT * FROM work_order_assignees WHERE work_order_id=$1 ORDER BY assigned_at', [id]),
@@ -18864,9 +18868,11 @@ app.get('/api/work-orders/detail/:id', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.put('/api/work-orders/:id/status', async (req, res) => {
+app.put('/api/work-orders/:id/status', verifyBiz, async (req, res) => {
     try {
         const { status, userName } = req.body;
+        const _wo = await pool.query('SELECT 1 FROM store_orders WHERE id=$1 AND group_id=$2 AND call_type=\'work_order\'', [req.params.id, req.bizAuth.groupId]);
+        if (!_wo.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
         await pool.query(`UPDATE store_orders SET status=$1 WHERE id=$2 AND call_type='work_order'`, [status, req.params.id]);
         const statusLabels = { processing: 'בתהליך', new: 'חדש', scheduled: 'מתוזמן', completed: 'הושלם', cancelled: 'בוטל' };
         await addWorkOrderTimeline(req.params.id, 'status_change', `סטטוס שונה ל: ${statusLabels[status] || status}`, userName);
@@ -18907,9 +18913,11 @@ app.get('/api/work-orders/users/:groupId', verifyBiz, async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/work-orders/:id/assignees', async (req, res) => {
+app.post('/api/work-orders/:id/assignees', verifyBiz, async (req, res) => {
     try {
         const { userId, userName, assignedBy } = req.body;
+        const _wo = await pool.query('SELECT 1 FROM store_orders WHERE id=$1 AND group_id=$2 AND call_type=\'work_order\'', [req.params.id, req.bizAuth.groupId]);
+        if (!_wo.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
         await pool.query(
             'INSERT INTO work_order_assignees (work_order_id, user_id, user_name, assigned_by) VALUES ($1,$2,$3,$4) ON CONFLICT (work_order_id, user_id) DO NOTHING',
             [req.params.id, userId, userName, assignedBy]
@@ -18934,8 +18942,10 @@ app.post('/api/work-orders/:id/assignees', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.delete('/api/work-orders/:id/assignees/:userId', async (req, res) => {
+app.delete('/api/work-orders/:id/assignees/:userId', verifyBiz, async (req, res) => {
     try {
+        const _wo = await pool.query('SELECT 1 FROM store_orders WHERE id=$1 AND group_id=$2 AND call_type=\'work_order\'', [req.params.id, req.bizAuth.groupId]);
+        if (!_wo.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
         const aRes = await pool.query('SELECT user_name FROM work_order_assignees WHERE work_order_id=$1 AND user_id=$2', [req.params.id, req.params.userId]);
         await pool.query('DELETE FROM work_order_assignees WHERE work_order_id=$1 AND user_id=$2', [req.params.id, req.params.userId]);
         if (aRes.rows.length) await addWorkOrderTimeline(req.params.id, 'assignee_removed', `הוסר עובד: ${aRes.rows[0].user_name}`, 'מנהל');
@@ -18987,9 +18997,11 @@ app.get('/api/pantry/:itemId/wo-reservations', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/work-orders/:id/inventory', async (req, res) => {
+app.post('/api/work-orders/:id/inventory', verifyBiz, async (req, res) => {
     try {
         const { pantryId, catalogId, itemName, neededQty, qty, reservedBy, unitPrice } = req.body;
+        const _wo = await pool.query('SELECT 1 FROM store_orders WHERE id=$1 AND group_id=$2 AND call_type=\'work_order\'', [req.params.id, req.bizAuth.groupId]);
+        if (!_wo.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
         const needed = parseFloat(neededQty || qty || 1);
         let actualReserved = needed;
         let shortage = 0;
@@ -19049,9 +19061,11 @@ app.post('/api/work-orders/:id/inventory', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/work-orders/:id/inventory/:resId/use', async (req, res) => {
+app.post('/api/work-orders/:id/inventory/:resId/use', verifyBiz, async (req, res) => {
     try {
         const { usedQty, userName } = req.body;
+        const _wo = await pool.query('SELECT 1 FROM store_orders WHERE id=$1 AND group_id=$2 AND call_type=\'work_order\'', [req.params.id, req.bizAuth.groupId]);
+        if (!_wo.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
         const resRes = await pool.query('SELECT * FROM work_order_inventory WHERE id=$1 AND work_order_id=$2', [req.params.resId, req.params.id]);
         if (!resRes.rows.length) return res.status(404).json({ error: 'שריון לא נמצא' });
         const item = resRes.rows[0];
@@ -19067,8 +19081,10 @@ app.post('/api/work-orders/:id/inventory/:resId/use', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.delete('/api/work-orders/:id/inventory/:resId', async (req, res) => {
+app.delete('/api/work-orders/:id/inventory/:resId', verifyBiz, async (req, res) => {
     try {
+        const _wo = await pool.query('SELECT 1 FROM store_orders WHERE id=$1 AND group_id=$2 AND call_type=\'work_order\'', [req.params.id, req.bizAuth.groupId]);
+        if (!_wo.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
         const resRes = await pool.query(`SELECT * FROM work_order_inventory WHERE id=$1 AND work_order_id=$2 AND status='reserved'`, [req.params.resId, req.params.id]);
         if (!resRes.rows.length) return res.status(404).json({ error: 'שריון לא נמצא או כבר בשימוש' });
         const item = resRes.rows[0];
@@ -19083,16 +19099,20 @@ app.delete('/api/work-orders/:id/inventory/:resId', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/api/work-orders/:id/messages', async (req, res) => {
+app.get('/api/work-orders/:id/messages', verifyBiz, async (req, res) => {
     try {
+        const _wo = await pool.query('SELECT 1 FROM store_orders WHERE id=$1 AND group_id=$2 AND call_type=\'work_order\'', [req.params.id, req.bizAuth.groupId]);
+        if (!_wo.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
         const r = await pool.query('SELECT * FROM work_order_messages WHERE work_order_id=$1 ORDER BY created_at', [req.params.id]);
         res.json({ success: true, messages: r.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/work-orders/:id/messages', async (req, res) => {
+app.post('/api/work-orders/:id/messages', verifyBiz, async (req, res) => {
     try {
         const { userId, userName, message } = req.body;
+        const _wo = await pool.query('SELECT 1 FROM store_orders WHERE id=$1 AND group_id=$2 AND call_type=\'work_order\'', [req.params.id, req.bizAuth.groupId]);
+        if (!_wo.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
         const r = await pool.query(
             'INSERT INTO work_order_messages (work_order_id, user_id, user_name, message_text) VALUES ($1,$2,$3,$4) RETURNING *',
             [req.params.id, userId || null, userName, message]
