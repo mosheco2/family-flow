@@ -21579,8 +21579,9 @@ app.get('/api/member/my-orders/:businessGroupId/:memberGroupId', async (req, res
 // ===== BEAUTY & COSMETICS API =====
 
 // --- Practitioners ---
-app.get('/api/beauty/:bizId/practitioners', async (req, res) => {
+app.get('/api/beauty/:bizId/practitioners', verifyBiz, async (req, res) => {
     try {
+        if (parseInt(req.params.bizId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const r = await pool.query(
             'SELECT * FROM beauty_practitioners WHERE business_group_id=$1 AND is_active=TRUE ORDER BY display_name',
             [req.params.bizId]
@@ -21589,9 +21590,10 @@ app.get('/api/beauty/:bizId/practitioners', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/beauty/:bizId/practitioners', async (req, res) => {
+app.post('/api/beauty/:bizId/practitioners', verifyBiz, async (req, res) => {
     try {
         const { display_name, tier, color_hex, specializations, schedule_override, commission_rate_svc, commission_rate_retail } = req.body;
+        if (parseInt(req.params.bizId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const r = await pool.query(
             `INSERT INTO beauty_practitioners (business_group_id, display_name, tier, color_hex, specializations, schedule_override, commission_rate_svc, commission_rate_retail)
              VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
@@ -21603,8 +21605,9 @@ app.post('/api/beauty/:bizId/practitioners', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.patch('/api/beauty/:bizId/practitioners/:id', async (req, res) => {
+app.patch('/api/beauty/:bizId/practitioners/:id', verifyBiz, async (req, res) => {
     try {
+        if (parseInt(req.params.bizId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const fields = ['display_name','tier','color_hex','specializations','schedule_override','commission_rate_svc','commission_rate_retail','is_active'];
         const sets = []; const vals = [];
         fields.forEach(f => { if (req.body[f] !== undefined) { vals.push(typeof req.body[f] === 'object' ? JSON.stringify(req.body[f]) : req.body[f]); sets.push(`${f}=$${vals.length}`); }});
@@ -21616,16 +21619,18 @@ app.patch('/api/beauty/:bizId/practitioners/:id', async (req, res) => {
 });
 
 // --- Resources ---
-app.get('/api/beauty/:bizId/resources', async (req, res) => {
+app.get('/api/beauty/:bizId/resources', verifyBiz, async (req, res) => {
     try {
+        if (parseInt(req.params.bizId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const r = await pool.query('SELECT * FROM beauty_resources WHERE business_group_id=$1 AND is_active=TRUE ORDER BY name', [req.params.bizId]);
         res.json(r.rows);
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/beauty/:bizId/resources', async (req, res) => {
+app.post('/api/beauty/:bizId/resources', verifyBiz, async (req, res) => {
     try {
         const { name, resource_type, color_hex } = req.body;
+        if (parseInt(req.params.bizId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const r = await pool.query(
             'INSERT INTO beauty_resources (business_group_id, name, resource_type, color_hex) VALUES ($1,$2,$3,$4) RETURNING *',
             [req.params.bizId, name, resource_type||'room', color_hex||'#94a3b8']
@@ -21634,9 +21639,10 @@ app.post('/api/beauty/:bizId/resources', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.patch('/api/beauty/:bizId/resources/:id', async (req, res) => {
+app.patch('/api/beauty/:bizId/resources/:id', verifyBiz, async (req, res) => {
     try {
         const { name, resource_type, color_hex, is_active } = req.body;
+        if (parseInt(req.params.bizId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         await pool.query(
             'UPDATE beauty_resources SET name=COALESCE($1,name), resource_type=COALESCE($2,resource_type), color_hex=COALESCE($3,color_hex), is_active=COALESCE($4,is_active) WHERE id=$5 AND business_group_id=$6',
             [name, resource_type, color_hex, is_active, req.params.id, req.params.bizId]
@@ -21646,9 +21652,10 @@ app.patch('/api/beauty/:bizId/resources/:id', async (req, res) => {
 });
 
 // --- Appointments ---
-app.get('/api/beauty/:bizId/appointments', async (req, res) => {
+app.get('/api/beauty/:bizId/appointments', verifyBiz, async (req, res) => {
     try {
         const { from, to, practitioner_id, resource_id, status } = req.query;
+        if (parseInt(req.params.bizId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         let where = 'ba.business_group_id=$1';
         const vals = [req.params.bizId];
         if (from) { vals.push(from); where += ` AND bas.start_time >= $${vals.length}::date`; }
@@ -21794,9 +21801,10 @@ app.post('/api/beauty/:bizId/appointments', async (req, res) => {
     } catch(e) { await client.query('ROLLBACK').catch(()=>{}); client.release(); res.status(500).json({ error: e.message }); }
 });
 
-app.patch('/api/beauty/:bizId/appointments/:id', async (req, res) => {
+app.patch('/api/beauty/:bizId/appointments/:id', verifyBiz, async (req, res) => {
     try {
         const { status, notes, internal_notes, deposit_paid, date, time, duration_minutes, service_name } = req.body;
+        if (parseInt(req.params.bizId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const hasPracKey = Object.prototype.hasOwnProperty.call(req.body, 'practitioner_id');
         const practitioner_id = hasPracKey ? (req.body.practitioner_id || null) : undefined;
 
@@ -21849,10 +21857,11 @@ app.patch('/api/beauty/:bizId/appointments/:id', async (req, res) => {
 });
 
 // Complete appointment → back-bar sync + commissions + follow-up task
-app.post('/api/beauty/:bizId/appointments/:id/complete', async (req, res) => {
+app.post('/api/beauty/:bizId/appointments/:id/complete', verifyBiz, async (req, res) => {
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
+        if (parseInt(req.params.bizId) !== req.bizAuth.groupId) { client.release(); return res.status(403).json({ error: 'אין הרשאה' }); }
 
         await client.query(
             'UPDATE beauty_appointments SET status=$1, updated_at=NOW() WHERE id=$2 AND business_group_id=$3',
@@ -21929,8 +21938,9 @@ app.post('/api/beauty/:bizId/appointments/:id/complete', async (req, res) => {
     finally { client.release(); }
 });
 
-app.post('/api/beauty/:bizId/appointments/:id/no-show', async (req, res) => {
+app.post('/api/beauty/:bizId/appointments/:id/no-show', verifyBiz, async (req, res) => {
     try {
+        if (parseInt(req.params.bizId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         await pool.query(
             'UPDATE beauty_appointments SET status=$1, updated_at=NOW() WHERE id=$2 AND business_group_id=$3',
             ['no_show', req.params.id, req.params.bizId]
