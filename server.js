@@ -1961,10 +1961,11 @@ app.get('/api/solo/status/:groupId', async (req, res) => {
 });
 
 // שליחת בקשת שיוך למשפחה
-app.post('/api/family/link-request', async (req, res) => {
+app.post('/api/family/link-request', verifyFamily, async (req, res) => {
     const { requesterGroupId, targetPhone, role } = req.body;
     if (!requesterGroupId || !targetPhone || !['parent','child','partner'].includes(role))
         return res.status(400).json({ error: 'נתונים חסרים' });
+    if (parseInt(requesterGroupId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
     try {
         // אתר את חשבון היעד לפי טלפון
         const uRes = await pool.query(
@@ -1992,8 +1993,9 @@ app.post('/api/family/link-request', async (req, res) => {
 });
 
 // קבלת בקשות שיוך ממתינות לחשבון
-app.get('/api/family/link-requests/:groupId', async (req, res) => {
+app.get('/api/family/link-requests/:groupId', verifyFamily, async (req, res) => {
     try {
+        if (parseInt(req.params.groupId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const r = await pool.query(
             `SELECT flr.id, flr.role, flr.created_at,
                     fg.name as requester_name, fg.plan as requester_plan
@@ -2008,10 +2010,11 @@ app.get('/api/family/link-requests/:groupId', async (req, res) => {
 });
 
 // אישור/דחייה של בקשת שיוך
-app.post('/api/family/link-request/:id/respond', async (req, res) => {
+app.post('/api/family/link-request/:id/respond', verifyFamily, async (req, res) => {
     const decision = req.body.decision || req.body.action;
     const targetGroupId = req.body.targetGroupId || req.body.respondingGroupId;
     if (!['approve','reject'].includes(decision)) return res.status(400).json({ error: 'פעולה לא תקינה' });
+    if (parseInt(targetGroupId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
@@ -5277,15 +5280,17 @@ app.delete('/api/biz/radius-zones/:groupId/:zoneId', async (req, res) => {
 });
 
 // ── אזורי עניין משפחה ─────────────────────────────────────────────────────────
-app.get('/api/family/preferred-areas/:groupId', async (req, res) => {
+app.get('/api/family/preferred-areas/:groupId', verifyFamily, async (req, res) => {
     try {
+        if (parseInt(req.params.groupId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const r = await pool.query('SELECT * FROM family_preferred_areas WHERE family_group_id=$1 ORDER BY is_primary DESC, created_at', [req.params.groupId]);
         res.json({ areas: r.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/family/preferred-areas/:groupId', async (req, res) => {
+app.post('/api/family/preferred-areas/:groupId', verifyFamily, async (req, res) => {
     try {
+        if (parseInt(req.params.groupId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const { city, radius_km = 15, is_primary = false, lat: clientLat, lng: clientLng } = req.body;
         if (!city) return res.status(400).json({ error: 'חסרה עיר' });
         let lat = clientLat ? parseFloat(clientLat) : null;
@@ -5302,8 +5307,9 @@ app.post('/api/family/preferred-areas/:groupId', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.delete('/api/family/preferred-areas/:groupId/:areaId', async (req, res) => {
+app.delete('/api/family/preferred-areas/:groupId/:areaId', verifyFamily, async (req, res) => {
     try {
+        if (parseInt(req.params.groupId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         await pool.query('DELETE FROM family_preferred_areas WHERE id=$1 AND family_group_id=$2', [req.params.areaId, req.params.groupId]);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
@@ -21954,9 +21960,10 @@ app.get('/api/store/check-oneflow', async (req, res) => {
 });
 
 // Returns all businesses that have linked this family group as a client (beauty, future types, etc.)
-app.get('/api/family/linked-businesses/:groupId', async (req, res) => {
+app.get('/api/family/linked-businesses/:groupId', verifyFamily, async (req, res) => {
     try {
         const groupId = parseInt(req.params.groupId);
+        if (groupId !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         // beauty client links
         const beautyR = await pool.query(
             `SELECT DISTINCT ON (bcr.business_group_id) bcr.business_group_id, fg.name AS business_name,
