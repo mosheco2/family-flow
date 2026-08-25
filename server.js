@@ -19121,9 +19121,11 @@ app.post('/api/work-orders/:id/messages', verifyBiz, async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.put('/api/work-orders/:id/notes', async (req, res) => {
+app.put('/api/work-orders/:id/notes', verifyBiz, async (req, res) => {
     try {
         const { notes, updatedBy } = req.body;
+        const _wo = await pool.query('SELECT 1 FROM store_orders WHERE id=$1 AND group_id=$2 AND call_type=\'work_order\'', [req.params.id, req.bizAuth.groupId]);
+        if (!_wo.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
         await pool.query('UPDATE store_orders SET wo_notes=$1, wo_notes_updated_at=NOW(), wo_notes_updated_by=$2 WHERE id=$3', [notes, updatedBy, req.params.id]);
         await pool.query('INSERT INTO work_order_notes_history (work_order_id, note_text, created_by) VALUES ($1,$2,$3)', [req.params.id, notes, updatedBy]);
         await addWorkOrderTimeline(req.params.id, 'notes_updated', 'הערות הפקודה עודכנו', updatedBy);
@@ -19131,16 +19133,21 @@ app.put('/api/work-orders/:id/notes', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/api/work-orders/:id/timeline', async (req, res) => {
+app.get('/api/work-orders/:id/timeline', verifyBiz, async (req, res) => {
     try {
+        const _wo = await pool.query('SELECT 1 FROM store_orders WHERE id=$1 AND group_id=$2 AND call_type=\'work_order\'', [req.params.id, req.bizAuth.groupId]);
+        if (!_wo.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
         const r = await pool.query('SELECT * FROM work_order_timeline WHERE work_order_id=$1 ORDER BY created_at DESC', [req.params.id]);
         res.json({ success: true, timeline: r.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/work-orders/:id/calendar', async (req, res) => {
+app.post('/api/work-orders/:id/calendar', verifyBiz, async (req, res) => {
     try {
         const { groupId, title, eventDate, startTime, customerName, address, assigneeIds, notes } = req.body;
+        if (parseInt(groupId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
+        const _wo = await pool.query('SELECT 1 FROM store_orders WHERE id=$1 AND group_id=$2 AND call_type=\'work_order\'', [req.params.id, req.bizAuth.groupId]);
+        if (!_wo.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
         const r = await pool.query(
             `INSERT INTO calendar_events (group_id, title, event_date, start_time, customer_phone, customer_name, notes, status, work_order_id, address, attendees_user_ids)
              VALUES ($1,$2,$3,$4,$5,$6,$7,'approved',$8,$9,$10) RETURNING id`,
@@ -19152,8 +19159,10 @@ app.post('/api/work-orders/:id/calendar', async (req, res) => {
 });
 
 // --- Work Order: Purchase Orders (הזמנות רכש) ---
-app.get('/api/work-orders/:id/purchase-orders', async (req, res) => {
+app.get('/api/work-orders/:id/purchase-orders', verifyBiz, async (req, res) => {
     try {
+        const _wo = await pool.query('SELECT 1 FROM store_orders WHERE id=$1 AND group_id=$2 AND call_type=\'work_order\'', [req.params.id, req.bizAuth.groupId]);
+        if (!_wo.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
         const r = await pool.query(
             `SELECT po.*, s.name as supplier_name
              FROM purchase_orders po
@@ -19165,10 +19174,13 @@ app.get('/api/work-orders/:id/purchase-orders', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/work-orders/:id/purchase-orders', async (req, res) => {
+app.post('/api/work-orders/:id/purchase-orders', verifyBiz, async (req, res) => {
     try {
         const { groupId, supplierId, supplierName, items, notes, userName } = req.body;
         if (!items || !items.length) return res.status(400).json({ error: 'נדרשים פריטים להזמנה' });
+        if (parseInt(groupId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
+        const _wo = await pool.query('SELECT 1 FROM store_orders WHERE id=$1 AND group_id=$2 AND call_type=\'work_order\'', [req.params.id, req.bizAuth.groupId]);
+        if (!_wo.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
         const totalAmount = items.reduce((s, i) => s + (parseFloat(i.unit_price || 0) * parseFloat(i.quantity || 1)), 0);
         const itemsJson = JSON.stringify(items);
         let finalSupplierId = supplierId || null;
@@ -19197,9 +19209,11 @@ app.post('/api/work-orders/:id/purchase-orders', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.patch('/api/work-orders/:id/purchase-orders/:poId/status', async (req, res) => {
+app.patch('/api/work-orders/:id/purchase-orders/:poId/status', verifyBiz, async (req, res) => {
     try {
         const { status, userName } = req.body;
+        const _wo = await pool.query('SELECT 1 FROM store_orders WHERE id=$1 AND group_id=$2 AND call_type=\'work_order\'', [req.params.id, req.bizAuth.groupId]);
+        if (!_wo.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
         await pool.query(`UPDATE purchase_orders SET status=$1 WHERE id=$2 AND work_order_id=$3`, [status, req.params.poId, req.params.id]);
         const labels = { pending: 'ממתין', approved: 'אושר', delivered: 'התקבל', cancelled: 'בוטל' };
         await addWorkOrderTimeline(req.params.id, 'purchase_order_updated', `הזמנת רכש #${req.params.poId} עודכנה ל: ${labels[status] || status}`, userName || 'מנהל');
@@ -19272,8 +19286,10 @@ app.get('/api/work-orders/purchase-orders/group/:groupId', verifyBiz, async (req
 // ===== WORK ORDER PAYMENTS API =====
 
 // קבלת תחנות תשלום לפקודה
-app.get('/api/work-orders/:id/payments', async (req, res) => {
+app.get('/api/work-orders/:id/payments', verifyBiz, async (req, res) => {
     try {
+        const _wo = await pool.query('SELECT 1 FROM store_orders WHERE id=$1 AND group_id=$2 AND call_type=\'work_order\'', [req.params.id, req.bizAuth.groupId]);
+        if (!_wo.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
         const r = await pool.query(
             `SELECT * FROM work_order_payments WHERE work_order_id=$1 ORDER BY due_date ASC NULLS LAST, created_at ASC`,
             [req.params.id]);
@@ -19282,10 +19298,12 @@ app.get('/api/work-orders/:id/payments', async (req, res) => {
 });
 
 // הוספת תחנת תשלום
-app.post('/api/work-orders/:id/payments', async (req, res) => {
+app.post('/api/work-orders/:id/payments', verifyBiz, async (req, res) => {
     try {
         const { milestoneName, amount, dueDate, paymentMethod, totalAmount } = req.body;
         if (!amount || parseFloat(amount) <= 0) return res.status(400).json({ error: 'סכום נדרש' });
+        const _wo = await pool.query('SELECT 1 FROM store_orders WHERE id=$1 AND group_id=$2 AND call_type=\'work_order\'', [req.params.id, req.bizAuth.groupId]);
+        if (!_wo.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
 
         // קבע סכום עסקה כוללת — ברירת מחדל = סכום הפקודה או התחנה הקודמת
         let finalTotalAmount = parseFloat(totalAmount);
@@ -19309,12 +19327,19 @@ app.post('/api/work-orders/:id/payments', async (req, res) => {
 });
 
 // סימון תחנת תשלום כהתקבל (עובד גם לפקודת עבודה וגם לקריאת שירות)
-app.patch('/api/work-orders/payments/:paymentId/receive', async (req, res) => {
+app.patch('/api/work-orders/payments/:paymentId/receive', verifyBiz, async (req, res) => {
     try {
         const { receivedAmount, receivedAt, userName } = req.body;
-        const pr = await pool.query('SELECT * FROM work_order_payments WHERE id=$1', [req.params.paymentId]);
+        const pr = await pool.query(
+            `SELECT wop.*, so.group_id as wo_group, sc.business_group_id as sc_group
+             FROM work_order_payments wop
+             LEFT JOIN store_orders so ON so.id=wop.work_order_id
+             LEFT JOIN service_calls sc ON sc.id=wop.service_call_id
+             WHERE wop.id=$1`, [req.params.paymentId]);
         if (!pr.rows.length) return res.status(404).json({ error: 'תחנת תשלום לא נמצאה' });
         const p = pr.rows[0];
+        const ownerGroup = p.wo_group || p.sc_group;
+        if (ownerGroup !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const recAmt = parseFloat(receivedAmount) || parseFloat(p.amount);
         await pool.query(
             `UPDATE work_order_payments SET status='received', received_amount=$1, received_at=$2 WHERE id=$3`,
@@ -19363,11 +19388,19 @@ app.patch('/api/work-orders/payments/:paymentId/receive', async (req, res) => {
 });
 
 // מחיקת תחנת תשלום (עובד גם לפקודת עבודה וגם לקריאת שירות)
-app.delete('/api/work-orders/payments/:paymentId', async (req, res) => {
+app.delete('/api/work-orders/payments/:paymentId', verifyBiz, async (req, res) => {
     try {
-        const pr = await pool.query('SELECT work_order_id, service_call_id FROM work_order_payments WHERE id=$1', [req.params.paymentId]);
+        const pr = await pool.query(
+            `SELECT wop.work_order_id, wop.service_call_id,
+                    so.group_id as wo_group, sc.business_group_id as sc_group
+             FROM work_order_payments wop
+             LEFT JOIN store_orders so ON so.id=wop.work_order_id
+             LEFT JOIN service_calls sc ON sc.id=wop.service_call_id
+             WHERE wop.id=$1`, [req.params.paymentId]);
         if (!pr.rows.length) return res.status(404).json({ error: 'לא נמצא' });
         const { work_order_id: woId, service_call_id: scId } = pr.rows[0];
+        const ownerGroup = pr.rows[0].wo_group || pr.rows[0].sc_group;
+        if (ownerGroup !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         await pool.query('DELETE FROM work_order_payments WHERE id=$1', [req.params.paymentId]);
         if (woId) {
             const remaining = await pool.query('SELECT COUNT(*) as cnt FROM work_order_payments WHERE work_order_id=$1', [woId]);
