@@ -23704,9 +23704,10 @@ app.post('/api/community/pool/:id/join', async (req, res) => {
 });
 
 // הגשת הצעה לפול (עסק)
-app.post('/api/community/pool/:id/bid', async (req, res) => {
+app.post('/api/community/pool/:id/bid', verifyBiz, async (req, res) => {
     try {
         const { businessGroupId, price, description, isGuest } = req.body;
+        if (req.bizAuth.groupId !== parseInt(businessGroupId)) return res.status(403).json({ error: 'אין הרשאה להגיש הצעה בשם עסק אחר' });
         const pRes = await pool.query(`SELECT * FROM flow_pools WHERE id=$1 AND initiator_type='family' AND status IN ('open_r1','open_r2') AND expires_at>NOW()`, [req.params.id]);
         if (!pRes.rows.length) return res.status(400).json({ error: 'הפול אינו פתוח להצעות' });
         const fp = pRes.rows[0];
@@ -23866,10 +23867,13 @@ app.get('/api/community/pool/:id/messages', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/community/pool/:id/message', async (req, res) => {
+app.post('/api/community/pool/:id/message', verifyFamilyOrBiz, async (req, res) => {
     try {
         const { senderId, senderType, content } = req.body;
         if (!content?.trim()) return res.status(400).json({ error: 'תוכן ריק' });
+        if (req.callerAuth.groupId !== parseInt(senderId) || req.callerAuth.type !== senderType) {
+            return res.status(403).json({ error: 'אין הרשאה לשלוח הודעה בשם שולח אחר' });
+        }
         const pRes = await pool.query(`SELECT id FROM flow_pools WHERE id=$1 AND status IN ('open_r1','open_r2') AND expires_at>NOW()`, [req.params.id]);
         if (!pRes.rows.length) return res.status(400).json({ error: 'הפול לא פעיל' });
         const r = await pool.query(`INSERT INTO flow_pool_messages (pool_id, sender_type, sender_id, content) VALUES ($1,$2,$3,$4) RETURNING *`, [req.params.id, senderType, senderId, content.trim()]);
@@ -32465,6 +32469,31 @@ async function verifyBizOrLegacy(req, res, next) {
     console.warn(`[verifyBizOrLegacy] legacy fallback — no token, groupId=${legacyGroupId}, path=${req.path}`);
     req.bizAuth = { groupId: legacyGroupId, userId: null, fromToken: false };
     next();
+}
+
+// middleware לendpoints שיכולים להגיע מ-family או biz — שם callerAuth עם groupId + type
+async function verifyFamilyOrBiz(req, res, next) {
+    const authHeader = req.headers.authorization || '';
+    const rawToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : authHeader;
+    if (!rawToken) return res.status(401).json({ error: 'יש להתחבר תחילה' });
+    const tokenHash = _hashToken(rawToken);
+    try {
+        const r = await pool.query(
+            `SELECT group_id, user_id, expires_at, session_type FROM family_sessions WHERE token_hash=$1`,
+            [tokenHash]
+        );
+        const row = r.rows[0];
+        if (!row) return res.status(401).json({ error: 'פגישה לא תקינה — יש להתחבר מחדש' });
+        if (new Date(row.expires_at) < new Date()) {
+            pool.query(`DELETE FROM family_sessions WHERE token_hash=$1`, [tokenHash]).catch(() => {});
+            return res.status(401).json({ error: 'פגישה פגה — יש להתחבר מחדש' });
+        }
+        pool.query(`UPDATE family_sessions SET last_seen=NOW() WHERE token_hash=$1`, [tokenHash]).catch(() => {});
+        req.callerAuth = { groupId: row.group_id, userId: row.user_id, type: row.session_type === 'biz' ? 'business' : 'family' };
+        next();
+    } catch(e) {
+        return res.status(500).json({ error: 'שגיאה פנימית' });
+    }
 }
 
 // ── requireModule middleware ──────────────────────────────────
