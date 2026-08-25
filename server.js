@@ -5642,6 +5642,47 @@ app.patch('/api/biz/wizard/complete', verifyBiz, async (req, res) => {
         }
 
         res.json({ success: true });
+
+        // שליחת מיילים (fire and forget)
+        try {
+            const bizRow = await pool.query(`SELECT name FROM family_groups WHERE id=$1`, [groupId]);
+            const bizName = bizRow.rows[0]?.name || 'עסק חדש';
+
+            // ברוכים הבאים ללקוח
+            sendSystemEmail(
+                admin_email.toLowerCase().trim(),
+                `ברוכים הבאים ל-Oneflow BIZ — ${bizName}`,
+                `<div dir="rtl" style="font-family:sans-serif;max-width:520px;margin:0 auto;">
+                  <h2 style="color:#4f46e5;">המערכת שלך מוכנה! 🎉</h2>
+                  <p>שלום ${first_name.trim()},</p>
+                  <p>העסק <strong>${bizName}</strong> הוגדר בהצלחה במערכת Oneflow BIZ.</p>
+                  <p>תוכל להתחבר בכל עת דרך האתר ולהתחיל לנהל את העסק שלך.</p>
+                  <p style="color:#64748b;font-size:12px;">צוות Oneflow</p>
+                </div>`
+            ).catch(() => {});
+
+            // התראה ל-Super Admin
+            const saEmailRow = await pool.query(`SELECT value FROM system_settings WHERE key='admin_email'`);
+            const saEmail = saEmailRow.rows[0]?.value || process.env.SMTP_USER;
+            if (saEmail) {
+                sendSystemEmail(
+                    saEmail,
+                    `עסק חדש הצטרף: ${bizName}`,
+                    `<div dir="rtl" style="font-family:sans-serif;">
+                      <h3>עסק חדש השלים הרשמה</h3>
+                      <ul>
+                        <li><strong>שם עסק:</strong> ${bizName}</li>
+                        <li><strong>סוג:</strong> ${business_type}</li>
+                        <li><strong>מנהל:</strong> ${first_name.trim()} ${last_name.trim()}</li>
+                        <li><strong>עיר:</strong> ${city.trim()}</li>
+                        <li><strong>אימייל:</strong> ${admin_email.toLowerCase().trim()}</li>
+                      </ul>
+                    </div>`
+                ).catch(() => {});
+            }
+        } catch(mailErr) {
+            console.error('wizard/complete mail error:', mailErr.message);
+        }
     } catch(e) {
         console.error('biz wizard/complete error:', e.message);
         res.status(500).json({ success: false, error: 'שגיאה בשמירת הוויזארד' });
