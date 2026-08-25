@@ -21728,7 +21728,6 @@ app.post('/api/beauty/:bizId/appointments', verifyFamilyOrBiz, async (req, res) 
         }
 
         const totalPrice = (segments||[]).reduce((s, seg) => s + parseFloat(seg.price||0), 0);
-        const src = booking_source || 'biz';
 
         // אם לא הועבר client_family_id, ננסה לזהות לפי טלפון (עם נרמול ספרות בלבד)
         let resolvedFamilyId = client_family_id || null;
