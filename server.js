@@ -19429,8 +19429,10 @@ app.post('/api/professional-expertise/:groupId', verifyBiz, async (req, res) => 
         res.json({ item: r.rows[0] });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
-app.patch('/api/professional-expertise/:id', async (req, res) => {
+app.patch('/api/professional-expertise/:id', verifyBiz, async (req, res) => {
     try {
+        const _chk = await pool.query('SELECT 1 FROM professional_expertise WHERE id=$1 AND group_id=$2', [req.params.id, req.bizAuth.groupId]);
+        if (!_chk.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
         const { icon, title_he, title_en, description_he, description_en } = req.body;
         await pool.query(
             `UPDATE professional_expertise SET icon=COALESCE($1,icon), title_he=COALESCE($2,title_he), title_en=COALESCE($3,title_en), description_he=COALESCE($4,description_he), description_en=COALESCE($5,description_en) WHERE id=$6`,
@@ -19439,8 +19441,12 @@ app.patch('/api/professional-expertise/:id', async (req, res) => {
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
-app.delete('/api/professional-expertise/:id', async (req, res) => {
-    try { await pool.query('UPDATE professional_expertise SET is_active=FALSE WHERE id=$1', [req.params.id]); res.json({ success: true }); }
+app.delete('/api/professional-expertise/:id', verifyBiz, async (req, res) => {
+    try {
+        const _chk = await pool.query('SELECT 1 FROM professional_expertise WHERE id=$1 AND group_id=$2', [req.params.id, req.bizAuth.groupId]);
+        if (!_chk.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
+        await pool.query('UPDATE professional_expertise SET is_active=FALSE WHERE id=$1', [req.params.id]); res.json({ success: true });
+    }
     catch(e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -19466,15 +19472,21 @@ app.post('/api/professional-articles/:groupId', verifyBiz, async (req, res) => {
         res.json({ article: r.rows[0] });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
-app.patch('/api/professional-articles/:id', async (req, res) => {
+app.patch('/api/professional-articles/:id', verifyBiz, async (req, res) => {
     try {
+        const _chk = await pool.query('SELECT 1 FROM professional_articles WHERE id=$1 AND group_id=$2', [req.params.id, req.bizAuth.groupId]);
+        if (!_chk.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
         const { is_published } = req.body;
         await pool.query('UPDATE professional_articles SET is_published=$1 WHERE id=$2', [is_published, req.params.id]);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
-app.delete('/api/professional-articles/:id', async (req, res) => {
-    try { await pool.query('DELETE FROM professional_articles WHERE id=$1', [req.params.id]); res.json({ success: true }); }
+app.delete('/api/professional-articles/:id', verifyBiz, async (req, res) => {
+    try {
+        const _chk = await pool.query('SELECT 1 FROM professional_articles WHERE id=$1 AND group_id=$2', [req.params.id, req.bizAuth.groupId]);
+        if (!_chk.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
+        await pool.query('DELETE FROM professional_articles WHERE id=$1', [req.params.id]); res.json({ success: true });
+    }
     catch(e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -19497,8 +19509,10 @@ app.post('/api/professional-leads/:groupId', async (req, res) => {
         res.json({ lead: r.rows[0] });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
-app.patch('/api/professional-leads/:id', async (req, res) => {
+app.patch('/api/professional-leads/:id', verifyBiz, async (req, res) => {
     try {
+        const _chk = await pool.query('SELECT 1 FROM professional_leads WHERE id=$1 AND group_id=$2', [req.params.id, req.bizAuth.groupId]);
+        if (!_chk.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
         const { status } = req.body;
         await pool.query('UPDATE professional_leads SET status=$1 WHERE id=$2', [status, req.params.id]);
         res.json({ success: true });
@@ -19534,8 +19548,10 @@ app.post('/api/professional-documents/:groupId', verifyBiz, async (req, res) => 
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.patch('/api/professional-documents/:id', async (req, res) => {
+app.patch('/api/professional-documents/:id', verifyBiz, async (req, res) => {
     try {
+        const _chk = await pool.query('SELECT 1 FROM professional_documents WHERE id=$1 AND group_id=$2', [req.params.id, req.bizAuth.groupId]);
+        if (!_chk.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
         const { title, content, doc_type, status, notes, customer_name, customer_last_name, customer_phone, customer_email, customer_id_number, customer_address, signature_data, work_order_id } = req.body;
         // שמור גרסה קודמת לפני עדכון תוכן/סטטוס
         if (title !== undefined || content !== undefined || status !== undefined) {
@@ -19637,9 +19653,10 @@ app.delete('/api/professional-doc-types/:id', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 // ===== PROFESSIONAL DASHBOARD API =====
-app.get('/api/professional/dashboard/:groupId', async (req, res) => {
+app.get('/api/professional/dashboard/:groupId', verifyBiz, async (req, res) => {
     try {
         const gid = req.params.groupId;
+        if (parseInt(gid) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const safe = async (q, p) => { try { return await pool.query(q, p); } catch(e) { return { rows: [] }; } };
         const [casesR, hoursR, leadsR, revenueR, apptR, pendingQuotesR] = await Promise.all([
             safe(`SELECT status, COUNT(*) cnt FROM store_orders WHERE group_id=$1 AND call_type='work_order' GROUP BY status`, [gid]),
