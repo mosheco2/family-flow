@@ -10827,9 +10827,10 @@ app.delete('/api/zm/articles/:id', verifyZoneManager, async (req, res) => {
 });
 
 // ===== COMMUNITY MANAGER ARTICLES =====
-app.post('/api/community/manager/articles', async (req, res) => {
+app.post('/api/community/manager/articles', verifyFamily, async (req, res) => {
     try {
         const { community_id, group_id, title, body, image_url } = req.body;
+        if (parseInt(group_id) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         if (!title || !body || !community_id) return res.status(400).json({ error: 'missing fields' });
         // verify that group_id is indeed community manager of community_id
         const check = await pool.query(
@@ -11514,9 +11515,10 @@ app.get('/api/community/search-business', async (req, res) => {
 });
 
 // משפחה — המלצה/הזמנת עסק להצטרף לקהילה → status=biz_invited
-app.post('/api/community/invite-business', async (req, res) => {
+app.post('/api/community/invite-business', verifyFamily, async (req, res) => {
     try {
         const { groupId, communityId, businessId } = req.body;
+        if (parseInt(groupId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         // ודא שהמשפחה חברה בקהילה
         const check = await pool.query(`SELECT 1 FROM family_communities WHERE group_id=$1 AND community_id=$2 AND status='approved'`, [groupId, communityId]);
         if (!check.rows.length) return res.status(403).json({ error: 'אינך חבר מאושר בקהילה זו' });
@@ -14052,9 +14054,10 @@ app.get('/api/community/cashback-info/:groupId', verifyFamily, async (req, res) 
 });
 
 // מנהל קהילה — אישור/דחיית משפחה
-app.post('/api/community/manager/family/approve', async (req, res) => {
+app.post('/api/community/manager/family/approve', verifyFamily, async (req, res) => {
     try {
         const { groupId, communityId, targetGroupId } = req.body;
+        if (parseInt(groupId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         // ודא שהמבקש הוא מנהל הקהילה
         const check = await pool.query(`SELECT 1 FROM family_communities WHERE group_id=$1 AND community_id=$2 AND is_community_manager=TRUE`, [groupId, communityId]);
         if (!check.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
@@ -14063,9 +14066,10 @@ app.post('/api/community/manager/family/approve', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/community/manager/family/reject', async (req, res) => {
+app.post('/api/community/manager/family/reject', verifyFamily, async (req, res) => {
     try {
         const { groupId, communityId, targetGroupId } = req.body;
+        if (parseInt(groupId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const check = await pool.query(`SELECT 1 FROM family_communities WHERE group_id=$1 AND community_id=$2 AND is_community_manager=TRUE`, [groupId, communityId]);
         if (!check.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
         await pool.query(`DELETE FROM family_communities WHERE group_id=$1 AND community_id=$2 AND status='pending'`, [targetGroupId, communityId]);
@@ -14074,9 +14078,10 @@ app.post('/api/community/manager/family/reject', async (req, res) => {
 });
 
 // ניהול ארנק קהילה למנהל קהילה: רשימת עסקים + תנועות
-app.get('/api/community/manager-data/:groupId', async (req, res) => {
+app.get('/api/community/manager-data/:groupId', verifyFamily, async (req, res) => {
     try {
         const { groupId } = req.params;
+        if (parseInt(groupId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         // מצא את הקהילות שהמשפחה מנהלת
         const mgrRes = await pool.query(
             `SELECT fc.community_id, c.name as community_name FROM family_communities fc
@@ -23920,7 +23925,7 @@ app.get('/api/biz/my-pool-bids/:bizGroupId', verifyBiz, async (req, res) => {
 });
 
 // ניקוי פולים שפג תוקפם (נקרא בחצות)
-app.post('/api/community/pool/cleanup', async (req, res) => {
+app.post('/api/community/pool/cleanup', verifySA, async (req, res) => {
     try {
         const expired = await pool.query(`UPDATE flow_pools SET status='expired' WHERE status IN ('open_r1','open_r2') AND expires_at<=NOW() RETURNING id`);
         if (expired.rows.length) {
