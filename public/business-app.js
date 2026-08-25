@@ -6270,7 +6270,7 @@ window._colMarkReceived = async function(paymentId) {
     if (recAmt === null) return;
     try {
         const r = await fetch(`/api/work-orders/payments/${paymentId}/receive`, {
-            method: 'PATCH', headers: {'Content-Type':'application/json'},
+            method: 'PATCH', headers: {'Content-Type':'application/json', 'Authorization': `Bearer ${window._bizToken}`},
             body: JSON.stringify({ receivedAmount: recAmt || null, userName: currentUser?.nickname || 'מנהל' })
         });
         const d = await r.json();
@@ -40642,7 +40642,7 @@ window.loadWoPayments = async function() {
     if (!list) return;
     list.innerHTML = '<p class="text-xs text-slate-400 text-center py-3"><i class="fa-solid fa-spinner fa-spin ml-1"></i></p>';
     try {
-        const r = await fetch(`/api/work-orders/${window._currentWoId}/payments`);
+        const r = await fetch(`/api/work-orders/${window._currentWoId}/payments`, { headers: { 'Authorization': `Bearer ${window._bizToken}` } });
         const d = await r.json();
         const payments = d.payments || [];
         if (!payments.length) {
@@ -40726,7 +40726,7 @@ window.openAddPaymentMilestone = async function() {
         } else {
             // fallback: נסה לקבל מהתחנה הקודמת
             try {
-                const d = await fetch(`/api/work-orders/${window._currentWoId}/payments`).then(r => r.json());
+                const d = await fetch(`/api/work-orders/${window._currentWoId}/payments`, { headers: { 'Authorization': `Bearer ${window._bizToken}` } }).then(r => r.json());
                 const payments = d.payments || [];
                 if (payments.length > 0) totalAmtEl.value = payments[payments.length - 1].original_amount || '';
             } catch(e) {}
@@ -40743,7 +40743,7 @@ window.savePaymentMilestone = async function() {
     if (!amount || amount <= 0) { showToast('error', 'נא להזין סכום'); return; }
     try {
         const r = await fetch(`/api/work-orders/${window._currentWoId}/payments`, {
-            method: 'POST', headers: {'Content-Type':'application/json'},
+            method: 'POST', headers: {'Content-Type':'application/json', 'Authorization': `Bearer ${window._bizToken}`},
             body: JSON.stringify({ milestoneName: name || 'תשלום', amount, dueDate, paymentMethod: method, totalAmount })
         });
         const d = await r.json();
@@ -40764,7 +40764,7 @@ window.markPaymentReceived = async function(paymentId) {
     if (recAmt === null) return; // ביטול
     try {
         const r = await fetch(`/api/work-orders/payments/${paymentId}/receive`, {
-            method: 'PATCH', headers: {'Content-Type':'application/json'},
+            method: 'PATCH', headers: {'Content-Type':'application/json', 'Authorization': `Bearer ${window._bizToken}`},
             body: JSON.stringify({ receivedAmount: recAmt || null, userName: currentUser?.nickname || 'מנהל' })
         });
         const d = await r.json();
@@ -40778,7 +40778,7 @@ window.markPaymentReceived = async function(paymentId) {
 window.deletePaymentMilestone = async function(paymentId) {
     if (!await window._uiConfirm('למחוק תחנת תשלום זו?', {danger:true, okLabel:'מחק'})) return;
     try {
-        const r = await fetch(`/api/work-orders/payments/${paymentId}`, { method: 'DELETE' });
+        const r = await fetch(`/api/work-orders/payments/${paymentId}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${window._bizToken}` } });
         const d = await r.json();
         if (!d.success) { showToast('error', d.error || 'שגיאה'); return; }
         showToast('success', 'תחנה נמחקה');
@@ -40907,7 +40907,7 @@ window.markScPaymentReceived = async function(paymentId, callId) {
     if (recAmt === null) return;
     try {
         const r = await fetch(`/api/work-orders/payments/${paymentId}/receive`, {
-            method: 'PATCH', headers: {'Content-Type':'application/json'},
+            method: 'PATCH', headers: {'Content-Type':'application/json', 'Authorization': `Bearer ${window._bizToken}`},
             body: JSON.stringify({ receivedAmount: recAmt || null, userName: currentUser?.nickname || 'מנהל' })
         });
         const d = await r.json();
@@ -40921,7 +40921,7 @@ window.markScPaymentReceived = async function(paymentId, callId) {
 window.deleteScPaymentMilestone = async function(paymentId, callId) {
     if (!await window._uiConfirm('למחוק תחנת תשלום זו?', {danger:true, okLabel:'מחק'})) return;
     try {
-        const r = await fetch(`/api/work-orders/payments/${paymentId}`, { method: 'DELETE' });
+        const r = await fetch(`/api/work-orders/payments/${paymentId}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${window._bizToken}` } });
         const d = await r.json();
         if (!d.success) { showToast('error', d.error || 'שגיאה'); return; }
         showToast('success', 'תחנה נמחקה');
@@ -45168,7 +45168,7 @@ window._ofwSearch = async function() {
     try {
         // חיפוש CRM מקומי לפי סוג עסק
         if (bizType === 'beauty') {
-            const r = await fetch(`/api/beauty/${bizId}/clients?q=${encodeURIComponent(q)}`).then(x => x.json());
+            const r = await fetch(`/api/beauty/${bizId}/clients?q=${encodeURIComponent(q)}`, { headers: { 'Authorization': `Bearer ${window._bizToken}` } }).then(x => x.json());
             localResults = (r.clients || r || []).map(c => ({
                 name: c.name || c.client_name || '',
                 phone: c.phone || '',
