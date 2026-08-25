@@ -665,6 +665,20 @@ function saveSession(u, g, token) {
     if (group && group.id && group.image_url) { try { localStorage.setItem(`ofl_logo_${group.id}`, group.image_url); } catch(e) {} }
 }
 function getFamilyToken() { return localStorage.getItem('ofl_family_token') || null; }
+async function ensureFamilyToken() {
+    if (getFamilyToken()) return;
+    const session = JSON.parse(localStorage.getItem('ofl_session') || 'null');
+    if (!session?.user?.id || !session?.group?.id || session?.group?.type !== 'FAMILY') return;
+    try {
+        const r = await fetch('/api/community/bootstrap-token', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ groupId: session.group.id, userId: session.user.id })
+        });
+        if (!r.ok) return;
+        const d = await r.json();
+        if (d.token) localStorage.setItem('ofl_family_token', d.token);
+    } catch(e) {}
+}
 function communityFetch(url, opts = {}) {
     const token = getFamilyToken() || '';
     opts.headers = { ...(opts.headers || {}), Authorization: `Bearer ${token}` };
@@ -2039,6 +2053,7 @@ window._submitForcePassword = async function() {
 async function fetchData() {
     try {
         if (!currentGroup || !currentGroup.id) return; if (document.activeElement.classList.contains('price-input')) return;
+        await ensureFamilyToken();
         const res = await fetch(`${API}/data/${currentUser.id}`); const data = await res.json();
         if (!data || !data.user) return;
         

@@ -7051,6 +7051,25 @@ app.post('/api/login', async (req, res) => {
     }
 });
 
+app.post('/api/community/bootstrap-token', async (req, res) => {
+    try {
+        const { groupId, userId } = req.body;
+        if (!groupId || !userId) return res.status(400).json({ error: 'missing params' });
+        const check = await pool.query(
+            `SELECT u.id FROM users u
+             JOIN family_groups fg ON fg.id = u.group_id
+             WHERE u.id=$1 AND u.group_id=$2 AND u.status='active' AND fg.type='FAMILY'`,
+            [userId, groupId]
+        );
+        if (!check.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
+        const deviceHint = (req.headers['user-agent'] || '').slice(0, 100);
+        const token = await createFamilySession(parseInt(groupId), parseInt(userId), deviceHint, 'family');
+        res.json({ token });
+    } catch(e) {
+        res.status(500).json({ error: 'שגיאת שרת' });
+    }
+});
+
 app.post('/api/logout', async (req, res) => {
     try {
         const authHeader = req.headers.authorization || '';
