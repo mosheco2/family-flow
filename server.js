@@ -5623,6 +5623,9 @@ app.patch('/api/biz/wizard/complete', verifyBiz, async (req, res) => {
         try { await pool.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS lat DOUBLE PRECISION`); } catch(e) {}
         try { await pool.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS lng DOUBLE PRECISION`); } catch(e) {}
 
+        const nameRow = await pool.query(`SELECT name FROM family_groups WHERE id=$1`, [groupId]);
+        const bizName = nameRow.rows[0]?.name || 'עסק חדש';
+
         await pool.query(
             `UPDATE family_groups
              SET business_type=$1, managed_modules=$2, staff_roles=$3, wizard_completed=TRUE,
@@ -5655,9 +5658,6 @@ app.patch('/api/biz/wizard/complete', verifyBiz, async (req, res) => {
 
         // שליחת מיילים (fire and forget)
         try {
-            const bizRow = await pool.query(`SELECT name FROM family_groups WHERE id=$1`, [groupId]);
-            const bizName = bizRow.rows[0]?.name || 'עסק חדש';
-
             // ברוכים הבאים ללקוח
             sendSystemEmail(
                 admin_email.toLowerCase().trim(),
@@ -5672,8 +5672,8 @@ app.patch('/api/biz/wizard/complete', verifyBiz, async (req, res) => {
             ).catch(() => {});
 
             // התראה ל-Super Admin
-            const saEmailRow = await pool.query(`SELECT value FROM system_settings WHERE key='admin_notification_email'`);
-            const saEmail = saEmailRow.rows[0]?.value || process.env.SMTP_USER;
+            const mailCfg = await getEmailConfig();
+            const saEmail = mailCfg.adminNotificationEmail;
             if (saEmail) {
                 sendSystemEmail(
                     saEmail,
