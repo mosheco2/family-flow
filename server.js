@@ -25069,9 +25069,10 @@ app.post('/api/kids/redeem-request', verifyFamily, async (req, res) => {
 });
 
 // הורה מביא בקשות מימוש פתוחות של ילד
-app.get('/api/kids/redeem-requests', async (req, res) => {
+app.get('/api/kids/redeem-requests', verifyFamily, async (req, res) => {
     try {
         const { childId, groupId } = req.query;
+        if (parseInt(groupId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const rows = await pool.query(
             `SELECT * FROM flw_kid_redeem_requests WHERE child_user_id=$1 AND family_group_id=$2 AND status='pending' ORDER BY created_at DESC`,
             [childId, groupId]
@@ -25185,10 +25186,11 @@ app.get('/api/sa/games/stats', verifySA, async (req, res) => {
 // ─── GAME ASSIGNMENTS API ─────────────────────────────────────────────────────
 
 // הקצה משחק לילד (הורה)
-app.post('/api/kids/assign-game', async (req, res) => {
+app.post('/api/kids/assign-game', verifyFamily, async (req, res) => {
   try {
     const { familyGroupId, childUserId, gameId,
             roundsTotal, flwPerRound, expiresAt, startLevel } = req.body;
+    if (parseInt(familyGroupId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
 
     const game = await pool.query(
       'SELECT id, title FROM games_catalog WHERE id=$1 AND is_active=true',
@@ -25228,8 +25230,10 @@ app.post('/api/kids/assign-game', async (req, res) => {
 });
 
 // משחקים מוקצים לילד
-app.get('/api/kids/assignments/:childId', async (req, res) => {
+app.get('/api/kids/assignments/:childId', verifyFamily, async (req, res) => {
   try {
+    const _chk = await pool.query('SELECT 1 FROM users WHERE id=$1 AND group_id=$2', [req.params.childId, req.familyAuth.groupId]);
+    if (!_chk.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
     const assignments = await pool.query(`
       SELECT ga.*, g.title, g.subject, g.thumbnail_emoji,
              g.file_path, g.difficulty,
@@ -25246,9 +25250,11 @@ app.get('/api/kids/assignments/:childId', async (req, res) => {
 });
 
 // סיום סיבוב משחק — ניכוי סיבוב + FLW יחסי ואנטי-כפילות
-app.post('/api/kids/use-round', async (req, res) => {
+app.post('/api/kids/use-round', verifyFamily, async (req, res) => {
   try {
     const { assignmentId, childUserId, score, flwEarned, levelIdx } = req.body;
+    if (parseInt(childUserId) !== req.familyAuth.userId) return res.status(403).json({ error: 'אין הרשאה' });
+    // TODO: rounds_used/score values מהלקוח, לא מאומתים מול לוגיקת משחק אמיתית — cap יומי מגן בגדול אך לא מונע ניצול קטן. לבדוק בעתיד.
     const scorePercent = Math.min(100, Math.max(0, score || 0));
 
     const asgn = await pool.query(
@@ -25322,9 +25328,11 @@ app.post('/api/kids/use-round', async (req, res) => {
 });
 
 // חידוש הקצאה (הורה)
-app.post('/api/kids/renew-assignment/:id', async (req, res) => {
+app.post('/api/kids/renew-assignment/:id', verifyFamily, async (req, res) => {
   try {
     const { roundsTotal } = req.body;
+    const _asgn = await pool.query('SELECT 1 FROM game_assignments WHERE id=$1 AND family_group_id=$2', [req.params.id, req.familyAuth.groupId]);
+    if (!_asgn.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
 
     await pool.query(`
       UPDATE game_assignments SET
@@ -25343,11 +25351,12 @@ app.post('/api/kids/renew-assignment/:id', async (req, res) => {
 // ─── QUESTS API ───────────────────────────────────────────────────────────────
 
 // יצירת קווסט (הורה)
-app.post('/api/kids/quests', async (req, res) => {
+app.post('/api/kids/quests', verifyFamily, async (req, res) => {
   try {
     const { familyGroupId, childUserId, title, subject,
             description, flwReward, passScore,
             dueDate, questions, createdBy } = req.body;
+    if (parseInt(familyGroupId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
 
     if(!questions?.length)
       return res.status(400).json({ error: 'נדרשת לפחות שאלה אחת' });
@@ -25389,8 +25398,10 @@ app.post('/api/kids/quests', async (req, res) => {
 });
 
 // קווסטים פעילים לילד (כולל פגי תוקף לארכיון)
-app.get('/api/kids/quests/:childId', async (req, res) => {
+app.get('/api/kids/quests/:childId', verifyFamily, async (req, res) => {
   try {
+    const _chk = await pool.query('SELECT 1 FROM users WHERE id=$1 AND group_id=$2', [req.params.childId, req.familyAuth.groupId]);
+    if (!_chk.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
     const quests = await pool.query(`
       SELECT q.*, COUNT(qq.id) as question_count
       FROM kid_quests q
@@ -25406,8 +25417,10 @@ app.get('/api/kids/quests/:childId', async (req, res) => {
 });
 
 // שאלות קווסט
-app.get('/api/kids/quests/:questId/questions', async (req, res) => {
+app.get('/api/kids/quests/:questId/questions', verifyFamily, async (req, res) => {
   try {
+    const _q = await pool.query('SELECT 1 FROM kid_quests WHERE id=$1 AND family_group_id=$2', [req.params.questId, req.familyAuth.groupId]);
+    if (!_q.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
     const questions = await pool.query(`
       SELECT * FROM kid_quest_questions
       WHERE quest_id = $1
@@ -25419,9 +25432,10 @@ app.get('/api/kids/quests/:questId/questions', async (req, res) => {
 });
 
 // שליחת תוצאות קווסט
-app.post('/api/kids/quests/:questId/submit', async (req, res) => {
+app.post('/api/kids/quests/:questId/submit', verifyFamily, async (req, res) => {
   try {
     const { childUserId, answers } = req.body;
+    if (parseInt(childUserId) !== req.familyAuth.userId) return res.status(403).json({ error: 'אין הרשאה' });
     const questId = req.params.questId;
 
     const questRow = await pool.query('SELECT * FROM kid_quests WHERE id=$1', [questId]);
@@ -25489,8 +25503,9 @@ app.post('/api/kids/quests/:questId/submit', async (req, res) => {
 });
 
 // קווסטים שהורה יצר
-app.get('/api/kids/parent-quests/:parentId', async (req, res) => {
+app.get('/api/kids/parent-quests/:parentId', verifyFamily, async (req, res) => {
   try {
+    if (parseInt(req.params.parentId) !== req.familyAuth.userId) return res.status(403).json({ error: 'אין הרשאה' });
     const quests = await pool.query(`
       SELECT q.*, u.nickname as child_name,
         COUNT(qq.id) as question_count,
