@@ -5510,6 +5510,16 @@ app.post('/api/biz/register', async (req, res) => {
         const token = await createFamilySession(groupId, userId, deviceHint, 'biz');
 
         res.json({ success: true, token, group_id: groupId, user_id: userId, business_name, wizard_completed: false });
+
+        // התראה ל-SA ברגע ההרשמה (fire and forget)
+        getEmailConfig().then(cfg => {
+            if (!cfg.adminNotificationEmail) return;
+            sendSystemEmail(
+                cfg.adminNotificationEmail,
+                'Oneflow | עסק חדש נרשם למערכת!',
+                `<div dir="rtl" style="font-family:Arial;"><h2>🏢 עסק חדש נרשם!</h2><p>שם עסק: <strong>${business_name}</strong></p><p>טלפון: ${phone}</p><p>הויזארד טרם הושלם — פרטים נוספים יגיעו בסיום.</p></div>`
+            ).catch(() => {});
+        }).catch(() => {});
     } catch(e) {
         console.error('biz register error:', e.message);
         console.error('biz register stack:', e.stack);
@@ -5662,7 +5672,7 @@ app.patch('/api/biz/wizard/complete', verifyBiz, async (req, res) => {
             ).catch(() => {});
 
             // התראה ל-Super Admin
-            const saEmailRow = await pool.query(`SELECT value FROM system_settings WHERE key='admin_email'`);
+            const saEmailRow = await pool.query(`SELECT value FROM system_settings WHERE key='admin_notification_email'`);
             const saEmail = saEmailRow.rows[0]?.value || process.env.SMTP_USER;
             if (saEmail) {
                 sendSystemEmail(
