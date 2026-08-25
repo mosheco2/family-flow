@@ -7697,6 +7697,7 @@ window.openProfileModal = function() {
                     upgSec.insertAdjacentHTML('afterend', `<button id="btn-reopen-wizard-biz" onclick="if(typeof showOnboardingWizard === 'function') showOnboardingWizard()" class="w-full mt-3 bg-indigo-50 text-indigo-600 py-2.5 rounded-xl text-xs font-bold hover:bg-indigo-100 transition border border-indigo-100 shadow-sm"><i class="fa-solid fa-wand-magic-sparkles mr-1"></i> פתיחת אשף הקמה (Wizard)</button>`);
                 }
             }
+            _renderProfileTrialBadge(upgSec);
         } else {
             upgSec.classList.add('hidden');
         }
@@ -7739,6 +7740,49 @@ window.saveProfileNickname = async function() {
         } else showToast('error', data.error || 'שגיאה בשמירה');
     } catch(e) { showToast('error', 'שגיאת תקשורת'); }
 };
+
+async function _renderProfileTrialBadge(upgSec) {
+    if (!upgSec || !currentGroup || !currentGroup.created_at) return;
+    try {
+        const d = await fetch('/api/biz/pricing-catalog', {
+            headers: { 'Authorization': `Bearer ${window._bizToken}` }
+        }).then(r => r.json());
+        const freeMonths = typeof d.free_months === 'number' ? d.free_months : 0;
+        if (freeMonths <= 0) return;
+        const createdMs = new Date(currentGroup.created_at).getTime();
+        const trialMs = freeMonths * 30 * 24 * 3600 * 1000;
+        const elapsed = Date.now() - createdMs;
+        const daysTotal = Math.round(freeMonths * 30);
+        const daysLeft = Math.max(0, Math.round((trialMs - elapsed) / 86400000));
+        const pct = Math.max(0, Math.min(100, Math.round((daysLeft / daysTotal) * 100)));
+        const endDate = new Date(createdMs + trialMs).toLocaleDateString('he-IL');
+        let trialHtml = '';
+        if (elapsed < trialMs) {
+            trialHtml = `
+            <div class="mt-3 bg-green-50 border border-green-200 rounded-2xl p-3">
+                <div class="flex items-center justify-between mb-1.5">
+                    <span class="text-[11px] font-bold text-green-800">🎁 הטבת ${freeMonths} חודשים חינם פעילה</span>
+                    <span class="text-[11px] font-bold text-green-700">${daysLeft}/${daysTotal} ימים</span>
+                </div>
+                <div class="w-full bg-green-200 rounded-full h-1.5 overflow-hidden">
+                    <div class="bg-green-500 h-1.5 rounded-full transition-all" style="width:${pct}%"></div>
+                </div>
+                <p class="text-[10px] text-green-600 mt-1.5">ההטבה מסתיימת ב-${endDate}</p>
+            </div>`;
+        } else {
+            trialHtml = `
+            <div class="mt-3 bg-slate-50 border border-slate-200 rounded-2xl p-3">
+                <p class="text-[11px] font-bold text-slate-500 text-center">✅ תקופת ההטבה הסתיימה</p>
+            </div>`;
+        }
+        const existing = upgSec.parentNode.querySelector('#profile-trial-badge');
+        if (existing) existing.remove();
+        const el = document.createElement('div');
+        el.id = 'profile-trial-badge';
+        el.innerHTML = trialHtml;
+        upgSec.insertAdjacentElement('afterend', el);
+    } catch(e) { /* שקט בשגיאה */ }
+}
 
 window.saveDocSettings = async function() {
     const vatNum = (document.getElementById('doc-vat-number') || {}).value || '';
@@ -19719,18 +19763,78 @@ function skipWizardStep() {
 // --- ONBOARDING WIZARD V2 (שלבים מותאמי סוג עסק) ---
 
 const WIZARD_STEPS_BY_TYPE_V2 = {
-    restaurant:   ['identity', 'food_type', 'menu', 'my_role', 'team'],
-    beauty:       ['identity', 'practitioners', 'services', 'my_role', 'team'],
-    sport:        ['identity', 'trainer', 'subscriptions', 'schedule', 'my_role', 'team'],
-    services:     ['identity', 'service_types', 'billing_flow', 'first_customer', 'my_role', 'team'],
-    professional: ['identity', 'case_type', 'first_case', 'document_template', 'my_role', 'team'],
-    other:        ['identity', 'catalog', 'my_role', 'team'],
-    store_only:   ['identity', 'catalog'],
+    restaurant:   ['identity', 'modules', 'food_type', 'menu', 'my_role', 'team'],
+    beauty:       ['identity', 'modules', 'practitioners', 'services', 'my_role', 'team'],
+    sport:        ['identity', 'modules', 'trainer', 'subscriptions', 'schedule', 'my_role', 'team'],
+    services:     ['identity', 'modules', 'service_types', 'billing_flow', 'first_customer', 'my_role', 'team'],
+    professional: ['identity', 'modules', 'case_type', 'first_case', 'document_template', 'my_role', 'team'],
+    other:        ['identity', 'modules', 'catalog', 'my_role', 'team'],
+    store_only:   ['identity', 'modules', 'catalog'],
 };
 
 let wizardStepsV2 = [];
 let currentWizardStepV2 = 0;
 let wizardV2Data = {};
+
+async function _loadWizardModules() {
+    const listEl = document.getElementById('wizard-modules-list');
+    if (!listEl) return;
+    try {
+        const d = await fetch('/api/biz/pricing-catalog', {
+            headers: { 'Authorization': `Bearer ${window._bizToken}` }
+        }).then(r => r.json());
+        const catalog = d.catalog || [];
+        const freeMonths = typeof d.free_months === 'number' ? d.free_months : 3;
+        if (!wizardV2Data.selectedModules) wizardV2Data.selectedModules = [];
+
+        const freeBadge = freeMonths > 0
+            ? `<span class="text-[9px] font-bold text-green-700 bg-green-100 border border-green-200 px-1.5 py-0.5 rounded-full whitespace-nowrap">🎁 ${freeMonths} חודשים חינם</span>`
+            : '';
+
+        let html = '';
+        for (const group of catalog) {
+            const mods = group.modules || [];
+            if (!mods.length) continue;
+            html += `<div class="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+                <h4 class="text-sm font-bold text-slate-700 mb-3">${group.name || group.groupName || ''}</h4>
+                <div class="space-y-1">`;
+            for (const mod of mods) {
+                const modId = mod.id || mod.key || mod.name;
+                const checked = wizardV2Data.selectedModules.includes(modId);
+                const price = mod.price ? `₪${mod.price}/חודש` : 'חינם';
+                html += `<label class="flex items-center gap-3 cursor-pointer p-2 rounded-xl hover:bg-slate-50 transition">
+                    <input type="checkbox" value="${modId}" ${checked ? 'checked' : ''}
+                        onchange="_toggleWizardModule('${modId}', this.checked)"
+                        class="w-4 h-4 rounded accent-indigo-600 shrink-0">
+                    <div class="flex-1 min-w-0">
+                        <span class="text-sm font-semibold text-slate-800">${mod.name || modId}</span>
+                        ${mod.description ? `<p class="text-[11px] text-slate-400 mt-0.5 leading-snug">${mod.description}</p>` : ''}
+                    </div>
+                    <div class="flex flex-col items-end gap-1 shrink-0">
+                        <span class="text-xs font-bold text-indigo-600">${price}</span>
+                        ${freeMonths > 0 && mod.price ? freeBadge : ''}
+                    </div>
+                </label>`;
+            }
+            html += `</div></div>`;
+        }
+        if (!html) html = '<p class="text-center text-slate-400 text-sm py-6">אין מודולים זמינים כרגע</p>';
+        listEl.innerHTML = html;
+    } catch(e) {
+        if (document.getElementById('wizard-modules-list')) {
+            document.getElementById('wizard-modules-list').innerHTML = '<p class="text-center text-red-400 text-sm py-6">שגיאה בטעינת מודולים</p>';
+        }
+    }
+}
+
+function _toggleWizardModule(modId, checked) {
+    if (!wizardV2Data.selectedModules) wizardV2Data.selectedModules = [];
+    if (checked) {
+        if (!wizardV2Data.selectedModules.includes(modId)) wizardV2Data.selectedModules.push(modId);
+    } else {
+        wizardV2Data.selectedModules = wizardV2Data.selectedModules.filter(id => id !== modId);
+    }
+}
 
 function _renderWizardV2StepContent(stepName) {
     if (stepName === 'identity') {
@@ -19764,6 +19868,17 @@ function _renderWizardV2StepContent(stepName) {
                         onchange="handleWizardLogo(event)">
                     <input type="hidden" id="wizard-logo-base64">
                 </div>
+            </div>
+        </div>`;
+    }
+    if (stepName === 'modules') {
+        setTimeout(() => _loadWizardModules(), 60);
+        return `
+        <div class="max-w-md mx-auto space-y-4">
+            <h3 class="font-bold text-slate-800 text-lg text-center"><i class="fa-solid fa-cubes text-indigo-500 mr-2"></i>בחר את המודולים שלך</h3>
+            <p class="text-xs text-center text-slate-500 mb-2">בחר את הכלים שישרתו את העסק שלך — תוכל לשנות בכל עת</p>
+            <div id="wizard-modules-list" class="space-y-3">
+                <div class="text-center py-8 text-slate-400 text-sm"><i class="fa-solid fa-spinner fa-spin mr-2"></i>טוען מודולים...</div>
             </div>
         </div>`;
     }

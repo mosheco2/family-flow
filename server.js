@@ -3865,23 +3865,31 @@ app.post('/api/sa/groups/:id/billing', verifySA, async (req, res) => {
 // ── Pricing Catalog ────────────────────────────────────────────────────────
 app.get('/api/sa/pricing-catalog', verifySA, async (req, res) => {
     try {
-        const r = await pool.query("SELECT value FROM system_settings WHERE key = 'module_pricing_catalog'");
-        if (r.rows.length > 0) {
-            res.json({ catalog: JSON.parse(r.rows[0].value) });
-        } else {
-            res.json({ catalog: [] });
-        }
+        const [r, fm] = await Promise.all([
+            pool.query("SELECT value FROM system_settings WHERE key = 'module_pricing_catalog'"),
+            pool.query("SELECT value FROM system_settings WHERE key = 'wizard_free_months'")
+        ]);
+        const catalog = r.rows.length > 0 ? JSON.parse(r.rows[0].value) : [];
+        const free_months = fm.rows.length > 0 ? parseInt(fm.rows[0].value) : 3;
+        res.json({ catalog, free_months });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 app.post('/api/sa/pricing-catalog', verifySA, async (req, res) => {
     try {
-        const { catalog } = req.body;
+        const { catalog, free_months } = req.body;
         if (!Array.isArray(catalog)) return res.status(400).json({ error: 'catalog must be an array' });
         await pool.query(
             "INSERT INTO system_settings (key, value) VALUES ('module_pricing_catalog', $1) ON CONFLICT (key) DO UPDATE SET value = $1",
             [JSON.stringify(catalog)]
         );
+        const fm = parseInt(free_months);
+        if (!isNaN(fm) && fm >= 0) {
+            await pool.query(
+                "INSERT INTO system_settings (key, value) VALUES ('wizard_free_months', $1) ON CONFLICT (key) DO UPDATE SET value = $1",
+                [String(fm)]
+            );
+        }
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -3889,9 +3897,13 @@ app.post('/api/sa/pricing-catalog', verifySA, async (req, res) => {
 // קטלוג מחירים ציבורי (לקריאה בלבד)
 app.get('/api/biz/pricing-catalog', verifyBiz, async (req, res) => {
     try {
-        const r = await pool.query("SELECT value FROM system_settings WHERE key = 'module_pricing_catalog'");
-        if (r.rows.length > 0) return res.json({ catalog: JSON.parse(r.rows[0].value) });
-        res.json({ catalog: [] });
+        const [r, fm] = await Promise.all([
+            pool.query("SELECT value FROM system_settings WHERE key = 'module_pricing_catalog'"),
+            pool.query("SELECT value FROM system_settings WHERE key = 'wizard_free_months'")
+        ]);
+        const catalog = r.rows.length > 0 ? JSON.parse(r.rows[0].value) : [];
+        const free_months = fm.rows.length > 0 ? parseInt(fm.rows[0].value) : 3;
+        res.json({ catalog, free_months });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
