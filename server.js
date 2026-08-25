@@ -24709,9 +24709,10 @@ app.delete('/api/page-images/:page/:slot', async (req, res) => {
 // ─── END PAGE IMAGES ──────────────────────────────────────────────────────────
 
 // ─── KIDS OVERVIEW (parent dashboard) ────────────────────────────────────────
-app.get('/api/kids/parent-overview/:groupId', async (req, res) => {
+app.get('/api/kids/parent-overview/:groupId', verifyFamily, async (req, res) => {
   try {
     const gid = req.params.groupId;
+    if (parseInt(gid) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
 
     // ילדים + יתרת FLW
     const kids = await pool.query(`
@@ -24829,8 +24830,10 @@ app.get('/api/kids/parent-overview/:groupId', async (req, res) => {
 });
 
 // שמירת תמונת פרופיל לילד (URL מ-Cloudinary, או dataUrl כ-fallback)
-app.post('/api/kids/profile-image/:userId', async (req, res) => {
+app.post('/api/kids/profile-image/:userId', verifyFamily, async (req, res) => {
   try {
+    const _chk = await pool.query('SELECT 1 FROM users WHERE id=$1 AND group_id=$2', [req.params.userId, req.familyAuth.groupId]);
+    if (!_chk.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
     let { imageUrl, dataUrl } = req.body;
     if (!imageUrl && dataUrl) {
       // fallback: שמור לדיסק
@@ -24850,9 +24853,10 @@ app.post('/api/kids/profile-image/:userId', async (req, res) => {
 // ─── KIDS GAMES API ───────────────────────────────────────────────────────────
 
 // רשימת משחקים לפי גיל הילד
-app.get('/api/kids/games', async (req, res) => {
+app.get('/api/kids/games', verifyFamily, async (req, res) => {
     try {
         const { userId } = req.query;
+        if (parseInt(userId) !== req.familyAuth.userId) return res.status(403).json({ error: 'אין הרשאה' });
         const userRes = await pool.query('SELECT birth_year FROM users WHERE id=$1', [userId]);
         const age = userRes.rows[0]?.birth_year
             ? new Date().getFullYear() - userRes.rows[0].birth_year
@@ -24876,9 +24880,10 @@ app.get('/api/kids/games', async (req, res) => {
 });
 
 // יתרת FLW + היסטוריה לילד
-app.get('/api/kids/wallet/:userId', async (req, res) => {
+app.get('/api/kids/wallet/:userId', verifyFamily, async (req, res) => {
     try {
         const { userId } = req.params;
+        if (parseInt(userId) !== req.familyAuth.userId) return res.status(403).json({ error: 'אין הרשאה' });
 
         await pool.query(`
             INSERT INTO flw_kid_wallets (child_user_id, family_group_id)
@@ -24907,10 +24912,11 @@ app.get('/api/kids/wallet/:userId', async (req, res) => {
 
 // זיכוי FLW אחרי משחק
 // בדיקת זכאות לשחק חופשי היום
-app.get('/api/kids/free-play-check', async (req, res) => {
+app.get('/api/kids/free-play-check', verifyFamily, async (req, res) => {
     try {
         const { childUserId, gameId } = req.query;
         if (!childUserId || !gameId) return res.json({ canPlay: true });
+        if (parseInt(childUserId) !== req.familyAuth.userId) return res.status(403).json({ error: 'אין הרשאה' });
         const row = await pool.query(
             'SELECT 1 FROM kid_free_play_log WHERE child_user_id=$1 AND game_id=$2 AND played_date=CURRENT_DATE',
             [childUserId, gameId]
@@ -24919,9 +24925,11 @@ app.get('/api/kids/free-play-check', async (req, res) => {
     } catch(e) { res.json({ canPlay: true }); }
 });
 
-app.post('/api/kids/award-flw', async (req, res) => {
+app.post('/api/kids/award-flw', verifyFamily, async (req, res) => {
     try {
         const { userId, gameId, score, flwEarned, durationSeconds } = req.body;
+        if (parseInt(userId) !== req.familyAuth.userId) return res.status(403).json({ error: 'אין הרשאה' });
+        // TODO: flwEarned value מהלקוח, לא מאומת מול לוגיקת משחק אמיתית — cap יומי מגן בגדול אך לא מונע ניצול קטן. לבדוק בעתיד.
         if (!userId || !flwEarned) return res.status(400).json({ error: 'חסרים פרטים' });
 
         const todayEarned = await pool.query(`
@@ -24975,17 +24983,20 @@ app.post('/api/kids/award-flw', async (req, res) => {
 });
 
 // הגדרות הורה לילד
-app.get('/api/kids/config/:childId', async (req, res) => {
+app.get('/api/kids/config/:childId', verifyFamily, async (req, res) => {
     try {
+        const _chk = await pool.query('SELECT 1 FROM users WHERE id=$1 AND group_id=$2', [req.params.childId, req.familyAuth.groupId]);
+        if (!_chk.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
         const config = await pool.query('SELECT * FROM flw_kid_config WHERE child_user_id=$1', [req.params.childId]);
         res.json({ success: true, config: config.rows[0] || { flw_value_ils: 0.10, max_daily_flw: 50 } });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 // עדכון הגדרות הורה
-app.post('/api/kids/config', async (req, res) => {
+app.post('/api/kids/config', verifyFamily, async (req, res) => {
     try {
         const { familyGroupId, childUserId, flwValueIls, maxDailyFlw, autoApprove } = req.body;
+        if (parseInt(familyGroupId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         await pool.query(`
             INSERT INTO flw_kid_config (family_group_id, child_user_id, flw_value_ils, max_daily_flw, auto_approve)
             VALUES ($1,$2,$3,$4,$5)
@@ -24997,9 +25008,11 @@ app.post('/api/kids/config', async (req, res) => {
 });
 
 // מימוש FLW לכסף (הורה מאשר)
-app.post('/api/kids/redeem', async (req, res) => {
+app.post('/api/kids/redeem', verifyFamily, async (req, res) => {
     try {
         const { childUserId, flwAmount, parentUserId } = req.body;
+        const _chk = await pool.query('SELECT 1 FROM users WHERE id=$1 AND group_id=$2', [childUserId, req.familyAuth.groupId]);
+        if (!_chk.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
         const wallet = await pool.query('SELECT * FROM flw_kid_wallets WHERE child_user_id=$1', [childUserId]);
         if (!wallet.rows[0] || wallet.rows[0].balance_flw < flwAmount)
             return res.status(400).json({ error: 'יתרה לא מספיקה' });
@@ -25040,9 +25053,10 @@ app.post('/api/kids/redeem', async (req, res) => {
 });
 
 // ילד שולח בקשת מימוש להורה
-app.post('/api/kids/redeem-request', async (req, res) => {
+app.post('/api/kids/redeem-request', verifyFamily, async (req, res) => {
     try {
         const { childUserId, flwAmount, groupId } = req.body;
+        if (parseInt(childUserId) !== req.familyAuth.userId) return res.status(403).json({ error: 'אין הרשאה' });
         const wallet = await pool.query('SELECT balance_flw FROM flw_kid_wallets WHERE child_user_id=$1', [childUserId]);
         if (!wallet.rows[0] || wallet.rows[0].balance_flw < flwAmount)
             return res.status(400).json({ error: 'יתרה לא מספיקה' });
