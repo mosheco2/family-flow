@@ -19397,8 +19397,9 @@ app.get('/api/professional-content/:groupId', async (req, res) => {
         res.json({ content: r.rows[0] || {} });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
-app.post('/api/professional-content/:groupId', async (req, res) => {
+app.post('/api/professional-content/:groupId', verifyBiz, async (req, res) => {
     try {
+        if (parseInt(req.params.groupId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const fields = ['hero_title_he','hero_title_en','hero_subtitle_he','hero_subtitle_en','cta_text_he','cta_text_en','about_text_he','about_text_en'];
         const vals = fields.map(f => req.body[f] ?? null);
         await pool.query(
@@ -19417,8 +19418,9 @@ app.get('/api/professional-expertise/:groupId', async (req, res) => {
         res.json({ items: r.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
-app.post('/api/professional-expertise/:groupId', async (req, res) => {
+app.post('/api/professional-expertise/:groupId', verifyBiz, async (req, res) => {
     try {
+        if (parseInt(req.params.groupId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const { icon, title_he, title_en, description_he, description_en } = req.body;
         const r = await pool.query(
             `INSERT INTO professional_expertise (group_id,icon,title_he,title_en,description_he,description_en) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
@@ -19453,8 +19455,9 @@ app.get('/api/professional-articles/:groupId', async (req, res) => {
         res.json({ articles: r.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
-app.post('/api/professional-articles/:groupId', async (req, res) => {
+app.post('/api/professional-articles/:groupId', verifyBiz, async (req, res) => {
     try {
+        if (parseInt(req.params.groupId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const { title_he, title_en, content_he, content_en, tags, is_published } = req.body;
         const r = await pool.query(
             `INSERT INTO professional_articles (group_id,title_he,title_en,content_he,content_en,tags,is_published) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
@@ -19476,8 +19479,9 @@ app.delete('/api/professional-articles/:id', async (req, res) => {
 });
 
 // Leads (contact form submissions)
-app.get('/api/professional-leads/:groupId', async (req, res) => {
+app.get('/api/professional-leads/:groupId', verifyBiz, async (req, res) => {
     try {
+        if (parseInt(req.params.groupId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const r = await pool.query('SELECT * FROM professional_leads WHERE group_id=$1 ORDER BY created_at DESC LIMIT 200', [req.params.groupId]);
         res.json({ leads: r.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
@@ -19503,8 +19507,9 @@ app.patch('/api/professional-leads/:id', async (req, res) => {
 // ===== END PROFESSIONAL WEBSITE CONTENT API =====
 
 // ===== PROFESSIONAL DOCUMENTS API =====
-app.get('/api/professional-documents/:groupId', async (req, res) => {
+app.get('/api/professional-documents/:groupId', verifyBiz, async (req, res) => {
     try {
+        if (parseInt(req.params.groupId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const { is_template, customer_name, customer_phone } = req.query;
         let q = 'SELECT * FROM professional_documents WHERE group_id=$1';
         const params = [req.params.groupId];
@@ -19517,8 +19522,9 @@ app.get('/api/professional-documents/:groupId', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/professional-documents/:groupId', async (req, res) => {
+app.post('/api/professional-documents/:groupId', verifyBiz, async (req, res) => {
     try {
+        if (parseInt(req.params.groupId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const { customer_name, customer_last_name, customer_phone, customer_email, customer_id_number, customer_address, title, content, doc_type, status, is_template, notes, work_order_id } = req.body;
         const r = await pool.query(
             `INSERT INTO professional_documents (group_id,customer_name,customer_last_name,customer_phone,customer_email,customer_id_number,customer_address,title,content,doc_type,status,is_template,notes,work_order_id)
@@ -19605,14 +19611,16 @@ app.delete('/api/professional-documents/:id', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 // ===== PROFESSIONAL DOC TYPES =====
-app.get('/api/professional-doc-types/:groupId', async (req, res) => {
+app.get('/api/professional-doc-types/:groupId', verifyBiz, async (req, res) => {
     try {
+        if (parseInt(req.params.groupId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const r = await pool.query('SELECT * FROM professional_doc_types WHERE group_id=$1 ORDER BY id', [req.params.groupId]);
         res.json({ success: true, types: r.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
-app.post('/api/professional-doc-types/:groupId', async (req, res) => {
+app.post('/api/professional-doc-types/:groupId', verifyBiz, async (req, res) => {
     try {
+        if (parseInt(req.params.groupId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const { name, icon } = req.body;
         if (!name) return res.status(400).json({ error: 'חסר שם' });
         const r = await pool.query(
