@@ -10542,8 +10542,9 @@ app.post('/api/store/quotes/:id/business-message', verifyBizOrLegacy, requireMod
 // --- [LEGACY] שליפת פקודות עבודה מ-service_calls (טבלה ישנה) ---
 // endpoint זה אינו בשימוש פעיל — המערכת עברה ל-/api/work-orders/list/:groupId
 // ניתן להסיר לאחר וידוא שאין קריאות אליו
-app.get('/api/work-orders/:businessGroupId', async (req, res) => {
+app.get('/api/work-orders/:businessGroupId', verifyBiz, async (req, res) => {
     try {
+        if (parseInt(req.params.businessGroupId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const r = await pool.query(`SELECT sc.*, fg.name as family_name
             FROM service_calls sc LEFT JOIN family_groups fg ON sc.family_group_id=fg.id
             WHERE sc.business_group_id=$1 AND sc.call_type='work_order'
@@ -18760,10 +18761,12 @@ async function addWorkOrderTimeline(workOrderId, eventType, description, userNam
     } catch(e) {}
 }
 
-app.post('/api/work-orders/convert/:quoteId', async (req, res) => {
+app.post('/api/work-orders/convert/:quoteId', verifyBiz, async (req, res) => {
     try {
         const { userName } = req.body;
         const quoteId = req.params.quoteId;
+        const _chk = await pool.query('SELECT 1 FROM store_orders WHERE id=$1 AND group_id=$2', [quoteId, req.bizAuth.groupId]);
+        if (!_chk.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
         const r = await pool.query(
             `UPDATE store_orders SET call_type='work_order', status='processing', quote_status='approved'
              WHERE id=$1 AND (call_type IS NULL OR call_type <> 'work_order') RETURNING *`,
@@ -18790,9 +18793,10 @@ app.post('/api/work-orders/convert/:quoteId', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/api/work-orders/list/:groupId', async (req, res) => {
+app.get('/api/work-orders/list/:groupId', verifyBiz, async (req, res) => {
     try {
         const { status } = req.query;
+        if (parseInt(req.params.groupId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         let q = `SELECT so.*,
             (SELECT COUNT(*) FROM work_order_assignees WHERE work_order_id=so.id) as assignee_count,
             (SELECT COUNT(*) FROM work_order_inventory WHERE work_order_id=so.id AND status='reserved') as inventory_count
@@ -18806,8 +18810,9 @@ app.get('/api/work-orders/list/:groupId', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/api/work-orders/profitability/:groupId', async (req, res) => {
+app.get('/api/work-orders/profitability/:groupId', verifyBiz, async (req, res) => {
     try {
+        if (parseInt(req.params.groupId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const r = await pool.query(`
             SELECT so.id, so.quote_number, so.customer_name, so.status, so.created_at, so.quote_title,
                 COALESCE(so.total_amount, 0)::float as revenue,
@@ -18825,9 +18830,10 @@ app.get('/api/work-orders/profitability/:groupId', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/work-orders/new/:groupId', async (req, res) => {
+app.post('/api/work-orders/new/:groupId', verifyBiz, async (req, res) => {
     try {
         const { customer_name, customer_phone, title, notes } = req.body;
+        if (parseInt(req.params.groupId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const r = await pool.query(
             `INSERT INTO store_orders (group_id, customer_name, customer_phone, status, call_type, notes, items, total_amount, created_at)
              VALUES ($1,$2,$3,'open','work_order',$4,'[]',0,NOW()) RETURNING id`,
@@ -18893,8 +18899,9 @@ app.put('/api/work-orders/:id/status', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/api/work-orders/users/:groupId', async (req, res) => {
+app.get('/api/work-orders/users/:groupId', verifyBiz, async (req, res) => {
     try {
+        if (parseInt(req.params.groupId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const r = await pool.query(`SELECT id, nickname as name, employee_role_type, role FROM users WHERE group_id=$1 ORDER BY nickname`, [req.params.groupId]);
         res.json({ success: true, users: r.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
@@ -18936,8 +18943,9 @@ app.delete('/api/work-orders/:id/assignees/:userId', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/api/work-orders/catalog/:groupId', async (req, res) => {
+app.get('/api/work-orders/catalog/:groupId', verifyBiz, async (req, res) => {
     try {
+        if (parseInt(req.params.groupId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const r = await pool.query(
             `SELECT id, name, COALESCE(stock_quantity,0) as stock_quantity, COALESCE(reserved_qty,0) as reserved_qty,
              GREATEST(0, COALESCE(stock_quantity,0) - COALESCE(reserved_qty,0)) as available_qty
@@ -19223,8 +19231,9 @@ app.patch('/api/work-orders/:id/purchase-orders/:poId/status', async (req, res) 
 });
 
 // הזמנות רכש של פקודות עבודה — תצוגה באזור הרכש הכללי
-app.get('/api/work-orders/purchase-orders/group/:groupId', async (req, res) => {
+app.get('/api/work-orders/purchase-orders/group/:groupId', verifyBiz, async (req, res) => {
     try {
+        if (parseInt(req.params.groupId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const r = await pool.query(
             `SELECT po.*, s.name as supplier_name, so.customer_name as wo_customer_name
              FROM purchase_orders po
@@ -19750,8 +19759,9 @@ app.post('/api/service-calls/:id/payments', async (req, res) => {
 });
 
 // טאב גביה — כל תחנות הגביה של העסק (פקודות עבודה + קריאות שירות)
-app.get('/api/work-orders/collection/:groupId', async (req, res) => {
+app.get('/api/work-orders/collection/:groupId', verifyBiz, async (req, res) => {
     try {
+        if (parseInt(req.params.groupId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const r = await pool.query(
             `SELECT wop.id, wop.milestone_name, wop.amount, wop.due_date, wop.payment_method,
                     wop.status, wop.received_amount, wop.received_at, wop.created_at,
@@ -19785,8 +19795,9 @@ app.get('/api/work-orders/collection/:groupId', async (req, res) => {
 });
 
 // התראות גביה לדשבורד — תחנות שמועד פירעונן הגיע ועדיין ממתינות (פקודות עבודה + קריאות שירות)
-app.get('/api/work-orders/collection-alerts/:groupId', async (req, res) => {
+app.get('/api/work-orders/collection-alerts/:groupId', verifyBiz, async (req, res) => {
     try {
+        if (parseInt(req.params.groupId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const r = await pool.query(
             `SELECT wop.id, wop.milestone_name, wop.amount, wop.due_date, wop.work_order_id, wop.service_call_id,
                     so.customer_name, so.quote_title as wo_title, so.quote_number as wo_number
