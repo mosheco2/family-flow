@@ -19586,19 +19586,21 @@ app.patch('/api/professional-documents/:id', verifyBiz, async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/api/professional-documents/:id/versions', async (req, res) => {
+app.get('/api/professional-documents/:id/versions', verifyBiz, async (req, res) => {
     try {
+        const _chk = await pool.query('SELECT 1 FROM professional_documents WHERE id=$1 AND group_id=$2', [req.params.id, req.bizAuth.groupId]);
+        if (!_chk.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
         const r = await pool.query('SELECT * FROM professional_document_versions WHERE document_id=$1 ORDER BY changed_at DESC LIMIT 20', [req.params.id]);
         res.json({ success: true, versions: r.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/professional-documents/:id/send-email', async (req, res) => {
+app.post('/api/professional-documents/:id/send-email', verifyBiz, async (req, res) => {
     try {
         const { to_email } = req.body;
         if (!to_email) return res.status(400).json({ error: 'חסרה כתובת מייל' });
         const r = await pool.query('SELECT * FROM professional_documents WHERE id=$1', [req.params.id]);
-        if (!r.rows.length) return res.status(404).json({ error: 'מסמך לא נמצא' });
+        if (!r.rows.length || r.rows[0].group_id !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const doc = r.rows[0];
         const typeLabels = { document:'מסמך', contract:'חוזה', quote:'הצעת מחיר', letter:'מכתב', report:'דוח' };
         const html = `<div dir="rtl" style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:24px;">
@@ -19619,8 +19621,10 @@ app.post('/api/professional-documents/:id/send-email', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.delete('/api/professional-documents/:id', async (req, res) => {
+app.delete('/api/professional-documents/:id', verifyBiz, async (req, res) => {
     try {
+        const _chk = await pool.query('SELECT 1 FROM professional_documents WHERE id=$1 AND group_id=$2', [req.params.id, req.bizAuth.groupId]);
+        if (!_chk.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
         await pool.query('DELETE FROM professional_document_versions WHERE document_id=$1', [req.params.id]);
         await pool.query('DELETE FROM professional_documents WHERE id=$1', [req.params.id]);
         res.json({ success: true });
@@ -19646,8 +19650,10 @@ app.post('/api/professional-doc-types/:groupId', verifyBiz, async (req, res) => 
         res.json({ success: true, type: r.rows[0] });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
-app.delete('/api/professional-doc-types/:id', async (req, res) => {
+app.delete('/api/professional-doc-types/:id', verifyBiz, async (req, res) => {
     try {
+        const _chk = await pool.query('SELECT 1 FROM professional_doc_types WHERE id=$1 AND group_id=$2', [req.params.id, req.bizAuth.groupId]);
+        if (!_chk.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
         await pool.query('DELETE FROM professional_doc_types WHERE id=$1', [req.params.id]);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
