@@ -11292,9 +11292,10 @@ async function initCommunityTables() {
 initCommunityTables();
 
 // --- API ליזמות קהילתית (User-led Communities) ---
-app.post('/api/community/user-create', async (req, res) => {
+app.post('/api/community/user-create', verifyFamily, async (req, res) => {
     try {
         const { name, city, groupId } = req.body;
+        if (parseInt(groupId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const code = 'C-' + generateGroupCode();
         const result = await pool.query(
             `INSERT INTO communities (name, city, code, created_by_group_id, status, min_families) VALUES ($1, $2, $3, $4, 'pending', 30) RETURNING *`,
@@ -11310,8 +11311,9 @@ app.post('/api/community/user-create', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/api/community/my-initiatives/:groupId', async (req, res) => {
+app.get('/api/community/my-initiatives/:groupId', verifyFamily, async (req, res) => {
     try {
+        if (parseInt(req.params.groupId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const result = await pool.query(`
             SELECT c.*, 
             (SELECT COUNT(*) FROM family_groups WHERE community_id = c.id AND type='FAMILY') as family_count 
@@ -12370,8 +12372,9 @@ app.get('/api/biz/community/promotions/:bizId', verifyBiz, async (req, res) => {
 });
 
 // משפחה — מבצעים מאושרים בקהילות שלה
-app.get('/api/community/promos/:groupId', async (req, res) => {
+app.get('/api/community/promos/:groupId', verifyFamily, async (req, res) => {
     try {
+        if (parseInt(req.params.groupId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const result = await pool.query(`
             SELECT cp.id, cp.title, cp.content, cp.discount_pct, cp.valid_until, cp.promo_code,
                    fg.name as biz_name, fg.group_code as biz_code, c.name as comm_name, c.id as community_id,
@@ -12623,8 +12626,9 @@ app.get('/api/community/info/:groupId', async (req, res) => {
 });
 
 // Family: get promotions and bundles for all their communities
-app.get('/api/community/family-feed/:groupId', async (req, res) => {
+app.get('/api/community/family-feed/:groupId', verifyFamily, async (req, res) => {
     try {
+        if (parseInt(req.params.groupId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const groupId = req.params.groupId;
         // Get community IDs for this family
         const commsR = await pool.query(
@@ -12681,9 +12685,10 @@ app.get('/api/community/family-feed/:groupId', async (req, res) => {
 });
 
 // Family: refer a business to their community
-app.post('/api/community/family-refer', async (req, res) => {
+app.post('/api/community/family-refer', verifyFamily, async (req, res) => {
     try {
         const { groupId, bizCode, communityId, notes } = req.body;
+        if (parseInt(groupId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         if (!groupId || !bizCode || !communityId) return res.status(400).json({ error: 'חסרים שדות חובה' });
         // Verify family is in community
         const check = await pool.query(
@@ -12710,9 +12715,10 @@ app.post('/api/community/family-refer', async (req, res) => {
 });
 
 // 3. הצטרפות לקהילה — ממתינה לאישור SA/מנהל אזור
-app.post('/api/community/join', async (req, res) => {
+app.post('/api/community/join', verifyFamily, async (req, res) => {
     try {
         const { groupId, code, referralCode } = req.body;
+        if (parseInt(groupId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const commRes = await pool.query("SELECT id, name, status FROM communities WHERE code = $1 AND status IN ('active','pending')", [code.toUpperCase().trim()]);
         if(commRes.rows.length === 0) return res.status(404).json({error: 'קוד קהילה שגוי או שהקהילה אינה קיימת.'});
 
@@ -12746,8 +12752,9 @@ app.post('/api/community/join', async (req, res) => {
 });
 
 // 4. ניתוק מקהילה ספציפית
-app.delete('/api/community/leave/:groupId/:communityId', async (req, res) => {
+app.delete('/api/community/leave/:groupId/:communityId', verifyFamily, async (req, res) => {
     try {
+        if (parseInt(req.params.groupId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         await pool.query('DELETE FROM family_communities WHERE group_id = $1 AND community_id = $2', [req.params.groupId, req.params.communityId]);
         res.json({success: true});
     } catch(e) { res.status(500).json({error: e.message}); }
@@ -13956,9 +13963,10 @@ app.delete('/api/zone-manager/templates/:id', verifyZoneManager, async (req, res
 
 // --- COMMUNITY MANAGER INBOX (in main app) ---
 // מנהל קהילה — קבלת שיחות
-app.get('/api/community/inbox/:groupId', async (req, res) => {
+app.get('/api/community/inbox/:groupId', verifyFamily, async (req, res) => {
     try {
         const { groupId } = req.params;
+        if (parseInt(groupId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const result = await pool.query(
             `SELECT t.*, zm.name as zone_manager_name, c.name as community_name,
                 (SELECT COUNT(*) FROM zm_inbox_messages WHERE thread_id=t.id AND sender_type='manager' AND is_read=FALSE) as unread_count,
@@ -13992,9 +14000,10 @@ app.post('/api/community/inbox/new', async (req, res) => {
 });
 
 // מנהל קהילה — קריאת שיחה + סימון כנקרא
-app.get('/api/community/inbox/thread/:threadId/:groupId', async (req, res) => {
+app.get('/api/community/inbox/thread/:threadId/:groupId', verifyFamily, async (req, res) => {
     try {
         const { threadId, groupId } = req.params;
+        if (parseInt(groupId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const thread = await pool.query(
             `SELECT t.*, zm.name as zone_manager_name, c.name as community_name
              FROM zm_inbox_threads t
@@ -14009,9 +14018,10 @@ app.get('/api/community/inbox/thread/:threadId/:groupId', async (req, res) => {
 });
 
 // מנהל קהילה — מענה לשיחה
-app.post('/api/community/inbox/thread/:threadId/reply', async (req, res) => {
+app.post('/api/community/inbox/thread/:threadId/reply', verifyFamily, async (req, res) => {
     try {
         const { groupId, content } = req.body;
+        if (parseInt(groupId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         if (!content || !groupId) return res.status(400).json({ error: 'חסרים שדות חובה' });
         const thread = await pool.query('SELECT id FROM zm_inbox_threads WHERE id=$1 AND group_id=$2', [req.params.threadId, groupId]);
         if (!thread.rows.length) return res.status(404).json({ error: 'שיחה לא נמצאה' });
@@ -14024,9 +14034,10 @@ app.post('/api/community/inbox/thread/:threadId/reply', async (req, res) => {
 // ============================================================
 
 // מידע ארנק לחבר קהילה / מנהל קהילה
-app.get('/api/community/cashback-info/:groupId', async (req, res) => {
+app.get('/api/community/cashback-info/:groupId', verifyFamily, async (req, res) => {
     try {
         const { groupId } = req.params;
+        if (parseInt(groupId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const commsRes = await pool.query(`
             SELECT fc.community_id, fc.is_community_manager, c.name as community_name,
                 COALESCE(w.balance, 0) as balance,
@@ -14192,8 +14203,9 @@ app.get('/api/community/manager-data/:groupId', async (req, res) => {
 })();
 
 // Count families that joined via my referral code
-app.get('/api/community/my-referral-stats/:groupId', async (req, res) => {
+app.get('/api/community/my-referral-stats/:groupId', verifyFamily, async (req, res) => {
     try {
+        if (parseInt(req.params.groupId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const r = await pool.query(
             `SELECT COUNT(*) as total, COUNT(*) FILTER (WHERE status='approved') as approved
              FROM family_communities WHERE referred_by_group_id=$1`,
@@ -14203,8 +14215,9 @@ app.get('/api/community/my-referral-stats/:groupId', async (req, res) => {
 });
 
 // Get my referral code
-app.get('/api/community/my-referral-code/:groupId', async (req, res) => {
+app.get('/api/community/my-referral-code/:groupId', verifyFamily, async (req, res) => {
     try {
+        if (parseInt(req.params.groupId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const r = await pool.query(`SELECT referral_code FROM family_groups WHERE id=$1 AND type='FAMILY'`, [req.params.groupId]);
         if (!r.rows.length) return res.status(404).json({ error: 'לא נמצא' });
         let code = r.rows[0].referral_code;
@@ -14370,9 +14383,10 @@ app.get('/api/biz/communities/match/:bizId', verifyBiz, async (req, res) => {
 // --- Feature 3: Community Ambassador/Referral (שגריר קהילה) ---
 
 // Family member refers a business to their community
-app.post('/api/community/refer-business', async (req, res) => {
+app.post('/api/community/refer-business', verifyFamily, async (req, res) => {
     try {
         const { referrerGroupId, businessId, communityId, notes } = req.body;
+        if (parseInt(referrerGroupId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         if (!referrerGroupId || !businessId || !communityId) return res.status(400).json({ error: 'חסרים שדות חובה' });
         // Referrer must be in this community
         const check = await pool.query(
@@ -14398,8 +14412,9 @@ app.post('/api/community/refer-business', async (req, res) => {
 });
 
 // Get my referrals
-app.get('/api/community/my-referrals/:groupId', async (req, res) => {
+app.get('/api/community/my-referrals/:groupId', verifyFamily, async (req, res) => {
     try {
+        if (parseInt(req.params.groupId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const r = await pool.query(
             `SELECT cr.*, fg.name as business_name, c.name as community_name
              FROM community_referrals cr
@@ -15237,9 +15252,10 @@ app.post('/api/flow/redemptions/:code/use', async (req, res) => {
 });
 
 // Family redeems a community promotion (marks it as used → FLOW to family + biz + community)
-app.post('/api/community/promotions/:id/redeem', async (req, res) => {
+app.post('/api/community/promotions/:id/redeem', verifyFamily, async (req, res) => {
     try {
         const { groupId } = req.body;
+        if (parseInt(groupId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         if (!groupId) return res.status(400).json({ error: 'חסר groupId' });
         const promo = await pool.query(`SELECT * FROM community_promotions WHERE id=$1 AND status='approved'`, [req.params.id]);
         if (!promo.rows.length) return res.status(404).json({ error: 'מבצע לא נמצא' });
@@ -15255,9 +15271,10 @@ app.post('/api/community/promotions/:id/redeem', async (req, res) => {
 });
 
 // Family writes a review on a business
-app.post('/api/community/reviews', async (req, res) => {
+app.post('/api/community/reviews', verifyFamily, async (req, res) => {
     try {
         const { familyGroupId, businessGroupId, communityId, rating, text } = req.body;
+        if (parseInt(familyGroupId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         if (!familyGroupId || !businessGroupId || !rating) return res.status(400).json({ error: 'חסרים שדות חובה' });
         const r = parseInt(rating);
         if (r < 1 || r > 5) return res.status(400).json({ error: 'דירוג 1–5 בלבד' });
@@ -15275,9 +15292,10 @@ app.post('/api/community/reviews', async (req, res) => {
 });
 
 // Family contacts a business through community (lead)
-app.post('/api/community/biz-contact', async (req, res) => {
+app.post('/api/community/biz-contact', verifyFamily, async (req, res) => {
     try {
         const { familyGroupId, businessGroupId, communityId, message } = req.body;
+        if (parseInt(familyGroupId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         if (!familyGroupId || !businessGroupId) return res.status(400).json({ error: 'חסרים שדות חובה' });
         // Prevent spam: once per business per day
         const dup = await pool.query(
@@ -15289,9 +15307,10 @@ app.post('/api/community/biz-contact', async (req, res) => {
 });
 
 // Family purchases a community bundle
-app.post('/api/community/bundles/:id/purchase', async (req, res) => {
+app.post('/api/community/bundles/:id/purchase', verifyFamily, async (req, res) => {
     try {
         const { groupId } = req.body;
+        if (parseInt(groupId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         if (!groupId) return res.status(400).json({ error: 'חסר groupId' });
         const bundle = await pool.query(
             `SELECT cb.*, array_agg(cbb.business_id) as business_ids
