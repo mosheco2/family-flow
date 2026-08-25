@@ -21974,9 +21974,10 @@ app.get('/api/beauty/:bizId/availability', async (req, res) => {
 });
 
 // --- Client Records ---
-app.get('/api/beauty/:bizId/clients', async (req, res) => {
+app.get('/api/beauty/:bizId/clients', verifyBiz, async (req, res) => {
     try {
         const { q } = req.query;
+        if (parseInt(req.params.bizId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         let query = 'SELECT * FROM beauty_client_records WHERE business_group_id=$1';
         const vals = [req.params.bizId];
         if (q) { vals.push(`%${q}%`); query += ` AND (client_name ILIKE $${vals.length} OR client_phone ILIKE $${vals.length} OR client_email ILIKE $${vals.length})`; }
@@ -21986,8 +21987,9 @@ app.get('/api/beauty/:bizId/clients', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/api/beauty/:bizId/clients/:id', async (req, res) => {
+app.get('/api/beauty/:bizId/clients/:id', verifyBiz, async (req, res) => {
     try {
+        if (parseInt(req.params.bizId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const [rec, formulas, photos, appts] = await Promise.all([
             pool.query('SELECT * FROM beauty_client_records WHERE id=$1 AND business_group_id=$2', [req.params.id, req.params.bizId]),
             pool.query('SELECT * FROM beauty_formulas WHERE client_record_id=$1 ORDER BY created_at DESC LIMIT 20', [req.params.id]),
@@ -22005,9 +22007,10 @@ app.get('/api/beauty/:bizId/clients/:id', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/api/beauty/:bizId/check-oneflow', async (req, res) => {
+app.get('/api/beauty/:bizId/check-oneflow', verifyBiz, async (req, res) => {
     try {
         const { phone, name } = req.query;
+        if (parseInt(req.params.bizId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         if (!phone && !name) return res.json({ found: false });
         let query = `SELECT u.id, u.nickname, u.first_name, u.last_name, u.phone, u.email, u.birth_year, u.id_number,
                             fg.id AS family_id, fg.name AS family_name, fg.group_code, fg.family_nickname, fg.last_name AS group_last_name
@@ -22265,9 +22268,10 @@ app.put('/api/family/:familyGroupId/beauty/appointments/:id/client-confirm', asy
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/beauty/:bizId/clients', async (req, res) => {
+app.post('/api/beauty/:bizId/clients', verifyBiz, async (req, res) => {
     try {
         const { client_family_id, client_name, client_phone, client_email, date_of_birth, medical_notes, skin_type, hair_type, id_number } = req.body;
+        if (parseInt(req.params.bizId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         if (!id_number || !id_number.trim()) return res.status(400).json({ error: 'מספר ת.ז הוא שדה חובה' });
         const r = await pool.query(
             `INSERT INTO beauty_client_records (business_group_id, client_family_id, client_name, client_phone, client_email, date_of_birth, medical_notes, skin_type, hair_type, id_number)
@@ -22279,9 +22283,10 @@ app.post('/api/beauty/:bizId/clients', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.patch('/api/beauty/:bizId/clients/:id', async (req, res) => {
+app.patch('/api/beauty/:bizId/clients/:id', verifyBiz, async (req, res) => {
     try {
         const f = req.body;
+        if (parseInt(req.params.bizId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const fields = ['client_name','client_phone','client_email','medical_notes','patch_test_status','patch_test_date','patch_test_expires_at','skin_type','hair_type','preferred_practitioner_id','id_number'];
         const sets = []; const vals = [];
         fields.forEach(k => { if (f[k] !== undefined) { vals.push(f[k]); sets.push(`${k}=$${vals.length}`); }});
@@ -22293,9 +22298,12 @@ app.patch('/api/beauty/:bizId/clients/:id', async (req, res) => {
 });
 
 // Formulas
-app.post('/api/beauty/:bizId/clients/:id/formulas', async (req, res) => {
+app.post('/api/beauty/:bizId/clients/:id/formulas', verifyBiz, async (req, res) => {
     try {
         const { appointment_id, practitioner_id, treatment_type, formula_data, application_notes, result_notes, processing_time_min } = req.body;
+        if (parseInt(req.params.bizId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
+        const _cr = await pool.query('SELECT 1 FROM beauty_client_records WHERE id=$1 AND business_group_id=$2', [req.params.id, req.bizAuth.groupId]);
+        if (!_cr.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
         const r = await pool.query(
             `INSERT INTO beauty_formulas (client_record_id, appointment_id, practitioner_id, treatment_type, formula_data, application_notes, result_notes, processing_time_min)
              VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
@@ -22306,17 +22314,23 @@ app.post('/api/beauty/:bizId/clients/:id/formulas', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/api/beauty/:bizId/clients/:id/formulas', async (req, res) => {
+app.get('/api/beauty/:bizId/clients/:id/formulas', verifyBiz, async (req, res) => {
     try {
+        if (parseInt(req.params.bizId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
+        const _cr = await pool.query('SELECT 1 FROM beauty_client_records WHERE id=$1 AND business_group_id=$2', [req.params.id, req.bizAuth.groupId]);
+        if (!_cr.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
         const r = await pool.query('SELECT * FROM beauty_formulas WHERE client_record_id=$1 ORDER BY created_at DESC', [req.params.id]);
         res.json(r.rows);
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 // Photos
-app.post('/api/beauty/:bizId/clients/:id/photos', async (req, res) => {
+app.post('/api/beauty/:bizId/clients/:id/photos', verifyBiz, async (req, res) => {
     try {
         const { appointment_id, photo_type, image_url, thumbnail_url, treatment_area, notes, taken_by, is_consent_given } = req.body;
+        if (parseInt(req.params.bizId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
+        const _cr = await pool.query('SELECT 1 FROM beauty_client_records WHERE id=$1 AND business_group_id=$2', [req.params.id, req.bizAuth.groupId]);
+        if (!_cr.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
         const r = await pool.query(
             `INSERT INTO beauty_client_photos (client_record_id, appointment_id, photo_type, image_url, thumbnail_url, treatment_area, notes, taken_by, is_consent_given)
              VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
@@ -22327,17 +22341,21 @@ app.post('/api/beauty/:bizId/clients/:id/photos', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/api/beauty/:bizId/clients/:id/photos', async (req, res) => {
+app.get('/api/beauty/:bizId/clients/:id/photos', verifyBiz, async (req, res) => {
     try {
+        if (parseInt(req.params.bizId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
+        const _cr = await pool.query('SELECT 1 FROM beauty_client_records WHERE id=$1 AND business_group_id=$2', [req.params.id, req.bizAuth.groupId]);
+        if (!_cr.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
         const r = await pool.query('SELECT * FROM beauty_client_photos WHERE client_record_id=$1 ORDER BY created_at DESC', [req.params.id]);
         res.json(r.rows);
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 // --- Inventory ---
-app.get('/api/beauty/:bizId/inventory', async (req, res) => {
+app.get('/api/beauty/:bizId/inventory', verifyBiz, async (req, res) => {
     try {
         const { type } = req.query;
+        if (parseInt(req.params.bizId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         let q = 'SELECT * FROM beauty_inventory WHERE business_group_id=$1 AND is_active=TRUE';
         const vals = [req.params.bizId];
         if (type) { vals.push(type); q += ` AND inventory_type=$${vals.length}`; }
