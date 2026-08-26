@@ -5672,8 +5672,8 @@ app.patch('/api/biz/wizard/complete', verifyBiz, async (req, res) => {
 
         if (userId) {
             await pool.query(
-                `UPDATE users SET first_name=$1, last_name=$2, birth_year=$3 WHERE id=$4`,
-                [first_name.trim(), last_name.trim(), yr, userId]
+                `UPDATE users SET first_name=$1, last_name=$2, birth_year=$3, nickname=$4 WHERE id=$5`,
+                [first_name.trim(), last_name.trim(), yr, first_name.trim() + ' ' + last_name.trim(), userId]
             );
         }
 
