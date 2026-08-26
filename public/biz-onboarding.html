@@ -362,6 +362,12 @@
       display:flex; align-items:center; justify-content:center; font-size:20px;
     }
     .biz-type-card .btc-label { font-size:14px; font-weight:700; color:#24243a; }
+    .btc-restaurant { background:#f4f1ff; }
+    .btc-beauty     { background:#fef1f7; }
+    .btc-professional { background:#eef6ff; }
+    .btc-sport      { background:#fff8ea; }
+    .btc-logistics  { background:#eefaf3; }
+    .btc-repair     { background:#f4f4fb; }
 
     /* ── sec-account-details ── */
     .acc-row-2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:18px; }
@@ -567,27 +573,27 @@
       </div>
       <div id="msg-biz-type" class="msg"></div>
       <div id="biz-type-grid">
-        <button class="biz-type-card" style="background:#f4f1ff;border-color:transparent;" data-biz="restaurant" onclick="selectBizType('restaurant')">
+        <button class="biz-type-card btc-restaurant" data-biz="restaurant" onclick="selectBizType('restaurant')">
           <span class="btc-icon">🍽️</span>
           <span class="btc-label">מסעדנות ומזון</span>
         </button>
-        <button class="biz-type-card" style="background:#fef1f7;border-color:transparent;" data-biz="beauty" onclick="selectBizType('beauty')">
+        <button class="biz-type-card btc-beauty" data-biz="beauty" onclick="selectBizType('beauty')">
           <span class="btc-icon">💅</span>
           <span class="btc-label">יופי ואסתטיקה</span>
         </button>
-        <button class="biz-type-card" style="background:#eef6ff;border-color:transparent;" data-biz="professional" onclick="selectBizType('professional')">
+        <button class="biz-type-card btc-professional" data-biz="professional" onclick="selectBizType('professional')">
           <span class="btc-icon">💼</span>
           <span class="btc-label">ייעוץ ושירותים</span>
         </button>
-        <button class="biz-type-card" style="background:#fff8ea;border-color:transparent;" data-biz="sport" onclick="selectBizType('sport')">
+        <button class="biz-type-card btc-sport" data-biz="sport" onclick="selectBizType('sport')">
           <span class="btc-icon">🏆</span>
           <span class="btc-label">ספורט ואימונים</span>
         </button>
-        <button class="biz-type-card" style="background:#eefaf3;border-color:transparent;" data-biz="logistics" onclick="selectBizType('logistics')">
+        <button class="biz-type-card btc-logistics" data-biz="logistics" onclick="selectBizType('logistics')">
           <span class="btc-icon">🚚</span>
           <span class="btc-label">שילוח ולוגיסטיקה</span>
         </button>
-        <button class="biz-type-card" style="background:#f4f4fb;border-color:transparent;" data-biz="maintenance_repair" onclick="selectBizType('maintenance_repair')">
+        <button class="biz-type-card btc-repair" data-biz="maintenance_repair" onclick="selectBizType('maintenance_repair')">
           <span class="btc-icon">🔧</span>
           <span class="btc-label">תיקונים ושירותים</span>
         </button>
