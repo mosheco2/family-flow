@@ -59,15 +59,12 @@
 
     /* ── Progress bar segments ── */
     .wiz-seg-bar {
-      width:100%; max-width:640px;
-      padding:0 32px; box-sizing:border-box;
-      margin-top:18px; margin-bottom:-70px;
-      position:relative; z-index:2;
-      display:flex; gap:6px;
+      width:100%; display:flex; gap:6px;
+      margin-bottom:20px;
     }
     .wiz-seg {
       height:4px; flex:1; border-radius:4px;
-      background:rgba(255,255,255,0.18); transition:background 0.3s;
+      background:#e8eaf0; transition:background 0.3s;
     }
     .wiz-seg.active { background:#6c5ce7; }
 
@@ -547,15 +544,15 @@
     <div class="wiz-hero-sub" id="wiz-hero-sub"></div>
   </div>
 
-  <!-- ── Progress segments ── -->
-  <div class="wiz-seg-bar" id="wiz-seg-bar" style="display:none;">
-    <span class="wiz-seg" id="seg-0"></span>
-    <span class="wiz-seg" id="seg-1"></span>
-    <span class="wiz-seg" id="seg-2"></span>
-    <span class="wiz-seg" id="seg-3"></span>
-  </div>
-
   <div class="card">
+
+    <!-- ── Progress segments (inside card, top) ── -->
+    <div class="wiz-seg-bar" id="wiz-seg-bar" style="display:none;">
+      <span class="wiz-seg" id="seg-0"></span>
+      <span class="wiz-seg" id="seg-1"></span>
+      <span class="wiz-seg" id="seg-2"></span>
+      <span class="wiz-seg" id="seg-3"></span>
+    </div>
 
     <!-- ══ SECTION: tabs (register + login) ══ -->
     <div id="sec-tabs" class="section active">
