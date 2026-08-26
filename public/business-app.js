@@ -35377,11 +35377,14 @@ function applyBusinessTypeFilter() {
     // individual modules with open:true — עם נרמול מזהים (underscore → hyphen לטאבים)
     const MODULE_TAB_ALIASES = { 'whatsapp_alerts': 'whatsapp-alerts' };
     const billingModules = Array.isArray(billing?.modules) ? billing.modules : [];
+    // גישה פתוחה רק למודולים עם רישיון בתשלום (billing !== false ו-custom_price > 0)
     const individualOpenIds = billingModules
         .map(m => {
-            const rawId = typeof m === 'string' ? m : (m.open !== false ? m.id : null);
-            if (!rawId) return null;
-            return MODULE_TAB_ALIASES[rawId] || rawId;
+            if (typeof m === 'string') return m; // legacy string — נחשב פתוח
+            const isPaid = m.billing !== false && parseFloat(m.custom_price) > 0;
+            const isOpen = m.open !== false;
+            if (!isOpen || !isPaid) return null;
+            return MODULE_TAB_ALIASES[m.id] || m.id;
         })
         .filter(Boolean);
 
