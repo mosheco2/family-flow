@@ -204,18 +204,15 @@
 <div id="store-wrap" style="display:none;">
 
   <!-- TOP BAR -->
-  <div id="top-bar">
+  <div id="top-bar" style="display:none;">
     <span id="tb-free-delivery" style="display:none;"></span>
     <span class="sep" id="tb-sep1" style="display:none;">·</span>
-    <span>תשלום מאובטח</span>
-    <span class="sep">·</span>
-    <span>ביטול עד 5 דק' מהאישור</span>
   </div>
 
   <!-- STICKY HEADER -->
   <div id="main-header">
     <div id="header-row1">
-      <div id="header-logo-placeholder" style="display:none;">?</div>
+      <div id="header-logo-placeholder" style="display:none;"></div>
       <img id="header-logo" src="" alt="לוגו" style="display:none;" onerror="this.style.display='none';document.getElementById('header-logo-placeholder').style.display='flex';">
       <div style="flex:1;min-width:0;">
         <div style="display:flex;align-items:center;gap:6px;">
@@ -529,7 +526,7 @@ function renderHeader(data) {
   } else {
     const ph = document.getElementById('header-logo-placeholder');
     ph.style.display = 'flex';
-    ph.textContent = (data.groupName || '?')[0].toUpperCase();
+    ph.textContent = (s.store_name || data.groupName || 'S')[0].toUpperCase();
   }
 
   if (s.phone) {
