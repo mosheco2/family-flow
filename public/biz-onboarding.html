@@ -1688,7 +1688,7 @@
       document.getElementById('acc-street-num').value = '';
       submitAccountDetails();
     }
-    function submitAccountDetails() {
+    async function submitAccountDetails() {
       hideMsg('msg-account');
       const email  = document.getElementById('acc-email').value.trim();
       const first  = document.getElementById('acc-first').value.trim();
