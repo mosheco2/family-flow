@@ -1216,13 +1216,68 @@
       return Math.max(0, total - 1) * 9;
     }
 
-    function updateUserCardPrice() {
-      const el = document.getElementById('user-card-price');
-      if (!el) return;
-      const cost = getUserExtraCost();
-      el.innerHTML = cost > 0
-        ? `<span style="font-weight:700;color:#4f46e5;">₪${cost}/חודש</span>`
-        : '<span style="color:#15803d;font-weight:700;">חינם</span>';
+    // ── עוזרי תצוגה לקוביות ──
+    function getModCardPrice(mod) {
+      if (mod.alwaysOn) return { label: 'חינם', color: '#15803d', hasSelection: true };
+      if (mod.hasRolePicker) {
+        const c = getUserExtraCost();
+        return c > 0 ? { label: `₪${c}/חודש`, color: '#4f46e5', hasSelection: true }
+                     : { label: 'חינם', color: '#15803d', hasSelection: _state.staffRoles.length > 0 };
+      }
+      if (mod.hasAiPicker) {
+        const t = AI_TIERS.find(x => x.id === (_state.selectedAiTier || 'ai_standard'));
+        return t.price > 0 ? { label: `₪${t.price}/חודש — ${t.label}`, color: '#4f46e5', hasSelection: true }
+                           : { label: `חינם — ${t.label}`, color: '#15803d', hasSelection: true };
+      }
+      if (mod.hasSubModules) {
+        const sel = mod.subModules.filter(s => _state.selectedSubModules.includes(s.id));
+        const tot = sel.reduce((a, s) => a + s.price, 0);
+        return sel.length > 0 ? { label: `₪${tot}/חודש — ${sel.length} מודולים`, color: '#4f46e5', hasSelection: true }
+                              : { label: 'לא נבחר', color: '#94a3b8', hasSelection: false };
+      }
+      return { label: '', color: '#94a3b8', hasSelection: false };
+    }
+
+    function renderModCard(mod) {
+      const priceInfo = getModCardPrice(mod);
+      const isActive = priceInfo.hasSelection && !mod.alwaysOn;
+      if (mod.alwaysOn) {
+        return `
+          <div class="choice-card selected" style="cursor:default;opacity:.85;">
+            <span style="font-size:20px;flex-shrink:0;">${mod.icon}</span>
+            <div style="flex:1;min-width:0;">
+              <div style="font-weight:700;font-size:14px;color:#1B2440;">${mod.label} <span style="font-size:10px;color:#15803d;font-weight:600;">✓ כלול תמיד</span></div>
+              <div style="font-size:12px;color:#64748b;margin-top:2px;">${mod.desc}</div>
+            </div>
+            <span style="color:#15803d;font-weight:700;font-size:13px;flex-shrink:0;">חינם</span>
+          </div>`;
+      }
+      const onclick = mod.hasRolePicker ? `openRolePicker()` :
+                      mod.hasAiPicker   ? `openAiPicker()` :
+                      mod.hasSubModules ? `openSubPicker('${mod.id}')` : '';
+      return `
+        <div class="choice-card ${isActive ? 'selected' : ''}" id="mod-card-${mod.id}" onclick="${onclick}" style="cursor:pointer;">
+          <span style="font-size:20px;flex-shrink:0;">${mod.icon}</span>
+          <div style="flex:1;min-width:0;">
+            <div style="font-weight:700;font-size:14px;color:#1B2440;">${mod.label}</div>
+            <div style="font-size:12px;color:#64748b;margin-top:2px;">${mod.desc}</div>
+            <div style="font-size:11px;color:#4f46e5;margin-top:4px;text-decoration:underline;">בחר אפשרויות ←</div>
+          </div>
+          <div id="mod-price-${mod.id}" style="flex-shrink:0;text-align:left;">
+            <span style="font-weight:700;font-size:13px;color:${priceInfo.color};">${priceInfo.label}</span>
+          </div>
+          <span class="choice-check">✓</span>
+        </div>`;
+    }
+
+    function refreshModCard(modId) {
+      const mod = CORE_MODULES.find(m => m.id === modId);
+      if (!mod) return;
+      const priceInfo = getModCardPrice(mod);
+      const card = document.getElementById(`mod-card-${modId}`);
+      if (card) card.classList.toggle('selected', priceInfo.hasSelection);
+      const priceEl = document.getElementById(`mod-price-${modId}`);
+      if (priceEl) priceEl.innerHTML = `<span style="font-weight:700;font-size:13px;color:${priceInfo.color};">${priceInfo.label}</span>`;
     }
 
     async function renderPaidModules() {
@@ -1231,85 +1286,8 @@
       let html = '';
 
       html += `<div style="font-size:11px;font-weight:700;color:#94a3b8;letter-spacing:.06em;text-transform:uppercase;margin-bottom:4px;">מודולי ליבה</div>`;
+      for (const mod of CORE_MODULES) html += renderModCard(mod);
 
-      for (const mod of CORE_MODULES) {
-        if (mod.alwaysOn) {
-          html += `
-            <div class="choice-card selected" style="cursor:default;opacity:.85;">
-              <span style="font-size:20px;flex-shrink:0;">${mod.icon}</span>
-              <div style="flex:1;min-width:0;">
-                <div style="font-weight:700;font-size:14px;color:#1B2440;">${mod.label} <span style="font-size:10px;color:#15803d;font-weight:600;">✓ כלול תמיד</span></div>
-                <div style="font-size:12px;color:#64748b;margin-top:2px;">${mod.desc}</div>
-              </div>
-              <span style="color:#15803d;font-weight:700;font-size:13px;flex-shrink:0;">חינם</span>
-            </div>`;
-
-        } else if (mod.hasRolePicker) {
-          html += `
-            <div class="choice-card" id="user-card" onclick="openRolePicker()" style="cursor:pointer;">
-              <span style="font-size:20px;flex-shrink:0;">${mod.icon}</span>
-              <div style="flex:1;min-width:0;">
-                <div style="font-weight:700;font-size:14px;color:#1B2440;">${mod.label}</div>
-                <div style="font-size:12px;color:#64748b;margin-top:2px;">${mod.desc}</div>
-                <div style="font-size:11px;color:#4f46e5;margin-top:4px;text-decoration:underline;">הגדר תפקידים וכמויות ←</div>
-              </div>
-              <div id="user-card-price" style="flex-shrink:0;"><span style="color:#15803d;font-weight:700;font-size:13px;">חינם</span></div>
-            </div>`;
-
-        } else if (mod.hasAiPicker) {
-          const selAi = _state.selectedAiTier || 'ai_standard';
-          html += `
-            <div style="border:1px solid #e2e8f0;border-radius:14px;padding:14px 14px 10px;">
-              <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
-                <span style="font-size:20px;">${mod.icon}</span>
-                <div>
-                  <div style="font-weight:700;font-size:14px;color:#1B2440;">${mod.label}</div>
-                  <div style="font-size:12px;color:#64748b;">${mod.desc}</div>
-                </div>
-              </div>
-              <div style="display:flex;flex-direction:column;gap:7px;">
-                ${AI_TIERS.map(t => `
-                  <div class="choice-card ${selAi === t.id ? 'selected' : ''}" data-ai="${t.id}" onclick="selectAiTier('${t.id}')" style="padding:10px 12px;">
-                    <div style="flex:1;min-width:0;">
-                      <div style="font-weight:700;font-size:13px;color:#1B2440;">${t.label}</div>
-                      <div style="font-size:11px;color:#64748b;margin-top:1px;">${t.desc}</div>
-                    </div>
-                    <div style="font-weight:700;font-size:13px;color:${t.price ? '#4f46e5' : '#15803d'};flex-shrink:0;">${t.price ? '₪' + t.price + '/חודש' : 'חינם'}</div>
-                    <span class="choice-check">✓</span>
-                  </div>`).join('')}
-              </div>
-            </div>`;
-
-        } else if (mod.hasSubModules) {
-          const anySelected = mod.subModules.some(s => _state.selectedSubModules.includes(s.id));
-          html += `
-            <div style="border:1px solid #e2e8f0;border-radius:14px;padding:14px 14px 10px;" id="group-${mod.id}">
-              <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
-                <span style="font-size:20px;">${mod.icon}</span>
-                <div style="flex:1;">
-                  <div style="font-weight:700;font-size:14px;color:#1B2440;">${mod.label}</div>
-                  <div style="font-size:12px;color:#64748b;">${mod.desc}</div>
-                </div>
-                <span style="font-size:11px;color:#94a3b8;" id="grp-price-${mod.id}">
-                  ${anySelected ? '₪' + mod.subModules.filter(s => _state.selectedSubModules.includes(s.id)).reduce((a,s)=>a+s.price,0) + '/חודש' : ''}
-                </span>
-              </div>
-              <div style="display:flex;flex-direction:column;gap:7px;">
-                ${mod.subModules.map(s => `
-                  <div class="choice-card ${_state.selectedSubModules.includes(s.id) ? 'selected' : ''}" data-sub="${s.id}" onclick="toggleSubModule('${s.id}','${mod.id}')" style="padding:10px 12px;">
-                    <div style="flex:1;min-width:0;">
-                      <div style="font-weight:600;font-size:13px;color:#1B2440;">${s.name}</div>
-                      <div style="font-size:11px;color:#64748b;margin-top:1px;">${s.desc}</div>
-                    </div>
-                    <div style="font-weight:700;font-size:12px;color:#4f46e5;flex-shrink:0;">₪${s.price}/חודש</div>
-                    <span class="choice-check">✓</span>
-                  </div>`).join('')}
-              </div>
-            </div>`;
-        }
-      }
-
-      // ─ חבילת סוג עסק ─
       if (bizBundle) {
         const pkgSel = _state.selectedModuleIds.includes(bizBundle.id);
         html += `
@@ -1320,8 +1298,8 @@
               <div style="font-weight:700;font-size:14px;color:#1B2440;">${bizBundle.label}</div>
               <div style="font-size:11px;color:#64748b;margin-top:3px;line-height:1.5;">${bizBundle.desc}</div>
             </div>
-            <div style="flex-shrink:0;text-align:left;">
-              <div style="font-weight:700;font-size:13px;color:#4f46e5;">₪${bizBundle.price}/חודש</div>
+            <div style="flex-shrink:0;">
+              <span style="font-weight:700;font-size:13px;color:#4f46e5;">₪${bizBundle.price}/חודש</span>
             </div>
             <span class="choice-check">✓</span>
           </div>`;
@@ -1330,29 +1308,82 @@
       container.innerHTML = html;
     }
 
-    function selectAiTier(tierId) {
-      _state.selectedAiTier = tierId;
-      document.querySelectorAll('#paid-modules-list [data-ai]').forEach(c => {
-        c.classList.toggle('selected', c.dataset.ai === tierId);
-      });
+    // ── Modal: AI ──
+    function openAiPicker() {
+      const selAi = _state.selectedAiTier || 'ai_standard';
+      const rows = AI_TIERS.map(t => `
+        <div class="choice-card ${selAi === t.id ? 'selected' : ''}" data-ai-opt="${t.id}" onclick="pickAiTier('${t.id}')">
+          <div style="flex:1;min-width:0;">
+            <div style="font-weight:700;font-size:14px;color:#1B2440;">${t.label}</div>
+            <div style="font-size:12px;color:#64748b;margin-top:2px;">${t.desc}</div>
+          </div>
+          <span style="font-weight:700;font-size:13px;color:${t.price?'#4f46e5':'#15803d'};flex-shrink:0;">${t.price?'₪'+t.price+'/חודש':'חינם'}</span>
+          <span class="choice-check">✓</span>
+        </div>`).join('');
+      _openModal('ai-picker-modal', `
+        <div style="font-weight:700;font-size:17px;color:#1B2440;margin-bottom:4px;">מנוי AI — עוזר חכם</div>
+        <div style="font-size:13px;color:#64748b;margin-bottom:14px;">בחר חבילת AI המתאימה לעסקך</div>
+        ${rows}
+        <button class="btn-primary" style="margin-top:12px;" onclick="_closeModal('ai-picker-modal');refreshModCard('core_ai')">אישור</button>`);
     }
 
-    function toggleSubModule(subId, groupId) {
+    function pickAiTier(id) {
+      _state.selectedAiTier = id;
+      document.querySelectorAll('[data-ai-opt]').forEach(c => c.classList.toggle('selected', c.dataset.aiOpt === id));
+    }
+
+    // ── Modal: Sub-modules ──
+    function openSubPicker(modId) {
+      const mod = CORE_MODULES.find(m => m.id === modId);
+      if (!mod || !mod.subModules) return;
+      const rows = mod.subModules.map(s => `
+        <div class="choice-card ${_state.selectedSubModules.includes(s.id) ? 'selected' : ''}" data-sub-opt="${s.id}" onclick="pickSub('${modId}','${s.id}')">
+          <div style="flex:1;min-width:0;">
+            <div style="font-weight:700;font-size:14px;color:#1B2440;">${s.name}</div>
+            <div style="font-size:12px;color:#64748b;margin-top:2px;">${s.desc}</div>
+          </div>
+          <span style="font-weight:700;font-size:13px;color:#4f46e5;flex-shrink:0;">₪${s.price}/חודש</span>
+          <span class="choice-check">✓</span>
+        </div>`).join('');
+      _openModal(`sub-picker-${modId}`, `
+        <div style="font-weight:700;font-size:17px;color:#1B2440;margin-bottom:4px;">${mod.icon} ${mod.label}</div>
+        <div style="font-size:13px;color:#64748b;margin-bottom:14px;">${mod.desc}</div>
+        <div id="sub-total-${modId}" style="font-size:13px;color:#4f46e5;font-weight:600;margin-bottom:10px;">${_subTotal(mod)}</div>
+        ${rows}
+        <button class="btn-primary" style="margin-top:12px;" onclick="_closeModal('sub-picker-${modId}');refreshModCard('${modId}')">אישור</button>`);
+    }
+
+    function pickSub(modId, subId) {
       const idx = _state.selectedSubModules.indexOf(subId);
       if (idx === -1) _state.selectedSubModules.push(subId);
       else _state.selectedSubModules.splice(idx, 1);
-      // עדכון UI הקבוצה
-      document.querySelectorAll(`#group-${groupId} [data-sub]`).forEach(c => {
-        c.classList.toggle('selected', _state.selectedSubModules.includes(c.dataset.sub));
-      });
-      // עדכון מחיר קבוצה
-      const mod = CORE_MODULES.find(m => m.id === groupId);
-      if (mod) {
-        const tot = mod.subModules.filter(s => _state.selectedSubModules.includes(s.id)).reduce((a,s)=>a+s.price,0);
-        const el = document.getElementById(`grp-price-${groupId}`);
-        if (el) el.textContent = tot > 0 ? `₪${tot}/חודש` : '';
-      }
+      document.querySelectorAll('[data-sub-opt]').forEach(c => c.classList.toggle('selected', _state.selectedSubModules.includes(c.dataset.subOpt)));
+      const mod = CORE_MODULES.find(m => m.id === modId);
+      const el = document.getElementById(`sub-total-${modId}`);
+      if (el && mod) el.textContent = _subTotal(mod);
     }
+
+    function _subTotal(mod) {
+      const sel = mod.subModules.filter(s => _state.selectedSubModules.includes(s.id));
+      return sel.length > 0 ? `סה"כ: ₪${sel.reduce((a,s)=>a+s.price,0)}/חודש (${sel.length} מודולים)` : 'לא נבחר עדיין';
+    }
+
+    // ── Modal utility ──
+    function _openModal(id, bodyHtml) {
+      document.getElementById(id)?.remove();
+      const el = document.createElement('div');
+      el.id = id;
+      el.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1000;display:flex;align-items:center;justify-content:center;';
+      el.onclick = e => { if (e.target === el) _closeModal(id); };
+      el.innerHTML = `<div style="background:#fff;border-radius:18px;padding:24px 20px;width:min(380px,94vw);max-height:85vh;overflow-y:auto;box-shadow:0 8px 40px rgba(0,0,0,.18);">${bodyHtml}</div>`;
+      document.body.appendChild(el);
+    }
+
+    function _closeModal(id) {
+      document.getElementById(id)?.remove();
+    }
+
+    function selectAiTier(id) { pickAiTier(id); }
 
     // ── בחירת תפקידים + כמות ──
     function openRolePicker() {
@@ -1424,7 +1455,7 @@
     function closeRolePicker() {
       const el = document.getElementById('role-picker-overlay');
       if (el) el.remove();
-      updateUserCardPrice();
+      refreshModCard('core_users');
     }
 
     function togglePaidModule(groupId) {
