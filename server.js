@@ -5642,7 +5642,7 @@ app.patch('/api/biz/wizard/complete', verifyBiz, async (req, res) => {
         const { groupId, userId } = req.bizAuth;
         const {
             business_type, managed_modules, staff_roles,
-            bundle_id, bundle_price,
+            bundle_id, bundle_price, bundle_included_modules, extra_modules,
             admin_email, first_name, last_name, city, birth_year,
             terms_accepted,
             street_address, opening_hours, lat, lng
@@ -5703,22 +5703,19 @@ app.patch('/api/biz/wizard/complete', verifyBiz, async (req, res) => {
             const priceMap = {};
             catalog.forEach(g => (g.modules || []).forEach(m => { priceMap[m.id] = m.price || 0; }));
 
-            // מצא אילו מודולים שייכים לחבילה הנבחרת (יקבלו מחיר 0 כי הם כלולים בחבילה)
-            const bundleModuleIds = new Set();
-            if (bundle_id) {
-                const bundleGroup = catalog.find(g => g.bundle && g.modules?.some(m => m.id === bundle_id));
-                // החבילה עצמה נרשמת במחיר bundle_price; המודולים שבה — ₪0
-                if (bundleGroup) bundleGroup.modules.forEach(m => { if (m.id !== bundle_id) bundleModuleIds.add(m.id); });
-            }
+            // מודולים שכלולים בחבילה → מחיר ₪0
+            const bundleSet = new Set(Array.isArray(bundle_included_modules) ? bundle_included_modules : []);
+            // מודולים שנבחרו בנפרד (sub-modules) → מחיר עצמאי
+            const extraSet = new Set(Array.isArray(extra_modules) ? extra_modules : []);
 
             for (const modId of managed_modules) {
                 let price;
                 if (modId === bundle_id) {
-                    price = bundle_price || priceMap[modId] || 0;
-                } else if (bundleModuleIds.has(modId)) {
+                    price = bundle_price || priceMap[modId] || 0; // מחיר החבילה כולל
+                } else if (bundleSet.has(modId) && !extraSet.has(modId)) {
                     price = 0; // כלול בחבילה
                 } else {
-                    price = priceMap[modId] || 0;
+                    price = priceMap[modId] || 0; // מחיר עצמאי
                 }
                 await pool.query(
                     `INSERT INTO group_licenses (group_id, feature_key, is_active, price_monthly)
