@@ -1722,7 +1722,7 @@
       const cityLat = cityEl ? (cityEl.dataset.lat || null) : null;
       const cityLng = cityEl ? (cityEl.dataset.lng || null) : null;
       _state.accountDetails = { email, first, last, city, birth, opening_hours, street_address, lat: cityLat, lng: cityLng };
-      showSummary();
+      await showSummary();
     }
 
     // ── מיפוי שמות עבריים לפי ID מודול ──
@@ -1804,7 +1804,8 @@
       return { total, lines };
     }
 
-    function showSummary() {
+    async function showSummary() {
+      await loadPublicPricingCatalog();
       const cards = [];
 
       if (_state.storeEnabled === true) {
