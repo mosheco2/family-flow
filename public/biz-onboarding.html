@@ -9,35 +9,86 @@
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+    @keyframes fadeUp { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+
     body {
       font-family: 'Heebo', sans-serif;
-      background: #EEF1F6;
+      background: linear-gradient(180deg, #0f0c29 0%, #17143a 340px, #f5f5fa 340px, #f5f5fa 100%);
       min-height: 100vh;
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
-      padding: 24px 16px;
+      padding: 0;
       color: #1B2440;
     }
 
-    .logo {
-      font-size: 22px;
-      font-weight: 800;
-      color: #5B46E5;
-      letter-spacing: -0.5px;
-      margin-bottom: 28px;
-      text-align: center;
-    }
-    .logo span { color: #1B2440; }
+    /* ── Outer wrapper ── */
+    #wiz-outer { width:100%; display:flex; flex-direction:column; align-items:center; }
 
+    /* ── Header ── */
+    .wiz-header {
+      width:100%; max-width:960px;
+      padding:22px 32px 0;
+      box-sizing:border-box;
+      display:flex; align-items:center; justify-content:space-between;
+    }
+    .wiz-brand { display:flex; align-items:center; gap:10px; }
+    .wiz-brand-icon {
+      width:36px; height:36px; border-radius:10px;
+      background:#6c5ce7; display:flex; align-items:center; justify-content:center;
+      color:#fff; font-weight:800; font-size:16px; overflow:hidden;
+    }
+    .wiz-brand-icon img { width:100%; height:100%; object-fit:cover; }
+    .wiz-brand-name { color:#fff; font-size:18px; font-weight:800; }
+    .wiz-brand-name span { opacity:0.6; font-weight:500; }
+    .wiz-promo-badge {
+      display:flex; align-items:center; gap:8px;
+      background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.15);
+      border-radius:999px; padding:8px 16px;
+      color:#ffd76a; font-size:13px; font-weight:600;
+    }
+
+    /* ── Hero ── */
+    .wiz-hero {
+      width:100%; max-width:640px;
+      padding:40px 32px 8px; box-sizing:border-box; text-align:center;
+    }
+    .wiz-hero-title { color:#fff; font-size:26px; font-weight:800; margin-bottom:6px; }
+    .wiz-hero-sub { color:rgba(255,255,255,0.55); font-size:14px; }
+
+    /* ── Progress bar segments ── */
+    .wiz-seg-bar {
+      width:100%; max-width:640px;
+      padding:0 32px; box-sizing:border-box;
+      margin-top:18px; margin-bottom:-70px;
+      position:relative; z-index:2;
+      display:flex; gap:6px;
+    }
+    .wiz-seg {
+      height:4px; flex:1; border-radius:4px;
+      background:rgba(255,255,255,0.18); transition:background 0.3s;
+    }
+    .wiz-seg.active { background:#6c5ce7; }
+
+    /* ── Card ── */
     .card {
-      background: #fff;
-      border-radius: 20px;
-      padding: 36px 32px;
-      width: 100%;
-      max-width: 420px;
-      box-shadow: 0 4px 24px rgba(91,70,229,0.08);
+      background:#fff;
+      border-radius:28px;
+      box-shadow:0 24px 60px rgba(20,10,60,0.16);
+      width:640px; max-width:92vw;
+      margin:100px 0 48px;
+      padding:40px;
+      box-sizing:border-box;
+      animation:fadeUp 0.4s ease;
+    }
+
+    /* ── Last step badge ── */
+    .last-step-badge {
+      display:inline-flex; align-items:center; gap:6px;
+      background:#f4f1ff; color:#6c5ce7;
+      border-radius:999px; padding:6px 14px;
+      font-size:12px; font-weight:700;
+      margin-bottom:20px;
     }
 
     /* ── Tabs ── */
@@ -97,19 +148,21 @@
     /* ── Primary button ── */
     .btn-primary {
       width: 100%;
-      padding: 13px;
-      background: #5B46E5;
+      padding: 16px;
+      background: #6c5ce7;
       color: #fff;
       border: none;
-      border-radius: 12px;
+      border-radius: 16px;
       font-family: 'Heebo', sans-serif;
-      font-size: 15px;
+      font-size: 16px;
       font-weight: 700;
       cursor: pointer;
       transition: background 0.18s, opacity 0.18s;
       margin-top: 4px;
+      box-shadow: 0 12px 24px -8px rgba(108,92,231,0.5);
+      display:flex; align-items:center; justify-content:center; gap:8px;
     }
-    .btn-primary:hover { background: #4A38C8; }
+    .btn-primary:hover { background: #5a48d1; }
     .btn-primary:disabled { opacity: 0.55; cursor: not-allowed; }
 
     /* ── OTP boxes ── */
@@ -281,20 +334,34 @@
     .counter-btn:hover { border-color: #5B46E5; color: #5B46E5; }
     .counter-val { font-size: 15px; font-weight: 700; min-width: 20px; text-align: center; }
 
-    /* ── Wizard: progress dots ── */
-    .wiz-progress {
-      display: flex;
-      justify-content: center;
-      gap: 8px;
-      margin-bottom: 24px;
+    /* ── Wizard: progress dots (hidden — use global segment bar) ── */
+    .wiz-progress { display: none; }
+    .wiz-dot { display: none; }
+
+    /* ── Biz type grid ── */
+    #biz-type-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin-top: 28px;
     }
-    .wiz-dot {
-      width: 8px; height: 8px;
-      border-radius: 50%;
-      background: #E2E8F0;
-      transition: background 0.2s;
+    .biz-type-card {
+      display: flex; flex-direction: column;
+      align-items: flex-start; gap: 10px;
+      padding: 18px 16px;
+      border-radius: 18px;
+      border: 2px solid transparent;
+      background: #f4f1ff;
+      font-family: inherit; cursor: pointer; text-align: right;
+      transition: transform 0.15s, border-color 0.18s;
     }
-    .wiz-dot.active { background: #5B46E5; }
+    .biz-type-card:hover { transform: translateY(-2px); border-color: #6c5ce7; }
+    .biz-type-card.selected { border-color: #6c5ce7; }
+    .biz-type-card .btc-icon {
+      width:42px; height:42px; border-radius:12px; background:#fff;
+      display:flex; align-items:center; justify-content:center; font-size:20px;
+    }
+    .biz-type-card .btc-label { font-size:14px; font-weight:700; color:#24243a; }
 
     /* ── sec-account-details ── */
     .acc-row-2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:18px; }
@@ -357,10 +424,11 @@
       background:none; border:none; font-family:'Heebo',sans-serif; width:100%;
     }
     .btn-finish {
-      width:100%; padding:13px; background:#22C55E; color:#fff;
-      border:none; border-radius:12px; font-family:'Heebo',sans-serif;
-      font-size:15px; font-weight:700; cursor:pointer;
-      box-shadow:0 4px 16px rgba(34,197,94,0.25); transition:background 0.18s; margin-top:4px;
+      width:100%; padding:16px; background:#22C55E; color:#fff;
+      border:none; border-radius:16px; font-family:'Heebo',sans-serif;
+      font-size:16px; font-weight:700; cursor:pointer;
+      box-shadow:0 12px 24px -8px rgba(34,197,94,0.4); transition:background 0.18s; margin-top:4px;
+      display:flex; align-items:center; justify-content:center; gap:8px;
     }
     .btn-finish:hover { background:#16A34A; }
     .btn-finish:disabled { opacity:0.55; cursor:not-allowed; }
@@ -385,15 +453,35 @@
 </head>
 <body>
 
-  <!-- באנר הטבה — מוסתר עד שנטען מהשרת -->
-  <div id="promo-banner" style="display:none;position:fixed;top:0;left:0;right:0;z-index:999;
-    background:linear-gradient(90deg,#4f46e5,#7c3aed);color:#fff;
-    text-align:center;font-size:13px;font-weight:700;padding:8px 16px;
-    letter-spacing:0.01em;box-shadow:0 2px 8px rgba(79,70,229,.3);">
-    <span id="promo-banner-text"></span>
+  <div id="wiz-outer">
+
+  <!-- ── Header ── -->
+  <div class="wiz-header">
+    <div class="wiz-brand">
+      <div class="wiz-brand-icon" id="wiz-logo-wrap">
+        <img id="wiz-logo-img" src="" alt="" style="display:none;">
+        <span id="wiz-logo-letter">O</span>
+      </div>
+      <div class="wiz-brand-name">Oneflow <span>Life</span></div>
+    </div>
+    <div class="wiz-promo-badge" id="promo-banner" style="display:none;">
+      <span id="promo-banner-text"></span>
+    </div>
   </div>
 
-  <div class="logo" id="main-logo" style="margin-top:0;">Oneflow <span>Life</span></div>
+  <!-- ── Hero ── -->
+  <div class="wiz-hero" id="wiz-hero">
+    <div class="wiz-hero-title" id="wiz-hero-title"></div>
+    <div class="wiz-hero-sub" id="wiz-hero-sub"></div>
+  </div>
+
+  <!-- ── Progress segments ── -->
+  <div class="wiz-seg-bar" id="wiz-seg-bar" style="display:none;">
+    <span class="wiz-seg" id="seg-0"></span>
+    <span class="wiz-seg" id="seg-1"></span>
+    <span class="wiz-seg" id="seg-2"></span>
+    <span class="wiz-seg" id="seg-3"></span>
+  </div>
 
   <div class="card">
 
@@ -472,48 +560,39 @@
 
     <!-- ══ SECTION: wizard 1 — סוג עסק ══ -->
     <div id="sec-biz-type" class="section">
-      <div class="wiz-progress">
-        <div class="wiz-dot active"></div>
-        <div class="wiz-dot"></div>
-        <div class="wiz-dot"></div>
-        <div class="wiz-dot"></div>
+      <div class="wiz-progress"></div>
+      <div style="text-align:center; margin-bottom:4px;">
+        <div class="otp-title">מה סוג העסק שלך?</div>
+        <div class="otp-sub">נתאים את המערכת בדיוק לצרכים שלך</div>
       </div>
-      <div class="otp-title">מה סוג העסק שלך?</div>
-      <div class="otp-sub">נתאים את המערכת בדיוק לצרכים שלך</div>
       <div id="msg-biz-type" class="msg"></div>
-      <div style="display:flex; flex-direction:column; gap:10px; margin-top:4px;">
-        <div class="choice-card" data-biz="restaurant" onclick="selectBizType('restaurant')">
-          <span style="font-size:24px;">🍽️</span>
-          <div><div style="font-weight:700;font-size:15px;color:#1B2440;">מסעדנות ומזון</div></div>
-          <span class="choice-check">✓</span>
-        </div>
-        <div class="choice-card" data-biz="beauty" onclick="selectBizType('beauty')">
-          <span style="font-size:24px;">💅</span>
-          <div><div style="font-weight:700;font-size:15px;color:#1B2440;">יופי ואסתטיקה</div></div>
-          <span class="choice-check">✓</span>
-        </div>
-        <div class="choice-card" data-biz="professional" onclick="selectBizType('professional')">
-          <span style="font-size:24px;">💼</span>
-          <div><div style="font-weight:700;font-size:15px;color:#1B2440;">ייעוץ ושירותי מומחים</div></div>
-          <span class="choice-check">✓</span>
-        </div>
-        <div class="choice-card" data-biz="sport" onclick="selectBizType('sport')">
-          <span style="font-size:24px;">🏋️</span>
-          <div><div style="font-weight:700;font-size:15px;color:#1B2440;">ספורט ואימונים</div></div>
-          <span class="choice-check">✓</span>
-        </div>
-        <div class="choice-card" data-biz="logistics" onclick="selectBizType('logistics')">
-          <span style="font-size:24px;">🚚</span>
-          <div><div style="font-weight:700;font-size:15px;color:#1B2440;">שילוח ולוגיסטיקה</div></div>
-          <span class="choice-check">✓</span>
-        </div>
-        <div class="choice-card" data-biz="maintenance_repair" onclick="selectBizType('maintenance_repair')">
-          <span style="font-size:24px;">🔧</span>
-          <div><div style="font-weight:700;font-size:15px;color:#1B2440;">תיקונים ושירותים</div></div>
-          <span class="choice-check">✓</span>
-        </div>
+      <div id="biz-type-grid">
+        <button class="biz-type-card" style="background:#f4f1ff;border-color:transparent;" data-biz="restaurant" onclick="selectBizType('restaurant')">
+          <span class="btc-icon">🍽️</span>
+          <span class="btc-label">מסעדנות ומזון</span>
+        </button>
+        <button class="biz-type-card" style="background:#fef1f7;border-color:transparent;" data-biz="beauty" onclick="selectBizType('beauty')">
+          <span class="btc-icon">💅</span>
+          <span class="btc-label">יופי ואסתטיקה</span>
+        </button>
+        <button class="biz-type-card" style="background:#eef6ff;border-color:transparent;" data-biz="professional" onclick="selectBizType('professional')">
+          <span class="btc-icon">💼</span>
+          <span class="btc-label">ייעוץ ושירותים</span>
+        </button>
+        <button class="biz-type-card" style="background:#fff8ea;border-color:transparent;" data-biz="sport" onclick="selectBizType('sport')">
+          <span class="btc-icon">🏆</span>
+          <span class="btc-label">ספורט ואימונים</span>
+        </button>
+        <button class="biz-type-card" style="background:#eefaf3;border-color:transparent;" data-biz="logistics" onclick="selectBizType('logistics')">
+          <span class="btc-icon">🚚</span>
+          <span class="btc-label">שילוח ולוגיסטיקה</span>
+        </button>
+        <button class="biz-type-card" style="background:#f4f4fb;border-color:transparent;" data-biz="maintenance_repair" onclick="selectBizType('maintenance_repair')">
+          <span class="btc-icon">🔧</span>
+          <span class="btc-label">תיקונים ושירותים</span>
+        </button>
       </div>
-      <button class="btn-primary" style="margin-top:20px;" onclick="goToSetupPath()">המשך ←</button>
+      <button class="btn-primary" style="margin-top:28px;" onclick="goToSetupPath()"><span>המשך לשלב הבא</span><span>←</span></button>
     </div>
 
     <!-- ══ SECTION: wizard 1b — מסלול הקמה ══ -->
@@ -672,11 +751,7 @@
     <!-- ══ SECTION: account-details (מסך 5/5 — פרטי חשבון) ══ -->
     <div id="sec-account-details" class="section">
       <div style="text-align:center; margin-bottom:20px;">
-        <span style="display:inline-block; background:#F0EFFE; color:#5B46E5;
-          font-size:11px; font-weight:700; letter-spacing:0.07em; text-transform:uppercase;
-          padding:4px 12px; border-radius:20px; border:1px solid #D8D2F9;">
-          שלב אחרון ✓
-        </span>
+        <span class="last-step-badge">שלב אחרון ✓</span>
       </div>
       <div class="otp-title">עוד רגע וסיימנו</div>
       <div class="otp-sub">פרטי החשבון הנדרשים להשלמת ההרשמה</div>
@@ -769,11 +844,7 @@
     <!-- ══ SECTION: summary (סיכום והכוונה ראשונית) ══ -->
     <div id="sec-summary" class="section">
       <div style="text-align:center; margin-bottom:20px;">
-        <span style="display:inline-block; background:#F0EFFE; color:#5B46E5;
-          font-size:11px; font-weight:700; letter-spacing:0.07em; text-transform:uppercase;
-          padding:4px 12px; border-radius:20px; border:1px solid #D8D2F9;">
-          שלב אחרון ✓
-        </span>
+        <span class="last-step-badge">שלב אחרון ✓</span>
       </div>
       <div class="otp-title">המערכת שלך מוכנה! 🎉</div>
       <div class="otp-sub">הנה כמה דברים שכדאי לדעת כדי להתחיל</div>
@@ -797,6 +868,7 @@
     </div>
 
   </div><!-- /card -->
+  </div><!-- /wiz-outer -->
 
   <script>
     const API = window.location.hostname === 'localhost' ? 'http://localhost:3000/api' : '/api';
@@ -859,9 +931,45 @@
       btn.disabled = loading;
       if (label) btn.textContent = loading ? '...' : label;
     }
+    const WIZ_HERO_MAP = {
+      'sec-tabs':           { title: 'ברוכים הבאים ל-Oneflow Life', sub: 'פלטפורמת ניהול העסק שלך', step: null },
+      'sec-otp':            { title: 'אימות מספר טלפון', sub: 'הכניסו את הקוד שנשלח אליכם', step: null },
+      'sec-welcome':        { title: 'בואו נתחיל!', sub: 'כמה צעדים קלים ואתם באוויר', step: null },
+      'sec-biz-type':       { title: 'בואו נכיר את העסק שלך', sub: 'שלב 1 מתוך 4 · תוך פחות מ-2 דקות', step: 0 },
+      'sec-setup-path':     { title: 'בואו נכיר את העסק שלך', sub: 'שלב 1 מתוך 4 · בחרו מסלול הקמה', step: 0 },
+      'sec-store-only-path':{ title: 'בואו נכיר את העסק שלך', sub: 'שלב 1 מתוך 4 · הגדרת חנות', step: 0 },
+      'sec-manage':         { title: 'מה תרצה לנהל?', sub: 'שלב 2 מתוך 4 · בחרו תחומי ניהול', step: 1 },
+      'sec-paid-modules':   { title: 'שדרוגים ותוספות', sub: 'שלב 2 מתוך 4 · הרחיבו את המערכת', step: 1 },
+      'sec-staff':          { title: 'מי עובד אצלך?', sub: 'שלב 3 מתוך 4 · הגדרת צוות', step: 2 },
+      'sec-store':          { title: 'חנות מקוונת', sub: 'שלב 3 מתוך 4 · הפעלת החנות', step: 2 },
+      'sec-account-details':{ title: 'עוד רגע וסיימנו', sub: 'כבר ממש בפנים', step: 3 },
+      'sec-summary':        { title: 'כל הכבוד! 🎉', sub: 'העסק שלך מוכן לצאת לדרך', step: null },
+      'sec-finishing':      { title: 'מגדירים את המערכת...', sub: 'זה ייקח רק כמה שניות', step: null },
+    };
+
     function showSection(id) {
       document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
       document.getElementById(id).classList.add('active');
+
+      const h = WIZ_HERO_MAP[id] || { title: '', sub: '', step: null };
+      document.getElementById('wiz-hero-title').textContent = h.title;
+      document.getElementById('wiz-hero-sub').textContent = h.sub;
+
+      const segBar = document.getElementById('wiz-seg-bar');
+      const hero = document.getElementById('wiz-hero');
+      if (h.step !== null) {
+        segBar.style.display = 'flex';
+        hero.style.display = 'block';
+        for (let i = 0; i < 4; i++) {
+          document.getElementById('seg-' + i).classList.toggle('active', i <= h.step);
+        }
+      } else if (id === 'sec-tabs' || id === 'sec-otp') {
+        segBar.style.display = 'none';
+        hero.style.display = 'none';
+      } else {
+        segBar.style.display = 'none';
+        hero.style.display = 'block';
+      }
     }
     function normalizePhone(p) {
       return p.replace(/[-\s]/g, '');
@@ -1095,7 +1203,7 @@
     // wizard 1 — סוג עסק
     function selectBizType(type) {
       _state.selectedBizType = type;
-      document.querySelectorAll('#sec-biz-type .choice-card').forEach(c => {
+      document.querySelectorAll('#biz-type-grid .biz-type-card').forEach(c => {
         c.classList.toggle('selected', c.dataset.biz === type);
       });
       hideMsg('msg-biz-type');
@@ -1283,8 +1391,7 @@
           const bannerTxt = document.getElementById('promo-banner-text');
           if (banner && bannerTxt) {
             bannerTxt.textContent = '🎁 ' + promoText;
-            banner.style.display = 'block';
-            document.getElementById('main-logo').style.marginTop = '36px';
+            banner.style.display = 'flex';
           }
         }
       } catch(e) { /* fallback to defaults */ }
@@ -2105,6 +2212,30 @@
 
     // ── Init ──
     initOtpBoxes();
+
+    // הצג מצב ברירת מחדל של הדף (sec-tabs פעיל, ללא hero/bar)
+    (function initHero() {
+      const active = document.querySelector('.section.active');
+      if (active) showSection(active.id);
+    })();
+
+    // טען לוגו ויזארד מהשרת אם הוגדר
+    (async function loadWizardLogo() {
+      try {
+        const r = await fetch('/api/biz/app-config');
+        if (!r.ok) return;
+        const d = await r.json();
+        if (d.wizard_logo_url) {
+          const img = document.getElementById('wiz-logo-img');
+          const letter = document.getElementById('wiz-logo-letter');
+          if (img && letter) {
+            img.src = d.wizard_logo_url;
+            img.style.display = 'block';
+            letter.style.display = 'none';
+          }
+        }
+      } catch(e) { /* fallback to default */ }
+    })();
 
     document.addEventListener('keydown', e => {
       if (e.key !== 'Enter') return;

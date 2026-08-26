@@ -13615,6 +13615,11 @@ async function renderPricingCatalogView() {
       _pricingCatalog = (d.catalog && d.catalog.length > 0) ? d.catalog : JSON.parse(JSON.stringify(PRICING_CATALOG_DEFAULT));
       _wizFreeMonths = typeof d.free_months === 'number' ? d.free_months : 3;
       _wizPromoText  = typeof d.promo_text  === 'string'  ? d.promo_text  : '';
+      // load wizard logo url
+      try {
+        const ac = await fetch('/api/sa/app-settings', { headers: { 'Authorization': saToken } });
+        if (ac.ok) { const ad = await ac.json(); window._wizLogoUrl = ad.config?.wizard_logo_url || ''; }
+      } catch(e) { window._wizLogoUrl = ''; }
     } else {
       _pricingCatalog = JSON.parse(JSON.stringify(PRICING_CATALOG_DEFAULT));
       _wizFreeMonths = 3;
@@ -13661,6 +13666,17 @@ async function renderPricingCatalogView() {
           maxlength="80"
           class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:border-indigo-400 focus:outline-none"
           oninput="_wizPromoText = this.value">
+      </div>
+      <div class="bg-white border border-indigo-200 rounded-2xl p-4 mb-5">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="text-lg">🖼️</span>
+          <span class="font-bold text-slate-700 text-sm">לוגו ויזארד — URL תמונה</span>
+        </div>
+        <p class="text-[11px] text-slate-400 mb-2">כתובת תמונה (URL) שתופיע כלוגו בצד השמאלי של כותרת הוויזארד. השאירו ריק לעיצוב ברירת המחדל.</p>
+        <input type="url" id="wizard-logo-url-input" value="${window._wizLogoUrl || ''}"
+          placeholder="https://example.com/logo.png"
+          class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:border-indigo-400 focus:outline-none"
+          oninput="window._wizLogoUrl = this.value">
       </div>`;
   }
 
@@ -13769,6 +13785,12 @@ async function savePricingCatalog() {
     });
     const d = await res.json();
     if (res.ok && d.success) {
+      // שמור גם הגדרות אפליקציה (לוגו ויזארד)
+      await fetch('/api/sa/app-settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+        body: JSON.stringify({ wizard_logo_url: window._wizLogoUrl || '' })
+      });
       showToast('success', 'המחירון נשמר בהצלחה');
     } else {
       showToast('error', d.error || 'שגיאה בשמירה');

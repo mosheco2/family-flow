@@ -3920,6 +3920,45 @@ app.post('/api/sa/pricing-catalog', verifySA, async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// ── App config — ציבורי (לוגו ויזארד וכו') ──────────────────────────────────
+app.get('/api/biz/app-config', async (req, res) => {
+    try {
+        const r = await pool.query("SELECT value FROM system_settings WHERE key = 'app_config'");
+        const cfg = r.rows[0] ? JSON.parse(r.rows[0].value) : {};
+        res.json({ wizard_logo_url: cfg.wizard_logo_url || null });
+    } catch(e) {
+        res.json({ wizard_logo_url: null });
+    }
+});
+
+// ── SA: get/set app config ────────────────────────────────────────────────────
+app.get('/api/sa/app-settings', verifySA, async (req, res) => {
+    try {
+        const r = await pool.query("SELECT value FROM system_settings WHERE key = 'app_config'");
+        const cfg = r.rows[0] ? JSON.parse(r.rows[0].value) : {};
+        res.json({ success: true, config: cfg });
+    } catch(e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+app.post('/api/sa/app-settings', verifySA, async (req, res) => {
+    try {
+        const r = await pool.query("SELECT value FROM system_settings WHERE key = 'app_config'");
+        const cfg = r.rows[0] ? JSON.parse(r.rows[0].value) : {};
+        const updates = req.body || {};
+        if (updates.wizard_logo_url !== undefined) cfg.wizard_logo_url = updates.wizard_logo_url;
+        await pool.query(
+            `INSERT INTO system_settings(key,value) VALUES('app_config',$1)
+             ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value`,
+            [JSON.stringify(cfg)]
+        );
+        res.json({ success: true, config: cfg });
+    } catch(e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
 // קטלוג מחירים ציבורי (לקריאה בלבד)
 // ── Pricing catalog — ציבורי (לוויזארד לפני הרשמה) ──────────────────────────
 app.get('/api/public/pricing-catalog', async (req, res) => {
