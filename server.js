@@ -3895,6 +3895,15 @@ app.post('/api/sa/pricing-catalog', verifySA, async (req, res) => {
 });
 
 // קטלוג מחירים ציבורי (לקריאה בלבד)
+// ── Pricing catalog — ציבורי (לוויזארד לפני הרשמה) ──────────────────────────
+app.get('/api/public/pricing-catalog', async (req, res) => {
+    try {
+        const r = await pool.query("SELECT value FROM system_settings WHERE key = 'module_pricing_catalog'");
+        const catalog = r.rows.length > 0 ? JSON.parse(r.rows[0].value) : [];
+        res.json({ catalog });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 app.get('/api/biz/pricing-catalog', verifyBiz, async (req, res) => {
     try {
         const [r, fm] = await Promise.all([

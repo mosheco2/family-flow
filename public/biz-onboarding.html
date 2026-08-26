@@ -1190,11 +1190,61 @@
       },
     ];
 
-    const AI_TIERS = [
-      { id: 'ai_standard',   label: 'Standard',   price: 0,  desc: '10 שאילתות AI ליום — reset אוטומטי חצות' },
-      { id: 'ai_premium',    label: 'Premium',    price: 29, desc: '50 שאילתות AI ליום — לעסקים עם שימוש יומיומי גבוה' },
-      { id: 'ai_enterprise', label: 'Enterprise', price: 79, desc: 'שימוש ללא הגבלה — לעסקים עם צוות גדול וצרכי AI אינטנסיביים' },
+    let AI_TIERS = [
+      { id: null,            label: 'ללא מנוי AI',  price: 0,  desc: 'ניתן להוסיף מנוי AI בכל עת מהגדרות העסק' },
+      { id: 'ai_standard',  label: 'Standard',      price: 0,  desc: '10 שאילתות AI ליום — reset אוטומטי חצות' },
+      { id: 'ai_premium',   label: 'Premium',       price: 29, desc: '50 שאילתות AI ליום — מתאים לעסקים עם שימוש יומיומי גבוה' },
+      { id: 'ai_enterprise',label: 'Enterprise',    price: 79, desc: 'שימוש ללא הגבלה — מתאים לעסקים עם צוות גדול וצרכי AI אינטנסיביים' },
     ];
+
+    // ── מחירון חי מהשרת ──
+    let _liveCatalog = null;
+
+    async function loadPublicPricingCatalog() {
+      try {
+        const res = await fetch('/api/public/pricing-catalog');
+        if (!res.ok) return;
+        const d = await res.json();
+        if (!d.catalog || !d.catalog.length) return;
+        _liveCatalog = d.catalog;
+        // סנכרון AI_TIERS
+        const aiGroup = d.catalog.find(g => g.groupId === 'ai');
+        if (aiGroup && aiGroup.modules) {
+          AI_TIERS = [
+            { id: null, label: 'ללא מנוי AI', price: 0, desc: 'ניתן להוסיף מנוי AI בכל עת מהגדרות העסק' },
+            ...aiGroup.modules.map(m => ({ id: m.id, label: m.name, price: m.price, desc: m.desc }))
+          ];
+        }
+        // סנכרון CORE_MODULES sub-modules מחירים
+        for (const mod of CORE_MODULES) {
+          if (!mod.hasSubModules) continue;
+          const groupMap = { core_sales: 'sales', core_team: 'team', core_stock: 'inventory', core_finance: 'finance', core_comm: 'comms' };
+          const gid = groupMap[mod.id];
+          if (!gid) continue;
+          const g = d.catalog.find(x => x.groupId === gid);
+          if (!g) continue;
+          for (const sub of mod.subModules) {
+            const live = g.modules.find(m => m.id === sub.id);
+            if (live) { sub.price = live.price; sub.desc = live.desc; sub.name = live.name; }
+          }
+        }
+        // סנכרון BIZ_BUNDLE_MAP מחירים
+        for (const [, biz] of Object.entries(BIZ_BUNDLE_MAP)) {
+          const bg = d.catalog.find(g => g.bundle && g.modules && g.modules.some(m => m.id === biz.id));
+          if (!bg) continue;
+          const bm = bg.modules.find(m => m.id === biz.id);
+          if (bm) { biz.price = bm.price; biz.desc = bm.desc; }
+        }
+        // עלות עובד נוסף
+        const usersGroup = d.catalog.find(g => g.groupId === 'users');
+        if (usersGroup) {
+          const extra = usersGroup.modules.find(m => m.id === 'user_extra');
+          if (extra) _userExtraPrice = extra.price;
+        }
+      } catch(e) { /* fallback to defaults */ }
+    }
+
+    let _userExtraPrice = 9;
 
     const BIZ_BUNDLE_MAP = {
       restaurant:         { id: 'bundle_restaurant',        icon: '🍕', label: 'חבילת מסעדה / בית קפה',     price: 249, desc: 'pos · sales · pantry · shop · customers · shifts · timeclock · tasks · cashflow · budget · members · calendar · deliveries · foodcost · reviews · menu_templates · reports — 17 מודולים, חיסכון ~28%' },
@@ -1215,7 +1265,7 @@
     // ── חישוב מחיר משתמשים נוספים ──
     function getUserExtraCost() {
       const total = _state.staffRoles.reduce((s, r) => s + (r.count || 1), 0);
-      return Math.max(0, total - 1) * 9;
+      return Math.max(0, total - 1) * _userExtraPrice;
     }
 
     // ── עוזרי תצוגה לקוביות ──
@@ -1227,7 +1277,9 @@
                      : { label: 'חינם', color: '#15803d', hasSelection: _state.staffRoles.length > 0 };
       }
       if (mod.hasAiPicker) {
-        const t = AI_TIERS.find(x => x.id === (_state.selectedAiTier || 'ai_standard'));
+        if (_state.selectedAiTier === null) return { label: 'לא נבחר', color: '#94a3b8', hasSelection: false };
+        const t = AI_TIERS.find(x => x.id === _state.selectedAiTier);
+        if (!t) return { label: 'לא נבחר', color: '#94a3b8', hasSelection: false };
         return t.price > 0 ? { label: `₪${t.price}/חודש — ${t.label}`, color: '#4f46e5', hasSelection: true }
                            : { label: `חינם — ${t.label}`, color: '#15803d', hasSelection: true };
       }
@@ -1312,26 +1364,35 @@
 
     // ── Modal: AI ──
     function openAiPicker() {
-      const selAi = _state.selectedAiTier || 'ai_standard';
-      const rows = AI_TIERS.map(t => `
-        <div class="choice-card ${selAi === t.id ? 'selected' : ''}" data-ai-opt="${t.id}" onclick="pickAiTier('${t.id}')">
-          <div style="flex:1;min-width:0;">
-            <div style="font-weight:700;font-size:14px;color:#1B2440;">${t.label}</div>
-            <div style="font-size:12px;color:#64748b;margin-top:2px;">${t.desc}</div>
-          </div>
-          <span style="font-weight:700;font-size:13px;color:${t.price?'#4f46e5':'#15803d'};flex-shrink:0;">${t.price?'₪'+t.price+'/חודש':'חינם'}</span>
-          <span class="choice-check">✓</span>
-        </div>`).join('');
+      const selAi = _state.selectedAiTier; // null = ללא מנוי
+      const rows = AI_TIERS.map(t => {
+        const isNone = t.id === null;
+        const isSelected = isNone ? selAi === null : selAi === t.id;
+        const priceLabel = t.price > 0 ? `₪${t.price}/חודש` : (isNone ? '' : 'חינם');
+        const priceColor = t.price > 0 ? '#4f46e5' : '#15803d';
+        return `
+          <div class="choice-card ${isSelected ? 'selected' : ''}" data-ai-opt="${t.id ?? '__none__'}" onclick="pickAiTier(${isNone ? 'null' : `'${t.id}'`})">
+            <div style="flex:1;min-width:0;">
+              <div style="font-weight:700;font-size:14px;color:#1B2440;">${t.label}</div>
+              <div style="font-size:12px;color:#64748b;margin-top:2px;">${t.desc}</div>
+            </div>
+            ${priceLabel ? `<span style="font-weight:700;font-size:13px;color:${priceColor};flex-shrink:0;">${priceLabel}</span>` : ''}
+            <span class="choice-check">✓</span>
+          </div>`;
+      }).join('');
       _openModal('ai-picker-modal', `
-        <div style="font-weight:700;font-size:17px;color:#1B2440;margin-bottom:4px;">מנוי AI — עוזר חכם</div>
+        <div style="font-weight:700;font-size:17px;color:#1B2440;margin-bottom:4px;">🤖 מנוי AI — עוזר חכם</div>
         <div style="font-size:13px;color:#64748b;margin-bottom:14px;">בחר חבילת AI המתאימה לעסקך</div>
         ${rows}
         <button class="btn-primary" style="margin-top:12px;" onclick="_closeModal('ai-picker-modal');refreshModCard('core_ai')">אישור</button>`);
     }
 
     function pickAiTier(id) {
-      _state.selectedAiTier = id;
-      document.querySelectorAll('[data-ai-opt]').forEach(c => c.classList.toggle('selected', c.dataset.aiOpt === id));
+      _state.selectedAiTier = id; // null = ללא מנוי
+      document.querySelectorAll('[data-ai-opt]').forEach(c => {
+        const cId = c.dataset.aiOpt === '__none__' ? null : c.dataset.aiOpt;
+        c.classList.toggle('selected', cId === id);
+      });
     }
 
     // ── Modal: Sub-modules ──
@@ -1667,7 +1728,7 @@
       }
 
       // AI
-      const aiTier = AI_TIERS.find(t => t.id === (_state.selectedAiTier || 'ai_standard'));
+      const aiTier = _state.selectedAiTier ? AI_TIERS.find(t => t.id === _state.selectedAiTier) : null;
       if (aiTier && aiTier.price > 0) {
         total += aiTier.price;
         lines.push({ label: `AI ${aiTier.label}`, price: aiTier.price });
@@ -1939,6 +2000,9 @@
 
     // בדיקה אם כבר מחובר עם wizard_completed — redirect ישיר
     // ?wizard=1 מאפשר לפתוח ויזארד מחדש לצורך בדיקה
+    // טען מחירון מהשרת ברקע (לא חוסם)
+    loadPublicPricingCatalog();
+
     (function checkExistingSession() {
       try {
         const params = new URLSearchParams(window.location.search);
