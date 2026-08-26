@@ -3946,6 +3946,18 @@ app.post('/api/sa/upload-wizard-logo', verifySA, async (req, res) => {
     try {
         const { dataUrl } = req.body;
         if (!dataUrl || !dataUrl.startsWith('data:image/')) return res.status(400).json({ error: 'invalid image' });
+        // העלאה ל-Cloudinary (unsigned preset)
+        const cfgR = await pool.query(`SELECT value FROM system_settings WHERE key IN ('cloudinary_cloud_name','cloudinary_upload_preset')`);
+        const cfgMap = Object.fromEntries(cfgR.rows.map(r => [r.key, r.value]));
+        const cloudName = cfgMap['cloudinary_cloud_name'];
+        const uploadPreset = cfgMap['cloudinary_upload_preset'];
+        if (cloudName && uploadPreset) {
+            const body = new URLSearchParams({ file: dataUrl, upload_preset: uploadPreset, folder: 'wizard_logos' });
+            const r = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, { method: 'POST', body });
+            const d = await r.json();
+            if (d.secure_url) return res.json({ url: d.secure_url });
+        }
+        // fallback — שמירה מקומית
         const ext = dataUrl.match(/^data:image\/(\w+);/)?.[1] || 'png';
         const filename = `wizard_logo_${Date.now()}.${ext}`;
         const dest = path.join(__dirname, 'public', 'uploads', 'logos', filename);
