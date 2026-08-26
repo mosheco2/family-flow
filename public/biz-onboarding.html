@@ -599,7 +599,17 @@
       <div class="otp-sub">בחר חבילות להרחבת המערכת — ניתן לשנות בכל עת</div>
       <div id="msg-paid-modules" class="msg"></div>
       <div id="paid-modules-list" style="display:flex; flex-direction:column; gap:12px; margin-top:4px;"></div>
-      <button class="btn-primary" style="margin-top:20px;" onclick="goToStaff()">המשך ←</button>
+
+      <!-- פס עלות כוללת -->
+      <div id="live-cost-bar" style="margin-top:16px;border-radius:14px;background:#f0effe;border:1.5px solid #d8d2f9;padding:12px 16px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <span style="font-size:13px;color:#64748b;">עלות חודשית משוערת</span>
+          <span id="live-cost-total" style="font-weight:800;font-size:18px;color:#5B46E5;">₪0</span>
+        </div>
+        <div id="live-cost-lines" style="font-size:11px;color:#94a3b8;margin-top:4px;line-height:1.8;"></div>
+      </div>
+
+      <button class="btn-primary" style="margin-top:14px;" onclick="goToStaff()">המשך ←</button>
     </div>
 
     <!-- ══ SECTION: wizard 3 — צוות ══ -->
@@ -1247,19 +1257,19 @@
     let _userExtraPrice = 9;
 
     const BIZ_BUNDLE_MAP = {
-      restaurant:         { id: 'bundle_restaurant',        icon: '🍕', label: 'חבילת מסעדה / בית קפה',     price: 249, desc: 'pos · sales · pantry · shop · customers · shifts · timeclock · tasks · cashflow · budget · members · calendar · deliveries · foodcost · reviews · menu_templates · reports — 17 מודולים, חיסכון ~28%' },
-      retail:             { id: 'bundle_retail',            icon: '🛍️', label: 'חבילת חנות קמעונאית',       price: 169, desc: 'pos · sales · pantry · shop · customers · cashflow · budget · members · timeclock · tasks · bank · reports — 12 מודולים, חיסכון ~28%' },
-      professional:       { id: 'bundle_services',          icon: '💼', label: 'חבילת שירותים מקצועיים',    price: 159, desc: 'calendar · tasks · customers · cashflow · budget · members · timeclock · bank · pos · sales · reports — 11 מודולים, חיסכון ~27%' },
-      construction:       { id: 'bundle_construction',      icon: '🏗️', label: 'חבילת בנייה / קבלנות',      price: 149, desc: 'equipment · tasks · shifts · timeclock · members · cashflow · customers · bank · shop · pantry · budget · reports — 12 מודולים, חיסכון ~29%' },
-      maintenance_repair: { id: 'bundle_maintenance_repair',icon: '🔧', label: 'חבילת תחזוקה ותיקונים',    price: 119, desc: 'calendar · tasks · customers · members · timeclock · cashflow · pantry · shop · reports — 9 מודולים, חיסכון ~28%' },
-      health:             { id: 'bundle_healthcare',        icon: '🏥', label: 'חבילת בריאות / קליניקה',    price: 139, desc: 'calendar · customers · tasks · members · timeclock · cashflow · bank · pos · pantry · reports — 10 מודולים, חיסכון ~28%' },
-      education:          { id: 'bundle_education',         icon: '📚', label: 'חבילת חינוך / הדרכה',       price: 129, desc: 'calendar · academy · tasks · members · timeclock · cashflow · customers · pos · reports — 9 מודולים, חיסכון ~30%' },
-      sport:              { id: 'bundle_sport',             icon: '🏋️', label: 'חבילת ספורט / כושר',        price: 169, desc: 'calendar · pos · sales · customers · members · timeclock · cashflow · tasks · equipment · shifts · reports — 11 מודולים, חיסכון ~29%' },
-      events:             { id: 'bundle_events',            icon: '🎪', label: 'חבילת אירועים / הפקות',     price: 149, desc: 'calendar · tasks · customers · members · timeclock · cashflow · budget · equipment · shifts · shop · menu_templates · reports — 12 מודולים, חיסכון ~31%' },
-      food_production:    { id: 'bundle_food_production',   icon: '🏭', label: 'חבילת ייצור מזון',          price: 199, desc: 'pantry · shop · sales · customers · tasks · members · shifts · timeclock · cashflow · equipment · deliveries · foodcost · menu_templates · reports — 14 מודולים, חיסכון ~29%' },
-      consulting:         { id: 'bundle_professional',      icon: '📐', label: 'חבילת מקצועי / ייעוץ',      price: 219, desc: 'sales · customers · cases · leads · timelog · documents · calendar · tasks · cashflow · budget · members · timeclock · bank · content · reports — 15 מודולים, חיסכון ~28%' },
-      beauty:             { id: 'beauty_all',               icon: '💅', label: 'חבילת יופי / קוסמטיקה',    price: 89,  desc: 'beauty_calendar · beauty_practitioners · beauty_services · beauty_clients · beauty_inventory · beauty_subscriptions · beauty_commissions · beauty_rfq — 8 מודולים ייעודיים' },
-      logistics:          { id: 'logistics_all',            icon: '🚚', label: 'חבילת לוגיסטיקה / הפצה',   price: 109, desc: 'logistics_orders · logistics_drivers · logistics_vehicles · logistics_pricing · logistics_cod · logistics_routes · logistics_tracking · logistics_reports · logistics_customers · logistics_invoices — 10 מודולים' },
+      restaurant:         { id: 'bundle_restaurant',        icon: '🍕', label: 'חבילת מסעדה / בית קפה',     price: 249, desc: 'קופה (POS) · חנות מקוונת · ניהול מלאי · רכש ארגוני · לקוחות · משמרות · נוכחות · משימות · תזרים מזומנים · תקציבים · ניהול צוות · יומן ותורים · שליחויות · תמחור ורווחיות · דירוגים · תפריטים · דוחות מאוחדים — 17 מודולים, חיסכון ~28%' },
+      retail:             { id: 'bundle_retail',            icon: '🛍️', label: 'חבילת חנות קמעונאית',       price: 169, desc: 'קופה (POS) · חנות מקוונת · ניהול מלאי · רכש ארגוני · לקוחות · תזרים מזומנים · תקציבים · ניהול צוות · נוכחות · משימות · כספים · דוחות מאוחדים — 12 מודולים, חיסכון ~28%' },
+      professional:       { id: 'bundle_services',          icon: '💼', label: 'חבילת שירותים מקצועיים',    price: 159, desc: 'יומן ותורים · משימות · לקוחות · תזרים מזומנים · תקציבים · ניהול צוות · נוכחות · כספים · קופה (POS) · חנות מקוונת · דוחות מאוחדים — 11 מודולים, חיסכון ~27%' },
+      construction:       { id: 'bundle_construction',      icon: '🏗️', label: 'חבילת בנייה / קבלנות',      price: 149, desc: 'ציוד ותחזוקה · משימות · משמרות · נוכחות · ניהול צוות · תזרים מזומנים · לקוחות · כספים · רכש ארגוני · ניהול מלאי · תקציבים · דוחות מאוחדים — 12 מודולים, חיסכון ~29%' },
+      maintenance_repair: { id: 'bundle_maintenance_repair',icon: '🔧', label: 'חבילת תחזוקה ותיקונים',    price: 119, desc: 'יומן ותורים · משימות · לקוחות · ניהול צוות · נוכחות · תזרים מזומנים · ניהול מלאי · רכש ארגוני · דוחות מאוחדים — 9 מודולים, חיסכון ~28%' },
+      health:             { id: 'bundle_healthcare',        icon: '🏥', label: 'חבילת בריאות / קליניקה',    price: 139, desc: 'יומן ותורים · לקוחות · משימות · ניהול צוות · נוכחות · תזרים מזומנים · כספים · קופה (POS) · ניהול מלאי · דוחות מאוחדים — 10 מודולים, חיסכון ~28%' },
+      education:          { id: 'bundle_education',         icon: '📚', label: 'חבילת חינוך / הדרכה',       price: 129, desc: 'יומן ותורים · הכשרות · משימות · ניהול צוות · נוכחות · תזרים מזומנים · לקוחות · קופה (POS) · דוחות מאוחדים — 9 מודולים, חיסכון ~30%' },
+      sport:              { id: 'bundle_sport',             icon: '🏋️', label: 'חבילת ספורט / כושר',        price: 169, desc: 'יומן ותורים · קופה (POS) · חנות מקוונת · לקוחות · ניהול צוות · נוכחות · תזרים מזומנים · משימות · ציוד ותחזוקה · משמרות · דוחות מאוחדים — 11 מודולים, חיסכון ~29%' },
+      events:             { id: 'bundle_events',            icon: '🎪', label: 'חבילת אירועים / הפקות',     price: 149, desc: 'יומן ותורים · משימות · לקוחות · ניהול צוות · נוכחות · תזרים מזומנים · תקציבים · ציוד ותחזוקה · משמרות · רכש ארגוני · תפריטים · דוחות מאוחדים — 12 מודולים, חיסכון ~31%' },
+      food_production:    { id: 'bundle_food_production',   icon: '🏭', label: 'חבילת ייצור מזון',          price: 199, desc: 'ניהול מלאי · רכש ארגוני · חנות מקוונת · לקוחות · משימות · ניהול צוות · משמרות · נוכחות · תזרים מזומנים · ציוד ותחזוקה · שליחויות · תמחור ורווחיות · תפריטים · דוחות מאוחדים — 14 מודולים, חיסכון ~29%' },
+      consulting:         { id: 'bundle_professional',      icon: '📐', label: 'חבילת מקצועי / ייעוץ',      price: 219, desc: 'חנות מקוונת · לקוחות · תיקים ופרויקטים · פניות נכנסות · שעות עבודה · מסמכים · יומן ותורים · משימות · תזרים מזומנים · תקציבים · ניהול צוות · נוכחות · כספים · תוכן האתר · דוחות מאוחדים — 15 מודולים, חיסכון ~28%' },
+      beauty:             { id: 'beauty_all',               icon: '💅', label: 'חבילת יופי / קוסמטיקה',    price: 89,  desc: 'יומן טיפולים · מטפלים · שירותי יופי · לקוחות · מלאי מוצרים · מנויים · עמלות · בקשות הצעת מחיר — 8 מודולים ייעודיים' },
+      logistics:          { id: 'logistics_all',            icon: '🚚', label: 'חבילת לוגיסטיקה / הפצה',   price: 109, desc: 'הזמנות · נהגים · רכבים · תמחור · תשלום במסירה · מסלולים · מעקב משלוחים · דוחות · לקוחות · חשבוניות — 10 מודולים ייעודיים' },
     };
 
     // ── חישוב מחיר משתמשים נוספים ──
@@ -1332,6 +1342,19 @@
       if (card) card.classList.toggle('selected', priceInfo.hasSelection);
       const priceEl = document.getElementById(`mod-price-${modId}`);
       if (priceEl) priceEl.innerHTML = `<span style="font-weight:700;font-size:13px;color:${priceInfo.color};">${priceInfo.label}</span>`;
+      updateLiveCostBar();
+    }
+
+    function updateLiveCostBar() {
+      const totalEl = document.getElementById('live-cost-total');
+      const linesEl = document.getElementById('live-cost-lines');
+      if (!totalEl || !linesEl) return;
+      const { total, lines } = calcTotalMonthly();
+      totalEl.textContent = total > 0 ? `₪${total}/חודש` : 'חינם';
+      totalEl.style.color = total > 0 ? '#5B46E5' : '#15803d';
+      linesEl.innerHTML = lines.length > 0
+        ? lines.map(l => `<span style="margin-left:10px;">${l.label} — ₪${l.price}</span>`).join(' · ')
+        : '<span>טרם נבחרו שדרוגים בתשלום</span>';
     }
 
     async function renderPaidModules() {
@@ -1360,6 +1383,7 @@
       }
 
       container.innerHTML = html;
+      updateLiveCostBar();
     }
 
     // ── Modal: AI ──
@@ -1528,6 +1552,7 @@
       document.querySelectorAll('#paid-modules-list .choice-card').forEach(c => {
         c.classList.toggle('selected', _state.selectedModuleIds.includes(c.dataset.manage));
       });
+      updateLiveCostBar();
     }
 
     function toggleManage(key) {
