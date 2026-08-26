@@ -3862,6 +3862,24 @@ app.post('/api/sa/groups/:id/billing', verifySA, async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// ── Trial management ───────────────────────────────────────────────────────
+app.get('/api/sa/groups/:id/trial', verifySA, async (req, res) => {
+    try {
+        const r = await pool.query('SELECT trial_until FROM family_groups WHERE id=$1', [req.params.id]);
+        if (r.rowCount === 0) return res.status(404).json({ error: 'not found' });
+        res.json({ trial_until: r.rows[0].trial_until });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.patch('/api/sa/groups/:id/trial', verifySA, async (req, res) => {
+    try {
+        const { trial_until } = req.body; // null לביטול, תאריך ISO לעדכון
+        await pool.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS trial_until TIMESTAMP`).catch(() => {});
+        await pool.query('UPDATE family_groups SET trial_until=$1 WHERE id=$2', [trial_until || null, req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // ── Pricing Catalog ────────────────────────────────────────────────────────
 app.get('/api/sa/pricing-catalog', verifySA, async (req, res) => {
     try {
@@ -5624,6 +5642,7 @@ app.patch('/api/biz/wizard/complete', verifyBiz, async (req, res) => {
         const { groupId, userId } = req.bizAuth;
         const {
             business_type, managed_modules, staff_roles,
+            bundle_id, bundle_price,
             admin_email, first_name, last_name, city, birth_year,
             terms_accepted,
             street_address, opening_hours, lat, lng
@@ -5684,12 +5703,28 @@ app.patch('/api/biz/wizard/complete', verifyBiz, async (req, res) => {
             const priceMap = {};
             catalog.forEach(g => (g.modules || []).forEach(m => { priceMap[m.id] = m.price || 0; }));
 
+            // מצא אילו מודולים שייכים לחבילה הנבחרת (יקבלו מחיר 0 כי הם כלולים בחבילה)
+            const bundleModuleIds = new Set();
+            if (bundle_id) {
+                const bundleGroup = catalog.find(g => g.bundle && g.modules?.some(m => m.id === bundle_id));
+                // החבילה עצמה נרשמת במחיר bundle_price; המודולים שבה — ₪0
+                if (bundleGroup) bundleGroup.modules.forEach(m => { if (m.id !== bundle_id) bundleModuleIds.add(m.id); });
+            }
+
             for (const modId of managed_modules) {
+                let price;
+                if (modId === bundle_id) {
+                    price = bundle_price || priceMap[modId] || 0;
+                } else if (bundleModuleIds.has(modId)) {
+                    price = 0; // כלול בחבילה
+                } else {
+                    price = priceMap[modId] || 0;
+                }
                 await pool.query(
                     `INSERT INTO group_licenses (group_id, feature_key, is_active, price_monthly)
                      VALUES ($1, $2, TRUE, $3)
                      ON CONFLICT (group_id, feature_key) DO UPDATE SET is_active=TRUE, price_monthly=$3`,
-                    [groupId, modId, priceMap[modId] || 0]
+                    [groupId, modId, price]
                 );
             }
         } catch(licErr) { console.error('[wizard/complete] group_licenses error:', licErr.message); }
