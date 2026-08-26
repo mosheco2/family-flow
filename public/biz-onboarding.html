@@ -1617,8 +1617,20 @@
     });
 
     // בדיקה אם כבר מחובר עם wizard_completed — redirect ישיר
+    // ?wizard=1 מאפשר לפתוח ויזארד מחדש לצורך בדיקה
     (function checkExistingSession() {
       try {
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('wizard') === '1') {
+          // מצב בדיקה — אם מחובר, פתח ויזארד ישירות
+          const s = JSON.parse(localStorage.getItem('ofl_session') || '{}');
+          if (s && s.token && s.group) {
+            s.group.wizard_completed = false;
+            localStorage.setItem('ofl_session', JSON.stringify(s));
+            showSection('sec-welcome');
+          }
+          return;
+        }
         const s = JSON.parse(localStorage.getItem('ofl_session') || '{}');
         if (s && s.token && s.group && s.group.wizard_completed) {
           window.location.href = 'business.html';
