@@ -35237,8 +35237,9 @@ function renderMyPlanSection() {
     // bundle_id מוצג בהדר — לא כשורת מודול רגילה
     const displayModules = allDisplayModules.filter(m => (typeof m === 'string' ? m : m.id) !== billing?.bundle_id);
 
-    // active modules rows — only billing=true shown with price
+    // active modules rows — מציג רק מודולים עם מחיר (billing=true), מודולים חינמיים נספרים בנפרד
     let calcTotal = 0;
+    let freeModuleCount = 0;
     const activeRows = displayModules.map(entry => {
         const mId = typeof entry === 'string' ? entry : entry.id;
         const isBilling = typeof entry === 'string' ? true : (entry.billing !== false);
@@ -35246,14 +35247,12 @@ function renderMyPlanSection() {
         const priceInfo = priceMap[mId];
         if (!info) return '';
         const modulePrice = isBilling ? (parseFloat(entry.custom_price != null ? entry.custom_price : (priceInfo?.price ?? 0)) || 0) : 0;
+        if (!isBilling || modulePrice === 0) { freeModuleCount++; return ''; } // מודולים חינמיים — לא מוצגים בשורה נפרדת
         calcTotal += modulePrice;
-        const priceTag = modulePrice > 0
-            ? `<span class="text-[11px] font-bold text-violet-600 ml-1">${modulePrice} ₪</span>`
-            : `<span class="text-[11px] text-slate-300 ml-1">כלול</span>`;
         return `<div class="flex items-center justify-between py-2.5 border-b border-slate-50 last:border-0">
             <div class="flex items-center gap-2">
                 <button onclick="openModuleCancelRequest('${mId}','${info.name}')" class="text-[10px] text-red-400 hover:text-red-600 font-bold border border-red-100 hover:border-red-300 px-2 py-0.5 rounded-full transition">ביטול</button>
-                ${priceTag}
+                <span class="text-[11px] font-bold text-violet-600 ml-1">${modulePrice} ₪</span>
             </div>
             <div class="flex items-center gap-2 text-right">
                 <span class="text-xs font-bold text-slate-700">${info.name}</span>
@@ -35261,6 +35260,13 @@ function renderMyPlanSection() {
             </div>
         </div>`;
     }).join('');
+
+    // שורת מודולים חינמיים — מוצגת רק אם יש כאלה, בצורה מקובצת
+    const freeRow = freeModuleCount > 0
+        ? `<div class="flex items-center justify-between py-2 border-b border-slate-50 text-xs text-slate-400">
+            <span class="font-medium">כלול בתכנית</span>
+            <span>${freeModuleCount} מודולים בסיסיים</span>
+          </div>` : '';
 
     // AI cost row — shown if billing defines it
     const aiCost = billing?.ai_monthly_cost || 0;
@@ -35306,7 +35312,8 @@ function renderMyPlanSection() {
                 <span class="text-sm font-bold text-violet-800">📦 ${bundleName}</span>
             </div>` : ''}
             <div class="text-[10px] font-bold text-slate-400 mb-1 text-right">מודולים פעילים</div>
-            ${activeRows || '<div class="text-xs text-slate-400 py-2 text-right">אין מודולים פעילים</div>'}
+            ${freeRow}
+            ${activeRows || '<div class="text-xs text-slate-400 py-2 text-right">אין תוספות בתשלום</div>'}
             ${aiRow}
             ${extraUsersRow}
             ${totalBadge}
