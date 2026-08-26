@@ -1158,7 +1158,7 @@
       { id: 'core_base',    icon: '🏢', label: 'ליבה',              alwaysOn: true,
         desc: 'דשבורד ראשי, הגדרות עסק ובסיס המערכת — כלול בכל חבילה' },
       { id: 'core_users',   icon: '👤', label: 'משתמשים',           hasRolePicker: true,
-        desc: 'מנהל/ת — חינם תמיד. כל עובד נוסף ₪9/חודש ללא קשר לתפקיד' },
+        desc: 'מנהל/ת ראשון/ה — חינם. כל משתמש נוסף (כולל מנהל נוסף) ₪9/חודש' },
       { id: 'core_ai',      icon: '🤖', label: 'מנוי AI — עוזר חכם', hasAiPicker: true,
         desc: 'Standard — 10 שאילתות ליום חינם. Premium / Enterprise — שדרוג בתשלום' },
       { id: 'core_sales',   icon: '💰', label: 'מכירות ולקוחות',    hasSubModules: true,
@@ -1322,7 +1322,7 @@
         const totalStaff = _state.staffRoles.reduce((a, r) => a + r.count, 0);
         if (c > 0) return { label: `מנהל/ת חינם + ${totalStaff} עובדים — ₪${c}/חודש`, color: '#4f46e5', hasSelection: true };
         if (_state.staffRoles.length > 0) return { label: 'מנהל/ת חינם + עובדים (הגדר כמות)', color: '#15803d', hasSelection: true };
-        return { label: 'מנהל/ת — חינם תמיד', color: '#15803d', hasSelection: false };
+        return { label: 'מנהל/ת ראשון/ה — חינם', color: '#15803d', hasSelection: false };
       }
       if (mod.hasAiPicker) {
         if (_state.selectedAiTier === null) return { label: 'לא נבחר', color: '#94a3b8', hasSelection: false };
@@ -1568,7 +1568,7 @@
         <div id="role-picker-overlay" onclick="closeRolePicker()" style="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1000;display:flex;align-items:center;justify-content:center;">
           <div onclick="event.stopPropagation()" style="background:#fff;border-radius:18px;padding:24px 20px;width:min(360px,94vw);max-height:85vh;overflow-y:auto;box-shadow:0 8px 40px rgba(0,0,0,.18);">
             <div style="font-weight:700;font-size:17px;color:#1B2440;margin-bottom:4px;">מי עובד אצלך?</div>
-            <div style="font-size:13px;color:#64748b;margin-bottom:16px;">סמן תפקידים וציין כמה עובדים לכל תפקיד. מנהל/ת — חינם, כל עובד נוסף ₪${_userExtraPrice}/חודש.</div>
+            <div style="font-size:13px;color:#64748b;margin-bottom:16px;">סמן תפקידים וציין כמה עובדים לכל תפקיד. משתמש ראשון — חינם, כל משתמש נוסף (כולל מנהל נוסף) ₪${_userExtraPrice}/חודש.</div>
             <div id="rp-roles-list">${rolesHtml}</div>
             <div style="margin-top:12px;padding-top:12px;border-top:1px solid #f1f5f9;font-size:13px;color:#64748b;">
               עלות חודשית: <strong id="rp-cost-label" style="color:#4f46e5;">${getUserExtraCost() > 0 ? '₪' + getUserExtraCost() + '/חודש' : 'חינם'}</strong>
