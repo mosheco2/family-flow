@@ -12407,9 +12407,53 @@ window.fetchStoreSettings = async function() {
             // Load kiosk password into settings UI
             const kioskPassInput = document.getElementById('kiosk-password-input');
             if (kioskPassInput && s.kiosk_password) kioskPassInput.value = s.kiosk_password;
+
+            // שדות תבנית חדשים
+            const templateId = s.template_id || 'classic';
+            const templateInput = document.getElementById('store-template-id');
+            if (templateInput) templateInput.value = templateId;
+            if (typeof selectStoreTemplate === 'function') selectStoreTemplate(templateId, false);
+
+            const accentColorEl = document.getElementById('store-accent-color');
+            const accentColorTextEl = document.getElementById('store-accent-color-text');
+            const accentVal = s.accent_color || '#e63946';
+            if (accentColorEl) accentColorEl.value = accentVal;
+            if (accentColorTextEl) accentColorTextEl.value = accentVal;
+
+            const deliveryEtaEl = document.getElementById('store-delivery-eta');
+            if (deliveryEtaEl) deliveryEtaEl.value = s.delivery_eta_min || 35;
+            const pickupEtaEl = document.getElementById('store-pickup-eta');
+            if (pickupEtaEl) pickupEtaEl.value = s.pickup_eta_min || 15;
+            const freeDelivEl = document.getElementById('store-free-delivery-above');
+            if (freeDelivEl) freeDelivEl.value = s.free_delivery_above || 0;
+            const appStoreEl = document.getElementById('store-app-store-url');
+            if (appStoreEl) appStoreEl.value = s.app_store_url || '';
+            const playStoreEl = document.getElementById('store-play-store-url');
+            if (playStoreEl) playStoreEl.value = s.play_store_url || '';
         }
     } catch(e) { console.error("Fetch Settings Error:", e); }
 };
+
+window.selectStoreTemplate = function(tid, save = false) {
+    const input = document.getElementById('store-template-id');
+    if (input) input.value = tid;
+    document.querySelectorAll('#template-picker .template-card').forEach(card => {
+        const selected = card.dataset.tid === tid;
+        card.classList.toggle('border-indigo-400', selected);
+        card.classList.toggle('border-slate-200', !selected);
+        card.classList.toggle('bg-indigo-50', selected);
+        card.classList.toggle('bg-white', !selected);
+    });
+};
+
+// sync color picker ↔ text input
+document.addEventListener('DOMContentLoaded', () => {
+    const colorEl = document.getElementById('store-accent-color');
+    if (colorEl) colorEl.addEventListener('input', () => {
+        const txt = document.getElementById('store-accent-color-text');
+        if (txt) txt.value = colorEl.value;
+    });
+});
 
 async function saveStoreSettings() {
     const btn = document.getElementById('btn-save-store-settings');
@@ -12457,7 +12501,14 @@ async function saveStoreSettings() {
             storeAlias: storeAlias,
             enableTableBooking: getChecked('store-enable-table-booking'),
             enableEventBooking: getChecked('store-enable-event-booking'),
-            orderNotificationEmail: getVal('store-order-email')
+            orderNotificationEmail: getVal('store-order-email'),
+            templateId: document.getElementById('store-template-id')?.value || 'classic',
+            accentColor: document.getElementById('store-accent-color')?.value || '#e63946',
+            deliveryEtaMin: parseInt(document.getElementById('store-delivery-eta')?.value) || 35,
+            pickupEtaMin: parseInt(document.getElementById('store-pickup-eta')?.value) || 15,
+            appStoreUrl: document.getElementById('store-app-store-url')?.value || '',
+            playStoreUrl: document.getElementById('store-play-store-url')?.value || '',
+            freeDeliveryAbove: parseInt(document.getElementById('store-free-delivery-above')?.value) || 0
         };
 
         const res = await fetch(`${API}/store/settings`, {
@@ -27346,6 +27397,26 @@ window.fetchStoreSettings = async function() {
                 try { storeModifierPresets = JSON.parse(s.modifier_presets); } catch(e) { storeModifierPresets = []; }
                 if(typeof renderPresetSelector === 'function') renderPresetSelector();
             }
+            // שדות תבנית חדשים (עותק שני)
+            const tid2 = s.template_id || 'classic';
+            const ti2 = document.getElementById('store-template-id');
+            if (ti2) ti2.value = tid2;
+            if (typeof selectStoreTemplate === 'function') selectStoreTemplate(tid2, false);
+            const acEl2 = document.getElementById('store-accent-color');
+            const acTxt2 = document.getElementById('store-accent-color-text');
+            const acVal2 = s.accent_color || '#e63946';
+            if (acEl2) acEl2.value = acVal2;
+            if (acTxt2) acTxt2.value = acVal2;
+            const detEl2 = document.getElementById('store-delivery-eta');
+            if (detEl2) detEl2.value = s.delivery_eta_min || 35;
+            const petEl2 = document.getElementById('store-pickup-eta');
+            if (petEl2) petEl2.value = s.pickup_eta_min || 15;
+            const fdEl2 = document.getElementById('store-free-delivery-above');
+            if (fdEl2) fdEl2.value = s.free_delivery_above || 0;
+            const asEl2 = document.getElementById('store-app-store-url');
+            if (asEl2) asEl2.value = s.app_store_url || '';
+            const psEl2 = document.getElementById('store-play-store-url');
+            if (psEl2) psEl2.value = s.play_store_url || '';
         }
     } catch(e) { console.error("Fetch Settings Error:", e); }
 };
@@ -27367,7 +27438,7 @@ async function saveStoreSettings() {
 
         const includeVat = getChecked('store-include-vat');
         localStorage.setItem('store_include_vat', includeVat);
-        
+
         const getLogoBannerVal = (id) => {
             const els = Array.from(document.querySelectorAll(`[id*="${id}"]`));
             if (els.some(el => el.value === 'DELETE')) return 'DELETE';
@@ -27397,7 +27468,14 @@ async function saveStoreSettings() {
             storeAlias: storeAlias,
             enableTableBooking: getChecked('store-enable-table-booking'),
             enableEventBooking: getChecked('store-enable-event-booking'),
-            orderNotificationEmail: getVal('store-order-email')
+            orderNotificationEmail: getVal('store-order-email'),
+            templateId: document.getElementById('store-template-id')?.value || 'classic',
+            accentColor: document.getElementById('store-accent-color')?.value || '#e63946',
+            deliveryEtaMin: parseInt(document.getElementById('store-delivery-eta')?.value) || 35,
+            pickupEtaMin: parseInt(document.getElementById('store-pickup-eta')?.value) || 15,
+            appStoreUrl: document.getElementById('store-app-store-url')?.value || '',
+            playStoreUrl: document.getElementById('store-play-store-url')?.value || '',
+            freeDeliveryAbove: parseInt(document.getElementById('store-free-delivery-above')?.value) || 0
         };
 
         const res = await fetch(`${API}/store/settings`, {
@@ -27416,12 +27494,12 @@ async function saveStoreSettings() {
             showToast('success', 'הגדרות החנות והתמונות נשמרו בהצלחה!');
             document.querySelectorAll('[id*="store-logo-base64"]').forEach(el => el.value = '');
             document.querySelectorAll('[id*="store-banner-base64"]').forEach(el => el.value = '');
-            fetchStoreSettings(); 
+            fetchStoreSettings();
         } else {
             showToast('error', data.error || 'שגיאה בשמירה במסד הנתונים');
         }
-    } catch(e) { 
-        showToast('error', 'תקלה: ' + e.message); 
+    } catch(e) {
+        showToast('error', 'תקלה: ' + e.message);
     }
     finally { if(btn) { btn.disabled = false; btn.innerText = 'שמור הגדרות חנות'; } }
 }

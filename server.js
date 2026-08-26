@@ -804,6 +804,13 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
       try { await client.query(`CREATE TABLE IF NOT EXISTS delivery_zones (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, name VARCHAR(100) NOT NULL, min_order DECIMAL(10,2) DEFAULT 0, delivery_fee DECIMAL(10,2) DEFAULT 0, sort_order INT DEFAULT 0, created_at TIMESTAMP DEFAULT NOW())`); } catch(e) {}
       try { await client.query(`CREATE TABLE IF NOT EXISTS business_gallery (id SERIAL PRIMARY KEY, group_id INT NOT NULL, image_url TEXT NOT NULL, caption TEXT, sort_order INT DEFAULT 0, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}
       try { await client.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS gallery_enabled BOOLEAN DEFAULT FALSE`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS template_id VARCHAR(50) DEFAULT 'classic'`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS accent_color VARCHAR(20) DEFAULT '#e63946'`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS delivery_eta_min INT DEFAULT 35`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS pickup_eta_min INT DEFAULT 15`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS app_store_url TEXT`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS play_store_url TEXT`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS free_delivery_above INT DEFAULT 0`); } catch(e) {}
       try { await client.query(`CREATE TABLE IF NOT EXISTS community_articles (id SERIAL PRIMARY KEY, community_id INT, author_type VARCHAR(20) NOT NULL, author_id INT, title TEXT NOT NULL, body TEXT NOT NULL, image_url TEXT, published_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}
 
       // טבלאות מערכת היומן והתורים
@@ -9285,7 +9292,7 @@ app.get('/api/store/settings/:groupId', async (req, res) => {
 
 app.post('/api/store/settings', async (req, res) => {
     try {
-        const { groupId, isActive, welcomeMessage, phone, minOrder, slogan, storeType, logoUrl, bannerUrl, openTime, closeTime, whatsappNumber, deliveryFee, includeVat, vatRate, storeAlias, enableTableBooking, bookingMode, enableEventBooking, orderNotificationEmail } = req.body;
+        const { groupId, isActive, welcomeMessage, phone, minOrder, slogan, storeType, logoUrl, bannerUrl, openTime, closeTime, whatsappNumber, deliveryFee, includeVat, vatRate, storeAlias, enableTableBooking, bookingMode, enableEventBooking, orderNotificationEmail, templateId, accentColor, deliveryEtaMin, pickupEtaMin, appStoreUrl, playStoreUrl, freeDeliveryAbove } = req.body;
 
         try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS open_time VARCHAR(10)`); } catch(e) {}
         try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS close_time VARCHAR(10)`); } catch(e) {}
@@ -9299,6 +9306,13 @@ app.post('/api/store/settings', async (req, res) => {
         try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS booking_mode VARCHAR(20) DEFAULT 'appointments'`); } catch(e) {}
         try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS enable_event_booking BOOLEAN DEFAULT FALSE`); } catch(e) {}
         try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS order_notification_email VARCHAR(255)`); } catch(e) {}
+        try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS template_id VARCHAR(50) DEFAULT 'classic'`); } catch(e) {}
+        try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS accent_color VARCHAR(20) DEFAULT '#e63946'`); } catch(e) {}
+        try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS delivery_eta_min INT DEFAULT 35`); } catch(e) {}
+        try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS pickup_eta_min INT DEFAULT 15`); } catch(e) {}
+        try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS app_store_url TEXT`); } catch(e) {}
+        try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS play_store_url TEXT`); } catch(e) {}
+        try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS free_delivery_above INT DEFAULT 0`); } catch(e) {}
 
         const isVat = (includeVat === true || String(includeVat) === 'true');
         const vatRateVal = parseFloat(vatRate) || 18;
@@ -9332,13 +9346,21 @@ app.post('/api/store/settings', async (req, res) => {
 
         const orderEmailVal = orderNotificationEmail && orderNotificationEmail.trim() !== '' ? orderNotificationEmail.trim() : null;
 
+        const templateIdVal = templateId && templateId.trim() ? templateId.trim() : 'classic';
+        const accentColorVal = accentColor && accentColor.trim() ? accentColor.trim() : '#e63946';
+        const deliveryEtaVal = parseInt(deliveryEtaMin) || 35;
+        const pickupEtaVal = parseInt(pickupEtaMin) || 15;
+        const appStoreVal = appStoreUrl && appStoreUrl.trim() ? appStoreUrl.trim() : null;
+        const playStoreVal = playStoreUrl && playStoreUrl.trim() ? playStoreUrl.trim() : null;
+        const freeDeliveryVal = parseInt(freeDeliveryAbove) || 0;
+
         await pool.query(`
             INSERT INTO store_settings (
-                group_id, is_active, welcome_message, phone, min_order, slogan, store_type, logo_url, banner_url, open_time, close_time, whatsapp_number, delivery_fee, include_vat, vat_rate, store_alias, enable_table_booking, booking_mode, enable_event_booking, order_notification_email
+                group_id, is_active, welcome_message, phone, min_order, slogan, store_type, logo_url, banner_url, open_time, close_time, whatsapp_number, delivery_fee, include_vat, vat_rate, store_alias, enable_table_booking, booking_mode, enable_event_booking, order_notification_email, template_id, accent_color, delivery_eta_min, pickup_eta_min, app_store_url, play_store_url, free_delivery_above
             ) VALUES ($1, $2, $3, $4, $5, $6, $7,
                 NULLIF($8, 'DELETE'),
                 NULLIF($9, 'DELETE'),
-                $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
+                $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27)
             ON CONFLICT (group_id) DO UPDATE SET
                 is_active = EXCLUDED.is_active,
                 welcome_message = EXCLUDED.welcome_message,
@@ -9366,10 +9388,18 @@ app.post('/api/store/settings', async (req, res) => {
                 enable_table_booking = EXCLUDED.enable_table_booking,
                 booking_mode = EXCLUDED.booking_mode,
                 enable_event_booking = EXCLUDED.enable_event_booking,
-                order_notification_email = EXCLUDED.order_notification_email
+                order_notification_email = EXCLUDED.order_notification_email,
+                template_id = EXCLUDED.template_id,
+                accent_color = EXCLUDED.accent_color,
+                delivery_eta_min = EXCLUDED.delivery_eta_min,
+                pickup_eta_min = EXCLUDED.pickup_eta_min,
+                app_store_url = EXCLUDED.app_store_url,
+                play_store_url = EXCLUDED.play_store_url,
+                free_delivery_above = EXCLUDED.free_delivery_above
         `, [
             groupId, isActive, welcomeMessage, phone, parseFloat(minOrder)||0, slogan, storeType,
-            logoUrl || null, bannerUrl || null, openTime || '', closeTime || '', whatsappNumber || '', parseFloat(deliveryFee) || 0, isVat, vatRateVal, aliasVal, enableTableBookingVal, bookingModeVal, enableEventBookingVal, orderEmailVal
+            logoUrl || null, bannerUrl || null, openTime || '', closeTime || '', whatsappNumber || '', parseFloat(deliveryFee) || 0, isVat, vatRateVal, aliasVal, enableTableBookingVal, bookingModeVal, enableEventBookingVal, orderEmailVal,
+            templateIdVal, accentColorVal, deliveryEtaVal, pickupEtaVal, appStoreVal, playStoreVal, freeDeliveryVal
         ]);
         
         res.json({ success: true });
@@ -10971,6 +11001,32 @@ app.get('/api/store/item-image/:itemId', async (req, res) => {
 // ============================================================
 // --- BUSINESS GALLERY ENDPOINTS ---
 // ============================================================
+
+// ביקורות ציבוריות — ללא מידע אישי, רק rating + טקסט + שם פרטי
+app.get('/api/store/public-reviews/:groupId', async (req, res) => {
+    try {
+        const { groupId } = req.params;
+        const limit = Math.min(parseInt(req.query.limit) || 20, 50);
+        const r = await pool.query(`
+            SELECT
+                customer_rating,
+                customer_rating_notes,
+                customer_rated_at,
+                LEFT(customer_name, 10) AS display_name
+            FROM store_orders
+            WHERE group_id = $1
+              AND customer_rating > 0
+              AND customer_rated_at IS NOT NULL
+            ORDER BY customer_rated_at DESC
+            LIMIT $2
+        `, [groupId, limit]);
+
+        const rows = r.rows;
+        const total = rows.length;
+        const avg = total > 0 ? (rows.reduce((s, x) => s + Number(x.customer_rating), 0) / total).toFixed(1) : null;
+        res.json({ success: true, reviews: rows, avg_rating: avg ? parseFloat(avg) : null, total });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
 
 app.get('/api/store/gallery/:groupId', async (req, res) => {
     try {
@@ -16228,20 +16284,44 @@ app.post('/api/chat', async (req, res) => {
 });
 
 // --- ראוט דינמי לכתובות חנות מקוצרות (Alias) ---
-app.get('/:alias', (req, res, next) => {
+app.get('/:alias', async (req, res, next) => {
     const alias = req.params.alias;
-    
+
     // התעלם מנתיבים של ה-API, בקשות המכילות נקודה (כמו תמונות, קבצי JS/CSS) או סקריפטים של המערכת
     const RESERVED_ROUTES = ['setup-db', 'kol-haam', 'game', 'sa-bigscreen', 'menus', 'menu', 'marketplace'];
     if (alias.startsWith('api') || alias.includes('.') || RESERVED_ROUTES.includes(alias)) {
         return next();
     }
 
-    // הלקוח גלש לכתובת מקוצרת - נגיש לו את ה-HTML של החנות (הכתובת למעלה תישאר נקייה)
     res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
     res.set('Pragma', 'no-cache');
     res.set('Expires', '0');
-    res.sendFile(path.join(__dirname, 'public', 'storefront.html'));
+
+    // בדיקת template_id לפי alias — הגשת קובץ HTML מתאים
+    try {
+        const numericId = /^\d+$/.test(alias) ? parseInt(alias) : null;
+        const tRes = await pool.query(`
+            SELECT ss.template_id FROM store_settings ss
+            JOIN family_groups fg ON fg.id = ss.group_id
+            WHERE ($3::int IS NOT NULL AND fg.id = $3) OR fg.group_code = $1 OR LOWER(ss.store_alias) = LOWER($2)
+            LIMIT 1
+        `, [alias.toUpperCase(), alias.toLowerCase(), numericId]);
+
+        const templateId = tRes.rows.length > 0 ? (tRes.rows[0].template_id || 'classic') : 'classic';
+        const templateMap = {
+            'classic': 'storefront.html',
+            'restaurant': 'storefront-restaurant.html',
+        };
+        const htmlFile = templateMap[templateId] || 'storefront.html';
+        const filePath = path.join(__dirname, 'public', htmlFile);
+        const fs_sync = require('fs');
+        if (htmlFile !== 'storefront.html' && !fs_sync.existsSync(filePath)) {
+            return res.sendFile(path.join(__dirname, 'public', 'storefront.html'));
+        }
+        res.sendFile(filePath);
+    } catch(e) {
+        res.sendFile(path.join(__dirname, 'public', 'storefront.html'));
+    }
 });
 // יצירת קריאת שירות חדשה ממשפחה (מחובר לטבלת הליבה support_tickets של הסופר אדמין)
 app.post('/api/tickets', async (req, res) => {

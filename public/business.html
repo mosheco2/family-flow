@@ -1801,6 +1801,63 @@
                                     <p class="text-[10px] text-slate-400 mt-1.5">כתובת המייל שאליה יישלחו התראות על הזמנות חדשות. ריק = ברירת מחדל (מייל הנהלת החשבון).</p>
                                 </div>
 
+                                <!-- תבנית חנות -->
+                                <div class="bg-indigo-50 p-4 rounded-xl border border-indigo-100">
+                                    <label class="text-xs font-bold text-indigo-700 block mb-2"><i class="fa-solid fa-palette text-indigo-500"></i> תבנית חנות ציבורית</label>
+                                    <div class="grid grid-cols-2 gap-2" id="template-picker">
+                                        <div class="template-card cursor-pointer rounded-xl border-2 border-indigo-400 bg-white p-3 text-center transition" data-tid="classic" onclick="selectStoreTemplate('classic')">
+                                            <div class="text-2xl mb-1">🛍️</div>
+                                            <div class="text-xs font-bold text-slate-700">קלאסי</div>
+                                            <div class="text-[10px] text-slate-400">כל סוגי העסקים</div>
+                                        </div>
+                                        <div class="template-card cursor-pointer rounded-xl border-2 border-slate-200 bg-white p-3 text-center transition" data-tid="restaurant" onclick="selectStoreTemplate('restaurant')">
+                                            <div class="text-2xl mb-1">🍕</div>
+                                            <div class="text-xs font-bold text-slate-700">מסעדה</div>
+                                            <div class="text-[10px] text-slate-400">מזון ומשלוחים</div>
+                                        </div>
+                                    </div>
+                                    <input type="hidden" id="store-template-id" value="classic">
+                                </div>
+
+                                <!-- צבע מבטא -->
+                                <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                                    <label class="text-xs font-bold text-slate-700 block mb-1.5"><i class="fa-solid fa-droplet text-pink-500"></i> צבע מבטא לחנות:</label>
+                                    <div class="flex items-center gap-3">
+                                        <input type="color" id="store-accent-color" value="#e63946" class="w-10 h-10 rounded-lg border border-slate-200 cursor-pointer p-0.5">
+                                        <input type="text" id="store-accent-color-text" value="#e63946" maxlength="7" class="modern-input py-2 text-sm bg-white flex-1 font-mono" placeholder="#e63946" oninput="document.getElementById('store-accent-color').value=this.value">
+                                    </div>
+                                    <p class="text-[10px] text-slate-400 mt-1.5">צבע הכפתורים והדגשים בתבנית מסעדה.</p>
+                                </div>
+
+                                <!-- הגדרות משלוח -->
+                                <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                                    <label class="text-xs font-bold text-slate-700 block mb-2"><i class="fa-solid fa-truck text-emerald-500"></i> הגדרות משלוח ואיסוף</label>
+                                    <div class="grid grid-cols-2 gap-3 mb-3">
+                                        <div>
+                                            <label class="text-[10px] text-slate-500 block mb-1">זמן משלוח (דקות)</label>
+                                            <input type="number" id="store-delivery-eta" min="1" max="180" value="35" class="modern-input py-2 text-sm bg-white w-full">
+                                        </div>
+                                        <div>
+                                            <label class="text-[10px] text-slate-500 block mb-1">זמן איסוף (דקות)</label>
+                                            <input type="number" id="store-pickup-eta" min="1" max="120" value="15" class="modern-input py-2 text-sm bg-white w-full">
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label class="text-[10px] text-slate-500 block mb-1">משלוח חינם מעל (₪) — 0 = לא מוצג</label>
+                                        <input type="number" id="store-free-delivery-above" min="0" value="0" class="modern-input py-2 text-sm bg-white w-full">
+                                    </div>
+                                </div>
+
+                                <!-- קישורי אפליקציה -->
+                                <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                                    <label class="text-xs font-bold text-slate-700 block mb-2"><i class="fa-solid fa-mobile-screen text-blue-500"></i> קישורי הורדת אפליקציה (אופציונלי)</label>
+                                    <div class="space-y-2">
+                                        <input type="url" id="store-app-store-url" class="modern-input py-2 text-sm bg-white w-full" placeholder="App Store URL" dir="ltr">
+                                        <input type="url" id="store-play-store-url" class="modern-input py-2 text-sm bg-white w-full" placeholder="Google Play URL" dir="ltr">
+                                    </div>
+                                    <p class="text-[10px] text-slate-400 mt-1.5">יוצגו כפתורי הורדה בתחתית החנות בתבנית מסעדה.</p>
+                                </div>
+
                                 <button id="btn-save-store-settings" onclick="saveStoreSettings()" class="w-full bg-slate-800 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-slate-700 transition mt-4">שמור הגדרות חנות</button>
 
                                 <!-- Kiosk password setting -->
