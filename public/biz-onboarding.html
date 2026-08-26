@@ -76,10 +76,74 @@
       border-radius:28px;
       box-shadow:0 24px 60px rgba(20,10,60,0.16);
       width:640px; max-width:92vw;
-      margin:100px 0 48px;
+      margin:24px 0 48px;
       padding:40px;
       box-sizing:border-box;
       animation:fadeUp 0.4s ease;
+    }
+    /* When progress bar is shown it has margin-bottom:-70px which pulls card up */
+
+    /* ── Section title/subtitle (centered) ── */
+    .wiz-sec-title {
+      font-size: 22px; font-weight: 800; color: #1a1a2e;
+      margin: 0 0 6px; text-align: center;
+    }
+    .wiz-sec-sub {
+      font-size: 14px; color: #9a9db0;
+      margin: 0 0 2px; text-align: center;
+    }
+    /* ── Back button ── */
+    .wiz-back {
+      border: none; background: none; color: #9a9db0;
+      font-family: 'Heebo', sans-serif;
+      font-size: 13px; font-weight: 600; cursor: pointer;
+      padding: 0 0 18px; display: block;
+    }
+    .wiz-back:hover { color: #6c5ce7; }
+
+    /* ── Option cards (setup-path style) ── */
+    .wiz-option-card {
+      display: flex; align-items: center; gap: 14px;
+      padding: 18px; border-radius: 16px;
+      border: 2px solid #e8eaf0; background: #fff;
+      font-family: inherit; cursor: pointer; text-align: right; width: 100%;
+      transition: border-color 0.18s, background 0.18s;
+    }
+    .wiz-option-card:hover { border-color: #6c5ce7; }
+    .wiz-option-card.selected { border-color: #6c5ce7; background: #f4f1ff; }
+    .wiz-opt-icon {
+      width: 44px; height: 44px; flex-shrink: 0;
+      border-radius: 12px; background: #f5f5fa;
+      display: flex; align-items: center; justify-content: center; font-size: 20px;
+    }
+    .wiz-opt-title { font-size: 15px; font-weight: 700; color: #24243a; margin-bottom: 3px; }
+    .wiz-opt-desc  { font-size: 13px; color: #9a9db0; }
+
+    /* ── Manage items (checkbox style) ── */
+    .wiz-manage-item {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 12px; padding: 16px 18px; border-radius: 16px;
+      border: 2px solid #e8eaf0; background: #fff;
+      font-family: inherit; cursor: pointer; width: 100%;
+      transition: border-color 0.18s, background 0.18s;
+    }
+    .wiz-manage-item:hover { border-color: #6c5ce7; }
+    .wiz-manage-item.selected { border-color: #6c5ce7; background: #f4f1ff; }
+    .wiz-manage-left { display: flex; align-items: center; gap: 12px; }
+    .wiz-manage-icon {
+      width: 38px; height: 38px; border-radius: 10px; background: #f5f5fa;
+      display: flex; align-items: center; justify-content: center; font-size: 18px;
+      flex-shrink: 0;
+    }
+    .wiz-manage-label { font-size: 14.5px; font-weight: 700; color: #24243a; }
+    .wiz-check-box {
+      width: 22px; height: 22px; border-radius: 7px;
+      border: 2px solid #d0d3e0; background: #fff;
+      display: flex; align-items: center; justify-content: center;
+      color: #fff; font-size: 13px; flex-shrink: 0; transition: all 0.18s;
+    }
+    .wiz-manage-item.selected .wiz-check-box {
+      background: #6c5ce7; border-color: #6c5ce7;
     }
 
     /* ── Last step badge ── */
@@ -537,9 +601,11 @@
 
     <!-- ══ SECTION: OTP verification ══ -->
     <div id="sec-otp" class="section">
-      <button class="back-link" onclick="goBack()">&#8592; חזרה</button>
-      <div class="otp-title">הזינו את קוד האימות</div>
-      <div class="otp-sub" id="otp-sub-text">קוד בן 6 ספרות נשלח למספר שלך</div>
+      <button class="wiz-back" onclick="goBack()">חזרה ←</button>
+      <div style="text-align:center; margin-bottom:4px;">
+        <h1 class="wiz-sec-title">הזינו את קוד האימות</h1>
+        <p class="wiz-sec-sub" id="otp-sub-text">קוד בן 6 ספרות נשלח למספר שלך</p>
+      </div>
       <div id="msg-otp" class="msg"></div>
       <div class="otp-boxes">
         <input class="otp-box" id="otp-0" type="text" inputmode="numeric" maxlength="1">
@@ -558,18 +624,20 @@
 
     <!-- ══ SECTION: welcome ══ -->
     <div id="sec-welcome" class="section">
-      <div class="welcome-icon">🎉</div>
-      <div class="welcome-title" id="welcome-title">ברוך הבא לOneflow!</div>
-      <div class="welcome-sub">החשבון שלך נוצר בהצלחה.<br>עכשיו נגדיר יחד את העסק שלך — 4 שאלות קצרות.</div>
-      <button class="btn-primary" onclick="showSection('sec-biz-type')">בואו נתחיל ←</button>
+      <div style="text-align:center; margin-bottom:4px;">
+        <div style="font-size:40px; margin-bottom:12px;">🎉</div>
+        <h1 class="wiz-sec-title" id="welcome-title">ברוך הבא לOneflow!</h1>
+        <p class="wiz-sec-sub">החשבון שלך נוצר בהצלחה.<br>עכשיו נגדיר יחד את העסק שלך — 4 שאלות קצרות.</p>
+      </div>
+      <button class="btn-primary" style="margin-top:28px;" onclick="showSection('sec-biz-type')"><span>בואו נתחיל</span><span>←</span></button>
     </div>
 
     <!-- ══ SECTION: wizard 1 — סוג עסק ══ -->
     <div id="sec-biz-type" class="section">
       <div class="wiz-progress"></div>
       <div style="text-align:center; margin-bottom:4px;">
-        <div class="otp-title">מה סוג העסק שלך?</div>
-        <div class="otp-sub">נתאים את המערכת בדיוק לצרכים שלך</div>
+        <h1 class="wiz-sec-title">מה סוג העסק שלך?</h1>
+        <p class="wiz-sec-sub">נתאים את המערכת בדיוק לצרכים שלך</p>
       </div>
       <div id="msg-biz-type" class="msg"></div>
       <div id="biz-type-grid">
@@ -603,93 +671,65 @@
 
     <!-- ══ SECTION: wizard 1b — מסלול הקמה ══ -->
     <div id="sec-setup-path" class="section">
-      <div class="wiz-progress">
-        <div class="wiz-dot active"></div>
-        <div class="wiz-dot"></div>
-        <div class="wiz-dot"></div>
-        <div class="wiz-dot"></div>
+      <div class="wiz-progress"></div>
+      <button class="wiz-back" onclick="showSection('sec-biz-type')">חזרה ←</button>
+      <div style="text-align:center; margin-bottom:4px;">
+        <h1 class="wiz-sec-title">איך תרצה להתחיל?</h1>
+        <p class="wiz-sec-sub">תוכל תמיד להרחיב שירותים מאוחר יותר</p>
       </div>
-      <button class="back-link" onclick="showSection('sec-biz-type')">&#8592; חזרה</button>
-      <div class="otp-title">איך תרצה להמשיך?</div>
-      <div class="otp-sub">תוכל תמיד להרחיב שירותים מאוחר יותר</div>
-      <div style="display:flex; flex-direction:column; gap:12px; margin-top:8px;">
-        <div class="choice-card" onclick="goToManage()">
-          <span style="font-size:24px;">🚀</span>
-          <div>
-            <div style="font-weight:700;font-size:15px;color:#1B2440;">הקמה מלאה</div>
-            <div style="font-size:12px;color:#718096;margin-top:2px;">אשף מלא — ניהול, צוות, חנות וכל השירותים</div>
-          </div>
-          <span class="choice-check">✓</span>
-        </div>
-        <div class="choice-card" onclick="goToStoreOnly()">
-          <span style="font-size:24px;">🛍️</span>
-          <div>
-            <div style="font-weight:700;font-size:15px;color:#1B2440;">חנות בלבד בשלב זה</div>
-            <div style="font-size:12px;color:#718096;margin-top:2px;">הקמת חנות מהירה — אפשר להרחיב בהמשך</div>
-          </div>
-          <span class="choice-check">✓</span>
-        </div>
+      <div style="display:flex; flex-direction:column; gap:14px; margin-top:24px;">
+        <button class="wiz-option-card" onclick="goToManage()">
+          <span class="wiz-opt-icon">🚀</span>
+          <span><div class="wiz-opt-title">הקמה מלאה</div><div class="wiz-opt-desc">אשף מלא — ניהול, צוות, חנות וכל השירותים</div></span>
+        </button>
+        <button class="wiz-option-card" onclick="goToStoreOnly()">
+          <span class="wiz-opt-icon">🛍️</span>
+          <span><div class="wiz-opt-title">חנות בלבד בשלב זה</div><div class="wiz-opt-desc">הקמת חנות מהירה — אפשר להרחיב בהמשך</div></span>
+        </button>
       </div>
     </div>
 
     <!-- ══ SECTION: wizard 1c — חנות בלבד ══ -->
     <div id="sec-store-only-path" class="section">
-      <div class="wiz-progress">
-        <div class="wiz-dot active"></div>
-        <div class="wiz-dot"></div>
-        <div class="wiz-dot"></div>
-        <div class="wiz-dot"></div>
+      <div class="wiz-progress"></div>
+      <button class="wiz-back" onclick="showSection('sec-setup-path')">חזרה ←</button>
+      <div style="text-align:center; margin-bottom:4px;">
+        <h1 class="wiz-sec-title">חנות בלבד</h1>
+        <p class="wiz-sec-sub">בחר כיצד תרצה להמשיך</p>
       </div>
-      <button class="back-link" onclick="showSection('sec-setup-path')">&#8592; חזרה</button>
-      <div class="otp-title">חנות בלבד</div>
-      <div class="otp-sub">בחר כיצד תרצה להמשיך</div>
-      <div style="display:flex; flex-direction:column; gap:12px; margin-top:8px;">
-        <div class="choice-card" onclick="submitStoreOnlyNow()">
-          <span style="font-size:24px;">⚡</span>
-          <div>
-            <div style="font-weight:700;font-size:15px;color:#1B2440;">בנה את החנות עכשיו</div>
-            <div style="font-size:12px;color:#718096;margin-top:2px;">אשף מהיר — שם, לוגו ומוצרים ראשונים</div>
-          </div>
-          <span class="choice-check">✓</span>
-        </div>
-        <div class="choice-card" onclick="submitStoreOnlyLater()">
-          <span style="font-size:24px;">⏩</span>
-          <div>
-            <div style="font-weight:700;font-size:15px;color:#1B2440;">דלג — אגדיר מאוחר יותר</div>
-            <div style="font-size:12px;color:#718096;margin-top:2px;">כניסה ישירה לממשק בלי האשף</div>
-          </div>
-          <span class="choice-check">✓</span>
-        </div>
+      <div style="display:flex; flex-direction:column; gap:14px; margin-top:24px;">
+        <button class="wiz-option-card" onclick="submitStoreOnlyNow()">
+          <span class="wiz-opt-icon">⚡</span>
+          <span><div class="wiz-opt-title">בנה את החנות עכשיו</div><div class="wiz-opt-desc">אשף מהיר — שם, לוגו ומוצרים ראשונים</div></span>
+        </button>
+        <button class="wiz-option-card" onclick="submitStoreOnlyLater()">
+          <span class="wiz-opt-icon">⏩</span>
+          <span><div class="wiz-opt-title">דלג — אגדיר מאוחר יותר</div><div class="wiz-opt-desc">כניסה ישירה לממשק בלי האשף</div></span>
+        </button>
       </div>
     </div>
 
     <!-- ══ SECTION: wizard 2 — מה לנהל ══ -->
     <div id="sec-manage" class="section">
-      <div class="wiz-progress">
-        <div class="wiz-dot"></div>
-        <div class="wiz-dot active"></div>
-        <div class="wiz-dot"></div>
-        <div class="wiz-dot"></div>
+      <div class="wiz-progress"></div>
+      <button class="wiz-back" onclick="showSection('sec-biz-type')">חזרה ←</button>
+      <div style="text-align:center; margin-bottom:4px;">
+        <h1 class="wiz-sec-title">מה תרצה לנהל?</h1>
+        <p class="wiz-sec-sub">ניתן לבחור יותר מאפשרות אחת</p>
       </div>
-      <button class="back-link" onclick="showSection('sec-biz-type')">&#8592; חזרה</button>
-      <div class="otp-title">מה תרצה לנהל?</div>
-      <div class="otp-sub">ניתן לבחור יותר מאפשרות אחת</div>
       <div id="msg-manage" class="msg"></div>
-      <div id="manage-list" style="display:flex; flex-direction:column; gap:10px; margin-top:4px;"></div>
-      <button class="btn-primary" style="margin-top:20px;" onclick="goToPaidModules()">המשך ←</button>
+      <div id="manage-list" style="display:flex; flex-direction:column; gap:12px; margin-top:24px;"></div>
+      <button class="btn-primary" style="margin-top:30px;" onclick="goToPaidModules()"><span>המשך לשלב הבא</span><span>←</span></button>
     </div>
 
     <!-- ══ SECTION: wizard 2b — מודולים בתשלום ══ -->
     <div id="sec-paid-modules" class="section">
-      <div class="wiz-progress">
-        <div class="wiz-dot"></div>
-        <div class="wiz-dot active"></div>
-        <div class="wiz-dot"></div>
-        <div class="wiz-dot"></div>
+      <div class="wiz-progress"></div>
+      <button class="wiz-back" onclick="showSection('sec-manage')">חזרה ←</button>
+      <div style="text-align:center; margin-bottom:4px;">
+        <h1 class="wiz-sec-title">שדרוגים אופציונליים</h1>
+        <p class="wiz-sec-sub">בחר חבילות להרחבת המערכת — ניתן לשנות בכל עת</p>
       </div>
-      <button class="back-link" onclick="showSection('sec-manage')">&#8592; חזרה</button>
-      <div class="otp-title">שדרוגים אופציונליים</div>
-      <div class="otp-sub">בחר חבילות להרחבת המערכת — ניתן לשנות בכל עת</div>
       <div id="msg-paid-modules" class="msg"></div>
       <div id="paid-modules-list" style="display:flex; flex-direction:column; gap:12px; margin-top:4px;"></div>
 
@@ -708,15 +748,12 @@
 
     <!-- ══ SECTION: wizard 3 — צוות ══ -->
     <div id="sec-staff" class="section">
-      <div class="wiz-progress">
-        <div class="wiz-dot"></div>
-        <div class="wiz-dot"></div>
-        <div class="wiz-dot active"></div>
-        <div class="wiz-dot"></div>
+      <div class="wiz-progress"></div>
+      <button class="wiz-back" onclick="showSection('sec-manage')">חזרה ←</button>
+      <div style="text-align:center; margin-bottom:4px;">
+        <h1 class="wiz-sec-title">מי עובד אצלך?</h1>
+        <p class="wiz-sec-sub">סמן תפקידים וציין כמה עובדים בכל תפקיד (אפשר לדלג)</p>
       </div>
-      <button class="back-link" onclick="showSection('sec-manage')">&#8592; חזרה</button>
-      <div class="otp-title">מי עובד אצלך?</div>
-      <div class="otp-sub">סמן תפקידים וציין כמה עובדים בכל תפקיד (אפשר לדלג)</div>
       <div id="msg-staff" class="msg"></div>
       <div id="staff-list" style="margin-top:4px;"></div>
       <button class="btn-primary" style="margin-top:20px;" onclick="goToStoreOrFinish()">המשך ←</button>
@@ -724,33 +761,22 @@
 
     <!-- ══ SECTION: wizard 4 — חנות מקוונת ══ -->
     <div id="sec-store" class="section">
-      <div class="wiz-progress">
-        <div class="wiz-dot"></div>
-        <div class="wiz-dot"></div>
-        <div class="wiz-dot"></div>
-        <div class="wiz-dot active"></div>
+      <div class="wiz-progress"></div>
+      <button class="wiz-back" onclick="showSection('sec-staff')">חזרה ←</button>
+      <div style="text-align:center; margin-bottom:4px;">
+        <h1 class="wiz-sec-title">רוצה להפעיל חנות מקוונת?</h1>
+        <p class="wiz-sec-sub">לקוחות יוכלו לראות את המוצרים שלך ולהזמין ישירות</p>
       </div>
-      <button class="back-link" onclick="showSection('sec-staff')">&#8592; חזרה</button>
-      <div class="otp-title">רוצה להפעיל חנות מקוונת?</div>
-      <div class="otp-sub">לקוחות יוכלו לראות את המוצרים שלך ולהזמין ישירות</div>
       <div id="msg-store" class="msg"></div>
-      <div style="display:flex; flex-direction:column; gap:12px; margin-top:8px;">
-        <div class="choice-card" onclick="setStore(true)">
-          <span style="font-size:24px;">🛍️</span>
-          <div>
-            <div style="font-weight:700;font-size:15px;color:#1B2440;">כן, הפעל עכשיו</div>
-            <div style="font-size:12px;color:#718096;margin-top:2px;">נפתח לך חנות מוכנה לפעולה</div>
-          </div>
-          <span class="choice-check">✓</span>
-        </div>
-        <div class="choice-card" onclick="setStore(false)">
-          <span style="font-size:24px;">⏸️</span>
-          <div>
-            <div style="font-weight:700;font-size:15px;color:#1B2440;">לא כרגע</div>
-            <div style="font-size:12px;color:#718096;margin-top:2px;">אפשר להפעיל מאוחר יותר מהגדרות</div>
-          </div>
-          <span class="choice-check">✓</span>
-        </div>
+      <div style="display:flex; flex-direction:column; gap:14px; margin-top:24px;">
+        <button class="wiz-option-card" onclick="setStore(true)">
+          <span class="wiz-opt-icon">🛍️</span>
+          <span><div class="wiz-opt-title">כן, הפעל עכשיו</div><div class="wiz-opt-desc">נפתח לך חנות מוכנה לפעולה</div></span>
+        </button>
+        <button class="wiz-option-card" onclick="setStore(false)">
+          <span class="wiz-opt-icon">⏸️</span>
+          <span><div class="wiz-opt-title">לא כרגע</div><div class="wiz-opt-desc">אפשר להפעיל מאוחר יותר מהגדרות</div></span>
+        </button>
       </div>
     </div>
 
@@ -759,8 +785,10 @@
       <div style="text-align:center; margin-bottom:20px;">
         <span class="last-step-badge">שלב אחרון ✓</span>
       </div>
-      <div class="otp-title">עוד רגע וסיימנו</div>
-      <div class="otp-sub">פרטי החשבון הנדרשים להשלמת ההרשמה</div>
+      <div style="text-align:center; margin-bottom:4px;">
+        <h1 class="wiz-sec-title">עוד רגע וסיימנו</h1>
+        <p class="wiz-sec-sub">פרטי החשבון הנדרשים להשלמת ההרשמה</p>
+      </div>
       <div id="msg-account" class="msg"></div>
 
       <div class="field-group">
@@ -852,8 +880,10 @@
       <div style="text-align:center; margin-bottom:20px;">
         <span class="last-step-badge">שלב אחרון ✓</span>
       </div>
-      <div class="otp-title">המערכת שלך מוכנה! 🎉</div>
-      <div class="otp-sub">הנה כמה דברים שכדאי לדעת כדי להתחיל</div>
+      <div style="text-align:center; margin-bottom:4px;">
+        <h1 class="wiz-sec-title">המערכת שלך מוכנה! 🎉</h1>
+        <p class="wiz-sec-sub">הנה כמה דברים שכדאי לדעת כדי להתחיל</p>
+      </div>
 
       <div id="summary-cards" style="display:flex; flex-direction:column; gap:10px; margin-bottom:16px;"></div>
 
@@ -866,8 +896,8 @@
     <div id="sec-finishing" class="section">
       <div style="text-align:center; padding: 24px 0 8px;">
         <div id="finishing-spinner" style="font-size:36px;">⏳</div>
-        <div class="otp-title" style="margin-top:12px;">שומר את ההגדרות שלך...</div>
-        <div class="otp-sub">רק רגע</div>
+        <h1 class="wiz-sec-title" style="margin-top:12px;">שומר את ההגדרות שלך...</h1>
+        <p class="wiz-sec-sub">רק רגע</p>
       </div>
       <div id="msg-finishing" class="msg"></div>
       <button id="btn-finishing-retry" class="btn-primary" style="display:none; margin-top:16px;" onclick="completeWizard()">נסה שוב</button>
@@ -938,8 +968,8 @@
       if (label) btn.textContent = loading ? '...' : label;
     }
     const WIZ_HERO_MAP = {
-      'sec-tabs':           { title: 'ברוכים הבאים ל-Oneflow Life', sub: 'פלטפורמת ניהול העסק שלך', step: null },
-      'sec-otp':            { title: 'אימות מספר טלפון', sub: 'הכניסו את הקוד שנשלח אליכם', step: null },
+      'sec-tabs':           { title: 'ברוכים הבאים ל-Oneflow Life', sub: 'פלטפורמת ניהול עסק חכמה', step: null, alwaysShowHero: true },
+      'sec-otp':            { title: 'אימות מספר טלפון', sub: 'הכניסו את הקוד שנשלח אליכם', step: null, alwaysShowHero: true },
       'sec-welcome':        { title: 'בואו נתחיל!', sub: 'כמה צעדים קלים ואתם באוויר', step: null },
       'sec-biz-type':       { title: 'בואו נכיר את העסק שלך', sub: 'שלב 1 מתוך 4 · תוך פחות מ-2 דקות', step: 0 },
       'sec-setup-path':     { title: 'בואו נכיר את העסק שלך', sub: 'שלב 1 מתוך 4 · בחרו מסלול הקמה', step: 0 },
@@ -963,18 +993,14 @@
 
       const segBar = document.getElementById('wiz-seg-bar');
       const hero = document.getElementById('wiz-hero');
+      hero.style.display = (h.title || h.alwaysShowHero) ? 'block' : 'none';
       if (h.step !== null) {
         segBar.style.display = 'flex';
-        hero.style.display = 'block';
         for (let i = 0; i < 4; i++) {
           document.getElementById('seg-' + i).classList.toggle('active', i <= h.step);
         }
-      } else if (id === 'sec-tabs' || id === 'sec-otp') {
-        segBar.style.display = 'none';
-        hero.style.display = 'none';
       } else {
         segBar.style.display = 'none';
-        hero.style.display = 'block';
       }
     }
     function normalizePhone(p) {
@@ -1250,14 +1276,18 @@
     // wizard 2 — מה לנהל (בחירה כללית, ללא מחירים)
     function renderManageOptions() {
       const container = document.getElementById('manage-list');
-      container.innerHTML = MANAGE_OPTIONS.map(o => `
-        <div class="choice-card ${_state.selectedManageKeys.includes(o.key) ? 'selected' : ''}"
+      container.innerHTML = MANAGE_OPTIONS.map(o => {
+        const sel = _state.selectedManageKeys.includes(o.key);
+        return `
+        <button class="wiz-manage-item ${sel ? 'selected' : ''}"
              data-manage="${o.key}" onclick="toggleManage('${o.key}')">
-          <span style="font-size:24px;">${o.icon}</span>
-          <div style="flex:1;"><div style="font-weight:700;font-size:15px;color:#1B2440;">${o.label}</div></div>
-          <span class="choice-check">✓</span>
-        </div>
-      `).join('');
+          <span class="wiz-manage-left">
+            <span class="wiz-manage-icon">${o.icon}</span>
+            <span class="wiz-manage-label">${o.label}</span>
+          </span>
+          <span class="wiz-check-box">${sel ? '✓' : ''}</span>
+        </button>`;
+      }).join('');
     }
 
     // wizard 2b — מודולים בתשלום (ראשי פרקים בלבד)
@@ -1745,8 +1775,11 @@
       const idx = _state.selectedManageKeys.indexOf(key);
       if (idx === -1) _state.selectedManageKeys.push(key);
       else _state.selectedManageKeys.splice(idx, 1);
-      document.querySelectorAll('#manage-list .choice-card').forEach(c => {
-        c.classList.toggle('selected', _state.selectedManageKeys.includes(c.dataset.manage));
+      document.querySelectorAll('#manage-list .wiz-manage-item').forEach(c => {
+        const sel = _state.selectedManageKeys.includes(c.dataset.manage);
+        c.classList.toggle('selected', sel);
+        const box = c.querySelector('.wiz-check-box');
+        if (box) box.textContent = sel ? '✓' : '';
       });
       hideMsg('msg-manage');
     }
