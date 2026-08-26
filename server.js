@@ -5756,7 +5756,7 @@ app.post('/api/superadmin/verify-otp', async (req, res) => {
 
         const saToken = require('crypto').randomBytes(32).toString('hex');
         await pool.query(
-            "INSERT INTO sa_sessions (token, expires_at) VALUES ($1, NOW() + INTERVAL '8 hours')",
+            "INSERT INTO sa_sessions (token, expires_at) VALUES ($1, NOW() + INTERVAL '30 days')",
             [saToken]
         );
         res.json({
@@ -5791,7 +5791,7 @@ app.post('/api/superadmin/login', async (req, res) => {
                 if (user.status !== 'active') return res.status(403).json({ error: 'החשבון שלך נחסם. פנה למנהל המערכת.' });
                 const saToken = require('crypto').randomBytes(32).toString('hex');
                 await pool.query(
-                    "INSERT INTO sa_sessions (token, expires_at) VALUES ($1, NOW() + INTERVAL '8 hours')",
+                    "INSERT INTO sa_sessions (token, expires_at) VALUES ($1, NOW() + INTERVAL '30 days')",
                     [saToken]
                 );
                 return res.json({
@@ -5817,7 +5817,7 @@ app.post('/api/superadmin/login', async (req, res) => {
         if (codeMatchesMaster && password === currentPass) {
             const saToken = require('crypto').randomBytes(32).toString('hex');
             await pool.query(
-                "INSERT INTO sa_sessions (token, expires_at) VALUES ($1, NOW() + INTERVAL '8 hours')",
+                "INSERT INTO sa_sessions (token, expires_at) VALUES ($1, NOW() + INTERVAL '30 days')",
                 [saToken]
             );
             res.json({

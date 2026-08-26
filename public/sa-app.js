@@ -191,6 +191,7 @@ window.updateSADashboard = async function() {
 window.loadSADashboard = async function() {
     try {
         const r = await fetch(`${API}/sa/dashboard`, { headers: { 'Authorization': saToken } });
+        if (r.status === 403) { logoutSA(); return; }
         const d = await r.json();
         if (!d.success) return;
 
@@ -1409,6 +1410,7 @@ async function updateSACredentials() {
 async function loadSAData() {
     try {
         const res = await fetch(`${API}/superadmin/data`, { headers: { 'Authorization': saToken } });
+        if (res.status === 403) { logoutSA(); return; }
         const data = await res.json();
         if (data.error) return showToast('error', 'שגיאת שרת: ' + data.error);
 
