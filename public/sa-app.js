@@ -2604,8 +2604,10 @@ function initBillingSection(group) {
         grid.innerHTML = nonBundleGroups.flatMap(g => g.modules.filter(m => !m.free)).map(m => {
             const isDefault = defaultMods.includes(m.id);
             const saved = savedMap[m.id];
-            const isOpen    = saved ? saved.open    : isDefault;
-            const isBilling = saved ? saved.billing : isDefault;
+            // אם יש billing_config שמור — מודול שלא בו = סגור ולא מחויב
+            const hasSavedConfig = Array.isArray(savedMods);
+            const isOpen    = saved ? saved.open    : (hasSavedConfig ? false : isDefault);
+            const isBilling = saved ? saved.billing : (hasSavedConfig ? false : isDefault);
             const catalogPrice = priceMap[m.id] || 0;
             const customPrice  = (saved && saved.custom_price != null) ? saved.custom_price : '';
             return `
@@ -13841,7 +13843,7 @@ window.openSABillingModal = async function(groupId, e) {
     if (billing?.bundle_id) {
         const bEntry = Array.isArray(billing.modules) ? billing.modules.find(m => (typeof m === 'string' ? m : m.id) === billing.bundle_id) : null;
         const bGroup = catalog.find(g => g.groupId === billing.bundle_id);
-        bundlePrice = (bEntry && bEntry.custom_price != null ? bEntry.custom_price : null) ?? bGroup?.modules?.[0]?.price ?? 0;
+        bundlePrice = parseFloat((bEntry && bEntry.custom_price != null ? bEntry.custom_price : null) ?? bGroup?.modules?.[0]?.price ?? 0) || 0;
     }
 
     // שורות מודולים — ללא bundle_id (מוצג בהדר)
@@ -13855,7 +13857,7 @@ window.openSABillingModal = async function(groupId, e) {
         const mId = entry.id;
         const isBilling = entry.billing !== false;
         const info = priceMap[mId];
-        const price = isBilling ? (entry.custom_price != null ? entry.custom_price : (info?.price || 0)) : 0;
+        const price = isBilling ? (parseFloat(entry.custom_price != null ? entry.custom_price : (info?.price || 0)) || 0) : 0;
         if (isBilling) calcTotal += price;
         const priceLbl = price > 0 ? `<span class="text-[11px] font-bold text-violet-600">${price} ₪</span>` : `<span class="text-[10px] text-slate-300">כלול</span>`;
         const modName = info?.name || mId;
