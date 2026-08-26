@@ -1225,6 +1225,7 @@
 
     // ── מחירון חי מהשרת ──
     let _liveCatalog = null;
+    let _wizFreeMonths = 0;
 
     let _catalogLoaded = false;
     async function loadPublicPricingCatalog() {
@@ -1272,6 +1273,7 @@
         }
         // באנר הטבה
         const freeMonths = typeof d.free_months === 'number' ? d.free_months : 0;
+        _wizFreeMonths = freeMonths;
         const promoText  = (typeof d.promo_text === 'string' && d.promo_text.trim())
           ? d.promo_text.trim()
           : (freeMonths > 0 ? `הטבת ${freeMonths} חודשים חינם, ללא התחייבות` : '');
@@ -1846,8 +1848,15 @@
       const { total, lines } = calcTotalMonthly();
       if (total > 0 && lines.length > 0) {
         costBox.style.display = 'block';
+        const promoHtml = _wizFreeMonths > 0 ? `
+          <div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:10px;padding:10px 14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-size:13px;color:#15803d;font-weight:600;">🎁 ${_wizFreeMonths} חודשים ראשונים — הטבה</span>
+            <span style="font-weight:800;font-size:15px;color:#15803d;">₪0</span>
+          </div>
+          <div style="font-size:12px;color:#6b7280;margin-bottom:10px;text-align:center;">מחודש ${_wizFreeMonths + 1} ואילך:</div>` : '';
         costBox.innerHTML = `
           <div style="font-weight:700;font-size:13px;color:#5B46E5;margin-bottom:10px;">💳 עלות חבילה כוללת</div>
+          ${promoHtml}
           <div style="display:flex;flex-direction:column;gap:5px;margin-bottom:10px;">
             ${lines.map(l => `
               <div style="display:flex;justify-content:space-between;font-size:13px;color:#1B2440;">
