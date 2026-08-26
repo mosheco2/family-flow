@@ -1962,7 +1962,7 @@ function renderSAGroups() {
             return mods.reduce((s, m) => {
                 const entry = typeof m === 'string' ? { id: m, billing: true, custom_price: 0 } : m;
                 return s + (entry.billing !== false && entry.custom_price > 0 ? parseFloat(entry.custom_price) || 0 : 0);
-            }, 0);
+            }, 0) + (parseFloat(_billingCfg.extra_users_cost) || 0);
         })();
         const monthlyBadge = _badgeTotal > 0
             ? `<span class="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full whitespace-nowrap cursor-pointer hover:bg-emerald-100 transition" title="לחץ לצפייה בתכנית" onclick="openSABillingModal(${g.id},event)">₪${_badgeTotal}/חו׳</span>`
@@ -13870,8 +13870,12 @@ window.openSABillingModal = async function(groupId, e) {
     const discountRow = billing?.discount_value > 0
         ? `<div class="flex justify-between items-center py-2 text-xs text-emerald-700"><span>הנחה (${billing.discount_type === 'pct' ? billing.discount_value + '%' : '₪' + billing.discount_value})</span><span class="font-bold">- ₪${billing.discount_type === 'pct' ? Math.round((bundlePrice + calcTotal) * billing.discount_value / 100) : billing.discount_value}</span></div>` : '';
 
-    // תמיד מחשב מחדש: bundle + מודולים בודדים
-    const monthlyTotal = bundlePrice + calcTotal;
+    const extraUsersRow = extraUsersCost > 0
+        ? `<div class="flex justify-between items-center py-2 text-xs text-violet-700"><span>👥 משתמשים נוספים</span><span class="font-bold">₪${extraUsersCost}</span></div>` : '';
+
+    // תמיד מחשב מחדש: bundle + מודולים בודדים + משתמשים נוספים
+    const extraUsersCost = parseFloat(billing?.extra_users_cost) || 0;
+    const monthlyTotal = bundlePrice + calcTotal + extraUsersCost;
     const trialBadge = group.trial_until ? (() => {
         const d = new Date(group.trial_until); const now = new Date();
         const days = Math.max(0, Math.round((d - now) / 86400000));
@@ -13890,6 +13894,7 @@ window.openSABillingModal = async function(groupId, e) {
             <div class="flex-1 overflow-y-auto modal-scroll p-4">
                 ${trialBadge ? `<div class="mb-3">${trialBadge}</div>` : ''}
                 ${rows || '<p class="text-xs text-slate-400 text-center py-4">תכנית לא הוגדרה</p>'}
+                ${extraUsersRow}
                 ${discountRow}
                 <div class="flex justify-between items-center pt-3 mt-1 border-t border-slate-100">
                     <span class="text-sm font-black text-slate-700">סה"כ לחודש</span>

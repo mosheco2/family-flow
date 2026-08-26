@@ -5643,6 +5643,7 @@ app.patch('/api/biz/wizard/complete', verifyBiz, async (req, res) => {
         const {
             business_type, managed_modules, staff_roles,
             bundle_id, bundle_price, bundle_included_modules, extra_modules,
+            extra_users_cost,
             admin_email, first_name, last_name, city, birth_year,
             terms_accepted,
             street_address, opening_hours, lat, lng
@@ -5731,7 +5732,7 @@ app.patch('/api/biz/wizard/complete', verifyBiz, async (req, res) => {
             const licRows = await pool.query('SELECT feature_key, price_monthly FROM group_licenses WHERE group_id=$1 AND is_active=TRUE', [groupId]);
             const moduleEntries = licRows.rows.map(r => ({ id: r.feature_key, open: true, billing: r.price_monthly > 0, custom_price: r.price_monthly }));
             const wizTotal = licRows.rows.reduce((s, r) => s + (parseFloat(r.price_monthly) || 0), 0);
-            const billingCfg = { bundle_id: bundle_id || null, modules: moduleEntries, monthly_total: wizTotal, updated_at: new Date().toISOString() };
+            const billingCfg = { bundle_id: bundle_id || null, modules: moduleEntries, monthly_total: wizTotal, extra_users_cost: parseFloat(extra_users_cost) || 0, updated_at: new Date().toISOString() };
             await pool.query('UPDATE family_groups SET billing_config=$1 WHERE id=$2', [JSON.stringify(billingCfg), groupId]);
         } catch(bcErr) { console.error('[wizard/complete] billing_config error:', bcErr.message); }
 

@@ -35116,6 +35116,10 @@ const MODULE_DESCRIPTIONS = {
     beauty_subscriptions:   { icon:'🎁', name:'מנויים וחבילות',   desc:'ניהול מנויים ללקוחות, מימוש יתרות וחידוש אוטומטי.' },
     beauty_rfq:             { icon:'📩', name:'בקשות הצעת מחיר',  desc:'ניהול פניות לקוחות להצעות מחיר לטיפולים מיוחדים.' },
     beauty_practitioners:   { icon:'👩‍⚕️', name:'ניהול מטפלות',   desc:'פרופיל מטפלות, לוחות זמנים, התמחויות וביקורות.' },
+    whatsapp_alerts:        { icon:'📱', name:'התראות WhatsApp',   desc:'כללי התראה אוטומטיים לעובדים ולקוחות דרך WhatsApp.' },
+    ai_standard:            { icon:'🤖', name:'AI Standard',        desc:'10 שאילתות AI ליום — ריסט אוטומטי חצות.' },
+    ai_premium:             { icon:'🤖', name:'AI Premium',         desc:'50 שאילתות AI ליום — שימוש יומיומי גבוה.' },
+    ai_enterprise:          { icon:'🤖', name:'AI Enterprise',      desc:'שימוש ללא הגבלה — לצוות גדול וצרכי AI אינטנסיביים.' },
 };
 
 function _addLockToDropBtn(btn, tabId) {
@@ -35269,8 +35273,19 @@ function renderMyPlanSection() {
             </div>
           </div>` : '';
 
-    // תמיד מחשב מחדש: bundle + מודולים בודדים + AI
-    const displayTotal = bundlePrice + calcTotal + aiCost;
+    // שורת עלות משתמשים נוספים
+    const extraUsersCost = parseFloat(billing?.extra_users_cost) || 0;
+    const extraUsersRow = extraUsersCost > 0
+        ? `<div class="flex items-center justify-between py-2.5 border-b border-slate-50">
+            <span class="text-[11px] font-bold text-violet-600">${extraUsersCost} ₪</span>
+            <div class="flex items-center gap-2 text-right">
+                <span class="text-xs font-bold text-slate-700">משתמשים נוספים</span>
+                <span class="text-base">👥</span>
+            </div>
+          </div>` : '';
+
+    // תמיד מחשב מחדש: bundle + מודולים בודדים + AI + משתמשים נוספים
+    const displayTotal = bundlePrice + calcTotal + aiCost + extraUsersCost;
     const totalBadge = displayTotal > 0
         ? `<div class="flex justify-between items-center bg-violet-50 border border-violet-100 rounded-xl px-4 py-3 mt-3">
             <span class="font-black text-violet-700 text-base">${displayTotal} ₪</span>
@@ -35293,6 +35308,7 @@ function renderMyPlanSection() {
             <div class="text-[10px] font-bold text-slate-400 mb-1 text-right">מודולים פעילים</div>
             ${activeRows || '<div class="text-xs text-slate-400 py-2 text-right">אין מודולים פעילים</div>'}
             ${aiRow}
+            ${extraUsersRow}
             ${totalBadge}
         </div>
     </div>`;
@@ -35351,10 +35367,15 @@ function applyBusinessTypeFilter() {
         bundleOpenIds = descPart ? descPart.split(',').map(s => s.trim()).filter(Boolean) : [];
     }
 
-    // individual modules with open:true
+    // individual modules with open:true — עם נרמול מזהים (underscore → hyphen לטאבים)
+    const MODULE_TAB_ALIASES = { 'whatsapp_alerts': 'whatsapp-alerts' };
     const billingModules = Array.isArray(billing?.modules) ? billing.modules : [];
     const individualOpenIds = billingModules
-        .map(m => typeof m === 'string' ? m : (m.open !== false ? m.id : null))
+        .map(m => {
+            const rawId = typeof m === 'string' ? m : (m.open !== false ? m.id : null);
+            if (!rawId) return null;
+            return MODULE_TAB_ALIASES[rawId] || rawId;
+        })
         .filter(Boolean);
 
     const openIds = [...new Set([...bundleOpenIds, ...individualOpenIds])];

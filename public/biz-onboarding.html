@@ -1972,6 +1972,7 @@
             bundle_included_modules: fromManageKeys, // מודולי MANAGE_OPTIONS = גישת בסיס חינמית תמיד
             extra_modules:  fromSubModules, // sub-modules שנבחרו בנפרד → מחיר עצמאי
             staff_roles:    _state.staffRoles,
+            extra_users_cost: getUserExtraCost(),
             admin_email:    _state.accountDetails.email,
             first_name:     _state.accountDetails.first,
             last_name:      _state.accountDetails.last,
