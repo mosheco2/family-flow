@@ -1122,55 +1122,127 @@
       await renderPaidModules();
     }
 
+    // ── מודולי ליבה קבועים ──
+    const CORE_MODULES = [
+      { id: 'core_base',   icon: '🏢', label: 'ליבה',                    desc: 'ניהול עסק, הגדרות, מסמכים ובסיס המערכת',            price: 0 },
+      { id: 'core_users',  icon: '👤', label: 'משתמשים',                 desc: 'הגדרת מספר משתמשים וסוגי תפקידים בעסק',             price: 49,  hasUserPicker: true },
+      { id: 'core_ai',     icon: '🤖', label: 'מנוי AI — עוזר חכם',     desc: 'עוזר חכם מבוסס בינה מלאכותית לניהול ותפעול',       price: 79 },
+      { id: 'core_sales',  icon: '💰', label: 'מכירות ולקוחות',          desc: 'הצעות מחיר, חשבוניות, CRM וניהול לידים',            price: 59 },
+      { id: 'core_team',   icon: '👥', label: 'ניהול צוות',              desc: 'שיבוץ משמרות, שעון נוכחות ומשימות',                 price: 49 },
+      { id: 'core_stock',  icon: '📦', label: 'מלאי ורכש',              desc: 'מעקב מלאי, הזמנות ספקים וניהול רכש',                price: 49 },
+      { id: 'core_finance',icon: '📊', label: 'כספים ודוחות',            desc: 'דוחות הכנסות, הוצאות, רווחיות ותזרים מזומנים',     price: 59 },
+      { id: 'core_comm',   icon: '📣', label: 'תקשורת ושיווק',           desc: 'WhatsApp, דיוורים, קמפיינים וניהול לקוחות',         price: 49 },
+    ];
+
+    // ── חבילות לפי סוג עסק ──
+    const BIZ_PACKAGES = {
+      restaurant:          { icon: '🍽️', label: 'חבילת מסעדה / בית קפה',         desc: 'תפריט דיגיטלי, ניהול שולחנות, הזמנות אונליין, קופה ומשלוחים',   price: 99 },
+      beauty:              { icon: '💅', label: 'חבילת יופי / קוסמטיקה',          desc: 'יומן תורים, תיקי לקוחות, היסטוריית טיפולים ותמונות לפני/אחרי', price: 79 },
+      professional:        { icon: '💼', label: 'חבילת שירותים מקצועיים',         desc: 'ניהול פרויקטים, חוזים, הסכמים ומעקב שעות עבודה',               price: 79 },
+      sport:               { icon: '🏋️', label: 'חבילת ספורט / כושר',            desc: 'ניהול מנויים, קבוצות, שיעורים ולוח אימונים',                    price: 79 },
+      logistics:           { icon: '🚚', label: 'חבילת לוגיסטיקה / הפצה',        desc: 'ניהול משלוחים, נהגים, מסלולים ומעקב חבילות',                   price: 99 },
+      maintenance_repair:  { icon: '🔧', label: 'חבילת תחזוקה ותיקונים',         desc: 'קריאות שירות, טכנאים, אחריות ועלויות חלקים',                   price: 79 },
+      retail:              { icon: '🛍️', label: 'חבילת חנות קמעונאית',           desc: 'קופה, קטלוג מוצרים, מלאי ומועדון לקוחות',                      price: 89 },
+      construction:        { icon: '🏗️', label: 'חבילת בניה / קבלנות',           desc: 'ניהול פרויקטי בנייה, קבלני משנה, חומרים ולוח זמנים',           price: 99 },
+      health:              { icon: '🏥', label: 'חבילת בריאות / קליניקה',         desc: 'תיקים רפואיים, תורים, מרשמים ודוחות קליניים',                   price: 89 },
+      education:           { icon: '📚', label: 'חבילת חינוך / הדרכה',            desc: 'ניהול קורסים, תלמידים, נוכחות ותשלומי שכר לימוד',              price: 79 },
+      events:              { icon: '🎪', label: 'חבילת אירועים / הפקות',          desc: 'ניהול אירועים, לקוחות, ספקים ותקציב הפקה',                     price: 89 },
+      food_production:     { icon: '🏭', label: 'חבילת ייצור מזון',               desc: 'מתכונים, אצוות ייצור, בקרת איכות ועמידה בתקנות',              price: 99 },
+      consulting:          { icon: '📐', label: 'חבילת מקצועי / ייעוץ',           desc: 'מעקב שעות, לקוחות, חוות דעת ומסמכי ייעוץ',                    price: 79 },
+    };
+
+    // ── בחירת מספר משתמשים ──
+    const USER_TIERS = [
+      { id: '1',  label: 'משתמש 1',        desc: 'בעל עסק בלבד',               price: 0  },
+      { id: '3',  label: 'עד 3 משתמשים',   desc: 'בעל עסק + 2 עובדים',         price: 29 },
+      { id: '10', label: 'עד 10 משתמשים',  desc: 'צוות קטן',                   price: 49 },
+      { id: 'un', label: 'ללא הגבלה',       desc: 'לעסקים עם צוות גדול',        price: 99 },
+    ];
+
     async function renderPaidModules() {
       const container = document.getElementById('paid-modules-list');
-      container.innerHTML = '<div style="text-align:center;padding:24px;color:#94a3b8;font-size:13px;">⏳ טוען...</div>';
-
-      const session = JSON.parse(localStorage.getItem('ofl_session') || '{}');
-      const token = session.token;
-      let catalog = [], freeMonths = 0;
-
-      try {
-        if (token) {
-          const res = await fetch(`${API}/biz/pricing-catalog`, { headers: { 'Authorization': `Bearer ${token}` } });
-          if (res.ok) { const d = await res.json(); catalog = d.catalog || []; freeMonths = typeof d.free_months === 'number' ? d.free_months : 0; }
-        }
-      } catch(e) {}
-
-      const freeBadge = freeMonths > 0
-        ? `<span style="font-size:10px;font-weight:700;color:#15803d;background:#dcfce7;border:1px solid #bbf7d0;padding:2px 8px;border-radius:99px;white-space:nowrap;">🎁 ${freeMonths} חודשים חינם</span>`
-        : '';
-
-      if (!catalog.length) {
-        container.innerHTML = '<p style="text-align:center;color:#94a3b8;font-size:13px;padding:16px;">אין שדרוגים זמינים כרגע</p>';
-        return;
-      }
+      const bizType = _state.selectedBizType;
+      const bizPkg = BIZ_PACKAGES[bizType];
 
       let html = '';
-      for (const group of catalog) {
-        const groupId = group.groupId || group.id || group.key || group.name;
-        const groupLabel = group.groupName || group.name || groupId;
-        const selected = _state.selectedModuleIds.includes(groupId);
-        // מחיר הקבוצה — סכום מודולים בתשלום
-        const paidMods = (group.modules || []).filter(m => !m.free && m.price > 0);
-        const groupPrice = group.price || (paidMods.length === 1 ? paidMods[0].price : 0);
-        const priceLabel = groupPrice ? `₪${groupPrice}/חודש` : 'חינם';
-        const moduleNames = (group.modules || []).map(m => m.name || m.id).filter(Boolean).join(' · ');
-        const groupDesc = group.description || group.desc || (group.modules && group.modules[0] ? group.modules[0].desc : '');
-        html += `<div class="choice-card ${selected ? 'selected' : ''}" data-manage="${groupId}" onclick="togglePaidModule('${groupId}')">
-          <div style="flex:1;min-width:0;">
-            <div style="font-weight:700;font-size:15px;color:#1B2440;">${groupLabel}</div>
-            ${groupDesc ? `<div style="font-size:12px;color:#64748b;margin-top:3px;">${groupDesc}</div>` : ''}
-            ${moduleNames ? `<div style="font-size:11px;color:#94a3b8;margin-top:4px;">${moduleNames}</div>` : ''}
-          </div>
-          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0;margin-right:8px;">
-            <span style="font-size:13px;font-weight:700;color:${groupPrice ? '#4f46e5' : '#15803d'};">${priceLabel}</span>
-            ${groupPrice ? freeBadge : ''}
-          </div>
-          <span class="choice-check">✓</span>
-        </div>`;
+
+      // ─ כותרת: מודולי ליבה ─
+      html += `<div style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.08em;margin-bottom:2px;padding-right:2px;">מודולי ליבה</div>`;
+
+      for (const mod of CORE_MODULES) {
+        const sel = _state.selectedModuleIds.includes(mod.id);
+        const priceLabel = mod.price ? `₪${mod.price}/חודש` : '<span style="color:#15803d;font-weight:700;">חינם</span>';
+        const userPickerBtn = mod.hasUserPicker
+          ? `<button onclick="event.stopPropagation();openUserPicker()" style="font-size:11px;color:#4f46e5;background:none;border:none;cursor:pointer;padding:0;text-decoration:underline;">בחר תפקידים →</button>`
+          : '';
+        html += `
+          <div class="choice-card ${mod.price === 0 ? 'selected' : (sel ? 'selected' : '')}"
+               data-manage="${mod.id}"
+               ${mod.price > 0 ? `onclick="togglePaidModule('${mod.id}')"` : 'style="opacity:0.8;cursor:default;"'}>
+            <span style="font-size:20px;flex-shrink:0;">${mod.icon}</span>
+            <div style="flex:1;min-width:0;">
+              <div style="font-weight:700;font-size:14px;color:#1B2440;">${mod.label}${mod.price === 0 ? ' <span style="font-size:10px;color:#15803d;font-weight:600;">✓ כלול תמיד</span>' : ''}</div>
+              <div style="font-size:12px;color:#64748b;margin-top:2px;">${mod.desc}</div>
+              ${userPickerBtn ? `<div style="margin-top:4px;">${userPickerBtn}</div>` : ''}
+            </div>
+            <div style="text-align:left;flex-shrink:0;">${priceLabel}</div>
+            ${mod.price > 0 ? '<span class="choice-check">✓</span>' : ''}
+          </div>`;
       }
+
+      // ─ כותרת: חבילת סוג עסק ─
+      if (bizPkg) {
+        html += `<div style="font-size:11px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.08em;margin-top:16px;margin-bottom:2px;padding-right:2px;">חבילה לפי סוג עסק</div>`;
+        const pkgId = 'biz_pkg';
+        const pkgSel = _state.selectedModuleIds.includes(pkgId);
+        html += `
+          <div class="choice-card ${pkgSel ? 'selected' : ''}" data-manage="${pkgId}" onclick="togglePaidModule('${pkgId}')">
+            <span style="font-size:20px;flex-shrink:0;">${bizPkg.icon}</span>
+            <div style="flex:1;min-width:0;">
+              <div style="font-weight:700;font-size:14px;color:#1B2440;">${bizPkg.label}</div>
+              <div style="font-size:12px;color:#64748b;margin-top:2px;">${bizPkg.desc}</div>
+            </div>
+            <div style="text-align:left;flex-shrink:0;font-weight:700;color:#4f46e5;">₪${bizPkg.price}/חודש</div>
+            <span class="choice-check">✓</span>
+          </div>`;
+      }
+
       container.innerHTML = html;
+    }
+
+    // ── חלונית בחירת משתמשים ──
+    function openUserPicker() {
+      const cur = _state.selectedUserTier || '1';
+      let html = `
+        <div id="user-picker-overlay" onclick="closeUserPicker()" style="position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:1000;display:flex;align-items:center;justify-content:center;">
+          <div onclick="event.stopPropagation()" style="background:#fff;border-radius:18px;padding:24px 20px;width:min(340px,92vw);box-shadow:0 8px 40px rgba(0,0,0,.18);">
+            <div style="font-weight:700;font-size:17px;color:#1B2440;margin-bottom:4px;">כמה משתמשים תצטרך?</div>
+            <div style="font-size:13px;color:#64748b;margin-bottom:16px;">בחר את מספר המשתמשים המתאים לעסקך</div>
+            ${USER_TIERS.map(t => `
+              <div class="choice-card ${cur === t.id ? 'selected' : ''}" data-tier="${t.id}" onclick="selectUserTier('${t.id}')" style="margin-bottom:10px;">
+                <div style="flex:1;">
+                  <div style="font-weight:700;font-size:14px;color:#1B2440;">${t.label}</div>
+                  <div style="font-size:12px;color:#64748b;">${t.desc}</div>
+                </div>
+                <div style="font-weight:700;font-size:13px;color:${t.price ? '#4f46e5' : '#15803d'};">${t.price ? '₪' + t.price + '/חודש' : 'חינם'}</div>
+                <span class="choice-check">✓</span>
+              </div>`).join('')}
+            <button class="btn-primary" style="margin-top:4px;" onclick="closeUserPicker()">אישור</button>
+          </div>
+        </div>`;
+      document.body.insertAdjacentHTML('beforeend', html);
+    }
+
+    function selectUserTier(tierId) {
+      _state.selectedUserTier = tierId;
+      document.querySelectorAll('#user-picker-overlay .choice-card').forEach(c => {
+        c.classList.toggle('selected', c.dataset.tier === tierId);
+      });
+    }
+
+    function closeUserPicker() {
+      const el = document.getElementById('user-picker-overlay');
+      if (el) el.remove();
     }
 
     function togglePaidModule(groupId) {
