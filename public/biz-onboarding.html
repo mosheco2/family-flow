@@ -759,7 +759,9 @@
       <div class="otp-title">המערכת שלך מוכנה! 🎉</div>
       <div class="otp-sub">הנה כמה דברים שכדאי לדעת כדי להתחיל</div>
 
-      <div id="summary-cards" style="display:flex; flex-direction:column; gap:10px; margin-bottom:24px;"></div>
+      <div id="summary-cards" style="display:flex; flex-direction:column; gap:10px; margin-bottom:16px;"></div>
+
+      <div id="summary-cost-box" style="display:none;border:1.5px solid #d8d2f9;border-radius:14px;background:#f8f7ff;padding:14px 16px;margin-bottom:18px;"></div>
 
       <button class="btn-finish" onclick="completeWizard()">בואו נתחיל! ←</button>
     </div>
@@ -802,7 +804,7 @@
       { key: 'sell',      modules: ['pos','sales','shop'],                   icon: '🛍️', label: 'למכור מוצרים ושירותים' },
       { key: 'quotes',    modules: ['sales','cases','leads','calendar'],     icon: '📋', label: 'הצעות מחיר ופרויקטים' },
       { key: 'team',      modules: ['members','shifts','timeclock','tasks'], icon: '👥', label: 'ניהול צוות ולוגיסטיקה' },
-      { key: 'analytics', modules: ['cashflow','budget','reports'],          icon: '📊', label: 'מעקב וניתוח בלבד' },
+      { key: 'analytics', modules: ['cashflow','budget','reports'],          icon: '📊', label: 'מעקב וניתוח נתונים' },
     ];
 
     const BIZ_STAFF_ROLES = {
@@ -1602,6 +1604,85 @@
       showSummary();
     }
 
+    // ── מיפוי שמות עבריים לפי ID מודול ──
+    const MODULE_NAMES_HE = {
+      // sub-modules מכירות
+      sales:          'חנות מקוונת',
+      pos:            'קופה (POS)',
+      customers:      'לקוחות',
+      calendar:       'יומן ותורים',
+      leads:          'פניות נכנסות',
+      cases:          'תיקים ופרויקטים',
+      deliveries:     'שליחויות',
+      reviews:        'דירוגים',
+      menu_templates: 'תפריטים',
+      // sub-modules צוות
+      members:        'עובדים',
+      timeclock:      'שעון נוכחות',
+      shifts:         'משמרות',
+      tasks:          'משימות',
+      academy:        'אקדמיה',
+      // sub-modules מלאי
+      pantry:         'מחסן חומרי גלם',
+      shop:           'חנות ומלאי',
+      equipment:      'ציוד ורכוש',
+      foodcost:       'עלות מנה',
+      // sub-modules כספים
+      cashflow:       'תזרים מזומנים',
+      bank:           'תנועות בנק',
+      budget:         'תקציב',
+      timelog:        'יומן שעות',
+      forecast:       'תחזית הכנסות',
+      reports:        'דוחות',
+      // sub-modules תקשורת
+      surveys:        'סקרים',
+      community:      'קהילה',
+      whatsapp_alerts:'התראות WhatsApp',
+      content:        'תוכן ושיווק',
+      documents:      'מסמכים',
+      // AI
+      ai_premium:     'AI Premium',
+      ai_enterprise:  'AI Enterprise',
+    };
+
+    function calcTotalMonthly() {
+      const bizBundle = BIZ_BUNDLE_MAP[_state.selectedBizType];
+      let total = 0;
+      const lines = [];
+
+      // חבילת עסק
+      if (bizBundle && _state.selectedModuleIds.includes(bizBundle.id)) {
+        total += bizBundle.price;
+        lines.push({ label: bizBundle.label, price: bizBundle.price });
+      }
+
+      // sub-modules
+      for (const mod of CORE_MODULES) {
+        if (!mod.hasSubModules) continue;
+        const sel = mod.subModules.filter(s => _state.selectedSubModules.includes(s.id));
+        sel.forEach(s => {
+          total += s.price;
+          lines.push({ label: MODULE_NAMES_HE[s.id] || s.name, price: s.price });
+        });
+      }
+
+      // AI
+      const aiTier = AI_TIERS.find(t => t.id === (_state.selectedAiTier || 'ai_standard'));
+      if (aiTier && aiTier.price > 0) {
+        total += aiTier.price;
+        lines.push({ label: `AI ${aiTier.label}`, price: aiTier.price });
+      }
+
+      // משתמשים נוספים
+      const userExtra = getUserExtraCost();
+      if (userExtra > 0) {
+        total += userExtra;
+        lines.push({ label: 'עובדים נוספים', price: userExtra });
+      }
+
+      return { total, lines };
+    }
+
     function showSummary() {
       const cards = [];
 
@@ -1640,6 +1721,28 @@
           </div>
         </div>
       `).join('');
+
+      // ── קופסת עלות חבילה כוללת ──
+      const costBox = document.getElementById('summary-cost-box');
+      const { total, lines } = calcTotalMonthly();
+      if (total > 0 && lines.length > 0) {
+        costBox.style.display = 'block';
+        costBox.innerHTML = `
+          <div style="font-weight:700;font-size:13px;color:#5B46E5;margin-bottom:10px;">💳 עלות חבילה כוללת</div>
+          <div style="display:flex;flex-direction:column;gap:5px;margin-bottom:10px;">
+            ${lines.map(l => `
+              <div style="display:flex;justify-content:space-between;font-size:13px;color:#1B2440;">
+                <span>${l.label}</span>
+                <span style="font-weight:600;color:#4f46e5;">₪${l.price}</span>
+              </div>`).join('')}
+          </div>
+          <div style="border-top:1px solid #d8d2f9;padding-top:8px;display:flex;justify-content:space-between;font-weight:700;font-size:15px;color:#1B2440;">
+            <span>סה"כ לחודש</span>
+            <span style="color:#5B46E5;">₪${total}</span>
+          </div>`;
+      } else {
+        costBox.style.display = 'none';
+      }
 
       showSection('sec-summary');
     }
