@@ -1959,19 +1959,16 @@ function renderSAGroups() {
         const monthlyBadge = (_billingCfg && _billingCfg.monthly_total > 0)
             ? `<span class="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full whitespace-nowrap">₪${_billingCfg.monthly_total}/חו׳</span>`
             : '';
-        // badge הטבת חינם — רק לעסקים שבחרו מודולים בוויזארד
+        // badge הטבת חינם — לפי trial_until מה-DB
         let trialBadge = '';
-        if (g.type === 'BUSINESS' && _wizFreeMonths > 0 && g.created_at && g.wizard_modules_selected) {
-            const createdMs = new Date(g.created_at).getTime();
-            const trialMs = _wizFreeMonths * 30 * 24 * 3600 * 1000;
-            const elapsed = Date.now() - createdMs;
-            const daysTotal = Math.round(_wizFreeMonths * 30);
-            const daysLeft = Math.max(0, Math.round((trialMs - elapsed) / 86400000));
-            if (elapsed < trialMs) {
-                const pct = Math.round((elapsed / trialMs) * 100);
-                trialBadge = `<span class="text-[10px] font-bold text-green-700 bg-green-50 border border-green-200 px-2 py-0.5 rounded-full whitespace-nowrap" title="הטבה: ${daysLeft} ימים מתוך ${daysTotal}">🎁 ${daysLeft}/${daysTotal} ימים</span>`;
+        if (g.type === 'BUSINESS' && g.trial_until) {
+            const trialEnd = new Date(g.trial_until);
+            const now = new Date();
+            const daysLeft = Math.max(0, Math.round((trialEnd - now) / 86400000));
+            if (now < trialEnd) {
+                trialBadge = `<span class="text-[10px] font-bold text-green-700 bg-green-50 border border-green-200 px-2 py-0.5 rounded-full whitespace-nowrap cursor-pointer" title="לחץ לניהול ההטבה" onclick="manageTrial(${g.id},event)">🎁 הטבה — ${daysLeft} ימים נותרו</span>`;
             } else {
-                trialBadge = `<span class="text-[10px] font-bold text-slate-500 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-full whitespace-nowrap">✅ הטבה הסתיימה</span>`;
+                trialBadge = `<span class="text-[10px] font-bold text-slate-500 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-full whitespace-nowrap cursor-pointer" title="לחץ לניהול ההטבה" onclick="manageTrial(${g.id},event)">✅ הטבה הסתיימה</span>`;
             }
         }
         const _bizModReqs = (() => { try { return Array.isArray(g.module_requests) ? g.module_requests : JSON.parse(g.module_requests || '[]'); } catch(e) { return []; } })();
@@ -13776,3 +13773,41 @@ async function savePricingCatalog() {
 window.updateModulePrice    = updateModulePrice;
 window.savePricingCatalog   = savePricingCatalog;
 window.renderPricingCatalogView = renderPricingCatalogView;
+
+async function manageTrial(groupId, e) {
+  if (e) e.stopPropagation();
+  const r = await fetch(`/api/sa/groups/${groupId}/trial`, { headers: { Authorization: saToken } });
+  const d = await r.json();
+  const currentEnd = d.trial_until ? new Date(d.trial_until).toISOString().slice(0,10) : '';
+  const action = await new Promise(resolve => {
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;';
+    overlay.innerHTML = `<div dir="rtl" style="background:#fff;border-radius:16px;padding:24px;width:340px;box-shadow:0 8px 40px rgba(0,0,0,.2);">
+      <div style="font-weight:700;font-size:16px;color:#1B2440;margin-bottom:16px;">🎁 ניהול הטבת חינם</div>
+      <div style="font-size:13px;color:#64748b;margin-bottom:12px;">תאריך סיום הטבה:</div>
+      <input type="date" id="trial-date-input" value="${currentEnd}" style="width:100%;padding:10px;border:1.5px solid #d8d2f9;border-radius:10px;font-size:14px;margin-bottom:16px;">
+      <div style="display:flex;gap:8px;flex-direction:column;">
+        <button onclick="this.closest('[style*=position]').dataset.result='save'" style="padding:10px;background:#5B46E5;color:#fff;border:none;border-radius:10px;font-weight:700;cursor:pointer;">שמור תאריך</button>
+        <button onclick="this.closest('[style*=position]').dataset.result='cancel'" style="padding:10px;background:#fee2e2;color:#dc2626;border:none;border-radius:10px;font-weight:700;cursor:pointer;">בטל הטבה (הסר)</button>
+        <button onclick="this.closest('[style*=position]').dataset.result='close'" style="padding:10px;background:#f1f5f9;color:#64748b;border:none;border-radius:10px;cursor:pointer;">סגור</button>
+      </div>
+    </div>`;
+    overlay.querySelectorAll('button').forEach(btn => btn.addEventListener('click', () => {
+      const res = overlay.dataset.result;
+      overlay.remove();
+      resolve(res);
+    }));
+    document.body.appendChild(overlay);
+  });
+  if (action === 'close') return;
+  const newDate = action === 'cancel' ? null : document.getElementById('trial-date-input')?.value || null;
+  if (action === 'save' && !newDate) return;
+  const patchRes = await fetch(`/api/sa/groups/${groupId}/trial`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', Authorization: saToken },
+    body: JSON.stringify({ trial_until: newDate ? new Date(newDate).toISOString() : null })
+  });
+  if (patchRes.ok) { showToast('success', action === 'cancel' ? 'ההטבה בוטלה' : 'תאריך ההטבה עודכן'); loadSAData(); }
+  else showToast('error', 'שגיאה בעדכון');
+}
+window.manageTrial = manageTrial;

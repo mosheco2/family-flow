@@ -1481,10 +1481,32 @@
         </div>`).join('');
       _openModal(`sub-picker-${modId}`, `
         <div style="font-weight:700;font-size:17px;color:#1B2440;margin-bottom:4px;">${mod.icon} ${mod.label}</div>
-        <div style="font-size:13px;color:#64748b;margin-bottom:14px;">${mod.desc}</div>
-        <div id="sub-total-${modId}" style="font-size:13px;color:#4f46e5;font-weight:600;margin-bottom:10px;">${_subTotal(mod)}</div>
+        <div style="font-size:13px;color:#64748b;margin-bottom:10px;">${mod.desc}</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+          <div id="sub-total-${modId}" style="font-size:13px;color:#4f46e5;font-weight:600;">${_subTotal(mod)}</div>
+          <button onclick="selectAllSubs('${modId}')" id="btn-select-all-${modId}" style="font-size:12px;padding:4px 10px;border:1.5px solid #5B46E5;border-radius:8px;background:#f0effe;color:#5B46E5;cursor:pointer;font-weight:700;">${mod.subModules.every(s=>_state.selectedSubModules.includes(s.id))?'בטל הכל':'בחר הכל'}</button>
+        </div>
         ${rows}
         <button class="btn-primary" style="margin-top:12px;" onclick="_closeModal('sub-picker-${modId}');refreshModCard('${modId}')">אישור</button>`);
+    }
+
+    function selectAllSubs(modId) {
+      const mod = CORE_MODULES.find(m => m.id === modId);
+      if (!mod) return;
+      const allSelected = mod.subModules.every(s => _state.selectedSubModules.includes(s.id));
+      if (allSelected) {
+        mod.subModules.forEach(s => {
+          const idx = _state.selectedSubModules.indexOf(s.id);
+          if (idx !== -1) _state.selectedSubModules.splice(idx, 1);
+        });
+      } else {
+        mod.subModules.forEach(s => { if (!_state.selectedSubModules.includes(s.id)) _state.selectedSubModules.push(s.id); });
+      }
+      document.querySelectorAll('[data-sub-opt]').forEach(c => c.classList.toggle('selected', _state.selectedSubModules.includes(c.dataset.subOpt)));
+      const el = document.getElementById(`sub-total-${modId}`);
+      if (el) el.textContent = _subTotal(mod);
+      const btn = document.getElementById(`btn-select-all-${modId}`);
+      if (btn) btn.textContent = mod.subModules.every(s => _state.selectedSubModules.includes(s.id)) ? 'בטל הכל' : 'בחר הכל';
     }
 
     function pickSub(modId, subId) {
@@ -1495,6 +1517,8 @@
       const mod = CORE_MODULES.find(m => m.id === modId);
       const el = document.getElementById(`sub-total-${modId}`);
       if (el && mod) el.textContent = _subTotal(mod);
+      const btn = document.getElementById(`btn-select-all-${modId}`);
+      if (btn && mod) btn.textContent = mod.subModules.every(s => _state.selectedSubModules.includes(s.id)) ? 'בטל הכל' : 'בחר הכל';
     }
 
     function _subTotal(mod) {
