@@ -1957,7 +1957,7 @@ function renderSAGroups() {
 
         const _billingCfg = (() => { try { return typeof g.billing_config === 'string' ? JSON.parse(g.billing_config) : (g.billing_config || null); } catch(e) { return null; } })();
         const monthlyBadge = (_billingCfg && _billingCfg.monthly_total > 0)
-            ? `<span class="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full whitespace-nowrap">₪${_billingCfg.monthly_total}/חו׳</span>`
+            ? `<span class="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full whitespace-nowrap cursor-pointer hover:bg-emerald-100 transition" title="לחץ לצפייה בתכנית" onclick="openSABillingModal(${g.id},event)">₪${_billingCfg.monthly_total}/חו׳</span>`
             : '';
         // badge הטבת חינם — לפי trial_until מה-DB
         let trialBadge = '';
@@ -13811,3 +13811,78 @@ async function manageTrial(groupId, e) {
   else showToast('error', 'שגיאה בעדכון');
 }
 window.manageTrial = manageTrial;
+
+// ===== SA: Quick Billing Plan Modal =====
+window.openSABillingModal = async function(groupId, e) {
+    if (e) e.stopPropagation();
+    const group = saAllGroups.find(g => g.id === groupId);
+    if (!group) return;
+    const billing = (() => { try { return typeof group.billing_config === 'string' ? JSON.parse(group.billing_config) : (group.billing_config || null); } catch(e) { return null; } })();
+    const catalog = _pricingCatalog || PRICING_CATALOG_DEFAULT;
+    const priceMap = {}; catalog.forEach(g => g.modules.forEach(m => { priceMap[m.id] = m; }));
+
+    // מציאת שם החבילה
+    let bundleName = '';
+    if (billing?.bundle_id) {
+        const bGroup = catalog.find(g => g.groupId === billing.bundle_id);
+        bundleName = bGroup?.groupName || billing.bundle_id;
+    }
+
+    // שורות מודולים
+    const normMods = (() => {
+        if (!billing?.modules) return Array.isArray(group.managed_modules) ? group.managed_modules.map(id => ({ id, open: true, billing: true })) : [];
+        return billing.modules.map(m => typeof m === 'string' ? { id: m, open: true, billing: true } : m);
+    })();
+
+    let calcTotal = 0;
+    const rows = normMods.map(entry => {
+        const mId = entry.id;
+        const isBilling = entry.billing !== false;
+        const info = priceMap[mId];
+        const price = isBilling ? (entry.custom_price != null ? entry.custom_price : (info?.price || 0)) : 0;
+        if (isBilling) calcTotal += price;
+        const priceLbl = price > 0 ? `<span class="text-[11px] font-bold text-violet-600">${price} ₪</span>` : `<span class="text-[10px] text-slate-300">כלול</span>`;
+        const modName = info?.name || mId;
+        return `<div class="flex items-center justify-between py-2 border-b border-slate-50 last:border-0">
+            <span class="text-xs font-bold text-slate-700">${modName}</span>
+            ${priceLbl}
+        </div>`;
+    }).join('');
+
+    const discountRow = billing?.discount_value > 0
+        ? `<div class="flex justify-between items-center py-2 text-xs text-emerald-700"><span>הנחה (${billing.discount_type === 'pct' ? billing.discount_value + '%' : '₪' + billing.discount_value})</span><span class="font-bold">- ₪${billing.discount_type === 'pct' ? Math.round(calcTotal * billing.discount_value / 100) : billing.discount_value}</span></div>` : '';
+
+    const monthlyTotal = billing?.monthly_total ?? calcTotal;
+    const trialBadge = group.trial_until ? (() => {
+        const d = new Date(group.trial_until); const now = new Date();
+        const days = Math.max(0, Math.round((d - now) / 86400000));
+        return now < d ? `<span class="text-[10px] font-bold text-green-700 bg-green-50 border border-green-200 px-2 py-0.5 rounded-full">🎁 הטבה — ${days} ימים נותרו</span>` : `<span class="text-[10px] text-slate-500 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-full">✅ הטבה הסתיימה</span>`;
+    })() : '';
+
+    const html = `<div id="sa-billing-view-modal" class="fixed inset-0 bg-black/60 z-[99999] flex items-center justify-center p-4" onclick="if(event.target===this)this.remove()">
+        <div class="bg-white w-full max-w-sm rounded-[2rem] shadow-2xl flex flex-col max-h-[85vh]">
+            <div class="px-5 py-4 border-b border-slate-100 flex justify-between items-center shrink-0">
+                <div>
+                    <h2 class="font-black text-slate-800 text-base">📋 תכנית — ${safeStr(group.name || '')}</h2>
+                    ${bundleName ? `<p class="text-[10px] text-slate-400 mt-0.5">חבילה: ${safeStr(bundleName)}</p>` : ''}
+                </div>
+                <button onclick="document.getElementById('sa-billing-view-modal').remove()" class="text-slate-400 text-xl"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="flex-1 overflow-y-auto modal-scroll p-4">
+                ${trialBadge ? `<div class="mb-3">${trialBadge}</div>` : ''}
+                ${rows || '<p class="text-xs text-slate-400 text-center py-4">תכנית לא הוגדרה</p>'}
+                ${discountRow}
+                <div class="flex justify-between items-center pt-3 mt-1 border-t border-slate-100">
+                    <span class="text-sm font-black text-slate-700">סה"כ לחודש</span>
+                    <span class="text-lg font-black text-violet-700">₪${monthlyTotal}</span>
+                </div>
+            </div>
+            <div class="px-5 py-4 border-t border-slate-100 shrink-0 flex gap-2">
+                <button onclick="document.getElementById('sa-billing-view-modal').remove(); openSAEditGroupModal(${groupId},'${safeStr(group.name||'')}','${safeStr(group.admin_email||'')}')" class="flex-1 bg-indigo-600 text-white py-2.5 rounded-xl text-xs font-bold hover:bg-indigo-700 transition">✏️ ערוך חיוב</button>
+                <button onclick="document.getElementById('sa-billing-view-modal').remove()" class="flex-1 bg-slate-100 text-slate-700 py-2.5 rounded-xl text-xs font-bold hover:bg-slate-200 transition">סגור</button>
+            </div>
+        </div>
+    </div>`;
+    document.getElementById('sa-billing-view-modal')?.remove();
+    document.body.insertAdjacentHTML('beforeend', html);
+};

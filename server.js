@@ -5726,6 +5726,15 @@ app.patch('/api/biz/wizard/complete', verifyBiz, async (req, res) => {
             }
         } catch(licErr) { console.error('[wizard/complete] group_licenses error:', licErr.message); }
 
+        // ── billing_config: שמירת עלות חבילה כפי שחושבה בוויזארד ──
+        try {
+            const licRows = await pool.query('SELECT feature_key, price_monthly FROM group_licenses WHERE group_id=$1 AND is_active=TRUE', [groupId]);
+            const moduleEntries = licRows.rows.map(r => ({ id: r.feature_key, open: true, billing: r.price_monthly > 0, custom_price: r.price_monthly }));
+            const wizTotal = licRows.rows.reduce((s, r) => s + (parseFloat(r.price_monthly) || 0), 0);
+            const billingCfg = { bundle_id: bundle_id || null, modules: moduleEntries, monthly_total: wizTotal, updated_at: new Date().toISOString() };
+            await pool.query('UPDATE family_groups SET billing_config=$1 WHERE id=$2', [JSON.stringify(billingCfg), groupId]);
+        } catch(bcErr) { console.error('[wizard/complete] billing_config error:', bcErr.message); }
+
         // ── trial_until: חודשי ניסיון חינם לפי הגדרת SA ──
         try {
             const fmRow = await pool.query("SELECT value FROM system_settings WHERE key='wizard_free_months'");

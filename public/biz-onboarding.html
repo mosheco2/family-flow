@@ -872,7 +872,7 @@
     function saveSession(d) {
       localStorage.setItem('ofl_session', JSON.stringify({
         user: { id: d.user_id, nickname: d.business_name || _state.phone, role: 'ADMIN' },
-        group: { id: d.group_id, type: 'BUSINESS', wizard_completed: d.wizard_completed },
+        group: { id: d.group_id, type: 'BUSINESS', wizard_completed: d.wizard_completed, name: d.business_name },
         token: d.token
       }));
     }
@@ -1963,6 +1963,8 @@
             managed_modules: managedModules,
             bundle_id:      BIZ_BUNDLE_MAP[_state.selectedBizType]?.id || null,
             bundle_price:   BIZ_BUNDLE_MAP[_state.selectedBizType]?.price || 0,
+            bundle_included_modules: fromManageKeys, // מודולים שכלולים בחבילה — יקבלו מחיר ₪0
+            extra_modules:  fromSubModules, // מודולים שנבחרו בנפרד — יקבלו מחיר עצמאי
             staff_roles:    _state.staffRoles,
             admin_email:    _state.accountDetails.email,
             first_name:     _state.accountDetails.first,
@@ -1979,7 +1981,7 @@
         const d = await res.json();
         if (!res.ok || !d.success) throw new Error(d.error || 'שגיאה בשמירה');
 
-        if (session.group) session.group.wizard_completed = true;
+        if (session.group) { session.group.wizard_completed = true; if (_state.businessName) session.group.name = _state.businessName; }
         if (session.user && _state.accountDetails) {
           session.user.first_name = _state.accountDetails.first;
           session.user.last_name  = _state.accountDetails.last;
