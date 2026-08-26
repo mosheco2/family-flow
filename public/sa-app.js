@@ -13594,6 +13594,7 @@ const COLOR_MAP = {
 };
 
 let _wizFreeMonths = 3;
+let _wizPromoText = '';
 
 async function renderPricingCatalogView() {
   const container = document.getElementById('pricing-groups-container');
@@ -13606,13 +13607,16 @@ async function renderPricingCatalogView() {
       const d = await res.json();
       _pricingCatalog = (d.catalog && d.catalog.length > 0) ? d.catalog : JSON.parse(JSON.stringify(PRICING_CATALOG_DEFAULT));
       _wizFreeMonths = typeof d.free_months === 'number' ? d.free_months : 3;
+      _wizPromoText  = typeof d.promo_text  === 'string'  ? d.promo_text  : '';
     } else {
       _pricingCatalog = JSON.parse(JSON.stringify(PRICING_CATALOG_DEFAULT));
       _wizFreeMonths = 3;
+      _wizPromoText  = '';
     }
   } catch(e) {
     _pricingCatalog = JSON.parse(JSON.stringify(PRICING_CATALOG_DEFAULT));
     _wizFreeMonths = 3;
+    _wizPromoText  = '';
   }
 
   // render free-months control
@@ -13638,6 +13642,18 @@ async function renderPricingCatalogView() {
           <span class="text-sm text-green-700 font-semibold">חודשים ראשונים חינם</span>
         </div>
         <p class="w-full text-[11px] text-green-600 mt-1">כשפעיל — מוצג לעסק בשלב בחירת מודולים בוויזארד ובאזור החבילה בפרופיל</p>
+      </div>
+      <div class="bg-white border border-green-200 rounded-2xl p-4 mb-5">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="text-lg">📢</span>
+          <span class="font-bold text-slate-700 text-sm">טקסט הבאנר בוויזארד</span>
+        </div>
+        <p class="text-[11px] text-slate-400 mb-2">הטקסט שיופיע בתג הצבעוני לאורך כל שלבי הוויזארד. יוצג רק כשהטבת החינם פעילה.</p>
+        <input type="text" id="promo-text-input" value="${_wizPromoText || ''}"
+          placeholder="לדוגמה: הטבת 3 חודשים חינם, ללא התחייבות"
+          maxlength="80"
+          class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:border-indigo-400 focus:outline-none"
+          oninput="_wizPromoText = this.value">
       </div>`;
   }
 
@@ -13729,18 +13745,20 @@ async function savePricingCatalog() {
   const btn = document.getElementById('btn-save-pricing');
   if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> שומר...'; }
 
-  // קרא ערך עדכני מה-UI
+  // קרא ערכים עדכניים מה-UI
   const fmToggle = document.getElementById('free-months-toggle');
   const fmCount  = document.getElementById('free-months-count');
   if (fmToggle && fmCount) {
     _wizFreeMonths = fmToggle.checked ? (parseInt(fmCount.value) || 3) : 0;
   }
+  const ptInput = document.getElementById('promo-text-input');
+  if (ptInput) _wizPromoText = ptInput.value.trim();
 
   try {
     const res = await fetch('/api/sa/pricing-catalog', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
-      body: JSON.stringify({ catalog: _pricingCatalog, free_months: _wizFreeMonths })
+      body: JSON.stringify({ catalog: _pricingCatalog, free_months: _wizFreeMonths, promo_text: _wizPromoText })
     });
     const d = await res.json();
     if (res.ok && d.success) {

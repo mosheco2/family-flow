@@ -385,7 +385,15 @@
 </head>
 <body>
 
-  <div class="logo">Oneflow <span>Life</span></div>
+  <!-- באנר הטבה — מוסתר עד שנטען מהשרת -->
+  <div id="promo-banner" style="display:none;position:fixed;top:0;left:0;right:0;z-index:999;
+    background:linear-gradient(90deg,#4f46e5,#7c3aed);color:#fff;
+    text-align:center;font-size:13px;font-weight:700;padding:8px 16px;
+    letter-spacing:0.01em;box-shadow:0 2px 8px rgba(79,70,229,.3);">
+    <span id="promo-banner-text"></span>
+  </div>
+
+  <div class="logo" id="main-logo" style="margin-top:0;">Oneflow <span>Life</span></div>
 
   <div class="card">
 
@@ -1261,6 +1269,20 @@
         if (usersGroup) {
           const extra = usersGroup.modules.find(m => m.id === 'user_extra');
           if (extra) _userExtraPrice = extra.price;
+        }
+        // באנר הטבה
+        const freeMonths = typeof d.free_months === 'number' ? d.free_months : 0;
+        const promoText  = (typeof d.promo_text === 'string' && d.promo_text.trim())
+          ? d.promo_text.trim()
+          : (freeMonths > 0 ? `הטבת ${freeMonths} חודשים חינם, ללא התחייבות` : '');
+        if (freeMonths > 0 && promoText) {
+          const banner = document.getElementById('promo-banner');
+          const bannerTxt = document.getElementById('promo-banner-text');
+          if (banner && bannerTxt) {
+            bannerTxt.textContent = '🎁 ' + promoText;
+            banner.style.display = 'block';
+            document.getElementById('main-logo').style.marginTop = '36px';
+          }
         }
       } catch(e) { /* fallback to defaults */ }
     }

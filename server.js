@@ -3865,19 +3865,21 @@ app.post('/api/sa/groups/:id/billing', verifySA, async (req, res) => {
 // ── Pricing Catalog ────────────────────────────────────────────────────────
 app.get('/api/sa/pricing-catalog', verifySA, async (req, res) => {
     try {
-        const [r, fm] = await Promise.all([
+        const [r, fm, pt] = await Promise.all([
             pool.query("SELECT value FROM system_settings WHERE key = 'module_pricing_catalog'"),
-            pool.query("SELECT value FROM system_settings WHERE key = 'wizard_free_months'")
+            pool.query("SELECT value FROM system_settings WHERE key = 'wizard_free_months'"),
+            pool.query("SELECT value FROM system_settings WHERE key = 'wizard_promo_text'"),
         ]);
         const catalog = r.rows.length > 0 ? JSON.parse(r.rows[0].value) : [];
         const free_months = fm.rows.length > 0 ? parseInt(fm.rows[0].value) : 3;
-        res.json({ catalog, free_months });
+        const promo_text  = pt.rows.length > 0 ? pt.rows[0].value : '';
+        res.json({ catalog, free_months, promo_text });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 app.post('/api/sa/pricing-catalog', verifySA, async (req, res) => {
     try {
-        const { catalog, free_months } = req.body;
+        const { catalog, free_months, promo_text } = req.body;
         if (!Array.isArray(catalog)) return res.status(400).json({ error: 'catalog must be an array' });
         await pool.query(
             "INSERT INTO system_settings (key, value) VALUES ('module_pricing_catalog', $1) ON CONFLICT (key) DO UPDATE SET value = $1",
@@ -3890,6 +3892,12 @@ app.post('/api/sa/pricing-catalog', verifySA, async (req, res) => {
                 [String(fm)]
             );
         }
+        if (typeof promo_text === 'string') {
+            await pool.query(
+                "INSERT INTO system_settings (key, value) VALUES ('wizard_promo_text', $1) ON CONFLICT (key) DO UPDATE SET value = $1",
+                [promo_text.trim().slice(0, 200)]
+            );
+        }
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -3898,9 +3906,15 @@ app.post('/api/sa/pricing-catalog', verifySA, async (req, res) => {
 // ── Pricing catalog — ציבורי (לוויזארד לפני הרשמה) ──────────────────────────
 app.get('/api/public/pricing-catalog', async (req, res) => {
     try {
-        const r = await pool.query("SELECT value FROM system_settings WHERE key = 'module_pricing_catalog'");
-        const catalog = r.rows.length > 0 ? JSON.parse(r.rows[0].value) : [];
-        res.json({ catalog });
+        const [rc, rfm, rpt] = await Promise.all([
+            pool.query("SELECT value FROM system_settings WHERE key = 'module_pricing_catalog'"),
+            pool.query("SELECT value FROM system_settings WHERE key = 'wizard_free_months'"),
+            pool.query("SELECT value FROM system_settings WHERE key = 'wizard_promo_text'"),
+        ]);
+        const catalog = rc.rows.length > 0 ? JSON.parse(rc.rows[0].value) : [];
+        const free_months = rfm.rows.length > 0 ? parseInt(rfm.rows[0].value) || 0 : 3;
+        const promo_text = rpt.rows.length > 0 ? rpt.rows[0].value : '';
+        res.json({ catalog, free_months, promo_text });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -5662,6 +5676,36 @@ app.patch('/api/biz/wizard/complete', verifyBiz, async (req, res) => {
                 [first_name.trim(), last_name.trim(), yr, userId]
             );
         }
+
+        // ── group_licenses: כתיבת מודולים שנבחרו + מחירים מהקטלוג ──
+        try {
+            const catRow = await pool.query("SELECT value FROM system_settings WHERE key='module_pricing_catalog'");
+            const catalog = catRow.rows.length > 0 ? JSON.parse(catRow.rows[0].value) : [];
+            const priceMap = {};
+            catalog.forEach(g => (g.modules || []).forEach(m => { priceMap[m.id] = m.price || 0; }));
+
+            for (const modId of managed_modules) {
+                await pool.query(
+                    `INSERT INTO group_licenses (group_id, feature_key, is_active, price_monthly)
+                     VALUES ($1, $2, TRUE, $3)
+                     ON CONFLICT (group_id, feature_key) DO UPDATE SET is_active=TRUE, price_monthly=$3`,
+                    [groupId, modId, priceMap[modId] || 0]
+                );
+            }
+        } catch(licErr) { console.error('[wizard/complete] group_licenses error:', licErr.message); }
+
+        // ── trial_until: חודשי ניסיון חינם לפי הגדרת SA ──
+        try {
+            const fmRow = await pool.query("SELECT value FROM system_settings WHERE key='wizard_free_months'");
+            const freeMonths = fmRow.rows.length > 0 ? parseInt(fmRow.rows[0].value) || 0 : 3;
+            if (freeMonths > 0) {
+                try { await pool.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS trial_until TIMESTAMP`); } catch(e) {}
+                await pool.query(
+                    `UPDATE family_groups SET trial_until = NOW() + ($1 || ' months')::INTERVAL WHERE id=$2`,
+                    [freeMonths, groupId]
+                );
+            }
+        } catch(trialErr) { console.error('[wizard/complete] trial_until error:', trialErr.message); }
 
         res.json({ success: true });
 
