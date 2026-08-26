@@ -1811,8 +1811,8 @@
       let total = 0;
       const lines = [];
 
-      // חבילת עסק
-      if (bizBundle && _state.selectedModuleIds.includes(bizBundle.id)) {
+      // חבילת עסק — תמיד כלול אם קיים bundle לסוג העסק
+      if (bizBundle) {
         total += bizBundle.price;
         lines.push({ label: bizBundle.label, price: bizBundle.price });
       }
@@ -1944,9 +1944,14 @@
       const fromSubModules = _state.selectedSubModules || [];
       // AI tier
       const aiMod = _state.selectedAiTier && _state.selectedAiTier !== 'ai_standard' ? [_state.selectedAiTier] : [];
-      // חבילות עסק שנבחרו
-      const fromBundles = _state.selectedModuleIds || [];
-      const managedModules = [...new Set([...fromManageKeys, ...fromSubModules, ...aiMod, ...fromBundles])];
+      // חבילת עסק — תמיד כלול את ה-bundle_id אם קיים לסוג העסק
+      const bizBundleForSend = BIZ_BUNDLE_MAP[_state.selectedBizType];
+      const bundleIdForSend = bizBundleForSend?.id || null;
+      const bundlePriceForSend = bizBundleForSend?.price || 0;
+      const managedModules = [...new Set([
+        ...(bundleIdForSend ? [bundleIdForSend] : []),
+        ...fromManageKeys, ...fromSubModules, ...aiMod
+      ])];
       if (_state.storeEnabled) {
         ['shop', 'pos'].forEach(m => { if (!managedModules.includes(m)) managedModules.push(m); });
       }
@@ -1961,8 +1966,8 @@
           body: JSON.stringify({
             business_type:  _state.selectedBizType,
             managed_modules: managedModules,
-            bundle_id:      BIZ_BUNDLE_MAP[_state.selectedBizType]?.id || null,
-            bundle_price:   BIZ_BUNDLE_MAP[_state.selectedBizType]?.price || 0,
+            bundle_id:      bundleIdForSend,
+            bundle_price:   bundlePriceForSend,
             bundle_included_modules: fromManageKeys, // מודולים שכלולים בחבילה — יקבלו מחיר ₪0
             extra_modules:  fromSubModules, // מודולים שנבחרו בנפרד — יקבלו מחיר עצמאי
             staff_roles:    _state.staffRoles,
