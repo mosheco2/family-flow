@@ -529,11 +529,7 @@
   <!-- ── Header ── -->
   <div class="wiz-header">
     <div class="wiz-brand">
-      <div class="wiz-brand-icon" id="wiz-logo-wrap">
-        <img id="wiz-logo-img" src="" alt="" style="display:none;">
-        <span id="wiz-logo-letter">O</span>
-      </div>
-      <div class="wiz-brand-name">Oneflow <span>Life</span></div>
+      <div class="wiz-brand-name" style="color:#fff; font-size:18px; font-weight:800;">Oneflow <span style="opacity:0.6;font-weight:500;">Life</span></div>
     </div>
     <div class="wiz-promo-badge" id="promo-banner" style="display:none;">
       <span id="promo-banner-text"></span>
@@ -554,7 +550,15 @@
     <span class="wiz-seg" id="seg-3"></span>
   </div>
 
-  <div class="card">
+  <div class="card" style="position:relative;">
+
+    <!-- ── Logo corner ── -->
+    <div id="wiz-logo-wrap" style="position:absolute; top:20px; right:20px; z-index:10;">
+      <div id="wiz-logo-box" style="width:72px; height:72px; border-radius:16px; background:#6c5ce7; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:800; font-size:28px; overflow:hidden;">
+        <img id="wiz-logo-img" src="" alt="" style="display:none; width:100%; height:100%; object-fit:contain;">
+        <span id="wiz-logo-letter">O</span>
+      </div>
+    </div>
 
     <!-- ══ SECTION: tabs (register + login) ══ -->
     <div id="sec-tabs" class="section active">
@@ -2268,19 +2272,15 @@
         if (d.wizard_logo_url) {
           const img = document.getElementById('wiz-logo-img');
           const letter = document.getElementById('wiz-logo-letter');
-          const wrap = document.getElementById('wiz-logo-wrap');
-          if (img && letter && wrap) {
+          const box = document.getElementById('wiz-logo-box');
+          if (img && letter) {
             img.src = d.wizard_logo_url;
             img.style.display = 'block';
-            img.style.width = 'auto';
-            img.style.height = '36px';
-            img.style.maxWidth = '120px';
+            img.style.width = '100%';
+            img.style.height = '100%';
             img.style.objectFit = 'contain';
             letter.style.display = 'none';
-            wrap.style.width = 'auto';
-            wrap.style.background = 'transparent';
-            wrap.style.borderRadius = '0';
-            wrap.style.overflow = 'visible';
+            if (box) box.style.background = 'transparent';
           }
         }
       } catch(e) { /* fallback to default */ }
