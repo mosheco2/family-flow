@@ -3942,6 +3942,21 @@ app.get('/api/sa/app-settings', verifySA, async (req, res) => {
     }
 });
 
+app.post('/api/sa/upload-wizard-logo', verifySA, async (req, res) => {
+    try {
+        const { dataUrl } = req.body;
+        if (!dataUrl || !dataUrl.startsWith('data:image/')) return res.status(400).json({ error: 'invalid image' });
+        const ext = dataUrl.match(/^data:image\/(\w+);/)?.[1] || 'png';
+        const filename = `wizard_logo_${Date.now()}.${ext}`;
+        const dest = path.join(__dirname, 'public', 'uploads', 'logos', filename);
+        fs.mkdirSync(path.dirname(dest), { recursive: true });
+        fs.writeFileSync(dest, Buffer.from(dataUrl.replace(/^data:image\/\w+;base64,/, ''), 'base64'));
+        res.json({ url: `/uploads/logos/${filename}` });
+    } catch(e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
 app.post('/api/sa/app-settings', verifySA, async (req, res) => {
     try {
         const r = await pool.query("SELECT value FROM system_settings WHERE key = 'app_config'");

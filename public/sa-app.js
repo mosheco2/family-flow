@@ -13670,13 +13670,22 @@ async function renderPricingCatalogView() {
       <div class="bg-white border border-indigo-200 rounded-2xl p-4 mb-5">
         <div class="flex items-center gap-2 mb-2">
           <span class="text-lg">🖼️</span>
-          <span class="font-bold text-slate-700 text-sm">לוגו ויזארד — URL תמונה</span>
+          <span class="font-bold text-slate-700 text-sm">לוגו ויזארד</span>
         </div>
-        <p class="text-[11px] text-slate-400 mb-2">כתובת תמונה (URL) שתופיע כלוגו בצד השמאלי של כותרת הוויזארד. השאירו ריק לעיצוב ברירת המחדל.</p>
-        <input type="url" id="wizard-logo-url-input" value="${window._wizLogoUrl || ''}"
-          placeholder="https://example.com/logo.png"
-          class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:border-indigo-400 focus:outline-none"
-          oninput="window._wizLogoUrl = this.value">
+        <p class="text-[11px] text-slate-400 mb-2">העלו קובץ תמונה או הכניסו כתובת URL. השאירו ריק לעיצוב ברירת המחדל.</p>
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">
+          <label style="flex-shrink:0;cursor:pointer;padding:7px 14px;border-radius:8px;border:1.5px solid #e2e8f0;background:#f8fafc;font-size:12px;font-weight:600;color:#475569;display:flex;align-items:center;gap:6px;">
+            <span>📁</span> העלה קובץ
+            <input type="file" accept="image/*" style="display:none;" onchange="uploadWizardLogo(this)">
+          </label>
+          <input type="url" id="wizard-logo-url-input" value="${window._wizLogoUrl || ''}"
+            placeholder="https://example.com/logo.png"
+            style="flex:1;border:1.5px solid #e2e8f0;border-radius:8px;padding:7px 12px;font-size:13px;color:#1e293b;outline:none;"
+            oninput="window._wizLogoUrl = this.value">
+        </div>
+        <div id="wizard-logo-preview" style="display:${window._wizLogoUrl ? 'block' : 'none'};margin-top:6px;">
+          <img src="${window._wizLogoUrl || ''}" alt="לוגו" style="height:48px;border-radius:8px;border:1px solid #e2e8f0;object-fit:contain;background:#f8fafc;padding:4px;">
+        </div>
       </div>`;
   }
 
@@ -13761,6 +13770,34 @@ function updateModulePrice(groupIdx, moduleIdx, value) {
   const price = Math.max(0, parseInt(value) || 0);
   _pricingCatalog[groupIdx].modules[moduleIdx].price = price;
   _updatePricingSummary();
+}
+
+async function uploadWizardLogo(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    const dataUrl = e.target.result;
+    try {
+      const r = await fetch('/api/sa/upload-wizard-logo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+        body: JSON.stringify({ dataUrl })
+      });
+      const d = await r.json();
+      if (d.url) {
+        window._wizLogoUrl = d.url;
+        const urlInput = document.getElementById('wizard-logo-url-input');
+        if (urlInput) urlInput.value = d.url;
+        const preview = document.getElementById('wizard-logo-preview');
+        if (preview) { preview.style.display = 'block'; preview.querySelector('img').src = d.url; }
+        showToast('success', 'הלוגו הועלה בהצלחה');
+      } else {
+        showToast('error', d.error || 'שגיאה בהעלאה');
+      }
+    } catch(e) { showToast('error', 'שגיאה בהעלאה'); }
+  };
+  reader.readAsDataURL(file);
 }
 
 async function savePricingCatalog() {
