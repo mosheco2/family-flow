@@ -583,6 +583,22 @@
       <div class="otp-sub">ניתן לבחור יותר מאפשרות אחת</div>
       <div id="msg-manage" class="msg"></div>
       <div id="manage-list" style="display:flex; flex-direction:column; gap:10px; margin-top:4px;"></div>
+      <button class="btn-primary" style="margin-top:20px;" onclick="goToPaidModules()">המשך ←</button>
+    </div>
+
+    <!-- ══ SECTION: wizard 2b — מודולים בתשלום ══ -->
+    <div id="sec-paid-modules" class="section">
+      <div class="wiz-progress">
+        <div class="wiz-dot"></div>
+        <div class="wiz-dot active"></div>
+        <div class="wiz-dot"></div>
+        <div class="wiz-dot"></div>
+      </div>
+      <button class="back-link" onclick="showSection('sec-manage')">&#8592; חזרה</button>
+      <div class="otp-title">שדרוגים אופציונליים</div>
+      <div class="otp-sub">בחר חבילות להרחבת המערכת — ניתן לשנות בכל עת</div>
+      <div id="msg-paid-modules" class="msg"></div>
+      <div id="paid-modules-list" style="display:flex; flex-direction:column; gap:12px; margin-top:4px;"></div>
       <button class="btn-primary" style="margin-top:20px;" onclick="goToStaff()">המשך ←</button>
     </div>
 
@@ -1062,9 +1078,9 @@
       showSection('sec-setup-path');
     }
 
-    async function goToManage() {
+    function goToManage() {
       showSection('sec-manage');
-      await renderManageOptions();
+      renderManageOptions();
     }
 
     function goToStoreOnly() {
@@ -1087,10 +1103,28 @@
       showSection('sec-account-details');
     }
 
-    // wizard 2 — מה לנהל (מודולים מהקטלוג)
-    async function renderManageOptions() {
+    // wizard 2 — מה לנהל (בחירה כללית, ללא מחירים)
+    function renderManageOptions() {
       const container = document.getElementById('manage-list');
-      container.innerHTML = '<div style="text-align:center;padding:24px;color:#94a3b8;font-size:13px;">⏳ טוען מודולים...</div>';
+      container.innerHTML = MANAGE_OPTIONS.map(o => `
+        <div class="choice-card ${_state.selectedManageKeys.includes(o.key) ? 'selected' : ''}"
+             data-manage="${o.key}" onclick="toggleManage('${o.key}')">
+          <span style="font-size:24px;">${o.icon}</span>
+          <div style="flex:1;"><div style="font-weight:700;font-size:15px;color:#1B2440;">${o.label}</div></div>
+          <span class="choice-check">✓</span>
+        </div>
+      `).join('');
+    }
+
+    // wizard 2b — מודולים בתשלום (ראשי פרקים בלבד)
+    async function goToPaidModules() {
+      showSection('sec-paid-modules');
+      await renderPaidModules();
+    }
+
+    async function renderPaidModules() {
+      const container = document.getElementById('paid-modules-list');
+      container.innerHTML = '<div style="text-align:center;padding:24px;color:#94a3b8;font-size:13px;">⏳ טוען...</div>';
 
       const session = JSON.parse(localStorage.getItem('ofl_session') || '{}');
       const token = session.token;
@@ -1098,14 +1132,8 @@
 
       try {
         if (token) {
-          const res = await fetch(`${API}/biz/pricing-catalog`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-          });
-          if (res.ok) {
-            const d = await res.json();
-            catalog = d.catalog || [];
-            freeMonths = typeof d.free_months === 'number' ? d.free_months : 0;
-          }
+          const res = await fetch(`${API}/biz/pricing-catalog`, { headers: { 'Authorization': `Bearer ${token}` } });
+          if (res.ok) { const d = await res.json(); catalog = d.catalog || []; freeMonths = typeof d.free_months === 'number' ? d.free_months : 0; }
         }
       } catch(e) {}
 
@@ -1114,58 +1142,54 @@
         : '';
 
       if (!catalog.length) {
-        container.innerHTML = MANAGE_OPTIONS.map(o => `
-          <div class="choice-card ${_state.selectedModuleIds.includes(o.key) ? 'selected' : ''}"
-               data-manage="${o.key}" onclick="toggleManage('${o.key}')">
-            <span style="font-size:24px;">${o.icon}</span>
-            <div style="flex:1;"><div style="font-weight:700;font-size:15px;color:#1B2440;">${o.label}</div></div>
-            <span class="choice-check">✓</span>
-          </div>
-        `).join('');
+        container.innerHTML = '<p style="text-align:center;color:#94a3b8;font-size:13px;padding:16px;">אין שדרוגים זמינים כרגע</p>';
         return;
       }
 
       let html = '';
       for (const group of catalog) {
-        for (const mod of (group.modules || [])) {
-          const modId = mod.id || mod.key || mod.name;
-          const selected = _state.selectedModuleIds.includes(modId);
-          const price = mod.price ? `₪${mod.price}/חודש` : 'חינם';
-          html += `<div class="choice-card ${selected ? 'selected' : ''}" data-manage="${modId}" onclick="toggleManage('${modId}')">
-            <div style="flex:1;min-width:0;">
-              <div style="font-weight:700;font-size:15px;color:#1B2440;">${mod.name || modId}</div>
-              ${mod.description ? `<div style="font-size:12px;color:#64748b;margin-top:2px;">${mod.description}</div>` : ''}
-            </div>
-            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0;margin-right:8px;">
-              <span style="font-size:12px;font-weight:700;color:#4f46e5;">${price}</span>
-              ${mod.price ? freeBadge : ''}
-            </div>
-            <span class="choice-check">✓</span>
-          </div>`;
-        }
+        const groupId = group.id || group.key || group.name;
+        const selected = _state.selectedModuleIds.includes(groupId);
+        // מחיר הקבוצה — ממוצע/סכום של המודולים, או מחיר הקבוצה עצמה
+        const groupPrice = group.price || (group.modules || []).reduce((sum, m) => sum + (m.price || 0), 0);
+        const priceLabel = groupPrice ? `₪${groupPrice}/חודש` : 'חינם';
+        const moduleNames = (group.modules || []).map(m => m.name || m.id).filter(Boolean).join(' · ');
+        html += `<div class="choice-card ${selected ? 'selected' : ''}" data-manage="${groupId}" onclick="togglePaidModule('${groupId}')">
+          <div style="flex:1;min-width:0;">
+            <div style="font-weight:700;font-size:15px;color:#1B2440;">${group.name || groupId}</div>
+            ${group.description ? `<div style="font-size:12px;color:#64748b;margin-top:3px;">${group.description}</div>` : ''}
+            ${moduleNames ? `<div style="font-size:11px;color:#94a3b8;margin-top:4px;">${moduleNames}</div>` : ''}
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0;margin-right:8px;">
+            <span style="font-size:13px;font-weight:700;color:${groupPrice ? '#4f46e5' : '#15803d'};">${priceLabel}</span>
+            ${groupPrice ? freeBadge : ''}
+          </div>
+          <span class="choice-check">✓</span>
+        </div>`;
       }
-      container.innerHTML = html || '<p style="text-align:center;color:#94a3b8;font-size:13px;padding:16px;">אין מודולים זמינים</p>';
+      container.innerHTML = html;
+    }
+
+    function togglePaidModule(groupId) {
+      const idx = _state.selectedModuleIds.indexOf(groupId);
+      if (idx === -1) _state.selectedModuleIds.push(groupId);
+      else _state.selectedModuleIds.splice(idx, 1);
+      document.querySelectorAll('#paid-modules-list .choice-card').forEach(c => {
+        c.classList.toggle('selected', _state.selectedModuleIds.includes(c.dataset.manage));
+      });
     }
 
     function toggleManage(key) {
-      const idx = _state.selectedModuleIds.indexOf(key);
-      if (idx === -1) {
-        _state.selectedModuleIds.push(key);
-      } else {
-        _state.selectedModuleIds.splice(idx, 1);
-      }
-      // תאימות אחורה עם selectedManageKeys
-      _state.selectedManageKeys = _state.selectedModuleIds;
+      const idx = _state.selectedManageKeys.indexOf(key);
+      if (idx === -1) _state.selectedManageKeys.push(key);
+      else _state.selectedManageKeys.splice(idx, 1);
       document.querySelectorAll('#manage-list .choice-card').forEach(c => {
-        c.classList.toggle('selected', _state.selectedModuleIds.includes(c.dataset.manage));
+        c.classList.toggle('selected', _state.selectedManageKeys.includes(c.dataset.manage));
       });
       hideMsg('msg-manage');
     }
 
     function goToStaff() {
-      if (_state.selectedModuleIds.length === 0) {
-        showMsg('msg-manage', 'יש לבחור לפחות מודול אחד', 'err'); return;
-      }
       renderStaffRoles();
       showSection('sec-staff');
     }
@@ -1351,14 +1375,13 @@
         return;
       }
 
-      const managedModules = _state.selectedModuleIds.length > 0
-        ? [...new Set(_state.selectedModuleIds)]
-        : [...new Set(
-            _state.selectedManageKeys.flatMap(k => {
-              const opt = MANAGE_OPTIONS.find(o => o.key === k);
-              return opt ? opt.modules : [];
-            })
-          )];
+      // מודולים מהבחירה הכללית (MANAGE_OPTIONS)
+      const fromManageKeys = _state.selectedManageKeys.flatMap(k => {
+        const opt = MANAGE_OPTIONS.find(o => o.key === k);
+        return opt ? opt.modules : [];
+      });
+      // מודולים מהקטלוג בתשלום (sec-paid-modules)
+      const managedModules = [...new Set([...fromManageKeys, ..._state.selectedModuleIds])];
       if (_state.storeEnabled) {
         ['shop', 'pos'].forEach(m => { if (!managedModules.includes(m)) managedModules.push(m); });
       }
