@@ -2268,10 +2268,19 @@
         if (d.wizard_logo_url) {
           const img = document.getElementById('wiz-logo-img');
           const letter = document.getElementById('wiz-logo-letter');
-          if (img && letter) {
+          const wrap = document.getElementById('wiz-logo-wrap');
+          if (img && letter && wrap) {
             img.src = d.wizard_logo_url;
             img.style.display = 'block';
+            img.style.width = 'auto';
+            img.style.height = '36px';
+            img.style.maxWidth = '120px';
+            img.style.objectFit = 'contain';
             letter.style.display = 'none';
+            wrap.style.width = 'auto';
+            wrap.style.background = 'transparent';
+            wrap.style.borderRadius = '0';
+            wrap.style.overflow = 'visible';
           }
         }
       } catch(e) { /* fallback to default */ }
