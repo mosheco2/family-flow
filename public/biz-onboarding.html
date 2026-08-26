@@ -615,6 +615,7 @@
           <span id="live-cost-total" style="font-weight:800;font-size:18px;color:#5B46E5;">₪0</span>
         </div>
         <div id="live-cost-lines" style="font-size:11px;color:#94a3b8;margin-top:4px;line-height:1.8;"></div>
+        <div id="live-cost-promo" style="display:none;margin-top:8px;padding:7px 10px;background:#f0fdf4;border:1px solid #86efac;border-radius:8px;font-size:12px;color:#15803d;font-weight:600;text-align:center;"></div>
       </div>
 
       <button class="btn-primary" style="margin-top:14px;" onclick="goToStaff()">המשך ←</button>
@@ -1390,6 +1391,15 @@
       linesEl.innerHTML = lines.length > 0
         ? lines.map(l => `<span style="margin-left:10px;">${l.label} — ₪${l.price}</span>`).join(' · ')
         : '<span>טרם נבחרו שדרוגים בתשלום</span>';
+      const promoEl = document.getElementById('live-cost-promo');
+      if (promoEl) {
+        if (_wizFreeMonths > 0 && total > 0) {
+          promoEl.textContent = `🎁 ${_wizFreeMonths} חודשים ראשונים בחינם — תשלום יתחיל רק מחודש ${_wizFreeMonths + 1}`;
+          promoEl.style.display = 'block';
+        } else {
+          promoEl.style.display = 'none';
+        }
+      }
     }
 
     async function renderPaidModules() {
