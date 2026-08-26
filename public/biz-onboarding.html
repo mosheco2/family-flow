@@ -1811,8 +1811,8 @@
       let total = 0;
       const lines = [];
 
-      // חבילת עסק — תמיד כלול אם קיים bundle לסוג העסק
-      if (bizBundle) {
+      // חבילת עסק — רק אם הלקוח בחר בה (לחיצה על כרטיס)
+      if (bizBundle && _state.selectedModuleIds.includes(bizBundle.id)) {
         total += bizBundle.price;
         lines.push({ label: bizBundle.label, price: bizBundle.price });
       }
@@ -1944,12 +1944,13 @@
       const fromSubModules = _state.selectedSubModules || [];
       // AI tier
       const aiMod = _state.selectedAiTier && _state.selectedAiTier !== 'ai_standard' ? [_state.selectedAiTier] : [];
-      // חבילת עסק — תמיד כלול את ה-bundle_id אם קיים לסוג העסק
+      // חבילת עסק — רק אם הלקוח בחר בה (לחיצה על הכרטיס)
       const bizBundleForSend = BIZ_BUNDLE_MAP[_state.selectedBizType];
       const bundleIdForSend = bizBundleForSend?.id || null;
       const bundlePriceForSend = bizBundleForSend?.price || 0;
+      const bundleSelected = bundleIdForSend && _state.selectedModuleIds.includes(bundleIdForSend);
       const managedModules = [...new Set([
-        ...(bundleIdForSend ? [bundleIdForSend] : []),
+        ...(bundleSelected ? [bundleIdForSend] : []),
         ...fromManageKeys, ...fromSubModules, ...aiMod
       ])];
       if (_state.storeEnabled) {
@@ -1966,10 +1967,10 @@
           body: JSON.stringify({
             business_type:  _state.selectedBizType,
             managed_modules: managedModules,
-            bundle_id:      bundleIdForSend,
-            bundle_price:   bundlePriceForSend,
-            bundle_included_modules: fromManageKeys, // מודולים שכלולים בחבילה — יקבלו מחיר ₪0
-            extra_modules:  fromSubModules, // מודולים שנבחרו בנפרד — יקבלו מחיר עצמאי
+            bundle_id:      bundleSelected ? bundleIdForSend : null,
+            bundle_price:   bundleSelected ? bundlePriceForSend : 0,
+            bundle_included_modules: bundleSelected ? fromManageKeys : [], // כלולים בחבילה → ₪0
+            extra_modules:  fromSubModules, // נבחרו בנפרד → מחיר עצמאי
             staff_roles:    _state.staffRoles,
             admin_email:    _state.accountDetails.email,
             first_name:     _state.accountDetails.first,

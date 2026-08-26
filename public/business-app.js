@@ -35218,16 +35218,20 @@ function renderMyPlanSection() {
     if (billing?.bundle_id) {
         const bundleGroup = catalog.find(g => g.groupId === billing.bundle_id);
         bundleName = bundleGroup?.groupName || billing.bundle_id;
-        bundlePrice = bundleGroup?.modules?.[0]?.price || 0;
+        // מחיר חבילה — מה-billing.modules (custom_price שנשמר) או מהקטלוג
+        const bundleEntry = Array.isArray(billing.modules) ? billing.modules.find(m => (typeof m === 'string' ? m : m.id) === billing.bundle_id) : null;
+        bundlePrice = (bundleEntry && bundleEntry.custom_price != null ? bundleEntry.custom_price : null) ?? bundleGroup?.modules?.[0]?.price ?? 0;
     }
 
     // normalize billing.modules — support [{id,open,billing}] and legacy [id]
     const rawBillingMods = Array.isArray(billing?.modules) ? billing.modules : [];
     const normBillingMods = rawBillingMods.map(m => typeof m === 'string' ? { id: m, open: true, billing: true } : m);
     // fall back to managed_modules (legacy)
-    const displayModules = normBillingMods.length > 0
-        ? normBillingMods.filter(m => m.open !== false)  // show open modules
+    const allDisplayModules = normBillingMods.length > 0
+        ? normBillingMods.filter(m => m.open !== false)
         : managedLegacy.map(id => ({ id, open: true, billing: true }));
+    // bundle_id מוצג בהדר — לא כשורת מודול רגילה
+    const displayModules = allDisplayModules.filter(m => (typeof m === 'string' ? m : m.id) !== billing?.bundle_id);
 
     // active modules rows — only billing=true shown with price
     let calcTotal = 0;
@@ -35265,8 +35269,8 @@ function renderMyPlanSection() {
             </div>
           </div>` : '';
 
-    // total — prefer DB value, fall back to calculated sum
-    const displayTotal = billing?.monthly_total > 0 ? billing.monthly_total : (bundlePrice + calcTotal + aiCost);
+    // תמיד מחשב מחדש: bundle + מודולים בודדים + AI
+    const displayTotal = bundlePrice + calcTotal + aiCost;
     const totalBadge = displayTotal > 0
         ? `<div class="flex justify-between items-center bg-violet-50 border border-violet-100 rounded-xl px-4 py-3 mt-3">
             <span class="font-black text-violet-700 text-base">${displayTotal} ₪</span>

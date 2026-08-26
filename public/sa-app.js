@@ -1956,8 +1956,16 @@ function renderSAGroups() {
         const resendSoloBtn = g.account_status === 'pending_activation' ? `<button onclick="saResendSoloCredentials(${g.id})" class="bg-amber-100 text-amber-700 px-3 py-1 rounded text-[10px] font-bold hover:bg-amber-200 transition"><i class="fa-solid fa-paper-plane mr-1"></i> שלח פרטי כניסה שוב</button>` : '';
 
         const _billingCfg = (() => { try { return typeof g.billing_config === 'string' ? JSON.parse(g.billing_config) : (g.billing_config || null); } catch(e) { return null; } })();
-        const monthlyBadge = (_billingCfg && _billingCfg.monthly_total > 0)
-            ? `<span class="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full whitespace-nowrap cursor-pointer hover:bg-emerald-100 transition" title="לחץ לצפייה בתכנית" onclick="openSABillingModal(${g.id},event)">₪${_billingCfg.monthly_total}/חו׳</span>`
+        const _badgeTotal = (() => {
+            if (!_billingCfg) return 0;
+            const mods = Array.isArray(_billingCfg.modules) ? _billingCfg.modules : [];
+            return mods.reduce((s, m) => {
+                const entry = typeof m === 'string' ? { id: m, billing: true, custom_price: 0 } : m;
+                return s + (entry.billing !== false && entry.custom_price > 0 ? parseFloat(entry.custom_price) || 0 : 0);
+            }, 0);
+        })();
+        const monthlyBadge = _badgeTotal > 0
+            ? `<span class="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full whitespace-nowrap cursor-pointer hover:bg-emerald-100 transition" title="לחץ לצפייה בתכנית" onclick="openSABillingModal(${g.id},event)">₪${_badgeTotal}/חו׳</span>`
             : '';
         // badge הטבת חינם — לפי trial_until מה-DB
         let trialBadge = '';
@@ -13828,11 +13836,19 @@ window.openSABillingModal = async function(groupId, e) {
         bundleName = bGroup?.groupName || billing.bundle_id;
     }
 
-    // שורות מודולים
+    // מחיר חבילה — מה-billing.modules (custom_price) או מהקטלוג
+    let bundlePrice = 0;
+    if (billing?.bundle_id) {
+        const bEntry = Array.isArray(billing.modules) ? billing.modules.find(m => (typeof m === 'string' ? m : m.id) === billing.bundle_id) : null;
+        const bGroup = catalog.find(g => g.groupId === billing.bundle_id);
+        bundlePrice = (bEntry && bEntry.custom_price != null ? bEntry.custom_price : null) ?? bGroup?.modules?.[0]?.price ?? 0;
+    }
+
+    // שורות מודולים — ללא bundle_id (מוצג בהדר)
     const normMods = (() => {
         if (!billing?.modules) return Array.isArray(group.managed_modules) ? group.managed_modules.map(id => ({ id, open: true, billing: true })) : [];
         return billing.modules.map(m => typeof m === 'string' ? { id: m, open: true, billing: true } : m);
-    })();
+    })().filter(entry => entry.id !== billing?.bundle_id);
 
     let calcTotal = 0;
     const rows = normMods.map(entry => {
@@ -13850,9 +13866,10 @@ window.openSABillingModal = async function(groupId, e) {
     }).join('');
 
     const discountRow = billing?.discount_value > 0
-        ? `<div class="flex justify-between items-center py-2 text-xs text-emerald-700"><span>הנחה (${billing.discount_type === 'pct' ? billing.discount_value + '%' : '₪' + billing.discount_value})</span><span class="font-bold">- ₪${billing.discount_type === 'pct' ? Math.round(calcTotal * billing.discount_value / 100) : billing.discount_value}</span></div>` : '';
+        ? `<div class="flex justify-between items-center py-2 text-xs text-emerald-700"><span>הנחה (${billing.discount_type === 'pct' ? billing.discount_value + '%' : '₪' + billing.discount_value})</span><span class="font-bold">- ₪${billing.discount_type === 'pct' ? Math.round((bundlePrice + calcTotal) * billing.discount_value / 100) : billing.discount_value}</span></div>` : '';
 
-    const monthlyTotal = billing?.monthly_total ?? calcTotal;
+    // תמיד מחשב מחדש: bundle + מודולים בודדים
+    const monthlyTotal = bundlePrice + calcTotal;
     const trialBadge = group.trial_until ? (() => {
         const d = new Date(group.trial_until); const now = new Date();
         const days = Math.max(0, Math.round((d - now) / 86400000));
