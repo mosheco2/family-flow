@@ -1235,7 +1235,7 @@
           if (!g) continue;
           for (const sub of mod.subModules) {
             const live = g.modules.find(m => m.id === sub.id);
-            if (live) { sub.price = live.price; sub.desc = live.desc; sub.name = live.name; }
+            if (live) { sub.price = live.price; }
           }
         }
         // סנכרון BIZ_BUNDLE_MAP מחירים
@@ -1243,7 +1243,7 @@
           const bg = d.catalog.find(g => g.bundle && g.modules && g.modules.some(m => m.id === biz.id));
           if (!bg) continue;
           const bm = bg.modules.find(m => m.id === biz.id);
-          if (bm) { biz.price = bm.price; biz.desc = bm.desc; }
+          if (bm) { biz.price = bm.price; }
         }
         // עלות עובד נוסף
         const usersGroup = d.catalog.find(g => g.groupId === 'users');
