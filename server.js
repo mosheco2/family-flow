@@ -5658,9 +5658,13 @@ app.patch('/api/biz/wizard/complete', verifyBiz, async (req, res) => {
 
         // שליחת מיילים (fire and forget)
         try {
+            const mailCfg = await getEmailConfig();
+            const clientEmail = admin_email.toLowerCase().trim();
+            console.log(`[wizard/complete] שולח מייל ללקוח: ${clientEmail}`);
+
             // ברוכים הבאים ללקוח
-            sendSystemEmail(
-                admin_email.toLowerCase().trim(),
+            const clientSent = await sendSystemEmail(
+                clientEmail,
                 `ברוכים הבאים ל-Oneflow BIZ — ${bizName}`,
                 `<div dir="rtl" style="font-family:sans-serif;max-width:520px;margin:0 auto;">
                   <h2 style="color:#4f46e5;">המערכת שלך מוכנה! 🎉</h2>
@@ -5669,10 +5673,10 @@ app.patch('/api/biz/wizard/complete', verifyBiz, async (req, res) => {
                   <p>תוכל להתחבר בכל עת דרך האתר ולהתחיל לנהל את העסק שלך.</p>
                   <p style="color:#64748b;font-size:12px;">צוות Oneflow</p>
                 </div>`
-            ).catch(() => {});
+            );
+            console.log(`[wizard/complete] מייל ללקוח: ${clientSent ? 'נשלח ✅' : 'נכשל ❌'}`);
 
             // התראה ל-Super Admin
-            const mailCfg = await getEmailConfig();
             const saEmail = mailCfg.adminNotificationEmail;
             if (saEmail) {
                 sendSystemEmail(
