@@ -953,7 +953,25 @@ window.injectBusinessUI = function() {
                                     <input type="checkbox" id="store-is-active" class="w-5 h-5 accent-indigo-600 rounded">
                                     <span class="font-bold text-slate-700 text-sm">החנות פעילה ומקבלת הזמנות</span>
                                 </label>
-                                
+
+                                <!-- תבנית חנות -->
+                                <div class="bg-indigo-50 p-4 rounded-2xl border border-indigo-100 shadow-sm">
+                                    <label class="text-xs font-bold text-indigo-700 block mb-2"><i class="fa-solid fa-palette text-indigo-500 ml-1"></i> תבנית חנות ציבורית</label>
+                                    <div class="grid grid-cols-2 gap-2" id="template-picker">
+                                        <div class="template-card cursor-pointer rounded-xl border-2 border-indigo-400 bg-white p-3 text-center transition" data-tid="classic" onclick="selectStoreTemplate('classic')">
+                                            <div class="text-2xl mb-1">🛍️</div>
+                                            <div class="text-xs font-bold text-slate-700">קלאסי</div>
+                                            <div class="text-[10px] text-slate-400">כל סוגי העסקים</div>
+                                        </div>
+                                        <div class="template-card cursor-pointer rounded-xl border-2 border-slate-200 bg-white p-3 text-center transition" data-tid="restaurant" onclick="selectStoreTemplate('restaurant')">
+                                            <div class="text-2xl mb-1">🍕</div>
+                                            <div class="text-xs font-bold text-slate-700">מסעדה</div>
+                                            <div class="text-[10px] text-slate-400">מזון ומשלוחים</div>
+                                        </div>
+                                    </div>
+                                    <input type="hidden" id="store-template-id" value="classic">
+                                </div>
+
                                 <div class="bg-indigo-50 p-4 rounded-2xl border border-indigo-100 shadow-sm">
                                     <div class="flex items-center justify-between mb-2">
                                         <label class="font-bold text-indigo-800 text-sm flex items-center gap-2 cursor-pointer">
