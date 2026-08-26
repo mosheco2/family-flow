@@ -972,6 +972,41 @@ window.injectBusinessUI = function() {
                                     <input type="hidden" id="store-template-id" value="classic">
                                 </div>
 
+                                <!-- שדות תבנית מסעדה -->
+                                <div id="restaurant-extra-fields" class="space-y-3" style="display:none">
+                                    <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100 shadow-sm">
+                                        <label class="text-xs font-bold text-slate-700 block mb-1.5"><i class="fa-solid fa-droplet text-pink-500 ml-1"></i> צבע מבטא לחנות:</label>
+                                        <div class="flex items-center gap-3">
+                                            <input type="color" id="store-accent-color" value="#e63946" class="w-10 h-10 rounded-lg border border-slate-200 cursor-pointer p-0.5">
+                                            <input type="text" id="store-accent-color-text" value="#e63946" maxlength="7" class="modern-input py-2 text-sm bg-white flex-1 font-mono" placeholder="#e63946" oninput="document.getElementById('store-accent-color').value=this.value">
+                                        </div>
+                                    </div>
+                                    <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100 shadow-sm">
+                                        <label class="text-xs font-bold text-slate-700 block mb-2"><i class="fa-solid fa-truck text-emerald-500 ml-1"></i> הגדרות משלוח ואיסוף</label>
+                                        <div class="grid grid-cols-2 gap-3 mb-2">
+                                            <div>
+                                                <label class="text-[10px] text-slate-500 block mb-1">זמן משלוח (דקות)</label>
+                                                <input type="number" id="store-delivery-eta" min="1" max="180" value="35" class="modern-input py-2 text-sm bg-white w-full text-center">
+                                            </div>
+                                            <div>
+                                                <label class="text-[10px] text-slate-500 block mb-1">זמן איסוף (דקות)</label>
+                                                <input type="number" id="store-pickup-eta" min="1" max="120" value="15" class="modern-input py-2 text-sm bg-white w-full text-center">
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label class="text-[10px] text-slate-500 block mb-1">משלוח חינם מעל (₪) — 0 = לא מוצג</label>
+                                            <input type="number" id="store-free-delivery-above" min="0" value="0" class="modern-input py-2 text-sm bg-white w-full text-center">
+                                        </div>
+                                    </div>
+                                    <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100 shadow-sm">
+                                        <label class="text-xs font-bold text-slate-700 block mb-2"><i class="fa-solid fa-mobile-screen text-blue-500 ml-1"></i> קישורי הורדת אפליקציה (אופציונלי)</label>
+                                        <div class="space-y-2">
+                                            <input type="url" id="store-app-store-url" class="modern-input py-2 text-sm bg-white w-full" placeholder="App Store URL" dir="ltr">
+                                            <input type="url" id="store-play-store-url" class="modern-input py-2 text-sm bg-white w-full" placeholder="Google Play URL" dir="ltr">
+                                        </div>
+                                    </div>
+                                </div>
+
                                 <div class="bg-indigo-50 p-4 rounded-2xl border border-indigo-100 shadow-sm">
                                     <div class="flex items-center justify-between mb-2">
                                         <label class="font-bold text-indigo-800 text-sm flex items-center gap-2 cursor-pointer">
@@ -12462,6 +12497,8 @@ window.selectStoreTemplate = function(tid, save = false) {
         card.classList.toggle('bg-indigo-50', selected);
         card.classList.toggle('bg-white', !selected);
     });
+    const extra = document.getElementById('restaurant-extra-fields');
+    if (extra) extra.style.display = (tid === 'restaurant') ? '' : 'none';
 };
 
 // sync color picker ↔ text input
