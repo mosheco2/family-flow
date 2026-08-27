@@ -12457,7 +12457,7 @@ window.selectStoreTemplate = function(tid, save = false) {
         card.classList.toggle('bg-white', !selected);
     });
     const extra = document.getElementById('restaurant-extra-fields');
-    if (extra) extra.style.display = (tid === 'restaurant') ? '' : 'none';
+    if (extra) extra.style.display = (tid === 'restaurant' || tid === 'sport') ? '' : 'none';
 };
 
 // sync color picker ↔ text input
