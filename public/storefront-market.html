@@ -82,6 +82,20 @@ input,select,textarea{font-family:inherit}
 .vtier.hl .vtier-range{color:#a8d08d}
 .vtier.hl .vtier-note{color:rgba(255,255,255,.65)}
 
+/* Deals banner */
+#deals-section{background:var(--card);border-bottom:1px solid var(--border);padding:14px 20px;display:none}
+.deals-inner{max-width:1200px;margin:0 auto;display:flex;gap:10px;flex-wrap:wrap}
+.deal-card{flex:1;min-width:180px;border-radius:14px;padding:14px 16px;display:flex;flex-direction:column;gap:4px}
+.deal-card.dark{background:var(--green-dark);color:#fff}
+.deal-card.accent{background:var(--green);color:#fff}
+.deal-card.light{background:#f0f7ec;color:var(--green-dark);border:1px solid #c3e6b0}
+.deal-kicker{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;opacity:.7}
+.deal-title{font-family:'Frank Ruhl Libre',serif;font-size:16px;font-weight:700;line-height:1.15}
+.deal-sub{font-size:12px;opacity:.8;line-height:1.4}
+.deal-btn{margin-top:8px;padding:6px 12px;border-radius:99px;border:1.5px solid rgba(255,255,255,.4);background:transparent;color:inherit;font-size:11.5px;font-weight:700;cursor:pointer;align-self:flex-start;transition:.12s}
+.deal-card.light .deal-btn{border-color:var(--green);color:var(--green)}
+.deal-btn:hover{background:rgba(255,255,255,.15)}
+
 /* Category tabs */
 #cat-tabs-bar{background:var(--card);border-bottom:1px solid var(--border);padding:0 20px;position:sticky;top:66px;z-index:300;overflow-x:auto;display:flex;gap:0;-webkit-overflow-scrolling:touch;scrollbar-width:none}
 #cat-tabs-bar::-webkit-scrollbar{display:none}
@@ -345,6 +359,11 @@ input,select,textarea{font-family:inherit}
 </section>
 
 <!-- Volume tiers -->
+<!-- Deals banner -->
+<div id="deals-section">
+  <div class="deals-inner" id="deals-grid"></div>
+</div>
+
 <div id="volume-tiers"></div>
 
 <!-- Bundles -->
@@ -586,12 +605,42 @@ async function initStore() {
   }
 }
 
+function renderDeals(promos) {
+  const themes = ['dark','accent','light'];
+  const cards = promos.slice(0,3).map((p,i) => {
+    const c = themes[i % themes.length];
+    let disc = '';
+    if (p.promo_type==='discount_pct') disc = `${p.promo_value}% הנחה`;
+    else if (p.promo_type==='discount_fixed') disc = `₪${p.promo_value} הנחה`;
+    else if (p.promo_type==='bogo') disc = 'קנה 1 קבל 1';
+    else if (p.promo_type==='free_item') disc = 'פריט חינם';
+    const code = p.promo_code ? `<button class="deal-btn" onclick="window._applyDealCode('${p.promo_code}')">קוד: ${p.promo_code}</button>` : '';
+    return `<div class="deal-card ${c}">
+      <div class="deal-kicker">${disc}</div>
+      <div class="deal-title">${p.promo_name||'מבצע'}</div>
+      ${p.description ? `<div class="deal-sub">${p.description}</div>` : ''}
+      ${code}
+    </div>`;
+  }).join('');
+  document.getElementById('deals-grid').innerHTML = cards;
+  document.getElementById('deals-section').style.display = '';
+}
+window._applyDealCode = function(code) {
+  const inp = document.getElementById('coupon-input');
+  if (inp) { inp.value = code; applyCoupon(); }
+};
+
 async function loadAsync() {
   if (!groupId) return;
   try {
     const r = await fetch(`${API}/store/promotions/${groupId}`);
     const d = await r.json();
-    if (d.success) { _activePromos = d.promotions || []; renderCatalog(); }
+    if (d.success) {
+      _activePromos = d.promotions || [];
+      renderCatalog();
+      const bannerPromos = _activePromos.filter(p => p.show_in_banner && p.is_active);
+      if (bannerPromos.length) renderDeals(bannerPromos);
+    }
   } catch(e) {}
   try {
     const r = await fetch(`${API}/public/reviews/${groupId}`);
