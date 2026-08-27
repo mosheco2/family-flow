@@ -9348,8 +9348,8 @@ app.post('/api/store/settings', async (req, res) => {
 
         const templateIdVal = templateId && templateId.trim() ? templateId.trim() : 'classic';
         const accentColorVal = accentColor && accentColor.trim() ? accentColor.trim() : '#e63946';
-        const deliveryEtaVal = parseInt(deliveryEtaMin) || 35;
-        const pickupEtaVal = parseInt(pickupEtaMin) || 15;
+        const _dEtaParsed = parseInt(deliveryEtaMin); const deliveryEtaVal = isNaN(_dEtaParsed) ? 35 : _dEtaParsed;
+        const _pEtaParsed = parseInt(pickupEtaMin); const pickupEtaVal = isNaN(_pEtaParsed) ? 15 : _pEtaParsed;
         const appStoreVal = appStoreUrl && appStoreUrl.trim() ? appStoreUrl.trim() : null;
         const playStoreVal = playStoreUrl && playStoreUrl.trim() ? playStoreUrl.trim() : null;
         const freeDeliveryVal = parseInt(freeDeliveryAbove) || 0;
