@@ -55,8 +55,7 @@
   #hero { background: linear-gradient(135deg, var(--bg-hero) 0%, #2d0a0a 100%); color: #fff; padding: 32px 20px 28px; position: relative; overflow: hidden; }
   #hero-inner { display: flex; align-items: center; gap: 20px; position: relative; z-index: 2; }
   #hero-content { flex: 1; min-width: 0; }
-  #hero-img-wrap { flex-shrink: 0; width: 160px; height: 160px; border-radius: 20px; overflow: hidden; display: none; box-shadow: 0 8px 32px rgba(0,0,0,.5); }
-  #hero-img-wrap img { width: 100%; height: 100%; object-fit: cover; }
+  #hero-img-wrap { flex-shrink: 0; width: 160px; height: 160px; border-radius: 20px; overflow: hidden; display: none; box-shadow: 0 8px 32px rgba(0,0,0,.5); background-size: cover; background-position: center; background-color: #333; }
   @media(max-width:400px){ #hero-img-wrap { width: 120px; height: 120px; } }
   #hero h1 { font-size: 32px; font-weight: 900; line-height: 1.1; margin: 0 0 12px; }
   #hero h1 .accent { color: var(--accent); }
@@ -253,6 +252,8 @@
         <div id="hero-ctas">
           <button class="hero-cta-primary" onclick="document.getElementById('catalog-container').scrollIntoView({behavior:'smooth'})">להזמנה עכשיו</button>
           <button class="hero-cta-secondary" id="hero-repeat-btn" style="display:none;" onclick="repeatLastOrder()">חזרה להזמנה האחרונה</button>
+          <button class="hero-cta-secondary" id="btn-table-booking" style="display:none;" onclick="openBookingModal('table')">🪑 הזמן שולחן</button>
+          <button class="hero-cta-secondary" id="btn-event-booking" style="display:none;" onclick="openBookingModal('event')">🎉 הזמנת אירוע</button>
         </div>
         <div id="hero-stats">
           <div class="hero-stat">
@@ -269,9 +270,7 @@
           </div>
         </div>
       </div>
-      <div id="hero-img-wrap">
-        <img id="hero-img" src="" alt="תמונת גיבור">
-      </div>
+      <div id="hero-img-wrap"></div>
     </div>
   </div>
 
@@ -391,6 +390,49 @@
           הוסף לעגלה — <span id="pm-total-price"></span>
         </button>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- BOOKING MODAL -->
+<div id="booking-modal" style="display:none;" class="modal-overlay" onclick="if(event.target===this)closeBookingModal()">
+  <div class="modal-sheet" onclick="event.stopPropagation()" style="max-height:90vh;">
+    <div class="modal-header">
+      <h3 id="booking-modal-title" style="font-size:17px;font-weight:900;margin:0;"></h3>
+      <button class="modal-close" onclick="closeBookingModal()">✕</button>
+    </div>
+    <div class="modal-body" style="overflow-y:auto;max-height:calc(90vh - 120px);">
+      <div style="display:flex;flex-direction:column;gap:12px;">
+        <div>
+          <label style="font-size:12px;font-weight:700;color:#666;display:block;margin-bottom:4px;">תאריך</label>
+          <input type="date" id="book-date" style="width:100%;border:1.5px solid #e2e8f0;border-radius:10px;padding:10px 12px;font-size:14px;font-family:inherit;outline:none;">
+        </div>
+        <div class="grid" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <div>
+            <label style="font-size:12px;font-weight:700;color:#666;display:block;margin-bottom:4px;">שעה</label>
+            <input type="time" id="book-time" style="width:100%;border:1.5px solid #e2e8f0;border-radius:10px;padding:10px 12px;font-size:14px;font-family:inherit;outline:none;">
+          </div>
+          <div id="book-guests-wrap">
+            <label style="font-size:12px;font-weight:700;color:#666;display:block;margin-bottom:4px;">מספר סועדים</label>
+            <input type="number" id="book-guests" min="1" max="50" value="2" style="width:100%;border:1.5px solid #e2e8f0;border-radius:10px;padding:10px 12px;font-size:14px;font-family:inherit;outline:none;text-align:center;">
+          </div>
+        </div>
+        <div>
+          <label style="font-size:12px;font-weight:700;color:#666;display:block;margin-bottom:4px;">שם מלא</label>
+          <input type="text" id="book-name" placeholder="שם מלא" style="width:100%;border:1.5px solid #e2e8f0;border-radius:10px;padding:10px 12px;font-size:14px;font-family:inherit;outline:none;">
+        </div>
+        <div>
+          <label style="font-size:12px;font-weight:700;color:#666;display:block;margin-bottom:4px;">טלפון</label>
+          <input type="tel" id="book-phone" placeholder="050-0000000" dir="ltr" style="width:100%;border:1.5px solid #e2e8f0;border-radius:10px;padding:10px 12px;font-size:14px;font-family:inherit;outline:none;text-align:left;">
+        </div>
+        <div>
+          <label style="font-size:12px;font-weight:700;color:#666;display:block;margin-bottom:4px;">הערות</label>
+          <textarea id="book-notes" rows="2" placeholder="בקשות מיוחדות..." style="width:100%;border:1.5px solid #e2e8f0;border-radius:10px;padding:10px 12px;font-size:14px;font-family:inherit;outline:none;resize:vertical;"></textarea>
+        </div>
+      </div>
+    </div>
+    <div style="padding:12px 16px;border-top:1px solid #eee;">
+      <button class="submit-btn" style="margin:0;" onclick="submitBookingReq()">שלח בקשה <i class="fa-solid fa-paper-plane" style="margin-right:6px;"></i></button>
     </div>
   </div>
 </div>
@@ -574,16 +616,24 @@ function renderHero(data) {
   const etaMin = s.delivery_eta_min || 35;
   const pickup = s.pickup_eta_min || 15;
 
-  document.getElementById('hero-eta-text').textContent = `${etaMin} דק'`;
-  document.getElementById('stat-eta').textContent = `${etaMin} דק'`;
+  if (etaMin > 0) {
+    document.getElementById('hero-eta-text').textContent = `${etaMin} דק'`;
+    document.getElementById('stat-eta').textContent = `${etaMin} דק'`;
+  } else {
+    document.getElementById('stat-eta').closest('.hero-stat').style.display = 'none';
+    document.getElementById('hero-headline').querySelector('#hero-eta-text') && (document.getElementById('hero-eta-text').textContent = '');
+  }
 
   if (s.welcome_message) document.getElementById('hero-headline').innerHTML = s.welcome_message.replace(/\n/g,'<br>');
   if (s.slogan) document.getElementById('hero-sub-text').textContent = s.slogan;
 
-  if (s.banner_url) {
+  if (s.enable_table_booking) document.getElementById('btn-table-booking').style.display = '';
+  if (s.enable_event_booking) document.getElementById('btn-event-booking').style.display = '';
+
+  const _bannerUrl = s.banner_url && s.banner_url !== 'DELETE' && s.banner_url !== 'null' ? s.banner_url : '';
+  if (_bannerUrl) {
     const hw = document.getElementById('hero-img-wrap');
-    const hi = document.getElementById('hero-img');
-    hi.src = s.banner_url;
+    hw.style.backgroundImage = `url('${_bannerUrl}')`;
     hw.style.display = '';
     document.getElementById('hero-bg-deco').style.display = 'none';
   }
@@ -803,6 +853,56 @@ function openCartModal() {
 }
 function closeCartModal(e) {
   if (!e || e.target === document.getElementById('cart-modal')) document.getElementById('cart-modal').style.display = 'none';
+}
+
+// ===== BOOKING =====
+let _bookingType = 'table';
+function openBookingModal(type) {
+  _bookingType = type || 'table';
+  const title = document.getElementById('booking-modal-title');
+  const guestsWrap = document.getElementById('book-guests-wrap');
+  if (type === 'event') {
+    title.textContent = '🎉 הזמנת אירוע / קייטרינג';
+    if (guestsWrap) guestsWrap.style.display = 'none';
+  } else {
+    title.textContent = '🪑 הזמנת שולחן';
+    if (guestsWrap) guestsWrap.style.display = '';
+  }
+  document.getElementById('booking-modal').style.display = 'flex';
+}
+function closeBookingModal() { document.getElementById('booking-modal').style.display = 'none'; }
+async function submitBookingReq() {
+  const name = document.getElementById('book-name').value.trim();
+  const phone = document.getElementById('book-phone').value.trim();
+  const date = document.getElementById('book-date').value;
+  const time = document.getElementById('book-time').value;
+  const notes = document.getElementById('book-notes').value.trim();
+  const guests = document.getElementById('book-guests')?.value || '';
+  if (!name || !phone || !date) { showToast('נא למלא שם, טלפון ותאריך'); return; }
+  const payload = {
+    groupId: storeData.groupId,
+    title: name,
+    eventDate: date,
+    startTime: time || '12:00',
+    notes: (_bookingType === 'table' ? `סועדים: ${guests}\n` : '') + notes,
+    customerPhone: phone,
+    status: 'pending',
+    serviceId: null
+  };
+  try {
+    const r = await fetch(`${API}/calendar/events`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+    const d = await r.json();
+    if (d.success) {
+      closeBookingModal();
+      showToast('הבקשה נשלחה! נציג ייצור קשר בהקדם.');
+    } else { showToast(d.error || 'שגיאה בשליחה'); }
+  } catch(e) { showToast('שגיאת רשת'); }
+}
+function showToast(msg) {
+  let t = document.getElementById('_toast');
+  if (!t) { t = document.createElement('div'); t.id='_toast'; t.style.cssText='position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:#1e293b;color:#fff;padding:12px 20px;border-radius:12px;font-size:14px;font-weight:700;z-index:9999;white-space:nowrap;'; document.body.appendChild(t); }
+  t.textContent = msg; t.style.opacity='1';
+  setTimeout(() => { t.style.opacity='0'; }, 3000);
 }
 
 function renderCartModal() {
