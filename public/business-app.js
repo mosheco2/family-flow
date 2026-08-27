@@ -929,7 +929,7 @@ window.injectBusinessUI = function() {
                                 <!-- תבנית חנות -->
                                 <div class="bg-indigo-50 p-4 rounded-2xl border border-indigo-100 shadow-sm">
                                     <label class="text-xs font-bold text-indigo-700 block mb-2"><i class="fa-solid fa-palette text-indigo-500 ml-1"></i> תבנית חנות ציבורית</label>
-                                    <div class="grid grid-cols-3 gap-2" id="template-picker">
+                                    <div class="grid grid-cols-2 gap-2" id="template-picker">
                                         <div class="template-card cursor-pointer rounded-xl border-2 border-indigo-400 bg-white p-3 text-center transition" data-tid="classic" onclick="selectStoreTemplate('classic')">
                                             <div class="text-2xl mb-1">🛍️</div>
                                             <div class="text-xs font-bold text-slate-700">סטנדרטית</div>
@@ -944,6 +944,11 @@ window.injectBusinessUI = function() {
                                             <div class="text-2xl mb-1">🏋️</div>
                                             <div class="text-xs font-bold text-slate-700">ספורטיבית</div>
                                             <div class="text-[10px] text-slate-400">סיטונאות וכושר</div>
+                                        </div>
+                                        <div class="template-card cursor-pointer rounded-xl border-2 border-slate-200 bg-white p-3 text-center transition" data-tid="market" onclick="selectStoreTemplate('market')">
+                                            <div class="text-2xl mb-1">🛒</div>
+                                            <div class="text-xs font-bold text-slate-700">מסחרית</div>
+                                            <div class="text-[10px] text-slate-400">שוק וסחר</div>
                                         </div>
                                     </div>
                                     <input type="hidden" id="store-template-id" value="classic">
@@ -12458,7 +12463,7 @@ window.selectStoreTemplate = function(tid, save = false) {
         card.classList.toggle('bg-white', !selected);
     });
     const extra = document.getElementById('restaurant-extra-fields');
-    if (extra) extra.style.display = (tid === 'restaurant' || tid === 'sport') ? '' : 'none';
+    if (extra) extra.style.display = (tid === 'restaurant' || tid === 'sport' || tid === 'market') ? '' : 'none';
 };
 
 // sync color picker ↔ text input

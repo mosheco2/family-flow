@@ -1,0 +1,1358 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title id="page-title">שוק מסחרי</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@400;500;700;900&family=Heebo:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --green:#33502E;--green-dark:#243B20;--green-light:#4A7040;
+  --accent:#5A8F3C;--accent-dark:#3D6228;
+  --cream:#F7F4EE;--sand:#EDE8DE;--border:#D8D2C5;
+  --card:#fff;--dark:#1A1A1A;--muted:#7A7468;
+  --radius:14px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Heebo',system-ui,sans-serif;background:var(--cream);color:var(--dark);direction:rtl;-webkit-font-smoothing:antialiased;min-height:100vh}
+a{color:inherit;text-decoration:none}
+button{font-family:inherit;cursor:pointer;border:none}
+input,select,textarea{font-family:inherit}
+::placeholder{color:var(--muted)}
+@keyframes rise{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+@keyframes pop{0%{transform:scale(.72);opacity:0}65%{transform:scale(1.07)}100%{transform:scale(1);opacity:1}}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+#loading-screen{position:fixed;inset:0;z-index:9999;background:var(--green-dark);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;color:#fff}
+.loader{width:32px;height:32px;border:3px solid rgba(255,255,255,.2);border-top-color:#a8d08d;border-radius:50%;animation:spin .8s linear infinite}
+
+#toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--green-dark);color:#fff;padding:10px 20px;border-radius:99px;font-size:13.5px;font-weight:500;z-index:8000;display:none;white-space:nowrap;animation:rise .25s ease}
+
+/* Top bar */
+#top-bar{background:var(--green-dark);color:rgba(255,255,255,.6);font-size:12px;padding:7px 20px;display:flex;align-items:center;justify-content:space-between;gap:16px;overflow:hidden}
+#ref-badge{font-family:'Frank Ruhl Libre',serif;font-size:11px;color:#a8d08d;font-weight:700;letter-spacing:.04em;flex-shrink:0}
+#top-bar-center{display:flex;gap:20px;align-items:center}
+#top-open-status{font-size:11px;flex-shrink:0}
+
+/* Ticker */
+#ticker-bar{background:var(--green);border-top:1px solid rgba(255,255,255,.08);padding:6px 20px;display:none;align-items:center;gap:10px;font-size:12px;color:rgba(255,255,255,.65)}
+#ticker-dot{width:7px;height:7px;border-radius:50%;background:#a8d08d;flex:none}
+
+/* Header */
+#header{background:var(--green);color:#fff;padding:13px 20px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:400;border-bottom:1px solid rgba(255,255,255,.08)}
+#header-logo{width:40px;height:40px;flex:none;border-radius:12px;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font:700 18px/1 'Frank Ruhl Libre',serif;color:#fff;overflow:hidden}
+#header-logo img{width:100%;height:100%;object-fit:cover}
+#header-name{font-family:'Frank Ruhl Libre',serif;font-size:18px;font-weight:700;letter-spacing:-.02em;flex:none}
+#header-search-wrap{flex:1;position:relative;max-width:400px}
+#header-search{width:100%;padding:9px 38px 9px 14px;border:1px solid rgba(255,255,255,.18);border-radius:99px;background:rgba(255,255,255,.1);color:#fff;font-size:13px;outline:none;transition:border-color .15s}
+#header-search::placeholder{color:rgba(255,255,255,.45)}
+#header-search:focus{border-color:rgba(255,255,255,.38);background:rgba(255,255,255,.15)}
+#search-icon{position:absolute;left:14px;top:50%;transform:translateY(-50%);font-size:13px;color:rgba(255,255,255,.4)}
+#header-actions{display:flex;gap:8px;align-items:center;margin-right:auto}
+#quote-btn{padding:8px 14px;border:1px solid rgba(255,255,255,.25);border-radius:99px;background:rgba(255,255,255,.1);color:#fff;font-size:12.5px;font-weight:500;transition:.15s;white-space:nowrap}
+#quote-btn:hover{background:rgba(255,255,255,.2)}
+#cart-header-btn{display:flex;align-items:center;gap:8px;padding:8px 12px 8px 14px;border-radius:99px;background:var(--accent);color:#fff;font-size:13px;font-weight:600;transition:.15s;white-space:nowrap}
+#cart-header-btn:hover{background:var(--accent-dark)}
+#header-cart-count{font-size:11px;font-weight:700;background:#fff;color:var(--accent);padding:2px 7px;border-radius:99px}
+
+/* Hero */
+#hero{background:var(--green);padding:clamp(32px,5vw,52px) 20px clamp(24px,3vw,36px);position:relative;overflow:hidden}
+#hero-banner-bg{position:absolute;inset:0;background-size:cover;background-position:center;opacity:.18;pointer-events:none}
+#hero-leaves{position:absolute;top:-30%;left:-5%;width:50%;height:180%;border-radius:50%;background:var(--accent);filter:blur(100px);opacity:.2;pointer-events:none}
+.hero-inner{position:relative;z-index:1;max-width:1100px;margin:0 auto}
+#hero-eyebrow{display:inline-flex;align-items:center;gap:8px;padding:4px 14px;border-radius:99px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.08);font-size:11.5px;font-weight:600;color:rgba(255,255,255,.8);margin-bottom:14px;letter-spacing:.04em}
+#hero-open-dot{width:7px;height:7px;border-radius:50%;background:#a8d08d;display:inline-block}
+#hero h1{font-family:'Frank Ruhl Libre',serif;font-size:clamp(28px,5vw,50px);font-weight:900;letter-spacing:-.02em;line-height:1;color:#fff;margin:0 0 10px;text-wrap:balance}
+#hero-sub{font-size:14px;font-weight:300;color:rgba(255,255,255,.62);margin:0 0 22px;max-width:48ch;line-height:1.6}
+#hero-stats{display:flex;gap:28px;flex-wrap:wrap}
+.hstat-val{font-family:'Frank Ruhl Libre',serif;font-size:26px;font-weight:700;color:#fff;letter-spacing:-.02em}
+.hstat-lbl{font-size:12px;color:rgba(255,255,255,.48);margin-top:2px}
+
+/* Quick actions */
+.qa-btn{display:inline-flex;align-items:center;gap:7px;padding:8px 14px;border:1px solid rgba(255,255,255,.22);border-radius:99px;background:rgba(255,255,255,.08);color:rgba(255,255,255,.9);font-size:12.5px;font-weight:500;cursor:pointer;text-decoration:none;transition:.15s;white-space:nowrap}
+.qa-btn:hover{background:rgba(255,255,255,.18);border-color:rgba(255,255,255,.4)}
+
+/* Volume tiers */
+#volume-tiers{background:var(--green-dark);border-top:1px solid rgba(255,255,255,.06);padding:0 20px;display:flex;flex-wrap:wrap}
+.vtier{flex:1;min-width:110px;padding:11px 14px;border-left:1px solid rgba(255,255,255,.07);text-align:center}
+.vtier:last-child{border-left:none}
+.vtier-range{font-family:'Frank Ruhl Libre',serif;font-size:13px;font-weight:600;color:rgba(255,255,255,.55)}
+.vtier-note{font-size:11px;color:rgba(255,255,255,.3);margin-top:2px}
+.vtier.hl .vtier-range{color:#a8d08d}
+.vtier.hl .vtier-note{color:rgba(255,255,255,.65)}
+
+/* Category tabs */
+#cat-tabs-bar{background:var(--card);border-bottom:1px solid var(--border);padding:0 20px;position:sticky;top:66px;z-index:300;overflow-x:auto;display:flex;gap:0;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+#cat-tabs-bar::-webkit-scrollbar{display:none}
+.cat-tab{padding:13px 16px;font-size:13px;font-weight:500;color:var(--muted);border-bottom:2.5px solid transparent;cursor:pointer;white-space:nowrap;transition:.15s;background:none;flex-shrink:0}
+.cat-tab:hover{color:var(--dark)}
+.cat-tab.active{color:var(--green);border-bottom-color:var(--green);font-weight:700}
+
+/* Layout */
+#store-layout{max-width:1200px;margin:0 auto;padding:24px 20px;display:grid;grid-template-columns:1fr 300px;gap:24px;align-items:start}
+
+/* Product grid */
+#catalog-main{min-width:0}
+#catalog-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px}
+#catalog-title{font-family:'Frank Ruhl Libre',serif;font-size:18px;font-weight:700;letter-spacing:-.02em}
+#catalog-count{font-size:12.5px;color:var(--muted);margin-top:2px}
+#catalog-tools{display:flex;gap:8px;align-items:center}
+.sort-select-mkt{padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-size:12.5px;background:var(--card);color:var(--dark);outline:none;cursor:pointer}
+#mobile-filter-btn{display:none;padding:8px 14px;border-radius:99px;border:1px solid var(--border);background:var(--card);font-size:13px;font-weight:500;cursor:pointer;align-items:center;gap:6px}
+
+#products-container{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:14px}
+.catalog-empty{padding:48px 20px;text-align:center;color:var(--muted);grid-column:1/-1}
+
+/* Product card */
+.product-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;cursor:pointer;transition:box-shadow .15s,transform .12s;position:relative}
+.product-card:hover{box-shadow:0 4px 20px rgba(0,0,0,.1);transform:translateY(-2px)}
+.product-card-img{width:100%;aspect-ratio:4/3;background:var(--sand);overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:32px;color:var(--muted)}
+.product-card-img img{width:100%;height:100%;object-fit:cover}
+.product-card-body{padding:11px 12px 13px}
+.product-card-name{font-size:13.5px;font-weight:600;line-height:1.3;margin-bottom:4px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.product-card-meta{font-size:11px;color:var(--muted);margin-bottom:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.product-card-price-row{display:flex;align-items:center;gap:6px;margin-bottom:10px}
+.product-card-price{font-family:'Frank Ruhl Libre',serif;font-size:17px;font-weight:700;color:var(--green)}
+.product-card-compare{font-size:12px;color:var(--muted);text-decoration:line-through}
+.product-card-badge{position:absolute;top:8px;right:8px;padding:3px 8px;border-radius:99px;font-size:10px;font-weight:700}
+.product-card-badge.red{background:#fee2e2;color:#b91c1c}
+.product-card-badge.green{background:#dcfce7;color:#166534}
+.product-card-badge.blue{background:#dbeafe;color:#1d4ed8}
+.product-card-badge.dark{background:var(--dark);color:#fff}
+.product-card-badge.orange{background:#ffedd5;color:#c2410c}
+.product-card-badge.purple{background:#f3e8ff;color:#7e22ce}
+.add-card-btn{width:100%;padding:9px;border-radius:10px;background:var(--green);color:#fff;font-size:13px;font-weight:600;transition:.15s}
+.add-card-btn:hover{background:var(--green-dark)}
+.stock-note{font-size:11px;color:var(--muted);margin-top:6px;text-align:center}
+
+/* Cart dock */
+#cart-dock{position:sticky;top:72px;background:var(--card);border:1px solid var(--border);border-radius:18px;overflow:hidden}
+#cart-step-header{padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+#cart-dock-title{font-family:'Frank Ruhl Libre',serif;font-size:16px;font-weight:700}
+#cart-dock-count{font-size:12px;color:var(--muted)}
+#cart-items-wrap{padding:12px 14px;max-height:330px;overflow-y:auto}
+.cart-empty-msg{padding:20px 0;text-align:center;color:var(--muted);font-size:13px;line-height:1.6}
+.cart-item-row{display:flex;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--border)}
+.cart-item-row:last-child{border-bottom:none}
+.cart-item-info{flex:1;min-width:0}
+.cart-item-name{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cart-item-note{font-size:11px;color:var(--muted);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cart-item-bump{display:flex;align-items:center;gap:4px}
+.bump-btn{width:24px;height:24px;border-radius:6px;background:var(--sand);font-size:13px;font-weight:700;color:var(--dark);display:flex;align-items:center;justify-content:center;transition:.1s}
+.bump-btn:hover{background:var(--border)}
+.bump-qty{font-size:13px;font-weight:600;min-width:20px;text-align:center}
+.cart-item-price{font-size:13px;font-weight:700;flex:none}
+#cart-footer{padding:12px 14px;border-top:1px solid var(--border)}
+#coupon-row{display:flex;gap:6px;margin-bottom:8px}
+#coupon-input{flex:1;padding:8px 10px;border-radius:8px;border:1px solid var(--border);font-size:12.5px;outline:none;transition:.15s}
+#coupon-input:focus{border-color:var(--green)}
+#coupon-apply-btn{padding:8px 12px;border-radius:8px;background:var(--green);color:#fff;font-size:12.5px;font-weight:600;transition:.12s}
+#coupon-apply-btn:hover{background:var(--green-dark)}
+#coupon-msg{font-size:11.5px;margin-bottom:6px}
+.cart-summary-row{display:flex;justify-content:space-between;font-size:13px;padding:3px 0}
+.cart-summary-row.total-row{font-weight:700;font-size:15px;padding-top:8px;border-top:1px solid var(--border);margin-top:6px}
+#cart-checkout-btn{width:100%;padding:12px;border-radius:12px;background:var(--green);color:#fff;font-size:14.5px;font-weight:700;transition:.15s;margin-top:10px;cursor:pointer}
+#cart-checkout-btn:hover{background:var(--green-dark)}
+#cart-checkout-btn:disabled{opacity:.4;cursor:default}
+
+/* Checkout step */
+#checkout-step{display:none}
+#checkout-step.active{display:block;animation:rise .2s}
+.co-header{padding:12px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px}
+.co-title{font-family:'Frank Ruhl Libre',serif;font-size:15px;font-weight:700}
+#back-btn{padding:5px 10px;border-radius:8px;border:1px solid var(--border);background:none;font-size:12.5px;color:var(--muted);cursor:pointer;transition:.12s}
+#back-btn:hover{background:var(--sand);color:var(--dark)}
+.co-body{padding:14px}
+.co-field{margin-bottom:12px}
+.co-label{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:4px}
+.co-input{width:100%;padding:9px 12px;border-radius:9px;border:1px solid var(--border);font-size:13px;outline:none;transition:.15s;background:var(--card)}
+.co-input:focus{border-color:var(--green)}
+.pay-methods{display:flex;flex-direction:column;gap:6px;margin-top:6px}
+.pay-method{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:9px;border:1.5px solid var(--border);cursor:pointer;transition:.12s}
+.pay-method.active{border-color:var(--green);background:#f0f7ec}
+.pay-method-icon{font-size:18px}
+.pay-method-label{font-size:13px;font-weight:500}
+#submit-btn{width:100%;padding:12px;border-radius:12px;background:var(--green);color:#fff;font-size:14.5px;font-weight:700;margin-top:14px;transition:.15s;cursor:pointer}
+#submit-btn:hover{background:var(--green-dark)}
+#submit-btn:disabled{opacity:.5;cursor:default}
+
+/* Done step */
+#done-step{display:none;padding:28px 16px;text-align:center}
+#done-step.active{display:block;animation:pop .4s ease}
+.done-icon{font-size:48px;margin-bottom:12px}
+.done-title{font-family:'Frank Ruhl Libre',serif;font-size:18px;font-weight:700;margin-bottom:6px}
+.done-sub{font-size:13px;color:var(--muted);margin-bottom:14px;line-height:1.6}
+#done-order-no{font-family:'Frank Ruhl Libre',serif;font-size:14px;font-weight:600;color:var(--green);margin-bottom:16px}
+#new-order-btn{padding:9px 18px;border-radius:99px;background:var(--green);color:#fff;font-size:13px;font-weight:600;transition:.15s;cursor:pointer}
+
+/* Bundles */
+#bundles-section{max-width:1200px;margin:0 auto;padding:0 20px 24px;display:none}
+#bundles-title{font-family:'Frank Ruhl Libre',serif;font-size:18px;font-weight:700;margin-bottom:12px}
+#bundles-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
+.bundle-card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:16px}
+.bundle-name{font-size:14px;font-weight:700;margin-bottom:4px}
+.bundle-desc{font-size:12.5px;color:var(--muted);margin-bottom:10px;line-height:1.5}
+.bundle-items-list{list-style:none;margin-bottom:10px;display:flex;flex-direction:column;gap:3px}
+.bundle-items-list li{font-size:12px;color:var(--muted)}
+.bundle-items-list li::before{content:'· '}
+.bundle-price-row{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.bundle-price{font-family:'Frank Ruhl Libre',serif;font-size:20px;font-weight:700}
+.bundle-compare{font-size:13px;color:var(--muted);text-decoration:line-through}
+.bundle-save-badge{padding:3px 8px;background:#dcfce7;color:#166534;border-radius:99px;font-size:11px;font-weight:700}
+.bundle-add-btn{width:100%;padding:9px;border-radius:99px;background:var(--green);color:#fff;font-size:13px;font-weight:600;transition:.15s;cursor:pointer}
+.bundle-add-btn:hover{background:var(--green-dark)}
+
+/* Reviews */
+#reviews-section{max-width:1200px;margin:0 auto;padding:0 20px 32px;display:none}
+#reviews-title{font-family:'Frank Ruhl Libre',serif;font-size:18px;font-weight:700;margin-bottom:12px}
+#reviews-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
+.review-card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:16px;display:flex;flex-direction:column}
+.review-stars{color:var(--accent);font-size:14px;margin-bottom:10px}
+.review-text{font-size:13.5px;color:var(--dark);line-height:1.6;font-weight:300;flex:1;margin-bottom:12px}
+.review-author{display:flex;align-items:center;gap:8px}
+.review-avatar{width:30px;height:30px;border-radius:50%;background:var(--sand);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--muted)}
+.review-name{font-size:13px;font-weight:600}
+.review-role{font-size:11px;color:var(--muted)}
+
+/* Footer */
+#store-footer{background:var(--green-dark);color:rgba(255,255,255,.55);padding:32px 20px 16px}
+.footer-inner{max-width:1200px;margin:0 auto;display:flex;gap:32px;flex-wrap:wrap}
+.footer-brand{font-family:'Frank Ruhl Libre',serif;font-size:20px;font-weight:700;color:#fff;margin-bottom:8px}
+.footer-sub{font-size:12.5px;line-height:1.6;max-width:28ch}
+.footer-col-title{font-size:11px;font-weight:700;letter-spacing:.1em;color:rgba(255,255,255,.35);margin-bottom:10px;text-transform:uppercase}
+.footer-links{display:flex;flex-direction:column;gap:6px;font-size:13px}
+.footer-links a:hover,.footer-links span:hover{color:#fff}
+#footer-copy{border-top:1px solid rgba(255,255,255,.07);padding:14px 20px;text-align:center;font-size:11.5px;color:rgba(255,255,255,.3);max-width:1200px;margin:24px auto 0}
+
+/* Quote overlay */
+#quote-overlay{position:fixed;inset:0;z-index:800;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;padding:20px}
+#quote-panel{background:var(--card);border-radius:22px;padding:28px;width:100%;max-width:420px;max-height:90vh;overflow-y:auto;animation:pop .3s ease;position:relative}
+#quote-close-btn{position:absolute;top:16px;left:16px;background:var(--sand);border:none;width:30px;height:30px;border-radius:50%;font-size:14px;color:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:center}
+#quote-title{font-family:'Frank Ruhl Libre',serif;font-size:20px;font-weight:700;margin-bottom:6px}
+#quote-sub{font-size:13px;color:var(--muted);margin-bottom:20px}
+#send-quote-btn{width:100%;padding:12px;border-radius:12px;background:var(--green);color:#fff;font-size:14.5px;font-weight:700;cursor:pointer;transition:.15s}
+#send-quote-btn:hover{background:var(--green-dark)}
+#send-quote-btn:disabled{opacity:.5;cursor:default}
+
+/* Product sheet */
+#sheet-overlay{position:fixed;inset:0;z-index:800;background:rgba(0,0,0,.5);display:none;align-items:flex-end;justify-content:center}
+#sheet-overlay.open{display:flex}
+#product-sheet{background:var(--card);border-radius:22px 22px 0 0;padding:24px 20px 36px;width:100%;max-width:560px;max-height:88vh;overflow-y:auto;animation:rise .25s ease;position:relative}
+#sheet-img-wrap{position:relative;width:100%;height:200px;border-radius:16px;overflow:hidden;background:var(--sand);margin-bottom:16px;display:flex;align-items:center;justify-content:center}
+#sheet-img-wrap img{width:100%;height:100%;object-fit:cover}
+#sheet-close{position:absolute;top:10px;left:10px;width:32px;height:32px;border-radius:50%;background:rgba(0,0,0,.45);border:none;color:#fff;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.pizza-topping-btn{padding:6px 12px;border-radius:99px;border:1.5px solid #fecaca;background:#fff;color:#b91c1c;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap}
+.pizza-topping-btn.active{background:#b91c1c;color:#fff;border-color:#b91c1c}
+.pizza-slice{cursor:pointer;transition:opacity .1s}
+.pizza-slice:hover{opacity:.8}
+.opt-check{width:14px;height:14px;border-radius:4px;border:1.5px solid var(--border);display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex:none}
+#sheet-name{font-family:'Frank Ruhl Libre',serif;font-size:20px;font-weight:700;margin-bottom:4px}
+#sheet-price{font-size:18px;font-weight:700;color:var(--green);margin-bottom:8px}
+#sheet-desc{font-size:13.5px;color:var(--muted);line-height:1.6;margin-bottom:16px}
+#sheet-options{margin-bottom:16px}
+.sheet-opt-label{font-size:12px;font-weight:700;color:var(--dark);margin-bottom:8px;text-transform:uppercase;letter-spacing:.05em}
+.sheet-opt-row{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+.sheet-opt-btn{padding:6px 14px;border-radius:99px;border:1.5px solid var(--border);font-size:13px;background:var(--card);cursor:pointer;transition:.12s}
+.sheet-opt-btn.active{border-color:var(--green);background:var(--green);color:#fff}
+#sheet-qty-row{display:flex;align-items:center;gap:16px;margin-bottom:20px}
+#sheet-qty-stepper{display:flex;align-items:center;gap:12px;background:var(--sand);border-radius:99px;padding:4px 8px}
+#sheet-qty-stepper button{width:32px;height:32px;border-radius:50%;border:none;background:var(--card);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+#sheet-qty-val{font-size:16px;font-weight:700;min-width:24px;text-align:center}
+#sheet-add-btn{width:100%;padding:14px;border-radius:14px;background:var(--green);color:#fff;font-size:15px;font-weight:700;cursor:pointer;transition:.15s}
+#sheet-add-btn:hover{background:var(--green-dark)}
+
+/* Mobile filter sheet */
+#filter-overlay{display:none;position:fixed;inset:0;z-index:700;background:rgba(0,0,0,.5)}
+#filter-sheet{position:fixed;bottom:0;right:0;left:0;z-index:701;background:var(--card);border-radius:22px 22px 0 0;padding:24px 20px 36px;max-height:80vh;overflow-y:auto;transform:translateY(100%);transition:transform .3s}
+#filter-sheet.open{transform:translateY(0)}
+
+/* Responsive */
+@media(max-width:900px){
+  #store-layout{grid-template-columns:1fr}
+  #cart-dock{position:static}
+}
+@media(max-width:600px){
+  #top-bar{padding:6px 12px;font-size:11px}
+  #top-bar-center{display:none}
+  #header{padding:10px 12px;gap:8px}
+  #header-name{display:none}
+  #header-search-wrap{min-width:0;max-width:none}
+  #quote-btn{display:none}
+  #cart-header-btn{padding:7px 10px;font-size:12px;flex-shrink:0}
+  #hero h1{font-size:clamp(22px,7vw,36px)}
+  #hero-stats{gap:16px}
+  .hstat-val{font-size:22px}
+  #products-container{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
+  #mobile-filter-btn{display:flex}
+}
+</style>
+</head>
+<body>
+
+<div id="loading-screen">
+  <div class="loader"></div>
+  <div style="font-size:13px;color:rgba(255,255,255,.5);margin-top:4px">טוען חנות...</div>
+</div>
+
+<div id="toast"></div>
+
+<!-- Top bar -->
+<div id="top-bar">
+  <span id="ref-badge">REF#<span id="session-ref">---</span></span>
+  <div id="top-bar-center"></div>
+  <span id="top-open-status"></span>
+</div>
+
+<!-- Ticker -->
+<div id="ticker-bar">
+  <span id="ticker-dot"></span>
+  <span id="ticker-status"></span>
+  <span style="margin-right:auto;color:rgba(255,255,255,.4)" id="ticker-right"></span>
+</div>
+
+<!-- Header -->
+<header id="header">
+  <div id="header-logo"><span id="header-logo-letter">מ</span></div>
+  <div id="header-name">שוק מסחרי</div>
+  <div id="header-search-wrap">
+    <input id="header-search" type="text" placeholder="חיפוש מוצרים..." oninput="handleSearch(this.value)">
+    <span id="search-icon">🔍</span>
+  </div>
+  <div id="header-actions">
+    <button id="quote-btn" onclick="openQuote()">📄 הצעת מחיר</button>
+    <button id="cart-header-btn" onclick="scrollToCart()">
+      🛒 <span id="header-cart-total">₪0</span>
+      <span id="header-cart-count">0</span>
+    </button>
+  </div>
+</header>
+
+<!-- Hero -->
+<section id="hero">
+  <div id="hero-banner-bg"></div>
+  <div id="hero-leaves"></div>
+  <div class="hero-inner">
+    <div id="hero-eyebrow">
+      <span id="hero-open-dot"></span>
+      <span id="hero-eyebrow-text">חנות מסחרית · הזמנות ישירות</span>
+    </div>
+    <h1 id="hero-title-text"></h1>
+    <p id="hero-sub"></p>
+    <div id="quick-actions" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px"></div>
+    <div id="hero-stats"></div>
+  </div>
+</section>
+
+<!-- Volume tiers -->
+<div id="volume-tiers"></div>
+
+<!-- Bundles -->
+<section id="bundles-section">
+  <div id="bundles-title">חבילות מוכנות</div>
+  <div id="bundles-grid"></div>
+</section>
+
+<!-- Category tabs -->
+<div id="cat-tabs-bar"></div>
+
+<!-- Main layout -->
+<div id="store-layout">
+
+  <!-- Catalog -->
+  <main id="catalog-main">
+    <div id="catalog-header">
+      <div>
+        <div id="catalog-title">קטלוג מוצרים</div>
+        <div id="catalog-count"></div>
+      </div>
+      <div id="catalog-tools">
+        <select class="sort-select-mkt" id="sort-select" onchange="setSort(this.value)">
+          <option value="popular">פופולריות</option>
+          <option value="price_asc">מחיר ↑</option>
+          <option value="price_desc">מחיר ↓</option>
+          <option value="rating">דירוג</option>
+        </select>
+        <button id="mobile-filter-btn" onclick="openMobileFilter()">⚙ סינון</button>
+      </div>
+    </div>
+    <div id="products-container"></div>
+  </main>
+
+  <!-- Cart dock -->
+  <aside id="cart-dock">
+    <!-- Step: cart -->
+    <div id="cart-step">
+      <div id="cart-step-header">
+        <div id="cart-dock-title">🛒 עגלה</div>
+        <div id="cart-dock-count"></div>
+      </div>
+      <div id="cart-items-wrap">
+        <div class="cart-empty-msg" id="cart-empty-msg">העגלה ריקה<br><span style="font-size:11px;color:var(--muted)">הוסיפו מוצרים מהקטלוג</span></div>
+        <div id="cart-items-list"></div>
+      </div>
+      <div id="cart-footer">
+        <div id="coupon-row">
+          <input id="coupon-input" type="text" placeholder="קוד קופון">
+          <button id="coupon-apply-btn" onclick="applyCoupon()">החל</button>
+        </div>
+        <div id="coupon-msg"></div>
+        <div id="cart-summary"></div>
+        <button id="cart-checkout-btn" onclick="goToCheckout()" disabled>המשך לתשלום</button>
+      </div>
+    </div>
+
+    <!-- Step: checkout -->
+    <div id="checkout-step">
+      <div class="co-header">
+        <button id="back-btn" onclick="goBackToCart()">← חזרה</button>
+        <div class="co-title">פרטי הזמנה</div>
+      </div>
+      <div class="co-body">
+        <div class="co-field"><label class="co-label">שם העסק *</label><input class="co-input" id="co-biz" type="text" placeholder="שם החברה / הגוף המזמין"></div>
+        <div class="co-field"><label class="co-label">איש קשר *</label><input class="co-input" id="co-name" type="text" placeholder="שם מלא"></div>
+        <div class="co-field"><label class="co-label">טלפון *</label><input class="co-input" id="co-phone" type="tel" placeholder="05X-XXXXXXX"></div>
+        <div class="co-field"><label class="co-label">כתובת למשלוח</label><input class="co-input" id="co-address" type="text" placeholder="רחוב, עיר, מיקוד"></div>
+        <div class="co-field"><label class="co-label">אמצעי תשלום</label><div class="pay-methods" id="pay-methods"></div></div>
+        <button id="submit-btn" onclick="submitOrder()">שלח הזמנה</button>
+      </div>
+    </div>
+
+    <!-- Step: done -->
+    <div id="done-step">
+      <div class="done-icon">✅</div>
+      <div class="done-title">ההזמנה נשלחה!</div>
+      <div class="done-sub">נחזור אליכם בהקדם לאישור ותיאום</div>
+      <div id="done-order-no"></div>
+      <button id="new-order-btn" onclick="resetOrder()">הזמנה חדשה</button>
+    </div>
+  </aside>
+</div>
+
+<!-- Reviews -->
+<section id="reviews-section">
+  <div id="reviews-title">מה אומרים הלקוחות</div>
+  <div id="reviews-grid"></div>
+</section>
+
+<!-- Footer -->
+<footer id="store-footer">
+  <div class="footer-inner">
+    <div style="flex:2;min-width:200px">
+      <div class="footer-brand" id="footer-name">שוק מסחרי</div>
+      <div class="footer-sub" id="footer-desc">מוצרים מובחרים במחירים הטובים ביותר</div>
+    </div>
+    <div style="min-width:140px">
+      <div class="footer-col-title">יצירת קשר</div>
+      <div class="footer-links">
+        <a id="footer-phone-link" href="#"><span id="footer-phone-text"></span></a>
+        <span id="footer-email"></span>
+        <span id="footer-addr"></span>
+      </div>
+    </div>
+  </div>
+  <div id="footer-copy">© <span id="footer-year"></span> · family-flow</div>
+</footer>
+
+<!-- Quote overlay -->
+<div id="quote-overlay" onclick="closeQuote(event)">
+  <div id="quote-panel">
+    <button id="quote-close-btn" onclick="closeQuote(null,true)">✕</button>
+    <div id="quote-title">בקשת הצעת מחיר</div>
+    <div id="quote-sub">נחזור אליכם תוך 4 שעות עם הצעה מותאמת אישית</div>
+    <div class="co-field" style="margin-top:4px"><label class="co-label">שם העסק *</label><input class="co-input" id="qf-biz" type="text" placeholder="שם החברה / הגוף"></div>
+    <div class="co-field"><label class="co-label">טלפון / אימייל *</label><input class="co-input" id="qf-contact" type="text" placeholder="05X-XXXXXXX / email@co.il"></div>
+    <div class="co-field"><label class="co-label">מה אתם צריכים?</label><textarea class="co-input" id="qf-msg" rows="4" placeholder="פרטו את הצרכים שלכם..." style="resize:vertical"></textarea></div>
+    <button id="send-quote-btn" onclick="sendQuote()">שלח בקשה</button>
+  </div>
+</div>
+
+<!-- Product detail sheet -->
+<div id="sheet-overlay" onclick="if(event.target===this)closeSheet()">
+  <div id="product-sheet">
+    <div id="sheet-img-wrap"></div>
+    <div style="padding:0 4px">
+      <div id="sheet-name"></div>
+      <div id="sheet-price"></div>
+      <div id="sheet-desc"></div>
+      <div id="sheet-options"></div>
+      <div id="sheet-qty-row">
+        <div id="sheet-qty-stepper">
+          <button onclick="sheetQtyChange(-1)">−</button>
+          <span id="sheet-qty-val">1</span>
+          <button onclick="sheetQtyChange(1)">+</button>
+        </div>
+      </div>
+      <button id="sheet-add-btn" onclick="sheetAdd()">הוסף לעגלה</button>
+    </div>
+  </div>
+</div>
+
+<!-- Mobile filter sheet -->
+<div id="filter-overlay" onclick="closeMobileFilter()"></div>
+<div id="filter-sheet">
+  <div style="font-family:'Frank Ruhl Libre',serif;font-size:16px;font-weight:700;margin-bottom:16px">סינון ומיון</div>
+  <div style="display:flex;flex-direction:column;gap:10px;padding:0">
+    <div>
+      <div style="font-size:12px;font-weight:600;color:var(--dark);margin-bottom:6px">מיון</div>
+      <select style="border:1px solid var(--border);border-radius:9px;padding:9px;width:100%;font-size:13px" onchange="setSort(this.value)">
+        <option value="popular">פופולריות</option>
+        <option value="price_asc">מחיר עולה</option>
+        <option value="price_desc">מחיר יורד</option>
+        <option value="rating">דירוג</option>
+      </select>
+    </div>
+    <div>
+      <div style="font-size:12px;font-weight:600;color:var(--dark);margin-bottom:4px">מחיר עד: <span id="price-display-m">ללא הגבלה</span></div>
+      <input type="range" style="width:100%;accent-color:var(--green)" min="0" max="10000" value="10000" step="100" oninput="setPriceMax(this.value,true)">
+    </div>
+    <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer"><input type="checkbox" id="filter-deals-m" onchange="toggleDealsFilter(this.checked)" style="accent-color:var(--green)"> רק מבצעים</label>
+    <label style="display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer"><input type="checkbox" id="filter-stock-m" onchange="toggleStockFilter(this.checked)" style="accent-color:var(--green)"> יש במלאי</label>
+    <button onclick="closeMobileFilter()" style="width:100%;padding:10px;border-radius:12px;background:var(--green);color:#fff;font-size:14px;font-weight:600;cursor:pointer">הצג תוצאות</button>
+  </div>
+</div>
+
+<script>
+/* ── State ── */
+const API = '/api';
+let storeData = null, catalog = [], groupId = null;
+let cart = {};
+let _cartStep = 'cart';
+let _couponDiscount = 0, _couponCode = '';
+let _activePromos = [];
+let _payMethod = 0;
+let _filterCat = '', _sortMode = 'popular', _priceMax = 10000;
+let _onlyDeals = false, _onlyStock = false, _searchQ = '';
+
+/* ── Utilities ── */
+function escHtml(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+let _toastTimer;
+function showToast(msg, dur=2800) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.style.display = 'block';
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => el.style.display='none', dur);
+}
+function applyAccent(color) {
+  document.documentElement.style.setProperty('--accent', color);
+  document.documentElement.style.setProperty('--green', color);
+  const m = color.match(/^#([0-9a-f]{6})$/i);
+  if (m) {
+    const r=parseInt(m[1].slice(0,2),16), g=parseInt(m[1].slice(2,4),16), b=parseInt(m[1].slice(4,6),16);
+    const dark = `rgb(${Math.max(0,r-30)},${Math.max(0,g-30)},${Math.max(0,b-30)})`;
+    document.documentElement.style.setProperty('--accent-dark', dark);
+    document.documentElement.style.setProperty('--green-dark', dark);
+    document.documentElement.style.setProperty('--green-light', `rgb(${Math.min(255,r+20)},${Math.min(255,g+20)},${Math.min(255,b+20)})`);
+  }
+}
+function isStoreOpen(s) {
+  if (!s.open_time || !s.close_time) return true;
+  const now = new Date();
+  const [oh,om] = s.open_time.split(':').map(Number);
+  const [ch,cm] = s.close_time.split(':').map(Number);
+  const nowM = now.getHours()*60 + now.getMinutes();
+  return nowM >= oh*60+om && nowM < ch*60+cm;
+}
+function fmtPrice(n) { return '₪' + Number(n||0).toLocaleString('he-IL'); }
+function cartKey(id, variant) { return `${id}__${variant||'default'}`; }
+function cartTotal() { return Object.values(cart).reduce((s,i) => s + i.price*i.qty, 0); }
+function cartCount() { return Object.values(cart).reduce((s,i) => s + i.qty, 0); }
+
+/* ── Init ── */
+async function initStore() {
+  try {
+    const path = window.location.pathname.replace(/^\//, '');
+    const code = path || new URLSearchParams(window.location.search).get('store') || 'demo';
+    const res = await fetch(`${API}/storefront/${encodeURIComponent(code)}`);
+    if (!res.ok) throw new Error('not found');
+    storeData = await res.json();
+    groupId = storeData.groupId;
+    catalog = (storeData.catalog || []).filter(p => p.is_available !== false);
+    applyAccent(storeData.settings?.accent_color || '#33502E');
+    document.title = storeData.groupName || 'שוק מסחרי';
+    document.getElementById('session-ref').textContent = Math.random().toString(36).slice(2,8).toUpperCase();
+    document.getElementById('footer-year').textContent = new Date().getFullYear();
+    renderAll();
+    document.getElementById('loading-screen').style.display = 'none';
+    loadAsync();
+  } catch(e) {
+    document.getElementById('loading-screen').innerHTML = '<div style="text-align:center;color:rgba(255,255,255,.55)">שגיאה בטעינת החנות</div>';
+    console.error(e);
+  }
+}
+
+async function loadAsync() {
+  if (!groupId) return;
+  try {
+    const r = await fetch(`${API}/store/promotions/${groupId}`);
+    const d = await r.json();
+    if (d.success) { _activePromos = d.promotions || []; renderCatalog(); }
+  } catch(e) {}
+  try {
+    const r = await fetch(`${API}/public/reviews/${groupId}`);
+    const d = await r.json();
+    if (d.success && d.reviews?.length) renderReviews(d.reviews);
+  } catch(e) {}
+  try {
+    const r = await fetch(`${API}/public/gallery/${groupId}`);
+    const d = await r.json();
+    if (d.success && d.images?.length) {
+      const btn = document.createElement('button');
+      btn.className = 'qa-btn';
+      btn.textContent = `🖼 גלריה · ${d.images.length} תמונות`;
+      btn.onclick = () => { window._galleryImages = d.images; openGallery(0); };
+      document.getElementById('quick-actions').appendChild(btn);
+      document.getElementById('quick-actions').style.display = 'flex';
+    }
+  } catch(e) {}
+}
+
+let _lbIndex = 0;
+function openGallery(i) {
+  _lbIndex = i;
+  const imgs = window._galleryImages || [];
+  if (!imgs.length) return;
+  const ov = document.createElement('div');
+  ov.id = 'lb-overlay';
+  ov.style.cssText = 'position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,.92);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px';
+  ov.innerHTML = `<button onclick="document.getElementById('lb-overlay').remove()" style="position:absolute;top:16px;left:16px;background:rgba(255,255,255,.12);border:none;color:#fff;font-size:22px;width:40px;height:40px;border-radius:50%;cursor:pointer">✕</button>
+    <button onclick="lbNav(-1)" style="position:absolute;right:16px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,.12);border:none;color:#fff;font-size:22px;width:44px;height:44px;border-radius:50%;cursor:pointer">›</button>
+    <img id="lb-img" src="${escHtml(imgs[i].url||imgs[i])}" style="max-width:90vw;max-height:75vh;border-radius:12px;object-fit:contain">
+    <div id="lb-counter" style="color:rgba(255,255,255,.55);font-size:13px">${i+1} / ${imgs.length}</div>
+    <button onclick="lbNav(1)" style="position:absolute;left:16px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,.12);border:none;color:#fff;font-size:22px;width:44px;height:44px;border-radius:50%;cursor:pointer">‹</button>`;
+  document.body.appendChild(ov);
+}
+function lbNav(dir) {
+  const imgs = window._galleryImages || [];
+  _lbIndex = (_lbIndex + dir + imgs.length) % imgs.length;
+  const ov = document.getElementById('lb-overlay');
+  if (ov) { ov.querySelector('#lb-img').src = escHtml(imgs[_lbIndex].url||imgs[_lbIndex]); ov.querySelector('#lb-counter').textContent = `${_lbIndex+1} / ${imgs.length}`; }
+}
+
+/* ── Render all ── */
+function renderAll() {
+  const s = storeData.settings || {};
+  renderTicker(s);
+  renderHeader(s);
+  renderHero(s);
+  renderVolumeTiers(s);
+  renderBundles();
+  renderCategoryTabs();
+  renderCatalog();
+  renderCartDock();
+  renderPayMethods(s);
+  renderFooter(s);
+}
+
+function renderTicker(s) {
+  const isOpen = isStoreOpen(s);
+  const center = document.getElementById('top-bar-center');
+  const msgs = s.ticker_messages || [];
+  center.innerHTML = msgs.map(m => `<span>${escHtml(m)}</span>`).join('');
+  center.style.display = msgs.length ? '' : 'none';
+  const bar = document.getElementById('ticker-bar');
+  if (s.open_time || s.phone) {
+    bar.style.display = 'flex';
+    document.getElementById('ticker-dot').style.background = isOpen ? '#a8d08d' : '#ef4444';
+    document.getElementById('ticker-status').textContent = isOpen ? 'פתוח עכשיו' : 'סגור כעת';
+    document.getElementById('hero-open-dot').style.background = isOpen ? '#a8d08d' : '#ef4444';
+    document.getElementById('top-open-status').textContent = isOpen ? '🟢 פתוח' : '🔴 סגור';
+    const parts = [];
+    if (s.phone) parts.push(`טלפון: ${s.phone}`);
+    if (s.free_delivery_above) parts.push(`משלוח חינם מעל ${fmtPrice(s.free_delivery_above)}`);
+    document.getElementById('ticker-right').textContent = parts.join(' · ');
+  }
+}
+
+function renderHeader(s) {
+  const name = storeData.groupName || '';
+  document.getElementById('header-name').textContent = name;
+  document.getElementById('footer-name').textContent = name;
+  const logoEl = document.getElementById('header-logo');
+  if (s.logo_url) {
+    logoEl.innerHTML = `<img src="${escHtml(s.logo_url)}" alt="לוגו" onerror="this.style.display='none'">`;
+  } else {
+    document.getElementById('header-logo-letter').textContent = (name||'מ')[0];
+  }
+  if (s.phone) {
+    document.getElementById('footer-phone-text').textContent = s.phone;
+    document.getElementById('footer-phone-link').href = `tel:${s.phone}`;
+  }
+  if (s.address) document.getElementById('footer-addr').textContent = s.address;
+  if (s.description) document.getElementById('footer-desc').textContent = s.description;
+  if (s.email) document.getElementById('footer-email').textContent = s.email;
+}
+
+function renderHero(s) {
+  const name = storeData.groupName || '';
+  document.getElementById('hero-title-text').textContent = name;
+  document.getElementById('hero-sub').textContent = s.slogan || s.description || '';
+  const stats = [];
+  const disc = s.max_volume_discount || (storeData.volume_tiers?.slice(-1)[0]?.pct);
+  if (disc) stats.push({val: disc+'%', lbl: 'הנחת כמות'});
+  if (s.delivery_eta) stats.push({val: s.delivery_eta+'h', lbl: 'זמן אספקה'});
+  if (s.free_delivery_above) stats.push({val: '₪'+s.free_delivery_above, lbl: 'משלוח חינם מעל'});
+  document.getElementById('hero-stats').innerHTML = stats.map(st =>
+    `<div class="hstat"><div class="hstat-val">${escHtml(st.val)}</div><div class="hstat-lbl">${escHtml(st.lbl)}</div></div>`
+  ).join('');
+  const bannerUrl = s.banner_url && s.banner_url !== 'DELETE' && s.banner_url !== 'null' ? s.banner_url : '';
+  if (bannerUrl) {
+    const bg = document.getElementById('hero-banner-bg');
+    bg.style.backgroundImage = `url('${bannerUrl}')`;
+    bg.style.opacity = '0.22';
+  }
+  renderQuickActions(s);
+}
+
+function renderQuickActions(s) {
+  const btns = [];
+  if (s.phone) btns.push(`<a class="qa-btn" href="tel:${escHtml(s.phone)}">📞 ${escHtml(s.phone)}</a>`);
+  const wa = s.whatsapp_number || s.phone;
+  if (wa) btns.push(`<a class="qa-btn" href="https://wa.me/972${wa.replace(/\D/g,'').replace(/^0/,'')}" target="_blank">💬 וואטסאפ</a>`);
+  if (s.biz_lat && s.biz_lng) {
+    btns.push(`<a class="qa-btn" href="https://waze.com/ul?ll=${s.biz_lat},${s.biz_lng}&navigate=yes" target="_blank">🚗 Waze</a>`);
+    btns.push(`<a class="qa-btn" href="https://maps.google.com/?q=${s.biz_lat},${s.biz_lng}" target="_blank">📍 מפה</a>`);
+  } else if (s.biz_address) {
+    btns.push(`<a class="qa-btn" href="https://maps.google.com/?q=${encodeURIComponent(s.biz_address)}" target="_blank">📍 ${escHtml(s.biz_address)}</a>`);
+  }
+  if (s.has_table_booking) btns.push(`<button class="qa-btn" onclick="openBooking('table')">🪑 הזמנת שולחן</button>`);
+  if (s.has_space_booking) btns.push(`<button class="qa-btn" onclick="openBooking('space')">🏛 הזמנת מקום</button>`);
+  if (s.has_event_booking) btns.push(`<button class="qa-btn" onclick="openBooking('event')">🎉 הזמנת אירוע</button>`);
+  document.getElementById('quick-actions').innerHTML = btns.join('');
+  document.getElementById('quick-actions').style.display = btns.length ? 'flex' : 'none';
+}
+
+function openBooking(type) {
+  openQuote();
+  document.getElementById('qf-msg').value = type === 'table' ? 'הזמנת שולחן — ' : type === 'space' ? 'הזמנת מקום — ' : 'הזמנת אירוע — ';
+}
+
+function renderVolumeTiers(s) {
+  const tiers = storeData?.volume_tiers || s.volume_tiers || [];
+  const el = document.getElementById('volume-tiers');
+  if (!tiers.length) { if (el) el.style.display='none'; return; }
+  if (el) el.style.display='';
+  const total = cartCount();
+  el.innerHTML = tiers.map((tier, i) => {
+    const next = tiers[i+1];
+    const active = next ? (total >= tier.min_qty && total < next.min_qty) : (total >= tier.min_qty);
+    return `<div class="vtier${active?' hl':''}">
+      <div class="vtier-range">${escHtml(tier.label)}</div>
+      <div class="vtier-note">${escHtml(tier.note)}</div>
+    </div>`;
+  }).join('');
+}
+
+function renderBundles() {
+  const bundles = storeData.bundles || [];
+  if (!bundles.length) return;
+  document.getElementById('bundles-section').style.display = '';
+  document.getElementById('bundles-grid').innerHTML = bundles.map(b => {
+    const save = b.compare_at_price && b.compare_at_price > b.price
+      ? Math.round((1 - b.price/b.compare_at_price)*100) : 0;
+    const safeB = escHtml(JSON.stringify(b));
+    return `<div class="bundle-card">
+      <div class="bundle-name">${escHtml(b.name)}</div>
+      <div class="bundle-desc">${escHtml(b.description||'')}</div>
+      ${b.items?.length ? `<ul class="bundle-items-list">${b.items.map(it=>`<li>${escHtml(it)}</li>`).join('')}</ul>` : ''}
+      <div class="bundle-price-row">
+        <div class="bundle-price">${fmtPrice(b.price)}</div>
+        ${b.compare_at_price ? `<div class="bundle-compare">${fmtPrice(b.compare_at_price)}</div>` : ''}
+        ${save ? `<div class="bundle-save-badge">חיסכון ${save}%</div>` : ''}
+      </div>
+      <button class="bundle-add-btn" onclick='addBundle(${safeB})'>הוסף חבילה לעגלה</button>
+    </div>`;
+  }).join('');
+}
+
+/* ── Category tabs ── */
+function renderCategoryTabs() {
+  const cats = ['', ...[...new Set(catalog.map(p=>p.category).filter(Boolean))]];
+  const bar = document.getElementById('cat-tabs-bar');
+  const counts = {};
+  catalog.forEach(p => { counts[p.category||''] = (counts[p.category||'']||0)+1; });
+  bar.innerHTML = cats.map(cat =>
+    `<button class="cat-tab${_filterCat===cat?' active':''}" onclick="setCategory('${escHtml(cat)}')">
+      ${escHtml(cat||'הכל')}
+      <span style="font-size:11px;opacity:.6;margin-right:4px">${cat ? (counts[cat]||0) : catalog.length}</span>
+    </button>`
+  ).join('');
+}
+
+/* ── Catalog ── */
+function getFiltered() {
+  let items = [...catalog];
+  if (_searchQ) {
+    const q = _searchQ.toLowerCase();
+    items = items.filter(p => (p.name||'').toLowerCase().includes(q) || (p.sku||'').toLowerCase().includes(q));
+  }
+  if (_filterCat) items = items.filter(p => p.category === _filterCat);
+  if (_priceMax < 10000) items = items.filter(p => p.price <= _priceMax);
+  if (_onlyDeals) items = items.filter(p => p.is_deal || (p.compare_at_price > p.price));
+  if (_onlyStock) items = items.filter(p => p.is_in_stock !== false && p.stock_note !== 'אזל');
+  if (_sortMode === 'price_asc') items.sort((a,b) => a.price - b.price);
+  else if (_sortMode === 'price_desc') items.sort((a,b) => b.price - a.price);
+  else if (_sortMode === 'rating') items.sort((a,b) => (b.rating||0) - (a.rating||0));
+  return items;
+}
+
+function renderCatalog() {
+  const items = getFiltered();
+  const container = document.getElementById('products-container');
+  document.getElementById('catalog-count').textContent = `${items.length} מוצרים`;
+  renderCategoryTabs();
+  if (!items.length) {
+    container.innerHTML = '<div class="catalog-empty">לא נמצאו מוצרים</div>';
+    return;
+  }
+  container.innerHTML = items.map(p => productCardHtml(p)).join('');
+}
+
+function productCardHtml(p) {
+  const badge = p.badge ? `<div class="product-card-badge ${escHtml(p.badge_color||'dark')}">${escHtml(p.badge)}</div>` : '';
+  const compare = p.compare_at_price > p.price
+    ? `<span class="product-card-compare">${fmtPrice(p.compare_at_price)}</span>` : '';
+  const imgHtml = p.has_image
+    ? `<img src="${API}/store/item-image/${p.id}" alt="${escHtml(p.name)}" loading="lazy">`
+    : `<span>🛒</span>`;
+  return `<div class="product-card" onclick="openSheet(${p.id},event)">
+    <div class="product-card-img">${imgHtml}</div>
+    ${badge}
+    <div class="product-card-body">
+      <div class="product-card-name">${escHtml(p.name)}</div>
+      ${p.sku||p.stock_note ? `<div class="product-card-meta">${p.sku?'SKU: '+escHtml(p.sku):''} ${p.stock_note?escHtml(p.stock_note):''}</div>` : ''}
+      <div class="product-card-price-row">
+        <div class="product-card-price">${fmtPrice(p.price)}</div>
+        ${compare}
+      </div>
+      <button class="add-card-btn" onclick="quickAdd(${p.id},event)">+ הוסף לעגלה</button>
+    </div>
+  </div>`;
+}
+
+function quickAdd(id, e) {
+  if (e) e.stopPropagation();
+  const p = catalog.find(x=>x.id==id);
+  if (!p) return;
+  if (hasOptions(p) || p.colors?.length || p.product_type === 'pizza_builder') {
+    openSheet(id, e);
+    return;
+  }
+  const key = cartKey(p.id, '');
+  if (cart[key]) cart[key].qty++;
+  else cart[key] = {id:p.id, name:p.name, price:p.price, qty:1, note:'', colorName:''};
+  showToast(`✓ ${p.name} נוסף לעגלה`);
+  renderCartDock();
+  updateHeaderCart();
+  renderVolumeTiers(storeData?.settings||{});
+}
+
+function addBundle(b) {
+  const key = 'bundle__' + b.name;
+  if (cart[key]) cart[key].qty++;
+  else cart[key] = {id:'bundle_'+b.name, name:b.name, price:b.price, qty:1, note:'חבילה', colorName:''};
+  showToast(`✓ חבילה "${b.name}" נוספה לעגלה`);
+  renderCartDock();
+  updateHeaderCart();
+}
+
+/* ── Cart ── */
+function renderCartDock() {
+  if (_cartStep !== 'cart') {
+    document.getElementById('cart-step').style.display = 'none';
+    document.getElementById('checkout-step').classList.toggle('active', _cartStep==='checkout');
+    document.getElementById('done-step').classList.toggle('active', _cartStep==='done');
+    return;
+  }
+  document.getElementById('cart-step').style.display = '';
+  document.getElementById('checkout-step').classList.remove('active');
+  document.getElementById('done-step').classList.remove('active');
+
+  const items = Object.values(cart);
+  document.getElementById('cart-empty-msg').style.display = items.length ? 'none' : '';
+  document.getElementById('cart-dock-count').textContent = items.length ? `${cartCount()} פריטים` : '';
+  document.getElementById('cart-items-list').innerHTML = items.map(item => {
+    const key = cartKey(item.id, item.colorName||item.note);
+    return `<div class="cart-item-row">
+      <div class="cart-item-info">
+        <div class="cart-item-name">${escHtml(item.name)}</div>
+        ${item.note ? `<div class="cart-item-note">${escHtml(item.note)}</div>` : ''}
+      </div>
+      <div class="cart-item-bump">
+        <button class="bump-btn" onclick="bump('${escHtml(key)}',-1)">−</button>
+        <span class="bump-qty">${item.qty}</span>
+        <button class="bump-btn" onclick="bump('${escHtml(key)}',1)">+</button>
+      </div>
+      <div class="cart-item-price">${fmtPrice(item.price*item.qty)}</div>
+    </div>`;
+  }).join('');
+  renderCartSummary();
+  document.getElementById('cart-checkout-btn').disabled = !items.length;
+}
+
+function renderCartSummary() {
+  const sub = cartTotal();
+  const bogoDisc = calcBogoDiscount();
+  let couponDisc = 0;
+  if (typeof _couponDiscount === 'number' && _couponDiscount > 0) couponDisc = Math.round(sub * _couponDiscount);
+  else if (typeof _couponDiscount === 'string' && _couponDiscount.startsWith('fixed:'))
+    couponDisc = Math.min(sub, parseFloat(_couponDiscount.split(':')[1])||0);
+  const delivery = storeData?.settings?.delivery_fee || 0;
+  const total = Math.max(0, sub - bogoDisc - couponDisc + delivery);
+  let html = `<div class="cart-summary-row"><span>סה"כ מוצרים</span><span>${fmtPrice(sub)}</span></div>`;
+  if (bogoDisc) html += `<div class="cart-summary-row" style="color:#15803d"><span>הנחת BOGO</span><span>−${fmtPrice(bogoDisc)}</span></div>`;
+  if (couponDisc) html += `<div class="cart-summary-row" style="color:#15803d"><span>קופון ${escHtml(_couponCode)}</span><span>−${fmtPrice(couponDisc)}</span></div>`;
+  if (delivery) html += `<div class="cart-summary-row"><span>משלוח</span><span>${fmtPrice(delivery)}</span></div>`;
+  html += `<div class="cart-summary-row total-row"><span>לתשלום</span><span>${fmtPrice(total)}</span></div>`;
+  document.getElementById('cart-summary').innerHTML = html;
+}
+
+function calcBogoDiscount() {
+  const bogo = _activePromos.find(p => p.promo_type==='bogo' && p.is_active);
+  if (!bogo || _couponDiscount) return 0;
+  const byId = {};
+  Object.values(cart).forEach(c => { byId[c.id] = (byId[c.id]||0) + c.qty; });
+  return Object.entries(byId).reduce((sum,[id,qty]) => {
+    const p = catalog.find(x=>x.id==id);
+    return sum + (p ? Math.floor(qty/2)*p.price : 0);
+  }, 0);
+}
+
+function bump(key, delta) {
+  if (!cart[key]) return;
+  cart[key].qty = Math.max(0, cart[key].qty + delta);
+  if (cart[key].qty === 0) delete cart[key];
+  renderCartDock();
+  updateHeaderCart();
+  renderVolumeTiers(storeData?.settings||{});
+}
+
+function updateHeaderCart() {
+  document.getElementById('header-cart-total').textContent = fmtPrice(cartTotal());
+  document.getElementById('header-cart-count').textContent = cartCount();
+}
+
+function scrollToCart() {
+  document.getElementById('cart-dock')?.scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+function applyCoupon() {
+  const code = document.getElementById('coupon-input').value.trim().toUpperCase();
+  if (!code) return;
+  const promo = _activePromos.find(p => (p.promo_code||'').toUpperCase()===code && p.is_active);
+  if (!promo) { setCouponMsg('קוד לא תקין', true); return; }
+  _couponCode = code;
+  if (promo.promo_type === 'discount_pct') {
+    _couponDiscount = (promo.promo_value||0) / 100;
+    setCouponMsg(`✅ ${promo.promo_value}% הנחה הופעל`);
+  } else if (promo.promo_type === 'discount_fixed') {
+    _couponDiscount = 'fixed:' + (promo.promo_value||0);
+    setCouponMsg(`✅ הנחה של ${fmtPrice(promo.promo_value)} הופעלה`);
+  }
+  renderCartSummary();
+}
+function setCouponMsg(msg, isErr) {
+  const el = document.getElementById('coupon-msg');
+  el.textContent = msg;
+  el.style.color = isErr ? '#b91c1c' : '#15803d';
+}
+
+/* ── Checkout ── */
+function renderPayMethods(s) {
+  const methods = s.payment_methods || [
+    {icon:'💳', label:'כרטיס אשראי'},
+    {icon:'🏦', label:'העברה בנקאית'},
+    {icon:'📱', label:'ביט / פייבוקס'},
+  ];
+  document.getElementById('pay-methods').innerHTML = methods.map((m,i) =>
+    `<div class="pay-method${_payMethod===i?' active':''}" onclick="selectPay(${i})">
+      <span class="pay-method-icon">${escHtml(m.icon||'💳')}</span>
+      <span class="pay-method-label">${escHtml(m.label)}</span>
+    </div>`
+  ).join('');
+}
+function selectPay(i) {
+  _payMethod = i;
+  document.querySelectorAll('.pay-method').forEach((el,idx) => el.classList.toggle('active', idx===i));
+}
+function goToCheckout() {
+  if (!Object.keys(cart).length) return;
+  _cartStep = 'checkout';
+  renderCartDock();
+}
+function goBackToCart() {
+  _cartStep = 'cart';
+  renderCartDock();
+}
+async function submitOrder() {
+  const biz   = document.getElementById('co-biz').value.trim();
+  const name  = document.getElementById('co-name').value.trim();
+  const phone = document.getElementById('co-phone').value.trim();
+  if (!biz || !name || !phone) { showToast('יש למלא שם עסק, איש קשר וטלפון'); return; }
+  const btn = document.getElementById('submit-btn');
+  btn.textContent = 'שולח...'; btn.disabled = true;
+  const sub = cartTotal();
+  const bogoDisc = calcBogoDiscount();
+  let couponDisc = 0;
+  if (typeof _couponDiscount === 'number') couponDisc = Math.round(sub*_couponDiscount);
+  else if (typeof _couponDiscount === 'string' && _couponDiscount.startsWith('fixed:')) couponDisc = Math.min(sub, parseFloat(_couponDiscount.split(':')[1])||0);
+  const delivery = storeData?.settings?.delivery_fee || 0;
+  const total = Math.max(0, sub - bogoDisc - couponDisc + delivery);
+  try {
+    const r = await fetch(`${API}/storefront/order`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        groupId, customerName:name, businessName:biz, phone,
+        address: document.getElementById('co-address').value.trim(),
+        payMethod: _payMethod, items: Object.values(cart),
+        couponCode: _couponCode, total
+      })
+    });
+    const d = await r.json();
+    const orderNo = d.orderNo || d.order_no || ('#' + Math.floor(Math.random()*90000+10000));
+    document.getElementById('done-order-no').textContent = `מספר הזמנה: ${orderNo}`;
+    _cartStep = 'done';
+    renderCartDock();
+  } catch(e) {
+    showToast('שגיאה בשליחת ההזמנה, נסו שוב');
+    btn.textContent = 'שלח הזמנה'; btn.disabled = false;
+  }
+}
+function resetOrder() {
+  cart = {}; _cartStep = 'cart';
+  _couponDiscount = 0; _couponCode = '';
+  document.getElementById('coupon-input').value = '';
+  document.getElementById('coupon-msg').textContent = '';
+  renderCartDock(); updateHeaderCart();
+  renderVolumeTiers(storeData?.settings||{});
+}
+
+/* ── Reviews ── */
+function renderReviews(reviews) {
+  const sec = document.getElementById('reviews-section');
+  sec.style.display = '';
+  document.getElementById('reviews-grid').innerHTML = reviews.map(r => {
+    const stars = '★'.repeat(r.rating||5) + '☆'.repeat(5-(r.rating||5));
+    const initials = (r.reviewer_name||r.name||'א').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+    return `<div class="review-card">
+      <div class="review-stars">${stars}</div>
+      <div class="review-text">${escHtml(r.review_text||r.text||'')}</div>
+      <div class="review-author">
+        <div class="review-avatar">${escHtml(initials)}</div>
+        <div>
+          <div class="review-name">${escHtml(r.reviewer_name||r.name||'לקוח')}</div>
+          ${r.reviewer_role||r.role ? `<div class="review-role">${escHtml(r.reviewer_role||r.role)}</div>` : ''}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderFooter(s) {
+  if (s.description) document.getElementById('footer-desc').textContent = s.description;
+}
+
+/* ── Filters ── */
+function setCategory(cat) { _filterCat = cat; renderCatalog(); }
+function setSort(mode) { _sortMode = mode; renderCatalog(); }
+function setPriceMax(val, isMobile) {
+  _priceMax = Number(val);
+  const label = _priceMax >= 10000 ? 'ללא הגבלה' : fmtPrice(_priceMax);
+  if (document.getElementById('price-display-m')) document.getElementById('price-display-m').textContent = label;
+  renderCatalog();
+}
+function toggleDealsFilter(v) {
+  _onlyDeals = v;
+  const el = document.getElementById('filter-deals-m'); if(el) el.checked=v;
+  renderCatalog();
+}
+function toggleStockFilter(v) {
+  _onlyStock = v;
+  const el = document.getElementById('filter-stock-m'); if(el) el.checked=v;
+  renderCatalog();
+}
+function handleSearch(val) { _searchQ = val; renderCatalog(); }
+
+/* ── Mobile filter ── */
+function openMobileFilter() {
+  document.getElementById('filter-overlay').style.display = 'block';
+  document.getElementById('filter-sheet').classList.add('open');
+}
+function closeMobileFilter() {
+  document.getElementById('filter-overlay').style.display = 'none';
+  document.getElementById('filter-sheet').classList.remove('open');
+}
+
+/* ── Quote ── */
+function openQuote() { document.getElementById('quote-overlay').style.display = 'flex'; }
+function closeQuote(e, force) {
+  if (force || e?.target === document.getElementById('quote-overlay'))
+    document.getElementById('quote-overlay').style.display = 'none';
+}
+async function sendQuote() {
+  const biz = document.getElementById('qf-biz').value.trim();
+  const contact = document.getElementById('qf-contact').value.trim();
+  if (!biz || !contact) { showToast('יש למלא שם עסק ופרטי קשר'); return; }
+  const btn = document.getElementById('send-quote-btn');
+  btn.textContent = 'שולח...'; btn.disabled = true;
+  try {
+    await fetch(`${API}/storefront/quote`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({groupId, businessName:biz, contact, message: document.getElementById('qf-msg').value.trim()})
+    });
+    showToast('✓ הבקשה נשלחה! נחזור אליכם בהקדם');
+    closeQuote(null, true);
+  } catch(e) { showToast('שגיאה, נסו שוב'); }
+  btn.textContent = 'שלח בקשה'; btn.disabled = false;
+}
+
+/* ── Product Sheet — Full (כל סוגי המוצרים) ── */
+let _sheetId = null, _sheetQty = 1, _sheetExtras = {}, _sheetNote = '';
+let _isPizzaProduct = false, _pizzaToppings = [], _pizzaState = {}, _activePizzaTopping = null;
+
+function hasOptions(p) {
+  try { const o = JSON.parse(p.options_text||'[]'); return Array.isArray(o) && o.length > 0; } catch(e) { return false; }
+}
+
+function openSheet(id, e) {
+  if (e) e.stopPropagation();
+  const p = catalog.find(x => x.id == id);
+  if (!p) return;
+  _sheetId = id; _sheetQty = 1; _sheetExtras = {}; _sheetNote = '';
+  const imgEl = document.getElementById('sheet-img-wrap');
+  if (imgEl) {
+    if (p.has_image) imgEl.innerHTML = `<img src="${API}/store/item-image/${p.id}" alt="${escHtml(p.name)}" style="width:100%;height:100%;object-fit:cover"><button id="sheet-close" onclick="closeSheet()">✕</button>`;
+    else imgEl.innerHTML = `<div style="font-size:48px;opacity:.4;display:flex;align-items:center;justify-content:center;height:100%">🛒</div><button id="sheet-close" onclick="closeSheet()">✕</button>`;
+  }
+  document.getElementById('sheet-name').textContent = p.name || '';
+  document.getElementById('sheet-price').textContent = fmtPrice(p.price);
+  document.getElementById('sheet-desc').textContent = p.description || p.long_description || '';
+  document.getElementById('sheet-qty-val').textContent = '1';
+
+  _isPizzaProduct = false;
+  let optHtml = '';
+  try {
+    const opts = JSON.parse(p.options_text || '[]');
+    if (p.product_type === 'pizza_builder' || (Array.isArray(opts) && opts.length && opts[0].isPizza)) {
+      const toppings = (Array.isArray(opts) && opts.length && opts[0].toppings) ? opts[0].toppings : Array.isArray(opts) ? opts : [];
+      initPizzaBuilder(toppings);
+      optHtml = `<div id="pizza-builder-wrapper"></div>`;
+    } else if (Array.isArray(opts) && opts.length) {
+      optHtml = opts.map((g, gi) => `
+        <div style="margin-bottom:12px">
+          <div class="sheet-opt-label">${escHtml(g.name || g.title || '')}</div>
+          <div class="sheet-opt-row">${(g.options || g.items || []).map((o, oi) => {
+            const nm = typeof o === 'string' ? o : (o.name || '');
+            const pr = typeof o === 'object' && o.price ? `+₪${o.price}` : '';
+            return `<button class="sheet-opt-btn" id="sopt-${gi}-${oi}" onclick="toggleOpt(${gi},${oi},'${g.type||'single'}')">
+              <span class="opt-check" id="soptcheck-${gi}-${oi}"></span>
+              ${escHtml(nm)}${pr ? ` <span style="font-size:11px;opacity:.7">${pr}</span>` : ''}
+            </button>`;
+          }).join('')}</div>
+        </div>`).join('');
+    }
+  } catch(e) {}
+  if (!optHtml && p.colors?.length) {
+    optHtml = `<div class="sheet-opt-label">גרסה / צבע</div><div class="sheet-opt-row">${
+      p.colors.map((c, i) => `<button class="sheet-opt-btn${i===0?' active':''}" onclick="sheetSelectColor(this,'${escHtml(c.name||c)}')">${escHtml(c.name||c)}</button>`).join('')
+    }</div>`;
+  }
+  optHtml += `<div style="margin-top:12px"><textarea id="sheet-note-input" placeholder="הערות לפריט (אופציונלי)" rows="2" style="width:100%;border:1px solid var(--border);border-radius:10px;padding:8px;font-size:13px;font-family:inherit;resize:none;background:var(--sand)"></textarea></div>`;
+
+  document.getElementById('sheet-options').innerHTML = optHtml;
+  if (_isPizzaProduct) renderPizzaBuilder();
+  updateSheetTotal();
+  document.getElementById('sheet-overlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function sheetSelectColor(btn, name) {
+  document.querySelectorAll('#sheet-options .sheet-opt-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+function toggleOpt(gi, oi, type) {
+  if (!_sheetExtras[gi]) _sheetExtras[gi] = [];
+  if (type === 'single' || type === 'radio') _sheetExtras[gi] = [oi];
+  else { const idx = _sheetExtras[gi].indexOf(oi); if (idx > -1) _sheetExtras[gi].splice(idx,1); else _sheetExtras[gi].push(oi); }
+  const p = catalog.find(x => x.id === _sheetId);
+  try {
+    const opts = JSON.parse(p.options_text || '[]');
+    opts.forEach((g, gidx) => {
+      (g.options||g.items||[]).forEach((_,oidx) => {
+        const on = _sheetExtras[gidx]?.includes(oidx);
+        const btn = document.getElementById(`sopt-${gidx}-${oidx}`);
+        const chk = document.getElementById(`soptcheck-${gidx}-${oidx}`);
+        if (btn) btn.classList.toggle('active', !!on);
+        if (chk) { chk.textContent = on ? '✓' : ''; }
+      });
+    });
+  } catch(e) {}
+  updateSheetTotal();
+}
+
+function sheetQtyChange(delta) {
+  _sheetQty = Math.max(1, _sheetQty + delta);
+  document.getElementById('sheet-qty-val').textContent = _sheetQty;
+  updateSheetTotal();
+}
+
+function updateSheetTotal() {
+  const p = catalog.find(x => x.id == _sheetId);
+  if (!p) return;
+  let extra = 0;
+  if (_isPizzaProduct) {
+    extra = calcPizzaExtra();
+  } else {
+    try {
+      const opts = JSON.parse(p.options_text || '[]');
+      Object.entries(_sheetExtras).forEach(([gi, sel]) => {
+        const g = opts[gi], items = g?.options || g?.items || [];
+        sel.forEach(oi => { const o = items[oi]; if (o && typeof o === 'object' && o.price) extra += parseFloat(o.price) || 0; });
+      });
+    } catch(e) {}
+  }
+  const total = (p.price + extra) * _sheetQty;
+  document.getElementById('sheet-add-btn').textContent = `הוסף לעגלה — ${fmtPrice(total)}`;
+  document.getElementById('sheet-price').textContent = fmtPrice(p.price + extra);
+}
+
+function sheetAdd() {
+  const p = catalog.find(x => x.id == _sheetId);
+  if (!p) return;
+  let extra = 0, noteArr = [];
+  if (_isPizzaProduct) {
+    const {selections, extraPrice} = getPizzaSelections();
+    extra = extraPrice; noteArr = selections;
+  } else {
+    try {
+      const opts = JSON.parse(p.options_text || '[]');
+      Object.entries(_sheetExtras).forEach(([gi, sel]) => {
+        const g = opts[gi], items = g?.options || g?.items || [];
+        sel.forEach(oi => { const o = items[oi]; const nm = typeof o === 'string' ? o : (o?.name || ''); if (nm) noteArr.push(nm); if (o && typeof o === 'object' && o.price) extra += parseFloat(o.price) || 0; });
+      });
+    } catch(e) {}
+  }
+  const userNote = document.getElementById('sheet-note-input')?.value.trim() || '';
+  const note = [userNote, ...noteArr].filter(Boolean).join(', ');
+  const key = cartKey(p.id, note);
+  const finalPrice = p.price + extra;
+  if (cart[key]) cart[key].qty += _sheetQty;
+  else cart[key] = {id: p.id, name: p.name, price: finalPrice, qty: _sheetQty, note, colorName: note};
+  showToast(`✓ ${p.name} נוסף לעגלה`);
+  closeSheet();
+  renderCartDock();
+  updateHeaderCart();
+  renderVolumeTiers(storeData?.settings || {});
+}
+
+function closeSheet() {
+  document.getElementById('sheet-overlay').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+/* ── Pizza Builder ── */
+function initPizzaBuilder(toppings) {
+  _isPizzaProduct = true;
+  _pizzaToppings = toppings || [];
+  _pizzaState = {};
+  _pizzaToppings.forEach(t => _pizzaState[t.name] = [0,0,0,0]);
+  _activePizzaTopping = _pizzaToppings.length > 0 ? _pizzaToppings[0].name : null;
+}
+function renderPizzaBuilder() {
+  const wrapper = document.getElementById('pizza-builder-wrapper');
+  if (!wrapper) return;
+  const getFill = qi => {
+    if (!_activePizzaTopping || !_pizzaState[_activePizzaTopping]) return 'transparent';
+    const v = _pizzaState[_activePizzaTopping][qi];
+    return v === 2 ? '#ef4444' : v === 1 ? '#fca5a5' : 'transparent';
+  };
+  const getX2 = (qi,x,y) => _pizzaState[_activePizzaTopping]?.[qi] === 2
+    ? `<text x="${x}" y="${y}" font-size="10" font-weight="900" fill="#fff" text-anchor="middle" pointer-events="none">X2</text>` : '';
+  const toppingsHtml = _pizzaToppings.map(t =>
+    `<button class="pizza-topping-btn${t.name===_activePizzaTopping?' active':''}" onclick="selectPizzaTopping('${escHtml(t.name)}')">${escHtml(t.name)} (+₪${t.price})</button>`
+  ).join('');
+  let summaryParts = [];
+  _pizzaToppings.forEach(t => {
+    const vals = _pizzaState[t.name];
+    const active = vals.reduce((s,v)=>s+Number(v||0),0);
+    if (!active) return;
+    let q1=[],q2=[];
+    vals.forEach((v,i)=>{ if(v===1)q1.push(i+1); if(v===2)q2.push(i+1); });
+    let parts=[];
+    if(q1.length) parts.push(q1.length===4?'מגש שלם':`רבעים ${q1.join(', ')}`);
+    if(q2.length) parts.push(q2.length===4?'כפול הכל':`כפול ${q2.join(', ')}`);
+    summaryParts.push(`<span style="display:inline-block;background:#fee2e2;color:#b91c1c;padding:3px 8px;border-radius:8px;font-size:11px;font-weight:700;margin:2px">${escHtml(t.name)} — ${parts.join(' | ')}</span>`);
+  });
+  wrapper.innerHTML = `
+    <div style="background:#fff8f8;border:1px solid #fecaca;border-radius:18px;padding:16px;margin-bottom:14px">
+      <h4 style="font-family:'Frank Ruhl Libre',serif;font-size:14px;font-weight:700;color:#991b1b;text-align:center;margin:0 0 4px">🍕 הרכבת הפיצה</h4>
+      <p style="font-size:11px;color:#b91c1c;text-align:center;margin:0 0 12px">בחרו תוספת, לחצו על רבע פיצה. לחיצה כפולה = X2</p>
+      <div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:8px">${toppingsHtml}</div>
+      <div style="position:relative;width:200px;height:200px;margin:16px auto">
+        <svg viewBox="0 0 100 100" style="width:100%;height:100%">
+          <circle cx="50" cy="50" r="48" fill="#fef08a" stroke="#f59e0b" stroke-width="2"/>
+          <path d="M50 50 L50 2 A48 48 0 0 1 98 50 Z" fill="${getFill(0)}" class="pizza-slice" onclick="togglePizzaSlice(0)"/>
+          <path d="M50 50 L98 50 A48 48 0 0 1 50 98 Z" fill="${getFill(1)}" class="pizza-slice" onclick="togglePizzaSlice(1)"/>
+          <path d="M50 50 L50 98 A48 48 0 0 1 2 50 Z" fill="${getFill(2)}" class="pizza-slice" onclick="togglePizzaSlice(2)"/>
+          <path d="M50 50 L2 50 A48 48 0 0 1 50 2 Z" fill="${getFill(3)}" class="pizza-slice" onclick="togglePizzaSlice(3)"/>
+          <line x1="50" y1="2" x2="50" y2="98" stroke="#f59e0b" stroke-width="2" pointer-events="none"/>
+          <line x1="2" y1="50" x2="98" y2="50" stroke="#f59e0b" stroke-width="2" pointer-events="none"/>
+          ${getX2(0,75,40)}${getX2(1,75,85)}${getX2(2,25,85)}${getX2(3,25,40)}
+        </svg>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-bottom:12px">
+        <button onclick="fillPizza('whole')" style="padding:7px 14px;border:1px solid #fecaca;border-radius:10px;background:#fff;color:#b91c1c;font-size:11px;font-weight:700;cursor:pointer">מגש שלם</button>
+        <button onclick="fillPizza('half1')" style="padding:7px 14px;border:1px solid #fecaca;border-radius:10px;background:#fff;color:#b91c1c;font-size:11px;font-weight:700;cursor:pointer">חצי ימין</button>
+        <button onclick="fillPizza('half2')" style="padding:7px 14px;border:1px solid #fecaca;border-radius:10px;background:#fff;color:#b91c1c;font-size:11px;font-weight:700;cursor:pointer">חצי שמאל</button>
+        <button onclick="fillPizza('clear')" style="padding:7px 14px;border:1px solid #e2e8f0;border-radius:10px;background:#fff;color:#64748b;font-size:11px;font-weight:700;cursor:pointer">נקה</button>
+      </div>
+      <div style="background:#fff;padding:10px;border-radius:12px;border:1px solid #fecaca;min-height:42px">
+        ${summaryParts.length ? summaryParts.join('') : `<div style="font-size:11px;color:#9ca3af">פיצה חלקה (ללא תוספות)</div>`}
+      </div>
+    </div>`;
+}
+function selectPizzaTopping(name) { _activePizzaTopping = name; renderPizzaBuilder(); }
+function togglePizzaSlice(qi) {
+  if (!_activePizzaTopping) { showToast('בחרו תוספת תחילה'); return; }
+  const v = _pizzaState[_activePizzaTopping][qi] || 0;
+  _pizzaState[_activePizzaTopping][qi] = v === 0 ? 1 : v === 1 ? 2 : 0;
+  renderPizzaBuilder(); updateSheetTotal();
+}
+function fillPizza(action) {
+  if (!_activePizzaTopping && action !== 'clear') { showToast('בחרו תוספת תחילה'); return; }
+  if (action === 'clear') _pizzaToppings.forEach(t => _pizzaState[t.name] = [0,0,0,0]);
+  else if (action === 'whole') _pizzaState[_activePizzaTopping] = [1,1,1,1];
+  else if (action === 'half1') { _pizzaState[_activePizzaTopping][0]=1; _pizzaState[_activePizzaTopping][1]=1; }
+  else if (action === 'half2') { _pizzaState[_activePizzaTopping][2]=1; _pizzaState[_activePizzaTopping][3]=1; }
+  renderPizzaBuilder(); updateSheetTotal();
+}
+function calcPizzaExtra() {
+  let total = 0;
+  _pizzaToppings.forEach(t => { if (_pizzaState[t.name]) total += (parseFloat(t.price)||0)/4*_pizzaState[t.name].reduce((s,v)=>s+Number(v||0),0); });
+  return total;
+}
+function getPizzaSelections() {
+  let selections = [], extraPrice = 0;
+  _pizzaToppings.forEach(top => {
+    const vals = _pizzaState[top.name];
+    const active = vals.reduce((s,v)=>s+Number(v||0),0);
+    if (!active) return;
+    extraPrice += (parseFloat(top.price)||0)/4*active;
+    let q1=[],q2=[];
+    vals.forEach((v,i)=>{ if(v===1)q1.push(i+1); if(v===2)q2.push(i+1); });
+    let parts=[];
+    if(q1.length) parts.push(q1.length===4?'מגש שלם':`רבעים ${q1.join(',')}`);
+    if(q2.length) parts.push(q2.length===4?'כפול הכל':`כפול ${q2.join(',')}`);
+    selections.push(`${top.name} (${parts.join(' | ')})`);
+  });
+  return {selections, extraPrice};
+}
+
+window.addEventListener('DOMContentLoaded', initStore);
+</script>
+</body>
+</html>
