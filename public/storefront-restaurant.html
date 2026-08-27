@@ -71,7 +71,11 @@ input,button,select,textarea{font-family:inherit}
 #hero h1{font-family:'Rubik',sans-serif;font-size:clamp(32px,6.2vw,62px);font-weight:800;letter-spacing:-.045em;line-height:.96;color:#fff;margin:0 0 13px;text-wrap:balance}
 #hero h1 .accent{color:var(--accent)}
 #hero-sub{font-size:clamp(14px,1.5vw,16px);font-weight:300;color:rgba(255,255,255,.64);line-height:1.55;margin:0 0 22px;max-width:40ch}
-#hero-ctas{display:flex;flex-wrap:wrap;gap:9px;margin-bottom:26px}
+#hero-ctas{display:flex;flex-wrap:wrap;gap:9px;margin-bottom:16px}
+#quick-actions{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:22px}
+.qa-btn{display:inline-flex;align-items:center;gap:7px;padding:8px 14px;border:1px solid rgba(255,255,255,.22);border-radius:99px;background:rgba(255,255,255,.08);color:rgba(255,255,255,.88);font-size:12.5px;font-weight:500;cursor:pointer;text-decoration:none;transition:.15s;white-space:nowrap}
+.qa-btn:hover{background:rgba(255,255,255,.18);border-color:rgba(255,255,255,.4)}
+.qa-btn svg{flex:none;opacity:.8}
 .hero-cta-primary{padding:13px 26px;border:none;border-radius:99px;background:var(--accent);color:#fff;font-size:14.5px;font-weight:600;cursor:pointer;transition:.15s}
 .hero-cta-primary:hover{background:var(--accent-dark)}
 .hero-cta-secondary{padding:13px 22px;border:1px solid rgba(255,255,255,.24);border-radius:99px;background:transparent;color:#fff;font-size:14.5px;font-weight:500;cursor:pointer;transition:.15s}
@@ -391,6 +395,7 @@ input,button,select,textarea{font-family:inherit}
         <button class="hero-cta-secondary" id="hero-table-btn" style="display:none" onclick="openBooking('table')">הזמנת שולחן</button>
         <button class="hero-cta-secondary" id="hero-event-btn" style="display:none" onclick="openBooking('event')">הזמנת אירוע</button>
       </div>
+      <div id="quick-actions"></div>
       <div id="hero-stats"></div>
     </div>
     <div id="hero-images">
@@ -729,6 +734,9 @@ function renderHero(data, s) {
   if (s.enable_table_booking) document.getElementById('hero-table-btn').style.display = '';
   if (s.enable_event_booking) document.getElementById('hero-event-btn').style.display = '';
 
+  // quick actions (phone, whatsapp, waze, address)
+  renderQuickActions(data, s);
+
   // stats row
   const statsEl = document.getElementById('hero-stats');
   const stats = [];
@@ -789,6 +797,50 @@ function renderHero(data, s) {
 
   // loyalty
   if (s.has_loyalty) document.getElementById('loyalty-section').style.display = '';
+}
+
+function renderQuickActions(data, s) {
+  const qa = document.getElementById('quick-actions');
+  const btns = [];
+
+  if (s.phone) {
+    btns.push(`<a class="qa-btn" href="tel:${escHtml(s.phone)}">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81a19.79 19.79 0 01-3.07-8.72A2 2 0 012.18 1h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.91 8.14a16 16 0 006 6l1.4-1.4a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z"/></svg>
+      ${escHtml(s.phone)}
+    </a>`);
+  }
+
+  const wa = s.whatsapp_number || s.phone;
+  if (wa) {
+    const waNum = wa.replace(/\D/g, '');
+    const waMsg = encodeURIComponent(`היי, אשמח לשמוע על ${escHtml(data.groupName || 'החנות')}`);
+    btns.push(`<a class="qa-btn" href="https://wa.me/972${waNum.replace(/^0/,'')}?text=${waMsg}" target="_blank" rel="noopener">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12.004 2.003c-5.52 0-10 4.48-10 10 0 1.771.463 3.449 1.276 4.908L2 22l5.237-1.375A9.934 9.934 0 0012.004 22c5.52 0 10-4.48 10-10s-4.48-9.997-10-9.997z"/></svg>
+      וואטסאפ
+    </a>`);
+  }
+
+  if (s.biz_lat && s.biz_lng) {
+    const wazeUrl = `https://waze.com/ul?ll=${s.biz_lat},${s.biz_lng}&navigate=yes`;
+    btns.push(`<a class="qa-btn" href="${escHtml(wazeUrl)}" target="_blank" rel="noopener">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="10" r="3"/><path d="M12 2C7.589 2 4 5.589 4 10c0 5.657 7.08 11.566 7.38 11.812a1 1 0 001.24 0C12.92 21.566 20 15.657 20 10c0-4.411-3.589-8-8-8zm0 17.716C9.896 17.979 6 13.96 6 10a6 6 0 1112 0c0 3.96-3.896 7.979-6 9.716z"/></svg>
+      Waze
+    </a>`);
+    const mapsUrl = `https://maps.google.com/?q=${s.biz_lat},${s.biz_lng}`;
+    btns.push(`<a class="qa-btn" href="${escHtml(mapsUrl)}" target="_blank" rel="noopener">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+      ${escHtml(s.biz_address || 'מפה')}
+    </a>`);
+  } else if (s.biz_address) {
+    const mapsUrl = `https://maps.google.com/?q=${encodeURIComponent(s.biz_address)}`;
+    btns.push(`<a class="qa-btn" href="${escHtml(mapsUrl)}" target="_blank" rel="noopener">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+      ${escHtml(s.biz_address)}
+    </a>`);
+  }
+
+  qa.innerHTML = btns.join('');
+  qa.style.display = btns.length ? '' : 'none';
 }
 
 function renderInfoSection(data, s) {
