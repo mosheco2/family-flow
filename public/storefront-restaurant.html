@@ -319,6 +319,22 @@ input,button,select,textarea{font-family:inherit}
 .book-label{font-size:12px;font-weight:600;color:var(--muted);display:block;margin-bottom:4px}
 #booking-footer{padding:12px 20px;border-top:1px solid var(--border)}
 #booking-submit{width:100%;padding:15px;border:none;border-radius:15px;background:var(--accent);color:#fff;font-size:15px;font-weight:600;cursor:pointer}
+/* slots grid */
+#slots-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(76px,1fr));gap:8px}
+.slot-pill{padding:10px 6px;border:1px solid var(--border);border-radius:12px;background:#fff;font-size:13px;font-weight:600;cursor:pointer;text-align:center;transition:.15s}
+.slot-pill.available:hover,.slot-pill.selected{border-color:var(--dark);background:var(--dark);color:#fff}
+.slot-pill.full{opacity:.4;cursor:not-allowed;text-decoration:line-through}
+/* SMS step */
+#sms-digits{display:flex;gap:10px;justify-content:center;margin:10px 0}
+.sms-digit{width:48px;height:56px;border:2px solid var(--border);border-radius:14px;font-size:22px;font-weight:700;text-align:center;outline:none;transition:.15s}
+.sms-digit:focus{border-color:var(--dark)}
+/* booking steps */
+.bstep{display:none;flex-direction:column;gap:14px}
+.bstep.active{display:flex}
+/* booking progress */
+#book-progress{display:flex;gap:6px;padding:14px 20px 0;justify-content:center}
+.bprog-dot{width:7px;height:7px;border-radius:50%;background:var(--border);transition:.3s}
+.bprog-dot.active{background:var(--dark);width:22px;border-radius:99px}
 
 /* ===== SUCCESS ===== */
 #success-screen{position:fixed;inset:0;background:#fff;z-index:9000;display:none;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:32px;animation:rise .4s ease both}
@@ -603,18 +619,62 @@ input,button,select,textarea{font-family:inherit}
       <h3 id="booking-title">הזמנת שולחן</h3>
       <button id="booking-close" onclick="closeBooking()">✕</button>
     </div>
-    <div id="booking-body">
-      <div><label class="book-label">תאריך</label><input type="date" id="book-date" class="book-input"></div>
+    <div id="book-progress">
+      <div class="bprog-dot active" id="bp0"></div>
+      <div class="bprog-dot" id="bp1"></div>
+      <div class="bprog-dot" id="bp2"></div>
+    </div>
+
+    <!-- שלב 1: בחירת תאריך + פרטים -->
+    <div id="book-body">
+    <div class="bstep active" id="bstep-1">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-        <div><label class="book-label">שעה</label><input type="time" id="book-time" class="book-input"></div>
+        <div><label class="book-label">תאריך</label><input type="date" id="book-date" class="book-input" oninput="bookDateChange()"></div>
         <div id="book-guests-wrap"><label class="book-label">סועדים</label><input type="number" id="book-guests" class="book-input" min="1" max="50" value="2"></div>
       </div>
       <div><label class="book-label">שם מלא</label><input id="book-name" class="book-input" placeholder="שם מלא"></div>
       <div><label class="book-label">טלפון</label><input id="book-phone" class="book-input" type="tel" dir="ltr" placeholder="050-0000000"></div>
-      <div><label class="book-label">הערות</label><textarea id="book-notes" class="book-input" rows="2" placeholder="בקשות מיוחדות..."></textarea></div>
+      <div><label class="book-label">הערות (אופציונלי)</label><textarea id="book-notes" class="book-input" rows="2" placeholder="בקשות מיוחדות..."></textarea></div>
+      <div id="book-slots-wrap" style="display:none">
+        <label class="book-label">בחר שעה פנויה</label>
+        <div id="slots-grid"></div>
+      </div>
+      <div id="book-slots-loading" style="display:none;font-size:13px;color:var(--muted);text-align:center;padding:10px">בודק זמינות...</div>
+      <div id="book-slots-err" style="display:none;font-size:12.5px;color:var(--accent);padding:4px 0"></div>
     </div>
+
+    <!-- שלב 2: אימות SMS -->
+    <div class="bstep" id="bstep-2">
+      <div style="text-align:center;padding:8px 0">
+        <div style="font-size:32px;margin-bottom:10px">📱</div>
+        <div style="font-family:'Rubik',sans-serif;font-size:18px;font-weight:700;margin-bottom:6px">אימות מספר טלפון</div>
+        <div id="sms-desc" style="font-size:13px;color:var(--muted);font-weight:300;line-height:1.5;margin-bottom:18px"></div>
+      </div>
+      <div id="sms-digits">
+        <input class="sms-digit" maxlength="1" type="tel" oninput="smsDigitInput(this,0)" id="sd0">
+        <input class="sms-digit" maxlength="1" type="tel" oninput="smsDigitInput(this,1)" id="sd1">
+        <input class="sms-digit" maxlength="1" type="tel" oninput="smsDigitInput(this,2)" id="sd2">
+        <input class="sms-digit" maxlength="1" type="tel" oninput="smsDigitInput(this,3)" id="sd3">
+      </div>
+      <div id="sms-err" style="display:none;font-size:12.5px;color:var(--accent);text-align:center"></div>
+      <button style="background:transparent;border:none;font-size:12.5px;color:var(--muted);cursor:pointer;text-align:center;padding:4px" onclick="resendSms()">שלח קוד מחדש</button>
+    </div>
+
+    <!-- שלב 3: אישור -->
+    <div class="bstep" id="bstep-3">
+      <div style="text-align:center;padding:14px 0">
+        <div style="font-size:42px;margin-bottom:12px">🎉</div>
+        <div style="font-family:'Rubik',sans-serif;font-size:20px;font-weight:700;margin-bottom:8px">ההזמנה אושרה!</div>
+        <div id="booking-confirm-text" style="font-size:13.5px;color:var(--muted);font-weight:300;line-height:1.6"></div>
+      </div>
+    </div>
+    </div><!-- /book-body -->
+
     <div id="booking-footer">
-      <button id="booking-submit" onclick="submitBooking()">שלח בקשה</button>
+      <button id="booking-submit" onclick="bookingPrimary()">בדיקת זמינות</button>
+      <div id="booking-back-wrap" style="display:none;text-align:center;margin-top:10px">
+        <button style="background:transparent;border:none;font-size:12.5px;color:var(--muted);cursor:pointer" onclick="bookingBack()">חזרה</button>
+      </div>
     </div>
   </div>
 </div>
@@ -635,7 +695,7 @@ let cart = {}; // {key: {id,name,price,qty,note}}
 let isDelivery = true, _cartStep = 'cart', _couponDiscount = 0, _couponCode = '';
 let _sheetId = null, _sheetQty = 1, _sheetExtras = {}, _sheetNote = '';
 let _panelOpen = false, _loyaltyJoined = false;
-let _bookingType = 'table', _payMethod = 0;
+let _bookingType = 'table', _payMethod = 0, _bookStep = 1, _bookTempId = null, _bookSelectedSlot = null;
 let _address = '', _orderNo = '';
 const SLOTS = ['בהקדם','19:30','20:00','20:30','21:00'];
 let _slot = 'בהקדם';
@@ -1439,30 +1499,195 @@ function setDeliveryMode(deliver) {
 // ===== BOOKING =====
 function openBooking(type) {
   _bookingType = type;
+  _bookStep = 1; _bookTempId = null; _bookSelectedSlot = null;
   document.getElementById('booking-title').textContent = type === 'event' ? 'הזמנת אירוע / קייטרינג' : 'הזמנת שולחן';
   document.getElementById('book-guests-wrap').style.display = type === 'event' ? 'none' : '';
+  // reset
+  ['book-date','book-name','book-phone','book-notes'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+  document.getElementById('book-guests').value = 2;
+  document.getElementById('slots-grid').innerHTML = '';
+  document.getElementById('book-slots-wrap').style.display = 'none';
+  document.getElementById('book-slots-err').style.display = 'none';
+  [1,2,3].forEach(n => {
+    const s = document.getElementById(`bstep-${n}`);
+    if (s) { s.classList.remove('active'); }
+  });
+  document.getElementById('bstep-1').classList.add('active');
+  setBookProgress(1);
+  document.getElementById('booking-submit').textContent = type === 'table' ? 'בדיקת זמינות' : 'שלח בקשה';
+  document.getElementById('booking-back-wrap').style.display = 'none';
   document.getElementById('booking-overlay').style.display = 'flex';
   document.body.style.overflow = 'hidden';
+  // set min date = today
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('book-date').min = today;
 }
 function closeBooking() { document.getElementById('booking-overlay').style.display = 'none'; document.body.style.overflow = ''; }
-async function submitBooking() {
+
+function setBookProgress(step) {
+  [0,1,2].forEach(i => {
+    const d = document.getElementById(`bp${i}`);
+    if (d) d.classList.toggle('active', i < step);
+  });
+}
+
+async function bookDateChange() {
+  if (_bookingType !== 'table') return;
+  const date = document.getElementById('book-date').value;
+  if (!date) return;
+  _bookSelectedSlot = null;
+  document.getElementById('book-slots-wrap').style.display = 'none';
+  document.getElementById('book-slots-err').style.display = 'none';
+  document.getElementById('book-slots-loading').style.display = '';
+  try {
+    const r = await fetch(`${API}/public/restaurants/${storeData.groupId}/availability/${date}`);
+    const d = await r.json();
+    document.getElementById('book-slots-loading').style.display = 'none';
+    if (!d.success || !d.slots?.length) {
+      document.getElementById('book-slots-err').textContent = d.error || 'לא ניתן לטעון זמינות';
+      document.getElementById('book-slots-err').style.display = '';
+      return;
+    }
+    renderSlots(d.slots);
+    document.getElementById('book-slots-wrap').style.display = '';
+  } catch(e) {
+    document.getElementById('book-slots-loading').style.display = 'none';
+    document.getElementById('book-slots-err').textContent = 'שגיאת רשת בטעינת זמינות';
+    document.getElementById('book-slots-err').style.display = '';
+  }
+}
+
+function renderSlots(slots) {
+  document.getElementById('slots-grid').innerHTML = slots.map(sl => {
+    const cls = sl.available ? 'slot-pill available' : 'slot-pill full';
+    const title = sl.available ? `${sl.tables} שולחנות פנויים` : 'מלא';
+    return `<button class="${cls}" title="${title}" onclick="${sl.available ? `pickSlotBook('${sl.time}',this)` : ''}">${sl.time}</button>`;
+  }).join('');
+}
+
+function pickSlotBook(time, el) {
+  _bookSelectedSlot = time;
+  document.querySelectorAll('#slots-grid .slot-pill').forEach(b => b.classList.remove('selected'));
+  el.classList.add('selected');
+}
+
+async function bookingPrimary() {
+  if (_bookingType === 'event') { await submitEventBooking(); return; }
+  if (_bookStep === 1) await submitTableStep1();
+  else if (_bookStep === 2) await submitTableStep2();
+  else if (_bookStep === 3) closeBooking();
+}
+
+async function submitTableStep1() {
   const name = document.getElementById('book-name').value.trim();
   const phone = document.getElementById('book-phone').value.trim();
   const date = document.getElementById('book-date').value;
-  const time = document.getElementById('book-time').value;
+  const guests = parseInt(document.getElementById('book-guests').value) || 2;
   const notes = document.getElementById('book-notes').value.trim();
-  const guests = document.getElementById('book-guests')?.value || '';
+  if (!name) { showToast('נא להכניס שם מלא'); return; }
+  if (!phone || phone.length < 9) { showToast('נא להכניס מספר טלפון תקין'); return; }
+  if (!date) { showToast('נא לבחור תאריך'); return; }
+  if (!_bookSelectedSlot) { showToast('נא לבחור שעה פנויה'); return; }
+  const btn = document.getElementById('booking-submit');
+  btn.disabled = true; btn.textContent = 'שולח...';
+  try {
+    const r = await fetch(`${API}/public/restaurants/${storeData.groupId}/book-table`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ name, phone, date, time: _bookSelectedSlot, numGuests: guests, notes })
+    });
+    const d = await r.json();
+    if (d.success) {
+      _bookTempId = d.tempId;
+      _bookStep = 2;
+      document.getElementById('bstep-1').classList.remove('active');
+      document.getElementById('bstep-2').classList.add('active');
+      document.getElementById('sms-desc').textContent = `שלחנו קוד אימות ב-SMS למספר ${phone}. אנא הכנס אותו כאן.`;
+      ['sd0','sd1','sd2','sd3'].forEach(id => { const el=document.getElementById(id); if(el) el.value=''; });
+      document.getElementById('sd0').focus();
+      document.getElementById('sms-err').style.display = 'none';
+      btn.textContent = 'אמת קוד';
+      document.getElementById('booking-back-wrap').style.display = '';
+      setBookProgress(2);
+    } else {
+      showToast(d.error || 'שגיאה בשליחת הבקשה');
+    }
+  } catch(e) { showToast('שגיאת רשת'); }
+  finally { btn.disabled = false; }
+}
+
+async function submitTableStep2() {
+  const code = ['sd0','sd1','sd2','sd3'].map(id => document.getElementById(id)?.value || '').join('');
+  if (code.length < 4) { showToast('נא להכניס קוד 4 ספרות'); return; }
+  const btn = document.getElementById('booking-submit');
+  btn.disabled = true; btn.textContent = 'בודק...';
+  try {
+    const r = await fetch(`${API}/public/restaurants/${storeData.groupId}/verify-table-sms`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ tempId: _bookTempId, code })
+    });
+    const d = await r.json();
+    if (d.success) {
+      _bookStep = 3;
+      document.getElementById('bstep-2').classList.remove('active');
+      document.getElementById('bstep-3').classList.add('active');
+      const date = document.getElementById('book-date').value;
+      const guests = document.getElementById('book-guests').value;
+      document.getElementById('booking-confirm-text').innerHTML =
+        `<strong>${escHtml(document.getElementById('book-name').value)}</strong><br>
+         📅 ${date} · ${_bookSelectedSlot}<br>
+         👥 ${guests} סועדים<br><br>
+         נשמח לראותכם!`;
+      btn.textContent = 'סגור';
+      document.getElementById('booking-back-wrap').style.display = 'none';
+      setBookProgress(3);
+    } else {
+      const errEl = document.getElementById('sms-err');
+      errEl.textContent = d.error || 'קוד שגוי — נסה שוב';
+      errEl.style.display = '';
+    }
+  } catch(e) { showToast('שגיאת רשת'); }
+  finally { btn.disabled = false; }
+}
+
+async function submitEventBooking() {
+  const name = document.getElementById('book-name').value.trim();
+  const phone = document.getElementById('book-phone').value.trim();
+  const date = document.getElementById('book-date').value;
+  const notes = document.getElementById('book-notes').value.trim();
   if (!name || !phone || !date) { showToast('נא למלא שם, טלפון ותאריך'); return; }
+  const btn = document.getElementById('booking-submit');
+  btn.disabled = true; btn.textContent = 'שולח...';
   try {
     const r = await fetch(`${API}/calendar/events`, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
-      groupId:storeData.groupId, title:name, eventDate:date, startTime:time||'12:00',
-      notes:(_bookingType==='table'?`סועדים: ${guests}\n`:'')+notes,
-      customerPhone:phone, status:'pending', serviceId:null
+      groupId:storeData.groupId, title:name, eventDate:date, startTime:'12:00',
+      notes:'הזמנת אירוע / קייטרינג\n'+notes, customerPhone:phone, customerName:name, status:'pending'
     })});
     const d = await r.json();
-    if (d.success) { closeBooking(); showToast('הבקשה נשלחה — נחזור אליכם בהקדם'); }
+    if (d.success) { closeBooking(); showToast('בקשת האירוע נשלחה — נחזור אליכם בהקדם'); }
     else showToast(d.error||'שגיאה בשליחה');
   } catch(e) { showToast('שגיאת רשת'); }
+  finally { btn.disabled = false; btn.textContent = 'שלח בקשה'; }
+}
+
+function bookingBack() {
+  if (_bookStep === 2) {
+    _bookStep = 1;
+    document.getElementById('bstep-2').classList.remove('active');
+    document.getElementById('bstep-1').classList.add('active');
+    document.getElementById('booking-submit').textContent = 'בדיקת זמינות';
+    document.getElementById('booking-back-wrap').style.display = 'none';
+    setBookProgress(1);
+  }
+}
+
+async function resendSms() {
+  await submitTableStep1();
+}
+
+function smsDigitInput(el, idx) {
+  el.value = el.value.replace(/\D/g, '').slice(-1);
+  if (el.value && idx < 3) document.getElementById(`sd${idx+1}`).focus();
+  if (['sd0','sd1','sd2','sd3'].every(id => document.getElementById(id).value)) bookingPrimary();
 }
 
 // ===== HELPERS =====
