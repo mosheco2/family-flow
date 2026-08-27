@@ -26,6 +26,7 @@
   --card: #fff;
   --muted: #8C8C86;
   --subtle: #F1EFE9;
+  --radius: 14px;
 }
 ```
 
@@ -37,22 +38,40 @@
 @keyframes spin { to{transform:rotate(360deg)} }
 ```
 
+### HTML עטיפה חובה
+```html
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title id="page-title">חנות</title>
+```
+
 ---
 
 ## 2. State Variables — כל משתן חייב להיות מוגדר
 
 ```js
 const API = '/api';
-let storeData = null, catalog = [], favs = new Set();
-let cart = {}; // {key: {id,name,price,qty,note}}
-let isDelivery = true, _cartStep = 'cart', _couponDiscount = 0, _couponCode = '';
-let _sheetId = null, _sheetQty = 1, _sheetExtras = {}, _sheetNote = '';
+let storeData = null, catalog = [], groupId = null;
+let favs = new Set();
+let cart = {}; // {key: {id,name,price,qty,note,colorName}}
+let isDelivery = true, _cartStep = 'cart';
+let _couponDiscount = 0, _couponCode = '';
+let _sheetId = null, _sheetQty = 1, _sheetExtras = {}, _sheetNote = '', _sheetSelOpt = {};
 let _panelOpen = false, _loyaltyJoined = false;
-let _bookingType = 'table', _payMethod = 0, _bookStep = 1, _bookTempId = null, _bookSelectedSlot = null;
+let _bookingType = 'table', _payMethod = 0;
+let _bookStep = 1, _bookTempId = null, _bookSelectedSlot = null;
 let _address = '', _orderNo = '';
 let _activePromos = [];
 let _galleryImages = [], _lbIndex = 0;
 let _searchQ = '';
+let _expandedId = null;       // לתבניות עם expand-row
+let _selectedColors = {};     // {productId: colorName}
+let _selectedQtys = {};       // {productId: qty}
+let _filterCat = '', _sortMode = 'popular', _priceMax = 10000;
+let _onlyDeals = false, _onlyStock = false;
 
 // Multi-language
 const _langParam = new URLSearchParams(window.location.search).get('lang') || 'he';
@@ -73,21 +92,62 @@ let _pizzaToppings = [], _pizzaState = {}, _activePizzaTopping = null;
 
 ```js
 async function initStore() {
-  // 1. קרא store code מ-URL (pathname או ?store=)
-  // 2. fetch /api/storefront/:code
-  // 3. שמור storeData, catalog
-  // 4. קרא renderAll()
-  // 5. הסתר loading screen
-  // 6. קרא loadAsync(groupId) לטעינת data אסינכרוני
-  // 7. initScrollSpy() אחרי renderCatalog
-  // 8. initSlots() לכפתורי זמן
+  try {
+    // 1. קרא store code מ-URL (pathname או ?store=)
+    const path = window.location.pathname.replace(/^\//, '');
+    const code = path || new URLSearchParams(window.location.search).get('store') || 'demo';
+    // 2. fetch /api/storefront/:code
+    const res = await fetch(`${API}/storefront/${encodeURIComponent(code)}`);
+    if (!res.ok) throw new Error('not found');
+    storeData = await res.json();
+    groupId = storeData.groupId;
+    // 3. שמור catalog (סנן מוצרים לא זמינים)
+    catalog = (storeData.catalog || []).filter(p => p.is_available !== false);
+    // 4. הגדר accent color מהגדרות
+    applyAccent(storeData.settings?.accent_color || '#e63946');
+    // 5. כותרת דף
+    document.title = storeData.groupName || 'חנות';
+    // 6. render ראשוני
+    renderAll();
+    // 7. הסתר loading screen
+    document.getElementById('loading-screen').style.display = 'none';
+    // 8. טעינה אסינכרונית
+    loadAsync();
+  } catch(e) {
+    document.getElementById('loading-screen').innerHTML =
+      '<div style="text-align:center;color:rgba(255,255,255,.55)">שגיאה בטעינת החנות</div>';
+    console.error(e);
+  }
 }
 ```
 
 **loadAsync חייב לכלול:**
-1. `/api/store/promotions/:groupId` → `_activePromos` → `renderDeals()`
-2. `/api/public/reviews/:groupId` → `renderReviews()`
-3. `/api/public/gallery/:groupId` → `_galleryImages` → הצג כפתור גלריה
+```js
+async function loadAsync() {
+  if (!groupId) return;
+  // 1. מבצעים
+  try {
+    const r = await fetch(`${API}/store/promotions/${groupId}`);
+    const d = await r.json();
+    if (d.success) { _activePromos = d.promotions || []; renderCatalog(); }
+  } catch(e) {}
+  // 2. ביקורות
+  try {
+    const r = await fetch(`${API}/public/reviews/${groupId}`);
+    const d = await r.json();
+    if (d.success && d.reviews?.length) renderReviews(d.reviews);
+  } catch(e) {}
+  // 3. גלריה
+  try {
+    const r = await fetch(`${API}/public/gallery/${groupId}`);
+    const d = await r.json();
+    if (d.success && d.images?.length) {
+      _galleryImages = d.images;
+      // הצג כפתור גלריה ב-quick-actions או בhero
+    }
+  } catch(e) {}
+}
+```
 
 ---
 
@@ -95,17 +155,16 @@ async function initStore() {
 
 ```js
 function renderAll() {
-  renderTicker(storeData);
-  renderHeader(storeData, storeData.settings);
-  renderHero(storeData, storeData.settings);
-  renderQuickActions(storeData, storeData.settings);
-  renderInfoSection(storeData, storeData.settings);
+  const s = storeData.settings || {};
+  renderTicker(s);
+  renderHeader(s);
+  renderHero(s);
+  renderQuickActions(s);
   renderCategories();
   renderCatalog();
-  updateCartBar();
-  updateFulfilBtn();
-  initSlots();
-  if (_panelOpen) renderPanelCart();
+  renderCartDock();
+  renderPayMethods(s);
+  renderFooter(s);
 }
 ```
 
@@ -116,32 +175,45 @@ function renderAll() {
 **לוגיקה:** קרא מ-`settings` של העסק, בנה כפתורי ghost על רקע dark.
 
 ```js
-function renderQuickActions(data, s) {
+function renderQuickActions(s) {
   const btns = [];
   // טלפון
-  if (s.phone) btns.push(`<a class="qa-btn" href="tel:${s.phone}">📞 ${s.phone}</a>`);
+  if (s.phone) btns.push(`<a class="qa-btn" href="tel:${escHtml(s.phone)}">📞 ${escHtml(s.phone)}</a>`);
   // וואטסאפ
   const wa = s.whatsapp_number || s.phone;
   if (wa) btns.push(`<a class="qa-btn" href="https://wa.me/972${wa.replace(/\D/g,'').replace(/^0/,'')}" target="_blank">💬 וואטסאפ</a>`);
   // Waze + Google Maps
   if (s.biz_lat && s.biz_lng) {
     btns.push(`<a class="qa-btn" href="https://waze.com/ul?ll=${s.biz_lat},${s.biz_lng}&navigate=yes" target="_blank">🚗 Waze</a>`);
-    btns.push(`<a class="qa-btn" href="https://maps.google.com/?q=${s.biz_lat},${s.biz_lng}" target="_blank">📍 ${s.biz_address||'מפה'}</a>`);
+    btns.push(`<a class="qa-btn" href="https://maps.google.com/?q=${s.biz_lat},${s.biz_lng}" target="_blank">📍 ${escHtml(s.biz_address||'מפה')}</a>`);
   } else if (s.biz_address) {
-    btns.push(`<a class="qa-btn" href="https://maps.google.com/?q=${encodeURIComponent(s.biz_address)}" target="_blank">📍 ${s.biz_address}</a>`);
+    btns.push(`<a class="qa-btn" href="https://maps.google.com/?q=${encodeURIComponent(s.biz_address)}" target="_blank">📍 ${escHtml(s.biz_address)}</a>`);
   }
-  document.getElementById('quick-actions').innerHTML = btns.join('');
+  // כפתורי הזמנה — מהגדרות בלבד
+  if (s.has_table_booking) btns.push(`<button class="qa-btn" onclick="openBooking('table')">🪑 הזמנת שולחן</button>`);
+  if (s.has_space_booking) btns.push(`<button class="qa-btn" onclick="openBooking('space')">🏛 הזמנת מקום</button>`);
+  if (s.has_event_booking) btns.push(`<button class="qa-btn" onclick="openBooking('event')">🎉 הזמנת אירוע</button>`);
+  const el = document.getElementById('quick-actions');
+  if (el) { el.innerHTML = btns.join(''); el.style.display = btns.length ? 'flex' : 'none'; }
+}
+
+function openBooking(type) {
+  // פתח את פאנל הצעת מחיר / הזמנת שולחן בהתאם לסוג
+  openQuote();
+  const msg = document.getElementById('qf-msg');
+  if (msg) msg.value = type === 'table' ? 'הזמנת שולחן — ' : type === 'space' ? 'הזמנת מקום — ' : 'הזמנת אירוע — ';
 }
 ```
 
-CSS בסיסי:
+CSS:
 ```css
 .qa-btn { display:inline-flex;align-items:center;gap:7px;padding:8px 14px;
   border:1px solid rgba(255,255,255,.22);border-radius:99px;
   background:rgba(255,255,255,.08);color:rgba(255,255,255,.88);
   font-size:12.5px;font-weight:500;cursor:pointer;text-decoration:none;
-  transition:.15s;white-space:nowrap }
+  transition:.15s;white-space:nowrap;font-family:inherit;border:1px solid rgba(255,255,255,.22) }
 .qa-btn:hover { background:rgba(255,255,255,.18);border-color:rgba(255,255,255,.4) }
+#quick-actions { display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px }
 ```
 
 ---
@@ -158,7 +230,6 @@ CSS בסיסי:
 **שלב 3:** הצגת אישור
 
 ```js
-// state
 let _bookStep = 1, _bookTempId = null, _bookSelectedSlot = null;
 
 async function bookDateChange(date) {
@@ -218,14 +289,11 @@ function calcBogoDiscount() {
   if (!bogoPromo || _couponDiscount) return 0;
   let discount = 0;
   const byId = {};
-  Object.values(cart).forEach(c => {
-    byId[c.id] = (byId[c.id]||0) + c.qty;
-  });
+  Object.values(cart).forEach(c => { byId[c.id] = (byId[c.id]||0) + c.qty; });
   Object.entries(byId).forEach(([id, qty]) => {
     const p = catalog.find(x=>x.id==id);
     if (!p) return;
-    const free = Math.floor(qty / 2);
-    discount += free * p.price;
+    discount += Math.floor(qty / 2) * p.price;
   });
   return discount;
 }
@@ -249,12 +317,8 @@ function applyCoupon() {
     _couponDiscount = 'fixed:' + (promo.promo_value||0);
     showCouponMsg(`✅ הנחה של ₪${promo.promo_value} הופעלה`);
   }
-  renderPanelCart();
 }
-```
 
-**חישוב סופי:**
-```js
 function getPanelFinal(sub) {
   const bogoDisc = calcBogoDiscount();
   let couponDisc = 0;
@@ -272,28 +336,36 @@ function getPanelFinal(sub) {
 ## 10. גלריה + Lightbox
 
 ```js
-// טעינה
-const r3 = await fetch(`${API}/public/gallery/${groupId}`);
-const d3 = await r3.json();
-if (d3.success && d3.images?.length) {
-  _galleryImages = d3.images;
-  // הצג כפתור "גלריית תמונות · X תמונות"
+// Lightbox HTML (מוסיפים דינמית ל-body):
+function openGallery(i) {
+  _lbIndex = i;
+  const imgs = _galleryImages;
+  if (!imgs.length) return;
+  const existing = document.getElementById('lb-overlay');
+  if (existing) existing.remove();
+  const ov = document.createElement('div');
+  ov.id = 'lb-overlay';
+  ov.style.cssText = 'position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,.92);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px';
+  ov.innerHTML = `
+    <button onclick="document.getElementById('lb-overlay').remove()"
+      style="position:absolute;top:16px;left:16px;background:rgba(255,255,255,.12);border:none;color:#fff;font-size:22px;width:40px;height:40px;border-radius:50%;cursor:pointer">✕</button>
+    <button onclick="lbNav(-1)"
+      style="position:absolute;right:16px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,.12);border:none;color:#fff;font-size:28px;width:44px;height:44px;border-radius:50%;cursor:pointer">›</button>
+    <img id="lb-img" src="${escHtml(imgs[i].url||imgs[i])}"
+      style="max-width:90vw;max-height:75vh;border-radius:12px;object-fit:contain">
+    <div id="lb-counter" style="color:rgba(255,255,255,.55);font-size:13px">${i+1} / ${imgs.length}</div>
+    <button onclick="lbNav(1)"
+      style="position:absolute;left:16px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,.12);border:none;color:#fff;font-size:28px;width:44px;height:44px;border-radius:50%;cursor:pointer">‹</button>`;
+  document.body.appendChild(ov);
 }
 
-// Lightbox
-function openLb(i) {
-  _lbIndex = i;
-  document.getElementById('lb-overlay').style.display = 'flex';
-  renderLb();
-}
 function lbNav(dir) {
   _lbIndex = (_lbIndex + dir + _galleryImages.length) % _galleryImages.length;
-  renderLb();
-}
-function renderLb() {
-  const img = _galleryImages[_lbIndex];
-  document.getElementById('lb-img').src = img.url || img;
-  document.getElementById('lb-counter').textContent = `${_lbIndex+1} / ${_galleryImages.length}`;
+  const ov = document.getElementById('lb-overlay');
+  if (ov) {
+    ov.querySelector('#lb-img').src = escHtml(_galleryImages[_lbIndex].url || _galleryImages[_lbIndex]);
+    ov.querySelector('#lb-counter').textContent = `${_lbIndex+1} / ${_galleryImages.length}`;
+  }
 }
 ```
 
@@ -317,21 +389,61 @@ function initScrollSpy() {
   }, { rootMargin: '-120px 0px -60% 0px' });
   groups.forEach(g => obs.observe(g));
 }
+// קרא initScrollSpy() אחרי כל renderCatalog()
 ```
 
 ---
 
-## 12. הירו — תמונות רנדומליות מהקטלוג
+## 12. הירו — מ-Settings בלבד
+
+**כותרת וסלוגן חייבים לבוא מהגדרות העסק — לא hardcoded:**
 
 ```js
-function renderHero(data, s) {
-  // בנה 3 קוביות תמונה מתוך מוצרים עם תמונות, בסדר רנדומלי
-  const imgItems = catalog.filter(p => p.has_image);
-  const shuffled = [...imgItems].sort(() => Math.random() - 0.5);
-  // [0] → hero-img-main, [1] → hero-side-top, [2] → hero-side-bottom
-  // אם אין תמונות — placeholder emoji
+function renderHero(s) {
+  // כותרת — שם העסק מ-storeData
+  const name = storeData.groupName || '';
+  document.getElementById('hero-title').textContent = name;
+
+  // סלוגן — מהגדרות
+  const sub = document.getElementById('hero-sub');
+  if (sub) sub.textContent = s.slogan || s.description || '';
+
+  // Stats — רק מה שמוגדר (לא hardcoded!)
+  const stats = [];
+  if (s.max_volume_discount) stats.push({val: s.max_volume_discount+'%', lbl: 'הנחת כמות'});
+  if (s.delivery_eta) stats.push({val: s.delivery_eta+'h', lbl: 'זמן אספקה'});
+  if (s.free_delivery_above) stats.push({val: '₪'+s.free_delivery_above, lbl: 'משלוח חינם מעל'});
+  const statsEl = document.getElementById('hero-stats');
+  if (statsEl) statsEl.innerHTML = stats.map(st =>
+    `<div class="hstat"><div class="hstat-val">${escHtml(st.val)}</div><div class="hstat-lbl">${escHtml(st.lbl)}</div></div>`
+  ).join('');
+
+  // Banner — מהגדרות
+  const bannerUrl = s.banner_url && s.banner_url !== 'DELETE' && s.banner_url !== 'null' ? s.banner_url : '';
+  if (bannerUrl) {
+    const bg = document.getElementById('hero-banner-bg');
+    if (bg) { bg.style.backgroundImage = `url('${bannerUrl}')`; bg.style.opacity = '0.28'; }
+  }
+
+  // תמונות מהקטלוג — אם אין banner
+  if (!bannerUrl) {
+    const imgItems = catalog.filter(p => p.image_url);
+    const shuffled = [...imgItems].sort(() => Math.random() - 0.5);
+    // [0] → hero-img-main, [1] → hero-side-top, [2] → hero-side-bottom
+    ['hero-img-main', 'hero-side-top', 'hero-side-bottom'].forEach((id, i) => {
+      const el = document.getElementById(id);
+      if (el && shuffled[i]) el.innerHTML = `<img src="${escHtml(shuffled[i].image_url)}" style="width:100%;height:100%;object-fit:cover">`;
+    });
+  }
 }
 ```
+
+**CSS hero banner:**
+```css
+#hero-banner-bg { position:absolute;inset:0;background-size:cover;background-position:center;opacity:.22;pointer-events:none }
+```
+
+**⚠️ אסור לרשום נתונים מספריים hardcoded בהירו (500+, 48h וכד') — רק מ-settings.**
 
 ---
 
@@ -357,9 +469,7 @@ function toggleLang() {
 
 **כפתור בהירו:**
 ```html
-<button onclick="toggleLang()" id="lang-toggle">
-  🌐 <span id="lang-label">English</span>
-</button>
+<button onclick="toggleLang()" id="lang-toggle">🌐 <span id="lang-label">English</span></button>
 ```
 
 **כל טקסט UI** — שימוש ב-`t('עברית', 'English')` על כל טקסט גלוי.
@@ -368,37 +478,30 @@ function toggleLang() {
 
 ## 14. Side Menu
 
-**HTML:**
 ```html
-<div id="menu-overlay" style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:900;display:none;opacity:0;transition:opacity .3s" onclick="toggleSideMenu(false)"></div>
-<div id="side-menu" style="position:fixed;top:0;right:0;bottom:0;width:min(280px,85vw);background:#fff;z-index:901;box-shadow:-8px 0 32px rgba(0,0,0,.2);transform:translateX(100%);transition:transform .3s">
-  <!-- כותרת + רשימת קטגוריות -->
+<div id="menu-overlay" onclick="toggleSideMenu(false)"
+  style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:900;display:none;opacity:0;transition:opacity .3s"></div>
+<div id="side-menu"
+  style="position:fixed;top:0;right:0;bottom:0;width:min(280px,85vw);background:var(--card);z-index:901;box-shadow:-8px 0 32px rgba(0,0,0,.2);transform:translateX(100%);transition:transform .3s cubic-bezier(.4,0,.2,1)">
   <div id="side-categories-list"></div>
 </div>
 ```
 
-**CSS:**
-```css
-#side-menu { transform: translateX(100%); transition: transform .3s cubic-bezier(.4,0,.2,1); }
-#side-menu.open { transform: translateX(0); }
-```
-
-**JS:**
 ```js
 function toggleSideMenu(isOpen) {
   const menu = document.getElementById('side-menu');
   const overlay = document.getElementById('menu-overlay');
   if (isOpen) {
-    menu.classList.add('open');
+    menu.style.transform = 'translateX(0)';
     overlay.style.display = 'block';
     setTimeout(() => overlay.style.opacity = '1', 10);
-    // בנה רשימת קטגוריות ב-#side-categories-list
     const cats = [...new Set(catalog.map(p => p.category).filter(Boolean))];
     document.getElementById('side-categories-list').innerHTML = cats.map(cat =>
-      `<button onclick="scrollToCat('${escHtml(cat)}');toggleSideMenu(false)" ...>${escHtml(cat)}</button>`
+      `<button onclick="scrollToCat('${escHtml(cat)}');toggleSideMenu(false)"
+        style="display:block;width:100%;padding:12px 20px;text-align:right;border:none;background:none;font-size:14px;cursor:pointer;border-bottom:1px solid var(--border)">${escHtml(cat)}</button>`
     ).join('');
   } else {
-    menu.classList.remove('open');
+    menu.style.transform = 'translateX(100%)';
     overlay.style.opacity = '0';
     setTimeout(() => overlay.style.display = 'none', 300);
   }
@@ -408,22 +511,13 @@ function scrollToCat(cat) {
 }
 ```
 
-**כפתור בהדר:**
-```html
-<button onclick="toggleSideMenu(true)" title="תפריט קטגוריות">≡</button>
-```
-
 ---
 
 ## 15. Grid/List Toggle
 
-**State:**
 ```js
-let catalogViewMode = 'grid'; // 'grid' | 'list'
-```
+let catalogViewMode = 'grid';
 
-**Toggle:**
-```js
 function toggleViewMode() {
   catalogViewMode = catalogViewMode === 'grid' ? 'list' : 'grid';
   const btn = document.getElementById('view-mode-btn');
@@ -432,7 +526,6 @@ function toggleViewMode() {
 }
 ```
 
-**בכפתור הדר:**
 ```html
 <button id="view-mode-btn" onclick="toggleViewMode()" title="החלף תצוגה">☰</button>
 ```
@@ -440,11 +533,9 @@ function toggleViewMode() {
 **ב-renderCatalog:**
 ```js
 const isList = catalogViewMode === 'list';
-const gridClass = isList ? 'products-list' : 'products-grid';
-// בנה כרטיסים: isList ? productCardListHtml(p) : productCardHtml(p)
+// בנה: isList ? productCardListHtml(p) : productCardHtml(p)
 ```
 
-**CSS list:**
 ```css
 .products-list { display:flex;flex-direction:column;gap:12px }
 .product-card-list { display:flex;gap:12px;background:var(--card);border-radius:20px;padding:13px;border:1px solid var(--border);cursor:pointer }
@@ -457,7 +548,6 @@ const gridClass = isList ? 'products-list' : 'products-grid';
 
 **מתי פעיל:** `p.product_type === 'pizza_builder'` או `options[0].isPizza === true`
 
-**State:**
 ```js
 let _isPizzaProduct = false;
 let _pizzaToppings = [], _pizzaState = {}, _activePizzaTopping = null;
@@ -473,51 +563,26 @@ let _pizzaToppings = [], _pizzaState = {}, _activePizzaTopping = null;
 - `calcPizzaExtra()` — חישוב מחיר תוספות לפי רבעים
 - `getPizzaSelections()` — מחזיר `{selections:[], extraPrice}` לעגלה
 
-**SVG בסיסי (100×100):**
-- רקע עיגול צהוב `fill="#fef08a"`
-- 4 רבעים כ-`<path>` עם `onclick="togglePizzaSlice(qi)"`
-- צבע fill: `0=transparent`, `1=#fca5a5`, `2=#ef4444`
-- X2 text כש-val===2
-- קווי חלוקה אופקי/אנכי
-
+**SVG בסיסי (100×100):** 4 רבעים `<path>`, fill: 0=transparent, 1=#fca5a5, 2=#ef4444.
 **חישוב מחיר:** `(price / 4) * quartersCount` לכל תוספת.
-
-**שילוב ב-openSheet:**
-```js
-if (p.product_type === 'pizza_builder' || opts[0]?.isPizza) {
-  initPizzaBuilder(opts[0]?.toppings || opts);
-  optHtml = `<div id="pizza-builder-wrapper"></div>`;
-  // אחרי הכנסה ל-DOM:
-  renderPizzaBuilder();
-}
-```
-
-**שילוב ב-sheetAdd:**
-```js
-if (_isPizzaProduct) {
-  const {selections, extraPrice} = getPizzaSelections();
-  extra = extraPrice;
-  noteArr = selections;
-}
-```
 
 ---
 
 ## 17. badge_color — תמיכה בצבעי badge
 
 ```js
-const badgeColor = p.badge_color || '';
-// badge_color יכול להיות: 'red', 'green', 'blue', 'purple', 'orange', 'dark'
-// הוסף CSS classes בהתאם:
+// badge_color: 'red'|'green'|'blue'|'purple'|'orange'|'dark'
+const badge = p.badge ? `<span class="product-badge-pill ${escHtml(p.badge_color||'dark')}">${escHtml(p.badge)}</span>` : '';
 ```
+
 ```css
 .product-badge-pill { font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px;display:inline-block }
-.product-badge-pill.red { background:#fee2e2;color:#b91c1c }
-.product-badge-pill.green { background:#dcfce7;color:#166534 }
-.product-badge-pill.blue { background:#dbeafe;color:#1d4ed8 }
+.product-badge-pill.red    { background:#fee2e2;color:#b91c1c }
+.product-badge-pill.green  { background:#dcfce7;color:#166534 }
+.product-badge-pill.blue   { background:#dbeafe;color:#1d4ed8 }
 .product-badge-pill.purple { background:#f3e8ff;color:#7e22ce }
 .product-badge-pill.orange { background:#ffedd5;color:#c2410c }
-.product-badge-pill.dark { background:var(--dark);color:#fff }
+.product-badge-pill.dark   { background:var(--dark);color:#fff }
 ```
 
 ---
@@ -531,10 +596,9 @@ function isStoreOpen(s) {
   const [oh,om] = s.open_time.split(':').map(Number);
   const [ch,cm] = s.close_time.split(':').map(Number);
   const nowMins = now.getHours()*60 + now.getMinutes();
-  const openMins = oh*60+om, closeMins = ch*60+cm;
-  return nowMins >= openMins && nowMins < closeMins;
+  return nowMins >= oh*60+om && nowMins < ch*60+cm;
 }
-// בהירו: ticker, dot ירוק/אפור, open badge
+// בhero: dot ירוק/אדום, open badge, ticker-bar
 ```
 
 ---
@@ -542,12 +606,14 @@ function isStoreOpen(s) {
 ## 19. Loyalty
 
 ```js
-// הצג section רק אם storeData.settings.has_loyalty
-// כפתור "הצטרפות" → POST /api/store/loyalty/join עם groupId
 let _loyaltyJoined = false;
+// הצג section רק אם storeData.settings.has_loyalty
 async function joinLoyalty() {
   if (_loyaltyJoined) return;
-  const r = await fetch(`${API}/store/loyalty/join`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({groupId})});
+  const r = await fetch(`${API}/store/loyalty/join`, {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({groupId})
+  });
   const d = await r.json();
   if (d.success) { _loyaltyJoined = true; /* עדכן UI */ }
 }
@@ -555,61 +621,418 @@ async function joinLoyalty() {
 
 ---
 
-## 20. escHtml + showToast — חובה בכל תבנית
+## 20. escHtml + showToast + applyAccent + fmtPrice — חובה
 
 ```js
 function escHtml(s) {
   return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
+
 let _toastTimer;
-function showToast(msg, duration=2800) {
+function showToast(msg, dur=2800) {
   const el = document.getElementById('toast');
-  el.textContent = msg;
-  el.style.display = 'block';
+  el.textContent = msg; el.style.display = 'block';
   clearTimeout(_toastTimer);
-  _toastTimer = setTimeout(() => el.style.display='none', duration);
+  _toastTimer = setTimeout(() => el.style.display='none', dur);
+}
+
+function applyAccent(color) {
+  document.documentElement.style.setProperty('--accent', color);
+  const m = color.match(/^#([0-9a-f]{6})$/i);
+  if (m) {
+    const r=parseInt(m[1].slice(0,2),16), g=parseInt(m[1].slice(2,4),16), b=parseInt(m[1].slice(4,6),16);
+    document.documentElement.style.setProperty('--accent-dark',
+      `rgb(${Math.max(0,r-30)},${Math.max(0,g-30)},${Math.max(0,b-30)})`);
+  }
+}
+
+function fmtPrice(n) { return '₪' + Number(n||0).toLocaleString('he-IL'); }
+function cartKey(id, variant) { return `${id}__${variant||'default'}`; }
+function cartTotal() { return Object.values(cart).reduce((s,i) => s + i.price*i.qty, 0); }
+function cartCount() { return Object.values(cart).reduce((s,i) => s + i.qty, 0); }
+```
+
+---
+
+## 21. Product Sheet — מודל פרטי מוצר
+
+**HTML (לפני `</body>`):**
+```html
+<div id="sheet-overlay" onclick="closeSheet(event)">
+  <div id="product-sheet">
+    <button id="sheet-close-btn" onclick="closeSheet(null,true)">✕</button>
+    <img id="sheet-img" src="" alt="" style="display:none">
+    <div id="sheet-name"></div>
+    <div id="sheet-price"></div>
+    <div id="sheet-desc"></div>
+    <div id="sheet-options"></div>
+    <div id="sheet-qty-row">
+      <div id="sheet-qty-stepper">
+        <button onclick="sheetQtyChange(-1)">−</button>
+        <span id="sheet-qty-val">1</span>
+        <button onclick="sheetQtyChange(1)">+</button>
+      </div>
+    </div>
+    <button id="sheet-add-btn" onclick="sheetAdd()">הוסף לעגלה</button>
+  </div>
+</div>
+```
+
+**CSS:**
+```css
+#sheet-overlay{position:fixed;inset:0;z-index:800;background:rgba(0,0,0,.5);display:none;align-items:flex-end;justify-content:center}
+#sheet-overlay.open{display:flex}
+#product-sheet{position:relative;background:var(--card);border-radius:22px 22px 0 0;padding:24px 20px 36px;width:100%;max-width:560px;max-height:88vh;overflow-y:auto;animation:rise .25s ease}
+#sheet-img{width:100%;height:200px;object-fit:cover;border-radius:16px;margin-bottom:16px}
+#sheet-name{font-family:'Rubik',sans-serif;font-size:20px;font-weight:700;margin-bottom:4px}
+#sheet-price{font-size:18px;font-weight:700;color:var(--accent);margin-bottom:8px}
+#sheet-desc{font-size:13.5px;color:var(--muted);line-height:1.6;margin-bottom:16px}
+.sheet-opt-label{font-size:12px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;margin-bottom:8px}
+.sheet-opt-row{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+.sheet-opt-btn{padding:6px 14px;border-radius:99px;border:1.5px solid var(--border);font-size:13px;background:var(--card);cursor:pointer;transition:.12s}
+.sheet-opt-btn.active{border-color:var(--accent);background:var(--accent);color:#fff}
+#sheet-qty-stepper{display:inline-flex;align-items:center;gap:12px;background:var(--subtle);border-radius:99px;padding:4px 8px;margin-bottom:16px}
+#sheet-qty-stepper button{width:32px;height:32px;border-radius:50%;border:none;background:var(--card);font-size:18px;cursor:pointer}
+#sheet-qty-val{font-size:16px;font-weight:700;min-width:24px;text-align:center}
+#sheet-add-btn{width:100%;padding:14px;border-radius:14px;background:var(--accent);color:#fff;font-size:15px;font-weight:700;cursor:pointer;border:none}
+#sheet-add-btn:hover{background:var(--accent-dark)}
+#sheet-close-btn{position:absolute;top:16px;left:16px;width:32px;height:32px;border-radius:50%;background:var(--subtle);border:none;font-size:16px;cursor:pointer;color:var(--muted)}
+```
+
+**JS:**
+```js
+let _sheetId = null, _sheetQty = 1, _sheetSelOpt = {};
+
+function openSheet(id, e) {
+  if (e) e.stopPropagation();
+  const p = catalog.find(x => x.id == id);
+  if (!p) return;
+  _sheetId = id; _sheetQty = 1; _sheetSelOpt = {};
+  const img = document.getElementById('sheet-img');
+  if (p.image_url) { img.src = escHtml(p.image_url); img.style.display = 'block'; }
+  else img.style.display = 'none';
+  document.getElementById('sheet-name').textContent = p.name || '';
+  document.getElementById('sheet-price').textContent = fmtPrice(p.price);
+  document.getElementById('sheet-desc').textContent = p.description || '';
+  document.getElementById('sheet-qty-val').textContent = '1';
+  // אפשרויות (צבעים / גרסאות)
+  const opts = p.colors || p.options || [];
+  let optHtml = '';
+  if (opts.length) {
+    const first = opts[0]?.name || opts[0]?.label || String(opts[0]);
+    _sheetSelOpt.val = first;
+    optHtml = `<div class="sheet-opt-label">צבע / גרסה</div><div class="sheet-opt-row">` +
+      opts.map((o,i) => {
+        const lbl = o.name || o.label || String(o);
+        return `<button class="sheet-opt-btn${i===0?' active':''}" onclick="sheetSelectOpt(this,'${escHtml(lbl)}')">${escHtml(lbl)}</button>`;
+      }).join('') + '</div>';
+  }
+  document.getElementById('sheet-options').innerHTML = optHtml;
+  sheetUpdateBtn(p);
+  document.getElementById('sheet-overlay').classList.add('open');
+}
+
+function sheetSelectOpt(btn, val) {
+  document.querySelectorAll('#sheet-options .sheet-opt-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  _sheetSelOpt.val = val;
+}
+
+function sheetQtyChange(delta) {
+  _sheetQty = Math.max(1, _sheetQty + delta);
+  document.getElementById('sheet-qty-val').textContent = _sheetQty;
+  const p = catalog.find(x => x.id == _sheetId);
+  if (p) sheetUpdateBtn(p);
+}
+
+function sheetUpdateBtn(p) {
+  document.getElementById('sheet-add-btn').textContent = `הוסף לעגלה — ${fmtPrice(p.price * _sheetQty)}`;
+}
+
+function sheetAdd() {
+  const p = catalog.find(x => x.id == _sheetId);
+  if (!p) return;
+  const variant = _sheetSelOpt.val || '';
+  const key = cartKey(p.id, variant);
+  if (cart[key]) cart[key].qty += _sheetQty;
+  else cart[key] = {id:p.id, name:p.name, price:p.price, qty:_sheetQty, note:variant, colorName:variant};
+  showToast(`✓ ${p.name} נוסף לעגלה`);
+  closeSheet(null, true);
+  renderCartDock();
+  updateHeaderCart?.();
+}
+
+function closeSheet(e, force) {
+  if (!force && e && document.getElementById('product-sheet').contains(e.target)) return;
+  document.getElementById('sheet-overlay').classList.remove('open');
 }
 ```
 
 ---
 
-## 21. Service Worker — עדכן גרסה
+## 22. Volume Tiers — הנחות כמות (B2B)
 
-אחרי כל שינוי בתבנית — **חובה** להעלות גרסה ב-`public/sw.js`:
 ```js
+function renderVolumeTiers(s) {
+  const tiers = storeData.volume_tiers || s.volume_tiers || [];
+  if (!tiers.length) return;
+  const total = cartCount();
+  document.getElementById('volume-tiers').innerHTML = tiers.map((tier, i) => {
+    const next = tiers[i+1];
+    const active = next ? (total >= tier.min_qty && total < next.min_qty) : (total >= tier.min_qty);
+    return `<div class="vtier${active?' hl':''}">
+      <div class="vtier-range">${escHtml(tier.label)}</div>
+      <div class="vtier-note">${escHtml(tier.note)}</div>
+    </div>`;
+  }).join('');
+}
+```
+
+```css
+#volume-tiers { display:flex;flex-wrap:wrap }
+.vtier { flex:1;min-width:110px;padding:12px 14px;border-left:1px solid rgba(255,255,255,.08);text-align:center }
+.vtier.hl .vtier-range { color:var(--accent) }
+```
+
+---
+
+## 23. Bundles — חבילות מוכנות
+
+```js
+function renderBundles() {
+  const bundles = storeData.bundles || [];
+  if (!bundles.length) return;
+  document.getElementById('bundles-section').style.display = '';
+  document.getElementById('bundles-grid').innerHTML = bundles.map(b => `
+    <div class="bundle-card">
+      <div class="bundle-name">${escHtml(b.name)}</div>
+      <div class="bundle-desc">${escHtml(b.description||'')}</div>
+      <div class="bundle-price">${fmtPrice(b.price)}</div>
+      <button onclick="addBundle(${JSON.stringify(b).replace(/"/g,'&quot;')})">הוסף לעגלה</button>
+    </div>`).join('');
+}
+
+function addBundle(b) {
+  const key = 'bundle__' + b.name;
+  if (cart[key]) cart[key].qty++;
+  else cart[key] = {id:'bundle_'+b.name, name:b.name, price:b.price, qty:1, note:'חבילה', colorName:''};
+  showToast(`✓ חבילה "${b.name}" נוספה לעגלה`);
+  renderCartDock();
+}
+```
+
+---
+
+## 24. Quote Request Modal — הצעת מחיר
+
+```html
+<div id="quote-overlay" onclick="closeQuote(event)"
+  style="position:fixed;inset:0;z-index:800;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;padding:20px">
+  <div id="quote-panel" style="background:var(--card);border-radius:22px;padding:28px;width:100%;max-width:420px;max-height:90vh;overflow-y:auto;animation:pop .3s ease;position:relative">
+    <button onclick="closeQuote(null,true)" style="position:absolute;top:16px;left:16px;...">✕</button>
+    <div id="quote-title">בקשת הצעת מחיר</div>
+    <input id="qf-biz" placeholder="שם העסק *">
+    <input id="qf-contact" placeholder="טלפון / אימייל *">
+    <textarea id="qf-msg" rows="4" placeholder="פרטו דרישות..."></textarea>
+    <button onclick="sendQuote()">שלח בקשה</button>
+  </div>
+</div>
+```
+
+```js
+function openQuote() { document.getElementById('quote-overlay').style.display = 'flex'; }
+function closeQuote(e, force) {
+  if (!force && e && document.getElementById('quote-panel').contains(e.target)) return;
+  document.getElementById('quote-overlay').style.display = 'none';
+}
+async function sendQuote() {
+  const biz = document.getElementById('qf-biz').value.trim();
+  const contact = document.getElementById('qf-contact').value.trim();
+  if (!biz || !contact) { showToast('נא למלא שם ופרטי קשר'); return; }
+  const msg = document.getElementById('qf-msg').value.trim();
+  try {
+    await fetch(`${API}/storefront/quote`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({groupId, biz, contact, msg})
+    });
+    showToast('✓ הבקשה נשלחה! נחזור אליכם בהקדם');
+    closeQuote(null, true);
+  } catch(e) { showToast('שגיאה, נסו שוב'); }
+}
+```
+
+---
+
+## 25. Footer — מנוהל מ-Settings
+
+```js
+function renderFooter(s) {
+  const name = storeData.groupName || '';
+  document.getElementById('footer-name').textContent = name;
+  if (s.description) document.getElementById('footer-desc').textContent = s.description;
+  if (s.phone) {
+    document.getElementById('footer-phone-text').textContent = s.phone;
+    document.getElementById('footer-phone-link').href = `tel:${s.phone}`;
+  }
+  if (s.address) document.getElementById('footer-addr').textContent = s.address;
+  if (s.email) document.getElementById('footer-email').textContent = s.email;
+  document.getElementById('footer-year').textContent = new Date().getFullYear();
+}
+```
+
+---
+
+## 26. Mobile — כללי CSS חובה
+
+```css
+/* מניעת overflow אופקי */
+body { overflow-x:hidden }
+* { box-sizing:border-box }
+
+/* שמות מוצרים ארוכים */
+.product-name { overflow-wrap:break-word;word-break:break-word }
+
+/* עמודות responsive */
+@media(max-width:767px) {
+  /* הסתר אלמנטים פחות קריטיים */
+  #header-name { display:none }
+  #quote-btn { display:none }
+  /* search לרוחב מלא */
+  #header-search-wrap { min-width:0;max-width:none;flex:1 }
+  /* hero text קטן יותר */
+  #hero h1 { font-size:clamp(22px,6vw,36px) }
+  /* stats עם wrap */
+  #hero-stats { flex-wrap:wrap;gap:16px }
+  /* top bar slim */
+  #top-bar { padding:6px 12px;font-size:11px }
+  /* cart dock static */
+  #cart-dock { position:static }
+}
+```
+
+---
+
+## 27. Top Bar — מידע פעיל
+
+```html
+<div id="top-bar">
+  <span id="ref-badge">REF#<span id="session-ref">---</span></span>
+  <div id="top-bar-center">
+    <!-- הודעות קבועות — אפשר לקרוא מ-s.ticker_messages -->
+  </div>
+  <span id="top-open-status"></span>
+</div>
+```
+
+```js
+// ב-renderTicker:
+document.getElementById('session-ref').textContent = Math.random().toString(36).slice(2,8).toUpperCase();
+document.getElementById('top-open-status').textContent = isOpen ? '🟢 פתוח' : '🔴 סגור';
+```
+
+---
+
+## 28. Ticker Bar — סטטוס שעות
+
+```js
+function renderTicker(s) {
+  const isOpen = isStoreOpen(s);
+  const bar = document.getElementById('ticker-bar');
+  if (s.open_time || s.phone) {
+    bar.style.display = 'flex';
+    document.getElementById('ticker-dot').style.background = isOpen ? '#7FB77E' : '#ef4444';
+    document.getElementById('ticker-status').textContent = isOpen ? 'פתוח עכשיו' : 'סגור כעת';
+  }
+}
+```
+
+---
+
+## 29. Service Worker — עדכן גרסה
+
+אחרי **כל** שינוי בתבנית — **חובה** להעלות גרסה:
+```js
+// public/sw.js
 const CACHE_NAME = 'family-flow-vNNN'; // N+1
 ```
 
 ---
 
-## 22. חוקי עבודה קריטיים
+## 30. הוספת תבנית לממשק הניהול
+
+כשיוצרים תבנית חדשה, יש לעדכן **3 מקומות** (ללא פגיעה בקיים):
+
+**א. `server.js` — templateMap:**
+```js
+const templateMap = {
+  'classic':    'storefront.html',
+  'restaurant': 'storefront-restaurant.html',
+  'sport':      'storefront-sport.html',
+  'NEW_ID':     'storefront-NEW.html',  // ← הוסף
+};
+```
+
+**ב. `business.html` — template-picker:**
+```html
+<!-- שנה grid-cols-N בהתאם -->
+<div class="template-card ..." data-tid="NEW_ID" onclick="selectStoreTemplate('NEW_ID')">
+  <div class="text-2xl mb-1">EMOJI</div>
+  <div class="text-xs font-bold text-slate-700">שם התבנית</div>
+  <div class="text-[10px] text-slate-400">תת-כותרת</div>
+</div>
+```
+
+**ג. `business-app.js` — אותו שינוי + עדכון `selectStoreTemplate`:**
+```js
+// אם התבנית צריכה שדות הגדרה ייחודיים — הוסף tid לתנאי:
+if (extra) extra.style.display = (tid === 'restaurant' || tid === 'sport' || tid === 'NEW_ID') ? '' : 'none';
+```
+
+---
+
+## 31. חוקי עבודה קריטיים
 
 1. **אין נגיעה ב-business.html / business-app.js** — אלא אם התבקש במפורש
-2. **אין שינוי backend** — כל הלוגיקה היא frontend בלבד עם API קיים
+2. **אין שינוי backend** — כל הלוגיקה frontend בלבד עם API קיים
 3. **escHtml על כל input משתמש/API** — ללא יוצא מן הכלל
 4. **RTL כברירת מחדל** — `dir="rtl"` ב-html, רק toggleLang משנה
 5. **כל API call עם try/catch** — אין קריסות מ-network errors
 6. **מוצרים עם `is_available === false`** — לסנן מהתצוגה
-7. **תמיד `loadAsync` אחרי render ראשוני** — לא לחכות לנתונים לא-קריטיים
-8. **אחרי renderCatalog** — קרא `initScrollSpy()` מחדש (observer על elements חדשים)
+7. **תמיד loadAsync אחרי render ראשוני** — לא לחסום render בנתונים לא-קריטיים
+8. **אחרי renderCatalog** — קרא `initScrollSpy()` מחדש
+9. **תמונות מוצרים** — לבדוק `p.image_url` (לא `p.has_image`)
+10. **אין hardcoded stats בהירו** — כל נתון מספרי מ-`storeData.settings`
+11. **banner_url** — לבדוק `s.banner_url !== 'DELETE' && s.banner_url !== 'null'`
+12. **sw.js** — להעלות גרסה אחרי כל שינוי
 
 ---
 
-## 23. בדיקות לאחר יישום
+## 32. בדיקות לאחר יישום
 
-לאחר יישום כל פיצ'ר, בדוק שאלות אלו:
-
-- [ ] Quick actions מופיעים? (טלפון, וואטסאפ, Waze, מפה)
-- [ ] הזמנת שולחן עוברת 3 שלבים? (slots → SMS → אישור)
+- [ ] Quick actions מופיעים מהגדרות? (טלפון, וואטסאפ, Waze, מפה)
+- [ ] כפתורי הזמנה (שולחן/מקום/אירוע) — מופיעים רק כשמוגדר ב-settings?
+- [ ] הזמנת שולחן — 3 שלבים? (slots → SMS → אישור)
+- [ ] כותרת hero = שם העסק מ-storeData.groupName?
+- [ ] סלוגן = s.slogan (לא hardcoded)?
+- [ ] Stats בhero — רק מה שמוגדר בhגדרות?
+- [ ] banner_url מוצג כ-overlay?
+- [ ] תמונות קטלוג בהירו — כשאין banner?
 - [ ] מחיר קהילה מוצג כשיש discount_active?
 - [ ] BOGO מחשב נכון (כל 2 = 1 חינם)?
 - [ ] קופון מ-API נקלט ומפחית?
 - [ ] גלריה נטענת ו-lightbox עובד?
 - [ ] Scroll spy מעדכן nav?
-- [ ] הירו מציג תמונות מוצרים רנדומלית?
 - [ ] Multi-language toggle מחליף כיוון + טקסטים?
 - [ ] Side menu נפתח עם כל הקטגוריות?
 - [ ] Grid/list toggle מחליף תצוגה?
+- [ ] Product sheet נפתח בלחיצה — תמונה, תיאור, אפשרויות, כמות, הוספה?
 - [ ] Pizza builder: רבעים, X2, מחיר, עגלה?
 - [ ] badge_color עם CSS class?
+- [ ] Volume tiers — מתעדכנים עם שינוי עגלה?
+- [ ] Bundles — מוצגים כשקיימים ב-storeData?
+- [ ] Quote modal — שולח ל-/api/storefront/quote?
+- [ ] Footer — כל השדות מ-settings?
+- [ ] Mobile — אין overflow אופקי? word-break על שמות?
 - [ ] sw.js גרסה עלתה?
+- [ ] templateMap בserver.js עודכן?
+- [ ] template-picker ב-business.html + business-app.js עודכן?

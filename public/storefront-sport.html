@@ -788,12 +788,10 @@ function openBooking(type) {
 }
 
 function renderVolumeTiers(s) {
-  const tiers = storeData.volume_tiers || s.volume_tiers || [
-    {label:'1–4 פריטים', note:'מחיר מלא', pct:0, min_qty:0},
-    {label:'5–9 פריטים', note:'5% הנחה', pct:5, min_qty:5},
-    {label:'10–24 פריטים', note:'10% הנחה', pct:10, min_qty:10},
-    {label:'25+ פריטים', note:'עד 18% · פנו אלינו', pct:18, min_qty:25},
-  ];
+  const tiers = storeData.volume_tiers || s.volume_tiers || [];
+  const el = document.getElementById('volume-tiers');
+  if (!tiers.length) { if (el) el.style.display='none'; return; }
+  if (el) el.style.display='';
   const total = cartCount();
   document.getElementById('volume-tiers').innerHTML = tiers.map((tier, i) => {
     const next = tiers[i+1];
@@ -877,7 +875,7 @@ function productRowHtml(p) {
       <div class="product-thumb" onclick="openSheet(${p.id},event)">
         ${p.image_url ? `<img src="${escHtml(p.image_url)}" alt="${escHtml(p.name)}" loading="lazy">` : '🏋️'}
       </div>
-      <div class="product-info">
+      <div class="product-info" onclick="openSheet(${p.id},event)">
         <div class="product-name">${escHtml(p.name)}</div>
         <div class="product-meta-row">
           ${p.sku ? `<span class="product-sku">SKU: ${escHtml(p.sku)}</span>` : ''}
