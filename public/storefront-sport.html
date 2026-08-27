@@ -58,6 +58,7 @@ input,select,textarea{font-family:inherit}
 
 /* Hero */
 #hero{background:var(--dark);padding:clamp(36px,5vw,56px) 20px clamp(28px,4vw,48px);position:relative;overflow:hidden}
+#hero-banner-bg{position:absolute;inset:0;background-size:cover;background-position:center;opacity:.22;pointer-events:none}
 #hero-blob{position:absolute;top:-40%;right:-10%;width:60%;height:180%;border-radius:50%;background:var(--accent);filter:blur(120px);opacity:.18;pointer-events:none}
 .hero-inner{position:relative;z-index:1;max-width:1100px;margin:0 auto}
 #hero-eyebrow{display:inline-flex;align-items:center;gap:8px;padding:4px 12px;border-radius:99px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.07);font-size:11.5px;font-weight:600;color:rgba(255,255,255,.75);margin-bottom:14px;letter-spacing:.04em}
@@ -268,9 +269,18 @@ input,select,textarea{font-family:inherit}
 @media(max-width:767px){
   #store-layout{grid-template-columns:1fr}
   #cart-dock{position:static}
+  #top-bar{padding:6px 12px;font-size:11px}
   #top-bar-center{display:none}
+  #ref-badge{font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px}
+  #header{padding:10px 12px;gap:8px;flex-wrap:nowrap}
   #header-name{display:none}
+  #header-search-wrap{min-width:0;max-width:none}
+  #header-search{font-size:12px;padding:7px 30px 7px 10px}
   #quote-btn{display:none}
+  #cart-header-btn{padding:7px 10px;font-size:12px;white-space:nowrap;flex-shrink:0}
+  #hero h1{font-size:clamp(22px,6vw,36px)}
+  #hero-stats{gap:20px}
+  .hstat-val{font-size:22px}
   .product-row-head{grid-template-columns:48px 1fr auto}
   .product-price-col{display:none}
   .vtier{min-width:80px}
@@ -323,6 +333,7 @@ input,select,textarea{font-family:inherit}
 
 <!-- Hero -->
 <section id="hero">
+  <div id="hero-banner-bg"></div>
   <div id="hero-blob"></div>
   <div class="hero-inner">
     <div id="hero-eyebrow">
@@ -654,6 +665,12 @@ function renderHero(s) {
   const disc = s.max_volume_discount || (storeData.volume_tiers?.slice(-1)[0]?.pct) || 18;
   document.getElementById('hstat-discount').textContent = disc + '%';
   if (storeData.stats?.gyms_count) document.getElementById('hstat-gyms').textContent = storeData.stats.gyms_count + '+';
+  const bannerUrl = s.banner_url && s.banner_url !== 'DELETE' && s.banner_url !== 'null' ? s.banner_url : '';
+  if (bannerUrl) {
+    const bg = document.getElementById('hero-banner-bg');
+    bg.style.backgroundImage = `url('${bannerUrl}')`;
+    bg.style.opacity = '0.28';
+  }
 }
 
 function renderVolumeTiers(s) {
