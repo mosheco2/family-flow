@@ -364,9 +364,48 @@ input,button,select,textarea{font-family:inherit}
 /* ===== LOADING ===== */
 #loading-screen{position:fixed;inset:0;background:#fff;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px}
 .spinner{width:36px;height:36px;border:3px solid #eee;border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
+
+/* ===== SIDE MENU ===== */
+#side-menu{transform:translateX(100%);transition:transform .3s cubic-bezier(.4,0,.2,1)}
+#side-menu.open{transform:translateX(0)}
+.side-link-active{background:var(--subtle);border-right:4px solid var(--dark);font-weight:700}
+
+/* ===== LIST VIEW ===== */
+.products-list{display:flex;flex-direction:column;gap:12px}
+.product-card-list{display:flex;gap:12px;background:var(--card);border-radius:20px;padding:13px;border:1px solid var(--border);cursor:pointer;transition:.15s}
+.product-card-list:hover{box-shadow:0 6px 22px rgba(0,0,0,.08)}
+.product-card-list .product-img-wrap{width:84px;height:84px;flex:none;border-radius:14px;overflow:hidden;background:var(--subtle);display:flex;align-items:center;justify-content:center}
+.product-card-list .product-img-wrap img{width:100%;height:100%;object-fit:cover}
+.product-card-list .product-body{flex:1;display:flex;flex-direction:column;justify-content:space-between;min-width:0}
+.product-card-list .product-name{font-size:15px;font-weight:600}
+.product-card-list .product-desc{font-size:12px;color:var(--muted);font-weight:300;line-height:1.45;margin-top:2px}
+.product-card-list .product-footer{display:flex;align-items:center;gap:8px;margin-top:6px}
+
+/* ===== LANG TOGGLE ===== */
+#lang-toggle{display:flex;align-items:center;gap:4px;padding:6px 12px;border:1px solid rgba(255,255,255,.22);border-radius:99px;background:rgba(255,255,255,.08);color:rgba(255,255,255,.88);font-size:12.5px;cursor:pointer;transition:.15s}
+#lang-toggle:hover{background:rgba(255,255,255,.18)}
+
+/* ===== PIZZA BUILDER ===== */
+.pizza-topping-btn{padding:8px 14px;border-radius:18px;font-size:12px;font-weight:700;border:1px solid;cursor:pointer;white-space:nowrap;transition:.15s}
+.pizza-topping-btn.active{background:#ef4444;color:#fff;border-color:#dc2626}
+.pizza-topping-btn:not(.active){background:#fff;color:#374151;border-color:#e2e8f0}
+.pizza-topping-btn:not(.active):hover{background:#fef2f2;border-color:#fca5a5}
+.pizza-slice{cursor:pointer;transition:fill .15s}
+.pizza-slice:hover{opacity:.85}
 </style>
 </head>
 <body>
+
+<!-- SIDE MENU OVERLAY -->
+<div id="menu-overlay" class="fixed inset-0 bg-black/50 z-[900] hidden opacity-0 transition-opacity duration-300" onclick="toggleSideMenu(false)" style="position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:900;display:none;opacity:0;transition:opacity .3s"></div>
+<!-- SIDE MENU -->
+<div id="side-menu" style="position:fixed;top:0;right:0;bottom:0;width:min(280px,85vw);background:#fff;z-index:901;display:flex;flex-direction:column;overflow:hidden;box-shadow:-8px 0 32px rgba(0,0,0,.2)">
+  <div style="padding:18px 18px 14px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;background:var(--dark)">
+    <span style="font-family:'Rubik',sans-serif;font-size:16px;font-weight:700;color:#fff" id="side-menu-title">קטגוריות</span>
+    <button onclick="toggleSideMenu(false)" style="width:32px;height:32px;border:none;border-radius:50%;background:rgba(255,255,255,.15);color:#fff;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center">✕</button>
+  </div>
+  <div id="side-categories-list" style="flex:1;overflow-y:auto;padding:8px 0"></div>
+</div>
 
 <div id="toast"></div>
 <div id="loading-screen">
@@ -395,6 +434,8 @@ input,button,select,textarea{font-family:inherit}
       <input type="search" id="header-search" placeholder="חיפוש מנה, רכיב…" oninput="filterCatalog(this.value)">
       <span id="search-icon">⌕</span>
     </div>
+    <button id="view-mode-btn" onclick="toggleViewMode()" title="החלף תצוגה" style="width:36px;height:36px;flex:none;border:1px solid var(--border);border-radius:10px;background:#fff;color:var(--muted);cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;transition:.15s">☰</button>
+    <button onclick="toggleSideMenu(true)" title="תפריט קטגוריות" style="width:36px;height:36px;flex:none;border:none;border-radius:10px;background:var(--dark);color:#fff;cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;transition:.15s">≡</button>
     <button id="cart-header-btn" onclick="openCartPanel()">
       <span id="cart-header-total">₪0</span>
       <span id="cart-header-count">0</span>
@@ -432,6 +473,7 @@ input,button,select,textarea{font-family:inherit}
       </div>
       <div id="quick-actions"></div>
       <div id="hero-stats"></div>
+      <button id="lang-toggle" onclick="toggleLang()" style="margin-top:10px;display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border:1px solid rgba(255,255,255,.22);border-radius:99px;background:rgba(255,255,255,.08);color:rgba(255,255,255,.88);font-size:12.5px;cursor:pointer;transition:.15s">🌐 <span id="lang-label">English</span></button>
     </div>
     <div id="hero-images">
       <div id="hero-img-main"><div id="hero-img-main-ph">🍽️</div></div>
@@ -735,6 +777,193 @@ let _address = '', _orderNo = '';
 const SLOTS = ['בהקדם','19:30','20:00','20:30','21:00'];
 let _slot = 'בהקדם';
 
+// ===== MULTI-LANGUAGE =====
+const _langParam = new URLSearchParams(window.location.search).get('lang') || 'he';
+let isEn = _langParam === 'en';
+function t(he, en) { return isEn ? en : he; }
+function toggleLang() {
+  isEn = !isEn;
+  const el = document.getElementById('lang-label');
+  if (el) el.textContent = isEn ? 'עברית' : 'English';
+  document.documentElement.lang = isEn ? 'en' : 'he';
+  document.documentElement.dir = isEn ? 'ltr' : 'rtl';
+  renderAll();
+}
+
+// ===== CATALOG VIEW MODE =====
+let catalogViewMode = 'grid'; // 'grid' | 'list'
+function toggleViewMode() {
+  catalogViewMode = catalogViewMode === 'grid' ? 'list' : 'grid';
+  const btn = document.getElementById('view-mode-btn');
+  if (btn) btn.textContent = catalogViewMode === 'grid' ? '☰' : '⊞';
+  renderCatalog();
+}
+
+// ===== SIDE MENU =====
+function toggleSideMenu(isOpen) {
+  const menu = document.getElementById('side-menu');
+  const overlay = document.getElementById('menu-overlay');
+  if (!menu || !overlay) return;
+  if (isOpen) {
+    menu.classList.add('open');
+    overlay.style.display = 'block';
+    setTimeout(() => overlay.style.opacity = '1', 10);
+    // populate categories
+    const cats = [...new Set(catalog.map(p => p.category).filter(Boolean))];
+    const list = document.getElementById('side-categories-list');
+    if (list) list.innerHTML = cats.map(cat =>
+      `<button onclick="scrollToCat('${escHtml(cat)}');toggleSideMenu(false)"
+        style="display:block;width:100%;text-align:right;padding:14px 20px;border:none;background:transparent;font-size:14px;font-weight:500;cursor:pointer;border-bottom:1px solid var(--border);transition:background .15s"
+        onmouseover="this.style.background='var(--subtle)'" onmouseout="this.style.background='transparent'"
+      >${escHtml(cat)}</button>`
+    ).join('');
+  } else {
+    menu.classList.remove('open');
+    overlay.style.opacity = '0';
+    setTimeout(() => overlay.style.display = 'none', 300);
+  }
+}
+function scrollToCat(cat) {
+  const el = document.getElementById('cat-group-' + cat);
+  if (el) el.scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+// ===== PIZZA BUILDER =====
+let _isPizzaProduct = false;
+let _pizzaToppings = [];
+let _pizzaState = {}; // {toppingName: [q0,q1,q2,q3]} 0=none,1=half,2=double
+let _activePizzaTopping = null;
+
+function initPizzaBuilder(toppings) {
+  _isPizzaProduct = true;
+  _pizzaToppings = toppings || [];
+  _pizzaState = {};
+  _pizzaToppings.forEach(t => _pizzaState[t.name] = [0,0,0,0]);
+  _activePizzaTopping = _pizzaToppings.length > 0 ? _pizzaToppings[0].name : null;
+}
+
+function renderPizzaBuilder() {
+  const wrapper = document.getElementById('pizza-builder-wrapper');
+  if (!wrapper) return;
+  const getFill = qi => {
+    if (!_activePizzaTopping || !_pizzaState[_activePizzaTopping]) return 'transparent';
+    const v = _pizzaState[_activePizzaTopping][qi];
+    return v === 2 ? '#ef4444' : v === 1 ? '#fca5a5' : 'transparent';
+  };
+  const getX2 = (qi,x,y) => {
+    if (_activePizzaTopping && _pizzaState[_activePizzaTopping] && _pizzaState[_activePizzaTopping][qi] === 2)
+      return `<text x="${x}" y="${y}" font-size="10" font-weight="900" fill="#fff" text-anchor="middle" pointer-events="none">X2</text>`;
+    return '';
+  };
+  const toppingsHtml = _pizzaToppings.map(t =>
+    `<button class="pizza-topping-btn${t.name===_activePizzaTopping?' active':''}" onclick="selectPizzaTopping('${escHtml(t.name)}')">${escHtml(t.name)} (+₪${t.price})</button>`
+  ).join('');
+  let summaryParts = [];
+  _pizzaToppings.forEach(t => {
+    const vals = _pizzaState[t.name];
+    const active = vals.reduce((s,v)=>s+Number(v||0),0);
+    if (!active) return;
+    let q1=[],q2=[];
+    vals.forEach((v,i)=>{ if(v===1)q1.push(i+1); if(v===2)q2.push(i+1); });
+    let parts=[];
+    if(q1.length) parts.push(q1.length===4?t('מגש שלם','Full'):t(`רבעים ${q1.join(', ')}`,`Quarters ${q1.join(', ')}`));
+    if(q2.length) parts.push(q2.length===4?t('כפול הכל','Double all'):t(`כפול ${q2.join(', ')}`,`Double ${q2.join(', ')}`));
+    summaryParts.push(`<span style="display:inline-block;background:#fee2e2;color:#b91c1c;padding:3px 8px;border-radius:8px;font-size:11px;font-weight:700;margin:2px">${escHtml(t.name)} — ${parts.join(' | ')}</span>`);
+  });
+  wrapper.innerHTML = `
+    <div style="background:#fff8f8;border:1px solid #fecaca;border-radius:18px;padding:16px;margin-bottom:14px">
+      <h4 style="font-family:'Rubik',sans-serif;font-size:14px;font-weight:700;color:#991b1b;text-align:center;margin:0 0 4px">🍕 ${t('הרכבת הפיצה','Build Your Pizza')}</h4>
+      <p style="font-size:11px;color:#b91c1c;text-align:center;margin:0 0 12px">${t('בחרו תוספת, לחצו על רבע פיצה. לחיצה כפולה = X2','Select topping, tap pizza quarter. Double tap = X2')}</p>
+      <div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:8px;scroll-snap-type:x mandatory">${toppingsHtml}</div>
+      <div style="position:relative;width:200px;height:200px;margin:16px auto">
+        <svg viewBox="0 0 100 100" style="width:100%;height:100%;drop-shadow:0 4px 12px rgba(0,0,0,.15)">
+          <circle cx="50" cy="50" r="48" fill="#fef08a" stroke="#f59e0b" stroke-width="2"/>
+          <path d="M50 50 L50 2 A48 48 0 0 1 98 50 Z" fill="${getFill(0)}" class="pizza-slice" onclick="togglePizzaSlice(0)"/>
+          <path d="M50 50 L98 50 A48 48 0 0 1 50 98 Z" fill="${getFill(1)}" class="pizza-slice" onclick="togglePizzaSlice(1)"/>
+          <path d="M50 50 L50 98 A48 48 0 0 1 2 50 Z" fill="${getFill(2)}" class="pizza-slice" onclick="togglePizzaSlice(2)"/>
+          <path d="M50 50 L2 50 A48 48 0 0 1 50 2 Z" fill="${getFill(3)}" class="pizza-slice" onclick="togglePizzaSlice(3)"/>
+          <line x1="50" y1="2" x2="50" y2="98" stroke="#f59e0b" stroke-width="2" pointer-events="none"/>
+          <line x1="2" y1="50" x2="98" y2="50" stroke="#f59e0b" stroke-width="2" pointer-events="none"/>
+          <text x="75" y="29" font-size="13" font-weight="900" fill="#b45309" text-anchor="middle" dominant-baseline="middle" pointer-events="none">1</text>
+          <text x="75" y="71" font-size="13" font-weight="900" fill="#b45309" text-anchor="middle" dominant-baseline="middle" pointer-events="none">2</text>
+          <text x="25" y="71" font-size="13" font-weight="900" fill="#b45309" text-anchor="middle" dominant-baseline="middle" pointer-events="none">3</text>
+          <text x="25" y="29" font-size="13" font-weight="900" fill="#b45309" text-anchor="middle" dominant-baseline="middle" pointer-events="none">4</text>
+          ${getX2(0,75,40)}${getX2(1,75,85)}${getX2(2,25,85)}${getX2(3,25,40)}
+        </svg>
+        <div style="position:absolute;inset:0;pointer-events:none;display:flex;align-items:center;justify-content:center">
+          <div style="background:rgba(255,255,255,.9);padding:4px 12px;border-radius:99px;font-size:11px;font-weight:700;color:#991b1b;border:1px solid #fecaca">
+            ${_activePizzaTopping ? t('פעיל: ','Active: ')+_activePizzaTopping : t('בחרו תוספת','Select topping')}
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-bottom:12px">
+        <button onclick="fillPizza('whole')" style="padding:7px 14px;border:1px solid #fecaca;border-radius:10px;background:#fff;color:#b91c1c;font-size:11px;font-weight:700;cursor:pointer">${t('מגש שלם','Full')}</button>
+        <button onclick="fillPizza('half1')" style="padding:7px 14px;border:1px solid #fecaca;border-radius:10px;background:#fff;color:#b91c1c;font-size:11px;font-weight:700;cursor:pointer">${t('חצי ימין','Right half')}</button>
+        <button onclick="fillPizza('half2')" style="padding:7px 14px;border:1px solid #fecaca;border-radius:10px;background:#fff;color:#b91c1c;font-size:11px;font-weight:700;cursor:pointer">${t('חצי שמאל','Left half')}</button>
+        <button onclick="fillPizza('clear')" style="padding:7px 14px;border:1px solid #e2e8f0;border-radius:10px;background:#fff;color:#64748b;font-size:11px;font-weight:700;cursor:pointer">${t('נקה','Clear')}</button>
+      </div>
+      <div style="background:#fff;padding:10px;border-radius:12px;border:1px solid #fecaca;min-height:42px">
+        <div style="font-size:10px;font-weight:600;color:#9ca3af;margin-bottom:4px">${t('סיכום:','Summary:')}</div>
+        ${summaryParts.length ? summaryParts.join('') : `<div style="font-size:11px;color:#9ca3af">${t('פיצה חלקה (ללא תוספות)','Plain pizza (no toppings)')}</div>`}
+      </div>
+    </div>`;
+}
+
+function selectPizzaTopping(name) {
+  _activePizzaTopping = name;
+  renderPizzaBuilder();
+}
+function togglePizzaSlice(qi) {
+  if (!_activePizzaTopping) { showToast(t('בחרו תוספת תחילה','Select a topping first')); return; }
+  const v = _pizzaState[_activePizzaTopping][qi] || 0;
+  _pizzaState[_activePizzaTopping][qi] = v === 0 ? 1 : v === 1 ? 2 : 0;
+  renderPizzaBuilder();
+  updatePizzaSheetTotal();
+}
+function fillPizza(action) {
+  if (!_activePizzaTopping && action !== 'clear') { showToast(t('בחרו תוספת תחילה','Select a topping first')); return; }
+  if (action === 'clear') _pizzaToppings.forEach(t2 => _pizzaState[t2.name] = [0,0,0,0]);
+  else if (action === 'whole') _pizzaState[_activePizzaTopping] = [1,1,1,1];
+  else if (action === 'half1') { _pizzaState[_activePizzaTopping][0]=1; _pizzaState[_activePizzaTopping][1]=1; }
+  else if (action === 'half2') { _pizzaState[_activePizzaTopping][2]=1; _pizzaState[_activePizzaTopping][3]=1; }
+  renderPizzaBuilder();
+  updatePizzaSheetTotal();
+}
+function calcPizzaExtra() {
+  let total = 0;
+  _pizzaToppings.forEach(t2 => {
+    if (_pizzaState[t2.name]) {
+      const quarters = _pizzaState[t2.name].reduce((s,v)=>s+Number(v||0),0);
+      total += (parseFloat(t2.price)||0) / 4 * quarters;
+    }
+  });
+  return total;
+}
+function updatePizzaSheetTotal() {
+  if (!_isPizzaProduct) return;
+  const baseP = catalog.find(x=>x.id===_sheetId);
+  if (!baseP) return;
+  const total = (parseFloat(baseP.price)||0) + calcPizzaExtra();
+  const el = document.getElementById('sheet-price');
+  if (el) el.textContent = '₪' + Math.round(total * _sheetQty);
+}
+function getPizzaSelections() {
+  let selections = [], extraPrice = 0;
+  _pizzaToppings.forEach(top => {
+    const vals = _pizzaState[top.name];
+    const active = vals.reduce((s,v)=>s+Number(v||0),0);
+    if (!active) return;
+    extraPrice += (parseFloat(top.price)||0)/4*active;
+    let q1=[],q2=[];
+    vals.forEach((v,i)=>{ if(v===1)q1.push(i+1); if(v===2)q2.push(i+1); });
+    let parts=[];
+    if(q1.length) parts.push(q1.length===4?'מגש שלם':`רבעים ${q1.join(',')}`);
+    if(q2.length) parts.push(q2.length===4?'כפול הכל':`כפול ${q2.join(',')}`);
+    selections.push(`${top.name} (${parts.join(' | ')})`);
+  });
+  return {selections, extraPrice};
+}
+
 // ===== INIT =====
 async function initStore() {
   const path = window.location.pathname.replace(/^\//, '') || '';
@@ -988,13 +1217,15 @@ function renderCatalog() {
   let items = catalog.filter(p => p.is_available !== false);
   if (q) items = items.filter(p => (p.name+' '+(p.description||'')).includes(q));
   if (!items.length) {
-    outer.innerHTML = `<div class="catalog-empty">לא נמצאו מנות</div>`;
+    outer.innerHTML = `<div class="catalog-empty">${t('לא נמצאו מנות','No items found')}</div>`;
     return;
   }
+  const isList = catalogViewMode === 'list';
+  const gridClass = isList ? 'products-list' : 'products-grid';
   const cats = [...new Set(items.map(p => p.category).filter(Boolean))];
   if (!cats.length) {
     outer.innerHTML = `<div id="catalog-inner" style="max-width:1280px;margin:0 auto;padding:clamp(18px,2.4vw,28px) 20px 0">
-      <div class="products-grid">${items.map(p => productCardHtml(p)).join('')}</div></div>`;
+      <div class="${gridClass}">${items.map(p => isList ? productCardListHtml(p) : productCardHtml(p)).join('')}</div></div>`;
     return;
   }
   outer.innerHTML = `<div id="catalog-inner" style="max-width:1280px;margin:0 auto;padding:clamp(18px,2.4vw,28px) 20px 0">` +
@@ -1003,11 +1234,43 @@ function renderCatalog() {
       return `<div class="cat-group" id="cat-group-${escHtml(cat)}" data-cat="${escHtml(cat)}">
         <div class="cat-group-header">
           <h2 class="cat-group-name">${escHtml(cat)}</h2>
-          <span class="cat-group-note">${catItems.length} מנות</span>
+          <span class="cat-group-note">${catItems.length} ${t('מנות','items')}</span>
         </div>
-        <div class="products-grid">${catItems.map(p => productCardHtml(p)).join('')}</div>
+        <div class="${gridClass}">${catItems.map(p => isList ? productCardListHtml(p) : productCardHtml(p)).join('')}</div>
       </div>`;
     }).join('') + '</div>';
+}
+
+function productCardListHtml(p) {
+  const inCart = Object.values(cart).some(c => c.id === p.id);
+  const isFav = favs.has(p.id);
+  const imgHtml = p.has_image
+    ? `<img src="${API}/store/item-image/${p.id}" alt="${escHtml(p.name)}" loading="lazy" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display='none'">`
+    : `<span style="font-size:26px">🍽️</span>`;
+  const isCommunity = storeData?.communityData?.discount_active && storeData?.communityData?.discount_pct > 0;
+  const communityPrice = isCommunity ? Math.round(p.price * (1 - storeData.communityData.discount_pct / 100)) : null;
+  const orig = (p.original_price && p.original_price > p.price) || communityPrice
+    ? `<s style="font-size:11px;color:var(--muted);margin-left:3px">₪${p.original_price || p.price}</s>` : '';
+  const badge = p.badge_text ? `<span class="product-badge-pill ${escHtml(p.badge_color||'')}" style="font-size:10px;margin-bottom:4px;display:inline-block">${escHtml(p.badge_text)}</span>` : '';
+  return `
+    <div class="product-card-list" onclick="openSheet(${p.id})">
+      <div class="product-img-wrap">${imgHtml}</div>
+      <div class="product-body">
+        <div>
+          ${badge}
+          <div class="product-name">${escHtml(p.name)}</div>
+          ${p.description?`<div class="product-desc">${escHtml(p.description)}</div>`:''}
+        </div>
+        <div class="product-footer">
+          <div>
+            ${isCommunity && communityPrice ? `<div class="community-badge" style="font-size:10px">✨ ${t('מחיר קהילה','Community price')}</div>` : ''}
+            <span class="product-price">${orig}₪${communityPrice || p.price}</span>
+          </div>
+          ${inCart?`<span class="in-cart-label">${t('בעגלה','In cart')}</span>`:''}
+          <button class="add-pill" onclick="event.stopPropagation();quickAdd(${p.id})">${hasOptions(p)?t('התאמה','Customize'):t('הוספה','Add')}</button>
+        </div>
+      </div>
+    </div>`;
 }
 
 function productCardHtml(p) {
@@ -1179,10 +1442,18 @@ function openSheet(id) {
     imgEl.innerHTML = `<div id="sheet-img-ph" style="font-size:48px;opacity:.5">🍽️</div><button id="sheet-close" onclick="closeSheet()">✕</button>`;
   }
 
+  // Pizza Builder support
+  _isPizzaProduct = false;
   let optHtml = '';
   try {
     const opts = JSON.parse(p.options_text||'[]');
-    if (Array.isArray(opts) && opts.length) {
+    // detect pizza_builder
+    if (p.product_type === 'pizza_builder' || (Array.isArray(opts) && opts.length && opts[0].isPizza)) {
+      const toppings = (Array.isArray(opts) && opts.length && opts[0].toppings) ? opts[0].toppings
+        : Array.isArray(opts) ? opts : [];
+      initPizzaBuilder(toppings);
+      optHtml = `<div id="pizza-builder-wrapper"></div>`;
+    } else if (Array.isArray(opts) && opts.length) {
       optHtml = opts.map((g,gi)=>`
         <div>
           <div class="sheet-section-title">${escHtml(g.name||g.title||'')}</div>
@@ -1199,6 +1470,7 @@ function openSheet(id) {
     }
   } catch(e) {}
   document.getElementById('sheet-options').innerHTML = optHtml;
+  if (_isPizzaProduct) renderPizzaBuilder();
 
   updateSheetTotal();
   document.getElementById('sheet-overlay').style.display = 'flex';
@@ -1241,27 +1513,37 @@ function updateSheetTotal() {
   const p = catalog.find(x=>x.id===_sheetId);
   if (!p) return;
   let extra = 0;
-  try {
-    const opts = JSON.parse(p.options_text||'[]');
-    Object.entries(_sheetExtras).forEach(([gi,sel])=>{
-      const g = opts[gi], items = g?.options||g?.items||[];
-      sel.forEach(oi=>{ const o=items[oi]; if(o&&typeof o==='object'&&o.price) extra+=parseFloat(o.price)||0; });
-    });
-  } catch(e){}
+  if (_isPizzaProduct) {
+    extra = calcPizzaExtra();
+  } else {
+    try {
+      const opts = JSON.parse(p.options_text||'[]');
+      Object.entries(_sheetExtras).forEach(([gi,sel])=>{
+        const g = opts[gi], items = g?.options||g?.items||[];
+        sel.forEach(oi=>{ const o=items[oi]; if(o&&typeof o==='object'&&o.price) extra+=parseFloat(o.price)||0; });
+      });
+    } catch(e){}
+  }
   const total = (p.price + extra) * _sheetQty;
-  document.getElementById('sheet-add-btn').textContent = `הוספה לעגלה · ₪${total.toFixed(0)}`;
+  document.getElementById('sheet-add-btn').textContent = `${t('הוספה לעגלה','Add to cart')} · ₪${total.toFixed(0)}`;
 }
 function sheetAdd() {
   const p = catalog.find(x=>x.id===_sheetId);
   if (!p) return;
   let extra = 0, noteArr = [];
-  try {
-    const opts = JSON.parse(p.options_text||'[]');
-    Object.entries(_sheetExtras).forEach(([gi,sel])=>{
-      const g = opts[gi], items = g?.options||g?.items||[];
-      sel.forEach(oi=>{ const o=items[oi]; const nm=typeof o==='string'?o:(o?.name||''); if(nm) noteArr.push(nm); if(o&&typeof o==='object'&&o.price) extra+=parseFloat(o.price)||0; });
-    });
-  } catch(e){}
+  if (_isPizzaProduct) {
+    const {selections, extraPrice} = getPizzaSelections();
+    extra = extraPrice;
+    noteArr = selections;
+  } else {
+    try {
+      const opts = JSON.parse(p.options_text||'[]');
+      Object.entries(_sheetExtras).forEach(([gi,sel])=>{
+        const g = opts[gi], items = g?.options||g?.items||[];
+        sel.forEach(oi=>{ const o=items[oi]; const nm=typeof o==='string'?o:(o?.name||''); if(nm) noteArr.push(nm); if(o&&typeof o==='object'&&o.price) extra+=parseFloat(o.price)||0; });
+      });
+    } catch(e){}
+  }
   const note = [document.getElementById('sheet-note-input').value.trim(), ...noteArr].filter(Boolean).join(', ');
   const key = `${p.id}|${note}`;
   const finalPrice = p.price + extra;
@@ -1270,7 +1552,7 @@ function sheetAdd() {
   closeSheet();
   renderCatalog();
   updateCartBar();
-  showToast(`${p.name} נוסף לעגלה`);
+  showToast(t(`${p.name} נוסף לעגלה`, `${p.name} added to cart`));
 }
 function quickAdd(id) {
   const p = catalog.find(x=>x.id===id);
