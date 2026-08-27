@@ -183,10 +183,6 @@
   /* toast */
   #toast { position: fixed; top: 16px; left: 50%; transform: translateX(-50%); background: #1a1a1a; color: #fff; padding: 12px 20px; border-radius: 14px; font-size: 14px; font-weight: 600; z-index: 9999; display: none; white-space: nowrap; max-width: 90vw; }
 
-  /* mobile/desktop toggle */
-  #view-toggle { position: fixed; bottom: 80px; left: 16px; background: #fff; border: 1px solid #ddd; border-radius: 12px; padding: 6px; display: flex; gap: 4px; z-index: 350; box-shadow: 0 2px 8px rgba(0,0,0,.1); }
-  .view-btn { padding: 5px 10px; border-radius: 8px; border: none; background: transparent; font-size: 12px; font-weight: 700; cursor: pointer; font-family: 'Heebo', sans-serif; color: #888; }
-  .view-btn.active { background: #1a1a1a; color: #fff; }
 
   /* loading */
   #loading-screen { position: fixed; inset: 0; background: #fff; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; }
@@ -365,11 +361,6 @@
   </div>
 </div>
 
-<!-- VIEW TOGGLE -->
-<div id="view-toggle">
-  <button class="view-btn active" onclick="setView('desktop')">דסקטופ</button>
-  <button class="view-btn" onclick="setView('mobile')">מובייל</button>
-</div>
 
 <!-- PRODUCT MODAL -->
 <div id="product-modal" style="display:none;" class="modal-overlay" onclick="closeProductModal(event)">
@@ -1199,17 +1190,6 @@ function scrollToSection(id) {
 }
 
 function setView(v) {
-  document.querySelectorAll('.view-btn').forEach(b => b.classList.toggle('active', b.textContent === (v === 'desktop' ? 'דסקטופ' : 'מובייל')));
-  const wrap = document.getElementById('store-wrap');
-  if (v === 'mobile') {
-    wrap.style.maxWidth = '390px';
-    wrap.style.margin = '0 auto';
-    wrap.style.boxShadow = '0 8px 48px rgba(0,0,0,.2)';
-  } else {
-    wrap.style.maxWidth = '';
-    wrap.style.margin = '';
-    wrap.style.boxShadow = '';
-  }
 }
 
 function showToast(msg) {
