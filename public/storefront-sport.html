@@ -874,7 +874,7 @@ function productRowHtml(p) {
   return `<div class="product-row${isExp?' expanded':''}" id="prow-${p.id}">
     <div class="product-row-head" onclick="toggleRow(${p.id})">
       <div class="product-thumb" onclick="openSheet(${p.id},event)">
-        ${p.image_url ? `<img src="${escHtml(p.image_url)}" alt="${escHtml(p.name)}" loading="lazy">` : '🏋️'}
+        ${p.has_image ? `<img src="${API}/store/item-image/${p.id}" alt="${escHtml(p.name)}" loading="lazy">` : '🏋️'}
       </div>
       <div class="product-info" onclick="openSheet(${p.id},event)">
         <div class="product-name">${escHtml(p.name)}</div>
@@ -1243,7 +1243,7 @@ function openSheet(id, e) {
   _sheetQty = 1;
   _sheetSelOpt = {};
   const img = document.getElementById('sheet-img');
-  if (p.image_url) { img.src = escHtml(p.image_url); img.style.display = 'block'; }
+  if (p.has_image) { img.src = `${API}/store/item-image/${p.id}`; img.style.display = 'block'; }
   else img.style.display = 'none';
   document.getElementById('sheet-name').textContent = p.name || '';
   document.getElementById('sheet-price').textContent = fmtPrice(p.price);
