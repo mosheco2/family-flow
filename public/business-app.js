@@ -932,17 +932,17 @@ window.injectBusinessUI = function() {
                                     <div class="grid grid-cols-3 gap-2" id="template-picker">
                                         <div class="template-card cursor-pointer rounded-xl border-2 border-indigo-400 bg-white p-3 text-center transition" data-tid="classic" onclick="selectStoreTemplate('classic')">
                                             <div class="text-2xl mb-1">🛍️</div>
-                                            <div class="text-xs font-bold text-slate-700">קלאסי</div>
+                                            <div class="text-xs font-bold text-slate-700">סטנדרטית</div>
                                             <div class="text-[10px] text-slate-400">כל סוגי העסקים</div>
                                         </div>
                                         <div class="template-card cursor-pointer rounded-xl border-2 border-slate-200 bg-white p-3 text-center transition" data-tid="restaurant" onclick="selectStoreTemplate('restaurant')">
                                             <div class="text-2xl mb-1">🍕</div>
-                                            <div class="text-xs font-bold text-slate-700">מסעדה</div>
+                                            <div class="text-xs font-bold text-slate-700">חמה</div>
                                             <div class="text-[10px] text-slate-400">מזון ומשלוחים</div>
                                         </div>
                                         <div class="template-card cursor-pointer rounded-xl border-2 border-slate-200 bg-white p-3 text-center transition" data-tid="sport" onclick="selectStoreTemplate('sport')">
                                             <div class="text-2xl mb-1">🏋️</div>
-                                            <div class="text-xs font-bold text-slate-700">ספורט B2B</div>
+                                            <div class="text-xs font-bold text-slate-700">ספורטיבית</div>
                                             <div class="text-[10px] text-slate-400">סיטונאות וכושר</div>
                                         </div>
                                     </div>
