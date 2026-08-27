@@ -637,23 +637,19 @@ function renderHero(data) {
 
   if (_bannerUrl) {
     // static banner image
-    hw.className = 'hero-img-wrap-static';
     hw.style.backgroundImage = `url("${_bannerUrl}")`;
-    hw.style.width = '150px';
-    hw.style.height = '150px';
-    hw.style.borderRadius = '16px';
     hw.style.backgroundSize = 'cover';
     hw.style.backgroundPosition = 'center';
-    hw.style.display = '';
+    hw.style.display = 'block';
     document.getElementById('hero-bg-deco').style.display = 'none';
   } else {
     // try to show product images grid
     const imgItems = (data.catalog || []).filter(p => p.has_image);
     if (imgItems.length >= 2) {
       hw.classList.add('is-grid');
-      hw.style.display = '';
+      hw.style.display = 'grid';
       hw.innerHTML = imgItems.slice(0, 4).map(p =>
-        `<img src="/api/store/item-image/${p.id}" alt="${escHtml(p.name)}" loading="lazy" onerror="this.style.display='none'">`
+        `<img src="/api/store/item-image/${p.id}" alt="${escHtml(p.name)}" loading="lazy" onerror="this.parentNode.removeChild(this)">`
       ).join('');
       document.getElementById('hero-bg-deco').style.display = 'none';
     } else {
