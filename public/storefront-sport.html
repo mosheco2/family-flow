@@ -624,8 +624,10 @@ function cartCount() { return Object.values(cart).reduce((s,i) => s + i.qty, 0);
 /* ── Init ── */
 async function initStore() {
   try {
-    const path = window.location.pathname.replace(/^\//, '');
-    const code = path || new URLSearchParams(window.location.search).get('store') || 'demo';
+    const rawPath = window.location.pathname.replace(/^\//, '');
+    const code = (rawPath && !rawPath.endsWith('.html'))
+      ? rawPath
+      : (new URLSearchParams(window.location.search).get('store') || 'demo');
     const res = await fetch(`${API}/storefront/${encodeURIComponent(code)}`);
     if (!res.ok) throw new Error('not found');
     storeData = await res.json();
