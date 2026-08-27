@@ -415,34 +415,6 @@ async function fetchBanners() {
     } catch(e) {}
 }
 
-window.toggleDesktopView = function() {
-    const dashContainer = getEl('dashboard-container');
-    const bottomBanner = getEl('app-banner-bottom');
-    const iconBtn = getEl('btn-toggle-desktop').querySelector('i');
-    
-    if (!dashContainer) return;
-    
-    if (dashContainer.classList.contains('max-w-lg')) {
-        dashContainer.classList.remove('max-w-lg');
-        dashContainer.classList.add('max-w-7xl', 'w-full');
-        if (bottomBanner) { bottomBanner.classList.remove('max-w-lg'); bottomBanner.classList.add('max-w-7xl'); }
-        if (iconBtn) {
-            iconBtn.classList.remove('fa-desktop');
-            iconBtn.classList.add('fa-mobile-screen');
-        }
-        showToast('info', 'עברת לתצוגת מחשב מורחבת');
-    } else {
-        dashContainer.classList.remove('max-w-7xl', 'w-full');
-        dashContainer.classList.add('max-w-lg');
-        if (bottomBanner) { bottomBanner.classList.remove('max-w-7xl'); bottomBanner.classList.add('max-w-lg'); }
-        if (iconBtn) {
-            iconBtn.classList.remove('fa-mobile-screen');
-            iconBtn.classList.add('fa-desktop');
-        }
-        showToast('info', 'עברת לתצוגה ממוקדת');
-    }
-};
-
 async function loadSAData() {
     fetchBanners();
     try {
@@ -953,7 +925,74 @@ window.injectBusinessUI = function() {
                                     <input type="checkbox" id="store-is-active" class="w-5 h-5 accent-indigo-600 rounded">
                                     <span class="font-bold text-slate-700 text-sm">החנות פעילה ומקבלת הזמנות</span>
                                 </label>
-                                
+
+                                <!-- תבנית חנות -->
+                                <div class="bg-indigo-50 p-4 rounded-2xl border border-indigo-100 shadow-sm">
+                                    <label class="text-xs font-bold text-indigo-700 block mb-2"><i class="fa-solid fa-palette text-indigo-500 ml-1"></i> תבנית חנות ציבורית</label>
+                                    <div class="grid grid-cols-2 gap-2" id="template-picker">
+                                        <div class="template-card cursor-pointer rounded-xl border-2 border-indigo-400 bg-white p-3 text-center transition" data-tid="classic" onclick="selectStoreTemplate('classic')">
+                                            <div class="text-2xl mb-1">🛍️</div>
+                                            <div class="text-xs font-bold text-slate-700">סטנדרטית</div>
+                                            <div class="text-[10px] text-slate-400">כל סוגי העסקים</div>
+                                        </div>
+                                        <div class="template-card cursor-pointer rounded-xl border-2 border-slate-200 bg-white p-3 text-center transition" data-tid="restaurant" onclick="selectStoreTemplate('restaurant')">
+                                            <div class="text-2xl mb-1">🍕</div>
+                                            <div class="text-xs font-bold text-slate-700">חמה</div>
+                                            <div class="text-[10px] text-slate-400">מזון ומשלוחים</div>
+                                        </div>
+                                        <div class="template-card cursor-pointer rounded-xl border-2 border-slate-200 bg-white p-3 text-center transition" data-tid="sport" onclick="selectStoreTemplate('sport')">
+                                            <div class="text-2xl mb-1">🏋️</div>
+                                            <div class="text-xs font-bold text-slate-700">ספורטיבית</div>
+                                            <div class="text-[10px] text-slate-400">סיטונאות וכושר</div>
+                                        </div>
+                                        <div class="template-card cursor-pointer rounded-xl border-2 border-slate-200 bg-white p-3 text-center transition" data-tid="market" onclick="selectStoreTemplate('market')">
+                                            <div class="text-2xl mb-1">🛒</div>
+                                            <div class="text-xs font-bold text-slate-700">מסחרית</div>
+                                            <div class="text-[10px] text-slate-400">שוק וסחר</div>
+                                        </div>
+                                    </div>
+                                    <input type="hidden" id="store-template-id" value="classic">
+                                </div>
+
+                                <!-- שדות תבנית מסעדה -->
+                                <div id="restaurant-extra-fields" class="space-y-3" style="display:none">
+                                    <div class="flex items-start gap-2 bg-blue-50 border border-blue-100 rounded-xl p-3">
+                                        <i class="fa-solid fa-circle-info text-blue-400 mt-0.5 text-sm shrink-0"></i>
+                                        <p class="text-xs text-blue-700 leading-relaxed"><strong>תמונת גיבור לבאנר הראשי</strong> — העלה מסעיף <strong>לוגו ובאנר</strong> שמעל (שדה "באנר / רקע ראשי"). אם לא הועלתה תמונה, יוצגו תמונות מוצרים מהקטלוג אוטומטית.</p>
+                                    </div>
+                                    <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100 shadow-sm">
+                                        <label class="text-xs font-bold text-slate-700 block mb-1.5"><i class="fa-solid fa-droplet text-pink-500 ml-1"></i> צבע מבטא לחנות:</label>
+                                        <div class="flex items-center gap-3">
+                                            <input type="color" id="store-accent-color" value="#e63946" class="w-10 h-10 rounded-lg border border-slate-200 cursor-pointer p-0.5">
+                                            <input type="text" id="store-accent-color-text" value="#e63946" maxlength="7" class="modern-input py-2 text-sm bg-white flex-1 font-mono" placeholder="#e63946" oninput="document.getElementById('store-accent-color').value=this.value">
+                                        </div>
+                                    </div>
+                                    <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100 shadow-sm">
+                                        <label class="text-xs font-bold text-slate-700 block mb-2"><i class="fa-solid fa-truck text-emerald-500 ml-1"></i> הגדרות משלוח ואיסוף</label>
+                                        <div class="grid grid-cols-2 gap-3 mb-2">
+                                            <div>
+                                                <label class="text-[10px] text-slate-500 block mb-1">זמן משלוח (דקות)</label>
+                                                <input type="number" id="store-delivery-eta" min="0" max="180" value="35" class="modern-input py-2 text-sm bg-white w-full text-center">
+                                            </div>
+                                            <div>
+                                                <label class="text-[10px] text-slate-500 block mb-1">זמן איסוף (דקות)</label>
+                                                <input type="number" id="store-pickup-eta" min="0" max="120" value="15" class="modern-input py-2 text-sm bg-white w-full text-center">
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label class="text-[10px] text-slate-500 block mb-1">משלוח חינם מעל (₪) — 0 = לא מוצג</label>
+                                            <input type="number" id="store-free-delivery-above" min="0" value="0" class="modern-input py-2 text-sm bg-white w-full text-center">
+                                        </div>
+                                    </div>
+                                    <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100 shadow-sm">
+                                        <label class="text-xs font-bold text-slate-700 block mb-2"><i class="fa-solid fa-mobile-screen text-blue-500 ml-1"></i> קישורי הורדת אפליקציה (אופציונלי)</label>
+                                        <div class="space-y-2">
+                                            <input type="url" id="store-app-store-url" class="modern-input py-2 text-sm bg-white w-full" placeholder="App Store URL" dir="ltr">
+                                            <input type="url" id="store-play-store-url" class="modern-input py-2 text-sm bg-white w-full" placeholder="Google Play URL" dir="ltr">
+                                        </div>
+                                    </div>
+                                </div>
+
                                 <div class="bg-indigo-50 p-4 rounded-2xl border border-indigo-100 shadow-sm">
                                     <div class="flex items-center justify-between mb-2">
                                         <label class="font-bold text-indigo-800 text-sm flex items-center gap-2 cursor-pointer">
@@ -2538,6 +2577,27 @@ window._reportsExportPDF = function() {
 function switchTab(t) {
     // עסקי יופי: הפנה מ-customers ל-beauty_clients
     if (t === 'customers' && currentGroup?.business_type === 'beauty') t = 'beauty_clients';
+
+    // חסימת ניווט לטאב נעול לפי billing_config
+    const ALWAYS_OPEN = ['feed', 'settings', 'biz-ads'];
+    if (!ALWAYS_OPEN.includes(t)) {
+        const _b = (() => { try { return typeof currentGroup?.billing_config === 'string' ? JSON.parse(currentGroup.billing_config) : (currentGroup?.billing_config || null); } catch(e) { return null; } })();
+        if (_b !== null) {
+            let _bIds = [];
+            if (_b.bundle_id) {
+                const _bg = (window._pricingCatalogBiz || []).find(g => g.groupId === _b.bundle_id);
+                const _dp = (_bg?.modules?.[0]?.desc || '').split('(')[0].trim();
+                _bIds = _dp ? _dp.split(',').map(s => s.trim()).filter(Boolean) : [];
+            }
+            const _iIds = (Array.isArray(_b.modules) ? _b.modules : [])
+                .map(m => typeof m === 'string' ? m : (m.open !== false ? m.id : null)).filter(Boolean);
+            const _open = [...new Set([..._bIds, ..._iIds])];
+            if (!_open.includes(t)) {
+                if (typeof window.openModuleUnlockModal === 'function') window.openModuleUnlockModal(t);
+                return;
+            }
+        }
+    }
     ['feed','timeclock','shifts','calendar','shop','pantry','equipment','sales','pos','foodcost','customers','bank','cashflow','budget','forecast','tasks','deliveries','academy','community','members','surveys','settings','role-dashboard','beauty_calendar','beauty_clients','beauty_inventory','beauty_commissions','beauty_services','beauty_subscriptions','beauty_rfq','beauty_practitioners','logistics_orders','logistics_drivers','logistics_vehicles','logistics_pricing','logistics_cod','logistics_rfq','logistics_routes','logistics_tracking','logistics_reports','logistics_customers','logistics_invoices','reviews','cases','timelog','content','leads','documents','biz-ads','whatsapp-alerts','menu_templates'].forEach(x => {
         const el = getEl(`content-${x}`); if(el) el.classList.add('hidden');
         const btn = getEl(`tab-${x}`); if(btn) btn.classList.remove('tab-active');
@@ -2677,28 +2737,6 @@ function handleAIResponseCheck(data) {
 
 function closeAiBatteryModal() { getEl('ai-battery-modal').classList.add('hidden'); }
 function upgradeToPremium() { closeAiBatteryModal(); const profileModal = getEl('profile-modal'); if(profileModal) profileModal.classList.add('hidden'); openAlertModal('Oneflow Pro 👑', 'אפשרות שדרוג למנוי פרימיום תתווסף למערכת בקרוב!'); }
-
-// *** פונקציה להחלפת תצוגת מחשב/נייד (רספונסיביות) ***
-window.toggleDesktopView = function() {
-    const dashContainer = getEl('dashboard-container');
-    const iconBtn = getEl('btn-toggle-desktop').querySelector('i');
-    
-    if (dashContainer.classList.contains('max-w-lg')) {
-        // מעבר לתצוגת מחשב רחבה
-        dashContainer.classList.remove('max-w-lg');
-        dashContainer.classList.add('max-w-7xl', 'w-full');
-        iconBtn.classList.remove('fa-desktop');
-        iconBtn.classList.add('fa-mobile-screen');
-        showToast('info', 'עברת לתצוגת מחשב מורחבת');
-    } else {
-        // מעבר חזרה לתצוגת מובייל (צרה)
-        dashContainer.classList.remove('max-w-7xl', 'w-full');
-        dashContainer.classList.add('max-w-lg');
-        iconBtn.classList.remove('fa-mobile-screen');
-        iconBtn.classList.add('fa-desktop');
-        showToast('info', 'עברת לתצוגה ממוקדת');
-    }
-};
 
 // *** הוספת הפונקציה החסרה (החרגת לקוחות PRO ווידוא מכסות) ***
 window.executeWithAIWarning = function(callback) {
@@ -3655,9 +3693,13 @@ if (!window.switchTabOverridden) {
     window.switchTab = function(tabId) {
         const targetBtn = document.getElementById(`tab-${tabId}`);
         if (targetBtn && targetBtn.classList.contains('locked-module')) {
+            if (typeof openModuleUnlockModal === 'function') openModuleUnlockModal(tabId);
+            return;
+        }
+        if (targetBtn && targetBtn.classList.contains('tab-perm-locked')) {
             const modName = targetBtn.dataset.lockedName || 'מודול נבחר';
-            if(typeof openLockedModuleModal === 'function') openLockedModuleModal(modName);
-            return; 
+            if (typeof openLockedModuleModal === 'function') openLockedModuleModal(modName);
+            return;
         }
         originalSwitchTab(tabId);
         setTimeout(enforcePermissions, 50);
@@ -6245,7 +6287,7 @@ window._colMarkReceived = async function(paymentId) {
     if (recAmt === null) return;
     try {
         const r = await fetch(`/api/work-orders/payments/${paymentId}/receive`, {
-            method: 'PATCH', headers: {'Content-Type':'application/json'},
+            method: 'PATCH', headers: {'Content-Type':'application/json', 'Authorization': `Bearer ${window._bizToken}`},
             body: JSON.stringify({ receivedAmount: recAmt || null, userName: currentUser?.nickname || 'מנהל' })
         });
         const d = await r.json();
@@ -7672,6 +7714,7 @@ window.openProfileModal = function() {
                     upgSec.insertAdjacentHTML('afterend', `<button id="btn-reopen-wizard-biz" onclick="if(typeof showOnboardingWizard === 'function') showOnboardingWizard()" class="w-full mt-3 bg-indigo-50 text-indigo-600 py-2.5 rounded-xl text-xs font-bold hover:bg-indigo-100 transition border border-indigo-100 shadow-sm"><i class="fa-solid fa-wand-magic-sparkles mr-1"></i> פתיחת אשף הקמה (Wizard)</button>`);
                 }
             }
+            _renderProfileTrialBadge(upgSec);
         } else {
             upgSec.classList.add('hidden');
         }
@@ -7714,6 +7757,49 @@ window.saveProfileNickname = async function() {
         } else showToast('error', data.error || 'שגיאה בשמירה');
     } catch(e) { showToast('error', 'שגיאת תקשורת'); }
 };
+
+async function _renderProfileTrialBadge(upgSec) {
+    if (!upgSec || !currentGroup || !currentGroup.created_at) return;
+    try {
+        const d = await fetch('/api/biz/pricing-catalog', {
+            headers: { 'Authorization': `Bearer ${window._bizToken}` }
+        }).then(r => r.json());
+        const freeMonths = typeof d.free_months === 'number' ? d.free_months : 0;
+        if (freeMonths <= 0) return;
+        const createdMs = new Date(currentGroup.created_at).getTime();
+        const trialMs = freeMonths * 30 * 24 * 3600 * 1000;
+        const elapsed = Date.now() - createdMs;
+        const daysTotal = Math.round(freeMonths * 30);
+        const daysLeft = Math.max(0, Math.round((trialMs - elapsed) / 86400000));
+        const pct = Math.max(0, Math.min(100, Math.round((daysLeft / daysTotal) * 100)));
+        const endDate = new Date(createdMs + trialMs).toLocaleDateString('he-IL');
+        let trialHtml = '';
+        if (elapsed < trialMs) {
+            trialHtml = `
+            <div class="mt-3 bg-green-50 border border-green-200 rounded-2xl p-3">
+                <div class="flex items-center justify-between mb-1.5">
+                    <span class="text-[11px] font-bold text-green-800">🎁 הטבת ${freeMonths} חודשים חינם פעילה</span>
+                    <span class="text-[11px] font-bold text-green-700">${daysLeft}/${daysTotal} ימים</span>
+                </div>
+                <div class="w-full bg-green-200 rounded-full h-1.5 overflow-hidden">
+                    <div class="bg-green-500 h-1.5 rounded-full transition-all" style="width:${pct}%"></div>
+                </div>
+                <p class="text-[10px] text-green-600 mt-1.5">ההטבה מסתיימת ב-${endDate}</p>
+            </div>`;
+        } else {
+            trialHtml = `
+            <div class="mt-3 bg-slate-50 border border-slate-200 rounded-2xl p-3">
+                <p class="text-[11px] font-bold text-slate-500 text-center">✅ תקופת ההטבה הסתיימה</p>
+            </div>`;
+        }
+        const existing = upgSec.parentNode.querySelector('#profile-trial-badge');
+        if (existing) existing.remove();
+        const el = document.createElement('div');
+        el.id = 'profile-trial-badge';
+        el.innerHTML = trialHtml;
+        upgSec.insertAdjacentElement('afterend', el);
+    } catch(e) { /* שקט בשגיאה */ }
+}
 
 window.saveDocSettings = async function() {
     const vatNum = (document.getElementById('doc-vat-number') || {}).value || '';
@@ -12264,6 +12350,7 @@ window.fetchStoreSettings = async function() {
             syncInputs('store-phone', s.phone || '');
             syncInputs('store-min-order', s.min_order || '');
             syncInputs('store-slogan', s.slogan || '');
+            syncInputs('store-ticker-messages', (s.ticker_messages || []).join(', '));
             syncInputs('store-type', s.store_type || 'retail');
             syncInputs('store-open-time', s.open_time || '');
             syncInputs('store-close-time', s.close_time || '');
@@ -12338,9 +12425,55 @@ window.fetchStoreSettings = async function() {
             // Load kiosk password into settings UI
             const kioskPassInput = document.getElementById('kiosk-password-input');
             if (kioskPassInput && s.kiosk_password) kioskPassInput.value = s.kiosk_password;
+
+            // שדות תבנית חדשים
+            const templateId = s.template_id || 'classic';
+            const templateInput = document.getElementById('store-template-id');
+            if (templateInput) templateInput.value = templateId;
+            if (typeof selectStoreTemplate === 'function') selectStoreTemplate(templateId, false);
+
+            const accentColorEl = document.getElementById('store-accent-color');
+            const accentColorTextEl = document.getElementById('store-accent-color-text');
+            const accentVal = s.accent_color || '#e63946';
+            if (accentColorEl) accentColorEl.value = accentVal;
+            if (accentColorTextEl) accentColorTextEl.value = accentVal;
+
+            const deliveryEtaEl = document.getElementById('store-delivery-eta');
+            if (deliveryEtaEl) deliveryEtaEl.value = (s.delivery_eta_min != null) ? s.delivery_eta_min : 35;
+            const pickupEtaEl = document.getElementById('store-pickup-eta');
+            if (pickupEtaEl) pickupEtaEl.value = (s.pickup_eta_min != null) ? s.pickup_eta_min : 15;
+            const freeDelivEl = document.getElementById('store-free-delivery-above');
+            if (freeDelivEl) freeDelivEl.value = s.free_delivery_above || 0;
+            const appStoreEl = document.getElementById('store-app-store-url');
+            if (appStoreEl) appStoreEl.value = s.app_store_url || '';
+            const playStoreEl = document.getElementById('store-play-store-url');
+            if (playStoreEl) playStoreEl.value = s.play_store_url || '';
         }
     } catch(e) { console.error("Fetch Settings Error:", e); }
 };
+
+window.selectStoreTemplate = function(tid, save = false) {
+    const input = document.getElementById('store-template-id');
+    if (input) input.value = tid;
+    document.querySelectorAll('#template-picker .template-card').forEach(card => {
+        const selected = card.dataset.tid === tid;
+        card.classList.toggle('border-indigo-400', selected);
+        card.classList.toggle('border-slate-200', !selected);
+        card.classList.toggle('bg-indigo-50', selected);
+        card.classList.toggle('bg-white', !selected);
+    });
+    const extra = document.getElementById('restaurant-extra-fields');
+    if (extra) extra.style.display = (tid === 'restaurant' || tid === 'sport' || tid === 'market') ? '' : 'none';
+};
+
+// sync color picker ↔ text input
+document.addEventListener('DOMContentLoaded', () => {
+    const colorEl = document.getElementById('store-accent-color');
+    if (colorEl) colorEl.addEventListener('input', () => {
+        const txt = document.getElementById('store-accent-color-text');
+        if (txt) txt.value = colorEl.value;
+    });
+});
 
 async function saveStoreSettings() {
     const btn = document.getElementById('btn-save-store-settings');
@@ -12377,6 +12510,7 @@ async function saveStoreSettings() {
             phone: getVal('store-phone'), 
             minOrder: getVal('store-min-order'), 
             slogan: getVal('store-slogan'), 
+            tickerMessages: getVal('store-ticker-messages').split(',').map(function(s){return s.trim();}).filter(Boolean),
             storeType: getVal('store-type') || 'retail', 
             logoUrl: getLogoBannerVal('store-logo-base64'),
             bannerUrl: getLogoBannerVal('store-banner-base64'),
@@ -12388,7 +12522,14 @@ async function saveStoreSettings() {
             storeAlias: storeAlias,
             enableTableBooking: getChecked('store-enable-table-booking'),
             enableEventBooking: getChecked('store-enable-event-booking'),
-            orderNotificationEmail: getVal('store-order-email')
+            orderNotificationEmail: getVal('store-order-email'),
+            templateId: document.getElementById('store-template-id')?.value || 'classic',
+            accentColor: document.getElementById('store-accent-color')?.value || '#e63946',
+            deliveryEtaMin: parseInt(document.getElementById('store-delivery-eta')?.value) || 0,
+            pickupEtaMin: parseInt(document.getElementById('store-pickup-eta')?.value) || 0,
+            appStoreUrl: document.getElementById('store-app-store-url')?.value || '',
+            playStoreUrl: document.getElementById('store-play-store-url')?.value || '',
+            freeDeliveryAbove: parseInt(document.getElementById('store-free-delivery-above')?.value) || 0
         };
 
         const res = await fetch(`${API}/store/settings`, {
@@ -18671,11 +18812,12 @@ window.handleWizardLogo = window.handleStoreLogoUpload;
 window.handleWizardBanner = window.handleStoreBannerUpload;
 
 window.clearImage = function(targetIdPrefix) {
-    document.querySelectorAll(`[id="${targetIdPrefix}-preview"]`).forEach(el => { 
-        el.src = ''; el.classList.add('hidden'); el.style.display = ''; 
+    document.querySelectorAll(`[id="${targetIdPrefix}-preview"]`).forEach(el => {
+        el.src = ''; el.classList.add('hidden'); el.style.display = '';
     });
     document.querySelectorAll(`[id="${targetIdPrefix}-icon"], [id="${targetIdPrefix}-placeholder"]`).forEach(el => el.classList.remove('hidden'));
-    document.querySelectorAll(`[id="${targetIdPrefix}-base64"], [id="${targetIdPrefix}-upload"]`).forEach(el => el.value = '');
+    document.querySelectorAll(`[id="${targetIdPrefix}-base64"]`).forEach(el => el.value = 'DELETE');
+    document.querySelectorAll(`[id="${targetIdPrefix}-upload"]`).forEach(el => el.value = '');
     
     if (targetIdPrefix.includes('logo')) {
         document.querySelectorAll('[id="btn-generate-banner-ai"], [id="btn-generate-banner-ai-wiz"]').forEach(el => el.classList.add('hidden'));
@@ -19694,18 +19836,78 @@ function skipWizardStep() {
 // --- ONBOARDING WIZARD V2 (שלבים מותאמי סוג עסק) ---
 
 const WIZARD_STEPS_BY_TYPE_V2 = {
-    restaurant:   ['identity', 'food_type', 'menu', 'my_role', 'team'],
-    beauty:       ['identity', 'practitioners', 'services', 'my_role', 'team'],
-    sport:        ['identity', 'trainer', 'subscriptions', 'schedule', 'my_role', 'team'],
-    services:     ['identity', 'service_types', 'billing_flow', 'first_customer', 'my_role', 'team'],
-    professional: ['identity', 'case_type', 'first_case', 'document_template', 'my_role', 'team'],
-    other:        ['identity', 'catalog', 'my_role', 'team'],
-    store_only:   ['identity', 'catalog'],
+    restaurant:   ['identity', 'modules', 'food_type', 'menu', 'my_role', 'team'],
+    beauty:       ['identity', 'modules', 'practitioners', 'services', 'my_role', 'team'],
+    sport:        ['identity', 'modules', 'trainer', 'subscriptions', 'schedule', 'my_role', 'team'],
+    services:     ['identity', 'modules', 'service_types', 'billing_flow', 'first_customer', 'my_role', 'team'],
+    professional: ['identity', 'modules', 'case_type', 'first_case', 'document_template', 'my_role', 'team'],
+    other:        ['identity', 'modules', 'catalog', 'my_role', 'team'],
+    store_only:   ['identity', 'modules', 'catalog'],
 };
 
 let wizardStepsV2 = [];
 let currentWizardStepV2 = 0;
 let wizardV2Data = {};
+
+async function _loadWizardModules() {
+    const listEl = document.getElementById('wizard-modules-list');
+    if (!listEl) return;
+    try {
+        const d = await fetch('/api/biz/pricing-catalog', {
+            headers: { 'Authorization': `Bearer ${window._bizToken}` }
+        }).then(r => r.json());
+        const catalog = d.catalog || [];
+        const freeMonths = typeof d.free_months === 'number' ? d.free_months : 3;
+        if (!wizardV2Data.selectedModules) wizardV2Data.selectedModules = [];
+
+        const freeBadge = freeMonths > 0
+            ? `<span class="text-[9px] font-bold text-green-700 bg-green-100 border border-green-200 px-1.5 py-0.5 rounded-full whitespace-nowrap">🎁 ${freeMonths} חודשים חינם</span>`
+            : '';
+
+        let html = '';
+        for (const group of catalog) {
+            const mods = group.modules || [];
+            if (!mods.length) continue;
+            html += `<div class="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+                <h4 class="text-sm font-bold text-slate-700 mb-3">${group.name || group.groupName || ''}</h4>
+                <div class="space-y-1">`;
+            for (const mod of mods) {
+                const modId = mod.id || mod.key || mod.name;
+                const checked = wizardV2Data.selectedModules.includes(modId);
+                const price = mod.price ? `₪${mod.price}/חודש` : 'חינם';
+                html += `<label class="flex items-center gap-3 cursor-pointer p-2 rounded-xl hover:bg-slate-50 transition">
+                    <input type="checkbox" value="${modId}" ${checked ? 'checked' : ''}
+                        onchange="_toggleWizardModule('${modId}', this.checked)"
+                        class="w-4 h-4 rounded accent-indigo-600 shrink-0">
+                    <div class="flex-1 min-w-0">
+                        <span class="text-sm font-semibold text-slate-800">${mod.name || modId}</span>
+                        ${mod.description ? `<p class="text-[11px] text-slate-400 mt-0.5 leading-snug">${mod.description}</p>` : ''}
+                    </div>
+                    <div class="flex flex-col items-end gap-1 shrink-0">
+                        <span class="text-xs font-bold text-indigo-600">${price}</span>
+                        ${freeMonths > 0 && mod.price ? freeBadge : ''}
+                    </div>
+                </label>`;
+            }
+            html += `</div></div>`;
+        }
+        if (!html) html = '<p class="text-center text-slate-400 text-sm py-6">אין מודולים זמינים כרגע</p>';
+        listEl.innerHTML = html;
+    } catch(e) {
+        if (document.getElementById('wizard-modules-list')) {
+            document.getElementById('wizard-modules-list').innerHTML = '<p class="text-center text-red-400 text-sm py-6">שגיאה בטעינת מודולים</p>';
+        }
+    }
+}
+
+function _toggleWizardModule(modId, checked) {
+    if (!wizardV2Data.selectedModules) wizardV2Data.selectedModules = [];
+    if (checked) {
+        if (!wizardV2Data.selectedModules.includes(modId)) wizardV2Data.selectedModules.push(modId);
+    } else {
+        wizardV2Data.selectedModules = wizardV2Data.selectedModules.filter(id => id !== modId);
+    }
+}
 
 function _renderWizardV2StepContent(stepName) {
     if (stepName === 'identity') {
@@ -19739,6 +19941,17 @@ function _renderWizardV2StepContent(stepName) {
                         onchange="handleWizardLogo(event)">
                     <input type="hidden" id="wizard-logo-base64">
                 </div>
+            </div>
+        </div>`;
+    }
+    if (stepName === 'modules') {
+        setTimeout(() => _loadWizardModules(), 60);
+        return `
+        <div class="max-w-md mx-auto space-y-4">
+            <h3 class="font-bold text-slate-800 text-lg text-center"><i class="fa-solid fa-cubes text-indigo-500 mr-2"></i>בחר את המודולים שלך</h3>
+            <p class="text-xs text-center text-slate-500 mb-2">בחר את הכלים שישרתו את העסק שלך — תוכל לשנות בכל עת</p>
+            <div id="wizard-modules-list" class="space-y-3">
+                <div class="text-center py-8 text-slate-400 text-sm"><i class="fa-solid fa-spinner fa-spin mr-2"></i>טוען מודולים...</div>
             </div>
         </div>`;
     }
@@ -27206,6 +27419,26 @@ window.fetchStoreSettings = async function() {
                 try { storeModifierPresets = JSON.parse(s.modifier_presets); } catch(e) { storeModifierPresets = []; }
                 if(typeof renderPresetSelector === 'function') renderPresetSelector();
             }
+            // שדות תבנית חדשים (עותק שני)
+            const tid2 = s.template_id || 'classic';
+            const ti2 = document.getElementById('store-template-id');
+            if (ti2) ti2.value = tid2;
+            if (typeof selectStoreTemplate === 'function') selectStoreTemplate(tid2, false);
+            const acEl2 = document.getElementById('store-accent-color');
+            const acTxt2 = document.getElementById('store-accent-color-text');
+            const acVal2 = s.accent_color || '#e63946';
+            if (acEl2) acEl2.value = acVal2;
+            if (acTxt2) acTxt2.value = acVal2;
+            const detEl2 = document.getElementById('store-delivery-eta');
+            if (detEl2) detEl2.value = (s.delivery_eta_min != null) ? s.delivery_eta_min : 35;
+            const petEl2 = document.getElementById('store-pickup-eta');
+            if (petEl2) petEl2.value = (s.pickup_eta_min != null) ? s.pickup_eta_min : 15;
+            const fdEl2 = document.getElementById('store-free-delivery-above');
+            if (fdEl2) fdEl2.value = s.free_delivery_above || 0;
+            const asEl2 = document.getElementById('store-app-store-url');
+            if (asEl2) asEl2.value = s.app_store_url || '';
+            const psEl2 = document.getElementById('store-play-store-url');
+            if (psEl2) psEl2.value = s.play_store_url || '';
         }
     } catch(e) { console.error("Fetch Settings Error:", e); }
 };
@@ -27227,7 +27460,7 @@ async function saveStoreSettings() {
 
         const includeVat = getChecked('store-include-vat');
         localStorage.setItem('store_include_vat', includeVat);
-        
+
         const getLogoBannerVal = (id) => {
             const els = Array.from(document.querySelectorAll(`[id*="${id}"]`));
             if (els.some(el => el.value === 'DELETE')) return 'DELETE';
@@ -27257,7 +27490,14 @@ async function saveStoreSettings() {
             storeAlias: storeAlias,
             enableTableBooking: getChecked('store-enable-table-booking'),
             enableEventBooking: getChecked('store-enable-event-booking'),
-            orderNotificationEmail: getVal('store-order-email')
+            orderNotificationEmail: getVal('store-order-email'),
+            templateId: document.getElementById('store-template-id')?.value || 'classic',
+            accentColor: document.getElementById('store-accent-color')?.value || '#e63946',
+            deliveryEtaMin: parseInt(document.getElementById('store-delivery-eta')?.value) || 0,
+            pickupEtaMin: parseInt(document.getElementById('store-pickup-eta')?.value) || 0,
+            appStoreUrl: document.getElementById('store-app-store-url')?.value || '',
+            playStoreUrl: document.getElementById('store-play-store-url')?.value || '',
+            freeDeliveryAbove: parseInt(document.getElementById('store-free-delivery-above')?.value) || 0
         };
 
         const res = await fetch(`${API}/store/settings`, {
@@ -27276,12 +27516,12 @@ async function saveStoreSettings() {
             showToast('success', 'הגדרות החנות והתמונות נשמרו בהצלחה!');
             document.querySelectorAll('[id*="store-logo-base64"]').forEach(el => el.value = '');
             document.querySelectorAll('[id*="store-banner-base64"]').forEach(el => el.value = '');
-            fetchStoreSettings(); 
+            fetchStoreSettings();
         } else {
             showToast('error', data.error || 'שגיאה בשמירה במסד הנתונים');
         }
-    } catch(e) { 
-        showToast('error', 'תקלה: ' + e.message); 
+    } catch(e) {
+        showToast('error', 'תקלה: ' + e.message);
     }
     finally { if(btn) { btn.disabled = false; btn.innerText = 'שמור הגדרות חנות'; } }
 }
@@ -32548,15 +32788,28 @@ function renderQuickTiles() {
     { fa:'fa-screwdriver-wrench',      label:'פקודות עבודה',    badge: openWoCount||null, tab:'__work_orders__',  bg:'#eef2ff', grad:'linear-gradient(135deg,#818cf8,#4f46e5)', badge_bg:'#4338ca' },
     { fa:'fa-chart-line',              label:'כספים',           badge: null,            tab:'bank',               bg:'#fff1f2', grad:'linear-gradient(135deg,#f43f5e,#be123c)', badge_bg:'#9f1239' },
   ]);
-  const _managed = Array.isArray(currentGroup?.managed_modules) ? currentGroup.managed_modules : [];
-  if (_managed.length > 0) {
+  // סינון tiles לפי billing_config (מקור גישה יחיד)
+  const _billing = (() => { try { return typeof currentGroup?.billing_config === 'string' ? JSON.parse(currentGroup.billing_config) : (currentGroup?.billing_config || null); } catch(e) { return null; } })();
+  if (_billing !== null) {
+    // bundle modules
+    let _bundleIds = [];
+    if (_billing.bundle_id) {
+      const _cat = window._pricingCatalogBiz || [];
+      const _bg = _cat.find(g => g.groupId === _billing.bundle_id);
+      const _desc = (_bg?.modules?.[0]?.desc || '').split('(')[0].trim();
+      _bundleIds = _desc ? _desc.split(',').map(s => s.trim()).filter(Boolean) : [];
+    }
+    const _indivIds = (Array.isArray(_billing.modules) ? _billing.modules : [])
+      .map(m => typeof m === 'string' ? m : (m.open !== false ? m.id : null)).filter(Boolean);
+    const _openIds = [...new Set([..._bundleIds, ..._indivIds])];
+
     const PSEUDO_MAP = { '__catalog__': 'sales', '__work_orders__': 'sales' };
     const INTRINSIC  = ['__tables__', 'kds', '__daily_close__'];
     const ALWAYS_ON  = ['feed', 'settings', 'biz-ads'];
     tiles = tiles.filter(t => {
       if (INTRINSIC.includes(t.tab) || ALWAYS_ON.includes(t.tab)) return true;
       const mapped = PSEUDO_MAP[t.tab] || t.tab;
-      return _managed.includes(mapped);
+      return _openIds.includes(mapped);
     });
   }
   container.innerHTML = tiles.map(t => {
@@ -34859,6 +35112,7 @@ const BUSINESS_TYPES = [
     { id: 'events',             name: 'אירועים / הפקות',       icon: '🎉', modules: ['feed','calendar','tasks','customers','members','timeclock','cashflow','budget','equipment','shifts','shop','menu_templates','biz-ads','reports'] },
     { id: 'food_production',    name: 'ייצור מזון',             icon: '🏭', modules: ['feed','pantry','shop','sales','customers','tasks','members','shifts','timeclock','cashflow','equipment','deliveries','foodcost','menu_templates','biz-ads','reports'] },
     { id: 'professional',       name: 'מקצועי / ייעוץ',         icon: '👔', modules: ['feed','sales','customers','cases','leads','timelog','documents','calendar','tasks','cashflow','budget','members','timeclock','bank','content','biz-ads','reports'] },
+    { id: 'store_only',         name: 'חנות בלבד',              icon: '🏪', modules: ['feed','shop','pos','pantry','sales','customers','cashflow','budget','reports','biz-ads'] },
     { id: 'other',              name: 'אחר / כללי',             icon: '🏢', modules: null }
 ];
 
@@ -34953,7 +35207,19 @@ const MODULE_DESCRIPTIONS = {
     leads:        { icon:'📥', name:'פניות נכנסות',     desc:'ניהול לידים, מעקב המרה ותיעוד תקשורת.' },
     timelog:      { icon:'⏱️', name:'שעות עבודה',      desc:'דיווח שעות לפרויקט, חשבונית שעתית ודוחות.' },
     reports:      { icon:'📈', name:'דוחות',            desc:'דוחות מפורטים לכל תחום — מכירות, צוות, כספים.' },
-    menu_templates: { icon:'📋', name:'תבניות תפריט',  desc:'ניהול תפריטים דיגיטליים, QR ועיצוב מותאם.' },
+    menu_templates:         { icon:'📋', name:'תבניות תפריט',    desc:'ניהול תפריטים דיגיטליים, QR ועיצוב מותאם.' },
+    beauty_calendar:        { icon:'📅', name:'יומן תורים',       desc:'ניהול תורים ופגישות, שיבוץ מטפלות, תזכורות ללקוחות.' },
+    beauty_clients:         { icon:'📋', name:'תיקי לקוחות',      desc:'CRM לקוסמטיקה: היסטוריית טיפולים, אלרגיות, העדפות.' },
+    beauty_inventory:       { icon:'🧴', name:'מלאי מקצועי',      desc:'מעקב מוצרי טיפוח, הזמנות ספקים, עלויות חומרים.' },
+    beauty_services:        { icon:'💎', name:'שירותים וטיפולים', desc:'ניהול רשימת טיפולים, מחירים, משכי זמן ומטפלות.' },
+    beauty_commissions:     { icon:'💵', name:'עמלות מטפלות',     desc:'חישוב עמלות לפי טיפול, דוח תשלומים ופירוט שעות.' },
+    beauty_subscriptions:   { icon:'🎁', name:'מנויים וחבילות',   desc:'ניהול מנויים ללקוחות, מימוש יתרות וחידוש אוטומטי.' },
+    beauty_rfq:             { icon:'📩', name:'בקשות הצעת מחיר',  desc:'ניהול פניות לקוחות להצעות מחיר לטיפולים מיוחדים.' },
+    beauty_practitioners:   { icon:'👩‍⚕️', name:'ניהול מטפלות',   desc:'פרופיל מטפלות, לוחות זמנים, התמחויות וביקורות.' },
+    whatsapp_alerts:        { icon:'📱', name:'התראות WhatsApp',   desc:'כללי התראה אוטומטיים לעובדים ולקוחות דרך WhatsApp.' },
+    ai_standard:            { icon:'🤖', name:'AI Standard',        desc:'10 שאילתות AI ליום — ריסט אוטומטי חצות.' },
+    ai_premium:             { icon:'🤖', name:'AI Premium',         desc:'50 שאילתות AI ליום — שימוש יומיומי גבוה.' },
+    ai_enterprise:          { icon:'🤖', name:'AI Enterprise',      desc:'שימוש ללא הגבלה — לצוות גדול וצרכי AI אינטנסיביים.' },
 };
 
 function _addLockToDropBtn(btn, tabId) {
@@ -34995,7 +35261,6 @@ window.openModuleUnlockModal = function(tabId) {
     document.getElementById('mum-price').innerHTML = priceStr;
     document.getElementById('mum-tab-id').value = tabId;
     document.getElementById('mum-tab-name').value = info.name;
-    document.getElementById('mum-note').value = '';
     document.getElementById('mum-sent').classList.add('hidden');
     document.getElementById('mum-form').classList.remove('hidden');
     modal.classList.remove('hidden');
@@ -35009,7 +35274,8 @@ window.closeModuleUnlockModal = function() {
 window.sendModuleUnlockRequest = async function() {
     const tabId = document.getElementById('mum-tab-id')?.value;
     const tabName = document.getElementById('mum-tab-name')?.value;
-    const note = document.getElementById('mum-note')?.value || '';
+    const info = MODULE_DESCRIPTIONS[tabId] || {};
+    const note = info.desc || '';
     if (!tabId) return;
     try {
         await fetch('/api/biz/module-request', {
@@ -35030,9 +35296,9 @@ function renderMyPlanSection() {
     const billing = (() => {
         try { return typeof currentGroup?.billing_config === 'string' ? JSON.parse(currentGroup.billing_config) : (currentGroup?.billing_config || null); } catch(e) { return null; }
     })();
-    const managed = Array.isArray(currentGroup?.managed_modules) ? currentGroup.managed_modules : [];
+    const managedLegacy = Array.isArray(currentGroup?.managed_modules) ? currentGroup.managed_modules : [];
 
-    if (!billing && managed.length === 0) {
+    if (!billing && managedLegacy.length === 0) {
         return `<div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
             <div class="px-4 py-3 border-b border-slate-100 flex items-center gap-2">
                 <i class="fa-solid fa-box-open text-violet-500 text-sm"></i>
@@ -35050,23 +35316,43 @@ function renderMyPlanSection() {
     const priceMap = {};
     catalog.forEach(g => g.modules && g.modules.forEach(m => { priceMap[m.id] = m; }));
 
-    // bundle name
+    // bundle name + price
     let bundleName = '';
     let bundlePrice = 0;
     if (billing?.bundle_id) {
         const bundleGroup = catalog.find(g => g.groupId === billing.bundle_id);
-        bundleName = bundleGroup?.groupName || '';
-        bundlePrice = bundleGroup?.modules?.[0]?.price || 0;
+        bundleName = bundleGroup?.groupName || billing.bundle_id;
+        // מחיר חבילה — מה-billing.modules (custom_price שנשמר) או מהקטלוג
+        const bundleEntry = Array.isArray(billing.modules) ? billing.modules.find(m => (typeof m === 'string' ? m : m.id) === billing.bundle_id) : null;
+        bundlePrice = parseFloat((bundleEntry && bundleEntry.custom_price != null ? bundleEntry.custom_price : null) ?? bundleGroup?.modules?.[0]?.price ?? 0) || 0;
     }
 
-    // active modules
-    const activeRows = managed.map(mId => {
+    // normalize billing.modules — support [{id,open,billing}] and legacy [id]
+    const rawBillingMods = Array.isArray(billing?.modules) ? billing.modules : [];
+    const normBillingMods = rawBillingMods.map(m => typeof m === 'string' ? { id: m, open: true, billing: true } : m);
+    // fall back to managed_modules (legacy)
+    const allDisplayModules = normBillingMods.length > 0
+        ? normBillingMods.filter(m => m.open !== false)
+        : managedLegacy.map(id => ({ id, open: true, billing: true }));
+    // bundle_id מוצג בהדר — לא כשורת מודול רגילה
+    const displayModules = allDisplayModules.filter(m => (typeof m === 'string' ? m : m.id) !== billing?.bundle_id);
+
+    // active modules rows — מציג רק מודולים עם מחיר (billing=true), מודולים חינמיים נספרים בנפרד
+    let calcTotal = 0;
+    let freeModuleCount = 0;
+    const activeRows = displayModules.map(entry => {
+        const mId = typeof entry === 'string' ? entry : entry.id;
+        const isBilling = typeof entry === 'string' ? true : (entry.billing !== false);
         const info = MODULE_DESCRIPTIONS[mId];
         const priceInfo = priceMap[mId];
         if (!info) return '';
+        const modulePrice = isBilling ? (parseFloat(entry.custom_price != null ? entry.custom_price : (priceInfo?.price ?? 0)) || 0) : 0;
+        if (!isBilling || modulePrice === 0) { freeModuleCount++; return ''; } // מודולים חינמיים — לא מוצגים בשורה נפרדת
+        calcTotal += modulePrice;
         return `<div class="flex items-center justify-between py-2.5 border-b border-slate-50 last:border-0">
             <div class="flex items-center gap-2">
                 <button onclick="openModuleCancelRequest('${mId}','${info.name}')" class="text-[10px] text-red-400 hover:text-red-600 font-bold border border-red-100 hover:border-red-300 px-2 py-0.5 rounded-full transition">ביטול</button>
+                <span class="text-[11px] font-bold text-violet-600 ml-1">${modulePrice} ₪</span>
             </div>
             <div class="flex items-center gap-2 text-right">
                 <span class="text-xs font-bold text-slate-700">${info.name}</span>
@@ -35075,9 +35361,40 @@ function renderMyPlanSection() {
         </div>`;
     }).join('');
 
-    const totalBadge = billing?.monthly_total > 0
+    // שורת מודולים חינמיים — מוצגת רק אם יש כאלה, בצורה מקובצת
+    const freeRow = freeModuleCount > 0
+        ? `<div class="flex items-center justify-between py-2 border-b border-slate-50 text-xs text-slate-400">
+            <span class="font-medium">כלול בתכנית</span>
+            <span>${freeModuleCount} מודולים בסיסיים</span>
+          </div>` : '';
+
+    // AI cost row — shown if billing defines it
+    const aiCost = billing?.ai_monthly_cost || 0;
+    const aiRow = aiCost > 0
+        ? `<div class="flex items-center justify-between py-2.5 border-b border-slate-50">
+            <span class="text-[11px] font-bold text-amber-600">${aiCost} ₪</span>
+            <div class="flex items-center gap-2 text-right">
+                <span class="text-xs font-bold text-slate-700">שימוש ב-AI</span>
+                <span class="text-base">🤖</span>
+            </div>
+          </div>` : '';
+
+    // שורת עלות משתמשים נוספים
+    const extraUsersCost = parseFloat(billing?.extra_users_cost) || 0;
+    const extraUsersRow = extraUsersCost > 0
+        ? `<div class="flex items-center justify-between py-2.5 border-b border-slate-50">
+            <span class="text-[11px] font-bold text-violet-600">${extraUsersCost} ₪</span>
+            <div class="flex items-center gap-2 text-right">
+                <span class="text-xs font-bold text-slate-700">משתמשים נוספים</span>
+                <span class="text-base">👥</span>
+            </div>
+          </div>` : '';
+
+    // תמיד מחשב מחדש: bundle + מודולים בודדים + AI + משתמשים נוספים
+    const displayTotal = bundlePrice + calcTotal + aiCost + extraUsersCost;
+    const totalBadge = displayTotal > 0
         ? `<div class="flex justify-between items-center bg-violet-50 border border-violet-100 rounded-xl px-4 py-3 mt-3">
-            <span class="font-black text-violet-700 text-base">${billing.monthly_total} ₪</span>
+            <span class="font-black text-violet-700 text-base">${displayTotal} ₪</span>
             <span class="text-xs text-violet-600 font-bold">סה"כ חודשי</span>
           </div>` : '';
 
@@ -35095,11 +35412,38 @@ function renderMyPlanSection() {
                 <span class="text-sm font-bold text-violet-800">📦 ${bundleName}</span>
             </div>` : ''}
             <div class="text-[10px] font-bold text-slate-400 mb-1 text-right">מודולים פעילים</div>
-            ${activeRows || '<div class="text-xs text-slate-400 py-2 text-right">אין מודולים פעילים</div>'}
+            ${freeRow}
+            ${activeRows || '<div class="text-xs text-slate-400 py-2 text-right">אין תוספות בתשלום</div>'}
+            ${aiRow}
+            ${extraUsersRow}
             ${totalBadge}
         </div>
     </div>`;
 }
+
+window.saveBusinessName = async function() {
+    const input = document.getElementById('biz-name-edit');
+    if (!input) return;
+    const newName = input.value.trim();
+    if (!newName || newName === currentGroup?.name) return;
+    try {
+        const res = await fetch(`/api/biz/settings/name`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${window._bizToken || ''}` },
+            body: JSON.stringify({ name: newName })
+        });
+        if (res.ok) {
+            if (currentGroup) currentGroup.name = newName;
+            showToast('success', 'שם העסק עודכן');
+        } else {
+            input.value = currentGroup?.name || '';
+            showToast('error', 'שגיאה בעדכון שם');
+        }
+    } catch(e) {
+        input.value = currentGroup?.name || '';
+        showToast('error', 'שגיאת רשת');
+    }
+};
 
 window.openModuleCancelRequest = function(moduleId, moduleName) {
     if (!confirm(`לבקש ביטול המודול "${moduleName}"?\nהבקשה תועבר לטיפול ידני.`)) return;
@@ -35113,8 +35457,40 @@ window.openModuleCancelRequest = function(moduleId, moduleName) {
 function applyBusinessTypeFilter() {
     if (!currentUser) return;
     const isAdminOrManager = currentUser.role === 'ADMIN' || currentUser.role === 'MANAGER';
-    const enabled = getEnabledModules();
-    // גם הרשאות שניתנו מפורשות על ידי הבעלים שומרות על הטאב גלוי
+
+    // ── מקור יחיד לגישה: billing_config ──────────────────────────────────
+    const billing = (() => {
+        try { return typeof currentGroup?.billing_config === 'string' ? JSON.parse(currentGroup.billing_config) : (currentGroup?.billing_config || null); } catch(e) { return null; }
+    })();
+    const hasBillingConfig = billing !== null;
+
+    // bundle modules — parse from catalog desc
+    let bundleOpenIds = [];
+    if (billing?.bundle_id) {
+        const catalog = window._pricingCatalogBiz || [];
+        const bundleGroup = catalog.find(g => g.groupId === billing.bundle_id);
+        const desc = bundleGroup?.modules?.[0]?.desc || '';
+        const descPart = desc.split('(')[0].trim();
+        bundleOpenIds = descPart ? descPart.split(',').map(s => s.trim()).filter(Boolean) : [];
+    }
+
+    // individual modules with open:true — עם נרמול מזהים (underscore → hyphen לטאבים)
+    const MODULE_TAB_ALIASES = { 'whatsapp_alerts': 'whatsapp-alerts' };
+    const billingModules = Array.isArray(billing?.modules) ? billing.modules : [];
+    // גישה פתוחה רק למודולים עם רישיון בתשלום (billing !== false ו-custom_price > 0)
+    const individualOpenIds = billingModules
+        .map(m => {
+            if (typeof m === 'string') return m; // legacy string — נחשב פתוח
+            const isPaid = m.billing !== false && parseFloat(m.custom_price) > 0;
+            const isOpen = m.open !== false;
+            if (!isOpen || !isPaid) return null;
+            return MODULE_TAB_ALIASES[m.id] || m.id;
+        })
+        .filter(Boolean);
+
+    const openIds = [...new Set([...bundleOpenIds, ...individualOpenIds])];
+
+    // explicit permissions granted by owner (employees)
     let userGrantedTabs = [];
     try {
         const perms = typeof currentUser.permissions === 'string' ? JSON.parse(currentUser.permissions) : (currentUser.permissions || {});
@@ -35123,45 +35499,45 @@ function applyBusinessTypeFilter() {
     if (currentUser.employee_role_type && ROLE_TYPE_TABS[currentUser.employee_role_type]) {
         ROLE_TYPE_TABS[currentUser.employee_role_type].forEach(t => { if (!userGrantedTabs.includes(t)) userGrantedTabs.push(t); });
     }
-    const managed = Array.isArray(currentGroup?.managed_modules) ? currentGroup.managed_modules : [];
-    const hasManagedFilter = managed.length > 0;
+
     const ALWAYS_VISIBLE_TABS = ['feed', 'settings', 'biz-ads'];
 
-    if (!enabled && !hasManagedFilter) {
+    // אם אין billing_config כלל — כולם רואים הכל (עסק חדש שטרם הוגדר)
+    if (!hasBillingConfig) {
         ALL_TABS.forEach(tab => {
             const tabBtn = getEl(`tab-${tab.id}`);
-            if (tabBtn) tabBtn.classList.remove('hidden');
+            if (tabBtn) tabBtn.classList.remove('hidden', 'locked-module');
             const dropBtn = getEl(`gdrop-${tab.id}`);
-            if (dropBtn) { dropBtn.style.display = ''; dropBtn.style.opacity = ''; dropBtn.title = ''; }
+            if (dropBtn) { dropBtn.style.display = ''; _removeLockFromDropBtn(dropBtn); }
         });
-        ['team','sales','inventory','finance','more'].forEach(group => {
-            const groupBtn = getEl(`gnav-btn-${group}`);
-            if (groupBtn) groupBtn.style.display = '';
-        });
+        ['team','sales','inventory','finance','more'].forEach(g => { const b = getEl(`gnav-btn-${g}`); if (b) b.style.display = ''; });
         return;
     }
+
     ALL_TABS.forEach(tab => {
-        const isEnabled = hasManagedFilter
-            ? (managed.includes(tab.id) || ALWAYS_VISIBLE_TABS.includes(tab.id))
-            : (enabled.includes(tab.id) || ALWAYS_VISIBLE_TABS.includes(tab.id));
+        const isInBilling = openIds.includes(tab.id) || ALWAYS_VISIBLE_TABS.includes(tab.id);
         const hasExplicitPermission = userGrantedTabs.includes(tab.id);
-        const isAccessible = isEnabled || isAdminOrManager || hasExplicitPermission;
-        // מודול שלא רלוונטי לסוג העסק בכלל — מוסתר לגמרי
-        const isRelevantToType = !enabled || enabled.includes(tab.id) || ALWAYS_VISIBLE_TABS.includes(tab.id);
+        // גישה = פתוח ב-billing או הרשאה מפורשת מהמנהל לעובד
+        // גם ADMIN נחסם ממה שלא שולם — רואה נעילה ויכול לבקש שחרור
+        const isAccessible = isInBilling || hasExplicitPermission;
+
+        // tabBtn — תמיד קיים בDOM, נעול אם לא נגיש (כדי ש-switchTab wrapper יתפוס)
         const tabBtn = getEl(`tab-${tab.id}`);
-        if (tabBtn) { if (!isAccessible) tabBtn.classList.add('hidden'); else tabBtn.classList.remove('hidden'); }
+        if (tabBtn) {
+            if (!isAccessible) {
+                tabBtn.classList.add('hidden', 'locked-module');
+            } else {
+                tabBtn.classList.remove('hidden', 'locked-module');
+            }
+        }
+
+        // dropBtn — תמיד גלוי, נעול אם לא נגיש
         const dropBtn = getEl(`gdrop-${tab.id}`);
         if (dropBtn) {
-            if (!isRelevantToType) {
-                // לא רלוונטי לסוג עסק זה — מוסתר לגמרי
-                dropBtn.style.display = 'none';
-                _removeLockFromDropBtn(dropBtn);
-            } else if (!isAccessible) {
-                // רלוונטי אבל לא מופעל — מוצג עם מנעול
-                dropBtn.style.display = '';
+            dropBtn.style.display = '';
+            if (!isAccessible) {
                 _addLockToDropBtn(dropBtn, tab.id);
             } else {
-                dropBtn.style.display = '';
                 _removeLockFromDropBtn(dropBtn);
             }
         }
@@ -38844,8 +39220,10 @@ function renderSettingsHub() {
         </div>
         <div class="flex items-center gap-3 bg-white px-4 py-3 rounded-xl border border-indigo-100 mb-3">
             <span class="text-2xl">${(BUSINESS_TYPES.find(b=>b.id===currentGroup?.business_type)||{}).icon||'🏢'}</span>
-            <div>
-                <div class="text-sm font-bold text-slate-700">${currentGroup?.name||''}</div>
+            <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 mb-0.5">
+                    <input type="text" id="biz-name-edit" value="${safeStr(currentGroup?.name||'')}" class="text-sm font-bold text-slate-700 bg-transparent border-b border-transparent hover:border-indigo-300 focus:border-indigo-500 focus:outline-none flex-1 min-w-0 transition" onblur="window.saveBusinessName()" onkeydown="if(event.key==='Enter')this.blur()"/>
+                </div>
                 <div class="text-[10px] text-slate-400">${(BUSINESS_TYPES.find(b=>b.id===currentGroup?.business_type)||{}).name||'עסק'} · קוד: <span class="font-mono">${currentGroup?.code||''}</span></div>
             </div>
         </div>
@@ -40514,7 +40892,7 @@ window.loadWoPayments = async function() {
     if (!list) return;
     list.innerHTML = '<p class="text-xs text-slate-400 text-center py-3"><i class="fa-solid fa-spinner fa-spin ml-1"></i></p>';
     try {
-        const r = await fetch(`/api/work-orders/${window._currentWoId}/payments`);
+        const r = await fetch(`/api/work-orders/${window._currentWoId}/payments`, { headers: { 'Authorization': `Bearer ${window._bizToken}` } });
         const d = await r.json();
         const payments = d.payments || [];
         if (!payments.length) {
@@ -40598,7 +40976,7 @@ window.openAddPaymentMilestone = async function() {
         } else {
             // fallback: נסה לקבל מהתחנה הקודמת
             try {
-                const d = await fetch(`/api/work-orders/${window._currentWoId}/payments`).then(r => r.json());
+                const d = await fetch(`/api/work-orders/${window._currentWoId}/payments`, { headers: { 'Authorization': `Bearer ${window._bizToken}` } }).then(r => r.json());
                 const payments = d.payments || [];
                 if (payments.length > 0) totalAmtEl.value = payments[payments.length - 1].original_amount || '';
             } catch(e) {}
@@ -40615,7 +40993,7 @@ window.savePaymentMilestone = async function() {
     if (!amount || amount <= 0) { showToast('error', 'נא להזין סכום'); return; }
     try {
         const r = await fetch(`/api/work-orders/${window._currentWoId}/payments`, {
-            method: 'POST', headers: {'Content-Type':'application/json'},
+            method: 'POST', headers: {'Content-Type':'application/json', 'Authorization': `Bearer ${window._bizToken}`},
             body: JSON.stringify({ milestoneName: name || 'תשלום', amount, dueDate, paymentMethod: method, totalAmount })
         });
         const d = await r.json();
@@ -40636,7 +41014,7 @@ window.markPaymentReceived = async function(paymentId) {
     if (recAmt === null) return; // ביטול
     try {
         const r = await fetch(`/api/work-orders/payments/${paymentId}/receive`, {
-            method: 'PATCH', headers: {'Content-Type':'application/json'},
+            method: 'PATCH', headers: {'Content-Type':'application/json', 'Authorization': `Bearer ${window._bizToken}`},
             body: JSON.stringify({ receivedAmount: recAmt || null, userName: currentUser?.nickname || 'מנהל' })
         });
         const d = await r.json();
@@ -40650,7 +41028,7 @@ window.markPaymentReceived = async function(paymentId) {
 window.deletePaymentMilestone = async function(paymentId) {
     if (!await window._uiConfirm('למחוק תחנת תשלום זו?', {danger:true, okLabel:'מחק'})) return;
     try {
-        const r = await fetch(`/api/work-orders/payments/${paymentId}`, { method: 'DELETE' });
+        const r = await fetch(`/api/work-orders/payments/${paymentId}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${window._bizToken}` } });
         const d = await r.json();
         if (!d.success) { showToast('error', d.error || 'שגיאה'); return; }
         showToast('success', 'תחנה נמחקה');
@@ -40779,7 +41157,7 @@ window.markScPaymentReceived = async function(paymentId, callId) {
     if (recAmt === null) return;
     try {
         const r = await fetch(`/api/work-orders/payments/${paymentId}/receive`, {
-            method: 'PATCH', headers: {'Content-Type':'application/json'},
+            method: 'PATCH', headers: {'Content-Type':'application/json', 'Authorization': `Bearer ${window._bizToken}`},
             body: JSON.stringify({ receivedAmount: recAmt || null, userName: currentUser?.nickname || 'מנהל' })
         });
         const d = await r.json();
@@ -40793,7 +41171,7 @@ window.markScPaymentReceived = async function(paymentId, callId) {
 window.deleteScPaymentMilestone = async function(paymentId, callId) {
     if (!await window._uiConfirm('למחוק תחנת תשלום זו?', {danger:true, okLabel:'מחק'})) return;
     try {
-        const r = await fetch(`/api/work-orders/payments/${paymentId}`, { method: 'DELETE' });
+        const r = await fetch(`/api/work-orders/payments/${paymentId}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${window._bizToken}` } });
         const d = await r.json();
         if (!d.success) { showToast('error', d.error || 'שגיאה'); return; }
         showToast('success', 'תחנה נמחקה');
@@ -45040,7 +45418,7 @@ window._ofwSearch = async function() {
     try {
         // חיפוש CRM מקומי לפי סוג עסק
         if (bizType === 'beauty') {
-            const r = await fetch(`/api/beauty/${bizId}/clients?q=${encodeURIComponent(q)}`).then(x => x.json());
+            const r = await fetch(`/api/beauty/${bizId}/clients?q=${encodeURIComponent(q)}`, { headers: { 'Authorization': `Bearer ${window._bizToken}` } }).then(x => x.json());
             localResults = (r.clients || r || []).map(c => ({
                 name: c.name || c.client_name || '',
                 phone: c.phone || '',

@@ -458,6 +458,12 @@ try { await client.query(`ALTER TABLE game_assignments ADD COLUMN IF NOT EXISTS 
           description TEXT,
           created_at TIMESTAMP DEFAULT NOW()
       )`); } catch(e) {}
+      // TODO: cleanup expired sessions periodically
+      try { await client.query(`CREATE TABLE IF NOT EXISTS sa_sessions (
+          token VARCHAR(64) PRIMARY KEY,
+          expires_at TIMESTAMPTZ NOT NULL,
+          created_at TIMESTAMPTZ DEFAULT NOW()
+      )`); } catch(e) {}
       try { await client.query(`CREATE TABLE IF NOT EXISTS business_platform_dues (
           id SERIAL PRIMARY KEY,
           business_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
@@ -798,6 +804,13 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
       try { await client.query(`CREATE TABLE IF NOT EXISTS delivery_zones (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, name VARCHAR(100) NOT NULL, min_order DECIMAL(10,2) DEFAULT 0, delivery_fee DECIMAL(10,2) DEFAULT 0, sort_order INT DEFAULT 0, created_at TIMESTAMP DEFAULT NOW())`); } catch(e) {}
       try { await client.query(`CREATE TABLE IF NOT EXISTS business_gallery (id SERIAL PRIMARY KEY, group_id INT NOT NULL, image_url TEXT NOT NULL, caption TEXT, sort_order INT DEFAULT 0, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}
       try { await client.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS gallery_enabled BOOLEAN DEFAULT FALSE`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS template_id VARCHAR(50) DEFAULT 'classic'`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS accent_color VARCHAR(20) DEFAULT '#e63946'`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS delivery_eta_min INT DEFAULT 35`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS pickup_eta_min INT DEFAULT 15`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS app_store_url TEXT`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS play_store_url TEXT`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS free_delivery_above INT DEFAULT 0`); } catch(e) {}
       try { await client.query(`CREATE TABLE IF NOT EXISTS community_articles (id SERIAL PRIMARY KEY, community_id INT, author_type VARCHAR(20) NOT NULL, author_id INT, title TEXT NOT NULL, body TEXT NOT NULL, image_url TEXT, published_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}
 
       // טבלאות מערכת היומן והתורים
@@ -1955,10 +1968,11 @@ app.get('/api/solo/status/:groupId', async (req, res) => {
 });
 
 // שליחת בקשת שיוך למשפחה
-app.post('/api/family/link-request', async (req, res) => {
+app.post('/api/family/link-request', verifyFamily, async (req, res) => {
     const { requesterGroupId, targetPhone, role } = req.body;
     if (!requesterGroupId || !targetPhone || !['parent','child','partner'].includes(role))
         return res.status(400).json({ error: 'נתונים חסרים' });
+    if (parseInt(requesterGroupId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
     try {
         // אתר את חשבון היעד לפי טלפון
         const uRes = await pool.query(
@@ -1986,8 +2000,9 @@ app.post('/api/family/link-request', async (req, res) => {
 });
 
 // קבלת בקשות שיוך ממתינות לחשבון
-app.get('/api/family/link-requests/:groupId', async (req, res) => {
+app.get('/api/family/link-requests/:groupId', verifyFamily, async (req, res) => {
     try {
+        if (parseInt(req.params.groupId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const r = await pool.query(
             `SELECT flr.id, flr.role, flr.created_at,
                     fg.name as requester_name, fg.plan as requester_plan
@@ -2002,10 +2017,11 @@ app.get('/api/family/link-requests/:groupId', async (req, res) => {
 });
 
 // אישור/דחייה של בקשת שיוך
-app.post('/api/family/link-request/:id/respond', async (req, res) => {
+app.post('/api/family/link-request/:id/respond', verifyFamily, async (req, res) => {
     const decision = req.body.decision || req.body.action;
     const targetGroupId = req.body.targetGroupId || req.body.respondingGroupId;
     if (!['approve','reject'].includes(decision)) return res.status(400).json({ error: 'פעולה לא תקינה' });
+    if (parseInt(targetGroupId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
@@ -3853,36 +3869,155 @@ app.post('/api/sa/groups/:id/billing', verifySA, async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// ── Trial management ───────────────────────────────────────────────────────
+app.get('/api/sa/groups/:id/trial', verifySA, async (req, res) => {
+    try {
+        const r = await pool.query('SELECT trial_until FROM family_groups WHERE id=$1', [req.params.id]);
+        if (r.rowCount === 0) return res.status(404).json({ error: 'not found' });
+        res.json({ trial_until: r.rows[0].trial_until });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.patch('/api/sa/groups/:id/trial', verifySA, async (req, res) => {
+    try {
+        const { trial_until } = req.body; // null לביטול, תאריך ISO לעדכון
+        await pool.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS trial_until TIMESTAMP`).catch(() => {});
+        await pool.query('UPDATE family_groups SET trial_until=$1 WHERE id=$2', [trial_until || null, req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // ── Pricing Catalog ────────────────────────────────────────────────────────
 app.get('/api/sa/pricing-catalog', verifySA, async (req, res) => {
     try {
-        const r = await pool.query("SELECT value FROM system_settings WHERE key = 'module_pricing_catalog'");
-        if (r.rows.length > 0) {
-            res.json({ catalog: JSON.parse(r.rows[0].value) });
-        } else {
-            res.json({ catalog: [] });
-        }
+        const [r, fm, pt] = await Promise.all([
+            pool.query("SELECT value FROM system_settings WHERE key = 'module_pricing_catalog'"),
+            pool.query("SELECT value FROM system_settings WHERE key = 'wizard_free_months'"),
+            pool.query("SELECT value FROM system_settings WHERE key = 'wizard_promo_text'"),
+        ]);
+        const catalog = r.rows.length > 0 ? JSON.parse(r.rows[0].value) : [];
+        const free_months = fm.rows.length > 0 ? parseInt(fm.rows[0].value) : 3;
+        const promo_text  = pt.rows.length > 0 ? pt.rows[0].value : '';
+        res.json({ catalog, free_months, promo_text });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 app.post('/api/sa/pricing-catalog', verifySA, async (req, res) => {
     try {
-        const { catalog } = req.body;
+        const { catalog, free_months, promo_text } = req.body;
         if (!Array.isArray(catalog)) return res.status(400).json({ error: 'catalog must be an array' });
         await pool.query(
             "INSERT INTO system_settings (key, value) VALUES ('module_pricing_catalog', $1) ON CONFLICT (key) DO UPDATE SET value = $1",
             [JSON.stringify(catalog)]
         );
+        const fm = parseInt(free_months);
+        if (!isNaN(fm) && fm >= 0) {
+            await pool.query(
+                "INSERT INTO system_settings (key, value) VALUES ('wizard_free_months', $1) ON CONFLICT (key) DO UPDATE SET value = $1",
+                [String(fm)]
+            );
+        }
+        if (typeof promo_text === 'string') {
+            await pool.query(
+                "INSERT INTO system_settings (key, value) VALUES ('wizard_promo_text', $1) ON CONFLICT (key) DO UPDATE SET value = $1",
+                [promo_text.trim().slice(0, 200)]
+            );
+        }
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// ── App config — ציבורי (לוגו ויזארד וכו') ──────────────────────────────────
+app.get('/api/biz/app-config', async (req, res) => {
+    try {
+        const r = await pool.query("SELECT value FROM system_settings WHERE key = 'app_config'");
+        const cfg = r.rows[0] ? JSON.parse(r.rows[0].value) : {};
+        res.json({ wizard_logo_url: cfg.wizard_logo_url || null });
+    } catch(e) {
+        res.json({ wizard_logo_url: null });
+    }
+});
+
+// ── SA: get/set app config ────────────────────────────────────────────────────
+app.get('/api/sa/app-settings', verifySA, async (req, res) => {
+    try {
+        const r = await pool.query("SELECT value FROM system_settings WHERE key = 'app_config'");
+        const cfg = r.rows[0] ? JSON.parse(r.rows[0].value) : {};
+        res.json({ success: true, config: cfg });
+    } catch(e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+app.post('/api/sa/upload-wizard-logo', verifySA, async (req, res) => {
+    try {
+        const { dataUrl } = req.body;
+        if (!dataUrl || !dataUrl.startsWith('data:image/')) return res.status(400).json({ error: 'invalid image' });
+        // העלאה ל-Cloudinary (unsigned preset)
+        const cfgR = await pool.query(`SELECT value FROM system_settings WHERE key IN ('cloudinary_cloud_name','cloudinary_upload_preset')`);
+        const cfgMap = Object.fromEntries(cfgR.rows.map(r => [r.key, r.value]));
+        const cloudName = cfgMap['cloudinary_cloud_name'];
+        const uploadPreset = cfgMap['cloudinary_upload_preset'];
+        if (cloudName && uploadPreset) {
+            const body = new URLSearchParams({ file: dataUrl, upload_preset: uploadPreset, folder: 'wizard_logos' });
+            const r = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, { method: 'POST', body });
+            const d = await r.json();
+            if (d.secure_url) return res.json({ url: d.secure_url });
+        }
+        // fallback — שמירה מקומית
+        const ext = dataUrl.match(/^data:image\/(\w+);/)?.[1] || 'png';
+        const filename = `wizard_logo_${Date.now()}.${ext}`;
+        const dest = path.join(__dirname, 'public', 'uploads', 'logos', filename);
+        fs.mkdirSync(path.dirname(dest), { recursive: true });
+        fs.writeFileSync(dest, Buffer.from(dataUrl.replace(/^data:image\/\w+;base64,/, ''), 'base64'));
+        res.json({ url: `/uploads/logos/${filename}` });
+    } catch(e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+app.post('/api/sa/app-settings', verifySA, async (req, res) => {
+    try {
+        const r = await pool.query("SELECT value FROM system_settings WHERE key = 'app_config'");
+        const cfg = r.rows[0] ? JSON.parse(r.rows[0].value) : {};
+        const updates = req.body || {};
+        if (updates.wizard_logo_url !== undefined) cfg.wizard_logo_url = updates.wizard_logo_url;
+        await pool.query(
+            `INSERT INTO system_settings(key,value) VALUES('app_config',$1)
+             ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value`,
+            [JSON.stringify(cfg)]
+        );
+        res.json({ success: true, config: cfg });
+    } catch(e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
 // קטלוג מחירים ציבורי (לקריאה בלבד)
+// ── Pricing catalog — ציבורי (לוויזארד לפני הרשמה) ──────────────────────────
+app.get('/api/public/pricing-catalog', async (req, res) => {
+    try {
+        const [rc, rfm, rpt] = await Promise.all([
+            pool.query("SELECT value FROM system_settings WHERE key = 'module_pricing_catalog'"),
+            pool.query("SELECT value FROM system_settings WHERE key = 'wizard_free_months'"),
+            pool.query("SELECT value FROM system_settings WHERE key = 'wizard_promo_text'"),
+        ]);
+        const catalog = rc.rows.length > 0 ? JSON.parse(rc.rows[0].value) : [];
+        const free_months = rfm.rows.length > 0 ? parseInt(rfm.rows[0].value) || 0 : 3;
+        const promo_text = rpt.rows.length > 0 ? rpt.rows[0].value : '';
+        res.json({ catalog, free_months, promo_text });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 app.get('/api/biz/pricing-catalog', verifyBiz, async (req, res) => {
     try {
-        const r = await pool.query("SELECT value FROM system_settings WHERE key = 'module_pricing_catalog'");
-        if (r.rows.length > 0) return res.json({ catalog: JSON.parse(r.rows[0].value) });
-        res.json({ catalog: [] });
+        const [r, fm] = await Promise.all([
+            pool.query("SELECT value FROM system_settings WHERE key = 'module_pricing_catalog'"),
+            pool.query("SELECT value FROM system_settings WHERE key = 'wizard_free_months'")
+        ]);
+        const catalog = r.rows.length > 0 ? JSON.parse(r.rows[0].value) : [];
+        const free_months = fm.rows.length > 0 ? parseInt(fm.rows[0].value) : 3;
+        res.json({ catalog, free_months });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -3904,6 +4039,17 @@ app.post('/api/biz/module-request', verifyBiz, async (req, res) => {
              WHERE id = $1`,
             [groupId, moduleId, `[${req_obj}]`]
         );
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// BIZ: עדכון שם עסק ע"י מנהל
+app.patch('/api/biz/settings/name', verifyBiz, async (req, res) => {
+    const { name } = req.body;
+    const groupId = req.bizAuth?.groupId;
+    if (!groupId || !name || !name.trim()) return res.status(400).json({ error: 'missing name' });
+    try {
+        await pool.query('UPDATE family_groups SET name=$1 WHERE id=$2', [name.trim(), groupId]);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -4463,16 +4609,23 @@ async function verifyZoneManager(req, res, next) {
     return res.status(403).json({ error: 'Unauthorized zone manager' });
 }
 
-function verifySA(req, res, next) {
+async function verifySA(req, res, next) {
     const authHeader = req.headers.authorization || '';
-    
-    // חילוץ אקטיבי של הטוקן במידה והוא נשלח עם תחילית Bearer מהדפדפן
-    const token = authHeader.startsWith('Bearer ') ? authHeader.split(' ')[1] : authHeader;
-    
-    if (token !== 'SA_SECRET_TOKEN_2026') {
-        return res.status(403).json({ error: 'Forbidden' });
+    const xSaToken  = req.headers['x-sa-token']  || '';
+    const raw = authHeader || xSaToken;
+    const token = raw.startsWith('Bearer ') ? raw.split(' ')[1] : raw;
+
+    if (!token) return res.status(403).json({ error: 'Forbidden' });
+    try {
+        const r = await pool.query(
+            'SELECT 1 FROM sa_sessions WHERE token=$1 AND expires_at > NOW()',
+            [token]
+        );
+        if (r.rowCount === 0) return res.status(403).json({ error: 'Forbidden' });
+        next();
+    } catch(e) {
+        return res.status(500).json({ error: 'Auth error' });
     }
-    next();
 }
 
 // ============================================================
@@ -5180,15 +5333,17 @@ function haversineKm(lat1, lng1, lat2, lng2) {
 }
 
 // ── אזורי שירות עסק ────────────────────────────────────────────────────────────
-app.get('/api/biz/service-areas/:groupId', async (req, res) => {
+app.get('/api/biz/service-areas/:groupId', verifyBiz, async (req, res) => {
     try {
+        if (parseInt(req.params.groupId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const r = await pool.query('SELECT * FROM biz_service_areas WHERE business_group_id=$1 ORDER BY created_at', [req.params.groupId]);
         res.json({ areas: r.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/biz/service-areas/:groupId', async (req, res) => {
+app.post('/api/biz/service-areas/:groupId', verifyBiz, async (req, res) => {
     try {
+        if (parseInt(req.params.groupId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const { city, radius_km = 10, lat: clientLat, lng: clientLng } = req.body;
         if (!city) return res.status(400).json({ error: 'חסרה עיר' });
         let lat = clientLat ? parseFloat(clientLat) : null;
@@ -5204,16 +5359,18 @@ app.post('/api/biz/service-areas/:groupId', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.delete('/api/biz/service-areas/:groupId/:areaId', async (req, res) => {
+app.delete('/api/biz/service-areas/:groupId/:areaId', verifyBiz, async (req, res) => {
     try {
+        if (parseInt(req.params.groupId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         await pool.query('DELETE FROM biz_service_areas WHERE id=$1 AND business_group_id=$2', [req.params.areaId, req.params.groupId]);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 // ── מיקום עסק ─────────────────────────────────────────────────────────────────
-app.post('/api/biz/location/:groupId', async (req, res) => {
+app.post('/api/biz/location/:groupId', verifyBiz, async (req, res) => {
     try {
+        if (parseInt(req.params.groupId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const { lat, lng, address } = req.body;
         await pool.query(
             `INSERT INTO store_settings (group_id, biz_lat, biz_lng, biz_address) VALUES ($1,$2,$3,$4)
@@ -5225,15 +5382,17 @@ app.post('/api/biz/location/:groupId', async (req, res) => {
 });
 
 // ── מעגלי משלוח (radius-based) ────────────────────────────────────────────────
-app.get('/api/biz/radius-zones/:groupId', async (req, res) => {
+app.get('/api/biz/radius-zones/:groupId', verifyBiz, async (req, res) => {
     try {
+        if (parseInt(req.params.groupId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const r = await pool.query('SELECT * FROM biz_radius_delivery_zones WHERE group_id=$1 ORDER BY radius_km ASC', [req.params.groupId]);
         res.json({ zones: r.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/biz/radius-zones/:groupId', async (req, res) => {
+app.post('/api/biz/radius-zones/:groupId', verifyBiz, async (req, res) => {
     try {
+        if (parseInt(req.params.groupId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const { radius_km, delivery_fee } = req.body;
         if (!radius_km) return res.status(400).json({ error: 'חסר רדיוס' });
         await pool.query(
@@ -5245,23 +5404,26 @@ app.post('/api/biz/radius-zones/:groupId', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.delete('/api/biz/radius-zones/:groupId/:zoneId', async (req, res) => {
+app.delete('/api/biz/radius-zones/:groupId/:zoneId', verifyBiz, async (req, res) => {
     try {
+        if (parseInt(req.params.groupId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         await pool.query('DELETE FROM biz_radius_delivery_zones WHERE id=$1 AND group_id=$2', [req.params.zoneId, req.params.groupId]);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 // ── אזורי עניין משפחה ─────────────────────────────────────────────────────────
-app.get('/api/family/preferred-areas/:groupId', async (req, res) => {
+app.get('/api/family/preferred-areas/:groupId', verifyFamily, async (req, res) => {
     try {
+        if (parseInt(req.params.groupId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const r = await pool.query('SELECT * FROM family_preferred_areas WHERE family_group_id=$1 ORDER BY is_primary DESC, created_at', [req.params.groupId]);
         res.json({ areas: r.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/family/preferred-areas/:groupId', async (req, res) => {
+app.post('/api/family/preferred-areas/:groupId', verifyFamily, async (req, res) => {
     try {
+        if (parseInt(req.params.groupId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const { city, radius_km = 15, is_primary = false, lat: clientLat, lng: clientLng } = req.body;
         if (!city) return res.status(400).json({ error: 'חסרה עיר' });
         let lat = clientLat ? parseFloat(clientLat) : null;
@@ -5278,8 +5440,9 @@ app.post('/api/family/preferred-areas/:groupId', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.delete('/api/family/preferred-areas/:groupId/:areaId', async (req, res) => {
+app.delete('/api/family/preferred-areas/:groupId/:areaId', verifyFamily, async (req, res) => {
     try {
+        if (parseInt(req.params.groupId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         await pool.query('DELETE FROM family_preferred_areas WHERE id=$1 AND family_group_id=$2', [req.params.areaId, req.params.groupId]);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
@@ -5461,6 +5624,16 @@ app.post('/api/biz/register', async (req, res) => {
         const token = await createFamilySession(groupId, userId, deviceHint, 'biz');
 
         res.json({ success: true, token, group_id: groupId, user_id: userId, business_name, wizard_completed: false });
+
+        // התראה ל-SA ברגע ההרשמה (fire and forget)
+        getEmailConfig().then(cfg => {
+            if (!cfg.adminNotificationEmail) return;
+            sendSystemEmail(
+                cfg.adminNotificationEmail,
+                'Oneflow | עסק חדש נרשם למערכת!',
+                `<div dir="rtl" style="font-family:Arial;"><h2>🏢 עסק חדש נרשם!</h2><p>שם עסק: <strong>${business_name}</strong></p><p>טלפון: ${phone}</p><p>הויזארד טרם הושלם — פרטים נוספים יגיעו בסיום.</p></div>`
+            ).catch(() => {});
+        }).catch(() => {});
     } catch(e) {
         console.error('biz register error:', e.message);
         console.error('biz register stack:', e.stack);
@@ -5542,6 +5715,8 @@ app.patch('/api/biz/wizard/complete', verifyBiz, async (req, res) => {
         const { groupId, userId } = req.bizAuth;
         const {
             business_type, managed_modules, staff_roles,
+            bundle_id, bundle_price, bundle_included_modules, extra_modules,
+            extra_users_cost,
             admin_email, first_name, last_name, city, birth_year,
             terms_accepted,
             street_address, opening_hours, lat, lng
@@ -5563,6 +5738,9 @@ app.patch('/api/biz/wizard/complete', verifyBiz, async (req, res) => {
 
         try { await pool.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS lat DOUBLE PRECISION`); } catch(e) {}
         try { await pool.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS lng DOUBLE PRECISION`); } catch(e) {}
+
+        const nameRow = await pool.query(`SELECT name FROM family_groups WHERE id=$1`, [groupId]);
+        const bizName = nameRow.rows[0]?.name || 'עסק חדש';
 
         await pool.query(
             `UPDATE family_groups
@@ -5587,12 +5765,106 @@ app.patch('/api/biz/wizard/complete', verifyBiz, async (req, res) => {
 
         if (userId) {
             await pool.query(
-                `UPDATE users SET first_name=$1, last_name=$2, birth_year=$3 WHERE id=$4`,
-                [first_name.trim(), last_name.trim(), yr, userId]
+                `UPDATE users SET first_name=$1, last_name=$2, birth_year=$3, nickname=$4 WHERE id=$5`,
+                [first_name.trim(), last_name.trim(), yr, first_name.trim() + ' ' + last_name.trim(), userId]
             );
         }
 
+        // ── group_licenses: כתיבת מודולים שנבחרו + מחירים מהקטלוג ──
+        try {
+            const catRow = await pool.query("SELECT value FROM system_settings WHERE key='module_pricing_catalog'");
+            const catalog = catRow.rows.length > 0 ? JSON.parse(catRow.rows[0].value) : [];
+            const priceMap = {};
+            catalog.forEach(g => (g.modules || []).forEach(m => { priceMap[m.id] = m.price || 0; }));
+
+            // מודולים שכלולים בחבילה → מחיר ₪0
+            const bundleSet = new Set(Array.isArray(bundle_included_modules) ? bundle_included_modules : []);
+            // מודולים שנבחרו בנפרד (sub-modules) → מחיר עצמאי
+            const extraSet = new Set(Array.isArray(extra_modules) ? extra_modules : []);
+
+            for (const modId of managed_modules) {
+                let price;
+                if (modId === bundle_id) {
+                    price = bundle_price || priceMap[modId] || 0; // מחיר החבילה כולל
+                } else if (bundleSet.has(modId) && !extraSet.has(modId)) {
+                    price = 0; // כלול בחבילה
+                } else {
+                    price = priceMap[modId] || 0; // מחיר עצמאי
+                }
+                await pool.query(
+                    `INSERT INTO group_licenses (group_id, feature_key, is_active, price_monthly)
+                     VALUES ($1, $2, TRUE, $3)
+                     ON CONFLICT (group_id, feature_key) DO UPDATE SET is_active=TRUE, price_monthly=$3`,
+                    [groupId, modId, price]
+                );
+            }
+        } catch(licErr) { console.error('[wizard/complete] group_licenses error:', licErr.message); }
+
+        // ── billing_config: שמירת עלות חבילה כפי שחושבה בוויזארד ──
+        try {
+            const licRows = await pool.query('SELECT feature_key, price_monthly FROM group_licenses WHERE group_id=$1 AND is_active=TRUE', [groupId]);
+            const moduleEntries = licRows.rows.map(r => ({ id: r.feature_key, open: true, billing: r.price_monthly > 0, custom_price: r.price_monthly }));
+            const wizTotal = licRows.rows.reduce((s, r) => s + (parseFloat(r.price_monthly) || 0), 0);
+            const billingCfg = { bundle_id: bundle_id || null, modules: moduleEntries, monthly_total: wizTotal, extra_users_cost: parseFloat(extra_users_cost) || 0, updated_at: new Date().toISOString() };
+            await pool.query('UPDATE family_groups SET billing_config=$1 WHERE id=$2', [JSON.stringify(billingCfg), groupId]);
+        } catch(bcErr) { console.error('[wizard/complete] billing_config error:', bcErr.message); }
+
+        // ── trial_until: חודשי ניסיון חינם לפי הגדרת SA ──
+        try {
+            const fmRow = await pool.query("SELECT value FROM system_settings WHERE key='wizard_free_months'");
+            const freeMonths = fmRow.rows.length > 0 ? parseInt(fmRow.rows[0].value) || 0 : 3;
+            if (freeMonths > 0) {
+                try { await pool.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS trial_until TIMESTAMP`); } catch(e) {}
+                await pool.query(
+                    `UPDATE family_groups SET trial_until = NOW() + ($1 || ' months')::INTERVAL WHERE id=$2`,
+                    [freeMonths, groupId]
+                );
+            }
+        } catch(trialErr) { console.error('[wizard/complete] trial_until error:', trialErr.message); }
+
         res.json({ success: true });
+
+        // שליחת מיילים (fire and forget)
+        try {
+            const mailCfg = await getEmailConfig();
+            const clientEmail = admin_email.toLowerCase().trim();
+            console.log(`[wizard/complete] שולח מייל ללקוח: ${clientEmail}`);
+
+            // ברוכים הבאים ללקוח
+            const clientSent = await sendSystemEmail(
+                clientEmail,
+                `ברוכים הבאים ל-Oneflow BIZ — ${bizName}`,
+                `<div dir="rtl" style="font-family:sans-serif;max-width:520px;margin:0 auto;">
+                  <h2 style="color:#4f46e5;">המערכת שלך מוכנה! 🎉</h2>
+                  <p>שלום ${first_name.trim()},</p>
+                  <p>העסק <strong>${bizName}</strong> הוגדר בהצלחה במערכת Oneflow BIZ.</p>
+                  <p>תוכל להתחבר בכל עת דרך האתר ולהתחיל לנהל את העסק שלך.</p>
+                  <p style="color:#64748b;font-size:12px;">צוות Oneflow</p>
+                </div>`
+            );
+            console.log(`[wizard/complete] מייל ללקוח: ${clientSent ? 'נשלח ✅' : 'נכשל ❌'}`);
+
+            // התראה ל-Super Admin
+            const saEmail = mailCfg.adminNotificationEmail;
+            if (saEmail) {
+                sendSystemEmail(
+                    saEmail,
+                    `עסק חדש הצטרף: ${bizName}`,
+                    `<div dir="rtl" style="font-family:sans-serif;">
+                      <h3>עסק חדש השלים הרשמה</h3>
+                      <ul>
+                        <li><strong>שם עסק:</strong> ${bizName}</li>
+                        <li><strong>סוג:</strong> ${business_type}</li>
+                        <li><strong>מנהל:</strong> ${first_name.trim()} ${last_name.trim()}</li>
+                        <li><strong>עיר:</strong> ${city.trim()}</li>
+                        <li><strong>אימייל:</strong> ${admin_email.toLowerCase().trim()}</li>
+                      </ul>
+                    </div>`
+                ).catch(() => {});
+            }
+        } catch(mailErr) {
+            console.error('wizard/complete mail error:', mailErr.message);
+        }
     } catch(e) {
         console.error('biz wizard/complete error:', e.message);
         res.status(500).json({ success: false, error: 'שגיאה בשמירת הוויזארד' });
@@ -5649,10 +5921,15 @@ app.post('/api/superadmin/verify-otp', async (req, res) => {
         
         const saUserRes = await pool.query("SELECT value FROM system_settings WHERE key = 'sa_username'");
         const currentCode = saUserRes.rows.length > 0 ? saUserRes.rows[0].value : 'admin';
-        
-        res.json({ 
-            success: true, 
-            token: 'SA_SECRET_TOKEN_2026',
+
+        const saToken = require('crypto').randomBytes(32).toString('hex');
+        await pool.query(
+            "INSERT INTO sa_sessions (token, expires_at) VALUES ($1, NOW() + INTERVAL '30 days')",
+            [saToken]
+        );
+        res.json({
+            success: true,
+            token: saToken,
             user: { id: 1, name: 'Super Admin Master', role: 'master', email: currentCode, team: 'Management', permissions: ['all'] }
         });
     } catch (e) {
@@ -5680,9 +5957,14 @@ app.post('/api/superadmin/login', async (req, res) => {
                 : password === storedH;
             if (saPassOk) {
                 if (user.status !== 'active') return res.status(403).json({ error: 'החשבון שלך נחסם. פנה למנהל המערכת.' });
+                const saToken = require('crypto').randomBytes(32).toString('hex');
+                await pool.query(
+                    "INSERT INTO sa_sessions (token, expires_at) VALUES ($1, NOW() + INTERVAL '30 days')",
+                    [saToken]
+                );
                 return res.json({
                     success: true,
-                    token: 'SA_SECRET_TOKEN_2026',
+                    token: saToken,
                     user: { id: user.id, name: user.name, email: user.email, team: user.team_name, permissions: user.permissions || [] }
                 });
             }
@@ -5701,9 +5983,14 @@ app.post('/api/superadmin/login', async (req, res) => {
         // מאפשר כניסה עם שם משתמש או מייל ארגוני
         const codeMatchesMaster = (code === currentUsername) || (currentEmail && code === currentEmail);
         if (codeMatchesMaster && password === currentPass) {
+            const saToken = require('crypto').randomBytes(32).toString('hex');
+            await pool.query(
+                "INSERT INTO sa_sessions (token, expires_at) VALUES ($1, NOW() + INTERVAL '30 days')",
+                [saToken]
+            );
             res.json({
                 success: true,
-                token: 'SA_SECRET_TOKEN_2026',
+                token: saToken,
                 user: { id: 0, name: 'מנהל על (Master)', email: currentEmail || currentUsername, team: 'Management', permissions: ['all'] }
             });
         } else {
@@ -6706,14 +6993,20 @@ app.post('/api/groups', async (req, res) => {
         getEmailConfig().then(cfg => sendSystemEmail(cfg.adminNotificationEmail, 'Oneflow | הצטרפות חדשה למערכת!', adminAlertHtml)).catch(e => console.error('Email error:', e));
 
         if (req.body.adminEmail) {
-            const userThanksHtml = `<div dir="rtl" style="font-family:Arial;"><h2>ברוכים הבאים ל-${sysType}! 🚀</h2><p>שלום ${req.body.adminNickname},</p><p>הסביבה שלכם מוגדרת ומוכנה לפעולה.</p><br><p>פרטי הגישה שלכם:</p><p>קוד סביבה: <strong style="color: #2563eb;">${code}</strong></p><p>משתמש: <strong>${req.body.adminNickname}</strong></p><p>סיסמה: <strong>${req.body.password}</strong></p></div>`;
+            const userThanksHtml = `<div dir="rtl" style="font-family:Arial;"><h2>ברוכים הבאים ל-${sysType}! 🚀</h2><p>שלום ${adminNickname},</p><p>הסביבה שלכם מוגדרת ומוכנה לפעולה.</p><br><p>פרטי הגישה שלכם:</p><p>קוד סביבה: <strong style="color: #2563eb;">${code}</strong></p><p>משתמש: <strong>${adminNickname}</strong></p><p>סיסמה: <strong>${req.body.password}</strong></p></div>`;
             sendSystemEmail(req.body.adminEmail, `הסביבה שלכם ב-${sysType} מוכנה!`, userThanksHtml).catch(e => console.error('Email error:', e));
         }
 
-        res.json({ success: true, user: uRes.rows[0], group: group });
-    } catch (e) { 
+        // יצירת family_session לסביבת FAMILY — מאפשר לאונבורדינג לבצע קריאות מאומתות מיד
+        let familyToken = null;
+        if (req.body.type === 'FAMILY') {
+            try { familyToken = await createFamilySession(group.id, uRes.rows[0].id); } catch(e) {}
+        }
+
+        res.json({ success: true, user: uRes.rows[0], group: group, ...(familyToken ? { token: familyToken } : {}) });
+    } catch (e) {
         if (dbClient) { try { await dbClient.query('ROLLBACK'); } catch(rbErr) {} }
-        if (e.message && e.message.includes('unique constraint')) { res.status(400).json({ error: 'כתובת המייל הזו כבר רשומה במערכת.' }); } 
+        if (e.message && e.message.includes('unique constraint')) { res.status(400).json({ error: 'כתובת המייל הזו כבר רשומה במערכת.' }); }
         else { res.status(500).json({ error: 'שגיאת שרת: ' + e.message }); }
     } finally { if (dbClient) dbClient.release(); }
 });
@@ -7003,6 +7296,25 @@ app.post('/api/login', async (req, res) => {
     } catch (e) {
         console.error("Login Error:", e);
         res.status(500).json({ error: 'שגיאת שרת: ' + e.message });
+    }
+});
+
+app.post('/api/community/bootstrap-token', async (req, res) => {
+    try {
+        const { groupId, userId } = req.body;
+        if (!groupId || !userId) return res.status(400).json({ error: 'missing params' });
+        const check = await pool.query(
+            `SELECT u.id FROM users u
+             JOIN family_groups fg ON fg.id = u.group_id
+             WHERE u.id=$1 AND u.group_id=$2 AND u.status='active' AND fg.type='FAMILY'`,
+            [userId, groupId]
+        );
+        if (!check.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
+        const deviceHint = (req.headers['user-agent'] || '').slice(0, 100);
+        const token = await createFamilySession(parseInt(groupId), parseInt(userId), deviceHint, 'family');
+        res.json({ token });
+    } catch(e) {
+        res.status(500).json({ error: 'שגיאת שרת' });
     }
 });
 
@@ -8980,7 +9292,7 @@ app.get('/api/store/settings/:groupId', async (req, res) => {
 
 app.post('/api/store/settings', async (req, res) => {
     try {
-        const { groupId, isActive, welcomeMessage, phone, minOrder, slogan, storeType, logoUrl, bannerUrl, openTime, closeTime, whatsappNumber, deliveryFee, includeVat, vatRate, storeAlias, enableTableBooking, bookingMode, enableEventBooking, orderNotificationEmail } = req.body;
+        const { groupId, isActive, welcomeMessage, phone, minOrder, slogan, storeType, logoUrl, bannerUrl, openTime, closeTime, whatsappNumber, deliveryFee, includeVat, vatRate, storeAlias, enableTableBooking, bookingMode, enableEventBooking, orderNotificationEmail, templateId, accentColor, deliveryEtaMin, pickupEtaMin, appStoreUrl, playStoreUrl, freeDeliveryAbove, tickerMessages } = req.body;
 
         try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS open_time VARCHAR(10)`); } catch(e) {}
         try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS close_time VARCHAR(10)`); } catch(e) {}
@@ -8994,6 +9306,14 @@ app.post('/api/store/settings', async (req, res) => {
         try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS booking_mode VARCHAR(20) DEFAULT 'appointments'`); } catch(e) {}
         try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS enable_event_booking BOOLEAN DEFAULT FALSE`); } catch(e) {}
         try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS order_notification_email VARCHAR(255)`); } catch(e) {}
+        try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS template_id VARCHAR(50) DEFAULT 'classic'`); } catch(e) {}
+        try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS accent_color VARCHAR(20) DEFAULT '#e63946'`); } catch(e) {}
+        try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS delivery_eta_min INT DEFAULT 35`); } catch(e) {}
+        try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS pickup_eta_min INT DEFAULT 15`); } catch(e) {}
+        try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS app_store_url TEXT`); } catch(e) {}
+        try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS play_store_url TEXT`); } catch(e) {}
+        try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS free_delivery_above INT DEFAULT 0`); } catch(e) {}
+        try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS ticker_messages JSONB DEFAULT '[]'`); } catch(e) {}
 
         const isVat = (includeVat === true || String(includeVat) === 'true');
         const vatRateVal = parseFloat(vatRate) || 18;
@@ -9027,13 +9347,22 @@ app.post('/api/store/settings', async (req, res) => {
 
         const orderEmailVal = orderNotificationEmail && orderNotificationEmail.trim() !== '' ? orderNotificationEmail.trim() : null;
 
+        const templateIdVal = templateId && templateId.trim() ? templateId.trim() : 'classic';
+        const accentColorVal = accentColor && accentColor.trim() ? accentColor.trim() : '#e63946';
+        const _dEtaParsed = parseInt(deliveryEtaMin); const deliveryEtaVal = isNaN(_dEtaParsed) ? 35 : _dEtaParsed;
+        const _pEtaParsed = parseInt(pickupEtaMin); const pickupEtaVal = isNaN(_pEtaParsed) ? 15 : _pEtaParsed;
+        const appStoreVal = appStoreUrl && appStoreUrl.trim() ? appStoreUrl.trim() : null;
+        const playStoreVal = playStoreUrl && playStoreUrl.trim() ? playStoreUrl.trim() : null;
+        const freeDeliveryVal = parseInt(freeDeliveryAbove) || 0;
+
+        const tickerMsgsVal = Array.isArray(tickerMessages) ? tickerMessages : [];
         await pool.query(`
             INSERT INTO store_settings (
-                group_id, is_active, welcome_message, phone, min_order, slogan, store_type, logo_url, banner_url, open_time, close_time, whatsapp_number, delivery_fee, include_vat, vat_rate, store_alias, enable_table_booking, booking_mode, enable_event_booking, order_notification_email
+                group_id, is_active, welcome_message, phone, min_order, slogan, store_type, logo_url, banner_url, open_time, close_time, whatsapp_number, delivery_fee, include_vat, vat_rate, store_alias, enable_table_booking, booking_mode, enable_event_booking, order_notification_email, template_id, accent_color, delivery_eta_min, pickup_eta_min, app_store_url, play_store_url, free_delivery_above, ticker_messages
             ) VALUES ($1, $2, $3, $4, $5, $6, $7,
                 NULLIF($8, 'DELETE'),
                 NULLIF($9, 'DELETE'),
-                $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
+                $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28)
             ON CONFLICT (group_id) DO UPDATE SET
                 is_active = EXCLUDED.is_active,
                 welcome_message = EXCLUDED.welcome_message,
@@ -9061,10 +9390,19 @@ app.post('/api/store/settings', async (req, res) => {
                 enable_table_booking = EXCLUDED.enable_table_booking,
                 booking_mode = EXCLUDED.booking_mode,
                 enable_event_booking = EXCLUDED.enable_event_booking,
-                order_notification_email = EXCLUDED.order_notification_email
+                order_notification_email = EXCLUDED.order_notification_email,
+                template_id = EXCLUDED.template_id,
+                accent_color = EXCLUDED.accent_color,
+                delivery_eta_min = EXCLUDED.delivery_eta_min,
+                pickup_eta_min = EXCLUDED.pickup_eta_min,
+                app_store_url = EXCLUDED.app_store_url,
+                play_store_url = EXCLUDED.play_store_url,
+                free_delivery_above = EXCLUDED.free_delivery_above,
+                ticker_messages = EXCLUDED.ticker_messages
         `, [
             groupId, isActive, welcomeMessage, phone, parseFloat(minOrder)||0, slogan, storeType,
-            logoUrl || null, bannerUrl || null, openTime || '', closeTime || '', whatsappNumber || '', parseFloat(deliveryFee) || 0, isVat, vatRateVal, aliasVal, enableTableBookingVal, bookingModeVal, enableEventBookingVal, orderEmailVal
+            logoUrl || null, bannerUrl || null, openTime || '', closeTime || '', whatsappNumber || '', parseFloat(deliveryFee) || 0, isVat, vatRateVal, aliasVal, enableTableBookingVal, bookingModeVal, enableEventBookingVal, orderEmailVal,
+            templateIdVal, accentColorVal, deliveryEtaVal, pickupEtaVal, appStoreVal, playStoreVal, freeDeliveryVal, JSON.stringify(tickerMsgsVal)
         ]);
         
         res.json({ success: true });
@@ -10465,8 +10803,9 @@ app.post('/api/store/quotes/:id/business-message', verifyBizOrLegacy, requireMod
 // --- [LEGACY] שליפת פקודות עבודה מ-service_calls (טבלה ישנה) ---
 // endpoint זה אינו בשימוש פעיל — המערכת עברה ל-/api/work-orders/list/:groupId
 // ניתן להסיר לאחר וידוא שאין קריאות אליו
-app.get('/api/work-orders/:businessGroupId', async (req, res) => {
+app.get('/api/work-orders/:businessGroupId', verifyBiz, async (req, res) => {
     try {
+        if (parseInt(req.params.businessGroupId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const r = await pool.query(`SELECT sc.*, fg.name as family_name
             FROM service_calls sc LEFT JOIN family_groups fg ON sc.family_group_id=fg.id
             WHERE sc.business_group_id=$1 AND sc.call_type='work_order'
@@ -10666,6 +11005,32 @@ app.get('/api/store/item-image/:itemId', async (req, res) => {
 // --- BUSINESS GALLERY ENDPOINTS ---
 // ============================================================
 
+// ביקורות ציבוריות — ללא מידע אישי, רק rating + טקסט + שם פרטי
+app.get('/api/store/public-reviews/:groupId', async (req, res) => {
+    try {
+        const { groupId } = req.params;
+        const limit = Math.min(parseInt(req.query.limit) || 20, 50);
+        const r = await pool.query(`
+            SELECT
+                customer_rating,
+                customer_rating_notes,
+                customer_rated_at,
+                LEFT(customer_name, 10) AS display_name
+            FROM store_orders
+            WHERE group_id = $1
+              AND customer_rating > 0
+              AND customer_rated_at IS NOT NULL
+            ORDER BY customer_rated_at DESC
+            LIMIT $2
+        `, [groupId, limit]);
+
+        const rows = r.rows;
+        const total = rows.length;
+        const avg = total > 0 ? (rows.reduce((s, x) => s + Number(x.customer_rating), 0) / total).toFixed(1) : null;
+        res.json({ success: true, reviews: rows, avg_rating: avg ? parseFloat(avg) : null, total });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 app.get('/api/store/gallery/:groupId', async (req, res) => {
     try {
         const result = await pool.query('SELECT * FROM business_gallery WHERE group_id=$1 ORDER BY sort_order ASC, created_at ASC', [req.params.groupId]);
@@ -10788,9 +11153,10 @@ app.delete('/api/zm/articles/:id', verifyZoneManager, async (req, res) => {
 });
 
 // ===== COMMUNITY MANAGER ARTICLES =====
-app.post('/api/community/manager/articles', async (req, res) => {
+app.post('/api/community/manager/articles', verifyFamily, async (req, res) => {
     try {
         const { community_id, group_id, title, body, image_url } = req.body;
+        if (parseInt(group_id) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         if (!title || !body || !community_id) return res.status(400).json({ error: 'missing fields' });
         // verify that group_id is indeed community manager of community_id
         const check = await pool.query(
@@ -11253,9 +11619,10 @@ async function initCommunityTables() {
 initCommunityTables();
 
 // --- API ליזמות קהילתית (User-led Communities) ---
-app.post('/api/community/user-create', async (req, res) => {
+app.post('/api/community/user-create', verifyFamily, async (req, res) => {
     try {
         const { name, city, groupId } = req.body;
+        if (parseInt(groupId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const code = 'C-' + generateGroupCode();
         const result = await pool.query(
             `INSERT INTO communities (name, city, code, created_by_group_id, status, min_families) VALUES ($1, $2, $3, $4, 'pending', 30) RETURNING *`,
@@ -11271,8 +11638,9 @@ app.post('/api/community/user-create', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/api/community/my-initiatives/:groupId', async (req, res) => {
+app.get('/api/community/my-initiatives/:groupId', verifyFamily, async (req, res) => {
     try {
+        if (parseInt(req.params.groupId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const result = await pool.query(`
             SELECT c.*, 
             (SELECT COUNT(*) FROM family_groups WHERE community_id = c.id AND type='FAMILY') as family_count 
@@ -11473,9 +11841,10 @@ app.get('/api/community/search-business', async (req, res) => {
 });
 
 // משפחה — המלצה/הזמנת עסק להצטרף לקהילה → status=biz_invited
-app.post('/api/community/invite-business', async (req, res) => {
+app.post('/api/community/invite-business', verifyFamily, async (req, res) => {
     try {
         const { groupId, communityId, businessId } = req.body;
+        if (parseInt(groupId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         // ודא שהמשפחה חברה בקהילה
         const check = await pool.query(`SELECT 1 FROM family_communities WHERE group_id=$1 AND community_id=$2 AND status='approved'`, [groupId, communityId]);
         if (!check.rows.length) return res.status(403).json({ error: 'אינך חבר מאושר בקהילה זו' });
@@ -11787,9 +12156,11 @@ app.get('/api/suppliers/group/:groupId/all-products', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.put('/api/work-orders/:woId/assignees/:userId/cost', async (req, res) => {
+app.put('/api/work-orders/:woId/assignees/:userId/cost', verifyBiz, async (req, res) => {
     try {
         const { hourlyRate, hoursWorked } = req.body;
+        const _wo = await pool.query('SELECT 1 FROM store_orders WHERE id=$1 AND group_id=$2', [req.params.woId, req.bizAuth.groupId]);
+        if (!_wo.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
         await pool.query(
             'UPDATE work_order_assignees SET hourly_rate=$1, hours_worked=$2 WHERE work_order_id=$3 AND user_id=$4',
             [hourlyRate || 0, hoursWorked || 0, req.params.woId, req.params.userId]
@@ -12331,8 +12702,9 @@ app.get('/api/biz/community/promotions/:bizId', verifyBiz, async (req, res) => {
 });
 
 // משפחה — מבצעים מאושרים בקהילות שלה
-app.get('/api/community/promos/:groupId', async (req, res) => {
+app.get('/api/community/promos/:groupId', verifyFamily, async (req, res) => {
     try {
+        if (parseInt(req.params.groupId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const result = await pool.query(`
             SELECT cp.id, cp.title, cp.content, cp.discount_pct, cp.valid_until, cp.promo_code,
                    fg.name as biz_name, fg.group_code as biz_code, c.name as comm_name, c.id as community_id,
@@ -12549,8 +12921,9 @@ pool.query(`
 `).catch(e => console.log(e));
 
 // 2. נתיב חכם למשיכת נתוני כל הקהילות שהמשפחה מחוברת אליהן והעסקים שלהן
-app.get('/api/community/info/:groupId', async (req, res) => {
+app.get('/api/community/info/:groupId', verifyFamily, async (req, res) => {
     try {
+        if (parseInt(req.params.groupId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const commsRes = await pool.query(`
             SELECT DISTINCT c.id, c.name, c.city, c.image_url, c.code, c.min_families,
                    COALESCE(fc.status, 'approved') as status,
@@ -12584,8 +12957,9 @@ app.get('/api/community/info/:groupId', async (req, res) => {
 });
 
 // Family: get promotions and bundles for all their communities
-app.get('/api/community/family-feed/:groupId', async (req, res) => {
+app.get('/api/community/family-feed/:groupId', verifyFamily, async (req, res) => {
     try {
+        if (parseInt(req.params.groupId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const groupId = req.params.groupId;
         // Get community IDs for this family
         const commsR = await pool.query(
@@ -12642,9 +13016,10 @@ app.get('/api/community/family-feed/:groupId', async (req, res) => {
 });
 
 // Family: refer a business to their community
-app.post('/api/community/family-refer', async (req, res) => {
+app.post('/api/community/family-refer', verifyFamily, async (req, res) => {
     try {
         const { groupId, bizCode, communityId, notes } = req.body;
+        if (parseInt(groupId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         if (!groupId || !bizCode || !communityId) return res.status(400).json({ error: 'חסרים שדות חובה' });
         // Verify family is in community
         const check = await pool.query(
@@ -12671,9 +13046,10 @@ app.post('/api/community/family-refer', async (req, res) => {
 });
 
 // 3. הצטרפות לקהילה — ממתינה לאישור SA/מנהל אזור
-app.post('/api/community/join', async (req, res) => {
+app.post('/api/community/join', verifyFamily, async (req, res) => {
     try {
         const { groupId, code, referralCode } = req.body;
+        if (parseInt(groupId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const commRes = await pool.query("SELECT id, name, status FROM communities WHERE code = $1 AND status IN ('active','pending')", [code.toUpperCase().trim()]);
         if(commRes.rows.length === 0) return res.status(404).json({error: 'קוד קהילה שגוי או שהקהילה אינה קיימת.'});
 
@@ -12707,8 +13083,9 @@ app.post('/api/community/join', async (req, res) => {
 });
 
 // 4. ניתוק מקהילה ספציפית
-app.delete('/api/community/leave/:groupId/:communityId', async (req, res) => {
+app.delete('/api/community/leave/:groupId/:communityId', verifyFamily, async (req, res) => {
     try {
+        if (parseInt(req.params.groupId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         await pool.query('DELETE FROM family_communities WHERE group_id = $1 AND community_id = $2', [req.params.groupId, req.params.communityId]);
         res.json({success: true});
     } catch(e) { res.status(500).json({error: e.message}); }
@@ -13917,9 +14294,10 @@ app.delete('/api/zone-manager/templates/:id', verifyZoneManager, async (req, res
 
 // --- COMMUNITY MANAGER INBOX (in main app) ---
 // מנהל קהילה — קבלת שיחות
-app.get('/api/community/inbox/:groupId', async (req, res) => {
+app.get('/api/community/inbox/:groupId', verifyFamily, async (req, res) => {
     try {
         const { groupId } = req.params;
+        if (parseInt(groupId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const result = await pool.query(
             `SELECT t.*, zm.name as zone_manager_name, c.name as community_name,
                 (SELECT COUNT(*) FROM zm_inbox_messages WHERE thread_id=t.id AND sender_type='manager' AND is_read=FALSE) as unread_count,
@@ -13934,9 +14312,10 @@ app.get('/api/community/inbox/:groupId', async (req, res) => {
 });
 
 // מנהל קהילה — פתיחת שיחה חדשה עם מנהל האזור
-app.post('/api/community/inbox/new', async (req, res) => {
+app.post('/api/community/inbox/new', verifyFamily, async (req, res) => {
     try {
         const { groupId, communityId, subject, content } = req.body;
+        if (parseInt(groupId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         if (!groupId || !communityId || !content) return res.status(400).json({ error: 'חסרים שדות חובה' });
         const managerCheck = await pool.query(
             `SELECT mz.manager_id FROM communities c JOIN manager_zones mz ON mz.id=c.zone_id WHERE c.id=$1`, [communityId]);
@@ -13953,9 +14332,10 @@ app.post('/api/community/inbox/new', async (req, res) => {
 });
 
 // מנהל קהילה — קריאת שיחה + סימון כנקרא
-app.get('/api/community/inbox/thread/:threadId/:groupId', async (req, res) => {
+app.get('/api/community/inbox/thread/:threadId/:groupId', verifyFamily, async (req, res) => {
     try {
         const { threadId, groupId } = req.params;
+        if (parseInt(groupId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const thread = await pool.query(
             `SELECT t.*, zm.name as zone_manager_name, c.name as community_name
              FROM zm_inbox_threads t
@@ -13970,9 +14350,10 @@ app.get('/api/community/inbox/thread/:threadId/:groupId', async (req, res) => {
 });
 
 // מנהל קהילה — מענה לשיחה
-app.post('/api/community/inbox/thread/:threadId/reply', async (req, res) => {
+app.post('/api/community/inbox/thread/:threadId/reply', verifyFamily, async (req, res) => {
     try {
         const { groupId, content } = req.body;
+        if (parseInt(groupId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         if (!content || !groupId) return res.status(400).json({ error: 'חסרים שדות חובה' });
         const thread = await pool.query('SELECT id FROM zm_inbox_threads WHERE id=$1 AND group_id=$2', [req.params.threadId, groupId]);
         if (!thread.rows.length) return res.status(404).json({ error: 'שיחה לא נמצאה' });
@@ -13985,9 +14366,10 @@ app.post('/api/community/inbox/thread/:threadId/reply', async (req, res) => {
 // ============================================================
 
 // מידע ארנק לחבר קהילה / מנהל קהילה
-app.get('/api/community/cashback-info/:groupId', async (req, res) => {
+app.get('/api/community/cashback-info/:groupId', verifyFamily, async (req, res) => {
     try {
         const { groupId } = req.params;
+        if (parseInt(groupId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const commsRes = await pool.query(`
             SELECT fc.community_id, fc.is_community_manager, c.name as community_name,
                 COALESCE(w.balance, 0) as balance,
@@ -14002,9 +14384,10 @@ app.get('/api/community/cashback-info/:groupId', async (req, res) => {
 });
 
 // מנהל קהילה — אישור/דחיית משפחה
-app.post('/api/community/manager/family/approve', async (req, res) => {
+app.post('/api/community/manager/family/approve', verifyFamily, async (req, res) => {
     try {
         const { groupId, communityId, targetGroupId } = req.body;
+        if (parseInt(groupId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         // ודא שהמבקש הוא מנהל הקהילה
         const check = await pool.query(`SELECT 1 FROM family_communities WHERE group_id=$1 AND community_id=$2 AND is_community_manager=TRUE`, [groupId, communityId]);
         if (!check.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
@@ -14013,9 +14396,10 @@ app.post('/api/community/manager/family/approve', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/community/manager/family/reject', async (req, res) => {
+app.post('/api/community/manager/family/reject', verifyFamily, async (req, res) => {
     try {
         const { groupId, communityId, targetGroupId } = req.body;
+        if (parseInt(groupId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const check = await pool.query(`SELECT 1 FROM family_communities WHERE group_id=$1 AND community_id=$2 AND is_community_manager=TRUE`, [groupId, communityId]);
         if (!check.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
         await pool.query(`DELETE FROM family_communities WHERE group_id=$1 AND community_id=$2 AND status='pending'`, [targetGroupId, communityId]);
@@ -14024,9 +14408,10 @@ app.post('/api/community/manager/family/reject', async (req, res) => {
 });
 
 // ניהול ארנק קהילה למנהל קהילה: רשימת עסקים + תנועות
-app.get('/api/community/manager-data/:groupId', async (req, res) => {
+app.get('/api/community/manager-data/:groupId', verifyFamily, async (req, res) => {
     try {
         const { groupId } = req.params;
+        if (parseInt(groupId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         // מצא את הקהילות שהמשפחה מנהלת
         const mgrRes = await pool.query(
             `SELECT fc.community_id, c.name as community_name FROM family_communities fc
@@ -14153,8 +14538,9 @@ app.get('/api/community/manager-data/:groupId', async (req, res) => {
 })();
 
 // Count families that joined via my referral code
-app.get('/api/community/my-referral-stats/:groupId', async (req, res) => {
+app.get('/api/community/my-referral-stats/:groupId', verifyFamily, async (req, res) => {
     try {
+        if (parseInt(req.params.groupId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const r = await pool.query(
             `SELECT COUNT(*) as total, COUNT(*) FILTER (WHERE status='approved') as approved
              FROM family_communities WHERE referred_by_group_id=$1`,
@@ -14164,8 +14550,9 @@ app.get('/api/community/my-referral-stats/:groupId', async (req, res) => {
 });
 
 // Get my referral code
-app.get('/api/community/my-referral-code/:groupId', async (req, res) => {
+app.get('/api/community/my-referral-code/:groupId', verifyFamily, async (req, res) => {
     try {
+        if (parseInt(req.params.groupId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const r = await pool.query(`SELECT referral_code FROM family_groups WHERE id=$1 AND type='FAMILY'`, [req.params.groupId]);
         if (!r.rows.length) return res.status(404).json({ error: 'לא נמצא' });
         let code = r.rows[0].referral_code;
@@ -14331,9 +14718,10 @@ app.get('/api/biz/communities/match/:bizId', verifyBiz, async (req, res) => {
 // --- Feature 3: Community Ambassador/Referral (שגריר קהילה) ---
 
 // Family member refers a business to their community
-app.post('/api/community/refer-business', async (req, res) => {
+app.post('/api/community/refer-business', verifyFamily, async (req, res) => {
     try {
         const { referrerGroupId, businessId, communityId, notes } = req.body;
+        if (parseInt(referrerGroupId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         if (!referrerGroupId || !businessId || !communityId) return res.status(400).json({ error: 'חסרים שדות חובה' });
         // Referrer must be in this community
         const check = await pool.query(
@@ -14359,8 +14747,9 @@ app.post('/api/community/refer-business', async (req, res) => {
 });
 
 // Get my referrals
-app.get('/api/community/my-referrals/:groupId', async (req, res) => {
+app.get('/api/community/my-referrals/:groupId', verifyFamily, async (req, res) => {
     try {
+        if (parseInt(req.params.groupId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const r = await pool.query(
             `SELECT cr.*, fg.name as business_name, c.name as community_name
              FROM community_referrals cr
@@ -15198,9 +15587,10 @@ app.post('/api/flow/redemptions/:code/use', async (req, res) => {
 });
 
 // Family redeems a community promotion (marks it as used → FLOW to family + biz + community)
-app.post('/api/community/promotions/:id/redeem', async (req, res) => {
+app.post('/api/community/promotions/:id/redeem', verifyFamily, async (req, res) => {
     try {
         const { groupId } = req.body;
+        if (parseInt(groupId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         if (!groupId) return res.status(400).json({ error: 'חסר groupId' });
         const promo = await pool.query(`SELECT * FROM community_promotions WHERE id=$1 AND status='approved'`, [req.params.id]);
         if (!promo.rows.length) return res.status(404).json({ error: 'מבצע לא נמצא' });
@@ -15216,9 +15606,10 @@ app.post('/api/community/promotions/:id/redeem', async (req, res) => {
 });
 
 // Family writes a review on a business
-app.post('/api/community/reviews', async (req, res) => {
+app.post('/api/community/reviews', verifyFamily, async (req, res) => {
     try {
         const { familyGroupId, businessGroupId, communityId, rating, text } = req.body;
+        if (parseInt(familyGroupId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         if (!familyGroupId || !businessGroupId || !rating) return res.status(400).json({ error: 'חסרים שדות חובה' });
         const r = parseInt(rating);
         if (r < 1 || r > 5) return res.status(400).json({ error: 'דירוג 1–5 בלבד' });
@@ -15236,9 +15627,10 @@ app.post('/api/community/reviews', async (req, res) => {
 });
 
 // Family contacts a business through community (lead)
-app.post('/api/community/biz-contact', async (req, res) => {
+app.post('/api/community/biz-contact', verifyFamily, async (req, res) => {
     try {
         const { familyGroupId, businessGroupId, communityId, message } = req.body;
+        if (parseInt(familyGroupId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         if (!familyGroupId || !businessGroupId) return res.status(400).json({ error: 'חסרים שדות חובה' });
         // Prevent spam: once per business per day
         const dup = await pool.query(
@@ -15250,9 +15642,10 @@ app.post('/api/community/biz-contact', async (req, res) => {
 });
 
 // Family purchases a community bundle
-app.post('/api/community/bundles/:id/purchase', async (req, res) => {
+app.post('/api/community/bundles/:id/purchase', verifyFamily, async (req, res) => {
     try {
         const { groupId } = req.body;
+        if (parseInt(groupId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         if (!groupId) return res.status(400).json({ error: 'חסר groupId' });
         const bundle = await pool.query(
             `SELECT cb.*, array_agg(cbb.business_id) as business_ids
@@ -15894,20 +16287,46 @@ app.post('/api/chat', async (req, res) => {
 });
 
 // --- ראוט דינמי לכתובות חנות מקוצרות (Alias) ---
-app.get('/:alias', (req, res, next) => {
+app.get('/:alias', async (req, res, next) => {
     const alias = req.params.alias;
-    
+
     // התעלם מנתיבים של ה-API, בקשות המכילות נקודה (כמו תמונות, קבצי JS/CSS) או סקריפטים של המערכת
     const RESERVED_ROUTES = ['setup-db', 'kol-haam', 'game', 'sa-bigscreen', 'menus', 'menu', 'marketplace'];
     if (alias.startsWith('api') || alias.includes('.') || RESERVED_ROUTES.includes(alias)) {
         return next();
     }
 
-    // הלקוח גלש לכתובת מקוצרת - נגיש לו את ה-HTML של החנות (הכתובת למעלה תישאר נקייה)
     res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
     res.set('Pragma', 'no-cache');
     res.set('Expires', '0');
-    res.sendFile(path.join(__dirname, 'public', 'storefront.html'));
+
+    // בדיקת template_id לפי alias — הגשת קובץ HTML מתאים
+    try {
+        const numericId = /^\d+$/.test(alias) ? parseInt(alias) : null;
+        const tRes = await pool.query(`
+            SELECT ss.template_id FROM store_settings ss
+            JOIN family_groups fg ON fg.id = ss.group_id
+            WHERE ($3::int IS NOT NULL AND fg.id = $3) OR fg.group_code = $1 OR LOWER(ss.store_alias) = LOWER($2)
+            LIMIT 1
+        `, [alias.toUpperCase(), alias.toLowerCase(), numericId]);
+
+        const templateId = tRes.rows.length > 0 ? (tRes.rows[0].template_id || 'classic') : 'classic';
+        const templateMap = {
+            'classic': 'storefront.html',
+            'restaurant': 'storefront-restaurant.html',
+            'sport': 'storefront-sport.html',
+            'market': 'storefront-market.html',
+        };
+        const htmlFile = templateMap[templateId] || 'storefront.html';
+        const filePath = path.join(__dirname, 'public', htmlFile);
+        const fs_sync = require('fs');
+        if (htmlFile !== 'storefront.html' && !fs_sync.existsSync(filePath)) {
+            return res.sendFile(path.join(__dirname, 'public', 'storefront.html'));
+        }
+        res.sendFile(filePath);
+    } catch(e) {
+        res.sendFile(path.join(__dirname, 'public', 'storefront.html'));
+    }
 });
 // יצירת קריאת שירות חדשה ממשפחה (מחובר לטבלת הליבה support_tickets של הסופר אדמין)
 app.post('/api/tickets', async (req, res) => {
@@ -18657,10 +19076,12 @@ async function addWorkOrderTimeline(workOrderId, eventType, description, userNam
     } catch(e) {}
 }
 
-app.post('/api/work-orders/convert/:quoteId', async (req, res) => {
+app.post('/api/work-orders/convert/:quoteId', verifyBiz, async (req, res) => {
     try {
         const { userName } = req.body;
         const quoteId = req.params.quoteId;
+        const _chk = await pool.query('SELECT 1 FROM store_orders WHERE id=$1 AND group_id=$2', [quoteId, req.bizAuth.groupId]);
+        if (!_chk.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
         const r = await pool.query(
             `UPDATE store_orders SET call_type='work_order', status='processing', quote_status='approved'
              WHERE id=$1 AND (call_type IS NULL OR call_type <> 'work_order') RETURNING *`,
@@ -18687,9 +19108,10 @@ app.post('/api/work-orders/convert/:quoteId', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/api/work-orders/list/:groupId', async (req, res) => {
+app.get('/api/work-orders/list/:groupId', verifyBiz, async (req, res) => {
     try {
         const { status } = req.query;
+        if (parseInt(req.params.groupId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         let q = `SELECT so.*,
             (SELECT COUNT(*) FROM work_order_assignees WHERE work_order_id=so.id) as assignee_count,
             (SELECT COUNT(*) FROM work_order_inventory WHERE work_order_id=so.id AND status='reserved') as inventory_count
@@ -18703,8 +19125,9 @@ app.get('/api/work-orders/list/:groupId', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/api/work-orders/profitability/:groupId', async (req, res) => {
+app.get('/api/work-orders/profitability/:groupId', verifyBiz, async (req, res) => {
     try {
+        if (parseInt(req.params.groupId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const r = await pool.query(`
             SELECT so.id, so.quote_number, so.customer_name, so.status, so.created_at, so.quote_title,
                 COALESCE(so.total_amount, 0)::float as revenue,
@@ -18722,9 +19145,10 @@ app.get('/api/work-orders/profitability/:groupId', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/work-orders/new/:groupId', async (req, res) => {
+app.post('/api/work-orders/new/:groupId', verifyBiz, async (req, res) => {
     try {
         const { customer_name, customer_phone, title, notes } = req.body;
+        if (parseInt(req.params.groupId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const r = await pool.query(
             `INSERT INTO store_orders (group_id, customer_name, customer_phone, status, call_type, notes, items, total_amount, created_at)
              VALUES ($1,$2,$3,'open','work_order',$4,'[]',0,NOW()) RETURNING id`,
@@ -18733,9 +19157,11 @@ app.post('/api/work-orders/new/:groupId', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/api/work-orders/detail/:id', async (req, res) => {
+app.get('/api/work-orders/detail/:id', verifyBiz, async (req, res) => {
     try {
         const id = req.params.id;
+        const _wo = await pool.query('SELECT 1 FROM store_orders WHERE id=$1 AND group_id=$2 AND call_type=\'work_order\'', [id, req.bizAuth.groupId]);
+        if (!_wo.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
         const [woRes, assigneesRes, inventoryRes, messagesRes, timelineRes, calendarRes] = await Promise.all([
             pool.query(`SELECT * FROM store_orders WHERE id=$1 AND call_type='work_order'`, [id]),
             pool.query('SELECT * FROM work_order_assignees WHERE work_order_id=$1 ORDER BY assigned_at', [id]),
@@ -18755,9 +19181,11 @@ app.get('/api/work-orders/detail/:id', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.put('/api/work-orders/:id/status', async (req, res) => {
+app.put('/api/work-orders/:id/status', verifyBiz, async (req, res) => {
     try {
         const { status, userName } = req.body;
+        const _wo = await pool.query('SELECT 1 FROM store_orders WHERE id=$1 AND group_id=$2 AND call_type=\'work_order\'', [req.params.id, req.bizAuth.groupId]);
+        if (!_wo.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
         await pool.query(`UPDATE store_orders SET status=$1 WHERE id=$2 AND call_type='work_order'`, [status, req.params.id]);
         const statusLabels = { processing: 'בתהליך', new: 'חדש', scheduled: 'מתוזמן', completed: 'הושלם', cancelled: 'בוטל' };
         await addWorkOrderTimeline(req.params.id, 'status_change', `סטטוס שונה ל: ${statusLabels[status] || status}`, userName);
@@ -18790,16 +19218,19 @@ app.put('/api/work-orders/:id/status', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/api/work-orders/users/:groupId', async (req, res) => {
+app.get('/api/work-orders/users/:groupId', verifyBiz, async (req, res) => {
     try {
+        if (parseInt(req.params.groupId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const r = await pool.query(`SELECT id, nickname as name, employee_role_type, role FROM users WHERE group_id=$1 ORDER BY nickname`, [req.params.groupId]);
         res.json({ success: true, users: r.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/work-orders/:id/assignees', async (req, res) => {
+app.post('/api/work-orders/:id/assignees', verifyBiz, async (req, res) => {
     try {
         const { userId, userName, assignedBy } = req.body;
+        const _wo = await pool.query('SELECT 1 FROM store_orders WHERE id=$1 AND group_id=$2 AND call_type=\'work_order\'', [req.params.id, req.bizAuth.groupId]);
+        if (!_wo.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
         await pool.query(
             'INSERT INTO work_order_assignees (work_order_id, user_id, user_name, assigned_by) VALUES ($1,$2,$3,$4) ON CONFLICT (work_order_id, user_id) DO NOTHING',
             [req.params.id, userId, userName, assignedBy]
@@ -18824,8 +19255,10 @@ app.post('/api/work-orders/:id/assignees', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.delete('/api/work-orders/:id/assignees/:userId', async (req, res) => {
+app.delete('/api/work-orders/:id/assignees/:userId', verifyBiz, async (req, res) => {
     try {
+        const _wo = await pool.query('SELECT 1 FROM store_orders WHERE id=$1 AND group_id=$2 AND call_type=\'work_order\'', [req.params.id, req.bizAuth.groupId]);
+        if (!_wo.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
         const aRes = await pool.query('SELECT user_name FROM work_order_assignees WHERE work_order_id=$1 AND user_id=$2', [req.params.id, req.params.userId]);
         await pool.query('DELETE FROM work_order_assignees WHERE work_order_id=$1 AND user_id=$2', [req.params.id, req.params.userId]);
         if (aRes.rows.length) await addWorkOrderTimeline(req.params.id, 'assignee_removed', `הוסר עובד: ${aRes.rows[0].user_name}`, 'מנהל');
@@ -18833,8 +19266,9 @@ app.delete('/api/work-orders/:id/assignees/:userId', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/api/work-orders/catalog/:groupId', async (req, res) => {
+app.get('/api/work-orders/catalog/:groupId', verifyBiz, async (req, res) => {
     try {
+        if (parseInt(req.params.groupId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const r = await pool.query(
             `SELECT id, name, COALESCE(stock_quantity,0) as stock_quantity, COALESCE(reserved_qty,0) as reserved_qty,
              GREATEST(0, COALESCE(stock_quantity,0) - COALESCE(reserved_qty,0)) as available_qty
@@ -18876,9 +19310,11 @@ app.get('/api/pantry/:itemId/wo-reservations', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/work-orders/:id/inventory', async (req, res) => {
+app.post('/api/work-orders/:id/inventory', verifyBiz, async (req, res) => {
     try {
         const { pantryId, catalogId, itemName, neededQty, qty, reservedBy, unitPrice } = req.body;
+        const _wo = await pool.query('SELECT 1 FROM store_orders WHERE id=$1 AND group_id=$2 AND call_type=\'work_order\'', [req.params.id, req.bizAuth.groupId]);
+        if (!_wo.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
         const needed = parseFloat(neededQty || qty || 1);
         let actualReserved = needed;
         let shortage = 0;
@@ -18938,9 +19374,11 @@ app.post('/api/work-orders/:id/inventory', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/work-orders/:id/inventory/:resId/use', async (req, res) => {
+app.post('/api/work-orders/:id/inventory/:resId/use', verifyBiz, async (req, res) => {
     try {
         const { usedQty, userName } = req.body;
+        const _wo = await pool.query('SELECT 1 FROM store_orders WHERE id=$1 AND group_id=$2 AND call_type=\'work_order\'', [req.params.id, req.bizAuth.groupId]);
+        if (!_wo.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
         const resRes = await pool.query('SELECT * FROM work_order_inventory WHERE id=$1 AND work_order_id=$2', [req.params.resId, req.params.id]);
         if (!resRes.rows.length) return res.status(404).json({ error: 'שריון לא נמצא' });
         const item = resRes.rows[0];
@@ -18956,8 +19394,10 @@ app.post('/api/work-orders/:id/inventory/:resId/use', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.delete('/api/work-orders/:id/inventory/:resId', async (req, res) => {
+app.delete('/api/work-orders/:id/inventory/:resId', verifyBiz, async (req, res) => {
     try {
+        const _wo = await pool.query('SELECT 1 FROM store_orders WHERE id=$1 AND group_id=$2 AND call_type=\'work_order\'', [req.params.id, req.bizAuth.groupId]);
+        if (!_wo.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
         const resRes = await pool.query(`SELECT * FROM work_order_inventory WHERE id=$1 AND work_order_id=$2 AND status='reserved'`, [req.params.resId, req.params.id]);
         if (!resRes.rows.length) return res.status(404).json({ error: 'שריון לא נמצא או כבר בשימוש' });
         const item = resRes.rows[0];
@@ -18972,16 +19412,20 @@ app.delete('/api/work-orders/:id/inventory/:resId', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/api/work-orders/:id/messages', async (req, res) => {
+app.get('/api/work-orders/:id/messages', verifyBiz, async (req, res) => {
     try {
+        const _wo = await pool.query('SELECT 1 FROM store_orders WHERE id=$1 AND group_id=$2 AND call_type=\'work_order\'', [req.params.id, req.bizAuth.groupId]);
+        if (!_wo.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
         const r = await pool.query('SELECT * FROM work_order_messages WHERE work_order_id=$1 ORDER BY created_at', [req.params.id]);
         res.json({ success: true, messages: r.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/work-orders/:id/messages', async (req, res) => {
+app.post('/api/work-orders/:id/messages', verifyBiz, async (req, res) => {
     try {
         const { userId, userName, message } = req.body;
+        const _wo = await pool.query('SELECT 1 FROM store_orders WHERE id=$1 AND group_id=$2 AND call_type=\'work_order\'', [req.params.id, req.bizAuth.groupId]);
+        if (!_wo.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
         const r = await pool.query(
             'INSERT INTO work_order_messages (work_order_id, user_id, user_name, message_text) VALUES ($1,$2,$3,$4) RETURNING *',
             [req.params.id, userId || null, userName, message]
@@ -18990,9 +19434,11 @@ app.post('/api/work-orders/:id/messages', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.put('/api/work-orders/:id/notes', async (req, res) => {
+app.put('/api/work-orders/:id/notes', verifyBiz, async (req, res) => {
     try {
         const { notes, updatedBy } = req.body;
+        const _wo = await pool.query('SELECT 1 FROM store_orders WHERE id=$1 AND group_id=$2 AND call_type=\'work_order\'', [req.params.id, req.bizAuth.groupId]);
+        if (!_wo.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
         await pool.query('UPDATE store_orders SET wo_notes=$1, wo_notes_updated_at=NOW(), wo_notes_updated_by=$2 WHERE id=$3', [notes, updatedBy, req.params.id]);
         await pool.query('INSERT INTO work_order_notes_history (work_order_id, note_text, created_by) VALUES ($1,$2,$3)', [req.params.id, notes, updatedBy]);
         await addWorkOrderTimeline(req.params.id, 'notes_updated', 'הערות הפקודה עודכנו', updatedBy);
@@ -19000,16 +19446,21 @@ app.put('/api/work-orders/:id/notes', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/api/work-orders/:id/timeline', async (req, res) => {
+app.get('/api/work-orders/:id/timeline', verifyBiz, async (req, res) => {
     try {
+        const _wo = await pool.query('SELECT 1 FROM store_orders WHERE id=$1 AND group_id=$2 AND call_type=\'work_order\'', [req.params.id, req.bizAuth.groupId]);
+        if (!_wo.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
         const r = await pool.query('SELECT * FROM work_order_timeline WHERE work_order_id=$1 ORDER BY created_at DESC', [req.params.id]);
         res.json({ success: true, timeline: r.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/work-orders/:id/calendar', async (req, res) => {
+app.post('/api/work-orders/:id/calendar', verifyBiz, async (req, res) => {
     try {
         const { groupId, title, eventDate, startTime, customerName, address, assigneeIds, notes } = req.body;
+        if (parseInt(groupId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
+        const _wo = await pool.query('SELECT 1 FROM store_orders WHERE id=$1 AND group_id=$2 AND call_type=\'work_order\'', [req.params.id, req.bizAuth.groupId]);
+        if (!_wo.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
         const r = await pool.query(
             `INSERT INTO calendar_events (group_id, title, event_date, start_time, customer_phone, customer_name, notes, status, work_order_id, address, attendees_user_ids)
              VALUES ($1,$2,$3,$4,$5,$6,$7,'approved',$8,$9,$10) RETURNING id`,
@@ -19021,8 +19472,10 @@ app.post('/api/work-orders/:id/calendar', async (req, res) => {
 });
 
 // --- Work Order: Purchase Orders (הזמנות רכש) ---
-app.get('/api/work-orders/:id/purchase-orders', async (req, res) => {
+app.get('/api/work-orders/:id/purchase-orders', verifyBiz, async (req, res) => {
     try {
+        const _wo = await pool.query('SELECT 1 FROM store_orders WHERE id=$1 AND group_id=$2 AND call_type=\'work_order\'', [req.params.id, req.bizAuth.groupId]);
+        if (!_wo.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
         const r = await pool.query(
             `SELECT po.*, s.name as supplier_name
              FROM purchase_orders po
@@ -19034,10 +19487,13 @@ app.get('/api/work-orders/:id/purchase-orders', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/work-orders/:id/purchase-orders', async (req, res) => {
+app.post('/api/work-orders/:id/purchase-orders', verifyBiz, async (req, res) => {
     try {
         const { groupId, supplierId, supplierName, items, notes, userName } = req.body;
         if (!items || !items.length) return res.status(400).json({ error: 'נדרשים פריטים להזמנה' });
+        if (parseInt(groupId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
+        const _wo = await pool.query('SELECT 1 FROM store_orders WHERE id=$1 AND group_id=$2 AND call_type=\'work_order\'', [req.params.id, req.bizAuth.groupId]);
+        if (!_wo.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
         const totalAmount = items.reduce((s, i) => s + (parseFloat(i.unit_price || 0) * parseFloat(i.quantity || 1)), 0);
         const itemsJson = JSON.stringify(items);
         let finalSupplierId = supplierId || null;
@@ -19066,9 +19522,11 @@ app.post('/api/work-orders/:id/purchase-orders', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.patch('/api/work-orders/:id/purchase-orders/:poId/status', async (req, res) => {
+app.patch('/api/work-orders/:id/purchase-orders/:poId/status', verifyBiz, async (req, res) => {
     try {
         const { status, userName } = req.body;
+        const _wo = await pool.query('SELECT 1 FROM store_orders WHERE id=$1 AND group_id=$2 AND call_type=\'work_order\'', [req.params.id, req.bizAuth.groupId]);
+        if (!_wo.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
         await pool.query(`UPDATE purchase_orders SET status=$1 WHERE id=$2 AND work_order_id=$3`, [status, req.params.poId, req.params.id]);
         const labels = { pending: 'ממתין', approved: 'אושר', delivered: 'התקבל', cancelled: 'בוטל' };
         await addWorkOrderTimeline(req.params.id, 'purchase_order_updated', `הזמנת רכש #${req.params.poId} עודכנה ל: ${labels[status] || status}`, userName || 'מנהל');
@@ -19120,8 +19578,9 @@ app.patch('/api/work-orders/:id/purchase-orders/:poId/status', async (req, res) 
 });
 
 // הזמנות רכש של פקודות עבודה — תצוגה באזור הרכש הכללי
-app.get('/api/work-orders/purchase-orders/group/:groupId', async (req, res) => {
+app.get('/api/work-orders/purchase-orders/group/:groupId', verifyBiz, async (req, res) => {
     try {
+        if (parseInt(req.params.groupId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const r = await pool.query(
             `SELECT po.*, s.name as supplier_name, so.customer_name as wo_customer_name
              FROM purchase_orders po
@@ -19140,8 +19599,10 @@ app.get('/api/work-orders/purchase-orders/group/:groupId', async (req, res) => {
 // ===== WORK ORDER PAYMENTS API =====
 
 // קבלת תחנות תשלום לפקודה
-app.get('/api/work-orders/:id/payments', async (req, res) => {
+app.get('/api/work-orders/:id/payments', verifyBiz, async (req, res) => {
     try {
+        const _wo = await pool.query('SELECT 1 FROM store_orders WHERE id=$1 AND group_id=$2 AND call_type=\'work_order\'', [req.params.id, req.bizAuth.groupId]);
+        if (!_wo.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
         const r = await pool.query(
             `SELECT * FROM work_order_payments WHERE work_order_id=$1 ORDER BY due_date ASC NULLS LAST, created_at ASC`,
             [req.params.id]);
@@ -19150,10 +19611,12 @@ app.get('/api/work-orders/:id/payments', async (req, res) => {
 });
 
 // הוספת תחנת תשלום
-app.post('/api/work-orders/:id/payments', async (req, res) => {
+app.post('/api/work-orders/:id/payments', verifyBiz, async (req, res) => {
     try {
         const { milestoneName, amount, dueDate, paymentMethod, totalAmount } = req.body;
         if (!amount || parseFloat(amount) <= 0) return res.status(400).json({ error: 'סכום נדרש' });
+        const _wo = await pool.query('SELECT 1 FROM store_orders WHERE id=$1 AND group_id=$2 AND call_type=\'work_order\'', [req.params.id, req.bizAuth.groupId]);
+        if (!_wo.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
 
         // קבע סכום עסקה כוללת — ברירת מחדל = סכום הפקודה או התחנה הקודמת
         let finalTotalAmount = parseFloat(totalAmount);
@@ -19177,12 +19640,19 @@ app.post('/api/work-orders/:id/payments', async (req, res) => {
 });
 
 // סימון תחנת תשלום כהתקבל (עובד גם לפקודת עבודה וגם לקריאת שירות)
-app.patch('/api/work-orders/payments/:paymentId/receive', async (req, res) => {
+app.patch('/api/work-orders/payments/:paymentId/receive', verifyBiz, async (req, res) => {
     try {
         const { receivedAmount, receivedAt, userName } = req.body;
-        const pr = await pool.query('SELECT * FROM work_order_payments WHERE id=$1', [req.params.paymentId]);
+        const pr = await pool.query(
+            `SELECT wop.*, so.group_id as wo_group, sc.business_group_id as sc_group
+             FROM work_order_payments wop
+             LEFT JOIN store_orders so ON so.id=wop.work_order_id
+             LEFT JOIN service_calls sc ON sc.id=wop.service_call_id
+             WHERE wop.id=$1`, [req.params.paymentId]);
         if (!pr.rows.length) return res.status(404).json({ error: 'תחנת תשלום לא נמצאה' });
         const p = pr.rows[0];
+        const ownerGroup = p.wo_group || p.sc_group;
+        if (ownerGroup !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const recAmt = parseFloat(receivedAmount) || parseFloat(p.amount);
         await pool.query(
             `UPDATE work_order_payments SET status='received', received_amount=$1, received_at=$2 WHERE id=$3`,
@@ -19231,11 +19701,19 @@ app.patch('/api/work-orders/payments/:paymentId/receive', async (req, res) => {
 });
 
 // מחיקת תחנת תשלום (עובד גם לפקודת עבודה וגם לקריאת שירות)
-app.delete('/api/work-orders/payments/:paymentId', async (req, res) => {
+app.delete('/api/work-orders/payments/:paymentId', verifyBiz, async (req, res) => {
     try {
-        const pr = await pool.query('SELECT work_order_id, service_call_id FROM work_order_payments WHERE id=$1', [req.params.paymentId]);
+        const pr = await pool.query(
+            `SELECT wop.work_order_id, wop.service_call_id,
+                    so.group_id as wo_group, sc.business_group_id as sc_group
+             FROM work_order_payments wop
+             LEFT JOIN store_orders so ON so.id=wop.work_order_id
+             LEFT JOIN service_calls sc ON sc.id=wop.service_call_id
+             WHERE wop.id=$1`, [req.params.paymentId]);
         if (!pr.rows.length) return res.status(404).json({ error: 'לא נמצא' });
         const { work_order_id: woId, service_call_id: scId } = pr.rows[0];
+        const ownerGroup = pr.rows[0].wo_group || pr.rows[0].sc_group;
+        if (ownerGroup !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         await pool.query('DELETE FROM work_order_payments WHERE id=$1', [req.params.paymentId]);
         if (woId) {
             const remaining = await pool.query('SELECT COUNT(*) as cnt FROM work_order_payments WHERE work_order_id=$1', [woId]);
@@ -19307,8 +19785,9 @@ app.get('/api/professional-content/:groupId', async (req, res) => {
         res.json({ content: r.rows[0] || {} });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
-app.post('/api/professional-content/:groupId', async (req, res) => {
+app.post('/api/professional-content/:groupId', verifyBiz, async (req, res) => {
     try {
+        if (parseInt(req.params.groupId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const fields = ['hero_title_he','hero_title_en','hero_subtitle_he','hero_subtitle_en','cta_text_he','cta_text_en','about_text_he','about_text_en'];
         const vals = fields.map(f => req.body[f] ?? null);
         await pool.query(
@@ -19327,8 +19806,9 @@ app.get('/api/professional-expertise/:groupId', async (req, res) => {
         res.json({ items: r.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
-app.post('/api/professional-expertise/:groupId', async (req, res) => {
+app.post('/api/professional-expertise/:groupId', verifyBiz, async (req, res) => {
     try {
+        if (parseInt(req.params.groupId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const { icon, title_he, title_en, description_he, description_en } = req.body;
         const r = await pool.query(
             `INSERT INTO professional_expertise (group_id,icon,title_he,title_en,description_he,description_en) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
@@ -19337,8 +19817,10 @@ app.post('/api/professional-expertise/:groupId', async (req, res) => {
         res.json({ item: r.rows[0] });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
-app.patch('/api/professional-expertise/:id', async (req, res) => {
+app.patch('/api/professional-expertise/:id', verifyBiz, async (req, res) => {
     try {
+        const _chk = await pool.query('SELECT 1 FROM professional_expertise WHERE id=$1 AND group_id=$2', [req.params.id, req.bizAuth.groupId]);
+        if (!_chk.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
         const { icon, title_he, title_en, description_he, description_en } = req.body;
         await pool.query(
             `UPDATE professional_expertise SET icon=COALESCE($1,icon), title_he=COALESCE($2,title_he), title_en=COALESCE($3,title_en), description_he=COALESCE($4,description_he), description_en=COALESCE($5,description_en) WHERE id=$6`,
@@ -19347,8 +19829,12 @@ app.patch('/api/professional-expertise/:id', async (req, res) => {
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
-app.delete('/api/professional-expertise/:id', async (req, res) => {
-    try { await pool.query('UPDATE professional_expertise SET is_active=FALSE WHERE id=$1', [req.params.id]); res.json({ success: true }); }
+app.delete('/api/professional-expertise/:id', verifyBiz, async (req, res) => {
+    try {
+        const _chk = await pool.query('SELECT 1 FROM professional_expertise WHERE id=$1 AND group_id=$2', [req.params.id, req.bizAuth.groupId]);
+        if (!_chk.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
+        await pool.query('UPDATE professional_expertise SET is_active=FALSE WHERE id=$1', [req.params.id]); res.json({ success: true });
+    }
     catch(e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -19363,8 +19849,9 @@ app.get('/api/professional-articles/:groupId', async (req, res) => {
         res.json({ articles: r.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
-app.post('/api/professional-articles/:groupId', async (req, res) => {
+app.post('/api/professional-articles/:groupId', verifyBiz, async (req, res) => {
     try {
+        if (parseInt(req.params.groupId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const { title_he, title_en, content_he, content_en, tags, is_published } = req.body;
         const r = await pool.query(
             `INSERT INTO professional_articles (group_id,title_he,title_en,content_he,content_en,tags,is_published) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
@@ -19373,21 +19860,28 @@ app.post('/api/professional-articles/:groupId', async (req, res) => {
         res.json({ article: r.rows[0] });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
-app.patch('/api/professional-articles/:id', async (req, res) => {
+app.patch('/api/professional-articles/:id', verifyBiz, async (req, res) => {
     try {
+        const _chk = await pool.query('SELECT 1 FROM professional_articles WHERE id=$1 AND group_id=$2', [req.params.id, req.bizAuth.groupId]);
+        if (!_chk.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
         const { is_published } = req.body;
         await pool.query('UPDATE professional_articles SET is_published=$1 WHERE id=$2', [is_published, req.params.id]);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
-app.delete('/api/professional-articles/:id', async (req, res) => {
-    try { await pool.query('DELETE FROM professional_articles WHERE id=$1', [req.params.id]); res.json({ success: true }); }
+app.delete('/api/professional-articles/:id', verifyBiz, async (req, res) => {
+    try {
+        const _chk = await pool.query('SELECT 1 FROM professional_articles WHERE id=$1 AND group_id=$2', [req.params.id, req.bizAuth.groupId]);
+        if (!_chk.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
+        await pool.query('DELETE FROM professional_articles WHERE id=$1', [req.params.id]); res.json({ success: true });
+    }
     catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 // Leads (contact form submissions)
-app.get('/api/professional-leads/:groupId', async (req, res) => {
+app.get('/api/professional-leads/:groupId', verifyBiz, async (req, res) => {
     try {
+        if (parseInt(req.params.groupId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const r = await pool.query('SELECT * FROM professional_leads WHERE group_id=$1 ORDER BY created_at DESC LIMIT 200', [req.params.groupId]);
         res.json({ leads: r.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
@@ -19403,8 +19897,10 @@ app.post('/api/professional-leads/:groupId', async (req, res) => {
         res.json({ lead: r.rows[0] });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
-app.patch('/api/professional-leads/:id', async (req, res) => {
+app.patch('/api/professional-leads/:id', verifyBiz, async (req, res) => {
     try {
+        const _chk = await pool.query('SELECT 1 FROM professional_leads WHERE id=$1 AND group_id=$2', [req.params.id, req.bizAuth.groupId]);
+        if (!_chk.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
         const { status } = req.body;
         await pool.query('UPDATE professional_leads SET status=$1 WHERE id=$2', [status, req.params.id]);
         res.json({ success: true });
@@ -19413,8 +19909,9 @@ app.patch('/api/professional-leads/:id', async (req, res) => {
 // ===== END PROFESSIONAL WEBSITE CONTENT API =====
 
 // ===== PROFESSIONAL DOCUMENTS API =====
-app.get('/api/professional-documents/:groupId', async (req, res) => {
+app.get('/api/professional-documents/:groupId', verifyBiz, async (req, res) => {
     try {
+        if (parseInt(req.params.groupId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const { is_template, customer_name, customer_phone } = req.query;
         let q = 'SELECT * FROM professional_documents WHERE group_id=$1';
         const params = [req.params.groupId];
@@ -19427,8 +19924,9 @@ app.get('/api/professional-documents/:groupId', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/professional-documents/:groupId', async (req, res) => {
+app.post('/api/professional-documents/:groupId', verifyBiz, async (req, res) => {
     try {
+        if (parseInt(req.params.groupId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const { customer_name, customer_last_name, customer_phone, customer_email, customer_id_number, customer_address, title, content, doc_type, status, is_template, notes, work_order_id } = req.body;
         const r = await pool.query(
             `INSERT INTO professional_documents (group_id,customer_name,customer_last_name,customer_phone,customer_email,customer_id_number,customer_address,title,content,doc_type,status,is_template,notes,work_order_id)
@@ -19438,8 +19936,10 @@ app.post('/api/professional-documents/:groupId', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.patch('/api/professional-documents/:id', async (req, res) => {
+app.patch('/api/professional-documents/:id', verifyBiz, async (req, res) => {
     try {
+        const _chk = await pool.query('SELECT 1 FROM professional_documents WHERE id=$1 AND group_id=$2', [req.params.id, req.bizAuth.groupId]);
+        if (!_chk.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
         const { title, content, doc_type, status, notes, customer_name, customer_last_name, customer_phone, customer_email, customer_id_number, customer_address, signature_data, work_order_id } = req.body;
         // שמור גרסה קודמת לפני עדכון תוכן/סטטוס
         if (title !== undefined || content !== undefined || status !== undefined) {
@@ -19474,19 +19974,21 @@ app.patch('/api/professional-documents/:id', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/api/professional-documents/:id/versions', async (req, res) => {
+app.get('/api/professional-documents/:id/versions', verifyBiz, async (req, res) => {
     try {
+        const _chk = await pool.query('SELECT 1 FROM professional_documents WHERE id=$1 AND group_id=$2', [req.params.id, req.bizAuth.groupId]);
+        if (!_chk.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
         const r = await pool.query('SELECT * FROM professional_document_versions WHERE document_id=$1 ORDER BY changed_at DESC LIMIT 20', [req.params.id]);
         res.json({ success: true, versions: r.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/professional-documents/:id/send-email', async (req, res) => {
+app.post('/api/professional-documents/:id/send-email', verifyBiz, async (req, res) => {
     try {
         const { to_email } = req.body;
         if (!to_email) return res.status(400).json({ error: 'חסרה כתובת מייל' });
         const r = await pool.query('SELECT * FROM professional_documents WHERE id=$1', [req.params.id]);
-        if (!r.rows.length) return res.status(404).json({ error: 'מסמך לא נמצא' });
+        if (!r.rows.length || r.rows[0].group_id !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const doc = r.rows[0];
         const typeLabels = { document:'מסמך', contract:'חוזה', quote:'הצעת מחיר', letter:'מכתב', report:'דוח' };
         const html = `<div dir="rtl" style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:24px;">
@@ -19507,22 +20009,26 @@ app.post('/api/professional-documents/:id/send-email', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.delete('/api/professional-documents/:id', async (req, res) => {
+app.delete('/api/professional-documents/:id', verifyBiz, async (req, res) => {
     try {
+        const _chk = await pool.query('SELECT 1 FROM professional_documents WHERE id=$1 AND group_id=$2', [req.params.id, req.bizAuth.groupId]);
+        if (!_chk.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
         await pool.query('DELETE FROM professional_document_versions WHERE document_id=$1', [req.params.id]);
         await pool.query('DELETE FROM professional_documents WHERE id=$1', [req.params.id]);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 // ===== PROFESSIONAL DOC TYPES =====
-app.get('/api/professional-doc-types/:groupId', async (req, res) => {
+app.get('/api/professional-doc-types/:groupId', verifyBiz, async (req, res) => {
     try {
+        if (parseInt(req.params.groupId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const r = await pool.query('SELECT * FROM professional_doc_types WHERE group_id=$1 ORDER BY id', [req.params.groupId]);
         res.json({ success: true, types: r.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
-app.post('/api/professional-doc-types/:groupId', async (req, res) => {
+app.post('/api/professional-doc-types/:groupId', verifyBiz, async (req, res) => {
     try {
+        if (parseInt(req.params.groupId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const { name, icon } = req.body;
         if (!name) return res.status(400).json({ error: 'חסר שם' });
         const r = await pool.query(
@@ -19532,16 +20038,19 @@ app.post('/api/professional-doc-types/:groupId', async (req, res) => {
         res.json({ success: true, type: r.rows[0] });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
-app.delete('/api/professional-doc-types/:id', async (req, res) => {
+app.delete('/api/professional-doc-types/:id', verifyBiz, async (req, res) => {
     try {
+        const _chk = await pool.query('SELECT 1 FROM professional_doc_types WHERE id=$1 AND group_id=$2', [req.params.id, req.bizAuth.groupId]);
+        if (!_chk.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
         await pool.query('DELETE FROM professional_doc_types WHERE id=$1', [req.params.id]);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 // ===== PROFESSIONAL DASHBOARD API =====
-app.get('/api/professional/dashboard/:groupId', async (req, res) => {
+app.get('/api/professional/dashboard/:groupId', verifyBiz, async (req, res) => {
     try {
         const gid = req.params.groupId;
+        if (parseInt(gid) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const safe = async (q, p) => { try { return await pool.query(q, p); } catch(e) { return { rows: [] }; } };
         const [casesR, hoursR, leadsR, revenueR, apptR, pendingQuotesR] = await Promise.all([
             safe(`SELECT status, COUNT(*) cnt FROM store_orders WHERE group_id=$1 AND call_type='work_order' GROUP BY status`, [gid]),
@@ -19616,8 +20125,9 @@ app.post('/api/service-calls/:id/payments', async (req, res) => {
 });
 
 // טאב גביה — כל תחנות הגביה של העסק (פקודות עבודה + קריאות שירות)
-app.get('/api/work-orders/collection/:groupId', async (req, res) => {
+app.get('/api/work-orders/collection/:groupId', verifyBiz, async (req, res) => {
     try {
+        if (parseInt(req.params.groupId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const r = await pool.query(
             `SELECT wop.id, wop.milestone_name, wop.amount, wop.due_date, wop.payment_method,
                     wop.status, wop.received_amount, wop.received_at, wop.created_at,
@@ -19651,8 +20161,9 @@ app.get('/api/work-orders/collection/:groupId', async (req, res) => {
 });
 
 // התראות גביה לדשבורד — תחנות שמועד פירעונן הגיע ועדיין ממתינות (פקודות עבודה + קריאות שירות)
-app.get('/api/work-orders/collection-alerts/:groupId', async (req, res) => {
+app.get('/api/work-orders/collection-alerts/:groupId', verifyBiz, async (req, res) => {
     try {
+        if (parseInt(req.params.groupId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const r = await pool.query(
             `SELECT wop.id, wop.milestone_name, wop.amount, wop.due_date, wop.work_order_id, wop.service_call_id,
                     so.customer_name, so.quote_title as wo_title, so.quote_number as wo_number
@@ -21381,8 +21892,9 @@ app.get('/api/member/my-orders/:businessGroupId/:memberGroupId', async (req, res
 // ===== BEAUTY & COSMETICS API =====
 
 // --- Practitioners ---
-app.get('/api/beauty/:bizId/practitioners', async (req, res) => {
+app.get('/api/beauty/:bizId/practitioners', verifyBiz, async (req, res) => {
     try {
+        if (parseInt(req.params.bizId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const r = await pool.query(
             'SELECT * FROM beauty_practitioners WHERE business_group_id=$1 AND is_active=TRUE ORDER BY display_name',
             [req.params.bizId]
@@ -21391,9 +21903,10 @@ app.get('/api/beauty/:bizId/practitioners', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/beauty/:bizId/practitioners', async (req, res) => {
+app.post('/api/beauty/:bizId/practitioners', verifyBiz, async (req, res) => {
     try {
         const { display_name, tier, color_hex, specializations, schedule_override, commission_rate_svc, commission_rate_retail } = req.body;
+        if (parseInt(req.params.bizId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const r = await pool.query(
             `INSERT INTO beauty_practitioners (business_group_id, display_name, tier, color_hex, specializations, schedule_override, commission_rate_svc, commission_rate_retail)
              VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
@@ -21405,8 +21918,9 @@ app.post('/api/beauty/:bizId/practitioners', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.patch('/api/beauty/:bizId/practitioners/:id', async (req, res) => {
+app.patch('/api/beauty/:bizId/practitioners/:id', verifyBiz, async (req, res) => {
     try {
+        if (parseInt(req.params.bizId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const fields = ['display_name','tier','color_hex','specializations','schedule_override','commission_rate_svc','commission_rate_retail','is_active'];
         const sets = []; const vals = [];
         fields.forEach(f => { if (req.body[f] !== undefined) { vals.push(typeof req.body[f] === 'object' ? JSON.stringify(req.body[f]) : req.body[f]); sets.push(`${f}=$${vals.length}`); }});
@@ -21418,16 +21932,18 @@ app.patch('/api/beauty/:bizId/practitioners/:id', async (req, res) => {
 });
 
 // --- Resources ---
-app.get('/api/beauty/:bizId/resources', async (req, res) => {
+app.get('/api/beauty/:bizId/resources', verifyBiz, async (req, res) => {
     try {
+        if (parseInt(req.params.bizId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const r = await pool.query('SELECT * FROM beauty_resources WHERE business_group_id=$1 AND is_active=TRUE ORDER BY name', [req.params.bizId]);
         res.json(r.rows);
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/beauty/:bizId/resources', async (req, res) => {
+app.post('/api/beauty/:bizId/resources', verifyBiz, async (req, res) => {
     try {
         const { name, resource_type, color_hex } = req.body;
+        if (parseInt(req.params.bizId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const r = await pool.query(
             'INSERT INTO beauty_resources (business_group_id, name, resource_type, color_hex) VALUES ($1,$2,$3,$4) RETURNING *',
             [req.params.bizId, name, resource_type||'room', color_hex||'#94a3b8']
@@ -21436,9 +21952,10 @@ app.post('/api/beauty/:bizId/resources', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.patch('/api/beauty/:bizId/resources/:id', async (req, res) => {
+app.patch('/api/beauty/:bizId/resources/:id', verifyBiz, async (req, res) => {
     try {
         const { name, resource_type, color_hex, is_active } = req.body;
+        if (parseInt(req.params.bizId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         await pool.query(
             'UPDATE beauty_resources SET name=COALESCE($1,name), resource_type=COALESCE($2,resource_type), color_hex=COALESCE($3,color_hex), is_active=COALESCE($4,is_active) WHERE id=$5 AND business_group_id=$6',
             [name, resource_type, color_hex, is_active, req.params.id, req.params.bizId]
@@ -21448,9 +21965,10 @@ app.patch('/api/beauty/:bizId/resources/:id', async (req, res) => {
 });
 
 // --- Appointments ---
-app.get('/api/beauty/:bizId/appointments', async (req, res) => {
+app.get('/api/beauty/:bizId/appointments', verifyBiz, async (req, res) => {
     try {
         const { from, to, practitioner_id, resource_id, status } = req.query;
+        if (parseInt(req.params.bizId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         let where = 'ba.business_group_id=$1';
         const vals = [req.params.bizId];
         if (from) { vals.push(from); where += ` AND bas.start_time >= $${vals.length}::date`; }
@@ -21470,12 +21988,20 @@ app.get('/api/beauty/:bizId/appointments', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/beauty/:bizId/appointments', async (req, res) => {
+app.post('/api/beauty/:bizId/appointments', verifyFamilyOrBiz, async (req, res) => {
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
         const { client_family_id, client_name, client_phone, client_email, client_type, booking_source,
                 deposit_amount, notes, internal_notes, rfq_id, group_booking_ref, segments } = req.body;
+
+        // IDOR check לפי booking_source + type
+        const src = booking_source || 'biz';
+        if (src === 'family') {
+            if (req.callerAuth.type !== 'family' || parseInt(client_family_id) !== req.callerAuth.groupId) { client.release(); return res.status(403).json({ error: 'אין הרשאה' }); }
+        } else {
+            if (req.callerAuth.type !== 'business' || parseInt(req.params.bizId) !== req.callerAuth.groupId) { client.release(); return res.status(403).json({ error: 'אין הרשאה' }); }
+        }
 
         // Validate resource conflicts
         for (const seg of (segments||[])) {
@@ -21515,7 +22041,6 @@ app.post('/api/beauty/:bizId/appointments', async (req, res) => {
         }
 
         const totalPrice = (segments||[]).reduce((s, seg) => s + parseFloat(seg.price||0), 0);
-        const src = booking_source || 'biz';
 
         // אם לא הועבר client_family_id, ננסה לזהות לפי טלפון (עם נרמול ספרות בלבד)
         let resolvedFamilyId = client_family_id || null;
@@ -21596,9 +22121,10 @@ app.post('/api/beauty/:bizId/appointments', async (req, res) => {
     } catch(e) { await client.query('ROLLBACK').catch(()=>{}); client.release(); res.status(500).json({ error: e.message }); }
 });
 
-app.patch('/api/beauty/:bizId/appointments/:id', async (req, res) => {
+app.patch('/api/beauty/:bizId/appointments/:id', verifyBiz, async (req, res) => {
     try {
         const { status, notes, internal_notes, deposit_paid, date, time, duration_minutes, service_name } = req.body;
+        if (parseInt(req.params.bizId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const hasPracKey = Object.prototype.hasOwnProperty.call(req.body, 'practitioner_id');
         const practitioner_id = hasPracKey ? (req.body.practitioner_id || null) : undefined;
 
@@ -21651,10 +22177,11 @@ app.patch('/api/beauty/:bizId/appointments/:id', async (req, res) => {
 });
 
 // Complete appointment → back-bar sync + commissions + follow-up task
-app.post('/api/beauty/:bizId/appointments/:id/complete', async (req, res) => {
+app.post('/api/beauty/:bizId/appointments/:id/complete', verifyBiz, async (req, res) => {
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
+        if (parseInt(req.params.bizId) !== req.bizAuth.groupId) { client.release(); return res.status(403).json({ error: 'אין הרשאה' }); }
 
         await client.query(
             'UPDATE beauty_appointments SET status=$1, updated_at=NOW() WHERE id=$2 AND business_group_id=$3',
@@ -21731,8 +22258,9 @@ app.post('/api/beauty/:bizId/appointments/:id/complete', async (req, res) => {
     finally { client.release(); }
 });
 
-app.post('/api/beauty/:bizId/appointments/:id/no-show', async (req, res) => {
+app.post('/api/beauty/:bizId/appointments/:id/no-show', verifyBiz, async (req, res) => {
     try {
+        if (parseInt(req.params.bizId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         await pool.query(
             'UPDATE beauty_appointments SET status=$1, updated_at=NOW() WHERE id=$2 AND business_group_id=$3',
             ['no_show', req.params.id, req.params.bizId]
@@ -21766,9 +22294,10 @@ app.get('/api/beauty/:bizId/availability', async (req, res) => {
 });
 
 // --- Client Records ---
-app.get('/api/beauty/:bizId/clients', async (req, res) => {
+app.get('/api/beauty/:bizId/clients', verifyBiz, async (req, res) => {
     try {
         const { q } = req.query;
+        if (parseInt(req.params.bizId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         let query = 'SELECT * FROM beauty_client_records WHERE business_group_id=$1';
         const vals = [req.params.bizId];
         if (q) { vals.push(`%${q}%`); query += ` AND (client_name ILIKE $${vals.length} OR client_phone ILIKE $${vals.length} OR client_email ILIKE $${vals.length})`; }
@@ -21778,8 +22307,9 @@ app.get('/api/beauty/:bizId/clients', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/api/beauty/:bizId/clients/:id', async (req, res) => {
+app.get('/api/beauty/:bizId/clients/:id', verifyBiz, async (req, res) => {
     try {
+        if (parseInt(req.params.bizId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const [rec, formulas, photos, appts] = await Promise.all([
             pool.query('SELECT * FROM beauty_client_records WHERE id=$1 AND business_group_id=$2', [req.params.id, req.params.bizId]),
             pool.query('SELECT * FROM beauty_formulas WHERE client_record_id=$1 ORDER BY created_at DESC LIMIT 20', [req.params.id]),
@@ -21797,9 +22327,10 @@ app.get('/api/beauty/:bizId/clients/:id', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/api/beauty/:bizId/check-oneflow', async (req, res) => {
+app.get('/api/beauty/:bizId/check-oneflow', verifyBiz, async (req, res) => {
     try {
         const { phone, name } = req.query;
+        if (parseInt(req.params.bizId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         if (!phone && !name) return res.json({ found: false });
         let query = `SELECT u.id, u.nickname, u.first_name, u.last_name, u.phone, u.email, u.birth_year, u.id_number,
                             fg.id AS family_id, fg.name AS family_name, fg.group_code, fg.family_nickname, fg.last_name AS group_last_name
@@ -21833,9 +22364,10 @@ app.get('/api/store/check-oneflow', async (req, res) => {
 });
 
 // Returns all businesses that have linked this family group as a client (beauty, future types, etc.)
-app.get('/api/family/linked-businesses/:groupId', async (req, res) => {
+app.get('/api/family/linked-businesses/:groupId', verifyFamily, async (req, res) => {
     try {
         const groupId = parseInt(req.params.groupId);
+        if (groupId !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         // beauty client links
         const beautyR = await pool.query(
             `SELECT DISTINCT ON (bcr.business_group_id) bcr.business_group_id, fg.name AS business_name,
@@ -22056,9 +22588,10 @@ app.put('/api/family/:familyGroupId/beauty/appointments/:id/client-confirm', asy
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/beauty/:bizId/clients', async (req, res) => {
+app.post('/api/beauty/:bizId/clients', verifyBiz, async (req, res) => {
     try {
         const { client_family_id, client_name, client_phone, client_email, date_of_birth, medical_notes, skin_type, hair_type, id_number } = req.body;
+        if (parseInt(req.params.bizId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         if (!id_number || !id_number.trim()) return res.status(400).json({ error: 'מספר ת.ז הוא שדה חובה' });
         const r = await pool.query(
             `INSERT INTO beauty_client_records (business_group_id, client_family_id, client_name, client_phone, client_email, date_of_birth, medical_notes, skin_type, hair_type, id_number)
@@ -22070,9 +22603,10 @@ app.post('/api/beauty/:bizId/clients', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.patch('/api/beauty/:bizId/clients/:id', async (req, res) => {
+app.patch('/api/beauty/:bizId/clients/:id', verifyBiz, async (req, res) => {
     try {
         const f = req.body;
+        if (parseInt(req.params.bizId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const fields = ['client_name','client_phone','client_email','medical_notes','patch_test_status','patch_test_date','patch_test_expires_at','skin_type','hair_type','preferred_practitioner_id','id_number'];
         const sets = []; const vals = [];
         fields.forEach(k => { if (f[k] !== undefined) { vals.push(f[k]); sets.push(`${k}=$${vals.length}`); }});
@@ -22084,9 +22618,12 @@ app.patch('/api/beauty/:bizId/clients/:id', async (req, res) => {
 });
 
 // Formulas
-app.post('/api/beauty/:bizId/clients/:id/formulas', async (req, res) => {
+app.post('/api/beauty/:bizId/clients/:id/formulas', verifyBiz, async (req, res) => {
     try {
         const { appointment_id, practitioner_id, treatment_type, formula_data, application_notes, result_notes, processing_time_min } = req.body;
+        if (parseInt(req.params.bizId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
+        const _cr = await pool.query('SELECT 1 FROM beauty_client_records WHERE id=$1 AND business_group_id=$2', [req.params.id, req.bizAuth.groupId]);
+        if (!_cr.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
         const r = await pool.query(
             `INSERT INTO beauty_formulas (client_record_id, appointment_id, practitioner_id, treatment_type, formula_data, application_notes, result_notes, processing_time_min)
              VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
@@ -22097,17 +22634,23 @@ app.post('/api/beauty/:bizId/clients/:id/formulas', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/api/beauty/:bizId/clients/:id/formulas', async (req, res) => {
+app.get('/api/beauty/:bizId/clients/:id/formulas', verifyBiz, async (req, res) => {
     try {
+        if (parseInt(req.params.bizId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
+        const _cr = await pool.query('SELECT 1 FROM beauty_client_records WHERE id=$1 AND business_group_id=$2', [req.params.id, req.bizAuth.groupId]);
+        if (!_cr.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
         const r = await pool.query('SELECT * FROM beauty_formulas WHERE client_record_id=$1 ORDER BY created_at DESC', [req.params.id]);
         res.json(r.rows);
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 // Photos
-app.post('/api/beauty/:bizId/clients/:id/photos', async (req, res) => {
+app.post('/api/beauty/:bizId/clients/:id/photos', verifyBiz, async (req, res) => {
     try {
         const { appointment_id, photo_type, image_url, thumbnail_url, treatment_area, notes, taken_by, is_consent_given } = req.body;
+        if (parseInt(req.params.bizId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
+        const _cr = await pool.query('SELECT 1 FROM beauty_client_records WHERE id=$1 AND business_group_id=$2', [req.params.id, req.bizAuth.groupId]);
+        if (!_cr.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
         const r = await pool.query(
             `INSERT INTO beauty_client_photos (client_record_id, appointment_id, photo_type, image_url, thumbnail_url, treatment_area, notes, taken_by, is_consent_given)
              VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
@@ -22118,17 +22661,21 @@ app.post('/api/beauty/:bizId/clients/:id/photos', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/api/beauty/:bizId/clients/:id/photos', async (req, res) => {
+app.get('/api/beauty/:bizId/clients/:id/photos', verifyBiz, async (req, res) => {
     try {
+        if (parseInt(req.params.bizId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
+        const _cr = await pool.query('SELECT 1 FROM beauty_client_records WHERE id=$1 AND business_group_id=$2', [req.params.id, req.bizAuth.groupId]);
+        if (!_cr.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
         const r = await pool.query('SELECT * FROM beauty_client_photos WHERE client_record_id=$1 ORDER BY created_at DESC', [req.params.id]);
         res.json(r.rows);
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 // --- Inventory ---
-app.get('/api/beauty/:bizId/inventory', async (req, res) => {
+app.get('/api/beauty/:bizId/inventory', verifyBiz, async (req, res) => {
     try {
         const { type } = req.query;
+        if (parseInt(req.params.bizId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         let q = 'SELECT * FROM beauty_inventory WHERE business_group_id=$1 AND is_active=TRUE';
         const vals = [req.params.bizId];
         if (type) { vals.push(type); q += ` AND inventory_type=$${vals.length}`; }
@@ -22138,9 +22685,10 @@ app.get('/api/beauty/:bizId/inventory', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/beauty/:bizId/inventory', async (req, res) => {
+app.post('/api/beauty/:bizId/inventory', verifyBiz, async (req, res) => {
     try {
         const { product_name, brand, sku, inventory_type, category, unit, unit_size, stock_qty, reorder_threshold, cost_price, retail_price, supplier_name } = req.body;
+        if (parseInt(req.params.bizId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const r = await pool.query(
             `INSERT INTO beauty_inventory (business_group_id, product_name, brand, sku, inventory_type, category, unit, unit_size, stock_qty, reorder_threshold, cost_price, retail_price, supplier_name)
              VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *`,
@@ -22151,9 +22699,10 @@ app.post('/api/beauty/:bizId/inventory', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.patch('/api/beauty/:bizId/inventory/:id', async (req, res) => {
+app.patch('/api/beauty/:bizId/inventory/:id', verifyBiz, async (req, res) => {
     try {
         const fields = ['product_name','brand','sku','category','unit','unit_size','stock_qty','reorder_threshold','cost_price','retail_price','supplier_name','is_active'];
+        if (parseInt(req.params.bizId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const sets = []; const vals = [];
         fields.forEach(k => { if (req.body[k] !== undefined) { vals.push(req.body[k]); sets.push(`${k}=$${vals.length}`); }});
         if (!sets.length) return res.json({ success: true });
@@ -22163,9 +22712,10 @@ app.patch('/api/beauty/:bizId/inventory/:id', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/beauty/:bizId/inventory/:id/adjust', async (req, res) => {
+app.post('/api/beauty/:bizId/inventory/:id/adjust', verifyBiz, async (req, res) => {
     try {
         const { delta, reason } = req.body;
+        if (parseInt(req.params.bizId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         await pool.query(
             'UPDATE beauty_inventory SET stock_qty=stock_qty+$1, updated_at=NOW() WHERE id=$2 AND business_group_id=$3',
             [delta, req.params.id, req.params.bizId]
@@ -22174,9 +22724,10 @@ app.post('/api/beauty/:bizId/inventory/:id/adjust', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/api/beauty/:bizId/dashboard', async (req, res) => {
+app.get('/api/beauty/:bizId/dashboard', verifyBiz, async (req, res) => {
     try {
         const bizId = req.params.bizId;
+        if (parseInt(req.params.bizId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const todayStart = new Date(); todayStart.setHours(0,0,0,0);
         const todayEnd   = new Date(); todayEnd.setHours(23,59,59,999);
         const monthStart = new Date(todayStart.getFullYear(), todayStart.getMonth(), 1);
@@ -22241,8 +22792,9 @@ app.get('/api/beauty/:bizId/dashboard', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/api/beauty/:bizId/inventory/alerts', async (req, res) => {
+app.get('/api/beauty/:bizId/inventory/alerts', verifyBiz, async (req, res) => {
     try {
+        if (parseInt(req.params.bizId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const r = await pool.query(
             'SELECT * FROM beauty_inventory WHERE business_group_id=$1 AND is_active=TRUE AND stock_qty<=reorder_threshold ORDER BY stock_qty ASC',
             [req.params.bizId]
@@ -22252,9 +22804,10 @@ app.get('/api/beauty/:bizId/inventory/alerts', async (req, res) => {
 });
 
 // --- Commissions ---
-app.get('/api/beauty/:bizId/commissions', async (req, res) => {
+app.get('/api/beauty/:bizId/commissions', verifyBiz, async (req, res) => {
     try {
         const { practitioner_id, is_paid, from, to } = req.query;
+        if (parseInt(req.params.bizId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         let where = 'bc.business_group_id=$1'; const vals = [req.params.bizId];
         if (practitioner_id) { vals.push(practitioner_id); where += ` AND bc.practitioner_id=$${vals.length}`; }
         if (is_paid !== undefined) { vals.push(is_paid === 'true'); where += ` AND bc.is_paid=$${vals.length}`; }
@@ -22271,9 +22824,10 @@ app.get('/api/beauty/:bizId/commissions', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/beauty/:bizId/commissions/pay', async (req, res) => {
+app.post('/api/beauty/:bizId/commissions/pay', verifyBiz, async (req, res) => {
     try {
         const { commission_ids } = req.body;
+        if (parseInt(req.params.bizId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         await pool.query(
             `UPDATE beauty_commissions SET is_paid=TRUE, paid_at=NOW() WHERE id=ANY($1) AND business_group_id=$2`,
             [commission_ids, req.params.bizId]
@@ -22283,9 +22837,10 @@ app.post('/api/beauty/:bizId/commissions/pay', async (req, res) => {
 });
 
 // --- RFQ (Consultation Requests) ---
-app.get('/api/beauty/:bizId/rfq', async (req, res) => {
+app.get('/api/beauty/:bizId/rfq', verifyBiz, async (req, res) => {
     try {
         const { status } = req.query;
+        if (parseInt(req.params.bizId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         let q = 'SELECT br.*, fg.name AS client_name_family FROM beauty_rfq br LEFT JOIN family_groups fg ON fg.id=br.client_family_id WHERE br.business_group_id=$1';
         const vals = [req.params.bizId];
         if (status) { vals.push(status); q += ` AND br.status=$${vals.length}`; }
@@ -22295,9 +22850,10 @@ app.get('/api/beauty/:bizId/rfq', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/beauty/rfq', async (req, res) => {
+app.post('/api/beauty/rfq', verifyFamily, async (req, res) => {
     try {
         const { business_group_id, client_family_id, service_description } = req.body;
+        if (parseInt(client_family_id) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const r = await pool.query(
             'INSERT INTO beauty_rfq (business_group_id, client_family_id, service_description) VALUES ($1,$2,$3) RETURNING *',
             [business_group_id, client_family_id, service_description]
@@ -22306,9 +22862,11 @@ app.post('/api/beauty/rfq', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.patch('/api/beauty/rfq/:id/questionnaire', async (req, res) => {
+app.patch('/api/beauty/rfq/:id/questionnaire', verifyBiz, async (req, res) => {
     try {
         const { questions } = req.body;
+        const _rfq = await pool.query('SELECT 1 FROM beauty_rfq WHERE id=$1 AND business_group_id=$2', [req.params.id, req.bizAuth.groupId]);
+        if (!_rfq.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
         await pool.query(
             "UPDATE beauty_rfq SET questionnaire_data=$1, status='questionnaire_sent', updated_at=NOW() WHERE id=$2",
             [JSON.stringify({ questions, sent_at: new Date().toISOString() }), req.params.id]
@@ -22317,9 +22875,11 @@ app.patch('/api/beauty/rfq/:id/questionnaire', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/beauty/rfq/:id/client-response', async (req, res) => {
+app.post('/api/beauty/rfq/:id/client-response', verifyFamily, async (req, res) => {
     try {
         const { answers, photos } = req.body;
+        const _rfq = await pool.query('SELECT 1 FROM beauty_rfq WHERE id=$1 AND client_family_id=$2', [req.params.id, req.familyAuth.groupId]);
+        if (!_rfq.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
         const existing = await pool.query('SELECT questionnaire_data FROM beauty_rfq WHERE id=$1', [req.params.id]);
         const qData = existing.rows[0]?.questionnaire_data || {};
         await pool.query(
@@ -22331,9 +22891,11 @@ app.post('/api/beauty/rfq/:id/client-response', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/beauty/rfq/:id/plan', async (req, res) => {
+app.post('/api/beauty/rfq/:id/plan', verifyBiz, async (req, res) => {
     try {
         const { sessions, total_price, payment_link, title } = req.body;
+        const _rfq = await pool.query('SELECT 1 FROM beauty_rfq WHERE id=$1 AND business_group_id=$2', [req.params.id, req.bizAuth.groupId]);
+        if (!_rfq.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
         await pool.query(
             "UPDATE beauty_rfq SET treatment_plan=$1, status='plan_sent', updated_at=NOW() WHERE id=$2",
             [JSON.stringify({ title, sessions, total_price, payment_link, sent_at: new Date().toISOString() }), req.params.id]
@@ -22342,8 +22904,10 @@ app.post('/api/beauty/rfq/:id/plan', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/beauty/rfq/:id/accept', async (req, res) => {
+app.post('/api/beauty/rfq/:id/accept', verifyFamily, async (req, res) => {
     try {
+        const _rfq = await pool.query('SELECT 1 FROM beauty_rfq WHERE id=$1 AND client_family_id=$2', [req.params.id, req.familyAuth.groupId]);
+        if (!_rfq.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
         await pool.query(
             "UPDATE beauty_rfq SET status='accepted', plan_accepted_at=NOW(), updated_at=NOW() WHERE id=$1",
             [req.params.id]
@@ -22352,9 +22916,14 @@ app.post('/api/beauty/rfq/:id/accept', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/beauty/rfq/:id/message', async (req, res) => {
+app.post('/api/beauty/rfq/:id/message', verifyFamilyOrBiz, async (req, res) => {
     try {
         const { from, text } = req.body;
+        const _rfq = await pool.query('SELECT business_group_id, client_family_id FROM beauty_rfq WHERE id=$1', [req.params.id]);
+        if (!_rfq.rows.length) return res.status(404).json({ error: 'לא נמצא' });
+        const { business_group_id, client_family_id } = _rfq.rows[0];
+        const g = req.callerAuth.groupId;
+        if (g !== business_group_id && g !== client_family_id) return res.status(403).json({ error: 'אין הרשאה' });
         const existing = await pool.query('SELECT messages FROM beauty_rfq WHERE id=$1', [req.params.id]);
         const msgs = existing.rows[0]?.messages || [];
         msgs.push({ from, text, ts: new Date().toISOString() });
@@ -22374,8 +22943,9 @@ app.get('/api/beauty/businesses', async (req, res) => {
 });
 
 // family: get own RFQs
-app.get('/api/beauty/rfq/family/:familyId', async (req, res) => {
+app.get('/api/beauty/rfq/family/:familyId', verifyFamily, async (req, res) => {
     try {
+        if (parseInt(req.params.familyId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const r = await pool.query(
             `SELECT br.*, fg.name AS business_name FROM beauty_rfq br
              LEFT JOIN family_groups fg ON fg.id=br.business_group_id
@@ -22387,8 +22957,9 @@ app.get('/api/beauty/rfq/family/:familyId', async (req, res) => {
 });
 
 // ===== BEAUTY SERVICE CATALOG =====
-app.get('/api/beauty/:bizId/services', async (req, res) => {
+app.get('/api/beauty/:bizId/services', verifyBiz, async (req, res) => {
     try {
+        if (parseInt(req.params.bizId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const r = await pool.query(
             `SELECT * FROM beauty_service_catalog WHERE business_group_id=$1 AND is_active=TRUE ORDER BY category, name`,
             [req.params.bizId]
@@ -22397,9 +22968,10 @@ app.get('/api/beauty/:bizId/services', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/beauty/:bizId/services', async (req, res) => {
+app.post('/api/beauty/:bizId/services', verifyBiz, async (req, res) => {
     try {
         const { name, category, duration_minutes, price, description, color_hex, requires_patch_test, commission_pct, allowed_practitioner_ids } = req.body;
+        if (parseInt(req.params.bizId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         if (!name || !duration_minutes) return res.status(400).json({ error: 'name and duration required' });
         const r = await pool.query(
             `INSERT INTO beauty_service_catalog (business_group_id, name, category, duration_minutes, price, description, color_hex, requires_patch_test, commission_pct, allowed_practitioner_ids)
@@ -22413,9 +22985,10 @@ app.post('/api/beauty/:bizId/services', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.patch('/api/beauty/:bizId/services/:id', async (req, res) => {
+app.patch('/api/beauty/:bizId/services/:id', verifyBiz, async (req, res) => {
     try {
         const fields = ['name','category','duration_minutes','price','description','color_hex','requires_patch_test','is_active','commission_pct','allowed_practitioner_ids'];
+        if (parseInt(req.params.bizId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const sets = []; const vals = [];
         fields.forEach(f => { if (req.body[f] !== undefined) { vals.push(req.body[f]); sets.push(`${f}=$${vals.length}`); } });
         if (!sets.length) return res.json({ success: true });
@@ -22426,8 +22999,9 @@ app.patch('/api/beauty/:bizId/services/:id', async (req, res) => {
 });
 
 // ===== BEAUTY SUBSCRIPTION TYPES =====
-app.get('/api/beauty/:bizId/subscription-types', async (req, res) => {
+app.get('/api/beauty/:bizId/subscription-types', verifyBiz, async (req, res) => {
     try {
+        if (parseInt(req.params.bizId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const r = await pool.query(
             `SELECT * FROM beauty_subscription_types WHERE business_group_id=$1 AND is_active=TRUE ORDER BY price`,
             [req.params.bizId]
@@ -22436,9 +23010,10 @@ app.get('/api/beauty/:bizId/subscription-types', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/beauty/:bizId/subscription-types', async (req, res) => {
+app.post('/api/beauty/:bizId/subscription-types', verifyBiz, async (req, res) => {
     try {
         const { name, description, sessions_count, price, validity_days, service_ids } = req.body;
+        if (parseInt(req.params.bizId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         if (!name || !sessions_count) return res.status(400).json({ error: 'name and sessions_count required' });
         const r = await pool.query(
             `INSERT INTO beauty_subscription_types (business_group_id, name, description, sessions_count, price, validity_days, service_ids)
@@ -22450,9 +23025,10 @@ app.post('/api/beauty/:bizId/subscription-types', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.patch('/api/beauty/:bizId/subscription-types/:id', async (req, res) => {
+app.patch('/api/beauty/:bizId/subscription-types/:id', verifyBiz, async (req, res) => {
     try {
         const fields = ['name','description','sessions_count','price','validity_days','service_ids','is_active'];
+        if (parseInt(req.params.bizId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const sets = []; const vals = [];
         fields.forEach(f => { if (req.body[f] !== undefined) { vals.push(f === 'service_ids' ? JSON.stringify(req.body[f]) : req.body[f]); sets.push(`${f}=$${vals.length}`); } });
         if (!sets.length) return res.json({ success: true });
@@ -22463,8 +23039,9 @@ app.patch('/api/beauty/:bizId/subscription-types/:id', async (req, res) => {
 });
 
 // ===== BEAUTY CLIENT SUBSCRIPTIONS =====
-app.get('/api/beauty/:bizId/client-subscriptions/:clientId', async (req, res) => {
+app.get('/api/beauty/:bizId/client-subscriptions/:clientId', verifyBiz, async (req, res) => {
     try {
+        if (parseInt(req.params.bizId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const r = await pool.query(
             `SELECT bcs.*, bst.name AS type_name
              FROM beauty_client_subscriptions bcs
@@ -22477,9 +23054,10 @@ app.get('/api/beauty/:bizId/client-subscriptions/:clientId', async (req, res) =>
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/beauty/:bizId/client-subscriptions', async (req, res) => {
+app.post('/api/beauty/:bizId/client-subscriptions', verifyBiz, async (req, res) => {
     try {
         const { client_record_id, subscription_type_id, sessions_total, subscription_name, validity_days } = req.body;
+        if (parseInt(req.params.bizId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         if (!client_record_id || !sessions_total) return res.status(400).json({ error: 'client_record_id and sessions_total required' });
         const expires = validity_days
             ? new Date(Date.now() + validity_days * 86400000).toISOString().slice(0,10)
@@ -22493,8 +23071,9 @@ app.post('/api/beauty/:bizId/client-subscriptions', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.patch('/api/beauty/:bizId/client-subscriptions/:id/use', async (req, res) => {
+app.patch('/api/beauty/:bizId/client-subscriptions/:id/use', verifyBiz, async (req, res) => {
     try {
+        if (parseInt(req.params.bizId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const r = await pool.query(
             `UPDATE beauty_client_subscriptions
              SET sessions_used = sessions_used + 1,
@@ -23575,9 +24154,10 @@ app.post('/api/ai/parse-pdf', async (req, res) => {
 })();
 
 // יצירת פול חדש (משפחה או עסק)
-app.post('/api/community/pool', async (req, res) => {
+app.post('/api/community/pool', verifyFamily, async (req, res) => {
     try {
         const { communityId, initiatorType, initiatorId, title, description, serviceCategory, maxPrice, offerPrice, minFamilies } = req.body;
+        if (parseInt(initiatorId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         if (!communityId || !initiatorType || !initiatorId || !title) return res.status(400).json({ error: 'חסרים שדות חובה' });
         // ווידוא שהיוזם חבר בקהילה
         const membership = await pool.query(
@@ -23634,9 +24214,10 @@ app.get('/api/community/pool/:id', async (req, res) => {
 });
 
 // הסרת חברה מהפול (ע"י היוזמת)
-app.post('/api/community/pool/:id/remove-member', async (req, res) => {
+app.post('/api/community/pool/:id/remove-member', verifyFamily, async (req, res) => {
     try {
         const { groupId, initiatorId } = req.body;
+        if (parseInt(initiatorId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const check = await pool.query(
             `SELECT 1 FROM flow_pools WHERE id=$1 AND initiator_type='family' AND initiator_id=$2`,
             [req.params.id, initiatorId]);
@@ -23647,9 +24228,10 @@ app.post('/api/community/pool/:id/remove-member', async (req, res) => {
 });
 
 // הצטרפות לפול (משפחה)
-app.post('/api/community/pool/:id/join', async (req, res) => {
+app.post('/api/community/pool/:id/join', verifyFamily, async (req, res) => {
     try {
         const { groupId } = req.body;
+        if (parseInt(groupId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const pRes = await pool.query(`SELECT * FROM flow_pools WHERE id=$1 AND status IN ('open_r1','open_r2') AND expires_at>NOW()`, [req.params.id]);
         if (!pRes.rows.length) return res.status(400).json({ error: 'הפול אינו פעיל' });
         const fp = pRes.rows[0];
@@ -23665,9 +24247,10 @@ app.post('/api/community/pool/:id/join', async (req, res) => {
 });
 
 // הגשת הצעה לפול (עסק)
-app.post('/api/community/pool/:id/bid', async (req, res) => {
+app.post('/api/community/pool/:id/bid', verifyBiz, async (req, res) => {
     try {
         const { businessGroupId, price, description, isGuest } = req.body;
+        if (req.bizAuth.groupId !== parseInt(businessGroupId)) return res.status(403).json({ error: 'אין הרשאה להגיש הצעה בשם עסק אחר' });
         const pRes = await pool.query(`SELECT * FROM flow_pools WHERE id=$1 AND initiator_type='family' AND status IN ('open_r1','open_r2') AND expires_at>NOW()`, [req.params.id]);
         if (!pRes.rows.length) return res.status(400).json({ error: 'הפול אינו פתוח להצעות' });
         const fp = pRes.rows[0];
@@ -23687,9 +24270,10 @@ app.post('/api/community/pool/:id/bid', async (req, res) => {
 });
 
 // הצגת הצעות לפול (למנהל ויוזמת)
-app.get('/api/community/pool/:id/bids', async (req, res) => {
+app.get('/api/community/pool/:id/bids', verifyFamily, async (req, res) => {
     try {
         const { viewerId, viewerType } = req.query;
+        if (parseInt(viewerId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const pRes = await pool.query(`SELECT * FROM flow_pools WHERE id=$1`, [req.params.id]);
         if (!pRes.rows.length) return res.status(404).json({ error: 'פול לא נמצא' });
         const fp = pRes.rows[0];
@@ -23709,9 +24293,10 @@ app.get('/api/community/pool/:id/bids', async (req, res) => {
 });
 
 // בחירת הצעה מנצחת
-app.post('/api/community/pool/:id/select-bid', async (req, res) => {
+app.post('/api/community/pool/:id/select-bid', verifyFamily, async (req, res) => {
     try {
         const { bidId, viewerId } = req.body;
+        if (parseInt(viewerId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const pRes = await pool.query(`SELECT * FROM flow_pools WHERE id=$1`, [req.params.id]);
         if (!pRes.rows.length) return res.status(404).json({ error: 'פול לא נמצא' });
         const fp = pRes.rows[0];
@@ -23730,9 +24315,10 @@ app.post('/api/community/pool/:id/select-bid', async (req, res) => {
 });
 
 // פתיחת סיבוב 2 (עסקים חיצוניים)
-app.post('/api/community/pool/:id/open-round2', async (req, res) => {
+app.post('/api/community/pool/:id/open-round2', verifyFamily, async (req, res) => {
     try {
         const { viewerId } = req.body;
+        if (parseInt(viewerId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const pRes = await pool.query(`SELECT * FROM flow_pools WHERE id=$1 AND status='open_r1'`, [req.params.id]);
         if (!pRes.rows.length) return res.status(400).json({ error: 'הפול לא בסיבוב 1' });
         const fp = pRes.rows[0];
@@ -23746,9 +24332,10 @@ app.post('/api/community/pool/:id/open-round2', async (req, res) => {
 });
 
 // ארכיב פול — יוזם (משפחה) משנה סטטוס גלובלי; עסק מסתיר רק בצד שלו
-app.post('/api/community/pool/:id/archive', async (req, res) => {
+app.post('/api/community/pool/:id/archive', verifyFamilyOrBiz, async (req, res) => {
     try {
         const { viewerId, bizArchive } = req.body;
+        if (parseInt(viewerId) !== req.callerAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const pRes = await pool.query(`SELECT * FROM flow_pools WHERE id=$1`, [req.params.id]);
         if (!pRes.rows.length) return res.status(404).json({ error: 'פול לא נמצא' });
         const fp = pRes.rows[0];
@@ -23769,9 +24356,10 @@ app.post('/api/community/pool/:id/archive', async (req, res) => {
 });
 
 // חידוש תוקף פול (יוזם בלבד)
-app.post('/api/community/pool/:id/renew', async (req, res) => {
+app.post('/api/community/pool/:id/renew', verifyFamily, async (req, res) => {
     try {
         const { viewerId, days } = req.body;
+        if (parseInt(viewerId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const pRes = await pool.query(`SELECT * FROM flow_pools WHERE id=$1`, [req.params.id]);
         if (!pRes.rows.length) return res.status(404).json({ error: 'פול לא נמצא' });
         const fp = pRes.rows[0];
@@ -23786,9 +24374,10 @@ app.post('/api/community/pool/:id/renew', async (req, res) => {
 });
 
 // עריכת פול
-app.post('/api/community/pool/:id/edit', async (req, res) => {
+app.post('/api/community/pool/:id/edit', verifyFamily, async (req, res) => {
     try {
         const { viewerId, title, description, maxPrice } = req.body;
+        if (parseInt(viewerId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         if (!viewerId || !title) return res.status(400).json({ error: 'חסרים שדות' });
         const fp = await pool.query(`SELECT * FROM flow_pools WHERE id=$1`, [req.params.id]);
         if (!fp.rows.length) return res.status(404).json({ error: 'פול לא נמצא' });
@@ -23802,9 +24391,10 @@ app.post('/api/community/pool/:id/edit', async (req, res) => {
 });
 
 // החזרת פול מארכיב (יוזם בלבד)
-app.post('/api/community/pool/:id/restore', async (req, res) => {
+app.post('/api/community/pool/:id/restore', verifyFamily, async (req, res) => {
     try {
         const { viewerId } = req.body;
+        if (parseInt(viewerId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const pRes = await pool.query(`SELECT * FROM flow_pools WHERE id=$1`, [req.params.id]);
         if (!pRes.rows.length) return res.status(404).json({ error: 'פול לא נמצא' });
         const fp = pRes.rows[0];
@@ -23827,10 +24417,13 @@ app.get('/api/community/pool/:id/messages', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/community/pool/:id/message', async (req, res) => {
+app.post('/api/community/pool/:id/message', verifyFamilyOrBiz, async (req, res) => {
     try {
         const { senderId, senderType, content } = req.body;
         if (!content?.trim()) return res.status(400).json({ error: 'תוכן ריק' });
+        if (req.callerAuth.groupId !== parseInt(senderId) || req.callerAuth.type !== senderType) {
+            return res.status(403).json({ error: 'אין הרשאה לשלוח הודעה בשם שולח אחר' });
+        }
         const pRes = await pool.query(`SELECT id FROM flow_pools WHERE id=$1 AND status IN ('open_r1','open_r2') AND expires_at>NOW()`, [req.params.id]);
         if (!pRes.rows.length) return res.status(400).json({ error: 'הפול לא פעיל' });
         const r = await pool.query(`INSERT INTO flow_pool_messages (pool_id, sender_type, sender_id, content) VALUES ($1,$2,$3,$4) RETURNING *`, [req.params.id, senderType, senderId, content.trim()]);
@@ -23856,7 +24449,7 @@ app.get('/api/biz/my-pool-bids/:bizGroupId', verifyBiz, async (req, res) => {
 });
 
 // ניקוי פולים שפג תוקפם (נקרא בחצות)
-app.post('/api/community/pool/cleanup', async (req, res) => {
+app.post('/api/community/pool/cleanup', verifySA, async (req, res) => {
     try {
         const expired = await pool.query(`UPDATE flow_pools SET status='expired' WHERE status IN ('open_r1','open_r2') AND expires_at<=NOW() RETURNING id`);
         if (expired.rows.length) {
@@ -23911,8 +24504,9 @@ app.get('/api/biz/pools/:bizGroupId', verifyBiz, async (req, res) => {
 
 // ארכיב פולים לעסק — כל פולים מוארכבים שהעסק השתתף בהם
 // ארכיב פולים למשפחה — פולים שהמשפחה יזמה ומוארכבים/סגורים
-app.get('/api/community/pool/family-archive/:groupId', async (req, res) => {
+app.get('/api/community/pool/family-archive/:groupId', verifyFamily, async (req, res) => {
     try {
+        if (parseInt(req.params.groupId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const r = await pool.query(`
             SELECT fp.id, fp.title, fp.description, fp.status, fp.max_price, fp.created_at,
                 (SELECT COUNT(*) FROM flow_pool_members WHERE pool_id=fp.id) as members_count,
@@ -24604,9 +25198,10 @@ app.delete('/api/page-images/:page/:slot', async (req, res) => {
 // ─── END PAGE IMAGES ──────────────────────────────────────────────────────────
 
 // ─── KIDS OVERVIEW (parent dashboard) ────────────────────────────────────────
-app.get('/api/kids/parent-overview/:groupId', async (req, res) => {
+app.get('/api/kids/parent-overview/:groupId', verifyFamily, async (req, res) => {
   try {
     const gid = req.params.groupId;
+    if (parseInt(gid) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
 
     // ילדים + יתרת FLW
     const kids = await pool.query(`
@@ -24724,8 +25319,10 @@ app.get('/api/kids/parent-overview/:groupId', async (req, res) => {
 });
 
 // שמירת תמונת פרופיל לילד (URL מ-Cloudinary, או dataUrl כ-fallback)
-app.post('/api/kids/profile-image/:userId', async (req, res) => {
+app.post('/api/kids/profile-image/:userId', verifyFamily, async (req, res) => {
   try {
+    const _chk = await pool.query('SELECT 1 FROM users WHERE id=$1 AND group_id=$2', [req.params.userId, req.familyAuth.groupId]);
+    if (!_chk.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
     let { imageUrl, dataUrl } = req.body;
     if (!imageUrl && dataUrl) {
       // fallback: שמור לדיסק
@@ -24745,9 +25342,10 @@ app.post('/api/kids/profile-image/:userId', async (req, res) => {
 // ─── KIDS GAMES API ───────────────────────────────────────────────────────────
 
 // רשימת משחקים לפי גיל הילד
-app.get('/api/kids/games', async (req, res) => {
+app.get('/api/kids/games', verifyFamily, async (req, res) => {
     try {
         const { userId } = req.query;
+        if (parseInt(userId) !== req.familyAuth.userId) return res.status(403).json({ error: 'אין הרשאה' });
         const userRes = await pool.query('SELECT birth_year FROM users WHERE id=$1', [userId]);
         const age = userRes.rows[0]?.birth_year
             ? new Date().getFullYear() - userRes.rows[0].birth_year
@@ -24771,9 +25369,10 @@ app.get('/api/kids/games', async (req, res) => {
 });
 
 // יתרת FLW + היסטוריה לילד
-app.get('/api/kids/wallet/:userId', async (req, res) => {
+app.get('/api/kids/wallet/:userId', verifyFamily, async (req, res) => {
     try {
         const { userId } = req.params;
+        if (parseInt(userId) !== req.familyAuth.userId) return res.status(403).json({ error: 'אין הרשאה' });
 
         await pool.query(`
             INSERT INTO flw_kid_wallets (child_user_id, family_group_id)
@@ -24802,10 +25401,11 @@ app.get('/api/kids/wallet/:userId', async (req, res) => {
 
 // זיכוי FLW אחרי משחק
 // בדיקת זכאות לשחק חופשי היום
-app.get('/api/kids/free-play-check', async (req, res) => {
+app.get('/api/kids/free-play-check', verifyFamily, async (req, res) => {
     try {
         const { childUserId, gameId } = req.query;
         if (!childUserId || !gameId) return res.json({ canPlay: true });
+        if (parseInt(childUserId) !== req.familyAuth.userId) return res.status(403).json({ error: 'אין הרשאה' });
         const row = await pool.query(
             'SELECT 1 FROM kid_free_play_log WHERE child_user_id=$1 AND game_id=$2 AND played_date=CURRENT_DATE',
             [childUserId, gameId]
@@ -24814,9 +25414,11 @@ app.get('/api/kids/free-play-check', async (req, res) => {
     } catch(e) { res.json({ canPlay: true }); }
 });
 
-app.post('/api/kids/award-flw', async (req, res) => {
+app.post('/api/kids/award-flw', verifyFamily, async (req, res) => {
     try {
         const { userId, gameId, score, flwEarned, durationSeconds } = req.body;
+        if (parseInt(userId) !== req.familyAuth.userId) return res.status(403).json({ error: 'אין הרשאה' });
+        // TODO: flwEarned value מהלקוח, לא מאומת מול לוגיקת משחק אמיתית — cap יומי מגן בגדול אך לא מונע ניצול קטן. לבדוק בעתיד.
         if (!userId || !flwEarned) return res.status(400).json({ error: 'חסרים פרטים' });
 
         const todayEarned = await pool.query(`
@@ -24870,17 +25472,20 @@ app.post('/api/kids/award-flw', async (req, res) => {
 });
 
 // הגדרות הורה לילד
-app.get('/api/kids/config/:childId', async (req, res) => {
+app.get('/api/kids/config/:childId', verifyFamily, async (req, res) => {
     try {
+        const _chk = await pool.query('SELECT 1 FROM users WHERE id=$1 AND group_id=$2', [req.params.childId, req.familyAuth.groupId]);
+        if (!_chk.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
         const config = await pool.query('SELECT * FROM flw_kid_config WHERE child_user_id=$1', [req.params.childId]);
         res.json({ success: true, config: config.rows[0] || { flw_value_ils: 0.10, max_daily_flw: 50 } });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 // עדכון הגדרות הורה
-app.post('/api/kids/config', async (req, res) => {
+app.post('/api/kids/config', verifyFamily, async (req, res) => {
     try {
         const { familyGroupId, childUserId, flwValueIls, maxDailyFlw, autoApprove } = req.body;
+        if (parseInt(familyGroupId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         await pool.query(`
             INSERT INTO flw_kid_config (family_group_id, child_user_id, flw_value_ils, max_daily_flw, auto_approve)
             VALUES ($1,$2,$3,$4,$5)
@@ -24892,9 +25497,11 @@ app.post('/api/kids/config', async (req, res) => {
 });
 
 // מימוש FLW לכסף (הורה מאשר)
-app.post('/api/kids/redeem', async (req, res) => {
+app.post('/api/kids/redeem', verifyFamily, async (req, res) => {
     try {
         const { childUserId, flwAmount, parentUserId } = req.body;
+        const _chk = await pool.query('SELECT 1 FROM users WHERE id=$1 AND group_id=$2', [childUserId, req.familyAuth.groupId]);
+        if (!_chk.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
         const wallet = await pool.query('SELECT * FROM flw_kid_wallets WHERE child_user_id=$1', [childUserId]);
         if (!wallet.rows[0] || wallet.rows[0].balance_flw < flwAmount)
             return res.status(400).json({ error: 'יתרה לא מספיקה' });
@@ -24935,9 +25542,10 @@ app.post('/api/kids/redeem', async (req, res) => {
 });
 
 // ילד שולח בקשת מימוש להורה
-app.post('/api/kids/redeem-request', async (req, res) => {
+app.post('/api/kids/redeem-request', verifyFamily, async (req, res) => {
     try {
         const { childUserId, flwAmount, groupId } = req.body;
+        if (parseInt(childUserId) !== req.familyAuth.userId) return res.status(403).json({ error: 'אין הרשאה' });
         const wallet = await pool.query('SELECT balance_flw FROM flw_kid_wallets WHERE child_user_id=$1', [childUserId]);
         if (!wallet.rows[0] || wallet.rows[0].balance_flw < flwAmount)
             return res.status(400).json({ error: 'יתרה לא מספיקה' });
@@ -24950,9 +25558,10 @@ app.post('/api/kids/redeem-request', async (req, res) => {
 });
 
 // הורה מביא בקשות מימוש פתוחות של ילד
-app.get('/api/kids/redeem-requests', async (req, res) => {
+app.get('/api/kids/redeem-requests', verifyFamily, async (req, res) => {
     try {
         const { childId, groupId } = req.query;
+        if (parseInt(groupId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const rows = await pool.query(
             `SELECT * FROM flw_kid_redeem_requests WHERE child_user_id=$1 AND family_group_id=$2 AND status='pending' ORDER BY created_at DESC`,
             [childId, groupId]
@@ -25066,10 +25675,11 @@ app.get('/api/sa/games/stats', verifySA, async (req, res) => {
 // ─── GAME ASSIGNMENTS API ─────────────────────────────────────────────────────
 
 // הקצה משחק לילד (הורה)
-app.post('/api/kids/assign-game', async (req, res) => {
+app.post('/api/kids/assign-game', verifyFamily, async (req, res) => {
   try {
     const { familyGroupId, childUserId, gameId,
             roundsTotal, flwPerRound, expiresAt, startLevel } = req.body;
+    if (parseInt(familyGroupId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
 
     const game = await pool.query(
       'SELECT id, title FROM games_catalog WHERE id=$1 AND is_active=true',
@@ -25109,8 +25719,10 @@ app.post('/api/kids/assign-game', async (req, res) => {
 });
 
 // משחקים מוקצים לילד
-app.get('/api/kids/assignments/:childId', async (req, res) => {
+app.get('/api/kids/assignments/:childId', verifyFamily, async (req, res) => {
   try {
+    const _chk = await pool.query('SELECT 1 FROM users WHERE id=$1 AND group_id=$2', [req.params.childId, req.familyAuth.groupId]);
+    if (!_chk.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
     const assignments = await pool.query(`
       SELECT ga.*, g.title, g.subject, g.thumbnail_emoji,
              g.file_path, g.difficulty,
@@ -25127,9 +25739,11 @@ app.get('/api/kids/assignments/:childId', async (req, res) => {
 });
 
 // סיום סיבוב משחק — ניכוי סיבוב + FLW יחסי ואנטי-כפילות
-app.post('/api/kids/use-round', async (req, res) => {
+app.post('/api/kids/use-round', verifyFamily, async (req, res) => {
   try {
     const { assignmentId, childUserId, score, flwEarned, levelIdx } = req.body;
+    if (parseInt(childUserId) !== req.familyAuth.userId) return res.status(403).json({ error: 'אין הרשאה' });
+    // TODO: rounds_used/score values מהלקוח, לא מאומתים מול לוגיקת משחק אמיתית — cap יומי מגן בגדול אך לא מונע ניצול קטן. לבדוק בעתיד.
     const scorePercent = Math.min(100, Math.max(0, score || 0));
 
     const asgn = await pool.query(
@@ -25203,9 +25817,11 @@ app.post('/api/kids/use-round', async (req, res) => {
 });
 
 // חידוש הקצאה (הורה)
-app.post('/api/kids/renew-assignment/:id', async (req, res) => {
+app.post('/api/kids/renew-assignment/:id', verifyFamily, async (req, res) => {
   try {
     const { roundsTotal } = req.body;
+    const _asgn = await pool.query('SELECT 1 FROM game_assignments WHERE id=$1 AND family_group_id=$2', [req.params.id, req.familyAuth.groupId]);
+    if (!_asgn.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
 
     await pool.query(`
       UPDATE game_assignments SET
@@ -25224,11 +25840,12 @@ app.post('/api/kids/renew-assignment/:id', async (req, res) => {
 // ─── QUESTS API ───────────────────────────────────────────────────────────────
 
 // יצירת קווסט (הורה)
-app.post('/api/kids/quests', async (req, res) => {
+app.post('/api/kids/quests', verifyFamily, async (req, res) => {
   try {
     const { familyGroupId, childUserId, title, subject,
             description, flwReward, passScore,
             dueDate, questions, createdBy } = req.body;
+    if (parseInt(familyGroupId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
 
     if(!questions?.length)
       return res.status(400).json({ error: 'נדרשת לפחות שאלה אחת' });
@@ -25270,8 +25887,10 @@ app.post('/api/kids/quests', async (req, res) => {
 });
 
 // קווסטים פעילים לילד (כולל פגי תוקף לארכיון)
-app.get('/api/kids/quests/:childId', async (req, res) => {
+app.get('/api/kids/quests/:childId', verifyFamily, async (req, res) => {
   try {
+    const _chk = await pool.query('SELECT 1 FROM users WHERE id=$1 AND group_id=$2', [req.params.childId, req.familyAuth.groupId]);
+    if (!_chk.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
     const quests = await pool.query(`
       SELECT q.*, COUNT(qq.id) as question_count
       FROM kid_quests q
@@ -25287,8 +25906,10 @@ app.get('/api/kids/quests/:childId', async (req, res) => {
 });
 
 // שאלות קווסט
-app.get('/api/kids/quests/:questId/questions', async (req, res) => {
+app.get('/api/kids/quests/:questId/questions', verifyFamily, async (req, res) => {
   try {
+    const _q = await pool.query('SELECT 1 FROM kid_quests WHERE id=$1 AND family_group_id=$2', [req.params.questId, req.familyAuth.groupId]);
+    if (!_q.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
     const questions = await pool.query(`
       SELECT * FROM kid_quest_questions
       WHERE quest_id = $1
@@ -25300,9 +25921,10 @@ app.get('/api/kids/quests/:questId/questions', async (req, res) => {
 });
 
 // שליחת תוצאות קווסט
-app.post('/api/kids/quests/:questId/submit', async (req, res) => {
+app.post('/api/kids/quests/:questId/submit', verifyFamily, async (req, res) => {
   try {
     const { childUserId, answers } = req.body;
+    if (parseInt(childUserId) !== req.familyAuth.userId) return res.status(403).json({ error: 'אין הרשאה' });
     const questId = req.params.questId;
 
     const questRow = await pool.query('SELECT * FROM kid_quests WHERE id=$1', [questId]);
@@ -25370,8 +25992,9 @@ app.post('/api/kids/quests/:questId/submit', async (req, res) => {
 });
 
 // קווסטים שהורה יצר
-app.get('/api/kids/parent-quests/:parentId', async (req, res) => {
+app.get('/api/kids/parent-quests/:parentId', verifyFamily, async (req, res) => {
   try {
+    if (parseInt(req.params.parentId) !== req.familyAuth.userId) return res.status(403).json({ error: 'אין הרשאה' });
     const quests = await pool.query(`
       SELECT q.*, u.nickname as child_name,
         COUNT(qq.id) as question_count,
@@ -25503,9 +26126,10 @@ app.get('/api/family/weekly-report/:groupId', async (req, res) => {
 // ===== COMMUNITY FEED API =====
 
 // שליפת פיד
-app.get('/api/community/feed', async (req, res) => {
+app.get('/api/community/feed', verifyFamily, async (req, res) => {
   try {
     const { familyId, communityId, groupId, page=1, limit=20 } = req.query;
+    if (parseInt(familyId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
     const fid = parseInt(familyId) || 0;
     const lim = parseInt(limit) || 20;
     const off = (parseInt(page)-1) * lim;
@@ -25562,9 +26186,10 @@ app.get('/api/community/feed', async (req, res) => {
 });
 
 // יצירת פוסט
-app.post('/api/community/posts', async (req, res) => {
+app.post('/api/community/posts', verifyFamily, async (req, res) => {
   try {
     const { familyId, communityId, groupId, postType='general', content, imageUrl, userId } = req.body;
+    if (parseInt(familyId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
     if(!content?.trim()) return res.status(400).json({ error: 'תוכן ריק' });
 
     const member = await pool.query(
@@ -25596,9 +26221,10 @@ app.post('/api/community/posts', async (req, res) => {
 });
 
 // סימון פיד כנקרא
-app.post('/api/community/feed/mark-read', async (req, res) => {
+app.post('/api/community/feed/mark-read', verifyFamily, async (req, res) => {
   try {
     const { familyId, communityId } = req.body;
+    if (parseInt(familyId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
     if (!familyId) return res.status(400).json({ error: 'familyId נדרש' });
     if (communityId) {
       await pool.query(
@@ -25626,9 +26252,10 @@ app.post('/api/community/feed/mark-read', async (req, res) => {
 });
 
 // ספירת פוסטים לא נקראו
-app.get('/api/community/feed/unread-counts', async (req, res) => {
+app.get('/api/community/feed/unread-counts', verifyFamily, async (req, res) => {
   try {
     const { familyId } = req.query;
+    if (parseInt(familyId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
     if (!familyId) return res.status(400).json({ error: 'familyId נדרש' });
     const comms = await pool.query(
       `SELECT community_id FROM family_communities WHERE group_id=$1 AND status='approved'`, [familyId]
@@ -25656,9 +26283,10 @@ app.get('/api/community/feed/unread-counts', async (req, res) => {
 });
 
 // שליפת התראות
-app.get('/api/community/notifications', async (req, res) => {
+app.get('/api/community/notifications', verifyFamily, async (req, res) => {
   try {
     const { familyId, limit = 30 } = req.query;
+    if (parseInt(familyId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
     if (!familyId) return res.status(400).json({ error: 'familyId נדרש' });
     const result = await pool.query(`
       SELECT cn.*,
@@ -25677,9 +26305,10 @@ app.get('/api/community/notifications', async (req, res) => {
 });
 
 // ספירת התראות לא נקראות
-app.get('/api/community/notifications/count', async (req, res) => {
+app.get('/api/community/notifications/count', verifyFamily, async (req, res) => {
   try {
     const { familyId } = req.query;
+    if (parseInt(familyId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
     if (!familyId) return res.status(400).json({ error: 'familyId נדרש' });
     const r = await pool.query(
       `SELECT COUNT(*) as cnt FROM community_notifications WHERE target_family_id=$1 AND is_read=false`, [familyId]
@@ -25689,9 +26318,10 @@ app.get('/api/community/notifications/count', async (req, res) => {
 });
 
 // סימון התראות כנקראות
-app.post('/api/community/notifications/mark-read', async (req, res) => {
+app.post('/api/community/notifications/mark-read', verifyFamily, async (req, res) => {
   try {
     const { familyId, notificationId } = req.body;
+    if (parseInt(familyId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
     if (!familyId) return res.status(400).json({ error: 'familyId נדרש' });
     if (notificationId) {
       await pool.query(
@@ -25708,9 +26338,10 @@ app.post('/api/community/notifications/mark-read', async (req, res) => {
 });
 
 // לייק / ביטול לייק
-app.post('/api/community/posts/:id/like', async (req, res) => {
+app.post('/api/community/posts/:id/like', verifyFamily, async (req, res) => {
   try {
     const { familyId } = req.body;
+    if (parseInt(familyId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
     const postId = req.params.id;
     const existing = await pool.query(
       'SELECT id FROM community_post_likes WHERE post_id=$1 AND family_id=$2', [postId, familyId]
@@ -25762,9 +26393,10 @@ app.get('/api/community/posts/:id/comments', async (req, res) => {
 });
 
 // הוספת תגובה
-app.post('/api/community/posts/:id/comments', async (req, res) => {
+app.post('/api/community/posts/:id/comments', verifyFamily, async (req, res) => {
   try {
     const { familyId, userId, content, parentCommentId } = req.body;
+    if (parseInt(familyId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
     if(!content?.trim()) return res.status(400).json({ error: 'תוכן ריק' });
     const comment = await pool.query(`
       INSERT INTO community_post_comments (post_id, parent_comment_id, author_family_id, author_user_id, content)
@@ -25787,9 +26419,10 @@ app.post('/api/community/posts/:id/comments', async (req, res) => {
 });
 
 // דיווח על פוסט
-app.post('/api/community/posts/:id/report', async (req, res) => {
+app.post('/api/community/posts/:id/report', verifyFamily, async (req, res) => {
   try {
     const { familyId, reason } = req.body;
+    if (parseInt(familyId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
     const postId = req.params.id;
     await pool.query(
       `INSERT INTO community_post_reports (post_id, family_id, reason) VALUES ($1,$2,$3) ON CONFLICT DO NOTHING`,
@@ -25803,9 +26436,10 @@ app.post('/api/community/posts/:id/report', async (req, res) => {
 });
 
 // שיתוף פוסט לקהילה אחרת
-app.post('/api/community/posts/:id/share', async (req, res) => {
+app.post('/api/community/posts/:id/share', verifyFamily, async (req, res) => {
   try {
     const { familyId, targetCommunityId } = req.body;
+    if (parseInt(familyId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
     const o = (await pool.query('SELECT * FROM community_posts WHERE id=$1', [req.params.id])).rows[0];
     if(!o) return res.status(404).json({ error: 'לא נמצא' });
     // רישום משפחה ששיתפה (לרשימת שיתופים)
@@ -25907,9 +26541,10 @@ app.get('/api/community/:communityId/groups', async (req, res) => {
 });
 
 // הצטרפות לקבוצת עניין
-app.post('/api/community/groups/:id/join', async (req, res) => {
+app.post('/api/community/groups/:id/join', verifyFamily, async (req, res) => {
   try {
     const { familyId } = req.body;
+    if (parseInt(familyId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
     // וידוא שהמשפחה חברה בקהילה
     const grp = await pool.query('SELECT community_id FROM community_interest_groups WHERE id=$1', [req.params.id]);
     if (!grp.rows.length) return res.status(404).json({ error: 'קבוצה לא נמצאה' });
@@ -25929,9 +26564,10 @@ app.post('/api/community/groups/:id/join', async (req, res) => {
 });
 
 // עזיבת קבוצת עניין
-app.post('/api/community/groups/:id/leave', async (req, res) => {
+app.post('/api/community/groups/:id/leave', verifyFamily, async (req, res) => {
   try {
     const { familyId } = req.body;
+    if (parseInt(familyId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
     const del = await pool.query(
       'DELETE FROM community_group_members WHERE group_id=$1 AND family_id=$2 RETURNING id',
       [req.params.id, familyId]);
@@ -25943,9 +26579,10 @@ app.post('/api/community/groups/:id/leave', async (req, res) => {
 });
 
 // יצירת קבוצת עניין חדשה
-app.post('/api/community/groups', async (req, res) => {
+app.post('/api/community/groups', verifyFamily, async (req, res) => {
   try {
     const { communityId, name, description, iconEmoji, familyId } = req.body;
+    if (parseInt(familyId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
     if (!name || !name.trim()) return res.status(400).json({ error: 'שם חובה' });
     // וידוא שהמשפחה חברה בקהילה
     const isMember = await pool.query(
@@ -25985,9 +26622,10 @@ app.post('/api/community/groups', async (req, res) => {
 });
 
 // הוספת משפחה לקבוצת עניין (על ידי היוצר)
-app.post('/api/community/groups/:id/add-family', async (req, res) => {
+app.post('/api/community/groups/:id/add-family', verifyFamily, async (req, res) => {
   try {
     const { familyId, targetFamilyId } = req.body;
+    if (parseInt(familyId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
     const grp = await pool.query(
       'SELECT * FROM community_interest_groups WHERE id=$1', [req.params.id]);
     if (!grp.rows.length) return res.status(404).json({ error: 'קבוצה לא נמצאה' });
@@ -26010,9 +26648,10 @@ app.post('/api/community/groups/:id/add-family', async (req, res) => {
 });
 
 // הסרת משפחה מקבוצת עניין (על ידי היוצר)
-app.delete('/api/community/groups/:id/remove-family', async (req, res) => {
+app.delete('/api/community/groups/:id/remove-family', verifyFamily, async (req, res) => {
   try {
     const { familyId, targetFamilyId } = req.body;
+    if (parseInt(familyId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
     const grp = await pool.query(
       'SELECT * FROM community_interest_groups WHERE id=$1', [req.params.id]);
     if (!grp.rows.length) return res.status(404).json({ error: 'קבוצה לא נמצאה' });
@@ -26062,9 +26701,10 @@ app.get('/api/community/groups/:id/members', async (req, res) => {
 });
 
 // חיפוש בפיד
-app.get('/api/community/feed/search', async (req, res) => {
+app.get('/api/community/feed/search', verifyFamily, async (req, res) => {
   try {
     const { q, familyId, communityId, groupId, page=1 } = req.query;
+    if (parseInt(familyId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
     if (!q || !q.trim()) return res.json({ success:true, posts:[], hasMore:false });
     const fid = parseInt(familyId) || 0;
     const lim = 20;
@@ -26642,9 +27282,10 @@ app.patch('/api/sa/community/biz-posts/:id', verifySA, async (req, res) => {
 });
 
 // שלב 4 — קרוסלה בפיד
-app.get('/api/community/feed/biz-promos', async (req, res) => {
+app.get('/api/community/feed/biz-promos', verifyFamily, async (req, res) => {
   try {
     const { communityId, familyId } = req.query;
+    if (parseInt(familyId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
     let communityFilter;
     const params = [];
     let pi = 1;
@@ -26733,6 +27374,43 @@ const DOCS_CONFIG = {
     apiPrefix: null,
     _refreshHint: 'missing-modules',
   },
+  'spec-kol-haam': {
+    file: 'public/docs/spec-kol-haam.md',
+    label: 'כל העם — פלטפורמת תוכן',
+    scanFiles: ['public/kol-haam.html', 'public/kol-haam-author.html'],
+    apiPrefix: '/api/kol-haam',
+  },
+  'spec-storefront': {
+    file: 'public/docs/spec-storefront.md',
+    label: 'Storefront — חזית חנות',
+    scanFiles: ['public/storefront.html'],
+    apiPrefix: '/api/storefront',
+  },
+  'spec-marketplace': {
+    file: 'public/docs/spec-marketplace.md',
+    label: 'Marketplace — מרקטפלייס',
+    scanFiles: ['public/marketplace.html'],
+    apiPrefix: '/api/public',
+  },
+  'spec-onboarding': {
+    file: 'public/docs/spec-onboarding.md',
+    label: 'Onboarding — אונבורדינג',
+    scanFiles: ['public/biz-onboarding.html', 'public/family-onboarding.html'],
+    apiPrefix: '/api/biz',
+  },
+  'spec-menu': {
+    file: 'public/docs/spec-menu.md',
+    label: 'תפריט דיגיטלי',
+    scanFiles: ['public/menu.html', 'public/menus.html'],
+    apiPrefix: '/api/menu',
+  },
+  'spec-games': {
+    file: 'public/docs/spec-games.md',
+    label: 'משחקים חינוכיים',
+    scanFiles: [],
+    apiPrefix: null,
+    _refreshHint: 'games',
+  },
 };
 
 // GET /api/sa/docs/meta — returns mtime for each doc
@@ -26749,131 +27427,1368 @@ app.get('/api/sa/docs/meta', verifySA, (req, res) => {
   res.json({ success: true, docs: result });
 });
 
-// POST /api/sa/docs/refresh/:doc — regenerate MD using Claude API
+// ── helpers for code-scan MD generation ───────────────────────────────────────
+function _extractRoutes(serverJs, prefix) {
+  const lines = serverJs.split('\n');
+  const routes = [];
+  lines.forEach((line, i) => {
+    const m = line.match(/app\.(get|post|put|patch|delete)\s*\(\s*['"`]([^'"`]+)/i);
+    if (!m) return;
+    const method = m[1].toUpperCase(), p = m[2];
+    if (prefix && !p.startsWith(prefix)) return;
+    let desc = '';
+    for (let j = Math.max(0, i-4); j < i; j++) {
+      const cm = lines[j].match(/\/[\/\*]\s*(.+)/);
+      if (cm && cm[1].trim().length > 3) desc = cm[1].replace(/\*\/$/, '').trim();
+    }
+    routes.push({ method, path: p, desc });
+  });
+  return routes;
+}
+
+function _extractTables(serverJs) {
+  const lines = serverJs.split('\n');
+  const tables = [];
+  let cur = null;
+  lines.forEach(line => {
+    const tm = line.match(/CREATE TABLE\s+(?:IF NOT EXISTS\s+)?["'`]?(\w+)["'`]?/i);
+    if (tm) { cur = { name: tm[1], cols: [] }; tables.push(cur); return; }
+    if (cur) {
+      const cm = line.match(/^\s{2,}["'`]?(\w+)["'`]?\s+([\w\s()[\]]+?)(?:\s+(?:NOT NULL|DEFAULT|REFERENCES|PRIMARY|UNIQUE|CHECK|GENERATED).*)?,?\s*$/);
+      if (cm && cm[1].toUpperCase() !== 'PRIMARY' && cm[1].toUpperCase() !== 'UNIQUE' && cm[1].toUpperCase() !== 'CHECK' && cm[1].toUpperCase() !== 'CONSTRAINT')
+        cur.cols.push({ name: cm[1], type: cm[2].trim().replace(/\s+/g,' ') });
+      if (/^\s*\);/.test(line)) cur = null;
+    }
+  });
+  return tables;
+}
+
+function _routeTable(routes) {
+  if (!routes.length) return '_אין routes_\n';
+  const rows = routes.map(r => `| \`${r.method}\` | \`${r.path}\` | ${r.desc || ''} |`).join('\n');
+  return `| Method | Path | תיאור |\n|--------|------|--------|\n${rows}\n`;
+}
+
+// extract ALL_TABS array from business-app.js
+function _extractAllTabs(bizAppJs) {
+  const m = bizAppJs.match(/const ALL_TABS\s*=\s*\[([\s\S]*?)\];/);
+  if (!m) return [];
+  const tabs = [];
+  const rx = /\{\s*id:\s*['"`]([^'"`]+)['"`]\s*,\s*name:\s*['"`]([^'"`]+)['"`]/g;
+  let t;
+  while ((t = rx.exec(m[1])) !== null) tabs.push({ id: t[1], name: t[2] });
+  return tabs;
+}
+
+// extract BUSINESS_TYPES array
+function _extractBusinessTypes(bizAppJs) {
+  const m = bizAppJs.match(/const BUSINESS_TYPES\s*=\s*\[([\s\S]*?)\];/);
+  if (!m) return [];
+  const types = [];
+  const rx = /\{\s*id:\s*['"`]([^'"`]+)['"`][^}]*name:\s*['"`]([^'"`]+)['"`][^}]*icon:\s*['"`]([^'"`]+)['"`][^}]*modules:\s*(\[[^\]]*\]|null)/g;
+  let t;
+  while ((t = rx.exec(m[1])) !== null) {
+    const mods = t[4] === 'null' ? [] : t[4].replace(/[\[\]'"`\s]/g,'').split(',').filter(Boolean);
+    types.push({ id: t[1], name: t[2], icon: t[3], modules: mods });
+  }
+  return types;
+}
+
+// extract MODULE_DESCRIPTIONS
+function _extractModuleDesc(bizAppJs) {
+  const m = bizAppJs.match(/const MODULE_DESCRIPTIONS\s*=\s*\{([\s\S]*?)\};/);
+  if (!m) return [];
+  const mods = [];
+  const rx = /(\w+):\s*\{\s*icon:\s*['"`]([^'"`]+)['"`]\s*,\s*name:\s*['"`]([^'"`]+)['"`]\s*,\s*desc:\s*['"`]([^'"`]+)['"`]/g;
+  let t;
+  while ((t = rx.exec(m[1])) !== null) mods.push({ id: t[1], icon: t[2], name: t[3], desc: t[4] });
+  return mods;
+}
+
+// extract EMPLOYEE_ROLE_TYPES
+function _extractRoleTypes(bizAppJs) {
+  const m = bizAppJs.match(/const EMPLOYEE_ROLE_TYPES\s*=\s*\[([\s\S]*?)\];/);
+  if (!m) return [];
+  const roles = [];
+  const rx = /\{\s*id:\s*['"`]([^'"`]+)['"`][^}]*name:\s*['"`]([^'"`]+)['"`][^}]*icon:\s*['"`]([^'"`]+)['"`][^}]*price:\s*(\d+)/g;
+  let t;
+  while ((t = rx.exec(m[1])) !== null) roles.push({ id: t[1], name: t[2], icon: t[3], price: t[4] });
+  return roles;
+}
+
+function _genApiComplete(serverJs, today) {
+  const allRoutes = _extractRoutes(serverJs, null);
+  const prefixes = ['/api/sa','/api/biz','/api/family','/api/zone','/api/community','/api/admin','/api/auth'];
+  let md = `# מפת API מלאה — Oneflow Life\n\n`;
+  md += `> תאריך: ${today}  \n> סה"כ: **${allRoutes.length} endpoints**\n\n---\n\n`;
+  md += `## סיכום לפי prefix\n\n| Prefix | מספר endpoints |\n|--------|----------------|\n`;
+  prefixes.forEach(p => {
+    const cnt = allRoutes.filter(x => x.path.startsWith(p)).length;
+    if (cnt) md += `| \`${p}\` | ${cnt} |\n`;
+  });
+  const otherCnt = allRoutes.filter(x => !prefixes.some(p => x.path.startsWith(p))).length;
+  if (otherCnt) md += `| אחר | ${otherCnt} |\n`;
+  md += '\n---\n\n';
+  prefixes.forEach(p => {
+    const r = allRoutes.filter(x => x.path.startsWith(p));
+    if (!r.length) return;
+    md += `## ${p} (${r.length})\n\n${_routeTable(r)}\n`;
+  });
+  const other = allRoutes.filter(x => !prefixes.some(p => x.path.startsWith(p)));
+  if (other.length) md += `## אחר (${other.length})\n\n${_routeTable(other)}\n`;
+  return md;
+}
+
+function _genDbSchema(serverJs, today) {
+  const tables = _extractTables(serverJs);
+  // group by name prefix
+  const groups = { משתמשים: [], קהילות: [], עסקים: [], תשלומים: [], תוכן: [], אחר: [] };
+  tables.forEach(t => {
+    const n = t.name;
+    if (/^(users|family_groups|family_members|family_communities|communities)/.test(n)) groups['משתמשים'].push(t);
+    else if (/^(community|zone)/.test(n)) groups['קהילות'].push(t);
+    else if (/^(biz|store|orders|products|customers|shifts|timeclock|work_orders|kds)/.test(n)) groups['עסקים'].push(t);
+    else if (/^(payment|billing|invoice|wallet|coins|transactions|subscriptions)/.test(n)) groups['תשלומים'].push(t);
+    else if (/^(posts|comments|notifications|surveys|academy|tickets)/.test(n)) groups['תוכן'].push(t);
+    else groups['אחר'].push(t);
+  });
+  let md = `# סכמת DB מלאה — Oneflow Life\n\n`;
+  md += `> תאריך: ${today}  \n> סה"כ: **${tables.length} טבלאות**\n\n---\n\n`;
+  Object.entries(groups).forEach(([g, tbls]) => {
+    if (!tbls.length) return;
+    md += `## ${g}\n\n`;
+    tbls.forEach(t => {
+      md += `### \`${t.name}\`\n\n`;
+      if (t.cols.length) {
+        md += `| עמודה | טיפוס |\n|-------|-------|\n`;
+        t.cols.forEach(c => { md += `| \`${c.name}\` | ${c.type} |\n`; });
+      }
+      md += '\n';
+    });
+  });
+  return md;
+}
+
+function _genBizEnv(serverJs, bizAppJs, today) {
+  const routes = _extractRoutes(serverJs, '/api/biz');
+  const allTabs = _extractAllTabs(bizAppJs);
+  const bizTypes = _extractBusinessTypes(bizAppJs);
+  const modules = _extractModuleDesc(bizAppJs);
+  const roleTypes = _extractRoleTypes(bizAppJs);
+
+  let md = `# מפרט טכני — סביבת BIZ (Oneflow Life)\n\n`;
+  md += `> תאריך: ${today}  \n> קובץ: \`public/business.html\` + \`business-app.js\`  \n> Backend: \`server.js\` → prefix \`/api/biz\`\n\n---\n\n`;
+
+  md += `## 1. מטרה ותפקיד הסביבה\n\n`;
+  md += `סביבת BIZ היא לוח הבקרה של בעל העסק ועובדיו. היא מאפשרת ניהול מלא של תהליכי העסק — הזמנות, לקוחות, צוות, מלאי, תפריט, תשלומים, שיווק ועוד — הכל ממקום אחד. הסביבה **מותאמת לסוג העסק** שנבחר באונבורדינג: מסעדה רואה מודולים אחרים ממספרה או ממאמן כושר.\n\n`;
+  md += `המושג המרכזי: **billing_config** — מסמך JSON שמגדיר אילו מודולים פתוחים לעסק הספציפי. כל ניסיון לגשת למודול שאינו ב-billing_config מציג modal שדורש שדרוג.\n\n`;
+
+  md += `## 2. סוגי משתמשים\n\n`;
+  md += `| תפקיד | מי זה | מה הוא יכול |\n|--------|--------|-------------|\n`;
+  md += `| **ADMIN** | בעל עסק / מנכ"ל | גישה מלאה לכל מה שפתוח ב-billing_config; ניהול עובדים, billing, הגדרות |\n`;
+  md += `| **MANAGER** | מנהל זוטר | גישה לטאבים פתוחים שהוקצו לו; אין גישה ל-billing |\n`;
+  md += `| **SENIOR** | עובד בכיר | גישה מוגבלת — לפי הרשאות מפורשות שהוגדרו |\n`;
+  md += `| **MEMBER** | עובד רגיל | גישה מינימלית — מה שהוקצה מפורשות בלבד |\n\n`;
+
+  md += `## 3. ארכיטקטורה טכנית\n\n`;
+  md += `- **Frontend**: Vanilla JS + TailwindCSS (ללא framework)\n`;
+  md += `- **Backend**: Node.js / Express + PostgreSQL (Render.com)\n`;
+  md += `- **אימות**: JWT token ב-\`Authorization: Bearer\` header → middleware \`verifyBiz()\`\n`;
+  md += `- **קובץ ראשי**: \`business-app.js\` — טוען את כל המודולים, מנהל navigation ומצב\n`;
+  md += `- **ניווט**: \`GNAV_GROUPS\` (5 קבוצות ניווט) + \`ALL_TABS\` + \`BUSINESS_TYPES[].modules[]\`\n\n`;
+
+  md += `## 4. לוגיקות מרכזיות\n\n`;
+  md += `### 4.1 מחזור חיי טאב\n`;
+  md += `\`\`\`\nloadBizDashboard()\n  → fetch /api/biz/me  (billing_config + profile)\n  → applyBusinessTypeFilter()  (מסנן GNAV_GROUPS לפי business_type)\n  → renderNav()  (מציג רק טאבים פתוחים)\n  → switchTab('dashboard')  (טאב ברירת מחדל)\n\`\`\`\n\n`;
+  md += `### 4.2 חסימת מודולים\n`;
+  md += `\`\`\`\nswitchTab(tabId)\n  → בדיקה: האם tabId קיים ב-billing_config.modules עם open:true?\n  → כן → render הטאב\n  → לא → showUpgradeModal(tabId)  (modal עם כפתור שדרוג)\n\`\`\`\n\n`;
+  md += `### 4.3 סוג עסק\n`;
+  md += `- נבחר **פעם אחת** בלבד — באונבורדינג (wiz-2) או ע"י SA\n`;
+  md += `- קובע אילו מודולים ייוצגו כברירת מחדל ב-billing_config\n`;
+  md += `- **לא ניתן לשנות** מממשק BIZ הרגיל\n\n`;
+
+  md += `## 5. השפעות על מערכות אחרות\n\n`;
+  md += `| מערכת | השפעה |\n|--------|--------|\n`;
+  md += `| **FAMILY** | לקוח שמבצע הזמנה ב-Storefront → מופיע כ-order בBIZ |\n`;
+  md += `| **Zone Manager** | ZM מאשר עסק חדש → מאפשר פתיחת billing_config |\n`;
+  md += `| **Super Admin** | SA שולט על billing, impersonation, ובחירת business_type |\n`;
+  md += `| **Storefront** | שינוי מוצרים/תפריט ב-BIZ → מתעדכן מיידית ב-Storefront הציבורי |\n`;
+  md += `| **כל העם** | עסק יכול לפרסם תוכן מקצועי דרך מודול KH |\n\n`;
+
+  md += `## 6. חוקיות ואילוצים\n\n`;
+  md += `- **חוק 1**: בחירת סוג עסק — **רק** באונבורדינג או SA. לעולם לא ממסך BIZ הרגיל\n`;
+  md += `- **חוק 2**: כל גישה ל-API דורשת \`verifyBiz\` — אין endpoints פתוחים ל-BIZ ללא אימות\n`;
+  md += `- **חוק 3**: MEMBER לא יכול לשנות billing_config, להוסיף עובדים, או לגשת ל-/api/sa\n`;
+  md += `- **חוק 4**: tabs עם \`data-beauty-only="1"\` מוסתרים כברירת מחדל — מופיעים רק ל-beauty\n`;
+  md += `- **חוק 5**: \`applyBusinessTypeFilter()\` חייב לרוץ אחרי כל שינוי ב-billing_config\n\n`;
+
+  md += `## 7. טאבים ומסכים (${allTabs.length})\n\n`;
+  md += `| ID | שם |\n|----|----|\n`;
+  allTabs.forEach(t => { md += `| \`${t.id}\` | ${t.name} |\n`; });
+  md += '\n';
+
+  md += `## 8. מודולים — תיאור מלא (${modules.length})\n\n`;
+  md += `| מזהה | שם | תיאור |\n|------|-----|-------|\n`;
+  modules.forEach(m => { md += `| ${m.icon} \`${m.id}\` | ${m.name} | ${m.desc} |\n`; });
+  md += '\n';
+
+  md += `## 9. סוגי עסק ומודולים (${bizTypes.length})\n\n`;
+  bizTypes.forEach(bt => {
+    md += `### ${bt.icon} ${bt.name} (\`${bt.id}\`)\n\n`;
+    if (bt.modules.length) md += bt.modules.map(m => `\`${m}\``).join(', ') + '\n\n';
+    else md += '_כל המודולים_\n\n';
+  });
+
+  md += `## 10. תפקידי עובדים (${roleTypes.length})\n\n`;
+  md += `| ID | שם | מחיר/חודש |\n|----|-----|----------|\n`;
+  roleTypes.forEach(r => { md += `| ${r.icon} \`${r.id}\` | ${r.name} | ₪${r.price} |\n`; });
+  md += '\n';
+
+  md += `## 11. נתיבי API (${routes.length})\n\n${_routeTable(routes)}\n`;
+  return md;
+}
+
+// extract ALL_TABS from app.js (family env)
+function _extractFamilyTabs(appJs) {
+  const m = appJs.match(/const ALL_TABS\s*=\s*\[([\s\S]*?)\];/);
+  if (!m) return [];
+  const tabs = [];
+  const rx = /\{\s*id:\s*['"`]([^'"`]+)['"`]\s*,\s*name:\s*['"`]([^'"`]+)['"`]/g;
+  let t;
+  while ((t = rx.exec(m[1])) !== null) tabs.push({ id: t[1], name: t[2] });
+  return tabs;
+}
+
+function _extractFamilyRoles(appJs) {
+  const m = appJs.match(/const ROLE_DEFAULTS\s*=\s*\{([\s\S]*?)\};/);
+  if (!m) return {};
+  const roles = {};
+  const rx = /['"`](\w+)['"`]\s*:\s*\[([^\]]*)\]/g;
+  let r;
+  while ((r = rx.exec(m[1])) !== null) {
+    roles[r[1]] = r[2].replace(/['"`\s]/g,'').split(',').filter(Boolean);
+  }
+  return roles;
+}
+
+function _extractFamilyNavGroups(appJs) {
+  const m = appJs.match(/const FAMILY_GNAV_GROUPS\s*=\s*\{([\s\S]*?)\};/);
+  if (!m) return {};
+  const groups = {};
+  const rx = /(\w+)\s*:\s*\[([^\]]*)\]/g;
+  let g;
+  while ((g = rx.exec(m[1])) !== null) {
+    groups[g[1]] = g[2].replace(/['"`\s]/g,'').split(',').filter(Boolean);
+  }
+  return groups;
+}
+
+function _genFamilyEnv(serverJs, appJs, today) {
+  const routes = _extractRoutes(serverJs, '/api/family');
+  const authRoutes = _extractRoutes(serverJs, '/api/auth');
+  const commRoutes = _extractRoutes(serverJs, '/api/community');
+  const tabs = _extractFamilyTabs(appJs);
+  const roles = _extractFamilyRoles(appJs);
+  const navGroups = _extractFamilyNavGroups(appJs);
+
+  let md = `# מפרט טכני — סביבת FAMILY (Oneflow Life)\n\n`;
+  md += `> תאריך: ${today}  \n> קבצים: \`public/index.html\` + \`public/app.js\`  \n> Backend prefix: \`/api/family\`\n\n---\n\n`;
+
+  md += `## 1. מטרה ותפקיד הסביבה\n\n`;
+  md += `סביבת FAMILY היא "הבית הדיגיטלי" של המשפחה — הסביבה הצרכנית המרכזית במערכת. היא נותנת מענה לשני צרכים במקביל: (א) ניהול חיי המשפחה הפנימיים (תקציב, משימות, קניות, חינוך), ו-(ב) ממשק לצריכת שירותי עסקים קהילתיים (הזמנות, מרקטפלייס, תוכן מקומי).\n\n`;
+  md += `הסביבה בנויה על ה-URL הראשי (\`/\`) ומגישה ל**כל** חברי המשפחה — מהורים עד ילדים — עם חוויה המותאמת לתפקיד. ADMIN המשפחה שולט על הגדרות הבית; MEMBER רואה רק את מה שהוקצה לו.\n\n`;
+
+  md += `## 2. סוגי משתמשים\n\n`;
+  md += `| תפקיד | מי זה | מה הוא יכול |\n|--------|--------|-------------|\n`;
+  md += `| **ADMIN** | הורה / ראש משפחה | ניהול מלא — תקציב, חברים, הגדרות קהילה, הרשאות |\n`;
+  md += `| **MEMBER** | בן/בת זוג, ילד | גישה לטאבים שהוקצו — משימות, קניות, מרקטפלייס |\n`;
+  md += `| **GUEST** | מוזמן זמני | צפייה בלבד בחלקים ציבוריים |\n\n`;
+
+  md += `## 3. לוגיקות מרכזיות\n\n`;
+  md += `### 3.1 טעינה ראשונית\n`;
+  md += `\`\`\`\nDOMContentLoaded\n  → checkAuth()  (JWT מ-localStorage)\n  → אין token → /login\n  → יש token → loadFamilyDashboard()\n    → fetch /api/family/me  (פרופיל + תפקיד + קהילה)\n    → renderNav(role)  (לפי ROLE_DEFAULTS)\n    → switchTab('home')\n\`\`\`\n\n`;
+  md += `### 3.2 הרשאות לפי תפקיד\n`;
+  md += `\`ROLE_DEFAULTS\` מגדיר אילו טאבים גלויים לכל תפקיד. \`switchTab(id)\` בודק האם הטאב מורשה לפני render — אחרת redirect לטאב ראשי.\n\n`;
+  md += `### 3.3 קהילה\n`;
+  md += `כל משפחה שייכת לקהילה גיאוגרפית. הקהילה קובעת: אילו עסקים מופיעים במרקטפלייס, אילו כתבות מופיעות ב-"כל העם" ב-scope=local, ואיזה ZM מנהל את האזור.\n\n`;
+
+  md += `## 4. השפעות על מערכות אחרות\n\n`;
+  md += `| מערכת | השפעה |\n|--------|--------|\n`;
+  md += `| **BIZ** | הזמנה שמשפחה שולחת → order ב-BIZ של העסק |\n`;
+  md += `| **Marketplace** | FAMILY גולשת ב-marketplace.html לחיפוש עסקים |\n`;
+  md += `| **כל העם** | FAMILY קוראת ומגיבה לכתבות קהילתיות |\n`;
+  md += `| **Zone Manager** | ZM מנהל את הקהילה שהמשפחה שייכת אליה |\n`;
+  md += `| **Super Admin** | SA יכול ל-impersonate חשבון FAMILY לטיפול בבעיות |\n`;
+  md += `| **Games** | ילדים משחקים → נקודות נצברות בפרופיל FAMILY |\n\n`;
+
+  md += `## 5. חוקיות ואילוצים\n\n`;
+  md += `- **חוק 1**: אין גישה ל-FAMILY ללא JWT תקף — כל endpoint מוגן ע"י \`verifyFamily\`\n`;
+  md += `- **חוק 2**: MEMBER לא יכול לשנות הרשאות של חברים אחרים\n`;
+  md += `- **חוק 3**: שינוי קהילה — דורש אישור ADMIN + אישור ZM של הקהילה החדשה\n`;
+  md += `- **חוק 4**: ילד (MEMBER עם גיל < 13) — גישה למשחקים ואקדמיה בלבד ברירת מחדל\n`;
+  md += `- **חוק 5**: תקציב משפחתי — נגיש רק לתפקיד ADMIN או MEMBER עם הרשאה מפורשת\n\n`;
+
+  if (tabs.length) {
+    md += `## 6. טאבים ומסכים (${tabs.length})\n\n`;
+    md += `| ID | שם |\n|----|----|\n`;
+    tabs.forEach(t => { md += `| \`${t.id}\` | ${t.name} |\n`; });
+    md += '\n';
+  }
+
+  if (Object.keys(navGroups).length) {
+    md += `## 7. ניווט — קבוצות (FAMILY_GNAV_GROUPS)\n\n`;
+    Object.entries(navGroups).forEach(([g, tbs]) => {
+      md += `**${g}**: ${tbs.map(t=>`\`${t}\``).join(', ')}\n\n`;
+    });
+  }
+
+  if (Object.keys(roles).length) {
+    md += `## 8. הרשאות לפי תפקיד (ROLE_DEFAULTS)\n\n`;
+    md += `| תפקיד | טאבים זמינים |\n|--------|-------------|\n`;
+    Object.entries(roles).forEach(([role, tbs]) => {
+      md += `| **${role}** | ${tbs.map(t=>`\`${t}\``).join(', ')} |\n`;
+    });
+    md += '\n';
+  }
+
+  md += `## 9. נתיבי API — Family (${routes.length})\n\n${_routeTable(routes)}\n`;
+  md += `## 10. נתיבי Auth (${authRoutes.length})\n\n${_routeTable(authRoutes)}\n`;
+  if (commRoutes.length) md += `## 11. נתיבי Community (${commRoutes.length})\n\n${_routeTable(commRoutes)}\n`;
+
+  return md;
+}
+
+function _genZoneEnv(serverJs, zoneAppJs, today) {
+  const routes   = _extractRoutes(serverJs, '/api/zone');
+  const zmRoutes = _extractRoutes(serverJs, '/api/zone-manager');
+
+  const zmTabsM = zoneAppJs.match(/zmSwitchTab.*?\[([^\]]+)\]/);
+  const zmTabs  = zmTabsM ? zmTabsM[1].replace(/['"`\s]/g,'').split(',').filter(Boolean) : [];
+
+  const leadTypeM   = zoneAppJs.match(/LEAD_TYPE_LABELS\s*=\s*\{([^}]+)\}/);
+  const leadStatusM = zoneAppJs.match(/LEAD_STATUS_LABELS\s*=\s*\{([^}]+)\}/);
+  const actionLabelsM = zoneAppJs.match(/ACTION_LABELS\s*=\s*\{([^}]+)\}/);
+
+  let md = `# מפרט טכני — Zone Manager וקהילות (Oneflow Life)\n\n`;
+  md += `> תאריך: ${today}  \n> קובץ: \`public/zone-manager.html\` + \`public/zone-manager-app.js\`  \n> Backend prefixes: \`/api/zone\` · \`/api/zone-manager\`\n\n---\n\n`;
+
+  md += `## 1. מטרה ותפקיד הסביבה\n\n`;
+  md += `Zone Manager (ZM) הוא השכבה המבצעית שמחברת בין Oneflow (SA) לבין הקהילות המקומיות בשטח. כל ZM אחראי על **אזור גיאוגרפי** אחד (קהילה אחת או מספר קהילות קרובות).\n\n`;
+  md += `ה-ZM הוא "שגריר השטח" — הוא מגייס עסקים חדשים לפלטפורמה, מאשר את הצטרפותם, מנהל לידים, מריץ קמפיינים שיווקיים מקומיים, ומפקח על תוכן קהילתי (כל העם). הוא נמצא בין SA שמנהל מלמעלה לבין העסקים שפועלים בשטח.\n\n`;
+  md += `כל עסק שנרשם — עובר דרך ZM לאישור. כל תוכן מקומי שמפורסם — עובר אישור ZM. הוא גם מקבל עמלה על כל עסק שגייס.\n\n`;
+
+  md += `## 2. סוגי משתמשים\n\n`;
+  md += `| תפקיד | מי זה | מה הוא יכול |\n|--------|--------|-------------|\n`;
+  md += `| **ZONE_MANAGER** | מנהל אזור | ניהול מלא של הקהילות שלו — עסקים, תוכן, לידים, קמפיינים |\n`;
+  md += `| **SUPER_ADMIN** | SA | גישה לכל ה-ZM, מינוי/הסרת ZM, גישה לנתונים |\n`;
+  md += `- ZM **אינו** יכול לגשת לקהילות מחוץ לאזור שלו\n`;
+  md += `- ZM **אינו** יכול לשנות billing_config של עסקים — זה SA בלבד\n\n`;
+
+  md += `## 3. לוגיקות מרכזיות\n\n`;
+  md += `### 3.1 אישור עסק חדש\n`;
+  md += `\`\`\`\nעסק נרשם (בiz-onboarding)\n  → יוצר biz_request ב-DB\n  → ZM מקבל התראה (WhatsApp + inbox)\n  → ZM בודק: מיקום, סוג עסק, ניירת\n  → לחיצה "אשר" → status='active', עסק נפתח ב-BIZ\n  → לחיצה "דחה" → email אוטומטי לעסק עם סיבה\n\`\`\`\n\n`;
+  md += `### 3.2 מחזור חיי ליד\n`;
+  md += `\`\`\`\nZM יוצר ליד (עסק פוטנציאלי)\n  → lead.status = 'new'\n  → ZM מבצע פעולות CRM (שיחה, פגישה, הצעה)\n  → status: new → contacted → meeting → proposal → signed / lost\n  → signed → ייצור biz_request אוטומטי\n\`\`\`\n\n`;
+  md += `### 3.3 עמלות\n`;
+  md += `ZM מקבל % מההכנסה של כל עסק שגייס. המערכת מחשבת עמלה חודשית ומוצגת בטאב "commissions".\n\n`;
+
+  md += `## 4. השפעות על מערכות אחרות\n\n`;
+  md += `| מערכת | השפעה |\n|--------|--------|\n`;
+  md += `| **BIZ** | ZM מאשר עסקים חדשים לפני שיכולים לפעול |\n`;
+  md += `| **FAMILY** | קהילות ש-ZM מנהל → מה שמשפחות רואות ב-marketplace |\n`;
+  md += `| **כל העם** | ZM מאשר/דוחה תוכן מקומי בתור עורך |\n`;
+  md += `| **Super Admin** | SA מפקח על ZM, מציב יעדים, מחלק עמלות |\n\n`;
+
+  md += `## 5. חוקיות ואילוצים\n\n`;
+  md += `- **חוק 1**: ZM גש רק לקהילות שמוקצות לו (zone_id check בכל endpoint)\n`;
+  md += `- **חוק 2**: ZM לא יכול לאשר עסק מחוץ לאזור שלו\n`;
+  md += `- **חוק 3**: אישור תוכן כל העם — ZM רשאי לאשר scope=local בלבד; scope=national → SA\n`;
+  md += `- **חוק 4**: ZM לא יכול לשנות מחירי subscription — SA בלבד\n`;
+  md += `- **חוק 5**: ב-impersonation ע"י SA — הפעולות נרשמות ב-audit log עם flag 'impersonated'\n\n`;
+
+  if (zmTabs.length) {
+    md += `## 6. טאבים — Zone Manager UI\n\n`;
+    md += `| Tab ID | תיאור |\n|--------|-------|\n`;
+    const tabDesc = { zones:'ניהול קהילות באזור', 'biz-requests':'בקשות עסקים ממתינות', marketing:'קמפיינים שיווקיים', leads:'לידים וגיוס', inbox:'הודעות נכנסות', commissions:'עמלות', content:'תוכן', 'kol-haam':'כל העם — אישור תוכן' };
+    zmTabs.forEach(t => { md += `| \`${t}\` | ${tabDesc[t] || ''} |\n`; });
+    md += '\n';
+  }
+
+  if (leadTypeM) {
+    md += `## 7. סוגי לידים\n\n`;
+    md += leadTypeM[1].trim().split(',').map(p => `- ${p.replace(/['"`]/g,'').replace(':','**: **').trim()}`).join('\n');
+    md += '\n\n';
+  }
+
+  if (leadStatusM) {
+    md += `## 8. סטטוסי ליד\n\n`;
+    md += leadStatusM[1].trim().split(',').map(p => `- ${p.replace(/['"`]/g,'').replace(':','**: **').trim()}`).join('\n');
+    md += '\n\n';
+  }
+
+  if (actionLabelsM) {
+    md += `## 9. סוגי פעולות CRM\n\n`;
+    md += actionLabelsM[1].trim().split(',').map(p => `- ${p.replace(/['"`]/g,'').replace(':','**: **').trim()}`).join('\n');
+    md += '\n\n';
+  }
+
+  md += `## 10. נתיבי API — zone (${routes.length})\n\n${_routeTable(routes)}\n`;
+  if (zmRoutes.length) md += `## 11. נתיבי API — zone-manager (${zmRoutes.length})\n\n${_routeTable(zmRoutes)}\n`;
+  return md;
+}
+
+function _extractSAModules(saAppJs) {
+  const m = saAppJs.match(/const SA_MODULE_LIST\s*=\s*\[([\s\S]*?)\];/);
+  if (!m) return [];
+  const mods = [];
+  const rx = /key\s*:\s*['"`]([^'"`]+)['"`][^}]*icon\s*:\s*['"`]([^'"`]+)['"`][^}]*name\s*:\s*['"`]([^'"`]+)['"`]/g;
+  let t;
+  while ((t = rx.exec(m[1])) !== null) mods.push({ key: t[1], icon: t[2], name: t[3] });
+  return mods;
+}
+
+function _extractKHSATabs(saAppJs) {
+  const m = saAppJs.match(/const KH_SA_TABS\s*=\s*\[([\s\S]*?)\];/);
+  if (!m) return [];
+  const tabs = [];
+  const rx = /key\s*:\s*['"`]([^'"`]+)['"`][^}]*label\s*:\s*['"`]([^'"`]+)['"`]/g;
+  let t;
+  while ((t = rx.exec(m[1])) !== null) tabs.push({ key: t[1], label: t[2] });
+  return tabs;
+}
+
+function _genSAEnv(serverJs, saHtml, saAppJs, today) {
+  const routes    = _extractRoutes(serverJs, '/api/sa');
+  const saModules = _extractSAModules(saAppJs);
+  const khTabs    = _extractKHSATabs(saAppJs);
+
+  const sections = [...saHtml.matchAll(/data-section=['"]([^'"]+)['"]/g)].map(m => m[1]).filter(Boolean).slice(0, 50);
+
+  let md = `# מפרט טכני — Super Admin (Oneflow Life)\n\n`;
+  md += `> תאריך: ${today}  \n> קבצים: \`public/sa.html\` + \`public/sa-app.js\`  \n> Backend prefix: \`/api/sa\`\n\n---\n\n`;
+
+  md += `## 1. מטרה ותפקיד הסביבה\n\n`;
+  md += `Super Admin (SA) הוא לוח הבקרה הכול-יכול של Oneflow — הגישה העליונה לכלל המערכת. כניסה מחייבת אימות ויצירת session token דינמי.\n\n`;
+  md += `ה-SA מנהל: **לקוחות** (Family + BIZ), **billing ו-subscriptions**, **Zone Managers**, **banners פרסומיים**, **SMS ו-AI**, **כל העם (KH)**, **impersonation** לכניסה לחשבון של כל משתמש לצרכי תמיכה, **אפיון ומסמכי מערכת** (הטאב שבו קיים הכפתור לעדכון מסמכים אלה), **הגדרות גלובליות** של הפלטפורמה.\n\n`;
+  md += `SA היא הסביבה שמבצעת פעולות שאסורות לכל שאר הסביבות — כולל בחירת/שינוי business_type, מתן גישות מיוחדות, וניהול כספי.\n\n`;
+
+  md += `## 2. סוגי משתמשים\n\n`;
+  md += `| תפקיד | תיאור |\n|--------|-------|\n`;
+  md += `| **SUPER_ADMIN** | גישה מלאה — כל endpoint, כל פעולה |\n`;
+  md += `| **SA_VIEWER** | קריאה בלבד (אם קיים — לצוות תמיכה) |\n`;
+  md += `- SA **אינו** יכול להיות מאומת ע"י JWT רגיל — דורש SA token נפרד\n`;
+  md += `- כל פעולת SA רגישה נרשמת ב-audit log\n\n`;
+
+  md += `## 3. לוגיקות מרכזיות\n\n`;
+  md += `### 3.1 Impersonation\n`;
+  md += `\`\`\`\nSA בוחר משתמש → POST /api/sa/impersonate/{userId}\n  → מקבל JWT זמני של המשתמש\n  → כניסה ל-BIZ / FAMILY כאותו משתמש\n  → כל פעולה מסומנת 'impersonated_by_sa' ב-audit\n  → SA חוזר עם "exit impersonation"\n\`\`\`\n\n`;
+  md += `### 3.2 עדכון billing_config\n`;
+  md += `\`\`\`\nSA בוחר עסק → שולח billing bundle/modules\n  → POST /api/sa/biz/{bizId}/billing\n  → DB מתעדכן\n  → העסק מקבל push notification / email\n  → ב-BIZ: applyBusinessTypeFilter() ירוץ בטעינה הבאה\n\`\`\`\n\n`;
+  md += `### 3.3 עדכון מסמכי אפיון (מסמך זה)\n`;
+  md += `\`\`\`\nSA → טאב "אפיון" → לחיצה "עדכן"\n  → POST /api/sa/docs/refresh/{doc}\n  → server.js סורק קבצי JS/HTML\n  → מחולץ מידע ונכתב ל-.md\n  → response: { success, lines }\n\`\`\`\n\n`;
+
+  md += `## 4. יכולות עיקריות\n\n`;
+  md += `| יכולת | תיאור |\n|--------|-------|\n`;
+  md += `| לקוחות | צפייה, חיפוש, עריכה, suspend/restore |\n`;
+  md += `| עסקים | אישור, billing, impersonation, business_type |\n`;
+  md += `| Zone Managers | מינוי, אזורים, עמלות, ביצועים |\n`;
+  md += `| billing | subscriptions, חיובים, היסטוריה |\n`;
+  md += `| banners | יצירה, שיוך לקהילות, לוח זמנים |\n`;
+  md += `| SMS / AI | שליחת הודעות, AI prompt management |\n`;
+  md += `| כל העם | sa-queue, כותבים, קטגוריות, כלכלה |\n`;
+  md += `| אפיון | עדכון מסמכי מפרט טכני |\n\n`;
+
+  md += `## 5. השפעות על מערכות אחרות\n\n`;
+  md += `| מערכת | השפעה |\n|--------|--------|\n`;
+  md += `| **BIZ** | SA שולט על billing_config וbusiness_type |\n`;
+  md += `| **FAMILY** | SA יכול לנהל/suspend חשבונות משפחה |\n`;
+  md += `| **Zone Manager** | SA ממנה ומנהל ZMs |\n`;
+  md += `| **כל העם** | SA אחראי על sa-queue — תוכן ארצי |\n`;
+  md += `| **כל המערכת** | הגדרות גלובליות (feature flags, maintenance mode) |\n\n`;
+
+  md += `## 6. חוקיות ואילוצים\n\n`;
+  md += `- **חוק 1**: \`verifySA()\` — כל endpoint SA דורש SA token; JWT רגיל נדחה ב-403\n`;
+  md += `- **חוק 2**: impersonation — לא ניתן ל-impersonate SA אחר\n`;
+  md += `- **חוק 3**: שינוי business_type — רשאי **רק** SA (ו-wizard ראשוני)\n`;
+  md += `- **חוק 4**: מחיקת עסק / משפחה — soft-delete בלבד; hard-delete דורש אישור שני מ-SA אחר\n`;
+  md += `- **חוק 5**: audit log — כל POST/PATCH/DELETE של SA נרשם עם timestamp + SA user id\n\n`;
+
+  md += `## 7. אימות\n\n`;
+  md += `- Token: session token דינמי (נוצר בעת login, מאוחסן ב-sa_sessions)\n`;
+  md += `- Headers: \`Authorization: Bearer <token>\` או \`x-sa-token: <token>\`\n`;
+  md += `- Middleware: \`verifySA()\`\n\n`;
+
+  if (sections.length) {
+    md += `## 8. סקשנים ב-UI (data-section)\n\n${sections.map(s => `- \`${s}\``).join('\n')}\n\n`;
+  }
+
+  if (saModules.length) {
+    md += `## 9. מודולי FAMILY (SA_MODULE_LIST) — ${saModules.length} מודולים\n\n`;
+    md += `| Key | שם |\n|-----|----|\n`;
+    saModules.forEach(m => { md += `| ${m.icon} \`${m.key}\` | ${m.name} |\n`; });
+    md += '\n';
+  }
+
+  if (khTabs.length) {
+    md += `## 10. טאבים — כל העם (KH_SA_TABS)\n\n`;
+    md += `| Key | תווית |\n|-----|-------|\n`;
+    khTabs.forEach(t => { md += `| \`${t.key}\` | ${t.label} |\n`; });
+    md += '\n';
+  }
+
+  md += `## 11. נתיבי API (${routes.length})\n\n${_routeTable(routes)}\n`;
+  return md;
+}
+
+function _genMissingModules(bizAppJs, today) {
+  const modules = _extractModuleDesc(bizAppJs);
+  const bizTypes = _extractBusinessTypes(bizAppJs);
+  const roleTypes = _extractRoleTypes(bizAppJs);
+
+  let md = `# מודולים מתקדמים — Oneflow Life\n\n`;
+  md += `> תאריך: ${today}\n\n---\n\n`;
+
+  md += `## 1. כל המודולים עם תיאור (${modules.length})\n\n`;
+  md += `| מזהה | שם | תיאור |\n|------|-----|-------|\n`;
+  modules.forEach(m => { md += `| ${m.icon} \`${m.id}\` | ${m.name} | ${m.desc} |\n`; });
+  md += '\n';
+
+  md += `## 2. מודולים לפי סוג עסק\n\n`;
+  bizTypes.forEach(bt => {
+    md += `### ${bt.icon} ${bt.name}\n\`${bt.modules.join('`, `')}\`\n\n`;
+  });
+
+  md += `## 3. תפקידי עובדים\n\n`;
+  md += `| מזהה | שם | מחיר |\n|----|-----|------|\n`;
+  roleTypes.forEach(r => { md += `| ${r.icon} \`${r.id}\` | ${r.name} | ₪${r.price}/חודש |\n`; });
+
+  return md;
+}
+
+function _genQaBook(serverJs, today) {
+  const routes = _extractRoutes(serverJs, null);
+  const gets  = routes.filter(r => r.method === 'GET');
+  const posts  = routes.filter(r => r.method === 'POST');
+  const patches = routes.filter(r => r.method === 'PATCH');
+  const dels   = routes.filter(r => r.method === 'DELETE');
+
+  let md = `# ספר QA — Oneflow Life\n\n`;
+  md += `> תאריך: ${today}  \n> בסיס: **${routes.length} endpoints** (GET:${gets.length} POST:${posts.length} PATCH:${patches.length} DELETE:${dels.length})\n\n---\n\n`;
+
+  const safeGuard = (arr, label, suffix) => {
+    md += `## ${label}\n\n`;
+    arr.slice(0, 80).forEach(r => { md += `- [ ] \`${r.method} ${r.path}\`${r.desc ? ` — ${r.desc}` : ''} ${suffix}\n`; });
+    md += '\n';
+  };
+
+  safeGuard(gets, 'Smoke Tests — GET', '→ ציפייה: 200 (עם token) / 401 (בלי token)');
+  safeGuard(posts, 'Edge Cases — POST', '→ ללא body: 400; body תקין: 200/201');
+  safeGuard(patches, 'Edge Cases — PATCH', '→ שדות חסרים: 400; עדכון תקין: 200');
+  safeGuard(dels, 'Edge Cases — DELETE', '→ ID לא קיים: 404; הצלחה: 200');
+
+  md += `## בדיקות regression\n\n`;
+  md += `- [ ] התחברות ויציאה בכל סביבה (Family / BIZ / SA / ZM)\n`;
+  md += `- [ ] MEMBER לא יכול לגשת ל-\`/api/sa/*\`\n`;
+  md += `- [ ] MEMBER לא יכול לגשת לטאב שלא בbilling_config\n`;
+  md += `- [ ] billing_config bundle — פרסור modules מ-desc\n`;
+  md += `- [ ] switchTab לטאב נעול → modal מוצג\n`;
+  md += `- [ ] עדכון שם עסק inline → נשמר ב-DB\n`;
+
+  return md;
+}
+function _genKolHaam(serverJs, kolHaamAppJs, today) {
+  const routes = _extractRoutes(serverJs, '/api/kol-haam');
+
+  // extract TYPE_LABELS / TYPE_ICONS
+  const typeLabelsM = kolHaamAppJs.match(/(?:KH_)?TYPE_LABELS\s*=\s*\{([^}]+)\}/);
+  const typeIconsM  = kolHaamAppJs.match(/(?:KH_)?TYPE_ICONS\s*=\s*\{([^}]+)\}/);
+  const statusMetaM = kolHaamAppJs.match(/KH_STATUS_META\s*=\s*\{([^}]+)\}/);
+
+  // extract scopes
+  const scopeM = kolHaamAppJs.match(/(?:KH_)?SCOPES?\s*=\s*\[([\s\S]*?)\]/);
+
+  // extract views via switchView / showView / data-view
+  const viewRefs = [...new Set([
+    ...[...kolHaamAppJs.matchAll(/(?:switchView|showView)\(['"`]([a-z_\-]+)['"`]\)/g)].map(m=>m[1]),
+    ...[...kolHaamAppJs.matchAll(/data-view=['"]([a-z_\-]+)['"]/g)].map(m=>m[1]),
+  ])];
+
+  // extract KH_SA_TABS if present
+  const khSATabsRaw = [...kolHaamAppJs.matchAll(/\{\s*key\s*:\s*['"]([^'"]+)['"]\s*,\s*label\s*:\s*['"]([^'"]+)['"]/g)].map(m=>({key:m[1],label:m[2]}));
+
+  // known views (fallback if regex misses)
+  const KNOWN_VIEWS = [
+    { id: 'feed',         name: 'עדכון ראשי',       desc: 'כתבות לפי scope (קהילתי/ארצי/עוקבים)' },
+    { id: 'editor',       name: 'עורך תוכן',         desc: 'כתיבה ועריכת כתבות — rich text' },
+    { id: 'content',      name: 'פרטי תוכן',         desc: 'קריאת כתבה בודדת, תגובות, שיתוף' },
+    { id: 'my-drafts',    name: 'טיוטות שלי',        desc: 'רשימת טיוטות הכותב שלא פורסמו' },
+    { id: 'my-content',   name: 'תוכן שלי',          desc: 'ארכיון כתבות שפרסם הכותב' },
+    { id: 'zm-queue',     name: 'תור ZM',            desc: 'תוכן בהמתנה לאישור ZM' },
+    { id: 'sa-queue',     name: 'תור SA',            desc: 'תוכן בהמתנה לאישור Super Admin' },
+    { id: 'saved',        name: 'שמורים',            desc: 'כתבות שסימן המשתמש' },
+    { id: 'zm-reports',   name: 'דוחות ZM',          desc: 'סטטיסטיקות תוכן לאחריות Zone' },
+    { id: 'following',    name: 'עוקב אחרי',         desc: 'כותבים שהמשתמש עוקב אחריהם' },
+    { id: 'author',       name: 'פרופיל כותב',       desc: 'עמוד פרופיל ציבורי של כותב' },
+    { id: 'search',       name: 'חיפוש',             desc: 'חיפוש כתבות לפי מילות מפתח, תגיות' },
+    { id: 'tag',          name: 'תגית',              desc: 'כל הכתבות תחת תגית נבחרת' },
+    { id: 'list',         name: 'רשימה',             desc: 'תצוגת רשימת כתבות מסוננת' },
+    { id: 'collections',  name: 'אוספים',            desc: 'רשימת קולקציות תוכן' },
+    { id: 'collection',   name: 'אוסף בודד',         desc: 'פרטי קולקציה + כתבות בתוכה' },
+  ];
+
+  let md = `# מפרט טכני — כל העם (Kol Haam) — Oneflow Life\n\n`;
+  md += `> תאריך: ${today}  \n> קבצים: \`public/kol-haam.html\` + \`public/kol-haam-app.js\` + \`public/kol-haam-author.html\`  \n> Backend prefix: \`/api/kol-haam\`\n\n---\n\n`;
+
+  md += `## 1. מטרה ותפקיד הסביבה\n\n`;
+  md += `"כל העם" היא פלטפורמת תוכן קהילתית מובנית בתוך Oneflow — מענה לצורך של קהילות מקומיות לייצר ולצרוך תוכן רלוונטי לאזור שלהם. היא מאפשרת **פרסום עצמאי** של כתבות, שאלות, סיפורי הצלחה ומדריכים, עם מנגנון עריכה/אישור מדורג (כותב → ZM → SA).\n\n`;
+  md += `הפלטפורמה פועלת על 3 רמות scope: **local** (תוכן בתוך הקהילה), **national** (תוכן ארצי), **following** (תוכן מכותבים שאני עוקב). זה מאפשר לאותו מאמר להיות גלוי לקהילה בלבד, או להגיע לכל המשתמשים ברחבי הארץ.\n\n`;
+
+  md += `## 2. סוגי משתמשים\n\n`;
+  md += `| תפקיד | מי זה | מה הוא יכול |\n|--------|--------|-------------|\n`;
+  md += `| **READER** | כל משתמש FAMILY | קריאה, שמירה, תגובה, שיתוף |\n`;
+  md += `| **AUTHOR** | משתמש שהגיש בקשה לכתוב | כתיבה, עריכה, שליחה לאישור |\n`;
+  md += `| **ZM** | Zone Manager | אישור/דחיית תוכן scope=local |\n`;
+  md += `| **SA** | Super Admin | אישור תוכן scope=national, ניהול כותבים/קטגוריות |\n\n`;
+
+  md += `## 3. לוגיקות מרכזיות\n\n`;
+  md += `### 3.1 מחזור חיי תוכן\n`;
+  md += `\`\`\`\nכותב שומר טיוטה (draft)\n  → שולח לפרסום\n  → scope=local  → ZM queue → ZM מאשר → published\n  → scope=national → SA queue → SA מאשר → published\n  → כל שלב → email/notification לכותב\n\`\`\`\n\n`;
+  md += `### 3.2 feed אלגוריתם\n`;
+  md += `המשתמש בוחר scope → API מחזיר posts לפי: scope + קהילה + תאריך + עדכונים. כל post כולל: author info, likes, comments_count, read_time.\n\n`;
+  md += `### 3.3 Collections\n`;
+  md += `כותב יכול לאגד כתבות לקולקציה (סדרה). READER יכול לסמן קולקציה כ"עוקב" → מקבל התראות על פרקים חדשים.\n\n`;
+
+  md += `## 4. השפעות על מערכות אחרות\n\n`;
+  md += `| מערכת | השפעה |\n|--------|--------|\n`;
+  md += `| **FAMILY** | טאב "כל העם" מוטמע ב-FAMILY feed |\n`;
+  md += `| **Zone Manager** | ZM רואה zm-queue עם תוכן הממתין לאישור באזורו |\n`;
+  md += `| **Super Admin** | SA רואה sa-queue עם תוכן ארצי; ניהול כותבים |\n`;
+  md += `| **BIZ** | עסקים יכולים לפרסם תוכן מקצועי דרך AUTHOR account |\n\n`;
+
+  md += `## 5. חוקיות ואילוצים\n\n`;
+  md += `- **חוק 1**: כותב לא יכול לפרסם ישירות — כל תוכן עובר אישור\n`;
+  md += `- **חוק 2**: ZM מאשר scope=local בלבד; scope=national → SA בלבד\n`;
+  md += `- **חוק 3**: כתבה שנדחתה — כותב מקבל סיבה וניתן לערוך ולשלוח שוב\n`;
+  md += `- **חוק 4**: לכל קהילה יש מכסה שבועית של תוכן (community_weekly_limit)\n`;
+  md += `- **חוק 5**: תוכן שפורסם לא ניתן למחיקה ע"י הכותב — רק ZM/SA יכולים להסיר\n\n`;
+
+  md += `## 6. תיאור ממשקים\n\n`;
+
+  md += `## 2. ממשקים\n\n| דף | תפקיד |\n|----|--------|\n`;
+  md += `| \`kol-haam.html\` | ממשק קורא — צפייה בכתבות, feed, חיפוש, שמורים |\n`;
+  md += `| \`kol-haam-author.html\` | ממשק כותב — עורך תוכן, טיוטות, פרסום, ניהול קולקציות |\n`;
+  md += `| SA → כל העם | ניהול אישורים, תוכן, כותבים, קטגוריות, כלכלה, sa-queue |\n`;
+  md += `| ZM → כל העם | אישור תוכן קהילתי, zm-queue, דוחות |\n\n`;
+
+  // content types
+  md += `## 3. סוגי תוכן\n\n`;
+  if (typeLabelsM) {
+    const typeLines = typeLabelsM[1].trim().split(',').map(p => p.trim()).filter(Boolean);
+    const iconsMap = {};
+    if (typeIconsM) {
+      [...typeIconsM[1].matchAll(/(\w+)\s*:\s*['"]([^'"]+)['"]/g)].forEach(m => { iconsMap[m[1]] = m[2]; });
+    }
+    md += `| קוד | שם | אייקון |\n|----|-----|--------|\n`;
+    typeLines.forEach(line => {
+      const m2 = line.match(/['"]?(\w+)['"]?\s*:\s*['"]([^'"]+)['"]/);
+      if (m2) md += `| \`${m2[1]}\` | ${m2[2]} | ${iconsMap[m2[1]]||''} |\n`;
+    });
+  } else {
+    md += `| קוד | שם | אייקון |\n|----|-----|--------|\n`;
+    md += `| \`ARTICLE\` | כתבה | 📰 |\n| \`QA_QUESTION\` | שאלה | ❓ |\n| \`SUCCESS_STORY\` | סיפור הצלחה | 🏆 |\n| \`WIKI_GUIDE\` | מדריך | 📖 |\n`;
+  }
+  md += '\n';
+
+  // scopes
+  md += `## 4. Scopes (היקף הצגה)\n\n`;
+  md += `| scope | תיאור |\n|-------|-------|\n`;
+  md += `| \`local\` | קהילתי — תוכן בתוך הקהילה הספציפית |\n`;
+  md += `| \`national\` | ארצי — תוכן מכל הקהילות |\n`;
+  md += `| \`following\` | עוקבים — תוכן מכותבים שאני עוקב אחריהם |\n\n`;
+
+  // status
+  if (statusMetaM) {
+    md += `## 5. סטטוסי תוכן\n\n`;
+    const pairs = [...statusMetaM[1].matchAll(/(\w+)\s*:\s*\{[^}]*label\s*:\s*['"`]([^'"`]+)['"`]/g)];
+    if (pairs.length) {
+      md += `| סטטוס | תווית |\n|--------|-------|\n`;
+      pairs.forEach(p => { md += `| \`${p[1]}\` | ${p[2]} |\n`; });
+      md += '\n';
+    } else {
+      md += `- \`draft\` — טיוטה\n- \`pending_zm\` — ממתין לאישור ZM\n- \`pending_sa\` — ממתין לאישור SA\n- \`published\` — פורסם\n- \`rejected\` — נדחה\n\n`;
+    }
+  } else {
+    md += `## 5. סטטוסי תוכן\n\n- \`draft\` — טיוטה\n- \`pending_zm\` — ממתין לאישור ZM\n- \`pending_sa\` — ממתין לאישור SA\n- \`published\` — פורסם\n- \`rejected\` — נדחה\n\n`;
+  }
+
+  // views
+  md += `## 6. Views (16 מצבי תצוגה)\n\n`;
+  md += `| view id | שם | תיאור |\n|---------|----|--------|\n`;
+  KNOWN_VIEWS.forEach(v => { md += `| \`${v.id}\` | ${v.name} | ${v.desc} |\n`; });
+  md += '\n';
+
+  // SA tabs
+  if (khSATabsRaw.length) {
+    md += `## 7. טאבי SA — כל העם\n\n| key | תווית |\n|-----|-------|\n`;
+    khSATabsRaw.forEach(t => { md += `| \`${t.key}\` | ${t.label} |\n`; });
+    md += '\n';
+  } else {
+    md += `## 7. טאבי SA — כל העם\n\n| key | תווית |\n|-----|-------|\n`;
+    ['overview','content','authors','categories','economy','settings'].forEach(k => {
+      const labels = {overview:'סקירה',content:'תוכן',authors:'כותבים',categories:'קטגוריות',economy:'כלכלה',settings:'הגדרות'};
+      md += `| \`${k}\` | ${labels[k]||k} |\n`;
+    });
+    md += '\n';
+  }
+
+  md += `## 8. נתיבי API — kol-haam (${routes.length})\n\n${_routeTable(routes)}\n`;
+  return md;
+}
+
+function _genStorefront(serverJs, sfHtml, today) {
+  const routes = _extractRoutes(serverJs, '/api/storefront');
+  const bizRoutes = _extractRoutes(serverJs, '/api/store');
+  const orderRoutes = _extractRoutes(serverJs, '/api/orders');
+  const bookRoutes  = _extractRoutes(serverJs, '/api/booking');
+
+  // extract sections, modals, data-category
+  const sections = [...sfHtml.matchAll(/id=['"]([a-z_\-]+-(?:section|container|footer|header|slider))['"]/g)].map(m=>m[1]).filter(Boolean);
+  const modals   = [...sfHtml.matchAll(/id=['"]([a-z_\-]+-modal)['"]/g)].map(m=>m[1]).filter(Boolean);
+  const cats     = [...new Set([...sfHtml.matchAll(/data-category=['"]([^'"]+)['"]/g)].map(m=>m[1]).filter(Boolean))].slice(0,30);
+
+  // detect features by keywords in HTML
+  const featureChecks = [
+    { key:'orders',      label:'הזמנות / Cart',                  kw:'cart' },
+    { key:'booking',     label:'לוח הזמנות / יומן',              kw:'booking' },
+    { key:'table_book',  label:'הזמנת שולחן במסעדה',             kw:'table' },
+    { key:'sport',       label:'שיעורי ספורט + רשימת המתנה',     kw:'class' },
+    { key:'flw',         label:'ארנק FLW / מימוש מטבעות',        kw:'flw' },
+    { key:'coupons',     label:'קופונים / מבצעים',               kw:'coupon' },
+    { key:'community',   label:'מבצעי קהילה',                    kw:'community-promo' },
+    { key:'pro_content', label:'תוכן מקצועי / לידים',            kw:'professional' },
+    { key:'beauty',      label:'פרקטיציוניות יופי (beauty-only)', kw:'beauty' },
+    { key:'complex_prod',label:'מוצר מורכב (variants/extras)',    kw:'complex-product' },
+    { key:'checkout',    label:'checkout modal',                  kw:'checkout-modal' },
+  ];
+  const detectedFeatures = featureChecks.filter(f => sfHtml.includes(f.kw));
+
+  let md = `# מפרט טכני — Storefront (חזית חנות) — Oneflow Life\n\n`;
+  md += `> תאריך: ${today}  \n> קובץ: \`public/storefront.html\`  \n> Backend prefixes: \`/api/storefront\` · \`/api/store\` · \`/api/orders\` · \`/api/booking\`\n\n---\n\n`;
+
+  md += `## 1. מטרה ותפקיד הסביבה\n\n`;
+  md += `Storefront הוא **עמוד החנות הציבורי** של העסק — נגיש לכל אחד ללא login, דרך URL ייחודי לכל עסק (\`/storefront?biz=ID\` או דומיין מותאם). זהו הממשק שהלקוחות רואים כשהם סורקים QR code, לוחצים על קישור ב-WhatsApp, או מוצאים את העסק במרקטפלייס.\n\n`;
+  md += `הסביבה מתאימה את עצמה **לסוג העסק**: מסעדה מציגה תפריט + הזמנת שולחן, מספרה מציגה שירותים + הזמנת תור, ספורט מציג שיעורים + רישום, חנות מציגה קטלוג + עגלה. כל אלה בממשק אחד שמתנהג שונה לפי הגדרות ה-BIZ.\n\n`;
+
+  md += `## 2. סוגי משתמשים\n\n`;
+  md += `| תפקיד | מי זה | מה הוא יכול |\n|--------|--------|-------------|\n`;
+  md += `| **אנונימי** | כל מבקר | צפייה בתפריט/קטלוג, לחיצה על WhatsApp/טלפון |\n`;
+  md += `| **FAMILY משתמש** | מחובר ל-Oneflow | הזמנה, תשלום, מימוש FLW מטבעות, קופונים |\n`;
+  md += `| **BIZ ADMIN** | בעל העסק | לא גולש כאן — ניהול ב-BIZ env; Storefront read-only |\n\n`;
+
+  md += `## 3. לוגיקות מרכזיות\n\n`;
+  md += `### 3.1 טעינת Storefront\n`;
+  md += `\`\`\`\nפתיחת /storefront?biz=BIZ_ID\n  → GET /api/storefront/profile/{bizId}\n  → טעינת: שם, לוגו, קטגוריות, פריטים, שעות, כתובת\n  → renderHero() + renderContactInfo() + renderCatalog()\n  → זיהוי סוג עסק → הצגת features רלוונטיות בלבד\n\`\`\`\n\n`;
+  md += `### 3.2 זרימת הזמנה\n`;
+  md += `\`\`\`\nלקוח בוחר פריטים → cart footer מתעדכן\n  → לחיצה "הזמן" → checkout-modal\n  → לא מחובר → prompt login (FAMILY)\n  → מחובר → בחירה: FLW מטבעות / כרטיס / מזומן בקבלה\n  → POST /api/orders/create\n  → BIZ מקבל התראה (WhatsApp + BIZ dashboard)\n\`\`\`\n\n`;
+  md += `### 3.3 FLW מטבעות\n`;
+  md += `אם לעסק יש FLW wallet: המשתמש רואה יתרת מטבעות + כפתור מימוש. 1 מטבע = ערך מוגדר ע"י עסק (בד"כ ₪0.1). המינימום למימוש מוגדר ב-billing_config.\n\n`;
+
+  md += `## 4. השפעות על מערכות אחרות\n\n`;
+  md += `| מערכת | השפעה |\n|--------|--------|\n`;
+  md += `| **BIZ** | הזמנה ב-Storefront → order מופיע ב-BIZ orders tab |\n`;
+  md += `| **FAMILY** | משתמש FAMILY מממש מטבעות → יתרה FLW מתעדכנת |\n`;
+  md += `| **Marketplace** | לחיצה על עסק במרקטפלייס → פתיחת Storefront שלו |\n`;
+  md += `| **Zone Manager** | ZM יכול לצפות ב-Storefront של עסקים באזורו |\n\n`;
+
+  md += `## 5. חוקיות ואילוצים\n\n`;
+  md += `- **חוק 1**: Storefront תמיד ציבורי — אפשר לגלוש ללא login\n`;
+  md += `- **חוק 2**: הזמנה דורשת login (FAMILY account) — אנונימי מועבר לרישום\n`;
+  md += `- **חוק 3**: מימוש FLW — רק משתמש שקנה/צבר מטבעות בעסק הזה עצמו\n`;
+  md += `- **חוק 4**: עסק לא פעיל (suspended) → Storefront מציג "סגור זמנית"\n`;
+  md += `- **חוק 5**: כפתורי "complex-product" מופיעים רק לפריטים עם variants שהוגדרו ב-BIZ\n\n`;
+
+  md += `## 2. מבנה דפים (sections)\n\n`;
+  const KNOWN_SECTIONS = [
+    { id:'hero',                   desc:'כותרת ראשית, לוגו, כפתורי פעולה ראשיים' },
+    { id:'store-contact-info',     desc:'כתובת, טלפון, שעות פעילות' },
+    { id:'cat-slider',             desc:'slider קטגוריות מוצרים/תפריט' },
+    { id:'catalog-container',      desc:'גריד מוצרים / פריטי תפריט' },
+    { id:'cart-footer',            desc:'פס צף — סיכום עגלה + כפתור הזמנה' },
+  ];
+  md += `| section id | תיאור |\n|------------|-------|\n`;
+  KNOWN_SECTIONS.forEach(s => { md += `| \`${s.id}\` | ${s.desc} |\n`; });
+  if (sections.filter(s => !KNOWN_SECTIONS.find(k=>k.id===s)).length) {
+    sections.filter(s => !KNOWN_SECTIONS.find(k=>k.id===s)).slice(0,10).forEach(s => { md += `| \`${s}\` | |\n`; });
+  }
+  md += '\n';
+
+  md += `## 3. Modals\n\n`;
+  const KNOWN_MODALS = [
+    { id:'product-modal',         desc:'פרטי מוצר בסיסי' },
+    { id:'complex-product-modal', desc:'מוצר עם variants / extras' },
+    { id:'checkout-modal',        desc:'טופס הזמנה / checkout' },
+    { id:'side-menu',             desc:'תפריט צד — ניווט, מידע נוסף' },
+  ];
+  md += `| modal id | תיאור |\n|----------|-------|\n`;
+  KNOWN_MODALS.forEach(m2 => { md += `| \`${m2.id}\` | ${m2.desc} |\n`; });
+  const extraModals = modals.filter(m2 => !KNOWN_MODALS.find(k=>k.id===m2));
+  extraModals.slice(0,10).forEach(m2 => { md += `| \`${m2}\` | |\n`; });
+  md += '\n';
+
+  if (detectedFeatures.length) {
+    md += `## 4. יכולות מזוהות\n\n`;
+    md += `| יכולת | תיאור |\n|--------|-------|\n`;
+    detectedFeatures.forEach(f => { md += `| ✅ ${f.key} | ${f.label} |\n`; });
+    md += '\n';
+  } else {
+    md += `## 4. יכולות עיקריות\n\n`;
+    md += `- הזמנות / cart (עגלה + checkout)\n- הזמנת שולחן במסעדה\n- שיעורי ספורט + רשימת המתנה\n- ארנק FLW ומימוש מטבעות\n- קופונים ומבצעי קהילה\n- תוכן מקצועי ולידים\n- יכולות יופי (beauty practitioners)\n\n`;
+  }
+
+  if (cats.length) {
+    md += `## 5. קטגוריות (data-category)\n\n${cats.map(c=>`- \`${c}\``).join('\n')}\n\n`;
+  }
+
+  md += `## 6. נתיבי API — storefront (${routes.length})\n\n${_routeTable(routes)}\n`;
+  if (bizRoutes.length) md += `## 7. נתיבי API — store (${bizRoutes.length})\n\n${_routeTable(bizRoutes)}\n`;
+  if (orderRoutes.length) md += `## 8. נתיבי API — orders (${orderRoutes.length})\n\n${_routeTable(orderRoutes)}\n`;
+  if (bookRoutes.length) md += `## 9. נתיבי API — booking (${bookRoutes.length})\n\n${_routeTable(bookRoutes)}\n`;
+  return md;
+}
+
+function _genMarketplace(serverJs, mpHtml, today) {
+  const routes      = _extractRoutes(serverJs, '/api/public');
+  const commRoutes  = _extractRoutes(serverJs, '/api/communities');
+  const searchRoutes= _extractRoutes(serverJs, '/api/search');
+
+  // extract filter chips + category chips
+  const filterBtns = [...new Set([...mpHtml.matchAll(/data-filter=['"]([^'"]+)['"]/g)].map(m=>m[1]).filter(Boolean))];
+  const catBtns    = [...new Set([...mpHtml.matchAll(/data-category=['"]([^'"]+)['"]/g)].map(m=>m[1]).filter(Boolean))];
+
+  // extract _FAM_QUICK_AREAS cities
+  const quickAreasM = mpHtml.match(/_FAM_QUICK_AREAS\s*=\s*\{([\s\S]*?)\};/);
+
+  let md = `# מפרט טכני — Marketplace (מרקטפלייס) — Oneflow Life\n\n`;
+  md += `> תאריך: ${today}  \n> קובץ: \`public/marketplace.html\`  \n> Backend prefixes: \`/api/public\` · \`/api/communities\` · \`/api/search\`\n\n---\n\n`;
+
+  md += `## 1. מטרה ותפקיד הסביבה\n\n`;
+  md += `Marketplace הוא **פורטל חיפוש העסקים** של Oneflow — ממשק ציבורי שמאפשר לכל אדם למצוא עסקים לפי קטגוריה, אזור גיאוגרפי, או מיקום GPS. הוא משמש כ"כניסה" שדרכה צרכנים מגיעים ל-Storefront של עסקים.\n\n`;
+  md += `הייחוד: כל עסק ב-Oneflow **כבר** מופיע במרקטפלייס אוטומטית ברגע שה-ZM אישר אותו. אין צורך ב"רישום נפרד" — הנוכחות במרקטפלייס היא חלק מהצטרפות לפלטפורמה.\n\n`;
+  md += `חשוב: גישה ציבורית ללא login, אבל מיקום ו-"בשבילך" דורשים אישור Geolocation.\n\n`;
+
+  md += `## 2. סוגי משתמשים\n\n`;
+  md += `| תפקיד | מי זה | מה הוא יכול |\n|--------|--------|-------------|\n`;
+  md += `| **אנונימי** | כל גולש | חיפוש עסקים, צפייה בפרטים, מעבר ל-Storefront |\n`;
+  md += `| **FAMILY משתמש** | מחובר | + פנייה ישירה, שמירת עסקים מועדפים |\n`;
+  md += `| **BIZ** | עסק | מופיע כ-listing; אין גישה עריכה מכאן — רק דרך BIZ env |\n\n`;
+
+  md += `## 3. לוגיקות מרכזיות\n\n`;
+  md += `### 3.1 חיפוש ומיון\n`;
+  md += `\`\`\`\nמשתמש פותח marketplace.html\n  → בחירת אזור מ-_FAM_QUICK_AREAS (או GPS)\n  → בחירת קטגוריה (chip)\n  → בחירת filter: "הכל" / "קרובים אליי" / "בשבילך"\n  → GET /api/public/businesses?area=X&cat=Y&filter=Z\n  → תוצאות: 5 בכל דף (BIZ_PAGE_SIZE)\n  → לחיצה על עסק → /storefront?biz=ID\n\`\`\`\n\n`;
+  md += `### 3.2 "בשבילך" אלגוריתם\n`;
+  md += `מבוסס על: היסטוריית הזמנות FAMILY + קהילה + קטגוריות שנחיפשו. עסקים עם rating גבוה + קרובים גיאוגרפית + מקטגוריה שנצרכה מקבלים עדיפות.\n\n`;
+  md += `### 3.3 Pagination\n`;
+  md += `\`BIZ_PAGE_SIZE=5\` — כל גלילה טוענת עוד 5 עסקים. debounce 400ms על חיפוש text חופשי.\n\n`;
+
+  md += `## 4. השפעות על מערכות אחרות\n\n`;
+  md += `| מערכת | השפעה |\n|--------|--------|\n`;
+  md += `| **Storefront** | לחיצה על עסק → פתיחת Storefront שלו |\n`;
+  md += `| **BIZ** | מידע שהעסק הגדיר ב-BIZ (שם, לוגו, שעות) מוצג כאן |\n`;
+  md += `| **Zone Manager** | ZM אישר עסק → מופיע במרקטפלייס האזורי |\n`;
+  md += `| **FAMILY** | מהרה: קישור מהתפריט של FAMILY לmartketplace |\n\n`;
+
+  md += `## 5. חוקיות ואילוצים\n\n`;
+  md += `- **חוק 1**: רק עסקים פעילים (status='active') מופיעים — עסק מושהה נעלם\n`;
+  md += `- **חוק 2**: אין עריכת listing מ-marketplace — רק ממסך BIZ\n`;
+  md += `- **חוק 3**: "קרובים אליי" — דורש אישור GPS מהמשתמש; אחרת מציג כל האזור\n`;
+  md += `- **חוק 4**: עסק יכול להופיע בקטגוריה אחת בלבד (primary category)\n`;
+  md += `- **חוק 5**: BIZ_PAGE_SIZE קבוע ב-5 — לא ניתן לשנות מה-frontend\n\n`;
+
+  // quick areas
+  const KNOWN_AREAS = {
+    'ירושלים': ['ירושלים','בית שמש','מודיעין'],
+    'תל אביב':  ['תל אביב','יפו','רמת גן','גבעתיים','חולון','בת ים'],
+    'חיפה':    ['חיפה','קריות','טירת כרמל','נשר'],
+    'גוש דן':  ['פתח תקווה','ראשון לציון','ראש העין','אור יהודה'],
+    'שרון':    ['נתניה','כפר סבא','הרצליה','רעננה','הוד השרון'],
+    'דרום':    ['באר שבע','אשקלון','אשדוד','קריית גת'],
+    'צפון':    ['נצרת','עפולה','טבריה','נהריה','עכו'],
+  };
+  md += `## 2. אזורים גיאוגרפיים (_FAM_QUICK_AREAS)\n\n`;
+  md += `| אזור | ערים עיקריות |\n|------|-------------|\n`;
+  Object.entries(KNOWN_AREAS).forEach(([region,cities]) => {
+    md += `| **${region}** | ${cities.join(', ')} |\n`;
+  });
+  md += '\n';
+
+  // filter chips
+  if (filterBtns.length) {
+    md += `## 3. פילטר מהיר\n\n`;
+    md += `| chip | תיאור |\n|------|-------|\n`;
+    const FILTER_DESC = { 'all':'הכל', 'nearby':'קרובים אליי', 'for-me':'בשבילך', 'top':'מובילים', 'new':'חדשים' };
+    filterBtns.forEach(f => { md += `| \`${f}\` | ${FILTER_DESC[f]||f} |\n`; });
+    md += '\n';
+  } else {
+    md += `## 3. פילטר מהיר\n\n| chip | תיאור |\n|------|-------|\n| \`for-me\` | בשבילך |\n| \`all\` | הכל |\n| \`nearby\` | קרובים אליי |\n\n`;
+  }
+
+  // category chips
+  if (catBtns.length) {
+    md += `## 4. קטגוריות עסקים\n\n${catBtns.map(c=>`- \`${c}\``).join('\n')}\n\n`;
+  } else {
+    md += `## 4. קטגוריות עסקים\n\n- \`restaurants\` — מסעדות\n- \`repairs\` — תיקונים\n- \`experts\` — מומחים\n- \`beauty\` — יופי\n- \`sport\` — ספורט\n- \`logistics\` — לוגיסטיקה\n- \`other\` — אחר\n\n`;
+  }
+
+  md += `## 5. קבועים\n\n- \`BIZ_PAGE_SIZE = 5\` — עסקים בכל דף\n- חיפוש: debounce 400ms\n- מיקום: Geolocation API → distance sorting\n\n`;
+
+  md += `## 6. זרימת משתמש\n\n1. פתיחת marketplace.html (ללא login)\n2. בחירת אזור מ-_FAM_QUICK_AREAS או מיקום GPS\n3. בחירת קטגוריה (chips)\n4. גלילה + pagination (5 עסקים)\n5. לחיצה על עסק → Storefront\n\n`;
+
+  md += `## 7. נתיבי API — public (${routes.length})\n\n${_routeTable(routes)}\n`;
+  if (commRoutes.length) md += `## 8. נתיבי API — communities (${commRoutes.length})\n\n${_routeTable(commRoutes)}\n`;
+  if (searchRoutes.length) md += `## 9. נתיבי API — search (${searchRoutes.length})\n\n${_routeTable(searchRoutes)}\n`;
+  return md;
+}
+
+function _genOnboarding(serverJs, bizOnboardHtml, famOnboardHtml, today) {
+  const bizRoutes  = _extractRoutes(serverJs, '/api/biz');
+  const authRoutes = _extractRoutes(serverJs, '/api/auth');
+
+  // extract wizard screens via id="wiz-N"
+  const bizWizScreens = [...new Set([...bizOnboardHtml.matchAll(/id=['"]wiz-(\d+)['"]/g)].map(m=>parseInt(m[1])))].sort((a,b)=>a-b);
+  const famWizScreens = [...new Set([...famOnboardHtml.matchAll(/id=['"]wiz-(\d+)['"]/g)].map(m=>parseInt(m[1])))].sort((a,b)=>a-b);
+
+  // extract h2/h3 step titles near wiz sections
+  const bizTitles = [...bizOnboardHtml.matchAll(/<h[23][^>]*>([^<]{3,60})<\/h[23]>/g)].map(m=>m[1].trim()).slice(0,15);
+  const famTitles = [...famOnboardHtml.matchAll(/<h[23][^>]*>([^<]{3,60})<\/h[23]>/g)].map(m=>m[1].trim()).slice(0,10);
+
+  // extract MANAGE_OPTIONS
+  const bizManageM = bizOnboardHtml.match(/MANAGE_OPTIONS\s*=\s*\[([\s\S]*?)\]/);
+  const famManageM = famOnboardHtml.match(/MANAGE_OPTIONS\s*=\s*\[([\s\S]*?)\]/);
+
+  // extract BIZ_STAFF_ROLES
+  const staffRolesM = bizOnboardHtml.match(/BIZ_STAFF_ROLES\s*=\s*\[([\s\S]*?)\]/);
+
+  // known steps (fallback)
+  const BIZ_STEPS = [
+    { id: 0,  name: 'ברוכים הבאים',         desc: 'מסך פתיחה + כפתור התחל' },
+    { id: 1,  name: 'פרטי עסק',             desc: 'שם, לוגו, תיאור, קטגוריה' },
+    { id: 2,  name: 'סוג עסק',              desc: '⚠️ בחירת business_type — פעם אחת בלבד' },
+    { id: 3,  name: 'מיקום',               desc: 'כתובת, עיר, קואורדינטות GPS' },
+    { id: 4,  name: 'שעות פעילות',         desc: 'לוח שעות שבועי' },
+    { id: 5,  name: 'פרטי יצירת קשר',      desc: 'טלפון, אימייל, WhatsApp' },
+    { id: 6,  name: 'מה תנהל במערכת?',     desc: 'MANAGE_OPTIONS — בחירת מודולים' },
+    { id: 7,  name: 'הגדרת צוות',          desc: 'הזמנת עובדים ראשוניים' },
+    { id: 8,  name: 'תפריט / מוצרים',       desc: 'הוספת פריטי קטלוג ראשונים' },
+    { id: 9,  name: 'עיצוב חנות',          desc: 'בחירת צבעים, באנר, תבנית' },
+    { id: 10, name: 'קהילה',              desc: 'הצטרפות לקהילה / אזור' },
+    { id: 11, name: 'סיום',               desc: 'סיכום + קישורים לצעדים הבאים' },
+  ];
+  const FAM_STEPS = [
+    { id: 0, name: 'ברוכים הבאים',  desc: 'מסך פתיחה — Oneflow Family' },
+    { id: 1, name: 'שם המשפחה',     desc: 'הגדרת שם ותמונת משפחה' },
+    { id: 2, name: 'מה תנהלו?',     desc: 'MANAGE_OPTIONS משפחה' },
+    { id: 3, name: 'חברי משפחה',    desc: 'הזמנת בני משפחה (email/phone)' },
+    { id: 4, name: 'תקציב ראשוני',  desc: 'הגדרת תקציב חודשי' },
+    { id: 5, name: 'סיום',          desc: 'כניסה לדשבורד המשפחה' },
+  ];
+
+  let md = `# מפרט טכני — Onboarding (אונבורדינג) — Oneflow Life\n\n`;
+  md += `> תאריך: ${today}  \n> קבצים: \`public/biz-onboarding.html\`, \`public/family-onboarding.html\`\n\n---\n\n`;
+
+  md += `## 1. מטרה ותפקיד הסביבה\n\n`;
+  md += `Onboarding הוא **נקודת הכניסה** לפלטפורמה — הצעד הראשון שכל עסק או משפחה עוברים. מטרתו: לאסוף מינימום מידע הכרחי כדי להפעיל את הסביבה הנכונה, ולייצר חוויית "הצלחה ראשונה" מהירה.\n\n`;
+  md += `**חשיבות קריטית**: שלב בחירת סוג העסק (wiz-2) הוא הרגע היחיד שבו הלקוח קובע את ה-\`business_type\`. ה-\`business_type\` קובע: אילו מודולים ייטענו כברירת מחדל, אילו tabs יוצגו, ואיזה billing bundle מוצע. שינוי לאחר מכן — אפשרי **רק ע"י SA**.\n\n`;
+  md += `כל wizard שומר progress ב-\`localStorage\` — משתמש שסגר את הדפדפן יחזור לאותו שלב שעזב.\n\n`;
+
+  md += `## 2. סוגי משתמשים\n\n`;
+  md += `| משתמש | מה הוא עושה כאן |\n|--------|------------------|\n`;
+  md += `| **עסק חדש** | עובר wizard בiz: 12 שלבים, מגדיר עסק מאפס |\n`;
+  md += `| **משפחה חדשה** | עובר wizard family: 6 שלבים, מגדיר בית דיגיטלי |\n`;
+  md += `| **SA** | לא עובר onboarding — יוצר עסקים/משפחות ישירות דרך SA API |\n\n`;
+
+  md += `## 3. לוגיקות מרכזיות\n\n`;
+  md += `### 3.1 wizard עסק — זרימה\n`;
+  md += `\`\`\`\nפתיחת /biz-onboarding.html\n  → wiz-0: ברוכים הבאים → "התחל"\n  → wiz-1: שם + לוגו + קטגוריה\n  → wiz-2: בחירת business_type ← ⚠️ פעם אחת בלבד\n  → wiz-3: מיקום (כתובת + GPS)\n  → wiz-4: שעות פעילות\n  → wiz-5: פרטי יצירת קשר\n  → wiz-6: MANAGE_OPTIONS (אילו מודולים?)\n  → wiz-7: הזמנת צוות ראשוני (BIZ_STAFF_ROLES)\n  → wiz-8: הוספת מוצרים ראשונים\n  → wiz-9: עיצוב חנות\n  → wiz-10: קהילה (ZM מקבל biz_request)\n  → wiz-11: סיום → כניסה ל-BIZ dashboard\n\`\`\`\n\n`;
+  md += `### 3.2 שמירת progress\n`;
+  md += `\`localStorage.wizardStep\` + \`localStorage.wizardData\` — שמורים כל שלב. POST /api/biz/onboarding/save נשלח אחרי כל שלב.\n\n`;
+  md += `### 3.3 MANAGE_OPTIONS — השפעה\n`;
+  md += `כל option שנבחר ב-wiz-6 → שדה ב-\`billing_config.modules[]\` עם \`open:true\`. זה קובע מה המשתמש רואה ב-BIZ dashboard.\n\n`;
+
+  md += `## 4. השפעות על מערכות אחרות\n\n`;
+  md += `| מערכת | השפעה |\n|--------|--------|\n`;
+  md += `| **BIZ** | onboarding מייצר את ה-\`biz\` record ב-DB + billing_config ראשוני |\n`;
+  md += `| **Zone Manager** | wiz-10 שולח \`biz_request\` ל-ZM לאישור |\n`;
+  md += `| **FAMILY** | family onboarding מייצר family_group + מזמין חברים |\n`;
+  md += `| **Marketplace** | לאחר אישור ZM — העסק מופיע אוטומטית |\n\n`;
+
+  md += `## 5. חוקיות ואילוצים\n\n`;
+  md += `- **חוק 1**: ⚠️ business_type נבחר **רק** ב-wiz-2 — לאחר שמירה, שינוי ע"י SA בלבד\n`;
+  md += `- **חוק 2**: לא ניתן לדלג על wiz-2 (business_type) — השדה required\n`;
+  md += `- **חוק 3**: שלב הצוות (wiz-7) — BIZ_STAFF_ROLES מוגבלים לתפקידים שמותאמים לsusiness_type\n`;
+  md += `- **חוק 4**: עסק לא יכול להתחיל לפעול לפני שה-ZM אישר (wiz-10 חייב להסתיים)\n`;
+  md += `- **חוק 5**: Family onboarding — MANAGE_OPTIONS קובעים אילו מודולים ייטענו (budget, tasks, etc.)\n\n`;
+
+  // BIZ onboarding
+  const bizCount = bizWizScreens.length || BIZ_STEPS.length;
+  md += `## 2. אונבורדינג עסק (${bizCount} שלבים)\n\n`;
+  md += `| שלב | שם | תיאור |\n|-----|-----|--------|\n`;
+  BIZ_STEPS.forEach(s => { md += `| wiz-${s.id} | ${s.name} | ${s.desc} |\n`; });
+  md += '\n';
+
+  // MANAGE_OPTIONS BIZ
+  md += `### MANAGE_OPTIONS — עסק\n\n`;
+  const BIZ_MANAGE = [
+    { key:'sell',      label:'מכירות / הזמנות',    desc:'פעל כחנות, קבל הזמנות ותשלומים' },
+    { key:'quotes',    label:'הצעות מחיר',          desc:'שלח הצעות מחיר ללקוחות' },
+    { key:'team',      label:'ניהול צוות',          desc:'עובדים, תפקידים, שעות' },
+    { key:'analytics', label:'אנליטיקס',            desc:'דוחות מכירות, ביצועים, גרפים' },
+  ];
+  if (bizManageM) {
+    const pairs = [...bizManageM[1].matchAll(/key\s*:\s*['"]([^'"]+)['"]\s*,\s*label\s*:\s*['"]([^'"]+)['"]/g)];
+    if (pairs.length) {
+      md += `| key | תווית |\n|-----|-------|\n`;
+      pairs.forEach(p => { md += `| \`${p[1]}\` | ${p[2]} |\n`; });
+      md += '\n';
+    } else { BIZ_MANAGE.forEach(o => { md += `- **\`${o.key}\`** — ${o.label}: ${o.desc}\n`; }); md += '\n'; }
+  } else {
+    BIZ_MANAGE.forEach(o => { md += `- **\`${o.key}\`** — ${o.label}: ${o.desc}\n`; }); md += '\n';
+  }
+
+  // BIZ_STAFF_ROLES
+  md += `### BIZ_STAFF_ROLES (תפקידי צוות בסיסיים לאונבורדינג)\n\n`;
+  if (staffRolesM) {
+    const roles = [...staffRolesM[1].matchAll(/['"]([a-zA-Z_]+)['"]/g)].map(m=>m[1]).filter(Boolean);
+    roles.forEach(r => { md += `- \`${r}\`\n`; });
+  } else {
+    ['OWNER','MANAGER','EMPLOYEE','CASHIER','STYLIST','CHEF','TRAINER','SECRETARY'].forEach(r => { md += `- \`${r}\`\n`; });
+  }
+  md += '\n';
+
+  // FAM onboarding
+  const famCount = famWizScreens.length || FAM_STEPS.length;
+  md += `## 3. אונבורדינג משפחה (${famCount} שלבים)\n\n`;
+  md += `| שלב | שם | תיאור |\n|-----|-----|--------|\n`;
+  FAM_STEPS.forEach(s => { md += `| wiz-${s.id} | ${s.name} | ${s.desc} |\n`; });
+  md += '\n';
+
+  // MANAGE_OPTIONS FAM
+  md += `### MANAGE_OPTIONS — משפחה\n\n`;
+  const FAM_MANAGE = [
+    { key:'budget',   label:'תקציב',          desc:'ניהול הכנסות והוצאות' },
+    { key:'tasks',    label:'משימות',          desc:'רשימות מטלות, שיוך לחברי משפחה' },
+    { key:'bank',     label:'חשבון בנק',       desc:'חיבור לחשבון + ניתוח תנועות' },
+    { key:'shopping', label:'רשימות קניות',    desc:'קניות שיתופיות' },
+    { key:'academy',  label:'אקדמיה',          desc:'קורסים ומשחקים חינוכיים' },
+    { key:'recipes',  label:'מתכונים',         desc:'ניהול מתכונים ותפריט שבועי' },
+  ];
+  if (famManageM) {
+    const pairs = [...famManageM[1].matchAll(/key\s*:\s*['"]([^'"]+)['"]\s*,\s*label\s*:\s*['"]([^'"]+)['"]/g)];
+    if (pairs.length) {
+      md += `| key | תווית |\n|-----|-------|\n`;
+      pairs.forEach(p => { md += `| \`${p[1]}\` | ${p[2]} |\n`; });
+      md += '\n';
+    } else { FAM_MANAGE.forEach(o => { md += `- **\`${o.key}\`** — ${o.label}: ${o.desc}\n`; }); md += '\n'; }
+  } else {
+    FAM_MANAGE.forEach(o => { md += `- **\`${o.key}\`** — ${o.label}: ${o.desc}\n`; }); md += '\n';
+  }
+
+  md += `## 4. כללים קריטיים\n\n`;
+  md += `- ⚠️ **בחירת סוג עסק** — רק בויזארד ההקמה הראשוני (שלב wiz-2) או בהגדרות Super Admin\n`;
+  md += `- לאחר השלמת onboarding אין אפשרות לשנות business_type מהממשק הרגיל\n`;
+  md += `- Wizard שומר progress ב-localStorage → ניתן להפסיק ולהמשיך\n`;
+  md += `- שלב ה-MANAGE_OPTIONS קובע אילו מודולים ייטענו בדשבורד העסקי\n\n`;
+
+  md += `## 5. נתיבי API — biz (${bizRoutes.length})\n\n${_routeTable(bizRoutes)}\n`;
+  if (authRoutes.length) md += `## 6. נתיבי API — auth (${authRoutes.length})\n\n${_routeTable(authRoutes)}\n`;
+  return md;
+}
+
+function _genMenu(serverJs, menuHtml, today) {
+  const routes         = _extractRoutes(serverJs, '/api/menu');
+  const foodCostRoutes = _extractRoutes(serverJs, '/api/food-cost');
+  const supplierRoutes = _extractRoutes(serverJs, '/api/suppliers');
+  const eventRoutes    = _extractRoutes(serverJs, '/api/events');
+
+  // extract sections, tabs, constants
+  const sections   = [...new Set([...menuHtml.matchAll(/data-section=['"]([^'"]{2,40})['"]/g)].map(m=>m[1]).filter(Boolean))].slice(0,20);
+  const tabs       = [...new Set([...menuHtml.matchAll(/data-tab=['"]([^'"]+)['"]/g)].map(m=>m[1]).filter(Boolean))];
+  const pricingM   = menuHtml.match(/pricing_mode\s*=\s*['"]([^'"]+)['"]/);
+
+  // event_types constant
+  const eventTypeM = menuHtml.match(/event_types?\s*=\s*\[([\s\S]*?)\]/i);
+  const eventTypes = eventTypeM
+    ? [...eventTypeM[1].matchAll(/['"]([^'"]{2,40})['"]/g)].map(m=>m[1]).slice(0,20)
+    : [];
+
+  let md = `# מפרט טכני — תפריט דיגיטלי — Oneflow Life\n\n`;
+  md += `> תאריך: ${today}  \n> קבצים: \`public/menu.html\`, \`public/menus.html\`  \n> Backend prefixes: \`/api/menu\` · \`/api/food-cost\` · \`/api/suppliers\`\n\n---\n\n`;
+
+  md += `## 1. מטרה ותפקיד המודול\n\n`;
+  md += `מודול התפריט הדיגיטלי הוא **הכלי המרכזי** לעסקי מסעדנות, קייטרינג, קפה ואירועים לנהל את הצד הויזואלי של ההצעה שלהם. הוא פועל בשני מישורים במקביל:\n\n`;
+  md += `1. **Front-facing** — הלקוח סורק QR ורואה תפריט יפה ב-Storefront\n`;
+  md += `2. **Back-office** — בעל העסק מנהל קטגוריות, פריטים, מחירים, תמונות, ומנהל Food Cost\n\n`;
+  md += `הייחוד: **Food Cost Module** — הצמדת חומרי גלם לכל פריט + חיבור לספקים → המערכת מחשבת אוטומטית את % עלות המזון ומתריעה כשהוא חורג מהיעד.\n\n`;
+
+  md += `## 2. סוגי משתמשים\n\n`;
+  md += `| תפקיד | מי זה | מה הוא יכול |\n|--------|--------|-------------|\n`;
+  md += `| **BIZ ADMIN** | בעל עסק | ניהול מלא: קטגוריות, פריטים, ספקים, food-cost, עיצוב |\n`;
+  md += `| **BIZ MANAGER** | שף / מנהל תפריט | עריכת פריטים, עדכון מחירים, food cost |\n`;
+  md += `| **לקוח (FAMILY)** | מבקר הסטורפרונט | קריאת תפריט בלבד דרך QR/link |\n`;
+  md += `| **SA** | אדמין | גישה לכל התפריטים לצרכי תמיכה |\n\n`;
+
+  md += `## 3. לוגיקות מרכזיות\n\n`;
+  md += `### 3.1 עריכת תפריט\n`;
+  md += `\`\`\`\nBIZ admin נכנס לטאב "menu-items"\n  → GET /api/menu/categories + /api/menu/items\n  → drag-to-reorder קטגוריות + פריטים\n  → הוספת פריט: שם + תיאור + מחיר + תמונה + allergens + variants\n  → PATCH /api/menu/item/{id}\n  → Storefront מתעדכן real-time (SSE / polling)\n\`\`\`\n\n`;
+  md += `### 3.2 Food Cost\n`;
+  md += `\`\`\`\nבעל עסק מגדיר חומרי גלם לפריט:\n  → פריט "שניצל": לחם פרורים 50g + חזה עוף 200g + שמן 30ml\n  → מחירי ספקים: עוף ₪35/ק"ג → לחישוב: 200g = ₪7\n  → סה"כ עלות חומרי גלם: ₪12.5\n  → מחיר מכירה: ₪65\n  → Food Cost %: (12.5/65)*100 = 19.2%\n  → ⚠️ alert אם % > target (default 30%)\n\`\`\`\n\n`;
+  md += `### 3.3 QR code\n`;
+  md += `לכל עסק יש QR ייחודי שמפנה ל-Storefront בטאב "menu". ניתן להדפיס בעיצוב מותאם לעסק.\n\n`;
+
+  md += `## 4. השפעות על מערכות אחרות\n\n`;
+  md += `| מערכת | השפעה |\n|--------|--------|\n`;
+  md += `| **Storefront** | תפריט שנשמר ב-BIZ → מוצג מיידית ב-Storefront |\n`;
+  md += `| **Orders** | פריטים מהתפריט → בסיס ליצירת הזמנות |\n`;
+  md += `| **BIZ dashboard** | KPI: "Food Cost החודש", "הפריט הנמכר", "הרווחיות" |\n\n`;
+
+  md += `## 5. חוקיות ואילוצים\n\n`;
+  md += `- **חוק 1**: תפריט גלוי ב-Storefront רק לפריטים עם \`visible:true\`\n`;
+  md += `- **חוק 2**: מחיקת פריט — soft delete; נשאר בהיסטוריית הזמנות\n`;
+  md += `- **חוק 3**: Food Cost — ספק חייב להיות רשום ב-/api/suppliers לפני שיוך\n`;
+  md += `- **חוק 4**: מרובה תפריטים (menus.html) — עסק יכול לנהל תפריטי אירועים מקבילים\n`;
+  md += `- **חוק 5**: pricing_mode 'variable' — מאפשר מחיר לפי כמות/גודל (variants)\n\n`;
+
+  md += `## 2. יכולות עיקריות\n\n`;
+  md += `| יכולת | תיאור |\n|--------|-------|\n`;
+  md += `| תפריט רב-שפות | עברית + אנגלית, display עם RTL |\n`;
+  md += `| ניהול קטגוריות | יצירה/עריכה/מחיקה, גרירה לסידור |\n`;
+  md += `| ניהול פריטים | שם, תיאור, מחיר, תמונה, allergens, variants |\n`;
+  md += `| QR code | לינק לתפריט ציבורי + הדפסה |\n`;
+  md += `| Food Cost | חישוב % עלות לכל פריט מול ספקים |\n`;
+  md += `| ספקים | ניהול ספקי חומרי גלם + מחירי רכישה |\n`;
+  md += `| תבניות עיצוב | עיצובים מוכנים לסריקה ב-storefront |\n`;
+  md += `| אירועים | תפריטים מותאמים לאירועים/עונות |\n\n`;
+
+  if (tabs.length) {
+    md += `## 3. טאבים\n\n${tabs.map(t=>`- \`${t}\``).join('\n')}\n\n`;
+  } else {
+    md += `## 3. טאבים\n\n- \`menu-items\` — פריטי תפריט\n- \`categories\` — קטגוריות\n- \`food-cost\` — עלות מזון\n- \`suppliers\` — ספקים\n- \`design\` — תבניות עיצוב\n- \`qr\` — QR code\n\n`;
+  }
+
+  if (sections.length) {
+    md += `## 4. סקשנים (data-section)\n\n${sections.map(s=>`- \`${s}\``).join('\n')}\n\n`;
+  }
+
+  if (eventTypes.length) {
+    md += `## 5. סוגי אירועים\n\n${eventTypes.map(e=>`- \`${e}\``).join('\n')}\n\n`;
+  } else {
+    md += `## 5. סוגי אירועים\n\n- \`wedding\` — חתונות\n- \`bar_mitzvah\` — בר/בת מצווה\n- \`corporate\` — אירועי חברה\n- \`birthday\` — ימי הולדת\n- \`holiday\` — חגים\n\n`;
+  }
+
+  md += `## 6. מחיר ותמחור\n\n`;
+  md += `- pricing_mode: \`${pricingM ? pricingM[1] : 'fixed / variable'}\`\n`;
+  md += `- תמיכה בVariants (תוספות, גדלים, עיטורים)\n`;
+  md += `- מחיר עם/ללא מע"מ\n`;
+  md += `- Food Cost % לפריט = (עלות חומרי גלם / מחיר מכירה) × 100\n\n`;
+
+  md += `## 7. נתיבי API — menu (${routes.length})\n\n${_routeTable(routes)}\n`;
+  if (foodCostRoutes.length) md += `## 8. נתיבי API — food-cost (${foodCostRoutes.length})\n\n${_routeTable(foodCostRoutes)}\n`;
+  if (supplierRoutes.length) md += `## 9. נתיבי API — suppliers (${supplierRoutes.length})\n\n${_routeTable(supplierRoutes)}\n`;
+  if (eventRoutes.length) md += `## 10. נתיבי API — events (${eventRoutes.length})\n\n${_routeTable(eventRoutes)}\n`;
+  return md;
+}
+
+function _genGames(serverJs, today) {
+  const questRoutes     = _extractRoutes(serverJs, '/api/quest-library');
+  const liveGamesRoutes = _extractRoutes(serverJs, '/api/live-games');
+  const triviaRoutes    = _extractRoutes(serverJs, '/api/trivia');
+
+  const GAMES = [
+    {
+      id: 'trivia-1', name: 'טריביה', file: 'games/trivia-1.html',
+      desc: 'שאלות ידע כללי — מרובה-שחקנים, דירוג, ניקוד',
+      mechanics: 'TIMER_SEC=15 לשאלה, QUESTIONS_PER_GAME=10, שאלות מ-trivia-questions.json (~3.2MB), QR להצטרפות מרחוק',
+      screens: ['lobby','question','answer-reveal','leaderboard'],
+    },
+    {
+      id: 'math-1', name: 'מתמטיקה', file: 'games/math-1.html',
+      desc: 'חישובים אריתמטיים מותאמים גיל — הפלוס/חיסור/כפל/חילוק',
+      mechanics: 'יצירה פרוצדורלית (לא JSON), EMOJIS[] לאנימציות, 3 מסכים: level-map → game → result',
+      screens: ['level-map','game','result'],
+    },
+    {
+      id: 'israel-geo-1', name: 'גיאוגרפיה ישראל', file: 'games/israel-geo-1.html',
+      desc: 'מפה אינטראקטיבית — זיהוי ערים, ים, נחלים, מבצרים',
+      mechanics: `CITIES: 20 ערים, LANDMARKS: 5 (כינרת, ים המלח, נגב, גולן, כרמל)`,
+      screens: ['map','question','score'],
+    },
+    {
+      id: 'hebrew-letters-1', name: 'אותיות עברית', file: 'games/hebrew-letters-1.html',
+      desc: 'זיהוי ולמידת 22 אותיות האלף-בית העברי',
+      mechanics: 'כרטיסיות flash, רמות: זיהוי → כתיב → מילים',
+      screens: ['menu','flashcard','quiz','result'],
+    },
+    {
+      id: 'english-alphabet-1', name: 'אנגלית ABC', file: 'games/english-alphabet-1.html',
+      desc: 'זיהוי 26 אותיות אנגלית + מילים בסיסיות',
+      mechanics: 'flash cards + listening (TTS), A–Z match + spelling',
+      screens: ['menu','flashcard','quiz','result'],
+    },
+    {
+      id: 'logic-puzzle-1', name: 'חידות היגיון', file: 'games/logic-puzzle-1.html',
+      desc: 'פאזלים ותעלומות לחשיבה ביקורתית',
+      mechanics: 'רמות קושי: קל/בינוני/קשה, רמז חד-פעמי לכל שאלה',
+      screens: ['difficulty','puzzle','hint','result'],
+    },
+    {
+      id: 'time-manager-1', name: 'ניהול זמן', file: 'games/time-manager-1.html',
+      desc: 'סימולציה — סידור משימות ביום מוגבל',
+      mechanics: 'drag & drop לוח שעות, bonus על יעילות, debrief סוף יום',
+      screens: ['briefing','scheduler','day-sim','debrief'],
+    },
+    {
+      id: 'finance-city-1', name: 'עיר פיננסית', file: 'games/finance-city-1.html',
+      desc: 'סימולציה כלכלית — ניהול תקציב עיר',
+      mechanics: 'בניית עיר, אירועים אקראיים, תקציב רבעוני, חיסכון/השקעה',
+      screens: ['city-map','budget','event','report'],
+    },
+  ];
+
+  let md = `# מפרט טכני — משחקים חינוכיים — Oneflow Life\n\n`;
+  md += `> תאריך: ${today}  \n> תיקייה: \`public/games/\`  \n> Backend: \`/api/quest-library\` · \`/api/live-games\` · \`/api/trivia\`\n\n---\n\n`;
+
+  md += `## 1. מטרה ותפקיד המודול\n\n`;
+  md += `מודול המשחקים הוא **שכבת הגמיפיקציה** של סביבת FAMILY — מענה לצורך של הורים להפוך למידה לחוויה. הוא לא "תוסף" אלא חלק אינטגרלי: הצלחה במשחק → נקודות/מטבעות בפרופיל → מימוש בעסקים קהילתיים.\n\n`;
+  md += `הייחוד הטכני: כל משחק הוא **קובץ HTML עצמאי** — אין dependency על framework, לא צריך build. זה מאפשר להוסיף משחק חדש בלי לגעת בקוד הראשי. המשחקים תקשורתיים עם FAMILY דרך \`postMessage\` API.\n\n`;
+  md += `המשחקים מחולקים לשתי קטגוריות:\n- **יצירה פרוצדורלית** (מתמטיקה): שאלות נוצרות ב-runtime, אין JSON\n- **ספרייה קבועה** (טריביה, גיאוגרפיה): שאלות נטענות מ-JSON/API\n\n`;
+
+  md += `## 2. סוגי משתמשים\n\n`;
+  md += `| משתמש | מה הוא עושה |\n|--------|-------------|\n`;
+  md += `| **ילד (FAMILY MEMBER)** | משחק, צבירת נקודות, עלייה ב-leaderboard |\n`;
+  md += `| **הורה (FAMILY ADMIN)** | מעקב התקדמות, הגדרת מגבלת זמן, הפעלת Live Game |\n`;
+  md += `| **קהילה** | השתתפות ב-Live Game — תחרות בזמן אמת |\n`;
+  md += `| **SA** | ניהול ספריית שאלות, הוספת/עריכת trivia-questions.json |\n\n`;
+
+  md += `## 3. לוגיקות מרכזיות\n\n`;
+  md += `### 3.1 מחזור חיי משחק — טריביה\n`;
+  md += `\`\`\`\nילד נכנס ל-trivia-1.html\n  → fetch trivia-questions.json (פעם אחת, cached)\n  → shuffle + בחירת 10 שאלות (QUESTIONS_PER_GAME)\n  → לכל שאלה: timer countdown 15s (TIMER_SEC)\n  → תשובה נכונה → +10 נקודות + אנימציה\n  → תשובה שגויה / timeout → הצגת תשובה נכונה\n  → 10/10 → postMessage(score) לFAMILY\n  → FAMILY → POST /api/quest-library/score {game, score}\n  → נקודות נוספות לפרופיל\n\`\`\`\n\n`;
+  md += `### 3.2 Live Game (תחרות משפחתית)\n`;
+  md += `\`\`\`\nהורה לוחץ "תחרות"\n  → POST /api/live-games/create\n  → מקבל QR + room_id\n  → ילדים סורקים QR → join room\n  → שאלות מסונכרנות — כולם רואים אותה שאלה בו זמנית\n  → leaderboard real-time (WebSocket / SSE)\n  → מנצח → badge ב-FAMILY profile\n\`\`\`\n\n`;
+  md += `### 3.3 מתמטיקה — יצירה פרוצדורלית\n`;
+  md += `שאלות נוצרות ב-runtime לפי level שנבחר ב-level-map. אין JSON חיצוני. EMOJIS[] מוסיפים ויזואל. 3 מסכים: level-map → game → result.\n\n`;
+
+  md += `## 4. השפעות על מערכות אחרות\n\n`;
+  md += `| מערכת | השפעה |\n|--------|--------|\n`;
+  md += `| **FAMILY** | נקודות נצברות ב-profile FAMILY → מוצגות ב-dashboard |\n`;
+  md += `| **Storefront** | נקודות ניתן להמיר למטבעות → שימוש ב-FLW ב-Storefront |\n`;
+  md += `| **כל העם** | הצלחות במשחק → "סיפורי הצלחה" ניתן לפרסם ב-KH |\n\n`;
+
+  md += `## 5. חוקיות ואילוצים\n\n`;
+  md += `- **חוק 1**: כל משחק — קובץ HTML עצמאי; אין import מ-app.js הראשי\n`;
+  md += `- **חוק 2**: תקשורת עם FAMILY — postMessage בלבד (לא localStorage משותף)\n`;
+  md += `- **חוק 3**: trivia-questions.json — נטען פעם אחת ומגיש מ-cache; גודל מקסימלי: 5MB\n`;
+  md += `- **חוק 4**: Live Game — דורש WebSocket session פעיל; אין fallback ל-polling\n`;
+  md += `- **חוק 5**: גיל < 7 → רק hebrew-letters + math (רמה 1); הגבלה ב-ROLE_DEFAULTS\n\n`;
+
+  md += `## 2. רשימת משחקים\n\n`;
+  GAMES.forEach(g => {
+    md += `### 🎮 ${g.name} (\`${g.file}\`)\n\n`;
+    md += `**תיאור:** ${g.desc}  \n`;
+    md += `**מנגנון:** ${g.mechanics}  \n`;
+    md += `**מסכים:** ${g.screens.map(s=>`\`${s}\``).join(' → ')}  \n\n`;
+  });
+
+  md += `## 3. ספריית שאלות (Trivia)\n\n`;
+  md += `- קובץ: \`public/games/trivia-questions.json\` (~3.2MB)\n`;
+  md += `- מבנה: \`[{ id, question, options[], correct, category, difficulty, age_min }]\`\n`;
+  md += `- קטגוריות: ידע כללי, מדע, היסטוריה, גיאוגרפיה, ספורט, אמנות, טבע\n`;
+  md += `- רמות קושי: 1 (קל) → 3 (קשה)\n`;
+  md += `- TIMER_SEC: 15 שניות לשאלה\n`;
+  md += `- QUESTIONS_PER_GAME: 10 שאלות לסשן\n\n`;
+
+  md += `## 4. מנגנון Quests ופרסים\n\n`;
+  md += `- הצלחה במשחק → זיכוי נקודות/מטבעות בפרופיל FAMILY\n`;
+  md += `- Live Games: תחרות real-time בין חברי משפחה / קהילה (QR join)\n`;
+  md += `- Leaderboard: ציוני TOP 10 לכל משחק\n`;
+  md += `- Achievements: עיטורים על רצף ניצחונות / ניקוד גבוה\n\n`;
+
+  md += `## 5. גיאוגרפיה ישראל — מפת נתונים\n\n`;
+  md += `**20 ערים:** ירושלים, תל אביב, חיפה, באר שבע, נתניה, אשדוד, אשקלון, ראשון לציון, פתח תקווה, הרצליה, רמת גן, בני ברק, כפר סבא, נצרת, טבריה, עפולה, עכו, נהריה, ערד, אילת\n\n`;
+  md += `**5 אתרי ציון:** כינרת, ים המלח, הנגב, רמת הגולן, הר הכרמל\n\n`;
+
+  md += `## 6. נתיבי API — quest-library (${questRoutes.length})\n\n${_routeTable(questRoutes)}\n`;
+  if (liveGamesRoutes.length) md += `## 7. נתיבי API — live-games (${liveGamesRoutes.length})\n\n${_routeTable(liveGamesRoutes)}\n`;
+  if (triviaRoutes.length) md += `## 8. נתיבי API — trivia (${triviaRoutes.length})\n\n${_routeTable(triviaRoutes)}\n`;
+  return md;
+}
+// ── END helpers ────────────────────────────────────────────────────────────────
+
+// POST /api/sa/docs/refresh/:doc — regenerate MD by code scanning (no AI needed)
 app.post('/api/sa/docs/refresh/:doc', verifySA, async (req, res) => {
   const { doc } = req.params;
   const cfg = DOCS_CONFIG[doc];
   if (!cfg) return res.status(404).json({ success: false, error: 'Unknown doc' });
-  if (!process.env.ANTHROPIC_API_KEY) return res.status(500).json({ success: false, error: 'No AI key' });
 
   try {
     const docPath = path.join(__dirname, cfg.file);
-    const existingMd = fs.existsSync(docPath) ? fs.readFileSync(docPath, 'utf8') : '';
-
     const serverJs = fs.readFileSync(path.join(__dirname, 'server.js'), 'utf8');
-    const serverLines = serverJs.split('\n');
-
-    // Special refresh logic for the 3 new deep-scan docs
+    const today = new Date().toISOString().slice(0, 10);
     const hint = cfg._refreshHint;
-    let prompt;
 
-    if (hint === 'db-schema') {
-      const tables = serverLines
-        .filter(l => /CREATE TABLE\s+(IF NOT EXISTS\s+)?(\w+)/i.test(l))
-        .map(l => { const m = l.match(/CREATE TABLE\s+(?:IF NOT EXISTS\s+)?(\w+)/i); return m ? m[1] : null; })
-        .filter(Boolean).sort();
-      prompt = `אתה עוזר טכני של מערכת Family-Flow. עדכן את מסמך סכמת ה-DB הבא.
+    let scanContent = '';
+    for (const sf of (cfg.scanFiles || [])) {
+      const sfPath = path.join(__dirname, sf);
+      if (fs.existsSync(sfPath)) scanContent += fs.readFileSync(sfPath, 'utf8');
+    }
 
-מסמך קיים:
-\`\`\`
-${existingMd.slice(0, 6000)}
-\`\`\`
+    // always load JS files for rich module/tab data
+    const bizAppPath = path.join(__dirname, 'public/business-app.js');
+    const bizAppJs = fs.existsSync(bizAppPath) ? fs.readFileSync(bizAppPath, 'utf8') : '';
+    const saHtmlPath = path.join(__dirname, 'public/sa.html');
+    const saHtml = fs.existsSync(saHtmlPath) ? fs.readFileSync(saHtmlPath, 'utf8') : '';
+    const saAppPath = path.join(__dirname, 'public/sa-app.js');
+    const saAppJs = fs.existsSync(saAppPath) ? fs.readFileSync(saAppPath, 'utf8') : '';
+    const zoneAppPath = path.join(__dirname, 'public/zone-manager-app.js');
+    const zoneAppJs = fs.existsSync(zoneAppPath) ? fs.readFileSync(zoneAppPath, 'utf8') : '';
 
-רשימת כל הטבלאות בקוד כיום (${tables.length} טבלאות):
-${tables.join('\n')}
-
-הנחיות:
-1. עדכן את שורת "תאריך:" ל-${new Date().toISOString().slice(0,10)}
-2. עדכן את מספר הטבלאות בכותרת
-3. הוסף טבלאות חדשות שלא קיימות במסמך תחת הקבוצה המתאימה
-4. שמור על פורמט Markdown קיים
-5. החזר את המסמך המלא בלבד`;
-    } else if (hint === 'api-complete') {
-      const routes = serverLines
-        .filter(l => /app\.(get|post|put|patch|delete)\s*\(\s*['"`]/i.test(l))
-        .map(l => { const m = l.match(/app\.(get|post|put|patch|delete)\s*\(\s*['"`]([^'"`]+)/i); return m ? `${m[1].toUpperCase()} ${m[2]}` : null; })
-        .filter(Boolean).sort();
-      prompt = `אתה עוזר טכני של מערכת Family-Flow. עדכן את מסמך מפת ה-API המלאה.
-
-מסמך קיים:
-\`\`\`
-${existingMd.slice(0, 5000)}
-\`\`\`
-
-כל ה-routes בקוד כיום (${routes.length} endpoints):
-\`\`\`
-${routes.slice(0, 500).join('\n')}
-\`\`\`
-
-הנחיות:
-1. עדכן את שורת "תאריך:" ל-${new Date().toISOString().slice(0,10)}
-2. עדכן את מספר ה-endpoints הכולל
-3. הוסף routes חדשים שלא קיימים, תחת ה-domain המתאים
-4. שמור על פורמט טבלה Markdown
-5. החזר את המסמך המלא בלבד`;
+    let newContent = '';
+    if (hint === 'api-complete') {
+      newContent = _genApiComplete(serverJs, today);
+    } else if (hint === 'db-schema') {
+      newContent = _genDbSchema(serverJs, today);
+    } else if (hint === 'missing-modules') {
+      newContent = _genMissingModules(bizAppJs, today);
+    } else if (doc === 'spec-qa-book') {
+      newContent = _genQaBook(serverJs, today);
+    } else if (doc === 'spec-biz-environment') {
+      newContent = _genBizEnv(serverJs, bizAppJs, today);
+    } else if (doc === 'spec-family-environment') {
+      const familyAppPath = path.join(__dirname, 'public/app.js');
+      const familyAppJs = fs.existsSync(familyAppPath) ? fs.readFileSync(familyAppPath, 'utf8') : '';
+      newContent = _genFamilyEnv(serverJs, familyAppJs, today);
+    } else if (doc === 'spec-zone-community') {
+      newContent = _genZoneEnv(serverJs, zoneAppJs, today);
+    } else if (doc === 'spec-super-admin') {
+      newContent = _genSAEnv(serverJs, saHtml, saAppJs, today);
+    } else if (doc === 'spec-kol-haam') {
+      const khAppPath = path.join(__dirname, 'public/kol-haam-app.js');
+      const khAppJs = fs.existsSync(khAppPath) ? fs.readFileSync(khAppPath, 'utf8') : '';
+      newContent = _genKolHaam(serverJs, khAppJs + saAppJs, today);
+    } else if (doc === 'spec-storefront') {
+      newContent = _genStorefront(serverJs, scanContent, today);
+    } else if (doc === 'spec-marketplace') {
+      newContent = _genMarketplace(serverJs, scanContent, today);
+    } else if (doc === 'spec-onboarding') {
+      const bizOBPath = path.join(__dirname, 'public/biz-onboarding.html');
+      const famOBPath = path.join(__dirname, 'public/family-onboarding.html');
+      const bizOBHtml = fs.existsSync(bizOBPath) ? fs.readFileSync(bizOBPath, 'utf8') : '';
+      const famOBHtml = fs.existsSync(famOBPath) ? fs.readFileSync(famOBPath, 'utf8') : '';
+      newContent = _genOnboarding(serverJs, bizOBHtml, famOBHtml, today);
+    } else if (doc === 'spec-menu') {
+      newContent = _genMenu(serverJs, scanContent, today);
+    } else if (doc === 'spec-games' || hint === 'games') {
+      newContent = _genGames(serverJs, today);
     } else {
-      // Standard refresh: read api routes + html snippets
-      let apiRoutes = '';
-      if (cfg.apiPrefix) {
-        const routeLines = serverLines.filter(l => {
-          const m = l.match(/app\.(get|post|put|patch|delete)\s*\(\s*['"`]([^'"`]+)/i);
-          return m && m[2].startsWith(cfg.apiPrefix);
-        });
-        apiRoutes = routeLines.slice(0, 120).join('\n');
-      }
-      let htmlSnippet = '';
-      for (const sf of cfg.scanFiles) {
-        const sfPath = path.join(__dirname, sf);
-        if (fs.existsSync(sfPath)) {
-          const lines = fs.readFileSync(sfPath, 'utf8').split('\n').slice(0, 300);
-          htmlSnippet += `\n--- ${sf} (first 300 lines) ---\n` + lines.join('\n');
-        }
-      }
-      prompt = `אתה עוזר טכני של מערכת Family-Flow. המשימה שלך: עדכן את מסמך האפיון הבא כך שישקף את מצב הקוד הנוכחי.
-
-מסמך קיים (${existingMd.split('\n').length} שורות):
-\`\`\`
-${existingMd.slice(0, 8000)}
-\`\`\`
-
-נתיבי API נוכחיים (${cfg.apiPrefix || 'כללי'}):
-\`\`\`
-${apiRoutes.slice(0, 3000)}
-\`\`\`
-
-${htmlSnippet ? `קטע מקוד HTML:\n\`\`\`\n${htmlSnippet.slice(0,2000)}\n\`\`\`` : ''}
-
-הנחיות:
-1. שמור על מבנה המסמך הקיים ועל פורמט Markdown
-2. עדכן את שורת "תאריך:" לתאריך היום (${new Date().toISOString().slice(0,10)})
-3. עדכן רשימת נתיבי API אם יש שינויים
-4. אל תמחק מידע קיים אלא אם הוא ברור שאינו נכון
-5. החזר את המסמך המלא המעודכן בלבד, ללא הסברים נוספים`;
-    }
-
-    const aiRes = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'x-api-key': process.env.ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 8000,
-        messages: [{ role: 'user', content: prompt }],
-      }),
-    });
-
-    if (!aiRes.ok) {
-      const err = await aiRes.text();
-      return res.status(500).json({ success: false, error: `AI error: ${err.slice(0,200)}` });
-    }
-
-    const aiData = await aiRes.json();
-    const newContent = aiData.content?.[0]?.text || '';
-    if (!newContent || newContent.length < 100) {
-      return res.status(500).json({ success: false, error: 'Empty AI response' });
+      newContent = _genBizEnv(serverJs, bizAppJs, today);
     }
 
     fs.writeFileSync(docPath, newContent, 'utf8');
@@ -27364,10 +29279,11 @@ app.post('/api/live-games/:id/notify-start', verifySA, async (req, res) => {
 });
 
 // משחקים ציבוריים לקהילה (לאזור הקהילה בממשק המשפחה)
-app.get('/api/community/:id/live-games', async (req, res) => {
+app.get('/api/community/:id/live-games', verifyFamily, async (req, res) => {
   try {
     const communityId = req.params.id;
     const groupId = req.query.groupId || null;
+    if (groupId && parseInt(groupId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
     let rows;
     if (groupId) {
       // שלוף את כל קהילות המשפחה המאושרות — גם מטבלת family_communities וגם מ-family_groups.community_id
@@ -29295,7 +31211,10 @@ app.delete('/api/kol-haam/comments/:id', async (req, res) => {
     const { id } = req.params;
     // allow ZM token or SA token
     const authHeader = req.headers['authorization'] || '';
-    const isSA = authHeader === process.env.SA_SECRET_TOKEN_2026 || authHeader === 'SA_SECRET_TOKEN_2026';
+    let isSA = false;
+    if (authHeader) {
+        try { const { rows } = await pool.query('SELECT 1 FROM sa_sessions WHERE token=$1 AND expires_at>NOW()', [authHeader]); isSA = rows.length > 0; } catch(e) {}
+    }
     const isZM = !!req.zmSession; // set by verifyZoneManager if it ran, but we do manual check here
     // manual ZM check for this endpoint
     let isZMManual = false;
@@ -29628,7 +31547,7 @@ app.post('/api/kol-haam/reports/:id/resolve', async (req, res) => {
     const { id } = req.params;
     const { action } = req.body; // 'dismiss' | 'hide_comment' | 'unpublish_content'
     const authHeader = req.headers['authorization'] || '';
-    const isSA = authHeader === process.env.SA_SECRET_TOKEN_2026 || authHeader === 'SA_SECRET_TOKEN_2026';
+    let isSA = false; if (authHeader) { try { const { rows: _sar } = await pool.query('SELECT 1 FROM sa_sessions WHERE token=$1 AND expires_at>NOW()', [authHeader]); isSA = _sar.length > 0; } catch(e) {} }
     let isZM = false;
     if (!isSA && authHeader) {
         try {
@@ -29657,7 +31576,7 @@ app.post('/api/kol-haam/reports/:id/resolve', async (req, res) => {
 // POST /api/kol-haam/content/:id/un-quarantine — ZM or SA
 app.post('/api/kol-haam/content/:id/un-quarantine', async (req, res) => {
     const authHeader = req.headers['authorization'] || '';
-    const isSA = authHeader === process.env.SA_SECRET_TOKEN_2026 || authHeader === 'SA_SECRET_TOKEN_2026';
+    let isSA = false; if (authHeader) { try { const { rows: _sar } = await pool.query('SELECT 1 FROM sa_sessions WHERE token=$1 AND expires_at>NOW()', [authHeader]); isSA = _sar.length > 0; } catch(e) {} }
     let isZM = false;
     if (!isSA && authHeader) {
         try {
@@ -31149,6 +33068,31 @@ async function verifyBizOrLegacy(req, res, next) {
     console.warn(`[verifyBizOrLegacy] legacy fallback — no token, groupId=${legacyGroupId}, path=${req.path}`);
     req.bizAuth = { groupId: legacyGroupId, userId: null, fromToken: false };
     next();
+}
+
+// middleware לendpoints שיכולים להגיע מ-family או biz — שם callerAuth עם groupId + type
+async function verifyFamilyOrBiz(req, res, next) {
+    const authHeader = req.headers.authorization || '';
+    const rawToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : authHeader;
+    if (!rawToken) return res.status(401).json({ error: 'יש להתחבר תחילה' });
+    const tokenHash = _hashToken(rawToken);
+    try {
+        const r = await pool.query(
+            `SELECT group_id, user_id, expires_at, session_type FROM family_sessions WHERE token_hash=$1`,
+            [tokenHash]
+        );
+        const row = r.rows[0];
+        if (!row) return res.status(401).json({ error: 'פגישה לא תקינה — יש להתחבר מחדש' });
+        if (new Date(row.expires_at) < new Date()) {
+            pool.query(`DELETE FROM family_sessions WHERE token_hash=$1`, [tokenHash]).catch(() => {});
+            return res.status(401).json({ error: 'פגישה פגה — יש להתחבר מחדש' });
+        }
+        pool.query(`UPDATE family_sessions SET last_seen=NOW() WHERE token_hash=$1`, [tokenHash]).catch(() => {});
+        req.callerAuth = { groupId: row.group_id, userId: row.user_id, type: row.session_type === 'biz' ? 'business' : 'family' };
+        next();
+    } catch(e) {
+        return res.status(500).json({ error: 'שגיאה פנימית' });
+    }
 }
 
 // ── requireModule middleware ──────────────────────────────────
