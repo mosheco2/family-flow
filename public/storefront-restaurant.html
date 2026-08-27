@@ -740,13 +740,27 @@ function renderHero(data, s) {
   // hero images
   const _banner = s.banner_url && s.banner_url !== 'DELETE' && s.banner_url !== 'null' ? s.banner_url : '';
   const imgItems = catalog.filter(p => p.has_image);
+  // shuffle for random hero images
+  const shuffled = [...imgItems].sort(() => Math.random() - 0.5);
   const main = document.getElementById('hero-img-main');
   const sideTop = document.getElementById('hero-side-top');
+  const sidePromo = document.getElementById('hero-side-promo');
   if (_banner) {
     main.innerHTML = `<img src="${escHtml(_banner)}" alt="באנר">`;
-  } else if (imgItems.length >= 1) {
-    main.innerHTML = `<img src="${API}/store/item-image/${imgItems[0].id}" alt="${escHtml(imgItems[0].name)}" loading="lazy">`;
-    if (imgItems.length >= 2) sideTop.innerHTML = `<img src="${API}/store/item-image/${imgItems[1].id}" alt="${escHtml(imgItems[1].name)}" loading="lazy">`;
+    if (shuffled.length >= 1) sideTop.innerHTML = `<img src="${API}/store/item-image/${shuffled[0].id}" alt="${escHtml(shuffled[0].name)}" loading="lazy">`;
+    if (shuffled.length >= 2) {
+      sidePromo.innerHTML = `<img src="${API}/store/item-image/${shuffled[1].id}" alt="${escHtml(shuffled[1].name)}" style="width:100%;height:100%;object-fit:cover;position:absolute;inset:0">`;
+      sidePromo.style.position = 'relative';
+      sidePromo.style.padding = '0';
+    }
+  } else if (shuffled.length >= 1) {
+    main.innerHTML = `<img src="${API}/store/item-image/${shuffled[0].id}" alt="${escHtml(shuffled[0].name)}" loading="lazy">`;
+    if (shuffled.length >= 2) sideTop.innerHTML = `<img src="${API}/store/item-image/${shuffled[1].id}" alt="${escHtml(shuffled[1].name)}" loading="lazy">`;
+    if (shuffled.length >= 3) {
+      sidePromo.innerHTML = `<img src="${API}/store/item-image/${shuffled[2].id}" alt="${escHtml(shuffled[2].name)}" style="width:100%;height:100%;object-fit:cover;position:absolute;inset:0">`;
+      sidePromo.style.position = 'relative';
+      sidePromo.style.padding = '0';
+    }
   } else {
     const decos = {pizza:'🍕',burger:'🍔',sushi:'🍣',cafe:'☕',default:'🍽️'};
     const n = (data.groupName||'').toLowerCase();
