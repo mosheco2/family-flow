@@ -16311,6 +16311,7 @@ app.get('/:alias', async (req, res, next) => {
         const templateMap = {
             'classic': 'storefront.html',
             'restaurant': 'storefront-restaurant.html',
+            'sport': 'storefront-sport.html',
         };
         const htmlFile = templateMap[templateId] || 'storefront.html';
         const filePath = path.join(__dirname, 'public', htmlFile);
