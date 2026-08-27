@@ -254,6 +254,32 @@ input,select,textarea{font-family:inherit}
 #send-quote-btn:hover{background:var(--accent-dark)}
 #send-quote-btn:disabled{opacity:.5;cursor:default}
 
+/* Quick actions */
+.qa-btn{display:inline-flex;align-items:center;gap:7px;padding:8px 14px;border:1px solid rgba(255,255,255,.22);border-radius:99px;background:rgba(255,255,255,.08);color:rgba(255,255,255,.88);font-size:12.5px;font-weight:500;cursor:pointer;text-decoration:none;transition:.15s;white-space:nowrap}
+.qa-btn:hover{background:rgba(255,255,255,.18);border-color:rgba(255,255,255,.4)}
+
+/* Product sheet */
+#sheet-overlay{position:fixed;inset:0;z-index:800;background:rgba(0,0,0,.5);display:none;align-items:flex-end;justify-content:center}
+#sheet-overlay.open{display:flex}
+#product-sheet{background:var(--card);border-radius:22px 22px 0 0;padding:24px 20px 36px;width:100%;max-width:560px;max-height:88vh;overflow-y:auto;animation:rise .25s ease}
+#sheet-img{width:100%;height:200px;object-fit:cover;border-radius:16px;margin-bottom:16px;display:none}
+#sheet-name{font-family:'Rubik',sans-serif;font-size:20px;font-weight:700;margin-bottom:4px}
+#sheet-price{font-size:18px;font-weight:700;color:var(--accent);margin-bottom:8px}
+#sheet-desc{font-size:13.5px;color:var(--muted);line-height:1.6;margin-bottom:16px}
+#sheet-options{margin-bottom:16px}
+.sheet-opt-label{font-size:12px;font-weight:700;color:var(--dark);margin-bottom:8px;text-transform:uppercase;letter-spacing:.05em}
+.sheet-opt-row{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+.sheet-opt-btn{padding:6px 14px;border-radius:99px;border:1.5px solid var(--border);font-size:13px;background:var(--card);cursor:pointer;transition:.12s}
+.sheet-opt-btn.active{border-color:var(--accent);background:var(--accent);color:#fff}
+#sheet-qty-row{display:flex;align-items:center;gap:16px;margin-bottom:20px}
+#sheet-qty-stepper{display:flex;align-items:center;gap:12px;background:var(--subtle);border-radius:99px;padding:4px 8px}
+#sheet-qty-stepper button{width:32px;height:32px;border-radius:50%;border:none;background:var(--card);font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+#sheet-qty-val{font-size:16px;font-weight:700;min-width:24px;text-align:center}
+#sheet-add-btn{width:100%;padding:14px;border-radius:14px;background:var(--accent);color:#fff;font-size:15px;font-weight:700;cursor:pointer;transition:.15s}
+#sheet-add-btn:hover{background:var(--accent-dark)}
+#sheet-close-btn{position:absolute;top:16px;left:16px;width:32px;height:32px;border-radius:50%;background:var(--subtle);border:none;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--muted)}
+#product-sheet{position:relative}
+
 /* Mobile filter */
 #mobile-filter-btn{display:none;padding:8px 14px;border-radius:99px;border:1px solid var(--border);background:var(--card);font-size:13px;font-weight:500;cursor:pointer;align-items:center;gap:6px}
 #filter-overlay{display:none;position:fixed;inset:0;z-index:700;background:rgba(0,0,0,.5)}
@@ -279,11 +305,14 @@ input,select,textarea{font-family:inherit}
   #quote-btn{display:none}
   #cart-header-btn{padding:7px 10px;font-size:12px;white-space:nowrap;flex-shrink:0}
   #hero h1{font-size:clamp(22px,6vw,36px)}
-  #hero-stats{gap:20px}
+  #hero-stats{gap:20px;flex-wrap:wrap}
   .hstat-val{font-size:22px}
   .product-row-head{grid-template-columns:48px 1fr auto}
   .product-price-col{display:none}
   .vtier{min-width:80px}
+  .product-name{white-space:normal;overflow-wrap:break-word;word-break:break-word}
+  #store-layout{overflow-x:hidden}
+  body{overflow-x:hidden}
 }
 </style>
 </head>
@@ -338,15 +367,12 @@ input,select,textarea{font-family:inherit}
   <div class="hero-inner">
     <div id="hero-eyebrow">
       <span id="hero-open-dot"></span>
-      B2B · הזמנות סיטונאיות
+      <span id="hero-eyebrow-text">B2B · הזמנות סיטונאיות</span>
     </div>
-    <h1><span id="hero-title-text">הציוד שה<span class="accent">מכון שלכם</span> צריך</span></h1>
-    <p id="hero-sub" style="font-size:14.5px;font-weight:300;color:rgba(255,255,255,.58);margin:0 0 24px;max-width:42ch;line-height:1.55">אספקה מהירה, מחירי סיטונאות, שירות מקצועי לעסקים</p>
-    <div id="hero-stats">
-      <div class="hstat"><div class="hstat-val" id="hstat-gyms">500+</div><div class="hstat-lbl">מכונים שמאמינים בנו</div></div>
-      <div class="hstat"><div class="hstat-val">48h</div><div class="hstat-lbl">זמן אספקה</div></div>
-      <div class="hstat"><div class="hstat-val" id="hstat-discount">18%</div><div class="hstat-lbl">הנחת כמות מקסימלית</div></div>
-    </div>
+    <h1 id="hero-title-text"></h1>
+    <p id="hero-sub"></p>
+    <div id="quick-actions" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px"></div>
+    <div id="hero-stats"></div>
   </div>
 </section>
 
@@ -499,6 +525,26 @@ input,select,textarea{font-family:inherit}
   </div>
 </div>
 
+<!-- Product detail sheet -->
+<div id="sheet-overlay" onclick="closeSheet(event)">
+  <div id="product-sheet">
+    <button id="sheet-close-btn" onclick="closeSheet(null,true)">✕</button>
+    <img id="sheet-img" src="" alt="">
+    <div id="sheet-name"></div>
+    <div id="sheet-price"></div>
+    <div id="sheet-desc"></div>
+    <div id="sheet-options"></div>
+    <div id="sheet-qty-row">
+      <div id="sheet-qty-stepper">
+        <button onclick="sheetQtyChange(-1)">−</button>
+        <span id="sheet-qty-val">1</span>
+        <button onclick="sheetQtyChange(1)">+</button>
+      </div>
+    </div>
+    <button id="sheet-add-btn" onclick="sheetAdd()">הוסף לעגלה</button>
+  </div>
+</div>
+
 <!-- Mobile filter sheet -->
 <div id="filter-overlay" onclick="closeMobileFilter()"></div>
 <div id="filter-sheet">
@@ -607,6 +653,41 @@ async function loadAsync() {
     const d = await r.json();
     if (d.success && d.reviews?.length) renderReviews(d.reviews);
   } catch(e) {}
+  try {
+    const r = await fetch(`${API}/public/gallery/${groupId}`);
+    const d = await r.json();
+    if (d.success && d.images?.length) {
+      const btn = document.createElement('button');
+      btn.className = 'qa-btn';
+      btn.style.cssText = 'border-color:rgba(255,255,255,.4)';
+      btn.textContent = `🖼 גלריה · ${d.images.length} תמונות`;
+      btn.onclick = () => { window._galleryImages = d.images; openGallery(0); };
+      document.getElementById('quick-actions').appendChild(btn);
+      document.getElementById('quick-actions').style.display = 'flex';
+    }
+  } catch(e) {}
+}
+
+let _lbIndex = 0;
+function openGallery(i) {
+  _lbIndex = i;
+  const imgs = window._galleryImages || [];
+  if (!imgs.length) return;
+  const ov = document.createElement('div');
+  ov.id = 'lb-overlay';
+  ov.style.cssText = 'position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,.92);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px';
+  ov.innerHTML = `<button onclick="document.getElementById(\'lb-overlay\').remove()" style="position:absolute;top:16px;left:16px;background:rgba(255,255,255,.12);border:none;color:#fff;font-size:22px;width:40px;height:40px;border-radius:50%;cursor:pointer">✕</button>
+    <button onclick="lbNav(-1)" style="position:absolute;right:16px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,.12);border:none;color:#fff;font-size:22px;width:44px;height:44px;border-radius:50%;cursor:pointer">›</button>
+    <img id="lb-img" src="${escHtml(imgs[i].url||imgs[i])}" style="max-width:90vw;max-height:75vh;border-radius:12px;object-fit:contain">
+    <div id="lb-counter" style="color:rgba(255,255,255,.55);font-size:13px">${i+1} / ${imgs.length}</div>
+    <button onclick="lbNav(1)" style="position:absolute;left:16px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,.12);border:none;color:#fff;font-size:22px;width:44px;height:44px;border-radius:50%;cursor:pointer">‹</button>`;
+  document.body.appendChild(ov);
+}
+function lbNav(dir) {
+  const imgs = window._galleryImages || [];
+  _lbIndex = (_lbIndex + dir + imgs.length) % imgs.length;
+  const ov = document.getElementById('lb-overlay');
+  if (ov) { ov.querySelector('#lb-img').src = escHtml(imgs[_lbIndex].url||imgs[_lbIndex]); ov.querySelector('#lb-counter').textContent = `${_lbIndex+1} / ${imgs.length}`; }
 }
 
 /* ── Render all ── */
@@ -660,17 +741,50 @@ function renderHeader(s) {
 }
 
 function renderHero(s) {
-  const name = storeData.groupName || 'המכון';
-  document.getElementById('hero-title-text').innerHTML = `הציוד שה<span class="accent">${escHtml(name)}</span> שלכם צריך`;
-  const disc = s.max_volume_discount || (storeData.volume_tiers?.slice(-1)[0]?.pct) || 18;
-  document.getElementById('hstat-discount').textContent = disc + '%';
-  if (storeData.stats?.gyms_count) document.getElementById('hstat-gyms').textContent = storeData.stats.gyms_count + '+';
+  const name = storeData.groupName || '';
+  document.getElementById('hero-title-text').textContent = name;
+  document.getElementById('hero-sub').textContent = s.slogan || s.description || '';
+  document.getElementById('hero-sub').style.cssText = 'font-size:14.5px;font-weight:300;color:rgba(255,255,255,.58);margin:0 0 16px;max-width:42ch;line-height:1.55';
+  // Stats — רק מה שמוגדר בהגדרות
+  const stats = [];
+  const disc = s.max_volume_discount || (storeData.volume_tiers?.slice(-1)[0]?.pct);
+  if (disc) stats.push({val: disc+'%', lbl: 'הנחת כמות'});
+  if (s.delivery_eta) stats.push({val: s.delivery_eta+'h', lbl: 'זמן אספקה'});
+  if (s.free_delivery_above) stats.push({val: '₪'+s.free_delivery_above, lbl: 'משלוח חינם מעל'});
+  document.getElementById('hero-stats').innerHTML = stats.map(st =>
+    `<div class="hstat"><div class="hstat-val">${escHtml(st.val)}</div><div class="hstat-lbl">${escHtml(st.lbl)}</div></div>`
+  ).join('');
+  // Banner
   const bannerUrl = s.banner_url && s.banner_url !== 'DELETE' && s.banner_url !== 'null' ? s.banner_url : '';
   if (bannerUrl) {
     const bg = document.getElementById('hero-banner-bg');
     bg.style.backgroundImage = `url('${bannerUrl}')`;
     bg.style.opacity = '0.28';
   }
+  renderQuickActions(s);
+}
+
+function renderQuickActions(s) {
+  const btns = [];
+  if (s.phone) btns.push(`<a class="qa-btn" href="tel:${escHtml(s.phone)}">📞 ${escHtml(s.phone)}</a>`);
+  const wa = s.whatsapp_number || s.phone;
+  if (wa) btns.push(`<a class="qa-btn" href="https://wa.me/972${wa.replace(/\D/g,'').replace(/^0/,'')}" target="_blank">💬 וואטסאפ</a>`);
+  if (s.biz_lat && s.biz_lng) {
+    btns.push(`<a class="qa-btn" href="https://waze.com/ul?ll=${s.biz_lat},${s.biz_lng}&navigate=yes" target="_blank">🚗 Waze</a>`);
+    btns.push(`<a class="qa-btn" href="https://maps.google.com/?q=${s.biz_lat},${s.biz_lng}" target="_blank">📍 מפה</a>`);
+  } else if (s.biz_address) {
+    btns.push(`<a class="qa-btn" href="https://maps.google.com/?q=${encodeURIComponent(s.biz_address)}" target="_blank">📍 ${escHtml(s.biz_address)}</a>`);
+  }
+  if (s.has_table_booking) btns.push(`<button class="qa-btn" onclick="openBooking('table')">🪑 הזמנת שולחן</button>`);
+  if (s.has_space_booking) btns.push(`<button class="qa-btn" onclick="openBooking('space')">🏛 הזמנת מקום</button>`);
+  if (s.has_event_booking) btns.push(`<button class="qa-btn" onclick="openBooking('event')">🎉 הזמנת אירוע</button>`);
+  document.getElementById('quick-actions').innerHTML = btns.join('');
+  document.getElementById('quick-actions').style.display = btns.length ? 'flex' : 'none';
+}
+
+function openBooking(type) {
+  openQuote();
+  document.getElementById('qf-msg').value = type === 'table' ? 'הזמנת שולחן — ' : type === 'space' ? 'הזמנת מקום — ' : 'הזמנת אירוע — ';
 }
 
 function renderVolumeTiers(s) {
@@ -760,8 +874,8 @@ function productRowHtml(p) {
   const isExp = _expandedId == p.id;
   return `<div class="product-row${isExp?' expanded':''}" id="prow-${p.id}">
     <div class="product-row-head" onclick="toggleRow(${p.id})">
-      <div class="product-thumb">
-        ${p.has_image && p.image_url ? `<img src="${escHtml(p.image_url)}" alt="${escHtml(p.name)}" loading="lazy">` : '🏋️'}
+      <div class="product-thumb" onclick="openSheet(${p.id},event)">
+        ${p.image_url ? `<img src="${escHtml(p.image_url)}" alt="${escHtml(p.name)}" loading="lazy">` : '🏋️'}
       </div>
       <div class="product-info">
         <div class="product-name">${escHtml(p.name)}</div>
@@ -1117,6 +1231,76 @@ async function sendQuote() {
     closeQuote(null, true);
   } catch(e) { showToast('שגיאה, נסו שוב'); }
   btn.textContent = 'שלח בקשה'; btn.disabled = false;
+}
+
+/* ── Product Sheet ── */
+let _sheetId = null, _sheetQty = 1, _sheetSelOpt = {};
+
+function openSheet(id, e) {
+  if (e) e.stopPropagation();
+  const p = catalog.find(x => x.id == id);
+  if (!p) return;
+  _sheetId = id;
+  _sheetQty = 1;
+  _sheetSelOpt = {};
+  const img = document.getElementById('sheet-img');
+  if (p.image_url) { img.src = escHtml(p.image_url); img.style.display = 'block'; }
+  else img.style.display = 'none';
+  document.getElementById('sheet-name').textContent = p.name || '';
+  document.getElementById('sheet-price').textContent = fmtPrice(p.price);
+  document.getElementById('sheet-desc').textContent = p.description || '';
+  document.getElementById('sheet-qty-val').textContent = '1';
+  // Options (colors / modifiers)
+  const opts = p.colors || p.options || [];
+  let optHtml = '';
+  if (opts.length) {
+    optHtml = `<div class="sheet-opt-label">צבע / גרסה</div><div class="sheet-opt-row">`;
+    opts.forEach((o, i) => {
+      const label = o.name || o.label || o;
+      optHtml += `<button class="sheet-opt-btn${i===0?' active':''}" onclick="sheetSelectOpt(this,'${escHtml(typeof label==='string'?label:label)}')">${escHtml(typeof label==='string'?label:String(label))}</button>`;
+    });
+    optHtml += '</div>';
+    _sheetSelOpt.val = (opts[0]?.name || opts[0]?.label || opts[0] || '');
+  }
+  document.getElementById('sheet-options').innerHTML = optHtml;
+  sheetUpdateBtn(p);
+  document.getElementById('sheet-overlay').classList.add('open');
+}
+
+function sheetSelectOpt(btn, val) {
+  document.querySelectorAll('#sheet-options .sheet-opt-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  _sheetSelOpt.val = val;
+}
+
+function sheetQtyChange(delta) {
+  _sheetQty = Math.max(1, _sheetQty + delta);
+  document.getElementById('sheet-qty-val').textContent = _sheetQty;
+  const p = catalog.find(x => x.id == _sheetId);
+  if (p) sheetUpdateBtn(p);
+}
+
+function sheetUpdateBtn(p) {
+  document.getElementById('sheet-add-btn').textContent = `הוסף לעגלה — ${fmtPrice(p.price * _sheetQty)}`;
+}
+
+function sheetAdd() {
+  const p = catalog.find(x => x.id == _sheetId);
+  if (!p) return;
+  const colorName = _sheetSelOpt.val || '';
+  const key = cartKey(p.id, colorName);
+  if (cart[key]) cart[key].qty += _sheetQty;
+  else cart[key] = {id: p.id, name: p.name, price: p.price, qty: _sheetQty, note: colorName, colorName};
+  showToast(`✓ ${p.name} נוסף לעגלה`);
+  closeSheet(null, true);
+  renderCartDock();
+  updateHeaderCart();
+  renderVolumeTiers(storeData?.settings || {});
+}
+
+function closeSheet(e, force) {
+  if (!force && e && document.getElementById('product-sheet').contains(e.target)) return;
+  document.getElementById('sheet-overlay').classList.remove('open');
 }
 
 window.addEventListener('DOMContentLoaded', initStore);
