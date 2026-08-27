@@ -213,7 +213,7 @@
   <div id="main-header">
     <div id="header-row1">
       <div id="header-logo-placeholder" style="display:none;"></div>
-      <img id="header-logo" src="" alt="לוגו" style="display:none;" onerror="this.style.display='none';document.getElementById('header-logo-placeholder').style.display='flex';">
+      <img id="header-logo" src="" alt="לוגו" style="display:none;">
       <div style="flex:1;min-width:0;">
         <div style="display:flex;align-items:center;gap:6px;">
           <span id="header-status"></span>
@@ -519,14 +519,16 @@ function renderHeader(data) {
   statusEl.style.background = isOpen ? '#22c55e' : '#ef4444';
   statusEl.title = isOpen ? 'פתוח' : 'סגור';
 
+  const _ph = document.getElementById('header-logo-placeholder');
+  const _logoImg = document.getElementById('header-logo');
   if (s.logo_url) {
-    const img = document.getElementById('header-logo');
-    img.src = s.logo_url;
-    img.style.display = 'block';
+    _ph.style.display = 'none';
+    _logoImg.src = s.logo_url;
+    _logoImg.style.display = 'block';
+    _logoImg.onerror = () => { _logoImg.style.display='none'; _ph.style.display='flex'; _ph.textContent=(s.store_name||data.groupName||'S')[0].toUpperCase(); };
   } else {
-    const ph = document.getElementById('header-logo-placeholder');
-    ph.style.display = 'flex';
-    ph.textContent = (s.store_name || data.groupName || 'S')[0].toUpperCase();
+    _ph.style.display = 'flex';
+    _ph.textContent = (s.store_name || data.groupName || 'S')[0].toUpperCase();
   }
 
   if (s.phone) {
@@ -566,6 +568,7 @@ function renderHero(data) {
   document.getElementById('hero-eta-text').textContent = `${etaMin} דק'`;
   document.getElementById('stat-eta').textContent = `${etaMin} דק'`;
 
+  if (s.welcome_message) document.getElementById('hero-headline').innerHTML = s.welcome_message.replace(/\n/g,'<br>');
   if (s.slogan) document.getElementById('hero-sub-text').textContent = s.slogan;
 
   if (s.free_delivery_above > 0) {
@@ -850,7 +853,8 @@ function openProduct(id) {
   _pmOptions = {};
 
   document.getElementById('pm-name').textContent = p.name;
-  document.getElementById('pm-desc').textContent = p.description || '';
+  const descParts = [p.description, p.long_description].filter(Boolean).join('\n');
+  document.getElementById('pm-desc').textContent = descParts;
   document.getElementById('pm-qty').textContent = 1;
   document.getElementById('pm-total-price').textContent = `${p.price}₪`;
 
