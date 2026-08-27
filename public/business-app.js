@@ -974,6 +974,10 @@ window.injectBusinessUI = function() {
 
                                 <!-- שדות תבנית מסעדה -->
                                 <div id="restaurant-extra-fields" class="space-y-3" style="display:none">
+                                    <div class="flex items-start gap-2 bg-blue-50 border border-blue-100 rounded-xl p-3">
+                                        <i class="fa-solid fa-circle-info text-blue-400 mt-0.5 text-sm shrink-0"></i>
+                                        <p class="text-xs text-blue-700 leading-relaxed"><strong>תמונת גיבור לבאנר הראשי</strong> — העלה מסעיף <strong>לוגו ובאנר</strong> שמעל (שדה "באנר / רקע ראשי"). אם לא הועלתה תמונה, יוצגו תמונות מוצרים מהקטלוג אוטומטית.</p>
+                                    </div>
                                     <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100 shadow-sm">
                                         <label class="text-xs font-bold text-slate-700 block mb-1.5"><i class="fa-solid fa-droplet text-pink-500 ml-1"></i> צבע מבטא לחנות:</label>
                                         <div class="flex items-center gap-3">
@@ -986,11 +990,11 @@ window.injectBusinessUI = function() {
                                         <div class="grid grid-cols-2 gap-3 mb-2">
                                             <div>
                                                 <label class="text-[10px] text-slate-500 block mb-1">זמן משלוח (דקות)</label>
-                                                <input type="number" id="store-delivery-eta" min="1" max="180" value="35" class="modern-input py-2 text-sm bg-white w-full text-center">
+                                                <input type="number" id="store-delivery-eta" min="0" max="180" value="35" class="modern-input py-2 text-sm bg-white w-full text-center">
                                             </div>
                                             <div>
                                                 <label class="text-[10px] text-slate-500 block mb-1">זמן איסוף (דקות)</label>
-                                                <input type="number" id="store-pickup-eta" min="1" max="120" value="15" class="modern-input py-2 text-sm bg-white w-full text-center">
+                                                <input type="number" id="store-pickup-eta" min="0" max="120" value="15" class="modern-input py-2 text-sm bg-white w-full text-center">
                                             </div>
                                         </div>
                                         <div>
@@ -12474,9 +12478,9 @@ window.fetchStoreSettings = async function() {
             if (accentColorTextEl) accentColorTextEl.value = accentVal;
 
             const deliveryEtaEl = document.getElementById('store-delivery-eta');
-            if (deliveryEtaEl) deliveryEtaEl.value = s.delivery_eta_min || 35;
+            if (deliveryEtaEl) deliveryEtaEl.value = (s.delivery_eta_min != null) ? s.delivery_eta_min : 35;
             const pickupEtaEl = document.getElementById('store-pickup-eta');
-            if (pickupEtaEl) pickupEtaEl.value = s.pickup_eta_min || 15;
+            if (pickupEtaEl) pickupEtaEl.value = (s.pickup_eta_min != null) ? s.pickup_eta_min : 15;
             const freeDelivEl = document.getElementById('store-free-delivery-above');
             if (freeDelivEl) freeDelivEl.value = s.free_delivery_above || 0;
             const appStoreEl = document.getElementById('store-app-store-url');
@@ -18846,11 +18850,12 @@ window.handleWizardLogo = window.handleStoreLogoUpload;
 window.handleWizardBanner = window.handleStoreBannerUpload;
 
 window.clearImage = function(targetIdPrefix) {
-    document.querySelectorAll(`[id="${targetIdPrefix}-preview"]`).forEach(el => { 
-        el.src = ''; el.classList.add('hidden'); el.style.display = ''; 
+    document.querySelectorAll(`[id="${targetIdPrefix}-preview"]`).forEach(el => {
+        el.src = ''; el.classList.add('hidden'); el.style.display = '';
     });
     document.querySelectorAll(`[id="${targetIdPrefix}-icon"], [id="${targetIdPrefix}-placeholder"]`).forEach(el => el.classList.remove('hidden'));
-    document.querySelectorAll(`[id="${targetIdPrefix}-base64"], [id="${targetIdPrefix}-upload"]`).forEach(el => el.value = '');
+    document.querySelectorAll(`[id="${targetIdPrefix}-base64"]`).forEach(el => el.value = 'DELETE');
+    document.querySelectorAll(`[id="${targetIdPrefix}-upload"]`).forEach(el => el.value = '');
     
     if (targetIdPrefix.includes('logo')) {
         document.querySelectorAll('[id="btn-generate-banner-ai"], [id="btn-generate-banner-ai-wiz"]').forEach(el => el.classList.add('hidden'));
@@ -27463,9 +27468,9 @@ window.fetchStoreSettings = async function() {
             if (acEl2) acEl2.value = acVal2;
             if (acTxt2) acTxt2.value = acVal2;
             const detEl2 = document.getElementById('store-delivery-eta');
-            if (detEl2) detEl2.value = s.delivery_eta_min || 35;
+            if (detEl2) detEl2.value = (s.delivery_eta_min != null) ? s.delivery_eta_min : 35;
             const petEl2 = document.getElementById('store-pickup-eta');
-            if (petEl2) petEl2.value = s.pickup_eta_min || 15;
+            if (petEl2) petEl2.value = (s.pickup_eta_min != null) ? s.pickup_eta_min : 15;
             const fdEl2 = document.getElementById('store-free-delivery-above');
             if (fdEl2) fdEl2.value = s.free_delivery_above || 0;
             const asEl2 = document.getElementById('store-app-store-url');
