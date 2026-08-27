@@ -129,6 +129,25 @@ input,button,select,textarea{font-family:inherit}
 .product-img-wrap img{width:100%;height:100%;object-fit:cover;display:block}
 .product-img-ph{font-size:32px;opacity:.5}
 .product-badge-pill{position:absolute;top:8px;right:8px;padding:5px 10px;border-radius:99px;background:var(--dark);color:#fff;font:600 10.5px/1 'Heebo',sans-serif}
+.product-badge-pill.red{background:#ef4444}.product-badge-pill.green{background:#22c55e}.product-badge-pill.blue{background:#3b82f6}.product-badge-pill.yellow{background:#f59e0b;color:#111}
+.community-badge{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:99px;background:#f0fdf4;border:1px solid #bbf7d0;color:#15803d;font-size:10.5px;font-weight:600;margin-bottom:4px}
+/* Gallery */
+#gallery-btn{display:flex;align-items:center;gap:8px;padding:11px 18px;border:1px solid var(--border);border-radius:14px;background:#fff;font-size:13px;font-weight:600;cursor:pointer;transition:.15s;width:100%;justify-content:center;margin-top:14px}
+#gallery-btn:hover{border-color:var(--dark)}
+#gallery-overlay{position:fixed;inset:0;z-index:800;background:var(--bg);display:none;flex-direction:column}
+#gallery-head{padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;background:#fff}
+#gallery-title{font-family:'Rubik',sans-serif;font-size:17px;font-weight:700}
+#gallery-close{margin-right:auto;width:32px;height:32px;border:none;border-radius:50%;background:var(--subtle);font-size:14px;cursor:pointer}
+#gallery-grid{flex:1;overflow:auto;padding:16px;display:grid;grid-template-columns:repeat(auto-fill,minmax(min(160px,100%),1fr));gap:10px;max-width:1280px;width:100%;margin:0 auto}
+.gallery-thumb{aspect-ratio:1;border-radius:14px;overflow:hidden;cursor:pointer;background:var(--subtle)}
+.gallery-thumb img{width:100%;height:100%;object-fit:cover;transition:.18s}
+.gallery-thumb:hover img{transform:scale(1.06)}
+#lb-overlay{position:fixed;inset:0;z-index:900;background:rgba(0,0,0,.9);display:none;flex-direction:column;align-items:center;justify-content:center}
+#lb-img{max-width:92vw;max-height:82vh;border-radius:14px;object-fit:contain}
+#lb-close{position:absolute;top:16px;left:16px;width:38px;height:38px;border:none;border-radius:50%;background:rgba(255,255,255,.12);color:#fff;font-size:16px;cursor:pointer}
+#lb-prev,#lb-next{position:absolute;top:50%;transform:translateY(-50%);width:42px;height:42px;border:none;border-radius:50%;background:rgba(255,255,255,.12);color:#fff;font-size:18px;cursor:pointer}
+#lb-prev{right:14px}#lb-next{left:14px}
+#lb-counter{position:absolute;bottom:18px;color:rgba(255,255,255,.6);font-size:13px}
 .product-fav{position:absolute;top:6px;left:6px;width:30px;height:30px;border:none;border-radius:50%;background:rgba(255,255,255,.9);cursor:pointer;font-size:13px;line-height:1;color:#C9C7C0;transition:.15s}
 .product-fav.active{color:var(--accent)}
 .product-body{padding:12px 7px 5px;display:flex;flex-direction:column;gap:4px;flex:1}
@@ -468,6 +487,22 @@ input,button,select,textarea{font-family:inherit}
     <span id="reviews-meta"></span>
   </div>
   <div id="reviews-grid"></div>
+</div>
+
+<!-- GALLERY -->
+<div id="gallery-overlay">
+  <div id="gallery-head">
+    <div id="gallery-title">גלריה</div>
+    <button id="gallery-close" onclick="closeGallery()">✕</button>
+  </div>
+  <div id="gallery-grid"></div>
+</div>
+<div id="lb-overlay">
+  <img id="lb-img" src="" alt="">
+  <button id="lb-close" onclick="closeLb()">✕</button>
+  <button id="lb-prev" onclick="lbNav(-1)">›</button>
+  <button id="lb-next" onclick="lbNav(1)">‹</button>
+  <div id="lb-counter"></div>
 </div>
 
 <!-- FOOTER -->
@@ -981,8 +1016,12 @@ function productCardHtml(p) {
   const imgHtml = p.has_image
     ? `<img src="${API}/store/item-image/${p.id}" alt="${escHtml(p.name)}" loading="lazy" onerror="this.parentNode.querySelector('.product-img-ph').style.display='flex';this.style.display='none'">`
     : '';
-  const badge = p.badge_text ? `<span class="product-badge-pill">${escHtml(p.badge_text)}</span>` : '';
-  const orig = p.original_price && p.original_price > p.price ? `<s style="font-size:12px;color:var(--muted);margin-left:4px">₪${p.original_price}</s>` : '';
+  const badgeColor = p.badge_color || '';
+  const badge = p.badge_text ? `<span class="product-badge-pill ${escHtml(badgeColor)}">${escHtml(p.badge_text)}</span>` : '';
+  const isCommunity = storeData?.communityData?.discount_active && storeData?.communityData?.discount_pct > 0;
+  const communityPrice = isCommunity ? Math.round(p.price * (1 - storeData.communityData.discount_pct / 100)) : null;
+  const orig = (p.original_price && p.original_price > p.price) || communityPrice
+    ? `<s style="font-size:12px;color:var(--muted);margin-left:4px">₪${p.original_price || p.price}</s>` : '';
   return `
     <article class="product-card" onclick="openSheet(${p.id})">
       <div class="product-img-wrap">
@@ -995,7 +1034,10 @@ function productCardHtml(p) {
         <div class="product-name">${escHtml(p.name)}</div>
         ${p.description?`<div class="product-desc">${escHtml(p.description)}</div>`:''}
         <div class="product-footer">
-          <span class="product-price">${orig}₪${p.price}</span>
+          <div>
+            ${isCommunity && communityPrice ? `<div class="community-badge">✨ מחיר קהילה</div>` : ''}
+            <span class="product-price">${orig}₪${communityPrice || p.price}</span>
+          </div>
           ${inCart?`<span class="in-cart-label">בעגלה</span>`:''}
           <button class="add-pill" onclick="event.stopPropagation();quickAdd(${p.id})">${hasOptions(p)?'התאמה':'הוספה'}</button>
         </div>
@@ -1054,17 +1096,36 @@ function initScrollSpy() {
 }
 
 // ===== PROMOTIONS =====
+let _activePromos = [];
+
 async function loadAsync(groupId) {
   try {
     const r = await fetch(`${API}/store/promotions/${groupId}`);
     const d = await r.json();
-    const promos = (d.promotions||d||[]).filter(p=>p.is_active&&p.show_in_banner);
-    if (promos.length) renderDeals(promos);
+    const all = d.promotions||d||[];
+    _activePromos = all.filter(p => p.is_active);
+    const bannerPromos = _activePromos.filter(p => p.show_in_banner);
+    if (bannerPromos.length) renderDeals(bannerPromos);
   } catch(e){}
   try {
     const r2 = await fetch(`${API}/store/public-reviews/${groupId}`);
     const d2 = await r2.json();
     if (d2.success && d2.reviews?.length) renderReviews(d2);
+  } catch(e){}
+  try {
+    const s = storeData?.settings || {};
+    if (s.gallery_enabled) {
+      const r3 = await fetch(`${API}/public/gallery/${storeData.groupId}`);
+      const d3 = await r3.json();
+      if (d3.success && d3.images?.length) {
+        _galleryImages = d3.images;
+        const infoSection = document.getElementById('info-section');
+        const galleryBtn = document.createElement('div');
+        galleryBtn.style.cssText = 'max-width:1280px;margin:0 auto;padding:0 20px 0';
+        galleryBtn.innerHTML = `<button id="gallery-btn" onclick="openGallery()">🖼️ גלריית תמונות · ${d3.images.length} תמונות</button>`;
+        infoSection.parentNode.insertBefore(galleryBtn, infoSection);
+      }
+    }
   } catch(e){}
 }
 function renderDeals(promos) {
@@ -1334,10 +1395,27 @@ function applyCoupon() {
   const code = document.getElementById('coupon-input').value.trim().toUpperCase();
   const msg = document.getElementById('coupon-msg');
   msg.style.display = '';
-  if (!code) { msg.textContent = 'הכנס קוד קופון'; return; }
-  _couponCode = code; _couponDiscount = 0.15;
-  msg.textContent = 'קופון הופעל — 15% הנחה';
-  msg.style.color = '#22c55e';
+  if (!code) { msg.textContent = 'הכנס קוד קופון'; msg.style.color = 'var(--accent)'; return; }
+  // בדיקה מול מבצעים אמיתיים
+  const promo = _activePromos.find(p => (p.promo_code||'').toUpperCase() === code);
+  if (promo) {
+    _couponCode = code;
+    if (promo.promo_type === 'discount_pct') {
+      _couponDiscount = (promo.promo_value || 0) / 100;
+      msg.textContent = `קופון הופעל — ${promo.promo_value}% הנחה`;
+    } else if (promo.promo_type === 'discount_fixed') {
+      _couponDiscount = 'fixed:' + (promo.promo_value || 0);
+      msg.textContent = `קופון הופעל — ₪${promo.promo_value} הנחה`;
+    } else {
+      _couponDiscount = 0.1;
+      msg.textContent = 'קופון הופעל';
+    }
+    msg.style.color = '#22c55e';
+  } else {
+    _couponCode = ''; _couponDiscount = 0;
+    msg.textContent = 'קוד קופון לא נמצא';
+    msg.style.color = 'var(--accent)';
+  }
   renderPanelSummary();
 }
 
@@ -1350,15 +1428,22 @@ function getDeliveryFee() {
   if (free > 0 && sub >= free) return 0;
   return parseFloat(s.delivery_fee)||0;
 }
+function calcDiscount(sub) {
+  if (!_couponDiscount) return 0;
+  if (typeof _couponDiscount === 'string' && _couponDiscount.startsWith('fixed:')) {
+    return Math.min(sub, parseFloat(_couponDiscount.split(':')[1]) || 0);
+  }
+  return Math.round(sub * _couponDiscount);
+}
 function getPanelFinal() {
   const sub = getSubtotal(), fee = getDeliveryFee();
-  const disc = _couponDiscount ? Math.round(sub * _couponDiscount) : 0;
-  return Math.max(0, sub + fee - disc);
+  const bogo = calcBogoDiscount();
+  return Math.max(0, sub + fee - calcDiscount(sub) - bogo);
 }
 
 function renderPanelSummary() {
   const sub = getSubtotal(), fee = getDeliveryFee(), final = getPanelFinal();
-  const disc = _couponDiscount ? Math.round(sub * _couponDiscount) : 0;
+  const disc = calcDiscount(sub) + calcBogoDiscount();
   document.getElementById('sum-subtotal').textContent = `₪${sub.toFixed(0)}`;
   document.getElementById('sum-fee-label').textContent = isDelivery ? 'דמי משלוח' : 'איסוף עצמי';
   document.getElementById('sum-fee').textContent = fee > 0 ? `₪${fee}` : 'חינם';
@@ -1688,6 +1773,44 @@ function smsDigitInput(el, idx) {
   el.value = el.value.replace(/\D/g, '').slice(-1);
   if (el.value && idx < 3) document.getElementById(`sd${idx+1}`).focus();
   if (['sd0','sd1','sd2','sd3'].every(id => document.getElementById(id).value)) bookingPrimary();
+}
+
+// ===== GALLERY =====
+let _galleryImages = [], _lbIndex = 0;
+function openGallery() {
+  const grid = document.getElementById('gallery-grid');
+  grid.innerHTML = _galleryImages.map((img, i) =>
+    `<div class="gallery-thumb" onclick="openLb(${i})"><img src="${escHtml(img.url||img)}" loading="lazy" alt="תמונה ${i+1}"></div>`
+  ).join('');
+  document.getElementById('gallery-overlay').style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
+function closeGallery() { document.getElementById('gallery-overlay').style.display = 'none'; document.body.style.overflow = ''; }
+function openLb(idx) {
+  _lbIndex = idx;
+  renderLb();
+  document.getElementById('lb-overlay').style.display = 'flex';
+}
+function closeLb() { document.getElementById('lb-overlay').style.display = 'none'; }
+function lbNav(dir) { _lbIndex = (_lbIndex + dir + _galleryImages.length) % _galleryImages.length; renderLb(); }
+function renderLb() {
+  const img = _galleryImages[_lbIndex];
+  document.getElementById('lb-img').src = img.url || img;
+  document.getElementById('lb-counter').textContent = `${_lbIndex + 1} / ${_galleryImages.length}`;
+}
+
+// ===== BOGO CART DISCOUNT =====
+function calcBogoDiscount() {
+  const bogoPromo = _activePromos.find(p => p.promo_type === 'bogo' && p.is_active);
+  if (!bogoPromo || _couponDiscount) return 0;
+  const lines = Object.values(cart).filter(l => {
+    if (!bogoPromo.target_ids || bogoPromo.target_ids === 'all') return true;
+    const ids = String(bogoPromo.target_ids).split(',').map(Number);
+    return ids.includes(l.id);
+  });
+  let free = 0;
+  lines.forEach(l => { free += Math.floor(l.qty / 2) * l.price; });
+  return free;
 }
 
 // ===== HELPERS =====
