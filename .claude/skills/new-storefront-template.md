@@ -654,26 +654,29 @@ function cartCount() { return Object.values(cart).reduce((s,i) => s + i.qty, 0);
 
 ---
 
-## 21. Product Sheet — מודל פרטי מוצר
+## 21. Product Sheet — מלא (כל סוגי מוצרים)
+
+**⚠️ חובה בכל תבנית** — תומך ב: מוצר פשוט, options_text (single/multi + מחיר), pizza_builder, צבעים, הערת לקוח.
 
 **HTML (לפני `</body>`):**
 ```html
-<div id="sheet-overlay" onclick="closeSheet(event)">
+<div id="sheet-overlay" onclick="if(event.target===this)closeSheet()">
   <div id="product-sheet">
-    <button id="sheet-close-btn" onclick="closeSheet(null,true)">✕</button>
-    <img id="sheet-img" src="" alt="" style="display:none">
-    <div id="sheet-name"></div>
-    <div id="sheet-price"></div>
-    <div id="sheet-desc"></div>
-    <div id="sheet-options"></div>
-    <div id="sheet-qty-row">
-      <div id="sheet-qty-stepper">
-        <button onclick="sheetQtyChange(-1)">−</button>
-        <span id="sheet-qty-val">1</span>
-        <button onclick="sheetQtyChange(1)">+</button>
+    <div id="sheet-img-wrap"></div>
+    <div style="padding:0 4px">
+      <div id="sheet-name"></div>
+      <div id="sheet-price"></div>
+      <div id="sheet-desc"></div>
+      <div id="sheet-options"></div>
+      <div id="sheet-qty-row">
+        <div id="sheet-qty-stepper">
+          <button onclick="sheetQtyChange(-1)">−</button>
+          <span id="sheet-qty-val">1</span>
+          <button onclick="sheetQtyChange(1)">+</button>
+        </div>
       </div>
+      <button id="sheet-add-btn" onclick="sheetAdd()">הוסף לעגלה</button>
     </div>
-    <button id="sheet-add-btn" onclick="sheetAdd()">הוסף לעגלה</button>
   </div>
 </div>
 ```
@@ -682,91 +685,229 @@ function cartCount() { return Object.values(cart).reduce((s,i) => s + i.qty, 0);
 ```css
 #sheet-overlay{position:fixed;inset:0;z-index:800;background:rgba(0,0,0,.5);display:none;align-items:flex-end;justify-content:center}
 #sheet-overlay.open{display:flex}
-#product-sheet{position:relative;background:var(--card);border-radius:22px 22px 0 0;padding:24px 20px 36px;width:100%;max-width:560px;max-height:88vh;overflow-y:auto;animation:rise .25s ease}
-#sheet-img{width:100%;height:200px;object-fit:cover;border-radius:16px;margin-bottom:16px}
-#sheet-name{font-family:'Rubik',sans-serif;font-size:20px;font-weight:700;margin-bottom:4px}
-#sheet-price{font-size:18px;font-weight:700;color:var(--accent);margin-bottom:8px}
-#sheet-desc{font-size:13.5px;color:var(--muted);line-height:1.6;margin-bottom:16px}
-.sheet-opt-label{font-size:12px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;margin-bottom:8px}
+#product-sheet{position:relative;background:var(--card);border-radius:22px 22px 0 0;padding:0 0 36px;width:100%;max-width:560px;max-height:88vh;overflow-y:auto;animation:rise .25s ease}
+#sheet-img-wrap{position:relative;width:100%;height:200px;border-radius:16px 16px 0 0;overflow:hidden;background:var(--subtle);margin-bottom:16px;display:flex;align-items:center;justify-content:center}
+#sheet-img-wrap img{width:100%;height:100%;object-fit:cover}
+#sheet-close{position:absolute;top:10px;left:10px;width:32px;height:32px;border-radius:50%;background:rgba(0,0,0,.45);border:none;color:#fff;font-size:16px;cursor:pointer}
+#sheet-name{font-family:'Rubik',sans-serif;font-size:20px;font-weight:700;margin-bottom:4px;padding:0 20px}
+#sheet-price{font-size:18px;font-weight:700;color:var(--accent);margin-bottom:8px;padding:0 20px}
+#sheet-desc{font-size:13.5px;color:var(--muted);line-height:1.6;margin-bottom:16px;padding:0 20px}
+#sheet-options{padding:0 20px}
+.sheet-opt-label{font-size:12px;font-weight:700;letter-spacing:.05em;margin-bottom:8px;color:var(--muted)}
 .sheet-opt-row{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
-.sheet-opt-btn{padding:6px 14px;border-radius:99px;border:1.5px solid var(--border);font-size:13px;background:var(--card);cursor:pointer;transition:.12s}
+.sheet-opt-btn{padding:6px 14px;border-radius:99px;border:1.5px solid var(--border);font-size:13px;background:var(--card);cursor:pointer;transition:.12s;display:inline-flex;align-items:center;gap:6px}
 .sheet-opt-btn.active{border-color:var(--accent);background:var(--accent);color:#fff}
-#sheet-qty-stepper{display:inline-flex;align-items:center;gap:12px;background:var(--subtle);border-radius:99px;padding:4px 8px;margin-bottom:16px}
+.opt-check{width:14px;height:14px;border-radius:4px;border:1.5px solid var(--border);display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex:none}
+.pizza-topping-btn{padding:6px 12px;border-radius:99px;border:1.5px solid #fecaca;background:#fff;color:#b91c1c;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap}
+.pizza-topping-btn.active{background:#b91c1c;color:#fff;border-color:#b91c1c}
+.pizza-slice{cursor:pointer}
+#sheet-qty-stepper{display:inline-flex;align-items:center;gap:12px;background:var(--subtle);border-radius:99px;padding:4px 8px;margin:12px 20px 16px}
 #sheet-qty-stepper button{width:32px;height:32px;border-radius:50%;border:none;background:var(--card);font-size:18px;cursor:pointer}
 #sheet-qty-val{font-size:16px;font-weight:700;min-width:24px;text-align:center}
-#sheet-add-btn{width:100%;padding:14px;border-radius:14px;background:var(--accent);color:#fff;font-size:15px;font-weight:700;cursor:pointer;border:none}
+#sheet-add-btn{display:block;width:calc(100% - 40px);margin:0 20px;padding:14px;border-radius:14px;background:var(--accent);color:#fff;font-size:15px;font-weight:700;cursor:pointer;border:none}
 #sheet-add-btn:hover{background:var(--accent-dark)}
-#sheet-close-btn{position:absolute;top:16px;left:16px;width:32px;height:32px;border-radius:50%;background:var(--subtle);border:none;font-size:16px;cursor:pointer;color:var(--muted)}
 ```
 
-**JS:**
+**JS — State:**
 ```js
-let _sheetId = null, _sheetQty = 1, _sheetSelOpt = {};
+let _sheetId = null, _sheetQty = 1, _sheetExtras = {}, _sheetNote = '';
+let _isPizzaProduct = false, _pizzaToppings = [], _pizzaState = {}, _activePizzaTopping = null;
+```
+
+**JS — openSheet (כל סוגי מוצרים):**
+```js
+function hasOptions(p) {
+  try { const o = JSON.parse(p.options_text||'[]'); return Array.isArray(o) && o.length > 0; } catch(e) { return false; }
+}
 
 function openSheet(id, e) {
   if (e) e.stopPropagation();
   const p = catalog.find(x => x.id == id);
   if (!p) return;
-  _sheetId = id; _sheetQty = 1; _sheetSelOpt = {};
-  const img = document.getElementById('sheet-img');
-  if (p.image_url) { img.src = escHtml(p.image_url); img.style.display = 'block'; }
-  else img.style.display = 'none';
+  _sheetId = id; _sheetQty = 1; _sheetExtras = {};
+  // תמונה — תמיד דרך endpoint (לא base64 בפייליואד)
+  const imgEl = document.getElementById('sheet-img-wrap');
+  if (imgEl) {
+    if (p.has_image) imgEl.innerHTML = `<img src="${API}/store/item-image/${p.id}" alt="${escHtml(p.name)}" style="width:100%;height:100%;object-fit:cover"><button id="sheet-close" onclick="closeSheet()">✕</button>`;
+    else imgEl.innerHTML = `<div style="font-size:48px;opacity:.5;display:flex;align-items:center;justify-content:center;height:100%">🛍️</div><button id="sheet-close" onclick="closeSheet()">✕</button>`;
+  }
   document.getElementById('sheet-name').textContent = p.name || '';
   document.getElementById('sheet-price').textContent = fmtPrice(p.price);
-  document.getElementById('sheet-desc').textContent = p.description || '';
+  document.getElementById('sheet-desc').textContent = p.description || p.long_description || '';
   document.getElementById('sheet-qty-val').textContent = '1';
-  // אפשרויות (צבעים / גרסאות)
-  const opts = p.colors || p.options || [];
+
+  // Options — עדיפות: pizza_builder > options_text > colors
+  _isPizzaProduct = false;
   let optHtml = '';
-  if (opts.length) {
-    const first = opts[0]?.name || opts[0]?.label || String(opts[0]);
-    _sheetSelOpt.val = first;
-    optHtml = `<div class="sheet-opt-label">צבע / גרסה</div><div class="sheet-opt-row">` +
-      opts.map((o,i) => {
-        const lbl = o.name || o.label || String(o);
-        return `<button class="sheet-opt-btn${i===0?' active':''}" onclick="sheetSelectOpt(this,'${escHtml(lbl)}')">${escHtml(lbl)}</button>`;
-      }).join('') + '</div>';
+  try {
+    const opts = JSON.parse(p.options_text || '[]');
+    if (p.product_type === 'pizza_builder' || (Array.isArray(opts) && opts.length && opts[0].isPizza)) {
+      const toppings = opts[0]?.toppings || (Array.isArray(opts) ? opts : []);
+      initPizzaBuilder(toppings);
+      optHtml = `<div id="pizza-builder-wrapper"></div>`;
+    } else if (Array.isArray(opts) && opts.length) {
+      optHtml = opts.map((g, gi) => `
+        <div style="margin-bottom:12px">
+          <div class="sheet-opt-label">${escHtml(g.name||g.title||'')}</div>
+          <div class="sheet-opt-row">${(g.options||g.items||[]).map((o,oi) => {
+            const nm = typeof o==='string'?o:(o.name||'');
+            const pr = typeof o==='object'&&o.price?`+₪${o.price}`:'';
+            return `<button class="sheet-opt-btn" id="sopt-${gi}-${oi}" onclick="toggleOpt(${gi},${oi},'${g.type||'single'}')">
+              <span class="opt-check" id="soptcheck-${gi}-${oi}"></span>${escHtml(nm)}${pr?` <span style="font-size:11px;opacity:.7">${pr}</span>`:''}
+            </button>`;
+          }).join('')}</div>
+        </div>`).join('');
+    }
+  } catch(e) {}
+  // Fallback: colors / variants
+  if (!optHtml && p.colors?.length) {
+    optHtml = `<div class="sheet-opt-label">גרסה / צבע</div><div class="sheet-opt-row">${
+      p.colors.map((c,i)=>`<button class="sheet-opt-btn${i===0?' active':''}" onclick="sheetSelectColor(this,'${escHtml(c.name||c)}')">${escHtml(c.name||c)}</button>`).join('')
+    }</div>`;
   }
+  // הערת לקוח — תמיד
+  optHtml += `<div style="margin-top:12px"><textarea id="sheet-note-input" placeholder="הערות לפריט (אופציונלי)" rows="2" style="width:100%;border:1px solid var(--border);border-radius:10px;padding:8px;font-size:13px;font-family:inherit;resize:none;background:var(--subtle)"></textarea></div>`;
   document.getElementById('sheet-options').innerHTML = optHtml;
-  sheetUpdateBtn(p);
+  if (_isPizzaProduct) renderPizzaBuilder();
+  updateSheetTotal();
   document.getElementById('sheet-overlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
 }
 
-function sheetSelectOpt(btn, val) {
+function sheetSelectColor(btn, name) {
   document.querySelectorAll('#sheet-options .sheet-opt-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
-  _sheetSelOpt.val = val;
+}
+
+function toggleOpt(gi, oi, type) {
+  if (!_sheetExtras[gi]) _sheetExtras[gi] = [];
+  if (type==='single'||type==='radio') _sheetExtras[gi]=[oi];
+  else { const idx=_sheetExtras[gi].indexOf(oi); if(idx>-1)_sheetExtras[gi].splice(idx,1); else _sheetExtras[gi].push(oi); }
+  const p = catalog.find(x=>x.id===_sheetId);
+  try {
+    const opts = JSON.parse(p.options_text||'[]');
+    opts.forEach((g,gidx)=>{
+      (g.options||g.items||[]).forEach((_,oidx)=>{
+        const on = _sheetExtras[gidx]?.includes(oidx);
+        document.getElementById(`sopt-${gidx}-${oidx}`)?.classList.toggle('active',!!on);
+        const chk = document.getElementById(`soptcheck-${gidx}-${oidx}`);
+        if(chk) chk.textContent = on?'✓':'';
+      });
+    });
+  } catch(e) {}
+  updateSheetTotal();
 }
 
 function sheetQtyChange(delta) {
   _sheetQty = Math.max(1, _sheetQty + delta);
   document.getElementById('sheet-qty-val').textContent = _sheetQty;
-  const p = catalog.find(x => x.id == _sheetId);
-  if (p) sheetUpdateBtn(p);
+  updateSheetTotal();
 }
 
-function sheetUpdateBtn(p) {
-  document.getElementById('sheet-add-btn').textContent = `הוסף לעגלה — ${fmtPrice(p.price * _sheetQty)}`;
+function updateSheetTotal() {
+  const p = catalog.find(x=>x.id==_sheetId);
+  if (!p) return;
+  let extra = 0;
+  if (_isPizzaProduct) {
+    extra = calcPizzaExtra();
+  } else {
+    try {
+      const opts = JSON.parse(p.options_text||'[]');
+      Object.entries(_sheetExtras).forEach(([gi,sel])=>{
+        const g=opts[gi], items=g?.options||g?.items||[];
+        sel.forEach(oi=>{ const o=items[oi]; if(o&&typeof o==='object'&&o.price) extra+=parseFloat(o.price)||0; });
+      });
+    } catch(e){}
+  }
+  document.getElementById('sheet-price').textContent = fmtPrice(p.price+extra);
+  document.getElementById('sheet-add-btn').textContent = `הוסף לעגלה — ${fmtPrice((p.price+extra)*_sheetQty)}`;
 }
 
 function sheetAdd() {
-  const p = catalog.find(x => x.id == _sheetId);
+  const p = catalog.find(x=>x.id==_sheetId);
   if (!p) return;
-  const variant = _sheetSelOpt.val || '';
-  const key = cartKey(p.id, variant);
-  if (cart[key]) cart[key].qty += _sheetQty;
-  else cart[key] = {id:p.id, name:p.name, price:p.price, qty:_sheetQty, note:variant, colorName:variant};
+  let extra=0, noteArr=[];
+  if (_isPizzaProduct) {
+    const {selections,extraPrice} = getPizzaSelections();
+    extra=extraPrice; noteArr=selections;
+  } else {
+    try {
+      const opts = JSON.parse(p.options_text||'[]');
+      Object.entries(_sheetExtras).forEach(([gi,sel])=>{
+        const g=opts[gi], items=g?.options||g?.items||[];
+        sel.forEach(oi=>{ const o=items[oi]; const nm=typeof o==='string'?o:(o?.name||''); if(nm) noteArr.push(nm); if(o&&typeof o==='object'&&o.price) extra+=parseFloat(o.price)||0; });
+      });
+    } catch(e){}
+  }
+  const userNote = document.getElementById('sheet-note-input')?.value.trim()||'';
+  const note = [userNote,...noteArr].filter(Boolean).join(', ');
+  const key = cartKey(p.id, note);
+  const finalPrice = p.price+extra;
+  if (cart[key]) cart[key].qty+=_sheetQty;
+  else cart[key]={id:p.id,name:p.name,price:finalPrice,qty:_sheetQty,note,colorName:note};
   showToast(`✓ ${p.name} נוסף לעגלה`);
-  closeSheet(null, true);
+  closeSheet();
   renderCartDock();
   updateHeaderCart?.();
 }
 
-function closeSheet(e, force) {
-  if (!force && e && document.getElementById('product-sheet').contains(e.target)) return;
+function closeSheet() {
   document.getElementById('sheet-overlay').classList.remove('open');
+  document.body.style.overflow='';
 }
 ```
+
+---
+
+## 21a. Pizza Builder (חלק מ-Product Sheet)
+
+```js
+function initPizzaBuilder(toppings) {
+  _isPizzaProduct=true; _pizzaToppings=toppings||[]; _pizzaState={};
+  _pizzaToppings.forEach(t=>_pizzaState[t.name]=[0,0,0,0]);
+  _activePizzaTopping=_pizzaToppings.length?_pizzaToppings[0].name:null;
+}
+function renderPizzaBuilder() { /* SVG 4-רבעים + topping buttons + fill actions + summary */ }
+function selectPizzaTopping(name) { _activePizzaTopping=name; renderPizzaBuilder(); }
+function togglePizzaSlice(qi) {
+  if (!_activePizzaTopping) { showToast('בחרו תוספת תחילה'); return; }
+  const v=_pizzaState[_activePizzaTopping][qi]||0;
+  _pizzaState[_activePizzaTopping][qi]=v===0?1:v===1?2:0;
+  renderPizzaBuilder(); updateSheetTotal();
+}
+function fillPizza(action) {
+  if (!_activePizzaTopping&&action!=='clear') { showToast('בחרו תוספת תחילה'); return; }
+  if (action==='clear') _pizzaToppings.forEach(t=>_pizzaState[t.name]=[0,0,0,0]);
+  else if (action==='whole') _pizzaState[_activePizzaTopping]=[1,1,1,1];
+  else if (action==='half1') { _pizzaState[_activePizzaTopping][0]=1; _pizzaState[_activePizzaTopping][1]=1; }
+  else if (action==='half2') { _pizzaState[_activePizzaTopping][2]=1; _pizzaState[_activePizzaTopping][3]=1; }
+  renderPizzaBuilder(); updateSheetTotal();
+}
+function calcPizzaExtra() {
+  return _pizzaToppings.reduce((s,t)=>s+(parseFloat(t.price)||0)/4*(_pizzaState[t.name]||[]).reduce((a,v)=>a+Number(v||0),0),0);
+}
+function getPizzaSelections() {
+  let selections=[],extraPrice=0;
+  _pizzaToppings.forEach(top=>{
+    const vals=_pizzaState[top.name],active=vals.reduce((s,v)=>s+Number(v||0),0);
+    if(!active) return;
+    extraPrice+=(parseFloat(top.price)||0)/4*active;
+    let q1=[],q2=[];
+    vals.forEach((v,i)=>{if(v===1)q1.push(i+1);if(v===2)q2.push(i+1);});
+    let parts=[];
+    if(q1.length) parts.push(q1.length===4?'מגש שלם':`רבעים ${q1.join(',')}`);
+    if(q2.length) parts.push(q2.length===4?'כפול הכל':`כפול ${q2.join(',')}`);
+    selections.push(`${top.name} (${parts.join(' | ')})`);
+  });
+  return {selections,extraPrice};
+}
+```
+
+**⚠️ כללים:**
+- תמיד `p.has_image` + `/api/store/item-image/:id` — לא `p.image_url` ישירות
+- `options_text` → JSON.parse עם try/catch
+- `pizza_builder` מזוהה לפי `p.product_type` **או** `opts[0].isPizza`
+- הערת לקוח (`sheet-note-input`) — תמיד מוצגת, מועברת ל-note בעגלה
 
 ---
 

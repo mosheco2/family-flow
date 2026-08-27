@@ -262,7 +262,14 @@ input,select,textarea{font-family:inherit}
 #sheet-overlay{position:fixed;inset:0;z-index:800;background:rgba(0,0,0,.5);display:none;align-items:flex-end;justify-content:center}
 #sheet-overlay.open{display:flex}
 #product-sheet{background:var(--card);border-radius:22px 22px 0 0;padding:24px 20px 36px;width:100%;max-width:560px;max-height:88vh;overflow-y:auto;animation:rise .25s ease}
-#sheet-img{width:100%;height:200px;object-fit:cover;border-radius:16px;margin-bottom:16px;display:none}
+#sheet-img-wrap{position:relative;width:100%;height:200px;border-radius:16px 16px 0 0;overflow:hidden;background:var(--subtle);margin-bottom:16px;display:flex;align-items:center;justify-content:center}
+#sheet-img-wrap img{width:100%;height:100%;object-fit:cover}
+#sheet-close{position:absolute;top:10px;left:10px;width:32px;height:32px;border-radius:50%;background:rgba(0,0,0,.45);border:none;color:#fff;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.pizza-topping-btn{padding:6px 12px;border-radius:99px;border:1.5px solid #fecaca;background:#fff;color:#b91c1c;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap}
+.pizza-topping-btn.active{background:#b91c1c;color:#fff;border-color:#b91c1c}
+.pizza-slice{cursor:pointer;transition:opacity .1s}
+.pizza-slice:hover{opacity:.8}
+.opt-check{width:14px;height:14px;border-radius:4px;border:1.5px solid var(--border);display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex:none}
 #sheet-name{font-family:'Rubik',sans-serif;font-size:20px;font-weight:700;margin-bottom:4px}
 #sheet-price{font-size:18px;font-weight:700;color:var(--accent);margin-bottom:8px}
 #sheet-desc{font-size:13.5px;color:var(--muted);line-height:1.6;margin-bottom:16px}
@@ -277,7 +284,6 @@ input,select,textarea{font-family:inherit}
 #sheet-qty-val{font-size:16px;font-weight:700;min-width:24px;text-align:center}
 #sheet-add-btn{width:100%;padding:14px;border-radius:14px;background:var(--accent);color:#fff;font-size:15px;font-weight:700;cursor:pointer;transition:.15s}
 #sheet-add-btn:hover{background:var(--accent-dark)}
-#sheet-close-btn{position:absolute;top:16px;left:16px;width:32px;height:32px;border-radius:50%;background:var(--subtle);border:none;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--muted)}
 #product-sheet{position:relative}
 
 /* Mobile filter */
@@ -522,22 +528,23 @@ input,select,textarea{font-family:inherit}
 </div>
 
 <!-- Product detail sheet -->
-<div id="sheet-overlay" onclick="closeSheet(event)">
+<div id="sheet-overlay" onclick="if(event.target===this)closeSheet()">
   <div id="product-sheet">
-    <button id="sheet-close-btn" onclick="closeSheet(null,true)">✕</button>
-    <img id="sheet-img" src="" alt="">
-    <div id="sheet-name"></div>
-    <div id="sheet-price"></div>
-    <div id="sheet-desc"></div>
-    <div id="sheet-options"></div>
-    <div id="sheet-qty-row">
-      <div id="sheet-qty-stepper">
-        <button onclick="sheetQtyChange(-1)">−</button>
-        <span id="sheet-qty-val">1</span>
-        <button onclick="sheetQtyChange(1)">+</button>
+    <div id="sheet-img-wrap"></div>
+    <div style="padding:0 4px">
+      <div id="sheet-name"></div>
+      <div id="sheet-price"></div>
+      <div id="sheet-desc"></div>
+      <div id="sheet-options"></div>
+      <div id="sheet-qty-row">
+        <div id="sheet-qty-stepper">
+          <button onclick="sheetQtyChange(-1)">−</button>
+          <span id="sheet-qty-val">1</span>
+          <button onclick="sheetQtyChange(1)">+</button>
+        </div>
       </div>
+      <button id="sheet-add-btn" onclick="sheetAdd()">הוסף לעגלה</button>
     </div>
-    <button id="sheet-add-btn" onclick="sheetAdd()">הוסף לעגלה</button>
   </div>
 </div>
 
@@ -1232,74 +1239,251 @@ async function sendQuote() {
   btn.textContent = 'שלח בקשה'; btn.disabled = false;
 }
 
-/* ── Product Sheet ── */
-let _sheetId = null, _sheetQty = 1, _sheetSelOpt = {};
+/* ── Product Sheet — Full (all product types) ── */
+let _sheetId = null, _sheetQty = 1, _sheetExtras = {}, _sheetNote = '';
+let _isPizzaProduct = false, _pizzaToppings = [], _pizzaState = {}, _activePizzaTopping = null;
+
+function hasOptions(p) {
+  try { const o = JSON.parse(p.options_text||'[]'); return Array.isArray(o) && o.length > 0; } catch(e) { return false; }
+}
 
 function openSheet(id, e) {
   if (e) e.stopPropagation();
   const p = catalog.find(x => x.id == id);
   if (!p) return;
-  _sheetId = id;
-  _sheetQty = 1;
-  _sheetSelOpt = {};
-  const img = document.getElementById('sheet-img');
-  if (p.has_image) { img.src = `${API}/store/item-image/${p.id}`; img.style.display = 'block'; }
-  else img.style.display = 'none';
+  _sheetId = id; _sheetQty = 1; _sheetExtras = {}; _sheetNote = '';
+  // Image
+  const imgEl = document.getElementById('sheet-img-wrap');
+  if (imgEl) {
+    if (p.has_image) imgEl.innerHTML = `<img src="${API}/store/item-image/${p.id}" alt="${escHtml(p.name)}" style="width:100%;height:100%;object-fit:cover"><button id="sheet-close" onclick="closeSheet()">✕</button>`;
+    else imgEl.innerHTML = `<div style="font-size:48px;opacity:.5;display:flex;align-items:center;justify-content:center;height:100%">🏋️</div><button id="sheet-close" onclick="closeSheet()">✕</button>`;
+  }
   document.getElementById('sheet-name').textContent = p.name || '';
   document.getElementById('sheet-price').textContent = fmtPrice(p.price);
-  document.getElementById('sheet-desc').textContent = p.description || '';
+  document.getElementById('sheet-desc').textContent = p.description || p.long_description || '';
   document.getElementById('sheet-qty-val').textContent = '1';
-  // Options (colors / modifiers)
-  const opts = p.colors || p.options || [];
+
+  // Options — full support: options_text groups + pizza_builder + colors
+  _isPizzaProduct = false;
   let optHtml = '';
-  if (opts.length) {
-    optHtml = `<div class="sheet-opt-label">צבע / גרסה</div><div class="sheet-opt-row">`;
-    opts.forEach((o, i) => {
-      const label = o.name || o.label || o;
-      optHtml += `<button class="sheet-opt-btn${i===0?' active':''}" onclick="sheetSelectOpt(this,'${escHtml(typeof label==='string'?label:label)}')">${escHtml(typeof label==='string'?label:String(label))}</button>`;
-    });
-    optHtml += '</div>';
-    _sheetSelOpt.val = (opts[0]?.name || opts[0]?.label || opts[0] || '');
+  try {
+    const opts = JSON.parse(p.options_text || '[]');
+    if (p.product_type === 'pizza_builder' || (Array.isArray(opts) && opts.length && opts[0].isPizza)) {
+      const toppings = (Array.isArray(opts) && opts.length && opts[0].toppings) ? opts[0].toppings : Array.isArray(opts) ? opts : [];
+      initPizzaBuilder(toppings);
+      optHtml = `<div id="pizza-builder-wrapper"></div>`;
+    } else if (Array.isArray(opts) && opts.length) {
+      optHtml = opts.map((g, gi) => `
+        <div style="margin-bottom:12px">
+          <div class="sheet-opt-label">${escHtml(g.name || g.title || '')}</div>
+          <div class="sheet-opt-row">${(g.options || g.items || []).map((o, oi) => {
+            const nm = typeof o === 'string' ? o : (o.name || '');
+            const pr = typeof o === 'object' && o.price ? `+₪${o.price}` : '';
+            return `<button class="sheet-opt-btn" id="sopt-${gi}-${oi}" onclick="toggleOpt(${gi},${oi},'${g.type||'single'}')">
+              <span class="opt-check" id="soptcheck-${gi}-${oi}"></span>
+              ${escHtml(nm)}${pr ? ` <span style="font-size:11px;opacity:.7">${pr}</span>` : ''}
+            </button>`;
+          }).join('')}</div>
+        </div>`).join('');
+    }
+  } catch(e) {}
+  // Colors/variants fallback
+  if (!optHtml && p.colors?.length) {
+    optHtml = `<div class="sheet-opt-label">גרסה / צבע</div><div class="sheet-opt-row">${
+      p.colors.map((c, i) => `<button class="sheet-opt-btn${i===0?' active':''}" onclick="sheetSelectColor(this,'${escHtml(c.name||c)}')">${escHtml(c.name||c)}</button>`).join('')
+    }</div>`;
   }
+  // Note field
+  optHtml += `<div style="margin-top:12px"><textarea id="sheet-note-input" placeholder="הערות לפריט (אופציונלי)" rows="2" style="width:100%;border:1px solid var(--border);border-radius:10px;padding:8px;font-size:13px;font-family:inherit;resize:none;background:var(--subtle)"></textarea></div>`;
+
   document.getElementById('sheet-options').innerHTML = optHtml;
-  sheetUpdateBtn(p);
+  if (_isPizzaProduct) renderPizzaBuilder();
+  updateSheetTotal();
   document.getElementById('sheet-overlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
 }
 
-function sheetSelectOpt(btn, val) {
+function sheetSelectColor(btn, name) {
   document.querySelectorAll('#sheet-options .sheet-opt-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
-  _sheetSelOpt.val = val;
+}
+
+function toggleOpt(gi, oi, type) {
+  if (!_sheetExtras[gi]) _sheetExtras[gi] = [];
+  if (type === 'single' || type === 'radio') _sheetExtras[gi] = [oi];
+  else { const idx = _sheetExtras[gi].indexOf(oi); if (idx > -1) _sheetExtras[gi].splice(idx,1); else _sheetExtras[gi].push(oi); }
+  const p = catalog.find(x => x.id === _sheetId);
+  try {
+    const opts = JSON.parse(p.options_text || '[]');
+    opts.forEach((g, gidx) => {
+      (g.options||g.items||[]).forEach((_,oidx) => {
+        const on = _sheetExtras[gidx]?.includes(oidx);
+        const btn = document.getElementById(`sopt-${gidx}-${oidx}`);
+        const chk = document.getElementById(`soptcheck-${gidx}-${oidx}`);
+        if (btn) btn.classList.toggle('active', !!on);
+        if (chk) { chk.textContent = on ? '✓' : ''; }
+      });
+    });
+  } catch(e) {}
+  updateSheetTotal();
 }
 
 function sheetQtyChange(delta) {
   _sheetQty = Math.max(1, _sheetQty + delta);
   document.getElementById('sheet-qty-val').textContent = _sheetQty;
-  const p = catalog.find(x => x.id == _sheetId);
-  if (p) sheetUpdateBtn(p);
+  updateSheetTotal();
 }
 
-function sheetUpdateBtn(p) {
-  document.getElementById('sheet-add-btn').textContent = `הוסף לעגלה — ${fmtPrice(p.price * _sheetQty)}`;
+function updateSheetTotal() {
+  const p = catalog.find(x => x.id == _sheetId);
+  if (!p) return;
+  let extra = 0;
+  if (_isPizzaProduct) {
+    extra = calcPizzaExtra();
+  } else {
+    try {
+      const opts = JSON.parse(p.options_text || '[]');
+      Object.entries(_sheetExtras).forEach(([gi, sel]) => {
+        const g = opts[gi], items = g?.options || g?.items || [];
+        sel.forEach(oi => { const o = items[oi]; if (o && typeof o === 'object' && o.price) extra += parseFloat(o.price) || 0; });
+      });
+    } catch(e) {}
+  }
+  const total = (p.price + extra) * _sheetQty;
+  document.getElementById('sheet-add-btn').textContent = `הוסף לעגלה — ${fmtPrice(total)}`;
+  document.getElementById('sheet-price').textContent = fmtPrice(p.price + extra);
 }
 
 function sheetAdd() {
   const p = catalog.find(x => x.id == _sheetId);
   if (!p) return;
-  const colorName = _sheetSelOpt.val || '';
-  const key = cartKey(p.id, colorName);
+  let extra = 0, noteArr = [];
+  if (_isPizzaProduct) {
+    const {selections, extraPrice} = getPizzaSelections();
+    extra = extraPrice; noteArr = selections;
+  } else {
+    try {
+      const opts = JSON.parse(p.options_text || '[]');
+      Object.entries(_sheetExtras).forEach(([gi, sel]) => {
+        const g = opts[gi], items = g?.options || g?.items || [];
+        sel.forEach(oi => { const o = items[oi]; const nm = typeof o === 'string' ? o : (o?.name || ''); if (nm) noteArr.push(nm); if (o && typeof o === 'object' && o.price) extra += parseFloat(o.price) || 0; });
+      });
+    } catch(e) {}
+  }
+  const userNote = document.getElementById('sheet-note-input')?.value.trim() || '';
+  const note = [userNote, ...noteArr].filter(Boolean).join(', ');
+  const key = cartKey(p.id, note);
+  const finalPrice = p.price + extra;
   if (cart[key]) cart[key].qty += _sheetQty;
-  else cart[key] = {id: p.id, name: p.name, price: p.price, qty: _sheetQty, note: colorName, colorName};
+  else cart[key] = {id: p.id, name: p.name, price: finalPrice, qty: _sheetQty, note, colorName: note};
   showToast(`✓ ${p.name} נוסף לעגלה`);
-  closeSheet(null, true);
+  closeSheet();
   renderCartDock();
   updateHeaderCart();
   renderVolumeTiers(storeData?.settings || {});
 }
 
-function closeSheet(e, force) {
-  if (!force && e && document.getElementById('product-sheet').contains(e.target)) return;
+function closeSheet() {
   document.getElementById('sheet-overlay').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+/* ── Pizza Builder ── */
+function initPizzaBuilder(toppings) {
+  _isPizzaProduct = true;
+  _pizzaToppings = toppings || [];
+  _pizzaState = {};
+  _pizzaToppings.forEach(t => _pizzaState[t.name] = [0,0,0,0]);
+  _activePizzaTopping = _pizzaToppings.length > 0 ? _pizzaToppings[0].name : null;
+}
+function renderPizzaBuilder() {
+  const wrapper = document.getElementById('pizza-builder-wrapper');
+  if (!wrapper) return;
+  const getFill = qi => {
+    if (!_activePizzaTopping || !_pizzaState[_activePizzaTopping]) return 'transparent';
+    const v = _pizzaState[_activePizzaTopping][qi];
+    return v === 2 ? '#ef4444' : v === 1 ? '#fca5a5' : 'transparent';
+  };
+  const getX2 = (qi,x,y) => _pizzaState[_activePizzaTopping]?.[qi] === 2
+    ? `<text x="${x}" y="${y}" font-size="10" font-weight="900" fill="#fff" text-anchor="middle" pointer-events="none">X2</text>` : '';
+  const toppingsHtml = _pizzaToppings.map(t =>
+    `<button class="pizza-topping-btn${t.name===_activePizzaTopping?' active':''}" onclick="selectPizzaTopping('${escHtml(t.name)}')">${escHtml(t.name)} (+₪${t.price})</button>`
+  ).join('');
+  let summaryParts = [];
+  _pizzaToppings.forEach(t => {
+    const vals = _pizzaState[t.name];
+    const active = vals.reduce((s,v)=>s+Number(v||0),0);
+    if (!active) return;
+    let q1=[],q2=[];
+    vals.forEach((v,i)=>{ if(v===1)q1.push(i+1); if(v===2)q2.push(i+1); });
+    let parts=[];
+    if(q1.length) parts.push(q1.length===4?'מגש שלם':`רבעים ${q1.join(', ')}`);
+    if(q2.length) parts.push(q2.length===4?'כפול הכל':`כפול ${q2.join(', ')}`);
+    summaryParts.push(`<span style="display:inline-block;background:#fee2e2;color:#b91c1c;padding:3px 8px;border-radius:8px;font-size:11px;font-weight:700;margin:2px">${escHtml(t.name)} — ${parts.join(' | ')}</span>`);
+  });
+  wrapper.innerHTML = `
+    <div style="background:#fff8f8;border:1px solid #fecaca;border-radius:18px;padding:16px;margin-bottom:14px">
+      <h4 style="font-family:'Rubik',sans-serif;font-size:14px;font-weight:700;color:#991b1b;text-align:center;margin:0 0 4px">🍕 הרכבת הפיצה</h4>
+      <p style="font-size:11px;color:#b91c1c;text-align:center;margin:0 0 12px">בחרו תוספת, לחצו על רבע פיצה. לחיצה כפולה = X2</p>
+      <div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:8px">${toppingsHtml}</div>
+      <div style="position:relative;width:200px;height:200px;margin:16px auto">
+        <svg viewBox="0 0 100 100" style="width:100%;height:100%">
+          <circle cx="50" cy="50" r="48" fill="#fef08a" stroke="#f59e0b" stroke-width="2"/>
+          <path d="M50 50 L50 2 A48 48 0 0 1 98 50 Z" fill="${getFill(0)}" class="pizza-slice" onclick="togglePizzaSlice(0)"/>
+          <path d="M50 50 L98 50 A48 48 0 0 1 50 98 Z" fill="${getFill(1)}" class="pizza-slice" onclick="togglePizzaSlice(1)"/>
+          <path d="M50 50 L50 98 A48 48 0 0 1 2 50 Z" fill="${getFill(2)}" class="pizza-slice" onclick="togglePizzaSlice(2)"/>
+          <path d="M50 50 L2 50 A48 48 0 0 1 50 2 Z" fill="${getFill(3)}" class="pizza-slice" onclick="togglePizzaSlice(3)"/>
+          <line x1="50" y1="2" x2="50" y2="98" stroke="#f59e0b" stroke-width="2" pointer-events="none"/>
+          <line x1="2" y1="50" x2="98" y2="50" stroke="#f59e0b" stroke-width="2" pointer-events="none"/>
+          ${getX2(0,75,40)}${getX2(1,75,85)}${getX2(2,25,85)}${getX2(3,25,40)}
+        </svg>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-bottom:12px">
+        <button onclick="fillPizza('whole')" style="padding:7px 14px;border:1px solid #fecaca;border-radius:10px;background:#fff;color:#b91c1c;font-size:11px;font-weight:700;cursor:pointer">מגש שלם</button>
+        <button onclick="fillPizza('half1')" style="padding:7px 14px;border:1px solid #fecaca;border-radius:10px;background:#fff;color:#b91c1c;font-size:11px;font-weight:700;cursor:pointer">חצי ימין</button>
+        <button onclick="fillPizza('half2')" style="padding:7px 14px;border:1px solid #fecaca;border-radius:10px;background:#fff;color:#b91c1c;font-size:11px;font-weight:700;cursor:pointer">חצי שמאל</button>
+        <button onclick="fillPizza('clear')" style="padding:7px 14px;border:1px solid #e2e8f0;border-radius:10px;background:#fff;color:#64748b;font-size:11px;font-weight:700;cursor:pointer">נקה</button>
+      </div>
+      <div style="background:#fff;padding:10px;border-radius:12px;border:1px solid #fecaca;min-height:42px">
+        ${summaryParts.length ? summaryParts.join('') : `<div style="font-size:11px;color:#9ca3af">פיצה חלקה (ללא תוספות)</div>`}
+      </div>
+    </div>`;
+}
+function selectPizzaTopping(name) { _activePizzaTopping = name; renderPizzaBuilder(); }
+function togglePizzaSlice(qi) {
+  if (!_activePizzaTopping) { showToast('בחרו תוספת תחילה'); return; }
+  const v = _pizzaState[_activePizzaTopping][qi] || 0;
+  _pizzaState[_activePizzaTopping][qi] = v === 0 ? 1 : v === 1 ? 2 : 0;
+  renderPizzaBuilder(); updateSheetTotal();
+}
+function fillPizza(action) {
+  if (!_activePizzaTopping && action !== 'clear') { showToast('בחרו תוספת תחילה'); return; }
+  if (action === 'clear') _pizzaToppings.forEach(t => _pizzaState[t.name] = [0,0,0,0]);
+  else if (action === 'whole') _pizzaState[_activePizzaTopping] = [1,1,1,1];
+  else if (action === 'half1') { _pizzaState[_activePizzaTopping][0]=1; _pizzaState[_activePizzaTopping][1]=1; }
+  else if (action === 'half2') { _pizzaState[_activePizzaTopping][2]=1; _pizzaState[_activePizzaTopping][3]=1; }
+  renderPizzaBuilder(); updateSheetTotal();
+}
+function calcPizzaExtra() {
+  let total = 0;
+  _pizzaToppings.forEach(t => { if (_pizzaState[t.name]) total += (parseFloat(t.price)||0)/4*_pizzaState[t.name].reduce((s,v)=>s+Number(v||0),0); });
+  return total;
+}
+function getPizzaSelections() {
+  let selections = [], extraPrice = 0;
+  _pizzaToppings.forEach(top => {
+    const vals = _pizzaState[top.name];
+    const active = vals.reduce((s,v)=>s+Number(v||0),0);
+    if (!active) return;
+    extraPrice += (parseFloat(top.price)||0)/4*active;
+    let q1=[],q2=[];
+    vals.forEach((v,i)=>{ if(v===1)q1.push(i+1); if(v===2)q2.push(i+1); });
+    let parts=[];
+    if(q1.length) parts.push(q1.length===4?'מגש שלם':`רבעים ${q1.join(',')}`);
+    if(q2.length) parts.push(q2.length===4?'כפול הכל':`כפול ${q2.join(',')}`);
+    selections.push(`${top.name} (${parts.join(' | ')})`);
+  });
+  return {selections, extraPrice};
 }
 
 window.addEventListener('DOMContentLoaded', initStore);
