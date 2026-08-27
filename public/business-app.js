@@ -415,34 +415,6 @@ async function fetchBanners() {
     } catch(e) {}
 }
 
-window.toggleDesktopView = function() {
-    const dashContainer = getEl('dashboard-container');
-    const bottomBanner = getEl('app-banner-bottom');
-    const iconBtn = getEl('btn-toggle-desktop').querySelector('i');
-    
-    if (!dashContainer) return;
-    
-    if (dashContainer.classList.contains('max-w-lg')) {
-        dashContainer.classList.remove('max-w-lg');
-        dashContainer.classList.add('max-w-7xl', 'w-full');
-        if (bottomBanner) { bottomBanner.classList.remove('max-w-lg'); bottomBanner.classList.add('max-w-7xl'); }
-        if (iconBtn) {
-            iconBtn.classList.remove('fa-desktop');
-            iconBtn.classList.add('fa-mobile-screen');
-        }
-        showToast('info', 'עברת לתצוגת מחשב מורחבת');
-    } else {
-        dashContainer.classList.remove('max-w-7xl', 'w-full');
-        dashContainer.classList.add('max-w-lg');
-        if (bottomBanner) { bottomBanner.classList.remove('max-w-7xl'); bottomBanner.classList.add('max-w-lg'); }
-        if (iconBtn) {
-            iconBtn.classList.remove('fa-mobile-screen');
-            iconBtn.classList.add('fa-desktop');
-        }
-        showToast('info', 'עברת לתצוגה ממוקדת');
-    }
-};
-
 async function loadSAData() {
     fetchBanners();
     try {
@@ -2755,28 +2727,6 @@ function handleAIResponseCheck(data) {
 
 function closeAiBatteryModal() { getEl('ai-battery-modal').classList.add('hidden'); }
 function upgradeToPremium() { closeAiBatteryModal(); const profileModal = getEl('profile-modal'); if(profileModal) profileModal.classList.add('hidden'); openAlertModal('Oneflow Pro 👑', 'אפשרות שדרוג למנוי פרימיום תתווסף למערכת בקרוב!'); }
-
-// *** פונקציה להחלפת תצוגת מחשב/נייד (רספונסיביות) ***
-window.toggleDesktopView = function() {
-    const dashContainer = getEl('dashboard-container');
-    const iconBtn = getEl('btn-toggle-desktop').querySelector('i');
-    
-    if (dashContainer.classList.contains('max-w-lg')) {
-        // מעבר לתצוגת מחשב רחבה
-        dashContainer.classList.remove('max-w-lg');
-        dashContainer.classList.add('max-w-7xl', 'w-full');
-        iconBtn.classList.remove('fa-desktop');
-        iconBtn.classList.add('fa-mobile-screen');
-        showToast('info', 'עברת לתצוגת מחשב מורחבת');
-    } else {
-        // מעבר חזרה לתצוגת מובייל (צרה)
-        dashContainer.classList.remove('max-w-7xl', 'w-full');
-        dashContainer.classList.add('max-w-lg');
-        iconBtn.classList.remove('fa-mobile-screen');
-        iconBtn.classList.add('fa-desktop');
-        showToast('info', 'עברת לתצוגה ממוקדת');
-    }
-};
 
 // *** הוספת הפונקציה החסרה (החרגת לקוחות PRO ווידוא מכסות) ***
 window.executeWithAIWarning = function(callback) {
