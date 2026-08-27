@@ -328,11 +328,7 @@ input,select,textarea{font-family:inherit}
 <!-- Top bar -->
 <div id="top-bar">
   <span id="ref-badge">REF#<span id="session-ref">---</span></span>
-  <div id="top-bar-center">
-    <span>🚚 משלוח לכל הארץ</span>
-    <span>📄 הצעת מחיר תוך 4 שעות</span>
-    <span>⭐ שירות B2B מקצועי</span>
-  </div>
+  <div id="top-bar-center"></div>
   <span id="top-open-status" style="font-size:11px"></span>
 </div>
 
@@ -707,6 +703,11 @@ function renderAll() {
 
 function renderTicker(s) {
   const isOpen = isStoreOpen(s);
+  // top-bar-center: מ-ticker_messages בהגדרות, אחרת ריק
+  const center = document.getElementById('top-bar-center');
+  const msgs = s.ticker_messages || [];
+  center.innerHTML = msgs.map(m => `<span>${escHtml(m)}</span>`).join('');
+  center.style.display = msgs.length ? '' : 'none';
   const bar = document.getElementById('ticker-bar');
   if (s.open_time || s.phone) {
     bar.style.display = 'flex';

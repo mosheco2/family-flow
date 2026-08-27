@@ -12345,6 +12345,7 @@ window.fetchStoreSettings = async function() {
             syncInputs('store-phone', s.phone || '');
             syncInputs('store-min-order', s.min_order || '');
             syncInputs('store-slogan', s.slogan || '');
+            syncInputs('store-ticker-messages', (s.ticker_messages || []).join(', '));
             syncInputs('store-type', s.store_type || 'retail');
             syncInputs('store-open-time', s.open_time || '');
             syncInputs('store-close-time', s.close_time || '');
@@ -12504,6 +12505,7 @@ async function saveStoreSettings() {
             phone: getVal('store-phone'), 
             minOrder: getVal('store-min-order'), 
             slogan: getVal('store-slogan'), 
+            tickerMessages: getVal('store-ticker-messages').split(',').map(function(s){return s.trim();}).filter(Boolean),
             storeType: getVal('store-type') || 'retail', 
             logoUrl: getLogoBannerVal('store-logo-base64'),
             bannerUrl: getLogoBannerVal('store-banner-base64'),
