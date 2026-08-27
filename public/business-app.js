@@ -934,21 +934,25 @@ window.injectBusinessUI = function() {
                                             <div class="text-2xl mb-1">🛍️</div>
                                             <div class="text-xs font-bold text-slate-700">סטנדרטית</div>
                                             <div class="text-[10px] text-slate-400">כל סוגי העסקים</div>
+                                            <button onclick="previewTemplate('classic',event)" title="תצוגה מקדימה" class="mt-1.5 text-[10px] text-indigo-500 hover:text-indigo-700 font-medium flex items-center gap-0.5 mx-auto">👁 תצוגה</button>
                                         </div>
                                         <div class="template-card cursor-pointer rounded-xl border-2 border-slate-200 bg-white p-3 text-center transition" data-tid="restaurant" onclick="selectStoreTemplate('restaurant')">
                                             <div class="text-2xl mb-1">🍕</div>
                                             <div class="text-xs font-bold text-slate-700">חמה</div>
                                             <div class="text-[10px] text-slate-400">מזון ומשלוחים</div>
+                                            <button onclick="previewTemplate('restaurant',event)" title="תצוגה מקדימה" class="mt-1.5 text-[10px] text-indigo-500 hover:text-indigo-700 font-medium flex items-center gap-0.5 mx-auto">👁 תצוגה</button>
                                         </div>
                                         <div class="template-card cursor-pointer rounded-xl border-2 border-slate-200 bg-white p-3 text-center transition" data-tid="sport" onclick="selectStoreTemplate('sport')">
                                             <div class="text-2xl mb-1">🏋️</div>
                                             <div class="text-xs font-bold text-slate-700">ספורטיבית</div>
                                             <div class="text-[10px] text-slate-400">סיטונאות וכושר</div>
+                                            <button onclick="previewTemplate('sport',event)" title="תצוגה מקדימה" class="mt-1.5 text-[10px] text-indigo-500 hover:text-indigo-700 font-medium flex items-center gap-0.5 mx-auto">👁 תצוגה</button>
                                         </div>
                                         <div class="template-card cursor-pointer rounded-xl border-2 border-slate-200 bg-white p-3 text-center transition" data-tid="market" onclick="selectStoreTemplate('market')">
                                             <div class="text-2xl mb-1">🛒</div>
                                             <div class="text-xs font-bold text-slate-700">מסחרית</div>
                                             <div class="text-[10px] text-slate-400">שוק וסחר</div>
+                                            <button onclick="previewTemplate('market',event)" title="תצוגה מקדימה" class="mt-1.5 text-[10px] text-indigo-500 hover:text-indigo-700 font-medium flex items-center gap-0.5 mx-auto">👁 תצוגה</button>
                                         </div>
                                     </div>
                                     <input type="hidden" id="store-template-id" value="classic">
@@ -12450,6 +12454,20 @@ window.fetchStoreSettings = async function() {
             if (playStoreEl) playStoreEl.value = s.play_store_url || '';
         }
     } catch(e) { console.error("Fetch Settings Error:", e); }
+};
+
+window.previewTemplate = function(tid, e) {
+    if (e) e.stopPropagation();
+    const alias = document.getElementById('store-alias-input')?.value?.trim() || '';
+    const storeCode = alias || (window.currentGroup?.group_code) || 'demo';
+    const templateFiles = {
+        classic: 'storefront.html',
+        restaurant: 'storefront-restaurant.html',
+        sport: 'storefront-sport.html',
+        market: 'storefront-market.html',
+    };
+    const file = templateFiles[tid] || 'storefront.html';
+    window.open(`${window.location.origin}/${file}?store=${storeCode}`, '_blank');
 };
 
 window.selectStoreTemplate = function(tid, save = false) {
