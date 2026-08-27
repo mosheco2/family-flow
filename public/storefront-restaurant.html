@@ -613,15 +613,15 @@ function renderHeader(data) {
 
 function renderHero(data) {
   const s = data.settings || {};
-  const etaMin = s.delivery_eta_min || 35;
-  const pickup = s.pickup_eta_min || 15;
+  const etaMin = (s.delivery_eta_min != null && s.delivery_eta_min !== '') ? parseInt(s.delivery_eta_min) : 35;
 
   if (etaMin > 0) {
     document.getElementById('hero-eta-text').textContent = `${etaMin} דק'`;
     document.getElementById('stat-eta').textContent = `${etaMin} דק'`;
   } else {
-    document.getElementById('stat-eta').closest('.hero-stat').style.display = 'none';
-    document.getElementById('hero-headline').querySelector('#hero-eta-text') && (document.getElementById('hero-eta-text').textContent = '');
+    const etaStat = document.getElementById('stat-eta')?.closest('.hero-stat');
+    if (etaStat) etaStat.style.display = 'none';
+    document.getElementById('hero-eta-text').textContent = '';
   }
 
   if (s.welcome_message) document.getElementById('hero-headline').innerHTML = s.welcome_message.replace(/\n/g,'<br>');
@@ -633,9 +633,11 @@ function renderHero(data) {
   const _bannerUrl = s.banner_url && s.banner_url !== 'DELETE' && s.banner_url !== 'null' ? s.banner_url : '';
   if (_bannerUrl) {
     const hw = document.getElementById('hero-img-wrap');
-    hw.style.backgroundImage = `url('${_bannerUrl}')`;
+    hw.style.backgroundImage = `url("${_bannerUrl}")`;
     hw.style.display = '';
     document.getElementById('hero-bg-deco').style.display = 'none';
+  } else {
+    document.getElementById('hero-bg-deco').style.display = '';
   }
 
   if (s.free_delivery_above > 0) {
@@ -643,11 +645,13 @@ function renderHero(data) {
     document.getElementById('stat-free-val').textContent = `${s.free_delivery_above}₪`;
   }
 
-  // hero background deco based on business type
-  const decos = { pizza: '🍕', burger: '🍔', sushi: '🍣', cafe: '☕', default: '🍽️' };
-  const name = (data.groupName || '').toLowerCase();
-  const deco = name.includes('פיצ') ? decos.pizza : name.includes('בורגר') ? decos.burger : name.includes('סושי') ? decos.sushi : name.includes('קפה') ? decos.cafe : decos.default;
-  document.getElementById('hero-bg-deco').textContent = deco;
+  // hero background deco — only when no banner image
+  if (!_bannerUrl) {
+    const decos = { pizza: '🍕', burger: '🍔', sushi: '🍣', cafe: '☕', default: '🍽️' };
+    const _name = (data.groupName || '').toLowerCase();
+    const deco = _name.includes('פיצ') ? decos.pizza : _name.includes('בורגר') ? decos.burger : _name.includes('סושי') ? decos.sushi : _name.includes('קפה') ? decos.cafe : decos.default;
+    document.getElementById('hero-bg-deco').textContent = deco;
+  }
 }
 
 function renderInfoBar(data) {

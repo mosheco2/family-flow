@@ -12559,8 +12559,8 @@ async function saveStoreSettings() {
             orderNotificationEmail: getVal('store-order-email'),
             templateId: document.getElementById('store-template-id')?.value || 'classic',
             accentColor: document.getElementById('store-accent-color')?.value || '#e63946',
-            deliveryEtaMin: parseInt(document.getElementById('store-delivery-eta')?.value) || 35,
-            pickupEtaMin: parseInt(document.getElementById('store-pickup-eta')?.value) || 15,
+            deliveryEtaMin: parseInt(document.getElementById('store-delivery-eta')?.value) || 0,
+            pickupEtaMin: parseInt(document.getElementById('store-pickup-eta')?.value) || 0,
             appStoreUrl: document.getElementById('store-app-store-url')?.value || '',
             playStoreUrl: document.getElementById('store-play-store-url')?.value || '',
             freeDeliveryAbove: parseInt(document.getElementById('store-free-delivery-above')?.value) || 0
@@ -27526,8 +27526,8 @@ async function saveStoreSettings() {
             orderNotificationEmail: getVal('store-order-email'),
             templateId: document.getElementById('store-template-id')?.value || 'classic',
             accentColor: document.getElementById('store-accent-color')?.value || '#e63946',
-            deliveryEtaMin: parseInt(document.getElementById('store-delivery-eta')?.value) || 35,
-            pickupEtaMin: parseInt(document.getElementById('store-pickup-eta')?.value) || 15,
+            deliveryEtaMin: parseInt(document.getElementById('store-delivery-eta')?.value) || 0,
+            pickupEtaMin: parseInt(document.getElementById('store-pickup-eta')?.value) || 0,
             appStoreUrl: document.getElementById('store-app-store-url')?.value || '',
             playStoreUrl: document.getElementById('store-play-store-url')?.value || '',
             freeDeliveryAbove: parseInt(document.getElementById('store-free-delivery-above')?.value) || 0
