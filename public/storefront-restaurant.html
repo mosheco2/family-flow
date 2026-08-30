@@ -413,6 +413,9 @@ input,button,select,textarea{font-family:inherit}
   <p style="font-size:14px;color:var(--muted);font-weight:600">טוען חנות...</p>
 </div>
 
+<!-- COMMUNITY BANNER -->
+<div id="community-banner" style="display:none;padding:10px 20px;color:#fff;font-size:13px;font-weight:500;display:none;align-items:center;gap:10px;justify-content:center;text-align:center"></div>
+
 <!-- TICKER -->
 <div id="ticker">
   <span id="ticker-dot"></span>
@@ -651,7 +654,14 @@ input,button,select,textarea{font-family:inherit}
             <button class="seg-btn active" id="co-seg-delivery" onclick="setDeliveryMode(true)">משלוח</button>
             <button class="seg-btn" id="co-seg-pickup" onclick="setDeliveryMode(false)">איסוף עצמי</button>
           </div>
-          <input id="co-address" class="co-input" placeholder="רחוב ומספר, עיר">
+          <div id="co-address-wrap" style="display:flex;flex-direction:column;gap:8px">
+            <input id="co-city" class="co-input" placeholder="עיר" style="margin:0" oninput="geocodeAndCalcZone()">
+            <div style="display:flex;gap:8px">
+              <input id="co-street" class="co-input" placeholder="רחוב" style="margin:0;flex:2" oninput="geocodeAndCalcZone()">
+              <input id="co-house" class="co-input" placeholder='מס׳' style="margin:0;flex:1">
+            </div>
+          </div>
+          <input id="co-address" class="co-input" placeholder="רחוב ומספר, עיר" style="display:none">
           <input id="co-phone" class="co-input" placeholder="טלפון לעדכונים" type="tel" dir="ltr">
         </div>
         <div class="checkout-card">
@@ -661,6 +671,14 @@ input,button,select,textarea{font-family:inherit}
         <div class="checkout-card" id="co-payment-card">
           <div class="checkout-card-title">תשלום</div>
           <div id="payment-options"></div>
+          <div id="flow-code-wrap" style="display:none;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
+            <div style="font-size:12px;font-weight:600;margin-bottom:6px">💰 מטבעות קהילה</div>
+            <div style="display:flex;gap:8px">
+              <input id="flow-code-input" class="co-input" style="margin:0;flex:1" placeholder="קוד מטבעות">
+              <button onclick="applyFlowCode()" style="padding:10px 16px;border:none;border-radius:10px;background:var(--dark);color:#fff;font-size:13px;font-weight:600;cursor:pointer">החל</button>
+            </div>
+            <div id="flow-code-msg" style="display:none;font-size:12px;margin-top:6px"></div>
+          </div>
         </div>
         <div class="checkout-card" id="co-notes-card">
           <div class="checkout-card-title">הערות (אופציונלי)</div>
@@ -682,6 +700,7 @@ input,button,select,textarea{font-family:inherit}
       <div class="sum-row"><span>ביניים</span><span id="sum-subtotal">₪0</span></div>
       <div class="sum-row" id="sum-fee-row"><span id="sum-fee-label">דמי משלוח</span><span id="sum-fee">חינם</span></div>
       <div class="sum-row" id="sum-discount-row" style="display:none"><span>הנחה</span><span id="sum-discount">—</span></div>
+      <div class="sum-row" id="sum-community-row" style="display:none;color:#22c55e;font-size:12px"></div>
       <div class="sum-total"><span>לתשלום</span><span id="sum-total">₪0</span></div>
       <button id="panel-primary-btn" onclick="panelPrimary()">מעבר לתשלום · ₪0</button>
       <button id="panel-back-btn" onclick="backToCart()">חזרה לעגלה</button>
@@ -966,12 +985,17 @@ function getPizzaSelections() {
 
 // ===== INIT =====
 async function initStore() {
-  const path = window.location.pathname.replace(/^\//, '') || '';
+  const rawPath = window.location.pathname.replace(/^\//, '') || '';
   const params = new URLSearchParams(window.location.search);
-  const code = params.get('store') || params.get('groupId') || path || '';
+  const code = (rawPath && !rawPath.endsWith('.html'))
+    ? rawPath
+    : (params.get('store') || params.get('groupId') || 'demo');
+  const communityId = params.get('communityId') || '';
   if (!code) { showError('לא צוינה חנות'); return; }
   try {
-    const r = await fetch(`${API}/storefront/${encodeURIComponent(code)}`);
+    let url = `${API}/storefront/${encodeURIComponent(code)}`;
+    if (communityId) url += `?communityId=${encodeURIComponent(communityId)}`;
+    const r = await fetch(url);
     const data = await r.json();
     if (!data.success) { showError(data.error || 'חנות לא נמצאה'); return; }
     storeData = data;
@@ -979,6 +1003,7 @@ async function initStore() {
     document.getElementById('page-title').textContent = data.groupName || 'חנות';
     applyAccent(data.settings?.accent_color || '#e63946');
     renderAll(data);
+    renderCommunityBanner(data);
     loadAsync(data.groupId);
     document.getElementById('loading-screen').style.display = 'none';
     initScrollSpy();
@@ -1196,18 +1221,66 @@ function renderInfoSection(data, s) {
 function renderCategories() {
   const cats = [...new Set(catalog.map(p => p.category).filter(Boolean))];
   const nav = document.getElementById('cat-nav');
+  const hasHotDeals = _activePromos.some(p => p.show_in_tab && p.is_active);
+  const hotTab = hasHotDeals ? `<button class="cat-pill" data-cat="__deals__" onclick="filterByCat('__deals__')">🔥 מבצעים חמים</button>` : '';
   nav.innerHTML = `<button class="cat-pill active" data-cat="all" onclick="filterByCat('all')">הכל</button>` +
+    hotTab +
     cats.map(c => `<button class="cat-pill" data-cat="${escHtml(c)}" onclick="filterByCat('${escHtml(c)}')">${escHtml(c)}</button>`).join('');
+}
+
+function renderCommunityBanner(data) {
+  const cd = data?.communityData;
+  if (!cd) return;
+  const banner = document.getElementById('community-banner');
+  if (!banner) return;
+  if (cd.discount_active && cd.discount_pct > 0) {
+    banner.style.display = '';
+    banner.style.background = 'linear-gradient(90deg,#166534,#15803d)';
+    banner.innerHTML = `<span style="font-size:16px">✅</span> <strong>הנחת קהילה ${cd.discount_pct}% פעילה</strong> · המחירים מחושבים עם ההנחה. <span style="opacity:.8">${cd.family_count || ''} משפחות בקהילה.</span>`;
+  } else if (cd.min_families && cd.family_count < cd.min_families) {
+    banner.style.display = '';
+    banner.style.background = 'linear-gradient(90deg,#92400e,#b45309)';
+    banner.innerHTML = `<span style="font-size:16px">⏳</span> <strong>ממתינים להפעלת הנחת קהילה</strong> · ${cd.family_count}/${cd.min_families} משפחות הצטרפו. כשיגיעו ${cd.min_families} — כולם נהנים מ-${cd.discount_pct}% הנחה!`;
+  }
 }
 
 let _currentCat = 'all', _searchQ = '';
 function filterByCat(cat) {
   _currentCat = cat;
   document.querySelectorAll('#cat-nav .cat-pill').forEach(b => b.classList.toggle('active', b.dataset.cat === cat));
-  if (cat !== 'all') {
+  if (cat === '__deals__') {
+    renderDealsTab();
+  } else if (cat !== 'all') {
+    renderCatalog();
     const el = document.getElementById(`cat-group-${CSS.escape(cat)}`);
     if (el) el.scrollIntoView({behavior:'smooth',block:'start'});
+  } else {
+    renderCatalog();
   }
+}
+function renderDealsTab() {
+  const deals = _activePromos.filter(p => p.show_in_tab && p.is_active);
+  const outer = document.getElementById('catalog-outer');
+  outer.innerHTML = `<div id="catalog-inner" style="max-width:1280px;margin:0 auto;padding:clamp(18px,2.4vw,28px) 20px 0">
+    <div class="cat-group-header"><h2 class="cat-group-name">🔥 מבצעים חמים</h2></div>
+    <div style="display:flex;flex-direction:column;gap:12px">
+      ${deals.map(p => {
+        const disc = p.promo_type==='discount_pct'?`${p.promo_value}% הנחה`
+          : p.promo_type==='discount_fixed'?`₪${p.promo_value} הנחה`
+          : p.promo_type==='bogo'?'קנה אחד קבל אחד חינם'
+          : p.promo_type==='free_item'?'פריט חינם':'מבצע מיוחד';
+        return `<div class="deal-card light" style="flex-direction:row;align-items:center;gap:16px">
+          <div style="flex:1">
+            <div class="deal-kicker">מבצע</div>
+            <div class="deal-title">${escHtml(p.title||disc)}</div>
+            <div class="deal-sub">${disc}${p.promo_code?` · קוד: <strong>${escHtml(p.promo_code)}</strong>`:''}</div>
+          </div>
+          ${p.promo_code?`<button class="deal-btn" onclick="copyCode('${escHtml(p.promo_code)}')">העתק קוד</button>`:''}
+        </div>`;
+      }).join('')}
+      ${deals.length===0?'<div style="padding:24px;text-align:center;color:var(--muted)">אין מבצעים פעילים כרגע</div>':''}
+    </div>
+  </div>`;
 }
 function filterCatalog(q) { _searchQ = q; renderCatalog(); }
 
@@ -1267,7 +1340,12 @@ function productCardListHtml(p) {
             <span class="product-price">${orig}₪${communityPrice || p.price}</span>
           </div>
           ${inCart?`<span class="in-cart-label">${t('בעגלה','In cart')}</span>`:''}
-          <button class="add-pill" onclick="event.stopPropagation();quickAdd(${p.id})">${hasOptions(p)?t('התאמה','Customize'):t('הוספה','Add')}</button>
+          ${p.product_type==='service'
+            ? `<button class="add-pill" onclick="event.stopPropagation();openSheet(${p.id})">📅 הזמן שירות</button>`
+            : p.product_type==='bundle'
+              ? `<button class="add-pill" onclick="event.stopPropagation();openSheet(${p.id})">📦 בחר חבילה</button>`
+              : `<button class="add-pill" onclick="event.stopPropagation();quickAdd(${p.id})">${hasOptions(p)?t('התאמה','Customize'):t('הוספה','Add')}</button>`
+          }
         </div>
       </div>
     </div>`;
@@ -1302,7 +1380,12 @@ function productCardHtml(p) {
             <span class="product-price">${orig}₪${communityPrice || p.price}</span>
           </div>
           ${inCart?`<span class="in-cart-label">בעגלה</span>`:''}
-          <button class="add-pill" onclick="event.stopPropagation();quickAdd(${p.id})">${hasOptions(p)?'התאמה':'הוספה'}</button>
+          ${p.product_type==='service'
+            ? `<button class="add-pill" onclick="event.stopPropagation();openSheet(${p.id})">📅 הזמן שירות</button>`
+            : p.product_type==='bundle'
+              ? `<button class="add-pill" onclick="event.stopPropagation();openSheet(${p.id})">📦 בחר חבילה</button>`
+              : `<button class="add-pill" onclick="event.stopPropagation();quickAdd(${p.id})">${hasOptions(p)?'התאמה':'הוספה'}</button>`
+          }
         </div>
       </div>
     </article>`;
@@ -1369,6 +1452,7 @@ async function loadAsync(groupId) {
     _activePromos = all.filter(p => p.is_active);
     const bannerPromos = _activePromos.filter(p => p.show_in_banner);
     if (bannerPromos.length) renderDeals(bannerPromos);
+    renderCategories(); // ריענון לshow_in_tab
   } catch(e){}
   try {
     const r2 = await fetch(`${API}/store/public-reviews/${groupId}`);
@@ -1673,12 +1757,12 @@ function bumpCart(k, d) {
   renderCatalog(); updateCartBar(); renderPanelCart(); renderPanelSummary();
 }
 
-function applyCoupon() {
+async function applyCoupon() {
   const code = document.getElementById('coupon-input').value.trim().toUpperCase();
   const msg = document.getElementById('coupon-msg');
   msg.style.display = '';
   if (!code) { msg.textContent = 'הכנס קוד קופון'; msg.style.color = 'var(--accent)'; return; }
-  // בדיקה מול מבצעים אמיתיים
+  // בדיקה מקומית תחילה
   const promo = _activePromos.find(p => (p.promo_code||'').toUpperCase() === code);
   if (promo) {
     _couponCode = code;
@@ -1693,11 +1777,44 @@ function applyCoupon() {
       msg.textContent = 'קופון הופעל';
     }
     msg.style.color = '#22c55e';
-  } else {
-    _couponCode = ''; _couponDiscount = 0;
-    msg.textContent = 'קוד קופון לא נמצא';
-    msg.style.color = 'var(--accent)';
+    renderPanelSummary();
+    return;
   }
+  // בדיקה ב-API
+  msg.textContent = 'בודק...'; msg.style.color = 'var(--muted)';
+  try {
+    // בדיקת קופון רגיל
+    const r = await fetch(`${API}/storefront/check-coupon`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ code, groupId: storeData.groupId, subtotal: getSubtotal() })
+    });
+    const d = await r.json();
+    if (d.success && d.discount) {
+      _couponCode = code;
+      _couponDiscount = d.discount_type === 'pct' ? d.discount / 100 : 'fixed:' + d.discount;
+      msg.textContent = d.message || `קופון הופעל — ${d.discount_type==='pct'?d.discount+'%':'₪'+d.discount} הנחה`;
+      msg.style.color = '#22c55e';
+      renderPanelSummary();
+      return;
+    }
+    // בדיקת קוד פרומו קהילה
+    const r2 = await fetch(`${API}/storefront/check-promo-code`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ code, groupId: storeData.groupId })
+    });
+    const d2 = await r2.json();
+    if (d2.success && d2.discount) {
+      _couponCode = code;
+      _couponDiscount = d2.discount_type === 'pct' ? d2.discount / 100 : 'fixed:' + d2.discount;
+      msg.textContent = d2.message || `קוד קהילה הופעל — ${d2.discount}% הנחה`;
+      msg.style.color = '#22c55e';
+      renderPanelSummary();
+      return;
+    }
+  } catch(e) {}
+  _couponCode = ''; _couponDiscount = 0;
+  msg.textContent = 'קוד קופון לא נמצא';
+  msg.style.color = 'var(--accent)';
   renderPanelSummary();
 }
 
@@ -1708,7 +1825,66 @@ function getDeliveryFee() {
   const free = parseFloat(s.free_delivery_above)||0;
   if (!isDelivery) return 0;
   if (free > 0 && sub >= free) return 0;
+  // radius zones
+  if (_deliveryZoneFee !== null) return _deliveryZoneFee;
   return parseFloat(s.delivery_fee)||0;
+}
+let _deliveryZoneFee = null;
+async function geocodeAndCalcZone() {
+  const city = (document.getElementById('co-city')?.value||'').trim();
+  const street = (document.getElementById('co-street')?.value||'').trim();
+  if (!city || !street) return;
+  const zones = storeData?.radiusZones;
+  if (!zones?.length) return;
+  const bLat = storeData?.settings?.biz_lat, bLng = storeData?.settings?.biz_lng;
+  if (!bLat || !bLng) return;
+  try {
+    const q = encodeURIComponent(`${street}, ${city}, Israel`);
+    const r = await fetch(`https://nominatim.openstreetmap.org/search?q=${q}&format=json&limit=1`);
+    const arr = await r.json();
+    if (!arr?.length) return;
+    const { lat, lon } = arr[0];
+    const distKm = haversine(parseFloat(bLat), parseFloat(bLng), parseFloat(lat), parseFloat(lon));
+    const sorted = [...zones].sort((a,b)=>a.radius_km-b.radius_km);
+    const zone = sorted.find(z => distKm <= z.radius_km);
+    if (zone) {
+      _deliveryZoneFee = parseFloat(zone.delivery_fee)||0;
+    } else {
+      _deliveryZoneFee = null;
+      showToast('הכתובת מחוץ לאזור החלוקה');
+    }
+    renderPanelSummary();
+  } catch(e) {}
+}
+let _flowDiscount = 0;
+async function applyFlowCode() {
+  const code = document.getElementById('flow-code-input').value.trim();
+  const msg = document.getElementById('flow-code-msg');
+  msg.style.display = '';
+  if (!code) { msg.textContent = 'הכנס קוד מטבעות'; msg.style.color = 'var(--accent)'; return; }
+  msg.textContent = 'בודק...'; msg.style.color = 'var(--muted)';
+  try {
+    const r = await fetch(`${API}/storefront/redeem-flow-code`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ code, groupId: storeData.groupId, amount: getPanelFinal() })
+    });
+    const d = await r.json();
+    if (d.success) {
+      _flowDiscount = d.discount || 0;
+      msg.textContent = d.message || `מומש ₪${_flowDiscount}`;
+      msg.style.color = '#22c55e';
+      renderPanelSummary();
+    } else {
+      msg.textContent = d.error || 'קוד לא תקין';
+      msg.style.color = 'var(--accent)';
+    }
+  } catch(e) { msg.textContent = 'שגיאת רשת'; msg.style.color = 'var(--accent)'; }
+}
+
+function haversine(lat1,lon1,lat2,lon2) {
+  const R=6371, dLat=(lat2-lat1)*Math.PI/180, dLon=(lon2-lon1)*Math.PI/180;
+  const a=Math.sin(dLat/2)**2+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
 }
 function calcDiscount(sub) {
   if (!_couponDiscount) return 0;
@@ -1732,6 +1908,16 @@ function renderPanelSummary() {
   const dr = document.getElementById('sum-discount-row');
   if (disc) { dr.style.display = 'flex'; document.getElementById('sum-discount').textContent = `−₪${disc}`; } else dr.style.display = 'none';
   document.getElementById('sum-total').textContent = `₪${final.toFixed(0)}`;
+  // שורת חיסכון קהילה
+  const commRow = document.getElementById('sum-community-row');
+  if (commRow) {
+    const cd = storeData?.communityData;
+    if (cd?.discount_active && cd?.discount_pct > 0 && sub > 0) {
+      const saving = Math.round(sub * cd.discount_pct / 100);
+      commRow.style.display = 'flex';
+      commRow.innerHTML = `<span>✨ הנחת קהילה ${cd.discount_pct}%</span><span style="color:#22c55e">−₪${saving}</span>`;
+    } else commRow.style.display = 'none';
+  }
   const pb = document.getElementById('panel-primary-btn');
   if (_cartStep === 'cart') pb.textContent = `מעבר לתשלום · ₪${final.toFixed(0)}`;
   else if (_cartStep === 'checkout') pb.textContent = `שליחת ההזמנה · ₪${final.toFixed(0)}`;
@@ -1764,8 +1950,11 @@ function goCheckout() {
     {l:'מזומן לשליח',n:'עד ₪400'}
   ].map((p,i)=>`<button class="pay-btn${i===_payMethod?' active':''}" onclick="pickPayMethod(${i})"><span class="pay-dot"></span><span>${p.l}</span><span class="pay-note">${p.n}</span></button>`).join('');
   // co-delivery
-  document.getElementById('co-address').parentElement && (document.getElementById('co-address').placeholder = isDelivery ? 'רחוב ומספר, עיר' : 'לא נדרש — איסוף עצמי');
-  document.getElementById('co-address').disabled = !isDelivery;
+  const addrWrap = document.getElementById('co-address-wrap');
+  if (addrWrap) addrWrap.style.display = isDelivery ? 'flex' : 'none';
+  // flow_code widget
+  const fcWrap = document.getElementById('flow-code-wrap');
+  if (fcWrap && storeData?.settings?.flow_code_enabled) fcWrap.style.display = '';
 }
 function pickPayMethod(i) {
   _payMethod = i;
@@ -1779,11 +1968,15 @@ function backToCart() {
 async function submitOrder() {
   const name = document.getElementById('co-name').value.trim();
   const phone = document.getElementById('co-phone').value.trim();
-  const address = document.getElementById('co-address').value.trim();
+  const city = document.getElementById('co-city')?.value.trim() || '';
+  const street = document.getElementById('co-street')?.value.trim() || '';
+  const house = document.getElementById('co-house')?.value.trim() || '';
+  const address = isDelivery ? [street, house, city].filter(Boolean).join(' ') : '';
   const notes = document.getElementById('co-notes').value.trim();
   if (!name) { showToast('אנא הכנס שם'); return; }
   if (!phone || phone.length < 9) { showToast('אנא הכנס מספר טלפון'); return; }
-  if (isDelivery && !address) { showToast('אנא הכנס כתובת למשלוח'); return; }
+  if (isDelivery && !city) { showToast('אנא הכנס עיר למשלוח'); return; }
+  if (isDelivery && !street) { showToast('אנא הכנס רחוב למשלוח'); return; }
 
   const s = storeData?.settings||{};
   const final = getPanelFinal();
@@ -1857,7 +2050,9 @@ function setDeliveryMode(deliver) {
     if (el) el.classList.toggle('active', !deliver);
   });
   document.getElementById('cart-bar-label').textContent = deliver ? 'להמשך הזמנה' : 'לאיסוף עצמי';
-  if (document.getElementById('co-address')) document.getElementById('co-address').disabled = !deliver;
+  const addrWrap2 = document.getElementById('co-address-wrap');
+  if (addrWrap2) addrWrap2.style.display = deliver ? 'flex' : 'none';
+  if (!deliver) { _deliveryZoneFee = null; renderPanelSummary(); }
   updateFulfilBtn();
   updateCartBar();
   if (_panelOpen && _cartStep === 'checkout') renderPanelSummary();
