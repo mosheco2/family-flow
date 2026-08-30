@@ -3843,12 +3843,7 @@ app.put('/api/superadmin/tickets/:id/status', verifySA, async (req, res) => {
 
 app.post('/api/sa/ai-build-business', verifySA, async (req, res) => {
   try {
-    const { businessName, businessNameEn, businessType, style, audience, languages = ['he'], productCount = 20, priceRange = 'medium' } = req.body;
-    const priceGuide = priceRange === 'cheap'
-      ? 'Budget/popular style: prices from ₪0 (free items) to ₪40. Think kiosk, market stall, grocery. A chewing gum = ₪5, a soda = ₪8, a sandwich = ₪25, a full meal = ₪38.'
-      : priceRange === 'luxury'
-      ? 'Premium/luxury style: prices from ₪50 to ₪300. Think gourmet, spa, high-end boutique. A cocktail = ₪65, a main course = ₪120, a premium treatment = ₪280.'
-      : 'Mid-range style: prices from ₪10 to ₪90. Think casual restaurant, café, regular shop. A coffee = ₪14, a pizza = ₪55, a salad = ₪38, a drink = ₪12.';
+    const { businessName, businessNameEn, businessType, style, audience, languages = ['he'], productCount = 20 } = req.body;
     const langStr = languages.includes('en') ? 'Hebrew AND English' : 'Hebrew only';
     const prompt = `You are a business content generator for an Israeli food/retail ordering platform.
 Generate a COMPLETE, realistic business profile as valid JSON for:
@@ -3859,8 +3854,7 @@ Generate a COMPLETE, realistic business profile as valid JSON for:
 - Target audience: ${audience}
 - Languages: ${langStr}
 - Number of products: approximately ${productCount}
-- Price style: ${priceGuide}
-- CRITICAL: Use REALISTIC prices per item — never uniform. Some items cost ₪0 (complimentary), most vary naturally. Prices must reflect real Israeli market 2024.
+- CRITICAL PRICING RULE: Each product's price must reflect its REAL average market price in Israel 2024 — based on what that specific item actually costs, regardless of business type. Examples: chewing gum = ₪5, espresso = ₪9, soft drink = ₪10, slice of pizza = ₪14, sandwich = ₪28, full pizza = ₪52, steak = ₪110, sushi platter = ₪140. Some items may be ₪0 (complimentary/bonus). NEVER assign a uniform price to all products.
 
 IMPORTANT RULES:
 1. options_text: For relevant products (burgers, pizzas, sandwiches, clothing, etc.), include a JSON array of option groups. Format: [{"name":"גודל","required":true,"max":1,"options":[{"name":"S","price":0},{"name":"M","price":5},{"name":"L","price":10}]},{"name":"תוספות","required":false,"max":3,"options":[{"name":"אבוקדו","price":4},{"name":"ביצה","price":3}]}]. For simple products (drinks, packaged goods), use empty string "".

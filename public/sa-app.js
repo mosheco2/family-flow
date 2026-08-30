@@ -13995,8 +13995,7 @@ async function aiGenerateBusiness() {
       style: document.getElementById('aib-style')?.value || 'family',
       audience: document.getElementById('aib-audience')?.value?.trim() || 'כללי',
       languages: [...document.querySelectorAll('#aib-langs input:checked')].map(el => el.value),
-      productCount: parseInt(document.getElementById('aib-count')?.value) || 20,
-      priceRange: document.getElementById('aib-price')?.value || 'medium'
+      productCount: parseInt(document.getElementById('aib-count')?.value) || 20
     };
     if (!body.languages.length) body.languages = ['he'];
     const r = await fetch('/api/sa/ai-build-business', {
