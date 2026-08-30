@@ -14496,8 +14496,13 @@ async function renderAIBBranding() {
   // Ask Gemini to generate proper visual prompts
   const logoDisp = document.getElementById('aib-logo-prompt-display');
   const bannerDisp = document.getElementById('aib-banner-prompt-display');
+  const _showBrandRetry = () => {
+    const msg = '<span style="color:#f59e0b;font-size:11px">⚠️ שגיאה זמנית — <a href="#" onclick="renderAIBBranding();return false;" style="color:#6366f1;text-decoration:underline">נסה שוב</a></span>';
+    if (logoDisp) logoDisp.innerHTML = msg;
+    if (bannerDisp) bannerDisp.innerHTML = msg;
+  };
   if (logoDisp) logoDisp.textContent = '⏳ AI מייצר פרומפטים...';
-  if (bannerDisp) bannerDisp.textContent = '⏳ AI מייצר פרומפטים...';
+  if (bannerDisp) bannerDisp.textContent = '';
   try {
     const p = _aiBuilderData?.profile || {};
     const r = await fetch('/api/sa/ai-gen-brand-prompts', {
@@ -14515,8 +14520,8 @@ async function renderAIBBranding() {
       _aibSetBrandPrompt('logo', d.logo_prompt);
       _aibSetBrandPrompt('banner', d.banner_prompt);
       _aibSave();
-    }
-  } catch(e) { console.warn('brand prompts gen failed:', e); }
+    } else { _showBrandRetry(); }
+  } catch(e) { console.warn('brand prompts gen failed:', e); _showBrandRetry(); }
 }
 
 function _aibShowBrandPreview(type, url) {

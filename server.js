@@ -4056,7 +4056,12 @@ BANNER prompt rules:
 
 Return ONLY valid JSON:
 {"logo_prompt": "...", "banner_prompt": "..."}`;
-    const result = await model.generateContent(prompt);
+    let result;
+    try { result = await model.generateContent(prompt); }
+    catch(e1) {
+      await new Promise(r => setTimeout(r, 3000));
+      result = await model.generateContent(prompt);
+    }
     const text = result.response.text().trim().replace(/^```json\s*/,'').replace(/\s*```$/,'');
     const parsed = JSON.parse(text);
     res.json({ success: true, logo_prompt: parsed.logo_prompt, banner_prompt: parsed.banner_prompt });
