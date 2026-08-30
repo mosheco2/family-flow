@@ -4042,11 +4042,11 @@ Generate TWO image prompts for this business:
 - Slogan: ${slogan || ''}
 
 LOGO prompt rules:
-- Describe a FLAT MINIMAL ICON that visually represents this specific business category
-- Focus on THE MOST ICONIC visual symbol for this type of business (e.g. for sushi: a nigiri piece; for cafe: a coffee cup; for flower shop: a single rose; for clothing: a folded shirt)
-- Style: "flat minimal icon, [specific symbol], white background, bold simple shape, single color fill, clean edges, no text, no letters"
-- Max 20 words total
-- DO NOT mention the business name
+- Design a FLAT MINIMAL LOGO with BOTH an icon AND the business name as text
+- The icon: THE MOST ICONIC visual symbol for this type of business (e.g. for sushi: a nigiri piece; for cafe: a coffee cup; for flower shop: a single rose; for clothing: a folded shirt)
+- Use the English business name: "${businessNameEn || businessName}"
+- Style: "flat minimal logo, [specific icon] above bold business name text '${businessNameEn || businessName}', white background, single accent color, clean professional design"
+- Max 25 words total
 
 BANNER prompt rules:
 - Describe a WIDE ATMOSPHERIC PHOTO of this specific business's products/environment

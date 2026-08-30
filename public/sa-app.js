@@ -14540,7 +14540,7 @@ async function aiGenBrandingImg(type) {
   if (genBtn) { genBtn.disabled = true; genBtn.textContent = '⏳ מייצר...'; }
   try {
     const seed = Math.floor(Math.random() * 99999);
-    const neg = encodeURIComponent(type === 'logo' ? 'text, letters, words, blurry, photo, realistic, 3d' : 'text, logo, watermark, cartoon, CGI, blurry, illustration');
+    const neg = encodeURIComponent(type === 'logo' ? 'blurry, photo, realistic, 3d render, CGI, low quality' : 'text, logo, watermark, cartoon, CGI, blurry, illustration');
     const w = type === 'logo' ? 512 : 1200;
     const h = type === 'logo' ? 512 : 400;
     const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=${w}&height=${h}&model=flux&nologo=true&seed=${seed}&negative=${neg}`;
