@@ -4042,16 +4042,30 @@ Generate TWO image prompts for this business:
 - Slogan: ${slogan || ''}
 
 LOGO prompt rules:
-- Design a FLAT MINIMAL LOGO with BOTH an icon AND the business name as text
-- The icon: THE MOST ICONIC visual symbol for this type of business (e.g. for sushi: a nigiri piece; for cafe: a coffee cup; for flower shop: a single rose; for clothing: a folded shirt)
-- Use the English business name: "${businessNameEn || businessName}"
-- Style: "flat minimal logo, [specific icon] above bold business name text '${businessNameEn || businessName}', white background, single accent color, clean professional design"
-- Max 25 words total
+- Describe ONLY a flat minimal icon (NO text, the business name will be added separately)
+- THE MOST ICONIC visual symbol for this type of business:
+  shoes/footwear → a single sneaker side view
+  cafe/coffee → a coffee cup with steam
+  sushi → a nigiri piece
+  burger → a burger stack
+  restaurant → a fork and knife
+  flowers → a single rose
+  spa/beauty → a lotus flower
+  clothing → a folded shirt
+  toys → a toy block or teddy bear
+  market/grocery → a shopping basket with vegetables
+  sport → a dumbbell or ball
+  events → a party balloon
+- Style: "flat minimal icon, [specific symbol], white background, bold simple shape, vivid single accent color fill, clean crisp edges"
+- Max 15 words. NO text, NO letters, NO words in the image.
 
 BANNER prompt rules:
-- Describe a WIDE ATMOSPHERIC PHOTO of this specific business's products/environment
-- Be very specific to the business type and its products
-- Style: "wide photo, [specific products/scene], natural warm lighting, photorealistic, high quality, no text, no logo"
+- ONLY products and environment — absolutely NO people, NO faces, NO humans
+- Show the PRODUCTS of this business in an attractive display
+  shoes → "rows of colorful sneakers neatly displayed on white shelves, overhead view, retail store"
+  clothing → "folded clothes and hanging garments in a boutique, warm lighting"
+  food → specific dishes on a table, close-up
+- Style: "wide product photo, [specific products arranged attractively], natural warm lighting, photorealistic, high quality, no text, no logo, no people"
 - Max 30 words total
 
 Return ONLY valid JSON:

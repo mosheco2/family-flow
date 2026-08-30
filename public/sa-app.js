@@ -14538,7 +14538,47 @@ async function renderAIBBranding() {
 function _aibShowBrandPreview(type, url) {
   const el = document.getElementById(`aib-${type}-preview`);
   if (!el) return;
-  el.innerHTML = `<img src="${url}" style="width:100%;height:100%;object-fit:cover" onerror="this.parentElement.innerHTML='<span style=color:#ef4444;font-size:11px>שגיאה בטעינה</span>'">`;
+  if (type === 'logo') {
+    // Use canvas to composite icon + business name text
+    const canvas = document.createElement('canvas');
+    canvas.width = 300; canvas.height = 300;
+    canvas.style.cssText = 'width:100%;height:100%;border-radius:10px';
+    el.innerHTML = '';
+    el.appendChild(canvas);
+    const ctx = canvas.getContext('2d');
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      // White background
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, 300, 300);
+      // Draw icon in upper 70%
+      ctx.drawImage(img, 15, 10, 270, 210);
+      // Business name bar
+      const name = (_aiBuilderData?.profile?.name_en || _aiBuilderData?.profile?.name || '').trim();
+      const accent = _aiBuilderData?.profile?.accent_color || '#4f46e5';
+      if (name) {
+        ctx.fillStyle = accent;
+        ctx.fillRect(0, 228, 300, 72);
+        ctx.fillStyle = '#ffffff';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        const fontSize = name.length > 14 ? 20 : name.length > 10 ? 24 : 28;
+        ctx.font = `bold ${fontSize}px Arial, sans-serif`;
+        ctx.fillText(name.toUpperCase(), 150, 264);
+      }
+    };
+    img.onerror = () => { el.innerHTML = `<img src="${url}" style="width:100%;height:100%;object-fit:cover;border-radius:10px">`; };
+    img.src = url;
+  } else {
+    el.innerHTML = `<img src="${url}" style="width:100%;height:100%;object-fit:cover" onerror="this.parentElement.innerHTML='<span style=color:#ef4444;font-size:11px>שגיאה בטעינה</span>'">`;
+  }
+}
+
+function _aibLogoDataUrl() {
+  const canvas = document.querySelector('#aib-logo-preview canvas');
+  if (!canvas) return null;
+  try { return canvas.toDataURL('image/png'); } catch(e) { return null; }
 }
 
 async function aiGenBrandingImg(type) {
@@ -14551,7 +14591,7 @@ async function aiGenBrandingImg(type) {
   if (genBtn) { genBtn.disabled = true; genBtn.textContent = '⏳ מייצר...'; }
   try {
     const seed = Math.floor(Math.random() * 99999);
-    const neg = encodeURIComponent(type === 'logo' ? 'blurry, photo, realistic, 3d render, CGI, low quality' : 'text, logo, watermark, cartoon, CGI, blurry, illustration');
+    const neg = encodeURIComponent(type === 'logo' ? 'text, letters, words, blurry, 3d render, CGI, low quality, photo' : 'people, faces, humans, persons, text, logo, watermark, cartoon, CGI, blurry, illustration');
     const w = type === 'logo' ? 512 : 1200;
     const h = type === 'logo' ? 512 : 400;
     const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=${w}&height=${h}&model=flux&nologo=true&seed=${seed}&negative=${neg}`;
