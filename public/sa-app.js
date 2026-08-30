@@ -14157,20 +14157,25 @@ function renderAIBImages() {
   el.innerHTML = rows.join('') + (rows.length > 1 ? `<button onclick="aiGenAllImgs()" style="margin-top:8px;padding:10px 20px;background:#6366f1;color:#fff;border:none;border-radius:10px;cursor:pointer;font-size:13px;font-weight:600;width:100%">🪄 צור תמונות לכולם</button>` : '');
 }
 
-async function aiGenProdImg(tid, ci, pi) {
+async function aiGenProdImg(tid, ci, pi, isRetry) {
   const cat = _aiBuilderData.catalog[ci];
   const p = cat.products[pi];
   const btn = document.getElementById('aib-img-btn-' + tid);
   if (btn) { btn.disabled = true; btn.textContent = '⏳'; }
   try {
     const r = await fetch('/api/store/catalog/generate-image', {
-      method: 'POST', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ groupId: 0, productName: p.name, description: p.description, category: cat.category })
+      method: 'POST', headers: {'Content-Type':'application/json', 'Authorization': saToken},
+      body: JSON.stringify({ groupId: 0, productName: p.name, description: p.description || p.name, category: cat.category })
     });
     const d = await r.json();
     if (d.imageUrl || d.url || d.data) {
       _aiBuilderImages.products[tid] = d.imageUrl || d.url || d.data;
       renderAIBImages();
+    } else if (!isRetry) {
+      // retry once after 3s on failure
+      await new Promise(r => setTimeout(r, 3000));
+      await aiGenProdImg(tid, ci, pi, true);
+      return;
     }
   } catch(e) { console.error('img gen error', e); }
   if (btn) { btn.disabled = false; btn.textContent = '🪄 צור'; }
@@ -14178,12 +14183,20 @@ async function aiGenProdImg(tid, ci, pi) {
 
 async function aiGenAllImgs() {
   const catalog = _aiBuilderData?.catalog || [];
+  const allBtn = document.querySelector('[onclick="aiGenAllImgs()"]');
+  if (allBtn) { allBtn.disabled = true; allBtn.textContent = '⏳ מייצר תמונות...'; }
+  let done = 0, total = 0;
+  catalog.forEach(c => total += (c.products||[]).length);
   for (let ci = 0; ci < catalog.length; ci++) {
     for (let pi = 0; pi < (catalog[ci].products||[]).length; pi++) {
       await aiGenProdImg(`${ci}_${pi}`, ci, pi);
-      await new Promise(r => setTimeout(r, 800));
+      done++;
+      if (allBtn) allBtn.textContent = `⏳ ${done}/${total}...`;
+      // 2.5s delay to avoid rate limiting on Pollinations
+      await new Promise(r => setTimeout(r, 2500));
     }
   }
+  if (allBtn) { allBtn.disabled = false; allBtn.textContent = '🪄 צור תמונות לכולם'; }
 }
 
 async function aiCreateBusiness() {
