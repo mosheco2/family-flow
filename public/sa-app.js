@@ -13989,12 +13989,116 @@ function _aibSave() {
       if (v && !v.startsWith('data:')) imgsSafe.products[k] = v;
     });
     localStorage.setItem(_AIB_IMGS_KEY, JSON.stringify(imgsSafe));
+    _aibAutoSaveDraft();
   } catch(e) { /* quota exceeded — ignore */ }
 }
 
 function _aibClearSaved() {
   localStorage.removeItem(_AIB_DATA_KEY);
   localStorage.removeItem(_AIB_IMGS_KEY);
+}
+
+const _AIB_DRAFTS_KEY = 'aib_drafts_v2';
+
+function _aibGetDrafts() {
+  try { return JSON.parse(localStorage.getItem(_AIB_DRAFTS_KEY) || '[]'); } catch(e) { return []; }
+}
+
+function _aibSaveDraftAs(customName) {
+  if (!_aiBuilderData) return;
+  syncAIBFromForm();
+  const drafts = _aibGetDrafts();
+  const name = customName || _aiBuilderData.profile?.name || 'טיוטה';
+  const id = 'draft_' + Date.now();
+  const imgsSafe = { products: {} };
+  Object.entries(_aiBuilderImages.products).forEach(([k, v]) => {
+    if (v && !v.startsWith('data:')) imgsSafe.products[k] = v;
+  });
+  drafts.unshift({ id, name, businessType: document.getElementById('aib-type')?.value || '', updatedAt: new Date().toISOString(), data: _aiBuilderData, images: imgsSafe });
+  if (drafts.length > 20) drafts.splice(20);
+  try { localStorage.setItem(_AIB_DRAFTS_KEY, JSON.stringify(drafts)); } catch(e) {}
+  return id;
+}
+
+function _aibAutoSaveDraft() {
+  if (!_aiBuilderData) return;
+  const drafts = _aibGetDrafts();
+  const name = _aiBuilderData.profile?.name || 'טיוטה';
+  const imgsSafe = { products: {} };
+  Object.entries(_aiBuilderImages.products).forEach(([k, v]) => {
+    if (v && !v.startsWith('data:')) imgsSafe.products[k] = v;
+  });
+  const autoIdx = drafts.findIndex(d => d.id === 'auto');
+  const autoDraft = { id: 'auto', name, businessType: document.getElementById('aib-type')?.value || '', updatedAt: new Date().toISOString(), data: _aiBuilderData, images: imgsSafe, isAuto: true };
+  if (autoIdx >= 0) drafts[autoIdx] = autoDraft;
+  else drafts.unshift(autoDraft);
+  try { localStorage.setItem(_AIB_DRAFTS_KEY, JSON.stringify(drafts)); } catch(e) {}
+}
+
+function _aibDeleteDraft(id) {
+  const drafts = _aibGetDrafts().filter(d => d.id !== id);
+  localStorage.setItem(_AIB_DRAFTS_KEY, JSON.stringify(drafts));
+}
+
+function aiShowDrafts() {
+  const panel = document.getElementById('aib-drafts-panel');
+  if (!panel) return;
+  const isVisible = panel.style.display !== 'none';
+  panel.style.display = isVisible ? 'none' : 'block';
+  if (!isVisible) renderAIBDraftsList();
+}
+
+function renderAIBDraftsList() {
+  const el = document.getElementById('aib-drafts-list');
+  if (!el) return;
+  const drafts = _aibGetDrafts();
+  if (!drafts.length) {
+    el.innerHTML = '<div style="color:#94a3b8;font-size:13px;padding:12px;text-align:center">אין טיוטות שמורות</div>';
+    return;
+  }
+  const typeLabels = { restaurant:'מסעדה', sushi:'סושי', burger:'בורגר', cafe:'קפה', market:'מכולת', flowers:'פרחים', spa:'יופי/ספא', sport:'ספורט', events:'אירועים', clothing:'ביגוד', shoes:'הנעלה', toys:'צעצועים', stock:'סטוק' };
+  el.innerHTML = drafts.map(d => {
+    const date = new Date(d.updatedAt).toLocaleDateString('he-IL', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
+    const prodCount = (d.data?.catalog || []).reduce((s, c) => s + (c.products||[]).length, 0);
+    return `<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid #e2e8f0;border-radius:10px;margin-bottom:8px;background:#fff">
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:700;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${d.name}${d.isAuto ? ' <span style="font-size:10px;color:#94a3b8;font-weight:400">(אוטומטי)</span>' : ''}</div>
+        <div style="font-size:11px;color:#94a3b8;margin-top:2px">${typeLabels[d.businessType]||d.businessType||''} · ${prodCount} מוצרים · ${date}</div>
+      </div>
+      <button onclick="aiLoadDraftById('${d.id}')" style="padding:6px 14px;border:1px solid #6366f1;border-radius:8px;background:#fff;color:#6366f1;cursor:pointer;font-size:12px;font-weight:600;flex-shrink:0">המשך</button>
+      <button onclick="aiDeleteDraftById('${d.id}',this)" style="padding:6px 10px;border:1px solid #fca5a5;border-radius:8px;background:#fff;color:#ef4444;cursor:pointer;font-size:12px;flex-shrink:0">🗑️</button>
+    </div>`;
+  }).join('');
+}
+
+function aiLoadDraftById(id) {
+  const draft = _aibGetDrafts().find(d => d.id === id);
+  if (!draft) return alert('הטיוטה לא נמצאה');
+  _aiBuilderData = draft.data;
+  _aiBuilderImages = draft.images || { products: {} };
+  document.getElementById('aib-drafts-panel').style.display = 'none';
+  document.getElementById('aib-step1').style.display = 'none';
+  document.getElementById('aib-success').style.display = 'none';
+  document.getElementById('aib-loading').style.display = 'none';
+  document.getElementById('aib-preview').style.display = 'block';
+  renderAIBPreview();
+}
+
+function aiDeleteDraftById(id, btn) {
+  if (!confirm('למחוק טיוטה זו?')) return;
+  _aibDeleteDraft(id);
+  btn.closest('div[style]').remove();
+  const el = document.getElementById('aib-drafts-list');
+  if (el && !el.children.length) renderAIBDraftsList();
+}
+
+function aiSaveCurrentDraft() {
+  if (!_aiBuilderData) return alert('אין טיוטה פעילה לשמירה');
+  syncAIBFromForm();
+  const name = prompt('שם הטיוטה:', _aiBuilderData.profile?.name || 'טיוטה');
+  if (name === null) return;
+  _aibSaveDraftAs(name || _aiBuilderData.profile?.name || 'טיוטה');
+  alert('הטיוטה נשמרה!');
 }
 
 function initAIBuilder() {
@@ -14344,6 +14448,8 @@ function aiDiscardDraft() {
 }
 
 function aiResetBuilder() {
+  if (_aiBuilderData && !confirm('לאפס את הבנאי? הטיוטה הנוכחית תישמר אוטומטית.')) return;
+  if (_aiBuilderData) _aibAutoSaveDraft();
   _aiBuilderData = null;
   _aiBuilderImages = { products: {} };
   _aibClearSaved();

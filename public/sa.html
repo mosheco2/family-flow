@@ -3621,6 +3621,8 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                 </div>
                 <div style="display:flex;gap:8px">
                   <button onclick="document.getElementById('aib-templates-panel').style.display=document.getElementById('aib-templates-panel').style.display==='none'?'block':'none';aiLoadTemplates()" style="padding:8px 16px;border:1px solid #e2e8f0;border-radius:10px;background:#fff;cursor:pointer;font-size:13px">📂 Templates שמורים</button>
+                  <button onclick="aiSaveCurrentDraft()" id="aib-save-draft-btn" style="padding:8px 16px;border:1px solid #e2e8f0;border-radius:10px;background:#fff;cursor:pointer;font-size:13px">💾 שמור טיוטה</button>
+                  <button onclick="aiShowDrafts()" style="padding:8px 16px;border:1px solid #e2e8f0;border-radius:10px;background:#fff;cursor:pointer;font-size:13px">📋 טיוטות</button>
                   <button onclick="aiResetBuilder()" style="padding:8px 16px;border:1px solid #e2e8f0;border-radius:10px;background:#fff;cursor:pointer;font-size:13px">🔄 התחל מחדש</button>
                 </div>
               </div>
@@ -3640,6 +3642,15 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
               <div id="aib-templates-panel" style="display:none;background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:16px;margin-bottom:20px">
                 <h3 style="font-size:14px;font-weight:700;margin:0 0 12px">Templates שמורים</h3>
                 <div id="aib-templates-list"></div>
+              </div>
+
+              <!-- Drafts panel -->
+              <div id="aib-drafts-panel" style="display:none;background:#fff;border:1px solid #c7d2fe;border-radius:14px;padding:16px;margin-bottom:20px">
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+                  <h3 style="font-size:14px;font-weight:700;margin:0;color:#4338ca">📋 טיוטות בעריכה</h3>
+                  <span style="font-size:11px;color:#94a3b8">נשמרות אוטומטית — ניתן לחזור בכל שלב</span>
+                </div>
+                <div id="aib-drafts-list"></div>
               </div>
 
               <!-- Step 1: Input form -->
