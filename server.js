@@ -3863,6 +3863,8 @@ IMPORTANT RULES:
 4. Showcase variety: include some very cheap items (₪0-15), mid-range, and premium.
 5. coupons: Generate 1-2 coupon codes (e.g. "WELCOME10", "SUMMER20") with discount_pct.
 6. promotions: Generate 2-3 active promotions with realistic Hebrew titles.
+7. logo_prompt: Write a SHORT English FLUX prompt (max 25 words) for a flat minimal icon/logo representing this specific business. Include the accent_color hex. Example: "flat minimal icon of a sushi roll, clean white background, #e63946 accent, vector style, no text"
+8. banner_prompt: Write a SHORT English FLUX prompt (max 35 words) for a wide cover photo representing this business's atmosphere. Example: "wide food photography, fresh sushi platter on dark slate, restaurant ambiance, natural lighting, photorealistic, no text"
 
 Return ONLY valid JSON, no markdown fences, no explanation:
 {
@@ -3917,7 +3919,9 @@ Return ONLY valid JSON, no markdown fences, no explanation:
       "discount_pct": 10,
       "valid_days": 90
     }
-  ]
+  ],
+  "logo_prompt": "Short English FLUX prompt (max 25 words) for a LOGO image: minimal flat icon representing the business, solid color background matching accent_color, no text, clean vector style",
+  "banner_prompt": "Short English FLUX prompt (max 35 words) for a COVER/BANNER image: wide food/product photography scene representing the business atmosphere, appetizing, natural lighting, no text, photorealistic"
 }`;
     if (!getGenAIInstance()) return res.json({ success: false, error: 'AI not configured' });
     const model = getGenAIInstance().getGenerativeModel({ model: 'gemini-2.5-flash' });
@@ -3940,7 +3944,7 @@ app.post('/api/sa/ai-create-business', verifySA, async (req, res) => {
     const { generatedData, storeType = 'restaurant' } = req.body;
     const { profile, settings, catalog = [], promotions = [], coupons = [] } = generatedData;
     const gRes = await client.query(
-      `INSERT INTO family_groups (name, name_en, type, is_active, is_onboarded) VALUES ($1,$2,$3,true,true) RETURNING id`,
+      `INSERT INTO family_groups (name, name_en, type, business_type, is_onboarded, wizard_completed) VALUES ($1,$2,'BIZ',$3,true,true) RETURNING id`,
       [profile.name, profile.name_en || '', storeType]
     );
     const groupId = gRes.rows[0].id;
@@ -4010,6 +4014,20 @@ app.post('/api/sa/ai-create-business', verifySA, async (req, res) => {
     console.error('ai-create-business error:', e);
     res.json({ success: false, error: e.message });
   } finally { client.release(); }
+});
+
+app.post('/api/sa/ai-update-store-images', verifySA, async (req, res) => {
+  try {
+    const { groupId, logoUrl, bannerUrl } = req.body;
+    if (!groupId) return res.json({ success: false, error: 'missing groupId' });
+    const fields = [];
+    const vals = [];
+    if (logoUrl) { fields.push(`logo_url=$${vals.length+2}`); vals.push(logoUrl); }
+    if (bannerUrl) { fields.push(`banner_url=$${vals.length+2}`); vals.push(bannerUrl); }
+    if (!fields.length) return res.json({ success: false, error: 'nothing to update' });
+    await pool.query(`UPDATE store_settings SET ${fields.join(',')} WHERE group_id=$1`, [groupId, ...vals]);
+    res.json({ success: true });
+  } catch(e) { res.json({ success: false, error: e.message }); }
 });
 
 app.get('/api/sa/business-templates', verifySA, async (req, res) => {

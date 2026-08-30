@@ -14349,8 +14349,10 @@ async function aiCreateBusiness() {
   syncAIBFromForm();
   const btn = document.getElementById('aib-create-btn');
   btn.disabled = true;
+  const progressEl = document.getElementById('aib-progress');
+  const setStatus = (msg) => { if (progressEl) progressEl.querySelector?.('span') ? progressEl.querySelector('span').textContent = msg : null; btn.textContent = msg; };
   btn.textContent = '⏳ יוצר עסק...';
-  document.getElementById('aib-progress').style.display = 'block';
+  progressEl.style.display = 'block';
   try {
     const storeType = document.getElementById('aib-type')?.value || 'restaurant';
     const r = await fetch('/api/sa/ai-create-business', {
@@ -14359,19 +14361,63 @@ async function aiCreateBusiness() {
     });
     const d = await r.json();
     if (!d.success) throw new Error(d.error || 'שגיאה ביצירה');
-    document.getElementById('aib-progress').style.display = 'none';
+
+    // Generate logo and banner images
+    const logoPrompt = _aiBuilderData?.logo_prompt;
+    const bannerPrompt = _aiBuilderData?.banner_prompt;
+    let logoUrl = null, bannerUrl = null;
+
+    if (logoPrompt || bannerPrompt) {
+      btn.textContent = '🎨 מייצר לוגו ותמונת נושא...';
+      try {
+        if (logoPrompt) {
+          const seed = Math.floor(Math.random() * 99999);
+          const neg = encodeURIComponent('text, letters, words, blurry, low quality');
+          logoUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(logoPrompt)}?width=512&height=512&model=flux&nologo=true&seed=${seed}&negative=${neg}`;
+          // pre-fetch to warm
+          await fetch(logoUrl).catch(()=>{});
+        }
+        if (bannerPrompt) {
+          await new Promise(r => setTimeout(r, 2500));
+          const seed2 = Math.floor(Math.random() * 99999);
+          const neg2 = encodeURIComponent('text, logo, watermark, cartoon, CGI, blurry');
+          bannerUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(bannerPrompt)}?width=1200&height=400&model=flux&nologo=true&seed=${seed2}&negative=${neg2}`;
+          await fetch(bannerUrl).catch(()=>{});
+        }
+        if (logoUrl || bannerUrl) {
+          await fetch('/api/sa/ai-update-store-images', {
+            method: 'POST', headers: {'Content-Type':'application/json','Authorization':saToken},
+            body: JSON.stringify({ groupId: d.groupId, logoUrl, bannerUrl })
+          });
+        }
+      } catch(imgErr) { console.warn('logo/banner gen failed:', imgErr); }
+    }
+
+    progressEl.style.display = 'none';
     document.getElementById('aib-preview').style.display = 'none';
-    document.getElementById('aib-success').style.display = 'block';
+    const successEl = document.getElementById('aib-success');
+    successEl.style.display = 'block';
     document.getElementById('aib-success-alias').textContent = d.storeAlias;
     document.getElementById('aib-success-link').href = `/storefront.html?store=${d.storeAlias}`;
     document.getElementById('aib-success-biz-link').href = `/business.html?gid=${d.groupId}`;
+    if (logoUrl) {
+      let imgRow = document.getElementById('aib-success-images');
+      if (!imgRow) {
+        imgRow = document.createElement('div');
+        imgRow.id = 'aib-success-images';
+        imgRow.style.cssText = 'display:flex;gap:12px;margin-top:12px;align-items:flex-start';
+        successEl.querySelector('.aib-success-actions')?.before(imgRow) || successEl.appendChild(imgRow);
+      }
+      imgRow.innerHTML = (logoUrl ? `<div><div style="font-size:11px;color:#64748b;margin-bottom:4px">לוגו</div><img src="${logoUrl}" style="width:80px;height:80px;object-fit:cover;border-radius:8px;border:1px solid #e2e8f0"></div>` : '')
+        + (bannerUrl ? `<div><div style="font-size:11px;color:#64748b;margin-bottom:4px">תמונת נושא</div><img src="${bannerUrl}" style="width:240px;height:80px;object-fit:cover;border-radius:8px;border:1px solid #e2e8f0"></div>` : '');
+    }
     document.getElementById('aib-save-template-section').style.display = 'block';
     _aibClearSaved();
   } catch(e) {
     alert(e.message);
     btn.disabled = false;
     btn.textContent = '🚀 צור את העסק';
-    document.getElementById('aib-progress').style.display = 'none';
+    progressEl.style.display = 'none';
   }
 }
 
