@@ -13980,15 +13980,20 @@ let _aiBuilderImages = { products: {} };
 const _AIB_DATA_KEY = 'aib_draft_data';
 const _AIB_IMGS_KEY = 'aib_draft_images';
 
+function _aibImgsSafe() {
+  const safe = { products: {} };
+  Object.entries(_aiBuilderImages.products || {}).forEach(([k, v]) => {
+    if (v && !v.startsWith('data:')) safe.products[k] = v;
+  });
+  if (_aiBuilderImages.logoUrl && !_aiBuilderImages.logoUrl.startsWith('data:')) safe.logoUrl = _aiBuilderImages.logoUrl;
+  if (_aiBuilderImages.bannerUrl && !_aiBuilderImages.bannerUrl.startsWith('data:')) safe.bannerUrl = _aiBuilderImages.bannerUrl;
+  return safe;
+}
+
 function _aibSave() {
   try {
     if (_aiBuilderData) localStorage.setItem(_AIB_DATA_KEY, JSON.stringify(_aiBuilderData));
-    // images can be large (base64) — save only URLs, skip data: URIs to stay within quota
-    const imgsSafe = { products: {} };
-    Object.entries(_aiBuilderImages.products).forEach(([k, v]) => {
-      if (v && !v.startsWith('data:')) imgsSafe.products[k] = v;
-    });
-    localStorage.setItem(_AIB_IMGS_KEY, JSON.stringify(imgsSafe));
+    localStorage.setItem(_AIB_IMGS_KEY, JSON.stringify(_aibImgsSafe()));
     _aibAutoSaveDraft();
   } catch(e) { /* quota exceeded — ignore */ }
 }
@@ -14010,11 +14015,7 @@ function _aibSaveDraftAs(customName) {
   const drafts = _aibGetDrafts();
   const name = customName || _aiBuilderData.profile?.name || 'טיוטה';
   const id = 'draft_' + Date.now();
-  const imgsSafe = { products: {} };
-  Object.entries(_aiBuilderImages.products).forEach(([k, v]) => {
-    if (v && !v.startsWith('data:')) imgsSafe.products[k] = v;
-  });
-  drafts.unshift({ id, name, businessType: document.getElementById('aib-type')?.value || '', updatedAt: new Date().toISOString(), data: _aiBuilderData, images: imgsSafe });
+  drafts.unshift({ id, name, businessType: document.getElementById('aib-type')?.value || '', updatedAt: new Date().toISOString(), data: _aiBuilderData, images: _aibImgsSafe() });
   if (drafts.length > 20) drafts.splice(20);
   try { localStorage.setItem(_AIB_DRAFTS_KEY, JSON.stringify(drafts)); } catch(e) {}
   return id;
@@ -14024,12 +14025,8 @@ function _aibAutoSaveDraft() {
   if (!_aiBuilderData) return;
   const drafts = _aibGetDrafts();
   const name = _aiBuilderData.profile?.name || 'טיוטה';
-  const imgsSafe = { products: {} };
-  Object.entries(_aiBuilderImages.products).forEach(([k, v]) => {
-    if (v && !v.startsWith('data:')) imgsSafe.products[k] = v;
-  });
   const autoIdx = drafts.findIndex(d => d.id === 'auto');
-  const autoDraft = { id: 'auto', name, businessType: document.getElementById('aib-type')?.value || '', updatedAt: new Date().toISOString(), data: _aiBuilderData, images: imgsSafe, isAuto: true };
+  const autoDraft = { id: 'auto', name, businessType: document.getElementById('aib-type')?.value || '', updatedAt: new Date().toISOString(), data: _aiBuilderData, images: _aibImgsSafe(), isAuto: true };
   if (autoIdx >= 0) drafts[autoIdx] = autoDraft;
   else drafts.unshift(autoDraft);
   try { localStorage.setItem(_AIB_DRAFTS_KEY, JSON.stringify(drafts)); } catch(e) {}
