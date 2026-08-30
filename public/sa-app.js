@@ -14321,7 +14321,7 @@ async function aiGenProdImg(tid, ci, pi, retryCount) {
   try {
     const r = await fetch('/api/store/catalog/generate-image', {
       method: 'POST', headers: {'Content-Type':'application/json', 'Authorization': saToken},
-      body: JSON.stringify({ groupId: 0, productName: p.name, description: p.description || p.name, category: cat.category })
+      body: JSON.stringify({ groupId: 0, productName: p.name, nameEn: p.name_en || '', description: p.description || p.name, category: cat.category })
     });
     const d = await r.json();
     if (d.imageUrl || d.url || d.data) {
@@ -14601,12 +14601,22 @@ async function aiGenBrandingImg(type) {
   previewEl.innerHTML = '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center"><span style="color:#6366f1;font-size:12px">⏳ מייצר...</span></div>';
   if (genBtn) { genBtn.disabled = true; genBtn.textContent = '⏳ מייצר...'; }
   try {
-    const seed = Math.floor(Math.random() * 99999);
-    const neg = encodeURIComponent(type === 'logo' ? 'text, letters, words, blurry, 3d render, CGI, low quality, photo' : 'people, faces, humans, persons, text, logo, watermark, cartoon, CGI, blurry, illustration');
-    const w = type === 'logo' ? 512 : 1200;
-    const h = type === 'logo' ? 512 : 400;
-    const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=${w}&height=${h}&model=flux&nologo=true&seed=${seed}&negative=${neg}`;
-    await fetch(url);
+    let url;
+    if (type === 'banner') {
+      // Unsplash Source — instant, free, real photo
+      const bizType = _aibGetBizType();
+      const nameEn = _aiBuilderData?.profile?.name_en || '';
+      // Extract 2-3 English keywords from banner_prompt for Unsplash
+      const kw = (prompt.replace(/[^a-zA-Z ,]/g,' ').split(/[\s,]+/).filter(w=>w.length>3).slice(0,3).join(',')) || bizType;
+      const seed = Math.floor(Math.random() * 9999);
+      url = `https://source.unsplash.com/1200x400/?${encodeURIComponent(kw)}&sig=${seed}`;
+    } else {
+      // Logo: keep Pollinations AI (generates specific icon)
+      const seed = Math.floor(Math.random() * 99999);
+      const neg = encodeURIComponent('text, letters, words, blurry, 3d render, CGI, low quality, photo');
+      url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=512&height=512&model=flux&nologo=true&seed=${seed}&negative=${neg}`;
+      await fetch(url);
+    }
     _aibShowBrandPreview(type, url);
     if (!_aiBuilderImages) _aiBuilderImages = { products: {} };
     if (type === 'logo') { _aiBuilderImages.logoUrl = url; if (_aiBuilderData) _aiBuilderData.logo_prompt = prompt; }
@@ -14615,7 +14625,7 @@ async function aiGenBrandingImg(type) {
   } catch(e) {
     previewEl.innerHTML = `<span style="color:#ef4444;font-size:12px;padding:8px">שגיאה בייצור — נסה שוב</span>`;
   } finally {
-    if (genBtn) { genBtn.disabled = false; genBtn.textContent = '✨ צור לוגו'; }
+    if (genBtn) { genBtn.disabled = false; genBtn.textContent = type === 'logo' ? '✨ צור לוגו' : '✨ צור תמונת נושא'; }
   }
 }
 

@@ -9837,91 +9837,31 @@ app.post('/api/store/catalog/bulk-import', verifyBizOrLegacy, requireModule('sal
 // --- Generate AI Product Image ---
 app.post('/api/store/catalog/generate-image', async (req, res) => {
     try {
-        const { groupId, productName, description, category } = req.body;
+        const { groupId, productName, nameEn, description, category } = req.body;
         if (groupId === undefined || groupId === null || !productName) return res.status(400).json({ error: 'שם מוצר נדרש' });
 
-        const hfToken = process.env.HF_TOKEN;
-
-        // בניית פרומפט ייעודי בעברית→אנגלית עם Gemini
-        let finalPrompt = '';
-        if (apiKey) {
+        // Use English name if provided, otherwise translate with Gemini (short call)
+        let searchQuery = nameEn || '';
+        if (!searchQuery && apiKey) {
             try {
-                const geminiPromptRequest = `You are an expert at writing prompts for FLUX image generation (photorealistic model).
-Write a SHORT English image generation prompt (max 35 words) for this food/retail product:
-Product name (Hebrew): ${productName}
-Description: ${description || ''}
-Category: ${category || ''}
-
-Rules:
-- Translate the product name to English accurately (e.g. עגבניות שרי = cherry tomatoes, אבוקדו = avocado, לימון = lemon)
-- Use the correct English product name — be specific (e.g. "Hass avocado" not just "avocado")
-- Style: "close-up food photography, [product], natural daylight, realistic textures, soft shadow, white marble surface, DSLR photo, 85mm lens"
-- Do NOT write "studio" or "white background" — use natural surfaces instead
-- Emphasize REAL texture and natural colors (not CGI, not illustration)
-- Return ONLY the prompt, no explanation`;
-                finalPrompt = (await callGeminiDirect(geminiPromptRequest)).trim().replace(/^["']|["']$/g, '');
+                const q = `Translate this Hebrew product name to English (2-4 words max, just the product name, no explanation):\n${productName}`;
+                searchQuery = (await callGeminiDirect(q)).trim().replace(/^["'.]+|["'.]+$/g, '').toLowerCase();
             } catch(e) {}
         }
-        // Fallback: simple English prompt from original Hebrew (transliterated)
-        if (!finalPrompt) {
-            finalPrompt = `close-up food photography, ${productName}, natural daylight, realistic textures, soft shadow, white marble surface, DSLR photo, 85mm lens, photorealistic`;
-        }
+        if (!searchQuery) searchQuery = productName; // fallback: Hebrew (Unsplash handles it)
 
-        // helper: fetch image binary → base64
-        const fetchImageBase64 = async (url, opts) => {
-            const r = await fetch(url, opts);
-            if (!r.ok) throw new Error(`${r.status} ${await r.text().catch(()=>'')}`);
-            const buf = await r.arrayBuffer();
-            const ct = r.headers.get('content-type') || 'image/jpeg';
-            return { base64: Buffer.from(buf).toString('base64'), contentType: ct };
-        };
+        // Category hint improves results
+        const catHint = category ? `,${category.replace(/[^\w\s]/g,'')}` : '';
+        const query = encodeURIComponent(searchQuery + catHint);
 
-        let result = null;
-        const errors = [];
+        // Unsplash Source — instant, free, real photos, no API key
+        const seed = Math.floor(Math.random() * 9999);
+        const imageUrl = `https://source.unsplash.com/512x512/?${query}&sig=${seed}`;
 
-        // 1. HF: nebius provider (FLUX)
-        if (hfToken && !result) {
-            try {
-                result = await fetchImageBase64('https://router.huggingface.co/nebius/models/black-forest-labs/flux-schnell', {
-                    method: 'POST',
-                    headers: { 'Authorization': `Bearer ${hfToken}`, 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ inputs: finalPrompt, parameters: { width: 512, height: 512 } }),
-                    signal: AbortSignal.timeout(30000)
-                });
-            } catch(e) { errors.push('nebius:' + e.message); }
-        }
-
-        // 2. HF: together provider (FLUX)
-        if (hfToken && !result) {
-            try {
-                result = await fetchImageBase64('https://router.huggingface.co/together/models/black-forest-labs/FLUX.1-schnell', {
-                    method: 'POST',
-                    headers: { 'Authorization': `Bearer ${hfToken}`, 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ inputs: finalPrompt, parameters: { width: 512, height: 512 } }),
-                    signal: AbortSignal.timeout(30000)
-                });
-            } catch(e) { errors.push('together:' + e.message); }
-        }
-
-        // 3. Pollinations.ai — חינמי, ללא מפתח, תמיד עובד
-        if (!result) {
-            try {
-                const seed = Math.floor(Math.random() * 99999);
-                const negPrompt = encodeURIComponent('cartoon, illustration, 3d render, CGI, painting, anime, clip art, logo, text, watermark, blurry, low quality');
-                const polUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(finalPrompt)}?width=512&height=512&model=flux&nologo=true&seed=${seed}&negative=${negPrompt}`;
-                result = await fetchImageBase64(polUrl, { signal: AbortSignal.timeout(40000) });
-            } catch(e) { errors.push('pollinations:' + e.message); }
-        }
-
-        if (!result) {
-            console.error('All image providers failed:', errors);
-            return res.json({ success: false, error: 'שירות יצירת התמונות אינו זמין כרגע — נסה שוב מאוחר יותר' });
-        }
-
-        res.json({ success: true, imageUrl: `data:${result.contentType};base64,${result.base64}` });
+        res.json({ success: true, imageUrl, url: imageUrl });
     } catch(e) {
         console.error('Product Image Gen Error:', e.message);
-        res.json({ success: false, error: 'שגיאה ביצירת תמונה: ' + (e.message || 'נסה שוב.') });
+        res.json({ success: false, error: 'שגיאה: ' + e.message });
     }
 });
 
