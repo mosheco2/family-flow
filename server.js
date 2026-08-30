@@ -9768,7 +9768,7 @@ app.post('/api/store/catalog/bulk-import', verifyBizOrLegacy, requireModule('sal
 app.post('/api/store/catalog/generate-image', async (req, res) => {
     try {
         const { groupId, productName, description, category } = req.body;
-        if (!groupId || !productName || !description) return res.status(400).json({ error: 'שם מוצר ותיאור נדרשים' });
+        if (groupId === undefined || groupId === null || !productName) return res.status(400).json({ error: 'שם מוצר נדרש' });
 
         const hfToken = process.env.HF_TOKEN;
 
