@@ -14479,40 +14479,48 @@ function switchAIBTab(tab) {
   if (tab === 'branding') renderAIBBranding();
 }
 
-function _aibBuildAutoPrompt(type) {
-  const p = _aiBuilderData?.profile || {};
-  const name = (p.name_en || p.name || 'business').trim();
-  const slogan = (p.slogan_en || p.slogan || '').trim();
-  const color = (p.accent_color || '#4f46e5').trim();
-  const bizType = document.getElementById('aib-type')?.value || 'restaurant';
-  const typeMap = { restaurant:'restaurant', sushi:'sushi restaurant', burger:'burger joint', cafe:'cafe', market:'grocery store', flowers:'flower shop', spa:'beauty spa', sport:'sports store', events:'event venue', clothing:'clothing boutique', shoes:'shoe store', toys:'toy store', stock:'retail store' };
-  const bizDesc = typeMap[bizType] || bizType;
-  if (type === 'logo') {
-    return `flat minimal logo icon for a ${bizDesc} named "${name}", ${color} accent color on white background, clean vector style, no text, no letters`;
-  } else {
-    return `wide cover photo for a ${bizDesc}${slogan ? `, ${slogan}` : ''}, appetizing product display, natural warm lighting, photorealistic, no text, no logo`;
-  }
+function _aibSetBrandPrompt(type, prompt) {
+  const el = document.getElementById(`aib-${type}-prompt`);
+  const disp = document.getElementById(`aib-${type}-prompt-display`);
+  if (el) el.value = prompt;
+  if (disp) disp.textContent = prompt;
+  if (_aiBuilderData) _aiBuilderData[`${type}_prompt`] = prompt;
 }
 
-function renderAIBBranding() {
-  // Build prompt from AI data or auto-generate
-  const logoPrompt = _aiBuilderData?.logo_prompt || _aibBuildAutoPrompt('logo');
-  const bannerPrompt = _aiBuilderData?.banner_prompt || _aibBuildAutoPrompt('banner');
-  // Store back
-  if (_aiBuilderData) { _aiBuilderData.logo_prompt = logoPrompt; _aiBuilderData.banner_prompt = bannerPrompt; }
-  // Fill hidden inputs
-  const logoEl = document.getElementById('aib-logo-prompt');
-  const bannerEl = document.getElementById('aib-banner-prompt');
-  if (logoEl) logoEl.value = logoPrompt;
-  if (bannerEl) bannerEl.value = bannerPrompt;
-  // Show prompts as display text
-  const logoDisp = document.getElementById('aib-logo-prompt-display');
-  const bannerDisp = document.getElementById('aib-banner-prompt-display');
-  if (logoDisp) logoDisp.textContent = logoPrompt;
-  if (bannerDisp) bannerDisp.textContent = bannerPrompt;
-  // Show cached previews if already generated
+async function renderAIBBranding() {
+  // Show cached previews immediately
   if (_aiBuilderImages?.logoUrl) _aibShowBrandPreview('logo', _aiBuilderImages.logoUrl);
   if (_aiBuilderImages?.bannerUrl) _aibShowBrandPreview('banner', _aiBuilderImages.bannerUrl);
+
+  // If prompts already exist from Gemini generation, show them
+  if (_aiBuilderData?.logo_prompt) _aibSetBrandPrompt('logo', _aiBuilderData.logo_prompt);
+  if (_aiBuilderData?.banner_prompt) _aibSetBrandPrompt('banner', _aiBuilderData.banner_prompt);
+  if (_aiBuilderData?.logo_prompt && _aiBuilderData?.banner_prompt) return;
+
+  // Otherwise ask Gemini to generate proper visual prompts
+  const logoDisp = document.getElementById('aib-logo-prompt-display');
+  const bannerDisp = document.getElementById('aib-banner-prompt-display');
+  if (logoDisp) logoDisp.textContent = '⏳ AI מייצר פרומפטים...';
+  if (bannerDisp) bannerDisp.textContent = '⏳ AI מייצר פרומפטים...';
+  try {
+    const p = _aiBuilderData?.profile || {};
+    const r = await fetch('/api/sa/ai-gen-brand-prompts', {
+      method: 'POST', headers: {'Content-Type':'application/json','Authorization':saToken},
+      body: JSON.stringify({
+        businessName: p.name || '',
+        businessNameEn: p.name_en || '',
+        businessType: document.getElementById('aib-type')?.value || 'restaurant',
+        slogan: p.slogan_en || p.slogan || '',
+        description: p.welcome_message_en || p.welcome_message || ''
+      })
+    });
+    const d = await r.json();
+    if (d.success) {
+      _aibSetBrandPrompt('logo', d.logo_prompt);
+      _aibSetBrandPrompt('banner', d.banner_prompt);
+      _aibSave();
+    }
+  } catch(e) { console.warn('brand prompts gen failed:', e); }
 }
 
 function _aibShowBrandPreview(type, url) {
@@ -14525,7 +14533,8 @@ async function aiGenBrandingImg(type) {
   const promptEl = document.getElementById(`aib-${type}-prompt`);
   const previewEl = document.getElementById(`aib-${type}-preview`);
   const genBtn = document.getElementById(`aib-${type}-gen-btn`);
-  const prompt = promptEl?.value?.trim() || _aibBuildAutoPrompt(type);
+  const prompt = promptEl?.value?.trim() || _aiBuilderData?.[`${type}_prompt`] || '';
+  if (!prompt) return alert('ממתין לסיום יצירת הפרומפט — נסה שוב בעוד שניה');
   previewEl.innerHTML = '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center"><span style="color:#6366f1;font-size:12px">⏳ מייצר...</span></div>';
   if (genBtn) { genBtn.disabled = true; genBtn.textContent = '⏳ מייצר...'; }
   try {

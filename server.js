@@ -4029,6 +4029,40 @@ app.post('/api/sa/ai-update-store-images', verifySA, async (req, res) => {
   } catch(e) { res.json({ success: false, error: e.message }); }
 });
 
+app.post('/api/sa/ai-gen-brand-prompts', verifySA, async (req, res) => {
+  try {
+    const { businessName, businessNameEn, businessType, slogan, description } = req.body;
+    if (!getGenAIInstance()) return res.json({ success: false, error: 'AI not configured' });
+    const model = getGenAIInstance().getGenerativeModel({ model: 'gemini-2.5-flash' });
+    const prompt = `You are an expert at writing image generation prompts for FLUX (photorealistic AI model).
+Generate TWO image prompts for this business:
+- Business name (Hebrew): ${businessName}
+- Business name (English): ${businessNameEn || ''}
+- Type: ${businessType}
+- Slogan: ${slogan || ''}
+
+LOGO prompt rules:
+- Describe a FLAT MINIMAL ICON that visually represents this specific business category
+- Focus on THE MOST ICONIC visual symbol for this type of business (e.g. for sushi: a nigiri piece; for cafe: a coffee cup; for flower shop: a single rose; for clothing: a folded shirt)
+- Style: "flat minimal icon, [specific symbol], white background, bold simple shape, single color fill, clean edges, no text, no letters"
+- Max 20 words total
+- DO NOT mention the business name
+
+BANNER prompt rules:
+- Describe a WIDE ATMOSPHERIC PHOTO of this specific business's products/environment
+- Be very specific to the business type and its products
+- Style: "wide photo, [specific products/scene], natural warm lighting, photorealistic, high quality, no text, no logo"
+- Max 30 words total
+
+Return ONLY valid JSON:
+{"logo_prompt": "...", "banner_prompt": "..."}`;
+    const result = await model.generateContent(prompt);
+    const text = result.response.text().trim().replace(/^```json\s*/,'').replace(/\s*```$/,'');
+    const parsed = JSON.parse(text);
+    res.json({ success: true, logo_prompt: parsed.logo_prompt, banner_prompt: parsed.banner_prompt });
+  } catch(e) { res.json({ success: false, error: e.message }); }
+});
+
 app.get('/api/sa/business-templates', verifySA, async (req, res) => {
   try {
     const r = await pool.query(`SELECT id, name, category, business_type, created_at FROM business_templates ORDER BY created_at DESC`);
