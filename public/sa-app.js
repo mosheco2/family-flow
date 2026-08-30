@@ -14302,7 +14302,8 @@ function renderAIBImages() {
   el.innerHTML = rows.join('') + (rows.length > 1 ? `<button onclick="aiGenAllImgs()" style="margin-top:8px;padding:10px 20px;background:#6366f1;color:#fff;border:none;border-radius:10px;cursor:pointer;font-size:13px;font-weight:600;width:100%">🪄 צור תמונות לכולם</button>` : '');
 }
 
-async function aiGenProdImg(tid, ci, pi, isRetry) {
+async function aiGenProdImg(tid, ci, pi, retryCount) {
+  retryCount = retryCount || 0;
   const cat = _aiBuilderData.catalog[ci];
   const p = cat.products[pi];
   const btn = document.getElementById('aib-img-btn-' + tid);
@@ -14317,32 +14318,42 @@ async function aiGenProdImg(tid, ci, pi, isRetry) {
       _aiBuilderImages.products[tid] = d.imageUrl || d.url || d.data;
       _aibSave();
       renderAIBImages();
-    } else if (!isRetry) {
-      // retry once after 3s on failure
-      await new Promise(r => setTimeout(r, 3000));
-      await aiGenProdImg(tid, ci, pi, true);
-      return;
+      if (btn) { btn.disabled = false; btn.textContent = '🔄 צור שוב'; }
+      return true;
+    } else if (retryCount < 2) {
+      const delay = (retryCount + 1) * 4000;
+      await new Promise(r => setTimeout(r, delay));
+      return aiGenProdImg(tid, ci, pi, retryCount + 1);
     }
   } catch(e) { console.error('img gen error', e); }
   if (btn) { btn.disabled = false; btn.textContent = '🪄 צור'; }
+  return false;
 }
 
 async function aiGenAllImgs() {
   const catalog = _aiBuilderData?.catalog || [];
   const allBtn = document.querySelector('[onclick="aiGenAllImgs()"]');
-  if (allBtn) { allBtn.disabled = true; allBtn.textContent = '⏳ מייצר תמונות...'; }
-  let done = 0, total = 0;
+  if (allBtn) { allBtn.disabled = true; }
+  let done = 0, failed = 0, total = 0;
   catalog.forEach(c => total += (c.products||[]).length);
   for (let ci = 0; ci < catalog.length; ci++) {
     for (let pi = 0; pi < (catalog[ci].products||[]).length; pi++) {
-      await aiGenProdImg(`${ci}_${pi}`, ci, pi);
-      done++;
-      if (allBtn) allBtn.textContent = `⏳ ${done}/${total}...`;
-      // 2.5s delay to avoid rate limiting on Pollinations
-      await new Promise(r => setTimeout(r, 2500));
+      const tid = `${ci}_${pi}`;
+      // Skip if image already exists
+      if (_aiBuilderImages.products[tid]) { done++; continue; }
+      if (allBtn) allBtn.textContent = `⏳ ${done + failed + 1}/${total}`;
+      const ok = await aiGenProdImg(tid, ci, pi);
+      if (ok) done++; else failed++;
+      // Progressive delay: increases after failures to let Pollinations recover
+      const delay = failed > 0 ? 5000 : 3500;
+      await new Promise(r => setTimeout(r, delay));
     }
   }
-  if (allBtn) { allBtn.disabled = false; allBtn.textContent = '🪄 צור תמונות לכולם'; }
+  if (allBtn) {
+    allBtn.disabled = false;
+    allBtn.textContent = failed > 0 ? `🪄 צור שוב (${failed} נכשלו)` : '✅ הושלם';
+    if (failed > 0) setTimeout(() => { allBtn.textContent = '🪄 צור תמונות לכולם'; }, 4000);
+  }
 }
 
 async function aiCreateBusiness() {
