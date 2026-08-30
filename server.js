@@ -3844,6 +3844,11 @@ app.put('/api/superadmin/tickets/:id/status', verifySA, async (req, res) => {
 app.post('/api/sa/ai-build-business', verifySA, async (req, res) => {
   try {
     const { businessName, businessNameEn, businessType, style, audience, languages = ['he'], productCount = 20, priceRange = 'medium' } = req.body;
+    const priceGuide = priceRange === 'cheap'
+      ? 'Budget/popular style: prices from ₪0 (free items) to ₪40. Think kiosk, market stall, grocery. A chewing gum = ₪5, a soda = ₪8, a sandwich = ₪25, a full meal = ₪38.'
+      : priceRange === 'luxury'
+      ? 'Premium/luxury style: prices from ₪50 to ₪300. Think gourmet, spa, high-end boutique. A cocktail = ₪65, a main course = ₪120, a premium treatment = ₪280.'
+      : 'Mid-range style: prices from ₪10 to ₪90. Think casual restaurant, café, regular shop. A coffee = ₪14, a pizza = ₪55, a salad = ₪38, a drink = ₪12.';
     const langStr = languages.includes('en') ? 'Hebrew AND English' : 'Hebrew only';
     const prompt = `You are a business content generator for an Israeli food/retail ordering platform.
 Generate a COMPLETE, realistic business profile as valid JSON for:
@@ -3854,7 +3859,8 @@ Generate a COMPLETE, realistic business profile as valid JSON for:
 - Target audience: ${audience}
 - Languages: ${langStr}
 - Number of products: approximately ${productCount}
-- Price range: use REALISTIC prices per product type (e.g. chewing gum = 5 ILS, coffee = 14 ILS, pizza = 55 ILS, steak = 120 ILS). Prices start from 0 (complimentary/bonus items) and reflect real Israeli market prices. NEVER use a uniform price range — vary prices naturally.
+- Price style: ${priceGuide}
+- CRITICAL: Use REALISTIC prices per item — never uniform. Some items cost ₪0 (complimentary), most vary naturally. Prices must reflect real Israeli market 2024.
 
 IMPORTANT RULES:
 1. options_text: For relevant products (burgers, pizzas, sandwiches, clothing, etc.), include a JSON array of option groups. Format: [{"name":"גודל","required":true,"max":1,"options":[{"name":"S","price":0},{"name":"M","price":5},{"name":"L","price":10}]},{"name":"תוספות","required":false,"max":3,"options":[{"name":"אבוקדו","price":4},{"name":"ביצה","price":3}]}]. For simple products (drinks, packaged goods), use empty string "".
