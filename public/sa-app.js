@@ -14610,8 +14610,17 @@ async function aiGenBrandingImg(type) {
   try {
     let url;
     if (type === 'banner') {
-      // loremflickr — instant, free, keyword search, no API key
-      const kw = (prompt.replace(/[^a-zA-Z ,]/g,' ').split(/[\s,]+/).filter(w=>w.length>3).slice(0,4).join(',')) || _aibGetBizType();
+      // loremflickr — use business type + name for relevant results, NOT the AI prompt
+      const BIZ_KW = { restaurant:'restaurant,food', cafe:'cafe,coffee', bakery:'bakery,bread', pizza:'pizza,restaurant',
+        shoes:'shoes,sneakers,footwear', fashion:'fashion,clothing,store', beauty:'beauty,salon,cosmetics',
+        spa:'spa,wellness', gym:'gym,fitness', pharmacy:'pharmacy', supermarket:'supermarket,grocery',
+        electronics:'electronics,gadgets', furniture:'furniture,interior', flowers:'flowers,florist',
+        jewelry:'jewelry,accessories', pets:'pet,animals', kids:'kids,toys', books:'books,bookstore',
+        travel:'travel,tourism', real_estate:'real estate,building' };
+      const bizType = _aibGetBizType();
+      const typeKw = BIZ_KW[bizType] || bizType.replace(/_/g,' ');
+      const nameWords = (_aiBuilderData?.profile?.name_en || '').replace(/[^a-zA-Z ]/g,' ').split(/\s+/).filter(w=>w.length>2).slice(0,2).join(',');
+      const kw = nameWords ? `${typeKw},${nameWords}` : typeKw;
       const lock = Math.floor(Math.random() * 99999);
       url = `https://loremflickr.com/1200/400/${encodeURIComponent(kw)}?lock=${lock}`;
     } else {

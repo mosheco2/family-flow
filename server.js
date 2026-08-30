@@ -9856,8 +9856,12 @@ app.post('/api/store/catalog/generate-image', async (req, res) => {
 
         // loremflickr — instant, free, keyword search, no API key
         // lock= gives a stable seed so the same URL always returns the same photo
+        // Strip non-Latin chars so query is always English
+        const cleanQuery = query.replace(/%[0-9A-Fa-f]{2}/g, s => {
+          try { const c = decodeURIComponent(s); return /[a-zA-Z0-9, ]/.test(c) ? c : ''; } catch(e) { return ''; }
+        }).replace(/[^\w, ]/g,'').trim() || 'product';
         const lock = Math.floor(Math.random() * 99999);
-        const imageUrl = `https://loremflickr.com/512/512/${query}?lock=${lock}`;
+        const imageUrl = `https://loremflickr.com/512/512/${encodeURIComponent(cleanQuery)}?lock=${lock}`;
 
         res.json({ success: true, imageUrl, url: imageUrl });
     } catch(e) {
