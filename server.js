@@ -3948,9 +3948,8 @@ app.post('/api/sa/ai-create-business', verifySA, async (req, res) => {
       [profile.name, profile.name_en || '', storeType]
     );
     const groupId = gRes.rows[0].id;
-    const alias = profile.name_en
-      ? profile.name_en.toLowerCase().replace(/[^a-z0-9]/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,'').slice(0,30)
-      : `store-${groupId}`;
+    const rawAlias = (profile.name_en || profile.name || '').toLowerCase().replace(/[^a-z0-9]/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,'').slice(0,30);
+    const alias = rawAlias || `store-${groupId}`;
     await client.query(`INSERT INTO store_settings
       (group_id, is_active, welcome_message, welcome_message_en, slogan, slogan_en,
        accent_color, delivery_fee, min_order, delivery_eta_min, open_time, close_time,
