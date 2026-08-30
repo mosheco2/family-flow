@@ -998,7 +998,8 @@ function renderTicker(s) {
 }
 
 function renderHeader(s) {
-  const name = storeData.groupName || '';
+  const displayName = (isEn && storeData.groupNameEn) ? storeData.groupNameEn : storeData.groupName;
+  const name = displayName || '';
   document.getElementById('header-name').textContent = name;
   document.getElementById('footer-name').textContent = name;
   const logoEl = document.getElementById('header-logo');
@@ -1017,9 +1018,11 @@ function renderHeader(s) {
 }
 
 function renderHero(s) {
-  const name = storeData.groupName || '';
+  const displayName = (isEn && storeData.groupNameEn) ? storeData.groupNameEn : storeData.groupName;
+  const name = displayName || '';
+  const displaySlogan = (isEn && s.slogan_en) ? s.slogan_en : (s.slogan || '');
   document.getElementById('hero-title-text').textContent = name;
-  document.getElementById('hero-sub').textContent = s.slogan || s.description || '';
+  document.getElementById('hero-sub').textContent = displaySlogan || s.description || '';
   const stats = [];
   const disc = s.max_volume_discount || (storeData.volume_tiers?.slice(-1)[0]?.pct);
   if (disc) stats.push({val: disc+'%', lbl: t('הנחת כמות','Volume discount')});
@@ -1103,14 +1106,18 @@ function renderCategoryTabs() {
   const cats = ['', ...[...new Set(catalog.map(p=>p.category).filter(Boolean))]];
   const bar = document.getElementById('cat-tabs-bar');
   const counts = {};
-  catalog.forEach(p => { counts[p.category||''] = (counts[p.category||'']||0)+1; });
+  const catDisplayMap = {};
+  catalog.forEach(p => {
+    counts[p.category||''] = (counts[p.category||'']||0)+1;
+    if (p.category) catDisplayMap[p.category] = (isEn && p.category_en) ? p.category_en : p.category;
+  });
   const hasHotDeals = _activePromos.some(p => p.show_in_tab && p.is_active);
   const hotTab = hasHotDeals
     ? `<button class="cat-tab${_filterCat==='__deals__'?' active':''}" onclick="setCategory('__deals__')">🔥 ${t('מבצעים חמים','Hot deals')} <span style="font-size:11px;opacity:.6;margin-right:4px">${_activePromos.filter(p=>p.show_in_tab&&p.is_active).length}</span></button>`
     : '';
   bar.innerHTML = hotTab + cats.map(cat =>
     `<button class="cat-tab${_filterCat===cat?' active':''}" onclick="setCategory('${escHtml(cat)}')">
-      ${escHtml(cat||t('הכל','All'))}
+      ${escHtml(cat ? (catDisplayMap[cat]||cat) : t('הכל','All'))}
       <span style="font-size:11px;opacity:.6;margin-right:4px">${cat ? (counts[cat]||0) : catalog.length}</span>
     </button>`
   ).join('');
@@ -1169,17 +1176,18 @@ function renderCatalog() {
 }
 
 function productCardHtml(p) {
+  const pName = (isEn && p.name_en) ? p.name_en : p.name;
   const badge = p.badge ? `<div class="product-card-badge ${escHtml(p.badge_color||'dark')}">${escHtml(p.badge)}</div>` : '';
   const compare = p.compare_at_price > p.price
     ? `<span class="product-card-compare">${fmtPrice(p.compare_at_price)}</span>` : '';
   const imgHtml = p.has_image
-    ? `<img src="${API}/store/item-image/${p.id}" alt="${escHtml(p.name)}" loading="lazy">`
+    ? `<img src="${API}/store/item-image/${p.id}" alt="${escHtml(pName)}" loading="lazy">`
     : `<span>🛒</span>`;
   return `<div class="product-card" onclick="openSheet(${p.id},event)">
     <div class="product-card-img">${imgHtml}</div>
     ${badge}
     <div class="product-card-body">
-      <div class="product-card-name">${escHtml(p.name)}</div>
+      <div class="product-card-name">${escHtml(pName)}</div>
       ${p.sku||p.stock_note ? `<div class="product-card-meta">${p.sku?'SKU: '+escHtml(p.sku):''} ${p.stock_note?escHtml(p.stock_note):''}</div>` : ''}
       <div class="product-card-price-row">
         <div class="product-card-price">${fmtPrice(p.price)}</div>

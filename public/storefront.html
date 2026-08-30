@@ -1414,10 +1414,13 @@
         };
 
         window.renderHeader = function() {
-            getEl('store-name').innerText = storeData.groupName; document.title = `${storeData.groupName} | חנות`;
+            const displayName = (isEn && storeData.groupNameEn) ? storeData.groupNameEn : storeData.groupName;
+            const displaySlogan = (isEn && storeData.settings.slogan_en) ? storeData.settings.slogan_en : (storeData.settings.slogan || '');
+            const displayWelcome = (isEn && storeData.settings.welcome_message_en) ? storeData.settings.welcome_message_en : storeData.settings.welcome_message;
+            getEl('store-name').innerText = displayName; document.title = `${displayName} | חנות`;
             if(storeData.settings.logo_url && storeData.settings.logo_url !== 'DELETE') { getEl('store-logo').src = storeData.settings.logo_url; getEl('store-logo').classList.remove('hidden'); getEl('store-logo-placeholder').classList.add('hidden'); }
-            if(storeData.settings.slogan) { getEl('store-slogan').innerText = storeData.settings.slogan; getEl('store-slogan').classList.remove('hidden'); }
-            if(storeData.settings.welcome_message) { getEl('store-welcome-text').innerText = storeData.settings.welcome_message; getEl('store-welcome').classList.remove('hidden'); }
+            if(displaySlogan) { getEl('store-slogan').innerText = displaySlogan; getEl('store-slogan').classList.remove('hidden'); }
+            if(displayWelcome) { getEl('store-welcome-text').innerText = displayWelcome; getEl('store-welcome').classList.remove('hidden'); }
             
             if(storeData.settings.banner_url && storeData.settings.banner_url !== 'DELETE') {
                 const bannerEl = getEl('store-hero-banner');
@@ -1681,10 +1684,16 @@
             htmlTop += `<button onclick="window.filterCategory('all')" id="cat-btn-all" class="cat-btn cat-active">${t('הכל', 'All')}</button>`;
             htmlSide += `<button onclick="window.filterCategory('all')" id="side-btn-all" class="w-full text-right px-6 py-4 border-b border-slate-50 flex items-center justify-between group hover:bg-slate-50 transition side-link-active"><span class="text-sm text-slate-800">${t('כל המוצרים', 'All products')}</span></button>`;
 
-            categories.forEach(cat => { 
+            // Build display map for EN categories
+            const catDisplayMap = {};
+            storeData.catalog.forEach(item => {
+              if (item.category) catDisplayMap[item.category] = (isEn && item.category_en) ? item.category_en : item.category;
+            });
+            categories.forEach(cat => {
                 const safeCat = safeStr(cat);
-                htmlTop += `<button onclick="window.filterCategory('${safeCat}')" id="cat-btn-${safeCat}" class="cat-btn shadow-sm">${safeCat}</button>`; 
-                htmlSide += `<button onclick="window.filterCategory('${safeCat}')" id="side-btn-${safeCat}" class="w-full text-right px-6 py-4 border-b border-slate-50 flex items-center justify-between group hover:bg-slate-50 transition"><span class="text-sm text-slate-700">${safeCat}</span></button>`;
+                const catDisplay = safeStr(catDisplayMap[cat] || cat);
+                htmlTop += `<button onclick="window.filterCategory('${safeCat}')" id="cat-btn-${safeCat}" class="cat-btn shadow-sm">${catDisplay}</button>`;
+                htmlSide += `<button onclick="window.filterCategory('${safeCat}')" id="side-btn-${safeCat}" class="w-full text-right px-6 py-4 border-b border-slate-50 flex items-center justify-between group hover:bg-slate-50 transition"><span class="text-sm text-slate-700">${catDisplay}</span></button>`;
             });
             
             if(container) container.innerHTML = htmlTop;
@@ -1919,10 +1928,12 @@ window.renderCatalog = function() {
                     }
                 }
 
+                const itemName = (isEn && item.name_en) ? item.name_en : item.name;
+                const itemDesc = (isEn && item.description_en) ? item.description_en : (item.description || '');
                 if (catalogViewMode === 'grid') {
-                    html += `<div onclick="${onclickAction.replace('event.stopPropagation();', '')}" class="bg-white rounded-2xl p-3 border border-slate-100 product-card shadow-sm flex flex-col fade-in cursor-pointer">${imgHtml}<h3 class="font-bold text-sm text-slate-900 leading-tight mb-1">${safeStr(item.name)}</h3><p class="text-[10px] text-slate-500 line-clamp-2 mb-3 flex-1">${safeStr(item.description || '')}</p><div class="mb-2">${priceHtml}</div>${actionHtml}</div>`;
+                    html += `<div onclick="${onclickAction.replace('event.stopPropagation();', '')}" class="bg-white rounded-2xl p-3 border border-slate-100 product-card shadow-sm flex flex-col fade-in cursor-pointer">${imgHtml}<h3 class="font-bold text-sm text-slate-900 leading-tight mb-1">${safeStr(itemName)}</h3><p class="text-[10px] text-slate-500 line-clamp-2 mb-3 flex-1">${safeStr(itemDesc)}</p><div class="mb-2">${priceHtml}</div>${actionHtml}</div>`;
                 } else {
-                    html += `<div onclick="${onclickAction.replace('event.stopPropagation();', '')}" class="bg-white p-3.5 rounded-2xl border border-slate-100 product-card shadow-sm flex gap-4 fade-in cursor-pointer">${imgHtml}<div class="flex-1 flex flex-col justify-between"><div><h3 class="font-bold text-slate-900 text-[15px] leading-tight">${safeStr(item.name)}</h3><p class="text-[11px] text-slate-500 mt-1 leading-snug line-clamp-2">${safeStr(item.description || '')}</p></div><div class="flex flex-col gap-1"><div class="flex items-center">${priceHtml}</div><div class="flex gap-1">${actionHtml}</div></div></div></div>`;
+                    html += `<div onclick="${onclickAction.replace('event.stopPropagation();', '')}" class="bg-white p-3.5 rounded-2xl border border-slate-100 product-card shadow-sm flex gap-4 fade-in cursor-pointer">${imgHtml}<div class="flex-1 flex flex-col justify-between"><div><h3 class="font-bold text-slate-900 text-[15px] leading-tight">${safeStr(itemName)}</h3><p class="text-[11px] text-slate-500 mt-1 leading-snug line-clamp-2">${safeStr(itemDesc)}</p></div><div class="flex flex-col gap-1"><div class="flex items-center">${priceHtml}</div><div class="flex gap-1">${actionHtml}</div></div></div></div>`;
                 }
             });
             container.innerHTML = html + '</div>';

@@ -12351,9 +12351,11 @@ window.fetchStoreSettings = async function() {
 
             syncChecks('store-is-active', s.is_active);
             syncInputs('store-welcome-msg', s.welcome_message || '');
+            syncInputs('store-welcome-msg-en', s.welcome_message_en || '');
             syncInputs('store-phone', s.phone || '');
             syncInputs('store-min-order', s.min_order || '');
             syncInputs('store-slogan', s.slogan || '');
+            syncInputs('store-slogan-en', s.slogan_en || '');
             syncInputs('store-ticker-messages', (s.ticker_messages || []).join(', '));
             syncInputs('store-type', s.store_type || 'retail');
             syncInputs('store-open-time', s.open_time || '');
@@ -12524,10 +12526,12 @@ async function saveStoreSettings() {
         const payload = { 
             groupId: currentGroup.id, 
             isActive: getChecked('store-is-active'), 
-            welcomeMessage: getVal('store-welcome-msg'), 
-            phone: getVal('store-phone'), 
-            minOrder: getVal('store-min-order'), 
-            slogan: getVal('store-slogan'), 
+            welcomeMessage: getVal('store-welcome-msg'),
+            welcomeMessageEn: getVal('store-welcome-msg-en'),
+            phone: getVal('store-phone'),
+            minOrder: getVal('store-min-order'),
+            slogan: getVal('store-slogan'),
+            sloganEn: getVal('store-slogan-en'),
             tickerMessages: getVal('store-ticker-messages').split(',').map(function(s){return s.trim();}).filter(Boolean),
             storeType: getVal('store-type') || 'retail', 
             logoUrl: getLogoBannerVal('store-logo-base64'),
@@ -14212,6 +14216,7 @@ window.openStoreProductModal = function(id = null) {
                     <div>
                         <label class="text-xs font-bold text-slate-600 block mb-1">שם הפריט / המנה:</label>
                         <input type="text" id="sp-name" class="modern-input py-2.5 text-base font-bold text-slate-800 shadow-sm bg-slate-50 focus:bg-white" placeholder="למשל: המבורגר הבית">
+                        <input id="sp-name-en" type="text" placeholder="Product name (English)" style="width:100%;padding:8px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:14px;margin-top:4px">
                     </div>
 
                     <div class="grid grid-cols-2 gap-3">
@@ -14222,6 +14227,7 @@ window.openStoreProductModal = function(id = null) {
                         <div>
                             <label class="text-xs font-bold text-slate-600 block mb-1">קטגוריה:</label>
                             <input type="text" id="sp-category" list="sp-category-list" class="modern-input py-2.5 text-sm font-bold text-slate-800 shadow-sm bg-slate-50 focus:bg-white" placeholder="בחר או הקלד חדשה...">
+                            <input id="sp-category-en" type="text" placeholder="Category (English)" style="width:100%;padding:8px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:14px;margin-top:4px">
                         </div>
                     </div>
 
@@ -14236,7 +14242,8 @@ window.openStoreProductModal = function(id = null) {
                             <button type="button" onclick="generateStoreProductAI()" id="btn-sp-ai" class="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-lg hover:bg-indigo-100 transition shadow-sm border border-indigo-100"><i class="fa-solid fa-wand-magic-sparkles"></i> ניסוח AI</button>
                         </div>
                         <textarea id="sp-desc" class="modern-input py-2 text-sm h-16 bg-slate-50 focus:bg-white mb-4" placeholder="יופיע בקטלוג החנות..."></textarea>
-                        
+                        <textarea id="sp-desc-en" placeholder="Description (English)" style="width:100%;padding:8px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:14px;min-height:60px;margin-top:4px;resize:vertical"></textarea>
+
                         <div class="flex justify-between items-center mb-1">
                             <label class="text-xs font-bold text-slate-600">תיאור מורחב (עמוד מוצר):</label>
                             <button type="button" onclick="generateStoreProductLongAI()" id="btn-sp-long-ai" class="text-[10px] font-bold text-purple-600 bg-purple-50 px-2.5 py-1 rounded-lg hover:bg-purple-100 transition shadow-sm border border-purple-100"><i class="fa-solid fa-wand-magic-sparkles"></i> ניסוח AI</button>
@@ -14280,12 +14287,15 @@ window.openStoreProductModal = function(id = null) {
     if (id) {
         const p = storeCatalogCache.find(item => item.id === id); 
         if(!p) return;
-        getEl('sp-id').value = p.id; 
-        getEl('sp-name').value = p.name; 
-        getEl('sp-price').value = p.price; 
-        getEl('sp-category').value = p.category || ''; 
-        getEl('sp-desc').value = p.description || ''; 
-        
+        getEl('sp-id').value = p.id;
+        getEl('sp-name').value = p.name;
+        getEl('sp-price').value = p.price;
+        getEl('sp-category').value = p.category || '';
+        getEl('sp-desc').value = p.description || '';
+        if(getEl('sp-name-en')) getEl('sp-name-en').value = p.name_en || '';
+        if(getEl('sp-category-en')) getEl('sp-category-en').value = p.category_en || '';
+        if(getEl('sp-desc-en')) getEl('sp-desc-en').value = p.description_en || '';
+
         if(getEl('sp-product-type')) getEl('sp-product-type').value = p.product_type || 'retail';
         if(getEl('sp-long-desc')) getEl('sp-long-desc').value = p.long_description || '';
         
@@ -14509,6 +14519,7 @@ async function submitStoreProduct() {
     try {
         const payload = {
             groupId: currentGroup.id, name, price, category: val('sp-category'), description: val('sp-desc'),
+            nameEn: val('sp-name-en') || '', categoryEn: val('sp-category-en') || '', descriptionEn: val('sp-desc-en') || '',
             optionsText: finalOptionsText, imageUrl: val('sp-image-base64') || null,
             badgeText: val('sp-badge-text') || '', badgeColor: val('sp-badge-color') || 'red',
             productType: pType, longDescription: val('sp-long-desc') || '',
@@ -25557,6 +25568,7 @@ window.openStoreProductModal = function(id = null) {
                     <div>
                         <label class="text-xs font-bold text-slate-600 block mb-1">${itemNameLabel}</label>
                         <input type="text" id="sp-name" class="modern-input py-2.5 text-base font-bold text-slate-800 shadow-sm bg-slate-50 focus:bg-white" placeholder="${itemNamePlaceholder}">
+                        <input id="sp-name-en" type="text" placeholder="Product name (English)" style="width:100%;padding:8px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:14px;margin-top:4px">
                     </div>
 
                     <div class="grid grid-cols-2 gap-3">
@@ -25567,6 +25579,7 @@ window.openStoreProductModal = function(id = null) {
                         <div>
                             <label class="text-xs font-bold text-slate-600 block mb-1">קטגוריה:</label>
                             <input type="text" id="sp-category" list="sp-category-list" class="modern-input py-2.5 text-sm font-bold text-slate-800 shadow-sm bg-slate-50 focus:bg-white" placeholder="בחר או הקלד חדשה...">
+                            <input id="sp-category-en" type="text" placeholder="Category (English)" style="width:100%;padding:8px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:14px;margin-top:4px">
                         </div>
                     </div>
 
@@ -25576,7 +25589,8 @@ window.openStoreProductModal = function(id = null) {
                             <button type="button" onclick="if(typeof generateStoreProductAI === 'function') generateStoreProductAI()" id="btn-sp-ai" class="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-lg hover:bg-indigo-100 transition shadow-sm border border-indigo-100"><i class="fa-solid fa-wand-magic-sparkles"></i> ניסוח AI</button>
                         </div>
                         <textarea id="sp-desc" class="modern-input py-2 text-sm h-16 bg-slate-50 focus:bg-white mb-4" placeholder="יופיע בקטלוג החנות..."></textarea>
-                        
+                        <textarea id="sp-desc-en" placeholder="Description (English)" style="width:100%;padding:8px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:14px;min-height:60px;margin-top:4px;resize:vertical"></textarea>
+
                         <div class="flex justify-between items-center mb-1">
                             <label class="text-xs font-bold text-slate-600">תיאור מורחב (עמוד מוצר):</label>
                             <button type="button" onclick="generateStoreProductLongAI()" id="btn-sp-long-ai" class="text-[10px] font-bold text-purple-600 bg-purple-50 px-2.5 py-1 rounded-lg hover:bg-purple-100 transition shadow-sm border border-purple-100"><i class="fa-solid fa-wand-magic-sparkles"></i> ניסוח AI</button>
@@ -25624,11 +25638,14 @@ window.openStoreProductModal = function(id = null) {
     if (id && storeCatalogCache) {
         const p = storeCatalogCache.find(item => item.id === id); 
         if(p) {
-            document.getElementById('sp-id').value = p.id; 
-            document.getElementById('sp-name').value = p.name || ''; 
-            document.getElementById('sp-price').value = p.price || ''; 
-            document.getElementById('sp-category').value = p.category || ''; 
-            document.getElementById('sp-desc').value = p.description || ''; 
+            document.getElementById('sp-id').value = p.id;
+            document.getElementById('sp-name').value = p.name || '';
+            document.getElementById('sp-price').value = p.price || '';
+            document.getElementById('sp-category').value = p.category || '';
+            document.getElementById('sp-desc').value = p.description || '';
+            if(document.getElementById('sp-name-en')) document.getElementById('sp-name-en').value = p.name_en || '';
+            if(document.getElementById('sp-category-en')) document.getElementById('sp-category-en').value = p.category_en || '';
+            if(document.getElementById('sp-desc-en')) document.getElementById('sp-desc-en').value = p.description_en || '';
             
             if(document.getElementById('sp-product-type')) document.getElementById('sp-product-type').value = p.product_type || 'retail';
             if(document.getElementById('sp-long-desc')) document.getElementById('sp-long-desc').value = p.long_description || '';
@@ -25699,8 +25716,11 @@ window.submitStoreProduct = async function() {
             groupId: currentGroup.id, 
             name: name, 
             price: price, 
-            category: document.getElementById('sp-category') ? document.getElementById('sp-category').value : '', 
-            description: document.getElementById('sp-desc') ? document.getElementById('sp-desc').value : '', 
+            category: document.getElementById('sp-category') ? document.getElementById('sp-category').value : '',
+            description: document.getElementById('sp-desc') ? document.getElementById('sp-desc').value : '',
+            nameEn: document.getElementById('sp-name-en') ? document.getElementById('sp-name-en').value : '',
+            categoryEn: document.getElementById('sp-category-en') ? document.getElementById('sp-category-en').value : '',
+            descriptionEn: document.getElementById('sp-desc-en') ? document.getElementById('sp-desc-en').value : '',
             optionsText: finalOptionsText, 
             imageUrl: document.getElementById('sp-image-base64') ? document.getElementById('sp-image-base64').value : null,
             badgeText: document.getElementById('sp-badge-text') ? document.getElementById('sp-badge-text').value : '', 
@@ -27351,9 +27371,11 @@ window.fetchStoreSettings = async function() {
 
             syncChecks('store-is-active', s.is_active);
             syncInputs('store-welcome-msg', s.welcome_message || '');
+            syncInputs('store-welcome-msg-en', s.welcome_message_en || '');
             syncInputs('store-phone', s.phone || '');
             syncInputs('store-min-order', s.min_order || '');
             syncInputs('store-slogan', s.slogan || '');
+            syncInputs('store-slogan-en', s.slogan_en || '');
             syncInputs('store-type', s.store_type || 'retail');
             syncInputs('store-open-time', s.open_time || '');
             syncInputs('store-close-time', s.close_time || '');
@@ -27493,11 +27515,13 @@ async function saveStoreSettings() {
         const payload = { 
             groupId: currentGroup.id, 
             isActive: getChecked('store-is-active'), 
-            welcomeMessage: getVal('store-welcome-msg'), 
-            phone: getVal('store-phone'), 
-            minOrder: getVal('store-min-order'), 
-            slogan: getVal('store-slogan'), 
-            storeType: getVal('store-type') || 'retail', 
+            welcomeMessage: getVal('store-welcome-msg'),
+            welcomeMessageEn: getVal('store-welcome-msg-en'),
+            phone: getVal('store-phone'),
+            minOrder: getVal('store-min-order'),
+            slogan: getVal('store-slogan'),
+            sloganEn: getVal('store-slogan-en'),
+            storeType: getVal('store-type') || 'retail',
             logoUrl: getLogoBannerVal('store-logo-base64'),
             bannerUrl: getLogoBannerVal('store-banner-base64'),
             openTime: getVal('store-open-time'), 
@@ -35443,22 +35467,26 @@ window.saveBusinessName = async function() {
     const input = document.getElementById('biz-name-edit');
     if (!input) return;
     const newName = input.value.trim();
-    if (!newName || newName === currentGroup?.name) return;
+    const inputEn = document.getElementById('biz-name-en-edit');
+    const newNameEn = inputEn ? inputEn.value.trim() : '';
+    if (!newName || (newName === currentGroup?.name && newNameEn === (currentGroup?.name_en || ''))) return;
     try {
         const res = await fetch(`/api/biz/settings/name`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${window._bizToken || ''}` },
-            body: JSON.stringify({ name: newName })
+            body: JSON.stringify({ name: newName, nameEn: newNameEn })
         });
         if (res.ok) {
-            if (currentGroup) currentGroup.name = newName;
+            if (currentGroup) { currentGroup.name = newName; currentGroup.name_en = newNameEn; }
             showToast('success', 'שם העסק עודכן');
         } else {
             input.value = currentGroup?.name || '';
+            if (inputEn) inputEn.value = currentGroup?.name_en || '';
             showToast('error', 'שגיאה בעדכון שם');
         }
     } catch(e) {
         input.value = currentGroup?.name || '';
+        if (inputEn) inputEn.value = currentGroup?.name_en || '';
         showToast('error', 'שגיאת רשת');
     }
 };
@@ -39241,6 +39269,7 @@ function renderSettingsHub() {
             <div class="flex-1 min-w-0">
                 <div class="flex items-center gap-2 mb-0.5">
                     <input type="text" id="biz-name-edit" value="${safeStr(currentGroup?.name||'')}" class="text-sm font-bold text-slate-700 bg-transparent border-b border-transparent hover:border-indigo-300 focus:border-indigo-500 focus:outline-none flex-1 min-w-0 transition" onblur="window.saveBusinessName()" onkeydown="if(event.key==='Enter')this.blur()"/>
+                    <input id="biz-name-en-edit" type="text" value="${safeStr(currentGroup?.name_en||'')}" placeholder="Business name (English)" style="font-size:14px;padding:6px 10px;border:1px solid #ddd;border-radius:8px;width:100%;margin-top:6px" onblur="window.saveBusinessName()" onkeydown="if(event.key==='Enter')this.blur()"/>
                 </div>
                 <div class="text-[10px] text-slate-400">${(BUSINESS_TYPES.find(b=>b.id===currentGroup?.business_type)||{}).name||'עסק'} · קוד: <span class="font-mono">${currentGroup?.code||''}</span></div>
             </div>

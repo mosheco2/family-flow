@@ -763,6 +763,8 @@ try { await client.query(`ALTER TABLE game_assignments ADD COLUMN IF NOT EXISTS 
       try { await client.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS enable_table_booking BOOLEAN DEFAULT TRUE`); } catch(e) {}
       try { await client.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS booking_mode VARCHAR(20) DEFAULT 'appointments'`); } catch(e) {}
       try { await client.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS enable_event_booking BOOLEAN DEFAULT FALSE`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS slogan_en VARCHAR(255)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS welcome_message_en TEXT`); } catch(e) {}
       try { await client.query(`CREATE TABLE IF NOT EXISTS store_catalog (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, name VARCHAR(100) NOT NULL, description TEXT, price DECIMAL(10,2) NOT NULL, category VARCHAR(50), is_available BOOLEAN DEFAULT TRUE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}
       try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS image_url TEXT`); } catch(e) {}
       try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS options_text TEXT`); } catch(err){}
@@ -776,6 +778,10 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
       try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS overhead_details JSONB DEFAULT '[]'::jsonb`); } catch(err){}
       try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS sku VARCHAR(100)`); } catch(err){}
       try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS original_price DECIMAL(10,2) DEFAULT NULL`); } catch(err){}
+      try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS name_en VARCHAR(100)`); } catch(err){}
+      try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS description_en TEXT`); } catch(err){}
+      try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS category_en VARCHAR(50)`); } catch(err){}
+      try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS name_en VARCHAR(255)`); } catch(err){}
       try { await client.query(`
           CREATE TABLE IF NOT EXISTS product_ingredients (
               id SERIAL PRIMARY KEY,
@@ -4045,11 +4051,11 @@ app.post('/api/biz/module-request', verifyBiz, async (req, res) => {
 
 // BIZ: עדכון שם עסק ע"י מנהל
 app.patch('/api/biz/settings/name', verifyBiz, async (req, res) => {
-    const { name } = req.body;
+    const { name, nameEn } = req.body;
     const groupId = req.bizAuth?.groupId;
     if (!groupId || !name || !name.trim()) return res.status(400).json({ error: 'missing name' });
     try {
-        await pool.query('UPDATE family_groups SET name=$1 WHERE id=$2', [name.trim(), groupId]);
+        await pool.query('UPDATE family_groups SET name=$1, name_en=$2 WHERE id=$3', [name.trim(), nameEn || '', groupId]);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -9292,7 +9298,7 @@ app.get('/api/store/settings/:groupId', async (req, res) => {
 
 app.post('/api/store/settings', async (req, res) => {
     try {
-        const { groupId, isActive, welcomeMessage, phone, minOrder, slogan, storeType, logoUrl, bannerUrl, openTime, closeTime, whatsappNumber, deliveryFee, includeVat, vatRate, storeAlias, enableTableBooking, bookingMode, enableEventBooking, orderNotificationEmail, templateId, accentColor, deliveryEtaMin, pickupEtaMin, appStoreUrl, playStoreUrl, freeDeliveryAbove, tickerMessages } = req.body;
+        const { groupId, isActive, welcomeMessage, phone, minOrder, slogan, storeType, logoUrl, bannerUrl, openTime, closeTime, whatsappNumber, deliveryFee, includeVat, vatRate, storeAlias, enableTableBooking, bookingMode, enableEventBooking, orderNotificationEmail, templateId, accentColor, deliveryEtaMin, pickupEtaMin, appStoreUrl, playStoreUrl, freeDeliveryAbove, tickerMessages, sloganEn, welcomeMessageEn } = req.body;
 
         try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS open_time VARCHAR(10)`); } catch(e) {}
         try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS close_time VARCHAR(10)`); } catch(e) {}
@@ -9314,6 +9320,8 @@ app.post('/api/store/settings', async (req, res) => {
         try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS play_store_url TEXT`); } catch(e) {}
         try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS free_delivery_above INT DEFAULT 0`); } catch(e) {}
         try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS ticker_messages JSONB DEFAULT '[]'`); } catch(e) {}
+        try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS slogan_en VARCHAR(255)`); } catch(e) {}
+        try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS welcome_message_en TEXT`); } catch(e) {}
 
         const isVat = (includeVat === true || String(includeVat) === 'true');
         const vatRateVal = parseFloat(vatRate) || 18;
@@ -9358,11 +9366,11 @@ app.post('/api/store/settings', async (req, res) => {
         const tickerMsgsVal = Array.isArray(tickerMessages) ? tickerMessages : [];
         await pool.query(`
             INSERT INTO store_settings (
-                group_id, is_active, welcome_message, phone, min_order, slogan, store_type, logo_url, banner_url, open_time, close_time, whatsapp_number, delivery_fee, include_vat, vat_rate, store_alias, enable_table_booking, booking_mode, enable_event_booking, order_notification_email, template_id, accent_color, delivery_eta_min, pickup_eta_min, app_store_url, play_store_url, free_delivery_above, ticker_messages
+                group_id, is_active, welcome_message, phone, min_order, slogan, store_type, logo_url, banner_url, open_time, close_time, whatsapp_number, delivery_fee, include_vat, vat_rate, store_alias, enable_table_booking, booking_mode, enable_event_booking, order_notification_email, template_id, accent_color, delivery_eta_min, pickup_eta_min, app_store_url, play_store_url, free_delivery_above, ticker_messages, slogan_en, welcome_message_en
             ) VALUES ($1, $2, $3, $4, $5, $6, $7,
                 NULLIF($8, 'DELETE'),
                 NULLIF($9, 'DELETE'),
-                $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28)
+                $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30)
             ON CONFLICT (group_id) DO UPDATE SET
                 is_active = EXCLUDED.is_active,
                 welcome_message = EXCLUDED.welcome_message,
@@ -9398,11 +9406,14 @@ app.post('/api/store/settings', async (req, res) => {
                 app_store_url = EXCLUDED.app_store_url,
                 play_store_url = EXCLUDED.play_store_url,
                 free_delivery_above = EXCLUDED.free_delivery_above,
-                ticker_messages = EXCLUDED.ticker_messages
+                ticker_messages = EXCLUDED.ticker_messages,
+                slogan_en = EXCLUDED.slogan_en,
+                welcome_message_en = EXCLUDED.welcome_message_en
         `, [
             groupId, isActive, welcomeMessage, phone, parseFloat(minOrder)||0, slogan, storeType,
             logoUrl || null, bannerUrl || null, openTime || '', closeTime || '', whatsappNumber || '', parseFloat(deliveryFee) || 0, isVat, vatRateVal, aliasVal, enableTableBookingVal, bookingModeVal, enableEventBookingVal, orderEmailVal,
-            templateIdVal, accentColorVal, deliveryEtaVal, pickupEtaVal, appStoreVal, playStoreVal, freeDeliveryVal, JSON.stringify(tickerMsgsVal)
+            templateIdVal, accentColorVal, deliveryEtaVal, pickupEtaVal, appStoreVal, playStoreVal, freeDeliveryVal, JSON.stringify(tickerMsgsVal),
+            sloganEn || '', welcomeMessageEn || ''
         ]);
         
         res.json({ success: true });
@@ -9454,7 +9465,7 @@ app.post('/api/store/catalog', verifyBizOrLegacy, requireModule('sales'), async 
             const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
             console.log(`[CATALOG_LEGACY] groupId=${groupId} ip=${ip} ts=${new Date().toISOString()}`);
         }
-        const { name, description, price, category, imageUrl, optionsText, badgeText, badgeColor, productType, longDescription, kitchenStation, isComplimentary } = req.body;
+        const { name, description, price, category, imageUrl, optionsText, badgeText, badgeColor, productType, longDescription, kitchenStation, isComplimentary, nameEn, descriptionEn, categoryEn } = req.body;
 
         const countRes = await pool.query('SELECT COUNT(*) FROM store_catalog WHERE group_id=$1', [groupId]);
         const grpPlan = await pool.query('SELECT plan, is_premium FROM family_groups WHERE id=$1', [groupId]);
@@ -9465,8 +9476,8 @@ app.post('/api/store/catalog', verifyBizOrLegacy, requireModule('sales'), async 
         }
 
         const result = await pool.query(
-            'INSERT INTO store_catalog (group_id, name, description, price, category, image_url, options_text, badge_text, badge_color, product_type, long_description, sku, kitchen_station, is_complimentary) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING *',
-            [groupId, name, description, parseFloat(price)||0, category, imageUrl, optionsText, badgeText || null, badgeColor || 'red', productType || 'retail', longDescription || '', req.body.sku || '', kitchenStation || 'other', isComplimentary ? true : false]
+            'INSERT INTO store_catalog (group_id, name, description, price, category, image_url, options_text, badge_text, badge_color, product_type, long_description, sku, kitchen_station, is_complimentary, name_en, description_en, category_en) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) RETURNING *',
+            [groupId, name, description, parseFloat(price)||0, category, imageUrl, optionsText, badgeText || null, badgeColor || 'red', productType || 'retail', longDescription || '', req.body.sku || '', kitchenStation || 'other', isComplimentary ? true : false, nameEn || '', descriptionEn || '', categoryEn || '']
         );
         res.json({ success: true, item: result.rows[0] });
     } catch(e) { res.status(500).json({ error: e.message }); }
@@ -9476,11 +9487,11 @@ app.put('/api/store/catalog/:id', verifyBizOrLegacy, requireModule('sales'), asy
     try {
         const groupId = req.bizAuth.groupId;
         if (!groupId) return res.status(400).json({ error: 'groupId נדרש' });
-        const { name, description, price, category, imageUrl, optionsText, badgeText, badgeColor, productType, longDescription, kitchenStation, isComplimentary } = req.body;
+        const { name, description, price, category, imageUrl, optionsText, badgeText, badgeColor, productType, longDescription, kitchenStation, isComplimentary, nameEn, descriptionEn, categoryEn } = req.body;
 
         const result = await pool.query(
-            'UPDATE store_catalog SET name=$1, description=$2, price=$3, category=$4, image_url=COALESCE($5, image_url), options_text=$6, badge_text=$7, badge_color=$8, product_type=$9, long_description=$10, sku=$11, kitchen_station=$12, is_complimentary=$13 WHERE id=$14 AND group_id=$15 RETURNING *',
-            [name, description, parseFloat(price)||0, category, imageUrl, optionsText, badgeText || null, badgeColor || 'red', productType || 'retail', longDescription || '', req.body.sku || '', kitchenStation || 'other', isComplimentary ? true : false, req.params.id, groupId]
+            'UPDATE store_catalog SET name=$1, description=$2, price=$3, category=$4, image_url=COALESCE($5, image_url), options_text=$6, badge_text=$7, badge_color=$8, product_type=$9, long_description=$10, sku=$11, kitchen_station=$12, is_complimentary=$13, name_en=$14, description_en=$15, category_en=$16 WHERE id=$17 AND group_id=$18 RETURNING *',
+            [name, description, parseFloat(price)||0, category, imageUrl, optionsText, badgeText || null, badgeColor || 'red', productType || 'retail', longDescription || '', req.body.sku || '', kitchenStation || 'other', isComplimentary ? true : false, nameEn || '', descriptionEn || '', categoryEn || '', req.params.id, groupId]
         );
         if (result.rowCount === 0) return res.status(404).json({ error: 'פריט לא נמצא או אין הרשאה' });
         res.json({ success: true, item: result.rows[0] });
@@ -10941,7 +10952,7 @@ app.get('/api/storefront/:code', async (req, res) => {
         
         const numericId = /^\d+$/.test(codeOrAlias) ? parseInt(codeOrAlias) : null;
         const gRes = await pool.query(`
-            SELECT f.id, f.name, f.business_type, f.account_status
+            SELECT f.id, f.name, f.name_en, f.business_type, f.account_status
             FROM family_groups f
             LEFT JOIN store_settings s ON f.id = s.group_id
             WHERE ($3::int IS NOT NULL AND f.id = $3) OR f.group_code = $1 OR LOWER(s.store_alias) = LOWER($2)
@@ -10952,11 +10963,12 @@ app.get('/api/storefront/:code', async (req, res) => {
 
         const groupId = gRes.rows[0].id;
         const groupName = gRes.rows[0].name;
+        const groupNameEn = gRes.rows[0].name_en || '';
         const businessType = gRes.rows[0].business_type || 'other';
 
         const [sRes, cRes, commRes, zonesRes] = await Promise.all([
             pool.query('SELECT * FROM store_settings WHERE group_id=$1', [groupId]),
-            pool.query('SELECT id, group_id, name, description, long_description, price, original_price, category, product_type, options_text, badge_text, badge_color, sku, sort_order, (image_url IS NOT NULL AND image_url != \'\') as has_image FROM store_catalog WHERE group_id=$1 AND is_available=TRUE ORDER BY sort_order ASC, category, name', [groupId]),
+            pool.query('SELECT id, group_id, name, description, long_description, price, original_price, category, product_type, options_text, badge_text, badge_color, sku, sort_order, (image_url IS NOT NULL AND image_url != \'\') as has_image, name_en, description_en, category_en FROM store_catalog WHERE group_id=$1 AND is_available=TRUE ORDER BY sort_order ASC, category, name', [groupId]),
             req.query.communityId
                 ? pool.query(`SELECT c.name, cb.discount_pct, c.min_families,
                                (SELECT COUNT(*) FROM family_communities WHERE community_id = c.id) as family_count
@@ -10967,7 +10979,7 @@ app.get('/api/storefront/:code', async (req, res) => {
                 : Promise.resolve(null),
             pool.query('SELECT * FROM biz_radius_delivery_zones WHERE group_id=$1 ORDER BY radius_km ASC', [groupId])
         ]);
-        const settings = sRes.rows.length > 0 ? sRes.rows[0] : { is_active: true, min_order: 0, welcome_message: '', phone: '', slogan: '', store_type: 'retail', logo_url: null, modifier_presets: '[]', open_time: '', close_time: '', whatsapp_number: '' };
+        const settings = sRes.rows.length > 0 ? { ...sRes.rows[0], slogan_en: sRes.rows[0].slogan_en || '', welcome_message_en: sRes.rows[0].welcome_message_en || '' } : { is_active: true, min_order: 0, welcome_message: '', phone: '', slogan: '', store_type: 'retail', logo_url: null, modifier_presets: '[]', open_time: '', close_time: '', whatsapp_number: '', slogan_en: '', welcome_message_en: '' };
         let communityData = null;
         if (commRes && commRes.rows.length > 0) {
             const row = commRes.rows[0];
@@ -10979,7 +10991,7 @@ app.get('/api/storefront/:code', async (req, res) => {
         const bizLat = parseFloat(settings.biz_lat) || null;
         const bizLng = parseFloat(settings.biz_lng) || null;
 
-        res.json({ success: true, groupId, groupName, businessType, settings, catalog: cRes.rows, communityData, radiusZones, bizLat, bizLng });
+        res.json({ success: true, groupId, groupName, groupNameEn, businessType, settings, catalog: cRes.rows, communityData, radiusZones, bizLat, bizLng });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 

@@ -1015,7 +1015,8 @@ function renderTicker(s) {
 }
 
 function renderHeader(s) {
-  const name = storeData.groupName || '';
+  const displayName = (isEn && storeData.groupNameEn) ? storeData.groupNameEn : storeData.groupName;
+  const name = displayName || '';
   document.getElementById('header-name').textContent = name;
   document.getElementById('footer-name').textContent = name;
   const logoEl = document.getElementById('header-logo');
@@ -1034,9 +1035,11 @@ function renderHeader(s) {
 }
 
 function renderHero(s) {
-  const name = storeData.groupName || '';
+  const displayName = (isEn && storeData.groupNameEn) ? storeData.groupNameEn : storeData.groupName;
+  const name = displayName || '';
+  const displaySlogan = (isEn && s.slogan_en) ? s.slogan_en : (s.slogan || '');
   document.getElementById('hero-title-text').textContent = name;
-  document.getElementById('hero-sub').textContent = s.slogan || s.description || '';
+  document.getElementById('hero-sub').textContent = displaySlogan || s.description || '';
   document.getElementById('hero-sub').style.cssText = 'font-size:14.5px;font-weight:300;color:rgba(255,255,255,.58);margin:0 0 16px;max-width:42ch;line-height:1.55';
   // Stats — רק מה שמוגדר בהגדרות
   const stats = [];
@@ -1121,7 +1124,11 @@ function renderBundles() {
 function renderSidebar() {
   const catNames = [...new Set(catalog.map(p=>p.category).filter(Boolean))];
   const counts = {};
-  catalog.forEach(p => { counts[p.category||''] = (counts[p.category||'']||0)+1; });
+  const catDisplayMap = {};
+  catalog.forEach(p => {
+    counts[p.category||''] = (counts[p.category||'']||0)+1;
+    if (p.category) catDisplayMap[p.category] = (isEn && p.category_en) ? p.category_en : p.category;
+  });
   const all = ['',...catNames];
   const hasHotDeals = _activePromos.some(p => p.show_in_tab && p.is_active);
   const hotBtn = hasHotDeals
@@ -1132,7 +1139,7 @@ function renderSidebar() {
     : '';
   document.getElementById('cat-list').innerHTML = hotBtn + all.map(cat =>
     `<button class="cat-item${_filterCat===cat?' active':''}" onclick="setCategory('${escHtml(cat)}')">
-      <span>${escHtml(cat||t('כל הקטגוריות','All'))}</span>
+      <span>${escHtml(cat ? (catDisplayMap[cat]||cat) : t('כל הקטגוריות','All'))}</span>
       <span class="cat-count">${cat ? (counts[cat]||0) : catalog.length}</span>
     </button>`
   ).join('');
@@ -1192,16 +1199,17 @@ function renderCatalog() {
 }
 
 function productRowHtml(p) {
+  const pName = (isEn && p.name_en) ? p.name_en : p.name;
   const badge = p.badge ? `<span class="product-badge-pill ${escHtml(p.badge_color||'dark')}">${escHtml(p.badge)}</span>` : '';
   const compare = p.compare_at_price > p.price ? `<div class="product-compare">${fmtPrice(p.compare_at_price)}</div>` : '';
   const isExp = _expandedId == p.id;
   return `<div class="product-row${isExp?' expanded':''}" id="prow-${p.id}">
     <div class="product-row-head" onclick="toggleRow(${p.id})">
       <div class="product-thumb" onclick="openSheet(${p.id},event)">
-        ${p.has_image ? `<img src="${API}/store/item-image/${p.id}" alt="${escHtml(p.name)}" loading="lazy">` : '🏋️'}
+        ${p.has_image ? `<img src="${API}/store/item-image/${p.id}" alt="${escHtml(pName)}" loading="lazy">` : '🏋️'}
       </div>
       <div class="product-info" onclick="openSheet(${p.id},event)">
-        <div class="product-name">${escHtml(p.name)}</div>
+        <div class="product-name">${escHtml(pName)}</div>
         <div class="product-meta-row">
           ${p.sku ? `<span class="product-sku">SKU: ${escHtml(p.sku)}</span>` : ''}
           ${badge}

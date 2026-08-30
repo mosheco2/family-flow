@@ -1740,6 +1740,8 @@
                                 <div>
                                     <label class="text-xs font-bold text-slate-500 block mb-1.5">הודעת פתיחה בחנות:</label>
                                     <textarea id="store-welcome-msg" class="modern-input py-2 text-sm h-16" placeholder="ברוכים הבאים לחנות שלנו!"></textarea>
+                                    <label style="font-size:12px;color:#666;margin-top:8px;display:block">Welcome message (English)</label>
+                                    <textarea id="store-welcome-msg-en" placeholder="Welcome message in English" style="width:100%;padding:8px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:14px;min-height:60px;margin-top:4px;resize:vertical"></textarea>
                                 </div>
                                 
                                 <div class="grid grid-cols-2 gap-3">
@@ -1750,6 +1752,8 @@
                                 <div>
                                     <label class="text-xs font-bold text-slate-500 block mb-1.5">סלוגן / תיאור קצר:</label>
                                     <input type="text" id="store-slogan" class="modern-input py-2 text-sm" placeholder="המוצרים הכי טובים בעיר">
+                                    <label style="font-size:12px;color:#666;margin-top:8px;display:block">Slogan (English)</label>
+                                    <input type="text" id="store-slogan-en" placeholder="Slogan in English" style="width:100%;padding:8px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:14px;margin-top:4px">
                                 </div>
 
                                 <div>
@@ -3771,6 +3775,7 @@
                         <label class="text-xs font-bold text-slate-600 block mb-1">שם הפריט / המנה:</label>
 
                         <input type="text" id="sp-name" class="modern-input py-3 text-base font-bold text-slate-800 shadow-sm" placeholder="למשל: המבורגר הבית">
+                        <input id="sp-name-en" type="text" placeholder="Product name (English)" style="width:100%;padding:8px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:14px;margin-top:4px">
                     </div>
 
                     <div class="flex gap-3">
@@ -3781,6 +3786,7 @@
                         <div class="flex-1">
                             <label class="text-xs font-bold text-slate-600 block mb-1">קטגוריה:</label>
                             <input type="text" id="sp-category" class="modern-input py-3 text-base font-bold text-slate-800 shadow-sm" placeholder="למשל: עיקריות">
+                            <input id="sp-category-en" type="text" placeholder="Category (English)" style="width:100%;padding:8px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:14px;margin-top:4px">
                         </div>
                     </div>
 
@@ -3790,6 +3796,7 @@
                             <button type="button" onclick="generateStoreProductAI()" id="btn-sp-ai" class="text-[10px] font-bold text-indigo-600 bg-indigo-100 px-2.5 py-1 rounded-lg hover:bg-indigo-200 transition shadow-sm"><i class="fa-solid fa-wand-magic-sparkles"></i> נסח ע"י AI</button>
                         </div>
                         <textarea id="sp-desc" class="modern-input py-2 text-sm h-12 bg-white mb-3" placeholder="פירוט קצר..."></textarea>
+                        <textarea id="sp-desc-en" placeholder="Description (English)" style="width:100%;padding:8px 12px;border:1px solid #e5e7eb;border-radius:8px;font-size:14px;min-height:60px;margin-top:4px;resize:vertical"></textarea>
                         
                         <label class="text-xs font-bold text-slate-600 block mb-1">תיאור מורחב (יופיע בעמוד מוצר):</label>
                         <textarea id="sp-long-desc" class="modern-input py-2 text-sm h-20 bg-white" placeholder="פירוט מלא, מרכיבים, מפרט טכני..."></textarea>
