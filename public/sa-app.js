@@ -14324,8 +14324,15 @@ async function aiGenProdImg(tid, ci, pi, retryCount) {
       body: JSON.stringify({ groupId: 0, productName: p.name, nameEn: p.name_en || '', description: p.description || p.name, category: cat.category })
     });
     const d = await r.json();
-    if (d.imageUrl || d.url || d.data) {
-      _aiBuilderImages.products[tid] = d.imageUrl || d.url || d.data;
+    const imgUrl = d.imageUrl || d.url || d.data;
+    if (imgUrl) {
+      // Pre-load image to verify it resolves (loremflickr redirects)
+      await new Promise((res) => {
+        const img = new Image(); img.onload = res; img.onerror = res;
+        img.src = imgUrl;
+        setTimeout(res, 5000); // max wait 5s
+      });
+      _aiBuilderImages.products[tid] = imgUrl;
       _aibSave();
       renderAIBImages();
       if (btn) { btn.disabled = false; btn.textContent = '🔄 צור שוב'; }
@@ -14603,13 +14610,10 @@ async function aiGenBrandingImg(type) {
   try {
     let url;
     if (type === 'banner') {
-      // Unsplash Source — instant, free, real photo
-      const bizType = _aibGetBizType();
-      const nameEn = _aiBuilderData?.profile?.name_en || '';
-      // Extract 2-3 English keywords from banner_prompt for Unsplash
-      const kw = (prompt.replace(/[^a-zA-Z ,]/g,' ').split(/[\s,]+/).filter(w=>w.length>3).slice(0,3).join(',')) || bizType;
-      const seed = Math.floor(Math.random() * 9999);
-      url = `https://source.unsplash.com/1200x400/?${encodeURIComponent(kw)}&sig=${seed}`;
+      // loremflickr — instant, free, keyword search, no API key
+      const kw = (prompt.replace(/[^a-zA-Z ,]/g,' ').split(/[\s,]+/).filter(w=>w.length>3).slice(0,4).join(',')) || _aibGetBizType();
+      const lock = Math.floor(Math.random() * 99999);
+      url = `https://loremflickr.com/1200/400/${encodeURIComponent(kw)}?lock=${lock}`;
     } else {
       // Logo: keep Pollinations AI (generates specific icon)
       const seed = Math.floor(Math.random() * 99999);

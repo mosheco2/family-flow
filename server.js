@@ -9854,9 +9854,10 @@ app.post('/api/store/catalog/generate-image', async (req, res) => {
         const catHint = category ? `,${category.replace(/[^\w\s]/g,'')}` : '';
         const query = encodeURIComponent(searchQuery + catHint);
 
-        // Unsplash Source — instant, free, real photos, no API key
-        const seed = Math.floor(Math.random() * 9999);
-        const imageUrl = `https://source.unsplash.com/512x512/?${query}&sig=${seed}`;
+        // loremflickr — instant, free, keyword search, no API key
+        // lock= gives a stable seed so the same URL always returns the same photo
+        const lock = Math.floor(Math.random() * 99999);
+        const imageUrl = `https://loremflickr.com/512/512/${query}?lock=${lock}`;
 
         res.json({ success: true, imageUrl, url: imageUrl });
     } catch(e) {
