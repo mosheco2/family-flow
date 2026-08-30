@@ -62,8 +62,6 @@ input,button,select,textarea{font-family:inherit}
 
 /* ===== HERO ===== */
 #hero{position:relative;background:var(--dark);overflow:hidden}
-#hero-banner-bg{position:absolute;inset:0;background-size:cover;background-position:center;opacity:1;pointer-events:none;display:none}
-#hero-banner-bg::after{content:'';position:absolute;inset:0;background:var(--dark);opacity:.58}
 #hero-blob1{position:absolute;top:-30%;left:-6%;width:54%;height:80%;border-radius:50%;background:var(--accent);filter:blur(100px);opacity:.38}
 #hero-blob2{position:absolute;bottom:-30%;right:-8%;width:46%;height:70%;border-radius:50%;background:#e8a87c;filter:blur(110px);opacity:.2}
 #hero-inner{position:relative;max-width:1280px;margin:0 auto;padding:clamp(28px,4vw,54px) 20px clamp(24px,3vw,40px);display:flex;flex-wrap:wrap;gap:clamp(22px,3vw,44px);align-items:center}
@@ -461,7 +459,6 @@ input,button,select,textarea{font-family:inherit}
 
 <!-- HERO -->
 <section id="hero">
-  <div id="hero-banner-bg"></div>
   <div id="hero-blob1"></div>
   <div id="hero-blob2"></div>
   <div id="hero-inner">
@@ -1096,24 +1093,21 @@ function renderHero(data, s) {
 
   // hero images
   const _banner = s.banner_url && s.banner_url !== 'DELETE' && s.banner_url !== 'null' ? s.banner_url : '';
-  const heroBannerBg = document.getElementById('hero-banner-bg');
-  const heroImages = document.getElementById('hero-images');
-  if (_banner) {
-    // banner exists → show as full-width background, hide product collage
-    heroBannerBg.style.backgroundImage = `url('${escHtml(_banner)}')`;
-    heroBannerBg.style.display = 'block';
-    heroImages.style.display = 'none';
-  } else {
-    heroBannerBg.style.display = 'none';
-    heroImages.style.display = '';
-  }
   const imgItems = catalog.filter(p => p.has_image);
   // shuffle for random hero images
   const shuffled = [...imgItems].sort(() => Math.random() - 0.5);
   const main = document.getElementById('hero-img-main');
   const sideTop = document.getElementById('hero-side-top');
   const sidePromo = document.getElementById('hero-side-promo');
-  if (!_banner && shuffled.length >= 1) {
+  if (_banner) {
+    main.innerHTML = `<img src="${escHtml(_banner)}" alt="באנר">`;
+    if (shuffled.length >= 1) sideTop.innerHTML = `<img src="${API}/store/item-image/${shuffled[0].id}" alt="${escHtml(shuffled[0].name)}" loading="lazy">`;
+    if (shuffled.length >= 2) {
+      sidePromo.innerHTML = `<img src="${API}/store/item-image/${shuffled[1].id}" alt="${escHtml(shuffled[1].name)}" style="width:100%;height:100%;object-fit:cover;position:absolute;inset:0">`;
+      sidePromo.style.position = 'relative';
+      sidePromo.style.padding = '0';
+    }
+  } else if (shuffled.length >= 1) {
     main.innerHTML = `<img src="${API}/store/item-image/${shuffled[0].id}" alt="${escHtml(shuffled[0].name)}" loading="lazy">`;
     if (shuffled.length >= 2) sideTop.innerHTML = `<img src="${API}/store/item-image/${shuffled[1].id}" alt="${escHtml(shuffled[1].name)}" loading="lazy">`;
     if (shuffled.length >= 3) {
