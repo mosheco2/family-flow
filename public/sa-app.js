@@ -14015,7 +14015,7 @@ function _aibSaveDraftAs(customName) {
   const drafts = _aibGetDrafts();
   const name = customName || _aiBuilderData.profile?.name || 'טיוטה';
   const id = 'draft_' + Date.now();
-  drafts.unshift({ id, name, businessType: document.getElementById('aib-type')?.value || '', updatedAt: new Date().toISOString(), data: _aiBuilderData, images: _aibImgsSafe() });
+  drafts.unshift({ id, name, businessType: _aibGetBizType(), updatedAt: new Date().toISOString(), data: _aiBuilderData, images: _aibImgsSafe() });
   if (drafts.length > 20) drafts.splice(20);
   try { localStorage.setItem(_AIB_DRAFTS_KEY, JSON.stringify(drafts)); } catch(e) {}
   return id;
@@ -14026,7 +14026,7 @@ function _aibAutoSaveDraft() {
   const drafts = _aibGetDrafts();
   const name = _aiBuilderData.profile?.name || 'טיוטה';
   const autoIdx = drafts.findIndex(d => d.id === 'auto');
-  const autoDraft = { id: 'auto', name, businessType: document.getElementById('aib-type')?.value || '', updatedAt: new Date().toISOString(), data: _aiBuilderData, images: _aibImgsSafe(), isAuto: true };
+  const autoDraft = { id: 'auto', name, businessType: _aibGetBizType(), updatedAt: new Date().toISOString(), data: _aiBuilderData, images: _aibImgsSafe(), isAuto: true };
   if (autoIdx >= 0) drafts[autoIdx] = autoDraft;
   else drafts.unshift(autoDraft);
   try { localStorage.setItem(_AIB_DRAFTS_KEY, JSON.stringify(drafts)); } catch(e) {}
@@ -14068,11 +14068,23 @@ function renderAIBDraftsList() {
   }).join('');
 }
 
+function _aibSetBizType(type) {
+  if (!type) return;
+  const sel = document.getElementById('aib-type');
+  if (sel) sel.value = type;
+  if (_aiBuilderData) _aiBuilderData._bizType = type;
+}
+
+function _aibGetBizType() {
+  return _aiBuilderData?._bizType || document.getElementById('aib-type')?.value || 'restaurant';
+}
+
 function aiLoadDraftById(id) {
   const draft = _aibGetDrafts().find(d => d.id === id);
   if (!draft) return alert('הטיוטה לא נמצאה');
   _aiBuilderData = draft.data;
   _aiBuilderImages = draft.images || { products: {} };
+  _aibSetBizType(draft.businessType || _aiBuilderData?._bizType);
   document.getElementById('aib-drafts-panel').style.display = 'none';
   document.getElementById('aib-step1').style.display = 'none';
   document.getElementById('aib-success').style.display = 'none';
@@ -14143,6 +14155,7 @@ async function aiGenerateBusiness() {
     const d = await r.json();
     if (!d.success) throw new Error(d.error || 'שגיאה בייצור');
     _aiBuilderData = d.data;
+    _aiBuilderData._bizType = document.getElementById('aib-type')?.value || 'restaurant';
     _aiBuilderImages = { products: {} };
     _aibSave();
     document.getElementById('aib-loading').style.display = 'none';
@@ -14463,6 +14476,7 @@ async function aiLoadTemplate(id) {
   if (!d.success) return alert('לא נמצא');
   _aiBuilderData = d.template.json_data;
   _aiBuilderImages = { products: {} };
+  _aibSetBizType(d.template.business_type || _aiBuilderData?._bizType);
   document.getElementById('aib-step1').style.display = 'none';
   document.getElementById('aib-preview').style.display = 'block';
   const tp = document.getElementById('aib-templates-panel');
@@ -14518,7 +14532,7 @@ async function renderAIBBranding() {
       body: JSON.stringify({
         businessName: p.name || '',
         businessNameEn: p.name_en || '',
-        businessType: document.getElementById('aib-type')?.value || 'restaurant',
+        businessType: _aibGetBizType(),
         slogan: p.slogan_en || p.slogan || '',
         description: p.welcome_message_en || p.welcome_message || ''
       })
