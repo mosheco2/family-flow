@@ -9841,27 +9841,21 @@ app.post('/api/store/catalog/generate-image', async (req, res) => {
         if (groupId === undefined || groupId === null || !productName) return res.status(400).json({ error: 'שם מוצר נדרש' });
 
         // Use English name if provided, otherwise translate with Gemini (short call)
-        let searchQuery = nameEn || '';
+        let searchQuery = (nameEn || '').replace(/[^a-zA-Z0-9 ,]/g, '').trim();
         if (!searchQuery && apiKey) {
             try {
                 const q = `Translate this Hebrew product name to English (2-4 words max, just the product name, no explanation):\n${productName}`;
-                searchQuery = (await callGeminiDirect(q)).trim().replace(/^["'.]+|["'.]+$/g, '').toLowerCase();
-            } catch(e) {}
+                searchQuery = (await callGeminiDirect(q)).trim().replace(/^["'.]+|["'.]+$/g, '').replace(/[^a-zA-Z0-9 ,]/g,'').toLowerCase();
+            } catch(e) { console.error('Gemini translate err:', e.message); }
         }
-        if (!searchQuery) searchQuery = productName; // fallback: Hebrew (Unsplash handles it)
+        if (!searchQuery) searchQuery = 'product';
 
-        // Category hint improves results
-        const catHint = category ? `,${category.replace(/[^\w\s]/g,'')}` : '';
-        const query = encodeURIComponent(searchQuery + catHint);
+        // Keep only ASCII letters/numbers/spaces/commas — loremflickr needs clean English
+        const cleanQuery = searchQuery.replace(/[^a-zA-Z0-9 ,]/g, '').replace(/\s+/g, ' ').trim() || 'product';
 
-        // loremflickr — instant, free, keyword search, no API key
-        // lock= gives a stable seed so the same URL always returns the same photo
-        // Strip non-Latin chars so query is always English
-        const cleanQuery = query.replace(/%[0-9A-Fa-f]{2}/g, s => {
-          try { const c = decodeURIComponent(s); return /[a-zA-Z0-9, ]/.test(c) ? c : ''; } catch(e) { return ''; }
-        }).replace(/[^\w, ]/g,'').trim() || 'product';
+        // loremflickr: lock= is a stable seed → same URL always returns same photo
         const lock = Math.floor(Math.random() * 99999);
-        const imageUrl = `https://loremflickr.com/512/512/${encodeURIComponent(cleanQuery)}?lock=${lock}`;
+        const imageUrl = `https://loremflickr.com/512/512/${cleanQuery.replace(/ /g, '+')}?lock=${lock}`;
 
         res.json({ success: true, imageUrl, url: imageUrl });
     } catch(e) {

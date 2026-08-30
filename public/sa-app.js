@@ -14303,7 +14303,7 @@ function renderAIBImages() {
     const img = _aiBuilderImages.products[tid];
     rows.push(`<div style="display:flex;align-items:center;gap:10px;padding:8px;border:1px solid #e2e8f0;border-radius:10px;margin-bottom:6px">
       <div style="width:52px;height:52px;border-radius:8px;overflow:hidden;background:#f1f5f9;flex-shrink:0">
-        ${img ? `<img src="${img}" style="width:100%;height:100%;object-fit:cover">` : '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:22px">🍽️</div>'}
+        ${img ? `<img src="${img}" style="width:100%;height:100%;object-fit:cover" onerror="delete _aiBuilderImages.products['${tid}'];this.parentElement.innerHTML='<div style=width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:22px>🍽️</div>'">` : '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:22px">🍽️</div>'}
       </div>
       <div style="flex:1;font-size:13px;font-weight:600">${_escH(p.name)}</div>
       <button onclick="aiGenProdImg('${tid}',${ci},${pi})" style="padding:6px 12px;border:1px solid #6366f1;border-radius:8px;background:#fff;color:#6366f1;cursor:pointer;font-size:12px" id="aib-img-btn-${tid}">🪄 צור</button>
