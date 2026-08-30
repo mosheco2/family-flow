@@ -14492,12 +14492,8 @@ async function renderAIBBranding() {
   if (_aiBuilderImages?.logoUrl) _aibShowBrandPreview('logo', _aiBuilderImages.logoUrl);
   if (_aiBuilderImages?.bannerUrl) _aibShowBrandPreview('banner', _aiBuilderImages.bannerUrl);
 
-  // If prompts already exist from Gemini generation, show them
-  if (_aiBuilderData?.logo_prompt) _aibSetBrandPrompt('logo', _aiBuilderData.logo_prompt);
-  if (_aiBuilderData?.banner_prompt) _aibSetBrandPrompt('banner', _aiBuilderData.banner_prompt);
-  if (_aiBuilderData?.logo_prompt && _aiBuilderData?.banner_prompt) return;
-
-  // Otherwise ask Gemini to generate proper visual prompts
+  // Always regenerate from Gemini (old cached prompts may be poor quality)
+  // Ask Gemini to generate proper visual prompts
   const logoDisp = document.getElementById('aib-logo-prompt-display');
   const bannerDisp = document.getElementById('aib-banner-prompt-display');
   if (logoDisp) logoDisp.textContent = '⏳ AI מייצר פרומפטים...';
