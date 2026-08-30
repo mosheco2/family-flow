@@ -14479,12 +14479,38 @@ function switchAIBTab(tab) {
   if (tab === 'branding') renderAIBBranding();
 }
 
+function _aibBuildAutoPrompt(type) {
+  const p = _aiBuilderData?.profile || {};
+  const name = (p.name_en || p.name || 'business').trim();
+  const slogan = (p.slogan_en || p.slogan || '').trim();
+  const color = (p.accent_color || '#4f46e5').trim();
+  const bizType = document.getElementById('aib-type')?.value || 'restaurant';
+  const typeMap = { restaurant:'restaurant', sushi:'sushi restaurant', burger:'burger joint', cafe:'cafe', market:'grocery store', flowers:'flower shop', spa:'beauty spa', sport:'sports store', events:'event venue', clothing:'clothing boutique', shoes:'shoe store', toys:'toy store', stock:'retail store' };
+  const bizDesc = typeMap[bizType] || bizType;
+  if (type === 'logo') {
+    return `flat minimal logo icon for a ${bizDesc} named "${name}", ${color} accent color on white background, clean vector style, no text, no letters`;
+  } else {
+    return `wide cover photo for a ${bizDesc}${slogan ? `, ${slogan}` : ''}, appetizing product display, natural warm lighting, photorealistic, no text, no logo`;
+  }
+}
+
 function renderAIBBranding() {
+  // Build prompt from AI data or auto-generate
+  const logoPrompt = _aiBuilderData?.logo_prompt || _aibBuildAutoPrompt('logo');
+  const bannerPrompt = _aiBuilderData?.banner_prompt || _aibBuildAutoPrompt('banner');
+  // Store back
+  if (_aiBuilderData) { _aiBuilderData.logo_prompt = logoPrompt; _aiBuilderData.banner_prompt = bannerPrompt; }
+  // Fill hidden inputs
   const logoEl = document.getElementById('aib-logo-prompt');
   const bannerEl = document.getElementById('aib-banner-prompt');
-  if (logoEl && !logoEl.value && _aiBuilderData?.logo_prompt) logoEl.value = _aiBuilderData.logo_prompt;
-  if (bannerEl && !bannerEl.value && _aiBuilderData?.banner_prompt) bannerEl.value = _aiBuilderData.banner_prompt;
-  // show cached previews if already generated
+  if (logoEl) logoEl.value = logoPrompt;
+  if (bannerEl) bannerEl.value = bannerPrompt;
+  // Show prompts as display text
+  const logoDisp = document.getElementById('aib-logo-prompt-display');
+  const bannerDisp = document.getElementById('aib-banner-prompt-display');
+  if (logoDisp) logoDisp.textContent = logoPrompt;
+  if (bannerDisp) bannerDisp.textContent = bannerPrompt;
+  // Show cached previews if already generated
   if (_aiBuilderImages?.logoUrl) _aibShowBrandPreview('logo', _aiBuilderImages.logoUrl);
   if (_aiBuilderImages?.bannerUrl) _aibShowBrandPreview('banner', _aiBuilderImages.bannerUrl);
 }
@@ -14498,25 +14524,26 @@ function _aibShowBrandPreview(type, url) {
 async function aiGenBrandingImg(type) {
   const promptEl = document.getElementById(`aib-${type}-prompt`);
   const previewEl = document.getElementById(`aib-${type}-preview`);
-  const prompt = promptEl?.value?.trim();
-  if (!prompt) return alert('יש להזין פרומפט תחילה');
+  const genBtn = document.getElementById(`aib-${type}-gen-btn`);
+  const prompt = promptEl?.value?.trim() || _aibBuildAutoPrompt(type);
   previewEl.innerHTML = '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center"><span style="color:#6366f1;font-size:12px">⏳ מייצר...</span></div>';
+  if (genBtn) { genBtn.disabled = true; genBtn.textContent = '⏳ מייצר...'; }
   try {
     const seed = Math.floor(Math.random() * 99999);
-    const neg = encodeURIComponent(type === 'logo' ? 'text, letters, blurry, photo, realistic' : 'text, logo, watermark, cartoon, CGI, blurry');
+    const neg = encodeURIComponent(type === 'logo' ? 'text, letters, words, blurry, photo, realistic, 3d' : 'text, logo, watermark, cartoon, CGI, blurry, illustration');
     const w = type === 'logo' ? 512 : 1200;
     const h = type === 'logo' ? 512 : 400;
     const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=${w}&height=${h}&model=flux&nologo=true&seed=${seed}&negative=${neg}`;
-    // pre-warm
-    const res = await fetch(url);
-    if (!res.ok) throw new Error('שגיאה מהשרת');
+    await fetch(url);
     _aibShowBrandPreview(type, url);
     if (!_aiBuilderImages) _aiBuilderImages = { products: {} };
     if (type === 'logo') { _aiBuilderImages.logoUrl = url; if (_aiBuilderData) _aiBuilderData.logo_prompt = prompt; }
     else { _aiBuilderImages.bannerUrl = url; if (_aiBuilderData) _aiBuilderData.banner_prompt = prompt; }
     _aibSave();
   } catch(e) {
-    previewEl.innerHTML = `<span style="color:#ef4444;font-size:11px">שגיאה: ${e.message}</span>`;
+    previewEl.innerHTML = `<span style="color:#ef4444;font-size:12px;padding:8px">שגיאה בייצור — נסה שוב</span>`;
+  } finally {
+    if (genBtn) { genBtn.disabled = false; genBtn.textContent = '✨ צור לוגו'; }
   }
 }
 
