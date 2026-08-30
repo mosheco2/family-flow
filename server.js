@@ -9776,24 +9776,25 @@ app.post('/api/store/catalog/generate-image', async (req, res) => {
         let finalPrompt = '';
         if (apiKey) {
             try {
-                const geminiPromptRequest = `You are a professional AI image prompt engineer for product photography.
-Create a short, specific English image generation prompt (max 40 words) for this product:
-Name: ${productName}
-Description: ${description}
+                const geminiPromptRequest = `You are an expert at writing prompts for FLUX image generation (photorealistic model).
+Write a SHORT English image generation prompt (max 35 words) for this food/retail product:
+Product name (Hebrew): ${productName}
+Description: ${description || ''}
 Category: ${category || ''}
 
-Requirements:
-- Start with "product photography,"
-- Describe the SPECIFIC product visually (color, shape, texture, packaging)
-- Studio style: clean white background, professional lighting, centered
-- Photorealistic, high quality
-Return ONLY the prompt text, nothing else.`;
+Rules:
+- Translate the product name to English accurately (e.g. עגבניות שרי = cherry tomatoes, אבוקדו = avocado, לימון = lemon)
+- Use the correct English product name — be specific (e.g. "Hass avocado" not just "avocado")
+- Style: "close-up food photography, [product], natural daylight, realistic textures, soft shadow, white marble surface, DSLR photo, 85mm lens"
+- Do NOT write "studio" or "white background" — use natural surfaces instead
+- Emphasize REAL texture and natural colors (not CGI, not illustration)
+- Return ONLY the prompt, no explanation`;
                 finalPrompt = (await callGeminiDirect(geminiPromptRequest)).trim().replace(/^["']|["']$/g, '');
             } catch(e) {}
         }
         // Fallback: simple English prompt from original Hebrew (transliterated)
         if (!finalPrompt) {
-            finalPrompt = `product photography, studio photo of ${productName}, ${description}, clean white background, professional lighting, photorealistic, high quality commercial photo`;
+            finalPrompt = `close-up food photography, ${productName}, natural daylight, realistic textures, soft shadow, white marble surface, DSLR photo, 85mm lens, photorealistic`;
         }
 
         // helper: fetch image binary → base64
@@ -9836,7 +9837,8 @@ Return ONLY the prompt text, nothing else.`;
         if (!result) {
             try {
                 const seed = Math.floor(Math.random() * 99999);
-                const polUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(finalPrompt)}?width=512&height=512&model=flux&nologo=true&seed=${seed}`;
+                const negPrompt = encodeURIComponent('cartoon, illustration, 3d render, CGI, painting, anime, clip art, logo, text, watermark, blurry, low quality');
+                const polUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(finalPrompt)}?width=512&height=512&model=flux&nologo=true&seed=${seed}&negative=${negPrompt}`;
                 result = await fetchImageBase64(polUrl, { signal: AbortSignal.timeout(40000) });
             } catch(e) { errors.push('pollinations:' + e.message); }
         }
