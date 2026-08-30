@@ -14087,7 +14087,10 @@ function renderAIBCatalog() {
             <input value="${_escH(p.name_en||'')}" placeholder="Name (English)" onchange="aiProdChange(${ci},${pi},'name_en',this.value)" style="width:100%;padding:5px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:12px;margin-bottom:4px">
             <textarea placeholder="Description (English)" onchange="aiProdChange(${ci},${pi},'description_en',this.value)" style="width:100%;padding:5px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:11px;resize:none;height:48px">${_escH(p.description_en||'')}</textarea>
           </div>
-          <input type="number" value="${p.price||0}" min="0" step="0.5" onchange="aiProdChange(${ci},${pi},'price',parseFloat(this.value))" style="padding:5px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;font-weight:700">
+          <div>
+            <input type="number" value="${p.price||0}" min="0" step="0.5" placeholder="מחיר" onchange="aiProdChange(${ci},${pi},'price',parseFloat(this.value))" style="width:100%;padding:5px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;font-weight:700;margin-bottom:4px">
+            <input type="number" value="${p.original_price||0}" min="0" step="0.5" placeholder="מחיר מקורי" title="מחיר לפני הנחה (0 = ללא)" onchange="aiProdChange(${ci},${pi},'original_price',parseFloat(this.value))" style="width:100%;padding:4px 8px;border:1px solid #fde68a;border-radius:6px;font-size:11px;color:#92400e">
+          </div>
           <button onclick="aiDeleteProd(${ci},${pi})" style="padding:5px 8px;border:1px solid #fca5a5;border-radius:6px;background:#fff;color:#ef4444;cursor:pointer">🗑️</button>
         </div>`).join('')}
       <button onclick="aiAddProd(${ci})" style="padding:6px 14px;border:1px dashed #94a3b8;border-radius:8px;background:#fff;color:#64748b;cursor:pointer;font-size:12px;width:100%">+ הוסף מוצר</button>
@@ -14096,16 +14099,43 @@ function renderAIBCatalog() {
 
 function renderAIBPromos() {
   const promos = _aiBuilderData?.promotions || [];
+  const coupons = _aiBuilderData?.coupons || [];
   const el = document.getElementById('aib-promos-body');
   if (!el) return;
-  el.innerHTML = promos.map((p,i) => `
-    <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:12px;margin-bottom:8px;display:grid;grid-template-columns:1fr 1fr 80px 80px auto;gap:8px;align-items:center">
+  const promoHtml = `<h4 style="font-size:13px;font-weight:700;color:#475569;margin:0 0 10px">מבצעים פעילים</h4>` +
+    promos.map((p,i) => `
+    <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:12px;margin-bottom:8px;display:grid;grid-template-columns:1fr 1fr 70px 70px auto;gap:8px;align-items:center">
       <input value="${_escH(p.title||'')}" placeholder="כותרת (עברית)" onchange="aiPromoChange(${i},'title',this.value)" style="padding:6px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:12px">
       <input value="${_escH(p.title_en||'')}" placeholder="Title (English)" onchange="aiPromoChange(${i},'title_en',this.value)" style="padding:6px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:12px">
-      <input type="number" value="${p.discount_pct||0}" min="0" max="100" placeholder="%" onchange="aiPromoChange(${i},'discount_pct',parseFloat(this.value))" style="padding:6px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px">
-      <input type="number" value="${p.min_order||0}" min="0" placeholder="מינ׳" onchange="aiPromoChange(${i},'min_order',parseFloat(this.value))" style="padding:6px 8px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px">
+      <div style="text-align:center">
+        <div style="font-size:10px;color:#94a3b8;margin-bottom:2px">הנחה %</div>
+        <input type="number" value="${p.promo_value||p.discount_pct||0}" min="0" max="100" onchange="aiPromoChange(${i},'promo_value',parseFloat(this.value))" style="width:100%;padding:5px 6px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;text-align:center">
+      </div>
+      <div style="text-align:center">
+        <div style="font-size:10px;color:#94a3b8;margin-bottom:2px">מינ׳ ₪</div>
+        <input type="number" value="${p.min_order||0}" min="0" onchange="aiPromoChange(${i},'min_order',parseFloat(this.value))" style="width:100%;padding:5px 6px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px;text-align:center">
+      </div>
       <button onclick="aiDeletePromo(${i})" style="padding:6px 10px;border:1px solid #fca5a5;border-radius:6px;background:#fff;color:#ef4444;cursor:pointer">🗑️</button>
-    </div>`).join('') + `<button onclick="aiAddPromo()" style="padding:8px 16px;border:1px dashed #6366f1;border-radius:8px;background:#fff;color:#6366f1;cursor:pointer;font-size:13px;margin-top:4px">+ הוסף מבצע</button>`;
+    </div>`).join('') +
+    `<button onclick="aiAddPromo()" style="padding:8px 16px;border:1px dashed #6366f1;border-radius:8px;background:#fff;color:#6366f1;cursor:pointer;font-size:13px;margin-top:4px">+ הוסף מבצע</button>`;
+
+  const couponHtml = `<h4 style="font-size:13px;font-weight:700;color:#475569;margin:20px 0 10px">קודי קופון</h4>` +
+    coupons.map((c,i) => `
+    <div style="background:#fefce8;border:1px solid #fde68a;border-radius:10px;padding:12px;margin-bottom:8px;display:flex;gap:8px;align-items:center">
+      <input value="${_escH(c.code||'')}" placeholder="קוד קופון" onchange="aiCouponChange(${i},'code',this.value)" style="flex:1;padding:6px 10px;border:1px solid #fde68a;border-radius:6px;font-size:13px;font-weight:700;font-family:monospace;letter-spacing:1px;background:#fff">
+      <div style="text-align:center;min-width:60px">
+        <div style="font-size:10px;color:#92400e;margin-bottom:2px">הנחה %</div>
+        <input type="number" value="${c.discount_pct||10}" min="1" max="100" onchange="aiCouponChange(${i},'discount_pct',parseFloat(this.value))" style="width:100%;padding:5px 6px;border:1px solid #fde68a;border-radius:6px;font-size:13px;text-align:center;background:#fff">
+      </div>
+      <div style="text-align:center;min-width:60px">
+        <div style="font-size:10px;color:#92400e;margin-bottom:2px">תוקף (ימים)</div>
+        <input type="number" value="${c.valid_days||90}" min="1" onchange="aiCouponChange(${i},'valid_days',parseInt(this.value))" style="width:100%;padding:5px 6px;border:1px solid #fde68a;border-radius:6px;font-size:13px;text-align:center;background:#fff">
+      </div>
+      <button onclick="aiDeleteCoupon(${i})" style="padding:6px 10px;border:1px solid #fca5a5;border-radius:6px;background:#fff;color:#ef4444;cursor:pointer">🗑️</button>
+    </div>`).join('') +
+    `<button onclick="aiAddCoupon()" style="padding:8px 16px;border:1px dashed #d97706;border-radius:8px;background:#fff;color:#d97706;cursor:pointer;font-size:13px;margin-top:4px">+ הוסף קופון</button>`;
+
+  el.innerHTML = promoHtml + couponHtml;
 }
 
 function renderAIBImages() {
@@ -14259,10 +14289,13 @@ function aiResetBuilder() {
 function aiCatChange(ci, key, val) { if (_aiBuilderData?.catalog?.[ci]) _aiBuilderData.catalog[ci][key] = val; }
 function aiProdChange(ci, pi, key, val) { if (_aiBuilderData?.catalog?.[ci]?.products?.[pi]) _aiBuilderData.catalog[ci].products[pi][key] = val; }
 function aiPromoChange(i, key, val) { if (_aiBuilderData?.promotions?.[i]) _aiBuilderData.promotions[i][key] = val; }
+function aiCouponChange(i, key, val) { if (!_aiBuilderData.coupons) _aiBuilderData.coupons=[]; if (_aiBuilderData.coupons[i]) _aiBuilderData.coupons[i][key] = val; }
 function aiDeleteCat(ci) { _aiBuilderData.catalog.splice(ci,1); renderAIBCatalog(); renderAIBImages(); }
 function aiDeleteProd(ci,pi) { _aiBuilderData.catalog[ci].products.splice(pi,1); renderAIBCatalog(); renderAIBImages(); }
 function aiDeletePromo(i) { _aiBuilderData.promotions.splice(i,1); renderAIBPromos(); }
+function aiDeleteCoupon(i) { _aiBuilderData.coupons.splice(i,1); renderAIBPromos(); }
 function aiAddCat() { _aiBuilderData.catalog.push({category:'קטגוריה חדשה',category_en:'New Category',products:[]}); renderAIBCatalog(); }
-function aiAddProd(ci) { _aiBuilderData.catalog[ci].products.push({name:'מוצר חדש',name_en:'New Product',description:'',description_en:'',price:30}); renderAIBCatalog(); renderAIBImages(); }
-function aiAddPromo() { _aiBuilderData.promotions.push({title:'מבצע חדש',title_en:'New Promo',discount_pct:10,min_order:0}); renderAIBPromos(); }
+function aiAddProd(ci) { _aiBuilderData.catalog[ci].products.push({name:'מוצר חדש',name_en:'New Product',description:'',description_en:'',price:30,original_price:0,badge_text:'',options_text:''}); renderAIBCatalog(); renderAIBImages(); }
+function aiAddPromo() { _aiBuilderData.promotions.push({title:'מבצע חדש',title_en:'New Promo',promo_type:'percent',promo_value:10,min_order:0,show_in_banner:true}); renderAIBPromos(); }
+function aiAddCoupon() { if (!_aiBuilderData.coupons) _aiBuilderData.coupons=[]; _aiBuilderData.coupons.push({code:'SAVE10',discount_pct:10,valid_days:90}); renderAIBPromos(); }
 

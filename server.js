@@ -3844,11 +3844,9 @@ app.put('/api/superadmin/tickets/:id/status', verifySA, async (req, res) => {
 app.post('/api/sa/ai-build-business', verifySA, async (req, res) => {
   try {
     const { businessName, businessNameEn, businessType, style, audience, languages = ['he'], productCount = 20, priceRange = 'medium' } = req.body;
-    const priceMap = { cheap: '15-40', medium: '35-90', luxury: '80-250' };
-    const priceRange_txt = priceMap[priceRange] || '35-90';
     const langStr = languages.includes('en') ? 'Hebrew AND English' : 'Hebrew only';
     const prompt = `You are a business content generator for an Israeli food/retail ordering platform.
-Generate a complete business profile as valid JSON for:
+Generate a COMPLETE, realistic business profile as valid JSON for:
 - Business name (Hebrew): ${businessName}
 - Business name (English): ${businessNameEn || businessName}
 - Type: ${businessType}
@@ -3856,18 +3854,26 @@ Generate a complete business profile as valid JSON for:
 - Target audience: ${audience}
 - Languages: ${langStr}
 - Number of products: approximately ${productCount}
-- Price range (ILS): ${priceRange_txt}
+- Price range: use REALISTIC prices per product type (e.g. chewing gum = 5 ILS, coffee = 14 ILS, pizza = 55 ILS, steak = 120 ILS). Prices start from 0 (complimentary/bonus items) and reflect real Israeli market prices. NEVER use a uniform price range — vary prices naturally.
 
-Return ONLY valid JSON, no markdown fences, no explanation. Use this exact structure:
+IMPORTANT RULES:
+1. options_text: For relevant products (burgers, pizzas, sandwiches, clothing, etc.), include a JSON array of option groups. Format: [{"name":"גודל","required":true,"max":1,"options":[{"name":"S","price":0},{"name":"M","price":5},{"name":"L","price":10}]},{"name":"תוספות","required":false,"max":3,"options":[{"name":"אבוקדו","price":4},{"name":"ביצה","price":3}]}]. For simple products (drinks, packaged goods), use empty string "".
+2. badge_text: Use sparingly and meaningfully — "חדש", "פופולרי", "אורגני", "ביתי", "מומלץ השף", "מבצע", "ללא גלוטן". Leave "" for most products.
+3. original_price: Set only when there is a discount (original_price > price). Leave 0 for regular-priced items.
+4. Showcase variety: include some very cheap items (₪0-15), mid-range, and premium.
+5. coupons: Generate 1-2 coupon codes (e.g. "WELCOME10", "SUMMER20") with discount_pct.
+6. promotions: Generate 2-3 active promotions with realistic Hebrew titles.
+
+Return ONLY valid JSON, no markdown fences, no explanation:
 {
   "profile": {
     "name": "Hebrew business name",
     "name_en": "English business name",
-    "slogan": "Hebrew slogan",
+    "slogan": "Hebrew catchy slogan",
     "slogan_en": "English slogan",
-    "welcome_message": "Hebrew welcome",
-    "welcome_message_en": "English welcome",
-    "accent_color": "#HEX"
+    "welcome_message": "Hebrew warm welcome message",
+    "welcome_message_en": "English welcome message",
+    "accent_color": "#HEX color matching the business vibe"
   },
   "settings": {
     "delivery_fee": 15,
@@ -3885,9 +3891,10 @@ Return ONLY valid JSON, no markdown fences, no explanation. Use this exact struc
         {
           "name": "Hebrew product name",
           "name_en": "English name",
-          "description": "Hebrew description",
+          "description": "Hebrew description — appetizing, specific, 1-2 sentences",
           "description_en": "English description",
           "price": 45,
+          "original_price": 0,
           "badge_text": "",
           "options_text": ""
         }
@@ -3896,11 +3903,19 @@ Return ONLY valid JSON, no markdown fences, no explanation. Use this exact struc
   ],
   "promotions": [
     {
-      "type": "discount",
       "title": "Hebrew promo title",
       "title_en": "English promo title",
+      "promo_type": "percent",
+      "promo_value": 15,
+      "min_order": 100,
+      "show_in_banner": true
+    }
+  ],
+  "coupons": [
+    {
+      "code": "WELCOME10",
       "discount_pct": 10,
-      "min_order": 100
+      "valid_days": 90
     }
   ]
 }`;
@@ -3923,7 +3938,7 @@ app.post('/api/sa/ai-create-business', verifySA, async (req, res) => {
   try {
     await client.query('BEGIN');
     const { generatedData, storeType = 'restaurant' } = req.body;
-    const { profile, settings, catalog = [], promotions = [] } = generatedData;
+    const { profile, settings, catalog = [], promotions = [], coupons = [] } = generatedData;
     const gRes = await client.query(
       `INSERT INTO family_groups (name, name_en, type, is_active, is_onboarded) VALUES ($1,$2,$3,true,true) RETURNING id`,
       [profile.name, profile.name_en || '', storeType]
@@ -3954,14 +3969,39 @@ app.post('/api/sa/ai-create-business', verifySA, async (req, res) => {
     for (const cat of catalog) {
       for (let i = 0; i < (cat.products||[]).length; i++) {
         const p = cat.products[i];
+        const optText = typeof p.options_text === 'object' && p.options_text !== null
+          ? JSON.stringify(p.options_text) : (p.options_text || '');
         const pRes = await client.query(
-          `INSERT INTO store_catalog (group_id, name, name_en, description, description_en, category, category_en, price, badge_text, options_text, is_available)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,true) RETURNING id`,
+          `INSERT INTO store_catalog (group_id, name, name_en, description, description_en, category, category_en, price, original_price, badge_text, options_text, is_available)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,true) RETURNING id`,
           [groupId, p.name, p.name_en||'', p.description||'', p.description_en||'',
-           cat.category, cat.category_en||'', p.price||0, p.badge_text||'', p.options_text||'']
+           cat.category, cat.category_en||'', p.price||0, p.original_price||0,
+           p.badge_text||'', optText]
         );
         if (p._tempId) productIds[p._tempId] = pRes.rows[0].id;
       }
+    }
+    // Save promotions
+    for (const pr of promotions) {
+      try {
+        await client.query(
+          `INSERT INTO store_promotions (group_id, title, promo_type, promo_value, min_order, is_active, show_in_banner)
+           VALUES ($1,$2,$3,$4,$5,true,$6)`,
+          [groupId, pr.title||'', pr.promo_type||'percent', pr.promo_value||pr.discount_pct||10,
+           pr.min_order||0, pr.show_in_banner||false]
+        );
+      } catch(e) { /* skip if table missing columns */ }
+    }
+    // Save coupons
+    for (const c of coupons) {
+      try {
+        const validUntil = new Date();
+        validUntil.setDate(validUntil.getDate() + (c.valid_days || 90));
+        await client.query(
+          `INSERT INTO store_coupons (group_id, code, discount_pct, valid_until) VALUES ($1,$2,$3,$4)`,
+          [groupId, c.code||'SAVE10', c.discount_pct||10, validUntil]
+        );
+      } catch(e) { /* skip */ }
     }
     await client.query('COMMIT');
     res.json({ success: true, groupId, storeAlias: alias, productIds });
