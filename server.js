@@ -765,6 +765,14 @@ try { await client.query(`ALTER TABLE game_assignments ADD COLUMN IF NOT EXISTS 
       try { await client.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS enable_event_booking BOOLEAN DEFAULT FALSE`); } catch(e) {}
       try { await client.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS slogan_en VARCHAR(255)`); } catch(e) {}
       try { await client.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS welcome_message_en TEXT`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS business_templates (
+  id SERIAL PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  category VARCHAR(100),
+  business_type VARCHAR(100),
+  json_data JSONB NOT NULL,
+  created_at TIMESTAMP DEFAULT NOW()
+)`); } catch(e) {}
       try { await client.query(`CREATE TABLE IF NOT EXISTS store_catalog (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, name VARCHAR(100) NOT NULL, description TEXT, price DECIMAL(10,2) NOT NULL, category VARCHAR(50), is_available BOOLEAN DEFAULT TRUE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}
       try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS image_url TEXT`); } catch(e) {}
       try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS options_text TEXT`); } catch(err){}
