@@ -14362,19 +14362,19 @@ async function aiCreateBusiness() {
     const d = await r.json();
     if (!d.success) throw new Error(d.error || 'שגיאה ביצירה');
 
-    // Generate logo and banner images
-    const logoPrompt = _aiBuilderData?.logo_prompt;
-    const bannerPrompt = _aiBuilderData?.banner_prompt;
-    let logoUrl = null, bannerUrl = null;
+    // Use pre-generated branding images if available, otherwise generate now
+    let logoUrl = _aiBuilderImages?.logoUrl || null;
+    let bannerUrl = _aiBuilderImages?.bannerUrl || null;
+    const logoPrompt = document.getElementById('aib-logo-prompt')?.value?.trim() || _aiBuilderData?.logo_prompt;
+    const bannerPrompt = document.getElementById('aib-banner-prompt')?.value?.trim() || _aiBuilderData?.banner_prompt;
 
-    if (logoPrompt || bannerPrompt) {
+    if (!logoUrl && !bannerUrl && (logoPrompt || bannerPrompt)) {
       btn.textContent = '🎨 מייצר לוגו ותמונת נושא...';
       try {
         if (logoPrompt) {
           const seed = Math.floor(Math.random() * 99999);
           const neg = encodeURIComponent('text, letters, words, blurry, low quality');
           logoUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(logoPrompt)}?width=512&height=512&model=flux&nologo=true&seed=${seed}&negative=${neg}`;
-          // pre-fetch to warm
           await fetch(logoUrl).catch(()=>{});
         }
         if (bannerPrompt) {
@@ -14384,13 +14384,15 @@ async function aiCreateBusiness() {
           bannerUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(bannerPrompt)}?width=1200&height=400&model=flux&nologo=true&seed=${seed2}&negative=${neg2}`;
           await fetch(bannerUrl).catch(()=>{});
         }
-        if (logoUrl || bannerUrl) {
-          await fetch('/api/sa/ai-update-store-images', {
-            method: 'POST', headers: {'Content-Type':'application/json','Authorization':saToken},
-            body: JSON.stringify({ groupId: d.groupId, logoUrl, bannerUrl })
-          });
-        }
       } catch(imgErr) { console.warn('logo/banner gen failed:', imgErr); }
+    }
+    if (logoUrl || bannerUrl) {
+      try {
+        await fetch('/api/sa/ai-update-store-images', {
+          method: 'POST', headers: {'Content-Type':'application/json','Authorization':saToken},
+          body: JSON.stringify({ groupId: d.groupId, logoUrl, bannerUrl })
+        });
+      } catch(e) { console.warn('save images failed:', e); }
     }
 
     progressEl.style.display = 'none';
@@ -14468,12 +14470,54 @@ async function aiDeleteTemplate(id, btn) {
 }
 
 function switchAIBTab(tab) {
-  ['profile','catalog','promotions','images'].forEach(t => {
+  ['profile','catalog','promotions','branding','images'].forEach(t => {
     const tabBtn = document.getElementById(`aib-tab-${t}`);
     const panel = document.getElementById(`aib-panel-${t}`);
     if (tabBtn) tabBtn.classList.toggle('aib-tab-active', t === tab);
     if (panel) panel.style.display = t === tab ? 'block' : 'none';
   });
+  if (tab === 'branding') renderAIBBranding();
+}
+
+function renderAIBBranding() {
+  const logoEl = document.getElementById('aib-logo-prompt');
+  const bannerEl = document.getElementById('aib-banner-prompt');
+  if (logoEl && !logoEl.value && _aiBuilderData?.logo_prompt) logoEl.value = _aiBuilderData.logo_prompt;
+  if (bannerEl && !bannerEl.value && _aiBuilderData?.banner_prompt) bannerEl.value = _aiBuilderData.banner_prompt;
+  // show cached previews if already generated
+  if (_aiBuilderImages?.logoUrl) _aibShowBrandPreview('logo', _aiBuilderImages.logoUrl);
+  if (_aiBuilderImages?.bannerUrl) _aibShowBrandPreview('banner', _aiBuilderImages.bannerUrl);
+}
+
+function _aibShowBrandPreview(type, url) {
+  const el = document.getElementById(`aib-${type}-preview`);
+  if (!el) return;
+  el.innerHTML = `<img src="${url}" style="width:100%;height:100%;object-fit:cover" onerror="this.parentElement.innerHTML='<span style=color:#ef4444;font-size:11px>שגיאה בטעינה</span>'">`;
+}
+
+async function aiGenBrandingImg(type) {
+  const promptEl = document.getElementById(`aib-${type}-prompt`);
+  const previewEl = document.getElementById(`aib-${type}-preview`);
+  const prompt = promptEl?.value?.trim();
+  if (!prompt) return alert('יש להזין פרומפט תחילה');
+  previewEl.innerHTML = '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center"><span style="color:#6366f1;font-size:12px">⏳ מייצר...</span></div>';
+  try {
+    const seed = Math.floor(Math.random() * 99999);
+    const neg = encodeURIComponent(type === 'logo' ? 'text, letters, blurry, photo, realistic' : 'text, logo, watermark, cartoon, CGI, blurry');
+    const w = type === 'logo' ? 512 : 1200;
+    const h = type === 'logo' ? 512 : 400;
+    const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=${w}&height=${h}&model=flux&nologo=true&seed=${seed}&negative=${neg}`;
+    // pre-warm
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('שגיאה מהשרת');
+    _aibShowBrandPreview(type, url);
+    if (!_aiBuilderImages) _aiBuilderImages = { products: {} };
+    if (type === 'logo') { _aiBuilderImages.logoUrl = url; if (_aiBuilderData) _aiBuilderData.logo_prompt = prompt; }
+    else { _aiBuilderImages.bannerUrl = url; if (_aiBuilderData) _aiBuilderData.banner_prompt = prompt; }
+    _aibSave();
+  } catch(e) {
+    previewEl.innerHTML = `<span style="color:#ef4444;font-size:11px">שגיאה: ${e.message}</span>`;
+  }
 }
 
 function aiResumeDraft() {
