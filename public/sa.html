@@ -89,6 +89,8 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
 .legal-editor ol{list-style:decimal;padding-right:1.5rem;margin-bottom:0.5rem}
 .legal-editor li{margin-bottom:0.2rem}
 .legal-tb-btn.active{background:white;box-shadow:0 1px 4px rgba(0,0,0,.12);color:#4f46e5}
+.aib-tab-active{color:#6366f1!important;border-bottom-color:#6366f1!important}
+@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
 </style>
 </head>
 <body class="text-slate-800 bg-slate-50 relative min-h-screen">
@@ -206,6 +208,9 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
             </button>
             <button id="btn-sa-group-pricing" onclick="switchSAGroup('pricing')" class="hidden flex">
               <i class="fa-solid fa-tags" style="color:#8b5cf6"></i> מחירון מודולים
+            </button>
+            <button id="btn-sa-group-aibuilder" onclick="switchSAGroup('aibuilder')" class="hidden flex">
+              <i class="fa-solid fa-wand-magic-sparkles" style="color:#a78bfa"></i> מחולל עסקים AI
             </button>
           </div>
           <div class="sb-footer">
@@ -3604,6 +3609,186 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
               <div id="pricing-free-months-control"></div>
               <div id="pricing-groups-container" class="space-y-6"></div>
             </div><!-- /sa-view-pricing -->
+
+            <!-- מחולל עסקים AI -->
+            <div id="sa-view-ai-builder" class="hidden" style="padding:24px;max-width:960px;margin:0 auto;font-family:Rubik,sans-serif">
+
+              <!-- Header -->
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px">
+                <div>
+                  <h2 style="font-size:22px;font-weight:800;margin:0">🤖 מחולל עסקים AI</h2>
+                  <p style="color:#64748b;font-size:13px;margin:4px 0 0">צור עסק שלם עם קטלוג, מבצעים ותמונות בכמה לחיצות</p>
+                </div>
+                <div style="display:flex;gap:8px">
+                  <button onclick="document.getElementById('aib-templates-panel').style.display=document.getElementById('aib-templates-panel').style.display==='none'?'block':'none';aiLoadTemplates()" style="padding:8px 16px;border:1px solid #e2e8f0;border-radius:10px;background:#fff;cursor:pointer;font-size:13px">📂 Templates שמורים</button>
+                  <button onclick="aiResetBuilder()" style="padding:8px 16px;border:1px solid #e2e8f0;border-radius:10px;background:#fff;cursor:pointer;font-size:13px">🔄 התחל מחדש</button>
+                </div>
+              </div>
+
+              <!-- Templates panel -->
+              <div id="aib-templates-panel" style="display:none;background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:16px;margin-bottom:20px">
+                <h3 style="font-size:14px;font-weight:700;margin:0 0 12px">Templates שמורים</h3>
+                <div id="aib-templates-list"></div>
+              </div>
+
+              <!-- Step 1: Input form -->
+              <div id="aib-step1" style="background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:28px">
+                <h3 style="font-size:16px;font-weight:700;margin:0 0 20px">פרטי העסק</h3>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+                  <div>
+                    <label style="font-size:12px;font-weight:600;color:#475569;display:block;margin-bottom:6px">שם העסק (עברית) *</label>
+                    <input id="aib-name" type="text" placeholder="פיצה מושיק" style="width:100%;padding:10px 14px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:14px;box-sizing:border-box">
+                  </div>
+                  <div>
+                    <label style="font-size:12px;font-weight:600;color:#475569;display:block;margin-bottom:6px">Business Name (English)</label>
+                    <input id="aib-name-en" type="text" placeholder="Pizza Moshik" style="width:100%;padding:10px 14px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:14px;box-sizing:border-box">
+                  </div>
+                  <div>
+                    <label style="font-size:12px;font-weight:600;color:#475569;display:block;margin-bottom:6px">סוג עסק</label>
+                    <select id="aib-type" style="width:100%;padding:10px 14px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:14px;box-sizing:border-box">
+                      <option value="restaurant">מסעדה / פיצריה</option>
+                      <option value="sushi">סושי / אסייתי</option>
+                      <option value="burger">בורגר / מזון מהיר</option>
+                      <option value="cafe">קפה / מאפייה</option>
+                      <option value="market">מכולת / ירקות</option>
+                      <option value="flowers">פרחים / מתנות</option>
+                      <option value="spa">יופי / ספא</option>
+                      <option value="sport">ספורט / ציוד</option>
+                      <option value="events">אירועים / קייטרינג</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style="font-size:12px;font-weight:600;color:#475569;display:block;margin-bottom:6px">סגנון / אופי</label>
+                    <select id="aib-style" style="width:100%;padding:10px 14px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:14px;box-sizing:border-box">
+                      <option value="family">משפחתי</option>
+                      <option value="luxury">יוקרתי</option>
+                      <option value="fast">מהיר / מזדמן</option>
+                      <option value="boutique">בוטיק</option>
+                      <option value="street">רחוב / שוק</option>
+                      <option value="organic">אורגני / בריאות</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style="font-size:12px;font-weight:600;color:#475569;display:block;margin-bottom:6px">קהל יעד</label>
+                    <input id="aib-audience" type="text" placeholder="משפחות, סטודנטים, אנשי עסקים..." style="width:100%;padding:10px 14px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:14px;box-sizing:border-box">
+                  </div>
+                  <div>
+                    <label style="font-size:12px;font-weight:600;color:#475569;display:block;margin-bottom:6px">טווח מחירים</label>
+                    <select id="aib-price" style="width:100%;padding:10px 14px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:14px;box-sizing:border-box">
+                      <option value="cheap">זול (₪15–40)</option>
+                      <option value="medium" selected>בינוני (₪35–90)</option>
+                      <option value="luxury">יוקרה (₪80–250)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style="font-size:12px;font-weight:600;color:#475569;display:block;margin-bottom:6px">מספר מוצרים משוער</label>
+                    <select id="aib-count" style="width:100%;padding:10px 14px;border:1.5px solid #e2e8f0;border-radius:10px;font-size:14px;box-sizing:border-box">
+                      <option value="10">~10 מוצרים</option>
+                      <option value="20" selected>~20 מוצרים</option>
+                      <option value="30">~30 מוצרים</option>
+                      <option value="50">~50 מוצרים</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style="font-size:12px;font-weight:600;color:#475569;display:block;margin-bottom:6px">שפות</label>
+                    <div id="aib-langs" style="display:flex;gap:16px;padding-top:10px">
+                      <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" value="he" checked> עברית</label>
+                      <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer"><input type="checkbox" value="en" checked> English</label>
+                    </div>
+                  </div>
+                </div>
+                <button id="aib-generate-btn" onclick="aiGenerateBusiness()" style="width:100%;padding:14px;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;margin-top:8px">✨ צור עסק עם AI</button>
+              </div>
+
+              <!-- Loading -->
+              <div id="aib-loading" style="display:none;flex-direction:column;align-items:center;justify-content:center;padding:60px;background:#fff;border:1px solid #e2e8f0;border-radius:16px;text-align:center">
+                <div style="font-size:48px;margin-bottom:16px;animation:spin 2s linear infinite">✨</div>
+                <div style="font-size:16px;font-weight:700;color:#1e293b">ה-AI בונה את העסק שלך...</div>
+                <div style="font-size:13px;color:#64748b;margin-top:6px">מייצר קטלוג, מחירים, מבצעים ועוד</div>
+              </div>
+
+              <!-- Preview & Edit -->
+              <div id="aib-preview" style="display:none">
+                <!-- Tabs -->
+                <div style="display:flex;gap:8px;margin-bottom:16px;border-bottom:2px solid #f1f5f9;padding-bottom:0">
+                  <button id="aib-tab-profile" onclick="switchAIBTab('profile')" class="aib-tab-active" style="padding:10px 18px;border:none;background:none;cursor:pointer;font-size:13px;font-weight:600;border-bottom:2px solid transparent;margin-bottom:-2px;color:#64748b">👤 פרופיל</button>
+                  <button id="aib-tab-catalog" onclick="switchAIBTab('catalog')" style="padding:10px 18px;border:none;background:none;cursor:pointer;font-size:13px;font-weight:600;border-bottom:2px solid transparent;margin-bottom:-2px;color:#64748b">📦 קטלוג</button>
+                  <button id="aib-tab-promotions" onclick="switchAIBTab('promotions')" style="padding:10px 18px;border:none;background:none;cursor:pointer;font-size:13px;font-weight:600;border-bottom:2px solid transparent;margin-bottom:-2px;color:#64748b">🎟️ מבצעים</button>
+                  <button id="aib-tab-images" onclick="switchAIBTab('images')" style="padding:10px 18px;border:none;background:none;cursor:pointer;font-size:13px;font-weight:600;border-bottom:2px solid transparent;margin-bottom:-2px;color:#64748b">🖼️ תמונות</button>
+                </div>
+
+                <!-- Profile panel -->
+                <div id="aib-panel-profile" style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:24px">
+                  <h3 style="font-size:14px;font-weight:700;margin:0 0 16px;color:#1e293b">פרופיל עסק</h3>
+                  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+                    <div><label style="font-size:11px;color:#64748b;display:block;margin-bottom:4px">שם (עברית)</label><input id="aib-prev-name" style="width:100%;padding:8px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;box-sizing:border-box"></div>
+                    <div><label style="font-size:11px;color:#64748b;display:block;margin-bottom:4px">Name (English)</label><input id="aib-prev-name-en" style="width:100%;padding:8px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;box-sizing:border-box"></div>
+                    <div><label style="font-size:11px;color:#64748b;display:block;margin-bottom:4px">סלוגן (עברית)</label><input id="aib-prev-slogan" style="width:100%;padding:8px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;box-sizing:border-box"></div>
+                    <div><label style="font-size:11px;color:#64748b;display:block;margin-bottom:4px">Slogan (English)</label><input id="aib-prev-slogan-en" style="width:100%;padding:8px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;box-sizing:border-box"></div>
+                    <div><label style="font-size:11px;color:#64748b;display:block;margin-bottom:4px">הודעת ברוך הבא</label><textarea id="aib-prev-welcome" style="width:100%;padding:8px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:12px;resize:none;height:56px;box-sizing:border-box"></textarea></div>
+                    <div><label style="font-size:11px;color:#64748b;display:block;margin-bottom:4px">Welcome Message (English)</label><textarea id="aib-prev-welcome-en" style="width:100%;padding:8px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:12px;resize:none;height:56px;box-sizing:border-box"></textarea></div>
+                    <div><label style="font-size:11px;color:#64748b;display:block;margin-bottom:4px">צבע מותג</label>
+                      <div style="display:flex;align-items:center;gap:8px">
+                        <input type="color" id="aib-prev-color" oninput="document.getElementById('aib-prev-color-swatch').style.background=this.value" style="width:44px;height:36px;border:1px solid #e2e8f0;border-radius:6px;cursor:pointer;padding:2px">
+                        <div id="aib-prev-color-swatch" style="width:36px;height:36px;border-radius:8px;border:1px solid #e2e8f0"></div>
+                      </div>
+                    </div>
+                  </div>
+                  <h3 style="font-size:14px;font-weight:700;margin:20px 0 12px;color:#1e293b">הגדרות משלוח</h3>
+                  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">
+                    <div><label style="font-size:11px;color:#64748b;display:block;margin-bottom:4px">עלות משלוח (₪)</label><input type="number" id="aib-prev-delivery" style="width:100%;padding:8px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;box-sizing:border-box"></div>
+                    <div><label style="font-size:11px;color:#64748b;display:block;margin-bottom:4px">מינימום הזמנה (₪)</label><input type="number" id="aib-prev-minorder" style="width:100%;padding:8px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;box-sizing:border-box"></div>
+                    <div><label style="font-size:11px;color:#64748b;display:block;margin-bottom:4px">זמן הכנה (דק')</label><input type="number" id="aib-prev-eta" style="width:100%;padding:8px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;box-sizing:border-box"></div>
+                    <div><label style="font-size:11px;color:#64748b;display:block;margin-bottom:4px">פתיחה</label><input type="time" id="aib-prev-open" style="width:100%;padding:8px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;box-sizing:border-box"></div>
+                    <div><label style="font-size:11px;color:#64748b;display:block;margin-bottom:4px">סגירה</label><input type="time" id="aib-prev-close" style="width:100%;padding:8px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;box-sizing:border-box"></div>
+                    <div><label style="font-size:11px;color:#64748b;display:block;margin-bottom:4px">משלוח חינם מעל (₪)</label><input type="number" id="aib-prev-freedeliv" style="width:100%;padding:8px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;box-sizing:border-box"></div>
+                  </div>
+                </div>
+
+                <!-- Catalog panel -->
+                <div id="aib-panel-catalog" style="display:none;background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:24px">
+                  <h3 style="font-size:14px;font-weight:700;margin:0 0 16px;color:#1e293b">קטלוג מוצרים</h3>
+                  <div id="aib-catalog-body"></div>
+                </div>
+
+                <!-- Promotions panel -->
+                <div id="aib-panel-promotions" style="display:none;background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:24px">
+                  <h3 style="font-size:14px;font-weight:700;margin:0 0 16px;color:#1e293b">מבצעים</h3>
+                  <div style="font-size:12px;color:#64748b;margin-bottom:12px">הגדר % הנחה ומינימום הזמנה לכל מבצע</div>
+                  <div id="aib-promos-body"></div>
+                </div>
+
+                <!-- Images panel -->
+                <div id="aib-panel-images" style="display:none;background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:24px">
+                  <h3 style="font-size:14px;font-weight:700;margin:0 0 16px;color:#1e293b">תמונות מוצרים</h3>
+                  <div style="font-size:12px;color:#64748b;margin-bottom:16px">לחץ "צור" ליד כל מוצר, או "צור תמונות לכולם" בבת אחת</div>
+                  <div id="aib-images-body"></div>
+                </div>
+
+                <!-- Create button -->
+                <div style="margin-top:20px;display:flex;gap:12px;align-items:center">
+                  <button id="aib-create-btn" onclick="syncAIBFromForm();aiCreateBusiness()" style="flex:1;padding:14px;background:linear-gradient(135deg,#10b981,#059669);color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer">🚀 צור את העסק</button>
+                  <button onclick="aiSaveTemplate()" style="padding:14px 20px;border:1.5px solid #6366f1;border-radius:12px;background:#fff;color:#6366f1;cursor:pointer;font-size:13px;font-weight:600">💾 שמור כ-Template</button>
+                </div>
+                <div id="aib-progress" style="display:none;margin-top:12px;padding:12px 16px;background:#f0fdf4;border:1px solid #86efac;border-radius:10px;font-size:13px;color:#166534">⏳ יוצר את העסק במסד הנתונים...</div>
+              </div>
+
+              <!-- Success -->
+              <div id="aib-success" style="display:none;text-align:center;padding:48px;background:#fff;border:1px solid #e2e8f0;border-radius:16px">
+                <div style="font-size:52px;margin-bottom:16px">🎉</div>
+                <h2 style="font-size:20px;font-weight:800;margin:0 0 8px">העסק נוצר בהצלחה!</h2>
+                <p style="color:#64748b;font-size:13px;margin-bottom:24px">כתובת החנות: <strong id="aib-success-alias"></strong></p>
+                <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
+                  <a id="aib-success-link" href="#" target="_blank" style="padding:12px 24px;background:#6366f1;color:#fff;border-radius:10px;text-decoration:none;font-size:13px;font-weight:600">👁️ צפה בחנות</a>
+                  <a id="aib-success-biz-link" href="#" target="_blank" style="padding:12px 24px;background:#0f172a;color:#fff;border-radius:10px;text-decoration:none;font-size:13px;font-weight:600">⚙️ ערוך בניהול</a>
+                  <button onclick="aiResetBuilder()" style="padding:12px 24px;border:1.5px solid #e2e8f0;border-radius:10px;background:#fff;cursor:pointer;font-size:13px;font-weight:600">➕ צור עסק נוסף</button>
+                </div>
+                <div id="aib-save-template-section" style="display:none;margin-top:20px;padding-top:20px;border-top:1px solid #f1f5f9">
+                  <button onclick="aiSaveTemplate()" style="padding:10px 20px;border:1.5px solid #6366f1;border-radius:10px;background:#fff;color:#6366f1;cursor:pointer;font-size:13px;font-weight:600">💾 שמור כ-Template לשימוש עתידי</button>
+                </div>
+              </div>
+
+            </div><!-- /sa-view-ai-builder -->
 
         </main>
       </div>

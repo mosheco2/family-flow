@@ -3839,6 +3839,172 @@ app.put('/api/superadmin/tickets/:id/status', verifySA, async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// ── AI Business Builder ──
+
+app.post('/api/sa/ai-build-business', verifySA, async (req, res) => {
+  try {
+    const { businessName, businessNameEn, businessType, style, audience, languages = ['he'], productCount = 20, priceRange = 'medium' } = req.body;
+    const priceMap = { cheap: '15-40', medium: '35-90', luxury: '80-250' };
+    const priceRange_txt = priceMap[priceRange] || '35-90';
+    const langStr = languages.includes('en') ? 'Hebrew AND English' : 'Hebrew only';
+    const prompt = `You are a business content generator for an Israeli food/retail ordering platform.
+Generate a complete business profile as valid JSON for:
+- Business name (Hebrew): ${businessName}
+- Business name (English): ${businessNameEn || businessName}
+- Type: ${businessType}
+- Style/vibe: ${style}
+- Target audience: ${audience}
+- Languages: ${langStr}
+- Number of products: approximately ${productCount}
+- Price range (ILS): ${priceRange_txt}
+
+Return ONLY valid JSON, no markdown fences, no explanation. Use this exact structure:
+{
+  "profile": {
+    "name": "Hebrew business name",
+    "name_en": "English business name",
+    "slogan": "Hebrew slogan",
+    "slogan_en": "English slogan",
+    "welcome_message": "Hebrew welcome",
+    "welcome_message_en": "English welcome",
+    "accent_color": "#HEX"
+  },
+  "settings": {
+    "delivery_fee": 15,
+    "min_order": 50,
+    "delivery_eta_min": 35,
+    "open_time": "09:00",
+    "close_time": "23:00",
+    "free_delivery_above": 150
+  },
+  "catalog": [
+    {
+      "category": "Hebrew category name",
+      "category_en": "English category name",
+      "products": [
+        {
+          "name": "Hebrew product name",
+          "name_en": "English name",
+          "description": "Hebrew description",
+          "description_en": "English description",
+          "price": 45,
+          "badge_text": "",
+          "options_text": ""
+        }
+      ]
+    }
+  ],
+  "promotions": [
+    {
+      "type": "discount",
+      "title": "Hebrew promo title",
+      "title_en": "English promo title",
+      "discount_pct": 10,
+      "min_order": 100
+    }
+  ]
+}`;
+    if (!getGenAIInstance()) return res.json({ success: false, error: 'AI not configured' });
+    const model = getGenAIInstance().getGenerativeModel({ model: 'gemini-2.5-flash' });
+    const result = await model.generateContent(prompt);
+    const text = result.response.text().trim().replace(/^```json\s*/,'').replace(/\s*```$/,'');
+    let parsed;
+    try { parsed = JSON.parse(text); }
+    catch(e) { return res.json({ success: false, error: 'parse_error', raw: text }); }
+    res.json({ success: true, data: parsed });
+  } catch(e) {
+    console.error('ai-build-business error:', e);
+    res.json({ success: false, error: e.message });
+  }
+});
+
+app.post('/api/sa/ai-create-business', verifySA, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const { generatedData, storeType = 'restaurant' } = req.body;
+    const { profile, settings, catalog = [], promotions = [] } = generatedData;
+    const gRes = await client.query(
+      `INSERT INTO family_groups (name, name_en, type, is_active, is_onboarded) VALUES ($1,$2,$3,true,true) RETURNING id`,
+      [profile.name, profile.name_en || '', storeType]
+    );
+    const groupId = gRes.rows[0].id;
+    const alias = profile.name_en
+      ? profile.name_en.toLowerCase().replace(/[^a-z0-9]/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,'').slice(0,30)
+      : `store-${groupId}`;
+    await client.query(`INSERT INTO store_settings
+      (group_id, is_active, welcome_message, welcome_message_en, slogan, slogan_en,
+       accent_color, delivery_fee, min_order, delivery_eta_min, open_time, close_time,
+       free_delivery_above, store_alias, store_type)
+      VALUES ($1,true,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+      ON CONFLICT (group_id) DO UPDATE SET
+        welcome_message=EXCLUDED.welcome_message, welcome_message_en=EXCLUDED.welcome_message_en,
+        slogan=EXCLUDED.slogan, slogan_en=EXCLUDED.slogan_en,
+        accent_color=EXCLUDED.accent_color, delivery_fee=EXCLUDED.delivery_fee,
+        min_order=EXCLUDED.min_order, delivery_eta_min=EXCLUDED.delivery_eta_min,
+        open_time=EXCLUDED.open_time, close_time=EXCLUDED.close_time,
+        free_delivery_above=EXCLUDED.free_delivery_above, store_alias=EXCLUDED.store_alias,
+        store_type=EXCLUDED.store_type`,
+      [groupId, profile.welcome_message||'', profile.welcome_message_en||'',
+       profile.slogan||'', profile.slogan_en||'', profile.accent_color||'#e63946',
+       settings.delivery_fee||15, settings.min_order||50, settings.delivery_eta_min||35,
+       settings.open_time||'09:00', settings.close_time||'23:00',
+       settings.free_delivery_above||150, alias, storeType]);
+    const productIds = {};
+    for (const cat of catalog) {
+      for (let i = 0; i < (cat.products||[]).length; i++) {
+        const p = cat.products[i];
+        const pRes = await client.query(
+          `INSERT INTO store_catalog (group_id, name, name_en, description, description_en, category, category_en, price, badge_text, options_text, is_available)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,true) RETURNING id`,
+          [groupId, p.name, p.name_en||'', p.description||'', p.description_en||'',
+           cat.category, cat.category_en||'', p.price||0, p.badge_text||'', p.options_text||'']
+        );
+        if (p._tempId) productIds[p._tempId] = pRes.rows[0].id;
+      }
+    }
+    await client.query('COMMIT');
+    res.json({ success: true, groupId, storeAlias: alias, productIds });
+  } catch(e) {
+    await client.query('ROLLBACK');
+    console.error('ai-create-business error:', e);
+    res.json({ success: false, error: e.message });
+  } finally { client.release(); }
+});
+
+app.get('/api/sa/business-templates', verifySA, async (req, res) => {
+  try {
+    const r = await pool.query(`SELECT id, name, category, business_type, created_at FROM business_templates ORDER BY created_at DESC`);
+    res.json({ success: true, templates: r.rows });
+  } catch(e) { res.json({ success: false, error: e.message }); }
+});
+
+app.post('/api/sa/business-templates', verifySA, async (req, res) => {
+  try {
+    const { name, category, businessType, jsonData } = req.body;
+    const r = await pool.query(
+      `INSERT INTO business_templates (name, category, business_type, json_data) VALUES ($1,$2,$3,$4) RETURNING id`,
+      [name, category||'', businessType||'', JSON.stringify(jsonData)]
+    );
+    res.json({ success: true, id: r.rows[0].id });
+  } catch(e) { res.json({ success: false, error: e.message }); }
+});
+
+app.get('/api/sa/business-templates/:id', verifySA, async (req, res) => {
+  try {
+    const r = await pool.query(`SELECT * FROM business_templates WHERE id=$1`, [req.params.id]);
+    if (!r.rows.length) return res.json({ success: false, error: 'not found' });
+    res.json({ success: true, template: r.rows[0] });
+  } catch(e) { res.json({ success: false, error: e.message }); }
+});
+
+app.delete('/api/sa/business-templates/:id', verifySA, async (req, res) => {
+  try {
+    await pool.query(`DELETE FROM business_templates WHERE id=$1`, [req.params.id]);
+    res.json({ success: true });
+  } catch(e) { res.json({ success: false, error: e.message }); }
+});
+
 // מחיקת קריאת שירות מהסופר אדמין
 app.delete('/api/superadmin/tickets/:id', verifySA, async (req, res) => {
     try {
