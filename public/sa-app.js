@@ -13999,7 +13999,7 @@ async function aiGenerateBusiness() {
     };
     if (!body.languages.length) body.languages = ['he'];
     const r = await fetch('/api/sa/ai-build-business', {
-      method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body)
+      method: 'POST', headers: {'Content-Type':'application/json', 'Authorization': saToken}, body: JSON.stringify(body)
     });
     const d = await r.json();
     if (!d.success) throw new Error(d.error || 'שגיאה בייצור');
@@ -14195,7 +14195,7 @@ async function aiCreateBusiness() {
   try {
     const storeType = document.getElementById('aib-type')?.value || 'restaurant';
     const r = await fetch('/api/sa/ai-create-business', {
-      method: 'POST', headers: {'Content-Type':'application/json'},
+      method: 'POST', headers: {'Content-Type':'application/json', 'Authorization': saToken},
       body: JSON.stringify({ generatedData: _aiBuilderData, storeType })
     });
     const d = await r.json();
@@ -14220,7 +14220,7 @@ async function aiSaveTemplate() {
   const name = prompt('שם ה-Template:');
   if (!name) return;
   const r = await fetch('/api/sa/business-templates', {
-    method: 'POST', headers: {'Content-Type':'application/json'},
+    method: 'POST', headers: {'Content-Type':'application/json', 'Authorization': saToken},
     body: JSON.stringify({ name, businessType: document.getElementById('aib-type')?.value, jsonData: _aiBuilderData })
   });
   const d = await r.json();
@@ -14228,7 +14228,7 @@ async function aiSaveTemplate() {
 }
 
 async function aiLoadTemplates() {
-  const r = await fetch('/api/sa/business-templates');
+  const r = await fetch('/api/sa/business-templates', { headers: {'Authorization': saToken} });
   const d = await r.json();
   const el = document.getElementById('aib-templates-list');
   if (!el) return;
@@ -14242,7 +14242,7 @@ async function aiLoadTemplates() {
 }
 
 async function aiLoadTemplate(id) {
-  const r = await fetch(`/api/sa/business-templates/${id}`);
+  const r = await fetch(`/api/sa/business-templates/${id}`, { headers: {'Authorization': saToken} });
   const d = await r.json();
   if (!d.success) return alert('לא נמצא');
   _aiBuilderData = d.template.json_data;
@@ -14256,7 +14256,7 @@ async function aiLoadTemplate(id) {
 
 async function aiDeleteTemplate(id, btn) {
   if (!confirm('למחוק Template זה?')) return;
-  const r = await fetch(`/api/sa/business-templates/${id}`, { method: 'DELETE' });
+  const r = await fetch(`/api/sa/business-templates/${id}`, { method: 'DELETE', headers: {'Authorization': saToken} });
   const d = await r.json();
   if (d.success) btn.closest('div[style]').remove();
 }
