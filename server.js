@@ -3891,8 +3891,8 @@ Return ONLY valid JSON, no markdown fences, no explanation:
         {
           "name": "Hebrew product name",
           "name_en": "English name",
-          "description": "Hebrew description — appetizing, specific, 1-2 sentences",
-          "description_en": "English description",
+          "description": "Hebrew description — SHORT, factual, natural. Describe only what's genuinely distinctive (size, variety, origin, preparation method). NEVER add obvious/redundant adjectives: tomatoes are not 'red', bananas are not 'sweet', water is not 'refreshing'. If nothing is special about the product, write a plain factual sentence. Max 1 sentence.",
+          "description_en": "English description — same factual/natural style as Hebrew. No redundant adjectives.",
           "price": 45,
           "original_price": 0,
           "badge_text": "",
