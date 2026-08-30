@@ -102,6 +102,7 @@
                     <button onclick="window.openContactModal()" class="bg-indigo-50 text-indigo-600 hover:bg-indigo-100 px-3 py-1.5 rounded-lg border border-indigo-200 flex items-center gap-1.5 transition shadow-sm"><i class="fa-regular fa-envelope text-xs"></i> צור קשר</button>
                     <a id="header-wa" href="#" target="_blank" class="hidden bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366]/20 px-3 py-1.5 rounded-lg border border-[#25D366]/20 flex items-center gap-1.5 transition shadow-sm"><i class="fa-brands fa-whatsapp text-sm"></i> וואטסאפ</a>
                     <a id="header-phone" href="#" class="hidden bg-blue-50 text-blue-600 hover:bg-blue-100 px-3 py-1.5 rounded-lg border border-blue-200 flex items-center gap-1.5 transition shadow-sm"><i class="fa-solid fa-phone text-xs"></i> חייג</a>
+                    <button onclick="toggleLang()" style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border:1px solid rgba(0,0,0,.15);border-radius:99px;background:transparent;font-size:12px;cursor:pointer">🌐 <span id="lang-label">English</span></button>
                     <button id="btn-book-appointment" onclick="window.openBookingModal()" class="hidden bg-gradient-to-r from-cyan-500 to-blue-500 text-white px-4 py-1.5 rounded-lg border-transparent flex items-center gap-1.5 shadow-md hover:shadow-lg transition transform hover:-translate-y-0.5"><i class="fa-regular fa-calendar-check"></i> קביעת תור/אירוע</button>
                     <button id="btn-book-table" onclick="window.openTableReservationModal()" class="hidden bg-gradient-to-r from-orange-500 to-red-500 text-white px-4 py-1.5 rounded-lg border-transparent flex items-center gap-1.5 shadow-md hover:shadow-lg transition transform hover:-translate-y-0.5"><i class="fa-solid fa-utensils"></i> הזמן שולחן</button>
                 </div>
@@ -604,6 +605,122 @@
         const safeStr = str => (str || '').toString().replace(/'/g, "\\'").replace(/"/g, "&quot;");
         const isTrue = val => val === true || val === 'true' || val === 1 || val === '1' || val === 't';
 
+        // --- Language support ---
+        const _langParam = new URLSearchParams(window.location.search).get('lang') || 'he';
+        let isEn = _langParam === 'en';
+        function t(he, en) { return isEn ? en : he; }
+        function toggleLang() {
+          const params = new URLSearchParams(window.location.search);
+          params.set('lang', isEn ? 'he' : 'en');
+          window.location.search = params.toString();
+        }
+
+        function _applyLangToStatic() {
+            if (isEn) {
+                document.documentElement.setAttribute('lang', 'en');
+                document.documentElement.setAttribute('dir', 'ltr');
+            }
+            const set = (id, text) => { const el = getEl(id); if (el) el.textContent = text; };
+            const setHtml = (id, html) => { const el = getEl(id); if (el) el.innerHTML = html; };
+            const setPlaceholder = (id, text) => { const el = getEl(id); if (el) el.placeholder = text; };
+            const setAttr = (id, attr, text) => { const el = getEl(id); if (el) el.setAttribute(attr, text); };
+
+            // loading screen
+            const loadP = document.querySelector('#loading-screen p');
+            if (loadP) loadP.textContent = t('טוען חנות...', 'Loading store...');
+
+            // side menu title
+            const sideH3 = document.querySelector('#side-menu h3');
+            if (sideH3) sideH3.textContent = t('קטגוריות', 'Categories');
+
+            // breadcrumb
+            const bcCurrent = getEl('breadcrumb-current');
+            if (bcCurrent && bcCurrent.textContent === 'כל המוצרים') bcCurrent.textContent = t('כל המוצרים', 'All products');
+
+            // search placeholder
+            setPlaceholder('search-input', t('חיפוש מוצר...', 'Search products...'));
+
+            // cart footer
+            const cartTotalLabel = document.querySelector('#cart-footer p');
+            if (cartTotalLabel) cartTotalLabel.textContent = t('סה"כ לסל', 'Cart total');
+            set('cart-checkout-text', t('לתשלום', 'Checkout'));
+
+            // product modal add button
+            set('prod-btn-text', t('הוסף לסל', 'Add to cart'));
+
+            // complex modal add button
+            const cxBtn = getEl('btn-submit-complex');
+            if (cxBtn) {
+                const cxSpan = getEl('cx-total-display');
+                const cxSpanHtml = cxSpan ? cxSpan.outerHTML : '';
+                cxBtn.innerHTML = t('הוסף לסל', 'Add to cart') + ' ' + cxSpanHtml;
+            }
+
+            // checkout modal
+            const checkoutTitle = getEl('checkout-modal-title');
+            if (checkoutTitle && !checkoutTitle.dataset.langSet) {
+                checkoutTitle.textContent = t('העגלה שלך', 'Your cart');
+                checkoutTitle.dataset.langSet = '1';
+            }
+            set('btn-delivery-false', t('איסוף עצמי', 'Pickup'));
+            set('btn-delivery-true', t('משלוח עד הבית', 'Home delivery'));
+
+            // labels
+            const labelMap = {
+                'cust-name': t('שם מלא', 'Full name'),
+                'cust-phone': t('טלפון', 'Phone'),
+            };
+            document.querySelectorAll('#checkout-form label').forEach(lbl => {
+                const forId = lbl.getAttribute('for');
+                if (forId && labelMap[forId]) lbl.textContent = labelMap[forId];
+            });
+            // label by text content
+            document.querySelectorAll('#checkout-form label').forEach(lbl => {
+                if (lbl.textContent.trim() === 'שם מלא') lbl.textContent = t('שם מלא', 'Full name');
+                if (lbl.textContent.trim() === 'טלפון') lbl.textContent = t('טלפון', 'Phone');
+                if (lbl.textContent.trim() === 'הערות להזמנה / בקשות מיוחדות') lbl.textContent = t('הערות להזמנה / בקשות מיוחדות', 'Order notes / special requests');
+            });
+
+            // delivery fields label
+            const delivH4 = document.querySelector('#delivery-fields h4');
+            if (delivH4) delivH4.innerHTML = t('<i class="fa-solid fa-motorcycle text-indigo-500 mr-1"></i> כתובת למשלוח', '<i class="fa-solid fa-motorcycle text-indigo-500 mr-1"></i> Delivery address');
+            setPlaceholder('cust-city', t('עיר / יישוב', 'City'));
+            setPlaceholder('cust-street', t('רחוב', 'Street'));
+            setPlaceholder('cust-house', t('מספר בית', 'House no.'));
+            setPlaceholder('general-notes', t('הערות מיוחדות, אלרגיות, או בקשות...', 'Special notes, allergies, or requests...'));
+
+            // promo code label
+            const promoLabel = document.querySelector('#promo-code-section label');
+            if (promoLabel) promoLabel.textContent = t('קוד מבצע / הטבת קהילה (אופציונלי)', 'Promo code / community benefit (optional)');
+            const promoBtn = document.querySelector('[onclick="window.applyPromoCode()"]');
+            if (promoBtn) promoBtn.textContent = t('החל', 'Apply');
+
+            // submit order button
+            const submitSpan = document.querySelector('#btn-submit-order > span:first-child');
+            if (submitSpan) submitSpan.textContent = t('סיום ושליחת הזמנה', 'Place order');
+
+            // success screen
+            const successMsg = getEl('success-message-text');
+            if (successMsg && (successMsg.textContent.includes('התקבלה') || successMsg.textContent === '')) {
+                successMsg.textContent = t('ההזמנה התקבלה ותטופל בהקדם.', 'Your order has been received and will be processed shortly.');
+            }
+            const backBtn = document.querySelector('[onclick="window.resetStoreAfterOrder()"]');
+            if (backBtn) backBtn.textContent = t('חזרה לחנות', 'Back to store');
+
+            // flow redeem
+            const flowRemove = document.querySelector('[onclick="window.clearFlowRedeem()"]');
+            if (flowRemove) flowRemove.textContent = t('הסר', 'Remove');
+            const flowIlsSpan = document.querySelector('#flow-redeem-section .shrink-0');
+            if (flowIlsSpan) {
+                const ils = getEl('flow-redeem-ils');
+                if (ils) flowIlsSpan.innerHTML = `= ${t('הנחה של', 'discount of')} <span id="flow-redeem-ils" class="font-black text-green-600">${ils.textContent}</span>`;
+            }
+
+            // lang label
+            const ll = getEl('lang-label');
+            if (ll) ll.textContent = isEn ? 'עברית' : 'English';
+        }
+
         function _haversineKm(lat1, lng1, lat2, lng2) {
             const R = 6371, toRad = d => d * Math.PI / 180;
             const dLat = toRad(lat2 - lat1), dLng = toRad(lng2 - lng1);
@@ -638,8 +755,8 @@
                 // false = מחוץ לכל המעגלים (לא מאפשרים משלוח)
                 _computedRadiusDelFee = match ? parseFloat(match.delivery_fee) : false;
                 const el = document.querySelector('.checkout-radius-fee-note');
-                if (el && match) el.textContent = match.delivery_fee > 0 ? `(${distKm.toFixed(1)} ק"מ מהעסק — עלות: ₪${parseFloat(match.delivery_fee).toFixed(0)})` : `(${distKm.toFixed(1)} ק"מ מהעסק — משלוח חינם)`;
-                else if (el && !match) el.textContent = `(${distKm.toFixed(1)} ק"מ — מחוץ לאזור המשלוח)`;
+                if (el && match) el.textContent = match.delivery_fee > 0 ? `(${distKm.toFixed(1)} ${t('ק"מ מהעסק — עלות:', 'km from business — fee:')} ₪${parseFloat(match.delivery_fee).toFixed(0)})` : `(${distKm.toFixed(1)} ${t('ק"מ מהעסק — משלוח חינם', 'km from business — free delivery')})`;
+                else if (el && !match) el.textContent = `(${distKm.toFixed(1)} ${t('ק"מ — מחוץ לאזור המשלוח', 'km — outside delivery area')})`;
                 else if (el) el.textContent = '';
             } catch(e) { _computedRadiusDelFee = null; }
         }
@@ -705,7 +822,7 @@
                 const isActive = data.settings && isTrue(data.settings.is_active);
                 if (!data.success || !isActive) {
                     getEl('loading-screen').classList.add('hidden');
-                    return document.body.innerHTML = "<div class='text-center mt-32'><i class='fa-solid fa-store-slash text-5xl text-slate-300 mb-4'></i><h1 class='text-xl font-bold text-slate-700'>החנות סגורה כרגע</h1></div>";
+                    return document.body.innerHTML = `<div class='text-center mt-32'><i class='fa-solid fa-store-slash text-5xl text-slate-300 mb-4'></i><h1 class='text-xl font-bold text-slate-700'>${t('החנות סגורה כרגע', 'Store is currently closed')}</h1></div>`;
                 }
 
                 storeData = data;
@@ -862,6 +979,9 @@
                 }
 
                 getEl('loading-screen').classList.add('hidden');
+
+                // Apply language translations to static elements
+                _applyLangToStatic();
 
                 // הפעלת widget מטבעות אם הגיע מהארנק
                 if (window._initFlowRedeemWidget) window._initFlowRedeemWidget();
@@ -1184,13 +1304,13 @@
                 const tIds = p.targetIds || p.target_ids;
                 const bColor = p.bgColor || p.bg_color || 'pink';
 
-                let desc = pType === 'bogo' ? '1+1 מתנה!' : (pType === 'discount_pct' ? `${pVal}% הנחה` : `ב-₪${pVal} בלבד`);
+                let desc = pType === 'bogo' ? t('1+1 מתנה!', 'Buy 1 get 1 free!') : (pType === 'discount_pct' ? `${pVal}% ${t('הנחה', 'discount')}` : `₪${pVal} ${t('בלבד', 'only')}`);
                 let targetArray = [];
                 if(Array.isArray(tIds)) targetArray = tIds;
                 else if(typeof tIds === 'string') { try { targetArray = JSON.parse(tIds); } catch(e){ targetArray = [tIds]; } }
-                
+
                 const cleanCategory = (targetArray || []).join(', ').replace(/[\[\]"']/g, '').trim();
-                let targetDesc = tType === 'all' ? 'על כל החנות' : `תקף על: ${cleanCategory}`;
+                let targetDesc = tType === 'all' ? t('על כל החנות', 'Storewide') : `${t('תקף על:', 'Valid for:')} ${cleanCategory}`;
                 const bgClass = colorMap[bColor] || colorMap['pink'];
 
                 // עיצוב שקופית המבצע (הוספתי פדינג למטה כדי שיהיה מקום לנקודות)
@@ -1554,12 +1674,12 @@
             
             const tabPromos = storeData.promotions ? storeData.promotions.filter(p => isTrue(p.show_in_tab)) : [];
             if (tabPromos.length > 0) {
-                htmlTop += `<button onclick="window.filterCategory('promotions')" id="cat-btn-promotions" class="cat-btn shadow-sm bg-pink-50 text-pink-700 border-pink-200 font-bold"><i class="fa-solid fa-gift mr-1"></i> מבצעים</button>`;
-                htmlSide += `<button onclick="window.filterCategory('promotions')" id="side-btn-promotions" class="w-full text-right px-6 py-4 border-b border-slate-50 flex items-center justify-between group hover:bg-pink-50 transition text-pink-600"><span class="text-sm font-black"><i class="fa-solid fa-gift ml-1"></i> מבצעים חמים</span></button>`;
+                htmlTop += `<button onclick="window.filterCategory('promotions')" id="cat-btn-promotions" class="cat-btn shadow-sm bg-pink-50 text-pink-700 border-pink-200 font-bold"><i class="fa-solid fa-gift mr-1"></i> ${t('מבצעים', 'Deals')}</button>`;
+                htmlSide += `<button onclick="window.filterCategory('promotions')" id="side-btn-promotions" class="w-full text-right px-6 py-4 border-b border-slate-50 flex items-center justify-between group hover:bg-pink-50 transition text-pink-600"><span class="text-sm font-black"><i class="fa-solid fa-gift ml-1"></i> ${t('מבצעים חמים', 'Hot deals')}</span></button>`;
             }
-            
-            htmlTop += `<button onclick="window.filterCategory('all')" id="cat-btn-all" class="cat-btn cat-active">הכל</button>`;
-            htmlSide += `<button onclick="window.filterCategory('all')" id="side-btn-all" class="w-full text-right px-6 py-4 border-b border-slate-50 flex items-center justify-between group hover:bg-slate-50 transition side-link-active"><span class="text-sm text-slate-800">כל המוצרים</span></button>`;
+
+            htmlTop += `<button onclick="window.filterCategory('all')" id="cat-btn-all" class="cat-btn cat-active">${t('הכל', 'All')}</button>`;
+            htmlSide += `<button onclick="window.filterCategory('all')" id="side-btn-all" class="w-full text-right px-6 py-4 border-b border-slate-50 flex items-center justify-between group hover:bg-slate-50 transition side-link-active"><span class="text-sm text-slate-800">${t('כל המוצרים', 'All products')}</span></button>`;
 
             categories.forEach(cat => { 
                 const safeCat = safeStr(cat);
@@ -1591,9 +1711,9 @@ window.filterCategory = function(cat) {
 
             const breadcrumb = getEl('breadcrumb-current');
             if (breadcrumb) {
-                if (cat === 'all') breadcrumb.innerText = 'כל המוצרים';
-                else if (cat === 'promotions') breadcrumb.innerText = 'מבצעים חמים';
-                else if (cat === 'complex_view') breadcrumb.innerText = 'אירועים, קייטרינג ופרויקטים';
+                if (cat === 'all') breadcrumb.innerText = t('כל המוצרים', 'All products');
+                else if (cat === 'promotions') breadcrumb.innerText = t('מבצעים חמים', 'Hot deals');
+                else if (cat === 'complex_view') breadcrumb.innerText = t('אירועים, קייטרינג ופרויקטים', 'Events, catering & projects');
                 else breadcrumb.innerText = cat;
             }
 
@@ -1637,7 +1757,7 @@ window.renderCatalog = function() {
                 }) : [];
                 
                 if (tabPromos.length === 0) {
-                    container.innerHTML = '<p class="text-center text-slate-400 py-12">אין מבצעים זמינים כרגע.</p>';
+                    container.innerHTML = `<p class="text-center text-slate-400 py-12">${t('אין מבצעים זמינים כרגע.', 'No deals available right now.')}</p>`;
                     return;
                 }
                 
@@ -1649,13 +1769,13 @@ window.renderCatalog = function() {
                     const tIds = p.targetIds || p.target_ids;
                     const bColor = p.bgColor || p.bg_color || 'pink';
 
-                    let desc = pType === 'bogo' ? '1+1 מתנה!' : (pType === 'discount_pct' ? `${pVal}% הנחה` : `ב-₪${pVal} בלבד`);
+                    let desc = pType === 'bogo' ? t('1+1 מתנה!', 'Buy 1 get 1 free!') : (pType === 'discount_pct' ? `${pVal}% ${t('הנחה','discount')}` : `₪${pVal} ${t('בלבד','only')}`);
                     let targetArray = [];
                     if(Array.isArray(tIds)) targetArray = tIds;
                     else if(typeof tIds === 'string') { try { targetArray = JSON.parse(tIds); } catch(e){ targetArray = [tIds]; } }
-                    
+
                     const cleanCategory = (targetArray || []).join(', ').replace(/[\[\]"']/g, '').trim();
-                    let targetDesc = tType === 'all' ? 'חל על כל מוצרי החנות' : `תקף על קטגוריה: ${cleanCategory}`;
+                    let targetDesc = tType === 'all' ? t('חל על כל מוצרי החנות', 'Applies to all products') : `${t('תקף על קטגוריה:', 'Valid for category:')} ${cleanCategory}`;
                     const bgClass = colorMap[bColor] || colorMap['pink'];
                     
                     html += `
@@ -1675,7 +1795,7 @@ window.renderCatalog = function() {
             }
 
             if (!storeData.catalog || storeData.catalog.length === 0) {
-                container.innerHTML = '<p class="text-center text-slate-400 py-12">אין מוצרים זמינים.</p>';
+                container.innerHTML = `<p class="text-center text-slate-400 py-12">${t('אין מוצרים זמינים.', 'No products available.')}</p>`;
                 return;
             }
 
@@ -1698,7 +1818,7 @@ window.renderCatalog = function() {
             let html = catalogViewMode === 'grid' ? '<div class="grid grid-cols-2 sm:grid-cols-3 gap-4">' : '<div class="flex flex-col gap-4">';
 
             if (filtered.length === 0) {
-                container.innerHTML = '<p class="text-center text-slate-400 py-12">לא נמצאו תוצאות.</p>';
+                container.innerHTML = `<p class="text-center text-slate-400 py-12">${t('לא נמצאו תוצאות.', 'No results found.')}</p>`;
                 return;
             }
 
@@ -1726,8 +1846,8 @@ window.renderCatalog = function() {
                 if (appliedPromo) {
                     const pType = appliedPromo.promoType || appliedPromo.promo_type;
                     const pVal = appliedPromo.promoValue || appliedPromo.promo_value;
-                    let promoText = pType === 'bogo' ? '1+1 מתנה' : (pType === 'discount_pct' ? `${pVal}% הנחה` : `ב-₪${pVal}`);
-                    badgeHtml += `<div class="absolute top-2 left-2 bg-gradient-to-r from-pink-500 to-rose-500 text-white text-[10px] font-black px-2.5 py-1 rounded-full shadow-md z-10 border border-white/50 backdrop-blur-sm"><i class="fa-solid fa-gift mr-1 text-[9px]"></i> מבצע: ${promoText}</div>`;
+                    let promoText = pType === 'bogo' ? t('1+1 מתנה', 'Buy 1 get 1') : (pType === 'discount_pct' ? `${pVal}% ${t('הנחה','off')}` : `₪${pVal}`);
+                    badgeHtml += `<div class="absolute top-2 left-2 bg-gradient-to-r from-pink-500 to-rose-500 text-white text-[10px] font-black px-2.5 py-1 rounded-full shadow-md z-10 border border-white/50 backdrop-blur-sm"><i class="fa-solid fa-gift mr-1 text-[9px]"></i> ${t('מבצע:', 'Deal:')} ${promoText}</div>`;
                 }
 
                 if (item.badge_text) {
@@ -1755,28 +1875,28 @@ window.renderCatalog = function() {
                 if (!_hidePrice && orig && orig > curr && item.product_type !== 'complex_builder') {
                     priceHtml = `
                         <div class="flex flex-col">
-                            <span class="text-[9px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-bold w-fit mb-1 border border-emerald-200">מחיר קהילה ✨</span>
+                            <span class="text-[9px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded font-bold w-fit mb-1 border border-emerald-200">${t('מחיר קהילה ✨', 'Member price ✨')}</span>
                             <div class="flex items-center gap-2">
                                 <span class="text-xs text-slate-400 line-through">₪${orig}</span>
                                 <span class="font-black text-emerald-600 text-base">₪${curr}</span>
                             </div>
                         </div>`;
                 } else if (_hidePrice) {
-                    priceHtml = `<span class="text-[10px] font-bold text-slate-400">מחיר לפי בחירה</span>`;
+                    priceHtml = `<span class="text-[10px] font-bold text-slate-400">${t('מחיר לפי בחירה', 'Price by selection')}</span>`;
                 } else {
                     priceHtml = `<span class="font-black text-slate-900 text-sm">₪${curr}</span>`;
                 }
 
                 const pType = item.product_type || 'retail';
-                let btnText = 'פרטים והוספה';
+                let btnText = t('פרטים והוספה', 'Details & add');
                 let onclickAction = `window.openProductModal(${item.id}); event.stopPropagation();`;
-                
-                if (pType === 'pizza_builder') btnText = 'הרכב פיצה';
-                else if (pType === 'service') btnText = 'הזמן שירות';
-                else if (pType === 'food') btnText = 'בחר מנה';
-                else if (pType === 'bundle') { btnText = 'הרכב סט'; }
+
+                if (pType === 'pizza_builder') btnText = t('הרכב פיצה', 'Build pizza');
+                else if (pType === 'service') btnText = t('📅 הזמן שירות', '📅 Book service');
+                else if (pType === 'food') btnText = t('בחר מנה', 'Choose item');
+                else if (pType === 'bundle') { btnText = t('📦 בחר חבילה', '📦 Choose bundle'); }
                 else if (pType === 'complex_builder') {
-                    btnText = 'צפייה במפרט';
+                    btnText = t('📋 צפייה במפרט', '📋 View specs');
                     onclickAction = `window.openComplexProductModal(${item.id}); event.stopPropagation();`;
                 }
 
@@ -1795,7 +1915,7 @@ window.renderCatalog = function() {
                             <button onclick="window.updateCart('${cartKey}', 1, '${escapedName}', ${item.price}, ${item.id}); event.stopPropagation();" class="w-9 h-8 flex items-center justify-center text-emerald-700 font-black text-lg hover:bg-emerald-100 transition shrink-0" style="touch-action:manipulation;">+</button>
                         </div>`;
                     } else {
-                        actionHtml += `<button onclick="window.updateCart('item_${item.id}', 1, '${escapedName}', ${item.price}, ${item.id}); event.stopPropagation();" class="bg-emerald-500 hover:bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition w-full border border-emerald-600 shadow-sm mt-2" style="touch-action:manipulation;">הוסף</button>`;
+                        actionHtml += `<button onclick="window.updateCart('item_${item.id}', 1, '${escapedName}', ${item.price}, ${item.id}); event.stopPropagation();" class="bg-emerald-500 hover:bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition w-full border border-emerald-600 shadow-sm mt-2" style="touch-action:manipulation;">${t('הוסף', 'Add')}</button>`;
                     }
                 }
 
@@ -1867,7 +1987,7 @@ window.renderCatalog = function() {
             else { imgPreview.classList.add('hidden'); placeholder.classList.remove('hidden'); }
 
             const pType = item.product_type || 'retail';
-            getEl('prod-btn-text').innerText = pType === 'pizza_builder' ? 'הוסף מגש לסל' : pType === 'bundle' ? 'הוסף סט לסל' : 'הוסף לסל';
+            getEl('prod-btn-text').innerText = pType === 'pizza_builder' ? t('הוסף מגש לסל', 'Add pizza to cart') : pType === 'bundle' ? t('הוסף סט לסל', 'Add bundle to cart') : t('הוסף לסל', 'Add to cart');
 
             let options = [];
             try { options = JSON.parse(item.options_text); } catch(e) { options = []; }
@@ -2257,7 +2377,7 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
                 getEl('cart-count').innerText = calc.totalQty;
                 getEl('cart-total').innerText = `₪${calc.finalTotal.toFixed(2)}`;
                 if (btnText) {
-                    btnText.innerText = calc.hasComplexItems ? 'בקשת הצעת מחיר' : 'לתשלום';
+                    btnText.innerText = calc.hasComplexItems ? t('בקשת הצעת מחיר', 'Request quote') : t('לתשלום', 'Checkout');
                 }
                 footer.classList.remove('hidden');
             } else footer.classList.add('hidden');
@@ -2301,7 +2421,7 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
             const calc = window.calculateCartDetails();
             
             if (calc.totalQty === 0) {
-                showToast('info', 'העגלה ריקה');
+                showToast('info', t('העגלה ריקה', 'Cart is empty'));
                 return;
             }
 
@@ -2326,9 +2446,9 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
                 const bizHasLoc = !!storeData?.bizLat;
                 const hasRadiusZones = storeData?.radiusZones?.length && bizHasLoc;
                 if (bizHasLoc && !storeData?.radiusZones?.length) {
-                    itemsHtml += `<div class="flex items-center gap-2 py-3 mt-2 bg-red-50 px-3 rounded-xl mb-2 border border-red-200"><i class="fa-solid fa-circle-xmark text-red-400"></i><span class="text-red-600 text-sm font-bold">העסק אינו מציע משלוח כרגע</span></div>`;
+                    itemsHtml += `<div class="flex items-center gap-2 py-3 mt-2 bg-red-50 px-3 rounded-xl mb-2 border border-red-200"><i class="fa-solid fa-circle-xmark text-red-400"></i><span class="text-red-600 text-sm font-bold">${t('העסק אינו מציע משלוח כרגע', 'This business does not offer delivery currently')}</span></div>`;
                 } else if (hasRadiusZones && _computedRadiusDelFee === false) {
-                    itemsHtml += `<div class="flex items-center gap-2 py-3 mt-2 bg-red-50 px-3 rounded-xl mb-2 border border-red-200"><i class="fa-solid fa-circle-xmark text-red-400"></i><span class="text-red-600 text-sm font-bold">הכתובת מחוץ לאזור המשלוח של העסק</span></div>`;
+                    itemsHtml += `<div class="flex items-center gap-2 py-3 mt-2 bg-red-50 px-3 rounded-xl mb-2 border border-red-200"><i class="fa-solid fa-circle-xmark text-red-400"></i><span class="text-red-600 text-sm font-bold">${t('הכתובת מחוץ לאזור המשלוח של העסק', 'Address is outside the delivery area')}</span></div>`;
                 } else {
                     if (hasRadiusZones && typeof _computedRadiusDelFee === 'number') {
                         delFee = _computedRadiusDelFee;
@@ -2336,7 +2456,7 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
                         delFee = parseFloat(storeData.settings?.delivery_fee) || 30;
                     }
                     const feeNote = hasRadiusZones ? `<span class="checkout-radius-fee-note text-[10px] text-slate-400 mr-1"></span>` : '';
-                    itemsHtml += `<div class="flex justify-between items-center py-3 mt-2 bg-indigo-50/50 px-3 rounded-xl mb-2 border border-indigo-100"><div class="flex items-center gap-3"><div class="w-7 h-7 flex items-center justify-center text-indigo-500"><i class="fa-solid fa-motorcycle"></i></div><span class="font-bold text-indigo-800 text-sm">דמי משלוח</span>${feeNote}</div><div class="flex items-center gap-3"><span class="font-bold text-slate-900 text-sm">₪${delFee.toFixed(2)}</span></div></div>`;
+                    itemsHtml += `<div class="flex justify-between items-center py-3 mt-2 bg-indigo-50/50 px-3 rounded-xl mb-2 border border-indigo-100"><div class="flex items-center gap-3"><div class="w-7 h-7 flex items-center justify-center text-indigo-500"><i class="fa-solid fa-motorcycle"></i></div><span class="font-bold text-indigo-800 text-sm">${t('דמי משלוח', 'Delivery fee')}</span>${feeNote}</div><div class="flex items-center gap-3"><span class="font-bold text-slate-900 text-sm">₪${delFee.toFixed(2)}</span></div></div>`;
                 }
             }
             
@@ -2366,7 +2486,7 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
                 const vatAmount = totalWithDelivery * vatRate / (100 + vatRate);
                 getEl('checkout-total').parentElement.insertAdjacentHTML('afterend',
                     `<div id="checkout-vat-msg" class="flex items-center justify-between text-xs text-slate-500 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100 mt-1">
-                        <span>מתוכם מע"מ ${vatRate}% (מגולם)</span>
+                        <span>${t('מתוכם מע"מ', 'Incl. VAT')} ${vatRate}% ${t('(מגולם)', '(included)')}</span>
                         <span>₪${vatAmount.toFixed(2)}</span>
                     </div>`);
             }
@@ -2374,24 +2494,24 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
             // Promo discount line (in addition to community discount)
             if (hasPromo && calc.discountAmount > 0) {
                 const promoLabel = isFlowCode
-                    ? `🪙 קוד מטבעות ${window._appliedPromo.code}`
-                    : `🏷️ קוד מבצע ${parseFloat(window._appliedPromo.discount).toFixed(0)}%`;
+                    ? `🪙 ${t('קוד מטבעות', 'Coins code')} ${window._appliedPromo.code}`
+                    : `🏷️ ${t('קוד מבצע', 'Promo code')} ${parseFloat(window._appliedPromo.discount).toFixed(0)}%`;
                 getEl('checkout-total').parentElement.insertAdjacentHTML('afterend',
                     `<div id="checkout-discount-msg" class="flex items-center justify-between text-xs font-bold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-100 mt-1">
                         <span>${promoLabel}</span>
-                        <span>חסכת ₪${(isFlowCode ? parseFloat(window._appliedPromo.flowDiscountIls) : calc.discountAmount).toFixed(2)}</span>
+                        <span>${t('חסכת', 'You saved')} ₪${(isFlowCode ? parseFloat(window._appliedPromo.flowDiscountIls) : calc.discountAmount).toFixed(2)}</span>
                     </div>`);
             } else if (calc.discountAmount > 0) {
                 getEl('checkout-total').parentElement.insertAdjacentHTML('afterend',
-                    `<div id="checkout-discount-msg" class="text-xs font-bold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-100 mt-1">חסכת ₪${calc.discountAmount.toFixed(2)} במבצעים!</div>`);
+                    `<div id="checkout-discount-msg" class="text-xs font-bold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-100 mt-1">${t('חסכת', 'You saved')} ₪${calc.discountAmount.toFixed(2)} ${t('במבצעים!', 'in deals!')}</div>`);
             }
 
             // Community discount line
             if (storeData.communityData && storeData.communityData.discount_active && commSavingTotal > 0) {
                 getEl('checkout-total').parentElement.insertAdjacentHTML('afterend',
                     `<div id="checkout-community-msg" class="flex items-center justify-between text-xs font-bold text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-100 mt-1">
-                        <span><i class="fa-solid fa-house-flag mr-1"></i> הנחת קהילה ${storeData.communityData.discount_pct}%</span>
-                        <span>חסכת ₪${commSavingTotal.toFixed(2)}</span>
+                        <span><i class="fa-solid fa-house-flag mr-1"></i> ${t('הנחת קהילה', 'Community discount')} ${storeData.communityData.discount_pct}%</span>
+                        <span>${t('חסכת', 'You saved')} ₪${commSavingTotal.toFixed(2)}</span>
                     </div>`);
             }
 
@@ -2400,8 +2520,8 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
             if (calc.flowDiscount > 0) {
                 getEl('checkout-total').parentElement.insertAdjacentHTML('afterend',
                     `<div id="checkout-flow-msg" class="flex items-center justify-between text-xs font-bold text-amber-700 bg-amber-50 px-3 py-1.5 rounded-lg border border-amber-200 mt-1">
-                        <span>⚡ מימוש ${_flowRedeemParams.currentAmount} Flw</span>
-                        <span>הנחה ₪${calc.flowDiscount.toFixed(2)}</span>
+                        <span>⚡ ${t('מימוש', 'Redeem')} ${_flowRedeemParams.currentAmount} Flw</span>
+                        <span>${t('הנחה', 'Discount')} ₪${calc.flowDiscount.toFixed(2)}</span>
                     </div>`);
             }
             
@@ -2410,15 +2530,15 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
             
             if (window._isProfessionalStore) {
                 // שירותי מומחים — אין פיקאפ/משלוח/בחירת זמן
-                if(modalTitle) modalTitle.innerText = 'הזמנת שירות';
-                if(btnSubmit) btnSubmit.innerHTML = `<span>שליחת בקשה לשירות</span> <span id="final-submit-price" class="text-sm font-medium bg-white/20 px-2 py-0.5 rounded ml-1">(₪${totalWithDelivery.toFixed(2)})</span> <i class="fa-solid fa-paper-plane"></i>`;
+                if(modalTitle) modalTitle.innerText = t('הזמנת שירות', 'Book service');
+                if(btnSubmit) btnSubmit.innerHTML = `<span>${t('שליחת בקשה לשירות', 'Send service request')}</span> <span id="final-submit-price" class="text-sm font-medium bg-white/20 px-2 py-0.5 rounded ml-1">(₪${totalWithDelivery.toFixed(2)})</span> <i class="fa-solid fa-paper-plane"></i>`;
                 getEl('btn-delivery-false').parentElement.classList.add('hidden');
                 if(!skipToggle) window.toggleDelivery(false, true);
                 const timeSec = getEl('checkout-time-section');
                 if(timeSec) timeSec.classList.add('hidden');
             } else if (calc.hasComplexItems) {
-                if(modalTitle) modalTitle.innerText = 'בקשה להצעת מחיר / אירוע';
-                if(btnSubmit) btnSubmit.innerHTML = `<span>שליחת בקשה להצעת מחיר</span> <i class="fa-solid fa-file-invoice"></i>`;
+                if(modalTitle) modalTitle.innerText = t('בקשה להצעת מחיר / אירוע', 'Quote / event request');
+                if(btnSubmit) btnSubmit.innerHTML = `<span>${t('שליחת בקשה להצעת מחיר', 'Send quote request')}</span> <i class="fa-solid fa-file-invoice"></i>`;
 
                 getEl('btn-delivery-false').parentElement.classList.add('hidden');
                 const timeSec2 = getEl('checkout-time-section');
@@ -2431,8 +2551,8 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
                 getEl('btn-time-future').classList.add('w-full');
                 if(!skipToggle) window.toggleTargetTime('future');
             } else {
-                if(modalTitle) modalTitle.innerText = 'העגלה שלך';
-                if(btnSubmit) btnSubmit.innerHTML = `<span>סיום ושליחת הזמנה</span> <span id="final-submit-price" class="text-sm font-medium bg-white/20 px-2 py-0.5 rounded ml-1">(₪${totalWithDelivery.toFixed(2)})</span> <i class="fa-solid fa-paper-plane"></i>`;
+                if(modalTitle) modalTitle.innerText = t('העגלה שלך', 'Your cart');
+                if(btnSubmit) btnSubmit.innerHTML = `<span>${t('סיום ושליחת הזמנה', 'Place order')}</span> <span id="final-submit-price" class="text-sm font-medium bg-white/20 px-2 py-0.5 rounded ml-1">(₪${totalWithDelivery.toFixed(2)})</span> <i class="fa-solid fa-paper-plane"></i>`;
 
                 getEl('btn-delivery-false').parentElement.classList.remove('hidden');
                 const timeSec3 = getEl('checkout-time-section');
@@ -2529,11 +2649,11 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
             const section = document.getElementById('flow-redeem-section');
             if (section) {
                 const labelEl = document.getElementById('flow-redeem-balance-label');
-                if (labelEl) labelEl.textContent = `⚡ יתרה: ${Math.floor(initialBal)} Flw`;
+                if (labelEl) labelEl.textContent = `⚡ ${t('יתרה:', 'Balance:')} ${Math.floor(initialBal)} Flw`;
                 const input = document.getElementById('flow-redeem-input');
                 if (input) { input.max = Math.floor(initialBal); input.min = 0; input.value = 0; }
                 const hintEl = document.getElementById('flow-redeem-hint');
-                if (hintEl) hintEl.textContent = `כל 100 Flw = ₪10 הנחה · מינימום 100 Flw`;
+                if (hintEl) hintEl.textContent = `${t('כל', 'Every')} 100 Flw = ₪10 ${t('הנחה · מינימום', 'discount · minimum')} 100 Flw`;
                 section.classList.remove('hidden');
             }
             fetch(`${API}/flow/wallet/family/${familyGroupId}`)
@@ -2546,11 +2666,11 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
                     const minR = _flowRedeemParams.minRedeem;
                     const rate = _flowRedeemParams.rate;
                     const lbl = document.getElementById('flow-redeem-balance-label');
-                    if (lbl) lbl.textContent = `⚡ יתרה: ${Math.floor(bal)} Flw`;
+                    if (lbl) lbl.textContent = `⚡ ${t('יתרה:', 'Balance:')} ${Math.floor(bal)} Flw`;
                     const inp = document.getElementById('flow-redeem-input');
                     if (inp) { inp.max = Math.floor(bal); }
                     const hint = document.getElementById('flow-redeem-hint');
-                    if (hint) hint.textContent = `כל ${rate} Flw = ₪10 הנחה · מינימום ${minR} Flw`;
+                    if (hint) hint.textContent = `${t('כל', 'Every')} ${rate} Flw = ₪10 ${t('הנחה · מינימום', 'discount · minimum')} ${minR} Flw`;
                     if (bal <= 0) { document.getElementById('flow-redeem-section')?.classList.add('hidden'); }
                 })
                 .catch(() => {});
@@ -2631,8 +2751,8 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
             const msg = document.getElementById('promo-code-msg');
             const code = (input?.value || '').trim().toUpperCase();
             msg.className = 'text-xs font-bold mt-1.5 px-2';
-            if (!code) { msg.textContent = 'הכנס קוד מבצע'; msg.classList.add('text-red-500'); msg.classList.remove('hidden'); return; }
-            msg.textContent = 'בודק...'; msg.classList.remove('hidden', 'text-red-500', 'text-green-600');
+            if (!code) { msg.textContent = t('הכנס קוד מבצע', 'Enter promo code'); msg.classList.add('text-red-500'); msg.classList.remove('hidden'); return; }
+            msg.textContent = t('בודק...', 'Checking...'); msg.classList.remove('hidden', 'text-red-500', 'text-green-600');
             try {
                 const urlP = new URLSearchParams(window.location.search);
                 const cid = urlP.get('communityId');
@@ -2648,13 +2768,13 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
                     if (flData.success) {
                         clearProductPromoBanner();
                         window._appliedPromo = { code, type: 'flow_code', discount: 0, flowDiscountIls: flData.discountIls };
-                        msg.textContent = `✓ קוד מטבעות אושר! הנחה של ₪${parseFloat(flData.discountIls).toFixed(2)}`;
+                        msg.textContent = `✓ ${t('קוד מטבעות אושר! הנחה של', 'Coins code approved! Discount of')} ₪${parseFloat(flData.discountIls).toFixed(2)}`;
                         msg.classList.add('text-green-600');
                         if (window.updateCartFooter) window.updateCartFooter();
                         if (window.openCheckoutModal) window.openCheckoutModal(true);
                     } else {
                         window._appliedPromo = null;
-                        msg.textContent = flData.error || 'קוד לא תקין או כבר נוצל';
+                        msg.textContent = flData.error || t('קוד לא תקין או כבר נוצל', 'Invalid code or already used');
                         msg.classList.add('text-red-500');
                     }
                     return;
@@ -2667,7 +2787,7 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
                     if (couponData.success && couponData.coupon) {
                         clearProductPromoBanner();
                         window._appliedPromo = { code, couponId: couponData.coupon.id, discount: couponData.coupon.discount_pct, type: 'store_coupon' };
-                        msg.textContent = `✓ קופון אושר! הנחה של ${couponData.coupon.discount_pct}%`;
+                        msg.textContent = `✓ ${t('קופון אושר! הנחה של', 'Coupon approved! Discount of')} ${couponData.coupon.discount_pct}%`;
                         msg.classList.add('text-green-600');
                         if (window.updateCartFooter) window.updateCartFooter();
                         if (window.openCheckoutModal) window.openCheckoutModal(true);
@@ -2678,7 +2798,7 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
                 // Then try community promo code (only if communityId exists)
                 if (!cid) {
                     window._appliedPromo = null; clearProductPromoBanner();
-                    msg.textContent = 'קוד לא תקין או פג תוקף';
+                    msg.textContent = t('קוד לא תקין או פג תוקף', 'Invalid or expired code');
                     msg.classList.add('text-red-500');
                     return;
                 }
@@ -2699,14 +2819,14 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
                             conditionItemName: p.condition_item_name || null,
                             conditionCategory: p.condition_category || null
                         };
-                        const priceLabel = isFree ? 'חינם 🎁' : `₪${promoPrice.toFixed(2)}`;
-                        msg.textContent = `✓ מבצע: ${p.product_name} ב${priceLabel}! הוסף לעגלה ↓`;
+                        const priceLabel = isFree ? t('חינם 🎁', 'Free 🎁') : `₪${promoPrice.toFixed(2)}`;
+                        msg.textContent = `✓ ${t('מבצע:', 'Deal:')} ${p.product_name} ${t('ב', 'at')}${priceLabel}! ${t('הוסף לעגלה ↓', 'Add to cart ↓')}`;
                         msg.classList.add('text-green-600');
                         // Show product promo banner
                         renderProductPromoBanner(p);
                     } else {
                         window._appliedPromo = { code, promoId: p.id, discount: p.discount_pct, type: 'community_promo', promoType: 'discount' };
-                        msg.textContent = `✓ קוד מבצע קהילה אושר! הנחה של ${p.discount_pct}% — ${p.title}`;
+                        msg.textContent = `✓ ${t('קוד מבצע קהילה אושר! הנחה של', 'Community promo approved! Discount of')} ${p.discount_pct}% — ${p.title}`;
                         msg.classList.add('text-green-600');
                         if (window.updateCartFooter) window.updateCartFooter();
                         if (window.openCheckoutModal) window.openCheckoutModal(true);
@@ -2725,9 +2845,9 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
 
         function getConditionLabel(p) {
             const ct = p.condition_type || 'none';
-            if (ct === 'min_amount' && p.condition_value) return `בקניה מעל ₪${parseFloat(p.condition_value).toFixed(0)}`;
-            if (ct === 'product' && p.condition_item_name) return `בקניית ${p.condition_item_name}`;
-            if (ct === 'category' && p.condition_category) return `בקניית פריט מ"${p.condition_category}"`;
+            if (ct === 'min_amount' && p.condition_value) return `${t('בקניה מעל', 'On purchase over')} ₪${parseFloat(p.condition_value).toFixed(0)}`;
+            if (ct === 'product' && p.condition_item_name) return `${t('בקניית', 'When buying')} ${p.condition_item_name}`;
+            if (ct === 'category' && p.condition_category) return `${t('בקניית פריט מ', 'When buying from')} "${p.condition_category}"`;
             return null;
         }
 
@@ -2737,11 +2857,11 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
             const calc = window.calculateCartDetails ? window.calculateCartDetails() : null;
             if (promo.conditionType === 'min_amount') {
                 const total = calc ? calc.baseTotal : 0;
-                if (total < promo.conditionValue) return { ok: false, reason: `יש להוסיף לסל לפחות ₪${promo.conditionValue.toFixed(0)} (כרגע ₪${total.toFixed(0)})` };
+                if (total < promo.conditionValue) return { ok: false, reason: `${t('יש להוסיף לסל לפחות', 'Add at least')} ₪${promo.conditionValue.toFixed(0)} (${t('כרגע', 'now')} ₪${total.toFixed(0)})` };
             }
             if (promo.conditionType === 'product') {
                 const hasItem = Object.values(cart).some(i => i.catalogId == promo.conditionItemId && !i.isPromoProduct);
-                if (!hasItem) return { ok: false, reason: `יש לרכוש ${promo.conditionItemName || 'את המוצר הנדרש'} כדי לקבל את המתנה` };
+                if (!hasItem) return { ok: false, reason: `${t('יש לרכוש', 'Please purchase')} ${promo.conditionItemName || t('את המוצר הנדרש', 'the required product')} ${t('כדי לקבל את המתנה', 'to receive the gift')}` };
             }
             if (promo.conditionType === 'category') {
                 const hasCategory = Object.values(cart).some(i => {
@@ -2749,7 +2869,7 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
                     const catItem = storeData?.catalog?.find(c => String(c.id) === String(i.catalogId));
                     return catItem && catItem.category === promo.conditionCategory;
                 });
-                if (!hasCategory) return { ok: false, reason: `יש להוסיף לסל פריט מקטגוריית "${promo.conditionCategory}"` };
+                if (!hasCategory) return { ok: false, reason: `${t('יש להוסיף לסל פריט מקטגוריית', 'Add an item from category')} "${promo.conditionCategory}"` };
             }
             return { ok: true };
         }
@@ -2766,19 +2886,19 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
             const isFree = parseFloat(p.product_promo_price) === 0;
             const promoPrice = parseFloat(p.product_promo_price);
             const origPrice = parseFloat(p.product_original_price);
-            const priceLabel = isFree ? '<span class="text-green-600 font-black">חינם 🎁</span>' : `<span class="text-green-600 font-black">₪${promoPrice.toFixed(2)}</span> <span class="line-through text-slate-400 text-xs">₪${origPrice.toFixed(2)}</span>`;
+            const priceLabel = isFree ? `<span class="text-green-600 font-black">${t('חינם 🎁', 'Free 🎁')}</span>` : `<span class="text-green-600 font-black">₪${promoPrice.toFixed(2)}</span> <span class="line-through text-slate-400 text-xs">₪${origPrice.toFixed(2)}</span>`;
             const condLabel = getConditionLabel(p);
             const cond = checkPromoCondition();
             banner.className = 'mx-3 mb-2 bg-green-50 border border-green-200 rounded-xl p-3 flex items-center justify-between gap-2';
             banner.innerHTML = `
                 <div class="flex-1 min-w-0">
-                    <div class="text-xs font-bold text-green-700 mb-0.5">🎁 מבצע מיוחד לקהילה</div>
+                    <div class="text-xs font-bold text-green-700 mb-0.5">🎁 ${t('מבצע מיוחד לקהילה', 'Special community deal')}</div>
                     <div class="text-sm font-bold text-slate-800 truncate">${safeStr(p.product_name)}</div>
                     <div class="text-sm mb-1">${priceLabel}</div>
                     ${condLabel ? `<div class="text-xs text-amber-600 font-semibold">⚡ ${condLabel}</div>` : ''}
                     ${!cond.ok ? `<div class="text-xs text-red-500 mt-1">${cond.reason}</div>` : ''}
                 </div>
-                <button onclick="addPromoProductToCart()" ${!cond.ok ? 'disabled' : ''} class="shrink-0 text-xs font-bold px-3 py-2 rounded-xl transition ${cond.ok ? 'bg-green-500 text-white hover:bg-green-600' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}">הוסף לעגלה</button>`;
+                <button onclick="addPromoProductToCart()" ${!cond.ok ? 'disabled' : ''} class="shrink-0 text-xs font-bold px-3 py-2 rounded-xl transition ${cond.ok ? 'bg-green-500 text-white hover:bg-green-600' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}">${t('הוסף לעגלה', 'Add to cart')}</button>`;
         }
 
         window.addPromoProductToCart = function() {
@@ -2797,7 +2917,7 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
                 cart[key] = { catalogId: id, name, price, qty: 1, isPromoProduct: true };
             }
             if (window.updateCartFooter) window.updateCartFooter();
-            showToast && showToast('success', `${name} נוסף לעגלה!`);
+            showToast && showToast('success', `${name} ${t('נוסף לעגלה!', 'added to cart!')}`);
             // Re-render banner to update button state
             if (promo.conditionType && promo.conditionType !== 'none') {
                 renderProductPromoBanner({
@@ -2813,7 +2933,7 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
             e.preventDefault();
             const btn = getEl('btn-submit-order'); 
             btn.disabled = true; 
-            btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i> מעבד...';
+            btn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> ${t('מעבד...', 'Processing...')}`;
 
             const calc = window.calculateCartDetails();
             const items = [];
@@ -2824,9 +2944,9 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
             // בדיקת דמי משלוח וכתובת - רק להזמנות רגילות
             if (isDelivery && !calc.hasComplexItems) {
                 if (!val('cust-city') || !val('cust-street') || !val('cust-house')) {
-                    showToast('error', 'חובה למלא עיר, רחוב ומספר בית למשלוח');
+                    showToast('error', t('חובה למלא עיר, רחוב ומספר בית למשלוח', 'Please fill in city, street and house number for delivery'));
                     btn.disabled = false;
-                    btn.innerHTML = `<span>סיום ושליחת הזמנה</span> <span class="text-sm font-medium bg-white/20 px-2 py-0.5 rounded ml-1">(₪${(calc.finalTotal + (parseFloat(storeData.settings?.delivery_fee) || 30)).toFixed(2)})</span> <i class="fa-solid fa-paper-plane"></i>`;
+                    btn.innerHTML = `<span>${t('סיום ושליחת הזמנה', 'Place order')}</span> <span class="text-sm font-medium bg-white/20 px-2 py-0.5 rounded ml-1">(₪${(calc.finalTotal + (parseFloat(storeData.settings?.delivery_fee) || 30)).toFixed(2)})</span> <i class="fa-solid fa-paper-plane"></i>`;
                     return;
                 }
             }
@@ -2836,9 +2956,9 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
             
             // חסימה: פרויקטים וקייטרינג מחייבים תאריך משוער
             if (calc.hasComplexItems && (timeType !== 'future' || !targetTimeVal)) {
-                btn.disabled = false; 
-                btn.innerHTML = `<span>שליחת בקשה להצעת מחיר</span> <i class="fa-solid fa-file-invoice"></i>`;
-                return showToast('error', 'חובה לבחור תאריך משוער לפרויקט / אירוע');
+                btn.disabled = false;
+                btn.innerHTML = `<span>${t('שליחת בקשה להצעת מחיר', 'Send quote request')}</span> <i class="fa-solid fa-file-invoice"></i>`;
+                return showToast('error', t('חובה לבחור תאריך משוער לפרויקט / אירוע', 'Please select an estimated date for the project / event'));
             }
 
             const _bizHasLocation = !!storeData?.bizLat;
@@ -2847,13 +2967,13 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
             if (isDelivery && !calc.hasComplexItems && _bizHasLocation) {
                 if (!storeData?.radiusZones?.length) {
                     btn.disabled = false;
-                    btn.innerHTML = `<span>סיום ושליחת הזמנה</span> <i class="fa-solid fa-paper-plane"></i>`;
-                    return showToast('error', 'העסק אינו מציע משלוח כרגע');
+                    btn.innerHTML = `<span>${t('סיום ושליחת הזמנה', 'Place order')}</span> <i class="fa-solid fa-paper-plane"></i>`;
+                    return showToast('error', t('העסק אינו מציע משלוח כרגע', 'This business does not offer delivery currently'));
                 }
                 if (_computedRadiusDelFee === false) {
                     btn.disabled = false;
-                    btn.innerHTML = `<span>סיום ושליחת הזמנה</span> <i class="fa-solid fa-paper-plane"></i>`;
-                    return showToast('error', 'הכתובת שהזנת מחוץ לאזור המשלוח של העסק');
+                    btn.innerHTML = `<span>${t('סיום ושליחת הזמנה', 'Place order')}</span> <i class="fa-solid fa-paper-plane"></i>`;
+                    return showToast('error', t('הכתובת שהזנת מחוץ לאזור המשלוח של העסק', 'The address you entered is outside the delivery area'));
                 }
             }
             const _baseDelFee = parseFloat(storeData.settings?.delivery_fee) || 30;
@@ -2968,20 +3088,20 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
                     
                     const successMsg = getEl('success-message-text');
                     if (calc.hasComplexItems && successMsg) {
-                        successMsg.innerText = 'בקשתך התקבלה! הצעת מחיר מסודרת תשלח אליך בהקדם.';
+                        successMsg.innerText = t('בקשתך התקבלה! הצעת מחיר מסודרת תשלח אליך בהקדם.', 'Your request has been received! A detailed quote will be sent shortly.');
                     } else if (successMsg) {
-                        successMsg.innerText = 'ההזמנה התקבלה ותטופל בהקדם.';
+                        successMsg.innerText = t('ההזמנה התקבלה ותטופל בהקדם.', 'Your order has been received and will be processed shortly.');
                     }
-                    
-                    getEl('success-screen').classList.remove('hidden'); 
-                } else { showToast('error', data.error || 'אירעה שגיאה'); }
-            } catch(err) { showToast('error', 'שגיאת תקשורת מול השרת'); } 
-            finally { 
-                btn.disabled = false; 
+
+                    getEl('success-screen').classList.remove('hidden');
+                } else { showToast('error', data.error || t('אירעה שגיאה', 'An error occurred')); }
+            } catch(err) { showToast('error', t('שגיאת תקשורת מול השרת', 'Communication error')); }
+            finally {
+                btn.disabled = false;
                 if (calc.hasComplexItems) {
-                    btn.innerHTML = `<span>שליחת בקשה להצעת מחיר</span> <i class="fa-solid fa-file-invoice"></i>`;
+                    btn.innerHTML = `<span>${t('שליחת בקשה להצעת מחיר', 'Send quote request')}</span> <i class="fa-solid fa-file-invoice"></i>`;
                 } else {
-                    btn.innerHTML = `<span>סיום ושליחת הזמנה</span> <span id="final-submit-price" class="text-sm font-medium bg-white/20 px-2 py-0.5 rounded ml-1">(₪${finalTotalWithDelivery.toFixed(2)})</span> <i class="fa-solid fa-paper-plane"></i>`; 
+                    btn.innerHTML = `<span>${t('סיום ושליחת הזמנה', 'Place order')}</span> <span id="final-submit-price" class="text-sm font-medium bg-white/20 px-2 py-0.5 rounded ml-1">(₪${finalTotalWithDelivery.toFixed(2)})</span> <i class="fa-solid fa-paper-plane"></i>`;
                 }
             }
         };
@@ -3091,7 +3211,7 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
             const svcSelect = getEl('book-service');
             if (svcSelect) {
                 if (storeData.calendarServices && storeData.calendarServices.length > 0) {
-                    svcSelect.innerHTML = storeData.calendarServices.map(s => `<option value="${s.id}">${safeStr(s.name)} (~${s.duration_mins} דק')</option>`).join('');
+                    svcSelect.innerHTML = storeData.calendarServices.map(s => `<option value="${s.id}">${safeStr(s.name)} (~${s.duration_mins} ${t("דק'", "min")})</option>`).join('');
                 } else {
                     svcSelect.innerHTML = isRestaurantType
                         ? '<option value="">אירוע / איסוף</option>'

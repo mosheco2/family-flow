@@ -59,7 +59,7 @@ input,select,textarea{font-family:inherit}
 /* Hero */
 #hero{background:var(--green);padding:clamp(32px,5vw,52px) 20px clamp(24px,3vw,36px);position:relative;overflow:hidden}
 #hero-banner-bg{position:absolute;inset:0;background-size:cover;background-position:center;opacity:1;pointer-events:none}
-#hero-banner-bg::after{content:'';position:absolute;inset:0;background:var(--green);opacity:.48}
+#hero-banner-bg::after{content:'';position:absolute;inset:0;background:linear-gradient(to right,rgba(0,0,0,.25) 0%,var(--green) 55%);opacity:.72}
 #hero-leaves{position:absolute;top:-30%;left:-5%;width:50%;height:180%;border-radius:50%;background:var(--accent);filter:blur(100px);opacity:.2;pointer-events:none}
 .hero-inner{position:relative;z-index:1;max-width:1100px;margin:0 auto}
 #hero-eyebrow{display:inline-flex;align-items:center;gap:8px;padding:4px 14px;border-radius:99px;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.08);font-size:11.5px;font-weight:600;color:rgba(255,255,255,.8);margin-bottom:14px;letter-spacing:.04em}
@@ -357,7 +357,10 @@ input,select,textarea{font-family:inherit}
     </div>
     <h1 id="hero-title-text"></h1>
     <p id="hero-sub"></p>
-    <div id="quick-actions" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px"></div>
+    <div id="quick-actions" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px"></div>
+    <div style="margin-bottom:16px">
+      <button onclick="toggleLang()" style="display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border:1px solid rgba(255,255,255,.22);border-radius:99px;background:rgba(255,255,255,.08);color:rgba(255,255,255,.88);font-size:12.5px;cursor:pointer">🌐 <span id="lang-label">English</span></button>
+    </div>
     <div id="hero-stats"></div>
   </div>
 </section>
@@ -581,6 +584,88 @@ input,select,textarea{font-family:inherit}
 </div>
 
 <script>
+/* ── Lang ── */
+const _langParam = new URLSearchParams(window.location.search).get('lang') || 'he';
+let isEn = _langParam === 'en';
+function t(he, en) { return isEn ? en : he; }
+function toggleLang() {
+  const params = new URLSearchParams(window.location.search);
+  params.set('lang', isEn ? 'he' : 'en');
+  window.location.search = params.toString();
+}
+// Update loading screen text immediately (before initStore)
+if (isEn) {
+  const _ls = document.getElementById('loading-screen');
+  if (_ls) { const _ld = _ls.querySelector('div:last-child'); if (_ld) _ld.textContent = 'Loading store...'; }
+}
+function applyStaticTranslations() {
+  if (!isEn) return;
+  const setTxt = (id, txt) => { const el = document.getElementById(id); if (el) el.textContent = txt; };
+  const setHtml = (id, html) => { const el = document.getElementById(id); if (el) el.innerHTML = html; };
+  const setPlaceholder = (id, txt) => { const el = document.getElementById(id); if (el) el.placeholder = txt; };
+  const setAttr = (id, attr, val) => { const el = document.getElementById(id); if (el) el.setAttribute(attr, val); };
+  setPlaceholder('header-search', 'Search products...');
+  setTxt('quote-btn', '📄 Price quote');
+  setTxt('cart-checkout-btn', 'Checkout');
+  setTxt('coupon-apply-btn', 'Apply');
+  setPlaceholder('coupon-input', 'Promo code');
+  setTxt('submit-btn', 'Place order');
+  setTxt('back-btn', '→ Back');
+  setTxt('new-order-btn', 'New order');
+  setTxt('catalog-title', 'Product catalog');
+  setTxt('bundles-title', 'Ready bundles');
+  setTxt('reviews-title', 'Customer reviews');
+  setTxt('hero-eyebrow-text', 'Commercial store · Direct orders');
+  setTxt('done-title', 'Order received!');
+  setTxt('done-sub', 'We\'ll get back to you shortly to confirm');
+  // Checkout form labels/placeholders
+  const coLabels = document.querySelectorAll('.co-label');
+  const labelMap = {'שם העסק *':'Business name *','איש קשר *':'Contact person *','טלפון *':'Phone *','כתובת למשלוח':'Delivery address','אמצעי תשלום':'Payment method','💰 מטבעות קהילה':'💰 Community coins'};
+  coLabels.forEach(el => { const mapped = labelMap[el.textContent.trim()]; if (mapped) el.textContent = mapped; });
+  setPlaceholder('co-biz', 'Company / Organization name');
+  setPlaceholder('co-name', 'Full name');
+  setPlaceholder('co-phone', '05X-XXXXXXX');
+  setPlaceholder('co-city', 'City');
+  setPlaceholder('co-street', 'Street');
+  setPlaceholder('co-house', 'No.');
+  setPlaceholder('flow-code-input', 'Community coins code');
+  setAttr('co-address-wrap', 'data-en', '1');
+  // Sort select options
+  const sortSel = document.getElementById('sort-select');
+  if (sortSel) {
+    const sortMap = {'popular':'Popularity','price_asc':'Price ↑','price_desc':'Price ↓','rating':'Rating'};
+    [...sortSel.options].forEach(opt => { if (sortMap[opt.value]) opt.text = sortMap[opt.value]; });
+  }
+  // Mobile filter sheet labels
+  const filterSheet = document.getElementById('filter-sheet');
+  if (filterSheet) {
+    filterSheet.innerHTML = filterSheet.innerHTML
+      .replace('סינון ומיון','Filter &amp; Sort')
+      .replace('מיון','Sort')
+      .replace('פופולריות','Popularity').replace('מחיר עולה','Price ↑').replace('מחיר יורד','Price ↓').replace('דירוג','Rating')
+      .replace('מחיר עד:','Max price:').replace('ללא הגבלה','No limit')
+      .replace('רק מבצעים','Deals only').replace('יש במלאי','In stock only')
+      .replace('הצג תוצאות','Show results');
+  }
+  // Cart step header
+  setHtml('cart-dock-title', '🛒 Cart');
+  setHtml('cart-empty-msg', 'Cart is empty<br><span style="font-size:11px;color:var(--muted)">Add products from the catalog</span>');
+  // Quote overlay
+  setTxt('quote-title', 'Price quote request');
+  setTxt('quote-sub', 'We\'ll get back to you within 4 hours with a custom offer');
+  setTxt('send-quote-btn', 'Send request');
+  const qLabels = document.querySelectorAll('#quote-panel .co-label');
+  const qMap = {'שם העסק *':'Business name *','טלפון / אימייל *':'Phone / Email *','מה אתם צריכים?':'What do you need?'};
+  qLabels.forEach(el => { const mapped = qMap[el.textContent.trim()]; if (mapped) el.textContent = mapped; });
+  setPlaceholder('qf-biz', 'Company / Organization');
+  setPlaceholder('qf-msg', 'Describe your needs...');
+  // Sheet add button (updated by updateSheetTotal, but default)
+  setTxt('sheet-add-btn', 'Add to cart');
+  // Complex builder submit btn
+  const cxBtn = document.querySelector('#complex-product-modal button[onclick="submitComplexProduct()"]');
+  if (cxBtn) cxBtn.innerHTML = 'Add to cart <span id="cx-total" style="font-size:12px;opacity:.8"></span>';
+}
+
 /* ── State ── */
 const API = '/api';
 let storeData = null, catalog = [], groupId = null;
@@ -647,7 +732,9 @@ async function initStore() {
     groupId = storeData.groupId;
     catalog = (storeData.catalog || []).filter(p => p.is_available !== false);
     applyAccent(storeData.settings?.accent_color || '#33502E');
-    document.title = storeData.groupName || 'שוק מסחרי';
+    const ll=document.getElementById('lang-label'); if(ll) ll.textContent=isEn?'עברית':'English';
+    applyStaticTranslations();
+    document.title = storeData.groupName || t('שוק מסחרי','Market Store');
     document.getElementById('session-ref').textContent = Math.random().toString(36).slice(2,8).toUpperCase();
     document.getElementById('footer-year').textContent = new Date().getFullYear();
     renderAll();
@@ -655,7 +742,7 @@ async function initStore() {
     document.getElementById('loading-screen').style.display = 'none';
     loadAsync();
   } catch(e) {
-    document.getElementById('loading-screen').innerHTML = '<div style="text-align:center;color:rgba(255,255,255,.55)">שגיאה בטעינת החנות</div>';
+    document.getElementById('loading-screen').innerHTML = `<div style="text-align:center;color:rgba(255,255,255,.55)">${t('שגיאה בטעינת החנות','Error loading store')}</div>`;
     console.error(e);
   }
 }
@@ -668,11 +755,11 @@ function renderCommunityBanner(data) {
   if (cd.discount_active && cd.discount_pct > 0) {
     banner.style.display = 'flex';
     banner.style.background = 'linear-gradient(90deg,#166534,#15803d)';
-    banner.innerHTML = `<span style="font-size:16px">✅</span> <strong>הנחת קהילה ${cd.discount_pct}% פעילה</strong> · המחירים מחושבים עם ההנחה. <span style="opacity:.8">${cd.family_count || ''} חברים בקהילה.</span>`;
+    banner.innerHTML = `<span style="font-size:16px">✅</span> <strong>${t('הנחת קהילה','Community discount')} ${cd.discount_pct}% ${t('פעילה','active')}</strong> · ${t('המחירים מחושבים עם ההנחה','Prices include the discount')}. <span style="opacity:.8">${cd.family_count || ''} ${t('חברים בקהילה','community members')}.</span>`;
   } else if (cd.min_families && cd.family_count < cd.min_families) {
     banner.style.display = 'flex';
     banner.style.background = 'linear-gradient(90deg,#92400e,#b45309)';
-    banner.innerHTML = `<span style="font-size:16px">⏳</span> <strong>ממתינים להפעלת הנחת קהילה</strong> · ${cd.family_count}/${cd.min_families} חברים הצטרפו. כשיגיעו ${cd.min_families} — כולם נהנים מ-${cd.discount_pct}% הנחה!`;
+    banner.innerHTML = `<span style="font-size:16px">⏳</span> <strong>${t('ממתינים להפעלת הנחת קהילה','Waiting for community discount activation')}</strong> · ${cd.family_count}/${cd.min_families} ${t('חברים הצטרפו','members joined')}. ${t(`כשיגיעו ${cd.min_families} — כולם נהנים מ-${cd.discount_pct}% הנחה!`,`When ${cd.min_families} join — everyone gets ${cd.discount_pct}% off!`)}`;
   }
 }
 
@@ -759,7 +846,7 @@ function renderCxSteps() {
 function handleCxSelection(si, max, inp) {
   if (max > 1) {
     const checked = document.querySelectorAll(`.cx-inp-${si}:checked`);
-    if (checked.length > max) { inp.checked = false; showToast(`ניתן לבחור עד ${max} אפשרויות`); }
+    if (checked.length > max) { inp.checked = false; showToast(t(`ניתן לבחור עד ${max} אפשרויות`,`You can select up to ${max} options`)); }
   }
   calcCxTotal();
 }
@@ -780,7 +867,7 @@ function submitComplexProduct() {
   _cxSteps.forEach((step, si) => {
     const checked = document.querySelectorAll(`.cx-inp-${si}:checked`);
     if (step.min > 0 && checked.length < step.min) {
-      showToast(`חובה לבחור לפחות ${step.min} ב: ${step.name}`); valid = false; return;
+      showToast(t(`חובה לבחור לפחות ${step.min} ב: ${step.name}`,`Please select at least ${step.min} in: ${step.name}`)); valid = false; return;
     }
     if (checked.length > 0 && step.stepPrice > 0) stepBase += parseFloat(step.stepPrice) || 0;
     const sel = [];
@@ -792,7 +879,7 @@ function submitComplexProduct() {
   const finalPrice = _cxPriceMode === 'per_total' ? sub : sub * _cxQty;
   const key = 'cx_' + Date.now();
   cart[key] = {id: _cxProduct.id, name: _cxProduct.name, price: finalPrice, qty: _cxQty, note: texts.join(' | '), colorName: '', modifiers: texts.map(t => ({name:t, price:0}))};
-  showToast(`✓ ${_cxProduct.name} נוסף לעגלה`);
+  showToast(`✓ ${_cxProduct.name} ${t('נוסף לעגלה','added to cart')}`);
   closeComplexModal();
   renderCartDock();
   updateHeaderCart();
@@ -803,14 +890,14 @@ function renderDeals(promos) {
   const cards = promos.slice(0,3).map((p,i) => {
     const c = themes[i % themes.length];
     let disc = '';
-    if (p.promo_type==='discount_pct') disc = `${p.promo_value}% הנחה`;
-    else if (p.promo_type==='discount_fixed') disc = `₪${p.promo_value} הנחה`;
-    else if (p.promo_type==='bogo') disc = 'קנה 1 קבל 1';
-    else if (p.promo_type==='free_item') disc = 'פריט חינם';
-    const code = p.promo_code ? `<button class="deal-btn" onclick="window._applyDealCode('${p.promo_code}')">קוד: ${p.promo_code}</button>` : '';
+    if (p.promo_type==='discount_pct') disc = `${p.promo_value}% ${t('הנחה','discount')}`;
+    else if (p.promo_type==='discount_fixed') disc = `₪${p.promo_value} ${t('הנחה','discount')}`;
+    else if (p.promo_type==='bogo') disc = t('קנה 1 קבל 1','Buy 1 Get 1');
+    else if (p.promo_type==='free_item') disc = t('פריט חינם','Free item');
+    const code = p.promo_code ? `<button class="deal-btn" onclick="window._applyDealCode('${p.promo_code}')">${t('קוד','Code')}: ${p.promo_code}</button>` : '';
     return `<div class="deal-card ${c}">
       <div class="deal-kicker">${disc}</div>
-      <div class="deal-title">${p.promo_name||'מבצע'}</div>
+      <div class="deal-title">${p.promo_name||t('מבצע','Deal')}</div>
       ${p.description ? `<div class="deal-sub">${p.description}</div>` : ''}
       ${code}
     </div>`;
@@ -846,7 +933,7 @@ async function loadAsync() {
     if (d.success && d.images?.length) {
       const btn = document.createElement('button');
       btn.className = 'qa-btn';
-      btn.textContent = `🖼 גלריה · ${d.images.length} תמונות`;
+      btn.textContent = `🖼 ${t('גלריה','Gallery')} · ${d.images.length} ${t('תמונות','photos')}`;
       btn.onclick = () => { window._galleryImages = d.images; openGallery(0); };
       document.getElementById('quick-actions').appendChild(btn);
       document.getElementById('quick-actions').style.display = 'flex';
@@ -901,12 +988,12 @@ function renderTicker(s) {
   if (s.open_time || s.phone) {
     bar.style.display = 'flex';
     document.getElementById('ticker-dot').style.background = isOpen ? '#a8d08d' : '#ef4444';
-    document.getElementById('ticker-status').textContent = isOpen ? 'פתוח עכשיו' : 'סגור כעת';
+    document.getElementById('ticker-status').textContent = isOpen ? t('פתוח עכשיו','Open now') : t('סגור כעת','Closed now');
     document.getElementById('hero-open-dot').style.background = isOpen ? '#a8d08d' : '#ef4444';
-    document.getElementById('top-open-status').textContent = isOpen ? '🟢 פתוח' : '🔴 סגור';
+    document.getElementById('top-open-status').textContent = isOpen ? t('🟢 פתוח','🟢 Open') : t('🔴 סגור','🔴 Closed');
     const parts = [];
-    if (s.phone) parts.push(`טלפון: ${s.phone}`);
-    if (s.free_delivery_above) parts.push(`משלוח חינם מעל ${fmtPrice(s.free_delivery_above)}`);
+    if (s.phone) parts.push(`${t('טלפון','Phone')}: ${s.phone}`);
+    if (s.free_delivery_above) parts.push(t(`משלוח חינם מעל ${fmtPrice(s.free_delivery_above)}`,`Free delivery above ${fmtPrice(s.free_delivery_above)}`));
     document.getElementById('ticker-right').textContent = parts.join(' · ');
   }
 }
@@ -936,9 +1023,9 @@ function renderHero(s) {
   document.getElementById('hero-sub').textContent = s.slogan || s.description || '';
   const stats = [];
   const disc = s.max_volume_discount || (storeData.volume_tiers?.slice(-1)[0]?.pct);
-  if (disc) stats.push({val: disc+'%', lbl: 'הנחת כמות'});
-  if (s.delivery_eta) stats.push({val: s.delivery_eta+'h', lbl: 'זמן אספקה'});
-  if (s.free_delivery_above) stats.push({val: '₪'+s.free_delivery_above, lbl: 'משלוח חינם מעל'});
+  if (disc) stats.push({val: disc+'%', lbl: t('הנחת כמות','Volume discount')});
+  if (s.delivery_eta) stats.push({val: s.delivery_eta+'h', lbl: t('זמן אספקה','Delivery time')});
+  if (s.free_delivery_above) stats.push({val: '₪'+s.free_delivery_above, lbl: t('משלוח חינם מעל','Free delivery above')});
   document.getElementById('hero-stats').innerHTML = stats.map(st =>
     `<div class="hstat"><div class="hstat-val">${escHtml(st.val)}</div><div class="hstat-lbl">${escHtml(st.lbl)}</div></div>`
   ).join('');
@@ -955,16 +1042,16 @@ function renderQuickActions(s) {
   const btns = [];
   if (s.phone) btns.push(`<a class="qa-btn" href="tel:${escHtml(s.phone)}">📞 ${escHtml(s.phone)}</a>`);
   const wa = s.whatsapp_number || s.phone;
-  if (wa) btns.push(`<a class="qa-btn" href="https://wa.me/972${wa.replace(/\D/g,'').replace(/^0/,'')}" target="_blank">💬 וואטסאפ</a>`);
+  if (wa) btns.push(`<a class="qa-btn" href="https://wa.me/972${wa.replace(/\D/g,'').replace(/^0/,'')}" target="_blank">💬 ${t('וואטסאפ','WhatsApp')}</a>`);
   if (s.biz_lat && s.biz_lng) {
     btns.push(`<a class="qa-btn" href="https://waze.com/ul?ll=${s.biz_lat},${s.biz_lng}&navigate=yes" target="_blank">🚗 Waze</a>`);
     btns.push(`<a class="qa-btn" href="https://maps.google.com/?q=${s.biz_lat},${s.biz_lng}" target="_blank">📍 מפה</a>`);
   } else if (s.biz_address) {
     btns.push(`<a class="qa-btn" href="https://maps.google.com/?q=${encodeURIComponent(s.biz_address)}" target="_blank">📍 ${escHtml(s.biz_address)}</a>`);
   }
-  if (s.has_table_booking) btns.push(`<button class="qa-btn" onclick="openBooking('table')">🪑 הזמנת שולחן</button>`);
-  if (s.has_space_booking) btns.push(`<button class="qa-btn" onclick="openBooking('space')">🏛 הזמנת מקום</button>`);
-  if (s.has_event_booking) btns.push(`<button class="qa-btn" onclick="openBooking('event')">🎉 הזמנת אירוע</button>`);
+  if (s.has_table_booking) btns.push(`<button class="qa-btn" onclick="openBooking('table')">🪑 ${t('הזמנת שולחן','Table booking')}</button>`);
+  if (s.has_space_booking) btns.push(`<button class="qa-btn" onclick="openBooking('space')">🏛 ${t('הזמנת מקום','Venue booking')}</button>`);
+  if (s.has_event_booking) btns.push(`<button class="qa-btn" onclick="openBooking('event')">🎉 ${t('הזמנת אירוע','Event booking')}</button>`);
   document.getElementById('quick-actions').innerHTML = btns.join('');
   document.getElementById('quick-actions').style.display = btns.length ? 'flex' : 'none';
 }
@@ -1005,9 +1092,9 @@ function renderBundles() {
       <div class="bundle-price-row">
         <div class="bundle-price">${fmtPrice(b.price)}</div>
         ${b.compare_at_price ? `<div class="bundle-compare">${fmtPrice(b.compare_at_price)}</div>` : ''}
-        ${save ? `<div class="bundle-save-badge">חיסכון ${save}%</div>` : ''}
+        ${save ? `<div class="bundle-save-badge">${t('חיסכון','Save')} ${save}%</div>` : ''}
       </div>
-      <button class="bundle-add-btn" onclick='addBundle(${safeB})'>הוסף חבילה לעגלה</button>
+      <button class="bundle-add-btn" onclick='addBundle(${safeB})'>${t('הוסף חבילה לעגלה','Add bundle to cart')}</button>
     </div>`;
   }).join('');
 }
@@ -1020,11 +1107,11 @@ function renderCategoryTabs() {
   catalog.forEach(p => { counts[p.category||''] = (counts[p.category||'']||0)+1; });
   const hasHotDeals = _activePromos.some(p => p.show_in_tab && p.is_active);
   const hotTab = hasHotDeals
-    ? `<button class="cat-tab${_filterCat==='__deals__'?' active':''}" onclick="setCategory('__deals__')">🔥 מבצעים חמים <span style="font-size:11px;opacity:.6;margin-right:4px">${_activePromos.filter(p=>p.show_in_tab&&p.is_active).length}</span></button>`
+    ? `<button class="cat-tab${_filterCat==='__deals__'?' active':''}" onclick="setCategory('__deals__')">🔥 ${t('מבצעים חמים','Hot deals')} <span style="font-size:11px;opacity:.6;margin-right:4px">${_activePromos.filter(p=>p.show_in_tab&&p.is_active).length}</span></button>`
     : '';
   bar.innerHTML = hotTab + cats.map(cat =>
     `<button class="cat-tab${_filterCat===cat?' active':''}" onclick="setCategory('${escHtml(cat)}')">
-      ${escHtml(cat||'הכל')}
+      ${escHtml(cat||t('הכל','All'))}
       <span style="font-size:11px;opacity:.6;margin-right:4px">${cat ? (counts[cat]||0) : catalog.length}</span>
     </button>`
   ).join('');
@@ -1053,30 +1140,30 @@ function renderCatalog() {
   renderCategoryTabs();
   if (_filterCat === '__deals__') {
     const deals = _activePromos.filter(p => p.show_in_tab && p.is_active);
-    document.getElementById('catalog-count').textContent = `${deals.length} מבצעים`;
+    document.getElementById('catalog-count').textContent = `${deals.length} ${t('מבצעים','deals')}`;
     container.innerHTML = `<div style="display:grid;gap:12px;padding:8px 0">
       ${deals.map(p => {
-        const disc = p.promo_type==='discount_pct'?`${p.promo_value}% הנחה`
-          : p.promo_type==='discount_fixed'?`₪${p.promo_value} הנחה`
-          : p.promo_type==='bogo'?'קנה 1 קבל 1'
-          : p.promo_type==='free_item'?'פריט חינם':'מבצע מיוחד';
+        const disc = p.promo_type==='discount_pct'?`${p.promo_value}% ${t('הנחה','discount')}`
+          : p.promo_type==='discount_fixed'?`₪${p.promo_value} ${t('הנחה','discount')}`
+          : p.promo_type==='bogo'?t('קנה 1 קבל 1','Buy 1 Get 1')
+          : p.promo_type==='free_item'?t('פריט חינם','Free item'):t('מבצע מיוחד','Special deal');
         return `<div style="background:var(--card);border:1px solid var(--border-light);border-radius:16px;padding:16px 20px;display:flex;align-items:center;gap:16px">
           <div style="flex:1">
-            <div style="font-size:11px;font-weight:700;color:var(--green);letter-spacing:.08em;margin-bottom:4px">מבצע</div>
+            <div style="font-size:11px;font-weight:700;color:var(--green);letter-spacing:.08em;margin-bottom:4px">${t('מבצע','Deal')}</div>
             <div style="font-size:17px;font-weight:700">${escHtml(p.title||disc)}</div>
-            <div style="font-size:13px;color:var(--muted);margin-top:2px">${disc}${p.promo_code?` · קוד: <strong>${escHtml(p.promo_code)}</strong>`:''}</div>
+            <div style="font-size:13px;color:var(--muted);margin-top:2px">${disc}${p.promo_code?` · ${t('קוד','Code')}: <strong>${escHtml(p.promo_code)}</strong>`:''}</div>
           </div>
-          ${p.promo_code?`<button onclick="window._applyDealCode('${escHtml(p.promo_code)}')" style="padding:10px 16px;border:none;border-radius:99px;background:var(--green);color:#fff;font-size:13px;font-weight:600;cursor:pointer">העתק קוד</button>`:''}
+          ${p.promo_code?`<button onclick="window._applyDealCode('${escHtml(p.promo_code)}')" style="padding:10px 16px;border:none;border-radius:99px;background:var(--green);color:#fff;font-size:13px;font-weight:600;cursor:pointer">${t('העתק קוד','Copy code')}</button>`:''}
         </div>`;
       }).join('')}
-      ${deals.length===0?'<div style="padding:32px;text-align:center;color:var(--muted)">אין מבצעים פעילים כרגע</div>':''}
+      ${deals.length===0?`<div style="padding:32px;text-align:center;color:var(--muted)">${t('אין מבצעים פעילים כרגע','No active deals right now')}</div>`:''}
     </div>`;
     return;
   }
   const items = getFiltered();
-  document.getElementById('catalog-count').textContent = `${items.length} מוצרים`;
+  document.getElementById('catalog-count').textContent = `${items.length} ${t('מוצרים','products')}`;
   if (!items.length) {
-    container.innerHTML = '<div class="catalog-empty">לא נמצאו מוצרים</div>';
+    container.innerHTML = `<div class="catalog-empty">${t('לא נמצאו מוצרים','No products found')}</div>`;
     return;
   }
   container.innerHTML = items.map(p => productCardHtml(p)).join('');
@@ -1100,12 +1187,12 @@ function productCardHtml(p) {
         ${compare}
       </div>
       ${p.product_type==='complex_builder'
-        ? `<button class="add-card-btn" onclick="openComplexModal(${p.id});event.stopPropagation()">📋 צפייה במפרט</button>`
+        ? `<button class="add-card-btn" onclick="openComplexModal(${p.id});event.stopPropagation()">📋 ${t('צפייה במפרט','View specs')}</button>`
         : p.product_type==='bundle'
-          ? `<button class="add-card-btn" onclick="openSheet(${p.id},event)">📦 בחר חבילה</button>`
+          ? `<button class="add-card-btn" onclick="openSheet(${p.id},event)">📦 ${t('בחר חבילה','Choose bundle')}</button>`
           : p.product_type==='service'
-            ? `<button class="add-card-btn" onclick="openSheet(${p.id},event)">📅 הזמן שירות</button>`
-            : `<button class="add-card-btn" onclick="quickAdd(${p.id},event)">+ הוסף לעגלה</button>`}
+            ? `<button class="add-card-btn" onclick="openSheet(${p.id},event)">📅 ${t('הזמן שירות','Book service')}</button>`
+            : `<button class="add-card-btn" onclick="quickAdd(${p.id},event)">+ ${t('הוסף לעגלה','Add to cart')}</button>`}
     </div>
   </div>`;
 }
@@ -1122,7 +1209,7 @@ function quickAdd(id, e) {
   const key = cartKey(p.id, '');
   if (cart[key]) cart[key].qty++;
   else cart[key] = {id:p.id, name:p.name, price:p.price, qty:1, note:'', colorName:''};
-  showToast(`✓ ${p.name} נוסף לעגלה`);
+  showToast(`✓ ${p.name} ${t('נוסף לעגלה','added to cart')}`);
   renderCartDock();
   updateHeaderCart();
   renderVolumeTiers(storeData?.settings||{});
@@ -1132,7 +1219,7 @@ function addBundle(b) {
   const key = 'bundle__' + b.name;
   if (cart[key]) cart[key].qty++;
   else cart[key] = {id:'bundle_'+b.name, name:b.name, price:b.price, qty:1, note:'חבילה', colorName:''};
-  showToast(`✓ חבילה "${b.name}" נוספה לעגלה`);
+  showToast(`✓ ${t('חבילה','Bundle')} "${b.name}" ${t('נוספה לעגלה','added to cart')}`);
   renderCartDock();
   updateHeaderCart();
 }
@@ -1151,7 +1238,7 @@ function renderCartDock() {
 
   const items = Object.values(cart);
   document.getElementById('cart-empty-msg').style.display = items.length ? 'none' : '';
-  document.getElementById('cart-dock-count').textContent = items.length ? `${cartCount()} פריטים` : '';
+  document.getElementById('cart-dock-count').textContent = items.length ? `${cartCount()} ${t('פריטים','items')}` : '';
   document.getElementById('cart-items-list').innerHTML = items.map(item => {
     const key = cartKey(item.id, item.colorName||item.note);
     return `<div class="cart-item-row">
@@ -1182,12 +1269,12 @@ function renderCartSummary() {
   const total = Math.max(0, sub - bogoDisc - couponDisc + delivery);
   const cd = storeData?.communityData;
   const commDisc = (cd?.discount_active && cd?.discount_pct > 0 && sub > 0) ? Math.round(sub * cd.discount_pct / 100) : 0;
-  let html = `<div class="cart-summary-row"><span>סה"כ מוצרים</span><span>${fmtPrice(sub)}</span></div>`;
-  if (commDisc) html += `<div class="cart-summary-row" style="color:#15803d"><span>✨ הנחת קהילה ${cd.discount_pct}%</span><span>−${fmtPrice(commDisc)}</span></div>`;
-  if (bogoDisc) html += `<div class="cart-summary-row" style="color:#15803d"><span>הנחת BOGO</span><span>−${fmtPrice(bogoDisc)}</span></div>`;
-  if (couponDisc) html += `<div class="cart-summary-row" style="color:#15803d"><span>קופון ${escHtml(_couponCode)}</span><span>−${fmtPrice(couponDisc)}</span></div>`;
-  if (delivery) html += `<div class="cart-summary-row"><span>משלוח</span><span>${fmtPrice(delivery)}</span></div>`;
-  html += `<div class="cart-summary-row total-row"><span>לתשלום</span><span>${fmtPrice(total)}</span></div>`;
+  let html = `<div class="cart-summary-row"><span>${t('סה"כ מוצרים','Subtotal')}</span><span>${fmtPrice(sub)}</span></div>`;
+  if (commDisc) html += `<div class="cart-summary-row" style="color:#15803d"><span>✨ ${t('הנחת קהילה','Community discount')} ${cd.discount_pct}%</span><span>−${fmtPrice(commDisc)}</span></div>`;
+  if (bogoDisc) html += `<div class="cart-summary-row" style="color:#15803d"><span>${t('הנחת BOGO','BOGO discount')}</span><span>−${fmtPrice(bogoDisc)}</span></div>`;
+  if (couponDisc) html += `<div class="cart-summary-row" style="color:#15803d"><span>${t('קופון','Coupon')} ${escHtml(_couponCode)}</span><span>−${fmtPrice(couponDisc)}</span></div>`;
+  if (delivery) html += `<div class="cart-summary-row"><span>${t('משלוח','Delivery')}</span><span>${fmtPrice(delivery)}</span></div>`;
+  html += `<div class="cart-summary-row total-row"><span>${t('לתשלום','Total')}</span><span>${fmtPrice(total)}</span></div>`;
   document.getElementById('cart-summary').innerHTML = html;
 }
 
@@ -1229,16 +1316,16 @@ async function applyCoupon() {
     _couponCode = code;
     if (promo.promo_type === 'discount_pct') {
       _couponDiscount = (promo.promo_value||0) / 100;
-      setCouponMsg(`✅ ${promo.promo_value}% הנחה הופעל`);
+      setCouponMsg(`✅ ${promo.promo_value}% ${t('הנחה הופעל','discount applied')}`);
     } else if (promo.promo_type === 'discount_fixed') {
       _couponDiscount = 'fixed:' + (promo.promo_value||0);
-      setCouponMsg(`✅ הנחה של ${fmtPrice(promo.promo_value)} הופעלה`);
+      setCouponMsg(`✅ ${t('הנחה של','Discount of')} ${fmtPrice(promo.promo_value)} ${t('הופעלה','applied')}`);
     }
     renderCartSummary();
     return;
   }
   // בדיקה ב-API
-  setCouponMsg('בודק קוד...', false);
+  setCouponMsg(t('בודק קוד...','Checking code...'), false);
   try {
     const r = await fetch(`${API}/storefront/check-coupon`, {
       method:'POST', headers:{'Content-Type':'application/json'},
@@ -1261,13 +1348,13 @@ async function applyCoupon() {
     if (d2.success && d2.discount) {
       _couponCode = code;
       _couponDiscount = d2.discount_type === 'pct' ? d2.discount / 100 : 'fixed:' + d2.discount;
-      setCouponMsg(d2.message || `✅ קוד קהילה — ${d2.discount}% הנחה`);
+      setCouponMsg(d2.message || `✅ ${t('קוד קהילה','Community code')} — ${d2.discount}% ${t('הנחה','discount')}`);
       renderCartSummary();
       return;
     }
   } catch(e) {}
   _couponCode = ''; _couponDiscount = 0;
-  setCouponMsg('קוד לא תקין', true);
+  setCouponMsg(t('קוד לא תקין','Invalid code'), true);
   renderCartSummary();
 }
 function setCouponMsg(msg, isErr) {
@@ -1309,9 +1396,9 @@ async function submitOrder() {
   const biz   = document.getElementById('co-biz').value.trim();
   const name  = document.getElementById('co-name').value.trim();
   const phone = document.getElementById('co-phone').value.trim();
-  if (!biz || !name || !phone) { showToast('יש למלא שם עסק, איש קשר וטלפון'); return; }
+  if (!biz || !name || !phone) { showToast(t('יש למלא שם עסק, איש קשר וטלפון','Please fill in business name, contact and phone')); return; }
   const btn = document.getElementById('submit-btn');
-  btn.textContent = 'שולח...'; btn.disabled = true;
+  btn.textContent = t('שולח...','Sending...'); btn.disabled = true;
   const sub = cartTotal();
   const bogoDisc = calcBogoDiscount();
   let couponDisc = 0;
@@ -1331,12 +1418,12 @@ async function submitOrder() {
     });
     const d = await r.json();
     const orderNo = d.orderNo || d.order_no || ('#' + Math.floor(Math.random()*90000+10000));
-    document.getElementById('done-order-no').textContent = `מספר הזמנה: ${orderNo}`;
+    document.getElementById('done-order-no').textContent = `${t('מספר הזמנה','Order number')}: ${orderNo}`;
     _cartStep = 'done';
     renderCartDock();
   } catch(e) {
-    showToast('שגיאה בשליחת ההזמנה, נסו שוב');
-    btn.textContent = 'שלח הזמנה'; btn.disabled = false;
+    showToast(t('שגיאה בשליחת ההזמנה, נסו שוב','Error submitting order, please try again'));
+    btn.textContent = t('שלח הזמנה','Place order'); btn.disabled = false;
   }
 }
 function resetOrder() {
@@ -1378,7 +1465,7 @@ function setCategory(cat) { _filterCat = cat; renderCatalog(); }
 function setSort(mode) { _sortMode = mode; renderCatalog(); }
 function setPriceMax(val, isMobile) {
   _priceMax = Number(val);
-  const label = _priceMax >= 10000 ? 'ללא הגבלה' : fmtPrice(_priceMax);
+  const label = _priceMax >= 10000 ? t('ללא הגבלה','No limit') : fmtPrice(_priceMax);
   if (document.getElementById('price-display-m')) document.getElementById('price-display-m').textContent = label;
   renderCatalog();
 }
@@ -1413,18 +1500,18 @@ function closeQuote(e, force) {
 async function sendQuote() {
   const biz = document.getElementById('qf-biz').value.trim();
   const contact = document.getElementById('qf-contact').value.trim();
-  if (!biz || !contact) { showToast('יש למלא שם עסק ופרטי קשר'); return; }
+  if (!biz || !contact) { showToast(t('יש למלא שם עסק ופרטי קשר','Please fill in business name and contact details')); return; }
   const btn = document.getElementById('send-quote-btn');
-  btn.textContent = 'שולח...'; btn.disabled = true;
+  btn.textContent = t('שולח...','Sending...'); btn.disabled = true;
   try {
     await fetch(`${API}/storefront/quote`, {
       method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({groupId, businessName:biz, contact, message: document.getElementById('qf-msg').value.trim()})
     });
-    showToast('✓ הבקשה נשלחה! נחזור אליכם בהקדם');
+    showToast(t('✓ הבקשה נשלחה! נחזור אליכם בהקדם','✓ Request sent! We\'ll get back to you soon'));
     closeQuote(null, true);
-  } catch(e) { showToast('שגיאה, נסו שוב'); }
-  btn.textContent = 'שלח בקשה'; btn.disabled = false;
+  } catch(e) { showToast(t('שגיאה, נסו שוב','Error, please try again')); }
+  btn.textContent = t('שלח בקשה','Send request'); btn.disabled = false;
 }
 
 /* ── Product Sheet — Full (כל סוגי המוצרים) ── */
@@ -1478,7 +1565,7 @@ function openSheet(id, e) {
       p.colors.map((c, i) => `<button class="sheet-opt-btn${i===0?' active':''}" onclick="sheetSelectColor(this,'${escHtml(c.name||c)}')">${escHtml(c.name||c)}</button>`).join('')
     }</div>`;
   }
-  optHtml += `<div style="margin-top:12px"><textarea id="sheet-note-input" placeholder="הערות לפריט (אופציונלי)" rows="2" style="width:100%;border:1px solid var(--border);border-radius:10px;padding:8px;font-size:13px;font-family:inherit;resize:none;background:var(--sand)"></textarea></div>`;
+  optHtml += `<div style="margin-top:12px"><textarea id="sheet-note-input" placeholder="${t('הערות לפריט (אופציונלי)','Item notes (optional)')}" rows="2" style="width:100%;border:1px solid var(--border);border-radius:10px;padding:8px;font-size:13px;font-family:inherit;resize:none;background:var(--sand)"></textarea></div>`;
 
   document.getElementById('sheet-options').innerHTML = optHtml;
   if (_isPizzaProduct) renderPizzaBuilder();
@@ -1534,7 +1621,7 @@ function updateSheetTotal() {
     } catch(e) {}
   }
   const total = (p.price + extra) * _sheetQty;
-  document.getElementById('sheet-add-btn').textContent = `הוסף לעגלה — ${fmtPrice(total)}`;
+  document.getElementById('sheet-add-btn').textContent = `${t('הוסף לעגלה','Add to cart')} — ${fmtPrice(total)}`;
   document.getElementById('sheet-price').textContent = fmtPrice(p.price + extra);
 }
 
@@ -1560,7 +1647,7 @@ function sheetAdd() {
   const finalPrice = p.price + extra;
   if (cart[key]) cart[key].qty += _sheetQty;
   else cart[key] = {id: p.id, name: p.name, price: finalPrice, qty: _sheetQty, note, colorName: note};
-  showToast(`✓ ${p.name} נוסף לעגלה`);
+  showToast(`✓ ${p.name} ${t('נוסף לעגלה','added to cart')}`);
   closeSheet();
   renderCartDock();
   updateHeaderCart();
@@ -1635,13 +1722,13 @@ function renderPizzaBuilder() {
 }
 function selectPizzaTopping(name) { _activePizzaTopping = name; renderPizzaBuilder(); }
 function togglePizzaSlice(qi) {
-  if (!_activePizzaTopping) { showToast('בחרו תוספת תחילה'); return; }
+  if (!_activePizzaTopping) { showToast(t('בחרו תוספת תחילה','Please select a topping first')); return; }
   const v = _pizzaState[_activePizzaTopping][qi] || 0;
   _pizzaState[_activePizzaTopping][qi] = v === 0 ? 1 : v === 1 ? 2 : 0;
   renderPizzaBuilder(); updateSheetTotal();
 }
 function fillPizza(action) {
-  if (!_activePizzaTopping && action !== 'clear') { showToast('בחרו תוספת תחילה'); return; }
+  if (!_activePizzaTopping && action !== 'clear') { showToast(t('בחרו תוספת תחילה','Please select a topping first')); return; }
   if (action === 'clear') _pizzaToppings.forEach(t => _pizzaState[t.name] = [0,0,0,0]);
   else if (action === 'whole') _pizzaState[_activePizzaTopping] = [1,1,1,1];
   else if (action === 'half1') { _pizzaState[_activePizzaTopping][0]=1; _pizzaState[_activePizzaTopping][1]=1; }
@@ -1689,7 +1776,7 @@ async function geocodeAndCalcZone() {
     const sorted = [...zones].sort((a,b)=>a.radius_km-b.radius_km);
     const zone = sorted.find(z => distKm <= z.radius_km);
     if (zone) { _deliveryZoneFee = parseFloat(zone.delivery_fee)||0; }
-    else { _deliveryZoneFee = null; showToast('הכתובת מחוץ לאזור החלוקה'); }
+    else { _deliveryZoneFee = null; showToast(t('הכתובת מחוץ לאזור החלוקה','Address is outside the delivery zone')); }
     renderCartSummary();
   } catch(e) {}
 }
@@ -1705,7 +1792,7 @@ async function applyFlowCode() {
   const code = document.getElementById('flow-code-input')?.value.trim();
   const msg = document.getElementById('flow-code-msg');
   if (!code || !msg) return;
-  msg.style.display = ''; msg.textContent = 'בודק...'; msg.style.color = 'var(--muted)';
+  msg.style.display = ''; msg.textContent = t('בודק...','Checking...'); msg.style.color = 'var(--muted)';
   try {
     const r = await fetch(`${API}/storefront/redeem-flow-code`, {
       method:'POST', headers:{'Content-Type':'application/json'},
@@ -1717,8 +1804,8 @@ async function applyFlowCode() {
       msg.textContent = d.message || `מומש ${fmtPrice(_flowDiscount)}`;
       msg.style.color = '#15803d';
       renderCartSummary();
-    } else { msg.textContent = d.error || 'קוד לא תקין'; msg.style.color = '#b91c1c'; }
-  } catch(e) { msg.textContent = 'שגיאת רשת'; msg.style.color = '#b91c1c'; }
+    } else { msg.textContent = d.error || t('קוד לא תקין','Invalid code'); msg.style.color = '#b91c1c'; }
+  } catch(e) { msg.textContent = t('שגיאת רשת','Network error'); msg.style.color = '#b91c1c'; }
 }
 
 window.addEventListener('DOMContentLoaded', initStore);

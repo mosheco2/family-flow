@@ -410,7 +410,7 @@ input,button,select,textarea{font-family:inherit}
 <div id="toast"></div>
 <div id="loading-screen">
   <div class="spinner"></div>
-  <p style="font-size:14px;color:var(--muted);font-weight:600">טוען חנות...</p>
+  <p id="loading-text" style="font-size:14px;color:var(--muted);font-weight:600">טוען חנות...</p>
 </div>
 
 <!-- COMMUNITY BANNER -->
@@ -484,7 +484,7 @@ input,button,select,textarea{font-family:inherit}
         <div class="hero-side-card" id="hero-side-top"></div>
         <div class="hero-side-promo" id="hero-side-promo">
           <div class="sp-val" id="hero-eta-stat">35 דק'</div>
-          <div class="sp-lbl">זמן משלוח ממוצע</div>
+          <div class="sp-lbl" id="hero-eta-lbl">זמן משלוח ממוצע</div>
         </div>
       </div>
     </div>
@@ -697,11 +697,11 @@ input,button,select,textarea{font-family:inherit}
       </div>
     </div>
     <div id="panel-summary">
-      <div class="sum-row"><span>ביניים</span><span id="sum-subtotal">₪0</span></div>
+      <div class="sum-row"><span id="sum-subtotal-label">ביניים</span><span id="sum-subtotal">₪0</span></div>
       <div class="sum-row" id="sum-fee-row"><span id="sum-fee-label">דמי משלוח</span><span id="sum-fee">חינם</span></div>
-      <div class="sum-row" id="sum-discount-row" style="display:none"><span>הנחה</span><span id="sum-discount">—</span></div>
+      <div class="sum-row" id="sum-discount-row" style="display:none"><span id="sum-discount-label">הנחה</span><span id="sum-discount">—</span></div>
       <div class="sum-row" id="sum-community-row" style="display:none;color:#22c55e;font-size:12px"></div>
-      <div class="sum-total"><span>לתשלום</span><span id="sum-total">₪0</span></div>
+      <div class="sum-total"><span id="sum-total-label">לתשלום</span><span id="sum-total">₪0</span></div>
       <button id="panel-primary-btn" onclick="panelPrimary()">מעבר לתשלום · ₪0</button>
       <button id="panel-back-btn" onclick="backToCart()">חזרה לעגלה</button>
     </div>
@@ -1022,6 +1022,7 @@ function applyAccent(color) {
 
 function renderAll(data) {
   const s = data.settings || {};
+  applyLangToHtml();
   renderTicker(data, s);
   renderHeader(data, s);
   renderHero(data, s);
@@ -1031,14 +1032,102 @@ function renderAll(data) {
   renderFooter(data, s);
 }
 
+function applyLangToHtml() {
+  if (!isEn) return; // Hebrew is already in HTML
+  const set = (id, txt) => { const el = document.getElementById(id); if (el) el.textContent = txt; };
+  const setPlaceholder = (id, txt) => { const el = document.getElementById(id); if (el) el.placeholder = txt; };
+  const setAttr = (id, attr, txt) => { const el = document.getElementById(id); if (el) el[attr] = txt; };
+
+  // Loading screen
+  set('loading-text', 'Loading store...');
+  // Side menu
+  set('side-menu-title', 'Categories');
+  // Hero
+  set('hero-eta-lbl', 'Avg. delivery time');
+  // Hero CTA
+  const heroCta = document.querySelector('.hero-cta-primary');
+  if (heroCta) heroCta.textContent = 'Order now';
+  const heroTableBtn = document.getElementById('hero-table-btn');
+  if (heroTableBtn) heroTableBtn.textContent = 'Table reservation';
+  const heroEventBtn = document.getElementById('hero-event-btn');
+  if (heroEventBtn) heroEventBtn.textContent = 'Event booking';
+  // Header search
+  setPlaceholder('header-search', 'Search dish, ingredient…');
+  // Fulfil panel
+  set('seg-delivery', 'Delivery');
+  set('seg-pickup', 'Pickup');
+  setPlaceholder('fulfil-address-input', 'Street & number, city');
+  set('fulfil-confirm', 'Confirm');
+  // Cart bar
+  set('cart-bar-label', 'Continue to checkout');
+  // Panel head
+  set('panel-title', 'Cart');
+  set('panel-close', '✕');
+  set('panel-back-btn', 'Back to cart');
+  // Cart empty
+  set('cart-empty-msg', 'Your cart is empty — add items from the menu.');
+  // Upsells
+  set('upsells-title', 'Add to this?');
+  // Coupon
+  setPlaceholder('coupon-input', 'Promo code');
+  set('coupon-btn', 'Apply');
+  // Checkout
+  set('co-seg-delivery', 'Delivery');
+  set('co-seg-pickup', 'Pickup');
+  setPlaceholder('co-city', 'City');
+  setPlaceholder('co-street', 'Street');
+  setPlaceholder('co-house', 'No.');
+  setPlaceholder('co-phone', 'Phone for updates');
+  setPlaceholder('co-notes', 'Allergies, special requests...');
+  setPlaceholder('co-name', 'First & last name');
+  // Checkout card titles
+  document.querySelectorAll('.checkout-card-title').forEach((el, i) => {
+    if (i === 0) el.textContent = 'How to receive';
+    else if (i === 1) el.textContent = 'Full name';
+    else if (i === 2) el.textContent = 'Payment';
+    else if (i === 3) el.textContent = 'Notes (optional)';
+  });
+  // Summary rows
+  set('sum-subtotal-label', 'Subtotal');
+  set('sum-discount-label', 'Discount');
+  // sum-fee-label is set dynamically
+  set('sum-total-label', 'Total');
+  // Panel primary btn
+  set('panel-primary-btn', 'Continue to checkout · ₪0');
+  // Sheet note section title
+  const sheetNoteTitle = document.querySelector('#sheet-body .sheet-section-title');
+  if (sheetNoteTitle) sheetNoteTitle.textContent = 'Note to kitchen';
+  setPlaceholder('sheet-note-input', 'No onions, cut into 8 pieces…');
+  // Sheet add btn
+  set('sheet-add-btn', 'Add to cart · ₪0');
+  // Done step
+  set('done-title', 'Order sent to kitchen');
+  set('new-order-btn', 'New order');
+  // Footer
+  document.querySelectorAll('.footer-col-title').forEach((el, i) => {
+    if (i === 0) el.textContent = 'Orders';
+    else if (i === 1) el.textContent = 'Info';
+  });
+  const footerLinks = document.querySelectorAll('#footer-inner .footer-links span');
+  if (footerLinks[0]) footerLinks[0].textContent = 'Menu';
+  if (footerLinks[1]) footerLinks[1].textContent = 'Track order';
+  const infoLinks = document.querySelectorAll('#footer-info-links span');
+  if (infoLinks[0]) infoLinks[0].textContent = 'Hours & delivery';
+  const footerPhoneLink = document.getElementById('footer-phone-link');
+  if (footerPhoneLink) footerPhoneLink.firstChild && (footerPhoneLink.firstChild.textContent = 'Phone: ');
+  set('footer-copy', 'Restaurant Store · Family Flow');
+  // Lang label
+  set('lang-label', 'עברית');
+}
+
 function renderTicker(data, s) {
   const isOpen = isStoreOpen(s);
   const dot = document.getElementById('ticker-dot');
   dot.style.background = isOpen ? '#7FB77E' : '#ef4444';
-  document.getElementById('ticker-status').textContent = isOpen ? 'פתוח עכשיו · מקבלים הזמנות' : 'סגור כעת';
+  document.getElementById('ticker-status').textContent = isOpen ? t('פתוח עכשיו · מקבלים הזמנות', 'Open now · Accepting orders') : t('סגור כעת', 'Closed');
   const parts = [];
-  if (s.free_delivery_above > 0) parts.push(`משלוח חינם מעל ₪${s.free_delivery_above}`);
-  if (s.phone) parts.push(`טלפון: ${s.phone}`);
+  if (s.free_delivery_above > 0) parts.push(`${t('משלוח חינם מעל', 'Free delivery over')} ₪${s.free_delivery_above}`);
+  if (s.phone) parts.push(`${t('טלפון', 'Phone')}: ${s.phone}`);
   document.getElementById('ticker-right').textContent = parts.join(' · ');
 }
 
@@ -1069,12 +1158,13 @@ function renderHero(data, s) {
   const badge = document.getElementById('hero-open-badge');
   const dot = document.getElementById('hero-open-dot');
   dot.style.background = isOpen ? '#7FB77E' : '#ef4444';
-  document.getElementById('hero-open-label').textContent = isOpen ? 'פתוח עכשיו · מקבלים הזמנות' : 'סגור כעת';
+  document.getElementById('hero-open-label').textContent = isOpen ? t('פתוח עכשיו · מקבלים הזמנות', 'Open now · Accepting orders') : t('סגור כעת', 'Closed');
 
   const etaMin = s.delivery_eta_min != null && !isNaN(parseInt(s.delivery_eta_min)) ? parseInt(s.delivery_eta_min) : 35;
-  document.getElementById('hero-eta-span').textContent = etaMin > 0 ? `${etaMin} דק'` : '';
-  document.getElementById('hero-eta-stat').textContent = etaMin > 0 ? `${etaMin} דק'` : '';
-  if (s.welcome_message) document.getElementById('hero-headline').innerHTML = escHtml(s.welcome_message).replace(/\n/g,'<br>') + (etaMin > 0 ? `<br><span class="accent">${etaMin} דק'</span> ואוכלים.` : '');
+  const etaStr = etaMin > 0 ? `${etaMin} ${t('דק\'', 'min')}` : '';
+  document.getElementById('hero-eta-span').textContent = etaStr;
+  document.getElementById('hero-eta-stat').textContent = etaStr;
+  if (s.welcome_message) document.getElementById('hero-headline').innerHTML = escHtml(s.welcome_message).replace(/\n/g,'<br>') + (etaMin > 0 ? `<br><span class="accent">${etaStr}</span> ${t('ואוכלים.', 'and eat.')}` : '');
   if (s.slogan) document.getElementById('hero-sub').textContent = s.slogan;
 
   if (s.enable_table_booking) document.getElementById('hero-table-btn').style.display = '';
@@ -1086,9 +1176,9 @@ function renderHero(data, s) {
   // stats row
   const statsEl = document.getElementById('hero-stats');
   const stats = [];
-  if (etaMin > 0) stats.push([`${etaMin} דק'`, isDelivery ? 'זמן משלוח ממוצע' : 'מוכן לאיסוף']);
-  if (s.free_delivery_above > 0) stats.push([`₪${s.free_delivery_above}`, 'משלוח חינם מעל']);
-  stats.push(['4.8', '★ דירוג לקוחות']);
+  if (etaMin > 0) stats.push([etaStr, isDelivery ? t('זמן משלוח ממוצע', 'Avg. delivery time') : t('מוכן לאיסוף', 'Ready for pickup')]);
+  if (s.free_delivery_above > 0) stats.push([`₪${s.free_delivery_above}`, t('משלוח חינם מעל', 'Free delivery over')]);
+  stats.push(['4.8', t('★ דירוג לקוחות', '★ Customer rating')]);
   statsEl.innerHTML = stats.map(([v,l]) => `<div><div class="hstat-val">${v}</div><div class="hstat-lbl">${l}</div></div>`).join('');
 
   // hero images
@@ -1126,9 +1216,9 @@ function renderHero(data, s) {
   if (s.free_delivery_above > 0 || s.has_loyalty) {
     document.getElementById('deals-section').style.display = '';
     const cards = [];
-    const etaLabel = etaMin > 0 ? `${etaMin} דק'` : '';
-    if (etaLabel) cards.push({cls:'dark',kicker:'הזמנה',title:`מזמינים ב-3 לחיצות`,sub:`משלוח ${etaLabel}. ${s.free_delivery_above>0?`משלוח חינם מעל ₪${s.free_delivery_above}.`:''}`,btn:'להזמנה',act:"scrollToCatalog()"});
-    if (s.free_delivery_above > 0) cards.push({cls:'accent',kicker:'משלוח',title:`חינם מעל ₪${s.free_delivery_above}`,sub:'הוסיפו עוד מנה ותהנו ממשלוח חינם בכל אזורי החלוקה.',btn:'לתפריט',act:"scrollToCatalog()"});
+    const etaLabel = etaMin > 0 ? etaStr : '';
+    if (etaLabel) cards.push({cls:'dark',kicker:t('הזמנה','Order'),title:t('מזמינים ב-3 לחיצות','Order in 3 clicks'),sub:`${t('משלוח','Delivery')} ${etaLabel}. ${s.free_delivery_above>0?`${t('משלוח חינם מעל','Free delivery over')} ₪${s.free_delivery_above}.`:''}`,btn:t('להזמנה','Order now'),act:"scrollToCatalog()"});
+    if (s.free_delivery_above > 0) cards.push({cls:'accent',kicker:t('משלוח','Delivery'),title:`${t('חינם מעל','Free over')} ₪${s.free_delivery_above}`,sub:t('הוסיפו עוד מנה ותהנו ממשלוח חינם בכל אזורי החלוקה.','Add one more item and enjoy free delivery in all areas.'),btn:t('לתפריט','Menu'),act:"scrollToCatalog()"});
     if (cards.length) {
       document.getElementById('deals-grid').innerHTML = cards.map(c => `
         <div class="deal-card ${c.cls}">
@@ -1197,19 +1287,19 @@ function renderInfoSection(data, s) {
   const grid = document.getElementById('info-grid');
   let html = '';
   if (hasHours) {
-    html += `<div class="info-card"><h3 class="info-card-title">שעות פתיחה</h3>
-      <div class="hours-row today"><span style="font-weight:500">ראשון – שישי</span><span style="color:var(--muted)">${s.open_time}–${s.close_time}</span></div>
+    html += `<div class="info-card"><h3 class="info-card-title">${t('שעות פתיחה', 'Opening hours')}</h3>
+      <div class="hours-row today"><span style="font-weight:500">${t('ראשון – שישי', 'Sun – Fri')}</span><span style="color:var(--muted)">${s.open_time}–${s.close_time}</span></div>
     </div>`;
   }
   if (hasZones) {
-    html += `<div class="info-card"><h3 class="info-card-title">אזורי חלוקה</h3>
+    html += `<div class="info-card"><h3 class="info-card-title">${t('אזורי חלוקה', 'Delivery zones')}</h3>
       ${data.radiusZones.map(z => `
         <div class="zone-row">
-          <span class="zone-name">${escHtml(z.zone_name || `עד ${z.radius_km} ק"מ`)}</span>
+          <span class="zone-name">${escHtml(z.zone_name || t(`עד ${z.radius_km} ק"מ`, `Up to ${z.radius_km} km`))}</span>
           <span class="zone-eta">${z.eta_text||''}</span>
-          <span class="zone-fee">${parseFloat(z.delivery_fee)===0?'חינם':z.delivery_fee+'₪'}</span>
+          <span class="zone-fee">${parseFloat(z.delivery_fee)===0?t('חינם','Free'):z.delivery_fee+'₪'}</span>
         </div>`).join('')}
-      ${s.free_delivery_above>0?`<div style="font-size:12px;color:var(--muted);margin-top:10px">מעל ₪${s.free_delivery_above} — המשלוח עלינו.</div>`:''}
+      ${s.free_delivery_above>0?`<div style="font-size:12px;color:var(--muted);margin-top:10px">${t(`מעל ₪${s.free_delivery_above} — המשלוח עלינו.`, `Over ₪${s.free_delivery_above} — free delivery.`)}</div>`:''}
     </div>`;
   }
   grid.innerHTML = html;
@@ -1220,7 +1310,7 @@ function renderCategories() {
   const nav = document.getElementById('cat-nav');
   const hasHotDeals = _activePromos.some(p => p.show_in_tab && p.is_active);
   const hotTab = hasHotDeals ? `<button class="cat-pill" data-cat="__deals__" onclick="filterByCat('__deals__')">🔥 מבצעים חמים</button>` : '';
-  nav.innerHTML = `<button class="cat-pill active" data-cat="all" onclick="filterByCat('all')">הכל</button>` +
+  nav.innerHTML = `<button class="cat-pill active" data-cat="all" onclick="filterByCat('all')">${t('הכל','All')}</button>` +
     hotTab +
     cats.map(c => `<button class="cat-pill" data-cat="${escHtml(c)}" onclick="filterByCat('${escHtml(c)}')">${escHtml(c)}</button>`).join('');
 }
@@ -1338,9 +1428,9 @@ function productCardListHtml(p) {
           </div>
           ${inCart?`<span class="in-cart-label">${t('בעגלה','In cart')}</span>`:''}
           ${p.product_type==='service'
-            ? `<button class="add-pill" onclick="event.stopPropagation();openSheet(${p.id})">📅 הזמן שירות</button>`
+            ? `<button class="add-pill" onclick="event.stopPropagation();openSheet(${p.id})">📅 ${t('הזמן שירות','Book service')}</button>`
             : p.product_type==='bundle'
-              ? `<button class="add-pill" onclick="event.stopPropagation();openSheet(${p.id})">📦 בחר חבילה</button>`
+              ? `<button class="add-pill" onclick="event.stopPropagation();openSheet(${p.id})">📦 ${t('בחר חבילה','Choose bundle')}</button>`
               : `<button class="add-pill" onclick="event.stopPropagation();quickAdd(${p.id})">${hasOptions(p)?t('התאמה','Customize'):t('הוספה','Add')}</button>`
           }
         </div>
@@ -1373,15 +1463,15 @@ function productCardHtml(p) {
         ${p.description?`<div class="product-desc">${escHtml(p.description)}</div>`:''}
         <div class="product-footer">
           <div>
-            ${isCommunity && communityPrice ? `<div class="community-badge">✨ מחיר קהילה</div>` : ''}
+            ${isCommunity && communityPrice ? `<div class="community-badge">✨ ${t('מחיר קהילה','Community price')}</div>` : ''}
             <span class="product-price">${orig}₪${communityPrice || p.price}</span>
           </div>
-          ${inCart?`<span class="in-cart-label">בעגלה</span>`:''}
+          ${inCart?`<span class="in-cart-label">${t('בעגלה','In cart')}</span>`:''}
           ${p.product_type==='service'
-            ? `<button class="add-pill" onclick="event.stopPropagation();openSheet(${p.id})">📅 הזמן שירות</button>`
+            ? `<button class="add-pill" onclick="event.stopPropagation();openSheet(${p.id})">📅 ${t('הזמן שירות','Book service')}</button>`
             : p.product_type==='bundle'
-              ? `<button class="add-pill" onclick="event.stopPropagation();openSheet(${p.id})">📦 בחר חבילה</button>`
-              : `<button class="add-pill" onclick="event.stopPropagation();quickAdd(${p.id})">${hasOptions(p)?'התאמה':'הוספה'}</button>`
+              ? `<button class="add-pill" onclick="event.stopPropagation();openSheet(${p.id})">📦 ${t('בחר חבילה','Choose bundle')}</button>`
+              : `<button class="add-pill" onclick="event.stopPropagation();quickAdd(${p.id})">${hasOptions(p)?t('התאמה','Customize'):t('הוספה','Add')}</button>`
           }
         </div>
       </div>
@@ -1394,7 +1484,7 @@ function hasOptions(p) {
 function toggleFav(id) {
   if (favs.has(id)) favs.delete(id); else favs.add(id);
   renderCatalog();
-  showToast(favs.has(id) ? 'נשמר במועדפים' : 'הוסר מהמועדפים');
+  showToast(favs.has(id) ? t('נשמר במועדפים', 'Saved to favorites') : t('הוסר מהמועדפים', 'Removed from favorites'));
 }
 
 function renderFooter(data, s) {}
@@ -1409,10 +1499,10 @@ function updateFulfilBtn() {
   const s = storeData?.settings || {};
   const etaMin = s.delivery_eta_min != null ? parseInt(s.delivery_eta_min)||35 : 35;
   const pEtaMin = s.pickup_eta_min != null ? parseInt(s.pickup_eta_min)||15 : 15;
-  document.getElementById('fulfil-label').textContent = isDelivery ? 'משלוח' : 'איסוף';
+  document.getElementById('fulfil-label').textContent = isDelivery ? t('משלוח', 'Delivery') : t('איסוף', 'Pickup');
   document.getElementById('fulfil-addr').textContent = isDelivery
-    ? (_address || 'הוסיפו כתובת') + ` · ${etaMin} דק'`
-    : `סניף מרכזי · ${pEtaMin} דק'`;
+    ? (_address || t('הוסיפו כתובת', 'Add address')) + ` · ${etaMin} ${t('דק\'', 'min')}`
+    : `${t('סניף מרכזי', 'Main branch')} · ${pEtaMin} ${t('דק\'', 'min')}`;
 }
 function initSlots() {
   const sb = document.getElementById('slot-buttons');
@@ -1606,7 +1696,7 @@ function updateSheetTotal() {
     } catch(e){}
   }
   const total = (p.price + extra) * _sheetQty;
-  document.getElementById('sheet-add-btn').textContent = `${t('הוספה לעגלה','Add to cart')} · ₪${total.toFixed(0)}`;
+  document.getElementById('sheet-add-btn').textContent = `${t('הוספה לעגלה', 'Add to cart')} · ₪${total.toFixed(0)}`;
 }
 function sheetAdd() {
   const p = catalog.find(x=>x.id===_sheetId);
@@ -1643,7 +1733,7 @@ function quickAdd(id) {
   if (cart[key]) cart[key].qty++; else cart[key]={id,name:p.name,price:p.price,qty:1,note:''};
   renderCatalog();
   updateCartBar();
-  showToast(`${p.name} נוסף לעגלה`);
+  showToast(t(`${p.name} נוסף לעגלה`, `${p.name} added to cart`));
 }
 
 // ===== CART BAR =====
@@ -1660,14 +1750,14 @@ function updateCartBar() {
   document.getElementById('cart-header-total').textContent = `₪${subtotal.toFixed(0)}`;
   document.getElementById('cart-bar-count').textContent = count;
   document.getElementById('cart-bar-total').textContent = `₪${(subtotal+fee).toFixed(0)}`;
-  document.getElementById('cart-bar-label').textContent = isDelivery ? 'להמשך הזמנה' : 'לאיסוף עצמי';
+  document.getElementById('cart-bar-label').textContent = isDelivery ? t('להמשך הזמנה', 'Continue to checkout') : t('לאיסוף עצמי', 'Self-pickup');
 
   // free ship bar
   const freeRow = document.getElementById('free-ship-row');
   if (isDelivery && freeAbove > 0) {
     freeRow.style.display = 'flex';
     const remain = Math.max(0, freeAbove - subtotal);
-    document.getElementById('free-ship-msg').textContent = remain > 0 ? `עוד ₪${remain.toFixed(0)} למשלוח חינם` : '🎉 המשלוח עלינו!';
+    document.getElementById('free-ship-msg').textContent = remain > 0 ? t(`עוד ₪${remain.toFixed(0)} למשלוח חינם`, `Add ₪${remain.toFixed(0)} for free delivery`) : t('🎉 המשלוח עלינו!', '🎉 Free delivery!');
     const pct = Math.min(100, (subtotal/freeAbove)*100);
     document.getElementById('free-ship-bar-fill').style.width = pct + '%';
     document.getElementById('free-ship-bar-fill').style.background = remain === 0 ? '#7FB77E' : 'var(--accent)';
@@ -1699,9 +1789,9 @@ function renderPanelCart() {
   document.getElementById('panel-checkout-step').style.display = 'none';
   document.getElementById('panel-done-step').style.display = 'none';
   document.getElementById('panel-summary').style.display = keys.length ? 'flex' : 'none';
-  document.getElementById('panel-title').textContent = keys.length ? `העגלה · ${keys.reduce((s,k)=>s+cart[k].qty,0)} פריטים` : 'העגלה';
+  document.getElementById('panel-title').textContent = keys.length ? `${t('העגלה','Cart')} · ${keys.reduce((s,k)=>s+cart[k].qty,0)} ${t('פריטים','items')}` : t('העגלה','Cart');
   document.getElementById('panel-back-btn').style.display = 'none';
-  document.getElementById('panel-primary-btn').textContent = `מעבר לתשלום · ₪${getPanelFinal().toFixed(0)}`;
+  document.getElementById('panel-primary-btn').textContent = `${t('מעבר לתשלום','Continue to checkout')} · ₪${getPanelFinal().toFixed(0)}`;
 
   if (!keys.length) {
     document.getElementById('cart-items-list').innerHTML = '';
@@ -1717,7 +1807,7 @@ function renderPanelCart() {
       <div class="cart-line-info">
         <div class="cart-line-name">${escHtml(l.name)}</div>
         ${l.note?`<div class="cart-line-detail">${escHtml(l.note)}</div>`:''}
-        <button class="cart-line-remove" onclick="removeCartLine('${k}')">הסרה</button>
+        <button class="cart-line-remove" onclick="removeCartLine('${k}')">${t('הסרה','Remove')}</button>
       </div>
       <div class="cart-line-right">
         <span class="cart-line-price">₪${(l.price*l.qty).toFixed(0)}</span>
@@ -1758,27 +1848,27 @@ async function applyCoupon() {
   const code = document.getElementById('coupon-input').value.trim().toUpperCase();
   const msg = document.getElementById('coupon-msg');
   msg.style.display = '';
-  if (!code) { msg.textContent = 'הכנס קוד קופון'; msg.style.color = 'var(--accent)'; return; }
+  if (!code) { msg.textContent = t('הכנס קוד קופון', 'Enter promo code'); msg.style.color = 'var(--accent)'; return; }
   // בדיקה מקומית תחילה
   const promo = _activePromos.find(p => (p.promo_code||'').toUpperCase() === code);
   if (promo) {
     _couponCode = code;
     if (promo.promo_type === 'discount_pct') {
       _couponDiscount = (promo.promo_value || 0) / 100;
-      msg.textContent = `קופון הופעל — ${promo.promo_value}% הנחה`;
+      msg.textContent = t(`קופון הופעל — ${promo.promo_value}% הנחה`, `Coupon applied — ${promo.promo_value}% discount`);
     } else if (promo.promo_type === 'discount_fixed') {
       _couponDiscount = 'fixed:' + (promo.promo_value || 0);
-      msg.textContent = `קופון הופעל — ₪${promo.promo_value} הנחה`;
+      msg.textContent = t(`קופון הופעל — ₪${promo.promo_value} הנחה`, `Coupon applied — ₪${promo.promo_value} off`);
     } else {
       _couponDiscount = 0.1;
-      msg.textContent = 'קופון הופעל';
+      msg.textContent = t('קופון הופעל', 'Coupon applied');
     }
     msg.style.color = '#22c55e';
     renderPanelSummary();
     return;
   }
   // בדיקה ב-API
-  msg.textContent = 'בודק...'; msg.style.color = 'var(--muted)';
+  msg.textContent = t('בודק...', 'Checking...'); msg.style.color = 'var(--muted)';
   try {
     // בדיקת קופון רגיל
     const r = await fetch(`${API}/storefront/check-coupon`, {
@@ -1810,7 +1900,7 @@ async function applyCoupon() {
     }
   } catch(e) {}
   _couponCode = ''; _couponDiscount = 0;
-  msg.textContent = 'קוד קופון לא נמצא';
+  msg.textContent = t('קוד קופון לא נמצא', 'Coupon code not found');
   msg.style.color = 'var(--accent)';
   renderPanelSummary();
 }
@@ -1848,7 +1938,7 @@ async function geocodeAndCalcZone() {
       _deliveryZoneFee = parseFloat(zone.delivery_fee)||0;
     } else {
       _deliveryZoneFee = null;
-      showToast('הכתובת מחוץ לאזור החלוקה');
+      showToast(t('הכתובת מחוץ לאזור החלוקה', 'Address outside delivery zone'));
     }
     renderPanelSummary();
   } catch(e) {}
@@ -1858,8 +1948,8 @@ async function applyFlowCode() {
   const code = document.getElementById('flow-code-input').value.trim();
   const msg = document.getElementById('flow-code-msg');
   msg.style.display = '';
-  if (!code) { msg.textContent = 'הכנס קוד מטבעות'; msg.style.color = 'var(--accent)'; return; }
-  msg.textContent = 'בודק...'; msg.style.color = 'var(--muted)';
+  if (!code) { msg.textContent = t('הכנס קוד מטבעות', 'Enter community code'); msg.style.color = 'var(--accent)'; return; }
+  msg.textContent = t('בודק...', 'Checking...'); msg.style.color = 'var(--muted)';
   try {
     const r = await fetch(`${API}/storefront/redeem-flow-code`, {
       method:'POST', headers:{'Content-Type':'application/json'},
@@ -1872,10 +1962,10 @@ async function applyFlowCode() {
       msg.style.color = '#22c55e';
       renderPanelSummary();
     } else {
-      msg.textContent = d.error || 'קוד לא תקין';
+      msg.textContent = d.error || t('קוד לא תקין', 'Invalid code');
       msg.style.color = 'var(--accent)';
     }
-  } catch(e) { msg.textContent = 'שגיאת רשת'; msg.style.color = 'var(--accent)'; }
+  } catch(e) { msg.textContent = t('שגיאת רשת', 'Network error'); msg.style.color = 'var(--accent)'; }
 }
 
 function haversine(lat1,lon1,lat2,lon2) {
@@ -1900,8 +1990,8 @@ function renderPanelSummary() {
   const sub = getSubtotal(), fee = getDeliveryFee(), final = getPanelFinal();
   const disc = calcDiscount(sub) + calcBogoDiscount();
   document.getElementById('sum-subtotal').textContent = `₪${sub.toFixed(0)}`;
-  document.getElementById('sum-fee-label').textContent = isDelivery ? 'דמי משלוח' : 'איסוף עצמי';
-  document.getElementById('sum-fee').textContent = fee > 0 ? `₪${fee}` : 'חינם';
+  document.getElementById('sum-fee-label').textContent = isDelivery ? t('דמי משלוח', 'Delivery fee') : t('איסוף עצמי', 'Pickup');
+  document.getElementById('sum-fee').textContent = fee > 0 ? `₪${fee}` : t('חינם', 'Free');
   const dr = document.getElementById('sum-discount-row');
   if (disc) { dr.style.display = 'flex'; document.getElementById('sum-discount').textContent = `−₪${disc}`; } else dr.style.display = 'none';
   document.getElementById('sum-total').textContent = `₪${final.toFixed(0)}`;
@@ -1916,8 +2006,8 @@ function renderPanelSummary() {
     } else commRow.style.display = 'none';
   }
   const pb = document.getElementById('panel-primary-btn');
-  if (_cartStep === 'cart') pb.textContent = `מעבר לתשלום · ₪${final.toFixed(0)}`;
-  else if (_cartStep === 'checkout') pb.textContent = `שליחת ההזמנה · ₪${final.toFixed(0)}`;
+  if (_cartStep === 'cart') pb.textContent = `${t('מעבר לתשלום','Continue to checkout')} · ₪${final.toFixed(0)}`;
+  else if (_cartStep === 'checkout') pb.textContent = `${t('שליחת ההזמנה','Place order')} · ₪${final.toFixed(0)}`;
 }
 
 function panelPrimary() {
@@ -1931,20 +2021,20 @@ function goCheckout() {
   const warn = document.getElementById('co-min-warning');
   if (min > 0 && sub < min) {
     warn.style.display = '';
-    warn.textContent = `מינימום הזמנה ₪${min}. חסר עוד ₪${(min-sub).toFixed(0)}.`;
+    warn.textContent = t(`מינימום הזמנה ₪${min}. חסר עוד ₪${(min-sub).toFixed(0)}.`, `Minimum order ₪${min}. Add ₪${(min-sub).toFixed(0)} more.`);
     return;
   }
   warn.style.display = 'none';
   document.getElementById('panel-cart-step').style.display = 'none';
   document.getElementById('panel-checkout-step').style.display = 'flex';
   document.getElementById('panel-back-btn').style.display = '';
-  document.getElementById('panel-title').textContent = 'פרטי הזמנה';
+  document.getElementById('panel-title').textContent = t('פרטי הזמנה', 'Order details');
   renderPanelSummary();
   // payment options
   document.getElementById('payment-options').innerHTML = [
-    {l:'כרטיס אשראי',n:'תשלום מאובטח'},
-    {l:'ביט / אפליקציית תשלום',n:'אישור בטלפון'},
-    {l:'מזומן לשליח',n:'עד ₪400'}
+    {l:t('כרטיס אשראי','Credit card'),n:t('תשלום מאובטח','Secure payment')},
+    {l:t('ביט / אפליקציית תשלום','Bit / payment app'),n:t('אישור בטלפון','Phone approval')},
+    {l:t('מזומן לשליח','Cash on delivery'),n:t('עד ₪400','Up to ₪400')}
   ].map((p,i)=>`<button class="pay-btn${i===_payMethod?' active':''}" onclick="pickPayMethod(${i})"><span class="pay-dot"></span><span>${p.l}</span><span class="pay-note">${p.n}</span></button>`).join('');
   // co-delivery
   const addrWrap = document.getElementById('co-address-wrap');
@@ -1970,17 +2060,17 @@ async function submitOrder() {
   const house = document.getElementById('co-house')?.value.trim() || '';
   const address = isDelivery ? [street, house, city].filter(Boolean).join(' ') : '';
   const notes = document.getElementById('co-notes').value.trim();
-  if (!name) { showToast('אנא הכנס שם'); return; }
-  if (!phone || phone.length < 9) { showToast('אנא הכנס מספר טלפון'); return; }
-  if (isDelivery && !city) { showToast('אנא הכנס עיר למשלוח'); return; }
-  if (isDelivery && !street) { showToast('אנא הכנס רחוב למשלוח'); return; }
+  if (!name) { showToast(t('אנא הכנס שם', 'Please enter your name')); return; }
+  if (!phone || phone.length < 9) { showToast(t('אנא הכנס מספר טלפון', 'Please enter a valid phone number')); return; }
+  if (isDelivery && !city) { showToast(t('אנא הכנס עיר למשלוח', 'Please enter your city')); return; }
+  if (isDelivery && !street) { showToast(t('אנא הכנס רחוב למשלוח', 'Please enter your street')); return; }
 
   const s = storeData?.settings||{};
   const final = getPanelFinal();
   const fee = getDeliveryFee();
   const cartArr = Object.values(cart);
   const btn = document.getElementById('panel-primary-btn');
-  btn.disabled = true; btn.textContent = 'שולח...';
+  btn.disabled = true; btn.textContent = t('שולח...', 'Sending...');
   try {
     const r = await fetch(`${API}/store/orders`, {
       method:'POST',
@@ -2002,9 +2092,9 @@ async function submitOrder() {
       renderCatalog(); updateCartBar();
       showDoneStep(name, s);
     } else {
-      showToast(d.error||'שגיאה בשליחת ההזמנה');
+      showToast(d.error||t('שגיאה בשליחת ההזמנה', 'Error placing order'));
     }
-  } catch(e) { showToast('שגיאת תקשורת'); }
+  } catch(e) { showToast(t('שגיאת תקשורת', 'Network error')); }
   finally { btn.disabled=false; renderPanelSummary(); }
 }
 function showDoneStep(name, s) {
@@ -2013,14 +2103,14 @@ function showDoneStep(name, s) {
   document.getElementById('panel-done-step').style.display = 'flex';
   document.getElementById('panel-summary').style.display = 'none';
   document.getElementById('panel-back-btn').style.display = 'none';
-  document.getElementById('panel-title').textContent = 'ההזמנה שלך';
-  document.getElementById('done-sub').textContent = `הזמנה ${_orderNo} · ${isDelivery?`מגיע בעוד כ-${s.delivery_eta_min||35} דק'`:'מוכן לאיסוף בעוד 15 דק'}`;
+  document.getElementById('panel-title').textContent = t('ההזמנה שלך', 'Your order');
+  document.getElementById('done-sub').textContent = `${t('הזמנה','Order')} ${_orderNo} · ${isDelivery?t(`מגיע בעוד כ-${s.delivery_eta_min||35} דק'`,`Arrives in ~${s.delivery_eta_min||35} min`):t('מוכן לאיסוף בעוד 15 דק','Ready for pickup in 15 min')}`;
   const etaMin = s.delivery_eta_min||35;
   document.getElementById('tracking-card').innerHTML = [
-    {t:'ההזמנה התקבלה',s:'שולמה ואושרה',on:true},
-    {t:'בהכנה',s:'בדיוק עכשיו על התנור',on:true},
-    {t:isDelivery?'יצא לדרך':'מוכן לאיסוף',s:isDelivery?`בעוד כ-${Math.round(etaMin/2)} דק'`:'הודעה נשלחת',on:false},
-    {t:isDelivery?'הגיע אליכם':'נאסף',s:'בתאבון',on:false}
+    {t:t('ההזמנה התקבלה','Order received'),s:t('שולמה ואושרה','Paid & confirmed'),on:true},
+    {t:t('בהכנה','Preparing'),s:t('בדיוק עכשיו על התנור','In the kitchen now'),on:true},
+    {t:isDelivery?t('יצא לדרך','On the way'):t('מוכן לאיסוף','Ready for pickup'),s:isDelivery?t(`בעוד כ-${Math.round(etaMin/2)} דק'`,`In ~${Math.round(etaMin/2)} min`):t('הודעה נשלחת','Notification sent'),on:false},
+    {t:isDelivery?t('הגיע אליכם','Delivered'):t('נאסף','Picked up'),s:t('בתאבון','Enjoy!'),on:false}
   ].map(tr=>`<div class="tracking-row">
     <span class="tracking-dot" style="background:${tr.on?'var(--accent)':'var(--border)'}"></span>
     <div><div class="tracking-title" style="font-weight:${tr.on?'600':'400'};color:${tr.on?'var(--dark)':'var(--muted)'}">${tr.t}</div>
@@ -2046,7 +2136,7 @@ function setDeliveryMode(deliver) {
     const el = document.getElementById(id);
     if (el) el.classList.toggle('active', !deliver);
   });
-  document.getElementById('cart-bar-label').textContent = deliver ? 'להמשך הזמנה' : 'לאיסוף עצמי';
+  document.getElementById('cart-bar-label').textContent = deliver ? t('להמשך הזמנה', 'Continue to checkout') : t('לאיסוף עצמי', 'Self-pickup');
   const addrWrap2 = document.getElementById('co-address-wrap');
   if (addrWrap2) addrWrap2.style.display = deliver ? 'flex' : 'none';
   if (!deliver) { _deliveryZoneFee = null; renderPanelSummary(); }
