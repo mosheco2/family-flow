@@ -13977,7 +13977,45 @@ window.openSABillingModal = async function(groupId, e) {
 let _aiBuilderData = null;
 let _aiBuilderImages = { products: {} };
 
-function initAIBuilder() {}
+const _AIB_DATA_KEY = 'aib_draft_data';
+const _AIB_IMGS_KEY = 'aib_draft_images';
+
+function _aibSave() {
+  try {
+    if (_aiBuilderData) localStorage.setItem(_AIB_DATA_KEY, JSON.stringify(_aiBuilderData));
+    // images can be large (base64) — save only URLs, skip data: URIs to stay within quota
+    const imgsSafe = { products: {} };
+    Object.entries(_aiBuilderImages.products).forEach(([k, v]) => {
+      if (v && !v.startsWith('data:')) imgsSafe.products[k] = v;
+    });
+    localStorage.setItem(_AIB_IMGS_KEY, JSON.stringify(imgsSafe));
+  } catch(e) { /* quota exceeded — ignore */ }
+}
+
+function _aibClearSaved() {
+  localStorage.removeItem(_AIB_DATA_KEY);
+  localStorage.removeItem(_AIB_IMGS_KEY);
+}
+
+function initAIBuilder() {
+  // Restore draft from localStorage if exists
+  try {
+    const saved = localStorage.getItem(_AIB_DATA_KEY);
+    if (saved && !_aiBuilderData) {
+      const data = JSON.parse(saved);
+      const imgs = JSON.parse(localStorage.getItem(_AIB_IMGS_KEY) || '{"products":{}}');
+      // Show resume banner
+      const banner = document.getElementById('aib-resume-banner');
+      if (banner) {
+        banner.style.display = 'flex';
+        const nameEl = document.getElementById('aib-resume-name');
+        if (nameEl) nameEl.textContent = data.profile?.name || 'טיוטה';
+      }
+      // Store for potential resume
+      window._aibSavedDraft = { data, imgs };
+    }
+  } catch(e) {}
+}
 
 async function aiGenerateBusiness() {
   const name = document.getElementById('aib-name')?.value?.trim();
@@ -14005,6 +14043,7 @@ async function aiGenerateBusiness() {
     if (!d.success) throw new Error(d.error || 'שגיאה בייצור');
     _aiBuilderData = d.data;
     _aiBuilderImages = { products: {} };
+    _aibSave();
     document.getElementById('aib-loading').style.display = 'none';
     document.getElementById('aib-preview').style.display = 'block';
     renderAIBPreview();
@@ -14043,6 +14082,8 @@ function renderAIBPreview() {
 
 function syncAIBFromForm() {
   if (!_aiBuilderData) return;
+  // called before create/save — persist immediately after sync
+  setTimeout(_aibSave, 0);
   _aiBuilderData.profile = {
     ..._aiBuilderData.profile,
     name: document.getElementById('aib-prev-name').value,
@@ -14170,6 +14211,7 @@ async function aiGenProdImg(tid, ci, pi, isRetry) {
     const d = await r.json();
     if (d.imageUrl || d.url || d.data) {
       _aiBuilderImages.products[tid] = d.imageUrl || d.url || d.data;
+      _aibSave();
       renderAIBImages();
     } else if (!isRetry) {
       // retry once after 3s on failure
@@ -14220,6 +14262,7 @@ async function aiCreateBusiness() {
     document.getElementById('aib-success-link').href = `/storefront.html?store=${d.storeAlias}`;
     document.getElementById('aib-success-biz-link').href = `/business.html?gid=${d.groupId}`;
     document.getElementById('aib-save-template-section').style.display = 'block';
+    _aibClearSaved();
   } catch(e) {
     alert(e.message);
     btn.disabled = false;
@@ -14283,9 +14326,27 @@ function switchAIBTab(tab) {
   });
 }
 
+function aiResumeDraft() {
+  if (!window._aibSavedDraft) return;
+  _aiBuilderData = window._aibSavedDraft.data;
+  _aiBuilderImages = window._aibSavedDraft.imgs || { products: {} };
+  window._aibSavedDraft = null;
+  document.getElementById('aib-resume-banner').style.display = 'none';
+  document.getElementById('aib-step1').style.display = 'none';
+  document.getElementById('aib-preview').style.display = 'block';
+  renderAIBPreview();
+}
+
+function aiDiscardDraft() {
+  _aibClearSaved();
+  window._aibSavedDraft = null;
+  document.getElementById('aib-resume-banner').style.display = 'none';
+}
+
 function aiResetBuilder() {
   _aiBuilderData = null;
   _aiBuilderImages = { products: {} };
+  _aibClearSaved();
   const s1 = document.getElementById('aib-step1');
   const prev = document.getElementById('aib-preview');
   const succ = document.getElementById('aib-success');

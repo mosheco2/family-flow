@@ -3626,6 +3626,17 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
               </div>
 
               <!-- Templates panel -->
+              <!-- Resume draft banner -->
+              <div id="aib-resume-banner" style="display:none;background:#fffbeb;border:1.5px solid #fde68a;border-radius:14px;padding:14px 18px;margin-bottom:16px;align-items:center;gap:12px">
+                <span style="font-size:20px">💾</span>
+                <div style="flex:1">
+                  <div style="font-weight:700;font-size:14px;color:#92400e">נמצאה טיוטה שמורה: <span id="aib-resume-name"></span></div>
+                  <div style="font-size:12px;color:#b45309">האם להמשיך מהמקום שעצרת?</div>
+                </div>
+                <button onclick="aiResumeDraft()" style="padding:8px 16px;background:#f59e0b;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600">המשך עריכה</button>
+                <button onclick="aiDiscardDraft()" style="padding:8px 14px;border:1px solid #fde68a;background:#fff;border-radius:8px;cursor:pointer;font-size:12px;color:#92400e">בטל</button>
+              </div>
+
               <div id="aib-templates-panel" style="display:none;background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:16px;margin-bottom:20px">
                 <h3 style="font-size:14px;font-weight:700;margin:0 0 12px">Templates שמורים</h3>
                 <div id="aib-templates-list"></div>
