@@ -14424,19 +14424,26 @@ async function aiGenAllImgs() {
   const allBtn = document.querySelector('[onclick="aiGenAllImgs()"]');
   if (allBtn) { allBtn.disabled = true; }
   let done = 0, failed = 0, total = 0;
-  catalog.forEach(c => total += (c.products||[]).length);
-  for (let ci = 0; ci < catalog.length; ci++) {
-    for (let pi = 0; pi < (catalog[ci].products||[]).length; pi++) {
-      const tid = `${ci}_${pi}`;
-      // Skip if image already exists
-      if (_aiBuilderImages.products[tid]) { done++; continue; }
-      if (allBtn) allBtn.textContent = `⏳ ${done + failed + 1}/${total}`;
-      const ok = await aiGenProdImg(tid, ci, pi);
-      if (ok) done++; else failed++;
-      // Short delay between requests — loremflickr is fast, no generation wait
-      await new Promise(r => setTimeout(r, 300));
-    }
+
+  // Build list of products without images
+  const queue = [];
+  catalog.forEach((cat, ci) => (cat.products||[]).forEach((p, pi) => {
+    total++;
+    const tid = `${ci}_${pi}`;
+    if (!_aiBuilderImages.products[tid]) queue.push({ tid, ci, pi });
+    else done++;
+  }));
+
+  // Run in parallel batches of 5
+  const BATCH = 5;
+  for (let i = 0; i < queue.length; i += BATCH) {
+    if (allBtn) allBtn.textContent = `⏳ ${done + failed + 1}/${total}`;
+    const batch = queue.slice(i, i + BATCH);
+    const results = await Promise.all(batch.map(({ tid, ci, pi }) => aiGenProdImg(tid, ci, pi)));
+    results.forEach(ok => ok ? done++ : failed++);
+    renderAIBImages();
   }
+
   if (allBtn) {
     allBtn.disabled = false;
     allBtn.textContent = failed > 0 ? `🪄 צור שוב (${failed} נכשלו)` : '✅ הושלם';

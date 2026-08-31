@@ -4061,12 +4061,10 @@ LOGO prompt rules:
 
 BANNER prompt rules:
 - ONLY products and environment — absolutely NO people, NO faces, NO humans
-- Show the PRODUCTS of this business in an attractive display
-  shoes → "rows of colorful sneakers neatly displayed on white shelves, overhead view, retail store"
-  clothing → "folded clothes and hanging garments in a boutique, warm lighting"
-  food → specific dishes on a table, close-up
+- Use the business name "${businessNameEn || businessName}" and description "${description || ''}" to describe the SPECIFIC products of this business
+- Show those specific products in an attractive display setting
 - Style: "wide product photo, [specific products arranged attractively], natural warm lighting, photorealistic, high quality, no text, no logo, no people"
-- Max 30 words total
+- Max 30 words total. Be SPECIFIC to this business, not generic.
 
 Return ONLY valid JSON:
 {"logo_prompt": "...", "banner_prompt": "..."}`;
@@ -9841,22 +9839,20 @@ app.post('/api/store/catalog/generate-image', async (req, res) => {
         if (groupId === undefined || groupId === null || !productName) return res.status(400).json({ error: 'שם מוצר נדרש' });
 
         // Use English name if provided, otherwise translate with Gemini (short call)
-        // Use English name directly — AI catalog always generates name_en
-        // Clean to ASCII only (loremflickr requires it)
+        // Build English search term from name_en or category
         let searchQuery = (nameEn || '').replace(/[^a-zA-Z0-9 ]/g, '').trim();
-
-        // Fallback: extract first 2 words from category (usually English in AI-generated catalogs)
-        if (!searchQuery && category) {
-            searchQuery = category.replace(/[^a-zA-Z0-9 ]/g, '').trim().split(/\s+/).slice(0,2).join(' ');
-        }
+        if (!searchQuery && category) searchQuery = category.replace(/[^a-zA-Z0-9 ]/g, '').trim();
         if (!searchQuery) searchQuery = 'product';
 
-        // Use last 2 words — they're usually the specific product type (e.g. "Canvas Shoes" not "Kids Canvas")
+        // Use last 2 words (most specific product noun)
         const words = searchQuery.split(/\s+/).filter(Boolean);
-        const cleanQuery = words.slice(-2).join(',') || 'product';
+        const subject = words.slice(-2).join(' ') || 'product';
 
-        const lock = Math.floor(Math.random() * 999999);
-        const imageUrl = `https://loremflickr.com/512/512/${cleanQuery}?lock=${lock}`;
+        // Pollinations FLUX — fast, relevant, free, no API key
+        const seed = Math.floor(Math.random() * 99999);
+        const prodPrompt = `product photo, ${subject}, white background, professional studio lighting, high quality, sharp focus, no text`;
+        const neg = encodeURIComponent('people, faces, text, logo, watermark, cartoon, blurry, low quality');
+        const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(prodPrompt)}?width=512&height=512&model=flux&nologo=true&seed=${seed}&negative=${neg}`;
 
         res.json({ success: true, imageUrl, url: imageUrl });
     } catch(e) {
