@@ -9844,7 +9844,7 @@ app.post('/api/store/catalog/generate-image', async (req, res) => {
         let searchQuery = (nameEn || '').replace(/[^a-zA-Z0-9 ,]/g, '').trim();
         if (!searchQuery && apiKey) {
             try {
-                const q = `Translate this Hebrew product name to English (2-4 words max, just the product name, no explanation):\n${productName}`;
+                const q = `Give 2-3 English search keywords for finding a photo of this product (for use in a photo search engine like Flickr). Product name in Hebrew: "${productName}". Category: "${category||''}". Reply with ONLY the keywords separated by commas, no explanation.`;
                 searchQuery = (await callGeminiDirect(q)).trim().replace(/^["'.]+|["'.]+$/g, '').replace(/[^a-zA-Z0-9 ,]/g,'').toLowerCase();
             } catch(e) { console.error('Gemini translate err:', e.message); }
         }

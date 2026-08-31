@@ -14301,15 +14301,52 @@ function renderAIBImages() {
     const tid = `${ci}_${pi}`;
     p._tempId = tid;
     const img = _aiBuilderImages.products[tid];
+    const priceStr = p.price ? `₪${parseFloat(p.price).toFixed(0)}` : '';
     rows.push(`<div style="display:flex;align-items:center;gap:10px;padding:8px;border:1px solid #e2e8f0;border-radius:10px;margin-bottom:6px">
-      <div style="width:52px;height:52px;border-radius:8px;overflow:hidden;background:#f1f5f9;flex-shrink:0">
+      <div style="width:52px;height:52px;border-radius:8px;overflow:hidden;background:#f1f5f9;flex-shrink:0;cursor:pointer" onclick="aibShowProdPreview(${ci},${pi})">
         ${img ? `<img src="${img}" style="width:100%;height:100%;object-fit:cover" onerror="delete _aiBuilderImages.products['${tid}'];this.parentElement.innerHTML='<div style=width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:22px>🍽️</div>'">` : '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:22px">🍽️</div>'}
       </div>
-      <div style="flex:1;font-size:13px;font-weight:600">${_escH(p.name)}</div>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_escH(p.name)}</div>
+        ${priceStr ? `<div style="font-size:11px;color:#64748b">${priceStr}</div>` : ''}
+      </div>
+      <button onclick="aibShowProdPreview(${ci},${pi})" style="padding:5px 9px;border:1px solid #94a3b8;border-radius:8px;background:#fff;color:#475569;cursor:pointer;font-size:11px" title="תצוגה מקדימה">👁️</button>
       <button onclick="aiGenProdImg('${tid}',${ci},${pi})" style="padding:6px 12px;border:1px solid #6366f1;border-radius:8px;background:#fff;color:#6366f1;cursor:pointer;font-size:12px" id="aib-img-btn-${tid}">🪄 צור</button>
     </div>`);
   }));
   el.innerHTML = rows.join('') + (rows.length > 1 ? `<button onclick="aiGenAllImgs()" style="margin-top:8px;padding:10px 20px;background:#6366f1;color:#fff;border:none;border-radius:10px;cursor:pointer;font-size:13px;font-weight:600;width:100%">🪄 צור תמונות לכולם</button>` : '');
+}
+
+function aibShowProdPreview(ci, pi) {
+  const cat = _aiBuilderData?.catalog?.[ci];
+  const p = cat?.products?.[pi];
+  if (!p) return;
+  const tid = `${ci}_${pi}`;
+  const img = _aiBuilderImages.products[tid];
+  const currency = _aiBuilderData?.profile?.currency || '₪';
+  const existing = document.getElementById('aib-prod-modal');
+  if (existing) existing.remove();
+  const modal = document.createElement('div');
+  modal.id = 'aib-prod-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px';
+  modal.onclick = e => { if (e.target === modal) modal.remove(); };
+  modal.innerHTML = `<div style="background:#fff;border-radius:16px;width:100%;max-width:380px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.3)">
+    <div style="position:relative;height:200px;background:#f1f5f9;overflow:hidden">
+      ${img ? `<img src="${img}" style="width:100%;height:100%;object-fit:cover">` : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:60px">🛍️</div>`}
+      <button onclick="document.getElementById('aib-prod-modal').remove()" style="position:absolute;top:10px;left:10px;width:32px;height:32px;border-radius:50%;background:rgba(0,0,0,0.5);border:none;color:#fff;cursor:pointer;font-size:18px;line-height:1">×</button>
+      ${img ? `<button onclick="aiGenProdImg('${tid}',${ci},${pi});document.getElementById('aib-prod-modal').remove()" style="position:absolute;bottom:10px;left:10px;padding:6px 12px;background:rgba(99,102,241,0.9);border:none;border-radius:8px;color:#fff;cursor:pointer;font-size:12px">🔄 צור שוב</button>` : `<button onclick="aiGenProdImg('${tid}',${ci},${pi});document.getElementById('aib-prod-modal').remove()" style="position:absolute;bottom:10px;left:10px;padding:6px 12px;background:rgba(99,102,241,0.9);border:none;border-radius:8px;color:#fff;cursor:pointer;font-size:12px">🪄 צור תמונה</button>`}
+    </div>
+    <div style="padding:16px;direction:rtl;text-align:right">
+      <div style="font-weight:700;font-size:16px;margin-bottom:4px">${_escH(p.name)}</div>
+      ${p.name_en ? `<div style="font-size:12px;color:#94a3b8;margin-bottom:8px">${_escH(p.name_en)}</div>` : ''}
+      ${p.description ? `<div style="font-size:13px;color:#475569;margin-bottom:10px;line-height:1.5">${_escH(p.description)}</div>` : ''}
+      <div style="display:flex;gap:12px;align-items:center">
+        ${p.price ? `<div style="font-size:18px;font-weight:700;color:#6366f1">${currency}${parseFloat(p.price).toFixed(0)}</div>` : ''}
+        ${cat.category ? `<div style="font-size:11px;background:#f1f5f9;color:#64748b;padding:3px 8px;border-radius:20px">${_escH(cat.category)}</div>` : ''}
+      </div>
+    </div>
+  </div>`;
+  document.body.appendChild(modal);
 }
 
 async function aiGenProdImg(tid, ci, pi, retryCount) {
