@@ -1843,7 +1843,7 @@ function _renderGroupTypeFilters() {
     const opts = [
         { key: 'all',     label: 'הכל',      icon: 'fa-layer-group' },
         { key: 'FAMILY',  label: 'משפחות',   icon: 'fa-house' },
-        { key: 'BUSINESS',label: 'עסקים',    icon: 'fa-briefcase' },
+        { key: 'BIZ',     label: 'עסקים',    icon: 'fa-briefcase' },
     ];
     cont.innerHTML = opts.map(o => {
         const active = _saGroupTypeFilter === o.key;

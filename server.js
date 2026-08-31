@@ -6713,9 +6713,9 @@ app.get('/api/superadmin/data', verifySA, async (req, res) => {
         const stats = {
             families: groups.rows.filter(g => g.type === 'FAMILY' && g.member_type !== 'member').length,
             members: groups.rows.filter(g => g.member_type === 'member').length,
-            businesses: groups.rows.filter(g => g.type === 'BUSINESS').length,
+            businesses: groups.rows.filter(g => g.type === 'BIZ').length,
             familyUsers: users.rows.filter(u => { const g = groups.rows.find(g=>g.id===u.group_id); return g && g.type === 'FAMILY'; }).length,
-            businessUsers: users.rows.filter(u => { const g = groups.rows.find(g=>g.id===u.group_id); return g && g.type === 'BUSINESS'; }).length,
+            businessUsers: users.rows.filter(u => { const g = groups.rows.find(g=>g.id===u.group_id); return g && g.type === 'BIZ'; }).length,
             activeConnections: totalConnections,
             communities: totalCommunities,
             onlineNow: parseInt((await pool.query(`SELECT COUNT(*) FROM users WHERE last_seen > NOW() - INTERVAL '3 minutes'`)).rows[0].count) || 0
@@ -12958,7 +12958,7 @@ app.get('/api/community/promos/:groupId', verifyFamily, async (req, res) => {
 
 app.get('/api/sa/businesses', async (req, res) => {
     try {
-        const result = await pool.query("SELECT id, name, group_code FROM family_groups WHERE type='BUSINESS' ORDER BY name");
+        const result = await pool.query("SELECT id, name, group_code FROM family_groups WHERE type='BIZ' ORDER BY name");
         res.json({ success: true, businesses: result.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
