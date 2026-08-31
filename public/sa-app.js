@@ -14311,10 +14311,17 @@ function renderAIBImages() {
         ${priceStr ? `<div style="font-size:11px;color:#64748b">${priceStr}</div>` : ''}
       </div>
       <button onclick="aibShowProdPreview(${ci},${pi})" style="padding:5px 9px;border:1px solid #94a3b8;border-radius:8px;background:#fff;color:#475569;cursor:pointer;font-size:11px" title="תצוגה מקדימה">👁️</button>
-      <button onclick="aiGenProdImg('${tid}',${ci},${pi})" style="padding:6px 12px;border:1px solid #6366f1;border-radius:8px;background:#fff;color:#6366f1;cursor:pointer;font-size:12px" id="aib-img-btn-${tid}">🪄 צור</button>
+      ${img ? `<button onclick="aibDeleteProdImg('${tid}')" style="padding:5px 9px;border:1px solid #fca5a5;border-radius:8px;background:#fff;color:#ef4444;cursor:pointer;font-size:11px" title="מחק תמונה">🗑️</button>` : ''}
+      <button onclick="aiGenProdImg('${tid}',${ci},${pi})" style="padding:6px 12px;border:1px solid #6366f1;border-radius:8px;background:#fff;color:#6366f1;cursor:pointer;font-size:12px" id="aib-img-btn-${tid}">${img ? '🔄' : '🪄 צור'}</button>
     </div>`);
   }));
   el.innerHTML = rows.join('') + (rows.length > 1 ? `<button onclick="aiGenAllImgs()" style="margin-top:8px;padding:10px 20px;background:#6366f1;color:#fff;border:none;border-radius:10px;cursor:pointer;font-size:13px;font-weight:600;width:100%">🪄 צור תמונות לכולם</button>` : '');
+}
+
+function aibDeleteProdImg(tid) {
+  delete _aiBuilderImages.products[tid];
+  _aibSave();
+  renderAIBImages();
 }
 
 function aibShowProdPreview(ci, pi) {
@@ -14334,7 +14341,12 @@ function aibShowProdPreview(ci, pi) {
     <div style="position:relative;height:200px;background:#f1f5f9;overflow:hidden">
       ${img ? `<img src="${img}" style="width:100%;height:100%;object-fit:cover">` : `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:60px">🛍️</div>`}
       <button onclick="document.getElementById('aib-prod-modal').remove()" style="position:absolute;top:10px;left:10px;width:32px;height:32px;border-radius:50%;background:rgba(0,0,0,0.5);border:none;color:#fff;cursor:pointer;font-size:18px;line-height:1">×</button>
-      ${img ? `<button onclick="aiGenProdImg('${tid}',${ci},${pi});document.getElementById('aib-prod-modal').remove()" style="position:absolute;bottom:10px;left:10px;padding:6px 12px;background:rgba(99,102,241,0.9);border:none;border-radius:8px;color:#fff;cursor:pointer;font-size:12px">🔄 צור שוב</button>` : `<button onclick="aiGenProdImg('${tid}',${ci},${pi});document.getElementById('aib-prod-modal').remove()" style="position:absolute;bottom:10px;left:10px;padding:6px 12px;background:rgba(99,102,241,0.9);border:none;border-radius:8px;color:#fff;cursor:pointer;font-size:12px">🪄 צור תמונה</button>`}
+      ${img
+        ? `<div style="position:absolute;bottom:10px;left:10px;display:flex;gap:6px">
+            <button onclick="aiGenProdImg('${tid}',${ci},${pi});document.getElementById('aib-prod-modal').remove()" style="padding:6px 12px;background:rgba(99,102,241,0.9);border:none;border-radius:8px;color:#fff;cursor:pointer;font-size:12px">🔄 צור שוב</button>
+            <button onclick="aibDeleteProdImg('${tid}');document.getElementById('aib-prod-modal').remove()" style="padding:6px 12px;background:rgba(239,68,68,0.85);border:none;border-radius:8px;color:#fff;cursor:pointer;font-size:12px">🗑️ מחק</button>
+           </div>`
+        : `<button onclick="aiGenProdImg('${tid}',${ci},${pi});document.getElementById('aib-prod-modal').remove()" style="position:absolute;bottom:10px;left:10px;padding:6px 12px;background:rgba(99,102,241,0.9);border:none;border-radius:8px;color:#fff;cursor:pointer;font-size:12px">🪄 צור תמונה</button>`}
     </div>
     <div style="padding:16px;direction:rtl;text-align:right">
       <div style="font-weight:700;font-size:16px;margin-bottom:4px">${_escH(p.name)}</div>
