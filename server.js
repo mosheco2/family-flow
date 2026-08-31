@@ -9841,21 +9841,21 @@ app.post('/api/store/catalog/generate-image', async (req, res) => {
         if (groupId === undefined || groupId === null || !productName) return res.status(400).json({ error: 'שם מוצר נדרש' });
 
         // Use English name if provided, otherwise translate with Gemini (short call)
-        let searchQuery = (nameEn || '').replace(/[^a-zA-Z0-9 ,]/g, '').trim();
-        if (!searchQuery && apiKey) {
-            try {
-                const q = `What is the single best English word (or two words max) to search in a photo library to find a clear photo of this product?\nHebrew product name: "${productName}"\nCategory: "${category||''}"\nReturn ONLY the word(s), nothing else. Examples: "sneakers", "sandals", "handbag", "coffee", "cake", "shirt".`;
-                searchQuery = (await callGeminiDirect(q)).trim().replace(/^["'.]+|["'.]+$/g, '').replace(/[^a-zA-Z0-9 ]/g,'').toLowerCase().split(/\s+/).slice(0,2).join(' ');
-            } catch(e) { console.error('Gemini translate err:', e.message); }
+        // Use English name directly — AI catalog always generates name_en
+        // Clean to ASCII only (loremflickr requires it)
+        let searchQuery = (nameEn || '').replace(/[^a-zA-Z0-9 ]/g, '').trim();
+
+        // Fallback: extract first 2 words from category (usually English in AI-generated catalogs)
+        if (!searchQuery && category) {
+            searchQuery = category.replace(/[^a-zA-Z0-9 ]/g, '').trim().split(/\s+/).slice(0,2).join(' ');
         }
         if (!searchQuery) searchQuery = 'product';
 
-        const cleanQuery = searchQuery.replace(/[^a-zA-Z0-9 ]/g, '').trim() || 'product';
+        // Use comma-separated for loremflickr multi-keyword — max 2 words
+        const cleanQuery = searchQuery.split(/\s+/).slice(0,2).join(',') || 'product';
 
-        // loremflickr: different lock each call → different photo from same keyword pool
-        // Using large range (0-999999) to ensure variety on retries
         const lock = Math.floor(Math.random() * 999999);
-        const imageUrl = `https://loremflickr.com/512/512/${cleanQuery.replace(/ /g, ',')}?lock=${lock}`;
+        const imageUrl = `https://loremflickr.com/512/512/${cleanQuery}?lock=${lock}`;
 
         res.json({ success: true, imageUrl, url: imageUrl });
     } catch(e) {

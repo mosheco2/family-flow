@@ -14404,12 +14404,6 @@ async function aiGenProdImg(tid, ci, pi, retryCount) {
     const d = await r.json();
     const imgUrl = d.imageUrl || d.url || d.data;
     if (imgUrl) {
-      // Pre-load image to verify it resolves (loremflickr redirects)
-      await new Promise((res) => {
-        const img = new Image(); img.onload = res; img.onerror = res;
-        img.src = imgUrl;
-        setTimeout(res, 5000); // max wait 5s
-      });
       _aiBuilderImages.products[tid] = imgUrl;
       _aibSave();
       renderAIBImages();
@@ -14439,9 +14433,8 @@ async function aiGenAllImgs() {
       if (allBtn) allBtn.textContent = `⏳ ${done + failed + 1}/${total}`;
       const ok = await aiGenProdImg(tid, ci, pi);
       if (ok) done++; else failed++;
-      // Progressive delay: increases after failures to let Pollinations recover
-      const delay = failed > 0 ? 5000 : 3500;
-      await new Promise(r => setTimeout(r, delay));
+      // Short delay between requests — loremflickr is fast, no generation wait
+      await new Promise(r => setTimeout(r, 300));
     }
   }
   if (allBtn) {
