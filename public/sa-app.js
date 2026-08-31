@@ -14683,21 +14683,11 @@ async function aiGenBrandingImg(type) {
   try {
     let url;
     if (type === 'banner') {
-      // loremflickr — use business type + name for relevant results, NOT the AI prompt
-      const BIZ_KW = { restaurant:'restaurant,food', cafe:'cafe,coffee', bakery:'bakery,bread', pizza:'pizza,restaurant',
-        shoes:'shoes,sneakers,footwear', fashion:'fashion,clothing,store', beauty:'beauty,salon,cosmetics',
-        spa:'spa,wellness', gym:'gym,fitness', pharmacy:'pharmacy', supermarket:'supermarket,grocery',
-        electronics:'electronics,gadgets', furniture:'furniture,interior', flowers:'flowers,florist',
-        jewelry:'jewelry,accessories', pets:'pet,animals', kids:'kids,toys', books:'books,bookstore',
-        travel:'travel,tourism', real_estate:'real estate,building' };
-      const bizType = _aibGetBizType();
-      const typeKw = BIZ_KW[bizType] || bizType.replace(/_/g,' ');
-      const nameWords = (_aiBuilderData?.profile?.name_en || '').replace(/[^a-zA-Z ]/g,' ').split(/\s+/).filter(w=>w.length>2).slice(0,2).join(',');
-      const kw = nameWords ? `${typeKw},${nameWords}` : typeKw;
-      const lock = Math.floor(Math.random() * 999999);
-      // Use comma-separated for loremflickr multi-keyword search
-      const kwClean = kw.replace(/[^a-zA-Z,]/g, ',').replace(/,+/g, ',').replace(/^,|,$/g, '');
-      url = `https://loremflickr.com/1200/400/${kwClean}?lock=${lock}`;
+      // Pollinations FLUX — AI-generated banner, relevant to business (single image, wait is fine)
+      const seed = Math.floor(Math.random() * 99999);
+      const neg = encodeURIComponent('people, faces, humans, text, logo, watermark, cartoon, CGI, blurry, illustration');
+      url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=1200&height=400&model=flux&nologo=true&seed=${seed}&negative=${neg}`;
+      await fetch(url).catch(() => {});
     } else {
       // Logo: keep Pollinations AI (generates specific icon)
       const seed = Math.floor(Math.random() * 99999);
