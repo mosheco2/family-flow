@@ -14318,6 +14318,23 @@ function renderAIBImages() {
   el.innerHTML = rows.join('') + (rows.length > 1 ? `<button onclick="aiGenAllImgs()" style="margin-top:8px;padding:10px 20px;background:#6366f1;color:#fff;border:none;border-radius:10px;cursor:pointer;font-size:13px;font-weight:600;width:100%">🪄 צור תמונות לכולם</button>` : '');
 }
 
+function aibDeleteBrandImg(type) {
+  if (type === 'logo') {
+    delete _aiBuilderImages.logoUrl;
+    const el = document.getElementById('aib-logo-preview');
+    if (el) el.innerHTML = '<span style="color:#94a3b8;font-size:11px">לחץ "צור" לתצוגה מקדימה</span>';
+    const btn = document.getElementById('aib-logo-del-btn');
+    if (btn) btn.style.display = 'none';
+  } else {
+    delete _aiBuilderImages.bannerUrl;
+    const el = document.getElementById('aib-banner-preview');
+    if (el) el.innerHTML = '<span style="color:#94a3b8;font-size:11px">לחץ "צור" לתצוגה מקדימה</span>';
+    const btn = document.getElementById('aib-banner-del-btn');
+    if (btn) btn.style.display = 'none';
+  }
+  _aibSave();
+}
+
 function aibDeleteProdImg(tid) {
   delete _aiBuilderImages.products[tid];
   _aibSave();
@@ -14640,6 +14657,8 @@ function _aibShowBrandPreview(type, url) {
   } else {
     el.innerHTML = `<img src="${url}" style="width:100%;height:100%;object-fit:cover" onerror="this.parentElement.innerHTML='<span style=color:#ef4444;font-size:11px>שגיאה בטעינה</span>'">`;
   }
+  const delBtn = document.getElementById(`aib-${type}-del-btn`);
+  if (delBtn) delBtn.style.display = '';
 }
 
 function _aibLogoDataUrl() {
