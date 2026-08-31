@@ -9851,8 +9851,9 @@ app.post('/api/store/catalog/generate-image', async (req, res) => {
         }
         if (!searchQuery) searchQuery = 'product';
 
-        // Use comma-separated for loremflickr multi-keyword — max 2 words
-        const cleanQuery = searchQuery.split(/\s+/).slice(0,2).join(',') || 'product';
+        // Use last 2 words — they're usually the specific product type (e.g. "Canvas Shoes" not "Kids Canvas")
+        const words = searchQuery.split(/\s+/).filter(Boolean);
+        const cleanQuery = words.slice(-2).join(',') || 'product';
 
         const lock = Math.floor(Math.random() * 999999);
         const imageUrl = `https://loremflickr.com/512/512/${cleanQuery}?lock=${lock}`;
