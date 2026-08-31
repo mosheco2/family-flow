@@ -14525,6 +14525,13 @@ async function aiCreateBusiness() {
     }
     document.getElementById('aib-save-template-section').style.display = 'block';
     _aibClearSaved();
+    // Refresh SA lists so the new business appears immediately
+    try {
+      const bizRes = await fetch(`${API}/sa/businesses`, { headers: { Authorization: saToken } });
+      const bizData = await bizRes.json();
+      if (bizData.success) { saBusinessesCache = bizData.businesses || []; renderSABusinessesTable?.(); }
+    } catch(e) {}
+    try { loadSAData?.(); } catch(e) {}
   } catch(e) {
     alert(e.message);
     btn.disabled = false;
