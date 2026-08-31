@@ -9844,18 +9844,18 @@ app.post('/api/store/catalog/generate-image', async (req, res) => {
         let searchQuery = (nameEn || '').replace(/[^a-zA-Z0-9 ,]/g, '').trim();
         if (!searchQuery && apiKey) {
             try {
-                const q = `Give 2-3 English search keywords for finding a photo of this product (for use in a photo search engine like Flickr). Product name in Hebrew: "${productName}". Category: "${category||''}". Reply with ONLY the keywords separated by commas, no explanation.`;
-                searchQuery = (await callGeminiDirect(q)).trim().replace(/^["'.]+|["'.]+$/g, '').replace(/[^a-zA-Z0-9 ,]/g,'').toLowerCase();
+                const q = `What is the single best English word (or two words max) to search in a photo library to find a clear photo of this product?\nHebrew product name: "${productName}"\nCategory: "${category||''}"\nReturn ONLY the word(s), nothing else. Examples: "sneakers", "sandals", "handbag", "coffee", "cake", "shirt".`;
+                searchQuery = (await callGeminiDirect(q)).trim().replace(/^["'.]+|["'.]+$/g, '').replace(/[^a-zA-Z0-9 ]/g,'').toLowerCase().split(/\s+/).slice(0,2).join(' ');
             } catch(e) { console.error('Gemini translate err:', e.message); }
         }
         if (!searchQuery) searchQuery = 'product';
 
-        // Keep only ASCII letters/numbers/spaces/commas — loremflickr needs clean English
-        const cleanQuery = searchQuery.replace(/[^a-zA-Z0-9 ,]/g, '').replace(/\s+/g, ' ').trim() || 'product';
+        const cleanQuery = searchQuery.replace(/[^a-zA-Z0-9 ]/g, '').trim() || 'product';
 
-        // loremflickr: lock= is a stable seed → same URL always returns same photo
-        const lock = Math.floor(Math.random() * 99999);
-        const imageUrl = `https://loremflickr.com/512/512/${cleanQuery.replace(/ /g, '+')}?lock=${lock}`;
+        // loremflickr: different lock each call → different photo from same keyword pool
+        // Using large range (0-999999) to ensure variety on retries
+        const lock = Math.floor(Math.random() * 999999);
+        const imageUrl = `https://loremflickr.com/512/512/${cleanQuery.replace(/ /g, ',')}?lock=${lock}`;
 
         res.json({ success: true, imageUrl, url: imageUrl });
     } catch(e) {

@@ -14315,7 +14315,12 @@ function renderAIBImages() {
       <button onclick="aiGenProdImg('${tid}',${ci},${pi})" style="padding:6px 12px;border:1px solid #6366f1;border-radius:8px;background:#fff;color:#6366f1;cursor:pointer;font-size:12px" id="aib-img-btn-${tid}">${img ? '🔄' : '🪄 צור'}</button>
     </div>`);
   }));
-  el.innerHTML = rows.join('') + (rows.length > 1 ? `<button onclick="aiGenAllImgs()" style="margin-top:8px;padding:10px 20px;background:#6366f1;color:#fff;border:none;border-radius:10px;cursor:pointer;font-size:13px;font-weight:600;width:100%">🪄 צור תמונות לכולם</button>` : '');
+  const hasAny = Object.keys(_aiBuilderImages.products || {}).length > 0;
+  el.innerHTML = rows.join('') + (rows.length > 1 ? `
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button onclick="aiGenAllImgs()" style="flex:1;padding:10px 20px;background:#6366f1;color:#fff;border:none;border-radius:10px;cursor:pointer;font-size:13px;font-weight:600">🪄 צור תמונות לכולם</button>
+      ${hasAny ? `<button onclick="aibClearAllProdImgs()" style="padding:10px 14px;background:#fff;color:#ef4444;border:1.5px solid #fca5a5;border-radius:10px;cursor:pointer;font-size:12px" title="מחק את כל התמונות">🗑️ מחק הכל</button>` : ''}
+    </div>` : '');
 }
 
 function aibDeleteBrandImg(type) {
@@ -14337,6 +14342,13 @@ function aibDeleteBrandImg(type) {
 
 function aibDeleteProdImg(tid) {
   delete _aiBuilderImages.products[tid];
+  _aibSave();
+  renderAIBImages();
+}
+
+function aibClearAllProdImgs() {
+  if (!confirm('למחוק את כל תמונות המוצרים?')) return;
+  _aiBuilderImages.products = {};
   _aibSave();
   renderAIBImages();
 }
@@ -14689,8 +14701,10 @@ async function aiGenBrandingImg(type) {
       const typeKw = BIZ_KW[bizType] || bizType.replace(/_/g,' ');
       const nameWords = (_aiBuilderData?.profile?.name_en || '').replace(/[^a-zA-Z ]/g,' ').split(/\s+/).filter(w=>w.length>2).slice(0,2).join(',');
       const kw = nameWords ? `${typeKw},${nameWords}` : typeKw;
-      const lock = Math.floor(Math.random() * 99999);
-      url = `https://loremflickr.com/1200/400/${encodeURIComponent(kw)}?lock=${lock}`;
+      const lock = Math.floor(Math.random() * 999999);
+      // Use comma-separated for loremflickr multi-keyword search
+      const kwClean = kw.replace(/[^a-zA-Z,]/g, ',').replace(/,+/g, ',').replace(/^,|,$/g, '');
+      url = `https://loremflickr.com/1200/400/${kwClean}?lock=${lock}`;
     } else {
       // Logo: keep Pollinations AI (generates specific icon)
       const seed = Math.floor(Math.random() * 99999);
