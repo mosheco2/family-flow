@@ -13976,6 +13976,7 @@ window.openSABillingModal = async function(groupId, e) {
 // ===== AI BUSINESS BUILDER =====
 let _aiBuilderData = null;
 let _aiBuilderImages = { products: {} };
+let _aibTemplateMode = false; // true when working from a template — skip auto-draft to avoid polluting real drafts
 
 const _AIB_DATA_KEY = 'aib_draft_data';
 const _AIB_IMGS_KEY = 'aib_draft_images';
@@ -13992,6 +13993,7 @@ function _aibImgsSafe() {
 
 function _aibSave() {
   try {
+    if (_aibTemplateMode) return; // Working from template — don't overwrite auto-draft or localStorage
     if (_aiBuilderData) localStorage.setItem(_AIB_DATA_KEY, JSON.stringify(_aiBuilderData));
     localStorage.setItem(_AIB_IMGS_KEY, JSON.stringify(_aibImgsSafe()));
     _aibAutoSaveDraft();
@@ -14084,6 +14086,7 @@ function aiLoadDraftById(id) {
   if (!draft) return alert('הטיוטה לא נמצאה');
   _aiBuilderData = draft.data;
   _aiBuilderImages = draft.images || { products: {} };
+  _aibTemplateMode = false;
   _aibSetBizType(draft.businessType || _aiBuilderData?._bizType);
   document.getElementById('aib-drafts-panel').style.display = 'none';
   document.getElementById('aib-step1').style.display = 'none';
@@ -14157,6 +14160,7 @@ async function aiGenerateBusiness() {
     _aiBuilderData = d.data;
     _aiBuilderData._bizType = document.getElementById('aib-type')?.value || 'restaurant';
     _aiBuilderImages = { products: {} };
+    _aibTemplateMode = false;
     _aibSave();
     document.getElementById('aib-loading').style.display = 'none';
     document.getElementById('aib-preview').style.display = 'block';
@@ -14304,7 +14308,7 @@ function renderAIBImages() {
     const priceStr = p.price ? `₪${parseFloat(p.price).toFixed(0)}` : '';
     rows.push(`<div style="display:flex;align-items:center;gap:10px;padding:8px;border:1px solid #e2e8f0;border-radius:10px;margin-bottom:6px">
       <div style="width:52px;height:52px;border-radius:8px;overflow:hidden;background:#f1f5f9;flex-shrink:0;cursor:pointer" onclick="aibShowProdPreview(${ci},${pi})">
-        ${img ? `<img src="${img}" style="width:100%;height:100%;object-fit:cover" onerror="delete _aiBuilderImages.products['${tid}'];this.parentElement.innerHTML='<div style=width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:22px>🍽️</div>'">` : '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:22px">🍽️</div>'}
+        ${img ? `<img src="${img}" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display='none';this.parentElement.insertAdjacentHTML('beforeend','<div style=width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:22px>🍽️</div>')">` : '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:22px">🍽️</div>'}
       </div>
       <div style="flex:1;min-width:0">
         <div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_escH(p.name)}</div>
@@ -14533,9 +14537,11 @@ async function aiSaveTemplate() {
   syncAIBFromForm();
   const name = prompt('שם ה-Template:');
   if (!name) return;
+  // Embed images inside jsonData so they're saved with the template
+  const dataWithImages = { ..._aiBuilderData, _savedImages: _aibImgsSafe() };
   const r = await fetch('/api/sa/business-templates', {
     method: 'POST', headers: {'Content-Type':'application/json', 'Authorization': saToken},
-    body: JSON.stringify({ name, businessType: document.getElementById('aib-type')?.value, jsonData: _aiBuilderData })
+    body: JSON.stringify({ name, businessType: document.getElementById('aib-type')?.value, jsonData: dataWithImages })
   });
   const d = await r.json();
   alert(d.success ? 'Template נשמר!' : 'שגיאה בשמירה');
@@ -14560,7 +14566,10 @@ async function aiLoadTemplate(id) {
   const d = await r.json();
   if (!d.success) return alert('לא נמצא');
   _aiBuilderData = d.template.json_data;
-  _aiBuilderImages = { products: {} };
+  // Restore images saved with the template (if any), then strip them from data
+  _aiBuilderImages = _aiBuilderData._savedImages || { products: {} };
+  delete _aiBuilderData._savedImages;
+  _aibTemplateMode = true; // Prevent auto-draft pollution while working from a template
   _aibSetBizType(d.template.business_type || _aiBuilderData?._bizType);
   document.getElementById('aib-step1').style.display = 'none';
   document.getElementById('aib-preview').style.display = 'block';
@@ -14718,6 +14727,7 @@ function aiResumeDraft() {
   if (!window._aibSavedDraft) return;
   _aiBuilderData = window._aibSavedDraft.data;
   _aiBuilderImages = window._aibSavedDraft.imgs || { products: {} };
+  _aibTemplateMode = false;
   window._aibSavedDraft = null;
   document.getElementById('aib-resume-banner').style.display = 'none';
   document.getElementById('aib-step1').style.display = 'none';
