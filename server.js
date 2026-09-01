@@ -9905,6 +9905,8 @@ app.post('/api/store/catalog/generate-image', async (req, res) => {
         // Strategy: use nameEn directly when it's a clean English term (AI builder now generates English-first names)
         // Only call Gemini translation if nameEn is missing or too short
         let searchQuery = (nameEn || '').replace(/[^a-zA-Z0-9 ]/g, '').trim();
+        // Strip quantity/weight suffixes that confuse stock photo search (e.g. "250 g", "500ml", "1 kg")
+        searchQuery = searchQuery.replace(/\b\d+\s*(g|kg|ml|l|oz|lb|gram|grams|liter|liters|piece|pieces|unit|units|pack|packs|serving|servings)\b/gi, '').replace(/\s+/g, ' ').trim();
 
         if (searchQuery.length < 3 && getGenAIInstance()) {
             // nameEn missing/short — translate from Hebrew product name
@@ -9929,13 +9931,13 @@ Reply with ONLY the English term, nothing else.`;
             try {
                 const pbPage = req.body.attempt ? Math.min(req.body.attempt, 3) : 1;
                 // First try: category=food for accurate food photos
-                const pbUrl1 = `https://pixabay.com/api/?key=${pixabayKey}&q=${q}&image_type=photo&category=food&per_page=10&page=${pbPage}&safesearch=true&min_width=400&order=popular`;
+                const pbUrl1 = `https://pixabay.com/api/?key=${pixabayKey}&q=${q}&image_type=photo&category=food&per_page=15&page=${pbPage}&safesearch=true&min_width=400&order=relevant`;
                 const pbRes1 = await fetch(pbUrl1);
                 const pbData1 = await pbRes1.json();
                 let hits = (pbData1.hits || []).filter(h => h.webformatURL);
                 // Fallback: no category filter if food category returned nothing
                 if (hits.length === 0) {
-                    const pbRes2 = await fetch(`https://pixabay.com/api/?key=${pixabayKey}&q=${q}&image_type=photo&per_page=10&page=${pbPage}&safesearch=true&min_width=400&order=popular`);
+                    const pbRes2 = await fetch(`https://pixabay.com/api/?key=${pixabayKey}&q=${q}&image_type=photo&per_page=15&page=${pbPage}&safesearch=true&min_width=400&order=relevant`);
                     const pbData2 = await pbRes2.json();
                     hits = (pbData2.hits || []).filter(h => h.webformatURL);
                 }
