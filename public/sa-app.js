@@ -14306,7 +14306,7 @@ function renderAIBImages() {
     p._tempId = tid;
     const img = _aiBuilderImages.products[tid];
     const imgSrc = img ? (_aiBuilderImages.sources?.[tid] || 'ai') : null;
-    const srcBadge = imgSrc === 'pixabay' ? '<span style="font-size:9px;background:#e0f2fe;color:#0369a1;border-radius:4px;padding:1px 4px;margin-top:2px;display:block">📷 Pixabay</span>' : imgSrc === 'pexels' ? '<span style="font-size:9px;background:#e0f2fe;color:#0369a1;border-radius:4px;padding:1px 4px;margin-top:2px;display:block">📷 Pexels</span>' : imgSrc === 'ai' ? '<span style="font-size:9px;background:#f3e8ff;color:#7c3aed;border-radius:4px;padding:1px 4px;margin-top:2px;display:block">🤖 AI</span>' : '';
+    const srcBadge = imgSrc === 'pixabay' ? '<span style="font-size:9px;background:#e0f2fe;color:#0369a1;border-radius:4px;padding:1px 4px;margin-top:2px;display:block">📷 Pixabay</span>' : imgSrc === 'pexels' ? '<span style="font-size:9px;background:#e0f2fe;color:#0369a1;border-radius:4px;padding:1px 4px;margin-top:2px;display:block">📷 Pexels</span>' : imgSrc === 'ai' ? '<span style="font-size:9px;background:#f3e8ff;color:#7c3aed;border-radius:4px;padding:1px 4px;margin-top:2px;display:block">🤖 AI</span>' : imgSrc === 'custom' ? '<span style="font-size:9px;background:#d1fae5;color:#065f46;border-radius:4px;padding:1px 4px;margin-top:2px;display:block">🔗 URL</span>' : '';
     const priceStr = p.price ? `₪${parseFloat(p.price).toFixed(0)}` : '';
     const customSearch = (_aiBuilderImages.customSearch || {})[tid] || '';
     const searchPlaceholder = (p.name_en || p.name || '').replace(/\([^)]*\)/g, '').trim();
@@ -14324,14 +14324,21 @@ function renderAIBImages() {
         ${img ? `<button onclick="aibDeleteProdImg('${tid}')" style="padding:5px 9px;border:1px solid #fca5a5;border-radius:8px;background:#fff;color:#ef4444;cursor:pointer;font-size:11px" title="מחק תמונה">🗑️</button>` : ''}
         <button onclick="aiGenProdImg('${tid}',${ci},${pi})" style="padding:6px 12px;border:1px solid #6366f1;border-radius:8px;background:#fff;color:#6366f1;cursor:pointer;font-size:12px" id="aib-img-btn-${tid}">${img ? '🔄' : '🪄 צור'}</button>
       </div>
-      <div style="padding:0 8px 8px 8px;display:flex;gap:6px;align-items:center">
+      <div style="padding:0 8px 6px 8px;display:flex;gap:6px;align-items:center">
         <span style="font-size:10px;color:#94a3b8;white-space:nowrap;flex-shrink:0">🔍</span>
         <input id="aib-search-${tid}" type="text" value="${_escH(customSearch)}" placeholder="${_escH(searchPlaceholder)}"
           style="flex:1;font-size:11px;padding:4px 7px;border:1px solid #c7d2fe;border-radius:6px;direction:ltr;background:#f8fafc;color:#1e293b;min-width:0;outline:none"
           oninput="if(!_aiBuilderImages.customSearch)_aiBuilderImages.customSearch={};_aiBuilderImages.customSearch['${tid}']=this.value;_aibSave()"
           onkeydown="if(event.key==='Enter'){event.preventDefault();aiGenProdImg('${tid}',${ci},${pi})}"
-          title="הכנס מילות חיפוש באנגלית ולחץ Enter או 🔍">
+          title="הכנס מילות חיפוש באנגלית ולחץ Enter או לחץ חפש">
         <button onclick="aiGenProdImg('${tid}',${ci},${pi})" style="padding:4px 10px;background:#6366f1;border:none;border-radius:6px;color:#fff;cursor:pointer;font-size:11px;white-space:nowrap;flex-shrink:0">🔍 חפש</button>
+      </div>
+      <div style="padding:0 8px 8px 8px;display:flex;gap:6px;align-items:center">
+        <span style="font-size:10px;color:#94a3b8;white-space:nowrap;flex-shrink:0">🔗</span>
+        <input id="aib-url-${tid}" type="url" placeholder="או הדבק כתובת URL של תמונה ישירות..."
+          style="flex:1;font-size:11px;padding:4px 7px;border:1px solid #e2e8f0;border-radius:6px;direction:ltr;background:#f8fafc;color:#1e293b;min-width:0;outline:none"
+          title="הדבק URL ישיר לתמונה מכל אתר">
+        <button onclick="aibSetProdImgFromUrl('${tid}')" style="padding:4px 10px;background:#10b981;border:none;border-radius:6px;color:#fff;cursor:pointer;font-size:11px;white-space:nowrap;flex-shrink:0">✓ הגדר</button>
       </div>
     </div>`);
   }));
@@ -14358,6 +14365,18 @@ function aibDeleteBrandImg(type) {
     if (btn) btn.style.display = 'none';
   }
   _aibSave();
+}
+
+function aibSetProdImgFromUrl(tid) {
+  const input = document.getElementById('aib-url-' + tid);
+  const url = input?.value?.trim();
+  if (!url || !url.startsWith('http')) return alert('הדבק כתובת URL תקינה של תמונה');
+  if (!_aiBuilderImages.products) _aiBuilderImages.products = {};
+  if (!_aiBuilderImages.sources) _aiBuilderImages.sources = {};
+  _aiBuilderImages.products[tid] = url;
+  _aiBuilderImages.sources[tid] = 'custom';
+  _aibSave();
+  renderAIBImages();
 }
 
 function aibDeleteProdImg(tid) {
