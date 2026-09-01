@@ -14325,11 +14325,13 @@ function renderAIBImages() {
         <button onclick="aiGenProdImg('${tid}',${ci},${pi})" style="padding:6px 12px;border:1px solid #6366f1;border-radius:8px;background:#fff;color:#6366f1;cursor:pointer;font-size:12px" id="aib-img-btn-${tid}">${img ? '🔄' : '🪄 צור'}</button>
       </div>
       <div style="padding:0 8px 8px 8px;display:flex;gap:6px;align-items:center">
-        <span style="font-size:10px;color:#94a3b8;white-space:nowrap">🔍 חיפוש:</span>
+        <span style="font-size:10px;color:#94a3b8;white-space:nowrap;flex-shrink:0">🔍</span>
         <input id="aib-search-${tid}" type="text" value="${_escH(customSearch)}" placeholder="${_escH(searchPlaceholder)}"
-          style="flex:1;font-size:11px;padding:3px 7px;border:1px solid #e2e8f0;border-radius:6px;direction:ltr;background:#f8fafc;color:#1e293b;min-width:0"
+          style="flex:1;font-size:11px;padding:4px 7px;border:1px solid #c7d2fe;border-radius:6px;direction:ltr;background:#f8fafc;color:#1e293b;min-width:0;outline:none"
           oninput="if(!_aiBuilderImages.customSearch)_aiBuilderImages.customSearch={};_aiBuilderImages.customSearch['${tid}']=this.value;_aibSave()"
-          placeholder="${_escH(searchPlaceholder)}" title="הכנס מילות חיפוש באנגלית לתמונה מדויקת יותר">
+          onkeydown="if(event.key==='Enter'){event.preventDefault();aiGenProdImg('${tid}',${ci},${pi})}"
+          title="הכנס מילות חיפוש באנגלית ולחץ Enter או 🔍">
+        <button onclick="aiGenProdImg('${tid}',${ci},${pi})" style="padding:4px 10px;background:#6366f1;border:none;border-radius:6px;color:#fff;cursor:pointer;font-size:11px;white-space:nowrap;flex-shrink:0">🔍 חפש</button>
       </div>
     </div>`);
   }));
