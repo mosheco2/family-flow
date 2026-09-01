@@ -4023,6 +4023,38 @@ app.post('/api/sa/ai-create-business', verifySA, async (req, res) => {
       } catch(e) { console.warn('coupon insert skip:', e.message); }
     }
 
+    // Set billing_config so all storeType modules are open (unlocked)
+    const STORE_TYPE_MODULES = {
+      restaurant:       ['feed','pos','sales','pantry','shop','customers','shifts','timeclock','tasks','cashflow','budget','members','calendar','deliveries','foodcost','kds','reviews','biz-ads','reports'],
+      retail:           ['feed','pos','sales','pantry','shop','customers','cashflow','budget','members','timeclock','tasks','bank','biz-ads','reports'],
+      services:         ['feed','calendar','tasks','customers','cashflow','budget','members','timeclock','bank','pos','sales','biz-ads','reports'],
+      beauty:           ['feed','beauty_calendar','beauty_practitioners','beauty_services','beauty_subscriptions','pos','beauty_clients','beauty_inventory','beauty_commissions','beauty_rfq','timeclock','cashflow','tasks','shop','biz-ads','reports'],
+      healthcare:       ['feed','calendar','customers','tasks','members','timeclock','cashflow','bank','pos','pantry','biz-ads','reports'],
+      education:        ['feed','calendar','academy','tasks','members','timeclock','cashflow','customers','pos','biz-ads','reports'],
+      sport:            ['feed','calendar','pos','sales','customers','members','timeclock','cashflow','tasks','equipment','shifts','biz-ads','reports'],
+      food_production:  ['feed','pos','pantry','sales','customers','cashflow','budget','timeclock','tasks','biz-ads','reports'],
+      logistics:        ['feed','deliveries','customers','timeclock','cashflow','tasks','biz-ads','reports'],
+      store_only:       ['feed','shop','pos','pantry','sales','customers','cashflow','budget','reports','biz-ads'],
+      other:            ['feed','pos','sales','shop','customers','calendar','tasks','cashflow','timeclock','biz-ads','reports'],
+    };
+    const mods = STORE_TYPE_MODULES[storeType] || STORE_TYPE_MODULES.other;
+    const billingCfg = {
+      bundle_id: 'ai_builder',
+      modules: mods.map(id => ({ id, open: true, billing: false, custom_price: 0 })),
+      monthly_total: 0,
+      extra_users_cost: 0,
+      updated_at: new Date().toISOString()
+    };
+    try { await pool.query('UPDATE family_groups SET billing_config=$1 WHERE id=$2', [JSON.stringify(billingCfg), groupId]); } catch(e) {}
+
+    // Set trial_until (3 months by default, same as wizard)
+    try {
+      const fmRow = await pool.query("SELECT value FROM system_settings WHERE key='wizard_free_months'");
+      const freeMonths = fmRow.rows.length > 0 ? parseInt(fmRow.rows[0].value) || 3 : 3;
+      try { await pool.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS trial_until TIMESTAMP`); } catch(e) {}
+      await pool.query(`UPDATE family_groups SET trial_until = NOW() + ($1 || ' months')::INTERVAL WHERE id=$2`, [freeMonths, groupId]);
+    } catch(e) {}
+
     res.json({ success: true, groupId, storeAlias: alias, productIds, groupCode, adminPhone, adminPassword });
   } catch(e) {
     await client.query('ROLLBACK');
