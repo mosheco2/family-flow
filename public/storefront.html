@@ -820,10 +820,15 @@
                 const data = await res.json();
                 
                 // Default: open unless explicitly set to false
+                if (!data.success) {
+                    getEl('loading-screen').classList.add('hidden');
+                    const notFoundMsg = data.error && data.error.includes('לא נמצאה') ? t('חנות זו לא נמצאה', 'Store not found') : t('החנות סגורה כרגע', 'Store is currently closed');
+                    return document.body.innerHTML = `<div class='text-center mt-32'><i class='fa-solid fa-store-slash text-5xl text-slate-300 mb-4'></i><h1 class='text-xl font-bold text-slate-700'>${notFoundMsg}</h1></div>`;
+                }
                 const isActive = data.settings
                   ? (data.settings.is_active === null || data.settings.is_active === undefined ? true : isTrue(data.settings.is_active))
-                  : false;
-                if (!data.success || !isActive) {
+                  : true;
+                if (!isActive) {
                     getEl('loading-screen').classList.add('hidden');
                     return document.body.innerHTML = `<div class='text-center mt-32'><i class='fa-solid fa-store-slash text-5xl text-slate-300 mb-4'></i><h1 class='text-xl font-bold text-slate-700'>${t('החנות סגורה כרגע', 'Store is currently closed')}</h1></div>`;
                 }

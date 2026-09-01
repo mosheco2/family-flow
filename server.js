@@ -765,6 +765,8 @@ try { await client.query(`ALTER TABLE game_assignments ADD COLUMN IF NOT EXISTS 
       try { await client.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS enable_event_booking BOOLEAN DEFAULT FALSE`); } catch(e) {}
       try { await client.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS slogan_en VARCHAR(255)`); } catch(e) {}
       try { await client.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS welcome_message_en TEXT`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS store_alias VARCHAR(50)`); } catch(e) {}
+      try { await client.query(`CREATE UNIQUE INDEX IF NOT EXISTS idx_store_settings_alias ON store_settings(store_alias) WHERE store_alias IS NOT NULL`); } catch(e) {}
       try { await client.query(`CREATE TABLE IF NOT EXISTS business_templates (
   id SERIAL PRIMARY KEY,
   name VARCHAR(255) NOT NULL,

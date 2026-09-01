@@ -12325,8 +12325,8 @@ window.injectAliasUI = function(existingAlias) {
             <div class="mb-3 bg-indigo-50/50 p-3 rounded-xl border border-indigo-100">
                 <label class="text-[10px] font-bold text-indigo-800 block mb-1">כינוי מותאם אישית ללינק (אופציונלי):</label>
                 <div class="flex items-center gap-2">
-                    <input type="text" id="store-alias-input" value="${safeStr(existingAlias)}" oninput="window.generateStoreAliasLink()" placeholder="mybrand" maxlength="10" class="modern-input py-2 px-3 text-sm bg-white border border-indigo-200 focus:border-indigo-400 font-mono tracking-wider w-32 shadow-sm text-left dir-ltr">
-                    <span class="text-[10px] text-slate-500 font-medium">רק באנגלית ומספרים, עד 10 תווים. במקום קוד המספרים הארוך.</span>
+                    <input type="text" id="store-alias-input" value="${safeStr(existingAlias)}" oninput="window.generateStoreAliasLink()" placeholder="mybrand" maxlength="50" class="modern-input py-2 px-3 text-sm bg-white border border-indigo-200 focus:border-indigo-400 font-mono tracking-wider w-48 shadow-sm text-left dir-ltr">
+                    <span class="text-[10px] text-slate-500 font-medium">אנגלית, מספרים ומקפים, עד 50 תווים.</span>
                 </div>
             </div>
         `);
@@ -12521,7 +12521,7 @@ async function saveStoreSettings() {
         };
 
         const aliasInput = document.getElementById('store-alias-input');
-        const storeAlias = aliasInput ? aliasInput.value.replace(/[^a-zA-Z0-9]/g, '').toLowerCase().substring(0, 10) : '';
+        const storeAlias = aliasInput ? aliasInput.value.replace(/[^a-zA-Z0-9-]/g, '').toLowerCase().replace(/-+/g,'-').replace(/^-|-$/g,'').substring(0, 50) : '';
 
         const payload = { 
             groupId: currentGroup.id, 
@@ -27342,8 +27342,8 @@ window.injectAliasUI = function(existingAlias) {
             <div class="mb-3 bg-indigo-50/50 p-3 rounded-xl border border-indigo-100">
                 <label class="text-[10px] font-bold text-indigo-800 block mb-1">כינוי מותאם אישית ללינק (אופציונלי):</label>
                 <div class="flex items-center gap-2">
-                    <input type="text" id="store-alias-input" value="${safeStr(existingAlias)}" oninput="window.generateStoreAliasLink()" placeholder="mybrand" maxlength="15" class="modern-input py-2 px-3 text-sm bg-white border border-indigo-200 focus:border-indigo-400 font-mono tracking-wider w-32 shadow-sm text-left dir-ltr">
-                    <span class="text-[10px] text-slate-500 font-medium">רק באנגלית ומספרים, עד 15 תווים. במקום קוד המספרים הארוך.</span>
+                    <input type="text" id="store-alias-input" value="${safeStr(existingAlias)}" oninput="window.generateStoreAliasLink()" placeholder="mybrand" maxlength="50" class="modern-input py-2 px-3 text-sm bg-white border border-indigo-200 focus:border-indigo-400 font-mono tracking-wider w-48 shadow-sm text-left dir-ltr">
+                    <span class="text-[10px] text-slate-500 font-medium">אנגלית, מספרים ומקפים, עד 50 תווים.</span>
                 </div>
             </div>
         `);
@@ -27508,9 +27508,9 @@ async function saveStoreSettings() {
             return valid ? valid.value : null;
         };
 
-        // שאיבת הכינוי לשמירה (הוגדל ל-15 תווים מקסימום)
+        // שאיבת הכינוי לשמירה (מקפים מותרים)
         const aliasInput = document.getElementById('store-alias-input');
-        const storeAlias = aliasInput ? aliasInput.value.replace(/[^a-zA-Z0-9]/g, '').toLowerCase().substring(0, 15) : '';
+        const storeAlias = aliasInput ? aliasInput.value.replace(/[^a-zA-Z0-9-]/g, '').toLowerCase().replace(/-+/g,'-').replace(/^-|-$/g,'').substring(0, 50) : '';
 
         const payload = { 
             groupId: currentGroup.id, 
