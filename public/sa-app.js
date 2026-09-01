@@ -14745,29 +14745,54 @@ async function aiGenBrandingImg(type) {
   const promptEl = document.getElementById(`aib-${type}-prompt`);
   const previewEl = document.getElementById(`aib-${type}-preview`);
   const genBtn = document.getElementById(`aib-${type}-gen-btn`);
-  const prompt = promptEl?.value?.trim() || _aiBuilderData?.[`${type}_prompt`] || '';
-  if (!prompt) return alert('ממתין לסיום יצירת הפרומפט — נסה שוב בעוד שניה');
+  let userPrompt = promptEl?.value?.trim() || _aiBuilderData?.[`${type}_prompt`] || '';
+  if (!userPrompt) return alert('הזן תיאור ללוגו/תמונה ולחץ צור');
   previewEl.innerHTML = '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center"><span style="color:#6366f1;font-size:12px">⏳ מייצר...</span></div>';
   if (genBtn) { genBtn.disabled = true; genBtn.textContent = '⏳ מייצר...'; }
   try {
+    // Always optimize the prompt via Gemini for best FLUX results
+    // (works for both natural-language descriptions and existing technical prompts)
+    if (genBtn) genBtn.textContent = '🔧 ממיר לפרומפט...';
+    try {
+      const bizName = _aiBuilderData?.profile?.name_en || _aiBuilderData?.profile?.name || '';
+      const accentColor = _aiBuilderData?.profile?.accent_color || '#4f46e5';
+      const systemHint = type === 'logo'
+        ? `Convert the following description into a precise FLUX image generation prompt for a business LOGO (flat minimal icon, no text, no letters, clean vector style, solid color background). Business: "${bizName}", accent color: ${accentColor}.`
+        : `Convert the following description into a precise FLUX image generation prompt for a wide business BANNER/COVER PHOTO (photorealistic food/product scene, atmospheric, no text, no people). Business: "${bizName}".`;
+      const optimizeRes = await fetch('/api/sa/ai-generate', {
+        method: 'POST', headers: {'Content-Type':'application/json','Authorization':saToken},
+        body: JSON.stringify({
+          context: systemHint + '\nReply with ONLY the optimized English FLUX prompt (1-2 sentences, max 40 words). No explanation.',
+          query: userPrompt
+        })
+      });
+      const optimizeData = await optimizeRes.json();
+      if (optimizeData.success && optimizeData.answer) {
+        const optimized = optimizeData.answer.replace(/^(sure|here|of course|the prompt)[^:]*:\s*/i,'').trim().replace(/["""]/g,'');
+        if (optimized.length > 5) {
+          userPrompt = optimized;
+          if (promptEl) promptEl.value = optimized;
+          if (_aiBuilderData) _aiBuilderData[`${type}_prompt`] = optimized;
+        }
+      }
+    } catch(e) { /* continue with original prompt */ }
+
+    if (genBtn) genBtn.textContent = '⏳ מייצר תמונה...';
+    const seed = Math.floor(Math.random() * 99999);
     let url;
     if (type === 'banner') {
-      // Pollinations FLUX — AI-generated banner, relevant to business (single image, wait is fine)
-      const seed = Math.floor(Math.random() * 99999);
       const neg = encodeURIComponent('people, faces, humans, text, logo, watermark, cartoon, CGI, blurry, illustration');
-      url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=1200&height=400&model=flux&nologo=true&seed=${seed}&negative=${neg}`;
+      url = `https://image.pollinations.ai/prompt/${encodeURIComponent(userPrompt)}?width=1200&height=400&model=flux&nologo=true&seed=${seed}&negative=${neg}`;
       await fetch(url).catch(() => {});
     } else {
-      // Logo: keep Pollinations AI (generates specific icon)
-      const seed = Math.floor(Math.random() * 99999);
-      const neg = encodeURIComponent('text, letters, words, blurry, 3d render, CGI, low quality, photo');
-      url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=512&height=512&model=flux&nologo=true&seed=${seed}&negative=${neg}`;
+      const neg = encodeURIComponent('text, letters, words, blurry, 3d render, CGI, low quality, photo, realistic');
+      url = `https://image.pollinations.ai/prompt/${encodeURIComponent(userPrompt)}?width=512&height=512&model=flux&nologo=true&seed=${seed}&negative=${neg}`;
       await fetch(url);
     }
     _aibShowBrandPreview(type, url);
     if (!_aiBuilderImages) _aiBuilderImages = { products: {} };
-    if (type === 'logo') { _aiBuilderImages.logoUrl = url; if (_aiBuilderData) _aiBuilderData.logo_prompt = prompt; }
-    else { _aiBuilderImages.bannerUrl = url; if (_aiBuilderData) _aiBuilderData.banner_prompt = prompt; }
+    if (type === 'logo') { _aiBuilderImages.logoUrl = url; if (_aiBuilderData) _aiBuilderData.logo_prompt = userPrompt; }
+    else { _aiBuilderImages.bannerUrl = url; if (_aiBuilderData) _aiBuilderData.banner_prompt = userPrompt; }
     _aibSave();
   } catch(e) {
     previewEl.innerHTML = `<span style="color:#ef4444;font-size:12px;padding:8px">שגיאה בייצור — נסה שוב</span>`;
