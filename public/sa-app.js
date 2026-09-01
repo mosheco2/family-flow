@@ -14308,18 +14308,29 @@ function renderAIBImages() {
     const imgSrc = img ? (_aiBuilderImages.sources?.[tid] || 'ai') : null;
     const srcBadge = imgSrc === 'pixabay' ? '<span style="font-size:9px;background:#e0f2fe;color:#0369a1;border-radius:4px;padding:1px 4px;margin-top:2px;display:block">📷 Pixabay</span>' : imgSrc === 'pexels' ? '<span style="font-size:9px;background:#e0f2fe;color:#0369a1;border-radius:4px;padding:1px 4px;margin-top:2px;display:block">📷 Pexels</span>' : imgSrc === 'ai' ? '<span style="font-size:9px;background:#f3e8ff;color:#7c3aed;border-radius:4px;padding:1px 4px;margin-top:2px;display:block">🤖 AI</span>' : '';
     const priceStr = p.price ? `₪${parseFloat(p.price).toFixed(0)}` : '';
-    rows.push(`<div style="display:flex;align-items:center;gap:10px;padding:8px;border:1px solid #e2e8f0;border-radius:10px;margin-bottom:6px">
-      <div style="width:52px;height:52px;border-radius:8px;overflow:hidden;background:#f1f5f9;flex-shrink:0;cursor:pointer" onclick="aibShowProdPreview(${ci},${pi})">
-        ${img ? `<div id="aib-img-wrap-${tid}" style="width:100%;height:100%;position:relative"><div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:16px" id="aib-img-spin-${tid}">⏳</div><img src="${img}" style="width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .3s" onload="this.style.opacity='1';var s=document.getElementById('aib-img-spin-${tid}');if(s)s.style.display='none'" onerror="this.style.display='none';var s=document.getElementById('aib-img-spin-${tid}');if(s)s.textContent='🍽️'"></div>` : '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:22px">🍽️</div>'}
+    const customSearch = (_aiBuilderImages.customSearch || {})[tid] || '';
+    const searchPlaceholder = (p.name_en || p.name || '').replace(/\([^)]*\)/g, '').trim();
+    rows.push(`<div style="border:1px solid #e2e8f0;border-radius:10px;margin-bottom:6px;overflow:hidden">
+      <div style="display:flex;align-items:center;gap:10px;padding:8px">
+        <div style="width:52px;height:52px;border-radius:8px;overflow:hidden;background:#f1f5f9;flex-shrink:0;cursor:pointer" onclick="aibShowProdPreview(${ci},${pi})">
+          ${img ? `<div id="aib-img-wrap-${tid}" style="width:100%;height:100%;position:relative"><div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:16px" id="aib-img-spin-${tid}">⏳</div><img src="${img}" style="width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .3s" onload="this.style.opacity='1';var s=document.getElementById('aib-img-spin-${tid}');if(s)s.style.display='none'" onerror="this.style.display='none';var s=document.getElementById('aib-img-spin-${tid}');if(s)s.textContent='🍽️'"></div>` : '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:22px">🍽️</div>'}
+        </div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_escH(p.name)}</div>
+          ${priceStr ? `<div style="font-size:11px;color:#64748b">${priceStr}</div>` : ''}
+          ${srcBadge}
+        </div>
+        <button onclick="aibShowProdPreview(${ci},${pi})" style="padding:5px 9px;border:1px solid #94a3b8;border-radius:8px;background:#fff;color:#475569;cursor:pointer;font-size:11px" title="תצוגה מקדימה">👁️</button>
+        ${img ? `<button onclick="aibDeleteProdImg('${tid}')" style="padding:5px 9px;border:1px solid #fca5a5;border-radius:8px;background:#fff;color:#ef4444;cursor:pointer;font-size:11px" title="מחק תמונה">🗑️</button>` : ''}
+        <button onclick="aiGenProdImg('${tid}',${ci},${pi})" style="padding:6px 12px;border:1px solid #6366f1;border-radius:8px;background:#fff;color:#6366f1;cursor:pointer;font-size:12px" id="aib-img-btn-${tid}">${img ? '🔄' : '🪄 צור'}</button>
       </div>
-      <div style="flex:1;min-width:0">
-        <div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_escH(p.name)}</div>
-        ${priceStr ? `<div style="font-size:11px;color:#64748b">${priceStr}</div>` : ''}
-        ${srcBadge}
+      <div style="padding:0 8px 8px 8px;display:flex;gap:6px;align-items:center">
+        <span style="font-size:10px;color:#94a3b8;white-space:nowrap">🔍 חיפוש:</span>
+        <input id="aib-search-${tid}" type="text" value="${_escH(customSearch)}" placeholder="${_escH(searchPlaceholder)}"
+          style="flex:1;font-size:11px;padding:3px 7px;border:1px solid #e2e8f0;border-radius:6px;direction:ltr;background:#f8fafc;color:#1e293b;min-width:0"
+          oninput="if(!_aiBuilderImages.customSearch)_aiBuilderImages.customSearch={};_aiBuilderImages.customSearch['${tid}']=this.value;_aibSave()"
+          placeholder="${_escH(searchPlaceholder)}" title="הכנס מילות חיפוש באנגלית לתמונה מדויקת יותר">
       </div>
-      <button onclick="aibShowProdPreview(${ci},${pi})" style="padding:5px 9px;border:1px solid #94a3b8;border-radius:8px;background:#fff;color:#475569;cursor:pointer;font-size:11px" title="תצוגה מקדימה">👁️</button>
-      ${img ? `<button onclick="aibDeleteProdImg('${tid}')" style="padding:5px 9px;border:1px solid #fca5a5;border-radius:8px;background:#fff;color:#ef4444;cursor:pointer;font-size:11px" title="מחק תמונה">🗑️</button>` : ''}
-      <button onclick="aiGenProdImg('${tid}',${ci},${pi})" style="padding:6px 12px;border:1px solid #6366f1;border-radius:8px;background:#fff;color:#6366f1;cursor:pointer;font-size:12px" id="aib-img-btn-${tid}">${img ? '🔄' : '🪄 צור'}</button>
     </div>`);
   }));
   const hasAny = Object.keys(_aiBuilderImages.products || {}).length > 0;
@@ -14408,9 +14419,12 @@ async function aiGenProdImg(tid, ci, pi, retryCount) {
   const btn = document.getElementById('aib-img-btn-' + tid);
   if (btn) { btn.disabled = true; btn.textContent = '⏳'; }
   try {
+    // Use manual search override if user typed one, otherwise use name_en
+    const customSearch = (document.getElementById('aib-search-' + tid)?.value?.trim()) || (_aiBuilderImages.customSearch?.[tid] || '');
+    const nameEnToUse = customSearch || p.name_en || '';
     const r = await fetch('/api/store/catalog/generate-image', {
       method: 'POST', headers: {'Content-Type':'application/json', 'Authorization': saToken},
-      body: JSON.stringify({ groupId: 0, productName: p.name, nameEn: p.name_en || '', description: p.description || p.name, category: cat.category, attempt })
+      body: JSON.stringify({ groupId: 0, productName: p.name, nameEn: nameEnToUse, description: p.description || p.name, category: cat.category, attempt })
     });
     const d = await r.json();
     const imgUrl = d.imageUrl || d.url || d.data;
