@@ -14308,7 +14308,7 @@ function renderAIBImages() {
     const priceStr = p.price ? `₪${parseFloat(p.price).toFixed(0)}` : '';
     rows.push(`<div style="display:flex;align-items:center;gap:10px;padding:8px;border:1px solid #e2e8f0;border-radius:10px;margin-bottom:6px">
       <div style="width:52px;height:52px;border-radius:8px;overflow:hidden;background:#f1f5f9;flex-shrink:0;cursor:pointer" onclick="aibShowProdPreview(${ci},${pi})">
-        ${img ? `<img src="${img}" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display='none';this.parentElement.insertAdjacentHTML('beforeend','<div style=width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:22px>🍽️</div>')">` : '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:22px">🍽️</div>'}
+        ${img ? `<div id="aib-img-wrap-${tid}" style="width:100%;height:100%;position:relative"><div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:16px" id="aib-img-spin-${tid}">⏳</div><img src="${img}" style="width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .3s" onload="this.style.opacity='1';var s=document.getElementById('aib-img-spin-${tid}');if(s)s.style.display='none'" onerror="this.style.display='none';var s=document.getElementById('aib-img-spin-${tid}');if(s)s.textContent='🍽️'"></div>` : '<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:22px">🍽️</div>'}
       </div>
       <div style="flex:1;min-width:0">
         <div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_escH(p.name)}</div>
@@ -14438,15 +14438,11 @@ async function aiGenAllImgs() {
     else done++;
   }));
 
-  // Run in parallel batches of 5
-  const BATCH = 5;
-  for (let i = 0; i < queue.length; i += BATCH) {
-    if (allBtn) allBtn.textContent = `⏳ ${done + failed + 1}/${total}`;
-    const batch = queue.slice(i, i + BATCH);
-    const results = await Promise.all(batch.map(({ tid, ci, pi }) => aiGenProdImg(tid, ci, pi)));
-    results.forEach(ok => ok ? done++ : failed++);
-    renderAIBImages();
-  }
+  // Fire all requests in parallel — server endpoint returns URL instantly (no actual generation wait server-side)
+  if (allBtn) allBtn.textContent = `⏳ מייצר ${queue.length} תמונות...`;
+  const results = await Promise.all(queue.map(({ tid, ci, pi }) =>
+    aiGenProdImg(tid, ci, pi).then(ok => { ok ? done++ : failed++; if (allBtn) allBtn.textContent = `⏳ ${done + failed}/${total}`; return ok; })
+  ));
 
   if (allBtn) {
     allBtn.disabled = false;

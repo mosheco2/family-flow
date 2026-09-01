@@ -9844,13 +9844,12 @@ app.post('/api/store/catalog/generate-image', async (req, res) => {
         if (!searchQuery && category) searchQuery = category.replace(/[^a-zA-Z0-9 ]/g, '').trim();
         if (!searchQuery) searchQuery = 'product';
 
-        // Use last 2 words (most specific product noun)
-        const words = searchQuery.split(/\s+/).filter(Boolean);
-        const subject = words.slice(-2).join(' ') || 'product';
+        // Use full English name for better relevance (not just last 2 words)
+        const subject = searchQuery || 'product';
 
         // Pollinations FLUX — fast, relevant, free, no API key
         const seed = Math.floor(Math.random() * 99999);
-        const prodPrompt = `product photo, ${subject}, white background, professional studio lighting, high quality, sharp focus, no text`;
+        const prodPrompt = `product photo, ${subject}, white background, professional studio lighting, high quality, sharp focus, no text, no people`;
         const neg = encodeURIComponent('people, faces, text, logo, watermark, cartoon, blurry, low quality');
         const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(prodPrompt)}?width=512&height=512&model=flux&nologo=true&seed=${seed}&negative=${neg}`;
 
