@@ -14305,6 +14305,8 @@ function renderAIBImages() {
     const tid = `${ci}_${pi}`;
     p._tempId = tid;
     const img = _aiBuilderImages.products[tid];
+    const imgSrc = img ? (_aiBuilderImages.sources?.[tid] || 'ai') : null;
+    const srcBadge = imgSrc === 'pixabay' ? '<span style="font-size:9px;background:#e0f2fe;color:#0369a1;border-radius:4px;padding:1px 4px;margin-top:2px;display:block">📷 Pixabay</span>' : imgSrc === 'pexels' ? '<span style="font-size:9px;background:#e0f2fe;color:#0369a1;border-radius:4px;padding:1px 4px;margin-top:2px;display:block">📷 Pexels</span>' : imgSrc === 'ai' ? '<span style="font-size:9px;background:#f3e8ff;color:#7c3aed;border-radius:4px;padding:1px 4px;margin-top:2px;display:block">🤖 AI</span>' : '';
     const priceStr = p.price ? `₪${parseFloat(p.price).toFixed(0)}` : '';
     rows.push(`<div style="display:flex;align-items:center;gap:10px;padding:8px;border:1px solid #e2e8f0;border-radius:10px;margin-bottom:6px">
       <div style="width:52px;height:52px;border-radius:8px;overflow:hidden;background:#f1f5f9;flex-shrink:0;cursor:pointer" onclick="aibShowProdPreview(${ci},${pi})">
@@ -14313,6 +14315,7 @@ function renderAIBImages() {
       <div style="flex:1;min-width:0">
         <div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${_escH(p.name)}</div>
         ${priceStr ? `<div style="font-size:11px;color:#64748b">${priceStr}</div>` : ''}
+        ${srcBadge}
       </div>
       <button onclick="aibShowProdPreview(${ci},${pi})" style="padding:5px 9px;border:1px solid #94a3b8;border-radius:8px;background:#fff;color:#475569;cursor:pointer;font-size:11px" title="תצוגה מקדימה">👁️</button>
       ${img ? `<button onclick="aibDeleteProdImg('${tid}')" style="padding:5px 9px;border:1px solid #fca5a5;border-radius:8px;background:#fff;color:#ef4444;cursor:pointer;font-size:11px" title="מחק תמונה">🗑️</button>` : ''}
@@ -14409,10 +14412,10 @@ async function aiGenProdImg(tid, ci, pi, retryCount) {
     const imgUrl = d.imageUrl || d.url || d.data;
     if (imgUrl) {
       _aiBuilderImages.products[tid] = imgUrl;
+      if (!_aiBuilderImages.sources) _aiBuilderImages.sources = {};
+      _aiBuilderImages.sources[tid] = d.source || 'ai';
       _aibSave();
       renderAIBImages();
-      const srcLabel = d.source === 'pixabay' ? '📷 Pixabay' : d.source === 'pexels' ? '📷 Pexels' : '🤖 AI';
-      if (btn) { btn.disabled = false; btn.textContent = `🔄 ${srcLabel}`; }
       return true;
     } else if (retryCount < 2) {
       const delay = (retryCount + 1) * 4000;
