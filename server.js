@@ -40,6 +40,17 @@ let _GoogleGenerativeAI = null, _GoogleGenAI = null;
 function getGenAI() { if (!_GoogleGenerativeAI) { _GoogleGenerativeAI = require('@google/generative-ai').GoogleGenerativeAI; } return _GoogleGenerativeAI; }
 function getGenAIv2() { if (!_GoogleGenAI) { _GoogleGenAI = require('@google/genai').GoogleGenAI; } return _GoogleGenAI; }
 const nodemailer = require('nodemailer');
+const multer = require('multer');
+const _uploadsDir = path.join(__dirname, 'public', 'uploads');
+if (!fs.existsSync(_uploadsDir)) fs.mkdirSync(_uploadsDir, { recursive: true });
+const _multerStorage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, _uploadsDir),
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase().replace(/[^.a-z0-9]/g, '') || '.jpg';
+    cb(null, `prod-${Date.now()}-${Math.floor(Math.random()*99999)}${ext}`);
+  }
+});
+const _uploadImg = multer({ storage: _multerStorage, limits: { fileSize: 8 * 1024 * 1024 }, fileFilter: (req, file, cb) => cb(null, /image\//i.test(file.mimetype)) });
 
 // ─── SMS Service (Generic - Replace with Twilio/Mada/etc) ──────────────────────
 const smsService = {
@@ -9896,6 +9907,16 @@ app.post('/api/store/catalog/bulk-import', verifyBizOrLegacy, requireModule('sal
 
 // --- Generate AI Product Image ---
 // Priority: 1) Pixabay (free stock photos, real products) → 2) Pexels → 3) Pollinations AI fallback
+app.post('/api/upload/product-image', _uploadImg.single('image'), (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ success: false, error: 'לא התקבל קובץ תמונה' });
+    const url = `/uploads/${req.file.filename}`;
+    res.json({ success: true, url });
+  } catch(e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
 app.post('/api/store/catalog/generate-image', async (req, res) => {
     try {
         const { groupId, productName, nameEn, description, category } = req.body;

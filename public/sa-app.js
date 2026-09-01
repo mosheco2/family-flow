@@ -14306,7 +14306,7 @@ function renderAIBImages() {
     p._tempId = tid;
     const img = _aiBuilderImages.products[tid];
     const imgSrc = img ? (_aiBuilderImages.sources?.[tid] || 'ai') : null;
-    const srcBadge = imgSrc === 'pixabay' ? '<span style="font-size:9px;background:#e0f2fe;color:#0369a1;border-radius:4px;padding:1px 4px;margin-top:2px;display:block">📷 Pixabay</span>' : imgSrc === 'pexels' ? '<span style="font-size:9px;background:#e0f2fe;color:#0369a1;border-radius:4px;padding:1px 4px;margin-top:2px;display:block">📷 Pexels</span>' : imgSrc === 'ai' ? '<span style="font-size:9px;background:#f3e8ff;color:#7c3aed;border-radius:4px;padding:1px 4px;margin-top:2px;display:block">🤖 AI</span>' : imgSrc === 'custom' ? '<span style="font-size:9px;background:#d1fae5;color:#065f46;border-radius:4px;padding:1px 4px;margin-top:2px;display:block">🔗 URL</span>' : '';
+    const srcBadge = imgSrc === 'pixabay' ? '<span style="font-size:9px;background:#e0f2fe;color:#0369a1;border-radius:4px;padding:1px 4px;margin-top:2px;display:block">📷 Pixabay</span>' : imgSrc === 'pexels' ? '<span style="font-size:9px;background:#e0f2fe;color:#0369a1;border-radius:4px;padding:1px 4px;margin-top:2px;display:block">📷 Pexels</span>' : imgSrc === 'ai' ? '<span style="font-size:9px;background:#f3e8ff;color:#7c3aed;border-radius:4px;padding:1px 4px;margin-top:2px;display:block">🤖 AI</span>' : imgSrc === 'custom' ? '<span style="font-size:9px;background:#d1fae5;color:#065f46;border-radius:4px;padding:1px 4px;margin-top:2px;display:block">🔗 URL</span>' : imgSrc === 'upload' ? '<span style="font-size:9px;background:#d1fae5;color:#065f46;border-radius:4px;padding:1px 4px;margin-top:2px;display:block">📁 הועלה</span>' : '';
     const priceStr = p.price ? `₪${parseFloat(p.price).toFixed(0)}` : '';
     const customSearch = (_aiBuilderImages.customSearch || {})[tid] || '';
     const searchPlaceholder = (p.name_en || p.name || '').replace(/\([^)]*\)/g, '').trim();
@@ -14334,11 +14334,12 @@ function renderAIBImages() {
         <button onclick="aiGenProdImg('${tid}',${ci},${pi})" style="padding:4px 10px;background:#6366f1;border:none;border-radius:6px;color:#fff;cursor:pointer;font-size:11px;white-space:nowrap;flex-shrink:0">🔍 חפש</button>
       </div>
       <div style="padding:0 8px 8px 8px;display:flex;gap:6px;align-items:center">
-        <span style="font-size:10px;color:#94a3b8;white-space:nowrap;flex-shrink:0">🔗</span>
-        <input id="aib-url-${tid}" type="url" placeholder="או הדבק כתובת URL של תמונה ישירות..."
-          style="flex:1;font-size:11px;padding:4px 7px;border:1px solid #e2e8f0;border-radius:6px;direction:ltr;background:#f8fafc;color:#1e293b;min-width:0;outline:none"
-          title="הדבק URL ישיר לתמונה מכל אתר">
-        <button onclick="aibSetProdImgFromUrl('${tid}')" style="padding:4px 10px;background:#10b981;border:none;border-radius:6px;color:#fff;cursor:pointer;font-size:11px;white-space:nowrap;flex-shrink:0">✓ הגדר</button>
+        <span style="font-size:10px;color:#94a3b8;white-space:nowrap;flex-shrink:0">📁</span>
+        <label style="flex:1;display:flex;align-items:center;gap:6px;cursor:pointer;min-width:0">
+          <span id="aib-upload-lbl-${tid}" style="flex:1;font-size:11px;color:#94a3b8;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">העלה תמונה מהמחשב...</span>
+          <input type="file" accept="image/*" style="display:none" onchange="aibUploadProdImg('${tid}',this)">
+        </label>
+        <span id="aib-upload-spin-${tid}" style="display:none;font-size:11px;color:#6366f1">⏳</span>
       </div>
     </div>`);
   }));
@@ -14367,16 +14368,31 @@ function aibDeleteBrandImg(type) {
   _aibSave();
 }
 
-function aibSetProdImgFromUrl(tid) {
-  const input = document.getElementById('aib-url-' + tid);
-  const url = input?.value?.trim();
-  if (!url || !url.startsWith('http')) return alert('הדבק כתובת URL תקינה של תמונה');
-  if (!_aiBuilderImages.products) _aiBuilderImages.products = {};
-  if (!_aiBuilderImages.sources) _aiBuilderImages.sources = {};
-  _aiBuilderImages.products[tid] = url;
-  _aiBuilderImages.sources[tid] = 'custom';
-  _aibSave();
-  renderAIBImages();
+async function aibUploadProdImg(tid, inputEl) {
+  const file = inputEl?.files?.[0];
+  if (!file) return;
+  const lbl = document.getElementById('aib-upload-lbl-' + tid);
+  const spin = document.getElementById('aib-upload-spin-' + tid);
+  if (lbl) lbl.textContent = file.name;
+  if (spin) spin.style.display = '';
+  try {
+    const fd = new FormData();
+    fd.append('image', file);
+    const r = await fetch('/api/upload/product-image', { method: 'POST', body: fd });
+    const d = await r.json();
+    if (!d.success || !d.url) throw new Error(d.error || 'שגיאת העלאה');
+    if (!_aiBuilderImages.products) _aiBuilderImages.products = {};
+    if (!_aiBuilderImages.sources) _aiBuilderImages.sources = {};
+    _aiBuilderImages.products[tid] = d.url;
+    _aiBuilderImages.sources[tid] = 'upload';
+    _aibSave();
+    renderAIBImages();
+  } catch(e) {
+    alert('שגיאה בהעלאת התמונה: ' + e.message);
+    if (lbl) lbl.textContent = 'העלה תמונה מהמחשב...';
+  } finally {
+    if (spin) spin.style.display = 'none';
+  }
 }
 
 function aibDeleteProdImg(tid) {
