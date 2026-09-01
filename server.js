@@ -9921,11 +9921,18 @@ Reply with ONLY the English search query, nothing else.`;
         if (pixabayKey) {
             try {
                 const pbPage = req.body.attempt ? Math.min(req.body.attempt, 3) : 1;
-                const pbRes = await fetch(`https://pixabay.com/api/?key=${pixabayKey}&q=${q}&image_type=photo&orientation=vertical&per_page=10&page=${pbPage}&safesearch=true&min_width=400&order=popular`);
-                const pbData = await pbRes.json();
-                const hits = (pbData.hits || []).filter(h => h.webformatURL);
+                // First try: category=food for accurate food photos
+                const pbUrl1 = `https://pixabay.com/api/?key=${pixabayKey}&q=${q}&image_type=photo&category=food&per_page=10&page=${pbPage}&safesearch=true&min_width=400&order=popular`;
+                const pbRes1 = await fetch(pbUrl1);
+                const pbData1 = await pbRes1.json();
+                let hits = (pbData1.hits || []).filter(h => h.webformatURL);
+                // Fallback: no category filter if food category returned nothing
+                if (hits.length === 0) {
+                    const pbRes2 = await fetch(`https://pixabay.com/api/?key=${pixabayKey}&q=${q}&image_type=photo&per_page=10&page=${pbPage}&safesearch=true&min_width=400&order=popular`);
+                    const pbData2 = await pbRes2.json();
+                    hits = (pbData2.hits || []).filter(h => h.webformatURL);
+                }
                 if (hits.length > 0) {
-                    // Pick a random image from results so regeneration yields variety
                     const pick = hits[Math.floor(Math.random() * hits.length)];
                     return res.json({ success: true, imageUrl: pick.webformatURL, url: pick.webformatURL, source: 'pixabay' });
                 }
@@ -9936,7 +9943,7 @@ Reply with ONLY the English search query, nothing else.`;
         const pexelsKey = process.env.PEXELS_API_KEY;
         if (pexelsKey) {
             try {
-                const pxRes = await fetch(`https://api.pexels.com/v1/search?query=${q}&per_page=10&orientation=portrait`, {
+                const pxRes = await fetch(`https://api.pexels.com/v1/search?query=${encodeURIComponent(searchQuery + ' food dish')}&per_page=10&orientation=square`, {
                     headers: { Authorization: pexelsKey }
                 });
                 const pxData = await pxRes.json();
