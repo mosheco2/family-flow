@@ -3867,6 +3867,7 @@ IMPORTANT RULES:
 6. promotions: Generate 2-3 active promotions with realistic Hebrew titles.
 7. logo_prompt: Write a SHORT English FLUX prompt (max 25 words) for a flat minimal icon/logo representing this specific business. Include the accent_color hex. Example: "flat minimal icon of a sushi roll, clean white background, #e63946 accent, vector style, no text"
 8. banner_prompt: Write a SHORT English FLUX prompt (max 35 words) for a wide cover photo representing this business's atmosphere. Example: "wide food photography, fresh sushi platter on dark slate, restaurant ambiance, natural lighting, photorealistic, no text"
+9. ENGLISH-FIRST PRODUCT NAMING: For each product, start with the canonical internationally-recognized English food name (the exact term used on English menus worldwide, e.g. "Shakshuka", "Falafel Wrap", "Grilled Chicken Breast", "Mujadara"). This becomes name_en. Then translate naturally into Hebrew for name. This ensures name_en is a precise stock-photo search term, not a literal translation.
 
 Return ONLY valid JSON, no markdown fences, no explanation:
 {
@@ -3893,8 +3894,8 @@ Return ONLY valid JSON, no markdown fences, no explanation:
       "category_en": "English category name",
       "products": [
         {
-          "name": "Hebrew product name",
-          "name_en": "English name",
+          "name": "Hebrew product name (translated from English canonical name)",
+          "name_en": "Canonical English food/product name used worldwide (e.g. Shakshuka, Falafel, Grilled Chicken Breast)",
           "description": "Hebrew description — SHORT, factual, natural. Describe only what's genuinely distinctive (size, variety, origin, preparation method). NEVER add obvious/redundant adjectives: tomatoes are not 'red', bananas are not 'sweet', water is not 'refreshing'. If nothing is special about the product, write a plain factual sentence. Max 1 sentence.",
           "description_en": "English description — same factual/natural style as Hebrew. No redundant adjectives.",
           "price": 45,
@@ -9883,34 +9884,23 @@ app.post('/api/store/catalog/generate-image', async (req, res) => {
         const { groupId, productName, nameEn, description, category } = req.body;
         if (groupId === undefined || groupId === null || !productName) return res.status(400).json({ error: 'שם מוצר נדרש' });
 
-        // Build English search query — prefer AI translation for accuracy
+        // Build English search query
+        // Strategy: use nameEn directly when it's a clean English term (AI builder now generates English-first names)
+        // Only call Gemini translation if nameEn is missing or too short
         let searchQuery = (nameEn || '').replace(/[^a-zA-Z0-9 ]/g, '').trim();
 
-        // Use Gemini to generate an optimized English stock-photo search term
-        // Only call if the product name has Hebrew (non-ASCII chars) or nameEn is missing/short
-        const hasHebrew = /[א-ת]/.test(productName + (description || ''));
-        if ((hasHebrew || searchQuery.length < 3) && getGenAIInstance()) {
+        if (searchQuery.length < 3 && getGenAIInstance()) {
+            // nameEn missing/short — translate from Hebrew product name
             try {
                 const genModel = getGenAIInstance().getGenerativeModel({ model: 'gemini-2.0-flash-lite' });
-                const prompt = `You are helping find a stock photo for a food/product menu item.
-Given the product name and description below, write a concise English stock photo search query (3-5 words).
-The query MUST start with the main dish or product name, then add key visual descriptors.
-Focus on what makes this dish unique and visually recognizable.
-
-Product name: ${productName}
-Description: ${(description || '').slice(0, 120)}
-
-Examples:
-- "שניצל וינאי" → "schnitzel breaded chicken cutlet"
-- "מג'דרה עם בצל מטוגן" → "mujadara lentils rice crispy onions"
-- "קציצות בקר ברוטב עגבניות" → "beef meatballs tomato sauce"
-- "פסטה בולונז" → "pasta bolognese meat sauce"
-
-Reply with ONLY the English search query, nothing else.`;
+                const prompt = `Translate this food/product name to the canonical English food industry term used on menus worldwide (2-4 words, no punctuation).
+Product: ${productName}
+Description: ${(description || '').slice(0, 80)}
+Reply with ONLY the English term, nothing else.`;
                 const r = await genModel.generateContent(prompt);
-                const translated = r.response.text().replace(/[^a-zA-Z0-9 ]/g, '').trim().slice(0, 80);
+                const translated = r.response.text().replace(/[^a-zA-Z0-9 ]/g, '').trim().slice(0, 60);
                 if (translated.length > 1) searchQuery = translated;
-            } catch(e) { /* fallback to nameEn */ }
+            } catch(e) { /* fallback to category */ }
         }
 
         if (!searchQuery) searchQuery = category ? category.replace(/[^a-zA-Z0-9 ]/g, '').trim() : 'product';
