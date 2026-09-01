@@ -14411,7 +14411,8 @@ async function aiGenProdImg(tid, ci, pi, retryCount) {
       _aiBuilderImages.products[tid] = imgUrl;
       _aibSave();
       renderAIBImages();
-      if (btn) { btn.disabled = false; btn.textContent = '🔄 צור שוב'; }
+      const srcLabel = d.source === 'pixabay' ? '📷 Pixabay' : d.source === 'pexels' ? '📷 Pexels' : '🤖 AI';
+      if (btn) { btn.disabled = false; btn.textContent = `🔄 ${srcLabel}`; }
       return true;
     } else if (retryCount < 2) {
       const delay = (retryCount + 1) * 4000;
