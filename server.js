@@ -3950,8 +3950,9 @@ app.post('/api/sa/ai-create-business', verifySA, async (req, res) => {
       [profile.name, profile.name_en || '', storeType, groupCode]
     );
     const groupId = gRes.rows[0].id;
-    const rawAlias = (profile.name_en || profile.name || '').toLowerCase().replace(/[^a-z0-9]/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,'').slice(0,30);
-    const alias = rawAlias || `store-${groupId}`;
+    const rawAlias = (profile.name_en || profile.name || '').toLowerCase().replace(/[^a-z0-9]/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,'').slice(0,25);
+    // Always append groupId to guarantee UNIQUE constraint satisfaction
+    const alias = (rawAlias || 'store') + '-' + groupId;
     await client.query(`INSERT INTO store_settings
       (group_id, is_active, welcome_message, welcome_message_en, slogan, slogan_en,
        accent_color, delivery_fee, min_order, delivery_eta_min, open_time, close_time,
@@ -4009,7 +4010,10 @@ app.post('/api/sa/ai-create-business', verifySA, async (req, res) => {
       } catch(e) { /* skip */ }
     }
     // Create admin user with auto-generated password
-    const adminPhone = profile.phone || `050${groupCode.slice(1, 8)}`;
+    // Phone: use profile phone if provided, else generate unique numeric phone from groupId
+    const adminPhone = (profile.phone && /^\d{9,15}$/.test(profile.phone.replace(/[^0-9]/g, '')))
+      ? profile.phone.replace(/[^0-9]/g, '')
+      : '05' + String(groupId).padStart(8, '0').slice(0, 8);
     const adminPassword = _bizCrypto.randomBytes(4).toString('hex').toLowerCase(); // 8-char readable password
     const adminPasswordHash = await bcrypt.hash(adminPassword, 10);
     const adminNickname = profile.name;
