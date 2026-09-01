@@ -3571,9 +3571,6 @@ app.post('/api/ai/chat', verifySA, async (req, res) => {
             return res.status(500).json({ success: false, error: 'מפתח Gemini אינו מוגדר בשרת.' });
         }
 
-        // יישור קו עם שאר המערכת: שימוש במודל 2.5 המעודכן שעובד על המפתח שלך
-        const model = getGenAIInstance().getGenerativeModel({ model: "gemini-2.5-flash" });
-        
         const systemInstruction = `אתה עוזר AI ביצועי ואנליטי ברמת Expert למנהל העל (Super Admin) של מערכת Oneflow Life.
 בכל בקשה תקבל בלוק נתונים עדכני בפורמט JSON בשם "מידע פנימי בזמן אמת". הנתונים האלו הם אמת מוחלטת והם משקפים את מסד הנתונים כרגע.
 ההנחיות שלך:
@@ -3582,9 +3579,18 @@ app.post('/api/ai/chat', verifySA, async (req, res) => {
 3. אם המנהל מבקש לבצע פעולה ממשית (למשל "מחק את קריאה 5" או "הוסף קהילה"), ספק לו את שאילתת ה-SQL המדויקת או פקודת ה-API שעליו להריץ, ללא הסברים מיותרים.`;
 
         const prompt = `${systemInstruction}\n\nבקשת המנהל אליך: ${message}`;
-        
-        const result = await model.generateContent(prompt);
-        const reply = result.response.text();
+
+        let reply;
+        for (const modelName of ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash']) {
+          try {
+            const result = await getGenAIInstance().getGenerativeModel({ model: modelName }).generateContent(prompt);
+            reply = result.response.text();
+            break;
+          } catch(e) {
+            if (e.message && (e.message.includes('503') || e.message.includes('429')) && modelName !== 'gemini-1.5-flash') continue;
+            throw e;
+          }
+        }
         
         res.json({ success: true, reply });
     } catch(e) { 
@@ -3730,7 +3736,7 @@ app.post('/api/sa/ai/chat', verifySA, async (req, res) => {
                 rawReply = result.response.text();
                 break;
             } catch(e) {
-                if (e.message && e.message.includes('503') && modelName !== 'gemini-1.5-flash') continue;
+                if (e.message && (e.message.includes('503') || e.message.includes('429')) && modelName !== 'gemini-1.5-flash') continue;
                 throw e;
             }
         }
@@ -3927,9 +3933,17 @@ Return ONLY valid JSON, no markdown fences, no explanation:
   "banner_prompt": "Short English FLUX prompt (max 35 words) for a COVER/BANNER image: wide food/product photography scene representing the business atmosphere, appetizing, natural lighting, no text, photorealistic"
 }`;
     if (!getGenAIInstance()) return res.json({ success: false, error: 'AI not configured' });
-    const model = getGenAIInstance().getGenerativeModel({ model: 'gemini-2.5-flash' });
-    const result = await model.generateContent(prompt);
-    const text = result.response.text().trim().replace(/^```json\s*/,'').replace(/\s*```$/,'');
+    let text;
+    for (const modelName of ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash']) {
+      try {
+        const result = await getGenAIInstance().getGenerativeModel({ model: modelName }).generateContent(prompt);
+        text = result.response.text().trim().replace(/^```json\s*/,'').replace(/\s*```$/,'');
+        break;
+      } catch(e) {
+        if (e.message && (e.message.includes('503') || e.message.includes('429')) && modelName !== 'gemini-1.5-flash') continue;
+        throw e;
+      }
+    }
     let parsed;
     try { parsed = JSON.parse(text); }
     catch(e) { return res.json({ success: false, error: 'parse_error', raw: text }); }
@@ -4078,7 +4092,6 @@ app.post('/api/sa/ai-gen-brand-prompts', verifySA, async (req, res) => {
   try {
     const { businessName, businessNameEn, businessType, slogan, description } = req.body;
     if (!getGenAIInstance()) return res.json({ success: false, error: 'AI not configured' });
-    const model = getGenAIInstance().getGenerativeModel({ model: 'gemini-2.5-flash' });
     const prompt = `You are an expert at writing image generation prompts for FLUX (photorealistic AI model).
 Generate TWO image prompts for this business:
 - Business name (Hebrew): ${businessName}
@@ -4113,13 +4126,17 @@ BANNER prompt rules:
 
 Return ONLY valid JSON:
 {"logo_prompt": "...", "banner_prompt": "..."}`;
-    let result;
-    try { result = await model.generateContent(prompt); }
-    catch(e1) {
-      await new Promise(r => setTimeout(r, 3000));
-      result = await model.generateContent(prompt);
+    let text;
+    for (const modelName of ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash']) {
+      try {
+        const result = await getGenAIInstance().getGenerativeModel({ model: modelName }).generateContent(prompt);
+        text = result.response.text().trim().replace(/^```json\s*/,'').replace(/\s*```$/,'');
+        break;
+      } catch(e) {
+        if (e.message && (e.message.includes('503') || e.message.includes('429')) && modelName !== 'gemini-1.5-flash') continue;
+        throw e;
+      }
     }
-    const text = result.response.text().trim().replace(/^```json\s*/,'').replace(/\s*```$/,'');
     const parsed = JSON.parse(text);
     res.json({ success: true, logo_prompt: parsed.logo_prompt, banner_prompt: parsed.banner_prompt });
   } catch(e) { res.json({ success: false, error: e.message }); }
