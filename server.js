@@ -9909,13 +9909,14 @@ Reply with ONLY the English search query, nothing else.`;
         const pixabayKey = process.env.PIXABAY_API_KEY;
         if (pixabayKey) {
             try {
-                const pbRes = await fetch(`https://pixabay.com/api/?key=${pixabayKey}&q=${q}&image_type=photo&orientation=vertical&per_page=5&safesearch=true&min_width=400&order=relevant`);
+                const pbPage = req.body.attempt ? Math.min(req.body.attempt, 3) : 1;
+                const pbRes = await fetch(`https://pixabay.com/api/?key=${pixabayKey}&q=${q}&image_type=photo&orientation=vertical&per_page=10&page=${pbPage}&safesearch=true&min_width=400&order=popular`);
                 const pbData = await pbRes.json();
                 const hits = (pbData.hits || []).filter(h => h.webformatURL);
                 if (hits.length > 0) {
-                    // Prefer images with product-like aspect ratio; pick highest views
-                    const best = hits.sort((a, b) => b.views - a.views)[0];
-                    return res.json({ success: true, imageUrl: best.webformatURL, url: best.webformatURL, source: 'pixabay' });
+                    // Pick a random image from results so regeneration yields variety
+                    const pick = hits[Math.floor(Math.random() * hits.length)];
+                    return res.json({ success: true, imageUrl: pick.webformatURL, url: pick.webformatURL, source: 'pixabay' });
                 }
             } catch(e) { console.warn('Pixabay fallback:', e.message); }
         }
@@ -9924,13 +9925,14 @@ Reply with ONLY the English search query, nothing else.`;
         const pexelsKey = process.env.PEXELS_API_KEY;
         if (pexelsKey) {
             try {
-                const pxRes = await fetch(`https://api.pexels.com/v1/search?query=${q}&per_page=5&orientation=portrait`, {
+                const pxRes = await fetch(`https://api.pexels.com/v1/search?query=${q}&per_page=10&orientation=portrait`, {
                     headers: { Authorization: pexelsKey }
                 });
                 const pxData = await pxRes.json();
                 const photos = (pxData.photos || []);
                 if (photos.length > 0) {
-                    const imgUrl = photos[0].src.medium || photos[0].src.original;
+                    const pick = photos[Math.floor(Math.random() * photos.length)];
+                    const imgUrl = pick.src.medium || pick.src.original;
                     return res.json({ success: true, imageUrl: imgUrl, url: imgUrl, source: 'pexels' });
                 }
             } catch(e) { console.warn('Pexels fallback:', e.message); }

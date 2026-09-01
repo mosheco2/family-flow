@@ -14399,6 +14399,10 @@ function aibShowProdPreview(ci, pi) {
 
 async function aiGenProdImg(tid, ci, pi, retryCount) {
   retryCount = retryCount || 0;
+  // Track cumulative generation attempts per product for varied results
+  if (!_aiBuilderImages.attempts) _aiBuilderImages.attempts = {};
+  if (retryCount === 0) _aiBuilderImages.attempts[tid] = (_aiBuilderImages.attempts[tid] || 0) + 1;
+  const attempt = _aiBuilderImages.attempts[tid] || 1;
   const cat = _aiBuilderData.catalog[ci];
   const p = cat.products[pi];
   const btn = document.getElementById('aib-img-btn-' + tid);
@@ -14406,7 +14410,7 @@ async function aiGenProdImg(tid, ci, pi, retryCount) {
   try {
     const r = await fetch('/api/store/catalog/generate-image', {
       method: 'POST', headers: {'Content-Type':'application/json', 'Authorization': saToken},
-      body: JSON.stringify({ groupId: 0, productName: p.name, nameEn: p.name_en || '', description: p.description || p.name, category: cat.category })
+      body: JSON.stringify({ groupId: 0, productName: p.name, nameEn: p.name_en || '', description: p.description || p.name, category: cat.category, attempt })
     });
     const d = await r.json();
     const imgUrl = d.imageUrl || d.url || d.data;
