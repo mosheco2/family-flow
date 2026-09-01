@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Oneflow Life BIZ</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  body { margin: 0; }
+  a { color: inherit; text-decoration: none; }
+  * { box-sizing: border-box; }
+  @keyframes ring-fill { from { --p: 0; } to { --p: 100; } }
+
+  /* ===== קרוסל צילומי מסך ===== */
+  .shot-carousel { position: relative; border-radius: 14px; overflow: hidden; margin-top: 18px;
+    border: 1px solid oklch(85% 0.015 120); box-shadow: 0 2px 10px oklch(20% 0.02 152 / 0.08); }
+  .shot-track { display: flex; transition: transform .5s cubic-bezier(.4,0,.2,1); }
+  .shot-track img { width: 100%; flex: 0 0 100%; display: block; object-fit: cover; aspect-ratio: 16/10; background: oklch(93% 0.01 120); }
+  .shot-arrow { position: absolute; top: 50%; transform: translateY(-50%); width: 34px; height: 34px;
+    border-radius: 50%; background: oklch(100% 0 0 / 0.85); border: none; display: flex; align-items: center;
+    justify-content: center; cursor: pointer; font-size: 15px; color: oklch(24% 0.02 152); box-shadow: 0 1px 4px oklch(0% 0 0 / 0.15); }
+  .shot-arrow.prev { right: 10px; }
+  .shot-arrow.next { left: 10px; }
+  .shot-dots { position: absolute; bottom: 10px; left: 0; right: 0; display: flex; justify-content: center; gap: 6px; }
+  .shot-dot { width: 7px; height: 7px; border-radius: 50%; background: oklch(100% 0 0 / 0.55); border: none; cursor: pointer; padding: 0; transition: background .2s, transform .2s; }
+  .shot-dot.active { background: oklch(100% 0 0 / 0.95); transform: scale(1.25); }
+</style>
+</head>
+<body>
+
+<div dir="rtl" style="direction:rtl; font-family:'Rubik',system-ui,sans-serif; background:oklch(98% 0.006 95); color:oklch(24% 0.02 152); max-width:560px; margin:0 auto; overflow-x:hidden;">
+
+  <div style="position:sticky; top:0; z-index:10; display:flex; align-items:center; justify-content:space-between; gap:10px; padding:12px 18px; background:oklch(98% 0.006 95 / 0.92); backdrop-filter:blur(8px); border-bottom:1px solid oklch(85% 0.02 120);">
+    <div style="display:flex; align-items:center; gap:8px;">
+      <!-- 🖼️ לוגו: החלף את הנתיב הזה לקובץ הלוגו שהועלה ל-assets/logo.png -->
+      <img src="assets/logo.png" alt="Oneflow Life" style="height:30px; width:auto; object-fit:contain;">
+      <span style="font-size:13px; font-weight:600; color:oklch(30% 0.05 152); letter-spacing:0.2px;">Oneflow Life BIZ</span>
+    </div>
+    <a href="https://oneflowlife.co.il/biz-onboarding.html" style="background:oklch(30% 0.06 152); color:oklch(98% 0.01 95); font-size:13px; font-weight:700; padding:9px 16px; border-radius:8px; white-space:nowrap;">פתח חנות</a>
+  </div>
+
+  <div style="padding:36px 20px 30px; text-align:center;">
+    <div style="display:inline-block; font-size:12.5px; font-weight:600; color:oklch(45% 0.09 55); background:oklch(93% 0.03 70); padding:5px 12px; border-radius:100px; margin-bottom:16px;">לעסקים בגוש עציון מזרח</div>
+    <h1 style="font-size:34px; line-height:1.25; font-weight:800; margin:0 0 12px; color:oklch(22% 0.03 152);">חמש דקות.<br>פתח חנות.<br>תתחיל למכור.</h1>
+    <p style="font-size:16px; line-height:1.6; color:oklch(40% 0.02 130); margin:0 auto 26px; max-width:400px;">חמש דקות, פתח אזור ניהול עסק: שלח הצעות מחיר, ניהול עובדים, משימות, הסמכות ומועדון לקוחות — הכול במקום אחד.</p>
+
+    <div style="background:oklch(99% 0.004 95); border:1px solid oklch(88% 0.02 120); border-radius:20px; padding:26px 20px; margin-bottom:22px; box-shadow:0 1px 2px oklch(20% 0.02 152 / 0.05);">
+      <div style="position:relative; width:150px; height:150px; margin:0 auto 20px; border-radius:50%; background:conic-gradient(oklch(58% 0.1 75) 0turn, oklch(58% 0.1 75) 1turn); animation:ring-fill 1.8s ease-out 1; display:flex; align-items:center; justify-content:center;">
+        <div style="position:absolute; inset:9px; border-radius:50%; background:oklch(99% 0.004 95);"></div>
+        <div style="position:relative; text-align:center;">
+          <div style="font-size:30px; font-weight:800; color:oklch(24% 0.03 152); line-height:1;">5:00</div>
+          <div style="font-size:12px; color:oklch(48% 0.02 130); margin-top:3px;">דקות לחנות פתוחה</div>
+        </div>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:10px; text-align:right;">
+        <div style="display:flex; align-items:center; gap:10px; background:oklch(96% 0.015 90); border-radius:12px; padding:10px 14px;">
+          <div style="flex-shrink:0; width:26px; height:26px; border-radius:50%; background:oklch(58% 0.1 75); color:oklch(99% 0.01 90); font-size:13px; font-weight:700; display:flex; align-items:center; justify-content:center;">1</div>
+          <div style="flex:1; font-size:14px; font-weight:500;">מזינים שם עסק ופרטים בסיסיים</div>
+          <div style="font-size:12px; color:oklch(48% 0.02 130); white-space:nowrap;">דקה</div>
+        </div>
+        <div style="display:flex; align-items:center; gap:10px; background:oklch(96% 0.015 90); border-radius:12px; padding:10px 14px;">
+          <div style="flex-shrink:0; width:26px; height:26px; border-radius:50%; background:oklch(58% 0.1 75); color:oklch(99% 0.01 90); font-size:13px; font-weight:700; display:flex; align-items:center; justify-content:center;">2</div>
+          <div style="flex:1; font-size:14px; font-weight:500;">מוסיפים מוצר או שירות ראשון</div>
+          <div style="font-size:12px; color:oklch(48% 0.02 130); white-space:nowrap;">2 דקות</div>
+        </div>
+        <div style="display:flex; align-items:center; gap:10px; background:oklch(96% 0.015 90); border-radius:12px; padding:10px 14px;">
+          <div style="flex-shrink:0; width:26px; height:26px; border-radius:50%; background:oklch(58% 0.1 75); color:oklch(99% 0.01 90); font-size:13px; font-weight:700; display:flex; align-items:center; justify-content:center;">3</div>
+          <div style="flex:1; font-size:14px; font-weight:500;">משתפים קישור ומתחילים למכור</div>
+          <div style="font-size:12px; color:oklch(48% 0.02 130); white-space:nowrap;">2 דקות</div>
+        </div>
+      </div>
+    </div>
+
+    <a href="https://oneflowlife.co.il/biz-onboarding.html" style="display:block; background:oklch(30% 0.06 152); color:oklch(98% 0.01 95); font-size:16px; font-weight:700; padding:16px; border-radius:12px; box-shadow:0 4px 14px oklch(30% 0.06 152 / 0.3);">פתח חנות עכשיו</a>
+    <div style="font-size:12.5px; color:oklch(50% 0.02 130); margin-top:10px;">נרשמים ישר מהטלפון, בלי מחשב</div>
+  </div>
+
+  <div style="padding:8px 20px 30px; text-align:center;">
+    <h2 style="font-size:19px; font-weight:700; margin:0 0 16px; color:oklch(22% 0.03 152);">מתאים לכל תחום ומקצוע</h2>
+    <div style="display:flex; flex-wrap:wrap; gap:9px; justify-content:center;">
+      <span style="background:oklch(94% 0.03 70); color:oklch(38% 0.06 60); font-size:13px; font-weight:600; padding:8px 14px; border-radius:100px;">מסעדות ומזון</span>
+      <span style="background:oklch(94% 0.025 155); color:oklch(28% 0.05 152); font-size:13px; font-weight:600; padding:8px 14px; border-radius:100px;">תיקונים והתקנות</span>
+      <span style="background:oklch(93% 0.03 95); color:oklch(42% 0.06 85); font-size:13px; font-weight:600; padding:8px 14px; border-radius:100px;">ספורט ואימונים</span>
+      <span style="background:oklch(94% 0.03 20); color:oklch(42% 0.07 20); font-size:13px; font-weight:600; padding:8px 14px; border-radius:100px;">יופי ואסתטיקה</span>
+      <span style="background:oklch(93% 0.02 250); color:oklch(38% 0.05 250); font-size:13px; font-weight:600; padding:8px 14px; border-radius:100px;">ייעוץ ומומחים</span>
+      <span style="background:oklch(93% 0.025 200); color:oklch(38% 0.05 200); font-size:13px; font-weight:600; padding:8px 14px; border-radius:100px;">לוגיסטיקה ומשלוחים</span>
+      <span style="background:oklch(92% 0.005 120); color:oklch(42% 0.01 130); font-size:13px; font-weight:600; padding:8px 14px; border-radius:100px;">ועוד</span>
+    </div>
+  </div>
+
+  <div style="padding:8px 20px 34px;">
+    <h2 style="font-size:22px; font-weight:700; text-align:center; margin:0 0 6px; color:oklch(22% 0.03 152);">שני מסלולים, לבחירתכם</h2>
+    <p style="font-size:14.5px; text-align:center; color:oklch(45% 0.02 130); margin:0 0 22px;">מתחילים קטן ומוכרים, או פותחים ניהול עסק מלא — אתם בוחרים.</p>
+    <div style="display:flex; flex-direction:column; gap:14px;">
+      <div style="background:oklch(96% 0.03 70); border:1px solid oklch(85% 0.05 70); border-radius:18px; padding:22px;">
+        <div style="width:40px; height:40px; border-radius:10px; background:oklch(58% 0.1 75); margin-bottom:14px;"></div>
+        <h3 style="font-size:19px; font-weight:700; margin:0 0 6px; color:oklch(30% 0.06 60);">פתיחת חנות</h3>
+        <p style="font-size:14px; line-height:1.55; color:oklch(38% 0.03 60); margin:0 0 16px;">מכירה בלבד: קטלוג מוצרים, קבלת הזמנות ותשלום. בשביל עסק שרוצה למכור אונליין בלי סיבוכים.</p>
+        <a href="https://oneflowlife.co.il/biz-onboarding.html" style="display:inline-block; background:oklch(30% 0.03 60); color:oklch(98% 0.01 90); font-size:14px; font-weight:700; padding:11px 18px; border-radius:10px;">פתח חנות</a>
+      </div>
+      <div style="background:oklch(94% 0.025 155); border:1px solid oklch(75% 0.05 155); border-radius:18px; padding:22px;">
+        <div style="width:40px; height:40px; border-radius:10px; background:oklch(32% 0.06 152); margin-bottom:14px;"></div>
+        <h3 style="font-size:19px; font-weight:700; margin:0 0 6px; color:oklch(24% 0.05 152);">ניהול עסק מלא</h3>
+        <p style="font-size:14px; line-height:1.55; color:oklch(32% 0.03 145); margin:0 0 16px;">הצעות מחיר, עובדים ומשמרות, משימות, הסמכות ומסמכים, מועדון לקוחות. בשביל עסק שרוצה לנהל הכול במקום אחד.</p>
+        <a href="https://oneflowlife.co.il/biz-onboarding.html" style="display:inline-block; background:oklch(24% 0.05 152); color:oklch(98% 0.01 95); font-size:14px; font-weight:700; padding:11px 18px; border-radius:10px;">פתח אזור ניהול</a>
+      </div>
+    </div>
+  </div>
+
+  <div style="padding:26px 20px; margin:0 20px 34px; background:oklch(30% 0.06 152); border-radius:20px; text-align:center;">
+    <div style="display:inline-block; font-size:12px; font-weight:700; color:oklch(90% 0.03 90); background:oklch(100% 0 0 / 0.14); padding:5px 13px; border-radius:100px; margin-bottom:14px;">בלעדי למצטרפים</div>
+    <h2 style="font-size:21px; font-weight:800; line-height:1.35; margin:0 0 10px; color:oklch(98% 0.01 95);">חשיפה בלחיצת כפתור לקהילות צרכנים באזור</h2>
+    <p style="font-size:14.5px; line-height:1.65; color:oklch(88% 0.02 120); margin:0;">גישה ישירה לקהילות צרכנים אזוריות, ועדי עובדים וקבוצות רכישה — מאות משפחות שכבר מחפשות עסקים כמו שלכם, בלי לרדוף אחרי כל לקוח בנפרד.</p>
+  </div>
+
+  <div style="padding:8px 20px 34px; background:oklch(96% 0.008 100);">
+    <h2 style="font-size:22px; font-weight:700; text-align:center; margin:0 0 22px; padding-top:26px; color:oklch(22% 0.03 152);">מה יש באזור הניהול</h2>
+    <div style="display:flex; flex-direction:column; gap:12px;">
+      <div style="display:flex; gap:14px; align-items:flex-start; background:oklch(99% 0.004 95); border-radius:14px; padding:16px; border:1px solid oklch(89% 0.015 120);">
+        <div style="flex-shrink:0; width:34px; height:34px; border-radius:9px; background:oklch(58% 0.1 75);"></div>
+        <div><div style="font-size:15.5px; font-weight:700; margin-bottom:3px;">חנות והזמנות</div>
+        <div style="font-size:13.5px; line-height:1.5; color:oklch(45% 0.02 130);">קטלוג מוצרים, עגלה וקבלת הזמנות עם תשלום — בלי צורך באתר נפרד.</div></div>
+      </div>
+      <div style="display:flex; gap:14px; align-items:flex-start; background:oklch(99% 0.004 95); border-radius:14px; padding:16px; border:1px solid oklch(89% 0.015 120);">
+        <div style="flex-shrink:0; width:34px; height:34px; border-radius:9px; background:oklch(32% 0.06 152);"></div>
+        <div><div style="font-size:15.5px; font-weight:700; margin-bottom:3px;">הצעות מחיר</div>
+        <div style="font-size:13.5px; line-height:1.5; color:oklch(45% 0.02 130);">שולחים הצעת מחיר מקצועית מהטלפון, עוקבים אחרי הסטטוס עד לאישור הלקוח.</div></div>
+      </div>
+      <div style="display:flex; gap:14px; align-items:flex-start; background:oklch(99% 0.004 95); border-radius:14px; padding:16px; border:1px solid oklch(89% 0.015 120);">
+        <div style="flex-shrink:0; width:34px; height:34px; border-radius:9px; background:oklch(50% 0.05 40);"></div>
+        <div><div style="font-size:15.5px; font-weight:700; margin-bottom:3px;">עובדים ומשמרות</div>
+        <div style="font-size:13.5px; line-height:1.5; color:oklch(45% 0.02 130);">סידור עבודה, שיבוץ משמרות ומעקב שעות לכל העובדים במקום אחד.</div></div>
+      </div>
+      <div style="display:flex; gap:14px; align-items:flex-start; background:oklch(99% 0.004 95); border-radius:14px; padding:16px; border:1px solid oklch(89% 0.015 120);">
+        <div style="flex-shrink:0; width:34px; height:34px; border-radius:9px; background:oklch(45% 0.05 152);"></div>
+        <div><div style="font-size:15.5px; font-weight:700; margin-bottom:3px;">הסמכות ומסמכים</div>
+        <div style="font-size:13.5px; line-height:1.5; color:oklch(45% 0.02 130);">כל התעודות, ההסמכות והמסמכים של העסק והעובדים, שמורים ונגישים.</div></div>
+      </div>
+      <div style="display:flex; gap:14px; align-items:flex-start; background:oklch(99% 0.004 95); border-radius:14px; padding:16px; border:1px solid oklch(89% 0.015 120);">
+        <div style="flex-shrink:0; width:34px; height:34px; border-radius:9px; background:oklch(62% 0.09 70);"></div>
+        <div><div style="font-size:15.5px; font-weight:700; margin-bottom:3px;">מועדון לקוחות</div>
+        <div style="font-size:13.5px; line-height:1.5; color:oklch(45% 0.02 130);">ניהול לקוחות חוזרים, מבצעים והטבות שמניבות הזמנות נוספות.</div></div>
+      </div>
+    </div>
+
+    <!-- 🖼️ קרוסל צילומי מסך: מתחלף אוטומטית כל 4 שניות + ניווט ידני (חצים + נקודות).
+         להוסיף/להסיר תמונות: הוסף/הסר <img> בתוך .shot-track ונקודה תואמת ב-.shot-dots.
+         נתיבי הקבצים: assets/screenshot-1.png, assets/screenshot-2.png וכו' -->
+    <div class="shot-carousel" id="shotCarousel">
+      <div class="shot-track" id="shotTrack">
+        <img src="assets/screenshot-1.png" alt="מבט מתוך אזור הניהול — לוח בקרה">
+        <img src="assets/screenshot-2.png" alt="מבט מתוך אזור הניהול — הצעות מחיר">
+        <img src="assets/screenshot-3.png" alt="מבט מתוך אזור הניהול — עובדים ומשמרות">
+      </div>
+      <button class="shot-arrow prev" id="shotPrev" aria-label="התמונה הקודמת">‹</button>
+      <button class="shot-arrow next" id="shotNext" aria-label="התמונה הבאה">›</button>
+      <div class="shot-dots" id="shotDots"></div>
+    </div>
+  </div>
+
+  <div style="padding:36px 20px; text-align:center;">
+    <h2 style="font-size:21px; font-weight:700; margin:0 0 10px; color:oklch(22% 0.03 152);">נבנה עבור עסקים באזור</h2>
+    <p style="font-size:14.5px; line-height:1.6; color:oklch(42% 0.02 130); margin:0 0 22px; max-width:400px; margin-inline:auto;">Oneflow Life מגיע מתוך קבוצות העסקים בגוש עציון מזרח — לא כלי גלובלי גנרי, אלא מערכת שנבנתה מול עסקים שאתם מכירים.</p>
+    <div style="font-size:12.5px; font-weight:600; color:oklch(48% 0.02 130); margin-bottom:14px;">בין העסקים שכבר הרימו סביבות אצלנו</div>
+    <!-- 🖼️ רצועת לוגואים: כל <img> הוא לוגו עסק לקוח. הוסף/הסר לפי הצורך.
+         נתיבי הקבצים: assets/client-logos/logo-1.png, logo-2.png וכו' -->
+    <div style="display:flex; flex-wrap:wrap; gap:16px; justify-content:center; align-items:center;">
+      <img src="assets/client-logos/logo-1.png" alt="עסק לקוח" style="height:38px; width:auto; object-fit:contain; border-radius:8px;">
+      <img src="assets/client-logos/logo-2.png" alt="עסק לקוח" style="height:38px; width:auto; object-fit:contain; border-radius:8px;">
+      <img src="assets/client-logos/logo-3.png" alt="עסק לקוח" style="height:38px; width:auto; object-fit:contain; border-radius:8px;">
+    </div>
+  </div>
+
+  <div style="padding:34px 20px 40px; background:oklch(24% 0.045 152); text-align:center;">
+    <h2 style="font-size:24px; font-weight:800; margin:0 0 10px; color:oklch(98% 0.01 95);">מוכנים להתחיל?</h2>
+    <p style="font-size:14.5px; line-height:1.6; color:oklch(85% 0.01 120); margin:0 0 22px;">ההרשמה מהטלפון בלבד — בלי מחשב, בלי התקנות.</p>
+    <a href="https://oneflowlife.co.il/biz-onboarding.html" style="display:block; background:oklch(58% 0.1 75); color:oklch(20% 0.02 60); font-size:16px; font-weight:700; padding:16px; border-radius:12px;">פתח חנות ב-5 דקות</a>
+  </div>
+
+  <div style="padding:20px; text-align:center; background:oklch(20% 0.04 152);">
+    <!-- 🖼️ לוגו (גרסה בהירה על רקע כהה, אם יש — אחרת אותו קובץ) -->
+    <img src="assets/logo.png" alt="Oneflow Life" style="height:26px; opacity:0.9; margin-bottom:8px;">
+    <div style="font-size:12px; color:oklch(70% 0.02 120);">מתאים גם מהמסך הקטן — כי משם כולם מגיעים</div>
+  </div>
+
+</div>
+
+<script>
+(function(){
+  var track = document.getElementById('shotTrack');
+  var slides = track.children;
+  var dotsWrap = document.getElementById('shotDots');
+  var prevBtn = document.getElementById('shotPrev');
+  var nextBtn = document.getElementById('shotNext');
+  var idx = 0;
+  var timer;
+  var AUTOPLAY_MS = 4000;
+
+  for (var i = 0; i < slides.length; i++) {
+    var dot = document.createElement('button');
+    dot.className = 'shot-dot' + (i === 0 ? ' active' : '');
+    dot.setAttribute('aria-label', 'תמונה ' + (i + 1));
+    (function(n){ dot.addEventListener('click', function(){ goTo(n, true); }); })(i);
+    dotsWrap.appendChild(dot);
+  }
+
+  function render(){
+    track.style.transform = 'translateX(' + (idx * 100) + '%)';
+    var dots = dotsWrap.children;
+    for (var i = 0; i < dots.length; i++) dots[i].classList.toggle('active', i === idx);
+  }
+
+  function goTo(n, manual){
+    idx = (n + slides.length) % slides.length;
+    render();
+    if (manual) restartAutoplay();
+  }
+
+  function next(manual){ goTo(idx + 1, manual); }
+  function prev(manual){ goTo(idx - 1, manual); }
+
+  function restartAutoplay(){
+    clearInterval(timer);
+    timer = setInterval(function(){ next(false); }, AUTOPLAY_MS);
+  }
+
+  prevBtn.addEventListener('click', function(){ prev(true); });
+  nextBtn.addEventListener('click', function(){ next(true); });
+
+  // תמיכה בהחלקת אצבע (swipe) במובייל
+  var startX = null;
+  track.addEventListener('touchstart', function(e){ startX = e.touches[0].clientX; }, {passive:true});
+  track.addEventListener('touchend', function(e){
+    if (startX === null) return;
+    var dx = e.changedTouches[0].clientX - startX;
+    if (Math.abs(dx) > 40) { dx < 0 ? next(true) : prev(true); }
+    startX = null;
+  }, {passive:true});
+
+  render();
+  restartAutoplay();
+})();
+</script>
+
+</body>
+</html>
