@@ -9892,12 +9892,23 @@ app.post('/api/store/catalog/generate-image', async (req, res) => {
         if ((hasHebrew || searchQuery.length < 3) && getGenAIInstance()) {
             try {
                 const genModel = getGenAIInstance().getGenerativeModel({ model: 'gemini-2.0-flash-lite' });
-                const prompt = `Translate the following food/product name to a short English stock photo search query (2-4 words max, no punctuation).
+                const prompt = `You are helping find a stock photo for a food/product menu item.
+Given the product name and description below, write a concise English stock photo search query (3-5 words).
+The query MUST start with the main dish or product name, then add key visual descriptors.
+Focus on what makes this dish unique and visually recognizable.
+
 Product name: ${productName}
-Description: ${(description || '').slice(0, 80)}
+Description: ${(description || '').slice(0, 120)}
+
+Examples:
+- "שניצל וינאי" → "schnitzel breaded chicken cutlet"
+- "מג'דרה עם בצל מטוגן" → "mujadara lentils rice crispy onions"
+- "קציצות בקר ברוטב עגבניות" → "beef meatballs tomato sauce"
+- "פסטה בולונז" → "pasta bolognese meat sauce"
+
 Reply with ONLY the English search query, nothing else.`;
                 const r = await genModel.generateContent(prompt);
-                const translated = r.response.text().replace(/[^a-zA-Z0-9 ]/g, '').trim().slice(0, 60);
+                const translated = r.response.text().replace(/[^a-zA-Z0-9 ]/g, '').trim().slice(0, 80);
                 if (translated.length > 1) searchQuery = translated;
             } catch(e) { /* fallback to nameEn */ }
         }
