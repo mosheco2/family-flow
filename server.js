@@ -3943,9 +3943,11 @@ app.post('/api/sa/ai-create-business', verifySA, async (req, res) => {
     await client.query('BEGIN');
     const { generatedData, storeType = 'restaurant' } = req.body;
     const { profile, settings, catalog = [], promotions = [], coupons = [] } = generatedData;
+    // Generate unique group code
+    const groupCode = 'B' + _bizCrypto.randomBytes(4).toString('hex').toUpperCase().slice(0, 7);
     const gRes = await client.query(
-      `INSERT INTO family_groups (name, name_en, type, business_type, is_onboarded, wizard_completed) VALUES ($1,$2,'BUSINESS',$3,true,true) RETURNING id`,
-      [profile.name, profile.name_en || '', storeType]
+      `INSERT INTO family_groups (name, name_en, type, business_type, is_onboarded, wizard_completed, group_code) VALUES ($1,$2,'BUSINESS',$3,true,true,$4) RETURNING id`,
+      [profile.name, profile.name_en || '', storeType, groupCode]
     );
     const groupId = gRes.rows[0].id;
     const rawAlias = (profile.name_en || profile.name || '').toLowerCase().replace(/[^a-z0-9]/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,'').slice(0,30);
@@ -4006,8 +4008,18 @@ app.post('/api/sa/ai-create-business', verifySA, async (req, res) => {
         );
       } catch(e) { /* skip */ }
     }
+    // Create admin user with auto-generated password
+    const adminPhone = profile.phone || `050${groupCode.slice(1, 8)}`;
+    const adminPassword = _bizCrypto.randomBytes(4).toString('hex').toLowerCase(); // 8-char readable password
+    const adminPasswordHash = await bcrypt.hash(adminPassword, 10);
+    const adminNickname = profile.name;
+    await client.query(
+      `INSERT INTO users (group_id, nickname, role, phone, password_hash, status) VALUES ($1,$2,'ADMIN',$3,$4,'active')`,
+      [groupId, adminNickname, adminPhone, adminPasswordHash]
+    );
+
     await client.query('COMMIT');
-    res.json({ success: true, groupId, storeAlias: alias, productIds });
+    res.json({ success: true, groupId, storeAlias: alias, productIds, groupCode, adminPhone, adminPassword });
   } catch(e) {
     await client.query('ROLLBACK');
     console.error('ai-create-business error:', e);

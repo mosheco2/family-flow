@@ -14508,6 +14508,22 @@ async function aiCreateBusiness() {
     document.getElementById('aib-success-alias').textContent = d.storeAlias;
     document.getElementById('aib-success-link').href = `/storefront.html?store=${d.storeAlias}`;
     document.getElementById('aib-success-biz-link').href = `/business.html?gid=${d.groupId}`;
+    // Show business credentials box
+    const credBox = document.getElementById('aib-success-creds');
+    if (credBox) {
+      credBox.innerHTML = `
+        <div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:12px;padding:16px;margin-top:14px;direction:rtl;text-align:right">
+          <div style="font-weight:700;font-size:14px;color:#166534;margin-bottom:10px">📋 פרטי הגישה לעסק</div>
+          <div style="display:grid;grid-template-columns:auto 1fr;gap:6px 12px;align-items:center;font-size:13px">
+            <span style="color:#64748b">שם עסק</span><strong>${_escH(_aiBuilderData?.profile?.name || d.storeAlias)}</strong>
+            <span style="color:#64748b">קוד עסק</span><strong style="font-family:monospace">${d.groupCode || '—'}</strong>
+            <span style="color:#64748b">טלפון מנהל</span><strong style="font-family:monospace">${d.adminPhone || '—'}</strong>
+            <span style="color:#64748b">סיסמה</span><strong style="font-family:monospace;background:#dcfce7;padding:2px 8px;border-radius:6px">${d.adminPassword || '—'}</strong>
+          </div>
+          <div style="margin-top:10px;font-size:11px;color:#166534;background:#dcfce7;border-radius:8px;padding:8px">⚠️ שמור את הסיסמה — היא לא תוצג שוב. ניתן לאפס דרך ניהול משתמשים בסופר אדמין.</div>
+        </div>`;
+      credBox.style.display = 'block';
+    }
     if (logoUrl) {
       let imgRow = document.getElementById('aib-success-images');
       if (!imgRow) {
