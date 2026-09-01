@@ -9881,10 +9881,26 @@ app.post('/api/store/catalog/generate-image', async (req, res) => {
         const { groupId, productName, nameEn, description, category } = req.body;
         if (groupId === undefined || groupId === null || !productName) return res.status(400).json({ error: 'שם מוצר נדרש' });
 
+        // Build English search query — prefer AI translation for accuracy
         let searchQuery = (nameEn || '').replace(/[^a-zA-Z0-9 ]/g, '').trim();
-        if (!searchQuery && category) searchQuery = category.replace(/[^a-zA-Z0-9 ]/g, '').trim();
-        if (!searchQuery) searchQuery = 'product';
 
+        // Use Gemini to generate an optimized English stock-photo search term
+        // Only call if the product name has Hebrew (non-ASCII chars) or nameEn is missing/short
+        const hasHebrew = /[א-ת]/.test(productName + (description || ''));
+        if ((hasHebrew || searchQuery.length < 3) && getGenAIInstance()) {
+            try {
+                const genModel = getGenAIInstance().getGenerativeModel({ model: 'gemini-2.0-flash-lite' });
+                const prompt = `Translate the following food/product name to a short English stock photo search query (2-4 words max, no punctuation).
+Product name: ${productName}
+Description: ${(description || '').slice(0, 80)}
+Reply with ONLY the English search query, nothing else.`;
+                const r = await genModel.generateContent(prompt);
+                const translated = r.response.text().replace(/[^a-zA-Z0-9 ]/g, '').trim().slice(0, 60);
+                if (translated.length > 1) searchQuery = translated;
+            } catch(e) { /* fallback to nameEn */ }
+        }
+
+        if (!searchQuery) searchQuery = category ? category.replace(/[^a-zA-Z0-9 ]/g, '').trim() : 'product';
         const q = encodeURIComponent(searchQuery);
 
         // 1) Pixabay — free stock photos, no attribution required, real product images
