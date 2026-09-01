@@ -14656,9 +14656,7 @@ function switchAIBTab(tab) {
 
 function _aibSetBrandPrompt(type, prompt) {
   const el = document.getElementById(`aib-${type}-prompt`);
-  const disp = document.getElementById(`aib-${type}-prompt-display`);
   if (el) el.value = prompt;
-  if (disp) disp.textContent = prompt;
   if (_aiBuilderData) _aiBuilderData[`${type}_prompt`] = prompt;
 }
 
@@ -14669,15 +14667,11 @@ async function renderAIBBranding() {
 
   // Always regenerate from Gemini (old cached prompts may be poor quality)
   // Ask Gemini to generate proper visual prompts
-  const logoDisp = document.getElementById('aib-logo-prompt-display');
-  const bannerDisp = document.getElementById('aib-banner-prompt-display');
+  const logoPromptEl = document.getElementById('aib-logo-prompt');
   const _showBrandRetry = () => {
-    const msg = '<span style="color:#f59e0b;font-size:11px">⚠️ שגיאה זמנית — <a href="#" onclick="renderAIBBranding();return false;" style="color:#6366f1;text-decoration:underline">נסה שוב</a></span>';
-    if (logoDisp) logoDisp.innerHTML = msg;
-    if (bannerDisp) bannerDisp.innerHTML = msg;
+    if (logoPromptEl && !logoPromptEl.value) logoPromptEl.placeholder = '⚠️ שגיאה — ערוך ידנית או נסה שוב';
   };
-  if (logoDisp) logoDisp.textContent = '⏳ AI מייצר פרומפטים...';
-  if (bannerDisp) bannerDisp.textContent = '';
+  if (logoPromptEl && !logoPromptEl.value) logoPromptEl.placeholder = '⏳ AI מייצר פרומפטים...';
   try {
     const p = _aiBuilderData?.profile || {};
     const r = await fetch('/api/sa/ai-gen-brand-prompts', {

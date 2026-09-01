@@ -3791,7 +3791,7 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                         <span style="color:#94a3b8;font-size:11px;text-align:center;padding:8px">לחץ "צור"<br>לתצוגה מקדימה</span>
                       </div>
                       <div style="flex:1">
-                        <div id="aib-logo-prompt-display" style="font-size:11px;color:#64748b;background:#f1f5f9;border-radius:8px;padding:8px 10px;margin-bottom:10px;direction:ltr;line-height:1.5;min-height:36px"></div>
+                        <textarea id="aib-logo-prompt" rows="3" placeholder="פרומפט לייצור לוגו (אנגלית)..." style="width:100%;font-size:11px;color:#374151;background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:8px;padding:8px 10px;margin-bottom:10px;direction:ltr;line-height:1.5;resize:vertical;font-family:monospace" oninput="if(_aiBuilderData)_aiBuilderData.logo_prompt=this.value"></textarea>
                         <div style="display:flex;gap:8px;flex-wrap:wrap">
                           <button onclick="aiGenBrandingImg('logo')" id="aib-logo-gen-btn" style="padding:8px 18px;background:#6366f1;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600">✨ צור לוגו</button>
                           <button onclick="aiGenBrandingImg('logo')" style="padding:8px 14px;background:#fff;color:#6366f1;border:1.5px solid #6366f1;border-radius:8px;cursor:pointer;font-size:12px">🔄 נסה שוב</button>
@@ -3799,7 +3799,6 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                         </div>
                       </div>
                     </div>
-                    <input type="hidden" id="aib-logo-prompt">
                   </div>
 
                   <!-- Banner -->
@@ -3808,13 +3807,12 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                     <div id="aib-banner-preview" style="width:100%;height:150px;border-radius:12px;border:2px dashed #cbd5e1;display:flex;align-items:center;justify-content:center;margin-bottom:10px;overflow:hidden;background:#f8fafc">
                       <span style="color:#94a3b8;font-size:11px">לחץ "צור" לתצוגה מקדימה</span>
                     </div>
-                    <div id="aib-banner-prompt-display" style="font-size:11px;color:#64748b;background:#f1f5f9;border-radius:8px;padding:8px 10px;margin-bottom:10px;direction:ltr;line-height:1.5;min-height:36px"></div>
+                    <textarea id="aib-banner-prompt" rows="3" placeholder="פרומפט לייצור תמונת נושא (אנגלית)..." style="width:100%;font-size:11px;color:#374151;background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:8px;padding:8px 10px;margin-bottom:10px;direction:ltr;line-height:1.5;resize:vertical;font-family:monospace" oninput="if(_aiBuilderData)_aiBuilderData.banner_prompt=this.value"></textarea>
                     <div style="display:flex;gap:8px;flex-wrap:wrap">
                       <button onclick="aiGenBrandingImg('banner')" id="aib-banner-gen-btn" style="padding:8px 18px;background:#6366f1;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600">✨ צור תמונת נושא</button>
                       <button onclick="aiGenBrandingImg('banner')" style="padding:8px 14px;background:#fff;color:#6366f1;border:1.5px solid #6366f1;border-radius:8px;cursor:pointer;font-size:12px">🔄 נסה שוב</button>
                       <button onclick="aibDeleteBrandImg('banner')" id="aib-banner-del-btn" style="padding:8px 14px;background:#fff;color:#ef4444;border:1.5px solid #fca5a5;border-radius:8px;cursor:pointer;font-size:12px;display:none">🗑️ מחק</button>
                     </div>
-                    <input type="hidden" id="aib-banner-prompt">
                   </div>
                 </div>
 
