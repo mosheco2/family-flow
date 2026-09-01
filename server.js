@@ -3941,7 +3941,7 @@ app.post('/api/sa/ai-create-business', verifySA, async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    const { generatedData, storeType = 'restaurant' } = req.body;
+    const { generatedData, storeType = 'restaurant', productImages = {} } = req.body;
     const { profile, settings, catalog = [], promotions = [], coupons = [] } = generatedData;
     // Generate unique group code
     const groupCode = 'B' + _bizCrypto.randomBytes(4).toString('hex').toUpperCase().slice(0, 7);
@@ -3977,12 +3977,13 @@ app.post('/api/sa/ai-create-business', verifySA, async (req, res) => {
         const p = cat.products[i];
         const optText = typeof p.options_text === 'object' && p.options_text !== null
           ? JSON.stringify(p.options_text) : (p.options_text || '');
+        const imgUrl = (p._tempId && productImages[p._tempId]) ? productImages[p._tempId] : null;
         const pRes = await client.query(
-          `INSERT INTO store_catalog (group_id, name, name_en, description, description_en, category, category_en, price, original_price, badge_text, options_text, is_available)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,true) RETURNING id`,
+          `INSERT INTO store_catalog (group_id, name, name_en, description, description_en, category, category_en, price, original_price, badge_text, options_text, image_url, is_available)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,true) RETURNING id`,
           [groupId, p.name, p.name_en||'', p.description||'', p.description_en||'',
            cat.category, cat.category_en||'', p.price||0, p.original_price||0,
-           p.badge_text||'', optText]
+           p.badge_text||'', optText, imgUrl]
         );
         if (p._tempId) productIds[p._tempId] = pRes.rows[0].id;
       }

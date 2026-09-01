@@ -14463,7 +14463,7 @@ async function aiCreateBusiness() {
     const storeType = document.getElementById('aib-type')?.value || 'restaurant';
     const r = await fetch('/api/sa/ai-create-business', {
       method: 'POST', headers: {'Content-Type':'application/json', 'Authorization': saToken},
-      body: JSON.stringify({ generatedData: _aiBuilderData, storeType })
+      body: JSON.stringify({ generatedData: _aiBuilderData, storeType, productImages: _aiBuilderImages.products || {} })
     });
     const d = await r.json();
     if (!d.success) throw new Error(d.error || 'שגיאה ביצירה');
