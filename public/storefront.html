@@ -78,7 +78,7 @@
         <div class="flex-1 overflow-y-auto py-2 modal-scroll" id="side-categories-list"></div>
     </div>
 
-    <header class="bg-white border-b border-slate-100 flex flex-col relative w-full pb-0">
+    <header class="bg-white border-b border-slate-100 flex flex-col relative w-full pb-0 overflow-x-hidden">
         <div id="store-hero-banner" class="w-full h-40 sm:h-48 bg-slate-100 relative overflow-hidden shrink-0">
             <div class="absolute inset-0 bg-gradient-to-r from-slate-200 to-slate-100 flex items-center justify-center text-slate-300">
                 <i class="fa-solid fa-image text-5xl opacity-30"></i>
@@ -93,7 +93,7 @@
                 </div>
             </div>
             
-            <div class="flex-1 flex flex-col items-center sm:items-start pt-2 z-20 w-full">
+            <div class="flex-1 flex flex-col items-center sm:items-start pt-2 z-20 w-full min-w-0">
                 <h1 id="store-name" class="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight mb-1">...</h1>
                 <p id="store-slogan" class="text-sm text-slate-500 font-medium mb-3 hidden"></p>
                 
@@ -107,7 +107,7 @@
                     <button id="btn-book-table" onclick="window.openTableReservationModal()" class="hidden bg-gradient-to-r from-orange-500 to-red-500 text-white px-4 py-1.5 rounded-lg border-transparent flex items-center gap-1.5 shadow-md hover:shadow-lg transition transform hover:-translate-y-0.5"><i class="fa-solid fa-utensils"></i> הזמן שולחן</button>
                 </div>
 
-                <div id="store-welcome" class="inline-block bg-slate-900 text-white text-xs font-bold px-3 py-1.5 rounded-lg hidden shadow-sm mt-3 w-max mx-auto sm:mx-0"><i class="fa-solid fa-star text-yellow-400 mr-1 text-[10px]"></i> <span id="store-welcome-text"></span></div>
+                <div id="store-welcome" class="bg-slate-900 text-white text-xs font-bold px-3 py-1.5 rounded-lg hidden shadow-sm mt-3 max-w-full overflow-hidden mx-auto sm:mx-0"><i class="fa-solid fa-star text-yellow-400 mr-1 text-[10px]"></i> <span id="store-welcome-text" class="truncate block"></span></div>
             </div>
         </div>
         
