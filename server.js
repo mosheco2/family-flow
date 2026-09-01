@@ -3987,42 +3987,42 @@ app.post('/api/sa/ai-create-business', verifySA, async (req, res) => {
         if (p._tempId) productIds[p._tempId] = pRes.rows[0].id;
       }
     }
-    // Save promotions
-    for (const pr of promotions) {
-      try {
-        await client.query(
-          `INSERT INTO store_promotions (group_id, title, promo_type, promo_value, min_order, is_active, show_in_banner)
-           VALUES ($1,$2,$3,$4,$5,true,$6)`,
-          [groupId, pr.title||'', pr.promo_type||'percent', pr.promo_value||pr.discount_pct||10,
-           pr.min_order||0, pr.show_in_banner||false]
-        );
-      } catch(e) { /* skip if table missing columns */ }
-    }
-    // Save coupons
-    for (const c of coupons) {
-      try {
-        const validUntil = new Date();
-        validUntil.setDate(validUntil.getDate() + (c.valid_days || 90));
-        await client.query(
-          `INSERT INTO store_coupons (group_id, code, discount_pct, valid_until) VALUES ($1,$2,$3,$4)`,
-          [groupId, c.code||'SAVE10', c.discount_pct||10, validUntil]
-        );
-      } catch(e) { /* skip */ }
-    }
     // Create admin user with auto-generated password
     // Phone: use profile phone if provided, else generate unique numeric phone from groupId
     const adminPhone = (profile.phone && /^\d{9,15}$/.test(profile.phone.replace(/[^0-9]/g, '')))
       ? profile.phone.replace(/[^0-9]/g, '')
       : '05' + String(groupId).padStart(8, '0').slice(0, 8);
-    const adminPassword = _bizCrypto.randomBytes(4).toString('hex').toLowerCase(); // 8-char readable password
+    const adminPassword = _bizCrypto.randomBytes(4).toString('hex').toLowerCase();
     const adminPasswordHash = await bcrypt.hash(adminPassword, 10);
-    const adminNickname = profile.name;
     await client.query(
       `INSERT INTO users (group_id, nickname, role, phone, password_hash, status) VALUES ($1,$2,'ADMIN',$3,$4,'active')`,
-      [groupId, adminNickname, adminPhone, adminPasswordHash]
+      [groupId, profile.name, adminPhone, adminPasswordHash]
     );
 
     await client.query('COMMIT');
+
+    // Save promotions + coupons OUTSIDE the transaction (optional data — failures are non-critical)
+    for (const pr of promotions) {
+      try {
+        await pool.query(
+          `INSERT INTO store_promotions (group_id, title, promo_type, promo_value, min_order, is_active, show_in_banner)
+           VALUES ($1,$2,$3,$4,$5,true,$6)`,
+          [groupId, pr.title||'', pr.promo_type||'percent', pr.promo_value||pr.discount_pct||10,
+           pr.min_order||0, pr.show_in_banner||false]
+        );
+      } catch(e) { console.warn('promo insert skip:', e.message); }
+    }
+    for (const c of coupons) {
+      try {
+        const validUntil = new Date();
+        validUntil.setDate(validUntil.getDate() + (c.valid_days || 90));
+        await pool.query(
+          `INSERT INTO store_coupons (group_id, code, discount_pct, valid_until) VALUES ($1,$2,$3,$4)`,
+          [groupId, c.code||'SAVE10', c.discount_pct||10, validUntil]
+        );
+      } catch(e) { console.warn('coupon insert skip:', e.message); }
+    }
+
     res.json({ success: true, groupId, storeAlias: alias, productIds, groupCode, adminPhone, adminPassword });
   } catch(e) {
     await client.query('ROLLBACK');
