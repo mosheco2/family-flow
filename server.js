@@ -9875,27 +9875,56 @@ app.post('/api/store/catalog/bulk-import', verifyBizOrLegacy, requireModule('sal
 });
 
 // --- Generate AI Product Image ---
+// Priority: 1) Pixabay (free stock photos, real products) → 2) Pexels → 3) Pollinations AI fallback
 app.post('/api/store/catalog/generate-image', async (req, res) => {
     try {
         const { groupId, productName, nameEn, description, category } = req.body;
         if (groupId === undefined || groupId === null || !productName) return res.status(400).json({ error: 'שם מוצר נדרש' });
 
-        // Use English name if provided, otherwise translate with Gemini (short call)
-        // Build English search term from name_en or category
         let searchQuery = (nameEn || '').replace(/[^a-zA-Z0-9 ]/g, '').trim();
         if (!searchQuery && category) searchQuery = category.replace(/[^a-zA-Z0-9 ]/g, '').trim();
         if (!searchQuery) searchQuery = 'product';
 
-        // Use full English name for better relevance (not just last 2 words)
-        const subject = searchQuery || 'product';
+        const q = encodeURIComponent(searchQuery);
 
-        // Pollinations FLUX — fast, relevant, free, no API key
+        // 1) Pixabay — free stock photos, no attribution required, real product images
+        const pixabayKey = process.env.PIXABAY_API_KEY;
+        if (pixabayKey) {
+            try {
+                const pbRes = await fetch(`https://pixabay.com/api/?key=${pixabayKey}&q=${q}&image_type=photo&orientation=vertical&per_page=5&safesearch=true&min_width=400&order=relevant`);
+                const pbData = await pbRes.json();
+                const hits = (pbData.hits || []).filter(h => h.webformatURL);
+                if (hits.length > 0) {
+                    // Prefer images with product-like aspect ratio; pick highest views
+                    const best = hits.sort((a, b) => b.views - a.views)[0];
+                    return res.json({ success: true, imageUrl: best.webformatURL, url: best.webformatURL, source: 'pixabay' });
+                }
+            } catch(e) { console.warn('Pixabay fallback:', e.message); }
+        }
+
+        // 2) Pexels — free stock photos
+        const pexelsKey = process.env.PEXELS_API_KEY;
+        if (pexelsKey) {
+            try {
+                const pxRes = await fetch(`https://api.pexels.com/v1/search?query=${q}&per_page=5&orientation=portrait`, {
+                    headers: { Authorization: pexelsKey }
+                });
+                const pxData = await pxRes.json();
+                const photos = (pxData.photos || []);
+                if (photos.length > 0) {
+                    const imgUrl = photos[0].src.medium || photos[0].src.original;
+                    return res.json({ success: true, imageUrl: imgUrl, url: imgUrl, source: 'pexels' });
+                }
+            } catch(e) { console.warn('Pexels fallback:', e.message); }
+        }
+
+        // 3) Pollinations AI — fallback when no stock API key configured
         const seed = Math.floor(Math.random() * 99999);
-        const prodPrompt = `product photo, ${subject}, white background, professional studio lighting, high quality, sharp focus, no text, no people`;
+        const prodPrompt = `product photo, ${searchQuery}, white background, professional studio lighting, high quality, sharp focus, no text, no people`;
         const neg = encodeURIComponent('people, faces, text, logo, watermark, cartoon, blurry, low quality');
         const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(prodPrompt)}?width=512&height=512&model=flux&nologo=true&seed=${seed}&negative=${neg}`;
+        res.json({ success: true, imageUrl, url: imageUrl, source: 'pollinations' });
 
-        res.json({ success: true, imageUrl, url: imageUrl });
     } catch(e) {
         console.error('Product Image Gen Error:', e.message);
         res.json({ success: false, error: 'שגיאה: ' + e.message });
