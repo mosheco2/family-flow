@@ -14451,6 +14451,26 @@ async function aiGenAllImgs() {
   }
 }
 
+async function aibSyncProductImages() {
+  const btn = document.getElementById('aib-sync-imgs-btn');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ מסנכרן...'; }
+  const productIds = window._aibCreatedProductIds || {};
+  const images = _aiBuilderImages.products || {};
+  const updates = Object.entries(productIds)
+    .filter(([tempId, dbId]) => images[tempId])
+    .map(([tempId, dbId]) => ({ id: dbId, image_url: images[tempId] }));
+  if (!updates.length) { if (btn) { btn.textContent = '⚠️ אין תמונות לסנכרון'; } return; }
+  try {
+    const r = await fetch(`${API}/sa/batch-update-product-images`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+      body: JSON.stringify({ groupId: window._aibCreatedGroupId, updates })
+    });
+    const d = await r.json();
+    if (d.success) { if (btn) { btn.textContent = `✅ ${d.updated} תמונות עודכנו`; btn.style.background = '#16a34a'; } }
+    else { throw new Error(d.error); }
+  } catch(e) { if (btn) { btn.disabled = false; btn.textContent = `❌ שגיאה: ${e.message}`; } }
+}
+
 async function aiCreateBusiness() {
   syncAIBFromForm();
   const btn = document.getElementById('aib-create-btn');
@@ -14536,6 +14556,18 @@ async function aiCreateBusiness() {
         + (bannerUrl ? `<div><div style="font-size:11px;color:#64748b;margin-bottom:4px">תמונת נושא</div><img src="${bannerUrl}" style="width:240px;height:80px;object-fit:cover;border-radius:8px;border:1px solid #e2e8f0"></div>` : '');
     }
     document.getElementById('aib-save-template-section').style.display = 'block';
+
+    // Show "sync images" button if we have product images in the builder
+    const imgKeys = Object.keys(_aiBuilderImages.products || {});
+    if (imgKeys.length > 0 && d.productIds) {
+      window._aibCreatedGroupId = d.groupId;
+      window._aibCreatedProductIds = d.productIds;
+      const syncBtnWrap = document.createElement('div');
+      syncBtnWrap.style.cssText = 'margin-top:10px;text-align:center';
+      syncBtnWrap.innerHTML = `<button id="aib-sync-imgs-btn" onclick="aibSyncProductImages()" style="background:#3b82f6;color:#fff;border:none;border-radius:10px;padding:10px 22px;font-size:14px;font-weight:700;cursor:pointer">📸 סנכרן תמונות מוצרים (${imgKeys.length})</button>`;
+      credBox?.after(syncBtnWrap) || successEl.appendChild(syncBtnWrap);
+    }
+
     _aibClearSaved();
     // Refresh SA lists so the new business appears immediately
     try {

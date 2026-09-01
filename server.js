@@ -3937,6 +3937,20 @@ Return ONLY valid JSON, no markdown fences, no explanation:
   }
 });
 
+app.post('/api/sa/batch-update-product-images', verifySA, async (req, res) => {
+  try {
+    const { groupId, updates } = req.body; // updates: [{id, image_url}]
+    if (!groupId || !Array.isArray(updates) || !updates.length) return res.status(400).json({ error: 'חסרים פרמטרים' });
+    let updated = 0;
+    for (const u of updates) {
+      if (!u.id || !u.image_url) continue;
+      await pool.query('UPDATE store_catalog SET image_url=$1 WHERE id=$2 AND group_id=$3', [u.image_url, u.id, groupId]);
+      updated++;
+    }
+    res.json({ success: true, updated });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 app.post('/api/sa/ai-create-business', verifySA, async (req, res) => {
   const client = await pool.connect();
   try {
