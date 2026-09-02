@@ -18,17 +18,20 @@ const scAuth = window.scAuth = {
     },
 
     _injectHeaderBtn() {
-        // inject into header after a short delay to ensure DOM ready
-        setTimeout(() => {
-            const hdr = document.querySelector('header') || document.querySelector('.store-header') || document.querySelector('[id*="header"]');
-            if (!hdr) return;
+        const doInject = () => {
+            if (document.getElementById('sc-header-btn')) return;
             const btn = document.createElement('button');
             btn.id = 'sc-header-btn';
             btn.style.cssText = 'position:fixed;top:12px;left:12px;z-index:9000;padding:8px 14px;border-radius:20px;border:none;cursor:pointer;font-size:13px;font-weight:600;background:#6366f1;color:#fff;box-shadow:0 2px 8px rgba(99,102,241,0.3)';
             btn.onclick = () => this._customer ? this.openActivityPanel() : this.openModal('phone');
             this._updateHeaderBtn(btn);
             document.body.appendChild(btn);
-        }, 300);
+        };
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', doInject);
+        } else {
+            setTimeout(doInject, 100);
+        }
     },
 
     _updateHeaderBtn(btn) {
