@@ -21116,7 +21116,7 @@ app.get('/api/sport/member-detail/:id', async (req, res) => {
             pool.query(`SELECT sm.*, smt.name as type_name, smt.type as type_kind, smt.price as type_price
                 FROM sport_memberships sm LEFT JOIN sport_membership_types smt ON sm.membership_type_id=smt.id
                 WHERE sm.id=$1`, [req.params.id]),
-            pool.query(`SELECT * FROM sport_checkins WHERE membership_id=$1 ORDER BY checked_in_at DESC LIMIT 30`, [req.params.id]),
+            pool.query(`SELECT * FROM sport_checkins WHERE membership_id=$1 ORDER BY checked_in_at DESC`, [req.params.id]),
             pool.query(`SELECT sc2.class_name, sc2.class_date, sc2.trainer_name, scr.attended
                 FROM sport_class_registrations scr JOIN sport_classes sc2 ON scr.class_id=sc2.id
                 WHERE scr.membership_id=$1 ORDER BY sc2.class_date DESC LIMIT 20`, [req.params.id]),
@@ -34172,7 +34172,7 @@ app.get('/api/sc-auth/activity/:bizGroupId', async (req, res) => {
              FROM sport_checkins sc
              JOIN sport_memberships sm ON sm.id = sc.membership_id
              WHERE sc.group_id=$1 AND sm.member_phone=$2
-             ORDER BY sc.checked_in_at DESC LIMIT 30`,
+             ORDER BY sc.checked_in_at DESC`,
             [bizId, phone]
         ).then(r => r.rows).catch(() => []),
     ]);
