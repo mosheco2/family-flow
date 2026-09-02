@@ -449,14 +449,51 @@ const scAuth = window.scAuth = {
     }
 };
 
-// Global sport action dispatcher — called from innerHTML buttons
+// Global sport action dispatcher — opens modals directly, with window.fn fallback
 window._scSportAction = function(action) {
     var panel = document.getElementById('sc-activity-panel');
     if (panel) panel.style.display = 'none';
     setTimeout(function() {
-        if (action === 'schedule' && window.openScheduleModal) { window.openScheduleModal(); return; }
-        if (action === 'trainer' && window.openTrainerBooking) { window.openTrainerBooking(); return; }
-        if (action === 'membership' && window.openMembershipModal) { window.openMembershipModal(); return; }
+        if (action === 'schedule') {
+            if (window.openScheduleModal) { window.openScheduleModal(); return; }
+            // Direct DOM fallback
+            var m = document.getElementById('schedule-modal');
+            if (m) {
+                m.style.display = 'flex';
+                var gid = window._scBizId || (window.storeData && (window.storeData.groupId || window.storeData.group_id)) || '';
+                if (gid && window.schedLoad) { window._schedGroupId = gid; window.schedLoad(); }
+                else if (gid) {
+                    // inline minimal load
+                    var list = m.querySelector('[id^="sched-list"]') || m.querySelector('div[style*="overflow"]');
+                    if (list) list.innerHTML = '<div style="text-align:center;padding:20px;color:#94a3b8">טוען שיעורים...</div>';
+                    fetch('/api/sport/public-schedule/' + gid).then(function(r){ return r.json(); }).then(function(d){
+                        var classes = d.classes || [];
+                        if (!list) return;
+                        if (!classes.length) { list.innerHTML = '<div style="text-align:center;padding:40px;color:#94a3b8">אין שיעורים השבוע</div>'; return; }
+                        list.innerHTML = classes.map(function(c){
+                            var t = [c.start_time,c.end_time].filter(Boolean).map(function(x){return x.slice(0,5);}).join(' — ');
+                            return '<div style="padding:10px 0;border-bottom:1px solid #f1f5f9"><div style="font-weight:700;font-size:14px">' + (c.class_name||'שיעור') + '</div><div style="font-size:12px;color:#64748b;margin-top:2px">' + (c.class_date||'') + ' ' + t + '</div></div>';
+                        }).join('');
+                    }).catch(function(){ if(list) list.innerHTML = '<div style="text-align:center;padding:20px;color:#ef4444">שגיאת טעינה</div>'; });
+                }
+            }
+            return;
+        }
+        if (action === 'trainer') {
+            if (window.openTrainerBooking) { window.openTrainerBooking(); return; }
+            var m = document.getElementById('trainer-booking-modal');
+            if (m) {
+                m.style.display = 'flex';
+                if (window.tbmShowStep) window.tbmShowStep(1);
+            }
+            return;
+        }
+        if (action === 'membership') {
+            if (window.openMembershipModal) { window.openMembershipModal(); return; }
+            var m = document.getElementById('membership-modal');
+            if (m) { m.style.display = 'flex'; if (window.memShowStep) window.memShowStep(1); }
+            return;
+        }
     }, 150);
 };
 
