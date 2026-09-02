@@ -3591,17 +3591,7 @@ app.post('/api/ai/chat', verifySA, async (req, res) => {
 
         const prompt = `${systemInstruction}\n\nבקשת המנהל אליך: ${message}`;
 
-        let reply;
-        for (const modelName of ['gemini-2.5-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-flash-latest']) {
-          try {
-            const r2 = await getGenAIv2Instance().models.generateContent({ model: modelName, contents: prompt });
-            reply = r2.text;
-            break;
-          } catch(e) {
-            if (modelName !== 'gemini-1.5-flash-latest') continue;
-            throw e;
-          }
-        }
+        const reply = await callGeminiDirect(prompt);
         
         res.json({ success: true, reply });
     } catch(e) { 
@@ -3740,17 +3730,7 @@ app.post('/api/sa/ai/chat', verifySA, async (req, res) => {
             : '';
 
         const prompt = systemPrompt + dataBlock + contextBlock + `\n\n## שאלת המנהל:\n${message}`;
-        let rawReply;
-        for (const modelName of ['gemini-2.5-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-flash-latest']) {
-            try {
-                const r2 = await getGenAIv2Instance().models.generateContent({ model: modelName, contents: prompt });
-                rawReply = r2.text;
-                break;
-            } catch(e) {
-                if (modelName !== 'gemini-1.5-flash-latest') continue;
-                throw e;
-            }
-        }
+        const rawReply = await callGeminiDirect(prompt);
 
         // ── parse suggestions ──
         let suggestions = [];
@@ -3943,18 +3923,9 @@ Return ONLY valid JSON, no markdown fences, no explanation:
   "logo_prompt": "Short English FLUX prompt (max 25 words) for a LOGO image: minimal flat icon representing the business, solid color background matching accent_color, no text, clean vector style",
   "banner_prompt": "Short English FLUX prompt (max 35 words) for a COVER/BANNER image: wide food/product photography scene representing the business atmosphere, appetizing, natural lighting, no text, photorealistic"
 }`;
-    if (!getGenAIv2Instance()) return res.json({ success: false, error: 'AI not configured' });
+    if (!apiKey) return res.json({ success: false, error: 'AI not configured' });
     let text;
-    for (const modelName of ['gemini-2.5-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-flash-latest']) {
-      try {
-        const r2 = await getGenAIv2Instance().models.generateContent({ model: modelName, contents: prompt });
-        text = (r2.text || '').trim().replace(/^```json\s*/,'').replace(/\s*```$/,'');
-        break;
-      } catch(e) {
-        if (modelName !== 'gemini-1.5-flash-latest') continue;
-        throw e;
-      }
-    }
+    text = (await callGeminiDirect(prompt)).trim().replace(/^```json\s*/,'').replace(/\s*```$/,'');
     let parsed;
     try { parsed = JSON.parse(text); }
     catch(e) { return res.json({ success: false, error: 'parse_error', raw: text }); }
@@ -4137,17 +4108,7 @@ BANNER prompt rules:
 
 Return ONLY valid JSON:
 {"logo_prompt": "...", "banner_prompt": "..."}`;
-    let text;
-    for (const modelName of ['gemini-2.5-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-flash-latest']) {
-      try {
-        const r2 = await getGenAIv2Instance().models.generateContent({ model: modelName, contents: prompt });
-        text = (r2.text || '').trim().replace(/^```json\s*/,'').replace(/\s*```$/,'');
-        break;
-      } catch(e) {
-        if (modelName !== 'gemini-1.5-flash-latest') continue;
-        throw e;
-      }
-    }
+    const text = (await callGeminiDirect(prompt)).trim().replace(/^```json\s*/,'').replace(/\s*```$/,'');
     const parsed = JSON.parse(text);
     res.json({ success: true, logo_prompt: parsed.logo_prompt, banner_prompt: parsed.banner_prompt });
   } catch(e) { res.json({ success: false, error: e.message }); }
