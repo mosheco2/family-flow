@@ -13,19 +13,140 @@
   * { box-sizing: border-box; }
   @keyframes ring-fill { from { --p: 0; } to { --p: 100; } }
 
-  /* ===== קרוסל צילומי מסך ===== */
-  .shot-carousel { position: relative; border-radius: 14px; overflow: hidden; margin-top: 18px;
-    border: 1px solid oklch(85% 0.015 120); box-shadow: 0 2px 10px oklch(20% 0.02 152 / 0.08); }
-  .shot-track { display: flex; transition: transform .5s cubic-bezier(.4,0,.2,1); }
-  .shot-track img { width: 100%; flex: 0 0 100%; display: block; object-fit: cover; aspect-ratio: 16/10; background: oklch(93% 0.01 120); }
-  .shot-arrow { position: absolute; top: 50%; transform: translateY(-50%); width: 34px; height: 34px;
-    border-radius: 50%; background: oklch(100% 0 0 / 0.85); border: none; display: flex; align-items: center;
-    justify-content: center; cursor: pointer; font-size: 15px; color: oklch(24% 0.02 152); box-shadow: 0 1px 4px oklch(0% 0 0 / 0.15); }
+  /* ===== מסגרת מכשיר ===== */
+  .shot-frame {
+    margin-top: 24px;
+    border-radius: 20px;
+    overflow: hidden;
+    border: 5px solid oklch(20% 0.03 152);
+    box-shadow: 0 10px 36px oklch(10% 0.03 152 / 0.28);
+  }
+  .shot-notch {
+    background: oklch(16% 0.025 152);
+    height: 22px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .shot-notch-pill {
+    width: 56px; height: 9px;
+    background: oklch(26% 0.025 152);
+    border-radius: 100px;
+  }
+
+  /* ===== קרוסל ===== */
+  .shot-carousel {
+    position: relative;
+    overflow: hidden;
+    background: oklch(96% 0.008 100);
+    cursor: pointer;
+  }
+  .shot-track {
+    display: flex;
+    will-change: transform;
+    /* הטרנזישן מוגדר ב-JS כדי שלא יפעל בזמן ריסט */
+  }
+  .shot-slide {
+    flex: 0 0 100%;
+    min-width: 0;
+  }
+  .shot-slide img {
+    width: 100%;
+    display: block;
+    object-fit: contain;
+    aspect-ratio: 390/844;   /* יחס סמארטפון — ניתן לשנות */
+    background: oklch(97% 0.005 100);
+  }
+  .shot-arrow {
+    position: absolute; top: 50%; transform: translateY(-50%);
+    width: 34px; height: 34px; border-radius: 50%;
+    background: oklch(100% 0 0 / 0.88); border: none;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; font-size: 16px; color: oklch(24% 0.02 152);
+    box-shadow: 0 1px 6px oklch(0% 0 0 / 0.18);
+    transition: background .15s; z-index: 3;
+  }
+  .shot-arrow:hover { background: oklch(100% 0 0); }
   .shot-arrow.prev { right: 10px; }
   .shot-arrow.next { left: 10px; }
-  .shot-dots { position: absolute; bottom: 10px; left: 0; right: 0; display: flex; justify-content: center; gap: 6px; }
-  .shot-dot { width: 7px; height: 7px; border-radius: 50%; background: oklch(100% 0 0 / 0.55); border: none; cursor: pointer; padding: 0; transition: background .2s, transform .2s; }
-  .shot-dot.active { background: oklch(100% 0 0 / 0.95); transform: scale(1.25); }
+  .shot-counter {
+    position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
+    font-size: 11px; font-weight: 600;
+    color: oklch(100% 0 0 / 0.9);
+    background: oklch(0% 0 0 / 0.38);
+    padding: 3px 10px; border-radius: 100px;
+    z-index: 3; white-space: nowrap;
+    font-family: 'Rubik', sans-serif;
+  }
+  .shot-zoom-hint {
+    position: absolute; bottom: 8px; left: 50%; transform: translateX(-50%);
+    font-size: 11px; color: oklch(100% 0 0 / 0.8);
+    background: oklch(0% 0 0 / 0.4);
+    padding: 3px 10px; border-radius: 100px;
+    pointer-events: none; white-space: nowrap;
+    opacity: 0; transition: opacity .3s;
+    z-index: 3;
+  }
+  .shot-carousel:hover .shot-zoom-hint { opacity: 1; }
+
+  /* Progress bar במקום נקודות כשיש הרבה תמונות */
+  .shot-progress {
+    background: oklch(16% 0.025 152);
+    padding: 8px 12px 10px;
+    display: flex; gap: 4px; justify-content: center; align-items: center;
+    flex-wrap: wrap;
+  }
+  .shot-dot {
+    height: 4px; border-radius: 2px;
+    background: oklch(100% 0 0 / 0.28);
+    border: none; cursor: pointer; padding: 0;
+    transition: background .2s, width .2s, flex .2s;
+    flex-shrink: 0;
+  }
+  .shot-dot.active { background: oklch(100% 0 0 / 0.92); }
+
+  /* ===== לייטבוקס ===== */
+  .lb {
+    position: fixed; inset: 0;
+    background: oklch(0% 0 0 / 0.93);
+    z-index: 9999;
+    display: flex; align-items: center; justify-content: center;
+    padding: 16px;
+    animation: lb-fade .18s ease;
+  }
+  @keyframes lb-fade { from { opacity: 0; } to { opacity: 1; } }
+  .lb-img {
+    max-width: 100%; max-height: 88vh;
+    object-fit: contain;
+    border-radius: 10px;
+    box-shadow: 0 8px 40px oklch(0% 0 0 / 0.6);
+    display: block;
+    user-select: none;
+  }
+  .lb-btn {
+    position: absolute;
+    background: oklch(100% 0 0 / 0.12);
+    border: 1px solid oklch(100% 0 0 / 0.22);
+    color: white; border-radius: 50%;
+    width: 42px; height: 42px;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; font-size: 20px;
+    transition: background .15s;
+  }
+  .lb-btn:hover { background: oklch(100% 0 0 / 0.22); }
+  .lb-close { top: 14px; right: 14px; }
+  .lb-prev { top: 50%; transform: translateY(-50%); right: 14px; font-size: 22px; }
+  .lb-next { top: 50%; transform: translateY(-50%); left: 14px; font-size: 22px; }
+  .lb-count {
+    position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%);
+    color: oklch(100% 0 0 / 0.7); font-size: 13px; font-family: 'Rubik', sans-serif;
+  }
+
+  /* ===== לוגואי לקוחות ===== */
+  .client-logo {
+    cursor: pointer;
+    transition: transform .15s, opacity .15s;
+    border-radius: 8px;
+  }
+  .client-logo:hover { transform: scale(1.09); opacity: 0.82; }
 </style>
 </head>
 <body>
@@ -34,7 +155,6 @@
 
   <div style="position:sticky; top:0; z-index:10; display:flex; align-items:center; justify-content:space-between; gap:10px; padding:12px 18px; background:oklch(98% 0.006 95 / 0.92); backdrop-filter:blur(8px); border-bottom:1px solid oklch(85% 0.02 120);">
     <div style="display:flex; align-items:center; gap:8px;">
-      <!-- 🖼️ לוגו: החלף את הנתיב הזה לקובץ הלוגו שהועלה ל-assets/logo.png -->
       <img src="assets/logo.png" alt="Oneflow Life" style="height:30px; width:auto; object-fit:contain;">
       <span style="font-size:13px; font-weight:600; color:oklch(30% 0.05 152); letter-spacing:0.2px;">Oneflow Life BIZ</span>
     </div>
@@ -145,18 +265,17 @@
       </div>
     </div>
 
-    <!-- 🖼️ קרוסל צילומי מסך: מתחלף אוטומטית כל 4 שניות + ניווט ידני (חצים + נקודות).
-         להוסיף/להסיר תמונות: הוסף/הסר <img> בתוך .shot-track ונקודה תואמת ב-.shot-dots.
-         נתיבי הקבצים: assets/screenshot-1.png, assets/screenshot-2.png וכו' -->
-    <div class="shot-carousel" id="shotCarousel">
-      <div class="shot-track" id="shotTrack">
-        <img src="assets/screenshot-1.png" alt="מבט מתוך אזור הניהול — לוח בקרה">
-        <img src="assets/screenshot-2.png" alt="מבט מתוך אזור הניהול — הצעות מחיר">
-        <img src="assets/screenshot-3.png" alt="מבט מתוך אזור הניהול — עובדים ומשמרות">
+    <!-- קרוסל סקרינשוטים — נטען דינמית מ-assets/screenshot-N.png -->
+    <div class="shot-frame">
+      <div class="shot-notch"><div class="shot-notch-pill"></div></div>
+      <div class="shot-carousel" id="shotCarousel">
+        <div class="shot-track" id="shotTrack"></div>
+        <button class="shot-arrow prev" id="shotPrev" aria-label="הקודם">‹</button>
+        <button class="shot-arrow next" id="shotNext" aria-label="הבא">›</button>
+        <div class="shot-counter" id="shotCounter"></div>
+        <div class="shot-zoom-hint">לחץ להגדלה</div>
       </div>
-      <button class="shot-arrow prev" id="shotPrev" aria-label="התמונה הקודמת">‹</button>
-      <button class="shot-arrow next" id="shotNext" aria-label="התמונה הבאה">›</button>
-      <div class="shot-dots" id="shotDots"></div>
+      <div class="shot-progress" id="shotProgress"></div>
     </div>
   </div>
 
@@ -164,13 +283,8 @@
     <h2 style="font-size:21px; font-weight:700; margin:0 0 10px; color:oklch(22% 0.03 152);">נבנה עבור עסקים באזור</h2>
     <p style="font-size:14.5px; line-height:1.6; color:oklch(42% 0.02 130); margin:0 0 22px; max-width:400px; margin-inline:auto;">Oneflow Life מגיע מתוך קבוצות העסקים בגוש עציון מזרח — לא כלי גלובלי גנרי, אלא מערכת שנבנתה מול עסקים שאתם מכירים.</p>
     <div style="font-size:12.5px; font-weight:600; color:oklch(48% 0.02 130); margin-bottom:14px;">בין העסקים שכבר הרימו סביבות אצלנו</div>
-    <!-- 🖼️ רצועת לוגואים: כל <img> הוא לוגו עסק לקוח. הוסף/הסר לפי הצורך.
-         נתיבי הקבצים: assets/client-logos/logo-1.png, logo-2.png וכו' -->
-    <div style="display:flex; flex-wrap:wrap; gap:16px; justify-content:center; align-items:center;">
-      <img src="assets/client-logos/logo-1.png" alt="עסק לקוח" style="height:38px; width:auto; object-fit:contain; border-radius:8px;">
-      <img src="assets/client-logos/logo-2.png" alt="עסק לקוח" style="height:38px; width:auto; object-fit:contain; border-radius:8px;">
-      <img src="assets/client-logos/logo-3.png" alt="עסק לקוח" style="height:38px; width:auto; object-fit:contain; border-radius:8px;">
-    </div>
+    <!-- לוגואי לקוחות — נטענים דינמית מ-assets/client-logos/logo-N.png -->
+    <div id="clientLogos" style="display:flex; flex-wrap:wrap; gap:16px; justify-content:center; align-items:center; min-height:38px;"></div>
   </div>
 
   <div style="padding:34px 20px 40px; background:oklch(24% 0.045 152); text-align:center;">
@@ -180,67 +294,195 @@
   </div>
 
   <div style="padding:20px; text-align:center; background:oklch(20% 0.04 152);">
-    <!-- 🖼️ לוגו (גרסה בהירה על רקע כהה, אם יש — אחרת אותו קובץ) -->
     <img src="assets/logo.png" alt="Oneflow Life" style="height:26px; opacity:0.9; margin-bottom:8px;">
     <div style="font-size:12px; color:oklch(70% 0.02 120);">מתאים גם מהמסך הקטן — כי משם כולם מגיעים</div>
   </div>
 
 </div>
 
+<!-- לייטבוקס -->
+<div id="lb" class="lb" style="display:none;" role="dialog" aria-modal="true">
+  <button class="lb-btn lb-close" id="lbClose" aria-label="סגור">✕</button>
+  <button class="lb-btn lb-prev" id="lbPrev" aria-label="הקודם">‹</button>
+  <img id="lbImg" class="lb-img" src="" alt="תמונה מוגדלת">
+  <button class="lb-btn lb-next" id="lbNext" aria-label="הבא">›</button>
+  <div class="lb-count" id="lbCount"></div>
+</div>
+
 <script>
-(function(){
-  var track = document.getElementById('shotTrack');
-  var slides = track.children;
-  var dotsWrap = document.getElementById('shotDots');
-  var prevBtn = document.getElementById('shotPrev');
-  var nextBtn = document.getElementById('shotNext');
-  var idx = 0;
-  var timer;
+(function () {
+  'use strict';
+
+  /* ── עזרים ── */
+  var $ = function (id) { return document.getElementById(id); };
+
+  /* ── זיהוי תמונות קיימות (naturalWidth>1 מסנן placeholders של 1px) ── */
+  function probeImages(pattern, max, cb) {
+    var found = [];
+    var pending = max;
+    for (var i = 1; i <= max; i++) {
+      (function (n) {
+        var img = new Image();
+        var src = pattern.replace('{n}', n);
+        img.onload = function () {
+          if (img.naturalWidth > 1) found.push({ n: n, src: src });
+          if (--pending === 0) { found.sort(function(a,b){return a.n-b.n;}); cb(found.map(function(f){return f.src;})); }
+        };
+        img.onerror = function () {
+          if (--pending === 0) { found.sort(function(a,b){return a.n-b.n;}); cb(found.map(function(f){return f.src;})); }
+        };
+        img.src = src + '?v=' + Date.now(); // עוקף cache
+      })(i);
+    }
+  }
+
+  /* ════ לייטבוקס ════ */
+  var lbEl = $('lb');
+  var lbImg = $('lbImg');
+  var lbCount = $('lbCount');
+  var lbSrcs = [];
+  var lbIdx = 0;
+
+  function lbShow(srcs, idx) {
+    lbSrcs = srcs;
+    lbIdx = idx;
+    lbRender();
+    lbEl.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+  }
+  function lbHide() {
+    lbEl.style.display = 'none';
+    document.body.style.overflow = '';
+  }
+  function lbRender() {
+    lbImg.src = lbSrcs[lbIdx];
+    lbCount.textContent = (lbIdx + 1) + ' / ' + lbSrcs.length;
+    $('lbPrev').style.display = lbSrcs.length > 1 ? '' : 'none';
+    $('lbNext').style.display = lbSrcs.length > 1 ? '' : 'none';
+  }
+  $('lbClose').addEventListener('click', lbHide);
+  lbEl.addEventListener('click', function (e) { if (e.target === lbEl) lbHide(); });
+  $('lbPrev').addEventListener('click', function () { lbIdx = (lbIdx - 1 + lbSrcs.length) % lbSrcs.length; lbRender(); });
+  $('lbNext').addEventListener('click', function () { lbIdx = (lbIdx + 1) % lbSrcs.length; lbRender(); });
+  document.addEventListener('keydown', function (e) {
+    if (lbEl.style.display === 'none') return;
+    if (e.key === 'Escape') lbHide();
+    if (e.key === 'ArrowLeft')  { lbIdx = (lbIdx + 1) % lbSrcs.length; lbRender(); }
+    if (e.key === 'ArrowRight') { lbIdx = (lbIdx - 1 + lbSrcs.length) % lbSrcs.length; lbRender(); }
+  });
+
+  /* ════ קרוסל סקרינשוטים ════ */
+  var track = $('shotTrack');
+  var carousel = $('shotCarousel');
+  var progress = $('shotProgress');
+  var counter = $('shotCounter');
+  var prevBtn = $('shotPrev');
+  var nextBtn = $('shotNext');
+  var shots = [];
+  var shotIdx = 0;
+  var shotTimer;
   var AUTOPLAY_MS = 4000;
+  var animating = false;
 
-  for (var i = 0; i < slides.length; i++) {
-    var dot = document.createElement('button');
-    dot.className = 'shot-dot' + (i === 0 ? ' active' : '');
-    dot.setAttribute('aria-label', 'תמונה ' + (i + 1));
-    (function(n){ dot.addEventListener('click', function(){ goTo(n, true); }); })(i);
-    dotsWrap.appendChild(dot);
+  function buildCarousel(srcs) {
+    shots = srcs;
+    if (!srcs.length) {
+      carousel.closest('.shot-frame').style.display = 'none';
+      return;
+    }
+    var n = srcs.length;
+
+    /* בניית slides */
+    srcs.forEach(function (src, i) {
+      var slide = document.createElement('div');
+      slide.className = 'shot-slide';
+      var img = document.createElement('img');
+      img.src = src;
+      img.alt = 'צילום מסך ' + (i + 1);
+      img.loading = 'lazy';
+      slide.appendChild(img);
+      slide.addEventListener('click', function () { lbShow(srcs, i); });
+      track.appendChild(slide);
+    });
+
+    /* dots — מוגבל ל-20 נקודות, רוחב מתאים */
+    var dotW = Math.max(6, Math.min(22, Math.floor(260 / n) - 4));
+    for (var i = 0; i < n; i++) {
+      (function (ii) {
+        var dot = document.createElement('button');
+        dot.className = 'shot-dot' + (ii === 0 ? ' active' : '');
+        dot.style.width = dotW + 'px';
+        dot.setAttribute('aria-label', 'תמונה ' + (ii + 1));
+        dot.addEventListener('click', function () { goTo(ii, true); });
+        progress.appendChild(dot);
+      })(i);
+    }
+
+    render(false);
+    restartAutoplay();
   }
 
-  function render(){
-    track.style.transform = 'translateX(' + (idx * 100) + '%)';
-    var dots = dotsWrap.children;
-    for (var i = 0; i < dots.length; i++) dots[i].classList.toggle('active', i === idx);
+  function render(animate) {
+    var n = shots.length;
+    if (!n) return;
+    /* RTL: להציג slide מספר idx → הזזת track ימינה ב-(idx/n)*100% */
+    track.style.transition = animate ? 'transform .42s cubic-bezier(.4,0,.2,1)' : 'none';
+    track.style.transform = 'translateX(' + (shotIdx * 100 / n) + '%)';
+
+    /* עדכון dots */
+    var dots = progress.children;
+    for (var i = 0; i < dots.length; i++) dots[i].classList.toggle('active', i === shotIdx);
+
+    /* עדכון counter */
+    counter.textContent = (shotIdx + 1) + ' / ' + n;
   }
 
-  function goTo(n, manual){
-    idx = (n + slides.length) % slides.length;
-    render();
+  function goTo(n, manual) {
+    if (animating) return;
+    animating = true;
+    shotIdx = ((n % shots.length) + shots.length) % shots.length;
+    render(true);
+    setTimeout(function () { animating = false; }, 450);
     if (manual) restartAutoplay();
   }
 
-  function next(manual){ goTo(idx + 1, manual); }
-  function prev(manual){ goTo(idx - 1, manual); }
-
-  function restartAutoplay(){
-    clearInterval(timer);
-    timer = setInterval(function(){ next(false); }, AUTOPLAY_MS);
+  function restartAutoplay() {
+    clearInterval(shotTimer);
+    shotTimer = setInterval(function () { goTo(shotIdx + 1, false); }, AUTOPLAY_MS);
   }
 
-  prevBtn.addEventListener('click', function(){ prev(true); });
-  nextBtn.addEventListener('click', function(){ next(true); });
+  prevBtn.addEventListener('click', function () { goTo(shotIdx - 1, true); });
+  nextBtn.addEventListener('click', function () { goTo(shotIdx + 1, true); });
 
-  // תמיכה בהחלקת אצבע (swipe) במובייל
+  /* swipe */
   var startX = null;
-  track.addEventListener('touchstart', function(e){ startX = e.touches[0].clientX; }, {passive:true});
-  track.addEventListener('touchend', function(e){
+  carousel.addEventListener('touchstart', function (e) { startX = e.touches[0].clientX; }, { passive: true });
+  carousel.addEventListener('touchend', function (e) {
     if (startX === null) return;
     var dx = e.changedTouches[0].clientX - startX;
-    if (Math.abs(dx) > 40) { dx < 0 ? next(true) : prev(true); }
+    if (Math.abs(dx) > 40) { dx < 0 ? goTo(shotIdx + 1, true) : goTo(shotIdx - 1, true); }
     startX = null;
-  }, {passive:true});
+  }, { passive: true });
 
-  render();
-  restartAutoplay();
+  /* טעינת תמונות */
+  probeImages('assets/screenshot-{n}.png', 30, buildCarousel);
+
+  /* ════ לוגואי לקוחות ════ */
+  var logosWrap = $('clientLogos');
+
+  probeImages('assets/client-logos/logo-{n}.png', 20, function (srcs) {
+    if (!srcs.length) { logosWrap.style.display = 'none'; return; }
+    srcs.forEach(function (src, i) {
+      var img = document.createElement('img');
+      img.src = src;
+      img.alt = 'עסק לקוח';
+      img.className = 'client-logo';
+      img.style.cssText = 'height:38px; width:auto; object-fit:contain;';
+      img.addEventListener('click', function () { lbShow(srcs, i); });
+      logosWrap.appendChild(img);
+    });
+  });
+
 })();
 </script>
 
