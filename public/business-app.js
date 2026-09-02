@@ -42407,6 +42407,7 @@ window.applyDeliveryZoneFee = function(zoneId) {
         if (action === 'sport-checkin') { window.showSportCheckIn(); return; }
         if (action === 'sport-members') { window.showSportMembers(); return; }
         if (action === 'sport-add-member') { window.showSportAddMember(); return; }
+        if (action === 'sport-membership-types') { window.showSportMembershipTypes(); return; }
         orig(tab, action);
     };
 })();
@@ -42616,6 +42617,7 @@ async function renderSportDashboard(el) {
         ${roleQuickActions([
             {icon:'🚪', label:"צ'ק-אין", tab:'', action:'sport-checkin'},
             {icon:'👥', label:'חברים', tab:'', action:'sport-members'},
+            {icon:'🎟️', label:'סוגי מנויים', tab:'', action:'sport-membership-types'},
             {icon:'🗓️', label:'שיעורים', tab:'', action:'sport-schedule'},
             {icon:'📅', label:'תורים', tab:'', action:'sport-appointments'},
             {icon:'👨‍🏫', label:'מאמנים', tab:'', action:'sport-trainers'},
@@ -43260,6 +43262,7 @@ window._sportLoadReports = async function(period) {
     const prev=window.rdAction;
     window.rdAction=function(tab,action){
         if(action==='sport-schedule'){window.showSportSchedule();return;}
+        if(action==='sport-membership-types'){window.showSportMembershipTypes();return;}
         if(action==='sport-alerts')  {window.showSportAlerts();return;}
         if(action==='sport-reports') {window.showSportReports();return;}
         if(action==='sport-waivers') {window.showSportWaiverSettings();return;}
