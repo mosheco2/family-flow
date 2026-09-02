@@ -328,6 +328,22 @@ const scAuth = window.scAuth = {
                 </div>`).join('');
             }
 
+            // Sport-specific quick actions (shown after login)
+            if (window._scBizType === 'sport') {
+                const sp = window.storeData?.settings?.sport_settings || {};
+                const spObj = typeof sp === 'string' ? JSON.parse(sp) : sp;
+                const sportBtns = [];
+                if (spObj.public_show_schedule !== false) sportBtns.push(`<button onclick="document.getElementById('sc-activity-panel').style.display='none';openScheduleModal&&openScheduleModal()" style="flex:1;padding:10px 8px;border:1.5px solid #e2e8f0;border-radius:12px;background:#fff;font-size:13px;cursor:pointer;color:#475569;text-align:center">📋 לוח שיעורים</button>`);
+                if (spObj.public_show_trainer !== false) sportBtns.push(`<button onclick="document.getElementById('sc-activity-panel').style.display='none';openTrainerBooking&&openTrainerBooking()" style="flex:1;padding:10px 8px;border:1.5px solid #e2e8f0;border-radius:12px;background:#fff;font-size:13px;cursor:pointer;color:#475569;text-align:center">📅 הזמנת אימון</button>`);
+                if (spObj.public_show_membership !== false) sportBtns.push(`<button onclick="document.getElementById('sc-activity-panel').style.display='none';openMembershipModal&&openMembershipModal()" style="flex:1;padding:10px 8px;border:1.5px solid #6366f1;border-radius:12px;background:#6366f115;font-size:13px;cursor:pointer;color:#6366f1;font-weight:600;text-align:center">🏋️ הצטרף כחבר</button>`);
+                if (sportBtns.length) {
+                    html = `<div style="margin-bottom:12px">
+                      <div style="font-size:11px;font-weight:700;color:#94a3b8;padding:0 0 6px;text-align:right">⚡ פעולות מהירות</div>
+                      <div style="display:flex;gap:8px;flex-wrap:wrap">${sportBtns.join('')}</div>
+                    </div>` + html;
+                }
+            }
+
             if (!html) html = '<div style="text-align:center;color:#94a3b8;font-size:13px;padding:40px 0">אין פעילות עדיין עם העסק הזה</div>';
 
             // Add profile edit button

@@ -684,7 +684,7 @@ async function initStore() {
     const res = await fetch(url);
     if (!res.ok) throw new Error('not found');
     storeData = await res.json();
-    groupId = storeData.groupId; window._scBizId = groupId;
+    groupId = storeData.groupId; window._scBizId = groupId; window._scBizType = 'sport'; window.storeData = storeData;
     catalog = (storeData.catalog || []).filter(p => p.is_available !== false);
     applyAccent(storeData.settings?.accent_color || '#FF6A1A');
     const ll=document.getElementById('lang-label'); if(ll) ll.textContent=isEn?'עברית':'English';
@@ -1083,9 +1083,9 @@ function renderQuickActions(s) {
   // Sport public features — controlled by BIZ settings
   const sp = storeData?.settings?.sport_settings || {};
   const sportPublic = typeof sp === 'string' ? JSON.parse(sp) : sp;
-  if (sportPublic.public_show_schedule) btns.push(`<button class="qa-btn" onclick="openScheduleModal()">📋 לוח שיעורים</button>`);
-  if (sportPublic.public_show_membership) btns.push(`<button class="qa-btn" onclick="openMembershipModal()">🏋️ הצטרף כחבר</button>`);
-  if (sportPublic.public_show_trainer) btns.push(`<button class="qa-btn" onclick="openTrainerBooking()">📅 הזמן אימון אישי</button>`);
+  if (sportPublic.public_show_schedule !== false) btns.push(`<button class="qa-btn" onclick="openScheduleModal()">📋 לוח שיעורים</button>`);
+  if (sportPublic.public_show_membership !== false) btns.push(`<button class="qa-btn" onclick="openMembershipModal()">🏋️ הצטרף כחבר</button>`);
+  if (sportPublic.public_show_trainer !== false) btns.push(`<button class="qa-btn" onclick="openTrainerBooking()">📅 הזמן אימון אישי</button>`);
   document.getElementById('quick-actions').innerHTML = btns.join('');
   document.getElementById('quick-actions').style.display = btns.length ? 'flex' : 'none';
 }
