@@ -35379,9 +35379,9 @@ function renderMyPlanSection() {
     // bundle_id מוצג בהדר — לא כשורת מודול רגילה
     const displayModules = allDisplayModules.filter(m => (typeof m === 'string' ? m : m.id) !== billing?.bundle_id);
 
-    // active modules rows — מציג רק מודולים עם מחיר (billing=true), מודולים חינמיים נספרים בנפרד
+    // active modules rows — paid (billing=true, price>0) + free (billing:false or price=0)
     let calcTotal = 0;
-    let freeModuleCount = 0;
+    const freeModuleInfos = [];
     const activeRows = displayModules.map(entry => {
         const mId = typeof entry === 'string' ? entry : entry.id;
         const isBilling = typeof entry === 'string' ? true : (entry.billing !== false);
@@ -35389,7 +35389,7 @@ function renderMyPlanSection() {
         const priceInfo = priceMap[mId];
         if (!info) return '';
         const modulePrice = isBilling ? (parseFloat(entry.custom_price != null ? entry.custom_price : (priceInfo?.price ?? 0)) || 0) : 0;
-        if (!isBilling || modulePrice === 0) { freeModuleCount++; return ''; } // מודולים חינמיים — לא מוצגים בשורה נפרדת
+        if (!isBilling || modulePrice === 0) { freeModuleInfos.push(info); return ''; }
         calcTotal += modulePrice;
         return `<div class="flex items-center justify-between py-2.5 border-b border-slate-50 last:border-0">
             <div class="flex items-center gap-2">
@@ -35403,11 +35403,16 @@ function renderMyPlanSection() {
         </div>`;
     }).join('');
 
-    // שורת מודולים חינמיים — מוצגת רק אם יש כאלה, בצורה מקובצת
-    const freeRow = freeModuleCount > 0
-        ? `<div class="flex items-center justify-between py-2 border-b border-slate-50 text-xs text-slate-400">
-            <span class="font-medium">כלול בתכנית</span>
-            <span>${freeModuleCount} מודולים בסיסיים</span>
+    // מודולים פתוחים ללא חיוב — מוצגים כרשימת שמות
+    const freeRow = freeModuleInfos.length > 0
+        ? `<div class="py-2 border-b border-slate-50">
+            <div class="flex items-center justify-between text-xs text-slate-400 mb-1">
+                <span class="font-medium">כלול בתכנית</span>
+                <span>${freeModuleInfos.length} מודולים</span>
+            </div>
+            <div class="flex flex-wrap gap-1 justify-end">
+                ${freeModuleInfos.map(m => `<span class="text-[10px] bg-slate-50 border border-slate-200 rounded-full px-2 py-0.5 text-slate-500 font-medium">${m.icon} ${m.name}</span>`).join('')}
+            </div>
           </div>` : '';
 
     // AI cost row — shown if billing defines it

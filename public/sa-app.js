@@ -13574,6 +13574,19 @@ const PRICING_CATALOG_DEFAULT = [
     ]
   },
   {
+    groupId: 'beauty_modules', groupName: 'מודולי יופי / קוסמטיקה 💅', color: 'purple',
+    modules: [
+      { id: 'beauty_calendar',      name: 'יומן תורים',          price: 19, free: false, desc: 'ניהול תורים ופגישות, שיבוץ מטפלות, תזכורות ללקוחות.' },
+      { id: 'beauty_practitioners', name: 'ניהול מטפלות',        price: 12, free: false, desc: 'פרופיל מטפלות, לוחות זמנים, התמחויות וביקורות.' },
+      { id: 'beauty_services',      name: 'שירותים וטיפולים',   price: 12, free: false, desc: 'ניהול רשימת טיפולים, מחירים, משכי זמן ומטפלות.' },
+      { id: 'beauty_clients',       name: 'תיקי לקוחות',        price: 12, free: false, desc: 'CRM לקוסמטיקה: היסטוריית טיפולים, אלרגיות, העדפות.' },
+      { id: 'beauty_inventory',     name: 'מלאי מקצועי',        price: 12, free: false, desc: 'מעקב מוצרי טיפוח, הזמנות ספקים, עלויות חומרים.' },
+      { id: 'beauty_subscriptions', name: 'מנויים וחבילות',     price: 15, free: false, desc: 'ניהול מנויים ללקוחות, מימוש יתרות וחידוש אוטומטי.' },
+      { id: 'beauty_commissions',   name: 'עמלות מטפלות',       price: 12, free: false, desc: 'חישוב עמלות לפי טיפול, דוח תשלומים ופירוט שעות.' },
+      { id: 'beauty_rfq',           name: 'הצעות מחיר',         price: 10, free: false, desc: 'ניהול פניות לקוחות להצעות מחיר לטיפולים מיוחדים.' },
+    ]
+  },
+  {
     groupId: 'beauty_bundle', groupName: 'חבילת יופי / קוסמטיקה 💅', color: 'purple', bundle: true,
     modules: [
       { id: 'beauty_all', name: 'חבילת יופי מלאה', price: 89, free: false, bundle: true,
