@@ -616,6 +616,7 @@ function _scShowMembershipDetail(m) {
         (sessions ? '<div style="display:flex;justify-content:space-between;padding:6px 0"><span style="color:#64748b;font-size:13px">כניסות</span><span style="font-weight:600;font-size:13px">'+sessions+'</span></div>' : '') +
         '</div>' +
         (pct !== null ? '<div style="margin-bottom:16px"><div style="font-size:11px;color:#94a3b8;text-align:right;margin-bottom:4px">ניצול</div><div style="background:#e2e8f0;border-radius:8px;height:10px;overflow:hidden"><div style="height:100%;width:'+pct+'%;background:'+color+';border-radius:8px"></div></div><div style="font-size:11px;color:#94a3b8;text-align:left;margin-top:2px">'+pct+'%</div></div>' : '') +
+        (m.status === 'active' ? '<div id="sc-selfcheckin-wrap" style="margin-bottom:16px;text-align:center"><button id="sc-selfcheckin-btn" style="width:100%;padding:13px;border:none;border-radius:14px;background:'+color+';color:#fff;font-size:15px;font-weight:700;cursor:pointer;letter-spacing:0.3px">✅ צ׳ק-אין עצמי — כניסה עכשיו</button><div id="sc-selfcheckin-msg" style="font-size:12px;margin-top:8px;display:none"></div></div>' : '') +
         (m.qr_token ? '<div style="text-align:center;margin-bottom:16px"><div style="font-size:11px;color:#94a3b8;margin-bottom:8px">קוד כניסה אישי — הצג בכניסה למועדון</div><div id="sc-mem-qr" style="display:inline-block;padding:12px;background:#fff;border:3px solid '+color+'25;border-radius:14px;line-height:0"></div><div style="font-size:10px;color:#94a3b8;margin-top:8px;letter-spacing:2px;font-family:monospace">'+m.qr_token.slice(-8).toUpperCase()+'</div></div>' : '') +
         '<div style="font-size:11px;color:#94a3b8;text-align:center;padding:8px">מספר מנוי: #'+m.id+'</div>';
     sheet.appendChild(inner);
@@ -624,6 +625,34 @@ function _scShowMembershipDetail(m) {
     if (m.qr_token) {
         var qrContainer = sheet.querySelector('#sc-mem-qr');
         if (qrContainer) _scDrawQR(qrContainer, m.qr_token);
+    }
+
+    // Self check-in button
+    var scBtn = sheet.querySelector('#sc-selfcheckin-btn');
+    var scMsg = sheet.querySelector('#sc-selfcheckin-msg');
+    if (scBtn && scMsg) {
+        scBtn.addEventListener('click', async function() {
+            var gid = window._scBizId || new URLSearchParams(location.search).get('store') || '';
+            var phone = (window._scAuth && window._scAuth._customer && window._scAuth._customer.phone) || '';
+            if (!gid || !phone) { scMsg.style.display='block'; scMsg.style.color='#ef4444'; scMsg.textContent='שגיאה: לא זוהה לקוח מחובר'; return; }
+            scBtn.disabled = true; scBtn.textContent = 'שולח...';
+            try {
+                var r = await fetch('/api/sport/self-checkin', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ groupId: gid, phone: phone }) });
+                var d = await r.json();
+                if (d.success) {
+                    scBtn.style.background = '#10b981'; scBtn.textContent = '✅ נרשמת בהצלחה!';
+                    scMsg.style.display='block'; scMsg.style.color='#10b981';
+                    scMsg.textContent = 'כניסה נרשמה' + (d.sessionsLeft !== null ? ' · נותרו ' + d.sessionsLeft + ' כניסות' : '');
+                } else {
+                    scBtn.disabled = false; scBtn.textContent = '✅ צ׳ק-אין עצמי — כניסה עכשיו';
+                    scMsg.style.display='block'; scMsg.style.color='#f59e0b';
+                    scMsg.textContent = d.error || 'שגיאה';
+                }
+            } catch(e) {
+                scBtn.disabled = false; scBtn.textContent = '✅ צ׳ק-אין עצמי — כניסה עכשיו';
+                scMsg.style.display='block'; scMsg.style.color='#ef4444'; scMsg.textContent = 'שגיאת רשת';
+            }
+        });
     }
 }
 

@@ -21053,6 +21053,31 @@ app.get('/api/sport/checkins/:groupId', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// Customer self check-in (by phone)
+app.post('/api/sport/self-checkin', async (req, res) => {
+    try {
+        const { groupId, phone } = req.body;
+        if (!groupId || !phone) return res.status(400).json({ error: 'חסרים פרמטרים' });
+        // find active membership
+        const mem = await pool.query(
+            `SELECT * FROM sport_memberships WHERE group_id=$1 AND member_phone=$2 AND status='active' ORDER BY created_at DESC LIMIT 1`,
+            [groupId, phone]
+        );
+        if (!mem.rows.length) return res.status(400).json({ error: 'לא נמצא מנוי פעיל' });
+        const m = mem.rows[0];
+        if (m.sessions_total !== null && m.sessions_used >= m.sessions_total) return res.status(400).json({ error: 'כרטיסייה מנוצלת עד תום' });
+        // prevent double checkin today
+        const existing = await pool.query(
+            `SELECT id FROM sport_checkins WHERE membership_id=$1 AND DATE(checked_in_at)=CURRENT_DATE`,
+            [m.id]
+        );
+        if (existing.rows.length) return res.status(400).json({ error: 'כבר בוצע צ׳ק-אין היום', alreadyIn: true });
+        await pool.query('INSERT INTO sport_checkins (group_id,membership_id,member_name) VALUES ($1,$2,$3)', [groupId, m.id, m.member_name]);
+        if (m.sessions_total !== null) await pool.query('UPDATE sport_memberships SET sessions_used=sessions_used+1, updated_at=NOW() WHERE id=$1', [m.id]);
+        res.json({ success: true, memberName: m.member_name, sessionsLeft: m.sessions_total !== null ? m.sessions_total - m.sessions_used - 1 : null });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // Cancel check-in
 app.delete('/api/sport/checkin/:id', async (req, res) => {
     try {
