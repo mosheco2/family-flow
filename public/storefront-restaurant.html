@@ -1798,6 +1798,7 @@ function closeCartPanel() {
 }
 
 function renderPanelCart() {
+  _cartStep = 'cart';
   const keys = Object.keys(cart);
   document.getElementById('panel-cart-step').style.display = 'flex';
   document.getElementById('panel-checkout-step').style.display = 'none';
@@ -2043,6 +2044,16 @@ function goCheckout() {
   document.getElementById('panel-checkout-step').style.display = 'flex';
   document.getElementById('panel-back-btn').style.display = '';
   document.getElementById('panel-title').textContent = t('פרטי הזמנה', 'Order details');
+  // pre-fill from logged-in customer (sc-auth)
+  try {
+    const sc = window.scAuth && window.scAuth._customer;
+    if (sc) {
+      const nameEl = document.getElementById('co-name');
+      const phoneEl = document.getElementById('co-phone');
+      if (nameEl && !nameEl.value) nameEl.value = ((sc.first_name||'') + ' ' + (sc.last_name||'')).trim();
+      if (phoneEl && !phoneEl.value) phoneEl.value = sc.phone || '';
+    }
+  } catch(e) {}
   renderPanelSummary();
   // co-delivery
   const addrWrap = document.getElementById('co-address-wrap');
