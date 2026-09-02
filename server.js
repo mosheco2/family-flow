@@ -9305,7 +9305,7 @@ app.post('/api/shopping/scan-receipt', async (req, res) => {
         if(!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
         if (!getGenAIInstance()) throw new Error('GEMINI_API_KEY is not set');
 
-        const model = getGenAIInstance().getGenerativeModel({ model: "gemini-2.0-flash", generationConfig: { responseMimeType: "application/json" } });
+        const model = getGenAIInstance().getGenerativeModel({ model: "gemini-2.0-flash-lite", generationConfig: { responseMimeType: "application/json" } });
         const prompt = `You are 'familAI', an expert Israeli supermarket receipt parser.
 
 ## HOW ISRAELI RECEIPTS ARE STRUCTURED
@@ -9414,7 +9414,7 @@ app.post('/api/shopping/ai-generate-list', async (req, res) => {
         if (!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
         if (!getGenAIInstance()) return res.json({ success: true, categories: FALLBACK });
 
-        const model = getGenAIInstance().getGenerativeModel({ model: 'gemini-2.0-flash' });
+        const model = getGenAIInstance().getGenerativeModel({ model: 'gemini-2.0-flash-lite' });
         const prompt = 'Generate a typical Israeli family weekly shopping list in Hebrew, for 6 categories: ירקות, פירות, שימורים, יבשים, דברי חלב, שתיה. 5-6 common items each. Units: vegetables/fruits use \'ק"ג\', liquids use \'ל\', others use \'יח\\\'\'. Quantities realistic for a family of 4. Product names in Hebrew only. Return ONLY valid JSON object (no markdown, no explanation): {"categories":[{"name":"ירקות","items":[{"name":"עגבניות","qty":1,"unit":"ק\\"ג"}]}]}';
 
         const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('TIMEOUT')), 18000));
@@ -14430,7 +14430,7 @@ End with: </svg>`;
         try {
             result = await model.generateContent(prompt);
         } catch(e) {
-            const fallback = getGenAIInstance().getGenerativeModel({ model: 'gemini-2.0-flash' });
+            const fallback = getGenAIInstance().getGenerativeModel({ model: 'gemini-2.0-flash-lite' });
             result = await fallback.generateContent(prompt);
         }
         const raw = result.response.text().trim();
