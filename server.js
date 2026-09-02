@@ -1455,6 +1455,28 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )`); } catch(e) {}
+      // Sport Trainer Appointments (personal training / PT sessions)
+      try { await client.query(`CREATE TABLE IF NOT EXISTS sport_appointments (
+          id SERIAL PRIMARY KEY, group_id INT NOT NULL,
+          trainer_id INT REFERENCES sport_trainers(id) ON DELETE SET NULL,
+          trainer_name VARCHAR(100),
+          client_name VARCHAR(100) NOT NULL,
+          client_phone VARCHAR(30),
+          client_email VARCHAR(100),
+          service_name VARCHAR(100) DEFAULT 'אימון אישי',
+          start_time TIMESTAMP NOT NULL,
+          end_time TIMESTAMP NOT NULL,
+          duration_minutes INT DEFAULT 60,
+          status VARCHAR(20) DEFAULT 'pending',
+          notes TEXT,
+          internal_notes TEXT,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`); } catch(e) {}
+      try { await client.query(`ALTER TABLE sport_trainers ADD COLUMN IF NOT EXISTS color_hex VARCHAR(20) DEFAULT '#6366f1'`); } catch(e) {}
+      try { await client.query(`ALTER TABLE sport_trainers ADD COLUMN IF NOT EXISTS work_start TIME DEFAULT '09:00'`); } catch(e) {}
+      try { await client.query(`ALTER TABLE sport_trainers ADD COLUMN IF NOT EXISTS work_end TIME DEFAULT '18:00'`); } catch(e) {}
+      try { await client.query(`ALTER TABLE sport_trainers ADD COLUMN IF NOT EXISTS slot_minutes INT DEFAULT 60`); } catch(e) {}
       // ===== END SPORT / FITNESS MODULE =====
 
       // Fix FK constraints that were created without ON DELETE SET NULL
@@ -21770,21 +21792,21 @@ app.get('/api/sport/trainers/:groupId', async (req, res) => {
 });
 
 app.post('/api/sport/trainers', async (req, res) => {
-    const { groupId, name, phone, email, specialties, payType, hourlyRate, perClassRate, revenuePercent, bonusBaseTrainees, bonusPerTrainee, notes } = req.body;
+    const { groupId, name, phone, email, specialties, payType, hourlyRate, perClassRate, revenuePercent, bonusBaseTrainees, bonusPerTrainee, notes, colorHex, workStart, workEnd, slotMinutes } = req.body;
     if (!groupId || !name) return res.status(400).json({ error: 'שם חובה' });
     try {
-        const r = await pool.query(`INSERT INTO sport_trainers (group_id,name,phone,email,specialties,pay_type,hourly_rate,per_class_rate,revenue_percent,bonus_base_trainees,bonus_per_trainee,notes)
-            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING id`,
-            [groupId, name, phone||null, email||null, specialties||null, payType||'per_class', hourlyRate||0, perClassRate||0, revenuePercent||0, bonusBaseTrainees||10, bonusPerTrainee||0, notes||null]);
+        const r = await pool.query(`INSERT INTO sport_trainers (group_id,name,phone,email,specialties,pay_type,hourly_rate,per_class_rate,revenue_percent,bonus_base_trainees,bonus_per_trainee,notes,color_hex,work_start,work_end,slot_minutes)
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) RETURNING id`,
+            [groupId, name, phone||null, email||null, specialties||null, payType||'per_class', hourlyRate||0, perClassRate||0, revenuePercent||0, bonusBaseTrainees||10, bonusPerTrainee||0, notes||null, colorHex||'#6366f1', workStart||'09:00', workEnd||'18:00', slotMinutes||60]);
         res.json({ success: true, id: r.rows[0].id });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 app.put('/api/sport/trainers/:id', async (req, res) => {
-    const { name, phone, email, specialties, payType, hourlyRate, perClassRate, revenuePercent, bonusBaseTrainees, bonusPerTrainee, notes, isActive } = req.body;
+    const { name, phone, email, specialties, payType, hourlyRate, perClassRate, revenuePercent, bonusBaseTrainees, bonusPerTrainee, notes, isActive, colorHex, workStart, workEnd, slotMinutes } = req.body;
     try {
-        await pool.query(`UPDATE sport_trainers SET name=$1,phone=$2,email=$3,specialties=$4,pay_type=$5,hourly_rate=$6,per_class_rate=$7,revenue_percent=$8,bonus_base_trainees=$9,bonus_per_trainee=$10,notes=$11,is_active=$12 WHERE id=$13`,
-            [name, phone||null, email||null, specialties||null, payType||'per_class', hourlyRate||0, perClassRate||0, revenuePercent||0, bonusBaseTrainees||10, bonusPerTrainee||0, notes||null, isActive!==false, req.params.id]);
+        await pool.query(`UPDATE sport_trainers SET name=$1,phone=$2,email=$3,specialties=$4,pay_type=$5,hourly_rate=$6,per_class_rate=$7,revenue_percent=$8,bonus_base_trainees=$9,bonus_per_trainee=$10,notes=$11,is_active=$12,color_hex=$13,work_start=$14,work_end=$15,slot_minutes=$16 WHERE id=$17`,
+            [name, phone||null, email||null, specialties||null, payType||'per_class', hourlyRate||0, perClassRate||0, revenuePercent||0, bonusBaseTrainees||10, bonusPerTrainee||0, notes||null, isActive!==false, colorHex||'#6366f1', workStart||'09:00', workEnd||'18:00', slotMinutes||60, req.params.id]);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -22053,6 +22075,117 @@ ${jsonSchema}`;
         try { plan = JSON.parse(rawText); }
         catch(e2) { plan = { summary: rawText, weeks: [], nutrition: [], safetyNotes: [] }; }
         res.json({ success: true, plan });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── Sport Trainer Appointments ──────────────────────────────────────────────
+
+// GET appointments list (BIZ)
+app.get('/api/sport/appointments/:groupId', async (req, res) => {
+    try {
+        const { from, to, trainer_id } = req.query;
+        let q = `SELECT a.*, t.color_hex as trainer_color FROM sport_appointments a
+                 LEFT JOIN sport_trainers t ON t.id=a.trainer_id
+                 WHERE a.group_id=$1`;
+        const params = [req.params.groupId];
+        if (from) { params.push(from); q += ` AND a.start_time >= $${params.length}`; }
+        if (to)   { params.push(to);   q += ` AND a.start_time <= $${params.length}`; }
+        if (trainer_id) { params.push(trainer_id); q += ` AND a.trainer_id=$${params.length}`; }
+        q += ' ORDER BY a.start_time';
+        const r = await pool.query(q, params);
+        res.json({ success: true, appointments: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// POST create appointment (BIZ or public)
+app.post('/api/sport/appointments', async (req, res) => {
+    const { groupId, trainerId, clientName, clientPhone, clientEmail, serviceName, startTime, endTime, durationMinutes, notes } = req.body;
+    if (!groupId || !clientName || !startTime || !endTime) return res.status(400).json({ error: 'שדות חסרים' });
+    try {
+        // Conflict check
+        if (trainerId) {
+            const conflict = await pool.query(
+                `SELECT id FROM sport_appointments WHERE trainer_id=$1 AND status NOT IN ('cancelled')
+                 AND NOT (end_time <= $2 OR start_time >= $3)`,
+                [trainerId, startTime, endTime]
+            );
+            if (conflict.rows.length > 0) return res.status(409).json({ error: 'TRAINER_CONFLICT', message: 'המאמן תפוס בזמן זה' });
+        }
+        const trainerRow = trainerId ? (await pool.query('SELECT name FROM sport_trainers WHERE id=$1', [trainerId])).rows[0] : null;
+        const r = await pool.query(
+            `INSERT INTO sport_appointments (group_id,trainer_id,trainer_name,client_name,client_phone,client_email,service_name,start_time,end_time,duration_minutes,status,notes)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'pending',$11) RETURNING *`,
+            [groupId, trainerId||null, trainerRow?.name||null, clientName, clientPhone||null, clientEmail||null, serviceName||'אימון אישי', startTime, endTime, durationMinutes||60, notes||null]
+        );
+        res.json({ success: true, appointment: r.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// PATCH update appointment status (BIZ)
+app.patch('/api/sport/appointments/:id', async (req, res) => {
+    const { status, internalNotes, notes } = req.body;
+    try {
+        const sets = [], params = [];
+        if (status)        { params.push(status);        sets.push(`status=$${params.length}`); }
+        if (internalNotes !== undefined) { params.push(internalNotes); sets.push(`internal_notes=$${params.length}`); }
+        if (notes !== undefined)         { params.push(notes);         sets.push(`notes=$${params.length}`); }
+        if (!sets.length) return res.status(400).json({ error: 'אין מה לעדכן' });
+        params.push(req.params.id);
+        await pool.query(`UPDATE sport_appointments SET ${sets.join(',')},updated_at=NOW() WHERE id=$${params.length}`, params);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// DELETE appointment (BIZ)
+app.delete('/api/sport/appointments/:id', async (req, res) => {
+    try { await pool.query('DELETE FROM sport_appointments WHERE id=$1', [req.params.id]); res.json({ success: true }); }
+    catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// GET available time slots (public) — ?groupId=X&trainerId=Y&date=YYYY-MM-DD
+app.get('/api/sport/availability', async (req, res) => {
+    const { groupId, trainerId, date } = req.query;
+    if (!groupId || !date) return res.status(400).json({ error: 'חסר groupId או date' });
+    try {
+        // Trainer config
+        let slotMin = 60, workStart = '09:00', workEnd = '18:00';
+        if (trainerId) {
+            const t = await pool.query('SELECT work_start,work_end,slot_minutes,is_active FROM sport_trainers WHERE id=$1 AND group_id=$2', [trainerId, groupId]);
+            if (!t.rows.length || !t.rows[0].is_active) return res.json({ success: true, slots: [] });
+            slotMin     = t.rows[0].slot_minutes  || 60;
+            workStart   = t.rows[0].work_start    ? t.rows[0].work_start.slice(0,5) : '09:00';
+            workEnd     = t.rows[0].work_end       ? t.rows[0].work_end.slice(0,5)  : '18:00';
+        }
+        // Booked appointments on that date
+        const dayStart = `${date} 00:00:00`;
+        const dayEnd   = `${date} 23:59:59`;
+        const bookedQ  = trainerId
+            ? `SELECT start_time,end_time FROM sport_appointments WHERE trainer_id=$1 AND start_time>=$2 AND start_time<=$3 AND status NOT IN ('cancelled')`
+            : `SELECT start_time,end_time FROM sport_appointments WHERE group_id=$1 AND start_time>=$2 AND start_time<=$3 AND status NOT IN ('cancelled')`;
+        const booked = await pool.query(bookedQ, [trainerId||groupId, dayStart, dayEnd]);
+        // Build slots
+        const [sh, sm] = workStart.split(':').map(Number);
+        const [eh, em] = workEnd.split(':').map(Number);
+        const slots = [];
+        let cur = sh * 60 + sm;
+        const end = eh * 60 + em;
+        const nowMs = Date.now();
+        while (cur + slotMin <= end) {
+            const hh = String(Math.floor(cur/60)).padStart(2,'0');
+            const mm = String(cur%60).padStart(2,'0');
+            const slotStart = new Date(`${date}T${hh}:${mm}:00`);
+            const slotEnd   = new Date(slotStart.getTime() + slotMin*60000);
+            // Skip past slots
+            if (slotStart.getTime() > nowMs) {
+                const conflict = booked.rows.some(b => {
+                    const bs = new Date(b.start_time), be = new Date(b.end_time);
+                    return !(slotEnd <= bs || slotStart >= be);
+                });
+                if (!conflict) slots.push({ time: `${hh}:${mm}`, start: slotStart.toISOString(), end: slotEnd.toISOString() });
+            }
+            cur += slotMin;
+        }
+        res.json({ success: true, slots, slotMinutes: slotMin });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 

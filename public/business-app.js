@@ -42547,6 +42547,7 @@ async function renderSportDashboard(el) {
             {icon:'🚪', label:"צ'ק-אין", tab:'', action:'sport-checkin'},
             {icon:'👥', label:'חברים', tab:'', action:'sport-members'},
             {icon:'🗓️', label:'שיעורים', tab:'', action:'sport-schedule'},
+            {icon:'📅', label:'תורים', tab:'', action:'sport-appointments'},
             {icon:'👨‍🏫', label:'מאמנים', tab:'', action:'sport-trainers'},
             {icon:'🎯', label:'לידים', tab:'', action:'sport-leads'},
             {icon:'🔔', label:'התראות', tab:'', action:'sport-alerts'},
@@ -44678,6 +44679,31 @@ window._sportTrainerForm = function(trainer) {
                 </div>
             </div>
             <div id="tf-pay-fields" class="space-y-3"></div>
+            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4">
+                <div class="font-bold text-slate-800 text-sm mb-3">📅 הגדרות תורים אישיים</div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="text-xs font-bold text-slate-600 block mb-1">התחלת עבודה</label>
+                        <input id="tf-work-start" type="time" value="${t.work_start?.slice?.(0,5)||'09:00'}" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"/>
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-slate-600 block mb-1">סיום עבודה</label>
+                        <input id="tf-work-end" type="time" value="${t.work_end?.slice?.(0,5)||'18:00'}" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"/>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-3 mt-3">
+                    <div>
+                        <label class="text-xs font-bold text-slate-600 block mb-1">משך תור (דק')</label>
+                        <select id="tf-slot-min" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300">
+                            ${[30,45,60,90,120].map(v=>`<option value="${v}" ${(t.slot_minutes||60)==v?'selected':''}>${v}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-slate-600 block mb-1">צבע</label>
+                        <input id="tf-color" type="color" value="${t.color_hex||'#6366f1'}" class="w-full h-10 border border-slate-200 rounded-xl cursor-pointer"/>
+                    </div>
+                </div>
+            </div>
             <div>
                 <label class="text-xs font-bold text-slate-600 block mb-1">הערות</label>
                 <textarea id="tf-notes" rows="2" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-right text-sm resize-none focus:outline-none focus:ring-2 focus:ring-indigo-300">${t.notes||''}</textarea>
@@ -44735,7 +44761,11 @@ window._sportSaveTrainer = async function(id) {
         revenuePercent: parseFloat(document.getElementById('tf-rev-pct')?.value||0),
         bonusBaseTrainees: parseInt(document.getElementById('tf-bonus-base')?.value||10),
         bonusPerTrainee: parseFloat(document.getElementById('tf-bonus-per')?.value||0),
-        notes: document.getElementById('tf-notes')?.value?.trim()||null
+        notes: document.getElementById('tf-notes')?.value?.trim()||null,
+        colorHex: document.getElementById('tf-color')?.value||'#6366f1',
+        workStart: document.getElementById('tf-work-start')?.value||'09:00',
+        workEnd: document.getElementById('tf-work-end')?.value||'18:00',
+        slotMinutes: parseInt(document.getElementById('tf-slot-min')?.value||60)
     };
     try {
         const url = id ? `${API}/sport/trainers/${id}` : `${API}/sport/trainers`;
@@ -55431,3 +55461,228 @@ window.delBizRadiusZone = async function(zoneId) {
         else { showToast('error', data.error || 'שגיאה'); }
     } catch(e) { showToast('error', 'שגיאת רשת: ' + e.message); }
 };
+
+// ===== SPORT PHASE 12 — Trainer Appointments (Personal Training) =====
+
+// Add "תורים" to the sport quick actions menu
+(function(){
+    const prevRender = window.renderSportDashboard || null;
+    // Patch rdAction router to handle sport-appointments
+    const prev = window.rdAction;
+    window.rdAction = function(tab, action) {
+        if (action === 'sport-appointments') { window.showSportAppointments(); return; }
+        prev(tab, action);
+    };
+})();
+
+// Patch sport quick actions to include appointments
+(function(){
+    const origGetActions = window._getSportQuickActions;
+    // We'll inject directly into the quick-action grid when rendered
+    // by hooking into the existing sport dashboard render via MutationObserver
+    // Instead, we patch the data array if accessible:
+    const patchList = () => {
+        // Find the sport quick-actions container and inject our button if missing
+        const containers = document.querySelectorAll('[data-sport-action]');
+        if (containers.length && !document.querySelector('[data-sport-action="sport-appointments"]')) {
+            const trainersBtn = Array.from(containers).find(el => el.dataset.sportAction === 'sport-trainers');
+            if (trainersBtn) {
+                const btn = document.createElement('button');
+                btn.dataset.sportAction = 'sport-appointments';
+                btn.className = trainersBtn.className;
+                btn.innerHTML = '📅 תורים';
+                btn.onclick = () => window.showSportAppointments();
+                trainersBtn.parentNode.insertBefore(btn, trainersBtn.nextSibling);
+            }
+        }
+    };
+    document.addEventListener('click', patchList, { once: false, capture: true });
+})();
+
+window.showSportAppointments = async function() {
+    _ensureSportModal();
+    const modal = document.getElementById('sport-modal');
+    const gid = currentGroup?.id;
+    if (!gid) return;
+
+    modal.innerHTML = `<div class="flex flex-col h-full">
+      <div class="flex items-center gap-3 p-4 border-b border-slate-100">
+        <button onclick="document.getElementById('sport-modal').classList.add('hidden')" class="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-500">✕</button>
+        <h2 class="font-bold text-slate-800 text-lg flex-1 text-right">📅 תורים אישיים</h2>
+        <button onclick="window._sportApptModal({})" class="px-3 py-1.5 bg-indigo-600 text-white text-sm rounded-lg font-semibold">+ תור חדש</button>
+      </div>
+      <div class="flex gap-2 p-3 border-b border-slate-100">
+        <input type="date" id="sport-appt-date" value="${new Date().toISOString().split('T')[0]}" onchange="window._loadSportAppts()" class="flex-1 border border-slate-200 rounded-lg px-3 py-2 text-sm text-right"/>
+        <select id="sport-appt-trainer-filter" onchange="window._loadSportAppts()" class="flex-1 border border-slate-200 rounded-lg px-3 py-2 text-sm text-right">
+          <option value="">כל המאמנים</option>
+        </select>
+      </div>
+      <div id="sport-appt-list" class="flex-1 overflow-y-auto p-3 space-y-2"></div>
+    </div>`;
+    modal.classList.remove('hidden');
+
+    // Load trainers for filter
+    try {
+        const tr = await fetch(`/api/sport/trainers/${gid}`).then(r=>r.json());
+        const sel = document.getElementById('sport-appt-trainer-filter');
+        if (sel && tr.trainers) {
+            tr.trainers.filter(t=>t.is_active).forEach(t => {
+                const o = document.createElement('option');
+                o.value = t.id; o.textContent = t.name;
+                sel.appendChild(o);
+            });
+        }
+    } catch(e) {}
+    window._loadSportAppts();
+};
+
+window._loadSportAppts = async function() {
+    const gid = currentGroup?.id; if (!gid) return;
+    const date = document.getElementById('sport-appt-date')?.value;
+    const trainerId = document.getElementById('sport-appt-trainer-filter')?.value;
+    const list = document.getElementById('sport-appt-list');
+    if (!list) return;
+    list.innerHTML = '<div class="text-center text-slate-400 text-sm py-8">טוען...</div>';
+    try {
+        let url = `/api/sport/appointments/${gid}?`;
+        if (date) url += `from=${date}T00:00:00&to=${date}T23:59:59&`;
+        if (trainerId) url += `trainer_id=${trainerId}`;
+        const d = await fetch(url).then(r=>r.json());
+        if (!d.appointments?.length) { list.innerHTML = '<div class="text-center text-slate-400 text-sm py-8">אין תורים ביום זה</div>'; return; }
+        const statusLabels = { pending:'ממתין', confirmed:'מאושר', completed:'הושלם', cancelled:'בוטל' };
+        const statusColors = { pending:'bg-yellow-100 text-yellow-700', confirmed:'bg-green-100 text-green-700', completed:'bg-slate-100 text-slate-600', cancelled:'bg-red-100 text-red-500' };
+        list.innerHTML = d.appointments.map(a => {
+            const st = new Date(a.start_time);
+            const et = new Date(a.end_time);
+            const timeStr = `${st.getHours().toString().padStart(2,'0')}:${st.getMinutes().toString().padStart(2,'0')} — ${et.getHours().toString().padStart(2,'0')}:${et.getMinutes().toString().padStart(2,'0')}`;
+            const sc = statusColors[a.status] || 'bg-slate-100 text-slate-600';
+            const sl = statusLabels[a.status] || a.status;
+            const dot = a.trainer_color || '#6366f1';
+            return `<div class="bg-white rounded-xl border border-slate-100 p-3 shadow-sm">
+              <div class="flex items-start gap-2">
+                <div class="w-3 h-3 rounded-full mt-1 flex-shrink-0" style="background:${dot}"></div>
+                <div class="flex-1 min-w-0">
+                  <div class="flex justify-between items-center">
+                    <span class="text-xs px-2 py-0.5 rounded-full font-semibold ${sc}">${sl}</span>
+                    <span class="text-xs text-slate-500 font-mono">${timeStr}</span>
+                  </div>
+                  <div class="font-semibold text-slate-800 text-sm mt-1 text-right">${a.client_name}</div>
+                  ${a.client_phone ? `<div class="text-xs text-slate-500 text-right">${a.client_phone}</div>` : ''}
+                  <div class="text-xs text-slate-500 text-right">${a.service_name || 'אימון אישי'}${a.trainer_name ? ' · ' + a.trainer_name : ''}</div>
+                </div>
+                <div class="flex flex-col gap-1">
+                  ${a.status==='pending' ? `<button onclick="window._sportApptStatus(${a.id},'confirmed')" class="text-xs px-2 py-1 bg-green-500 text-white rounded-lg">אשר</button>` : ''}
+                  ${a.status!=='cancelled'&&a.status!=='completed' ? `<button onclick="window._sportApptStatus(${a.id},'cancelled')" class="text-xs px-2 py-1 bg-red-100 text-red-600 rounded-lg">בטל</button>` : ''}
+                  ${a.status==='confirmed' ? `<button onclick="window._sportApptStatus(${a.id},'completed')" class="text-xs px-2 py-1 bg-slate-200 text-slate-700 rounded-lg">סיים</button>` : ''}
+                </div>
+              </div>
+            </div>`;
+        }).join('');
+    } catch(e) { list.innerHTML = '<div class="text-center text-red-400 text-sm py-8">שגיאת טעינה</div>'; }
+};
+
+window._sportApptStatus = async function(id, status) {
+    try {
+        await fetch(`/api/sport/appointments/${id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ status }) });
+        window._loadSportAppts();
+    } catch(e) { showToast('error', 'שגיאה: ' + e.message); }
+};
+
+window._sportApptModal = async function(appt) {
+    const gid = currentGroup?.id; if (!gid) return;
+    // Load trainers
+    let trainers = [];
+    try { const tr = await fetch(`/api/sport/trainers/${gid}`).then(r=>r.json()); trainers = tr.trainers?.filter(t=>t.is_active) || []; } catch(e) {}
+
+    const overlay = document.createElement('div');
+    overlay.id = 'sport-appt-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:9999;display:flex;align-items:flex-end;justify-content:center';
+    const today = new Date().toISOString().split('T')[0];
+    overlay.innerHTML = `<div style="background:#fff;border-radius:20px 20px 0 0;width:100%;max-width:480px;padding:24px;max-height:85vh;overflow-y:auto">
+      <div class="flex items-center gap-3 mb-4">
+        <button onclick="document.getElementById('sport-appt-overlay').remove()" class="w-8 h-8 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center">✕</button>
+        <h3 class="font-bold text-slate-800 flex-1 text-right">תור אימון אישי</h3>
+      </div>
+      <div class="space-y-3">
+        <div><label class="text-xs font-bold text-slate-600 block mb-1 text-right">מאמן</label>
+          <select id="spa-trainer" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-right text-sm">
+            <option value="">-- בחר מאמן --</option>
+            ${trainers.map(t=>`<option value="${t.id}">${t.name}</option>`).join('')}
+          </select></div>
+        <div><label class="text-xs font-bold text-slate-600 block mb-1 text-right">שם לקוח *</label>
+          <input id="spa-name" type="text" placeholder="שם מלא" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-right text-sm"/></div>
+        <div><label class="text-xs font-bold text-slate-600 block mb-1 text-right">טלפון</label>
+          <input id="spa-phone" type="tel" placeholder="050-0000000" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-right text-sm" dir="ltr"/></div>
+        <div><label class="text-xs font-bold text-slate-600 block mb-1 text-right">שירות</label>
+          <input id="spa-service" type="text" value="אימון אישי" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-right text-sm"/></div>
+        <div class="grid grid-cols-2 gap-3">
+          <div><label class="text-xs font-bold text-slate-600 block mb-1 text-right">תאריך</label>
+            <input id="spa-date" type="date" value="${today}" onchange="window._sportApptLoadSlots()" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm"/></div>
+          <div><label class="text-xs font-bold text-slate-600 block mb-1 text-right">משך (דק')</label>
+            <input id="spa-dur" type="number" value="60" min="30" step="30" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm"/></div>
+        </div>
+        <div><label class="text-xs font-bold text-slate-600 block mb-1 text-right">שעה *</label>
+          <div id="spa-slots" class="flex flex-wrap gap-2 py-2"><span class="text-xs text-slate-400">בחר מאמן ותאריך לראות שעות פנויות</span></div>
+          <input id="spa-time-hidden" type="hidden"/>
+        </div>
+        <div><label class="text-xs font-bold text-slate-600 block mb-1 text-right">הערות</label>
+          <textarea id="spa-notes" rows="2" placeholder="הערות..." class="w-full border border-slate-200 rounded-xl px-4 py-3 text-right text-sm resize-none"></textarea></div>
+        <button onclick="window._sportApptSave()" class="w-full py-3 bg-indigo-600 text-white rounded-xl font-bold text-sm">שמור תור</button>
+      </div>
+    </div>`;
+    document.body.appendChild(overlay);
+    // Load slots when trainer changes
+    document.getElementById('spa-trainer').addEventListener('change', window._sportApptLoadSlots);
+};
+
+window._sportApptLoadSlots = async function() {
+    const trainerId = document.getElementById('spa-trainer')?.value;
+    const date = document.getElementById('spa-date')?.value;
+    const gid = currentGroup?.id;
+    const slotsEl = document.getElementById('spa-slots');
+    if (!slotsEl) return;
+    if (!trainerId || !date) { slotsEl.innerHTML = '<span class="text-xs text-slate-400">בחר מאמן ותאריך</span>'; return; }
+    slotsEl.innerHTML = '<span class="text-xs text-slate-400">טוען...</span>';
+    try {
+        const d = await fetch(`/api/sport/availability?groupId=${gid}&trainerId=${trainerId}&date=${date}`).then(r=>r.json());
+        if (!d.slots?.length) { slotsEl.innerHTML = '<span class="text-xs text-red-400">אין שעות פנויות</span>'; return; }
+        slotsEl.innerHTML = d.slots.map(s => `
+          <button type="button" data-start="${s.start}" data-end="${s.end}" onclick="window._sportApptSelectSlot(this,'${s.time}')"
+            class="slot-btn px-3 py-1.5 border border-slate-200 rounded-lg text-sm text-slate-700 hover:bg-indigo-50 hover:border-indigo-300 transition">${s.time}</button>
+        `).join('');
+    } catch(e) { slotsEl.innerHTML = '<span class="text-xs text-red-400">שגיאת טעינה</span>'; }
+};
+
+window._sportApptSelectSlot = function(btn, time) {
+    document.querySelectorAll('.slot-btn').forEach(b => b.classList.remove('bg-indigo-600','text-white','border-indigo-600'));
+    btn.classList.add('bg-indigo-600','text-white','border-indigo-600');
+    document.getElementById('spa-time-hidden').value = btn.dataset.start + '|' + btn.dataset.end;
+};
+
+window._sportApptSave = async function() {
+    const gid = currentGroup?.id;
+    const name = document.getElementById('spa-name')?.value?.trim();
+    const timeVal = document.getElementById('spa-time-hidden')?.value;
+    if (!name) return showToast('error', 'שם לקוח חובה');
+    if (!timeVal) return showToast('error', 'יש לבחור שעה');
+    const [startTime, endTime] = timeVal.split('|');
+    const trainerId = document.getElementById('spa-trainer')?.value || null;
+    const phone = document.getElementById('spa-phone')?.value?.trim() || null;
+    const service = document.getElementById('spa-service')?.value?.trim() || 'אימון אישי';
+    const dur = parseInt(document.getElementById('spa-dur')?.value) || 60;
+    const notes = document.getElementById('spa-notes')?.value?.trim() || null;
+    try {
+        const r = await fetch('/api/sport/appointments', {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ groupId:gid, trainerId:trainerId||null, clientName:name, clientPhone:phone, serviceName:service, startTime, endTime, durationMinutes:dur, notes })
+        });
+        const d = await r.json();
+        if (!d.success) return showToast('error', d.message || d.error || 'שגיאה');
+        document.getElementById('sport-appt-overlay')?.remove();
+        showToast('success', 'התור נשמר!');
+        // Refresh if appointments view is open
+        if (document.getElementById('sport-appt-list')) window._loadSportAppts();
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
+};
+
+// ===== END SPORT PHASE 12 =====
