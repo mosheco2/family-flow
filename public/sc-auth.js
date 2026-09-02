@@ -398,4 +398,8 @@ const scAuth = window.scAuth = {
     }
 };
 
-document.addEventListener('DOMContentLoaded', () => scAuth.init());
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => scAuth.init());
+} else {
+    scAuth.init();
+}

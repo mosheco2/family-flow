@@ -1,0 +1,848 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title id="page-title">שליחויות מהירות</title>
+<link rel="icon" href="/api/public/logo" type="image/png">
+<script>
+(async()=>{try{const r=await fetch('/api/system/public-config');const d=await r.json();if(d.globalAiLogo){document.querySelector("link[rel~='icon']").href=d.globalAiLogo;}}catch(e){}})();
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600;700;800&family=Heebo:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box}
+
+:root{
+  --navy:#0A1628;
+  --navy-mid:#0F2040;
+  --navy-card:#132347;
+  --blue:#2563EB;
+  --blue-light:#3B82F6;
+  --blue-dim:rgba(37,99,235,.15);
+  --ice:#E8F0FE;
+  --ground:#F5F8FF;
+  --card:#FFFFFF;
+  --border:#D4E0F7;
+  --text:#0F1C30;
+  --muted:#8FA3BF;
+  --slate:#4A6280;
+  --success:#16A34A;
+  --warning:#D97706;
+  --danger:#DC2626;
+  --bg:var(--ground);
+}
+@media(prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --ground:#080F1E;
+    --card:#0F1E36;
+    --border:#1E3155;
+    --text:#E8F0FE;
+    --muted:#6B85A8;
+    --slate:#8FA3BF;
+    --bg:var(--ground);
+    --ice:rgba(37,99,235,.12);
+    --navy-mid:#06101F;
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#080F1E;
+  --card:#0F1E36;
+  --border:#1E3155;
+  --text:#E8F0FE;
+  --muted:#6B85A8;
+  --slate:#8FA3BF;
+  --bg:var(--ground);
+  --ice:rgba(37,99,235,.12);
+  --navy-mid:#06101F;
+}
+
+body{margin:0;background:var(--bg);font-family:'Heebo',system-ui,sans-serif;color:var(--text);direction:rtl;-webkit-font-smoothing:antialiased;line-height:1.5}
+a{color:inherit;text-decoration:none}
+input,button,select,textarea{font-family:inherit}
+::placeholder{color:var(--muted)}
+::-webkit-scrollbar{height:5px;width:5px}
+::-webkit-scrollbar-thumb{background:rgba(37,99,235,.3);border-radius:99px}
+button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+
+@keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+@keyframes routeDraw{from{stroke-dashoffset:400}to{stroke-dashoffset:0}}
+@keyframes nodePulse{0%,100%{opacity:.5;transform:scale(1)}50%{opacity:1;transform:scale(1.35)}}
+@keyframes glow{0%,100%{opacity:.5}50%{opacity:1}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media(prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+
+/* ── HEADER ── */
+#main-header{position:sticky;top:0;z-index:200;background:rgba(10,22,40,.96);backdrop-filter:blur(16px);border-bottom:1px solid rgba(37,99,235,.2)}
+#header-inner{max-width:1200px;margin:0 auto;padding:12px 20px;display:flex;align-items:center;gap:14px}
+#header-logo{width:38px;height:38px;flex:none;border-radius:12px;background:var(--blue);display:flex;align-items:center;justify-content:center;font:700 15px/1 'Rubik',sans-serif;color:#fff;overflow:hidden}
+#header-logo img{width:100%;height:100%;object-fit:contain;border-radius:12px}
+#header-name{font-family:'Rubik',sans-serif;font-size:17px;font-weight:700;letter-spacing:-.02em;color:#fff}
+#header-tagline{font-size:12px;color:rgba(255,255,255,.45);margin-right:auto}
+#header-cta{padding:9px 20px;border:none;border-radius:99px;background:var(--blue);color:#fff;font-size:13px;font-weight:600;cursor:pointer;transition:background .15s;flex:none}
+#header-cta:hover{background:var(--blue-light)}
+#header-auth-btn{padding:8px 16px;border:1px solid rgba(255,255,255,.2);border-radius:99px;background:transparent;color:rgba(255,255,255,.8);font-size:13px;font-weight:500;cursor:pointer;transition:.15s;flex:none}
+#header-auth-btn:hover{background:rgba(255,255,255,.08)}
+
+/* ── HERO ── */
+#hero{background:var(--navy);position:relative;overflow:hidden;padding:clamp(48px,6vw,88px) 20px clamp(40px,5vw,72px)}
+#hero-glow1{position:absolute;top:-20%;right:-10%;width:50%;height:80%;border-radius:50%;background:#2563EB;filter:blur(120px);opacity:.12;pointer-events:none}
+#hero-glow2{position:absolute;bottom:-30%;left:-5%;width:40%;height:70%;border-radius:50%;background:#1D4ED8;filter:blur(100px);opacity:.1;pointer-events:none}
+#hero-inner{position:relative;max-width:1200px;margin:0 auto;display:flex;flex-wrap:wrap;gap:clamp(32px,4vw,60px);align-items:center}
+#hero-text{flex:1 1 320px;animation:rise .5s ease both}
+#hero-badge{display:inline-flex;align-items:center;gap:8px;padding:5px 13px;border-radius:99px;background:rgba(37,99,235,.18);border:1px solid rgba(37,99,235,.35);font-size:12px;font-weight:600;color:#93C5FD;margin-bottom:18px;letter-spacing:.02em;text-transform:uppercase}
+#hero-badge-dot{width:6px;height:6px;border-radius:50%;background:#60A5FA;animation:glow 2s ease-in-out infinite;flex:none}
+#hero h1{font-family:'Rubik',sans-serif;font-size:clamp(34px,5.5vw,62px);font-weight:800;letter-spacing:-.04em;line-height:.95;color:#fff;margin:0 0 14px;text-wrap:balance}
+#hero h1 em{font-style:normal;color:#60A5FA}
+#hero-sub{font-size:clamp(14px,1.6vw,16px);font-weight:300;color:rgba(255,255,255,.58);line-height:1.65;margin:0 0 28px;max-width:42ch}
+#hero-actions{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:32px}
+.btn-primary{padding:13px 28px;border:none;border-radius:12px;background:var(--blue);color:#fff;font-size:14.5px;font-weight:600;cursor:pointer;transition:background .15s,transform .12s}
+.btn-primary:hover{background:var(--blue-light);transform:translateY(-1px)}
+.btn-ghost{padding:13px 22px;border:1px solid rgba(255,255,255,.2);border-radius:12px;background:transparent;color:#fff;font-size:14.5px;font-weight:500;cursor:pointer;transition:.15s}
+.btn-ghost:hover{background:rgba(255,255,255,.08)}
+#hero-stats{display:flex;gap:28px;flex-wrap:wrap}
+.hstat{display:flex;flex-direction:column}
+.hstat-val{font-family:'Rubik',sans-serif;font-size:clamp(22px,2.8vw,30px);font-weight:800;color:#fff;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.hstat-lbl{font-size:11.5px;color:rgba(255,255,255,.42);margin-top:3px;letter-spacing:.03em}
+
+/* Route map visual */
+#hero-map{flex:1 1 280px;display:flex;align-items:center;justify-content:center;animation:rise .55s .08s ease both}
+#route-canvas{width:100%;max-width:380px;aspect-ratio:4/3}
+#route-svg{width:100%;height:100%;overflow:visible}
+.route-path{fill:none;stroke:#2563EB;stroke-width:1.5;stroke-dasharray:400;stroke-dashoffset:400;animation:routeDraw 2.4s .3s cubic-bezier(.4,0,.2,1) forwards;opacity:.7}
+.route-path-2{fill:none;stroke:#60A5FA;stroke-width:1;stroke-dasharray:300;stroke-dashoffset:300;animation:routeDraw 2s .9s cubic-bezier(.4,0,.2,1) forwards;opacity:.4}
+.route-node{animation:nodePulse 2.8s ease-in-out infinite}
+.node-ring{fill:none;stroke:#2563EB;stroke-width:1.5;opacity:.4}
+.node-dot{fill:#60A5FA}
+.node-label{fill:rgba(255,255,255,.5);font-family:'Heebo',sans-serif;font-size:10px;font-weight:600}
+.route-truck{fill:#2563EB;opacity:.9}
+
+/* ── SECTIONS ── */
+.section{padding:clamp(40px,5vw,72px) 20px}
+.section-inner{max-width:1200px;margin:0 auto}
+.section-label{font-size:11.5px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--blue);margin-bottom:10px}
+.section-title{font-family:'Rubik',sans-serif;font-size:clamp(22px,3vw,32px);font-weight:700;letter-spacing:-.03em;color:var(--text);margin:0 0 8px;text-wrap:balance}
+.section-sub{font-size:14.5px;color:var(--muted);line-height:1.6;margin:0 0 36px;max-width:52ch}
+
+/* ── SHIPMENT FORM + TRACKING ── */
+#action-section{background:var(--bg)}
+#action-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+@media(max-width:760px){#action-grid{grid-template-columns:1fr}}
+
+.panel{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:clamp(20px,3vw,32px);transition:box-shadow .2s}
+.panel-title{font-family:'Rubik',sans-serif;font-size:18px;font-weight:700;letter-spacing:-.025em;color:var(--text);margin:0 0 6px;display:flex;align-items:center;gap:8px}
+.panel-title .icon{width:32px;height:32px;border-radius:9px;background:var(--blue-dim);display:flex;align-items:center;justify-content:center;flex:none}
+.panel-sub{font-size:13px;color:var(--muted);margin:0 0 24px}
+
+/* Form */
+.field{margin-bottom:16px}
+.field-label{font-size:12.5px;font-weight:600;color:var(--slate);margin-bottom:6px;display:block;letter-spacing:.01em}
+.field-label span{color:var(--danger);margin-right:2px}
+.field input,.field textarea,.field select{width:100%;padding:11px 14px;border:1.5px solid var(--border);border-radius:11px;background:var(--bg);color:var(--text);font-size:14px;transition:border-color .15s;appearance:none}
+.field input:focus,.field textarea:focus,.field select:focus{outline:none;border-color:var(--blue);background:var(--card)}
+.field textarea{resize:vertical;min-height:72px;line-height:1.5}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:500px){.field-row{grid-template-columns:1fr}}
+
+/* Urgent toggle */
+.toggle-row{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border:1.5px solid var(--border);border-radius:11px;background:var(--bg);cursor:pointer;gap:12px}
+.toggle-row:hover{border-color:var(--blue)}
+.toggle-info{flex:1}
+.toggle-info strong{font-size:13.5px;color:var(--text);font-weight:600;display:block}
+.toggle-info small{font-size:12px;color:var(--muted)}
+.toggle-switch{width:42px;height:24px;border-radius:99px;background:var(--border);border:none;cursor:pointer;position:relative;flex:none;transition:background .2s}
+.toggle-switch::after{content:'';position:absolute;top:3px;right:3px;width:18px;height:18px;border-radius:50%;background:#fff;transition:transform .2s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+.toggle-switch.on{background:var(--blue)}
+.toggle-switch.on::after{transform:translateX(-18px)}
+
+.submit-btn{width:100%;padding:14px;border:none;border-radius:12px;background:var(--blue);color:#fff;font-size:15px;font-weight:700;cursor:pointer;margin-top:8px;transition:background .15s,transform .12s;display:flex;align-items:center;justify-content:center;gap:8px}
+.submit-btn:hover{background:var(--blue-light);transform:translateY(-1px)}
+.submit-btn:disabled{background:var(--muted);cursor:not-allowed;transform:none}
+.form-note{font-size:12px;color:var(--muted);text-align:center;margin-top:10px}
+
+/* Success / error messages */
+.msg{padding:12px 16px;border-radius:10px;font-size:13.5px;font-weight:500;margin-top:12px;display:none}
+.msg.success{background:#DCFCE7;color:#166534;border:1px solid #BBF7D0}
+.msg.error{background:#FEE2E2;color:#991B1B;border:1px solid #FECACA}
+.msg.show{display:block}
+
+/* Track panel */
+.track-input-row{display:flex;gap:8px}
+.track-input-row input{flex:1;padding:11px 14px;border:1.5px solid var(--border);border-radius:11px;background:var(--bg);color:var(--text);font-size:14px;transition:border-color .15s}
+.track-input-row input:focus{outline:none;border-color:var(--blue);background:var(--card)}
+.track-btn{padding:11px 18px;border:none;border-radius:11px;background:var(--blue);color:#fff;font-size:14px;font-weight:600;cursor:pointer;white-space:nowrap;transition:background .15s}
+.track-btn:hover{background:var(--blue-light)}
+#track-result{margin-top:20px}
+.track-status-card{background:var(--ice);border:1px solid var(--border);border-radius:14px;padding:18px 20px;display:none}
+.track-status-card.show{display:block}
+.track-id-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.track-id{font-family:'Rubik',sans-serif;font-size:15px;font-weight:700;color:var(--text);letter-spacing:.02em}
+.status-chip{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:99px;font-size:12px;font-weight:600}
+.status-chip.transit{background:#DBEAFE;color:#1D4ED8}
+.status-chip.delivered{background:#DCFCE7;color:#166534}
+.status-chip.pending{background:#FEF9C3;color:#854D0E}
+.status-chip.failed{background:#FEE2E2;color:#991B1B}
+.track-timeline{display:flex;flex-direction:column;gap:10px}
+.timeline-step{display:flex;gap:12px;align-items:flex-start}
+.timeline-dot{width:10px;height:10px;border-radius:50%;flex:none;margin-top:4px}
+.timeline-dot.done{background:var(--blue)}
+.timeline-dot.active{background:var(--blue);box-shadow:0 0 0 3px rgba(37,99,235,.2)}
+.timeline-dot.pending{background:var(--border)}
+.timeline-info strong{font-size:13px;font-weight:600;color:var(--text);display:block}
+.timeline-info small{font-size:11.5px;color:var(--muted)}
+.track-not-found{text-align:center;padding:24px;color:var(--muted);font-size:14px;display:none}
+.track-not-found.show{display:block}
+
+/* ── PRICING ── */
+#pricing-section{background:var(--navy)}
+#pricing-section .section-label{color:#93C5FD}
+#pricing-section .section-title{color:#fff}
+#pricing-section .section-sub{color:rgba(255,255,255,.45)}
+#plans-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(260px,100%),1fr));gap:16px}
+.plan-card{background:var(--navy-card);border:1px solid rgba(37,99,235,.2);border-radius:20px;padding:24px;display:flex;flex-direction:column;transition:border-color .2s,transform .2s}
+.plan-card:hover{border-color:rgba(37,99,235,.6);transform:translateY(-3px)}
+.plan-card.featured{border-color:#2563EB;background:linear-gradient(145deg,#0F2040,#102B5A);position:relative}
+.plan-card.featured::before{content:'מומלץ';position:absolute;top:-1px;right:20px;background:var(--blue);color:#fff;font-size:11px;font-weight:700;padding:3px 10px;border-radius:0 0 8px 8px;letter-spacing:.04em}
+.plan-icon{width:40px;height:40px;border-radius:12px;background:rgba(37,99,235,.2);display:flex;align-items:center;justify-content:center;margin-bottom:16px;font-size:20px}
+.plan-name{font-family:'Rubik',sans-serif;font-size:17px;font-weight:700;color:#fff;margin:0 0 6px;letter-spacing:-.02em}
+.plan-desc{font-size:13px;color:rgba(255,255,255,.45);line-height:1.55;margin:0 0 18px;flex:1}
+.plan-price{font-family:'Rubik',sans-serif;font-size:28px;font-weight:800;color:#fff;letter-spacing:-.04em;margin:0;font-variant-numeric:tabular-nums}
+.plan-price small{font-size:13px;font-weight:400;color:rgba(255,255,255,.4);letter-spacing:0}
+.plan-cta{margin-top:18px;width:100%;padding:11px;border-radius:11px;font-size:13.5px;font-weight:600;cursor:pointer;transition:.15s;border:none}
+.plan-cta-default{background:rgba(37,99,235,.2);color:#93C5FD}
+.plan-cta-default:hover{background:rgba(37,99,235,.35)}
+.plan-cta-featured{background:var(--blue);color:#fff}
+.plan-cta-featured:hover{background:var(--blue-light)}
+#plans-loading{text-align:center;padding:40px;color:rgba(255,255,255,.35);font-size:14px}
+
+/* ── COVERAGE ── */
+#coverage-section{background:var(--bg)}
+.coverage-area-grid{display:flex;flex-wrap:wrap;gap:10px;margin-top:28px}
+.area-badge{display:inline-flex;align-items:center;gap:7px;padding:9px 16px;border:1.5px solid var(--border);border-radius:99px;background:var(--card);font-size:13.5px;font-weight:500;color:var(--text)}
+.area-badge .dot{width:8px;height:8px;border-radius:50%;background:var(--blue);flex:none}
+.area-badge.express .dot{background:#16A34A}
+.coverage-note{margin-top:20px;font-size:13px;color:var(--muted);line-height:1.6}
+
+/* ── CONTACT ── */
+#contact-section{background:var(--navy)}
+#contact-inner{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(220px,100%),1fr));gap:20px}
+.contact-card{background:rgba(255,255,255,.04);border:1px solid rgba(37,99,235,.18);border-radius:16px;padding:22px}
+.contact-card-icon{width:36px;height:36px;border-radius:10px;background:rgba(37,99,235,.2);display:flex;align-items:center;justify-content:center;font-size:18px;margin-bottom:14px}
+.contact-card-label{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,.35);font-weight:600;margin-bottom:4px}
+.contact-card-value{font-family:'Rubik',sans-serif;font-size:16px;font-weight:700;color:#fff;margin-bottom:2px}
+.contact-card-note{font-size:12px;color:rgba(255,255,255,.38)}
+.whatsapp-btn{display:inline-flex;align-items:center;gap:8px;margin-top:14px;padding:10px 18px;border-radius:10px;background:#25D366;color:#fff;font-size:13.5px;font-weight:600;border:none;cursor:pointer;transition:.15s}
+.whatsapp-btn:hover{background:#1ebe5d}
+
+/* ── FOOTER ── */
+#footer{background:var(--navy-mid);border-top:1px solid rgba(37,99,235,.12);padding:24px 20px;text-align:center}
+#footer-inner{max-width:1200px;margin:0 auto}
+#footer-inner p{margin:0;font-size:12.5px;color:rgba(255,255,255,.25)}
+
+/* Spinner */
+.spinner{width:18px;height:18px;border:2.5px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;flex:none}
+</style>
+</head>
+<body>
+
+<!-- ===== STICKY HEADER ===== -->
+<header id="main-header">
+  <div id="header-inner">
+    <div id="header-logo">
+      <img id="header-logo-img" src="" alt="" style="display:none">
+      <span id="header-logo-text">📦</span>
+    </div>
+    <span id="header-name">שליחויות</span>
+    <span id="header-tagline">מהיר · אמין · עד הדלת</span>
+    <button id="header-auth-btn" onclick="scAuth&&scAuth.openModal()">כניסה</button>
+    <button id="header-cta" onclick="document.getElementById('form-panel').scrollIntoView({behavior:'smooth'})">שליחות חדשה ↓</button>
+  </div>
+</header>
+
+<!-- ===== HERO ===== -->
+<section id="hero">
+  <div id="hero-glow1"></div>
+  <div id="hero-glow2"></div>
+  <div id="hero-inner">
+    <div id="hero-text">
+      <div id="hero-badge"><span id="hero-badge-dot"></span><span id="hero-badge-text">פעיל עכשיו · זמין למשלוחים</span></div>
+      <h1>משלוחים <em>מהירים</em><br>ואמינים<br>לכל הארץ</h1>
+      <p id="hero-sub">שירות שליחויות מקצועי עם מעקב בזמן אמת — מהאיסוף ועד ההגעה, אנחנו שם בשבילך.</p>
+      <div id="hero-actions">
+        <button class="btn-primary" onclick="document.getElementById('form-panel').scrollIntoView({behavior:'smooth'})">🚀 הזמן שליחות עכשיו</button>
+        <button class="btn-ghost" onclick="document.getElementById('track-panel').scrollIntoView({behavior:'smooth'})">📍 מעקב משלוח</button>
+      </div>
+      <div id="hero-stats">
+        <div class="hstat"><span class="hstat-val" id="stat-daily">—</span><span class="hstat-lbl">משלוחים יומיים</span></div>
+        <div class="hstat"><span class="hstat-val" id="stat-cities">—</span><span class="hstat-lbl">ערים ויישובים</span></div>
+        <div class="hstat"><span class="hstat-val" id="stat-time">—</span><span class="hstat-lbl">זמן ממוצע</span></div>
+      </div>
+    </div>
+
+    <!-- Route map SVG -->
+    <div id="hero-map">
+      <div id="route-canvas">
+        <svg id="route-svg" viewBox="0 0 320 240" xmlns="http://www.w3.org/2000/svg">
+          <!-- Background grid -->
+          <defs>
+            <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse">
+              <path d="M32 0L0 0 0 32" fill="none" stroke="rgba(37,99,235,.06)" stroke-width="1"/>
+            </pattern>
+          </defs>
+          <rect width="320" height="240" fill="url(#grid)" rx="16"/>
+          <!-- Routes -->
+          <path class="route-path" d="M60 180 C80 160 120 140 160 120 C200 100 230 90 260 60"/>
+          <path class="route-path-2" d="M60 180 C90 170 130 180 170 170 C210 160 240 150 270 180"/>
+          <path class="route-path-2" d="M160 120 C150 100 155 80 170 60"/>
+          <!-- Nodes -->
+          <g class="route-node" style="animation-delay:0s">
+            <circle class="node-ring" cx="60" cy="180" r="12"/>
+            <circle class="node-dot" cx="60" cy="180" r="5"/>
+            <text class="node-label" x="75" y="184">תל אביב</text>
+          </g>
+          <g class="route-node" style="animation-delay:.4s">
+            <circle class="node-ring" cx="160" cy="120" r="12"/>
+            <circle class="node-dot" cx="160" cy="120" r="5"/>
+            <text class="node-label" x="175" y="124">חיפה</text>
+          </g>
+          <g class="route-node" style="animation-delay:.8s">
+            <circle class="node-ring" cx="260" cy="60" r="12"/>
+            <circle class="node-dot" cx="260" cy="60" r="5"/>
+            <text class="node-label" x="200" y="50">ירושלים</text>
+          </g>
+          <g class="route-node" style="animation-delay:1.2s">
+            <circle class="node-ring" cx="270" cy="180" r="12"/>
+            <circle class="node-dot" cx="270" cy="180" r="5"/>
+            <text class="node-label" x="220" y="200">באר שבע</text>
+          </g>
+          <g class="route-node" style="animation-delay:1.6s">
+            <circle class="node-ring" cx="170" cy="60" r="12"/>
+            <circle class="node-dot" cx="170" cy="60" r="5"/>
+            <text class="node-label" x="130" y="50">נצרת</text>
+          </g>
+          <!-- Moving truck indicator -->
+          <circle cx="160" cy="120" r="3" fill="#60A5FA" opacity="0.9">
+            <animateMotion dur="6s" repeatCount="indefinite" rotate="auto">
+              <mpath href="#truck-path"/>
+            </animateMotion>
+          </circle>
+          <path id="truck-path" d="M60 180 C80 160 120 140 160 120 C200 100 230 90 260 60" fill="none"/>
+        </svg>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== FORM + TRACK ===== -->
+<section class="section" id="action-section">
+  <div class="section-inner">
+    <div class="section-label">שירותים</div>
+    <h2 class="section-title">הזמנה ומעקב</h2>
+    <p class="section-sub">מלאו את הטופס לבקשת שליחות, או הזינו מספר מעקב כדי לראות את סטטוס המשלוח שלכם.</p>
+
+    <div id="action-grid">
+
+      <!-- Shipment Form -->
+      <div class="panel" id="form-panel">
+        <h3 class="panel-title">
+          <div class="icon">📦</div>
+          בקשת שליחות חדשה
+        </h3>
+        <p class="panel-sub">מלאו את הפרטים ונחזור אליכם לאישור ותמחור.</p>
+
+        <form id="shipment-form" onsubmit="submitShipment(event)">
+          <div class="field-row">
+            <div class="field">
+              <label class="field-label">שם השולח <span>*</span></label>
+              <input type="text" id="f-name" placeholder="ישראל ישראלי" required>
+            </div>
+            <div class="field">
+              <label class="field-label">טלפון <span>*</span></label>
+              <input type="tel" id="f-phone" placeholder="050-0000000" required>
+            </div>
+          </div>
+          <div class="field">
+            <label class="field-label">כתובת איסוף <span>*</span></label>
+            <input type="text" id="f-pickup" placeholder="רחוב, מספר, עיר" required>
+          </div>
+          <div class="field">
+            <label class="field-label">כתובת מסירה <span>*</span></label>
+            <input type="text" id="f-delivery" placeholder="רחוב, מספר, עיר" required>
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label class="field-label">תיאור החבילה</label>
+              <input type="text" id="f-desc" placeholder="מסמכים, ציוד, מזון...">
+            </div>
+            <div class="field">
+              <label class="field-label">משקל משוער</label>
+              <select id="f-weight">
+                <option value="">בחרו משקל</option>
+                <option value="under1">עד 1 ק"ג</option>
+                <option value="1-5">1–5 ק"ג</option>
+                <option value="5-20">5–20 ק"ג</option>
+                <option value="over20">מעל 20 ק"ג</option>
+              </select>
+            </div>
+          </div>
+          <div class="field">
+            <label class="toggle-row" id="urgent-row">
+              <div class="toggle-info">
+                <strong>⚡ שליחות דחופה</strong>
+                <small>תוך 2 שעות · תוספת תשלום</small>
+              </div>
+              <button type="button" class="toggle-switch" id="urgent-toggle" onclick="toggleUrgent()"></button>
+            </label>
+          </div>
+          <button type="submit" class="submit-btn" id="form-submit-btn">
+            <span id="form-btn-text">שלח בקשת שליחות</span>
+          </button>
+          <p class="form-note">ניצור קשר תוך שעה לאישור ותמחור</p>
+          <div class="msg" id="form-success">✅ הבקשה התקבלה! ניצור אתכם קשר בקרוב.</div>
+          <div class="msg" id="form-error">❌ שגיאה בשליחה. אנא נסו שוב.</div>
+        </form>
+      </div>
+
+      <!-- Track Panel -->
+      <div class="panel" id="track-panel">
+        <h3 class="panel-title">
+          <div class="icon">📍</div>
+          מעקב משלוח
+        </h3>
+        <p class="panel-sub">הזינו את מספר המעקב שקיבלתם בעת ההזמנה.</p>
+
+        <div class="track-input-row">
+          <input type="text" id="track-input" placeholder="לדוגמה: FF-2024-00842" onkeydown="if(event.key==='Enter')trackShipment()">
+          <button class="track-btn" onclick="trackShipment()">חפש</button>
+        </div>
+
+        <div id="track-result">
+          <!-- Results rendered here by JS -->
+        </div>
+
+        <!-- Example info -->
+        <div style="margin-top:28px;padding:16px;background:var(--ice);border-radius:12px;border:1px solid var(--border)">
+          <p style="margin:0 0 6px;font-size:12.5px;font-weight:600;color:var(--slate)">מה כולל המעקב?</p>
+          <ul style="margin:0;padding-right:18px;font-size:13px;color:var(--muted);line-height:1.9">
+            <li>סטטוס איסוף ומסירה</li>
+            <li>מיקום נוכחי של הרץ</li>
+            <li>זמן הגעה משוער</li>
+            <li>אישור חתימה דיגיטלי</li>
+          </ul>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ===== PRICING ===== -->
+<section class="section" id="pricing-section">
+  <div class="section-inner">
+    <div class="section-label">מחירים</div>
+    <h2 class="section-title">תוכניות שירות</h2>
+    <p class="section-sub">בחרו את חבילת השירות המתאימה לצרכים שלכם — ממשלוח חד פעמי ועד שותפות עסקית.</p>
+    <div id="plans-grid">
+      <p id="plans-loading">טוען תוכניות...</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== COVERAGE ===== -->
+<section class="section" id="coverage-section">
+  <div class="section-inner">
+    <div class="section-label">אזורי כיסוי</div>
+    <h2 class="section-title">אנחנו מגיעים לכל מקום</h2>
+    <p class="section-sub">פעילים בכל רחבי הארץ עם דגש על איזורי הביקוש. משלוחים בין-עירוניים ופנים-עירוניים.</p>
+
+    <div class="coverage-area-grid" id="coverage-areas">
+      <!-- Populated by JS or fallback below -->
+    </div>
+
+    <p class="coverage-note" id="coverage-note">
+      ✅ <strong>משלוח אקספרס</strong> — זמין בתל אביב, חיפה, ירושלים, רמת גן, פתח תקווה, ראשון לציון, אשדוד.<br>
+      🚚 <strong>משלוח רגיל</strong> — עד 24 שעות לכל ערי הארץ כולל יישובים מרוחקים.
+    </p>
+  </div>
+</section>
+
+<!-- ===== CONTACT ===== -->
+<section class="section" id="contact-section">
+  <div class="section-inner">
+    <div class="section-label" style="color:#93C5FD">יצירת קשר</div>
+    <h2 class="section-title" style="color:#fff;margin-bottom:28px">דברו איתנו ישירות</h2>
+    <div id="contact-inner">
+      <div class="contact-card">
+        <div class="contact-card-icon">📞</div>
+        <div class="contact-card-label">טלפון</div>
+        <div class="contact-card-value" id="contact-phone">—</div>
+        <div class="contact-card-note">זמינים בשעות הפעילות</div>
+      </div>
+      <div class="contact-card">
+        <div class="contact-card-icon">🕐</div>
+        <div class="contact-card-label">שעות פעילות</div>
+        <div class="contact-card-value" id="contact-hours">ב'–ו' 07:00–20:00</div>
+        <div class="contact-card-note" id="contact-hours-note">א' 09:00–14:00</div>
+      </div>
+      <div class="contact-card">
+        <div class="contact-card-icon">📍</div>
+        <div class="contact-card-label">כתובת</div>
+        <div class="contact-card-value" id="contact-address">—</div>
+        <div class="contact-card-note">מרכז לוגיסטי</div>
+      </div>
+      <div class="contact-card">
+        <div class="contact-card-icon">💬</div>
+        <div class="contact-card-label">WhatsApp</div>
+        <div class="contact-card-value">שליחות מהירה</div>
+        <div class="contact-card-note">תגובה תוך דקות</div>
+        <button class="whatsapp-btn" id="whatsapp-btn" onclick="openWhatsApp()">
+          💬 פתח WhatsApp
+        </button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== FOOTER ===== -->
+<footer id="footer">
+  <div id="footer-inner">
+    <p id="footer-text">כל הזכויות שמורות · <span id="footer-name">שליחויות</span> · מופעל על ידי Family Flow</p>
+  </div>
+</footer>
+
+<!-- ===== STOREFRONT CUSTOMER AUTH ===== -->
+<div id="sc-auth-modal" style="display:none;position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,0.55)" onclick="if(event.target===this)scAuth.closeModal()">
+  <div style="position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;background:#fff;border-radius:24px 24px 0 0;max-height:95vh;overflow-y:auto">
+    <div style="padding:20px 20px 0;display:flex;align-items:center;gap:12px">
+      <button onclick="scAuth.closeModal()" style="width:32px;height:32px;border-radius:50%;background:#f1f5f9;border:none;cursor:pointer;font-size:16px;flex-shrink:0">✕</button>
+      <h3 id="sc-modal-title" style="flex:1;text-align:right;font-size:18px;font-weight:700;color:#1e293b;margin:0">כניסה / הרשמה</h3>
+    </div>
+    <div id="sc-modal-body" style="padding:20px 20px 36px"></div>
+  </div>
+</div>
+<div id="sc-pin-overlay" style="display:none;position:fixed;inset:0;z-index:10001;background:rgba(0,0,0,0.6);align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:20px;padding:28px 24px;width:320px;max-width:90vw;text-align:center">
+    <div style="font-size:32px;margin-bottom:8px">🔐</div>
+    <h4 style="font-size:16px;font-weight:700;color:#1e293b;margin:0 0 6px">אישור פעולה</h4>
+    <p style="font-size:13px;color:#64748b;margin:0 0 18px">הזן את ה-PIN שלך לאישור</p>
+    <input id="sc-pin-input" type="password" inputmode="numeric" maxlength="6" placeholder="• • • • • •"
+      style="width:140px;border:2px solid #6366f1;border-radius:12px;padding:12px;font-size:20px;text-align:center;letter-spacing:6px;display:block;margin:0 auto 16px"
+      onkeydown="if(event.key==='Enter')scAuth.confirmPin()"/>
+    <div id="sc-pin-error" style="color:#ef4444;font-size:13px;min-height:18px;margin-bottom:12px"></div>
+    <div style="display:flex;gap:10px;justify-content:center">
+      <button onclick="scAuth._pinReject&&scAuth._pinReject('cancelled');document.getElementById('sc-pin-overlay').style.display='none'"
+        style="padding:10px 20px;border:1.5px solid #e2e8f0;border-radius:12px;background:#fff;font-size:14px;cursor:pointer;color:#64748b">ביטול</button>
+      <button onclick="scAuth.confirmPin()" style="padding:10px 24px;background:#6366f1;color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer">אישור</button>
+    </div>
+    <button onclick="scAuth.openForgotPin()" style="margin-top:14px;background:none;border:none;color:#94a3b8;font-size:12px;cursor:pointer;text-decoration:underline">שכחתי PIN</button>
+  </div>
+</div>
+<div id="sc-activity-panel" style="display:none;position:fixed;inset:0;z-index:9997;background:rgba(0,0,0,0.5)" onclick="if(event.target===this)document.getElementById('sc-activity-panel').style.display='none'">
+  <div style="position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;background:#fff;border-radius:24px 24px 0 0;max-height:90vh;display:flex;flex-direction:column">
+    <div style="padding:18px 18px 12px;display:flex;align-items:center;gap:10px;border-bottom:1px solid #f1f5f9;flex-shrink:0">
+      <button onclick="document.getElementById('sc-activity-panel').style.display='none'" style="width:32px;height:32px;border-radius:50%;background:#f1f5f9;border:none;cursor:pointer">✕</button>
+      <h3 style="flex:1;text-align:right;font-size:17px;font-weight:700;color:#1e293b;margin:0">הפעילות שלי</h3>
+    </div>
+    <div style="background:linear-gradient(135deg,#6366f1,#8b5cf6);padding:12px 16px;display:flex;align-items:center;gap:10px;flex-shrink:0">
+      <div style="flex:1;text-align:right">
+        <div style="font-weight:700;color:#fff;font-size:13px">נהל את כל הפעילות שלך ב-OneFlow Life</div>
+        <div style="font-size:11px;color:#e0e7ff;margin-top:2px">הזמנות, קהילות, הטבות — הכל במקום אחד</div>
+      </div>
+      <button onclick="scAuth.goToOFL()" style="background:#fff;color:#6366f1;border:none;border-radius:10px;padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap">כניסה →</button>
+    </div>
+    <div id="sc-activity-list" style="flex:1;overflow-y:auto;padding:12px 16px"></div>
+  </div>
+</div>
+<script src="/sc-auth.js"></script>
+<!-- ===== END STOREFRONT CUSTOMER AUTH ===== -->
+
+<script>
+'use strict';
+
+// ── State ──
+let _groupId = null;
+let _storeData = null;
+let _urgentOn = false;
+let _whatsappNum = null;
+
+// ── Bootstrap ──
+function getStoreId() {
+  const p = new URLSearchParams(location.search);
+  return p.get('storeId') || p.get('store') || p.get('id');
+}
+
+async function initStore() {
+  const storeId = getStoreId();
+  if (!storeId) { showFallbackContent(); return; }
+  try {
+    const r = await fetch('/api/store/public/' + storeId);
+    if (!r.ok) throw new Error('not found');
+    const d = await r.json();
+    _storeData = d;
+    _groupId = d.groupId || d.group_id || storeId;
+    applyStoreData(d);
+    loadPricingPlans();
+  } catch(e) {
+    showFallbackContent();
+  }
+}
+
+function applyStoreData(d) {
+  const name = d.name || d.businessName || 'שליחויות';
+  document.getElementById('page-title').textContent = name;
+  document.getElementById('header-name').textContent = name;
+  document.getElementById('footer-name').textContent = name;
+
+  if (d.logoUrl || d.logo) {
+    const img = document.getElementById('header-logo-img');
+    img.src = d.logoUrl || d.logo;
+    img.style.display = 'block';
+    document.getElementById('header-logo-text').style.display = 'none';
+  }
+
+  // Stats
+  const stats = d.stats || d.customData || {};
+  if (stats.dailyDeliveries || stats.daily_deliveries) {
+    document.getElementById('stat-daily').textContent = stats.dailyDeliveries || stats.daily_deliveries;
+  } else { document.getElementById('stat-daily').textContent = '200+'; }
+  if (stats.cities) {
+    document.getElementById('stat-cities').textContent = stats.cities;
+  } else { document.getElementById('stat-cities').textContent = '50+'; }
+  if (stats.avgTime || stats.avg_time) {
+    document.getElementById('stat-time').textContent = stats.avgTime || stats.avg_time;
+  } else { document.getElementById('stat-time').textContent = '90 דק׳'; }
+
+  // Hero badge
+  if (d.isOpen === false) {
+    document.getElementById('hero-badge').style.background = 'rgba(220,38,38,.18)';
+    document.getElementById('hero-badge').style.borderColor = 'rgba(220,38,38,.3)';
+    document.getElementById('hero-badge-dot').style.background = '#F87171';
+    document.getElementById('hero-badge-text').textContent = 'סגור כרגע · פתוח מחר';
+  }
+
+  // Contact
+  if (d.phone) { document.getElementById('contact-phone').textContent = d.phone; _whatsappNum = d.phone; }
+  if (d.address || d.location) { document.getElementById('contact-address').textContent = d.address || d.location; }
+  if (d.hours) {
+    document.getElementById('contact-hours').textContent = d.hours;
+    document.getElementById('contact-hours-note').textContent = '';
+  }
+
+  // Coverage areas
+  if (d.coverageAreas || d.coverage_areas) {
+    renderCoverageAreas(d.coverageAreas || d.coverage_areas);
+  } else {
+    renderDefaultCoverage();
+  }
+}
+
+function showFallbackContent() {
+  document.getElementById('stat-daily').textContent = '200+';
+  document.getElementById('stat-cities').textContent = '50+';
+  document.getElementById('stat-time').textContent = '90 דק׳';
+  renderDefaultCoverage();
+  renderDefaultPlans();
+}
+
+// ── Coverage ──
+const DEFAULT_EXPRESS = ['תל אביב','חיפה','ירושלים','רמת גן','פתח תקווה','ראשון לציון','אשדוד','נתניה'];
+const DEFAULT_STANDARD = ['באר שבע','הרצליה','רעננה','כפר סבא','אשקלון','עכו','נצרת','בית שמש','מודיעין'];
+
+function renderCoverageAreas(areas) {
+  const el = document.getElementById('coverage-areas');
+  el.innerHTML = areas.map(a =>
+    `<span class="area-badge${a.express?'  express':''}">
+      <span class="dot"></span>${esc(a.name || a)}
+    </span>`
+  ).join('');
+}
+
+function renderDefaultCoverage() {
+  const el = document.getElementById('coverage-areas');
+  const ex = DEFAULT_EXPRESS.map(n => `<span class="area-badge express"><span class="dot"></span>${n}</span>`).join('');
+  const st = DEFAULT_STANDARD.map(n => `<span class="area-badge"><span class="dot"></span>${n}</span>`).join('');
+  el.innerHTML = ex + st;
+}
+
+// ── Pricing Plans ──
+async function loadPricingPlans() {
+  if (!_groupId) { renderDefaultPlans(); return; }
+  try {
+    const r = await fetch('/api/store/products/' + _groupId);
+    if (!r.ok) throw new Error();
+    const items = await r.json();
+    const plans = Array.isArray(items) ? items : (items.products || items.items || []);
+    if (!plans.length) throw new Error();
+    renderPlans(plans);
+  } catch(e) {
+    renderDefaultPlans();
+  }
+}
+
+function renderPlans(plans) {
+  const grid = document.getElementById('plans-grid');
+  const icons = ['📦','🚀','⚡','🏢'];
+  grid.innerHTML = plans.map((p, i) => {
+    const featured = i === 1;
+    const price = p.price != null
+      ? '₪' + Number(p.price).toLocaleString('he-IL')
+      : (p.priceDisplay || 'לפי בקשה');
+    return `
+    <div class="plan-card${featured ? ' featured' : ''}">
+      <div class="plan-icon">${icons[i % icons.length]}</div>
+      <div class="plan-name">${esc(p.name || p.title || 'תוכנית')}</div>
+      <p class="plan-desc">${esc(p.description || p.desc || 'פנו אלינו לפרטים')}</p>
+      <div class="plan-price">${price}<small>${p.priceUnit || p.unit ? ' / ' + esc(p.priceUnit || p.unit) : ''}</small></div>
+      <button class="plan-cta ${featured ? 'plan-cta-featured' : 'plan-cta-default'}"
+        onclick="document.getElementById('form-panel').scrollIntoView({behavior:'smooth'})">
+        בחר תוכנית זו
+      </button>
+    </div>`;
+  }).join('');
+}
+
+function renderDefaultPlans() {
+  const plans = [
+    {name:'שליחות בודדת', description:'משלוח אחד מנקודה לנקודה בתוך העיר או בין-עירוני.', price:'29', unit:'משלוח'},
+    {name:'חבילה חודשית', description:'עד 30 משלוחים בחודש, כולל עדיפות ומעקב בזמן אמת.', price:'649', unit:'חודש'},
+    {name:'שליחות דחופה', description:'תוך שעתיים לכל יעד באזורי הביקוש. '},
+    {name:'עסקי', description:'פתרונות לוגיסטיים מותאמים אישית לעסקים עם נפח גבוה.', price:null},
+  ];
+  const grid = document.getElementById('plans-grid');
+  document.getElementById('plans-loading').style.display = 'none';
+  renderPlans(plans.map((p,i) => ({...p, priceDisplay: p.price ? '₪'+p.price : 'צרו קשר', priceUnit: p.unit})));
+}
+
+// ── Urgent toggle ──
+function toggleUrgent() {
+  _urgentOn = !_urgentOn;
+  const btn = document.getElementById('urgent-toggle');
+  btn.classList.toggle('on', _urgentOn);
+}
+
+// ── Submit shipment form ──
+async function submitShipment(e) {
+  e.preventDefault();
+  const btn = document.getElementById('form-submit-btn');
+  const txtEl = document.getElementById('form-btn-text');
+  const successEl = document.getElementById('form-success');
+  const errorEl = document.getElementById('form-error');
+
+  successEl.classList.remove('show');
+  errorEl.classList.remove('show');
+  btn.disabled = true;
+  txtEl.innerHTML = '<span class="spinner"></span> שולח...';
+
+  const payload = {
+    type: 'shipment_request',
+    name: document.getElementById('f-name').value.trim(),
+    phone: document.getElementById('f-phone').value.trim(),
+    pickup_address: document.getElementById('f-pickup').value.trim(),
+    delivery_address: document.getElementById('f-delivery').value.trim(),
+    package_description: document.getElementById('f-desc').value.trim(),
+    weight: document.getElementById('f-weight').value,
+    urgent: _urgentOn,
+    source: 'storefront-logistics',
+    timestamp: new Date().toISOString(),
+  };
+
+  const gid = _groupId || 'default';
+  try {
+    const r = await fetch('/api/store/leads/' + gid, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(payload),
+    });
+    if (!r.ok) throw new Error();
+    successEl.classList.add('show');
+    document.getElementById('shipment-form').reset();
+    _urgentOn = false;
+    document.getElementById('urgent-toggle').classList.remove('on');
+  } catch(err) {
+    errorEl.classList.add('show');
+  } finally {
+    btn.disabled = false;
+    txtEl.textContent = 'שלח בקשת שליחות';
+  }
+}
+
+// ── Track shipment ──
+async function trackShipment() {
+  const input = document.getElementById('track-input');
+  const num = input.value.trim();
+  const resultEl = document.getElementById('track-result');
+  if (!num) { input.focus(); return; }
+
+  resultEl.innerHTML = '<p style="text-align:center;color:var(--muted);padding:20px;font-size:13.5px">מחפש...</p>';
+
+  try {
+    const r = await fetch('/api/logistics/track/' + encodeURIComponent(num));
+    if (r.status === 404) { showNotFound(resultEl, num); return; }
+    if (!r.ok) throw new Error();
+    const d = await r.json();
+    renderTrackResult(resultEl, num, d);
+  } catch(e) {
+    showNotFound(resultEl, num);
+  }
+}
+
+function showNotFound(el, num) {
+  el.innerHTML = `
+    <div class="track-not-found show">
+      <div style="font-size:32px;margin-bottom:8px">🔍</div>
+      <div style="font-weight:600;color:var(--text);margin-bottom:4px">לא נמצא</div>
+      <div>מספר המעקב <strong>${esc(num)}</strong> לא נמצא במערכת.</div>
+      <div style="margin-top:6px;font-size:12px">בדקו את המספר ונסו שוב, או צרו קשר.</div>
+    </div>`;
+}
+
+function renderTrackResult(el, num, d) {
+  const statusMap = {
+    transit: {label:'בדרך', cls:'transit'},
+    delivered: {label:'נמסר', cls:'delivered'},
+    pending: {label:'ממתין לאיסוף', cls:'pending'},
+    failed: {label:'כשל במסירה', cls:'failed'},
+    picked_up: {label:'נאסף', cls:'transit'},
+  };
+  const st = statusMap[d.status] || {label: d.status || 'לא ידוע', cls:'pending'};
+  const steps = d.timeline || d.events || [];
+  const stepsHtml = steps.map(s => `
+    <div class="timeline-step">
+      <div class="timeline-dot ${s.done ? (s.active ? 'active' : 'done') : 'pending'}"></div>
+      <div class="timeline-info">
+        <strong>${esc(s.label || s.event || s.status)}</strong>
+        <small>${esc(s.time || s.timestamp || s.date || '')}</small>
+      </div>
+    </div>`).join('');
+
+  el.innerHTML = `
+    <div class="track-status-card show">
+      <div class="track-id-row">
+        <span class="track-id">${esc(num)}</span>
+        <span class="status-chip ${st.cls}">${st.label}</span>
+      </div>
+      ${d.destination ? `<div style="font-size:13px;color:var(--muted);margin-bottom:14px">יעד: ${esc(d.destination)}</div>` : ''}
+      ${d.eta ? `<div style="font-size:13px;font-weight:600;color:var(--blue);margin-bottom:14px">הגעה משוערת: ${esc(d.eta)}</div>` : ''}
+      ${stepsHtml ? `<div class="track-timeline">${stepsHtml}</div>` : ''}
+    </div>`;
+}
+
+// ── WhatsApp ──
+function openWhatsApp() {
+  const num = (_whatsappNum || '').replace(/\D/g,'');
+  const link = num
+    ? `https://wa.me/972${num.replace(/^0/,'')}`
+    : 'https://wa.me/';
+  window.open(link, '_blank');
+}
+
+// ── Utilities ──
+function esc(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+initStore();
+</script>
+</body>
+</html>

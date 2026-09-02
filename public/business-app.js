@@ -12488,6 +12488,10 @@ window.previewTemplate = function(tid, e) {
         restaurant: 'storefront-restaurant.html',
         sport: 'storefront-sport.html',
         market: 'storefront-market.html',
+        professional: 'storefront-professional.html',
+        repairs: 'storefront-repairs.html',
+        maintenance_repair: 'storefront-repairs.html',
+        logistics: 'storefront-logistics.html',
     };
     const file = templateFiles[tid] || 'storefront.html';
     window.open(`${window.location.origin}/${file}?store=${storeCode}`, '_blank');

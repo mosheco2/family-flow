@@ -16861,6 +16861,10 @@ app.get('/:alias', async (req, res, next) => {
             'restaurant': 'storefront-restaurant.html',
             'sport': 'storefront-sport.html',
             'market': 'storefront-market.html',
+            'professional': 'storefront-professional.html',
+            'repairs': 'storefront-repairs.html',
+            'maintenance_repair': 'storefront-repairs.html',
+            'logistics': 'storefront-logistics.html',
         };
         const htmlFile = templateMap[templateId] || 'storefront.html';
         const filePath = path.join(__dirname, 'public', htmlFile);

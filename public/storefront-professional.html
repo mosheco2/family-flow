@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title id="page-title">פרופיל מקצועי</title>
+<link rel="icon" href="/api/public/logo" type="image/png">
+<script>
+(async()=>{try{const r=await fetch('/api/system/public-config');const d=await r.json();if(d.globalAiLogo){document.querySelector("link[rel~='icon']").href=d.globalAiLogo;}}catch(e){}})();
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600;700;800&family=Heebo:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box}
+
+:root{
+  --navy:#0F172A;
+  --navy-mid:#1E293B;
+  --navy-light:#334155;
+  --gold:#D4A843;
+  --gold-dim:#B8902F;
+  --gold-pale:#F5E9C4;
+  --bg:#F9F8F5;
+  --bg-alt:#F0EEE8;
+  --surface:#fff;
+  --border:#E2DFD6;
+  --text:#0F172A;
+  --text-mid:#334155;
+  --text-muted:#64748B;
+  --text-faint:#94A3B8;
+  --radius:14px;
+  --radius-sm:8px;
+  --shadow:0 2px 12px rgba(15,23,42,.07),0 1px 3px rgba(15,23,42,.06);
+  --shadow-lg:0 8px 32px rgba(15,23,42,.12),0 2px 8px rgba(15,23,42,.08);
+}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0F172A;
+  --bg-alt:#0a1120;
+  --surface:#1E293B;
+  --border:#2D3F55;
+  --text:#F1F5F9;
+  --text-mid:#CBD5E1;
+  --text-muted:#94A3B8;
+  --text-faint:#64748B;
+  --shadow:0 2px 12px rgba(0,0,0,.3),0 1px 3px rgba(0,0,0,.2);
+  --shadow-lg:0 8px 32px rgba(0,0,0,.4),0 2px 8px rgba(0,0,0,.2);
+}}
+:root[data-theme="dark"]{
+  --bg:#0F172A;
+  --bg-alt:#0a1120;
+  --surface:#1E293B;
+  --border:#2D3F55;
+  --text:#F1F5F9;
+  --text-mid:#CBD5E1;
+  --text-muted:#94A3B8;
+  --text-faint:#64748B;
+  --shadow:0 2px 12px rgba(0,0,0,.3),0 1px 3px rgba(0,0,0,.2);
+  --shadow-lg:0 8px 32px rgba(0,0,0,.4),0 2px 8px rgba(0,0,0,.2);
+}
+
+body{margin:0;background:var(--bg);font-family:'Heebo',system-ui,sans-serif;color:var(--text);direction:rtl;-webkit-font-smoothing:antialiased;transition:background .2s}
+a{color:inherit;text-decoration:none}
+input,button,select,textarea{font-family:inherit}
+::placeholder{color:var(--text-faint)}
+::-webkit-scrollbar{height:5px;width:5px}
+::-webkit-scrollbar-thumb{background:rgba(15,23,42,.18);border-radius:99px}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]) ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.18)}}
+@keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+
+/* ===== LOADING ===== */
+#loading-screen{position:fixed;inset:0;z-index:9999;background:var(--navy);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px}
+#loading-screen .ld-logo{width:54px;height:54px;border-radius:16px;background:rgba(212,168,67,.15);border:1.5px solid rgba(212,168,67,.3);display:flex;align-items:center;justify-content:center;font-size:24px}
+#loading-screen .ld-spinner{width:28px;height:28px;border:2.5px solid rgba(212,168,67,.2);border-top-color:var(--gold);border-radius:50%;animation:spin .8s linear infinite}
+#loading-screen .ld-text{font-family:'Rubik',sans-serif;font-size:13px;color:rgba(255,255,255,.45);letter-spacing:.06em}
+
+/* ===== STICKY HEADER ===== */
+#main-header{position:sticky;top:0;z-index:200;background:rgba(15,23,42,.94);backdrop-filter:blur(14px);border-bottom:1px solid rgba(212,168,67,.15)}
+#header-inner{max-width:1100px;margin:0 auto;padding:12px 20px;display:flex;align-items:center;gap:14px}
+#header-logo{width:38px;height:38px;flex:none;border-radius:11px;background:rgba(212,168,67,.12);border:1px solid rgba(212,168,67,.25);display:flex;align-items:center;justify-content:center;font:700 15px/1 'Rubik',sans-serif;color:var(--gold);overflow:hidden}
+#header-logo img{width:100%;height:100%;object-fit:contain;border-radius:11px}
+#header-name{font-family:'Rubik',sans-serif;font-size:15.5px;font-weight:700;color:#fff;letter-spacing:-.015em;flex:1}
+#header-tagline{font-size:12px;color:rgba(255,255,255,.45);display:none}
+@media(min-width:600px){#header-tagline{display:block}}
+.hdr-cta{padding:9px 18px;border-radius:99px;background:var(--gold);color:var(--navy);font-size:13px;font-weight:700;border:none;cursor:pointer;transition:.15s;white-space:nowrap;font-family:'Rubik',sans-serif}
+.hdr-cta:hover{background:#E5BB55}
+.hdr-ghost{padding:9px 16px;border-radius:99px;background:transparent;color:rgba(255,255,255,.8);font-size:13px;font-weight:500;border:1px solid rgba(255,255,255,.2);cursor:pointer;transition:.15s;white-space:nowrap}
+.hdr-ghost:hover{background:rgba(255,255,255,.08)}
+
+/* ===== HERO ===== */
+#hero{background:var(--navy);position:relative;overflow:hidden;padding:clamp(48px,7vw,90px) 20px clamp(40px,6vw,76px)}
+#hero::before{content:'';position:absolute;top:-40%;left:-15%;width:60%;height:90%;background:radial-gradient(ellipse,rgba(212,168,67,.12) 0%,transparent 70%);pointer-events:none}
+#hero::after{content:'';position:absolute;bottom:-20%;right:-10%;width:45%;height:60%;background:radial-gradient(ellipse,rgba(212,168,67,.07) 0%,transparent 70%);pointer-events:none}
+#hero-inner{position:relative;max-width:1100px;margin:0 auto;display:grid;grid-template-columns:1fr auto;gap:clamp(28px,4vw,56px);align-items:center}
+@media(max-width:700px){#hero-inner{grid-template-columns:1fr}}
+#hero-text{animation:rise .5s ease both}
+.hero-eyebrow{display:inline-flex;align-items:center;gap:8px;padding:5px 13px;border-radius:99px;background:rgba(212,168,67,.1);border:1px solid rgba(212,168,67,.25);font-size:12px;font-weight:600;color:var(--gold);letter-spacing:.05em;margin-bottom:20px;font-family:'Rubik',sans-serif}
+.hero-eyebrow-dot{width:6px;height:6px;border-radius:50%;background:var(--gold);flex:none}
+#hero-name{font-family:'Rubik',sans-serif;font-size:clamp(36px,7vw,72px);font-weight:800;color:#fff;letter-spacing:-.04em;line-height:.95;margin:0 0 6px;text-wrap:balance}
+.hero-gold-rule{width:56px;height:3px;background:var(--gold);border-radius:2px;margin-bottom:18px}
+#hero-tagline{font-size:clamp(15px,1.8vw,18px);color:rgba(255,255,255,.6);font-weight:300;line-height:1.6;margin:0 0 28px;max-width:42ch}
+#hero-badges{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:32px}
+.badge{display:inline-flex;align-items:center;gap:6px;padding:6px 13px;border-radius:6px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:rgba(255,255,255,.8);font-size:12.5px;font-weight:500}
+.badge-icon{font-size:13px;opacity:.9}
+#hero-ctas{display:flex;flex-wrap:wrap;gap:10px}
+.cta-primary{padding:13px 26px;border:none;border-radius:99px;background:var(--gold);color:var(--navy);font-size:14.5px;font-weight:700;cursor:pointer;transition:.15s;font-family:'Rubik',sans-serif}
+.cta-primary:hover{background:#E5BB55;transform:translateY(-1px)}
+.cta-secondary{padding:12px 22px;border:1.5px solid rgba(255,255,255,.22);border-radius:99px;background:transparent;color:#fff;font-size:14.5px;font-weight:500;cursor:pointer;transition:.15s}
+.cta-secondary:hover{background:rgba(255,255,255,.08)}
+#hero-card{background:rgba(255,255,255,.05);border:1px solid rgba(212,168,67,.2);border-radius:20px;padding:28px 24px;min-width:200px;display:flex;flex-direction:column;gap:22px;animation:rise .5s .1s ease both}
+@media(max-width:700px){#hero-card{display:none}}
+.hstat{display:flex;flex-direction:column;gap:4px}
+.hstat-val{font-family:'Rubik',sans-serif;font-size:28px;font-weight:800;color:var(--gold);letter-spacing:-.04em;line-height:1}
+.hstat-lbl{font-size:11.5px;color:rgba(255,255,255,.45);font-weight:400;letter-spacing:.02em}
+.hstat-divider{height:1px;background:rgba(212,168,67,.15)}
+
+/* ===== SECTION WRAPPER ===== */
+.sec{padding:clamp(40px,5vw,70px) 20px}
+.sec-inner{max-width:1100px;margin:0 auto}
+.sec-head{margin-bottom:clamp(24px,3vw,40px)}
+.sec-eyebrow{font-size:11px;font-weight:700;letter-spacing:.12em;color:var(--gold);text-transform:uppercase;margin-bottom:10px;font-family:'Rubik',sans-serif}
+.sec-title{font-family:'Rubik',sans-serif;font-size:clamp(22px,3.5vw,34px);font-weight:800;color:var(--text);letter-spacing:-.03em;margin:0;text-wrap:balance;line-height:1.15}
+.sec-sub{margin:10px 0 0;font-size:clamp(14px,1.5vw,16px);color:var(--text-muted);font-weight:400;line-height:1.6;max-width:50ch}
+
+/* ===== ABOUT ===== */
+#about-sec{background:var(--bg)}
+.about-grid{display:grid;grid-template-columns:1fr 2fr;gap:clamp(28px,4vw,56px);align-items:start}
+@media(max-width:700px){.about-grid{grid-template-columns:1fr}}
+.about-photo{aspect-ratio:3/4;border-radius:18px;background:linear-gradient(160deg,var(--navy-mid),var(--navy));border:1px solid var(--border);overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:60px;color:rgba(212,168,67,.3);position:relative}
+.about-photo img{width:100%;height:100%;object-fit:cover;border-radius:17px}
+.about-content{display:flex;flex-direction:column;gap:22px}
+.about-bio{font-size:clamp(15px,1.6vw,17px);line-height:1.75;color:var(--text-mid);font-weight:400}
+.about-highlights{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px}
+.ahigh{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:16px;box-shadow:var(--shadow)}
+.ahigh-num{font-family:'Rubik',sans-serif;font-size:22px;font-weight:800;color:var(--navy);letter-spacing:-.03em}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]) .ahigh-num{color:var(--gold)}}
+:root[data-theme="dark"] .ahigh-num{color:var(--gold)}
+.ahigh-lbl{font-size:12px;color:var(--text-muted);margin-top:3px}
+
+/* ===== SERVICES ===== */
+#services-sec{background:var(--bg-alt)}
+.services-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(300px,100%),1fr));gap:16px}
+.service-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px 22px;box-shadow:var(--shadow);transition:.2s;display:flex;flex-direction:column;gap:10px;position:relative;overflow:hidden}
+.service-card::before{content:'';position:absolute;top:0;right:0;width:3px;height:100%;background:var(--gold);opacity:0;transition:.2s}
+.service-card:hover{box-shadow:var(--shadow-lg);transform:translateY(-2px)}
+.service-card:hover::before{opacity:1}
+.service-icon{font-size:26px;margin-bottom:4px}
+.service-name{font-family:'Rubik',sans-serif;font-size:17px;font-weight:700;color:var(--text);letter-spacing:-.02em;line-height:1.25}
+.service-desc{font-size:14px;color:var(--text-muted);line-height:1.65;flex:1}
+.service-price{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:6px;background:var(--gold-pale);color:#7A5C0A;font-size:13px;font-weight:600;font-family:'Rubik',sans-serif;align-self:flex-start;margin-top:4px}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]) .service-price{background:rgba(212,168,67,.15);color:var(--gold)}}
+:root[data-theme="dark"] .service-price{background:rgba(212,168,67,.15);color:var(--gold)}
+
+/* ===== ARTICLES ===== */
+#articles-sec{background:var(--bg);display:none}
+.articles-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(280px,100%),1fr));gap:16px}
+.article-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:22px;box-shadow:var(--shadow);transition:.2s;cursor:pointer}
+.article-card:hover{box-shadow:var(--shadow-lg);transform:translateY(-2px)}
+.article-date{font-size:11.5px;color:var(--text-faint);margin-bottom:8px;letter-spacing:.02em}
+.article-title{font-family:'Rubik',sans-serif;font-size:16px;font-weight:700;color:var(--text);line-height:1.35;margin-bottom:10px}
+.article-excerpt{font-size:13.5px;color:var(--text-muted);line-height:1.6}
+.article-tag{display:inline-block;margin-top:12px;padding:3px 10px;border-radius:4px;background:rgba(212,168,67,.1);color:var(--gold-dim);font-size:11.5px;font-weight:600;font-family:'Rubik',sans-serif}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]) .article-tag{color:var(--gold)}}
+:root[data-theme="dark"] .article-tag{color:var(--gold)}
+
+/* ===== FORMS ZONE ===== */
+#forms-zone{background:var(--navy);padding:clamp(40px,5vw,70px) 20px}
+#forms-zone .sec-eyebrow{color:var(--gold)}
+#forms-zone .sec-title{color:#fff}
+#forms-zone .sec-sub{color:rgba(255,255,255,.5)}
+.forms-grid{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+@media(max-width:800px){.forms-grid{grid-template-columns:1fr}}
+.form-panel{background:rgba(255,255,255,.05);border:1px solid rgba(212,168,67,.18);border-radius:var(--radius);padding:28px 24px}
+.form-panel-title{font-family:'Rubik',sans-serif;font-size:17px;font-weight:700;color:#fff;margin:0 0 6px;letter-spacing:-.02em}
+.form-panel-sub{font-size:13px;color:rgba(255,255,255,.45);margin:0 0 22px;line-height:1.55}
+.form-row{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
+.form-row label{font-size:12.5px;font-weight:600;color:rgba(255,255,255,.65);letter-spacing:.03em}
+.form-input{width:100%;padding:11px 14px;border:1.5px solid rgba(255,255,255,.12);border-radius:var(--radius-sm);background:rgba(255,255,255,.07);color:#fff;font-size:14px;outline:none;transition:.15s;font-family:'Heebo',sans-serif}
+.form-input::placeholder{color:rgba(255,255,255,.25)}
+.form-input:focus{border-color:var(--gold);background:rgba(255,255,255,.1)}
+.form-input.textarea{resize:vertical;min-height:96px}
+.form-submit{width:100%;margin-top:6px;padding:13px;border:none;border-radius:var(--radius-sm);background:var(--gold);color:var(--navy);font-size:14.5px;font-weight:700;cursor:pointer;transition:.15s;font-family:'Rubik',sans-serif}
+.form-submit:hover{background:#E5BB55}
+.form-submit:disabled{opacity:.6;cursor:default}
+.form-success{display:none;text-align:center;padding:24px 0;color:#fff}
+.form-success .fs-icon{font-size:36px;margin-bottom:10px}
+.form-success .fs-msg{font-size:15px;font-weight:600;color:var(--gold)}
+.form-success .fs-sub{font-size:13px;color:rgba(255,255,255,.5);margin-top:5px}
+.form-err{font-size:12px;color:#F87171;min-height:16px;margin-top:2px}
+
+/* ===== REVIEWS ===== */
+#reviews-sec{background:var(--bg-alt);display:none}
+.reviews-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(270px,100%),1fr));gap:16px}
+.review-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:22px;box-shadow:var(--shadow)}
+.review-stars{color:var(--gold);font-size:15px;letter-spacing:2px;margin-bottom:10px}
+.review-text{font-size:14px;color:var(--text-mid);line-height:1.65;margin-bottom:14px}
+.review-author{display:flex;align-items:center;gap:10px}
+.review-avatar{width:34px;height:34px;border-radius:50%;background:var(--bg-alt);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:var(--text-muted);font-family:'Rubik',sans-serif;flex:none}
+.review-name{font-size:13px;font-weight:600;color:var(--text)}
+.review-date{font-size:11.5px;color:var(--text-faint);margin-top:1px}
+
+/* ===== FOOTER ===== */
+#site-footer{background:var(--navy);padding:clamp(28px,4vw,48px) 20px;text-align:center}
+#site-footer .foot-name{font-family:'Rubik',sans-serif;font-size:18px;font-weight:700;color:var(--gold);margin-bottom:6px;letter-spacing:-.02em}
+#site-footer .foot-sub{font-size:13px;color:rgba(255,255,255,.35)}
+#site-footer .foot-links{display:flex;justify-content:center;gap:24px;margin-top:20px;flex-wrap:wrap}
+#site-footer .foot-link{font-size:13px;color:rgba(255,255,255,.45);cursor:pointer;transition:.15s}
+#site-footer .foot-link:hover{color:var(--gold)}
+.foot-divider{height:1px;background:rgba(212,168,67,.1);max-width:1100px;margin:20px auto}
+.foot-copy{font-size:11.5px;color:rgba(255,255,255,.2);margin-top:16px;letter-spacing:.03em}
+
+/* ===== TOAST ===== */
+#toast{display:none;position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:8000;background:var(--navy);color:#fff;font-size:14px;font-weight:500;padding:12px 22px;border-radius:99px;box-shadow:var(--shadow-lg);border:1px solid rgba(212,168,67,.25);white-space:nowrap}
+
+/* ===== EMPTY / LOADING STATES ===== */
+.skeleton{background:linear-gradient(90deg,var(--bg-alt) 25%,var(--border) 50%,var(--bg-alt) 75%);background-size:200% 100%;animation:shimmer 1.4s infinite}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+.empty-state{text-align:center;padding:40px 20px;color:var(--text-muted)}
+.empty-state .es-icon{font-size:40px;margin-bottom:12px;opacity:.4}
+.empty-state p{font-size:14px;line-height:1.6;margin:0}
+
+/* ===== UTILITY ===== */
+.hidden{display:none!important}
+</style>
+</head>
+<body>
+
+<!-- LOADING -->
+<div id="loading-screen">
+  <div class="ld-logo">⚖️</div>
+  <div class="ld-spinner"></div>
+  <div class="ld-text">טוען פרופיל...</div>
+</div>
+
+<!-- STICKY HEADER -->
+<header id="main-header">
+  <div id="header-inner">
+    <div id="header-logo">
+      <img id="header-logo-img" src="" alt="" style="display:none">
+      <span id="header-logo-letter">P</span>
+    </div>
+    <span id="header-name">פרופיל מקצועי</span>
+    <span id="header-tagline">שירותים מקצועיים</span>
+    <button class="hdr-ghost" onclick="scrollToSection('contact-form')">יצירת קשר</button>
+    <button class="hdr-cta" onclick="scrollToSection('booking-form')">קביעת פגישה</button>
+  </div>
+</header>
+
+<!-- HERO -->
+<section id="hero">
+  <div id="hero-inner">
+    <div id="hero-text">
+      <div class="hero-eyebrow">
+        <span class="hero-eyebrow-dot"></span>
+        <span id="hero-type-label">שירותים מקצועיים</span>
+      </div>
+      <h1 id="hero-name">שם העסק</h1>
+      <div class="hero-gold-rule"></div>
+      <p id="hero-tagline">תיאור קצר של העסק ותחומי המומחיות שלנו</p>
+      <div id="hero-badges"></div>
+      <div id="hero-ctas">
+        <button class="cta-primary" onclick="scrollToSection('booking-form')">קביעת פגישה ←</button>
+        <button class="cta-secondary" onclick="scrollToSection('services-sec')">השירותים שלנו</button>
+      </div>
+    </div>
+    <div id="hero-card">
+      <div class="hstat">
+        <div class="hstat-val" id="stat-experience">—</div>
+        <div class="hstat-lbl">שנות ניסיון</div>
+      </div>
+      <div class="hstat-divider"></div>
+      <div class="hstat">
+        <div class="hstat-val" id="stat-clients">—</div>
+        <div class="hstat-lbl">לקוחות מרוצים</div>
+      </div>
+      <div class="hstat-divider"></div>
+      <div class="hstat">
+        <div class="hstat-val" id="stat-rating">—</div>
+        <div class="hstat-lbl">דירוג ממוצע</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ABOUT -->
+<section id="about-sec" class="sec">
+  <div class="sec-inner">
+    <div class="about-grid">
+      <div id="about-photo" class="about-photo">
+        <img id="about-photo-img" src="" alt="" style="display:none">
+        <span id="about-photo-emoji">🏢</span>
+      </div>
+      <div class="about-content">
+        <div class="sec-head" style="margin-bottom:14px">
+          <div class="sec-eyebrow">אודות</div>
+          <h2 class="sec-title" id="about-title">אודות העסק</h2>
+        </div>
+        <p class="about-bio" id="about-bio">מידע על העסק יטען כאן.</p>
+        <div class="about-highlights" id="about-highlights"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SERVICES -->
+<section id="services-sec" class="sec">
+  <div class="sec-inner">
+    <div class="sec-head">
+      <div class="sec-eyebrow">מה אנחנו מציעים</div>
+      <h2 class="sec-title">תחומי השירות</h2>
+      <p class="sec-sub">בחרו את השירות המתאים לצרכים שלכם</p>
+    </div>
+    <div class="services-grid" id="services-grid">
+      <div class="empty-state"><div class="es-icon">📋</div><p>טוען שירותים...</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ARTICLES -->
+<section id="articles-sec" class="sec">
+  <div class="sec-inner">
+    <div class="sec-head">
+      <div class="sec-eyebrow">ידע מקצועי</div>
+      <h2 class="sec-title">מאמרים ועדכונים</h2>
+      <p class="sec-sub">תוכן מקצועי עדכני מהמשרד שלנו</p>
+    </div>
+    <div class="articles-grid" id="articles-grid"></div>
+  </div>
+</section>
+
+<!-- FORMS ZONE -->
+<section id="forms-zone">
+  <div class="sec-inner">
+    <div class="sec-head">
+      <div class="sec-eyebrow">בואו נדבר</div>
+      <h2 class="sec-title">נשמח לשמוע מכם</h2>
+      <p class="sec-sub">קבעו פגישת היכרות ללא עלות, או שלחו לנו הודעה</p>
+    </div>
+    <div class="forms-grid">
+
+      <!-- BOOKING FORM -->
+      <div class="form-panel" id="booking-form">
+        <h3 class="form-panel-title">📅 קביעת פגישה</h3>
+        <p class="form-panel-sub">פגישת ייעוץ ראשונית ללא עלות — 30 דקות</p>
+        <div id="booking-success" class="form-success">
+          <div class="fs-icon">✅</div>
+          <div class="fs-msg">הפגישה נקבעה בהצלחה!</div>
+          <div class="fs-sub">ניצור קשר לאישור המועד בהקדם</div>
+        </div>
+        <form id="booking-form-el" onsubmit="submitBooking(event)">
+          <div class="form-row">
+            <label>שם מלא *</label>
+            <input class="form-input" id="book-name" type="text" placeholder="ישראל ישראלי" required>
+          </div>
+          <div class="form-row">
+            <label>טלפון *</label>
+            <input class="form-input" id="book-phone" type="tel" placeholder="050-000-0000" required>
+          </div>
+          <div class="form-row">
+            <label>נושא הפגישה</label>
+            <input class="form-input" id="book-subject" type="text" placeholder="לדוגמה: ייעוץ משפטי, תכנון מס...">
+          </div>
+          <div class="form-row">
+            <label>מועד מועדף</label>
+            <input class="form-input" id="book-time" type="text" placeholder="יום ושעה מועדפים">
+          </div>
+          <div class="form-err" id="book-err"></div>
+          <button class="form-submit" type="submit" id="book-btn">קביעת פגישה ←</button>
+        </form>
+      </div>
+
+      <!-- CONTACT / LEAD FORM -->
+      <div class="form-panel" id="contact-form">
+        <h3 class="form-panel-title">✉️ שלחו לנו הודעה</h3>
+        <p class="form-panel-sub">נשוב אליכם תוך יום עסקים אחד</p>
+        <div id="contact-success" class="form-success">
+          <div class="fs-icon">📬</div>
+          <div class="fs-msg">ההודעה נשלחה!</div>
+          <div class="fs-sub">נחזור אליכם בהקדם האפשרי</div>
+        </div>
+        <form id="contact-form-el" onsubmit="submitContact(event)">
+          <div class="form-row">
+            <label>שם מלא *</label>
+            <input class="form-input" id="cont-name" type="text" placeholder="ישראל ישראלי" required>
+          </div>
+          <div class="form-row">
+            <label>טלפון *</label>
+            <input class="form-input" id="cont-phone" type="tel" placeholder="050-000-0000" required>
+          </div>
+          <div class="form-row">
+            <label>אימייל</label>
+            <input class="form-input" id="cont-email" type="email" placeholder="you@example.com">
+          </div>
+          <div class="form-row">
+            <label>הודעה</label>
+            <textarea class="form-input textarea" id="cont-message" placeholder="ספרו לנו במה נוכל לעזור..."></textarea>
+          </div>
+          <div class="form-err" id="cont-err"></div>
+          <button class="form-submit" type="submit" id="cont-btn">שליחה ←</button>
+        </form>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- REVIEWS -->
+<section id="reviews-sec" class="sec">
+  <div class="sec-inner">
+    <div class="sec-head">
+      <div class="sec-eyebrow">לקוחות אומרים</div>
+      <h2 class="sec-title">חוות דעת</h2>
+    </div>
+    <div class="reviews-grid" id="reviews-grid"></div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer id="site-footer">
+  <div class="foot-divider"></div>
+  <div class="foot-name" id="footer-name">שם העסק</div>
+  <div class="foot-sub" id="footer-sub">שירותים מקצועיים</div>
+  <div class="foot-links">
+    <span class="foot-link" onclick="scrollToSection('about-sec')">אודות</span>
+    <span class="foot-link" onclick="scrollToSection('services-sec')">שירותים</span>
+    <span class="foot-link" onclick="scrollToSection('booking-form')">קביעת פגישה</span>
+    <span class="foot-link" onclick="scrollToSection('contact-form')">יצירת קשר</span>
+  </div>
+  <div class="foot-copy">מופעל על ידי Family Flow · כל הזכויות שמורות</div>
+</footer>
+
+<div id="toast"></div>
+
+<!-- ===== SCRIPT ===== -->
+<script>
+const API = '/api';
+let storeData = null;
+let groupId = null;
+
+// ===== INIT =====
+async function initStore() {
+  const rawPath = window.location.pathname.replace(/^\//, '') || '';
+  const params = new URLSearchParams(window.location.search);
+  const code = (rawPath && !rawPath.endsWith('.html'))
+    ? rawPath
+    : (params.get('store') || params.get('groupId') || 'demo');
+  if (!code) { showError('לא צוין עסק'); return; }
+  try {
+    const r = await fetch(`${API}/storefront/${encodeURIComponent(code)}`);
+    const data = await r.json();
+    if (!data.success) { showError(data.error || 'עסק לא נמצא'); return; }
+    storeData = data;
+    groupId = data.groupId;
+    renderStore(data);
+    loadServices(groupId);
+    loadReviews(groupId);
+    document.getElementById('loading-screen').style.display = 'none';
+  } catch(e) {
+    showError('שגיאה בטעינת הפרופיל');
+    console.error(e);
+  }
+}
+
+function renderStore(data) {
+  const s = data.settings || {};
+  const name = data.groupName || 'פרופיל מקצועי';
+
+  // page title & header
+  document.getElementById('page-title').textContent = name;
+  document.getElementById('header-name').textContent = name;
+  document.getElementById('hero-name').textContent = name;
+  document.getElementById('about-title').textContent = 'אודות ' + name;
+  document.getElementById('footer-name').textContent = name;
+  document.getElementById('footer-sub').textContent = s.tagline || s.description || 'שירותים מקצועיים';
+
+  // logo
+  if (data.logoUrl || s.logo_url) {
+    const img = document.getElementById('header-logo-img');
+    img.src = data.logoUrl || s.logo_url;
+    img.style.display = '';
+    document.getElementById('header-logo-letter').style.display = 'none';
+    const aphoto = document.getElementById('about-photo-img');
+    if (aphoto && !s.owner_photo) {
+      aphoto.src = data.logoUrl || s.logo_url;
+      aphoto.style.display = '';
+      document.getElementById('about-photo-emoji').style.display = 'none';
+    }
+  } else {
+    document.getElementById('header-logo-letter').textContent = name.charAt(0);
+  }
+
+  // owner/about photo
+  if (s.owner_photo || s.about_photo) {
+    const img = document.getElementById('about-photo-img');
+    img.src = s.owner_photo || s.about_photo;
+    img.style.display = '';
+    document.getElementById('about-photo-emoji').style.display = 'none';
+  }
+
+  // tagline & bio
+  if (s.tagline) {
+    document.getElementById('hero-tagline').textContent = s.tagline;
+    document.getElementById('header-tagline').textContent = s.tagline;
+  }
+  if (s.description || s.about || s.bio) {
+    document.getElementById('about-bio').textContent = s.description || s.about || s.bio;
+  }
+
+  // business type label
+  const typeMap = {
+    lawyer:'משרד עורכי דין', accountant:'רואה חשבון', consultant:'ייעוץ עסקי',
+    coach:'אימון אישי', financial:'ייעוץ פיננסי', architect:'אדריכלות',
+    engineer:'הנדסה', medical:'שירותי בריאות', therapy:'פסיכולוגיה וטיפול'
+  };
+  const bizType = s.business_type || data.businessType || '';
+  document.getElementById('hero-type-label').textContent = typeMap[bizType] || 'שירותים מקצועיים';
+  document.getElementById('footer-sub').textContent = typeMap[bizType] || s.tagline || 'שירותים מקצועיים';
+
+  // expertise badges
+  const badges = parseTags(s.expertise || s.specialties || s.tags || '');
+  const badgeIcons = ['⚖️','📊','💼','🎯','📋','🔍','💡','🤝'];
+  const badgesEl = document.getElementById('hero-badges');
+  if (badges.length) {
+    badgesEl.innerHTML = badges.slice(0,6).map((b,i)=>
+      `<span class="badge"><span class="badge-icon">${badgeIcons[i%badgeIcons.length]}</span>${escHtml(b)}</span>`
+    ).join('');
+  }
+
+  // hero stats
+  if (s.years_experience || s.experience_years) {
+    document.getElementById('stat-experience').textContent = (s.years_experience || s.experience_years) + '+';
+  }
+  if (s.clients_count || s.total_clients) {
+    document.getElementById('stat-clients').textContent = (s.clients_count || s.total_clients) + '+';
+  }
+  if (s.rating) {
+    document.getElementById('stat-rating').textContent = parseFloat(s.rating).toFixed(1) + '★';
+  }
+
+  // about highlights
+  const highlights = [];
+  if (s.founded || s.established) highlights.push({num: s.founded || s.established, lbl: 'שנת הקמה'});
+  if (s.team_size || s.staff_count) highlights.push({num: s.team_size || s.staff_count, lbl: 'אנשי צוות'});
+  if (s.cases_handled) highlights.push({num: s.cases_handled + '+', lbl: 'תיקים שטופלו'});
+  if (s.success_rate) highlights.push({num: s.success_rate + '%', lbl: 'שיעור הצלחה'});
+  const highlightsEl = document.getElementById('about-highlights');
+  if (highlights.length) {
+    highlightsEl.innerHTML = highlights.map(h =>
+      `<div class="ahigh"><div class="ahigh-num">${escHtml(String(h.num))}</div><div class="ahigh-lbl">${escHtml(h.lbl)}</div></div>`
+    ).join('');
+  }
+
+  // articles
+  const articles = s.articles || data.articles || [];
+  if (articles.length) {
+    document.getElementById('articles-sec').style.display = '';
+    renderArticles(articles);
+  }
+
+  // contact info quick links
+  if (s.phone || s.whatsapp) {
+    const phone = s.whatsapp || s.phone;
+    const link = document.createElement('a');
+    link.href = `https://wa.me/${phone.replace(/\D/g,'')}`;
+    link.target = '_blank';
+    link.rel = 'noopener';
+    // prepend whatsapp badge to hero ctas
+    const btnEl = document.createElement('button');
+    btnEl.className = 'cta-secondary';
+    btnEl.textContent = '💬 וואטסאפ';
+    btnEl.onclick = () => window.open(`https://wa.me/${phone.replace(/\D/g,'')}`, '_blank');
+    document.getElementById('hero-ctas').appendChild(btnEl);
+  }
+}
+
+async function loadServices(gid) {
+  if (!gid) return;
+  const grid = document.getElementById('services-grid');
+  try {
+    const r = await fetch(`${API}/store/products/${gid}`);
+    const data = await r.json();
+    const services = Array.isArray(data) ? data : (data.products || data.items || []);
+    if (!services.length) {
+      grid.innerHTML = `<div class="empty-state"><div class="es-icon">📋</div><p>אין שירותים להצגה כרגע</p></div>`;
+      return;
+    }
+    const icons = ['⚖️','📊','💼','🎯','📋','🔍','💡','🤝','📝','🏛️'];
+    grid.innerHTML = services.map((svc, i) => {
+      const price = svc.price ? `<span class="service-price">מחיר: ₪${Number(svc.price).toLocaleString('he-IL')}</span>` :
+                    svc.price_label ? `<span class="service-price">${escHtml(svc.price_label)}</span>` : '';
+      return `<div class="service-card">
+        <div class="service-icon">${icons[i % icons.length]}</div>
+        <div class="service-name">${escHtml(svc.name || svc.title || 'שירות')}</div>
+        <div class="service-desc">${escHtml(svc.description || svc.desc || '')}</div>
+        ${price}
+      </div>`;
+    }).join('');
+  } catch(e) {
+    grid.innerHTML = `<div class="empty-state"><div class="es-icon">⚠️</div><p>לא ניתן לטעון שירותים</p></div>`;
+  }
+}
+
+async function loadReviews(gid) {
+  if (!gid) return;
+  try {
+    const r = await fetch(`${API}/store/reviews/${gid}`);
+    if (!r.ok) return;
+    const data = await r.json();
+    const reviews = Array.isArray(data) ? data : (data.reviews || []);
+    if (!reviews.length) return;
+    document.getElementById('reviews-sec').style.display = '';
+    const grid = document.getElementById('reviews-grid');
+    grid.innerHTML = reviews.map(rv => {
+      const stars = '★'.repeat(Math.min(5, Math.round(rv.rating || 5)));
+      const initials = (rv.name || rv.author || 'א').charAt(0).toUpperCase();
+      return `<div class="review-card">
+        <div class="review-stars">${stars}</div>
+        <div class="review-text">${escHtml(rv.text || rv.comment || rv.review || '')}</div>
+        <div class="review-author">
+          <div class="review-avatar">${initials}</div>
+          <div>
+            <div class="review-name">${escHtml(rv.name || rv.author || 'לקוח')}</div>
+            <div class="review-date">${rv.date ? new Date(rv.date).toLocaleDateString('he-IL') : ''}</div>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+  } catch(e) { /* reviews optional */ }
+}
+
+function renderArticles(articles) {
+  const grid = document.getElementById('articles-grid');
+  grid.innerHTML = articles.map(a => {
+    const date = a.date ? new Date(a.date).toLocaleDateString('he-IL', {year:'numeric',month:'long',day:'numeric'}) : '';
+    return `<div class="article-card" onclick="${a.url ? `window.open('${escHtml(a.url)}','_blank')` : ''}">
+      <div class="article-date">${date}</div>
+      <div class="article-title">${escHtml(a.title || '')}</div>
+      <div class="article-excerpt">${escHtml(a.excerpt || a.summary || '')}</div>
+      ${a.category ? `<span class="article-tag">${escHtml(a.category)}</span>` : ''}
+    </div>`;
+  }).join('');
+}
+
+// ===== FORM SUBMISSIONS =====
+async function submitBooking(e) {
+  e.preventDefault();
+  const btn = document.getElementById('book-btn');
+  const errEl = document.getElementById('book-err');
+  errEl.textContent = '';
+  btn.disabled = true;
+  btn.textContent = 'שולח...';
+  const body = {
+    name: document.getElementById('book-name').value.trim(),
+    phone: document.getElementById('book-phone').value.trim(),
+    subject: document.getElementById('book-subject').value.trim(),
+    preferred_time: document.getElementById('book-time').value.trim(),
+    source: 'storefront-professional'
+  };
+  try {
+    const r = await fetch(`${API}/store/appointments/${groupId || 'public'}`, {
+      method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)
+    });
+    const data = await r.json();
+    if (data.success || r.ok) {
+      document.getElementById('booking-form-el').style.display = 'none';
+      document.getElementById('booking-success').style.display = 'block';
+    } else {
+      errEl.textContent = data.error || 'שגיאה בשליחה, נסו שוב';
+      btn.disabled = false; btn.textContent = 'קביעת פגישה ←';
+    }
+  } catch(err) {
+    errEl.textContent = 'שגיאת תקשורת, נסו שוב';
+    btn.disabled = false; btn.textContent = 'קביעת פגישה ←';
+  }
+}
+
+async function submitContact(e) {
+  e.preventDefault();
+  const btn = document.getElementById('cont-btn');
+  const errEl = document.getElementById('cont-err');
+  errEl.textContent = '';
+  btn.disabled = true;
+  btn.textContent = 'שולח...';
+  const body = {
+    name: document.getElementById('cont-name').value.trim(),
+    phone: document.getElementById('cont-phone').value.trim(),
+    email: document.getElementById('cont-email').value.trim(),
+    message: document.getElementById('cont-message').value.trim(),
+    source: 'storefront-professional'
+  };
+  try {
+    const r = await fetch(`${API}/store/leads/${groupId || 'public'}`, {
+      method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)
+    });
+    const data = await r.json();
+    if (data.success || r.ok) {
+      document.getElementById('contact-form-el').style.display = 'none';
+      document.getElementById('contact-success').style.display = 'block';
+    } else {
+      errEl.textContent = data.error || 'שגיאה בשליחה, נסו שוב';
+      btn.disabled = false; btn.textContent = 'שליחה ←';
+    }
+  } catch(err) {
+    errEl.textContent = 'שגיאת תקשורת, נסו שוב';
+    btn.disabled = false; btn.textContent = 'שליחה ←';
+  }
+}
+
+// ===== HELPERS =====
+function scrollToSection(id) {
+  const el = document.getElementById(id);
+  if (el) el.scrollIntoView({behavior:'smooth', block:'start'});
+}
+function parseTags(val) {
+  if (!val) return [];
+  if (Array.isArray(val)) return val.filter(Boolean);
+  return String(val).split(/[,،\n|]+/).map(s=>s.trim()).filter(Boolean);
+}
+function showToast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.style.display = '';
+  clearTimeout(el._t);
+  el._t = setTimeout(()=>el.style.display='none', 3200);
+}
+function showError(msg) {
+  document.getElementById('loading-screen').innerHTML =
+    `<div style="text-align:center;padding:40px;color:#fff"><div style="font-size:52px;margin-bottom:16px">😕</div><h2 style="font-family:Rubik,sans-serif;margin:0 0 8px">${msg}</h2><p style="color:rgba(255,255,255,.45);font-size:14px">נסו לרענן את הדף</p></div>`;
+}
+function escHtml(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+initStore();
+</script>
+
+<!-- ===== STOREFRONT CUSTOMER AUTH ===== -->
+<div id="sc-auth-modal" style="display:none;position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,0.55)" onclick="if(event.target===this)scAuth.closeModal()">
+  <div style="position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;background:#fff;border-radius:24px 24px 0 0;max-height:95vh;overflow-y:auto">
+    <div style="padding:20px 20px 0;display:flex;align-items:center;gap:12px">
+      <button onclick="scAuth.closeModal()" style="width:32px;height:32px;border-radius:50%;background:#f1f5f9;border:none;cursor:pointer;font-size:16px;flex-shrink:0">✕</button>
+      <h3 id="sc-modal-title" style="flex:1;text-align:right;font-size:18px;font-weight:700;color:#1e293b;margin:0">כניסה / הרשמה</h3>
+    </div>
+    <div id="sc-modal-body" style="padding:20px 20px 36px"></div>
+  </div>
+</div>
+<div id="sc-pin-overlay" style="display:none;position:fixed;inset:0;z-index:10001;background:rgba(0,0,0,0.6);align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:20px;padding:28px 24px;width:320px;max-width:90vw;text-align:center">
+    <div style="font-size:32px;margin-bottom:8px">🔐</div>
+    <h4 style="font-size:16px;font-weight:700;color:#1e293b;margin:0 0 6px">אישור פעולה</h4>
+    <p style="font-size:13px;color:#64748b;margin:0 0 18px">הזן את ה-PIN שלך לאישור</p>
+    <input id="sc-pin-input" type="password" inputmode="numeric" maxlength="6" placeholder="• • • • • •"
+      style="width:140px;border:2px solid #6366f1;border-radius:12px;padding:12px;font-size:20px;text-align:center;letter-spacing:6px;display:block;margin:0 auto 16px"
+      onkeydown="if(event.key==='Enter')scAuth.confirmPin()"/>
+    <div id="sc-pin-error" style="color:#ef4444;font-size:13px;min-height:18px;margin-bottom:12px"></div>
+    <div style="display:flex;gap:10px;justify-content:center">
+      <button onclick="scAuth._pinReject&&scAuth._pinReject('cancelled');document.getElementById('sc-pin-overlay').style.display='none'"
+        style="padding:10px 20px;border:1.5px solid #e2e8f0;border-radius:12px;background:#fff;font-size:14px;cursor:pointer;color:#64748b">ביטול</button>
+      <button onclick="scAuth.confirmPin()" style="padding:10px 24px;background:#6366f1;color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer">אישור</button>
+    </div>
+    <button onclick="scAuth.openForgotPin()" style="margin-top:14px;background:none;border:none;color:#94a3b8;font-size:12px;cursor:pointer;text-decoration:underline">שכחתי PIN</button>
+  </div>
+</div>
+<div id="sc-activity-panel" style="display:none;position:fixed;inset:0;z-index:9997;background:rgba(0,0,0,0.5)" onclick="if(event.target===this)document.getElementById('sc-activity-panel').style.display='none'">
+  <div style="position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;background:#fff;border-radius:24px 24px 0 0;max-height:90vh;display:flex;flex-direction:column">
+    <div style="padding:18px 18px 12px;display:flex;align-items:center;gap:10px;border-bottom:1px solid #f1f5f9;flex-shrink:0">
+      <button onclick="document.getElementById('sc-activity-panel').style.display='none'" style="width:32px;height:32px;border-radius:50%;background:#f1f5f9;border:none;cursor:pointer">✕</button>
+      <h3 style="flex:1;text-align:right;font-size:17px;font-weight:700;color:#1e293b;margin:0">הפעילות שלי</h3>
+    </div>
+    <div style="background:linear-gradient(135deg,#6366f1,#8b5cf6);padding:12px 16px;display:flex;align-items:center;gap:10px;flex-shrink:0">
+      <div style="flex:1;text-align:right">
+        <div style="font-weight:700;color:#fff;font-size:13px">נהל את כל הפעילות שלך ב-OneFlow Life</div>
+        <div style="font-size:11px;color:#e0e7ff;margin-top:2px">הזמנות, קהילות, הטבות — הכל במקום אחד</div>
+      </div>
+      <button onclick="scAuth.goToOFL()" style="background:#fff;color:#6366f1;border:none;border-radius:10px;padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap">כניסה →</button>
+    </div>
+    <div id="sc-activity-list" style="flex:1;overflow-y:auto;padding:12px 16px"></div>
+  </div>
+</div>
+<script src="/sc-auth.js"></script>
+<!-- ===== END STOREFRONT CUSTOMER AUTH ===== -->
+</body>
+</html>

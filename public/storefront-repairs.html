@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title id="page-title">שירותי תיקון ותחזוקה</title>
+<link rel="icon" href="/api/public/logo" type="image/png">
+<script>
+(async()=>{try{const r=await fetch('/api/system/public-config');const d=await r.json();if(d.globalAiLogo){document.querySelector("link[rel~='icon']").href=d.globalAiLogo;}}catch(e){}})();
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600;700;800&family=Heebo:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box}
+:root{
+  --accent:#EA580C;
+  --accent-dark:#C2410C;
+  --accent-light:#FED7AA;
+  --dark:#1C1917;
+  --dark2:#292524;
+  --bg:#F5F4F2;
+  --card:#fff;
+  --border:#E5E3DF;
+  --muted:#78716C;
+  --subtle:#F5F4F2;
+  --text:#1C1917;
+}
+body{margin:0;background:var(--bg);font-family:'Heebo',system-ui,sans-serif;color:var(--text);direction:rtl;-webkit-font-smoothing:antialiased}
+a{color:inherit;text-decoration:none}
+input,button,select,textarea{font-family:inherit}
+::placeholder{color:#A8A29E}
+::-webkit-scrollbar{height:5px;width:5px}
+::-webkit-scrollbar-thumb{background:rgba(0,0,0,.16);border-radius:99px}
+@keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+@keyframes glow{0%,100%{opacity:.5}50%{opacity:1}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes pulse-ring{0%{transform:scale(1);opacity:.7}100%{transform:scale(1.5);opacity:0}}
+
+/* ===== STICKY HEADER ===== */
+#main-header{position:sticky;top:0;z-index:200;background:rgba(28,25,23,.96);backdrop-filter:blur(14px);border-bottom:1px solid rgba(255,255,255,.08)}
+#header-inner{max-width:1100px;margin:0 auto;padding:12px 20px;display:flex;align-items:center;gap:14px}
+#header-logo{width:38px;height:38px;flex:none;border-radius:10px;background:var(--accent);display:flex;align-items:center;justify-content:center;font:700 15px/1 'Rubik',sans-serif;color:#fff;overflow:hidden}
+#header-logo img{width:100%;height:100%;object-fit:contain;border-radius:10px}
+#header-name{font-family:'Rubik',sans-serif;font-size:16px;font-weight:700;color:#fff;letter-spacing:-.02em}
+#header-phone-btn{margin-right:auto;display:flex;align-items:center;gap:8px;padding:9px 18px;border:none;border-radius:99px;background:var(--accent);color:#fff;font-size:13.5px;font-weight:700;cursor:pointer;transition:.15s;flex:none}
+#header-phone-btn:hover{background:var(--accent-dark)}
+#header-phone-btn svg{flex:none}
+
+/* ===== HERO ===== */
+#hero{position:relative;background:var(--dark);overflow:hidden;min-height:480px;display:flex;align-items:center}
+#hero-bg-grid{position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.03) 1px,transparent 1px);background-size:40px 40px;pointer-events:none}
+#hero-blob{position:absolute;top:-20%;left:-10%;width:60%;height:90%;border-radius:50%;background:var(--accent);filter:blur(110px);opacity:.22;pointer-events:none}
+#hero-inner{position:relative;max-width:1100px;margin:0 auto;padding:clamp(40px,6vw,80px) 20px;width:100%;display:flex;flex-wrap:wrap;gap:clamp(30px,4vw,60px);align-items:center}
+#hero-text{flex:1 1 320px;animation:rise .5s ease both}
+#hero-available{display:inline-flex;align-items:center;gap:8px;padding:6px 14px;border-radius:99px;background:rgba(234,88,12,.15);border:1px solid rgba(234,88,12,.35);font-size:12.5px;font-weight:600;color:#FDBA74;margin-bottom:18px;letter-spacing:.01em}
+.available-dot{width:8px;height:8px;border-radius:50%;background:#4ADE80;position:relative;flex:none}
+.available-dot::after{content:'';position:absolute;inset:-3px;border-radius:50%;background:#4ADE80;animation:pulse-ring 1.4s ease-out infinite}
+#hero h1{font-family:'Rubik',sans-serif;font-size:clamp(30px,5.5vw,58px);font-weight:800;letter-spacing:-.04em;line-height:.95;color:#fff;margin:0 0 14px;text-wrap:balance}
+#hero h1 .accent{color:var(--accent)}
+#hero-sub{font-size:clamp(14px,1.6vw,16px);font-weight:300;color:rgba(255,255,255,.6);line-height:1.6;margin:0 0 28px;max-width:38ch}
+#hero-ctas{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.cta-primary{display:inline-flex;align-items:center;gap:9px;padding:14px 26px;border:none;border-radius:99px;background:var(--accent);color:#fff;font-size:15px;font-weight:700;cursor:pointer;transition:.15s;text-decoration:none}
+.cta-primary:hover{background:var(--accent-dark)}
+.cta-secondary{display:inline-flex;align-items:center;gap:9px;padding:13px 22px;border:1.5px solid rgba(255,255,255,.22);border-radius:99px;background:rgba(255,255,255,.07);color:rgba(255,255,255,.9);font-size:14px;font-weight:500;cursor:pointer;transition:.15s;text-decoration:none}
+.cta-secondary:hover{background:rgba(255,255,255,.14);border-color:rgba(255,255,255,.4)}
+#hero-badges{flex:none;display:flex;flex-direction:column;gap:12px;animation:rise .6s .1s ease both}
+.hero-badge{display:flex;align-items:center;gap:12px;padding:14px 18px;border-radius:16px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);color:#fff;min-width:200px}
+.hero-badge-icon{font-size:26px;flex:none}
+.hero-badge-text{font-size:12px;color:rgba(255,255,255,.55);font-weight:300}
+.hero-badge-val{font-family:'Rubik',sans-serif;font-size:15px;font-weight:700;display:block}
+
+/* ===== SECTION COMMON ===== */
+.section{max-width:1100px;margin:0 auto;padding:clamp(40px,5vw,72px) 20px}
+.section-label{font-size:12px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);margin-bottom:10px}
+.section-title{font-family:'Rubik',sans-serif;font-size:clamp(24px,3.5vw,38px);font-weight:800;letter-spacing:-.03em;color:var(--dark);margin:0 0 8px;line-height:1.1}
+.section-sub{font-size:15px;color:var(--muted);font-weight:300;line-height:1.6;margin:0 0 36px;max-width:52ch}
+
+/* ===== SERVICES GRID ===== */
+#services-section{background:#fff}
+#services-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:18px}
+.service-card{border:1.5px solid var(--border);border-radius:20px;padding:22px 20px;background:#fff;cursor:pointer;transition:.2s;position:relative;overflow:hidden}
+.service-card:hover{border-color:var(--accent);box-shadow:0 4px 20px rgba(234,88,12,.12);transform:translateY(-2px)}
+.service-card-icon{width:52px;height:52px;border-radius:14px;background:var(--subtle);display:flex;align-items:center;justify-content:center;font-size:26px;margin-bottom:14px}
+.service-card-name{font-family:'Rubik',sans-serif;font-size:16px;font-weight:700;margin:0 0 7px}
+.service-card-desc{font-size:13px;color:var(--muted);line-height:1.5;margin:0 0 14px}
+.service-card-price{font-size:12.5px;font-weight:600;color:var(--accent);padding:4px 10px;border-radius:99px;background:rgba(234,88,12,.09);display:inline-block}
+.service-card-arrow{position:absolute;top:18px;left:18px;color:var(--muted);font-size:18px;transition:.2s}
+.service-card:hover .service-card-arrow{color:var(--accent);transform:translateX(-3px)}
+#services-empty{text-align:center;padding:40px;color:var(--muted);grid-column:1/-1}
+
+/* ===== REQUEST FORM ===== */
+#form-section{background:var(--dark)}
+#form-wrap{display:grid;grid-template-columns:1fr 1fr;gap:clamp(30px,4vw,60px);align-items:start}
+@media(max-width:700px){#form-wrap{grid-template-columns:1fr}}
+#form-left .section-title{color:#fff}
+#form-left .section-sub{color:rgba(255,255,255,.5)}
+.form-features{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:12px}
+.form-features li{display:flex;align-items:flex-start;gap:10px;font-size:13.5px;color:rgba(255,255,255,.75);line-height:1.5}
+.ff-icon{width:24px;height:24px;border-radius:8px;background:rgba(234,88,12,.2);border:1px solid rgba(234,88,12,.3);display:flex;align-items:center;justify-content:center;font-size:13px;flex:none;margin-top:1px}
+#lead-form{background:#fff;border-radius:24px;padding:28px 24px}
+#lead-form h3{font-family:'Rubik',sans-serif;font-size:18px;font-weight:700;margin:0 0 22px;color:var(--dark)}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:500px){.form-row{grid-template-columns:1fr}}
+.form-group{margin-bottom:14px;display:flex;flex-direction:column;gap:5px}
+.form-group label{font-size:12.5px;font-weight:600;color:var(--dark)}
+.form-group input,.form-group select,.form-group textarea{padding:11px 14px;border:1.5px solid var(--border);border-radius:12px;font-size:14px;outline:none;transition:.15s;background:#fff;color:var(--dark);width:100%}
+.form-group input:focus,.form-group select:focus,.form-group textarea:focus{border-color:var(--accent)}
+.form-group textarea{resize:vertical;min-height:80px}
+.urgency-select option[value="urgent"]{color:var(--accent)}
+#form-submit{width:100%;padding:14px;border:none;border-radius:14px;background:var(--accent);color:#fff;font-size:15px;font-weight:700;cursor:pointer;transition:.15s;margin-top:4px;display:flex;align-items:center;justify-content:center;gap:8px}
+#form-submit:hover{background:var(--accent-dark)}
+#form-submit:disabled{opacity:.6;cursor:not-allowed}
+#form-success{display:none;text-align:center;padding:30px 20px}
+#form-success .success-icon{font-size:52px;margin-bottom:12px}
+#form-success h4{font-family:'Rubik',sans-serif;font-size:18px;font-weight:700;margin:0 0 8px;color:var(--dark)}
+#form-success p{font-size:14px;color:var(--muted);margin:0}
+
+/* ===== HOW IT WORKS ===== */
+#steps-section{background:#fff}
+#steps-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:24px}
+@media(max-width:600px){#steps-grid{grid-template-columns:1fr}}
+.step-card{text-align:center;padding:28px 18px;border-radius:20px;background:var(--subtle);position:relative}
+.step-num{width:44px;height:44px;border-radius:50%;background:var(--accent);color:#fff;font-family:'Rubik',sans-serif;font-size:18px;font-weight:800;display:flex;align-items:center;justify-content:center;margin:0 auto 14px}
+.step-icon{font-size:32px;margin-bottom:12px}
+.step-title{font-family:'Rubik',sans-serif;font-size:16px;font-weight:700;margin:0 0 8px;color:var(--dark)}
+.step-desc{font-size:13px;color:var(--muted);line-height:1.55;margin:0}
+.step-arrow{position:absolute;top:40px;left:-12px;font-size:22px;color:var(--border)}
+@media(max-width:600px){.step-arrow{display:none}}
+
+/* ===== REVIEWS ===== */
+#reviews-section{background:var(--subtle)}
+#reviews-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:18px}
+.review-card{background:#fff;border-radius:18px;padding:22px 20px;border:1px solid var(--border)}
+.review-stars{color:#FBBF24;font-size:16px;letter-spacing:2px;margin-bottom:10px}
+.review-text{font-size:14px;line-height:1.6;color:var(--dark);margin:0 0 14px}
+.review-author{font-size:12.5px;font-weight:700;color:var(--muted)}
+.review-date{font-size:11.5px;color:var(--muted);font-weight:300}
+#reviews-empty{text-align:center;padding:30px;color:var(--muted)}
+
+/* ===== CONTACT ===== */
+#contact-section{background:var(--dark2)}
+#contact-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:20px}
+.contact-card{display:flex;align-items:center;gap:16px;padding:20px 18px;border-radius:18px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);text-decoration:none}
+.contact-card:hover{background:rgba(255,255,255,.1);border-color:rgba(234,88,12,.4)}
+.contact-icon{width:46px;height:46px;border-radius:13px;background:rgba(234,88,12,.2);display:flex;align-items:center;justify-content:center;font-size:22px;flex:none}
+.contact-label{font-size:11.5px;color:rgba(255,255,255,.45);font-weight:300;margin-bottom:3px}
+.contact-val{font-family:'Rubik',sans-serif;font-size:15px;font-weight:700;color:#fff;direction:ltr;text-align:right}
+
+/* ===== FOOTER ===== */
+#footer{background:var(--dark);border-top:1px solid rgba(255,255,255,.07);text-align:center;padding:22px 20px;font-size:12px;color:rgba(255,255,255,.3)}
+#footer span{color:rgba(234,88,12,.7);font-weight:600}
+
+/* ===== SKELETON / SPINNER ===== */
+.skel{animation:shimmer 1.4s infinite;background:linear-gradient(90deg,#eee 25%,#f5f5f5 50%,#eee 75%);background-size:200% 100%;border-radius:10px}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+.spinner{width:20px;height:20px;border:2.5px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;flex:none}
+#page-loader{position:fixed;inset:0;background:var(--dark);display:flex;align-items:center;justify-content:center;z-index:9999;flex-direction:column;gap:14px;color:#fff;font-size:14px;font-weight:500}
+#page-loader .loader-spin{width:36px;height:36px;border:3px solid rgba(234,88,12,.3);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
+
+/* ===== TOAST ===== */
+#toast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--dark);color:#fff;padding:12px 22px;border-radius:99px;font-size:13.5px;font-weight:500;z-index:9999;opacity:0;transition:.3s;pointer-events:none;white-space:nowrap}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+
+<div id="page-loader">
+  <div class="loader-spin"></div>
+  <div>טוען...</div>
+</div>
+
+<div id="toast"></div>
+
+<!-- ===== HEADER ===== -->
+<header id="main-header">
+  <div id="header-inner">
+    <div id="header-logo"><span id="header-logo-text">🔧</span></div>
+    <div id="header-name">טוען...</div>
+    <button id="header-phone-btn" onclick="callBusiness()">
+      <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.06 9.8a19.79 19.79 0 01-3.07-8.68A2 2 0 012 1h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.09 8.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>
+      <span id="header-phone-text">חייגו עכשיו</span>
+    </button>
+  </div>
+</header>
+
+<!-- ===== HERO ===== -->
+<section id="hero">
+  <div id="hero-bg-grid"></div>
+  <div id="hero-blob"></div>
+  <div id="hero-inner">
+    <div id="hero-text">
+      <div id="hero-available">
+        <div class="available-dot"></div>
+        <span id="hero-status-text">זמינים עכשיו</span>
+      </div>
+      <h1 id="hero-title">תיקון מהיר<br><span class="accent">בביתך</span></h1>
+      <p id="hero-sub">מקצועיים, מהירים, אמינים. פנייה ב׳עצה שלנו ותיאום טכנאי מיד.</p>
+      <div id="hero-ctas">
+        <a id="hero-call-btn" href="#" class="cta-primary" onclick="callBusiness();return false">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.06 9.8a19.79 19.79 0 01-3.07-8.68A2 2 0 012 1h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.09 8.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>
+          חייגו לתיקון דחוף
+        </a>
+        <a href="#form-section" class="cta-secondary">
+          <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M8 12h8M8 8h8M8 16h5"/></svg>
+          השאירו פנייה
+        </a>
+      </div>
+    </div>
+    <div id="hero-badges">
+      <div class="hero-badge">
+        <div class="hero-badge-icon">⚡</div>
+        <div>
+          <span class="hero-badge-val" id="badge-response">עד שעה</span>
+          <div class="hero-badge-text">זמן תגובה ממוצע</div>
+        </div>
+      </div>
+      <div class="hero-badge">
+        <div class="hero-badge-icon">🛡️</div>
+        <div>
+          <span class="hero-badge-val">מובטח</span>
+          <div class="hero-badge-text">אחריות על כל עבודה</div>
+        </div>
+      </div>
+      <div class="hero-badge">
+        <div class="hero-badge-icon">📋</div>
+        <div>
+          <span class="hero-badge-val">שקוף</span>
+          <div class="hero-badge-text">הצעת מחיר לפני עבודה</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SERVICES ===== -->
+<section id="services-section">
+  <div class="section">
+    <div class="section-label">השירותים שלנו</div>
+    <h2 class="section-title">מה אנחנו מתקנים?</h2>
+    <p class="section-sub">בחרו קטגוריה כדי לשלוח פנייה מהירה, או מלאו את הטופס למטה</p>
+    <div id="services-grid">
+      <div id="services-loading" style="grid-column:1/-1;display:flex;gap:14px;flex-wrap:wrap">
+        <div class="skel" style="height:160px;flex:1 1 220px;border-radius:20px"></div>
+        <div class="skel" style="height:160px;flex:1 1 220px;border-radius:20px"></div>
+        <div class="skel" style="height:160px;flex:1 1 220px;border-radius:20px"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== REQUEST FORM ===== -->
+<section id="form-section">
+  <div class="section">
+    <div id="form-wrap">
+      <div id="form-left">
+        <div class="section-label" style="color:#FDBA74">פנייה לשירות</div>
+        <h2 class="section-title">השאירו פרטים ונחזור אליכם</h2>
+        <p class="section-sub">מלאו את הטופס ואנו ניצור איתכם קשר בהקדם לתיאום הגעת טכנאי</p>
+        <ul class="form-features">
+          <li><div class="ff-icon">✓</div>תגובה תוך שעה בשעות הפעילות</li>
+          <li><div class="ff-icon">📞</div>אישור הגעה בהתראה מוקדמת</li>
+          <li><div class="ff-icon">💰</div>הצעת מחיר ללא התחייבות</li>
+          <li><div class="ff-icon">🛡️</div>אחריות על כל עבודה שנבצע</li>
+        </ul>
+      </div>
+      <div>
+        <div id="lead-form">
+          <h3>📋 פנייה לשירות תיקון</h3>
+          <div class="form-row">
+            <div class="form-group">
+              <label>שם מלא *</label>
+              <input type="text" id="f-name" placeholder="ישראל ישראלי" required>
+            </div>
+            <div class="form-group">
+              <label>טלפון *</label>
+              <input type="tel" id="f-phone" placeholder="050-0000000" required dir="ltr">
+            </div>
+          </div>
+          <div class="form-group">
+            <label>כתובת</label>
+            <input type="text" id="f-address" placeholder="רחוב, מספר בית, עיר">
+          </div>
+          <div class="form-group">
+            <label>תיאור הבעיה *</label>
+            <textarea id="f-desc" placeholder="תארו את הבעיה בקצרה — מה קרה, מאיזה מוצר/מכשיר, כמה זמן..."></textarea>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>דחיפות</label>
+              <select id="f-urgency" class="urgency-select">
+                <option value="urgent">🔴 דחוף — היום</option>
+                <option value="normal" selected>🟡 רגיל — תוך יומיים</option>
+                <option value="low">🟢 לא דחוף — נקבע תור</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>זמן מועדף לביקור</label>
+              <select id="f-time">
+                <option value="">בחרו...</option>
+                <option>בוקר (08:00–12:00)</option>
+                <option>צהריים (12:00–16:00)</option>
+                <option>אחה"צ (16:00–20:00)</option>
+                <option>כל שעה</option>
+              </select>
+            </div>
+          </div>
+          <button id="form-submit" onclick="submitLead()">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+            שלחו פנייה
+          </button>
+        </div>
+        <div id="form-success">
+          <div class="success-icon">✅</div>
+          <h4>הפנייה נשלחה בהצלחה!</h4>
+          <p>נחזור אליכם בהקדם לתיאום הגעת טכנאי.<br>תודה שפניתם אלינו!</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== HOW IT WORKS ===== -->
+<section id="steps-section">
+  <div class="section">
+    <div class="section-label">איך זה עובד?</div>
+    <h2 class="section-title">3 צעדים פשוטים</h2>
+    <p class="section-sub">מרגע הפנייה ועד סיום התיקון — אנחנו כאן בשבילכם</p>
+    <div id="steps-grid">
+      <div class="step-card">
+        <div class="step-num">1</div>
+        <div class="step-icon">📞</div>
+        <div class="step-title">מתקשרים או ממלאים טופס</div>
+        <p class="step-desc">מתקשרים, שולחים וואטסאפ, או ממלאים את הטופס באתר — אנחנו מגיבים מהר</p>
+      </div>
+      <div class="step-card">
+        <div class="step-arrow">→</div>
+        <div class="step-num">2</div>
+        <div class="step-icon">🔧</div>
+        <div class="step-title">הטכנאי מגיע אליכם</div>
+        <p class="step-desc">טכנאי מוסמך מגיע בזמן שקבענו, בודק את הבעיה ומציג הצעת מחיר</p>
+      </div>
+      <div class="step-card">
+        <div class="step-arrow">→</div>
+        <div class="step-num">3</div>
+        <div class="step-icon">✅</div>
+        <div class="step-title">תיקון + חשבונית מסודרת</div>
+        <p class="step-desc">מבצעים את התיקון, מנפיקים חשבונית, ומעניקים אחריות על העבודה</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== REVIEWS ===== -->
+<section id="reviews-section">
+  <div class="section">
+    <div class="section-label">ביקורות לקוחות</div>
+    <h2 class="section-title">מה אומרים עלינו?</h2>
+    <p class="section-sub">לקוחות מרוצים הם הפרס הכי גדול שלנו</p>
+    <div id="reviews-grid">
+      <div style="color:var(--muted);font-size:14px;padding:20px 0" id="reviews-loading">טוען ביקורות...</div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== CONTACT ===== -->
+<section id="contact-section">
+  <div class="section">
+    <div class="section-label" style="color:#FDBA74">צרו קשר</div>
+    <h2 class="section-title" style="color:#fff">דרכי יצירת קשר</h2>
+    <div id="contact-grid">
+      <a id="contact-phone" href="#" class="contact-card" onclick="callBusiness();return false">
+        <div class="contact-icon">📞</div>
+        <div>
+          <div class="contact-label">טלפון</div>
+          <div class="contact-val" id="contact-phone-val">טוען...</div>
+        </div>
+      </a>
+      <a id="contact-whatsapp" href="#" class="contact-card" target="_blank">
+        <div class="contact-icon">💬</div>
+        <div>
+          <div class="contact-label">וואטסאפ</div>
+          <div class="contact-val">שלחו הודעה</div>
+        </div>
+      </a>
+      <div class="contact-card" style="cursor:default">
+        <div class="contact-icon">🕐</div>
+        <div>
+          <div class="contact-label">שעות פעילות</div>
+          <div class="contact-val" id="contact-hours">א׳–ו׳ | 08:00–20:00</div>
+        </div>
+      </div>
+      <div class="contact-card" style="cursor:default">
+        <div class="contact-icon">📍</div>
+        <div>
+          <div class="contact-label">אזור שירות</div>
+          <div class="contact-val" id="contact-area">כל הארץ</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== FOOTER ===== -->
+<footer id="footer">
+  <div id="footer-name">שירותי תיקון ותחזוקה</div>
+  <div style="margin-top:6px">מופעל על ידי <span>FamilyFlow</span></div>
+</footer>
+
+<!-- ===== SC-AUTH MODALS ===== -->
+<div id="sc-auth-modal" style="display:none;position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,0.55)" onclick="if(event.target===this)scAuth.closeModal()">
+  <div style="position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;background:#fff;border-radius:24px 24px 0 0;max-height:95vh;overflow-y:auto">
+    <div style="padding:20px 20px 0;display:flex;align-items:center;gap:12px">
+      <button onclick="scAuth.closeModal()" style="width:32px;height:32px;border-radius:50%;background:#f1f5f9;border:none;cursor:pointer;font-size:16px;flex-shrink:0">✕</button>
+      <h3 id="sc-modal-title" style="flex:1;text-align:right;font-size:18px;font-weight:700;color:#1e293b;margin:0">כניסה / הרשמה</h3>
+    </div>
+    <div id="sc-modal-body" style="padding:20px 20px 36px"></div>
+  </div>
+</div>
+<div id="sc-pin-overlay" style="display:none;position:fixed;inset:0;z-index:10001;background:rgba(0,0,0,0.6);align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:20px;padding:28px 24px;width:320px;max-width:90vw;text-align:center">
+    <div style="font-size:32px;margin-bottom:8px">🔐</div>
+    <h4 style="font-size:16px;font-weight:700;color:#1e293b;margin:0 0 6px">אישור פעולה</h4>
+    <p style="font-size:13px;color:#64748b;margin:0 0 18px">הזן את ה-PIN שלך לאישור</p>
+    <input id="sc-pin-input" type="password" inputmode="numeric" maxlength="6" placeholder="• • • • • •"
+      style="width:140px;border:2px solid #6366f1;border-radius:12px;padding:12px;font-size:20px;text-align:center;letter-spacing:6px;display:block;margin:0 auto 16px"
+      onkeydown="if(event.key==='Enter')scAuth.confirmPin()"/>
+    <div id="sc-pin-error" style="color:#ef4444;font-size:13px;min-height:18px;margin-bottom:12px"></div>
+    <div style="display:flex;gap:10px;justify-content:center">
+      <button onclick="scAuth._pinReject&&scAuth._pinReject('cancelled');document.getElementById('sc-pin-overlay').style.display='none'"
+        style="padding:10px 20px;border:1.5px solid #e2e8f0;border-radius:12px;background:#fff;font-size:14px;cursor:pointer;color:#64748b">ביטול</button>
+      <button onclick="scAuth.confirmPin()" style="padding:10px 24px;background:#6366f1;color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer">אישור</button>
+    </div>
+    <button onclick="scAuth.openForgotPin()" style="margin-top:14px;background:none;border:none;color:#94a3b8;font-size:12px;cursor:pointer;text-decoration:underline">שכחתי PIN</button>
+  </div>
+</div>
+<div id="sc-activity-panel" style="display:none;position:fixed;inset:0;z-index:9997;background:rgba(0,0,0,0.5)" onclick="if(event.target===this)document.getElementById('sc-activity-panel').style.display='none'">
+  <div style="position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;background:#fff;border-radius:24px 24px 0 0;max-height:90vh;display:flex;flex-direction:column">
+    <div style="padding:18px 18px 12px;display:flex;align-items:center;gap:10px;border-bottom:1px solid #f1f5f9;flex-shrink:0">
+      <button onclick="document.getElementById('sc-activity-panel').style.display='none'" style="width:32px;height:32px;border-radius:50%;background:#f1f5f9;border:none;cursor:pointer">✕</button>
+      <h3 style="flex:1;text-align:right;font-size:17px;font-weight:700;color:#1e293b;margin:0">הפעילות שלי</h3>
+    </div>
+    <div style="background:linear-gradient(135deg,#6366f1,#8b5cf6);padding:12px 16px;display:flex;align-items:center;gap:10px;flex-shrink:0">
+      <div style="flex:1;text-align:right">
+        <div style="font-weight:700;color:#fff;font-size:13px">נהל את כל הפעילות שלך ב-OneFlow Life</div>
+        <div style="font-size:11px;color:#e0e7ff;margin-top:2px">הזמנות, קהילות, הטבות — הכל במקום אחד</div>
+      </div>
+      <button onclick="scAuth.goToOFL()" style="background:#fff;color:#6366f1;border:none;border-radius:10px;padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap">כניסה →</button>
+    </div>
+    <div id="sc-activity-list" style="flex:1;overflow-y:auto;padding:12px 16px"></div>
+  </div>
+</div>
+<script src="/sc-auth.js"></script>
+
+<script>
+/* ===== STORE STATE ===== */
+let STORE = null;
+let GROUP_ID = null;
+
+/* ===== UTILS ===== */
+function showToast(msg, dur=3000){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),dur);
+}
+
+function callBusiness(){
+  const ph = STORE?.phone || STORE?.settings?.phone;
+  if(ph) window.location.href='tel:'+ph.replace(/\s/g,'');
+  else showToast('מספר טלפון לא זמין');
+}
+
+function getStoreId(){
+  const p=new URLSearchParams(location.search);
+  return p.get('store')||p.get('storeId')||p.get('id')||null;
+}
+
+function getAlias(){
+  const h=location.hostname;
+  const parts=h.split('.');
+  if(parts.length>=3) return parts[0];
+  return null;
+}
+
+/* ===== LOAD STORE ===== */
+async function loadStore(){
+  let url=null;
+  const sid=getStoreId();
+  const alias=getAlias();
+
+  if(sid) url=`/api/store/public/${sid}`;
+  else if(alias && alias!=='www' && alias!=='localhost') url=`/api/store/public/alias/${alias}`;
+
+  if(!url){
+    // demo mode
+    populateDemo();
+    return;
+  }
+
+  try{
+    const r=await fetch(url);
+    if(!r.ok) throw new Error('not found');
+    const d=await r.json();
+    STORE=d.store||d;
+    GROUP_ID=STORE.groupId||STORE.group_id||STORE.id;
+    applyStore();
+    await Promise.all([loadServices(), loadReviews()]);
+  }catch(e){
+    populateDemo();
+  }finally{
+    document.getElementById('page-loader').style.display='none';
+  }
+}
+
+function applyStore(){
+  const s=STORE;
+  const name=s.name||'שירותי תיקון';
+  document.getElementById('page-title').textContent=name;
+  document.getElementById('header-name').textContent=name;
+  document.getElementById('footer-name').textContent=name;
+  document.getElementById('hero-title').innerHTML=name+'<br><span class="accent">בשירותכם</span>';
+
+  const slogan=s.description||s.slogan||'מקצועיים, מהירים, אמינים — בכל תיקון';
+  document.getElementById('hero-sub').textContent=slogan;
+
+  const ph=s.phone||s.settings?.phone;
+  if(ph){
+    document.getElementById('header-phone-text').textContent=ph;
+    document.getElementById('contact-phone-val').textContent=ph;
+    document.getElementById('contact-phone').href='tel:'+ph.replace(/\s/g,'');
+    const wa=document.getElementById('contact-whatsapp');
+    wa.href='https://wa.me/972'+ph.replace(/^0/,'').replace(/\D/g,'');
+  }
+
+  const logo=s.logo||s.logoUrl;
+  if(logo){
+    const el=document.getElementById('header-logo');
+    el.innerHTML=`<img src="${logo}" alt="${name}">`;
+  }
+
+  const hours=s.hours||s.settings?.hours;
+  if(hours) document.getElementById('contact-hours').textContent=hours;
+
+  const area=s.area||s.settings?.serviceArea;
+  if(area) document.getElementById('contact-area').textContent=area;
+
+  const open=s.isOpen!==false;
+  document.getElementById('hero-status-text').textContent=open?'זמינים עכשיו':'ניתן להשאיר פנייה';
+  if(!open) document.querySelector('.available-dot').style.background='#FCD34D';
+}
+
+/* ===== SERVICES ===== */
+const SERVICE_ICONS={
+  'אינסטלציה':'🔩','חשמל':'⚡','מזגן':'❄️','מכונת כביסה':'🫧','מקרר':'🧊',
+  'תנור':'🔥','כיריים':'🍳','מדיח':'🫙','טלוויזיה':'📺','מחשב':'💻',
+  'דלת':'🚪','מנעול':'🔐','צבע':'🎨','גינה':'🌿','גז':'🔴','ריצוף':'🪵',
+  'רכב':'🚗','אופנוע':'🏍️','אמבטיה':'🛁'
+};
+
+function guessIcon(name){
+  for(const[k,v] of Object.entries(SERVICE_ICONS)){
+    if(name.includes(k)) return v;
+  }
+  return '🔧';
+}
+
+async function loadServices(){
+  if(!GROUP_ID) return renderDefaultServices();
+  try{
+    const r=await fetch(`/api/store/products/${GROUP_ID}`);
+    if(!r.ok) throw new Error();
+    const d=await r.json();
+    const items=d.products||d.services||d.items||d||[];
+    renderServices(Array.isArray(items)?items:[]);
+  }catch{renderDefaultServices();}
+}
+
+function renderServices(items){
+  const g=document.getElementById('services-grid');
+  if(!items.length){g.innerHTML='<div id="services-empty">אין שירותים להצגה כרגע</div>';return;}
+  g.innerHTML=items.slice(0,12).map(s=>{
+    const icon=s.icon||guessIcon(s.name||'');
+    const price=s.price?`החל מ-₪${s.price}`:(s.priceRange||'');
+    return `<div class="service-card" onclick="selectService('${(s.name||'').replace(/'/g,"\\'")}')">
+      <div class="service-card-arrow">←</div>
+      <div class="service-card-icon">${icon}</div>
+      <div class="service-card-name">${s.name||'שירות'}</div>
+      <div class="service-card-desc">${s.description||''}</div>
+      ${price?`<div class="service-card-price">${price}</div>`:''}
+    </div>`;
+  }).join('');
+}
+
+function renderDefaultServices(){
+  const defaults=[
+    {name:'אינסטלציה',description:'תיקון צנרת, ברזים, דוד שמש, ניקוז',price:'150'},
+    {name:'חשמל',description:'תקלות חשמל, מפסקים, פאנלים, תאורה',price:'180'},
+    {name:'מזגן',description:'תיקון, ניקוי, טעינת גז, התקנה',price:'200'},
+    {name:'מכונת כביסה',description:'תיקון כל דגם, חלפים מקוריים',price:'180'},
+    {name:'מקרר',description:'תיקון קומפרסור, גז, חלפים',price:'200'},
+    {name:'תנור / כיריים',description:'תיקון תנורים, כיריים גז וחשמל',price:'160'},
+    {name:'מנעול / דלת',description:'החלפת מנעול, פריצת מנעול, דלת',price:'150'},
+    {name:'טלוויזיה',description:'תיקון טלוויזיות כל הדגמים',price:'200'},
+  ];
+  renderServices(defaults);
+}
+
+function selectService(name){
+  document.getElementById('f-desc').value=`בעיה עם: ${name}\n`;
+  document.getElementById('f-desc').focus();
+  document.getElementById('form-section').scrollIntoView({behavior:'smooth'});
+}
+
+/* ===== REVIEWS ===== */
+async function loadReviews(){
+  const g=document.getElementById('reviews-grid');
+  if(!GROUP_ID){renderDefaultReviews();return;}
+  try{
+    const r=await fetch(`/api/store/reviews/${GROUP_ID}`);
+    if(!r.ok) throw new Error();
+    const d=await r.json();
+    const items=d.reviews||d||[];
+    if(!items.length) throw new Error();
+    renderReviews(Array.isArray(items)?items:[]);
+  }catch{renderDefaultReviews();}
+}
+
+function stars(n){return '★'.repeat(Math.min(5,Math.max(1,n||5)))+'☆'.repeat(5-Math.min(5,n||5));}
+
+function renderReviews(items){
+  const g=document.getElementById('reviews-grid');
+  g.innerHTML=items.slice(0,6).map(r=>`
+    <div class="review-card">
+      <div class="review-stars">${stars(r.rating||5)}</div>
+      <p class="review-text">"${r.text||r.content||r.body||''}"</p>
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div class="review-author">${r.author||r.name||'לקוח'}</div>
+        <div class="review-date">${r.date||r.createdAt||''}</div>
+      </div>
+    </div>`).join('');
+}
+
+function renderDefaultReviews(){
+  renderReviews([
+    {rating:5,text:'שירות מצוין! הטכנאי הגיע תוך שעה ותיקן את המזגן במקצועיות. ממליץ בחום!',author:'דוד כ.'},
+    {rating:5,text:'מהירים, מקצועיים ויעילים. המחיר הוגן והעבודה נקייה. בהחלט אחזור.',author:'מיכל ל.'},
+    {rating:5,text:'תיקנו לי את מכונת הכביסה בו ביום. שירות לקוחות נהדר ומחיר הוגן.',author:'יוסי מ.'},
+    {rating:4,text:'הטכנאי ידוע ומקצועי, הסביר הכל בסבלנות. מרוצה מאוד.',author:'שרה א.'},
+    {rating:5,text:'ממליצה! הגיעו בזמן, עבדו מהר ונקו אחרי עצמם. שירות ברמה גבוהה.',author:'נועה ב.'},
+    {rating:5,text:'כבר הפכתם להיות הטכנאי הקבוע שלי. אמינים ומהירים תמיד.',author:'אמיר ד.'},
+  ]);
+}
+
+/* ===== LEAD FORM ===== */
+async function submitLead(){
+  const btn=document.getElementById('form-submit');
+  const name=document.getElementById('f-name').value.trim();
+  const phone=document.getElementById('f-phone').value.trim();
+  const desc=document.getElementById('f-desc').value.trim();
+
+  if(!name||!phone||!desc){showToast('אנא מלאו שם, טלפון ותיאור הבעיה');return;}
+
+  btn.disabled=true;
+  btn.innerHTML='<div class="spinner"></div> שולח...';
+
+  const payload={
+    name,phone,
+    address:document.getElementById('f-address').value.trim(),
+    description:desc,
+    urgency:document.getElementById('f-urgency').value,
+    preferredTime:document.getElementById('f-time').value,
+    source:'storefront-repairs'
+  };
+
+  try{
+    const url=GROUP_ID?`/api/store/leads/${GROUP_ID}`:'/api/store/leads/general';
+    const r=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    if(!r.ok) throw new Error();
+    document.getElementById('lead-form').style.display='none';
+    document.getElementById('form-success').style.display='block';
+    showToast('הפנייה נשלחה בהצלחה!');
+  }catch{
+    showToast('שגיאה בשליחה — נסו שנית או התקשרו ישירות');
+    btn.disabled=false;
+    btn.innerHTML='<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg> שלחו פנייה';
+  }
+}
+
+/* ===== DEMO MODE ===== */
+function populateDemo(){
+  STORE={name:'שירותי תיקון פלוס',phone:'050-1234567',description:'מקצועיים, מהירים ואמינים — בכל תיקון ובכל שעה'};
+  applyStore();
+  renderDefaultServices();
+  renderDefaultReviews();
+  document.getElementById('page-loader').style.display='none';
+}
+
+/* ===== INIT ===== */
+loadStore();
+</script>
+</body>
+</html>
