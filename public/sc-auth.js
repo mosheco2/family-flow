@@ -772,23 +772,62 @@ function _scTrainerPanel(sheet, gid, phone, name) {
         body.innerHTML = '';
         body.appendChild(backBtn(step1));
         var lbl = document.createElement('div');
-        lbl.style.cssText = 'font-size:13px;color:#64748b;margin-bottom:10px';
+        lbl.style.cssText = 'font-size:13px;color:#64748b;margin-bottom:6px';
         lbl.textContent = 'מאמן: ' + st.trainerName + ' — בחר/י תאריך:';
         body.appendChild(lbl);
+        var hint = document.createElement('div');
+        hint.style.cssText = 'font-size:11px;color:#94a3b8;margin-bottom:10px;text-align:right';
+        hint.textContent = 'טוען זמינות...';
+        body.appendChild(hint);
         var grid = document.createElement('div');
         grid.style.cssText = 'display:flex;flex-wrap:wrap;gap:8px';
+        var dayBtns = {};
         for (var i = 0; i < 14; i++) {
             (function(i) {
                 var d = new Date(); d.setDate(d.getDate()+i);
                 var ds = d.toISOString().slice(0,10);
                 var btn = document.createElement('button');
-                btn.style.cssText = 'padding:8px 12px;border:1.5px solid #e2e8f0;border-radius:10px;background:#fff;font-size:12px;cursor:pointer;color:#475569';
-                btn.textContent = d.toLocaleDateString('he-IL', {weekday:'short', day:'numeric', month:'short'});
-                btn.addEventListener('click', function() { st.date = ds; step3(); });
+                btn.style.cssText = 'padding:8px 12px;border:1.5px solid #e2e8f0;border-radius:10px;background:#f8fafc;font-size:12px;cursor:default;color:#94a3b8;min-width:80px;text-align:center';
+                btn.innerHTML = '<div>' + d.toLocaleDateString('he-IL', {weekday:'short', day:'numeric', month:'short'}) + '</div><div style="font-size:10px;margin-top:2px">...</div>';
+                btn.disabled = true;
+                dayBtns[ds] = btn;
                 grid.appendChild(btn);
             })(i);
         }
         body.appendChild(grid);
+
+        // Fetch availability for all 14 days in parallel
+        var pending = Object.keys(dayBtns).length;
+        Object.keys(dayBtns).forEach(function(ds) {
+            fetch('/api/sport/availability?groupId=' + gid + '&trainerId=' + (st.trainerId||'') + '&date=' + ds)
+            .then(function(r){return r.json();})
+            .then(function(res) {
+                var slots = res.slots || [];
+                var btn = dayBtns[ds];
+                var d = new Date(ds + 'T12:00:00');
+                var label = d.toLocaleDateString('he-IL', {weekday:'short', day:'numeric', month:'short'});
+                if (slots.length > 0) {
+                    btn.disabled = false;
+                    btn.style.cursor = 'pointer';
+                    btn.style.color = '#1e293b';
+                    btn.style.background = '#fff';
+                    btn.style.borderColor = '#6366f1';
+                    btn.innerHTML = '<div>' + label + '</div><div style="font-size:10px;margin-top:2px;color:#10b981;font-weight:600">' + slots.length + ' שעות פנויות</div>';
+                    btn.addEventListener('click', function() { st.date = ds; step3(); });
+                } else {
+                    btn.style.color = '#cbd5e1';
+                    btn.innerHTML = '<div style="text-decoration:line-through">' + label + '</div><div style="font-size:10px;margin-top:2px;color:#e2e8f0">אין מקום</div>';
+                }
+            })
+            .catch(function() {
+                var btn = dayBtns[ds];
+                btn.innerHTML = '<div>' + new Date(ds+'T12:00:00').toLocaleDateString('he-IL', {weekday:'short', day:'numeric', month:'short'}) + '</div><div style="font-size:10px;color:#e2e8f0">—</div>';
+            })
+            .finally(function() {
+                pending--;
+                if (pending === 0) { hint.textContent = 'בחר/י יום עם שעות פנויות:'; }
+            });
+        });
     }
 
     function step3() {

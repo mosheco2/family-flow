@@ -42985,8 +42985,9 @@ window._sportLoadSchedule = async function(from, to) {
 };
 
 window.showSportAddClass = async function() {
-    let types=[];
+    let types=[], trainers=[];
     try{types=(await fetch(`${API}/sport/class-types/${currentGroup.id}`).then(r=>r.json())).types||[];}catch(e){}
+    try{const tr=await fetch(`${API}/sport/trainers/${currentGroup.id}`).then(r=>r.json()); trainers=Array.isArray(tr)?tr:(tr.trainers||[]);}catch(e){}
     _ensureSportModal();
     const modal=document.getElementById('sport-modal');
     modal.innerHTML=`<div class="flex flex-col h-full">
@@ -43002,7 +43003,8 @@ window.showSportAddClass = async function() {
                     <option value="">-- ללא --</option>${types.map(t=>`<option value="${t.id}">${t.name}</option>`).join('')}
                 </select></div>`:''}
             <div><label class="text-xs font-bold text-slate-600 block mb-1 text-right">מאמן/ת</label>
-                <input id="sport-cls-trainer" type="text" placeholder="שם המאמן" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-right text-sm"/></div>
+                ${trainers.length?`<select id="sport-cls-trainer" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-right text-sm"><option value="">-- ללא מאמן --</option>${trainers.map(t=>`<option value="${(t.full_name||t.name||'').replace(/"/g,'&quot;')}">${t.full_name||t.name||''}</option>`).join('')}</select>`:`<input id="sport-cls-trainer" type="text" placeholder="שם המאמן" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-right text-sm"/>`}
+            </div>
             <div><label class="text-xs font-bold text-slate-600 block mb-1 text-right">תאריך *</label>
                 <input id="sport-cls-date" type="date" value="${new Date().toISOString().split('T')[0]}" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm"/></div>
             <div class="grid grid-cols-2 gap-2">
@@ -43573,8 +43575,9 @@ window._sportSaveClassType = async function(typeId, overlay) {
 
 // ─── Recurring Classes Screen ─────────────────────────────────────────────────
 window.showSportAddRecurring = async function() {
-    let types = [];
+    let types = [], trainers = [];
     try { types = (await fetch(`${API}/sport/class-types/${currentGroup.id}`).then(r=>r.json())).types||[]; } catch(e) {}
+    try{const tr=await fetch(`${API}/sport/trainers/${currentGroup.id}`).then(r=>r.json()); trainers=Array.isArray(tr)?tr:(tr.trainers||[]);}catch(e){}
     _ensureSportModal();
     const modal = document.getElementById('sport-modal');
     const dayNames = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
@@ -43594,7 +43597,8 @@ window.showSportAddRecurring = async function() {
                     <option value="">-- ללא --</option>${types.map(t=>`<option value="${t.id}">${t.name}</option>`).join('')}
                 </select></div>`:''}
             <div><label class="text-xs font-bold text-slate-600 block mb-1 text-right">מאמן/ת</label>
-                <input id="sport-rec-trainer" type="text" placeholder="שם המאמן" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-right text-sm"/></div>
+                ${trainers.length?`<select id="sport-rec-trainer" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-right text-sm"><option value="">-- ללא מאמן --</option>${trainers.map(t=>`<option value="${(t.full_name||t.name||'').replace(/"/g,'&quot;')}">${t.full_name||t.name||''}</option>`).join('')}</select>`:`<input id="sport-rec-trainer" type="text" placeholder="שם המאמן" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-right text-sm"/>`}
+            </div>
             <div class="grid grid-cols-2 gap-2">
                 <div><label class="text-xs font-bold text-slate-600 block mb-1 text-right">שעת סיום</label>
                     <input id="sport-rec-end" type="time" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm"/></div>
@@ -46310,8 +46314,9 @@ window.showSportSchedule = async function() {
 window.showSportEditClass = async function(classId) {
     const c = (window._sportScheduleAllClasses || []).find(x => x.id === classId);
     if (!c) { showToast('error', 'לא נמצא שיעור'); return; }
-    let types = [];
+    let types = [], trainers = [];
     try { types = (await fetch(`${API}/sport/class-types/${currentGroup.id}`).then(r=>r.json())).types || []; } catch(e){}
+    try{const tr=await fetch(`${API}/sport/trainers/${currentGroup.id}`).then(r=>r.json()); trainers=Array.isArray(tr)?tr:(tr.trainers||[]);}catch(e){}
     _ensureSportModal();
     const modal = document.getElementById('sport-modal');
     modal.innerHTML = `<div class="flex flex-col h-full">
@@ -46328,7 +46333,8 @@ window.showSportEditClass = async function(classId) {
                     ${types.map(t=>`<option value="${t.id}" ${c.class_type_id==t.id?'selected':''}>${t.name}</option>`).join('')}
                 </select></div>`:''}
             <div><label class="text-xs font-bold text-slate-600 block mb-1 text-right">מאמן/ת</label>
-                <input id="sedit-cls-trainer" type="text" value="${(c.trainer_name||'').replace(/"/g,'&quot;')}" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-right text-sm"/></div>
+                ${trainers.length?`<select id="sedit-cls-trainer" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-right text-sm"><option value="">-- ללא מאמן --</option>${trainers.map(t=>`<option value="${(t.full_name||t.name||'').replace(/"/g,'&quot;')}" ${(c.trainer_name||'')===(t.full_name||t.name||'')?'selected':''}>${t.full_name||t.name||''}</option>`).join('')}</select>`:`<input id="sedit-cls-trainer" type="text" value="${(c.trainer_name||'').replace(/"/g,'&quot;')}" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-right text-sm"/>`}
+            </div>
             <div><label class="text-xs font-bold text-slate-600 block mb-1 text-right">תאריך *</label>
                 <input id="sedit-cls-date" type="date" value="${(c.class_date||'').substring(0,10)}" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm"/></div>
             <div class="grid grid-cols-2 gap-2">
