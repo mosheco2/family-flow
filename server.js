@@ -33832,7 +33832,7 @@ async function _scGetCustomerByToken(token) {
     const r = await pool.query(
         `SELECT c.*, s.expires_at as sess_expires FROM storefront_sessions s
          JOIN storefront_customers c ON c.id = s.customer_id
-         WHERE s.token=$1 AND s.expires_at > NOW() AND NOT s.used_at IS NOT NULL`,
+         WHERE s.token=$1 AND s.expires_at > NOW()`,
         [token]
     ).catch(() => null);
     if (!r || !r.rows.length) return null;
