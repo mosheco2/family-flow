@@ -354,11 +354,11 @@ const scAuth = window.scAuth = {
                 const _spObj = _sp ? (typeof _sp === 'string' ? JSON.parse(_sp) : _sp) : {};
                 const sportBtns = [];
                 if (_spObj.public_show_schedule !== false)
-                    sportBtns.push(`<button onclick="document.getElementById('sc-activity-panel').style.display='none';typeof openScheduleModal==='function'&&openScheduleModal()" style="flex:1;min-width:100px;padding:10px 8px;border:1.5px solid #e2e8f0;border-radius:12px;background:#fff;font-size:12.5px;cursor:pointer;color:#475569;text-align:center">📋 לוח שיעורים</button>`);
+                    sportBtns.push(`<button onclick="document.getElementById('sc-activity-panel').style.display='none';if(window.openScheduleModal)openScheduleModal()" style="flex:1;min-width:100px;padding:10px 8px;border:1.5px solid #e2e8f0;border-radius:12px;background:#fff;font-size:12.5px;cursor:pointer;color:#475569;text-align:center">📋 לוח שיעורים</button>`);
                 if (_spObj.public_show_trainer !== false)
-                    sportBtns.push(`<button onclick="document.getElementById('sc-activity-panel').style.display='none';typeof openTrainerBooking==='function'&&openTrainerBooking()" style="flex:1;min-width:100px;padding:10px 8px;border:1.5px solid #e2e8f0;border-radius:12px;background:#fff;font-size:12.5px;cursor:pointer;color:#475569;text-align:center">📅 הזמן אימון</button>`);
+                    sportBtns.push(`<button onclick="document.getElementById('sc-activity-panel').style.display='none';if(window.openTrainerBooking)openTrainerBooking()" style="flex:1;min-width:100px;padding:10px 8px;border:1.5px solid #e2e8f0;border-radius:12px;background:#fff;font-size:12.5px;cursor:pointer;color:#475569;text-align:center">📅 הזמן אימון</button>`);
                 if (_spObj.public_show_membership !== false)
-                    sportBtns.push(`<button onclick="document.getElementById('sc-activity-panel').style.display='none';typeof openMembershipModal==='function'&&openMembershipModal()" style="flex:1;min-width:100px;padding:10px 8px;border:1.5px solid #6366f1;border-radius:12px;background:#6366f115;font-size:12.5px;cursor:pointer;color:#6366f1;font-weight:700;text-align:center">🏋️ הצטרף כחבר</button>`);
+                    sportBtns.push(`<button onclick="document.getElementById('sc-activity-panel').style.display='none';if(window.openMembershipModal)openMembershipModal()" style="flex:1;min-width:100px;padding:10px 8px;border:1.5px solid #6366f1;border-radius:12px;background:#6366f115;font-size:12.5px;cursor:pointer;color:#6366f1;font-weight:700;text-align:center">🏋️ הצטרף כחבר</button>`);
                 if (sportBtns.length) {
                     html = `<div style="margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid #f1f5f9">
                       <div style="font-size:11px;font-weight:700;color:#94a3b8;padding:0 0 8px;text-align:right">⚡ פעולות מהירות</div>
