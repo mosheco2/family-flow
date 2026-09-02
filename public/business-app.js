@@ -42605,7 +42605,7 @@ async function renderSportDashboard(el) {
         { label:'פג תוקף בקרוב', value:stats.expiring_soon, icon:'⏳', color:stats.expiring_soon>0?'orange':'slate', cb:`window.showSportAlerts()` },
         { label:'כניסות היום', value:stats.checkins_today, icon:'✅', color:'emerald', cb:`window.showSportCheckIn()` },
         { label:'בפנים כרגע', value:stats.currently_in, icon:'🔴', color:stats.currently_in>0?'red':'slate', cb:`window.showSportCheckIn()` },
-        { label:'לא אימנו 30 יום', value:stats.at_risk, icon:'⚠️', color:stats.at_risk>0?'red':'green', cb:`window.showSportAtRisk()` },
+        { label:'לא הגיעו 30 יום', value:stats.at_risk, icon:'⚠️', color:stats.at_risk>0?'red':'green', cb:`window.showSportAtRisk()` },
         { label:'הכנסה החודש', value:`₪${Number(stats.revenue_month||0).toLocaleString('he-IL',{maximumFractionDigits:0})}`, icon:'💰', color:'emerald', cb:`window.showSportReports()` }
     ];
     const kpiHtml = kpis.map(k=>`<button type="button" onclick="${k.cb}" class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex flex-col gap-1 active:scale-95 transition touch-manipulation" style="touch-action:manipulation;cursor:pointer;"><span class="text-xl">${k.icon}</span><div class="text-lg font-black text-${k.color}-600">${k.value}</div><div class="text-[10px] text-slate-500 font-bold">${k.label}</div></button>`).join('');
@@ -42682,7 +42682,7 @@ window.showSportAtRisk = async function() {
     modal.innerHTML = `<div class="flex flex-col h-full">
         <div class="flex items-center justify-between p-4 border-b border-slate-100">
             <button onclick="window._sportBack()" class="text-slate-400 text-xl">✕</button>
-            <h2 class="text-lg font-black text-slate-800">לא אימנו 30 יום ⚠️</h2><span></span>
+            <h2 class="text-lg font-black text-slate-800">לא הגיעו 30 יום ⚠️</h2><span></span>
         </div>
         <div id="sport-atrisk-content" class="flex-1 overflow-y-auto p-4"><div class="text-center py-8 text-slate-400">טוען...</div></div>
     </div>`;
@@ -42691,7 +42691,7 @@ window.showSportAtRisk = async function() {
         const d = await fetch(`${API}/sport/alerts/${currentGroup.id}`).then(r=>r.json());
         const el = document.getElementById('sport-atrisk-content');
         const list = d.atRisk || [];
-        if (!list.length) { el.innerHTML = `<div class="text-center py-12 text-slate-400 text-sm">אין חברים ב"לא אימנו 30 יום" 🎉</div>`; return; }
+        if (!list.length) { el.innerHTML = `<div class="text-center py-12 text-slate-400 text-sm">אין חברים ב"לא הגיעו 30 יום" 🎉</div>`; return; }
         el.innerHTML = `<div class="text-xs text-slate-500 mb-3 text-right">${list.length} חברים לא הגיעו 30 יום+</div>` +
             list.map(m => `<div class="bg-red-50 border border-red-100 rounded-xl p-3 mb-2 flex items-center justify-between">
                 <div class="flex gap-2">
@@ -42738,7 +42738,7 @@ window.showSportAlerts = async function() {
             }).join('');
         }
         if (d.atRisk?.length) {
-            html += `<div class="text-xs font-black text-red-600 mt-4 mb-2 text-right">⚠️ לא אימנו 30 יום+ (${d.atRisk.length})</div>`;
+            html += `<div class="text-xs font-black text-red-600 mt-4 mb-2 text-right">⚠️ לא הגיעו 30 יום+ (${d.atRisk.length})</div>`;
             html += d.atRisk.map(m => `<div class="bg-red-50 border border-red-100 rounded-xl p-3 mb-2 flex items-center justify-between">
                 <div>${m.member_phone?`<a href="tel:${m.member_phone}" class="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg">📞</a>`:''}</div>
                 <div class="text-right"><div class="font-bold text-slate-800 text-sm">${m.member_name}</div>
@@ -46236,7 +46236,7 @@ window.showSportAIInsights = async function() {
             body: JSON.stringify({ query: `אתה יועץ עסקי למועדוני ספורט. נתח את הנתונים הבאים ותן 3–5 תובנות קצרות והמלצות ספציפיות בעברית:
 מנויים פעילים: ${stats.active_members||0}
 פג תוקף בקרוב: ${stats.expiring_soon||0}
-לא אימנו 30+ יום: ${stats.at_risk||0}
+לא הגיעו 30+ יום: ${stats.at_risk||0}
 מוקפאים: ${(ar.frozen||[]).length}
 כניסות היום: ${stats.checkins_today||0}
 הכנסה החודש: ₪${stats.revenue_month||0}
