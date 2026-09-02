@@ -948,7 +948,7 @@ function _scRestaurantTablePanel(gid, customer) {
                 fetch('/api/public/restaurants/' + gid + '/book-table', {
                     method: 'POST',
                     headers: {'Content-Type':'application/json'},
-                    body: JSON.stringify({ date: state.date, time: state.time, guests: state.guests, phone: confirmPhone, name: name, notes: notes })
+                    body: JSON.stringify({ date: state.date, time: state.time, numGuests: state.guests, guests: state.guests, phone: confirmPhone, name: name || confirmPhone, notes: notes })
                 }).then(function(r){ return r.json(); }).then(function(res) {
                     if (res.success || res.token) {
                         body.innerHTML = '<div style="text-align:center;padding:30px 0">'
@@ -986,9 +986,13 @@ function _scRestaurantTablePanel(gid, customer) {
                             });
                         }
                     } else {
-                        btn.disabled=false; btn.textContent = res.error || 'שגיאה — נסה שוב';
+                        btn.disabled=false; btn.textContent = 'שלח הזמנה ואישור SMS';
+                        var errDiv = document.createElement('div');
+                        errDiv.style.cssText = 'color:#ef4444;font-size:12px;text-align:right;margin-top:8px';
+                        errDiv.textContent = res.error || 'שגיאה — נסה שוב';
+                        body.appendChild(errDiv);
                     }
-                }).catch(function() { btn.disabled=false; btn.textContent='שגיאת רשת'; });
+                }).catch(function() { btn.disabled=false; btn.textContent='שלח הזמנה ואישור SMS'; });
             });
         }
     }
