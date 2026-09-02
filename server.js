@@ -21469,7 +21469,7 @@ app.post('/api/sport/public-membership-purchase', async (req, res) => {
         const qrToken = crypto.randomBytes(16).toString('hex');
         const r = await pool.query(`INSERT INTO sport_memberships
             (group_id,member_name,member_phone,member_email,membership_type_id,start_date,end_date,sessions_total,health_notes,emergency_contact,emergency_phone,qr_token,status)
-            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'active') RETURNING id,member_name,qr_token`,
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'pending') RETURNING id,member_name,qr_token`,
             [groupId, memberName, memberPhone||'', memberEmail||'', membershipTypeId, sd, endDate, t.sessions||null, healthNotes||'', emergencyContact||'', emergencyPhone||'', qrToken]);
         res.json({ success: true, memberId: r.rows[0].id, memberName: r.rows[0].member_name, qrToken, membershipType: t.name, endDate, price: t.price });
     } catch(e) { res.status(500).json({ error: e.message }); }
@@ -34137,13 +34137,13 @@ app.get('/api/sc-auth/activity/:bizGroupId', async (req, res) => {
             [bizId, phone]
         ).then(r => r.rows).catch(() => []),
         pool.query(
-            `SELECT sr.id, sc.id as class_id, ct.type_name as class_name, sc.class_date, sc.start_time, sc.end_time, sr.status, sr.registered_at,
-                    tr.full_name as trainer_name
+            `SELECT sr.id, sc.id as class_id, sc.class_name, sc.class_date, sc.start_time, sc.end_time, sr.status, sr.registered_at, sr.cancelled_at,
+                    sc.trainer_name
              FROM sport_class_registrations sr
              JOIN sport_classes sc ON sc.id=sr.class_id
-             LEFT JOIN sport_class_types ct ON ct.id=sc.type_id
-             LEFT JOIN sport_trainers tr ON tr.id=sc.trainer_id
-             WHERE sc.group_id=$1 AND sr.member_phone=$2 AND sc.class_date >= CURRENT_DATE
+             LEFT JOIN sport_memberships sm ON sm.id=sr.membership_id
+             WHERE sc.group_id=$1 AND sc.class_date >= CURRENT_DATE AND sr.cancelled_at IS NULL
+               AND (sm.member_phone=$2 OR sr.member_name=$2)
              ORDER BY sc.class_date ASC LIMIT 10`,
             [bizId, phone]
         ).then(r => r.rows).catch(() => []),
@@ -34154,7 +34154,7 @@ app.get('/api/sc-auth/activity/:bizGroupId', async (req, res) => {
                     smt.price, smt.duration_days, smt.type as membership_kind
              FROM sport_memberships sm
              LEFT JOIN sport_membership_types smt ON smt.id = sm.membership_type_id
-             WHERE sm.group_id=$1 AND sm.member_phone=$2 AND sm.status IN ('active','trial','frozen')
+             WHERE sm.group_id=$1 AND sm.member_phone=$2 AND sm.status IN ('active','trial','frozen','pending')
              ORDER BY sm.end_date DESC LIMIT 5`,
             [bizId, phone]
         ).then(r => r.rows).catch(() => []),

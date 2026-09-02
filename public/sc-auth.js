@@ -312,8 +312,9 @@ const scAuth = window.scAuth = {
                     const hasExpired = m.end_date && new Date(m.end_date) < new Date();
                     const sessions = m.sessions_limit ? `${m.sessions_used||0} / ${m.sessions_limit} כניסות` : '';
                     const frozen = m.status === 'frozen';
-                    const statusLabel = frozen ? 'מוקפא' : (m.is_trial || m.status==='trial') ? 'ניסיון' : hasExpired ? 'פג תוקף' : 'פעיל';
-                    const statusColor = frozen ? '#94a3b8' : hasExpired ? '#ef4444' : color;
+                    const pending = m.status === 'pending';
+                    const statusLabel = pending ? 'ממתין לאישור' : frozen ? 'מוקפא' : (m.is_trial || m.status==='trial') ? 'ניסיון' : hasExpired ? 'פג תוקף' : 'פעיל';
+                    const statusColor = pending ? '#f59e0b' : frozen ? '#94a3b8' : hasExpired ? '#ef4444' : color;
                     // Progress bar for sessions
                     const pct = m.sessions_limit ? Math.min(100, Math.round(((m.sessions_used||0)/m.sessions_limit)*100)) : null;
                     return `<div style="border:2px solid ${color}30;border-radius:14px;padding:14px;margin-bottom:10px;background:${color}08" data-mem-id="${m.id}">
@@ -333,7 +334,8 @@ const scAuth = window.scAuth = {
             if (classRegs.length) {
                 html += `<div style="font-size:11px;font-weight:700;color:#94a3b8;padding:8px 0 6px;text-align:right">🏋️ שיעורים קרובים</div>`;
                 html += classRegs.map(c => {
-                    const d = c.class_date ? new Date(c.class_date+'T12:00:00').toLocaleDateString('he-IL',{weekday:'short',day:'numeric',month:'short'}) : '';
+                    const _cdk = c.class_date instanceof Date ? c.class_date.toISOString().slice(0,10) : String(c.class_date||'').slice(0,10);
+                    const d = _cdk ? new Date(_cdk+'T12:00:00').toLocaleDateString('he-IL',{weekday:'short',day:'numeric',month:'short'}) : '';
                     const t = c.start_time ? c.start_time.slice(0,5) : '';
                     const cancelled = c.status === 'cancelled' || c.status === 'cancelled_late';
                     return `<div style="border:1px solid #f1f5f9;border-radius:12px;padding:12px;margin-bottom:8px;opacity:${cancelled?'0.6':'1'}">
@@ -691,7 +693,10 @@ function _scSchedulePanel(sheet, gid, phone, name) {
         var classes = (d && d.classes) || [];
         if (!classes.length) { body.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:40px">אין שיעורים בשבועיים הקרובים</div>'; return; }
         var byDate = {};
-        classes.forEach(function(c) { (byDate[c.class_date] = byDate[c.class_date] || []).push(c); });
+        classes.forEach(function(c) {
+            var dk = c.class_date instanceof Date ? c.class_date.toISOString().slice(0,10) : String(c.class_date).slice(0,10);
+            (byDate[dk] = byDate[dk] || []).push(c);
+        });
         var html = '';
         Object.keys(byDate).sort().forEach(function(date) {
             var dObj = new Date(date + 'T12:00:00');
@@ -956,10 +961,11 @@ function _scMembershipPanel(sheet, gid, phone, name) {
                 if (res.memberId || res.success) {
                     body.innerHTML = '<div style="text-align:center;padding:40px">' +
                         '<div style="font-size:48px;margin-bottom:12px">🎉</div>' +
-                        '<div style="font-size:18px;font-weight:700;color:#1e293b;margin-bottom:8px">ההרשמה בוצעה!</div>' +
+                        '<div style="font-size:18px;font-weight:700;color:#1e293b;margin-bottom:8px">הבקשה נשלחה!</div>' +
                         '<div style="font-size:14px;color:#64748b">' + (type.name||'מנוי') + '</div>' +
                         (res.endDate ? '<div style="font-size:13px;color:#94a3b8;margin-top:6px">בתוקף עד ' + res.endDate + '</div>' : '') +
-                        '<div style="font-size:13px;color:#64748b;margin-top:12px">הנהלת המועדון תיצור איתך קשר לסיום</div>' +
+                        '<div style="font-size:13px;color:#f59e0b;margin-top:12px;font-weight:600">⏳ ממתין לאישור המועדון</div>' +
+                        '<div style="font-size:12px;color:#94a3b8;margin-top:6px">הנהלת המועדון תאשר ותיצור איתך קשר לתשלום</div>' +
                         '<button id="mem-close" style="margin-top:24px;padding:12px 32px;background:#6366f1;color:#fff;border:none;border-radius:12px;font-size:15px;cursor:pointer">סגור</button></div>';
                     document.getElementById('mem-close').addEventListener('click', function() { var o=document.getElementById('sc-sport-overlay'); if(o) o.remove(); });
                 } else {
