@@ -414,3 +414,5 @@ if (document.readyState === 'loading') {
 } else {
     scAuth.init();
 }
+
+})();
