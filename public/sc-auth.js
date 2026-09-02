@@ -290,7 +290,7 @@ const scAuth = window.scAuth = {
         panel.style.display = 'block';
         const list = document.getElementById('sc-activity-list');
         list.innerHTML = '<div style="text-align:center;color:#94a3b8;font-size:13px;padding:30px">טוען...</div>';
-        const bizId = storeData?.groupId || storeData?.group_id;
+        const bizId = window._scBizId || new URLSearchParams(location.search).get('store') || '';
         try {
             const r = await fetch(`/api/sc-auth/activity/${bizId}`, { headers:{'Authorization':'Bearer '+(this._token||'')} }).then(r=>r.json());
             if (!r.success) { list.innerHTML='<div style="text-align:center;color:#ef4444;font-size:13px;padding:20px">שגיאה</div>'; return; }
