@@ -449,24 +449,14 @@ const scAuth = window.scAuth = {
     }
 };
 
-// Global sport action dispatcher — delegates to storefront quick-action buttons
+// Global sport action dispatcher — called from innerHTML buttons
 window._scSportAction = function(action) {
     var panel = document.getElementById('sc-activity-panel');
     if (panel) panel.style.display = 'none';
     setTimeout(function() {
-        var qa = document.getElementById('quick-actions');
-        if (!qa) return;
-        var keyword = action === 'schedule' ? 'שיעורים'
-                    : action === 'trainer'  ? 'אימון'
-                    : null;
-        if (!keyword) return;
-        var btns = qa.querySelectorAll('button.qa-btn, a.qa-btn');
-        for (var i = 0; i < btns.length; i++) {
-            if (btns[i].textContent.includes(keyword)) {
-                btns[i].click();
-                return;
-            }
-        }
+        if (action === 'schedule' && window.openScheduleModal) { window.openScheduleModal(); return; }
+        if (action === 'trainer' && window.openTrainerBooking) { window.openTrainerBooking(); return; }
+        if (action === 'membership' && window.openMembershipModal) { window.openMembershipModal(); return; }
     }, 150);
 };
 
