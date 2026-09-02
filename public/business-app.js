@@ -35527,9 +35527,10 @@ function applyBusinessTypeFilter() {
     const individualOpenIds = billingModules
         .map(m => {
             if (typeof m === 'string') return m; // legacy string — נחשב פתוח
-            const isPaid = m.billing !== false && parseFloat(m.custom_price) > 0;
-            const isOpen = m.open !== false;
-            if (!isOpen || !isPaid) return null;
+            const isOpen = m.open === true;
+            // billing + price are for accounting only — access is gated by open flag alone
+            // SA can grant free access (open:true, billing:false) for trial/testing
+            if (!isOpen) return null;
             return MODULE_TAB_ALIASES[m.id] || m.id;
         })
         .filter(Boolean);
