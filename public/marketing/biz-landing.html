@@ -294,7 +294,7 @@
 
   <div style="padding:36px 20px; text-align:center;">
     <h2 style="font-size:21px; font-weight:700; margin:0 0 10px; color:oklch(22% 0.03 152);">לא עוד אוסף כלים,<br>מערכת שעובדת בשבילך</h2>
-    <p style="font-size:14.5px; line-height:1.6; color:oklch(42% 0.02 130); margin:0 0 22px; max-width:400px; margin-inline:auto;">Oneflow Life נבנתה מתוך צורך אמיתי וקיים של עסקים קטנים ובינוניים — מרכזים את הפעילות העסקית, השיווק והתפעולית במקום אחד בהתאמה לכל סוגי העסקים והמקצועות החופשיים.</p>
+    <p style="font-size:14.5px; line-height:1.6; color:oklch(42% 0.02 130); margin:0 0 22px; max-width:400px; margin-inline:auto;">Oneflow Life נבנתה מתוך צורך אמיתי וקיים של עסקים קטנים ובינוניים — מרכזים את הפעילות העסקית, השיווקית והתפעולית במקום אחד בהתאמה לכל סוגי העסקים והמקצועות החופשיים.</p>
     <div style="font-size:12.5px; font-weight:600; color:oklch(48% 0.02 130); margin-bottom:14px;">בין העסקים שכבר הרימו סביבות אצלנו</div>
     <!-- לוגואי לקוחות — נטענים דינמית מ-assets/client-logos/logo-N.png -->
     <div id="clientLogos" style="display:flex; flex-wrap:wrap; gap:16px; justify-content:center; align-items:center; min-height:38px;"></div>
@@ -438,9 +438,10 @@
   function render(animate) {
     var n = shots.length;
     if (!n) return;
-    /* RTL: להציג slide מספר idx → הזזת track ימינה ב-(idx/n)*100% */
+    /* RTL flex: slide 0 = ימין, slide N = שמאל.
+       כדי להציג slide idx מזיזים את ה-track ימינה ב-idx * 100% */
     track.style.transition = animate ? 'transform .42s cubic-bezier(.4,0,.2,1)' : 'none';
-    track.style.transform = 'translateX(' + (shotIdx * 100 / n) + '%)';
+    track.style.transform = 'translateX(' + (shotIdx * 100) + '%)';
 
     /* עדכון dots */
     var dots = progress.children;
