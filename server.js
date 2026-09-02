@@ -3844,7 +3844,97 @@ app.post('/api/sa/ai-build-business', verifySA, async (req, res) => {
   try {
     const { businessName, businessNameEn, businessType, style, audience, languages = ['he'], productCount = 20 } = req.body;
     const langStr = languages.includes('en') ? 'Hebrew AND English' : 'Hebrew only';
-    const prompt = `You are a business content generator for an Israeli food/retail ordering platform.
+
+    const isSport = businessType === 'sport';
+
+    const prompt = isSport ? `You are a business content generator for an Israeli fitness/sport studio platform.
+Generate a COMPLETE, realistic sport studio profile as valid JSON for:
+- Business name (Hebrew): ${businessName}
+- Business name (English): ${businessNameEn || businessName}
+- Style/vibe: ${style}
+- Target audience: ${audience}
+- Languages: ${langStr}
+
+SPORT BUSINESS RULES:
+1. membership_types: Generate 4-6 realistic membership/subscription options typical for Israeli gyms/studios. Types: "monthly" (חודשי), "yearly" (שנתי), "punch_card" (כרטיסייה), "class_pack" (חבילת שיעורים). Israeli market prices 2024: punch card 10 sessions ≈ ₪350-500, monthly ≈ ₪200-350, yearly ≈ ₪1800-3500.
+2. class_types: Generate 3-5 class types offered (e.g. CrossFit, Yoga, Spinning, Pilates, Boxing). Each has a color and default duration.
+3. store_settings: Generate realistic sport-specific policies in Hebrew.
+4. promotions: 2-3 promotions (e.g. "מנוי ניסיון חינם לשבוע", "10% הנחה למנוי שנתי").
+5. logo_prompt: SHORT English FLUX prompt for a sport/fitness logo icon.
+6. banner_prompt: SHORT English FLUX prompt for a wide gym/studio atmosphere photo.
+7. catalog: Generate 5-8 supplementary products sold at the studio (protein shakes, energy drinks, gym accessories, branded merchandise). Use realistic Israeli prices.
+
+Return ONLY valid JSON, no markdown fences:
+{
+  "profile": {
+    "name": "שם בעברית",
+    "name_en": "English name",
+    "slogan": "סלוגן בעברית",
+    "slogan_en": "English slogan",
+    "welcome_message": "הודעת ברוך הבא בעברית",
+    "welcome_message_en": "English welcome",
+    "accent_color": "#HEX matching sport vibe (e.g. energetic orange, bold blue)"
+  },
+  "settings": {
+    "open_time": "06:00",
+    "close_time": "22:00",
+    "trial_enabled": true,
+    "cancellation_policy": "ניתן לבטל מנוי עד 14 ימים לפני תחילתו...",
+    "freeze_policy": "ניתן להקפיא מנוי פעם אחת בשנה עד 30 יום...",
+    "waiver_text": "הצהרת כשירות גופנית...",
+    "min_age": 16,
+    "cancel_notice_days": 14
+  },
+  "membership_types": [
+    {
+      "name": "כרטיסייה 10 כניסות",
+      "name_en": "10-Entry Punch Card",
+      "type": "punch_card",
+      "price": 420,
+      "duration_days": 180,
+      "sessions": 10,
+      "color": "#f97316",
+      "badge": "פופולרי"
+    }
+  ],
+  "class_types": [
+    {
+      "name": "קרוספיט",
+      "name_en": "CrossFit",
+      "color": "#ef4444",
+      "default_duration_min": 60
+    }
+  ],
+  "catalog": [
+    {
+      "category": "תוספי תזונה",
+      "category_en": "Supplements",
+      "products": [
+        {
+          "name": "שייק חלבון וניל",
+          "name_en": "Vanilla Protein Shake",
+          "description": "שייק חלבון עם 25 גרם חלבון",
+          "description_en": "Protein shake with 25g protein",
+          "price": 22,
+          "original_price": 0,
+          "badge_text": "",
+          "options_text": ""
+        }
+      ]
+    }
+  ],
+  "promotions": [
+    {
+      "title": "שבוע ניסיון חינם",
+      "promo_type": "free_trial",
+      "promo_value": 7,
+      "min_order": 0,
+      "show_in_banner": true
+    }
+  ],
+  "logo_prompt": "flat minimal icon of a dumbbell, clean solid background matching accent_color, vector style, no text, max 25 words",
+  "banner_prompt": "wide modern gym interior, athletes training, motivational atmosphere, natural lighting, photorealistic, no text"
+}` : `You are a business content generator for an Israeli food/retail ordering platform.
 Generate a COMPLETE, realistic business profile as valid JSON for:
 - Business name (Hebrew): ${businessName}
 - Business name (English): ${businessNameEn || businessName}
@@ -3923,13 +4013,14 @@ Return ONLY valid JSON, no markdown fences, no explanation:
   "logo_prompt": "Short English FLUX prompt (max 25 words) for a LOGO image: minimal flat icon representing the business, solid color background matching accent_color, no text, clean vector style",
   "banner_prompt": "Short English FLUX prompt (max 35 words) for a COVER/BANNER image: wide food/product photography scene representing the business atmosphere, appetizing, natural lighting, no text, photorealistic"
 }`;
+
     if (!apiKey) return res.json({ success: false, error: 'AI not configured' });
     let text;
     text = (await callGeminiDirect(prompt)).trim().replace(/^```json\s*/,'').replace(/\s*```$/,'');
     let parsed;
     try { parsed = JSON.parse(text); }
     catch(e) { return res.json({ success: false, error: 'parse_error', raw: text }); }
-    res.json({ success: true, data: parsed });
+    res.json({ success: true, data: parsed, bizType: businessType });
   } catch(e) {
     console.error('ai-build-business error:', e);
     res.json({ success: false, error: e.message });
@@ -3955,7 +4046,9 @@ app.post('/api/sa/ai-create-business', verifySA, async (req, res) => {
   try {
     await client.query('BEGIN');
     const { generatedData, storeType = 'restaurant', productImages = {} } = req.body;
-    const { profile, settings, catalog = [], promotions = [], coupons = [] } = generatedData;
+    const { profile, settings, catalog = [], promotions = [], coupons = [],
+            membership_types = [], class_types = [] } = generatedData;
+    const isSport = storeType === 'sport';
     // Generate unique group code
     const groupCode = 'B' + _bizCrypto.randomBytes(4).toString('hex').toUpperCase().slice(0, 7);
     const gRes = await client.query(
@@ -4035,6 +4128,46 @@ app.post('/api/sa/ai-create-business', verifySA, async (req, res) => {
           [groupId, c.code||'SAVE10', c.discount_pct||10, validUntil]
         );
       } catch(e) { console.warn('coupon insert skip:', e.message); }
+    }
+
+    // Sport-specific: insert membership types, class types, store settings
+    if (isSport) {
+      for (const mt of membership_types) {
+        try {
+          await pool.query(
+            `INSERT INTO sport_membership_types (group_id,name,type,price,duration_days,sessions,color,is_active,is_public)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,true,true)`,
+            [groupId, mt.name||'מנוי', mt.type||'monthly', mt.price||200,
+             mt.duration_days||30, mt.sessions||null, mt.color||'#6366f1']
+          );
+        } catch(e) { console.warn('sport membership_type skip:', e.message); }
+      }
+      for (const ct of class_types) {
+        try {
+          await pool.query(
+            `INSERT INTO sport_class_types (group_id,name,color,default_duration_min,allowed_membership_type_ids,booking_open_days,booking_close_hours,max_per_session)
+             VALUES ($1,$2,$3,$4,'[]',7,2,20)`,
+            [groupId, ct.name||'שיעור', ct.color||'#3b82f6', ct.default_duration_min||60]
+          );
+        } catch(e) { console.warn('sport class_type skip:', e.message); }
+      }
+      // Sport store settings (cancellation policy, waiver, etc.)
+      if (settings.cancellation_policy || settings.waiver_text || settings.freeze_policy) {
+        try {
+          await pool.query(
+            `INSERT INTO store_settings (group_id, sport_settings) VALUES ($1,$2)
+             ON CONFLICT (group_id) DO UPDATE SET sport_settings=EXCLUDED.sport_settings`,
+            [groupId, JSON.stringify({
+              trial_enabled: settings.trial_enabled ?? true,
+              cancellation_policy: settings.cancellation_policy || '',
+              freeze_policy: settings.freeze_policy || '',
+              waiver_text: settings.waiver_text || '',
+              min_age: settings.min_age || 16,
+              cancel_notice_days: settings.cancel_notice_days || 14
+            })]
+          );
+        } catch(e) { console.warn('sport store_settings skip:', e.message); }
+      }
     }
 
     // billing_config stays NULL → applyBusinessTypeFilter treats null as "all modules open"

@@ -14190,6 +14190,7 @@ async function aiGenerateBusiness() {
 function renderAIBPreview() {
   if (!_aiBuilderData) return;
   const d = _aiBuilderData;
+  const isSport = _aibGetBizType() === 'sport';
   document.getElementById('aib-prev-name').value = d.profile?.name || '';
   document.getElementById('aib-prev-name-en').value = d.profile?.name_en || '';
   document.getElementById('aib-prev-slogan').value = d.profile?.slogan || '';
@@ -14199,16 +14200,61 @@ function renderAIBPreview() {
   document.getElementById('aib-prev-color').value = d.profile?.accent_color || '#e63946';
   const swatch = document.getElementById('aib-prev-color-swatch');
   if (swatch) swatch.style.background = d.profile?.accent_color || '#e63946';
-  document.getElementById('aib-prev-delivery').value = d.settings?.delivery_fee ?? 15;
-  document.getElementById('aib-prev-minorder').value = d.settings?.min_order ?? 50;
-  document.getElementById('aib-prev-eta').value = d.settings?.delivery_eta_min ?? 35;
-  document.getElementById('aib-prev-open').value = d.settings?.open_time || '09:00';
-  document.getElementById('aib-prev-close').value = d.settings?.close_time || '23:00';
-  document.getElementById('aib-prev-freedeliv').value = d.settings?.free_delivery_above ?? 150;
+  // delivery settings — hide for sport
+  const delivBlock = document.getElementById('aib-prev-delivery-block');
+  if (delivBlock) delivBlock.style.display = isSport ? 'none' : '';
+  if (!isSport) {
+    document.getElementById('aib-prev-delivery').value = d.settings?.delivery_fee ?? 15;
+    document.getElementById('aib-prev-minorder').value = d.settings?.min_order ?? 50;
+    document.getElementById('aib-prev-eta').value = d.settings?.delivery_eta_min ?? 35;
+    document.getElementById('aib-prev-freedeliv').value = d.settings?.free_delivery_above ?? 150;
+  }
+  document.getElementById('aib-prev-open').value = d.settings?.open_time || (isSport ? '06:00' : '09:00');
+  document.getElementById('aib-prev-close').value = d.settings?.close_time || '22:00';
+  renderAIBSportPreview();
   renderAIBCatalog();
   renderAIBPromos();
   renderAIBImages();
   switchAIBTab('profile');
+}
+
+function renderAIBSportPreview() {
+  const d = _aiBuilderData;
+  const isSport = _aibGetBizType() === 'sport';
+  const el = document.getElementById('aib-sport-preview');
+  if (!el) return;
+  if (!isSport || !d) { el.style.display = 'none'; return; }
+  el.style.display = 'block';
+  const mts = d.membership_types || [];
+  const cts = d.class_types || [];
+  el.innerHTML = `
+    <div style="margin:16px 0;padding:14px;background:#f0fdf4;border-radius:12px;border:1.5px solid #86efac">
+      <div style="font-weight:800;font-size:15px;margin-bottom:10px;color:#166534">🏋️ סוגי מנויים שיוצרו (${mts.length})</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px">
+        ${mts.map(m=>`<div style="background:${m.color||'#6366f1'}22;border:1.5px solid ${m.color||'#6366f1'};border-radius:10px;padding:8px 12px;font-size:13px">
+          <div style="font-weight:700;color:${m.color||'#6366f1'}">${m.name}</div>
+          <div style="font-size:11px;color:#555">₪${m.price} | ${m.type==='punch_card'?m.sessions+' כניסות':m.duration_days+' ימים'}</div>
+        </div>`).join('')}
+      </div>
+    </div>
+    <div style="margin:12px 0;padding:14px;background:#eff6ff;border-radius:12px;border:1.5px solid #93c5fd">
+      <div style="font-weight:800;font-size:15px;margin-bottom:10px;color:#1e40af">📅 סוגי שיעורים שיוצרו (${cts.length})</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px">
+        ${cts.map(c=>`<div style="background:${c.color||'#3b82f6'}22;border:1.5px solid ${c.color||'#3b82f6'};border-radius:10px;padding:8px 12px;font-size:13px">
+          <div style="font-weight:700;color:${c.color||'#3b82f6'}">${c.name}</div>
+          <div style="font-size:11px;color:#555">${c.default_duration_min||60} דק׳</div>
+        </div>`).join('')}
+      </div>
+    </div>
+    <div style="margin:12px 0;padding:14px;background:#fefce8;border-radius:12px;border:1.5px solid #fde047">
+      <div style="font-weight:800;font-size:15px;margin-bottom:8px;color:#713f12">📋 הגדרות חנות</div>
+      <div style="font-size:13px;color:#555;line-height:1.8">
+        ${d.settings?.trial_enabled?'✅ שיעור ניסיון חינם מופעל<br>':''}
+        ${d.settings?.cancellation_policy?'<b>ביטול:</b> '+d.settings.cancellation_policy+'<br>':''}
+        ${d.settings?.freeze_policy?'<b>הקפאה:</b> '+d.settings.freeze_policy+'<br>':''}
+        ${d.settings?.waiver_text?'<b>כתב ויתור:</b> '+d.settings.waiver_text.slice(0,80)+'...':''}
+      </div>
+    </div>`;
 }
 
 function syncAIBFromForm() {

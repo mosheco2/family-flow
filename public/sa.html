@@ -3753,15 +3753,22 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                       </div>
                     </div>
                   </div>
-                  <h3 style="font-size:14px;font-weight:700;margin:20px 0 12px;color:#1e293b">הגדרות משלוח</h3>
-                  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">
-                    <div><label style="font-size:11px;color:#64748b;display:block;margin-bottom:4px">עלות משלוח (₪)</label><input type="number" id="aib-prev-delivery" style="width:100%;padding:8px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;box-sizing:border-box"></div>
-                    <div><label style="font-size:11px;color:#64748b;display:block;margin-bottom:4px">מינימום הזמנה (₪)</label><input type="number" id="aib-prev-minorder" style="width:100%;padding:8px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;box-sizing:border-box"></div>
-                    <div><label style="font-size:11px;color:#64748b;display:block;margin-bottom:4px">זמן הכנה (דק')</label><input type="number" id="aib-prev-eta" style="width:100%;padding:8px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;box-sizing:border-box"></div>
+                  <div id="aib-prev-delivery-block">
+                    <h3 style="font-size:14px;font-weight:700;margin:20px 0 12px;color:#1e293b">הגדרות משלוח</h3>
+                    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">
+                      <div><label style="font-size:11px;color:#64748b;display:block;margin-bottom:4px">עלות משלוח (₪)</label><input type="number" id="aib-prev-delivery" style="width:100%;padding:8px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;box-sizing:border-box"></div>
+                      <div><label style="font-size:11px;color:#64748b;display:block;margin-bottom:4px">מינימום הזמנה (₪)</label><input type="number" id="aib-prev-minorder" style="width:100%;padding:8px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;box-sizing:border-box"></div>
+                      <div><label style="font-size:11px;color:#64748b;display:block;margin-bottom:4px">זמן הכנה (דק')</label><input type="number" id="aib-prev-eta" style="width:100%;padding:8px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;box-sizing:border-box"></div>
+                      <div><label style="font-size:11px;color:#64748b;display:block;margin-bottom:4px">משלוח חינם מעל (₪)</label><input type="number" id="aib-prev-freedeliv" style="width:100%;padding:8px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;box-sizing:border-box"></div>
+                    </div>
+                  </div>
+                  <h3 style="font-size:14px;font-weight:700;margin:20px 0 12px;color:#1e293b">שעות פעילות</h3>
+                  <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px">
                     <div><label style="font-size:11px;color:#64748b;display:block;margin-bottom:4px">פתיחה</label><input type="time" id="aib-prev-open" style="width:100%;padding:8px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;box-sizing:border-box"></div>
                     <div><label style="font-size:11px;color:#64748b;display:block;margin-bottom:4px">סגירה</label><input type="time" id="aib-prev-close" style="width:100%;padding:8px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;box-sizing:border-box"></div>
-                    <div><label style="font-size:11px;color:#64748b;display:block;margin-bottom:4px">משלוח חינם מעל (₪)</label><input type="number" id="aib-prev-freedeliv" style="width:100%;padding:8px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;box-sizing:border-box"></div>
                   </div>
+                  <!-- Sport-specific preview -->
+                  <div id="aib-sport-preview" style="display:none"></div>
                 </div>
 
                 <!-- Catalog panel -->
