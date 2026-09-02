@@ -352,8 +352,14 @@ const scAuth = window.scAuth = {
             }
 
             // ── אימונים אישיים ─────────────────────────────────────────────
-            if (appointments.length) {
+            if (_bizType === 'sport') {
                 html += `<div style="font-size:11px;font-weight:700;color:#94a3b8;padding:8px 0 6px;text-align:right">📅 אימונים אישיים</div>`;
+                if (!appointments.length) {
+                    html += `<div style="background:#f8fafc;border-radius:12px;padding:14px;margin-bottom:10px;text-align:right">
+                      <div style="color:#94a3b8;font-size:13px">אין אימונים קרובים</div>
+                      <button data-sport-action="trainer" style="margin-top:8px;padding:7px 14px;background:#6366f1;color:#fff;border:none;border-radius:8px;font-size:12px;cursor:pointer">+ הזמן אימון אישי</button>
+                    </div>`;
+                } else
                 html += appointments.map(a => {
                     const dt = a.start_time ? new Date(a.start_time) : null;
                     const dateStr = dt ? dt.toLocaleDateString('he-IL',{weekday:'short',day:'numeric',month:'short'}) : '';
@@ -456,7 +462,7 @@ const scAuth = window.scAuth = {
                     fetch('/api/sport/public-class-register', {
                         method: 'DELETE',
                         headers: {'Content-Type':'application/json'},
-                        body: JSON.stringify({classId: cid, memberPhone: phone || (window.scAuth._customer && window.scAuth._customer.phone) || '', groupId: _gid})
+                        body: JSON.stringify({classId: cid, memberPhone: (window.scAuth._customer && window.scAuth._customer.phone) || '', groupId: _gid})
                     }).then(function(r){return r.json();}).then(function(res) {
                         if (res.success || res.status === 'cancelled') {
                             btn.closest('div[style]').style.opacity = '0.4';
@@ -742,8 +748,9 @@ function _scTrainerPanel(sheet, gid, phone, name) {
     }
 
     function step1() {
-        fetch('/api/sport/trainers/' + gid).then(function(r){return r.json();}).then(function(trainers) {
-            if (!trainers || !trainers.length) { body.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:40px">אין מאמנים זמינים</div>'; return; }
+        fetch('/api/sport/trainers/' + gid).then(function(r){return r.json();}).then(function(res) {
+            var trainers = Array.isArray(res) ? res : (res.trainers || res.data || []);
+            if (!trainers.length) { body.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:40px">אין מאמנים זמינים</div>'; return; }
             body.innerHTML = '<div style="font-size:13px;color:#64748b;margin-bottom:10px">בחר/י מאמן:</div>';
             trainers.forEach(function(t) {
                 var el = document.createElement('div');
@@ -880,8 +887,9 @@ function _scMembershipPanel(sheet, gid, phone, name) {
     sheet.appendChild(body);
 
     function step1() {
-        fetch('/api/sport/public-types/' + gid).then(function(r){return r.json();}).then(function(types) {
-            if (!types || !types.length) { body.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:40px">אין מנויים זמינים</div>'; return; }
+        fetch('/api/sport/public-types/' + gid).then(function(r){return r.json();}).then(function(res) {
+            var types = Array.isArray(res) ? res : (res.types || []);
+            if (!types.length) { body.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:40px">אין מנויים זמינים</div>'; return; }
             body.innerHTML = '<div style="font-size:13px;color:#64748b;margin-bottom:10px">בחר/י סוג מנוי:</div>';
             types.forEach(function(t) {
                 var color = t.color || '#6366f1';
