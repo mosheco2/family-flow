@@ -948,9 +948,9 @@ function _scRestaurantTablePanel(gid, customer) {
                 fetch('/api/public/restaurants/' + gid + '/book-table', {
                     method: 'POST',
                     headers: {'Content-Type':'application/json'},
-                    body: JSON.stringify({ date: state.date, time: state.time, numGuests: state.guests, guests: state.guests, phone: confirmPhone, name: name || confirmPhone, notes: notes })
+                    body: JSON.stringify({ date: state.date, time: state.time, numGuests: state.guests, phone: confirmPhone, name: name || confirmPhone, notes: notes })
                 }).then(function(r){ return r.json(); }).then(function(res) {
-                    if (res.success || res.tempId) {
+                    if (res.success) {
                         var verTempId = res.tempId;
                         body.innerHTML = '<div style="text-align:center;padding:30px 0">'
                             + '<div style="font-size:48px;margin-bottom:12px">✅</div>'

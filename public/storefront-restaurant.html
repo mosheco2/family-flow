@@ -1733,7 +1733,7 @@ function sheetAdd() {
   const key = `${p.id}|${note}`;
   const finalPrice = p.price + extra;
   if (cart[key]) cart[key].qty += _sheetQty;
-  else cart[key] = {id:p.id, name:p.name, price:finalPrice, qty:_sheetQty, note};
+  else cart[key] = {id:p.id, name:p.name, price:finalPrice, qty:_sheetQty, note, has_image:p.has_image};
   closeSheet();
   renderCatalog();
   updateCartBar();
@@ -1744,7 +1744,7 @@ function quickAdd(id) {
   if (!p) return;
   if (hasOptions(p)) { openSheet(id); return; }
   const key = `${id}|`;
-  if (cart[key]) cart[key].qty++; else cart[key]={id,name:p.name,price:p.price,qty:1,note:''};
+  if (cart[key]) cart[key].qty++; else cart[key]={id,name:p.name,price:p.price,qty:1,note:'',has_image:p.has_image};
   renderCatalog();
   updateCartBar();
   showToast(t(`${p.name} נוסף לעגלה`, `${p.name} added to cart`));
