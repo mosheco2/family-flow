@@ -1080,8 +1080,12 @@ function renderQuickActions(s) {
   if (s.has_table_booking) btns.push(`<button class="qa-btn" onclick="openBooking('table')">🪑 הזמנת שולחן</button>`);
   if (s.has_space_booking) btns.push(`<button class="qa-btn" onclick="openBooking('space')">🏛 הזמנת מקום</button>`);
   if (s.has_event_booking) btns.push(`<button class="qa-btn" onclick="openBooking('event')">🎉 הזמנת אירוע</button>`);
-  // Sport trainer appointment button (always show for sport stores)
-  btns.push(`<button class="qa-btn" onclick="openTrainerBooking()">📅 הזמן אימון אישי</button>`);
+  // Sport public features — controlled by BIZ settings
+  const sp = storeData?.settings?.sport_settings || {};
+  const sportPublic = typeof sp === 'string' ? JSON.parse(sp) : sp;
+  if (sportPublic.public_show_schedule) btns.push(`<button class="qa-btn" onclick="openScheduleModal()">📋 לוח שיעורים</button>`);
+  if (sportPublic.public_show_membership) btns.push(`<button class="qa-btn" onclick="openMembershipModal()">🏋️ הצטרף כחבר</button>`);
+  if (sportPublic.public_show_trainer) btns.push(`<button class="qa-btn" onclick="openTrainerBooking()">📅 הזמן אימון אישי</button>`);
   document.getElementById('quick-actions').innerHTML = btns.join('');
   document.getElementById('quick-actions').style.display = btns.length ? 'flex' : 'none';
 }
@@ -1957,6 +1961,326 @@ window.addEventListener('DOMContentLoaded', initStore);
     </div>
   </div>
 </div>
+<!-- ===== Schedule Modal ===== -->
+<div id="schedule-modal" style="display:none;position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,0.5);align-items:flex-end;justify-content:center">
+  <div style="background:#fff;border-radius:24px 24px 0 0;width:100%;max-width:520px;max-height:90vh;display:flex;flex-direction:column">
+    <div style="padding:20px 20px 12px;border-bottom:1px solid #f1f5f9;display:flex;align-items:center;gap:12px;flex-shrink:0">
+      <button onclick="document.getElementById('schedule-modal').style.display='none'" style="width:32px;height:32px;border-radius:50%;background:#f1f5f9;border:none;cursor:pointer;font-size:16px">✕</button>
+      <h3 style="flex:1;text-align:right;font-size:18px;font-weight:700;color:#1e293b;margin:0">📋 לוח שיעורים</h3>
+    </div>
+    <!-- Week navigation -->
+    <div style="padding:12px 20px;display:flex;align-items:center;gap:8px;border-bottom:1px solid #f1f5f9;flex-shrink:0">
+      <button id="sched-prev" onclick="schedNav(-7)" style="width:32px;height:32px;border-radius:8px;border:1px solid #e2e8f0;background:#fff;cursor:pointer;font-size:14px">→</button>
+      <div id="sched-range" style="flex:1;text-align:center;font-size:13px;font-weight:600;color:#475569"></div>
+      <button id="sched-next" onclick="schedNav(7)" style="width:32px;height:32px;border-radius:8px;border:1px solid #e2e8f0;background:#fff;cursor:pointer;font-size:14px">←</button>
+    </div>
+    <div id="sched-list" style="flex:1;overflow-y:auto;padding:12px 16px"></div>
+  </div>
+</div>
+
+<!-- ===== Class Registration Modal ===== -->
+<div id="class-reg-modal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.5);align-items:flex-end;justify-content:center">
+  <div style="background:#fff;border-radius:24px 24px 0 0;width:100%;max-width:480px;padding:24px 20px 32px;max-height:85vh;overflow-y:auto">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+      <button onclick="document.getElementById('class-reg-modal').style.display='none'" style="width:32px;height:32px;border-radius:50%;background:#f1f5f9;border:none;cursor:pointer">✕</button>
+      <h3 id="crm-title" style="flex:1;text-align:right;font-size:17px;font-weight:700;color:#1e293b;margin:0"></h3>
+    </div>
+    <div id="crm-info" style="background:#f8fafc;border-radius:12px;padding:12px;margin-bottom:16px;font-size:13px;color:#475569;text-align:right"></div>
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <div>
+        <label style="display:block;text-align:right;font-size:12px;font-weight:600;color:#475569;margin-bottom:4px">שם מלא *</label>
+        <input id="crm-name" type="text" placeholder="השם שלך" style="width:100%;border:1.5px solid #e2e8f0;border-radius:12px;padding:12px;font-size:14px;text-align:right;box-sizing:border-box"/>
+      </div>
+      <div>
+        <label style="display:block;text-align:right;font-size:12px;font-weight:600;color:#475569;margin-bottom:4px">טלפון *</label>
+        <input id="crm-phone" type="tel" placeholder="050-0000000" style="width:100%;border:1.5px solid #e2e8f0;border-radius:12px;padding:12px;font-size:14px;direction:ltr;text-align:center;box-sizing:border-box"/>
+      </div>
+      <div id="crm-capacity-warn" style="display:none;background:#fef3c7;border:1px solid #fbbf24;border-radius:10px;padding:10px;font-size:13px;color:#92400e;text-align:right">
+        ⚠️ השיעור מלא — תרשם לרשימת המתנה
+      </div>
+      <button id="crm-submit-btn" onclick="submitClassReg()" style="width:100%;padding:14px;background:#6366f1;color:#fff;border:none;border-radius:14px;font-size:15px;font-weight:700;cursor:pointer">הרשם לשיעור</button>
+    </div>
+    <div id="crm-success" style="display:none;text-align:center;padding:16px 0">
+      <div style="font-size:48px;margin-bottom:12px">✅</div>
+      <h4 id="crm-success-msg" style="font-size:17px;font-weight:700;color:#1e293b;margin-bottom:8px"></h4>
+      <p style="color:#64748b;font-size:13px;margin-bottom:20px">נשלחה אישור ל-BIZ. נציג יאשר את הרשמתך.</p>
+      <button onclick="document.getElementById('class-reg-modal').style.display='none';document.getElementById('crm-success').style.display='none'" style="padding:10px 24px;background:#6366f1;color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:600;cursor:pointer">סגור</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== Membership Signup Modal ===== -->
+<div id="membership-modal" style="display:none;position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,0.5);align-items:flex-end;justify-content:center">
+  <div style="background:#fff;border-radius:24px 24px 0 0;width:100%;max-width:480px;max-height:92vh;overflow-y:auto">
+    <div style="padding:20px 20px 16px;display:flex;align-items:center;gap:12px;position:sticky;top:0;background:#fff;border-bottom:1px solid #f1f5f9;z-index:1">
+      <button onclick="document.getElementById('membership-modal').style.display='none'" style="width:32px;height:32px;border-radius:50%;background:#f1f5f9;border:none;cursor:pointer">✕</button>
+      <h3 style="flex:1;text-align:right;font-size:18px;font-weight:700;color:#1e293b;margin:0">🏋️ הצטרפות כחבר</h3>
+    </div>
+    <div style="padding:16px 20px 32px">
+      <!-- Step 1: choose membership type -->
+      <div id="mem-step1">
+        <p style="text-align:right;font-size:13px;color:#64748b;margin-bottom:14px">בחר סוג מנוי:</p>
+        <div id="mem-types-list" style="display:flex;flex-direction:column;gap:10px">
+          <div style="text-align:center;color:#94a3b8;font-size:13px;padding:20px">טוען...</div>
+        </div>
+      </div>
+      <!-- Step 2: fill details -->
+      <div id="mem-step2" style="display:none">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px">
+          <button onclick="memShowStep(1)" style="background:#f1f5f9;border:none;border-radius:8px;padding:6px 10px;cursor:pointer;font-size:13px;color:#475569">→ חזרה</button>
+          <div id="mem-type-badge" style="flex:1;text-align:right;font-size:13px;font-weight:600;color:#6366f1"></div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div>
+            <label style="display:block;text-align:right;font-size:12px;font-weight:600;color:#475569;margin-bottom:4px">שם מלא *</label>
+            <input id="mem-name" type="text" placeholder="שם מלא" style="width:100%;border:1.5px solid #e2e8f0;border-radius:12px;padding:12px;font-size:14px;text-align:right;box-sizing:border-box"/>
+          </div>
+          <div>
+            <label style="display:block;text-align:right;font-size:12px;font-weight:600;color:#475569;margin-bottom:4px">טלפון *</label>
+            <input id="mem-phone" type="tel" placeholder="050-0000000" style="width:100%;border:1.5px solid #e2e8f0;border-radius:12px;padding:12px;font-size:14px;direction:ltr;text-align:center;box-sizing:border-box"/>
+          </div>
+          <div>
+            <label style="display:block;text-align:right;font-size:12px;font-weight:600;color:#475569;margin-bottom:4px">אימייל</label>
+            <input id="mem-email" type="email" placeholder="your@email.com" style="width:100%;border:1.5px solid #e2e8f0;border-radius:12px;padding:12px;font-size:14px;direction:ltr;text-align:center;box-sizing:border-box"/>
+          </div>
+          <div>
+            <label style="display:block;text-align:right;font-size:12px;font-weight:600;color:#475569;margin-bottom:4px">הערות בריאותיות (רשות)</label>
+            <textarea id="mem-health" rows="2" placeholder="פציעות, מגבלות, תרופות..." style="width:100%;border:1.5px solid #e2e8f0;border-radius:12px;padding:12px;font-size:13px;text-align:right;resize:none;box-sizing:border-box"></textarea>
+          </div>
+          <div>
+            <label style="display:block;text-align:right;font-size:12px;font-weight:600;color:#475569;margin-bottom:4px">איש קשר לחירום</label>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+              <input id="mem-emergency-name" type="text" placeholder="שם" style="border:1.5px solid #e2e8f0;border-radius:12px;padding:10px;font-size:13px;text-align:right;box-sizing:border-box"/>
+              <input id="mem-emergency-phone" type="tel" placeholder="טלפון" style="border:1.5px solid #e2e8f0;border-radius:12px;padding:10px;font-size:13px;direction:ltr;text-align:center;box-sizing:border-box"/>
+            </div>
+          </div>
+          <!-- Waiver -->
+          <div id="mem-waiver-block" style="display:none;background:#fef9ee;border:1px solid #fbbf24;border-radius:12px;padding:14px">
+            <div style="font-weight:700;font-size:13px;color:#92400e;margin-bottom:8px;text-align:right">📋 הצהרת כשירות גופנית</div>
+            <div id="mem-waiver-text" style="font-size:12px;color:#78350f;line-height:1.6;text-align:right;max-height:120px;overflow-y:auto;margin-bottom:10px"></div>
+            <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer">
+              <input type="checkbox" id="mem-waiver-agree" style="width:18px;height:18px;accent-color:#6366f1;margin-top:2px;flex-shrink:0">
+              <span style="font-size:13px;color:#374151;text-align:right;line-height:1.5">אני מאשר/ת שקראתי את ההצהרה ואני מסכים/ה לתנאים</span>
+            </label>
+          </div>
+          <button onclick="submitMembership()" style="width:100%;padding:14px;background:#6366f1;color:#fff;border:none;border-radius:14px;font-size:15px;font-weight:700;cursor:pointer">שלח בקשת הרשמה</button>
+        </div>
+      </div>
+      <!-- Step 3: success -->
+      <div id="mem-step3" style="display:none;text-align:center;padding:24px 0">
+        <div style="font-size:56px;margin-bottom:16px">🎉</div>
+        <h3 style="font-size:20px;font-weight:700;color:#1e293b;margin-bottom:8px">ברוך הבא!</h3>
+        <p style="color:#64748b;font-size:14px;margin-bottom:8px">בקשת ההרשמה שלך התקבלה.</p>
+        <p style="color:#94a3b8;font-size:12px;margin-bottom:24px">נציג מהמועדון יצור איתך קשר בהקדם לאישור ותיאום תשלום.</p>
+        <button onclick="document.getElementById('membership-modal').style.display='none'" style="padding:12px 28px;background:#6366f1;color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:600;cursor:pointer">סגור</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===== Schedule Modal =====
+let _schedOffset = 0;
+let _schedGroupId = null;
+
+function schedFmtDate(d) {
+  return d.toLocaleDateString('he-IL', { weekday:'short', day:'numeric', month:'short' });
+}
+
+window.openScheduleModal = async function() {
+  _schedGroupId = storeData?.groupId || storeData?.group_id;
+  _schedOffset = 0;
+  document.getElementById('schedule-modal').style.display = 'flex';
+  await schedLoad();
+};
+
+window.schedNav = async function(days) {
+  _schedOffset += days;
+  await schedLoad();
+};
+
+async function schedLoad() {
+  const gid = _schedGroupId; if (!gid) return;
+  const from = new Date(); from.setDate(from.getDate() + _schedOffset);
+  const to = new Date(from); to.setDate(to.getDate() + 6);
+  document.getElementById('sched-range').textContent = `${schedFmtDate(from)} — ${schedFmtDate(to)}`;
+  document.getElementById('sched-prev').disabled = _schedOffset <= 0;
+  const list = document.getElementById('sched-list');
+  list.innerHTML = '<div style="text-align:center;color:#94a3b8;font-size:13px;padding:20px">טוען...</div>';
+  try {
+    const fromStr = from.toISOString().split('T')[0];
+    const toStr = to.toISOString().split('T')[0];
+    const d = await fetch(`/api/sport/public-schedule/${gid}?from=${fromStr}&to=${toStr}`).then(r=>r.json());
+    const classes = d.classes || [];
+    if (!classes.length) { list.innerHTML = '<div style="text-align:center;color:#94a3b8;font-size:13px;padding:40px 0">אין שיעורים בשבוע זה</div>'; return; }
+    // Group by date
+    const byDate = {};
+    classes.forEach(c => { const k = c.class_date?.split?.('T')?.[0] || c.class_date; (byDate[k] = byDate[k]||[]).push(c); });
+    const colorMap = {indigo:'#6366f1',purple:'#a855f7',blue:'#3b82f6',green:'#22c55e',red:'#ef4444',orange:'#f97316',pink:'#ec4899',teal:'#14b8a6'};
+    list.innerHTML = Object.keys(byDate).sort().map(date => {
+      const dayLabel = new Date(date+'T12:00:00').toLocaleDateString('he-IL', { weekday:'long', day:'numeric', month:'long' });
+      const rows = byDate[date].map(c => {
+        const spots = c.capacity - (c.registered_count||0);
+        const full = spots <= 0;
+        const color = colorMap[c.color] || '#6366f1';
+        const timeStr = [c.start_time, c.end_time].filter(Boolean).map(t=>t.slice(0,5)).join(' — ');
+        return `<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #f8fafc">
+          <div style="width:4px;height:48px;border-radius:4px;flex-shrink:0;background:${color}"></div>
+          <div style="flex:1">
+            <div style="font-weight:700;font-size:14px;color:#1e293b">${c.class_name||c.type_name||'שיעור'}</div>
+            <div style="font-size:12px;color:#64748b;margin-top:2px">${timeStr}${c.trainer_name?' · '+c.trainer_name:''}</div>
+            <div style="font-size:11px;margin-top:3px;color:${full?'#ef4444':'#22c55e'};font-weight:600">${full?'מלא — רשימת המתנה':`${spots} מקומות פנויים`}</div>
+          </div>
+          <button onclick="openClassReg(${JSON.stringify(c).replace(/"/g,'&quot;')})"
+            style="padding:7px 14px;background:${full?'#f1f5f9':'#6366f1'};color:${full?'#64748b':'#fff'};border:none;border-radius:10px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap">
+            ${full?'המתנה':'הרשמה'}
+          </button>
+        </div>`;
+      }).join('');
+      return `<div style="margin-bottom:8px">
+        <div style="font-size:12px;font-weight:700;color:#94a3b8;padding:8px 0 4px;text-align:right">${dayLabel}</div>
+        ${rows}
+      </div>`;
+    }).join('');
+  } catch(e) { list.innerHTML = '<div style="text-align:center;color:#ef4444;font-size:13px;padding:20px">שגיאת טעינה</div>'; }
+}
+
+// ===== Class Registration Modal =====
+let _crmClassId = null;
+let _crmIsFull = false;
+
+window.openClassReg = function(c) {
+  _crmClassId = c.id;
+  const spots = c.capacity - (c.registered_count||0);
+  _crmIsFull = spots <= 0;
+  const timeStr = [c.start_time, c.end_time].filter(Boolean).map(t=>t.slice(0,5)).join(' — ');
+  const dateStr = c.class_date ? new Date(c.class_date+'T12:00:00').toLocaleDateString('he-IL',{weekday:'long',day:'numeric',month:'long'}) : '';
+  document.getElementById('crm-title').textContent = c.class_name || c.type_name || 'שיעור';
+  document.getElementById('crm-info').innerHTML = `<div style="font-weight:600;margin-bottom:4px">${dateStr} · ${timeStr}</div>${c.trainer_name?`<div>מאמן: ${c.trainer_name}</div>`:''}`;
+  document.getElementById('crm-capacity-warn').style.display = _crmIsFull ? 'block' : 'none';
+  document.getElementById('crm-submit-btn').textContent = _crmIsFull ? 'הרשם לרשימת המתנה' : 'הרשם לשיעור';
+  document.getElementById('crm-success').style.display = 'none';
+  document.getElementById('crm-name').value = '';
+  document.getElementById('crm-phone').value = '';
+  document.getElementById('class-reg-modal').style.display = 'flex';
+};
+
+window.submitClassReg = async function() {
+  const name = document.getElementById('crm-name')?.value?.trim();
+  const phone = document.getElementById('crm-phone')?.value?.trim();
+  if (!name || !phone) { alert('שם וטלפון חובה'); return; }
+  const gid = storeData?.groupId || storeData?.group_id;
+  const btn = document.getElementById('crm-submit-btn');
+  btn.disabled = true; btn.textContent = '⏳ שולח...';
+  try {
+    const r = await fetch('/api/sport/public-class-register', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ groupId: gid, classId: _crmClassId, memberName: name, memberPhone: phone })
+    });
+    const d = await r.json();
+    if (!d.success) { alert(d.message || d.error || 'שגיאה'); btn.disabled=false; btn.textContent=_crmIsFull?'הרשם לרשימת המתנה':'הרשם לשיעור'; return; }
+    document.getElementById('crm-success').style.display = 'block';
+    document.getElementById('crm-success-msg').textContent = d.status==='waitlisted' ? `נרשמת לרשימת המתנה (מקום ${d.position})` : '✅ נרשמת בהצלחה!';
+    document.querySelector('#class-reg-modal > div > div:first-child + div + div').style.display = 'none';
+    schedLoad(); // refresh spots count
+  } catch(e) { alert('שגיאת רשת'); btn.disabled=false; }
+};
+</script>
+
+<!-- ===== Membership Signup Modal JS ===== -->
+<script>
+let _memSelectedTypeId = null;
+let _memSelectedType = null;
+
+window.openMembershipModal = async function() {
+  _memSelectedTypeId = null;
+  const gid = storeData?.groupId || storeData?.group_id;
+  document.getElementById('membership-modal').style.display = 'flex';
+  memShowStep(1);
+  // Load membership types
+  try {
+    const d = await fetch(`/api/sport/public-types/${gid}`).then(r=>r.json());
+    const types = d.types || d.membership_types || [];
+    const colorMap = {indigo:'#6366f1',purple:'#a855f7',blue:'#3b82f6',green:'#22c55e',red:'#ef4444',orange:'#f97316',pink:'#ec4899',teal:'#14b8a6'};
+    const list = document.getElementById('mem-types-list');
+    if (!types.length) { list.innerHTML = '<div style="text-align:center;color:#94a3b8;font-size:13px;padding:20px">אין מנויים זמינים כרגע</div>'; return; }
+    list.innerHTML = types.map(t => {
+      const col = colorMap[t.color] || '#6366f1';
+      const durationLabel = t.duration_days ? (t.duration_days>=365?`${Math.round(t.duration_days/365)} שנה`:t.duration_days>=30?`${Math.round(t.duration_days/30)} חודשים`:`${t.duration_days} ימים`):'';
+      const sessLabel = t.sessions ? ` · ${t.sessions} כניסות` : '';
+      return `<button onclick="memSelectType(${t.id},'${(t.name||'').replace(/'/g,'\\\'')}')" data-mid="${t.id}"
+        style="display:flex;align-items:center;gap:14px;padding:14px 16px;border:1.5px solid #e2e8f0;border-radius:14px;background:#fff;cursor:pointer;text-align:right;width:100%;transition:.15s"
+        onmouseover="this.style.borderColor='${col}'" onmouseout="this.style.borderColor='#e2e8f0'">
+        <div style="width:44px;height:44px;border-radius:12px;background:${col}20;display:flex;align-items:center;justify-content:center;color:${col};font-size:22px;flex-shrink:0">🏋️</div>
+        <div style="flex:1">
+          <div style="font-weight:700;color:#1e293b;font-size:15px">${t.name}</div>
+          <div style="font-size:12px;color:#64748b;margin-top:2px">${durationLabel}${sessLabel}</div>
+        </div>
+        <div style="font-size:17px;font-weight:800;color:${col}">₪${parseFloat(t.price||0).toFixed(0)}</div>
+      </button>`;
+    }).join('');
+    // Load waiver if available
+    const sp = storeData?.settings?.sport_settings || {};
+    const spObj = typeof sp === 'string' ? JSON.parse(sp) : sp;
+    const waiverEl = document.getElementById('mem-waiver-block');
+    const waiverText = document.getElementById('mem-waiver-text');
+    if (spObj.waiver_text && waiverEl && waiverText) {
+      waiverEl.style.display = 'block';
+      waiverText.textContent = spObj.waiver_text;
+    }
+  } catch(e) { document.getElementById('mem-types-list').innerHTML = '<div style="color:#ef4444;font-size:13px;text-align:center">שגיאת טעינה</div>'; }
+};
+
+window.memSelectType = function(id, name) {
+  _memSelectedTypeId = id; _memSelectedType = name;
+  document.getElementById('mem-type-badge').textContent = `📦 ${name}`;
+  memShowStep(2);
+};
+
+function memShowStep(n) {
+  [1,2,3].forEach(i => document.getElementById('mem-step'+i).style.display = i===n ? 'block' : 'none');
+}
+
+window.submitMembership = async function() {
+  const name = document.getElementById('mem-name')?.value?.trim();
+  const phone = document.getElementById('mem-phone')?.value?.trim();
+  if (!name || !phone) { alert('שם וטלפון חובה'); return; }
+  // Waiver check
+  const waiverBlock = document.getElementById('mem-waiver-block');
+  if (waiverBlock && waiverBlock.style.display !== 'none') {
+    if (!document.getElementById('mem-waiver-agree')?.checked) { alert('יש לאשר את הצהרת הכשירות הגופנית'); return; }
+  }
+  const gid = storeData?.groupId || storeData?.group_id;
+  try {
+    const r = await fetch('/api/sport/public-membership-purchase', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({
+        groupId: gid,
+        memberName: name,
+        memberPhone: phone,
+        memberEmail: document.getElementById('mem-email')?.value?.trim()||null,
+        membershipTypeId: _memSelectedTypeId,
+        healthNotes: document.getElementById('mem-health')?.value?.trim()||null,
+        emergencyContact: document.getElementById('mem-emergency-name')?.value?.trim()||null,
+        emergencyPhone: document.getElementById('mem-emergency-phone')?.value?.trim()||null,
+      })
+    });
+    const d = await r.json();
+    if (!d.success) { alert(d.error || 'שגיאה בהרשמה'); return; }
+    // Sign waiver if agreed
+    if (document.getElementById('mem-waiver-agree')?.checked && d.memberId) {
+      const sp = storeData?.settings?.sport_settings || {};
+      const spObj = typeof sp === 'string' ? JSON.parse(sp) : sp;
+      await fetch('/api/sport/public-sign-declaration', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ groupId: gid, membershipId: d.memberId, memberName: name, memberPhone: phone, declarationText: spObj.waiver_text||'' })
+      }).catch(()=>{});
+    }
+    memShowStep(3);
+  } catch(e) { alert('שגיאת רשת'); }
+};
+</script>
+
 <!-- ===== Trainer Appointment Booking Modal ===== -->
 <div id="trainer-booking-modal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.5);align-items:flex-end;justify-content:center">
   <div style="background:#fff;border-radius:24px 24px 0 0;width:100%;max-width:480px;padding:24px 20px 32px;max-height:88vh;overflow-y:auto">

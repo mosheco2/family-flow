@@ -1112,6 +1112,24 @@ window.injectBusinessUI = function() {
                                 <div id="sport-store-settings-block" class="hidden space-y-4">
                                     <h4 class="font-black text-slate-800 mb-4 mt-8">הגדרות ספורט</h4>
                                     <div class="space-y-4">
+                                        <!-- Public store exposure toggles -->
+                                        <div class="bg-indigo-50 border border-indigo-200 rounded-2xl p-4">
+                                            <div class="font-bold text-indigo-800 text-sm mb-3">🌐 מה מוצג בחנות הציבורית?</div>
+                                            <div class="space-y-3">
+                                                <label class="flex items-center justify-between gap-2 cursor-pointer">
+                                                    <span class="text-sm text-slate-700">📋 לוח שיעורים + הרשמה לשיעור</span>
+                                                    <input type="checkbox" id="sport-public-schedule" class="w-5 h-5 accent-indigo-600 rounded">
+                                                </label>
+                                                <label class="flex items-center justify-between gap-2 cursor-pointer">
+                                                    <span class="text-sm text-slate-700">🏋️ הצטרפות מנוי (הרשמה עצמאית)</span>
+                                                    <input type="checkbox" id="sport-public-membership" class="w-5 h-5 accent-indigo-600 rounded">
+                                                </label>
+                                                <label class="flex items-center justify-between gap-2 cursor-pointer">
+                                                    <span class="text-sm text-slate-700">📅 הזמנת אימון אישי עם מאמן</span>
+                                                    <input type="checkbox" id="sport-public-trainer" class="w-5 h-5 accent-indigo-600 rounded">
+                                                </label>
+                                            </div>
+                                        </div>
                                         <label class="flex items-center gap-2 cursor-pointer">
                                             <input type="checkbox" id="sport-trial-enabled" class="w-5 h-5 accent-indigo-600 rounded">
                                             <span class="font-bold text-slate-700 text-sm">אפשר שיעור ניסיון חינם לחברים חדשים</span>
@@ -42194,6 +42212,12 @@ window._loadSportStoreSettings = async function() {
         if (waiverEl) waiverEl.value = sp.waiver_text || '';
         if (minAgeEl) minAgeEl.value = sp.min_age || '';
         if (noticeDaysEl) noticeDaysEl.value = sp.cancel_notice_days || '';
+        const elSched = document.getElementById('sport-public-schedule');
+        const elMember = document.getElementById('sport-public-membership');
+        const elTrainer = document.getElementById('sport-public-trainer');
+        if (elSched) elSched.checked = !!sp.public_show_schedule;
+        if (elMember) elMember.checked = !!sp.public_show_membership;
+        if (elTrainer) elTrainer.checked = !!sp.public_show_trainer;
     } catch(e) {}
 };
 
@@ -42318,6 +42342,9 @@ window.applyDeliveryZoneFee = function(zoneId) {
                 waiver_text: document.getElementById('sport-waiver-text')?.value || '',
                 min_age: parseInt(document.getElementById('sport-min-age')?.value) || null,
                 cancel_notice_days: parseInt(document.getElementById('sport-cancel-notice-days')?.value) || null,
+                public_show_schedule: document.getElementById('sport-public-schedule')?.checked || false,
+                public_show_membership: document.getElementById('sport-public-membership')?.checked || false,
+                public_show_trainer: document.getElementById('sport-public-trainer')?.checked || false,
             };
             try {
                 await fetch(`${API}/sport/store-settings`, {
