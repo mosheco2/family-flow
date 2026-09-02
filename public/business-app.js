@@ -10568,6 +10568,9 @@ window.renderStoreCustomers = function() {
                 ${c.notes ? `<div class="text-[10px] text-slate-400 max-w-[120px] truncate bg-slate-50 px-2 py-0.5 rounded border border-slate-100 hidden sm:block" title="${safeStr(c.notes)}">${safeStr(c.notes)}</div>` : ''}
                 <button onclick="event.stopPropagation(); if(typeof window.openCustomerModal === 'function') window.openCustomerModal(${c.id}, 'details')" class="text-slate-400 hover:text-indigo-600 bg-slate-50 w-8 h-8 rounded-lg flex items-center justify-center transition border border-slate-100 shadow-sm" title="עריכת פרטים"><i class="fa-solid fa-pen text-xs"></i></button>
                 <button onclick="event.stopPropagation(); window.deleteStoreCustomer(${c.id}, '${safeStr(c.name)}')" class="text-slate-400 hover:text-red-600 bg-slate-50 w-8 h-8 rounded-lg flex items-center justify-center transition border border-slate-100 shadow-sm" title="מחיקת לקוח"><i class="fa-solid fa-trash text-xs"></i></button>
+                ${c.is_ofl_customer
+                    ? `<span class="text-[9px] font-bold bg-indigo-100 text-indigo-700 border border-indigo-200 px-2 py-1 rounded-lg" title="לקוח רשום בחנות הציבורית של OneFlow">✓ OneFlow</span>`
+                    : ''}
                 ${c.family_group_id
                     ? (c.account_status === 'pending_activation'
                         ? `<span class="text-[9px] font-bold bg-amber-100 text-amber-700 border border-amber-200 px-2 py-1 rounded-lg">⏳ SOLO ממתין</span>`

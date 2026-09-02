@@ -1741,6 +1741,14 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                 </div>
 
                <div id="sa-view-clients" class="hidden space-y-8 fade-in">
+                    <!-- sub-tab nav -->
+                    <div style="display:flex;gap:0.4rem;flex-wrap:wrap;background:white;border:1px solid #e2e8f0;border-radius:0.75rem;padding:0.6rem 0.75rem;box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+                      <button id="vtnav-clients-environments" onclick="switchViewTab('clients','environments')" style="background:#4f46e5;color:white;border:1px solid #4338ca;border-radius:0.6rem;padding:0.45rem 1rem;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:Rubik,sans-serif;transition:all 0.15s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;"><i class="fa-solid fa-users" style="font-size:11px;"></i>סביבות</button>
+                      <button id="vtnav-clients-sc" onclick="switchViewTab('clients','sc');loadSCCustomers()" style="background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;border-radius:0.6rem;padding:0.45rem 1rem;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:Rubik,sans-serif;transition:all 0.15s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;"><i class="fa-solid fa-id-card" style="font-size:11px;"></i>לקוחות חנות (OneFlow)</button>
+                    </div>
+
+                    <!-- environments (existing) -->
+                    <div id="vt-clients-environments" class="vt-clients">
                     <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
                         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
                             <h2 class="text-xl font-black text-slate-800"><i class="fa-solid fa-users text-emerald-500 mr-2"></i> לקוחות וסביבות במערכת</h2>
@@ -1751,6 +1759,28 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                         </div>
                         <div id="sa-group-type-filters" class="flex gap-2 mb-4 flex-wrap"></div>
                         <div id="sa-groups-list" class="space-y-3"></div>
+                    </div>
+                    </div>
+
+                    <!-- storefront customers (new) -->
+                    <div id="vt-clients-sc" class="vt-clients hidden">
+                    <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+                      <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-5 gap-3">
+                        <h2 class="text-xl font-black text-slate-800"><i class="fa-solid fa-id-card text-indigo-500 mr-2"></i> לקוחות רשומים — חנויות OneFlow</h2>
+                        <div class="relative w-full sm:w-64">
+                          <i class="fa-solid fa-search absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 text-xs"></i>
+                          <input type="text" id="sc-sa-search" oninput="loadSCCustomers()" class="modern-input py-2.5 pr-9 text-sm" placeholder="חיפוש שם, טלפון, אימייל...">
+                        </div>
+                      </div>
+                      <div id="sc-sa-list" class="space-y-2"></div>
+                      <div class="flex justify-between items-center mt-4">
+                        <span id="sc-sa-count" class="text-xs text-slate-400"></span>
+                        <div class="flex gap-2">
+                          <button id="sc-sa-prev" onclick="scSAPage(-1)" style="display:none" class="text-xs bg-slate-100 text-slate-600 px-3 py-1.5 rounded-lg font-bold hover:bg-slate-200 transition">→ הקודם</button>
+                          <button id="sc-sa-next" onclick="scSAPage(1)"  style="display:none" class="text-xs bg-slate-100 text-slate-600 px-3 py-1.5 rounded-lg font-bold hover:bg-slate-200 transition">הבא ←</button>
+                        </div>
+                      </div>
+                    </div>
                     </div>
                 </div>
 

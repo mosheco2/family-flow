@@ -436,6 +436,7 @@ window.switchSATab = function(tabId) {
 
     if (tabId === 'adslots') window.renderAdSlotsPanel && window.renderAdSlotsPanel();
     const allTabs = ['dashboard', 'pulse', 'devops', 'support', 'stats', 'comm', 'biz', 'inbox', 'content', 'clients', 'hr', 'partners', 'finance', 'sysmap', 'legal', 'templates', 'adslots', 'auditlog', 'archive', 'games', 'feed', 'livegames', 'marketing', 'whatsapp', 'kol-haam', 'pricing', 'ai-builder'];
+    if (tabId === 'clients') { setTimeout(() => switchViewTab('clients','environments'), 50); }
     if (tabId === 'kol-haam') loadSAKolHaamQueue();
     let activeTabTitle = 'לוח בקרה';
 
@@ -620,6 +621,66 @@ window.switchViewTab = function(viewId, tabId) {
     if (viewId === 'system' && tabId === 'auditlog') { try { loadAuditLog(); } catch(e) {} }
     if (viewId === 'system' && tabId === 'archive')   { try { loadArchive();  } catch(e) {} }
 };
+
+// ===== SA Storefront Customers =====
+let _scSAOffset = 0;
+const _scSALimit = 25;
+
+window.loadSCCustomers = async function(reset = true) {
+    if (reset) _scSAOffset = 0;
+    const search = document.getElementById('sc-sa-search')?.value?.trim() || '';
+    const list = document.getElementById('sc-sa-list');
+    const count = document.getElementById('sc-sa-count');
+    if (!list) return;
+    list.innerHTML = '<div class="text-center text-slate-400 text-sm py-8">טוען...</div>';
+    try {
+        const url = `/api/sa/sc-customers?search=${encodeURIComponent(search)}&limit=${_scSALimit}&offset=${_scSAOffset}`;
+        const d = await fetch(url).then(r => r.json());
+        if (!d.success) { list.innerHTML = '<div class="text-red-500 text-sm text-center py-4">שגיאה</div>'; return; }
+        const customers = d.customers || [];
+        if (count) count.textContent = `סה"כ ${d.total} לקוחות`;
+        document.getElementById('sc-sa-prev').style.display = _scSAOffset > 0 ? '' : 'none';
+        document.getElementById('sc-sa-next').style.display = _scSAOffset + _scSALimit < d.total ? '' : 'none';
+        if (!customers.length) { list.innerHTML = '<div class="text-slate-400 text-sm text-center py-8">אין לקוחות</div>'; return; }
+        list.innerHTML = customers.map(c => `
+          <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 flex flex-col sm:flex-row gap-3 sm:items-center hover:border-indigo-200 transition">
+            <div class="w-10 h-10 bg-indigo-100 text-indigo-700 rounded-full flex items-center justify-center font-black text-lg shrink-0">${(c.first_name||'?').charAt(0)}</div>
+            <div class="flex-1 min-w-0">
+              <div class="font-bold text-slate-800 text-sm">${safeStr(c.first_name)} ${safeStr(c.last_name)}</div>
+              <div class="text-xs text-slate-500 mt-1 flex flex-wrap gap-2">
+                <span dir="ltr">${safeStr(c.phone)}</span>
+                ${c.email ? `<span>${safeStr(c.email)}</span>` : ''}
+                ${c.age ? `<span>גיל: ${c.age}</span>` : ''}
+                ${c.address_city ? `<span>${safeStr(c.address_street||'')} ${safeStr(c.address_number||'')}${c.address_city?', '+safeStr(c.address_city):''}</span>` : ''}
+              </div>
+              <div class="text-xs text-slate-400 mt-1">${new Date(c.created_at).toLocaleDateString('he-IL')}</div>
+            </div>
+            <div class="flex items-center gap-2 shrink-0 flex-wrap justify-end">
+              <span class="text-[10px] font-bold px-2 py-1 rounded-lg ${c.has_pin ? 'bg-green-100 text-green-700 border border-green-200' : 'bg-slate-100 text-slate-500 border border-slate-200'}">
+                ${c.has_pin ? '🔐 PIN מוגדר' : '⚠️ ללא PIN'}
+              </span>
+              ${c.family_group_id ? `<span class="text-[10px] font-bold bg-violet-100 text-violet-700 border border-violet-200 px-2 py-1 rounded-lg">🔗 SOLO</span>` : ''}
+              <button onclick="scSAResetPin(${c.id},'${safeStr(c.first_name)} ${safeStr(c.last_name)}')"
+                class="text-xs bg-amber-50 text-amber-700 border border-amber-200 px-3 py-1.5 rounded-lg font-bold hover:bg-amber-100 transition whitespace-nowrap">
+                אפס PIN
+              </button>
+            </div>
+          </div>`).join('');
+    } catch(e) { if (list) list.innerHTML = '<div class="text-red-500 text-sm text-center py-4">שגיאת טעינה</div>'; }
+};
+
+window.scSAPage = function(dir) {
+    _scSAOffset = Math.max(0, _scSAOffset + dir * _scSALimit);
+    loadSCCustomers(false);
+};
+
+window.scSAResetPin = async function(id, name) {
+    if (!confirm(`לאפס את ה-PIN של "${name}"?\nיישלח SMS עם קוד איפוס לטלפון שלו.`)) return;
+    const r = await fetch(`/api/sa/sc-customers/${id}/reset-pin`, { method: 'POST' }).then(r => r.json()).catch(() => ({}));
+    if (r.success) showToast('success', `SMS נשלח ל-${name}`);
+    else showToast('error', r.error || 'שגיאה');
+};
+// ===== END SA Storefront Customers =====
 
 // Close mobile sidebar after navigating (on mobile widths)
 function _updateMobileNav() {
