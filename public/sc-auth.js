@@ -383,23 +383,27 @@ const scAuth = window.scAuth = {
             }
 
             // ── היסטוריית ביקורים ──────────────────────────────────────────
-            if (_bizType === 'sport' && checkins.length) {
-                html += `<div style="font-size:11px;font-weight:700;color:#94a3b8;padding:8px 0 6px;text-align:right;display:flex;justify-content:space-between;align-items:center"><span>🚪 היסטוריית ביקורים</span><span style="font-weight:400">${checkins.length} ביקורים</span></div>`;
-                html += `<div style="border:1px solid #f1f5f9;border-radius:14px;overflow:hidden;margin-bottom:10px">`;
-                html += checkins.map((c, i) => {
-                    const dt = c.checked_in_at ? new Date(c.checked_in_at) : null;
-                    const dateStr = dt ? dt.toLocaleDateString('he-IL',{weekday:'short',day:'numeric',month:'short',year:'numeric'}) : '';
-                    const timeStr = dt ? dt.toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'}) : '';
-                    const visitNum = checkins.length - i;
-                    return `<div style="display:flex;align-items:center;justify-content:space-between;padding:9px 12px;${i>0?'border-top:1px solid #f8fafc':''}">
-                      <span style="font-size:11px;color:#cbd5e1;font-weight:600">#${visitNum}</span>
-                      <div style="text-align:right">
-                        <div style="font-size:13px;color:#1e293b;font-weight:600">${dateStr}</div>
-                        <div style="font-size:11px;color:#94a3b8">${timeStr}</div>
-                      </div>
-                    </div>`;
-                }).join('');
-                html += `</div>`;
+            if (_bizType === 'sport') {
+                html += `<div style="font-size:11px;font-weight:700;color:#94a3b8;padding:8px 0 6px;text-align:right;display:flex;justify-content:space-between;align-items:center"><span>🚪 היסטוריית ביקורים</span><span style="font-weight:400">${checkins.length ? checkins.length + ' ביקורים' : ''}</span></div>`;
+                if (!checkins.length) {
+                    html += `<div style="background:#f8fafc;border-radius:12px;padding:14px;margin-bottom:10px;text-align:right;color:#94a3b8;font-size:13px">אין ביקורים רשומים עדיין</div>`;
+                } else {
+                    html += `<div style="border:1px solid #f1f5f9;border-radius:14px;overflow:hidden;margin-bottom:10px">`;
+                    html += checkins.map((c, i) => {
+                        const dt = c.checked_in_at ? new Date(c.checked_in_at) : null;
+                        const dateStr = dt ? dt.toLocaleDateString('he-IL',{weekday:'short',day:'numeric',month:'short',year:'numeric'}) : '';
+                        const timeStr = dt ? dt.toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'}) : '';
+                        const visitNum = checkins.length - i;
+                        return `<div style="display:flex;align-items:center;justify-content:space-between;padding:9px 12px;${i>0?'border-top:1px solid #f8fafc':''}">
+                          <span style="font-size:11px;color:#cbd5e1;font-weight:600">#${visitNum}</span>
+                          <div style="text-align:right">
+                            <div style="font-size:13px;color:#1e293b;font-weight:600">${dateStr}</div>
+                            <div style="font-size:11px;color:#94a3b8">${timeStr}</div>
+                          </div>
+                        </div>`;
+                    }).join('');
+                    html += `</div>`;
+                }
             }
 
             // ── הזמנות חנות ─────────────────────────────────────────────────
@@ -612,48 +616,37 @@ function _scShowMembershipDetail(m) {
         (sessions ? '<div style="display:flex;justify-content:space-between;padding:6px 0"><span style="color:#64748b;font-size:13px">כניסות</span><span style="font-weight:600;font-size:13px">'+sessions+'</span></div>' : '') +
         '</div>' +
         (pct !== null ? '<div style="margin-bottom:16px"><div style="font-size:11px;color:#94a3b8;text-align:right;margin-bottom:4px">ניצול</div><div style="background:#e2e8f0;border-radius:8px;height:10px;overflow:hidden"><div style="height:100%;width:'+pct+'%;background:'+color+';border-radius:8px"></div></div><div style="font-size:11px;color:#94a3b8;text-align:left;margin-top:2px">'+pct+'%</div></div>' : '') +
-        (m.qr_token ? '<div style="text-align:center;margin-bottom:16px"><div style="font-size:11px;color:#94a3b8;margin-bottom:8px">קוד כניסה אישי — הצג בכניסה למועדון</div><canvas id="sc-mem-qr" width="180" height="180" style="border:4px solid '+color+'20;border-radius:12px;display:block;margin:0 auto"></canvas><div style="font-size:10px;color:#94a3b8;margin-top:6px;letter-spacing:1px">'+m.qr_token.slice(-8).toUpperCase()+'</div></div>' : '') +
+        (m.qr_token ? '<div style="text-align:center;margin-bottom:16px"><div style="font-size:11px;color:#94a3b8;margin-bottom:8px">קוד כניסה אישי — הצג בכניסה למועדון</div><div id="sc-mem-qr" style="display:inline-block;padding:12px;background:#fff;border:3px solid '+color+'25;border-radius:14px;line-height:0"></div><div style="font-size:10px;color:#94a3b8;margin-top:8px;letter-spacing:2px;font-family:monospace">'+m.qr_token.slice(-8).toUpperCase()+'</div></div>' : '') +
         '<div style="font-size:11px;color:#94a3b8;text-align:center;padding:8px">מספר מנוי: #'+m.id+'</div>';
     sheet.appendChild(inner);
 
-    // Generate QR code if token exists
+    // Generate real QR code
     if (m.qr_token) {
-        var canvas = sheet.querySelector('#sc-mem-qr');
-        if (canvas) _scDrawQR(canvas, m.qr_token, color);
+        var qrContainer = sheet.querySelector('#sc-mem-qr');
+        if (qrContainer) _scDrawQR(qrContainer, m.qr_token);
     }
 }
 
-function _scDrawQR(canvas, text, color) {
-    // Simple QR-like visual using canvas — draws a placeholder branded square
-    // In production, a real QR library could be loaded; this shows the token as text + branded visual
-    var ctx = canvas.getContext('2d');
-    var sz = canvas.width;
-    ctx.fillStyle = '#fff';
-    ctx.fillRect(0,0,sz,sz);
-    // Draw branded background
-    ctx.fillStyle = (color||'#6366f1') + '10';
-    ctx.fillRect(8,8,sz-16,sz-16);
-    // Draw text in center
-    ctx.fillStyle = color || '#6366f1';
-    ctx.font = 'bold 11px monospace';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    var lines = [];
-    for (var i=0;i<text.length;i+=16) lines.push(text.slice(i,i+16));
-    var lineH = 14;
-    var totalH = lines.length * lineH;
-    lines.forEach(function(line,idx) {
-        ctx.fillText(line, sz/2, sz/2 - totalH/2 + idx*lineH + lineH/2);
-    });
-    // Corner markers (QR-style)
-    var ms = 24, mr = 8;
-    [[mr,mr],[sz-mr-ms,mr],[mr,sz-mr-ms]].forEach(function(pos) {
-        ctx.strokeStyle = color || '#6366f1';
-        ctx.lineWidth = 3;
-        ctx.strokeRect(pos[0],pos[1],ms,ms);
-        ctx.fillStyle = (color||'#6366f1') + '30';
-        ctx.fillRect(pos[0]+5,pos[1]+5,ms-10,ms-10);
-    });
+function _scDrawQR(container, text) {
+    function doRender() {
+        container.innerHTML = '';
+        new window.QRCode(container, {
+            text: text,
+            width: 180,
+            height: 180,
+            colorDark: '#1e293b',
+            colorLight: '#ffffff',
+            correctLevel: window.QRCode.CorrectLevel.M
+        });
+    }
+    if (window.QRCode) {
+        doRender();
+    } else {
+        var s = document.createElement('script');
+        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';
+        s.onload = doRender;
+        document.head.appendChild(s);
+    }
 }
 
 // ─── Inline sport panels — self-contained, no storefront DOM dependency ───────
