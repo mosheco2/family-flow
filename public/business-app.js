@@ -41607,13 +41607,49 @@ window._sportLoadCheckinToday = async function() {
         if (!list.length) { el.innerHTML = `<p class="text-center text-slate-400 text-xs py-2">אין כניסות היום עדיין</p>`; return; }
         el.innerHTML = `<div class="text-xs font-bold text-slate-500 mb-2">כניסות היום (${list.length})</div>` +
             list.map(c => {
-                const t = c.checked_in_at ? new Date(c.checked_in_at).toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'}) : '';
-                return `<div class="flex items-center justify-between bg-slate-50 rounded-lg px-3 py-2 text-sm">
-                    <span class="text-slate-400 text-xs">${t}</span>
-                    <span class="font-bold text-slate-700">${c.member_name||''}</span>
+                const inDt = c.checked_in_at ? new Date(c.checked_in_at) : null;
+                const inT = inDt ? inDt.toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'}) : '';
+                const outDt = c.checked_out_at ? new Date(c.checked_out_at) : null;
+                const outT = outDt ? outDt.toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'}) : '';
+                let durStr = '';
+                if (inDt && outDt) {
+                    const mins = Math.round((outDt - inDt) / 60000);
+                    durStr = mins >= 60 ? `${Math.floor(mins/60)}ש׳ ${mins%60}ד׳` : `${mins} דק׳`;
+                }
+                const checkoutBtn = !outDt
+                    ? `<button onclick="window._sportDoCheckout('${c.id}')" class="text-[10px] bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-lg px-2 py-0.5 font-semibold transition">יציאה</button>`
+                    : `<span class="text-[10px] text-slate-400">יצא ${outT}${durStr?' · '+durStr:''}</span>`;
+                return `<div class="flex items-center justify-between bg-slate-50 rounded-lg px-3 py-2 text-sm gap-2">
+                    <div class="flex items-center gap-1.5">
+                        <button onclick="window._sportCancelCheckin('${c.id}')" title="ביטול כניסה" class="text-[10px] bg-rose-50 text-rose-400 hover:bg-rose-100 rounded-lg px-2 py-0.5 font-semibold transition">ביטול</button>
+                        ${checkoutBtn}
+                    </div>
+                    <div class="text-right flex-1 min-w-0">
+                        <div class="font-bold text-slate-700 text-xs truncate">${c.member_name||''}</div>
+                        <div class="text-[10px] text-slate-400">כניסה ${inT}</div>
+                    </div>
                 </div>`;
             }).join('');
     } catch(e) {}
+};
+
+window._sportDoCheckout = async function(checkinId) {
+    try {
+        const r = await fetch(`${API}/sport/checkin/${checkinId}/checkout`, { method: 'POST' });
+        const d = await r.json();
+        if (d.success) window._sportLoadCheckinToday();
+        else alert(d.error || 'שגיאה');
+    } catch(e) { alert('שגיאת רשת'); }
+};
+
+window._sportCancelCheckin = async function(checkinId) {
+    if (!confirm('לבטל כניסה זו?')) return;
+    try {
+        const r = await fetch(`${API}/sport/checkin/${checkinId}`, { method: 'DELETE' });
+        const d = await r.json();
+        if (d.success) window._sportLoadCheckinToday();
+        else alert(d.error || 'שגיאה');
+    } catch(e) { alert('שגיאת רשת'); }
 };
 
 window.showSportCheckins = window._sportLoadCheckinToday;

@@ -21053,6 +21053,31 @@ app.get('/api/sport/checkins/:groupId', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// Cancel check-in
+app.delete('/api/sport/checkin/:id', async (req, res) => {
+    try {
+        const r = await pool.query('SELECT * FROM sport_checkins WHERE id=$1', [req.params.id]);
+        if (!r.rows.length) return res.status(404).json({ error: 'כניסה לא נמצאה' });
+        const ci = r.rows[0];
+        await pool.query('DELETE FROM sport_checkins WHERE id=$1', [req.params.id]);
+        // restore session if membership has session limit
+        const mem = await pool.query('SELECT sessions_total FROM sport_memberships WHERE id=$1', [ci.membership_id]);
+        if (mem.rows.length && mem.rows[0].sessions_total !== null) {
+            await pool.query('UPDATE sport_memberships SET sessions_used=GREATEST(sessions_used-1,0), updated_at=NOW() WHERE id=$1', [ci.membership_id]);
+        }
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Checkout (record exit time)
+app.post('/api/sport/checkin/:id/checkout', async (req, res) => {
+    try {
+        const r = await pool.query('UPDATE sport_checkins SET checked_out_at=NOW() WHERE id=$1 AND checked_out_at IS NULL RETURNING *', [req.params.id]);
+        if (!r.rows.length) return res.status(404).json({ error: 'כניסה לא נמצאה או כבר בוצעה יציאה' });
+        res.json({ success: true, checkin: r.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // ─── Sport Alerts ────────────────────────────────────────────────────────────
 app.get('/api/sport/alerts/:groupId', async (req, res) => {
     const gid = req.params.groupId;
