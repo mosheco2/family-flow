@@ -294,7 +294,7 @@ const scAuth = window.scAuth = {
         try {
             const r = await fetch(`/api/sc-auth/activity/${bizId}`, { headers:{'Authorization':'Bearer '+(this._token||'')} }).then(r=>r.json());
             if (!r.success) { list.innerHTML='<div style="text-align:center;color:#ef4444;font-size:13px;padding:20px">שגיאה</div>'; return; }
-            const { orders=[], bookings=[], classRegs=[], memberships=[], appointments=[], businessType='' } = r;
+            const { orders=[], bookings=[], classRegs=[], memberships=[], appointments=[], checkins=[], businessType='' } = r;
             if (businessType) window._scBizType = businessType;
             const _bizType = businessType || window._scBizType || '';
             const _sp = window.storeData?.settings?.sport_settings;
@@ -380,6 +380,31 @@ const scAuth = window.scAuth = {
                       ${a.notes ? `<div style="font-size:11px;color:#94a3b8;text-align:right;margin-top:6px;padding-top:6px;border-top:1px solid #f8fafc">${a.notes}</div>` : ''}
                     </div>`;
                 }).join('');
+            }
+
+            // ── היסטוריית ביקורים ──────────────────────────────────────────
+            if (_bizType === 'sport' && checkins.length) {
+                const visibleCheckins = checkins.slice(0, 5);
+                const remaining = checkins.length - visibleCheckins.length;
+                html += `<div style="font-size:11px;font-weight:700;color:#94a3b8;padding:8px 0 6px;text-align:right">🚪 היסטוריית ביקורים</div>`;
+                html += `<div style="border:1px solid #f1f5f9;border-radius:14px;overflow:hidden;margin-bottom:10px">`;
+                html += visibleCheckins.map((c, i) => {
+                    const dt = c.checked_in_at ? new Date(c.checked_in_at) : null;
+                    const dateStr = dt ? dt.toLocaleDateString('he-IL',{weekday:'short',day:'numeric',month:'short'}) : '';
+                    const timeStr = dt ? dt.toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'}) : '';
+                    const visitNum = checkins.length - i;
+                    return `<div style="display:flex;align-items:center;justify-content:space-between;padding:9px 12px;${i>0?'border-top:1px solid #f8fafc':''}">
+                      <span style="font-size:11px;color:#94a3b8;font-weight:600">#${visitNum}</span>
+                      <div style="text-align:right">
+                        <div style="font-size:13px;color:#1e293b;font-weight:600">${dateStr}</div>
+                        <div style="font-size:11px;color:#94a3b8">${timeStr}</div>
+                      </div>
+                    </div>`;
+                }).join('');
+                if (remaining > 0) {
+                    html += `<div style="padding:8px 12px;border-top:1px solid #f1f5f9;text-align:center;font-size:11px;color:#94a3b8">ועוד ${remaining} ביקורים נוספים</div>`;
+                }
+                html += `</div>`;
             }
 
             // ── הזמנות חנות ─────────────────────────────────────────────────

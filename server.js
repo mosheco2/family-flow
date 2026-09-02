@@ -34122,7 +34122,7 @@ app.get('/api/sc-auth/activity/:bizGroupId', async (req, res) => {
     const bizId = parseInt(req.params.bizGroupId);
     const phone = cust.phone;
 
-    const [orders, bookings, classRegs, memberships, appointments] = await Promise.all([
+    const [orders, bookings, classRegs, memberships, appointments, checkins] = await Promise.all([
         pool.query(
             `SELECT id, status, total_amount, created_at,
                     (SELECT json_agg(json_build_object('name',item_name,'qty',quantity,'price',price_at_order))
@@ -34167,13 +34167,21 @@ app.get('/api/sc-auth/activity/:bizGroupId', async (req, res) => {
              ORDER BY sa.start_time ASC LIMIT 10`,
             [bizId, phone]
         ).then(r => r.rows).catch(() => []),
+        pool.query(
+            `SELECT sc.id, sc.checked_in_at, sc.checked_out_at
+             FROM sport_checkins sc
+             JOIN sport_memberships sm ON sm.id = sc.membership_id
+             WHERE sc.group_id=$1 AND sm.member_phone=$2
+             ORDER BY sc.checked_in_at DESC LIMIT 30`,
+            [bizId, phone]
+        ).then(r => r.rows).catch(() => []),
     ]);
 
     // return businessType so the client can render sport-specific UI
     const btRow = await pool.query('SELECT business_type FROM family_groups WHERE id=$1', [bizId]).catch(() => ({ rows: [] }));
     const businessType = btRow.rows[0]?.business_type || '';
 
-    res.json({ success: true, orders, bookings, classRegs, memberships, appointments, businessType });
+    res.json({ success: true, orders, bookings, classRegs, memberships, appointments, checkins, businessType });
 });
 
 // SA: GET /api/sa/sc-customers  — list storefront customers

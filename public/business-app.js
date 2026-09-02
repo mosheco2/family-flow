@@ -42780,10 +42780,24 @@ window.showSportMemberDetail = async function(memberId) {
         const startFmt = m.start_date?new Date(m.start_date).toLocaleDateString('he-IL'):'—';
         const sessions = m.sessions_total!=null?`<div class="text-sm text-slate-600 text-right mt-1">כניסות: <span class="font-bold">${m.sessions_total-(m.sessions_used||0)}/${m.sessions_total}</span> נותרו</div>`:'';
         const totalPaid = (d.payments||[]).reduce((s,p)=>s+parseFloat(p.amount||0),0);
-        const checkinRows = (d.checkins||[]).slice(0,10).map(c=>{
-            const t=c.checked_in_at?new Date(c.checked_in_at).toLocaleString('he-IL',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'';
-            return `<div class="flex justify-between text-xs py-1 border-b border-slate-50"><span class="text-slate-400">${t}</span><span class="text-slate-600">כניסה</span></div>`;
-        }).join('')||'<div class="text-xs text-slate-400 text-center py-2">אין כניסות</div>';
+        const allCheckins = d.checkins||[];
+        const checkinRows = allCheckins.length ? allCheckins.map((c,i)=>{
+            const dt = c.checked_in_at ? new Date(c.checked_in_at) : null;
+            const dateStr = dt ? dt.toLocaleDateString('he-IL',{weekday:'short',day:'numeric',month:'short',year:'numeric'}) : '';
+            const timeStr = dt ? dt.toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'}) : '';
+            const visitNum = allCheckins.length - i;
+            const isToday = dt && new Date().toDateString() === dt.toDateString();
+            return `<div class="flex items-center justify-between py-2 border-b border-slate-50 last:border-0">
+                <div class="text-right">
+                    <div class="text-xs font-semibold text-slate-700">${dateStr}</div>
+                    <div class="text-[10px] text-slate-400">${timeStr}</div>
+                </div>
+                <div class="flex items-center gap-2">
+                    ${isToday?'<span class="text-[10px] font-bold bg-emerald-100 text-emerald-600 px-1.5 py-0.5 rounded-full">היום</span>':''}
+                    <span class="text-[11px] font-bold text-slate-400">#${visitNum}</span>
+                </div>
+            </div>`;
+        }).join('') : '<div class="text-xs text-slate-400 text-center py-3">אין כניסות רשומות</div>';
         const classRows = (d.classes||[]).slice(0,10).map(c=>`<div class="flex justify-between text-xs py-1 border-b border-slate-50">
             <span class="${c.attended?'text-emerald-500':'text-slate-400'}">${c.attended?'✅':'❌'}</span>
             <span class="text-slate-600">${c.class_name||''} · ${c.class_date?new Date(c.class_date).toLocaleDateString('he-IL'):''}</span>
@@ -42818,7 +42832,13 @@ window.showSportMemberDetail = async function(memberId) {
                 ${m.status==='frozen'?`<button onclick="window.sportUnfreeze(${m.id})" class="flex-1 min-w-[80px] bg-emerald-100 text-emerald-700 font-bold py-2 rounded-xl text-xs">הפשר ☀️</button>`:''}
                 <button onclick="window._sportAddPayment(${m.id},'${(m.member_name||'').replace(/'/g,"\\'")}',${m.type_price||0})" class="flex-1 min-w-[80px] bg-emerald-100 text-emerald-700 font-bold py-2 rounded-xl text-xs">תשלום 💰</button>
             </div>
-            <div class="mb-4"><div class="text-xs font-black text-slate-600 mb-2 text-right">כניסות אחרונות</div>${checkinRows}</div>
+            <div class="mb-4">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-[11px] text-slate-400">${allCheckins.length} ביקורים סה"כ</span>
+                    <span class="text-xs font-black text-slate-600">היסטוריית ביקורים 🚪</span>
+                </div>
+                <div class="rounded-xl border border-slate-100 overflow-hidden px-3">${checkinRows}</div>
+            </div>
             ${d.classes?.length?`<div class="mb-4"><div class="text-xs font-black text-slate-600 mb-2 text-right">שיעורים</div>${classRows}</div>`:''}
             <div class="mb-4"><div class="text-xs font-black text-slate-600 mb-2 text-right">תשלומים</div>${payRows}</div>`;
     } catch(e){document.getElementById('sport-member-detail-content').innerHTML='<div class="text-center py-8 text-red-400">שגיאה</div>';}
