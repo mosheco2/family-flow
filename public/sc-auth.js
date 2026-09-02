@@ -357,8 +357,6 @@ const scAuth = window.scAuth = {
                     sportBtns.push(`<button onclick="_scSportAction('schedule')" style="flex:1;min-width:100px;padding:10px 8px;border:1.5px solid #e2e8f0;border-radius:12px;background:#fff;font-size:12.5px;cursor:pointer;color:#475569;text-align:center">📋 לוח שיעורים</button>`);
                 if (_spObj.public_show_trainer !== false)
                     sportBtns.push(`<button onclick="_scSportAction('trainer')" style="flex:1;min-width:100px;padding:10px 8px;border:1.5px solid #e2e8f0;border-radius:12px;background:#fff;font-size:12.5px;cursor:pointer;color:#475569;text-align:center">📅 הזמן אימון</button>`);
-                if (_spObj.public_show_membership !== false)
-                    sportBtns.push(`<button onclick="_scSportAction('membership')" style="flex:1;min-width:100px;padding:10px 8px;border:1.5px solid #6366f1;border-radius:12px;background:#6366f115;font-size:12.5px;cursor:pointer;color:#6366f1;font-weight:700;text-align:center">🏋️ הצטרף כחבר</button>`);
                 if (sportBtns.length) {
                     html = `<div style="margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid #f1f5f9">
                       <div style="font-size:11px;font-weight:700;color:#94a3b8;padding:0 0 8px;text-align:right">⚡ פעולות מהירות</div>
@@ -451,28 +449,24 @@ const scAuth = window.scAuth = {
     }
 };
 
-// Global sport action dispatcher — called from innerHTML buttons
+// Global sport action dispatcher — delegates to storefront quick-action buttons
 window._scSportAction = function(action) {
     var panel = document.getElementById('sc-activity-panel');
     if (panel) panel.style.display = 'none';
     setTimeout(function() {
-        try {
-            if (action === 'schedule') {
-                if (window.openScheduleModal) { window.openScheduleModal(); }
-                else { alert('לוח שיעורים: הפונקציה לא נמצאה'); }
+        var qa = document.getElementById('quick-actions');
+        if (!qa) return;
+        var keyword = action === 'schedule' ? 'שיעורים'
+                    : action === 'trainer'  ? 'אימון'
+                    : null;
+        if (!keyword) return;
+        var btns = qa.querySelectorAll('button.qa-btn, a.qa-btn');
+        for (var i = 0; i < btns.length; i++) {
+            if (btns[i].textContent.includes(keyword)) {
+                btns[i].click();
                 return;
             }
-            if (action === 'trainer') {
-                if (window.openTrainerBooking) { window.openTrainerBooking(); }
-                else { alert('הזמן אימון: הפונקציה לא נמצאה'); }
-                return;
-            }
-            if (action === 'membership') {
-                if (window.openMembershipModal) { window.openMembershipModal(); }
-                else { alert('הצטרף כחבר: הפונקציה לא נמצאה'); }
-                return;
-            }
-        } catch(e) { alert('שגיאה: ' + e.message); }
+        }
     }, 150);
 };
 
