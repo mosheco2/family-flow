@@ -453,12 +453,27 @@ const scAuth = window.scAuth = {
 
 // Global sport action dispatcher — called from innerHTML buttons
 window._scSportAction = function(action) {
-    document.getElementById('sc-activity-panel').style.display = 'none';
+    var panel = document.getElementById('sc-activity-panel');
+    if (panel) panel.style.display = 'none';
     setTimeout(function() {
-        if (action === 'schedule' && window.openScheduleModal) { openScheduleModal(); return; }
-        if (action === 'trainer' && window.openTrainerBooking) { openTrainerBooking(); return; }
-        if (action === 'membership' && window.openMembershipModal) { openMembershipModal(); return; }
-    }, 80);
+        try {
+            if (action === 'schedule') {
+                if (window.openScheduleModal) { window.openScheduleModal(); }
+                else { alert('לוח שיעורים: הפונקציה לא נמצאה'); }
+                return;
+            }
+            if (action === 'trainer') {
+                if (window.openTrainerBooking) { window.openTrainerBooking(); }
+                else { alert('הזמן אימון: הפונקציה לא נמצאה'); }
+                return;
+            }
+            if (action === 'membership') {
+                if (window.openMembershipModal) { window.openMembershipModal(); }
+                else { alert('הצטרף כחבר: הפונקציה לא נמצאה'); }
+                return;
+            }
+        } catch(e) { alert('שגיאה: ' + e.message); }
+    }, 150);
 };
 
 if (document.readyState === 'loading') {
