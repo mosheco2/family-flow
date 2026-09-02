@@ -3592,13 +3592,13 @@ app.post('/api/ai/chat', verifySA, async (req, res) => {
         const prompt = `${systemInstruction}\n\nבקשת המנהל אליך: ${message}`;
 
         let reply;
-        for (const modelName of ['gemini-2.5-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-flash']) {
+        for (const modelName of ['gemini-2.5-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-flash-latest']) {
           try {
-            const result = await getGenAIInstance().getGenerativeModel({ model: modelName }).generateContent(prompt);
-            reply = result.response.text();
+            const r2 = await getGenAIv2Instance().models.generateContent({ model: modelName, contents: prompt });
+            reply = r2.text;
             break;
           } catch(e) {
-            if (e.message && (e.message.includes('503') || e.message.includes('429') || e.message.includes('404') || e.message.includes('not found') || e.message.includes('deprecated')) && modelName !== 'gemini-1.5-flash') continue;
+            if (modelName !== 'gemini-1.5-flash-latest') continue;
             throw e;
           }
         }
@@ -3741,13 +3741,13 @@ app.post('/api/sa/ai/chat', verifySA, async (req, res) => {
 
         const prompt = systemPrompt + dataBlock + contextBlock + `\n\n## שאלת המנהל:\n${message}`;
         let rawReply;
-        for (const modelName of ['gemini-2.5-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-flash']) {
+        for (const modelName of ['gemini-2.5-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-flash-latest']) {
             try {
-                const result = await getGenAIInstance().getGenerativeModel({ model: modelName }).generateContent(prompt);
-                rawReply = result.response.text();
+                const r2 = await getGenAIv2Instance().models.generateContent({ model: modelName, contents: prompt });
+                rawReply = r2.text;
                 break;
             } catch(e) {
-                if (e.message && (e.message.includes('503') || e.message.includes('429') || e.message.includes('404') || e.message.includes('not found') || e.message.includes('deprecated')) && modelName !== 'gemini-1.5-flash') continue;
+                if (modelName !== 'gemini-1.5-flash-latest') continue;
                 throw e;
             }
         }
@@ -3943,15 +3943,15 @@ Return ONLY valid JSON, no markdown fences, no explanation:
   "logo_prompt": "Short English FLUX prompt (max 25 words) for a LOGO image: minimal flat icon representing the business, solid color background matching accent_color, no text, clean vector style",
   "banner_prompt": "Short English FLUX prompt (max 35 words) for a COVER/BANNER image: wide food/product photography scene representing the business atmosphere, appetizing, natural lighting, no text, photorealistic"
 }`;
-    if (!getGenAIInstance()) return res.json({ success: false, error: 'AI not configured' });
+    if (!getGenAIv2Instance()) return res.json({ success: false, error: 'AI not configured' });
     let text;
-    for (const modelName of ['gemini-2.5-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-flash']) {
+    for (const modelName of ['gemini-2.5-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-flash-latest']) {
       try {
-        const result = await getGenAIInstance().getGenerativeModel({ model: modelName }).generateContent(prompt);
-        text = result.response.text().trim().replace(/^```json\s*/,'').replace(/\s*```$/,'');
+        const r2 = await getGenAIv2Instance().models.generateContent({ model: modelName, contents: prompt });
+        text = (r2.text || '').trim().replace(/^```json\s*/,'').replace(/\s*```$/,'');
         break;
       } catch(e) {
-        if (e.message && (e.message.includes('503') || e.message.includes('429') || e.message.includes('404') || e.message.includes('not found') || e.message.includes('deprecated')) && modelName !== 'gemini-1.5-flash') continue;
+        if (modelName !== 'gemini-1.5-flash-latest') continue;
         throw e;
       }
     }
@@ -4138,13 +4138,13 @@ BANNER prompt rules:
 Return ONLY valid JSON:
 {"logo_prompt": "...", "banner_prompt": "..."}`;
     let text;
-    for (const modelName of ['gemini-2.5-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-flash']) {
+    for (const modelName of ['gemini-2.5-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-flash-latest']) {
       try {
-        const result = await getGenAIInstance().getGenerativeModel({ model: modelName }).generateContent(prompt);
-        text = result.response.text().trim().replace(/^```json\s*/,'').replace(/\s*```$/,'');
+        const r2 = await getGenAIv2Instance().models.generateContent({ model: modelName, contents: prompt });
+        text = (r2.text || '').trim().replace(/^```json\s*/,'').replace(/\s*```$/,'');
         break;
       } catch(e) {
-        if (e.message && (e.message.includes('503') || e.message.includes('429') || e.message.includes('404') || e.message.includes('not found') || e.message.includes('deprecated')) && modelName !== 'gemini-1.5-flash') continue;
+        if (modelName !== 'gemini-1.5-flash-latest') continue;
         throw e;
       }
     }
