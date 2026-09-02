@@ -3800,9 +3800,14 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                       <div style="flex:1">
                         <textarea id="aib-logo-prompt" rows="3" placeholder="Logo prompt in English only..." style="width:100%;font-size:11px;color:#374151;background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:8px;padding:8px 10px;margin-bottom:4px;direction:ltr;line-height:1.5;resize:vertical;font-family:monospace" oninput="if(_aiBuilderData)_aiBuilderData.logo_prompt=this.value"></textarea>
                         <div style="font-size:10px;color:#94a3b8;margin-bottom:8px">⚠️ אנגלית בלבד — מנוע התמונות לא מבין עברית</div>
-                        <div style="display:flex;gap:8px;flex-wrap:wrap">
+                        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
                           <button onclick="aiGenBrandingImg('logo')" id="aib-logo-gen-btn" style="padding:8px 18px;background:#6366f1;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600">✨ צור לוגו</button>
                           <button onclick="aiGenBrandingImg('logo')" style="padding:8px 14px;background:#fff;color:#6366f1;border:1.5px solid #6366f1;border-radius:8px;cursor:pointer;font-size:12px">🔄 נסה שוב</button>
+                          <label style="padding:8px 14px;background:#fff;color:#0891b2;border:1.5px solid #67e8f9;border-radius:8px;cursor:pointer;font-size:12px;white-space:nowrap">
+                            📁 העלה תמונה
+                            <input type="file" accept="image/*" style="display:none" onchange="aibUploadBrandImg('logo',this)">
+                          </label>
+                          <span id="aib-logo-upload-spin" style="display:none;font-size:12px;color:#6366f1">⏳</span>
                           <button onclick="aibDeleteBrandImg('logo')" id="aib-logo-del-btn" style="padding:8px 14px;background:#fff;color:#ef4444;border:1.5px solid #fca5a5;border-radius:8px;cursor:pointer;font-size:12px;display:none">🗑️ מחק</button>
                         </div>
                       </div>
@@ -3817,9 +3822,14 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                     </div>
                     <textarea id="aib-banner-prompt" rows="3" placeholder="Banner prompt in English only..." style="width:100%;font-size:11px;color:#374151;background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:8px;padding:8px 10px;margin-bottom:4px;direction:ltr;line-height:1.5;resize:vertical;font-family:monospace" oninput="if(_aiBuilderData)_aiBuilderData.banner_prompt=this.value"></textarea>
                     <div style="font-size:10px;color:#94a3b8;margin-bottom:8px">⚠️ אנגלית בלבד — מנוע התמונות לא מבין עברית</div>
-                    <div style="display:flex;gap:8px;flex-wrap:wrap">
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
                       <button onclick="aiGenBrandingImg('banner')" id="aib-banner-gen-btn" style="padding:8px 18px;background:#6366f1;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600">✨ צור תמונת נושא</button>
                       <button onclick="aiGenBrandingImg('banner')" style="padding:8px 14px;background:#fff;color:#6366f1;border:1.5px solid #6366f1;border-radius:8px;cursor:pointer;font-size:12px">🔄 נסה שוב</button>
+                      <label style="padding:8px 14px;background:#fff;color:#0891b2;border:1.5px solid #67e8f9;border-radius:8px;cursor:pointer;font-size:12px;white-space:nowrap">
+                        📁 העלה תמונה
+                        <input type="file" accept="image/*" style="display:none" onchange="aibUploadBrandImg('banner',this)">
+                      </label>
+                      <span id="aib-banner-upload-spin" style="display:none;font-size:12px;color:#6366f1">⏳</span>
                       <button onclick="aibDeleteBrandImg('banner')" id="aib-banner-del-btn" style="padding:8px 14px;background:#fff;color:#ef4444;border:1.5px solid #fca5a5;border-radius:8px;cursor:pointer;font-size:12px;display:none">🗑️ מחק</button>
                     </div>
                   </div>

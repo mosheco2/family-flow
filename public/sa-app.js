@@ -14454,6 +14454,30 @@ async function aibUploadProdImg(tid, inputEl) {
   }
 }
 
+async function aibUploadBrandImg(type, inputEl) {
+  const file = inputEl?.files?.[0];
+  if (!file) return;
+  const spin = document.getElementById('aib-' + type + '-upload-spin');
+  if (spin) spin.style.display = '';
+  try {
+    const fd = new FormData();
+    fd.append('image', file);
+    const r = await fetch('/api/upload/product-image', { method: 'POST', body: fd });
+    const d = await r.json();
+    if (!d.success || !d.url) throw new Error(d.error || 'שגיאת העלאה');
+    if (!_aiBuilderImages) _aiBuilderImages = { products: {} };
+    if (type === 'logo') _aiBuilderImages.logoUrl = d.url;
+    else _aiBuilderImages.bannerUrl = d.url;
+    _aibShowBrandPreview(type, d.url);
+    _aibSave();
+  } catch(e) {
+    alert('שגיאה בהעלאת התמונה: ' + e.message);
+  } finally {
+    if (spin) spin.style.display = 'none';
+    inputEl.value = '';
+  }
+}
+
 function aibDeleteProdImg(tid) {
   delete _aiBuilderImages.products[tid];
   _aibSave();
