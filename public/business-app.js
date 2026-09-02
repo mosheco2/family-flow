@@ -932,26 +932,26 @@ window.injectBusinessUI = function() {
                                     <div class="grid grid-cols-2 gap-2" id="template-picker">
                                         <div class="template-card cursor-pointer rounded-xl border-2 border-indigo-400 bg-white p-3 text-center transition" data-tid="classic" onclick="selectStoreTemplate('classic')">
                                             <div class="text-2xl mb-1">🛍️</div>
-                                            <div class="text-xs font-bold text-slate-700">סטנדרטית</div>
-                                            <div class="text-[10px] text-slate-400">כל סוגי העסקים</div>
+                                            <div class="text-xs font-bold text-slate-700">קלאסית</div>
+                                            <div class="text-[10px] text-slate-400">נקייה ואלגנטית</div>
                                             <button onclick="previewTemplate('classic',event)" title="תצוגה מקדימה" class="mt-1.5 text-[10px] text-indigo-500 hover:text-indigo-700 font-medium flex items-center gap-0.5 mx-auto">👁 תצוגה</button>
                                         </div>
                                         <div class="template-card cursor-pointer rounded-xl border-2 border-slate-200 bg-white p-3 text-center transition" data-tid="restaurant" onclick="selectStoreTemplate('restaurant')">
-                                            <div class="text-2xl mb-1">🍕</div>
+                                            <div class="text-2xl mb-1">🎨</div>
                                             <div class="text-xs font-bold text-slate-700">חמה</div>
-                                            <div class="text-[10px] text-slate-400">מזון ומשלוחים</div>
+                                            <div class="text-[10px] text-slate-400">עיצוב עשיר ומזמין</div>
                                             <button onclick="previewTemplate('restaurant',event)" title="תצוגה מקדימה" class="mt-1.5 text-[10px] text-indigo-500 hover:text-indigo-700 font-medium flex items-center gap-0.5 mx-auto">👁 תצוגה</button>
                                         </div>
                                         <div class="template-card cursor-pointer rounded-xl border-2 border-slate-200 bg-white p-3 text-center transition" data-tid="sport" onclick="selectStoreTemplate('sport')">
-                                            <div class="text-2xl mb-1">🏋️</div>
-                                            <div class="text-xs font-bold text-slate-700">ספורטיבית</div>
-                                            <div class="text-[10px] text-slate-400">סיטונאות וכושר</div>
+                                            <div class="text-2xl mb-1">⚡</div>
+                                            <div class="text-xs font-bold text-slate-700">דינמית</div>
+                                            <div class="text-[10px] text-slate-400">נועזת ומודרנית</div>
                                             <button onclick="previewTemplate('sport',event)" title="תצוגה מקדימה" class="mt-1.5 text-[10px] text-indigo-500 hover:text-indigo-700 font-medium flex items-center gap-0.5 mx-auto">👁 תצוגה</button>
                                         </div>
                                         <div class="template-card cursor-pointer rounded-xl border-2 border-slate-200 bg-white p-3 text-center transition" data-tid="market" onclick="selectStoreTemplate('market')">
-                                            <div class="text-2xl mb-1">🛒</div>
-                                            <div class="text-xs font-bold text-slate-700">מסחרית</div>
-                                            <div class="text-[10px] text-slate-400">שוק וסחר</div>
+                                            <div class="text-2xl mb-1">🏪</div>
+                                            <div class="text-xs font-bold text-slate-700">שוק</div>
+                                            <div class="text-[10px] text-slate-400">מגוון ומרובה מוצרים</div>
                                             <button onclick="previewTemplate('market',event)" title="תצוגה מקדימה" class="mt-1.5 text-[10px] text-indigo-500 hover:text-indigo-700 font-medium flex items-center gap-0.5 mx-auto">👁 תצוגה</button>
                                         </div>
                                     </div>
