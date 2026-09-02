@@ -10067,21 +10067,20 @@ Reply with ONLY the English term, nothing else.`;
         if (pixabayKey) {
             try {
                 const pbPage = req.body.attempt ? Math.min(req.body.attempt, 3) : 1;
-                const tryPixabay = async (queryStr, withFoodCat) => {
+                const tryPixabay = async (queryStr) => {
                     const qEnc = encodeURIComponent(queryStr);
-                    const cat = withFoodCat ? '&category=food' : '';
-                    const r = await fetch(`https://pixabay.com/api/?key=${pixabayKey}&q=${qEnc}&image_type=photo${cat}&per_page=15&page=${pbPage}&safesearch=true&min_width=400&order=relevant`);
+                    const r = await fetch(`https://pixabay.com/api/?key=${pixabayKey}&q=${qEnc}&image_type=photo&per_page=15&page=${pbPage}&safesearch=true&min_width=400&order=relevant`);
                     const d = await r.json();
                     return (d.hits || []).filter(h => h.webformatURL);
                 };
-                let hits = await tryPixabay(searchQuery, true);          // full query + food category
-                if (hits.length === 0) hits = await tryPixabay(searchQuery, false);  // full query, no category
+                let hits = await tryPixabay(searchQuery);
                 // If still nothing and query has multiple words — try first word only
                 const firstWord = searchQuery.split(' ')[0];
-                if (hits.length === 0 && firstWord !== searchQuery) hits = await tryPixabay(firstWord, true);
-                if (hits.length === 0 && firstWord !== searchQuery) hits = await tryPixabay(firstWord, false);
+                if (hits.length === 0 && firstWord !== searchQuery) hits = await tryPixabay(firstWord);
                 if (hits.length > 0) {
-                    const pick = hits[Math.floor(Math.random() * hits.length)];
+                    // Pick from top 3 to get variety on retry, but stay relevant
+                    const topN = Math.min(hits.length, pbPage > 1 ? hits.length : 3);
+                    const pick = hits[Math.floor(Math.random() * topN)];
                     return res.json({ success: true, imageUrl: pick.webformatURL, url: pick.webformatURL, source: 'pixabay' });
                 }
             } catch(e) { console.warn('Pixabay fallback:', e.message); }
@@ -10091,7 +10090,7 @@ Reply with ONLY the English term, nothing else.`;
         const pexelsKey = process.env.PEXELS_API_KEY;
         if (pexelsKey) {
             try {
-                const pxRes = await fetch(`https://api.pexels.com/v1/search?query=${encodeURIComponent(searchQuery + ' food dish')}&per_page=10&orientation=square`, {
+                const pxRes = await fetch(`https://api.pexels.com/v1/search?query=${encodeURIComponent(searchQuery)}&per_page=10&orientation=square`, {
                     headers: { Authorization: pexelsKey }
                 });
                 const pxData = await pxRes.json();
