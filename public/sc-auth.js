@@ -950,16 +950,16 @@ function _scRestaurantTablePanel(gid, customer) {
                     headers: {'Content-Type':'application/json'},
                     body: JSON.stringify({ date: state.date, time: state.time, numGuests: state.guests, guests: state.guests, phone: confirmPhone, name: name || confirmPhone, notes: notes })
                 }).then(function(r){ return r.json(); }).then(function(res) {
-                    if (res.success || res.token) {
+                    if (res.success || res.tempId) {
+                        var verTempId = res.tempId;
                         body.innerHTML = '<div style="text-align:center;padding:30px 0">'
                             + '<div style="font-size:48px;margin-bottom:12px">✅</div>'
                             + '<div style="font-size:17px;font-weight:700;color:#1e293b;margin-bottom:8px">ההזמנה נשלחה!</div>'
-                            + '<div style="font-size:13px;color:#64748b">קוד אישור נשלח ל-SMS למספר '+confirmPhone+'</div>'
-                            + (res.token ? '<div style="margin-top:16px"><input id="rt-sms-code" placeholder="קוד אימות מה-SMS" style="width:140px;border:1.5px solid #e2e8f0;border-radius:10px;padding:10px;font-size:16px;text-align:center;letter-spacing:4px"></div>'
+                            + '<div style="font-size:13px;color:#64748b">קוד אימות נשלח ל-SMS למספר '+confirmPhone+'</div>'
+                            + (verTempId ? '<div style="margin-top:16px"><input id="rt-sms-code" placeholder="קוד אימות מה-SMS" style="width:140px;border:1.5px solid #e2e8f0;border-radius:10px;padding:10px;font-size:16px;text-align:center;letter-spacing:4px"></div>'
                             + '<button id="rt-verify" style="margin-top:10px;padding:12px 24px;background:#f97316;color:#fff;border:none;border-radius:10px;font-size:14px;cursor:pointer">אמת קוד</button>' : '')
                             + '</div>';
-                        if (res.token) {
-                            var verToken = res.token;
+                        if (verTempId) {
                             body.querySelector('#rt-verify').addEventListener('click', function() {
                                 var code = body.querySelector('#rt-sms-code').value.trim();
                                 if (!code) return;
@@ -968,7 +968,7 @@ function _scRestaurantTablePanel(gid, customer) {
                                 fetch('/api/public/restaurants/' + gid + '/verify-table-sms', {
                                     method: 'POST',
                                     headers: {'Content-Type':'application/json'},
-                                    body: JSON.stringify({ token: verToken, code: code })
+                                    body: JSON.stringify({ tempId: verTempId, code: code })
                                 }).then(function(r){ return r.json(); }).then(function(vRes) {
                                     if (vRes.success) {
                                         body.innerHTML = '<div style="text-align:center;padding:30px 0">'

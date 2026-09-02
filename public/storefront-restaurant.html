@@ -635,6 +635,10 @@ input,button,select,textarea{font-family:inherit}
     </div>
     <div id="panel-body">
       <div id="panel-cart-step">
+        <div id="cart-delivery-toggle" style="display:flex;border:1.5px solid var(--border);border-radius:14px;overflow:hidden;background:#fff;margin-bottom:2px">
+          <button id="cart-seg-delivery" onclick="setDeliveryMode(true)" style="flex:1;padding:11px;border:none;font-size:13px;font-weight:600;cursor:pointer;background:var(--dark);color:#fff">🛵 משלוח</button>
+          <button id="cart-seg-pickup" onclick="setDeliveryMode(false)" style="flex:1;padding:11px;border:none;font-size:13px;font-weight:600;cursor:pointer;background:transparent;color:var(--text)">🏠 איסוף עצמי</button>
+        </div>
         <div id="cart-items-list"></div>
         <div id="cart-empty-msg" style="display:none">העגלה ריקה — הוסיפו מנה מהתפריט.</div>
         <div id="upsells-wrap">
@@ -668,10 +672,8 @@ input,button,select,textarea{font-family:inherit}
           <div class="checkout-card-title">שם מלא</div>
           <input id="co-name" class="co-input" style="margin:0" placeholder="שם ושם משפחה">
         </div>
-        <div class="checkout-card" id="co-payment-card">
-          <div class="checkout-card-title">תשלום</div>
-          <div id="payment-options"></div>
-          <div id="flow-code-wrap" style="display:none;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
+        <div id="flow-code-wrap" style="display:none;margin:0 0 4px">
+          <div class="checkout-card">
             <div style="font-size:12px;font-weight:600;margin-bottom:6px">💰 מטבעות קהילה</div>
             <div style="display:flex;gap:8px">
               <input id="flow-code-input" class="co-input" style="margin:0;flex:1" placeholder="קוד מטבעות">
@@ -1815,7 +1817,7 @@ function renderPanelCart() {
   document.getElementById('cart-items-list').innerHTML = keys.map(k=>{
     const l = cart[k];
     return `<div class="cart-line">
-      <div class="cart-line-img"></div>
+      <div class="cart-line-img">${l.has_image?`<img src="${API}/store/item-image/${l.id}" style="width:100%;height:100%;object-fit:cover;border-radius:12px" onerror="this.style.display='none'">`:'🍽️'}</div>
       <div class="cart-line-info">
         <div class="cart-line-name">${escHtml(l.name)}</div>
         ${l.note?`<div class="cart-line-detail">${escHtml(l.note)}</div>`:''}
@@ -2042,12 +2044,6 @@ function goCheckout() {
   document.getElementById('panel-back-btn').style.display = '';
   document.getElementById('panel-title').textContent = t('פרטי הזמנה', 'Order details');
   renderPanelSummary();
-  // payment options
-  document.getElementById('payment-options').innerHTML = [
-    {l:t('כרטיס אשראי','Credit card'),n:t('תשלום מאובטח','Secure payment')},
-    {l:t('ביט / אפליקציית תשלום','Bit / payment app'),n:t('אישור בטלפון','Phone approval')},
-    {l:t('מזומן לשליח','Cash on delivery'),n:t('עד ₪400','Up to ₪400')}
-  ].map((p,i)=>`<button class="pay-btn${i===_payMethod?' active':''}" onclick="pickPayMethod(${i})"><span class="pay-dot"></span><span>${p.l}</span><span class="pay-note">${p.n}</span></button>`).join('');
   // co-delivery
   const addrWrap = document.getElementById('co-address-wrap');
   if (addrWrap) addrWrap.style.display = isDelivery ? 'flex' : 'none';
@@ -2140,13 +2136,13 @@ function closeSuccess() { document.getElementById('success-screen').style.displa
 // ===== DELIVERY MODE =====
 function setDeliveryMode(deliver) {
   isDelivery = deliver;
-  ['seg-delivery','co-seg-delivery'].forEach(id=>{
+  ['seg-delivery','co-seg-delivery','cart-seg-delivery'].forEach(id=>{
     const el = document.getElementById(id);
-    if (el) el.classList.toggle('active', deliver);
+    if (el) { el.classList.toggle('active', deliver); el.style.background = deliver ? 'var(--dark)' : 'transparent'; el.style.color = deliver ? '#fff' : 'var(--text)'; }
   });
-  ['seg-pickup','co-seg-pickup'].forEach(id=>{
+  ['seg-pickup','co-seg-pickup','cart-seg-pickup'].forEach(id=>{
     const el = document.getElementById(id);
-    if (el) el.classList.toggle('active', !deliver);
+    if (el) { el.classList.toggle('active', !deliver); el.style.background = !deliver ? 'var(--dark)' : 'transparent'; el.style.color = !deliver ? '#fff' : 'var(--text)'; }
   });
   document.getElementById('cart-bar-label').textContent = deliver ? t('להמשך הזמנה', 'Continue to checkout') : t('לאיסוף עצמי', 'Self-pickup');
   const addrWrap2 = document.getElementById('co-address-wrap');
