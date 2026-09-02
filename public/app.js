@@ -101,6 +101,22 @@ window.onload = async () => {
 
     const failsafeTimer = setTimeout(() => { const preloader = getEl('app-preloader'); if (preloader && !preloader.classList.contains('hidden')) { hidePreloaderAndShowAuth('login'); } }, 7000);
     const urlParams = new URLSearchParams(window.location.search); const inviteCode = urlParams.get('code'); const inviteRole = urlParams.get('role');
+
+    // SSO from storefront — auto-login via one-time token
+    const ssoToken = urlParams.get('sso_token');
+    if (ssoToken) {
+        try {
+            const ssoRes = await fetch(`/api/family/sso-login?token=${encodeURIComponent(ssoToken)}`).then(r=>r.json());
+            if (ssoRes.success && ssoRes.sessionToken) {
+                // store family session and reload cleanly
+                const slim = { user: { id: ssoRes.familyGroup.id, nickname: ssoRes.familyGroup.name, role:'ADMIN' }, group: ssoRes.familyGroup };
+                localStorage.setItem('ofl_session', JSON.stringify(slim));
+                localStorage.setItem('ofl_family_token', ssoRes.sessionToken);
+                window.history.replaceState({}, '', '/');
+                clearTimeout(failsafeTimer); loadDashboard(); return;
+            }
+        } catch(e) { console.error('[SSO]', e); }
+    }
     // שמירת קוד רפרל אם הגיע דרך קישור חבר
     const refCode = urlParams.get('ref');
     if (refCode) localStorage.setItem('ofl_referral_code', refCode.toUpperCase());

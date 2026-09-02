@@ -1506,6 +1506,54 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
       try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS module_requests JSONB DEFAULT '[]'`); } catch(e) {}
       // ===== END ONEFLOWLIFE MEMBER FEATURE =====
 
+      // ===== STOREFRONT CUSTOMER AUTH =====
+      try { await client.query(`CREATE TABLE IF NOT EXISTS storefront_customers (
+          id SERIAL PRIMARY KEY,
+          phone VARCHAR(20) NOT NULL UNIQUE,
+          first_name VARCHAR(60) NOT NULL,
+          last_name VARCHAR(60) NOT NULL,
+          email VARCHAR(120),
+          age INT,
+          address_street VARCHAR(120),
+          address_number VARCHAR(20),
+          address_city VARCHAR(80),
+          address_zip VARCHAR(20),
+          pin_hash VARCHAR(255),
+          family_group_id INT REFERENCES family_groups(id) ON DELETE SET NULL,
+          created_at TIMESTAMPTZ DEFAULT NOW(),
+          updated_at TIMESTAMPTZ DEFAULT NOW()
+      )`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS storefront_otp (
+          id SERIAL PRIMARY KEY,
+          phone VARCHAR(20) NOT NULL,
+          code_hash VARCHAR(255) NOT NULL,
+          expires_at TIMESTAMPTZ NOT NULL,
+          purpose VARCHAR(20) DEFAULT 'login',
+          attempts SMALLINT DEFAULT 0,
+          used BOOLEAN DEFAULT FALSE,
+          created_at TIMESTAMPTZ DEFAULT NOW()
+      )`); } catch(e) {}
+      try { await client.query(`CREATE INDEX IF NOT EXISTS idx_sc_otp_phone ON storefront_otp(phone)`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS storefront_sessions (
+          id SERIAL PRIMARY KEY,
+          token VARCHAR(128) NOT NULL UNIQUE,
+          customer_id INT NOT NULL REFERENCES storefront_customers(id) ON DELETE CASCADE,
+          expires_at TIMESTAMPTZ NOT NULL,
+          last_activity TIMESTAMPTZ DEFAULT NOW(),
+          created_at TIMESTAMPTZ DEFAULT NOW()
+      )`); } catch(e) {}
+      try { await client.query(`CREATE INDEX IF NOT EXISTS idx_sc_sessions_token ON storefront_sessions(token)`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS storefront_sso_tokens (
+          id SERIAL PRIMARY KEY,
+          token VARCHAR(128) NOT NULL UNIQUE,
+          customer_id INT NOT NULL REFERENCES storefront_customers(id) ON DELETE CASCADE,
+          family_group_id INT,
+          expires_at TIMESTAMPTZ NOT NULL,
+          used BOOLEAN DEFAULT FALSE,
+          created_at TIMESTAMPTZ DEFAULT NOW()
+      )`); } catch(e) {}
+      // ===== END STOREFRONT CUSTOMER AUTH =====
+
       // ===== BIZ WIZARD =====
       try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS managed_modules JSONB DEFAULT '[]'`); } catch(e) {}
       try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS staff_roles JSONB DEFAULT '[]'`); } catch(e) {}
@@ -33756,11 +33804,405 @@ async function incrementAICopilotUsage(groupId) {
     `, [groupId]);
 }
 
+// ===== STOREFRONT CUSTOMER AUTH API =====
+
+const SC_SESSION_DAYS = 30;
+const SC_PIN_MAX_ATTEMPTS = 5;
+const SC_PIN_LOCKOUT_MINUTES = 15;
+
+// cache for PIN lockout: phone -> { attempts, until }
+const _scPinLockout = {};
+
+function _scGenToken() { return require('crypto').randomBytes(48).toString('hex'); }
+
+async function _scGetCustomerByToken(token) {
+    if (!token) return null;
+    const r = await pool.query(
+        `SELECT c.*, s.expires_at as sess_expires FROM storefront_sessions s
+         JOIN storefront_customers c ON c.id = s.customer_id
+         WHERE s.token=$1 AND s.expires_at > NOW() AND NOT s.used_at IS NOT NULL`,
+        [token]
+    ).catch(() => null);
+    if (!r || !r.rows.length) return null;
+    // refresh last_activity + sliding expiry
+    await pool.query(
+        `UPDATE storefront_sessions SET last_activity=NOW(), expires_at=NOW()+interval '${SC_SESSION_DAYS} days' WHERE token=$1`,
+        [token]
+    ).catch(() => {});
+    return r.rows[0];
+}
+
+// POST /api/sc-auth/send-otp  { phone, purpose? }
+app.post('/api/sc-auth/send-otp', async (req, res) => {
+    const { phone, purpose = 'login' } = req.body;
+    if (!phone) return res.json({ success: false, error: 'חסר טלפון' });
+    const cleanPhone = String(phone).replace(/\D/g, '');
+    if (cleanPhone.length < 9 || cleanPhone.length > 15) return res.json({ success: false, error: 'מספר טלפון לא תקין' });
+
+    // check if customer exists (for UX hint only)
+    const existing = await pool.query('SELECT id FROM storefront_customers WHERE phone=$1', [cleanPhone]).catch(() => ({ rows: [] }));
+    const isNew = existing.rows.length === 0;
+
+    // rate limit: max 3 OTPs per phone per 10 min
+    const recent = await pool.query(
+        `SELECT COUNT(*) as cnt FROM storefront_otp WHERE phone=$1 AND created_at > NOW() - interval '10 minutes' AND purpose=$2`,
+        [cleanPhone, purpose]
+    ).catch(() => ({ rows: [{ cnt: 0 }] }));
+    if (parseInt(recent.rows[0].cnt) >= 3) return res.json({ success: false, error: 'נשלחו יותר מדי קודים — נסה שוב בעוד 10 דקות' });
+
+    const code = String(Math.floor(100000 + Math.random() * 900000));
+    const codeHash = await bcrypt.hash(code, 8);
+    await pool.query(
+        `INSERT INTO storefront_otp (phone, code_hash, expires_at, purpose) VALUES ($1,$2,NOW()+interval '5 minutes',$3)`,
+        [cleanPhone, codeHash, purpose]
+    );
+
+    const sent = await sendSMSviaTwilio(cleanPhone, `קוד האימות שלך: ${code} (בתוקף 5 דקות)`);
+    if (process.env.NODE_ENV !== 'production') console.log(`[SC-OTP] ${cleanPhone} → ${code}`);
+
+    res.json({ success: true, isNew, smsSent: !!sent });
+});
+
+// POST /api/sc-auth/verify-otp  { phone, code, purpose? }
+app.post('/api/sc-auth/verify-otp', async (req, res) => {
+    const { phone, code, purpose = 'login' } = req.body;
+    if (!phone || !code) return res.json({ success: false, error: 'חסרים שדות' });
+    const cleanPhone = String(phone).replace(/\D/g, '');
+
+    const otps = await pool.query(
+        `SELECT * FROM storefront_otp WHERE phone=$1 AND purpose=$2 AND used=FALSE AND expires_at > NOW() ORDER BY created_at DESC LIMIT 1`,
+        [cleanPhone, purpose]
+    );
+    if (!otps.rows.length) return res.json({ success: false, error: 'הקוד לא נמצא או פג תוקף — שלח קוד חדש' });
+
+    const otp = otps.rows[0];
+    if (otp.attempts >= 5) {
+        await pool.query('UPDATE storefront_otp SET used=TRUE WHERE id=$1', [otp.id]);
+        return res.json({ success: false, error: 'יותר מדי ניסיונות — שלח קוד חדש' });
+    }
+
+    const match = await bcrypt.compare(String(code), otp.code_hash);
+    if (!match) {
+        await pool.query('UPDATE storefront_otp SET attempts=attempts+1 WHERE id=$1', [otp.id]);
+        return res.json({ success: false, error: 'קוד שגוי' });
+    }
+
+    await pool.query('UPDATE storefront_otp SET used=TRUE WHERE id=$1', [otp.id]);
+
+    const cust = await pool.query('SELECT * FROM storefront_customers WHERE phone=$1', [cleanPhone]);
+    if (!cust.rows.length) {
+        // new customer — needs registration
+        return res.json({ success: true, isNew: true, phone: cleanPhone });
+    }
+
+    // existing customer — create session
+    const token = _scGenToken();
+    await pool.query(
+        `INSERT INTO storefront_sessions (token, customer_id, expires_at) VALUES ($1,$2,NOW()+interval '${SC_SESSION_DAYS} days')`,
+        [token, cust.rows[0].id]
+    );
+    const { pin_hash, ...safeCustomer } = cust.rows[0];
+    res.json({ success: true, isNew: false, token, customer: safeCustomer });
+});
+
+// POST /api/sc-auth/register  { phone, firstName, lastName, email, age, street, number, city, zip, pin }
+app.post('/api/sc-auth/register', async (req, res) => {
+    const { phone, firstName, lastName, email, age, street, number, city, zip, pin } = req.body;
+    if (!phone || !firstName || !lastName || !pin) return res.json({ success: false, error: 'חסרים שדות חובה' });
+    if (String(pin).length !== 6 || !/^\d{6}$/.test(String(pin))) return res.json({ success: false, error: 'PIN חייב להיות 6 ספרות' });
+    const cleanPhone = String(phone).replace(/\D/g, '');
+
+    // make sure OTP was verified (customer doesn't exist yet)
+    const existing = await pool.query('SELECT id FROM storefront_customers WHERE phone=$1', [cleanPhone]);
+    if (existing.rows.length) return res.json({ success: false, error: 'מספר טלפון זה כבר רשום — נסה להתחבר' });
+
+    const pinHash = await bcrypt.hash(String(pin), 10);
+
+    // create solo family account
+    let familyGroupId = null;
+    try {
+        const code = 'SC' + cleanPhone.slice(-6);
+        const fgRes = await pool.query(
+            `INSERT INTO family_groups (name, type, plan, group_code, account_status, admin_email, member_type)
+             VALUES ($1,'FAMILY','solo',$2,'active',$3,'member') RETURNING id`,
+            [`${firstName} ${lastName}`, code, email || null]
+        );
+        familyGroupId = fgRes.rows[0].id;
+        // create a users row too
+        await pool.query(
+            `INSERT INTO users (group_id, nickname, phone, role, status) VALUES ($1,$2,$3,'ADMIN','active')`,
+            [familyGroupId, `${firstName} ${lastName}`, cleanPhone]
+        ).catch(() => {});
+    } catch(e) { console.error('[SC-REG family]', e.message); }
+
+    const custRes = await pool.query(
+        `INSERT INTO storefront_customers (phone, first_name, last_name, email, age, address_street, address_number, address_city, address_zip, pin_hash, family_group_id)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
+        [cleanPhone, firstName, lastName, email||null, age||null, street||null, number||null, city||null, zip||null, pinHash, familyGroupId]
+    );
+
+    const token = _scGenToken();
+    await pool.query(
+        `INSERT INTO storefront_sessions (token, customer_id, expires_at) VALUES ($1,$2,NOW()+interval '${SC_SESSION_DAYS} days')`,
+        [token, custRes.rows[0].id]
+    );
+    const { pin_hash, ...safeCustomer } = custRes.rows[0];
+    res.json({ success: true, token, customer: safeCustomer });
+});
+
+// GET /api/sc-auth/me  (Authorization: Bearer <token>)
+app.get('/api/sc-auth/me', async (req, res) => {
+    const token = (req.headers.authorization || '').replace('Bearer ', '').trim();
+    const cust = await _scGetCustomerByToken(token);
+    if (!cust) return res.status(401).json({ success: false, error: 'לא מחובר' });
+    const { pin_hash, ...safe } = cust;
+    res.json({ success: true, customer: safe });
+});
+
+// PATCH /api/sc-auth/profile  update name/email/age/address
+app.patch('/api/sc-auth/profile', async (req, res) => {
+    const token = (req.headers.authorization || '').replace('Bearer ', '').trim();
+    const cust = await _scGetCustomerByToken(token);
+    if (!cust) return res.status(401).json({ success: false, error: 'לא מחובר' });
+
+    const { firstName, lastName, email, age, street, number, city, zip } = req.body;
+    await pool.query(
+        `UPDATE storefront_customers SET first_name=COALESCE($1,first_name), last_name=COALESCE($2,last_name),
+         email=COALESCE($3,email), age=COALESCE($4,age), address_street=COALESCE($5,address_street),
+         address_number=COALESCE($6,address_number), address_city=COALESCE($7,address_city),
+         address_zip=COALESCE($8,address_zip), updated_at=NOW() WHERE id=$9`,
+        [firstName||null, lastName||null, email||null, age||null, street||null, number||null, city||null, zip||null, cust.id]
+    );
+    res.json({ success: true });
+});
+
+// PATCH /api/sc-auth/change-pin  { currentPin, newPin }
+app.patch('/api/sc-auth/change-pin', async (req, res) => {
+    const token = (req.headers.authorization || '').replace('Bearer ', '').trim();
+    const cust = await _scGetCustomerByToken(token);
+    if (!cust) return res.status(401).json({ success: false, error: 'לא מחובר' });
+
+    const { currentPin, newPin } = req.body;
+    if (!currentPin || !newPin) return res.json({ success: false, error: 'חסרים שדות' });
+    if (!/^\d{6}$/.test(String(newPin))) return res.json({ success: false, error: 'PIN חייב להיות 6 ספרות' });
+
+    const match = await bcrypt.compare(String(currentPin), cust.pin_hash || '');
+    if (!match) return res.json({ success: false, error: 'ה-PIN הנוכחי שגוי' });
+
+    const newHash = await bcrypt.hash(String(newPin), 10);
+    await pool.query('UPDATE storefront_customers SET pin_hash=$1, updated_at=NOW() WHERE id=$2', [newHash, cust.id]);
+    res.json({ success: true });
+});
+
+// POST /api/sc-auth/verify-pin  { pin }  — verify PIN for action confirmation
+app.post('/api/sc-auth/verify-pin', async (req, res) => {
+    const token = (req.headers.authorization || '').replace('Bearer ', '').trim();
+    const cust = await _scGetCustomerByToken(token);
+    if (!cust) return res.status(401).json({ success: false, error: 'לא מחובר' });
+
+    const { pin } = req.body;
+    if (!pin) return res.json({ success: false, error: 'חסר PIN' });
+
+    const lockKey = `cust_${cust.id}`;
+    const lock = _scPinLockout[lockKey];
+    if (lock && lock.until > Date.now()) {
+        const mins = Math.ceil((lock.until - Date.now()) / 60000);
+        return res.json({ success: false, error: `יותר מדי ניסיונות — נסה שוב בעוד ${mins} דקות`, locked: true });
+    }
+
+    const match = await bcrypt.compare(String(pin), cust.pin_hash || '');
+    if (!match) {
+        if (!_scPinLockout[lockKey]) _scPinLockout[lockKey] = { attempts: 0 };
+        _scPinLockout[lockKey].attempts++;
+        if (_scPinLockout[lockKey].attempts >= SC_PIN_MAX_ATTEMPTS) {
+            _scPinLockout[lockKey].until = Date.now() + SC_PIN_LOCKOUT_MINUTES * 60 * 1000;
+        }
+        const remaining = SC_PIN_MAX_ATTEMPTS - _scPinLockout[lockKey].attempts;
+        return res.json({ success: false, error: `PIN שגוי${remaining > 0 ? ` (${remaining} ניסיונות נוספים)` : ''}` });
+    }
+
+    delete _scPinLockout[lockKey];
+    res.json({ success: true });
+});
+
+// POST /api/sc-auth/forgot-pin  { phone }  — send OTP for PIN reset
+app.post('/api/sc-auth/forgot-pin', async (req, res) => {
+    const { phone } = req.body;
+    if (!phone) return res.json({ success: false, error: 'חסר טלפון' });
+    const cleanPhone = String(phone).replace(/\D/g, '');
+    const cust = await pool.query('SELECT id FROM storefront_customers WHERE phone=$1', [cleanPhone]);
+    if (!cust.rows.length) return res.json({ success: false, error: 'מספר לא רשום' });
+
+    const code = String(Math.floor(100000 + Math.random() * 900000));
+    const codeHash = await bcrypt.hash(code, 8);
+    await pool.query(
+        `INSERT INTO storefront_otp (phone, code_hash, expires_at, purpose) VALUES ($1,$2,NOW()+interval '10 minutes','pin_reset')`,
+        [cleanPhone, codeHash]
+    );
+    await sendSMSviaTwilio(cleanPhone, `קוד לאיפוס ה-PIN שלך: ${code} (בתוקף 10 דקות)`);
+    if (process.env.NODE_ENV !== 'production') console.log(`[SC-PIN-RESET] ${cleanPhone} → ${code}`);
+    res.json({ success: true });
+});
+
+// POST /api/sc-auth/reset-pin  { phone, code, newPin }
+app.post('/api/sc-auth/reset-pin', async (req, res) => {
+    const { phone, code, newPin } = req.body;
+    if (!phone || !code || !newPin) return res.json({ success: false, error: 'חסרים שדות' });
+    if (!/^\d{6}$/.test(String(newPin))) return res.json({ success: false, error: 'PIN חייב להיות 6 ספרות' });
+    const cleanPhone = String(phone).replace(/\D/g, '');
+
+    const otp = await pool.query(
+        `SELECT * FROM storefront_otp WHERE phone=$1 AND purpose='pin_reset' AND used=FALSE AND expires_at > NOW() ORDER BY created_at DESC LIMIT 1`,
+        [cleanPhone]
+    );
+    if (!otp.rows.length) return res.json({ success: false, error: 'קוד לא נמצא או פג תוקף' });
+    const match = await bcrypt.compare(String(code), otp.rows[0].code_hash);
+    if (!match) return res.json({ success: false, error: 'קוד שגוי' });
+
+    await pool.query('UPDATE storefront_otp SET used=TRUE WHERE id=$1', [otp.rows[0].id]);
+    const pinHash = await bcrypt.hash(String(newPin), 10);
+    await pool.query('UPDATE storefront_customers SET pin_hash=$1, updated_at=NOW() WHERE phone=$2', [pinHash, cleanPhone]);
+    res.json({ success: true });
+});
+
+// POST /api/sc-auth/logout
+app.post('/api/sc-auth/logout', async (req, res) => {
+    const token = (req.headers.authorization || '').replace('Bearer ', '').trim();
+    if (token) await pool.query('DELETE FROM storefront_sessions WHERE token=$1', [token]).catch(() => {});
+    res.json({ success: true });
+});
+
+// GET /api/sc-auth/sso-token  — generate one-time SSO token for OFL
+app.get('/api/sc-auth/sso-token', async (req, res) => {
+    const token = (req.headers.authorization || '').replace('Bearer ', '').trim();
+    const cust = await _scGetCustomerByToken(token);
+    if (!cust) return res.status(401).json({ success: false, error: 'לא מחובר' });
+
+    const ssoToken = _scGenToken();
+    await pool.query(
+        `INSERT INTO storefront_sso_tokens (token, customer_id, family_group_id, expires_at)
+         VALUES ($1,$2,$3,NOW()+interval '60 seconds')`,
+        [ssoToken, cust.id, cust.family_group_id]
+    );
+    res.json({ success: true, ssoToken, familyGroupId: cust.family_group_id });
+});
+
+// GET /api/sc-auth/activity/:bizGroupId  — customer activity with one business
+app.get('/api/sc-auth/activity/:bizGroupId', async (req, res) => {
+    const token = (req.headers.authorization || '').replace('Bearer ', '').trim();
+    const cust = await _scGetCustomerByToken(token);
+    if (!cust) return res.status(401).json({ success: false, error: 'לא מחובר' });
+
+    const bizId = parseInt(req.params.bizGroupId);
+    const phone = cust.phone;
+
+    const [orders, bookings, classRegs] = await Promise.all([
+        pool.query(
+            `SELECT id, status, total_amount, created_at,
+                    (SELECT json_agg(json_build_object('name',item_name,'qty',quantity,'price',price_at_order))
+                     FROM store_order_items WHERE order_id=o.id) as items
+             FROM store_orders o WHERE group_id=$1 AND (customer_phone=$2 OR family_group_id=$3)
+             ORDER BY created_at DESC LIMIT 20`,
+            [bizId, phone, cust.family_group_id || -1]
+        ).then(r => r.rows).catch(() => []),
+        pool.query(
+            `SELECT id, title, event_date, start_time, status, created_at
+             FROM calendar_events WHERE group_id=$1 AND customer_phone=$2 ORDER BY event_date DESC LIMIT 10`,
+            [bizId, phone]
+        ).then(r => r.rows).catch(() => []),
+        pool.query(
+            `SELECT sr.id, ct.type_name as class_name, sc.class_date, sc.start_time, sc.end_time, sr.status, sr.registered_at
+             FROM sport_class_registrations sr
+             JOIN sport_classes sc ON sc.id=sr.class_id
+             LEFT JOIN sport_class_types ct ON ct.id=sc.type_id
+             WHERE sc.group_id=$1 AND sr.member_phone=$2 ORDER BY sc.class_date DESC LIMIT 10`,
+            [bizId, phone]
+        ).then(r => r.rows).catch(() => []),
+    ]);
+
+    res.json({ success: true, orders, bookings, classRegs });
+});
+
+// SA: GET /api/sa/sc-customers  — list storefront customers
+app.get('/api/sa/sc-customers', async (req, res) => {
+    const { search, limit = 50, offset = 0 } = req.query;
+    let where = ''; const params = [];
+    if (search) {
+        params.push(`%${search}%`);
+        where = `WHERE phone ILIKE $1 OR first_name ILIKE $1 OR last_name ILIKE $1 OR email ILIKE $1`;
+    }
+    const r = await pool.query(
+        `SELECT id, phone, first_name, last_name, email, age,
+                address_street, address_number, address_city, address_zip,
+                (pin_hash IS NOT NULL) as has_pin,
+                family_group_id, created_at, updated_at
+         FROM storefront_customers ${where}
+         ORDER BY created_at DESC LIMIT $${params.length+1} OFFSET $${params.length+2}`,
+        [...params, limit, offset]
+    );
+    const total = await pool.query(`SELECT COUNT(*) FROM storefront_customers ${where}`, params);
+    res.json({ success: true, customers: r.rows, total: parseInt(total.rows[0].count) });
+});
+
+// SA: POST /api/sa/sc-customers/:id/reset-pin  — admin reset PIN → send SMS
+app.post('/api/sa/sc-customers/:id/reset-pin', async (req, res) => {
+    const cust = await pool.query('SELECT * FROM storefront_customers WHERE id=$1', [req.params.id]);
+    if (!cust.rows.length) return res.json({ success: false, error: 'לקוח לא נמצא' });
+
+    const phone = cust.rows[0].phone;
+    const code = String(Math.floor(100000 + Math.random() * 900000));
+    const codeHash = await bcrypt.hash(code, 8);
+    await pool.query(
+        `INSERT INTO storefront_otp (phone, code_hash, expires_at, purpose) VALUES ($1,$2,NOW()+interval '30 minutes','pin_reset')`,
+        [phone, codeHash]
+    );
+    await sendSMSviaTwilio(phone, `המנהל איפס את ה-PIN שלך. קוד לאיפוס: ${code} (בתוקף 30 דקות)`);
+    if (process.env.NODE_ENV !== 'production') console.log(`[SA-PIN-RESET] ${phone} → ${code}`);
+    res.json({ success: true });
+});
+
+// OFL family app: GET /api/family/sso-login?token=xxx  — consume SSO token → return session
+app.get('/api/family/sso-login', async (req, res) => {
+    const { token } = req.query;
+    if (!token) return res.json({ success: false, error: 'חסר טוקן' });
+
+    const r = await pool.query(
+        `SELECT * FROM storefront_sso_tokens WHERE token=$1 AND used=FALSE AND expires_at > NOW()`,
+        [token]
+    );
+    if (!r.rows.length) return res.json({ success: false, error: 'טוקן לא תקין או פג' });
+    await pool.query('UPDATE storefront_sso_tokens SET used=TRUE WHERE id=$1', [r.rows[0].id]);
+
+    const fgId = r.rows[0].family_group_id;
+    if (!fgId) return res.json({ success: false, error: 'אין חשבון משפחה מקושר' });
+
+    // create a family session (reuse family_sessions table if exists, else return group info)
+    const fg = await pool.query('SELECT id, name, type, plan FROM family_groups WHERE id=$1', [fgId]);
+    if (!fg.rows.length) return res.json({ success: false, error: 'חשבון לא נמצא' });
+
+    // create a family session token
+    const sessToken = _scGenToken();
+    await pool.query(
+        `INSERT INTO family_sessions (group_id, token, expires_at) VALUES ($1,$2,NOW()+interval '30 days')
+         ON CONFLICT DO NOTHING`,
+        [fgId, sessToken]
+    ).catch(() => {});
+
+    res.json({ success: true, familyGroup: fg.rows[0], sessionToken: sessToken });
+});
+
+// ===== END STOREFRONT CUSTOMER AUTH API =====
+
 // ── ניקוי sessions פגות — cron יומי ──────────────────────────
 setInterval(async () => {
     try {
         const r = await pool.query(`DELETE FROM family_sessions WHERE expires_at < NOW()`);
         if (r.rowCount > 0) console.log(`[family-auth] cleaned ${r.rowCount} expired sessions`);
+    } catch(e) {}
+    try {
+        await pool.query(`DELETE FROM storefront_sessions WHERE expires_at < NOW()`);
+        await pool.query(`DELETE FROM storefront_otp WHERE expires_at < NOW()`);
+        await pool.query(`DELETE FROM storefront_sso_tokens WHERE expires_at < NOW()`);
     } catch(e) {}
 }, 24 * 60 * 60 * 1000);
 
