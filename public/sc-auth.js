@@ -354,9 +354,11 @@ const scAuth = window.scAuth = {
                 const _spObj = _sp ? (typeof _sp === 'string' ? JSON.parse(_sp) : _sp) : {};
                 const sportBtns = [];
                 if (_spObj.public_show_schedule !== false)
-                    sportBtns.push(`<button onclick="_scSportAction('schedule')" style="flex:1;min-width:100px;padding:10px 8px;border:1.5px solid #e2e8f0;border-radius:12px;background:#fff;font-size:12.5px;cursor:pointer;color:#475569;text-align:center">📋 לוח שיעורים</button>`);
+                    sportBtns.push(`<button data-sport-action="schedule" style="flex:1;min-width:100px;padding:10px 8px;border:1.5px solid #e2e8f0;border-radius:12px;background:#fff;font-size:12.5px;cursor:pointer;color:#475569;text-align:center">📋 לוח שיעורים</button>`);
                 if (_spObj.public_show_trainer !== false)
-                    sportBtns.push(`<button onclick="_scSportAction('trainer')" style="flex:1;min-width:100px;padding:10px 8px;border:1.5px solid #e2e8f0;border-radius:12px;background:#fff;font-size:12.5px;cursor:pointer;color:#475569;text-align:center">📅 הזמן אימון</button>`);
+                    sportBtns.push(`<button data-sport-action="trainer" style="flex:1;min-width:100px;padding:10px 8px;border:1.5px solid #e2e8f0;border-radius:12px;background:#fff;font-size:12.5px;cursor:pointer;color:#475569;text-align:center">📅 הזמן אימון</button>`);
+                if (_spObj.public_show_membership !== false)
+                    sportBtns.push(`<button data-sport-action="membership" style="flex:1;min-width:100px;padding:10px 8px;border:1.5px solid #e2e8f0;border-radius:12px;background:#fff;font-size:12.5px;cursor:pointer;color:#475569;text-align:center">🏋️ רכישת מנוי</button>`);
                 if (sportBtns.length) {
                     html = `<div style="margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid #f1f5f9">
                       <div style="font-size:11px;font-weight:700;color:#94a3b8;padding:0 0 8px;text-align:right">⚡ פעולות מהירות</div>
@@ -373,6 +375,14 @@ const scAuth = window.scAuth = {
               <button onclick="scAuth.logout()" style="width:100%;padding:10px;border:none;background:none;font-size:13px;cursor:pointer;color:#94a3b8;margin-top:6px">יציאה</button>
             </div>`;
             list.innerHTML = html;
+            // Use addEventListener (not onclick in innerHTML) to avoid scope issues
+            const _gid = window._scBizId || new URLSearchParams(location.search).get('store') || '';
+            list.querySelectorAll('[data-sport-action]').forEach(function(btn) {
+                btn.addEventListener('click', function() {
+                    document.getElementById('sc-activity-panel').style.display = 'none';
+                    _scOpenSportPanel(btn.getAttribute('data-sport-action'), _gid, window.scAuth._customer);
+                });
+            });
         } catch(e) { list.innerHTML='<div style="text-align:center;color:#ef4444;font-size:13px;padding:20px">שגיאת טעינה</div>'; }
     },
 
@@ -449,53 +459,344 @@ const scAuth = window.scAuth = {
     }
 };
 
-// Global sport action dispatcher — opens modals directly, with window.fn fallback
-window._scSportAction = function(action) {
-    var panel = document.getElementById('sc-activity-panel');
-    if (panel) panel.style.display = 'none';
-    setTimeout(function() {
-        if (action === 'schedule') {
-            if (window.openScheduleModal) { window.openScheduleModal(); return; }
-            // Direct DOM fallback
-            var m = document.getElementById('schedule-modal');
-            if (m) {
-                m.style.display = 'flex';
-                var gid = window._scBizId || (window.storeData && (window.storeData.groupId || window.storeData.group_id)) || '';
-                if (gid && window.schedLoad) { window._schedGroupId = gid; window.schedLoad(); }
-                else if (gid) {
-                    // inline minimal load
-                    var list = m.querySelector('[id^="sched-list"]') || m.querySelector('div[style*="overflow"]');
-                    if (list) list.innerHTML = '<div style="text-align:center;padding:20px;color:#94a3b8">טוען שיעורים...</div>';
-                    fetch('/api/sport/public-schedule/' + gid).then(function(r){ return r.json(); }).then(function(d){
-                        var classes = d.classes || [];
-                        if (!list) return;
-                        if (!classes.length) { list.innerHTML = '<div style="text-align:center;padding:40px;color:#94a3b8">אין שיעורים השבוע</div>'; return; }
-                        list.innerHTML = classes.map(function(c){
-                            var t = [c.start_time,c.end_time].filter(Boolean).map(function(x){return x.slice(0,5);}).join(' — ');
-                            return '<div style="padding:10px 0;border-bottom:1px solid #f1f5f9"><div style="font-weight:700;font-size:14px">' + (c.class_name||'שיעור') + '</div><div style="font-size:12px;color:#64748b;margin-top:2px">' + (c.class_date||'') + ' ' + t + '</div></div>';
-                        }).join('');
-                    }).catch(function(){ if(list) list.innerHTML = '<div style="text-align:center;padding:20px;color:#ef4444">שגיאת טעינה</div>'; });
+// ─── Inline sport panels — self-contained, no storefront DOM dependency ───────
+
+function _scOpenSportPanel(action, gid, customer) {
+    var ex = document.getElementById('sc-sport-overlay');
+    if (ex) ex.remove();
+    var overlay = document.createElement('div');
+    overlay.id = 'sc-sport-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:10001;background:rgba(0,0,0,0.55);display:flex;align-items:flex-end;font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',sans-serif';
+    overlay.dir = 'rtl';
+    var sheet = document.createElement('div');
+    sheet.style.cssText = 'width:100%;max-height:88vh;background:#fff;border-radius:20px 20px 0 0;overflow:hidden;display:flex;flex-direction:column';
+    overlay.appendChild(sheet);
+    document.body.appendChild(overlay);
+    overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
+    var phone = (customer && customer.phone) || '';
+    var name = customer ? ((customer.first_name || '') + ' ' + (customer.last_name || '')).trim() : '';
+    if (action === 'schedule') _scSchedulePanel(sheet, gid, phone, name);
+    else if (action === 'trainer') _scTrainerPanel(sheet, gid, phone, name);
+    else if (action === 'membership') _scMembershipPanel(sheet, gid, phone, name);
+}
+
+function _scPanelHeader(title) {
+    var hdr = document.createElement('div');
+    hdr.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid #f1f5f9;flex-shrink:0';
+    var titleEl = document.createElement('div');
+    titleEl.style.cssText = 'font-size:16px;font-weight:700;color:#1e293b';
+    titleEl.textContent = title;
+    var closeBtn = document.createElement('button');
+    closeBtn.style.cssText = 'background:none;border:none;font-size:24px;cursor:pointer;color:#94a3b8;padding:0;line-height:1';
+    closeBtn.textContent = '×';
+    closeBtn.addEventListener('click', function() { var o = document.getElementById('sc-sport-overlay'); if (o) o.remove(); });
+    hdr.appendChild(titleEl);
+    hdr.appendChild(closeBtn);
+    return hdr;
+}
+
+function _scPanelBody() {
+    var body = document.createElement('div');
+    body.style.cssText = 'overflow-y:auto;flex:1;padding:16px 20px;-webkit-overflow-scrolling:touch';
+    return body;
+}
+
+function _scTodayStr() { return new Date().toISOString().slice(0,10); }
+function _scDateAhead(n) { var d = new Date(); d.setDate(d.getDate()+n); return d.toISOString().slice(0,10); }
+
+// ── Schedule ──────────────────────────────────────────────────────────────────
+function _scSchedulePanel(sheet, gid, phone, name) {
+    sheet.appendChild(_scPanelHeader('📋 לוח שיעורים'));
+    var body = _scPanelBody();
+    body.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:40px">טוען...</div>';
+    sheet.appendChild(body);
+    fetch('/api/sport/public-schedule/' + gid + '?from=' + _scTodayStr() + '&to=' + _scDateAhead(14))
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+        var classes = (d && d.classes) || [];
+        if (!classes.length) { body.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:40px">אין שיעורים בשבועיים הקרובים</div>'; return; }
+        var byDate = {};
+        classes.forEach(function(c) { (byDate[c.class_date] = byDate[c.class_date] || []).push(c); });
+        var html = '';
+        Object.keys(byDate).sort().forEach(function(date) {
+            var dObj = new Date(date + 'T12:00:00');
+            html += '<div style="font-size:11px;font-weight:700;color:#94a3b8;padding:12px 0 6px">' +
+                dObj.toLocaleDateString('he-IL', {weekday:'long', day:'numeric', month:'long'}) + '</div>';
+            byDate[date].forEach(function(c) {
+                var t = [c.start_time, c.end_time].filter(Boolean).map(function(x){return x.slice(0,5);}).join(' — ');
+                var full = c.capacity && (c.registered_count||0) >= c.capacity;
+                var btnAttr = c.id && phone ? ' data-cid="' + c.id + '" data-cname="' + (c.class_name||'שיעור').replace(/"/g,'') + '"' : '';
+                html += '<div style="background:#f8fafc;border-radius:12px;padding:12px;margin-bottom:8px">' +
+                    '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px">' +
+                    '<div style="flex:1">' +
+                    '<div style="font-weight:700;font-size:14px;color:#1e293b">' + (c.class_name||'שיעור') + '</div>' +
+                    '<div style="font-size:12px;color:#64748b;margin-top:3px">' + t + (c.trainer_name?' · '+c.trainer_name:'') + '</div>' +
+                    (c.capacity ? '<div style="font-size:11px;color:#94a3b8">' + (c.registered_count||0) + '/' + c.capacity + ' משתתפים</div>' : '') +
+                    '</div>' +
+                    (btnAttr ? '<button' + btnAttr + ' style="padding:7px 14px;background:' + (full?'#f1f5f9':'#6366f1') + ';color:' + (full?'#94a3b8':'#fff') + ';border:none;border-radius:8px;font-size:12px;cursor:pointer;white-space:nowrap;flex-shrink:0">' + (full?'המתנה':'הירשם') + '</button>' : '') +
+                    '</div></div>';
+            });
+        });
+        body.innerHTML = html;
+        body.querySelectorAll('[data-cid]').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                btn.disabled = true; btn.textContent = '...';
+                fetch('/api/sport/public-class-register', {
+                    method: 'POST',
+                    headers: {'Content-Type':'application/json'},
+                    body: JSON.stringify({groupId:gid, classId:btn.getAttribute('data-cid'), memberPhone:phone, memberName:name})
+                }).then(function(r){return r.json();}).then(function(res) {
+                    if (res.status === 'registered') { btn.textContent = '✓ נרשמת'; btn.style.background = '#10b981'; }
+                    else if (res.status === 'waitlisted') { btn.textContent = '⏳ #' + (res.waitlistPosition||''); btn.style.background = '#f59e0b'; btn.style.color = '#fff'; }
+                    else { btn.disabled = false; btn.textContent = res.error || 'שגיאה'; btn.style.background = '#ef4444'; btn.style.color = '#fff'; }
+                }).catch(function() { btn.disabled = false; btn.textContent = 'שגיאה'; btn.style.background = '#ef4444'; btn.style.color = '#fff'; });
+            });
+        });
+    })
+    .catch(function() { body.innerHTML = '<div style="text-align:center;color:#ef4444;padding:40px">שגיאת טעינה</div>'; });
+}
+
+// ── Trainer booking ───────────────────────────────────────────────────────────
+function _scTrainerPanel(sheet, gid, phone, name) {
+    sheet.appendChild(_scPanelHeader('📅 הזמנת אימון אישי'));
+    var body = _scPanelBody();
+    body.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:40px">טוען מאמנים...</div>';
+    sheet.appendChild(body);
+    var st = {};
+
+    function backBtn(onClick) {
+        var b = document.createElement('button');
+        b.style.cssText = 'background:none;border:none;cursor:pointer;font-size:20px;color:#6366f1;padding:0 8px 0 0;margin-bottom:12px;display:block';
+        b.textContent = '← חזרה';
+        b.addEventListener('click', onClick);
+        return b;
+    }
+
+    function step1() {
+        fetch('/api/sport/trainers/' + gid).then(function(r){return r.json();}).then(function(trainers) {
+            if (!trainers || !trainers.length) { body.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:40px">אין מאמנים זמינים</div>'; return; }
+            body.innerHTML = '<div style="font-size:13px;color:#64748b;margin-bottom:10px">בחר/י מאמן:</div>';
+            trainers.forEach(function(t) {
+                var el = document.createElement('div');
+                el.style.cssText = 'background:#f8fafc;border-radius:12px;padding:14px;margin-bottom:10px;cursor:pointer;border:2px solid #f1f5f9';
+                el.innerHTML = '<div style="font-weight:700;font-size:15px;color:#1e293b">' + (t.full_name||t.name||'מאמן') + '</div>' +
+                    (t.specialties ? '<div style="font-size:12px;color:#64748b;margin-top:3px">' + t.specialties + '</div>' : '');
+                el.addEventListener('click', function() { st.trainerId = t.id; st.trainerName = t.full_name||t.name||'מאמן'; step2(); });
+                body.appendChild(el);
+            });
+        }).catch(function() { body.innerHTML = '<div style="text-align:center;color:#ef4444;padding:40px">שגיאת טעינה</div>'; });
+    }
+
+    function step2() {
+        body.innerHTML = '';
+        body.appendChild(backBtn(step1));
+        var lbl = document.createElement('div');
+        lbl.style.cssText = 'font-size:13px;color:#64748b;margin-bottom:10px';
+        lbl.textContent = 'מאמן: ' + st.trainerName + ' — בחר/י תאריך:';
+        body.appendChild(lbl);
+        var grid = document.createElement('div');
+        grid.style.cssText = 'display:flex;flex-wrap:wrap;gap:8px';
+        for (var i = 0; i < 14; i++) {
+            (function(i) {
+                var d = new Date(); d.setDate(d.getDate()+i);
+                var ds = d.toISOString().slice(0,10);
+                var btn = document.createElement('button');
+                btn.style.cssText = 'padding:8px 12px;border:1.5px solid #e2e8f0;border-radius:10px;background:#fff;font-size:12px;cursor:pointer;color:#475569';
+                btn.textContent = d.toLocaleDateString('he-IL', {weekday:'short', day:'numeric', month:'short'});
+                btn.addEventListener('click', function() { st.date = ds; step3(); });
+                grid.appendChild(btn);
+            })(i);
+        }
+        body.appendChild(grid);
+    }
+
+    function step3() {
+        body.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:30px">טוען שעות...</div>';
+        fetch('/api/sport/availability?groupId=' + gid + '&trainerId=' + (st.trainerId||'') + '&date=' + st.date)
+        .then(function(r){return r.json();}).then(function(slots) {
+            body.innerHTML = '';
+            body.appendChild(backBtn(step2));
+            var lbl = document.createElement('div');
+            lbl.style.cssText = 'font-size:13px;color:#64748b;margin-bottom:10px';
+            lbl.textContent = st.trainerName + ' · ' + st.date + ' — בחר/י שעה:';
+            body.appendChild(lbl);
+            if (!slots || !slots.length) { var noSlots = document.createElement('div'); noSlots.style.cssText = 'text-align:center;color:#94a3b8;padding:20px'; noSlots.textContent = 'אין שעות פנויות'; body.appendChild(noSlots); return; }
+            var grid = document.createElement('div');
+            grid.style.cssText = 'display:flex;flex-wrap:wrap;gap:8px';
+            slots.forEach(function(s) {
+                var start = s.start || s.startTime || s;
+                var end = s.end || s.endTime || '';
+                var btn = document.createElement('button');
+                btn.style.cssText = 'padding:10px 16px;border:1.5px solid #e2e8f0;border-radius:10px;background:#fff;font-size:13px;cursor:pointer;color:#475569;font-weight:600';
+                btn.textContent = ('' + start).slice(0,5);
+                btn.addEventListener('click', function() { st.slot = {start: start, end: end}; step4(); });
+                grid.appendChild(btn);
+            });
+            body.appendChild(grid);
+        }).catch(function() { body.innerHTML = '<div style="text-align:center;color:#ef4444;padding:30px">שגיאת טעינה</div>'; });
+    }
+
+    function step4() {
+        body.innerHTML = '';
+        body.appendChild(backBtn(step3));
+        var summary = document.createElement('div');
+        summary.style.cssText = 'font-size:13px;color:#64748b;margin-bottom:16px;background:#f8fafc;padding:10px;border-radius:10px';
+        summary.textContent = st.trainerName + ' · ' + st.date + ' · ' + ('' + st.slot.start).slice(0,5);
+        body.appendChild(summary);
+        var fields = [
+            {id:'tbk-name', label:'שם מלא', type:'text', val:name},
+            {id:'tbk-phone', label:'טלפון', type:'tel', val:phone, ltr:true},
+            {id:'tbk-notes', label:'הערות (אופציונלי)', type:'textarea'}
+        ];
+        fields.forEach(function(f) {
+            var wrap = document.createElement('div'); wrap.style.marginBottom = '10px';
+            var lbl = document.createElement('label');
+            lbl.style.cssText = 'display:block;font-size:11px;font-weight:600;color:#64748b;margin-bottom:4px;text-align:right';
+            lbl.textContent = f.label;
+            wrap.appendChild(lbl);
+            var inp;
+            if (f.type === 'textarea') { inp = document.createElement('textarea'); inp.rows = 2; inp.style.resize = 'none'; }
+            else { inp = document.createElement('input'); inp.type = f.type; }
+            inp.id = f.id;
+            inp.style.cssText = 'width:100%;border:1.5px solid #e2e8f0;border-radius:10px;padding:10px;font-size:14px;box-sizing:border-box;text-align:' + (f.ltr?'center':'right') + ';direction:' + (f.ltr?'ltr':'rtl');
+            if (f.val) inp.value = f.val;
+            wrap.appendChild(inp);
+            body.appendChild(wrap);
+        });
+        var msg = document.createElement('div');
+        msg.id = 'tbk-msg';
+        msg.style.cssText = 'text-align:center;font-size:13px;min-height:16px;margin-top:4px';
+        var submitBtn = document.createElement('button');
+        submitBtn.style.cssText = 'width:100%;padding:13px;background:#6366f1;color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;margin-top:6px';
+        submitBtn.textContent = 'אשר הזמנה';
+        submitBtn.addEventListener('click', function() {
+            var n = document.getElementById('tbk-name').value.trim();
+            var p = (document.getElementById('tbk-phone').value||'').replace(/\D/g,'');
+            var notes = (document.getElementById('tbk-notes').value||'').trim();
+            if (!n) { msg.style.color='#ef4444'; msg.textContent='נא להזין שם'; return; }
+            submitBtn.disabled = true; submitBtn.textContent = 'שולח...';
+            fetch('/api/sport/appointments', {
+                method:'POST',
+                headers:{'Content-Type':'application/json'},
+                body:JSON.stringify({groupId:gid, clientName:n, clientPhone:p, trainerId:st.trainerId,
+                    startTime:st.date+'T'+('' + st.slot.start).slice(0,5)+':00',
+                    endTime:st.date+'T'+('' + (st.slot.end||st.slot.start)).slice(0,5)+':00',
+                    notes:notes, serviceName:'אימון אישי'})
+            }).then(function(r){return r.json();}).then(function(res) {
+                if (res.id || res.success) {
+                    body.innerHTML = '<div style="text-align:center;padding:40px">' +
+                        '<div style="font-size:48px;margin-bottom:12px">✅</div>' +
+                        '<div style="font-size:18px;font-weight:700;color:#1e293b;margin-bottom:8px">ההזמנה נשלחה!</div>' +
+                        '<div style="font-size:14px;color:#64748b">' + st.trainerName + ' · ' + st.date + ' · ' + ('' + st.slot.start).slice(0,5) + '</div>' +
+                        '<button id="tbk-close" style="margin-top:24px;padding:12px 32px;background:#6366f1;color:#fff;border:none;border-radius:12px;font-size:15px;cursor:pointer">סגור</button></div>';
+                    document.getElementById('tbk-close').addEventListener('click', function() { var o=document.getElementById('sc-sport-overlay'); if(o) o.remove(); });
+                } else {
+                    submitBtn.disabled = false; submitBtn.textContent = 'אשר הזמנה';
+                    msg.style.color='#ef4444'; msg.textContent = res.error||'שגיאה';
                 }
-            }
-            return;
-        }
-        if (action === 'trainer') {
-            if (window.openTrainerBooking) { window.openTrainerBooking(); return; }
-            var m = document.getElementById('trainer-booking-modal');
-            if (m) {
-                m.style.display = 'flex';
-                if (window.tbmShowStep) window.tbmShowStep(1);
-            }
-            return;
-        }
-        if (action === 'membership') {
-            if (window.openMembershipModal) { window.openMembershipModal(); return; }
-            var m = document.getElementById('membership-modal');
-            if (m) { m.style.display = 'flex'; if (window.memShowStep) window.memShowStep(1); }
-            return;
-        }
-    }, 150);
-};
+            }).catch(function() { submitBtn.disabled=false; submitBtn.textContent='אשר הזמנה'; msg.style.color='#ef4444'; msg.textContent='שגיאת רשת'; });
+        });
+        body.appendChild(submitBtn);
+        body.appendChild(msg);
+    }
+
+    step1();
+}
+
+// ── Membership purchase ───────────────────────────────────────────────────────
+function _scMembershipPanel(sheet, gid, phone, name) {
+    sheet.appendChild(_scPanelHeader('🏋️ רכישת מנוי'));
+    var body = _scPanelBody();
+    body.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:40px">טוען...</div>';
+    sheet.appendChild(body);
+
+    function step1() {
+        fetch('/api/sport/public-types/' + gid).then(function(r){return r.json();}).then(function(types) {
+            if (!types || !types.length) { body.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:40px">אין מנויים זמינים</div>'; return; }
+            body.innerHTML = '<div style="font-size:13px;color:#64748b;margin-bottom:10px">בחר/י סוג מנוי:</div>';
+            types.forEach(function(t) {
+                var color = t.color || '#6366f1';
+                var el = document.createElement('div');
+                el.style.cssText = 'background:#f8fafc;border:2px solid ' + color + '30;border-radius:14px;padding:14px;margin-bottom:10px;cursor:pointer';
+                el.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center">' +
+                    '<div style="font-size:16px;font-weight:700;color:' + color + '">₪' + (t.price||0) + '</div>' +
+                    '<div style="font-size:15px;font-weight:700;color:#1e293b">' + (t.name||'מנוי') + '</div></div>' +
+                    (t.duration_days ? '<div style="font-size:12px;color:#64748b;margin-top:4px;text-align:right">תוקף: ' + t.duration_days + ' ימים</div>' : '') +
+                    (t.sessions ? '<div style="font-size:12px;color:#64748b;text-align:right">' + t.sessions + ' כניסות</div>' : '');
+                el.addEventListener('click', function() { step2(t); });
+                body.appendChild(el);
+            });
+        }).catch(function() { body.innerHTML = '<div style="text-align:center;color:#ef4444;padding:40px">שגיאת טעינה</div>'; });
+    }
+
+    function step2(type) {
+        body.innerHTML = '';
+        var backBtn = document.createElement('button');
+        backBtn.style.cssText = 'background:none;border:none;cursor:pointer;font-size:20px;color:#6366f1;padding:0 8px 0 0;margin-bottom:12px;display:block';
+        backBtn.textContent = '← חזרה';
+        backBtn.addEventListener('click', step1);
+        body.appendChild(backBtn);
+        var summary = document.createElement('div');
+        summary.style.cssText = 'font-size:14px;font-weight:700;color:#1e293b;margin-bottom:14px;background:#f8fafc;padding:10px;border-radius:10px;text-align:right';
+        summary.textContent = (type.name||'מנוי') + ' · ₪' + (type.price||0);
+        body.appendChild(summary);
+        var fields = [
+            {id:'mem-name', label:'שם מלא', type:'text', val:name},
+            {id:'mem-phone', label:'טלפון', type:'tel', val:phone, ltr:true},
+            {id:'mem-email', label:'אימייל (אופציונלי)', type:'email', ltr:true}
+        ];
+        fields.forEach(function(f) {
+            var wrap = document.createElement('div'); wrap.style.marginBottom = '10px';
+            var lbl = document.createElement('label');
+            lbl.style.cssText = 'display:block;font-size:11px;font-weight:600;color:#64748b;margin-bottom:4px;text-align:right';
+            lbl.textContent = f.label;
+            wrap.appendChild(lbl);
+            var inp = document.createElement('input'); inp.type = f.type; inp.id = f.id;
+            inp.style.cssText = 'width:100%;border:1.5px solid #e2e8f0;border-radius:10px;padding:10px;font-size:14px;box-sizing:border-box;text-align:' + (f.ltr?'center':'right') + ';direction:' + (f.ltr?'ltr':'rtl');
+            if (f.val) inp.value = f.val;
+            wrap.appendChild(inp);
+            body.appendChild(wrap);
+        });
+        var msg = document.createElement('div');
+        msg.style.cssText = 'text-align:center;font-size:12px;color:#94a3b8;margin:4px 0;text-align:right';
+        msg.textContent = 'לאחר הרישום הנהלת המועדון תיצור איתך קשר';
+        body.appendChild(msg);
+        var errMsg = document.createElement('div');
+        errMsg.style.cssText = 'text-align:center;font-size:13px;min-height:16px';
+        var submitBtn = document.createElement('button');
+        submitBtn.style.cssText = 'width:100%;padding:13px;background:#6366f1;color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;margin-top:6px';
+        submitBtn.textContent = 'הירשם · ₪' + (type.price||0);
+        submitBtn.addEventListener('click', function() {
+            var n = document.getElementById('mem-name').value.trim();
+            var p = (document.getElementById('mem-phone').value||'').replace(/\D/g,'');
+            var email = (document.getElementById('mem-email').value||'').trim();
+            if (!n) { errMsg.style.color='#ef4444'; errMsg.textContent='נא להזין שם'; return; }
+            submitBtn.disabled = true; submitBtn.textContent = 'שולח...';
+            fetch('/api/sport/public-membership-purchase', {
+                method:'POST', headers:{'Content-Type':'application/json'},
+                body:JSON.stringify({groupId:gid, memberName:n, memberPhone:p, memberEmail:email, membershipTypeId:type.id})
+            }).then(function(r){return r.json();}).then(function(res) {
+                if (res.memberId || res.success) {
+                    body.innerHTML = '<div style="text-align:center;padding:40px">' +
+                        '<div style="font-size:48px;margin-bottom:12px">🎉</div>' +
+                        '<div style="font-size:18px;font-weight:700;color:#1e293b;margin-bottom:8px">ההרשמה בוצעה!</div>' +
+                        '<div style="font-size:14px;color:#64748b">' + (type.name||'מנוי') + '</div>' +
+                        (res.endDate ? '<div style="font-size:13px;color:#94a3b8;margin-top:6px">בתוקף עד ' + res.endDate + '</div>' : '') +
+                        '<div style="font-size:13px;color:#64748b;margin-top:12px">הנהלת המועדון תיצור איתך קשר לסיום</div>' +
+                        '<button id="mem-close" style="margin-top:24px;padding:12px 32px;background:#6366f1;color:#fff;border:none;border-radius:12px;font-size:15px;cursor:pointer">סגור</button></div>';
+                    document.getElementById('mem-close').addEventListener('click', function() { var o=document.getElementById('sc-sport-overlay'); if(o) o.remove(); });
+                } else {
+                    submitBtn.disabled = false; submitBtn.textContent = 'הירשם · ₪' + (type.price||0);
+                    errMsg.style.color='#ef4444'; errMsg.textContent = res.error||'שגיאה';
+                }
+            }).catch(function() { submitBtn.disabled=false; submitBtn.textContent='הירשם · ₪'+(type.price||0); errMsg.style.color='#ef4444'; errMsg.textContent='שגיאת רשת'; });
+        });
+        body.appendChild(submitBtn);
+        body.appendChild(errMsg);
+    }
+
+    step1();
+}
 
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => scAuth.init());
