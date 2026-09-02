@@ -22,15 +22,26 @@ const scAuth = window.scAuth = {
             if (document.getElementById('sc-header-btn')) return;
             const btn = document.createElement('button');
             btn.id = 'sc-header-btn';
-            btn.style.cssText = 'position:fixed;top:12px;left:12px;z-index:9000;padding:8px 14px;border-radius:20px;border:none;cursor:pointer;font-size:13px;font-weight:600;background:#6366f1;color:#fff;box-shadow:0 2px 8px rgba(99,102,241,0.3)';
+            btn.style.cssText = 'position:fixed;bottom:24px;left:16px;z-index:10500;padding:10px 16px;border-radius:24px;border:none;cursor:pointer;font-size:13px;font-weight:600;background:#6366f1;color:#fff;box-shadow:0 4px 16px rgba(99,102,241,0.45);white-space:nowrap';
             btn.onclick = () => this._customer ? this.openActivityPanel() : this.openModal('phone');
             this._updateHeaderBtn(btn);
             document.body.appendChild(btn);
+            // watch for loading-screen hide and keep button on top
+            const ls = document.getElementById('loading-screen');
+            if (ls) {
+                const obs = new MutationObserver(() => {
+                    if (ls.style.display === 'none' || ls.hidden) {
+                        btn.style.zIndex = '10500';
+                        obs.disconnect();
+                    }
+                });
+                obs.observe(ls, { attributes: true, attributeFilter: ['style', 'hidden'] });
+            }
         };
         if (document.readyState === 'loading') {
             document.addEventListener('DOMContentLoaded', doInject);
         } else {
-            setTimeout(doInject, 100);
+            setTimeout(doInject, 50);
         }
     },
 
