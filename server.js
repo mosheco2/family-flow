@@ -34110,7 +34110,7 @@ app.get('/api/sc-auth/activity/:bizGroupId', async (req, res) => {
     const bizId = parseInt(req.params.bizGroupId);
     const phone = cust.phone;
 
-    const [orders, bookings, classRegs] = await Promise.all([
+    const [orders, bookings, classRegs, memberships] = await Promise.all([
         pool.query(
             `SELECT id, status, total_amount, created_at,
                     (SELECT json_agg(json_build_object('name',item_name,'qty',quantity,'price',price_at_order))
@@ -34129,12 +34129,22 @@ app.get('/api/sc-auth/activity/:bizGroupId', async (req, res) => {
              FROM sport_class_registrations sr
              JOIN sport_classes sc ON sc.id=sr.class_id
              LEFT JOIN sport_class_types ct ON ct.id=sc.type_id
-             WHERE sc.group_id=$1 AND sr.member_phone=$2 ORDER BY sc.class_date DESC LIMIT 10`,
+             WHERE sc.group_id=$1 AND sr.member_phone=$2 AND sc.class_date >= CURRENT_DATE
+             ORDER BY sc.class_date ASC LIMIT 10`,
+            [bizId, phone]
+        ).then(r => r.rows).catch(() => []),
+        pool.query(
+            `SELECT sm.id, sm.status, sm.start_date, sm.end_date, sm.sessions_used, sm.sessions_limit,
+                    smt.name as type_name, smt.color as type_color
+             FROM sport_members sm
+             LEFT JOIN sport_membership_types smt ON smt.id = sm.membership_type_id
+             WHERE sm.group_id=$1 AND sm.phone=$2 AND sm.status IN ('active','trial')
+             ORDER BY sm.end_date DESC LIMIT 3`,
             [bizId, phone]
         ).then(r => r.rows).catch(() => []),
     ]);
 
-    res.json({ success: true, orders, bookings, classRegs });
+    res.json({ success: true, orders, bookings, classRegs, memberships });
 });
 
 // SA: GET /api/sa/sc-customers  — list storefront customers

@@ -294,8 +294,25 @@ const scAuth = window.scAuth = {
         try {
             const r = await fetch(`/api/sc-auth/activity/${bizId}`, { headers:{'Authorization':'Bearer '+(this._token||'')} }).then(r=>r.json());
             if (!r.success) { list.innerHTML='<div style="text-align:center;color:#ef4444;font-size:13px;padding:20px">שגיאה</div>'; return; }
-            const { orders=[], bookings=[], classRegs=[] } = r;
+            const { orders=[], bookings=[], classRegs=[], memberships=[] } = r;
             let html = '';
+
+            if (memberships.length) {
+                html += `<div style="font-size:11px;font-weight:700;color:#94a3b8;padding:8px 0 4px;text-align:right">🏆 מנוי פעיל</div>`;
+                html += memberships.map(m => {
+                    const color = m.type_color || '#6366f1';
+                    const expiry = m.end_date ? new Date(m.end_date).toLocaleDateString('he-IL',{day:'numeric',month:'short',year:'numeric'}) : '';
+                    const sessions = m.sessions_limit ? `${m.sessions_used||0}/${m.sessions_limit} כניסות` : '';
+                    return `<div style="border:2px solid ${color}30;border-radius:12px;padding:12px;margin-bottom:8px;background:${color}08">
+                      <div style="display:flex;align-items:center;justify-content:space-between">
+                        <span style="font-size:11px;font-weight:700;color:${color};background:${color}20;padding:3px 8px;border-radius:8px">${m.status==='trial'?'ניסיון':'פעיל'}</span>
+                        <span style="font-size:14px;font-weight:700;color:#1e293b;text-align:right">${m.type_name||'מנוי'}</span>
+                      </div>
+                      ${expiry ? `<div style="font-size:11px;color:#64748b;text-align:right;margin-top:4px">בתוקף עד: ${expiry}</div>` : ''}
+                      ${sessions ? `<div style="font-size:11px;color:#64748b;text-align:right">${sessions}</div>` : ''}
+                    </div>`;
+                }).join('');
+            }
 
             if (orders.length) {
                 html += `<div style="font-size:11px;font-weight:700;color:#94a3b8;padding:8px 0 4px;text-align:right">📦 הזמנות</div>`;
@@ -328,17 +345,21 @@ const scAuth = window.scAuth = {
                 </div>`).join('');
             }
 
-            // Sport-specific quick actions (shown after login)
-            if (window._scBizType === 'sport') {
-                const sp = window.storeData?.settings?.sport_settings || {};
-                const spObj = typeof sp === 'string' ? JSON.parse(sp) : sp;
+            // Business-type quick actions (shown after login)
+            const _bizType = window._scBizType || '';
+            if (_bizType === 'sport') {
+                const _sp = window.storeData?.settings?.sport_settings;
+                const _spObj = _sp ? (typeof _sp === 'string' ? JSON.parse(_sp) : _sp) : {};
                 const sportBtns = [];
-                if (spObj.public_show_schedule !== false) sportBtns.push(`<button onclick="document.getElementById('sc-activity-panel').style.display='none';openScheduleModal&&openScheduleModal()" style="flex:1;padding:10px 8px;border:1.5px solid #e2e8f0;border-radius:12px;background:#fff;font-size:13px;cursor:pointer;color:#475569;text-align:center">📋 לוח שיעורים</button>`);
-                if (spObj.public_show_trainer !== false) sportBtns.push(`<button onclick="document.getElementById('sc-activity-panel').style.display='none';openTrainerBooking&&openTrainerBooking()" style="flex:1;padding:10px 8px;border:1.5px solid #e2e8f0;border-radius:12px;background:#fff;font-size:13px;cursor:pointer;color:#475569;text-align:center">📅 הזמנת אימון</button>`);
-                if (spObj.public_show_membership !== false) sportBtns.push(`<button onclick="document.getElementById('sc-activity-panel').style.display='none';openMembershipModal&&openMembershipModal()" style="flex:1;padding:10px 8px;border:1.5px solid #6366f1;border-radius:12px;background:#6366f115;font-size:13px;cursor:pointer;color:#6366f1;font-weight:600;text-align:center">🏋️ הצטרף כחבר</button>`);
+                if (_spObj.public_show_schedule !== false)
+                    sportBtns.push(`<button onclick="document.getElementById('sc-activity-panel').style.display='none';typeof openScheduleModal==='function'&&openScheduleModal()" style="flex:1;min-width:100px;padding:10px 8px;border:1.5px solid #e2e8f0;border-radius:12px;background:#fff;font-size:12.5px;cursor:pointer;color:#475569;text-align:center">📋 לוח שיעורים</button>`);
+                if (_spObj.public_show_trainer !== false)
+                    sportBtns.push(`<button onclick="document.getElementById('sc-activity-panel').style.display='none';typeof openTrainerBooking==='function'&&openTrainerBooking()" style="flex:1;min-width:100px;padding:10px 8px;border:1.5px solid #e2e8f0;border-radius:12px;background:#fff;font-size:12.5px;cursor:pointer;color:#475569;text-align:center">📅 הזמן אימון</button>`);
+                if (_spObj.public_show_membership !== false)
+                    sportBtns.push(`<button onclick="document.getElementById('sc-activity-panel').style.display='none';typeof openMembershipModal==='function'&&openMembershipModal()" style="flex:1;min-width:100px;padding:10px 8px;border:1.5px solid #6366f1;border-radius:12px;background:#6366f115;font-size:12.5px;cursor:pointer;color:#6366f1;font-weight:700;text-align:center">🏋️ הצטרף כחבר</button>`);
                 if (sportBtns.length) {
-                    html = `<div style="margin-bottom:12px">
-                      <div style="font-size:11px;font-weight:700;color:#94a3b8;padding:0 0 6px;text-align:right">⚡ פעולות מהירות</div>
+                    html = `<div style="margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid #f1f5f9">
+                      <div style="font-size:11px;font-weight:700;color:#94a3b8;padding:0 0 8px;text-align:right">⚡ פעולות מהירות</div>
                       <div style="display:flex;gap:8px;flex-wrap:wrap">${sportBtns.join('')}</div>
                     </div>` + html;
                 }
@@ -411,11 +432,14 @@ const scAuth = window.scAuth = {
     },
 
     async goToOFL() {
-        if (!this._token) return;
-        try {
-            const r = await fetch('/api/sc-auth/sso-token', { headers:{'Authorization':'Bearer '+this._token} }).then(r=>r.json());
-            if (r.success) window.open(`/?sso_token=${r.ssoToken}`, '_blank');
-        } catch(e) { alert('שגיאה במעבר'); }
+        if (this._token) {
+            try {
+                const r = await fetch('/api/sc-auth/sso-token', { headers:{'Authorization':'Bearer '+this._token} }).then(r=>r.json());
+                if (r.success && r.ssoToken) { window.open(`/?sso_token=${r.ssoToken}`, '_blank'); return; }
+            } catch(e) {}
+        }
+        // fallback: open family app without SSO (user logs in there separately)
+        window.open('/', '_blank');
     },
 
     async logout() {
