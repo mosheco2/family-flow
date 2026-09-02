@@ -33850,6 +33850,7 @@ app.post('/api/sc-auth/send-otp', async (req, res) => {
     if (!phone) return res.json({ success: false, error: 'חסר טלפון' });
     const cleanPhone = String(phone).replace(/\D/g, '');
     if (cleanPhone.length < 9 || cleanPhone.length > 15) return res.json({ success: false, error: 'מספר טלפון לא תקין' });
+    const e164Phone = cleanPhone.startsWith('972') ? '+' + cleanPhone : cleanPhone.startsWith('0') ? '+972' + cleanPhone.slice(1) : '+' + cleanPhone;
 
     // check if customer exists (for UX hint only)
     const existing = await pool.query('SELECT id FROM storefront_customers WHERE phone=$1', [cleanPhone]).catch(() => ({ rows: [] }));
@@ -33869,7 +33870,7 @@ app.post('/api/sc-auth/send-otp', async (req, res) => {
         [cleanPhone, codeHash, purpose]
     );
 
-    const sent = await sendSMSviaTwilio(cleanPhone, `קוד האימות שלך: ${code} (בתוקף 5 דקות)`);
+    const sent = await sendSMSviaTwilio(e164Phone, `קוד האימות שלך: ${code} (בתוקף 5 דקות)`);
     if (process.env.NODE_ENV !== 'production') console.log(`[SC-OTP] ${cleanPhone} → ${code}`);
 
     res.json({ success: true, isNew, smsSent: !!sent });
@@ -34051,7 +34052,8 @@ app.post('/api/sc-auth/forgot-pin', async (req, res) => {
         `INSERT INTO storefront_otp (phone, code_hash, expires_at, purpose) VALUES ($1,$2,NOW()+interval '10 minutes','pin_reset')`,
         [cleanPhone, codeHash]
     );
-    await sendSMSviaTwilio(cleanPhone, `קוד לאיפוס ה-PIN שלך: ${code} (בתוקף 10 דקות)`);
+    const e164FP = cleanPhone.startsWith('972') ? '+' + cleanPhone : cleanPhone.startsWith('0') ? '+972' + cleanPhone.slice(1) : '+' + cleanPhone;
+    await sendSMSviaTwilio(e164FP, `קוד לאיפוס ה-PIN שלך: ${code} (בתוקף 10 דקות)`);
     if (process.env.NODE_ENV !== 'production') console.log(`[SC-PIN-RESET] ${cleanPhone} → ${code}`);
     res.json({ success: true });
 });
@@ -34168,7 +34170,8 @@ app.post('/api/sa/sc-customers/:id/reset-pin', async (req, res) => {
         `INSERT INTO storefront_otp (phone, code_hash, expires_at, purpose) VALUES ($1,$2,NOW()+interval '30 minutes','pin_reset')`,
         [phone, codeHash]
     );
-    await sendSMSviaTwilio(phone, `המנהל איפס את ה-PIN שלך. קוד לאיפוס: ${code} (בתוקף 30 דקות)`);
+    const e164SA = phone.startsWith('972') ? '+' + phone : phone.startsWith('0') ? '+972' + phone.slice(1) : '+' + phone;
+    await sendSMSviaTwilio(e164SA, `המנהל איפס את ה-PIN שלך. קוד לאיפוס: ${code} (בתוקף 30 דקות)`);
     if (process.env.NODE_ENV !== 'production') console.log(`[SA-PIN-RESET] ${phone} → ${code}`);
     res.json({ success: true });
 });
