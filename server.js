@@ -34122,7 +34122,7 @@ app.get('/api/sc-auth/activity/:bizGroupId', async (req, res) => {
     const bizId = parseInt(req.params.bizGroupId);
     const phone = cust.phone;
 
-    const [orders, bookings, classRegs, memberships] = await Promise.all([
+    const [orders, bookings, classRegs, memberships, appointments] = await Promise.all([
         pool.query(
             `SELECT id, status, total_amount, created_at,
                     (SELECT json_agg(json_build_object('name',item_name,'qty',quantity,'price',price_at_order))
@@ -34137,21 +34137,34 @@ app.get('/api/sc-auth/activity/:bizGroupId', async (req, res) => {
             [bizId, phone]
         ).then(r => r.rows).catch(() => []),
         pool.query(
-            `SELECT sr.id, ct.type_name as class_name, sc.class_date, sc.start_time, sc.end_time, sr.status, sr.registered_at
+            `SELECT sr.id, sc.id as class_id, ct.type_name as class_name, sc.class_date, sc.start_time, sc.end_time, sr.status, sr.registered_at,
+                    tr.full_name as trainer_name
              FROM sport_class_registrations sr
              JOIN sport_classes sc ON sc.id=sr.class_id
              LEFT JOIN sport_class_types ct ON ct.id=sc.type_id
+             LEFT JOIN sport_trainers tr ON tr.id=sc.trainer_id
              WHERE sc.group_id=$1 AND sr.member_phone=$2 AND sc.class_date >= CURRENT_DATE
              ORDER BY sc.class_date ASC LIMIT 10`,
             [bizId, phone]
         ).then(r => r.rows).catch(() => []),
         pool.query(
-            `SELECT sm.id, sm.status, sm.start_date, sm.end_date, sm.sessions_used, sm.sessions_limit,
-                    smt.name as type_name, smt.color as type_color
-             FROM sport_members sm
+            `SELECT sm.id, sm.status, sm.start_date, sm.end_date, sm.sessions_used, sm.sessions_total as sessions_limit,
+                    sm.qr_token, sm.is_trial,
+                    smt.id as type_id, smt.name as type_name, smt.color as type_color,
+                    smt.price, smt.duration_days, smt.type as membership_kind
+             FROM sport_memberships sm
              LEFT JOIN sport_membership_types smt ON smt.id = sm.membership_type_id
-             WHERE sm.group_id=$1 AND sm.phone=$2 AND sm.status IN ('active','trial')
-             ORDER BY sm.end_date DESC LIMIT 3`,
+             WHERE sm.group_id=$1 AND sm.member_phone=$2 AND sm.status IN ('active','trial','frozen')
+             ORDER BY sm.end_date DESC LIMIT 5`,
+            [bizId, phone]
+        ).then(r => r.rows).catch(() => []),
+        pool.query(
+            `SELECT sa.id, sa.start_time, sa.end_time, sa.status, sa.service_name, sa.notes,
+                    tr.full_name as trainer_name
+             FROM sport_appointments sa
+             LEFT JOIN sport_trainers tr ON tr.id=sa.trainer_id
+             WHERE sa.group_id=$1 AND sa.client_phone=$2 AND sa.start_time >= NOW() - interval '7 days'
+             ORDER BY sa.start_time ASC LIMIT 10`,
             [bizId, phone]
         ).then(r => r.rows).catch(() => []),
     ]);
@@ -34160,7 +34173,7 @@ app.get('/api/sc-auth/activity/:bizGroupId', async (req, res) => {
     const btRow = await pool.query('SELECT business_type FROM family_groups WHERE id=$1', [bizId]).catch(() => ({ rows: [] }));
     const businessType = btRow.rows[0]?.business_type || '';
 
-    res.json({ success: true, orders, bookings, classRegs, memberships, businessType });
+    res.json({ success: true, orders, bookings, classRegs, memberships, appointments, businessType });
 });
 
 // SA: GET /api/sa/sc-customers  — list storefront customers

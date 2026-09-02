@@ -294,71 +294,123 @@ const scAuth = window.scAuth = {
         try {
             const r = await fetch(`/api/sc-auth/activity/${bizId}`, { headers:{'Authorization':'Bearer '+(this._token||'')} }).then(r=>r.json());
             if (!r.success) { list.innerHTML='<div style="text-align:center;color:#ef4444;font-size:13px;padding:20px">שגיאה</div>'; return; }
-            const { orders=[], bookings=[], classRegs=[], memberships=[], businessType='' } = r;
-            // also store for future use
+            const { orders=[], bookings=[], classRegs=[], memberships=[], appointments=[], businessType='' } = r;
             if (businessType) window._scBizType = businessType;
+            const _bizType = businessType || window._scBizType || '';
+            const _sp = window.storeData?.settings?.sport_settings;
+            const _spObj = _sp ? (typeof _sp === 'string' ? JSON.parse(_sp) : _sp) : {};
+            const _gid = window._scBizId || new URLSearchParams(location.search).get('store') || '';
+
             let html = '';
 
+            // ── מנויים ──────────────────────────────────────────────────────
             if (memberships.length) {
-                html += `<div style="font-size:11px;font-weight:700;color:#94a3b8;padding:8px 0 4px;text-align:right">🏆 מנוי פעיל</div>`;
+                html += `<div style="font-size:11px;font-weight:700;color:#94a3b8;padding:8px 0 6px;text-align:right">🏆 המנוי שלי</div>`;
                 html += memberships.map(m => {
                     const color = m.type_color || '#6366f1';
                     const expiry = m.end_date ? new Date(m.end_date).toLocaleDateString('he-IL',{day:'numeric',month:'short',year:'numeric'}) : '';
-                    const sessions = m.sessions_limit ? `${m.sessions_used||0}/${m.sessions_limit} כניסות` : '';
-                    return `<div style="border:2px solid ${color}30;border-radius:12px;padding:12px;margin-bottom:8px;background:${color}08">
-                      <div style="display:flex;align-items:center;justify-content:space-between">
-                        <span style="font-size:11px;font-weight:700;color:${color};background:${color}20;padding:3px 8px;border-radius:8px">${m.status==='trial'?'ניסיון':'פעיל'}</span>
-                        <span style="font-size:14px;font-weight:700;color:#1e293b;text-align:right">${m.type_name||'מנוי'}</span>
+                    const hasExpired = m.end_date && new Date(m.end_date) < new Date();
+                    const sessions = m.sessions_limit ? `${m.sessions_used||0} / ${m.sessions_limit} כניסות` : '';
+                    const frozen = m.status === 'frozen';
+                    const statusLabel = frozen ? 'מוקפא' : (m.is_trial || m.status==='trial') ? 'ניסיון' : hasExpired ? 'פג תוקף' : 'פעיל';
+                    const statusColor = frozen ? '#94a3b8' : hasExpired ? '#ef4444' : color;
+                    // Progress bar for sessions
+                    const pct = m.sessions_limit ? Math.min(100, Math.round(((m.sessions_used||0)/m.sessions_limit)*100)) : null;
+                    return `<div style="border:2px solid ${color}30;border-radius:14px;padding:14px;margin-bottom:10px;background:${color}08" data-mem-id="${m.id}">
+                      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+                        <span style="font-size:11px;font-weight:700;color:${statusColor};background:${statusColor}18;padding:3px 9px;border-radius:8px">${statusLabel}</span>
+                        <span style="font-size:15px;font-weight:700;color:#1e293b">${m.type_name||'מנוי'}</span>
                       </div>
-                      ${expiry ? `<div style="font-size:11px;color:#64748b;text-align:right;margin-top:4px">בתוקף עד: ${expiry}</div>` : ''}
-                      ${sessions ? `<div style="font-size:11px;color:#64748b;text-align:right">${sessions}</div>` : ''}
+                      ${expiry ? `<div style="font-size:12px;color:#64748b;text-align:right">📅 בתוקף עד: <strong>${expiry}</strong></div>` : ''}
+                      ${sessions ? `<div style="font-size:12px;color:#64748b;text-align:right;margin-top:4px">🚪 ${sessions}</div>` : ''}
+                      ${pct !== null ? `<div style="margin-top:8px;background:#e2e8f0;border-radius:6px;height:6px;overflow:hidden"><div style="height:100%;width:${pct}%;background:${color};border-radius:6px;transition:width 0.3s"></div></div>` : ''}
+                      <button data-mem-detail="${m.id}" style="margin-top:10px;width:100%;padding:8px;border:1.5px solid ${color}40;border-radius:10px;background:${color}10;color:${color};font-size:12px;cursor:pointer;font-weight:600">פרטי מנוי מלאים ←</button>
                     </div>`;
                 }).join('');
             }
 
+            // ── שיעורים קרובים ─────────────────────────────────────────────
+            if (classRegs.length) {
+                html += `<div style="font-size:11px;font-weight:700;color:#94a3b8;padding:8px 0 6px;text-align:right">🏋️ שיעורים קרובים</div>`;
+                html += classRegs.map(c => {
+                    const d = c.class_date ? new Date(c.class_date+'T12:00:00').toLocaleDateString('he-IL',{weekday:'short',day:'numeric',month:'short'}) : '';
+                    const t = c.start_time ? c.start_time.slice(0,5) : '';
+                    const cancelled = c.status === 'cancelled' || c.status === 'cancelled_late';
+                    return `<div style="border:1px solid #f1f5f9;border-radius:12px;padding:12px;margin-bottom:8px;opacity:${cancelled?'0.6':'1'}">
+                      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+                        <div>
+                          ${cancelled ? `<span style="font-size:10px;color:#ef4444;font-weight:700">בוטל</span>` : `<span style="font-size:10px;color:#10b981;font-weight:700">מאושר</span>`}
+                        </div>
+                        <div style="text-align:right">
+                          <div style="font-weight:700;font-size:14px;color:#1e293b">${c.class_name||'שיעור'}</div>
+                          <div style="font-size:12px;color:#64748b;margin-top:2px">${d} ${t}${c.trainer_name?' · '+c.trainer_name:''}</div>
+                        </div>
+                      </div>
+                      ${!cancelled ? `<button data-cancel-class="${c.id}" data-class-date="${c.class_date}" style="margin-top:8px;width:100%;padding:7px;border:1px solid #fca5a5;border-radius:9px;background:#fff5f5;color:#ef4444;font-size:12px;cursor:pointer">ביטול רישום</button>` : ''}
+                    </div>`;
+                }).join('');
+            }
+
+            // ── אימונים אישיים ─────────────────────────────────────────────
+            if (appointments.length) {
+                html += `<div style="font-size:11px;font-weight:700;color:#94a3b8;padding:8px 0 6px;text-align:right">📅 אימונים אישיים</div>`;
+                html += appointments.map(a => {
+                    const dt = a.start_time ? new Date(a.start_time) : null;
+                    const dateStr = dt ? dt.toLocaleDateString('he-IL',{weekday:'short',day:'numeric',month:'short'}) : '';
+                    const timeStr = dt ? dt.toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'}) : '';
+                    const statusColors = { pending:'#f59e0b', confirmed:'#10b981', cancelled:'#ef4444', completed:'#6366f1' };
+                    const statusLabels = { pending:'ממתין לאישור', confirmed:'מאושר', cancelled:'בוטל', completed:'הושלם' };
+                    const sc = statusColors[a.status] || '#64748b';
+                    return `<div style="border:1px solid #f1f5f9;border-radius:12px;padding:12px;margin-bottom:8px">
+                      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+                        <span style="font-size:11px;font-weight:700;color:${sc};background:${sc}15;padding:3px 8px;border-radius:7px">${statusLabels[a.status]||a.status}</span>
+                        <div style="text-align:right">
+                          <div style="font-weight:700;font-size:14px;color:#1e293b">${a.service_name||'אימון אישי'}</div>
+                          <div style="font-size:12px;color:#64748b;margin-top:2px">${dateStr} ${timeStr}${a.trainer_name?' · '+a.trainer_name:''}</div>
+                        </div>
+                      </div>
+                      ${a.notes ? `<div style="font-size:11px;color:#94a3b8;text-align:right;margin-top:6px;padding-top:6px;border-top:1px solid #f8fafc">${a.notes}</div>` : ''}
+                    </div>`;
+                }).join('');
+            }
+
+            // ── הזמנות חנות ─────────────────────────────────────────────────
             if (orders.length) {
-                html += `<div style="font-size:11px;font-weight:700;color:#94a3b8;padding:8px 0 4px;text-align:right">📦 הזמנות</div>`;
+                html += `<div style="font-size:11px;font-weight:700;color:#94a3b8;padding:8px 0 6px;text-align:right">📦 הזמנות</div>`;
                 html += orders.map(o => {
                     const statusColors = { new:'#f59e0b', confirmed:'#3b82f6', ready:'#8b5cf6', delivered:'#10b981', cancelled:'#ef4444' };
                     const statusLabels = { new:'חדשה', confirmed:'אושרה', ready:'מוכן', delivered:'נמסר', cancelled:'בוטלה' };
+                    const sc = statusColors[o.status] || '#64748b';
+                    const items = o.items ? o.items.map(i => i.name).join(', ') : '';
                     return `<div style="border:1px solid #f1f5f9;border-radius:12px;padding:12px;margin-bottom:8px">
                       <div style="display:flex;align-items:center;justify-content:space-between">
-                        <span style="font-size:12px;font-weight:700;color:${statusColors[o.status]||'#64748b'};background:${statusColors[o.status]||'#64748b'}15;padding:3px 8px;border-radius:8px">${statusLabels[o.status]||o.status}</span>
-                        <span style="font-size:13px;font-weight:700;color:#1e293b">₪${parseFloat(o.total_amount||0).toFixed(0)}</span>
+                        <span style="font-size:12px;font-weight:700;color:${sc};background:${sc}15;padding:3px 8px;border-radius:8px">${statusLabels[o.status]||o.status}</span>
+                        <span style="font-size:14px;font-weight:700;color:#1e293b">₪${parseFloat(o.total_amount||0).toFixed(0)}</span>
                       </div>
-                      <div style="font-size:11px;color:#94a3b8;text-align:right;margin-top:4px">${new Date(o.created_at).toLocaleDateString('he-IL',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</div>
+                      ${items ? `<div style="font-size:12px;color:#475569;text-align:right;margin-top:4px">${items}</div>` : ''}
+                      <div style="font-size:11px;color:#94a3b8;text-align:right;margin-top:3px">${new Date(o.created_at).toLocaleDateString('he-IL',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</div>
                     </div>`;
                 }).join('');
             }
 
+            // ── תורים (calendar) ────────────────────────────────────────────
             if (bookings.length) {
-                html += `<div style="font-size:11px;font-weight:700;color:#94a3b8;padding:8px 0 4px;text-align:right">📅 תורים</div>`;
+                html += `<div style="font-size:11px;font-weight:700;color:#94a3b8;padding:8px 0 6px;text-align:right">🗓️ תורים</div>`;
                 html += bookings.map(b => `<div style="border:1px solid #f1f5f9;border-radius:12px;padding:12px;margin-bottom:8px">
                   <div style="font-weight:600;font-size:14px;color:#1e293b;text-align:right">${b.title||'תור'}</div>
                   <div style="font-size:12px;color:#64748b;text-align:right;margin-top:3px">${b.event_date||''} ${b.start_time?.slice(0,5)||''}</div>
                 </div>`).join('');
             }
 
-            if (classRegs.length) {
-                html += `<div style="font-size:11px;font-weight:700;color:#94a3b8;padding:8px 0 4px;text-align:right">🏋️ שיעורים</div>`;
-                html += classRegs.map(c => `<div style="border:1px solid #f1f5f9;border-radius:12px;padding:12px;margin-bottom:8px">
-                  <div style="font-weight:600;font-size:14px;color:#1e293b;text-align:right">${c.class_name||'שיעור'}</div>
-                  <div style="font-size:12px;color:#64748b;text-align:right;margin-top:3px">${c.class_date||''} ${c.start_time?.slice(0,5)||''}</div>
-                </div>`).join('');
-            }
-
-            // Business-type quick actions (shown after login)
-            const _bizType = businessType || window._scBizType || '';
+            // ── פעולות מהירות ────────────────────────────────────────────────
             if (_bizType === 'sport') {
-                const _sp = window.storeData?.settings?.sport_settings;
-                const _spObj = _sp ? (typeof _sp === 'string' ? JSON.parse(_sp) : _sp) : {};
                 const sportBtns = [];
                 if (_spObj.public_show_schedule !== false)
-                    sportBtns.push(`<button data-sport-action="schedule" style="flex:1;min-width:100px;padding:10px 8px;border:1.5px solid #e2e8f0;border-radius:12px;background:#fff;font-size:12.5px;cursor:pointer;color:#475569;text-align:center">📋 לוח שיעורים</button>`);
+                    sportBtns.push(`<button data-sport-action="schedule" style="flex:1;min-width:90px;padding:10px 6px;border:1.5px solid #e2e8f0;border-radius:12px;background:#fff;font-size:12px;cursor:pointer;color:#475569;text-align:center">📋 לוח שיעורים</button>`);
                 if (_spObj.public_show_trainer !== false)
-                    sportBtns.push(`<button data-sport-action="trainer" style="flex:1;min-width:100px;padding:10px 8px;border:1.5px solid #e2e8f0;border-radius:12px;background:#fff;font-size:12.5px;cursor:pointer;color:#475569;text-align:center">📅 הזמן אימון</button>`);
-                if (_spObj.public_show_membership !== false)
-                    sportBtns.push(`<button data-sport-action="membership" style="flex:1;min-width:100px;padding:10px 8px;border:1.5px solid #e2e8f0;border-radius:12px;background:#fff;font-size:12.5px;cursor:pointer;color:#475569;text-align:center">🏋️ רכישת מנוי</button>`);
+                    sportBtns.push(`<button data-sport-action="trainer" style="flex:1;min-width:90px;padding:10px 6px;border:1.5px solid #e2e8f0;border-radius:12px;background:#fff;font-size:12px;cursor:pointer;color:#475569;text-align:center">📅 הזמן אימון</button>`);
+                if (_spObj.public_show_membership !== false && !memberships.some(m=>m.status==='active'))
+                    sportBtns.push(`<button data-sport-action="membership" style="flex:1;min-width:90px;padding:10px 6px;border:1.5px solid #e2e8f0;border-radius:12px;background:#fff;font-size:12px;cursor:pointer;color:#475569;text-align:center">🏋️ רכישת מנוי</button>`);
                 if (sportBtns.length) {
                     html = `<div style="margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid #f1f5f9">
                       <div style="font-size:11px;font-weight:700;color:#94a3b8;padding:0 0 8px;text-align:right">⚡ פעולות מהירות</div>
@@ -369,18 +421,50 @@ const scAuth = window.scAuth = {
 
             if (!html) html = '<div style="text-align:center;color:#94a3b8;font-size:13px;padding:40px 0">אין פעילות עדיין עם העסק הזה</div>';
 
-            // Add profile edit button
             html += `<div style="border-top:1px solid #f1f5f9;margin-top:12px;padding-top:12px">
-              <button onclick="scAuth.openProfileEdit()" style="width:100%;padding:12px;border:1.5px solid #e2e8f0;border-radius:12px;background:#fff;font-size:14px;cursor:pointer;color:#475569">✏️ עריכת פרופיל</button>
-              <button onclick="scAuth.logout()" style="width:100%;padding:10px;border:none;background:none;font-size:13px;cursor:pointer;color:#94a3b8;margin-top:6px">יציאה</button>
+              <button id="sc-profile-btn" style="width:100%;padding:12px;border:1.5px solid #e2e8f0;border-radius:12px;background:#fff;font-size:14px;cursor:pointer;color:#475569">✏️ עריכת פרופיל</button>
+              <button id="sc-logout-btn" style="width:100%;padding:10px;border:none;background:none;font-size:13px;cursor:pointer;color:#94a3b8;margin-top:6px">יציאה</button>
             </div>`;
             list.innerHTML = html;
-            // Use addEventListener (not onclick in innerHTML) to avoid scope issues
-            const _gid = window._scBizId || new URLSearchParams(location.search).get('store') || '';
+
+            // ── Event listeners (avoiding onclick-in-innerHTML scope issues) ──
+            list.querySelector('#sc-profile-btn')?.addEventListener('click', () => scAuth.openProfileEdit());
+            list.querySelector('#sc-logout-btn')?.addEventListener('click', () => scAuth.logout());
+
             list.querySelectorAll('[data-sport-action]').forEach(function(btn) {
                 btn.addEventListener('click', function() {
                     document.getElementById('sc-activity-panel').style.display = 'none';
                     _scOpenSportPanel(btn.getAttribute('data-sport-action'), _gid, window.scAuth._customer);
+                });
+            });
+
+            // פרטי מנוי
+            list.querySelectorAll('[data-mem-detail]').forEach(function(btn) {
+                btn.addEventListener('click', function() {
+                    const mid = btn.getAttribute('data-mem-detail');
+                    const m = memberships.find(function(x){ return String(x.id)===mid; });
+                    if (m) _scShowMembershipDetail(m);
+                });
+            });
+
+            // ביטול רישום לשיעור
+            list.querySelectorAll('[data-cancel-class]').forEach(function(btn) {
+                btn.addEventListener('click', function() {
+                    const cid = btn.getAttribute('data-cancel-class');
+                    if (!confirm('לבטל את הרישום לשיעור?')) return;
+                    btn.disabled = true; btn.textContent = 'מבטל...';
+                    fetch('/api/sport/public-class-register', {
+                        method: 'DELETE',
+                        headers: {'Content-Type':'application/json'},
+                        body: JSON.stringify({classId: cid, memberPhone: phone || (window.scAuth._customer && window.scAuth._customer.phone) || '', groupId: _gid})
+                    }).then(function(r){return r.json();}).then(function(res) {
+                        if (res.success || res.status === 'cancelled') {
+                            btn.closest('div[style]').style.opacity = '0.4';
+                            btn.textContent = 'בוטל';
+                        } else {
+                            btn.disabled = false; btn.textContent = res.error || 'שגיאה';
+                        }
+                    }).catch(function() { btn.disabled=false; btn.textContent='שגיאת רשת'; });
                 });
             });
         } catch(e) { list.innerHTML='<div style="text-align:center;color:#ef4444;font-size:13px;padding:20px">שגיאת טעינה</div>'; }
@@ -458,6 +542,91 @@ const scAuth = window.scAuth = {
         document.getElementById('sc-activity-panel').style.display='none';
     }
 };
+
+// ─── Membership detail panel ──────────────────────────────────────────────────
+function _scShowMembershipDetail(m) {
+    var ex = document.getElementById('sc-mem-detail-overlay');
+    if (ex) ex.remove();
+    var overlay = document.createElement('div');
+    overlay.id = 'sc-mem-detail-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:10002;background:rgba(0,0,0,0.55);display:flex;align-items:flex-end;font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',sans-serif';
+    overlay.dir = 'rtl';
+    var sheet = document.createElement('div');
+    sheet.style.cssText = 'width:100%;max-height:80vh;background:#fff;border-radius:20px 20px 0 0;overflow-y:auto;padding:20px;box-sizing:border-box;-webkit-overflow-scrolling:touch';
+    overlay.appendChild(sheet);
+    document.body.appendChild(overlay);
+    overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
+
+    var color = m.type_color || '#6366f1';
+    var expiry = m.end_date ? new Date(m.end_date).toLocaleDateString('he-IL',{day:'numeric',month:'long',year:'numeric'}) : '';
+    var start = m.start_date ? new Date(m.start_date).toLocaleDateString('he-IL',{day:'numeric',month:'long',year:'numeric'}) : '';
+    var sessions = m.sessions_limit ? (m.sessions_used||0) + ' / ' + m.sessions_limit + ' כניסות שנוצלו' : '';
+    var pct = m.sessions_limit ? Math.min(100, Math.round(((m.sessions_used||0)/m.sessions_limit)*100)) : null;
+    var statusLabel = m.status==='frozen' ? 'מוקפא' : m.is_trial||m.status==='trial' ? 'ניסיון' : 'פעיל';
+
+    var closeBtn = document.createElement('button');
+    closeBtn.style.cssText = 'position:absolute;top:16px;left:20px;background:none;border:none;font-size:24px;cursor:pointer;color:#94a3b8;padding:0';
+    closeBtn.textContent = '×';
+    closeBtn.addEventListener('click', function() { overlay.remove(); });
+    sheet.style.position = 'relative';
+    sheet.appendChild(closeBtn);
+
+    var inner = document.createElement('div');
+    inner.innerHTML =
+        '<div style="text-align:right;margin-bottom:20px">' +
+        '<span style="font-size:11px;font-weight:700;color:'+color+';background:'+color+'18;padding:3px 10px;border-radius:8px">'+statusLabel+'</span>' +
+        '<h2 style="margin:8px 0 4px;font-size:20px;color:#1e293b">' + (m.type_name||'מנוי') + '</h2>' +
+        (m.membership_kind === 'sessions' ? '<div style="font-size:12px;color:#64748b">כרטיסייה</div>' : '<div style="font-size:12px;color:#64748b">מנוי תקופתי</div>') +
+        '</div>' +
+        '<div style="background:#f8fafc;border-radius:14px;padding:14px;margin-bottom:16px">' +
+        (start ? '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f1f5f9"><span style="color:#64748b;font-size:13px">תחילה</span><span style="font-weight:600;font-size:13px">'+start+'</span></div>' : '') +
+        (expiry ? '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f1f5f9"><span style="color:#64748b;font-size:13px">תפוגה</span><span style="font-weight:600;font-size:13px">'+expiry+'</span></div>' : '') +
+        (sessions ? '<div style="display:flex;justify-content:space-between;padding:6px 0"><span style="color:#64748b;font-size:13px">כניסות</span><span style="font-weight:600;font-size:13px">'+sessions+'</span></div>' : '') +
+        '</div>' +
+        (pct !== null ? '<div style="margin-bottom:16px"><div style="font-size:11px;color:#94a3b8;text-align:right;margin-bottom:4px">ניצול</div><div style="background:#e2e8f0;border-radius:8px;height:10px;overflow:hidden"><div style="height:100%;width:'+pct+'%;background:'+color+';border-radius:8px"></div></div><div style="font-size:11px;color:#94a3b8;text-align:left;margin-top:2px">'+pct+'%</div></div>' : '') +
+        (m.qr_token ? '<div style="text-align:center;margin-bottom:16px"><div style="font-size:11px;color:#94a3b8;margin-bottom:8px">קוד כניסה אישי — הצג בכניסה למועדון</div><canvas id="sc-mem-qr" width="180" height="180" style="border:4px solid '+color+'20;border-radius:12px;display:block;margin:0 auto"></canvas><div style="font-size:10px;color:#94a3b8;margin-top:6px;letter-spacing:1px">'+m.qr_token.slice(-8).toUpperCase()+'</div></div>' : '') +
+        '<div style="font-size:11px;color:#94a3b8;text-align:center;padding:8px">מספר מנוי: #'+m.id+'</div>';
+    sheet.appendChild(inner);
+
+    // Generate QR code if token exists
+    if (m.qr_token) {
+        var canvas = sheet.querySelector('#sc-mem-qr');
+        if (canvas) _scDrawQR(canvas, m.qr_token, color);
+    }
+}
+
+function _scDrawQR(canvas, text, color) {
+    // Simple QR-like visual using canvas — draws a placeholder branded square
+    // In production, a real QR library could be loaded; this shows the token as text + branded visual
+    var ctx = canvas.getContext('2d');
+    var sz = canvas.width;
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0,0,sz,sz);
+    // Draw branded background
+    ctx.fillStyle = (color||'#6366f1') + '10';
+    ctx.fillRect(8,8,sz-16,sz-16);
+    // Draw text in center
+    ctx.fillStyle = color || '#6366f1';
+    ctx.font = 'bold 11px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    var lines = [];
+    for (var i=0;i<text.length;i+=16) lines.push(text.slice(i,i+16));
+    var lineH = 14;
+    var totalH = lines.length * lineH;
+    lines.forEach(function(line,idx) {
+        ctx.fillText(line, sz/2, sz/2 - totalH/2 + idx*lineH + lineH/2);
+    });
+    // Corner markers (QR-style)
+    var ms = 24, mr = 8;
+    [[mr,mr],[sz-mr-ms,mr],[mr,sz-mr-ms]].forEach(function(pos) {
+        ctx.strokeStyle = color || '#6366f1';
+        ctx.lineWidth = 3;
+        ctx.strokeRect(pos[0],pos[1],ms,ms);
+        ctx.fillStyle = (color||'#6366f1') + '30';
+        ctx.fillRect(pos[0]+5,pos[1]+5,ms-10,ms-10);
+    });
+}
 
 // ─── Inline sport panels — self-contained, no storefront DOM dependency ───────
 
