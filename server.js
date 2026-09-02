@@ -33931,21 +33931,33 @@ app.post('/api/sc-auth/register', async (req, res) => {
 
     const pinHash = await bcrypt.hash(String(pin), 10);
 
-    // create solo family account
+    // link to existing family account if phone already exists in users table
     let familyGroupId = null;
     try {
-        const code = 'SC' + cleanPhone.slice(-6);
-        const fgRes = await pool.query(
-            `INSERT INTO family_groups (name, type, plan, group_code, account_status, admin_email, member_type)
-             VALUES ($1,'FAMILY','solo',$2,'active',$3,'member') RETURNING id`,
-            [`${firstName} ${lastName}`, code, email || null]
+        const existingUser = await pool.query(
+            `SELECT u.group_id, fg.type FROM users u
+             JOIN family_groups fg ON fg.id = u.group_id
+             WHERE u.phone=$1 AND fg.type='FAMILY' AND fg.account_status='active'
+             LIMIT 1`,
+            [cleanPhone]
         );
-        familyGroupId = fgRes.rows[0].id;
-        // create a users row too
-        await pool.query(
-            `INSERT INTO users (group_id, nickname, phone, role, status) VALUES ($1,$2,$3,'ADMIN','active')`,
-            [familyGroupId, `${firstName} ${lastName}`, cleanPhone]
-        ).catch(() => {});
+        if (existingUser.rows.length) {
+            // reuse existing family group — no duplicate
+            familyGroupId = existingUser.rows[0].group_id;
+        } else {
+            // create new solo family account
+            const code = 'SC' + cleanPhone.slice(-6);
+            const fgRes = await pool.query(
+                `INSERT INTO family_groups (name, type, plan, group_code, account_status, admin_email, member_type)
+                 VALUES ($1,'FAMILY','solo',$2,'active',$3,'member') RETURNING id`,
+                [`${firstName} ${lastName}`, code, email || null]
+            );
+            familyGroupId = fgRes.rows[0].id;
+            await pool.query(
+                `INSERT INTO users (group_id, nickname, phone, role, status) VALUES ($1,$2,$3,'ADMIN','active')`,
+                [familyGroupId, `${firstName} ${lastName}`, cleanPhone]
+            ).catch(() => {});
+        }
     } catch(e) { console.error('[SC-REG family]', e.message); }
 
     const custRes = await pool.query(
@@ -34144,7 +34156,11 @@ app.get('/api/sc-auth/activity/:bizGroupId', async (req, res) => {
         ).then(r => r.rows).catch(() => []),
     ]);
 
-    res.json({ success: true, orders, bookings, classRegs, memberships });
+    // return businessType so the client can render sport-specific UI
+    const btRow = await pool.query('SELECT business_type FROM family_groups WHERE id=$1', [bizId]).catch(() => ({ rows: [] }));
+    const businessType = btRow.rows[0]?.business_type || '';
+
+    res.json({ success: true, orders, bookings, classRegs, memberships, businessType });
 });
 
 // SA: GET /api/sa/sc-customers  — list storefront customers

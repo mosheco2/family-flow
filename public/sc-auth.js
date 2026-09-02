@@ -294,7 +294,9 @@ const scAuth = window.scAuth = {
         try {
             const r = await fetch(`/api/sc-auth/activity/${bizId}`, { headers:{'Authorization':'Bearer '+(this._token||'')} }).then(r=>r.json());
             if (!r.success) { list.innerHTML='<div style="text-align:center;color:#ef4444;font-size:13px;padding:20px">שגיאה</div>'; return; }
-            const { orders=[], bookings=[], classRegs=[], memberships=[] } = r;
+            const { orders=[], bookings=[], classRegs=[], memberships=[], businessType='' } = r;
+            // also store for future use
+            if (businessType) window._scBizType = businessType;
             let html = '';
 
             if (memberships.length) {
@@ -346,7 +348,7 @@ const scAuth = window.scAuth = {
             }
 
             // Business-type quick actions (shown after login)
-            const _bizType = window._scBizType || '';
+            const _bizType = businessType || window._scBizType || '';
             if (_bizType === 'sport') {
                 const _sp = window.storeData?.settings?.sport_settings;
                 const _spObj = _sp ? (typeof _sp === 'string' ? JSON.parse(_sp) : _sp) : {};
