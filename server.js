@@ -1046,6 +1046,11 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
       // ===== END BUSINESS TYPES & ROLE DASHBOARDS =====
 
       // ===== WORK ORDERS MODULE =====
+      try { await client.query(`CREATE TABLE IF NOT EXISTS restaurant_customers (id SERIAL PRIMARY KEY, group_id INT NOT NULL, customer_name TEXT NOT NULL, customer_phone TEXT, email TEXT, notes TEXT, status TEXT DEFAULT 'active', visits_total INT DEFAULT 0, created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW())`); } catch(e) {}
+      try { await client.query(`CREATE INDEX IF NOT EXISTS idx_restaurant_customers_group ON restaurant_customers(group_id)`); } catch(e) {}
+      try { await client.query(`CREATE INDEX IF NOT EXISTS idx_restaurant_customers_phone ON restaurant_customers(group_id, customer_phone)`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS restaurant_visits (id SERIAL PRIMARY KEY, group_id INT NOT NULL, customer_id INT REFERENCES restaurant_customers(id) ON DELETE SET NULL, customer_name TEXT, customer_phone TEXT, guests INT DEFAULT 1, visited_at TIMESTAMP DEFAULT NOW(), checked_out_at TIMESTAMP, notes TEXT)`); } catch(e) {}
+      try { await client.query(`CREATE INDEX IF NOT EXISTS idx_restaurant_visits_group ON restaurant_visits(group_id, visited_at DESC)`); } catch(e) {}
       try { await client.query(`CREATE TABLE IF NOT EXISTS restaurant_table_states (group_id INT PRIMARY KEY, states JSONB DEFAULT '{}', updated_at TIMESTAMP DEFAULT NOW())`); } catch(e) {}
       try { await client.query(`CREATE TABLE IF NOT EXISTS restaurant_table_bills (group_id INT PRIMARY KEY, bills JSONB DEFAULT '{}', updated_at TIMESTAMP DEFAULT NOW())`); } catch(e) {}
       try { await client.query(`CREATE TABLE IF NOT EXISTS restaurant_table_assignments (group_id INT PRIMARY KEY, assignments JSONB DEFAULT '{}', shift_date DATE DEFAULT CURRENT_DATE, updated_at TIMESTAMP DEFAULT NOW())`); } catch(e) {}
@@ -24223,6 +24228,160 @@ app.get('/api/logistics/reports/:groupId', verifyBizOrLegacy, requireModule('log
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// ─── Restaurant Customer & Visit Management ────────────────────────────────────
+
+// Dashboard KPIs
+app.get('/api/restaurant/dashboard/:groupId', async (req, res) => {
+    const gid = req.params.groupId;
+    try {
+        const [visits, reservations, customers, dormant] = await Promise.all([
+            pool.query(`SELECT COUNT(*) as today FROM restaurant_visits WHERE group_id=$1 AND DATE(visited_at)=CURRENT_DATE`, [gid]),
+            pool.query(`SELECT COUNT(*) as pending FROM calendar_events WHERE group_id=$1 AND event_date=CURRENT_DATE AND call_type='table_reservation' AND status IN ('pending','approved')`, [gid]),
+            pool.query(`SELECT COUNT(*) as total FROM restaurant_customers WHERE group_id=$1 AND status='active'`, [gid]),
+            pool.query(`SELECT COUNT(*) as dormant FROM restaurant_customers WHERE group_id=$1 AND status='active' AND id NOT IN (SELECT DISTINCT customer_id FROM restaurant_visits WHERE group_id=$1 AND visited_at>=CURRENT_DATE-30 AND customer_id IS NOT NULL)`, [gid]),
+        ]);
+        const seated = await pool.query(`SELECT COUNT(*) as seated FROM restaurant_visits WHERE group_id=$1 AND DATE(visited_at)=CURRENT_DATE AND checked_out_at IS NULL`, [gid]);
+        res.json({ success: true, stats: {
+            visits_today: parseInt(visits.rows[0].today),
+            reservations_today: parseInt(reservations.rows[0].pending),
+            customers_total: parseInt(customers.rows[0].total),
+            dormant: parseInt(dormant.rows[0].dormant),
+            seated_now: parseInt(seated.rows[0].seated),
+        }});
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Customers list
+app.get('/api/restaurant/customers/:groupId', async (req, res) => {
+    const { search } = req.query;
+    try {
+        const q = search
+            ? `SELECT *, (SELECT MAX(visited_at) FROM restaurant_visits WHERE customer_id=rc.id) as last_visit FROM restaurant_customers rc WHERE group_id=$1 AND (customer_name ILIKE $2 OR customer_phone ILIKE $2) ORDER BY customer_name LIMIT 50`
+            : `SELECT *, (SELECT MAX(visited_at) FROM restaurant_visits WHERE customer_id=rc.id) as last_visit FROM restaurant_customers rc WHERE group_id=$1 ORDER BY visits_total DESC, customer_name LIMIT 100`;
+        const r = await pool.query(q, search ? [req.params.groupId, `%${search}%`] : [req.params.groupId]);
+        res.json({ success: true, customers: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Add/upsert customer
+app.post('/api/restaurant/customer', async (req, res) => {
+    const { groupId, name, phone, email, notes } = req.body;
+    try {
+        if (phone) {
+            const existing = await pool.query('SELECT id FROM restaurant_customers WHERE group_id=$1 AND customer_phone=$2', [groupId, phone]);
+            if (existing.rows.length) {
+                await pool.query('UPDATE restaurant_customers SET customer_name=$1, email=$2, notes=$3, updated_at=NOW() WHERE id=$4', [name, email||null, notes||null, existing.rows[0].id]);
+                return res.json({ success: true, id: existing.rows[0].id, updated: true });
+            }
+        }
+        const r = await pool.query('INSERT INTO restaurant_customers (group_id,customer_name,customer_phone,email,notes) VALUES ($1,$2,$3,$4,$5) RETURNING id', [groupId, name, phone||null, email||null, notes||null]);
+        res.json({ success: true, id: r.rows[0].id });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Visit check-in (business side)
+app.post('/api/restaurant/visit', async (req, res) => {
+    const { groupId, customerPhone, customerName, guests } = req.body;
+    try {
+        let customerId = null;
+        if (customerPhone) {
+            const c = await pool.query('SELECT id FROM restaurant_customers WHERE group_id=$1 AND customer_phone=$2', [groupId, customerPhone]);
+            if (c.rows.length) {
+                customerId = c.rows[0].id;
+                await pool.query('UPDATE restaurant_customers SET visits_total=visits_total+1, updated_at=NOW() WHERE id=$1', [customerId]);
+            }
+        }
+        const r = await pool.query('INSERT INTO restaurant_visits (group_id,customer_id,customer_name,customer_phone,guests) VALUES ($1,$2,$3,$4,$5) RETURNING id', [groupId, customerId, customerName||'אורח', customerPhone||null, guests||1]);
+        res.json({ success: true, id: r.rows[0].id });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Cancel visit
+app.delete('/api/restaurant/visit/:id', async (req, res) => {
+    try {
+        const v = await pool.query('SELECT * FROM restaurant_visits WHERE id=$1', [req.params.id]);
+        if (!v.rows.length) return res.status(404).json({ error: 'ביקור לא נמצא' });
+        await pool.query('DELETE FROM restaurant_visits WHERE id=$1', [req.params.id]);
+        if (v.rows[0].customer_id) await pool.query('UPDATE restaurant_customers SET visits_total=GREATEST(visits_total-1,0) WHERE id=$1', [v.rows[0].customer_id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Checkout
+app.post('/api/restaurant/visit/:id/checkout', async (req, res) => {
+    try {
+        const r = await pool.query('UPDATE restaurant_visits SET checked_out_at=NOW() WHERE id=$1 AND checked_out_at IS NULL RETURNING *', [req.params.id]);
+        if (!r.rows.length) return res.status(404).json({ error: 'ביקור לא נמצא או כבר יצא' });
+        res.json({ success: true, visit: r.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Today's visits
+app.get('/api/restaurant/visits/:groupId', async (req, res) => {
+    try {
+        const r = await pool.query(`SELECT * FROM restaurant_visits WHERE group_id=$1 AND DATE(visited_at)=CURRENT_DATE ORDER BY visited_at DESC`, [req.params.groupId]);
+        res.json({ success: true, visits: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Customer cancels their own table reservation
+app.delete('/api/public/restaurants/:groupId/reservation/:eventId', async (req, res) => {
+    const { groupId, eventId } = req.params;
+    const { phone } = req.body;
+    try {
+        const r = await pool.query(
+            `SELECT id, customer_phone, event_date FROM calendar_events WHERE id=$1 AND group_id=$2 AND call_type='table_reservation' AND status!='cancelled'`,
+            [eventId, groupId]
+        );
+        if (!r.rows.length) return res.status(404).json({ error: 'הזמנה לא נמצאה' });
+        const ev = r.rows[0];
+        if (phone && ev.customer_phone !== phone) return res.status(403).json({ error: 'אין הרשאה' });
+        await pool.query(`UPDATE calendar_events SET status='cancelled' WHERE id=$1`, [eventId]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Self check-in by phone (customer)
+app.post('/api/restaurant/self-visit', async (req, res) => {
+    const { groupId, phone, guests } = req.body;
+    if (!groupId || !phone) return res.status(400).json({ error: 'חסרים פרמטרים' });
+    try {
+        const existing = await pool.query(`SELECT id FROM restaurant_visits WHERE group_id=$1 AND customer_phone=$2 AND DATE(visited_at)=CURRENT_DATE`, [groupId, phone]);
+        if (existing.rows.length) return res.status(400).json({ error: 'כבר נרשמה כניסה היום', alreadyIn: true });
+        let customerId = null, customerName = 'אורח';
+        const c = await pool.query('SELECT id, customer_name FROM restaurant_customers WHERE group_id=$1 AND customer_phone=$2', [groupId, phone]);
+        if (c.rows.length) { customerId = c.rows[0].id; customerName = c.rows[0].customer_name; await pool.query('UPDATE restaurant_customers SET visits_total=visits_total+1, updated_at=NOW() WHERE id=$1', [customerId]); }
+        await pool.query('INSERT INTO restaurant_visits (group_id,customer_id,customer_name,customer_phone,guests) VALUES ($1,$2,$3,$4,$5)', [groupId, customerId, customerName, phone, guests||1]);
+        res.json({ success: true, customerName });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Customer visit history (for customer panel)
+app.get('/api/restaurant/my-visits/:groupId', async (req, res) => {
+    const { phone } = req.query;
+    if (!phone) return res.status(400).json({ error: 'חסר פלאפון' });
+    try {
+        const r = await pool.query(`SELECT id, visited_at, checked_out_at, guests FROM restaurant_visits WHERE group_id=$1 AND customer_phone=$2 ORDER BY visited_at DESC`, [req.params.groupId, phone]);
+        res.json({ success: true, visits: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Alerts (dormant, no-shows)
+app.get('/api/restaurant/alerts/:groupId', async (req, res) => {
+    const gid = req.params.groupId;
+    try {
+        const [dormant, pendingRes] = await Promise.all([
+            pool.query(`SELECT rc.id, rc.customer_name, rc.customer_phone, rc.visits_total,
+                (SELECT MAX(visited_at) FROM restaurant_visits WHERE customer_id=rc.id) as last_visit
+                FROM restaurant_customers rc WHERE group_id=$1 AND status='active'
+                AND id NOT IN (SELECT DISTINCT customer_id FROM restaurant_visits WHERE group_id=$1 AND visited_at>=CURRENT_DATE-30 AND customer_id IS NOT NULL)
+                ORDER BY last_visit DESC NULLS LAST LIMIT 50`, [gid]),
+            pool.query(`SELECT id, title, start_time, num_guests, customer_phone, status, event_date FROM calendar_events WHERE group_id=$1 AND call_type='table_reservation' AND status='pending' ORDER BY event_date ASC, start_time ASC LIMIT 20`, [gid])
+        ]);
+        res.json({ dormant: dormant.rows, pendingReservations: pendingRes.rows });
+    } catch(e) { res.json({ dormant: [], pendingReservations: [] }); }
+});
+
 // ─── Logistics v2: Tracking token generation ──────────────────────────────────
 app.post('/api/logistics/orders/:id/tracking-token', verifyBizOrLegacy, requireModule('logistics'), async (req, res) => {
     try {
@@ -24629,11 +24788,18 @@ app.post('/api/public/restaurants/:groupId/verify-table-sms', async (req, res) =
             return res.status(400).json({ success: false, error: 'קוד פג תוקף' });
         }
 
+        // חיפוש customer_group_id לפי פלאפון (לקוח רשום בsc-auth)
+        let custGroupId = null;
+        try {
+            const scCust = await pool.query('SELECT family_group_id FROM sc_auth_customers WHERE phone=$1 LIMIT 1', [temp.customer_phone]);
+            if (scCust.rows.length && scCust.rows[0].family_group_id) custGroupId = scCust.rows[0].family_group_id;
+        } catch(e2) {}
+
         // מצא שולחן פנוי והוסף הזמנה כחוקית
         const eventRes = await pool.query(
             `INSERT INTO calendar_events
              (group_id, title, customer_phone, customer_name, notes, event_date, start_time, status, num_guests, call_type, customer_group_id)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, 'approved', $8, 'table_reservation', NULL)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, 'approved', $8, 'table_reservation', $9)
              RETURNING id`,
             [
                 groupId,
@@ -24643,7 +24809,8 @@ app.post('/api/public/restaurants/:groupId/verify-table-sms', async (req, res) =
                 temp.notes || '',
                 temp.reservation_date,
                 temp.reservation_time,
-                temp.num_guests
+                temp.num_guests,
+                custGroupId
             ]
         );
 
@@ -24653,8 +24820,10 @@ app.post('/api/public/restaurants/:groupId/verify-table-sms', async (req, res) =
             [tempId]
         );
 
-        // שליחת SMS אישור סופי
-        console.log(`[SMS] לטלפון ${temp.customer_phone}: ההזמנה שלך אושרה בהצלחה!`);
+        // שליחת SMS אישור
+        const dateStr = temp.reservation_date instanceof Date ? temp.reservation_date.toLocaleDateString('he-IL') : String(temp.reservation_date).slice(0,10);
+        const timeStr = String(temp.reservation_time).slice(0,5);
+        try { await smsService.send(temp.customer_phone, `ההזמנה שלך אושרה! 🍽️ ${dateStr} בשעה ${timeStr}, ${temp.num_guests} סועדים. נתראה!`); } catch(e2) { console.log('[SMS table confirm]', e2.message); }
 
         res.json({
             success: true,
@@ -34172,9 +34341,9 @@ app.get('/api/sc-auth/activity/:bizGroupId', async (req, res) => {
     const bizId = parseInt(req.params.bizGroupId);
     const phone = cust.phone;
 
-    const [orders, bookings, classRegs, memberships, appointments, checkins] = await Promise.all([
+    const [orders, bookings, classRegs, memberships, appointments, checkins, restaurantVisits] = await Promise.all([
         pool.query(
-            `SELECT id, status, total_amount, created_at,
+            `SELECT id, status, total_amount, created_at, is_delivery, delivery_details,
                     (SELECT json_agg(json_build_object('name',item_name,'qty',quantity,'price',price_at_order))
                      FROM store_order_items WHERE order_id=o.id) as items
              FROM store_orders o WHERE group_id=$1 AND (customer_phone=$2 OR family_group_id=$3)
@@ -34182,8 +34351,8 @@ app.get('/api/sc-auth/activity/:bizGroupId', async (req, res) => {
             [bizId, phone, cust.family_group_id || -1]
         ).then(r => r.rows).catch(() => []),
         pool.query(
-            `SELECT id, title, event_date, start_time, status, created_at
-             FROM calendar_events WHERE group_id=$1 AND customer_phone=$2 ORDER BY event_date DESC LIMIT 10`,
+            `SELECT id, title, event_date, start_time, status, created_at, call_type, num_guests, reserved_table_number, notes
+             FROM calendar_events WHERE group_id=$1 AND customer_phone=$2 ORDER BY event_date DESC LIMIT 20`,
             [bizId, phone]
         ).then(r => r.rows).catch(() => []),
         pool.query(
@@ -34225,13 +34394,17 @@ app.get('/api/sc-auth/activity/:bizGroupId', async (req, res) => {
              ORDER BY sc.checked_in_at DESC`,
             [bizId, phone]
         ).then(r => r.rows).catch(() => []),
+        pool.query(
+            `SELECT id, visited_at, checked_out_at, guests FROM restaurant_visits WHERE group_id=$1 AND customer_phone=$2 ORDER BY visited_at DESC`,
+            [bizId, phone]
+        ).then(r => r.rows).catch(() => []),
     ]);
 
     // return businessType so the client can render sport-specific UI
     const btRow = await pool.query('SELECT business_type FROM family_groups WHERE id=$1', [bizId]).catch(() => ({ rows: [] }));
     const businessType = btRow.rows[0]?.business_type || '';
 
-    res.json({ success: true, orders, bookings, classRegs, memberships, appointments, checkins, businessType });
+    res.json({ success: true, orders, bookings, classRegs, memberships, appointments, checkins, restaurantVisits, businessType });
 });
 
 // SA: GET /api/sa/sc-customers  — list storefront customers

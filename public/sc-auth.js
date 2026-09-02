@@ -294,7 +294,7 @@ const scAuth = window.scAuth = {
         try {
             const r = await fetch(`/api/sc-auth/activity/${bizId}`, { headers:{'Authorization':'Bearer '+(this._token||'')} }).then(r=>r.json());
             if (!r.success) { list.innerHTML='<div style="text-align:center;color:#ef4444;font-size:13px;padding:20px">שגיאה</div>'; return; }
-            const { orders=[], bookings=[], classRegs=[], memberships=[], appointments=[], checkins=[], businessType='' } = r;
+            const { orders=[], bookings=[], classRegs=[], memberships=[], appointments=[], checkins=[], restaurantVisits=[], businessType='' } = r;
             if (businessType) window._scBizType = businessType;
             const _bizType = businessType || window._scBizType || '';
             const _sp = window.storeData?.settings?.sport_settings;
@@ -406,35 +406,117 @@ const scAuth = window.scAuth = {
                 }
             }
 
+            // ── הזמנות מסעדה (שולחנות) ──────────────────────────────────────
+            var tableReservations = bookings.filter(function(b) { return b.call_type === 'table_reservation'; });
+            var otherBookings = bookings.filter(function(b) { return b.call_type !== 'table_reservation'; });
+
+            if (_bizType === 'restaurant' || _bizType === 'cafe') {
+                var tableStatusColors = { approved:'#10b981', pending:'#f59e0b', cancelled:'#ef4444' };
+                var tableStatusLabels = { approved:'אושרה ✅', pending:'ממתין לאישור', cancelled:'בוטלה' };
+                html += `<div style="font-size:11px;font-weight:700;color:#94a3b8;padding:8px 0 6px;text-align:right;display:flex;justify-content:space-between;align-items:center"><span>🍽️ הזמנות שולחן</span>${tableReservations.length?'<span style="font-weight:400">'+tableReservations.length+' הזמנות</span>':''}</div>`;
+                if (!tableReservations.length) {
+                    html += `<div style="background:#f8fafc;border-radius:12px;padding:14px;margin-bottom:10px;text-align:right;color:#94a3b8;font-size:13px">אין הזמנות שולחן. <span data-restaurant-action="table" style="color:#f97316;font-weight:700;cursor:pointer">הזמן שולחן →</span></div>`;
+                } else {
+                    html += tableReservations.map(function(b) {
+                        var sc = tableStatusColors[b.status] || '#64748b';
+                        var sl = tableStatusLabels[b.status] || b.status;
+                        var dk = b.event_date instanceof Date ? b.event_date.toISOString().slice(0,10) : String(b.event_date||'').slice(0,10);
+                        var ds = dk ? new Date(dk+'T12:00:00').toLocaleDateString('he-IL',{weekday:'short',day:'numeric',month:'short',year:'numeric'}) : '';
+                        var ts = b.start_time ? String(b.start_time).slice(0,5) : '';
+                        var canCancel = b.status !== 'cancelled' && dk >= new Date().toISOString().slice(0,10);
+                        return '<div style="border:1.5px solid '+sc+'30;border-radius:12px;padding:12px;margin-bottom:8px;background:'+sc+'06" data-table-res-id="'+b.id+'">'
+                            +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">'
+                            +'<span style="font-size:11px;font-weight:700;color:'+sc+';background:'+sc+'18;padding:3px 8px;border-radius:7px">'+sl+'</span>'
+                            +(b.reserved_table_number ? '<span style="font-size:11px;color:#64748b">שולחן '+b.reserved_table_number+'</span>' : '')
+                            +'</div>'
+                            +'<div style="text-align:right">'
+                            +'<div style="font-weight:700;font-size:14px;color:#1e293b">'+ds+(ts?' · '+ts:'')+'</div>'
+                            +(b.num_guests ? '<div style="font-size:12px;color:#64748b;margin-top:2px">👥 '+b.num_guests+' סועדים</div>' : '')
+                            +(b.notes ? '<div style="font-size:11px;color:#94a3b8;margin-top:3px">'+b.notes+'</div>' : '')
+                            +'</div>'
+                            +(canCancel ? '<button data-cancel-table-res="'+b.id+'" style="margin-top:8px;width:100%;padding:7px;border:1px solid #fca5a5;border-radius:9px;background:#fff5f5;color:#ef4444;font-size:12px;cursor:pointer">ביטול הזמנה</button>' : '')
+                            +'</div>';
+                    }).join('');
+                }
+            }
+
             // ── הזמנות חנות ─────────────────────────────────────────────────
             if (orders.length) {
                 html += `<div style="font-size:11px;font-weight:700;color:#94a3b8;padding:8px 0 6px;text-align:right">📦 הזמנות</div>`;
                 html += orders.map(o => {
-                    const statusColors = { new:'#f59e0b', confirmed:'#3b82f6', ready:'#8b5cf6', delivered:'#10b981', cancelled:'#ef4444' };
-                    const statusLabels = { new:'חדשה', confirmed:'אושרה', ready:'מוכן', delivered:'נמסר', cancelled:'בוטלה' };
+                    var statusColors = { new:'#f59e0b', confirmed:'#3b82f6', ready:'#8b5cf6', delivered:'#10b981', cancelled:'#ef4444', pending_approval:'#f59e0b' };
+                    var statusLabels = { new:'חדשה', confirmed:'אושרה', ready:'מוכן', delivered:'נמסר', cancelled:'בוטלה', pending_approval:'ממתין לאישור' };
                     const sc = statusColors[o.status] || '#64748b';
+                    const sl = statusLabels[o.status] || o.status;
                     const items = o.items ? o.items.map(i => i.name).join(', ') : '';
+                    const deliveryLabel = o.is_delivery ? '🛵 משלוח' : '🏠 איסוף עצמי';
                     return `<div style="border:1px solid #f1f5f9;border-radius:12px;padding:12px;margin-bottom:8px">
-                      <div style="display:flex;align-items:center;justify-content:space-between">
-                        <span style="font-size:12px;font-weight:700;color:${sc};background:${sc}15;padding:3px 8px;border-radius:8px">${statusLabels[o.status]||o.status}</span>
+                      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+                        <span style="font-size:12px;font-weight:700;color:${sc};background:${sc}15;padding:3px 8px;border-radius:8px">${sl}</span>
                         <span style="font-size:14px;font-weight:700;color:#1e293b">₪${parseFloat(o.total_amount||0).toFixed(0)}</span>
                       </div>
                       ${items ? `<div style="font-size:12px;color:#475569;text-align:right;margin-top:4px">${items}</div>` : ''}
-                      <div style="font-size:11px;color:#94a3b8;text-align:right;margin-top:3px">${new Date(o.created_at).toLocaleDateString('he-IL',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</div>
+                      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px">
+                        <span style="font-size:11px;color:#94a3b8">${o.is_delivery !== undefined ? deliveryLabel : ''}</span>
+                        <span style="font-size:11px;color:#94a3b8">${new Date(o.created_at).toLocaleDateString('he-IL',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</span>
+                      </div>
                     </div>`;
                 }).join('');
             }
 
-            // ── תורים (calendar) ────────────────────────────────────────────
-            if (bookings.length) {
+            // ── תורים (calendar — לא הזמנות שולחן) ─────────────────────────
+            if (otherBookings.length) {
                 html += `<div style="font-size:11px;font-weight:700;color:#94a3b8;padding:8px 0 6px;text-align:right">🗓️ תורים</div>`;
-                html += bookings.map(b => `<div style="border:1px solid #f1f5f9;border-radius:12px;padding:12px;margin-bottom:8px">
-                  <div style="font-weight:600;font-size:14px;color:#1e293b;text-align:right">${b.title||'תור'}</div>
-                  <div style="font-size:12px;color:#64748b;text-align:right;margin-top:3px">${b.event_date||''} ${b.start_time?.slice(0,5)||''}</div>
-                </div>`).join('');
+                html += otherBookings.map(b => {
+                    var bStatusC = { pending:'#f59e0b', approved:'#10b981', cancelled:'#ef4444' };
+                    var bStatusL = { pending:'ממתין', approved:'מאושר', cancelled:'בוטל' };
+                    var bsc = bStatusC[b.status] || '#64748b';
+                    return `<div style="border:1px solid #f1f5f9;border-radius:12px;padding:12px;margin-bottom:8px">
+                      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+                        <span style="font-size:11px;font-weight:700;color:${bsc};background:${bsc}15;padding:2px 7px;border-radius:6px">${bStatusL[b.status]||b.status}</span>
+                        <div style="font-weight:600;font-size:14px;color:#1e293b;text-align:right">${b.title||'תור'}</div>
+                      </div>
+                      <div style="font-size:12px;color:#64748b;text-align:right">${b.event_date||''} ${b.start_time?.slice(0,5)||''}</div>
+                    </div>`;
+                }).join('');
+            }
+
+            // ── היסטוריית ביקורים — מסעדה ───────────────────────────────────
+            if (_bizType === 'restaurant' || _bizType === 'cafe') {
+                html += `<div style="font-size:11px;font-weight:700;color:#94a3b8;padding:8px 0 6px;text-align:right;display:flex;justify-content:space-between;align-items:center"><span>🚪 היסטוריית ביקורים</span><span style="font-weight:400">${restaurantVisits.length ? restaurantVisits.length+' ביקורים' : ''}</span></div>`;
+                if (!restaurantVisits.length) {
+                    html += `<div style="background:#f8fafc;border-radius:12px;padding:14px;margin-bottom:10px;text-align:right;color:#94a3b8;font-size:13px">אין ביקורים רשומים עדיין</div>`;
+                } else {
+                    html += `<div style="border:1px solid #f1f5f9;border-radius:14px;overflow:hidden;margin-bottom:10px">`;
+                    html += restaurantVisits.map(function(v, i) {
+                        var dt = v.visited_at ? new Date(v.visited_at) : null;
+                        var dateStr = dt ? dt.toLocaleDateString('he-IL',{weekday:'short',day:'numeric',month:'short',year:'numeric'}) : '';
+                        var timeStr = dt ? dt.toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'}) : '';
+                        var visitNum = restaurantVisits.length - i;
+                        var outDt = v.checked_out_at ? new Date(v.checked_out_at) : null;
+                        var durStr = '';
+                        if (dt && outDt) { var mins = Math.round((outDt-dt)/60000); durStr = mins>=60 ? Math.floor(mins/60)+'ש׳ '+mins%60+'ד׳' : mins+'ד׳'; }
+                        return '<div style="display:flex;align-items:center;justify-content:space-between;padding:9px 12px;'+(i>0?'border-top:1px solid #f8fafc':'')+'">'
+                            +'<span style="font-size:11px;color:#cbd5e1;font-weight:600">#'+visitNum+'</span>'
+                            +'<div style="text-align:right">'
+                            +'<div style="font-size:13px;color:#1e293b;font-weight:600">'+dateStr+'</div>'
+                            +'<div style="font-size:11px;color:#94a3b8">'+timeStr+(v.guests && v.guests>1 ? ' · '+v.guests+' סועדים' : '')+(durStr?' · '+durStr:'')+'</div>'
+                            +'</div></div>';
+                    }).join('');
+                    html += `</div>`;
+                }
             }
 
             // ── פעולות מהירות ────────────────────────────────────────────────
+            if (_bizType === 'restaurant' || _bizType === 'cafe') {
+                html = `<div style="margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid #f1f5f9">
+                  <div style="font-size:11px;font-weight:700;color:#94a3b8;padding:0 0 8px;text-align:right">⚡ פעולות מהירות</div>
+                  <div style="display:flex;gap:8px;flex-wrap:wrap">
+                    <button data-restaurant-action="table" style="flex:1;min-width:90px;padding:10px 6px;border:1.5px solid #e2e8f0;border-radius:12px;background:#fff;font-size:12px;cursor:pointer;color:#475569;text-align:center">🪑 הזמן שולחן</button>
+                  </div>
+                </div>` + html;
+            }
+
             if (_bizType === 'sport') {
                 const sportBtns = [];
                 if (_spObj.public_show_schedule !== false)
@@ -493,6 +575,38 @@ const scAuth = window.scAuth = {
                         if (res.success || res.status === 'cancelled') {
                             btn.closest('div[style]').style.opacity = '0.4';
                             btn.textContent = 'בוטל';
+                        } else {
+                            btn.disabled = false; btn.textContent = res.error || 'שגיאה';
+                        }
+                    }).catch(function() { btn.disabled=false; btn.textContent='שגיאת רשת'; });
+                });
+            });
+
+            // ── מסעדה: פעולות מהירות ──────────────────────────────────────────
+            list.querySelectorAll('[data-restaurant-action]').forEach(function(btn) {
+                btn.addEventListener('click', function() {
+                    var action = btn.getAttribute('data-restaurant-action');
+                    if (action === 'table') {
+                        document.getElementById('sc-activity-panel').style.display = 'none';
+                        _scRestaurantTablePanel(_gid, window.scAuth._customer);
+                    }
+                });
+            });
+
+            // ── מסעדה: ביטול הזמנת שולחן ──────────────────────────────────────
+            list.querySelectorAll('[data-cancel-table-res]').forEach(function(btn) {
+                btn.addEventListener('click', function() {
+                    var evtId = btn.getAttribute('data-cancel-table-res');
+                    if (!confirm('לבטל את הזמנת השולחן?')) return;
+                    btn.disabled = true; btn.textContent = 'מבטל...';
+                    fetch('/api/public/restaurants/' + _gid + '/reservation/' + evtId, {
+                        method: 'DELETE',
+                        headers: {'Content-Type':'application/json'},
+                        body: JSON.stringify({ phone: (window.scAuth._customer && window.scAuth._customer.phone) || '' })
+                    }).then(function(r){ return r.json(); }).then(function(res) {
+                        if (res.success) {
+                            var card = btn.closest('[data-table-res-id]');
+                            if (card) { card.style.opacity = '0.4'; btn.textContent = 'בוטל'; }
                         } else {
                             btn.disabled = false; btn.textContent = res.error || 'שגיאה';
                         }
@@ -697,6 +811,189 @@ function _scOpenSportPanel(action, gid, customer) {
     if (action === 'schedule') _scSchedulePanel(sheet, gid, phone, name);
     else if (action === 'trainer') _scTrainerPanel(sheet, gid, phone, name);
     else if (action === 'membership') _scMembershipPanel(sheet, gid, phone, name);
+}
+
+// ─── Restaurant table booking panel ───────────────────────────────────────────
+
+function _scRestaurantTablePanel(gid, customer) {
+    var ex = document.getElementById('sc-restaurant-overlay');
+    if (ex) ex.remove();
+    var overlay = document.createElement('div');
+    overlay.id = 'sc-restaurant-overlay';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:10001;background:rgba(0,0,0,0.55);display:flex;align-items:flex-end;font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',sans-serif';
+    overlay.dir = 'rtl';
+    var sheet = document.createElement('div');
+    sheet.style.cssText = 'width:100%;max-height:92vh;background:#fff;border-radius:20px 20px 0 0;overflow:hidden;display:flex;flex-direction:column';
+    overlay.appendChild(sheet);
+    document.body.appendChild(overlay);
+    overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
+
+    var phone = (customer && customer.phone) || '';
+    var name = customer ? ((customer.first_name || '') + ' ' + (customer.last_name || '')).trim() : '';
+
+    // Header
+    var hdr = document.createElement('div');
+    hdr.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid #f1f5f9;flex-shrink:0';
+    var titleEl = document.createElement('div');
+    titleEl.style.cssText = 'font-size:16px;font-weight:700;color:#1e293b';
+    titleEl.textContent = '🪑 הזמנת שולחן';
+    var closeBtn = document.createElement('button');
+    closeBtn.style.cssText = 'background:none;border:none;font-size:24px;cursor:pointer;color:#94a3b8;padding:0;line-height:1';
+    closeBtn.textContent = '×';
+    closeBtn.addEventListener('click', function() { overlay.remove(); });
+    hdr.appendChild(titleEl); hdr.appendChild(closeBtn);
+    sheet.appendChild(hdr);
+
+    var body = document.createElement('div');
+    body.style.cssText = 'overflow-y:auto;flex:1;padding:16px 20px;-webkit-overflow-scrolling:touch';
+    sheet.appendChild(body);
+
+    var today = new Date().toISOString().slice(0,10);
+    var state = { step: 1, date: today, guests: 2, time: '', availableSlots: [] };
+
+    function renderStep() {
+        body.innerHTML = '';
+        if (state.step === 1) {
+            // Step 1: בחר תאריך + אורחים
+            body.innerHTML = '<div style="font-size:13px;color:#64748b;text-align:right;margin-bottom:14px">שלב 1 / 3 — בחר תאריך ומספר סועדים</div>'
+                + '<div style="margin-bottom:12px">'
+                + '<label style="display:block;text-align:right;font-size:12px;font-weight:600;color:#374151;margin-bottom:6px">📅 תאריך</label>'
+                + '<input id="rt-date" type="date" min="'+today+'" value="'+state.date+'" style="width:100%;border:1.5px solid #e2e8f0;border-radius:10px;padding:10px;font-size:14px;box-sizing:border-box">'
+                + '</div>'
+                + '<div style="margin-bottom:16px">'
+                + '<label style="display:block;text-align:right;font-size:12px;font-weight:600;color:#374151;margin-bottom:6px">👥 מספר סועדים</label>'
+                + '<div style="display:flex;align-items:center;gap:12px;justify-content:center;border:1.5px solid #e2e8f0;border-radius:10px;padding:10px">'
+                + '<button id="rt-minus" style="width:36px;height:36px;border:1.5px solid #e2e8f0;border-radius:50%;background:#f8fafc;font-size:18px;cursor:pointer">−</button>'
+                + '<span id="rt-guests" style="font-size:18px;font-weight:700;color:#1e293b;min-width:30px;text-align:center">'+state.guests+'</span>'
+                + '<button id="rt-plus" style="width:36px;height:36px;border:1.5px solid #e2e8f0;border-radius:50%;background:#f8fafc;font-size:18px;cursor:pointer">+</button>'
+                + '</div></div>'
+                + '<button id="rt-check-avail" style="width:100%;padding:14px;background:#f97316;color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer">בדוק זמינות →</button>';
+
+            body.querySelector('#rt-minus').addEventListener('click', function() {
+                if (state.guests > 1) { state.guests--; body.querySelector('#rt-guests').textContent = state.guests; }
+            });
+            body.querySelector('#rt-plus').addEventListener('click', function() {
+                if (state.guests < 20) { state.guests++; body.querySelector('#rt-guests').textContent = state.guests; }
+            });
+            body.querySelector('#rt-check-avail').addEventListener('click', function() {
+                state.date = body.querySelector('#rt-date').value;
+                var btn = body.querySelector('#rt-check-avail');
+                btn.disabled = true; btn.textContent = 'טוען...';
+                fetch('/api/public/restaurants/' + gid + '/availability/' + state.date + '?guests=' + state.guests)
+                    .then(function(r){ return r.json(); })
+                    .then(function(res) {
+                        state.availableSlots = (res.slots || []);
+                        state.step = 2;
+                        renderStep();
+                    })
+                    .catch(function() { btn.disabled=false; btn.textContent='שגיאת רשת — נסה שוב'; });
+            });
+        } else if (state.step === 2) {
+            // Step 2: בחר שעה
+            var dateStr = new Date(state.date+'T12:00:00').toLocaleDateString('he-IL',{weekday:'long',day:'numeric',month:'long'});
+            body.innerHTML = '<div style="font-size:13px;color:#64748b;text-align:right;margin-bottom:14px">שלב 2 / 3 — בחר שעה</div>'
+                + '<div style="text-align:right;font-size:14px;font-weight:600;color:#1e293b;margin-bottom:12px">'+dateStr+' · '+state.guests+' סועדים</div>';
+            if (!state.availableSlots.length) {
+                body.innerHTML += '<div style="background:#fef2f2;border-radius:12px;padding:16px;text-align:right;color:#b91c1c;font-size:13px">אין שעות פנויות בתאריך זה. נסה תאריך אחר.</div>'
+                    + '<button id="rt-back" style="margin-top:12px;width:100%;padding:12px;border:1.5px solid #e2e8f0;border-radius:12px;background:#fff;font-size:14px;cursor:pointer;color:#475569">← חזור</button>';
+                body.querySelector('#rt-back').addEventListener('click', function() { state.step=1; renderStep(); });
+                return;
+            }
+            var slotsHtml = '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px">';
+            state.availableSlots.forEach(function(slot) {
+                slotsHtml += '<button data-slot="'+slot.time+'" style="padding:12px 6px;border:1.5px solid #e2e8f0;border-radius:10px;background:#fff;font-size:14px;font-weight:600;cursor:pointer;color:#1e293b;text-align:center">'+slot.time+(slot.table ? '<br><span style=\'font-size:10px;color:#94a3b8\'>שולחן '+slot.table+'</span>' : '')+'</button>';
+            });
+            slotsHtml += '</div>';
+            slotsHtml += '<button id="rt-back" style="width:100%;padding:12px;border:1.5px solid #e2e8f0;border-radius:12px;background:#fff;font-size:14px;cursor:pointer;color:#475569">← חזור</button>';
+            body.innerHTML += slotsHtml;
+            body.querySelectorAll('[data-slot]').forEach(function(btn) {
+                btn.addEventListener('click', function() {
+                    state.time = btn.getAttribute('data-slot');
+                    state.step = 3;
+                    renderStep();
+                });
+            });
+            body.querySelector('#rt-back').addEventListener('click', function() { state.step=1; renderStep(); });
+        } else if (state.step === 3) {
+            // Step 3: אישור + שליחת SMS
+            var dateStr2 = new Date(state.date+'T12:00:00').toLocaleDateString('he-IL',{weekday:'long',day:'numeric',month:'long'});
+            body.innerHTML = '<div style="font-size:13px;color:#64748b;text-align:right;margin-bottom:14px">שלב 3 / 3 — אישור הזמנה</div>'
+                + '<div style="background:#f8fafc;border-radius:14px;padding:16px;margin-bottom:16px;text-align:right">'
+                + '<div style="font-size:15px;font-weight:700;color:#1e293b;margin-bottom:8px">פרטי ההזמנה</div>'
+                + '<div style="font-size:13px;color:#475569;display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f1f5f9"><span>👥 סועדים</span><span style="font-weight:600">'+state.guests+'</span></div>'
+                + '<div style="font-size:13px;color:#475569;display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f1f5f9"><span>📅 תאריך</span><span style="font-weight:600">'+dateStr2+'</span></div>'
+                + '<div style="font-size:13px;color:#475569;display:flex;justify-content:space-between;padding:6px 0"><span>🕐 שעה</span><span style="font-weight:600">'+state.time+'</span></div>'
+                + '</div>'
+                + '<div style="margin-bottom:12px">'
+                + '<label style="display:block;text-align:right;font-size:12px;font-weight:600;color:#374151;margin-bottom:6px">📝 בקשות מיוחדות (אופציונלי)</label>'
+                + '<textarea id="rt-notes" rows="2" placeholder="אלרגיות, מושב מיוחד, אירוע..." style="width:100%;border:1.5px solid #e2e8f0;border-radius:10px;padding:10px;font-size:13px;text-align:right;box-sizing:border-box;resize:none"></textarea>'
+                + '</div>';
+
+            if (!phone) {
+                body.innerHTML += '<div style="margin-bottom:12px">'
+                    + '<label style="display:block;text-align:right;font-size:12px;font-weight:600;color:#374151;margin-bottom:6px">📱 מספר טלפון לאישור</label>'
+                    + '<input id="rt-phone" type="tel" placeholder="05X-XXXXXXX" style="width:100%;border:1.5px solid #e2e8f0;border-radius:10px;padding:10px;font-size:14px;direction:ltr;text-align:center;box-sizing:border-box">'
+                    + '</div>';
+            }
+            body.innerHTML += '<button id="rt-confirm" style="width:100%;padding:14px;background:#f97316;color:#fff;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer">שלח הזמנה ואישור SMS</button>'
+                + '<button id="rt-back2" style="margin-top:10px;width:100%;padding:12px;border:1.5px solid #e2e8f0;border-radius:12px;background:#fff;font-size:14px;cursor:pointer;color:#475569">← חזור</button>';
+
+            body.querySelector('#rt-back2').addEventListener('click', function() { state.step=2; renderStep(); });
+            body.querySelector('#rt-confirm').addEventListener('click', function() {
+                var confirmPhone = phone || (body.querySelector('#rt-phone') && body.querySelector('#rt-phone').value.trim()) || '';
+                if (!confirmPhone) { alert('נא להזין מספר טלפון'); return; }
+                var notes = body.querySelector('#rt-notes').value.trim();
+                var btn = body.querySelector('#rt-confirm');
+                btn.disabled = true; btn.textContent = 'שולח...';
+                fetch('/api/public/restaurants/' + gid + '/book-table', {
+                    method: 'POST',
+                    headers: {'Content-Type':'application/json'},
+                    body: JSON.stringify({ date: state.date, time: state.time, guests: state.guests, phone: confirmPhone, name: name, notes: notes })
+                }).then(function(r){ return r.json(); }).then(function(res) {
+                    if (res.success || res.token) {
+                        body.innerHTML = '<div style="text-align:center;padding:30px 0">'
+                            + '<div style="font-size:48px;margin-bottom:12px">✅</div>'
+                            + '<div style="font-size:17px;font-weight:700;color:#1e293b;margin-bottom:8px">ההזמנה נשלחה!</div>'
+                            + '<div style="font-size:13px;color:#64748b">קוד אישור נשלח ל-SMS למספר '+confirmPhone+'</div>'
+                            + (res.token ? '<div style="margin-top:16px"><input id="rt-sms-code" placeholder="קוד אימות מה-SMS" style="width:140px;border:1.5px solid #e2e8f0;border-radius:10px;padding:10px;font-size:16px;text-align:center;letter-spacing:4px"></div>'
+                            + '<button id="rt-verify" style="margin-top:10px;padding:12px 24px;background:#f97316;color:#fff;border:none;border-radius:10px;font-size:14px;cursor:pointer">אמת קוד</button>' : '')
+                            + '</div>';
+                        if (res.token) {
+                            var verToken = res.token;
+                            body.querySelector('#rt-verify').addEventListener('click', function() {
+                                var code = body.querySelector('#rt-sms-code').value.trim();
+                                if (!code) return;
+                                var vBtn = body.querySelector('#rt-verify');
+                                vBtn.disabled=true; vBtn.textContent='מאמת...';
+                                fetch('/api/public/restaurants/' + gid + '/verify-table-sms', {
+                                    method: 'POST',
+                                    headers: {'Content-Type':'application/json'},
+                                    body: JSON.stringify({ token: verToken, code: code })
+                                }).then(function(r){ return r.json(); }).then(function(vRes) {
+                                    if (vRes.success) {
+                                        body.innerHTML = '<div style="text-align:center;padding:30px 0">'
+                                            + '<div style="font-size:48px;margin-bottom:12px">🎉</div>'
+                                            + '<div style="font-size:17px;font-weight:700;color:#1e293b;margin-bottom:8px">ההזמנה אושרה!</div>'
+                                            + '<div style="font-size:13px;color:#64748b">נשמח לראותך. פרטי ההזמנה נשמרו.</div>'
+                                            + '<button id="rt-close" style="margin-top:20px;padding:12px 28px;background:#f97316;color:#fff;border:none;border-radius:10px;font-size:14px;cursor:pointer">סגור</button>'
+                                            + '</div>';
+                                        body.querySelector('#rt-close').addEventListener('click', function() { overlay.remove(); });
+                                    } else {
+                                        vBtn.disabled=false; vBtn.textContent='נסה שוב';
+                                        body.querySelector('#rt-sms-code').style.borderColor='#ef4444';
+                                    }
+                                }).catch(function() { vBtn.disabled=false; vBtn.textContent='שגיאת רשת'; });
+                            });
+                        }
+                    } else {
+                        btn.disabled=false; btn.textContent = res.error || 'שגיאה — נסה שוב';
+                    }
+                }).catch(function() { btn.disabled=false; btn.textContent='שגיאת רשת'; });
+            });
+        }
+    }
+
+    renderStep();
 }
 
 function _scPanelHeader(title) {
