@@ -3592,13 +3592,13 @@ app.post('/api/ai/chat', verifySA, async (req, res) => {
         const prompt = `${systemInstruction}\n\nבקשת המנהל אליך: ${message}`;
 
         let reply;
-        for (const modelName of ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash']) {
+        for (const modelName of ['gemini-2.5-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-flash']) {
           try {
             const result = await getGenAIInstance().getGenerativeModel({ model: modelName }).generateContent(prompt);
             reply = result.response.text();
             break;
           } catch(e) {
-            if (e.message && (e.message.includes('503') || e.message.includes('429')) && modelName !== 'gemini-1.5-flash') continue;
+            if (e.message && (e.message.includes('503') || e.message.includes('429') || e.message.includes('404') || e.message.includes('not found') || e.message.includes('deprecated')) && modelName !== 'gemini-1.5-flash') continue;
             throw e;
           }
         }
@@ -3741,13 +3741,13 @@ app.post('/api/sa/ai/chat', verifySA, async (req, res) => {
 
         const prompt = systemPrompt + dataBlock + contextBlock + `\n\n## שאלת המנהל:\n${message}`;
         let rawReply;
-        for (const modelName of ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash']) {
+        for (const modelName of ['gemini-2.5-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-flash']) {
             try {
                 const result = await getGenAIInstance().getGenerativeModel({ model: modelName }).generateContent(prompt);
                 rawReply = result.response.text();
                 break;
             } catch(e) {
-                if (e.message && (e.message.includes('503') || e.message.includes('429')) && modelName !== 'gemini-1.5-flash') continue;
+                if (e.message && (e.message.includes('503') || e.message.includes('429') || e.message.includes('404') || e.message.includes('not found') || e.message.includes('deprecated')) && modelName !== 'gemini-1.5-flash') continue;
                 throw e;
             }
         }
@@ -3945,13 +3945,13 @@ Return ONLY valid JSON, no markdown fences, no explanation:
 }`;
     if (!getGenAIInstance()) return res.json({ success: false, error: 'AI not configured' });
     let text;
-    for (const modelName of ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash']) {
+    for (const modelName of ['gemini-2.5-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-flash']) {
       try {
         const result = await getGenAIInstance().getGenerativeModel({ model: modelName }).generateContent(prompt);
         text = result.response.text().trim().replace(/^```json\s*/,'').replace(/\s*```$/,'');
         break;
       } catch(e) {
-        if (e.message && (e.message.includes('503') || e.message.includes('429')) && modelName !== 'gemini-1.5-flash') continue;
+        if (e.message && (e.message.includes('503') || e.message.includes('429') || e.message.includes('404') || e.message.includes('not found') || e.message.includes('deprecated')) && modelName !== 'gemini-1.5-flash') continue;
         throw e;
       }
     }
@@ -4138,13 +4138,13 @@ BANNER prompt rules:
 Return ONLY valid JSON:
 {"logo_prompt": "...", "banner_prompt": "..."}`;
     let text;
-    for (const modelName of ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash']) {
+    for (const modelName of ['gemini-2.5-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-flash']) {
       try {
         const result = await getGenAIInstance().getGenerativeModel({ model: modelName }).generateContent(prompt);
         text = result.response.text().trim().replace(/^```json\s*/,'').replace(/\s*```$/,'');
         break;
       } catch(e) {
-        if (e.message && (e.message.includes('503') || e.message.includes('429')) && modelName !== 'gemini-1.5-flash') continue;
+        if (e.message && (e.message.includes('503') || e.message.includes('429') || e.message.includes('404') || e.message.includes('not found') || e.message.includes('deprecated')) && modelName !== 'gemini-1.5-flash') continue;
         throw e;
       }
     }
