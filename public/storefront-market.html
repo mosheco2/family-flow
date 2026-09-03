@@ -1026,8 +1026,7 @@ function renderHero(s) {
   document.getElementById('hero-title-text').textContent = name;
   document.getElementById('hero-sub').textContent = displaySlogan || s.description || '';
   const stats = [];
-  const disc = s.max_volume_discount || (storeData.volume_tiers?.slice(-1)[0]?.pct);
-  if (disc) stats.push({val: disc+'%', lbl: t('הנחת כמות','Volume discount')});
+  // volume discount stat removed — pending FLOW currency implementation
   if (s.delivery_eta) stats.push({val: s.delivery_eta+'h', lbl: t('זמן אספקה','Delivery time')});
   if (s.free_delivery_above) stats.push({val: '₪'+s.free_delivery_above, lbl: t('משלוח חינם מעל','Free delivery above')});
   document.getElementById('hero-stats').innerHTML = stats.map(st =>

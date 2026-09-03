@@ -10730,8 +10730,57 @@ app.post('/api/store/orders', async (req, res) => {
         try { await dbClient.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS community_promo_id INT`); } catch(e){}
 
         const deliveryDetailsStr = deliveryDetails ? JSON.stringify(deliveryDetails) : null;
-        const actualDeliveryFee = parseFloat(deliveryFee) || 0;
         const isDeliv = isDelivery === true || isDelivery === 'true';
+
+        // ── SERVER-SIDE PRICE VALIDATION ──────────────────────────────
+        // Load store settings + catalog to verify prices and fees
+        let catalogMap = {};
+        let settingsRow = null;
+        try {
+            const [catRes, settRes] = await Promise.all([
+                dbClient.query('SELECT id, price FROM store_catalog WHERE group_id=$1 AND is_active=true', [groupId]),
+                dbClient.query('SELECT delivery_fee, free_delivery_above FROM store_settings WHERE group_id=$1', [groupId])
+            ]);
+            catRes.rows.forEach(r => { catalogMap[r.id] = parseFloat(r.price); });
+            settingsRow = settRes.rows[0] || null;
+        } catch(e) { /* if catalog/settings unavailable, proceed without validation */ }
+
+        // Verify item prices
+        let serverSubtotal = 0;
+        if (Object.keys(catalogMap).length > 0) {
+            for (const item of (items || [])) {
+                if (!item.catalogId || item.catalogId === 0 || item.catalogId === 999999 || item.is_quote_metadata) continue;
+                const catalogPrice = catalogMap[item.catalogId];
+                if (catalogPrice !== undefined) {
+                    const clientPrice = parseFloat(item.price) || 0;
+                    // Allow up to 1% tolerance for rounding (modifiers may add cents)
+                    if (Math.abs(clientPrice - catalogPrice) > catalogPrice * 0.01 + 1) {
+                        await dbClient.query('ROLLBACK');
+                        return res.status(400).json({ error: 'מחיר פריט אינו תקין — אנא טען מחדש את הדף ונסה שנית' });
+                    }
+                    serverSubtotal += catalogPrice * (parseInt(item.qty || item.quantity) || 1);
+                } else {
+                    serverSubtotal += parseFloat(item.price || 0) * (parseInt(item.qty || item.quantity) || 1);
+                }
+            }
+        } else {
+            serverSubtotal = (items || []).reduce((s, it) => s + (parseFloat(it.price)||0) * (parseInt(it.qty||it.quantity)||1), 0);
+        }
+
+        // Verify delivery fee
+        let actualDeliveryFee = 0;
+        if (isDeliv && settingsRow) {
+            const baseFee = parseFloat(settingsRow.delivery_fee) || 0;
+            const freeAbove = parseFloat(settingsRow.free_delivery_above) || 0;
+            if (freeAbove > 0 && serverSubtotal >= freeAbove) {
+                actualDeliveryFee = 0; // free delivery threshold met
+            } else {
+                // Accept client fee only if it matches server value (allow zone fee from client if server has no zones)
+                const clientFee = parseFloat(deliveryFee) || 0;
+                actualDeliveryFee = (clientFee >= 0 && clientFee <= baseFee * 2 + 50) ? clientFee : baseFee;
+            }
+        }
+        // ──────────────────────────────────────────────────────────────
 
         const familyGroupId = req.body.familyGroupId ? parseInt(req.body.familyGroupId) : null;
         const finalStatus = status || 'pending_approval';

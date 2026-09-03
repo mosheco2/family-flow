@@ -174,19 +174,7 @@ input,button,select,textarea{font-family:inherit}
 .zone-eta{color:var(--muted);font-weight:300;font-size:12px}
 .zone-fee{font-weight:600}
 
-/* ===== LOYALTY ===== */
-#loyalty-section{max-width:1280px;margin:0 auto;padding:clamp(20px,3vw,34px) 20px 0}
-#loyalty-card{background:var(--dark);border-radius:22px;padding:24px;color:#fff;display:flex;flex-wrap:wrap;gap:20px;align-items:center}
-#loyalty-left{flex:1 1 210px}
-.loyalty-kicker{font-size:10.5px;font-weight:600;letter-spacing:.1em;color:#e8a87c;margin-bottom:9px}
-.loyalty-headline{font-family:'Rubik',sans-serif;font-size:clamp(20px,2.5vw,28px);font-weight:700;letter-spacing:-.035em;line-height:1.12;margin-bottom:7px}
-.loyalty-sub{font-size:12.5px;font-weight:300;color:rgba(255,255,255,.6);line-height:1.55;max-width:34ch}
-#loyalty-right{flex:1 1 190px}
-.loyalty-bar-labels{display:flex;justify-content:space-between;font-size:12px;color:rgba(255,255,255,.55);margin-bottom:7px}
-.loyalty-bar-bg{height:8px;border-radius:99px;background:rgba(255,255,255,.14);overflow:hidden;margin-bottom:16px}
-.loyalty-bar-fill{height:100%;border-radius:99px;background:linear-gradient(90deg,#e8a87c,var(--accent));width:60%;transition:width .4s ease}
-#loyalty-join-btn{padding:11px 20px;border:none;border-radius:99px;background:#fff;color:var(--dark);font-size:13px;font-weight:600;cursor:pointer;transition:.15s}
-#loyalty-join-btn:hover{background:#e8a87c}
+/* LOYALTY — removed, pending FLOW currency implementation */
 
 /* ===== REVIEWS ===== */
 #reviews-section{max-width:1280px;margin:0 auto;padding:clamp(22px,3vw,34px) 20px 0;display:none}
@@ -509,21 +497,7 @@ input,button,select,textarea{font-family:inherit}
   <div id="info-grid"></div>
 </div>
 
-<!-- LOYALTY -->
-<div id="loyalty-section" style="display:none">
-  <div id="loyalty-card">
-    <div id="loyalty-left">
-      <div class="loyalty-kicker">מועדון</div>
-      <div class="loyalty-headline">עוד 160 נקודות ומנה עלינו</div>
-      <div class="loyalty-sub">כל שקל = נקודה. 400 נקודות = מנה עיקרית מתנה. הנקודות מחושבות אוטומטית.</div>
-    </div>
-    <div id="loyalty-right">
-      <div class="loyalty-bar-labels"><span>240</span><span>400 נקודות</span></div>
-      <div class="loyalty-bar-bg"><div class="loyalty-bar-fill" id="loyalty-fill"></div></div>
-      <button id="loyalty-join-btn" onclick="joinLoyalty()">הצטרפות למועדון</button>
-    </div>
-  </div>
-</div>
+<!-- LOYALTY removed — pending FLOW currency implementation -->
 
 <!-- REVIEWS -->
 <div id="reviews-section">
@@ -792,7 +766,7 @@ let storeData = null, catalog = [], favs = new Set();
 let cart = {}; // {key: {id,name,price,qty,note}}
 let isDelivery = true, _cartStep = 'cart', _couponDiscount = 0, _couponCode = '';
 let _sheetId = null, _sheetQty = 1, _sheetExtras = {}, _sheetNote = '';
-let _panelOpen = false, _loyaltyJoined = false;
+let _panelOpen = false;
 let _bookingType = 'table', _payMethod = 0, _bookStep = 1, _bookTempId = null, _bookSelectedSlot = null;
 let _address = '', _orderNo = '';
 const SLOTS = ['בהקדם','19:30','20:00','20:30','21:00'];
@@ -1183,7 +1157,6 @@ function renderHero(data, s) {
   const stats = [];
   if (etaMin > 0) stats.push([etaStr, isDelivery ? t('זמן משלוח ממוצע', 'Avg. delivery time') : t('מוכן לאיסוף', 'Ready for pickup')]);
   if (s.free_delivery_above > 0) stats.push([`₪${s.free_delivery_above}`, t('משלוח חינם מעל', 'Free delivery over')]);
-  stats.push(['4.8', t('★ דירוג לקוחות', '★ Customer rating')]);
   statsEl.innerHTML = stats.map(([v,l]) => `<div><div class="hstat-val">${v}</div><div class="hstat-lbl">${l}</div></div>`).join('');
 
   // hero images
@@ -1218,7 +1191,7 @@ function renderHero(data, s) {
   }
 
   // hero deals (loyalty promo)
-  if (s.free_delivery_above > 0 || s.has_loyalty) {
+  if (s.free_delivery_above > 0) {
     document.getElementById('deals-section').style.display = '';
     const cards = [];
     const etaLabel = etaMin > 0 ? etaStr : '';
@@ -1236,8 +1209,7 @@ function renderHero(data, s) {
     }
   }
 
-  // loyalty
-  if (s.has_loyalty) document.getElementById('loyalty-section').style.display = '';
+  // loyalty removed — pending FLOW currency implementation
 }
 
 function renderQuickActions(data, s) {
@@ -2408,11 +2380,6 @@ function isStoreOpen(s) {
   const cur = now.getHours()*60+now.getMinutes();
   const open = oh*60+om, close = ch*60+cm;
   return close > open ? cur >= open && cur <= close : cur >= open || cur <= close;
-}
-function joinLoyalty() {
-  _loyaltyJoined = true;
-  document.getElementById('loyalty-join-btn').textContent = 'הצטרפתם — יאללה נקודות';
-  showToast('נרשמתם למועדון — 50 נקודות מתנה');
 }
 function showToast(msg) {
   const el = document.getElementById('toast');
