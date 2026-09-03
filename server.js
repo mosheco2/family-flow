@@ -5650,7 +5650,7 @@ function _bizHashOtp(code) {
 app.post('/api/biz/send-otp', async (req, res) => {
     try {
         const { phone, purpose } = req.body;
-        if (!phone || !['register', 'reset_password'].includes(purpose)) {
+        if (!phone || !['register', 'reset_password', 'login_disambiguate'].includes(purpose)) {
             return res.status(400).json({ success: false, error: 'פרמטרים חסרים או לא תקינים' });
         }
 
@@ -5690,7 +5690,7 @@ app.post('/api/biz/send-otp', async (req, res) => {
 app.post('/api/biz/verify-otp', async (req, res) => {
     try {
         const { phone, code, purpose } = req.body;
-        if (!phone || !code || !['register', 'reset_password'].includes(purpose)) {
+        if (!phone || !code || !['register', 'reset_password', 'login_disambiguate'].includes(purpose)) {
             return res.status(400).json({ success: false, error: 'פרמטרים חסרים או לא תקינים' });
         }
 
@@ -5719,8 +5719,21 @@ app.post('/api/biz/verify-otp', async (req, res) => {
             return res.status(400).json({ success: false, error: `קוד שגוי. נותרו ${3 - newAttempts} ניסיונות.` });
         }
 
-        // הצלחה — מחק OTP, צור verified_token חד-פעמי (15 דקות)
+        // הצלחה — מחק OTP
         await pool.query(`DELETE FROM business_otp WHERE id=$1`, [row.id]);
+
+        // login_disambiguate — מחזיר את רשימת הסביבות רק אחרי אימות OTP
+        if (purpose === 'login_disambiguate') {
+            const envRes = await pool.query(
+                `SELECT u.group_id, fg.name AS business_name
+                 FROM users u
+                 JOIN family_groups fg ON fg.id = u.group_id
+                 WHERE u.phone=$1 AND fg.member_type='biz' AND u.role='ADMIN' AND u.status='active'`,
+                [phone]
+            );
+            return res.json({ success: true, options: envRes.rows.map(r => ({ group_id: r.group_id, business_name: r.business_name })) });
+        }
+
         if (purpose === 'register') {
             const rawVerifiedToken = _bizCrypto.randomBytes(32).toString('hex');
             const verifiedHash = _bizHashOtp(rawVerifiedToken);
@@ -6202,9 +6215,24 @@ app.post('/api/biz/login', async (req, res) => {
             return res.status(400).json({ success: false, error: 'מספר טלפון או סיסמה שגויים' });
         }
 
-        // Multiple valid environments — ask user to choose
+        // Multiple valid environments — send OTP for disambiguation (don't expose business names yet)
         if (validUsers.length > 1) {
-            return res.json({ success: true, multiple: true, options: validUsers.map(u => ({ group_id: u.group_id, business_name: u.business_name })) });
+            try {
+                await pool.query(`DELETE FROM business_otp WHERE phone=$1 AND purpose='login_disambiguate'`, [phone]);
+                const code = Math.floor(100000 + Math.random() * 900000).toString();
+                const codeHash = _bizHashOtp(code);
+                const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
+                await pool.query(
+                    `INSERT INTO business_otp (phone, code_hash, purpose, expires_at) VALUES ($1, $2, 'login_disambiguate', $3)`,
+                    [phone, codeHash, expiresAt]
+                );
+                const smsText = `Oneflow Life\nקוד אימות זהות: ${code}\nתקף ל-5 דקות.`;
+                const e164Phone = phone.startsWith('0') ? '+972' + phone.slice(1) : phone;
+                await sendSMSviaTwilio(e164Phone, smsText);
+            } catch(smsErr) {
+                console.error('biz login disambiguate OTP error:', smsErr);
+            }
+            return res.json({ success: true, multiple: true });
         }
 
         const user = validUsers[0];

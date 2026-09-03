@@ -1138,6 +1138,44 @@
         showMsg('msg-otp', 'יש להזין את כל 6 הספרות', 'err'); return;
       }
       setLoading('otp-verify-btn', true, 'אימות והמשך');
+
+      // login disambiguation flow
+      if (_state.loginDisambiguate) {
+        try {
+          const phone = normalizePhone(document.getElementById('login-phone').value.trim());
+          const vr = await fetch(`${API}/biz/verify-otp`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json; charset=utf-8' },
+            body: JSON.stringify({ phone, code, purpose: 'login_disambiguate' })
+          });
+          const vd = await vr.json();
+          if (!vd.success) {
+            showMsg('msg-otp', vd.error || 'קוד שגוי', 'err');
+            clearOtpBoxes();
+            document.getElementById('otp-0').focus();
+            return;
+          }
+          // OTP verified — show env picker with real business names
+          _state.loginDisambiguate = false;
+          const list = document.getElementById('env-pick-list');
+          list.innerHTML = '';
+          vd.options.forEach(opt => {
+            const btn = document.createElement('button');
+            btn.className = 'btn-primary';
+            btn.style.cssText = 'background:#f8fafc;color:#1e293b;border:1.5px solid #e2e8f0;font-weight:600;font-size:15px;';
+            btn.textContent = opt.business_name;
+            btn.onclick = () => doLogin(opt.group_id);
+            list.appendChild(btn);
+          });
+          showSection('sec-env-pick');
+        } catch(e) {
+          showMsg('msg-otp', 'שגיאת תקשורת. נסו שנית.', 'err');
+        } finally {
+          setLoading('otp-verify-btn', false, 'אימות והמשך');
+        }
+        return;
+      }
+
       try {
         const vr = await fetch(`${API}/biz/verify-otp`, {
           method: 'POST',
@@ -1183,10 +1221,14 @@
       const resendBtn = document.getElementById('resend-btn');
       resendBtn.disabled = true;
       try {
-        const r = await fetch(`${API}/biz/send-otp`, {
+        const resendPurpose = _state.loginDisambiguate ? 'login_disambiguate' : 'register';
+      const resendPhone = _state.loginDisambiguate
+        ? normalizePhone(document.getElementById('login-phone').value.trim())
+        : _state.phone;
+      const r = await fetch(`${API}/biz/send-otp`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json; charset=utf-8' },
-          body: JSON.stringify({ phone: _state.phone, purpose: 'register' })
+          body: JSON.stringify({ phone: resendPhone, purpose: resendPurpose })
         });
         const d = await r.json();
         if (r.status === 429) {
@@ -1231,18 +1273,12 @@
           showMsg(msgEl, d.error || 'שגיאה בהתחברות', 'err'); return;
         }
         if (d.multiple) {
-          // Multiple environments — show picker
-          const list = document.getElementById('env-pick-list');
-          list.innerHTML = '';
-          d.options.forEach(opt => {
-            const btn = document.createElement('button');
-            btn.className = 'btn-primary';
-            btn.style.cssText = 'background:#f8fafc;color:#1e293b;border:1.5px solid #e2e8f0;font-weight:600;';
-            btn.textContent = opt.business_name;
-            btn.onclick = () => doLogin(opt.group_id);
-            list.appendChild(btn);
-          });
-          showSection('sec-env-pick');
+          // Multiple environments — OTP was sent, show OTP step for identity verification
+          _state.loginDisambiguate = true;
+          document.getElementById('otp-sub-text').textContent = 'שלחנו קוד אימות למספר שלך — כדי לאמת את זהותך לפני בחירת הסביבה';
+          clearOtpBoxes();
+          showSection('sec-otp');
+          setTimeout(() => document.getElementById('otp-0').focus(), 100);
           return;
         }
         _state.phone = phone;
