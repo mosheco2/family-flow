@@ -990,8 +990,8 @@ window.injectBusinessUI = function() {
                                         <div class="mt-3 pt-3 border-t border-slate-200">
                                             <label class="text-[10px] font-bold text-slate-500 block mb-1.5">✏️ כותרות באנרים (ריק = ברירת מחדל)</label>
                                             <div class="space-y-2">
-                                                <input type="text" id="store-banner1-title" class="modern-input py-2 text-sm bg-white w-full" placeholder='כותרת באנר כהה — ברירת מחדל: "מזמינים ב-3 לחיצות"'>
-                                                <input type="text" id="store-banner2-title" class="modern-input py-2 text-sm bg-white w-full" placeholder='כותרת באנר כתום — ברירת מחדל: "חינם מעל ₪X"'>
+                                                <input type="text" id="store-banner1-title" class="modern-input py-2 text-sm bg-white w-full" placeholder="מזמינים ב-3 לחיצות">
+                                                <input type="text" id="store-banner2-title" class="modern-input py-2 text-sm bg-white w-full" placeholder="חינם מעל ₪X">
                                             </div>
                                         </div>
                                     </div>
@@ -12479,9 +12479,9 @@ window.fetchStoreSettings = async function() {
             const freeDelivEl = document.getElementById('store-free-delivery-above');
             if (freeDelivEl) freeDelivEl.value = s.free_delivery_above || 0;
             const b1El = document.getElementById('store-banner1-title');
-            if (b1El) b1El.value = s.banner1_title || '';
+            if (b1El) { b1El.value = s.banner1_title || ''; b1El.placeholder = 'מזמינים ב-3 לחיצות'; }
             const b2El = document.getElementById('store-banner2-title');
-            if (b2El) b2El.value = s.banner2_title || '';
+            if (b2El) { b2El.value = s.banner2_title || ''; b2El.placeholder = s.free_delivery_above > 0 ? `חינם מעל ₪${s.free_delivery_above}` : 'חינם מעל ₪X'; }
             const appStoreEl = document.getElementById('store-app-store-url');
             if (appStoreEl) appStoreEl.value = s.app_store_url || '';
             const playStoreEl = document.getElementById('store-play-store-url');
@@ -27514,9 +27514,9 @@ window.fetchStoreSettings = async function() {
             const fdEl2 = document.getElementById('store-free-delivery-above');
             if (fdEl2) fdEl2.value = s.free_delivery_above || 0;
             const b1El2 = document.getElementById('store-banner1-title');
-            if (b1El2) b1El2.value = s.banner1_title || '';
+            if (b1El2) { b1El2.value = s.banner1_title || ''; b1El2.placeholder = 'מזמינים ב-3 לחיצות'; }
             const b2El2 = document.getElementById('store-banner2-title');
-            if (b2El2) b2El2.value = s.banner2_title || '';
+            if (b2El2) { b2El2.value = s.banner2_title || ''; b2El2.placeholder = s.free_delivery_above > 0 ? `חינם מעל ₪${s.free_delivery_above}` : 'חינם מעל ₪X'; }
             const asEl2 = document.getElementById('store-app-store-url');
             if (asEl2) asEl2.value = s.app_store_url || '';
             const psEl2 = document.getElementById('store-play-store-url');
