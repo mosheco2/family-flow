@@ -584,18 +584,14 @@
         <button class="btn-primary" id="reg-send-btn" onclick="regSendOtp()">שליחת קוד אימות</button>
       </div>
 
-      <!-- Login pane -->
+      <!-- Login pane — phone only, OTP verification, then env pick, then password -->
       <div id="pane-login" style="display:none">
         <div id="msg-login" class="msg"></div>
         <div class="field-group">
           <label class="field-label" for="login-phone">מספר טלפון</label>
           <input class="field-input" id="login-phone" type="tel" placeholder="05X-XXXXXXX" maxlength="10" inputmode="numeric">
         </div>
-        <div class="field-group">
-          <label class="field-label" for="login-pass">סיסמה</label>
-          <input class="field-input" id="login-pass" type="password" placeholder="••••••••">
-        </div>
-        <button class="btn-primary" id="login-btn" onclick="doLogin()">התחברות</button>
+        <button class="btn-primary" id="login-btn" onclick="loginSendOtp()">שליחת קוד אימות</button>
       </div>
     </div>
 
@@ -608,6 +604,50 @@
       </div>
       <div id="msg-env-pick" class="msg"></div>
       <div id="env-pick-list" style="display:flex;flex-direction:column;gap:10px;margin-top:8px;"></div>
+    </div>
+
+    <!-- ══ SECTION: password entry (after env pick) ══ -->
+    <div id="sec-login-pass" class="section">
+      <button class="wiz-back" onclick="showSection('sec-env-pick')">חזרה ←</button>
+      <div style="text-align:center; margin-bottom:16px;">
+        <h1 class="wiz-sec-title" id="login-pass-title">כניסה לעסק</h1>
+        <p class="wiz-sec-sub" id="login-pass-sub">הזינו את הסיסמה שלכם</p>
+      </div>
+      <div id="msg-login-pass" class="msg"></div>
+      <div class="field-group">
+        <label class="field-label" for="login-pass">סיסמה</label>
+        <input class="field-input" id="login-pass" type="password" placeholder="••••••••">
+      </div>
+      <button class="btn-primary" id="login-pass-btn" onclick="doLogin()">כניסה</button>
+      <button onclick="startForgotPassword()" style="background:none;border:none;color:#6366f1;font-size:13px;margin-top:14px;cursor:pointer;display:block;text-align:center;width:100%;">שכחתי סיסמה — שלחו לי מייל לאיפוס</button>
+    </div>
+
+    <!-- ══ SECTION: forgot password sent ══ -->
+    <div id="sec-forgot-sent" class="section">
+      <div style="text-align:center; padding:24px 0;">
+        <div style="font-size:44px;margin-bottom:12px;">📧</div>
+        <h1 class="wiz-sec-title">בדקו את תיבת הדואר</h1>
+        <p class="wiz-sec-sub" id="forgot-sent-sub">שלחנו קישור לאיפוס סיסמה לכתובת המייל הרשומה בחשבון.</p>
+        <p class="wiz-sec-sub" style="margin-top:8px;color:#94a3b8;font-size:12px;">הקישור תקף לשעה אחת.</p>
+      </div>
+      <button class="btn-primary" style="margin-top:8px;" onclick="showSection('sec-tabs'); switchTab('login')">חזרה להתחברות</button>
+    </div>
+
+    <!-- ══ SECTION: reset password form (from email link) ══ -->
+    <div id="sec-reset-pass" class="section">
+      <div style="text-align:center; margin-bottom:16px;">
+        <h1 class="wiz-sec-title">הגדרת סיסמה חדשה</h1>
+      </div>
+      <div id="msg-reset-pass" class="msg"></div>
+      <div class="field-group">
+        <label class="field-label" for="reset-pass-new">סיסמה חדשה (6 תווים לפחות)</label>
+        <input class="field-input" id="reset-pass-new" type="password" placeholder="••••••••">
+      </div>
+      <div class="field-group">
+        <label class="field-label" for="reset-pass-confirm">אימות סיסמה</label>
+        <input class="field-input" id="reset-pass-confirm" type="password" placeholder="••••••••">
+      </div>
+      <button class="btn-primary" id="reset-pass-btn" onclick="doResetPassword()">עדכון סיסמה</button>
     </div>
 
     <!-- ══ SECTION: OTP verification ══ -->
@@ -1041,7 +1081,13 @@
     function goBack() {
       clearOtpBoxes();
       hideMsg('msg-otp');
-      showSection('sec-tabs');
+      if (_state.loginDisambiguate) {
+        _state.loginDisambiguate = false;
+        showSection('sec-tabs');
+        switchTab('login');
+      } else {
+        showSection('sec-tabs');
+      }
     }
 
     // ── OTP boxes wiring ──
@@ -1139,14 +1185,13 @@
       }
       setLoading('otp-verify-btn', true, 'אימות והמשך');
 
-      // login disambiguation flow
+      // login OTP flow (after loginSendOtp)
       if (_state.loginDisambiguate) {
         try {
-          const phone = normalizePhone(document.getElementById('login-phone').value.trim());
           const vr = await fetch(`${API}/biz/verify-otp`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json; charset=utf-8' },
-            body: JSON.stringify({ phone, code, purpose: 'login_disambiguate' })
+            body: JSON.stringify({ phone: _state.loginPhone, code, purpose: 'login' })
           });
           const vd = await vr.json();
           if (!vd.success) {
@@ -1155,19 +1200,28 @@
             document.getElementById('otp-0').focus();
             return;
           }
-          // OTP verified — show env picker with real business names
           _state.loginDisambiguate = false;
-          const list = document.getElementById('env-pick-list');
-          list.innerHTML = '';
-          vd.options.forEach(opt => {
-            const btn = document.createElement('button');
-            btn.className = 'btn-primary';
-            btn.style.cssText = 'background:#f8fafc;color:#1e293b;border:1.5px solid #e2e8f0;font-weight:600;font-size:15px;';
-            btn.textContent = opt.business_name;
-            btn.onclick = () => doLogin(opt.group_id);
-            list.appendChild(btn);
-          });
-          showSection('sec-env-pick');
+          const opts = vd.options || [];
+          if (opts.length === 0) {
+            showMsg('msg-otp', 'לא נמצאו סביבות עסקיות עבור מספר זה', 'err'); return;
+          }
+          if (opts.length === 1) {
+            // Single env — go directly to password step
+            pickEnv(opts[0].group_id, opts[0].business_name);
+          } else {
+            // Multiple envs — show picker
+            const list = document.getElementById('env-pick-list');
+            list.innerHTML = '';
+            opts.forEach(opt => {
+              const btn = document.createElement('button');
+              btn.className = 'btn-primary';
+              btn.style.cssText = 'background:#f8fafc;color:#1e293b;border:1.5px solid #e2e8f0;font-weight:600;font-size:15px;';
+              btn.textContent = opt.business_name;
+              btn.onclick = () => pickEnv(opt.group_id, opt.business_name);
+              list.appendChild(btn);
+            });
+            showSection('sec-env-pick');
+          }
         } catch(e) {
           showMsg('msg-otp', 'שגיאת תקשורת. נסו שנית.', 'err');
         } finally {
@@ -1221,10 +1275,8 @@
       const resendBtn = document.getElementById('resend-btn');
       resendBtn.disabled = true;
       try {
-        const resendPurpose = _state.loginDisambiguate ? 'login_disambiguate' : 'register';
-      const resendPhone = _state.loginDisambiguate
-        ? normalizePhone(document.getElementById('login-phone').value.trim())
-        : _state.phone;
+        const resendPurpose = _state.loginDisambiguate ? 'login' : 'register';
+        const resendPhone = _state.loginDisambiguate ? _state.loginPhone : _state.phone;
       const r = await fetch(`${API}/biz/send-otp`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json; charset=utf-8' },
@@ -1247,41 +1299,49 @@
       }
     }
 
-    // ── Login ──
-    async function doLogin(selectedGroupId) {
-      const msgEl = selectedGroupId ? 'msg-env-pick' : 'msg-login';
-      hideMsg(msgEl);
+    // ── Login step 1: send OTP ──
+    async function loginSendOtp() {
+      hideMsg('msg-login');
       const phone = normalizePhone(document.getElementById('login-phone').value.trim());
-      const password = document.getElementById('login-pass').value;
       if (!validatePhone(phone)) {
         showMsg('msg-login', 'יש להזין מספר טלפון ישראלי תקין', 'err'); return;
       }
-      if (!password) {
-        showMsg('msg-login', 'יש להזין סיסמה', 'err'); return;
-      }
-      if (!selectedGroupId) setLoading('login-btn', true, 'התחברות');
+      setLoading('login-btn', true, 'שליחת קוד אימות');
       try {
-        const body = { phone, password };
-        if (selectedGroupId) body.groupId = selectedGroupId;
+        const r = await fetch(`${API}/biz/send-otp`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json; charset=utf-8' },
+          body: JSON.stringify({ phone, purpose: 'login' })
+        });
+        const d = await r.json();
+        if (!d.success) { showMsg('msg-login', d.error || 'שגיאה בשליחת הקוד', 'err'); return; }
+        _state.loginPhone = phone;
+        _state.loginDisambiguate = true;
+        document.getElementById('otp-sub-text').textContent = 'קוד בן 6 ספרות נשלח למספר שלך לאימות זהות';
+        clearOtpBoxes();
+        showSection('sec-otp');
+        setTimeout(() => document.getElementById('otp-0').focus(), 100);
+      } catch(e) {
+        showMsg('msg-login', 'שגיאת תקשורת. בדקו חיבור לאינטרנט.', 'err');
+      } finally {
+        setLoading('login-btn', false, 'שליחת קוד אימות');
+      }
+    }
+
+    // ── Login step 3: password + complete login ──
+    async function doLogin() {
+      hideMsg('msg-login-pass');
+      const password = document.getElementById('login-pass').value;
+      if (!password) { showMsg('msg-login-pass', 'יש להזין סיסמה', 'err'); return; }
+      setLoading('login-pass-btn', true, 'כניסה');
+      try {
         const r = await fetch(`${API}/biz/login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json; charset=utf-8' },
-          body: JSON.stringify(body)
+          body: JSON.stringify({ phone: _state.loginPhone, password, groupId: _state.selectedGroupId })
         });
         const d = await r.json();
-        if (!d.success) {
-          showMsg(msgEl, d.error || 'שגיאה בהתחברות', 'err'); return;
-        }
-        if (d.multiple) {
-          // Multiple environments — OTP was sent, show OTP step for identity verification
-          _state.loginDisambiguate = true;
-          document.getElementById('otp-sub-text').textContent = 'שלחנו קוד אימות למספר שלך — כדי לאמת את זהותך לפני בחירת הסביבה';
-          clearOtpBoxes();
-          showSection('sec-otp');
-          setTimeout(() => document.getElementById('otp-0').focus(), 100);
-          return;
-        }
-        _state.phone = phone;
+        if (!d.success) { showMsg('msg-login-pass', d.error || 'שגיאה בהתחברות', 'err'); return; }
         saveSession(d);
         if (d.wizard_completed) {
           window.location.href = 'business.html';
@@ -1289,9 +1349,63 @@
           showSection('sec-welcome');
         }
       } catch(e) {
-        showMsg(msgEl, 'שגיאת תקשורת. בדקו חיבור לאינטרנט.', 'err');
+        showMsg('msg-login-pass', 'שגיאת תקשורת. בדקו חיבור לאינטרנט.', 'err');
       } finally {
-        setLoading('login-btn', false, 'התחברות');
+        setLoading('login-pass-btn', false, 'כניסה');
+      }
+    }
+
+    function pickEnv(groupId, businessName) {
+      _state.selectedGroupId = groupId;
+      document.getElementById('login-pass-title').textContent = businessName;
+      document.getElementById('login-pass-sub').textContent = 'הזינו את הסיסמה שלכם לסביבה זו';
+      document.getElementById('login-pass').value = '';
+      hideMsg('msg-login-pass');
+      showSection('sec-login-pass');
+    }
+
+    async function startForgotPassword() {
+      hideMsg('msg-login-pass');
+      setLoading('login-pass-btn', true, 'כניסה');
+      try {
+        const r = await fetch(`${API}/biz/reset-password/request`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json; charset=utf-8' },
+          body: JSON.stringify({ phone: _state.loginPhone, groupId: _state.selectedGroupId })
+        });
+        showSection('sec-forgot-sent');
+      } catch(e) {
+        showMsg('msg-login-pass', 'שגיאת תקשורת. נסו שנית.', 'err');
+      } finally {
+        setLoading('login-pass-btn', false, 'כניסה');
+      }
+    }
+
+    async function doResetPassword() {
+      hideMsg('msg-reset-pass');
+      const newPass = document.getElementById('reset-pass-new').value;
+      const confirm = document.getElementById('reset-pass-confirm').value;
+      if (newPass.length < 6) { showMsg('msg-reset-pass', 'הסיסמה חייבת להכיל לפחות 6 תווים', 'err'); return; }
+      if (newPass !== confirm) { showMsg('msg-reset-pass', 'הסיסמאות אינן תואמות', 'err'); return; }
+      setLoading('reset-pass-btn', true, 'עדכון סיסמה');
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const r = await fetch(`${API}/biz/reset-password/confirm`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json; charset=utf-8' },
+          body: JSON.stringify({ token: params.get('reset'), groupId: params.get('gid'), newPassword: newPass })
+        });
+        const d = await r.json();
+        if (!d.success) { showMsg('msg-reset-pass', d.error || 'שגיאה', 'err'); return; }
+        showMsg('msg-reset-pass', 'הסיסמה עודכנה בהצלחה! מעבר להתחברות...', 'ok');
+        setTimeout(() => {
+          window.history.replaceState({}, '', '/biz-onboarding.html');
+          showSection('sec-tabs'); switchTab('login');
+        }, 2000);
+      } catch(e) {
+        showMsg('msg-reset-pass', 'שגיאת תקשורת. נסו שנית.', 'err');
+      } finally {
+        setLoading('reset-pass-btn', false, 'עדכון סיסמה');
       }
     }
 
@@ -2316,6 +2430,14 @@
 
     // ── Init ──
     initOtpBoxes();
+
+    // איתור קישור איפוס סיסמה ממייל
+    (function checkResetToken() {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('reset') && params.get('gid')) {
+        showSection('sec-reset-pass');
+      }
+    })();
 
     // הצג מצב ברירת מחדל של הדף (sec-tabs פעיל, ללא hero/bar)
     (function initHero() {

@@ -1575,6 +1575,15 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
           created_at TIMESTAMPTZ  NOT NULL DEFAULT NOW()
       )`); } catch(e) {}
       try { await client.query(`CREATE INDEX IF NOT EXISTS idx_business_otp_phone ON business_otp(phone)`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS biz_password_resets (
+          id         SERIAL PRIMARY KEY,
+          phone      VARCHAR(20)  NOT NULL,
+          group_id   INT          NOT NULL REFERENCES family_groups(id) ON DELETE CASCADE,
+          token_hash VARCHAR(64)  NOT NULL,
+          expires_at TIMESTAMPTZ  NOT NULL,
+          used       BOOLEAN      NOT NULL DEFAULT false,
+          created_at TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+      )`); } catch(e) {}
       // ===== END BIZ WIZARD =====
 
       // ===== MARKETPLACE =====
@@ -5650,7 +5659,7 @@ function _bizHashOtp(code) {
 app.post('/api/biz/send-otp', async (req, res) => {
     try {
         const { phone, purpose } = req.body;
-        if (!phone || !['register', 'reset_password', 'login_disambiguate'].includes(purpose)) {
+        if (!phone || !['register', 'reset_password', 'login_disambiguate', 'login'].includes(purpose)) {
             return res.status(400).json({ success: false, error: 'פרמטרים חסרים או לא תקינים' });
         }
 
@@ -5690,7 +5699,7 @@ app.post('/api/biz/send-otp', async (req, res) => {
 app.post('/api/biz/verify-otp', async (req, res) => {
     try {
         const { phone, code, purpose } = req.body;
-        if (!phone || !code || !['register', 'reset_password', 'login_disambiguate'].includes(purpose)) {
+        if (!phone || !code || !['register', 'reset_password', 'login_disambiguate', 'login'].includes(purpose)) {
             return res.status(400).json({ success: false, error: 'פרמטרים חסרים או לא תקינים' });
         }
 
@@ -5722,8 +5731,8 @@ app.post('/api/biz/verify-otp', async (req, res) => {
         // הצלחה — מחק OTP
         await pool.query(`DELETE FROM business_otp WHERE id=$1`, [row.id]);
 
-        // login_disambiguate — מחזיר את רשימת הסביבות רק אחרי אימות OTP
-        if (purpose === 'login_disambiguate') {
+        // login / login_disambiguate — מחזיר את רשימת הסביבות רק אחרי אימות OTP
+        if (purpose === 'login' || purpose === 'login_disambiguate') {
             const envRes = await pool.query(
                 `SELECT u.group_id, fg.name AS business_name
                  FROM users u
@@ -6186,56 +6195,27 @@ app.post('/api/biz/register', async (req, res) => {
 
 app.post('/api/biz/login', async (req, res) => {
     try {
-        const { phone, password } = req.body;
-        if (!phone || !password) {
-            return res.status(400).json({ success: false, error: 'טלפון וסיסמה נדרשים' });
+        const { phone, password, groupId } = req.body;
+        if (!phone || !password || !groupId) {
+            return res.status(400).json({ success: false, error: 'פרמטרים חסרים' });
         }
-
-        const { groupId: selectedGroupId } = req.body;
 
         const uRes = await pool.query(
             `SELECT u.id, u.group_id, u.password_hash, fg.wizard_completed, fg.name AS business_name
              FROM users u
              JOIN family_groups fg ON fg.id = u.group_id
-             WHERE u.phone=$1 AND fg.member_type='biz' AND u.role='ADMIN' AND u.status='active'
-             ${selectedGroupId ? 'AND u.group_id=$2' : ''}`,
-            selectedGroupId ? [phone, selectedGroupId] : [phone]
+             WHERE u.phone=$1 AND u.group_id=$2 AND fg.member_type='biz' AND u.role='ADMIN' AND u.status='active'`,
+            [phone, groupId]
         );
         if (uRes.rows.length === 0) {
-            return res.status(400).json({ success: false, error: 'מספר טלפון או סיסמה שגויים' });
+            return res.status(400).json({ success: false, error: 'סיסמה שגויה' });
         }
 
-        // Verify password against all matching rows
-        const validUsers = [];
-        for (const row of uRes.rows) {
-            const ok = await bcrypt.compare(password, row.password_hash);
-            if (ok) validUsers.push(row);
+        const user = uRes.rows[0];
+        const passOk = await bcrypt.compare(password, user.password_hash);
+        if (!passOk) {
+            return res.status(400).json({ success: false, error: 'סיסמה שגויה' });
         }
-        if (validUsers.length === 0) {
-            return res.status(400).json({ success: false, error: 'מספר טלפון או סיסמה שגויים' });
-        }
-
-        // Multiple valid environments — send OTP for disambiguation (don't expose business names yet)
-        if (validUsers.length > 1) {
-            try {
-                await pool.query(`DELETE FROM business_otp WHERE phone=$1 AND purpose='login_disambiguate'`, [phone]);
-                const code = Math.floor(100000 + Math.random() * 900000).toString();
-                const codeHash = _bizHashOtp(code);
-                const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
-                await pool.query(
-                    `INSERT INTO business_otp (phone, code_hash, purpose, expires_at) VALUES ($1, $2, 'login_disambiguate', $3)`,
-                    [phone, codeHash, expiresAt]
-                );
-                const smsText = `Oneflow Life\nקוד אימות זהות: ${code}\nתקף ל-5 דקות.`;
-                const e164Phone = phone.startsWith('0') ? '+972' + phone.slice(1) : phone;
-                await sendSMSviaTwilio(e164Phone, smsText);
-            } catch(smsErr) {
-                console.error('biz login disambiguate OTP error:', smsErr);
-            }
-            return res.json({ success: true, multiple: true });
-        }
-
-        const user = validUsers[0];
 
         const deviceHint = req.headers['user-agent']?.slice(0, 100) || null;
         const token = await createFamilySession(user.group_id, user.id, deviceHint, 'biz');
@@ -6244,6 +6224,82 @@ app.post('/api/biz/login', async (req, res) => {
     } catch(e) {
         console.error('biz login error:', e);
         res.status(500).json({ success: false, error: 'שגיאה בהתחברות' });
+    }
+});
+
+// ── Reset password request ──
+app.post('/api/biz/reset-password/request', async (req, res) => {
+    try {
+        const { phone, groupId } = req.body;
+        if (!phone || !groupId) return res.status(400).json({ success: false, error: 'פרמטרים חסרים' });
+
+        const grpRes = await pool.query(
+            `SELECT fg.admin_email, fg.name AS business_name FROM family_groups fg
+             JOIN users u ON u.group_id=fg.id
+             WHERE u.phone=$1 AND fg.id=$2 AND fg.member_type='biz' AND u.role='ADMIN' AND u.status='active'`,
+            [phone, groupId]
+        );
+        if (!grpRes.rows.length || !grpRes.rows[0].admin_email) {
+            // Don't reveal whether phone/group exists — always return ok
+            return res.json({ success: true });
+        }
+
+        const { admin_email, business_name } = grpRes.rows[0];
+        const rawToken = require('crypto').randomBytes(32).toString('hex');
+        const tokenHash = _bizHashOtp(rawToken);
+        const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // שעה
+
+        await pool.query(`DELETE FROM biz_password_resets WHERE phone=$1 AND group_id=$2`, [phone, groupId]);
+        await pool.query(
+            `INSERT INTO biz_password_resets (phone, group_id, token_hash, expires_at) VALUES ($1, $2, $3, $4)`,
+            [phone, groupId, tokenHash, expiresAt]
+        );
+
+        const resetUrl = `${process.env.BASE_URL || 'https://family-flow.onrender.com'}/biz-onboarding.html?reset=${rawToken}&gid=${groupId}`;
+        const html = `<div dir="rtl" style="font-family:Arial;max-width:520px">
+            <h2>איפוס סיסמה — ${business_name}</h2>
+            <p>קיבלנו בקשה לאיפוס הסיסמה שלך ב-Oneflow.</p>
+            <p><a href="${resetUrl}" style="background:#6366f1;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:bold;display:inline-block;">איפוס סיסמה</a></p>
+            <p style="color:#64748b;font-size:13px">הקישור תקף לשעה אחת. אם לא ביקשת את האיפוס — התעלם מהודעה זו.</p>
+        </div>`;
+        await sendSystemEmail(admin_email, `Oneflow | איפוס סיסמה — ${business_name}`, html);
+
+        res.json({ success: true });
+    } catch(e) {
+        console.error('reset-password request error:', e);
+        res.status(500).json({ success: false, error: 'שגיאה בשליחת המייל' });
+    }
+});
+
+// ── Reset password confirm ──
+app.post('/api/biz/reset-password/confirm', async (req, res) => {
+    try {
+        const { token, groupId, newPassword } = req.body;
+        if (!token || !groupId || !newPassword || newPassword.length < 6) {
+            return res.status(400).json({ success: false, error: 'פרמטרים חסרים או סיסמה קצרה מדי' });
+        }
+
+        const tokenHash = _bizHashOtp(token);
+        const row = await pool.query(
+            `SELECT * FROM biz_password_resets WHERE token_hash=$1 AND group_id=$2 AND used=false`,
+            [tokenHash, groupId]
+        );
+        if (!row.rows.length) return res.status(400).json({ success: false, error: 'קישור לא תקין או פג תוקפו' });
+        if (new Date() > new Date(row.rows[0].expires_at)) {
+            return res.status(400).json({ success: false, error: 'פג תוקף הקישור. בקש קישור חדש.' });
+        }
+
+        const newHash = await bcrypt.hash(newPassword, 12);
+        await pool.query(
+            `UPDATE users SET password_hash=$1 WHERE phone=$2 AND group_id=$3 AND role='ADMIN'`,
+            [newHash, row.rows[0].phone, groupId]
+        );
+        await pool.query(`UPDATE biz_password_resets SET used=true WHERE id=$1`, [row.rows[0].id]);
+
+        res.json({ success: true });
+    } catch(e) {
+        console.error('reset-password confirm error:', e);
+        res.status(500).json({ success: false, error: 'שגיאה באיפוס הסיסמה' });
     }
 });
 
