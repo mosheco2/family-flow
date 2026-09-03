@@ -5733,6 +5733,14 @@ app.post('/api/biz/verify-otp', async (req, res) => {
 
         // login / login_disambiguate — מחזיר את רשימת הסביבות רק אחרי אימות OTP
         if (purpose === 'login' || purpose === 'login_disambiguate') {
+            // debug: show raw data for this phone before filtering
+            const debugEnv = await pool.query(
+                `SELECT u.group_id, fg.name AS business_name, fg.member_type, fg.is_deleted, UPPER(u.role) AS role, u.status
+                 FROM users u JOIN family_groups fg ON fg.id = u.group_id
+                 WHERE REPLACE(REPLACE(u.phone, '-', ''), ' ', '')=$1`,
+                [phone]
+            );
+            console.log(`[BIZ LOGIN DEBUG] phone=${phone} raw rows:`, JSON.stringify(debugEnv.rows));
             const envRes = await pool.query(
                 `SELECT u.group_id, fg.name AS business_name
                  FROM users u
