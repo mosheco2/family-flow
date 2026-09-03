@@ -1222,8 +1222,8 @@ function renderHero(data, s) {
     document.getElementById('deals-section').style.display = '';
     const cards = [];
     const etaLabel = etaMin > 0 ? etaStr : '';
-    if (etaLabel) cards.push({cls:'dark',kicker:t('הזמנה','Order'),title:t('מזמינים ב-3 לחיצות','Order in 3 clicks'),sub:`${t('משלוח','Delivery')} ${etaLabel}. ${s.free_delivery_above>0?`${t('משלוח חינם מעל','Free delivery over')} ₪${s.free_delivery_above}.`:''}`,btn:t('להזמנה','Order now'),act:"scrollToCatalog()"});
-    if (s.free_delivery_above > 0) cards.push({cls:'accent',kicker:t('משלוח','Delivery'),title:`${t('חינם מעל','Free over')} ₪${s.free_delivery_above}`,sub:t('הוסיפו עוד מנה ותהנו ממשלוח חינם בכל אזורי החלוקה.','Add one more item and enjoy free delivery in all areas.'),btn:t('לתפריט','Menu'),act:"scrollToCatalog()"});
+    if (etaLabel) cards.push({cls:'dark',kicker:t('הזמנה','Order'),title:s.banner1_title||t('מזמינים ב-3 לחיצות','Order in 3 clicks'),sub:`${t('משלוח','Delivery')} ${etaLabel}. ${s.free_delivery_above>0?`${t('משלוח חינם מעל','Free delivery over')} ₪${s.free_delivery_above}.`:''}`,btn:t('להזמנה','Order now'),act:"scrollToCatalog()"});
+    if (s.free_delivery_above > 0) cards.push({cls:'accent',kicker:t('משלוח','Delivery'),title:s.banner2_title||`${t('חינם מעל','Free over')} ₪${s.free_delivery_above}`,sub:t('הוסיפו עוד מנה ותהנו ממשלוח חינם בכל אזורי החלוקה.','Add one more item and enjoy free delivery in all areas.'),btn:t('לתפריט','Menu'),act:"scrollToCatalog()"});
     if (cards.length) {
       document.getElementById('deals-grid').innerHTML = cards.map(c => `
         <div class="deal-card ${c.cls}">

@@ -987,6 +987,13 @@ window.injectBusinessUI = function() {
                                             <label class="text-[10px] text-slate-500 block mb-1">משלוח חינם מעל (₪) — 0 = לא מוצג</label>
                                             <input type="number" id="store-free-delivery-above" min="0" value="0" class="modern-input py-2 text-sm bg-white w-full text-center">
                                         </div>
+                                        <div class="mt-3 pt-3 border-t border-slate-200">
+                                            <label class="text-[10px] font-bold text-slate-500 block mb-1.5">✏️ כותרות באנרים (ריק = ברירת מחדל)</label>
+                                            <div class="space-y-2">
+                                                <input type="text" id="store-banner1-title" class="modern-input py-2 text-sm bg-white w-full" placeholder='כותרת באנר כהה — ברירת מחדל: "מזמינים ב-3 לחיצות"'>
+                                                <input type="text" id="store-banner2-title" class="modern-input py-2 text-sm bg-white w-full" placeholder='כותרת באנר כתום — ברירת מחדל: "חינם מעל ₪X"'>
+                                            </div>
+                                        </div>
                                     </div>
                                     <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100 shadow-sm">
                                         <label class="text-xs font-bold text-slate-700 block mb-2"><i class="fa-solid fa-mobile-screen text-blue-500 ml-1"></i> קישורי הורדת אפליקציה (אופציונלי)</label>
@@ -12471,6 +12478,10 @@ window.fetchStoreSettings = async function() {
             if (pickupEtaEl) pickupEtaEl.value = (s.pickup_eta_min != null) ? s.pickup_eta_min : 15;
             const freeDelivEl = document.getElementById('store-free-delivery-above');
             if (freeDelivEl) freeDelivEl.value = s.free_delivery_above || 0;
+            const b1El = document.getElementById('store-banner1-title');
+            if (b1El) b1El.value = s.banner1_title || '';
+            const b2El = document.getElementById('store-banner2-title');
+            if (b2El) b2El.value = s.banner2_title || '';
             const appStoreEl = document.getElementById('store-app-store-url');
             if (appStoreEl) appStoreEl.value = s.app_store_url || '';
             const playStoreEl = document.getElementById('store-play-store-url');
@@ -12576,7 +12587,9 @@ async function saveStoreSettings() {
             pickupEtaMin: parseInt(document.getElementById('store-pickup-eta')?.value) || 0,
             appStoreUrl: document.getElementById('store-app-store-url')?.value || '',
             playStoreUrl: document.getElementById('store-play-store-url')?.value || '',
-            freeDeliveryAbove: parseInt(document.getElementById('store-free-delivery-above')?.value) || 0
+            freeDeliveryAbove: parseInt(document.getElementById('store-free-delivery-above')?.value) || 0,
+            banner1Title: document.getElementById('store-banner1-title')?.value || '',
+            banner2Title: document.getElementById('store-banner2-title')?.value || ''
         };
 
         const res = await fetch(`${API}/store/settings`, {
@@ -27500,6 +27513,10 @@ window.fetchStoreSettings = async function() {
             if (petEl2) petEl2.value = (s.pickup_eta_min != null) ? s.pickup_eta_min : 15;
             const fdEl2 = document.getElementById('store-free-delivery-above');
             if (fdEl2) fdEl2.value = s.free_delivery_above || 0;
+            const b1El2 = document.getElementById('store-banner1-title');
+            if (b1El2) b1El2.value = s.banner1_title || '';
+            const b2El2 = document.getElementById('store-banner2-title');
+            if (b2El2) b2El2.value = s.banner2_title || '';
             const asEl2 = document.getElementById('store-app-store-url');
             if (asEl2) asEl2.value = s.app_store_url || '';
             const psEl2 = document.getElementById('store-play-store-url');
@@ -27564,7 +27581,9 @@ async function saveStoreSettings() {
             pickupEtaMin: parseInt(document.getElementById('store-pickup-eta')?.value) || 0,
             appStoreUrl: document.getElementById('store-app-store-url')?.value || '',
             playStoreUrl: document.getElementById('store-play-store-url')?.value || '',
-            freeDeliveryAbove: parseInt(document.getElementById('store-free-delivery-above')?.value) || 0
+            freeDeliveryAbove: parseInt(document.getElementById('store-free-delivery-above')?.value) || 0,
+            banner1Title: document.getElementById('store-banner1-title')?.value || '',
+            banner2Title: document.getElementById('store-banner2-title')?.value || ''
         };
 
         const res = await fetch(`${API}/store/settings`, {
