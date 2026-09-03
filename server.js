@@ -6796,6 +6796,9 @@ app.put('/api/sa/groups/:id', verifySA, async (req, res) => {
         // עדכון פרטי מנהל בטבלת users
         if (adminPhone !== undefined) {
             const normalizedAdminPhone = adminPhone ? adminPhone.replace(/[-\s]/g, '') : null;
+            // debug: show what users exist for this group before update
+            const debugRes = await pool.query(`SELECT id, role, phone, status FROM users WHERE group_id=$1`, [req.params.id]);
+            console.log(`[SA DEBUG] group=${req.params.id} users:`, JSON.stringify(debugRes.rows));
             const phoneUpdateRes = await pool.query(`UPDATE users SET phone=$1 WHERE group_id=$2 AND UPPER(role)='ADMIN'`, [normalizedAdminPhone, req.params.id]);
             console.log(`[SA] phone update group=${req.params.id} phone="${normalizedAdminPhone}" rows=${phoneUpdateRes.rowCount}`);
         }
