@@ -5737,7 +5737,8 @@ app.post('/api/biz/verify-otp', async (req, res) => {
                 `SELECT u.group_id, fg.name AS business_name
                  FROM users u
                  JOIN family_groups fg ON fg.id = u.group_id
-                 WHERE u.phone=$1 AND fg.member_type='biz' AND u.role='ADMIN' AND u.status='active'`,
+                 WHERE REPLACE(REPLACE(u.phone, '-', ''), ' ', '')=$1
+                   AND fg.member_type='biz' AND u.role='ADMIN' AND u.status='active'`,
                 [phone]
             );
             return res.json({ success: true, options: envRes.rows.map(r => ({ group_id: r.group_id, business_name: r.business_name })) });
@@ -6204,7 +6205,8 @@ app.post('/api/biz/login', async (req, res) => {
             `SELECT u.id, u.group_id, u.password_hash, fg.wizard_completed, fg.name AS business_name
              FROM users u
              JOIN family_groups fg ON fg.id = u.group_id
-             WHERE u.phone=$1 AND u.group_id=$2 AND fg.member_type='biz' AND u.role='ADMIN' AND u.status='active'`,
+             WHERE REPLACE(REPLACE(u.phone, '-', ''), ' ', '')=$1 AND u.group_id=$2
+               AND fg.member_type='biz' AND u.role='ADMIN' AND u.status='active'`,
             [phone, groupId]
         );
         if (uRes.rows.length === 0) {
@@ -6236,7 +6238,8 @@ app.post('/api/biz/reset-password/request', async (req, res) => {
         const grpRes = await pool.query(
             `SELECT fg.admin_email, fg.name AS business_name FROM family_groups fg
              JOIN users u ON u.group_id=fg.id
-             WHERE u.phone=$1 AND fg.id=$2 AND fg.member_type='biz' AND u.role='ADMIN' AND u.status='active'`,
+             WHERE REPLACE(REPLACE(u.phone, '-', ''), ' ', '')=$1 AND fg.id=$2
+               AND fg.member_type='biz' AND u.role='ADMIN' AND u.status='active'`,
             [phone, groupId]
         );
         if (!grpRes.rows.length || !grpRes.rows[0].admin_email) {
@@ -6787,7 +6790,8 @@ app.put('/api/sa/groups/:id', verifySA, async (req, res) => {
         if (result.rowCount === 0) return res.status(404).json({ error: 'קבוצה לא נמצאה' });
         // עדכון פרטי מנהל בטבלת users
         if (adminPhone !== undefined) {
-            await pool.query(`UPDATE users SET phone=$1 WHERE group_id=$2 AND role='ADMIN'`, [adminPhone || null, req.params.id]);
+            const normalizedAdminPhone = adminPhone ? adminPhone.replace(/[-\s]/g, '') : null;
+            await pool.query(`UPDATE users SET phone=$1 WHERE group_id=$2 AND role='ADMIN'`, [normalizedAdminPhone, req.params.id]);
         }
         if (adminFirstName !== undefined) {
             await pool.query(`UPDATE users SET first_name=$1 WHERE group_id=$2 AND role='ADMIN'`, [adminFirstName || null, req.params.id]);
