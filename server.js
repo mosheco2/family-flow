@@ -5738,9 +5738,13 @@ app.post('/api/biz/verify-otp', async (req, res) => {
                  FROM users u
                  JOIN family_groups fg ON fg.id = u.group_id
                  WHERE REPLACE(REPLACE(u.phone, '-', ''), ' ', '')=$1
-                   AND fg.member_type='biz' AND u.role='ADMIN' AND u.status='active'`,
+                   AND fg.member_type='biz'
+                   AND UPPER(u.role)='ADMIN'
+                   AND u.status='active'
+                   AND (fg.is_deleted IS NULL OR fg.is_deleted=false)`,
                 [phone]
             );
+            console.log(`[BIZ LOGIN] phone=${phone} → found ${envRes.rows.length} envs:`, envRes.rows.map(r => r.business_name));
             return res.json({ success: true, options: envRes.rows.map(r => ({ group_id: r.group_id, business_name: r.business_name })) });
         }
 
@@ -6206,9 +6210,10 @@ app.post('/api/biz/login', async (req, res) => {
              FROM users u
              JOIN family_groups fg ON fg.id = u.group_id
              WHERE REPLACE(REPLACE(u.phone, '-', ''), ' ', '')=$1 AND u.group_id=$2
-               AND fg.member_type='biz' AND u.role='ADMIN' AND u.status='active'`,
+               AND fg.member_type='biz' AND UPPER(u.role)='ADMIN' AND u.status='active'`,
             [phone, groupId]
         );
+        console.log(`[BIZ LOGIN pass] phone=${phone} gid=${groupId} found=${uRes.rows.length}`);
         if (uRes.rows.length === 0) {
             return res.status(400).json({ success: false, error: 'סיסמה שגויה' });
         }
@@ -6791,7 +6796,8 @@ app.put('/api/sa/groups/:id', verifySA, async (req, res) => {
         // עדכון פרטי מנהל בטבלת users
         if (adminPhone !== undefined) {
             const normalizedAdminPhone = adminPhone ? adminPhone.replace(/[-\s]/g, '') : null;
-            await pool.query(`UPDATE users SET phone=$1 WHERE group_id=$2 AND role='ADMIN'`, [normalizedAdminPhone, req.params.id]);
+            const phoneUpdateRes = await pool.query(`UPDATE users SET phone=$1 WHERE group_id=$2 AND UPPER(role)='ADMIN'`, [normalizedAdminPhone, req.params.id]);
+            console.log(`[SA] phone update group=${req.params.id} phone="${normalizedAdminPhone}" rows=${phoneUpdateRes.rowCount}`);
         }
         if (adminFirstName !== undefined) {
             await pool.query(`UPDATE users SET first_name=$1 WHERE group_id=$2 AND role='ADMIN'`, [adminFirstName || null, req.params.id]);
