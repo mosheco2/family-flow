@@ -599,6 +599,17 @@
       </div>
     </div>
 
+    <!-- ══ SECTION: env picker (multiple businesses on same phone) ══ -->
+    <div id="sec-env-pick" class="section">
+      <button class="wiz-back" onclick="showSection('sec-tabs'); switchTab('login')">חזרה ←</button>
+      <div style="text-align:center; margin-bottom:16px;">
+        <h1 class="wiz-sec-title">בחרו את העסק</h1>
+        <p class="wiz-sec-sub">מספר טלפון זה משויך ליותר מסביבה אחת — בחרו אל איזו להיכנס</p>
+      </div>
+      <div id="msg-env-pick" class="msg"></div>
+      <div id="env-pick-list" style="display:flex;flex-direction:column;gap:10px;margin-top:8px;"></div>
+    </div>
+
     <!-- ══ SECTION: OTP verification ══ -->
     <div id="sec-otp" class="section">
       <button class="wiz-back" onclick="goBack()">חזרה ←</button>
@@ -1195,8 +1206,9 @@
     }
 
     // ── Login ──
-    async function doLogin() {
-      hideMsg('msg-login');
+    async function doLogin(selectedGroupId) {
+      const msgEl = selectedGroupId ? 'msg-env-pick' : 'msg-login';
+      hideMsg(msgEl);
       const phone = normalizePhone(document.getElementById('login-phone').value.trim());
       const password = document.getElementById('login-pass').value;
       if (!validatePhone(phone)) {
@@ -1205,16 +1217,33 @@
       if (!password) {
         showMsg('msg-login', 'יש להזין סיסמה', 'err'); return;
       }
-      setLoading('login-btn', true, 'התחברות');
+      if (!selectedGroupId) setLoading('login-btn', true, 'התחברות');
       try {
+        const body = { phone, password };
+        if (selectedGroupId) body.groupId = selectedGroupId;
         const r = await fetch(`${API}/biz/login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json; charset=utf-8' },
-          body: JSON.stringify({ phone, password })
+          body: JSON.stringify(body)
         });
         const d = await r.json();
         if (!d.success) {
-          showMsg('msg-login', d.error || 'שגיאה בהתחברות', 'err'); return;
+          showMsg(msgEl, d.error || 'שגיאה בהתחברות', 'err'); return;
+        }
+        if (d.multiple) {
+          // Multiple environments — show picker
+          const list = document.getElementById('env-pick-list');
+          list.innerHTML = '';
+          d.options.forEach(opt => {
+            const btn = document.createElement('button');
+            btn.className = 'btn-primary';
+            btn.style.cssText = 'background:#f8fafc;color:#1e293b;border:1.5px solid #e2e8f0;font-weight:600;';
+            btn.textContent = opt.business_name;
+            btn.onclick = () => doLogin(opt.group_id);
+            list.appendChild(btn);
+          });
+          showSection('sec-env-pick');
+          return;
         }
         _state.phone = phone;
         saveSession(d);
@@ -1224,7 +1253,7 @@
           showSection('sec-welcome');
         }
       } catch(e) {
-        showMsg('msg-login', 'שגיאת תקשורת. בדקו חיבור לאינטרנט.', 'err');
+        showMsg(msgEl, 'שגיאת תקשורת. בדקו חיבור לאינטרנט.', 'err');
       } finally {
         setLoading('login-btn', false, 'התחברות');
       }

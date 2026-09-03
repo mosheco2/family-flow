@@ -6178,22 +6178,36 @@ app.post('/api/biz/login', async (req, res) => {
             return res.status(400).json({ success: false, error: 'טלפון וסיסמה נדרשים' });
         }
 
+        const { groupId: selectedGroupId } = req.body;
+
         const uRes = await pool.query(
             `SELECT u.id, u.group_id, u.password_hash, fg.wizard_completed, fg.name AS business_name
              FROM users u
              JOIN family_groups fg ON fg.id = u.group_id
-             WHERE u.phone=$1 AND fg.member_type='biz' AND u.role='ADMIN' AND u.status='active'`,
-            [phone]
+             WHERE u.phone=$1 AND fg.member_type='biz' AND u.role='ADMIN' AND u.status='active'
+             ${selectedGroupId ? 'AND u.group_id=$2' : ''}`,
+            selectedGroupId ? [phone, selectedGroupId] : [phone]
         );
         if (uRes.rows.length === 0) {
             return res.status(400).json({ success: false, error: 'מספר טלפון או סיסמה שגויים' });
         }
 
-        const user = uRes.rows[0];
-        const passOk = await bcrypt.compare(password, user.password_hash);
-        if (!passOk) {
+        // Verify password against all matching rows
+        const validUsers = [];
+        for (const row of uRes.rows) {
+            const ok = await bcrypt.compare(password, row.password_hash);
+            if (ok) validUsers.push(row);
+        }
+        if (validUsers.length === 0) {
             return res.status(400).json({ success: false, error: 'מספר טלפון או סיסמה שגויים' });
         }
+
+        // Multiple valid environments — ask user to choose
+        if (validUsers.length > 1) {
+            return res.json({ success: true, multiple: true, options: validUsers.map(u => ({ group_id: u.group_id, business_name: u.business_name })) });
+        }
+
+        const user = validUsers[0];
 
         const deviceHint = req.headers['user-agent']?.slice(0, 100) || null;
         const token = await createFamilySession(user.group_id, user.id, deviceHint, 'biz');
