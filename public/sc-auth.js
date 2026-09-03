@@ -444,8 +444,8 @@ const scAuth = window.scAuth = {
             if (orders.length) {
                 html += `<div style="font-size:11px;font-weight:700;color:#94a3b8;padding:8px 0 6px;text-align:right">📦 הזמנות</div>`;
                 html += orders.map(o => {
-                    var statusColors = { new:'#f59e0b', confirmed:'#3b82f6', ready:'#8b5cf6', delivered:'#10b981', cancelled:'#ef4444', pending_approval:'#f59e0b' };
-                    var statusLabels = { new:'חדשה', confirmed:'אושרה', ready:'מוכן', delivered:'נמסר', cancelled:'בוטלה', pending_approval:'ממתין לאישור' };
+                    var statusColors = { new:'#f59e0b', confirmed:'#3b82f6', processing:'#6366f1', ready:'#8b5cf6', delivered:'#10b981', cancelled:'#ef4444', pending_approval:'#f59e0b' };
+                    var statusLabels = { new:'חדשה', confirmed:'אושרה', processing:'בהכנה', ready:'מוכן', delivered:'נמסר', cancelled:'בוטלה', pending_approval:'ממתין לאישור' };
                     const sc = statusColors[o.status] || '#64748b';
                     const sl = statusLabels[o.status] || o.status;
                     const items = o.items ? o.items.map(i => i.name).join(', ') : '';
