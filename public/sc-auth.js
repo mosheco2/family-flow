@@ -302,6 +302,8 @@ const scAuth = window.scAuth = {
             const _gid = window._scBizId || new URLSearchParams(location.search).get('store') || '';
 
             let html = '';
+            let htmlTableRes = '';
+            let htmlOrders = '';
 
             // ── מנויים ──────────────────────────────────────────────────────
             if (memberships.length) {
@@ -413,17 +415,16 @@ const scAuth = window.scAuth = {
             if (_bizType === 'restaurant' || _bizType === 'cafe') {
                 var tableStatusColors = { approved:'#10b981', pending:'#f59e0b', cancelled:'#ef4444', cancelled_by_customer:'#94a3b8' };
                 var tableStatusLabels = { approved:'אושרה ✅', pending:'ממתין לאישור', cancelled:'בוטלה', cancelled_by_customer:'בוטלה על ידך' };
-                html += `<div style="font-size:11px;font-weight:700;color:#94a3b8;padding:8px 0 6px;text-align:right;display:flex;justify-content:space-between;align-items:center"><span>🍽️ הזמנות שולחן</span>${tableReservations.length?'<span style="font-weight:400">'+tableReservations.length+' הזמנות</span>':''}</div>`;
                 if (!tableReservations.length) {
-                    html += `<div style="background:#f8fafc;border-radius:12px;padding:14px;margin-bottom:10px;text-align:right;color:#94a3b8;font-size:13px">אין הזמנות שולחן. <span data-restaurant-action="table" style="color:#f97316;font-weight:700;cursor:pointer">הזמן שולחן →</span></div>`;
+                    htmlTableRes += `<div style="background:#f8fafc;border-radius:12px;padding:14px;margin-bottom:10px;text-align:right;color:#94a3b8;font-size:13px">אין הזמנות שולחן. <span data-restaurant-action="table" style="color:#f97316;font-weight:700;cursor:pointer">הזמן שולחן →</span></div>`;
                 } else {
-                    html += tableReservations.map(function(b) {
+                    htmlTableRes += tableReservations.map(function(b) {
                         var sc = tableStatusColors[b.status] || '#64748b';
                         var sl = tableStatusLabels[b.status] || b.status;
                         var dk = b.event_date instanceof Date ? b.event_date.toISOString().slice(0,10) : String(b.event_date||'').slice(0,10);
                         var ds = dk ? new Date(dk+'T12:00:00').toLocaleDateString('he-IL',{weekday:'short',day:'numeric',month:'short',year:'numeric'}) : '';
                         var ts = b.start_time ? String(b.start_time).slice(0,5) : '';
-                        var canCancel = b.status !== 'cancelled' && dk >= new Date().toISOString().slice(0,10);
+                        var canCancel = b.status !== 'cancelled' && b.status !== 'cancelled_by_customer' && dk >= new Date().toISOString().slice(0,10);
                         return '<div style="border:1.5px solid '+sc+'30;border-radius:12px;padding:12px;margin-bottom:8px;background:'+sc+'06" data-table-res-id="'+b.id+'">'
                             +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">'
                             +'<span style="font-size:11px;font-weight:700;color:'+sc+';background:'+sc+'18;padding:3px 8px;border-radius:7px">'+sl+'</span>'
@@ -442,8 +443,8 @@ const scAuth = window.scAuth = {
 
             // ── הזמנות חנות ─────────────────────────────────────────────────
             if (orders.length) {
-                html += `<div style="font-size:11px;font-weight:700;color:#94a3b8;padding:8px 0 6px;text-align:right">📦 הזמנות</div>`;
-                html += orders.map(o => {
+                htmlOrders += `<div style="font-size:11px;font-weight:700;color:#94a3b8;padding:8px 0 6px;text-align:right">📦 הזמנות</div>`;
+                htmlOrders += orders.map(o => {
                     var statusColors = { new:'#f59e0b', confirmed:'#3b82f6', processing:'#6366f1', ready:'#8b5cf6', delivered:'#10b981', cancelled:'#ef4444', pending_approval:'#f59e0b' };
                     var statusLabels = { new:'חדשה', confirmed:'אושרה', processing:'בהכנה', ready:'מוכן', delivered:'נמסר', cancelled:'בוטלה', pending_approval:'ממתין לאישור' };
                     const sc = statusColors[o.status] || '#64748b';
@@ -466,8 +467,8 @@ const scAuth = window.scAuth = {
 
             // ── תורים (calendar — לא הזמנות שולחן) ─────────────────────────
             if (otherBookings.length) {
-                html += `<div style="font-size:11px;font-weight:700;color:#94a3b8;padding:8px 0 6px;text-align:right">🗓️ תורים</div>`;
-                html += otherBookings.map(b => {
+                htmlOrders += `<div style="font-size:11px;font-weight:700;color:#94a3b8;padding:8px 0 6px;text-align:right">🗓️ תורים</div>`;
+                htmlOrders += otherBookings.map(b => {
                     var bStatusC = { pending:'#f59e0b', approved:'#10b981', cancelled:'#ef4444' };
                     var bStatusL = { pending:'ממתין', approved:'מאושר', cancelled:'בוטל' };
                     var bsc = bStatusC[b.status] || '#64748b';
@@ -483,12 +484,12 @@ const scAuth = window.scAuth = {
 
             // ── היסטוריית ביקורים — מסעדה ───────────────────────────────────
             if (_bizType === 'restaurant' || _bizType === 'cafe') {
-                html += `<div style="font-size:11px;font-weight:700;color:#94a3b8;padding:8px 0 6px;text-align:right;display:flex;justify-content:space-between;align-items:center"><span>🚪 היסטוריית ביקורים</span><span style="font-weight:400">${restaurantVisits.length ? restaurantVisits.length+' ביקורים' : ''}</span></div>`;
+                htmlTableRes += `<div style="font-size:11px;font-weight:700;color:#94a3b8;padding:8px 0 6px;text-align:right;display:flex;justify-content:space-between;align-items:center"><span>🚪 היסטוריית ביקורים</span><span style="font-weight:400">${restaurantVisits.length ? restaurantVisits.length+' ביקורים' : ''}</span></div>`;
                 if (!restaurantVisits.length) {
-                    html += `<div style="background:#f8fafc;border-radius:12px;padding:14px;margin-bottom:10px;text-align:right;color:#94a3b8;font-size:13px">אין ביקורים רשומים עדיין</div>`;
+                    htmlTableRes += `<div style="background:#f8fafc;border-radius:12px;padding:14px;margin-bottom:10px;text-align:right;color:#94a3b8;font-size:13px">אין ביקורים רשומים עדיין</div>`;
                 } else {
-                    html += `<div style="border:1px solid #f1f5f9;border-radius:14px;overflow:hidden;margin-bottom:10px">`;
-                    html += restaurantVisits.map(function(v, i) {
+                    htmlTableRes += `<div style="border:1px solid #f1f5f9;border-radius:14px;overflow:hidden;margin-bottom:10px">`;
+                    htmlTableRes += restaurantVisits.map(function(v, i) {
                         var dt = v.visited_at ? new Date(v.visited_at) : null;
                         var dateStr = dt ? dt.toLocaleDateString('he-IL',{weekday:'short',day:'numeric',month:'short',year:'numeric'}) : '';
                         var timeStr = dt ? dt.toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'}) : '';
@@ -503,8 +504,21 @@ const scAuth = window.scAuth = {
                             +'<div style="font-size:11px;color:#94a3b8">'+timeStr+(v.guests && v.guests>1 ? ' · '+v.guests+' סועדים' : '')+(durStr?' · '+durStr:'')+'</div>'
                             +'</div></div>';
                     }).join('');
-                    html += `</div>`;
+                    htmlTableRes += `</div>`;
                 }
+            }
+
+            // ── בניית טאבים (מסעדה/קפה) ─────────────────────────────────────
+            if (_bizType === 'restaurant' || _bizType === 'cafe') {
+                var tabsHtml = `<div style="display:flex;gap:0;margin-bottom:14px;border-bottom:2px solid #f1f5f9;padding-bottom:0">
+                  <button id="sc-tab-table" onclick="(function(){document.getElementById('sc-tab-table').style.borderBottom='2px solid #f97316';document.getElementById('sc-tab-table').style.color='#f97316';document.getElementById('sc-tab-orders').style.borderBottom='2px solid transparent';document.getElementById('sc-tab-orders').style.color='#94a3b8';document.getElementById('sc-tab-panel-table').style.display='block';document.getElementById('sc-tab-panel-orders').style.display='none';})()" style="flex:1;padding:10px 8px;border:none;border-bottom:2px solid #f97316;background:none;font-size:13px;font-weight:700;color:#f97316;cursor:pointer;text-align:center">🍽️ הזמנות שולחן</button>
+                  <button id="sc-tab-orders" onclick="(function(){document.getElementById('sc-tab-orders').style.borderBottom='2px solid #f97316';document.getElementById('sc-tab-orders').style.color='#f97316';document.getElementById('sc-tab-table').style.borderBottom='2px solid transparent';document.getElementById('sc-tab-table').style.color='#94a3b8';document.getElementById('sc-tab-panel-orders').style.display='block';document.getElementById('sc-tab-panel-table').style.display='none';})()" style="flex:1;padding:10px 8px;border:none;border-bottom:2px solid transparent;background:none;font-size:13px;font-weight:700;color:#94a3b8;cursor:pointer;text-align:center">📦 הזמנות</button>
+                </div>
+                <div id="sc-tab-panel-table">${htmlTableRes}</div>
+                <div id="sc-tab-panel-orders" style="display:none">${htmlOrders || '<div style=\"text-align:center;color:#94a3b8;font-size:13px;padding:30px 0\">אין הזמנות</div>'}</div>`;
+                html = tabsHtml + html;
+            } else {
+                html = htmlOrders + html;
             }
 
             // ── פעולות מהירות ────────────────────────────────────────────────
