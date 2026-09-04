@@ -55839,3 +55839,236 @@ window._sportApptSave = async function() {
 };
 
 // ===== END SPORT PHASE 12 =====
+
+// ══════════════════════════════════════════════════════════════
+// צ'אט לקוחות — ניהול מצד עסק (customer_chats)
+// תומך בכל סוג עסק וכל תבנית עתידית — ללא שינויים נוספים
+// ══════════════════════════════════════════════════════════════
+(function() {
+  var _custPoll = null;
+  var _activeChatId = null;
+  var _activeChatStatus = 'open';
+  var _custLastSince = null;
+  var POLL_MS = 3000;
+
+  function _bizToken() {
+    return window._bizToken || localStorage.getItem('ofl_family_token') || '';
+  }
+  function _bizHeaders() {
+    return { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + _bizToken() };
+  }
+  function _gid() { return window.currentGroup && window.currentGroup.id; }
+  function _esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function _fmt(iso) {
+    if (!iso) return '';
+    var d = new Date(iso);
+    return d.toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'});
+  }
+
+  // ── switch tab ──────────────────────────────────────────────
+  window.switchChatTab = function(tab) {
+    var isTeam = (tab === 'team');
+    // עדכון כפתורי טאב
+    var tBtn = document.getElementById('chat-tab-team');
+    var cBtn = document.getElementById('chat-tab-customers');
+    if (tBtn) { tBtn.className = 'flex-1 py-1.5 text-xs font-bold rounded-lg transition ' + (isTeam ? 'bg-indigo-600 text-white' : 'bg-white text-indigo-600 border border-indigo-200'); }
+    if (cBtn) { cBtn.className = 'flex-1 py-1.5 text-xs font-bold rounded-lg transition ' + (!isTeam ? 'bg-indigo-600 text-white' : 'bg-white text-indigo-600 border border-indigo-200'); }
+
+    // הצג/הסתר פאנלים
+    var team = document.getElementById('chat-messages-container');
+    var footer = document.getElementById('team-chat-footer');
+    var searchWrap = document.getElementById('team-chat-search-wrap');
+    var exportBtn = document.getElementById('team-chat-export-btn');
+    var retentionNote = document.getElementById('team-chat-retention-note');
+    var listPanel = document.getElementById('cust-chat-list-panel');
+    var convPanel = document.getElementById('cust-chat-conv-panel');
+
+    if (isTeam) {
+      if (team) team.classList.remove('hidden');
+      if (footer) footer.classList.remove('hidden');
+      if (searchWrap) searchWrap.classList.remove('hidden');
+      if (exportBtn) exportBtn.classList.remove('hidden');
+      if (retentionNote) retentionNote.classList.remove('hidden');
+      if (listPanel) listPanel.classList.add('hidden');
+      if (convPanel) convPanel.classList.add('hidden');
+    } else {
+      if (team) team.classList.add('hidden');
+      if (footer) footer.classList.add('hidden');
+      if (searchWrap) searchWrap.classList.add('hidden');
+      if (exportBtn) exportBtn.classList.add('hidden');
+      if (retentionNote) retentionNote.classList.add('hidden');
+      if (listPanel) { listPanel.classList.remove('hidden'); listPanel.style.display = 'flex'; }
+      if (convPanel) convPanel.classList.add('hidden');
+      window.loadCustChatList();
+    }
+  };
+
+  // ── טעינת רשימת שיחות ──────────────────────────────────────
+  window.loadCustChatList = async function() {
+    var gid = _gid();
+    if (!gid) return;
+    var list = document.getElementById('cust-chat-list');
+    if (!list) return;
+    list.innerHTML = '<p class="text-xs text-slate-400 text-center py-8">טוען...</p>';
+    try {
+      var r = await fetch('/api/biz/customer-chats', { headers: _bizHeaders() });
+      var d = await r.json();
+      if (!d.success || !d.chats.length) {
+        list.innerHTML = '<p class="text-xs text-slate-400 text-center py-8">אין שיחות לקוחות עדיין</p>';
+        return;
+      }
+      var totalUnread = d.chats.reduce(function(s,c){ return s + (parseInt(c.unread_count)||0); }, 0);
+      var badge = document.getElementById('cust-chat-unread-badge');
+      if (badge) {
+        if (totalUnread > 0) { badge.textContent = totalUnread; badge.classList.remove('hidden'); badge.style.display='inline-flex'; }
+        else { badge.classList.add('hidden'); }
+      }
+      list.innerHTML = d.chats.map(function(c) {
+        var unread = parseInt(c.unread_count) || 0;
+        var name = _esc((c.first_name||'') + ' ' + (c.last_name||''));
+        var preview = _esc(c.last_body || '—');
+        var closed = c.status === 'closed';
+        return '<div onclick="window.openCustChat('+c.id+',\''+name+'\',\''+c.status+'\')" class="flex items-center gap-3 p-3 cursor-pointer hover:bg-indigo-50 transition '+(closed?'opacity-50':'')+'">'+
+          '<div class="w-9 h-9 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold text-sm shrink-0">'+_esc((c.first_name||'?')[0].toUpperCase())+'</div>'+
+          '<div class="flex-1 min-w-0">'+
+            '<div class="flex justify-between items-center"><span class="font-bold text-slate-800 text-sm">'+name+'</span>'+
+            (unread ? '<span class="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">'+unread+'</span>' : '')+
+            '</div>'+
+            '<p class="text-xs text-slate-500 truncate">'+(closed?'<span class="text-slate-400">[סגורה] </span>':'')+preview+'</p>'+
+          '</div>'+
+        '</div>';
+      }).join('');
+    } catch(e) { list.innerHTML = '<p class="text-xs text-red-400 text-center py-8">שגיאה בטעינה</p>'; }
+  };
+
+  // ── פתיחת שיחה ─────────────────────────────────────────────
+  window.openCustChat = async function(chatId, name, status) {
+    _activeChatId = chatId;
+    _activeChatStatus = status || 'open';
+    _custLastSince = null;
+
+    var listPanel = document.getElementById('cust-chat-list-panel');
+    var convPanel = document.getElementById('cust-chat-conv-panel');
+    if (listPanel) listPanel.classList.add('hidden');
+    if (convPanel) { convPanel.classList.remove('hidden'); convPanel.style.display = 'flex'; }
+
+    var nameEl = document.getElementById('cust-chat-conv-name');
+    if (nameEl) nameEl.textContent = name;
+
+    var closeBtn = document.getElementById('cust-chat-close-btn');
+    if (closeBtn) closeBtn.textContent = (status === 'closed') ? 'פתח מחדש' : 'סגור שיחה';
+
+    var msgs = document.getElementById('cust-chat-messages');
+    if (msgs) msgs.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">טוען...</p>';
+
+    try {
+      var r = await fetch('/api/biz/customer-chats/' + chatId + '/messages', { headers: _bizHeaders() });
+      var d = await r.json();
+      if (msgs) msgs.innerHTML = '';
+      if (d.success && d.messages) {
+        _renderCustMsgs(d.messages);
+        if (d.messages.length) _custLastSince = d.messages[d.messages.length-1].created_at;
+      }
+    } catch(e) {}
+
+    _startCustPoll();
+  };
+
+  // ── חזרה לרשימה ───────────────────────────────────────────
+  window.custChatBackToList = function() {
+    _stopCustPoll();
+    _activeChatId = null;
+    var listPanel = document.getElementById('cust-chat-list-panel');
+    var convPanel = document.getElementById('cust-chat-conv-panel');
+    if (convPanel) convPanel.classList.add('hidden');
+    if (listPanel) { listPanel.classList.remove('hidden'); listPanel.style.display = 'flex'; }
+    window.loadCustChatList();
+  };
+
+  // ── render הודעות ─────────────────────────────────────────
+  function _renderCustMsgs(msgs) {
+    var container = document.getElementById('cust-chat-messages');
+    if (!container) return;
+    msgs.forEach(function(m) {
+      var isBiz = (m.sender_type === 'business');
+      var div = document.createElement('div');
+      div.style.cssText = 'display:flex;flex-direction:column;align-items:'+(isBiz?'flex-start':'flex-end');
+      var bubble = document.createElement('div');
+      bubble.style.cssText = 'max-width:78%;padding:8px 12px;border-radius:14px;font-size:13px;line-height:1.45;word-break:break-word;' +
+        (isBiz ? 'background:#6366f1;color:#fff;border-bottom-left-radius:4px' : 'background:#fff;color:#1e293b;border:1px solid #e2e8f0;border-bottom-right-radius:4px');
+      bubble.textContent = m.body;
+      var time = document.createElement('div');
+      time.style.cssText = 'font-size:9px;color:#94a3b8;margin-top:2px';
+      time.textContent = _fmt(m.created_at);
+      div.appendChild(bubble);
+      div.appendChild(time);
+      container.appendChild(div);
+    });
+    container.scrollTop = container.scrollHeight;
+  }
+
+  // ── שליחת הודעה ───────────────────────────────────────────
+  window.sendCustChatMsg = async function() {
+    if (!_activeChatId) return;
+    var input = document.getElementById('cust-chat-input');
+    var body = (input && input.value || '').trim();
+    if (!body) return;
+    if (input) input.value = '';
+    try {
+      var r = await fetch('/api/biz/customer-chats/' + _activeChatId + '/message', {
+        method: 'POST', headers: _bizHeaders(),
+        body: JSON.stringify({ body: body })
+      });
+      var d = await r.json();
+      if (d.success) { _renderCustMsgs([d.message]); _custLastSince = d.message.created_at; }
+    } catch(e) {}
+  };
+
+  // ── עדכון סטטוס ───────────────────────────────────────────
+  window.custChatToggleStatus = async function() {
+    if (!_activeChatId) return;
+    var newStatus = (_activeChatStatus === 'open') ? 'closed' : 'open';
+    try {
+      var r = await fetch('/api/biz/customer-chats/' + _activeChatId + '/status', {
+        method: 'PATCH', headers: _bizHeaders(),
+        body: JSON.stringify({ status: newStatus })
+      });
+      var d = await r.json();
+      if (d.success) {
+        _activeChatStatus = newStatus;
+        var btn = document.getElementById('cust-chat-close-btn');
+        if (btn) btn.textContent = (newStatus === 'closed') ? 'פתח מחדש' : 'סגור שיחה';
+        if (typeof showToast === 'function') showToast('success', newStatus === 'closed' ? 'שיחה סומנה כסגורה' : 'שיחה נפתחה מחדש');
+      }
+    } catch(e) {}
+  };
+
+  // ── פולינג ──────────────────────────────────────────────────
+  function _startCustPoll() {
+    if (_custPoll) return;
+    _custPoll = setInterval(_custPollFn, POLL_MS);
+  }
+  function _stopCustPoll() { clearInterval(_custPoll); _custPoll = null; }
+
+  async function _custPollFn() {
+    if (!_activeChatId) return;
+    try {
+      var url = '/api/biz/customer-chats/' + _activeChatId + '/messages' + (_custLastSince ? '?since=' + encodeURIComponent(_custLastSince) : '');
+      var r = await fetch(url, { headers: _bizHeaders() });
+      var d = await r.json();
+      if (d.success && d.messages && d.messages.length) {
+        _renderCustMsgs(d.messages);
+        _custLastSince = d.messages[d.messages.length-1].created_at;
+      }
+    } catch(e) {}
+  }
+
+  // עצור פולינג כשסוגרים את מודאל הצ'אט
+  var _origClose = window.closeTeamChatModal;
+  window.closeTeamChatModal = function() {
+    _stopCustPoll();
+    if (_origClose) _origClose();
+  };
+
+})();
+// ===== END CUSTOMER CHAT =====

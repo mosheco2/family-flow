@@ -750,6 +750,26 @@ try { await client.query(`ALTER TABLE game_assignments ADD COLUMN IF NOT EXISTS 
           )`);
       } catch(e) { console.error('Error creating team_chat table:', e.message); }
 
+      // טבלאות צ'אט לקוח ↔ עסק
+      try { await client.query(`CREATE TABLE IF NOT EXISTS customer_chats (
+          id SERIAL PRIMARY KEY,
+          group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+          customer_id INT REFERENCES storefront_customers(id) ON DELETE CASCADE,
+          status VARCHAR(20) DEFAULT 'open',
+          created_at TIMESTAMPTZ DEFAULT NOW(),
+          last_message_at TIMESTAMPTZ DEFAULT NOW(),
+          UNIQUE(group_id, customer_id)
+      )`); } catch(e) { console.error('Error creating customer_chats table:', e.message); }
+      try { await client.query(`CREATE TABLE IF NOT EXISTS customer_chat_messages (
+          id SERIAL PRIMARY KEY,
+          chat_id INT REFERENCES customer_chats(id) ON DELETE CASCADE,
+          sender_type VARCHAR(10) NOT NULL CHECK(sender_type IN ('customer','business')),
+          sender_id INT,
+          body TEXT NOT NULL,
+          created_at TIMESTAMPTZ DEFAULT NOW(),
+          read_at TIMESTAMPTZ
+      )`); } catch(e) { console.error('Error creating customer_chat_messages table:', e.message); }
+
       // טבלאות החנות הוירטואלית (E-commerce)
       try { await client.query(`CREATE TABLE IF NOT EXISTS store_settings (group_id INT PRIMARY KEY REFERENCES family_groups(id) ON DELETE CASCADE, is_active BOOLEAN DEFAULT FALSE, welcome_message TEXT, phone VARCHAR(50), min_order DECIMAL(10,2) DEFAULT 0)`); } catch(e) {}
       // עדכון שדות חדשים למסד נתונים קיים
@@ -34717,6 +34737,142 @@ setInterval(async () => {
         await pool.query(`DELETE FROM storefront_sso_tokens WHERE expires_at < NOW()`);
     } catch(e) {}
 }, 24 * 60 * 60 * 1000);
+
+// ══════════════════════════════════════════════════════════════
+// צ'אט לקוח ↔ עסק  (customer_chats + customer_chat_messages)
+// ══════════════════════════════════════════════════════════════
+
+// פתיחה/שחזור שיחה — לקוח מחובר בלבד
+app.post('/api/public/customer-chat/open', async (req, res) => {
+    const token = (req.headers.authorization || '').replace('Bearer ', '').trim();
+    const cust = await _scGetCustomerByToken(token);
+    if (!cust) return res.status(401).json({ error: 'נדרשת התחברות' });
+    const { groupId } = req.body;
+    if (!groupId) return res.status(400).json({ error: 'חסר groupId' });
+    try {
+        // INSERT OR IGNORE + RETURN
+        await pool.query(
+            `INSERT INTO customer_chats (group_id, customer_id) VALUES ($1,$2) ON CONFLICT (group_id,customer_id) DO UPDATE SET last_message_at=EXCLUDED.last_message_at`,
+            [groupId, cust.id]
+        );
+        const r = await pool.query(
+            `SELECT * FROM customer_chats WHERE group_id=$1 AND customer_id=$2`, [groupId, cust.id]
+        );
+        res.json({ success: true, chat: r.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// שליפת הודעות — לקוח
+app.get('/api/public/customer-chat/:chatId/messages', async (req, res) => {
+    const token = (req.headers.authorization || '').replace('Bearer ', '').trim();
+    const cust = await _scGetCustomerByToken(token);
+    if (!cust) return res.status(401).json({ error: 'נדרשת התחברות' });
+    const { chatId } = req.params;
+    const since = req.query.since || null; // ISO timestamp for polling
+    try {
+        const chat = await pool.query(`SELECT * FROM customer_chats WHERE id=$1 AND customer_id=$2`, [chatId, cust.id]);
+        if (!chat.rows.length) return res.status(403).json({ error: 'אין גישה' });
+        const q = since
+            ? `SELECT * FROM customer_chat_messages WHERE chat_id=$1 AND created_at > $2 ORDER BY created_at ASC`
+            : `SELECT * FROM customer_chat_messages WHERE chat_id=$1 ORDER BY created_at ASC LIMIT 200`;
+        const params = since ? [chatId, since] : [chatId];
+        const msgs = await pool.query(q, params);
+        // סמן הודעות עסק כנקראו
+        await pool.query(`UPDATE customer_chat_messages SET read_at=NOW() WHERE chat_id=$1 AND sender_type='business' AND read_at IS NULL`, [chatId]);
+        res.json({ success: true, messages: msgs.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// שליחת הודעה — לקוח
+app.post('/api/public/customer-chat/:chatId/message', async (req, res) => {
+    const token = (req.headers.authorization || '').replace('Bearer ', '').trim();
+    const cust = await _scGetCustomerByToken(token);
+    if (!cust) return res.status(401).json({ error: 'נדרשת התחברות' });
+    const { chatId } = req.params;
+    const { body } = req.body;
+    if (!body || !body.trim()) return res.status(400).json({ error: 'הודעה ריקה' });
+    try {
+        const chat = await pool.query(`SELECT * FROM customer_chats WHERE id=$1 AND customer_id=$2`, [chatId, cust.id]);
+        if (!chat.rows.length) return res.status(403).json({ error: 'אין גישה' });
+        const r = await pool.query(
+            `INSERT INTO customer_chat_messages (chat_id, sender_type, sender_id, body) VALUES ($1,'customer',$2,$3) RETURNING *`,
+            [chatId, cust.id, body.trim()]
+        );
+        await pool.query(`UPDATE customer_chats SET last_message_at=NOW(), status='open' WHERE id=$1`, [chatId]);
+        res.json({ success: true, message: r.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// שליפת כל שיחות הלקוחות — צד עסק
+app.get('/api/biz/customer-chats', verifyBiz, async (req, res) => {
+    const groupId = req.bizAuth.groupId;
+    try {
+        const r = await pool.query(`
+            SELECT cc.*,
+                   sc.first_name, sc.last_name, sc.phone,
+                   (SELECT body FROM customer_chat_messages WHERE chat_id=cc.id ORDER BY created_at DESC LIMIT 1) as last_body,
+                   (SELECT created_at FROM customer_chat_messages WHERE chat_id=cc.id ORDER BY created_at DESC LIMIT 1) as last_msg_at,
+                   (SELECT COUNT(*) FROM customer_chat_messages WHERE chat_id=cc.id AND sender_type='customer' AND read_at IS NULL) as unread_count
+            FROM customer_chats cc
+            JOIN storefront_customers sc ON sc.id=cc.customer_id
+            WHERE cc.group_id=$1
+            ORDER BY cc.last_message_at DESC
+        `, [groupId]);
+        res.json({ success: true, chats: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// שליפת הודעות שיחה — צד עסק
+app.get('/api/biz/customer-chats/:chatId/messages', verifyBiz, async (req, res) => {
+    const groupId = req.bizAuth.groupId;
+    const { chatId } = req.params;
+    const since = req.query.since || null;
+    try {
+        const chat = await pool.query(`SELECT * FROM customer_chats WHERE id=$1 AND group_id=$2`, [chatId, groupId]);
+        if (!chat.rows.length) return res.status(403).json({ error: 'אין גישה' });
+        const q = since
+            ? `SELECT * FROM customer_chat_messages WHERE chat_id=$1 AND created_at > $2 ORDER BY created_at ASC`
+            : `SELECT * FROM customer_chat_messages WHERE chat_id=$1 ORDER BY created_at ASC LIMIT 200`;
+        const msgs = await pool.query(q, since ? [chatId, since] : [chatId]);
+        // סמן הודעות לקוח כנקראו
+        await pool.query(`UPDATE customer_chat_messages SET read_at=NOW() WHERE chat_id=$1 AND sender_type='customer' AND read_at IS NULL`, [chatId]);
+        res.json({ success: true, messages: msgs.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// תגובת עסק
+app.post('/api/biz/customer-chats/:chatId/message', verifyBiz, async (req, res) => {
+    const groupId = req.bizAuth.groupId;
+    const { chatId } = req.params;
+    const { body } = req.body;
+    if (!body || !body.trim()) return res.status(400).json({ error: 'הודעה ריקה' });
+    try {
+        const chat = await pool.query(`SELECT * FROM customer_chats WHERE id=$1 AND group_id=$2`, [chatId, groupId]);
+        if (!chat.rows.length) return res.status(403).json({ error: 'אין גישה' });
+        const r = await pool.query(
+            `INSERT INTO customer_chat_messages (chat_id, sender_type, sender_id, body) VALUES ($1,'business',$2,$3) RETURNING *`,
+            [chatId, req.bizAuth.userId, body.trim()]
+        );
+        await pool.query(`UPDATE customer_chats SET last_message_at=NOW() WHERE id=$1`, [chatId]);
+        res.json({ success: true, message: r.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// עדכון סטטוס שיחה (פתוח/סגור) — צד עסק
+app.patch('/api/biz/customer-chats/:chatId/status', verifyBiz, async (req, res) => {
+    const groupId = req.bizAuth.groupId;
+    const { chatId } = req.params;
+    const { status } = req.body;
+    if (!['open','closed'].includes(status)) return res.status(400).json({ error: 'סטטוס לא תקין' });
+    try {
+        const r = await pool.query(
+            `UPDATE customer_chats SET status=$1 WHERE id=$2 AND group_id=$3 RETURNING *`,
+            [status, chatId, groupId]
+        );
+        if (!r.rows.length) return res.status(403).json({ error: 'אין גישה' });
+        res.json({ success: true, chat: r.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
 
 // ─────────────────────────────────────────────────────────────
 app.listen(port, () => {

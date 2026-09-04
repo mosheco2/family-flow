@@ -5357,36 +5357,65 @@
                                     <i class="fa-solid fa-comments"></i>
                                 </div>
                                 <div>
-                                    <h3 class="font-black text-slate-800 text-base leading-tight">צ'אט צוות</h3>
-                                    <p class="text-[10px] text-slate-500 font-medium">שיחה פנים ארגונית</p>
+                                    <h3 id="team-chat-title" class="font-black text-slate-800 text-base leading-tight">צ'אט צוות</h3>
+                                    <p id="team-chat-subtitle" class="text-[10px] text-slate-500 font-medium">שיחה פנים ארגונית</p>
                                 </div>
                             </div>
                             <div class="flex gap-2">
-                                <button onclick="window.exportTeamChat()" class="w-8 h-8 flex items-center justify-center rounded-full bg-white text-indigo-600 hover:bg-indigo-50 transition shadow-sm border border-indigo-100" title="ייצוא ל-TXT"><i class="fa-solid fa-download"></i></button>
+                                <button id="team-chat-export-btn" onclick="window.exportTeamChat()" class="w-8 h-8 flex items-center justify-center rounded-full bg-white text-indigo-600 hover:bg-indigo-50 transition shadow-sm border border-indigo-100" title="ייצוא ל-TXT"><i class="fa-solid fa-download"></i></button>
                                 <button onclick="window.closeTeamChatModal()" class="w-8 h-8 flex items-center justify-center rounded-full bg-white text-slate-500 hover:bg-slate-200 transition shadow-sm border border-slate-200"><i class="fa-solid fa-xmark"></i></button>
                             </div>
                         </div>
-                        <div class="relative">
+                        <!-- טאבים: צוות / לקוחות -->
+                        <div class="flex gap-1 mb-2">
+                            <button id="chat-tab-team" onclick="window.switchChatTab('team')" class="flex-1 py-1.5 text-xs font-bold rounded-lg bg-indigo-600 text-white transition">👥 צוות</button>
+                            <button id="chat-tab-customers" onclick="window.switchChatTab('customers')" class="flex-1 py-1.5 text-xs font-bold rounded-lg bg-white text-indigo-600 border border-indigo-200 transition">
+                                💬 לקוחות <span id="cust-chat-unread-badge" class="hidden ml-1 bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full"></span>
+                            </button>
+                        </div>
+                        <div id="team-chat-search-wrap" class="relative">
                             <i class="fa-solid fa-search absolute right-3 top-1/2 -translate-y-1/2 text-indigo-300 text-xs"></i>
                             <input type="text" id="team-chat-search" oninput="window.renderTeamChat()" placeholder="חיפוש בשיחה..." class="w-full bg-white border border-indigo-100 rounded-xl py-1.5 pr-8 pl-3 text-xs outline-none focus:border-indigo-400 transition shadow-sm">
                         </div>
                     </div>
-                    
-                    <div class="bg-amber-50 border-b border-amber-100 p-1.5 text-center shrink-0">
+
+                    <div class="bg-amber-50 border-b border-amber-100 p-1.5 text-center shrink-0" id="team-chat-retention-note">
                         <p class="text-[9px] font-bold text-amber-700"><i class="fa-solid fa-clock-rotate-left mr-1"></i> לידיעתכם: נתונים נשמרים 3 חודשים אחורה בלבד.</p>
                     </div>
 
+                    <!-- פאנל צ'אט צוות -->
                     <div id="chat-messages-container" class="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50/50 modal-scroll flex flex-col">
                         <p class="text-xs text-slate-400 text-center py-4 mt-auto">טוען שיחה...</p>
                     </div>
                     
-                    <div class="p-3 bg-white border-t border-slate-100 shrink-0">
+                    <div id="team-chat-footer" class="p-3 bg-white border-t border-slate-100 shrink-0">
                         <form onsubmit="window.submitChatMessage(event)" class="flex items-center gap-2">
                             <input type="text" id="chat-message-input" class="modern-input flex-1 py-3 px-4 text-sm bg-slate-50 border border-slate-200 rounded-full focus:bg-white focus:border-indigo-400 transition outline-none" placeholder="הקלד הודעה לצוות..." autocomplete="off">
                             <button type="submit" id="btn-send-chat" class="w-12 h-12 bg-indigo-600 text-white rounded-full flex items-center justify-center shadow-md hover:bg-indigo-700 transition shrink-0">
                                 <i class="fa-solid fa-paper-plane text-sm -translate-x-0.5"></i>
                             </button>
                         </form>
+                    </div>
+
+                    <!-- פאנל לקוחות — רשימת שיחות -->
+                    <div id="cust-chat-list-panel" class="hidden flex-1 overflow-y-auto bg-white flex flex-col">
+                        <div id="cust-chat-list" class="divide-y divide-slate-100 flex-1"></div>
+                    </div>
+
+                    <!-- פאנל לקוחות — שיחה בודדת -->
+                    <div id="cust-chat-conv-panel" class="hidden flex-1 flex flex-col overflow-hidden">
+                        <div class="flex items-center gap-2 p-3 border-b border-slate-100 bg-white shrink-0">
+                            <button onclick="window.custChatBackToList()" class="text-indigo-500 text-sm font-bold">← חזרה</button>
+                            <span id="cust-chat-conv-name" class="font-bold text-slate-800 text-sm flex-1 text-right"></span>
+                            <button id="cust-chat-close-btn" onclick="window.custChatToggleStatus()" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-full px-3 py-1 font-bold transition">סגור שיחה</button>
+                        </div>
+                        <div id="cust-chat-messages" class="flex-1 overflow-y-auto p-3 bg-slate-50 flex flex-col gap-2"></div>
+                        <div id="cust-chat-reply-footer" class="p-3 bg-white border-t border-slate-100 shrink-0 flex gap-2">
+                            <input id="cust-chat-input" type="text" class="flex-1 border border-slate-200 rounded-full px-4 py-2 text-sm outline-none focus:border-indigo-400" placeholder="כתוב תשובה ללקוח..." autocomplete="off" onkeydown="if(event.key==='Enter')window.sendCustChatMsg()">
+                            <button onclick="window.sendCustChatMsg()" class="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center shrink-0">
+                                <i class="fa-solid fa-paper-plane text-xs -translate-x-0.5"></i>
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
