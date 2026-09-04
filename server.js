@@ -75,15 +75,12 @@ const smsService = {
             return { success: true, testMode: true };
         }
 
-        // החלף את זה בקוד האמיתי שלך:
-        // switch(process.env.SMS_SERVICE) {
-        //     case 'twilio':
-        //         return await sendViaTwilio(phone, message, code);
-        //     case 'mada':
-        //         return await sendViaMada(phone, message, code);
-        //     default:
-        //         console.log(`[SMS] Unknown SMS service: ${process.env.SMS_SERVICE}`);
-        // }
+        if (process.env.SMS_SERVICE === 'twilio') {
+            return await sendSMSviaTwilio(phone, message);
+        }
+
+        console.log(`[SMS] Unknown SMS_SERVICE: ${process.env.SMS_SERVICE}`);
+        return { success: false, error: 'ספק SMS לא מוכר' };
     }
 };
 
