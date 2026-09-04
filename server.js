@@ -24938,10 +24938,11 @@ app.post('/api/public/restaurants/:groupId/book-table', async (req, res) => {
             await pool.query('UPDATE temp_table_reservations SET sms_code=$1 WHERE id=$2', [finalCode, tempId]);
         }
 
-        // שליחת SMS דרך השירות
+        // שליחת SMS דרך Twilio (אותה שיטה כמו OTP כניסה לעסק)
         const dateFormatted = new Date(date).toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric', year: 'numeric' });
         const smsBody = `${bizName} — הזמנת שולחן ✅\nשם: ${name}\nתאריך: ${dateFormatted}\nשעה: ${time}\nסועדים: ${numGuests}\nקוד אישור: ${finalCode}\nנשלח דרך ONEFLOW LIFE`;
-        await smsService.send(phone, smsBody, finalCode);
+        const e164Phone = phone.startsWith('0') ? '+972' + phone.slice(1) : phone;
+        await sendSMSviaTwilio(e164Phone, smsBody);
 
         res.json({
             success: true,
@@ -25024,7 +25025,10 @@ app.post('/api/public/restaurants/:groupId/verify-table-sms', async (req, res) =
         // שליחת SMS אישור
         const dateStr = temp.reservation_date instanceof Date ? temp.reservation_date.toLocaleDateString('he-IL') : String(temp.reservation_date).slice(0,10);
         const timeStr = String(temp.reservation_time).slice(0,5);
-        try { await smsService.send(temp.customer_phone, `ההזמנה שלך אושרה! 🍽️ ${dateStr} בשעה ${timeStr}, ${temp.num_guests} סועדים. נתראה!`); } catch(e2) { console.log('[SMS table confirm]', e2.message); }
+        try {
+            const e164Confirm = temp.customer_phone.startsWith('0') ? '+972' + temp.customer_phone.slice(1) : temp.customer_phone;
+            await sendSMSviaTwilio(e164Confirm, `ההזמנה שלך אושרה! 🍽️ ${dateStr} בשעה ${timeStr}, ${temp.num_guests} סועדים. נתראה!`);
+        } catch(e2) { console.log('[SMS table confirm]', e2.message); }
 
         res.json({
             success: true,
