@@ -456,6 +456,20 @@ input,select,textarea{font-family:inherit}
           </div>
           <div id="flow-code-msg" style="display:none;font-size:12px;margin-top:6px"></div>
         </div>
+        <!-- Flow Widget — auto balance (URL param / session) -->
+        <div class="co-field" id="flow-redeem-section" style="display:none">
+          <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:14px;padding:12px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+              <span id="flow-redeem-balance-label" style="font-size:12px;font-weight:700;color:#92400e">⚡ Flw לממש</span>
+              <button type="button" onclick="window.clearFlowRedeem()" style="font-size:10px;color:#94a3b8;background:none;border:none;cursor:pointer">הסר</button>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center">
+              <input type="number" id="flow-redeem-input" style="flex:1;border:1px solid #fcd34d;border-radius:10px;padding:8px 12px;font-size:13px;font-weight:700;color:#92400e;text-align:center" min="0" step="1" value="0" oninput="window.onFlowRedeemInput()">
+              <span style="font-size:12px;color:#64748b;white-space:nowrap">= הנחה של <span id="flow-redeem-ils" style="font-weight:900;color:#16a34a">₪0</span></span>
+            </div>
+            <p id="flow-redeem-hint" style="font-size:10px;color:#d97706;margin-top:4px"></p>
+          </div>
+        </div>
         <button id="submit-btn" onclick="submitOrder()">שלח הזמנה</button>
       </div>
     </div>
@@ -730,7 +744,7 @@ async function initStore() {
     const res = await fetch(url);
     if (!res.ok) throw new Error('not found');
     storeData = await res.json();
-    groupId = storeData.groupId; window._scBizId = groupId;
+    groupId = storeData.groupId; window._scBizId = groupId; window.storeData = storeData; window.API = API;
     catalog = (storeData.catalog || []).filter(p => p.is_available !== false);
     applyAccent(storeData.settings?.accent_color || '#33502E');
     const ll=document.getElementById('lang-label'); if(ll) ll.textContent=isEn?'עברית':'English';
@@ -740,6 +754,7 @@ async function initStore() {
     document.getElementById('footer-year').textContent = new Date().getFullYear();
     renderAll();
     renderCommunityBanner(storeData);
+    if (window.btypeInit) window.btypeInit(storeData);
     document.getElementById('loading-screen').style.display = 'none';
     loadAsync();
   } catch(e) {
@@ -1057,7 +1072,7 @@ function renderQuickActions(s) {
   } else if (s.biz_address) {
     btns.push(`<a class="qa-btn" href="https://maps.google.com/?q=${encodeURIComponent(s.biz_address)}" target="_blank">📍 ${escHtml(s.biz_address)}</a>`);
   }
-  if (s.has_table_booking) btns.push(`<button class="qa-btn" onclick="openBooking('table')">🪑 ${t('הזמנת שולחן','Table booking')}</button>`);
+  if (s.enable_table_booking) btns.push(`<button class="qa-btn" onclick="openBooking('table')">🪑 ${t('הזמנת שולחן','Table booking')}</button>`);
   if (s.has_space_booking) btns.push(`<button class="qa-btn" onclick="openBooking('space')">🏛 ${t('הזמנת מקום','Venue booking')}</button>`);
   if (s.has_event_booking) btns.push(`<button class="qa-btn" onclick="openBooking('event')">🎉 ${t('הזמנת אירוע','Event booking')}</button>`);
   document.getElementById('quick-actions').innerHTML = btns.join('');
@@ -1866,6 +1881,21 @@ window.addEventListener('DOMContentLoaded', initStore);
     <div id="sc-activity-list" style="flex:1;overflow-y:auto;padding:12px 16px"></div>
   </div>
 </div>
+<!-- Store Popup Modal -->
+<div id="store-popup-modal" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,.7);z-index:200;align-items:center;justify-content:center;padding:20px" onclick="if(event.target===this)window.closeStorePopup()">
+  <div style="background:#fff;width:100%;max-width:380px;border-radius:24px;overflow:hidden;position:relative;animation:pop .3s ease">
+    <div id="store-popup-img-wrap" style="display:none;width:100%;height:160px;overflow:hidden"><img id="store-popup-img" src="" style="width:100%;height:100%;object-fit:cover"></div>
+    <div style="padding:24px">
+      <h3 id="store-popup-title" style="font-size:18px;font-weight:900;margin:0 0 12px"></h3>
+      <p id="store-popup-content" style="font-size:13px;color:#64748b;line-height:1.6;white-space:pre-wrap;margin:0 0 20px"></p>
+      <div style="display:flex;gap:12px">
+        <button onclick="window.closeStorePopup()" style="flex:1;background:#f1f5f9;color:#475569;padding:10px;border-radius:12px;font-weight:700;border:none;cursor:pointer;font-size:13px">סגור</button>
+        <a id="store-popup-btn" href="#" target="_blank" style="display:none;flex:1;background:var(--green,#22c55e);color:#fff;padding:10px;border-radius:12px;font-weight:700;text-align:center;text-decoration:none;font-size:13px"></a>
+      </div>
+    </div>
+  </div>
+</div>
+<script src="/storefront-btype.js"></script>
 <script src="/sc-auth.js"></script>
 <!-- ===== END STOREFRONT CUSTOMER AUTH ===== -->
 </body>

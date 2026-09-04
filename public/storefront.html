@@ -837,10 +837,11 @@
                 storeData.storeCode = storeCode;
                 let gId = data.groupId || (data.group && data.group.id) || (data.settings && data.settings.group_id);
                 if (!gId && data.catalog && data.catalog.length > 0) gId = data.catalog[0].group_id;
-                storeData.groupId = gId; window._scBizId = gId;
+                storeData.groupId = gId; window._scBizId = gId; window.storeData = storeData; window.API = API;
 
                 // סוג עסק — מהAPI (שדה camelCase)
                 const bizType = data.businessType || data.business_type || '';
+                window._scBizType = bizType || 'retail';
                 const isRestaurant = ['restaurant', 'cafe'].includes(bizType);
 
                 if (isRestaurant) {
@@ -4717,6 +4718,7 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
   </div>
 </div>
 
+<script src="/storefront-btype.js"></script>
 <script src="/sc-auth.js"></script>
 <!-- ===== END STOREFRONT CUSTOMER AUTH ===== -->
 </body>
