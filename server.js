@@ -24917,7 +24917,7 @@ app.post('/api/public/restaurants/:groupId/book-table', async (req, res) => {
 
         // שליחת SMS דרך השירות
         const dateFormatted = new Date(date).toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric', year: 'numeric' });
-        const smsBody = `${bizName} — הזמנת שולחן ✅\nשם: ${name}\nתאריך: ${dateFormatted}\nשעה: ${time}\nסועדים: ${numGuests}\nקוד אישור: ${finalCode}`;
+        const smsBody = `${bizName} — הזמנת שולחן ✅\nשם: ${name}\nתאריך: ${dateFormatted}\nשעה: ${time}\nסועדים: ${numGuests}\nקוד אישור: ${finalCode}\nנשלח דרך ONEFLOW LIFE`;
         await smsService.send(phone, smsBody, finalCode);
 
         res.json({
