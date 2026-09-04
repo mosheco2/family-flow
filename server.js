@@ -24914,7 +24914,9 @@ app.post('/api/public/restaurants/:groupId/book-table', async (req, res) => {
         }
 
         // שליחת SMS דרך השירות
-        await smsService.send(phone, `קוד האישור שלך: ${finalCode}`, finalCode);
+        const dateFormatted = new Date(date).toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric', year: 'numeric' });
+        const smsBody = `הזמנת שולחן התקבלה ✅\nתאריך: ${dateFormatted}\nשעה: ${time}\nסועדים: ${numGuests}\nקוד אישור: ${finalCode}`;
+        await smsService.send(phone, smsBody, finalCode);
 
         res.json({
             success: true,
