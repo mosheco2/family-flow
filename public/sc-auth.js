@@ -411,8 +411,8 @@ const scAuth = window.scAuth = {
             var otherBookings = bookings.filter(function(b) { return b.call_type !== 'table_reservation'; });
 
             if (_bizType === 'restaurant' || _bizType === 'cafe') {
-                var tableStatusColors = { approved:'#10b981', pending:'#f59e0b', cancelled:'#ef4444' };
-                var tableStatusLabels = { approved:'אושרה ✅', pending:'ממתין לאישור', cancelled:'בוטלה' };
+                var tableStatusColors = { approved:'#10b981', pending:'#f59e0b', cancelled:'#ef4444', cancelled_by_customer:'#94a3b8' };
+                var tableStatusLabels = { approved:'אושרה ✅', pending:'ממתין לאישור', cancelled:'בוטלה', cancelled_by_customer:'בוטלה על ידך' };
                 html += `<div style="font-size:11px;font-weight:700;color:#94a3b8;padding:8px 0 6px;text-align:right;display:flex;justify-content:space-between;align-items:center"><span>🍽️ הזמנות שולחן</span>${tableReservations.length?'<span style="font-weight:400">'+tableReservations.length+' הזמנות</span>':''}</div>`;
                 if (!tableReservations.length) {
                     html += `<div style="background:#f8fafc;border-radius:12px;padding:14px;margin-bottom:10px;text-align:right;color:#94a3b8;font-size:13px">אין הזמנות שולחן. <span data-restaurant-action="table" style="color:#f97316;font-weight:700;cursor:pointer">הזמן שולחן →</span></div>`;

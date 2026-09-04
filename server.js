@@ -24543,7 +24543,7 @@ app.delete('/api/public/restaurants/:groupId/reservation/:eventId', async (req, 
                     COALESCE(cs.cancellation_hours, 0) AS cancellation_hours
              FROM calendar_events ce
              LEFT JOIN calendar_settings cs ON cs.group_id = ce.group_id
-             WHERE ce.id=$1 AND ce.group_id=$2 AND ce.call_type='table_reservation' AND ce.status!='cancelled'`,
+             WHERE ce.id=$1 AND ce.group_id=$2 AND ce.call_type='table_reservation' AND ce.status NOT IN ('cancelled','cancelled_by_customer')`,
             [eventId, groupId]
         );
         if (!r.rows.length) return res.status(404).json({ error: 'הזמנה לא נמצאה' });
@@ -24562,7 +24562,7 @@ app.delete('/api/public/restaurants/:groupId/reservation/:eventId', async (req, 
             }
         }
 
-        await pool.query(`UPDATE calendar_events SET status='cancelled' WHERE id=$1`, [eventId]);
+        await pool.query(`UPDATE calendar_events SET status='cancelled_by_customer' WHERE id=$1`, [eventId]);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
