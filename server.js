@@ -10240,6 +10240,27 @@ Reply with ONLY the English term, nothing else.`;
         if (!searchQuery) searchQuery = category ? category.replace(/[^a-zA-Z0-9 ]/g, '').trim() : 'product';
         const q = encodeURIComponent(searchQuery);
 
+        // helper: fetch external image and upload to Cloudinary for permanent URL
+        const uploadToCloudinaryFromUrl = async (extUrl) => {
+            try {
+                const cfgR = await pool.query(`SELECT key, value FROM system_settings WHERE key IN ('cloudinary_cloud_name','cloudinary_upload_preset')`);
+                const cfgMap = {};
+                cfgR.rows.forEach(r => { cfgMap[r.key] = r.value; });
+                const cloudName = cfgMap['cloudinary_cloud_name'];
+                const uploadPreset = cfgMap['cloudinary_upload_preset'];
+                if (!cloudName || !uploadPreset) return null;
+                const imgResp = await fetch(extUrl);
+                if (!imgResp.ok) return null;
+                const imgBuf = await imgResp.arrayBuffer();
+                const base64 = Buffer.from(imgBuf).toString('base64');
+                const mimeType = imgResp.headers.get('content-type') || 'image/jpeg';
+                const body = new URLSearchParams({ file: `data:${mimeType};base64,${base64}`, upload_preset: uploadPreset });
+                const uploadRes = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, { method: 'POST', body });
+                const uploadData = await uploadRes.json();
+                return uploadData.secure_url || null;
+            } catch(e) { return null; }
+        };
+
         // 1) Pixabay — free stock photos, no attribution required, real product images
         const pixabayKey = process.env.PIXABAY_API_KEY;
         if (pixabayKey) {
@@ -10259,7 +10280,10 @@ Reply with ONLY the English term, nothing else.`;
                     // Pick from top 3 to get variety on retry, but stay relevant
                     const topN = Math.min(hits.length, pbPage > 1 ? hits.length : 3);
                     const pick = hits[Math.floor(Math.random() * topN)];
-                    return res.json({ success: true, imageUrl: pick.webformatURL, url: pick.webformatURL, source: 'pixabay' });
+                    const extUrl = pick.webformatURL;
+                    const permanentUrl = await uploadToCloudinaryFromUrl(extUrl);
+                    const finalUrl = permanentUrl || extUrl;
+                    return res.json({ success: true, imageUrl: finalUrl, url: finalUrl, source: permanentUrl ? 'cloudinary' : 'pixabay' });
                 }
             } catch(e) { console.warn('Pixabay fallback:', e.message); }
         }
@@ -10275,8 +10299,10 @@ Reply with ONLY the English term, nothing else.`;
                 const photos = (pxData.photos || []);
                 if (photos.length > 0) {
                     const pick = photos[Math.floor(Math.random() * photos.length)];
-                    const imgUrl = pick.src.medium || pick.src.original;
-                    return res.json({ success: true, imageUrl: imgUrl, url: imgUrl, source: 'pexels' });
+                    const extUrl = pick.src.medium || pick.src.original;
+                    const permanentUrl = await uploadToCloudinaryFromUrl(extUrl);
+                    const finalUrl = permanentUrl || extUrl;
+                    return res.json({ success: true, imageUrl: finalUrl, url: finalUrl, source: permanentUrl ? 'cloudinary' : 'pexels' });
                 }
             } catch(e) { console.warn('Pexels fallback:', e.message); }
         }
