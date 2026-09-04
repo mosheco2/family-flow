@@ -839,7 +839,8 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
 
       // טבלאות מערכת היומן והתורים
       try { 
-          await client.query(`CREATE TABLE IF NOT EXISTS calendar_settings (group_id INT PRIMARY KEY REFERENCES family_groups(id) ON DELETE CASCADE, is_active BOOLEAN DEFAULT FALSE, open_time VARCHAR(10) DEFAULT '09:00', close_time VARCHAR(10) DEFAULT '18:00', interval_mins INT DEFAULT 30, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); 
+          await client.query(`CREATE TABLE IF NOT EXISTS calendar_settings (group_id INT PRIMARY KEY REFERENCES family_groups(id) ON DELETE CASCADE, is_active BOOLEAN DEFAULT FALSE, open_time VARCHAR(10) DEFAULT '09:00', close_time VARCHAR(10) DEFAULT '18:00', interval_mins INT DEFAULT 30, cancellation_hours INT DEFAULT 0, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
+          try { await client.query(`ALTER TABLE calendar_settings ADD COLUMN IF NOT EXISTS cancellation_hours INT DEFAULT 0`); } catch(e) {} 
       } catch(e) {}
       
       try { 
@@ -16576,12 +16577,12 @@ app.get('/api/calendar/:groupId', async (req, res) => {
 // שמירת הגדרות יומן
 app.post('/api/calendar/settings', async (req, res) => {
     try {
-        const { groupId, isActive, openTime, closeTime, intervalMins } = req.body;
+        const { groupId, isActive, openTime, closeTime, intervalMins, cancellationHours } = req.body;
         await pool.query(`
-            INSERT INTO calendar_settings (group_id, is_active, open_time, close_time, interval_mins) 
-            VALUES ($1, $2, $3, $4, $5) 
-            ON CONFLICT (group_id) DO UPDATE SET is_active=$2, open_time=$3, close_time=$4, interval_mins=$5, updated_at=CURRENT_TIMESTAMP
-        `, [groupId, isActive, openTime || '09:00', closeTime || '18:00', parseInt(intervalMins) || 30]);
+            INSERT INTO calendar_settings (group_id, is_active, open_time, close_time, interval_mins, cancellation_hours)
+            VALUES ($1, $2, $3, $4, $5, $6)
+            ON CONFLICT (group_id) DO UPDATE SET is_active=$2, open_time=$3, close_time=$4, interval_mins=$5, cancellation_hours=$6, updated_at=CURRENT_TIMESTAMP
+        `, [groupId, isActive, openTime || '09:00', closeTime || '18:00', parseInt(intervalMins) || 30, parseInt(cancellationHours) || 0]);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -24538,12 +24539,29 @@ app.delete('/api/public/restaurants/:groupId/reservation/:eventId', async (req, 
     const { phone } = req.body;
     try {
         const r = await pool.query(
-            `SELECT id, customer_phone, event_date FROM calendar_events WHERE id=$1 AND group_id=$2 AND call_type='table_reservation' AND status!='cancelled'`,
+            `SELECT ce.id, ce.customer_phone, ce.event_date, ce.start_time,
+                    COALESCE(cs.cancellation_hours, 0) AS cancellation_hours
+             FROM calendar_events ce
+             LEFT JOIN calendar_settings cs ON cs.group_id = ce.group_id
+             WHERE ce.id=$1 AND ce.group_id=$2 AND ce.call_type='table_reservation' AND ce.status!='cancelled'`,
             [eventId, groupId]
         );
         if (!r.rows.length) return res.status(404).json({ error: 'הזמנה לא נמצאה' });
         const ev = r.rows[0];
         if (phone && ev.customer_phone !== phone) return res.status(403).json({ error: 'אין הרשאה' });
+
+        // בדיקת חלון ביטול
+        const cancelWindow = parseInt(ev.cancellation_hours) || 0;
+        if (cancelWindow > 0) {
+            const dateStr = String(ev.event_date).split('T')[0];
+            const timeStr = String(ev.start_time).slice(0, 5);
+            const reservationDt = new Date(`${dateStr}T${timeStr}:00`);
+            const hoursUntil = (reservationDt - new Date()) / 3600000;
+            if (hoursUntil < cancelWindow) {
+                return res.status(400).json({ error: `לא ניתן לבטל פחות מ-${cancelWindow} שעות לפני מועד ההזמנה`, cancelWindowHours: cancelWindow });
+            }
+        }
+
         await pool.query(`UPDATE calendar_events SET status='cancelled' WHERE id=$1`, [eventId]);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }

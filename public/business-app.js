@@ -5712,7 +5712,8 @@ window.renderPendingTableReservations = function() {
             return `<div class="flex items-center gap-3 px-4 py-3">
                 <div class="flex-1 min-w-0">
                     <div class="text-xs font-black text-slate-800 truncate">${safeStr(e.title||'הזמנת שולחן')}</div>
-                    <div class="text-[10px] text-slate-500">${dateStr}${e.num_guests ? ` · ${e.num_guests} סועדים` : ''}</div>
+                    <div class="text-[10px] font-bold text-blue-700">📅 ${dateStr}</div>
+                    ${e.num_guests ? `<div class="text-[10px] text-slate-500">👥 ${e.num_guests} סועדים</div>` : ''}
                     ${e.customer_phone ? `<div class="text-[10px] text-slate-400">📞 ${safeStr(e.customer_phone)}</div>` : ''}
                     ${e.notes ? `<div class="text-[10px] text-indigo-600 truncate">💬 ${safeStr(e.notes)}</div>` : ''}
                 </div>
@@ -24073,6 +24074,7 @@ window.fetchCalendarData = async function() {
                 getEl('cal-setting-open').value = calSettingsCache.open_time || '09:00';
                 getEl('cal-setting-close').value = calSettingsCache.close_time || '18:00';
                 getEl('cal-setting-interval').value = calSettingsCache.interval_mins || 30;
+                if (getEl('cal-setting-cancel-hours')) getEl('cal-setting-cancel-hours').value = calSettingsCache.cancellation_hours || 0;
             }
             if(!storeQuotesCache || storeQuotesCache.length === 0) {
                 try { await fetchStoreQuotes(); } catch(e){}
@@ -24967,7 +24969,8 @@ window.saveCalendarSettings = async function() {
             isActive: true,
             openTime: val('cal-setting-open'),
             closeTime: val('cal-setting-close'),
-            intervalMins: val('cal-setting-interval')
+            intervalMins: val('cal-setting-interval'),
+            cancellationHours: val('cal-setting-cancel-hours') || 0
         };
         const res = await fetch(`${API}/calendar/settings`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
         if((await res.json()).success) { showToast('success', 'הגדרות היומן עודכנו!'); }
