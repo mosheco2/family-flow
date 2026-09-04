@@ -24887,7 +24887,9 @@ app.post('/api/public/restaurants/:groupId/book-table', async (req, res) => {
             [groupId, date]
         );
 
-        if (parseInt(check.rows[0].cnt) >= parseInt((await pool.query('SELECT table_count FROM family_groups WHERE id=$1', [groupId])).rows[0].table_count || 8)) {
+        const groupRes = await pool.query('SELECT table_count, name FROM family_groups WHERE id=$1', [groupId]);
+        const bizName = groupRes.rows[0]?.name || '';
+        if (parseInt(check.rows[0].cnt) >= parseInt(groupRes.rows[0]?.table_count || 8)) {
             return res.status(400).json({ success: false, error: 'אין זמינות בשעה זו' });
         }
 
@@ -24915,7 +24917,7 @@ app.post('/api/public/restaurants/:groupId/book-table', async (req, res) => {
 
         // שליחת SMS דרך השירות
         const dateFormatted = new Date(date).toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric', year: 'numeric' });
-        const smsBody = `הזמנת שולחן התקבלה ✅\nתאריך: ${dateFormatted}\nשעה: ${time}\nסועדים: ${numGuests}\nקוד אישור: ${finalCode}`;
+        const smsBody = `${bizName} — הזמנת שולחן ✅\nשם: ${name}\nתאריך: ${dateFormatted}\nשעה: ${time}\nסועדים: ${numGuests}\nקוד אישור: ${finalCode}`;
         await smsService.send(phone, smsBody, finalCode);
 
         res.json({
