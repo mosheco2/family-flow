@@ -16727,6 +16727,17 @@ app.put('/api/calendar/events/:id/status', async (req, res) => {
                 if (assignedTable) {
                     await pool.query('UPDATE calendar_events SET reserved_table_number=$1 WHERE id=$2', [assignedTable, req.params.id]);
                 }
+                // שליחת SMS ללקוח לאחר אישור העסק
+                if (evt.customer_phone) {
+                    try {
+                        const bizNameR = await pool.query('SELECT name FROM family_groups WHERE id=$1', [evt.group_id]);
+                        const bizNameApprove = bizNameR.rows[0]?.name || 'בית העסק';
+                        const dayHeApprove = new Date(dateStr + 'T12:00:00').toLocaleDateString('he-IL', { weekday:'long', day:'numeric', month:'long' });
+                        const tableNoteApprove = assignedTable ? `\nשולחן: ${assignedTable}` : '';
+                        const e164Approve = evt.customer_phone.startsWith('0') ? '+972' + evt.customer_phone.slice(1) : evt.customer_phone;
+                        await sendSMSviaTwilio(e164Approve, `${bizNameApprove} — הזמנת שולחן אושרה! 🎉\nתאריך: ${dayHeApprove}\nשעה: ${timeStr}\nסועדים: ${guests}${tableNoteApprove}\nנתראה! 🍽️\nONEFLOW LIFE`);
+                    } catch(eSms) { console.log('[SMS table approve]', eSms.message); }
+                }
                 if (evt.customer_group_id) {
                     const dayHe = new Date(dateStr + 'T12:00:00').toLocaleDateString('he-IL', { weekday:'long', day:'numeric', month:'long' });
                     const tableNote = assignedTable ? `\nשולחן: ${assignedTable}` : '';
@@ -24997,11 +25008,11 @@ app.post('/api/public/restaurants/:groupId/verify-table-sms', async (req, res) =
             if (scCust.rows.length && scCust.rows[0].family_group_id) custGroupId = scCust.rows[0].family_group_id;
         } catch(e2) {}
 
-        // מצא שולחן פנוי והוסף הזמנה כחוקית
+        // שמור הזמנה בסטטוס pending — ממתינה לאישור בית העסק
         const eventRes = await pool.query(
             `INSERT INTO calendar_events
              (group_id, title, customer_phone, customer_name, notes, event_date, start_time, status, num_guests, call_type, customer_group_id)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, 'approved', $8, 'table_reservation', $9)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending', $8, 'table_reservation', $9)
              RETURNING id`,
             [
                 groupId,
@@ -25022,18 +25033,11 @@ app.post('/api/public/restaurants/:groupId/verify-table-sms', async (req, res) =
             [tempId]
         );
 
-        // שליחת SMS אישור
-        const dateStr = temp.reservation_date instanceof Date ? temp.reservation_date.toLocaleDateString('he-IL') : String(temp.reservation_date).slice(0,10);
-        const timeStr = String(temp.reservation_time).slice(0,5);
-        try {
-            const e164Confirm = temp.customer_phone.startsWith('0') ? '+972' + temp.customer_phone.slice(1) : temp.customer_phone;
-            await sendSMSviaTwilio(e164Confirm, `ההזמנה שלך אושרה! 🍽️ ${dateStr} בשעה ${timeStr}, ${temp.num_guests} סועדים. נתראה!`);
-        } catch(e2) { console.log('[SMS table confirm]', e2.message); }
-
+        // לא שולחים SMS כאן — ישלח רק אחרי אישור העסק
         res.json({
             success: true,
             eventId: eventRes.rows[0].id,
-            message: 'ההזמנה אושרה בהצלחה!'
+            message: 'ההזמנה התקבלה וממתינה לאישור בית העסק. לאחר האישור תקבל הודעה בהתאם.'
         });
     } catch(e) {
         console.error('Error verifying SMS:', e);
