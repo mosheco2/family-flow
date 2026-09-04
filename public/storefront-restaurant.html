@@ -1267,6 +1267,16 @@ function renderQuickActions(data, s) {
     </a>`);
   }
 
+  // Sport buttons — shown only when the business is of type sport/gym
+  var bt = window._scBizType || '';
+  if (bt === 'sport' || bt === 'gym') {
+    var sp = (storeData && storeData.settings && storeData.settings.sport_settings) || {};
+    var spObj = typeof sp === 'string' ? JSON.parse(sp) : sp;
+    if (spObj.public_show_schedule !== false) btns.push(`<button class="qa-btn" onclick="window.openScheduleModal && window.openScheduleModal()">📋 לוח שיעורים</button>`);
+    if (spObj.public_show_membership !== false) btns.push(`<button class="qa-btn" onclick="window.openMembershipModal && window.openMembershipModal()">🏋️ הצטרף כחבר</button>`);
+    if (spObj.public_show_trainer !== false) btns.push(`<button class="qa-btn" onclick="window.openTrainerBooking && window.openTrainerBooking()">📅 הזמן אימון אישי</button>`);
+  }
+
   qa.innerHTML = btns.join('');
   qa.style.display = btns.length ? '' : 'none';
 }

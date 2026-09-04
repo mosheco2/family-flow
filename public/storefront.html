@@ -155,6 +155,21 @@
     
     <div class="p-4 bg-slate-50 min-h-[50vh]" id="catalog-container"></div>
 
+    <!-- Quick actions (sport buttons injected here) -->
+    <div id="quick-actions" style="display:none;flex-wrap:wrap;gap:8px;padding:12px 16px;background:#fff;border-top:1px solid #e2e8f0"></div>
+
+    <!-- Deals section -->
+    <div id="deals-section" style="display:none;padding:16px;background:#fff;border-top:1px solid #e2e8f0">
+      <h2 style="font-size:15px;font-weight:800;color:#1e293b;margin:0 0 12px;text-align:right">🔥 מבצעים חמים</h2>
+      <div id="deals-grid" style="display:flex;flex-wrap:wrap;gap:10px"></div>
+    </div>
+
+    <!-- Reviews section -->
+    <div id="reviews-section" style="display:none;padding:16px;background:#f8fafc;border-top:1px solid #e2e8f0">
+      <h2 style="font-size:15px;font-weight:800;color:#1e293b;margin:0 0 12px;text-align:right">⭐ ביקורות לקוחות</h2>
+      <div id="reviews-grid" style="display:flex;flex-direction:column;gap:10px"></div>
+    </div>
+
     <div id="cart-footer" class="fixed bottom-0 sm:bottom-4 left-0 right-0 sm:left-1/2 sm:transform sm:-translate-x-1/2 sm:max-w-xl bg-white border-t border-slate-200 p-4 sm:rounded-2xl shadow-[0_-10px_40px_rgba(0,0,0,0.08)] z-40 flex justify-between items-center hidden slide-up">
         <div>
             <p class="text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-0.5">סה"כ לסל</p>
@@ -985,6 +1000,8 @@
                     window.renderCatalog();
                     loadStorePopups();
                     getEl('store-app').classList.remove('hidden');
+                    // Async: deals, reviews, gallery, sport quick-actions
+                    _loadStoreExtras(storeData.groupId, data);
                 }
 
                 getEl('loading-screen').classList.add('hidden');
@@ -1002,6 +1019,83 @@
             }
         }
         
+// ==========================================
+        // --- Deals / Reviews / Sport quick-actions ---
+        // ==========================================
+        function _sfEscHtml(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+        function renderDeals(promos) {
+            const themes = ['dark','accent','light'];
+            const cards = promos.slice(0,3).map((p,i) => {
+                const c = themes[i % themes.length];
+                let disc = p.promo_type==='discount_pct'?`${p.promo_value}% הנחה`:p.promo_type==='discount_fixed'?`₪${p.promo_value} הנחה`:p.promo_type==='bogo'?'קנה 1 קבל 1':'מבצע';
+                const code = p.promo_code ? `<button style="margin-top:6px;padding:5px 12px;border:1px solid rgba(255,255,255,.4);border-radius:8px;background:transparent;color:inherit;font-size:11px;cursor:pointer" onclick="window.applyPromoCode && window.applyPromoCode('${_sfEscHtml(p.promo_code)}')">קוד: ${_sfEscHtml(p.promo_code)}</button>` : '';
+                return `<div style="flex:1;min-width:160px;max-width:260px;border-radius:14px;padding:14px;background:${c==='accent'?'var(--accent, #e63946)':c==='dark'?'#1e293b':'#f8fafc'};color:${c==='light'?'#1e293b':'#fff'}">
+                  <div style="font-size:11px;font-weight:700;opacity:.7;margin-bottom:4px">מבצע</div>
+                  <div style="font-size:15px;font-weight:800;margin-bottom:2px">${disc}</div>
+                  <div style="font-size:12px;opacity:.8">${_sfEscHtml(p.promo_name||p.title||'')}</div>
+                  ${code}
+                </div>`;
+            }).join('');
+            const grid = getEl('deals-grid');
+            if (grid) grid.innerHTML = cards;
+            const sec = getEl('deals-section');
+            if (sec) sec.style.display = '';
+        }
+
+        function renderReviews(reviews) {
+            const sec = getEl('reviews-section');
+            const grid = getEl('reviews-grid');
+            if (!sec || !grid) return;
+            const items = Array.isArray(reviews) ? reviews : (reviews.reviews || []);
+            if (!items.length) return;
+            grid.innerHTML = items.map(r => {
+                const stars = '★'.repeat(r.rating||r.customer_rating||5) + '☆'.repeat(5-(r.rating||r.customer_rating||5));
+                const name = r.reviewer_name||r.display_name||r.name||'לקוח';
+                const text = r.review_text||r.customer_rating_notes||r.text||'';
+                const initials = name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+                return `<div style="background:#fff;border-radius:12px;padding:14px 16px;border:1px solid #e2e8f0;text-align:right">
+                  <div style="color:#f59e0b;font-size:13px;margin-bottom:6px">${stars}</div>
+                  <p style="font-size:13px;color:#374151;margin:0 0 10px;line-height:1.5">${_sfEscHtml(text)}</p>
+                  <div style="display:flex;align-items:center;gap:8px;justify-content:flex-end">
+                    <div><div style="font-size:12px;font-weight:700;color:#1e293b">${_sfEscHtml(name)}</div></div>
+                    <div style="width:28px;height:28px;border-radius:50%;background:#6366f1;color:#fff;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center">${_sfEscHtml(initials)}</div>
+                  </div>
+                </div>`;
+            }).join('');
+            sec.style.display = '';
+        }
+
+        function renderQuickActionsSport(bizType) {
+            const qa = getEl('quick-actions');
+            if (!qa) return;
+            if (bizType !== 'sport' && bizType !== 'gym') return;
+            const sp = (storeData && storeData.settings && storeData.settings.sport_settings) || {};
+            const spObj = typeof sp === 'string' ? JSON.parse(sp) : sp;
+            const btns = [];
+            if (spObj.public_show_schedule !== false) btns.push(`<button onclick="window.openScheduleModal && window.openScheduleModal()" style="padding:8px 16px;border:1px solid #e2e8f0;border-radius:99px;background:#fff;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px">📋 לוח שיעורים</button>`);
+            if (spObj.public_show_membership !== false) btns.push(`<button onclick="window.openMembershipModal && window.openMembershipModal()" style="padding:8px 16px;border:1px solid #e2e8f0;border-radius:99px;background:#fff;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px">🏋️ הצטרף כחבר</button>`);
+            if (spObj.public_show_trainer !== false) btns.push(`<button onclick="window.openTrainerBooking && window.openTrainerBooking()" style="padding:8px 16px;border:1px solid #e2e8f0;border-radius:99px;background:#fff;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px">📅 הזמן אימון אישי</button>`);
+            if (btns.length) { qa.innerHTML = btns.join(''); qa.style.display = 'flex'; }
+        }
+
+        async function _loadStoreExtras(groupId, data) {
+            const bizType = (data && (data.businessType || data.business_type)) || '';
+            // Sport quick-actions
+            renderQuickActionsSport(bizType);
+            // Reviews
+            try {
+                const r = await fetch(`${API}/public/reviews/${groupId}`);
+                const d = await r.json();
+                if (d.success && d.reviews && d.reviews.length) renderReviews(d.reviews);
+            } catch(e) {}
+            // Deals (banner promos not in catalog tabs)
+            if (storeData.promotions) {
+                const banner = storeData.promotions.filter(p => isTrue(p.show_in_banner));
+                if (banner.length) renderDeals(banner);
+            }
+        }
+
 // ==========================================
         // --- אתר תדמית מקצועי ---
         // ==========================================

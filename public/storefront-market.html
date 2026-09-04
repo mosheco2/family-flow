@@ -1098,6 +1098,15 @@ function renderQuickActions(s) {
   if (s.enable_table_booking) btns.push(`<button class="qa-btn" onclick="openBooking('table')">🪑 ${t('הזמנת שולחן','Table booking')}</button>`);
   if (s.has_space_booking) btns.push(`<button class="qa-btn" onclick="openBooking('space')">🏛 ${t('הזמנת מקום','Venue booking')}</button>`);
   if (s.has_event_booking) btns.push(`<button class="qa-btn" onclick="openBooking('event')">🎉 ${t('הזמנת אירוע','Event booking')}</button>`);
+  // Sport buttons — when bizType === sport/gym
+  var bt = window._scBizType || '';
+  if (bt === 'sport' || bt === 'gym') {
+    var sp = (storeData && storeData.settings && storeData.settings.sport_settings) || {};
+    var spObj = typeof sp === 'string' ? JSON.parse(sp) : sp;
+    if (spObj.public_show_schedule !== false) btns.push(`<button class="qa-btn" onclick="window.openScheduleModal && window.openScheduleModal()">📋 לוח שיעורים</button>`);
+    if (spObj.public_show_membership !== false) btns.push(`<button class="qa-btn" onclick="window.openMembershipModal && window.openMembershipModal()">🏋️ הצטרף כחבר</button>`);
+    if (spObj.public_show_trainer !== false) btns.push(`<button class="qa-btn" onclick="window.openTrainerBooking && window.openTrainerBooking()">📅 הזמן אימון אישי</button>`);
+  }
   document.getElementById('quick-actions').innerHTML = btns.join('');
   document.getElementById('quick-actions').style.display = btns.length ? 'flex' : 'none';
 }
