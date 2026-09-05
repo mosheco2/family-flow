@@ -137,6 +137,14 @@
 
   async function _doOpenChatSession() {
     var gid = _groupId();
+    // אם storeData עדיין לא נטען — מחכים עד 3 שניות
+    if (!gid) {
+      for (var i = 0; i < 6; i++) {
+        await new Promise(function(r){ setTimeout(r, 500); });
+        gid = _groupId();
+        if (gid) break;
+      }
+    }
     if (!gid) return;
     try {
       var r = await fetch('/api/public/customer-chat/open', {

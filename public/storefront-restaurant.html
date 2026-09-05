@@ -985,7 +985,7 @@ async function initStore() {
     const r = await fetch(url);
     const data = await r.json();
     if (!data.success) { showError(data.error || 'חנות לא נמצאה'); return; }
-    storeData = data; window.storeData = data; window.API = API; window._scBizId = data.groupId;
+    storeData = data; window.storeData = data; window.API = API; window._scBizId = data.groupId; window._scGroupId = data.groupId;
     catalog = data.catalog || [];
     document.getElementById('page-title').textContent = data.groupName || 'חנות';
     applyAccent(data.settings?.accent_color || '#e63946');

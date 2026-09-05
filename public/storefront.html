@@ -852,7 +852,7 @@
                 storeData.storeCode = storeCode;
                 let gId = data.groupId || (data.group && data.group.id) || (data.settings && data.settings.group_id);
                 if (!gId && data.catalog && data.catalog.length > 0) gId = data.catalog[0].group_id;
-                storeData.groupId = gId; window._scBizId = gId; window.storeData = storeData; window.API = API;
+                storeData.groupId = gId; window._scBizId = gId; window._scGroupId = gId; window.storeData = storeData; window.API = API;
 
                 // סוג עסק — מהAPI (שדה camelCase)
                 const bizType = data.businessType || data.business_type || '';

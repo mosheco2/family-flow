@@ -767,7 +767,7 @@ async function initStore() {
     const res = await fetch(url);
     if (!res.ok) throw new Error('not found');
     storeData = await res.json();
-    groupId = storeData.groupId; window._scBizId = groupId; window.storeData = storeData; window.API = API;
+    groupId = storeData.groupId; window._scBizId = groupId; window._scGroupId = groupId; window.storeData = storeData; window.API = API;
     catalog = (storeData.catalog || []).filter(p => p.is_available !== false);
     applyAccent(storeData.settings?.accent_color || '#33502E');
     const ll=document.getElementById('lang-label'); if(ll) ll.textContent=isEn?'עברית':'English';
