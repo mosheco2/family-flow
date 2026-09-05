@@ -620,6 +620,7 @@ window.switchViewTab = function(viewId, tabId) {
     if (viewId === 'finance' && tabId === 'adsbilling') { try { loadBillingOverview(); } catch(e) {} }
     if (viewId === 'system' && tabId === 'auditlog') { try { loadAuditLog(); } catch(e) {} }
     if (viewId === 'system' && tabId === 'archive')   { try { loadArchive();  } catch(e) {} }
+    if (viewId === 'clients' && tabId === 'environments') { try { if (saAllGroups.length > 0) renderSAGroups(); } catch(e) {} }
 };
 
 // ===== SA Storefront Customers =====
