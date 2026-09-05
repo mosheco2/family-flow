@@ -55905,8 +55905,6 @@ window._sportApptSave = async function() {
 
   // ── טעינת רשימת שיחות ──────────────────────────────────────
   window.loadCustChatList = async function() {
-    var gid = _gid();
-    if (!gid) return;
     var list = document.getElementById('cust-chat-list');
     if (!list) return;
     list.innerHTML = '<p class="text-xs text-slate-400 text-center py-8">טוען...</p>';
