@@ -34807,6 +34807,9 @@ app.post('/api/public/customer-chat/:chatId/message', async (req, res) => {
 app.get('/api/biz/customer-chats', verifyBiz, async (req, res) => {
     const groupId = req.bizAuth.groupId;
     try {
+        // DEBUG: בדוק כמה רשומות יש בכלל ב-customer_chats
+        const debugAll = await pool.query(`SELECT id, group_id, customer_id FROM customer_chats LIMIT 20`);
+        console.log('[DEBUG customer-chats] bizAuth.groupId=', groupId, 'all rows:', JSON.stringify(debugAll.rows));
         const r = await pool.query(`
             SELECT cc.*,
                    sc.first_name, sc.last_name, sc.phone,
