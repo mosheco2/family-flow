@@ -6224,6 +6224,16 @@ app.post('/api/biz/register', async (req, res) => {
     }
 });
 
+// תיקון member_type לעסק — SA בלבד
+app.post('/api/superadmin/fix-group-type', async (req, res) => {
+    const { groupId } = req.body;
+    if (!groupId) return res.status(400).json({ error: 'חסר groupId' });
+    try {
+        await pool.query(`UPDATE family_groups SET member_type='biz', type='BUSINESS' WHERE id=$1`, [groupId]);
+        res.json({ success: true, message: `group ${groupId} עודכן ל-biz` });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // DEBUG: בדיקת משתמש לפי טלפון — SA בלבד
 app.get('/api/superadmin/debug-phone/:phone', async (req, res) => {
     const phone = req.params.phone.replace(/-/g,'').replace(/ /g,'');
