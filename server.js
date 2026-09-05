@@ -34804,15 +34804,6 @@ app.post('/api/public/customer-chat/:chatId/message', async (req, res) => {
 });
 
 // שליפת כל שיחות הלקוחות — צד עסק
-// DEBUG endpoint — מחזיר מה יש ב-customer_chats עבור ה-token הנוכחי
-app.get('/api/biz/customer-chats-debug', verifyBiz, async (req, res) => {
-    const groupId = req.bizAuth.groupId;
-    try {
-        const all = await pool.query(`SELECT id, group_id, customer_id FROM customer_chats LIMIT 50`);
-        const mine = await pool.query(`SELECT id, group_id, customer_id FROM customer_chats WHERE group_id=$1`, [groupId]);
-        res.json({ bizGroupId: groupId, allChats: all.rows, myChats: mine.rows });
-    } catch(e) { res.status(500).json({ error: e.message }); }
-});
 
 app.get('/api/biz/customer-chats', verifyBiz, async (req, res) => {
     const groupId = req.bizAuth.groupId;
