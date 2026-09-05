@@ -6224,29 +6224,6 @@ app.post('/api/biz/register', async (req, res) => {
     }
 });
 
-// תיקון member_type לעסק — SA בלבד
-app.post('/api/superadmin/fix-group-type', async (req, res) => {
-    const { groupId } = req.body;
-    if (!groupId) return res.status(400).json({ error: 'חסר groupId' });
-    try {
-        await pool.query(`UPDATE family_groups SET member_type='biz', type='BUSINESS' WHERE id=$1`, [groupId]);
-        res.json({ success: true, message: `group ${groupId} עודכן ל-biz` });
-    } catch(e) { res.status(500).json({ error: e.message }); }
-});
-
-// DEBUG: בדיקת משתמש לפי טלפון — SA בלבד
-app.get('/api/superadmin/debug-phone/:phone', async (req, res) => {
-    const phone = req.params.phone.replace(/-/g,'').replace(/ /g,'');
-    try {
-        const r = await pool.query(
-            `SELECT u.id, u.group_id, fg.name, fg.member_type, UPPER(u.role) as role, u.status, u.phone
-             FROM users u JOIN family_groups fg ON fg.id=u.group_id
-             WHERE REPLACE(REPLACE(u.phone,'-',''),' ','')=$1
-             ORDER BY fg.member_type, fg.name`, [phone]
-        );
-        res.json({ phone, rows: r.rows });
-    } catch(e) { res.status(500).json({ error: e.message }); }
-});
 
 app.post('/api/biz/login', async (req, res) => {
     try {
