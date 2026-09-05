@@ -15778,7 +15778,9 @@ async function loadBizCommunities() {
 async function loadBizAvailableCommunities() {
     try {
         if (!currentGroup || !currentGroup.id) return;
-        const res = await fetch(`${API}/biz/communities/available/${currentGroup.id}`);
+        const res = await fetch(`${API}/biz/communities/available/${currentGroup.id}`, {
+            headers: { 'Authorization': `Bearer ${window._bizToken || localStorage.getItem('ofl_family_token') || ''}` }
+        });
         const data = await res.json();
         if (data.success && data.communities) {
             bizAvailableCommCache = data.communities;
@@ -16545,9 +16547,10 @@ window.loadBizCommunitiesWithMatch = async function() {
     document.body.appendChild(panel);
     if (!currentGroup?.id) return;
     try {
+        const _authHdr = { 'Authorization': `Bearer ${window._bizToken || localStorage.getItem('ofl_family_token') || ''}` };
         const [availRes, matchRes] = await Promise.all([
-            fetch(`${API}/biz/communities/available/${currentGroup.id}`),
-            fetch(`${API}/biz/communities/match/${currentGroup.id}`)
+            fetch(`${API}/biz/communities/available/${currentGroup.id}`, { headers: _authHdr }),
+            fetch(`${API}/biz/communities/match/${currentGroup.id}`, { headers: _authHdr })
         ]);
         const availData = await availRes.json();
         const matchData = await matchRes.json();
