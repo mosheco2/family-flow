@@ -55849,6 +55849,7 @@ window._sportApptSave = async function() {
   var _activeChatId = null;
   var _activeChatStatus = 'open';
   var _custLastSince = null;
+  var _custRenderedIds = {};
   var POLL_MS = 3000;
 
   function _bizToken() {
@@ -55941,9 +55942,11 @@ window._sportApptSave = async function() {
 
   // ── פתיחת שיחה ─────────────────────────────────────────────
   window.openCustChat = async function(chatId, name, status) {
+    _stopCustPoll();
     _activeChatId = chatId;
     _activeChatStatus = status || 'open';
     _custLastSince = null;
+    _custRenderedIds = {};
 
     var listPanel = document.getElementById('cust-chat-list-panel');
     var convPanel = document.getElementById('cust-chat-conv-panel');
@@ -55988,6 +55991,8 @@ window._sportApptSave = async function() {
     var container = document.getElementById('cust-chat-messages');
     if (!container) return;
     msgs.forEach(function(m) {
+      if (!m.id || _custRenderedIds[m.id]) return;
+      _custRenderedIds[m.id] = true;
       var isBiz = (m.sender_type === 'business');
       var div = document.createElement('div');
       div.style.cssText = 'display:flex;flex-direction:column;align-items:'+(isBiz?'flex-start':'flex-end');
