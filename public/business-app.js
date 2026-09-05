@@ -5744,7 +5744,7 @@ async function renderUrgentItems() {
     if (isAdmin || isManager) {
         // ─ התראות גביה — תחנות שמועד פירעונן הגיע ─
         try {
-            const colRes = await fetch(`${API}/work-orders/collection-alerts/${currentGroup.id}`);
+            const colRes = await fetch(`${API}/work-orders/collection-alerts/${currentGroup.id}`, { headers: { 'Authorization': `Bearer ${window._bizToken || localStorage.getItem('ofl_family_token') || ''}` } });
             const colData = await colRes.json();
             if (colData.success && colData.alerts?.length > 0) {
                 const al = colData.alerts;
@@ -15741,7 +15741,7 @@ window.switchBizCommunityTab = function(tab) {
 async function loadBizCommunities() {
     try {
         if (!currentGroup || !currentGroup.id) return;
-        const res = await fetch(`${API}/biz/communities/my/${currentGroup.id}`);
+        const res = await fetch(`${API}/biz/communities/my/${currentGroup.id}`, { headers: { 'Authorization': `Bearer ${window._bizToken || localStorage.getItem('ofl_family_token') || ''}` } });
         
         let data;
         try { data = await res.json(); } catch(err) { return; }
@@ -16946,7 +16946,7 @@ window.showCommunityHelp = function(topic) {
 async function loadBizCommunityInvitations() {
     if (!currentGroup) return;
     try {
-        const res = await fetch(`${API}/biz/community-invitations/${currentGroup.id}`);
+        const res = await fetch(`${API}/biz/community-invitations/${currentGroup.id}`, { headers: { 'Authorization': `Bearer ${window._bizToken || localStorage.getItem('ofl_family_token') || ''}` } });
         const data = await res.json();
         if (!data.success || !data.invitations.length) { document.getElementById('biz-comm-invitations')?.remove(); return; }
         let panel = document.getElementById('biz-comm-invitations');
