@@ -34804,12 +34804,19 @@ app.post('/api/public/customer-chat/:chatId/message', async (req, res) => {
 });
 
 // שליפת כל שיחות הלקוחות — צד עסק
+// DEBUG endpoint — מחזיר מה יש ב-customer_chats עבור ה-token הנוכחי
+app.get('/api/biz/customer-chats-debug', verifyBiz, async (req, res) => {
+    const groupId = req.bizAuth.groupId;
+    try {
+        const all = await pool.query(`SELECT id, group_id, customer_id FROM customer_chats LIMIT 50`);
+        const mine = await pool.query(`SELECT id, group_id, customer_id FROM customer_chats WHERE group_id=$1`, [groupId]);
+        res.json({ bizGroupId: groupId, allChats: all.rows, myChats: mine.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 app.get('/api/biz/customer-chats', verifyBiz, async (req, res) => {
     const groupId = req.bizAuth.groupId;
     try {
-        // DEBUG: בדוק כמה רשומות יש בכלל ב-customer_chats
-        const debugAll = await pool.query(`SELECT id, group_id, customer_id FROM customer_chats LIMIT 20`);
-        console.log('[DEBUG customer-chats] bizAuth.groupId=', groupId, 'all rows:', JSON.stringify(debugAll.rows));
         const r = await pool.query(`
             SELECT cc.*,
                    sc.first_name, sc.last_name, sc.phone,
@@ -34817,7 +34824,7 @@ app.get('/api/biz/customer-chats', verifyBiz, async (req, res) => {
                    (SELECT created_at FROM customer_chat_messages WHERE chat_id=cc.id ORDER BY created_at DESC LIMIT 1) as last_msg_at,
                    (SELECT COUNT(*) FROM customer_chat_messages WHERE chat_id=cc.id AND sender_type='customer' AND read_at IS NULL) as unread_count
             FROM customer_chats cc
-            JOIN storefront_customers sc ON sc.id=cc.customer_id
+            LEFT JOIN storefront_customers sc ON sc.id=cc.customer_id
             WHERE cc.group_id=$1
             ORDER BY cc.last_message_at DESC
         `, [groupId]);
