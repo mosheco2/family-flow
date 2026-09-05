@@ -6224,6 +6224,20 @@ app.post('/api/biz/register', async (req, res) => {
     }
 });
 
+// DEBUG: בדיקת משתמש לפי טלפון — SA בלבד
+app.get('/api/superadmin/debug-phone/:phone', async (req, res) => {
+    const phone = req.params.phone.replace(/-/g,'').replace(/ /g,'');
+    try {
+        const r = await pool.query(
+            `SELECT u.id, u.group_id, fg.name, fg.member_type, UPPER(u.role) as role, u.status, u.phone
+             FROM users u JOIN family_groups fg ON fg.id=u.group_id
+             WHERE REPLACE(REPLACE(u.phone,'-',''),' ','')=$1
+             ORDER BY fg.member_type, fg.name`, [phone]
+        );
+        res.json({ phone, rows: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 app.post('/api/biz/login', async (req, res) => {
     try {
         const { phone, password, groupId } = req.body;
