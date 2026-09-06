@@ -34716,6 +34716,11 @@ app.get('/api/family/sso-login', async (req, res) => {
     const fg = await pool.query('SELECT id, name, type, plan FROM family_groups WHERE id=$1', [fgId]);
     if (!fg.rows.length) return res.json({ success: false, error: 'חשבון לא נמצא' });
 
+    // security: block SSO into a BUSINESS group — must be a FAMILY/PERSONAL group only
+    if (fg.rows[0].type === 'BUSINESS') {
+        return res.status(403).json({ success: false, error: 'חשבון עסקי אינו נגיש דרך חנות לקוח' });
+    }
+
     // create a family session token
     const sessToken = _scGenToken();
     await pool.query(

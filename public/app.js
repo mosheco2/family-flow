@@ -108,11 +108,16 @@ window.onload = async () => {
         try {
             const ssoRes = await fetch(`/api/family/sso-login?token=${encodeURIComponent(ssoToken)}`).then(r=>r.json());
             if (ssoRes.success && ssoRes.sessionToken) {
+                // security: SSO from storefront must never enter a BUSINESS group
+                if (ssoRes.familyGroup && ssoRes.familyGroup.type === 'BUSINESS') {
+                    console.warn('[SSO] Blocked redirect to BUSINESS group from storefront SSO');
+                    clearTimeout(failsafeTimer); hidePreloaderAndShowAuth('login'); return;
+                }
                 // store family session and set globals
-                const slim = { user: { id: ssoRes.familyGroup.id, nickname: ssoRes.familyGroup.name, role:'ADMIN' }, group: ssoRes.familyGroup };
+                const slim = { user: { id: ssoRes.familyGroup.id, nickname: ssoRes.familyGroup.name, role:'MEMBER' }, group: ssoRes.familyGroup };
                 localStorage.setItem('ofl_session', JSON.stringify(slim));
                 localStorage.setItem('ofl_family_token', ssoRes.sessionToken);
-                // clear any existing BIZ session so we don't redirect to business.html
+                // clear any existing BIZ/SA session so we don't redirect to business.html
                 localStorage.removeItem('ofl_sa_token');
                 currentUser = slim.user; currentGroup = slim.group;
                 window.history.replaceState({}, '', '/');
