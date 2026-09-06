@@ -551,7 +551,7 @@ const scAuth = window.scAuth = {
 
             html += `<div style="border-top:1px solid #f1f5f9;margin-top:12px;padding-top:12px">
               <button id="sc-profile-btn" style="width:100%;padding:12px;border:1.5px solid #e2e8f0;border-radius:12px;background:#fff;font-size:14px;cursor:pointer;color:#475569">✏️ עריכת פרופיל</button>
-              <button id="sc-logout-btn" style="width:100%;padding:10px;border:none;background:none;font-size:13px;cursor:pointer;color:#94a3b8;margin-top:6px">יציאה</button>
+              <button id="sc-logout-btn" style="width:100%;padding:11px;border:1.5px solid #fee2e2;border-radius:12px;background:#fff5f5;font-size:13px;font-weight:600;cursor:pointer;color:#dc2626;margin-top:8px;display:flex;align-items:center;justify-content:center;gap:6px">🚪 התנתקות</button>
             </div>`;
             list.innerHTML = html;
 
