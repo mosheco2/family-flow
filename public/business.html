@@ -5367,11 +5367,16 @@
                             </div>
                         </div>
                         <!-- טאבים: צוות / לקוחות -->
-                        <div class="flex gap-1 mb-2">
+                        <div class="flex gap-1 mb-1.5">
                             <button id="chat-tab-team" onclick="window.switchChatTab('team')" class="flex-1 py-1.5 text-xs font-bold rounded-lg bg-indigo-600 text-white transition">👥 צוות</button>
                             <button id="chat-tab-customers" onclick="window.switchChatTab('customers')" class="flex-1 py-1.5 text-xs font-bold rounded-lg bg-white text-indigo-600 border border-indigo-200 transition">
                                 💬 לקוחות <span id="cust-chat-unread-badge" class="hidden ml-1 bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full"></span>
                             </button>
+                        </div>
+                        <!-- Sub-tabs: קבוצה | שיחות 1:1 -->
+                        <div id="team-sub-nav" class="flex gap-1 mb-1.5">
+                            <button id="tsub-group" onclick="window.switchTeamSubTab('group')" class="flex-1 py-1 text-xs font-bold rounded-lg bg-white text-indigo-700 border border-indigo-300 transition">📢 קבוצה</button>
+                            <button id="tsub-dm" onclick="window.switchTeamSubTab('dm')" class="flex-1 py-1 text-xs font-bold rounded-lg bg-white text-slate-500 border border-slate-200 transition">👤 שיחות 1:1</button>
                         </div>
                         <div id="team-chat-search-wrap" class="relative">
                             <i class="fa-solid fa-search absolute right-3 top-1/2 -translate-y-1/2 text-indigo-300 text-xs"></i>
@@ -5397,53 +5402,66 @@
                         </form>
                     </div>
 
-                </div>
-            </div>
-
-            <!-- ═══ פאנל צ'אט לקוחות — split-screen מלא ═══ -->
-            <div id="cust-chat-panel" class="fixed inset-0 hidden z-[92] flex flex-col bg-white fade-in" style="direction:rtl">
-                <!-- header -->
-                <div class="flex items-center justify-between px-5 py-3 border-b border-slate-100 bg-white shrink-0">
-                    <div class="flex items-center gap-3">
-                        <div class="w-9 h-9 bg-indigo-50 rounded-full flex items-center justify-center text-indigo-500 shrink-0">
-                            <i class="fa-solid fa-comments text-sm"></i>
-                        </div>
-                        <div>
-                            <h3 class="font-black text-slate-800 text-base leading-tight">צ'אט לקוחות</h3>
-                            <p class="text-[10px] text-slate-500 font-medium">שיחות עם לקוחות החנות</p>
-                        </div>
-                    </div>
-                    <button onclick="window.closeCustChatPanel()" class="w-9 h-9 flex items-center justify-center rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 transition">
-                        <i class="fa-solid fa-xmark"></i>
-                    </button>
-                </div>
-                <!-- body -->
-                <div class="flex flex-1 overflow-hidden">
-                    <!-- עמודת רשימה -->
-                    <div class="w-72 sm:w-80 border-l border-slate-100 flex flex-col shrink-0 bg-white">
+                    <!-- ═══ DM רשימת עובדים (בתוך modal) ═══ -->
+                    <div id="modal-dm-list-wrap" class="hidden flex-1 flex flex-col overflow-hidden">
                         <div class="px-4 py-3 border-b border-slate-100 shrink-0">
                             <div class="relative">
                                 <i class="fa-solid fa-magnifying-glass absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 text-xs"></i>
-                                <input id="cust-list-search" type="text" placeholder="חיפוש שיחה..." class="w-full bg-slate-50 border border-slate-200 rounded-full pr-8 pl-4 py-2 text-xs outline-none focus:border-indigo-300 focus:bg-white transition" oninput="window.filterCustChatList(this.value)" style="direction:rtl">
+                                <input id="biz-dm-list-search" type="text" placeholder="חיפוש עובד..." class="w-full bg-slate-50 border border-slate-200 rounded-full pr-8 pl-4 py-2 text-xs outline-none focus:border-indigo-300 focus:bg-white transition" oninput="window.filterBizDmList(this.value)" style="direction:rtl">
                             </div>
                         </div>
-                        <div id="cust-chat-list" class="flex-1 overflow-y-auto"></div>
+                        <div id="biz-dm-list" class="flex-1 overflow-y-auto"></div>
                     </div>
-                    <!-- עמודת שיחה -->
-                    <div class="flex-1 flex flex-col overflow-hidden" style="background:#f7f7fb">
-                        <!-- empty state -->
-                        <div id="cust-chat-empty-state" class="flex-1 flex flex-col items-center justify-center gap-3 text-center px-6">
-                            <div class="w-16 h-16 bg-indigo-50 rounded-full flex items-center justify-center">
-                                <i class="fa-solid fa-comments text-2xl text-indigo-300"></i>
+
+                    <!-- ═══ DM שיחה 1:1 (בתוך modal) ═══ -->
+                    <div id="biz-dm-conv-panel" class="hidden flex-1 flex flex-col overflow-hidden">
+                        <div class="flex items-center gap-2 px-3 py-2.5 border-b border-slate-100 bg-white shrink-0" style="direction:rtl">
+                            <button onclick="window.bizDmBackToList()" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-100 text-slate-500 transition shrink-0">
+                                <i class="fa-solid fa-arrow-right text-sm"></i>
+                            </button>
+                            <div id="biz-dm-conv-avatar" class="w-9 h-9 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0 select-none" style="background:#6366f1">?</div>
+                            <div class="flex-1 min-w-0">
+                                <span id="biz-dm-conv-name" class="font-bold text-slate-800 text-sm block truncate"></span>
+                                <span id="biz-dm-conv-sub" class="text-[10px] text-slate-400 block leading-tight">שיחה פרטית</span>
                             </div>
-                            <p class="text-slate-400 text-sm font-semibold">בחר שיחה מהרשימה</p>
-                            <p class="text-slate-300 text-xs">כאן יופיעו ההודעות</p>
+                            <button onclick="window.bizDmToggleSearch()" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-100 text-slate-400 transition shrink-0">
+                                <i class="fa-solid fa-magnifying-glass text-xs"></i>
+                            </button>
                         </div>
-                        <!-- פאנל שיחה בודדת -->
+                        <div id="biz-dm-search-bar" class="hidden px-4 py-2 bg-white border-b border-slate-100 shrink-0">
+                            <div class="relative">
+                                <i class="fa-solid fa-magnifying-glass absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 text-xs"></i>
+                                <input id="biz-dm-search-input" type="text" placeholder="חיפוש בשיחה..." class="w-full bg-slate-50 border border-slate-200 rounded-full pr-8 pl-4 py-1.5 text-xs outline-none focus:border-indigo-400" oninput="window.filterBizDmMsgs(this.value)" style="direction:rtl">
+                            </div>
+                        </div>
+                        <div id="biz-dm-messages" class="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-1" style="background:#f1f1f7"></div>
+                        <div class="px-3 py-2.5 bg-white border-t border-slate-100 shrink-0 flex items-center gap-2" style="direction:rtl">
+                            <button onclick="window.sendBizDmMsg()" class="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center shrink-0 hover:bg-indigo-700 transition order-last shadow-sm">
+                                <i class="fa-solid fa-paper-plane text-xs translate-x-0.5"></i>
+                            </button>
+                            <input id="biz-dm-input" type="text" class="flex-1 bg-slate-50 border border-slate-200 rounded-full px-4 py-2 text-sm outline-none focus:border-indigo-300 focus:bg-white transition" placeholder="כתוב הודעה..." autocomplete="off" onkeydown="if(event.key==='Enter')window.sendBizDmMsg()" style="direction:rtl">
+                        </div>
+                    </div>
+
+                    <!-- ═══ פאנל לקוחות (בתוך modal) ═══ -->
+                    <div id="modal-cust-panel" class="hidden flex-1 flex flex-col overflow-hidden">
+                        <!-- רשימת שיחות -->
+                        <div id="modal-cust-list-view" class="flex-1 flex flex-col overflow-hidden">
+                            <div class="px-4 py-3 border-b border-slate-100 shrink-0">
+                                <div class="relative">
+                                    <i class="fa-solid fa-magnifying-glass absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 text-xs"></i>
+                                    <input type="text" placeholder="חיפוש שיחה..." class="w-full bg-slate-50 border border-slate-200 rounded-full pr-8 pl-4 py-2 text-xs outline-none focus:border-indigo-300 focus:bg-white transition" oninput="window.filterCustChatList(this.value)" style="direction:rtl">
+                                </div>
+                            </div>
+                            <div id="cust-chat-list" class="flex-1 overflow-y-auto"></div>
+                        </div>
+                        <!-- שיחה בודדת -->
                         <div id="cust-chat-conv-panel" class="hidden flex-1 flex flex-col overflow-hidden">
-                            <!-- header שיחה -->
-                            <div class="flex items-center gap-2 px-4 py-3 border-b border-slate-100 bg-white shrink-0" style="direction:rtl">
-                                <div id="cust-chat-conv-avatar" class="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0 select-none" style="background:#6366f1">?</div>
+                            <div class="flex items-center gap-2 px-3 py-2.5 border-b border-slate-100 bg-white shrink-0" style="direction:rtl">
+                                <button onclick="window.custChatBackToList()" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-100 text-slate-500 transition shrink-0">
+                                    <i class="fa-solid fa-arrow-right text-sm"></i>
+                                </button>
+                                <div id="cust-chat-conv-avatar" class="w-9 h-9 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0 select-none" style="background:#6366f1">?</div>
                                 <div class="flex-1 min-w-0">
                                     <div class="flex items-center gap-1.5">
                                         <span id="cust-chat-conv-name" class="font-bold text-slate-800 text-sm leading-tight truncate"></span>
@@ -5461,118 +5479,30 @@
                                         <button onclick="window.custChatToggleSearch();window.toggleCustChatMenu()" class="w-full text-right px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 transition flex items-center gap-2"><i class="fa-solid fa-magnifying-glass text-slate-400 w-4 text-center"></i> חיפוש בשיחה</button>
                                         <button id="cust-chat-close-btn" onclick="window.custChatToggleStatus()" class="w-full text-right px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 transition flex items-center gap-2"><i class="fa-solid fa-circle-check text-slate-400 w-4 text-center"></i> סגור שיחה</button>
                                         <div class="border-t border-slate-100 mx-3"></div>
-                                        <button onclick="window.custChatBackToList()" class="w-full text-right px-4 py-3 text-sm text-slate-600 hover:bg-slate-50 transition flex items-center gap-2"><i class="fa-solid fa-arrow-right text-slate-400 w-4 text-center"></i> חזרה לרשימה</button>
-                                        <div class="border-t border-slate-100 mx-3"></div>
                                         <button onclick="window.deleteCustChat()" class="w-full text-right px-4 py-3 text-sm text-red-500 hover:bg-red-50 transition flex items-center gap-2"><i class="fa-solid fa-trash w-4 text-center"></i> מחיקת שיחה</button>
                                     </div>
                                 </div>
                             </div>
-                            <!-- חיפוש -->
                             <div id="cust-chat-search-bar" class="hidden px-4 py-2 bg-white border-b border-slate-100 shrink-0">
                                 <div class="relative">
                                     <i class="fa-solid fa-magnifying-glass absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 text-xs"></i>
                                     <input id="cust-chat-search-input" type="text" placeholder="חיפוש בשיחה..." class="w-full bg-slate-50 border border-slate-200 rounded-full pr-8 pl-4 py-1.5 text-xs outline-none focus:border-indigo-400" oninput="window.filterCustChatMsgs(this.value)" style="direction:rtl">
                                 </div>
                             </div>
-                            <!-- הודעות -->
                             <div id="cust-chat-messages" class="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-1" style="background:#f1f1f7"></div>
-                            <!-- footer -->
-                            <div id="cust-chat-reply-footer" class="px-4 py-3 bg-white border-t border-slate-100 shrink-0 flex items-center gap-2" style="direction:rtl">
+                            <div id="cust-chat-reply-footer" class="px-3 py-2.5 bg-white border-t border-slate-100 shrink-0 flex items-center gap-2" style="direction:rtl">
                                 <button onclick="window.sendCustChatMsg()" class="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center shrink-0 hover:bg-indigo-700 transition order-last shadow-sm">
                                     <i class="fa-solid fa-paper-plane text-xs translate-x-0.5"></i>
                                 </button>
-                                <input id="cust-chat-input" type="text" class="flex-1 bg-slate-50 border border-slate-200 rounded-full px-4 py-2.5 text-sm outline-none focus:border-indigo-300 focus:bg-white transition" placeholder="כתוב תשובה ללקוח..." autocomplete="off" onkeydown="if(event.key==='Enter')window.sendCustChatMsg()" style="direction:rtl">
+                                <input id="cust-chat-input" type="text" class="flex-1 bg-slate-50 border border-slate-200 rounded-full px-4 py-2 text-sm outline-none focus:border-indigo-300 focus:bg-white transition" placeholder="כתוב תשובה ללקוח..." autocomplete="off" onkeydown="if(event.key==='Enter')window.sendCustChatMsg()" style="direction:rtl">
                                 <button class="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-slate-600 transition shrink-0 text-xl">😊</button>
                             </div>
                         </div>
                     </div>
+
                 </div>
             </div>
 
-            <!-- ═══ פאנל צ'אט פנימי — split-screen מלא ═══ -->
-            <div id="biz-dm-panel" class="fixed inset-0 hidden z-[92] flex flex-col bg-white fade-in" style="direction:rtl">
-                <!-- header -->
-                <div class="flex items-center justify-between px-5 py-3 border-b border-slate-100 bg-white shrink-0">
-                    <div class="flex items-center gap-3">
-                        <div class="w-9 h-9 bg-indigo-50 rounded-full flex items-center justify-center text-indigo-500 shrink-0">
-                            <i class="fa-solid fa-users text-sm"></i>
-                        </div>
-                        <div>
-                            <h3 class="font-black text-slate-800 text-base leading-tight">שיחות פנימיות</h3>
-                            <p class="text-[10px] text-slate-500 font-medium">צ'אט עם הצוות</p>
-                        </div>
-                    </div>
-                    <button onclick="window.closeBizDmPanel()" class="w-9 h-9 flex items-center justify-center rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 transition">
-                        <i class="fa-solid fa-xmark"></i>
-                    </button>
-                </div>
-                <!-- body -->
-                <div class="flex flex-1 overflow-hidden">
-                    <!-- עמודת רשימה -->
-                    <div class="w-72 sm:w-80 border-l border-slate-100 flex flex-col shrink-0 bg-white">
-                        <div class="px-4 py-3 border-b border-slate-100 shrink-0">
-                            <div class="relative">
-                                <i class="fa-solid fa-magnifying-glass absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 text-xs"></i>
-                                <input id="biz-dm-list-search" type="text" placeholder="חיפוש..." class="w-full bg-slate-50 border border-slate-200 rounded-full pr-8 pl-4 py-2 text-xs outline-none focus:border-indigo-300 focus:bg-white transition" oninput="window.filterBizDmList(this.value)" style="direction:rtl">
-                            </div>
-                        </div>
-                        <div id="biz-dm-list" class="flex-1 overflow-y-auto"></div>
-                    </div>
-                    <!-- עמודת שיחה -->
-                    <div class="flex-1 flex flex-col overflow-hidden" style="background:#f7f7fb">
-                        <!-- empty state -->
-                        <div id="biz-dm-empty-state" class="flex-1 flex flex-col items-center justify-center gap-3 text-center px-6">
-                            <div class="w-16 h-16 bg-indigo-50 rounded-full flex items-center justify-center">
-                                <i class="fa-solid fa-comments text-2xl text-indigo-300"></i>
-                            </div>
-                            <p class="text-slate-400 text-sm font-semibold">בחר שיחה מהרשימה</p>
-                            <p class="text-slate-300 text-xs">שיחת קבוצה או 1:1 עם עובד</p>
-                        </div>
-                        <!-- פאנל שיחה פעילה -->
-                        <div id="biz-dm-conv-panel" class="hidden flex-1 flex flex-col overflow-hidden">
-                            <!-- header שיחה -->
-                            <div class="flex items-center gap-2 px-4 py-3 border-b border-slate-100 bg-white shrink-0" style="direction:rtl">
-                                <div id="biz-dm-conv-avatar" class="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0 select-none" style="background:#6366f1">?</div>
-                                <div class="flex-1 min-w-0">
-                                    <div class="flex items-center gap-1.5">
-                                        <span id="biz-dm-conv-name" class="font-bold text-slate-800 text-sm leading-tight truncate"></span>
-                                        <span id="biz-dm-conv-tag" class="text-[10px] font-bold bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded-full shrink-0">עובד</span>
-                                    </div>
-                                    <span id="biz-dm-conv-sub" class="text-[10px] text-slate-400 block leading-tight mt-0.5"></span>
-                                </div>
-                                <button onclick="window.bizDmToggleSearch()" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-100 text-slate-400 transition shrink-0">
-                                    <i class="fa-solid fa-magnifying-glass text-xs"></i>
-                                </button>
-                                <div class="relative shrink-0">
-                                    <button id="biz-dm-menu-btn" onclick="window.toggleBizDmMenu()" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-100 text-slate-400 transition font-black text-base leading-none">···</button>
-                                    <div id="biz-dm-menu" class="hidden absolute left-0 top-10 bg-white border border-slate-100 rounded-2xl shadow-2xl z-50 overflow-hidden" style="direction:rtl;min-width:180px">
-                                        <button onclick="window.bizDmToggleSearch();window.toggleBizDmMenu()" class="w-full text-right px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 transition flex items-center gap-2"><i class="fa-solid fa-magnifying-glass text-slate-400 w-4 text-center"></i> חיפוש בשיחה</button>
-                                        <div class="border-t border-slate-100 mx-3"></div>
-                                        <button onclick="window.clearBizDmConv()" class="w-full text-right px-4 py-3 text-sm text-slate-600 hover:bg-slate-50 transition flex items-center gap-2"><i class="fa-solid fa-arrow-right text-slate-400 w-4 text-center"></i> חזרה לרשימה</button>
-                                    </div>
-                                </div>
-                            </div>
-                            <!-- חיפוש -->
-                            <div id="biz-dm-search-bar" class="hidden px-4 py-2 bg-white border-b border-slate-100 shrink-0">
-                                <div class="relative">
-                                    <i class="fa-solid fa-magnifying-glass absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 text-xs"></i>
-                                    <input id="biz-dm-search-input" type="text" placeholder="חיפוש בשיחה..." class="w-full bg-slate-50 border border-slate-200 rounded-full pr-8 pl-4 py-1.5 text-xs outline-none focus:border-indigo-400" oninput="window.filterBizDmMsgs(this.value)" style="direction:rtl">
-                                </div>
-                            </div>
-                            <!-- הודעות -->
-                            <div id="biz-dm-messages" class="flex-1 overflow-y-auto px-4 py-4 flex flex-col gap-1" style="background:#f1f1f7"></div>
-                            <!-- footer -->
-                            <div class="px-4 py-3 bg-white border-t border-slate-100 shrink-0 flex items-center gap-2" style="direction:rtl">
-                                <button onclick="window.sendBizDmMsg()" class="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center shrink-0 hover:bg-indigo-700 transition order-last shadow-sm">
-                                    <i class="fa-solid fa-paper-plane text-xs translate-x-0.5"></i>
-                                </button>
-                                <input id="biz-dm-input" type="text" class="flex-1 bg-slate-50 border border-slate-200 rounded-full px-4 py-2.5 text-sm outline-none focus:border-indigo-300 focus:bg-white transition" placeholder="כתוב הודעה..." autocomplete="off" onkeydown="if(event.key==='Enter')window.sendBizDmMsg()" style="direction:rtl">
-                                <button class="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-slate-600 transition shrink-0 text-xl">😊</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
             `;
 
             document.body.insertAdjacentHTML('beforeend', pristineHTML);

@@ -55943,16 +55943,84 @@ window._sportApptSave = async function() {
 
   // ── switch tab ──────────────────────────────────────────────
   window.switchChatTab = function(tab) {
-    if (tab === 'team') {
-      // סגור modal ופתח פאנל split-screen פנימי
-      var modal = document.getElementById('team-chat-modal');
-      if (modal) modal.classList.add('hidden');
-      window.openBizDmPanel();
+    var isTeam = (tab === 'team');
+    // עדכון כפתורי טאב
+    var tBtn = document.getElementById('chat-tab-team');
+    var cBtn = document.getElementById('chat-tab-customers');
+    if (tBtn) tBtn.className = 'flex-1 py-1.5 text-xs font-bold rounded-lg transition ' + (isTeam ? 'bg-indigo-600 text-white' : 'bg-white text-indigo-600 border border-indigo-200');
+    if (cBtn) cBtn.className = 'flex-1 py-1.5 text-xs font-bold rounded-lg transition ' + (!isTeam ? 'bg-indigo-600 text-white' : 'bg-white text-indigo-600 border border-indigo-200');
+
+    var subNav = document.getElementById('team-sub-nav');
+    var custPanel = document.getElementById('modal-cust-panel');
+
+    if (isTeam) {
+      // הצג sub-tabs, הסתר לקוחות, עצור poll לקוח
+      _stopCustPoll();
+      _activeChatId = null;
+      if (custPanel) custPanel.classList.add('hidden');
+      if (subNav) subNav.classList.remove('hidden');
+      // חזור לסאב-טאב הנוכחי של team (group כברירת מחדל)
+      window.switchTeamSubTab(window._curTeamSubTab || 'group');
     } else {
-      // סגור modal ופתח פאנל split-screen לקוחות
-      var modal = document.getElementById('team-chat-modal');
-      if (modal) modal.classList.add('hidden');
-      window.openCustChatPanel();
+      // הסתר team content, הסתר sub-nav, הצג לקוחות
+      _stopBizDmPoll();
+      _activeDmUserId = null;
+      _hideTeamContent();
+      if (subNav) subNav.classList.add('hidden');
+      if (custPanel) { custPanel.classList.remove('hidden'); custPanel.style.display = 'flex'; }
+      // וודא שרשימה גלויה (לא שיחה)
+      var listView = document.getElementById('modal-cust-list-view');
+      var convView = document.getElementById('cust-chat-conv-panel');
+      if (listView) { listView.classList.remove('hidden'); listView.style.display = 'flex'; }
+      if (convView) convView.classList.add('hidden');
+      window.loadCustChatList();
+    }
+  };
+
+  function _hideTeamContent() {
+    ['chat-messages-container','team-chat-footer','team-chat-search-wrap','team-chat-retention-note','modal-dm-list-wrap','biz-dm-conv-panel'].forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) el.classList.add('hidden');
+    });
+  }
+
+  window._curTeamSubTab = 'group';
+
+  window.switchTeamSubTab = function(sub) {
+    window._curTeamSubTab = sub;
+    var isGroup = (sub === 'group');
+    // עדכון כפתורי sub-tabs
+    var gBtn = document.getElementById('tsub-group');
+    var dBtn = document.getElementById('tsub-dm');
+    if (gBtn) gBtn.className = 'flex-1 py-1 text-xs font-bold rounded-lg transition ' + (isGroup ? 'bg-indigo-600 text-white border-0' : 'bg-white text-slate-500 border border-slate-200');
+    if (dBtn) dBtn.className = 'flex-1 py-1 text-xs font-bold rounded-lg transition ' + (!isGroup ? 'bg-indigo-600 text-white border-0' : 'bg-white text-slate-500 border border-slate-200');
+
+    if (isGroup) {
+      // הצג group chat, הסתר DM
+      _stopBizDmPoll();
+      _activeDmUserId = null;
+      ['chat-messages-container','team-chat-footer','team-chat-search-wrap','team-chat-retention-note'].forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el) el.classList.remove('hidden');
+      });
+      ['modal-dm-list-wrap','biz-dm-conv-panel'].forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el) el.classList.add('hidden');
+      });
+      if (document.getElementById('modal-cust-panel')) document.getElementById('modal-cust-panel').classList.add('hidden');
+    } else {
+      // הסתר group chat, הצג DM רשימה
+      ['chat-messages-container','team-chat-footer','team-chat-search-wrap','team-chat-retention-note'].forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el) el.classList.add('hidden');
+      });
+      if (document.getElementById('modal-cust-panel')) document.getElementById('modal-cust-panel').classList.add('hidden');
+      // הצג רשימת DM (לא שיחה)
+      var listWrap = document.getElementById('modal-dm-list-wrap');
+      var convPanel = document.getElementById('biz-dm-conv-panel');
+      if (listWrap) { listWrap.classList.remove('hidden'); listWrap.style.display = 'flex'; }
+      if (convPanel) convPanel.classList.add('hidden');
+      window.loadBizDmList();
     }
   };
 
@@ -55978,28 +56046,26 @@ window._sportApptSave = async function() {
   }
 
   window.openBizDmPanel = function() {
-    var panel = document.getElementById('biz-dm-panel');
-    if (!panel) return;
-    panel.classList.remove('hidden');
-    panel.style.display = 'flex';
-    window.loadBizDmList();
+    window.switchTeamSubTab('dm');
   };
 
   window.closeBizDmPanel = function() {
-    _stopBizDmPoll();
-    _activeDmUserId = null;
-    var panel = document.getElementById('biz-dm-panel');
-    if (panel) panel.classList.add('hidden');
-    window.clearBizDmConv();
+    window.switchTeamSubTab('group');
   };
 
   window.clearBizDmConv = function() {
     _stopBizDmPoll();
     _activeDmUserId = null;
+    window.bizDmBackToList();
+  };
+
+  window.bizDmBackToList = function() {
+    _stopBizDmPoll();
+    _activeDmUserId = null;
     var conv = document.getElementById('biz-dm-conv-panel');
-    var empty = document.getElementById('biz-dm-empty-state');
+    var listWrap = document.getElementById('modal-dm-list-wrap');
     if (conv) conv.classList.add('hidden');
-    if (empty) empty.classList.remove('hidden');
+    if (listWrap) { listWrap.classList.remove('hidden'); listWrap.style.display = 'flex'; }
   };
 
   window.filterBizDmList = function(val) {
@@ -56065,12 +56131,8 @@ window._sportApptSave = async function() {
   };
 
   window.openBizGroupChat = function() {
-    // פותח את modal הצ'אט הקבוצתי המקורי
-    window.clearBizDmConv();
-    var modal = document.getElementById('team-chat-modal');
-    var panel = document.getElementById('biz-dm-panel');
-    if (panel) panel.classList.add('hidden');
-    if (modal) modal.classList.remove('hidden');
+    // עובר ל-sub-tab קבוצה (group chat קיים)
+    window.switchTeamSubTab('group');
   };
 
   window.openBizDm = async function(userId, name) {
@@ -56085,11 +56147,11 @@ window._sportApptSave = async function() {
     if (avatar) { avatar.textContent = initials; avatar.style.background = color; }
     if (nameEl) nameEl.textContent = name;
     if (subEl) subEl.textContent = 'שיחה פרטית';
-    // הצג פאנל שיחה
+    // הצג פאנל שיחה, הסתר רשימה (stack navigation)
     var conv = document.getElementById('biz-dm-conv-panel');
-    var empty = document.getElementById('biz-dm-empty-state');
+    var listWrap = document.getElementById('modal-dm-list-wrap');
+    if (listWrap) listWrap.classList.add('hidden');
     if (conv) { conv.classList.remove('hidden'); conv.style.display = 'flex'; }
-    if (empty) empty.classList.add('hidden');
     // טען הודעות
     await _loadBizDmMessages(userId);
     // polling
@@ -56151,25 +56213,15 @@ window._sportApptSave = async function() {
     } catch(e) {}
   };
 
-  // ── פתיחת/סגירת פאנל לקוחות ──────────────────────────────
+  // ── פתיחת/סגירת פאנל לקוחות (בתוך modal) ──────────────────
   window.openCustChatPanel = function() {
-    var panel = document.getElementById('cust-chat-panel');
-    if (!panel) return;
-    panel.classList.remove('hidden');
-    panel.style.display = 'flex';
-    window.loadCustChatList();
+    window.switchChatTab('customers');
   };
 
   window.closeCustChatPanel = function() {
     _stopCustPoll();
     _activeChatId = null;
-    var panel = document.getElementById('cust-chat-panel');
-    if (panel) panel.classList.add('hidden');
-    // חזרה למצב ריק
-    var conv = document.getElementById('cust-chat-conv-panel');
-    var empty = document.getElementById('cust-chat-empty-state');
-    if (conv) conv.classList.add('hidden');
-    if (empty) empty.classList.remove('hidden');
+    window.switchChatTab('team');
   };
 
   // ── טעינת רשימת שיחות ──────────────────────────────────────
@@ -56225,10 +56277,10 @@ window._sportApptSave = async function() {
     _custLastSince = null;
     _custRenderedIds = {};
 
-    // הצג פאנל שיחה + הסתר empty state
+    // הצג פאנל שיחה + הסתר רשימה (stack navigation בתוך modal)
     var convPanel = document.getElementById('cust-chat-conv-panel');
-    var emptyState = document.getElementById('cust-chat-empty-state');
-    if (emptyState) emptyState.classList.add('hidden');
+    var listView = document.getElementById('modal-cust-list-view');
+    if (listView) listView.classList.add('hidden');
     if (convPanel) { convPanel.classList.remove('hidden'); convPanel.style.display = 'flex'; }
 
     var nameEl = document.getElementById('cust-chat-conv-name');
@@ -56273,14 +56325,14 @@ window._sportApptSave = async function() {
     _startCustPoll();
   };
 
-  // ── חזרה לרשימה (במובייל — מסתיר conversation, מציג empty state) ───
+  // ── חזרה לרשימת לקוחות ───────────────────────────────────
   window.custChatBackToList = function() {
     _stopCustPoll();
     _activeChatId = null;
     var convPanel = document.getElementById('cust-chat-conv-panel');
-    var emptyState = document.getElementById('cust-chat-empty-state');
+    var listView = document.getElementById('modal-cust-list-view');
     if (convPanel) convPanel.classList.add('hidden');
-    if (emptyState) emptyState.classList.remove('hidden');
+    if (listView) { listView.classList.remove('hidden'); listView.style.display = 'flex'; }
     window.loadCustChatList();
   };
 
