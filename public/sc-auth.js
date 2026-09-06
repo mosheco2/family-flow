@@ -412,10 +412,11 @@ const scAuth = window.scAuth = {
             if (_bizType === 'beauty') {
                 html += `<div style="font-size:11px;font-weight:700;color:#94a3b8;padding:8px 0 6px;text-align:right">📅 התורים שלי</div>`;
                 var beautyAppts = appointments.concat(bookings.filter(function(b){ return b.call_type !== 'table_reservation'; }));
+                var _beautyHasCal = window.storeData && (window.storeData.calendarSettings || window.storeData.calendar_settings);
                 if (!beautyAppts.length) {
                     html += `<div style="background:#f8fafc;border-radius:12px;padding:14px;margin-bottom:10px;text-align:right">
                       <div style="color:#94a3b8;font-size:13px">אין תורים קרובים</div>
-                      <button data-beauty-action="book" style="margin-top:8px;padding:7px 14px;background:#ec4899;color:#fff;border:none;border-radius:8px;font-size:12px;cursor:pointer">+ קבע תור חדש</button>
+                      ${_beautyHasCal ? '<button data-beauty-action="book" style="margin-top:8px;padding:7px 14px;background:#ec4899;color:#fff;border:none;border-radius:8px;font-size:12px;cursor:pointer">+ קבע תור חדש</button>' : ''}
                     </div>`;
                 } else {
                     html += beautyAppts.map(function(a) {
@@ -579,12 +580,13 @@ const scAuth = window.scAuth = {
             }
 
             if (_bizType === 'beauty') {
+                var _hasCalendar = window.storeData && (window.storeData.calendarSettings || window.storeData.calendar_settings);
+                var _beautyQA = [];
+                if (_hasCalendar) _beautyQA.push(`<button data-beauty-action="book" style="flex:1;min-width:90px;padding:10px 6px;border:1.5px solid #e2e8f0;border-radius:12px;background:#fff;font-size:12px;cursor:pointer;color:#475569;text-align:center">📅 קביעת תור</button>`);
+                _beautyQA.push(`<button data-beauty-action="consult" style="flex:1;min-width:90px;padding:10px 6px;border:1.5px solid #e2e8f0;border-radius:12px;background:#fff;font-size:12px;cursor:pointer;color:#475569;text-align:center">💌 ייעוץ מקדים</button>`);
                 html = `<div style="margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid #f1f5f9">
                   <div style="font-size:11px;font-weight:700;color:#94a3b8;padding:0 0 8px;text-align:right">⚡ פעולות מהירות</div>
-                  <div style="display:flex;gap:8px;flex-wrap:wrap">
-                    <button data-beauty-action="book" style="flex:1;min-width:90px;padding:10px 6px;border:1.5px solid #e2e8f0;border-radius:12px;background:#fff;font-size:12px;cursor:pointer;color:#475569;text-align:center">📅 קביעת תור</button>
-                    <button data-beauty-action="consult" style="flex:1;min-width:90px;padding:10px 6px;border:1.5px solid #e2e8f0;border-radius:12px;background:#fff;font-size:12px;cursor:pointer;color:#475569;text-align:center">💌 ייעוץ מקדים</button>
-                  </div>
+                  <div style="display:flex;gap:8px;flex-wrap:wrap">${_beautyQA.join('')}</div>
                 </div>` + html;
             }
 
@@ -674,12 +676,15 @@ const scAuth = window.scAuth = {
                     var action = btn.getAttribute('data-beauty-action');
                     document.getElementById('sc-activity-panel').style.display = 'none';
                     if (action === 'book') {
-                        if (typeof window.openBookingModal === 'function') {
+                        var hasCalendar = window.storeData && (window.storeData.calendarSettings || window.storeData.calendar_settings);
+                        if (!hasCalendar) {
+                            document.getElementById('sc-activity-panel').style.display = 'block';
+                            if (typeof showToast === 'function') showToast('info', 'לקביעת תור פנה אלינו ישירות בוואטסאפ או בטלפון');
+                            else alert('לקביעת תור פנה אלינו ישירות בוואטסאפ או בטלפון');
+                        } else if (typeof window.openBookingModal === 'function') {
                             window.openBookingModal();
                         } else if (document.getElementById('btn-book-appointment')) {
                             document.getElementById('btn-book-appointment').click();
-                        } else {
-                            document.getElementById('sc-activity-panel').style.display = 'block';
                         }
                     } else if (action === 'consult') {
                         if (typeof _scOpenRfqPanel === 'function') {
