@@ -55996,7 +55996,8 @@ window._sportApptSave = async function() {
         var preview = _esc(c.last_body || '—');
         var closed = c.status === 'closed';
         var timeStr = _fmtListTime(c.last_msg_at || c.last_message_at);
-        return '<div onclick="window.openCustChat('+c.id+',\''+name+'\',\''+c.status+'\')" class="flex items-center gap-3 p-3 cursor-pointer hover:bg-indigo-50 transition '+(closed?'opacity-50':'')+'">'+
+        var phone = _esc(c.phone || '');
+        return '<div onclick="window.openCustChat('+c.id+',\''+name+'\',\''+c.status+'\',\''+phone+'\')" class="flex items-center gap-3 p-3 cursor-pointer hover:bg-indigo-50 transition '+(closed?'opacity-50':'')+'">'+
           '<div class="w-9 h-9 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold text-sm shrink-0">'+_esc((c.first_name||'?')[0].toUpperCase())+'</div>'+
           '<div class="flex-1 min-w-0">'+
             '<div class="flex justify-between items-center"><span class="font-bold text-slate-800 text-sm">'+name+'</span>'+
@@ -56010,7 +56011,7 @@ window._sportApptSave = async function() {
   };
 
   // ── פתיחת שיחה ─────────────────────────────────────────────
-  window.openCustChat = async function(chatId, name, status) {
+  window.openCustChat = async function(chatId, name, status, phone) {
     _stopCustPoll();
     _activeChatId = chatId;
     _activeChatStatus = status || 'open';
@@ -56025,8 +56026,22 @@ window._sportApptSave = async function() {
     var nameEl = document.getElementById('cust-chat-conv-name');
     if (nameEl) nameEl.textContent = name;
 
+    var phoneEl = document.getElementById('cust-chat-conv-phone');
+    if (phoneEl) phoneEl.textContent = phone || '';
+
+    // עדכון כפתור סגור/פתח בתפריט
     var closeBtn = document.getElementById('cust-chat-close-btn');
-    if (closeBtn) closeBtn.textContent = (status === 'closed') ? 'פתח מחדש' : 'סגור שיחה';
+    if (closeBtn) {
+      closeBtn.innerHTML = (status === 'closed')
+        ? '<i class="fa-solid fa-circle-plus text-slate-400 w-4"></i> פתח מחדש'
+        : '<i class="fa-solid fa-circle-check text-slate-400 w-4"></i> סגור שיחה';
+    }
+
+    // סגור תפריט + חיפוש
+    var menu = document.getElementById('cust-chat-menu');
+    if (menu) menu.classList.add('hidden');
+    var searchBar = document.getElementById('cust-chat-search-bar');
+    if (searchBar) searchBar.classList.add('hidden');
 
     var msgs = document.getElementById('cust-chat-messages');
     if (msgs) msgs.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">טוען...</p>';
@@ -56064,16 +56079,27 @@ window._sportApptSave = async function() {
       _custRenderedIds[m.id] = true;
       var isBiz = (m.sender_type === 'business');
       var div = document.createElement('div');
+      div.dataset.msgId = m.id;
       div.style.cssText = 'display:flex;flex-direction:column;align-items:'+(isBiz?'flex-start':'flex-end');
       var bubble = document.createElement('div');
       bubble.style.cssText = 'max-width:78%;padding:8px 12px;border-radius:14px;font-size:13px;line-height:1.45;word-break:break-word;' +
         (isBiz ? 'background:#6366f1;color:#fff;border-bottom-left-radius:4px' : 'background:#fff;color:#1e293b;border:1px solid #e2e8f0;border-bottom-right-radius:4px');
       bubble.textContent = m.body;
-      var time = document.createElement('div');
-      time.style.cssText = 'font-size:9px;color:#94a3b8;margin-top:2px';
-      time.textContent = _fmt(m.created_at);
+      var meta = document.createElement('div');
+      meta.style.cssText = 'font-size:9px;color:#94a3b8;margin-top:3px;display:flex;align-items:center;gap:3px;' + (isBiz ? '' : 'flex-direction:row-reverse');
+      var timeSpan = document.createElement('span');
+      timeSpan.textContent = _fmt(m.created_at);
+      meta.appendChild(timeSpan);
+      // ✓✓ read receipts — רק על הודעות העסק
+      if (isBiz) {
+        var tick = document.createElement('span');
+        tick.style.cssText = 'font-size:10px;' + (m.read_at ? 'color:#6366f1' : 'color:#94a3b8');
+        tick.textContent = m.read_at ? '✓✓' : '✓';
+        tick.title = m.read_at ? 'נקרא ב-' + _fmt(m.read_at) : 'נשלח';
+        meta.appendChild(tick);
+      }
       div.appendChild(bubble);
-      div.appendChild(time);
+      div.appendChild(meta);
       container.appendChild(div);
     });
     container.scrollTop = container.scrollHeight;
@@ -56113,6 +56139,71 @@ window._sportApptSave = async function() {
         if (typeof showToast === 'function') showToast('success', newStatus === 'closed' ? 'שיחה סומנה כסגורה' : 'שיחה נפתחה מחדש');
       }
     } catch(e) {}
+  };
+
+  // ── תפריט ··· ─────────────────────────────────────────────
+  window.toggleCustChatMenu = function() {
+    var menu = document.getElementById('cust-chat-menu');
+    if (!menu) return;
+    menu.classList.toggle('hidden');
+    // סגירה בלחיצה מחוץ לתפריט
+    if (!menu.classList.contains('hidden')) {
+      setTimeout(function() {
+        document.addEventListener('click', function _close(e) {
+          if (!menu.contains(e.target) && e.target.id !== 'cust-chat-menu-btn') {
+            menu.classList.add('hidden');
+          }
+          document.removeEventListener('click', _close);
+        });
+      }, 0);
+    }
+  };
+
+  // ── חיפוש בשיחה ───────────────────────────────────────────
+  window.custChatToggleSearch = function() {
+    var bar = document.getElementById('cust-chat-search-bar');
+    var input = document.getElementById('cust-chat-search-input');
+    var menu = document.getElementById('cust-chat-menu');
+    if (menu) menu.classList.add('hidden');
+    if (!bar) return;
+    var isHidden = bar.classList.contains('hidden');
+    bar.classList.toggle('hidden');
+    if (isHidden && input) { input.value = ''; input.focus(); window.filterCustChatMsgs(''); }
+  };
+
+  window.filterCustChatMsgs = function(value) {
+    var container = document.getElementById('cust-chat-messages');
+    if (!container) return;
+    var term = (value || '').trim().toLowerCase();
+    var divs = container.querySelectorAll('[data-msg-id]');
+    divs.forEach(function(div) {
+      var bubble = div.querySelector('div');
+      if (!bubble) return;
+      var text = (bubble.textContent || '').toLowerCase();
+      div.style.display = (!term || text.includes(term)) ? '' : 'none';
+    });
+  };
+
+  // ── מחיקת שיחה ────────────────────────────────────────────
+  window.deleteCustChat = async function() {
+    var menu = document.getElementById('cust-chat-menu');
+    if (menu) menu.classList.add('hidden');
+    if (!_activeChatId) return;
+    if (!confirm('למחוק את כל השיחה? פעולה זו אינה הפיכה.')) return;
+    try {
+      var r = await fetch('/api/biz/customer-chats/' + _activeChatId, {
+        method: 'DELETE', headers: _bizHeaders()
+      });
+      var d = await r.json();
+      if (d.success) {
+        if (typeof showToast === 'function') showToast('success', 'השיחה נמחקה');
+        window.custChatBackToList();
+      } else {
+        if (typeof showToast === 'function') showToast('error', 'שגיאה במחיקה');
+      }
+    } catch(e) {
+      if (typeof showToast === 'function') showToast('error', 'שגיאה במחיקה');
+    }
   };
 
   // ── פולינג ──────────────────────────────────────────────────
