@@ -56045,8 +56045,8 @@ window._sportApptSave = async function() {
     var nameEl = document.getElementById('cust-chat-conv-name');
     if (nameEl) nameEl.textContent = name;
 
-    var phoneEl = document.getElementById('cust-chat-conv-phone');
-    if (phoneEl) phoneEl.textContent = phone || '';
+    var statusEl = document.getElementById('cust-chat-conv-status');
+    if (statusEl) statusEl.textContent = phone || (status === 'closed' ? 'שיחה סגורה' : 'שיחה פתוחה');
 
     var avatarEl = document.getElementById('cust-chat-conv-avatar');
     if (avatarEl) {
@@ -56095,30 +56095,57 @@ window._sportApptSave = async function() {
     window.loadCustChatList();
   };
 
+  // ── פורמט תאריך למפריד ────────────────────────────────────
+  function _dayLabel(iso) {
+    if (!iso) return '';
+    var d = new Date(iso), now = new Date();
+    var dStr = d.toDateString(), nStr = now.toDateString();
+    var yStr = new Date(now - 86400000).toDateString();
+    if (dStr === nStr) return 'היום';
+    if (dStr === yStr) return 'אתמול';
+    return d.toLocaleDateString('he-IL', { day: 'numeric', month: 'long' });
+  }
+
   // ── render הודעות ─────────────────────────────────────────
   function _renderCustMsgs(msgs) {
     var container = document.getElementById('cust-chat-messages');
     if (!container) return;
+    // הסר typing indicator אם קיים
+    var existingTyping = container.querySelector('.typing-indicator');
+    if (existingTyping) existingTyping.remove();
+
     msgs.forEach(function(m) {
       if (!m.id || _custRenderedIds[m.id]) return;
       _custRenderedIds[m.id] = true;
       var isBiz = (m.sender_type === 'business');
+
+      // מפריד תאריך
+      var dayLbl = _dayLabel(m.created_at);
+      var lastDateEl = container.querySelector('[data-date-label]');
+      var lastDate = lastDateEl ? lastDateEl.dataset.dateLabel : '';
+      if (dayLbl !== lastDate) {
+        var sep = document.createElement('div');
+        sep.dataset.dateLabel = dayLbl;
+        sep.style.cssText = 'text-align:center;margin:8px 0 4px;';
+        sep.innerHTML = '<span style="background:#e2e8f0;color:#64748b;font-size:10px;font-weight:600;padding:2px 10px;border-radius:20px;">' + dayLbl + '</span>';
+        container.appendChild(sep);
+      }
+
       var div = document.createElement('div');
       div.dataset.msgId = m.id;
-      div.style.cssText = 'display:flex;flex-direction:column;align-items:'+(isBiz?'flex-start':'flex-end');
+      div.style.cssText = 'display:flex;flex-direction:column;align-items:'+(isBiz?'flex-start':'flex-end')+';margin-bottom:2px';
       var bubble = document.createElement('div');
-      bubble.style.cssText = 'max-width:78%;padding:8px 12px;border-radius:14px;font-size:13px;line-height:1.45;word-break:break-word;' +
-        (isBiz ? 'background:#6366f1;color:#fff;border-bottom-left-radius:4px' : 'background:#fff;color:#1e293b;border:1px solid #e2e8f0;border-bottom-right-radius:4px');
+      bubble.style.cssText = 'max-width:80%;padding:9px 13px;border-radius:18px;font-size:13px;line-height:1.5;word-break:break-word;' +
+        (isBiz ? 'background:#6366f1;color:#fff;border-bottom-left-radius:5px' : 'background:#fff;color:#1e293b;border:1px solid #e8eaf0;border-bottom-right-radius:5px;box-shadow:0 1px 2px rgba(0,0,0,.04)');
       bubble.textContent = m.body;
       var meta = document.createElement('div');
-      meta.style.cssText = 'font-size:9px;color:#94a3b8;margin-top:3px;display:flex;align-items:center;gap:3px;' + (isBiz ? '' : 'flex-direction:row-reverse');
+      meta.style.cssText = 'font-size:9px;color:#94a3b8;margin-top:3px;display:flex;align-items:center;gap:3px;' + (isBiz ? 'flex-direction:row-reverse' : '');
       var timeSpan = document.createElement('span');
       timeSpan.textContent = _fmt(m.created_at);
       meta.appendChild(timeSpan);
-      // ✓✓ read receipts — רק על הודעות העסק
       if (isBiz) {
         var tick = document.createElement('span');
-        tick.style.cssText = 'font-size:10px;' + (m.read_at ? 'color:#6366f1' : 'color:#94a3b8');
+        tick.style.cssText = 'font-size:10px;font-weight:700;' + (m.read_at ? 'color:#818cf8' : 'color:#94a3b8');
         tick.textContent = m.read_at ? '✓✓' : '✓';
         tick.title = m.read_at ? 'נקרא ב-' + _fmt(m.read_at) : 'נשלח';
         meta.appendChild(tick);
@@ -56127,7 +56154,25 @@ window._sportApptSave = async function() {
       div.appendChild(meta);
       container.appendChild(div);
     });
+
+    // typing indicator בסוף
+    _showTypingIfNeeded(container);
     container.scrollTop = container.scrollHeight;
+  }
+
+  function _showTypingIfNeeded(container) {
+    // מוסיף typing indicator רק אם הלקוח "כתב" לאחרונה — placeholder לעתיד
+    // כרגע מוסיפים אינדיקטור זמני שמוסתר
+    var t = document.createElement('div');
+    t.className = 'typing-indicator';
+    t.style.cssText = 'display:none;align-items:flex-end;margin-top:4px';
+    t.innerHTML = '<div style="background:#fff;border:1px solid #e8eaf0;border-radius:18px;border-bottom-right-radius:5px;padding:10px 14px;box-shadow:0 1px 2px rgba(0,0,0,.04)">' +
+      '<span style="display:inline-flex;gap:3px;align-items:center">' +
+      '<span style="width:6px;height:6px;border-radius:50%;background:#94a3b8;animation:typing-dot 1.2s infinite 0s"></span>' +
+      '<span style="width:6px;height:6px;border-radius:50%;background:#94a3b8;animation:typing-dot 1.2s infinite .2s"></span>' +
+      '<span style="width:6px;height:6px;border-radius:50%;background:#94a3b8;animation:typing-dot 1.2s infinite .4s"></span>' +
+      '</span></div>';
+    container.appendChild(t);
   }
 
   // ── שליחת הודעה ───────────────────────────────────────────
@@ -56164,6 +56209,15 @@ window._sportApptSave = async function() {
         if (typeof showToast === 'function') showToast('success', newStatus === 'closed' ? 'שיחה סומנה כסגורה' : 'שיחה נפתחה מחדש');
       }
     } catch(e) {}
+  };
+
+  // ── פרטי לקוח (toast פשוט) ────────────────────────────────
+  window.showCustContactInfo = function() {
+    var menu = document.getElementById('cust-chat-menu');
+    if (menu) menu.classList.add('hidden');
+    var name = (document.getElementById('cust-chat-conv-name') || {}).textContent || '';
+    var status = (document.getElementById('cust-chat-conv-status') || {}).textContent || '';
+    if (typeof showToast === 'function') showToast('info', name + (status ? ' — ' + status : ''));
   };
 
   // ── תפריט ··· ─────────────────────────────────────────────

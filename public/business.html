@@ -5404,42 +5404,51 @@
 
                     <!-- פאנל לקוחות — שיחה בודדת -->
                     <div id="cust-chat-conv-panel" class="hidden flex-1 flex flex-col overflow-hidden">
-                        <div class="flex items-center gap-2 px-3 py-2.5 border-b border-slate-100 bg-white shrink-0 relative" style="direction:rtl">
-                            <!-- אווטר + שם + טלפון -->
+                        <!-- header שיחה -->
+                        <div class="flex items-center gap-2 px-3 py-2 border-b border-slate-100 bg-white shrink-0" style="direction:rtl">
+                            <!-- אווטר -->
                             <div id="cust-chat-conv-avatar" class="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0 select-none" style="background:#6366f1">?</div>
+                            <!-- שם + תג + סטטוס -->
                             <div class="flex-1 min-w-0">
-                                <div class="flex items-center gap-1.5 flex-wrap">
-                                    <span id="cust-chat-conv-name" class="font-bold text-slate-800 text-sm leading-tight"></span>
+                                <div class="flex items-center gap-1.5">
+                                    <span id="cust-chat-conv-name" class="font-bold text-slate-800 text-sm leading-tight truncate"></span>
                                     <span id="cust-chat-conv-tag" class="text-[10px] font-bold bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded-full shrink-0">לקוח</span>
                                 </div>
-                                <span id="cust-chat-conv-phone" class="text-[10px] text-slate-400 block leading-tight"></span>
+                                <span id="cust-chat-conv-status" class="text-[10px] text-slate-400 block leading-tight mt-0.5"></span>
                             </div>
-                            <!-- כפתור חיפוש -->
-                            <button onclick="window.custChatToggleSearch()" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-100 text-slate-400 transition text-xs shrink-0">
-                                <i class="fa-solid fa-magnifying-glass"></i>
+                            <!-- פעולות -->
+                            <button onclick="window.custChatToggleSearch()" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-100 text-slate-400 transition shrink-0" title="חיפוש בשיחה">
+                                <i class="fa-solid fa-magnifying-glass text-xs"></i>
                             </button>
-                            <!-- תפריט ··· -->
                             <div class="relative shrink-0">
-                                <button id="cust-chat-menu-btn" onclick="window.toggleCustChatMenu()" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-100 text-slate-400 transition text-base font-black leading-none">···</button>
-                                <div id="cust-chat-menu" class="hidden absolute left-0 top-10 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 overflow-hidden w-48" style="direction:rtl">
-                                    <button onclick="window.custChatBackToList()" class="w-full text-right px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 transition flex items-center gap-2"><i class="fa-solid fa-chevron-right text-slate-400 w-4"></i> חזרה לרשימה</button>
-                                    <button onclick="window.custChatToggleSearch()" class="w-full text-right px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 transition flex items-center gap-2"><i class="fa-solid fa-magnifying-glass text-slate-400 w-4"></i> חיפוש בשיחה</button>
-                                    <button id="cust-chat-close-btn" onclick="window.custChatToggleStatus()" class="w-full text-right px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 transition flex items-center gap-2"><i class="fa-solid fa-circle-check text-slate-400 w-4"></i> סגור שיחה</button>
-                                    <div class="border-t border-slate-100 my-1"></div>
-                                    <button onclick="window.deleteCustChat()" class="w-full text-right px-4 py-3 text-sm text-red-500 hover:bg-red-50 transition flex items-center gap-2"><i class="fa-solid fa-trash w-4"></i> מחיקת שיחה</button>
+                                <button id="cust-chat-menu-btn" onclick="window.toggleCustChatMenu()" class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-100 text-slate-400 transition font-black text-base leading-none" title="אפשרויות">···</button>
+                                <div id="cust-chat-menu" class="hidden absolute left-0 top-10 bg-white border border-slate-100 rounded-2xl shadow-2xl z-50 overflow-hidden w-48" style="direction:rtl;min-width:180px">
+                                    <button onclick="window.showCustContactInfo()" class="w-full text-right px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 transition flex items-center gap-2"><i class="fa-solid fa-user text-slate-400 w-4 text-center"></i> פרטי לקוח</button>
+                                    <button onclick="window.custChatToggleSearch();window.toggleCustChatMenu()" class="w-full text-right px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 transition flex items-center gap-2"><i class="fa-solid fa-magnifying-glass text-slate-400 w-4 text-center"></i> חיפוש בשיחה</button>
+                                    <button id="cust-chat-close-btn" onclick="window.custChatToggleStatus()" class="w-full text-right px-4 py-3 text-sm text-slate-700 hover:bg-slate-50 transition flex items-center gap-2"><i class="fa-solid fa-circle-check text-slate-400 w-4 text-center"></i> סגור שיחה</button>
+                                    <div class="border-t border-slate-100 mx-3"></div>
+                                    <button onclick="window.custChatBackToList()" class="w-full text-right px-4 py-3 text-sm text-slate-600 hover:bg-slate-50 transition flex items-center gap-2"><i class="fa-solid fa-arrow-right text-slate-400 w-4 text-center"></i> חזרה לרשימה</button>
+                                    <div class="border-t border-slate-100 mx-3"></div>
+                                    <button onclick="window.deleteCustChat()" class="w-full text-right px-4 py-3 text-sm text-red-500 hover:bg-red-50 transition flex items-center gap-2"><i class="fa-solid fa-trash w-4 text-center"></i> מחיקת שיחה</button>
                                 </div>
                             </div>
                         </div>
                         <!-- חיפוש בשיחה -->
                         <div id="cust-chat-search-bar" class="hidden px-3 py-2 bg-slate-50 border-b border-slate-100 shrink-0">
-                            <input id="cust-chat-search-input" type="text" placeholder="חיפוש בשיחה..." class="w-full border border-slate-200 rounded-full px-4 py-1.5 text-xs outline-none focus:border-indigo-400" oninput="window.filterCustChatMsgs(this.value)">
+                            <div class="relative">
+                                <i class="fa-solid fa-magnifying-glass absolute right-3 top-1/2 -translate-y-1/2 text-slate-300 text-xs"></i>
+                                <input id="cust-chat-search-input" type="text" placeholder="חיפוש בשיחה..." class="w-full border border-slate-200 rounded-full px-4 pr-8 py-1.5 text-xs outline-none focus:border-indigo-400 bg-white" oninput="window.filterCustChatMsgs(this.value)" style="direction:rtl">
+                            </div>
                         </div>
-                        <div id="cust-chat-messages" class="flex-1 overflow-y-auto p-3 bg-slate-50 flex flex-col gap-2"></div>
-                        <div id="cust-chat-reply-footer" class="p-3 bg-white border-t border-slate-100 shrink-0 flex gap-2">
-                            <input id="cust-chat-input" type="text" class="flex-1 border border-slate-200 rounded-full px-4 py-2 text-sm outline-none focus:border-indigo-400" placeholder="כתוב תשובה ללקוח..." autocomplete="off" onkeydown="if(event.key==='Enter')window.sendCustChatMsg()">
-                            <button onclick="window.sendCustChatMsg()" class="w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center shrink-0">
-                                <i class="fa-solid fa-paper-plane text-xs -translate-x-0.5"></i>
+                        <!-- הודעות -->
+                        <div id="cust-chat-messages" class="flex-1 overflow-y-auto px-3 py-3 flex flex-col gap-1" style="background:#f1f1f7"></div>
+                        <!-- footer שליחה -->
+                        <div id="cust-chat-reply-footer" class="px-3 py-2.5 bg-white border-t border-slate-100 shrink-0 flex items-center gap-2" style="direction:rtl">
+                            <button onclick="window.sendCustChatMsg()" class="w-9 h-9 bg-indigo-600 text-white rounded-full flex items-center justify-center shrink-0 hover:bg-indigo-700 transition order-last">
+                                <i class="fa-solid fa-paper-plane text-xs translate-x-0.5"></i>
                             </button>
+                            <input id="cust-chat-input" type="text" class="flex-1 bg-slate-50 border border-slate-200 rounded-full px-4 py-2 text-sm outline-none focus:border-indigo-300 focus:bg-white transition" placeholder="כתוב תשובה ללקוח..." autocomplete="off" onkeydown="if(event.key==='Enter')window.sendCustChatMsg()" style="direction:rtl">
+                            <button class="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-slate-600 transition shrink-0 text-lg">😊</button>
                         </div>
                     </div>
                 </div>
@@ -5475,6 +5484,7 @@
             .kiosk-cat-tab.active { background:#fff; color:#111827; font-weight:800; }
             .kiosk-cart-item { border-bottom:1px solid rgba(255,255,255,0.08); }
             @keyframes kiosk-success-pop { 0%{transform:scale(0.5);opacity:0} 70%{transform:scale(1.1)} 100%{transform:scale(1);opacity:1} }
+            @keyframes typing-dot { 0%,80%,100%{transform:scale(0.6);opacity:.4} 40%{transform:scale(1);opacity:1} }
             .kiosk-success-icon { animation:kiosk-success-pop 0.5s ease-out forwards; }
         </style>
 
