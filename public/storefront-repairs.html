@@ -400,6 +400,12 @@ input,button,select,textarea{font-family:inherit}
   </div>
 </section>
 
+<!-- ===== DEALS ===== -->
+<div id="deals-section" style="display:none;max-width:1280px;margin:0 auto;padding:24px 20px 0">
+  <h2 style="font-size:18px;font-weight:700;color:#1e293b;margin-bottom:14px">🏷️ מבצעים</h2>
+  <div id="deals-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px"></div>
+</div>
+
 <!-- ===== FOOTER ===== -->
 <footer id="footer">
   <div id="footer-name">שירותי תיקון ותחזוקה</div>
@@ -452,6 +458,7 @@ input,button,select,textarea{font-family:inherit}
     <div id="sc-activity-list" style="flex:1;overflow-y:auto;padding:12px 16px"></div>
   </div>
 </div>
+<script src="/storefront-btype.js"></script>
 <script src="/sc-auth.js"></script>
 <script src="/storefront-chat.js"></script>
 
@@ -507,8 +514,10 @@ async function loadStore(){
     STORE=d.store||d;
     GROUP_ID=STORE.groupId||STORE.group_id||STORE.id;
     window._scGroupId = GROUP_ID; window._scBizId = GROUP_ID; window.storeData = STORE;
+    window._scBizType = STORE.businessType || STORE.business_type || 'maintenance_repair';
     applyStore();
-    await Promise.all([loadServices(), loadReviews()]);
+    await Promise.all([loadServices(), loadReviews(), _loadExtras(GROUP_ID)]);
+    if (window.btypeInit) window.btypeInit(STORE);
   }catch(e){
     populateDemo();
   }finally{
@@ -697,6 +706,31 @@ function populateDemo(){
   renderDefaultServices();
   renderDefaultReviews();
   document.getElementById('page-loader').style.display='none';
+}
+
+/* ===== DEALS (banner promos) ===== */
+async function _loadExtras(gid) {
+  if (!gid) return;
+  try {
+    const r = await fetch(`/api/store/banner-promos/${gid}`);
+    const d = await r.json();
+    const promos = (d.promos || d.banners || []).filter(p => p.is_active !== false);
+    if (promos.length) _renderDeals(promos);
+  } catch(e) {}
+}
+function _renderDeals(promos) {
+  const sec = document.getElementById('deals-section');
+  if (!sec) return;
+  sec.style.display = '';
+  const grid = document.getElementById('deals-grid');
+  if (!grid) return;
+  grid.innerHTML = promos.slice(0, 4).map(p => `
+    <div style="background:#fff;border-radius:16px;padding:16px;box-shadow:0 2px 8px rgba(0,0,0,.07);border:1px solid #e2e8f0">
+      <div style="font-size:22px;margin-bottom:6px">${p.icon || '🔧'}</div>
+      <div style="font-weight:700;color:#1e293b;font-size:14px;margin-bottom:4px">${p.title || ''}</div>
+      <div style="color:#64748b;font-size:12px;line-height:1.5">${p.description || p.body || ''}</div>
+      ${p.discount_label ? `<div style="margin-top:8px;display:inline-block;background:#fef3c7;color:#92400e;border-radius:8px;padding:3px 10px;font-size:12px;font-weight:700">${p.discount_label}</div>` : ''}
+    </div>`).join('');
 }
 
 /* ===== INIT ===== */

@@ -33,12 +33,34 @@
       modules: ['catalog','complex_builder','deals','reviews','gallery','volume_tiers','bundles','quote','professional','flow','popups','ticker','scroll_spy','fulfil','app_badges','radius_delivery'],
       bookingType: null,
       labels: { catalog: 'מוצרים', booking: null, order: 'הזמנה', hero_cta: 'לקניה' }
+    },
+    maintenance_repair: {
+      modules: ['catalog','deals','reviews','gallery','flow','popups','app_badges'],
+      bookingType: 'appointment',
+      labels: { catalog: 'שירותים', booking: 'קריאת שירות', order: 'קריאה', hero_cta: 'לפנייה' }
+    },
+    logistics: {
+      modules: ['catalog','deals','reviews','flow','popups','app_badges'],
+      bookingType: null,
+      labels: { catalog: 'שירותים', booking: null, order: 'הזמנה', hero_cta: 'לפרטים' }
+    },
+    professional: {
+      modules: ['catalog','appointments','deals','reviews','gallery','flow','popups','app_badges'],
+      bookingType: 'appointment',
+      labels: { catalog: 'שירותים', booking: 'קביעת פגישה', order: 'תיק', hero_cta: 'לקביעת פגישה' }
     }
   };
   // Aliases
-  window.BTYPE_CONFIG['other']    = window.BTYPE_CONFIG['retail'];
-  window.BTYPE_CONFIG['gym']      = window.BTYPE_CONFIG['sport'];
-  window.BTYPE_CONFIG['services'] = window.BTYPE_CONFIG['beauty'];
+  window.BTYPE_CONFIG['other']              = window.BTYPE_CONFIG['retail'];
+  window.BTYPE_CONFIG['gym']               = window.BTYPE_CONFIG['sport'];
+  window.BTYPE_CONFIG['services']          = window.BTYPE_CONFIG['beauty'];
+  window.BTYPE_CONFIG['repairs']           = window.BTYPE_CONFIG['maintenance_repair'];
+  window.BTYPE_CONFIG['construction']      = window.BTYPE_CONFIG['maintenance_repair'];
+  window.BTYPE_CONFIG['healthcare']        = window.BTYPE_CONFIG['beauty'];
+  window.BTYPE_CONFIG['education']         = window.BTYPE_CONFIG['beauty'];
+  window.BTYPE_CONFIG['events']            = window.BTYPE_CONFIG['restaurant'];
+  window.BTYPE_CONFIG['food_production']   = window.BTYPE_CONFIG['retail'];
+  window.BTYPE_CONFIG['store_only']        = window.BTYPE_CONFIG['retail'];
 
   // ----------------------------------------------------------
   // Helpers

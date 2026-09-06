@@ -504,6 +504,18 @@ button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px soli
 </section>
 
 <!-- ===== FOOTER ===== -->
+<!-- ===== DEALS ===== -->
+<div id="deals-section" style="display:none;max-width:1200px;margin:0 auto;padding:24px 20px 0">
+  <h2 style="font-size:18px;font-weight:700;color:#1e293b;margin-bottom:14px">🏷️ מבצעים</h2>
+  <div id="deals-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px"></div>
+</div>
+
+<!-- ===== REVIEWS ===== -->
+<div id="reviews-section" style="display:none;max-width:1200px;margin:0 auto;padding:24px 20px 0">
+  <h2 style="font-size:18px;font-weight:700;color:#1e293b;margin-bottom:14px">⭐ ביקורות לקוחות</h2>
+  <div id="reviews-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px"></div>
+</div>
+
 <footer id="footer">
   <div id="footer-inner">
     <p id="footer-text">כל הזכויות שמורות · <span id="footer-name">שליחויות</span> · מופעל על ידי Family Flow</p>
@@ -556,6 +568,7 @@ button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px soli
     <div id="sc-activity-list" style="flex:1;overflow-y:auto;padding:12px 16px"></div>
   </div>
 </div>
+<script src="/storefront-btype.js"></script>
 <script src="/sc-auth.js"></script>
 <script src="/storefront-chat.js"></script>
 <!-- ===== END STOREFRONT CUSTOMER AUTH ===== -->
@@ -585,8 +598,11 @@ async function initStore() {
     _storeData = d;
     _groupId = d.groupId || d.group_id || storeId;
     window._scGroupId = _groupId; window._scBizId = _groupId; window.storeData = _storeData;
+    window._scBizType = d.businessType || d.business_type || 'logistics';
     applyStoreData(d);
     loadPricingPlans();
+    _loadExtras(_groupId);
+    if (window.btypeInit) window.btypeInit(d);
   } catch(e) {
     showFallbackContent();
   }
@@ -845,6 +861,48 @@ function openWhatsApp() {
 function esc(s) {
   if (!s) return '';
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+/* ===== DEALS + REVIEWS ===== */
+async function _loadExtras(gid) {
+  if (!gid) return;
+  try {
+    const [pr, rr] = await Promise.all([
+      fetch(`/api/store/banner-promos/${gid}`).then(r => r.json()).catch(() => ({})),
+      fetch(`/api/store/reviews/${gid}`).then(r => r.json()).catch(() => ({}))
+    ]);
+    const promos = (pr.promos || pr.banners || []).filter(p => p.is_active !== false);
+    if (promos.length) _renderDeals(promos);
+    const reviews = rr.reviews || [];
+    if (reviews.length) _renderReviews(reviews);
+  } catch(e) {}
+}
+function _renderDeals(promos) {
+  const sec = document.getElementById('deals-section');
+  if (!sec) return;
+  sec.style.display = '';
+  const grid = document.getElementById('deals-grid');
+  if (!grid) return;
+  grid.innerHTML = promos.slice(0, 4).map(p => `
+    <div style="background:#fff;border-radius:16px;padding:16px;box-shadow:0 2px 8px rgba(0,0,0,.07);border:1px solid #e2e8f0">
+      <div style="font-size:22px;margin-bottom:6px">${p.icon || '🚚'}</div>
+      <div style="font-weight:700;color:#1e293b;font-size:14px;margin-bottom:4px">${p.title || ''}</div>
+      <div style="color:#64748b;font-size:12px;line-height:1.5">${p.description || p.body || ''}</div>
+      ${p.discount_label ? `<div style="margin-top:8px;display:inline-block;background:#fef3c7;color:#92400e;border-radius:8px;padding:3px 10px;font-size:12px;font-weight:700">${p.discount_label}</div>` : ''}
+    </div>`).join('');
+}
+function _renderReviews(reviews) {
+  const sec = document.getElementById('reviews-section');
+  if (!sec) return;
+  sec.style.display = '';
+  const grid = document.getElementById('reviews-grid');
+  if (!grid) return;
+  grid.innerHTML = reviews.slice(0, 6).map(r => `
+    <div style="background:#fff;border-radius:16px;padding:16px;box-shadow:0 2px 8px rgba(0,0,0,.06);border:1px solid #e2e8f0">
+      <div style="color:#f59e0b;font-size:14px;margin-bottom:6px">${'★'.repeat(Math.min(5,r.rating||5))}</div>
+      <p style="color:#374151;font-size:13px;line-height:1.6;margin:0 0 10px">"${r.text || r.content || ''}"</p>
+      <div style="font-size:12px;font-weight:600;color:#6366f1">${r.author || r.name || 'לקוח'}</div>
+    </div>`).join('');
 }
 
 initStore();
