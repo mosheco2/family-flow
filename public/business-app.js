@@ -55917,6 +55917,17 @@ window._sportApptSave = async function() {
     var d = new Date(iso);
     return d.toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'});
   }
+  function _fmtListTime(iso) {
+    if (!iso) return '';
+    var d = new Date(iso);
+    var now = new Date();
+    var isToday = d.toDateString() === now.toDateString();
+    var yesterday = new Date(now); yesterday.setDate(now.getDate()-1);
+    var isYesterday = d.toDateString() === yesterday.toDateString();
+    if (isToday) return d.toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'});
+    if (isYesterday) return 'אתמול ' + d.toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'});
+    return d.toLocaleDateString('he-IL',{day:'2-digit',month:'2-digit'}) + ' ' + d.toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'});
+  }
 
   // ── switch tab ──────────────────────────────────────────────
   window.switchChatTab = function(tab) {
@@ -55926,6 +55937,11 @@ window._sportApptSave = async function() {
     var cBtn = document.getElementById('chat-tab-customers');
     if (tBtn) { tBtn.className = 'flex-1 py-1.5 text-xs font-bold rounded-lg transition ' + (isTeam ? 'bg-indigo-600 text-white' : 'bg-white text-indigo-600 border border-indigo-200'); }
     if (cBtn) { cBtn.className = 'flex-1 py-1.5 text-xs font-bold rounded-lg transition ' + (!isTeam ? 'bg-indigo-600 text-white' : 'bg-white text-indigo-600 border border-indigo-200'); }
+    // עדכון כותרת לפי הטאב הפעיל
+    var title = document.getElementById('team-chat-title');
+    var subtitle = document.getElementById('team-chat-subtitle');
+    if (title) title.textContent = isTeam ? "צ'אט צוות" : "צ'אט לקוחות";
+    if (subtitle) subtitle.textContent = isTeam ? 'שיחה פנים ארגונית' : 'שיחות עם לקוחות החנות';
 
     // הצג/הסתר פאנלים
     var team = document.getElementById('chat-messages-container');
@@ -55979,11 +55995,12 @@ window._sportApptSave = async function() {
         var name = _esc((c.first_name||'') + ' ' + (c.last_name||''));
         var preview = _esc(c.last_body || '—');
         var closed = c.status === 'closed';
+        var timeStr = _fmtListTime(c.last_msg_at || c.last_message_at);
         return '<div onclick="window.openCustChat('+c.id+',\''+name+'\',\''+c.status+'\')" class="flex items-center gap-3 p-3 cursor-pointer hover:bg-indigo-50 transition '+(closed?'opacity-50':'')+'">'+
           '<div class="w-9 h-9 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold text-sm shrink-0">'+_esc((c.first_name||'?')[0].toUpperCase())+'</div>'+
           '<div class="flex-1 min-w-0">'+
             '<div class="flex justify-between items-center"><span class="font-bold text-slate-800 text-sm">'+name+'</span>'+
-            (unread ? '<span class="bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">'+unread+'</span>' : '')+
+            '<span class="text-[10px] text-slate-400 shrink-0 mr-1">'+(unread ? '<span class="bg-red-500 text-white font-bold px-1.5 py-0.5 rounded-full mr-1">'+unread+'</span>' : '')+timeStr+'</span>'+
             '</div>'+
             '<p class="text-xs text-slate-500 truncate">'+(closed?'<span class="text-slate-400">[סגורה] </span>':'')+preview+'</p>'+
           '</div>'+
