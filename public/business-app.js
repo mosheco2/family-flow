@@ -10799,19 +10799,43 @@ window.renderCustomerHistory = async function(forceSync = false, context = 'moda
     listContainer.innerHTML = historyHtml;
 };
 
+function _buildCustFieldSettingsPanel() {
+    var crf = window._customerRequiredFields || {};
+    return `<div id="cust-field-settings-panel" class="hidden mb-3 bg-white border border-slate-200 rounded-2xl shadow-sm p-4">
+        <p class="text-xs font-bold text-slate-600 mb-1">⚙️ שדות חובה בהוספת לקוח</p>
+        <p class="text-[11px] text-slate-400 mb-3">שם לקוח הוא תמיד חובה. בחר אילו שדות נוספים יהיו חובה:</p>
+        <div class="space-y-2 mb-4">
+            <label class="flex items-center gap-3 cursor-pointer p-2 rounded-xl hover:bg-slate-50 transition">
+                <input type="checkbox" id="cfset-phone" ${crf.phone ? 'checked' : ''} class="w-4 h-4 accent-indigo-600 rounded">
+                <span class="text-sm text-slate-700 font-medium">📞 טלפון — שדה חובה</span>
+            </label>
+            <label class="flex items-center gap-3 cursor-pointer p-2 rounded-xl hover:bg-slate-50 transition">
+                <input type="checkbox" id="cfset-email" ${crf.email ? 'checked' : ''} class="w-4 h-4 accent-indigo-600 rounded">
+                <span class="text-sm text-slate-700 font-medium">✉️ אימייל — שדה חובה</span>
+            </label>
+            <label class="flex items-center gap-3 cursor-pointer p-2 rounded-xl hover:bg-slate-50 transition">
+                <input type="checkbox" id="cfset-id" ${crf.id ? 'checked' : ''} class="w-4 h-4 accent-indigo-600 rounded">
+                <span class="text-sm text-slate-700 font-medium">🪪 ת.ז / ח.פ — שדה חובה</span>
+            </label>
+        </div>
+        <div class="flex gap-2">
+            <button onclick="window.saveCustRequiredFields()" class="flex-1 bg-indigo-600 text-white py-2 rounded-xl text-sm font-bold hover:bg-indigo-700 transition">שמור הגדרות</button>
+            <button onclick="window.toggleCustFieldSettings()" class="px-4 bg-slate-100 text-slate-500 py-2 rounded-xl text-sm font-bold hover:bg-slate-200 transition">ביטול</button>
+        </div>
+    </div>`;
+}
+
 window.toggleCustFieldSettings = function() {
     var panel = document.getElementById('cust-field-settings-panel');
     if (!panel) return;
-    var isHidden = panel.classList.contains('hidden');
-    if (isHidden) {
-        // sync checkboxes with current state
+    if (panel.classList.contains('hidden')) {
         var crf = window._customerRequiredFields || {};
-        var phone = document.getElementById('cfset-phone');
-        var email = document.getElementById('cfset-email');
-        var id    = document.getElementById('cfset-id');
-        if (phone) phone.checked = !!crf.phone;
-        if (email) email.checked = !!crf.email;
-        if (id)    id.checked    = !!crf.id;
+        var p = document.getElementById('cfset-phone');
+        var e = document.getElementById('cfset-email');
+        var i = document.getElementById('cfset-id');
+        if (p) p.checked = !!crf.phone;
+        if (e) e.checked = !!crf.email;
+        if (i) i.checked = !!crf.id;
         panel.classList.remove('hidden');
     } else {
         panel.classList.add('hidden');
@@ -47392,8 +47416,13 @@ function _renderBeautyClients(search) {
             תיקי לקוחות
             <span class="text-xs font-bold bg-pink-100 text-pink-600 px-2 py-0.5 rounded-full">${window._beautyState.clients.length}</span>
         </h2>
-        <button onclick="window._beautyNewClientModal()" class="bg-gradient-to-r from-pink-500 to-purple-600 text-white px-4 py-2 rounded-xl text-xs font-black shadow-sm hover:opacity-90 transition flex items-center gap-1"><i class="fa-solid fa-plus"></i> לקוח חדש</button>
+        <div class="flex items-center gap-2">
+            <button onclick="window._beautyNewClientModal()" class="bg-gradient-to-r from-pink-500 to-purple-600 text-white px-4 py-2 rounded-xl text-xs font-black shadow-sm hover:opacity-90 transition flex items-center gap-1"><i class="fa-solid fa-plus"></i> לקוח חדש</button>
+            <button onclick="window.toggleCustFieldSettings()" title="הגדרות שדות חובה" class="bg-white text-slate-500 hover:bg-slate-100 w-8 h-8 rounded-xl flex items-center justify-center transition border border-slate-200"><i class="fa-solid fa-sliders text-xs"></i></button>
+        </div>
     </div>
+    <!-- required-fields settings panel -->
+    ${_buildCustFieldSettingsPanel()}
     <!-- search -->
     <div class="relative">
         <i class="fa-solid fa-magnifying-glass absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 text-sm pointer-events-none"></i>
@@ -47420,10 +47449,10 @@ window._beautyNewClientModal = function() {
         <div class="p-5 space-y-3 overflow-y-auto flex-1">
             <div><label class="text-xs font-bold text-slate-600 block mb-1">שם מלא *</label>
                 <input id="bnc-name" type="text" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm"/></div>
-            <div><label class="text-xs font-bold text-slate-600 block mb-1">מספר ת.ז *</label>
+            <div><label class="text-xs font-bold text-slate-600 block mb-1">מספר ת.ז ${(window._customerRequiredFields||{}).id ? '<span class="text-red-500">*</span>' : '(אופציונלי)'}</label>
                 <input id="bnc-idnum" type="text" inputmode="numeric" maxlength="9" placeholder="9 ספרות" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm" dir="ltr"/></div>
             <div>
-                <label class="text-xs font-bold text-slate-600 block mb-1">טלפון</label>
+                <label class="text-xs font-bold text-slate-600 block mb-1">טלפון ${(window._customerRequiredFields||{}).phone ? '<span class="text-red-500">*</span>' : ''}</label>
                 <div class="flex gap-2">
                     <input id="bnc-phone" type="tel" class="flex-1 border border-slate-200 rounded-xl px-4 py-3 text-sm"/>
                     <button type="button" onclick="window._beautyCheckOneflow()" class="shrink-0 bg-indigo-50 border border-indigo-200 text-indigo-700 px-3 py-2 rounded-xl text-xs font-bold hover:bg-indigo-100 transition flex items-center gap-1">
@@ -47613,8 +47642,11 @@ window._beautySubmitNewClient = async function() {
     const dob    = document.getElementById('bnc-dob')?.value;
     const notes  = document.getElementById('bnc-notes')?.value?.trim();
     const linkedFamilyId = window._bncLinkedFamilyId || null;
-    if (!name)  { showToast('error', 'שם מלא הוא שדה חובה'); return; }
-    if (!idnum) { showToast('error', 'מספר ת.ז הוא שדה חובה'); return; }
+    const _crf = window._customerRequiredFields || {};
+    if (!name)                       { showToast('error', 'שם מלא הוא שדה חובה'); return; }
+    if (_crf.id    && !idnum) { showToast('error', 'ת.ז הוא שדה חובה לפי הגדרות העסק'); return; }
+    if (_crf.phone && !phone) { showToast('error', 'טלפון הוא שדה חובה לפי הגדרות העסק'); return; }
+    if (_crf.email && !email) { showToast('error', 'אימייל הוא שדה חובה לפי הגדרות העסק'); return; }
     try {
         const r = await fetch(`${API}/beauty/${biz}/clients`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -49662,9 +49694,12 @@ function renderLogisticsCustomers(customers) {
           <h2 class="text-xl font-black text-gray-800">🤝 מזמינים ונמענים</h2>
           <p class="text-sm text-gray-500">${customers.length} לקוחות פעילים</p>
         </div>
-        <button onclick="openAddLogisticsCustomer()" class="bg-cyan-600 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-cyan-700 transition">+ לקוח חדש</button>
+        <div class="flex items-center gap-2">
+            <button onclick="openAddLogisticsCustomer()" class="bg-cyan-600 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-cyan-700 transition">+ לקוח חדש</button>
+            <button onclick="window.toggleCustFieldSettings()" title="הגדרות שדות חובה" class="bg-white text-slate-500 hover:bg-slate-100 w-9 h-9 rounded-xl flex items-center justify-center transition border border-slate-200"><i class="fa-solid fa-sliders text-sm"></i></button>
+        </div>
       </div>
-
+      ${_buildCustFieldSettingsPanel()}
       <div class="grid gap-3">
         ${customers.length === 0 ? `
           <div class="text-center py-16 text-gray-400">
@@ -49782,11 +49817,18 @@ function closeLogisticsCustomerModal() {
 async function saveLogisticsCustomer(e) {
     e.preventDefault();
     const id = document.getElementById('edit-customer-id').value;
+    const _crf = window._customerRequiredFields || {};
+    const _name  = document.getElementById('cust-name')?.value?.trim();
+    const _phone = document.getElementById('cust-phone')?.value?.trim();
+    const _email = document.getElementById('cust-email')?.value?.trim();
+    if (!_name)                      { showToast('error', 'שם הוא שדה חובה'); return; }
+    if (_crf.phone && !_phone) { showToast('error', 'טלפון הוא שדה חובה לפי הגדרות העסק'); return; }
+    if (_crf.email && !_email) { showToast('error', 'אימייל הוא שדה חובה לפי הגדרות העסק'); return; }
     const body = {
         group_id: currentGroup.id,
-        name: document.getElementById('cust-name').value.trim(),
-        phone: document.getElementById('cust-phone').value.trim(),
-        email: document.getElementById('cust-email').value.trim(),
+        name: _name,
+        phone: _phone,
+        email: _email,
         default_address: document.getElementById('cust-address').value.trim(),
         customer_type: document.getElementById('cust-type').value,
         discount_pct: parseFloat(document.getElementById('cust-discount').value)||0,
