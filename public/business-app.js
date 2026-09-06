@@ -55943,34 +55943,212 @@ window._sportApptSave = async function() {
 
   // ── switch tab ──────────────────────────────────────────────
   window.switchChatTab = function(tab) {
-    var isTeam = (tab === 'team');
-    if (isTeam) {
-      // הישאר ב-modal — ודא שפאנל צוות גלוי
-      var team = document.getElementById('chat-messages-container');
-      var footer = document.getElementById('team-chat-footer');
-      var searchWrap = document.getElementById('team-chat-search-wrap');
-      var exportBtn = document.getElementById('team-chat-export-btn');
-      var retentionNote = document.getElementById('team-chat-retention-note');
-      if (team) team.classList.remove('hidden');
-      if (footer) footer.classList.remove('hidden');
-      if (searchWrap) searchWrap.classList.remove('hidden');
-      if (exportBtn) exportBtn.classList.remove('hidden');
-      if (retentionNote) retentionNote.classList.remove('hidden');
-      // עדכון כפתורי טאב
-      var tBtn = document.getElementById('chat-tab-team');
-      var cBtn = document.getElementById('chat-tab-customers');
-      if (tBtn) tBtn.className = 'flex-1 py-1.5 text-xs font-bold rounded-lg transition bg-indigo-600 text-white';
-      if (cBtn) cBtn.className = 'flex-1 py-1.5 text-xs font-bold rounded-lg transition bg-white text-indigo-600 border border-indigo-200';
-      var title = document.getElementById('team-chat-title');
-      var subtitle = document.getElementById('team-chat-subtitle');
-      if (title) title.textContent = "צ'אט צוות";
-      if (subtitle) subtitle.textContent = 'שיחה פנים ארגונית';
+    if (tab === 'team') {
+      // סגור modal ופתח פאנל split-screen פנימי
+      var modal = document.getElementById('team-chat-modal');
+      if (modal) modal.classList.add('hidden');
+      window.openBizDmPanel();
     } else {
-      // סגור modal ופתח פאנל split-screen
+      // סגור modal ופתח פאנל split-screen לקוחות
       var modal = document.getElementById('team-chat-modal');
       if (modal) modal.classList.add('hidden');
       window.openCustChatPanel();
     }
+  };
+
+  // ══════════════════════════════════════════════
+  // צ'אט פנימי — DM בין עובדים
+  // ══════════════════════════════════════════════
+  var _activeDmUserId = null;
+  var _bizDmPollTimer = null;
+
+  function _stopBizDmPoll() {
+    if (_bizDmPollTimer) { clearInterval(_bizDmPollTimer); _bizDmPollTimer = null; }
+  }
+
+  function _bizDmAvatarColor(str) {
+    var h = 0;
+    for (var i = 0; i < (str||'').length; i++) h = str.charCodeAt(i) + ((h << 5) - h);
+    return _AVATAR_COLORS[Math.abs(h) % _AVATAR_COLORS.length];
+  }
+  function _bizDmInitials(name) {
+    var parts = (name || '').trim().split(/\s+/);
+    if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+    return ((name || '?')[0]).toUpperCase();
+  }
+
+  window.openBizDmPanel = function() {
+    var panel = document.getElementById('biz-dm-panel');
+    if (!panel) return;
+    panel.classList.remove('hidden');
+    panel.style.display = 'flex';
+    window.loadBizDmList();
+  };
+
+  window.closeBizDmPanel = function() {
+    _stopBizDmPoll();
+    _activeDmUserId = null;
+    var panel = document.getElementById('biz-dm-panel');
+    if (panel) panel.classList.add('hidden');
+    window.clearBizDmConv();
+  };
+
+  window.clearBizDmConv = function() {
+    _stopBizDmPoll();
+    _activeDmUserId = null;
+    var conv = document.getElementById('biz-dm-conv-panel');
+    var empty = document.getElementById('biz-dm-empty-state');
+    if (conv) conv.classList.add('hidden');
+    if (empty) empty.classList.remove('hidden');
+  };
+
+  window.filterBizDmList = function(val) {
+    var q = (val || '').trim().toLowerCase();
+    document.querySelectorAll('[data-dm-item="1"]').forEach(function(el) {
+      var name = (el.getAttribute('data-dm-name') || '').toLowerCase();
+      el.style.display = (!q || name.includes(q)) ? '' : 'none';
+    });
+  };
+
+  window.toggleBizDmMenu = function() {
+    var m = document.getElementById('biz-dm-menu');
+    if (m) m.classList.toggle('hidden');
+  };
+
+  window.bizDmToggleSearch = function() {
+    var bar = document.getElementById('biz-dm-search-bar');
+    if (!bar) return;
+    var hidden = bar.classList.toggle('hidden');
+    if (!hidden) { setTimeout(function(){ var inp = document.getElementById('biz-dm-search-input'); if(inp) inp.focus(); }, 50); }
+  };
+
+  window.filterBizDmMsgs = function(val) {
+    var q = (val || '').trim().toLowerCase();
+    document.querySelectorAll('#biz-dm-messages [data-dm-msg]').forEach(function(el) {
+      var txt = el.textContent.toLowerCase();
+      el.style.display = (!q || txt.includes(q)) ? '' : 'none';
+    });
+  };
+
+  window.loadBizDmList = async function() {
+    var list = document.getElementById('biz-dm-list');
+    if (!list) return;
+    list.innerHTML = '<p class="text-xs text-slate-400 text-center py-8">טוען...</p>';
+    try {
+      var r = await fetch('/api/biz/dm/list', { headers: _bizHeaders() });
+      var data = await r.json();
+      if (!r.ok) throw new Error(data.error || 'שגיאה');
+      var employees = Array.isArray(data.employees) ? data.employees : [];
+      var html = '';
+      // שורת Group Chat
+      html += '<div data-dm-item="1" data-dm-name="קבוצה" onclick="window.openBizGroupChat()" class="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-slate-50 transition border-b border-slate-100">';
+      html += '<div class="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center shrink-0"><i class="fa-solid fa-users text-indigo-500 text-sm"></i></div>';
+      html += '<div class="flex-1 min-w-0"><div class="flex items-center justify-between"><span class="text-sm font-bold text-slate-800">צ\'אט צוות</span></div>';
+      html += '<p class="text-xs text-slate-400 truncate">שיחת קבוצה</p></div></div>';
+      // מפריד
+      html += '<div class="px-4 py-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wide bg-slate-50 border-b border-slate-100">עובדים</div>';
+      // עובדים
+      employees.forEach(function(emp) {
+        var initials = _bizDmInitials(emp.name);
+        var color = _bizDmAvatarColor(emp.name);
+        var unread = emp.unread_count > 0 ? '<span class="w-5 h-5 bg-indigo-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center shrink-0">'+emp.unread_count+'</span>' : '';
+        var lastMsg = emp.last_message ? '<p class="text-xs text-slate-400 truncate">'+emp.last_message+'</p>' : '<p class="text-xs text-slate-300 truncate">אין הודעות</p>';
+        html += '<div data-dm-item="1" data-dm-name="'+emp.name+'" onclick="window.openBizDm('+emp.user_id+',\''+emp.name.replace(/'/g,"\\'")+'\')" class="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-slate-50 transition border-b border-slate-100">';
+        html += '<div class="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0" style="background:'+color+'">'+initials+'</div>';
+        html += '<div class="flex-1 min-w-0"><div class="flex items-center justify-between gap-1"><span class="text-sm font-bold text-slate-800 truncate">'+emp.name+'</span>'+unread+'</div>'+lastMsg+'</div></div>';
+      });
+      if (!employees.length) html += '<p class="text-xs text-slate-400 text-center py-6">אין עובדים</p>';
+      list.innerHTML = html;
+    } catch(e) {
+      list.innerHTML = '<p class="text-xs text-red-400 text-center py-8">שגיאה בטעינה</p>';
+    }
+  };
+
+  window.openBizGroupChat = function() {
+    // פותח את modal הצ'אט הקבוצתי המקורי
+    window.clearBizDmConv();
+    var modal = document.getElementById('team-chat-modal');
+    var panel = document.getElementById('biz-dm-panel');
+    if (panel) panel.classList.add('hidden');
+    if (modal) modal.classList.remove('hidden');
+  };
+
+  window.openBizDm = async function(userId, name) {
+    _stopBizDmPoll();
+    _activeDmUserId = userId;
+    // עדכון header
+    var avatar = document.getElementById('biz-dm-conv-avatar');
+    var nameEl = document.getElementById('biz-dm-conv-name');
+    var subEl = document.getElementById('biz-dm-conv-sub');
+    var color = _bizDmAvatarColor(name);
+    var initials = _bizDmInitials(name);
+    if (avatar) { avatar.textContent = initials; avatar.style.background = color; }
+    if (nameEl) nameEl.textContent = name;
+    if (subEl) subEl.textContent = 'שיחה פרטית';
+    // הצג פאנל שיחה
+    var conv = document.getElementById('biz-dm-conv-panel');
+    var empty = document.getElementById('biz-dm-empty-state');
+    if (conv) { conv.classList.remove('hidden'); conv.style.display = 'flex'; }
+    if (empty) empty.classList.add('hidden');
+    // טען הודעות
+    await _loadBizDmMessages(userId);
+    // polling
+    _bizDmPollTimer = setInterval(function() { _loadBizDmMessages(userId); }, 5000);
+  };
+
+  async function _loadBizDmMessages(userId) {
+    if (_activeDmUserId !== userId) return;
+    var container = document.getElementById('biz-dm-messages');
+    if (!container) return;
+    try {
+      var r = await fetch('/api/biz/dm/'+userId+'/messages', { headers: _bizHeaders() });
+      var data = await r.json();
+      if (!r.ok) return;
+      var msgs = Array.isArray(data.messages) ? data.messages : [];
+      var myId = (window._bizAuthCache && window._bizAuthCache.userId) ? window._bizAuthCache.userId : null;
+      var html = '';
+      var lastDay = '';
+      msgs.forEach(function(m) {
+        var day = m.created_at ? m.created_at.substring(0,10) : '';
+        if (day && day !== lastDay) {
+          lastDay = day;
+          html += '<div class="flex items-center gap-2 my-2"><div class="flex-1 h-px bg-slate-200"></div><span class="text-[10px] text-slate-400 font-semibold px-2 shrink-0">'+_dayLabel(m.created_at)+'</span><div class="flex-1 h-px bg-slate-200"></div></div>';
+        }
+        var isMine = String(m.from_user_id) === String(myId);
+        var time = m.created_at ? new Date(m.created_at).toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'}) : '';
+        var tick = m.read_at ? '<span style="color:#818cf8;font-size:10px">✓✓</span>' : '<span style="color:#94a3b8;font-size:10px">✓</span>';
+        if (isMine) {
+          html += '<div data-dm-msg class="flex justify-start mb-1"><div class="max-w-[70%] bg-indigo-500 text-white rounded-2xl rounded-br-sm px-4 py-2.5 shadow-sm"><p class="text-sm leading-relaxed">'+_escHtml(m.body)+'</p><div class="flex items-center justify-end gap-1 mt-1"><span class="text-[10px] text-indigo-200">'+time+'</span>'+tick+'</div></div></div>';
+        } else {
+          html += '<div data-dm-msg class="flex justify-end mb-1"><div class="max-w-[70%] bg-white rounded-2xl rounded-bl-sm px-4 py-2.5 shadow-sm border border-slate-100"><p class="text-sm text-slate-800 leading-relaxed">'+_escHtml(m.body)+'</p><span class="text-[10px] text-slate-400 block text-left mt-1">'+time+'</span></div></div>';
+        }
+      });
+      if (!msgs.length) html = '<p class="text-xs text-slate-300 text-center mt-8">אין הודעות עדיין</p>';
+      var atBottom = (container.scrollHeight - container.scrollTop - container.clientHeight) < 40;
+      container.innerHTML = html;
+      if (atBottom || msgs.length === 0) container.scrollTop = container.scrollHeight;
+    } catch(e) {}
+  }
+
+  function _escHtml(str) {
+    return (str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  window.sendBizDmMsg = async function() {
+    if (!_activeDmUserId) return;
+    var inp = document.getElementById('biz-dm-input');
+    if (!inp) return;
+    var body = inp.value.trim();
+    if (!body) return;
+    inp.value = '';
+    try {
+      await fetch('/api/biz/dm/'+_activeDmUserId+'/message', {
+        method: 'POST',
+        headers: Object.assign({'Content-Type':'application/json'}, _bizHeaders()),
+        body: JSON.stringify({ body: body })
+      });
+      await _loadBizDmMessages(_activeDmUserId);
+    } catch(e) {}
   };
 
   // ── פתיחת/סגירת פאנל לקוחות ──────────────────────────────

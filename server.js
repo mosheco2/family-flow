@@ -770,7 +770,20 @@ try { await client.query(`ALTER TABLE game_assignments ADD COLUMN IF NOT EXISTS 
           read_at TIMESTAMPTZ
       )`); } catch(e) { console.error('Error creating customer_chat_messages table:', e.message); }
 
-      // טבלאות החנות הוירטואלית (E-commerce)
+      
+      // צ'אט פנימי 1:1 בין עובדים
+      try { await client.query(`CREATE TABLE IF NOT EXISTS biz_dm_messages (
+          id SERIAL PRIMARY KEY,
+          group_id BIGINT NOT NULL,
+          from_user_id BIGINT NOT NULL,
+          to_user_id BIGINT NOT NULL,
+          body TEXT NOT NULL,
+          created_at TIMESTAMPTZ DEFAULT NOW(),
+          read_at TIMESTAMPTZ
+      )`); } catch(e) { console.error('biz_dm_messages:', e.message); }
+      try { await client.query(`CREATE INDEX IF NOT EXISTS idx_biz_dm_group ON biz_dm_messages(group_id, from_user_id, to_user_id)`); } catch(e) {}
+
+// טבלאות החנות הוירטואלית (E-commerce)
       try { await client.query(`CREATE TABLE IF NOT EXISTS store_settings (group_id INT PRIMARY KEY REFERENCES family_groups(id) ON DELETE CASCADE, is_active BOOLEAN DEFAULT FALSE, welcome_message TEXT, phone VARCHAR(50), min_order DECIMAL(10,2) DEFAULT 0)`); } catch(e) {}
       // עדכון שדות חדשים למסד נתונים קיים
       try { await client.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS slogan VARCHAR(255)`); } catch(e) {}
@@ -34881,6 +34894,105 @@ app.patch('/api/biz/customer-chats/:chatId/status', verifyBiz, async (req, res) 
         );
         if (!r.rows.length) return res.status(403).json({ error: 'אין גישה' });
         res.json({ success: true, chat: r.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// מחיקת שיחת לקוח — צד עסק
+app.delete('/api/biz/customer-chats/:chatId', verifyBiz, async (req, res) => {
+    const groupId = req.bizAuth.groupId;
+    const { chatId } = req.params;
+    try {
+        const chat = await pool.query(`SELECT * FROM customer_chats WHERE id=$1 AND group_id=$2`, [chatId, groupId]);
+        if (!chat.rows.length) return res.status(403).json({ error: 'אין גישה' });
+        await pool.query(`DELETE FROM customer_chat_messages WHERE chat_id=$1`, [chatId]);
+        await pool.query(`DELETE FROM customer_chats WHERE id=$1`, [chatId]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ══════════════════════════════════════════════════════════════
+// צ'אט פנימי 1:1 בין עובדים (biz_dm_messages)
+// ══════════════════════════════════════════════════════════════
+
+// רשימת עובדים + הודעה אחרונה עם כל אחד
+app.get('/api/biz/dm/list', verifyBiz, async (req, res) => {
+    const groupId = req.bizAuth.groupId;
+    const myId = req.bizAuth.userId;
+    try {
+        const members = await pool.query(
+            `SELECT id, nickname, first_name, last_name, role, employee_role_type
+             FROM users WHERE group_id=$1 AND id<>$2 ORDER BY nickname ASC`,
+            [groupId, myId]
+        );
+        const dms = await pool.query(
+            `SELECT DISTINCT ON (LEAST(from_user_id,to_user_id), GREATEST(from_user_id,to_user_id))
+                LEAST(from_user_id,to_user_id) as u1,
+                GREATEST(from_user_id,to_user_id) as u2,
+                body, created_at, from_user_id,
+                (SELECT COUNT(*) FROM biz_dm_messages m2
+                 WHERE m2.group_id=$1 AND m2.to_user_id=$2 AND m2.from_user_id=
+                    CASE WHEN from_user_id=$2 THEN to_user_id ELSE from_user_id END
+                 AND m2.read_at IS NULL) as unread_count
+             FROM biz_dm_messages
+             WHERE group_id=$1 AND (from_user_id=$2 OR to_user_id=$2)
+             ORDER BY LEAST(from_user_id,to_user_id), GREATEST(from_user_id,to_user_id), created_at DESC`,
+            [groupId, myId]
+        );
+        const dmMap = {};
+        dms.rows.forEach(d => {
+            const otherId = d.from_user_id == myId ? d.u2 : d.u1;
+            dmMap[otherId] = { last_body: d.body, last_at: d.created_at, unread: parseInt(d.unread_count)||0 };
+        });
+        const result = members.rows.map(m => ({
+            ...m,
+            last_body: dmMap[m.id]?.last_body || null,
+            last_at: dmMap[m.id]?.last_at || null,
+            unread: dmMap[m.id]?.unread || 0
+        }));
+        res.json({ success: true, members: result });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// הודעות 1:1 עם עובד ספציפי
+app.get('/api/biz/dm/:toUserId/messages', verifyBiz, async (req, res) => {
+    const groupId = req.bizAuth.groupId;
+    const myId = req.bizAuth.userId;
+    const { toUserId } = req.params;
+    const since = req.query.since;
+    try {
+        const q = since
+            ? `SELECT * FROM biz_dm_messages WHERE group_id=$1
+               AND ((from_user_id=$2 AND to_user_id=$3) OR (from_user_id=$3 AND to_user_id=$2))
+               AND created_at > $4 ORDER BY created_at ASC`
+            : `SELECT * FROM biz_dm_messages WHERE group_id=$1
+               AND ((from_user_id=$2 AND to_user_id=$3) OR (from_user_id=$3 AND to_user_id=$2))
+               ORDER BY created_at ASC LIMIT 200`;
+        const params = since ? [groupId, myId, toUserId, since] : [groupId, myId, toUserId];
+        const msgs = await pool.query(q, params);
+        // סמן כנקרא
+        await pool.query(
+            `UPDATE biz_dm_messages SET read_at=NOW()
+             WHERE group_id=$1 AND from_user_id=$2 AND to_user_id=$3 AND read_at IS NULL`,
+            [groupId, toUserId, myId]
+        );
+        res.json({ success: true, messages: msgs.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// שליחת הודעה 1:1
+app.post('/api/biz/dm/:toUserId/message', verifyBiz, async (req, res) => {
+    const groupId = req.bizAuth.groupId;
+    const myId = req.bizAuth.userId;
+    const { toUserId } = req.params;
+    const { body } = req.body;
+    if (!body || !body.trim()) return res.status(400).json({ error: 'גוף הודעה ריק' });
+    try {
+        const msg = await pool.query(
+            `INSERT INTO biz_dm_messages (group_id, from_user_id, to_user_id, body)
+             VALUES ($1,$2,$3,$4) RETURNING *`,
+            [groupId, myId, toUserId, body.trim()]
+        );
+        res.json({ success: true, message: msg.rows[0] });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
