@@ -674,13 +674,12 @@ const scAuth = window.scAuth = {
                     var action = btn.getAttribute('data-beauty-action');
                     document.getElementById('sc-activity-panel').style.display = 'none';
                     if (action === 'book') {
-                        if (typeof _scOpenBeautyBookingPanel === 'function') {
-                            _scOpenBeautyBookingPanel(_gid, window.scAuth._customer);
-                        } else if (document.getElementById('beauty-booking-btn')) {
-                            document.getElementById('beauty-booking-btn').click();
+                        if (typeof window.openBookingModal === 'function') {
+                            window.openBookingModal();
+                        } else if (document.getElementById('btn-book-appointment')) {
+                            document.getElementById('btn-book-appointment').click();
                         } else {
                             document.getElementById('sc-activity-panel').style.display = 'block';
-                            alert('לקביעת תור פנה לעסק ישירות');
                         }
                     } else if (action === 'consult') {
                         if (typeof _scOpenRfqPanel === 'function') {
