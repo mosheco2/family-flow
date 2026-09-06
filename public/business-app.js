@@ -55904,6 +55904,18 @@ window._sportApptSave = async function() {
   var _custRenderedIds = {};
   var POLL_MS = 3000;
 
+  var _AVATAR_COLORS = ['#6366f1','#8b5cf6','#ec4899','#f97316','#10b981','#3b82f6','#06b6d4','#84cc16'];
+  function _custAvatarColor(str) {
+    var h = 0;
+    for (var i = 0; i < str.length; i++) h = str.charCodeAt(i) + ((h << 5) - h);
+    return _AVATAR_COLORS[Math.abs(h) % _AVATAR_COLORS.length];
+  }
+  function _custInitials(name) {
+    var parts = (name || '').trim().split(/\s+/);
+    if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+    return ((name || '?')[0]).toUpperCase();
+  }
+
   function _bizToken() {
     return window._bizToken || localStorage.getItem('ofl_family_token') || '';
   }
@@ -55992,18 +56004,25 @@ window._sportApptSave = async function() {
       }
       list.innerHTML = d.chats.map(function(c) {
         var unread = parseInt(c.unread_count) || 0;
-        var name = _esc((c.first_name||'') + ' ' + (c.last_name||''));
+        var name = ((c.first_name||'') + ' ' + (c.last_name||'')).trim();
+        var nameEsc = _esc(name);
         var preview = _esc(c.last_body || '—');
         var closed = c.status === 'closed';
         var timeStr = _fmtListTime(c.last_msg_at || c.last_message_at);
         var phone = _esc(c.phone || '');
-        return '<div onclick="window.openCustChat('+c.id+',\''+name+'\',\''+c.status+'\',\''+phone+'\')" class="flex items-center gap-3 p-3 cursor-pointer hover:bg-indigo-50 transition '+(closed?'opacity-50':'')+'">'+
-          '<div class="w-9 h-9 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold text-sm shrink-0">'+_esc((c.first_name||'?')[0].toUpperCase())+'</div>'+
-          '<div class="flex-1 min-w-0">'+
-            '<div class="flex justify-between items-center"><span class="font-bold text-slate-800 text-sm">'+name+'</span>'+
-            '<span class="text-[10px] text-slate-400 shrink-0 mr-1">'+(unread ? '<span class="bg-red-500 text-white font-bold px-1.5 py-0.5 rounded-full mr-1">'+unread+'</span>' : '')+timeStr+'</span>'+
+        var initials = _custInitials(name);
+        var color = _custAvatarColor(name || String(c.id));
+        return '<div onclick="window.openCustChat('+c.id+',\''+nameEsc+'\',\''+c.status+'\',\''+phone+'\')" class="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-indigo-50 transition border-b border-slate-50 '+(closed?'opacity-60':'')+'">'+
+          '<div class="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0 select-none" style="background:'+color+'">'+initials+'</div>'+
+          '<div class="flex-1 min-w-0" style="direction:rtl">'+
+            '<div class="flex justify-between items-center gap-1">'+
+              '<span class="font-bold text-slate-800 text-sm truncate">'+nameEsc+'</span>'+
+              '<span class="text-[10px] text-slate-400 shrink-0 flex items-center gap-1">'+
+                (unread ? '<span class="bg-indigo-500 text-white font-bold text-[9px] w-4 h-4 rounded-full flex items-center justify-center">'+unread+'</span>' : '')+
+                timeStr+
+              '</span>'+
             '</div>'+
-            '<p class="text-xs text-slate-500 truncate">'+(closed?'<span class="text-slate-400">[סגורה] </span>':'')+preview+'</p>'+
+            '<p class="text-xs text-slate-500 truncate mt-0.5">'+(closed?'<span class="text-slate-400">[סגורה] </span>':'')+preview+'</p>'+
           '</div>'+
         '</div>';
       }).join('');
@@ -56028,6 +56047,12 @@ window._sportApptSave = async function() {
 
     var phoneEl = document.getElementById('cust-chat-conv-phone');
     if (phoneEl) phoneEl.textContent = phone || '';
+
+    var avatarEl = document.getElementById('cust-chat-conv-avatar');
+    if (avatarEl) {
+      avatarEl.textContent = _custInitials(name);
+      avatarEl.style.background = _custAvatarColor(name || String(chatId));
+    }
 
     // עדכון כפתור סגור/פתח בתפריט
     var closeBtn = document.getElementById('cust-chat-close-btn');
