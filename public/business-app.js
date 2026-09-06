@@ -1183,6 +1183,25 @@ window.injectBusinessUI = function() {
                                 <input type="email" id="store-order-email" class="modern-input py-2 text-sm bg-white" placeholder="example@gmail.com" dir="ltr">
                                 <p class="text-[10px] text-slate-400 mt-1.5">כתובת המייל שאליה יישלחו התראות על הזמנות חדשות. ריק = ברירת מחדל (מייל הנהלת החשבון).</p>
                             </div>
+                            <!-- שדות חובה בטופס לקוח -->
+                            <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 mt-4">
+                                <h4 class="font-black text-slate-800 text-sm mb-1 flex items-center gap-2"><i class="fa-solid fa-user-check text-indigo-500"></i> שדות חובה בהוספת לקוח</h4>
+                                <p class="text-xs text-slate-500 mb-3">בחר אילו שדות יהיו חובה בעת הוספת לקוח חדש. שם הלקוח תמיד חובה.</p>
+                                <div class="space-y-2">
+                                    <label class="flex items-center gap-3 cursor-pointer p-2 rounded-xl hover:bg-slate-100 transition">
+                                        <input type="checkbox" id="cust-req-phone" class="w-4 h-4 accent-indigo-600 rounded">
+                                        <span class="text-sm text-slate-700 font-medium">📱 טלפון — שדה חובה</span>
+                                    </label>
+                                    <label class="flex items-center gap-3 cursor-pointer p-2 rounded-xl hover:bg-slate-100 transition">
+                                        <input type="checkbox" id="cust-req-email" class="w-4 h-4 accent-indigo-600 rounded">
+                                        <span class="text-sm text-slate-700 font-medium">✉️ אימייל — שדה חובה</span>
+                                    </label>
+                                    <label class="flex items-center gap-3 cursor-pointer p-2 rounded-xl hover:bg-slate-100 transition">
+                                        <input type="checkbox" id="cust-req-id" class="w-4 h-4 accent-indigo-600 rounded">
+                                        <span class="text-sm text-slate-700 font-medium">🪪 ת.ז / ח.פ — שדה חובה</span>
+                                    </label>
+                                </div>
+                            </div>
                             <button id="btn-save-store-settings" onclick="window.saveStoreSettings()" class="w-full mt-6 bg-slate-800 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-slate-700 transition text-sm">שמור הגדרות חנות</button>
 
                             <!-- קיצורי דרך לניהול אזורים -->
@@ -10787,7 +10806,11 @@ window.submitNewCustomer = async function() {
     const familyGroupId = document.getElementById('cust-family-group-id')?.value ? parseInt(document.getElementById('cust-family-group-id').value) : null;
     
     if (!name) return showToast('error', 'שם לקוח הוא שדה חובה');
-    
+    const _crf = window._customerRequiredFields || {};
+    if (_crf.phone && !phone) return showToast('error', 'טלפון הוא שדה חובה לפי הגדרות העסק');
+    if (_crf.email && !email) return showToast('error', 'אימייל הוא שדה חובה לפי הגדרות העסק');
+    if (_crf.id && !businessId) return showToast('error', 'ת.ז / ח.פ הוא שדה חובה לפי הגדרות העסק');
+
     const btn = document.getElementById('btn-submit-customer');
     if(btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> שומר...'; }
     
@@ -11059,15 +11082,15 @@ window.openCustomerModal = function(id = null, tab = 'details') {
                             <input type="hidden" id="cust-family-group-id">
                         </div>
                     </div>
-                    <div><label class="text-xs font-bold text-slate-500">טלפון (מזהה ראשי להקפות):</label>
+                    <div><label id="lbl-cust-phone" class="text-xs font-bold text-slate-500">טלפון (מזהה ראשי להקפות):</label>
                         <div class="flex gap-2">
                             <input type="tel" id="cust-phone" class="modern-input py-2 text-sm bg-white dir-ltr text-left flex-1" oninput="if(!document.getElementById('cust-view-history').classList.contains('hidden')) window.renderCustomerHistory(false, 'modal')">
                             <button onclick="window._custCheckOneflow()" class="shrink-0 bg-violet-100 hover:bg-violet-200 text-violet-700 border border-violet-200 rounded-xl px-2.5 py-2 font-black text-[11px] flex items-center gap-1.5 transition" title="איתור לקוח ב-ONEFLOW LIFE"><i class="fa-solid fa-user-check text-xs"></i><span>איתור ONEFLOW</span></button>
                         </div>
                         <div id="cust-oneflow-result" class="mt-1 hidden"></div>
                     </div>
-                    <div><label class="text-xs font-bold text-slate-500">אימייל:</label><input type="email" id="cust-email" class="modern-input py-2 text-sm bg-white dir-ltr text-left"></div>
-                    <div><label class="text-xs font-bold text-slate-500">ח.פ / ע.מ:</label><input type="text" id="cust-business-id" class="modern-input py-2 text-sm bg-white dir-ltr text-left"></div>
+                    <div><label id="lbl-cust-email" class="text-xs font-bold text-slate-500">אימייל:</label><input type="email" id="cust-email" class="modern-input py-2 text-sm bg-white dir-ltr text-left"></div>
+                    <div><label id="lbl-cust-business-id" class="text-xs font-bold text-slate-500">ח.פ / ע.מ / ת.ז:</label><input type="text" id="cust-business-id" class="modern-input py-2 text-sm bg-white dir-ltr text-left"></div>
                     <div><label class="text-xs font-bold text-slate-500">הערות:</label><textarea id="cust-notes" class="modern-input py-2 text-sm bg-white h-20"></textarea></div>
                 </div>
             </div>
@@ -11110,7 +11133,17 @@ window.openCustomerModal = function(id = null, tab = 'details') {
     `);
     
     modal = document.getElementById('customer-modal');
-    
+
+    // עדכון תוויות חובה לפי הגדרות עסק
+    const _crf = window._customerRequiredFields || {};
+    const _setReqLabel = (lblId, baseText, isReq) => {
+        const lbl = document.getElementById(lblId);
+        if (lbl) lbl.innerHTML = isReq ? `${baseText} <span class="text-red-500">*</span>` : baseText;
+    };
+    _setReqLabel('lbl-cust-phone', 'טלפון (מזהה ראשי להקפות):', _crf.phone);
+    _setReqLabel('lbl-cust-email', 'אימייל:', _crf.email);
+    _setReqLabel('lbl-cust-business-id', 'ח.פ / ע.מ / ת.ז:', _crf.id);
+
     if (c) {
         if(document.getElementById('cust-id')) document.getElementById('cust-id').value = c.id;
         document.getElementById('cust-name').value = c.name || '';
@@ -12487,6 +12520,16 @@ window.fetchStoreSettings = async function() {
             if (appStoreEl) appStoreEl.value = s.app_store_url || '';
             const playStoreEl = document.getElementById('store-play-store-url');
             if (playStoreEl) playStoreEl.value = s.play_store_url || '';
+
+            // שדות חובה לקוח
+            const crf = s.customer_required_fields ? (typeof s.customer_required_fields === 'string' ? JSON.parse(s.customer_required_fields) : s.customer_required_fields) : {};
+            window._customerRequiredFields = crf;
+            const crPhone = document.getElementById('cust-req-phone');
+            const crEmail = document.getElementById('cust-req-email');
+            const crId    = document.getElementById('cust-req-id');
+            if (crPhone) crPhone.checked = !!crf.phone;
+            if (crEmail) crEmail.checked = !!crf.email;
+            if (crId)    crId.checked    = !!crf.id;
         }
     } catch(e) { console.error("Fetch Settings Error:", e); }
 };
@@ -12590,7 +12633,12 @@ async function saveStoreSettings() {
             playStoreUrl: document.getElementById('store-play-store-url')?.value || '',
             freeDeliveryAbove: parseInt(document.getElementById('store-free-delivery-above')?.value) || 0,
             banner1Title: document.getElementById('store-banner1-title')?.value || '',
-            banner2Title: document.getElementById('store-banner2-title')?.value || ''
+            banner2Title: document.getElementById('store-banner2-title')?.value || '',
+            customerRequiredFields: {
+                phone: getChecked('cust-req-phone'),
+                email: getChecked('cust-req-email'),
+                id: getChecked('cust-req-id')
+            }
         };
 
         const res = await fetch(`${API}/store/settings`, {
@@ -12606,6 +12654,7 @@ async function saveStoreSettings() {
 
         const data = await res.json();
         if (data.success) {
+            window._customerRequiredFields = payload.customerRequiredFields;
             showToast('success', 'הגדרות החנות נשמרו בהצלחה!');
             document.querySelectorAll('[id*="store-logo-base64"]').forEach(el => el.value = '');
             document.querySelectorAll('[id*="store-banner-base64"]').forEach(el => el.value = '');

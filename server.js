@@ -9960,7 +9960,7 @@ app.get('/api/store/settings/:groupId', async (req, res) => {
 
 app.post('/api/store/settings', async (req, res) => {
     try {
-        const { groupId, isActive, welcomeMessage, phone, minOrder, slogan, storeType, logoUrl, bannerUrl, openTime, closeTime, whatsappNumber, deliveryFee, includeVat, vatRate, storeAlias, enableTableBooking, bookingMode, enableEventBooking, orderNotificationEmail, templateId, accentColor, deliveryEtaMin, pickupEtaMin, appStoreUrl, playStoreUrl, freeDeliveryAbove, tickerMessages, sloganEn, welcomeMessageEn, banner1Title, banner2Title } = req.body;
+        const { groupId, isActive, welcomeMessage, phone, minOrder, slogan, storeType, logoUrl, bannerUrl, openTime, closeTime, whatsappNumber, deliveryFee, includeVat, vatRate, storeAlias, enableTableBooking, bookingMode, enableEventBooking, orderNotificationEmail, templateId, accentColor, deliveryEtaMin, pickupEtaMin, appStoreUrl, playStoreUrl, freeDeliveryAbove, tickerMessages, sloganEn, welcomeMessageEn, banner1Title, banner2Title, customerRequiredFields } = req.body;
 
         try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS open_time VARCHAR(10)`); } catch(e) {}
         try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS close_time VARCHAR(10)`); } catch(e) {}
@@ -10030,13 +10030,15 @@ app.post('/api/store/settings', async (req, res) => {
         const tickerMsgsVal = Array.isArray(tickerMessages) ? tickerMessages : [];
         try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS banner1_title VARCHAR(200)`); } catch(e) {}
         try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS banner2_title VARCHAR(200)`); } catch(e) {}
+        try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS customer_required_fields JSONB DEFAULT '{}'`); } catch(e) {}
+        const crfVal = customerRequiredFields && typeof customerRequiredFields === 'object' ? JSON.stringify(customerRequiredFields) : '{}';
         await pool.query(`
             INSERT INTO store_settings (
-                group_id, is_active, welcome_message, phone, min_order, slogan, store_type, logo_url, banner_url, open_time, close_time, whatsapp_number, delivery_fee, include_vat, vat_rate, store_alias, enable_table_booking, booking_mode, enable_event_booking, order_notification_email, template_id, accent_color, delivery_eta_min, pickup_eta_min, app_store_url, play_store_url, free_delivery_above, ticker_messages, slogan_en, welcome_message_en, banner1_title, banner2_title
+                group_id, is_active, welcome_message, phone, min_order, slogan, store_type, logo_url, banner_url, open_time, close_time, whatsapp_number, delivery_fee, include_vat, vat_rate, store_alias, enable_table_booking, booking_mode, enable_event_booking, order_notification_email, template_id, accent_color, delivery_eta_min, pickup_eta_min, app_store_url, play_store_url, free_delivery_above, ticker_messages, slogan_en, welcome_message_en, banner1_title, banner2_title, customer_required_fields
             ) VALUES ($1, $2, $3, $4, $5, $6, $7,
                 NULLIF($8, 'DELETE'),
                 NULLIF($9, 'DELETE'),
-                $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32)
+                $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33)
             ON CONFLICT (group_id) DO UPDATE SET
                 is_active = EXCLUDED.is_active,
                 welcome_message = EXCLUDED.welcome_message,
@@ -10076,12 +10078,13 @@ app.post('/api/store/settings', async (req, res) => {
                 slogan_en = EXCLUDED.slogan_en,
                 welcome_message_en = EXCLUDED.welcome_message_en,
                 banner1_title = EXCLUDED.banner1_title,
-                banner2_title = EXCLUDED.banner2_title
+                banner2_title = EXCLUDED.banner2_title,
+                customer_required_fields = EXCLUDED.customer_required_fields
         `, [
             groupId, isActive, welcomeMessage, phone, parseFloat(minOrder)||0, slogan, storeType,
             logoUrl || null, bannerUrl || null, openTime || '', closeTime || '', whatsappNumber || '', parseFloat(deliveryFee) || 0, isVat, vatRateVal, aliasVal, enableTableBookingVal, bookingModeVal, enableEventBookingVal, orderEmailVal,
             templateIdVal, accentColorVal, deliveryEtaVal, pickupEtaVal, appStoreVal, playStoreVal, freeDeliveryVal, JSON.stringify(tickerMsgsVal),
-            sloganEn || '', welcomeMessageEn || '', banner1TitleVal || null, banner2TitleVal || null
+            sloganEn || '', welcomeMessageEn || '', banner1TitleVal || null, banner2TitleVal || null, crfVal
         ]);
         
         res.json({ success: true });
