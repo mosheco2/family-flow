@@ -408,6 +408,37 @@ const scAuth = window.scAuth = {
                 }
             }
 
+            // ── תורים יופי ─────────────────────────────────────────────────
+            if (_bizType === 'beauty') {
+                html += `<div style="font-size:11px;font-weight:700;color:#94a3b8;padding:8px 0 6px;text-align:right">📅 התורים שלי</div>`;
+                var beautyAppts = appointments.concat(bookings.filter(function(b){ return b.call_type !== 'table_reservation'; }));
+                if (!beautyAppts.length) {
+                    html += `<div style="background:#f8fafc;border-radius:12px;padding:14px;margin-bottom:10px;text-align:right">
+                      <div style="color:#94a3b8;font-size:13px">אין תורים קרובים</div>
+                      <button data-beauty-action="book" style="margin-top:8px;padding:7px 14px;background:#ec4899;color:#fff;border:none;border-radius:8px;font-size:12px;cursor:pointer">+ קבע תור חדש</button>
+                    </div>`;
+                } else {
+                    html += beautyAppts.map(function(a) {
+                        var dk = a.event_date ? String(a.event_date).slice(0,10) : (a.start_time ? String(a.start_time).slice(0,10) : '');
+                        var dateStr = dk ? new Date(dk+'T12:00:00').toLocaleDateString('he-IL',{weekday:'short',day:'numeric',month:'short'}) : '';
+                        var timeStr = a.start_time ? String(a.start_time).slice(11,16)||String(a.start_time).slice(0,5) : '';
+                        var statusColors = { pending:'#f59e0b', approved:'#10b981', confirmed:'#10b981', cancelled:'#ef4444', completed:'#6366f1' };
+                        var statusLabels = { pending:'ממתין לאישור', approved:'מאושר', confirmed:'מאושר', cancelled:'בוטל', completed:'הושלם' };
+                        var sc = statusColors[a.status] || '#64748b';
+                        var canCancel = a.status !== 'cancelled' && a.status !== 'completed' && dk >= new Date().toISOString().slice(0,10);
+                        return '<div style="border:1px solid #f1f5f9;border-radius:12px;padding:12px;margin-bottom:8px" data-beauty-appt-id="'+a.id+'">'
+                            +'<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">'
+                            +'<span style="font-size:11px;font-weight:700;color:'+sc+';background:'+sc+'15;padding:3px 8px;border-radius:7px">'+(statusLabels[a.status]||a.status)+'</span>'
+                            +'<div style="text-align:right">'
+                            +'<div style="font-weight:700;font-size:14px;color:#1e293b">'+(a.service_name||a.title||'תור')+'</div>'
+                            +'<div style="font-size:12px;color:#64748b;margin-top:2px">'+dateStr+(timeStr?' · '+timeStr:'')+(a.trainer_name||a.staff_name?' · '+(a.trainer_name||a.staff_name):'')+'</div>'
+                            +'</div></div>'
+                            +(canCancel ? '<button data-cancel-beauty-appt="'+a.id+'" style="margin-top:6px;width:100%;padding:7px;border:1px solid #fca5a5;border-radius:9px;background:#fff5f5;color:#ef4444;font-size:12px;cursor:pointer">ביטול תור</button>' : '')
+                            +'</div>';
+                    }).join('');
+                }
+            }
+
             // ── הזמנות מסעדה (שולחנות) ──────────────────────────────────────
             var tableReservations = bookings.filter(function(b) { return b.call_type === 'table_reservation'; });
             var otherBookings = bookings.filter(function(b) { return b.call_type !== 'table_reservation'; });
@@ -547,6 +578,16 @@ const scAuth = window.scAuth = {
                 }
             }
 
+            if (_bizType === 'beauty') {
+                html = `<div style="margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid #f1f5f9">
+                  <div style="font-size:11px;font-weight:700;color:#94a3b8;padding:0 0 8px;text-align:right">⚡ פעולות מהירות</div>
+                  <div style="display:flex;gap:8px;flex-wrap:wrap">
+                    <button data-beauty-action="book" style="flex:1;min-width:90px;padding:10px 6px;border:1.5px solid #e2e8f0;border-radius:12px;background:#fff;font-size:12px;cursor:pointer;color:#475569;text-align:center">📅 קביעת תור</button>
+                    <button data-beauty-action="consult" style="flex:1;min-width:90px;padding:10px 6px;border:1.5px solid #e2e8f0;border-radius:12px;background:#fff;font-size:12px;cursor:pointer;color:#475569;text-align:center">💌 ייעוץ מקדים</button>
+                  </div>
+                </div>` + html;
+            }
+
             if (!html) html = '<div style="text-align:center;color:#94a3b8;font-size:13px;padding:40px 0">אין פעילות עדיין עם העסק הזה</div>';
 
             html += `<div style="border-top:1px solid #f1f5f9;margin-top:12px;padding-top:12px">
@@ -620,6 +661,51 @@ const scAuth = window.scAuth = {
                     }).then(function(r){ return r.json(); }).then(function(res) {
                         if (res.success) {
                             var card = btn.closest('[data-table-res-id]');
+                            if (card) { card.style.opacity = '0.4'; btn.textContent = 'בוטל'; }
+                        } else {
+                            btn.disabled = false; btn.textContent = res.error || 'שגיאה';
+                        }
+                    }).catch(function() { btn.disabled=false; btn.textContent='שגיאת רשת'; });
+                });
+            });
+            // ── יופי: פעולות מהירות ──────────────────────────────────────────
+            list.querySelectorAll('[data-beauty-action]').forEach(function(btn) {
+                btn.addEventListener('click', function() {
+                    var action = btn.getAttribute('data-beauty-action');
+                    document.getElementById('sc-activity-panel').style.display = 'none';
+                    if (action === 'book') {
+                        if (typeof _scOpenBeautyBookingPanel === 'function') {
+                            _scOpenBeautyBookingPanel(_gid, window.scAuth._customer);
+                        } else if (document.getElementById('beauty-booking-btn')) {
+                            document.getElementById('beauty-booking-btn').click();
+                        } else {
+                            document.getElementById('sc-activity-panel').style.display = 'block';
+                            alert('לקביעת תור פנה לעסק ישירות');
+                        }
+                    } else if (action === 'consult') {
+                        if (typeof _scOpenRfqPanel === 'function') {
+                            _scOpenRfqPanel(_gid, window.scAuth._customer);
+                        } else {
+                            var rfqBtn = document.getElementById('rfq-btn') || document.getElementById('sc-rfq-btn');
+                            if (rfqBtn) { rfqBtn.click(); }
+                            else { document.getElementById('sc-activity-panel').style.display = 'block'; }
+                        }
+                    }
+                });
+            });
+
+            // ── יופי: ביטול תור ──────────────────────────────────────────────
+            list.querySelectorAll('[data-cancel-beauty-appt]').forEach(function(btn) {
+                btn.addEventListener('click', function() {
+                    var apptId = btn.getAttribute('data-cancel-beauty-appt');
+                    if (!confirm('לבטל את התור?')) return;
+                    btn.disabled = true; btn.textContent = 'מבטל...';
+                    fetch('/api/calendar/events/' + apptId, {
+                        method: 'DELETE',
+                        headers: {'Content-Type':'application/json','Authorization':'Bearer '+(window.scAuth._token||'')}
+                    }).then(function(r){ return r.json(); }).then(function(res) {
+                        if (res.success || res.deleted) {
+                            var card = btn.closest('[data-beauty-appt-id]');
                             if (card) { card.style.opacity = '0.4'; btn.textContent = 'בוטל'; }
                         } else {
                             btn.disabled = false; btn.textContent = res.error || 'שגיאה';
