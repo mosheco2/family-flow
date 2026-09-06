@@ -55944,44 +55944,54 @@ window._sportApptSave = async function() {
   // ── switch tab ──────────────────────────────────────────────
   window.switchChatTab = function(tab) {
     var isTeam = (tab === 'team');
-    // עדכון כפתורי טאב
-    var tBtn = document.getElementById('chat-tab-team');
-    var cBtn = document.getElementById('chat-tab-customers');
-    if (tBtn) { tBtn.className = 'flex-1 py-1.5 text-xs font-bold rounded-lg transition ' + (isTeam ? 'bg-indigo-600 text-white' : 'bg-white text-indigo-600 border border-indigo-200'); }
-    if (cBtn) { cBtn.className = 'flex-1 py-1.5 text-xs font-bold rounded-lg transition ' + (!isTeam ? 'bg-indigo-600 text-white' : 'bg-white text-indigo-600 border border-indigo-200'); }
-    // עדכון כותרת לפי הטאב הפעיל
-    var title = document.getElementById('team-chat-title');
-    var subtitle = document.getElementById('team-chat-subtitle');
-    if (title) title.textContent = isTeam ? "צ'אט צוות" : "צ'אט לקוחות";
-    if (subtitle) subtitle.textContent = isTeam ? 'שיחה פנים ארגונית' : 'שיחות עם לקוחות החנות';
-
-    // הצג/הסתר פאנלים
-    var team = document.getElementById('chat-messages-container');
-    var footer = document.getElementById('team-chat-footer');
-    var searchWrap = document.getElementById('team-chat-search-wrap');
-    var exportBtn = document.getElementById('team-chat-export-btn');
-    var retentionNote = document.getElementById('team-chat-retention-note');
-    var listPanel = document.getElementById('cust-chat-list-panel');
-    var convPanel = document.getElementById('cust-chat-conv-panel');
-
     if (isTeam) {
+      // הישאר ב-modal — ודא שפאנל צוות גלוי
+      var team = document.getElementById('chat-messages-container');
+      var footer = document.getElementById('team-chat-footer');
+      var searchWrap = document.getElementById('team-chat-search-wrap');
+      var exportBtn = document.getElementById('team-chat-export-btn');
+      var retentionNote = document.getElementById('team-chat-retention-note');
       if (team) team.classList.remove('hidden');
       if (footer) footer.classList.remove('hidden');
       if (searchWrap) searchWrap.classList.remove('hidden');
       if (exportBtn) exportBtn.classList.remove('hidden');
       if (retentionNote) retentionNote.classList.remove('hidden');
-      if (listPanel) listPanel.classList.add('hidden');
-      if (convPanel) convPanel.classList.add('hidden');
+      // עדכון כפתורי טאב
+      var tBtn = document.getElementById('chat-tab-team');
+      var cBtn = document.getElementById('chat-tab-customers');
+      if (tBtn) tBtn.className = 'flex-1 py-1.5 text-xs font-bold rounded-lg transition bg-indigo-600 text-white';
+      if (cBtn) cBtn.className = 'flex-1 py-1.5 text-xs font-bold rounded-lg transition bg-white text-indigo-600 border border-indigo-200';
+      var title = document.getElementById('team-chat-title');
+      var subtitle = document.getElementById('team-chat-subtitle');
+      if (title) title.textContent = "צ'אט צוות";
+      if (subtitle) subtitle.textContent = 'שיחה פנים ארגונית';
     } else {
-      if (team) team.classList.add('hidden');
-      if (footer) footer.classList.add('hidden');
-      if (searchWrap) searchWrap.classList.add('hidden');
-      if (exportBtn) exportBtn.classList.add('hidden');
-      if (retentionNote) retentionNote.classList.add('hidden');
-      if (listPanel) { listPanel.classList.remove('hidden'); listPanel.style.display = 'flex'; }
-      if (convPanel) convPanel.classList.add('hidden');
-      window.loadCustChatList();
+      // סגור modal ופתח פאנל split-screen
+      var modal = document.getElementById('team-chat-modal');
+      if (modal) modal.classList.add('hidden');
+      window.openCustChatPanel();
     }
+  };
+
+  // ── פתיחת/סגירת פאנל לקוחות ──────────────────────────────
+  window.openCustChatPanel = function() {
+    var panel = document.getElementById('cust-chat-panel');
+    if (!panel) return;
+    panel.classList.remove('hidden');
+    panel.style.display = 'flex';
+    window.loadCustChatList();
+  };
+
+  window.closeCustChatPanel = function() {
+    _stopCustPoll();
+    _activeChatId = null;
+    var panel = document.getElementById('cust-chat-panel');
+    if (panel) panel.classList.add('hidden');
+    // חזרה למצב ריק
+    var conv = document.getElementById('cust-chat-conv-panel');
+    var empty = document.getElementById('cust-chat-empty-state');
+    if (conv) conv.classList.add('hidden');
+    if (empty) empty.classList.remove('hidden');
   };
 
   // ── טעינת רשימת שיחות ──────────────────────────────────────
@@ -56012,7 +56022,7 @@ window._sportApptSave = async function() {
         var phone = _esc(c.phone || '');
         var initials = _custInitials(name);
         var color = _custAvatarColor(name || String(c.id));
-        return '<div onclick="window.openCustChat('+c.id+',\''+nameEsc+'\',\''+c.status+'\',\''+phone+'\')" class="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-indigo-50 transition border-b border-slate-50 '+(closed?'opacity-60':'')+'">'+
+        return '<div data-chat-item="1" data-chat-name="'+nameEsc+'" onclick="window.openCustChat('+c.id+',\''+nameEsc+'\',\''+c.status+'\',\''+phone+'\')" class="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-indigo-50 transition border-b border-slate-50 '+(closed?'opacity-60':'')+'">'+
           '<div class="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0 select-none" style="background:'+color+'">'+initials+'</div>'+
           '<div class="flex-1 min-w-0" style="direction:rtl">'+
             '<div class="flex justify-between items-center gap-1">'+
@@ -56037,9 +56047,10 @@ window._sportApptSave = async function() {
     _custLastSince = null;
     _custRenderedIds = {};
 
-    var listPanel = document.getElementById('cust-chat-list-panel');
+    // הצג פאנל שיחה + הסתר empty state
     var convPanel = document.getElementById('cust-chat-conv-panel');
-    if (listPanel) listPanel.classList.add('hidden');
+    var emptyState = document.getElementById('cust-chat-empty-state');
+    if (emptyState) emptyState.classList.add('hidden');
     if (convPanel) { convPanel.classList.remove('hidden'); convPanel.style.display = 'flex'; }
 
     var nameEl = document.getElementById('cust-chat-conv-name');
@@ -56084,14 +56095,14 @@ window._sportApptSave = async function() {
     _startCustPoll();
   };
 
-  // ── חזרה לרשימה ───────────────────────────────────────────
+  // ── חזרה לרשימה (במובייל — מסתיר conversation, מציג empty state) ───
   window.custChatBackToList = function() {
     _stopCustPoll();
     _activeChatId = null;
-    var listPanel = document.getElementById('cust-chat-list-panel');
     var convPanel = document.getElementById('cust-chat-conv-panel');
+    var emptyState = document.getElementById('cust-chat-empty-state');
     if (convPanel) convPanel.classList.add('hidden');
-    if (listPanel) { listPanel.classList.remove('hidden'); listPanel.style.display = 'flex'; }
+    if (emptyState) emptyState.classList.remove('hidden');
     window.loadCustChatList();
   };
 
@@ -56218,6 +56229,18 @@ window._sportApptSave = async function() {
     var name = (document.getElementById('cust-chat-conv-name') || {}).textContent || '';
     var status = (document.getElementById('cust-chat-conv-status') || {}).textContent || '';
     if (typeof showToast === 'function') showToast('info', name + (status ? ' — ' + status : ''));
+  };
+
+  // ── חיפוש ברשימת שיחות ────────────────────────────────────
+  window.filterCustChatList = function(val) {
+    var list = document.getElementById('cust-chat-list');
+    if (!list) return;
+    var term = (val || '').trim().toLowerCase();
+    var items = list.querySelectorAll('[data-chat-item]');
+    items.forEach(function(el) {
+      var text = (el.dataset.chatName || '').toLowerCase();
+      el.style.display = (!term || text.includes(term)) ? '' : 'none';
+    });
   };
 
   // ── תפריט ··· ─────────────────────────────────────────────
