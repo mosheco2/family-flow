@@ -55957,9 +55957,8 @@ window._sportApptSave = async function() {
       // הצג sub-tabs, הסתר לקוחות, עצור poll לקוח
       _stopCustPoll();
       _activeChatId = null;
-      if (custPanel) custPanel.classList.add('hidden');
+      if (custPanel) custPanel.classList.remove('panel-active');
       if (subNav) subNav.classList.remove('hidden');
-      // חזור לסאב-טאב הנוכחי של team (group כברירת מחדל)
       window.switchTeamSubTab(window._curTeamSubTab || 'group');
     } else {
       // הסתר team content, הסתר sub-nav, הצג לקוחות
@@ -55967,21 +55966,23 @@ window._sportApptSave = async function() {
       _activeDmUserId = null;
       _hideTeamContent();
       if (subNav) subNav.classList.add('hidden');
-      if (custPanel) { custPanel.classList.remove('hidden'); custPanel.style.display = 'flex'; }
-      // וודא שרשימה גלויה (לא שיחה)
-      var listView = document.getElementById('modal-cust-list-view');
+      if (custPanel) { custPanel.classList.add('panel-active'); custPanel.classList.remove('conv-active'); }
+      // וודא placeholder גלוי (לא שיחה)
+      var placeholder = document.getElementById('cust-chat-placeholder');
       var convView = document.getElementById('cust-chat-conv-panel');
-      if (listView) { listView.classList.remove('hidden'); listView.style.display = 'flex'; }
+      if (placeholder) placeholder.classList.remove('hidden');
       if (convView) convView.classList.add('hidden');
       window.loadCustChatList();
     }
   };
 
   function _hideTeamContent() {
-    ['chat-messages-container','team-chat-footer','team-chat-search-wrap','team-chat-retention-note','modal-dm-list-wrap','biz-dm-conv-panel'].forEach(function(id) {
+    ['chat-messages-container','team-chat-footer','team-chat-search-wrap','team-chat-retention-note'].forEach(function(id) {
       var el = document.getElementById(id);
       if (el) el.classList.add('hidden');
     });
+    var dmPanel = document.getElementById('modal-dm-panel');
+    if (dmPanel) dmPanel.classList.remove('panel-active');
   }
 
   window._curTeamSubTab = 'group';
@@ -55989,36 +55990,33 @@ window._sportApptSave = async function() {
   window.switchTeamSubTab = function(sub) {
     window._curTeamSubTab = sub;
     var isGroup = (sub === 'group');
-    // עדכון כפתורי sub-tabs
     var gBtn = document.getElementById('tsub-group');
     var dBtn = document.getElementById('tsub-dm');
-    if (gBtn) gBtn.className = 'flex-1 py-1 text-xs font-bold rounded-lg transition ' + (isGroup ? 'bg-indigo-600 text-white border-0' : 'bg-white text-slate-500 border border-slate-200');
-    if (dBtn) dBtn.className = 'flex-1 py-1 text-xs font-bold rounded-lg transition ' + (!isGroup ? 'bg-indigo-600 text-white border-0' : 'bg-white text-slate-500 border border-slate-200');
+    if (gBtn) gBtn.className = 'flex-1 py-1 text-xs font-bold rounded-lg transition ' + (isGroup ? 'bg-indigo-600 text-white' : 'bg-white text-slate-500 border border-slate-200');
+    if (dBtn) dBtn.className = 'flex-1 py-1 text-xs font-bold rounded-lg transition ' + (!isGroup ? 'bg-indigo-600 text-white' : 'bg-white text-slate-500 border border-slate-200');
+
+    var dmPanel = document.getElementById('modal-dm-panel');
+    var custPanel = document.getElementById('modal-cust-panel');
+    if (custPanel) custPanel.classList.remove('panel-active');
 
     if (isGroup) {
-      // הצג group chat, הסתר DM
       _stopBizDmPoll();
       _activeDmUserId = null;
+      if (dmPanel) dmPanel.classList.remove('panel-active');
       ['chat-messages-container','team-chat-footer','team-chat-search-wrap','team-chat-retention-note'].forEach(function(id) {
         var el = document.getElementById(id);
         if (el) el.classList.remove('hidden');
       });
-      ['modal-dm-list-wrap','biz-dm-conv-panel'].forEach(function(id) {
-        var el = document.getElementById(id);
-        if (el) el.classList.add('hidden');
-      });
-      if (document.getElementById('modal-cust-panel')) document.getElementById('modal-cust-panel').classList.add('hidden');
     } else {
-      // הסתר group chat, הצג DM רשימה
       ['chat-messages-container','team-chat-footer','team-chat-search-wrap','team-chat-retention-note'].forEach(function(id) {
         var el = document.getElementById(id);
         if (el) el.classList.add('hidden');
       });
-      if (document.getElementById('modal-cust-panel')) document.getElementById('modal-cust-panel').classList.add('hidden');
-      // הצג רשימת DM (לא שיחה)
-      var listWrap = document.getElementById('modal-dm-list-wrap');
+      if (dmPanel) { dmPanel.classList.add('panel-active'); dmPanel.classList.remove('conv-active'); }
+      // וודא placeholder גלוי
+      var placeholder = document.getElementById('biz-dm-placeholder');
       var convPanel = document.getElementById('biz-dm-conv-panel');
-      if (listWrap) { listWrap.classList.remove('hidden'); listWrap.style.display = 'flex'; }
+      if (placeholder) placeholder.classList.remove('hidden');
       if (convPanel) convPanel.classList.add('hidden');
       window.loadBizDmList();
     }
@@ -56063,9 +56061,11 @@ window._sportApptSave = async function() {
     _stopBizDmPoll();
     _activeDmUserId = null;
     var conv = document.getElementById('biz-dm-conv-panel');
-    var listWrap = document.getElementById('modal-dm-list-wrap');
+    var dmPanel = document.getElementById('modal-dm-panel');
+    var placeholder = document.getElementById('biz-dm-placeholder');
     if (conv) conv.classList.add('hidden');
-    if (listWrap) { listWrap.classList.remove('hidden'); listWrap.style.display = 'flex'; }
+    if (dmPanel) dmPanel.classList.remove('conv-active');
+    if (placeholder) placeholder.classList.remove('hidden');
   };
 
   window.filterBizDmList = function(val) {
@@ -56147,11 +56147,13 @@ window._sportApptSave = async function() {
     if (avatar) { avatar.textContent = initials; avatar.style.background = color; }
     if (nameEl) nameEl.textContent = name;
     if (subEl) subEl.textContent = 'שיחה פרטית';
-    // הצג פאנל שיחה, הסתר רשימה (stack navigation)
+    // WhatsApp layout: הסתר placeholder + conv-active במובייל
+    var placeholder = document.getElementById('biz-dm-placeholder');
     var conv = document.getElementById('biz-dm-conv-panel');
-    var listWrap = document.getElementById('modal-dm-list-wrap');
-    if (listWrap) listWrap.classList.add('hidden');
+    var dmPanel = document.getElementById('modal-dm-panel');
+    if (placeholder) placeholder.classList.add('hidden');
     if (conv) { conv.classList.remove('hidden'); conv.style.display = 'flex'; }
+    if (dmPanel && window.innerWidth < 640) dmPanel.classList.add('conv-active');
     // טען הודעות
     await _loadBizDmMessages(userId);
     // polling
@@ -56277,11 +56279,13 @@ window._sportApptSave = async function() {
     _custLastSince = null;
     _custRenderedIds = {};
 
-    // הצג פאנל שיחה + הסתר רשימה (stack navigation בתוך modal)
+    // WhatsApp layout: הסתר placeholder + conv-active במובייל
     var convPanel = document.getElementById('cust-chat-conv-panel');
-    var listView = document.getElementById('modal-cust-list-view');
-    if (listView) listView.classList.add('hidden');
+    var custPanel = document.getElementById('modal-cust-panel');
+    var placeholder = document.getElementById('cust-chat-placeholder');
+    if (placeholder) placeholder.classList.add('hidden');
     if (convPanel) { convPanel.classList.remove('hidden'); convPanel.style.display = 'flex'; }
+    if (custPanel && window.innerWidth < 640) custPanel.classList.add('conv-active');
 
     var nameEl = document.getElementById('cust-chat-conv-name');
     if (nameEl) nameEl.textContent = name;
@@ -56330,9 +56334,11 @@ window._sportApptSave = async function() {
     _stopCustPoll();
     _activeChatId = null;
     var convPanel = document.getElementById('cust-chat-conv-panel');
-    var listView = document.getElementById('modal-cust-list-view');
+    var custPanel = document.getElementById('modal-cust-panel');
+    var placeholder = document.getElementById('cust-chat-placeholder');
     if (convPanel) convPanel.classList.add('hidden');
-    if (listView) { listView.classList.remove('hidden'); listView.style.display = 'flex'; }
+    if (custPanel) custPanel.classList.remove('conv-active');
+    if (placeholder) placeholder.classList.remove('hidden');
     window.loadCustChatList();
   };
 
