@@ -10106,6 +10106,23 @@ app.post('/api/store/settings', async (req, res) => {
         res.status(500).json({ error: e.message }); 
     }
 });
+app.patch('/api/store/settings/customer-fields', verifyBiz, async (req, res) => {
+    try {
+        const { fields } = req.body;
+        const groupId = req.bizAuth.groupId;
+        if (!fields || typeof fields !== 'object') return res.status(400).json({ error: 'fields required' });
+        try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS customer_required_fields JSONB DEFAULT '{}'`); } catch(e) {}
+        await pool.query(
+            `INSERT INTO store_settings (group_id, customer_required_fields) VALUES ($1, $2)
+             ON CONFLICT (group_id) DO UPDATE SET customer_required_fields = $2`,
+            [groupId, JSON.stringify(fields)]
+        );
+        res.json({ success: true, fields });
+    } catch(e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
 app.post('/api/store/settings/presets', async (req, res) => {
     try {
         const { groupId, presets } = req.body;

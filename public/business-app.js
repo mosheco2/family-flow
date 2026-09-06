@@ -707,6 +707,29 @@ window.injectBusinessUI = function() {
                             <option value="quote">לקוחות עם הצעת מחיר</option>
                         </select>
                         <button onclick="if(typeof window.openCustomerModal === 'function') window.openCustomerModal()" class="bg-indigo-600 text-white px-4 py-2.5 rounded-xl text-sm font-bold shadow-md hover:bg-indigo-700 transition shrink-0"><i class="fa-solid fa-plus mr-1"></i> לקוח חדש</button>
+                        <button onclick="window.toggleCustFieldSettings()" title="הגדרות שדות חובה" class="bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-700 w-10 h-10 rounded-xl flex items-center justify-center transition shrink-0 border border-slate-200"><i class="fa-solid fa-sliders text-sm"></i></button>
+                    </div>
+                    <div id="cust-field-settings-panel" class="hidden mb-4 bg-white border border-slate-200 rounded-2xl shadow-sm p-4">
+                        <p class="text-xs font-bold text-slate-600 mb-3">⚙️ שדות חובה בהוספת לקוח</p>
+                        <p class="text-[11px] text-slate-400 mb-3">שם לקוח הוא תמיד חובה. בחר אילו שדות נוספים יהיו חובה:</p>
+                        <div class="space-y-2 mb-4">
+                            <label class="flex items-center gap-3 cursor-pointer p-2 rounded-xl hover:bg-slate-50 transition">
+                                <input type="checkbox" id="cfset-phone" class="w-4 h-4 accent-indigo-600 rounded">
+                                <span class="text-sm text-slate-700 font-medium">📞 טלפון — שדה חובה</span>
+                            </label>
+                            <label class="flex items-center gap-3 cursor-pointer p-2 rounded-xl hover:bg-slate-50 transition">
+                                <input type="checkbox" id="cfset-email" class="w-4 h-4 accent-indigo-600 rounded">
+                                <span class="text-sm text-slate-700 font-medium">✉️ אימייל — שדה חובה</span>
+                            </label>
+                            <label class="flex items-center gap-3 cursor-pointer p-2 rounded-xl hover:bg-slate-50 transition">
+                                <input type="checkbox" id="cfset-id" class="w-4 h-4 accent-indigo-600 rounded">
+                                <span class="text-sm text-slate-700 font-medium">🪪 ת.ז / ח.פ — שדה חובה</span>
+                            </label>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="window.saveCustRequiredFields()" class="flex-1 bg-indigo-600 text-white py-2 rounded-xl text-sm font-bold hover:bg-indigo-700 transition">שמור הגדרות</button>
+                            <button onclick="window.toggleCustFieldSettings()" class="px-4 bg-slate-100 text-slate-500 py-2 rounded-xl text-sm font-bold hover:bg-slate-200 transition">ביטול</button>
+                        </div>
                     </div>
                     <div id="store-customers-list" class="space-y-3 pb-8"></div>
                 </div>
@@ -10793,6 +10816,57 @@ window.renderCustomerHistory = async function(forceSync = false, context = 'moda
     }
 
     listContainer.innerHTML = historyHtml;
+};
+
+window.toggleCustFieldSettings = function() {
+    var panel = document.getElementById('cust-field-settings-panel');
+    if (!panel) return;
+    var isHidden = panel.classList.contains('hidden');
+    if (isHidden) {
+        // sync checkboxes with current state
+        var crf = window._customerRequiredFields || {};
+        var phone = document.getElementById('cfset-phone');
+        var email = document.getElementById('cfset-email');
+        var id    = document.getElementById('cfset-id');
+        if (phone) phone.checked = !!crf.phone;
+        if (email) email.checked = !!crf.email;
+        if (id)    id.checked    = !!crf.id;
+        panel.classList.remove('hidden');
+    } else {
+        panel.classList.add('hidden');
+    }
+};
+
+window.saveCustRequiredFields = async function() {
+    var fields = {
+        phone: !!(document.getElementById('cfset-phone') && document.getElementById('cfset-phone').checked),
+        email: !!(document.getElementById('cfset-email') && document.getElementById('cfset-email').checked),
+        id:    !!(document.getElementById('cfset-id')    && document.getElementById('cfset-id').checked)
+    };
+    try {
+        var res = await fetch(API + '/store/settings/customer-fields', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (window._bizToken || localStorage.getItem('ofl_family_token') || '') },
+            body: JSON.stringify({ fields: fields })
+        });
+        var data = await res.json();
+        if (data.success) {
+            window._customerRequiredFields = fields;
+            // sync גם את checkboxes בהגדרות חנות אם נמצאות ב-DOM
+            var crPhone = document.getElementById('cust-req-phone');
+            var crEmail = document.getElementById('cust-req-email');
+            var crId    = document.getElementById('cust-req-id');
+            if (crPhone) crPhone.checked = !!fields.phone;
+            if (crEmail) crEmail.checked = !!fields.email;
+            if (crId)    crId.checked    = !!fields.id;
+            if (typeof showToast === 'function') showToast('success', 'הגדרות שדות חובה נשמרו');
+            document.getElementById('cust-field-settings-panel').classList.add('hidden');
+        } else {
+            if (typeof showToast === 'function') showToast('error', data.error || 'שגיאה בשמירה');
+        }
+    } catch(e) {
+        if (typeof showToast === 'function') showToast('error', 'שגיאת תקשורת');
+    }
 };
 
 window.submitNewCustomer = async function() {
