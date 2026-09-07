@@ -427,8 +427,8 @@ const scAuth = window.scAuth = {
             // ── תורים יופי ─────────────────────────────────────────────────
             if (_bizType === 'beauty') {
                 var _beautyHasCal = window.storeData && (window.storeData.calendarSettings || window.storeData.calendar_settings);
-                var statusColors = { pending:'#f59e0b', approved:'#10b981', confirmed:'#10b981', cancelled:'#ef4444', completed:'#6366f1', pending_client:'#f59e0b' };
-                var statusLabels = { pending:'ממתין לאישור', approved:'מאושר ✅', confirmed:'מאושר ✅', cancelled:'בוטל', completed:'הושלם', pending_client:'ממתין לאישור' };
+                var statusColors = { pending:'#f59e0b', approved:'#10b981', confirmed:'#10b981', cancelled:'#ef4444', completed:'#6366f1', pending_client:'#f59e0b', pending_cancel:'#f97316' };
+                var statusLabels = { pending:'ממתין לאישור', approved:'מאושר ✅', confirmed:'מאושר ✅', cancelled:'בוטל', completed:'הושלם', pending_client:'ממתין לאישור', pending_cancel:'בקשת ביטול ממתינה לאישור העסק ⏳' };
 
                 // תורים מאושרים (beauty_appointments)
                 html += `<div style="font-size:11px;font-weight:700;color:#94a3b8;padding:8px 0 6px;text-align:right">📅 התורים שלי</div>`;
@@ -444,7 +444,13 @@ const scAuth = window.scAuth = {
                         var timeStr = a.start_time ? String(a.start_time).slice(0,5) : '';
                         var sc = statusColors[a.status] || '#10b981';
                         var sl = statusLabels[a.status] || 'מאושר ✅';
-                        var canCancel = dk >= new Date().toISOString().slice(0,10);
+                        var canCancel = dk >= new Date().toISOString().slice(0,10) && a.status !== 'cancelled' && a.status !== 'pending_cancel' && a.status !== 'completed';
+                        var cancelBtnHtml = '';
+                        if (a.status === 'pending_cancel') {
+                            cancelBtnHtml = '<div style="margin-top:8px;width:100%;padding:7px;border:1px solid #fed7aa;border-radius:9px;background:#fff7ed;color:#f97316;font-size:12px;text-align:center">⏳ בקשת ביטול נשלחה — ממתין לאישור העסק</div>';
+                        } else if (canCancel) {
+                            cancelBtnHtml = '<button data-cancel-beauty-appt="'+a.id+'" data-appt-source="beauty" style="margin-top:8px;width:100%;padding:7px;border:1px solid #fca5a5;border-radius:9px;background:#fff5f5;color:#ef4444;font-size:12px;cursor:pointer">ביטול תור</button>';
+                        }
                         return '<div style="border:1.5px solid '+sc+'30;border-radius:12px;padding:12px;margin-bottom:8px;background:'+sc+'06" data-beauty-appt-id="'+a.id+'">'
                             +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'
                             +'<span style="font-size:11px;font-weight:700;color:'+sc+';background:'+sc+'18;padding:3px 8px;border-radius:7px">'+sl+'</span>'
@@ -454,7 +460,7 @@ const scAuth = window.scAuth = {
                             +'<div style="font-weight:700;font-size:14px;color:#1e293b">'+(a.service_name||'תור')+'</div>'
                             +'<div style="font-size:12px;color:#64748b;margin-top:2px">'+dateStr+(timeStr?' · '+timeStr:'')+'</div>'
                             +'</div>'
-                            +(canCancel ? '<button data-cancel-beauty-appt="'+a.id+'" data-appt-source="beauty" style="margin-top:8px;width:100%;padding:7px;border:1px solid #fca5a5;border-radius:9px;background:#fff5f5;color:#ef4444;font-size:12px;cursor:pointer">ביטול תור</button>' : '')
+                            +cancelBtnHtml
                             +'</div>';
                     }).join('');
                 }
@@ -751,8 +757,8 @@ const scAuth = window.scAuth = {
                 btn.addEventListener('click', function() {
                     var apptId = btn.getAttribute('data-cancel-beauty-appt');
                     var src = btn.getAttribute('data-appt-source') || 'calendar';
-                    if (!confirm(src === 'beauty' ? 'לבטל את התור?' : 'לבטל את הבקשה?')) return;
-                    btn.disabled = true; btn.textContent = 'מבטל...';
+                    if (!confirm(src === 'beauty' ? 'לשלוח בקשת ביטול לעסק?' : 'לבטל את הבקשה?')) return;
+                    btn.disabled = true; btn.textContent = 'שולח...';
                     var endpoint = src === 'beauty'
                         ? '/api/beauty/' + _gid + '/appointments/' + apptId + '/cancel-by-customer'
                         : '/api/calendar/events/' + apptId;
@@ -762,8 +768,18 @@ const scAuth = window.scAuth = {
                         headers: {'Content-Type':'application/json','Authorization':'Bearer '+(window.scAuth._token||'')}
                     }).then(function(r){ return r.json(); }).then(function(res) {
                         if (res.success || res.deleted) {
-                            var card = btn.closest('[data-beauty-appt-id]');
-                            if (card) { card.style.opacity = '0.4'; btn.textContent = 'בוטל'; }
+                            if (src === 'beauty') {
+                                // לא ביטול מיידי — מחכה לאישור העסק
+                                btn.replaceWith((function(){
+                                    var d = document.createElement('div');
+                                    d.style.cssText = 'margin-top:8px;width:100%;padding:7px;border:1px solid #fed7aa;border-radius:9px;background:#fff7ed;color:#f97316;font-size:12px;text-align:center';
+                                    d.textContent = '⏳ בקשת ביטול נשלחה — ממתין לאישור העסק';
+                                    return d;
+                                })());
+                            } else {
+                                var card = btn.closest('[data-beauty-appt-id]');
+                                if (card) { card.style.opacity = '0.4'; btn.textContent = 'בוטל'; }
+                            }
                         } else {
                             btn.disabled = false; btn.textContent = res.error || 'שגיאה';
                         }

@@ -46864,6 +46864,9 @@ async function loadBeautyCalendar() {
         window._beautyState.services = Array.isArray(calRes.services) ? calRes.services.filter(s => s.is_active !== false) : [];
         // בקשות ממתינות מהחנות הציבורית
         window._beautyState.pendingCalEvents = (calRes.events || []).filter(e => e.status === 'pending');
+        // תורים ממתינים לאישור ביטול
+        const allAppts = Array.isArray(apRes) ? apRes : (apRes.appointments || []);
+        window._beautyState.pendingCancelAppts = allAppts.filter(a => a.status === 'pending_cancel');
         window._beautyState.calFromDate = fromDate;
         window._beautyState.calToDate = toDate;
     } catch(e) {
@@ -46871,6 +46874,7 @@ async function loadBeautyCalendar() {
         window._beautyState.appointments = [];
         window._beautyState.services = [];
         window._beautyState.pendingCalEvents = [];
+        window._beautyState.pendingCancelAppts = [];
     }
     _renderBeautyCalendar();
 }
@@ -47156,12 +47160,37 @@ function _renderBeautyCalendar() {
                     <button onclick="window._beautyNewApModal()" class="bg-gradient-to-r from-pink-500 to-purple-600 text-white px-3 py-2 rounded-xl text-xs font-black shadow-sm hover:opacity-90 transition"><i class="fa-solid fa-plus"></i> תור</button>
                 </div>
             </div>
+            ${pendingCancelBanner}
+            ${pendingBanner}
             <div class="bg-white rounded-2xl border border-slate-100 p-4">
                 ${rowsHtml || '<div class="text-center text-slate-300 py-8 text-sm">אין תורים בשבוע זה</div>'}
             </div>
         </div>`;
         return;
     }
+
+    const pendingCancelAppts = window._beautyState.pendingCancelAppts || [];
+    const pendingCancelBanner = pendingCancelAppts.length > 0 ? `
+    <div class="bg-orange-50 border border-orange-200 rounded-2xl p-3">
+        <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-black text-orange-700">🚫 בקשות ביטול ממתינות לאישורך (${pendingCancelAppts.length})</span>
+        </div>
+        ${pendingCancelAppts.map(a => {
+            const seg0 = a.segments?.[0];
+            const startTime = seg0?.start_time ? new Date(seg0.start_time).toLocaleString('he-IL',{weekday:'short',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}) : '';
+            const serviceName = seg0?.service_name || 'טיפול';
+            return `<div class="flex items-center justify-between py-2 border-b border-orange-100 last:border-0">
+                <div class="flex-1 min-w-0">
+                    <p class="text-xs font-bold text-slate-800 truncate">${a.client_name || 'לקוח'} — ${serviceName}</p>
+                    <p class="text-[10px] text-slate-500">${startTime}</p>
+                </div>
+                <div class="flex gap-1 shrink-0">
+                    <button onclick="window._beautyApproveCancel(${a.id})" class="bg-red-500 text-white px-2.5 py-1 rounded-lg text-[10px] font-black hover:bg-red-600 transition">✓ אשר ביטול</button>
+                    <button onclick="window._beautyRejectCancel(${a.id})" class="bg-slate-100 text-slate-600 px-2 py-1 rounded-lg text-[10px] font-bold hover:bg-green-50 hover:text-green-600 transition">✕ דחה</button>
+                </div>
+            </div>`;
+        }).join('')}
+    </div>` : '';
 
     const pendingBanner = pendingCalEvents.length > 0 ? `
     <div class="bg-amber-50 border border-amber-200 rounded-2xl p-3">
@@ -47195,6 +47224,7 @@ function _renderBeautyCalendar() {
             <button onclick="switchTab('beauty_practitioners')" class="bg-white border border-slate-200 text-slate-600 px-3 py-2 rounded-xl text-xs font-bold hover:bg-slate-50 transition flex items-center gap-1"><i class="fa-solid fa-people-group text-pink-400"></i> מטפלות</button>
         </div>
     </div>
+    ${pendingCancelBanner}
     ${pendingBanner}
 
     <!-- calendar grid -->
@@ -47233,6 +47263,28 @@ window._beautyCalNav = function(dir) {
 window._beautySetView = function(view) {
     window._beautyState.calView = view;
     loadBeautyCalendar();
+};
+
+window._beautyApproveCancel = async function(apId) {
+    if (!confirm('לאשר את בקשת הביטול? התור יבוטל סופית.')) return;
+    const biz = _beautyBizId();
+    const r = await fetch(`${API}/beauty/${biz}/appointments/${apId}/approve-cancel`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${window._bizToken || ''}` }
+    }).then(r => r.json());
+    if (r.success) { showToast('info', 'ביטול התור אושר'); loadBeautyCalendar(); }
+    else showToast('error', r.error || 'שגיאה');
+};
+
+window._beautyRejectCancel = async function(apId) {
+    if (!confirm('לדחות את בקשת הביטול? התור יחזור להיות פעיל.')) return;
+    const biz = _beautyBizId();
+    const r = await fetch(`${API}/beauty/${biz}/appointments/${apId}/reject-cancel`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${window._bizToken || ''}` }
+    }).then(r => r.json());
+    if (r.success) { showToast('success', 'בקשת הביטול נדחתה — התור פעיל'); loadBeautyCalendar(); }
+    else showToast('error', r.error || 'שגיאה');
 };
 
 window._beautyOpenAp = function(apId) {

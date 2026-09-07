@@ -34859,13 +34859,31 @@ app.post('/api/beauty/:bizId/appointments/:id/cancel-by-customer', async (req, r
         if (appt.client_phone !== cust.phone && String(appt.client_family_id) !== String(cust.family_group_id || -1)) {
             return res.status(403).json({ success: false, error: 'אין הרשאה' });
         }
-        await pool.query('UPDATE beauty_appointments SET status=$1 WHERE id=$2', ['cancelled', id]);
-        // עדכן גם calendar_event אם קיים
-        await pool.query(
-            `UPDATE calendar_events SET status='cancelled_by_customer' WHERE group_id=$1 AND customer_phone=$2 AND status='approved'
-             AND event_date=(SELECT TO_CHAR(bs.start_time AT TIME ZONE 'Asia/Jerusalem','YYYY-MM-DD') FROM beauty_appointment_segments bs WHERE bs.appointment_id=$3 AND bs.segment_order=1 LIMIT 1)`,
-            [bizId, cust.phone, id]
-        ).catch(() => {});
+        // שנה לסטטוס "בקשת ביטול" — הביטול בפועל מחכה לאישור העסק
+        await pool.query('UPDATE beauty_appointments SET status=$1, updated_at=NOW() WHERE id=$2', ['pending_cancel', id]);
+        res.json({ success: true, status: 'pending_cancel' });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// POST /api/beauty/:bizId/appointments/:id/approve-cancel  — העסק מאשר ביטול
+app.post('/api/beauty/:bizId/appointments/:id/approve-cancel', verifyBiz, async (req, res) => {
+    try {
+        const { id, bizId } = req.params;
+        const apptR = await pool.query('SELECT * FROM beauty_appointments WHERE id=$1 AND business_group_id=$2', [id, bizId]);
+        if (!apptR.rows[0]) return res.status(404).json({ error: 'תור לא נמצא' });
+        await pool.query('UPDATE beauty_appointments SET status=$1, updated_at=NOW() WHERE id=$2', ['cancelled', id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// POST /api/beauty/:bizId/appointments/:id/reject-cancel  — העסק דוחה בקשת ביטול
+app.post('/api/beauty/:bizId/appointments/:id/reject-cancel', verifyBiz, async (req, res) => {
+    try {
+        const { id, bizId } = req.params;
+        const apptR = await pool.query('SELECT * FROM beauty_appointments WHERE id=$1 AND business_group_id=$2', [id, bizId]);
+        if (!apptR.rows[0]) return res.status(404).json({ error: 'תור לא נמצא' });
+        if (apptR.rows[0].status !== 'pending_cancel') return res.status(400).json({ error: 'הסטטוס אינו בקשת ביטול' });
+        await pool.query('UPDATE beauty_appointments SET status=$1, updated_at=NOW() WHERE id=$2', ['confirmed', id]);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
