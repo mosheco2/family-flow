@@ -3423,11 +3423,26 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
             await window.generateAvailableTimeSlots();
             
             try {
-                const session = JSON.parse(localStorage.getItem('ofl_session'));
-                if (session && session.user) {
-                    if(!getEl('book-name').value) getEl('book-name').value = session.user.nickname || '';
-                    if(!getEl('book-phone').value && session.user.phone) getEl('book-phone').value = session.user.phone;
+                // מילוי אוטומטי מפרטי המשתמש המחובר
+                const cust = window.scAuth?._customer;
+                const nameEl = getEl('book-name');
+                const phoneEl = getEl('book-phone');
+                if (cust) {
+                    const fullName = [cust.first_name, cust.last_name].filter(Boolean).join(' ') || cust.nickname || cust.name || '';
+                    if (nameEl) nameEl.value = fullName;
+                    if (phoneEl) phoneEl.value = cust.phone || '';
+                } else {
+                    try {
+                        const session = JSON.parse(localStorage.getItem('ofl_session'));
+                        if (session?.user) {
+                            if (nameEl && !nameEl.value) nameEl.value = session.user.nickname || '';
+                            if (phoneEl && !phoneEl.value && session.user.phone) phoneEl.value = session.user.phone;
+                        }
+                    } catch(e2) {}
                 }
+                // נעל שדות שמולאו — המשתמש לא צריך לשנות
+                if (nameEl?.value) { nameEl.classList.add('bg-slate-50'); }
+                if (phoneEl?.value) { phoneEl.classList.add('bg-slate-50'); }
             } catch(e) {}
         };
 
