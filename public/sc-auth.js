@@ -583,7 +583,6 @@ const scAuth = window.scAuth = {
                 var _hasCalendar = window.storeData && (window.storeData.calendarSettings || window.storeData.calendar_settings);
                 var _beautyQA = [];
                 if (_hasCalendar) _beautyQA.push(`<button data-beauty-action="book" style="flex:1;min-width:90px;padding:10px 6px;border:1.5px solid #e2e8f0;border-radius:12px;background:#fff;font-size:12px;cursor:pointer;color:#475569;text-align:center">📅 קביעת תור</button>`);
-                _beautyQA.push(`<button data-beauty-action="consult" style="flex:1;min-width:90px;padding:10px 6px;border:1.5px solid #e2e8f0;border-radius:12px;background:#fff;font-size:12px;cursor:pointer;color:#475569;text-align:center">💌 ייעוץ מקדים</button>`);
                 html = `<div style="margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid #f1f5f9">
                   <div style="font-size:11px;font-weight:700;color:#94a3b8;padding:0 0 8px;text-align:right">⚡ פעולות מהירות</div>
                   <div style="display:flex;gap:8px;flex-wrap:wrap">${_beautyQA.join('')}</div>
