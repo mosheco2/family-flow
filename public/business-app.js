@@ -29050,8 +29050,32 @@ if (origFetchDataInboxHook) {
         if (typeof window.fetchTeamChat === 'function') {
             window.fetchTeamChat(true);
         }
+        // ספירת unread לקוחות ברקע — גם כשהמודל סגור
+        window._fetchCustUnreadSilent();
     };
 }
+
+// שליפה שקטה של כמות unread לקוחות — לעדכון badge הפיל בלבד
+window._fetchCustUnreadSilent = async function() {
+    try {
+        var tok = window._bizToken || localStorage.getItem('ofl_family_token') || '';
+        if (!tok) return;
+        var r = await fetch('/api/biz/customer-chats', { headers: { 'Authorization': 'Bearer ' + tok } });
+        if (!r.ok) return;
+        var d = await r.json();
+        if (!d.success || !d.chats) return;
+        var total = d.chats.reduce(function(s,c){ return s + (parseInt(c.unread_count)||0); }, 0);
+        window._custUnreadTotal = total;
+        // עדכן badge טאב לקוחות
+        var custTabBadge = document.getElementById('cust-chat-unread-badge');
+        if (custTabBadge) {
+            if (total > 0) { custTabBadge.textContent = total > 9 ? '9+' : String(total); custTabBadge.classList.remove('hidden'); custTabBadge.style.display = 'inline-flex'; }
+            else { custTabBadge.classList.add('hidden'); }
+        }
+        // עדכן badge כולל על הפיל
+        if (typeof window._updateGlobalChatBadge === 'function') window._updateGlobalChatBadge();
+    } catch(e) {}
+};
 
 // ============================================================
 // --- TEAM CHAT MODULE (MODAL VERSION WITH SEARCH & EXPORT) ---
@@ -56071,7 +56095,7 @@ window._sportApptSave = async function() {
     // עדכון כפתורי טאב
     var tBtn = document.getElementById('chat-tab-team');
     var cBtn = document.getElementById('chat-tab-customers');
-    if (tBtn) tBtn.className = 'flex-1 py-1.5 text-xs font-bold rounded-lg transition ' + (isTeam ? 'bg-indigo-600 text-white' : 'bg-white text-indigo-600 border border-indigo-200');
+    if (tBtn) tBtn.className = 'flex-1 py-1.5 text-xs font-bold rounded-lg transition relative ' + (isTeam ? 'bg-indigo-600 text-white' : 'bg-white text-indigo-600 border border-indigo-200');
     if (cBtn) cBtn.className = 'flex-1 py-1.5 text-xs font-bold rounded-lg transition ' + (!isTeam ? 'bg-indigo-600 text-white' : 'bg-white text-indigo-600 border border-indigo-200');
 
     var subNav = document.getElementById('team-sub-nav');
