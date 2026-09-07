@@ -34891,8 +34891,8 @@ app.get('/api/beauty/:bizId/appointments/by-customer', verifyBiz, async (req, re
         const conditions = ['ba.business_group_id=$1'];
         const params = [bizId];
         if (phone) {
-            const digits = phone.replace(/\D/g,'');
-            conditions.push(`(ba.customer_phone=$${params.length+1} OR REGEXP_REPLACE(ba.customer_phone,'[^0-9]','','g')=$${params.length+2})`);
+            const digits = phone.replace(/\D/g,'') || phone;
+            conditions.push(`(ba.customer_phone=$${params.length+1} OR ba.customer_phone=$${params.length+2})`);
             params.push(phone, digits);
         } else if (name) {
             conditions.push(`ba.customer_name ILIKE $${params.length+1}`);
@@ -34904,8 +34904,7 @@ app.get('/api/beauty/:bizId/appointments/by-customer', verifyBiz, async (req, re
              FROM beauty_appointments ba
              LEFT JOIN beauty_slots bs ON bs.id = ba.slot_id
              WHERE ${conditions.join(' AND ')}
-             ORDER BY COALESCE(bs.event_date, ba.created_at::date) DESC NULLS LAST,
-                      COALESCE(bs.start_time::text, '00:00') DESC
+             ORDER BY COALESCE(bs.event_date, ba.created_at::date) DESC NULLS LAST
              LIMIT 50`,
             params
         );
