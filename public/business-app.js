@@ -47421,7 +47421,7 @@ window._beautySearchClient = async function(q) {
     if (!q || q.length < 2) { resultsEl.classList.add('hidden'); return; }
     const biz = _beautyBizId(); if (!biz) return;
     try {
-        const r = await fetch(`${API}/beauty/${biz}/clients?q=${encodeURIComponent(q)}`).then(r => r.json()).catch(() => ({ clients: [] }));
+        const r = await fetch(`${API}/beauty/${biz}/clients?q=${encodeURIComponent(q)}`, { headers: { 'Authorization': `Bearer ${window._bizToken || ''}` } }).then(r => r.json()).catch(() => ({ clients: [] }));
         const clients = r.clients || [];
         if (!clients.length) {
             resultsEl.innerHTML = '<p class="text-xs text-slate-400 text-center py-3">לא נמצא לקוח</p>';
@@ -47687,7 +47687,7 @@ async function loadBeautyClients() {
     const el = document.getElementById('content-beauty_clients'); if (!el) return;
     el.innerHTML = `<div class="flex items-center justify-center py-16 text-slate-400"><i class="fa-solid fa-spinner fa-spin mr-2"></i> טוען...</div>`;
     try {
-        const r = await fetch(`${API}/beauty/${biz}/clients`).then(r=>r.json());
+        const r = await fetch(`${API}/beauty/${biz}/clients`, { headers: { 'Authorization': `Bearer ${window._bizToken || ''}` } }).then(r=>r.json());
         window._beautyState.clients = r.clients || [];
     } catch(e) { window._beautyState.clients = []; }
     _renderBeautyClients();
@@ -47976,7 +47976,7 @@ window._beautySubmitNewClient = async function() {
     if (_crf.email && !email) { showToast('error', 'אימייל הוא שדה חובה לפי הגדרות העסק'); return; }
     try {
         const r = await fetch(`${API}/beauty/${biz}/clients`, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${window._bizToken || ''}` },
             body: JSON.stringify({ client_name: name, id_number: idnum, client_phone: phone, email, date_of_birth: dob || null, general_notes: notes, client_family_id: linkedFamilyId })
         }).then(r=>r.json());
         if (r.id || r.success || r.client) {
@@ -47993,9 +47993,10 @@ window._beautyOpenClient = async function(clientId) {
     const client = window._beautyState.clients.find(c => c.id === clientId); if (!client) return;
     let formulas = [], photos = [];
     try {
+        const _cAuthH = { 'Authorization': `Bearer ${window._bizToken || ''}` };
         const [fRes, pRes] = await Promise.all([
-            fetch(`${API}/beauty/${biz}/clients/${clientId}/formulas`).then(r=>r.json()),
-            fetch(`${API}/beauty/${biz}/clients/${clientId}/photos`).then(r=>r.json())
+            fetch(`${API}/beauty/${biz}/clients/${clientId}/formulas`, { headers: _cAuthH }).then(r=>r.json()),
+            fetch(`${API}/beauty/${biz}/clients/${clientId}/photos`, { headers: _cAuthH }).then(r=>r.json())
         ]);
         formulas = fRes.formulas || [];
         photos = pRes.photos || [];
@@ -48093,7 +48094,7 @@ window._beautySubmitFormula = async function(clientId) {
     if (!notes) { showToast('error', 'נא הזן פרטי פורמולה'); return; }
     try {
         const r = await fetch(`${API}/beauty/${biz}/clients/${clientId}/formulas`, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${window._bizToken || ''}` },
             body: JSON.stringify({ service_type: type || 'כללי', formula_data: {}, notes })
         }).then(r=>r.json());
         if (r.success || r.formula) {
@@ -48457,7 +48458,7 @@ window._beautySubmitPhoto = async function(clientId) {
     if (!photoUrl) { showToast('error', 'נא הזן URL לתמונה'); return; }
     try {
         const r = await fetch(`${API}/beauty/${biz}/clients/${clientId}/photos`, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${window._bizToken || ''}` },
             body: JSON.stringify({ photo_type: photoType, photo_url: photoUrl, notes: note })
         }).then(r=>r.json());
         document.getElementById('beauty-photo-upload-modal')?.remove();
@@ -53616,7 +53617,7 @@ window._aiAddBeautyClient = async function(name, phone, notes, btn) {
     try {
         const biz = currentGroup?.id; if (!biz) throw new Error('no biz');
         const res = await fetch(API + '/beauty/' + biz + '/clients', {
-            method: 'POST', headers: {'Content-Type':'application/json'},
+            method: 'POST', headers: {'Content-Type':'application/json','Authorization':`Bearer ${window._bizToken||''}`},
             body: JSON.stringify({ name, phone, notes })
         });
         const data = await res.json();
