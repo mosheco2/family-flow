@@ -5383,7 +5383,7 @@
                         </div>
                         <!-- טאבים: צוות / לקוחות -->
                         <div class="flex gap-1 mb-1.5">
-                            <button id="chat-tab-team" onclick="window.switchChatTab('team')" class="flex-1 py-1.5 text-xs font-bold rounded-lg bg-indigo-600 text-white transition">👥 צוות</button>
+                            <button id="chat-tab-team" onclick="window.switchChatTab('team')" class="flex-1 py-1.5 text-xs font-bold rounded-lg bg-indigo-600 text-white transition relative">👥 צוות <span id="team-tab-unread-badge" class="hidden absolute -top-1 -right-1 bg-red-500 text-white text-[8px] font-black min-w-[14px] h-3.5 px-0.5 rounded-full flex items-center justify-center ring-1 ring-white"></span></button>
                             <button id="chat-tab-customers" onclick="window.switchChatTab('customers')" class="flex-1 py-1.5 text-xs font-bold rounded-lg bg-white text-indigo-600 border border-indigo-200 transition">
                                 💬 לקוחות <span id="cust-chat-unread-badge" class="hidden ml-1 bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full"></span>
                             </button>

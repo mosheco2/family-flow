@@ -29095,15 +29095,30 @@ window.closeTeamChatModal = function() {
 };
 
 window.updateTeamChatBadge = function() {
-    const badge = document.getElementById('team-chat-unread-badge');
-    if (!badge) return;
-
     const unreadCount = window.teamChatCache.filter(m => m.id > lastReadChatId).length;
-    if (unreadCount > 0) {
-        badge.innerText = unreadCount > 9 ? '9+' : unreadCount;
-        badge.classList.remove('hidden');
+    const label = unreadCount > 9 ? '9+' : String(unreadCount);
+    // badge על כפתור הטאב "צוות"
+    const tabBadge = document.getElementById('team-tab-unread-badge');
+    if (tabBadge) {
+        if (unreadCount > 0) { tabBadge.textContent = label; tabBadge.classList.remove('hidden'); }
+        else { tabBadge.classList.add('hidden'); }
+    }
+    // badge כולל (pill) — מחשב גם לקוחות
+    window._updateGlobalChatBadge();
+};
+
+// מעדכן את ה-badge הכולל על כפתור הצ'אט בפיל (team + customers)
+window._updateGlobalChatBadge = function() {
+    const pillBadge = document.getElementById('team-chat-unread-badge');
+    if (!pillBadge) return;
+    const teamUnread = window.teamChatCache ? window.teamChatCache.filter(m => m.id > lastReadChatId).length : 0;
+    const custUnread = window._custUnreadTotal || 0;
+    const total = teamUnread + custUnread;
+    if (total > 0) {
+        pillBadge.textContent = total > 9 ? '9+' : String(total);
+        pillBadge.classList.remove('hidden');
     } else {
-        badge.classList.add('hidden');
+        pillBadge.classList.add('hidden');
     }
 };
 
@@ -56217,9 +56232,11 @@ window._sportApptSave = async function() {
       var employees = Array.isArray(data.employees) ? data.employees : [];
       var html = '';
       // שורת Group Chat
+      var groupUnread = (window.teamChatCache || []).filter(function(m){ return m.id > lastReadChatId; }).length;
+      var groupBadgeHtml = groupUnread > 0 ? '<span class="w-5 h-5 bg-indigo-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center shrink-0">'+(groupUnread>9?'9+':groupUnread)+'</span>' : '';
       html += '<div data-dm-item="1" data-dm-name="קבוצה" onclick="window.openBizGroupChat()" class="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-slate-50 transition border-b border-slate-100">';
       html += '<div class="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center shrink-0"><i class="fa-solid fa-users text-indigo-500 text-sm"></i></div>';
-      html += '<div class="flex-1 min-w-0"><div class="flex items-center justify-between"><span class="text-sm font-bold text-slate-800">צ\'אט צוות</span></div>';
+      html += '<div class="flex-1 min-w-0"><div class="flex items-center justify-between"><span class="text-sm font-bold text-slate-800">צ\'אט צוות</span>'+groupBadgeHtml+'</div>';
       html += '<p class="text-xs text-slate-400 truncate">שיחת קבוצה</p></div></div>';
       // מפריד
       html += '<div class="px-4 py-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wide bg-slate-50 border-b border-slate-100">עובדים</div>';
@@ -56357,11 +56374,14 @@ window._sportApptSave = async function() {
         return;
       }
       var totalUnread = d.chats.reduce(function(s,c){ return s + (parseInt(c.unread_count)||0); }, 0);
+      window._custUnreadTotal = totalUnread;
       var badge = document.getElementById('cust-chat-unread-badge');
       if (badge) {
-        if (totalUnread > 0) { badge.textContent = totalUnread; badge.classList.remove('hidden'); badge.style.display='inline-flex'; }
+        if (totalUnread > 0) { badge.textContent = totalUnread > 9 ? '9+' : totalUnread; badge.classList.remove('hidden'); badge.style.display='inline-flex'; }
         else { badge.classList.add('hidden'); }
       }
+      // עדכן badge כולל על כפתור הפיל
+      if (typeof window._updateGlobalChatBadge === 'function') window._updateGlobalChatBadge();
       list.innerHTML = d.chats.map(function(c) {
         var unread = parseInt(c.unread_count) || 0;
         var name = ((c.first_name||'') + ' ' + (c.last_name||'')).trim();
