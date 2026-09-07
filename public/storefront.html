@@ -3375,24 +3375,46 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
                 }
             }
 
-            // טעינת מטפלות לעסקי יופי
+            // טעינת מטפלות לעסקי יופי + עדכון שמות בשירותים
             const pracWrap = getEl('book-prac-wrap');
             const pracSelect = getEl('book-prac');
-            if (pracWrap && pracSelect && storeData.groupId) {
+            if (storeData.groupId) {
                 try {
-                    const prRes = await fetch(`${API}/beauty/${storeData.groupId}/practitioners`);
+                    const [prRes, svcRes] = await Promise.all([
+                        fetch(`${API}/beauty/${storeData.groupId}/practitioners/public`),
+                        fetch(`${API}/beauty/${storeData.groupId}/services/public`)
+                    ]);
                     const prData = await prRes.json();
-                    const prs = Array.isArray(prData) ? prData : (prData.practitioners || []);
-                    const activePrs = prs.filter(p => p.is_active !== false);
-                    if (activePrs.length > 0) {
-                        pracSelect.innerHTML = '<option value="">ללא העדפה</option>' +
-                            activePrs.map(p => `<option value="${p.id}">${safeStr(p.display_name)}</option>`).join('');
-                        pracWrap.classList.remove('hidden');
-                    } else {
-                        pracWrap.classList.add('hidden');
+                    const svcData = svcRes.ok ? await svcRes.json() : [];
+                    const prs = Array.isArray(prData) ? prData : [];
+                    window._storeBeautyPractitioners = prs;
+                    // עדכן service select עם מטפלות
+                    const svcSelect = getEl('book-service');
+                    if (svcSelect && Array.isArray(svcData) && svcData.length > 0) {
+                        svcSelect.innerHTML = svcData.map(s => {
+                            const allowedIds = s.allowed_practitioner_ids || [];
+                            const allowedPrs = allowedIds.length > 0
+                                ? prs.filter(p => allowedIds.includes(p.id) || allowedIds.includes(String(p.id)))
+                                : prs;
+                            const practStr = allowedPrs.length === 1
+                                ? ` · ${safeStr(allowedPrs[0].display_name)}`
+                                : allowedPrs.length > 1
+                                    ? ` · ${allowedPrs.map(p => safeStr(p.display_name)).join(' / ')}`
+                                    : '';
+                            return `<option value="${s.id}" data-duration="${s.duration_minutes}">${safeStr(s.name)}${practStr} (~${s.duration_minutes} דק')</option>`;
+                        }).join('');
+                    }
+                    if (pracWrap && pracSelect) {
+                        if (prs.length > 0) {
+                            pracSelect.innerHTML = '<option value="">ללא העדפה</option>' +
+                                prs.map(p => `<option value="${p.id}">${safeStr(p.display_name)}</option>`).join('');
+                            pracWrap.classList.remove('hidden');
+                        } else {
+                            pracWrap.classList.add('hidden');
+                        }
                     }
                 } catch(e) {
-                    pracWrap.classList.add('hidden');
+                    if (pracWrap) pracWrap.classList.add('hidden');
                 }
             }
 

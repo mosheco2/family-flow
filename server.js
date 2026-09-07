@@ -23010,6 +23010,17 @@ app.get('/api/beauty/:bizId/slots', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// Public endpoint — storefront only (no auth, minimal fields)
+app.get('/api/beauty/:bizId/practitioners/public', async (req, res) => {
+    try {
+        const r = await pool.query(
+            'SELECT id, display_name, color_hex, specializations, work_days, slot_minutes FROM beauty_practitioners WHERE business_group_id=$1 AND is_active=TRUE ORDER BY display_name',
+            [req.params.bizId]
+        );
+        res.json(r.rows);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 app.get('/api/beauty/:bizId/practitioners', verifyBiz, async (req, res) => {
     try {
         if (parseInt(req.params.bizId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
@@ -24076,6 +24087,17 @@ app.get('/api/beauty/rfq/family/:familyId', verifyFamily, async (req, res) => {
 });
 
 // ===== BEAUTY SERVICE CATALOG =====
+// Public endpoint — storefront only (no auth, minimal fields)
+app.get('/api/beauty/:bizId/services/public', async (req, res) => {
+    try {
+        const r = await pool.query(
+            `SELECT id, name, category, duration_minutes, price, description, color_hex, allowed_practitioner_ids, available_days FROM beauty_service_catalog WHERE business_group_id=$1 AND is_active=TRUE ORDER BY category, name`,
+            [req.params.bizId]
+        );
+        res.json(r.rows);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 app.get('/api/beauty/:bizId/services', verifyBiz, async (req, res) => {
     try {
         if (parseInt(req.params.bizId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
