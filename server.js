@@ -34980,26 +34980,45 @@ app.get('/api/sc-auth/activity/:bizGroupId', async (req, res) => {
 
     // beauty_appointments — לקוחות יופי
     let beautyBookings = [];
+    let beautyHistory = [];
     if (businessType === 'beauty') {
-        const bRes = await pool.query(
-            `SELECT ba.id, ba.status, ba.notes,
-                    TO_CHAR(bs.start_time AT TIME ZONE 'Asia/Jerusalem', 'YYYY-MM-DD') AS event_date,
-                    TO_CHAR(bs.start_time AT TIME ZONE 'Asia/Jerusalem', 'HH24:MI') AS start_time,
-                    bs.service_name, bs.duration_minutes,
-                    p.display_name AS staff_name
-             FROM beauty_appointments ba
-             JOIN beauty_appointment_segments bs ON bs.appointment_id = ba.id AND bs.segment_order = 1
-             LEFT JOIN beauty_practitioners p ON p.id = bs.practitioner_id
-             WHERE ba.business_group_id=$1
-               AND (ba.client_phone=$2 OR (ba.client_family_id IS NOT NULL AND ba.client_family_id=$3))
-               AND ba.status NOT IN ('cancelled','no_show')
-             ORDER BY bs.start_time DESC LIMIT 20`,
-            [bizId, phone, cust.family_group_id || -1]
-        ).catch(() => ({ rows: [] }));
+        const [bRes, hRes] = await Promise.all([
+            pool.query(
+                `SELECT ba.id, ba.status, ba.notes,
+                        TO_CHAR(bs.start_time AT TIME ZONE 'Asia/Jerusalem', 'YYYY-MM-DD') AS event_date,
+                        TO_CHAR(bs.start_time AT TIME ZONE 'Asia/Jerusalem', 'HH24:MI') AS start_time,
+                        bs.service_name, bs.duration_minutes,
+                        p.display_name AS staff_name
+                 FROM beauty_appointments ba
+                 JOIN beauty_appointment_segments bs ON bs.appointment_id = ba.id AND bs.segment_order = 1
+                 LEFT JOIN beauty_practitioners p ON p.id = bs.practitioner_id
+                 WHERE ba.business_group_id=$1
+                   AND (ba.client_phone=$2 OR (ba.client_family_id IS NOT NULL AND ba.client_family_id=$3))
+                   AND ba.status NOT IN ('cancelled','no_show','completed')
+                 ORDER BY bs.start_time ASC LIMIT 20`,
+                [bizId, phone, cust.family_group_id || -1]
+            ).catch(() => ({ rows: [] })),
+            pool.query(
+                `SELECT ba.id, ba.status, ba.notes,
+                        TO_CHAR(bs.start_time AT TIME ZONE 'Asia/Jerusalem', 'YYYY-MM-DD') AS event_date,
+                        TO_CHAR(bs.start_time AT TIME ZONE 'Asia/Jerusalem', 'HH24:MI') AS start_time,
+                        bs.service_name, bs.duration_minutes,
+                        p.display_name AS staff_name
+                 FROM beauty_appointments ba
+                 JOIN beauty_appointment_segments bs ON bs.appointment_id = ba.id AND bs.segment_order = 1
+                 LEFT JOIN beauty_practitioners p ON p.id = bs.practitioner_id
+                 WHERE ba.business_group_id=$1
+                   AND (ba.client_phone=$2 OR (ba.client_family_id IS NOT NULL AND ba.client_family_id=$3))
+                   AND ba.status IN ('cancelled','no_show','completed','pending_cancel')
+                 ORDER BY bs.start_time DESC LIMIT 30`,
+                [bizId, phone, cust.family_group_id || -1]
+            ).catch(() => ({ rows: [] }))
+        ]);
         beautyBookings = bRes.rows;
+        beautyHistory = hRes.rows;
     }
 
-    res.json({ success: true, orders, bookings, classRegs, memberships, appointments, checkins, restaurantVisits, businessType, beautyBookings });
+    res.json({ success: true, orders, bookings, classRegs, memberships, appointments, checkins, restaurantVisits, businessType, beautyBookings, beautyHistory });
 });
 
 // SA: GET /api/sa/sc-customers  — list storefront customers
