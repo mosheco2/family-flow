@@ -11179,6 +11179,7 @@ window.openCustomerModal = function(id = null, tab = 'details') {
                 <button id="btn-cust-tab-history" onclick="window.switchCustomerTab('history')" class="hidden flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">${currentGroup?.business_type==='professional'?'תיקים והצעות':'היסטוריית הזמנות'}</button>
                 ${currentGroup?.business_type === 'maintenance_repair' ? `<button id="btn-cust-tab-calls" onclick="window.switchCustomerTab('calls')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">🔧 קריאות</button>` : ''}
                 ${currentGroup?.business_type === 'professional' ? `<button id="btn-cust-tab-documents" onclick="window.switchCustomerTab('documents')" class="flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">📄 מסמכים</button>` : ''}
+                ${currentGroup?.business_type === 'beauty' ? `<button id="btn-cust-tab-beauty" onclick="window.switchCustomerTab('beauty')" class="hidden flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">💅 יופי</button>` : ''}
                 <button id="btn-cust-tab-collection" onclick="window.switchCustomerTab('collection')" class="hidden flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">💰 גביה</button>
             </div>
             
@@ -11248,6 +11249,11 @@ window.openCustomerModal = function(id = null, tab = 'details') {
                 <div id="cust-documents-list" class="space-y-2 py-2"><p class="text-center text-slate-400 text-xs py-4">טוען...</p></div>
             </div>` : ''}
 
+            ${currentGroup?.business_type === 'beauty' ? `
+            <div id="cust-view-beauty" class="hidden flex-1 overflow-y-auto modal-scroll pr-1">
+                <div id="cust-beauty-content" class="space-y-4 py-2"><p class="text-center text-slate-400 text-xs py-4"><i class="fa-solid fa-spinner fa-spin ml-1"></i> טוען...</p></div>
+            </div>` : ''}
+
             <div class="space-y-2 mt-4 pt-4 border-t border-slate-100 shrink-0">
                 <div class="flex gap-3">
                     <button id="btn-cancel-customer" onclick="document.getElementById('customer-modal').classList.add('hidden')" class="w-1/3 bg-slate-100 py-3 rounded-xl font-bold text-slate-500 hover:bg-slate-200 transition">ביטול</button>
@@ -11283,6 +11289,7 @@ window.openCustomerModal = function(id = null, tab = 'details') {
         if(document.getElementById('cust-family-group-id')) document.getElementById('cust-family-group-id').value = c.family_group_id || '';
         document.getElementById('btn-cust-tab-history').classList.remove('hidden');
         document.getElementById('btn-cust-tab-collection')?.classList.remove('hidden');
+        document.getElementById('btn-cust-tab-beauty')?.classList.remove('hidden');
         tab = 'details';
     } else {
         if(document.getElementById('cust-id')) document.getElementById('cust-id').value = '';
@@ -11366,19 +11373,21 @@ window.switchCustomerTab = function(tab) {
     const btnCalls      = document.getElementById('btn-cust-tab-calls');
     const btnCollection = document.getElementById('btn-cust-tab-collection');
     const btnDocuments  = document.getElementById('btn-cust-tab-documents');
+    const btnBeauty     = document.getElementById('btn-cust-tab-beauty');
     const viewDetails    = document.getElementById('cust-view-details');
     const viewHistory    = document.getElementById('cust-view-history');
     const viewCalls      = document.getElementById('cust-view-calls');
     const viewCollection = document.getElementById('cust-view-collection');
     const viewDocuments  = document.getElementById('cust-view-documents');
+    const viewBeauty     = document.getElementById('cust-view-beauty');
 
     if (!viewDetails || !viewHistory) return;
 
     const activeClass   = 'flex-1 py-2 px-3 text-xs font-bold bg-white text-slate-800 rounded-lg shadow-sm transition';
     const inactiveClass = 'flex-1 py-2 px-3 text-xs font-bold text-slate-500 hover:text-slate-700 rounded-lg transition';
 
-    [btnDetails, btnHistory, btnCalls, btnCollection, btnDocuments].forEach(b => { if(b) b.className = inactiveClass; });
-    [viewDetails, viewHistory, viewCalls, viewCollection, viewDocuments].forEach(v => { if(v) v.classList.add('hidden'); });
+    [btnDetails, btnHistory, btnCalls, btnCollection, btnDocuments, btnBeauty].forEach(b => { if(b) b.className = inactiveClass; });
+    [viewDetails, viewHistory, viewCalls, viewCollection, viewDocuments, viewBeauty].forEach(v => { if(v) v.classList.add('hidden'); });
 
     if (tab === 'details') {
         if(btnDetails) btnDetails.className = activeClass;
@@ -11400,10 +11409,125 @@ window.switchCustomerTab = function(tab) {
         const name  = document.getElementById('cust-name')?.value?.trim();
         const phone = document.getElementById('cust-phone')?.value?.trim();
         window.loadCustomerDocuments(name, phone);
+    } else if (tab === 'beauty') {
+        if(btnBeauty) btnBeauty.className = activeClass;
+        if(viewBeauty) viewBeauty.classList.remove('hidden');
+        const name  = document.getElementById('cust-name')?.value?.trim();
+        const phone = document.getElementById('cust-phone')?.value?.trim();
+        window.loadCustomerBeautyTab(name, phone);
     } else {
         if(btnHistory) btnHistory.className = activeClass;
         viewHistory.classList.remove('hidden');
         if (typeof window.renderCustomerHistory === 'function') window.renderCustomerHistory(false, 'modal');
+    }
+};
+
+window.loadCustomerBeautyTab = async function(name, phone) {
+    const el = document.getElementById('cust-beauty-content');
+    if (!el) return;
+    el.innerHTML = '<p class="text-center text-slate-400 text-xs py-4"><i class="fa-solid fa-spinner fa-spin ml-1"></i> טוען...</p>';
+    try {
+        const biz = currentGroup?.id; if (!biz) return;
+        const authH = { 'Authorization': 'Bearer ' + (window._bizToken || '') };
+        // מציאת ה-client_id מתוך beauty_clients לפי טלפון/שם
+        const clients = window._beautyState?.clients || [];
+        const bc = clients.find(c =>
+            (phone && (c.client_phone||'').replace(/\D/g,'') === phone.replace(/\D/g,'')) ||
+            (name && (c.client_name||'').toLowerCase().includes(name.toLowerCase()))
+        );
+
+        // תורים תמיד לפי טלפון/שם
+        const aqp = new URLSearchParams();
+        if (phone) aqp.set('phone', phone); else if (name) aqp.set('name', name);
+
+        const promises = [fetch(`${API}/beauty/${biz}/appointments/by-customer?${aqp}`, { headers: authH }).then(r=>r.json()).catch(()=>({appointments:[]}))];
+        if (bc) {
+            promises.push(fetch(`${API}/beauty/${biz}/clients/${bc.id}/formulas`, { headers: authH }).then(r=>r.json()).catch(()=>({formulas:[]})));
+            promises.push(fetch(`${API}/beauty/${biz}/clients/${bc.id}/photos`, { headers: authH }).then(r=>r.json()).catch(()=>({photos:[]})));
+        }
+        const [aRes, fRes, pRes] = await Promise.all(promises);
+        const appts = aRes.appointments || [];
+        const formulas = (fRes||{}).formulas || [];
+        const photos = (pRes||{}).photos || [];
+
+        const bStatusColors = { scheduled:'#6366f1', confirmed:'#10b981', pending_cancel:'#f97316', cancelled:'#ef4444', completed:'#10b981', no_show:'#94a3b8' };
+        const bStatusLabels = { scheduled:'ממתין לאישור', confirmed:'מאושר ✓', pending_cancel:'בקשת ביטול ⏳', cancelled:'בוטל ✗', completed:'הושלם ✅', no_show:'לא הגיע' };
+
+        let html = '';
+
+        // ─── מבחן ריגישות ─────────────────────────────────────
+        if (bc) {
+            const patchBadgeMap = { passed:'bg-green-100 text-green-700', failed:'bg-red-100 text-red-600', pending:'bg-yellow-100 text-yellow-700', expired:'bg-orange-100 text-orange-600', none:'bg-slate-100 text-slate-500' };
+            const patchLabel = { passed:'פאץ׳ תקין ✅', failed:'פאץ׳ נכשל ❌', pending:'ממתין לפאץ׳ ⏳', expired:'פאץ׳ פג תוקף ⚠️', none:'ללא פאץ׳' };
+            const ps = bc.patch_test_status || 'none';
+            html += `<div class="bg-slate-50 rounded-xl px-4 py-3 flex items-center justify-between">
+                <span class="text-xs font-bold text-slate-600">🧪 מבחן ריגישות (פאץ׳)</span>
+                <span class="text-xs font-bold px-2 py-0.5 rounded-full ${patchBadgeMap[ps]}">${patchLabel[ps]}</span>
+            </div>`;
+            if (bc.patch_test_expires_at) html += `<p class="text-[10px] text-slate-400 text-right -mt-2">תוקף: ${new Date(bc.patch_test_expires_at).toLocaleDateString('he-IL')}</p>`;
+            if (bc.general_notes) html += `<div class="bg-amber-50 rounded-xl px-3 py-2 text-xs text-amber-700 border border-amber-100"><i class="fa-solid fa-triangle-exclamation ml-1"></i>${bc.general_notes}</div>`;
+            if (bc.avg_visit_interval_days) html += `<p class="text-xs text-purple-600 font-bold bg-purple-50 rounded-xl px-3 py-2">ממוצע ביקור: כל ${Math.round(bc.avg_visit_interval_days)} יום</p>`;
+        }
+
+        // ─── תורים ─────────────────────────────────────────────
+        html += `<div><div class="flex items-center justify-between mb-2">
+            <p class="text-xs font-bold text-slate-700">📅 היסטוריית תורים</p>
+            <span class="text-[10px] text-slate-400">${appts.length} תורים</span>
+        </div>`;
+        if (appts.length === 0) {
+            html += '<p class="text-slate-400 text-xs text-center py-2 bg-slate-50 rounded-xl">אין תורים</p>';
+        } else {
+            html += '<div class="space-y-1.5">' + appts.map(a => {
+                const dk = a.event_date ? String(a.event_date).slice(0,10) : '';
+                const dateStr = dk ? new Date(dk+'T12:00:00').toLocaleDateString('he-IL',{day:'2-digit',month:'2-digit',year:'2-digit'}) : '—';
+                const timeStr = a.start_time ? String(a.start_time).slice(0,5) : '';
+                const sc = bStatusColors[a.status]||'#6366f1';
+                const sl = bStatusLabels[a.status]||a.status;
+                const isPc = a.status === 'pending_cancel';
+                const actionBtns = isPc ? `<div class="flex gap-1 mt-1">
+                    <button onclick="window._beautyApproveCancel&&window._beautyApproveCancel(${a.id}).then(ok=>ok&&window.loadCustomerBeautyTab('${safeStr(name||'')}','${safeStr(phone||'')}'))" class="bg-red-100 text-red-700 px-1.5 py-0.5 rounded text-[9px] font-bold">אשר ביטול</button>
+                    <button onclick="window._beautyRejectCancel&&window._beautyRejectCancel(${a.id}).then(ok=>ok&&window.loadCustomerBeautyTab('${safeStr(name||'')}','${safeStr(phone||'')}'))" class="bg-green-100 text-green-700 px-1.5 py-0.5 rounded text-[9px] font-bold">דחה ביטול</button>
+                </div>` : '';
+                return `<div class="flex items-start justify-between bg-slate-50 rounded-xl px-3 py-2 gap-2 flex-wrap" style="border-right:3px solid ${sc}">
+                    <div class="flex-1 min-w-0">
+                        <p class="text-xs font-bold text-slate-700 truncate">${safeStr(a.service_name||'תור')}</p>
+                        <p class="text-[10px] text-slate-400">${dateStr}${timeStr?' · '+timeStr:''}</p>
+                        ${actionBtns}
+                    </div>
+                    <span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full text-white shrink-0" style="background:${sc}">${sl}</span>
+                </div>`;
+            }).join('') + '</div>';
+        }
+        html += '</div>';
+
+        // ─── פורמולות ────────────────────────────────────────────
+        if (bc) {
+            html += `<div><div class="flex items-center justify-between mb-2">
+                <p class="text-xs font-bold text-slate-700">🧪 פורמולות שמורות</p>
+                <button onclick="window._beautyAddFormulaModal(${bc.id})" class="text-[10px] text-purple-600 font-bold hover:underline">+ הוסף</button>
+            </div>`;
+            html += formulas.length === 0
+                ? '<p class="text-slate-400 text-xs text-center py-2 bg-slate-50 rounded-xl">אין פורמולות</p>'
+                : '<div class="space-y-2">' + formulas.map(f => `<div class="bg-slate-50 rounded-xl p-3 text-xs">
+                    <p class="font-bold text-slate-700">${safeStr(f.service_type||'שירות')} · ${new Date(f.created_at).toLocaleDateString('he-IL')}</p>
+                    <p class="text-slate-500 mt-1 whitespace-pre-wrap">${safeStr(f.formula_data ? JSON.stringify(f.formula_data,null,2) : f.notes||'—')}</p>
+                </div>`).join('') + '</div>';
+            html += '</div>';
+
+            // ─── גלריה ────────────────────────────────────────────
+            html += `<div><div class="flex items-center justify-between mb-2">
+                <p class="text-xs font-bold text-slate-700">📸 גלריה לפני/אחרי</p>
+                <button onclick="window._beautyUploadPhotoModal(${bc.id})" class="text-[10px] text-pink-600 font-bold hover:underline">+ העלה</button>
+            </div>`;
+            html += photos.length === 0
+                ? '<p class="text-slate-400 text-xs text-center py-2 bg-slate-50 rounded-xl">אין תמונות</p>'
+                : `<div class="grid grid-cols-3 gap-2">${photos.map(p=>`<div class="aspect-square rounded-xl overflow-hidden bg-slate-100"><img src="${p.photo_url}" class="w-full h-full object-cover" onerror="this.parentElement.innerHTML='📷'"/></div>`).join('')}</div>`;
+            html += '</div>';
+        }
+
+        el.innerHTML = html || '<p class="text-center text-slate-400 text-xs py-4">אין מידע יופי ללקוח זה</p>';
+    } catch(e) {
+        el.innerHTML = '<p class="text-center text-red-400 text-xs py-4">שגיאה בטעינת נתוני יופי</p>';
     }
 };
 
