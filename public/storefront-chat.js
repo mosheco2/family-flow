@@ -150,12 +150,16 @@
       var r = await fetch('/api/public/customer-chat/open', {
         method: 'POST',
         headers: _authHeaders(),
-        body: JSON.stringify({ groupId: gid })
+        body: JSON.stringify({ groupId: parseInt(gid) || gid })
       });
       if (r.status === 401) { _showChatError('נדרשת התחברות לחשבון'); return; }
       var d = await r.json();
       if (!d.success) { _showChatError(d.error || 'שגיאה בפתיחת הצ\'אט'); return; }
+      if (!d.chat || !d.chat.id) { _showChatError('שגיאה: לא הוחזר מזהה שיחה'); return; }
       _chatId = d.chat.id;
+      // עדכן כותרת עם מזהה (debug)
+      var head = document.getElementById('sc-chat-head');
+      if (head) { var h4 = head.querySelector('h4'); if (h4) h4.title = 'chatId:' + _chatId + ' groupId:' + d.chat.group_id; }
       _renderedIds = {}; // איפוס dedup בפתיחה חדשה
       var r2 = await fetch('/api/public/customer-chat/' + _chatId + '/messages', { headers: _authHeaders() });
       var d2 = await r2.json();

@@ -34946,9 +34946,12 @@ app.post('/api/public/customer-chat/open', async (req, res) => {
     const token = (req.headers.authorization || '').replace('Bearer ', '').trim();
     const cust = await _scGetCustomerByToken(token);
     if (!cust) return res.status(401).json({ error: 'נדרשת התחברות' });
-    const { groupId } = req.body;
-    if (!groupId) return res.status(400).json({ error: 'חסר groupId' });
+    const groupId = parseInt(req.body.groupId);
+    if (!groupId || isNaN(groupId)) return res.status(400).json({ error: 'חסר groupId' });
     try {
+        // ודא שה-group_id קיים ב-family_groups
+        const gCheck = await pool.query(`SELECT id FROM family_groups WHERE id=$1`, [groupId]);
+        if (!gCheck.rows.length) return res.status(400).json({ error: 'עסק לא נמצא' });
         // INSERT OR IGNORE + RETURN
         await pool.query(
             `INSERT INTO customer_chats (group_id, customer_id) VALUES ($1,$2) ON CONFLICT (group_id,customer_id) DO NOTHING`,
@@ -34957,8 +34960,13 @@ app.post('/api/public/customer-chat/open', async (req, res) => {
         const r = await pool.query(
             `SELECT * FROM customer_chats WHERE group_id=$1 AND customer_id=$2`, [groupId, cust.id]
         );
+        if (!r.rows.length) return res.status(500).json({ error: 'לא ניתן ליצור שיחה' });
+        console.log(`[customer-chat] open: customer=${cust.id} group=${groupId} chat=${r.rows[0].id}`);
         res.json({ success: true, chat: r.rows[0] });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch(e) {
+        console.error('[customer-chat] open error:', e.message);
+        res.status(500).json({ error: e.message });
+    }
 });
 
 // שליפת הודעות — לקוח
@@ -34998,6 +35006,7 @@ app.post('/api/public/customer-chat/:chatId/message', async (req, res) => {
             [chatId, cust.id, body.trim()]
         );
         await pool.query(`UPDATE customer_chats SET last_message_at=NOW(), status='open' WHERE id=$1`, [chatId]);
+        console.log(`[customer-chat] msg: customer=${cust.id} chat=${chatId} group=${chat.rows[0].group_id}`);
         res.json({ success: true, message: r.rows[0] });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -35006,6 +35015,7 @@ app.post('/api/public/customer-chat/:chatId/message', async (req, res) => {
 
 app.get('/api/biz/customer-chats', verifyBiz, async (req, res) => {
     const groupId = req.bizAuth.groupId;
+    console.log(`[customer-chat] biz list: groupId=${groupId}`);
     try {
         const r = await pool.query(`
             SELECT cc.*,

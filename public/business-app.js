@@ -56343,8 +56343,16 @@ window._sportApptSave = async function() {
     list.innerHTML = '<p class="text-xs text-slate-400 text-center py-8">טוען...</p>';
     try {
       var r = await fetch('/api/biz/customer-chats', { headers: _bizHeaders() });
+      if (!r.ok) {
+        list.innerHTML = '<p class="text-xs text-red-400 text-center py-8">שגיאת שרת ' + r.status + '</p>';
+        return;
+      }
       var d = await r.json();
-      if (!d.success || !d.chats.length) {
+      if (!d.success) {
+        list.innerHTML = '<p class="text-xs text-red-400 text-center py-8">' + (d.error || 'שגיאה בטעינה') + '</p>';
+        return;
+      }
+      if (!d.chats || !d.chats.length) {
         list.innerHTML = '<p class="text-xs text-slate-400 text-center py-8">אין שיחות לקוחות עדיין</p>';
         return;
       }
