@@ -23737,7 +23737,7 @@ app.patch('/api/beauty/:bizId/clients/:id', verifyBiz, async (req, res) => {
     try {
         const f = req.body;
         if (parseInt(req.params.bizId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
-        const fields = ['client_name','client_phone','client_email','medical_notes','patch_test_status','patch_test_date','patch_test_expires_at','skin_type','hair_type','preferred_practitioner_id','id_number'];
+        const fields = ['client_name','client_phone','client_email','medical_notes','general_notes','patch_test_status','patch_test_date','patch_test_expires_at','skin_type','hair_type','preferred_practitioner_id','id_number'];
         const sets = []; const vals = [];
         fields.forEach(k => { if (f[k] !== undefined) { vals.push(f[k]); sets.push(`${k}=$${vals.length}`); }});
         if (!sets.length) return res.json({ success: true });

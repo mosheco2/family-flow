@@ -48277,116 +48277,243 @@ window._beautySubmitNewClient = async function() {
     } catch(e) { showToast('error', 'שגיאת תקשורת'); }
 };
 
-window._beautyOpenClient = async function(clientId) {
+window._beautyOpenClient = async function(clientId, openTab) {
     const biz = _beautyBizId(); if (!biz) return;
     const client = window._beautyState.clients.find(c => c.id === clientId); if (!client) return;
-    let formulas = [], photos = [], appts = [];
-    try {
-        const _cAuthH = { 'Authorization': `Bearer ${window._bizToken || ''}` };
-        const aqp = new URLSearchParams();
-        if (client.client_phone) aqp.set('phone', client.client_phone);
-        else if (client.client_name) aqp.set('name', client.client_name);
-        const [fRes, pRes, aRes] = await Promise.all([
-            fetch(`${API}/beauty/${biz}/clients/${clientId}/formulas`, { headers: _cAuthH }).then(r=>r.json()),
-            fetch(`${API}/beauty/${biz}/clients/${clientId}/photos`, { headers: _cAuthH }).then(r=>r.json()),
-            fetch(`${API}/beauty/${biz}/appointments/by-customer?${aqp}`, { headers: _cAuthH }).then(r=>r.json()).catch(()=>({appointments:[]}))
-        ]);
-        formulas = fRes.formulas || [];
-        photos = pRes.photos || [];
-        appts = aRes.appointments || [];
-    } catch(e) {}
+    document.getElementById('beauty-client-modal')?.remove();
 
-    const patchBadgeMap = { passed: 'bg-green-100 text-green-700', failed: 'bg-red-100 text-red-600', pending: 'bg-yellow-100 text-yellow-700', expired: 'bg-orange-100 text-orange-600', none: 'bg-slate-100 text-slate-500' };
-    const patchLabel = { passed: 'פאץ׳ תקין ✅', failed: 'פאץ׳ נכשל ❌', pending: 'ממתין לפאץ׳ ⏳', expired: 'פאץ׳ פג תוקף ⚠️', none: 'ללא פאץ׳' };
-    const ps = client.patch_test_status || 'none';
-
-    const formulaRows = formulas.length === 0
-        ? `<p class="text-slate-400 text-xs text-center py-3">אין פורמולות שמורות</p>`
-        : formulas.map(f => `<div class="bg-slate-50 rounded-xl p-3 text-xs">
-            <p class="font-bold text-slate-700">${f.service_type || 'שירות'} · ${_beautyFmtDate(f.created_at)}</p>
-            <p class="text-slate-500 mt-1 whitespace-pre-wrap">${f.formula_data ? JSON.stringify(f.formula_data, null, 2) : f.notes || '—'}</p>
-           </div>`).join('');
-
-    const photoRows = photos.length === 0
-        ? `<p class="text-slate-400 text-xs text-center py-3">אין תמונות</p>`
-        : `<div class="grid grid-cols-3 gap-2">
-            ${photos.map(p => `<div class="aspect-square rounded-xl overflow-hidden bg-slate-100 flex items-center justify-center text-slate-400">
-                <img src="${p.photo_url}" alt="${p.photo_type}" class="w-full h-full object-cover" onerror="this.parentElement.innerHTML='📷'"/>
-            </div>`).join('')}
-           </div>`;
-
-    const html = `
+    // skeleton תוך כדי טעינה
+    const skHtml = `
 <div id="beauty-client-modal" class="fixed inset-0 z-[300] flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm p-4">
     <div class="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden max-h-[92vh] flex flex-col">
-        <div class="bg-gradient-to-r from-pink-500 to-purple-600 px-5 py-4 flex items-center justify-between">
+        <div class="bg-gradient-to-r from-pink-500 to-purple-600 px-5 py-4 flex items-center justify-between shrink-0">
             <div>
-                <h3 class="font-black text-white text-base">${client.client_name}</h3>
-                <p class="text-pink-100 text-xs">${client.client_phone||''} ${client.email||''}</p>
+                <h3 class="font-black text-white text-base">${safeStr(client.client_name)}</h3>
+                <p class="text-pink-100 text-xs">${safeStr(client.client_phone||'')}${client.email?' · '+safeStr(client.email):''}</p>
             </div>
             <div class="flex items-center gap-2">
-                <button onclick="window.showAddToOneflow('${(client.client_name||'').replace(/'/g,"\\'").replace(/"/g,'&quot;')}','${(client.client_phone||'').replace(/'/g,"\\'").replace(/"/g,'&quot;')}',null)" class="bg-white/20 hover:bg-white/30 text-white px-2 py-1 rounded-lg text-[10px] font-black transition border border-white/30" title="הוסף ל-ONEFLOW LIFE">🔗 ONEFLOW</button>
+                <button onclick="window.showAddToOneflow('${(client.client_name||'').replace(/'/g,"\\'").replace(/"/g,'&quot;')}','${(client.client_phone||'').replace(/'/g,"\\'").replace(/"/g,'&quot;')}',null)" class="bg-white/20 hover:bg-white/30 text-white px-2 py-1 rounded-lg text-[10px] font-black transition border border-white/30">🔗 ONEFLOW</button>
                 <button onclick="document.getElementById('beauty-client-modal').remove()" class="text-white/70 hover:text-white text-xl"><i class="fa-solid fa-xmark"></i></button>
             </div>
         </div>
-        <div class="overflow-y-auto flex-1 p-5 space-y-4">
-            <!-- patch test -->
-            <div class="flex items-center justify-between">
-                <span class="text-xs font-bold text-slate-600">מבחן ריגישות (פאץ׳)</span>
+        <!-- טאבים -->
+        <div class="flex bg-slate-100 p-1.5 mx-4 mt-3 rounded-xl shrink-0 overflow-x-auto whitespace-nowrap gap-1" id="bcm-tab-bar">
+            <button id="bcm-btn-details"     onclick="window._bcmTab('details',${clientId})"     class="flex-1 py-1.5 px-2 text-[11px] font-bold bg-white text-slate-800 rounded-lg shadow-sm transition">פרטים ומאזן</button>
+            <button id="bcm-btn-appts"       onclick="window._bcmTab('appts',${clientId})"       class="flex-1 py-1.5 px-2 text-[11px] font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">📅 תורים</button>
+            <button id="bcm-btn-beauty"      onclick="window._bcmTab('beauty',${clientId})"      class="flex-1 py-1.5 px-2 text-[11px] font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">💅 יופי</button>
+            <button id="bcm-btn-collection"  onclick="window._bcmTab('collection',${clientId})"  class="flex-1 py-1.5 px-2 text-[11px] font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">💰 גביה</button>
+        </div>
+        <div id="bcm-body" class="flex-1 overflow-y-auto p-4 modal-scroll">
+            <p class="text-center text-slate-400 text-xs py-8"><i class="fa-solid fa-spinner fa-spin ml-1"></i> טוען...</p>
+        </div>
+        <!-- פעולות -->
+        <div class="px-4 pb-4 pt-2 border-t border-slate-100 shrink-0 flex gap-2">
+            <button onclick="window._bcmSaveDetails(${clientId})" class="flex-1 bg-indigo-600 text-white py-2.5 rounded-xl text-sm font-bold hover:bg-indigo-700 transition">שמור פרטים</button>
+            <button onclick="loadBeautyCalendar()" class="flex-1 bg-pink-500 text-white py-2.5 rounded-xl text-sm font-bold hover:bg-pink-600 transition flex items-center justify-center gap-1.5" onclick="document.getElementById('beauty-client-modal').remove()"><i class="fa-solid fa-scissors text-xs"></i> קבע תור</button>
+        </div>
+    </div>
+</div>`;
+    document.body.insertAdjacentHTML('beforeend', skHtml);
+
+    // טעינת נתונים
+    const _aH = { 'Authorization': 'Bearer ' + (window._bizToken || '') };
+    const aqp = new URLSearchParams();
+    if (client.client_phone) aqp.set('phone', client.client_phone);
+    else if (client.client_name) aqp.set('name', client.client_name);
+
+    const [fRes, pRes, aRes] = await Promise.all([
+        fetch(`${API}/beauty/${biz}/clients/${clientId}/formulas`, {headers:_aH}).then(r=>r.json()).catch(()=>({formulas:[]})),
+        fetch(`${API}/beauty/${biz}/clients/${clientId}/photos`,   {headers:_aH}).then(r=>r.json()).catch(()=>({photos:[]})),
+        fetch(`${API}/beauty/${biz}/appointments/by-customer?${aqp}`, {headers:_aH}).then(r=>r.json()).catch(()=>({appointments:[]}))
+    ]);
+    window._bcmData = {
+        clientId, client,
+        formulas: fRes.formulas || [],
+        photos:   pRes.photos   || [],
+        appts:    aRes.appointments || []
+    };
+    window._bcmTab(openTab || 'details', clientId);
+};
+
+window._bcmTab = function(tab, clientId) {
+    const d = window._bcmData || {};
+    if (!d.client || d.clientId !== clientId) return;
+    const client   = d.client;
+    const formulas = d.formulas || [];
+    const photos   = d.photos   || [];
+    const appts    = d.appts    || [];
+
+    const activeC   = 'flex-1 py-1.5 px-2 text-[11px] font-bold bg-white text-slate-800 rounded-lg shadow-sm transition';
+    const inactiveC = 'flex-1 py-1.5 px-2 text-[11px] font-bold text-slate-500 hover:text-slate-700 rounded-lg transition';
+    ['details','appts','beauty','collection'].forEach(t => {
+        const b = document.getElementById('bcm-btn-'+t);
+        if (b) b.className = t === tab ? activeC : inactiveC;
+    });
+
+    const body = document.getElementById('bcm-body');
+    if (!body) return;
+
+    const bStatusColors = { scheduled:'#6366f1', confirmed:'#10b981', pending_cancel:'#f97316', cancelled:'#ef4444', completed:'#10b981', no_show:'#94a3b8' };
+    const bStatusLabels = { scheduled:'ממתין לאישור', confirmed:'מאושר ✓', pending_cancel:'בקשת ביטול ⏳', cancelled:'בוטל ✗', completed:'הושלם ✅', no_show:'לא הגיע' };
+    const patchBadgeMap = { passed:'bg-green-100 text-green-700', failed:'bg-red-100 text-red-600', pending:'bg-yellow-100 text-yellow-700', expired:'bg-orange-100 text-orange-600', none:'bg-slate-100 text-slate-500' };
+    const patchLabel    = { passed:'פאץ׳ תקין ✅', failed:'פאץ׳ נכשל ❌', pending:'ממתין לפאץ׳ ⏳', expired:'פאץ׳ פג תוקף ⚠️', none:'ללא פאץ׳' };
+
+    if (tab === 'details') {
+        const ps = client.patch_test_status || 'none';
+        body.innerHTML = `
+        <div class="space-y-3">
+            <!-- מאזן כספי -->
+            <div id="bcm-fin-section">
+                <div class="grid grid-cols-3 gap-2 mb-2">
+                    <div class="bg-slate-50 rounded-xl p-2.5 border text-center"><div class="text-[9px] font-bold text-slate-500 mb-1">סה"כ עסקאות</div><div id="bcm-fin-inv" class="text-sm font-black text-slate-800 dir-ltr">—</div></div>
+                    <div class="bg-green-50 rounded-xl p-2.5 border border-green-200 text-center"><div class="text-[9px] font-bold text-green-600 mb-1">הכנסות</div><div id="bcm-fin-paid" class="text-sm font-black text-green-700 dir-ltr">—</div></div>
+                    <div class="bg-amber-50 rounded-xl p-2.5 border border-amber-200 text-center"><div class="text-[9px] font-bold text-amber-600 mb-1">חבות פתוחה</div><div id="bcm-fin-pend" class="text-sm font-black text-amber-700 dir-ltr">—</div></div>
+                </div>
+            </div>
+            <!-- פרטי לקוח -->
+            <div><label class="text-xs font-bold text-slate-500">שם לקוח:</label>
+                <input type="text" id="bcm-name" value="${safeStr(client.client_name||'')}" class="modern-input py-2 text-sm bg-white mt-0.5"/></div>
+            <div><label class="text-xs font-bold text-slate-500">טלפון:</label>
+                <input type="tel" id="bcm-phone" value="${safeStr(client.client_phone||'')}" class="modern-input py-2 text-sm bg-white dir-ltr text-left mt-0.5"/></div>
+            <div><label class="text-xs font-bold text-slate-500">אימייל:</label>
+                <input type="email" id="bcm-email" value="${safeStr(client.email||'')}" class="modern-input py-2 text-sm bg-white dir-ltr text-left mt-0.5"/></div>
+            <div><label class="text-xs font-bold text-slate-500">ת.ז / ח.פ:</label>
+                <input type="text" id="bcm-idnum" value="${safeStr(client.id_number||'')}" class="modern-input py-2 text-sm bg-white dir-ltr text-left mt-0.5"/></div>
+            <div><label class="text-xs font-bold text-slate-500">הערות:</label>
+                <textarea id="bcm-notes" class="modern-input py-2 text-sm bg-white h-16 mt-0.5">${safeStr(client.general_notes||'')}</textarea></div>
+            <!-- מבחן ריגישות -->
+            <div class="bg-slate-50 rounded-xl px-3 py-2.5 flex items-center justify-between">
+                <span class="text-xs font-bold text-slate-600">🧪 מבחן ריגישות (פאץ׳)</span>
                 <span class="text-xs font-bold px-2 py-0.5 rounded-full ${patchBadgeMap[ps]}">${patchLabel[ps]}</span>
             </div>
-            ${client.patch_test_expires_at ? `<p class="text-[10px] text-slate-400">תוקף: ${_beautyFmtDate(client.patch_test_expires_at)}</p>` : ''}
-            ${client.general_notes ? `<div class="bg-amber-50 rounded-xl px-3 py-2 text-xs text-amber-700 border border-amber-100"><i class="fa-solid fa-triangle-exclamation mr-1"></i>${client.general_notes}</div>` : ''}
-            ${client.avg_visit_interval_days ? `<p class="text-xs text-purple-600 font-bold bg-purple-50 rounded-xl px-3 py-2">ממוצע ביקור: כל ${Math.round(client.avg_visit_interval_days)} יום · צפוי ב: ${_beautyFmtDate(new Date(Date.now() + client.avg_visit_interval_days*86400000))}</p>` : ''}
+            ${client.patch_test_expires_at ? `<p class="text-[10px] text-slate-400 -mt-1">תוקף פאץ׳: ${_beautyFmtDate(client.patch_test_expires_at)}</p>` : ''}
+            ${client.avg_visit_interval_days ? `<p class="text-xs text-purple-600 font-bold bg-purple-50 rounded-xl px-3 py-2">ממוצע ביקור: כל ${Math.round(client.avg_visit_interval_days)} יום · צפוי: ${_beautyFmtDate(new Date(Date.now()+client.avg_visit_interval_days*86400000))}</p>` : ''}
+        </div>`;
+        // טעינת מאזן כספי אסינכרוני
+        if (client.client_phone || client.client_name) {
+            const fp = new URLSearchParams();
+            if (client.client_name) fp.set('name', client.client_name);
+            if (client.client_phone) fp.set('phone', client.client_phone);
+            fetch(`/api/clients/financial-summary/${currentGroup?.id}?${fp}`)
+                .then(r=>r.json()).then(d=>{
+                    if (!d.success) return;
+                    const invEl=document.getElementById('bcm-fin-inv'), paidEl=document.getElementById('bcm-fin-paid'), pendEl=document.getElementById('bcm-fin-pend');
+                    if (invEl) invEl.textContent = '₪'+parseFloat(d.totalInvoiced||0).toFixed(0);
+                    if (paidEl) paidEl.textContent = '₪'+parseFloat(d.totalPaid||0).toFixed(0);
+                    if (pendEl) pendEl.textContent = '₪'+parseFloat(d.totalPending||0).toFixed(0);
+                }).catch(()=>{});
+        }
 
-            <!-- appointments history -->
-            <div>
-                <div class="flex items-center justify-between mb-2">
-                    <p class="text-xs font-bold text-slate-700">היסטוריית תורים 📅</p>
-                    <span class="text-[10px] text-slate-400">${appts.length} תורים</span>
-                </div>
-                ${appts.length === 0 ? '<p class="text-slate-400 text-xs text-center py-2">אין תורים ללקוח זה</p>' : `<div class="space-y-1.5">${appts.map(a => {
-                    const bStatusColors = { scheduled:'#6366f1', confirmed:'#10b981', pending_cancel:'#f97316', cancelled:'#ef4444', completed:'#10b981', no_show:'#94a3b8' };
-                    const bStatusLabels = { scheduled:'ממתין', confirmed:'מאושר ✓', pending_cancel:'בקשת ביטול ⏳', cancelled:'בוטל ✗', completed:'הושלם ✅', no_show:'לא הגיע' };
-                    const dk = a.event_date ? String(a.event_date).slice(0,10) : '';
-                    const dateStr = dk ? new Date(dk+'T12:00:00').toLocaleDateString('he-IL',{day:'2-digit',month:'2-digit',year:'2-digit'}) : '—';
-                    const timeStr = a.start_time ? String(a.start_time).slice(0,5) : '';
-                    const sc = bStatusColors[a.status]||'#6366f1';
-                    const sl = bStatusLabels[a.status]||a.status;
-                    const pendingCancel = a.status === 'pending_cancel';
-                    return `<div class="flex items-center justify-between bg-slate-50 rounded-xl px-3 py-2 gap-2" style="border-right:3px solid ${sc}">
+    } else if (tab === 'appts') {
+        let html = `<div class="space-y-2">`;
+        if (appts.length === 0) {
+            html += '<p class="text-slate-400 text-xs text-center py-8 bg-slate-50 rounded-xl">אין תורים ללקוח זה</p>';
+        } else {
+            appts.forEach(a => {
+                const dk = a.event_date ? String(a.event_date).slice(0,10) : '';
+                const dateStr = dk ? new Date(dk+'T12:00:00').toLocaleDateString('he-IL',{day:'2-digit',month:'2-digit',year:'numeric'}) : '—';
+                const timeStr = a.start_time ? String(a.start_time).slice(0,5) : '';
+                const sc = bStatusColors[a.status]||'#6366f1';
+                const sl = bStatusLabels[a.status]||a.status;
+                const isPc = a.status === 'pending_cancel';
+                html += `<div class="bg-white rounded-xl border border-slate-200 shadow-sm p-3" style="border-right:3px solid ${sc}">
+                    <div class="flex items-start justify-between gap-2">
                         <div class="flex-1 min-w-0">
-                            <p class="text-xs font-bold text-slate-700 truncate">${a.service_name||'תור'}</p>
-                            <p class="text-[10px] text-slate-400">${dateStr}${timeStr?' · '+timeStr:''}</p>
+                            <p class="text-sm font-bold text-slate-800 truncate"><i class="fa-solid fa-scissors text-pink-400 text-[10px] ml-1"></i>${safeStr(a.service_name||'תור')}</p>
+                            <p class="text-[10px] text-slate-500 mt-0.5">${dateStr}${timeStr?' · '+timeStr:''}</p>
                         </div>
-                        ${pendingCancel ? `<div class="flex gap-1 shrink-0">
-                            <button onclick="window._beautyApproveCancel&&window._beautyApproveCancel(${a.id}).then(ok=>ok&&window._beautyOpenClient(${clientId}))" class="bg-red-100 text-red-700 px-1.5 py-0.5 rounded text-[9px] font-bold">אשר ביטול</button>
-                            <button onclick="window._beautyRejectCancel&&window._beautyRejectCancel(${a.id}).then(ok=>ok&&window._beautyOpenClient(${clientId}))" class="bg-green-100 text-green-700 px-1.5 py-0.5 rounded text-[9px] font-bold">דחה</button>
-                        </div>` : `<span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full text-white shrink-0" style="background:${sc}">${sl}</span>`}
-                    </div>`;
-                }).join('')}</div>`}
-            </div>
+                        <span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full text-white shrink-0" style="background:${sc}">${sl}</span>
+                    </div>
+                    ${isPc ? `<div class="flex gap-2 mt-2">
+                        <button onclick="window._beautyApproveCancel&&window._beautyApproveCancel(${a.id}).then(ok=>{if(ok){window._bcmData.appts=window._bcmData.appts.filter(x=>x.id!==${a.id});window._bcmData.appts.find(x=>x.id===${a.id})&&(window._bcmData.appts.find(x=>x.id===${a.id}).status='cancelled');window._beautyOpenClient(${clientId},'appts')};})" class="flex-1 bg-red-500 text-white py-1.5 rounded-lg text-[10px] font-bold hover:bg-red-600 transition">אשר ביטול</button>
+                        <button onclick="window._beautyRejectCancel&&window._beautyRejectCancel(${a.id}).then(ok=>{if(ok)window._beautyOpenClient(${clientId},'appts');})" class="flex-1 bg-green-500 text-white py-1.5 rounded-lg text-[10px] font-bold hover:bg-green-600 transition">דחה ביטול</button>
+                    </div>` : ''}
+                </div>`;
+            });
+        }
+        html += '</div>';
+        body.innerHTML = html;
 
-            <!-- formulas -->
+    } else if (tab === 'beauty') {
+        const formulaRows = formulas.length === 0
+            ? '<p class="text-slate-400 text-xs text-center py-3 bg-slate-50 rounded-xl">אין פורמולות שמורות</p>'
+            : formulas.map(f=>`<div class="bg-slate-50 rounded-xl p-3 text-xs border border-slate-100">
+                <p class="font-bold text-slate-700">${safeStr(f.service_type||'שירות')} · ${_beautyFmtDate(f.created_at)}</p>
+                <p class="text-slate-500 mt-1 whitespace-pre-wrap">${safeStr(f.formula_data?JSON.stringify(f.formula_data,null,2):f.notes||'—')}</p>
+              </div>`).join('');
+        const photoGrid = photos.length === 0
+            ? '<p class="text-slate-400 text-xs text-center py-3 bg-slate-50 rounded-xl">אין תמונות</p>'
+            : `<div class="grid grid-cols-3 gap-2">${photos.map(p=>`<div class="aspect-square rounded-xl overflow-hidden bg-slate-100"><img src="${p.photo_url}" class="w-full h-full object-cover" onerror="this.parentElement.innerHTML='📷'"/></div>`).join('')}</div>`;
+        body.innerHTML = `<div class="space-y-4">
             <div>
                 <div class="flex items-center justify-between mb-2">
-                    <p class="text-xs font-bold text-slate-700">פורמולות שמורות 🧪</p>
+                    <p class="text-xs font-bold text-slate-700">🧪 פורמולות שמורות</p>
                     <button onclick="window._beautyAddFormulaModal(${client.id})" class="text-[10px] text-purple-600 font-bold hover:underline">+ הוסף</button>
                 </div>
                 <div class="space-y-2">${formulaRows}</div>
             </div>
-
-            <!-- photos -->
             <div>
                 <div class="flex items-center justify-between mb-2">
-                    <p class="text-xs font-bold text-slate-700">גלריה לפני/אחרי 📸</p>
+                    <p class="text-xs font-bold text-slate-700">📸 גלריה לפני/אחרי</p>
                     <button onclick="window._beautyUploadPhotoModal(${client.id})" class="text-[10px] text-pink-600 font-bold hover:underline">+ העלה</button>
                 </div>
-                ${photoRows}
+                ${photoGrid}
             </div>
-        </div>
-    </div>
-</div>`;
-    document.body.insertAdjacentHTML('beforeend', html);
+        </div>`;
+
+    } else if (tab === 'collection') {
+        body.innerHTML = '<p class="text-center text-slate-400 text-xs py-4"><i class="fa-solid fa-spinner fa-spin ml-1"></i> טוען...</p>';
+        if (client.client_name || client.client_phone) {
+            const cp = new URLSearchParams();
+            if (client.client_name) cp.set('name', client.client_name);
+            if (client.client_phone) cp.set('phone', client.client_phone);
+            fetch(`/api/clients/financial-summary/${currentGroup?.id}?${cp}`)
+                .then(r=>r.json()).then(d=>{
+                    if (!document.getElementById('bcm-body')) return;
+                    if (!d.success || (!d.payments?.length && !d.workOrders?.length)) {
+                        body.innerHTML = '<p class="text-center text-slate-400 text-xs py-8">אין רשומות גבייה ללקוח זה</p>'; return;
+                    }
+                    const METHODS = { cash:'מזומן', card:'כרטיס', transfer:'העברה', check:'שיק', bit:'ביט' };
+                    const today = new Date(); today.setHours(0,0,0,0);
+                    const items = d.payments || [];
+                    body.innerHTML = '<div class="space-y-2">' + items.map(p => {
+                        const isOverdue = p.due_date && new Date(p.due_date) < today;
+                        const dateStr = p.due_date ? new Date(p.due_date).toLocaleDateString('he-IL') : '—';
+                        return `<div class="flex items-center justify-between bg-white rounded-xl border ${isOverdue?'border-red-200 bg-red-50':'border-amber-100'} px-3 py-2.5 gap-2">
+                            <div class="flex-1 min-w-0">
+                                <div class="text-[11px] font-bold text-slate-700 truncate">${safeStr(p.source_title)}</div>
+                                <div class="text-[10px] text-slate-400">${safeStr(p.milestone_name||'')}${p.payment_method?' · '+(METHODS[p.payment_method]||p.payment_method):''} · ${dateStr}</div>
+                            </div>
+                            <div class="text-sm font-black ${isOverdue?'text-red-600':'text-amber-700'} dir-ltr shrink-0">₪${parseFloat(p.amount).toFixed(2)}</div>
+                        </div>`;
+                    }).join('') + '</div>';
+                }).catch(()=>{ if(body) body.innerHTML = '<p class="text-center text-red-400 text-xs py-4">שגיאה בטעינת גביה</p>'; });
+        } else {
+            body.innerHTML = '<p class="text-center text-slate-400 text-xs py-8">אין מידע גביה</p>';
+        }
+    }
+};
+
+window._bcmSaveDetails = async function(clientId) {
+    const biz = _beautyBizId(); if (!biz) return;
+    const name  = document.getElementById('bcm-name')?.value?.trim();
+    const phone = document.getElementById('bcm-phone')?.value?.trim();
+    const email = document.getElementById('bcm-email')?.value?.trim();
+    const idnum = document.getElementById('bcm-idnum')?.value?.trim();
+    const notes = document.getElementById('bcm-notes')?.value?.trim();
+    if (!name) { showToast('error', 'שם לקוח הוא שדה חובה'); return; }
+    try {
+        const r = await fetch(`${API}/beauty/${biz}/clients/${clientId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type':'application/json', 'Authorization':'Bearer '+(window._bizToken||'') },
+            body: JSON.stringify({ client_name:name, client_phone:phone, client_email:email, id_number:idnum, general_notes:notes })
+        }).then(r=>r.json());
+        if (r.success || r.client) {
+            showToast('success', 'פרטי הלקוח עודכנו');
+            loadBeautyClients();
+            if (window._bcmData) window._bcmData.client = { ...window._bcmData.client, client_name:name, client_phone:phone, email, id_number:idnum, general_notes:notes };
+        } else showToast('error', r.error||'שגיאה בשמירה');
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
 };
 
 window._beautyAddFormulaModal = function(clientId) {
