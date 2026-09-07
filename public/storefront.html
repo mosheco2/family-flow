@@ -3321,6 +3321,25 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
                 openEventQuoteModal();
                 return;
             }
+
+            // דרישת התחברות לפני קביעת תור (עסקי יופי וכל עסק עם יומן)
+            if (!window.scAuth || !window.scAuth._customer) {
+                window._pendingAfterScLogin = 'openBookingModal';
+                if (window.scAuth && typeof window.scAuth.openModal === 'function') {
+                    const msgEl = document.getElementById('sc-modal-login-hint');
+                    if (!msgEl) {
+                        const hint = document.createElement('div');
+                        hint.id = 'sc-modal-login-hint';
+                        hint.style.cssText = 'background:#f0fdf4;border:1px solid #86efac;border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:12px;color:#166534;text-align:right;line-height:1.5';
+                        hint.innerHTML = '🔒 כדי לקבוע תור יש להתחבר או להירשם.<br><span style="font-size:11px;color:#15803d">לאחר ההרשמה תוכלי לעקוב אחרי התורים שלך ולנהל אותם.</span>';
+                        const modalBody = document.getElementById('sc-modal-body');
+                        if (modalBody) modalBody.insertBefore(hint, modalBody.firstChild);
+                    }
+                    window.scAuth.openModal('phone');
+                }
+                return;
+            }
+
             if (!storeData || !storeData.calendarSettings) {
                 showToast('error', 'מערכת התורים לא הוגדרה בעסק זה.');
                 return;
