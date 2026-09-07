@@ -34951,7 +34951,7 @@ app.post('/api/public/customer-chat/open', async (req, res) => {
     try {
         // INSERT OR IGNORE + RETURN
         await pool.query(
-            `INSERT INTO customer_chats (group_id, customer_id) VALUES ($1,$2) ON CONFLICT (group_id,customer_id) DO UPDATE SET last_message_at=EXCLUDED.last_message_at`,
+            `INSERT INTO customer_chats (group_id, customer_id) VALUES ($1,$2) ON CONFLICT (group_id,customer_id) DO NOTHING`,
             [groupId, cust.id]
         );
         const r = await pool.query(

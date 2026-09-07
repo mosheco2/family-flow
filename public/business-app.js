@@ -56081,6 +56081,7 @@ window._sportApptSave = async function() {
       var convView = document.getElementById('cust-chat-conv-panel');
       if (placeholder) placeholder.classList.remove('hidden');
       if (convView) convView.classList.add('hidden');
+      _startCustListPoll();
       window.loadCustChatList();
     }
   };
@@ -56383,6 +56384,7 @@ window._sportApptSave = async function() {
   // ── פתיחת שיחה ─────────────────────────────────────────────
   window.openCustChat = async function(chatId, name, status, phone) {
     _stopCustPoll();
+    _stopCustListPoll();
     _activeChatId = chatId;
     _activeChatStatus = status || 'open';
     _custLastSince = null;
@@ -56449,6 +56451,7 @@ window._sportApptSave = async function() {
     if (custPanel) custPanel.classList.remove('conv-active');
     if (placeholder) placeholder.classList.remove('hidden');
     window.loadCustChatList();
+    _startCustListPoll();
   };
 
   // ── פורמט תאריך למפריד ────────────────────────────────────
@@ -56653,7 +56656,7 @@ window._sportApptSave = async function() {
     }
   };
 
-  // ── פולינג ──────────────────────────────────────────────────
+  // ── פולינג הודעות (שיחה פתוחה) ───────────────────────────
   function _startCustPoll() {
     if (_custPoll) return;
     _custPoll = setInterval(_custPollFn, POLL_MS);
@@ -56673,10 +56676,23 @@ window._sportApptSave = async function() {
     } catch(e) {}
   }
 
+  // ── פולינג רשימה (ללא שיחה פתוחה) ───────────────────────
+  var _custListPoll = null;
+  var POLL_LIST_MS = 15000; // רענון רשימה כל 15 שניות
+
+  function _startCustListPoll() {
+    if (_custListPoll) return;
+    _custListPoll = setInterval(function() {
+      if (!_activeChatId) window.loadCustChatList();
+    }, POLL_LIST_MS);
+  }
+  function _stopCustListPoll() { clearInterval(_custListPoll); _custListPoll = null; }
+
   // עצור פולינג כשסוגרים את מודאל הצ'אט
   var _origClose = window.closeTeamChatModal;
   window.closeTeamChatModal = function() {
     _stopCustPoll();
+    _stopCustListPoll();
     if (_origClose) _origClose();
   };
 

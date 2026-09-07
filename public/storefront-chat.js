@@ -152,8 +152,9 @@
         headers: _authHeaders(),
         body: JSON.stringify({ groupId: gid })
       });
+      if (r.status === 401) { _showChatError('נדרשת התחברות לחשבון'); return; }
       var d = await r.json();
-      if (!d.success) return;
+      if (!d.success) { _showChatError(d.error || 'שגיאה בפתיחת הצ\'אט'); return; }
       _chatId = d.chat.id;
       _renderedIds = {}; // איפוס dedup בפתיחה חדשה
       var r2 = await fetch('/api/public/customer-chat/' + _chatId + '/messages', { headers: _authHeaders() });
@@ -186,12 +187,28 @@
     _stopPoll();
   };
 
+  function _showChatError(msg) {
+    var container = document.getElementById('sc-chat-msgs');
+    if (!container) return;
+    var div = document.createElement('div');
+    div.style.cssText = 'text-align:center;color:#ef4444;font-size:12px;padding:4px 8px;background:#fef2f2;border-radius:8px;margin:4px 0;';
+    div.textContent = '⚠️ ' + msg;
+    container.appendChild(div);
+    setTimeout(function(){ if (div.parentNode) div.parentNode.removeChild(div); }, 5000);
+    container.scrollTop = container.scrollHeight;
+  }
+
   window.sendCustomerChatMsg = async function() {
     var input = document.getElementById('sc-chat-input');
     if (!input) return;
     var body = (input.value || '').trim();
     if (!body) return;
-    if (!_chatId) { await _openChatSession(); if (!_chatId) return; }
+    if (!_chatId) {
+      await _openChatSession();
+      if (!_chatId) { _showChatError('לא ניתן להתחבר לצ\'אט. נסה לרענן.'); return; }
+    }
+    var sendBtn = document.getElementById('sc-chat-send');
+    if (sendBtn) sendBtn.disabled = true;
     input.value = '';
     try {
       var r = await fetch('/api/public/customer-chat/' + _chatId + '/message', {
@@ -203,8 +220,17 @@
       if (d.success) {
         _appendMessages([d.message]);
         _lastSince = d.message.created_at;
+      } else {
+        input.value = body;
+        _showChatError(d.error || 'שגיאה בשליחת ההודעה');
       }
-    } catch(e) { console.error('sc-chat send:', e); }
+    } catch(e) {
+      input.value = body;
+      _showChatError('שגיאת רשת — נסה שנית');
+      console.error('sc-chat send:', e);
+    } finally {
+      if (sendBtn) sendBtn.disabled = false;
+    }
   };
 
   // ── אתחול ─────────────────────────────────────────────────────
