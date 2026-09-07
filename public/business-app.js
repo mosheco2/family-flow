@@ -10797,6 +10797,61 @@ window.renderCustomerHistory = async function(forceSync = false, context = 'moda
     }
 
     listContainer.innerHTML = historyHtml;
+
+    // ─── תורי יופי (רק לעסקי יופי) — נאחזר מה-API ─────────────────────
+    if (currentGroup?.business_type === 'beauty' && (custName || custPhone)) {
+        const beautySection = document.createElement('div');
+        beautySection.innerHTML = '<h4 class="font-bold text-slate-700 text-xs mb-2 mt-4 border-t border-slate-100 pt-4">💅 תורים ופעילות יופי:</h4><p class="text-[10px] text-slate-400 text-center py-2"><i class="fa-solid fa-spinner fa-spin ml-1"></i> טוען...</p>';
+        listContainer.appendChild(beautySection);
+        try {
+            const biz = currentGroup.id;
+            const params = new URLSearchParams();
+            if (custPhone) params.set('phone', custPhone);
+            else if (custName) params.set('name', custName);
+            const apptData = await fetch(`${API}/beauty/${biz}/appointments/by-customer?${params}`, {
+                headers: { 'Authorization': 'Bearer ' + (window._bizToken || '') }
+            }).then(r => r.json());
+            const beautyAppts = apptData.appointments || [];
+            const beautyStatusLabels = {
+                'scheduled': 'ממתין לאישור', 'confirmed': 'מאושר ✓',
+                'pending_cancel': 'בקשת ביטול ⏳', 'cancelled': 'בוטל ✗',
+                'completed': 'הושלם ✅', 'no_show': 'לא הגיע'
+            };
+            const beautyStatusColors = {
+                'scheduled': '#6366f1', 'confirmed': '#10b981',
+                'pending_cancel': '#f97316', 'cancelled': '#ef4444',
+                'completed': '#10b981', 'no_show': '#94a3b8'
+            };
+            let bHtml = '<h4 class="font-bold text-slate-700 text-xs mb-2 mt-4 border-t border-slate-100 pt-4">💅 תורים ופעילות יופי:</h4>';
+            if (beautyAppts.length > 0) {
+                beautyAppts.forEach(a => {
+                    const dk = a.event_date ? String(a.event_date).slice(0,10) : '';
+                    const dateStr = dk ? new Date(dk+'T12:00:00').toLocaleDateString('he-IL',{day:'2-digit',month:'2-digit',year:'numeric'}) : '';
+                    const timeStr = a.start_time ? String(a.start_time).slice(0,5) : '';
+                    const sc = beautyStatusColors[a.status] || '#6366f1';
+                    const sl = beautyStatusLabels[a.status] || a.status;
+                    const isPendingCancel = a.status === 'pending_cancel';
+                    const actionBtns = isPendingCancel ? `<div class="flex gap-1 mt-1.5">
+                        <button onclick="event.stopPropagation(); window._beautyApproveCancel && window._beautyApproveCancel(${a.id}).then(ok => ok && window.renderCustomerHistory(false,'modal'))" class="bg-red-100 text-red-700 px-2 py-1 rounded text-[10px] font-bold hover:bg-red-200 transition">אשר ביטול</button>
+                        <button onclick="event.stopPropagation(); window._beautyRejectCancel && window._beautyRejectCancel(${a.id}).then(ok => ok && window.renderCustomerHistory(false,'modal'))" class="bg-green-100 text-green-700 px-2 py-1 rounded text-[10px] font-bold hover:bg-green-200 transition">דחה ביטול</button>
+                    </div>` : '';
+                    bHtml += `<div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm mb-2" style="border-right: 3px solid ${sc}">
+                        <div class="flex justify-between items-start">
+                            <div class="flex-1 min-w-0">
+                                <span class="font-bold text-sm text-slate-800 flex items-center gap-1.5"><i class="fa-solid fa-scissors text-pink-400 text-[10px]"></i> ${safeStr(a.service_name||'תור יופי')}</span>
+                                <span class="text-[10px] text-slate-500 block mt-0.5">${dateStr}${timeStr?' · '+timeStr:''}</span>
+                            </div>
+                            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full text-white shrink-0 ml-2" style="background:${sc}">${sl}</span>
+                        </div>${actionBtns}</div>`;
+                });
+            } else {
+                bHtml += '<p class="text-[10px] text-slate-400 bg-slate-50 p-2 rounded-lg border border-dashed text-center">לא נמצאו תורי יופי ללקוח זה.</p>';
+            }
+            beautySection.innerHTML = bHtml;
+        } catch(e) {
+            beautySection.innerHTML = '<p class="text-[10px] text-red-400 text-center py-2">שגיאה בטעינת תורי יופי</p>';
+        }
+    }
 };
 
 function _buildCustFieldSettingsPanel() {
@@ -11199,6 +11254,7 @@ window.openCustomerModal = function(id = null, tab = 'details') {
                     <button id="btn-submit-customer" onclick="window.submitNewCustomer()" class="w-2/3 bg-indigo-600 text-white py-3 rounded-xl font-bold shadow-lg hover:bg-indigo-700 transition">שמור לקוח</button>
                 </div>
                 <button id="btn-open-quote" onclick="window.showCustomerQuoteModal(document.getElementById('cust-id')?.value)" class="w-full bg-amber-500 text-white py-2.5 rounded-xl font-bold text-sm hover:bg-amber-600 transition flex items-center justify-center gap-2"><i class="fa-solid fa-file-invoice-dollar"></i> צור הצעת מחיר</button>
+                ${currentGroup?.business_type === 'beauty' ? `<button onclick="document.getElementById('customer-modal').classList.add('hidden'); if(typeof loadBeautyCalendar==='function') loadBeautyCalendar();" class="w-full bg-pink-500 text-white py-2.5 rounded-xl font-bold text-sm hover:bg-pink-600 transition flex items-center justify-center gap-2"><i class="fa-solid fa-scissors"></i> עבור ליומן לקביעת תור</button>` : ''}
             </div>
         </div>
     </div>

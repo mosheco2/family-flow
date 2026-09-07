@@ -34882,6 +34882,30 @@ app.post('/api/beauty/:bizId/appointments/:id/cancel-by-customer', async (req, r
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// GET /api/beauty/:bizId/appointments/by-customer  — כל תורי לקוח לפי שם/טלפון (לכרטיס לקוח)
+app.get('/api/beauty/:bizId/appointments/by-customer', verifyBiz, async (req, res) => {
+    try {
+        const { bizId } = req.params;
+        const { name, phone } = req.query;
+        if (!name && !phone) return res.json({ appointments: [] });
+        const conditions = ['ba.business_group_id=$1'];
+        const params = [bizId];
+        if (phone) { conditions.push(`ba.customer_phone=$${params.length+1}`); params.push(phone.replace(/\D/g,'')||phone); }
+        else if (name) { conditions.push(`ba.customer_name ILIKE $${params.length+1}`); params.push(`%${name}%`); }
+        const r = await pool.query(
+            `SELECT ba.id, ba.status, ba.customer_name, ba.customer_phone, ba.service_name,
+                    bs.start_time, bs.event_date
+             FROM beauty_appointments ba
+             LEFT JOIN beauty_slots bs ON bs.id = ba.slot_id
+             WHERE ${conditions.join(' AND ')}
+             ORDER BY bs.event_date DESC NULLS LAST, bs.start_time DESC NULLS LAST
+             LIMIT 50`,
+            params
+        );
+        res.json({ appointments: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // POST /api/beauty/:bizId/appointments/:id/approve-cancel  — העסק מאשר ביטול
 app.post('/api/beauty/:bizId/appointments/:id/approve-cancel', verifyBiz, async (req, res) => {
     try {
