@@ -11854,6 +11854,27 @@ app.get('/api/store/public-reviews/:groupId', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// aliases — נתיבי reviews שונים שקיימים בתבניות חנות שונות, מפנים לאותה לוגיקה
+async function _handlePublicReviews(req, res) {
+    try {
+        const groupId = req.params.groupId;
+        const limit = Math.min(parseInt(req.query.limit) || 20, 50);
+        const r = await pool.query(`
+            SELECT customer_rating, customer_rating_notes, customer_rated_at,
+                   LEFT(customer_name, 10) AS display_name
+            FROM store_orders
+            WHERE group_id=$1 AND customer_rating>0 AND customer_rated_at IS NOT NULL
+            ORDER BY customer_rated_at DESC LIMIT $2
+        `, [groupId, limit]);
+        const rows = r.rows;
+        const total = rows.length;
+        const avg = total > 0 ? (rows.reduce((s,x)=>s+Number(x.customer_rating),0)/total).toFixed(1) : null;
+        res.json({ success:true, reviews:rows, avg_rating: avg ? parseFloat(avg) : null, total });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+}
+app.get('/api/public/reviews/:groupId', _handlePublicReviews);
+app.get('/api/store/reviews/:groupId', _handlePublicReviews);
+
 app.get('/api/store/gallery/:groupId', async (req, res) => {
     try {
         const result = await pool.query('SELECT * FROM business_gallery WHERE group_id=$1 ORDER BY sort_order ASC, created_at ASC', [req.params.groupId]);

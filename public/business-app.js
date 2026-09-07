@@ -42839,7 +42839,7 @@ async function renderBeautyAdminDashboard(el) {
     el.innerHTML = `<div class="py-10 text-center text-slate-400 text-sm">טוען נתוני יופי...</div>`;
     let s = { appt_today:0, appt_pending:0, revenue_today:0, revenue_month:0, unpaid_comm_sum:0, unpaid_comm_cnt:0, low_inventory:0, no_show_today:0, total_clients:0 };
     try {
-        const r = await fetch(`${API}/beauty/${currentGroup.id}/dashboard`);
+        const r = await fetch(`${API}/beauty/${currentGroup.id}/dashboard`, { headers: { 'Authorization': `Bearer ${window._bizToken || ''}` } });
         if (r.ok) s = await r.json();
     } catch(e) {}
 
