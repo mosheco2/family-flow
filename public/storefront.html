@@ -565,16 +565,15 @@
                     </select>
                 </div>
 
-                <div class="grid grid-cols-2 gap-3">
-                    <div>
-                        <label class="text-xs font-bold text-slate-600 block mb-2">3. באיזה תאריך?</label>
-                        <input type="date" id="book-date" onchange="window.generateAvailableTimeSlots()" class="modern-input py-3 text-sm bg-white">
-                    </div>
-                    <div>
-                        <label class="text-xs font-bold text-slate-600 block mb-2">4. שעה רצויה:</label>
-                        <select id="book-time" class="modern-input py-3 text-sm bg-white text-center dir-ltr">
-                            <option value="">בחרו תאריך קודם</option>
-                        </select>
+                <div>
+                    <label class="text-xs font-bold text-slate-600 block mb-2">3. באיזה תאריך?</label>
+                    <input type="date" id="book-date" onchange="window.generateAvailableTimeSlots()" class="modern-input py-3 text-sm bg-white">
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-600 block mb-2">4. שעה רצויה:</label>
+                    <input type="hidden" id="book-time">
+                    <div id="book-time-grid" class="grid grid-cols-4 gap-2 max-h-48 overflow-y-auto p-1">
+                        <div class="col-span-4 text-center text-xs text-slate-400 py-3">בחרו תאריך קודם</div>
                     </div>
                 </div>
 
@@ -3432,79 +3431,90 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
             } catch(e) {}
         };
 
+        window._bookSelectedTime = '';
+
+        window._selectBookTime = function(btn, timeStr) {
+            window._bookSelectedTime = timeStr;
+            const hidden = getEl('book-time');
+            if (hidden) hidden.value = timeStr;
+            document.querySelectorAll('.book-time-tile').forEach(b => {
+                b.classList.remove('bg-emerald-500','text-white','border-emerald-500','shadow-md');
+                b.classList.add('border-emerald-300','text-emerald-700','bg-white');
+            });
+            btn.classList.remove('border-emerald-300','text-emerald-700','bg-white');
+            btn.classList.add('bg-emerald-500','text-white','border-emerald-500','shadow-md');
+        };
+
         window.generateAvailableTimeSlots = async function() {
-            const timeSelect = getEl('book-time');
-            if (!timeSelect) return;
+            const grid = getEl('book-time-grid');
+            const hidden = getEl('book-time');
+            if (!grid) return;
+            window._bookSelectedTime = '';
+            if (hidden) hidden.value = '';
 
             const calSettings = storeData.calendarSettings;
             if (!calSettings || !calSettings.open_time || !calSettings.close_time) {
-                timeSelect.innerHTML = '<option value="09:00">09:00</option><option value="12:00">12:00</option><option value="15:00">15:00</option>';
+                grid.innerHTML = ['09:00','10:00','11:00','12:00','13:00','14:00','15:00','16:00'].map(t =>
+                    `<button type="button" class="book-time-tile border-2 border-emerald-300 text-emerald-700 bg-white rounded-xl py-2 text-sm font-bold transition hover:bg-emerald-50" onclick="window._selectBookTime(this,'${t}')">${t}</button>`
+                ).join('');
                 return;
             }
 
             const dateInput = getEl('book-date');
             const selectedDateStr = dateInput ? dateInput.value : '';
-            if (!selectedDateStr) return;
-
-            timeSelect.innerHTML = '<option value="">בודק זמינות מול היומן...</option>';
-            timeSelect.disabled = true;
-
-            try {
-                const fetchUrl = `${API}/calendar/${storeData.groupId}?_nocache=${new Date().getTime()}`;
-                const freshRes = await fetch(fetchUrl, {
-                    method: 'GET',
-                    headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Pragma': 'no-cache', 'Expires': '0' }
-                });
-                
-                const freshData = await freshRes.json();
-                if (freshData.success) {
-                    storeData.calendarEvents = freshData.events || [];
-                }
-            } catch(e) { console.warn('Real-time sync failed, using last known data'); }
-
-            const now = new Date();
-            const isToday = selectedDateStr === now.toISOString().split('T')[0];
-
-            const todaysEvents = (storeData.calendarEvents || [])
-                .filter(e => e.event_date && e.event_date.startsWith(selectedDateStr) && (e.status === 'approved' || e.status === 'pending'));
-
-            const hasAllDayEvent = todaysEvents.some(e => e.notes && e.notes.includes('[ALL_DAY]'));
-
-            if (hasAllDayEvent) {
-                timeSelect.innerHTML = '<option value="">היום סגור לאירוע / ימי חופש</option>';
-                timeSelect.disabled = true;
+            if (!selectedDateStr) {
+                grid.innerHTML = '<div class="col-span-4 text-center text-xs text-slate-400 py-3">בחרו תאריך קודם</div>';
                 return;
             }
 
-            const bookedTimes = todaysEvents.map(e => e.start_time.substring(0, 5));
+            grid.innerHTML = '<div class="col-span-4 text-center text-xs text-slate-400 py-3"><i class="fa-solid fa-circle-notch fa-spin"></i> בודק זמינות...</div>';
 
+            try {
+                const fetchUrl = `${API}/calendar/${storeData.groupId}?_nocache=${new Date().getTime()}`;
+                const freshRes = await fetch(fetchUrl, { headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Pragma': 'no-cache', 'Expires': '0' } });
+                const freshData = await freshRes.json();
+                if (freshData.success) storeData.calendarEvents = freshData.events || [];
+            } catch(e) {}
+
+            const now = new Date();
+            const isToday = selectedDateStr === now.toISOString().split('T')[0];
+            const todaysEvents = (storeData.calendarEvents || [])
+                .filter(e => e.event_date && e.event_date.startsWith(selectedDateStr) && (e.status === 'approved' || e.status === 'pending'));
+            const hasAllDayEvent = todaysEvents.some(e => e.notes && e.notes.includes('[ALL_DAY]'));
+
+            if (hasAllDayEvent) {
+                grid.innerHTML = '<div class="col-span-4 text-center text-xs text-red-400 py-3 font-bold">היום סגור לאירוע / ימי חופש</div>';
+                return;
+            }
+
+            const bookedTimes = todaysEvents.map(e => (e.start_time||'').substring(0, 5));
             const openTimeStr = calSettings.open_time;
             const closeTimeStr = calSettings.close_time;
             const interval = parseInt(calSettings.interval_mins) || 30;
-
             let [openH, openM] = openTimeStr.split(':').map(Number);
             let [closeH, closeM] = closeTimeStr.split(':').map(Number);
-            
             const startTime = new Date(); startTime.setHours(openH, openM, 0, 0);
             const endTime = new Date(); endTime.setHours(closeH, closeM, 0, 0);
-            
-            let html = '';
+
+            const tiles = [];
             let current = new Date(startTime);
-
             while (current <= endTime) {
-                const timeStr = current.toLocaleTimeString('he-IL', {hour: '2-digit', minute: '2-digit'});
-                const isTimePassed = isToday && current <= now;
+                const h = current.getHours().toString().padStart(2,'0');
+                const m = current.getMinutes().toString().padStart(2,'0');
+                const timeStr = `${h}:${m}`;
+                const isPassed = isToday && current <= now;
                 const isBooked = bookedTimes.includes(timeStr);
-
-                if (!isTimePassed && !isBooked) {
-                    html += `<option value="${timeStr}">${timeStr}</option>`;
-                }
-                
+                if (!isPassed && !isBooked) tiles.push(timeStr);
                 current.setMinutes(current.getMinutes() + interval);
             }
 
-            timeSelect.innerHTML = html || '<option value="">אין שעות פנויות לתאריך זה</option>';
-            timeSelect.disabled = false;
+            if (!tiles.length) {
+                grid.innerHTML = '<div class="col-span-4 text-center text-xs text-slate-400 py-3">אין שעות פנויות לתאריך זה</div>';
+                return;
+            }
+            grid.innerHTML = tiles.map(t =>
+                `<button type="button" class="book-time-tile border-2 border-emerald-300 text-emerald-700 bg-white rounded-xl py-2 text-sm font-bold transition hover:bg-emerald-50" onclick="window._selectBookTime(this,'${t}')">${t}</button>`
+            ).join('');
         };
 
         window.submitBookingRequest = async function() {
