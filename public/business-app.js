@@ -24189,6 +24189,7 @@ window.fetchCalendarData = async function() {
                 getEl('cal-setting-close').value = calSettingsCache.close_time || '18:00';
                 getEl('cal-setting-interval').value = calSettingsCache.interval_mins || 30;
                 if (getEl('cal-setting-cancel-hours')) getEl('cal-setting-cancel-hours').value = calSettingsCache.cancellation_hours || 0;
+                if (getEl('cal-setting-show-storefront')) getEl('cal-setting-show-storefront').checked = calSettingsCache.show_in_storefront !== false;
             }
             if(!storeQuotesCache || storeQuotesCache.length === 0) {
                 try { await fetchStoreQuotes(); } catch(e){}
@@ -25111,7 +25112,8 @@ window.saveCalendarSettings = async function() {
             openTime: val('cal-setting-open'),
             closeTime: val('cal-setting-close'),
             intervalMins: val('cal-setting-interval'),
-            cancellationHours: val('cal-setting-cancel-hours') || 0
+            cancellationHours: val('cal-setting-cancel-hours') || 0,
+            showInStorefront: getEl('cal-setting-show-storefront') ? getEl('cal-setting-show-storefront').checked : true
         };
         const res = await fetch(`${API}/calendar/settings`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
         if((await res.json()).success) { showToast('success', 'הגדרות היומן עודכנו!'); }

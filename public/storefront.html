@@ -888,7 +888,7 @@
                         } catch(e) {}
                     }
                 } else {
-                    // עסק שאינו מסעדה — כפתור "קביעת תור" לפי יומן פעיל
+                    // עסק שאינו מסעדה — כפתור "קביעת תור" לפי יומן פעיל + show_in_storefront
                     try {
                         const calRes = await fetch(`${API}/calendar/${storeData.groupId}`);
                         const calData = await calRes.json();
@@ -896,8 +896,10 @@
                             storeData.calendarSettings = calData.settings;
                             storeData.calendarServices = calData.services || [];
                             storeData.calendarEvents = calData.events || [];
+                            // הצג כפתור רק אם show_in_storefront לא כובה מפורשות
+                            const showInSF = calData.settings.show_in_storefront !== false;
                             const bookBtn = getEl('btn-book-appointment');
-                            if (bookBtn) {
+                            if (bookBtn && showInSF) {
                                 bookBtn.classList.remove('hidden');
                                 getEl('store-contact-info')?.classList.remove('hidden');
                                 if (urlParams.get('action') === 'book') {
@@ -3300,6 +3302,15 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
             }
             if (!storeData || !storeData.calendarSettings) {
                 showToast('error', 'מערכת התורים לא הוגדרה בעסק זה.');
+                return;
+            }
+
+            // דרוש אימות לקוח לפני קביעת תור
+            if (!window.scAuth || !window.scAuth._customer) {
+                window._pendingAfterScLogin = 'openBookingModal';
+                if (window.scAuth && typeof window.scAuth.openModal === 'function') {
+                    window.scAuth.openModal('phone');
+                }
                 return;
             }
             

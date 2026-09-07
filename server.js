@@ -873,7 +873,8 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
       // טבלאות מערכת היומן והתורים
       try { 
           await client.query(`CREATE TABLE IF NOT EXISTS calendar_settings (group_id INT PRIMARY KEY REFERENCES family_groups(id) ON DELETE CASCADE, is_active BOOLEAN DEFAULT FALSE, open_time VARCHAR(10) DEFAULT '09:00', close_time VARCHAR(10) DEFAULT '18:00', interval_mins INT DEFAULT 30, cancellation_hours INT DEFAULT 0, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`);
-          try { await client.query(`ALTER TABLE calendar_settings ADD COLUMN IF NOT EXISTS cancellation_hours INT DEFAULT 0`); } catch(e) {} 
+          try { await client.query(`ALTER TABLE calendar_settings ADD COLUMN IF NOT EXISTS cancellation_hours INT DEFAULT 0`); } catch(e) {}
+          try { await client.query(`ALTER TABLE calendar_settings ADD COLUMN IF NOT EXISTS show_in_storefront BOOLEAN DEFAULT TRUE`); } catch(e) {}
       } catch(e) {}
       
       try { 
@@ -16636,12 +16637,13 @@ app.get('/api/calendar/:groupId', async (req, res) => {
 // שמירת הגדרות יומן
 app.post('/api/calendar/settings', async (req, res) => {
     try {
-        const { groupId, isActive, openTime, closeTime, intervalMins, cancellationHours } = req.body;
+        const { groupId, isActive, openTime, closeTime, intervalMins, cancellationHours, showInStorefront } = req.body;
+        const showInSF = showInStorefront !== false && showInStorefront !== 'false';
         await pool.query(`
-            INSERT INTO calendar_settings (group_id, is_active, open_time, close_time, interval_mins, cancellation_hours)
-            VALUES ($1, $2, $3, $4, $5, $6)
-            ON CONFLICT (group_id) DO UPDATE SET is_active=$2, open_time=$3, close_time=$4, interval_mins=$5, cancellation_hours=$6, updated_at=CURRENT_TIMESTAMP
-        `, [groupId, isActive, openTime || '09:00', closeTime || '18:00', parseInt(intervalMins) || 30, parseInt(cancellationHours) || 0]);
+            INSERT INTO calendar_settings (group_id, is_active, open_time, close_time, interval_mins, cancellation_hours, show_in_storefront)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            ON CONFLICT (group_id) DO UPDATE SET is_active=$2, open_time=$3, close_time=$4, interval_mins=$5, cancellation_hours=$6, show_in_storefront=$7, updated_at=CURRENT_TIMESTAMP
+        `, [groupId, isActive, openTime || '09:00', closeTime || '18:00', parseInt(intervalMins) || 30, parseInt(cancellationHours) || 0, showInSF]);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });

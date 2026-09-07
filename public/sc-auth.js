@@ -235,6 +235,18 @@ const scAuth = window.scAuth = {
         const phoneEl = document.getElementById('cust-phone');
         if (nameEl) nameEl.value = `${customer.first_name} ${customer.last_name}`;
         if (phoneEl) phoneEl.value = customer.phone;
+        // callback לפעולה ממתינה לאחר כניסה
+        if (window._pendingAfterScLogin) {
+            const action = window._pendingAfterScLogin;
+            window._pendingAfterScLogin = null;
+            setTimeout(() => {
+                if (action === 'openBookingModal' && typeof window.openBookingModal === 'function') {
+                    window.openBookingModal();
+                } else if (typeof window[action] === 'function') {
+                    window[action]();
+                }
+            }, 300);
+        }
     },
 
     // PIN confirmation promise
