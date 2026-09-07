@@ -46842,7 +46842,7 @@ async function loadBeautyCalendar() {
     const view = window._beautyState.calView || 'day';
     const base = window._beautyState.calDate;
     let fromDate, toDate;
-    if (view === 'week') {
+    if (view === 'week' || view === 'list') {
         const dow = base.getDay(); // 0=Sun
         fromDate = new Date(base); fromDate.setDate(base.getDate() - dow);
         toDate = new Date(fromDate); toDate.setDate(fromDate.getDate() + 6);
@@ -46852,10 +46852,11 @@ async function loadBeautyCalendar() {
     } else {
         fromDate = base; toDate = base;
     }
+    const _authH = { 'Authorization': `Bearer ${window._bizToken || ''}` };
     try {
         const [prRes, apRes, calRes] = await Promise.all([
-            fetch(`${API}/beauty/${biz}/practitioners`).then(r=>r.json()),
-            fetch(`${API}/beauty/${biz}/appointments?from=${_beautyDateStr(fromDate)}&to=${_beautyDateStr(toDate)}`).then(r=>r.json()),
+            fetch(`${API}/beauty/${biz}/practitioners`, { headers: _authH }).then(r=>r.json()),
+            fetch(`${API}/beauty/${biz}/appointments?from=${_beautyDateStr(fromDate)}&to=${_beautyDateStr(toDate)}`, { headers: _authH }).then(r=>r.json()),
             fetch(`${API}/calendar/${biz}`).then(r=>r.json()).catch(() => ({ events: [] }))
         ]);
         window._beautyState.practitioners = Array.isArray(prRes) ? prRes : (prRes.practitioners || []);
@@ -46912,6 +46913,40 @@ function _renderBeautyCalendar() {
         </div>`;
     }
 
+    // חישוב חלונות זמינים פנויים לתצוגת יום
+    function _freeSlotCards(pracId, color) {
+        const prac = practitioners.find(p => p.id === pracId);
+        if (!prac || !prac.work_days) return '';
+        const dow = String(calDate.getDay());
+        const dayConf = prac.work_days[dow];
+        if (!dayConf) return '';
+        const slotMin = prac.slot_minutes || 60;
+        const [startH, startM] = (dayConf.start||'09:00').split(':').map(Number);
+        const [endH, endM] = (dayConf.end||'18:00').split(':').map(Number);
+        const startTotalMin = startH*60+startM;
+        const endTotalMin = endH*60+endM;
+        const bookedRanges = (apByPrac[pracId]||[]).map(ap => {
+            const s = new Date(ap.segments?.[0]?.start_time||0);
+            const e = new Date(ap.segments?.[0]?.end_time||0);
+            return [s.getHours()*60+s.getMinutes(), e.getHours()*60+e.getMinutes()];
+        });
+        const slots = [];
+        for (let t = startTotalMin; t + slotMin <= endTotalMin; t += slotMin) {
+            const isBusy = bookedRanges.some(([bs,be]) => t < be && t+slotMin > bs);
+            if (!isBusy) slots.push(t);
+        }
+        return slots.map(t => {
+            const h = Math.floor(t/60); const m = t%60;
+            const topPx = (h - 8)*60 + m;
+            const timeStr = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+            return `<div class="absolute right-1 left-1 rounded-lg border-2 border-dashed flex items-center justify-center text-[9px] font-bold cursor-pointer hover:opacity-80 transition"
+                style="top:${topPx}px;height:${slotMin-4}px;border-color:${color}44;background:${color}11;color:${color}99"
+                onclick="window._beautyNewApModal('${timeStr}')">
+                <i class="fa-solid fa-plus text-[8px] mr-0.5"></i>${timeStr}
+            </div>`;
+        }).join('');
+    }
+
     const unassignedAps = apByPrac['unassigned'] || [];
     const unassignedCol = unassignedAps.length > 0 ? `<div class="shrink-0 border-r border-slate-100" style="width:${colWidth}px">
         <div class="sticky top-0 z-10 bg-white border-b border-slate-200 px-2 py-2 flex items-center gap-2">
@@ -46929,6 +46964,7 @@ function _renderBeautyCalendar() {
         : practitioners.map(p => {
             const color = p.color_hex || '#6366f1';
             const apCards = (apByPrac[p.id]||[]).map(ap => _apCardHtml(ap, color)).join('');
+            const freeSlots = view === 'day' ? _freeSlotCards(p.id, color) : '';
             return `<div class="shrink-0 border-r border-slate-100" style="width:${colWidth}px">
                 <div class="sticky top-0 z-10 bg-white border-b border-slate-200 px-2 py-2 flex items-center gap-2">
                     <div class="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-black shrink-0" style="background:${color}">${(p.display_name||'?').charAt(0)}</div>
@@ -46936,13 +46972,13 @@ function _renderBeautyCalendar() {
                 </div>
                 <div class="relative" style="height:${13*60}px">
                     ${hours.map(h=>`<div class="absolute w-full border-t border-slate-50" style="top:${(h-8)*60}px"></div>`).join('')}
-                    ${apCards}
+                    ${freeSlots}${apCards}
                 </div>
             </div>`;
         }).join('');
 
-    const viewBtns = ['day','week','month'].map(v => {
-        const labels = {day:'יום',week:'שבוע',month:'חודש'};
+    const viewBtns = ['day','week','month','list'].map(v => {
+        const labels = {day:'יום',week:'שבוע',month:'חודש',list:'רצף'};
         const active = view === v;
         return `<button onclick="window._beautySetView('${v}')" class="px-3 py-1.5 text-xs font-bold rounded-xl transition ${active ? 'bg-pink-600 text-white shadow-sm' : 'bg-white border border-slate-200 text-slate-500 hover:bg-slate-50'}">${labels[v]}</button>`;
     }).join('');
@@ -47053,6 +47089,80 @@ function _renderBeautyCalendar() {
         return;
     }
 
+    // ─── LIST VIEW (רצף תורים) ──────────────────────────────────────────────────
+    if (view === 'list') {
+        const from = window._beautyState.calFromDate || calDate;
+        const days = Array.from({length:7}, (_,i) => { const d = new Date(from); d.setDate(from.getDate()+i); return d; });
+        const listLabel = `רצף תורים — ${days[0].toLocaleDateString('he-IL',{day:'numeric',month:'long'})} – ${days[6].toLocaleDateString('he-IL',{day:'numeric',month:'long',year:'numeric'})}`;
+        const apByDay = {};
+        appointments.forEach(ap => {
+            const seg = ap.segments?.[0];
+            if (!seg) return;
+            const d = new Date(seg.start_time);
+            const key = d.toDateString();
+            apByDay[key] = apByDay[key] || [];
+            apByDay[key].push(ap);
+        });
+        const todayStr = new Date().toDateString();
+        const rowsHtml = days.map(d => {
+            const key = d.toDateString();
+            const aps = (apByDay[key]||[]).sort((a,b) => new Date(a.segments?.[0]?.start_time||0) - new Date(b.segments?.[0]?.start_time||0));
+            const isToday = key === todayStr;
+            const dayLabel = d.toLocaleDateString('he-IL',{weekday:'long',day:'numeric',month:'long'});
+            if (aps.length === 0) return `<div class="flex items-center gap-3 py-2 opacity-40">
+                <div class="text-[10px] font-bold text-slate-400 w-16 text-left shrink-0">${d.toLocaleDateString('he-IL',{weekday:'short',day:'numeric'})}</div>
+                <span class="text-[10px] text-slate-300">ללא תורים</span>
+            </div>`;
+            return `<div class="mb-2">
+                <div class="text-[10px] font-black text-slate-500 mb-1 pr-1 ${isToday?'text-pink-600':''}">${dayLabel}${isToday?' · היום':''}</div>
+                <div class="space-y-1.5">
+                    ${aps.map(ap => {
+                        const seg = ap.segments?.[0];
+                        const pracId = seg?.practitioner_id;
+                        const prac = practitioners.find(p => p.id === pracId);
+                        const color = prac?.color_hex || '#6366f1';
+                        const startStr = _beautyFmt(seg?.start_time);
+                        const endStr = _beautyFmt(seg?.end_time);
+                        const serviceName = seg?.service_name || 'טיפול';
+                        return `<div onclick="window._beautyOpenAp(${ap.id})" class="flex items-center gap-3 bg-white border border-slate-100 rounded-2xl px-3 py-2.5 cursor-pointer hover:border-pink-200 hover:shadow-sm transition">
+                            <div class="w-1 h-10 rounded-full shrink-0" style="background:${color}"></div>
+                            <div class="w-14 shrink-0 text-left">
+                                <div class="text-xs font-black text-slate-700">${startStr}</div>
+                                <div class="text-[9px] text-slate-400">${endStr}</div>
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <div class="text-xs font-bold text-slate-800 truncate">${serviceName}</div>
+                                <div class="text-[10px] text-slate-500">${ap.client_name||''}${prac?(' · '+prac.display_name):''}</div>
+                            </div>
+                            <div class="shrink-0 text-[9px] font-bold px-2 py-0.5 rounded-full" style="background:${color}22;color:${color}">
+                                ${seg?.duration_minutes||60}ד׳
+                            </div>
+                        </div>`;
+                    }).join('')}
+                </div>
+            </div>`;
+        }).join('');
+
+        const from2 = window._beautyState.calFromDate || calDate;
+        el.innerHTML = `<div class="space-y-2 pb-20">
+            <div class="bg-gradient-to-l from-pink-50 to-purple-50 rounded-2xl border border-pink-200 p-3 flex flex-wrap items-center gap-2 justify-between">
+                <div class="flex items-center gap-2">
+                    <button onclick="window._beautyCalNav(-1)" class="w-8 h-8 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-50 transition text-sm">‹</button>
+                    <span class="text-sm font-bold text-slate-700">${listLabel}</span>
+                    <button onclick="window._beautyCalNav(1)" class="w-8 h-8 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-50 transition text-sm">›</button>
+                    <button onclick="window._beautyState.calDate=new Date();loadBeautyCalendar()" class="text-xs bg-white border border-slate-200 px-3 py-1.5 rounded-xl text-slate-500 hover:bg-slate-50 transition">היום</button>
+                </div>
+                <div class="flex items-center gap-2">${viewBtns}
+                    <button onclick="window._beautyNewApModal()" class="bg-gradient-to-r from-pink-500 to-purple-600 text-white px-3 py-2 rounded-xl text-xs font-black shadow-sm hover:opacity-90 transition"><i class="fa-solid fa-plus"></i> תור</button>
+                </div>
+            </div>
+            <div class="bg-white rounded-2xl border border-slate-100 p-4">
+                ${rowsHtml || '<div class="text-center text-slate-300 py-8 text-sm">אין תורים בשבוע זה</div>'}
+            </div>
+        </div>`;
+        return;
+    }
+
     const pendingBanner = pendingCalEvents.length > 0 ? `
     <div class="bg-amber-50 border border-amber-200 rounded-2xl p-3">
         <div class="flex items-center justify-between mb-2">
@@ -47114,7 +47224,7 @@ function _renderBeautyCalendar() {
 window._beautyCalNav = function(dir) {
     const d = window._beautyState.calDate;
     const view = window._beautyState.calView || 'day';
-    if (view === 'week') d.setDate(d.getDate() + dir * 7);
+    if (view === 'week' || view === 'list') d.setDate(d.getDate() + dir * 7);
     else if (view === 'month') d.setMonth(d.getMonth() + dir);
     else d.setDate(d.getDate() + dir);
     loadBeautyCalendar();
