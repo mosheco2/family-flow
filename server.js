@@ -1533,6 +1533,11 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
       try { await client.query(`ALTER TABLE sport_trainers ADD COLUMN IF NOT EXISTS slot_minutes INT DEFAULT 60`); } catch(e) {}
       // ===== END SPORT / FITNESS MODULE =====
 
+      // ===== BEAUTY — weekly availability =====
+      try { await client.query(`ALTER TABLE beauty_practitioners ADD COLUMN IF NOT EXISTS work_days JSONB DEFAULT NULL`); } catch(e) {}
+      try { await client.query(`ALTER TABLE beauty_practitioners ADD COLUMN IF NOT EXISTS slot_minutes INT DEFAULT 60`); } catch(e) {}
+      // ===== END BEAUTY AVAILABILITY =====
+
       // Fix FK constraints that were created without ON DELETE SET NULL
       try {
           await client.query(`ALTER TABLE inbox_messages    DROP CONSTRAINT IF EXISTS inbox_messages_customer_group_id_fkey`);
@@ -22937,6 +22942,64 @@ app.get('/api/member/my-orders/:businessGroupId/:memberGroupId', async (req, res
 // ===== BEAUTY & COSMETICS API =====
 
 // --- Practitioners ---
+// Beauty — available slots for a practitioner on a given date
+app.get('/api/beauty/:bizId/slots', async (req, res) => {
+    const { practitionerId, date } = req.query;
+    const bizId = req.params.bizId;
+    if (!bizId || !date) return res.status(400).json({ error: 'חסר bizId או date' });
+    try {
+        let slotMin = 60, workStart = null, workEnd = null;
+        if (practitionerId) {
+            const t = await pool.query(
+                'SELECT work_days, slot_minutes, is_active FROM beauty_practitioners WHERE id=$1 AND business_group_id=$2',
+                [practitionerId, bizId]
+            );
+            if (!t.rows.length || !t.rows[0].is_active) return res.json({ success: true, slots: [] });
+            slotMin = t.rows[0].slot_minutes || 60;
+            const workDays = t.rows[0].work_days;
+            if (workDays) {
+                const dow = new Date(date).getDay(); // 0=Sun…6=Sat
+                const dayConf = workDays[String(dow)];
+                if (!dayConf) return res.json({ success: true, slots: [] }); // יום חופש
+                workStart = dayConf.start || '09:00';
+                workEnd   = dayConf.end   || '18:00';
+            }
+        }
+        if (!workStart) { workStart = '09:00'; workEnd = '18:00'; }
+        // Booked appointments that day
+        const dayStart = `${date} 00:00:00`;
+        const dayEnd   = `${date} 23:59:59`;
+        const booked = await pool.query(
+            `SELECT s.start_time, s.end_time FROM beauty_appointment_segments s
+             JOIN beauty_appointments a ON a.id = s.appointment_id
+             WHERE s.practitioner_id=$1 AND s.start_time>=$2 AND s.start_time<=$3
+               AND s.segment_type='active' AND a.status NOT IN ('cancelled','no_show')`,
+            [practitionerId, dayStart, dayEnd]
+        );
+        const [sh, sm] = workStart.split(':').map(Number);
+        const [eh, em] = workEnd.split(':').map(Number);
+        const slots = [];
+        let cur = sh * 60 + sm;
+        const end = eh * 60 + em;
+        const nowMs = Date.now();
+        while (cur + slotMin <= end) {
+            const hh = String(Math.floor(cur/60)).padStart(2,'0');
+            const mm = String(cur%60).padStart(2,'0');
+            const slotStart = new Date(`${date}T${hh}:${mm}:00`);
+            const slotEnd   = new Date(slotStart.getTime() + slotMin*60000);
+            if (slotStart.getTime() > nowMs) {
+                const conflict = booked.rows.some(b => {
+                    const bs = new Date(b.start_time), be = new Date(b.end_time);
+                    return !(slotEnd <= bs || slotStart >= be);
+                });
+                if (!conflict) slots.push({ time: `${hh}:${mm}`, start: slotStart.toISOString(), end: slotEnd.toISOString() });
+            }
+            cur += slotMin;
+        }
+        res.json({ success: true, slots, slotMinutes: slotMin });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 app.get('/api/beauty/:bizId/practitioners', verifyBiz, async (req, res) => {
     try {
         if (parseInt(req.params.bizId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
@@ -22950,14 +23013,15 @@ app.get('/api/beauty/:bizId/practitioners', verifyBiz, async (req, res) => {
 
 app.post('/api/beauty/:bizId/practitioners', verifyBiz, async (req, res) => {
     try {
-        const { display_name, tier, color_hex, specializations, schedule_override, commission_rate_svc, commission_rate_retail } = req.body;
+        const { display_name, tier, color_hex, specializations, schedule_override, commission_rate_svc, commission_rate_retail, work_days, slot_minutes } = req.body;
         if (parseInt(req.params.bizId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const r = await pool.query(
-            `INSERT INTO beauty_practitioners (business_group_id, display_name, tier, color_hex, specializations, schedule_override, commission_rate_svc, commission_rate_retail)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+            `INSERT INTO beauty_practitioners (business_group_id, display_name, tier, color_hex, specializations, schedule_override, commission_rate_svc, commission_rate_retail, work_days, slot_minutes)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
             [req.params.bizId, display_name, tier||'standard', color_hex||'#6366f1',
              JSON.stringify(specializations||[]), schedule_override ? JSON.stringify(schedule_override) : null,
-             commission_rate_svc||30, commission_rate_retail||10]
+             commission_rate_svc||30, commission_rate_retail||10,
+             work_days ? JSON.stringify(work_days) : null, slot_minutes||60]
         );
         res.json(r.rows[0]);
     } catch(e) { res.status(500).json({ error: e.message }); }
@@ -22966,7 +23030,7 @@ app.post('/api/beauty/:bizId/practitioners', verifyBiz, async (req, res) => {
 app.patch('/api/beauty/:bizId/practitioners/:id', verifyBiz, async (req, res) => {
     try {
         if (parseInt(req.params.bizId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
-        const fields = ['display_name','tier','color_hex','specializations','schedule_override','commission_rate_svc','commission_rate_retail','is_active'];
+        const fields = ['display_name','tier','color_hex','specializations','schedule_override','commission_rate_svc','commission_rate_retail','is_active','work_days','slot_minutes'];
         const sets = []; const vals = [];
         fields.forEach(f => { if (req.body[f] !== undefined) { vals.push(typeof req.body[f] === 'object' ? JSON.stringify(req.body[f]) : req.body[f]); sets.push(`${f}=$${vals.length}`); }});
         if (!sets.length) return res.json({ success: true });

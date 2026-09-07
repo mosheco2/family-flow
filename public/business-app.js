@@ -47258,14 +47258,18 @@ window._beautyNewApModal = async function() {
             <div><label class="text-xs font-bold text-slate-600 block mb-1">טלפון</label>
                 <input id="bnap-phone" type="tel" placeholder="050-0000000" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm"/></div>
             <div><label class="text-xs font-bold text-slate-600 block mb-1">מטפלת <a onclick="switchTab('beauty_practitioners')" class="text-pink-500 underline cursor-pointer text-[10px] mr-1">+ הוסף מטפלת</a></label>
-                <select id="bnap-prac" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm bg-white">
+                <select id="bnap-prac" onchange="window._beautyLoadApSlots()" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm bg-white">
                     <option value="">בחר מטפלת</option>${pracOpts}
                 </select></div>
             <div class="grid grid-cols-2 gap-3">
                 <div><label class="text-xs font-bold text-slate-600 block mb-1">תאריך *</label>
-                    <input id="bnap-date" type="date" value="${dateStr}" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm"/></div>
+                    <input id="bnap-date" type="date" value="${dateStr}" onchange="window._beautyLoadApSlots()" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm"/></div>
                 <div><label class="text-xs font-bold text-slate-600 block mb-1">שעת התחלה *</label>
                     <input id="bnap-time" type="time" value="10:00" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm"/></div>
+            </div>
+            <div id="bnap-slots-wrap" class="hidden">
+                <label class="text-xs font-bold text-slate-600 block mb-1">⏰ slots פנויים</label>
+                <div id="bnap-slots" class="flex flex-wrap gap-1.5"></div>
             </div>
             <div>
                 <label class="text-xs font-bold text-slate-600 block mb-1">שירות</label>
@@ -47291,6 +47295,39 @@ window._beautyNewApModal = async function() {
     </div>
 </div>`;
     document.body.insertAdjacentHTML('beforeend', html);
+};
+
+window._beautyLoadApSlots = async function() {
+    const biz = _beautyBizId(); if (!biz) return;
+    const pracId = document.getElementById('bnap-prac')?.value;
+    const date   = document.getElementById('bnap-date')?.value;
+    const wrap   = document.getElementById('bnap-slots-wrap');
+    const cont   = document.getElementById('bnap-slots');
+    if (!pracId || !date || !wrap || !cont) { if(wrap) wrap.classList.add('hidden'); return; }
+    cont.innerHTML = '<span class="text-xs text-slate-400">טוען...</span>';
+    wrap.classList.remove('hidden');
+    try {
+        const r = await fetch(`${API}/beauty/${biz}/slots?practitionerId=${pracId}&date=${date}`).then(r => r.json());
+        if (!r.success || !r.slots || !r.slots.length) {
+            cont.innerHTML = '<span class="text-xs text-slate-400">אין slots זמינים ביום זה</span>';
+            return;
+        }
+        cont.innerHTML = r.slots.map(s =>
+            `<button type="button" class="beauty-ap-slot text-xs px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-pink-50 hover:border-pink-300 transition font-bold text-slate-700"
+                data-time="${s.time}" onclick="window._beautySelectApSlot(this,'${s.time}')">${s.time}</button>`
+        ).join('');
+    } catch(e) { cont.innerHTML = '<span class="text-xs text-red-400">שגיאה בטעינת slots</span>'; }
+};
+
+window._beautySelectApSlot = function(btn, time) {
+    document.querySelectorAll('.beauty-ap-slot').forEach(b => {
+        b.classList.remove('bg-pink-500','text-white','border-pink-500');
+        b.classList.add('border-slate-200','text-slate-700');
+    });
+    btn.classList.add('bg-pink-500','text-white','border-pink-500');
+    btn.classList.remove('border-slate-200','text-slate-700');
+    const timeInput = document.getElementById('bnap-time');
+    if (timeInput) timeInput.value = time;
 };
 
 window._beautyApSvcChange = function(sel) {
@@ -50936,6 +50973,34 @@ window._beautyPractModal = function(p = null) {
                         `).join('')}
                     </div>
                 </div>
+                <hr class="border-slate-100">
+                <div>
+                    <label class="text-xs font-bold text-slate-500 block mb-2">⏱️ משך slot (דקות)</label>
+                    <select id="bp-slot-min" class="border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-pink-400">
+                        ${[15,20,30,45,60,90,120].map(v => `<option value="${v}" ${(p?.slot_minutes||60)==v?'selected':''}>${v} דק'</option>`).join('')}
+                    </select>
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-500 block mb-2">📅 זמינות שבועית קבועה</label>
+                    <div class="space-y-2" id="bp-days-grid">
+                        ${['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'].map((dayName, idx) => {
+                            const wd = p?.work_days;
+                            const dayConf = wd ? wd[String(idx)] : null;
+                            const active = !!dayConf;
+                            const s = dayConf?.start || '09:00';
+                            const e = dayConf?.end   || '18:00';
+                            return `<div class="flex items-center gap-2 text-sm">
+                                <input type="checkbox" id="bp-day-${idx}" class="bp-day-cb" data-day="${idx}" ${active?'checked':''} onchange="window._beautyDayToggle(${idx})">
+                                <span class="w-14 text-xs font-bold text-slate-600">${dayName}</span>
+                                <div id="bp-day-times-${idx}" class="${active?'flex':'hidden'} items-center gap-1">
+                                    <input type="time" id="bp-day-start-${idx}" value="${s}" class="border border-slate-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:border-pink-400">
+                                    <span class="text-slate-400 text-xs">—</span>
+                                    <input type="time" id="bp-day-end-${idx}" value="${e}" class="border border-slate-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:border-pink-400">
+                                </div>
+                            </div>`;
+                        }).join('')}
+                    </div>
+                </div>
                 <button onclick="window._beautyPractSave(${isEdit ? p.id : 'null'})" class="w-full bg-pink-600 text-white py-3 rounded-xl font-bold shadow hover:bg-pink-700 transition mt-2">
                     <i class="fa-solid fa-check mr-1"></i> ${isEdit ? 'שמור שינויים' : 'הוסף מטפלת'}
                 </button>
@@ -50946,18 +51011,41 @@ window._beautyPractModal = function(p = null) {
     modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
 };
 
+window._beautyDayToggle = function(dayIdx) {
+    const cb = document.getElementById('bp-day-' + dayIdx);
+    const timesDiv = document.getElementById('bp-day-times-' + dayIdx);
+    if (!timesDiv) return;
+    if (cb && cb.checked) { timesDiv.classList.remove('hidden'); timesDiv.classList.add('flex'); }
+    else { timesDiv.classList.add('hidden'); timesDiv.classList.remove('flex'); }
+};
+
 window._beautyPractSave = async function(id) {
     const biz = currentGroup?.id; if (!biz) return;
     const name = document.getElementById('bp-name')?.value?.trim();
     if (!name) { showToast('error', 'נא להזין שם מטפלת'); return; }
     const specs = [...document.querySelectorAll('.bp-spec:checked')].map(cb => cb.value);
+    // Build work_days
+    const work_days = {};
+    for (let d = 0; d <= 6; d++) {
+        const cb = document.getElementById('bp-day-' + d);
+        if (cb && cb.checked) {
+            work_days[String(d)] = {
+                start: document.getElementById('bp-day-start-' + d)?.value || '09:00',
+                end:   document.getElementById('bp-day-end-' + d)?.value   || '18:00'
+            };
+        } else {
+            work_days[String(d)] = null;
+        }
+    }
     const body = {
         display_name: name,
         tier: document.getElementById('bp-tier')?.value || null,
         color_hex: document.getElementById('bp-color')?.value || '#ec4899',
         commission_rate_svc: parseFloat(document.getElementById('bp-comm-svc')?.value) || 0,
         commission_rate_retail: parseFloat(document.getElementById('bp-comm-retail')?.value) || 0,
-        specializations: specs
+        specializations: specs,
+        work_days,
+        slot_minutes: parseInt(document.getElementById('bp-slot-min')?.value) || 60
     };
     try {
         const method = id ? 'PATCH' : 'POST';
