@@ -14682,7 +14682,7 @@ async function submitStoreProduct() {
     } catch(e) { showToast('error', 'שגיאה בתקשורת מול השרת'); } finally { btn.disabled = false; btn.innerText = 'שמור מוצר'; }
 }
 
-async function toggleStoreProduct(id, isAvailable) { await fetch(`${API}/store/catalog/toggle`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ itemId: id, isAvailable }) }); fetchStoreCatalog(); }
+async function toggleStoreProduct(id, isAvailable) { await fetch(`${API}/store/catalog/toggle`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ itemId: id, isAvailable, groupId: currentGroup?.id }) }); fetchStoreCatalog(); }
 
 async function deleteStoreProduct(id) { if(!await window._uiConfirm('למחוק מוצר זה לחלוטין?', {danger:true, okLabel:'מחק'})) return; await fetch(`${API}/store/catalog/${id}`, { method: 'DELETE', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ groupId: currentGroup.id }) }); showToast('info', 'המוצר נמחק מהחנות'); fetchStoreCatalog(); }
 
@@ -31545,7 +31545,7 @@ window.pos86Item = async function(itemId) {
     if (!item) return;
     const newAvail = !item.is_available;
     try {
-        await fetch(`${API}/store/catalog/toggle`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ itemId, isAvailable: newAvail }) });
+        await fetch(`${API}/store/catalog/toggle`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ itemId, isAvailable: newAvail, groupId: currentGroup?.id }) });
         item.is_available = newAvail;
         showToast(newAvail ? 'success' : 'info', newAvail ? `✅ "${item.name}" זמין שוב` : `🚫 "${item.name}" סומן כאזל`);
         window.renderPOSCatalog();
