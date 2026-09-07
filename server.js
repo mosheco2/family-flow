@@ -16829,6 +16829,25 @@ app.put('/api/calendar/events/:id/status', async (req, res) => {
                             [apR.rows[0].id, serviceName, startISO, endISO, dur, pracId]
                         ).catch(() => {});
                     }
+                    // SMS ללקוח
+                    if (evt.customer_phone) {
+                        try {
+                            const bizNameR = await pool.query('SELECT name FROM family_groups WHERE id=$1', [evt.group_id]);
+                            const bizName = bizNameR.rows[0]?.name || 'בית העסק';
+                            const dayHe = new Date(dateStr + 'T12:00:00').toLocaleDateString('he-IL', { weekday:'long', day:'numeric', month:'long' });
+                            const e164 = evt.customer_phone.startsWith('0') ? '+972' + evt.customer_phone.slice(1) : evt.customer_phone;
+                            await sendSMSviaTwilio(e164, `${bizName} — התור שלך אושר! ✅\nתאריך: ${dayHe}\nשעה: ${timeStr}\nשירות: ${serviceName}\nנתראה! 💅\nONEFLOW LIFE`);
+                        } catch(eSms) { console.log('[SMS beauty approve]', eSms.message); }
+                    }
+                    // הודעה ב-inbox לחשבון לקוח אם מחובר
+                    if (evt.customer_group_id) {
+                        const dayHe = new Date(dateStr + 'T12:00:00').toLocaleDateString('he-IL', { weekday:'long', day:'numeric', month:'long' });
+                        await pool.query(
+                            `INSERT INTO inbox_messages (group_id, sender_type, sender_name, subject, content, customer_group_id, direction)
+                             VALUES ($1,'business','הסלון','התור שלך אושר ✅',$2,$3,'outbound')`,
+                            [evt.group_id, `התור שלך אושר! 🎉\nתאריך: ${dayHe}\nשעה: ${timeStr}\nשירות: ${serviceName}\nנתראה! 💅`, evt.customer_group_id]
+                        ).catch(() => {});
+                    }
                 }
             }
         }

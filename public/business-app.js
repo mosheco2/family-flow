@@ -24886,7 +24886,21 @@ window.approveCalendarEvent = async function(id) {
     }
     try {
         const res = await fetch(`${API}/calendar/events/${id}/status`, { method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ status: 'approved' }) });
-        if((await res.json()).success) { showToast('success', 'הבקשה אושרה והתור שובץ!'); fetchCalendarData(); }
+        const data = await res.json();
+        if (data.success) {
+            showToast('success', 'הבקשה אושרה והתור שובץ!');
+            // עבור לטאב לוח זמנים וסנן לתאריך התור
+            const evtInCache = calEventsCache.find(e => String(e.id) === String(id));
+            await fetchCalendarData();
+            // עבור לטאב "לוח זמנים" + נווט לתאריך התור
+            if (typeof window.switchCalendarTab === 'function') window.switchCalendarTab('main');
+            if (evtInCache && evtInCache.event_date) {
+                const dateStr = String(evtInCache.event_date).slice(0, 10);
+                window.currentCalDate = new Date(dateStr + 'T12:00:00');
+                window.currentCalMode = 'day';
+                if (typeof window.renderCalendar === 'function') window.renderCalendar();
+            }
+        }
     } catch(e) {}
 };
 
