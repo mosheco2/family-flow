@@ -522,19 +522,22 @@ const scAuth = window.scAuth = {
                 }).join('');
             }
 
-            // ── תורים (calendar — לא הזמנות שולחן) ─────────────────────────
-            if (otherBookings.length) {
+            // ── תורים (calendar — לא הזמנות שולחן, לא יופי) ────────────────
+            if (otherBookings.length && _bizType !== 'beauty') {
                 htmlOrders += `<div style="font-size:11px;font-weight:700;color:#94a3b8;padding:8px 0 6px;text-align:right">🗓️ תורים</div>`;
                 htmlOrders += otherBookings.map(b => {
                     var bStatusC = { pending:'#f59e0b', approved:'#10b981', cancelled:'#ef4444' };
                     var bStatusL = { pending:'ממתין', approved:'מאושר', cancelled:'בוטל' };
                     var bsc = bStatusC[b.status] || '#64748b';
+                    var bdk = String(b.event_date||'').slice(0,10);
+                    var bDateStr = bdk ? new Date(bdk+'T12:00:00').toLocaleDateString('he-IL',{weekday:'short',day:'numeric',month:'short'}) : '';
+                    var bTimeStr = b.start_time ? String(b.start_time).slice(0,5) : '';
                     return `<div style="border:1px solid #f1f5f9;border-radius:12px;padding:12px;margin-bottom:8px">
                       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
                         <span style="font-size:11px;font-weight:700;color:${bsc};background:${bsc}15;padding:2px 7px;border-radius:6px">${bStatusL[b.status]||b.status}</span>
                         <div style="font-weight:600;font-size:14px;color:#1e293b;text-align:right">${b.title||'תור'}</div>
                       </div>
-                      <div style="font-size:12px;color:#64748b;text-align:right">${b.event_date||''} ${b.start_time?.slice(0,5)||''}</div>
+                      <div style="font-size:12px;color:#64748b;text-align:right">${bDateStr}${bTimeStr?' · '+bTimeStr:''}</div>
                     </div>`;
                 }).join('');
             }
