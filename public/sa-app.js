@@ -4686,41 +4686,53 @@ async function removeCommunityFromZone(communityId) {
 // ==========================================
 // OVERRIDE FINAL: פתרון תעלומת האדמין הישן (העלמת טוקן חכמה)
 // ==========================================
-window.impersonateGroup = function(groupId, userId) {
+window.impersonateGroup = async function(groupId, userId) {
     const targetGroup = saAllGroups.find(g => g.id === groupId);
     let targetUser = userId ? saAllUsers.find(u => u.id === userId) : saAllUsers.find(u => u.group_id === groupId && u.role === 'ADMIN');
     if (!targetUser) targetUser = saAllUsers.find(u => u.group_id === groupId);
-    
+
     if (!targetUser && targetGroup && targetGroup.type === 'BUSINESS') {
         targetUser = { id: 99999, nickname: targetGroup.name, role: 'ADMIN', group_id: groupId };
     }
-    
+
     if (targetGroup && targetUser) {
         const currentToken = typeof saToken !== 'undefined' ? saToken : localStorage.getItem('ofl_sa_token');
         if (currentToken) {
             localStorage.setItem('ofl_sa_return_token', currentToken);
         }
-        localStorage.removeItem('ofl_sa_token'); 
-        
+        localStorage.removeItem('ofl_sa_token');
         localStorage.removeItem('ofl_session');
-        localStorage.removeItem('ofl_token'); 
-        
-        const sessionData = { 
-            user: targetUser, 
-            group: targetGroup, 
-            isImpersonating: true 
+        localStorage.removeItem('ofl_token');
+
+        const isBiz = targetGroup.type && targetGroup.type.toString().toUpperCase() === 'BUSINESS';
+
+        const sessionData = {
+            user: targetUser,
+            group: targetGroup,
+            isImpersonating: true
         };
-        
         if (targetGroup.type) sessionData.group.type = targetGroup.type.toString().toUpperCase();
-        
+
+        // לעסקים — יצירת biz token זמני כדי שכל ה-API calls יעבדו עם groupId הנכון
+        if (isBiz && currentToken) {
+            try {
+                const r = await fetch('/api/sa/biz-impersonate-token', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': currentToken },
+                    body: JSON.stringify({ groupId })
+                });
+                const d = await r.json();
+                if (d.success && d.token) sessionData.token = d.token;
+            } catch(e) { console.warn('biz-impersonate-token failed', e); }
+        }
+
         localStorage.setItem('ofl_session', JSON.stringify(sessionData));
         showToast('success', 'יוצר סביבת לקוח נקייה...');
-        
+
         setTimeout(() => {
-            const isBiz = targetGroup.type && targetGroup.type.toString().toUpperCase() === 'BUSINESS';
             const targetUrl = isBiz ? '/business.html' : '/';
             window.open(targetUrl, '_blank');
-            
+
             setTimeout(() => {
                 if (currentToken) localStorage.setItem('ofl_sa_token', currentToken);
             }, 2000);

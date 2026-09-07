@@ -34547,7 +34547,8 @@ app.post('/api/sc-auth/register', async (req, res) => {
         const existingUser = await pool.query(
             `SELECT u.group_id, fg.type FROM users u
              JOIN family_groups fg ON fg.id = u.group_id
-             WHERE u.phone=$1 AND fg.type='FAMILY' AND fg.account_status='active'
+             WHERE u.phone=$1 AND fg.account_status='active'
+             ORDER BY CASE WHEN fg.type='FAMILY' THEN 0 WHEN fg.type='BUSINESS' THEN 1 ELSE 2 END
              LIMIT 1`,
             [cleanPhone]
         );
@@ -35094,6 +35095,32 @@ app.delete('/api/biz/customer-chats/:chatId', verifyBiz, async (req, res) => {
         await pool.query(`DELETE FROM customer_chat_messages WHERE chat_id=$1`, [chatId]);
         await pool.query(`DELETE FROM customer_chats WHERE id=$1`, [chatId]);
         res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ══════════════════════════════════════════════════════════════
+// SA: יצירת biz token זמני להשתלטות על ממשק עסק
+// ══════════════════════════════════════════════════════════════
+app.post('/api/sa/biz-impersonate-token', verifySA, async (req, res) => {
+    const { groupId } = req.body;
+    if (!groupId) return res.status(400).json({ error: 'חסר groupId' });
+    try {
+        // בדיקה שה-group קיים ומסוג BUSINESS
+        const gRes = await pool.query(`SELECT id, type FROM family_groups WHERE id=$1`, [groupId]);
+        if (!gRes.rows.length) return res.status(404).json({ error: 'עסק לא נמצא' });
+        // מוצא admin של העסק (ראשון שנמצא)
+        const uRes = await pool.query(`SELECT id FROM users WHERE group_id=$1 AND role='ADMIN' LIMIT 1`, [groupId]);
+        const userId = uRes.rows.length ? uRes.rows[0].id : 0;
+        // יוצר token זמני תקף שעה אחת עם session_type='biz'
+        const tempToken = require('crypto').randomBytes(32).toString('hex');
+        const hash = _hashToken(tempToken);
+        await pool.query(
+            `INSERT INTO family_sessions (token_hash, group_id, user_id, session_type, expires_at)
+             VALUES ($1,$2,$3,'biz', NOW() + INTERVAL '1 hour')`,
+            [hash, groupId, userId]
+        );
+        console.log(`[sa-impersonate] biz token created for group=${groupId}`);
+        res.json({ success: true, token: tempToken });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
