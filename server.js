@@ -1124,6 +1124,23 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
           created_at TIMESTAMP DEFAULT NOW(),
           expires_at TIMESTAMP DEFAULT NOW() + INTERVAL '30 minutes'
       )`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS temp_booking_requests (
+          id SERIAL PRIMARY KEY,
+          group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+          customer_name VARCHAR(200) NOT NULL,
+          customer_phone VARCHAR(50) NOT NULL,
+          event_date DATE NOT NULL,
+          start_time TIME NOT NULL,
+          service_id INT,
+          service_name VARCHAR(200),
+          notes TEXT,
+          preferred_practitioner_id INT,
+          sms_code VARCHAR(4),
+          sms_sent_at TIMESTAMP,
+          verified_at TIMESTAMP,
+          status VARCHAR(20) DEFAULT 'pending',
+          created_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) {}
       try { await client.query(`CREATE TABLE IF NOT EXISTS work_order_assignees (
           id SERIAL PRIMARY KEY,
           work_order_id INT REFERENCES store_orders(id) ON DELETE CASCADE,
@@ -25141,6 +25158,70 @@ app.post('/api/public/restaurants/:groupId/verify-table-sms', async (req, res) =
         console.error('Error verifying SMS:', e);
         res.status(500).json({ success: false, error: e.message });
     }
+});
+
+// POST בקשת תור כללי (יופי/תיקונים/שירותים) — שלב 1: שלח SMS
+app.post('/api/calendar/request-booking-sms', async (req, res) => {
+    try {
+        const { groupId, name, phone, eventDate, startTime, serviceId, serviceName, notes, preferredPractitionerId } = req.body;
+        if (!name || !phone || !eventDate || !startTime) return res.status(400).json({ success: false, error: 'חסרים פרטים חובה' });
+
+        const smsCode = String(Math.floor(Math.random() * 10000)).padStart(4, '0');
+        const debugCodeRes = await pool.query("SELECT value FROM system_settings WHERE key='sms_debug_code'");
+        const debugCode = debugCodeRes.rows[0]?.value || '';
+        const finalCode = debugCode.length === 4 ? debugCode : smsCode;
+
+        const bizRes = await pool.query('SELECT name FROM family_groups WHERE id=$1', [groupId]);
+        const bizName = bizRes.rows[0]?.name || 'בית העסק';
+        const dateStr = new Date(eventDate + 'T12:00:00').toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'long' });
+
+        const result = await pool.query(
+            `INSERT INTO temp_booking_requests (group_id, customer_name, customer_phone, event_date, start_time, service_id, service_name, notes, preferred_practitioner_id, sms_code, sms_sent_at)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,NOW()) RETURNING id`,
+            [groupId, name, phone, eventDate, startTime, serviceId || null, serviceName || null, notes || '', preferredPractitionerId || null, finalCode]
+        );
+
+        const e164 = phone.startsWith('0') ? '+972' + phone.slice(1) : phone;
+        await sendSMSviaTwilio(e164, `${bizName} — בקשת תור ✅\nשם: ${name}\nתאריך: ${dateStr}\nשעה: ${startTime}\n${serviceName ? 'שירות: ' + serviceName + '\n' : ''}קוד אישור: ${finalCode}\nONEFLOW LIFE`);
+
+        res.json({ success: true, tempId: result.rows[0].id });
+    } catch(e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
+// POST אימות SMS והשלמת בקשת תור כללי — שלב 2
+app.post('/api/calendar/verify-booking-sms', async (req, res) => {
+    try {
+        const { groupId, tempId, code } = req.body;
+        if (!code || code.length !== 4) return res.status(400).json({ success: false, error: 'קוד שגוי' });
+
+        const tempRes = await pool.query(
+            `SELECT * FROM temp_booking_requests WHERE id=$1 AND group_id=$2 AND status='pending'`,
+            [tempId, groupId]
+        );
+        if (!tempRes.rows.length) return res.status(404).json({ success: false, error: 'בקשה לא נמצאה' });
+
+        const temp = tempRes.rows[0];
+        if (temp.sms_code !== code) return res.status(400).json({ success: false, error: 'קוד שגוי' });
+        if ((new Date() - new Date(temp.sms_sent_at)) / 60000 > 30) return res.status(400).json({ success: false, error: 'קוד פג תוקף' });
+
+        // חיפוש customer_group_id
+        let custGroupId = null;
+        try {
+            const sc = await pool.query('SELECT family_group_id FROM storefront_customers WHERE phone=$1 LIMIT 1', [temp.customer_phone]);
+            if (sc.rows[0]?.family_group_id) custGroupId = sc.rows[0].family_group_id;
+        } catch(e2) {}
+
+        const evtRes = await pool.query(
+            `INSERT INTO calendar_events (group_id, title, customer_phone, customer_name, notes, event_date, start_time, status, service_id, customer_group_id)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,'pending',$8,$9) RETURNING id`,
+            [groupId, temp.service_name ? `${temp.customer_name} — ${temp.service_name}` : temp.customer_name,
+             temp.customer_phone, temp.customer_name, temp.notes,
+             temp.event_date, temp.start_time, temp.service_id, custGroupId]
+        );
+
+        await pool.query(`UPDATE temp_booking_requests SET status='verified', verified_at=NOW() WHERE id=$1`, [tempId]);
+        res.json({ success: true, eventId: evtRes.rows[0].id });
+    } catch(e) { res.status(500).json({ success: false, error: e.message }); }
 });
 
 // ===== END PUBLIC RESERVATIONS API =====

@@ -3047,8 +3047,28 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
 
         window.submitOrder = async function(e) {
             e.preventDefault();
-            const btn = getEl('btn-submit-order'); 
-            btn.disabled = true; 
+
+            // דרישת הרשמה לפני תשלום
+            if (!window.scAuth || !window.scAuth._customer) {
+                window._pendingAfterScLogin = 'submitOrderAfterLogin';
+                if (window.scAuth && typeof window.scAuth.openModal === 'function') {
+                    // הצג הודעה מעל המודאל
+                    const msgEl = document.getElementById('sc-modal-login-hint');
+                    if (!msgEl) {
+                        const hint = document.createElement('div');
+                        hint.id = 'sc-modal-login-hint';
+                        hint.style.cssText = 'background:#f0fdf4;border:1px solid #86efac;border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:12px;color:#166534;text-align:right;line-height:1.5';
+                        hint.innerHTML = '🔒 כדי להשלים את ההזמנה יש להתחבר או להירשם.<br><span style="font-size:11px;color:#15803d">לאחר ההרשמה תוכל/י לעקוב אחרי כל ההזמנות שלך ולראות את הסטטוס שלהן.</span>';
+                        const modalBody = document.getElementById('sc-modal-body');
+                        if (modalBody) modalBody.insertBefore(hint, modalBody.firstChild);
+                    }
+                    window.scAuth.openModal('phone');
+                }
+                return;
+            }
+
+            const btn = getEl('btn-submit-order');
+            btn.disabled = true;
             btn.innerHTML = `<i class="fa-solid fa-circle-notch fa-spin"></i> ${t('מעבד...', 'Processing...')}`;
 
             const calc = window.calculateCartDetails();
@@ -3305,15 +3325,6 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
                 return;
             }
 
-            // דרוש אימות לקוח לפני קביעת תור
-            if (!window.scAuth || !window.scAuth._customer) {
-                window._pendingAfterScLogin = 'openBookingModal';
-                if (window.scAuth && typeof window.scAuth.openModal === 'function') {
-                    window.scAuth.openModal('phone');
-                }
-                return;
-            }
-            
             const dateInput = getEl('book-date');
             if (dateInput) {
                 const today = new Date().toISOString().split('T')[0];
@@ -3462,67 +3473,39 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
             const serviceId = val('book-service');
             const notes = val('book-notes');
             const preferredPracId = val('book-prac') ? parseInt(val('book-prac')) : null;
+            const serviceName = getEl('book-service') ? getEl('book-service').options[getEl('book-service').selectedIndex]?.text : '';
 
             if (!name || !phone || !date || !time) {
                 return showToast('error', 'יש למלא שם, טלפון, תאריך ושעה');
             }
 
             const btn = getEl('btn-submit-booking');
-            if (btn) {
-                btn.disabled = true; 
-                btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> שולח בקשה...';
-            }
-
-            // read familyGroupId from URL or localStorage session
-            let familyGroupId = null;
-            try {
-                const _up = new URLSearchParams(window.location.search);
-                familyGroupId = _up.get('familyGroupId') ? parseInt(_up.get('familyGroupId')) : null;
-                if (!familyGroupId) {
-                    const _sess = JSON.parse(localStorage.getItem('ofl_session'));
-                    if (_sess?.group?.id) familyGroupId = _sess.group.id;
-                }
-            } catch(e) {}
-
-            const payload = {
-                groupId: storeData.groupId,
-                title: name,
-                eventDate: date,
-                startTime: time,
-                serviceId: serviceId || null,
-                notes: notes,
-                customerPhone: phone,
-                status: 'pending',
-                customerGroupId: familyGroupId,
-                preferredPractitionerId: preferredPracId || null
-            };
+            if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> שולח...'; }
 
             try {
-                const res = await fetch(`${API}/calendar/events`, {
+                const res = await fetch(`${API}/calendar/request-booking-sms`, {
                     method: 'POST', headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify(payload)
+                    body: JSON.stringify({
+                        groupId: storeData.groupId, name, phone,
+                        eventDate: date, startTime: time,
+                        serviceId: serviceId || null,
+                        serviceName: serviceName || null,
+                        notes, preferredPractitionerId: preferredPracId || null
+                    })
                 });
                 const data = await res.json();
-                
                 if (data.success) {
+                    // שמור context לאימות SMS
+                    window._bookingVerifyContext = { type: 'calendar', tempId: data.tempId, groupId: storeData.groupId };
                     getEl('booking-modal').classList.add('hidden');
-                    const successText = getEl('success-message-text');
-                    if(successText) successText.innerText = 'בקשתך נשלחה לעסק. נציג ייצור קשר בהקדם לאישור סופי.';
-                    const successBox = getEl('success-order-box');
-                    if(successBox) successBox.classList.add('hidden'); 
-                    const successScreen = getEl('success-screen');
-                    if(successScreen) successScreen.classList.remove('hidden');
-                    try { confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } }); } catch(e){}
+                    openSmsVerificationModal(phone);
                 } else {
                     showToast('error', data.error || 'שגיאה בשליחת הבקשה');
                 }
             } catch(e) {
                 showToast('error', 'שגיאת רשת בשליחת הבקשה');
             } finally {
-                if (btn) {
-                    btn.disabled = false; 
-                    btn.innerHTML = 'שלח בקשת שיבוץ לעסק <i class="fa-solid fa-paper-plane"></i>';
-                }
+                if (btn) { btn.disabled = false; btn.innerHTML = 'שלח בקשה <i class="fa-solid fa-paper-plane"></i>'; }
             }
         };
 
@@ -3827,31 +3810,45 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
             const btn = document.getElementById('btn-verify-sms');
             if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מאמת...'; }
 
-            try {
-                const res = await fetch(`${API}/public/restaurants/${storeData.groupId}/verify-table-sms`, {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({
-                        tempId: tableResCurrentData.tempId,
-                        code: code
-                    })
-                });
+            // קבע endpoint לפי context (מסעדה / תור כללי)
+            const ctx = window._bookingVerifyContext;
+            const isCalendar = ctx && ctx.type === 'calendar';
+            const endpoint = isCalendar
+                ? `${API}/calendar/verify-booking-sms`
+                : `${API}/public/restaurants/${storeData.groupId}/verify-table-sms`;
+            const payload = isCalendar
+                ? { groupId: ctx.groupId, tempId: ctx.tempId, code }
+                : { tempId: tableResCurrentData.tempId, code };
 
+            try {
+                const res = await fetch(endpoint, {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(payload)
+                });
                 const data = await res.json();
 
                 if (data.success) {
                     window.closeSmsVerificationModal();
-                    window.closeTableReservationModal();
-                    showToast('success', 'ההזמנה שלך אושרה בהצלחה!');
+                    if (isCalendar) {
+                        window._bookingVerifyContext = null;
+                        const successText = getEl('success-message-text');
+                        if (successText) successText.innerText = 'בקשתך נשלחה לעסק. לאחר אישור בית העסק תקבל הודעה.';
+                        const successBox = getEl('success-order-box');
+                        if (successBox) successBox.classList.add('hidden');
+                        const successScreen = getEl('success-screen');
+                        if (successScreen) successScreen.classList.remove('hidden');
+                    } else {
+                        window.closeTableReservationModal();
+                        showToast('success', 'ההזמנה שלך אושרה בהצלחה!');
+                    }
                     try { confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } }); } catch(e){}
                 } else {
                     showToast('error', data.error || 'קוד שגוי');
                 }
             } catch(e) {
-                console.error('Error:', e);
                 showToast('error', 'שגיאת אימות');
             } finally {
-                if(btn) { btn.disabled = false; btn.innerHTML = 'אישור <i class="fa-solid fa-check ml-1"></i>'; }
+                if (btn) { btn.disabled = false; btn.innerHTML = 'אישור <i class="fa-solid fa-check ml-1"></i>'; }
             }
         };
 

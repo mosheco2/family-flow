@@ -242,6 +242,10 @@ const scAuth = window.scAuth = {
             setTimeout(() => {
                 if (action === 'openBookingModal' && typeof window.openBookingModal === 'function') {
                     window.openBookingModal();
+                } else if (action === 'submitOrderAfterLogin') {
+                    // submitOrder דורש event — מדמים קליק
+                    const btn = document.getElementById('btn-submit-order');
+                    if (btn) btn.click();
                 } else if (typeof window[action] === 'function') {
                     window[action]();
                 }
