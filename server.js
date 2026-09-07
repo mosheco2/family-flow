@@ -10934,15 +10934,17 @@ app.post('/api/store/orders', async (req, res) => {
     let dbClient;
     try {
         const { groupId, customerName, customerPhone, items, totalAmount, isDelivery, deliveryFee, deliveryDetails, notes, status, promoCode } = req.body;
+
+        // ALTER TABLE מחוץ לטרנזקציה — לא גורמים ל-transaction abort
+        try { await pool.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS is_delivery BOOLEAN DEFAULT FALSE`); } catch(e){}
+        try { await pool.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS delivery_fee DECIMAL(10,2) DEFAULT 0`); } catch(e){}
+        try { await pool.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS delivery_details TEXT`); } catch(e){}
+        try { await pool.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS notes TEXT`); } catch(e){}
+        try { await pool.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS community_promo_code VARCHAR(30)`); } catch(e){}
+        try { await pool.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS community_promo_id INT`); } catch(e){}
+
         dbClient = await pool.connect();
         await dbClient.query('BEGIN');
-        
-        try { await dbClient.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS is_delivery BOOLEAN DEFAULT FALSE`); } catch(e){}
-        try { await dbClient.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS delivery_fee DECIMAL(10,2) DEFAULT 0`); } catch(e){}
-        try { await dbClient.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS delivery_details TEXT`); } catch(e){}
-        try { await dbClient.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS notes TEXT`); } catch(e){}
-        try { await dbClient.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS community_promo_code VARCHAR(30)`); } catch(e){}
-        try { await dbClient.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS community_promo_id INT`); } catch(e){}
 
         const deliveryDetailsStr = deliveryDetails ? JSON.stringify(deliveryDetails) : null;
         const isDeliv = isDelivery === true || isDelivery === 'true';
