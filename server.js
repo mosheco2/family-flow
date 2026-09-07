@@ -5795,7 +5795,7 @@ app.post('/api/biz/verify-otp', async (req, res) => {
                  FROM users u
                  JOIN family_groups fg ON fg.id = u.group_id
                  WHERE REPLACE(REPLACE(u.phone, '-', ''), ' ', '')=$1
-                   AND fg.member_type='biz'
+                   AND (fg.member_type='biz' OR fg.type='BUSINESS')
                    AND UPPER(u.role)='ADMIN'
                    AND u.status='active'
                    AND (fg.is_deleted IS NULL OR fg.is_deleted=false)`,
@@ -6268,7 +6268,7 @@ app.post('/api/biz/login', async (req, res) => {
              FROM users u
              JOIN family_groups fg ON fg.id = u.group_id
              WHERE REPLACE(REPLACE(u.phone, '-', ''), ' ', '')=$1 AND u.group_id=$2
-               AND fg.member_type='biz' AND UPPER(u.role)='ADMIN' AND u.status='active'`,
+               AND (fg.member_type='biz' OR fg.type='BUSINESS') AND UPPER(u.role)='ADMIN' AND u.status='active'`,
             [phone, groupId]
         );
         console.log(`[BIZ LOGIN pass] phone=${phone} gid=${groupId} found=${uRes.rows.length}`);
@@ -6302,7 +6302,7 @@ app.post('/api/biz/reset-password/request', async (req, res) => {
             `SELECT fg.admin_email, fg.name AS business_name FROM family_groups fg
              JOIN users u ON u.group_id=fg.id
              WHERE REPLACE(REPLACE(u.phone, '-', ''), ' ', '')=$1 AND fg.id=$2
-               AND fg.member_type='biz' AND u.role='ADMIN' AND u.status='active'`,
+               AND (fg.member_type='biz' OR fg.type='BUSINESS') AND u.role='ADMIN' AND u.status='active'`,
             [phone, groupId]
         );
         if (!grpRes.rows.length || !grpRes.rows[0].admin_email) {
