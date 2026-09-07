@@ -23862,7 +23862,7 @@ app.get('/api/beauty/:bizId/dashboard', verifyBiz, async (req, res) => {
         const todayEnd   = new Date(); todayEnd.setHours(23,59,59,999);
         const monthStart = new Date(todayStart.getFullYear(), todayStart.getMonth(), 1);
 
-        const [apptToday, apptPending, revenueToday, revenueMonth, unpaidComm, lowInv, noShow, totalClients] = await Promise.all([
+        const [apptToday, apptPending, revenueToday, revenueMonth, unpaidComm, lowInv, noShow, totalClients, pendingCancelRes, pendingBookingRes] = await Promise.all([
             pool.query(
                 `SELECT COUNT(*) FROM beauty_appointments ba
                  JOIN beauty_appointment_segments bas ON bas.appointment_id=ba.id AND bas.segment_order=1
@@ -23905,6 +23905,21 @@ app.get('/api/beauty/:bizId/dashboard', verifyBiz, async (req, res) => {
             pool.query(
                 `SELECT COUNT(DISTINCT client_family_id) AS cnt FROM beauty_appointments WHERE business_group_id=$1 AND client_family_id IS NOT NULL`,
                 [bizId]
+            ),
+            pool.query(
+                `SELECT ba.id, ba.client_name, ba.client_phone, bas.start_time, bas.service_name
+                 FROM beauty_appointments ba
+                 JOIN beauty_appointment_segments bas ON bas.appointment_id=ba.id AND bas.segment_order=1
+                 WHERE ba.business_group_id=$1 AND ba.status='pending_cancel'
+                 ORDER BY bas.start_time ASC LIMIT 10`,
+                [bizId]
+            ),
+            pool.query(
+                `SELECT id, title, event_date, start_time, customer_name, customer_phone
+                 FROM calendar_events
+                 WHERE group_id=$1 AND status='pending' AND call_type != 'table_reservation'
+                 ORDER BY event_date ASC, start_time ASC LIMIT 10`,
+                [bizId]
             )
         ]);
 
@@ -23917,7 +23932,9 @@ app.get('/api/beauty/:bizId/dashboard', verifyBiz, async (req, res) => {
             unpaid_comm_cnt: parseInt(unpaidComm.rows[0].cnt),
             low_inventory:  parseInt(lowInv.rows[0].count),
             no_show_today:  parseInt(noShow.rows[0].count),
-            total_clients:  parseInt(totalClients.rows[0].cnt)
+            total_clients:  parseInt(totalClients.rows[0].cnt),
+            pending_cancel_appts: pendingCancelRes.rows,
+            pending_booking_requests: pendingBookingRes.rows
         });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
