@@ -47093,6 +47093,47 @@ function _renderBeautyCalendar() {
         return;
     }
 
+    // banners — מוגדרים לפני כל view כדי שיהיו זמינים לכולם
+    const pendingCancelAppts = window._beautyState.pendingCancelAppts || [];
+    const pendingCancelBanner = pendingCancelAppts.length > 0 ? `
+    <div class="bg-orange-50 border border-orange-200 rounded-2xl p-3">
+        <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-black text-orange-700">🚫 בקשות ביטול ממתינות לאישורך (${pendingCancelAppts.length})</span>
+        </div>
+        ${pendingCancelAppts.map(a => {
+            const seg0 = a.segments?.[0];
+            const startTime = seg0?.start_time ? new Date(seg0.start_time).toLocaleString('he-IL',{weekday:'short',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}) : '';
+            const serviceName = seg0?.service_name || 'טיפול';
+            return `<div class="flex items-center justify-between py-2 border-b border-orange-100 last:border-0">
+                <div class="flex-1 min-w-0">
+                    <p class="text-xs font-bold text-slate-800 truncate">${a.client_name || 'לקוח'} — ${serviceName}</p>
+                    <p class="text-[10px] text-slate-500">${startTime}</p>
+                </div>
+                <div class="flex gap-1 shrink-0">
+                    <button onclick="window._beautyApproveCancel(${a.id})" class="bg-red-500 text-white px-2.5 py-1 rounded-lg text-[10px] font-black hover:bg-red-600 transition">✓ אשר ביטול</button>
+                    <button onclick="window._beautyRejectCancel(${a.id})" class="bg-slate-100 text-slate-600 px-2 py-1 rounded-lg text-[10px] font-bold hover:bg-green-50 hover:text-green-600 transition">✕ דחה</button>
+                </div>
+            </div>`;
+        }).join('')}
+    </div>` : '';
+
+    const pendingBanner = pendingCalEvents.length > 0 ? `
+    <div class="bg-amber-50 border border-amber-200 rounded-2xl p-3">
+        <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-black text-amber-700">📋 בקשות תור ממתינות לאישור (${pendingCalEvents.length})</span>
+        </div>
+        ${pendingCalEvents.map(e => `<div class="flex items-center justify-between py-2 border-b border-amber-100 last:border-0">
+            <div class="flex-1 min-w-0">
+                <p class="text-xs font-bold text-slate-800 truncate">${e.title || 'לקוח'}</p>
+                <p class="text-[10px] text-slate-500">${new Date(e.event_date).toLocaleDateString('he-IL')} ${(e.start_time||'').slice(0,5)}</p>
+            </div>
+            <div class="flex gap-1 shrink-0">
+                <button onclick="(async()=>{await approveCalendarEvent(${e.id});loadBeautyCalendar();})()" class="bg-green-500 text-white px-2.5 py-1 rounded-lg text-[10px] font-black hover:bg-green-600 transition">✓ אשר</button>
+                <button onclick="(async()=>{await deleteCalendarEvent(${e.id},true);loadBeautyCalendar();})()" class="bg-slate-100 text-slate-500 px-2 py-1 rounded-lg text-[10px] font-bold hover:bg-red-50 hover:text-red-500 transition">✕</button>
+            </div>
+        </div>`).join('')}
+    </div>` : '';
+
     // ─── LIST VIEW (רצף תורים) ──────────────────────────────────────────────────
     if (view === 'list') {
         const from = window._beautyState.calFromDate || calDate;
@@ -47168,46 +47209,6 @@ function _renderBeautyCalendar() {
         </div>`;
         return;
     }
-
-    const pendingCancelAppts = window._beautyState.pendingCancelAppts || [];
-    const pendingCancelBanner = pendingCancelAppts.length > 0 ? `
-    <div class="bg-orange-50 border border-orange-200 rounded-2xl p-3">
-        <div class="flex items-center justify-between mb-2">
-            <span class="text-xs font-black text-orange-700">🚫 בקשות ביטול ממתינות לאישורך (${pendingCancelAppts.length})</span>
-        </div>
-        ${pendingCancelAppts.map(a => {
-            const seg0 = a.segments?.[0];
-            const startTime = seg0?.start_time ? new Date(seg0.start_time).toLocaleString('he-IL',{weekday:'short',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}) : '';
-            const serviceName = seg0?.service_name || 'טיפול';
-            return `<div class="flex items-center justify-between py-2 border-b border-orange-100 last:border-0">
-                <div class="flex-1 min-w-0">
-                    <p class="text-xs font-bold text-slate-800 truncate">${a.client_name || 'לקוח'} — ${serviceName}</p>
-                    <p class="text-[10px] text-slate-500">${startTime}</p>
-                </div>
-                <div class="flex gap-1 shrink-0">
-                    <button onclick="window._beautyApproveCancel(${a.id})" class="bg-red-500 text-white px-2.5 py-1 rounded-lg text-[10px] font-black hover:bg-red-600 transition">✓ אשר ביטול</button>
-                    <button onclick="window._beautyRejectCancel(${a.id})" class="bg-slate-100 text-slate-600 px-2 py-1 rounded-lg text-[10px] font-bold hover:bg-green-50 hover:text-green-600 transition">✕ דחה</button>
-                </div>
-            </div>`;
-        }).join('')}
-    </div>` : '';
-
-    const pendingBanner = pendingCalEvents.length > 0 ? `
-    <div class="bg-amber-50 border border-amber-200 rounded-2xl p-3">
-        <div class="flex items-center justify-between mb-2">
-            <span class="text-xs font-black text-amber-700">📋 בקשות תור ממתינות לאישור (${pendingCalEvents.length})</span>
-        </div>
-        ${pendingCalEvents.map(e => `<div class="flex items-center justify-between py-2 border-b border-amber-100 last:border-0">
-            <div class="flex-1 min-w-0">
-                <p class="text-xs font-bold text-slate-800 truncate">${e.title || 'לקוח'}</p>
-                <p class="text-[10px] text-slate-500">${new Date(e.event_date).toLocaleDateString('he-IL')} ${(e.start_time||'').slice(0,5)}</p>
-            </div>
-            <div class="flex gap-1 shrink-0">
-                <button onclick="(async()=>{await approveCalendarEvent(${e.id});loadBeautyCalendar();})()" class="bg-green-500 text-white px-2.5 py-1 rounded-lg text-[10px] font-black hover:bg-green-600 transition">✓ אשר</button>
-                <button onclick="(async()=>{await deleteCalendarEvent(${e.id},true);loadBeautyCalendar();})()" class="bg-slate-100 text-slate-500 px-2 py-1 rounded-lg text-[10px] font-bold hover:bg-red-50 hover:text-red-500 transition">✕</button>
-            </div>
-        </div>`).join('')}
-    </div>` : '';
 
     el.innerHTML = `
 <div class="space-y-3 pb-20">
