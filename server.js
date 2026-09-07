@@ -10948,27 +10948,24 @@ app.post('/api/store/orders', async (req, res) => {
         try { await pool.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS notes TEXT`); } catch(e){}
         try { await pool.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS community_promo_code VARCHAR(30)`); } catch(e){}
         try { await pool.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS community_promo_id INT`); } catch(e){}
-
-        dbClient = await pool.connect();
-        await dbClient.query('BEGIN');
+        try { await pool.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS promo_code VARCHAR(50)`); } catch(e){}
 
         const deliveryDetailsStr = deliveryDetails ? JSON.stringify(deliveryDetails) : null;
         const isDeliv = isDelivery === true || isDelivery === 'true';
 
-        // ── SERVER-SIDE PRICE VALIDATION ──────────────────────────────
-        // Load store settings + catalog to verify prices and fees
+        // ── SERVER-SIDE PRICE VALIDATION (לפני BEGIN — pool ישיר) ──────
         let catalogMap = {};
         let settingsRow = null;
         try {
             const [catRes, settRes] = await Promise.all([
-                dbClient.query('SELECT id, price FROM store_catalog WHERE group_id=$1 AND is_active=true', [groupId]),
-                dbClient.query('SELECT delivery_fee, free_delivery_above FROM store_settings WHERE group_id=$1', [groupId])
+                pool.query('SELECT id, price FROM store_catalog WHERE group_id=$1 AND is_active=true', [groupId]),
+                pool.query('SELECT delivery_fee, free_delivery_above FROM store_settings WHERE group_id=$1', [groupId])
             ]);
             catRes.rows.forEach(r => { catalogMap[r.id] = parseFloat(r.price); });
             settingsRow = settRes.rows[0] || null;
         } catch(e) { /* if catalog/settings unavailable, proceed without validation */ }
 
-        // Verify item prices
+        // Verify item prices (לפני BEGIN — אין dbClient עדיין)
         let serverSubtotal = 0;
         if (Object.keys(catalogMap).length > 0) {
             for (const item of (items || [])) {
@@ -10976,9 +10973,7 @@ app.post('/api/store/orders', async (req, res) => {
                 const catalogPrice = catalogMap[item.catalogId];
                 if (catalogPrice !== undefined) {
                     const clientPrice = parseFloat(item.price) || 0;
-                    // Allow up to 1% tolerance for rounding (modifiers may add cents)
                     if (Math.abs(clientPrice - catalogPrice) > catalogPrice * 0.01 + 1) {
-                        await dbClient.query('ROLLBACK');
                         return res.status(400).json({ error: 'מחיר פריט אינו תקין — אנא טען מחדש את הדף ונסה שנית' });
                     }
                     serverSubtotal += catalogPrice * (parseInt(item.qty || item.quantity) || 1);
@@ -10996,24 +10991,22 @@ app.post('/api/store/orders', async (req, res) => {
             const baseFee = parseFloat(settingsRow.delivery_fee) || 0;
             const freeAbove = parseFloat(settingsRow.free_delivery_above) || 0;
             if (freeAbove > 0 && serverSubtotal >= freeAbove) {
-                actualDeliveryFee = 0; // free delivery threshold met
+                actualDeliveryFee = 0;
             } else {
-                // Accept client fee only if it matches server value (allow zone fee from client if server has no zones)
                 const clientFee = parseFloat(deliveryFee) || 0;
                 actualDeliveryFee = (clientFee >= 0 && clientFee <= baseFee * 2 + 50) ? clientFee : baseFee;
             }
         }
-        // ──────────────────────────────────────────────────────────────
 
         const familyGroupId = req.body.familyGroupId ? parseInt(req.body.familyGroupId) : null;
         const finalStatus = status || 'pending_approval';
 
-        // אימות קוד מבצע קהילתי
+        // אימות קוד מבצע קהילתי — pool ישיר, לפני BEGIN
         let communityPromoId = null;
         let communityPromoCode = (req.body.communityPromoCode || '').trim().toUpperCase();
         if (communityPromoCode && familyGroupId) {
             try {
-                const promoRes = await dbClient.query(
+                const promoRes = await pool.query(
                     `SELECT cp.id FROM community_promotions cp
                      JOIN family_communities fc ON fc.community_id = cp.community_id
                      WHERE UPPER(cp.promo_code) = $1
@@ -11026,12 +11019,15 @@ app.post('/api/store/orders', async (req, res) => {
                 if (promoRes.rows.length) {
                     communityPromoId = promoRes.rows[0].id;
                 } else {
-                    communityPromoCode = null; // קוד לא תקין — מתעלמים
+                    communityPromoCode = null;
                 }
             } catch(e) { communityPromoCode = null; }
         } else {
             communityPromoCode = null;
         }
+
+        dbClient = await pool.connect();
+        await dbClient.query('BEGIN');
 
         const oRes = await dbClient.query(
             'INSERT INTO store_orders (group_id, customer_name, customer_phone, total_amount, status, created_at, is_delivery, delivery_fee, delivery_details, family_group_id, quote_status, notes, order_source, community_promo_code, community_promo_id) VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP, $6, $7, $8, $9, NULL, $10, $11, $12, $13) RETURNING id',
@@ -11054,10 +11050,9 @@ app.post('/api/store/orders', async (req, res) => {
             itemsHtmlList += `<li><strong>דמי משלוח</strong> - ₪${actualDeliveryFee}</li>`;
         }
         
-        // שמור קוד פרומו בהזמנה (אם הגיע)
+        // שמור קוד פרומו בהזמנה (אם הגיע) — עמודה כבר קיימת (נוצרה לפני BEGIN)
         if (promoCode) {
             try {
-                await dbClient.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS promo_code VARCHAR(50)`);
                 await dbClient.query(`UPDATE store_orders SET promo_code=$1 WHERE id=$2`, [promoCode.toUpperCase(), orderId]);
             } catch(e) {}
         }
