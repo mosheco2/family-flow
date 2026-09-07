@@ -6285,7 +6285,13 @@ app.post('/api/biz/login', async (req, res) => {
         const deviceHint = req.headers['user-agent']?.slice(0, 100) || null;
         const token = await createFamilySession(user.group_id, user.id, deviceHint, 'biz');
 
-        res.json({ success: true, token, group_id: user.group_id, user_id: user.id, wizard_completed: user.wizard_completed, business_name: user.business_name });
+        // עסקים ישנים שנוצרו לפני הוויזארד — wizard_completed=null, מתייחסים כאילו הושלם
+        const wizardDone = user.wizard_completed !== false;
+        if (user.wizard_completed === null) {
+            pool.query(`UPDATE family_groups SET wizard_completed=true WHERE id=$1`, [user.group_id]).catch(() => {});
+        }
+
+        res.json({ success: true, token, group_id: user.group_id, user_id: user.id, wizard_completed: wizardDone, business_name: user.business_name });
     } catch(e) {
         console.error('biz login error:', e);
         res.status(500).json({ success: false, error: 'שגיאה בהתחברות' });
