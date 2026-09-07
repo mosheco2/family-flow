@@ -16600,28 +16600,33 @@ app.get('/api/calendar/:groupId', async (req, res) => {
         const evtRes = await pool.query('SELECT * FROM calendar_events WHERE group_id=$1 ORDER BY event_date ASC, start_time ASC', [groupId]);
         let settings = setRes.rows.length > 0 ? setRes.rows[0] : { is_active: false, open_time: '09:00', close_time: '18:00', interval_mins: 30 };
 
-        // עבור עסקי יופי — הוסף beauty_appointments פנימיים כ-events חסומים
+        // עבור עסקי יופי — הצג רק pending calendar_events + beauty_appointments כ-approved
         let allEvents = evtRes.rows;
         if (bizType === 'beauty') {
             const bapR = await pool.query(
                 `SELECT ba.id, ba.client_name, bs.service_name,
-                    TO_CHAR(bs.start_time, 'YYYY-MM-DD') AS event_date,
-                    TO_CHAR(bs.start_time, 'HH24:MI') AS start_time_str
+                    TO_CHAR(bs.start_time AT TIME ZONE 'Asia/Jerusalem', 'YYYY-MM-DD') AS event_date,
+                    TO_CHAR(bs.start_time AT TIME ZONE 'Asia/Jerusalem', 'HH24:MI') AS start_time_str,
+                    p.display_name AS staff_name
                  FROM beauty_appointments ba
                  JOIN beauty_appointment_segments bs ON bs.appointment_id = ba.id AND bs.segment_order = 1
-                 WHERE ba.business_group_id=$1 AND ba.status IN ('confirmed','pending_client')`,
+                 LEFT JOIN beauty_practitioners p ON p.id = bs.practitioner_id
+                 WHERE ba.business_group_id=$1 AND ba.status NOT IN ('cancelled','no_show')`,
                 [groupId]
             ).catch(() => ({ rows: [] }));
             const syntheticEvents = bapR.rows.map(row => ({
                 id: `bap-${row.id}`,
                 group_id: parseInt(groupId),
                 title: row.service_name || row.client_name,
+                customer_phone: row.staff_name || '',
                 event_date: row.event_date,
                 start_time: row.start_time_str,
                 status: 'approved',
                 is_beauty_internal: true
             }));
-            allEvents = [...evtRes.rows, ...syntheticEvents];
+            // הצג רק pending calendar_events (approved כבר מיוצגים ב-beauty_appointments)
+            const pendingCalEvents = evtRes.rows.filter(e => e.status === 'pending');
+            allEvents = [...pendingCalEvents, ...syntheticEvents];
         }
 
         res.json({ success: true, settings, services: srvRes.rows, events: allEvents });

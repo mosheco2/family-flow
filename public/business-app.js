@@ -24889,16 +24889,29 @@ window.approveCalendarEvent = async function(id) {
         const data = await res.json();
         if (data.success) {
             showToast('success', 'הבקשה אושרה והתור שובץ!');
-            // עבור לטאב לוח זמנים וסנן לתאריך התור
             const evtInCache = calEventsCache.find(e => String(e.id) === String(id));
             await fetchCalendarData();
-            // עבור לטאב "לוח זמנים" + נווט לתאריך התור
-            if (typeof window.switchCalendarTab === 'function') window.switchCalendarTab('main');
-            if (evtInCache && evtInCache.event_date) {
-                const dateStr = String(evtInCache.event_date).slice(0, 10);
-                window.currentCalDate = new Date(dateStr + 'T12:00:00');
-                window.currentCalMode = 'day';
-                if (typeof window.renderCalendar === 'function') window.renderCalendar();
+            if (currentGroup?.business_type === 'beauty') {
+                // יופי — נווט ליומן מטפלות ולתאריך התור
+                switchTab('beauty_calendar');
+                if (evtInCache && evtInCache.event_date) {
+                    const dateStr = String(evtInCache.event_date).slice(0, 10);
+                    setTimeout(() => {
+                        if (!window._beautyState) window._beautyState = {};
+                        window._beautyState.calDate = new Date(dateStr + 'T12:00:00');
+                        window._beautyState.calView = 'day';
+                        if (typeof window.loadBeautyCalendar === 'function') window.loadBeautyCalendar();
+                    }, 200);
+                }
+            } else {
+                // עסקים אחרים — נווט ליומן ציבורי
+                if (typeof window.switchCalendarTab === 'function') window.switchCalendarTab('main');
+                if (evtInCache && evtInCache.event_date) {
+                    const dateStr = String(evtInCache.event_date).slice(0, 10);
+                    window.currentCalDate = new Date(dateStr + 'T12:00:00');
+                    window.currentCalMode = 'day';
+                    if (typeof window.renderCalendar === 'function') window.renderCalendar();
+                }
             }
         }
     } catch(e) {}
