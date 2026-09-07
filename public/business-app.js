@@ -50387,10 +50387,11 @@ async function loadBeautyServices() {
     const biz = _beautyBizId(); if (!biz) return;
     const el = document.getElementById('content-beauty_services'); if (!el) return;
     el.innerHTML = `<div class="py-10 text-center text-slate-400 text-sm"><i class="fa-solid fa-circle-notch fa-spin text-2xl mb-2 block"></i>טוען שירותים...</div>`;
+    const authH = { 'Authorization': `Bearer ${window._bizToken || ''}` };
     try {
         const [items, practitioners] = await Promise.all([
-            fetch(`${API}/beauty/${biz}/services`).then(r => r.json()),
-            fetch(`${API}/beauty/${biz}/practitioners`).then(r => r.json()).catch(() => [])
+            fetch(`${API}/beauty/${biz}/services`, { headers: authH }).then(r => r.json()),
+            fetch(`${API}/beauty/${biz}/practitioners`, { headers: authH }).then(r => r.json()).catch(() => [])
         ]);
         _beautySvcCache = {};
         (Array.isArray(items) ? items : []).forEach(s => { _beautySvcCache[s.id] = s; });
@@ -50541,6 +50542,29 @@ function _beautyServiceModal(svc, practitioners) {
                 <textarea id="bsvc-desc" rows="2" class="mt-1 w-full border border-slate-200 rounded-xl px-3 py-2 text-sm">${svc?.description||''}</textarea>
             </div>
             ${practHtml}
+            <div>
+                <label class="text-xs font-bold text-slate-600 block mb-1.5">📅 ימים זמינים להזמנה עצמית</label>
+                <div class="text-[10px] text-slate-400 mb-2">ריק = זמין בכל ימי העבודה של המטפלת</div>
+                <div class="bg-slate-50 rounded-xl border border-slate-200 p-3 space-y-2">
+                    ${['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'].map((dayName, d) => {
+                        const dayData = svc?.available_days?.[String(d)];
+                        const checked = dayData !== undefined && dayData !== null ? 'checked' : '';
+                        const start = dayData?.start || '09:00';
+                        const end = dayData?.end || '18:00';
+                        return `<div>
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="checkbox" id="bsvc-day-${d}" class="w-4 h-4 accent-pink-500" ${checked} onchange="window._beautyServiceDayToggle(${d})">
+                                <span class="text-sm text-slate-700">${dayName}</span>
+                            </label>
+                            <div id="bsvc-day-times-${d}" class="${checked ? 'flex' : 'hidden'} items-center gap-2 mt-1.5 pr-6">
+                                <input type="time" id="bsvc-day-start-${d}" value="${start}" class="border border-slate-200 rounded-lg px-2 py-1 text-xs">
+                                <span class="text-slate-400 text-xs">עד</span>
+                                <input type="time" id="bsvc-day-end-${d}" value="${end}" class="border border-slate-200 rounded-lg px-2 py-1 text-xs">
+                            </div>
+                        </div>`;
+                    }).join('')}
+                </div>
+            </div>
             <label class="flex items-center gap-2 cursor-pointer">
                 <input id="bsvc-patch" type="checkbox" class="w-4 h-4 accent-red-500" ${svc?.requires_patch_test?'checked':''}>
                 <span class="text-sm text-slate-700">⚠️ שירות זה דורש Patch Test מוקדם</span>
@@ -50563,6 +50587,16 @@ window._beautySubmitService = async function(id, btn) {
     btn.disabled = true; btn.textContent = 'שומר...';
     const commRaw = document.getElementById('bsvc-comm')?.value;
     const allowedPractIds = [...document.querySelectorAll('.bsvc-pract:checked')].map(cb => parseInt(cb.value));
+    // Build available_days
+    const available_days = {};
+    let hasDays = false;
+    for (let d = 0; d <= 6; d++) {
+        const dayCb = document.getElementById('bsvc-day-' + d);
+        if (dayCb && dayCb.checked) {
+            available_days[String(d)] = { start: document.getElementById('bsvc-day-start-' + d)?.value || '09:00', end: document.getElementById('bsvc-day-end-' + d)?.value || '18:00' };
+            hasDays = true;
+        }
+    }
     const body = {
         name,
         category: document.getElementById('bsvc-cat')?.value,
@@ -50572,13 +50606,15 @@ window._beautySubmitService = async function(id, btn) {
         description: document.getElementById('bsvc-desc')?.value?.trim() || null,
         requires_patch_test: document.getElementById('bsvc-patch')?.checked || false,
         commission_pct: commRaw !== '' && commRaw != null ? parseFloat(commRaw) : null,
-        allowed_practitioner_ids: allowedPractIds
+        allowed_practitioner_ids: allowedPractIds,
+        available_days: hasDays ? available_days : null
     };
+    const authH2 = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${window._bizToken || ''}` };
     try {
         if (id) {
-            await fetch(`${API}/beauty/${biz}/services/${id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+            await fetch(`${API}/beauty/${biz}/services/${id}`, { method:'PATCH', headers: authH2, body:JSON.stringify(body) });
         } else {
-            await fetch(`${API}/beauty/${biz}/services`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+            await fetch(`${API}/beauty/${biz}/services`, { method:'POST', headers: authH2, body:JSON.stringify(body) });
         }
         btn.closest('.fixed').remove();
         showToast('success', id ? 'השירות עודכן' : 'השירות נוסף');
@@ -50591,7 +50627,7 @@ window._beautyDeactivateService = async function(id, btn) {
     const biz = _beautyBizId(); if (!biz) return;
     btn.disabled = true;
     try {
-        await fetch(`${API}/beauty/${biz}/services/${id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ is_active: false }) });
+        await fetch(`${API}/beauty/${biz}/services/${id}`, { method:'PATCH', headers:{'Content-Type':'application/json','Authorization':`Bearer ${window._bizToken||''}`}, body:JSON.stringify({ is_active: false }) });
         btn.closest('.fixed').remove();
         showToast('success', 'השירות הוסר');
         loadBeautyServices();
@@ -50990,7 +51026,7 @@ async function loadBeautyPractitioners() {
     el.innerHTML = `<div class="py-10 text-center text-slate-400 text-sm"><i class="fa-solid fa-circle-notch fa-spin text-2xl mb-2 block"></i>טוען מטפלות...</div>`;
     let practitioners = [];
     try {
-        const r = await fetch(`${API}/beauty/${biz}/practitioners`);
+        const r = await fetch(`${API}/beauty/${biz}/practitioners`, { headers: { 'Authorization': `Bearer ${window._bizToken || ''}` } });
         practitioners = r.ok ? (await r.json()) : [];
         if (!Array.isArray(practitioners)) practitioners = [];
     } catch(e) {}
@@ -51123,6 +51159,14 @@ window._beautyPractModal = function(p = null) {
     modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
 };
 
+window._beautyServiceDayToggle = function(dayIdx) {
+    const cb = document.getElementById('bsvc-day-' + dayIdx);
+    const timesDiv = document.getElementById('bsvc-day-times-' + dayIdx);
+    if (!timesDiv) return;
+    if (cb && cb.checked) { timesDiv.classList.remove('hidden'); timesDiv.classList.add('flex'); }
+    else { timesDiv.classList.add('hidden'); timesDiv.classList.remove('flex'); }
+};
+
 window._beautyDayToggle = function(dayIdx) {
     const cb = document.getElementById('bp-day-' + dayIdx);
     const timesDiv = document.getElementById('bp-day-times-' + dayIdx);
@@ -51162,7 +51206,7 @@ window._beautyPractSave = async function(id) {
     try {
         const method = id ? 'PATCH' : 'POST';
         const url = id ? `${API}/beauty/${biz}/practitioners/${id}` : `${API}/beauty/${biz}/practitioners`;
-        const r = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        const r = await fetch(url, { method, headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${window._bizToken || ''}` }, body: JSON.stringify(body) });
         if (!r.ok) throw new Error();
         showToast('success', id ? 'פרטי המטפלת עודכנו' : 'מטפלת נוספה בהצלחה');
         document.getElementById('beauty-pract-modal')?.remove();
@@ -51175,7 +51219,7 @@ window._beautyPractToggle = async function(id, isActive) {
     if (!await window._uiConfirm(isActive ? 'להשבית מטפלת זו?' : 'להפעיל מטפלת זו מחדש?')) return;
     try {
         await fetch(`${API}/beauty/${biz}/practitioners/${id}`, {
-            method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+            method: 'PATCH', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${window._bizToken || ''}` },
             body: JSON.stringify({ is_active: !isActive })
         });
         showToast('success', isActive ? 'המטפלת הושבתה' : 'המטפלת הופעלה');
