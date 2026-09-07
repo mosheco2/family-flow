@@ -24112,23 +24112,44 @@ window.renderCustomerStatusScreen = function() {
     // פונקציית עזר ליצירת כרטיסייה
     const createCard = (order, type) => {
         let name = safeStr(order.customer_name) || '';
-        // קיצור השם אם הוא ארוך מדי (מציגים רק שם פרטי או עד 12 תווים)
         if (name.includes(' ')) name = name.split(' ')[0];
         if (name.length > 12) name = name.substring(0, 12) + '...';
 
         const num = order.id;
-        
+        let timeStr = '';
+        let hasTime = false;
+        if (order.target_datetime) {
+            try {
+                const d = new Date(order.target_datetime);
+                timeStr = d.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+                hasTime = true;
+            } catch(e) { timeStr = order.target_datetime; hasTime = true; }
+        }
+        const scheduleBtn = `<button onclick="window._liveQueueSchedule(${num})" title="${hasTime ? 'ערוך תזמון' : 'תזמן'}" class="text-xs opacity-60 hover:opacity-100 transition mt-1">${hasTime ? '✏️' : '⏰'}</button>`;
+
         if (type === 'preparing') {
             return `
             <div class="bg-slate-800 rounded-2xl p-4 border border-slate-700 shadow-md flex items-center justify-between transition-all animate-[fadeIn_0.5s_ease-out]">
-                <span class="text-4xl font-black text-slate-300">#${num}</span>
-                <span class="text-xl font-bold text-slate-400">${name}</span>
+                <div class="flex flex-col">
+                    <span class="text-4xl font-black text-slate-300">#${num}</span>
+                    <span class="text-xs text-slate-500 mt-0.5">${name}</span>
+                </div>
+                <div class="flex flex-col items-end gap-1">
+                    ${hasTime ? `<span class="text-lg font-bold text-indigo-300">${timeStr}</span>` : `<span class="text-xs text-slate-600 italic">לא תוזמן</span>`}
+                    ${scheduleBtn}
+                </div>
             </div>`;
         } else {
             return `
             <div class="bg-green-500 rounded-2xl p-4 border border-green-400 shadow-[0_0_15px_rgba(34,197,94,0.4)] flex items-center justify-between transform transition-all hover:scale-105 animate-[slideUp_0.5s_ease-out]">
-                <span class="text-5xl font-black text-white drop-shadow-md">#${num}</span>
-                <span class="text-2xl font-bold text-green-100">${name}</span>
+                <div class="flex flex-col">
+                    <span class="text-5xl font-black text-white drop-shadow-md">#${num}</span>
+                    <span class="text-sm text-green-100 mt-0.5">${name}</span>
+                </div>
+                <div class="flex flex-col items-end gap-1">
+                    ${hasTime ? `<span class="text-xl font-black text-white drop-shadow">${timeStr}</span>` : `<span class="text-xs text-green-200 italic">לא תוזמן</span>`}
+                    ${scheduleBtn}
+                </div>
             </div>`;
         }
     };
@@ -24144,6 +24165,66 @@ window.renderCustomerStatusScreen = function() {
     } else {
         readyContainer.innerHTML = '<div class="col-span-2 text-center text-slate-600 mt-10"><i class="fa-solid fa-bell-concierge text-4xl mb-3 opacity-50"></i><p>אין הזמנות הממתינות לאיסוף</p></div>';
     }
+};
+
+window._liveQueueSchedule = function(orderId) {
+    const order = storeOrdersCache && storeOrdersCache.find(o => o.id === orderId);
+    const existing = order && order.target_datetime ? order.target_datetime.slice(0,16) : '';
+    const now = new Date();
+    const defaultVal = existing || `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}T${String(now.getHours()).padStart(2,'0')}:00`;
+
+    const modal = document.createElement('div');
+    modal.id = '_lq-sched-modal';
+    modal.className = 'fixed inset-0 z-[500] flex items-center justify-center bg-black/50 backdrop-blur-sm';
+    modal.innerHTML = `
+        <div class="bg-white rounded-3xl shadow-2xl p-6 w-80 text-right" dir="rtl">
+            <h3 class="font-black text-slate-800 text-base mb-4">${existing ? 'עריכת תזמון' : 'תזמון הזמנה'} #${orderId}</h3>
+            <label class="text-xs font-bold text-slate-500 block mb-1">תאריך ושעה</label>
+            <input id="_lq-sched-dt" type="datetime-local" value="${defaultVal}" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm mb-4 focus:outline-none focus:border-indigo-400">
+            <div class="flex gap-2">
+                <button onclick="window._liveQueueScheduleSave(${orderId})" class="flex-1 bg-indigo-600 text-white py-2.5 rounded-xl text-sm font-bold shadow hover:bg-indigo-700 transition">שמור</button>
+                ${existing ? `<button onclick="window._liveQueueScheduleClear(${orderId})" class="px-3 py-2.5 rounded-xl text-sm font-bold text-red-500 border border-red-200 hover:bg-red-50 transition">נקה</button>` : ''}
+                <button onclick="document.getElementById('_lq-sched-modal').remove()" class="px-3 py-2.5 rounded-xl text-sm font-bold text-slate-500 border border-slate-200 hover:bg-slate-50 transition">ביטול</button>
+            </div>
+        </div>`;
+    document.body.appendChild(modal);
+    modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+};
+
+window._liveQueueScheduleSave = async function(orderId) {
+    const val = document.getElementById('_lq-sched-dt')?.value;
+    if (!val) { showToast('error', 'יש לבחור תאריך ושעה'); return; }
+    try {
+        const r = await fetch(`${API}/store/orders/schedule`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ orderId, targetDatetime: new Date(val).toISOString() })
+        }).then(r => r.json());
+        if (!r.success) throw new Error();
+        // עדכון מקומי
+        if (storeOrdersCache) {
+            const o = storeOrdersCache.find(x => x.id === orderId);
+            if (o) o.target_datetime = new Date(val).toISOString();
+        }
+        document.getElementById('_lq-sched-modal')?.remove();
+        showToast('success', 'התזמון נשמר');
+        if (typeof window.renderCustomerStatusScreen === 'function') window.renderCustomerStatusScreen();
+    } catch(e) { showToast('error', 'שגיאה בשמירה'); }
+};
+
+window._liveQueueScheduleClear = async function(orderId) {
+    try {
+        await fetch(`${API}/store/orders/schedule`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ orderId, targetDatetime: null })
+        });
+        if (storeOrdersCache) {
+            const o = storeOrdersCache.find(x => x.id === orderId);
+            if (o) o.target_datetime = null;
+        }
+        document.getElementById('_lq-sched-modal')?.remove();
+        showToast('success', 'התזמון הוסר');
+        if (typeof window.renderCustomerStatusScreen === 'function') window.renderCustomerStatusScreen();
+    } catch(e) { showToast('error', 'שגיאה'); }
 };
 
 window.updateStatusScreenClock = function() {

@@ -11136,6 +11136,15 @@ app.post('/api/store/orders', async (req, res) => {
     } finally { if(dbClient) dbClient.release(); }
 });
 
+app.post('/api/store/orders/schedule', async (req, res) => {
+    try {
+        const { orderId, targetDatetime } = req.body;
+        if (!orderId) return res.status(400).json({ error: 'חסר orderId' });
+        await pool.query('UPDATE store_orders SET target_datetime=$1 WHERE id=$2', [targetDatetime || null, orderId]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 app.post('/api/store/orders/status', async (req, res) => {
     try {
         const { orderId, status, setDelivery } = req.body;
