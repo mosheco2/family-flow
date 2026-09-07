@@ -34890,15 +34890,22 @@ app.get('/api/beauty/:bizId/appointments/by-customer', verifyBiz, async (req, re
         if (!name && !phone) return res.json({ appointments: [] });
         const conditions = ['ba.business_group_id=$1'];
         const params = [bizId];
-        if (phone) { conditions.push(`ba.customer_phone=$${params.length+1}`); params.push(phone.replace(/\D/g,'')||phone); }
-        else if (name) { conditions.push(`ba.customer_name ILIKE $${params.length+1}`); params.push(`%${name}%`); }
+        if (phone) {
+            const digits = phone.replace(/\D/g,'');
+            conditions.push(`(ba.customer_phone=$${params.length+1} OR REGEXP_REPLACE(ba.customer_phone,'[^0-9]','','g')=$${params.length+2})`);
+            params.push(phone, digits);
+        } else if (name) {
+            conditions.push(`ba.customer_name ILIKE $${params.length+1}`);
+            params.push(`%${name}%`);
+        }
         const r = await pool.query(
             `SELECT ba.id, ba.status, ba.customer_name, ba.customer_phone, ba.service_name,
-                    bs.start_time, bs.event_date
+                    bs.start_time, bs.event_date, ba.created_at
              FROM beauty_appointments ba
              LEFT JOIN beauty_slots bs ON bs.id = ba.slot_id
              WHERE ${conditions.join(' AND ')}
-             ORDER BY bs.event_date DESC NULLS LAST, bs.start_time DESC NULLS LAST
+             ORDER BY COALESCE(bs.event_date, ba.created_at::date) DESC NULLS LAST,
+                      COALESCE(bs.start_time::text, '00:00') DESC
              LIMIT 50`,
             params
         );

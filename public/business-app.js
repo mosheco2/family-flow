@@ -48309,7 +48309,7 @@ window._beautyOpenClient = async function(clientId, openTab) {
         <!-- פעולות -->
         <div class="px-4 pb-4 pt-2 border-t border-slate-100 shrink-0 flex gap-2">
             <button onclick="window._bcmSaveDetails(${clientId})" class="flex-1 bg-indigo-600 text-white py-2.5 rounded-xl text-sm font-bold hover:bg-indigo-700 transition">שמור פרטים</button>
-            <button onclick="loadBeautyCalendar()" class="flex-1 bg-pink-500 text-white py-2.5 rounded-xl text-sm font-bold hover:bg-pink-600 transition flex items-center justify-center gap-1.5" onclick="document.getElementById('beauty-client-modal').remove()"><i class="fa-solid fa-scissors text-xs"></i> קבע תור</button>
+            <button onclick="document.getElementById('beauty-client-modal').remove(); if(typeof loadBeautyCalendar==='function') loadBeautyCalendar();" class="flex-1 bg-pink-500 text-white py-2.5 rounded-xl text-sm font-bold hover:bg-pink-600 transition flex items-center justify-center gap-1.5"><i class="fa-solid fa-scissors text-xs"></i> קבע תור</button>
         </div>
     </div>
 </div>`;
