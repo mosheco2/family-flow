@@ -47747,7 +47747,7 @@ window._beautyNewApModal = async function() {
     // טעינת שירותים לרשימה
     let services = [];
     try {
-        const sr = await fetch(`${API}/beauty/${biz}/services`).then(r => r.json());
+        const sr = await fetch(`${API}/beauty/${biz}/services`, {headers:{'Authorization':'Bearer '+(window._bizToken||'')}}).then(r => r.json());
         services = Array.isArray(sr) ? sr.filter(s => s.is_active !== false) : [];
     } catch(e) {}
     const svcOpts = services.map(s => `<option value="${s.id}" data-dur="${s.duration_minutes||60}" data-price="${s.price||0}">${s.name}</option>`).join('');
