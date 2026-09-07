@@ -48156,15 +48156,20 @@ window._beautySubmitNewClient = async function() {
 window._beautyOpenClient = async function(clientId) {
     const biz = _beautyBizId(); if (!biz) return;
     const client = window._beautyState.clients.find(c => c.id === clientId); if (!client) return;
-    let formulas = [], photos = [];
+    let formulas = [], photos = [], appts = [];
     try {
         const _cAuthH = { 'Authorization': `Bearer ${window._bizToken || ''}` };
-        const [fRes, pRes] = await Promise.all([
+        const aqp = new URLSearchParams();
+        if (client.client_phone) aqp.set('phone', client.client_phone);
+        else if (client.client_name) aqp.set('name', client.client_name);
+        const [fRes, pRes, aRes] = await Promise.all([
             fetch(`${API}/beauty/${biz}/clients/${clientId}/formulas`, { headers: _cAuthH }).then(r=>r.json()),
-            fetch(`${API}/beauty/${biz}/clients/${clientId}/photos`, { headers: _cAuthH }).then(r=>r.json())
+            fetch(`${API}/beauty/${biz}/clients/${clientId}/photos`, { headers: _cAuthH }).then(r=>r.json()),
+            fetch(`${API}/beauty/${biz}/appointments/by-customer?${aqp}`, { headers: _cAuthH }).then(r=>r.json()).catch(()=>({appointments:[]}))
         ]);
         formulas = fRes.formulas || [];
         photos = pRes.photos || [];
+        appts = aRes.appointments || [];
     } catch(e) {}
 
     const patchBadgeMap = { passed: 'bg-green-100 text-green-700', failed: 'bg-red-100 text-red-600', pending: 'bg-yellow-100 text-yellow-700', expired: 'bg-orange-100 text-orange-600', none: 'bg-slate-100 text-slate-500' };
@@ -48208,6 +48213,34 @@ window._beautyOpenClient = async function(clientId) {
             ${client.patch_test_expires_at ? `<p class="text-[10px] text-slate-400">תוקף: ${_beautyFmtDate(client.patch_test_expires_at)}</p>` : ''}
             ${client.general_notes ? `<div class="bg-amber-50 rounded-xl px-3 py-2 text-xs text-amber-700 border border-amber-100"><i class="fa-solid fa-triangle-exclamation mr-1"></i>${client.general_notes}</div>` : ''}
             ${client.avg_visit_interval_days ? `<p class="text-xs text-purple-600 font-bold bg-purple-50 rounded-xl px-3 py-2">ממוצע ביקור: כל ${Math.round(client.avg_visit_interval_days)} יום · צפוי ב: ${_beautyFmtDate(new Date(Date.now() + client.avg_visit_interval_days*86400000))}</p>` : ''}
+
+            <!-- appointments history -->
+            <div>
+                <div class="flex items-center justify-between mb-2">
+                    <p class="text-xs font-bold text-slate-700">היסטוריית תורים 📅</p>
+                    <span class="text-[10px] text-slate-400">${appts.length} תורים</span>
+                </div>
+                ${appts.length === 0 ? '<p class="text-slate-400 text-xs text-center py-2">אין תורים ללקוח זה</p>' : `<div class="space-y-1.5">${appts.map(a => {
+                    const bStatusColors = { scheduled:'#6366f1', confirmed:'#10b981', pending_cancel:'#f97316', cancelled:'#ef4444', completed:'#10b981', no_show:'#94a3b8' };
+                    const bStatusLabels = { scheduled:'ממתין', confirmed:'מאושר ✓', pending_cancel:'בקשת ביטול ⏳', cancelled:'בוטל ✗', completed:'הושלם ✅', no_show:'לא הגיע' };
+                    const dk = a.event_date ? String(a.event_date).slice(0,10) : '';
+                    const dateStr = dk ? new Date(dk+'T12:00:00').toLocaleDateString('he-IL',{day:'2-digit',month:'2-digit',year:'2-digit'}) : '—';
+                    const timeStr = a.start_time ? String(a.start_time).slice(0,5) : '';
+                    const sc = bStatusColors[a.status]||'#6366f1';
+                    const sl = bStatusLabels[a.status]||a.status;
+                    const pendingCancel = a.status === 'pending_cancel';
+                    return `<div class="flex items-center justify-between bg-slate-50 rounded-xl px-3 py-2 gap-2" style="border-right:3px solid ${sc}">
+                        <div class="flex-1 min-w-0">
+                            <p class="text-xs font-bold text-slate-700 truncate">${a.service_name||'תור'}</p>
+                            <p class="text-[10px] text-slate-400">${dateStr}${timeStr?' · '+timeStr:''}</p>
+                        </div>
+                        ${pendingCancel ? `<div class="flex gap-1 shrink-0">
+                            <button onclick="window._beautyApproveCancel&&window._beautyApproveCancel(${a.id}).then(ok=>ok&&window._beautyOpenClient(${clientId}))" class="bg-red-100 text-red-700 px-1.5 py-0.5 rounded text-[9px] font-bold">אשר ביטול</button>
+                            <button onclick="window._beautyRejectCancel&&window._beautyRejectCancel(${a.id}).then(ok=>ok&&window._beautyOpenClient(${clientId}))" class="bg-green-100 text-green-700 px-1.5 py-0.5 rounded text-[9px] font-bold">דחה</button>
+                        </div>` : `<span class="text-[9px] font-bold px-1.5 py-0.5 rounded-full text-white shrink-0" style="background:${sc}">${sl}</span>`}
+                    </div>`;
+                }).join('')}</div>`}
+            </div>
 
             <!-- formulas -->
             <div>
