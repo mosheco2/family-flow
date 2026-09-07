@@ -485,7 +485,8 @@ const scAuth = window.scAuth = {
             var tableReservations = bookings.filter(function(b) { return b.call_type === 'table_reservation'; });
             var otherBookings = bookings.filter(function(b) { return b.call_type !== 'table_reservation'; });
 
-            if (_bizType === 'restaurant' || _bizType === 'cafe') {
+            var _tableBookingEnabledEarly = window._scEnableTableBooking !== undefined ? window._scEnableTableBooking : true;
+            if ((_bizType === 'restaurant' || _bizType === 'cafe') && _tableBookingEnabledEarly) {
                 var tableStatusColors = { approved:'#10b981', pending:'#f59e0b', cancelled:'#ef4444', cancelled_by_customer:'#94a3b8' };
                 var tableStatusLabels = { approved:'אושרה ✅', pending:'ממתין לאישור', cancelled:'בוטלה', cancelled_by_customer:'בוטלה על ידך' };
                 if (!tableReservations.length) {
@@ -586,19 +587,23 @@ const scAuth = window.scAuth = {
 
             // ── בניית טאבים (מסעדה/קפה) ─────────────────────────────────────
             if (_bizType === 'restaurant' || _bizType === 'cafe') {
-                var tabsHtml = `<div style="display:flex;gap:0;margin-bottom:14px;border-bottom:2px solid #f1f5f9;padding-bottom:0">
-                  <button id="sc-tab-table" onclick="(function(){document.getElementById('sc-tab-table').style.borderBottom='2px solid #f97316';document.getElementById('sc-tab-table').style.color='#f97316';document.getElementById('sc-tab-orders').style.borderBottom='2px solid transparent';document.getElementById('sc-tab-orders').style.color='#94a3b8';document.getElementById('sc-tab-panel-table').style.display='block';document.getElementById('sc-tab-panel-orders').style.display='none';})()" style="flex:1;padding:10px 8px;border:none;border-bottom:2px solid #f97316;background:none;font-size:13px;font-weight:700;color:#f97316;cursor:pointer;text-align:center">🍽️ הזמנות שולחן</button>
-                  <button id="sc-tab-orders" onclick="(function(){document.getElementById('sc-tab-orders').style.borderBottom='2px solid #f97316';document.getElementById('sc-tab-orders').style.color='#f97316';document.getElementById('sc-tab-table').style.borderBottom='2px solid transparent';document.getElementById('sc-tab-table').style.color='#94a3b8';document.getElementById('sc-tab-panel-orders').style.display='block';document.getElementById('sc-tab-panel-table').style.display='none';})()" style="flex:1;padding:10px 8px;border:none;border-bottom:2px solid transparent;background:none;font-size:13px;font-weight:700;color:#94a3b8;cursor:pointer;text-align:center">📦 הזמנות</button>
-                </div>
-                <div id="sc-tab-panel-table">${htmlTableRes}</div>
-                <div id="sc-tab-panel-orders" style="display:none">${htmlOrders || '<div style=\"text-align:center;color:#94a3b8;font-size:13px;padding:30px 0\">אין הזמנות</div>'}</div>`;
-                html = tabsHtml + html;
+                if (_tableBookingEnabledEarly) {
+                    var tabsHtml = `<div style="display:flex;gap:0;margin-bottom:14px;border-bottom:2px solid #f1f5f9;padding-bottom:0">
+                      <button id="sc-tab-table" onclick="(function(){document.getElementById('sc-tab-table').style.borderBottom='2px solid #f97316';document.getElementById('sc-tab-table').style.color='#f97316';document.getElementById('sc-tab-orders').style.borderBottom='2px solid transparent';document.getElementById('sc-tab-orders').style.color='#94a3b8';document.getElementById('sc-tab-panel-table').style.display='block';document.getElementById('sc-tab-panel-orders').style.display='none';})()" style="flex:1;padding:10px 8px;border:none;border-bottom:2px solid #f97316;background:none;font-size:13px;font-weight:700;color:#f97316;cursor:pointer;text-align:center">🍽️ הזמנות שולחן</button>
+                      <button id="sc-tab-orders" onclick="(function(){document.getElementById('sc-tab-orders').style.borderBottom='2px solid #f97316';document.getElementById('sc-tab-orders').style.color='#f97316';document.getElementById('sc-tab-table').style.borderBottom='2px solid transparent';document.getElementById('sc-tab-table').style.color='#94a3b8';document.getElementById('sc-tab-panel-orders').style.display='block';document.getElementById('sc-tab-panel-table').style.display='none';})()" style="flex:1;padding:10px 8px;border:none;border-bottom:2px solid transparent;background:none;font-size:13px;font-weight:700;color:#94a3b8;cursor:pointer;text-align:center">📦 הזמנות</button>
+                    </div>
+                    <div id="sc-tab-panel-table">${htmlTableRes}</div>
+                    <div id="sc-tab-panel-orders" style="display:none">${htmlOrders || '<div style=\"text-align:center;color:#94a3b8;font-size:13px;padding:30px 0\">אין הזמנות</div>'}</div>`;
+                    html = tabsHtml + html;
+                } else {
+                    html = htmlOrders + html;
+                }
             } else {
                 html = htmlOrders + html;
             }
 
             // ── פעולות מהירות ────────────────────────────────────────────────
-            if (_bizType === 'restaurant' || _bizType === 'cafe') {
+            if ((_bizType === 'restaurant' || _bizType === 'cafe') && _tableBookingEnabledEarly) {
                 html = `<div style="margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid #f1f5f9">
                   <div style="font-size:11px;font-weight:700;color:#94a3b8;padding:0 0 8px;text-align:right">⚡ פעולות מהירות</div>
                   <div style="display:flex;gap:8px;flex-wrap:wrap">

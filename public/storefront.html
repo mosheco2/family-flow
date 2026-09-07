@@ -857,6 +857,7 @@
                 // סוג עסק — מהAPI (שדה camelCase)
                 const bizType = data.businessType || data.business_type || '';
                 window._scBizType = bizType || 'retail';
+                window._scEnableTableBooking = data.settings?.enable_table_booking === true;
                 const isRestaurant = ['restaurant', 'cafe'].includes(bizType);
 
                 if (isRestaurant) {
