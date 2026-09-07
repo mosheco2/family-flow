@@ -48311,7 +48311,7 @@ window._beautyOpenClient = async function(clientId, openTab) {
         <!-- פעולות -->
         <div class="px-4 pb-4 pt-2 border-t border-slate-100 shrink-0 flex gap-2">
             <button onclick="window._bcmSaveDetails(${clientId})" class="flex-1 bg-indigo-600 text-white py-2.5 rounded-xl text-sm font-bold hover:bg-indigo-700 transition">שמור פרטים</button>
-            <button onclick="document.getElementById('beauty-client-modal').remove(); if(typeof switchTab==='function') switchTab('beauty_calendar');" class="flex-1 bg-pink-500 text-white py-2.5 rounded-xl text-sm font-bold hover:bg-pink-600 transition flex items-center justify-center gap-1.5"><i class="fa-solid fa-scissors text-xs"></i> קבע תור</button>
+            <button onclick="(function(){const cl=window._bcmData&&window._bcmData.client;document.getElementById('beauty-client-modal').remove();if(typeof switchTab==='function')switchTab('beauty_calendar');setTimeout(function(){if(typeof window._beautyNewApModal==='function'){window._beautyNewApModal().then(function(){if(cl){const ni=document.getElementById('bnap-client');const pi=document.getElementById('bnap-phone');const fi=document.getElementById('bnap-family-id');if(ni)ni.value=cl.client_name||'';if(pi)pi.value=cl.client_phone||'';if(fi)fi.value=cl.client_family_id||'';}});}},600);})()" class="flex-1 bg-pink-500 text-white py-2.5 rounded-xl text-sm font-bold hover:bg-pink-600 transition flex items-center justify-center gap-1.5"><i class="fa-solid fa-scissors text-xs"></i> קבע תור</button>
         </div>
     </div>
 </div>`;
@@ -48465,36 +48465,65 @@ window._bcmTab = function(tab, clientId) {
         </div>`;
 
     } else if (tab === 'collection') {
-        body.innerHTML = '<p class="text-center text-slate-400 text-xs py-4"><i class="fa-solid fa-spinner fa-spin ml-1"></i> טוען...</p>';
-        if (client.client_name || client.client_phone) {
-            const cp = new URLSearchParams();
-            if (client.client_name) cp.set('name', client.client_name);
-            if (client.client_phone) cp.set('phone', client.client_phone);
-            fetch(`/api/clients/financial-summary/${currentGroup?.id}?${cp}`)
-                .then(r=>r.json()).then(d=>{
-                    if (!document.getElementById('bcm-body')) return;
-                    if (!d.success || (!d.payments?.length && !d.workOrders?.length)) {
-                        body.innerHTML = '<p class="text-center text-slate-400 text-xs py-8">אין רשומות גבייה ללקוח זה</p>'; return;
-                    }
-                    const METHODS = { cash:'מזומן', card:'כרטיס', transfer:'העברה', check:'שיק', bit:'ביט' };
-                    const today = new Date(); today.setHours(0,0,0,0);
-                    const items = d.payments || [];
-                    body.innerHTML = '<div class="space-y-2">' + items.map(p => {
-                        const isOverdue = p.due_date && new Date(p.due_date) < today;
-                        const dateStr = p.due_date ? new Date(p.due_date).toLocaleDateString('he-IL') : '—';
-                        return `<div class="flex items-center justify-between bg-white rounded-xl border ${isOverdue?'border-red-200 bg-red-50':'border-amber-100'} px-3 py-2.5 gap-2">
-                            <div class="flex-1 min-w-0">
-                                <div class="text-[11px] font-bold text-slate-700 truncate">${safeStr(p.source_title)}</div>
-                                <div class="text-[10px] text-slate-400">${safeStr(p.milestone_name||'')}${p.payment_method?' · '+(METHODS[p.payment_method]||p.payment_method):''} · ${dateStr}</div>
-                            </div>
-                            <div class="text-sm font-black ${isOverdue?'text-red-600':'text-amber-700'} dir-ltr shrink-0">₪${parseFloat(p.amount).toFixed(2)}</div>
-                        </div>`;
-                    }).join('') + '</div>';
-                }).catch(()=>{ if(body) body.innerHTML = '<p class="text-center text-red-400 text-xs py-4">שגיאה בטעינת גביה</p>'; });
+        // גביה — מבוסס על תורי יופי של הלקוח
+        const collAppts = appts.filter(a => ['completed','confirmed','scheduled'].includes(a.status) && parseFloat(a.total_price||0) > 0);
+        const totalRevenue = collAppts.reduce((s,a) => s + parseFloat(a.total_price||0), 0);
+        const paidAppts = collAppts.filter(a => a.payment_confirmed);
+        const pendingAppts = collAppts.filter(a => !a.payment_confirmed);
+        const totalPaid = paidAppts.reduce((s,a) => s + parseFloat(a.total_price||0), 0);
+        const totalPending = pendingAppts.reduce((s,a) => s + parseFloat(a.total_price||0), 0);
+
+        let html = `<div class="space-y-3">
+            <div class="grid grid-cols-3 gap-2">
+                <div class="bg-slate-50 rounded-xl p-2.5 border text-center"><div class="text-[9px] font-bold text-slate-500 mb-1">סה"כ עסקאות</div><div class="text-sm font-black text-slate-800 dir-ltr">₪${totalRevenue.toFixed(0)}</div></div>
+                <div class="bg-green-50 rounded-xl p-2.5 border border-green-200 text-center"><div class="text-[9px] font-bold text-green-600 mb-1">שולם</div><div class="text-sm font-black text-green-700 dir-ltr">₪${totalPaid.toFixed(0)}</div></div>
+                <div class="bg-amber-50 rounded-xl p-2.5 border border-amber-200 text-center"><div class="text-[9px] font-bold text-amber-600 mb-1">ממתין לגביה</div><div class="text-sm font-black text-amber-700 dir-ltr">₪${totalPending.toFixed(0)}</div></div>
+            </div>`;
+
+        if (collAppts.length === 0) {
+            html += '<p class="text-slate-400 text-xs text-center py-6 bg-slate-50 rounded-xl">אין עסקאות ללקוח זה</p>';
         } else {
-            body.innerHTML = '<p class="text-center text-slate-400 text-xs py-8">אין מידע גביה</p>';
+            html += '<div class="space-y-2">';
+            collAppts.forEach(a => {
+                const stRaw = a.start_time || a.created_at || '';
+                const stDate = stRaw ? new Date(stRaw) : null;
+                const dateStr = stDate && !isNaN(stDate) ? stDate.toLocaleDateString('he-IL',{day:'2-digit',month:'2-digit',year:'2-digit'}) : '—';
+                const price = parseFloat(a.total_price||0);
+                const isPaid = !!a.payment_confirmed;
+                html += `<div class="bg-white rounded-xl border ${isPaid?'border-green-200':'border-amber-200'} px-3 py-2.5 flex items-center gap-2">
+                    <div class="flex-1 min-w-0">
+                        <div class="text-[11px] font-bold text-slate-700 truncate"><i class="fa-solid fa-scissors text-pink-400 text-[9px] ml-1"></i>${safeStr(a.service_name||'תור')}</div>
+                        <div class="text-[10px] text-slate-400">${dateStr} · ${bStatusLabels[a.status]||a.status}</div>
+                    </div>
+                    <div class="text-sm font-black ${isPaid?'text-green-600':'text-amber-700'} dir-ltr shrink-0">₪${price.toFixed(0)}</div>
+                    ${!isPaid && price > 0 ? `<button onclick="window._bcmConfirmPayment(${a.id},${clientId})" class="bg-green-500 text-white text-[9px] font-bold px-2 py-1 rounded-lg hover:bg-green-600 transition shrink-0">אשר גביה ✓</button>` : `<span class="text-[9px] text-green-600 font-bold shrink-0">שולם ✓</span>`}
+                </div>`;
+            });
+            html += '</div>';
         }
+        html += '</div>';
+        body.innerHTML = html;
     }
+};
+
+window._bcmConfirmPayment = async function(apptId, clientId) {
+    const biz = _beautyBizId(); if (!biz) return;
+    try {
+        const r = await fetch(`${API}/beauty/${biz}/appointments/${apptId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type':'application/json', 'Authorization':'Bearer '+(window._bizToken||'') },
+            body: JSON.stringify({ payment_confirmed: true })
+        }).then(r=>r.json());
+        if (r.success || r.appointment) {
+            showToast('success', 'גביה אושרה ✓');
+            // עדכן בנתונים המקומיים
+            if (window._bcmData?.appts) {
+                const a = window._bcmData.appts.find(x => x.id === apptId);
+                if (a) a.payment_confirmed = true;
+            }
+            window._bcmTab('collection', clientId);
+        } else { showToast('error', r.error||'שגיאה'); }
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
 };
 
 window._bcmSaveDetails = async function(clientId) {

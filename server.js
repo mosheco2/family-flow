@@ -1824,6 +1824,10 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
         updated_at                 TIMESTAMP DEFAULT NOW()
       )`);
 
+      // Migrations — beauty_appointments
+      try { await client.query(`ALTER TABLE beauty_appointments ADD COLUMN IF NOT EXISTS payment_confirmed BOOLEAN DEFAULT FALSE`); } catch(e) {}
+      try { await client.query(`ALTER TABLE beauty_appointments ADD COLUMN IF NOT EXISTS payment_confirmed_at TIMESTAMP`); } catch(e) {}
+
       // Indexes for beauty tables
       try { await client.query(`CREATE INDEX IF NOT EXISTS idx_beauty_appts_biz ON beauty_appointments(business_group_id, status)`); } catch(e) {}
       try { await client.query(`CREATE INDEX IF NOT EXISTS idx_beauty_segs_appt ON beauty_appointment_segments(appointment_id)`); } catch(e) {}
@@ -23253,18 +23257,21 @@ app.post('/api/beauty/:bizId/appointments', verifyFamilyOrBiz, async (req, res) 
 
 app.patch('/api/beauty/:bizId/appointments/:id', verifyBiz, async (req, res) => {
     try {
-        const { status, notes, internal_notes, deposit_paid, date, time, duration_minutes, service_name } = req.body;
+        const { status, notes, internal_notes, deposit_paid, date, time, duration_minutes, service_name, payment_confirmed } = req.body;
         if (parseInt(req.params.bizId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const hasPracKey = Object.prototype.hasOwnProperty.call(req.body, 'practitioner_id');
         const practitioner_id = hasPracKey ? (req.body.practitioner_id || null) : undefined;
 
+        const hasPaymentConfirm = Object.prototype.hasOwnProperty.call(req.body, 'payment_confirmed');
         await pool.query(
             `UPDATE beauty_appointments SET
              status=COALESCE($1,status), notes=COALESCE($2,notes),
              internal_notes=COALESCE($3,internal_notes), deposit_paid=COALESCE($4,deposit_paid),
+             payment_confirmed=CASE WHEN $7 THEN $8 ELSE payment_confirmed END,
+             payment_confirmed_at=CASE WHEN $7 AND $8 THEN NOW() ELSE payment_confirmed_at END,
              updated_at=NOW()
              WHERE id=$5 AND business_group_id=$6`,
-            [status, notes, internal_notes, deposit_paid, req.params.id, req.params.bizId]
+            [status, notes, internal_notes, deposit_paid, req.params.id, req.params.bizId, hasPaymentConfirm, payment_confirmed||false]
         );
 
         // Update segment timing/practitioner/service_name if provided
@@ -34905,6 +34912,7 @@ app.get('/api/beauty/:bizId/appointments/by-customer', verifyBiz, async (req, re
         }
         const r = await pool.query(
             `SELECT ba.id, ba.status, ba.client_name, ba.client_phone, ba.created_at, ba.total_price,
+                    ba.payment_confirmed, ba.payment_confirmed_at,
                     (SELECT bas.service_name FROM beauty_appointment_segments bas
                      WHERE bas.appointment_id=ba.id ORDER BY bas.segment_order LIMIT 1) AS service_name,
                     (SELECT bas.start_time FROM beauty_appointment_segments bas
