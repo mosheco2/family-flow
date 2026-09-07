@@ -34632,6 +34632,34 @@ app.get('/api/sc-auth/sso-token', async (req, res) => {
     res.json({ success: true, ssoToken, familyGroupId: cust.family_group_id });
 });
 
+// POST /api/beauty/:bizId/appointments/:id/cancel-by-customer  — לקוח מבטל תור יופי
+app.post('/api/beauty/:bizId/appointments/:id/cancel-by-customer', async (req, res) => {
+    try {
+        const token = (req.headers.authorization || '').replace('Bearer ', '').trim();
+        const cust = await _scGetCustomerByToken(token);
+        if (!cust) return res.status(401).json({ success: false, error: 'לא מחובר' });
+        const { bizId, id } = req.params;
+        const apptR = await pool.query(
+            'SELECT * FROM beauty_appointments WHERE id=$1 AND business_group_id=$2',
+            [id, bizId]
+        );
+        if (!apptR.rows[0]) return res.status(404).json({ success: false, error: 'תור לא נמצא' });
+        const appt = apptR.rows[0];
+        // וידוא שהלקוח הוא הבעלים
+        if (appt.client_phone !== cust.phone && String(appt.client_family_id) !== String(cust.family_group_id || -1)) {
+            return res.status(403).json({ success: false, error: 'אין הרשאה' });
+        }
+        await pool.query('UPDATE beauty_appointments SET status=$1 WHERE id=$2', ['cancelled', id]);
+        // עדכן גם calendar_event אם קיים
+        await pool.query(
+            `UPDATE calendar_events SET status='cancelled_by_customer' WHERE group_id=$1 AND customer_phone=$2 AND status='approved'
+             AND event_date=(SELECT TO_CHAR(bs.start_time AT TIME ZONE 'Asia/Jerusalem','YYYY-MM-DD') FROM beauty_appointment_segments bs WHERE bs.appointment_id=$3 AND bs.segment_order=1 LIMIT 1)`,
+            [bizId, cust.phone, id]
+        ).catch(() => {});
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // GET /api/sc-auth/activity/:bizGroupId  — customer activity with one business
 app.get('/api/sc-auth/activity/:bizGroupId', async (req, res) => {
     const token = (req.headers.authorization || '').replace('Bearer ', '').trim();
@@ -34652,8 +34680,9 @@ app.get('/api/sc-auth/activity/:bizGroupId', async (req, res) => {
         ).then(r => r.rows).catch(() => []),
         pool.query(
             `SELECT id, title, event_date, start_time, status, created_at, call_type, num_guests, reserved_table_number, notes
-             FROM calendar_events WHERE group_id=$1 AND customer_phone=$2 ORDER BY event_date DESC LIMIT 20`,
-            [bizId, phone]
+             FROM calendar_events WHERE group_id=$1 AND (customer_phone=$2 OR (customer_group_id IS NOT NULL AND customer_group_id=$3))
+             ORDER BY event_date DESC LIMIT 20`,
+            [bizId, phone, cust.family_group_id || -1]
         ).then(r => r.rows).catch(() => []),
         pool.query(
             `SELECT sr.id, sc.id as class_id, sc.class_name, sc.class_date, sc.start_time, sc.end_time, sr.status, sr.registered_at, sr.cancelled_at,
@@ -34704,7 +34733,28 @@ app.get('/api/sc-auth/activity/:bizGroupId', async (req, res) => {
     const btRow = await pool.query('SELECT business_type FROM family_groups WHERE id=$1', [bizId]).catch(() => ({ rows: [] }));
     const businessType = btRow.rows[0]?.business_type || '';
 
-    res.json({ success: true, orders, bookings, classRegs, memberships, appointments, checkins, restaurantVisits, businessType });
+    // beauty_appointments — לקוחות יופי
+    let beautyBookings = [];
+    if (businessType === 'beauty') {
+        const bRes = await pool.query(
+            `SELECT ba.id, ba.status, ba.notes,
+                    TO_CHAR(bs.start_time AT TIME ZONE 'Asia/Jerusalem', 'YYYY-MM-DD') AS event_date,
+                    TO_CHAR(bs.start_time AT TIME ZONE 'Asia/Jerusalem', 'HH24:MI') AS start_time,
+                    bs.service_name, bs.duration_minutes,
+                    p.display_name AS staff_name
+             FROM beauty_appointments ba
+             JOIN beauty_appointment_segments bs ON bs.appointment_id = ba.id AND bs.segment_order = 1
+             LEFT JOIN beauty_practitioners p ON p.id = bs.practitioner_id
+             WHERE ba.business_group_id=$1
+               AND (ba.client_phone=$2 OR (ba.client_family_id IS NOT NULL AND ba.client_family_id=$3))
+               AND ba.status NOT IN ('cancelled','no_show')
+             ORDER BY bs.start_time DESC LIMIT 20`,
+            [bizId, phone, cust.family_group_id || -1]
+        ).catch(() => ({ rows: [] }));
+        beautyBookings = bRes.rows;
+    }
+
+    res.json({ success: true, orders, bookings, classRegs, memberships, appointments, checkins, restaurantVisits, businessType, beautyBookings });
 });
 
 // SA: GET /api/sa/sc-customers  — list storefront customers

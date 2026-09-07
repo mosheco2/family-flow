@@ -294,7 +294,7 @@ const scAuth = window.scAuth = {
         try {
             const r = await fetch(`/api/sc-auth/activity/${bizId}`, { headers:{'Authorization':'Bearer '+(this._token||'')} }).then(r=>r.json());
             if (!r.success) { list.innerHTML='<div style="text-align:center;color:#ef4444;font-size:13px;padding:20px">שגיאה</div>'; return; }
-            const { orders=[], bookings=[], classRegs=[], memberships=[], appointments=[], checkins=[], restaurantVisits=[], businessType='' } = r;
+            const { orders=[], bookings=[], classRegs=[], memberships=[], appointments=[], checkins=[], restaurantVisits=[], businessType='', beautyBookings=[] } = r;
             if (businessType) window._scBizType = businessType;
             const _bizType = businessType || window._scBizType || '';
             const _sp = window.storeData?.settings?.sport_settings;
@@ -410,31 +410,56 @@ const scAuth = window.scAuth = {
 
             // ── תורים יופי ─────────────────────────────────────────────────
             if (_bizType === 'beauty') {
-                html += `<div style="font-size:11px;font-weight:700;color:#94a3b8;padding:8px 0 6px;text-align:right">📅 התורים שלי</div>`;
-                var beautyAppts = appointments.concat(bookings.filter(function(b){ return b.call_type !== 'table_reservation'; }));
                 var _beautyHasCal = window.storeData && (window.storeData.calendarSettings || window.storeData.calendar_settings);
-                if (!beautyAppts.length) {
+                var statusColors = { pending:'#f59e0b', approved:'#10b981', confirmed:'#10b981', cancelled:'#ef4444', completed:'#6366f1', pending_client:'#f59e0b' };
+                var statusLabels = { pending:'ממתין לאישור', approved:'מאושר ✅', confirmed:'מאושר ✅', cancelled:'בוטל', completed:'הושלם', pending_client:'ממתין לאישור' };
+
+                // תורים מאושרים (beauty_appointments)
+                html += `<div style="font-size:11px;font-weight:700;color:#94a3b8;padding:8px 0 6px;text-align:right">📅 התורים שלי</div>`;
+                if (!beautyBookings.length) {
                     html += `<div style="background:#f8fafc;border-radius:12px;padding:14px;margin-bottom:10px;text-align:right">
                       <div style="color:#94a3b8;font-size:13px">אין תורים קרובים</div>
                       ${_beautyHasCal ? '<button data-beauty-action="book" style="margin-top:8px;padding:7px 14px;background:#ec4899;color:#fff;border:none;border-radius:8px;font-size:12px;cursor:pointer">+ קבע תור חדש</button>' : ''}
                     </div>`;
                 } else {
-                    html += beautyAppts.map(function(a) {
-                        var dk = a.event_date ? String(a.event_date).slice(0,10) : (a.start_time ? String(a.start_time).slice(0,10) : '');
+                    html += beautyBookings.map(function(a) {
+                        var dk = a.event_date ? String(a.event_date).slice(0,10) : '';
                         var dateStr = dk ? new Date(dk+'T12:00:00').toLocaleDateString('he-IL',{weekday:'short',day:'numeric',month:'short'}) : '';
-                        var timeStr = a.start_time ? String(a.start_time).slice(11,16)||String(a.start_time).slice(0,5) : '';
-                        var statusColors = { pending:'#f59e0b', approved:'#10b981', confirmed:'#10b981', cancelled:'#ef4444', completed:'#6366f1' };
-                        var statusLabels = { pending:'ממתין לאישור', approved:'מאושר', confirmed:'מאושר', cancelled:'בוטל', completed:'הושלם' };
-                        var sc = statusColors[a.status] || '#64748b';
-                        var canCancel = a.status !== 'cancelled' && a.status !== 'completed' && dk >= new Date().toISOString().slice(0,10);
-                        return '<div style="border:1px solid #f1f5f9;border-radius:12px;padding:12px;margin-bottom:8px" data-beauty-appt-id="'+a.id+'">'
-                            +'<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">'
-                            +'<span style="font-size:11px;font-weight:700;color:'+sc+';background:'+sc+'15;padding:3px 8px;border-radius:7px">'+(statusLabels[a.status]||a.status)+'</span>'
+                        var timeStr = a.start_time ? String(a.start_time).slice(0,5) : '';
+                        var sc = statusColors[a.status] || '#10b981';
+                        var sl = statusLabels[a.status] || 'מאושר ✅';
+                        var canCancel = dk >= new Date().toISOString().slice(0,10);
+                        return '<div style="border:1.5px solid '+sc+'30;border-radius:12px;padding:12px;margin-bottom:8px;background:'+sc+'06" data-beauty-appt-id="'+a.id+'">'
+                            +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'
+                            +'<span style="font-size:11px;font-weight:700;color:'+sc+';background:'+sc+'18;padding:3px 8px;border-radius:7px">'+sl+'</span>'
+                            +(a.staff_name ? '<span style="font-size:11px;color:#64748b">'+a.staff_name+'</span>' : '')
+                            +'</div>'
                             +'<div style="text-align:right">'
-                            +'<div style="font-weight:700;font-size:14px;color:#1e293b">'+(a.service_name||a.title||'תור')+'</div>'
-                            +'<div style="font-size:12px;color:#64748b;margin-top:2px">'+dateStr+(timeStr?' · '+timeStr:'')+(a.trainer_name||a.staff_name?' · '+(a.trainer_name||a.staff_name):'')+'</div>'
-                            +'</div></div>'
-                            +(canCancel ? '<button data-cancel-beauty-appt="'+a.id+'" style="margin-top:6px;width:100%;padding:7px;border:1px solid #fca5a5;border-radius:9px;background:#fff5f5;color:#ef4444;font-size:12px;cursor:pointer">ביטול תור</button>' : '')
+                            +'<div style="font-weight:700;font-size:14px;color:#1e293b">'+(a.service_name||'תור')+'</div>'
+                            +'<div style="font-size:12px;color:#64748b;margin-top:2px">'+dateStr+(timeStr?' · '+timeStr:'')+'</div>'
+                            +'</div>'
+                            +(canCancel ? '<button data-cancel-beauty-appt="'+a.id+'" data-appt-source="beauty" style="margin-top:8px;width:100%;padding:7px;border:1px solid #fca5a5;border-radius:9px;background:#fff5f5;color:#ef4444;font-size:12px;cursor:pointer">ביטול תור</button>' : '')
+                            +'</div>';
+                    }).join('');
+                }
+
+                // בקשות ממתינות (calendar_events שלא אושרו עדיין)
+                var pendingBeautyReqs = bookings.filter(function(b){ return b.status === 'pending' && b.call_type !== 'table_reservation'; });
+                if (pendingBeautyReqs.length) {
+                    html += `<div style="font-size:11px;font-weight:700;color:#94a3b8;padding:8px 0 6px;text-align:right">⏳ בקשות ממתינות לאישור</div>`;
+                    html += pendingBeautyReqs.map(function(b) {
+                        var dk = String(b.event_date||'').slice(0,10);
+                        var dateStr = dk ? new Date(dk+'T12:00:00').toLocaleDateString('he-IL',{weekday:'short',day:'numeric',month:'short'}) : '';
+                        var timeStr = b.start_time ? String(b.start_time).slice(0,5) : '';
+                        return '<div style="border:1.5px solid #f59e0b30;border-radius:12px;padding:12px;margin-bottom:8px;background:#f59e0b06">'
+                            +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">'
+                            +'<span style="font-size:11px;font-weight:700;color:#f59e0b;background:#f59e0b18;padding:3px 8px;border-radius:7px">ממתין לאישור</span>'
+                            +'</div>'
+                            +'<div style="text-align:right">'
+                            +'<div style="font-weight:700;font-size:14px;color:#1e293b">'+(b.title||'תור')+'</div>'
+                            +'<div style="font-size:12px;color:#64748b;margin-top:2px">'+dateStr+(timeStr?' · '+timeStr:'')+'</div>'
+                            +'</div>'
+                            +'<button data-cancel-beauty-appt="'+b.id+'" data-appt-source="calendar" style="margin-top:8px;width:100%;padding:7px;border:1px solid #fca5a5;border-radius:9px;background:#fff5f5;color:#ef4444;font-size:12px;cursor:pointer">ביטול בקשה</button>'
                             +'</div>';
                     }).join('');
                 }
@@ -697,14 +722,19 @@ const scAuth = window.scAuth = {
                 });
             });
 
-            // ── יופי: ביטול תור ──────────────────────────────────────────────
+            // ── יופי: ביטול תור / בקשה ───────────────────────────────────────
             list.querySelectorAll('[data-cancel-beauty-appt]').forEach(function(btn) {
                 btn.addEventListener('click', function() {
                     var apptId = btn.getAttribute('data-cancel-beauty-appt');
-                    if (!confirm('לבטל את התור?')) return;
+                    var src = btn.getAttribute('data-appt-source') || 'calendar';
+                    if (!confirm(src === 'beauty' ? 'לבטל את התור?' : 'לבטל את הבקשה?')) return;
                     btn.disabled = true; btn.textContent = 'מבטל...';
-                    fetch('/api/calendar/events/' + apptId, {
-                        method: 'DELETE',
+                    var endpoint = src === 'beauty'
+                        ? '/api/beauty/' + _gid + '/appointments/' + apptId + '/cancel-by-customer'
+                        : '/api/calendar/events/' + apptId;
+                    var method = src === 'beauty' ? 'POST' : 'DELETE';
+                    fetch(endpoint, {
+                        method: method,
                         headers: {'Content-Type':'application/json','Authorization':'Bearer '+(window.scAuth._token||'')}
                     }).then(function(r){ return r.json(); }).then(function(res) {
                         if (res.success || res.deleted) {
