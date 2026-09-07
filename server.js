@@ -34886,25 +34886,35 @@ app.post('/api/beauty/:bizId/appointments/:id/cancel-by-customer', async (req, r
 app.get('/api/beauty/:bizId/appointments/by-customer', verifyBiz, async (req, res) => {
     try {
         const { bizId } = req.params;
-        const { name, phone } = req.query;
-        if (!name && !phone) return res.json({ appointments: [] });
+        const { name, phone, client_id } = req.query;
+        if (!name && !phone && !client_id) return res.json({ appointments: [] });
         const conditions = ['ba.business_group_id=$1'];
         const params = [bizId];
-        if (phone) {
-            const digits = phone.replace(/\D/g,'') || phone;
-            conditions.push(`(ba.customer_phone=$${params.length+1} OR ba.customer_phone=$${params.length+2})`);
-            params.push(phone, digits);
+        if (client_id) {
+            // match via client_family_id from beauty_client_records
+            conditions.push(`ba.client_family_id=(SELECT client_family_id FROM beauty_client_records WHERE id=$${params.length+1} AND client_family_id IS NOT NULL)`);
+            params.push(client_id);
+            // fallback: also match by phone if no family link
+            conditions[conditions.length-1] = `(${conditions[conditions.length-1]} OR ba.client_phone=(SELECT client_phone FROM beauty_client_records WHERE id=$${params.length}))`;
+        } else if (phone) {
+            conditions.push(`ba.client_phone=$${params.length+1}`);
+            params.push(phone);
         } else if (name) {
-            conditions.push(`ba.customer_name ILIKE $${params.length+1}`);
+            conditions.push(`ba.client_name ILIKE $${params.length+1}`);
             params.push(`%${name}%`);
         }
         const r = await pool.query(
-            `SELECT ba.id, ba.status, ba.customer_name, ba.customer_phone, ba.service_name,
-                    bs.start_time, bs.event_date, ba.created_at
+            `SELECT ba.id, ba.status, ba.client_name, ba.client_phone, ba.created_at, ba.total_price,
+                    (SELECT bas.service_name FROM beauty_appointment_segments bas
+                     WHERE bas.appointment_id=ba.id ORDER BY bas.segment_order LIMIT 1) AS service_name,
+                    (SELECT bas.start_time FROM beauty_appointment_segments bas
+                     WHERE bas.appointment_id=ba.id ORDER BY bas.segment_order LIMIT 1) AS start_time
              FROM beauty_appointments ba
-             LEFT JOIN beauty_slots bs ON bs.id = ba.slot_id
              WHERE ${conditions.join(' AND ')}
-             ORDER BY COALESCE(bs.event_date, ba.created_at::date) DESC NULLS LAST
+             ORDER BY COALESCE(
+                (SELECT bas.start_time FROM beauty_appointment_segments bas WHERE bas.appointment_id=ba.id ORDER BY bas.segment_order LIMIT 1),
+                ba.created_at
+             ) DESC NULLS LAST
              LIMIT 50`,
             params
         );

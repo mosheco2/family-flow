@@ -10825,9 +10825,10 @@ window.renderCustomerHistory = async function(forceSync = false, context = 'moda
             let bHtml = '<h4 class="font-bold text-slate-700 text-xs mb-2 mt-4 border-t border-slate-100 pt-4">💅 תורים ופעילות יופי:</h4>';
             if (beautyAppts.length > 0) {
                 beautyAppts.forEach(a => {
-                    const dk = a.event_date ? String(a.event_date).slice(0,10) : '';
-                    const dateStr = dk ? new Date(dk+'T12:00:00').toLocaleDateString('he-IL',{day:'2-digit',month:'2-digit',year:'numeric'}) : '';
-                    const timeStr = a.start_time ? String(a.start_time).slice(0,5) : '';
+                    const stRaw3 = a.start_time || a.created_at || '';
+                    const stDate3 = stRaw3 ? new Date(stRaw3) : null;
+                    const dateStr = stDate3 && !isNaN(stDate3) ? stDate3.toLocaleDateString('he-IL',{day:'2-digit',month:'2-digit',year:'numeric'}) : '';
+                    const timeStr = stDate3 && !isNaN(stDate3) && a.start_time ? stDate3.toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'}) : '';
                     const sc = beautyStatusColors[a.status] || '#6366f1';
                     const sl = beautyStatusLabels[a.status] || a.status;
                     const isPendingCancel = a.status === 'pending_cancel';
@@ -11478,9 +11479,10 @@ window.loadCustomerBeautyTab = async function(name, phone) {
             html += '<p class="text-slate-400 text-xs text-center py-2 bg-slate-50 rounded-xl">אין תורים</p>';
         } else {
             html += '<div class="space-y-1.5">' + appts.map(a => {
-                const dk = a.event_date ? String(a.event_date).slice(0,10) : '';
-                const dateStr = dk ? new Date(dk+'T12:00:00').toLocaleDateString('he-IL',{day:'2-digit',month:'2-digit',year:'2-digit'}) : '—';
-                const timeStr = a.start_time ? String(a.start_time).slice(0,5) : '';
+                const stRaw2 = a.start_time || a.created_at || '';
+                const stDate2 = stRaw2 ? new Date(stRaw2) : null;
+                const dateStr = stDate2 && !isNaN(stDate2) ? stDate2.toLocaleDateString('he-IL',{day:'2-digit',month:'2-digit',year:'2-digit'}) : '—';
+                const timeStr = stDate2 && !isNaN(stDate2) && a.start_time ? stDate2.toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'}) : '';
                 const sc = bStatusColors[a.status]||'#6366f1';
                 const sl = bStatusLabels[a.status]||a.status;
                 const isPc = a.status === 'pending_cancel';
@@ -48410,9 +48412,10 @@ window._bcmTab = function(tab, clientId) {
             html += '<p class="text-slate-400 text-xs text-center py-8 bg-slate-50 rounded-xl">אין תורים ללקוח זה</p>';
         } else {
             appts.forEach(a => {
-                const dk = a.event_date ? String(a.event_date).slice(0,10) : '';
-                const dateStr = dk ? new Date(dk+'T12:00:00').toLocaleDateString('he-IL',{day:'2-digit',month:'2-digit',year:'numeric'}) : '—';
-                const timeStr = a.start_time ? String(a.start_time).slice(0,5) : '';
+                const stRaw = a.start_time || a.created_at || '';
+                const stDate = stRaw ? new Date(stRaw) : null;
+                const dateStr = stDate && !isNaN(stDate) ? stDate.toLocaleDateString('he-IL',{day:'2-digit',month:'2-digit',year:'numeric'}) : '—';
+                const timeStr = stDate && !isNaN(stDate) && a.start_time ? stDate.toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'}) : '';
                 const sc = bStatusColors[a.status]||'#6366f1';
                 const sl = bStatusLabels[a.status]||a.status;
                 const isPc = a.status === 'pending_cancel';
