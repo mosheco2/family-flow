@@ -14885,17 +14885,19 @@ window.renderStoreOrders = function() {
              const targetTime = new Date(o.target_datetime);
              const minsDiff = (targetTime - now) / 60000;
              const timeStr = targetTime.toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit'});
-             const dateStr = targetTime.toLocaleDateString('he-IL').substring(0,5); 
-             
+             const dateStr = targetTime.toLocaleDateString('he-IL').substring(0,5);
              if (minsDiff < 0) {
                  urgencyBorder = 'border-red-400 border-2';
                  targetDisplay = `<span class="bg-red-50 text-red-600 px-2 py-0.5 rounded-md text-[11px] font-bold border border-red-200 ml-2 animate-pulse"><i class="fa-regular fa-clock"></i> איחור! ${timeStr}</span>`;
-             } else if (minsDiff < 30) {
+             } else if (minsDiff <= 15) {
+                 urgencyBorder = 'border-orange-400 border-2 bg-orange-50';
+                 targetDisplay = `<span class="bg-orange-500 text-white px-2 py-0.5 rounded-md text-[11px] font-bold ml-2 animate-pulse">🔔 ל-${timeStr}</span>`;
+             } else if (minsDiff < 60) {
                  urgencyBorder = 'border-orange-400 border-2';
                  targetDisplay = `<span class="bg-orange-50 text-orange-600 px-2 py-0.5 rounded-md text-[11px] font-bold border border-orange-200 ml-2"><i class="fa-regular fa-clock"></i> ל-${timeStr} (${dateStr})</span>`;
              } else {
-                 urgencyBorder = 'border-blue-400 border-r-4 border-slate-200';
-                 targetDisplay = `<span class="bg-blue-50 text-blue-600 px-2 py-0.5 rounded-md text-[11px] font-bold border border-blue-200 ml-2"><i class="fa-regular fa-clock"></i> עתידי: ל-${timeStr} (${dateStr})</span>`;
+                 urgencyBorder = 'border-blue-300 border-r-4 border-slate-200';
+                 targetDisplay = `<span class="bg-blue-50 text-blue-600 px-2 py-0.5 rounded-md text-[11px] font-bold border border-blue-200 ml-2"><i class="fa-regular fa-clock"></i> ${timeStr} (${dateStr})</span>`;
              }
         }
 
@@ -14979,8 +14981,9 @@ window.renderStoreOrders = function() {
                 ${isDelivery ? `<div class="mb-3 bg-indigo-50 p-2.5 rounded-xl text-xs font-bold text-indigo-800 border border-indigo-100"><i class="fa-solid fa-location-dot mr-1"></i> ${addr}</div>` : ''}
                 ${displayNoteHtml}
                 ${buildOrderLogHtml(o.status, o.created_at, isDelivery)}
-                <div class="flex justify-end mt-4">
-                    <button onclick="window.openStoreOrderModal(${o.id})" class="bg-slate-800 text-white hover:bg-slate-700 px-4 py-2 rounded-xl text-xs font-bold transition shadow-sm w-full"><i class="fa-solid fa-gear"></i> ניהול ופרטים מלאים</button>
+                <div class="flex gap-2 mt-4">
+                    <button onclick="window._liveQueueSchedule(${o.id})" class="flex-1 bg-orange-50 border border-orange-200 text-orange-700 hover:bg-orange-100 px-3 py-2 rounded-xl text-xs font-bold transition shadow-sm">⏰ ${o.target_datetime ? 'ערוך תזמון' : 'תזמן הזמנה'}</button>
+                    <button onclick="window.openStoreOrderModal(${o.id})" class="flex-1 bg-slate-800 text-white hover:bg-slate-700 px-4 py-2 rounded-xl text-xs font-bold transition shadow-sm"><i class="fa-solid fa-gear"></i> ניהול מלא</button>
                 </div>
             </div>
         </div>`;
@@ -24106,8 +24109,14 @@ window.renderCustomerStatusScreen = function() {
         (!o.quote_status || o.quote_status === 'approved' || o.quote_status === 'null' || o.quote_status === 'draft')
     );
 
-    const preparingOrders = activeOrders.filter(o => o.status === 'new' || o.status === 'processing');
-    const readyOrders = activeOrders.filter(o => o.status === 'ready');
+    const _sortBySchedule = (a, b) => {
+        if (a.target_datetime && b.target_datetime) return new Date(a.target_datetime) - new Date(b.target_datetime);
+        if (a.target_datetime) return -1;
+        if (b.target_datetime) return 1;
+        return a.id - b.id;
+    };
+    const preparingOrders = activeOrders.filter(o => o.status === 'new' || o.status === 'processing').sort(_sortBySchedule);
+    const readyOrders = activeOrders.filter(o => o.status === 'ready').sort(_sortBySchedule);
 
     // פונקציית עזר ליצירת כרטיסייה
     const createCard = (order, type) => {
@@ -24125,29 +24134,44 @@ window.renderCustomerStatusScreen = function() {
                 hasTime = true;
             } catch(e) { timeStr = order.target_datetime; hasTime = true; }
         }
+        // האם קרוב (פחות מ-15 דק') — כתום
+        let isSoon = false;
+        if (hasTime && order.target_datetime) {
+            const minsDiff = (new Date(order.target_datetime) - new Date()) / 60000;
+            isSoon = minsDiff >= 0 && minsDiff <= 15;
+        }
         const scheduleBtn = `<button onclick="window._liveQueueSchedule(${num})" title="${hasTime ? 'ערוך תזמון' : 'תזמן'}" class="text-xs opacity-60 hover:opacity-100 transition mt-1">${hasTime ? '✏️' : '⏰'}</button>`;
 
         if (type === 'preparing') {
+            const bg = isSoon
+                ? 'bg-orange-500 border-orange-400 shadow-[0_0_12px_rgba(249,115,22,0.5)]'
+                : 'bg-slate-800 border-slate-700';
+            const numColor = isSoon ? 'text-white' : 'text-slate-300';
+            const nameColor = isSoon ? 'text-orange-100' : 'text-slate-500';
+            const timeColor = isSoon ? 'text-white font-black text-xl' : 'text-indigo-300 text-lg font-bold';
             return `
-            <div class="bg-slate-800 rounded-2xl p-4 border border-slate-700 shadow-md flex items-center justify-between transition-all animate-[fadeIn_0.5s_ease-out]">
+            <div class="rounded-2xl p-4 border shadow-md flex items-center justify-between transition-all animate-[fadeIn_0.5s_ease-out] ${bg}">
                 <div class="flex flex-col">
-                    <span class="text-4xl font-black text-slate-300">#${num}</span>
-                    <span class="text-xs text-slate-500 mt-0.5">${name}</span>
+                    <span class="text-4xl font-black ${numColor}">#${num}</span>
+                    <span class="text-xs mt-0.5 ${nameColor}">${name}</span>
                 </div>
                 <div class="flex flex-col items-end gap-1">
-                    ${hasTime ? `<span class="text-lg font-bold text-indigo-300">${timeStr}</span>` : `<span class="text-xs text-slate-600 italic">לא תוזמן</span>`}
+                    ${hasTime ? `<span class="${timeColor}">${timeStr}${isSoon ? ' 🔔' : ''}</span>` : `<span class="text-xs text-slate-600 italic">לא תוזמן</span>`}
                     ${scheduleBtn}
                 </div>
             </div>`;
         } else {
+            const bg = isSoon
+                ? 'bg-orange-500 border-orange-400 shadow-[0_0_15px_rgba(249,115,22,0.5)]'
+                : 'bg-green-500 border-green-400 shadow-[0_0_15px_rgba(34,197,94,0.4)]';
             return `
-            <div class="bg-green-500 rounded-2xl p-4 border border-green-400 shadow-[0_0_15px_rgba(34,197,94,0.4)] flex items-center justify-between transform transition-all hover:scale-105 animate-[slideUp_0.5s_ease-out]">
+            <div class="rounded-2xl p-4 border flex items-center justify-between transform transition-all hover:scale-105 animate-[slideUp_0.5s_ease-out] ${bg}">
                 <div class="flex flex-col">
                     <span class="text-5xl font-black text-white drop-shadow-md">#${num}</span>
-                    <span class="text-sm text-green-100 mt-0.5">${name}</span>
+                    <span class="text-sm text-white/80 mt-0.5">${name}</span>
                 </div>
                 <div class="flex flex-col items-end gap-1">
-                    ${hasTime ? `<span class="text-xl font-black text-white drop-shadow">${timeStr}</span>` : `<span class="text-xs text-green-200 italic">לא תוזמן</span>`}
+                    ${hasTime ? `<span class="text-xl font-black text-white drop-shadow">${timeStr}${isSoon ? ' 🔔' : ''}</span>` : `<span class="text-xs text-white/60 italic">לא תוזמן</span>`}
                     ${scheduleBtn}
                 </div>
             </div>`;
@@ -24175,7 +24199,7 @@ window._liveQueueSchedule = function(orderId) {
 
     const modal = document.createElement('div');
     modal.id = '_lq-sched-modal';
-    modal.className = 'fixed inset-0 z-[500] flex items-center justify-center bg-black/50 backdrop-blur-sm';
+    modal.className = 'fixed inset-0 z-[9999999] flex items-center justify-center bg-black/50 backdrop-blur-sm';
     modal.innerHTML = `
         <div class="bg-white rounded-3xl shadow-2xl p-6 w-80 text-right" dir="rtl">
             <h3 class="font-black text-slate-800 text-base mb-4">${existing ? 'עריכת תזמון' : 'תזמון הזמנה'} #${orderId}</h3>
@@ -24208,6 +24232,7 @@ window._liveQueueScheduleSave = async function(orderId) {
         document.getElementById('_lq-sched-modal')?.remove();
         showToast('success', 'התזמון נשמר');
         if (typeof window.renderCustomerStatusScreen === 'function') window.renderCustomerStatusScreen();
+        if (typeof window.renderStoreOrders === 'function') window.renderStoreOrders();
     } catch(e) { showToast('error', 'שגיאה בשמירה'); }
 };
 
@@ -24224,6 +24249,7 @@ window._liveQueueScheduleClear = async function(orderId) {
         document.getElementById('_lq-sched-modal')?.remove();
         showToast('success', 'התזמון הוסר');
         if (typeof window.renderCustomerStatusScreen === 'function') window.renderCustomerStatusScreen();
+        if (typeof window.renderStoreOrders === 'function') window.renderStoreOrders();
     } catch(e) { showToast('error', 'שגיאה'); }
 };
 
@@ -24232,6 +24258,11 @@ window.updateStatusScreenClock = function() {
     if (clockEl) {
         const now = new Date();
         clockEl.innerText = now.toLocaleTimeString('he-IL', {hour: '2-digit', minute: '2-digit'});
+    }
+    // רענן צבעים/מיון כל דקה כשמסך לייב פתוח
+    const screen = getEl('customer-status-screen');
+    if (screen && !screen.classList.contains('hidden') && typeof window.renderCustomerStatusScreen === 'function') {
+        window.renderCustomerStatusScreen();
     }
 };
 
