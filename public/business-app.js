@@ -940,14 +940,134 @@ window.injectBusinessUI = function() {
                         <div id="store-promotions-list" class="space-y-3 pb-8"></div>
                     </div>
                     
-                    <div id="sales-view-settings" class="hidden space-y-6 pb-12">
-                        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-                            <h4 class="font-black text-slate-800 mb-4">הגדרות חנות ומיתוג</h4>
-                            <div class="space-y-4">
-                                <label class="flex items-center gap-2 cursor-pointer">
-                                    <input type="checkbox" id="store-is-active" class="w-5 h-5 accent-indigo-600 rounded">
-                                    <span class="font-bold text-slate-700 text-sm">החנות פעילה ומקבלת הזמנות</span>
+                    <div id="sales-view-settings" class="hidden pb-12">
+
+                        <!-- ── טאב-בר הגדרות ── -->
+                        <div class="flex bg-slate-100 p-1 rounded-2xl gap-1 overflow-x-auto shrink-0 mb-4" id="sts-tab-bar">
+                            <button id="sts-btn-general"   onclick="window._switchStoreTab('general')"   class="flex-1 flex flex-col items-center gap-0.5 py-2.5 px-2 text-[11px] font-bold bg-white text-slate-800 rounded-xl shadow-sm transition whitespace-nowrap"><i class="fa-solid fa-gear text-xs"></i>כללי</button>
+                            <button id="sts-btn-design"    onclick="window._switchStoreTab('design')"    class="flex-1 flex flex-col items-center gap-0.5 py-2.5 px-2 text-[11px] font-bold text-slate-500 hover:text-slate-700 rounded-xl transition whitespace-nowrap"><i class="fa-solid fa-palette text-xs"></i>עיצוב</button>
+                            <button id="sts-btn-delivery"  onclick="window._switchStoreTab('delivery')"  class="flex-1 flex flex-col items-center gap-0.5 py-2.5 px-2 text-[11px] font-bold text-slate-500 hover:text-slate-700 rounded-xl transition whitespace-nowrap"><i class="fa-solid fa-motorcycle text-xs"></i>משלוחים</button>
+                            <button id="sts-btn-modifiers" onclick="window._switchStoreTab('modifiers')" class="flex-1 flex flex-col items-center gap-0.5 py-2.5 px-2 text-[11px] font-bold text-slate-500 hover:text-slate-700 rounded-xl transition whitespace-nowrap"><i class="fa-solid fa-sliders text-xs"></i>תוספות</button>
+                        </div>
+
+                        <!-- ══ טאב: כללי ══ -->
+                        <div id="sts-tab-general" class="space-y-4">
+                            <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                                <h4 class="font-black text-slate-800">פרטי עסק וקישורים</h4>
+
+                                <label class="flex items-center gap-3 bg-indigo-50 border border-indigo-100 rounded-xl px-4 py-3 cursor-pointer">
+                                    <input type="checkbox" id="store-is-active" class="w-5 h-5 accent-indigo-600 rounded shrink-0">
+                                    <span class="font-bold text-indigo-800 text-sm">החנות פעילה ומקבלת הזמנות</span>
                                 </label>
+
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">סוג חנות</label><select id="store-type" class="modern-input py-2 text-sm w-full"><option value="retail">קמעונאות / כללי</option><option value="food">מזון / מסעדה</option><option value="services">שירותים</option></select></div>
+                                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">סלוגן</label><input type="text" id="store-slogan" class="modern-input py-2 text-sm w-full"></div>
+                                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">טלפון להזמנות</label><input type="tel" id="store-phone" class="modern-input py-2 text-sm w-full dir-ltr text-left"></div>
+                                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">וואטסאפ (אופציונלי)</label><input type="tel" id="store-whatsapp" class="modern-input py-2 text-sm w-full dir-ltr text-left"></div>
+                                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">מינימום הזמנה (₪)</label><input type="number" id="store-min-order" class="modern-input py-2 text-sm w-full dir-ltr text-left"></div>
+                                    <div class="bg-indigo-50 rounded-xl p-3 border border-indigo-100 col-span-full">
+                                        <label class="font-bold text-indigo-800 text-sm flex items-center gap-2 cursor-pointer mb-2">
+                                            <input type="checkbox" id="store-include-vat" class="w-5 h-5 accent-indigo-600 rounded">
+                                            הצג מע"מ בקבלות (מגולם במחיר)
+                                        </label>
+                                        <div class="flex items-center gap-2">
+                                            <label class="text-xs text-slate-600">אחוז מע"מ:</label>
+                                            <input type="number" id="store-vat-rate" class="modern-input py-1.5 px-3 text-sm text-center w-20 bg-white" value="18">
+                                        </div>
+                                    </div>
+                                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">שעת פתיחה</label><input type="time" id="store-open-time" class="modern-input py-2 text-sm w-full"></div>
+                                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">שעת סגירה</label><input type="time" id="store-close-time" class="modern-input py-2 text-sm w-full"></div>
+                                </div>
+
+                                <div>
+                                    <label class="text-xs font-bold text-slate-500 block mb-1.5">הודעת פתיחה בחנות</label>
+                                    <textarea id="store-welcome-msg" class="modern-input py-2 text-sm h-16" placeholder="ברוכים הבאים לחנות שלנו!"></textarea>
+                                </div>
+
+                                <div class="bg-slate-50 p-3 rounded-xl border border-slate-100">
+                                    <label class="text-xs font-bold text-slate-700 block mb-1.5"><i class="fa-solid fa-envelope text-indigo-500 ml-1"></i>מייל לקבלת הזמנות</label>
+                                    <input type="email" id="store-order-email" class="modern-input py-2 text-sm bg-white" placeholder="example@gmail.com" dir="ltr">
+                                    <p class="text-[10px] text-slate-400 mt-1">ריק = ברירת מחדל (מייל הנהלת החשבון)</p>
+                                </div>
+
+                                <div class="space-y-2">
+                                    <div>
+                                        <label class="text-xs font-bold text-slate-500 mb-1 block">קישור לחנות הציבורית</label>
+                                        <div class="flex gap-2">
+                                            <input type="text" id="store-public-link" class="modern-input py-2 text-sm w-full bg-slate-50 text-slate-500 dir-ltr text-left" readonly>
+                                            <button onclick="window.copyStoreLink()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-4 py-2 rounded-xl font-bold transition shrink-0"><i class="fa-solid fa-copy"></i></button>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label class="text-xs font-bold text-slate-500 mb-1 block">קישור לתפריטים</label>
+                                        <div class="flex gap-2">
+                                            <input type="text" id="store-menus-link" class="modern-input py-2 text-sm w-full bg-slate-50 text-slate-500 dir-ltr text-left" readonly>
+                                            <button onclick="window.copyMenusLink()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-4 py-2 rounded-xl font-bold transition shrink-0"><i class="fa-solid fa-copy"></i></button>
+                                            <a id="store-menus-link-open" href="#" target="_blank" class="bg-emerald-100 hover:bg-emerald-200 text-emerald-700 px-4 py-2 rounded-xl font-bold transition shrink-0 flex items-center"><i class="fa-solid fa-arrow-up-right-from-square"></i></a>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- הגדרות מסעדה/קפה — פעולות בחנות הציבורית -->
+                                <div id="restaurant-store-settings-block" class="hidden space-y-3 border-t border-slate-100 pt-4">
+                                    <h4 class="font-black text-slate-800 text-sm">🍽️ הגדרות מסעדה / קפה</h4>
+                                    <div class="bg-orange-50 border border-orange-100 rounded-2xl p-4 space-y-3">
+                                        <p class="text-xs font-bold text-slate-500">בחרו אילו כפתורים יוצגו בחנות הציבורית:</p>
+                                        <label class="flex items-start gap-3 p-3 bg-white rounded-xl border border-slate-200 cursor-pointer has-[:checked]:border-orange-400 has-[:checked]:bg-orange-50 transition">
+                                            <input type="checkbox" id="store-enable-table-booking" class="w-5 h-5 accent-orange-500 rounded mt-0.5 shrink-0">
+                                            <div><span class="font-bold text-slate-700 text-sm block">🪑 הזמנת שולחן</span><span class="text-xs text-slate-400">לקוחות יוכלו לבקש שריון שולחן על בסיס זמינות שולחנות</span></div>
+                                        </label>
+                                        <label class="flex items-start gap-3 p-3 bg-white rounded-xl border border-slate-200 cursor-pointer has-[:checked]:border-orange-400 has-[:checked]:bg-orange-50 transition">
+                                            <input type="checkbox" id="store-enable-event-booking" class="w-5 h-5 accent-orange-500 rounded mt-0.5 shrink-0">
+                                            <div><span class="font-bold text-slate-700 text-sm block">🎉 הזמנת אירוע / קייטרינג</span><span class="text-xs text-slate-400">לקוחות שולחים בקשה לאירוע עם בחירת תפריט ומספר סועדים — מגיע כהצעת מחיר לאישורך</span></div>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <button id="btn-save-store-settings" onclick="window.saveStoreSettings()" class="w-full bg-slate-800 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-slate-700 transition text-sm mt-2">שמור הגדרות ✓</button>
+                            </div>
+                        </div>
+
+                        <!-- ══ טאב: עיצוב ══ -->
+                        <div id="sts-tab-design" class="hidden space-y-4">
+                            <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                                <h4 class="font-black text-slate-800">עיצוב ומיתוג</h4>
+
+                                <!-- לוגו + באנר -->
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div class="bg-slate-50 p-3.5 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between">
+                                        <label class="text-xs font-bold text-slate-700 block mb-3">לוגו העסק</label>
+                                        <div class="flex items-center gap-3">
+                                            <div class="relative w-16 h-16 bg-white rounded-2xl border border-slate-200 flex items-center justify-center overflow-hidden shrink-0 shadow-inner">
+                                                <img id="store-logo-preview" class="absolute inset-0 w-full h-full object-cover hidden cursor-pointer" onclick="window.openStoreImageModal(this.src)" title="לחץ להגדלה">
+                                                <i id="store-logo-placeholder" class="fa-solid fa-store text-2xl text-slate-300"></i>
+                                            </div>
+                                            <div class="flex flex-col gap-2 w-full">
+                                                <button onclick="document.getElementById('store-logo-upload').click()" class="bg-white text-slate-600 px-3 py-2 rounded-xl text-[10px] font-bold border border-slate-200 hover:bg-slate-100 transition shadow-sm w-full"><i class="fa-solid fa-upload"></i> העלה קובץ</button>
+                                                <button onclick="window.clearImage('store-logo')" id="btn-clear-logo" class="bg-red-50 text-red-500 px-3 py-2 rounded-xl text-[10px] font-bold border border-red-100 hover:bg-red-100 transition shadow-sm w-full hidden"><i class="fa-solid fa-trash"></i> מחק</button>
+                                            </div>
+                                            <input type="file" id="store-logo-upload" accept="image/*" class="hidden" onchange="window.handleStoreLogoUpload(event)">
+                                            <input type="hidden" id="store-logo-base64">
+                                        </div>
+                                    </div>
+                                    <div class="bg-slate-50 p-3.5 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between">
+                                        <label class="text-xs font-bold text-slate-700 block mb-3">באנר / רקע ראשי</label>
+                                        <div class="flex items-center gap-3 mb-2">
+                                            <div class="relative w-24 h-16 bg-white rounded-2xl border border-slate-200 flex items-center justify-center overflow-hidden shrink-0 shadow-inner">
+                                                <img id="store-banner-preview" class="absolute inset-0 w-full h-full object-cover hidden cursor-pointer" onclick="window.openStoreImageModal(this.src)" title="לחץ להגדלה">
+                                                <i id="store-banner-placeholder" class="fa-regular fa-image text-2xl text-slate-300"></i>
+                                            </div>
+                                            <div class="flex flex-col gap-2 w-full">
+                                                <button onclick="document.getElementById('store-banner-upload').click()" class="bg-white text-slate-600 px-3 py-2 rounded-xl text-[10px] font-bold border border-slate-200 hover:bg-slate-100 transition shadow-sm w-full"><i class="fa-solid fa-upload"></i> העלה קובץ</button>
+                                                <button onclick="window.clearImage('store-banner')" id="btn-clear-bg" class="bg-red-50 text-red-500 px-3 py-2 rounded-xl text-[10px] font-bold border border-red-100 hover:bg-red-100 transition shadow-sm w-full hidden"><i class="fa-solid fa-trash"></i> מחק</button>
+                                            </div>
+                                            <input type="file" id="store-banner-upload" accept="image/*" class="hidden" onchange="window.handleStoreBannerUpload(event)">
+                                            <input type="hidden" id="store-banner-base64">
+                                        </div>
+                                        <button id="btn-generate-banner-ai" onclick="window.generateBannerAI()" class="hidden bg-purple-50 text-purple-600 hover:bg-purple-100 px-3 py-2 rounded-xl text-[10px] font-bold border border-purple-100 transition shadow-sm flex items-center justify-center gap-1 w-full"><i class="fa-solid fa-wand-magic-sparkles"></i> התאם רקע ללוגו (AI)</button>
+                                    </div>
+                                </div>
 
                                 <!-- תבנית חנות -->
                                 <div class="bg-indigo-50 p-4 rounded-2xl border border-indigo-100 shadow-sm">
@@ -957,59 +1077,50 @@ window.injectBusinessUI = function() {
                                             <div class="text-2xl mb-1">🛍️</div>
                                             <div class="text-xs font-bold text-slate-700">קלאסית</div>
                                             <div class="text-[10px] text-slate-400">נקייה ואלגנטית</div>
-                                            <button onclick="previewTemplate('classic',event)" title="תצוגה מקדימה" class="mt-1.5 text-[10px] text-indigo-500 hover:text-indigo-700 font-medium flex items-center gap-0.5 mx-auto">👁 תצוגה</button>
+                                            <button onclick="previewTemplate('classic',event)" class="mt-1.5 text-[10px] text-indigo-500 hover:text-indigo-700 font-medium flex items-center gap-0.5 mx-auto">👁 תצוגה</button>
                                         </div>
                                         <div class="template-card cursor-pointer rounded-xl border-2 border-slate-200 bg-white p-3 text-center transition" data-tid="restaurant" onclick="selectStoreTemplate('restaurant')">
                                             <div class="text-2xl mb-1">🎨</div>
                                             <div class="text-xs font-bold text-slate-700">חמה</div>
                                             <div class="text-[10px] text-slate-400">עיצוב עשיר ומזמין</div>
-                                            <button onclick="previewTemplate('restaurant',event)" title="תצוגה מקדימה" class="mt-1.5 text-[10px] text-indigo-500 hover:text-indigo-700 font-medium flex items-center gap-0.5 mx-auto">👁 תצוגה</button>
+                                            <button onclick="previewTemplate('restaurant',event)" class="mt-1.5 text-[10px] text-indigo-500 hover:text-indigo-700 font-medium flex items-center gap-0.5 mx-auto">👁 תצוגה</button>
                                         </div>
                                         <div class="template-card cursor-pointer rounded-xl border-2 border-slate-200 bg-white p-3 text-center transition" data-tid="sport" onclick="selectStoreTemplate('sport')">
                                             <div class="text-2xl mb-1">⚡</div>
                                             <div class="text-xs font-bold text-slate-700">דינמית</div>
                                             <div class="text-[10px] text-slate-400">נועזת ומודרנית</div>
-                                            <button onclick="previewTemplate('sport',event)" title="תצוגה מקדימה" class="mt-1.5 text-[10px] text-indigo-500 hover:text-indigo-700 font-medium flex items-center gap-0.5 mx-auto">👁 תצוגה</button>
+                                            <button onclick="previewTemplate('sport',event)" class="mt-1.5 text-[10px] text-indigo-500 hover:text-indigo-700 font-medium flex items-center gap-0.5 mx-auto">👁 תצוגה</button>
                                         </div>
                                         <div class="template-card cursor-pointer rounded-xl border-2 border-slate-200 bg-white p-3 text-center transition" data-tid="market" onclick="selectStoreTemplate('market')">
                                             <div class="text-2xl mb-1">🏪</div>
                                             <div class="text-xs font-bold text-slate-700">שוק</div>
                                             <div class="text-[10px] text-slate-400">מגוון ומרובה מוצרים</div>
-                                            <button onclick="previewTemplate('market',event)" title="תצוגה מקדימה" class="mt-1.5 text-[10px] text-indigo-500 hover:text-indigo-700 font-medium flex items-center gap-0.5 mx-auto">👁 תצוגה</button>
+                                            <button onclick="previewTemplate('market',event)" class="mt-1.5 text-[10px] text-indigo-500 hover:text-indigo-700 font-medium flex items-center gap-0.5 mx-auto">👁 תצוגה</button>
                                         </div>
                                     </div>
                                     <input type="hidden" id="store-template-id" value="classic">
                                 </div>
 
-                                <!-- שדות תבנית מסעדה -->
+                                <!-- שדות ספציפיים לתבנית חמה/דינמית/שוק -->
                                 <div id="restaurant-extra-fields" class="space-y-3" style="display:none">
                                     <div class="flex items-start gap-2 bg-blue-50 border border-blue-100 rounded-xl p-3">
                                         <i class="fa-solid fa-circle-info text-blue-400 mt-0.5 text-sm shrink-0"></i>
-                                        <p class="text-xs text-blue-700 leading-relaxed"><strong>תמונת גיבור לבאנר הראשי</strong> — העלה מסעיף <strong>לוגו ובאנר</strong> שמעל (שדה "באנר / רקע ראשי"). אם לא הועלתה תמונה, יוצגו תמונות מוצרים מהקטלוג אוטומטית.</p>
+                                        <p class="text-xs text-blue-700 leading-relaxed"><strong>תמונת גיבור לבאנר הראשי</strong> — העלה מסעיף "באנר / רקע ראשי" שמעל. אם לא הועלתה תמונה, יוצגו תמונות מוצרים מהקטלוג אוטומטית.</p>
                                     </div>
                                     <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100 shadow-sm">
-                                        <label class="text-xs font-bold text-slate-700 block mb-1.5"><i class="fa-solid fa-droplet text-pink-500 ml-1"></i> צבע מבטא לחנות:</label>
+                                        <label class="text-xs font-bold text-slate-700 block mb-1.5"><i class="fa-solid fa-droplet text-pink-500 ml-1"></i> צבע מבטא לחנות</label>
                                         <div class="flex items-center gap-3">
                                             <input type="color" id="store-accent-color" value="#e63946" class="w-10 h-10 rounded-lg border border-slate-200 cursor-pointer p-0.5">
                                             <input type="text" id="store-accent-color-text" value="#e63946" maxlength="7" class="modern-input py-2 text-sm bg-white flex-1 font-mono" placeholder="#e63946" oninput="document.getElementById('store-accent-color').value=this.value">
                                         </div>
                                     </div>
                                     <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100 shadow-sm">
-                                        <label class="text-xs font-bold text-slate-700 block mb-2"><i class="fa-solid fa-truck text-emerald-500 ml-1"></i> הגדרות משלוח ואיסוף</label>
+                                        <label class="text-xs font-bold text-slate-700 block mb-2"><i class="fa-solid fa-truck text-emerald-500 ml-1"></i> זמני משלוח ואיסוף</label>
                                         <div class="grid grid-cols-2 gap-3 mb-2">
-                                            <div>
-                                                <label class="text-[10px] text-slate-500 block mb-1">זמן משלוח (דקות)</label>
-                                                <input type="number" id="store-delivery-eta" min="0" max="180" value="35" class="modern-input py-2 text-sm bg-white w-full text-center">
-                                            </div>
-                                            <div>
-                                                <label class="text-[10px] text-slate-500 block mb-1">זמן איסוף (דקות)</label>
-                                                <input type="number" id="store-pickup-eta" min="0" max="120" value="15" class="modern-input py-2 text-sm bg-white w-full text-center">
-                                            </div>
+                                            <div><label class="text-[10px] text-slate-500 block mb-1">זמן משלוח (דקות)</label><input type="number" id="store-delivery-eta" min="0" max="180" value="35" class="modern-input py-2 text-sm bg-white w-full text-center"></div>
+                                            <div><label class="text-[10px] text-slate-500 block mb-1">זמן איסוף (דקות)</label><input type="number" id="store-pickup-eta" min="0" max="120" value="15" class="modern-input py-2 text-sm bg-white w-full text-center"></div>
                                         </div>
-                                        <div>
-                                            <label class="text-[10px] text-slate-500 block mb-1">משלוח חינם מעל (₪) — 0 = לא מוצג</label>
-                                            <input type="number" id="store-free-delivery-above" min="0" value="0" class="modern-input py-2 text-sm bg-white w-full text-center">
-                                        </div>
+                                        <div><label class="text-[10px] text-slate-500 block mb-1">משלוח חינם מעל (₪) — 0 = לא מוצג</label><input type="number" id="store-free-delivery-above" min="0" value="0" class="modern-input py-2 text-sm bg-white w-full text-center"></div>
                                         <div class="mt-3 pt-3 border-t border-slate-200">
                                             <label class="text-[10px] font-bold text-slate-500 block mb-1.5">✏️ כותרות באנרים (ריק = ברירת מחדל)</label>
                                             <div class="space-y-2">
@@ -1027,277 +1138,125 @@ window.injectBusinessUI = function() {
                                     </div>
                                 </div>
 
-                                <div class="bg-indigo-50 p-4 rounded-2xl border border-indigo-100 shadow-sm">
-                                    <div class="flex items-center justify-between mb-2">
-                                        <label class="font-bold text-indigo-800 text-sm flex items-center gap-2 cursor-pointer">
-                                            <input type="checkbox" id="store-include-vat" class="w-5 h-5 accent-indigo-600 rounded">
-                                            הצג רכיב מע"מ בקבלות (מגולם במחיר)
-                                        </label>
-                                    </div>
-                                    <div class="flex items-center gap-3">
-                                        <label class="text-xs font-bold text-slate-600">אחוז מע"מ:</label>
-                                        <input type="number" id="store-vat-rate" class="modern-input py-1.5 px-3 text-sm text-center w-24 bg-white" value="18">
-                                    </div>
-                                </div>
+                                <button onclick="window.saveStoreSettings()" class="w-full bg-slate-800 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-slate-700 transition text-sm">שמור עיצוב ✓</button>
+                            </div>
+                        </div>
 
-                                <div>
-                                    <label class="text-xs font-bold text-slate-500 block mb-1.5">הודעת פתיחה בחנות:</label>
-                                    <textarea id="store-welcome-msg" class="modern-input py-2 text-sm h-16" placeholder="ברוכים הבאים לחנות שלנו!"></textarea>
-                                </div>
-                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">סוג חנות:</label><select id="store-type" class="modern-input py-2 text-sm w-full"><option value="retail">קמעונאות / כללי</option><option value="food">מזון / מסעדה</option><option value="services">שירותים</option></select></div>
-                                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">טלפון להזמנות:</label><input type="tel" id="store-phone" class="modern-input py-2 text-sm w-full dir-ltr text-left"></div>
-                                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">וואטסאפ (אופציונלי):</label><input type="tel" id="store-whatsapp" class="modern-input py-2 text-sm w-full dir-ltr text-left"></div>
-                                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">מינימום הזמנה (₪):</label><input type="number" id="store-min-order" class="modern-input py-2 text-sm w-full dir-ltr text-left"></div>
-                                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">סלוגן:</label><input type="text" id="store-slogan" class="modern-input py-2 text-sm w-full"></div>
-                                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">שעת פתיחה:</label><input type="time" id="store-open-time" class="modern-input py-2 text-sm w-full"></div>
-                                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">שעת סגירה:</label><input type="time" id="store-close-time" class="modern-input py-2 text-sm w-full"></div>
-                                </div>
-                                
-                                <div>
-                                    <label class="text-xs font-bold text-slate-500 mb-1 block">קישור לחנות הציבורית:</label>
-                                    <div class="flex gap-2">
-                                        <input type="text" id="store-public-link" class="modern-input py-2 text-sm w-full bg-slate-50 text-slate-500 dir-ltr text-left" readonly>
-                                        <button onclick="window.copyStoreLink()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-4 py-2 rounded-xl font-bold transition shrink-0"><i class="fa-solid fa-copy"></i></button>
-                                    </div>
-                                </div>
+                        <!-- ══ טאב: משלוחים ══ -->
+                        <div id="sts-tab-delivery" class="hidden space-y-4">
 
-                                <div>
-                                    <label class="text-xs font-bold text-slate-500 mb-1 block">קישור ראשי לתפריטים:</label>
-                                    <div class="flex gap-2">
-                                        <input type="text" id="store-menus-link" class="modern-input py-2 text-sm w-full bg-slate-50 text-slate-500 dir-ltr text-left" readonly>
-                                        <button onclick="window.copyMenusLink()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-4 py-2 rounded-xl font-bold transition shrink-0"><i class="fa-solid fa-copy"></i></button>
-                                        <a id="store-menus-link-open" href="#" target="_blank" class="bg-emerald-100 hover:bg-emerald-200 text-emerald-700 px-4 py-2 rounded-xl font-bold transition shrink-0 flex items-center"><i class="fa-solid fa-arrow-up-right-from-square"></i></a>
+                            <!-- אזורי משלוח (קופה) -->
+                            <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                                <div id="delivery-zones-section">
+                                    <div class="flex justify-between items-center mb-3">
+                                        <h4 class="font-black text-slate-800 text-sm">📦 אזורי משלוח (קופה)</h4>
+                                        <button onclick="window.openDeliveryZoneModal()" class="text-[11px] font-bold bg-indigo-600 text-white px-3 py-1.5 rounded-lg hover:bg-indigo-700 transition"><i class="fa-solid fa-plus ml-1"></i>הוסף אזור</button>
+                                    </div>
+                                    <div id="delivery-zones-list" class="space-y-2 mb-2">
+                                        <p class="text-xs text-slate-400 text-center py-3">לא הוגדרו אזורי משלוח</p>
+                                    </div>
+                                    <p class="text-[10px] text-slate-400">כל אזור מגדיר עלות משלוח ומינימום הזמנה. בעת הזמנת משלוח בקופה — יוצג בורר אזור.</p>
+                                </div>
+                            </div>
+
+                            <!-- אזורי שירות מרקטפלייס -->
+                            <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+                                <h4 class="font-black text-slate-800 mb-1 flex items-center gap-2"><i class="fa-solid fa-map-location-dot text-indigo-500"></i> אזורי שירות — מרקטפלייס</h4>
+                                <p class="text-xs text-slate-500 mb-3">הגדר את האזורים שבהם העסק פעיל — ברמת רחוב, שכונה, עיר או אזור ארצי.</p>
+                                <div id="biz-service-areas-list" class="flex flex-wrap gap-2 mb-3 min-h-[32px]"><span class="text-xs text-slate-400 italic">טוען...</span></div>
+                                <p class="text-[11px] text-slate-400 mb-1.5">💡 ניתן לחפש שכונה ספציפית — למשל "ראשון לציון מזרח", "נחלת יהודה", "פלורנטין"</p>
+                                <div class="flex gap-2 items-center mb-3">
+                                    <input id="biz-area-city-input" type="text" placeholder="עיר, שכונה, רחוב..." class="modern-input flex-1 py-2 text-sm" onkeydown="if(event.key==='Enter') window.addBizServiceArea()" autocomplete="off" />
+                                    <select id="biz-area-radius" class="modern-input py-2 text-sm w-24">
+                                        <option value="1">1 ק"מ</option><option value="2">2 ק"מ</option><option value="5">5 ק"מ</option>
+                                        <option value="10" selected>10 ק"מ</option><option value="20">20 ק"מ</option><option value="30">30 ק"מ</option><option value="50">50 ק"מ</option>
+                                    </select>
+                                    <button onclick="window.addBizServiceArea()" class="bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-indigo-700 transition whitespace-nowrap">+ הוסף</button>
+                                </div>
+                                <div id="biz-quick-areas-wrap">
+                                    <p class="text-[11px] text-slate-400 mb-1.5">בחירה מהירה — לחץ לבחור, הגדר רדיוס והוסף:</p>
+                                    <div id="biz-quick-area-tabs" class="flex gap-1.5 mb-2 flex-wrap"></div>
+                                    <div id="biz-quick-area-chips" class="flex gap-1.5 flex-wrap"></div>
+                                </div>
+                            </div>
+
+                            <!-- מעגלי משלוח -->
+                            <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-5">
+                                <h4 class="font-black text-slate-800 mb-1 flex items-center gap-2">
+                                    <i class="fa-solid fa-motorcycle text-emerald-500"></i> מעגלי משלוח
+                                    <span class="relative group cursor-pointer">
+                                        <span class="w-5 h-5 rounded-full bg-slate-200 text-slate-500 text-[11px] font-bold flex items-center justify-center hover:bg-indigo-100 hover:text-indigo-600 transition select-none">?</span>
+                                        <span class="absolute right-0 top-6 z-50 w-72 bg-slate-800 text-white text-[11px] leading-relaxed rounded-xl p-3 shadow-xl opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-200" style="direction:rtl">
+                                            <strong class="text-emerald-300 block mb-1">איך מעגלי משלוח עובדים?</strong>
+                                            1. הגדר <strong>כתובת מדויקת</strong> לעסק — זו נקודת המרכז.<br>
+                                            2. הוסף <strong>מעגלים</strong> לפי רדיוס (ק"מ) + עלות משלוח.<br>
+                                            3. כשלקוח מזמין משלוח עד הבית, המערכת מחשבת את המרחק האווירי מהעסק ובוחרת את המעגל הקרוב ביותר.<br>
+                                            4. עלות המעגל <strong>מתווספת אוטומטית</strong> לסל הקנייה בחנות.<br>
+                                            <span class="text-red-300 text-[10px] mt-1 block">⚠️ לקוח מחוץ לכל המעגלים → משלוח לא זמין</span>
+                                        </span>
+                                    </span>
+                                </h4>
+                                <p class="text-xs text-slate-500 mb-4">הגדר מיקום העסק ומעגלי רדיוס — העלות תתווסף אוטומטית בחנות.</p>
+                                <div class="bg-slate-50 rounded-xl p-3 mb-4 border border-slate-200">
+                                    <p class="text-xs font-bold text-slate-600 mb-2">📍 כתובת העסק (נקודת מוצא למשלוחים)</p>
+                                    <div id="biz-location-display" class="text-xs text-emerald-600 font-bold mb-2 hidden"></div>
+                                    <div class="flex gap-2 relative">
+                                        <input id="biz-location-input" type="text" placeholder="הקלד כתובת מדויקת..." autocomplete="off" class="modern-input flex-1 py-2 text-sm" />
+                                        <button onclick="window.saveBizLocation()" class="bg-emerald-600 text-white px-3 py-2 rounded-xl text-sm font-bold hover:bg-emerald-700 transition whitespace-nowrap">שמור</button>
                                     </div>
                                 </div>
-
-                                <h4 class="font-black text-slate-800 mb-4 mt-8">עיצוב ומיתוג</h4>
-                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                                    <div class="bg-slate-50 p-3.5 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between">
-                                         <label class="text-xs font-bold text-slate-700 block mb-3">לוגו העסק:</label>
-                                         <div class="flex items-center gap-3">
-                                             <div class="relative w-16 h-16 bg-white rounded-2xl border border-slate-200 flex items-center justify-center overflow-hidden shrink-0 shadow-inner">
-                                                 <img id="store-logo-preview" class="absolute inset-0 w-full h-full object-cover hidden cursor-pointer" onclick="window.openStoreImageModal(this.src)" title="לחץ להגדלה">
-                                                 <i id="store-logo-placeholder" class="fa-solid fa-store text-2xl text-slate-300"></i>
-                                             </div>
-                                             <div class="flex flex-col gap-2 w-full">
-                                                 <button onclick="document.getElementById('store-logo-upload').click()" class="bg-white text-slate-600 px-3 py-2 rounded-xl text-[10px] font-bold border border-slate-200 hover:bg-slate-100 transition shadow-sm w-full"><i class="fa-solid fa-upload"></i> העלה קובץ</button>
-                                                 <button onclick="window.clearImage('store-logo')" id="btn-clear-logo" class="bg-red-50 text-red-500 px-3 py-2 rounded-xl text-[10px] font-bold border border-red-100 hover:bg-red-100 transition shadow-sm w-full hidden"><i class="fa-solid fa-trash"></i> מחק תמונה</button>
-                                             </div>
-                                             <input type="file" id="store-logo-upload" accept="image/*" class="hidden" onchange="window.handleStoreLogoUpload(event)">
-                                             <input type="hidden" id="store-logo-base64">
-                                         </div>
+                                <div id="biz-radius-zones-list" class="space-y-2 mb-4"></div>
+                                <div class="bg-indigo-50/50 rounded-xl p-3 border border-indigo-100">
+                                    <p class="text-xs font-bold text-indigo-700 mb-2">+ הוסף מעגל משלוח</p>
+                                    <div class="flex gap-2 items-center">
+                                        <div class="flex flex-col gap-1 flex-1"><label class="text-[10px] text-slate-400 font-bold">רדיוס (ק"מ)</label><input id="biz-zone-radius" type="number" min="1" max="100" value="5" class="modern-input py-2 text-sm text-center" /></div>
+                                        <div class="flex flex-col gap-1 flex-1"><label class="text-[10px] text-slate-400 font-bold">עלות משלוח (₪)</label><input id="biz-zone-fee" type="number" min="0" step="0.5" value="0" class="modern-input py-2 text-sm text-center" placeholder="0 = חינם" /></div>
+                                        <button onclick="window.addBizRadiusZone()" class="bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-indigo-700 transition whitespace-nowrap self-end mb-0.5">+ הוסף</button>
                                     </div>
-                                    <div class="bg-slate-50 p-3.5 rounded-2xl border border-slate-100 shadow-sm flex flex-col justify-between">
-                                         <label class="text-xs font-bold text-slate-700 block mb-3">באנר / רקע ראשי:</label>
-                                         <div class="flex items-center gap-3 mb-2">
-                                             <div class="relative w-24 h-16 bg-white rounded-2xl border border-slate-200 flex items-center justify-center overflow-hidden shrink-0 shadow-inner">
-                                                 <img id="store-banner-preview" class="absolute inset-0 w-full h-full object-cover hidden cursor-pointer" onclick="window.openStoreImageModal(this.src)" title="לחץ להגדלה">
-                                                 <i id="store-banner-placeholder" class="fa-regular fa-image text-2xl text-slate-300"></i>
-                                             </div>
-                                             <div class="flex flex-col gap-2 w-full">
-                                                 <button onclick="document.getElementById('store-banner-upload').click()" class="bg-white text-slate-600 px-3 py-2 rounded-xl text-[10px] font-bold border border-slate-200 hover:bg-slate-100 transition shadow-sm w-full"><i class="fa-solid fa-upload"></i> העלה קובץ</button>
-                                                 <button onclick="window.clearImage('store-banner')" id="btn-clear-bg" class="bg-red-50 text-red-500 px-3 py-2 rounded-xl text-[10px] font-bold border border-red-100 hover:bg-red-100 transition shadow-sm w-full hidden"><i class="fa-solid fa-trash"></i> מחק רקע</button>
-                                             </div>
-                                             <input type="file" id="store-banner-upload" accept="image/*" class="hidden" onchange="window.handleStoreBannerUpload(event)">
-                                             <input type="hidden" id="store-banner-base64">
-                                         </div>
-                                         <button id="btn-generate-banner-ai" onclick="window.generateBannerAI()" class="hidden bg-purple-50 text-purple-600 hover:bg-purple-100 px-3 py-2 rounded-xl text-[10px] font-bold border border-purple-100 transition shadow-sm flex items-center justify-center gap-1 w-full"><i class="fa-solid fa-wand-magic-sparkles"></i> התאם רקע ללוגו (AI)</button>
-                                    </div>
+                                    <p class="text-[10px] text-slate-400 mt-1.5">💡 הגדר מספר מעגלים — הלקוח יקבל את עלות המעגל הקרוב ביותר. עלות 0 = משלוח חינם.</p>
                                 </div>
+                            </div>
+                        </div>
 
-                                <div id="modifiers-section-wrapper">
-                                <h4 class="font-black text-slate-800 mb-4 mt-8">תבניות הרכבה (Modifiers)</h4>
+                        <!-- ══ טאב: תוספות ══ -->
+                        <div id="sts-tab-modifiers" class="hidden space-y-4">
+
+                            <!-- תבניות הרכבה -->
+                            <div id="modifiers-section-wrapper" class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                                <h4 class="font-black text-slate-800 mb-4">🔧 תבניות הרכבה (Modifiers)</h4>
                                 <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
                                     <div class="flex justify-between items-center mb-3">
-                                        <label class="text-xs font-bold text-slate-700">תבניות קיימות במערכת:</label>
+                                        <label class="text-xs font-bold text-slate-700">תבניות קיימות:</label>
                                         <select id="preset-selector" onchange="window.loadPreset(this.value)" class="modern-input py-1.5 px-3 text-xs w-2/3 bg-white hidden"></select>
                                     </div>
                                     <div id="modifiers-builder-container" class="space-y-3"></div>
                                     <button onclick="window.addModifierGroup()" class="mt-3 bg-white text-indigo-600 px-4 py-2 rounded-xl text-xs font-bold border border-indigo-200 hover:bg-indigo-50 transition shadow-sm w-full"><i class="fa-solid fa-plus mr-1"></i> הוסף קבוצת בחירה חדשה (תוספות / הרכבה)</button>
                                 </div>
-                                </div>
+                            </div>
 
-                                <div id="restaurant-store-settings-block" class="hidden space-y-4">
-                                    <h4 class="font-black text-slate-800 mb-3 mt-8">🍽️ הגדרות מסעדה / קפה</h4>
-                                    <div class="bg-orange-50 border border-orange-100 rounded-2xl p-4 space-y-3">
-                                        <p class="text-xs font-bold text-slate-500 mb-1">בחרו אילו כפתורים יוצגו בחנות הציבורית:</p>
-                                        <label class="flex items-start gap-3 p-3 bg-white rounded-xl border border-slate-200 cursor-pointer has-[:checked]:border-orange-400 has-[:checked]:bg-orange-50 transition">
-                                            <input type="checkbox" id="store-enable-table-booking" class="w-5 h-5 accent-orange-500 rounded mt-0.5 shrink-0">
-                                            <div>
-                                                <span class="font-bold text-slate-700 text-sm block">🪑 הזמנת שולחן</span>
-                                                <span class="text-xs text-slate-400">לקוחות יוכלו לבקש שריון שולחן על בסיס זמינות שולחנות</span>
-                                            </div>
-                                        </label>
-                                        <label class="flex items-start gap-3 p-3 bg-white rounded-xl border border-slate-200 cursor-pointer has-[:checked]:border-orange-400 has-[:checked]:bg-orange-50 transition">
-                                            <input type="checkbox" id="store-enable-event-booking" class="w-5 h-5 accent-orange-500 rounded mt-0.5 shrink-0">
-                                            <div>
-                                                <span class="font-bold text-slate-700 text-sm block">🎉 הזמנת בקשת אירוע / קייטרינג</span>
-                                                <span class="text-xs text-slate-400">לקוחות שולחים בקשה לאירוע עם בחירת תפריט ומספר סועדים — מגיע כהצעת מחיר לאישורך</span>
-                                            </div>
-                                        </label>
+                            <!-- הגדרות ספורט -->
+                            <div id="sport-store-settings-block" class="hidden bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                                <h4 class="font-black text-slate-800">🏋️ הגדרות ספורט</h4>
+                                <div class="bg-indigo-50 border border-indigo-200 rounded-2xl p-4">
+                                    <div class="font-bold text-indigo-800 text-sm mb-3">🌐 מה מוצג בחנות הציבורית?</div>
+                                    <div class="space-y-3">
+                                        <label class="flex items-center justify-between gap-2 cursor-pointer"><span class="text-sm text-slate-700">📋 לוח שיעורים + הרשמה לשיעור</span><input type="checkbox" id="sport-public-schedule" class="w-5 h-5 accent-indigo-600 rounded"></label>
+                                        <label class="flex items-center justify-between gap-2 cursor-pointer"><span class="text-sm text-slate-700">🏋️ הצטרפות מנוי (הרשמה עצמאית)</span><input type="checkbox" id="sport-public-membership" class="w-5 h-5 accent-indigo-600 rounded"></label>
+                                        <label class="flex items-center justify-between gap-2 cursor-pointer"><span class="text-sm text-slate-700">📅 הזמנת אימון אישי עם מאמן</span><input type="checkbox" id="sport-public-trainer" class="w-5 h-5 accent-indigo-600 rounded"></label>
                                     </div>
                                 </div>
-
-                                <div id="sport-store-settings-block" class="hidden space-y-4">
-                                    <h4 class="font-black text-slate-800 mb-4 mt-8">הגדרות ספורט</h4>
-                                    <div class="space-y-4">
-                                        <!-- Public store exposure toggles -->
-                                        <div class="bg-indigo-50 border border-indigo-200 rounded-2xl p-4">
-                                            <div class="font-bold text-indigo-800 text-sm mb-3">🌐 מה מוצג בחנות הציבורית?</div>
-                                            <div class="space-y-3">
-                                                <label class="flex items-center justify-between gap-2 cursor-pointer">
-                                                    <span class="text-sm text-slate-700">📋 לוח שיעורים + הרשמה לשיעור</span>
-                                                    <input type="checkbox" id="sport-public-schedule" class="w-5 h-5 accent-indigo-600 rounded">
-                                                </label>
-                                                <label class="flex items-center justify-between gap-2 cursor-pointer">
-                                                    <span class="text-sm text-slate-700">🏋️ הצטרפות מנוי (הרשמה עצמאית)</span>
-                                                    <input type="checkbox" id="sport-public-membership" class="w-5 h-5 accent-indigo-600 rounded">
-                                                </label>
-                                                <label class="flex items-center justify-between gap-2 cursor-pointer">
-                                                    <span class="text-sm text-slate-700">📅 הזמנת אימון אישי עם מאמן</span>
-                                                    <input type="checkbox" id="sport-public-trainer" class="w-5 h-5 accent-indigo-600 rounded">
-                                                </label>
-                                            </div>
-                                        </div>
-                                        <label class="flex items-center gap-2 cursor-pointer">
-                                            <input type="checkbox" id="sport-trial-enabled" class="w-5 h-5 accent-indigo-600 rounded">
-                                            <span class="font-bold text-slate-700 text-sm">אפשר שיעור ניסיון חינם לחברים חדשים</span>
-                                        </label>
-                                        <div>
-                                            <label class="text-xs font-bold text-slate-500 block mb-1.5">מדיניות ביטול מנוי:</label>
-                                            <textarea id="sport-cancellation-policy" class="modern-input py-2 text-sm h-20" placeholder="לדוגמה: ניתן לבטל מנוי עד 14 ימים לפני תחילתו, ללא עלות..."></textarea>
-                                        </div>
-                                        <div>
-                                            <label class="text-xs font-bold text-slate-500 block mb-1.5">מדיניות הקפאת מנוי:</label>
-                                            <textarea id="sport-freeze-policy" class="modern-input py-2 text-sm h-16" placeholder="לדוגמה: ניתן להקפיא מנוי פעם אחת בשנה, עד 30 יום..."></textarea>
-                                        </div>
-                                        <div>
-                                            <label class="text-xs font-bold text-slate-500 block mb-1.5">הצהרת כשירות גופנית / כתב ויתור:</label>
-                                            <textarea id="sport-waiver-text" class="modern-input py-2 text-sm h-16" placeholder="הצהרה שתוצג ללקוחות בעת רישום..."></textarea>
-                                        </div>
-                                        <div class="grid grid-cols-2 gap-3">
-                                            <div>
-                                                <label class="text-xs font-bold text-slate-500 block mb-1.5">גיל מינימלי לחברות:</label>
-                                                <input type="number" id="sport-min-age" min="0" max="99" class="modern-input py-2 text-sm w-full" placeholder="16">
-                                            </div>
-                                            <div>
-                                                <label class="text-xs font-bold text-slate-500 block mb-1.5">ימי הודעה מוקדמת לביטול:</label>
-                                                <input type="number" id="sport-cancel-notice-days" min="0" max="90" class="modern-input py-2 text-sm w-full" placeholder="14">
-                                            </div>
-                                        </div>
-                                    </div>
+                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="sport-trial-enabled" class="w-5 h-5 accent-indigo-600 rounded"><span class="font-bold text-slate-700 text-sm">אפשר שיעור ניסיון חינם לחברים חדשים</span></label>
+                                <div><label class="text-xs font-bold text-slate-500 block mb-1.5">מדיניות ביטול מנוי</label><textarea id="sport-cancellation-policy" class="modern-input py-2 text-sm h-20" placeholder="לדוגמה: ניתן לבטל מנוי עד 14 ימים לפני תחילתו..."></textarea></div>
+                                <div><label class="text-xs font-bold text-slate-500 block mb-1.5">מדיניות הקפאת מנוי</label><textarea id="sport-freeze-policy" class="modern-input py-2 text-sm h-16" placeholder="לדוגמה: ניתן להקפיא מנוי פעם אחת בשנה, עד 30 יום..."></textarea></div>
+                                <div><label class="text-xs font-bold text-slate-500 block mb-1.5">הצהרת כשירות גופנית / כתב ויתור</label><textarea id="sport-waiver-text" class="modern-input py-2 text-sm h-16" placeholder="הצהרה שתוצג ללקוחות בעת רישום..."></textarea></div>
+                                <div class="grid grid-cols-2 gap-3">
+                                    <div><label class="text-xs font-bold text-slate-500 block mb-1.5">גיל מינימלי לחברות</label><input type="number" id="sport-min-age" min="0" max="99" class="modern-input py-2 text-sm w-full" placeholder="16"></div>
+                                    <div><label class="text-xs font-bold text-slate-500 block mb-1.5">ימי הודעה מוקדמת לביטול</label><input type="number" id="sport-cancel-notice-days" min="0" max="90" class="modern-input py-2 text-sm w-full" placeholder="14"></div>
                                 </div>
-
-                            </div>
-                            <!-- אזורי משלוח -->
-                            <div id="delivery-zones-section" class="mt-6 hidden">
-                                <div class="flex justify-between items-center mb-3">
-                                    <h4 class="font-black text-slate-800 text-sm">🛵 אזורי משלוח</h4>
-                                    <button onclick="window.openDeliveryZoneModal()" class="text-[11px] font-bold bg-indigo-600 text-white px-3 py-1.5 rounded-lg hover:bg-indigo-700 transition"><i class="fa-solid fa-plus ml-1"></i>הוסף אזור</button>
-                                </div>
-                                <div id="delivery-zones-list" class="space-y-2 mb-2">
-                                    <p class="text-xs text-slate-400 text-center py-3">לא הוגדרו אזורי משלוח</p>
-                                </div>
-                                <p class="text-[10px] text-slate-400">כל אזור מגדיר עלות משלוח ומינימום הזמנה. בעת הזמנת משלוח בקופה — יוצג בורר אזור.</p>
-                            </div>
-                            <div class="bg-slate-50 p-4 rounded-xl border border-slate-100 mt-4">
-                                <label class="text-xs font-bold text-slate-700 block mb-1.5"><i class="fa-solid fa-envelope text-indigo-500"></i> מייל לקבלת הזמנות:</label>
-                                <input type="email" id="store-order-email" class="modern-input py-2 text-sm bg-white" placeholder="example@gmail.com" dir="ltr">
-                                <p class="text-[10px] text-slate-400 mt-1.5">כתובת המייל שאליה יישלחו התראות על הזמנות חדשות. ריק = ברירת מחדל (מייל הנהלת החשבון).</p>
-                            </div>
-                            <button id="btn-save-store-settings" onclick="window.saveStoreSettings()" class="w-full mt-6 bg-slate-800 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-slate-700 transition text-sm">שמור הגדרות חנות</button>
-
-                            <!-- קיצורי דרך לניהול אזורים -->
-                            <div class="grid grid-cols-2 gap-2 mt-3">
-                                <button onclick="window.openServiceAreasSettings()" class="flex items-center justify-center gap-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-sm py-2.5 rounded-xl border border-indigo-200 transition">
-                                    <i class="fa-solid fa-map-location-dot"></i> אזורי שירות
-                                </button>
-                                <button onclick="window.openRadiusZonesSettings()" class="flex items-center justify-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold text-sm py-2.5 rounded-xl border border-emerald-200 transition">
-                                    <i class="fa-solid fa-motorcycle"></i> מעגלי משלוח
-                                </button>
+                                <button onclick="window.saveStoreSettings()" class="w-full bg-slate-800 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-slate-700 transition text-sm">שמור ✓</button>
                             </div>
                         </div>
 
-                        <!-- אזורי שירות מרקטפלייס -->
-                        <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 mt-4">
-                            <h4 class="font-black text-slate-800 mb-1 flex items-center gap-2"><i class="fa-solid fa-map-location-dot text-indigo-500"></i> אזורי שירות — מרקטפלייס</h4>
-                            <p class="text-xs text-slate-500 mb-3">הגדר את האזורים שבהם העסק פעיל — ברמת רחוב, שכונה, עיר או אזור ארצי.</p>
-                            <div id="biz-service-areas-list" class="flex flex-wrap gap-2 mb-3 min-h-[32px]">
-                                <span class="text-xs text-slate-400 italic">טוען...</span>
-                            </div>
-                            <!-- שורת חיפוש -->
-                            <p class="text-[11px] text-slate-400 mb-1.5">💡 ניתן לחפש שכונה ספציפית — למשל "ראשון לציון מזרח", "נחלת יהודה", "פלורנטין"</p>
-                            <div class="flex gap-2 items-center mb-3">
-                                <input id="biz-area-city-input" type="text" placeholder="עיר, שכונה, רחוב..." class="modern-input flex-1 py-2 text-sm" onkeydown="if(event.key==='Enter') window.addBizServiceArea()" autocomplete="off" />
-                                <select id="biz-area-radius" class="modern-input py-2 text-sm w-24">
-                                    <option value="1">1 ק"מ</option>
-                                    <option value="2">2 ק"מ</option>
-                                    <option value="5">5 ק"מ</option>
-                                    <option value="10" selected>10 ק"מ</option>
-                                    <option value="20">20 ק"מ</option>
-                                    <option value="30">30 ק"מ</option>
-                                    <option value="50">50 ק"מ</option>
-                                </select>
-                                <button onclick="window.addBizServiceArea()" class="bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-indigo-700 transition whitespace-nowrap">+ הוסף</button>
-                            </div>
-                            <!-- בחירה מהירה -->
-                            <div id="biz-quick-areas-wrap">
-                                <p class="text-[11px] text-slate-400 mb-1.5">בחירה מהירה — לחץ לבחור, הגדר רדיוס והוסף:</p>
-                                <div id="biz-quick-area-tabs" class="flex gap-1.5 mb-2 flex-wrap"></div>
-                                <div id="biz-quick-area-chips" class="flex gap-1.5 flex-wrap"></div>
-                            </div>
-                        </div>
-
-                        <!-- מעגלי משלוח -->
-                        <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 mt-4">
-                            <h4 class="font-black text-slate-800 mb-1 flex items-center gap-2">
-                                <i class="fa-solid fa-motorcycle text-emerald-500"></i> מעגלי משלוח
-                                <span class="relative group cursor-pointer">
-                                    <span class="w-5 h-5 rounded-full bg-slate-200 text-slate-500 text-[11px] font-bold flex items-center justify-center hover:bg-indigo-100 hover:text-indigo-600 transition select-none">?</span>
-                                    <span class="absolute right-0 top-6 z-50 w-72 bg-slate-800 text-white text-[11px] leading-relaxed rounded-xl p-3 shadow-xl opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity duration-200" style="direction:rtl">
-                                        <strong class="text-emerald-300 block mb-1">איך מעגלי משלוח עובדים?</strong>
-                                        1. הגדר <strong>כתובת מדויקת</strong> לעסק — זו נקודת המרכז.<br>
-                                        2. הוסף <strong>מעגלים</strong> לפי רדיוס (ק"מ) + עלות משלוח.<br>
-                                        3. כשלקוח מזמין משלוח עד הבית, המערכת מחשבת את המרחק האווירי מהעסק ובוחרת את המעגל הקרוב ביותר.<br>
-                                        4. עלות המעגל <strong>מתווספת אוטומטית</strong> לסל הקנייה בחנות.<br>
-                                        <span class="text-red-300 text-[10px] mt-1 block">⚠️ לקוח מחוץ לכל המעגלים → משלוח לא זמין</span>
-                                    </span>
-                                </span>
-                            </h4>
-                            <p class="text-xs text-slate-500 mb-4">הגדר את מיקום העסק ומעגלי רדיוס משלוח עם עלות — העלות תתווסף אוטומטית בחנות הציבורית.</p>
-
-                            <!-- מיקום העסק -->
-                            <div class="bg-slate-50 rounded-xl p-3 mb-4 border border-slate-200">
-                                <p class="text-xs font-bold text-slate-600 mb-2">📍 כתובת העסק (נקודת מוצא למשלוחים)</p>
-                                <div id="biz-location-display" class="text-xs text-emerald-600 font-bold mb-2 hidden"></div>
-                                <div class="flex gap-2 relative">
-                                    <input id="biz-location-input" type="text" placeholder="הקלד כתובת מדויקת..." autocomplete="off"
-                                        class="modern-input flex-1 py-2 text-sm" />
-                                    <button onclick="window.saveBizLocation()" class="bg-emerald-600 text-white px-3 py-2 rounded-xl text-sm font-bold hover:bg-emerald-700 transition whitespace-nowrap">שמור</button>
-                                </div>
-                            </div>
-
-                            <!-- רשימת מעגלים -->
-                            <div id="biz-radius-zones-list" class="space-y-2 mb-4"></div>
-
-                            <!-- הוספת מעגל -->
-                            <div class="bg-indigo-50/50 rounded-xl p-3 border border-indigo-100">
-                                <p class="text-xs font-bold text-indigo-700 mb-2">+ הוסף מעגל משלוח</p>
-                                <div class="flex gap-2 items-center">
-                                    <div class="flex flex-col gap-1 flex-1">
-                                        <label class="text-[10px] text-slate-400 font-bold">רדיוס (ק"מ)</label>
-                                        <input id="biz-zone-radius" type="number" min="1" max="100" value="5" class="modern-input py-2 text-sm text-center" />
-                                    </div>
-                                    <div class="flex flex-col gap-1 flex-1">
-                                        <label class="text-[10px] text-slate-400 font-bold">עלות משלוח (₪)</label>
-                                        <input id="biz-zone-fee" type="number" min="0" step="0.5" value="0" class="modern-input py-2 text-sm text-center" placeholder="0 = חינם" />
-                                    </div>
-                                    <button onclick="window.addBizRadiusZone()" class="bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-indigo-700 transition whitespace-nowrap self-end mb-0.5">+ הוסף</button>
-                                </div>
-                                <p class="text-[10px] text-slate-400 mt-1.5">💡 הגדר מספר מעגלים — הלקוח יקבל את עלות המעגל הקרוב ביותר. עלות 0 = משלוח חינם.</p>
-                            </div>
-                        </div>
                     </div>
 
 <div id="sales-view-analytics" class="hidden space-y-4">
@@ -23997,6 +23956,17 @@ setInterval(() => {
         if(typeof fetchStoreOrders === 'function') fetchStoreOrders();
     }
 }, 20000);
+
+window._switchStoreTab = function(tab) {
+    ['general','design','delivery','modifiers'].forEach(t => {
+        const pane = document.getElementById('sts-tab-'+t); if (pane) pane.classList.add('hidden');
+        const btn  = document.getElementById('sts-btn-'+t);
+        if (btn) btn.className = 'flex-1 flex flex-col items-center gap-0.5 py-2.5 px-2 text-[11px] font-bold text-slate-500 hover:text-slate-700 rounded-xl transition whitespace-nowrap';
+    });
+    const active = document.getElementById('sts-tab-'+tab); if (active) active.classList.remove('hidden');
+    const activeBtn = document.getElementById('sts-btn-'+tab);
+    if (activeBtn) activeBtn.className = 'flex-1 flex flex-col items-center gap-0.5 py-2.5 px-2 text-[11px] font-bold bg-white text-slate-800 rounded-xl shadow-sm transition whitespace-nowrap';
+};
 
 window.switchSalesTab = function(subTab) {
     window._currentBizSubTab = 'sales.' + subTab;
