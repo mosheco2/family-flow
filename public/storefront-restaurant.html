@@ -971,6 +971,35 @@ function getPizzaSelections() {
 }
 
 // ===== INIT =====
+function _enableBrandingMode(data) {
+  const hide = id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; };
+  hide('cat-nav-wrap');
+  hide('search-wrap');
+  hide('catalog-outer');
+  hide('cart-bar');
+  // הסתר scroll-spy markers
+  document.querySelectorAll('.cat-section-anchor').forEach(el => el.style.display = 'none');
+  // כפתור "לצפייה בתפריט / מוצרים" — מוצג רק אם יש פריטים
+  if (data.catalog && data.catalog.length > 0) {
+    const hero = document.getElementById('hero-ctas');
+    if (hero && !document.getElementById('branding-menu-btn')) {
+      const btn = document.createElement('button');
+      btn.id = 'branding-menu-btn';
+      btn.className = 'hero-cta-primary';
+      btn.style.background = 'var(--accent)';
+      btn.innerHTML = '📋 לצפייה בתפריט';
+      btn.onclick = function() {
+        ['cat-nav-wrap','search-wrap','catalog-outer'].forEach(id => {
+          const el = document.getElementById(id); if (el) el.style.display = '';
+        });
+        btn.style.display = 'none';
+        window.scrollTo(0, 0);
+      };
+      hero.appendChild(btn);
+    }
+  }
+}
+
 async function initStore() {
   const rawPath = window.location.pathname.replace(/^\//, '') || '';
   const params = new URLSearchParams(window.location.search);
@@ -996,6 +1025,7 @@ async function initStore() {
     document.getElementById('loading-screen').style.display = 'none';
     initScrollSpy();
     initSlots();
+    if ((data.settings?.site_mode || 'shop') === 'branding') _enableBrandingMode(data);
   } catch(e) {
     showError('שגיאה בטעינת החנות');
     console.error(e);

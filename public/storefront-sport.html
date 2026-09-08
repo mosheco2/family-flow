@@ -708,6 +708,28 @@ function cartTotal() { return Object.values(cart).reduce((s,i) => s + i.price*i.
 function cartCount() { return Object.values(cart).reduce((s,i) => s + i.qty, 0); }
 
 /* ── Init ── */
+function _enableBrandingMode(data) {
+  const hide = id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; };
+  hide('catalog-main');
+  hide('sidebar');
+  document.querySelectorAll('#search-wrap, .search-bar, [id*="search-wrap"]').forEach(el => el.style.display = 'none');
+  if (data.catalog && data.catalog.length > 0) {
+    const hero = document.getElementById('hero');
+    if (hero && !document.getElementById('branding-catalog-btn')) {
+      const wrap = document.createElement('div');
+      wrap.style.cssText = 'padding:16px 20px;text-align:center';
+      wrap.innerHTML = `<button id="branding-catalog-btn" style="background:var(--accent);color:#fff;font-weight:800;font-size:14px;padding:12px 28px;border-radius:14px;border:none;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.2)">📋 לצפייה בקטלוג</button>`;
+      hero.after(wrap);
+      document.getElementById('branding-catalog-btn').onclick = function() {
+        ['catalog-main','sidebar'].forEach(id => { const el = document.getElementById(id); if(el) el.style.display = ''; });
+        wrap.style.display = 'none';
+        loadAsync();
+        window.scrollTo(0, 0);
+      };
+    }
+  }
+}
+
 async function initStore() {
   try {
     const rawPath = window.location.pathname.replace(/^\//, '');
@@ -733,7 +755,8 @@ async function initStore() {
     renderCommunityBanner(storeData);
     if (window.btypeInit) window.btypeInit(storeData);
     document.getElementById('loading-screen').style.display = 'none';
-    loadAsync();
+    if ((storeData.settings?.site_mode || 'shop') === 'branding') _enableBrandingMode(storeData);
+    else loadAsync();
   } catch(e) {
     document.getElementById('loading-screen').innerHTML = '<div style="text-align:center;color:rgba(255,255,255,.55)">שגיאה בטעינת החנות</div>';
     console.error(e);
