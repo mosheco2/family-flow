@@ -944,16 +944,16 @@ window.injectBusinessUI = function() {
 
                         <!-- ── טאב-בר הגדרות ── -->
                         <div class="flex bg-slate-100 p-1 rounded-2xl gap-1 overflow-x-auto shrink-0 mb-4" id="sts-tab-bar">
-                            <button id="sts-btn-general"   onclick="window._switchStoreTab('general')"   class="flex-1 flex flex-col items-center gap-0.5 py-2.5 px-2 text-[11px] font-bold bg-white text-slate-800 rounded-xl shadow-sm transition whitespace-nowrap"><i class="fa-solid fa-gear text-xs"></i>כללי</button>
-                            <button id="sts-btn-design"    onclick="window._switchStoreTab('design')"    class="flex-1 flex flex-col items-center gap-0.5 py-2.5 px-2 text-[11px] font-bold text-slate-500 hover:text-slate-700 rounded-xl transition whitespace-nowrap"><i class="fa-solid fa-palette text-xs"></i>עיצוב</button>
-                            <button id="sts-btn-delivery"  onclick="window._switchStoreTab('delivery')"  class="flex-1 flex flex-col items-center gap-0.5 py-2.5 px-2 text-[11px] font-bold text-slate-500 hover:text-slate-700 rounded-xl transition whitespace-nowrap"><i class="fa-solid fa-motorcycle text-xs"></i>משלוחים</button>
-                            <button id="sts-btn-modifiers" onclick="window._switchStoreTab('modifiers')" class="flex-1 flex flex-col items-center gap-0.5 py-2.5 px-2 text-[11px] font-bold text-slate-500 hover:text-slate-700 rounded-xl transition whitespace-nowrap"><i class="fa-solid fa-sliders text-xs"></i>תוספות</button>
+                            <button id="sts-btn-info"     onclick="window._switchStoreTab('info')"     class="flex-1 flex flex-col items-center gap-0.5 py-2.5 px-2 text-[11px] font-bold bg-white text-slate-800 rounded-xl shadow-sm transition whitespace-nowrap"><i class="fa-solid fa-store text-xs"></i>מידע</button>
+                            <button id="sts-btn-content"  onclick="window._switchStoreTab('content')"  class="flex-1 flex flex-col items-center gap-0.5 py-2.5 px-2 text-[11px] font-bold text-slate-500 hover:text-slate-700 rounded-xl transition whitespace-nowrap"><i class="fa-solid fa-pen-nib text-xs"></i>תוכן</button>
+                            <button id="sts-btn-design"   onclick="window._switchStoreTab('design')"   class="flex-1 flex flex-col items-center gap-0.5 py-2.5 px-2 text-[11px] font-bold text-slate-500 hover:text-slate-700 rounded-xl transition whitespace-nowrap"><i class="fa-solid fa-palette text-xs"></i>עיצוב</button>
+                            <button id="sts-btn-delivery" onclick="window._switchStoreTab('delivery')" class="flex-1 flex flex-col items-center gap-0.5 py-2.5 px-2 text-[11px] font-bold text-slate-500 hover:text-slate-700 rounded-xl transition whitespace-nowrap"><i class="fa-solid fa-motorcycle text-xs"></i>משלוחים</button>
                         </div>
 
-                        <!-- ══ טאב: כללי ══ -->
-                        <div id="sts-tab-general" class="space-y-4">
+                        <!-- ══ טאב: מידע ══ -->
+                        <div id="sts-tab-info" class="space-y-4">
                             <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
-                                <h4 class="font-black text-slate-800">פרטי עסק וקישורים</h4>
+                                <h4 class="font-black text-slate-800">פרטי חנות</h4>
 
                                 <label class="flex items-center gap-3 bg-indigo-50 border border-indigo-100 rounded-xl px-4 py-3 cursor-pointer">
                                     <input type="checkbox" id="store-is-active" class="w-5 h-5 accent-indigo-600 rounded shrink-0">
@@ -962,27 +962,54 @@ window.injectBusinessUI = function() {
 
                                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                     <div><label class="text-xs font-bold text-slate-500 mb-1 block">סוג חנות</label><select id="store-type" class="modern-input py-2 text-sm w-full"><option value="retail">קמעונאות / כללי</option><option value="food">מזון / מסעדה</option><option value="services">שירותים</option></select></div>
-                                    <div><label class="text-xs font-bold text-slate-500 mb-1 block">סלוגן</label><input type="text" id="store-slogan" class="modern-input py-2 text-sm w-full"></div>
                                     <div><label class="text-xs font-bold text-slate-500 mb-1 block">טלפון להזמנות</label><input type="tel" id="store-phone" class="modern-input py-2 text-sm w-full dir-ltr text-left"></div>
                                     <div><label class="text-xs font-bold text-slate-500 mb-1 block">וואטסאפ (אופציונלי)</label><input type="tel" id="store-whatsapp" class="modern-input py-2 text-sm w-full dir-ltr text-left"></div>
                                     <div><label class="text-xs font-bold text-slate-500 mb-1 block">מינימום הזמנה (₪)</label><input type="number" id="store-min-order" class="modern-input py-2 text-sm w-full dir-ltr text-left"></div>
-                                    <div class="bg-indigo-50 rounded-xl p-3 border border-indigo-100 col-span-full">
-                                        <label class="font-bold text-indigo-800 text-sm flex items-center gap-2 cursor-pointer mb-2">
-                                            <input type="checkbox" id="store-include-vat" class="w-5 h-5 accent-indigo-600 rounded">
-                                            הצג מע"מ בקבלות (מגולם במחיר)
-                                        </label>
-                                        <div class="flex items-center gap-2">
-                                            <label class="text-xs text-slate-600">אחוז מע"מ:</label>
-                                            <input type="number" id="store-vat-rate" class="modern-input py-1.5 px-3 text-sm text-center w-20 bg-white" value="18">
-                                        </div>
-                                    </div>
                                     <div><label class="text-xs font-bold text-slate-500 mb-1 block">שעת פתיחה</label><input type="time" id="store-open-time" class="modern-input py-2 text-sm w-full"></div>
                                     <div><label class="text-xs font-bold text-slate-500 mb-1 block">שעת סגירה</label><input type="time" id="store-close-time" class="modern-input py-2 text-sm w-full"></div>
                                 </div>
 
+                                <div class="bg-indigo-50 rounded-xl p-3 border border-indigo-100">
+                                    <label class="font-bold text-indigo-800 text-sm flex items-center gap-2 cursor-pointer mb-2">
+                                        <input type="checkbox" id="store-include-vat" class="w-5 h-5 accent-indigo-600 rounded">
+                                        הצג מע"מ בקבלות (מגולם במחיר)
+                                    </label>
+                                    <div class="flex items-center gap-2">
+                                        <label class="text-xs text-slate-600">אחוז מע"מ:</label>
+                                        <input type="number" id="store-vat-rate" class="modern-input py-1.5 px-3 text-sm text-center w-20 bg-white" value="18">
+                                    </div>
+                                </div>
+
+                                <!-- הגדרות מסעדה/קפה -->
+                                <div id="restaurant-store-settings-block" class="hidden space-y-3 border-t border-slate-100 pt-4">
+                                    <h4 class="font-black text-slate-800 text-sm">🍽️ הגדרות מסעדה / קפה</h4>
+                                    <div class="bg-orange-50 border border-orange-100 rounded-2xl p-4 space-y-3">
+                                        <p class="text-xs font-bold text-slate-500">כפתורים בחנות הציבורית:</p>
+                                        <label class="flex items-start gap-3 p-3 bg-white rounded-xl border border-slate-200 cursor-pointer has-[:checked]:border-orange-400 has-[:checked]:bg-orange-50 transition">
+                                            <input type="checkbox" id="store-enable-table-booking" class="w-5 h-5 accent-orange-500 rounded mt-0.5 shrink-0">
+                                            <div><span class="font-bold text-slate-700 text-sm block">🪑 הזמנת שולחן</span><span class="text-xs text-slate-400">לקוחות יוכלו לבקש שריון שולחן על בסיס זמינות שולחנות</span></div>
+                                        </label>
+                                        <label class="flex items-start gap-3 p-3 bg-white rounded-xl border border-slate-200 cursor-pointer has-[:checked]:border-orange-400 has-[:checked]:bg-orange-50 transition">
+                                            <input type="checkbox" id="store-enable-event-booking" class="w-5 h-5 accent-orange-500 rounded mt-0.5 shrink-0">
+                                            <div><span class="font-bold text-slate-700 text-sm block">🎉 הזמנת אירוע / קייטרינג</span><span class="text-xs text-slate-400">לקוחות שולחים בקשה לאירוע עם בחירת תפריט ומספר סועדים — מגיע כהצעת מחיר לאישורך</span></div>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <button id="btn-save-store-settings" onclick="window.saveStoreSettings()" class="w-full bg-slate-800 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-slate-700 transition text-sm mt-2">שמור ✓</button>
+                            </div>
+                        </div>
+
+                        <!-- ══ טאב: תוכן ══ -->
+                        <div id="sts-tab-content" class="hidden space-y-4">
+                            <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                                <h4 class="font-black text-slate-800">תוכן וקישורים</h4>
+
+                                <div><label class="text-xs font-bold text-slate-500 block mb-1.5">סלוגן</label><input type="text" id="store-slogan" class="modern-input py-2 text-sm w-full"></div>
+
                                 <div>
                                     <label class="text-xs font-bold text-slate-500 block mb-1.5">הודעת פתיחה בחנות</label>
-                                    <textarea id="store-welcome-msg" class="modern-input py-2 text-sm h-16" placeholder="ברוכים הבאים לחנות שלנו!"></textarea>
+                                    <textarea id="store-welcome-msg" class="modern-input py-2 text-sm h-20" placeholder="ברוכים הבאים לחנות שלנו!"></textarea>
                                 </div>
 
                                 <div class="bg-slate-50 p-3 rounded-xl border border-slate-100">
@@ -1009,23 +1036,7 @@ window.injectBusinessUI = function() {
                                     </div>
                                 </div>
 
-                                <!-- הגדרות מסעדה/קפה — פעולות בחנות הציבורית -->
-                                <div id="restaurant-store-settings-block" class="hidden space-y-3 border-t border-slate-100 pt-4">
-                                    <h4 class="font-black text-slate-800 text-sm">🍽️ הגדרות מסעדה / קפה</h4>
-                                    <div class="bg-orange-50 border border-orange-100 rounded-2xl p-4 space-y-3">
-                                        <p class="text-xs font-bold text-slate-500">בחרו אילו כפתורים יוצגו בחנות הציבורית:</p>
-                                        <label class="flex items-start gap-3 p-3 bg-white rounded-xl border border-slate-200 cursor-pointer has-[:checked]:border-orange-400 has-[:checked]:bg-orange-50 transition">
-                                            <input type="checkbox" id="store-enable-table-booking" class="w-5 h-5 accent-orange-500 rounded mt-0.5 shrink-0">
-                                            <div><span class="font-bold text-slate-700 text-sm block">🪑 הזמנת שולחן</span><span class="text-xs text-slate-400">לקוחות יוכלו לבקש שריון שולחן על בסיס זמינות שולחנות</span></div>
-                                        </label>
-                                        <label class="flex items-start gap-3 p-3 bg-white rounded-xl border border-slate-200 cursor-pointer has-[:checked]:border-orange-400 has-[:checked]:bg-orange-50 transition">
-                                            <input type="checkbox" id="store-enable-event-booking" class="w-5 h-5 accent-orange-500 rounded mt-0.5 shrink-0">
-                                            <div><span class="font-bold text-slate-700 text-sm block">🎉 הזמנת אירוע / קייטרינג</span><span class="text-xs text-slate-400">לקוחות שולחים בקשה לאירוע עם בחירת תפריט ומספר סועדים — מגיע כהצעת מחיר לאישורך</span></div>
-                                        </label>
-                                    </div>
-                                </div>
-
-                                <button id="btn-save-store-settings" onclick="window.saveStoreSettings()" class="w-full bg-slate-800 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-slate-700 transition text-sm mt-2">שמור הגדרות ✓</button>
+                                <button onclick="window.saveStoreSettings()" class="w-full bg-slate-800 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-slate-700 transition text-sm">שמור ✓</button>
                             </div>
                         </div>
 
@@ -1114,28 +1125,6 @@ window.injectBusinessUI = function() {
                                             <input type="text" id="store-accent-color-text" value="#e63946" maxlength="7" class="modern-input py-2 text-sm bg-white flex-1 font-mono" placeholder="#e63946" oninput="document.getElementById('store-accent-color').value=this.value">
                                         </div>
                                     </div>
-                                    <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100 shadow-sm">
-                                        <label class="text-xs font-bold text-slate-700 block mb-2"><i class="fa-solid fa-truck text-emerald-500 ml-1"></i> זמני משלוח ואיסוף</label>
-                                        <div class="grid grid-cols-2 gap-3 mb-2">
-                                            <div><label class="text-[10px] text-slate-500 block mb-1">זמן משלוח (דקות)</label><input type="number" id="store-delivery-eta" min="0" max="180" value="35" class="modern-input py-2 text-sm bg-white w-full text-center"></div>
-                                            <div><label class="text-[10px] text-slate-500 block mb-1">זמן איסוף (דקות)</label><input type="number" id="store-pickup-eta" min="0" max="120" value="15" class="modern-input py-2 text-sm bg-white w-full text-center"></div>
-                                        </div>
-                                        <div><label class="text-[10px] text-slate-500 block mb-1">משלוח חינם מעל (₪) — 0 = לא מוצג</label><input type="number" id="store-free-delivery-above" min="0" value="0" class="modern-input py-2 text-sm bg-white w-full text-center"></div>
-                                        <div class="mt-3 pt-3 border-t border-slate-200">
-                                            <label class="text-[10px] font-bold text-slate-500 block mb-1.5">✏️ כותרות באנרים (ריק = ברירת מחדל)</label>
-                                            <div class="space-y-2">
-                                                <input type="text" id="store-banner1-title" class="modern-input py-2 text-sm bg-white w-full" placeholder="מזמינים ב-3 לחיצות">
-                                                <input type="text" id="store-banner2-title" class="modern-input py-2 text-sm bg-white w-full" placeholder="חינם מעל ₪X">
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100 shadow-sm">
-                                        <label class="text-xs font-bold text-slate-700 block mb-2"><i class="fa-solid fa-mobile-screen text-blue-500 ml-1"></i> קישורי הורדת אפליקציה (אופציונלי)</label>
-                                        <div class="space-y-2">
-                                            <input type="url" id="store-app-store-url" class="modern-input py-2 text-sm bg-white w-full" placeholder="App Store URL" dir="ltr">
-                                            <input type="url" id="store-play-store-url" class="modern-input py-2 text-sm bg-white w-full" placeholder="Google Play URL" dir="ltr">
-                                        </div>
-                                    </div>
                                 </div>
 
                                 <button onclick="window.saveStoreSettings()" class="w-full bg-slate-800 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-slate-700 transition text-sm">שמור עיצוב ✓</button>
@@ -1144,6 +1133,34 @@ window.injectBusinessUI = function() {
 
                         <!-- ══ טאב: משלוחים ══ -->
                         <div id="sts-tab-delivery" class="hidden space-y-4">
+
+                            <!-- זמני משלוח + אפליקציה (מוצג רק בתבניות המתאימות) -->
+                            <div id="delivery-eta-block" class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3" style="display:none">
+                                <h4 class="font-black text-slate-800 text-sm">⏱️ זמנים ואפליקציה</h4>
+                                <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                                    <label class="text-xs font-bold text-slate-700 block mb-2"><i class="fa-solid fa-truck text-emerald-500 ml-1"></i> זמני משלוח ואיסוף</label>
+                                    <div class="grid grid-cols-2 gap-3 mb-2">
+                                        <div><label class="text-[10px] text-slate-500 block mb-1">זמן משלוח (דקות)</label><input type="number" id="store-delivery-eta" min="0" max="180" value="35" class="modern-input py-2 text-sm bg-white w-full text-center"></div>
+                                        <div><label class="text-[10px] text-slate-500 block mb-1">זמן איסוף (דקות)</label><input type="number" id="store-pickup-eta" min="0" max="120" value="15" class="modern-input py-2 text-sm bg-white w-full text-center"></div>
+                                    </div>
+                                    <div><label class="text-[10px] text-slate-500 block mb-1">משלוח חינם מעל (₪) — 0 = לא מוצג</label><input type="number" id="store-free-delivery-above" min="0" value="0" class="modern-input py-2 text-sm bg-white w-full text-center"></div>
+                                    <div class="mt-3 pt-3 border-t border-slate-200">
+                                        <label class="text-[10px] font-bold text-slate-500 block mb-1.5">✏️ כותרות באנרים (ריק = ברירת מחדל)</label>
+                                        <div class="space-y-2">
+                                            <input type="text" id="store-banner1-title" class="modern-input py-2 text-sm bg-white w-full" placeholder="מזמינים ב-3 לחיצות">
+                                            <input type="text" id="store-banner2-title" class="modern-input py-2 text-sm bg-white w-full" placeholder="חינם מעל ₪X">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                                    <label class="text-xs font-bold text-slate-700 block mb-2"><i class="fa-solid fa-mobile-screen text-blue-500 ml-1"></i> קישורי הורדת אפליקציה (אופציונלי)</label>
+                                    <div class="space-y-2">
+                                        <input type="url" id="store-app-store-url" class="modern-input py-2 text-sm bg-white w-full" placeholder="App Store URL" dir="ltr">
+                                        <input type="url" id="store-play-store-url" class="modern-input py-2 text-sm bg-white w-full" placeholder="Google Play URL" dir="ltr">
+                                    </div>
+                                </div>
+                                <button onclick="window.saveStoreSettings()" class="w-full bg-slate-800 text-white py-3 rounded-xl font-bold hover:bg-slate-700 transition text-sm">שמור ✓</button>
+                            </div>
 
                             <!-- אזורי משלוח (קופה) -->
                             <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
@@ -1218,43 +1235,27 @@ window.injectBusinessUI = function() {
                             </div>
                         </div>
 
-                        <!-- ══ טאב: תוספות ══ -->
-                        <div id="sts-tab-modifiers" class="hidden space-y-4">
-
-                            <!-- תבניות הרכבה -->
-                            <div id="modifiers-section-wrapper" class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
-                                <h4 class="font-black text-slate-800 mb-4">🔧 תבניות הרכבה (Modifiers)</h4>
-                                <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
-                                    <div class="flex justify-between items-center mb-3">
-                                        <label class="text-xs font-bold text-slate-700">תבניות קיימות:</label>
-                                        <select id="preset-selector" onchange="window.loadPreset(this.value)" class="modern-input py-1.5 px-3 text-xs w-2/3 bg-white hidden"></select>
-                                    </div>
-                                    <div id="modifiers-builder-container" class="space-y-3"></div>
-                                    <button onclick="window.addModifierGroup()" class="mt-3 bg-white text-indigo-600 px-4 py-2 rounded-xl text-xs font-bold border border-indigo-200 hover:bg-indigo-50 transition shadow-sm w-full"><i class="fa-solid fa-plus mr-1"></i> הוסף קבוצת בחירה חדשה (תוספות / הרכבה)</button>
+                        <!-- modifiers-section-wrapper + sport-store-settings-block — נסתרים, נטענים ע"י switchSalesTab -->
+                        <div id="modifiers-section-wrapper" class="hidden"></div>
+                        <div id="sport-store-settings-block" class="hidden bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                            <h4 class="font-black text-slate-800">🏋️ הגדרות ספורט</h4>
+                            <div class="bg-indigo-50 border border-indigo-200 rounded-2xl p-4">
+                                <div class="font-bold text-indigo-800 text-sm mb-3">🌐 מה מוצג בחנות הציבורית?</div>
+                                <div class="space-y-3">
+                                    <label class="flex items-center justify-between gap-2 cursor-pointer"><span class="text-sm text-slate-700">📋 לוח שיעורים + הרשמה לשיעור</span><input type="checkbox" id="sport-public-schedule" class="w-5 h-5 accent-indigo-600 rounded"></label>
+                                    <label class="flex items-center justify-between gap-2 cursor-pointer"><span class="text-sm text-slate-700">🏋️ הצטרפות מנוי (הרשמה עצמאית)</span><input type="checkbox" id="sport-public-membership" class="w-5 h-5 accent-indigo-600 rounded"></label>
+                                    <label class="flex items-center justify-between gap-2 cursor-pointer"><span class="text-sm text-slate-700">📅 הזמנת אימון אישי עם מאמן</span><input type="checkbox" id="sport-public-trainer" class="w-5 h-5 accent-indigo-600 rounded"></label>
                                 </div>
                             </div>
-
-                            <!-- הגדרות ספורט -->
-                            <div id="sport-store-settings-block" class="hidden bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
-                                <h4 class="font-black text-slate-800">🏋️ הגדרות ספורט</h4>
-                                <div class="bg-indigo-50 border border-indigo-200 rounded-2xl p-4">
-                                    <div class="font-bold text-indigo-800 text-sm mb-3">🌐 מה מוצג בחנות הציבורית?</div>
-                                    <div class="space-y-3">
-                                        <label class="flex items-center justify-between gap-2 cursor-pointer"><span class="text-sm text-slate-700">📋 לוח שיעורים + הרשמה לשיעור</span><input type="checkbox" id="sport-public-schedule" class="w-5 h-5 accent-indigo-600 rounded"></label>
-                                        <label class="flex items-center justify-between gap-2 cursor-pointer"><span class="text-sm text-slate-700">🏋️ הצטרפות מנוי (הרשמה עצמאית)</span><input type="checkbox" id="sport-public-membership" class="w-5 h-5 accent-indigo-600 rounded"></label>
-                                        <label class="flex items-center justify-between gap-2 cursor-pointer"><span class="text-sm text-slate-700">📅 הזמנת אימון אישי עם מאמן</span><input type="checkbox" id="sport-public-trainer" class="w-5 h-5 accent-indigo-600 rounded"></label>
-                                    </div>
-                                </div>
-                                <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="sport-trial-enabled" class="w-5 h-5 accent-indigo-600 rounded"><span class="font-bold text-slate-700 text-sm">אפשר שיעור ניסיון חינם לחברים חדשים</span></label>
-                                <div><label class="text-xs font-bold text-slate-500 block mb-1.5">מדיניות ביטול מנוי</label><textarea id="sport-cancellation-policy" class="modern-input py-2 text-sm h-20" placeholder="לדוגמה: ניתן לבטל מנוי עד 14 ימים לפני תחילתו..."></textarea></div>
-                                <div><label class="text-xs font-bold text-slate-500 block mb-1.5">מדיניות הקפאת מנוי</label><textarea id="sport-freeze-policy" class="modern-input py-2 text-sm h-16" placeholder="לדוגמה: ניתן להקפיא מנוי פעם אחת בשנה, עד 30 יום..."></textarea></div>
-                                <div><label class="text-xs font-bold text-slate-500 block mb-1.5">הצהרת כשירות גופנית / כתב ויתור</label><textarea id="sport-waiver-text" class="modern-input py-2 text-sm h-16" placeholder="הצהרה שתוצג ללקוחות בעת רישום..."></textarea></div>
-                                <div class="grid grid-cols-2 gap-3">
-                                    <div><label class="text-xs font-bold text-slate-500 block mb-1.5">גיל מינימלי לחברות</label><input type="number" id="sport-min-age" min="0" max="99" class="modern-input py-2 text-sm w-full" placeholder="16"></div>
-                                    <div><label class="text-xs font-bold text-slate-500 block mb-1.5">ימי הודעה מוקדמת לביטול</label><input type="number" id="sport-cancel-notice-days" min="0" max="90" class="modern-input py-2 text-sm w-full" placeholder="14"></div>
-                                </div>
-                                <button onclick="window.saveStoreSettings()" class="w-full bg-slate-800 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-slate-700 transition text-sm">שמור ✓</button>
+                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="sport-trial-enabled" class="w-5 h-5 accent-indigo-600 rounded"><span class="font-bold text-slate-700 text-sm">אפשר שיעור ניסיון חינם לחברים חדשים</span></label>
+                            <div><label class="text-xs font-bold text-slate-500 block mb-1.5">מדיניות ביטול מנוי</label><textarea id="sport-cancellation-policy" class="modern-input py-2 text-sm h-20" placeholder="לדוגמה: ניתן לבטל מנוי עד 14 ימים לפני תחילתו..."></textarea></div>
+                            <div><label class="text-xs font-bold text-slate-500 block mb-1.5">מדיניות הקפאת מנוי</label><textarea id="sport-freeze-policy" class="modern-input py-2 text-sm h-16" placeholder="לדוגמה: ניתן להקפיא מנוי פעם אחת בשנה, עד 30 יום..."></textarea></div>
+                            <div><label class="text-xs font-bold text-slate-500 block mb-1.5">הצהרת כשירות גופנית / כתב ויתור</label><textarea id="sport-waiver-text" class="modern-input py-2 text-sm h-16" placeholder="הצהרה שתוצג ללקוחות בעת רישום..."></textarea></div>
+                            <div class="grid grid-cols-2 gap-3">
+                                <div><label class="text-xs font-bold text-slate-500 block mb-1.5">גיל מינימלי לחברות</label><input type="number" id="sport-min-age" min="0" max="99" class="modern-input py-2 text-sm w-full" placeholder="16"></div>
+                                <div><label class="text-xs font-bold text-slate-500 block mb-1.5">ימי הודעה מוקדמת לביטול</label><input type="number" id="sport-cancel-notice-days" min="0" max="90" class="modern-input py-2 text-sm w-full" placeholder="14"></div>
                             </div>
+                            <button onclick="window.saveStoreSettings()" class="w-full bg-slate-800 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-slate-700 transition text-sm">שמור ✓</button>
                         </div>
 
                     </div>
@@ -23958,7 +23959,7 @@ setInterval(() => {
 }, 20000);
 
 window._switchStoreTab = function(tab) {
-    ['general','design','delivery','modifiers'].forEach(t => {
+    ['info','content','design','delivery'].forEach(t => {
         const pane = document.getElementById('sts-tab-'+t); if (pane) pane.classList.add('hidden');
         const btn  = document.getElementById('sts-btn-'+t);
         if (btn) btn.className = 'flex-1 flex flex-col items-center gap-0.5 py-2.5 px-2 text-[11px] font-bold text-slate-500 hover:text-slate-700 rounded-xl transition whitespace-nowrap';
@@ -23966,6 +23967,14 @@ window._switchStoreTab = function(tab) {
     const active = document.getElementById('sts-tab-'+tab); if (active) active.classList.remove('hidden');
     const activeBtn = document.getElementById('sts-btn-'+tab);
     if (activeBtn) activeBtn.className = 'flex-1 flex flex-col items-center gap-0.5 py-2.5 px-2 text-[11px] font-bold bg-white text-slate-800 rounded-xl shadow-sm transition whitespace-nowrap';
+    if (tab === 'delivery') {
+        const etaBlock = document.getElementById('delivery-eta-block');
+        if (etaBlock) {
+            const tmpl = document.getElementById('store-template-id')?.value || '';
+            etaBlock.style.display = ['restaurant','sport','market'].includes(tmpl) ? '' : 'none';
+        }
+        if (typeof window.loadBizRadiusZones === 'function') window.loadBizRadiusZones();
+    }
 };
 
 window.switchSalesTab = function(subTab) {
@@ -24012,20 +24021,18 @@ window.switchSalesTab = function(subTab) {
     if(subTab === 'complex') { if (typeof window.fetchStoreCatalog === 'function') window.fetchStoreCatalog(); setTimeout(window.renderComplexList, 100); }
     if(subTab === 'settings') {
         if (typeof fetchStoreSettings === 'function') fetchStoreSettings();
-        const modWrap = document.getElementById('modifiers-section-wrapper');
         const sportBlock = document.getElementById('sport-store-settings-block');
         const restBlock = document.getElementById('restaurant-store-settings-block');
         const bizType = currentGroup?.business_type || '';
         const isRestaurant = ['restaurant', 'cafe'].includes(bizType);
         if (isSport) {
-            if (modWrap) modWrap.classList.add('hidden');
-            if (sportBlock) { sportBlock.classList.remove('hidden'); window._loadSportStoreSettings(); }
+            if (sportBlock) { sportBlock.classList.remove('hidden'); if (typeof window._loadSportStoreSettings === 'function') window._loadSportStoreSettings(); }
             if (restBlock) restBlock.classList.add('hidden');
         } else {
-            if (modWrap) modWrap.classList.remove('hidden');
             if (sportBlock) sportBlock.classList.add('hidden');
             if (restBlock) restBlock.classList.toggle('hidden', !isRestaurant);
         }
+        if (typeof window._switchStoreTab === 'function') window._switchStoreTab('info');
     }
     if(subTab === 'quotes') {
         const list = document.getElementById('store-quotes-list');
@@ -56546,7 +56553,7 @@ window.saveBizLocation = async function() {
     try {
         var r = await fetch('/api/biz/location/' + gid, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (window._bizToken || '') },
             body: JSON.stringify({ lat: parseFloat(lat), lng: parseFloat(lng), address: addr })
         });
         if (!r.ok) { showToast('error', 'שגיאת שרת ' + r.status); return; }
@@ -56565,7 +56572,7 @@ window.loadBizRadiusZones = async function() {
     var listEl = document.getElementById('biz-radius-zones-list');
     if (!listEl || !gid) return;
     try {
-        var r = await fetch('/api/biz/radius-zones/' + gid);
+        var r = await fetch('/api/biz/radius-zones/' + gid, { headers: { 'Authorization': 'Bearer ' + (window._bizToken || '') } });
         if (!r.ok) { listEl.innerHTML = '<p class="text-xs text-red-400 text-center py-2">שגיאה בטעינה (' + r.status + ')</p>'; return; }
         var data = await r.json();
         var zones = data.zones || [];
@@ -56597,7 +56604,7 @@ window.addBizRadiusZone = async function() {
     try {
         var r = await fetch('/api/biz/radius-zones/' + gid, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (window._bizToken || '') },
             body: JSON.stringify({ radius_km: radius, delivery_fee: fee })
         });
         if (!r.ok) { var txt = await r.text(); showToast('error', 'שגיאת שרת ' + r.status + (txt ? ': ' + txt.slice(0,80) : '')); return; }
@@ -56613,7 +56620,7 @@ window.delBizRadiusZone = async function(zoneId) {
     var gid = currentGroup?.id;
     if (!gid) return;
     try {
-        var r = await fetch('/api/biz/radius-zones/' + gid + '/' + zoneId, { method: 'DELETE' });
+        var r = await fetch('/api/biz/radius-zones/' + gid + '/' + zoneId, { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + (window._bizToken || '') } });
         if (!r.ok) { showToast('error', 'שגיאת שרת ' + r.status); return; }
         var data = await r.json();
         if (data.success) { showToast('success', 'מעגל הוסר'); window.loadBizRadiusZones(); }
