@@ -952,6 +952,26 @@ window.injectBusinessUI = function() {
 
                         <!-- ══ טאב: מידע ══ -->
                         <div id="sts-tab-info" class="space-y-4">
+
+                            <!-- מצב האתר הציבורי -->
+                            <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+                                <h4 class="font-black text-slate-800 mb-3 flex items-center gap-2"><i class="fa-solid fa-globe text-indigo-500 text-sm"></i> מצב האתר הציבורי</h4>
+                                <div class="grid grid-cols-2 gap-2" id="site-mode-picker">
+                                    <label id="site-mode-shop-label" class="cursor-pointer flex flex-col items-center gap-2 p-3 rounded-xl border-2 border-indigo-400 bg-indigo-50 transition text-center">
+                                        <input type="radio" name="store-site-mode" id="store-site-mode-shop" value="shop" class="hidden" onchange="window._onSiteModeChange('shop')">
+                                        <i class="fa-solid fa-cart-shopping text-indigo-600 text-lg"></i>
+                                        <span class="text-xs font-black text-indigo-800">עם חנות</span>
+                                        <span class="text-[10px] text-slate-400">קטלוג, מחירים, הזמנות</span>
+                                    </label>
+                                    <label id="site-mode-branding-label" class="cursor-pointer flex flex-col items-center gap-2 p-3 rounded-xl border-2 border-slate-200 bg-white transition text-center">
+                                        <input type="radio" name="store-site-mode" id="store-site-mode-branding" value="branding" class="hidden" onchange="window._onSiteModeChange('branding')">
+                                        <i class="fa-solid fa-star text-slate-400 text-lg"></i>
+                                        <span class="text-xs font-black text-slate-600">תדמית בלבד</span>
+                                        <span class="text-[10px] text-slate-400">ללא חנות, מיקוד בשירותים</span>
+                                    </label>
+                                </div>
+                            </div>
+
                             <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
                                 <h4 class="font-black text-slate-800">פרטי חנות</h4>
 
@@ -12627,6 +12647,10 @@ window.fetchStoreSettings = async function() {
             window.injectAliasUI(s.store_alias || '');
 
             syncChecks('store-is-active', s.is_active);
+            // site_mode: ברירת מחדל לעסקי מומחים היא תדמית, לשאר עם חנות
+            const defaultBranding = currentGroup?.business_type === 'professional';
+            const isBranding = s.site_mode ? s.site_mode === 'branding' : defaultBranding;
+            if (typeof window._onSiteModeChange === 'function') window._onSiteModeChange(isBranding ? 'branding' : 'shop');
             syncInputs('store-welcome-msg', s.welcome_message || '');
             syncInputs('store-welcome-msg-en', s.welcome_message_en || '');
             syncInputs('store-phone', s.phone || '');
@@ -12843,7 +12867,8 @@ async function saveStoreSettings() {
             freeDeliveryAbove: parseInt(document.getElementById('store-free-delivery-above')?.value) || 0,
             banner1Title: document.getElementById('store-banner1-title')?.value || '',
             banner2Title: document.getElementById('store-banner2-title')?.value || '',
-            customerRequiredFields: window._customerRequiredFields || {}
+            customerRequiredFields: window._customerRequiredFields || {},
+            siteMode: document.getElementById('store-site-mode-branding')?.checked ? 'branding' : 'shop'
         };
 
         const res = await fetch(`${API}/store/settings`, {
@@ -23958,6 +23983,29 @@ setInterval(() => {
         if(typeof fetchStoreOrders === 'function') fetchStoreOrders();
     }
 }, 20000);
+
+window._onSiteModeChange = function(mode) {
+    const shopLabel     = document.getElementById('site-mode-shop-label');
+    const brandingLabel = document.getElementById('site-mode-branding-label');
+    const shopRadio     = document.getElementById('store-site-mode-shop');
+    const brandingRadio = document.getElementById('store-site-mode-branding');
+    if (!shopLabel) return;
+    if (mode === 'branding') {
+        shopLabel.className     = 'cursor-pointer flex flex-col items-center gap-2 p-3 rounded-xl border-2 border-slate-200 bg-white transition text-center';
+        brandingLabel.className = 'cursor-pointer flex flex-col items-center gap-2 p-3 rounded-xl border-2 border-violet-400 bg-violet-50 transition text-center';
+        brandingLabel.querySelector('i').className = 'fa-solid fa-star text-violet-500 text-lg';
+        brandingLabel.querySelector('span').className = 'text-xs font-black text-violet-800';
+        if (brandingRadio) brandingRadio.checked = true;
+        if (shopRadio) shopRadio.checked = false;
+    } else {
+        shopLabel.className     = 'cursor-pointer flex flex-col items-center gap-2 p-3 rounded-xl border-2 border-indigo-400 bg-indigo-50 transition text-center';
+        brandingLabel.className = 'cursor-pointer flex flex-col items-center gap-2 p-3 rounded-xl border-2 border-slate-200 bg-white transition text-center';
+        brandingLabel.querySelector('i').className = 'fa-solid fa-star text-slate-400 text-lg';
+        brandingLabel.querySelector('span').className = 'text-xs font-black text-slate-600';
+        if (shopRadio) shopRadio.checked = true;
+        if (brandingRadio) brandingRadio.checked = false;
+    }
+};
 
 window._switchStoreTab = function(tab) {
     ['info','content','design','delivery'].forEach(t => {

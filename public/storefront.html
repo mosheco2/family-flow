@@ -970,37 +970,38 @@
                     }
                 } catch(e) { console.warn("Failed loading promotions", e); }
 
-                // Professional business type → SPA: init both views, show the right one
+                // סוג עסק + מצב אתר ציבורי
                 const _btype = data.businessType || data.business_type || '';
                 const _viewStore = urlParams.get('view') === 'store';
+                const _siteMode = data.settings?.site_mode || (_btype === 'professional' ? 'branding' : 'shop');
+                window._storeSiteMode = _siteMode;
 
-                window._isProfessionalStore = (_btype === 'professional');
-                window._profStoreData = (_btype === 'professional') ? data : null;
+                // מצב תדמית: מומחים תמיד (אם לא שונה ל-shop), כל עסק עם site_mode=branding
+                const _isBrandingMode = (_siteMode === 'branding') || (_btype === 'professional' && _siteMode !== 'shop');
 
-                if (_btype === 'professional') {
-                    // Always init the store catalog (needed when user navigates to store view)
-                    window.renderHeader();
-                    window.extractCategories();
-                    window.renderPromotionsBanner();
-                    window.renderCatalog();
-                    loadStorePopups();
-                    setTimeout(_setupRadiusDeliveryListeners, 600);
+                window._isProfessionalStore = _isBrandingMode;
+                window._profStoreData = _isBrandingMode ? data : null;
 
-                    // Render the professional branding site into its container
-                    await renderProfessionalSite(data);
+                // תמיד בנה קטלוג (גם בתדמית — זמין לניווט ידני)
+                window.renderHeader();
+                window.extractCategories();
+                window.renderPromotionsBanner();
+                window.renderCatalog();
+                loadStorePopups();
+                setTimeout(_setupRadiusDeliveryListeners, 600);
 
-                    // Show correct view based on URL
-                    if (_viewStore) {
-                        window.showProfStore(true);
+                if (_isBrandingMode) {
+                    if (_btype === 'professional') {
+                        // מומחים — אתר תדמית עשיר עם תוכן מנוהל
+                        await renderProfessionalSite(data);
+                        if (_viewStore) { window.showProfStore(true); }
+                        else { window.showProfBranding(true); }
                     } else {
-                        window.showProfBranding(true);
+                        // כל עסק אחר במצב תדמית — הסתר חנות, הצג CTA
+                        getEl('store-app').classList.remove('hidden');
+                        _enableGenericBrandingMode(data);
                     }
                 } else {
-                    window.renderHeader();
-                    window.extractCategories();
-                    window.renderPromotionsBanner();
-                    window.renderCatalog();
-                    loadStorePopups();
                     getEl('store-app').classList.remove('hidden');
                     // Async: deals, reviews, gallery, sport quick-actions
                     _loadStoreExtras(storeData.groupId, data);
@@ -1336,6 +1337,44 @@
                 window.showProfBranding(true);
             }
         });
+
+        // מצב תדמית גנרי — כל עסק שאינו מומחים
+        function _enableGenericBrandingMode(data) {
+            // הסתר: סרגל חיפוש+קטגוריות, קטלוג, עגלה
+            const glassHeader = document.querySelector('.glass-header');
+            if (glassHeader) glassHeader.style.display = 'none';
+            const catalogContainer = getEl('catalog-container');
+            if (catalogContainer) catalogContainer.style.display = 'none';
+
+            // הצג פרטי קשר (שעות, וואטסאפ, טלפון)
+            const contactInfo = getEl('store-contact-info');
+            if (contactInfo) contactInfo.classList.remove('hidden');
+
+            // כפתור "לצפייה בשירותים / מוצרים" — מציג את הקטלוג
+            const hasProducts = data.catalog && data.catalog.length > 0;
+            if (hasProducts) {
+                const header = document.querySelector('#store-app header');
+                if (header && !document.getElementById('branding-see-services-btn')) {
+                    const btnWrap = document.createElement('div');
+                    btnWrap.className = 'px-6 pb-5 pt-2 flex justify-center';
+                    btnWrap.innerHTML = `<button id="branding-see-services-btn" onclick="window._showBrandingCatalog()" class="inline-flex items-center gap-2 bg-slate-900 text-white font-bold text-sm px-6 py-3 rounded-2xl shadow-lg hover:bg-black transition active:scale-95"><i class="fa-solid fa-list text-xs"></i> לצפייה בשירותים ומוצרים</button>`;
+                    header.appendChild(btnWrap);
+                }
+            }
+
+            window._isBrandingActive = true;
+        }
+
+        window._showBrandingCatalog = function() {
+            const glassHeader = document.querySelector('.glass-header');
+            if (glassHeader) glassHeader.style.display = '';
+            const catalogContainer = getEl('catalog-container');
+            if (catalogContainer) catalogContainer.style.display = '';
+            const btn = document.getElementById('branding-see-services-btn');
+            if (btn) btn.closest('div').style.display = 'none';
+            window.scrollTo(0, 0);
+            _loadStoreExtras(storeData.groupId, storeData);
+        };
 
         window._showExpertiseDetail = function(icon, title, desc) {
             document.getElementById('exp-detail-icon').textContent = icon;
