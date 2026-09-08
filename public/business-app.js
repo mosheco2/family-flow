@@ -56245,7 +56245,7 @@ window.loadBizServiceAreas = async function() {
     const gid = currentGroup?.id;
     if (!listEl || !gid) return;
     try {
-        const r = await fetch(`/api/biz/service-areas/${gid}`);
+        const r = await fetch(`/api/biz/service-areas/${gid}`, { headers: { 'Authorization': 'Bearer ' + (window._bizToken || '') } });
         const data = await r.json();
         const areas = data.areas || [];
         if (!areas.length) {
@@ -56274,7 +56274,7 @@ window.addBizServiceArea = async function() {
     if (!gid) { showToast('error', 'לא מזוהה קבוצה'); return; }
     try {
         const r = await fetch(`/api/biz/service-areas/${gid}`, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (window._bizToken || '') },
             body: JSON.stringify({ city, radius_km, lat, lng })
         });
         const data = await r.json();
@@ -56458,7 +56458,7 @@ window.delBizServiceArea = async function(areaId) {
     const gid = currentGroup?.id;
     if (!gid) return;
     try {
-        await fetch(`/api/biz/service-areas/${gid}/${areaId}`, { method: 'DELETE' });
+        await fetch(`/api/biz/service-areas/${gid}/${areaId}`, { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + (window._bizToken || '') } });
         window.loadBizServiceAreas();
     } catch(e) { showToast('error', 'שגיאת תקשורת'); }
 };
@@ -56530,7 +56530,7 @@ window.loadBizLocation = async function() {
     var gid = currentGroup?.id;
     if (!gid) return;
     try {
-        var r = await fetch('/api/biz/location/' + gid);
+        var r = await fetch('/api/biz/location/' + gid, { headers: { 'Authorization': 'Bearer ' + (window._bizToken || '') } });
         if (!r.ok) return;
         var data = await r.json();
         var disp = document.getElementById('biz-location-display');

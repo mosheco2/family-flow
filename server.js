@@ -5992,6 +5992,16 @@ app.delete('/api/biz/service-areas/:groupId/:areaId', verifyBiz, async (req, res
 });
 
 // ── מיקום עסק ─────────────────────────────────────────────────────────────────
+app.get('/api/biz/location/:groupId', verifyBiz, async (req, res) => {
+    try {
+        if (parseInt(req.params.groupId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
+        const r = await pool.query('SELECT biz_lat, biz_lng, biz_address FROM store_settings WHERE group_id=$1', [req.params.groupId]);
+        const row = r.rows[0];
+        if (!row || !row.biz_address) return res.json({ address: null });
+        res.json({ lat: row.biz_lat, lng: row.biz_lng, address: row.biz_address });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 app.post('/api/biz/location/:groupId', verifyBiz, async (req, res) => {
     try {
         if (parseInt(req.params.groupId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
