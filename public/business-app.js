@@ -957,14 +957,14 @@ window.injectBusinessUI = function() {
                             <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
                                 <h4 class="font-black text-slate-800 mb-3 flex items-center gap-2"><i class="fa-solid fa-globe text-indigo-500 text-sm"></i> מצב האתר הציבורי</h4>
                                 <div class="grid grid-cols-2 gap-2" id="site-mode-picker">
-                                    <label id="site-mode-shop-label" class="cursor-pointer flex flex-col items-center gap-2 p-3 rounded-xl border-2 border-indigo-400 bg-indigo-50 transition text-center">
-                                        <input type="radio" name="store-site-mode" id="store-site-mode-shop" value="shop" class="hidden" onchange="window._onSiteModeChange('shop')">
+                                    <label id="site-mode-shop-label" class="cursor-pointer flex flex-col items-center gap-2 p-3 rounded-xl border-2 border-indigo-400 bg-indigo-50 transition text-center" onclick="window._onSiteModeChange('shop',true)">
+                                        <input type="radio" name="store-site-mode" id="store-site-mode-shop" value="shop" class="hidden">
                                         <i class="fa-solid fa-cart-shopping text-indigo-600 text-lg"></i>
                                         <span class="text-xs font-black text-indigo-800">עם חנות</span>
                                         <span class="text-[10px] text-slate-400">קטלוג, מחירים, הזמנות</span>
                                     </label>
-                                    <label id="site-mode-branding-label" class="cursor-pointer flex flex-col items-center gap-2 p-3 rounded-xl border-2 border-slate-200 bg-white transition text-center">
-                                        <input type="radio" name="store-site-mode" id="store-site-mode-branding" value="branding" class="hidden" onchange="window._onSiteModeChange('branding')">
+                                    <label id="site-mode-branding-label" class="cursor-pointer flex flex-col items-center gap-2 p-3 rounded-xl border-2 border-slate-200 bg-white transition text-center" onclick="window._onSiteModeChange('branding',true)">
+                                        <input type="radio" name="store-site-mode" id="store-site-mode-branding" value="branding" class="hidden">
                                         <i class="fa-solid fa-star text-slate-400 text-lg"></i>
                                         <span class="text-xs font-black text-slate-600">תדמית בלבד</span>
                                         <span class="text-[10px] text-slate-400">ללא חנות, מיקוד בשירותים</span>
@@ -23984,7 +23984,7 @@ setInterval(() => {
     }
 }, 20000);
 
-window._onSiteModeChange = function(mode) {
+window._onSiteModeChange = function(mode, fromUser) {
     const shopLabel     = document.getElementById('site-mode-shop-label');
     const brandingLabel = document.getElementById('site-mode-branding-label');
     const shopRadio     = document.getElementById('store-site-mode-shop');
@@ -24004,6 +24004,20 @@ window._onSiteModeChange = function(mode) {
         brandingLabel.querySelector('span').className = 'text-xs font-black text-slate-600';
         if (shopRadio) shopRadio.checked = true;
         if (brandingRadio) brandingRadio.checked = false;
+    }
+    // שמירה אוטומטית כשהמשתמש בחר (לא בטעינה)
+    if (fromUser && currentGroup) {
+        fetch(`${API}/store/settings`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ groupId: currentGroup.id, siteMode: mode,
+                // שדות חובה למניעת איפוס
+                isActive: document.getElementById('store-is-active')?.checked ?? true,
+                storeAlias: document.getElementById('store-alias-input')?.value || ''
+            })
+        }).then(r => r.json()).then(d => {
+            if (d.success) showToast('success', mode === 'branding' ? '🌐 מצב תדמית הופעל' : '🛍️ מצב חנות הופעל');
+        }).catch(() => {});
     }
 };
 
