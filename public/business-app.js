@@ -980,7 +980,7 @@ window.injectBusinessUI = function() {
                                     </div>
                                 </div>
 
-                                <!-- הגדרות מסעדה/קפה -->
+                                <!-- הגדרות מסעדה/קפה — מוצג לעסקי מסעדה/קפה -->
                                 <div id="restaurant-store-settings-block" class="hidden space-y-3 border-t border-slate-100 pt-4">
                                     <h4 class="font-black text-slate-800 text-sm">🍽️ הגדרות מסעדה / קפה</h4>
                                     <div class="bg-orange-50 border border-orange-100 rounded-2xl p-4 space-y-3">
@@ -993,6 +993,27 @@ window.injectBusinessUI = function() {
                                             <input type="checkbox" id="store-enable-event-booking" class="w-5 h-5 accent-orange-500 rounded mt-0.5 shrink-0">
                                             <div><span class="font-bold text-slate-700 text-sm block">🎉 הזמנת אירוע / קייטרינג</span><span class="text-xs text-slate-400">לקוחות שולחים בקשה לאירוע עם בחירת תפריט ומספר סועדים — מגיע כהצעת מחיר לאישורך</span></div>
                                         </label>
+                                    </div>
+                                </div>
+
+                                <!-- הגדרות ספורט — מוצג לעסקי ספורט בלבד -->
+                                <div id="sport-store-settings-block" class="hidden space-y-3 border-t border-slate-100 pt-4">
+                                    <h4 class="font-black text-slate-800 text-sm">🏋️ הגדרות ספורט</h4>
+                                    <div class="bg-indigo-50 border border-indigo-200 rounded-2xl p-4">
+                                        <div class="font-bold text-indigo-800 text-sm mb-3">🌐 מה מוצג בחנות הציבורית?</div>
+                                        <div class="space-y-3">
+                                            <label class="flex items-center justify-between gap-2 cursor-pointer"><span class="text-sm text-slate-700">📋 לוח שיעורים + הרשמה לשיעור</span><input type="checkbox" id="sport-public-schedule" class="w-5 h-5 accent-indigo-600 rounded"></label>
+                                            <label class="flex items-center justify-between gap-2 cursor-pointer"><span class="text-sm text-slate-700">🏋️ הצטרפות מנוי (הרשמה עצמאית)</span><input type="checkbox" id="sport-public-membership" class="w-5 h-5 accent-indigo-600 rounded"></label>
+                                            <label class="flex items-center justify-between gap-2 cursor-pointer"><span class="text-sm text-slate-700">📅 הזמנת אימון אישי עם מאמן</span><input type="checkbox" id="sport-public-trainer" class="w-5 h-5 accent-indigo-600 rounded"></label>
+                                        </div>
+                                    </div>
+                                    <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="sport-trial-enabled" class="w-5 h-5 accent-indigo-600 rounded"><span class="font-bold text-slate-700 text-sm">אפשר שיעור ניסיון חינם לחברים חדשים</span></label>
+                                    <div><label class="text-xs font-bold text-slate-500 block mb-1.5">מדיניות ביטול מנוי</label><textarea id="sport-cancellation-policy" class="modern-input py-2 text-sm h-20" placeholder="לדוגמה: ניתן לבטל מנוי עד 14 ימים לפני תחילתו..."></textarea></div>
+                                    <div><label class="text-xs font-bold text-slate-500 block mb-1.5">מדיניות הקפאת מנוי</label><textarea id="sport-freeze-policy" class="modern-input py-2 text-sm h-16" placeholder="לדוגמה: ניתן להקפיא מנוי פעם אחת בשנה, עד 30 יום..."></textarea></div>
+                                    <div><label class="text-xs font-bold text-slate-500 block mb-1.5">הצהרת כשירות גופנית / כתב ויתור</label><textarea id="sport-waiver-text" class="modern-input py-2 text-sm h-16" placeholder="הצהרה שתוצג ללקוחות בעת רישום..."></textarea></div>
+                                    <div class="grid grid-cols-2 gap-3">
+                                        <div><label class="text-xs font-bold text-slate-500 block mb-1.5">גיל מינימלי לחברות</label><input type="number" id="sport-min-age" min="0" max="99" class="modern-input py-2 text-sm w-full" placeholder="16"></div>
+                                        <div><label class="text-xs font-bold text-slate-500 block mb-1.5">ימי הודעה מוקדמת לביטול</label><input type="number" id="sport-cancel-notice-days" min="0" max="90" class="modern-input py-2 text-sm w-full" placeholder="14"></div>
                                     </div>
                                 </div>
 
@@ -1235,28 +1256,8 @@ window.injectBusinessUI = function() {
                             </div>
                         </div>
 
-                        <!-- modifiers-section-wrapper + sport-store-settings-block — נסתרים, נטענים ע"י switchSalesTab -->
+                        <!-- placeholder ריק לתאימות אחורה עם קוד שמחפש את ה-wrapper -->
                         <div id="modifiers-section-wrapper" class="hidden"></div>
-                        <div id="sport-store-settings-block" class="hidden bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
-                            <h4 class="font-black text-slate-800">🏋️ הגדרות ספורט</h4>
-                            <div class="bg-indigo-50 border border-indigo-200 rounded-2xl p-4">
-                                <div class="font-bold text-indigo-800 text-sm mb-3">🌐 מה מוצג בחנות הציבורית?</div>
-                                <div class="space-y-3">
-                                    <label class="flex items-center justify-between gap-2 cursor-pointer"><span class="text-sm text-slate-700">📋 לוח שיעורים + הרשמה לשיעור</span><input type="checkbox" id="sport-public-schedule" class="w-5 h-5 accent-indigo-600 rounded"></label>
-                                    <label class="flex items-center justify-between gap-2 cursor-pointer"><span class="text-sm text-slate-700">🏋️ הצטרפות מנוי (הרשמה עצמאית)</span><input type="checkbox" id="sport-public-membership" class="w-5 h-5 accent-indigo-600 rounded"></label>
-                                    <label class="flex items-center justify-between gap-2 cursor-pointer"><span class="text-sm text-slate-700">📅 הזמנת אימון אישי עם מאמן</span><input type="checkbox" id="sport-public-trainer" class="w-5 h-5 accent-indigo-600 rounded"></label>
-                                </div>
-                            </div>
-                            <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="sport-trial-enabled" class="w-5 h-5 accent-indigo-600 rounded"><span class="font-bold text-slate-700 text-sm">אפשר שיעור ניסיון חינם לחברים חדשים</span></label>
-                            <div><label class="text-xs font-bold text-slate-500 block mb-1.5">מדיניות ביטול מנוי</label><textarea id="sport-cancellation-policy" class="modern-input py-2 text-sm h-20" placeholder="לדוגמה: ניתן לבטל מנוי עד 14 ימים לפני תחילתו..."></textarea></div>
-                            <div><label class="text-xs font-bold text-slate-500 block mb-1.5">מדיניות הקפאת מנוי</label><textarea id="sport-freeze-policy" class="modern-input py-2 text-sm h-16" placeholder="לדוגמה: ניתן להקפיא מנוי פעם אחת בשנה, עד 30 יום..."></textarea></div>
-                            <div><label class="text-xs font-bold text-slate-500 block mb-1.5">הצהרת כשירות גופנית / כתב ויתור</label><textarea id="sport-waiver-text" class="modern-input py-2 text-sm h-16" placeholder="הצהרה שתוצג ללקוחות בעת רישום..."></textarea></div>
-                            <div class="grid grid-cols-2 gap-3">
-                                <div><label class="text-xs font-bold text-slate-500 block mb-1.5">גיל מינימלי לחברות</label><input type="number" id="sport-min-age" min="0" max="99" class="modern-input py-2 text-sm w-full" placeholder="16"></div>
-                                <div><label class="text-xs font-bold text-slate-500 block mb-1.5">ימי הודעה מוקדמת לביטול</label><input type="number" id="sport-cancel-notice-days" min="0" max="90" class="modern-input py-2 text-sm w-full" placeholder="14"></div>
-                            </div>
-                            <button onclick="window.saveStoreSettings()" class="w-full bg-slate-800 text-white py-3.5 rounded-xl font-bold shadow-lg hover:bg-slate-700 transition text-sm">שמור ✓</button>
-                        </div>
 
                     </div>
 
@@ -24025,6 +24026,7 @@ window.switchSalesTab = function(subTab) {
         const restBlock = document.getElementById('restaurant-store-settings-block');
         const bizType = currentGroup?.business_type || '';
         const isRestaurant = ['restaurant', 'cafe'].includes(bizType);
+        // הצג/הסתר בלוקים ייעודיים בתוך טאב מידע
         if (isSport) {
             if (sportBlock) { sportBlock.classList.remove('hidden'); if (typeof window._loadSportStoreSettings === 'function') window._loadSportStoreSettings(); }
             if (restBlock) restBlock.classList.add('hidden');
@@ -24032,7 +24034,11 @@ window.switchSalesTab = function(subTab) {
             if (sportBlock) sportBlock.classList.add('hidden');
             if (restBlock) restBlock.classList.toggle('hidden', !isRestaurant);
         }
+        // אתחל תמיד על הטאב הראשון
         if (typeof window._switchStoreTab === 'function') window._switchStoreTab('info');
+        // טען מיקום ואזורי שירות ברקע
+        if (typeof window.loadBizLocation === 'function') window.loadBizLocation();
+        if (typeof window.loadBizServiceAreas === 'function') window.loadBizServiceAreas();
     }
     if(subTab === 'quotes') {
         const list = document.getElementById('store-quotes-list');
