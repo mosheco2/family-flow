@@ -98,7 +98,8 @@ window.applyUserPermissions = function() {
         'support': 'support', 'devops': 'devops', 'stats': 'stats',
         'comm': 'comm', 'biz': 'biz', 'content': 'content',
         'hr': 'users', 'inbox': 'marketing', 'partners': 'all', 'finance': 'stats',
-        'marketing': 'marketing'
+        'marketing': 'marketing',
+        'masterconfig': 'all'
     };
 
     function canAccessTab(tab) {
@@ -128,7 +129,8 @@ window.checkTabAccess = function(tabId) {
     
     // מעודכן לאפשר גישה גם לדשבורד
     if (perms.includes('all') || tabId === 'pulse' || tabId === 'dashboard' || tabId === 'clients' || tabId === 'templates' || tabId === 'partners' || tabId === 'pricing') return true;
-    
+    if (tabId === 'masterconfig') return perms.includes('all');
+
     const req = {
         'support': 'support', 'devops': 'devops', 'stats': 'stats',
         'comm': 'comm', 'biz': 'biz', 'content': 'content',
@@ -435,7 +437,7 @@ window.switchSATab = function(tabId) {
     if (tabId === 'legal') loadLegalDocs();
 
     if (tabId === 'adslots') window.renderAdSlotsPanel && window.renderAdSlotsPanel();
-    const allTabs = ['dashboard', 'pulse', 'devops', 'support', 'stats', 'comm', 'biz', 'inbox', 'content', 'clients', 'hr', 'partners', 'finance', 'sysmap', 'legal', 'templates', 'adslots', 'auditlog', 'archive', 'games', 'feed', 'livegames', 'marketing', 'whatsapp', 'kol-haam', 'pricing', 'ai-builder'];
+    const allTabs = ['dashboard', 'pulse', 'devops', 'support', 'stats', 'comm', 'biz', 'inbox', 'content', 'clients', 'hr', 'partners', 'finance', 'sysmap', 'legal', 'templates', 'adslots', 'auditlog', 'archive', 'games', 'feed', 'livegames', 'marketing', 'whatsapp', 'kol-haam', 'pricing', 'ai-builder', 'masterconfig'];
     if (tabId === 'clients') { setTimeout(() => switchViewTab('clients','environments'), 50); }
     if (tabId === 'kol-haam') loadSAKolHaamQueue();
     let activeTabTitle = 'לוח בקרה';
@@ -472,10 +474,12 @@ window.switchSATab = function(tabId) {
         games:'משחקי ילדים', feed:'פיד קהילתי', livegames:'משחקים חיים', marketing:'שיווק והשקות',
         'kol-haam': 'קול העם',
         pricing: 'מחירון מודולים',
-        'ai-builder': 'מחולל עסקים AI'
+        'ai-builder': 'מחולל עסקים AI',
+        masterconfig: '🔐 הגדרות חיבורים (Master)'
     };
     if (tabId === 'pricing') renderPricingCatalogView();
     if (tabId === 'ai-builder') initAIBuilder();
+    if (tabId === 'masterconfig') { loadCldConfig(); loadEmailSettings(); }
     activeTabTitle = _tabTitles[tabId] || tabId;
 
     // עדכון כותרת בסרגל העליון (Topbar)
@@ -528,6 +532,7 @@ const SA_GROUPS = {
     whatsapp:   { tabs: ['whatsapp'],                   labels: ['מרכז WhatsApp'],                   icons: ['fa-whatsapp'],                             default: 'whatsapp' },
     pricing:    { tabs: ['pricing'],                    labels: ['מחירון מודולים'],                  icons: ['fa-tags'],                                 default: 'pricing' },
     aibuilder:  { tabs: ['ai-builder'],                 labels: ['מחולל עסקים AI'],                  icons: ['fa-wand-magic-sparkles'],                  default: 'ai-builder' },
+    masterconfig: { tabs: ['masterconfig'],             labels: ['הגדרות חיבורים'],                   icons: ['fa-database'],                             default: 'masterconfig' },
 };
 
 function _getGroupForTab(tabId) {
@@ -9021,6 +9026,17 @@ window.saveCldConfig = async function() {
         if(statusEl){statusEl.textContent='✅ נשמר!'; statusEl.className='text-xs font-bold text-green-600'; statusEl.classList.remove('hidden'); setTimeout(()=>statusEl.classList.add('hidden'),2500);}
     } catch(e) { if(statusEl){statusEl.textContent='❌ שגיאה'; statusEl.className='text-xs font-bold text-red-600'; statusEl.classList.remove('hidden');} }
 };
+
+async function loadEmailSettings() {
+    try {
+        const res = await fetch(`${API}/superadmin/data`, { headers: { 'Authorization': saToken } });
+        const data = await res.json();
+        const setVal = (id, v) => { const e = document.getElementById(id); if (e) e.value = v || ''; };
+        setVal('smtp-from-name', data.smtpFromName);
+        setVal('smtp-from-email', data.smtpFromEmail);
+        setVal('admin-notification-email', data.adminNotificationEmail);
+    } catch(e) {}
+}
 
 async function loadCldConfig() {
     try {

@@ -212,6 +212,9 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
             <button id="btn-sa-group-aibuilder" onclick="switchSAGroup('aibuilder')" class="hidden flex">
               <i class="fa-solid fa-wand-magic-sparkles" style="color:#a78bfa"></i> מחולל עסקים AI
             </button>
+            <button id="btn-sa-group-masterconfig" onclick="switchSAGroup('masterconfig')" class="hidden flex">
+              <i class="fa-solid fa-database" style="color:#ef4444"></i> הגדרות מאסטר
+            </button>
           </div>
           <div class="sb-footer">
             <button onclick="logoutSA()" class="sb-logout">
@@ -1444,7 +1447,7 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
           <div style="display:flex;gap:0.4rem;flex-wrap:wrap;margin-bottom:1.25rem;background:white;border:1px solid #e2e8f0;border-radius:0.75rem;padding:0.6rem 0.75rem;box-shadow:0 1px 3px rgba(0,0,0,0.04);overflow-x:auto;" id="vtnav-content">
                       <button id="vtnav-content-branding" onclick="switchViewTab('content','branding')" style="background:#4f46e5;color:white;border:1px solid #4338ca;border-radius:0.6rem;padding:0.45rem 1rem;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:Rubik,sans-serif;transition:all 0.15s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;"><i class="fa-solid fa-paint-roller" style="font-size:11px;"></i>מיתוג ולוגו</button>
                       <button id="vtnav-content-banners" onclick="switchViewTab('content','banners')" style="background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;border-radius:0.6rem;padding:0.45rem 1rem;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:Rubik,sans-serif;transition:all 0.15s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;"><i class="fa-solid fa-bullhorn" style="font-size:11px;"></i>הודעות ובאנרים</button>
-                      <button id="vtnav-content-settings" onclick="switchViewTab('content','settings')" style="background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;border-radius:0.6rem;padding:0.45rem 1rem;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:Rubik,sans-serif;transition:all 0.15s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;"><i class="fa-solid fa-envelope" style="font-size:11px;"></i>הגדרות מייל</button>
+                      <button id="vtnav-content-settings" onclick="switchViewTab('content','settings')" style="background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;border-radius:0.6rem;padding:0.45rem 1rem;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:Rubik,sans-serif;transition:all 0.15s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;"><i class="fa-solid fa-mobile-screen-button" style="font-size:11px;"></i>הגדרות PWA</button>
                       <button id="vtnav-content-biz-feed" onclick="switchSAContentTab('biz-feed')" style="background:#f1f5f9;color:#475569;border:1px solid #e2e8f0;border-radius:0.6rem;padding:0.45rem 1rem;font-size:0.8rem;font-weight:700;cursor:pointer;font-family:Rubik,sans-serif;transition:all 0.15s;display:inline-flex;align-items:center;gap:5px;white-space:nowrap;position:relative;">📰 פוסטים עסקיים<span id="sa-biz-posts-badge" style="display:none;position:absolute;top:-4px;right:-4px;background:#EF4444;color:white;border-radius:50%;width:16px;height:16px;font-size:0.6rem;font-weight:900;align-items:center;justify-content:center">0</span></button>
                     </div>
 
@@ -1657,25 +1660,10 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
           <!-- טאב: הגדרות מייל -->
           <div id="vt-content-settings" class="vt-content" style="display:none;">
               <div class="space-y-6">
-                    <!-- Email Settings -->
-                    <div class="bg-blue-50 p-6 rounded-2xl border border-blue-200">
-                        <h2 class="text-xl font-bold mb-1 text-blue-900"><i class="fa-solid fa-envelope text-blue-500 mr-2"></i> הגדרות מייל מערכת</h2>
-                        <p class="text-xs text-slate-500 mb-5">כתובת שולח המיילים ללקוחות ועסקים, ומייל קבלת ההתראות הניהוליות.</p>
-                        <div class="bg-white p-5 rounded-xl shadow-sm border border-blue-100 space-y-4">
-                            <div>
-                                <label class="text-xs font-bold text-slate-600 block mb-1">שם השולח (From Name)</label>
-                                <input id="smtp-from-name" type="text" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm" placeholder="Oneflow System">
-                            </div>
-                            <div>
-                                <label class="text-xs font-bold text-slate-600 block mb-1">כתובת מייל שולח (From Email)</label>
-                                <input id="smtp-from-email" type="email" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm dir-ltr text-left" placeholder="info@oneflowlife.co.il">
-                                <p class="text-[10px] text-slate-400 mt-1">⚠️ חייב להיות מורשה ב-SMTP — ב-Gmail צריך "Send As" מוגדר, או SMTP של הדומיין</p>
-                            </div>
-                            <div>
-                                <label class="text-xs font-bold text-slate-600 block mb-1">מייל קבלת התראות ניהוליות (הצטרפויות, תמיכה)</label>
-                                <input id="admin-notification-email" type="email" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm dir-ltr text-left" placeholder="mcgames1978@gmail.com">
-                            </div>
-                        </div>
+                    <!-- הגדרות מייל הועברו לטאב מאסטר בלבד -->
+                    <div class="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-center gap-3">
+                        <i class="fa-solid fa-lock text-amber-500"></i>
+                        <p class="text-sm text-amber-800 font-semibold">הגדרות מייל ו-API זמינות בטאב <strong>"הגדרות מאסטר"</strong> — גישה למאסטר בלבד.</p>
                     </div>
 
                     <!-- PWA Install Prompt Toggle -->
@@ -1700,9 +1688,6 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                         </div>
                     </div>
 
-                    <button onclick="saveEmailSettings()" class="bg-blue-600 text-white px-6 py-4 rounded-xl font-bold w-full shadow-lg hover:bg-blue-700 transition text-lg">
-                        <i class="fa-solid fa-save mr-2"></i> שמור הגדרות מייל
-                    </button>
               </div>
           </div>
 
@@ -2965,40 +2950,6 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
 
                 <!-- sub-tab: שטחי פרסום -->
                 <div id="vt-adslots-slots" class="vt-adslots space-y-6">
-                <!-- כיתוב מסך טעינה -->
-                <div class="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-md">
-                    <h3 class="text-base font-black text-slate-800 flex items-center gap-2 mb-4"><i class="fa-solid fa-comment-dots text-teal-500"></i> כיתוב מסך טעינה</h3>
-                    <div class="flex gap-3 items-center">
-                        <input type="text" id="preloader-text-input" placeholder="מסדרת את החיים שלך... רגע אחד ✨" class="flex-1 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-teal-400">
-                        <button onclick="savePreloaderText()" class="bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold px-5 py-2 rounded-xl transition flex items-center gap-2 whitespace-nowrap"><i class="fa-solid fa-floppy-disk"></i> שמור</button>
-                        <span id="preloader-text-status" class="text-xs font-bold hidden"></span>
-                    </div>
-                    <p class="text-xs text-slate-400 mt-2">הטקסט מופיע מתחת לאנימציית הטעינה כשאין תמונת splash</p>
-                </div>
-                <!-- הגדרות Cloudinary -->
-                <div class="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-md">
-                    <h3 class="text-base font-black text-slate-800 flex items-center gap-2 mb-4"><i class="fa-solid fa-cloud-arrow-up text-blue-500"></i> הגדרות Cloudinary (אחסון תמונות)</h3>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
-                        <div>
-                            <label class="block text-xs font-bold text-slate-500 mb-1">Cloud Name</label>
-                            <input type="text" id="cld-cloud-name" placeholder="לדוגמה: my-cloud-abc" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-blue-400">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold text-slate-500 mb-1">Upload Preset (unsigned)</label>
-                            <input type="text" id="cld-upload-preset" placeholder="לדוגמה: family_ads" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-blue-400">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold text-slate-500 mb-1">API Secret (לניקוי חודשי)</label>
-                            <input type="password" id="cld-api-secret" placeholder="הסוד מה-Cloudinary Dashboard" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-blue-400">
-                        </div>
-                    </div>
-                    <div class="flex items-center gap-3">
-                        <button onclick="saveCldConfig()" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-5 py-2 rounded-xl transition flex items-center gap-2"><i class="fa-solid fa-floppy-disk"></i> שמור הגדרות</button>
-                        <span id="cld-config-status" class="text-xs font-bold hidden"></span>
-                        <a href="https://cloudinary.com/console" target="_blank" class="text-xs text-blue-500 underline mr-auto">פתח Cloudinary Dashboard ↗</a>
-                    </div>
-                    <p class="text-xs text-slate-400 mt-3">לאחר שמירה — כפתור "העלה תמונה" בכל שטח יעלה ישירות ל-Cloudinary</p>
-                </div>
                 <!-- גריד שטחי פרסום -->
                 <div class="bg-white p-6 sm:p-8 rounded-[2rem] border border-slate-200 shadow-md">
                     <div class="mb-6 border-b border-slate-100 pb-6">
@@ -3896,6 +3847,78 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
               </div>
 
             </div><!-- /sa-view-ai-builder -->
+
+            <!-- ====== MASTER CONFIG VIEW — גישה למאסטר בלבד ====== -->
+            <div id="sa-view-masterconfig" class="hidden space-y-8 fade-in" style="max-width:860px;margin:0 auto;padding-bottom:40px">
+              <div class="bg-red-50 border border-red-200 rounded-2xl p-4 flex items-center gap-3 mb-2">
+                <i class="fa-solid fa-shield-halved text-red-500 text-xl"></i>
+                <div>
+                  <p class="font-black text-red-800 text-sm">אזור מאסטר בלבד — הגדרות חיבורים ו-API</p>
+                  <p class="text-xs text-red-600 mt-0.5">הגדרות אלה גלויות ונגישות אך ורק למשתמש מאסטר. מיישמים אינם רואים אזור זה.</p>
+                </div>
+              </div>
+
+              <!-- Cloudinary -->
+              <div class="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-md">
+                <h3 class="text-base font-black text-slate-800 flex items-center gap-2 mb-1"><i class="fa-solid fa-cloud-arrow-up text-blue-500"></i> Cloudinary — אחסון תמונות</h3>
+                <p class="text-xs text-slate-400 mb-4">פרטי חיבור ל-Cloudinary לאחסון תמונות המערכת ושטחי פרסום.</p>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+                  <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">Cloud Name</label>
+                    <input type="text" id="cld-cloud-name" placeholder="לדוגמה: my-cloud-abc" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-blue-400">
+                  </div>
+                  <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">Upload Preset (unsigned)</label>
+                    <input type="text" id="cld-upload-preset" placeholder="לדוגמה: family_ads" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-blue-400">
+                  </div>
+                  <div>
+                    <label class="block text-xs font-bold text-slate-500 mb-1">API Secret (לניקוי חודשי)</label>
+                    <input type="password" id="cld-api-secret" placeholder="הסוד מה-Cloudinary Dashboard" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-blue-400">
+                  </div>
+                </div>
+                <div class="flex items-center gap-3">
+                  <button onclick="saveCldConfig()" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-5 py-2 rounded-xl transition flex items-center gap-2"><i class="fa-solid fa-floppy-disk"></i> שמור הגדרות</button>
+                  <span id="cld-config-status" class="text-xs font-bold hidden"></span>
+                  <a href="https://cloudinary.com/console" target="_blank" class="text-xs text-blue-500 underline mr-auto">פתח Cloudinary Dashboard ↗</a>
+                </div>
+                <p class="text-xs text-slate-400 mt-3">לאחר שמירה — כפתור "העלה תמונה" בכל שטח יעלה ישירות ל-Cloudinary</p>
+              </div>
+
+              <!-- SMTP / Email -->
+              <div class="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-md">
+                <h3 class="text-base font-black text-slate-800 flex items-center gap-2 mb-1"><i class="fa-solid fa-envelope text-indigo-500"></i> הגדרות מייל מערכת (SMTP)</h3>
+                <p class="text-xs text-slate-400 mb-4">כתובת שולח המיילים ללקוחות ועסקים, ומייל קבלת ההתראות הניהוליות.</p>
+                <div class="space-y-3">
+                  <div>
+                    <label class="text-xs font-bold text-slate-600 block mb-1">שם השולח (From Name)</label>
+                    <input id="smtp-from-name" type="text" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm" placeholder="Oneflow System">
+                  </div>
+                  <div>
+                    <label class="text-xs font-bold text-slate-600 block mb-1">כתובת מייל שולח (From Email)</label>
+                    <input id="smtp-from-email" type="email" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm dir-ltr text-left" placeholder="info@oneflowlife.co.il">
+                    <p class="text-[10px] text-slate-400 mt-1">⚠️ חייב להיות מורשה ב-SMTP — ב-Gmail צריך "Send As" מוגדר, או SMTP של הדומיין</p>
+                  </div>
+                  <div>
+                    <label class="text-xs font-bold text-slate-600 block mb-1">מייל קבלת התראות ניהוליות</label>
+                    <input id="admin-notification-email" type="email" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm dir-ltr text-left" placeholder="mcgames1978@gmail.com">
+                  </div>
+                </div>
+                <button onclick="saveEmailSettings()" class="mt-4 bg-indigo-600 text-white px-6 py-3 rounded-xl font-bold w-full shadow hover:bg-indigo-700 transition">
+                  <i class="fa-solid fa-save mr-2"></i> שמור הגדרות מייל
+                </button>
+              </div>
+
+              <!-- כיתוב מסך טעינה -->
+              <div class="bg-white p-6 rounded-[2rem] border border-slate-200 shadow-md">
+                <h3 class="text-base font-black text-slate-800 flex items-center gap-2 mb-1"><i class="fa-solid fa-spinner text-teal-500"></i> כיתוב מסך טעינה</h3>
+                <p class="text-xs text-slate-400 mb-3">הטקסט המופיע מתחת לאנימציית הטעינה.</p>
+                <div class="flex gap-3 items-center">
+                  <input type="text" id="preloader-text-input" placeholder="מסדרת את החיים שלך... רגע אחד ✨" class="flex-1 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-teal-400">
+                  <button onclick="savePreloaderText()" class="bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold px-5 py-2 rounded-xl transition flex items-center gap-2 whitespace-nowrap"><i class="fa-solid fa-floppy-disk"></i> שמור</button>
+                  <span id="preloader-text-status" class="text-xs font-bold hidden"></span>
+                </div>
+              </div>
+            </div><!-- /sa-view-masterconfig -->
 
         </main>
       </div>
