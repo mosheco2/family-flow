@@ -977,27 +977,10 @@ function _enableBrandingMode(data) {
   hide('search-wrap');
   hide('catalog-outer');
   hide('cart-bar');
+  hide('deals-section'); // הסתר באנרים עם כפתורי "לתפריט/להזמנה" במצב תדמית
   // הסתר scroll-spy markers
   document.querySelectorAll('.cat-section-anchor').forEach(el => el.style.display = 'none');
-  // כפתור "לצפייה בתפריט / מוצרים" — מוצג רק אם יש פריטים
-  if (data.catalog && data.catalog.length > 0) {
-    const hero = document.getElementById('hero-ctas');
-    if (hero && !document.getElementById('branding-menu-btn')) {
-      const btn = document.createElement('button');
-      btn.id = 'branding-menu-btn';
-      btn.className = 'hero-cta-primary';
-      btn.style.background = 'var(--accent)';
-      btn.innerHTML = '📋 לצפייה בתפריט';
-      btn.onclick = function() {
-        ['cat-nav-wrap','search-wrap','catalog-outer'].forEach(id => {
-          const el = document.getElementById(id); if (el) el.style.display = '';
-        });
-        btn.style.display = 'none';
-        window.scrollTo(0, 0);
-      };
-      hero.appendChild(btn);
-    }
-  }
+  // במצב תדמית אין גישה לתפריט/קטלוג
 }
 
 async function initStore() {
