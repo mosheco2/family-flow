@@ -1073,6 +1073,18 @@ function renderHeader(s) {
 }
 
 function renderHero(s) {
+  const _btype = storeData.businessType || storeData.business_type || 'retail';
+  const _eyebrowMap = {
+    sport: 'B2B · ציוד ספורט סיטונאי',
+    restaurant: 'מסעדה · הזמנות ישירות',
+    cafe: 'בית קפה · הזמנות ישירות',
+    beauty: 'יופי וטיפוח · מוצרים מובחרים',
+    professional: 'שירותים מקצועיים',
+    retail: 'חנות מסחרית · הזמנות ישירות',
+    market: 'שוק · מוצרים טריים',
+  };
+  const _eyebrowEl = document.getElementById('hero-eyebrow-text');
+  if (_eyebrowEl) _eyebrowEl.textContent = _eyebrowMap[_btype] || s.slogan || 'חנות · הזמנות ישירות';
   const displayName = (isEn && storeData.groupNameEn) ? storeData.groupNameEn : storeData.groupName;
   const name = displayName || '';
   const displaySlogan = (isEn && s.slogan_en) ? s.slogan_en : (s.slogan || '');

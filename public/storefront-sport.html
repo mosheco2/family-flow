@@ -1089,6 +1089,18 @@ function renderHeader(s) {
 }
 
 function renderHero(s) {
+  const _btype = storeData.businessType || storeData.business_type || 'sport';
+  // eyebrow badge — מותאם לסוג עסק
+  const _eyebrowMap = {
+    sport: 'B2B · הזמנות סיטונאיות',
+    restaurant: 'מסעדה · הזמנות ישירות',
+    cafe: 'בית קפה · הזמנות ישירות',
+    beauty: 'יופי · קביעת תורים',
+    professional: 'שירותים מקצועיים',
+    retail: 'חנות · הזמנות ישירות',
+  };
+  const _eyebrowEl = document.getElementById('hero-eyebrow-text');
+  if (_eyebrowEl) _eyebrowEl.textContent = _eyebrowMap[_btype] || s.slogan || 'עסק · הזמנות ישירות';
   const displayName = (isEn && storeData.groupNameEn) ? storeData.groupNameEn : storeData.groupName;
   const name = displayName || '';
   const displaySlogan = (isEn && s.slogan_en) ? s.slogan_en : (s.slogan || '');
@@ -1118,6 +1130,7 @@ function renderHero(s) {
 }
 
 function renderQuickActions(s) {
+  const _btype = storeData.businessType || storeData.business_type || 'sport';
   const btns = [];
   if (s.phone) btns.push(`<a class="qa-btn" href="tel:${escHtml(s.phone)}">📞 ${escHtml(s.phone)}</a>`);
   const wa = s.whatsapp_number || s.phone;
@@ -1128,15 +1141,18 @@ function renderQuickActions(s) {
   } else if (s.biz_address) {
     btns.push(`<a class="qa-btn" href="https://maps.google.com/?q=${encodeURIComponent(s.biz_address)}" target="_blank">📍 ${escHtml(s.biz_address)}</a>`);
   }
+  // הזמנות שולחן/מקום/אירוע — רק אם מוגדר
   if (s.enable_table_booking) btns.push(`<button class="qa-btn" onclick="openBooking('table')">🪑 הזמנת שולחן</button>`);
   if (s.has_space_booking) btns.push(`<button class="qa-btn" onclick="openBooking('space')">🏛 הזמנת מקום</button>`);
   if (s.has_event_booking) btns.push(`<button class="qa-btn" onclick="openBooking('event')">🎉 הזמנת אירוע</button>`);
-  // Sport public features — controlled by BIZ settings
-  const sp = storeData?.settings?.sport_settings || {};
-  const sportPublic = typeof sp === 'string' ? JSON.parse(sp) : sp;
-  if (sportPublic.public_show_schedule !== false) btns.push(`<button class="qa-btn" onclick="openScheduleModal()">📋 לוח שיעורים</button>`);
-  if (sportPublic.public_show_membership !== false) btns.push(`<button class="qa-btn" onclick="openMembershipModal()">🏋️ הצטרף כחבר</button>`);
-  if (sportPublic.public_show_trainer !== false) btns.push(`<button class="qa-btn" onclick="openTrainerBooking()">📅 הזמן אימון אישי</button>`);
+  // כפתורי ספורט — רק לעסק ספורט
+  if (_btype === 'sport') {
+    const sp = storeData?.settings?.sport_settings || {};
+    const sportPublic = typeof sp === 'string' ? JSON.parse(sp) : sp;
+    if (sportPublic.public_show_schedule !== false) btns.push(`<button class="qa-btn" onclick="openScheduleModal()">📋 לוח שיעורים</button>`);
+    if (sportPublic.public_show_membership !== false) btns.push(`<button class="qa-btn" onclick="openMembershipModal()">🏋️ הצטרף כחבר</button>`);
+    if (sportPublic.public_show_trainer !== false) btns.push(`<button class="qa-btn" onclick="openTrainerBooking()">📅 הזמן אימון אישי</button>`);
+  }
   document.getElementById('quick-actions').innerHTML = btns.join('');
   document.getElementById('quick-actions').style.display = btns.length ? 'flex' : 'none';
 }
