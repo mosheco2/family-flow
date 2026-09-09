@@ -10015,6 +10015,21 @@ app.get('/api/store/settings/:groupId', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+app.post('/api/store/site-mode', async (req, res) => {
+    try {
+        const { groupId, siteMode } = req.body;
+        if (!groupId) return res.status(400).json({ error: 'groupId required' });
+        const mode = ['shop','branding'].includes(siteMode) ? siteMode : 'shop';
+        await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS site_mode VARCHAR(20) DEFAULT 'shop'`);
+        await pool.query(
+            `INSERT INTO store_settings (group_id, site_mode) VALUES ($1,$2)
+             ON CONFLICT (group_id) DO UPDATE SET site_mode = EXCLUDED.site_mode`,
+            [groupId, mode]
+        );
+        res.json({ success: true, siteMode: mode });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 app.post('/api/store/settings', async (req, res) => {
     try {
         const { groupId, isActive, welcomeMessage, phone, minOrder, slogan, storeType, logoUrl, bannerUrl, openTime, closeTime, whatsappNumber, deliveryFee, includeVat, vatRate, storeAlias, enableTableBooking, bookingMode, enableEventBooking, orderNotificationEmail, templateId, accentColor, deliveryEtaMin, pickupEtaMin, appStoreUrl, playStoreUrl, freeDeliveryAbove, tickerMessages, sloganEn, welcomeMessageEn, banner1Title, banner2Title, customerRequiredFields, siteMode } = req.body;

@@ -24007,14 +24007,10 @@ window._onSiteModeChange = function(mode, fromUser) {
     }
     // שמירה אוטומטית כשהמשתמש בחר (לא בטעינה)
     if (fromUser && currentGroup) {
-        fetch(`${API}/store/settings`, {
+        fetch(`${API}/store/site-mode`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ groupId: currentGroup.id, siteMode: mode,
-                // שדות חובה למניעת איפוס
-                isActive: document.getElementById('store-is-active')?.checked ?? true,
-                storeAlias: document.getElementById('store-alias-input')?.value || ''
-            })
+            body: JSON.stringify({ groupId: currentGroup.id, siteMode: mode })
         }).then(r => r.json()).then(d => {
             if (d.success) showToast('success', mode === 'branding' ? '🌐 מצב תדמית הופעל' : '🛍️ מצב חנות הופעל');
         }).catch(() => {});
