@@ -1360,31 +1360,8 @@
             const contactInfo = getEl('store-contact-info');
             if (contactInfo) contactInfo.classList.remove('hidden');
 
-            // כפתור "לצפייה בשירותים / מוצרים" — מציג את הקטלוג
-            const hasProducts = data.catalog && data.catalog.length > 0;
-            if (hasProducts) {
-                const header = document.querySelector('#store-app header');
-                if (header && !document.getElementById('branding-see-services-btn')) {
-                    const btnWrap = document.createElement('div');
-                    btnWrap.className = 'px-6 pb-5 pt-2 flex justify-center';
-                    btnWrap.innerHTML = `<button id="branding-see-services-btn" onclick="window._showBrandingCatalog()" class="inline-flex items-center gap-2 bg-slate-900 text-white font-bold text-sm px-6 py-3 rounded-2xl shadow-lg hover:bg-black transition active:scale-95"><i class="fa-solid fa-list text-xs"></i> לצפייה בשירותים ומוצרים</button>`;
-                    header.appendChild(btnWrap);
-                }
-            }
-
             window._isBrandingActive = true;
         }
-
-        window._showBrandingCatalog = function() {
-            const glassHeader = document.querySelector('.glass-header');
-            if (glassHeader) glassHeader.style.display = '';
-            const catalogContainer = getEl('catalog-container');
-            if (catalogContainer) catalogContainer.style.display = '';
-            const btn = document.getElementById('branding-see-services-btn');
-            if (btn) btn.closest('div').style.display = 'none';
-            window.scrollTo(0, 0);
-            _loadStoreExtras(storeData.groupId, storeData);
-        };
 
         window._showExpertiseDetail = function(icon, title, desc) {
             document.getElementById('exp-detail-icon').textContent = icon;
