@@ -27873,7 +27873,7 @@ window.injectAliasUI = function(existingAlias) {
     }
 };
 
-window.fetchStoreSettings = async function() {
+window.fetchStoreSettings = async function() { console.trace("[FSS-ACTIVE]");
     try {
         const res = await fetch(`${API}/store/settings/${currentGroup.id}`, { cache: 'no-store' });
         const data = await res.json();
