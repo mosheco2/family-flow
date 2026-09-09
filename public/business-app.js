@@ -27893,6 +27893,11 @@ window.fetchStoreSettings = async function() {
             }
 
             syncChecks('store-is-active', s.is_active);
+            // site_mode
+            const _defBranding = currentGroup?.business_type === 'professional';
+            const _isBranding = s.site_mode ? s.site_mode === 'branding' : _defBranding;
+            console.log('[site_mode] loaded (v3):', s.site_mode, '→', _isBranding);
+            if (typeof window._onSiteModeChange === 'function') window._onSiteModeChange(_isBranding ? 'branding' : 'shop');
             syncInputs('store-welcome-msg', s.welcome_message || '');
             syncInputs('store-welcome-msg-en', s.welcome_message_en || '');
             syncInputs('store-phone', s.phone || '');
