@@ -973,11 +973,15 @@
                 // סוג עסק + מצב אתר ציבורי
                 const _btype = data.businessType || data.business_type || '';
                 const _viewStore = urlParams.get('view') === 'store';
-                const _siteMode = data.settings?.site_mode || (_btype === 'professional' ? 'branding' : 'shop');
+                // site_mode: null/undefined means not set yet → fall back to business_type default
+                const _rawSiteMode = data.settings?.site_mode;
+                const _siteMode = (_rawSiteMode === 'shop' || _rawSiteMode === 'branding')
+                    ? _rawSiteMode
+                    : (_btype === 'professional' ? 'branding' : 'shop');
                 window._storeSiteMode = _siteMode;
 
-                // מצב תדמית: מומחים תמיד (אם לא שונה ל-shop), כל עסק עם site_mode=branding
-                const _isBrandingMode = (_siteMode === 'branding') || (_btype === 'professional' && _siteMode !== 'shop');
+                // מצב תדמית: רק אם site_mode=branding (כולל ברירת מחדל לprofessional)
+                const _isBrandingMode = (_siteMode === 'branding');
 
                 window._isProfessionalStore = _isBrandingMode;
                 window._profStoreData = _isBrandingMode ? data : null;

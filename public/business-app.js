@@ -23986,6 +23986,7 @@ setInterval(() => {
 }, 20000);
 
 window._onSiteModeChange = function(mode, fromUser) {
+    window._currentSiteMode = mode; // used by saveStoreSettings payload
     const shopLabel     = document.getElementById('site-mode-shop-label');
     const brandingLabel = document.getElementById('site-mode-branding-label');
     const shopRadio     = document.getElementById('store-site-mode-shop');
@@ -28073,7 +28074,13 @@ async function saveStoreSettings() {
             playStoreUrl: document.getElementById('store-play-store-url')?.value || '',
             freeDeliveryAbove: parseInt(document.getElementById('store-free-delivery-above')?.value) || 0,
             banner1Title: document.getElementById('store-banner1-title')?.value || '',
-            banner2Title: document.getElementById('store-banner2-title')?.value || ''
+            banner2Title: document.getElementById('store-banner2-title')?.value || '',
+            siteMode: (function() {
+                const brandingChecked = document.querySelector('input[name="site-mode"][value="branding"]')?.checked;
+                if (brandingChecked !== undefined) return brandingChecked ? 'branding' : 'shop';
+                // fallback: check current state from _onSiteModeChange
+                return window._currentSiteMode || 'shop';
+            })()
         };
 
         const res = await fetch(`${API}/store/settings`, {
