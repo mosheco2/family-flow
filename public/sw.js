@@ -1,4 +1,4 @@
-const CACHE_NAME = 'family-flow-v254';
+const CACHE_NAME = 'family-flow-v255';
 const STATIC_ASSETS = [
   '/index.html', '/app.js', '/business.html', '/business-app.js',
   '/manifest.json', '/manifest-business.json', '/favicon.png',
@@ -19,10 +19,13 @@ self.addEventListener('activate', event => {
   );
 });
 
+const _netErr = () => new Response('Network error', { status: 503, statusText: 'Service Unavailable' });
+
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
+  // API calls: network-only, never cache
   if (url.pathname.startsWith('/api/') || url.port === '3000' || url.port === '10000') {
-    event.respondWith(fetch(event.request).catch(() => caches.match(event.request)));
+    event.respondWith(fetch(event.request).catch(_netErr));
     return;
   }
   if (event.request.method !== 'GET') return;
@@ -31,7 +34,6 @@ self.addEventListener('fetch', event => {
     || url.pathname === '/'
     || url.pathname === '/kol-haam' || url.pathname.startsWith('/kol-haam/')
     || url.pathname.startsWith('/menu/') || url.pathname.startsWith('/menus/')
-    // store alias routes: single-segment paths with no dots (e.g. /pizzamoshik)
     || /^\/[a-zA-Z0-9_-]+$/.test(url.pathname);
   if (_isHtmlRoute) {
     event.respondWith(
@@ -41,7 +43,7 @@ self.addEventListener('fetch', event => {
           caches.open(CACHE_NAME).then(c => c.put(event.request, clone));
         }
         return res;
-      }).catch(() => caches.match(event.request))
+      }).catch(() => caches.match(event.request).then(cached => cached || _netErr()))
     );
     return;
   }
@@ -54,7 +56,7 @@ self.addEventListener('fetch', event => {
         const clone = res.clone();
         caches.open(CACHE_NAME).then(c => c.put(event.request, clone));
         return res;
-      }).catch(() => caches.match('/index.html'));
+      }).catch(() => caches.match('/index.html').then(cached => cached || _netErr()));
     })
   );
 });
