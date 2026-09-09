@@ -12650,6 +12650,7 @@ window.fetchStoreSettings = async function() {
             // site_mode: ברירת מחדל לעסקי מומחים היא תדמית, לשאר עם חנות
             const defaultBranding = currentGroup?.business_type === 'professional';
             const isBranding = s.site_mode ? s.site_mode === 'branding' : defaultBranding;
+            console.log('[site_mode] loaded:', s.site_mode, '→ isBranding:', isBranding);
             if (typeof window._onSiteModeChange === 'function') window._onSiteModeChange(isBranding ? 'branding' : 'shop');
             syncInputs('store-welcome-msg', s.welcome_message || '');
             syncInputs('store-welcome-msg-en', s.welcome_message_en || '');
@@ -24007,13 +24008,16 @@ window._onSiteModeChange = function(mode, fromUser) {
     }
     // שמירה אוטומטית כשהמשתמש בחר (לא בטעינה)
     if (fromUser && currentGroup) {
+        console.log('[site_mode] saving:', mode, 'groupId:', currentGroup.id);
         fetch(`${API}/store/site-mode`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ groupId: currentGroup.id, siteMode: mode })
         }).then(r => r.json()).then(d => {
+            console.log('[site_mode] save result:', d);
             if (d.success) showToast('success', mode === 'branding' ? '🌐 מצב תדמית הופעל' : '🛍️ מצב חנות הופעל');
-        }).catch(() => {});
+            else showToast('error', 'שגיאה בשמירת מצב האתר');
+        }).catch(e => { console.error('[site_mode] save error:', e); });
     }
 };
 
