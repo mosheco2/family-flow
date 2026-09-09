@@ -1,4 +1,4 @@
-const CACHE_NAME = 'family-flow-v255';
+const CACHE_NAME = 'family-flow-v256';
 const STATIC_ASSETS = [
   '/index.html', '/app.js', '/business.html', '/business-app.js',
   '/manifest.json', '/manifest-business.json', '/favicon.png',
@@ -23,6 +23,8 @@ const _netErr = () => new Response('Network error', { status: 503, statusText: '
 
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
+  // Cross-origin requests: let browser handle natively (avoid ERR_BLOCKED_BY_ORB)
+  if (url.origin !== self.location.origin) return;
   // API calls: network-only, never cache
   if (url.pathname.startsWith('/api/') || url.port === '3000' || url.port === '10000') {
     event.respondWith(fetch(event.request).catch(_netErr));
