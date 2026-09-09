@@ -10009,6 +10009,7 @@ app.post('/api/timeclock/manual', async (req, res) => {
 
 app.get('/api/store/settings/:groupId', async (req, res) => {
     try {
+        try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS site_mode VARCHAR(20) DEFAULT 'shop'`); } catch(_) {}
         const result = await pool.query('SELECT * FROM store_settings WHERE group_id=$1', [req.params.groupId]);
         if (result.rows.length > 0) res.json({ success: true, settings: result.rows[0] });
         else res.json({ success: true, settings: { is_active: false, min_order: 0, welcome_message: '', phone: '', slogan: '', store_type: 'retail', logo_url: null, modifier_presets: '[]', open_time: '', close_time: '', whatsapp_number: '' } });
@@ -35463,6 +35464,7 @@ app.listen(port, () => {
     console.log(`Server is running on port ${port}`);
     // Create performance indexes in background (non-blocking, sequential to avoid pool pressure)
     const idxQueries = [
+        `ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS site_mode VARCHAR(20) DEFAULT 'shop'`,
         `CREATE INDEX IF NOT EXISTS idx_users_group_id ON users(group_id)`,
         `CREATE INDEX IF NOT EXISTS idx_tasks_group_id ON tasks(group_id)`,
         `CREATE INDEX IF NOT EXISTS idx_pantry_group_id ON pantry(group_id)`,
