@@ -1349,6 +1349,12 @@
             if (glassHeader) glassHeader.style.display = 'none';
             const catalogContainer = getEl('catalog-container');
             if (catalogContainer) catalogContainer.style.display = 'none';
+            // הסתר עגלה תחתונה ומודלי הזמנה
+            const cartFooter = getEl('cart-footer');
+            if (cartFooter) cartFooter.classList.add('hidden');
+            ['product-modal-overlay','checkout-modal-overlay'].forEach(id => {
+                const el = getEl(id); if (el) el.style.display = 'none';
+            });
 
             // הצג פרטי קשר (שעות, וואטסאפ, טלפון)
             const contactInfo = getEl('store-contact-info');

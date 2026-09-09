@@ -973,14 +973,16 @@ function getPizzaSelections() {
 // ===== INIT =====
 function _enableBrandingMode(data) {
   const hide = id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; };
-  hide('cat-nav-wrap');
-  hide('search-wrap');
-  hide('catalog-outer');
-  hide('cart-bar');
-  hide('deals-section'); // הסתר באנרים עם כפתורי "לתפריט/להזמנה" במצב תדמית
-  // הסתר scroll-spy markers
+  // אלמנטי הזמנה/חנות — נסתרים במצב תדמית
+  hide('ticker');           // "פתוח עכשיו · מקבלים הזמנות"
+  hide('main-header');      // header עם עגלה, חיפוש, בחירת משלוח/איסוף ומשבצות זמן
+  hide('panel-overlay');    // פאנל עגלה
+  hide('cart-bar');         // עגלה תחתונה
+  hide('cat-nav-wrap');     // ניווט קטגוריות
+  hide('catalog-outer');    // קטלוג
+  hide('deals-section');    // באנרים עם כפתורי "לתפריט/להזמנה"
+  hide('hero-ctas');        // כפתורי "להזמנה עכשיו", "הזמנת שולחן"
   document.querySelectorAll('.cat-section-anchor').forEach(el => el.style.display = 'none');
-  // במצב תדמית אין גישה לתפריט/קטלוג
 }
 
 async function initStore() {

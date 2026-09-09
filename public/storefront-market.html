@@ -756,12 +756,15 @@ function cartCount() { return Object.values(cart).reduce((s,i) => s + i.qty, 0);
 /* ── Init ── */
 function _enableBrandingMode(data) {
   const hide = id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; };
-  hide('catalog-main');
-  hide('sidebar');
-  hide('cat-tabs-bar');
-  hide('deals-section');
+  // אלמנטי הזמנה/חנות — נסתרים במצב תדמית
+  hide('ticker-bar');       // "פתוח עכשיו · מקבלים הזמנות"
+  hide('cart-header-btn');  // כפתור עגלה ב-header
+  hide('cart-dock');        // עגלה/checkout צד ימין
+  hide('catalog-main');     // קטלוג
+  hide('sidebar');          // sidebar
+  hide('cat-tabs-bar');     // טאבי קטגוריות
+  hide('deals-section');    // באנרים
   document.querySelectorAll('[id*="search-wrap"], [id*="search-bar"]').forEach(el => el.style.display = 'none');
-  // במצב תדמית אין גישה לקטלוג
 }
 
 async function initStore() {
