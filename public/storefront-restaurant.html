@@ -532,14 +532,14 @@ input,button,select,textarea{font-family:inherit}
       <div class="footer-addr-text" id="footer-addr"></div>
       <div id="app-badges"></div>
     </div>
-    <div>
+    <div id="footer-col-orders">
       <div class="footer-col-title">הזמנות</div>
       <div class="footer-links">
         <span onclick="scrollToCatalog()">התפריט</span>
         <span onclick="openCartPanel()">מעקב הזמנה</span>
       </div>
     </div>
-    <div>
+    <div id="footer-col-info">
       <div class="footer-col-title">מידע</div>
       <div class="footer-links" id="footer-info-links">
         <span onclick="document.getElementById('info-section').scrollIntoView({behavior:'smooth'})">שעות ומשלוחים</span>
@@ -982,6 +982,8 @@ function _enableBrandingMode(data) {
   hide('catalog-outer');    // קטלוג
   hide('deals-section');    // באנרים עם כפתורי "לתפריט/להזמנה"
   hide('hero-ctas');        // כפתורי "להזמנה עכשיו", "הזמנת שולחן"
+  hide('footer-col-orders'); // עמודת "הזמנות" ב-footer (התפריט, מעקב הזמנה)
+  hide('footer-col-info');   // עמודת "מידע" ב-footer (שעות ומשלוחים)
   document.querySelectorAll('.cat-section-anchor').forEach(el => el.style.display = 'none');
 }
 
