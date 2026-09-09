@@ -24060,7 +24060,6 @@ window._switchStoreTab = function(tab) {
 const _BRANDING_SECTION_TYPES = [
     { type: 'service',      label: 'שירות',         icon: '⚡' },
     { type: 'testimonial',  label: 'המלצה',          icon: '⭐' },
-    { type: 'gallery',      label: 'גלריה',          icon: '🖼️' },
     { type: 'about',        label: 'אודות',          icon: '📖' },
     { type: 'team_member',  label: 'חבר צוות',       icon: '👤' },
     { type: 'faq',          label: 'שאלה נפוצה',     icon: '❓' },
@@ -24070,7 +24069,6 @@ function _brandingFieldsFor(type) {
     switch(type) {
         case 'service':     return [{ key:'title', label:'כותרת', type:'text' }, { key:'description', label:'תיאור', type:'textarea' }, { key:'icon', label:'אייקון (אמוג\'י)', type:'text' }, { key:'price', label:'מחיר (אופציונלי)', type:'text' }];
         case 'testimonial': return [{ key:'name', label:'שם', type:'text' }, { key:'text', label:'טקסט ההמלצה', type:'textarea' }, { key:'rating', label:'דירוג (1-5)', type:'number' }, { key:'avatar_initial', label:'ראשית שם (תו אחד)', type:'text' }];
-        case 'gallery':     return [{ key:'image_url', label:'URL תמונה', type:'text' }, { key:'caption', label:'כיתוב', type:'text' }];
         case 'about':       return [{ key:'title', label:'כותרת', type:'text' }, { key:'text', label:'טקסט', type:'textarea' }, { key:'mission', label:'המשימה', type:'textarea' }, { key:'vision', label:'החזון', type:'textarea' }];
         case 'team_member': return [{ key:'name', label:'שם', type:'text' }, { key:'role', label:'תפקיד', type:'text' }, { key:'bio', label:'ביוגרפיה קצרה', type:'textarea' }];
         case 'faq':         return [{ key:'question', label:'שאלה', type:'text' }, { key:'answer', label:'תשובה', type:'textarea' }];

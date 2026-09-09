@@ -11808,6 +11808,8 @@ app.put('/api/store/customers/:id', async (req, res) => {
 app.get('/api/storefront/:code', async (req, res) => {
     try {
         try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS site_mode VARCHAR(20) DEFAULT 'shop'`); } catch(_) {}
+        try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS gallery_enabled BOOLEAN DEFAULT FALSE`); } catch(_) {}
+        try { await pool.query(`CREATE TABLE IF NOT EXISTS business_gallery (id SERIAL PRIMARY KEY, group_id INT NOT NULL, image_url TEXT NOT NULL, caption TEXT, sort_order INT DEFAULT 0, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(_) {}
         const codeOrAlias = req.params.code;
         
         const numericId = /^\d+$/.test(codeOrAlias) ? parseInt(codeOrAlias) : null;
