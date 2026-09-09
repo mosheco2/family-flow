@@ -11826,7 +11826,7 @@ app.get('/api/storefront/:code', async (req, res) => {
         const groupNameEn = gRes.rows[0].name_en || '';
         const businessType = gRes.rows[0].business_type || 'other';
 
-        const [sRes, cRes, commRes, zonesRes] = await Promise.all([
+        const [sRes, cRes, commRes, zonesRes, brandingRes] = await Promise.all([
             pool.query('SELECT * FROM store_settings WHERE group_id=$1', [groupId]),
             pool.query('SELECT id, group_id, name, description, long_description, price, original_price, category, product_type, options_text, badge_text, badge_color, sku, sort_order, (image_url IS NOT NULL AND image_url != \'\') as has_image, name_en, description_en, category_en FROM store_catalog WHERE group_id=$1 AND is_available=TRUE ORDER BY sort_order ASC, category, name', [groupId]),
             req.query.communityId
@@ -11837,7 +11837,8 @@ app.get('/api/storefront/:code', async (req, res) => {
                         WHERE cb.business_id = $1 AND cb.community_id = $2 AND cb.status = 'approved'`,
                     [groupId, req.query.communityId])
                 : Promise.resolve(null),
-            pool.query('SELECT * FROM biz_radius_delivery_zones WHERE group_id=$1 ORDER BY radius_km ASC', [groupId])
+            pool.query('SELECT * FROM biz_radius_delivery_zones WHERE group_id=$1 ORDER BY radius_km ASC', [groupId]),
+            pool.query('SELECT * FROM branding_content WHERE group_id=$1 ORDER BY sort_order ASC', [groupId])
         ]);
         const settings = sRes.rows.length > 0 ? { ...sRes.rows[0], slogan_en: sRes.rows[0].slogan_en || '', welcome_message_en: sRes.rows[0].welcome_message_en || '' } : { is_active: true, min_order: 0, welcome_message: '', phone: '', slogan: '', store_type: 'retail', logo_url: null, modifier_presets: '[]', open_time: '', close_time: '', whatsapp_number: '', slogan_en: '', welcome_message_en: '' };
         let communityData = null;
@@ -11851,7 +11852,7 @@ app.get('/api/storefront/:code', async (req, res) => {
         const bizLat = parseFloat(settings.biz_lat) || null;
         const bizLng = parseFloat(settings.biz_lng) || null;
 
-        res.json({ success: true, groupId, groupName, groupNameEn, businessType, settings, catalog: cRes.rows, communityData, radiusZones, bizLat, bizLng });
+        res.json({ success: true, groupId, groupName, groupNameEn, businessType, settings, catalog: cRes.rows, communityData, radiusZones, bizLat, bizLng, brandingContent: brandingRes.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -11871,6 +11872,63 @@ app.get('/api/store/item-image/:itemId', async (req, res) => {
         }
         res.redirect(imgUrl);
     } catch(e) { res.status(500).end(); }
+});
+
+// ============================================================
+// --- BRANDING CONTENT ENDPOINTS ---
+// ============================================================
+
+// קבלת כל הבלוקים של עסק לפי groupId
+app.get('/api/branding/:groupId', async (req, res) => {
+    try {
+        const { groupId } = req.params;
+        const r = await pool.query('SELECT * FROM branding_content WHERE group_id=$1 ORDER BY sort_order ASC', [groupId]);
+        res.json({ success: true, sections: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// הוספה/עדכון בלוק
+app.post('/api/branding/:groupId/section', async (req, res) => {
+    try {
+        const { groupId } = req.params;
+        const { id, section_type, sort_order, data } = req.body;
+        if (!section_type || !data) return res.status(400).json({ error: 'חסרים שדות חובה' });
+        let r;
+        if (id) {
+            r = await pool.query(
+                `UPDATE branding_content SET section_type=$1, sort_order=$2, data=$3, updated_at=NOW() WHERE id=$4 AND group_id=$5 RETURNING *`,
+                [section_type, sort_order ?? 0, JSON.stringify(data), id, groupId]
+            );
+        } else {
+            r = await pool.query(
+                `INSERT INTO branding_content (group_id, section_type, sort_order, data) VALUES ($1,$2,$3,$4) RETURNING *`,
+                [groupId, section_type, sort_order ?? 0, JSON.stringify(data)]
+            );
+        }
+        res.json({ success: true, section: r.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// מחיקת בלוק
+app.delete('/api/branding/:groupId/section/:sectionId', async (req, res) => {
+    try {
+        const { groupId, sectionId } = req.params;
+        await pool.query('DELETE FROM branding_content WHERE id=$1 AND group_id=$2', [sectionId, groupId]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// עדכון סדר בלוקים
+app.post('/api/branding/:groupId/reorder', async (req, res) => {
+    try {
+        const { groupId } = req.params;
+        const { order } = req.body; // [{id, sort_order}]
+        if (!Array.isArray(order)) return res.status(400).json({ error: 'נדרש מערך order' });
+        for (const item of order) {
+            await pool.query('UPDATE branding_content SET sort_order=$1, updated_at=NOW() WHERE id=$2 AND group_id=$3', [item.sort_order, item.id, groupId]);
+        }
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 // ============================================================
@@ -35479,6 +35537,15 @@ app.listen(port, () => {
         `CREATE INDEX IF NOT EXISTS idx_loans_group_id ON loans(group_id)`,
         `CREATE INDEX IF NOT EXISTS idx_transactions_group_id ON transactions(group_id)`,
         `CREATE INDEX IF NOT EXISTS idx_transactions_user_id ON transactions(user_id)`,
+        `CREATE TABLE IF NOT EXISTS branding_content (
+          id SERIAL PRIMARY KEY,
+          group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+          section_type VARCHAR(50) NOT NULL,
+          sort_order INT DEFAULT 0,
+          data JSONB NOT NULL DEFAULT '{}',
+          created_at TIMESTAMP DEFAULT NOW(),
+          updated_at TIMESTAMP DEFAULT NOW()
+        )`,
     ];
     // Run sequentially after 5s delay — don't block startup or early requests
     setTimeout(async () => {

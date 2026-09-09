@@ -1361,6 +1361,129 @@
             if (contactInfo) contactInfo.classList.remove('hidden');
 
             window._isBrandingActive = true;
+            // הצג תוכן תדמית דינמי
+            _renderBrandingContent(data);
+        }
+
+        // ===== רינדור תוכן תדמית דינמי =====
+        function _renderBrandingContent(data) {
+            const sections = data.brandingContent || [];
+            if (!sections.length) return;
+            const hero = document.getElementById('hero') || document.querySelector('section');
+            if (!hero) return;
+            // קיבוץ לפי סוג
+            const grouped = {};
+            sections.forEach(sec => {
+                if (!grouped[sec.section_type]) grouped[sec.section_type] = [];
+                grouped[sec.section_type].push(sec);
+            });
+            // סדר הופעה: לפי sort_order של הבלוק הראשון בכל קבוצה
+            const orderedTypes = Object.keys(grouped).sort((a, b) => (grouped[a][0].sort_order || 0) - (grouped[b][0].sort_order || 0));
+            const container = document.createElement('div');
+            container.id = 'branding-content-sections';
+            container.style.cssText = 'max-width:900px;margin:0 auto;padding:32px 20px';
+            orderedTypes.forEach(type => {
+                const group = grouped[type];
+                const el = _renderSectionGroup(type, group);
+                if (el) container.appendChild(el);
+            });
+            hero.after(container);
+        }
+
+        function _renderSectionGroup(type, items) {
+            const wrap = document.createElement('div');
+            wrap.style.cssText = 'margin-bottom:40px';
+            if (type === 'service') {
+                wrap.innerHTML = '<h2 style="font-size:1.4rem;font-weight:900;margin-bottom:16px;color:var(--accent,#4f46e5)">השירותים שלנו</h2>';
+                const grid = document.createElement('div');
+                grid.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px';
+                items.forEach(sec => { const el = _renderServiceCard(sec.data || {}); if (el) grid.appendChild(el); });
+                wrap.appendChild(grid);
+            } else if (type === 'testimonial') {
+                wrap.innerHTML = '<h2 style="font-size:1.4rem;font-weight:900;margin-bottom:16px;color:var(--accent,#4f46e5)">לקוחות ממליצים</h2>';
+                const grid = document.createElement('div');
+                grid.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px';
+                items.forEach(sec => { const el = _renderTestimonialCard(sec.data || {}); if (el) grid.appendChild(el); });
+                wrap.appendChild(grid);
+            } else if (type === 'about') {
+                items.forEach(sec => { const el = _renderAboutBlock(sec.data || {}); if (el) wrap.appendChild(el); });
+            } else if (type === 'team_member') {
+                wrap.innerHTML = '<h2 style="font-size:1.4rem;font-weight:900;margin-bottom:16px;color:var(--accent,#4f46e5)">הצוות שלנו</h2>';
+                const grid = document.createElement('div');
+                grid.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:16px';
+                items.forEach(sec => { const el = _renderTeamCard(sec.data || {}); if (el) grid.appendChild(el); });
+                wrap.appendChild(grid);
+            } else if (type === 'gallery') {
+                wrap.innerHTML = '<h2 style="font-size:1.4rem;font-weight:900;margin-bottom:16px;color:var(--accent,#4f46e5)">גלריה</h2>';
+                const grid = document.createElement('div');
+                grid.style.cssText = 'display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px';
+                items.forEach(sec => { const el = _renderGalleryItem(sec.data || {}); if (el) grid.appendChild(el); });
+                wrap.appendChild(grid);
+            } else if (type === 'faq') {
+                wrap.innerHTML = '<h2 style="font-size:1.4rem;font-weight:900;margin-bottom:16px;color:var(--accent,#4f46e5)">שאלות נפוצות</h2>';
+                items.forEach(sec => { const el = _renderFaqItem(sec.data || {}); if (el) wrap.appendChild(el); });
+            }
+            return wrap;
+        }
+
+        function _renderServiceCard(d) {
+            const el = document.createElement('div');
+            el.style.cssText = 'background:rgba(255,255,255,0.85);border:1px solid rgba(0,0,0,0.08);border-radius:16px;padding:20px;box-shadow:0 2px 12px rgba(0,0,0,0.07)';
+            el.innerHTML = `${d.icon ? `<div style="font-size:2rem;margin-bottom:8px">${d.icon}</div>` : ''}
+                <div style="font-weight:800;font-size:1rem;margin-bottom:6px">${d.title || ''}</div>
+                <div style="font-size:0.85rem;color:#64748b;margin-bottom:8px">${d.description || ''}</div>
+                ${d.price ? `<div style="font-weight:700;color:var(--accent,#4f46e5)">₪${d.price}</div>` : ''}`;
+            return el;
+        }
+
+        function _renderTestimonialCard(d) {
+            const stars = '★'.repeat(Math.min(5, Math.max(1, parseInt(d.rating) || 5)));
+            const el = document.createElement('div');
+            el.style.cssText = 'background:rgba(255,255,255,0.85);border:1px solid rgba(0,0,0,0.08);border-radius:16px;padding:20px;box-shadow:0 2px 12px rgba(0,0,0,0.07)';
+            el.innerHTML = `<div style="color:#f59e0b;font-size:1rem;margin-bottom:8px">${stars}</div>
+                <div style="font-size:0.88rem;color:#334155;margin-bottom:12px;font-style:italic">"${d.text || ''}"</div>
+                <div style="display:flex;align-items:center;gap:8px">
+                    <div style="width:32px;height:32px;border-radius:50%;background:var(--accent,#4f46e5);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:0.9rem">${(d.avatar_initial || (d.name||'?')[0]).toUpperCase()}</div>
+                    <span style="font-weight:700;font-size:0.85rem">${d.name || ''}</span>
+                </div>`;
+            return el;
+        }
+
+        function _renderAboutBlock(d) {
+            const el = document.createElement('div');
+            el.style.cssText = 'background:rgba(255,255,255,0.85);border:1px solid rgba(0,0,0,0.08);border-radius:16px;padding:28px;box-shadow:0 2px 12px rgba(0,0,0,0.07);margin-bottom:16px';
+            el.innerHTML = `${d.title ? `<h3 style="font-size:1.3rem;font-weight:900;margin-bottom:12px;color:var(--accent,#4f46e5)">${d.title}</h3>` : ''}
+                ${d.text ? `<p style="font-size:0.9rem;color:#334155;line-height:1.7;margin-bottom:12px">${d.text}</p>` : ''}
+                ${d.mission ? `<div style="background:#f8fafc;border-radius:10px;padding:14px;margin-bottom:8px"><div style="font-weight:800;font-size:0.8rem;color:#7c3aed;margin-bottom:4px">המשימה שלנו</div><p style="font-size:0.88rem;color:#475569">${d.mission}</p></div>` : ''}
+                ${d.vision ? `<div style="background:#f8fafc;border-radius:10px;padding:14px"><div style="font-weight:800;font-size:0.8rem;color:#7c3aed;margin-bottom:4px">החזון שלנו</div><p style="font-size:0.88rem;color:#475569">${d.vision}</p></div>` : ''}`;
+            return el;
+        }
+
+        function _renderTeamCard(d) {
+            const el = document.createElement('div');
+            el.style.cssText = 'background:rgba(255,255,255,0.85);border:1px solid rgba(0,0,0,0.08);border-radius:16px;padding:20px;text-align:center;box-shadow:0 2px 12px rgba(0,0,0,0.07)';
+            el.innerHTML = `<div style="width:56px;height:56px;border-radius:50%;background:var(--accent,#4f46e5);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:1.4rem;margin:0 auto 12px">${(d.name||'?')[0].toUpperCase()}</div>
+                <div style="font-weight:800;font-size:0.95rem;margin-bottom:4px">${d.name || ''}</div>
+                <div style="font-size:0.8rem;color:var(--accent,#4f46e5);font-weight:700;margin-bottom:8px">${d.role || ''}</div>
+                ${d.bio ? `<div style="font-size:0.82rem;color:#64748b">${d.bio}</div>` : ''}`;
+            return el;
+        }
+
+        function _renderGalleryItem(d) {
+            const el = document.createElement('div');
+            el.style.cssText = 'border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.1)';
+            el.innerHTML = d.image_url
+                ? `<img src="${d.image_url}" alt="${d.caption||''}" style="width:100%;height:180px;object-fit:cover;display:block">${d.caption ? `<div style="padding:8px 12px;font-size:0.8rem;color:#64748b;background:#fff">${d.caption}</div>` : ''}`
+                : `<div style="height:180px;background:#e2e8f0;display:flex;align-items:center;justify-content:center;color:#94a3b8;font-size:0.85rem">${d.caption || 'תמונה'}</div>`;
+            return el;
+        }
+
+        function _renderFaqItem(d) {
+            const el = document.createElement('div');
+            el.style.cssText = 'background:rgba(255,255,255,0.85);border:1px solid rgba(0,0,0,0.08);border-radius:14px;padding:18px;margin-bottom:10px;box-shadow:0 1px 8px rgba(0,0,0,0.05)';
+            el.innerHTML = `<div style="font-weight:800;font-size:0.9rem;margin-bottom:8px;color:#1e293b">${d.question || ''}</div>
+                <div style="font-size:0.85rem;color:#64748b;line-height:1.6">${d.answer || ''}</div>`;
+            return el;
         }
 
         window._showExpertiseDetail = function(icon, title, desc) {

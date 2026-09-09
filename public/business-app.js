@@ -948,6 +948,7 @@ window.injectBusinessUI = function() {
                             <button id="sts-btn-content"  onclick="window._switchStoreTab('content')"  class="flex-1 flex flex-col items-center gap-0.5 py-2.5 px-2 text-[11px] font-bold text-slate-500 hover:text-slate-700 rounded-xl transition whitespace-nowrap"><i class="fa-solid fa-pen-nib text-xs"></i>תוכן</button>
                             <button id="sts-btn-design"   onclick="window._switchStoreTab('design')"   class="flex-1 flex flex-col items-center gap-0.5 py-2.5 px-2 text-[11px] font-bold text-slate-500 hover:text-slate-700 rounded-xl transition whitespace-nowrap"><i class="fa-solid fa-palette text-xs"></i>עיצוב</button>
                             <button id="sts-btn-delivery" onclick="window._switchStoreTab('delivery')" class="flex-1 flex flex-col items-center gap-0.5 py-2.5 px-2 text-[11px] font-bold text-slate-500 hover:text-slate-700 rounded-xl transition whitespace-nowrap"><i class="fa-solid fa-motorcycle text-xs"></i>משלוחים</button>
+                            <button id="sts-btn-branding" onclick="window._switchStoreTab('branding')" class="hidden flex-1 flex flex-col items-center gap-0.5 py-2.5 px-2 text-[11px] font-bold text-slate-500 hover:text-slate-700 rounded-xl transition whitespace-nowrap"><i class="fa-solid fa-wand-magic-sparkles text-xs"></i>תוכן תדמית</button>
                         </div>
 
                         <!-- ══ טאב: מידע ══ -->
@@ -1273,6 +1274,13 @@ window.injectBusinessUI = function() {
                                     </div>
                                     <p class="text-[10px] text-slate-400 mt-1.5">💡 הגדר מספר מעגלים — הלקוח יקבל את עלות המעגל הקרוב ביותר. עלות 0 = משלוח חינם.</p>
                                 </div>
+                            </div>
+                        </div>
+
+                        <!-- ══ טאב: תוכן תדמית ══ -->
+                        <div id="sts-tab-branding" class="hidden space-y-4">
+                            <div id="branding-content-editor">
+                                <p class="text-slate-400 text-sm text-center py-4">טוען...</p>
                             </div>
                         </div>
 
@@ -23992,6 +24000,12 @@ window._onSiteModeChange = function(mode, fromUser) {
     const shopRadio     = document.getElementById('store-site-mode-shop');
     const brandingRadio = document.getElementById('store-site-mode-branding');
     if (!shopLabel) return;
+    // הצג/הסתר כפתור טאב "תוכן תדמית" בהתאם למצב
+    const brandingTabBtn = document.getElementById('sts-btn-branding');
+    if (brandingTabBtn) {
+        if (mode === 'branding') { brandingTabBtn.classList.remove('hidden'); brandingTabBtn.classList.add('flex'); }
+        else { brandingTabBtn.classList.add('hidden'); brandingTabBtn.classList.remove('flex'); }
+    }
     if (mode === 'branding') {
         shopLabel.className     = 'cursor-pointer flex flex-col items-center gap-2 p-3 rounded-xl border-2 border-slate-200 bg-white transition text-center';
         brandingLabel.className = 'cursor-pointer flex flex-col items-center gap-2 p-3 rounded-xl border-2 border-violet-400 bg-violet-50 transition text-center';
@@ -24023,14 +24037,15 @@ window._onSiteModeChange = function(mode, fromUser) {
 };
 
 window._switchStoreTab = function(tab) {
-    ['info','content','design','delivery'].forEach(t => {
+    ['info','content','design','delivery','branding'].forEach(t => {
         const pane = document.getElementById('sts-tab-'+t); if (pane) pane.classList.add('hidden');
         const btn  = document.getElementById('sts-btn-'+t);
-        if (btn) btn.className = 'flex-1 flex flex-col items-center gap-0.5 py-2.5 px-2 text-[11px] font-bold text-slate-500 hover:text-slate-700 rounded-xl transition whitespace-nowrap';
+        if (btn && !btn.classList.contains('hidden')) btn.className = 'flex-1 flex flex-col items-center gap-0.5 py-2.5 px-2 text-[11px] font-bold text-slate-500 hover:text-slate-700 rounded-xl transition whitespace-nowrap';
     });
     const active = document.getElementById('sts-tab-'+tab); if (active) active.classList.remove('hidden');
     const activeBtn = document.getElementById('sts-btn-'+tab);
     if (activeBtn) activeBtn.className = 'flex-1 flex flex-col items-center gap-0.5 py-2.5 px-2 text-[11px] font-bold bg-white text-slate-800 rounded-xl shadow-sm transition whitespace-nowrap';
+    if (tab === 'branding') { if (typeof window._renderBrandingContentTab === 'function') window._renderBrandingContentTab(); }
     if (tab === 'delivery') {
         const etaBlock = document.getElementById('delivery-eta-block');
         if (etaBlock) {
@@ -24039,6 +24054,146 @@ window._switchStoreTab = function(tab) {
         }
         if (typeof window.loadBizRadiusZones === 'function') window.loadBizRadiusZones();
     }
+};
+
+// ===== עורך תוכן תדמית =====
+const _BRANDING_SECTION_TYPES = [
+    { type: 'service',      label: 'שירות',         icon: '⚡' },
+    { type: 'testimonial',  label: 'המלצה',          icon: '⭐' },
+    { type: 'gallery',      label: 'גלריה',          icon: '🖼️' },
+    { type: 'about',        label: 'אודות',          icon: '📖' },
+    { type: 'team_member',  label: 'חבר צוות',       icon: '👤' },
+    { type: 'faq',          label: 'שאלה נפוצה',     icon: '❓' },
+];
+
+function _brandingFieldsFor(type) {
+    switch(type) {
+        case 'service':     return [{ key:'title', label:'כותרת', type:'text' }, { key:'description', label:'תיאור', type:'textarea' }, { key:'icon', label:'אייקון (אמוג\'י)', type:'text' }, { key:'price', label:'מחיר (אופציונלי)', type:'text' }];
+        case 'testimonial': return [{ key:'name', label:'שם', type:'text' }, { key:'text', label:'טקסט ההמלצה', type:'textarea' }, { key:'rating', label:'דירוג (1-5)', type:'number' }, { key:'avatar_initial', label:'ראשית שם (תו אחד)', type:'text' }];
+        case 'gallery':     return [{ key:'image_url', label:'URL תמונה', type:'text' }, { key:'caption', label:'כיתוב', type:'text' }];
+        case 'about':       return [{ key:'title', label:'כותרת', type:'text' }, { key:'text', label:'טקסט', type:'textarea' }, { key:'mission', label:'המשימה', type:'textarea' }, { key:'vision', label:'החזון', type:'textarea' }];
+        case 'team_member': return [{ key:'name', label:'שם', type:'text' }, { key:'role', label:'תפקיד', type:'text' }, { key:'bio', label:'ביוגרפיה קצרה', type:'textarea' }];
+        case 'faq':         return [{ key:'question', label:'שאלה', type:'text' }, { key:'answer', label:'תשובה', type:'textarea' }];
+        default:            return [];
+    }
+}
+
+window._renderBrandingContentTab = async function() {
+    const container = document.getElementById('branding-content-editor');
+    if (!container || !currentGroup) return;
+    container.innerHTML = '<p class="text-slate-400 text-sm text-center py-4">טוען...</p>';
+    try {
+        const r = await fetch(`${API}/branding/${currentGroup.id}`);
+        const data = await r.json();
+        const sections = data.sections || [];
+        _renderBrandingEditor(container, sections);
+    } catch(e) {
+        container.innerHTML = '<p class="text-red-400 text-sm text-center py-4">שגיאה בטעינה</p>';
+    }
+};
+
+function _renderBrandingEditor(container, sections) {
+    // בניית UI
+    let addFormHtml = `
+    <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm mb-4">
+        <h4 class="font-black text-slate-800 mb-3 flex items-center gap-2"><i class="fa-solid fa-plus-circle text-violet-500"></i> הוסף בלוק חדש</h4>
+        <div class="grid grid-cols-3 gap-2 mb-3" id="branding-type-picker">
+            ${_BRANDING_SECTION_TYPES.map(t => `<button onclick="window._selectBrandingType('${t.type}')" id="btype-${t.type}" class="flex flex-col items-center gap-1 p-2 rounded-xl border-2 border-slate-200 bg-slate-50 text-xs font-bold text-slate-600 hover:border-violet-300 hover:bg-violet-50 transition">${t.icon}<span>${t.label}</span></button>`).join('')}
+        </div>
+        <div id="branding-add-form" class="hidden space-y-2"></div>
+    </div>`;
+
+    let listHtml = `<div class="space-y-2" id="branding-sections-list">`;
+    if (!sections.length) {
+        listHtml += `<p class="text-slate-400 text-sm text-center py-6">אין בלוקי תוכן עדיין. הוסף בלוק ראשון למעלה.</p>`;
+    } else {
+        sections.forEach((sec, idx) => {
+            const typeInfo = _BRANDING_SECTION_TYPES.find(t => t.type === sec.section_type) || { icon:'📦', label: sec.section_type };
+            const preview = sec.data?.title || sec.data?.name || sec.data?.question || sec.data?.text?.slice(0,30) || '';
+            listHtml += `
+            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-3 flex items-center gap-3" data-section-id="${sec.id}">
+                <span class="text-xl">${typeInfo.icon}</span>
+                <div class="flex-1 min-w-0">
+                    <div class="font-bold text-slate-800 text-sm">${typeInfo.label}</div>
+                    <div class="text-xs text-slate-400 truncate">${preview || '—'}</div>
+                </div>
+                <div class="flex gap-1 shrink-0">
+                    <button onclick="window._editBrandingSection(${sec.id})" class="px-2 py-1 rounded-lg bg-slate-100 text-slate-600 text-xs font-bold hover:bg-slate-200 transition">עריכה</button>
+                    <button onclick="window._deleteBrandingSection(${sec.id})" class="px-2 py-1 rounded-lg bg-red-50 text-red-500 text-xs font-bold hover:bg-red-100 transition">מחק</button>
+                </div>
+            </div>`;
+        });
+    }
+    listHtml += `</div>`;
+
+    container.innerHTML = addFormHtml + listHtml;
+    // שמור sections ב-state זמני
+    window._brandingSections = sections;
+}
+
+window._selectBrandingType = function(type) {
+    // סמן כפתור
+    _BRANDING_SECTION_TYPES.forEach(t => {
+        const btn = document.getElementById('btype-'+t.type);
+        if (btn) btn.className = 'flex flex-col items-center gap-1 p-2 rounded-xl border-2 ' + (t.type === type ? 'border-violet-400 bg-violet-50 text-violet-700' : 'border-slate-200 bg-slate-50 text-slate-600 hover:border-violet-300 hover:bg-violet-50') + ' text-xs font-bold transition';
+    });
+    const formDiv = document.getElementById('branding-add-form');
+    if (!formDiv) return;
+    formDiv.classList.remove('hidden');
+    const fields = _brandingFieldsFor(type);
+    formDiv.innerHTML = fields.map(f => `
+        <div>
+            <label class="text-xs font-bold text-slate-700 block mb-1">${f.label}</label>
+            ${f.type === 'textarea'
+                ? `<textarea id="bfield-${f.key}" class="modern-input w-full py-2 text-sm" rows="2" placeholder="${f.label}"></textarea>`
+                : `<input type="${f.type === 'number' ? 'number' : 'text'}" id="bfield-${f.key}" class="modern-input w-full py-2 text-sm" placeholder="${f.label}">`}
+        </div>`).join('') + `
+        <input type="hidden" id="branding-edit-id" value="">
+        <button onclick="window._saveBrandingSection('${type}')" class="w-full py-2 rounded-xl bg-violet-600 text-white text-sm font-black hover:bg-violet-700 transition mt-1">שמור בלוק</button>`;
+};
+
+window._saveBrandingSection = async function(type) {
+    const fields = _brandingFieldsFor(type);
+    const d = {};
+    fields.forEach(f => {
+        const el = document.getElementById('bfield-'+f.key);
+        if (el) d[f.key] = f.type === 'number' ? (parseFloat(el.value) || 0) : el.value.trim();
+    });
+    const editId = document.getElementById('branding-edit-id')?.value || '';
+    const sections = window._brandingSections || [];
+    const maxOrder = sections.length ? Math.max(...sections.map(s => s.sort_order || 0)) : 0;
+    const body = { section_type: type, data: d, sort_order: editId ? undefined : maxOrder + 1 };
+    if (editId) body.id = parseInt(editId);
+    try {
+        const r = await fetch(`${API}/branding/${currentGroup.id}/section`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+        const res = await r.json();
+        if (res.success) { showToast('success', editId ? 'בלוק עודכן ✅' : 'בלוק נוסף ✅'); window._renderBrandingContentTab(); }
+        else showToast('error', res.error || 'שגיאה בשמירה');
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
+};
+
+window._editBrandingSection = function(id) {
+    const sec = (window._brandingSections || []).find(s => s.id === id);
+    if (!sec) return;
+    window._selectBrandingType(sec.section_type);
+    const fields = _brandingFieldsFor(sec.section_type);
+    fields.forEach(f => {
+        const el = document.getElementById('bfield-'+f.key);
+        if (el) el.value = sec.data[f.key] ?? '';
+    });
+    const editIdEl = document.getElementById('branding-edit-id');
+    if (editIdEl) editIdEl.value = id;
+    document.getElementById('branding-add-form')?.scrollIntoView({ behavior:'smooth', block:'nearest' });
+};
+
+window._deleteBrandingSection = async function(id) {
+    if (!confirm('למחוק בלוק זה?')) return;
+    try {
+        const r = await fetch(`${API}/branding/${currentGroup.id}/section/${id}`, { method:'DELETE' });
+        const res = await r.json();
+        if (res.success) { showToast('success', 'בלוק נמחק'); window._renderBrandingContentTab(); }
+        else showToast('error', res.error || 'שגיאה במחיקה');
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
 };
 
 window.switchSalesTab = function(subTab) {
