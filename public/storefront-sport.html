@@ -755,7 +755,8 @@ async function initStore() {
     renderCommunityBanner(storeData);
     if (window.btypeInit) window.btypeInit(storeData);
     document.getElementById('loading-screen').style.display = 'none';
-    if ((storeData.settings?.site_mode || 'shop') === 'branding') _enableBrandingMode(storeData);
+    const _sSiteMode = storeData.settings?.site_mode || ((storeData.businessType || storeData.business_type) === 'professional' ? 'branding' : 'shop');
+    if (_sSiteMode === 'branding') _enableBrandingMode(storeData);
     else loadAsync();
   } catch(e) {
     document.getElementById('loading-screen').innerHTML = '<div style="text-align:center;color:rgba(255,255,255,.55)">שגיאה בטעינת החנות</div>';

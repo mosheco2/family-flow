@@ -11807,6 +11807,7 @@ app.put('/api/store/customers/:id', async (req, res) => {
 
 app.get('/api/storefront/:code', async (req, res) => {
     try {
+        try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS site_mode VARCHAR(20) DEFAULT 'shop'`); } catch(_) {}
         const codeOrAlias = req.params.code;
         
         const numericId = /^\d+$/.test(codeOrAlias) ? parseInt(codeOrAlias) : null;

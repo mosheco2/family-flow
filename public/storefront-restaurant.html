@@ -1025,7 +1025,8 @@ async function initStore() {
     document.getElementById('loading-screen').style.display = 'none';
     initScrollSpy();
     initSlots();
-    if ((data.settings?.site_mode || 'shop') === 'branding') _enableBrandingMode(data);
+    const _rSiteMode = data.settings?.site_mode || ((data.businessType || data.business_type) === 'professional' ? 'branding' : 'shop');
+    if (_rSiteMode === 'branding') _enableBrandingMode(data);
   } catch(e) {
     showError('שגיאה בטעינת החנות');
     console.error(e);
