@@ -2515,7 +2515,8 @@ app.get('/api/sa/diagnose-phone/:phone', verifySA, async (req, res) => {
             links = linksRes.rows;
         }
         const usersRes = await pool.query(
-            `SELECT u.id, u.group_id, u.nickname, u.phone, fg.name AS group_name, fg.type FROM users u JOIN family_groups fg ON fg.id=u.group_id WHERE u.phone=$1`, [cleanPhone]);
+            `SELECT u.id, u.group_id, u.nickname, u.phone, fg.name AS group_name, fg.type, fg.group_code, fg.account_status, fg.member_type
+             FROM users u JOIN family_groups fg ON fg.id=u.group_id WHERE u.phone=$1`, [cleanPhone]);
         usersForPhone = usersRes.rows;
         res.json({
             success: true,
