@@ -5713,6 +5713,21 @@ async function upsertStoreCustomer(groupId, { name, phone, email, notes } = {}) 
                 [groupId, name || '', cleanPhone, email || '', notes || null, scCust?.family_group_id || null]
             );
         }
+
+        // מקשר את העסק לטאב "הפעילות שלי" של המשפחה (member_business_links) —
+        // כך שעסק שהלקוח קיבל/ביצע אצלו פעולה יופיע שם אוטומטית, לא רק אחרי אישור ידני
+        if (scCust?.family_group_id) {
+            try {
+                await pool.query(
+                    `INSERT INTO member_business_links (member_group_id, business_group_id, business_type, is_active, status, linked_at)
+                     VALUES ($1, $2, (SELECT business_type FROM family_groups WHERE id=$2 LIMIT 1), true, 'active', NOW())
+                     ON CONFLICT (member_group_id, business_group_id) DO UPDATE
+                     SET is_active = true,
+                         status = 'active'`,
+                    [scCust.family_group_id, groupId]
+                );
+            } catch(le) { console.error('[upsertStoreCustomer link]', le.message); }
+        }
     } catch(e) { console.error('[upsertStoreCustomer]', e.message); }
 }
 
@@ -35722,6 +35737,43 @@ app.listen(port, () => {
         for (const q of idxQueries) { try { await pool.query(q); } catch(e) {} }
         console.log('Performance indexes ensured.');
     }, 5000);
+
+    // מילוי רטרואקטיבי: לקוחות שכבר ביצעו פעולה אצל עסק לפני שהמנגנון הזה נוסף —
+    // מקבלים חשבון רשום (אם עוד אין) וקישור לעסק ב"הפעילות שלי", בדיוק כמו שקורה מעכשיו והלאה
+    setTimeout(async () => {
+        try {
+            const rows = await pool.query(`
+                SELECT sc.id, sc.group_id, sc.name, sc.phone, sc.email, sc.family_group_id, fg.business_type
+                FROM store_customers sc
+                JOIN family_groups fg ON fg.id = sc.group_id
+                WHERE sc.phone IS NOT NULL AND sc.phone <> ''
+            `);
+            let linked = 0;
+            for (const row of rows.rows) {
+                try {
+                    let familyGroupId = row.family_group_id;
+                    if (!familyGroupId) {
+                        const scCust = await getOrCreateStorefrontCustomer(row.phone, { name: row.name, email: row.email });
+                        familyGroupId = scCust?.family_group_id || null;
+                        if (familyGroupId) {
+                            await pool.query(`UPDATE store_customers SET family_group_id=$1 WHERE id=$2`, [familyGroupId, row.id]);
+                        }
+                    }
+                    if (familyGroupId) {
+                        await pool.query(
+                            `INSERT INTO member_business_links (member_group_id, business_group_id, business_type, is_active, status, linked_at)
+                             VALUES ($1,$2,$3,true,'active',NOW())
+                             ON CONFLICT (member_group_id, business_group_id) DO UPDATE
+                             SET is_active = true, status = 'active'`,
+                            [familyGroupId, row.group_id, row.business_type || 'other']
+                        );
+                        linked++;
+                    }
+                } catch(e2) { console.error('[backfill member_business_links] row', row.id, e2.message); }
+            }
+            console.log(`[backfill] retroactively linked ${linked} customer-business relationships to "הפעילות שלי".`);
+        } catch(e) { console.error('[backfill member_business_links]', e.message); }
+    }, 12000);
 });
 
 // ===== Public — קמפיין שיווקי לפי סוג עסק =====
