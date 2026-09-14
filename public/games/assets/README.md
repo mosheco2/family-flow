@@ -1,4 +1,4 @@
-# Oneflow Kids Games Assets
+# WEFLOWZ Kids Games Assets
 
 ## תיקיות:
 - images/ — תמונות דמויות ואלמנטים
