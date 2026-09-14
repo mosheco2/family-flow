@@ -12036,18 +12036,30 @@ app.put('/api/store/customers/:id', verifyBizOrLegacy, requireModule('sales'), a
         if (!ownerCheck.rows.length) return res.status(404).json({ error: 'לקוח לא נמצא או אין הרשאה' });
 
         const { name, companyName, phone, email, businessId, notes, familyGroupId, groupId, adminName } = req.body;
+
+        // אם לא הועבר familyGroupId מפורש (למשל לא לחצו "אימות ONEFLOW"), ננסה לזהות/ליצור
+        // חשבון רשום לפי הטלפון בעצמנו — אותה לוגיקה שכבר רצה בזמן הזמנה, כדי שגם עריכה ידנית
+        // (הוספת/תיקון טלפון ללקוח שכבר קיים) תקשר את העסק ל"הפעילות שלי"
+        let resolvedFamilyGroupId = familyGroupId || null;
+        if (!resolvedFamilyGroupId && phone) {
+            try {
+                const scCust = await getOrCreateStorefrontCustomer(phone, { name, email });
+                resolvedFamilyGroupId = scCust?.family_group_id || null;
+            } catch(e2) {}
+        }
+
         await pool.query(
-            `UPDATE store_customers SET name=$1, company_name=$2, phone=$3, email=$4, business_id=$5, notes=$6, family_group_id=$7 WHERE id=$8`,
-            [name, companyName||null, phone || '', email || '', businessId || '', notes || '', familyGroupId||null, req.params.id]
+            `UPDATE store_customers SET name=$1, company_name=$2, phone=$3, email=$4, business_id=$5, notes=$6, family_group_id=COALESCE($7, family_group_id) WHERE id=$8`,
+            [name, companyName||null, phone || '', email || '', businessId || '', notes || '', resolvedFamilyGroupId, req.params.id]
         );
-        if (familyGroupId && groupId) {
+        if (resolvedFamilyGroupId) {
             await pool.query(
                 `INSERT INTO member_business_links (member_group_id, business_group_id, business_type, linked_by_admin_name, linked_at, is_active, status)
-                 VALUES ($1, $2, (SELECT business_type FROM family_groups WHERE id=$2 LIMIT 1), $3, NOW(), true, 'pending')
+                 VALUES ($1, $2, (SELECT business_type FROM family_groups WHERE id=$2 LIMIT 1), $3, NOW(), true, $4)
                  ON CONFLICT (member_group_id, business_group_id) DO UPDATE
-                   SET is_active=true, linked_at=NOW(), linked_by_admin_name=$3,
-                       status=CASE WHEN member_business_links.status='active' THEN 'active' ELSE 'pending' END`,
-                [familyGroupId, groupId, adminName || null]
+                   SET is_active=true, linked_at=NOW(), linked_by_admin_name=COALESCE($3, member_business_links.linked_by_admin_name),
+                       status=CASE WHEN member_business_links.status='active' THEN 'active' ELSE EXCLUDED.status END`,
+                [resolvedFamilyGroupId, bizGroupId, adminName || null, familyGroupId ? 'pending' : 'active']
             ).catch(() => {});
         }
         res.json({ success: true });
