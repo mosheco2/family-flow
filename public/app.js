@@ -17056,7 +17056,7 @@ async function useLibQuest(questId) {
 
         let bodyHtml = '';
         if (mode === 'android') {
-            bodyHtml = `<p class="text-sm text-slate-600 mb-4">הוסף את <strong>Family Flow</strong> למסך הבית כדי לגשת במהירות ולהשתמש גם ללא חיבור.</p>
+            bodyHtml = `<p class="text-sm text-slate-600 mb-4">הוסף את <strong>WEFLOWZ</strong> למסך הבית כדי לגשת במהירות ולהשתמש גם ללא חיבור.</p>
                 <button onclick="window._pwaDoInstall()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-3 rounded-2xl text-sm transition mb-2">📲 התקן עכשיו</button>`;
         } else {
             bodyHtml = `<p class="text-sm text-slate-600 mb-3">כדי להוסיף את האפליקציה למסך הבית ב-iPhone / iPad:</p>
@@ -17074,7 +17074,7 @@ async function useLibQuest(questId) {
             <div class="flex items-center justify-between mb-3">
                 <div class="flex items-center gap-2">
                     <img src="/logo.png" alt="" style="height:36px;border-radius:8px;" onerror="this.style.display='none'">
-                    <span class="font-black text-slate-800 text-base">Family Flow</span>
+                    <span class="font-black text-slate-800 text-base">WEFLOWZ</span>
                 </div>
                 <button onclick="window._pwaDismiss()" style="font-size:20px;line-height:1;color:#94a3b8;background:none;border:none;cursor:pointer;">✕</button>
             </div>
