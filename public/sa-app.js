@@ -2579,6 +2579,40 @@ async function saDiagnosePhone() {
     }
 }
 
+async function saWizardIncompleteBusinesses() {
+    let modal = getEl('sa-wizard-incomplete-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'sa-wizard-incomplete-modal';
+        modal.className = 'fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-[9999] flex items-center justify-center p-4';
+        document.body.appendChild(modal);
+    }
+    modal.innerHTML = `<div class="bg-white w-full max-w-2xl rounded-[2rem] shadow-2xl flex flex-col max-h-[90vh]">
+        <div class="flex justify-between items-center p-6 border-b border-slate-100">
+            <h3 class="text-xl font-black text-slate-800 flex items-center gap-2"><i class="fa-solid fa-triangle-exclamation text-amber-500"></i> עסקים שנעולים באשף ההקמה</h3>
+            <button onclick="getEl('sa-wizard-incomplete-modal').remove()" class="text-slate-400 hover:text-slate-600 bg-slate-100 w-9 h-9 rounded-full flex items-center justify-center transition text-lg">✕</button>
+        </div>
+        <p class="px-6 pt-3 text-xs text-slate-500">עסקים אלו יוחזרו לאשף ההקמה (ולא למסך הכניסה הרגיל) בכל התחברות, כי wizard_completed=false במפורש עבורם. read-only — לא משנה כלום.</p>
+        <div id="sa-wizard-incomplete-body" class="p-6 overflow-y-auto space-y-2 text-xs"><p class="text-slate-400 text-center py-8">טוען...</p></div>
+    </div>`;
+    modal.style.display = 'flex';
+    try {
+        const res = await fetch(`${API}/sa/wizard-incomplete-businesses`, { headers: { 'Authorization': saToken } });
+        const d = await res.json();
+        const body = getEl('sa-wizard-incomplete-body');
+        if (!d.success) { body.innerHTML = `<p class="text-red-500 text-center py-6">${safeStr(d.error||'שגיאה')}</p>`; return; }
+        if (!d.count) { body.innerHTML = `<p class="text-emerald-600 bg-emerald-50 rounded-xl p-4 text-center font-bold">אין עסקים במצב הזה 🎉</p>`; return; }
+        body.innerHTML = `<p class="font-bold text-slate-700 mb-2">נמצאו ${d.count} עסקים:</p>` + d.businesses.map(b => `
+            <div class="border border-amber-200 bg-amber-50 rounded-xl p-3">
+                <div class="font-bold text-slate-800">${safeStr(b.name)} <span class="text-slate-400 font-normal">#${b.id}</span></div>
+                <div class="text-slate-500 mt-0.5">קוד: ${safeStr(b.group_code||'—')} · סוג: ${safeStr(b.business_type||'—')} · סטטוס חשבון: ${safeStr(b.account_status||'—')} · נוצר: ${b.created_at ? new Date(b.created_at).toLocaleDateString('he-IL') : '—'}</div>
+                <div class="text-slate-500 mt-0.5">מנהל: ${safeStr(b.admin_nickname||'—')} · טלפון: ${safeStr(b.admin_phone||'—')}</div>
+            </div>`).join('');
+    } catch(e) {
+        getEl('sa-wizard-incomplete-body').innerHTML = `<p class="text-red-500 text-center py-6">שגיאת רשת</p>`;
+    }
+}
+
 async function openSnapshotsModal(groupId, groupName) {
     let modal = getEl('sa-snapshots-modal');
     if (!modal) {

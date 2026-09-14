@@ -2540,6 +2540,23 @@ app.get('/api/sa/diagnose-phone/:phone', verifySA, async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// עסקים שנעולים באשף ההקמה (wizard_completed=false במפורש) — כלי אבחון, read-only
+app.get('/api/sa/wizard-incomplete-businesses', verifySA, async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT fg.id, fg.name, fg.group_code, fg.business_type, fg.account_status, fg.created_at,
+                    u.phone AS admin_phone, u.nickname AS admin_nickname
+             FROM family_groups fg
+             LEFT JOIN LATERAL (
+                 SELECT phone, nickname FROM users WHERE group_id = fg.id AND role = 'ADMIN' ORDER BY id LIMIT 1
+             ) u ON true
+             WHERE fg.type = 'BUSINESS' AND fg.wizard_completed = false
+             ORDER BY fg.created_at DESC`
+        );
+        res.json({ success: true, count: result.rows.length, businesses: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // SA: הפשרת חשבון מוקפא
 app.post('/api/sa/groups/:id/freeze', verifySA, async (req, res) => {
     try {

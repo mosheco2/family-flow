@@ -1744,6 +1744,7 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                             <div class="flex items-center gap-2 w-full sm:w-auto">
                                 <button onclick="saResyncActivityLinks(event)" title="מוודא שכל עסק שלקוח ביצע אצלו פעולה מקושר ל'הפעילות שלי' של חשבון המשפחה הנכון — שימושי אחרי מיזוג כפילויות" class="bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 px-3 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap"><i class="fa-solid fa-rotate"></i> סנכרן פעילויות</button>
                                 <button onclick="saDiagnosePhone()" title="אבחון שרשרת 'הפעילות שלי' לפי מספר טלפון — מראה בדיוק איפה הקישור נשבר" class="bg-sky-50 text-sky-700 border border-sky-200 hover:bg-sky-100 px-3 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap"><i class="fa-solid fa-stethoscope"></i> אבחון טלפון</button>
+                                <button onclick="saWizardIncompleteBusinesses()" title="רשימת עסקים שמוחזרים לאשף ההקמה בכל התחברות במקום למסך הכניסה הרגיל" class="bg-red-50 text-red-700 border border-red-200 hover:bg-red-100 px-3 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap"><i class="fa-solid fa-triangle-exclamation"></i> עסקים תקועים בוויזארד</button>
                                 <div class="relative w-full sm:w-64">
                                     <i class="fa-solid fa-search absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400"></i>
                                     <input type="text" id="sa-search-group" onkeyup="filterSAGroups()" class="modern-input py-2.5 pr-10 text-sm shadow-sm" placeholder="חיפוש קוד לקוח או שם...">
@@ -4728,7 +4729,7 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
       </div>
     </div>
 
-    <script src="sa-app.js?v=60"></script>
+    <script src="sa-app.js?v=61"></script>
     <script src="community-help.js?v=1"></script>
     <div id="sa-sla-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[9999] flex items-center justify-center p-4 fade-in">
         <div class="bg-white w-full max-w-2xl rounded-[2rem] p-6 shadow-2xl relative">
