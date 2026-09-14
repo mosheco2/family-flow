@@ -12294,6 +12294,122 @@ app.get('/api/storefront/:code', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// ============================================================
+// --- COMMUNITY CAMPAIGN — PUBLIC PAGE (community-store.html) ---
+// ============================================================
+
+// עמוד הקמפיין הציבורי: מוצרים מכל העסקים המשתתפים, יחד, מתוייגים לפי עסק
+app.get('/api/campaign/:code', async (req, res) => {
+    try {
+        const cRes = await pool.query(
+            `SELECT cc.*, c.name AS community_name FROM community_campaigns cc
+             JOIN communities c ON c.id = cc.community_id
+             WHERE cc.code=$1`, [req.params.code.toLowerCase()]);
+        if (!cRes.rows.length) return res.status(404).json({ error: 'קמפיין לא נמצא' });
+        const campaign = cRes.rows[0];
+        if (campaign.status !== 'active') return res.status(403).json({ error: 'הקמפיין אינו פעיל כרגע' });
+
+        const businessesRes = await pool.query(
+            `SELECT fg.id AS group_id, fg.name, ss.logo_url
+             FROM community_campaign_businesses ccb
+             JOIN family_groups fg ON fg.id = ccb.business_group_id
+             LEFT JOIN store_settings ss ON ss.group_id = fg.id
+             WHERE ccb.campaign_id=$1 AND fg.account_status != 'frozen'
+             ORDER BY fg.name`, [campaign.id]);
+
+        const productsRes = await pool.query(
+            `SELECT sc.id, sc.group_id, sc.name, sc.description, sc.price, sc.original_price, sc.category,
+                    (sc.image_url IS NOT NULL AND sc.image_url != '') as has_image,
+                    fg.name AS business_name
+             FROM community_campaign_products p
+             JOIN store_catalog sc ON sc.id = p.catalog_id
+             JOIN family_groups fg ON fg.id = p.business_group_id
+             WHERE p.campaign_id=$1 AND sc.is_available = TRUE AND fg.account_status != 'frozen'
+             ORDER BY fg.name, sc.category, sc.name`, [campaign.id]);
+
+        res.json({ success: true, campaign, businesses: businessesRes.rows, products: productsRes.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// הגשת הזמנה מעמוד הקמפיין — כל הפריטים חייבים להיות מאותו עסק בדיוק,
+// והלקוח חייב להיות מחובר (sc-auth) כדי שנוכל לרשום אותו אצל כל העסקים בקמפיין
+app.post('/api/campaign/:code/order', async (req, res) => {
+    try {
+        const token = (req.headers.authorization || '').replace('Bearer ', '').trim();
+        const customer = await _scGetCustomerByToken(token);
+        if (!customer) return res.status(401).json({ error: 'יש להתחבר לפני ביצוע הזמנה' });
+
+        const { items, isDelivery, deliveryDetails, notes } = req.body;
+        if (!Array.isArray(items) || !items.length) return res.status(400).json({ error: 'העגלה ריקה' });
+
+        const cRes = await pool.query(
+            `SELECT * FROM community_campaigns WHERE code=$1 AND status='active'`, [req.params.code.toLowerCase()]);
+        if (!cRes.rows.length) return res.status(404).json({ error: 'קמפיין לא נמצא' });
+        const campaign = cRes.rows[0];
+
+        // כל הפריטים בעגלה חייבים להיות מאותו עסק בדיוק — נאכף בשרת, לא רק ב-UI
+        const businessGroupIds = [...new Set(items.map(i => parseInt(i.businessGroupId)))];
+        if (businessGroupIds.length !== 1) return res.status(400).json({ error: 'ניתן להזמין מוצרים מעסק אחד בלבד בכל הזמנה' });
+        const groupId = businessGroupIds[0];
+
+        // אימות שהעסק אכן נכלל בקמפיין הזה
+        const included = await pool.query(
+            `SELECT 1 FROM community_campaign_businesses WHERE campaign_id=$1 AND business_group_id=$2`,
+            [campaign.id, groupId]);
+        if (!included.rows.length) return res.status(400).json({ error: 'העסק אינו חלק מקמפיין זה' });
+
+        // אימות מחירים מול הקטלוג האמיתי + שכל פריט אכן נבחר לקמפיין עבור העסק הזה
+        const campaignProducts = await pool.query(
+            `SELECT sc.id, sc.price FROM community_campaign_products p
+             JOIN store_catalog sc ON sc.id = p.catalog_id
+             WHERE p.campaign_id=$1 AND p.business_group_id=$2 AND sc.is_available=TRUE`,
+            [campaign.id, groupId]);
+        const priceMap = {};
+        campaignProducts.rows.forEach(r => { priceMap[r.id] = parseFloat(r.price); });
+
+        let serverTotal = 0;
+        for (const item of items) {
+            const catalogPrice = priceMap[item.catalogId];
+            if (catalogPrice === undefined) return res.status(400).json({ error: 'פריט אינו זמין בקמפיין זה — אנא טען מחדש את הדף' });
+            const clientPrice = parseFloat(item.price) || 0;
+            if (Math.abs(clientPrice - catalogPrice) > catalogPrice * 0.01 + 1) {
+                return res.status(400).json({ error: 'מחיר פריט אינו תקין — אנא טען מחדש את הדף ונסה שנית' });
+            }
+            serverTotal += catalogPrice * (parseInt(item.quantity) || 1);
+        }
+
+        const isDeliv = isDelivery === true || isDelivery === 'true';
+        const deliveryDetailsStr = deliveryDetails ? JSON.stringify(deliveryDetails) : null;
+        const customerName = [customer.first_name, customer.last_name].filter(Boolean).join(' ') || 'לקוח';
+
+        const oRes = await pool.query(
+            `INSERT INTO store_orders (group_id, customer_name, customer_phone, total_amount, status, created_at, is_delivery, delivery_details, family_group_id, notes, order_source)
+             VALUES ($1,$2,$3,$4,'pending_approval',CURRENT_TIMESTAMP,$5,$6,$7,$8,'community_campaign') RETURNING id`,
+            [groupId, customerName, customer.phone, serverTotal, isDeliv, deliveryDetailsStr, customer.family_group_id || null, notes || null]);
+        const orderId = oRes.rows[0].id;
+        await pool.query('UPDATE store_orders SET items = $1 WHERE id = $2', [JSON.stringify(items), orderId]);
+        for (const item of items) {
+            await pool.query('INSERT INTO store_order_items (order_id, catalog_id, item_name, quantity, price_at_order) VALUES ($1,$2,$3,$4,$5)',
+                [orderId, item.catalogId, item.name, item.quantity, item.price]);
+        }
+
+        // רישום הלקוח כלקוח CRM אצל כל העסקים בקמפיין — לא רק זה שממנו הוזמן בפועל
+        const allBiz = await pool.query(`SELECT business_group_id FROM community_campaign_businesses WHERE campaign_id=$1`, [campaign.id]);
+        setTimeout(() => {
+            allBiz.rows.forEach(b => {
+                upsertStoreCustomer(b.business_group_id, {
+                    name: customerName, phone: customer.phone, email: customer.email,
+                    notes: b.business_group_id === groupId
+                        ? `נוצר אוטומטית מהזמנה בקמפיין הקהילה "${campaign.title}" #${orderId}`
+                        : `נרשם אוטומטית דרך קמפיין הקהילה "${campaign.title}" (הזמין מעסק אחר בקמפיין)`
+                }).catch(() => {});
+            });
+        }, 100);
+
+        res.json({ success: true, orderId });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // Dedicated lightweight image endpoint — avoids sending base64 in catalog payload
 app.get('/api/store/item-image/:itemId', async (req, res) => {
     try {
