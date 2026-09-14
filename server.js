@@ -2290,6 +2290,118 @@ app.post('/api/family/link-request/:id/respond', verifyFamily, async (req, res) 
     } finally { client.release(); }
 });
 
+// SA: מיזוג חשבון כפול (אותו טלפון, שני חשבונות) לתוך חשבון ראשי —
+// כל הפעילות עוברת לחשבון הראשי, והחשבון הכפול מוקפא (לא נמחק פיזית, ניתן לשחזור דרך הפשרה)
+app.post('/api/sa/groups/merge-duplicate', verifySA, async (req, res) => {
+    const { primaryId, duplicateId } = req.body;
+    if (!primaryId || !duplicateId || parseInt(primaryId) === parseInt(duplicateId)) {
+        return res.status(400).json({ error: 'נדרשים שני חשבונות שונים' });
+    }
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+        const [pRes, dRes] = await Promise.all([
+            client.query('SELECT id, type, name FROM family_groups WHERE id=$1', [primaryId]),
+            client.query('SELECT id, type, name FROM family_groups WHERE id=$1', [duplicateId]),
+        ]);
+        if (!pRes.rows.length || !dRes.rows.length) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'חשבון לא נמצא' }); }
+        if (pRes.rows[0].type !== 'FAMILY' || dRes.rows[0].type !== 'FAMILY') {
+            await client.query('ROLLBACK'); return res.status(400).json({ error: 'ניתן למזג רק חשבונות משפחה (לא עסקים)' });
+        }
+
+        // משתמשים: מוחקים כפילות טלפון בין שתי הקבוצות, מעבירים את השאר
+        await client.query(
+            `DELETE FROM users WHERE group_id=$1 AND phone IS NOT NULL AND phone <> ''
+             AND phone IN (SELECT phone FROM users WHERE group_id=$2 AND phone IS NOT NULL AND phone <> '')`,
+            [duplicateId, primaryId]
+        );
+        await client.query(`UPDATE users SET group_id=$1 WHERE group_id=$2`, [primaryId, duplicateId]);
+
+        // ארנק FLW של ילדים
+        const walletRes = await client.query(
+            `SELECT balance_flw, lifetime_flw FROM flw_kid_wallets WHERE family_group_id=$1 LIMIT 1`, [duplicateId]
+        );
+        if (walletRes.rows.length) {
+            const bal = parseFloat(walletRes.rows[0].balance_flw || 0);
+            const life = parseFloat(walletRes.rows[0].lifetime_flw || 0);
+            await client.query(
+                `UPDATE flw_kid_wallets SET balance_flw=balance_flw+$1, lifetime_flw=lifetime_flw+$2
+                 WHERE child_user_id IN (SELECT id FROM users WHERE group_id=$3) LIMIT 1`,
+                [bal, life, primaryId]
+            );
+            await client.query(`DELETE FROM flw_kid_wallets WHERE family_group_id=$1`, [duplicateId]);
+        }
+
+        // טבלאות פשוטות — ללא אילוץ ייחודיות, פשוט מעבירים בעלות
+        const simpleTables = [
+            ['transactions', 'group_id'], ['tasks', 'group_id'], ['shopping_list', 'group_id'],
+            ['shopping_trips', 'group_id'], ['pantry', 'group_id'], ['time_clock', 'group_id'], ['loans', 'group_id'],
+            ['store_orders', 'family_group_id'], ['calendar_events', 'customer_group_id'],
+            ['beauty_client_records', 'client_family_id'], ['beauty_appointments', 'client_family_id'], ['beauty_rfq', 'client_family_id'],
+            ['service_calls', 'family_group_id'], ['store_customers', 'family_group_id'], ['storefront_sso_tokens', 'family_group_id'],
+            ['flw_kid_config', 'family_group_id'], ['flw_kid_redeem_requests', 'family_group_id'],
+            ['game_assignments', 'family_group_id'], ['kid_quests', 'family_group_id'], ['flow_redemptions', 'family_group_id'],
+            ['storefront_customers', 'family_group_id'],
+        ];
+        for (const [table, col] of simpleTables) {
+            await client.query(`UPDATE ${table} SET ${col}=$1 WHERE ${col}=$2`, [primaryId, duplicateId]);
+        }
+
+        // budget_allocations — UNIQUE(group_id, category, target_user_id): מוחקים כפילות לפני העברה
+        await client.query(
+            `DELETE FROM budget_allocations WHERE group_id=$1 AND (category, COALESCE(target_user_id,-1)) IN (
+                SELECT category, COALESCE(target_user_id,-1) FROM budget_allocations WHERE group_id=$2)`,
+            [duplicateId, primaryId]
+        );
+        await client.query(`UPDATE budget_allocations SET group_id=$1 WHERE group_id=$2`, [primaryId, duplicateId]);
+
+        // member_business_links — UNIQUE(member_group_id, business_group_id)
+        await client.query(
+            `DELETE FROM member_business_links WHERE member_group_id=$1 AND business_group_id IN (
+                SELECT business_group_id FROM member_business_links WHERE member_group_id=$2)`,
+            [duplicateId, primaryId]
+        );
+        await client.query(`UPDATE member_business_links SET member_group_id=$1 WHERE member_group_id=$2`, [primaryId, duplicateId]);
+
+        // family_business_visits — UNIQUE(family_group_id, business_group_id)
+        await client.query(
+            `DELETE FROM family_business_visits WHERE family_group_id=$1 AND business_group_id IN (
+                SELECT business_group_id FROM family_business_visits WHERE family_group_id=$2)`,
+            [duplicateId, primaryId]
+        );
+        await client.query(`UPDATE family_business_visits SET family_group_id=$1 WHERE family_group_id=$2`, [primaryId, duplicateId]);
+
+        // family_preferred_areas — UNIQUE(family_group_id, city)
+        await client.query(
+            `DELETE FROM family_preferred_areas WHERE family_group_id=$1 AND city IN (
+                SELECT city FROM family_preferred_areas WHERE family_group_id=$2)`,
+            [duplicateId, primaryId]
+        );
+        await client.query(`UPDATE family_preferred_areas SET family_group_id=$1 WHERE family_group_id=$2`, [primaryId, duplicateId]);
+
+        // author_profiles — UNIQUE(family_group_id) בלבד: אם לראשי כבר יש פרופיל, מוחקים את הכפול; אחרת מעבירים
+        const existingProfile = await client.query('SELECT id FROM author_profiles WHERE family_group_id=$1', [primaryId]);
+        if (existingProfile.rows.length) {
+            await client.query('DELETE FROM author_profiles WHERE family_group_id=$1', [duplicateId]);
+        } else {
+            await client.query('UPDATE author_profiles SET family_group_id=$1 WHERE family_group_id=$2', [primaryId, duplicateId]);
+        }
+
+        // הקפאת החשבון הכפול (לא נמחק פיזית — ניתן לשחזור ידני דרך הפשרה)
+        await client.query(
+            `UPDATE family_groups SET account_status='frozen', frozen_at=NOW(), merged_into_group_id=$1, frozen_reason=$2 WHERE id=$3`,
+            [primaryId, 'מוזג ידנית על ידי מאסטר — חשבון כפול לאותו טלפון', duplicateId]
+        );
+
+        await client.query('COMMIT');
+        await logAudit('MERGE_GROUPS', 'GROUP', parseInt(duplicateId), dRes.rows[0].name, { mergedInto: parseInt(primaryId), primaryName: pRes.rows[0].name });
+        res.json({ success: true });
+    } catch(e) {
+        await client.query('ROLLBACK');
+        res.status(500).json({ error: e.message });
+    } finally { client.release(); }
+});
+
 // SA: הפשרת חשבון מוקפא
 app.post('/api/sa/groups/:id/freeze', verifySA, async (req, res) => {
     try {

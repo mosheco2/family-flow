@@ -2084,6 +2084,7 @@ function renderSAGroups() {
                         <button onclick="openSAEditGroupModal(${g.id}, '${safeStr(fmtGroupName(g))}', '${safeStr(g.admin_email)}')" class="bg-blue-100 text-blue-700 px-3 py-1 rounded text-[10px] font-bold hover:bg-blue-200 transition"><i class="fa-solid fa-pen"></i> ערוך פרטים</button>
                         ${planSelector}
                         <button onclick="openSnapshotsModal(${g.id},'${safeStr(fmtGroupName(g))}')" class="bg-indigo-100 text-indigo-700 px-3 py-1 rounded text-[10px] font-bold hover:bg-indigo-200 transition"><i class="fa-solid fa-clock-rotate-left"></i> גיבויים</button>
+                        ${g.type === 'FAMILY' ? `<button onclick="openMergeDuplicateModal(${g.id}, '${safeStr(fmtGroupName(g))}')" class="bg-amber-100 text-amber-700 px-3 py-1 rounded text-[10px] font-bold hover:bg-amber-200 transition"><i class="fa-solid fa-code-merge"></i> מזג כפילות</button>` : ''}
                         <button onclick="saDeleteGroup(${g.id})" class="bg-red-100 text-red-600 px-3 py-1 rounded text-[10px] font-bold hover:bg-red-200 transition"><i class="fa-solid fa-trash"></i> מחיקה</button>
                         ${g.type==='BUSINESS' ? `<button onclick="openSAWhatsAppModal(${g.id},'${safeStr(fmtGroupName(g))}')" id="wa-badge-${g.id}" style="${g.wa_enabled ? 'background:#25D366;color:#fff;' : 'background:#f1f5f9;color:#94a3b8;'}padding:0.25rem 0.75rem;border-radius:0.375rem;font-size:0.625rem;font-weight:700;cursor:pointer;border:none;" title="${g.wa_enabled ? 'WhatsApp פעיל' : 'WhatsApp כבוי'}"><i class="fa-brands fa-whatsapp"></i> WA ${g.wa_enabled ? '✅' : '⬜'}</button>` : ''}
                     </div>
@@ -2299,6 +2300,110 @@ async function saDeleteGroup(id) {
     const data = await res.json();
     if (data.success) { showToast('success', `"${fmtGroupName(group)}" הועברה לארכיון ✓`); loadSAData(); }
     else showToast('error', data.error || 'שגיאה');
+}
+
+function openMergeDuplicateModal(groupId, groupName) {
+    let modal = getEl('sa-merge-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'sa-merge-modal';
+        modal.className = 'fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-[9999] flex items-center justify-center p-4';
+        document.body.appendChild(modal);
+    }
+    modal.innerHTML = `
+        <div class="bg-white w-full max-w-lg rounded-[2rem] shadow-2xl flex flex-col max-h-[90vh]">
+            <div class="flex justify-between items-center p-6 border-b border-slate-100">
+                <div>
+                    <h3 class="text-xl font-black text-slate-800 flex items-center gap-2">
+                        <i class="fa-solid fa-code-merge text-amber-500"></i> מיזוג חשבון כפול
+                    </h3>
+                    <p class="text-sm text-slate-500 mt-0.5">מקור: ${safeStr(groupName)}</p>
+                </div>
+                <button onclick="getEl('sa-merge-modal').remove()" class="text-slate-400 hover:text-slate-600 bg-slate-100 w-9 h-9 rounded-full flex items-center justify-center transition text-lg">✕</button>
+            </div>
+            <div class="p-6 space-y-4 overflow-y-auto">
+                <div class="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-xs text-amber-800 leading-relaxed">
+                    <b>⚠️ פעולה משמעותית.</b> כל הפעילות של החשבון שיוגדר כ"כפול" — הזמנות, תורים, קישורי עסקים ("הפעילות שלי"), משימות, כספים — תועבר לחשבון הראשי. החשבון הכפול יוקפא (לא יימחק פיזית — ניתן לשחזר ידנית דרך "הפשרה" אם טעית).
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-600 block mb-1.5">חפש את החשבון השני (לפי שם / טלפון / קוד):</label>
+                    <input type="text" id="merge-search-input" oninput="renderMergeSearchResults(${groupId})" placeholder="הקלד לחיפוש..." class="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:border-amber-400 outline-none">
+                </div>
+                <div id="merge-search-results" class="space-y-1.5 max-h-48 overflow-y-auto"></div>
+                <div id="merge-confirm-area" class="hidden bg-slate-50 border border-slate-200 rounded-2xl p-4"></div>
+            </div>
+        </div>`;
+    modal.style.display = 'flex';
+    window._mergeSourceId = groupId;
+    window._mergeSourceName = groupName;
+    window._mergeTargetId = null;
+    setTimeout(() => getEl('merge-search-input')?.focus(), 50);
+}
+
+function renderMergeSearchResults(sourceId) {
+    const q = (getEl('merge-search-input')?.value || '').trim().toLowerCase();
+    const resultsEl = getEl('merge-search-results');
+    if (!resultsEl) return;
+    if (q.length < 2) { resultsEl.innerHTML = ''; return; }
+    const matches = saAllGroups.filter(g => {
+        if (g.type !== 'FAMILY' || g.id === sourceId) return false;
+        const adminUser = saAllUsers.find(u => u.group_id === g.id && u.role === 'ADMIN');
+        const hay = `${fmtGroupName(g)} ${g.group_code || ''} ${adminUser?.phone || ''}`.toLowerCase();
+        return hay.includes(q);
+    }).slice(0, 20);
+    if (!matches.length) { resultsEl.innerHTML = `<p class="text-xs text-slate-400 text-center py-3">לא נמצאו תוצאות</p>`; return; }
+    resultsEl.innerHTML = matches.map(g => {
+        const adminUser = saAllUsers.find(u => u.group_id === g.id && u.role === 'ADMIN');
+        return `<button onclick='selectMergeTarget(${g.id}, ${JSON.stringify(fmtGroupName(g))})' class="w-full text-right bg-white border border-slate-200 hover:border-amber-300 hover:bg-amber-50 rounded-xl px-3 py-2 transition flex items-center justify-between">
+            <span class="text-xs font-bold text-slate-700">${safeStr(fmtGroupName(g))}</span>
+            <span class="text-[10px] text-slate-400 font-mono">${safeStr(adminUser?.phone || '')} · ${safeStr(g.group_code || '')}</span>
+        </button>`;
+    }).join('');
+}
+
+function selectMergeTarget(targetId, targetName) {
+    window._mergeTargetId = targetId;
+    window._mergeTargetName = targetName;
+    const area = getEl('merge-confirm-area');
+    if (!area) return;
+    area.classList.remove('hidden');
+    area.innerHTML = `
+        <p class="text-xs font-bold text-slate-600 mb-3">מי החשבון הראשי (שאליו תועבר כל הפעילות)?</p>
+        <div class="space-y-2 mb-4">
+            <label class="flex items-center gap-2 p-2.5 rounded-xl border border-slate-200 cursor-pointer hover:bg-white bg-white">
+                <input type="radio" name="merge-primary" value="target" checked class="accent-amber-600">
+                <span class="text-xs font-bold text-slate-700">${safeStr(targetName)} <span class="text-slate-400 font-normal">(ראשי) ← "${safeStr(window._mergeSourceName)}" יוזג לתוכו</span></span>
+            </label>
+            <label class="flex items-center gap-2 p-2.5 rounded-xl border border-slate-200 cursor-pointer hover:bg-white">
+                <input type="radio" name="merge-primary" value="source" class="accent-amber-600">
+                <span class="text-xs font-bold text-slate-700">${safeStr(window._mergeSourceName)} <span class="text-slate-400 font-normal">(ראשי) ← "${safeStr(targetName)}" יוזג לתוכו</span></span>
+            </label>
+        </div>
+        <button onclick="confirmMergeDuplicate()" class="w-full bg-amber-600 text-white py-2.5 rounded-xl text-sm font-bold hover:bg-amber-700 transition">בצע מיזוג</button>
+    `;
+}
+
+async function confirmMergeDuplicate() {
+    const primaryIsTarget = document.querySelector('input[name="merge-primary"]:checked')?.value === 'target';
+    const primaryId = primaryIsTarget ? window._mergeTargetId : window._mergeSourceId;
+    const duplicateId = primaryIsTarget ? window._mergeSourceId : window._mergeTargetId;
+    const primaryName = primaryIsTarget ? window._mergeTargetName : window._mergeSourceName;
+    const duplicateName = primaryIsTarget ? window._mergeSourceName : window._mergeTargetName;
+    if (!confirm(`לאחד לצמיתות את "${duplicateName}" לתוך "${primaryName}"?\n\nהחשבון "${duplicateName}" יוקפא ולא יימחק — ניתן לשחזר ידנית דרך "הפשרה" בעמוד הראשי אם טעית.`)) return;
+    try {
+        const res = await fetch(`${API}/sa/groups/merge-duplicate`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+            body: JSON.stringify({ primaryId, duplicateId })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast('success', 'המיזוג בוצע בהצלחה ✅');
+            getEl('sa-merge-modal')?.remove();
+            if (typeof loadSAData === 'function') await loadSAData();
+        } else {
+            showToast('error', data.error || 'שגיאה במיזוג');
+        }
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
 }
 
 async function openSnapshotsModal(groupId, groupName) {
