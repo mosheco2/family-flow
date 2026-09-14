@@ -13372,13 +13372,15 @@ async function _memberLoadOrders(bizGroupId, bizType) {
                     ${o.rating ? `<div style="margin-top:4px;text-align:center;font-size:11px;color:#92400e;">הדירוג שלך: ${'⭐'.repeat(o.rating)}</div>` : ''}
                 </div>`;
             } else if (resolvedType === 'restaurant') {
-                const REST_STATUS = { new:'חדשה', preparing:'בהכנה', ready:'מוכן', delivered:'נמסר', cancelled:'בוטל' };
-                const REST_COLOR = { new:'#6366f1', preparing:'#f59e0b', ready:'#10b981', delivered:'#64748b', cancelled:'#94a3b8' };
+                // תואם לערכי הסטטוס האמיתיים של store_orders.status (זהים לאלה שבטאב "הזמנות" הרגיל) —
+                // כדי שאותה הזמנה תוצג באותה מילה בכל מקום שרואים אותה
+                const REST_STATUS = { pending_approval:'ממתין לאישור העסק ⏳', new:'התקבלה בעסק ✅', processing:'בהכנה 📦', ready:'מוכן לאיסוף 🛍️', shipped:'במשלוח 🚚', delivering:'בדרך אליך 🛵', completed:'הושלמה ✅', cancelled:'בוטל ❌' };
+                const REST_COLOR = { pending_approval:'#eab308', new:'#6366f1', processing:'#f59e0b', ready:'#f97316', shipped:'#8b5cf6', delivering:'#8b5cf6', completed:'#22c55e', cancelled:'#94a3b8' };
                 const statusLabel = REST_STATUS[o.status] || o.status;
                 const statusColor = REST_COLOR[o.status] || '#94a3b8';
                 const date = o.created_at ? new Date(o.created_at).toLocaleDateString('he-IL') : '';
                 const deliveryTag = o.is_delivery ? ' · 🛵 משלוח' : ' · 🥡 איסוף';
-                const isDelivered = o.status === 'delivered' && (o.is_delivery === 1 || o.is_delivery === true || o.is_delivery === 'true');
+                const isDelivered = o.status === 'completed' && (o.is_delivery === 1 || o.is_delivery === true || o.is_delivery === 'true');
                 const hasRated = o.customer_rating;
                 let itemsSummary = '';
                 try {
