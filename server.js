@@ -5869,7 +5869,24 @@ async function getOrCreateStorefrontCustomer(phone, { name, email } = {}) {
     if (cleanPhone.length < 9) return null;
     try {
         const existing = await pool.query('SELECT id, family_group_id FROM storefront_customers WHERE phone=$1', [cleanPhone]);
-        if (existing.rows.length) return existing.rows[0];
+        if (existing.rows.length) {
+            // גם אם כבר יש family_group_id, בודקים שהוא עדיין החשבון ה"אמיתי" ביותר לטלפון הזה —
+            // ייתכן שמאוחר יותר נוסף אותו טלפון למשתמש בחשבון משפחה אמיתי וקיים (לא חשבון "קונה" סולו
+            // שנוצר אוטומטית), ואז הוא צריך לגבור ולתפוס את מקומו כדי לא להשאיר את הלקוח "תקוע"
+            // על חשבון-צל שונה מהחשבון שהוא באמת מחובר אליו.
+            const betterMatch = await pool.query(
+                `SELECT u.group_id FROM users u JOIN family_groups fg ON fg.id = u.group_id
+                 WHERE u.phone=$1 AND fg.account_status='active' AND fg.type='FAMILY'
+                   AND (fg.member_type IS NULL OR fg.member_type NOT IN ('shopper','member'))
+                 ORDER BY u.id LIMIT 1`,
+                [cleanPhone]
+            );
+            if (betterMatch.rows.length && betterMatch.rows[0].group_id !== existing.rows[0].family_group_id) {
+                await pool.query('UPDATE storefront_customers SET family_group_id=$1 WHERE id=$2', [betterMatch.rows[0].group_id, existing.rows[0].id]);
+                return { id: existing.rows[0].id, family_group_id: betterMatch.rows[0].group_id };
+            }
+            return existing.rows[0];
+        }
 
         const [firstName, ...rest] = (name || '').trim().split(/\s+/).filter(Boolean);
         const lastName = rest.join(' ');
