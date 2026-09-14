@@ -3421,7 +3421,7 @@ async function loadKidsOverview() {
   const wrap = getEl('kids-overview-section');
   if (!wrap || currentUser?.role !== 'ADMIN') return;
   try {
-    const res = await fetch(`${API}/kids/parent-overview/${currentGroup.id}`);
+    const res = await communityFetch(`${API}/kids/parent-overview/${currentGroup.id}`);
     const data = await res.json();
     if (!data.success) { wrap.innerHTML = `<p class="text-xs text-red-400 p-2">שגיאה בטעינת סקירת ילדים: ${data.error||''}</p>`; return; }
 
@@ -3747,7 +3747,7 @@ async function uploadKidProfileImage(kidId, input) {
       });
     }
 
-    const res = await fetch(`${API}/kids/profile-image/${kidId}`, {
+    const res = await communityFetch(`${API}/kids/profile-image/${kidId}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ imageUrl })
@@ -4333,7 +4333,7 @@ async function finishQuiz() {
         if (passed && currentUser.role !== 'ADMIN') {
             const flwReward = Math.max(5, Math.min(20, Math.round((currentQuizData.custom_reward || currentQuizData.default_reward || 10) * 1.5)));
             try {
-                const awardRes = await fetch(`${API}/kids/award-flw`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ userId: currentUser.id, gameId: null, score: finalScore, flwEarned: flwReward, durationSeconds: 0 }) });
+                const awardRes = await communityFetch(`${API}/kids/award-flw`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ userId: currentUser.id, gameId: null, score: finalScore, flwEarned: flwReward, durationSeconds: 0 }) });
                 const awardData = await awardRes.json();
                 if (awardData.flwEarned > 0) {
                     const descEl = getEl('quiz-msg-desc');
@@ -7068,7 +7068,7 @@ let _kidFlwInitialized = false;
 async function loadKidFLWWallet() {
     if (!currentUser || currentUser.role === 'ADMIN') return;
     try {
-        const res = await fetch(`${API}/kids/wallet/${currentUser.id}`);
+        const res = await communityFetch(`${API}/kids/wallet/${currentUser.id}`);
         if (!res.ok) return;
         const data = await res.json();
         const prevBal = kidFlwBalance;
@@ -15307,7 +15307,7 @@ async function openGame(assignmentId, gameFilePath, childName, flwPerRound, game
   // בדיקת סיבוב חופשי יומי — רק כשאין הקצאה ולא תצוגת הורה
   if (!assignmentId && !window._parentGamePreview && currentUser?.id && gameId) {
     try {
-      const r = await fetch(`/api/kids/free-play-check?childUserId=${currentUser.id}&gameId=${gameId}`);
+      const r = await communityFetch(`/api/kids/free-play-check?childUserId=${currentUser.id}&gameId=${gameId}`);
       const d = await r.json();
       if (!d.canPlay) {
         const bl = document.createElement('div');
@@ -15386,7 +15386,7 @@ window.addEventListener('message', async (event) => {
     let roundResult = null;
     if(_activeAssignmentId) {
       try {
-        const res = await fetch('/api/kids/use-round', {
+        const res = await communityFetch('/api/kids/use-round', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -15404,7 +15404,7 @@ window.addEventListener('message', async (event) => {
     if((data.flwEarned || 0) > 0 && !_activeAssignmentId && !window._parentGamePreview) {
       const uid = data.userId || currentUser?.id;
       if(uid) {
-        fetch('/api/kids/award-flw', { method:'POST', headers:{'Content-Type':'application/json'},
+        communityFetch('/api/kids/award-flw', { method:'POST', headers:{'Content-Type':'application/json'},
           body: JSON.stringify({ userId:uid, gameId:data.gameId, score:data.score||0, flwEarned:data.flwEarned, durationSeconds:data.durationSeconds||0 })
         }).catch(()=>{});
       }
@@ -15630,8 +15630,8 @@ async function loadChildFlwWallet() {
     if (!currentUser || currentUser.role !== 'CHILD') return;
     try {
         const [walletRes, configRes] = await Promise.all([
-            fetch(`/api/kids/wallet/${currentUser.id}`),
-            fetch(`/api/kids/config/${currentUser.id}`)
+            communityFetch(`/api/kids/wallet/${currentUser.id}`),
+            communityFetch(`/api/kids/config/${currentUser.id}`)
         ]);
         const walletData = await walletRes.json();
         const configData = await configRes.json();
@@ -15686,7 +15686,7 @@ async function submitKidRedeem() {
     if (amt > balance) return showToast('error', 'יתרה לא מספיקה');
     try {
         // שמירת בקשת מימוש בטבלת notifications/transactions - נשתמש ב-redeem endpoint
-        const res = await fetch('/api/kids/redeem-request', {
+        const res = await communityFetch('/api/kids/redeem-request', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ childUserId: currentUser.id, flwAmount: amt, groupId: currentGroup?.id })
@@ -15726,9 +15726,9 @@ async function loadFlwKidParentPanel() {
     const rows = await Promise.all(children.map(async c => {
         try {
             const [wRes, cfRes, reqRes] = await Promise.all([
-                fetch(`/api/kids/wallet/${c.id}`),
-                fetch(`/api/kids/config/${c.id}`),
-                fetch(`/api/kids/redeem-requests?childId=${c.id}&groupId=${currentGroup?.id}`)
+                communityFetch(`/api/kids/wallet/${c.id}`),
+                communityFetch(`/api/kids/config/${c.id}`),
+                communityFetch(`/api/kids/redeem-requests?childId=${c.id}&groupId=${currentGroup?.id}`)
             ]);
             const w   = (await wRes.json()).wallet || {};
             const cfg = (await cfRes.json()).config || { flw_value_ils: 0.10 };
@@ -15789,7 +15789,7 @@ async function saveFlwKidConfig() {
     const maxDaily = parseInt(document.getElementById('flw-kid-config-max')?.value);
     if (!childId || isNaN(valueIls) || valueIls <= 0) return showToast('error', 'ערך לא תקין');
     try {
-        const res = await fetch('/api/kids/config', {
+        const res = await communityFetch('/api/kids/config', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ familyGroupId: currentGroup?.id, childUserId: parseInt(childId), flwValueIls: valueIls, maxDailyFlw: maxDaily || 50, autoApprove: false })
@@ -15818,7 +15818,7 @@ async function approveKidRedeem() {
     const flwAmount = parseFloat(document.getElementById('flw-approve-flw-amount')?.value);
     const requestId = window._flwApproveRequestId;
     try {
-        const res = await fetch('/api/kids/redeem', {
+        const res = await communityFetch('/api/kids/redeem', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ childUserId: parseInt(childId), flwAmount, parentUserId: currentUser.id, requestId })
@@ -15867,7 +15867,7 @@ const GAME_LEVELS_BY_PATH = {
 async function openAssignGameModal() {
   try {
     const [gamesRes, membersRes] = await Promise.all([
-      fetch(`/api/kids/games?userId=${currentUser?.id}`),
+      communityFetch(`/api/kids/games?userId=${currentUser?.id}`),
       fetch(`/api/group/members?groupId=${currentGroup?.id}`)
     ]);
     const gamesData   = await gamesRes.json();
@@ -16064,7 +16064,7 @@ async function submitGameAssignment() {
   if(!_selectedGameId) return alert('נא לבחור משחק');
 
   try {
-    const res = await fetch('/api/kids/assign-game', {
+    const res = await communityFetch('/api/kids/assign-game', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -16379,7 +16379,7 @@ function openQuestWizard() {
   window.submitQuest = async function() {
     if(!_selectedChildIdForQuest) return alert('נא לבחור ילד');
     try {
-      const res = await fetch('/api/kids/quests', {
+      const res = await communityFetch('/api/kids/quests', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -16479,7 +16479,7 @@ function renderKidGames(assignments) {
     const list = assignments || window.kidGameAssignments || [];
     if (list.length === 0) {
         if (!assignments) {
-            fetch(`/api/kids/assignments/${currentUser.id}`)
+            communityFetch(`/api/kids/assignments/${currentUser.id}`)
                 .then(r => r.json())
                 .then(d => { if (d.assignments?.length) renderKidGames(d.assignments); })
                 .catch(() => {});
@@ -16502,8 +16502,8 @@ async function loadKidAcademy() {
 
     try {
         const [assignRes, questRes] = await Promise.allSettled([
-            fetch(`/api/kids/assignments/${userId}`).then(r => r.json()),
-            fetch(`/api/kids/quests/${userId}`).then(r => r.json())
+            communityFetch(`/api/kids/assignments/${userId}`).then(r => r.json()),
+            communityFetch(`/api/kids/quests/${userId}`).then(r => r.json())
         ]);
         const assignments = assignRes.status === 'fulfilled' ? (assignRes.value.assignments || []) : [];
         const quests      = questRes.status  === 'fulfilled' ? (questRes.value.quests   || []) : [];
@@ -16644,7 +16644,7 @@ async function loadKidAcademy() {
 async function startQuest(questId, title, flwReward, passScore, dueDate) {
   if (dueDate && new Date(dueDate).getTime() < Date.now()) return showToast('error', 'הקווסט הזה פג תוקף');
   try {
-    const res = await fetch(`/api/kids/quests/${questId}/questions`);
+    const res = await communityFetch(`/api/kids/quests/${questId}/questions`);
     const data = await res.json();
     const questions = data.questions || [];
     if(questions.length === 0) return alert('הקווסט ריק');
@@ -16766,7 +16766,7 @@ function openQuestPlayer(questId, title, questions, flwReward, passScore) {
     currentQ++;
     if(currentQ >= questions.length) {
       try {
-        const res = await fetch(`/api/kids/quests/${questId}/submit`, {
+        const res = await communityFetch(`/api/kids/quests/${questId}/submit`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ childUserId: currentUser?.id, answers })
