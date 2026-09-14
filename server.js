@@ -5792,14 +5792,6 @@ app.post('/api/biz/verify-otp', async (req, res) => {
 
         // login / login_disambiguate — מחזיר את רשימת הסביבות רק אחרי אימות OTP
         if (purpose === 'login' || purpose === 'login_disambiguate') {
-            // debug: show raw data for this phone before filtering
-            const debugEnv = await pool.query(
-                `SELECT u.group_id, fg.name AS business_name, fg.member_type, fg.is_deleted, UPPER(u.role) AS role, u.status
-                 FROM users u JOIN family_groups fg ON fg.id = u.group_id
-                 WHERE REPLACE(REPLACE(u.phone, '-', ''), ' ', '')=$1`,
-                [phone]
-            );
-            console.log(`[BIZ LOGIN DEBUG] phone=${phone} raw rows:`, JSON.stringify(debugEnv.rows));
             const envRes = await pool.query(
                 `SELECT u.group_id, fg.name AS business_name
                  FROM users u
@@ -5811,7 +5803,6 @@ app.post('/api/biz/verify-otp', async (req, res) => {
                    AND (fg.is_deleted IS NULL OR fg.is_deleted=false)`,
                 [phone]
             );
-            console.log(`[BIZ LOGIN] phone=${phone} → found ${envRes.rows.length} envs:`, envRes.rows.map(r => r.business_name));
             return res.json({ success: true, options: envRes.rows.map(r => ({ group_id: r.group_id, business_name: r.business_name })) });
         }
 
@@ -6879,12 +6870,20 @@ app.put('/api/sa/groups/:id', verifySA, async (req, res) => {
         if (result.rowCount === 0) return res.status(404).json({ error: 'קבוצה לא נמצאה' });
         // עדכון פרטי מנהל בטבלת users
         if (adminPhone !== undefined) {
-            const normalizedAdminPhone = adminPhone ? adminPhone.replace(/[-\s]/g, '') : null;
-            // debug: show what users exist for this group before update
-            const debugRes = await pool.query(`SELECT id, role, phone, status FROM users WHERE group_id=$1`, [req.params.id]);
-            console.log(`[SA DEBUG] group=${req.params.id} users:`, JSON.stringify(debugRes.rows));
+            let normalizedAdminPhone = adminPhone ? adminPhone.replace(/[-\s()]/g, '') : null;
+            // נרמול קידומת בינלאומית (+972/972) לפורמט מקומי (05...) — כדי להתאים לפורמט שמשמש להתחברות לעסק
+            if (normalizedAdminPhone) {
+                if (normalizedAdminPhone.startsWith('+972')) normalizedAdminPhone = '0' + normalizedAdminPhone.slice(4);
+                else if (normalizedAdminPhone.startsWith('972')) normalizedAdminPhone = '0' + normalizedAdminPhone.slice(3);
+            }
             const phoneUpdateRes = await pool.query(`UPDATE users SET phone=$1 WHERE group_id=$2 AND UPPER(role)='ADMIN'`, [normalizedAdminPhone, req.params.id]);
-            console.log(`[SA] phone update group=${req.params.id} phone="${normalizedAdminPhone}" rows=${phoneUpdateRes.rowCount}`);
+            // אם אין למשל בכלל משתמש ADMIN לקבוצה (עסק שנוצר בעבר בלי שורת משתמש) — ניצור אחד כדי שהעסק יופיע בהתחברות
+            if (phoneUpdateRes.rowCount === 0 && normalizedAdminPhone) {
+                await pool.query(
+                    `INSERT INTO users (group_id, nickname, role, phone, status) VALUES ($1, $2, 'ADMIN', $3, 'active')`,
+                    [req.params.id, name || 'עסק', normalizedAdminPhone]
+                );
+            }
         }
         if (adminFirstName !== undefined) {
             await pool.query(`UPDATE users SET first_name=$1 WHERE group_id=$2 AND role='ADMIN'`, [adminFirstName || null, req.params.id]);
