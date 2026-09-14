@@ -1,5 +1,5 @@
 // ==========================================
-// Oneflow - Core & Common Functionality
+// WEFLOWZ - Core & Common Functionality
 // ==========================================
 
 let API = '/api';
@@ -562,7 +562,7 @@ function upgradeToPremium() {
     closeAiBatteryModal(); 
     const profileModal = document.getElementById('profile-modal'); 
     if(profileModal) profileModal.classList.add('hidden'); 
-    openAlertModal('Oneflow Pro 👑', 'אפשרות שדרוג למנוי פרימיום תתווסף למערכת בקרוב!'); 
+    openAlertModal('WEFLOWZ Pro 👑', 'אפשרות שדרוג למנוי פרימיום תתווסף למערכת בקרוב!'); 
 }
 
 // ==========================================

@@ -6,7 +6,7 @@
     <title>חנות העסק</title>
     
     <link rel="icon" href="/api/public/logo" type="image/png">
-    <meta property="og:title" content="חנות | Oneflow Life">
+    <meta property="og:title" content="חנות | WEFLOWZ">
     <meta property="og:description" content="הזמינו מהחנות שלנו">
     <meta property="og:image" content="/logo.png">
     <meta property="og:type" content="website">
@@ -1285,7 +1285,7 @@
                 <!-- Footer -->
                 <footer class="py-8 text-center text-xs text-slate-400 border-t border-slate-100">
                     <p class="font-medium">${heroTitle}</p>
-                    <p class="mt-1 opacity-60">Powered by Oneflow Life</p>
+                    <p class="mt-1 opacity-60">Powered by WEFLOWZ</p>
                 </footer>
             </div>`;
 
@@ -4500,7 +4500,7 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
         });
     };
 
-    // ─── ONEFLOW LIFE Integration ──────────────────────────────────────────────
+    // ─── WEFLOWZ Integration ──────────────────────────────────────────────
     let _sportCurrentClassId = null;
     let _sportOneflowUser = null; // identified internal user
 
@@ -4521,7 +4521,7 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
                         <button onclick="_sportOneflowUser=null;document.getElementById('spt-oneflow-banner').innerHTML=''" class="text-white/60 text-sm">✕</button>
                         <div>
                             <div class="font-black text-sm">👋 שלום, ${r.name}!</div>
-                            <div class="text-xs text-indigo-200">${r.familyName || 'ONEFLOW LIFE'}${mem?' · '+mem.type_name:''}${sessionsLeft?' · '+sessionsLeft:''}${daysLeft?' · '+daysLeft:''}</div>
+                            <div class="text-xs text-indigo-200">${r.familyName || 'WEFLOWZ'}${mem?' · '+mem.type_name:''}${sessionsLeft?' · '+sessionsLeft:''}${daysLeft?' · '+daysLeft:''}</div>
                         </div>
                     </div>
                     ${r.upcomingClasses?.length ? `<div class="text-xs text-indigo-200 mt-1.5 text-right">📅 שיעורים קרובים: ${r.upcomingClasses.slice(0,2).map(c=>`${c.class_name} ${new Date(c.class_date).toLocaleDateString('he-IL')}`).join(' · ')}</div>` : ''}
@@ -4538,7 +4538,7 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
 
     window.openSportClassRegister = function(classId, className, classDate, startTime) {
         _sportCurrentClassId = classId;
-        // If ONEFLOW user identified — 1-click booking
+        // If WEFLOWZ user identified — 1-click booking
         if (_sportOneflowUser && _sportOneflowUser.membership) {
             window._sport1ClickRegister(classId, className, classDate, startTime);
             return;
@@ -4665,7 +4665,7 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
                 body: JSON.stringify({ classId, familyGroupId, memberPhone: phone })
             });
             const btn = event?.target;
-            if (btn) { btn.textContent = '✅ נוסף ליומן ONEFLOW LIFE'; btn.disabled = true; }
+            if (btn) { btn.textContent = '✅ נוסף ליומן WEFLOWZ'; btn.disabled = true; }
         } catch(e) {}
     };
 
@@ -4706,7 +4706,7 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
             <button onclick="window._submitSportRFQ(${gId})" class="w-full bg-violet-600 text-white font-black py-3.5 rounded-2xl text-sm active:scale-95 transition">שלח בקשה 📋</button>
         </div>`;
         document.body.appendChild(overlay);
-        // Prefill if ONEFLOW user identified
+        // Prefill if WEFLOWZ user identified
         if (_sportOneflowUser) {
             const nameEl = document.getElementById('rfq-name');
             const phoneEl = document.getElementById('rfq-phone');
@@ -5036,8 +5036,8 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
     <!-- OFL banner -->
     <div style="background:linear-gradient(135deg,#6366f1,#8b5cf6);padding:12px 16px;display:flex;align-items:center;gap:10px;flex-shrink:0">
       <div style="flex:1;text-align:right">
-        <div style="font-weight:700;color:#fff;font-size:13px">🏠 OneFlow Life — ניהול המשפחה במקום אחד</div>
-        <div style="font-size:11px;color:#e0e7ff;margin-top:2px;line-height:1.5">פעילות מול עסקי OneFlow · הטבות וקהילות · תקציב ופיננסים משפחתיים · ילדים ולימודים · משימות</div>
+        <div style="font-weight:700;color:#fff;font-size:13px">🏠 WEFLOWZ — ניהול המשפחה במקום אחד</div>
+        <div style="font-size:11px;color:#e0e7ff;margin-top:2px;line-height:1.5">פעילות מול עסקי WEFLOWZ · הטבות וקהילות · תקציב ופיננסים משפחתיים · ילדים ולימודים · משימות</div>
       </div>
       <button onclick="scAuth.goToOFL()" style="background:#fff;color:#6366f1;border:none;border-radius:10px;padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap">כניסה →</button>
     </div>

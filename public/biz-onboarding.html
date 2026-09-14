@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="icon" href="/api/public/logo" type="image/png">
-  <title>Oneflow Life — כניסה לעסק</title>
+  <title>WEFLOWZ — כניסה לעסק</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
@@ -677,7 +677,7 @@
     <div id="sec-welcome" class="section">
       <div style="text-align:center; margin-bottom:4px;">
         <div style="font-size:40px; margin-bottom:12px;">🎉</div>
-        <h1 class="wiz-sec-title" id="welcome-title">ברוך הבא לOneflow!</h1>
+        <h1 class="wiz-sec-title" id="welcome-title">ברוך הבא ל-WEFLOWZ!</h1>
         <p class="wiz-sec-sub">החשבון שלך נוצר בהצלחה.<br>עכשיו נגדיר יחד את העסק שלך — 4 שאלות קצרות.</p>
       </div>
       <button class="btn-primary" style="margin-top:28px;" onclick="showSection('sec-biz-type')"><span>בואו נתחיל</span><span>←</span></button>
@@ -875,7 +875,7 @@
         <div class="checkbox-terms-text">
           קראתי ואני מאשר/ת את
           <a href="#" onclick="return false;">תנאי השימוש והתקנון</a>
-          של Oneflow Life
+          של WEFLOWZ
         </div>
       </label>
 
@@ -1019,7 +1019,7 @@
       if (label) btn.textContent = loading ? '...' : label;
     }
     const WIZ_HERO_MAP = {
-      'sec-tabs':           { title: 'ברוכים הבאים ל-Oneflow Life', sub: 'פלטפורמת ניהול עסק חכמה', step: null, alwaysShowHero: true },
+      'sec-tabs':           { title: 'ברוכים הבאים ל-WEFLOWZ', sub: 'פלטפורמת ניהול עסק חכמה', step: null, alwaysShowHero: true },
       'sec-otp':            { title: 'אימות מספר טלפון', sub: 'הכניסו את הקוד שנשלח אליכם', step: null, alwaysShowHero: true },
       'sec-welcome':        { title: 'בואו נתחיל!', sub: 'כמה צעדים קלים ואתם באוויר', step: null },
       'sec-biz-type':       { title: 'בואו נכיר את העסק שלך', sub: 'שלב 1 מתוך 4 · תוך פחות מ-2 דקות', step: 0 },
@@ -1532,7 +1532,7 @@
         desc: 'ערוצי תקשורת ושיווק לעסק',
         subModules: [
           { id: 'surveys',         name: 'סקרים ועדכונים',   price: 15, desc: 'יצירת סקרים לעובדים/לקוחות, שליחה, ניתוח תוצאות' },
-          { id: 'community',       name: 'קהילות מחוברות',   price: 19, desc: 'קהילות OneFlow, שוברים, קאשבק, פיד רכישות' },
+          { id: 'community',       name: 'קהילות מחוברות',   price: 19, desc: 'קהילות WEFLOWZ, שוברים, קאשבק, פיד רכישות' },
           { id: 'whatsapp_alerts', name: 'התראות WhatsApp',  price: 29, desc: 'כללי התראה אוטומטיים — עובדים, לקוחות, ניהול' },
           { id: 'content',         name: 'תוכן האתר',        price: 15, desc: 'עריכת דף הנחיתה/אתר של העסק בפלטפורמה' },
           { id: 'documents',       name: 'מסמכים',           price: 15, desc: 'ניהול מסמכים פנימיים — חוזים, מדריכים, נהלים' },
@@ -2341,7 +2341,7 @@
           'accept-language': 'he'
         });
         if (opts) Object.keys(opts).forEach(k => params.set(k, opts[k]));
-        return fetch(NOM + '?' + params, { headers: { 'User-Agent': 'OneflowBiz/1.0' } }).then(r => r.json());
+        return fetch(NOM + '?' + params, { headers: { 'User-Agent': 'WeflowzBiz/1.0' } }).then(r => r.json());
       }
 
       function buildDropdown(ddEl, results, onSelect) {
