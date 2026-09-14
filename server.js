@@ -5618,6 +5618,44 @@ app.delete('/api/sa/groups/:id/permanent', verifySA, async (req, res) => {
 // --- SA AUDIT LOG ---
 // ============================================================
 
+// יצירה/עדכון אוטומטי של כרטיס לקוח ברשימת הלקוחות של העסק (store_customers) —
+// נקרא מכל נקודת הרשמה ציבורית (הזמנה, תור, בקשת שירות) בכל סוגי העסקים,
+// כדי שלכל לקוח שנרשם בחנות הציבורית ייפתח כרטיס מלא ברשימת הלקוחות אצל בעל העסק.
+async function upsertStoreCustomer(groupId, { name, phone, email, notes } = {}) {
+    try {
+        if (!groupId || (!phone && !email && !name)) return;
+        const cleanPhone = phone ? String(phone).replace(/[-\s]/g, '') : '';
+        let existing;
+        if (cleanPhone) {
+            existing = await pool.query('SELECT id, notes FROM store_customers WHERE group_id=$1 AND phone=$2', [groupId, cleanPhone]);
+        } else if (email) {
+            existing = await pool.query('SELECT id, notes FROM store_customers WHERE group_id=$1 AND email=$2', [groupId, email]);
+        } else {
+            existing = await pool.query('SELECT id, notes FROM store_customers WHERE group_id=$1 AND name=$2', [groupId, name]);
+        }
+        if (existing.rows.length > 0) {
+            const custId = existing.rows[0].id;
+            const prevNotes = existing.rows[0].notes || '';
+            const mergedNotes = notes ? (prevNotes ? `${prevNotes}\n${notes}` : notes) : prevNotes;
+            await pool.query(
+                `UPDATE store_customers SET
+                    name = COALESCE(NULLIF($1,''), name),
+                    phone = COALESCE(NULLIF($2,''), phone),
+                    email = COALESCE(NULLIF($3,''), email),
+                    notes = $4
+                 WHERE id=$5`,
+                [name || '', cleanPhone, email || '', mergedNotes, custId]
+            );
+        } else {
+            await pool.query(
+                `INSERT INTO store_customers (group_id, name, phone, email, notes, created_at)
+                 VALUES ($1,$2,$3,$4,$5,CURRENT_TIMESTAMP)`,
+                [groupId, name || '', cleanPhone, email || '', notes || null]
+            );
+        }
+    } catch(e) { console.error('[upsertStoreCustomer]', e.message); }
+}
+
 async function logAudit(actionType, targetType, targetId, targetName, details = {}) {
     try {
         await pool.query(
@@ -20873,6 +20911,43 @@ app.delete('/api/professional-articles/:id', verifyBiz, async (req, res) => {
     catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// בקשת שירות/פנייה כללית מחנות ציבורית (תיקונים, לוגיסטיקה ועוד) — פותח כרטיס לקוח מלא אוטומטית
+app.post('/api/store/leads/:groupId', async (req, res) => {
+    try {
+        const { groupId } = req.params;
+        if (groupId === 'general' || !/^\d+$/.test(groupId)) return res.json({ success: true });
+        const { name, phone, email, description, package_description, address, pickup_address, delivery_address, urgency, urgent, preferredTime, source } = req.body;
+        if (!name && !phone) return res.status(400).json({ error: 'חסרים פרטים' });
+        const notesParts = [];
+        if (source) notesParts.push(`מקור: ${source}`);
+        if (description || package_description) notesParts.push(`תיאור: ${description || package_description}`);
+        if (address) notesParts.push(`כתובת: ${address}`);
+        if (pickup_address) notesParts.push(`איסוף: ${pickup_address}`);
+        if (delivery_address) notesParts.push(`מסירה: ${delivery_address}`);
+        if (urgency) notesParts.push(`דחיפות: ${urgency}`);
+        if (urgent) notesParts.push('דחוף');
+        if (preferredTime) notesParts.push(`זמן מועדף: ${preferredTime}`);
+        await upsertStoreCustomer(groupId, { name, phone, email, notes: notesParts.join(' | ') || 'פנייה מהחנות הציבורית' });
+
+        // לוגיסטיקה: העסק מנהל את הלקוחות שלו גם בטבלה הייעודית — נעדכן גם שם
+        try {
+            const gt = await pool.query('SELECT business_type FROM family_groups WHERE id=$1', [groupId]);
+            if (gt.rows[0]?.business_type === 'logistics' && name) {
+                const cleanPhone = phone ? String(phone).replace(/[-\s]/g, '') : null;
+                const existing = cleanPhone ? await pool.query('SELECT id FROM logistics_customers WHERE group_id=$1 AND phone=$2', [groupId, cleanPhone]) : { rows: [] };
+                if (!existing.rows.length) {
+                    await pool.query(
+                        `INSERT INTO logistics_customers (group_id, name, phone, email, default_address, notes) VALUES ($1,$2,$3,$4,$5,$6)`,
+                        [groupId, name, cleanPhone, email || null, pickup_address || address || null, notesParts.join(' | ') || null]
+                    );
+                }
+            }
+        } catch(e2) {}
+
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // Leads (contact form submissions)
 app.get('/api/professional-leads/:groupId', verifyBiz, async (req, res) => {
     try {
@@ -20883,12 +20958,14 @@ app.get('/api/professional-leads/:groupId', verifyBiz, async (req, res) => {
 });
 app.post('/api/professional-leads/:groupId', async (req, res) => {
     try {
+        if (!/^\d+$/.test(req.params.groupId)) return res.json({ success: true });
         const { name, phone, email, subject, message } = req.body;
         if (!name && !phone && !email) return res.status(400).json({ error: 'פרטים חסרים' });
         const r = await pool.query(
             `INSERT INTO professional_leads (group_id,name,phone,email,subject,message) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
             [req.params.groupId, name||null, phone||null, email||null, subject||null, message||null]
         );
+        upsertStoreCustomer(req.params.groupId, { name, phone, email, notes: subject ? `פנייה: ${subject}` : 'פנייה מטופס יצירת קשר באתר' });
         res.json({ lead: r.rows[0] });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -21967,6 +22044,7 @@ app.post('/api/sport/public-membership-purchase', async (req, res) => {
             (group_id,member_name,member_phone,member_email,membership_type_id,start_date,end_date,sessions_total,health_notes,emergency_contact,emergency_phone,qr_token,status)
             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'pending') RETURNING id,member_name,qr_token`,
             [groupId, memberName, memberPhone||'', memberEmail||'', membershipTypeId, sd, endDate, t.sessions||null, healthNotes||'', emergencyContact||'', emergencyPhone||'', qrToken]);
+        upsertStoreCustomer(groupId, { name: memberName, phone: memberPhone, email: memberEmail, notes: `רכש מנוי: ${t.name}` });
         res.json({ success: true, memberId: r.rows[0].id, memberName: r.rows[0].member_name, qrToken, membershipType: t.name, endDate, price: t.price });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -22038,6 +22116,7 @@ app.post('/api/sport/public-class-register', async (req, res) => {
                     await pool.query(`INSERT INTO sport_leads (group_id,member_name,member_phone,source,notes) VALUES ($1,$2,$3,'drop-in',$4)`,
                         [groupId, memberName||memberPhone, memberPhone, `שיעור #${classId}`]);
                 }
+                upsertStoreCustomer(groupId, { name: memberName||memberPhone, phone: memberPhone, notes: `הרשמה לשיעור דרך החנות הציבורית (ללא מנוי פעיל)` });
             } catch(e2) {}
             if (registered < (c.capacity||20)) {
                 await pool.query(`INSERT INTO sport_class_registrations (class_id,membership_id,member_name) VALUES ($1,NULL,$2) ON CONFLICT DO NOTHING`, [classId, memberName||memberPhone]);
@@ -22672,6 +22751,7 @@ app.post('/api/sport/appointments', async (req, res) => {
              VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'pending',$11) RETURNING *`,
             [groupId, trainerId||null, trainerRow?.name||null, clientName, clientPhone||null, clientEmail||null, serviceName||'אימון אישי', startTime, endTime, durationMinutes||60, notes||null]
         );
+        upsertStoreCustomer(groupId, { name: clientName, phone: clientPhone, email: clientEmail, notes: `הזמין תור: ${serviceName||'אימון אישי'}` });
         res.json({ success: true, appointment: r.rows[0] });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -23321,14 +23401,15 @@ app.post('/api/beauty/:bizId/appointments', verifyFamilyOrBiz, async (req, res) 
         client.release();
 
         // עדכון beauty_client_records (מחוץ לטרנזקציה — כישלון לא יבטל את התור)
-        if (resolvedFamilyId && client_phone) {
+        // תמיד יוצר/מעדכן כרטיס לקוח כשיש טלפון — גם ללקוח אנונימי בלי חשבון OneFlow מקושר
+        if (client_phone) {
             const bizId = appt.rows[0].business_group_id;
             pool.query(
                 `SELECT id, client_family_id FROM beauty_client_records WHERE business_group_id=$1 AND REGEXP_REPLACE(client_phone,'[^0-9]','','g')=REGEXP_REPLACE($2,'[^0-9]','','g') LIMIT 1`,
                 [bizId, client_phone]
             ).then(existR => {
                 if (existR.rows[0]) {
-                    if (!existR.rows[0].client_family_id) {
+                    if (resolvedFamilyId && !existR.rows[0].client_family_id) {
                         pool.query(
                             `UPDATE beauty_client_records SET client_family_id=$1, updated_at=NOW() WHERE id=$2`,
                             [resolvedFamilyId, existR.rows[0].id]
@@ -23337,7 +23418,7 @@ app.post('/api/beauty/:bizId/appointments', verifyFamilyOrBiz, async (req, res) 
                 } else if (client_name) {
                     pool.query(
                         `INSERT INTO beauty_client_records (business_group_id, client_name, client_phone, client_family_id) VALUES ($1,$2,$3,$4)`,
-                        [bizId, client_name, client_phone, resolvedFamilyId]
+                        [bizId, client_name, client_phone, resolvedFamilyId||null]
                     ).catch(() => {});
                 }
             }).catch(() => {});
@@ -25385,6 +25466,8 @@ app.post('/api/public/restaurants/:groupId/verify-table-sms', async (req, res) =
             [tempId]
         );
 
+        upsertStoreCustomer(groupId, { name: temp.customer_name, phone: temp.customer_phone, notes: 'הזמנת שולחן דרך החנות הציבורית' });
+
         // לא שולחים SMS כאן — ישלח רק אחרי אישור העסק
         res.json({
             success: true,
@@ -25457,6 +25540,7 @@ app.post('/api/calendar/verify-booking-sms', async (req, res) => {
         );
 
         await pool.query(`UPDATE temp_booking_requests SET status='verified', verified_at=NOW() WHERE id=$1`, [tempId]);
+        upsertStoreCustomer(groupId, { name: temp.customer_name, phone: temp.customer_phone, notes: temp.service_name ? `בקשת תור: ${temp.service_name}` : 'בקשת תור דרך החנות הציבורית' });
         res.json({ success: true, eventId: evtRes.rows[0].id });
     } catch(e) { res.status(500).json({ success: false, error: e.message }); }
 });

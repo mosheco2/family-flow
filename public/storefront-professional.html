@@ -660,15 +660,16 @@ async function submitBooking(e) {
   errEl.textContent = '';
   btn.disabled = true;
   btn.textContent = 'שולח...';
+  const preferredTime = document.getElementById('book-time').value.trim();
   const body = {
     name: document.getElementById('book-name').value.trim(),
     phone: document.getElementById('book-phone').value.trim(),
     subject: document.getElementById('book-subject').value.trim(),
-    preferred_time: document.getElementById('book-time').value.trim(),
+    message: preferredTime ? `בקשה לקביעת פגישה — זמן מועדף: ${preferredTime}` : 'בקשה לקביעת פגישה',
     source: 'storefront-professional'
   };
   try {
-    const r = await fetch(`${API}/store/appointments/${groupId || 'public'}`, {
+    const r = await fetch(`${API}/professional-leads/${groupId || 'public'}`, {
       method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)
     });
     const data = await r.json();
