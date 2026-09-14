@@ -28064,6 +28064,13 @@ window.fetchStoreSettings = async function() { console.trace("[FSS-ACTIVE]");
             syncInputs('store-whatsapp', s.whatsapp_number || '');
             syncInputs('store-order-email', s.order_notification_email || '');
 
+            // שדות חובה בהוספת לקוח — טעינה מהשרת כדי שפאנל ההגדרות יציג את המצב האמיתי
+            try {
+                let crf = s.customer_required_fields || {};
+                if (typeof crf === 'string') crf = JSON.parse(crf);
+                window._customerRequiredFields = crf;
+            } catch(e) { window._customerRequiredFields = {}; }
+
             // עדכון הלינק הציבורי שיוצג (פורמט קצר)
             const displayId = s.store_alias || currentGroup.group_code;
             syncInputs('store-public-link', `${window.location.origin}/${displayId}`);
