@@ -1049,6 +1049,14 @@ function renderMyOrders() {
     const list = getEl('my-orders-list');
     if (!list) return;
 
+    // שומרים אילו שורות פתוחות לפני בנייה מחדש (למשל מהרענון האוטומטי כל 3 שניות) —
+    // כדי שפתיחה ידנית לא תיסגר מעצמה כשהרשימה מתעדכנת ברקע
+    const openOrderIds = new Set(
+        Array.from(list.querySelectorAll('[id^="order-details-"]'))
+            .filter(el => !el.classList.contains('hidden'))
+            .map(el => el.id.replace('order-details-', ''))
+    );
+
     // עדכון פאנל סינון
     const filterEl = getEl('orders-filter-panel');
     if (filterEl) {
@@ -1152,6 +1160,12 @@ function renderMyOrders() {
     }
 
     list.innerHTML = html;
+
+    // משחזרים את השורות שהיו פתוחות
+    openOrderIds.forEach(id => {
+        const el = document.getElementById(`order-details-${id}`);
+        if (el) el.classList.remove('hidden');
+    });
 }
 
 async function confirmOrderReceipt(orderId, received) {
