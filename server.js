@@ -24061,12 +24061,14 @@ app.get('/api/family/business-activity/:familyGroupId/:bizGroupId', async (req, 
         const bizGroupId = parseInt(req.params.bizGroupId);
         const [bizR, phoneR] = await Promise.all([
             pool.query('SELECT business_type FROM family_groups WHERE id=$1', [bizGroupId]),
-            // מחפשים טלפון של כל חבר משפחה (לא רק ADMIN) — כדי לאפשר התאמת טלפון גם ללא מנהל
-            pool.query("SELECT phone FROM users WHERE group_id=$1 AND phone IS NOT NULL LIMIT 1", [familyGroupId])
+            // מחפשים את הטלפונים של *כל* בני המשפחה (לא רק אחד אקראי) — כדי שההזמנה תימצא
+            // גם אם היא בוצעה עם טלפון של בן משפחה שאינו ה-ADMIN הראשי או הראשון ב-DB
+            pool.query("SELECT phone FROM users WHERE group_id=$1 AND phone IS NOT NULL AND phone <> ''", [familyGroupId])
         ]);
         if (!bizR.rows.length) return res.status(404).json({ error: 'עסק לא נמצא' });
         const bizType = bizR.rows[0].business_type;
-        const familyPhone = phoneR.rows[0]?.phone || null;
+        const familyPhones = phoneR.rows.map(r => r.phone);
+        const familyPhone = familyPhones[0] || null;
         const result = { type: bizType, activity: {} };
 
         if (bizType === 'beauty') {
@@ -24095,15 +24097,15 @@ app.get('/api/family/business-activity/:familyGroupId/:bizGroupId', async (req, 
                     [bizGroupId, familyPhone, familyGroupId]).catch(e => { console.error('[APPT-QUERY]', e.message); return { rows: [] }; }),
                 pool.query(`SELECT id, status, service_description, preferred_date, created_at
                             FROM beauty_rfq WHERE business_group_id=$1
-                              AND (client_phone=$2 OR client_family_id=$3)
+                              AND (client_phone = ANY($2::text[]) OR client_family_id=$3)
                             ORDER BY created_at DESC LIMIT 20`,
-                    [bizGroupId, familyPhone, familyGroupId]).catch(() => ({ rows: [] })),
+                    [bizGroupId, familyPhones, familyGroupId]).catch(() => ({ rows: [] })),
                 pool.query(`SELECT id, title, event_date, start_time, status, notes
                             FROM calendar_events WHERE group_id=$1
-                              AND (customer_phone=$2 OR customer_group_id=$3)
+                              AND (customer_phone = ANY($2::text[]) OR customer_group_id=$3)
                               AND status NOT IN ('cancelled','done')
                             ORDER BY event_date DESC, start_time DESC LIMIT 20`,
-                    [bizGroupId, familyPhone, familyGroupId]).catch(() => ({ rows: [] }))
+                    [bizGroupId, familyPhones, familyGroupId]).catch(() => ({ rows: [] }))
             ]);
             result.activity = { appointments: apptR.rows, rfqs: rfqR.rows, calendarEvents: calR.rows };
 
@@ -24127,23 +24129,23 @@ app.get('/api/family/business-activity/:familyGroupId/:bizGroupId', async (req, 
                                 (SELECT json_agg(json_build_object('name',soi.item_name,'qty',soi.quantity,'price',soi.price_at_order) ORDER BY soi.id)
                                  FROM store_order_items soi WHERE soi.order_id=so.id) AS items
                             FROM store_orders so
-                            WHERE so.group_id=$1 AND (so.customer_phone=$2 OR so.family_group_id=$3)
+                            WHERE so.group_id=$1 AND (so.customer_phone = ANY($2::text[]) OR so.family_group_id=$3)
                               AND (so.status IS NULL OR so.status != 'quote')
                             ORDER BY so.created_at DESC LIMIT 20`,
-                [bizGroupId, familyPhone, familyGroupId]).catch(() => ({ rows: [] }));
+                [bizGroupId, familyPhones, familyGroupId]).catch(() => ({ rows: [] }));
             const quoteR = await pool.query(`SELECT id, quote_status AS status, total_amount AS total_price, created_at
                             FROM store_orders
-                            WHERE group_id=$1 AND (customer_phone=$2 OR family_group_id=$3)
+                            WHERE group_id=$1 AND (customer_phone = ANY($2::text[]) OR family_group_id=$3)
                               AND status = 'quote'
                             ORDER BY created_at DESC LIMIT 10`,
-                [bizGroupId, familyPhone, familyGroupId]).catch(() => ({ rows: [] }));
+                [bizGroupId, familyPhones, familyGroupId]).catch(() => ({ rows: [] }));
             const tableResR = await pool.query(
                 `SELECT id, title, event_date, start_time, status, notes, num_guests, reserved_table_number, call_type, alternatives_json
                  FROM calendar_events
                  WHERE group_id=$1 AND call_type='table_reservation'
-                   AND (customer_phone=$2 OR customer_group_id=$3)
+                   AND (customer_phone = ANY($2::text[]) OR customer_group_id=$3)
                  ORDER BY event_date DESC, start_time DESC LIMIT 10`,
-                [bizGroupId, familyPhone, familyGroupId]
+                [bizGroupId, familyPhones, familyGroupId]
             ).catch(() => ({ rows: [] }));
             result.activity = { orders: ordR.rows, quotes: quoteR.rows, tableReservations: tableResR.rows };
 
@@ -24153,28 +24155,28 @@ app.get('/api/family/business-activity/:familyGroupId/:bizGroupId', async (req, 
                                    COALESCE(json_agg(json_build_object('id',wop.id,'milestone_name',wop.milestone_name,'amount',wop.amount,'due_date',wop.due_date,'status',wop.status,'received_amount',wop.received_amount) ORDER BY wop.due_date ASC NULLS LAST) FILTER (WHERE wop.id IS NOT NULL), '[]'::json) AS payments
                             FROM service_calls sc
                             LEFT JOIN work_order_payments wop ON wop.service_call_id = sc.id
-                            WHERE sc.business_group_id=$1 AND (sc.customer_phone=$2 OR sc.family_group_id=$3)
+                            WHERE sc.business_group_id=$1 AND (sc.customer_phone = ANY($2::text[]) OR sc.family_group_id=$3)
                             GROUP BY sc.id
                             ORDER BY sc.created_at DESC LIMIT 20`,
-                    [bizGroupId, familyPhone, familyGroupId]).catch(() => ({ rows: [] })),
+                    [bizGroupId, familyPhones, familyGroupId]).catch(() => ({ rows: [] })),
                 pool.query(`SELECT so.id, so.status, so.payment_status, so.total_amount, so.quote_title, so.created_at,
                                    COALESCE(json_agg(json_build_object('id',wop.id,'milestone_name',wop.milestone_name,'amount',wop.amount,'due_date',wop.due_date,'status',wop.status,'received_amount',wop.received_amount) ORDER BY wop.due_date ASC NULLS LAST) FILTER (WHERE wop.id IS NOT NULL), '[]'::json) AS payments
                             FROM store_orders so
                             LEFT JOIN work_order_payments wop ON wop.work_order_id = so.id
-                            WHERE so.group_id=$1 AND (so.customer_phone=$2 OR so.family_group_id=$3)
+                            WHERE so.group_id=$1 AND (so.customer_phone = ANY($2::text[]) OR so.family_group_id=$3)
                               AND so.call_type='work_order'
                             GROUP BY so.id
                             ORDER BY so.created_at DESC LIMIT 20`,
-                    [bizGroupId, familyPhone, familyGroupId]).catch(() => ({ rows: [] }))
+                    [bizGroupId, familyPhones, familyGroupId]).catch(() => ({ rows: [] }))
             ]);
             result.activity = { serviceCalls: scR.rows, workOrders: woR.rows };
 
         } else if (bizType === 'logistics') {
             const loR = await pool.query(`SELECT id, order_number, status, delivery_address, created_at
                             FROM logistics_orders
-                            WHERE business_group_id=$1 AND (customer_phone=$2 OR sender_group_id=$3)
+                            WHERE business_group_id=$1 AND (customer_phone = ANY($2::text[]) OR sender_group_id=$3)
                             ORDER BY created_at DESC LIMIT 20`,
-                [bizGroupId, familyPhone, familyGroupId]).catch(() => ({ rows: [] }));
+                [bizGroupId, familyPhones, familyGroupId]).catch(() => ({ rows: [] }));
             result.activity = { logisticsOrders: loR.rows };
         }
 
@@ -24197,9 +24199,9 @@ app.get('/api/family/business-activity/:familyGroupId/:bizGroupId', async (req, 
              FROM calendar_events ce
              LEFT JOIN calendar_services cs ON cs.id = ce.service_id
              LEFT JOIN beauty_service_catalog bsc ON bsc.id = ce.service_id
-             WHERE ce.group_id=$1 AND (ce.customer_group_id=$2 OR ce.customer_phone=$3)
+             WHERE ce.group_id=$1 AND (ce.customer_group_id=$2 OR ce.customer_phone = ANY($3::text[]))
              ORDER BY ce.event_date DESC, ce.start_time DESC LIMIT 20`,
-            [bizGroupId, familyGroupId, familyPhone || '']
+            [bizGroupId, familyGroupId, familyPhones]
         ).catch(() => ({ rows: [] }));
         result.activity.calendarEvents = calR.rows;
 
