@@ -2517,6 +2517,27 @@ async function confirmMergeUser() {
     } catch(e) { showToast('error', 'שגיאת רשת'); }
 }
 
+// מריץ מיד (בלי לחכות להפעלה הבאה של השרת) סנכרון של "הפעילות שלי" לכל המערכת —
+// שימושי אחרי ניקוי/מיזוג כפילויות כדי לוודא שכל עסק מקושר לחשבון המשפחה הנכון והעדכני
+async function saResyncActivityLinks(ev) {
+    if (!confirm('להריץ עכשיו סנכרון מלא של "הפעילות שלי" לכל המערכת?\nהפעולה עוברת על כל כרטיסי הלקוחות עם טלפון ומוודאת שהם מקושרים לחשבון המשפחה הנכון (כולל אחרי מיזוגים). זו פעולת קריאה/עדכון בטוחה, לא מוחקת מידע.')) return;
+    const btn = ev?.target?.closest('button');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מסנכרן...'; }
+    try {
+        const res = await fetch(`${API}/sa/resync-activity-links`, { method: 'POST', headers: { 'Authorization': saToken } });
+        const data = await res.json();
+        if (data.success) {
+            showToast('success', `סונכרנו ${data.linked} קישורי עסק-משפחה ✅`);
+        } else {
+            showToast('error', data.error || 'שגיאה בסנכרון');
+        }
+    } catch(e) {
+        showToast('error', 'שגיאת רשת');
+    } finally {
+        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-rotate"></i> סנכרן פעילויות'; }
+    }
+}
+
 async function openSnapshotsModal(groupId, groupName) {
     let modal = getEl('sa-snapshots-modal');
     if (!modal) {

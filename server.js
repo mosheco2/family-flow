@@ -2480,6 +2480,15 @@ app.post('/api/sa/users/merge', verifySA, async (req, res) => {
     } finally { client.release(); }
 });
 
+// SA: הרצה ידנית של סנכרון "הפעילות שלי" — שימושי מיד אחרי ניקוי כפילויות (מיזוג חשבונות/משתמשים),
+// כדי לוודא שכל עסק שהטלפון ביצע אצלו פעולה מקושר לחשבון המשפחה הנכון (העדכני) מבלי לחכות להפעלה הבאה של השרת
+app.post('/api/sa/resync-activity-links', verifySA, async (req, res) => {
+    try {
+        const linked = await backfillMemberBusinessLinks();
+        res.json({ success: true, linked });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // SA: הפשרת חשבון מוקפא
 app.post('/api/sa/groups/:id/freeze', verifySA, async (req, res) => {
     try {
@@ -5919,6 +5928,39 @@ async function upsertStoreCustomer(groupId, { name, phone, email, notes } = {}) 
             } catch(le) { console.error('[upsertStoreCustomer link]', le.message); }
         }
     } catch(e) { console.error('[upsertStoreCustomer]', e.message); }
+}
+
+// סנכרון/תיקון מלא של "הפעילות שלי": עובר על כל כרטיסי הלקוחות עם טלפון, מזהה מחדש
+// את חשבון המשפחה הנכון (כולל אחרי מיזוג כפילויות בסופר אדמין) ומוודא שהעסק מקושר.
+// רץ אוטומטית באתחול השרת, וניתן להריץ ידנית דרך /api/sa/resync-activity-links.
+async function backfillMemberBusinessLinks() {
+    const rows = await pool.query(`
+        SELECT sc.id, sc.group_id, sc.name, sc.phone, sc.email, sc.family_group_id, fg.business_type
+        FROM store_customers sc
+        JOIN family_groups fg ON fg.id = sc.group_id
+        WHERE sc.phone IS NOT NULL AND sc.phone <> ''
+    `);
+    let linked = 0;
+    for (const row of rows.rows) {
+        try {
+            const scCust = await getOrCreateStorefrontCustomer(row.phone, { name: row.name, email: row.email });
+            const familyGroupId = scCust?.family_group_id || null;
+            if (!familyGroupId) continue;
+            if (familyGroupId !== row.family_group_id) {
+                await pool.query(`UPDATE store_customers SET family_group_id=$1 WHERE id=$2`, [familyGroupId, row.id]);
+            }
+            await pool.query(
+                `INSERT INTO member_business_links (member_group_id, business_group_id, business_type, is_active, status, linked_at)
+                 VALUES ($1,$2,$3,true,'active',NOW())
+                 ON CONFLICT (member_group_id, business_group_id) DO UPDATE
+                 SET is_active = true, status = 'active'`,
+                [familyGroupId, row.group_id, row.business_type || 'other']
+            );
+            linked++;
+        } catch(e2) { console.error('[backfillMemberBusinessLinks] row', row.id, e2.message); }
+    }
+    console.log(`[backfill] retroactively linked ${linked} customer-business relationships to "הפעילות שלי".`);
+    return linked;
 }
 
 async function logAudit(actionType, targetType, targetId, targetName, details = {}) {
@@ -35942,40 +35984,7 @@ app.listen(port, () => {
 
     // מילוי רטרואקטיבי: לקוחות שכבר ביצעו פעולה אצל עסק לפני שהמנגנון הזה נוסף —
     // מקבלים חשבון רשום (אם עוד אין) וקישור לעסק ב"הפעילות שלי", בדיוק כמו שקורה מעכשיו והלאה
-    setTimeout(async () => {
-        try {
-            const rows = await pool.query(`
-                SELECT sc.id, sc.group_id, sc.name, sc.phone, sc.email, sc.family_group_id, fg.business_type
-                FROM store_customers sc
-                JOIN family_groups fg ON fg.id = sc.group_id
-                WHERE sc.phone IS NOT NULL AND sc.phone <> ''
-            `);
-            let linked = 0;
-            for (const row of rows.rows) {
-                try {
-                    let familyGroupId = row.family_group_id;
-                    if (!familyGroupId) {
-                        const scCust = await getOrCreateStorefrontCustomer(row.phone, { name: row.name, email: row.email });
-                        familyGroupId = scCust?.family_group_id || null;
-                        if (familyGroupId) {
-                            await pool.query(`UPDATE store_customers SET family_group_id=$1 WHERE id=$2`, [familyGroupId, row.id]);
-                        }
-                    }
-                    if (familyGroupId) {
-                        await pool.query(
-                            `INSERT INTO member_business_links (member_group_id, business_group_id, business_type, is_active, status, linked_at)
-                             VALUES ($1,$2,$3,true,'active',NOW())
-                             ON CONFLICT (member_group_id, business_group_id) DO UPDATE
-                             SET is_active = true, status = 'active'`,
-                            [familyGroupId, row.group_id, row.business_type || 'other']
-                        );
-                        linked++;
-                    }
-                } catch(e2) { console.error('[backfill member_business_links] row', row.id, e2.message); }
-            }
-            console.log(`[backfill] retroactively linked ${linked} customer-business relationships to "הפעילות שלי".`);
-        } catch(e) { console.error('[backfill member_business_links]', e.message); }
-    }, 12000);
+    setTimeout(() => { backfillMemberBusinessLinks().catch(e => console.error('[backfill member_business_links]', e.message)); }, 12000);
 });
 
 // ===== Public — קמפיין שיווקי לפי סוג עסק =====
