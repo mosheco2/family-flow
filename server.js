@@ -1546,7 +1546,7 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
           await client.query(`ALTER TABLE calendar_events   ADD  CONSTRAINT calendar_events_customer_group_id_fkey   FOREIGN KEY (customer_group_id)  REFERENCES family_groups(id) ON DELETE SET NULL`);
       } catch(e) { console.error('[FK-MIGRATION]', e.message); }
 
-      // ===== ONEFLOWLIFE MEMBER FEATURE =====
+      // ===== WEFLOWZ MEMBER FEATURE =====
       try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS member_type VARCHAR(20) DEFAULT 'family'`); } catch(e) {}
       try { await client.query(`CREATE TABLE IF NOT EXISTS member_business_links (
           id SERIAL PRIMARY KEY,
@@ -1563,7 +1563,7 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
       try { await client.query(`ALTER TABLE member_business_links ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'active'`); } catch(e) {}
       try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS unlocked_modules JSONB DEFAULT '[]'`); } catch(e) {}
       try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS module_requests JSONB DEFAULT '[]'`); } catch(e) {}
-      // ===== END ONEFLOWLIFE MEMBER FEATURE =====
+      // ===== END WEFLOWZ MEMBER FEATURE =====
 
       // ===== STOREFRONT CUSTOMER AUTH =====
       try { await client.query(`CREATE TABLE IF NOT EXISTS storefront_customers (
@@ -3478,7 +3478,7 @@ const handleAIError = (e, res, defaultMsg) => {
 };
 
 // =========================================================
-// פונקציית איתור לקוחות OneFlow לפי מספרי הזמנה + טלפון + מייל
+// פונקציית איתור לקוחות WEFLOWZ לפי מספרי הזמנה + טלפון + מייל
 // =========================================================
 async function resolveOneFlowGroupIds(pool, businessGroupId, customers) {
     const result = new Set();
@@ -3531,11 +3531,11 @@ async function getEmailConfig() {
         r.rows.forEach(row => { m[row.key] = row.value; });
         return {
             fromEmail: m.smtp_from_email || process.env.SMTP_USER || '',
-            fromName:  m.smtp_from_name  || 'Oneflow System',
+            fromName:  m.smtp_from_name  || 'WEFLOWZ System',
             adminNotificationEmail: m.admin_notification_email || 'mcgames1978@gmail.com'
         };
     } catch(e) {
-        return { fromEmail: process.env.SMTP_USER || '', fromName: 'Oneflow System', adminNotificationEmail: 'mcgames1978@gmail.com' };
+        return { fromEmail: process.env.SMTP_USER || '', fromName: 'WEFLOWZ System', adminNotificationEmail: 'mcgames1978@gmail.com' };
     }
 }
 
@@ -3581,13 +3581,13 @@ async function sendAlertEmail(groupId, subject, message) {
         const html = `
             <div dir="rtl" style="font-family:Arial,sans-serif;max-width:540px;margin:auto;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;">
               <div style="background:#4f46e5;padding:20px 24px;">
-                <h2 style="color:#fff;margin:0;font-size:18px;">⚡ התראה מ-OneFlow</h2>
-                <p style="color:#c7d2fe;margin:4px 0 0;font-size:13px;">${business_name || 'OneFlow Life'}</p>
+                <h2 style="color:#fff;margin:0;font-size:18px;">⚡ התראה מ-WEFLOWZ</h2>
+                <p style="color:#c7d2fe;margin:4px 0 0;font-size:13px;">${business_name || 'WEFLOWZ'}</p>
               </div>
               <div style="padding:24px;">
                 <p style="font-size:15px;color:#1e293b;margin:0 0 16px;">${message}</p>
                 <hr style="border:none;border-top:1px solid #e2e8f0;margin:16px 0;">
-                <p style="font-size:11px;color:#94a3b8;margin:0;">OneFlow Life · מערכת ניהול עסקי</p>
+                <p style="font-size:11px;color:#94a3b8;margin:0;">WEFLOWZ · מערכת ניהול עסקי</p>
               </div>
             </div>`;
         await sendSystemEmail(admin_email, subject, html);
@@ -3754,13 +3754,13 @@ initDB();
 // WhatsApp CRON
 // ═══════════════════════════════════════════
 const WA_DEFAULTS = {
-    owner_order: '🛍️ הזמנה חדשה מ-{שם_לקוח}! סכום: ₪{סכום}.\nכנס לניהול: https://oneflowlife.co.il',
-    customer_order: '✅ שלום {שם_לקוח}! קיבלנו את ההזמנה שלך (₪{סכום}).\nנעדכן אותך כשתהיה מוכנה 🙏\nhttps://oneflowlife.co.il',
-    owner_checkin: 'שלום {שם_עובד}, שכחת לדפוק שעון כניסה היום! אנא עדכן את הנוכחות שלך.\nhttps://oneflowlife.co.il',
-    checkin_summary: '📋 {כמות_עובדים} עובד/ים במשמרת היום. בדוק נוכחות.\nhttps://oneflowlife.co.il',
-    owner_task_due: '⚠️ המשימה "{שם_משימה}" עברה את מועד הביצוע!\nhttps://oneflowlife.co.il',
-    low_inventory: '📦 התראת מלאי נמוך:\n{רשימת_מלאי}\nhttps://oneflowlife.co.il',
-    plan_tomorrow: '📅 תזכורת: מחר {כמות_משמרות} משמרת/ות מתוכננת/ות. בדוק את היומן!\nhttps://oneflowlife.co.il'
+    owner_order: '🛍️ הזמנה חדשה מ-{שם_לקוח}! סכום: ₪{סכום}.\nכנס לניהול: https://weflowz.co.il',
+    customer_order: '✅ שלום {שם_לקוח}! קיבלנו את ההזמנה שלך (₪{סכום}).\nנעדכן אותך כשתהיה מוכנה 🙏\nhttps://weflowz.co.il',
+    owner_checkin: 'שלום {שם_עובד}, שכחת לדפוק שעון כניסה היום! אנא עדכן את הנוכחות שלך.\nhttps://weflowz.co.il',
+    checkin_summary: '📋 {כמות_עובדים} עובד/ים במשמרת היום. בדוק נוכחות.\nhttps://weflowz.co.il',
+    owner_task_due: '⚠️ המשימה "{שם_משימה}" עברה את מועד הביצוע!\nhttps://weflowz.co.il',
+    low_inventory: '📦 התראת מלאי נמוך:\n{רשימת_מלאי}\nhttps://weflowz.co.il',
+    plan_tomorrow: '📅 תזכורת: מחר {כמות_משמרות} משמרת/ות מתוכננת/ות. בדוק את היומן!\nhttps://weflowz.co.il'
 };
 
 function applyWATpl(tpl, vars) {
@@ -3965,7 +3965,7 @@ app.post('/api/ai/chat', verifySA, async (req, res) => {
             return res.status(500).json({ success: false, error: 'מפתח Gemini אינו מוגדר בשרת.' });
         }
 
-        const systemInstruction = `אתה עוזר AI ביצועי ואנליטי ברמת Expert למנהל העל (Super Admin) של מערכת Oneflow Life.
+        const systemInstruction = `אתה עוזר AI ביצועי ואנליטי ברמת Expert למנהל העל (Super Admin) של מערכת WEFLOWZ.
 בכל בקשה תקבל בלוק נתונים עדכני בפורמט JSON בשם "מידע פנימי בזמן אמת". הנתונים האלו הם אמת מוחלטת והם משקפים את מסד הנתונים כרגע.
 ההנחיות שלך:
 1. ענה ישירות, קצר ולעניין על סמך הנתונים שסופקו לך. אל תתן תשובות תיאורטיות, אל תחנך את המנהל, ואל תכתוב "אין לי גישה" - כי הגישה סופקה לך בבלוק הנתונים.
@@ -4054,7 +4054,7 @@ app.post('/api/sa/ai/chat', verifySA, async (req, res) => {
         ]);
 
         // ── system prompt ──
-        const systemPrompt = `אתה "FLOW AI" — עוזרת AI מקצועית ורב-יכולת של מנהל-על (Super Admin) במערכת Oneflow Life.
+        const systemPrompt = `אתה "FLOW AI" — עוזרת AI מקצועית ורב-יכולת של מנהל-על (Super Admin) במערכת WEFLOWZ.
 הנך יודעת הכל על המערכת ויכולה: לשלוף נתונים, לנתח, לחזות, לבצע פעולות, ולהדריך.
 
 ## יכולות ופעולות זמינות בסופר-אדמין:
@@ -5009,7 +5009,7 @@ app.post('/api/superadmin/tickets/:id/ai-triage', verifySA, async (req, res) => 
         const ticket = tRes.rows[0];
         
         const prompt = `
-        You are an expert AI Triage Support Agent for a SaaS system called 'Oneflow Life'. 
+        You are an expert AI Triage Support Agent for a SaaS system called 'WEFLOWZ'. 
         Read the following support ticket submitted by a user and classify it.
         
         Ticket Subject: "${ticket.subject}"
@@ -5297,9 +5297,9 @@ app.get('/api/test-email', async (req, res) => {
         });
 
         await transporter.sendMail({
-            from: `"Oneflow System Test" <${user}>`,
+            from: `"WEFLOWZ System Test" <${user}>`,
             to: user,
-            subject: '✅ בדיקת מערכת המיילים - Oneflow',
+            subject: '✅ בדיקת מערכת המיילים - WEFLOWZ',
             html: '<div style="direction:rtl; font-family:Arial;"><h2>הצלחה! 🎉</h2><p>המערכת הצליחה לעקוף את החסימה, להתחבר לשרתי גוגל דרך פורט 465 ולשלוח מייל בהצלחה.</p></div>'
         });
 
@@ -5407,7 +5407,7 @@ app.get('/setup-db', async (req, res) => {
             CREATE TABLE global_products (barcode VARCHAR(50) PRIMARY KEY, name VARCHAR(100), category VARCHAR(50) DEFAULT 'כללי', added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
             CREATE TABLE inbox_messages (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, sender_type VARCHAR(50), sender_name VARCHAR(100), sender_contact VARCHAR(100), subject VARCHAR(200), content TEXT, is_read BOOLEAN DEFAULT FALSE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
         `);
-        res.send('<h1>Oneflow Life System Ready 🚀</h1><p>DB tables fully reset and updated!</p><a href="/">Go to App</a>');
+        res.send('<h1>WEFLOWZ System Ready 🚀</h1><p>DB tables fully reset and updated!</p><a href="/">Go to App</a>');
     } catch (e) { res.status(500).send(e.message); }
 });
 
@@ -6147,7 +6147,7 @@ app.post('/api/biz/send-otp', async (req, res) => {
             [phone, codeHash, purpose, expiresAt]
         );
 
-        const smsText = `Oneflow Life\nקוד האימות שלך: ${code}\nתקף ל-5 דקות. אין להעביר קוד זה לאחר.`;
+        const smsText = `WEFLOWZ\nקוד האימות שלך: ${code}\nתקף ל-5 דקות. אין להעביר קוד זה לאחר.`;
         const e164Phone = phone.startsWith('0') ? '+972' + phone.slice(1) : phone;
         await sendSMSviaTwilio(e164Phone, smsText);
 
@@ -6244,7 +6244,7 @@ app.post('/api/family/send-otp', async (req, res) => {
         const codeHash = _bizHashOtp(code);
         const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
         await pool.query(`INSERT INTO business_otp (phone, code_hash, purpose, expires_at) VALUES ($1, $2, 'family_register', $3)`, [phone, codeHash, expiresAt]);
-        const smsText = `Oneflow Life\nקוד האימות שלך: ${code}\nתקף ל-5 דקות. אין להעביר קוד זה לאחר.`;
+        const smsText = `WEFLOWZ\nקוד האימות שלך: ${code}\nתקף ל-5 דקות. אין להעביר קוד זה לאחר.`;
         const e164Phone = phone.startsWith('0') ? '+972' + phone.slice(1) : phone;
         await sendSMSviaTwilio(e164Phone, smsText);
         res.json({ success: true });
@@ -6658,7 +6658,7 @@ app.post('/api/biz/register', async (req, res) => {
             if (!cfg.adminNotificationEmail) return;
             sendSystemEmail(
                 cfg.adminNotificationEmail,
-                'Oneflow | עסק חדש נרשם למערכת!',
+                'WEFLOWZ | עסק חדש נרשם למערכת!',
                 `<div dir="rtl" style="font-family:Arial;"><h2>🏢 עסק חדש נרשם!</h2><p>שם עסק: <strong>${business_name}</strong></p><p>טלפון: ${phone}</p><p>הויזארד טרם הושלם — פרטים נוספים יגיעו בסיום.</p></div>`
             ).catch(() => {});
         }).catch(() => {});
@@ -6744,11 +6744,11 @@ app.post('/api/biz/reset-password/request', async (req, res) => {
         const resetUrl = `${process.env.BASE_URL || 'https://family-flow.onrender.com'}/biz-onboarding.html?reset=${rawToken}&gid=${groupId}`;
         const html = `<div dir="rtl" style="font-family:Arial;max-width:520px">
             <h2>איפוס סיסמה — ${business_name}</h2>
-            <p>קיבלנו בקשה לאיפוס הסיסמה שלך ב-Oneflow.</p>
+            <p>קיבלנו בקשה לאיפוס הסיסמה שלך ב-WEFLOWZ.</p>
             <p><a href="${resetUrl}" style="background:#6366f1;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:bold;display:inline-block;">איפוס סיסמה</a></p>
             <p style="color:#64748b;font-size:13px">הקישור תקף לשעה אחת. אם לא ביקשת את האיפוס — התעלם מהודעה זו.</p>
         </div>`;
-        await sendSystemEmail(admin_email, `Oneflow | איפוס סיסמה — ${business_name}`, html);
+        await sendSystemEmail(admin_email, `WEFLOWZ | איפוס סיסמה — ${business_name}`, html);
 
         res.json({ success: true });
     } catch(e) {
@@ -6947,13 +6947,13 @@ app.patch('/api/biz/wizard/complete', verifyBiz, async (req, res) => {
             // ברוכים הבאים ללקוח
             const clientSent = await sendSystemEmail(
                 clientEmail,
-                `ברוכים הבאים ל-Oneflow BIZ — ${bizName}`,
+                `ברוכים הבאים ל-WEFLOWZ BIZ — ${bizName}`,
                 `<div dir="rtl" style="font-family:sans-serif;max-width:520px;margin:0 auto;">
                   <h2 style="color:#4f46e5;">המערכת שלך מוכנה! 🎉</h2>
                   <p>שלום ${first_name.trim()},</p>
-                  <p>העסק <strong>${bizName}</strong> הוגדר בהצלחה במערכת Oneflow BIZ.</p>
+                  <p>העסק <strong>${bizName}</strong> הוגדר בהצלחה במערכת WEFLOWZ BIZ.</p>
                   <p>תוכל להתחבר בכל עת דרך האתר ולהתחיל לנהל את העסק שלך.</p>
-                  <p style="color:#64748b;font-size:12px;">צוות Oneflow</p>
+                  <p style="color:#64748b;font-size:12px;">צוות WEFLOWZ</p>
                 </div>`
             );
             console.log(`[wizard/complete] מייל ללקוח: ${clientSent ? 'נשלח ✅' : 'נכשל ❌'}`);
@@ -7006,7 +7006,7 @@ app.post('/api/superadmin/send-otp', async (req, res) => {
         
         otpCache.set(phone, { code: generatedCode, expiresAt });
         
-        const smsText = `קוד הגישה שלך למערכת Oneflow הוא: ${generatedCode}. הקוד בתוקף ל-5 דקות.`;
+        const smsText = `קוד הגישה שלך למערכת WEFLOWZ הוא: ${generatedCode}. הקוד בתוקף ל-5 דקות.`;
         await sendSMSviaTwilio(phone, smsText);
         
         res.json({ success: true, message: 'קוד אימות נשלח בהצלחה' });
@@ -8113,11 +8113,11 @@ app.post('/api/groups', async (req, res) => {
         }
         
         // --- מערכת שליחת המיילים ---
-        const sysType = req.body.type === 'BUSINESS' ? 'Oneflow Life BIZ (לעסקים)' : 'Oneflow Life (למשפחות)';
+        const sysType = req.body.type === 'BUSINESS' ? 'WEFLOWZ BIZ (לעסקים)' : 'WEFLOWZ (למשפחות)';
         
         const adminAlertHtml = `<div dir="rtl" style="font-family:Arial;"><h2>🎉 סביבה חדשה הוקמה!</h2><p>סוג: ${sysType}</p><p>שם: ${req.body.groupName}</p><p>מייל: ${req.body.adminEmail}</p><p>קוד: <b>${code}</b></p></div>`;
                 // שליחת מיילים ברקע - לא חוסמת את התגובה
-        getEmailConfig().then(cfg => sendSystemEmail(cfg.adminNotificationEmail, 'Oneflow | הצטרפות חדשה למערכת!', adminAlertHtml)).catch(e => console.error('Email error:', e));
+        getEmailConfig().then(cfg => sendSystemEmail(cfg.adminNotificationEmail, 'WEFLOWZ | הצטרפות חדשה למערכת!', adminAlertHtml)).catch(e => console.error('Email error:', e));
 
         if (req.body.adminEmail) {
             const userThanksHtml = `<div dir="rtl" style="font-family:Arial;"><h2>ברוכים הבאים ל-${sysType}! 🚀</h2><p>שלום ${adminNickname},</p><p>הסביבה שלכם מוגדרת ומוכנה לפעולה.</p><br><p>פרטי הגישה שלכם:</p><p>קוד סביבה: <strong style="color: #2563eb;">${code}</strong></p><p>משתמש: <strong>${adminNickname}</strong></p><p>סיסמה: <strong>${req.body.password}</strong></p></div>`;
@@ -8178,7 +8178,7 @@ try {
         if (gRes.rows.length === 0) return res.json({ success: true });
 
         const group = gRes.rows[0];
-        const sysType = group.type === 'BUSINESS' ? 'Oneflow Life BIZ' : 'Oneflow Life';
+        const sysType = group.type === 'BUSINESS' ? 'WEFLOWZ BIZ' : 'WEFLOWZ';
 
         const recoveryHtml = `
             <div style="direction: rtl; font-family: Arial, sans-serif;">
@@ -8191,10 +8191,10 @@ try {
                     <p style="font-size: 16px; margin: 8px 0;"><strong>סיסמת מנהל:</strong> <span style="font-size: 18px; color: #3b82f6;">${group.password_hash}</span></p>
                 </div>
                 <p>אם לא ביקשתם שחזור פרטים, ניתן להתעלם מהודעה זו בביטחה.</p>
-                <p>בברכה,<br>צוות Oneflow</p>
+                <p>בברכה,<br>צוות WEFLOWZ</p>
             </div>`;
             
-        sendSystemEmail(email, 'Oneflow | שחזור קוד וסיסמה לסביבה שלך', recoveryHtml);
+        sendSystemEmail(email, 'WEFLOWZ | שחזור קוד וסיסמה לסביבה שלך', recoveryHtml);
         res.json({ success: true });
     } catch (e) { 
         console.error(e);
@@ -8219,9 +8219,9 @@ app.post('/api/admin/send-credentials', async (req, res) => {
             let roleStr = groupType === 'BUSINESS' ? (u.role === 'ADMIN' ? 'מנהל' : 'עובד') : (u.role === 'ADMIN' ? 'הורה' : 'ילד');
             emailContent += `<li><strong>שם:</strong> ${u.nickname} | <strong>סיסמה:</strong> ${u.password_hash} | <strong>תפקיד:</strong> ${roleStr}</li>`;
         });
-        emailContent += `</ul><p>בברכה,<br>צוות Oneflow</p></div>`;
+        emailContent += `</ul><p>בברכה,<br>צוות WEFLOWZ</p></div>`;
 
-        sendSystemEmail(adminEmail, 'Oneflow - פרטי גישה של משתמשי הסביבה', emailContent);
+        sendSystemEmail(adminEmail, 'WEFLOWZ - פרטי גישה של משתמשי הסביבה', emailContent);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -8924,7 +8924,7 @@ app.post('/api/pantry/bulk-update', async (req, res) => {
                         </tr></thead>
                         <tbody>${rows}</tbody>
                     </table>
-                    <p style="margin-top:20px;font-size:11px;color:#94a3b8">OneFlow Life — ${dateStr}</p>
+                    <p style="margin-top:20px;font-size:11px;color:#94a3b8">WEFLOWZ — ${dateStr}</p>
                 </div>`;
                 const user = process.env.SMTP_USER;
                 const pass = process.env.SMTP_PASS;
@@ -8932,7 +8932,7 @@ app.post('/api/pantry/bulk-update', async (req, res) => {
                     const nodemailer = require('nodemailer');
                     const transporter = nodemailer.createTransport({ host:'smtp.gmail.com', port:465, secure:true, auth:{user,pass} });
                     const mailOpts = {
-                        from: `"Oneflow System" <${user}>`,
+                        from: `"WEFLOWZ System" <${user}>`,
                         to: grp.admin_email,
                         subject: `ספירת מלאי מחסן — ${grp.name} — ${dateStr}`,
                         html
@@ -10273,14 +10273,14 @@ app.post('/api/guide/chat', async (req, res) => {
         try {
             guideText = fs.readFileSync(path.join(__dirname, 'public', fileName), 'utf-8');
         } catch(e) {
-            guideText = guideType === 'BIZ' ? "Oneflow Life BIZ is a business management app." : "Oneflow Life is a family management app.";
+            guideText = guideType === 'BIZ' ? "WEFLOWZ BIZ is a business management app." : "WEFLOWZ is a family management app.";
         }
 
         const model = getGenAIInstance().getGenerativeModel({ model: "gemini-2.5-flash" });
         
         let prompt = "";
         if (guideType === 'BIZ') {
-            prompt = `You are 'FamliAI', the professional business AI assistant for the 'Oneflow Life BIZ' app. 
+            prompt = `You are 'FamliAI', the professional business AI assistant for the 'WEFLOWZ BIZ' app. 
             A user is reading the business user guide and asked a question to understand the system better.
             Here is the full content of the business guide HTML:
             ${guideText}
@@ -10290,7 +10290,7 @@ app.post('/api/guide/chat', async (req, res) => {
             Answer directly in Hebrew based ONLY on the guide content above. 
             Be concise (3-4 sentences max), professional yet friendly, use emojis, and address the user directly. Do not use complex markdown, just basic bolding.`;
         } else {
-            prompt = `You are 'familAI', the friendly AI assistant for the 'Oneflow Life' family app. 
+            prompt = `You are 'familAI', the friendly AI assistant for the 'WEFLOWZ' family app. 
             A user is reading the user guide and asked a question to understand the system better.
             Here is the full content of the guide HTML:
             ${guideText}
@@ -10871,7 +10871,7 @@ app.post('/api/store/inventory-count', async (req, res) => {
                         </tr></thead>
                         <tbody>${rows}</tbody>
                     </table>
-                    <p style="margin-top:20px;font-size:11px;color:#94a3b8">OneFlow Life — ${dateStr}</p>
+                    <p style="margin-top:20px;font-size:11px;color:#94a3b8">WEFLOWZ — ${dateStr}</p>
                 </div>`;
                 await sendSystemEmail(grp.admin_email, `ספירת מלאי — ${grp.name} — ${dateStr}`, html);
             }
@@ -10881,13 +10881,13 @@ app.post('/api/store/inventory-count', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// --- הודעות OneFlow: התאמת לקוחות + שליחה לאינבוקס ---
+// --- הודעות WEFLOWZ: התאמת לקוחות + שליחה לאינבוקס ---
 app.get('/api/store/oneflow-customers/:groupId', async (req, res) => {
     try {
         const groupId = parseInt(req.params.groupId);
         const custRes = await pool.query('SELECT id, name, phone, email FROM store_customers WHERE group_id=$1', [groupId]);
         const matchedGids = await resolveOneFlowGroupIds(pool, groupId, custRes.rows);
-        // מציג ללקוח רשימה של customers שנמצאו ב-OneFlow
+        // מציג ללקוח רשימה של customers שנמצאו ב-WEFLOWZ
         const matched = custRes.rows.filter(c => {
             if (!c.phone && !c.email) return false;
             // נבדוק אם customer הזה היה חלק מה-matching (אם יש הזמנות נחזיר הכל)
@@ -10921,7 +10921,7 @@ app.post('/api/store/oneflow-message', async (req, res) => {
             targetGroupIds = await resolveOneFlowGroupIds(pool, groupId, custRes.rows);
         }
 
-        if (targetGroupIds.size === 0) return res.json({ success: false, error: 'לא נמצאו נמענים OneFlow. ודא שלקוחותיך הזמינו מהחנות דרך OneFlow Life.' });
+        if (targetGroupIds.size === 0) return res.json({ success: false, error: 'לא נמצאו נמענים WEFLOWZ. ודא שלקוחותיך הזמינו מהחנות דרך WEFLOWZ.' });
 
         await pool.query('BEGIN');
         for (const gid of targetGroupIds) {
@@ -10979,7 +10979,7 @@ app.post('/api/store/newsletter/broadcast', async (req, res) => {
 
         if (targetGroupIds.size === 0) {
             const errMsg = (audience === 'oneflow_customers' || audience === 'both')
-                ? 'לא נמצאו נמענים OneFlow. ודא שלקוחות הזמינו מהחנות דרך OneFlow Life.'
+                ? 'לא נמצאו נמענים WEFLOWZ. ודא שלקוחות הזמינו מהחנות דרך WEFLOWZ.'
                 : 'לא נמצאו נמענים';
             return res.json({ success: false, error: errMsg });
         }
@@ -11740,7 +11740,7 @@ app.post('/api/store/quotes/:id/approve', verifyBizOrLegacy, requireModule('sale
             } catch(e) { console.error('Customer Creation Error:', e.message); }
         }, 100);
 
-        // התראה ללקוח OneFlow אם הצעה קשורה למשפחה
+        // התראה ללקוח WEFLOWZ אם הצעה קשורה למשפחה
         if (quote.family_group_id) {
             try {
                 const bizName = quote.group_id ? (await pool.query('SELECT name FROM family_groups WHERE id=$1', [quote.group_id])).rows[0]?.name || 'עסק' : 'עסק';
@@ -11753,7 +11753,7 @@ app.post('/api/store/quotes/:id/approve', verifyBizOrLegacy, requireModule('sale
     } catch(e) { res.status(500).json({ error: 'שגיאת שרת: ' + e.message }); }
 });
 
-// --- חיפוש לקוחות מאוחד: store_customers + משתמשי OneFlow Life לפי שם/טלפון ---
+// --- חיפוש לקוחות מאוחד: store_customers + משתמשי WEFLOWZ לפי שם/טלפון ---
 app.get('/api/store/search-customers', async (req, res) => {
     try {
         const { q, groupId } = req.query;
@@ -11772,7 +11772,7 @@ app.get('/api/store/search-customers', async (req, res) => {
             [groupId, like, digits, `%${digits}%`]
         );
 
-        // חיפוש במשתמשי OneFlow Life (שם/כינוי/טלפון)
+        // חיפוש במשתמשי WEFLOWZ (שם/כינוי/טלפון)
         const ofRes = await pool.query(
             `SELECT DISTINCT ON (fg.id)
                 NULL::int as id,
@@ -11803,7 +11803,7 @@ app.get('/api/store/search-customers', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// --- חיפוש משפחה/עסק ב-OneFlow Life לפי טלפון/אימייל ---
+// --- חיפוש משפחה/עסק ב-WEFLOWZ לפי טלפון/אימייל ---
 app.get('/api/store/lookup-oneflow', async (req, res) => {
     try {
         const { phone, email, groupId } = req.query;
@@ -11848,7 +11848,7 @@ app.get('/api/store/lookup-oneflow', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// --- שליחת הצעת מחיר ב-OneFlow ללקוח משפחה ---
+// --- שליחת הצעת מחיר ב-WEFLOWZ ללקוח משפחה ---
 app.post('/api/store/quotes/:id/send-to-oneflow', verifyBizOrLegacy, requireModule('sales'), async (req, res) => {
     try {
         const bizGroupId = req.bizAuth.groupId || req.body.groupId; // בעלות העסק על ה-quote
@@ -11892,7 +11892,7 @@ app.post('/api/store/quotes/:id/send-to-oneflow', verifyBizOrLegacy, requireModu
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// --- קישור הצעת מחיר ל-OneFlow ללא שליחה (שלב 1 — בקשת שיוך בלבד) ---
+// --- קישור הצעת מחיר ל-WEFLOWZ ללא שליחה (שלב 1 — בקשת שיוך בלבד) ---
 app.post('/api/store/quotes/:id/link-only', verifyBizOrLegacy, requireModule('sales'), async (req, res) => {
     try {
         const bizGroupId = req.bizAuth.groupId || req.body.groupId; // בעלות העסק על ה-quote
@@ -12117,7 +12117,7 @@ app.put('/api/store/customers/:id', verifyBizOrLegacy, requireModule('sales'), a
 
         const { name, companyName, phone, email, businessId, notes, familyGroupId, groupId, adminName } = req.body;
 
-        // אם לא הועבר familyGroupId מפורש (למשל לא לחצו "אימות ONEFLOW"), ננסה לזהות/ליצור
+        // אם לא הועבר familyGroupId מפורש (למשל לא לחצו "אימות WEFLOWZ"), ננסה לזהות/ליצור
         // חשבון רשום לפי הטלפון בעצמנו — אותה לוגיקה שכבר רצה בזמן הזמנה, כדי שגם עריכה ידנית
         // (הוספת/תיקון טלפון ללקוח שכבר קיים) תקשר את העסק ל"הפעילות שלי"
         let resolvedFamilyGroupId = familyGroupId || null;
@@ -12156,14 +12156,14 @@ app.delete('/api/store/customers/:id', verifyBizOrLegacy, requireModule('sales')
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// Send price quote internally via OneFlow service call message
+// Send price quote internally via WEFLOWZ service call message
 app.post('/api/store/customers/:id/send-quote', async (req, res) => {
     try {
         const { quoteHtml, quoteText, businessGroupId, quoteRef } = req.body;
         const custRes = await pool.query('SELECT * FROM store_customers WHERE id=$1', [req.params.id]);
         if (!custRes.rows.length) return res.status(404).json({ error: 'לקוח לא נמצא' });
         const customer = custRes.rows[0];
-        if (!customer.family_group_id) return res.status(400).json({ error: 'לקוח לא מקושר למשפחת OneFlow' });
+        if (!customer.family_group_id) return res.status(400).json({ error: 'לקוח לא מקושר למשפחת WEFLOWZ' });
         // Find the most recent open service call between this business and family
         const scRes = await pool.query(
             `SELECT id FROM service_calls WHERE business_group_id=$1 AND family_group_id=$2 AND status NOT IN ('done','cancelled') ORDER BY created_at DESC LIMIT 1`,
@@ -12758,7 +12758,7 @@ app.post('/api/biz/chat-assistant', verifyBiz, async (req, res) => {
 • <28%: מצוין | 28-33%: טוב | 33-40%: גבוה | >40%: בעייתי
 • ממוצע ענף ישראלי: 28-35%`;
 
-        const systemPrompt = `אתה "FamliAI" — עוזרת עסקית בינה מלאכותית ברמת Expert, מוטמעת במערכת ONEFLOW BUSINESS.
+        const systemPrompt = `אתה "FamliAI" — עוזרת עסקית בינה מלאכותית ברמת Expert, מוטמעת במערכת WEFLOWZ BUSINESS.
 אתה מנתח נתוני עסק בזמן אמת ומספק תובנות, ניתוחים, חיזויים והמלצות ברמה הגבוהה ביותר.
 
 == נתוני העסק בזמן אמת ==
@@ -13773,7 +13773,7 @@ app.post('/api/sa/communities', async (req, res) => {
     try {
         const { name, city, code, managerEmail, managerPassword, imageUrl } = req.body;
         
-        let finalEmail = managerEmail || 'system@oneflowlife.com';
+        let finalEmail = managerEmail || 'system@weflowz.co.il';
         let finalPass = managerPassword || '';
 
         if (!name || !code || !city) {
@@ -14166,13 +14166,13 @@ app.post('/api/b2b/orders', async (req, res) => {
                 const itemsHtmlList = order.items.map(i => `<li>${i.name} - כמות: ${i.quantity}</li>`).join('');
 
                 const mailOptions = {
-                    from: `"מערכת רכש Oneflow" <${user}>`, 
+                    from: `"מערכת רכש WEFLOWZ" <${user}>`, 
                     to: supplier.email,
-                    subject: `הזמנת רכש חדשה מ-Oneflow (הזמנה #${newOrderId})`,
+                    subject: `הזמנת רכש חדשה מ-WEFLOWZ (הזמנה #${newOrderId})`,
                     html: `
                         <div dir="rtl" style="font-family: Arial, sans-serif; color: #333;">
                             <h2>שלום רב לצוות ${supplier.name},</h2>
-                            <p>מצ"ב הזמנת רכש חדשה שהופקה עבורכם דרך מערכת Oneflow.</p>
+                            <p>מצ"ב הזמנת רכש חדשה שהופקה עבורכם דרך מערכת WEFLOWZ.</p>
                             
                             <div style="background: #f8fafc; padding: 15px; border-radius: 10px; margin: 15px 0; border: 1px solid #e2e8f0;">
                                 <h3 style="margin-top:0;">תקציר ההזמנה:</h3>
@@ -14186,7 +14186,7 @@ app.post('/api/b2b/orders', async (req, res) => {
                             </div>
                             <br>
                             <p>בברכה,</p>
-                            <p><b>לקוח Oneflow BIZ</b></p>
+                            <p><b>לקוח WEFLOWZ BIZ</b></p>
                         </div>
                     `,
                     attachments: []
@@ -14691,13 +14691,13 @@ app.post('/api/zone-manager/forgot-password', async (req, res) => {
             const proto = req.headers['x-forwarded-proto'] || req.protocol;
             const resetUrl = `${proto}://${host}/zone-manager.html?reset=${token}`;
             const html = `<div dir="rtl" style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;padding:24px;background:#f8fafc;border-radius:16px">
-                <h2 style="color:#4f46e5;margin-bottom:8px">איפוס סיסמה — OneFlow</h2>
+                <h2 style="color:#4f46e5;margin-bottom:8px">איפוס סיסמה — WEFLOWZ</h2>
                 <p style="color:#334155">שלום <strong>${mgr.name}</strong>,</p>
                 <p style="color:#334155">קיבלנו בקשה לאיפוס הסיסמה לחשבון מנהל האזור שלך.</p>
                 <p style="margin:24px 0"><a href="${resetUrl}" style="background:#4f46e5;color:white;padding:13px 28px;border-radius:10px;text-decoration:none;font-weight:bold;display:inline-block">לאיפוס הסיסמה — לחץ כאן</a></p>
                 <p style="color:#94a3b8;font-size:12px">הקישור תקף לשעה אחת. אם לא ביקשת איפוס סיסמה, ניתן להתעלם ממייל זה.</p>
             </div>`;
-            await sendSystemEmail(mgr.email, 'איפוס סיסמה — OneFlow Zone Manager', html);
+            await sendSystemEmail(mgr.email, 'איפוס סיסמה — WEFLOWZ Zone Manager', html);
         }
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
@@ -15427,13 +15427,13 @@ app.post('/api/zone-manager/ai/draft-campaign', verifyZoneManager, async (req, r
         const fallbackModelName = 'gemini-1.5-flash';
         let model = getGenAIInstance().getGenerativeModel({ model: modelName });
         const typeContexts = {
-            business: `מנהל אזור משווק לבעלי עסקים מקומיים את פלטפורמת OneFlow כמערכת ניהול עסקי.
-OneFlow מציעה לעסק: מערכת קופה (POS), ניהול מלאי, חשבוניות, ניהול לקוחות (CRM), כלי שיווק, ניהול נוכחות ומשמרות, ניהול משלוחים, תזרים ותקציב — הכל במקום אחד.
+            business: `מנהל אזור משווק לבעלי עסקים מקומיים את פלטפורמת WEFLOWZ כמערכת ניהול עסקי.
+WEFLOWZ מציעה לעסק: מערכת קופה (POS), ניהול מלאי, חשבוניות, ניהול לקוחות (CRM), כלי שיווק, ניהול נוכחות ומשמרות, ניהול משלוחים, תזרים ותקציב — הכל במקום אחד.
 המטרה: לשכנע את בעל העסק להירשם ולנסות את המערכת. אין קשר לקהילה — זהו גיוס לקוח לשימוש במוצר עסקי.`,
-            family: `מנהל אזור מגייס משפחות וצרכנים פרטיים לפלטפורמת OneFlow.
-OneFlow מציעה למשפחה: הבנק המשפחתי, ניהול תקציב ביתי, תשקיף כלכלי, רשימת סופר חכמה, ניהול מזווה, שף פרטי עם AI, משלוחים מעסקים מקומיים, משימות הבית, לומדות ואקדמיה לילדים, חיבור לקהילה מקומית.
+            family: `מנהל אזור מגייס משפחות וצרכנים פרטיים לפלטפורמת WEFLOWZ.
+WEFLOWZ מציעה למשפחה: הבנק המשפחתי, ניהול תקציב ביתי, תשקיף כלכלי, רשימת סופר חכמה, ניהול מזווה, שף פרטי עם AI, משלוחים מעסקים מקומיים, משימות הבית, לומדות ואקדמיה לילדים, חיבור לקהילה מקומית.
 המטרה: גיוס אנשים שישאירו פרטים ונציג ייצור איתם קשר (לא הורדת אפליקציה).`,
-            community_join: `מנהל אזור מזמין משפחות ועסקים להצטרף לקהילה מקומית ספציפית בתוך פלטפורמת OneFlow.
+            community_join: `מנהל אזור מזמין משפחות ועסקים להצטרף לקהילה מקומית ספציפית בתוך פלטפורמת WEFLOWZ.
 הקהילה מציעה: רשת שכנים ועסקים, הנחות מקומיות, קאשבק משותף, פורום שכונתי ואירועים.
 המטרה: חיזוק הקהילה המקומית הספציפית ויצירת רשת תמיכה שכונתית.`,
         };
@@ -15502,7 +15502,7 @@ app.post('/api/zone-manager/ai/suggest-reply', verifyZoneManager, async (req, re
         const messages = await pool.query('SELECT * FROM zm_inbox_messages WHERE thread_id=$1 ORDER BY created_at DESC LIMIT 6', [threadId]);
         const model = getGenAIInstance().getGenerativeModel({ model: 'gemini-2.5-flash' });
         const history = messages.rows.reverse().map(m => `${m.sender_type === 'manager' ? 'מנהל אזור' : 'מנהל קהילה'}: ${m.content}`).join('\n');
-        const prompt = `הינך מנהל אזור בפלטפורמת OneFlow. השיחה הבאה היא בינך לבין מנהל קהילה:\n\n${history}\n\nהצע תשובה מקצועית, קצרה וחמה בעברית. החזר רק את טקסט התשובה.`;
+        const prompt = `הינך מנהל אזור בפלטפורמת WEFLOWZ. השיחה הבאה היא בינך לבין מנהל קהילה:\n\n${history}\n\nהצע תשובה מקצועית, קצרה וחמה בעברית. החזר רק את טקסט התשובה.`;
         const result = await model.generateContent(prompt);
         res.json({ success: true, suggestion: result.response.text().trim() });
     } catch(e) { res.status(500).json({ error: e.message }); }
@@ -17344,7 +17344,7 @@ app.put('/api/calendar/events/:id/status', async (req, res) => {
                         const dayHeApprove = new Date(dateStr + 'T12:00:00').toLocaleDateString('he-IL', { weekday:'long', day:'numeric', month:'long' });
                         const tableNoteApprove = assignedTable ? `\nשולחן: ${assignedTable}` : '';
                         const e164Approve = evt.customer_phone.startsWith('0') ? '+972' + evt.customer_phone.slice(1) : evt.customer_phone;
-                        await sendSMSviaTwilio(e164Approve, `${bizNameApprove} — הזמנת שולחן אושרה! 🎉\nתאריך: ${dayHeApprove}\nשעה: ${timeStr}\nסועדים: ${guests}${tableNoteApprove}\nנתראה! 🍽️\nONEFLOW LIFE`);
+                        await sendSMSviaTwilio(e164Approve, `${bizNameApprove} — הזמנת שולחן אושרה! 🎉\nתאריך: ${dayHeApprove}\nשעה: ${timeStr}\nסועדים: ${guests}${tableNoteApprove}\nנתראה! 🍽️\nWEFLOWZ`);
                     } catch(eSms) { console.log('[SMS table approve]', eSms.message); }
                 }
                 if (evt.customer_group_id) {
@@ -17390,7 +17390,7 @@ app.put('/api/calendar/events/:id/status', async (req, res) => {
                             const bizName = bizNameR.rows[0]?.name || 'בית העסק';
                             const dayHe = new Date(dateStr + 'T12:00:00').toLocaleDateString('he-IL', { weekday:'long', day:'numeric', month:'long' });
                             const e164 = evt.customer_phone.startsWith('0') ? '+972' + evt.customer_phone.slice(1) : evt.customer_phone;
-                            await sendSMSviaTwilio(e164, `${bizName} — התור שלך אושר! ✅\nתאריך: ${dayHe}\nשעה: ${timeStr}\nשירות: ${serviceName}\nנתראה! 💅\nONEFLOW LIFE`);
+                            await sendSMSviaTwilio(e164, `${bizName} — התור שלך אושר! ✅\nתאריך: ${dayHe}\nשעה: ${timeStr}\nשירות: ${serviceName}\nנתראה! 💅\nWEFLOWZ`);
                         } catch(eSms) { console.log('[SMS beauty approve]', eSms.message); }
                     }
                     // הודעה ב-inbox לחשבון לקוח אם מחובר
@@ -17543,7 +17543,7 @@ app.post('/api/inbox/customer', async (req, res) => {
         if (!groupId || !content) return res.status(400).json({ error: 'חסרים נתונים' });
         await pool.query(
             'INSERT INTO inbox_messages (group_id, sender_type, sender_name, sender_contact, subject, content, customer_group_id, direction) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)',
-            [groupId, 'customer', name || 'לקוח אנונימי', contact || '', subject || 'פנייה מלקוח ONEFLOW', content, customerGroupId || null, 'inbound']
+            [groupId, 'customer', name || 'לקוח אנונימי', contact || '', subject || 'פנייה מלקוח WEFLOWZ', content, customerGroupId || null, 'inbound']
         );
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
@@ -17619,7 +17619,7 @@ app.post('/api/sa/inbox/broadcast', verifySA, async (req, res) => {
         for (let gid of groupIds) {
             await pool.query(
                 'INSERT INTO inbox_messages (group_id, sender_type, sender_name, sender_contact, subject, content) VALUES ($1, $2, $3, $4, $5, $6)',
-                [gid, 'superadmin', 'מערכת', 'admin@oneflowlife.com', subject, content]
+                [gid, 'superadmin', 'מערכת', 'admin@weflowz.co.il', subject, content]
             );
         }
         await pool.query('COMMIT');
@@ -17798,7 +17798,7 @@ app.post('/api/family/chat-assistant', async (req, res) => {
             generationConfig: { responseMimeType: "application/json" } 
         });
         
-        const prompt = `You are 'FamilAI', the highly intelligent, proactive AI assistant for a family using the 'Oneflow Life' app. 
+        const prompt = `You are 'FamilAI', the highly intelligent, proactive AI assistant for a family using the 'WEFLOWZ' app. 
         You can deeply analyze data to provide forecasts (e.g., when to buy groceries based on habits, budget predictions) AND you can EXECUTE actions on behalf of the user.
         
         Family Data Context (Current State):
@@ -18180,7 +18180,7 @@ app.post('/api/sa/ai/generate-qa', verifySA, async (req, res) => {
 
         const aiModel = getGenAIInstance().getGenerativeModel({ model: "gemini-1.5-flash" });
         const prompt = `
-            You are a Senior QA Engineer for a SaaS platform called Oneflow Life.
+            You are a Senior QA Engineer for a SaaS platform called WEFLOWZ.
             Based on the following software development task, generate a single, comprehensive QA test case in Hebrew.
             Return ONLY a valid JSON object with the following structure (no markdown formatting, no extra text, just raw JSON):
             {
@@ -19370,24 +19370,24 @@ app.get('/api/public/system-banner', async (req, res) => {
 
 // Legal documents - public read
 const LEGAL_DEFAULTS = {
-    legal_tos_family: `<p><strong>1. מבוא:</strong> ברוכים הבאים למערכת Oneflow. השימוש באפליקציה מהווה הסכמה מלאה לתנאים המפורטים מטה.</p>
+    legal_tos_family: `<p><strong>1. מבוא:</strong> ברוכים הבאים למערכת WEFLOWZ. השימוש באפליקציה מהווה הסכמה מלאה לתנאים המפורטים מטה.</p>
 <p><strong>2. מהות השירות:</strong> המערכת מספקת כלים וירטואליים לניהול התקציב. ה"כסף" המוצג במערכת אינו כסף פיזי, אינו מקושר לחשבון בנק אמיתי, אלא מהווה רישום פנימי (וירטואלי) לצורך ניהול פנימי בלבד.</p>
 <p><strong>3. שימוש בבינה מלאכותית (AI):</strong> חלק מתכונות המערכת מבוססות על מודלי שפה וראייה ממוחשבת (AI). התובנות, המשימות, החידונים, פיענוח הקבלות ואישור התמונות נוצרים אוטומטית על ידי אלגוריתם. ייתכנו שגיאות או אי-דיוקים ביצירת התוכן. המנהל נושא באחריות המלאה לבקר ולאשר את המידע.</p>
 <p><strong>4. פרטיות המידע:</strong> אנו מתחייבים לשמור על פרטיות המידע שהוזן למערכת ולא לשתפו עם צדדים שלישיים למטרות פרסום ללא הסכמתכם. במקרה של חשבונות לקטינים, האחריות על המידע חלה על ההורה המנהל.</p>
 <p><strong>5. עדכונים ותקשורת:</strong> נהיה רשאים לשלוח אליכם התראות ועדכונים במידה ואישרתם קבלת דיוור. תוכלו לבקש את הסרתכם מרשימת התפוצה בכל עת.</p>`,
-    legal_tos_business: `<p><strong>1. מבוא:</strong> ברוכים הבאים לפלטפורמת Oneflow לעסקים. השימוש מהווה הסכמה לתנאים המפורטים מטה.</p>
+    legal_tos_business: `<p><strong>1. מבוא:</strong> ברוכים הבאים לפלטפורמת WEFLOWZ לעסקים. השימוש מהווה הסכמה לתנאים המפורטים מטה.</p>
 <p><strong>2. מהות השירות:</strong> הפלטפורמה מספקת כלים לניהול עסק, לקוחות, הזמנות ושיווק. האחריות על הנתונים, ההזמנות וניהול הלקוחות חלה על בעל העסק בלבד.</p>
-<p><strong>3. תשלומים:</strong> כל עסקה כספית מתבצעת ישירות בין העסק ללקוח. Oneflow אינה צד בעסקה ואינה נושאת באחריות לכשלים בתשלום.</p>
+<p><strong>3. תשלומים:</strong> כל עסקה כספית מתבצעת ישירות בין העסק ללקוח. WEFLOWZ אינה צד בעסקה ואינה נושאת באחריות לכשלים בתשלום.</p>
 <p><strong>4. פרטיות:</strong> הנתונים שנאספים משמשים לתפעול השירות בלבד ולא יועברו לצדדים שלישיים ללא הסכמה.</p>
 <p><strong>5. הפסקת שירות:</strong> שמורה לנו הזכות להשעות חשבון שנמצאת בו הפרה של התנאים.</p>`,
-    legal_privacy: `<p><strong>מדיניות פרטיות — OneFlow</strong></p>
+    legal_privacy: `<p><strong>מדיניות פרטיות — WEFLOWZ</strong></p>
 <p>אנו מחויבים להגנה על פרטיות המשתמשים. מסמך זה מפרט אילו נתונים נאספים, כיצד הם נשמרים ולאילו מטרות.</p>
 <p><strong>נתונים הנאספים:</strong> שם, דוא"ל, מספר טלפון, תמונות שהועלו למערכת, ונתוני שימוש.</p>
 <p><strong>שימוש בנתונים:</strong> הנתונים משמשים אך ורק לתפעול השירות ושיפורו.</p>
 <p><strong>אחסון:</strong> הנתונים מאוחסנים בשרתים מאובטחים ומוגנים בהצפנה.</p>
 <p><strong>זכויות משתמש:</strong> ניתן לבקש מחיקת הנתונים בכל עת על ידי פנייה לתמיכה.</p>`,
-    legal_accessibility: `<p><strong>הצהרת נגישות — OneFlow</strong></p>
-<p>OneFlow פועלת לאפשר גישה שוויונית לשירות עבור אנשים עם מוגבלויות.</p>
+    legal_accessibility: `<p><strong>הצהרת נגישות — WEFLOWZ</strong></p>
+<p>WEFLOWZ פועלת לאפשר גישה שוויונית לשירות עבור אנשים עם מוגבלויות.</p>
 <p><strong>תכונות נגישות:</strong> הגדלת טקסט, ניגודיות גבוהה, גווני אפור, פונט קריא והדגשת קישורים.</p>
 <p><strong>רמת תאימות:</strong> אנו שואפים לעמוד בדרישות WCAG 2.1 ברמה AA.</p>
 <p><strong>פנייה לנגישות:</strong> לדיווח על בעיות נגישות או בקשת סיוע, אנא פנה לצוות התמיכה.</p>`
@@ -19499,8 +19499,8 @@ app.get('/c/camp/:token', async (req, res) => {
         if (!ogImage) {
             ogImage = `${baseUrl}/logo.png`;
         }
-        const title = (campaign?.title || 'OneFlow').replace(/"/g, '&quot;').replace(/</g, '&lt;');
-        const desc = (campaign?.subtitle || campaign?.text_content || 'הצטרפו לפלטפורמת OneFlow').slice(0, 200).replace(/"/g, '&quot;').replace(/</g, '&lt;');
+        const title = (campaign?.title || 'WEFLOWZ').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+        const desc = (campaign?.subtitle || campaign?.text_content || 'הצטרפו לפלטפורמת WEFLOWZ').slice(0, 200).replace(/"/g, '&quot;').replace(/</g, '&lt;');
         const campaignUrl = `${baseUrl}/campaign.html?t=${token}`;
         const hasCampaignImage = campaign?.image_url && !isSvg(campaign.image_url) && (campaign.image_url.startsWith('data:') || isExternal(campaign.image_url));
         const ogW = hasCampaignImage ? '1200' : '512';
@@ -19515,7 +19515,7 @@ ${ogImage ? `<meta property="og:image" content="${ogImage}">` : ''}
 <meta property="og:type" content="website">
 <meta property="og:image:width" content="${ogW}">
 <meta property="og:image:height" content="${ogH}">
-<meta property="og:site_name" content="OneFlow">
+<meta property="og:site_name" content="WEFLOWZ">
 <meta name="twitter:card" content="${hasCampaignImage ? 'summary_large_image' : 'summary'}">
 <meta http-equiv="refresh" content="0; url=${campaignUrl}">
 <title>${title}</title>
@@ -19604,7 +19604,7 @@ app.delete('/api/equipment/technicians/:id', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// Link a technician contact to a OneFlow business group
+// Link a technician contact to a WEFLOWZ business group
 app.post('/api/equipment/technicians/:id/link-business', async (req, res) => {
     try {
         const { businessGroupId } = req.body;
@@ -19739,7 +19739,7 @@ app.post('/api/service-calls', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// --- קישור קריאת שירות קיימת ללקוח ONEFLOW ---
+// --- קישור קריאת שירות קיימת ללקוח WEFLOWZ ---
 app.patch('/api/service-calls/:id/link-oneflow', async (req, res) => {
     try {
         const { familyGroupId } = req.body;
@@ -21416,7 +21416,7 @@ app.post('/api/professional-documents/:id/send-email', verifyBiz, async (req, re
             ${doc.notes ? `<hr style="border:none;border-top:1px solid #e2e8f0;margin:20px 0 12px;"><p style="color:#94a3b8;font-size:12px;">הערות פנימיות: ${doc.notes}</p>` : ''}
             ${doc.signature_data ? `<div style="margin-top:24px;"><p style="font-size:12px;color:#64748b;margin-bottom:6px;">חתימה:</p><img src="${doc.signature_data}" style="max-width:200px;border-bottom:1px solid #334155;"></div>` : ''}
             <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0 12px;">
-            <p style="color:#cbd5e1;font-size:11px;">נשלח מ-Oneflow Business</p>
+            <p style="color:#cbd5e1;font-size:11px;">נשלח מ-WEFLOWZ Business</p>
         </div>`;
         await sendSystemEmail(to_email, `מסמך: ${doc.title}`, html);
         if (doc.status === 'draft') {
@@ -22610,14 +22610,14 @@ app.get('/api/sport/waiver-alerts/:groupId', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// ─── ONEFLOW LIFE Integration ────────────────────────────────────────────────
+// ─── WEFLOWZ Integration ────────────────────────────────────────────────
 
-// Identify internal ONEFLOW LIFE user by phone (for storefront 1-click)
+// Identify internal WEFLOWZ user by phone (for storefront 1-click)
 app.get('/api/sport/oneflow-identify', async (req, res) => {
     const { phone, groupId } = req.query;
     if (!phone) return res.status(400).json({ error: 'טלפון חובה' });
     try {
-        // Find user in ONEFLOW system
+        // Find user in WEFLOWZ system
         const uRes = await pool.query(
             `SELECT u.id, u.nickname, u.group_id, fg.name as family_name
              FROM users u JOIN family_groups fg ON u.group_id=fg.id
@@ -22652,7 +22652,7 @@ app.get('/api/sport/oneflow-identify', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// Sync sport class registration to ONEFLOW calendar
+// Sync sport class registration to WEFLOWZ calendar
 app.post('/api/sport/oneflow-sync-calendar', async (req, res) => {
     const { userId, familyGroupId, classId, memberPhone } = req.body;
     if (!familyGroupId || !classId) return res.status(400).json({ error: 'חסרים שדות' });
@@ -22661,7 +22661,7 @@ app.post('/api/sport/oneflow-sync-calendar', async (req, res) => {
         if (!cls.rows.length) return res.status(404).json({ error: 'שיעור לא נמצא' });
         const c = cls.rows[0];
         const title = `🏋️ ${c.class_name || 'שיעור'}${c.trainer_name ? ' — ' + c.trainer_name : ''}`;
-        // Add to ONEFLOW calendar_events for the family group
+        // Add to WEFLOWZ calendar_events for the family group
         await pool.query(
             `INSERT INTO calendar_events (group_id, title, customer_phone, notes, event_date, start_time, status)
              VALUES ($1,$2,$3,$4,$5,$6,'confirmed')`,
@@ -22695,7 +22695,7 @@ app.post('/api/sport/oneflow-rfq', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// Get ONEFLOW user's sport activity summary (for internal app)
+// Get WEFLOWZ user's sport activity summary (for internal app)
 app.get('/api/sport/oneflow-member-summary', async (req, res) => {
     const { phone, groupId } = req.query;
     if (!phone || !groupId) return res.status(400).json({ error: 'חסרים שדות' });
@@ -22935,9 +22935,9 @@ app.put('/api/sport/members/:id/extended', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// ===== SPORT PHASE 9 — ONEFLOW CONNECTIVITY + INBOX + AI =====
+// ===== SPORT PHASE 9 — WEFLOWZ CONNECTIVITY + INBOX + AI =====
 
-// ─── Discover ONEFLOW-connected sport members ──────────────────────────────────
+// ─── Discover WEFLOWZ-connected sport members ──────────────────────────────────
 app.get('/api/sport/oneflow-members/:groupId', async (req, res) => {
     const { groupId } = req.params;
     try {
@@ -22961,7 +22961,7 @@ app.get('/api/sport/oneflow-members/:groupId', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// ─── Broadcast inbox message to all ONEFLOW sport members ─────────────────────
+// ─── Broadcast inbox message to all WEFLOWZ sport members ─────────────────────
 app.post('/api/sport/oneflow-broadcast', async (req, res) => {
     const { groupId, subject, content, senderName } = req.body;
     if (!groupId || !content) return res.status(400).json({ error: 'חסרים שדות חובה' });
@@ -22989,7 +22989,7 @@ app.post('/api/sport/oneflow-broadcast', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// ─── Send inbox message to a single ONEFLOW sport member ──────────────────────
+// ─── Send inbox message to a single WEFLOWZ sport member ──────────────────────
 app.post('/api/sport/oneflow-member-message', async (req, res) => {
     const { familyGroupId, subject, content, businessGroupId } = req.body;
     if (!familyGroupId || !content) return res.status(400).json({ error: 'חסרים שדות חובה' });
@@ -23171,9 +23171,9 @@ app.get('/api/sport/availability', async (req, res) => {
 
 // ===== END SPORT / FITNESS API =====
 
-// ===== ONEFLOWLIFE MEMBER API =====
+// ===== WEFLOWZ MEMBER API =====
 
-// Lookup member by phone OR ONEFLOW code (M123456)
+// Lookup member by phone OR WEFLOWZ code (M123456)
 async function _findMemberByIdentifier(identifier) {
     if (!identifier) return null;
     const clean = identifier.trim();
@@ -23235,7 +23235,7 @@ app.post('/api/member/create-for-business', async (req, res) => {
         } else {
             isNew = true;
             linkStatus = 'pending'; // new account still needs member approval on first login
-            const groupName = `${name} - ONEFLOW`;
+            const groupName = `${name} - WEFLOWZ`;
             const groupCode = 'M' + Date.now().toString().slice(-6);
             const groupR = await client.query(
                 `INSERT INTO family_groups (name, group_code, type, member_type, plan, account_status, created_by_business_group_id, solo_temp_password, created_at)
@@ -23468,7 +23468,7 @@ app.get('/api/member/my-orders/:businessGroupId/:memberGroupId', async (req, res
     } catch(e) { res.json({ orders: [], error: e.message }); }
 });
 
-// ===== END ONEFLOWLIFE MEMBER API =====
+// ===== END WEFLOWZ MEMBER API =====
 
 // ===== BEAUTY & COSMETICS API =====
 
@@ -23746,7 +23746,7 @@ app.post('/api/beauty/:bizId/appointments', verifyFamilyOrBiz, async (req, res) 
         client.release();
 
         // עדכון beauty_client_records (מחוץ לטרנזקציה — כישלון לא יבטל את התור)
-        // תמיד יוצר/מעדכן כרטיס לקוח כשיש טלפון — גם ללקוח אנונימי בלי חשבון OneFlow מקושר
+        // תמיד יוצר/מעדכן כרטיס לקוח כשיש טלפון — גם ללקוח אנונימי בלי חשבון WEFLOWZ מקושר
         if (client_phone) {
             const bizId = appt.rows[0].business_group_id;
             pool.query(
@@ -24000,7 +24000,7 @@ app.get('/api/beauty/:bizId/check-oneflow', verifyBiz, async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// Generic ONEFLOW lookup — used by restaurant, logistics, repair and any other business type
+// Generic WEFLOWZ lookup — used by restaurant, logistics, repair and any other business type
 app.get('/api/store/check-oneflow', async (req, res) => {
     try {
         const { phone, name } = req.query;
@@ -25743,7 +25743,7 @@ app.post('/api/public/restaurants/:groupId/book-table', async (req, res) => {
 
         // שליחת SMS דרך Twilio (אותה שיטה כמו OTP כניסה לעסק)
         const dateFormatted = new Date(date).toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric', year: 'numeric' });
-        const smsBody = `${bizName} — הזמנת שולחן ✅\nשם: ${name}\nתאריך: ${dateFormatted}\nשעה: ${time}\nסועדים: ${numGuests}\nקוד אישור: ${finalCode}\nנשלח דרך ONEFLOW LIFE`;
+        const smsBody = `${bizName} — הזמנת שולחן ✅\nשם: ${name}\nתאריך: ${dateFormatted}\nשעה: ${time}\nסועדים: ${numGuests}\nקוד אישור: ${finalCode}\nנשלח דרך WEFLOWZ`;
         const e164Phone = phone.startsWith('0') ? '+972' + phone.slice(1) : phone;
         await sendSMSviaTwilio(e164Phone, smsBody);
 
@@ -25861,7 +25861,7 @@ app.post('/api/calendar/request-booking-sms', async (req, res) => {
         );
 
         const e164 = phone.startsWith('0') ? '+972' + phone.slice(1) : phone;
-        await sendSMSviaTwilio(e164, `${bizName} — בקשת תור ✅\nשם: ${name}\nתאריך: ${dateStr}\nשעה: ${startTime}\n${serviceName ? 'שירות: ' + serviceName + '\n' : ''}קוד אישור: ${finalCode}\nONEFLOW LIFE`);
+        await sendSMSviaTwilio(e164, `${bizName} — בקשת תור ✅\nשם: ${name}\nתאריך: ${dateStr}\nשעה: ${startTime}\n${serviceName ? 'שירות: ' + serviceName + '\n' : ''}קוד אישור: ${finalCode}\nWEFLOWZ`);
 
         res.json({ success: true, tempId: result.rows[0].id });
     } catch(e) { res.status(500).json({ success: false, error: e.message }); }
@@ -29466,7 +29466,7 @@ function _extractRoleTypes(bizAppJs) {
 function _genApiComplete(serverJs, today) {
   const allRoutes = _extractRoutes(serverJs, null);
   const prefixes = ['/api/sa','/api/biz','/api/family','/api/zone','/api/community','/api/admin','/api/auth'];
-  let md = `# מפת API מלאה — Oneflow Life\n\n`;
+  let md = `# מפת API מלאה — WEFLOWZ\n\n`;
   md += `> תאריך: ${today}  \n> סה"כ: **${allRoutes.length} endpoints**\n\n---\n\n`;
   md += `## סיכום לפי prefix\n\n| Prefix | מספר endpoints |\n|--------|----------------|\n`;
   prefixes.forEach(p => {
@@ -29499,7 +29499,7 @@ function _genDbSchema(serverJs, today) {
     else if (/^(posts|comments|notifications|surveys|academy|tickets)/.test(n)) groups['תוכן'].push(t);
     else groups['אחר'].push(t);
   });
-  let md = `# סכמת DB מלאה — Oneflow Life\n\n`;
+  let md = `# סכמת DB מלאה — WEFLOWZ\n\n`;
   md += `> תאריך: ${today}  \n> סה"כ: **${tables.length} טבלאות**\n\n---\n\n`;
   Object.entries(groups).forEach(([g, tbls]) => {
     if (!tbls.length) return;
@@ -29523,7 +29523,7 @@ function _genBizEnv(serverJs, bizAppJs, today) {
   const modules = _extractModuleDesc(bizAppJs);
   const roleTypes = _extractRoleTypes(bizAppJs);
 
-  let md = `# מפרט טכני — סביבת BIZ (Oneflow Life)\n\n`;
+  let md = `# מפרט טכני — סביבת BIZ (WEFLOWZ)\n\n`;
   md += `> תאריך: ${today}  \n> קובץ: \`public/business.html\` + \`business-app.js\`  \n> Backend: \`server.js\` → prefix \`/api/biz\`\n\n---\n\n`;
 
   md += `## 1. מטרה ותפקיד הסביבה\n\n`;
@@ -29638,7 +29638,7 @@ function _genFamilyEnv(serverJs, appJs, today) {
   const roles = _extractFamilyRoles(appJs);
   const navGroups = _extractFamilyNavGroups(appJs);
 
-  let md = `# מפרט טכני — סביבת FAMILY (Oneflow Life)\n\n`;
+  let md = `# מפרט טכני — סביבת FAMILY (WEFLOWZ)\n\n`;
   md += `> תאריך: ${today}  \n> קבצים: \`public/index.html\` + \`public/app.js\`  \n> Backend prefix: \`/api/family\`\n\n---\n\n`;
 
   md += `## 1. מטרה ותפקיד הסביבה\n\n`;
@@ -29716,11 +29716,11 @@ function _genZoneEnv(serverJs, zoneAppJs, today) {
   const leadStatusM = zoneAppJs.match(/LEAD_STATUS_LABELS\s*=\s*\{([^}]+)\}/);
   const actionLabelsM = zoneAppJs.match(/ACTION_LABELS\s*=\s*\{([^}]+)\}/);
 
-  let md = `# מפרט טכני — Zone Manager וקהילות (Oneflow Life)\n\n`;
+  let md = `# מפרט טכני — Zone Manager וקהילות (WEFLOWZ)\n\n`;
   md += `> תאריך: ${today}  \n> קובץ: \`public/zone-manager.html\` + \`public/zone-manager-app.js\`  \n> Backend prefixes: \`/api/zone\` · \`/api/zone-manager\`\n\n---\n\n`;
 
   md += `## 1. מטרה ותפקיד הסביבה\n\n`;
-  md += `Zone Manager (ZM) הוא השכבה המבצעית שמחברת בין Oneflow (SA) לבין הקהילות המקומיות בשטח. כל ZM אחראי על **אזור גיאוגרפי** אחד (קהילה אחת או מספר קהילות קרובות).\n\n`;
+  md += `Zone Manager (ZM) הוא השכבה המבצעית שמחברת בין WEFLOWZ (SA) לבין הקהילות המקומיות בשטח. כל ZM אחראי על **אזור גיאוגרפי** אחד (קהילה אחת או מספר קהילות קרובות).\n\n`;
   md += `ה-ZM הוא "שגריר השטח" — הוא מגייס עסקים חדשים לפלטפורמה, מאשר את הצטרפותם, מנהל לידים, מריץ קמפיינים שיווקיים מקומיים, ומפקח על תוכן קהילתי (כל העם). הוא נמצא בין SA שמנהל מלמעלה לבין העסקים שפועלים בשטח.\n\n`;
   md += `כל עסק שנרשם — עובר דרך ZM לאישור. כל תוכן מקומי שמפורסם — עובר אישור ZM. הוא גם מקבל עמלה על כל עסק שגייס.\n\n`;
 
@@ -29811,11 +29811,11 @@ function _genSAEnv(serverJs, saHtml, saAppJs, today) {
 
   const sections = [...saHtml.matchAll(/data-section=['"]([^'"]+)['"]/g)].map(m => m[1]).filter(Boolean).slice(0, 50);
 
-  let md = `# מפרט טכני — Super Admin (Oneflow Life)\n\n`;
+  let md = `# מפרט טכני — Super Admin (WEFLOWZ)\n\n`;
   md += `> תאריך: ${today}  \n> קבצים: \`public/sa.html\` + \`public/sa-app.js\`  \n> Backend prefix: \`/api/sa\`\n\n---\n\n`;
 
   md += `## 1. מטרה ותפקיד הסביבה\n\n`;
-  md += `Super Admin (SA) הוא לוח הבקרה הכול-יכול של Oneflow — הגישה העליונה לכלל המערכת. כניסה מחייבת אימות ויצירת session token דינמי.\n\n`;
+  md += `Super Admin (SA) הוא לוח הבקרה הכול-יכול של WEFLOWZ — הגישה העליונה לכלל המערכת. כניסה מחייבת אימות ויצירת session token דינמי.\n\n`;
   md += `ה-SA מנהל: **לקוחות** (Family + BIZ), **billing ו-subscriptions**, **Zone Managers**, **banners פרסומיים**, **SMS ו-AI**, **כל העם (KH)**, **impersonation** לכניסה לחשבון של כל משתמש לצרכי תמיכה, **אפיון ומסמכי מערכת** (הטאב שבו קיים הכפתור לעדכון מסמכים אלה), **הגדרות גלובליות** של הפלטפורמה.\n\n`;
   md += `SA היא הסביבה שמבצעת פעולות שאסורות לכל שאר הסביבות — כולל בחירת/שינוי business_type, מתן גישות מיוחדות, וניהול כספי.\n\n`;
 
@@ -29892,7 +29892,7 @@ function _genMissingModules(bizAppJs, today) {
   const bizTypes = _extractBusinessTypes(bizAppJs);
   const roleTypes = _extractRoleTypes(bizAppJs);
 
-  let md = `# מודולים מתקדמים — Oneflow Life\n\n`;
+  let md = `# מודולים מתקדמים — WEFLOWZ\n\n`;
   md += `> תאריך: ${today}\n\n---\n\n`;
 
   md += `## 1. כל המודולים עם תיאור (${modules.length})\n\n`;
@@ -29919,7 +29919,7 @@ function _genQaBook(serverJs, today) {
   const patches = routes.filter(r => r.method === 'PATCH');
   const dels   = routes.filter(r => r.method === 'DELETE');
 
-  let md = `# ספר QA — Oneflow Life\n\n`;
+  let md = `# ספר QA — WEFLOWZ\n\n`;
   md += `> תאריך: ${today}  \n> בסיס: **${routes.length} endpoints** (GET:${gets.length} POST:${posts.length} PATCH:${patches.length} DELETE:${dels.length})\n\n---\n\n`;
 
   const safeGuard = (arr, label, suffix) => {
@@ -29983,11 +29983,11 @@ function _genKolHaam(serverJs, kolHaamAppJs, today) {
     { id: 'collection',   name: 'אוסף בודד',         desc: 'פרטי קולקציה + כתבות בתוכה' },
   ];
 
-  let md = `# מפרט טכני — כל העם (Kol Haam) — Oneflow Life\n\n`;
+  let md = `# מפרט טכני — כל העם (Kol Haam) — WEFLOWZ\n\n`;
   md += `> תאריך: ${today}  \n> קבצים: \`public/kol-haam.html\` + \`public/kol-haam-app.js\` + \`public/kol-haam-author.html\`  \n> Backend prefix: \`/api/kol-haam\`\n\n---\n\n`;
 
   md += `## 1. מטרה ותפקיד הסביבה\n\n`;
-  md += `"כל העם" היא פלטפורמת תוכן קהילתית מובנית בתוך Oneflow — מענה לצורך של קהילות מקומיות לייצר ולצרוך תוכן רלוונטי לאזור שלהם. היא מאפשרת **פרסום עצמאי** של כתבות, שאלות, סיפורי הצלחה ומדריכים, עם מנגנון עריכה/אישור מדורג (כותב → ZM → SA).\n\n`;
+  md += `"כל העם" היא פלטפורמת תוכן קהילתית מובנית בתוך WEFLOWZ — מענה לצורך של קהילות מקומיות לייצר ולצרוך תוכן רלוונטי לאזור שלהם. היא מאפשרת **פרסום עצמאי** של כתבות, שאלות, סיפורי הצלחה ומדריכים, עם מנגנון עריכה/אישור מדורג (כותב → ZM → SA).\n\n`;
   md += `הפלטפורמה פועלת על 3 רמות scope: **local** (תוכן בתוך הקהילה), **national** (תוכן ארצי), **following** (תוכן מכותבים שאני עוקב). זה מאפשר לאותו מאמר להיות גלוי לקהילה בלבד, או להגיע לכל המשתמשים ברחבי הארץ.\n\n`;
 
   md += `## 2. סוגי משתמשים\n\n`;
@@ -30119,7 +30119,7 @@ function _genStorefront(serverJs, sfHtml, today) {
   ];
   const detectedFeatures = featureChecks.filter(f => sfHtml.includes(f.kw));
 
-  let md = `# מפרט טכני — Storefront (חזית חנות) — Oneflow Life\n\n`;
+  let md = `# מפרט טכני — Storefront (חזית חנות) — WEFLOWZ\n\n`;
   md += `> תאריך: ${today}  \n> קובץ: \`public/storefront.html\`  \n> Backend prefixes: \`/api/storefront\` · \`/api/store\` · \`/api/orders\` · \`/api/booking\`\n\n---\n\n`;
 
   md += `## 1. מטרה ותפקיד הסביבה\n\n`;
@@ -30129,7 +30129,7 @@ function _genStorefront(serverJs, sfHtml, today) {
   md += `## 2. סוגי משתמשים\n\n`;
   md += `| תפקיד | מי זה | מה הוא יכול |\n|--------|--------|-------------|\n`;
   md += `| **אנונימי** | כל מבקר | צפייה בתפריט/קטלוג, לחיצה על WhatsApp/טלפון |\n`;
-  md += `| **FAMILY משתמש** | מחובר ל-Oneflow | הזמנה, תשלום, מימוש FLW מטבעות, קופונים |\n`;
+  md += `| **FAMILY משתמש** | מחובר ל-WEFLOWZ | הזמנה, תשלום, מימוש FLW מטבעות, קופונים |\n`;
   md += `| **BIZ ADMIN** | בעל העסק | לא גולש כאן — ניהול ב-BIZ env; Storefront read-only |\n\n`;
 
   md += `## 3. לוגיקות מרכזיות\n\n`;
@@ -30215,12 +30215,12 @@ function _genMarketplace(serverJs, mpHtml, today) {
   // extract _FAM_QUICK_AREAS cities
   const quickAreasM = mpHtml.match(/_FAM_QUICK_AREAS\s*=\s*\{([\s\S]*?)\};/);
 
-  let md = `# מפרט טכני — Marketplace (מרקטפלייס) — Oneflow Life\n\n`;
+  let md = `# מפרט טכני — Marketplace (מרקטפלייס) — WEFLOWZ\n\n`;
   md += `> תאריך: ${today}  \n> קובץ: \`public/marketplace.html\`  \n> Backend prefixes: \`/api/public\` · \`/api/communities\` · \`/api/search\`\n\n---\n\n`;
 
   md += `## 1. מטרה ותפקיד הסביבה\n\n`;
-  md += `Marketplace הוא **פורטל חיפוש העסקים** של Oneflow — ממשק ציבורי שמאפשר לכל אדם למצוא עסקים לפי קטגוריה, אזור גיאוגרפי, או מיקום GPS. הוא משמש כ"כניסה" שדרכה צרכנים מגיעים ל-Storefront של עסקים.\n\n`;
-  md += `הייחוד: כל עסק ב-Oneflow **כבר** מופיע במרקטפלייס אוטומטית ברגע שה-ZM אישר אותו. אין צורך ב"רישום נפרד" — הנוכחות במרקטפלייס היא חלק מהצטרפות לפלטפורמה.\n\n`;
+  md += `Marketplace הוא **פורטל חיפוש העסקים** של WEFLOWZ — ממשק ציבורי שמאפשר לכל אדם למצוא עסקים לפי קטגוריה, אזור גיאוגרפי, או מיקום GPS. הוא משמש כ"כניסה" שדרכה צרכנים מגיעים ל-Storefront של עסקים.\n\n`;
+  md += `הייחוד: כל עסק ב-WEFLOWZ **כבר** מופיע במרקטפלייס אוטומטית ברגע שה-ZM אישר אותו. אין צורך ב"רישום נפרד" — הנוכחות במרקטפלייס היא חלק מהצטרפות לפלטפורמה.\n\n`;
   md += `חשוב: גישה ציבורית ללא login, אבל מיקום ו-"בשבילך" דורשים אישור Geolocation.\n\n`;
 
   md += `## 2. סוגי משתמשים\n\n`;
@@ -30331,7 +30331,7 @@ function _genOnboarding(serverJs, bizOnboardHtml, famOnboardHtml, today) {
     { id: 11, name: 'סיום',               desc: 'סיכום + קישורים לצעדים הבאים' },
   ];
   const FAM_STEPS = [
-    { id: 0, name: 'ברוכים הבאים',  desc: 'מסך פתיחה — Oneflow Family' },
+    { id: 0, name: 'ברוכים הבאים',  desc: 'מסך פתיחה — WEFLOWZ Family' },
     { id: 1, name: 'שם המשפחה',     desc: 'הגדרת שם ותמונת משפחה' },
     { id: 2, name: 'מה תנהלו?',     desc: 'MANAGE_OPTIONS משפחה' },
     { id: 3, name: 'חברי משפחה',    desc: 'הזמנת בני משפחה (email/phone)' },
@@ -30339,7 +30339,7 @@ function _genOnboarding(serverJs, bizOnboardHtml, famOnboardHtml, today) {
     { id: 5, name: 'סיום',          desc: 'כניסה לדשבורד המשפחה' },
   ];
 
-  let md = `# מפרט טכני — Onboarding (אונבורדינג) — Oneflow Life\n\n`;
+  let md = `# מפרט טכני — Onboarding (אונבורדינג) — WEFLOWZ\n\n`;
   md += `> תאריך: ${today}  \n> קבצים: \`public/biz-onboarding.html\`, \`public/family-onboarding.html\`\n\n---\n\n`;
 
   md += `## 1. מטרה ותפקיד הסביבה\n\n`;
@@ -30467,7 +30467,7 @@ function _genMenu(serverJs, menuHtml, today) {
     ? [...eventTypeM[1].matchAll(/['"]([^'"]{2,40})['"]/g)].map(m=>m[1]).slice(0,20)
     : [];
 
-  let md = `# מפרט טכני — תפריט דיגיטלי — Oneflow Life\n\n`;
+  let md = `# מפרט טכני — תפריט דיגיטלי — WEFLOWZ\n\n`;
   md += `> תאריך: ${today}  \n> קבצים: \`public/menu.html\`, \`public/menus.html\`  \n> Backend prefixes: \`/api/menu\` · \`/api/food-cost\` · \`/api/suppliers\`\n\n---\n\n`;
 
   md += `## 1. מטרה ותפקיד המודול\n\n`;
@@ -30600,7 +30600,7 @@ function _genGames(serverJs, today) {
     },
   ];
 
-  let md = `# מפרט טכני — משחקים חינוכיים — Oneflow Life\n\n`;
+  let md = `# מפרט טכני — משחקים חינוכיים — WEFLOWZ\n\n`;
   md += `> תאריך: ${today}  \n> תיקייה: \`public/games/\`  \n> Backend: \`/api/quest-library\` · \`/api/live-games\` · \`/api/trivia\`\n\n---\n\n`;
 
   md += `## 1. מטרה ותפקיד המודול\n\n`;
@@ -30774,7 +30774,7 @@ app.post('/api/live-games/:id/assign', verifySA, async (req, res) => {
     const game = await pool.query('SELECT * FROM live_games WHERE id=$1', [gameId]);
     if (!game.rows.length) return res.status(404).json({ error: 'משחק לא נמצא' });
     const g = game.rows[0];
-    const link = `https://oneflowlife.co.il/game/${g.game_code}`;
+    const link = `https://weflowz.co.il/game/${g.game_code}`;
     const notifMsg = message || `🏆 הוזמנת למשחק טריוויה: "${g.title}"${g.prize ? ' · פרס: ' + g.prize : ''} → ${link}`;
     let assigned = 0;
     for (const gid of groupIds) {
@@ -30786,7 +30786,7 @@ app.post('/api/live-games/:id/assign', verifySA, async (req, res) => {
         );
         // גם לתיבת דואר נכנס
         await pool.query(
-          `INSERT INTO inbox_messages (group_id, sender_type, sender_name, subject, content) VALUES ($1,'system','OneFlow Life',$2,$3)`,
+          `INSERT INTO inbox_messages (group_id, sender_type, sender_name, subject, content) VALUES ($1,'system','WEFLOWZ',$2,$3)`,
           [gid, `הוזמנת למשחק: ${g.title}`, notifMsg]
         );
         assigned++;
@@ -31205,7 +31205,7 @@ app.post('/api/live-games/:id/notify-start', verifySA, async (req, res) => {
     const game = await pool.query('SELECT * FROM live_games WHERE id=$1', [req.params.id]);
     if (!game.rows.length) return res.status(404).json({ error: 'משחק לא נמצא' });
     const g = game.rows[0];
-    const link = `https://oneflowlife.co.il/game/${g.game_code}`;
+    const link = `https://weflowz.co.il/game/${g.game_code}`;
     const msg = `⏰ המשחק "${g.title}" עומד להתחיל! מהרו להיכנס: ${link}`;
     const parts = await pool.query(`SELECT group_id FROM live_game_participants WHERE game_id=$1 AND approved=true AND group_id IS NOT NULL`, [req.params.id]);
     let sent = 0;
@@ -31213,7 +31213,7 @@ app.post('/api/live-games/:id/notify-start', verifySA, async (req, res) => {
       try {
         await pool.query(`INSERT INTO alert_notifications (group_id, trigger_type, message, reference_key) VALUES ($1,'live_game',$2,$3)`, [p.group_id, msg, `game:${g.game_code}`]);
         await pool.query(
-          `INSERT INTO inbox_messages (group_id, sender_type, sender_name, subject, content) VALUES ($1,'system','OneFlow Life',$2,$3)`,
+          `INSERT INTO inbox_messages (group_id, sender_type, sender_name, subject, content) VALUES ($1,'system','WEFLOWZ',$2,$3)`,
           [p.group_id, `⏰ ${g.title} — המשחק עומד להתחיל!`, msg]
         );
         sent++;
@@ -34700,7 +34700,7 @@ app.post('/api/menu/public/:slug/request', async (req, res) => {
       ${selLines}
       ${customNotes ? `<tr style="background:#f8f4ee"><td style="padding:4px 10px;color:#6b7280;font-size:13px">הערות</td><td style="padding:4px 10px;font-size:13px">${customNotes}</td></tr>` : ''}
     </table>
-    <div style="font-size:11px;color:#9C8C71;border-top:1px solid #E5DCCB;padding-top:12px">OneFlow Life · מערכת ניהול אירועים</div>
+    <div style="font-size:11px;color:#9C8C71;border-top:1px solid #E5DCCB;padding-top:12px">WEFLOWZ · מערכת ניהול אירועים</div>
   </div>
 </div>`;
             sendSystemEmail(tmpl.notification_email, `פנייה חדשה לתפריט: ${tmpl.name} — ${customerName}`, emailHtml).catch(() => {});
@@ -34816,7 +34816,7 @@ app.post('/api/menu/public/:slug/catalog-request', async (req, res) => {
     <div style="font-size:13px;font-weight:700;color:#6B2434;margin-bottom:8px">פריטים שנבחרו</div>
     <table style="width:100%;border-collapse:collapse;margin-bottom:16px">${itemLines}</table>
     ${customNotes ? `<div style="font-size:12px;color:#5C5148;border-top:1px solid #E5DCCB;padding-top:10px">הערות: ${customNotes}</div>` : ''}
-    <div style="font-size:11px;color:#9C8C71;border-top:1px solid #E5DCCB;padding-top:12px;margin-top:12px">OneFlow Life · מערכת ניהול אירועים</div>
+    <div style="font-size:11px;color:#9C8C71;border-top:1px solid #E5DCCB;padding-top:12px;margin-top:12px">WEFLOWZ · מערכת ניהול אירועים</div>
   </div>
 </div>`;
             sendSystemEmail(tmpl.notification_email, `הרכבת תפריט חדשה: ${tmpl.name} — ${customerName}`, emailHtml).catch(() => {});
