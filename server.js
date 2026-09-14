@@ -11462,28 +11462,13 @@ app.post('/api/store/orders', async (req, res) => {
         setTimeout(async () => {
             try {
                 if (!customerName || customerName === 'לקוח קופה' || customerName === 'לקוח מזדמן') return;
-                let custExist;
-                if (customerPhone) {
-                     custExist = await pool.query('SELECT id FROM store_customers WHERE group_id = $1 AND (phone = $2 OR name = $3)', [groupId, customerPhone, customerName]);
-                } else {
-                     custExist = await pool.query('SELECT id FROM store_customers WHERE group_id = $1 AND name = $2', [groupId, customerName]);
-                }
-
-                if (custExist.rows.length === 0) {
-                    await pool.query(
-                        `INSERT INTO store_customers (group_id, name, phone, email, business_id, notes, created_at) 
-                         VALUES ($1, $2, $3, '', '', $4, CURRENT_TIMESTAMP)`,
-                        [groupId, customerName, customerPhone || '', `נוצר אוטומטית מהזמנה בחנות #${orderId}`]
-                    );
-                } else {
-                    if (customerPhone) {
-                        const custId = custExist.rows[0].id;
-                        await pool.query('UPDATE store_customers SET phone = $1 WHERE id = $2 AND (phone IS NULL OR phone = \'\')', [customerPhone, custId]);
-                    }
-                }
+                // upsertStoreCustomer גם יוצרת/מעדכנת את כרטיס הלקוח וגם מקשרת את העסק ל"הפעילות שלי" של המשפחה —
+                // בעבר ההזמנה הרגילה (הזרימה הנפוצה ביותר) יצרה כרטיס לקוח בעצמה בלי לעבור דרך הפונקציה המשותפת,
+                // ולכן לא יצרה את הקישור. עכשיו כל הזמנה עוברת דרך אותה נקודת אמת יחידה.
+                await upsertStoreCustomer(groupId, { name: customerName, phone: customerPhone, notes: `נוצר אוטומטית מהזמנה בחנות #${orderId}` });
             } catch(e) {}
         }, 100);
-        
+
         const gRes = await pool.query(
             `SELECT fg.admin_email, fg.name, fg.send_order_email, ss.order_notification_email
              FROM family_groups fg
@@ -11681,24 +11666,19 @@ app.post('/api/store/quotes/:id/approve', verifyBizOrLegacy, requireModule('sale
         if (updateRes.rows.length === 0) return res.status(404).json({ error: 'ההצעה לא נמצאה או שכבר אושרה' });
         const quote = updateRes.rows[0];
 
-        // יצירת לקוח ברקע
+        // יצירת/עדכון לקוח ברקע — עובר דרך upsertStoreCustomer כדי שגם יקושר ל"הפעילות שלי"
         setTimeout(async () => {
             try {
                 if (!quote.customer_name) return;
-                const custExist = await pool.query('SELECT id FROM store_customers WHERE group_id = $1 AND name = $2', [quote.group_id, quote.customer_name]);
-                if (custExist.rows.length === 0) {
-                    let businessId = '';
-                    try {
-                        const itemsArr = typeof quote.items === 'string' ? JSON.parse(quote.items) : quote.items;
-                        const meta = itemsArr.find(i => i.is_quote_metadata);
-                        if (meta) { businessId = JSON.parse(meta.data).companyId || ''; }
-                    } catch(e) {}
-                    await pool.query(
-                        `INSERT INTO store_customers (group_id, name, phone, email, business_id, notes, created_at) 
-                         VALUES ($1, $2, $3, '', $4, $5, CURRENT_TIMESTAMP)`,
-                        [quote.group_id, quote.customer_name, quote.customer_phone || '', businessId, `לקוח הוקם מאישור הצעה #${quoteId}`]
-                    );
-                }
+                await upsertStoreCustomer(quote.group_id, { name: quote.customer_name, phone: quote.customer_phone, notes: `לקוח הוקם מאישור הצעה #${quoteId}` });
+                try {
+                    const itemsArr = typeof quote.items === 'string' ? JSON.parse(quote.items) : quote.items;
+                    const meta = itemsArr.find(i => i.is_quote_metadata);
+                    const businessId = meta ? (JSON.parse(meta.data).companyId || '') : '';
+                    if (businessId) {
+                        await pool.query('UPDATE store_customers SET business_id=$1 WHERE group_id=$2 AND name=$3', [businessId, quote.group_id, quote.customer_name]);
+                    }
+                } catch(e) {}
             } catch(e) { console.error('Customer Creation Error:', e.message); }
         }, 100);
 
@@ -18752,22 +18732,10 @@ app.post('/api/store/kiosk-order', async (req, res) => {
         );
         const orderId = orderRes.rows[0].id;
 
-        // Update/create customer record so purchase is tracked in CRM
-        if (digits) {
-            const custRes = await pool.query(
-                `SELECT id FROM store_customers WHERE group_id=$1 AND (phone=$2 OR phone=$3 OR REPLACE(phone,'-','')=$2) LIMIT 1`,
-                [groupId, digits, altPhone]);
-            if (custRes.rows.length > 0) {
-                // update existing customer notes with last visit
-                await pool.query(
-                    `UPDATE store_customers SET notes = COALESCE(notes,'') || $1 WHERE id=$2`,
-                    [`\nקנייה בקיוסק #${orderId} — ₪${total} (${new Date().toLocaleDateString('he-IL')})`, custRes.rows[0].id]
-                );
-            } else if (customerName && customerName !== 'לקוח') {
-                await pool.query(
-                    `INSERT INTO store_customers (group_id, name, phone, notes) VALUES ($1,$2,$3,$4)`,
-                    [groupId, customerName, digits, `קנייה בקיוסק #${orderId} — ₪${total} (${new Date().toLocaleDateString('he-IL')})`]);
-            }
+        // Update/create customer record so purchase is tracked in CRM — עובר דרך upsertStoreCustomer
+        // כדי שגם קניית קיוסק תקשר את העסק ל"הפעילות שלי" של המשפחה, בדיוק כמו הזמנה מהחנות הציבורית
+        if (digits && customerName && customerName !== 'לקוח') {
+            await upsertStoreCustomer(groupId, { name: customerName, phone: digits, notes: `קנייה בקיוסק #${orderId} — ₪${total} (${new Date().toLocaleDateString('he-IL')})` });
         }
 
         await logActivity(groupId, null, customerName || 'לקוח קיוסק', 'sale', 'kiosk_order', `הזמנת קיוסק #${orderId} — ₪${total}`);
