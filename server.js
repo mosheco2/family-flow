@@ -24027,9 +24027,10 @@ app.get('/api/family/linked-businesses/:groupId', verifyFamily, async (req, res)
         const beautyR = await pool.query(
             `SELECT DISTINCT ON (bcr.business_group_id) bcr.business_group_id, fg.name AS business_name,
                     fg.business_type, fg.group_code, fg.community_id, fg.licensed_features, 'beauty' AS link_type,
-                    bcr.created_at AS linked_at, 'active' AS status
+                    bcr.created_at AS linked_at, 'active' AS status, ss.logo_url
              FROM beauty_client_records bcr
              JOIN family_groups fg ON fg.id = bcr.business_group_id
+             LEFT JOIN store_settings ss ON ss.group_id = fg.id
              WHERE bcr.client_family_id = $1
              ORDER BY bcr.business_group_id, bcr.created_at DESC`,
             [groupId]
@@ -24038,9 +24039,10 @@ app.get('/api/family/linked-businesses/:groupId', verifyFamily, async (req, res)
         const memberR = await pool.query(
             `SELECT DISTINCT ON (mbl.business_group_id) mbl.id AS link_id, mbl.business_group_id,
                     fg.name AS business_name, fg.business_type, fg.group_code, fg.community_id, fg.licensed_features,
-                    'member' AS link_type, mbl.linked_at, mbl.status, mbl.linked_by_admin_name
+                    'member' AS link_type, mbl.linked_at, mbl.status, mbl.linked_by_admin_name, ss.logo_url
              FROM member_business_links mbl
              JOIN family_groups fg ON fg.id = mbl.business_group_id
+             LEFT JOIN store_settings ss ON ss.group_id = fg.id
              WHERE mbl.member_group_id = $1 AND mbl.is_active = true
              ORDER BY mbl.business_group_id, mbl.linked_at DESC`,
             [groupId]

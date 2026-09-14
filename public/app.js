@@ -13774,10 +13774,17 @@ function _actRender(filterType, searchQ) {
             const bizType = b.business_type || 'other';
             const isPending = b.status === 'pending';
 
+            const logoHtml = b.logo_url
+                ? `<img src="${safeStr(b.logo_url)}" alt="${safeStr(b.business_name)}" class="w-10 h-10 rounded-xl object-cover flex-shrink-0" onerror="this.outerHTML='<div class=\\'w-10 h-10 rounded-xl bg-gradient-to-br from-slate-50 to-slate-100 border border-slate-200 flex items-center justify-center text-xl flex-shrink-0\\'>${cat.icon}</div>'">`
+                : `<div class="w-10 h-10 rounded-xl bg-gradient-to-br from-slate-50 to-slate-100 border border-slate-200 flex items-center justify-center text-xl flex-shrink-0">${cat.icon}</div>`;
+            const logoHtmlPending = b.logo_url
+                ? `<img src="${safeStr(b.logo_url)}" alt="${safeStr(b.business_name)}" class="w-10 h-10 rounded-xl object-cover flex-shrink-0" onerror="this.outerHTML='<div class=\\'w-10 h-10 rounded-xl bg-amber-100 border border-amber-200 flex items-center justify-center text-xl flex-shrink-0\\'>${cat.icon}</div>'">`
+                : `<div class="w-10 h-10 rounded-xl bg-amber-100 border border-amber-200 flex items-center justify-center text-xl flex-shrink-0">${cat.icon}</div>`;
+
             if (isPending) {
                 html += `<div class="biz-act-wrapper rounded-2xl overflow-hidden shadow-sm border border-amber-200 bg-amber-50" data-biz-id="${bizId}">
                     <div class="flex items-center gap-3 p-3">
-                        <div class="w-10 h-10 rounded-xl bg-amber-100 border border-amber-200 flex items-center justify-center text-xl flex-shrink-0">${cat.icon}</div>
+                        ${logoHtmlPending}
                         <div class="flex-1 min-w-0">
                             <div class="flex items-center gap-1.5 flex-wrap">
                                 <p class="font-black text-slate-800 text-sm truncate">${safeStr(b.business_name)}</p>
@@ -13796,7 +13803,7 @@ function _actRender(filterType, searchQ) {
 
             html += `<div class="biz-act-wrapper rounded-2xl overflow-hidden shadow-sm border border-slate-200 bg-white" data-biz-id="${bizId}">
                 <div class="flex items-center gap-3 p-3">
-                    <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-slate-50 to-slate-100 border border-slate-200 flex items-center justify-center text-xl flex-shrink-0">${cat.icon}</div>
+                    ${logoHtml}
                     <div class="flex-1 min-w-0">
                         <div class="flex items-center gap-1.5 flex-wrap">
                             <p class="font-black text-slate-800 text-sm truncate">${safeStr(b.business_name)}</p>
