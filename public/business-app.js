@@ -10871,27 +10871,34 @@ function _buildCustFieldSettingsPanel() {
 }
 
 window.toggleCustFieldSettings = function() {
-    var panel = document.getElementById('cust-field-settings-panel');
-    if (!panel) return;
-    if (panel.classList.contains('hidden')) {
-        var crf = window._customerRequiredFields || {};
-        var p = document.getElementById('cfset-phone');
-        var e = document.getElementById('cfset-email');
-        var i = document.getElementById('cfset-id');
-        if (p) p.checked = !!crf.phone;
-        if (e) e.checked = !!crf.email;
-        if (i) i.checked = !!crf.id;
-        panel.classList.remove('hidden');
-    } else {
-        panel.classList.add('hidden');
-    }
+    // יש יותר מעותק אחד של הפאנל בדף (מסך לקוחות כללי + מסכים ייעודיים כמו יופי/לוגיסטיקה) —
+    // מטפלים בכולם יחד כדי שהעותק הגלוי בפועל (לא רק הראשון ב-DOM) יגיב ללחיצה
+    var panels = document.querySelectorAll('#cust-field-settings-panel');
+    if (!panels.length) return;
+    var opening = Array.prototype.some.call(panels, function(p) { return p.classList.contains('hidden'); });
+    panels.forEach(function(panel) {
+        if (opening) {
+            var crf = window._customerRequiredFields || {};
+            var p = panel.querySelector('#cfset-phone');
+            var e = panel.querySelector('#cfset-email');
+            var i = panel.querySelector('#cfset-id');
+            if (p) p.checked = !!crf.phone;
+            if (e) e.checked = !!crf.email;
+            if (i) i.checked = !!crf.id;
+            panel.classList.remove('hidden');
+        } else {
+            panel.classList.add('hidden');
+        }
+    });
 };
 
 window.saveCustRequiredFields = async function() {
+    var visiblePanel = Array.prototype.find.call(document.querySelectorAll('#cust-field-settings-panel'), function(p) { return !p.classList.contains('hidden'); })
+        || document.getElementById('cust-field-settings-panel');
     var fields = {
-        phone: !!(document.getElementById('cfset-phone') && document.getElementById('cfset-phone').checked),
-        email: !!(document.getElementById('cfset-email') && document.getElementById('cfset-email').checked),
-        id:    !!(document.getElementById('cfset-id')    && document.getElementById('cfset-id').checked)
+        phone: !!(visiblePanel && visiblePanel.querySelector('#cfset-phone') && visiblePanel.querySelector('#cfset-phone').checked),
+        email: !!(visiblePanel && visiblePanel.querySelector('#cfset-email') && visiblePanel.querySelector('#cfset-email').checked),
+        id:    !!(visiblePanel && visiblePanel.querySelector('#cfset-id')    && visiblePanel.querySelector('#cfset-id').checked)
     };
     try {
         var res = await fetch(API + '/store/settings/customer-fields', {
@@ -10903,7 +10910,7 @@ window.saveCustRequiredFields = async function() {
         if (data.success) {
             window._customerRequiredFields = fields;
             if (typeof showToast === 'function') showToast('success', 'הגדרות שדות חובה נשמרו');
-            document.getElementById('cust-field-settings-panel').classList.add('hidden');
+            document.querySelectorAll('#cust-field-settings-panel').forEach(function(p) { p.classList.add('hidden'); });
         } else {
             if (typeof showToast === 'function') showToast('error', data.error || 'שגיאה בשמירה');
         }
