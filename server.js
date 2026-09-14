@@ -5618,13 +5618,72 @@ app.delete('/api/sa/groups/:id/permanent', verifySA, async (req, res) => {
 // --- SA AUDIT LOG ---
 // ============================================================
 
+// יצירה/שימוש חוזר בחשבון "לקוח רשום" (storefront_customers) + חשבון משפחה/משתמש מקושר —
+// מדובר באותו מנגנון בדיוק שמשמש את הרשמת sc-auth הרגילה (OTP+PIN), כדי שלקוח יקבל
+// יכולות של משתמש רשום (היסטוריית פעילות, ניהול הזמנות/תורים, כניסה חוזרת בטלפון+OTP)
+// גם כשהוא לא עבר במפורש דרך מסך ההרשמה — למשל כשהוא רק מזמין/קובע תור בחנות ציבורית.
+// הפעולה אידמפוטנטית לפי טלפון: לעולם לא יוצרת כפילות — משתמשת בחשבון קיים אם יש כזה
+// (גם אם המשתמש כבר רשום בסופר אדמין וגם בבית עסק אחר).
+async function getOrCreateStorefrontCustomer(phone, { name, email } = {}) {
+    if (!phone) return null;
+    const cleanPhone = String(phone).replace(/\D/g, '');
+    if (cleanPhone.length < 9) return null;
+    try {
+        const existing = await pool.query('SELECT id, family_group_id FROM storefront_customers WHERE phone=$1', [cleanPhone]);
+        if (existing.rows.length) return existing.rows[0];
+
+        const [firstName, ...rest] = (name || '').trim().split(/\s+/).filter(Boolean);
+        const lastName = rest.join(' ');
+
+        // חפש/צור חשבון משפחה מקושר — אותה לוגיקת דה-דופ לפי טלפון שמשמשת את /api/sc-auth/register,
+        // כך שלקוח שכבר קיים לו users.phone פעיל (בכל קבוצה, כולל עסק אחר) לא יקבל חשבון כפול
+        let familyGroupId = null;
+        try {
+            const existingUser = await pool.query(
+                `SELECT u.group_id, fg.type FROM users u
+                 JOIN family_groups fg ON fg.id = u.group_id
+                 WHERE u.phone=$1 AND fg.account_status='active'
+                 ORDER BY CASE WHEN fg.type='FAMILY' THEN 0 WHEN fg.type='BUSINESS' THEN 1 ELSE 2 END
+                 LIMIT 1`,
+                [cleanPhone]
+            );
+            if (existingUser.rows.length) {
+                familyGroupId = existingUser.rows[0].group_id;
+            } else {
+                const code = 'SC' + cleanPhone.slice(-6);
+                const fgRes = await pool.query(
+                    `INSERT INTO family_groups (name, type, plan, group_code, account_status, admin_email, member_type)
+                     VALUES ($1,'FAMILY','solo',$2,'active',$3,'shopper') RETURNING id`,
+                    [name || cleanPhone, code, email || null]
+                );
+                familyGroupId = fgRes.rows[0].id;
+                await pool.query(
+                    `INSERT INTO users (group_id, nickname, phone, role, status) VALUES ($1,$2,$3,'ADMIN','active')`,
+                    [familyGroupId, name || cleanPhone, cleanPhone]
+                ).catch(() => {});
+            }
+        } catch(e) { console.error('[getOrCreateStorefrontCustomer family]', e.message); }
+
+        const custRes = await pool.query(
+            `INSERT INTO storefront_customers (phone, first_name, last_name, email, family_group_id)
+             VALUES ($1,$2,$3,$4,$5) RETURNING id, family_group_id`,
+            [cleanPhone, firstName || name || cleanPhone, lastName || '', email || null, familyGroupId]
+        );
+        return custRes.rows[0];
+    } catch(e) { console.error('[getOrCreateStorefrontCustomer]', e.message); return null; }
+}
+
 // יצירה/עדכון אוטומטי של כרטיס לקוח ברשימת הלקוחות של העסק (store_customers) —
 // נקרא מכל נקודת הרשמה ציבורית (הזמנה, תור, בקשת שירות) בכל סוגי העסקים,
-// כדי שלכל לקוח שנרשם בחנות הציבורית ייפתח כרטיס מלא ברשימת הלקוחות אצל בעל העסק.
+// כדי שלכל לקוח שנרשם בחנות הציבורית ייפתח כרטיס מלא ברשימת הלקוחות אצל בעל העסק,
+// וגם חשבון לקוח רשום (storefront_customers) המוצג בסופר אדמין ומקנה יכולות משתמש רשום.
 async function upsertStoreCustomer(groupId, { name, phone, email, notes } = {}) {
     try {
         if (!groupId || (!phone && !email && !name)) return;
         const cleanPhone = phone ? String(phone).replace(/[-\s]/g, '') : '';
+
+        const scCust = phone ? await getOrCreateStorefrontCustomer(phone, { name, email }) : null;
+
         let existing;
         if (cleanPhone) {
             existing = await pool.query('SELECT id, notes FROM store_customers WHERE group_id=$1 AND phone=$2', [groupId, cleanPhone]);
@@ -5642,15 +5701,16 @@ async function upsertStoreCustomer(groupId, { name, phone, email, notes } = {}) 
                     name = COALESCE(NULLIF($1,''), name),
                     phone = COALESCE(NULLIF($2,''), phone),
                     email = COALESCE(NULLIF($3,''), email),
-                    notes = $4
+                    notes = $4,
+                    family_group_id = COALESCE(family_group_id, $6)
                  WHERE id=$5`,
-                [name || '', cleanPhone, email || '', mergedNotes, custId]
+                [name || '', cleanPhone, email || '', mergedNotes, custId, scCust?.family_group_id || null]
             );
         } else {
             await pool.query(
-                `INSERT INTO store_customers (group_id, name, phone, email, notes, created_at)
-                 VALUES ($1,$2,$3,$4,$5,CURRENT_TIMESTAMP)`,
-                [groupId, name || '', cleanPhone, email || '', notes || null]
+                `INSERT INTO store_customers (group_id, name, phone, email, notes, family_group_id, created_at)
+                 VALUES ($1,$2,$3,$4,$5,$6,CURRENT_TIMESTAMP)`,
+                [groupId, name || '', cleanPhone, email || '', notes || null, scCust?.family_group_id || null]
             );
         }
     } catch(e) { console.error('[upsertStoreCustomer]', e.message); }
@@ -7236,7 +7296,7 @@ app.get('/api/sa/dashboard', verifySA, async (req, res) => {
             ticketsR, financeR, zmR, flowR, aiTopR, growthR, debtorsR, walletsR
         ] = await Promise.all([
             pool.query(`SELECT
-                (SELECT COUNT(*) FROM family_groups WHERE type='FAMILY' AND member_type!='member') as families,
+                (SELECT COUNT(*) FROM family_groups WHERE type='FAMILY' AND member_type NOT IN ('member','shopper')) as families,
                 (SELECT COUNT(*) FROM family_groups WHERE type='BUSINESS') as businesses,
                 (SELECT COUNT(*) FROM communities WHERE status='active') as communities,
                 (SELECT COUNT(*) FROM users WHERE last_seen > NOW()-INTERVAL '3 minutes') as online_now,
@@ -7335,7 +7395,7 @@ app.get('/api/sa/bigscreen-stats', verifySA, async (req, res) => {
         ] = await Promise.all([
             // ── ישויות ──
             pool.query(`SELECT
-                (SELECT COUNT(*) FROM family_groups WHERE type='FAMILY' AND member_type!='member') as families,
+                (SELECT COUNT(*) FROM family_groups WHERE type='FAMILY' AND member_type NOT IN ('member','shopper')) as families,
                 (SELECT COUNT(*) FROM family_groups WHERE type='BUSINESS') as businesses,
                 (SELECT COUNT(*) FROM family_groups WHERE type='FAMILY' AND created_at > NOW()-INTERVAL '24 hours') as fam_24h,
                 (SELECT COUNT(*) FROM family_groups WHERE type='BUSINESS' AND created_at > NOW()-INTERVAL '24 hours') as biz_24h,
@@ -25437,7 +25497,7 @@ app.post('/api/public/restaurants/:groupId/verify-table-sms', async (req, res) =
         // חיפוש customer_group_id לפי פלאפון (לקוח רשום בsc-auth)
         let custGroupId = null;
         try {
-            const scCust = await pool.query('SELECT family_group_id FROM sc_auth_customers WHERE phone=$1 LIMIT 1', [temp.customer_phone]);
+            const scCust = await pool.query('SELECT family_group_id FROM storefront_customers WHERE phone=$1 LIMIT 1', [temp.customer_phone]);
             if (scCust.rows.length && scCust.rows[0].family_group_id) custGroupId = scCust.rows[0].family_group_id;
         } catch(e2) {}
 
@@ -34853,9 +34913,9 @@ app.post('/api/sc-auth/register', async (req, res) => {
     if (String(pin).length !== 6 || !/^\d{6}$/.test(String(pin))) return res.json({ success: false, error: 'PIN חייב להיות 6 ספרות' });
     const cleanPhone = String(phone).replace(/\D/g, '');
 
-    // make sure OTP was verified (customer doesn't exist yet)
-    const existing = await pool.query('SELECT id FROM storefront_customers WHERE phone=$1', [cleanPhone]);
-    if (existing.rows.length) return res.json({ success: false, error: 'מספר טלפון זה כבר רשום — נסה להתחבר' });
+    // אם כבר קיים חשבון "שקט" (נוצר אוטומטית מהזמנה/תור, בלי PIN) — משלימים אותו במקום לחסום
+    const existing = await pool.query('SELECT id, pin_hash FROM storefront_customers WHERE phone=$1', [cleanPhone]);
+    if (existing.rows.length && existing.rows[0].pin_hash) return res.json({ success: false, error: 'מספר טלפון זה כבר רשום — נסה להתחבר' });
 
     const pinHash = await bcrypt.hash(String(pin), 10);
 
@@ -34878,7 +34938,7 @@ app.post('/api/sc-auth/register', async (req, res) => {
             const code = 'SC' + cleanPhone.slice(-6);
             const fgRes = await pool.query(
                 `INSERT INTO family_groups (name, type, plan, group_code, account_status, admin_email, member_type)
-                 VALUES ($1,'FAMILY','solo',$2,'active',$3,'member') RETURNING id`,
+                 VALUES ($1,'FAMILY','solo',$2,'active',$3,'shopper') RETURNING id`,
                 [`${firstName} ${lastName}`, code, email || null]
             );
             familyGroupId = fgRes.rows[0].id;
@@ -34889,11 +34949,23 @@ app.post('/api/sc-auth/register', async (req, res) => {
         }
     } catch(e) { console.error('[SC-REG family]', e.message); }
 
-    const custRes = await pool.query(
-        `INSERT INTO storefront_customers (phone, first_name, last_name, email, age, address_street, address_number, address_city, address_zip, pin_hash, family_group_id)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
-        [cleanPhone, firstName, lastName, email||null, age||null, street||null, number||null, city||null, zip||null, pinHash, familyGroupId]
-    );
+    let custRes;
+    if (existing.rows.length) {
+        // השלמת חשבון שנוצר אוטומטית — עדכון במקום יצירה כפולה
+        custRes = await pool.query(
+            `UPDATE storefront_customers SET first_name=$1, last_name=$2, email=COALESCE($3,email), age=$4,
+                address_street=$5, address_number=$6, address_city=$7, address_zip=$8, pin_hash=$9,
+                family_group_id=COALESCE(family_group_id,$10), updated_at=NOW()
+             WHERE id=$11 RETURNING *`,
+            [firstName, lastName, email||null, age||null, street||null, number||null, city||null, zip||null, pinHash, familyGroupId, existing.rows[0].id]
+        );
+    } else {
+        custRes = await pool.query(
+            `INSERT INTO storefront_customers (phone, first_name, last_name, email, age, address_street, address_number, address_city, address_zip, pin_hash, family_group_id)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
+            [cleanPhone, firstName, lastName, email||null, age||null, street||null, number||null, city||null, zip||null, pinHash, familyGroupId]
+        );
+    }
 
     const token = _scGenToken();
     await pool.query(
