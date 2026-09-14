@@ -89,6 +89,16 @@ const port = process.env.PORT || 3000;
 
 app.use(compression());
 app.use(cors());
+
+// Permanent redirect from the retired oneflowlife.co.il domain to weflowz.co.il
+app.use((req, res, next) => {
+    const host = (req.hostname || '').toLowerCase();
+    if (host === 'oneflowlife.co.il' || host === 'www.oneflowlife.co.il') {
+        return res.redirect(301, `https://weflowz.co.il${req.originalUrl}`);
+    }
+    next();
+});
+
 app.use(express.json({limit: '20mb'}));
 app.use(express.urlencoded({limit: '20mb', extended: true}));
 // Serve WebP automatically when browser supports it and WebP version exists
