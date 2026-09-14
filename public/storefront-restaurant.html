@@ -990,7 +990,6 @@ function _enableBrandingMode(data) {
 
 function _renderBrandingContent(data) {
   const sections = data.brandingContent || [];
-  console.log('[branding] sections count:', sections.length, sections);
   if (!sections.length) return;
   const hero = document.getElementById('hero') || document.querySelector('section');
   if (!hero) return;
@@ -1058,7 +1057,6 @@ async function initStore() {
     initScrollSpy();
     initSlots();
     const _rSiteMode = data.settings?.site_mode || ((data.businessType || data.business_type) === 'professional' ? 'branding' : 'shop');
-    console.log('[branding] site_mode:', data.settings?.site_mode, '→ resolved:', _rSiteMode, 'brandingContent:', (data.brandingContent||[]).length);
     if (_rSiteMode === 'branding') _enableBrandingMode(data);
   } catch(e) {
     showError('שגיאה בטעינת החנות');

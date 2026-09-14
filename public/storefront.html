@@ -1369,7 +1369,7 @@
         function _renderBrandingContent(data) {
             const sections = data.brandingContent || [];
             if (!sections.length) return;
-            const hero = document.getElementById('hero') || document.querySelector('section');
+            const hero = document.getElementById('hero') || document.querySelector('header') || document.querySelector('section') || getEl('store-app');
             if (!hero) return;
             // קיבוץ לפי סוג
             const grouped = {};
