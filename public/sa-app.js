@@ -2538,6 +2538,47 @@ async function saResyncActivityLinks(ev) {
     }
 }
 
+async function saDiagnosePhone() {
+    const phone = prompt('הכנס מספר טלפון לאבחון (למשל 0526626619):');
+    if (!phone) return;
+    let modal = getEl('sa-diagnose-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'sa-diagnose-modal';
+        modal.className = 'fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-[9999] flex items-center justify-center p-4';
+        document.body.appendChild(modal);
+    }
+    modal.innerHTML = `<div class="bg-white w-full max-w-2xl rounded-[2rem] shadow-2xl flex flex-col max-h-[90vh]">
+        <div class="flex justify-between items-center p-6 border-b border-slate-100">
+            <h3 class="text-xl font-black text-slate-800 flex items-center gap-2"><i class="fa-solid fa-stethoscope text-sky-500"></i> אבחון: ${safeStr(phone)}</h3>
+            <button onclick="getEl('sa-diagnose-modal').remove()" class="text-slate-400 hover:text-slate-600 bg-slate-100 w-9 h-9 rounded-full flex items-center justify-center transition text-lg">✕</button>
+        </div>
+        <div id="sa-diagnose-body" class="p-6 overflow-y-auto space-y-4 text-xs"><p class="text-slate-400 text-center py-8">טוען...</p></div>
+    </div>`;
+    modal.style.display = 'flex';
+    try {
+        const res = await fetch(`${API}/sa/diagnose-phone/${encodeURIComponent(phone)}`, { headers: { 'Authorization': saToken } });
+        const d = await res.json();
+        const body = getEl('sa-diagnose-body');
+        if (!d.success) { body.innerHTML = `<p class="text-red-500 text-center py-6">${safeStr(d.error||'שגיאה')}</p>`; return; }
+        const block = (title, rows, renderRow) => `
+            <div>
+                <p class="font-bold text-slate-700 mb-2">${title} <span class="text-slate-400 font-normal">(${rows.length})</span></p>
+                ${rows.length ? `<div class="space-y-1.5">${rows.map(renderRow).join('')}</div>` : `<p class="text-slate-300 bg-slate-50 rounded-xl p-3 text-center">— ריק —</p>`}
+            </div>`;
+        const row = (html, ok) => `<div class="border ${ok===false ? 'border-red-200 bg-red-50' : 'border-slate-200 bg-slate-50'} rounded-xl p-2.5">${html}</div>`;
+        getEl('sa-diagnose-body').innerHTML = `
+            ${block('👤 storefront_customers (חשבון רשום)', d.storefront_customers, r => row(`מזהה #${r.id} · שם: ${safeStr(r.first_name)} ${safeStr(r.last_name)} · family_group_id: <b>${r.family_group_id ?? '<span class=\"text-red-500\">ריק!</span>'}</b>`))}
+            ${block('👥 users (שורות משתמש עם הטלפון הזה)', d.users, r => row(`מזהה #${r.id} · ${safeStr(r.nickname)} · קבוצה: ${safeStr(r.group_name)} (#${r.group_id}, ${r.type})`))}
+            ${block('🏪 store_customers (כרטיסי לקוח אצל עסקים)', d.store_customers, r => row(`עסק: <b>${safeStr(r.business_name)}</b> (#${r.group_id}) · שם: ${safeStr(r.name)} · family_group_id: <b>${r.family_group_id ?? '<span class=\"text-red-500\">ריק — זו הבעיה!</span>'}</b>`, r.family_group_id != null))}
+            ${block('📦 store_orders (הזמנות אחרונות)', d.store_orders, r => row(`הזמנה #${r.id} · עסק #${r.group_id} · סטטוס: ${safeStr(r.status)} · family_group_id: <b>${r.family_group_id ?? '<span class=\"text-red-500\">ריק</span>'}</b>`, r.family_group_id != null))}
+            ${block('🔗 member_business_links ("הפעילות שלי")', d.member_business_links, r => row(`עסק: <b>${safeStr(r.business_name)}</b> · קבוצת חבר: #${r.member_group_id} · סטטוס: ${safeStr(r.status)} · פעיל: ${r.is_active ? '✅' : '❌'}`))}
+        `;
+    } catch(e) {
+        getEl('sa-diagnose-body').innerHTML = `<p class="text-red-500 text-center py-6">שגיאת רשת</p>`;
+    }
+}
+
 async function openSnapshotsModal(groupId, groupName) {
     let modal = getEl('sa-snapshots-modal');
     if (!modal) {

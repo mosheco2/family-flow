@@ -2489,6 +2489,46 @@ app.post('/api/sa/resync-activity-links', verifySA, async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// SA: אבחון שרשרת "הפעילות שלי" לפי מספר טלפון — מראה בדיוק איפה הקישור נשבר
+app.get('/api/sa/diagnose-phone/:phone', verifySA, async (req, res) => {
+    try {
+        const cleanPhone = String(req.params.phone).replace(/\D/g, '');
+        const [scRes, storeCustRes, ordersRes] = await Promise.all([
+            pool.query('SELECT id, phone, first_name, last_name, family_group_id FROM storefront_customers WHERE phone=$1', [cleanPhone]),
+            pool.query(`SELECT sc.id, sc.group_id, fg.name AS business_name, fg.business_type, sc.name, sc.phone, sc.family_group_id
+                        FROM store_customers sc JOIN family_groups fg ON fg.id=sc.group_id
+                        WHERE sc.phone=$1 OR REPLACE(sc.phone,'-','')=$1`, [cleanPhone]),
+            pool.query(`SELECT id, group_id, customer_name, customer_phone, family_group_id, status, created_at
+                        FROM store_orders WHERE customer_phone=$1 ORDER BY created_at DESC LIMIT 20`, [cleanPhone]),
+        ]);
+        const familyGroupIds = [...new Set([
+            ...scRes.rows.map(r => r.family_group_id),
+            ...storeCustRes.rows.map(r => r.family_group_id),
+        ].filter(Boolean))];
+        let links = [];
+        let usersForPhone = [];
+        if (familyGroupIds.length) {
+            const linksRes = await pool.query(
+                `SELECT mbl.member_group_id, mbl.business_group_id, fg.name AS business_name, mbl.status, mbl.is_active
+                 FROM member_business_links mbl JOIN family_groups fg ON fg.id=mbl.business_group_id
+                 WHERE mbl.member_group_id = ANY($1::int[])`, [familyGroupIds]);
+            links = linksRes.rows;
+        }
+        const usersRes = await pool.query(
+            `SELECT u.id, u.group_id, u.nickname, u.phone, fg.name AS group_name, fg.type FROM users u JOIN family_groups fg ON fg.id=u.group_id WHERE u.phone=$1`, [cleanPhone]);
+        usersForPhone = usersRes.rows;
+        res.json({
+            success: true,
+            phone: cleanPhone,
+            storefront_customers: scRes.rows,
+            store_customers: storeCustRes.rows,
+            store_orders: ordersRes.rows,
+            member_business_links: links,
+            users: usersForPhone,
+        });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // SA: הפשרת חשבון מוקפא
 app.post('/api/sa/groups/:id/freeze', verifySA, async (req, res) => {
     try {
