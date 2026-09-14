@@ -2557,6 +2557,20 @@ app.get('/api/sa/wizard-incomplete-businesses', verifySA, async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// סימון ידני שעסק סיים את אשף ההקמה, גם אם wizard_completed=false בפועל
+app.post('/api/sa/mark-wizard-completed/:groupId', verifySA, async (req, res) => {
+    try {
+        const groupId = parseInt(req.params.groupId);
+        if (!groupId) return res.status(400).json({ error: 'groupId לא תקין' });
+        const result = await pool.query(
+            `UPDATE family_groups SET wizard_completed=true WHERE id=$1 AND type='BUSINESS' RETURNING id, name`,
+            [groupId]
+        );
+        if (!result.rows.length) return res.status(404).json({ error: 'עסק לא נמצא' });
+        res.json({ success: true, group: result.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // SA: הפשרת חשבון מוקפא
 app.post('/api/sa/groups/:id/freeze', verifySA, async (req, res) => {
     try {

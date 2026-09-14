@@ -2603,13 +2603,32 @@ async function saWizardIncompleteBusinesses() {
         if (!d.success) { body.innerHTML = `<p class="text-red-500 text-center py-6">${safeStr(d.error||'שגיאה')}</p>`; return; }
         if (!d.count) { body.innerHTML = `<p class="text-emerald-600 bg-emerald-50 rounded-xl p-4 text-center font-bold">אין עסקים במצב הזה 🎉</p>`; return; }
         body.innerHTML = `<p class="font-bold text-slate-700 mb-2">נמצאו ${d.count} עסקים:</p>` + d.businesses.map(b => `
-            <div class="border border-amber-200 bg-amber-50 rounded-xl p-3">
-                <div class="font-bold text-slate-800">${safeStr(b.name)} <span class="text-slate-400 font-normal">#${b.id}</span></div>
-                <div class="text-slate-500 mt-0.5">קוד: ${safeStr(b.group_code||'—')} · סוג: ${safeStr(b.business_type||'—')} · סטטוס חשבון: ${safeStr(b.account_status||'—')} · נוצר: ${b.created_at ? new Date(b.created_at).toLocaleDateString('he-IL') : '—'}</div>
-                <div class="text-slate-500 mt-0.5">מנהל: ${safeStr(b.admin_nickname||'—')} · טלפון: ${safeStr(b.admin_phone||'—')}</div>
+            <div class="border border-amber-200 bg-amber-50 rounded-xl p-3" id="sa-wiz-row-${b.id}">
+                <div class="flex items-start justify-between gap-2">
+                    <div>
+                        <div class="font-bold text-slate-800">${safeStr(b.name)} <span class="text-slate-400 font-normal">#${b.id}</span></div>
+                        <div class="text-slate-500 mt-0.5">קוד: ${safeStr(b.group_code||'—')} · סוג: ${safeStr(b.business_type||'—')} · סטטוס חשבון: ${safeStr(b.account_status||'—')} · נוצר: ${b.created_at ? new Date(b.created_at).toLocaleDateString('he-IL') : '—'}</div>
+                        <div class="text-slate-500 mt-0.5">מנהל: ${safeStr(b.admin_nickname||'—')} · טלפון: ${safeStr(b.admin_phone||'—')}</div>
+                    </div>
+                    <button onclick="saMarkWizardCompleted(${b.id})" class="shrink-0 bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 rounded-lg text-[11px] font-bold transition whitespace-nowrap"><i class="fa-solid fa-check"></i> סמן כהושלם</button>
+                </div>
             </div>`).join('');
     } catch(e) {
         getEl('sa-wizard-incomplete-body').innerHTML = `<p class="text-red-500 text-center py-6">שגיאת רשת</p>`;
+    }
+}
+
+async function saMarkWizardCompleted(groupId) {
+    if (!confirm('לסמן את העסק הזה כאילו סיים את אשף ההקמה? הכניסה הבאה שלו תעבור ישירות למסך הראשי במקום לאשף.')) return;
+    try {
+        const res = await fetch(`${API}/sa/mark-wizard-completed/${groupId}`, { method: 'POST', headers: { 'Authorization': saToken } });
+        const d = await res.json();
+        if (!d.success) return showToast('error', d.error || 'שגיאה');
+        const row = getEl(`sa-wiz-row-${groupId}`);
+        if (row) row.remove();
+        showToast('success', `${d.group.name} סומן כהשלים את הוויזארד ✅`);
+    } catch(e) {
+        showToast('error', 'שגיאת רשת');
     }
 }
 
