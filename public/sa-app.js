@@ -2427,7 +2427,7 @@ function openMergeUserModal(sourceUserId) {
                     <h3 class="text-xl font-black text-slate-800 flex items-center gap-2">
                         <i class="fa-solid fa-code-merge text-amber-500"></i> מיזוג משתמש כפול
                     </h3>
-                    <p class="text-sm text-slate-500 mt-0.5">מקור: ${safeStr(srcName)}</p>
+                    <p class="text-sm text-slate-500 mt-0.5">מקור: ${safeStr(srcName)} <span class="font-mono text-xs text-slate-400">(מזהה #${sourceUserId})</span></p>
                 </div>
                 <button onclick="getEl('sa-merge-user-modal').remove()" class="text-slate-400 hover:text-slate-600 bg-slate-100 w-9 h-9 rounded-full flex items-center justify-center transition text-lg">✕</button>
             </div>
@@ -2466,7 +2466,7 @@ function renderMergeUserSearchResults(sourceUserId) {
         const group = saAllGroups.find(g => g.id === u.group_id);
         const name = fmtUserName(u) || u.nickname || `משתמש #${u.id}`;
         return `<button onclick='selectMergeUserTarget(${u.id}, ${JSON.stringify(name)})' class="w-full text-right bg-white border border-slate-200 hover:border-amber-300 hover:bg-amber-50 rounded-xl px-3 py-2 transition flex items-center justify-between">
-            <span class="text-xs font-bold text-slate-700">${safeStr(name)}</span>
+            <span class="text-xs font-bold text-slate-700">${safeStr(name)} <span class="font-mono text-slate-400 font-normal">#${u.id}</span></span>
             <span class="text-[10px] text-slate-400 font-mono">${safeStr(u.phone || '')} · ${safeStr(group ? fmtGroupName(group) : '')}</span>
         </button>`;
     }).join('');
@@ -2483,11 +2483,11 @@ function selectMergeUserTarget(targetId, targetName) {
         <div class="space-y-2 mb-4">
             <label class="flex items-center gap-2 p-2.5 rounded-xl border border-slate-200 cursor-pointer hover:bg-white bg-white">
                 <input type="radio" name="merge-user-primary" value="target" checked class="accent-amber-600">
-                <span class="text-xs font-bold text-slate-700">${safeStr(targetName)} <span class="text-slate-400 font-normal">(ראשי, נשאר) ← "${safeStr(window._mergeUserSourceName)}" יימחק</span></span>
+                <span class="text-xs font-bold text-slate-700">${safeStr(targetName)} <span class="font-mono text-slate-400 font-normal">#${targetId}</span> <span class="text-slate-400 font-normal">(ראשי, נשאר) ← "${safeStr(window._mergeUserSourceName)} #${window._mergeUserSourceId}" יימחק</span></span>
             </label>
             <label class="flex items-center gap-2 p-2.5 rounded-xl border border-slate-200 cursor-pointer hover:bg-white">
                 <input type="radio" name="merge-user-primary" value="source" class="accent-amber-600">
-                <span class="text-xs font-bold text-slate-700">${safeStr(window._mergeUserSourceName)} <span class="text-slate-400 font-normal">(ראשי, נשאר) ← "${safeStr(targetName)}" יימחק</span></span>
+                <span class="text-xs font-bold text-slate-700">${safeStr(window._mergeUserSourceName)} <span class="font-mono text-slate-400 font-normal">#${window._mergeUserSourceId}</span> <span class="text-slate-400 font-normal">(ראשי, נשאר) ← "${safeStr(targetName)} #${targetId}" יימחק</span></span>
             </label>
         </div>
         <button onclick="confirmMergeUser()" class="w-full bg-amber-600 text-white py-2.5 rounded-xl text-sm font-bold hover:bg-amber-700 transition">בצע מיזוג</button>
@@ -2500,7 +2500,7 @@ async function confirmMergeUser() {
     const duplicateUserId = primaryIsTarget ? window._mergeUserSourceId : window._mergeUserTargetId;
     const primaryName = primaryIsTarget ? window._mergeUserTargetName : window._mergeUserSourceName;
     const duplicateName = primaryIsTarget ? window._mergeUserSourceName : window._mergeUserTargetName;
-    if (!confirm(`למזג לצמיתות את "${duplicateName}" לתוך "${primaryName}"?\n\nשורת המשתמש "${duplicateName}" תימחק לצמיתות — פעולה בלתי הפיכה.`)) return;
+    if (!confirm(`למזג לצמיתות את "${duplicateName}" (מזהה #${duplicateUserId}) לתוך "${primaryName}" (מזהה #${primaryUserId})?\n\nשורת המשתמש #${duplicateUserId} תימחק לצמיתות — פעולה בלתי הפיכה.`)) return;
     try {
         const res = await fetch(`${API}/sa/users/merge`, {
             method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
