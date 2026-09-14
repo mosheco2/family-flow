@@ -14313,6 +14313,9 @@ window._toggleBizAccordion = async function(btn, bizGroupId, bizType) {
     if (!wrapper) return;
     const accordion = wrapper.querySelector('.biz-accordion');
     if (!accordion) return;
+    // נעילה נגד לחיצה כפולה: בזמן שהבקשה הראשונית בטעינה, מתעלמים מלחיצות נוספות —
+    // כדי שלחיצה שנייה (למשל כי המידע לוקח רגע להיטען) לא תסגור את מה שרק נפתח
+    if (accordion.dataset.loading === '1') return;
     const chevron = btn.querySelector('i');
     const isOpen = !accordion.classList.contains('hidden');
     if (isOpen) {
@@ -14325,6 +14328,7 @@ window._toggleBizAccordion = async function(btn, bizGroupId, bizType) {
     const loadedAt = accordion.dataset.loaded ? parseInt(accordion.dataset.loaded) : 0;
     if (Date.now() - loadedAt < 30000) return; // cache 30s
     accordion.dataset.loaded = String(Date.now());
+    accordion.dataset.loading = '1';
     try {
         const r = await fetch(`${API}/family/business-activity/${currentGroup.id}/${bizGroupId}`).then(r => r.json());
         _renderBizAccordion(accordion, r, bizType);
@@ -14334,6 +14338,8 @@ window._toggleBizAccordion = async function(btn, bizGroupId, bizType) {
         if (badge) pendingCount > 0 ? badge.classList.remove('hidden') : badge.classList.add('hidden');
     } catch(e) {
         accordion.innerHTML = '<p class="p-4 text-xs text-red-500 text-center">שגיאה בטעינת ההיסטוריה</p>';
+    } finally {
+        delete accordion.dataset.loading;
     }
 };
 
