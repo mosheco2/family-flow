@@ -23962,12 +23962,22 @@ app.post('/api/beauty/:bizId/clients', verifyBiz, async (req, res) => {
     try {
         const { client_family_id, client_name, client_phone, client_email, date_of_birth, medical_notes, skin_type, hair_type, id_number } = req.body;
         if (parseInt(req.params.bizId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
-        if (!id_number || !id_number.trim()) return res.status(400).json({ error: 'מספר ת.ז הוא שדה חובה' });
+        if (!client_name || !client_name.trim()) return res.status(400).json({ error: 'שם לקוח הוא שדה חובה' });
+        // שדות חובה נוספים — לפי הגדרות "שדות חובה בהוספת לקוח" של העסק (store_settings.customer_required_fields), לא קבוע מראש
+        let crf = {};
+        try {
+            const crfRes = await pool.query(`SELECT customer_required_fields FROM store_settings WHERE group_id=$1`, [req.params.bizId]);
+            crf = crfRes.rows[0]?.customer_required_fields || {};
+            if (typeof crf === 'string') crf = JSON.parse(crf);
+        } catch(_) {}
+        if (crf.id && (!id_number || !id_number.trim())) return res.status(400).json({ error: 'מספר ת.ז הוא שדה חובה לפי הגדרות העסק' });
+        if (crf.phone && (!client_phone || !client_phone.trim())) return res.status(400).json({ error: 'טלפון הוא שדה חובה לפי הגדרות העסק' });
+        if (crf.email && (!client_email || !client_email.trim())) return res.status(400).json({ error: 'אימייל הוא שדה חובה לפי הגדרות העסק' });
         const r = await pool.query(
             `INSERT INTO beauty_client_records (business_group_id, client_family_id, client_name, client_phone, client_email, date_of_birth, medical_notes, skin_type, hair_type, id_number)
              VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
-            [req.params.bizId, client_family_id||null, client_name||null, client_phone||null, client_email||null,
-             date_of_birth||null, medical_notes||null, skin_type||null, hair_type||null, id_number.trim()]
+            [req.params.bizId, client_family_id||null, client_name.trim(), client_phone||null, client_email||null,
+             date_of_birth||null, medical_notes||null, skin_type||null, hair_type||null, (id_number && id_number.trim()) || null]
         );
         res.json(r.rows[0]);
     } catch(e) { res.status(500).json({ error: e.message }); }

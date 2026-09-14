@@ -49262,7 +49262,7 @@ window._loadOpenRfqsForForm = async function() {
     const biz = _beautyBizId(); if (!biz) return;
     const el = document.getElementById('bfb-rfq-list'); if (!el) return;
     try {
-        const rfqs = await fetch(`${API}/beauty/${biz}/rfq?status=new`).then(r=>r.json());
+        const rfqs = await fetch(`${API}/beauty/${biz}/rfq?status=new`, { headers: { 'Authorization': `Bearer ${window._bizToken || ''}` } }).then(r=>r.json());
         const list = Array.isArray(rfqs) ? rfqs : [];
         if (list.length === 0) { el.innerHTML = '<p class="text-slate-400 text-xs">אין פניות חדשות ממתינות לשאלון</p>'; return; }
         el.innerHTML = list.map(rfq => `
@@ -51620,7 +51620,7 @@ async function loadBeautyRfq() {
     const el = document.getElementById('content-beauty_rfq'); if (!el) return;
     el.innerHTML = `<div class="py-10 text-center text-slate-400 text-sm"><i class="fa-solid fa-circle-notch fa-spin text-2xl mb-2 block"></i>טוען בקשות ייעוץ...</div>`;
     try {
-        const data = await fetch(`${API}/beauty/${biz}/rfq`).then(r => r.json());
+        const data = await fetch(`${API}/beauty/${biz}/rfq`, { headers: { 'Authorization': `Bearer ${window._bizToken || ''}` } }).then(r => r.json());
         _renderBeautyRfq(el, Array.isArray(data) ? data : []);
     } catch(e) {
         el.innerHTML = `<div class="py-10 text-center text-red-400 text-sm">שגיאה בטעינת הנתונים</div>`;
