@@ -1,7 +1,7 @@
 {
-  "name": "oneflow-life",
+  "name": "weflowz",
   "version": "1.0.0",
-  "description": "Oneflow Life - server (Postgres-ready) + static public",
+  "description": "WEFLOWZ - server (Postgres-ready) + static public",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
