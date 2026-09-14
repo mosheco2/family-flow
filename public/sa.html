@@ -4268,6 +4268,9 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                 <button onclick="saveSAEditUser()" class="w-full bg-indigo-600 text-white py-3 rounded-xl font-black shadow hover:bg-indigo-700 transition">
                     <i class="fa-solid fa-check mr-1"></i> שמור שינויים
                 </button>
+                <button onclick="openMergeUserModal(parseInt(getEl('sa-edit-user-id').value))" class="w-full bg-amber-50 text-amber-700 border border-amber-200 py-2.5 rounded-xl font-bold text-sm hover:bg-amber-100 transition">
+                    <i class="fa-solid fa-code-merge mr-1"></i> מזג עם משתמש אחר (כפילות)
+                </button>
             </div>
         </div>
     </div>
@@ -4717,7 +4720,7 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
       </div>
     </div>
 
-    <script src="sa-app.js?v=54"></script>
+    <script src="sa-app.js?v=55"></script>
     <script src="community-help.js?v=1"></script>
     <div id="sa-sla-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[9999] flex items-center justify-center p-4 fade-in">
         <div class="bg-white w-full max-w-2xl rounded-[2rem] p-6 shadow-2xl relative">

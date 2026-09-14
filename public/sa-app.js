@@ -2406,6 +2406,117 @@ async function confirmMergeDuplicate() {
     } catch(e) { showToast('error', 'שגיאת רשת'); }
 }
 
+// ===== מיזוג משתמש כפול לתוך משתמש קיים (בתוך משפחה, לא רק בין קבוצות שלמות) =====
+function openMergeUserModal(sourceUserId) {
+    const srcUser = saAllUsers.find(u => u.id === sourceUserId);
+    if (!srcUser) return;
+    const srcName = fmtUserName(srcUser) || srcUser.nickname || `משתמש #${sourceUserId}`;
+    getEl('sa-edit-user-modal')?.classList.add('hidden');
+
+    let modal = getEl('sa-merge-user-modal');
+    if (!modal) {
+        modal = document.createElement('div');
+        modal.id = 'sa-merge-user-modal';
+        modal.className = 'fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-[9999] flex items-center justify-center p-4';
+        document.body.appendChild(modal);
+    }
+    modal.innerHTML = `
+        <div class="bg-white w-full max-w-lg rounded-[2rem] shadow-2xl flex flex-col max-h-[90vh]">
+            <div class="flex justify-between items-center p-6 border-b border-slate-100">
+                <div>
+                    <h3 class="text-xl font-black text-slate-800 flex items-center gap-2">
+                        <i class="fa-solid fa-code-merge text-amber-500"></i> מיזוג משתמש כפול
+                    </h3>
+                    <p class="text-sm text-slate-500 mt-0.5">מקור: ${safeStr(srcName)}</p>
+                </div>
+                <button onclick="getEl('sa-merge-user-modal').remove()" class="text-slate-400 hover:text-slate-600 bg-slate-100 w-9 h-9 rounded-full flex items-center justify-center transition text-lg">✕</button>
+            </div>
+            <div class="p-6 space-y-4 overflow-y-auto">
+                <div class="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-xs text-amber-800 leading-relaxed">
+                    <b>⚠️ פעולה בלתי הפיכה.</b> כל הפעילות המיוחסת אישית למשתמש שיוגדר כ"כפול" (משימות, עסקאות, מטרות, נוכחות ועוד) תועבר למשתמש הראשי. שורת המשתמש הכפול <b>תימחק לצמיתות</b> בסוף התהליך (בניגוד למיזוג חשבונות שלם — כאן זו מחיקה אמיתית, כי זו רק שורת משתמש בודדת בתוך משפחה קיימת).
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-600 block mb-1.5">חפש את המשתמש השני (לפי שם / טלפון):</label>
+                    <input type="text" id="merge-user-search-input" oninput="renderMergeUserSearchResults(${sourceUserId})" placeholder="הקלד לחיפוש..." class="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:border-amber-400 outline-none">
+                </div>
+                <div id="merge-user-search-results" class="space-y-1.5 max-h-48 overflow-y-auto"></div>
+                <div id="merge-user-confirm-area" class="hidden bg-slate-50 border border-slate-200 rounded-2xl p-4"></div>
+            </div>
+        </div>`;
+    modal.style.display = 'flex';
+    window._mergeUserSourceId = sourceUserId;
+    window._mergeUserSourceName = srcName;
+    window._mergeUserTargetId = null;
+    setTimeout(() => getEl('merge-user-search-input')?.focus(), 50);
+}
+
+function renderMergeUserSearchResults(sourceUserId) {
+    const q = (getEl('merge-user-search-input')?.value || '').trim().toLowerCase();
+    const resultsEl = getEl('merge-user-search-results');
+    if (!resultsEl) return;
+    if (q.length < 2) { resultsEl.innerHTML = ''; return; }
+    const matches = saAllUsers.filter(u => {
+        if (u.id === sourceUserId) return false;
+        const group = saAllGroups.find(g => g.id === u.group_id);
+        const hay = `${fmtUserName(u) || u.nickname || ''} ${u.phone || ''} ${group ? fmtGroupName(group) : ''}`.toLowerCase();
+        return hay.includes(q);
+    }).slice(0, 20);
+    if (!matches.length) { resultsEl.innerHTML = `<p class="text-xs text-slate-400 text-center py-3">לא נמצאו תוצאות</p>`; return; }
+    resultsEl.innerHTML = matches.map(u => {
+        const group = saAllGroups.find(g => g.id === u.group_id);
+        const name = fmtUserName(u) || u.nickname || `משתמש #${u.id}`;
+        return `<button onclick='selectMergeUserTarget(${u.id}, ${JSON.stringify(name)})' class="w-full text-right bg-white border border-slate-200 hover:border-amber-300 hover:bg-amber-50 rounded-xl px-3 py-2 transition flex items-center justify-between">
+            <span class="text-xs font-bold text-slate-700">${safeStr(name)}</span>
+            <span class="text-[10px] text-slate-400 font-mono">${safeStr(u.phone || '')} · ${safeStr(group ? fmtGroupName(group) : '')}</span>
+        </button>`;
+    }).join('');
+}
+
+function selectMergeUserTarget(targetId, targetName) {
+    window._mergeUserTargetId = targetId;
+    window._mergeUserTargetName = targetName;
+    const area = getEl('merge-user-confirm-area');
+    if (!area) return;
+    area.classList.remove('hidden');
+    area.innerHTML = `
+        <p class="text-xs font-bold text-slate-600 mb-3">מי המשתמש הראשי (שאליו תועבר כל הפעילות, וישאר קיים)?</p>
+        <div class="space-y-2 mb-4">
+            <label class="flex items-center gap-2 p-2.5 rounded-xl border border-slate-200 cursor-pointer hover:bg-white bg-white">
+                <input type="radio" name="merge-user-primary" value="target" checked class="accent-amber-600">
+                <span class="text-xs font-bold text-slate-700">${safeStr(targetName)} <span class="text-slate-400 font-normal">(ראשי, נשאר) ← "${safeStr(window._mergeUserSourceName)}" יימחק</span></span>
+            </label>
+            <label class="flex items-center gap-2 p-2.5 rounded-xl border border-slate-200 cursor-pointer hover:bg-white">
+                <input type="radio" name="merge-user-primary" value="source" class="accent-amber-600">
+                <span class="text-xs font-bold text-slate-700">${safeStr(window._mergeUserSourceName)} <span class="text-slate-400 font-normal">(ראשי, נשאר) ← "${safeStr(targetName)}" יימחק</span></span>
+            </label>
+        </div>
+        <button onclick="confirmMergeUser()" class="w-full bg-amber-600 text-white py-2.5 rounded-xl text-sm font-bold hover:bg-amber-700 transition">בצע מיזוג</button>
+    `;
+}
+
+async function confirmMergeUser() {
+    const primaryIsTarget = document.querySelector('input[name="merge-user-primary"]:checked')?.value === 'target';
+    const primaryUserId = primaryIsTarget ? window._mergeUserTargetId : window._mergeUserSourceId;
+    const duplicateUserId = primaryIsTarget ? window._mergeUserSourceId : window._mergeUserTargetId;
+    const primaryName = primaryIsTarget ? window._mergeUserTargetName : window._mergeUserSourceName;
+    const duplicateName = primaryIsTarget ? window._mergeUserSourceName : window._mergeUserTargetName;
+    if (!confirm(`למזג לצמיתות את "${duplicateName}" לתוך "${primaryName}"?\n\nשורת המשתמש "${duplicateName}" תימחק לצמיתות — פעולה בלתי הפיכה.`)) return;
+    try {
+        const res = await fetch(`${API}/sa/users/merge`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+            body: JSON.stringify({ primaryUserId, duplicateUserId })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast('success', 'המיזוג בוצע בהצלחה ✅');
+            getEl('sa-merge-user-modal')?.remove();
+            if (typeof loadSAData === 'function') await loadSAData();
+        } else {
+            showToast('error', data.error || 'שגיאה במיזוג');
+        }
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
+}
+
 async function openSnapshotsModal(groupId, groupName) {
     let modal = getEl('sa-snapshots-modal');
     if (!modal) {

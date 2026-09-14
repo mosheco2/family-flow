@@ -2402,6 +2402,84 @@ app.post('/api/sa/groups/merge-duplicate', verifySA, async (req, res) => {
     } finally { client.release(); }
 });
 
+// SA: מיזוג משתמש כפול לתוך משתמש קיים (בתוך אותה משפחה או בכלל) —
+// מעביר את כל הפעילות שמיוחסת לאותו user_id (משימות, עסקאות, מטרות, נוכחות וכו') למשתמש הראשי,
+// ומוחק את שורת המשתמש הכפול. מגלה דינמית כל טבלה שמצביעה על users(id) כדי לא לפספס אף אחת.
+app.post('/api/sa/users/merge', verifySA, async (req, res) => {
+    const { primaryUserId, duplicateUserId } = req.body;
+    if (!primaryUserId || !duplicateUserId || parseInt(primaryUserId) === parseInt(duplicateUserId)) {
+        return res.status(400).json({ error: 'נדרשים שני משתמשים שונים' });
+    }
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+        const [pRes, dRes] = await Promise.all([
+            client.query('SELECT id, nickname, group_id FROM users WHERE id=$1', [primaryUserId]),
+            client.query('SELECT id, nickname, group_id FROM users WHERE id=$1', [duplicateUserId]),
+        ]);
+        if (!pRes.rows.length || !dRes.rows.length) { await client.query('ROLLBACK'); return res.status(404).json({ error: 'משתמש לא נמצא' }); }
+
+        // ארנק FLW — טיפול מיוחד: מאחדים יתרות במקום למחוק/לדרוס
+        const walletRes = await client.query(`SELECT balance_flw, lifetime_flw FROM flw_kid_wallets WHERE child_user_id=$1`, [duplicateUserId]);
+        if (walletRes.rows.length) {
+            const bal = parseFloat(walletRes.rows[0].balance_flw || 0);
+            const life = parseFloat(walletRes.rows[0].lifetime_flw || 0);
+            const targetWallet = await client.query(`SELECT id FROM flw_kid_wallets WHERE child_user_id=$1`, [primaryUserId]);
+            if (targetWallet.rows.length) {
+                await client.query(`UPDATE flw_kid_wallets SET balance_flw=balance_flw+$1, lifetime_flw=lifetime_flw+$2 WHERE child_user_id=$3`, [bal, life, primaryUserId]);
+                await client.query(`DELETE FROM flw_kid_wallets WHERE child_user_id=$1`, [duplicateUserId]);
+            } else {
+                await client.query(`UPDATE flw_kid_wallets SET child_user_id=$1 WHERE child_user_id=$2`, [primaryUserId, duplicateUserId]);
+            }
+        }
+        // flw_kid_config — אותו רעיון, שומר על הראשי אם קיים, אחרת מעביר
+        const cfgTarget = await client.query(`SELECT id FROM flw_kid_config WHERE child_user_id=$1`, [primaryUserId]);
+        if (cfgTarget.rows.length) {
+            await client.query(`DELETE FROM flw_kid_config WHERE child_user_id=$1`, [duplicateUserId]);
+        } else {
+            await client.query(`UPDATE flw_kid_config SET child_user_id=$1 WHERE child_user_id=$2`, [primaryUserId, duplicateUserId]);
+        }
+
+        // גילוי דינמי של כל עמודה בכל טבלה שמצביעה על users(id) (FK אמיתי) — לא לפספס אף טבלה
+        const fkCols = await client.query(`
+            SELECT tc.table_name, kcu.column_name
+            FROM information_schema.table_constraints tc
+            JOIN information_schema.key_column_usage kcu ON tc.constraint_name = kcu.constraint_name AND tc.table_schema = kcu.table_schema
+            JOIN information_schema.constraint_column_usage ccu ON tc.constraint_name = ccu.constraint_name AND tc.table_schema = ccu.table_schema
+            WHERE tc.constraint_type = 'FOREIGN KEY' AND ccu.table_name = 'users' AND ccu.column_name = 'id'
+              AND tc.table_name NOT IN ('flw_kid_wallets', 'flw_kid_config')
+        `);
+
+        let movedTables = [];
+        for (const { table_name, column_name } of fkCols.rows) {
+            await client.query('SAVEPOINT merge_col');
+            try {
+                const r = await client.query(
+                    `UPDATE ${table_name} SET ${column_name}=$1 WHERE ${column_name}=$2`,
+                    [primaryUserId, duplicateUserId]
+                );
+                await client.query('RELEASE SAVEPOINT merge_col');
+                if (r.rowCount > 0) movedTables.push(`${table_name}.${column_name} (${r.rowCount})`);
+            } catch(e2) {
+                // התנגשות מפתח ייחודי — כנראה שיש כבר רשומה כזו אצל המשתמש הראשי;
+                // מוחקים את גרסת הכפילות בטבלה הזו בלבד (לא נוגעים בשאר הנתונים)
+                await client.query('ROLLBACK TO SAVEPOINT merge_col');
+                await client.query(`DELETE FROM ${table_name} WHERE ${column_name}=$1`, [duplicateUserId]);
+            }
+        }
+
+        // מחיקת שורת המשתמש הכפול עצמה — הפעילות שלו כבר הועברה
+        await client.query(`DELETE FROM users WHERE id=$1`, [duplicateUserId]);
+
+        await client.query('COMMIT');
+        await logAudit('MERGE_USERS', 'USER', parseInt(duplicateUserId), dRes.rows[0].nickname, { mergedInto: parseInt(primaryUserId), primaryName: pRes.rows[0].nickname, movedTables });
+        res.json({ success: true, movedTables });
+    } catch(e) {
+        await client.query('ROLLBACK');
+        res.status(500).json({ error: e.message });
+    } finally { client.release(); }
+});
+
 // SA: הפשרת חשבון מוקפא
 app.post('/api/sa/groups/:id/freeze', verifySA, async (req, res) => {
     try {
