@@ -77,6 +77,25 @@ const scAuth = window.scAuth = {
         this._renderStep(step);
     },
 
+    // שער התחברות משותף — קורא לפני כל פעולת "הזמנה" (מוצר/שולחן/תור/מנוי/אימון וכו').
+    // אם הלקוח כבר מחובר מחזיר true ומאפשר להמשיך. אם לא — פותח את מודל ההתחברות/הרשמה,
+    // וזוכר את שם הפונקציה הגלובלית שיש להריץ אוטומטית מיד אחרי שההתחברות/הרשמה תושלם.
+    requireLogin(pendingActionName, hintHtml) {
+        if (this._customer) return true;
+        window._pendingAfterScLogin = pendingActionName;
+        const msgEl = document.getElementById('sc-modal-login-hint');
+        if (!msgEl) {
+            const hint = document.createElement('div');
+            hint.id = 'sc-modal-login-hint';
+            hint.style.cssText = 'background:#f0fdf4;border:1px solid #86efac;border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:12px;color:#166534;text-align:right;line-height:1.5';
+            hint.innerHTML = hintHtml || '🔒 כדי להמשיך יש להתחבר או להירשם.<br><span style="font-size:11px;color:#15803d">לאחר ההרשמה תוכל/י לעקוב אחרי כל הפעולות שלך.</span>';
+            const modalBody = document.getElementById('sc-modal-body');
+            if (modalBody) modalBody.insertBefore(hint, modalBody.firstChild);
+        }
+        this.openModal('phone');
+        return false;
+    },
+
     closeModal() { document.getElementById('sc-auth-modal').style.display = 'none'; },
 
     _renderStep(step, data = {}) {

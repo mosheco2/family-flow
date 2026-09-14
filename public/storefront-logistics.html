@@ -744,6 +744,11 @@ function toggleUrgent() {
 // ── Submit shipment form ──
 async function submitShipment(e) {
   e.preventDefault();
+  if (window.scAuth && !window.scAuth._customer) {
+    window._resumeSubmitShipment = () => submitShipment(e);
+    window.scAuth.requireLogin('_resumeSubmitShipment', '🔒 כדי לשלוח בקשת משלוח יש להתחבר או להירשם.');
+    return;
+  }
   const btn = document.getElementById('form-submit-btn');
   const txtEl = document.getElementById('form-btn-text');
   const successEl = document.getElementById('form-success');

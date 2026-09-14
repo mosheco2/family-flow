@@ -672,6 +672,7 @@ async function submitLead(){
   const desc=document.getElementById('f-desc').value.trim();
 
   if(!name||!phone||!desc){showToast('אנא מלאו שם, טלפון ותיאור הבעיה');return;}
+  if (window.scAuth && !window.scAuth.requireLogin('submitLead', '🔒 כדי לשלוח בקשת שירות יש להתחבר או להירשם.')) return;
 
   btn.disabled=true;
   btn.innerHTML='<div class="spinner"></div> שולח...';

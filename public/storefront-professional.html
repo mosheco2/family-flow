@@ -655,6 +655,11 @@ function renderArticles(articles) {
 // ===== FORM SUBMISSIONS =====
 async function submitBooking(e) {
   e.preventDefault();
+  if (window.scAuth && !window.scAuth._customer) {
+    window._resumeSubmitBooking = () => submitBooking(e);
+    window.scAuth.requireLogin('_resumeSubmitBooking', '🔒 כדי לשלוח בקשת פגישה יש להתחבר או להירשם.');
+    return;
+  }
   const btn = document.getElementById('book-btn');
   const errEl = document.getElementById('book-err');
   errEl.textContent = '';
@@ -688,6 +693,11 @@ async function submitBooking(e) {
 
 async function submitContact(e) {
   e.preventDefault();
+  if (window.scAuth && !window.scAuth._customer) {
+    window._resumeSubmitContact = () => submitContact(e);
+    window.scAuth.requireLogin('_resumeSubmitContact', '🔒 כדי לשלוח פנייה יש להתחבר או להירשם.');
+    return;
+  }
   const btn = document.getElementById('cont-btn');
   const errEl = document.getElementById('cont-err');
   errEl.textContent = '';

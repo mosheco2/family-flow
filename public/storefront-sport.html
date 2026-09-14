@@ -1206,6 +1206,11 @@ function renderQuickActions(s) {
 let _bookingType = 'table', _bookStep = 1, _bookTempId = null, _bookSelectedSlot = null;
 
 function openBooking(type) {
+  if (window.scAuth && !window.scAuth._customer) {
+    window._resumeOpenBooking = () => openBooking(type);
+    window.scAuth.requireLogin('_resumeOpenBooking', '🔒 כדי להמשיך יש להתחבר או להירשם.');
+    return;
+  }
   _bookingType = type;
   _bookStep = 1; _bookTempId = null; _bookSelectedSlot = null;
   document.getElementById('booking-title').textContent = type === 'event' ? 'הזמנת אירוע' : type === 'space' ? 'הזמנת מקום' : 'הזמנת שולחן';
@@ -1788,6 +1793,7 @@ async function submitOrder() {
   const name  = document.getElementById('co-name').value.trim();
   const phone = document.getElementById('co-phone').value.trim();
   if (!biz || !name || !phone) { showToast(t('יש למלא שם עסק, איש קשר וטלפון','Please fill business name, contact and phone')); return; }
+  if (window.scAuth && !window.scAuth.requireLogin('submitOrder', t('🔒 כדי להשלים את ההזמנה יש להתחבר או להירשם.', '🔒 Please log in or register to complete your order.'))) return;
   const btn = document.getElementById('submit-btn');
   btn.textContent = t('שולח...','Sending...'); btn.disabled = true;
   const sub = cartTotal();
@@ -2453,6 +2459,7 @@ window.submitClassReg = async function() {
   const name = document.getElementById('crm-name')?.value?.trim();
   const phone = document.getElementById('crm-phone')?.value?.trim();
   if (!name || !phone) { alert('שם וטלפון חובה'); return; }
+  if (window.scAuth && !window.scAuth.requireLogin('submitClassReg', '🔒 כדי להירשם לשיעור יש להתחבר או להירשם.')) return;
   const gid = storeData?.groupId || storeData?.group_id;
   const btn = document.getElementById('crm-submit-btn');
   btn.disabled = true; btn.textContent = '⏳ שולח...';
@@ -2535,6 +2542,7 @@ window.submitMembership = async function() {
   if (waiverBlock && waiverBlock.style.display !== 'none') {
     if (!document.getElementById('mem-waiver-agree')?.checked) { alert('יש לאשר את הצהרת הכשירות הגופנית'); return; }
   }
+  if (window.scAuth && !window.scAuth.requireLogin('submitMembership', '🔒 כדי לרכוש מנוי יש להתחבר או להירשם.')) return;
   const gid = storeData?.groupId || storeData?.group_id;
   try {
     const r = await fetch('/api/sport/public-membership-purchase', {
@@ -2736,6 +2744,7 @@ window.submitMembership = async function() {
     const name = document.getElementById('tbm-name')?.value?.trim();
     if (!name) { alert('נא להזין שם'); return; }
     if (!_tbmSlotStart || !_tbmSlotEnd) { alert('נא לבחור שעה'); return; }
+    if (window.scAuth && !window.scAuth.requireLogin('tbmSubmit', '🔒 כדי לקבוע אימון אישי יש להתחבר או להירשם.')) return;
     const gid = storeData?.groupId || storeData?.group_id;
     const phone = document.getElementById('tbm-phone')?.value?.trim() || null;
     const service = document.getElementById('tbm-service')?.value?.trim() || 'אימון אישי';

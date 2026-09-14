@@ -2142,6 +2142,7 @@ async function submitOrder() {
   if (!phone || phone.length < 9) { showToast(t('אנא הכנס מספר טלפון', 'Please enter a valid phone number')); return; }
   if (isDelivery && !city) { showToast(t('אנא הכנס עיר למשלוח', 'Please enter your city')); return; }
   if (isDelivery && !street) { showToast(t('אנא הכנס רחוב למשלוח', 'Please enter your street')); return; }
+  if (window.scAuth && !window.scAuth.requireLogin('submitOrder', t('🔒 כדי להשלים את ההזמנה יש להתחבר או להירשם.', '🔒 Please log in or register to complete your order.'))) return;
 
   const s = storeData?.settings||{};
   const final = getPanelFinal();
@@ -2225,6 +2226,11 @@ function setDeliveryMode(deliver) {
 
 // ===== BOOKING =====
 function openBooking(type) {
+  if (window.scAuth && !window.scAuth._customer) {
+    window._resumeOpenBooking = () => openBooking(type);
+    window.scAuth.requireLogin('_resumeOpenBooking', type === 'event' ? '🔒 כדי לשלוח בקשת אירוע יש להתחבר או להירשם.' : '🔒 כדי להזמין שולחן יש להתחבר או להירשם.');
+    return;
+  }
   _bookingType = type;
   _bookStep = 1; _bookTempId = null; _bookSelectedSlot = null;
   document.getElementById('booking-title').textContent = type === 'event' ? 'הזמנת אירוע / קייטרינג' : 'הזמנת שולחן';

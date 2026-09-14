@@ -1509,6 +1509,11 @@
                 alert(isEn ? 'Please enter name or phone' : 'נא להזין שם או טלפון');
                 return;
             }
+            if (window.scAuth && !window.scAuth._customer) {
+                window._resumeSubmitProfContact = () => submitProfContact(groupId, lang);
+                window.scAuth.requireLogin('_resumeSubmitProfContact', isEn ? '🔒 Please log in or register to send this request.' : '🔒 כדי לשלוח פנייה יש להתחבר או להירשם.');
+                return;
+            }
             try {
                 const res = await fetch(`${API}/professional-leads/${groupId}`, {
                     method: 'POST', headers: {'Content-Type':'application/json'},
@@ -3439,6 +3444,7 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
             }));
             if (!name || !phone) { showToast('error', 'נא למלא שם וטלפון'); return; }
             if (!date) { showToast('error', 'נא לבחור תאריך אירוע'); return; }
+            if (window.scAuth && !window.scAuth.requireLogin('submitEventQuote', '🔒 כדי לשלוח בקשת הצעת מחיר יש להתחבר או להירשם.')) return;
             const btn = document.getElementById('btn-submit-eq');
             if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin ml-2"></i> שולח...'; }
             try {
@@ -3694,6 +3700,7 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
             if (!name || !phone || !date || !time) {
                 return showToast('error', 'יש למלא שם, טלפון, תאריך ושעה');
             }
+            if (window.scAuth && !window.scAuth.requireLogin('submitBookingRequest', '🔒 כדי לשלוח בקשת תור יש להתחבר או להירשם.')) return;
 
             const btn = getEl('btn-submit-booking');
             if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> שולח...'; }
@@ -3795,7 +3802,8 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
             const content = document.getElementById('contact-content').value.trim();
             
             if (!name || !content) return showToast('error', 'יש למלא שם מלא ותוכן פנייה');
-            
+            if (window.scAuth && !window.scAuth.requireLogin('submitContactForm', '🔒 כדי לשלוח פנייה יש להתחבר או להירשם.')) return;
+
             const btn = document.getElementById('btn-submit-contact');
             if(btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> משגר...'; }
             
@@ -3948,6 +3956,7 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
                 showToast('error', 'יש למלא את כל השדות החובה');
                 return;
             }
+            if (window.scAuth && !window.scAuth.requireLogin('submitTableReservation', '🔒 כדי להזמין שולחן יש להתחבר או להירשם.')) return;
 
             const btn = document.getElementById('btn-submit-table-res');
             if(btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> שולח בקשה...'; }
