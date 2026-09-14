@@ -1,4 +1,4 @@
-# Deploying WEFLOWZ Life on Render (quick guide)
+# Deploying WEFLOWZ on Render (quick guide)
 
 This repository contains a Node/Express server (server.js) that serves a static frontend (public/) and exposes API endpoints.
 The server supports both:

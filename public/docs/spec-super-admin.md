@@ -1,6 +1,6 @@
-# מפרט טכני מקיף — סביבת Super Admin (SA) — WEFLOWZ Life
+# מפרט טכני מקיף — סביבת Super Admin (SA) — WEFLOWZ
 
-> מסמך זה מתאר את מלוא הפונקציונליות של סביבת ה-Super Admin במערכת WEFLOWZ Life.  
+> מסמך זה מתאר את מלוא הפונקציונליות של סביבת ה-Super Admin במערכת WEFLOWZ.  
 > נכתב לשימוש כמקור ידע ב-NotebookLM ולצרכי פיתוח.  
 > תאריך: 2026-06-20
 

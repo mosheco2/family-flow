@@ -1,4 +1,4 @@
-# מסמך אפיון — סביבת FAMILY | WEFLOWZ Life
+# מסמך אפיון — סביבת FAMILY | WEFLOWZ
 
 > גרסה: 2026-06-20 | מבוסס על קוד: `public/app.js`, `public/index.html`, `server1.js`
 
@@ -14,7 +14,7 @@
 | קובץ HTML | `public/index.html` |
 | קובץ JS ראשי | `public/app.js` |
 | סוג קבוצה (DB) | `type = 'FAMILY'` |
-| שם מוצר | WEFLOWZ Life |
+| שם מוצר | WEFLOWZ |
 | כתובת ייצור | `https://www.weflowz.co.il` |
 
 **4 סביבות במערכת:**
@@ -936,7 +936,7 @@ executeWithAIWarning(actionFn) {
 - `manifest.json` + Service Worker
 - `theme-color: #4f46e5` (indigo)
 - אייקונים: 192×192, 152×152
-- כותרת PWA: "FamilyFlow" / "WEFLOWZ Life"
+- כותרת PWA: "FamilyFlow" / "WEFLOWZ"
 - `beforeinstallprompt` → `deferredPrompt` → prompt() ב-Android
 - iOS: הוראות ידניות (Share → Add to Home Screen)
 - `setupPwaInstallSection()` — מזהה iOS/Android אוטומטית
@@ -1240,4 +1240,4 @@ const tips  = (isAdmin && help.tips_admin)  ? help.tips_admin  : help.tips;
 
 ---
 
-*עודכן: 2026-06-28 | WEFLOWZ Life*
+*עודכן: 2026-06-28 | WEFLOWZ*

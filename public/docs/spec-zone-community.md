@@ -704,4 +704,4 @@ API: `GET /api/biz/communities/match/:bizId` → מחזיר ציוני % התא�
 
 ---
 
-*עודכן: 2026-06-28 | WEFLOWZ Life — Zone Manager & Community*
+*עודכן: 2026-06-28 | WEFLOWZ — Zone Manager & Community*
