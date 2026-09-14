@@ -13665,7 +13665,7 @@ async function loadMyActivities() {
     if (!el || !currentGroup) return;
     el.innerHTML = '<p class="text-xs text-slate-400 text-center py-6"><i class="fa-solid fa-spinner fa-spin ml-1"></i> טוען...</p>';
     try {
-        const d = await fetch(`${API}/family/linked-businesses/${currentGroup.id}`).then(r => r.json());
+        const d = await communityFetch(`${API}/family/linked-businesses/${currentGroup.id}`).then(r => r.json());
         _activityAllBiz = d.businesses || [];
 
         if (!_activityAllBiz.length) {
