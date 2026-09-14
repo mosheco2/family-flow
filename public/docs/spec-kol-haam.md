@@ -1,5 +1,5 @@
 # אפיון כל העם — פלטפורמת תוכן קהילתית
-מסמך אפיון · OneFlow Life · עודכן 24.08.2026
+מסמך אפיון · WEFLOWZ · עודכן 24.08.2026
 
 ---
 
@@ -91,7 +91,7 @@ STATE = {
 | אלמנט | תפקיד |
 |---|---|
 | `.scope-btn[data-scope="local"]` | תוכן מקומי לקהילה |
-| `.scope-btn[data-scope="global"]` | תוכן גלובלי לכל OneFlow |
+| `.scope-btn[data-scope="global"]` | תוכן גלובלי לכל WEFLOWZ |
 | `#cat-scroll` | chips קטגוריות (גלילה אופקית) |
 | `.cat-chip` | סינון לפי קטגוריה |
 
@@ -173,7 +173,7 @@ STATE = {
 | `PENDING_ZM` | ענבר | ממתין לאישור ZM |
 | `PENDING_SA` | סגול | ממתין לאישור SA |
 | `PUBLISHED_LOCAL` | ירוק | פורסם בקהילה המקומית |
-| `PUBLISHED_GLOBAL` | כחול | פורסם בכל OneFlow |
+| `PUBLISHED_GLOBAL` | כחול | פורסם בכל WEFLOWZ |
 | `REJECTED` | אדום | נדחה + `.rejection-note` |
 
 ---

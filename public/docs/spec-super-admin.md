@@ -1,6 +1,6 @@
-# מפרט טכני מקיף — סביבת Super Admin (SA) — Oneflow Life
+# מפרט טכני מקיף — סביבת Super Admin (SA) — WEFLOWZ Life
 
-> מסמך זה מתאר את מלוא הפונקציונליות של סביבת ה-Super Admin במערכת Oneflow Life.  
+> מסמך זה מתאר את מלוא הפונקציונליות של סביבת ה-Super Admin במערכת WEFLOWZ Life.  
 > נכתב לשימוש כמקור ידע ב-NotebookLM ולצרכי פיתוח.  
 > תאריך: 2026-06-20
 
@@ -372,7 +372,7 @@ backlog → in_progress → qa → done
 ### 7.3 קבוצות (clients)
 
 **תצוגה:**
-- כל הקבוצות (משפחות + עסקים + ONEFLOW members)
+- כל הקבוצות (משפחות + עסקים + WEFLOWZ members)
 - כרטיסים מתרחבים: שם, קוד, AI tokens (10 ברירת מחדל / ∞ ל-PRO), תאריך יצירה, badge סוג, badge PRO
 
 **פעולות לכל קבוצה:**
@@ -881,9 +881,9 @@ function showSAHelp() {
 - `saPlanChange(groupId, plan)` → `POST /api/superadmin/groups/:id/plan`
 - `saTogglePremium(id, enable)` — toggle בין Standard ↔ Enterprise (legacy)
 
-### 13.4 ONEFLOW Membership
+### 13.4 WEFLOWZ Membership
 
-- `g.member_type === 'member'` → תג "חבר ONEFLOW" (סגול)
+- `g.member_type === 'member'` → תג "חבר WEFLOWZ" (סגול)
 - יכול להשתנות: `saDemoteOneflow(id)` — "שדרג לסביבה רגילה"
 
 ---
@@ -1004,4 +1004,4 @@ Panel מסך מלא `sa-comm-map-panel`:
 
 ---
 
-*עודכן: 2026-06-28 | Oneflow Life BIZ*
+*עודכן: 2026-06-28 | WEFLOWZ BIZ*

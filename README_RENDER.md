@@ -1,4 +1,4 @@
-# Deploying Oneflow Life on Render (quick guide)
+# Deploying WEFLOWZ Life on Render (quick guide)
 
 This repository contains a Node/Express server (server.js) that serves a static frontend (public/) and exposes API endpoints.
 The server supports both:
@@ -17,7 +17,7 @@ Steps to deploy on Render
    - Start Command: `npm start`
 3. Create a Postgres database in Render:
    - Click "New" → "Database" → "PostgreSQL".
-   - Name it (e.g., `oneflow-life-db`), choose region/plan.
+   - Name it (e.g., `weflowz-db`), choose region/plan.
    - Once the database is ready, copy the `DATABASE_URL` connection string.
 4. Add environment variable to your Web Service:
    - Go to the Service → Environment → Environment Variables.

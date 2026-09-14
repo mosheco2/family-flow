@@ -303,7 +303,7 @@
 | PATCH | /api/store/quotes/:id/customer-response | תגובת לקוח | ציבורי |
 | POST | /api/store/quotes/:id/prepare-send | הכנת שליחה | verifyBizOrLegacy + requireModule('sales') |
 | POST | /api/store/quotes/:id/approve | אישור הצעה | verifyBizOrLegacy + requireModule('sales') |
-| POST | /api/store/quotes/:id/send-to-oneflow | שליחה ל-OneFlow | verifyBizOrLegacy + requireModule('sales') |
+| POST | /api/store/quotes/:id/send-to-oneflow | שליחה ל-WEFLOWZ | verifyBizOrLegacy + requireModule('sales') |
 | POST | /api/store/quotes/:id/link-only | יצירת לינק בלבד | verifyBizOrLegacy + requireModule('sales') |
 | POST | /api/store/quotes/:id/business-message | הודעת עסק | verifyBizOrLegacy + requireModule('sales') |
 | POST | /api/store/quotes/:id/to-work-order | המרה ל-Work Order | verifyBizOrLegacy + requireModule('sales') |
@@ -333,11 +333,11 @@
 | GET | /api/store/newsletters/:groupId | ניוזלטרים | ציבורי |
 | DELETE | /api/store/newsletters/:id | מחיקת ניוזלטר | ציבורי |
 | POST | /api/store/newsletter/broadcast | שידור ניוזלטר | ציבורי |
-| GET | /api/store/oneflow-customers/:groupId | לקוחות OneFlow | ציבורי |
-| POST | /api/store/oneflow-message | הודעת OneFlow | ציבורי |
+| GET | /api/store/oneflow-customers/:groupId | לקוחות WEFLOWZ | ציבורי |
+| POST | /api/store/oneflow-message | הודעת WEFLOWZ | ציבורי |
 | GET | /api/store/search-customers | חיפוש לקוחות | ציבורי |
-| GET | /api/store/lookup-oneflow | חיפוש OneFlow | ציבורי |
-| GET | /api/store/check-oneflow | בדיקת OneFlow | ציבורי |
+| GET | /api/store/lookup-oneflow | חיפוש WEFLOWZ | ציבורי |
+| GET | /api/store/check-oneflow | בדיקת WEFLOWZ | ציבורי |
 | POST | /api/store/ai-desc | תיאור מוצר AI | ציבורי |
 | POST | /api/store/ai-long-desc | תיאור ארוך AI | ציבורי |
 
@@ -385,7 +385,7 @@
 | POST | /api/service-calls | יצירת קריאת שירות | ציבורי |
 | PATCH | /api/service-calls/:id | עדכון קריאה | ציבורי |
 | DELETE | /api/service-calls/:id | מחיקת קריאה | ציבורי |
-| PATCH | /api/service-calls/:id/link-oneflow | קישור ל-OneFlow | ציבורי |
+| PATCH | /api/service-calls/:id/link-oneflow | קישור ל-WEFLOWZ | ציבורי |
 | GET | /api/service-calls/family/:groupId | קריאות משפחה | ציבורי |
 | GET | /api/service-calls/business/:groupId | קריאות עסק | ציבורי |
 | GET | /api/service-calls/customer/:businessGroupId/:familyGroupId | קריאות לקוח | ציבורי |

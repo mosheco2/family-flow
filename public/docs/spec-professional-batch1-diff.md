@@ -1,5 +1,5 @@
 # Professional Batch 1 — diff לאישור — endpoints 5–12
-מסמך עבודה · OneFlow Life · 25.08.2026
+מסמך עבודה · WEFLOWZ · 25.08.2026
 
 ---
 

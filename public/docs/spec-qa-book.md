@@ -1,5 +1,5 @@
-# ספר QA — OneFlow Life / Family-Flow
-**גרסה:** 2026-06-20 | **מחבר:** צוות פיתוח OneFlow  
+# ספר QA — WEFLOWZ / Family-Flow
+**גרסה:** 2026-06-20 | **מחבר:** צוות פיתוח WEFLOWZ  
 **מכסה:** 4 סביבות — FAMILY · BIZ · SUPER-ADMIN · ZONE-MANAGER
 
 ---

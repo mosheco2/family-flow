@@ -1,5 +1,5 @@
 # Areas & Link Batch — תוכנית אבטחה — 14 endpoints
-מסמך תכנון · OneFlow Life · 25.08.2026
+מסמך תכנון · WEFLOWZ · 25.08.2026
 
 ---
 

@@ -1,5 +1,5 @@
 # Beauty Batch — תוכנית אבטחה — 47 endpoints
-מסמך תכנון · OneFlow Life · 25.08.2026
+מסמך תכנון · WEFLOWZ · 25.08.2026
 
 ---
 

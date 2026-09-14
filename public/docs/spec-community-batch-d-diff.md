@@ -1,5 +1,5 @@
 # Batch D — diff לאישור — 12 endpoints "בדיקת הרשאה"
-מסמך עבודה · OneFlow Life · 25.08.2026
+מסמך עבודה · WEFLOWZ · 25.08.2026
 
 ---
 

@@ -364,7 +364,7 @@ Flow עסקי: הצעת מחיר (quote) → המרה ל-Work Order → שיוך
 | PATCH | `/api/store/quotes/:id/status` | עדכון סטטוס |
 | POST | `/api/store/quotes/:id/prepare-send` | הכנה לשליחה (יצירת link) |
 | POST | `/api/store/quotes/:id/approve` | אישור ע"י בית עסק |
-| POST | `/api/store/quotes/:id/send-to-oneflow` | שליחה דרך OneFlow לחתימה |
+| POST | `/api/store/quotes/:id/send-to-oneflow` | שליחה דרך WEFLOWZ לחתימה |
 | POST | `/api/store/quotes/:id/link-only` | שליחת link בלבד ללקוח |
 | PATCH | `/api/store/quotes/:id/customer-response` | לקוח מאשר/דוחה/מבקש שינויים |
 | POST | `/api/store/quotes/:id/to-work-order` | המרה ל-Work Order |
@@ -385,7 +385,7 @@ Flow עסקי: הצעת מחיר (quote) → המרה ל-Work Order → שיוך
 
 - **Quote lifecycle**: `draft → sent → approved / rejected / changes_requested → (if approved) converted_to_wo`.
 - **quote_history**: בכל עדכון משמעותי, הגרסה הנוכחית נדחפת ל-`quote_history JSONB array` לפני שינוי.
-- **OneFlow integration**: שליחה ל-OneFlow (external e-signature service) דרך API חיצוני — לא מנוהל ב-DB.
+- **WEFLOWZ integration**: שליחה ל-WEFLOWZ (external e-signature service) דרך API חיצוני — לא מנוהל ב-DB.
 - **Kiosk flow**: לקוח מזין קוד/טלפון → `kiosk-lookup` מחזיר פרטים → לקוח בוחר מוצרים → `kiosk-order` יוצר הזמנה רגילה ב-`store_orders` עם `order_source='kiosk'`.
 
 ### 6.6 הערת Middleware (עדכון 24.08.2026)

@@ -1,5 +1,5 @@
 # Batch C — diff לאישור — קטגוריה ג' + cleanup
-מסמך עבודה · OneFlow Life · 25.08.2026
+מסמך עבודה · WEFLOWZ · 25.08.2026
 
 ---
 

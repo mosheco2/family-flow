@@ -1,5 +1,5 @@
 # מפרט טכני מקיף — סביבת Zone Manager וקהילה (Community)
-## OneFlow Life · Zone Manager & Community Environment
+## WEFLOWZ · Zone Manager & Community Environment
 ### גרסה 2026-06-20
 
 ---
@@ -18,7 +18,7 @@
 
 ### 1.2 מי משתמש בסביבה זו
 
-**Zone Manager (מנהל אזור)** הוא תפקיד ייחודי במערכת OneFlow — אחראי על אזור גיאוגרפי הכולל מספר קהילות שכונתיות. הוא:
+**Zone Manager (מנהל אזור)** הוא תפקיד ייחודי במערכת WEFLOWZ — אחראי על אזור גיאוגרפי הכולל מספר קהילות שכונתיות. הוא:
 - גייס ומארגן משפחות ועסקים להצטרפות לפלטפורמה
 - מנהל קמפיינים שיווקיים
 - מפקח על קהילות הקהילות שבתחום אחריותו
@@ -135,8 +135,8 @@ Header קבוע בראש הדף (sticky) עם:
 #### קמפיינים
 
 **סוגי קמפיין:**
-- `business` — גיוס עסקים למערכת OneFlow BIZ
-- `family` — גיוס משפחות למערכת OneFlow Family
+- `business` — גיוס עסקים למערכת WEFLOWZ BIZ
+- `family` — גיוס משפחות למערכת WEFLOWZ Family
 - `community_join` — הצטרפות לקהילה ספציפית
 
 **בניית קמפיין (modal):**
@@ -277,7 +277,7 @@ Server מגיש HTML עם מטאטגים ל-WhatsApp/Open Graph:
 
 ## 5. סביבת קהילה (Community)
 
-### 5.1 מהי קהילה ב-OneFlow
+### 5.1 מהי קהילה ב-WEFLOWZ
 
 **קהילה (Community)** = ישות ארגונית שכונתית / גיאוגרפית שמאגדת:
 - משפחות מהשכונה/ארגון
@@ -496,7 +496,7 @@ Server מגיש HTML עם מטאטגים ל-WhatsApp/Open Graph:
 **מודל:** Gemini 2.5 Flash (fallback: Gemini 1.5 Flash)
 
 **prompt מובנה לפי סוג קמפיין:**
-- `business` — מדגיש יכולות עסקיות של OneFlow
+- `business` — מדגיש יכולות עסקיות של WEFLOWZ
 - `family` — מדגיש כלים משפחתיים
 - `community_join` — מדגיש ערך הקהילה המקומית
 
@@ -704,4 +704,4 @@ API: `GET /api/biz/communities/match/:bizId` → מחזיר ציוני % התא�
 
 ---
 
-*עודכן: 2026-06-28 | Oneflow Life — Zone Manager & Community*
+*עודכן: 2026-06-28 | WEFLOWZ Life — Zone Manager & Community*

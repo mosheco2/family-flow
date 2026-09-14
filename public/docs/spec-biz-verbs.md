@@ -84,7 +84,7 @@
 | closeGlobalSearch() | סוגר חיפוש גלובלי | business-app.js |
 | closeModuleUnlockModal() | סוגר מודאל ביטול נעילה | business-app.js |
 | closeNlPreviewModal() | סוגר תצוגה מקדימה ניוזלטר | business-app.js |
-| closeOneflowWizard() | סוגר אשף OneFlow | business-app.js |
+| closeOneflowWizard() | סוגר אשף WEFLOWZ | business-app.js |
 | closeProductModal() | סוגר מודאל מוצר | storefront.html |
 | closeQuiz() | סוגר מבחן/חידון | business-app.js |
 | closeRecipeBuilder() | סוגר בונה מתכון | business-app.js |
@@ -380,7 +380,7 @@
 | checkImpersonationMode() | בדיקה אם פעיל מצב התחזות | business-app.js |
 | empPopupTriggerChanged() | עדכון ממשק בשינוי טריגר פופאפ | business-app.js |
 | nlTargetChanged() | עדכון ממשק בשינוי יעד ניוזלטר | business-app.js |
-| oflTargetChanged() | עדכון ממשק בשינוי יעד OneFlow | business-app.js |
+| oflTargetChanged() | עדכון ממשק בשינוי יעד WEFLOWZ | business-app.js |
 
 ---
 
@@ -508,7 +508,7 @@
 | setStore() | הגדרה האם לפתוח חנות | biz-onboarding.html |
 | submitStoreOnlyNow() | פתיחת חנות עכשיו | biz-onboarding.html |
 | submitStoreOnlyLater() | דחיית הגדרת חנות | biz-onboarding.html |
-| sendOneFlowMessage() | שליחת הודעת OneFlow | business-app.js |
+| sendOneFlowMessage() | שליחת הודעת WEFLOWZ | business-app.js |
 | sendWhatsAppInvite() | שליחת הזמנה ב-WhatsApp | business-app.js |
 | upgradeToPremium() | שדרוג לפרימיום | common.js |
 | clickTaskPhotoProof() | לחיצה לצילום הוכחת משימה | business-app.js |
@@ -524,10 +524,10 @@
 | _submitSportPurchase() | שליחת רכישה בספורט | storefront.html |
 | _submitSportWaitlist() | שליחת הצטרפות לרשימת המתנה | storefront.html |
 | _sport1ClickConfirm() | אישור בקליק אחד בספורט | storefront.html |
-| _ofwGoStep() | מעבר לשלב ב-OneFlow | business-app.js |
-| _ofwSearch() | חיפוש ב-OneFlow | business-app.js |
-| _ofwSelectNew() | בחירת רשומה חדשה ב-OneFlow | business-app.js |
-| _ofwSubmit() | שליחת OneFlow | business-app.js |
+| _ofwGoStep() | מעבר לשלב ב-WEFLOWZ | business-app.js |
+| _ofwSearch() | חיפוש ב-WEFLOWZ | business-app.js |
+| _ofwSelectNew() | בחירת רשומה חדשה ב-WEFLOWZ | business-app.js |
+| _ofwSubmit() | שליחת WEFLOWZ | business-app.js |
 | _dismissPwaBanner() | סגירת באנר התקנת PWA | business-app.js |
 | _triggerPwaInstall() | הפעלת התקנת PWA | business-app.js |
 | runGlobalSearch() | הרצת חיפוש גלובלי | business-app.js |
