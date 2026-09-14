@@ -1,4 +1,4 @@
-// Oneflow Life - Super Admin Logic Application
+// WEFLOWZ - Super Admin Logic Application
 
 const API = window.location.hostname === 'localhost' ? 'http://localhost:3000/api' : '/api';
 const getEl = id => document.getElementById(id);
@@ -2015,7 +2015,7 @@ function renderSAGroups() {
         } else if (g.account_status === 'archived') {
             accountStatusBadge = '<span class="bg-gray-100 text-gray-500 text-[9px] px-2 py-0.5 rounded-full font-bold ml-2 border border-gray-200">📦 ארכיב</span>';
         }
-        const typeBadge = g.member_type === 'member' ? '<span class="bg-violet-100 text-violet-700 text-[10px] px-2 py-0.5 rounded-full font-bold ml-2 border border-violet-200"><i class="fa-solid fa-link mr-1"></i> חבר ONEFLOW</span>' : g.type === 'BUSINESS' ? '<span class="bg-blue-100 text-blue-700 text-[10px] px-2 py-0.5 rounded-full font-bold ml-2 border border-blue-200"><i class="fa-solid fa-briefcase mr-1"></i> עסק</span>' : '<span class="bg-emerald-100 text-emerald-700 text-[10px] px-2 py-0.5 rounded-full font-bold ml-2 border border-emerald-200"><i class="fa-solid fa-house mr-1"></i> משפחה</span>';
+        const typeBadge = g.member_type === 'member' ? '<span class="bg-violet-100 text-violet-700 text-[10px] px-2 py-0.5 rounded-full font-bold ml-2 border border-violet-200"><i class="fa-solid fa-link mr-1"></i> חבר WEFLOWZ</span>' : g.type === 'BUSINESS' ? '<span class="bg-blue-100 text-blue-700 text-[10px] px-2 py-0.5 rounded-full font-bold ml-2 border border-blue-200"><i class="fa-solid fa-briefcase mr-1"></i> עסק</span>' : '<span class="bg-emerald-100 text-emerald-700 text-[10px] px-2 py-0.5 rounded-full font-bold ml-2 border border-emerald-200"><i class="fa-solid fa-house mr-1"></i> משפחה</span>';
         const createdDate = g.created_at ? new Date(g.created_at).toLocaleDateString('he-IL') : 'לא ידוע';
 
         const adminUser = saAllUsers.find(u => u.group_id === g.id && u.role === 'ADMIN') || saAllUsers.find(u => u.group_id === g.id);
@@ -2061,7 +2061,7 @@ function renderSAGroups() {
 
         gHtml += `
         <div class="${g.member_type === 'member' ? 'bg-violet-50 rounded-xl border-2 border-violet-300 mb-2 overflow-hidden shadow-sm' : 'bg-white rounded-xl border border-slate-200 mb-2 overflow-hidden shadow-sm'}">
-            ${g.member_type === 'member' ? '<div class="bg-gradient-to-r from-violet-500 to-purple-600 text-white text-[11px] font-bold px-4 py-1 flex items-center gap-1"><i class=\"fa-solid fa-link\"></i> חבר ONEFLOW</div>' : ''}
+            ${g.member_type === 'member' ? '<div class="bg-gradient-to-r from-violet-500 to-purple-600 text-white text-[11px] font-bold px-4 py-1 flex items-center gap-1"><i class=\"fa-solid fa-link\"></i> חבר WEFLOWZ</div>' : ''}
             <div class="p-4 cursor-pointer flex justify-between items-center hover:bg-slate-50 transition" onclick="document.getElementById('sa-group-details-${g.id}').classList.toggle('hidden')">
                 <div class="flex items-center">
                     <div class="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center ml-3 relative"><i class="fa-solid ${g.type === 'BUSINESS' ? 'fa-building' : 'fa-users'}"></i><span style="position:absolute;top:-6px;right:-6px;background:#6366f1;color:#fff;border-radius:999px;font-size:9px;font-weight:800;padding:1px 5px;min-width:18px;text-align:center;line-height:16px;">${globalIdx}</span></div>
@@ -2264,7 +2264,7 @@ async function saResendSoloCredentials(groupId) {
 }
 
 async function saUpgradeToFamily(groupId) {
-    if (!confirm('לשדרג סביבה זו מ"חבר ONEFLOW" למשפחה רגילה?\nהפעולה תשנה את סוג הגישה של החשבון.')) return;
+    if (!confirm('לשדרג סביבה זו מ"חבר WEFLOWZ" למשפחה רגילה?\nהפעולה תשנה את סוג הגישה של החשבון.')) return;
     try {
         const res = await fetch(`${API}/sa/groups/${groupId}/upgrade-member`, {
             method: 'PATCH',
@@ -5953,7 +5953,7 @@ window.openFeedbackLoopModal = function(taskId, ticketId) {
     }
 
     const now = new Date().toLocaleDateString('he-IL');
-    getEl('feedback-loop-text').value = `שלום ${clientName},\n\nהפנייה שלך בנושא "${taskTitle}" טופלה.\nהטיפול הושלם בתאריך ${now}. אנו עומדים לרשותך לכל שאלה נוספת.\n\nבברכה,\nצוות התמיכה של Oneflow Life`;
+    getEl('feedback-loop-text').value = `שלום ${clientName},\n\nהפנייה שלך בנושא "${taskTitle}" טופלה.\nהטיפול הושלם בתאריך ${now}. אנו עומדים לרשותך לכל שאלה נוספת.\n\nבברכה,\nצוות התמיכה של WEFLOWZ`;
     getEl('sa-feedback-loop-modal').classList.remove('hidden');
 };
 
@@ -6173,7 +6173,7 @@ window.generateReleaseNotesAI = async function() {
             const [gradStart, gradEnd] = themeColors[colorChoice] || themeColors.purple;
             const mascotImg = uploadedLogo || window.currentFamilaiLogo || 'https://cdn-icons-png.flaticon.com/512/8943/8943377.png';
             
-            const htmlTemplate = `<div id='newsletter-content-wrap' style='max-width: 600px; margin: 0 auto; font-family: Arial, sans-serif; direction: rtl; text-align: right; border: 1px solid #e2e8f0; border-radius: 20px; background-color: #ffffff !important; overflow: hidden;'><table width='100%' cellpadding='0' cellspacing='0' border='0' bgcolor='${gradStart}' style='background-color: ${gradStart} !important; background-image: linear-gradient(135deg, ${gradStart}, ${gradEnd}) !important; text-align: center;'><tr><td style='padding: 30px 20px;' align='center'><img src='${mascotImg}' onerror=\"this.style.display='none'\" style='width: 80px; height: 80px; object-fit: contain; border-radius: 50%; border: 3px solid #ffffff; background: #ffffff; margin-bottom: 12px; display: inline-block;'><h1 style='color: #ffffff !important; font-size: 22px; font-weight: bold; margin: 0; line-height: 1.2;'>${(title || 'עדכון חדש!').replace(/ /g, '\u00A0')}</h1><h2 style='color: #f1f5f9 !important; font-size: 14px; font-weight: normal; margin: 5px 0 0 0; opacity: 0.9;'>${subtitle.replace(/ /g, '\u00A0')}</h2></td></tr></table><div style='padding: 25px; color: #334155 !important; font-size: 15px; line-height: 1.5; text-align: right; background-color: #ffffff !important;'>${formattedContent.trim()}</div><div style='background-color: #f8fafc !important; border-top: 1px solid #e2e8f0; padding: 15px; text-align: center;'><p style='color: ${gradStart} !important; font-size: 14px; margin: 0; font-weight: bold;'>צוות Oneflow Life</p></div></div>`;
+            const htmlTemplate = `<div id='newsletter-content-wrap' style='max-width: 600px; margin: 0 auto; font-family: Arial, sans-serif; direction: rtl; text-align: right; border: 1px solid #e2e8f0; border-radius: 20px; background-color: #ffffff !important; overflow: hidden;'><table width='100%' cellpadding='0' cellspacing='0' border='0' bgcolor='${gradStart}' style='background-color: ${gradStart} !important; background-image: linear-gradient(135deg, ${gradStart}, ${gradEnd}) !important; text-align: center;'><tr><td style='padding: 30px 20px;' align='center'><img src='${mascotImg}' onerror=\"this.style.display='none'\" style='width: 80px; height: 80px; object-fit: contain; border-radius: 50%; border: 3px solid #ffffff; background: #ffffff; margin-bottom: 12px; display: inline-block;'><h1 style='color: #ffffff !important; font-size: 22px; font-weight: bold; margin: 0; line-height: 1.2;'>${(title || 'עדכון חדש!').replace(/ /g, '\u00A0')}</h1><h2 style='color: #f1f5f9 !important; font-size: 14px; font-weight: normal; margin: 5px 0 0 0; opacity: 0.9;'>${subtitle.replace(/ /g, '\u00A0')}</h2></td></tr></table><div style='padding: 25px; color: #334155 !important; font-size: 15px; line-height: 1.5; text-align: right; background-color: #ffffff !important;'>${formattedContent.trim()}</div><div style='background-color: #f8fafc !important; border-top: 1px solid #e2e8f0; padding: 15px; text-align: center;'><p style='color: ${gradStart} !important; font-size: 14px; margin: 0; font-weight: bold;'>צוות WEFLOWZ</p></div></div>`;
             
             const editor = getEl('release-editor');
             if(getEl('release-editor-placeholder')) getEl('release-editor-placeholder').style.display = 'none';
@@ -6197,7 +6197,7 @@ window.generateManualRelease = function() {
     const [gradStart, gradEnd] = themeColors[colorChoice] || themeColors.purple;
     const mascotImg = uploadedLogo || window.currentFamilaiLogo || 'https://cdn-icons-png.flaticon.com/512/8943/8943377.png';
     
-    const htmlTemplate = `<div id='newsletter-content-wrap' style='max-width: 600px; margin: 0 auto; font-family: Arial, sans-serif; direction: rtl; text-align: right; border: 1px solid #e2e8f0; border-radius: 20px; background-color: #ffffff !important; overflow: hidden;'><table width='100%' cellpadding='0' cellspacing='0' border='0' bgcolor='${gradStart}' style='background-color: ${gradStart} !important; background-image: linear-gradient(135deg, ${gradStart}, ${gradEnd}) !important; text-align: center;'><tr><td style='padding: 30px 20px;' align='center'><img src='${mascotImg}' onerror=\"this.style.display='none'\" style='width: 80px; height: 80px; object-fit: contain; border-radius: 50%; border: 3px solid #ffffff; background: #ffffff; margin-bottom: 12px; display: inline-block;'><h1 style='color: #ffffff !important; font-size: 22px; font-weight: bold; margin: 0; line-height: 1.2;'>${(title || 'עדכון חדש!').replace(/ /g, '\u00A0')}</h1><h2 style='color: #f1f5f9 !important; font-size: 14px; font-weight: normal; margin: 5px 0 0 0; opacity: 0.9;'>${subtitle.replace(/ /g, '\u00A0')}</h2></td></tr></table><div style='padding: 25px; color: #334155 !important; font-size: 15px; line-height: 1.5; text-align: right; background-color: #ffffff !important;'>${formattedContent}</div><div style='background-color: #f8fafc !important; border-top: 1px solid #e2e8f0; padding: 15px; text-align: center;'><p style='color: ${gradStart} !important; font-size: 14px; margin: 0; font-weight: bold;'>צוות Oneflow Life</p></div></div>`;
+    const htmlTemplate = `<div id='newsletter-content-wrap' style='max-width: 600px; margin: 0 auto; font-family: Arial, sans-serif; direction: rtl; text-align: right; border: 1px solid #e2e8f0; border-radius: 20px; background-color: #ffffff !important; overflow: hidden;'><table width='100%' cellpadding='0' cellspacing='0' border='0' bgcolor='${gradStart}' style='background-color: ${gradStart} !important; background-image: linear-gradient(135deg, ${gradStart}, ${gradEnd}) !important; text-align: center;'><tr><td style='padding: 30px 20px;' align='center'><img src='${mascotImg}' onerror=\"this.style.display='none'\" style='width: 80px; height: 80px; object-fit: contain; border-radius: 50%; border: 3px solid #ffffff; background: #ffffff; margin-bottom: 12px; display: inline-block;'><h1 style='color: #ffffff !important; font-size: 22px; font-weight: bold; margin: 0; line-height: 1.2;'>${(title || 'עדכון חדש!').replace(/ /g, '\u00A0')}</h1><h2 style='color: #f1f5f9 !important; font-size: 14px; font-weight: normal; margin: 5px 0 0 0; opacity: 0.9;'>${subtitle.replace(/ /g, '\u00A0')}</h2></td></tr></table><div style='padding: 25px; color: #334155 !important; font-size: 15px; line-height: 1.5; text-align: right; background-color: #ffffff !important;'>${formattedContent}</div><div style='background-color: #f8fafc !important; border-top: 1px solid #e2e8f0; padding: 15px; text-align: center;'><p style='color: ${gradStart} !important; font-size: 14px; margin: 0; font-weight: bold;'>צוות WEFLOWZ</p></div></div>`;
     
     const editor = getEl('release-editor');
     if(getEl('release-editor-placeholder')) getEl('release-editor-placeholder').style.display = 'none';
@@ -6225,7 +6225,7 @@ window.exportToPDF = function() {
 <html lang="he" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <title>Oneflow Release Notes</title>
+    <title>WEFLOWZ Release Notes</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
@@ -11362,7 +11362,7 @@ async function openLGControl(gameId, gameCode) {
   modal.id = 'lg-control-modal';
   modal.className = 'fixed inset-0 bg-black/70 z-[200] flex items-center justify-center p-4';
   const localLink = `${window.location.origin}/game/${gameCode}`;
-  const prodLink = `https://oneflowlife.co.il/game/${gameCode}`;
+  const prodLink = `https://weflowz.co.il/game/${gameCode}`;
   const defaultWaMsg = `🏆 הוזמנת למשחק${gMeta.title ? ': ' + gMeta.title : ' טריוויה חי'}!${gMeta.sponsor_name ? '\nבחסות: ' + gMeta.sponsor_name : ''}${gMeta.prize ? '\nפרס: ' + gMeta.prize : ''}\nלחץ כדי להצטרף:\n${prodLink}`;
   const waMsg = (gMeta.whatsapp_text || defaultWaMsg).replace(/\{link\}/g, prodLink);
   const waText = encodeURIComponent(waMsg);
@@ -11542,7 +11542,7 @@ function _lgBuildUserRows(users) {
     _lgVisibleGroupIds.push(group.id);
     const phone = (u.phone || '').replace(/\D/g,'');
     const intlPhone = phone.startsWith('0') ? '972' + phone.slice(1) : phone;
-    const waText = encodeURIComponent(`היי ${u.nickname || ''}! 🏆\nהוזמנת למשחק טריוויה חי ב-OneFlow Life!\nלחץ כאן להצטרפות:\n${link}`);
+    const waText = encodeURIComponent(`היי ${u.nickname || ''}! 🏆\nהוזמנת למשחק טריוויה חי ב-WEFLOWZ!\nלחץ כאן להצטרפות:\n${link}`);
     const srcBadge = u.registration_source && u.registration_source !== 'self'
       ? `<span class="text-[10px] bg-purple-900/50 text-purple-300 px-1.5 py-0.5 rounded-full">${u.registration_source}</span>` : '';
     rows.push(`
@@ -12370,13 +12370,13 @@ async function openSAWhatsAppModal(groupId, bizName, tab) {
 }
 
 const WA_DEFAULTS_JS = {
-    owner_order: '🛍️ הזמנה חדשה מ-{שם_לקוח}! סכום: ₪{סכום}.\nכנס לניהול: https://oneflowlife.co.il',
-    customer_order: '✅ שלום {שם_לקוח}! קיבלנו את ההזמנה שלך (₪{סכום}).\nנעדכן אותך כשתהיה מוכנה 🙏\nhttps://oneflowlife.co.il',
-    owner_checkin: 'שלום {שם_עובד}, שכחת לדפוק שעון כניסה היום! אנא עדכן את הנוכחות שלך.\nhttps://oneflowlife.co.il',
-    checkin_summary: '📋 {כמות_עובדים} עובד/ים במשמרת היום. בדוק נוכחות.\nhttps://oneflowlife.co.il',
-    owner_task_due: '⚠️ המשימה "{שם_משימה}" עברה את מועד הביצוע!\nhttps://oneflowlife.co.il',
-    low_inventory: '📦 התראת מלאי נמוך:\n{רשימת_מלאי}\nhttps://oneflowlife.co.il',
-    plan_tomorrow: '📅 תזכורת: מחר {כמות_משמרות} משמרת/ות מתוכננת/ות. בדוק את היומן!\nhttps://oneflowlife.co.il'
+    owner_order: '🛍️ הזמנה חדשה מ-{שם_לקוח}! סכום: ₪{סכום}.\nכנס לניהול: https://weflowz.co.il',
+    customer_order: '✅ שלום {שם_לקוח}! קיבלנו את ההזמנה שלך (₪{סכום}).\nנעדכן אותך כשתהיה מוכנה 🙏\nhttps://weflowz.co.il',
+    owner_checkin: 'שלום {שם_עובד}, שכחת לדפוק שעון כניסה היום! אנא עדכן את הנוכחות שלך.\nhttps://weflowz.co.il',
+    checkin_summary: '📋 {כמות_עובדים} עובד/ים במשמרת היום. בדוק נוכחות.\nhttps://weflowz.co.il',
+    owner_task_due: '⚠️ המשימה "{שם_משימה}" עברה את מועד הביצוע!\nhttps://weflowz.co.il',
+    low_inventory: '📦 התראת מלאי נמוך:\n{רשימת_מלאי}\nhttps://weflowz.co.il',
+    plan_tomorrow: '📅 תזכורת: מחר {כמות_משמרות} משמרת/ות מתוכננת/ות. בדוק את היומן!\nhttps://weflowz.co.il'
 };
 
 const TPL_DEFS = [
@@ -13857,7 +13857,7 @@ const PRICING_CATALOG_DEFAULT = [
     groupId: 'comms', groupName: 'תקשורת ושיווק', color: 'pink',
     modules: [
       { id: 'surveys',        name: 'סקרים ועדכונים',  price: 15, free: false, desc: 'יצירת סקרים לעובדים/לקוחות, שליחה, ניתוח תוצאות' },
-      { id: 'community',      name: 'קהילות מחוברות',  price: 19, free: false, desc: 'קהילות OneFlow, שוברים, קאשבק, פיד רכישות' },
+      { id: 'community',      name: 'קהילות מחוברות',  price: 19, free: false, desc: 'קהילות WEFLOWZ, שוברים, קאשבק, פיד רכישות' },
       { id: 'whatsapp_alerts',name: 'התראות WhatsApp', price: 29, free: false, desc: 'כללי התראה אוטומטיים — עובדים, לקוחות, ניהול' },
       { id: 'content',        name: 'תוכן האתר',       price: 15, free: false, desc: 'עריכת דף הנחיתה/אתר של העסק בפלטפורמה' },
       { id: 'documents',      name: 'מסמכים',          price: 15, free: false, desc: 'ניהול מסמכים פנימיים — חוזים, מדריכים, נהלים' },

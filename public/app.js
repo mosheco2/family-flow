@@ -1,4 +1,4 @@
-// Oneflow Life - Family Logic Application
+// WEFLOWZ - Family Logic Application
 
 function fmtGroupName(g) {
   if (!g) return '';
@@ -353,7 +353,7 @@ function showFamilyTour() {
         {
             bg: 'from-violet-600 to-indigo-700',
             emoji: '👨‍👩‍👧‍👦',
-            title: 'ברוכים הבאים ל-Oneflow Life!',
+            title: 'ברוכים הבאים ל-WEFLOWZ!',
             subtitle: 'המערכת שתשנה את האופן שבו המשפחה שלכם מתנהלת — כסף, קניות, וצמיחה יחד.',
             features: [
                 { icon: '🏦', text: 'בנק משפחתי לניהול תקציב, דמי כיס וחיסכון לילדים' },
@@ -409,7 +409,7 @@ function showFamilyTour() {
         {
             bg: 'from-violet-500 to-purple-700',
             emoji: '🎉',
-            title: 'ברוכים הבאים ל-Oneflow!',
+            title: 'ברוכים הבאים ל-WEFLOWZ!',
             subtitle: 'כאן מתחיל המסע שלך — תרוויח כסף, תחסוך ותתנהל כמו מומחה אמיתי.',
             features: [
                 { icon: '💰', text: 'ביצוע משימות בית = כסף אמיתי ישר לארנק שלך' },
@@ -497,7 +497,7 @@ function startAdminTour() {
     intro.setOptions({
         nextLabel: 'הבא', prevLabel: 'חזור', doneLabel: 'התחל לעבוד!', skipLabel: 'דלג', showProgress: true, rtl: true, hidePrev: false, showBullets: true, scrollToElement: true, disableInteraction: true,
         steps: [
-            { title: "ברוכים הבאים ל-Oneflow Life! 👋", intro: "האפליקציה שהולכת לשנות את האופן שבו המשפחה שלכם מתנהלת פיננסית." },
+            { title: "ברוכים הבאים ל-WEFLOWZ! 👋", intro: "האפליקציה שהולכת לשנות את האופן שבו המשפחה שלכם מתנהלת פיננסית." },
             { element: '#tour-header', title: "מרכז השליטה שלכם", intro: "כאן תמצאו את קוד המשפחה. לחיצה על תפריט תפתח את ההגדרות.", position: 'bottom' },
             { element: '#ai-battery-indicator', title: "סוללת ה-AI ⚡", intro: "המערכת מונעת ע\"י familAI. כאן תוכלו לראות את כמות הפעולות שנותרה.", position: 'bottom' },
             { element: '#user-balance', title: "הארנק המשותף 💳", intro: "כאן תוכלו לראות את היתרה הפנויה של המשפחה בזמן אמת.", position: 'bottom' },
@@ -527,7 +527,7 @@ function startChildTour() {
     intro.setOptions({
         nextLabel: 'הבא', prevLabel: 'חזור', doneLabel: 'הבנתי!', skipLabel: 'דלג', showProgress: true, rtl: true, hidePrev: false, showBullets: true, scrollToElement: true, disableInteraction: true,
         steps: [
-            { title: "ברוכים הבאים ל-Oneflow Life! 🎉", intro: "כאן מתחיל המסע שלך לעצמאות: להרוויח כסף ולחסוך נכון." },
+            { title: "ברוכים הבאים ל-WEFLOWZ! 🎉", intro: "כאן מתחיל המסע שלך לעצמאות: להרוויח כסף ולחסוך נכון." },
             { element: '#ai-battery-indicator', title: "סוללת ה-AI ⚡", intro: "הכירו את familAI - העוזרת החכמה והסודית שלנו!", position: 'bottom' },
             { element: '#user-balance', title: "הארנק האישי שלך 💳", intro: "כאן מופיע כל הכסף שהרווחת מביצוע משימות ומדמי הכיס.", position: 'bottom' },
             { element: '#tab-shop', title: "הסופרמרקט 🛒", intro: "בקש להוסיף דברים לרשימת הקניות כאן.", position: 'bottom' },
@@ -1267,7 +1267,7 @@ function renderFamilyQuotesTab() {
         list.innerHTML = `<div class="bg-slate-50 border border-dashed border-slate-200 rounded-2xl p-6 text-center">
             <i class="fa-solid fa-file-invoice-dollar text-4xl text-slate-300 mb-3"></i>
             <p class="text-sm font-bold text-slate-500">אין הצעות מחיר עדיין.</p>
-            <p class="text-[11px] text-slate-400 mt-1">כאשר עסק ישלח לך הצעת מחיר דרך OneFlow, היא תופיע כאן.</p></div>`;
+            <p class="text-[11px] text-slate-400 mt-1">כאשר עסק ישלח לך הצעת מחיר דרך WEFLOWZ, היא תופיע כאן.</p></div>`;
         return;
     }
     const statusMap = {
@@ -1591,7 +1591,7 @@ function handleAIResponseCheck(data) {
 }
 
 function closeAiBatteryModal() { getEl('ai-battery-modal').classList.add('hidden'); }
-function upgradeToPremium() { closeAiBatteryModal(); const profileModal = getEl('profile-modal'); if(profileModal) profileModal.classList.add('hidden'); openAlertModal('Oneflow Pro 👑', 'אפשרות שדרוג למנוי פרימיום תתווסף למערכת בקרוב!'); }
+function upgradeToPremium() { closeAiBatteryModal(); const profileModal = getEl('profile-modal'); if(profileModal) profileModal.classList.add('hidden'); openAlertModal('WEFLOWZ Pro 👑', 'אפשרות שדרוג למנוי פרימיום תתווסף למערכת בקרוב!'); }
 
 // ---- מודל אישור AI (ai-warning-modal) ----
 let _pendingAIAction = null;
@@ -1775,7 +1775,7 @@ function showSoloActivationModal() {
         <div style="background:white;border-radius:24px;padding:28px 24px;width:100%;max-width:380px;text-align:right;margin:40px auto;">
             <div style="text-align:center;margin-bottom:20px;">
                 <div style="font-size:48px;margin-bottom:8px;">🎉</div>
-                <div style="font-size:19px;font-weight:900;color:#1e293b;">ברוך הבא ל-ONEFLOW LIFE!</div>
+                <div style="font-size:19px;font-weight:900;color:#1e293b;">ברוך הבא ל-WEFLOWZ!</div>
                 <div style="font-size:13px;color:#64748b;margin-top:8px;line-height:1.5;">${safeStr(bizName)} פתחו עבורך חשבון SOLO אישי.<br>כדי להפעיל את החשבון, הגדר סיסמה חדשה.</div>
             </div>
             <div id="solo-act-error" style="display:none;background:#fef2f2;border:1px solid #fca5a5;border-radius:12px;padding:10px 14px;font-size:12px;color:#dc2626;margin-bottom:12px;"></div>
@@ -1791,7 +1791,7 @@ function showSoloActivationModal() {
                 </div>
             </div>
             <div style="background:#eff6ff;border-radius:16px;padding:14px;margin-bottom:20px;font-size:12px;color:#1e40af;line-height:1.5;">
-                💡 לאחר האישור תוכל להשתמש בכל תכונות ONEFLOW LIFE כגון ניהול משפחה, מטבעות, ועוד.
+                💡 לאחר האישור תוכל להשתמש בכל תכונות WEFLOWZ כגון ניהול משפחה, מטבעות, ועוד.
             </div>
             <button onclick="window._submitSoloActivation()" style="width:100%;background:linear-gradient(135deg,#7c3aed,#4f46e5);color:white;border:none;border-radius:14px;padding:14px;font-size:15px;font-weight:900;cursor:pointer;">הפעל את החשבון שלי ✅</button>
         </div>`;
@@ -2003,7 +2003,7 @@ function showForcePasswordChange() {
         <div style="background:white;border-radius:24px;padding:28px 24px;width:100%;max-width:360px;text-align:right;margin:40px auto;">
             <div style="text-align:center;margin-bottom:20px;">
                 <div style="font-size:40px;margin-bottom:8px;">🔐</div>
-                <div style="font-size:18px;font-weight:900;color:#1e293b;">ברוך הבא ל-ONEFLOW!</div>
+                <div style="font-size:18px;font-weight:900;color:#1e293b;">ברוך הבא ל-WEFLOWZ!</div>
                 <div style="font-size:12px;color:#64748b;margin-top:6px;">אנא מלא את הפרטים לפני הכניסה למערכת</div>
             </div>
             <div id="force-pw-error" style="display:none;background:#fef2f2;border:1px solid #fca5a5;border-radius:12px;padding:10px 14px;font-size:12px;color:#dc2626;margin-bottom:12px;"></div>
@@ -4730,13 +4730,13 @@ function openInviteModal() { const codeSpan = getEl('display-group-code'); if (c
 function shareReferralLink() {
   if (!currentGroup || !currentGroup.group_code) return showToast('error', 'קוד משפחה לא זמין');
   const link = `${window.location.origin}/?ref=${currentGroup.group_code}`;
-  const text = `הצטרפו ל-OneFlow Life! 🚀\nניהול כסף משפחתי, משחקים, משימות ועוד.\nנרשמים דרך הקישור:\n${link}`;
-  if (navigator.share) navigator.share({ title: 'OneFlow Life', text, url: link }).catch(()=>{});
+  const text = `הצטרפו ל-WEFLOWZ! 🚀\nניהול כסף משפחתי, משחקים, משימות ועוד.\nנרשמים דרך הקישור:\n${link}`;
+  if (navigator.share) navigator.share({ title: 'WEFLOWZ', text, url: link }).catch(()=>{});
   else window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
 }
 function sendWhatsAppInvite(role) { 
     if (!currentGroup || !currentGroup.group_code) return showToast('error', 'קוד משפחה לא זמין כרגע'); const url = window.location.origin; const joinLink = `${url}/family-onboarding.html?code=${currentGroup.group_code}&role=${role}`;
-    let text = role === 'ADMIN' ? `היי! פתחנו בנק משפחתי ב-Oneflow Life 🚀\n\nהוגדרת כמנהל/ת במערכת.\nקוד המשפחה שלנו הוא: ${currentGroup.group_code}\nכניסה מהירה:\n🔗 ${joinLink}` : `היי! עברנו להתנהל עם Oneflow Life 🚀\n\nקוד המשפחה לכניסה הוא: ${currentGroup.group_code}\nלחץ על הקישור כדי להתחבר:\n🔗 ${joinLink}`; 
+    let text = role === 'ADMIN' ? `היי! פתחנו בנק משפחתי ב-WEFLOWZ 🚀\n\nהוגדרת כמנהל/ת במערכת.\nקוד המשפחה שלנו הוא: ${currentGroup.group_code}\nכניסה מהירה:\n🔗 ${joinLink}` : `היי! עברנו להתנהל עם WEFLOWZ 🚀\n\nקוד המשפחה לכניסה הוא: ${currentGroup.group_code}\nלחץ על הקישור כדי להתחבר:\n🔗 ${joinLink}`; 
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank'); getEl('invite-modal').classList.add('hidden'); 
 }
 
@@ -5351,7 +5351,7 @@ async function submitPastedList() {
 function exportShopToWhatsApp() {
     const activeItems = shoppingListCache.filter(i => i.status !== 'requested');
     if (activeItems.length === 0) return showToast('error', 'הרשימה ריקה');
-    let text = `*רשימת קניות מ-Oneflow Life:*\n\n`; activeItems.forEach(i => { text += `• ${i.item_name} (${i.quantity} ${i.unit || "יח'"})\n`; });
+    let text = `*רשימת קניות מ-WEFLOWZ:*\n\n`; activeItems.forEach(i => { text += `• ${i.item_name} (${i.quantity} ${i.unit || "יח'"})\n`; });
     window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
 }
 
@@ -6584,7 +6584,7 @@ function renderMyInitiatives() {
         const statusText = isReady ? 'פעילה' : 'בגיוס חברים';
         
         const referralLink = `${window.location.origin}/?inviteCommunityCode=${c.code}`;
-        const waText = encodeURIComponent(`היי! פתחתי קהילה מקומית ב-Oneflow: "${c.name}". אם נגיע ל-30 משפחות נקבל הנחות והטבות מעסקים באזור! להצטרפות בחינם: ${referralLink}`);
+        const waText = encodeURIComponent(`היי! פתחתי קהילה מקומית ב-WEFLOWZ: "${c.name}". אם נגיע ל-30 משפחות נקבל הנחות והטבות מעסקים באזור! להצטרפות בחינם: ${referralLink}`);
 
         html += `
         <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 mb-3 fade-in">
@@ -7879,7 +7879,7 @@ window.copyReferralCode = function() {
 window.shareReferralWhatsApp = function() {
     const code = _myReferralCode;
     if (!code || !_selectedCommCode) return;
-    const msg = `היי! הצטרפ/י לקהילת ${_selectedCommName} ב-Oneflow 🏘️\nקוד קהילה: *${_selectedCommCode}*\nקוד הפניה שלי: *${code}*\n👉 ${window.location.origin}/?inviteCommunityCode=${_selectedCommCode}&ref=${code}`;
+    const msg = `היי! הצטרפ/י לקהילת ${_selectedCommName} ב-WEFLOWZ 🏘️\nקוד קהילה: *${_selectedCommCode}*\nקוד הפניה שלי: *${code}*\n👉 ${window.location.origin}/?inviteCommunityCode=${_selectedCommCode}&ref=${code}`;
     window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
 };
 
@@ -8700,7 +8700,7 @@ function showOnboardingWizard() {
             </div>
 
             <div class="bg-indigo-50 p-4 sm:p-6 text-center border-b border-indigo-100 shrink-0">
-                <h2 class="text-xl sm:text-2xl font-black text-indigo-900 mb-1">ברוכים הבאים ל-Oneflow Life! 🎉</h2>
+                <h2 class="text-xl sm:text-2xl font-black text-indigo-900 mb-1">ברוכים הבאים ל-WEFLOWZ! 🎉</h2>
                 <p class="text-indigo-600 text-xs sm:text-sm font-bold">בואו נקים את הבנק המשפחתי ב-4 צעדים קלילים</p>
             </div>
 
@@ -12335,9 +12335,9 @@ function renderHMContacts() {
     const list = getEl('hm-contacts-list'); if (!list) return;
     if (!hmContacts.length) { list.innerHTML = `<div class="text-center py-12 text-slate-400 bg-white rounded-2xl border border-dashed border-slate-200"><i class="fa-solid fa-address-book text-4xl mb-3 opacity-30 block"></i><p class="text-sm font-medium">אין אנשי קשר עדיין</p></div>`; return; }
     list.innerHTML = hmContacts.map(t => {
-        const oneflowBadge = t.oneflow_verified ? `<span class="inline-flex items-center gap-1 text-[9px] font-black bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full border border-indigo-200"><i class="fa-solid fa-circle-check"></i> ONEFLOW LIFE</span>` : '';
+        const oneflowBadge = t.oneflow_verified ? `<span class="inline-flex items-center gap-1 text-[9px] font-black bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full border border-indigo-200"><i class="fa-solid fa-circle-check"></i> WEFLOWZ</span>` : '';
         const sendCallBtn = t.business_group_id ? `<button onclick="openServiceCallWizard(${t.id})" class="flex items-center gap-1 text-[10px] text-orange-700 font-black bg-orange-50 px-2 py-1 rounded-lg border border-orange-200 active:scale-95 transition" style="touch-action:manipulation;"><i class="fa-solid fa-wrench"></i> שלח קריאה</button>` : '';
-        const linkBtn = !t.business_group_id ? `<button onclick="openLinkBusinessModal(${t.id})" class="flex items-center gap-1 text-[10px] text-indigo-600 font-bold bg-indigo-50 px-2 py-1 rounded-lg border border-indigo-200 active:scale-95 transition" style="touch-action:manipulation;"><i class="fa-solid fa-link"></i> קשר ל-ONEFLOW LIFE</button>` : '';
+        const linkBtn = !t.business_group_id ? `<button onclick="openLinkBusinessModal(${t.id})" class="flex items-center gap-1 text-[10px] text-indigo-600 font-bold bg-indigo-50 px-2 py-1 rounded-lg border border-indigo-200 active:scale-95 transition" style="touch-action:manipulation;"><i class="fa-solid fa-link"></i> קשר ל-WEFLOWZ</button>` : '';
         return `<div class="bg-white border border-slate-100 rounded-2xl p-4 mb-3 shadow-sm">
         <div class="flex items-start justify-between">
             <div class="flex-1 min-w-0">
@@ -12585,7 +12585,7 @@ window.openServiceCallWizard = function(technicianId) {
             <div class="flex items-center justify-between px-4 py-4 border-b border-slate-100 bg-gradient-to-l from-indigo-50">
                 <div>
                     <h3 class="font-black text-slate-800 text-base">🔧 קריאת שירות חדשה</h3>
-                    <p class="text-xs text-indigo-600 font-medium mt-0.5">אל: ${safeStr(tech.name)}${tech.company_name ? ' · ' + safeStr(tech.company_name) : ''} <span class="text-[9px] bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded-full font-black">ONEFLOW LIFE</span></p>
+                    <p class="text-xs text-indigo-600 font-medium mt-0.5">אל: ${safeStr(tech.name)}${tech.company_name ? ' · ' + safeStr(tech.company_name) : ''} <span class="text-[9px] bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded-full font-black">WEFLOWZ</span></p>
                 </div>
                 <button onclick="document.getElementById('sc-wizard-modal').remove()" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100"><i class="fa-solid fa-xmark text-slate-500"></i></button>
             </div>
@@ -12654,12 +12654,12 @@ window.openLinkBusinessModal = async function(techId) {
     document.getElementById('hm-link-biz-modal')?.remove();
     const isNew = (techId === null || techId === undefined);
     const subtitle = isNew
-        ? 'חפש עסק ONEFLOW LIFE — אם נמצא, ייצור קשר חדש אוטומטית ותוכל לשלוח קריאות ישירות.'
-        : 'חפש את שם העסק של בעל המקצוע ב-ONEFLOW LIFE כדי לאפשר שליחת קריאות ישירות.';
+        ? 'חפש עסק WEFLOWZ — אם נמצא, ייצור קשר חדש אוטומטית ותוכל לשלוח קריאות ישירות.'
+        : 'חפש את שם העסק של בעל המקצוע ב-WEFLOWZ כדי לאפשר שליחת קריאות ישירות.';
     const html = `<div id="hm-link-biz-modal" class="fixed inset-0 bg-slate-900/60 z-[9993] flex items-end justify-center sm:items-center sm:p-4" style="direction:rtl;">
         <div class="bg-white w-full sm:max-w-sm rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden">
             <div class="flex items-center justify-between px-4 py-4 border-b border-slate-100">
-                <h3 class="font-black text-slate-800 text-base">🔍 חיפוש עסק ONEFLOW LIFE</h3>
+                <h3 class="font-black text-slate-800 text-base">🔍 חיפוש עסק WEFLOWZ</h3>
                 <button onclick="document.getElementById('hm-link-biz-modal').remove()" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100"><i class="fa-solid fa-xmark text-slate-500"></i></button>
             </div>
             <div class="p-4 space-y-3">
@@ -12876,7 +12876,7 @@ function renderHMHistFiltered() {
     }).join('');
 }
 
-// ─── ONEFLOWLIFE MEMBER DASHBOARD ────────────────────────────────────────────
+// ─── WEFLOWZ MEMBER DASHBOARD ────────────────────────────────────────────
 // ===== MEMBER TYPE — Module Locking + Upgrade Popups =====
 
 const MEMBER_MODULES = {
@@ -13172,7 +13172,7 @@ async function renderMemberDashboard() {
             <button onclick="window._memberLogout()" style="background:#f1f5f9;border:none;border-radius:12px;padding:8px 14px;font-size:12px;font-weight:700;color:#64748b;cursor:pointer;">יציאה</button>
             <div style="text-align:right;">
                 <div style="font-size:18px;font-weight:900;color:#1e293b;">שלום, ${safeStr(fmtUserName(currentUser) || currentUser.nickname)} 👋</div>
-                <div style="font-size:11px;color:#94a3b8;">החשבון האישי שלך ב-ONEFLOW</div>
+                <div style="font-size:11px;color:#94a3b8;">החשבון האישי שלך ב-WEFLOWZ</div>
             </div>
         </div>
 
@@ -13425,7 +13425,7 @@ function _memberBizTypeLabel(type) {
     return labels[type] || type;
 }
 
-// ONEFLOWLIFE MEMBER — interactive actions
+// WEFLOWZ MEMBER — interactive actions
 
 window._memberOpenScDetails = async function(callId, title, status, priceQuote, bizGroupId) {
     let modal = document.getElementById('member-sc-modal');
@@ -13946,7 +13946,7 @@ window._sendBizMessage = async function(bizGroupId) {
     try {
         const r = await fetch(`${API}/inbox/customer`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ groupId: bizGroupId, name: currentUser?.nickname || 'לקוח', contact: currentUser?.phone || '', subject: 'פנייה מלקוח ONEFLOW', content: txt, customerGroupId: currentGroup?.id || null })
+            body: JSON.stringify({ groupId: bizGroupId, name: currentUser?.nickname || 'לקוח', contact: currentUser?.phone || '', subject: 'פנייה מלקוח WEFLOWZ', content: txt, customerGroupId: currentGroup?.id || null })
         }).then(r => r.json());
         if (r.success) {
             document.getElementById('biz-msg-modal')?.remove();
@@ -14859,7 +14859,7 @@ window._sendBizAccordionMsg = async function(btn) {
         const biz = _activityAllBiz.find(b => b.business_group_id == bizId) || {};
         const r = await fetch(`${API}/inbox/customer`, {
             method:'POST', headers:{'Content-Type':'application/json'},
-            body: JSON.stringify({ groupId: parseInt(bizId), name: currentUser?.nickname||'לקוח', contact: currentUser?.phone||'', subject:'פנייה מלקוח ONEFLOW', content: txt, customerGroupId: currentGroup?.id||null })
+            body: JSON.stringify({ groupId: parseInt(bizId), name: currentUser?.nickname||'לקוח', contact: currentUser?.phone||'', subject:'פנייה מלקוח WEFLOWZ', content: txt, customerGroupId: currentGroup?.id||null })
         }).then(r=>r.json());
         if (r.success) {
             if (ta) ta.value = '';
@@ -15369,7 +15369,7 @@ async function openGame(assignmentId, gameFilePath, childName, flwPerRound, game
       padding:0.7rem 1rem;
       display:flex; align-items:center; justify-content:space-between;
     ">
-      <span style="color:white;font-weight:700;font-size:1rem">🎮 Oneflow Kids</span>
+      <span style="color:white;font-weight:700;font-size:1rem">🎮 WEFLOWZ Kids</span>
       <button onclick="closeGame()" style="
         background:rgba(255,255,255,0.2); border:none; color:white;
         border-radius:50px; padding:0.3rem 0.9rem; cursor:pointer; font-size:0.85rem;
@@ -17652,7 +17652,7 @@ async function showSharersList(postId) {
 // שיתוף פוסט בווטסאפ
 function shareToWhatsApp(postId, communityName) {
   const url = `${location.origin}/?post=${postId}`;
-  const text = `פוסט מקהילת "${communityName}" ב-OneFlow Life:\n${url}`;
+  const text = `פוסט מקהילת "${communityName}" ב-WEFLOWZ:\n${url}`;
   window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
   // רישום השיתוף בשרת
   try {
