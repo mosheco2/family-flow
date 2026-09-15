@@ -741,20 +741,16 @@ let _saKpiDetailKey = null;
 window.openSAKpiDetail = async function(kpiKey) {
     _saKpiDetailKey = kpiKey;
     _saKpiDetailPage = 1;
-    const panel = document.getElementById('sa-kpi-detail-panel');
     const overlay = document.getElementById('sa-kpi-detail-overlay');
-    if (!panel) return;
+    if (!overlay) return;
     const kpi = _saInsightsData[kpiKey];
     document.getElementById('sa-kpi-detail-title').innerText = kpi ? kpi.label : kpiKey;
-    panel.classList.remove('hidden');
-    if (overlay) overlay.classList.remove('hidden');
+    overlay.classList.remove('hidden');
     await loadSAKpiDetailPage();
 };
 
 window.closeSAKpiDetail = function() {
-    const panel = document.getElementById('sa-kpi-detail-panel');
     const overlay = document.getElementById('sa-kpi-detail-overlay');
-    if (panel) panel.classList.add('hidden');
     if (overlay) overlay.classList.add('hidden');
 };
 

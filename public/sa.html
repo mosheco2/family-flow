@@ -820,13 +820,14 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                 </div>
 
                 <!-- פאנל דרילדאון KPI -->
-                <div id="sa-kpi-detail-overlay" onclick="closeSAKpiDetail()" class="hidden" style="position:fixed;inset:0;background:rgba(15,23,42,0.5);z-index:399;"></div>
-                <div id="sa-kpi-detail-panel" class="hidden" style="position:fixed;top:0;bottom:0;left:0;width:min(420px,92vw);background:white;z-index:400;box-shadow:-8px 0 24px rgba(0,0,0,0.15);display:flex;flex-direction:column;">
-                    <div class="flex items-center justify-between p-4 border-b border-slate-100">
-                        <h3 id="sa-kpi-detail-title" class="font-black text-slate-800 text-sm"></h3>
-                        <button onclick="closeSAKpiDetail()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+                <div id="sa-kpi-detail-overlay" onclick="closeSAKpiDetail()" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[399] flex items-center justify-center p-2 sm:p-4 fade-in">
+                    <div id="sa-kpi-detail-panel" onclick="event.stopPropagation()" class="bg-white w-full max-w-lg max-h-[85vh] rounded-2xl shadow-2xl relative flex flex-col overflow-hidden border border-white/20">
+                        <div class="flex items-center justify-between p-4 border-b border-slate-100 shrink-0">
+                            <h3 id="sa-kpi-detail-title" class="font-black text-slate-800 text-sm"></h3>
+                            <button onclick="closeSAKpiDetail()" class="text-slate-400 hover:text-slate-600 bg-slate-50 w-8 h-8 rounded-full flex items-center justify-center transition border border-slate-100"><i class="fa-solid fa-xmark"></i></button>
+                        </div>
+                        <div id="sa-kpi-detail-body" class="flex-1 overflow-y-auto p-4"></div>
                     </div>
-                    <div id="sa-kpi-detail-body" class="flex-1 overflow-y-auto p-4"></div>
                 </div>
 
                 <div id="sa-view-stats" class="hidden space-y-8 fade-in">
@@ -4762,7 +4763,7 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
       </div>
     </div>
 
-    <script src="sa-app.js?v=70"></script>
+    <script src="sa-app.js?v=71"></script>
     <script src="community-help.js?v=1"></script>
     <div id="sa-sla-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[9999] flex items-center justify-center p-4 fade-in">
         <div class="bg-white w-full max-w-2xl rounded-[2rem] p-6 shadow-2xl relative">
