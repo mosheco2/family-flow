@@ -12312,10 +12312,11 @@ app.get('/campaign/:code', async (req, res) => {
         const c = cRes.rows[0];
         const escAttr = (s) => String(s || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
         const baseUrl = `${req.protocol}://${req.get('host')}`;
-        // מבנה קבוע לתצוגה המקדימה בווצאפ: שם הקמפיין / סלוגן (או טקסט מותאם שהמנהל הגדיר) / סלוגן המותג / לוגו WEFLOWZ
-        const title = escAttr(c.title || c.community_name || 'קמפיין קהילה');
-        const sloganLine = c.share_description || c.slogan || '';
-        const description = escAttr([sloganLine, 'WEFLOWZ עושה לכם סדר'].filter(Boolean).join('\n'));
+        // מבנה תצוגה מקדימה בווצאפ: שם הקמפיין (שורה ראשונה, מודגשת) / הטקסט
+        // שהמנהל הקליד ידנית בניהול (שורה שנייה) / "WEFLOWZ עושה לכם סדר" ליד הכתובת / לוגו WEFLOWZ
+        const manualLine = c.share_description || c.slogan || '';
+        const title = escAttr(manualLine || c.title || c.community_name || 'קמפיין קהילה');
+        const description = escAttr(c.title || c.community_name || '');
         const image = escAttr(`${baseUrl}/api/public/logo`);
         const pageUrl = escAttr(`${baseUrl}/campaign/${c.code}`);
         const injected = html
@@ -12323,7 +12324,7 @@ app.get('/campaign/:code', async (req, res) => {
             .replace('<meta property="og:title" content="קמפיין קהילה">', `<meta property="og:title" content="${title}">`)
             .replace(/<meta property="og:description" content="[^"]*">/, `<meta property="og:description" content="${description}">`)
             .replace('<meta property="og:image" content="">', `<meta property="og:image" content="${image}">`)
-            .replace('</head>', `<meta property="og:url" content="${pageUrl}"><script>window.__CAMPAIGN_CODE__=${JSON.stringify(c.code)};</script></head>`);
+            .replace('</head>', `<meta property="og:site_name" content="WEFLOWZ — עושה לכם סדר"><meta property="og:url" content="${pageUrl}"><script>window.__CAMPAIGN_CODE__=${JSON.stringify(c.code)};</script></head>`);
         res.send(injected);
     } catch(e) { res.status(500).send('שגיאת שרת'); }
 });
