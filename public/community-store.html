@@ -91,6 +91,11 @@ input,button,select,textarea{font-family:inherit}
 #hero-slogan{font-size:clamp(15px,1.8vw,18px);font-weight:600;color:var(--accent);margin:0 0 8px}
 #hero-sub{font-size:clamp(13px,1.4vw,15px);font-weight:300;color:rgba(255,255,255,.64);line-height:1.55;margin:0;max-width:52ch}
 #hero-logo{width:112px;height:112px;border-radius:26px;object-fit:contain;background:rgba(255,255,255,.96);padding:10px;border:3px solid rgba(255,255,255,.3);box-shadow:0 10px 30px rgba(0,0,0,.35);margin-bottom:18px}
+/* מובייל: הלוגו ב-112px גדול מדי ביחס לגובה הבאנר הקומפקטי ו"דורס" את תמונת
+   הנושא — מקטינים רק כאן, דסקטופ (מעל 820px) נשאר בדיוק כפי שהיה */
+@media (max-width:819px){
+    #hero-logo{width:64px;height:64px;border-radius:16px;padding:6px;margin-bottom:12px}
+}
 
 #biz-nav-wrap{position:sticky;top:59px;z-index:100;background:rgba(250,250,247,.94);backdrop-filter:blur(12px);border-bottom:1px solid var(--border)}
 #biz-nav{max-width:1280px;margin:0 auto;padding:10px 20px;display:flex;gap:7px;overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none}
@@ -101,6 +106,17 @@ input,button,select,textarea{font-family:inherit}
 
 #catalog-outer{max-width:1280px;margin:0 auto;padding:clamp(18px,2.4vw,28px) 20px 0}
 .products-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(220px,100%),1fr));gap:13px}
+/* מובייל: שני מוצרים בשורה במקום מוצר אחד ברוחב מלא, בגודל קומפקטי יותר —
+   דסקטופ (מעל 820px) לא משתנה */
+@media (max-width:819px){
+    .products-grid{grid-template-columns:1fr 1fr;gap:9px}
+    .product-card{padding:7px;border-radius:16px}
+    .product-name{font-size:12.5px}
+    .product-price{font-size:14px}
+    .community-badge{font-size:9px;padding:2px 6px}
+    .product-footer{gap:5px;padding-top:8px;flex-wrap:wrap}
+    .add-pill{height:28px;padding:0 10px;font-size:11px}
+}
 .product-card{background:#fff;border-radius:20px;padding:9px;display:flex;flex-direction:column;transition:.18s cubic-bezier(.2,.8,.2,1);box-shadow:0 1px 2px rgba(0,0,0,.05)}
 .product-card:hover{transform:translateY(-3px);box-shadow:0 14px 32px rgba(0,0,0,.1)}
 .product-img-wrap{position:relative;aspect-ratio:4/3;border-radius:14px;background:var(--subtle);display:flex;align-items:center;justify-content:center;overflow:hidden}
