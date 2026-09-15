@@ -1,4 +1,4 @@
-// WEFLOWZ — Community Campaign public store page
+// WEFLOWZ — Community Campaign public store page (visual language matches the "חמה" storefront template)
 (function() {
     const params = new URLSearchParams(window.location.search);
     const campaignCode = params.get('c') || params.get('campaign') || '';
@@ -6,59 +6,82 @@
     let campaignData = null;
     let selectedBizFilter = 'all';
     let cart = []; // [{catalogId, businessGroupId, businessName, name, price, quantity}]
+    let panelState = 'cart'; // 'cart' | 'checkout' | 'done'
 
     function csSafe(s) { return (s == null ? '' : String(s)).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+    function csToast(msg) {
+        const t = document.getElementById('toast');
+        t.textContent = msg;
+        t.style.display = 'block';
+        clearTimeout(window._csToastTimer);
+        window._csToastTimer = setTimeout(() => { t.style.display = 'none'; }, 2600);
+    }
 
     async function init() {
         if (!campaignCode) {
+            document.getElementById('loading-screen').style.display = 'none';
             document.getElementById('cs-title').textContent = 'קמפיין לא נמצא';
-            document.getElementById('cs-products').innerHTML = '<div class="col-span-2 text-center text-slate-400 py-12">לא צויין קוד קמפיין בכתובת</div>';
+            document.getElementById('hero').style.display = 'block';
+            document.getElementById('cs-products').innerHTML = '<div class="catalog-empty">לא צויין קוד קמפיין בכתובת</div>';
             return;
         }
         try {
             const res = await fetch(`/api/campaign/${encodeURIComponent(campaignCode)}`);
             const data = await res.json();
+            document.getElementById('loading-screen').style.display = 'none';
             if (!data.success) {
                 document.getElementById('cs-title').textContent = 'קמפיין לא זמין';
-                document.getElementById('cs-desc').textContent = data.error || '';
-                document.getElementById('cs-products').innerHTML = '';
+                document.getElementById('hero-sub').textContent = data.error || '';
+                document.getElementById('hero').style.display = 'block';
                 return;
             }
             campaignData = data;
+            document.getElementById('main-header').style.display = 'block';
+            document.getElementById('hero').style.display = 'block';
+            document.getElementById('biz-nav-wrap').style.display = 'block';
+            document.getElementById('store-footer').style.display = 'block';
             renderHeader();
             renderBizChips();
             renderProducts();
         } catch(e) {
+            document.getElementById('loading-screen').style.display = 'none';
             document.getElementById('cs-title').textContent = 'שגיאת תקשורת';
+            document.getElementById('hero').style.display = 'block';
         }
     }
 
     function renderHeader() {
         const c = campaignData.campaign;
         document.getElementById('cs-community-name').textContent = c.community_name || 'קמפיין קהילה';
+        document.getElementById('header-name').textContent = c.title;
         document.getElementById('cs-title').textContent = c.title;
-        document.getElementById('cs-slogan').textContent = c.slogan || '';
-        document.getElementById('cs-desc').textContent = c.description || '';
-        document.title = `${c.title} | WEFLOWZ`;
+        document.getElementById('page-title').textContent = `${c.title} | WEFLOWZ`;
+        if (c.slogan) {
+            const el = document.getElementById('hero-slogan');
+            el.textContent = c.slogan;
+            el.style.display = 'block';
+        }
+        document.getElementById('hero-sub').textContent = c.description || '';
         if (c.logo_url) {
-            const logo = document.getElementById('cs-logo');
-            logo.src = c.logo_url;
-            logo.classList.remove('hidden');
+            const heroLogo = document.getElementById('hero-logo');
+            heroLogo.src = c.logo_url;
+            heroLogo.style.display = 'block';
+            const headerLogo = document.getElementById('header-logo');
+            headerLogo.innerHTML = `<img src="${c.logo_url}">`;
         }
         if (c.banner_image_url) {
-            document.getElementById('cs-banner').style.backgroundImage = `linear-gradient(to bottom, rgba(79,70,229,0.75), rgba(147,51,234,0.75)), url('${c.banner_image_url}')`;
-            document.getElementById('cs-banner').style.backgroundSize = 'cover';
-            document.getElementById('cs-banner').style.backgroundPosition = 'center';
+            document.getElementById('hero').style.backgroundImage = `linear-gradient(rgba(17,17,19,.72),rgba(17,17,19,.72)), url('${c.banner_image_url}')`;
+            document.getElementById('hero').style.backgroundSize = 'cover';
+            document.getElementById('hero').style.backgroundPosition = 'center';
         }
     }
 
     function renderBizChips() {
-        const wrap = document.getElementById('cs-biz-chips');
+        const wrap = document.getElementById('biz-nav');
         const chips = [{ group_id: 'all', name: 'הכל', logo_url: null }].concat(campaignData.businesses);
         wrap.innerHTML = chips.map(b => `
-            <button onclick="csFilterBiz('${b.group_id}')" data-biz="${b.group_id}"
-                class="cs-chip chip px-4 py-2 rounded-full text-xs font-bold border transition flex items-center gap-1.5 ${selectedBizFilter == b.group_id ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-slate-600 border-slate-200'}">
-                ${b.logo_url ? `<img src="${b.logo_url}" class="w-4 h-4 rounded-full object-cover">` : ''}
+            <button onclick="csFilterBiz('${b.group_id}')" class="biz-pill ${selectedBizFilter == b.group_id ? 'active' : ''}">
+                ${b.logo_url ? `<img src="${b.logo_url}">` : ''}
                 ${csSafe(b.name)}
             </button>`).join('');
     }
@@ -69,21 +92,20 @@
             ? campaignData.products
             : campaignData.products.filter(p => String(p.group_id) === String(selectedBizFilter));
         if (!items.length) {
-            grid.innerHTML = '<div class="col-span-2 text-center text-slate-400 py-12">אין מוצרים להצגה</div>';
+            grid.innerHTML = '<div class="catalog-empty" style="grid-column:1/-1">אין מוצרים להצגה</div>';
             return;
         }
         grid.innerHTML = items.map(p => `
-            <div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden flex flex-col">
-                <div class="aspect-square bg-slate-50 flex items-center justify-center">
-                    ${p.has_image ? `<img src="/api/store/item-image/${p.id}" class="w-full h-full object-cover" onerror="this.parentElement.innerHTML='<i class=\\'fa-solid fa-image text-3xl text-slate-200\\'></i>'">` : '<i class="fa-solid fa-box text-3xl text-slate-200"></i>'}
+            <div class="product-card">
+                <div class="product-img-wrap">
+                    ${p.has_image ? `<img src="/api/store/item-image/${p.id}" onerror="this.parentElement.innerHTML='<i class=\\'fa-solid fa-image product-img-ph\\'></i>'">` : '<i class="fa-solid fa-box product-img-ph"></i>'}
                 </div>
-                <div class="p-3 flex-1 flex flex-col">
-                    <span class="text-[10px] font-bold text-indigo-500 mb-0.5">${csSafe(p.business_name)}</span>
-                    <p class="text-sm font-bold text-slate-800 leading-tight mb-1">${csSafe(p.name)}</p>
-                    <div class="mt-auto flex items-center justify-between pt-2">
-                        <span class="font-black text-slate-800">₪${parseFloat(p.price).toFixed(0)}</span>
-                        <button onclick='csAddToCart(${JSON.stringify({id:p.id, group_id:p.group_id, business_name:p.business_name, name:p.name, price:parseFloat(p.price)}).replace(/'/g,"&#39;")})'
-                            class="bg-indigo-50 text-indigo-600 w-8 h-8 rounded-full flex items-center justify-center font-bold hover:bg-indigo-100 transition"><i class="fa-solid fa-plus text-xs"></i></button>
+                <div class="product-body">
+                    <span class="community-badge"><i class="fa-solid fa-store" style="font-size:9px"></i> ${csSafe(p.business_name)}</span>
+                    <div class="product-name">${csSafe(p.name)}</div>
+                    <div class="product-footer">
+                        <span class="product-price">₪${parseFloat(p.price).toFixed(0)}</span>
+                        <button class="add-pill" onclick='csAddToCart(${JSON.stringify({id:p.id, group_id:p.group_id, business_name:p.business_name, name:p.name, price:parseFloat(p.price)}).replace(/'/g,"&#39;")})'>הוסף</button>
                     </div>
                 </div>
             </div>`).join('');
@@ -95,27 +117,18 @@
         renderProducts();
     };
 
-    // כלל ברזל: אי אפשר להזמין מוצרים משני עסקים שונים באותה הזמנה.
-    // בניגוד לגרסה קודמת — אין אפשרות "לרוקן אוטומטית ולהמשיך"; חוסמים
-    // לגמרי ומכוונים לכפתור "רוקן עגלה" המפורש בעגלה.
+    // כלל ברזל: אי אפשר להזמין מוצרים משני עסקים שונים באותה הזמנה — נאכף גם בשרת.
     window.csAddToCart = function(product) {
         if (cart.length && String(cart[0].businessGroupId) !== String(product.group_id)) {
-            alert(`אי אפשר להזמין מוצרים משני עסקים שונים באותה הזמנה.\nהעגלה שלך מכילה כרגע מוצרים מ-"${cart[0].businessName}".\nכדי להזמין מ-"${product.business_name}" יש לרוקן קודם את העגלה (כפתור "רוקן עגלה" בתוך העגלה).`);
             csOpenCart();
+            csToast(`אפשר להזמין רק מעסק אחד — רוקנו את העגלה כדי לעבור ל-"${product.business_name}"`);
             return;
         }
         const existing = cart.find(i => i.catalogId === product.id);
         if (existing) existing.quantity += 1;
         else cart.push({ catalogId: product.id, businessGroupId: product.group_id, businessName: product.business_name, name: product.name, price: product.price, quantity: 1 });
-        updateCartUI();
-    };
-
-    window.csEmptyCart = function() {
-        if (!cart.length) return;
-        if (!confirm('לרוקן את העגלה?')) return;
-        cart = [];
-        updateCartUI();
-        renderCartItems();
+        updateCartBadges();
+        csToast(`${product.name} נוסף לעגלה`);
     };
 
     window.csChangeQty = function(catalogId, delta) {
@@ -123,72 +136,98 @@
         if (!item) return;
         item.quantity += delta;
         if (item.quantity <= 0) cart = cart.filter(i => i.catalogId !== catalogId);
-        updateCartUI();
-        renderCartItems();
+        updateCartBadges();
+        renderCartStep();
+    };
+
+    window.csEmptyCart = function() {
+        if (!cart.length) return;
+        if (!confirm('לרוקן את העגלה?')) return;
+        cart = [];
+        updateCartBadges();
+        renderCartStep();
     };
 
     function cartTotal() { return cart.reduce((s, i) => s + i.price * i.quantity, 0); }
     function cartCount() { return cart.reduce((s, i) => s + i.quantity, 0); }
 
-    function updateCartUI() {
-        const btn = document.getElementById('cs-cart-btn');
-        if (!cart.length) { btn.classList.add('hidden'); return; }
-        btn.classList.remove('hidden');
-        document.getElementById('cs-cart-count').textContent = cartCount();
-        document.getElementById('cs-cart-total').textContent = cartTotal().toFixed(0);
+    function updateCartBadges() {
+        const has = cart.length > 0;
+        document.getElementById('cart-header-count').textContent = cartCount();
+        document.getElementById('cart-bar').style.display = has ? 'block' : 'none';
+        document.getElementById('cart-bar-count').textContent = cartCount();
+        document.getElementById('cart-bar-total').textContent = `₪${cartTotal().toFixed(0)}`;
     }
 
-    function renderCartItems() {
-        document.getElementById('cs-cart-biz-name').textContent = cart.length ? `מזמינים מ: ${cart[0].businessName}` : '';
+    function renderCartStep() {
+        const notice = document.getElementById('cs-single-biz-notice');
+        if (cart.length) {
+            notice.style.display = 'flex';
+            notice.querySelector('span').textContent = `מזמינים מ-"${cart[0].businessName}" · אי אפשר לערבב עסקים בהזמנה אחת`;
+        } else {
+            notice.style.display = 'none';
+        }
         document.getElementById('cs-cart-items').innerHTML = cart.length ? cart.map(i => `
-            <div class="flex items-center justify-between gap-2">
-                <div class="flex-1">
-                    <p class="text-sm font-bold text-slate-800">${csSafe(i.name)}</p>
-                    <p class="text-xs text-slate-400">₪${i.price.toFixed(0)} ליחידה</p>
+            <div class="cart-line">
+                <div class="cart-line-img"><i class="fa-solid fa-box"></i></div>
+                <div class="cart-line-info">
+                    <div class="cart-line-name">${csSafe(i.name)}</div>
+                    <button class="cart-line-remove" onclick="csChangeQty(${i.catalogId}, -${i.quantity})">הסר</button>
                 </div>
-                <div class="flex items-center gap-2">
-                    <button onclick="csChangeQty(${i.catalogId}, -1)" class="w-7 h-7 rounded-full bg-slate-100 font-bold">−</button>
-                    <span class="w-5 text-center font-bold">${i.quantity}</span>
-                    <button onclick="csChangeQty(${i.catalogId}, 1)" class="w-7 h-7 rounded-full bg-slate-100 font-bold">+</button>
+                <div class="cart-line-right">
+                    <div class="cart-line-price">₪${(i.price * i.quantity).toFixed(0)}</div>
+                    <div class="qty-mini">
+                        <button onclick="csChangeQty(${i.catalogId}, -1)">−</button>
+                        <span class="qm-val">${i.quantity}</span>
+                        <button onclick="csChangeQty(${i.catalogId}, 1)">+</button>
+                    </div>
                 </div>
-            </div>`).join('') : '<p class="text-center text-slate-400 py-6">העגלה ריקה</p>';
-        document.getElementById('cs-cart-modal-total').textContent = cartTotal().toFixed(0);
+            </div>`).join('') + `<button onclick="csEmptyCart()" style="align-self:center;background:none;border:none;color:var(--accent);font-size:12px;font-weight:600;cursor:pointer;margin-top:6px">רוקן עגלה</button>`
+            : '<div id="cart-empty-msg">העגלה ריקה</div>';
+    }
+
+    function setPanelState(state) {
+        panelState = state;
+        document.getElementById('panel-cart-step').style.display = state === 'cart' ? 'flex' : 'none';
+        document.getElementById('panel-checkout-step').style.display = state === 'checkout' ? 'flex' : 'none';
+        document.getElementById('panel-done-step').style.display = state === 'done' ? 'flex' : 'none';
+        document.getElementById('panel-back-btn').style.display = state === 'checkout' ? 'block' : 'none';
+        document.getElementById('panel-summary').style.display = state === 'done' ? 'none' : 'flex';
+        document.getElementById('panel-title').textContent = state === 'cart' ? 'העגלה שלך' : state === 'checkout' ? 'פרטי הזמנה' : 'תודה!';
+        document.getElementById('panel-primary-btn').textContent = state === 'cart' ? 'המשך להזמנה' : 'שלח הזמנה';
+        document.getElementById('panel-primary-btn').disabled = false;
+        document.getElementById('cs-panel-total').textContent = `₪${cartTotal().toFixed(0)}`;
     }
 
     window.csOpenCart = function() {
-        renderCartItems();
-        document.getElementById('cs-cart-modal').classList.remove('hidden');
+        renderCartStep();
+        setPanelState('cart');
+        document.getElementById('panel-overlay').style.display = 'flex';
     };
-    window.csCloseCart = function() { document.getElementById('cs-cart-modal').classList.add('hidden'); };
+    window.csCloseCart = function() { document.getElementById('panel-overlay').style.display = 'none'; };
+    window.csBackToCart = function() { renderCartStep(); setPanelState('cart'); };
 
-    // שלב 1 מתוך תהליך הסיום — כמו הזמנה רגילה מחנות ציבורית, בלי משלוח:
-    // מוודא התחברות, מציג סיכום + פרטי לקוח + הערות, ורק אז מאפשר לשלוח בפועל.
-    window.csOpenCheckoutForm = function() {
-        if (!cart.length) return;
-        if (!window.scAuth.requireLogin('csOpenCheckoutForm', '🔒 כדי להשלים הזמנה יש להתחבר או להירשם.<br><span style="font-size:11px;color:#15803d">ההרשמה מקשרת אותך אוטומטית לכל העסקים בקמפיין.</span>')) return;
+    window.csPrimaryAction = function() {
+        if (panelState === 'cart') {
+            if (!cart.length) return;
+            if (!window.scAuth.requireLogin('csGoToCheckoutStep', '🔒 כדי להשלים הזמנה יש להתחבר או להירשם.<br><span style="font-size:11px;color:#15803d">ההרשמה מקשרת אותך אוטומטית לכל העסקים בקמפיין.</span>')) return;
+            csGoToCheckoutStep();
+        } else if (panelState === 'checkout') {
+            csSubmitOrder();
+        }
+    };
 
+    window.csGoToCheckoutStep = function() {
         const customer = window.scAuth._customer || {};
         document.getElementById('cs-cust-name').value = [customer.first_name, customer.last_name].filter(Boolean).join(' ');
         document.getElementById('cs-cust-phone').value = customer.phone || '';
         document.getElementById('cs-cust-notes').value = '';
-
-        document.getElementById('cs-checkout-summary').innerHTML = cart.map(i => `
-            <div class="flex justify-between text-xs">
-                <span class="text-slate-600">${csSafe(i.name)} × ${i.quantity}</span>
-                <span class="font-bold text-slate-800">₪${(i.price * i.quantity).toFixed(0)}</span>
-            </div>`).join('') + `
-            <div class="flex justify-between text-sm font-black text-slate-800 pt-2 mt-2 border-t border-slate-200">
-                <span>סה"כ</span><span>₪${cartTotal().toFixed(0)}</span>
-            </div>`;
-
-        csCloseCart();
-        document.getElementById('cs-checkout-modal').classList.remove('hidden');
+        setPanelState('checkout');
     };
-    window.csCloseCheckoutForm = function() { document.getElementById('cs-checkout-modal').classList.add('hidden'); };
 
     window.csSubmitOrder = async function() {
-        const btn = document.getElementById('cs-submit-order-btn');
-        btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin ml-1.5"></i>שולח הזמנה...';
+        const btn = document.getElementById('panel-primary-btn');
+        btn.disabled = true; btn.textContent = 'שולח...';
         try {
             const res = await fetch(`/api/campaign/${encodeURIComponent(campaignCode)}/order`, {
                 method: 'POST',
@@ -197,17 +236,16 @@
             });
             const data = await res.json();
             if (!data.success) {
-                alert(data.error || 'שגיאה בשליחת ההזמנה');
-                btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-paper-plane ml-1.5"></i>שלח הזמנה';
+                csToast(data.error || 'שגיאה בשליחת ההזמנה');
+                btn.disabled = false; btn.textContent = 'שלח הזמנה';
                 return;
             }
             cart = [];
-            updateCartUI();
-            csCloseCheckoutForm();
-            alert('ההזמנה נשלחה בהצלחה! 🎉 ניתן לאסוף מהעסק בהתאם לתיאום.');
+            updateCartBadges();
+            setPanelState('done');
         } catch(e) {
-            alert('שגיאת תקשורת, נסו שנית');
-            btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-paper-plane ml-1.5"></i>שלח הזמנה';
+            csToast('שגיאת תקשורת, נסו שנית');
+            btn.disabled = false; btn.textContent = 'שלח הזמנה';
         }
     };
 
