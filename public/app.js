@@ -8282,7 +8282,7 @@ async function cmOpenCampaignProducts(campaignId, groupId, commId) {
         <div class="space-y-1 max-h-64 overflow-y-auto modal-scroll pr-1">
         ${(data.catalog||[]).map(p => `
             <label class="flex items-center gap-2 p-2 border ${p.selected ? 'border-emerald-200 bg-emerald-50' : 'border-slate-100 bg-white'} rounded-lg cursor-pointer">
-                <input type="checkbox" ${p.selected ? 'checked' : ''} ${p.is_available ? '' : 'disabled'} onchange="cmToggleCampaignProduct(${campaignId}, ${groupId}, ${p.id}, this.checked, ${commId})" class="w-4 h-4 accent-emerald-600 shrink-0">
+                <input type="checkbox" ${p.selected ? 'checked' : ''} ${p.is_available ? '' : 'disabled'} onchange="cmToggleCampaignProduct(${campaignId}, ${groupId}, ${p.id}, this.checked, this)" class="w-4 h-4 accent-emerald-600 shrink-0">
                 <span class="text-xs font-bold text-slate-700 flex-1">${safeStr(p.name)}${p.is_available ? '' : ' <span class=\'text-red-400 font-normal\'>(לא זמין)</span>'}</span>
                 <span class="text-[10px] text-slate-400 font-mono">₪${p.price}</span>
             </label>`).join('') || '<p class="text-slate-400 text-xs text-center py-3">אין מוצרים בקטלוג של העסק הזה</p>'}
@@ -8290,15 +8290,23 @@ async function cmOpenCampaignProducts(campaignId, groupId, commId) {
     } catch(e) { box.innerHTML = '<p class="text-red-400 text-sm text-center py-3">שגיאת רשת</p>'; }
 }
 
-async function cmToggleCampaignProduct(campaignId, groupId, catalogId, checked, commId) {
+// עדכון מקומי בלבד (בלי לטעון מחדש את כל הקטלוג) — כדי שאפשר לסמן כמה מוצרים
+// ברצף בלי שהמסך "יקפוץ"/יתאפס בין כל סימון
+async function cmToggleCampaignProduct(campaignId, groupId, catalogId, checked, checkboxEl) {
+    const label = checkboxEl?.closest('label');
     try {
         const res = await communityFetch(`${API}/community/manager/campaigns/${campaignId}/products`, {
             method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ businessGroupId: groupId, catalogId, action: checked ? 'add' : 'remove' })
         });
         const data = await res.json();
-        if (!data.success) return showToast('error', data.error || 'שגיאה');
-        cmOpenCampaignProducts(campaignId, groupId, commId);
-    } catch(e) { showToast('error', 'שגיאת רשת'); }
+        if (!data.success) { if (checkboxEl) checkboxEl.checked = !checked; showToast('error', data.error || 'שגיאה'); return; }
+        if (label) {
+            label.classList.toggle('border-emerald-200', checked);
+            label.classList.toggle('bg-emerald-50', checked);
+            label.classList.toggle('border-slate-100', !checked);
+            label.classList.toggle('bg-white', !checked);
+        }
+    } catch(e) { if (checkboxEl) checkboxEl.checked = !checked; showToast('error', 'שגיאת רשת'); }
 }
 
 async function cmPublishArticle(commId) {

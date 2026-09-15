@@ -1855,7 +1855,7 @@ async function zmOpenCampaignProducts(campaignId, groupId, commId) {
         <div class="space-y-1.5">
         ${data.catalog.map(p => `
             <label class="flex items-center gap-2 p-2.5 border ${p.selected ? 'border-emerald-200 bg-emerald-50' : 'border-slate-100 bg-white'} rounded-xl cursor-pointer">
-                <input type="checkbox" ${p.selected ? 'checked' : ''} ${p.is_available ? '' : 'disabled'} onchange="zmToggleCampaignProduct(${campaignId}, ${groupId}, ${p.id}, this.checked, ${commId})" class="w-4 h-4 accent-emerald-600 shrink-0">
+                <input type="checkbox" ${p.selected ? 'checked' : ''} ${p.is_available ? '' : 'disabled'} onchange="zmToggleCampaignProduct(${campaignId}, ${groupId}, ${p.id}, this.checked, this)" class="w-4 h-4 accent-emerald-600 shrink-0">
                 <span class="text-xs font-bold text-slate-700 flex-1">${safeStrZM(p.name)}${p.is_available ? '' : ' <span class=\'text-red-400 font-normal\'>(לא זמין אצל העסק)</span>'}</span>
                 <span class="text-xs text-slate-400 font-mono">₪${p.price}</span>
             </label>`).join('') || '<div class="text-center text-slate-400 py-6 text-xs">אין מוצרים בקטלוג של העסק הזה</div>'}
@@ -1863,16 +1863,24 @@ async function zmOpenCampaignProducts(campaignId, groupId, commId) {
     } catch(e) { body.innerHTML = '<div class="text-red-400 text-center py-6">שגיאת תקשורת</div>'; }
 }
 
-async function zmToggleCampaignProduct(campaignId, groupId, catalogId, checked, commId) {
+// עדכון מקומי בלבד (בלי לטעון מחדש את כל הקטלוג) — כדי שאפשר לסמן כמה מוצרים
+// ברצף בלי שהמסך "יקפוץ"/יתאפס בין כל סימון
+async function zmToggleCampaignProduct(campaignId, groupId, catalogId, checked, checkboxEl) {
+    const label = checkboxEl?.closest('label');
     try {
         const res = await fetch(`${API}/zone-manager/community-campaigns/${campaignId}/products`, {
             method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': zmToken },
             body: JSON.stringify({ businessGroupId: groupId, catalogId, action: checked ? 'add' : 'remove' })
         });
         const data = await res.json();
-        if (!data.success) return showZMToast(data.error || 'שגיאה', 'error');
-        zmOpenCampaignProducts(campaignId, groupId, commId);
-    } catch(e) { showZMToast('שגיאת רשת', 'error'); }
+        if (!data.success) { if (checkboxEl) checkboxEl.checked = !checked; showZMToast(data.error || 'שגיאה', 'error'); return; }
+        if (label) {
+            label.classList.toggle('border-emerald-200', checked);
+            label.classList.toggle('bg-emerald-50', checked);
+            label.classList.toggle('border-slate-100', !checked);
+            label.classList.toggle('bg-white', !checked);
+        }
+    } catch(e) { if (checkboxEl) checkboxEl.checked = !checked; showZMToast('שגיאת רשת', 'error'); }
 }
 
 async function zmApproveFamily(groupId, commId) {
