@@ -825,6 +825,14 @@ window.loadSAPendingCenter = async function() {
         if (!d.categories.length) { list.innerHTML = '<p class="text-emerald-500 text-center py-6 text-xs font-bold"><i class="fa-solid fa-circle-check mr-1"></i> אין פעולות ממתינות — המערכת נקייה</p>'; return; }
 
         list.innerHTML = d.categories.map(cat => {
+            if (cat.count === 0) {
+                return `<div class="border rounded-xl p-3 bg-slate-50 border-slate-100">
+                    <div class="flex items-center justify-between">
+                        <span class="font-bold text-xs flex items-center gap-1.5 text-slate-400"><i class="fa-solid ${cat.icon}"></i> ${safeStr(cat.label)}</span>
+                        <span class="text-[10px] text-emerald-500 font-bold flex items-center gap-1"><i class="fa-solid fa-circle-check"></i> אין פעולות ממתינות</span>
+                    </div>
+                </div>`;
+            }
             const sev = _saWaitSeverity(cat.oldest_wait_hours);
             const navFn = SA_PENDING_NAV[cat.key] ? `SA_PENDING_NAV['${cat.key}']()` : '';
             const itemsHtml = cat.items.map(it => `

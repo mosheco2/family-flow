@@ -8395,12 +8395,19 @@ app.get('/api/sa/pending-actions-center', verifySA, async (req, res) => {
             buildCategory('removal', 'בקשות הסרת עסק מקהילה', 'סופר אדמין', 'fa-user-minus', removalReq),
             buildCategory('promos', 'מבצעי קהילה ממתינים לאישור', 'סופר אדמין', 'fa-tags', promosPending),
             buildCategory('modules', 'בקשות פתיחת מודול', 'סופר אדמין', 'fa-puzzle-piece', moduleReqItems)
-        ].filter(c => c.count > 0);
+        ];
 
-        categories.sort((a,b) => (b.oldest_wait_hours||0) - (a.oldest_wait_hours||0));
+        // קטגוריות עם פעולות ממתינות קודם (מהוותיקה ביותר), אחריהן הקטגוריות הריקות (א-ב)
+        categories.sort((a,b) => {
+            if (a.count === 0 && b.count === 0) return a.label.localeCompare(b.label, 'he');
+            if (a.count === 0) return 1;
+            if (b.count === 0) return -1;
+            return (b.oldest_wait_hours||0) - (a.oldest_wait_hours||0);
+        });
 
-        const totalPending = categories.reduce((s,c) => s + c.count, 0);
-        const oldestOverall = categories.length ? Math.max(...categories.map(c => c.oldest_wait_hours||0)) : 0;
+        const nonEmpty = categories.filter(c => c.count > 0);
+        const totalPending = nonEmpty.reduce((s,c) => s + c.count, 0);
+        const oldestOverall = nonEmpty.length ? Math.max(...nonEmpty.map(c => c.oldest_wait_hours||0)) : 0;
 
         res.json({ success: true, categories, total_pending: totalPending, oldest_overall_hours: oldestOverall });
     } catch(e) {
