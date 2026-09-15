@@ -644,8 +644,8 @@ window.loadSAInsights = async function() {
     grid.innerHTML = '<div class="text-center text-slate-400 text-sm py-8 col-span-full">טוען נתונים...</div>';
     try {
         const [statsR, topR] = await Promise.all([
-            saFetch('/api/sa/unified-stats').then(r => r.json()),
-            saFetch('/api/sa/insights-top-lists').then(r => r.json()).catch(() => ({ success:false }))
+            saFetch('/api/sa/unified-stats'),
+            saFetch('/api/sa/insights-top-lists').catch(() => ({ success:false }))
         ]);
         if (!statsR.success) { grid.innerHTML = '<div class="text-red-500 text-sm text-center py-8 col-span-full">שגיאה בטעינת נתונים</div>'; return; }
         _saInsightsData = statsR.kpis;
@@ -764,7 +764,7 @@ window.loadSAKpiDetailPage = async function() {
     body.innerHTML = '<div class="text-center text-slate-400 text-sm py-8">טוען...</div>';
     try {
         const url = `/api/sa/kpi-detail?kpi=${encodeURIComponent(_saKpiDetailKey)}&range=${encodeURIComponent(_saInsightsRange)}&page=${_saKpiDetailPage}`;
-        const d = await saFetch(url).then(r => r.json());
+        const d = await saFetch(url);
         if (!d.success) { body.innerHTML = '<div class="text-red-500 text-sm text-center py-8">שגיאה</div>'; return; }
         if (!d.rows.length) { body.innerHTML = '<div class="text-slate-400 text-sm text-center py-8">אין רשומות בטווח זה</div>'; return; }
         const fmtILS = n => (n === null || n === undefined) ? '' : '₪' + parseFloat(n).toLocaleString('he-IL', { maximumFractionDigits: 0 });
