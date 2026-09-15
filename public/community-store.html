@@ -30,6 +30,36 @@ input,button,select,textarea{font-family:inherit}
 @keyframes panelIn{from{transform:translateX(101%)}to{transform:none}}
 @keyframes glow{0%,100%{opacity:.45}50%{opacity:1}}
 @keyframes spin{to{transform:rotate(360deg)}}
+@keyframes sheetIn{from{transform:translateY(101%)}to{transform:none}}
+
+/* גיליון פרטי מוצר (תוספות/מרכיבים) — זהה לתבנית "חמה" (storefront-restaurant.html) */
+#sheet-overlay{position:fixed;inset:0;z-index:400;background:rgba(10,10,11,.55);backdrop-filter:blur(3px);display:none;align-items:flex-end;justify-content:center}
+#sheet{width:min(520px,100%);max-height:94vh;background:var(--bg);border-radius:26px 26px 0 0;overflow:auto;animation:sheetIn .28s cubic-bezier(.2,.8,.2,1) both}
+#sheet-img{position:relative;aspect-ratio:16/9;background:var(--subtle);display:flex;align-items:center;justify-content:center}
+#sheet-img img{width:100%;height:100%;object-fit:cover}
+#sheet-img-ph{font-size:48px;opacity:.5}
+#sheet-close{position:absolute;top:12px;left:12px;width:34px;height:34px;border:none;border-radius:50%;background:rgba(255,255,255,.92);font-size:14px;cursor:pointer;color:var(--dark)}
+#sheet-body{padding:20px 20px 26px;display:flex;flex-direction:column;gap:14px}
+#sheet-name-row{display:flex;align-items:baseline;gap:10px}
+#sheet-name{font-family:'Rubik',sans-serif;font-size:22px;font-weight:700;letter-spacing:-.035em;margin:0}
+#sheet-price{font-family:'Rubik',sans-serif;font-size:19px;font-weight:700;margin-right:auto;letter-spacing:-.03em}
+#sheet-desc{font-size:13.5px;font-weight:300;color:#6E6E69;line-height:1.55;margin:0}
+#sheet-meta-text{font-size:11.5px;color:#A5A59E}
+.sheet-section-title{font-size:13px;font-weight:600;margin-bottom:8px}
+.sheet-option{display:flex;align-items:center;gap:10px;width:100%;padding:12px 13px;border:1px solid var(--border);border-radius:13px;background:#fff;cursor:pointer;text-align:right;transition:.15s;font-size:13.5px;font-weight:500}
+.sheet-option.checked{border-color:var(--dark);background:var(--subtle)}
+.opt-check{width:20px;height:20px;flex:none;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:12px;color:#fff;border:1px solid #D9D6CD}
+.opt-check.on{background:var(--dark);border-color:var(--dark)}
+.opt-extra-price{margin-right:auto;font-size:13px;font-weight:600;color:#6E6E69}
+#sheet-note-input{width:100%;padding:12px 15px;border:1px solid var(--border);border-radius:14px;background:#fff;font-size:13px;outline:none;transition:.15s;box-sizing:border-box}
+#sheet-note-input:focus{border-color:var(--dark)}
+#sheet-footer{position:sticky;bottom:0;padding-top:6px;background:linear-gradient(to top,var(--bg) 70%,rgba(250,250,247,0));display:flex;gap:10px;align-items:center}
+#sheet-qty-ctrl{display:flex;align-items:center;gap:3px;background:#fff;border:1px solid var(--border);border-radius:99px;padding:4px;flex:none}
+.sq-btn{width:32px;height:32px;border:none;border-radius:50%;background:transparent;font-size:17px;cursor:pointer;transition:.15s}
+.sq-btn:hover{background:var(--subtle)}
+#sheet-qty-val{min-width:22px;text-align:center;font-size:14px;font-weight:700}
+#sheet-add-btn{flex:1;padding:15px;border:none;border-radius:16px;background:var(--dark);color:#fff;font-size:15px;font-weight:600;cursor:pointer;transition:.15s}
+#sheet-add-btn:hover{background:var(--accent)}
 
 #main-header{position:sticky;top:0;z-index:200;background:rgba(250,250,247,.92);backdrop-filter:blur(14px);border-bottom:1px solid var(--border)}
 #header-inner{max-width:1280px;margin:0 auto;padding:11px 20px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
@@ -278,7 +308,40 @@ input,button,select,textarea{font-family:inherit}
   </div>
 </div>
 
+<!-- גיליון פרטי מוצר — תוספות/מרכיבים, זהה למבנה בחנות הציבורית המקורית (storefront-restaurant.html) -->
+<div id="sheet-overlay" onclick="if(event.target===this)closeSheet()">
+  <div id="sheet">
+    <div id="sheet-img">
+      <div id="sheet-img-ph">🍽️</div>
+      <button id="sheet-close" onclick="closeSheet()">✕</button>
+    </div>
+    <div id="sheet-body">
+      <div>
+        <div id="sheet-name-row">
+          <h3 id="sheet-name"></h3>
+          <span id="sheet-price"></span>
+        </div>
+        <p id="sheet-desc"></p>
+        <div id="sheet-meta-text"></div>
+      </div>
+      <div id="sheet-options"></div>
+      <div>
+        <div class="sheet-section-title">הערה</div>
+        <input id="sheet-note-input" placeholder="הערות מיוחדות…">
+      </div>
+      <div id="sheet-footer">
+        <div id="sheet-qty-ctrl">
+          <button class="sq-btn" onclick="sheetQty(1)">+</button>
+          <span id="sheet-qty-val">1</span>
+          <button class="sq-btn" onclick="sheetQty(-1)">−</button>
+        </div>
+        <button id="sheet-add-btn" onclick="sheetAdd()">הוספה לעגלה · ₪0</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script src="/sc-auth.js"></script>
-<script src="/community-store-app.js?v=9"></script>
+<script src="/community-store-app.js?v=10"></script>
 </body>
 </html>

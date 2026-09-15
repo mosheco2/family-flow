@@ -12393,6 +12393,7 @@ app.get('/api/campaign/:code', async (req, res) => {
 
         const productsRes = await pool.query(
             `SELECT sc.id, sc.group_id, sc.name, sc.description, sc.price, sc.original_price, sc.category,
+                    sc.options_text, sc.product_type,
                     (sc.image_url IS NOT NULL AND sc.image_url != '') as has_image,
                     fg.name AS business_name
              FROM community_campaign_products p
@@ -12407,6 +12408,22 @@ app.get('/api/campaign/:code', async (req, res) => {
 
 // הגשת הזמנה מעמוד הקמפיין — כל הפריטים חייבים להיות מאותו עסק בדיוק,
 // והלקוח חייב להיות מחובר (sc-auth) כדי שנוכל לרשום אותו אצל כל העסקים בקמפיין
+// חישוב הגבול העליון האפשרי לתוספת מחיר מתוספות/מרכיבים של מוצר (options_text),
+// לצורך אימות מחיר בצד השרת — סכימת כל האפשרויות בכל הקבוצות (חסם עליון בטוח,
+// לא דורש לשחזר את כל לוגיקת ה-min/max לכל קבוצה, כמו שגם החנות הרגילה לא עושה)
+function _maxOptionsExtra(optionsText) {
+    try {
+        const groups = JSON.parse(optionsText || '[]');
+        if (!Array.isArray(groups)) return 0;
+        let total = 0;
+        groups.forEach(g => {
+            const items = g?.options || g?.items || [];
+            items.forEach(o => { if (o && typeof o === 'object' && o.price) total += parseFloat(o.price) || 0; });
+        });
+        return total;
+    } catch(e) { return 0; }
+}
+
 app.post('/api/campaign/:code/order', async (req, res) => {
     try {
         const token = (req.headers.authorization || '').replace('Bearer ', '').trim();
@@ -12435,22 +12452,25 @@ app.post('/api/campaign/:code/order', async (req, res) => {
 
         // אימות מחירים מול הקטלוג האמיתי + שכל פריט אכן נבחר לקמפיין עבור העסק הזה
         const campaignProducts = await pool.query(
-            `SELECT sc.id, sc.price FROM community_campaign_products p
+            `SELECT sc.id, sc.price, sc.options_text FROM community_campaign_products p
              JOIN store_catalog sc ON sc.id = p.catalog_id
              WHERE p.campaign_id=$1 AND p.business_group_id=$2 AND sc.is_available=TRUE`,
             [campaign.id, groupId]);
         const priceMap = {};
-        campaignProducts.rows.forEach(r => { priceMap[r.id] = parseFloat(r.price); });
+        campaignProducts.rows.forEach(r => { priceMap[r.id] = { base: parseFloat(r.price), maxExtra: _maxOptionsExtra(r.options_text) }; });
 
         let serverTotal = 0;
         for (const item of items) {
-            const catalogPrice = priceMap[item.catalogId];
-            if (catalogPrice === undefined) return res.status(400).json({ error: 'פריט אינו זמין בקמפיין זה — אנא טען מחדש את הדף' });
+            const info = priceMap[item.catalogId];
+            if (info === undefined) return res.status(400).json({ error: 'פריט אינו זמין בקמפיין זה — אנא טען מחדש את הדף' });
             const clientPrice = parseFloat(item.price) || 0;
-            if (Math.abs(clientPrice - catalogPrice) > catalogPrice * 0.01 + 1) {
+            const maxAllowed = info.base + info.maxExtra;
+            // המחיר חייב להיות בין המחיר הבסיסי (כולל טולרנס קטן) לבין המחיר המקסימלי האפשרי
+            // עם כל התוספות שנבחרו (כולל טולרנס) — כדי לתמוך במחיר שכולל תוספות שנבחרו בפועל
+            if (clientPrice < info.base - (info.base * 0.01 + 1) || clientPrice > maxAllowed + (maxAllowed * 0.01 + 1)) {
                 return res.status(400).json({ error: 'מחיר פריט אינו תקין — אנא טען מחדש את הדף ונסה שנית' });
             }
-            serverTotal += catalogPrice * (parseInt(item.quantity) || 1);
+            serverTotal += clientPrice * (parseInt(item.quantity) || 1);
         }
 
         const isDeliv = isDelivery === true || isDelivery === 'true';

@@ -5,8 +5,9 @@
 
     let campaignData = null;
     let selectedBizFilter = 'all';
-    let cart = []; // [{catalogId, businessGroupId, businessName, name, price, quantity}]
+    let cart = []; // [{catalogId, businessGroupId, businessName, name, price, quantity, note}]
     let panelState = 'cart'; // 'cart' | 'checkout' | 'done'
+    let _sheetId = null, _sheetQty = 1, _sheetExtras = {};
 
     function csSafe(s) { return (s == null ? '' : String(s)).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
     function csToast(msg, ms) {
@@ -110,11 +111,165 @@
                     <div class="product-name">${csSafe(p.name)}</div>
                     <div class="product-footer">
                         <span class="product-price">₪${parseFloat(p.price).toFixed(0)}</span>
-                        <button class="add-pill" onclick='csAddToCart(${JSON.stringify({id:p.id, group_id:p.group_id, business_name:p.business_name, name:p.name, price:parseFloat(p.price)}).replace(/'/g,"&#39;")})'>הוסף</button>
+                        <button class="add-pill" onclick="quickAdd(${p.id})">${hasOptions(p) ? 'התאמה' : 'הוסף'}</button>
                     </div>
                 </div>
             </div>`).join('');
     }
+
+    // מוצר עם תוספות/מרכיבים לבחירה (options_text) — כמו בחנות הציבורית המקורית
+    function hasOptions(p) {
+        try { const o = JSON.parse(p.options_text || '[]'); return Array.isArray(o) && o.length > 0; } catch(e) { return false; }
+    }
+
+    function findProduct(id) { return (campaignData.products || []).find(x => x.id === id); }
+
+    window.quickAdd = function(id) {
+        const p = findProduct(id);
+        if (!p) return;
+        if (hasOptions(p)) { openSheet(id); return; }
+        csAddToCart({ id: p.id, group_id: p.group_id, business_name: p.business_name, name: p.name, price: parseFloat(p.price) });
+    };
+
+    window.openSheet = function(id) {
+        const p = findProduct(id);
+        if (!p) return;
+        // אותו כלל ברזל — לא ניתן לפתוח מוצר מעסק אחר כשיש כבר עגלה פעילה מעסק שונה
+        if (campaignData?.campaign?.ordering_enabled === false) {
+            csToast('שמחים שאתם נלהבים כמונו ממוצרי השוק, הם יהיו זמינים בקרוב - ניתן להתעדכן מול רכזת הקהילה', 4500);
+            return;
+        }
+        if (cart.length && String(cart[0].businessGroupId) !== String(p.group_id)) {
+            csOpenCart();
+            csToast(`אפשר להזמין רק מעסק אחד — רוקנו את העגלה כדי לעבור ל-"${p.business_name}"`);
+            return;
+        }
+        _sheetId = id; _sheetQty = 1; _sheetExtras = {};
+        document.getElementById('sheet-name').textContent = p.name;
+        document.getElementById('sheet-price').textContent = `₪${p.price}`;
+        document.getElementById('sheet-desc').textContent = p.description || '';
+        document.getElementById('sheet-meta-text').textContent = '';
+        document.getElementById('sheet-qty-val').textContent = 1;
+        document.getElementById('sheet-note-input').value = '';
+
+        const imgEl = document.getElementById('sheet-img');
+        if (p.has_image) {
+            imgEl.innerHTML = `<img src="/api/store/item-image/${id}" alt="${csSafe(p.name)}" style="width:100%;height:100%;object-fit:cover"><button id="sheet-close" onclick="closeSheet()">✕</button>`;
+        } else {
+            imgEl.innerHTML = `<div id="sheet-img-ph" style="font-size:48px;opacity:.5">🍽️</div><button id="sheet-close" onclick="closeSheet()">✕</button>`;
+        }
+
+        let optHtml = '';
+        try {
+            const opts = JSON.parse(p.options_text || '[]');
+            if (Array.isArray(opts) && opts.length) {
+                optHtml = opts.map((g, gi) => `
+                <div>
+                    <div class="sheet-section-title">${csSafe(g.name || g.title || '')}</div>
+                    ${(g.options || g.items || []).map((o, oi) => {
+                        const nm = typeof o === 'string' ? o : (o.name || '');
+                        const pr = typeof o === 'object' && o.price ? `+₪${o.price}` : '';
+                        return `<button class="sheet-option" id="sopt-${gi}-${oi}" onclick="toggleOpt(${gi},${oi},'${g.type || 'single'}')">
+                          <span class="opt-check" id="soptcheck-${gi}-${oi}"></span>
+                          <span style="flex:1">${csSafe(nm)}</span>
+                          ${pr ? `<span class="opt-extra-price">${pr}</span>` : ''}
+                        </button>`;
+                    }).join('')}
+                </div>`).join('');
+            }
+        } catch(e) {}
+        document.getElementById('sheet-options').innerHTML = optHtml;
+
+        updateSheetTotal();
+        document.getElementById('sheet-overlay').style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+    };
+
+    window.closeSheet = function() {
+        document.getElementById('sheet-overlay').style.display = 'none';
+        document.body.style.overflow = '';
+    };
+
+    window.toggleOpt = function(gi, oi, type) {
+        if (!_sheetExtras[gi]) _sheetExtras[gi] = [];
+        if (type === 'single' || type === 'radio') {
+            _sheetExtras[gi] = [oi];
+        } else {
+            const idx = _sheetExtras[gi].indexOf(oi);
+            if (idx > -1) _sheetExtras[gi].splice(idx, 1); else _sheetExtras[gi].push(oi);
+        }
+        const p = findProduct(_sheetId);
+        try {
+            const opts = JSON.parse(p.options_text || '[]');
+            opts.forEach((g, gidx) => {
+                (g.options || g.items || []).forEach((_, oidx) => {
+                    const on = _sheetExtras[gidx]?.includes(oidx);
+                    const btn = document.getElementById(`sopt-${gidx}-${oidx}`);
+                    const chk = document.getElementById(`soptcheck-${gidx}-${oidx}`);
+                    if (btn) btn.classList.toggle('checked', !!on);
+                    if (chk) { chk.classList.toggle('on', !!on); chk.textContent = on ? '✓' : ''; }
+                });
+            });
+        } catch(e) {}
+        updateSheetTotal();
+    };
+
+    window.sheetQty = function(d) {
+        _sheetQty = Math.max(1, _sheetQty + d);
+        document.getElementById('sheet-qty-val').textContent = _sheetQty;
+        updateSheetTotal();
+    };
+
+    function _sheetExtraTotal() {
+        const p = findProduct(_sheetId);
+        let extra = 0;
+        if (!p) return extra;
+        try {
+            const opts = JSON.parse(p.options_text || '[]');
+            Object.entries(_sheetExtras).forEach(([gi, sel]) => {
+                const g = opts[gi], items = g?.options || g?.items || [];
+                sel.forEach(oi => { const o = items[oi]; if (o && typeof o === 'object' && o.price) extra += parseFloat(o.price) || 0; });
+            });
+        } catch(e) {}
+        return extra;
+    }
+
+    function updateSheetTotal() {
+        const p = findProduct(_sheetId);
+        if (!p) return;
+        const total = (parseFloat(p.price) + _sheetExtraTotal()) * _sheetQty;
+        document.getElementById('sheet-add-btn').textContent = `הוספה לעגלה · ₪${total.toFixed(0)}`;
+    }
+
+    window.sheetAdd = function() {
+        const p = findProduct(_sheetId);
+        if (!p) return;
+        if (cart.length && String(cart[0].businessGroupId) !== String(p.group_id)) {
+            closeSheet();
+            csOpenCart();
+            csToast(`אפשר להזמין רק מעסק אחד — רוקנו את העגלה כדי לעבור ל-"${p.business_name}"`);
+            return;
+        }
+        const extra = _sheetExtraTotal();
+        const noteArr = [];
+        try {
+            const opts = JSON.parse(p.options_text || '[]');
+            Object.entries(_sheetExtras).forEach(([gi, sel]) => {
+                const g = opts[gi], items = g?.options || g?.items || [];
+                sel.forEach(oi => { const o = items[oi]; const nm = typeof o === 'string' ? o : (o?.name || ''); if (nm) noteArr.push(nm); });
+            });
+        } catch(e) {}
+        const note = [document.getElementById('sheet-note-input').value.trim(), ...noteArr].filter(Boolean).join(', ');
+        const finalPrice = parseFloat(p.price) + extra;
+        // מוצר עם תוספות שונות נשמר כשורה נפרדת בעגלה (לפי שילוב המחיר+הערה),
+        // כדי שאפשר יהיה להזמין את אותו מוצר פעמיים עם תוספות שונות
+        const existing = cart.find(i => i.catalogId === p.id && i.note === note);
+        if (existing) existing.quantity += _sheetQty;
+        else cart.push({ catalogId: p.id, businessGroupId: p.group_id, businessName: p.business_name, name: p.name, price: finalPrice, quantity: _sheetQty, note });
+        closeSheet();
+        updateCartBadges();
+        csToast(`${p.name} נוסף לעגלה`);
+    };
 
     window.csFilterBiz = function(groupId) {
         selectedBizFilter = groupId;
@@ -133,18 +288,20 @@
             csToast(`אפשר להזמין רק מעסק אחד — רוקנו את העגלה כדי לעבור ל-"${product.business_name}"`);
             return;
         }
-        const existing = cart.find(i => i.catalogId === product.id);
+        const existing = cart.find(i => i.catalogId === product.id && !i.note);
         if (existing) existing.quantity += 1;
-        else cart.push({ catalogId: product.id, businessGroupId: product.group_id, businessName: product.business_name, name: product.name, price: product.price, quantity: 1 });
+        else cart.push({ catalogId: product.id, businessGroupId: product.group_id, businessName: product.business_name, name: product.name, price: product.price, quantity: 1, note: '' });
         updateCartBadges();
         csToast(`${product.name} נוסף לעגלה`);
     };
 
-    window.csChangeQty = function(catalogId, delta) {
-        const item = cart.find(i => i.catalogId === catalogId);
+    // ממוען לפי אינדקס בעגלה, לא לפי catalogId בלבד — כי אותו מוצר עם תוספות
+    // שונות (note שונה) יכול להופיע כמה שורות נפרדות בעגלה
+    window.csChangeQty = function(index, delta) {
+        const item = cart[index];
         if (!item) return;
         item.quantity += delta;
-        if (item.quantity <= 0) cart = cart.filter(i => i.catalogId !== catalogId);
+        if (item.quantity <= 0) cart.splice(index, 1);
         updateCartBadges();
         renderCartStep();
     };
@@ -176,19 +333,20 @@
         } else {
             notice.style.display = 'none';
         }
-        document.getElementById('cs-cart-items').innerHTML = cart.length ? cart.map(i => `
+        document.getElementById('cs-cart-items').innerHTML = cart.length ? cart.map((i, idx) => `
             <div class="cart-line">
                 <div class="cart-line-img"><i class="fa-solid fa-box"></i></div>
                 <div class="cart-line-info">
                     <div class="cart-line-name">${csSafe(i.name)}</div>
-                    <button class="cart-line-remove" onclick="csChangeQty(${i.catalogId}, -${i.quantity})">הסר</button>
+                    ${i.note ? `<div style="font-size:11px;color:var(--muted);margin-top:2px">${csSafe(i.note)}</div>` : ''}
+                    <button class="cart-line-remove" onclick="csChangeQty(${idx}, -${i.quantity})">הסר</button>
                 </div>
                 <div class="cart-line-right">
                     <div class="cart-line-price">₪${(i.price * i.quantity).toFixed(0)}</div>
                     <div class="qty-mini">
-                        <button onclick="csChangeQty(${i.catalogId}, -1)">−</button>
+                        <button onclick="csChangeQty(${idx}, -1)">−</button>
                         <span class="qm-val">${i.quantity}</span>
-                        <button onclick="csChangeQty(${i.catalogId}, 1)">+</button>
+                        <button onclick="csChangeQty(${idx}, 1)">+</button>
                     </div>
                 </div>
             </div>`).join('') + `<button onclick="csEmptyCart()" style="align-self:center;background:none;border:none;color:var(--accent);font-size:12px;font-weight:600;cursor:pointer;margin-top:6px">רוקן עגלה</button>`
