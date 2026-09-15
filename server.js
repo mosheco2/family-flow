@@ -2636,6 +2636,16 @@ app.post('/api/sa/groups/:id/unfreeze', verifySA, async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// SA: סימון/ביטול סביבה כסביבת טסט (מוחרגת מהאנליטיקה)
+app.post('/api/sa/groups/:id/mark-test', verifySA, async (req, res) => {
+    try {
+        const { isTest } = req.body;
+        await pool.query(`UPDATE family_groups SET is_test_env=$1 WHERE id=$2`, [!!isTest, req.params.id]);
+        await logAudit(isTest ? 'MARK_TEST_ENV' : 'UNMARK_TEST_ENV', 'GROUP', parseInt(req.params.id), '', {});
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // SA: רשימת חשבונות לפי account_status
 app.get('/api/sa/groups/by-status/:status', verifySA, async (req, res) => {
     try {
@@ -2704,6 +2714,7 @@ app.get('/api/solo/search-by-phone', async (req, res) => {
       // Soft Delete + Snapshots
       try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN DEFAULT FALSE`); } catch(e) {}
       try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP`); } catch(e) {}
+      try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS is_test_env BOOLEAN DEFAULT FALSE`); } catch(e) {}
       // החלפת UNIQUE(admin_email,type) ב-partial index — מאפשר רישום מחדש אחרי מחיקה רכה
       try { await client.query(`ALTER TABLE family_groups DROP CONSTRAINT IF EXISTS family_groups_admin_email_type_key CASCADE`); } catch(e) {}
       try { await client.query(`ALTER TABLE family_groups DROP CONSTRAINT IF EXISTS family_groups_pkey1`); } catch(e) {}
@@ -7944,37 +7955,41 @@ app.get('/api/sa/unified-stats', verifySA, async (req, res) => {
             commission, cashback, collected, debt, flowRedeemed, communityJoinReq, communityBizLinks, activeZM,
             activeBusinesses, activeFamilies, activeUsersFamily, activeUsersBiz, activeUsersSA, activeUsersZM
         ] = await Promise.all([
-            // BIZ — הזמנות + שווי כספי
+            // BIZ — הזמנות + שווי כספי (מוחרג עסקי טסט)
             safe(`SELECT
-                ${RANGE('created_at')},
-                COALESCE(SUM(total_amount),0) as all_value,
-                COALESCE(SUM(total_amount) FILTER (WHERE created_at > CURRENT_DATE),0) as today_value,
-                COALESCE(SUM(total_amount) FILTER (WHERE created_at > NOW()-INTERVAL '30 days'),0) as month_value
-                FROM store_orders WHERE status NOT IN ('cancelled','rejected')`, zeroVal),
-            // FAMILY — משפחות חדשות
-            safe(`SELECT ${RANGE('created_at')} FROM family_groups WHERE type='FAMILY' AND member_type NOT IN ('member','shopper')`, zero),
-            // BIZ — עסקים חדשים
-            safe(`SELECT ${RANGE('created_at')} FROM family_groups WHERE type='BUSINESS'`, zero),
-            // FAMILY — משתמשים חדשים
-            safe(`SELECT ${RANGE('created_at')} FROM users`, zero),
+                ${RANGE('so.created_at')},
+                COALESCE(SUM(so.total_amount),0) as all_value,
+                COALESCE(SUM(so.total_amount) FILTER (WHERE so.created_at > CURRENT_DATE),0) as today_value,
+                COALESCE(SUM(so.total_amount) FILTER (WHERE so.created_at > NOW()-INTERVAL '30 days'),0) as month_value
+                FROM store_orders so JOIN family_groups fg ON fg.id=so.group_id
+                WHERE so.status NOT IN ('cancelled','rejected') AND fg.is_test_env IS NOT TRUE`, zeroVal),
+            // FAMILY — משפחות חדשות (לא כולל טסט)
+            safe(`SELECT ${RANGE('created_at')} FROM family_groups WHERE type='FAMILY' AND member_type NOT IN ('member','shopper') AND is_test_env IS NOT TRUE`, zero),
+            // BIZ — עסקים חדשים (לא כולל טסט)
+            safe(`SELECT ${RANGE('created_at')} FROM family_groups WHERE type='BUSINESS' AND is_test_env IS NOT TRUE`, zero),
+            // FAMILY — משתמשים חדשים (לא כולל משתמשי סביבות טסט)
+            safe(`SELECT ${RANGE('u.created_at')} FROM users u JOIN family_groups fg ON fg.id=u.group_id WHERE fg.is_test_env IS NOT TRUE`, zero),
             // קהילות — קהילות חדשות
             safe(`SELECT ${RANGE('created_at')} FROM communities`, zero),
-            // SA — פניות תמיכה
-            safe(`SELECT ${RANGE('created_at')} FROM support_tickets`, zero),
-            // BIZ/SA — הזמנות שילוט + שווי
+            // SA — פניות תמיכה (לא כולל סביבות טסט)
+            safe(`SELECT ${RANGE('t.created_at')} FROM support_tickets t LEFT JOIN family_groups fg ON fg.id=t.group_id WHERE fg.id IS NULL OR fg.is_test_env IS NOT TRUE`, zero),
+            // BIZ/SA — הזמנות שילוט + שווי (לא כולל עסקי טסט)
             safe(`SELECT
                 ${RANGE('bo.created_at')},
                 COALESCE(SUM(bo.total_price),0) as all_value,
                 COALESCE(SUM(bo.total_price) FILTER (WHERE bo.created_at > CURRENT_DATE),0) as today_value,
                 COALESCE(SUM(bo.total_price) FILTER (WHERE bo.created_at > NOW()-INTERVAL '30 days'),0) as month_value
-                FROM banner_orders bo`, zeroVal),
-            // מטבעות — הנפקת Flow
+                FROM banner_orders bo LEFT JOIN family_groups fg ON fg.id=bo.business_id
+                WHERE fg.id IS NULL OR fg.is_test_env IS NOT TRUE`, zeroVal),
+            // מטבעות — הנפקת Flow (לא כולל ישויות טסט)
             safe(`SELECT
-                ${RANGE('created_at')},
-                COALESCE(SUM(amount) FILTER (WHERE amount>0),0) as all_value,
-                COALESCE(SUM(amount) FILTER (WHERE amount>0 AND created_at > CURRENT_DATE),0) as today_value,
-                COALESCE(SUM(amount) FILTER (WHERE amount>0 AND created_at > NOW()-INTERVAL '30 days'),0) as month_value
-                FROM flow_transactions WHERE amount>0`, zeroVal),
+                ${RANGE('ft.created_at')},
+                COALESCE(SUM(ft.amount) FILTER (WHERE ft.amount>0),0) as all_value,
+                COALESCE(SUM(ft.amount) FILTER (WHERE ft.amount>0 AND ft.created_at > CURRENT_DATE),0) as today_value,
+                COALESCE(SUM(ft.amount) FILTER (WHERE ft.amount>0 AND ft.created_at > NOW()-INTERVAL '30 days'),0) as month_value
+                FROM flow_transactions ft
+                LEFT JOIN family_groups fg ON ft.entity_type IN ('family','business') AND fg.id=ft.entity_id
+                WHERE ft.amount>0 AND (fg.id IS NULL OR fg.is_test_env IS NOT TRUE)`, zeroVal),
             // ZM — עמלות מנהלי אזור
             safe(`SELECT
                 ${RANGE('created_at')},
@@ -7982,65 +7997,74 @@ app.get('/api/sa/unified-stats', verifySA, async (req, res) => {
                 COALESCE(SUM(amount_ils) FILTER (WHERE created_at > CURRENT_DATE),0) as today_value,
                 COALESCE(SUM(amount_ils) FILTER (WHERE created_at > NOW()-INTERVAL '30 days'),0) as month_value
                 FROM billing_records WHERE record_type='zm_commission'`, zeroVal),
-            // כספים — עמלות פלטפורמה (מ-business_platform_dues)
+            // כספים — עמלות פלטפורמה (מ-business_platform_dues, לא כולל עסקי טסט)
             safe(`SELECT
-                ${RANGE('created_at')},
-                COALESCE(SUM(commission_amount),0) as all_value,
-                COALESCE(SUM(commission_amount) FILTER (WHERE created_at > CURRENT_DATE),0) as today_value,
-                COALESCE(SUM(commission_amount) FILTER (WHERE created_at > NOW()-INTERVAL '30 days'),0) as month_value
-                FROM business_platform_dues`, zeroVal),
-            // כספים — קאשבק
+                ${RANGE('d.created_at')},
+                COALESCE(SUM(d.commission_amount),0) as all_value,
+                COALESCE(SUM(d.commission_amount) FILTER (WHERE d.created_at > CURRENT_DATE),0) as today_value,
+                COALESCE(SUM(d.commission_amount) FILTER (WHERE d.created_at > NOW()-INTERVAL '30 days'),0) as month_value
+                FROM business_platform_dues d LEFT JOIN family_groups fg ON fg.id=d.business_id
+                WHERE fg.id IS NULL OR fg.is_test_env IS NOT TRUE`, zeroVal),
+            // כספים — קאשבק (לא כולל עסקי טסט)
             safe(`SELECT
-                ${RANGE('created_at')},
-                COALESCE(SUM(cashback_amount),0) as all_value,
-                COALESCE(SUM(cashback_amount) FILTER (WHERE created_at > CURRENT_DATE),0) as today_value,
-                COALESCE(SUM(cashback_amount) FILTER (WHERE created_at > NOW()-INTERVAL '30 days'),0) as month_value
-                FROM business_platform_dues`, zeroVal),
-            // כספים — נגבה בפועל
+                ${RANGE('d.created_at')},
+                COALESCE(SUM(d.cashback_amount),0) as all_value,
+                COALESCE(SUM(d.cashback_amount) FILTER (WHERE d.created_at > CURRENT_DATE),0) as today_value,
+                COALESCE(SUM(d.cashback_amount) FILTER (WHERE d.created_at > NOW()-INTERVAL '30 days'),0) as month_value
+                FROM business_platform_dues d LEFT JOIN family_groups fg ON fg.id=d.business_id
+                WHERE fg.id IS NULL OR fg.is_test_env IS NOT TRUE`, zeroVal),
+            // כספים — נגבה בפועל (לא כולל עסקי טסט)
             safe(`SELECT
-                ${RANGE('collected_at')},
-                COALESCE(SUM(amount),0) as all_value,
-                COALESCE(SUM(amount) FILTER (WHERE collected_at > CURRENT_DATE),0) as today_value,
-                COALESCE(SUM(amount) FILTER (WHERE collected_at > NOW()-INTERVAL '30 days'),0) as month_value
-                FROM business_platform_collections`, zeroVal),
-            // כספים — חוב פתוח (עמלות שטרם נגבו)
+                ${RANGE('c.collected_at')},
+                COALESCE(SUM(c.amount),0) as all_value,
+                COALESCE(SUM(c.amount) FILTER (WHERE c.collected_at > CURRENT_DATE),0) as today_value,
+                COALESCE(SUM(c.amount) FILTER (WHERE c.collected_at > NOW()-INTERVAL '30 days'),0) as month_value
+                FROM business_platform_collections c LEFT JOIN family_groups fg ON fg.id=c.business_id
+                WHERE fg.id IS NULL OR fg.is_test_env IS NOT TRUE`, zeroVal),
+            // כספים — חוב פתוח (עמלות שטרם נגבו, לא כולל עסקי טסט)
             safe(`SELECT
-                ${RANGE('created_at')},
-                COALESCE(SUM(commission_amount),0) as all_value,
-                COALESCE(SUM(commission_amount) FILTER (WHERE created_at > CURRENT_DATE),0) as today_value,
-                COALESCE(SUM(commission_amount) FILTER (WHERE created_at > NOW()-INTERVAL '30 days'),0) as month_value
-                FROM business_platform_dues WHERE status='pending'`, zeroVal),
-            // מטבעות — מימוש/פדיון
+                ${RANGE('d.created_at')},
+                COALESCE(SUM(d.commission_amount),0) as all_value,
+                COALESCE(SUM(d.commission_amount) FILTER (WHERE d.created_at > CURRENT_DATE),0) as today_value,
+                COALESCE(SUM(d.commission_amount) FILTER (WHERE d.created_at > NOW()-INTERVAL '30 days'),0) as month_value
+                FROM business_platform_dues d LEFT JOIN family_groups fg ON fg.id=d.business_id
+                WHERE d.status='pending' AND (fg.id IS NULL OR fg.is_test_env IS NOT TRUE)`, zeroVal),
+            // מטבעות — מימוש/פדיון (לא כולל צדדי טסט)
             safe(`SELECT
-                ${RANGE('created_at')},
-                COALESCE(SUM(discount_ils),0) as all_value,
-                COALESCE(SUM(discount_ils) FILTER (WHERE created_at > CURRENT_DATE),0) as today_value,
-                COALESCE(SUM(discount_ils) FILTER (WHERE created_at > NOW()-INTERVAL '30 days'),0) as month_value
-                FROM flow_redemptions`, zeroVal),
-            // קהילות — בקשות הצטרפות ממתינות
-            safe(`SELECT ${RANGE('joined_at')} FROM family_communities WHERE status='pending'`, zero),
-            // קהילות — עסקים שחוברו בפועל
-            safe(`SELECT ${RANGE('created_at')} FROM community_businesses WHERE status='approved'`, zero),
+                ${RANGE('fr.created_at')},
+                COALESCE(SUM(fr.discount_ils),0) as all_value,
+                COALESCE(SUM(fr.discount_ils) FILTER (WHERE fr.created_at > CURRENT_DATE),0) as today_value,
+                COALESCE(SUM(fr.discount_ils) FILTER (WHERE fr.created_at > NOW()-INTERVAL '30 days'),0) as month_value
+                FROM flow_redemptions fr
+                LEFT JOIN family_groups fgf ON fgf.id=fr.family_group_id
+                LEFT JOIN family_groups fgb ON fgb.id=fr.business_group_id
+                WHERE COALESCE(fgf.is_test_env,false) IS NOT TRUE AND COALESCE(fgb.is_test_env,false) IS NOT TRUE`, zeroVal),
+            // קהילות — בקשות הצטרפות ממתינות (לא כולל משפחות טסט)
+            safe(`SELECT ${RANGE('fc.joined_at')} FROM family_communities fc JOIN family_groups fg ON fg.id=fc.group_id
+                WHERE fc.status='pending' AND fg.is_test_env IS NOT TRUE`, zero),
+            // קהילות — עסקים שחוברו בפועל (לא כולל עסקי טסט)
+            safe(`SELECT ${RANGE('cb.created_at')} FROM community_businesses cb JOIN family_groups fg ON fg.id=cb.business_id
+                WHERE cb.status='approved' AND fg.is_test_env IS NOT TRUE`, zero),
             // מנהלי אזור — פעילים חדשים
             safe(`SELECT ${RANGE('created_at')} FROM zone_managers WHERE status='active'`, zero),
-            // עסקים פעילים (סטטיים - לא מסוננים לפי טווח)
+            // עסקים פעילים (סטטיים - לא מסוננים לפי טווח, לא כולל טסט)
             safe(`SELECT COUNT(*) as all_count, COUNT(*) as today_count, COUNT(*) as month_count
-                FROM family_groups WHERE type='BUSINESS' AND account_status='active'`, zero),
-            // משפחות פעילות (סטטיות)
+                FROM family_groups WHERE type='BUSINESS' AND account_status='active' AND is_test_env IS NOT TRUE`, zero),
+            // משפחות פעילות (סטטיות, לא כולל טסט)
             safe(`SELECT COUNT(*) as all_count, COUNT(*) as today_count, COUNT(*) as month_count
-                FROM family_groups WHERE type='FAMILY' AND account_status='active' AND member_type NOT IN ('member','shopper')`, zero),
-            // משתמשים פעילים — FAMILY (סטטוס active, מסונן לפי כניסה אחרונה)
+                FROM family_groups WHERE type='FAMILY' AND account_status='active' AND member_type NOT IN ('member','shopper') AND is_test_env IS NOT TRUE`, zero),
+            // משתמשים פעילים — FAMILY (סטטוס active, מסונן לפי כניסה אחרונה, לא כולל טסט)
             safe(`SELECT
                 COUNT(*) FILTER (WHERE u.status='active') as all_count,
                 COUNT(*) FILTER (WHERE u.status='active' AND u.last_seen > CURRENT_DATE) as today_count,
                 COUNT(*) FILTER (WHERE u.status='active' AND u.last_seen > NOW()-INTERVAL '30 days') as month_count
-                FROM users u JOIN family_groups fg ON fg.id=u.group_id WHERE fg.type='FAMILY'`, zero),
-            // משתמשים פעילים — BIZ
+                FROM users u JOIN family_groups fg ON fg.id=u.group_id WHERE fg.type='FAMILY' AND fg.is_test_env IS NOT TRUE`, zero),
+            // משתמשים פעילים — BIZ (לא כולל טסט)
             safe(`SELECT
                 COUNT(*) FILTER (WHERE u.status='active') as all_count,
                 COUNT(*) FILTER (WHERE u.status='active' AND u.last_seen > CURRENT_DATE) as today_count,
                 COUNT(*) FILTER (WHERE u.status='active' AND u.last_seen > NOW()-INTERVAL '30 days') as month_count
-                FROM users u JOIN family_groups fg ON fg.id=u.group_id WHERE fg.type='BUSINESS'`, zero),
+                FROM users u JOIN family_groups fg ON fg.id=u.group_id WHERE fg.type='BUSINESS' AND fg.is_test_env IS NOT TRUE`, zero),
             // משתמשים פעילים — SA (צוות)
             safe(`SELECT
                 COUNT(*) FILTER (WHERE status='active') as all_count,
@@ -8107,22 +8131,22 @@ app.get('/api/sa/kpi-detail', verifySA, async (req, res) => {
 
         const DEFS = {
             orders: {
-                base: `FROM store_orders so LEFT JOIN family_groups fg ON fg.id=so.group_id WHERE so.status NOT IN ('cancelled','rejected')`,
+                base: `FROM store_orders so LEFT JOIN family_groups fg ON fg.id=so.group_id WHERE so.status NOT IN ('cancelled','rejected') AND (fg.id IS NULL OR fg.is_test_env IS NOT TRUE)`,
                 dateCol: 'so.created_at',
                 select: `so.id, so.customer_name as title, fg.name as entity, so.total_amount as amount, so.status, so.created_at`
             },
             new_families: {
-                base: `FROM family_groups WHERE type='FAMILY' AND member_type NOT IN ('member','shopper')`,
+                base: `FROM family_groups WHERE type='FAMILY' AND member_type NOT IN ('member','shopper') AND is_test_env IS NOT TRUE`,
                 dateCol: 'created_at',
                 select: `id, name as title, NULL::text as entity, NULL::numeric as amount, NULL::text as status, created_at`
             },
             new_businesses: {
-                base: `FROM family_groups WHERE type='BUSINESS'`,
+                base: `FROM family_groups WHERE type='BUSINESS' AND is_test_env IS NOT TRUE`,
                 dateCol: 'created_at',
                 select: `id, name as title, NULL::text as entity, NULL::numeric as amount, NULL::text as status, created_at`
             },
             new_users: {
-                base: `FROM users u LEFT JOIN family_groups fg ON fg.id=u.group_id WHERE 1=1`,
+                base: `FROM users u LEFT JOIN family_groups fg ON fg.id=u.group_id WHERE fg.id IS NULL OR fg.is_test_env IS NOT TRUE`,
                 dateCol: 'u.created_at',
                 select: `u.id, COALESCE(u.first_name||' '||u.last_name, u.nickname,'—') as title, fg.name as entity, NULL::numeric as amount, NULL::text as status, u.created_at`
             },
@@ -8132,17 +8156,17 @@ app.get('/api/sa/kpi-detail', verifySA, async (req, res) => {
                 select: `id, name as title, status as entity, NULL::numeric as amount, status, created_at`
             },
             tickets: {
-                base: `FROM support_tickets t LEFT JOIN family_groups fg ON fg.id=t.group_id WHERE 1=1`,
+                base: `FROM support_tickets t LEFT JOIN family_groups fg ON fg.id=t.group_id WHERE fg.id IS NULL OR fg.is_test_env IS NOT TRUE`,
                 dateCol: 't.created_at',
                 select: `t.id, t.subject as title, fg.name as entity, NULL::numeric as amount, t.status, t.created_at`
             },
             banners: {
-                base: `FROM banner_orders bo JOIN banner_slots bs ON bs.id=bo.slot_id LEFT JOIN family_groups fg ON fg.id=bo.business_id WHERE 1=1`,
+                base: `FROM banner_orders bo JOIN banner_slots bs ON bs.id=bo.slot_id LEFT JOIN family_groups fg ON fg.id=bo.business_id WHERE fg.id IS NULL OR fg.is_test_env IS NOT TRUE`,
                 dateCol: 'bo.created_at',
                 select: `bo.id, bs.name as title, fg.name as entity, bo.total_price as amount, bo.status, bo.created_at`
             },
             flow: {
-                base: `FROM flow_transactions ft LEFT JOIN family_groups fg ON ft.entity_type IN ('family','business') AND fg.id=ft.entity_id LEFT JOIN communities c ON ft.entity_type='community' AND c.id=ft.entity_id WHERE ft.amount>0`,
+                base: `FROM flow_transactions ft LEFT JOIN family_groups fg ON ft.entity_type IN ('family','business') AND fg.id=ft.entity_id LEFT JOIN communities c ON ft.entity_type='community' AND c.id=ft.entity_id WHERE ft.amount>0 AND (fg.id IS NULL OR fg.is_test_env IS NOT TRUE)`,
                 dateCol: 'ft.created_at',
                 select: `ft.id, ft.description as title, COALESCE(fg.name, c.name,'—') as entity, ft.amount, NULL::text as status, ft.created_at`
             },
@@ -8152,32 +8176,32 @@ app.get('/api/sa/kpi-detail', verifySA, async (req, res) => {
                 select: `id, description as title, NULL::text as entity, amount_ils as amount, payment_status as status, created_at`
             },
             commission: {
-                base: `FROM business_platform_dues d LEFT JOIN family_groups fg ON fg.id=d.business_id WHERE 1=1`,
+                base: `FROM business_platform_dues d LEFT JOIN family_groups fg ON fg.id=d.business_id WHERE fg.id IS NULL OR fg.is_test_env IS NOT TRUE`,
                 dateCol: 'd.created_at',
                 select: `d.id, fg.name as title, 'הזמנה #'||COALESCE(d.order_id::text,'—') as entity, d.commission_amount as amount, d.status, d.created_at`
             },
             cashback: {
-                base: `FROM business_platform_dues d LEFT JOIN family_groups fg ON fg.id=d.business_id WHERE 1=1`,
+                base: `FROM business_platform_dues d LEFT JOIN family_groups fg ON fg.id=d.business_id WHERE fg.id IS NULL OR fg.is_test_env IS NOT TRUE`,
                 dateCol: 'd.created_at',
                 select: `d.id, fg.name as title, 'הזמנה #'||COALESCE(d.order_id::text,'—') as entity, d.cashback_amount as amount, d.status, d.created_at`
             },
             collected: {
-                base: `FROM business_platform_collections c LEFT JOIN family_groups fg ON fg.id=c.business_id WHERE 1=1`,
+                base: `FROM business_platform_collections c LEFT JOIN family_groups fg ON fg.id=c.business_id WHERE fg.id IS NULL OR fg.is_test_env IS NOT TRUE`,
                 dateCol: 'c.collected_at',
                 select: `c.id, fg.name as title, c.notes as entity, c.amount, NULL::text as status, c.collected_at as created_at`
             },
             debt: {
-                base: `FROM business_platform_dues d LEFT JOIN family_groups fg ON fg.id=d.business_id WHERE d.status='pending'`,
+                base: `FROM business_platform_dues d LEFT JOIN family_groups fg ON fg.id=d.business_id WHERE d.status='pending' AND (fg.id IS NULL OR fg.is_test_env IS NOT TRUE)`,
                 dateCol: 'd.created_at',
                 select: `d.id, fg.name as title, 'הזמנה #'||COALESCE(d.order_id::text,'—') as entity, d.commission_amount as amount, d.status, d.created_at`
             },
             flow_issued: {
-                base: `FROM flow_transactions ft LEFT JOIN family_groups fg ON ft.entity_type IN ('family','business') AND fg.id=ft.entity_id LEFT JOIN communities c ON ft.entity_type='community' AND c.id=ft.entity_id WHERE ft.amount>0`,
+                base: `FROM flow_transactions ft LEFT JOIN family_groups fg ON ft.entity_type IN ('family','business') AND fg.id=ft.entity_id LEFT JOIN communities c ON ft.entity_type='community' AND c.id=ft.entity_id WHERE ft.amount>0 AND (fg.id IS NULL OR fg.is_test_env IS NOT TRUE)`,
                 dateCol: 'ft.created_at',
                 select: `ft.id, ft.description as title, COALESCE(fg.name, c.name,'—') as entity, ft.amount, NULL::text as status, ft.created_at`
             },
             flow_redeemed: {
-                base: `FROM flow_redemptions fr LEFT JOIN family_groups fgf ON fgf.id=fr.family_group_id LEFT JOIN family_groups fgb ON fgb.id=fr.business_group_id WHERE 1=1`,
+                base: `FROM flow_redemptions fr LEFT JOIN family_groups fgf ON fgf.id=fr.family_group_id LEFT JOIN family_groups fgb ON fgb.id=fr.business_group_id WHERE COALESCE(fgf.is_test_env,false) IS NOT TRUE AND COALESCE(fgb.is_test_env,false) IS NOT TRUE`,
                 dateCol: 'fr.created_at',
                 select: `fr.id, fgf.name as title, fgb.name as entity, fr.discount_ils as amount, fr.status, fr.created_at`
             },
@@ -8187,12 +8211,12 @@ app.get('/api/sa/kpi-detail', verifySA, async (req, res) => {
                 select: `id, name as title, status as entity, NULL::numeric as amount, status, created_at`
             },
             community_join_req: {
-                base: `FROM family_communities fc JOIN family_groups fg ON fg.id=fc.group_id JOIN communities c ON c.id=fc.community_id WHERE fc.status='pending'`,
+                base: `FROM family_communities fc JOIN family_groups fg ON fg.id=fc.group_id JOIN communities c ON c.id=fc.community_id WHERE fc.status='pending' AND fg.is_test_env IS NOT TRUE`,
                 dateCol: 'fc.joined_at',
                 select: `fg.id, fg.name as title, c.name as entity, NULL::numeric as amount, fc.status, fc.joined_at as created_at`
             },
             community_biz_links: {
-                base: `FROM community_businesses cb JOIN family_groups fg ON fg.id=cb.business_id JOIN communities c ON c.id=cb.community_id WHERE cb.status='approved'`,
+                base: `FROM community_businesses cb JOIN family_groups fg ON fg.id=cb.business_id JOIN communities c ON c.id=cb.community_id WHERE cb.status='approved' AND fg.is_test_env IS NOT TRUE`,
                 dateCol: 'cb.created_at',
                 select: `fg.id, fg.name as title, c.name as entity, NULL::numeric as amount, cb.status, cb.created_at`
             },
@@ -8202,22 +8226,22 @@ app.get('/api/sa/kpi-detail', verifySA, async (req, res) => {
                 select: `id, name as title, email as entity, NULL::numeric as amount, status, created_at`
             },
             active_businesses: {
-                base: `FROM family_groups WHERE type='BUSINESS' AND account_status='active'`,
+                base: `FROM family_groups WHERE type='BUSINESS' AND account_status='active' AND is_test_env IS NOT TRUE`,
                 dateCol: 'created_at',
                 select: `id, name as title, NULL::text as entity, NULL::numeric as amount, account_status as status, created_at`
             },
             active_families: {
-                base: `FROM family_groups WHERE type='FAMILY' AND account_status='active' AND member_type NOT IN ('member','shopper')`,
+                base: `FROM family_groups WHERE type='FAMILY' AND account_status='active' AND member_type NOT IN ('member','shopper') AND is_test_env IS NOT TRUE`,
                 dateCol: 'created_at',
                 select: `id, name as title, NULL::text as entity, NULL::numeric as amount, account_status as status, created_at`
             },
             active_users_family: {
-                base: `FROM users u JOIN family_groups fg ON fg.id=u.group_id WHERE fg.type='FAMILY' AND u.status='active'`,
+                base: `FROM users u JOIN family_groups fg ON fg.id=u.group_id WHERE fg.type='FAMILY' AND u.status='active' AND fg.is_test_env IS NOT TRUE`,
                 dateCol: 'u.last_seen',
                 select: `u.id, COALESCE(u.first_name||' '||u.last_name, u.nickname,'—') as title, fg.name as entity, NULL::numeric as amount, u.status, u.last_seen as created_at`
             },
             active_users_biz: {
-                base: `FROM users u JOIN family_groups fg ON fg.id=u.group_id WHERE fg.type='BUSINESS' AND u.status='active'`,
+                base: `FROM users u JOIN family_groups fg ON fg.id=u.group_id WHERE fg.type='BUSINESS' AND u.status='active' AND fg.is_test_env IS NOT TRUE`,
                 dateCol: 'u.last_seen',
                 select: `u.id, COALESCE(u.first_name||' '||u.last_name, u.nickname,'—') as title, fg.name as entity, NULL::numeric as amount, u.status, u.last_seen as created_at`
             },
@@ -8258,28 +8282,31 @@ app.get('/api/sa/insights-top-lists', verifySA, async (req, res) => {
         const [
             topBusinesses, topFamiliesCoins, topCommunities, topCommissionBiz, topWallets, topZM
         ] = await Promise.all([
-            // עסקים והזמנות — top 5 עסקים לפי מחזור הזמנות
+            // עסקים והזמנות — top 5 עסקים לפי מחזור הזמנות (לא כולל עסקי טסט)
             safe(`SELECT fg.id, fg.name as title, COUNT(so.id) as sub_count, COALESCE(SUM(so.total_amount),0) as value
                 FROM store_orders so JOIN family_groups fg ON fg.id=so.group_id
-                WHERE so.status NOT IN ('cancelled','rejected')
+                WHERE so.status NOT IN ('cancelled','rejected') AND fg.is_test_env IS NOT TRUE
                 GROUP BY fg.id, fg.name ORDER BY value DESC LIMIT 5`, 'topBusinesses'),
-            // משפחות — top 5 לפי יתרת מטבעות Flow
+            // משפחות — top 5 לפי יתרת מטבעות Flow (לא כולל משפחות טסט)
             safe(`SELECT fg.id, fg.name as title, NULL::int as sub_count, COALESCE(fw.balance,0) as value
                 FROM flow_wallets fw JOIN family_groups fg ON fg.id=fw.entity_id AND fw.entity_type='family'
-                WHERE fg.type='FAMILY' ORDER BY value DESC LIMIT 5`, 'topFamilies'),
-            // קהילות — top 5 לפי מספר עסקים מחוברים
-            safe(`SELECT c.id, c.name as title, COUNT(cb.business_id) as sub_count, NULL::numeric as value
+                WHERE fg.type='FAMILY' AND fg.is_test_env IS NOT TRUE ORDER BY value DESC LIMIT 5`, 'topFamilies'),
+            // קהילות — top 5 לפי מספר עסקים מחוברים (לא סופרים עסקי טסט)
+            safe(`SELECT c.id, c.name as title, COUNT(cb.business_id) FILTER (WHERE fg.is_test_env IS NOT TRUE) as sub_count, NULL::numeric as value
                 FROM communities c LEFT JOIN community_businesses cb ON cb.community_id=c.id AND cb.status='approved'
+                LEFT JOIN family_groups fg ON fg.id=cb.business_id
                 GROUP BY c.id, c.name ORDER BY sub_count DESC LIMIT 5`, 'topCommunities'),
-            // כספים — top 5 עסקים לפי עמלות שנצברו
+            // כספים — top 5 עסקים לפי עמלות שנצברו (לא כולל עסקי טסט)
             safe(`SELECT fg.id, fg.name as title, COUNT(d.id) as sub_count, COALESCE(SUM(d.commission_amount),0) as value
                 FROM business_platform_dues d JOIN family_groups fg ON fg.id=d.business_id
+                WHERE fg.is_test_env IS NOT TRUE
                 GROUP BY fg.id, fg.name ORDER BY value DESC LIMIT 5`, 'topCommission'),
-            // מטבעות — top 5 ארנקים לפי יתרה (כל סוגי הישויות)
+            // מטבעות — top 5 ארנקים לפי יתרה (כל סוגי הישויות, לא כולל טסט)
             safe(`SELECT fw.id, COALESCE(fg.name, c.name, fw.entity_type||' #'||fw.entity_id) as title, fw.entity_type as sub_count, fw.balance as value
                 FROM flow_wallets fw
                 LEFT JOIN family_groups fg ON fg.id=fw.entity_id AND fw.entity_type IN ('family','business')
                 LEFT JOIN communities c ON c.id=fw.entity_id AND fw.entity_type='community'
+                WHERE fg.id IS NULL OR fg.is_test_env IS NOT TRUE
                 ORDER BY fw.balance DESC LIMIT 5`, 'topWallets'),
             // תפעול — top 5 מנהלי אזור לפי יתרת עמלות
             safe(`SELECT id, name as title, NULL::int as sub_count, COALESCE(total_commissions,0)-COALESCE(total_paid,0) as value

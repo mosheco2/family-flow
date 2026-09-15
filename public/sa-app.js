@@ -2177,6 +2177,7 @@ function renderSAGroups() {
             accountStatusBadge = '<span class="bg-gray-100 text-gray-500 text-[9px] px-2 py-0.5 rounded-full font-bold ml-2 border border-gray-200">📦 ארכיב</span>';
         }
         const typeBadge = g.member_type === 'member' ? '<span class="bg-violet-100 text-violet-700 text-[10px] px-2 py-0.5 rounded-full font-bold ml-2 border border-violet-200"><i class="fa-solid fa-link mr-1"></i> חבר WEFLOWZ</span>' : g.type === 'BUSINESS' ? '<span class="bg-blue-100 text-blue-700 text-[10px] px-2 py-0.5 rounded-full font-bold ml-2 border border-blue-200"><i class="fa-solid fa-briefcase mr-1"></i> עסק</span>' : '<span class="bg-emerald-100 text-emerald-700 text-[10px] px-2 py-0.5 rounded-full font-bold ml-2 border border-emerald-200"><i class="fa-solid fa-house mr-1"></i> משפחה</span>';
+        const testEnvBadge = g.is_test_env ? '<span class="bg-orange-100 text-orange-700 text-[10px] px-2 py-0.5 rounded-full font-bold ml-2 border border-orange-300" title="סביבת טסט - מוחרגת מהאנליטיקה"><i class="fa-solid fa-flask mr-1"></i> סביבת טסט</span>' : '';
         const createdDate = g.created_at ? new Date(g.created_at).toLocaleDateString('he-IL') : 'לא ידוע';
 
         const adminUser = saAllUsers.find(u => u.group_id === g.id && u.role === 'ADMIN') || saAllUsers.find(u => u.group_id === g.id);
@@ -2185,6 +2186,7 @@ function renderSAGroups() {
         const unfreezeBtn = g.account_status === 'frozen' ? `<button onclick="saUnfreezeGroup(${g.id})" class="bg-blue-100 text-blue-700 px-3 py-1 rounded text-[10px] font-bold hover:bg-blue-200 transition"><i class="fa-solid fa-snowflake mr-1"></i> בטל הקפאה</button>` : '';
         const freezeBtn = g.account_status !== 'frozen' && g.account_status !== 'archived' ? `<button onclick="saFreezeGroup(${g.id},'${safeStr(fmtGroupName(g))}')" class="bg-cyan-100 text-cyan-700 px-3 py-1 rounded text-[10px] font-bold hover:bg-cyan-200 transition"><i class="fa-solid fa-snowflake mr-1"></i> הקפאה</button>` : '';
         const resendSoloBtn = g.account_status === 'pending_activation' ? `<button onclick="saResendSoloCredentials(${g.id})" class="bg-amber-100 text-amber-700 px-3 py-1 rounded text-[10px] font-bold hover:bg-amber-200 transition"><i class="fa-solid fa-paper-plane mr-1"></i> שלח פרטי כניסה שוב</button>` : '';
+        const testEnvBtn = `<button onclick="saToggleTestEnv(${g.id},'${safeStr(fmtGroupName(g))}',${!!g.is_test_env})" class="${g.is_test_env ? 'bg-orange-600 text-white hover:bg-orange-700' : 'bg-orange-50 text-orange-700 hover:bg-orange-100'} px-3 py-1 rounded text-[10px] font-bold transition"><i class="fa-solid fa-flask mr-1"></i> ${g.is_test_env ? 'בטל סימון טסט' : 'סמן כסביבת טסט'}</button>`;
 
         const _billingCfg = (() => { try { return typeof g.billing_config === 'string' ? JSON.parse(g.billing_config) : (g.billing_config || null); } catch(e) { return null; } })();
         const _badgeTotal = (() => {
@@ -2227,7 +2229,7 @@ function renderSAGroups() {
                 <div class="flex items-center">
                     <div class="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center ml-3 relative"><i class="fa-solid ${g.type === 'BUSINESS' ? 'fa-building' : 'fa-users'}"></i><span style="position:absolute;top:-6px;right:-6px;background:#6366f1;color:#fff;border-radius:999px;font-size:9px;font-weight:800;padding:1px 5px;min-width:18px;text-align:center;line-height:16px;">${globalIdx}</span></div>
                     <div>
-                        <h3 class="font-bold text-slate-800 text-sm flex items-center flex-wrap gap-1">${safeStr(fmtGroupName(g))} ${isPro} ${typeBadge} ${accountStatusBadge} ${monthlyBadge} ${trialBadge} ${bizReqBadge} ${cancelReqBadge}</h3>
+                        <h3 class="font-bold text-slate-800 text-sm flex items-center flex-wrap gap-1">${safeStr(fmtGroupName(g))} ${isPro} ${typeBadge} ${testEnvBadge} ${accountStatusBadge} ${monthlyBadge} ${trialBadge} ${bizReqBadge} ${cancelReqBadge}</h3>
                         <p class="text-xs text-slate-500 font-mono tracking-widest mt-0.5">קוד: ${g.group_code} | ⚡ ${aiTokens} | <span class="font-sans text-[10px]">הוקם: ${createdDate}</span></p>
                     </div>
                 </div>
@@ -2242,6 +2244,7 @@ function renderSAGroups() {
                         ${freezeBtn}
                         ${unfreezeBtn}
                         ${resendSoloBtn}
+                        ${testEnvBtn}
                         <button onclick="openSAEditGroupModal(${g.id}, '${safeStr(fmtGroupName(g))}', '${safeStr(g.admin_email)}')" class="bg-blue-100 text-blue-700 px-3 py-1 rounded text-[10px] font-bold hover:bg-blue-200 transition"><i class="fa-solid fa-pen"></i> ערוך פרטים</button>
                         ${planSelector}
                         <button onclick="openSnapshotsModal(${g.id},'${safeStr(fmtGroupName(g))}')" class="bg-indigo-100 text-indigo-700 px-3 py-1 rounded text-[10px] font-bold hover:bg-indigo-200 transition"><i class="fa-solid fa-clock-rotate-left"></i> גיבויים</button>
@@ -2404,6 +2407,23 @@ async function saFreezeGroup(groupId, groupName) {
         const data = await res.json();
         if (data.success) { showToast('success', 'הסביבה הוקפאה בהצלחה'); await loadSAData(); }
         else showToast('error', data.error || 'שגיאה בהקפאה');
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+}
+
+async function saToggleTestEnv(groupId, groupName, currentlyTest) {
+    const next = !currentlyTest;
+    if (!confirm(next
+        ? `לסמן את "${groupName}" כסביבת טסט?\nהיא תוחרג מכל נתוני התובנות והאנליטיקה.`
+        : `לבטל את סימון הטסט עבור "${groupName}"?\nהיא תחזור להופיע באנליטיקה.`)) return;
+    try {
+        const res = await fetch(`${API}/sa/groups/${groupId}/mark-test`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+            body: JSON.stringify({ isTest: next })
+        });
+        const data = await res.json();
+        if (data.success) { showToast('success', next ? 'סומן כסביבת טסט' : 'הסימון בוטל'); await loadSAData(); }
+        else showToast('error', data.error || 'שגיאה בעדכון');
     } catch(e) { showToast('error', 'שגיאת תקשורת'); }
 }
 
