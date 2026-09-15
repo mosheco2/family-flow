@@ -137,18 +137,21 @@ async function loadZMPendingPanel() {
     const panel = document.getElementById('zm-pending-panel');
     if (!panel) return;
     try {
-        const [bizRes, famRes, removalRes] = await Promise.all([
+        const [bizRes, famRes, removalRes, invitedRes] = await Promise.all([
             fetch(`${API}/zone-manager/pending-businesses`, { headers: { 'Authorization': zmToken } }),
             fetch(`${API}/zone-manager/pending-families`, { headers: { 'Authorization': zmToken } }),
-            fetch(`${API}/zone-manager/pending-removals`, { headers: { 'Authorization': zmToken } })
+            fetch(`${API}/zone-manager/pending-removals`, { headers: { 'Authorization': zmToken } }),
+            fetch(`${API}/zone-manager/invited-businesses`, { headers: { 'Authorization': zmToken } })
         ]);
         const bizData = await bizRes.json();
         const famData = await famRes.json();
         const removalData = await removalRes.json();
+        const invitedData = await invitedRes.json();
         const bizPending = (bizData.success && bizData.pending) ? bizData.pending : [];
         const famPending = (famData.success && famData.pending) ? famData.pending : [];
         const removalPending = (removalData.success && removalData.pending) ? removalData.pending : [];
-        const total = bizPending.length + famPending.length + removalPending.length;
+        const invitedPending = (invitedData.success && invitedData.pending) ? invitedData.pending : [];
+        const total = bizPending.length + famPending.length + removalPending.length + invitedPending.length;
 
         // עדכון badge
         const badge = document.getElementById('zm-pending-biz-badge');
@@ -177,6 +180,21 @@ async function loadZMPendingPanel() {
                     <div class="flex gap-2 shrink-0">
                         <button onclick="zmApproveFamilyFromPanel(${p.group_id},${p.community_id})" class="bg-indigo-600 text-white px-3 py-1.5 rounded-xl text-xs font-bold hover:bg-indigo-700 transition">אשר</button>
                         <button onclick="zmRejectFamilyFromPanel(${p.group_id},${p.community_id})" class="bg-red-50 text-red-600 border border-red-100 px-3 py-1.5 rounded-xl text-xs font-bold hover:bg-red-100 transition">דחה</button>
+                    </div>
+                </div>`).join('');
+        }
+
+        if (invitedPending.length > 0) {
+            html += '<div class="px-4 py-2 bg-teal-50/50"><p class="text-[11px] font-bold text-teal-600 uppercase tracking-wide">🏪 עסקים שהזמנת — ממתינים לאישורך</p></div>';
+            html += invitedPending.map(p => `
+                <div class="px-4 py-3 flex justify-between items-center gap-3">
+                    <div>
+                        <p class="font-bold text-slate-800 text-sm">${p.biz_name}</p>
+                        <p class="text-xs text-slate-500">קהילה: <strong>${p.comm_name}</strong> · <span class="text-green-700 font-bold">${p.discount_pct}% הנחה</span></p>
+                    </div>
+                    <div class="flex gap-2 shrink-0">
+                        <button onclick="zmApproveInvitedBiz(${p.community_id},${p.business_id})" class="bg-teal-600 text-white px-3 py-1.5 rounded-xl text-xs font-bold hover:bg-teal-700 transition">אשר</button>
+                        <button onclick="zmRejectInvitedBiz(${p.community_id},${p.business_id})" class="bg-red-50 text-red-600 border border-red-100 px-3 py-1.5 rounded-xl text-xs font-bold hover:bg-red-100 transition">דחה</button>
                     </div>
                 </div>`).join('');
         }
@@ -299,16 +317,19 @@ async function zmLoadPendingBiz() {
     if (!list) return;
     list.innerHTML = '<div class="text-center text-slate-400 py-6"><i class="fa-solid fa-spinner fa-spin mr-2"></i>טוען...</div>';
     try {
-        const [res, removalRes] = await Promise.all([
+        const [res, removalRes, invitedRes] = await Promise.all([
             fetch(`${API}/zone-manager/pending-businesses`, { headers: { 'Authorization': zmToken } }),
-            fetch(`${API}/zone-manager/pending-removals`, { headers: { 'Authorization': zmToken } })
+            fetch(`${API}/zone-manager/pending-removals`, { headers: { 'Authorization': zmToken } }),
+            fetch(`${API}/zone-manager/invited-businesses`, { headers: { 'Authorization': zmToken } })
         ]);
         const data = await res.json();
         const removalData = await removalRes.json();
+        const invitedData = await invitedRes.json();
         if (!data.success) { list.innerHTML = '<div class="text-center text-red-400 py-6">שגיאה בטעינת נתונים</div>'; return; }
         const pending = data.pending || [];
         const removals = (removalData.success && removalData.pending) ? removalData.pending : [];
-        const total = pending.length + removals.length;
+        const invited = (invitedData.success && invitedData.pending) ? invitedData.pending : [];
+        const total = pending.length + removals.length + invited.length;
         if (badge) {
             if (total > 0) { badge.textContent = total; badge.classList.remove('hidden'); }
             else { badge.classList.add('hidden'); }
@@ -318,6 +339,22 @@ async function zmLoadPendingBiz() {
             return;
         }
         let html = '';
+        if (invited.length) {
+            html += '<div class="px-1 py-2"><p class="text-[11px] font-bold text-teal-600 uppercase tracking-wide">🏪 עסקים שהזמנת — ממתינים לאישורך</p></div>';
+            html += invited.map(p => `
+            <div class="bg-white border border-teal-100 rounded-2xl p-4 shadow-sm flex justify-between items-center gap-4 mb-3">
+                <div class="flex-1">
+                    <p class="font-bold text-slate-800 text-sm">עסק: ${p.biz_name}</p>
+                    <p class="text-xs text-slate-500 mt-0.5">קהילה: <strong>${p.comm_name}</strong></p>
+                    <p class="text-[11px] mt-1.5 bg-green-50 text-green-700 font-bold px-2 py-0.5 rounded-full inline-block border border-green-200">מוכן לתת ${p.discount_pct}% הנחה לחברי הקהילה</p>
+                </div>
+                <div class="flex flex-col gap-2 shrink-0">
+                    <button onclick="zmApproveInvitedBiz(${p.community_id},${p.business_id})" class="bg-teal-600 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-sm hover:bg-teal-700 transition"><i class="fa-solid fa-check mr-1"></i>אשר</button>
+                    <button onclick="zmRejectInvitedBiz(${p.community_id},${p.business_id})" class="bg-red-50 text-red-600 px-4 py-2 rounded-xl text-xs font-bold border border-red-100 hover:bg-red-100 transition"><i class="fa-solid fa-xmark mr-1"></i>דחה</button>
+                </div>
+            </div>
+        `).join('');
+        }
         if (pending.length) {
             html += pending.map(p => `
             <div class="bg-white border border-orange-100 rounded-2xl p-4 shadow-sm flex justify-between items-center gap-4 mb-3">
@@ -374,6 +411,92 @@ async function zmDeclineRemoval(communityId, businessId) {
         });
         const data = await res.json();
         if (data.success) { zmShowToast('info', 'בקשת ההסרה נדחתה'); zmLoadPendingBiz(); loadZMPendingPanel(); }
+        else zmShowToast('error', data.error || 'שגיאה');
+    } catch(e) { zmShowToast('error', 'שגיאת תקשורת'); }
+}
+
+// ── מנהל אזור מזמין עסק לקהילה — מקביל להזמנת מנהל קהילה, אישור ישיר בלי תיווך נוסף ──
+window.openZMInviteBizModal = function(commId, commName) {
+    const existing = document.getElementById('zm-invite-biz-modal');
+    if (existing) existing.remove();
+    const modal = document.createElement('div');
+    modal.id = 'zm-invite-biz-modal';
+    modal.className = 'fixed inset-0 z-[9999] bg-black/50 flex items-end justify-center';
+    modal.innerHTML = `
+    <div class="bg-white rounded-t-3xl w-full max-w-lg p-5 pb-8" dir="rtl">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="font-bold text-slate-800">🏪 הזמן עסק לקהילת ${commName}</h3>
+            <button onclick="document.getElementById('zm-invite-biz-modal').remove()" class="text-slate-400 text-xl">&times;</button>
+        </div>
+        <div class="flex gap-2 mb-3">
+            <input id="zm-invite-biz-search" type="text" placeholder="חפש לפי שם עסק או קוד..." class="flex-1 border border-slate-200 rounded-xl px-3 py-2 text-sm" oninput="_zmInviteBizSearchDebounce(this.value, ${commId})">
+            <button onclick="_zmSearchBizForInvite(document.getElementById('zm-invite-biz-search').value, ${commId})" class="bg-slate-800 text-white px-4 py-2 rounded-xl text-sm font-bold">חפש</button>
+        </div>
+        <div id="zm-invite-biz-results" class="space-y-2 max-h-64 overflow-y-auto"></div>
+    </div>`;
+    document.body.appendChild(modal);
+};
+
+let _zmInviteBizSearchTimer = null;
+window._zmInviteBizSearchDebounce = function(val, commId) {
+    clearTimeout(_zmInviteBizSearchTimer);
+    _zmInviteBizSearchTimer = setTimeout(() => _zmSearchBizForInvite(val, commId), 350);
+};
+
+window._zmSearchBizForInvite = async function(q, commId) {
+    const el = document.getElementById('zm-invite-biz-results');
+    if (!el || !q.trim()) return;
+    el.innerHTML = '<p class="text-xs text-slate-400 text-center py-3">טוען...</p>';
+    try {
+        const res = await fetch(`${API}/community/search-business?q=${encodeURIComponent(q)}`);
+        const data = await res.json();
+        if (!data.businesses.length) { el.innerHTML = '<p class="text-xs text-slate-400 text-center py-3">לא נמצאו עסקים</p>'; return; }
+        el.innerHTML = data.businesses.map(b => `
+            <div class="bg-slate-50 border border-slate-100 rounded-xl p-3 flex justify-between items-center">
+                <button onclick="zmSendBizInvite(${commId}, ${b.id})" class="bg-teal-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-teal-600">הזמן</button>
+                <div class="text-right">
+                    <p class="font-bold text-slate-800 text-sm">${b.name}</p>
+                    <p class="text-[10px] text-slate-400 font-mono">${b.group_code}</p>
+                </div>
+            </div>`).join('');
+    } catch(e) { el.innerHTML = '<p class="text-red-400 text-xs text-center py-3">שגיאה בחיפוש</p>'; }
+};
+
+window.zmSendBizInvite = async function(commId, bizId) {
+    try {
+        const res = await fetch(`${API}/zone-manager/invite-business`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': zmToken },
+            body: JSON.stringify({ communityId: commId, businessId: bizId })
+        });
+        const data = await res.json();
+        if (data.success) { zmShowToast('success', 'ההזמנה נשלחה לעסק!'); document.getElementById('zm-invite-biz-modal')?.remove(); }
+        else zmShowToast('error', data.error || 'שגיאה');
+    } catch(e) { zmShowToast('error', 'שגיאת תקשורת'); }
+};
+
+// עסק שהמנהל הזמין בעצמו וכבר אישר — אישור כאן ישיר וסופי, בלי תיווך נוסף
+async function zmApproveInvitedBiz(communityId, businessId) {
+    if (!confirm('לאשר את הצטרפות העסק לקהילה?')) return;
+    try {
+        const res = await fetch(`${API}/zone-manager/community-business/approve-invited`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': zmToken },
+            body: JSON.stringify({ communityId, businessId })
+        });
+        const data = await res.json();
+        if (data.success) { zmShowToast('success', 'העסק אושר והצטרף לקהילה!'); zmLoadPendingBiz(); loadDashboard(); }
+        else zmShowToast('error', data.error || 'שגיאה');
+    } catch(e) { zmShowToast('error', 'שגיאת תקשורת'); }
+}
+
+async function zmRejectInvitedBiz(communityId, businessId) {
+    if (!confirm('לדחות את הבקשה?')) return;
+    try {
+        const res = await fetch(`${API}/zone-manager/community-business/reject-invited`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': zmToken },
+            body: JSON.stringify({ communityId, businessId })
+        });
+        const data = await res.json();
+        if (data.success) { zmShowToast('info', 'הבקשה נדחתה'); zmLoadPendingBiz(); }
         else zmShowToast('error', data.error || 'שגיאה');
     } catch(e) { zmShowToast('error', 'שגיאת תקשורת'); }
 }
@@ -1465,8 +1588,10 @@ function renderCDTab(tab) {
         body.innerHTML = html;
     } else if (tab === 'businesses') {
         const bizs = _cdData.businesses;
-        if (!bizs.length) { body.innerHTML = '<div class="text-center text-slate-400 py-8">אין עסקים פעילים בקהילה</div>'; return; }
-        body.innerHTML = bizs.map(b => `
+        const commId = _cdData.community.id;
+        const inviteBtnHtml = `<button onclick="openZMInviteBizModal(${commId}, '${(_cdData.community.name||'').replace(/'/g,"\\'")}')" class="w-full mb-3 bg-teal-600 hover:bg-teal-700 text-white font-bold py-2.5 rounded-xl text-sm transition"><i class="fa-solid fa-store mr-1.5"></i>הזמן עסק לקהילה</button>`;
+        if (!bizs.length) { body.innerHTML = inviteBtnHtml + '<div class="text-center text-slate-400 py-8">אין עסקים פעילים בקהילה</div>'; return; }
+        body.innerHTML = inviteBtnHtml + bizs.map(b => `
         <div class="flex justify-between items-center p-3 bg-white border border-slate-100 rounded-xl shadow-sm mb-2">
             <div class="flex flex-col items-start gap-1">
                 <span class="bg-emerald-100 text-emerald-700 text-[9px] font-black px-2 py-0.5 rounded-full">עסק</span>

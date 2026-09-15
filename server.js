@@ -15241,6 +15241,76 @@ app.get('/api/zone-manager/commissions', verifyZoneManager, async (req, res) => 
 });
 
 // ZM — בקשות עסקים הממתינות לאישורו (zm_pending)
+// ZM — מזמין עסק לקהילה באזורו. בשונה מבקשת הצטרפות עצמאית, הזמנה של מנהל אזור
+// (בדיוק כמו הזמנה של מנהל קהילה) לא צריכה מעבר דרך אף גורם נוסף — הוא כבר
+// המאשר הסופי בהיררכיה של הקהילות באזורו.
+app.post('/api/zone-manager/invite-business', verifyZoneManager, async (req, res) => {
+    try {
+        const { communityId, businessId } = req.body;
+        const { managerId } = req.zmSession;
+        const check = await pool.query(`SELECT 1 FROM communities c JOIN manager_zones mz ON c.zone_id=mz.id WHERE c.id=$1 AND mz.manager_id=$2`, [communityId, managerId]);
+        if (!check.rows.length) return res.status(403).json({ error: 'אין הרשאה לקהילה זו' });
+        const existing = await pool.query(`SELECT status FROM community_businesses WHERE community_id=$1 AND business_id=$2`, [communityId, businessId]);
+        if (existing.rows.length && !['rejected','removed'].includes(existing.rows[0].status)) return res.status(400).json({ error: `העסק כבר ${existing.rows[0].status === 'approved' ? 'חבר בקהילה' : 'בתהליך הצטרפות'}` });
+        await pool.query(
+            `INSERT INTO community_businesses (community_id, business_id, discount_pct, status, created_at) VALUES ($1,$2,0,'biz_invited',CURRENT_TIMESTAMP)
+             ON CONFLICT (community_id, business_id) DO UPDATE SET status='biz_invited', discount_pct=0, created_at=CURRENT_TIMESTAMP, rejected_at=NULL, removal_requested=FALSE, removed_at=NULL, removed_by=NULL`,
+            [communityId, businessId]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ZM — אישור ישיר של עסק שהוא עצמו הזמין ואישר (comm_mgr_pending → approved) —
+// מקביל בדיוק לאישור הישיר של מנהל קהילה, ללא מעבר דרך אף גורם נוסף
+app.post('/api/zone-manager/community-business/approve-invited', verifyZoneManager, async (req, res) => {
+    try {
+        const { communityId, businessId } = req.body;
+        const { managerId } = req.zmSession;
+        const check = await pool.query(`SELECT 1 FROM communities c JOIN manager_zones mz ON c.zone_id=mz.id WHERE c.id=$1 AND mz.manager_id=$2`, [communityId, managerId]);
+        if (!check.rows.length) return res.status(403).json({ error: 'אין הרשאה לקהילה זו' });
+        const r = await pool.query(
+            `UPDATE community_businesses SET status='approved' WHERE community_id=$1 AND business_id=$2 AND status='comm_mgr_pending' RETURNING community_id`,
+            [communityId, businessId]);
+        if (!r.rows.length) return res.status(404).json({ error: 'לא נמצאה בקשה ממתינה עבור עסק זה' });
+        await awardFlow('business', parseInt(businessId), 'biz_join_approved', parseInt(communityId));
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ZM — דחיית עסק שהוא עצמו הזמין (comm_mgr_pending) — עדיין לא פעיל, נדחה ישירות
+app.post('/api/zone-manager/community-business/reject-invited', verifyZoneManager, async (req, res) => {
+    try {
+        const { communityId, businessId } = req.body;
+        const { managerId } = req.zmSession;
+        const check = await pool.query(`SELECT 1 FROM communities c JOIN manager_zones mz ON c.zone_id=mz.id WHERE c.id=$1 AND mz.manager_id=$2`, [communityId, managerId]);
+        if (!check.rows.length) return res.status(403).json({ error: 'אין הרשאה לקהילה זו' });
+        const r = await pool.query(
+            `UPDATE community_businesses SET status='rejected', rejected_at=CURRENT_TIMESTAMP, rejected_by='zone_manager'
+             WHERE community_id=$1 AND business_id=$2 AND status='comm_mgr_pending' RETURNING community_id`,
+            [communityId, businessId]);
+        if (!r.rows.length) return res.status(404).json({ error: 'לא נמצאה בקשה ממתינה עבור עסק זה' });
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ZM — עסקים שהוא עצמו הזמין וכבר אישרו את ההזמנה, ממתינים לאישורו הישיר
+app.get('/api/zone-manager/invited-businesses', verifyZoneManager, async (req, res) => {
+    try {
+        const { managerId } = req.zmSession;
+        const result = await pool.query(`
+            SELECT cb.community_id, cb.business_id, cb.discount_pct,
+                   c.name as comm_name, b.name as biz_name
+            FROM community_businesses cb
+            JOIN communities c ON cb.community_id = c.id
+            JOIN family_groups b ON cb.business_id = b.id
+            JOIN manager_zones mz ON c.zone_id = mz.id
+            JOIN zone_managers zm ON mz.manager_id = zm.id
+            WHERE cb.status = 'comm_mgr_pending' AND zm.id = $1
+        `, [managerId]);
+        res.json({ success: true, pending: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 app.get('/api/zone-manager/pending-businesses', verifyZoneManager, async (req, res) => {
     try {
         const { managerId } = req.zmSession;
