@@ -12316,9 +12316,14 @@ app.get('/campaign/:code', async (req, res) => {
         // שהמנהל הקליד ידנית בניהול (שורה שנייה) / "WEFLOWZ עושה לכם סדר" ליד הכתובת / לוגו WEFLOWZ
         const manualLine = c.share_description || c.slogan || '';
         const title = escAttr(manualLine || c.title || c.community_name || 'קמפיין קהילה');
-        // ווצאפ לא מציג og:site_name בפועל ליד הדומיין (רק את שם המארח מה-URL עצמו) —
-        // הדרך היחידה למקם כיתוב "צמוד" לכתובת היא כשורה האחרונה בתיאור, ישר מעליה
-        const description = escAttr([c.title || c.community_name || '', 'WEFLOWZ עושה לכם סדר'].filter(Boolean).join('\n'));
+        // ווצאפ לא מציג og:site_name בפועל ליד הדומיין (רק את שם המארח מה-URL עצמו), וגם
+        // מציג את התיאור בשורה אחת בלבד וחותך אותה — שורה שנייה עם \n אף פעם לא נראית.
+        // לכן משרשרים לשורה אחת, וחותכים את החלק המשתנה כך שהכיתוב הקבוע תמיד יישאר גלוי
+        const TAGLINE = ' · WEFLOWZ עושה לכם סדר';
+        const rawTitleLine = c.title || c.community_name || '';
+        const maxVarLen = Math.max(0, 60 - TAGLINE.length);
+        const titleLine = rawTitleLine.length > maxVarLen ? rawTitleLine.slice(0, maxVarLen - 1).trim() + '…' : rawTitleLine;
+        const description = escAttr(titleLine ? `${titleLine}${TAGLINE}` : `WEFLOWZ עושה לכם סדר`);
         const image = escAttr(`${baseUrl}/api/public/logo`);
         const pageUrl = escAttr(`${baseUrl}/campaign/${c.code}`);
         const injected = html
