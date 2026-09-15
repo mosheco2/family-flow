@@ -8087,6 +8087,51 @@ async function cmCreateCampaign(commId) {
     } catch(e) { showToast('error', 'שגיאת רשת'); }
 }
 
+function cmHandleCampaignImageUpload(event, targetInputId, previewId) {
+    const file = event.target.files[0]; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+            const maxWidth = 1200;
+            let base64;
+            if (img.width <= maxWidth) {
+                base64 = e.target.result;
+            } else {
+                const canvas = document.createElement('canvas');
+                const width = maxWidth, height = Math.round(img.height * (maxWidth / img.width));
+                canvas.width = width; canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+                ctx.drawImage(img, 0, 0, width, height);
+                base64 = canvas.toDataURL('image/jpeg', 0.9);
+            }
+            const targetInput = document.getElementById(targetInputId); if (targetInput) targetInput.value = base64;
+            const preview = document.getElementById(previewId); if (preview) { preview.src = base64; preview.classList.remove('hidden'); }
+        };
+        img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+}
+
+async function cmSaveCampaignSettings(campaignId, commId) {
+    const title = document.getElementById(`cmc-title-${campaignId}`)?.value.trim();
+    const slogan = document.getElementById(`cmc-slogan-${campaignId}`)?.value.trim();
+    const logoUrl = document.getElementById(`cmc-logo-input-${campaignId}`)?.value;
+    const bannerImageUrl = document.getElementById(`cmc-banner-input-${campaignId}`)?.value;
+    if (!title) return showToast('error', 'כותרת היא שדה חובה');
+    try {
+        const res = await communityFetch(`${API}/community/manager/campaigns/${campaignId}`, {
+            method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ title, slogan: slogan || null, logoUrl: logoUrl || null, bannerImageUrl: bannerImageUrl || null })
+        });
+        const data = await res.json();
+        if (!data.success) return showToast('error', data.error || 'שגיאה');
+        showToast('success', 'ההגדרות נשמרו');
+        cmOpenCampaignManage(campaignId, commId);
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
+}
+
 async function cmOpenCampaignManage(campaignId, commId) {
     const box = document.getElementById(`cm-campaigns-${commId}`);
     if (!box) return;
@@ -8106,6 +8151,43 @@ async function cmOpenCampaignManage(campaignId, commId) {
                 <button onclick="navigator.clipboard.writeText('${host}/community-store.html?c=${c.code}');showToast('success','קישור הועתק')" class="text-[10px] font-bold bg-pink-600 text-white px-2.5 py-1.5 rounded-lg shrink-0">העתק</button>
             </div>
         </div>
+
+        <!-- הגדרות עמוד הקמפיין: כותרת, סלוגן, לוגו, תמונת נושא — כמו בניהול חנות ציבורית -->
+        <div class="bg-white border border-slate-200 rounded-xl p-3 mb-2">
+            <p class="text-xs font-bold text-slate-600 mb-2"><i class="fa-solid fa-sliders text-pink-500 mr-1"></i>הגדרות עמוד הקמפיין</p>
+            <div class="space-y-2">
+                <div>
+                    <label class="text-[10px] font-bold text-slate-400 block mb-1">כותרת</label>
+                    <input id="cmc-title-${campaignId}" type="text" value="${safeStr(c.title)}" class="w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs">
+                </div>
+                <div>
+                    <label class="text-[10px] font-bold text-slate-400 block mb-1">סלוגן (משפט קצר שיוצג ללקוחות)</label>
+                    <input id="cmc-slogan-${campaignId}" type="text" value="${safeStr(c.slogan || '')}" placeholder="למשל: קונים מקומי, תומכים בשכונה" class="w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs">
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="text-[10px] font-bold text-slate-400 block mb-1">לוגו הקמפיין</label>
+                        <div class="flex items-center gap-1.5">
+                            <img id="cmc-logo-preview-${campaignId}" src="${c.logo_url || ''}" class="w-9 h-9 rounded-lg object-cover border border-slate-200 ${c.logo_url ? '' : 'hidden'}">
+                            <input type="file" id="cmc-logo-upload-${campaignId}" accept="image/*" class="hidden" onchange="cmHandleCampaignImageUpload(event, 'cmc-logo-input-${campaignId}', 'cmc-logo-preview-${campaignId}')">
+                            <input type="hidden" id="cmc-logo-input-${campaignId}" value="${c.logo_url || ''}">
+                            <button type="button" onclick="document.getElementById('cmc-logo-upload-${campaignId}').click()" class="text-[10px] font-bold bg-slate-100 text-slate-600 px-2 py-1.5 rounded-lg">העלה</button>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-bold text-slate-400 block mb-1">תמונת נושא</label>
+                        <div class="flex items-center gap-1.5">
+                            <img id="cmc-banner-preview-${campaignId}" src="${c.banner_image_url || ''}" class="w-9 h-9 rounded-lg object-cover border border-slate-200 ${c.banner_image_url ? '' : 'hidden'}">
+                            <input type="file" id="cmc-banner-upload-${campaignId}" accept="image/*" class="hidden" onchange="cmHandleCampaignImageUpload(event, 'cmc-banner-input-${campaignId}', 'cmc-banner-preview-${campaignId}')">
+                            <input type="hidden" id="cmc-banner-input-${campaignId}" value="${c.banner_image_url || ''}">
+                            <button type="button" onclick="document.getElementById('cmc-banner-upload-${campaignId}').click()" class="text-[10px] font-bold bg-slate-100 text-slate-600 px-2 py-1.5 rounded-lg">העלה</button>
+                        </div>
+                    </div>
+                </div>
+                <button onclick="cmSaveCampaignSettings(${campaignId}, ${commId})" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-2 rounded-lg text-xs mt-1 transition"><i class="fa-solid fa-floppy-disk ml-1.5"></i>שמור הגדרות</button>
+            </div>
+        </div>
+
         <p class="text-xs font-bold text-slate-600 mb-1.5">עסקים בקהילה — סמנו אילו נכללים בקמפיין</p>
         <div class="space-y-1.5 max-h-64 overflow-y-auto modal-scroll pr-1">
         ${(data.businesses||[]).map(b => `

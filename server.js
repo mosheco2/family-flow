@@ -13113,6 +13113,8 @@ async function initCommunityTables() {
             created_by_manager_id INT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )`,
+        `ALTER TABLE community_campaigns ADD COLUMN IF NOT EXISTS logo_url TEXT`,
+        `ALTER TABLE community_campaigns ADD COLUMN IF NOT EXISTS slogan VARCHAR(200)`,
         `CREATE TABLE IF NOT EXISTS community_campaign_businesses (
             campaign_id INT REFERENCES community_campaigns(id) ON DELETE CASCADE,
             business_group_id INT REFERENCES family_groups(id),
@@ -15478,15 +15480,17 @@ app.patch('/api/zone-manager/community-campaigns/:id', verifyZoneManager, async 
         const campaign = await verifyCampaignOwnership(req.params.id, managerId);
         if (!campaign) return res.status(403).json({ error: 'אין הרשאה לקמפיין זה' });
 
-        const { title, description, bannerImageUrl, status } = req.body;
+        const { title, description, bannerImageUrl, status, logoUrl, slogan } = req.body;
         const upd = await pool.query(
             `UPDATE community_campaigns SET
                 title = COALESCE($1, title),
                 description = COALESCE($2, description),
                 banner_image_url = COALESCE($3, banner_image_url),
-                status = COALESCE($4, status)
+                status = COALESCE($4, status),
+                logo_url = COALESCE($6, logo_url),
+                slogan = COALESCE($7, slogan)
              WHERE id=$5 RETURNING *`,
-            [title, description, bannerImageUrl, status, req.params.id]);
+            [title, description, bannerImageUrl, status, req.params.id, logoUrl, slogan]);
         res.json({ success: true, campaign: upd.rows[0] });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -16230,15 +16234,17 @@ app.patch('/api/community/manager/campaigns/:id', verifyFamily, async (req, res)
         const campaign = await verifyCampaignOwnershipFamily(req.params.id, req.familyAuth.groupId);
         if (!campaign) return res.status(403).json({ error: 'אין הרשאה לקמפיין זה' });
 
-        const { title, description, bannerImageUrl, status } = req.body;
+        const { title, description, bannerImageUrl, status, logoUrl, slogan } = req.body;
         const upd = await pool.query(
             `UPDATE community_campaigns SET
                 title = COALESCE($1, title),
                 description = COALESCE($2, description),
                 banner_image_url = COALESCE($3, banner_image_url),
-                status = COALESCE($4, status)
+                status = COALESCE($4, status),
+                logo_url = COALESCE($6, logo_url),
+                slogan = COALESCE($7, slogan)
              WHERE id=$5 RETURNING *`,
-            [title, description, bannerImageUrl, status, req.params.id]);
+            [title, description, bannerImageUrl, status, req.params.id, logoUrl, slogan]);
         res.json({ success: true, campaign: upd.rows[0] });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });

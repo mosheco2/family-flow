@@ -34,12 +34,19 @@
     }
 
     function renderHeader() {
-        document.getElementById('cs-community-name').textContent = campaignData.campaign.community_name || 'קמפיין קהילה';
-        document.getElementById('cs-title').textContent = campaignData.campaign.title;
-        document.getElementById('cs-desc').textContent = campaignData.campaign.description || '';
-        document.title = `${campaignData.campaign.title} | WEFLOWZ`;
-        if (campaignData.campaign.banner_image_url) {
-            document.getElementById('cs-banner').style.backgroundImage = `linear-gradient(to bottom, rgba(79,70,229,0.75), rgba(147,51,234,0.75)), url('${campaignData.campaign.banner_image_url}')`;
+        const c = campaignData.campaign;
+        document.getElementById('cs-community-name').textContent = c.community_name || 'קמפיין קהילה';
+        document.getElementById('cs-title').textContent = c.title;
+        document.getElementById('cs-slogan').textContent = c.slogan || '';
+        document.getElementById('cs-desc').textContent = c.description || '';
+        document.title = `${c.title} | WEFLOWZ`;
+        if (c.logo_url) {
+            const logo = document.getElementById('cs-logo');
+            logo.src = c.logo_url;
+            logo.classList.remove('hidden');
+        }
+        if (c.banner_image_url) {
+            document.getElementById('cs-banner').style.backgroundImage = `linear-gradient(to bottom, rgba(79,70,229,0.75), rgba(147,51,234,0.75)), url('${c.banner_image_url}')`;
             document.getElementById('cs-banner').style.backgroundSize = 'cover';
             document.getElementById('cs-banner').style.backgroundPosition = 'center';
         }
@@ -88,15 +95,27 @@
         renderProducts();
     };
 
+    // כלל ברזל: אי אפשר להזמין מוצרים משני עסקים שונים באותה הזמנה.
+    // בניגוד לגרסה קודמת — אין אפשרות "לרוקן אוטומטית ולהמשיך"; חוסמים
+    // לגמרי ומכוונים לכפתור "רוקן עגלה" המפורש בעגלה.
     window.csAddToCart = function(product) {
         if (cart.length && String(cart[0].businessGroupId) !== String(product.group_id)) {
-            if (!confirm(`אפשר להזמין רק מעסק אחד בכל הזמנה.\nהעגלה שלך מכילה מוצרים מ"${cart[0].businessName}".\nלרוקן את העגלה ולהתחיל הזמנה חדשה מ-"${product.business_name}"?`)) return;
-            cart = [];
+            alert(`אי אפשר להזמין מוצרים משני עסקים שונים באותה הזמנה.\nהעגלה שלך מכילה כרגע מוצרים מ-"${cart[0].businessName}".\nכדי להזמין מ-"${product.business_name}" יש לרוקן קודם את העגלה (כפתור "רוקן עגלה" בתוך העגלה).`);
+            csOpenCart();
+            return;
         }
         const existing = cart.find(i => i.catalogId === product.id);
         if (existing) existing.quantity += 1;
         else cart.push({ catalogId: product.id, businessGroupId: product.group_id, businessName: product.business_name, name: product.name, price: product.price, quantity: 1 });
         updateCartUI();
+    };
+
+    window.csEmptyCart = function() {
+        if (!cart.length) return;
+        if (!confirm('לרוקן את העגלה?')) return;
+        cart = [];
+        updateCartUI();
+        renderCartItems();
     };
 
     window.csChangeQty = function(catalogId, delta) {
@@ -142,31 +161,53 @@
     };
     window.csCloseCart = function() { document.getElementById('cs-cart-modal').classList.add('hidden'); };
 
-    window.csCheckout = async function() {
+    // שלב 1 מתוך תהליך הסיום — כמו הזמנה רגילה מחנות ציבורית, בלי משלוח:
+    // מוודא התחברות, מציג סיכום + פרטי לקוח + הערות, ורק אז מאפשר לשלוח בפועל.
+    window.csOpenCheckoutForm = function() {
         if (!cart.length) return;
-        if (!window.scAuth.requireLogin('csCheckout', '🔒 כדי להשלים הזמנה יש להתחבר או להירשם.<br><span style="font-size:11px;color:#15803d">ההרשמה מקשרת אותך אוטומטית לכל העסקים בקמפיין.</span>')) return;
+        if (!window.scAuth.requireLogin('csOpenCheckoutForm', '🔒 כדי להשלים הזמנה יש להתחבר או להירשם.<br><span style="font-size:11px;color:#15803d">ההרשמה מקשרת אותך אוטומטית לכל העסקים בקמפיין.</span>')) return;
 
-        const btn = document.getElementById('cs-checkout-btn');
-        btn.disabled = true; btn.textContent = 'שולח הזמנה...';
+        const customer = window.scAuth._customer || {};
+        document.getElementById('cs-cust-name').value = [customer.first_name, customer.last_name].filter(Boolean).join(' ');
+        document.getElementById('cs-cust-phone').value = customer.phone || '';
+        document.getElementById('cs-cust-notes').value = '';
+
+        document.getElementById('cs-checkout-summary').innerHTML = cart.map(i => `
+            <div class="flex justify-between text-xs">
+                <span class="text-slate-600">${csSafe(i.name)} × ${i.quantity}</span>
+                <span class="font-bold text-slate-800">₪${(i.price * i.quantity).toFixed(0)}</span>
+            </div>`).join('') + `
+            <div class="flex justify-between text-sm font-black text-slate-800 pt-2 mt-2 border-t border-slate-200">
+                <span>סה"כ</span><span>₪${cartTotal().toFixed(0)}</span>
+            </div>`;
+
+        csCloseCart();
+        document.getElementById('cs-checkout-modal').classList.remove('hidden');
+    };
+    window.csCloseCheckoutForm = function() { document.getElementById('cs-checkout-modal').classList.add('hidden'); };
+
+    window.csSubmitOrder = async function() {
+        const btn = document.getElementById('cs-submit-order-btn');
+        btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin ml-1.5"></i>שולח הזמנה...';
         try {
             const res = await fetch(`/api/campaign/${encodeURIComponent(campaignCode)}/order`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (window.scAuth._token || '') },
-                body: JSON.stringify({ items: cart })
+                body: JSON.stringify({ items: cart, notes: document.getElementById('cs-cust-notes').value.trim() || null })
             });
             const data = await res.json();
             if (!data.success) {
                 alert(data.error || 'שגיאה בשליחת ההזמנה');
-                btn.disabled = false; btn.textContent = 'המשך להזמנה';
+                btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-paper-plane ml-1.5"></i>שלח הזמנה';
                 return;
             }
             cart = [];
             updateCartUI();
-            csCloseCart();
-            alert('ההזמנה נשלחה בהצלחה! 🎉');
+            csCloseCheckoutForm();
+            alert('ההזמנה נשלחה בהצלחה! 🎉 ניתן לאסוף מהעסק בהתאם לתיאום.');
         } catch(e) {
             alert('שגיאת תקשורת, נסו שנית');
-            btn.disabled = false; btn.textContent = 'המשך להזמנה';
+            btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-paper-plane ml-1.5"></i>שלח הזמנה';
         }
     };
 

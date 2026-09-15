@@ -1491,6 +1491,51 @@ async function zmCreateCommunityCampaign(commId) {
     } catch(e) { showZMToast('שגיאת רשת', 'error'); }
 }
 
+function zmHandleCampaignImageUpload(event, targetInputId, previewId) {
+    const file = event.target.files[0]; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+            const maxWidth = 1200;
+            let base64;
+            if (img.width <= maxWidth) {
+                base64 = e.target.result;
+            } else {
+                const canvas = document.createElement('canvas');
+                const width = maxWidth, height = Math.round(img.height * (maxWidth / img.width));
+                canvas.width = width; canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+                ctx.drawImage(img, 0, 0, width, height);
+                base64 = canvas.toDataURL('image/jpeg', 0.9);
+            }
+            const targetInput = document.getElementById(targetInputId); if (targetInput) targetInput.value = base64;
+            const preview = document.getElementById(previewId); if (preview) { preview.src = base64; preview.classList.remove('hidden'); }
+        };
+        img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+}
+
+async function zmSaveCampaignSettings(campaignId, commId) {
+    const title = document.getElementById(`zmc-title-${campaignId}`)?.value.trim();
+    const slogan = document.getElementById(`zmc-slogan-${campaignId}`)?.value.trim();
+    const logoUrl = document.getElementById(`zmc-logo-input-${campaignId}`)?.value;
+    const bannerImageUrl = document.getElementById(`zmc-banner-input-${campaignId}`)?.value;
+    if (!title) return showZMToast('כותרת היא שדה חובה', 'error');
+    try {
+        const res = await fetch(`${API}/zone-manager/community-campaigns/${campaignId}`, {
+            method: 'PATCH', headers: { 'Content-Type': 'application/json', 'Authorization': zmToken },
+            body: JSON.stringify({ title, slogan: slogan || null, logoUrl: logoUrl || null, bannerImageUrl: bannerImageUrl || null })
+        });
+        const data = await res.json();
+        if (!data.success) return showZMToast(data.error || 'שגיאה', 'error');
+        showZMToast('ההגדרות נשמרו ✅');
+        zmOpenCampaignManage(campaignId, commId);
+    } catch(e) { showZMToast('שגיאת רשת', 'error'); }
+}
+
 let _zmCampaignDetail = null;
 async function zmOpenCampaignManage(campaignId, commId) {
     const body = document.getElementById('zm-cd-body');
@@ -1511,6 +1556,43 @@ async function zmOpenCampaignManage(campaignId, commId) {
                 <button onclick="navigator.clipboard.writeText('${host}/community-store.html?c=${c.code}');showZMToast('קישור הועתק ✅')" class="text-[10px] font-bold bg-pink-600 text-white px-2.5 py-1.5 rounded-lg">העתק</button>
             </div>
         </div>
+
+        <!-- הגדרות עמוד הקמפיין: כותרת, סלוגן, לוגו, תמונת נושא — כמו בניהול חנות ציבורית -->
+        <div class="bg-white border border-slate-200 rounded-2xl p-4 mb-3">
+            <p class="text-xs font-bold text-slate-600 mb-3"><i class="fa-solid fa-sliders text-pink-500 mr-1"></i>הגדרות עמוד הקמפיין</p>
+            <div class="space-y-2.5">
+                <div>
+                    <label class="text-[10px] font-bold text-slate-400 block mb-1">כותרת</label>
+                    <input id="zmc-title-${campaignId}" type="text" value="${safeStrZM(c.title)}" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm">
+                </div>
+                <div>
+                    <label class="text-[10px] font-bold text-slate-400 block mb-1">סלוגן (משפט קצר שיוצג ללקוחות)</label>
+                    <input id="zmc-slogan-${campaignId}" type="text" value="${safeStrZM(c.slogan || '')}" placeholder="למשל: קונים מקומי, תומכים בשכונה" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm">
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label class="text-[10px] font-bold text-slate-400 block mb-1">לוגו הקמפיין</label>
+                        <div class="flex items-center gap-2">
+                            <img id="zmc-logo-preview-${campaignId}" src="${c.logo_url || ''}" class="w-10 h-10 rounded-lg object-cover border border-slate-200 ${c.logo_url ? '' : 'hidden'}">
+                            <input type="file" id="zmc-logo-upload-${campaignId}" accept="image/*" class="hidden" onchange="zmHandleCampaignImageUpload(event, 'zmc-logo-input-${campaignId}', 'zmc-logo-preview-${campaignId}')">
+                            <input type="hidden" id="zmc-logo-input-${campaignId}" value="${c.logo_url || ''}">
+                            <button type="button" onclick="document.getElementById('zmc-logo-upload-${campaignId}').click()" class="text-[10px] font-bold bg-slate-100 text-slate-600 px-2.5 py-2 rounded-lg">העלה</button>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="text-[10px] font-bold text-slate-400 block mb-1">תמונת נושא (באנר)</label>
+                        <div class="flex items-center gap-2">
+                            <img id="zmc-banner-preview-${campaignId}" src="${c.banner_image_url || ''}" class="w-10 h-10 rounded-lg object-cover border border-slate-200 ${c.banner_image_url ? '' : 'hidden'}">
+                            <input type="file" id="zmc-banner-upload-${campaignId}" accept="image/*" class="hidden" onchange="zmHandleCampaignImageUpload(event, 'zmc-banner-input-${campaignId}', 'zmc-banner-preview-${campaignId}')">
+                            <input type="hidden" id="zmc-banner-input-${campaignId}" value="${c.banner_image_url || ''}">
+                            <button type="button" onclick="document.getElementById('zmc-banner-upload-${campaignId}').click()" class="text-[10px] font-bold bg-slate-100 text-slate-600 px-2.5 py-2 rounded-lg">העלה</button>
+                        </div>
+                    </div>
+                </div>
+                <button onclick="zmSaveCampaignSettings(${campaignId}, ${commId})" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-2.5 rounded-xl text-sm mt-1 transition"><i class="fa-solid fa-floppy-disk ml-1.5"></i>שמור הגדרות</button>
+            </div>
+        </div>
+
         <p class="text-xs font-bold text-slate-600 mb-2">עסקים בקהילה — סמנו אילו נכללים בקמפיין</p>
         <div class="space-y-2">
         ${data.businesses.map(b => `

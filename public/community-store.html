@@ -19,10 +19,14 @@
 
     <!-- Header / Banner -->
     <div id="cs-banner" class="bg-gradient-to-br from-indigo-600 to-purple-600 text-white px-5 pt-8 pb-6 rounded-b-[2rem] shadow-lg">
-        <div class="max-w-2xl mx-auto">
-            <div class="flex items-center gap-2 text-xs font-bold text-indigo-100 mb-1"><i class="fa-solid fa-people-group"></i><span id="cs-community-name">קמפיין קהילה</span></div>
-            <h1 id="cs-title" class="text-2xl font-black">טוען...</h1>
-            <p id="cs-desc" class="text-sm text-indigo-100 mt-1"></p>
+        <div class="max-w-2xl mx-auto flex items-center gap-3">
+            <img id="cs-logo" src="" class="hidden w-14 h-14 rounded-2xl object-cover border-2 border-white/40 shadow-lg shrink-0">
+            <div class="min-w-0">
+                <div class="flex items-center gap-2 text-xs font-bold text-indigo-100 mb-1"><i class="fa-solid fa-people-group"></i><span id="cs-community-name">קמפיין קהילה</span></div>
+                <h1 id="cs-title" class="text-2xl font-black">טוען...</h1>
+                <p id="cs-slogan" class="text-sm font-bold text-indigo-100 mt-0.5"></p>
+                <p id="cs-desc" class="text-xs text-indigo-100/80 mt-1"></p>
+            </div>
         </div>
     </div>
 
@@ -49,13 +53,45 @@
                 <button onclick="csCloseCart()" class="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center">✕</button>
                 <h3 class="font-black text-lg text-slate-800">העגלה שלך</h3>
             </div>
-            <div id="cs-cart-biz-name" class="px-5 pt-2 text-xs font-bold text-indigo-600"></div>
+            <div class="px-5 pt-2 flex items-center justify-between">
+                <div id="cs-cart-biz-name" class="text-xs font-bold text-indigo-600"></div>
+                <button onclick="csEmptyCart()" class="text-[11px] font-bold text-red-400 hover:text-red-600 transition"><i class="fa-solid fa-trash-can ml-1"></i>רוקן עגלה</button>
+            </div>
             <div id="cs-cart-items" class="p-5 space-y-3"></div>
             <div class="p-5 border-t border-slate-100">
                 <div class="flex justify-between items-center mb-4 text-lg font-black text-slate-800">
                     <span>סה"כ</span><span>₪<span id="cs-cart-modal-total">0</span></span>
                 </div>
-                <button onclick="csCheckout()" id="cs-checkout-btn" class="w-full bg-indigo-600 text-white font-bold py-3.5 rounded-2xl shadow-lg">המשך להזמנה</button>
+                <button onclick="csOpenCheckoutForm()" id="cs-checkout-btn" class="w-full bg-indigo-600 text-white font-bold py-3.5 rounded-2xl shadow-lg">המשך להזמנה</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Checkout form (no delivery — pickup only, like a regular storefront order minus shipping) -->
+    <div id="cs-checkout-modal" class="hidden fixed inset-0 bg-black/50 z-50" onclick="if(event.target===this)csCloseCheckoutForm()">
+        <div class="absolute bottom-0 left-1/2 -translate-x-1/2 w-full max-w-lg bg-white rounded-t-[2rem] max-h-[90vh] overflow-y-auto">
+            <div class="p-5 pb-2 flex items-center justify-between sticky top-0 bg-white z-10 border-b border-slate-100">
+                <button onclick="csCloseCheckoutForm()" class="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center">✕</button>
+                <h3 class="font-black text-lg text-slate-800">סיום הזמנה</h3>
+            </div>
+            <div class="p-5">
+                <p class="text-xs font-bold text-amber-600 bg-amber-50 border border-amber-200 rounded-xl p-3 mb-4"><i class="fa-solid fa-store ml-1"></i> ההזמנה לאיסוף עצמי מהעסק — אין אפשרות משלוח בקמפיין קהילתי.</p>
+                <div id="cs-checkout-summary" class="bg-slate-50 rounded-xl p-4 mb-4 space-y-1.5"></div>
+                <div class="grid grid-cols-2 gap-2 mb-4">
+                    <div class="flex flex-col gap-1">
+                        <label class="text-[10px] font-bold text-slate-400 mr-1">שם מלא</label>
+                        <input id="cs-cust-name" type="text" readonly class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 text-slate-500">
+                    </div>
+                    <div class="flex flex-col gap-1">
+                        <label class="text-[10px] font-bold text-slate-400 mr-1">טלפון</label>
+                        <input id="cs-cust-phone" type="tel" readonly class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-slate-50 text-slate-500 dir-ltr text-center">
+                    </div>
+                </div>
+                <div class="mb-4">
+                    <label class="text-[10px] font-bold text-slate-400 mr-1">הערות להזמנה (אופציונלי)</label>
+                    <textarea id="cs-cust-notes" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm h-20" placeholder="הערות מיוחדות..."></textarea>
+                </div>
+                <button onclick="csSubmitOrder()" id="cs-submit-order-btn" class="w-full bg-indigo-600 text-white font-bold py-3.5 rounded-2xl shadow-lg"><i class="fa-solid fa-paper-plane ml-1.5"></i>שלח הזמנה</button>
             </div>
         </div>
     </div>
@@ -91,6 +127,6 @@
     </div>
 
     <script src="/sc-auth.js"></script>
-    <script src="community-store-app.js?v=1"></script>
+    <script src="community-store-app.js?v=2"></script>
 </body>
 </html>
