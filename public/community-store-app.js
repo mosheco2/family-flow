@@ -70,10 +70,9 @@
             headerLogo.innerHTML = `<img src="${c.logo_url}">`;
         }
         if (c.banner_image_url) {
+            // גודל/מיקום/חזרה נקבעים ב-CSS (כולל media query למסכים רחבים) —
+            // כאן רק מחליפים את התמונה עצמה כדי לא לדרוס את ההתנהגות הרספונסיבית
             document.getElementById('hero').style.backgroundImage = `linear-gradient(rgba(17,17,19,.55),rgba(17,17,19,.55)), url('${c.banner_image_url}')`;
-            document.getElementById('hero').style.backgroundSize = 'contain';
-            document.getElementById('hero').style.backgroundRepeat = 'no-repeat';
-            document.getElementById('hero').style.backgroundPosition = 'center';
         }
     }
 
