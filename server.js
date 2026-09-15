@@ -7998,21 +7998,21 @@ app.get('/api/sa/unified-stats', verifySA, async (req, res) => {
                 COALESCE(SUM(amount_ils) FILTER (WHERE created_at > CURRENT_DATE),0) as today_value,
                 COALESCE(SUM(amount_ils) FILTER (WHERE created_at > NOW()-INTERVAL '30 days'),0) as month_value
                 FROM billing_records WHERE record_type='zm_commission'`, zeroVal),
-            // כספים — עמלות פלטפורמה (מ-business_platform_dues, לא כולל עסקי טסט)
+            // כספים — עמלות פלטפורמה (מ-billing_records, אותו מקור כמו טאב "פיננסים", לא כולל עסקי טסט)
             safe(`SELECT
-                ${RANGE('d.created_at')},
-                COALESCE(SUM(d.commission_amount),0) as all_value,
-                COALESCE(SUM(d.commission_amount) FILTER (WHERE d.created_at > CURRENT_DATE),0) as today_value,
-                COALESCE(SUM(d.commission_amount) FILTER (WHERE d.created_at > NOW()-INTERVAL '30 days'),0) as month_value
-                FROM business_platform_dues d LEFT JOIN family_groups fg ON fg.id=d.business_id
+                ${RANGE('br.created_at')},
+                COALESCE(SUM(br.amount_ils) FILTER (WHERE br.payment_status='paid'),0) as all_value,
+                COALESCE(SUM(br.amount_ils) FILTER (WHERE br.payment_status='paid' AND br.created_at > CURRENT_DATE),0) as today_value,
+                COALESCE(SUM(br.amount_ils) FILTER (WHERE br.payment_status='paid' AND br.created_at > NOW()-INTERVAL '30 days'),0) as month_value
+                FROM billing_records br LEFT JOIN family_groups fg ON fg.id=br.business_id
                 WHERE fg.id IS NULL OR fg.is_test_env IS NOT TRUE`, zeroVal),
-            // כספים — קאשבק (לא כולל עסקי טסט)
+            // כספים — קאשבק (מ-billing_records, לא כולל עסקי טסט)
             safe(`SELECT
-                ${RANGE('d.created_at')},
-                COALESCE(SUM(d.cashback_amount),0) as all_value,
-                COALESCE(SUM(d.cashback_amount) FILTER (WHERE d.created_at > CURRENT_DATE),0) as today_value,
-                COALESCE(SUM(d.cashback_amount) FILTER (WHERE d.created_at > NOW()-INTERVAL '30 days'),0) as month_value
-                FROM business_platform_dues d LEFT JOIN family_groups fg ON fg.id=d.business_id
+                ${RANGE('br.created_at')},
+                COALESCE(SUM(br.cash_amount) FILTER (WHERE br.payment_status='paid'),0) as all_value,
+                COALESCE(SUM(br.cash_amount) FILTER (WHERE br.payment_status='paid' AND br.created_at > CURRENT_DATE),0) as today_value,
+                COALESCE(SUM(br.cash_amount) FILTER (WHERE br.payment_status='paid' AND br.created_at > NOW()-INTERVAL '30 days'),0) as month_value
+                FROM billing_records br LEFT JOIN family_groups fg ON fg.id=br.business_id
                 WHERE fg.id IS NULL OR fg.is_test_env IS NOT TRUE`, zeroVal),
             // כספים — נגבה בפועל (לא כולל עסקי טסט)
             safe(`SELECT
@@ -8022,14 +8022,14 @@ app.get('/api/sa/unified-stats', verifySA, async (req, res) => {
                 COALESCE(SUM(c.amount) FILTER (WHERE c.collected_at > NOW()-INTERVAL '30 days'),0) as month_value
                 FROM business_platform_collections c LEFT JOIN family_groups fg ON fg.id=c.business_id
                 WHERE fg.id IS NULL OR fg.is_test_env IS NOT TRUE`, zeroVal),
-            // כספים — חוב פתוח (עמלות שטרם נגבו, לא כולל עסקי טסט)
+            // כספים — חוב פתוח (מ-billing_records, אותו מקור כמו טאב "פיננסים", לא כולל עסקי טסט)
             safe(`SELECT
-                ${RANGE('d.created_at')},
-                COALESCE(SUM(d.commission_amount),0) as all_value,
-                COALESCE(SUM(d.commission_amount) FILTER (WHERE d.created_at > CURRENT_DATE),0) as today_value,
-                COALESCE(SUM(d.commission_amount) FILTER (WHERE d.created_at > NOW()-INTERVAL '30 days'),0) as month_value
-                FROM business_platform_dues d LEFT JOIN family_groups fg ON fg.id=d.business_id
-                WHERE d.status='pending' AND (fg.id IS NULL OR fg.is_test_env IS NOT TRUE)`, zeroVal),
+                ${RANGE('br.created_at')},
+                COALESCE(SUM(br.amount_ils) FILTER (WHERE br.payment_status!='paid'),0) as all_value,
+                COALESCE(SUM(br.amount_ils) FILTER (WHERE br.payment_status!='paid' AND br.created_at > CURRENT_DATE),0) as today_value,
+                COALESCE(SUM(br.amount_ils) FILTER (WHERE br.payment_status!='paid' AND br.created_at > NOW()-INTERVAL '30 days'),0) as month_value
+                FROM billing_records br LEFT JOIN family_groups fg ON fg.id=br.business_id
+                WHERE br.payment_status!='paid' AND (fg.id IS NULL OR fg.is_test_env IS NOT TRUE)`, zeroVal),
             // מטבעות — מימוש/פדיון (לא כולל צדדי טסט)
             safe(`SELECT
                 ${RANGE('fr.created_at')},
@@ -8192,14 +8192,14 @@ app.get('/api/sa/kpi-detail', verifySA, async (req, res) => {
                 select: `id, description as title, NULL::text as entity, amount_ils as amount, payment_status as status, created_at`
             },
             commission: {
-                base: `FROM business_platform_dues d LEFT JOIN family_groups fg ON fg.id=d.business_id WHERE fg.id IS NULL OR fg.is_test_env IS NOT TRUE`,
-                dateCol: 'd.created_at',
-                select: `d.id, fg.name as title, 'הזמנה #'||COALESCE(d.order_id::text,'—') as entity, d.commission_amount as amount, d.status, d.created_at`
+                base: `FROM billing_records br LEFT JOIN family_groups fg ON fg.id=br.business_id WHERE br.payment_status='paid' AND (fg.id IS NULL OR fg.is_test_env IS NOT TRUE)`,
+                dateCol: 'br.created_at',
+                select: `br.id, fg.name as title, br.description as entity, br.amount_ils as amount, br.payment_status as status, br.created_at`
             },
             cashback: {
-                base: `FROM business_platform_dues d LEFT JOIN family_groups fg ON fg.id=d.business_id WHERE fg.id IS NULL OR fg.is_test_env IS NOT TRUE`,
-                dateCol: 'd.created_at',
-                select: `d.id, fg.name as title, 'הזמנה #'||COALESCE(d.order_id::text,'—') as entity, d.cashback_amount as amount, d.status, d.created_at`
+                base: `FROM billing_records br LEFT JOIN family_groups fg ON fg.id=br.business_id WHERE br.payment_status='paid' AND (fg.id IS NULL OR fg.is_test_env IS NOT TRUE)`,
+                dateCol: 'br.created_at',
+                select: `br.id, fg.name as title, br.description as entity, br.cash_amount as amount, br.payment_status as status, br.created_at`
             },
             collected: {
                 base: `FROM business_platform_collections c LEFT JOIN family_groups fg ON fg.id=c.business_id WHERE fg.id IS NULL OR fg.is_test_env IS NOT TRUE`,
@@ -8207,9 +8207,9 @@ app.get('/api/sa/kpi-detail', verifySA, async (req, res) => {
                 select: `c.id, fg.name as title, c.notes as entity, c.amount, NULL::text as status, c.collected_at as created_at`
             },
             debt: {
-                base: `FROM business_platform_dues d LEFT JOIN family_groups fg ON fg.id=d.business_id WHERE d.status='pending' AND (fg.id IS NULL OR fg.is_test_env IS NOT TRUE)`,
-                dateCol: 'd.created_at',
-                select: `d.id, fg.name as title, 'הזמנה #'||COALESCE(d.order_id::text,'—') as entity, d.commission_amount as amount, d.status, d.created_at`
+                base: `FROM billing_records br LEFT JOIN family_groups fg ON fg.id=br.business_id WHERE br.payment_status!='paid' AND (fg.id IS NULL OR fg.is_test_env IS NOT TRUE)`,
+                dateCol: 'br.created_at',
+                select: `br.id, fg.name as title, br.description as entity, br.amount_ils as amount, br.payment_status as status, br.created_at`
             },
             flow_issued: {
                 base: `FROM flow_transactions ft LEFT JOIN family_groups fg ON ft.entity_type IN ('family','business') AND fg.id=ft.entity_id LEFT JOIN communities c ON ft.entity_type='community' AND c.id=ft.entity_id WHERE ft.amount>0 AND (fg.id IS NULL OR fg.is_test_env IS NOT TRUE)`,
@@ -8333,11 +8333,11 @@ app.get('/api/sa/pending-actions-center', verifySA, async (req, res) => {
                 FROM support_tickets t LEFT JOIN family_groups fg ON fg.id=t.group_id
                 WHERE t.status='open' AND (fg.id IS NULL OR fg.is_test_env IS NOT TRUE)
                 ORDER BY (t.priority='high') DESC, t.created_at ASC`, 'ticketsOpen'),
-            // חובות שטרם נגבו — אחראי: גבייה / סופר אדמין
-            safe(`SELECT d.id, fg.name as title, '₪'||d.commission_amount as subtitle, d.created_at
-                FROM business_platform_dues d LEFT JOIN family_groups fg ON fg.id=d.business_id
-                WHERE d.status='pending' AND (fg.id IS NULL OR fg.is_test_env IS NOT TRUE)
-                ORDER BY d.created_at ASC`, 'debtsUnpaid'),
+            // חובות שטרם נגבו — אחראי: גבייה / סופר אדמין (מ-billing_records)
+            safe(`SELECT br.id, fg.name as title, '₪'||br.amount_ils as subtitle, br.created_at
+                FROM billing_records br LEFT JOIN family_groups fg ON fg.id=br.business_id
+                WHERE br.payment_status!='paid' AND (fg.id IS NULL OR fg.is_test_env IS NOT TRUE)
+                ORDER BY br.created_at ASC`, 'debtsUnpaid'),
             // הזמנות שילוט ממתינות — אחראי: סופר אדמין
             safe(`SELECT bo.id, bs.name as title, COALESCE(fg.name,'—') as subtitle, bo.created_at
                 FROM banner_orders bo JOIN banner_slots bs ON bs.id=bo.slot_id LEFT JOIN family_groups fg ON fg.id=bo.business_id
@@ -8431,10 +8431,10 @@ app.get('/api/sa/insights-top-lists', verifySA, async (req, res) => {
                 FROM communities c LEFT JOIN community_businesses cb ON cb.community_id=c.id AND cb.status='approved'
                 LEFT JOIN family_groups fg ON fg.id=cb.business_id
                 GROUP BY c.id, c.name ORDER BY sub_count DESC LIMIT 5`, 'topCommunities'),
-            // כספים — top 5 עסקים לפי עמלות שנצברו (לא כולל עסקי טסט)
-            safe(`SELECT fg.id, fg.name as title, COUNT(d.id) as sub_count, COALESCE(SUM(d.commission_amount),0) as value
-                FROM business_platform_dues d JOIN family_groups fg ON fg.id=d.business_id
-                WHERE fg.is_test_env IS NOT TRUE
+            // כספים — top 5 עסקים לפי עמלות ששולמו (מ-billing_records, לא כולל עסקי טסט)
+            safe(`SELECT fg.id, fg.name as title, COUNT(br.id) as sub_count, COALESCE(SUM(br.amount_ils),0) as value
+                FROM billing_records br JOIN family_groups fg ON fg.id=br.business_id
+                WHERE br.payment_status='paid' AND fg.is_test_env IS NOT TRUE
                 GROUP BY fg.id, fg.name ORDER BY value DESC LIMIT 5`, 'topCommission'),
             // מטבעות — top 5 ארנקים לפי יתרה (כל סוגי הישויות, לא כולל טסט)
             safe(`SELECT fw.id, COALESCE(fg.name, c.name, fw.entity_type||' #'||fw.entity_id) as title, fw.entity_type as sub_count, fw.balance as value
@@ -8446,10 +8446,10 @@ app.get('/api/sa/insights-top-lists', verifySA, async (req, res) => {
             // תפעול — top 5 מנהלי אזור לפי יתרת עמלות
             safe(`SELECT id, name as title, NULL::int as sub_count, COALESCE(total_commissions,0)-COALESCE(total_paid,0) as value
                 FROM zone_managers WHERE status='active' ORDER BY value DESC LIMIT 5`, 'topZM'),
-            // כספים — top 5 חייבים (עמלות שטרם נגבו, מקובצות לפי עסק)
-            safe(`SELECT fg.id, fg.name as title, COUNT(d.id) as sub_count, COALESCE(SUM(d.commission_amount),0) as value
-                FROM business_platform_dues d JOIN family_groups fg ON fg.id=d.business_id
-                WHERE d.status='pending' AND fg.is_test_env IS NOT TRUE
+            // כספים — top 5 חייבים (מ-billing_records, מקובצות לפי עסק, לא כולל עסקי טסט)
+            safe(`SELECT fg.id, fg.name as title, COUNT(br.id) as sub_count, COALESCE(SUM(br.amount_ils),0) as value
+                FROM billing_records br JOIN family_groups fg ON fg.id=br.business_id
+                WHERE br.payment_status!='paid' AND fg.is_test_env IS NOT TRUE
                 GROUP BY fg.id, fg.name ORDER BY value DESC LIMIT 5`, 'topDebtors'),
             // תפעול — top 5 עסקים/משפחות לפי שימוש AI (30 יום)
             safe(`SELECT fg.id, fg.name as title, COUNT(al.id) as sub_count, NULL::numeric as value
