@@ -12312,18 +12312,13 @@ app.get('/campaign/:code', async (req, res) => {
         const c = cRes.rows[0];
         const escAttr = (s) => String(s || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
         const baseUrl = `${req.protocol}://${req.get('host')}`;
-        // מבנה תצוגה מקדימה בווצאפ: שם הקמפיין (שורה ראשונה, מודגשת) / הטקסט
-        // שהמנהל הקליד ידנית בניהול (שורה שנייה) / "WEFLOWZ עושה לכם סדר" ליד הכתובת / לוגו WEFLOWZ
+        // מבנה תצוגה מקדימה בווצאפ: ווצאפ מציג רק 3 שורות קבועות — כותרת מודגשת,
+        // תיאור (שורה אחת, נחתכת), ודומיין (weflowz.co.il, נקבע ע"י ווצאפ מה-URL עצמו,
+        // לא ניתן לשליטה בכלל — לא ע"י og:site_name ולא בכל דרך אחרת). אין "שורה רביעית".
+        // לכן: שורה 1 = שם הקמפיין. שורה 2 = כיתוב מותג קבוע, לא ניתן לעריכה ע"י מנהל הקמפיין.
         const manualLine = c.share_description || c.slogan || '';
         const title = escAttr(manualLine || c.title || c.community_name || 'קמפיין קהילה');
-        // ווצאפ לא מציג og:site_name בפועל ליד הדומיין (רק את שם המארח מה-URL עצמו), וגם
-        // מציג את התיאור בשורה אחת בלבד וחותך אותה — שורה שנייה עם \n אף פעם לא נראית.
-        // לכן משרשרים לשורה אחת, וחותכים את החלק המשתנה כך שהכיתוב הקבוע תמיד יישאר גלוי
-        const TAGLINE = ' · WEFLOWZ עושה לכם סדר';
-        const rawTitleLine = c.title || c.community_name || '';
-        const maxVarLen = Math.max(0, 60 - TAGLINE.length);
-        const titleLine = rawTitleLine.length > maxVarLen ? rawTitleLine.slice(0, maxVarLen - 1).trim() + '…' : rawTitleLine;
-        const description = escAttr(titleLine ? `${titleLine}${TAGLINE}` : `WEFLOWZ עושה לכם סדר`);
+        const description = 'WEFLOWZ עושה לכם סדר';
         const image = escAttr(`${baseUrl}/api/public/logo`);
         const pageUrl = escAttr(`${baseUrl}/campaign/${c.code}`);
         const injected = html
