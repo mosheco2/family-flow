@@ -7969,8 +7969,13 @@ async function openCommunityManagerPanel(commId) {
 
         const approvedHtml = approved.length ? approved.map(b => `
             <div class="bg-white border border-slate-100 p-3 rounded-xl flex justify-between items-center mb-2">
-                <span class="text-[10px] text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded">${b.discount_pct}% הנחה</span>
-                <span class="font-bold text-slate-700 text-sm">${safeStr(b.business_name)}</span>
+                <div class="flex items-center gap-2">
+                    <span class="text-[10px] text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded">${b.discount_pct}% הנחה</span>
+                    <span class="font-bold text-slate-700 text-sm">${safeStr(b.business_name)}</span>
+                </div>
+                ${b.removal_requested
+                    ? `<button onclick="cmCancelRemovalRequest(${b.community_id}, ${b.business_id})" class="text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-1 rounded-lg hover:bg-amber-100">בקשת הסרה נשלחה · ביטול</button>`
+                    : `<button onclick="cmRequestRemoveBiz(${b.community_id}, ${b.business_id})" class="text-[10px] font-bold text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 px-2 py-1 rounded-lg">בקש הסרה</button>`}
             </div>`).join('') : '<p class="text-slate-400 text-sm text-center py-2">אין עסקים פעילים</p>';
 
         const txHtml = txs.length ? txs.map(t => `
@@ -8349,6 +8354,27 @@ async function cmForwardApproveBiz(communityId, businessId) {
         const res = await communityFetch(`${API}/community/manager/community-business/forward-approve`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ communityId, businessId }) });
         const data = await res.json();
         if(data.success) { showToast('success', 'הבקשה הועברה לאישור אחרון'); document.getElementById('comm-manager-modal')?.remove(); }
+        else showToast('error', data.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
+}
+
+// מנהל קהילה מבקש להסיר עסק פעיל — זו רק בקשה, העסק נשאר פעיל עד שמנהל
+// אזור/סופר אדמין בפועל מאשר את ההסרה
+async function cmRequestRemoveBiz(communityId, businessId) {
+    if (!confirm('לשלוח בקשת הסרה עבור עסק זה? העסק יישאר פעיל עד לאישור מנהל אזור/סופר אדמין.')) return;
+    try {
+        const res = await communityFetch(`${API}/community/manager/community-business/request-removal`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ communityId, businessId }) });
+        const data = await res.json();
+        if(data.success) { showToast('success', 'בקשת ההסרה נשלחה'); document.getElementById('comm-manager-modal')?.remove(); }
+        else showToast('error', data.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
+}
+
+async function cmCancelRemovalRequest(communityId, businessId) {
+    try {
+        const res = await communityFetch(`${API}/community/manager/community-business/cancel-removal-request`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ communityId, businessId }) });
+        const data = await res.json();
+        if(data.success) { showToast('success', 'בקשת ההסרה בוטלה'); document.getElementById('comm-manager-modal')?.remove(); }
         else showToast('error', data.error || 'שגיאה');
     } catch(e) { showToast('error', 'שגיאת רשת'); }
 }

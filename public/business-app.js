@@ -15815,10 +15815,10 @@ async function loadSAPendingRequests() {
     try {
         const res = await fetch(`${API}/sa/communities/pending-businesses`, { headers: { 'Authorization': saToken } });
         const data = await res.json();
-        
+        let html = '';
+
         if (data.success && data.pending && data.pending.length > 0) {
-            container.classList.remove('hidden');
-            list.innerHTML = data.pending.map(p => `
+            html += data.pending.map(p => `
                 <div class="bg-white p-4 rounded-2xl shadow-sm border border-orange-100 flex justify-between items-center hover:shadow-md transition mb-2">
                     <div>
                         <h4 class="font-bold text-slate-800 text-sm">העסק: ${safeStr(p.biz_name)}</h4>
@@ -15831,10 +15831,47 @@ async function loadSAPendingRequests() {
                     </div>
                 </div>
             `).join('');
-        } else {
-            container.classList.add('hidden');
         }
+
+        try {
+            const remRes = await fetch(`${API}/sa/communities/pending-removals`, { headers: { 'Authorization': saToken } });
+            const remData = await remRes.json();
+            if (remData.success && remData.pending && remData.pending.length > 0) {
+                html += `<h4 class="text-xs font-bold text-slate-500 mb-2 mt-3">🚪 בקשות הסרת עסק מקהילה</h4>`;
+                html += remData.pending.map(p => `
+                    <div class="bg-white p-4 rounded-2xl shadow-sm border border-red-100 flex justify-between items-center hover:shadow-md transition mb-2">
+                        <div>
+                            <h4 class="font-bold text-slate-800 text-sm">העסק: ${safeStr(p.biz_name)}</h4>
+                            <p class="text-xs text-slate-500 mt-0.5">קהילה: <strong>${safeStr(p.comm_name)}</strong> · פעיל כרגע עם ${p.discount_pct}% הנחה</p>
+                        </div>
+                        <div class="flex flex-col gap-2">
+                            <button onclick="approveSARemoval(${p.community_id}, ${p.business_id})" class="bg-red-600 text-white px-5 py-2 rounded-xl text-xs font-bold hover:bg-red-700 transition shadow-sm"><i class="fa-solid fa-trash mr-1"></i> אשר הסרה</button>
+                            <button onclick="declineSARemoval(${p.community_id}, ${p.business_id})" class="bg-slate-50 text-slate-600 px-5 py-2 rounded-xl text-xs font-bold hover:bg-slate-100 transition shadow-sm border border-slate-200"><i class="fa-solid fa-xmark mr-1"></i> דחה בקשה</button>
+                        </div>
+                    </div>
+                `).join('');
+            }
+        } catch(_) {}
+
+        if (html) { container.classList.remove('hidden'); list.innerHTML = html; }
+        else { container.classList.add('hidden'); }
     } catch(e) { console.error('Error loading pending requests', e); }
+}
+
+async function approveSARemoval(communityId, businessId) {
+    if(!await window._uiConfirm('לאשר את הסרת העסק מהקהילה? הפעולה בלתי הפיכה.')) return;
+    try {
+        const res = await fetch(`${API}/sa/community-business/approve-removal`, { method: 'POST', headers: {'Content-Type': 'application/json', 'Authorization': saToken}, body: JSON.stringify({ communityId, businessId }) });
+        if((await res.json()).success) { showToast('success', 'העסק הוסר מהקהילה'); loadSAPendingRequests(); loadSACommunityData(); }
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
+}
+
+async function declineSARemoval(communityId, businessId) {
+    if(!await window._uiConfirm('לדחות את בקשת ההסרה? העסק יישאר פעיל בקהילה.')) return;
+    try {
+        const res = await fetch(`${API}/sa/community-business/decline-removal`, { method: 'POST', headers: {'Content-Type': 'application/json', 'Authorization': saToken}, body: JSON.stringify({ communityId, businessId }) });
+        if((await res.json()).success) { showToast('info', 'בקשת ההסרה נדחתה'); loadSAPendingRequests(); }
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
 }
 
 async function approveSABizRequest(communityId, businessId) {

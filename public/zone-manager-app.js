@@ -137,15 +137,18 @@ async function loadZMPendingPanel() {
     const panel = document.getElementById('zm-pending-panel');
     if (!panel) return;
     try {
-        const [bizRes, famRes] = await Promise.all([
+        const [bizRes, famRes, removalRes] = await Promise.all([
             fetch(`${API}/zone-manager/pending-businesses`, { headers: { 'Authorization': zmToken } }),
-            fetch(`${API}/zone-manager/pending-families`, { headers: { 'Authorization': zmToken } })
+            fetch(`${API}/zone-manager/pending-families`, { headers: { 'Authorization': zmToken } }),
+            fetch(`${API}/zone-manager/pending-removals`, { headers: { 'Authorization': zmToken } })
         ]);
         const bizData = await bizRes.json();
         const famData = await famRes.json();
+        const removalData = await removalRes.json();
         const bizPending = (bizData.success && bizData.pending) ? bizData.pending : [];
         const famPending = (famData.success && famData.pending) ? famData.pending : [];
-        const total = bizPending.length + famPending.length;
+        const removalPending = (removalData.success && removalData.pending) ? removalData.pending : [];
+        const total = bizPending.length + famPending.length + removalPending.length;
 
         // עדכון badge
         const badge = document.getElementById('zm-pending-biz-badge');
@@ -189,6 +192,21 @@ async function loadZMPendingPanel() {
                     <div class="flex gap-2 shrink-0">
                         <button onclick="zmApproveBiz(${p.community_id},${p.business_id})" class="bg-slate-800 text-white px-3 py-1.5 rounded-xl text-xs font-bold hover:bg-slate-700 transition">אשר</button>
                         <button onclick="zmRejectBiz(${p.community_id},${p.business_id})" class="bg-red-50 text-red-600 border border-red-100 px-3 py-1.5 rounded-xl text-xs font-bold hover:bg-red-100 transition">דחה</button>
+                    </div>
+                </div>`).join('');
+        }
+
+        if (removalPending.length > 0) {
+            html += '<div class="px-4 py-2 bg-red-50/50"><p class="text-[11px] font-bold text-red-500 uppercase tracking-wide">🚪 בקשות הסרת עסק מקהילה</p></div>';
+            html += removalPending.map(p => `
+                <div class="px-4 py-3 flex justify-between items-center gap-3">
+                    <div>
+                        <p class="font-bold text-slate-800 text-sm">${p.biz_name}</p>
+                        <p class="text-xs text-slate-500">קהילה: <strong>${p.comm_name}</strong></p>
+                    </div>
+                    <div class="flex gap-2 shrink-0">
+                        <button onclick="zmApproveRemoval(${p.community_id},${p.business_id})" class="bg-red-600 text-white px-3 py-1.5 rounded-xl text-xs font-bold hover:bg-red-700 transition">אשר הסרה</button>
+                        <button onclick="zmDeclineRemoval(${p.community_id},${p.business_id})" class="bg-slate-50 text-slate-600 border border-slate-200 px-3 py-1.5 rounded-xl text-xs font-bold hover:bg-slate-100 transition">דחה</button>
                     </div>
                 </div>`).join('');
         }
@@ -281,20 +299,28 @@ async function zmLoadPendingBiz() {
     if (!list) return;
     list.innerHTML = '<div class="text-center text-slate-400 py-6"><i class="fa-solid fa-spinner fa-spin mr-2"></i>טוען...</div>';
     try {
-        const res = await fetch(`${API}/zone-manager/pending-businesses`, { headers: { 'Authorization': zmToken } });
+        const [res, removalRes] = await Promise.all([
+            fetch(`${API}/zone-manager/pending-businesses`, { headers: { 'Authorization': zmToken } }),
+            fetch(`${API}/zone-manager/pending-removals`, { headers: { 'Authorization': zmToken } })
+        ]);
         const data = await res.json();
+        const removalData = await removalRes.json();
         if (!data.success) { list.innerHTML = '<div class="text-center text-red-400 py-6">שגיאה בטעינת נתונים</div>'; return; }
         const pending = data.pending || [];
+        const removals = (removalData.success && removalData.pending) ? removalData.pending : [];
+        const total = pending.length + removals.length;
         if (badge) {
-            if (pending.length > 0) { badge.textContent = pending.length; badge.classList.remove('hidden'); }
+            if (total > 0) { badge.textContent = total; badge.classList.remove('hidden'); }
             else { badge.classList.add('hidden'); }
         }
-        if (pending.length === 0) {
+        if (total === 0) {
             list.innerHTML = '<div class="text-center text-slate-400 py-8"><i class="fa-solid fa-circle-check text-4xl text-slate-200 mb-3 block"></i>אין בקשות ממתינות לאישור</div>';
             return;
         }
-        list.innerHTML = pending.map(p => `
-            <div class="bg-white border border-orange-100 rounded-2xl p-4 shadow-sm flex justify-between items-center gap-4">
+        let html = '';
+        if (pending.length) {
+            html += pending.map(p => `
+            <div class="bg-white border border-orange-100 rounded-2xl p-4 shadow-sm flex justify-between items-center gap-4 mb-3">
                 <div class="flex-1">
                     <p class="font-bold text-slate-800 text-sm">עסק: ${p.biz_name}</p>
                     <p class="text-xs text-slate-500 mt-0.5">מבקש להצטרף לקהילה: <strong>${p.comm_name}</strong></p>
@@ -306,7 +332,50 @@ async function zmLoadPendingBiz() {
                 </div>
             </div>
         `).join('');
+        }
+        if (removals.length) {
+            html += '<div class="px-1 py-2"><p class="text-[11px] font-bold text-red-500 uppercase tracking-wide">🚪 מנהלי קהילה ביקשו להסיר עסקים</p></div>';
+            html += removals.map(p => `
+            <div class="bg-white border border-red-100 rounded-2xl p-4 shadow-sm flex justify-between items-center gap-4 mb-3">
+                <div class="flex-1">
+                    <p class="font-bold text-slate-800 text-sm">עסק: ${p.biz_name}</p>
+                    <p class="text-xs text-slate-500 mt-0.5">קהילה: <strong>${p.comm_name}</strong> · פעיל כרגע עם ${p.discount_pct}% הנחה</p>
+                </div>
+                <div class="flex flex-col gap-2 shrink-0">
+                    <button onclick="zmApproveRemoval(${p.community_id},${p.business_id})" class="bg-red-600 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-sm hover:bg-red-700 transition"><i class="fa-solid fa-trash mr-1"></i>אשר הסרה</button>
+                    <button onclick="zmDeclineRemoval(${p.community_id},${p.business_id})" class="bg-slate-50 text-slate-600 px-4 py-2 rounded-xl text-xs font-bold border border-slate-200 hover:bg-slate-100 transition"><i class="fa-solid fa-xmark mr-1"></i>דחה בקשת ההסרה</button>
+                </div>
+            </div>
+        `).join('');
+        }
+        list.innerHTML = html;
     } catch(e) { list.innerHTML = '<div class="text-center text-red-400 py-6">שגיאת תקשורת</div>'; }
+}
+
+async function zmApproveRemoval(communityId, businessId) {
+    if (!confirm('לאשר את הסרת העסק מהקהילה? הפעולה בלתי הפיכה.')) return;
+    try {
+        const res = await fetch(`${API}/zone-manager/community-business/approve-removal`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': zmToken },
+            body: JSON.stringify({ communityId, businessId })
+        });
+        const data = await res.json();
+        if (data.success) { zmShowToast('success', 'העסק הוסר מהקהילה'); zmLoadPendingBiz(); loadZMPendingPanel(); loadDashboard(); }
+        else zmShowToast('error', data.error || 'שגיאה');
+    } catch(e) { zmShowToast('error', 'שגיאת תקשורת'); }
+}
+
+async function zmDeclineRemoval(communityId, businessId) {
+    if (!confirm('לדחות את בקשת ההסרה? העסק יישאר פעיל בקהילה.')) return;
+    try {
+        const res = await fetch(`${API}/zone-manager/community-business/decline-removal`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': zmToken },
+            body: JSON.stringify({ communityId, businessId })
+        });
+        const data = await res.json();
+        if (data.success) { zmShowToast('info', 'בקשת ההסרה נדחתה'); zmLoadPendingBiz(); loadZMPendingPanel(); }
+        else zmShowToast('error', data.error || 'שגיאה');
+    } catch(e) { zmShowToast('error', 'שגיאת תקשורת'); }
 }
 
 async function zmApproveBiz(communityId, businessId) {

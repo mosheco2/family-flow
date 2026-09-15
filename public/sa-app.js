@@ -3653,9 +3653,44 @@ async function loadSAPendingRequests() {
             }
         } catch(_) {}
 
+        // בקשות הסרת עסק מקהילה (מנהלי קהילה ביקשו, ואין מנהל אזור פעיל לקהילה)
+        try {
+            const remRes = await fetch(`${API}/sa/communities/pending-removals`, { headers: { 'Authorization': typeof saToken !== 'undefined' ? saToken : (localStorage.getItem('ofl_sa_token') || '') } }); const remData = await remRes.json();
+            if (remData.success && remData.pending && remData.pending.length > 0) {
+                html += `<h4 class="text-xs font-bold text-slate-500 mb-2 mt-3">🚪 בקשות הסרת עסק מקהילה</h4>`;
+                html += remData.pending.map(p => `
+                    <div class="bg-white p-3 rounded-2xl shadow-sm border border-red-100 flex justify-between items-center hover:shadow-md transition mb-2">
+                        <div>
+                            <h4 class="font-bold text-slate-800 text-sm">העסק: ${safeStr(p.biz_name)}</h4>
+                            <p class="text-xs text-slate-500 mt-0.5">קהילה: <strong>${safeStr(p.comm_name)}</strong> · פעיל כרגע עם ${p.discount_pct}% הנחה</p>
+                        </div>
+                        <div class="flex flex-col gap-1 items-end">
+                            <button onclick="approveSARemoval(${p.community_id}, ${p.business_id})" class="bg-red-600 text-white px-4 py-1.5 rounded-xl text-xs font-bold shadow-sm hover:bg-red-700 transition"><i class="fa-solid fa-trash mr-1"></i> אשר הסרה</button>
+                            <button onclick="declineSARemoval(${p.community_id}, ${p.business_id})" class="bg-slate-50 text-slate-600 px-4 py-1.5 rounded-xl text-xs font-bold shadow-sm border border-slate-200 hover:bg-slate-100 transition"><i class="fa-solid fa-xmark mr-1"></i> דחה בקשה</button>
+                        </div>
+                    </div>`).join('');
+            }
+        } catch(_) {}
+
         if (html) { container.classList.remove('hidden'); list.innerHTML = html; }
         else { container.classList.add('hidden'); }
     } catch(e) { console.error('Error loading pending requests', e); }
+}
+
+async function approveSARemoval(communityId, businessId) {
+    if(!confirm('לאשר את הסרת העסק מהקהילה? הפעולה בלתי הפיכה.')) return;
+    try {
+        const res = await fetch(`${API}/sa/community-business/approve-removal`, { method: 'POST', headers: {'Content-Type': 'application/json', 'Authorization': typeof saToken !== 'undefined' ? saToken : (localStorage.getItem('ofl_sa_token') || '')}, body: JSON.stringify({ communityId, businessId }) });
+        if((await res.json()).success) { showToast('success', 'העסק הוסר מהקהילה'); loadSAPendingRequests(); }
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
+}
+
+async function declineSARemoval(communityId, businessId) {
+    if(!confirm('לדחות את בקשת ההסרה? העסק יישאר פעיל בקהילה.')) return;
+    try {
+        const res = await fetch(`${API}/sa/community-business/decline-removal`, { method: 'POST', headers: {'Content-Type': 'application/json', 'Authorization': typeof saToken !== 'undefined' ? saToken : (localStorage.getItem('ofl_sa_token') || '')}, body: JSON.stringify({ communityId, businessId }) });
+        if((await res.json()).success) { showToast('info', 'בקשת ההסרה נדחתה'); loadSAPendingRequests(); }
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
 }
 
 async function approveSABizRequest(communityId, businessId) {

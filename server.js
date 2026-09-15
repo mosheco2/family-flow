@@ -13199,6 +13199,10 @@ async function initCommunityTables() {
         `ALTER TABLE community_businesses ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`,
         `ALTER TABLE community_businesses ADD COLUMN IF NOT EXISTS rejected_at TIMESTAMP`,
         `ALTER TABLE community_businesses ADD COLUMN IF NOT EXISTS rejected_by VARCHAR(20)`,
+        `ALTER TABLE community_businesses ADD COLUMN IF NOT EXISTS removal_requested BOOLEAN DEFAULT FALSE`,
+        `ALTER TABLE community_businesses ADD COLUMN IF NOT EXISTS removal_requested_at TIMESTAMP`,
+        `ALTER TABLE community_businesses ADD COLUMN IF NOT EXISTS removed_at TIMESTAMP`,
+        `ALTER TABLE community_businesses ADD COLUMN IF NOT EXISTS removed_by VARCHAR(20)`,
         `CREATE TABLE IF NOT EXISTS store_coupons (id SERIAL PRIMARY KEY, group_id INT, code VARCHAR(50), discount_pct DECIMAL DEFAULT 0, valid_until DATE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
         `ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS community_id INT`,
         `ALTER TABLE communities ADD COLUMN IF NOT EXISTS city VARCHAR(100)`,
@@ -13303,7 +13307,7 @@ app.get('/api/biz/communities/my/:bizId', verifyBiz, async (req, res) => {
             (SELECT COUNT(u.id) FROM users u JOIN family_groups f ON u.group_id = f.id WHERE f.community_id = c.id AND f.type = 'FAMILY') as users_count
             FROM community_businesses cb
             JOIN communities c ON cb.community_id = c.id
-            WHERE cb.business_id = $1 AND cb.status != 'rejected'
+            WHERE cb.business_id = $1 AND cb.status NOT IN ('rejected','removed')
         `, [req.params.bizId]);
         res.json({ success: true, communities: result.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
@@ -13427,7 +13431,7 @@ app.get('/api/biz/communities/available/:bizId', verifyBiz, async (req, res) => 
             (SELECT COUNT(u.id) FROM users u JOIN family_communities fc ON u.group_id = fc.group_id WHERE fc.community_id = c.id AND fc.status = 'approved') as users_count
             FROM communities c
             WHERE c.status = 'active'
-            AND c.id NOT IN (SELECT community_id FROM community_businesses WHERE business_id = $1 AND status != 'rejected')
+            AND c.id NOT IN (SELECT community_id FROM community_businesses WHERE business_id = $1 AND status NOT IN ('rejected','removed'))
         `, [req.params.bizId]);
         res.json({ success: true, communities: result.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
@@ -13445,7 +13449,7 @@ app.get('/api/biz/communities/via-biz/:bizCode/:myBizId', verifyBiz, async (req,
             (SELECT COUNT(*) FROM community_businesses WHERE community_id=c.id AND status='approved') as biz_count
             FROM communities c
             JOIN community_businesses cb ON cb.community_id=c.id AND cb.business_id=$1 AND cb.status='approved'
-            WHERE c.id NOT IN (SELECT community_id FROM community_businesses WHERE business_id=$2 AND status != 'rejected')
+            WHERE c.id NOT IN (SELECT community_id FROM community_businesses WHERE business_id=$2 AND status NOT IN ('rejected','removed'))
         `, [b.id, req.params.myBizId]);
         res.json({ success: true, via_biz: b.name, communities: result.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
@@ -13476,7 +13480,7 @@ app.post('/api/biz/communities/join', verifyBiz, async (req, res) => {
         const { communityId, businessId, discountPct } = req.body;
         const status = await resolveCommunityJoinStatus(communityId);
         await pool.query(
-            'INSERT INTO community_businesses (community_id, business_id, discount_pct, status, created_at) VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP) ON CONFLICT (community_id, business_id) DO UPDATE SET discount_pct=$3, status=$4, rejected_at=NULL',
+            'INSERT INTO community_businesses (community_id, business_id, discount_pct, status, created_at) VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP) ON CONFLICT (community_id, business_id) DO UPDATE SET discount_pct=$3, status=$4, rejected_at=NULL, removal_requested=FALSE, removed_at=NULL, removed_by=NULL',
             [communityId, businessId, parseFloat(discountPct)||0, status]
         );
         res.json({ success: true });
@@ -13505,10 +13509,10 @@ app.post('/api/community/invite-business', verifyFamily, async (req, res) => {
         if (!check.rows.length) return res.status(403).json({ error: 'אינך חבר מאושר בקהילה זו' });
         // בדוק שהעסק לא כבר חבר (שורה שנדחתה בעבר לא נחשבת "עדיין קיימת" — אפשר להזמין מחדש)
         const existing = await pool.query(`SELECT status FROM community_businesses WHERE community_id=$1 AND business_id=$2`, [communityId, businessId]);
-        if (existing.rows.length && existing.rows[0].status !== 'rejected') return res.status(400).json({ error: `העסק כבר ${existing.rows[0].status === 'approved' ? 'חבר בקהילה' : 'בתהליך הצטרפות'}` });
+        if (existing.rows.length && !['rejected','removed'].includes(existing.rows[0].status)) return res.status(400).json({ error: `העסק כבר ${existing.rows[0].status === 'approved' ? 'חבר בקהילה' : 'בתהליך הצטרפות'}` });
         await pool.query(
             `INSERT INTO community_businesses (community_id, business_id, discount_pct, status, created_at) VALUES ($1,$2,0,'biz_invited',CURRENT_TIMESTAMP)
-             ON CONFLICT (community_id, business_id) DO UPDATE SET status='biz_invited', discount_pct=0, created_at=CURRENT_TIMESTAMP, rejected_at=NULL`,
+             ON CONFLICT (community_id, business_id) DO UPDATE SET status='biz_invited', discount_pct=0, created_at=CURRENT_TIMESTAMP, rejected_at=NULL, removal_requested=FALSE, removed_at=NULL, removed_by=NULL`,
             [communityId, businessId]);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
@@ -13594,6 +13598,35 @@ app.post('/api/community/manager/community-business/forward-approve', verifyFami
             [communityId, businessId, nextStatus]);
         if (!r.rows.length) return res.status(404).json({ error: 'לא נמצאה בקשה ממתינה עבור עסק זה' });
         res.json({ success: true, forwardedTo: nextStatus === 'zm_pending' ? 'zone_manager' : 'super_admin' });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// מנהל קהילה — מבקש להסיר עסק פעיל מהקהילה. זו רק בקשה — העסק נשאר פעיל ומלא
+// עד שמנהל אזור/סופר אדמין בפועל מאשר את ההסרה. מנהל קהילה לעולם לא יכול
+// להוציא עסק בעצמו, גם אם הוא זה שהזמין אותו במקור.
+app.post('/api/community/manager/community-business/request-removal', verifyFamily, async (req, res) => {
+    try {
+        const { communityId, businessId } = req.body;
+        if (!(await verifyCommunityManagerAccess(req.familyAuth.groupId, communityId))) return res.status(403).json({ error: 'אין הרשאה לקהילה זו' });
+        const r = await pool.query(
+            `UPDATE community_businesses SET removal_requested=TRUE, removal_requested_at=CURRENT_TIMESTAMP
+             WHERE community_id=$1 AND business_id=$2 AND status='approved' RETURNING community_id`,
+            [communityId, businessId]);
+        if (!r.rows.length) return res.status(404).json({ error: 'העסק אינו פעיל בקהילה זו' });
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// מנהל קהילה — מבטל בקשת הסרה שהגיש בעצמו (התחרט), כל עוד לא בוצעה עדיין
+app.post('/api/community/manager/community-business/cancel-removal-request', verifyFamily, async (req, res) => {
+    try {
+        const { communityId, businessId } = req.body;
+        if (!(await verifyCommunityManagerAccess(req.familyAuth.groupId, communityId))) return res.status(403).json({ error: 'אין הרשאה לקהילה זו' });
+        await pool.query(
+            `UPDATE community_businesses SET removal_requested=FALSE, removal_requested_at=NULL
+             WHERE community_id=$1 AND business_id=$2 AND status='approved'`,
+            [communityId, businessId]);
+        res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -14117,7 +14150,7 @@ app.get('/api/sa/business/:bizId/communities', verifySA, async (req, res) => {
             (SELECT COUNT(u.id) FROM users u JOIN family_groups f ON u.group_id = f.id WHERE f.community_id = c.id AND f.type = 'FAMILY') as users_count
             FROM community_businesses cb
             JOIN communities c ON cb.community_id = c.id
-            WHERE cb.business_id = $1 AND cb.status != 'rejected'
+            WHERE cb.business_id = $1 AND cb.status NOT IN ('rejected','removed')
         `, [req.params.bizId]);
         res.json({ success: true, communities: result.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
@@ -14209,7 +14242,7 @@ app.get('/api/sa/communities/:id/details', verifySA, async (req, res) => {
             });
         }
 
-        const businessesRes = await pool.query(`SELECT b.id, b.name, b.group_code, cb.discount_pct, cb.status FROM community_businesses cb JOIN family_groups b ON cb.business_id = b.id WHERE cb.community_id = $1 AND cb.status != 'rejected'`, [req.params.id]);
+        const businessesRes = await pool.query(`SELECT b.id, b.name, b.group_code, cb.discount_pct, cb.status FROM community_businesses cb JOIN family_groups b ON cb.business_id = b.id WHERE cb.community_id = $1 AND cb.status NOT IN ('rejected','removed')`, [req.params.id]);
 
         res.json({ success: true, families: families, businesses: businessesRes.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
@@ -14234,7 +14267,7 @@ app.post('/api/sa/community-business', verifySA, async (req, res) => {
     try {
         const { communityId, businessId, discountPct } = req.body;
         await pool.query(
-            'INSERT INTO community_businesses (community_id, business_id, discount_pct, status, created_at) VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP) ON CONFLICT (community_id, business_id) DO UPDATE SET discount_pct=$3, status=$4, rejected_at=NULL', 
+            'INSERT INTO community_businesses (community_id, business_id, discount_pct, status, created_at) VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP) ON CONFLICT (community_id, business_id) DO UPDATE SET discount_pct=$3, status=$4, rejected_at=NULL, removal_requested=FALSE, removed_at=NULL, removed_by=NULL', 
             [communityId, businessId, parseFloat(discountPct)||0, 'approved']
         );
         res.json({ success: true });
@@ -14247,7 +14280,7 @@ app.get('/api/sa/community-business/:commId', verifySA, async (req, res) => {
             SELECT cb.community_id, cb.business_id, cb.discount_pct, cb.status, b.name as business_name
             FROM community_businesses cb
             JOIN family_groups b ON cb.business_id = b.id
-            WHERE cb.community_id = $1 AND cb.status != 'rejected'
+            WHERE cb.community_id = $1 AND cb.status NOT IN ('rejected','removed')
         `, [req.params.commId]);
         res.json({ success: true, connections: result.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
@@ -14300,6 +14333,52 @@ app.post('/api/sa/community-business/reject', verifySA, async (req, res) => {
         await pool.query(
             `UPDATE community_businesses SET status='rejected', rejected_at=CURRENT_TIMESTAMP, rejected_by='super_admin'
              WHERE community_id=$1 AND business_id=$2 AND status IN ('pending','zm_pending')`,
+            [communityId, businessId]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// SA — רשימת בקשות הסרה ממתינות, רק לקהילות בלי מנהל אזור פעיל (אלו עם מנהל אזור מטופלות על ידו)
+app.get('/api/sa/communities/pending-removals', verifySA, async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT cb.community_id, cb.business_id, cb.discount_pct, cb.removal_requested_at,
+                   c.name as comm_name, b.name as biz_name
+            FROM community_businesses cb
+            JOIN communities c ON cb.community_id = c.id
+            JOIN family_groups b ON cb.business_id = b.id
+            WHERE cb.removal_requested = TRUE AND cb.status='approved'
+              AND NOT EXISTS (
+                SELECT 1 FROM manager_zones mz
+                JOIN zone_managers zm ON mz.manager_id = zm.id AND zm.status='active'
+                WHERE mz.id = c.zone_id
+              )
+        `);
+        res.json({ success: true, pending: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// SA — מאשר בקשת הסרה — מבצע את ההסרה בפועל
+app.post('/api/sa/community-business/approve-removal', verifySA, async (req, res) => {
+    try {
+        const { communityId, businessId } = req.body;
+        const r = await pool.query(
+            `UPDATE community_businesses SET status='removed', removed_at=CURRENT_TIMESTAMP, removed_by='super_admin',
+                    removal_requested=FALSE
+             WHERE community_id=$1 AND business_id=$2 AND removal_requested=TRUE RETURNING community_id`,
+            [communityId, businessId]);
+        if (!r.rows.length) return res.status(404).json({ error: 'לא נמצאה בקשת הסרה עבור עסק זה' });
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// SA — דוחה בקשת הסרה — העסק ממשיך להיות פעיל, הדגל מתאפס
+app.post('/api/sa/community-business/decline-removal', verifySA, async (req, res) => {
+    try {
+        const { communityId, businessId } = req.body;
+        await pool.query(
+            `UPDATE community_businesses SET removal_requested=FALSE, removal_requested_at=NULL
+             WHERE community_id=$1 AND business_id=$2`,
             [communityId, businessId]);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
@@ -14765,7 +14844,7 @@ app.post('/api/community/family-refer', verifyFamily, async (req, res) => {
         const referStatus = await resolveCommunityJoinStatus(communityId);
         await pool.query(
             `INSERT INTO community_businesses (community_id, business_id, discount_pct, status)
-             VALUES ($1,$2,0,$3) ON CONFLICT (community_id, business_id) DO UPDATE SET status=$3, rejected_at=NULL WHERE community_businesses.status='rejected'`,
+             VALUES ($1,$2,0,$3) ON CONFLICT (community_id, business_id) DO UPDATE SET status=$3, rejected_at=NULL, removal_requested=FALSE, removed_at=NULL, removed_by=NULL WHERE community_businesses.status IN ('rejected','removed')`,
             [communityId, businessId, referStatus]);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
@@ -15213,6 +15292,56 @@ app.post('/api/zone-manager/community-business/reject', verifyZoneManager, async
             `UPDATE community_businesses SET status='rejected', rejected_at=CURRENT_TIMESTAMP, rejected_by='zone_manager'
              WHERE community_id=$1 AND business_id=$2 AND status=$3`,
             [communityId, businessId, 'zm_pending']);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ZM — רשימת בקשות הסרה ממתינות (עסקים פעילים שמנהל קהילה ביקש להסיר)
+app.get('/api/zone-manager/pending-removals', verifyZoneManager, async (req, res) => {
+    try {
+        const { managerId } = req.zmSession;
+        const result = await pool.query(`
+            SELECT cb.community_id, cb.business_id, cb.discount_pct, cb.removal_requested_at,
+                   c.name as comm_name, b.name as biz_name
+            FROM community_businesses cb
+            JOIN communities c ON cb.community_id = c.id
+            JOIN family_groups b ON cb.business_id = b.id
+            JOIN manager_zones mz ON c.zone_id = mz.id
+            JOIN zone_managers zm ON mz.manager_id = zm.id
+            WHERE cb.removal_requested = TRUE AND cb.status='approved' AND zm.id = $1
+        `, [managerId]);
+        res.json({ success: true, pending: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ZM — מאשר בקשת הסרה — מבצע את ההסרה בפועל
+app.post('/api/zone-manager/community-business/approve-removal', verifyZoneManager, async (req, res) => {
+    try {
+        const { communityId, businessId } = req.body;
+        const { managerId } = req.zmSession;
+        const check = await pool.query(`SELECT 1 FROM communities c JOIN manager_zones mz ON c.zone_id=mz.id WHERE c.id=$1 AND mz.manager_id=$2`, [communityId, managerId]);
+        if (!check.rows.length) return res.status(403).json({ error: 'Unauthorized' });
+        const r = await pool.query(
+            `UPDATE community_businesses SET status='removed', removed_at=CURRENT_TIMESTAMP, removed_by='zone_manager',
+                    removal_requested=FALSE
+             WHERE community_id=$1 AND business_id=$2 AND removal_requested=TRUE RETURNING community_id`,
+            [communityId, businessId]);
+        if (!r.rows.length) return res.status(404).json({ error: 'לא נמצאה בקשת הסרה עבור עסק זה' });
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ZM — דוחה בקשת הסרה — העסק ממשיך להיות פעיל, הדגל מתאפס
+app.post('/api/zone-manager/community-business/decline-removal', verifyZoneManager, async (req, res) => {
+    try {
+        const { communityId, businessId } = req.body;
+        const { managerId } = req.zmSession;
+        const check = await pool.query(`SELECT 1 FROM communities c JOIN manager_zones mz ON c.zone_id=mz.id WHERE c.id=$1 AND mz.manager_id=$2`, [communityId, managerId]);
+        if (!check.rows.length) return res.status(403).json({ error: 'Unauthorized' });
+        await pool.query(
+            `UPDATE community_businesses SET removal_requested=FALSE, removal_requested_at=NULL
+             WHERE community_id=$1 AND business_id=$2`,
+            [communityId, businessId]);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -16337,9 +16466,9 @@ app.get('/api/community/manager-data/:groupId', verifyFamily, async (req, res) =
 
         // עסקים ממתינים לאישור
         const pendingRes = await pool.query(
-            `SELECT cb.community_id, cb.business_id, fg.name as business_name, cb.discount_pct, cb.status, cb.created_at
+            `SELECT cb.community_id, cb.business_id, fg.name as business_name, cb.discount_pct, cb.status, cb.created_at, cb.removal_requested
              FROM community_businesses cb JOIN family_groups fg ON cb.business_id=fg.id
-             WHERE cb.community_id=ANY($1)`, [commIds]);
+             WHERE cb.community_id=ANY($1) AND cb.status NOT IN ('rejected','removed')`, [commIds]);
 
         // משפחות ממתינות לאישור
         const pendingFamiliesRes = await pool.query(
