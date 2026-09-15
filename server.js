@@ -7936,8 +7936,12 @@ app.get('/api/sa/unified-stats', verifySA, async (req, res) => {
             COUNT(*) FILTER (WHERE ${col} > CURRENT_DATE) as today_count,
             COUNT(*) FILTER (WHERE ${col} > NOW()-INTERVAL '30 days') as month_count`;
 
+        const zero = { all_count:0, today_count:0, month_count:0 };
+        const zeroVal = { ...zero, all_value:0, today_value:0, month_value:0 };
+
         const [
-            orders, families, businesses, users, communities, tickets, banners, flowVal, zmComm
+            orders, newFamilies, newBusinesses, newUsers, newCommunities, tickets, banners, flowIssued, zmComm,
+            commission, cashback, collected, debt, flowRedeemed, communityJoinReq, communityBizLinks, activeZM
         ] = await Promise.all([
             // BIZ — הזמנות + שווי כספי
             safe(`SELECT
@@ -7945,61 +7949,106 @@ app.get('/api/sa/unified-stats', verifySA, async (req, res) => {
                 COALESCE(SUM(total_amount),0) as all_value,
                 COALESCE(SUM(total_amount) FILTER (WHERE created_at > CURRENT_DATE),0) as today_value,
                 COALESCE(SUM(total_amount) FILTER (WHERE created_at > NOW()-INTERVAL '30 days'),0) as month_value
-                FROM store_orders WHERE status NOT IN ('cancelled','rejected')`,
-                { all_count:0, today_count:0, month_count:0, all_value:0, today_value:0, month_value:0 }),
+                FROM store_orders WHERE status NOT IN ('cancelled','rejected')`, zeroVal),
             // FAMILY — משפחות חדשות
-            safe(`SELECT ${RANGE('created_at')} FROM family_groups WHERE type='FAMILY' AND member_type NOT IN ('member','shopper')`,
-                { all_count:0, today_count:0, month_count:0 }),
+            safe(`SELECT ${RANGE('created_at')} FROM family_groups WHERE type='FAMILY' AND member_type NOT IN ('member','shopper')`, zero),
             // BIZ — עסקים חדשים
-            safe(`SELECT ${RANGE('created_at')} FROM family_groups WHERE type='BUSINESS'`,
-                { all_count:0, today_count:0, month_count:0 }),
+            safe(`SELECT ${RANGE('created_at')} FROM family_groups WHERE type='BUSINESS'`, zero),
             // FAMILY — משתמשים חדשים
-            safe(`SELECT ${RANGE('created_at')} FROM users`,
-                { all_count:0, today_count:0, month_count:0 }),
-            // ZM — קהילות חדשות
-            safe(`SELECT ${RANGE('created_at')} FROM communities`,
-                { all_count:0, today_count:0, month_count:0 }),
+            safe(`SELECT ${RANGE('created_at')} FROM users`, zero),
+            // קהילות — קהילות חדשות
+            safe(`SELECT ${RANGE('created_at')} FROM communities`, zero),
             // SA — פניות תמיכה
-            safe(`SELECT ${RANGE('created_at')} FROM support_tickets`,
-                { all_count:0, today_count:0, month_count:0 }),
+            safe(`SELECT ${RANGE('created_at')} FROM support_tickets`, zero),
             // BIZ/SA — הזמנות שילוט + שווי
             safe(`SELECT
                 ${RANGE('bo.created_at')},
                 COALESCE(SUM(bo.total_price),0) as all_value,
                 COALESCE(SUM(bo.total_price) FILTER (WHERE bo.created_at > CURRENT_DATE),0) as today_value,
                 COALESCE(SUM(bo.total_price) FILTER (WHERE bo.created_at > NOW()-INTERVAL '30 days'),0) as month_value
-                FROM banner_orders bo`,
-                { all_count:0, today_count:0, month_count:0, all_value:0, today_value:0, month_value:0 }),
-            // SA — תנועת Flow (שווי)
+                FROM banner_orders bo`, zeroVal),
+            // מטבעות — הנפקת Flow
             safe(`SELECT
                 ${RANGE('created_at')},
                 COALESCE(SUM(amount) FILTER (WHERE amount>0),0) as all_value,
                 COALESCE(SUM(amount) FILTER (WHERE amount>0 AND created_at > CURRENT_DATE),0) as today_value,
                 COALESCE(SUM(amount) FILTER (WHERE amount>0 AND created_at > NOW()-INTERVAL '30 days'),0) as month_value
-                FROM flow_transactions`,
-                { all_count:0, today_count:0, month_count:0, all_value:0, today_value:0, month_value:0 }),
+                FROM flow_transactions WHERE amount>0`, zeroVal),
             // ZM — עמלות מנהלי אזור
             safe(`SELECT
                 ${RANGE('created_at')},
                 COALESCE(SUM(amount_ils),0) as all_value,
                 COALESCE(SUM(amount_ils) FILTER (WHERE created_at > CURRENT_DATE),0) as today_value,
                 COALESCE(SUM(amount_ils) FILTER (WHERE created_at > NOW()-INTERVAL '30 days'),0) as month_value
-                FROM billing_records WHERE record_type='zm_commission'`,
-                { all_count:0, today_count:0, month_count:0, all_value:0, today_value:0, month_value:0 })
+                FROM billing_records WHERE record_type='zm_commission'`, zeroVal),
+            // כספים — עמלות פלטפורמה (מ-business_platform_dues)
+            safe(`SELECT
+                ${RANGE('created_at')},
+                COALESCE(SUM(commission_amount),0) as all_value,
+                COALESCE(SUM(commission_amount) FILTER (WHERE created_at > CURRENT_DATE),0) as today_value,
+                COALESCE(SUM(commission_amount) FILTER (WHERE created_at > NOW()-INTERVAL '30 days'),0) as month_value
+                FROM business_platform_dues`, zeroVal),
+            // כספים — קאשבק
+            safe(`SELECT
+                ${RANGE('created_at')},
+                COALESCE(SUM(cashback_amount),0) as all_value,
+                COALESCE(SUM(cashback_amount) FILTER (WHERE created_at > CURRENT_DATE),0) as today_value,
+                COALESCE(SUM(cashback_amount) FILTER (WHERE created_at > NOW()-INTERVAL '30 days'),0) as month_value
+                FROM business_platform_dues`, zeroVal),
+            // כספים — נגבה בפועל
+            safe(`SELECT
+                ${RANGE('collected_at')},
+                COALESCE(SUM(amount),0) as all_value,
+                COALESCE(SUM(amount) FILTER (WHERE collected_at > CURRENT_DATE),0) as today_value,
+                COALESCE(SUM(amount) FILTER (WHERE collected_at > NOW()-INTERVAL '30 days'),0) as month_value
+                FROM business_platform_collections`, zeroVal),
+            // כספים — חוב פתוח (עמלות שטרם נגבו)
+            safe(`SELECT
+                ${RANGE('created_at')},
+                COALESCE(SUM(commission_amount),0) as all_value,
+                COALESCE(SUM(commission_amount) FILTER (WHERE created_at > CURRENT_DATE),0) as today_value,
+                COALESCE(SUM(commission_amount) FILTER (WHERE created_at > NOW()-INTERVAL '30 days'),0) as month_value
+                FROM business_platform_dues WHERE status='pending'`, zeroVal),
+            // מטבעות — מימוש/פדיון
+            safe(`SELECT
+                ${RANGE('created_at')},
+                COALESCE(SUM(discount_ils),0) as all_value,
+                COALESCE(SUM(discount_ils) FILTER (WHERE created_at > CURRENT_DATE),0) as today_value,
+                COALESCE(SUM(discount_ils) FILTER (WHERE created_at > NOW()-INTERVAL '30 days'),0) as month_value
+                FROM flow_redemptions`, zeroVal),
+            // קהילות — בקשות הצטרפות ממתינות
+            safe(`SELECT ${RANGE('joined_at')} FROM family_communities WHERE status='pending'`, zero),
+            // קהילות — עסקים שחוברו בפועל
+            safe(`SELECT ${RANGE('created_at')} FROM community_businesses WHERE status='approved'`, zero),
+            // מנהלי אזור — פעילים חדשים
+            safe(`SELECT ${RANGE('created_at')} FROM zone_managers WHERE status='active'`, zero)
         ]);
 
         res.json({
             success: true,
             kpis: {
-                orders: { label: 'הזמנות (חנויות)', env: 'BIZ', hasValue: true, data: orders },
-                new_families: { label: 'משפחות חדשות', env: 'FAMILY', hasValue: false, data: families },
-                new_businesses: { label: 'עסקים חדשים', env: 'BIZ', hasValue: false, data: businesses },
-                new_users: { label: 'משתמשים חדשים', env: 'FAMILY', hasValue: false, data: users },
-                new_communities: { label: 'קהילות חדשות', env: 'ZM', hasValue: false, data: communities },
-                tickets: { label: 'פניות תמיכה', env: 'SA', hasValue: false, data: tickets },
-                banners: { label: 'הזמנות שילוט', env: 'BIZ', hasValue: true, data: banners },
-                flow: { label: 'תנועת Flow', env: 'SA', hasValue: true, data: flowVal },
-                zm_commissions: { label: 'עמלות מנהלי אזור', env: 'ZM', hasValue: true, data: zmComm }
+                orders:            { label: 'הזמנות (חנויות)',          env: 'BIZ',    category: 'business',    hasValue: true,  data: orders },
+                banners:           { label: 'הזמנות שילוט',             env: 'BIZ',    category: 'business',    hasValue: true,  data: banners },
+                new_businesses:    { label: 'עסקים חדשים',               env: 'BIZ',    category: 'business',    hasValue: false, data: newBusinesses },
+
+                new_families:      { label: 'משפחות חדשות',             env: 'FAMILY', category: 'families',    hasValue: false, data: newFamilies },
+                new_users:         { label: 'משתמשים חדשים',            env: 'FAMILY', category: 'families',    hasValue: false, data: newUsers },
+
+                new_communities:   { label: 'קהילות חדשות',              env: 'ZM',     category: 'communities', hasValue: false, data: newCommunities },
+                community_join_req:{ label: 'בקשות הצטרפות לקהילה',     env: 'ZM',     category: 'communities', hasValue: false, data: communityJoinReq },
+                community_biz_links:{ label: 'עסקים מחוברים לקהילות',   env: 'ZM',     category: 'communities', hasValue: false, data: communityBizLinks },
+
+                commission:        { label: 'עמלות פלטפורמה',            env: 'SA',     category: 'finance',     hasValue: true,  data: commission },
+                cashback:          { label: 'קאשבק לעסקים',              env: 'SA',     category: 'finance',     hasValue: true,  data: cashback },
+                collected:         { label: 'נגבה בפועל',                env: 'SA',     category: 'finance',     hasValue: true,  data: collected },
+                debt:              { label: 'חוב פתוח',                  env: 'SA',     category: 'finance',     hasValue: true,  data: debt },
+                zm_commissions:    { label: 'עמלות מנהלי אזור',          env: 'ZM',     category: 'finance',     hasValue: true,  data: zmComm },
+
+                flow_issued:       { label: 'מטבעות Flow שהונפקו',       env: 'SA',     category: 'coins',       hasValue: true,  data: flowIssued },
+                flow_redeemed:     { label: 'מטבעות Flow שמומשו',        env: 'FAMILY', category: 'coins',       hasValue: true,  data: flowRedeemed },
+
+                tickets:           { label: 'פניות תמיכה',               env: 'SA',     category: 'entities',    hasValue: false, data: tickets },
+                active_zm:         { label: 'מנהלי אזור פעילים חדשים',   env: 'ZM',     category: 'entities',    hasValue: false, data: activeZM }
             }
         });
     } catch(e) {
@@ -8066,6 +8115,56 @@ app.get('/api/sa/kpi-detail', verifySA, async (req, res) => {
                 base: `FROM billing_records WHERE record_type='zm_commission'`,
                 dateCol: 'created_at',
                 select: `id, description as title, NULL::text as entity, amount_ils as amount, payment_status as status, created_at`
+            },
+            commission: {
+                base: `FROM business_platform_dues d LEFT JOIN family_groups fg ON fg.id=d.business_id WHERE 1=1`,
+                dateCol: 'd.created_at',
+                select: `d.id, fg.name as title, 'הזמנה #'||COALESCE(d.order_id::text,'—') as entity, d.commission_amount as amount, d.status, d.created_at`
+            },
+            cashback: {
+                base: `FROM business_platform_dues d LEFT JOIN family_groups fg ON fg.id=d.business_id WHERE 1=1`,
+                dateCol: 'd.created_at',
+                select: `d.id, fg.name as title, 'הזמנה #'||COALESCE(d.order_id::text,'—') as entity, d.cashback_amount as amount, d.status, d.created_at`
+            },
+            collected: {
+                base: `FROM business_platform_collections c LEFT JOIN family_groups fg ON fg.id=c.business_id WHERE 1=1`,
+                dateCol: 'c.collected_at',
+                select: `c.id, fg.name as title, c.notes as entity, c.amount, NULL::text as status, c.collected_at as created_at`
+            },
+            debt: {
+                base: `FROM business_platform_dues d LEFT JOIN family_groups fg ON fg.id=d.business_id WHERE d.status='pending'`,
+                dateCol: 'd.created_at',
+                select: `d.id, fg.name as title, 'הזמנה #'||COALESCE(d.order_id::text,'—') as entity, d.commission_amount as amount, d.status, d.created_at`
+            },
+            flow_issued: {
+                base: `FROM flow_transactions ft LEFT JOIN family_groups fg ON ft.entity_type IN ('family','business') AND fg.id=ft.entity_id LEFT JOIN communities c ON ft.entity_type='community' AND c.id=ft.entity_id WHERE ft.amount>0`,
+                dateCol: 'ft.created_at',
+                select: `ft.id, ft.description as title, COALESCE(fg.name, c.name,'—') as entity, ft.amount, NULL::text as status, ft.created_at`
+            },
+            flow_redeemed: {
+                base: `FROM flow_redemptions fr LEFT JOIN family_groups fgf ON fgf.id=fr.family_group_id LEFT JOIN family_groups fgb ON fgb.id=fr.business_group_id WHERE 1=1`,
+                dateCol: 'fr.created_at',
+                select: `fr.id, fgf.name as title, fgb.name as entity, fr.discount_ils as amount, fr.status, fr.created_at`
+            },
+            new_communities: {
+                base: `FROM communities WHERE 1=1`,
+                dateCol: 'created_at',
+                select: `id, name as title, status as entity, NULL::numeric as amount, status, created_at`
+            },
+            community_join_req: {
+                base: `FROM family_communities fc JOIN family_groups fg ON fg.id=fc.group_id JOIN communities c ON c.id=fc.community_id WHERE fc.status='pending'`,
+                dateCol: 'fc.joined_at',
+                select: `fg.id, fg.name as title, c.name as entity, NULL::numeric as amount, fc.status, fc.joined_at as created_at`
+            },
+            community_biz_links: {
+                base: `FROM community_businesses cb JOIN family_groups fg ON fg.id=cb.business_id JOIN communities c ON c.id=cb.community_id WHERE cb.status='approved'`,
+                dateCol: 'cb.created_at',
+                select: `fg.id, fg.name as title, c.name as entity, NULL::numeric as amount, cb.status, cb.created_at`
+            },
+            active_zm: {
+                base: `FROM zone_managers WHERE status='active'`,
+                dateCol: 'created_at',
+                select: `id, name as title, email as entity, NULL::numeric as amount, status, created_at`
             }
         };
 

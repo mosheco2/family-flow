@@ -662,6 +662,15 @@ window.setSAInsightsRange = function(range) {
     renderSAInsights();
 };
 
+const SA_INSIGHTS_CATEGORIES = [
+    { key: 'business',    label: 'עסקים והזמנות',      icon: 'fa-store' },
+    { key: 'families',    label: 'משפחות',              icon: 'fa-house-user' },
+    { key: 'communities', label: 'קהילות',               icon: 'fa-city' },
+    { key: 'finance',     label: 'כספים',                icon: 'fa-sack-dollar' },
+    { key: 'coins',       label: 'מטבעות (Flow)',        icon: 'fa-coins' },
+    { key: 'entities',    label: 'תפעול וישויות',        icon: 'fa-layer-group' }
+];
+
 function renderSAInsights() {
     const grid = document.getElementById('sa-insights-grid');
     if (!grid || !_saInsightsData) return;
@@ -669,21 +678,35 @@ function renderSAInsights() {
     const fmtNum = n => (parseInt(n) || 0).toLocaleString('he-IL');
     const fmtILS = n => '₪' + (parseFloat(n) || 0).toLocaleString('he-IL', { maximumFractionDigits: 0 });
 
-    grid.innerHTML = Object.entries(_saInsightsData).map(([key, kpi]) => {
-        const count = kpi.data[rangeKey + '_count'];
-        const value = kpi.hasValue ? kpi.data[rangeKey + '_value'] : null;
-        const envLabel = SA_ENV_LABELS[kpi.env] || kpi.env;
-        const envColor = SA_ENV_COLORS[kpi.env] || '#64748b';
-        return `<div onclick="openSAKpiDetail('${key}')" class="bg-white rounded-xl border border-slate-200 shadow-sm p-4 cursor-pointer hover:shadow-md hover:border-indigo-300 transition">
-            <div class="flex items-center justify-between mb-2">
-                <span style="background:${envColor}22;color:${envColor};font-size:10px;font-weight:800;padding:2px 8px;border-radius:99px;">${envLabel}</span>
-                <i class="fa-solid fa-arrow-up-left text-slate-300 text-xs"></i>
+    const byCategory = {};
+    Object.entries(_saInsightsData).forEach(([key, kpi]) => {
+        const cat = kpi.category || 'entities';
+        (byCategory[cat] = byCategory[cat] || []).push([key, kpi]);
+    });
+
+    grid.innerHTML = SA_INSIGHTS_CATEGORIES.filter(c => byCategory[c.key]?.length).map(cat => `
+        <div class="col-span-full">
+            <div class="flex items-center gap-2 mb-2 mt-1">
+                <i class="fa-solid ${cat.icon} text-slate-400 text-xs"></i>
+                <h3 class="text-xs font-black text-slate-500 uppercase tracking-wide">${cat.label}</h3>
             </div>
-            <p class="text-xs text-slate-500 font-medium mb-1">${kpi.label}</p>
-            <p class="text-2xl font-black text-slate-800">${fmtNum(count)}</p>
-            ${kpi.hasValue ? `<p class="text-sm font-bold text-emerald-600 mt-1">${fmtILS(value)}</p>` : ''}
-        </div>`;
-    }).join('');
+        </div>
+        ${byCategory[cat.key].map(([key, kpi]) => {
+            const count = kpi.data[rangeKey + '_count'];
+            const value = kpi.hasValue ? kpi.data[rangeKey + '_value'] : null;
+            const envLabel = SA_ENV_LABELS[kpi.env] || kpi.env;
+            const envColor = SA_ENV_COLORS[kpi.env] || '#64748b';
+            return `<div onclick="openSAKpiDetail('${key}')" class="bg-white rounded-xl border border-slate-200 shadow-sm p-4 cursor-pointer hover:shadow-md hover:border-indigo-300 transition">
+                <div class="flex items-center justify-between mb-2">
+                    <span style="background:${envColor}22;color:${envColor};font-size:10px;font-weight:800;padding:2px 8px;border-radius:99px;">${envLabel}</span>
+                    <i class="fa-solid fa-arrow-up-left text-slate-300 text-xs"></i>
+                </div>
+                <p class="text-xs text-slate-500 font-medium mb-1">${kpi.label}</p>
+                <p class="text-2xl font-black text-slate-800">${fmtNum(count)}</p>
+                ${kpi.hasValue ? `<p class="text-sm font-bold text-emerald-600 mt-1">${fmtILS(value)}</p>` : ''}
+            </div>`;
+        }).join('')}
+    `).join('');
 }
 
 // ── דרילדאון: פאנל פירוט KPI ──
