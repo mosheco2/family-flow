@@ -12437,6 +12437,33 @@ app.post('/api/campaign/:code/order', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// היסטוריית ההזמנות של הלקוח המחובר בקמפיין הזה — על פני כל העסקים המשתתפים
+// (בשונה מ-/api/sc-auth/activity/:bizGroupId שמוגבל לעסק אחד)
+app.get('/api/campaign/:code/my-orders', async (req, res) => {
+    try {
+        const token = (req.headers.authorization || '').replace('Bearer ', '').trim();
+        const customer = await _scGetCustomerByToken(token);
+        if (!customer) return res.status(401).json({ error: 'לא מחובר' });
+
+        const cRes = await pool.query(`SELECT id FROM community_campaigns WHERE code=$1 AND status='active'`, [req.params.code.toLowerCase()]);
+        if (!cRes.rows.length) return res.status(404).json({ error: 'קמפיין לא נמצא' });
+        const campaignId = cRes.rows[0].id;
+
+        const ordersRes = await pool.query(
+            `SELECT o.id, o.status, o.total_amount, o.created_at, o.is_delivery, fg.name AS business_name,
+                    (SELECT json_agg(json_build_object('name',item_name,'qty',quantity,'price',price_at_order))
+                     FROM store_order_items WHERE order_id=o.id) AS items
+             FROM store_orders o
+             JOIN community_campaign_businesses ccb ON ccb.business_group_id = o.group_id AND ccb.campaign_id = $1
+             JOIN family_groups fg ON fg.id = o.group_id
+             WHERE o.order_source = 'community_campaign' AND (o.customer_phone = $2 OR o.family_group_id = $3)
+             ORDER BY o.created_at DESC LIMIT 30`,
+            [campaignId, customer.phone, customer.family_group_id || -1]);
+
+        res.json({ success: true, orders: ordersRes.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // Dedicated lightweight image endpoint — avoids sending base64 in catalog payload
 app.get('/api/store/item-image/:itemId', async (req, res) => {
     try {

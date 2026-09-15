@@ -191,6 +191,39 @@ const scAuth = window.scAuth = {
               <button onclick="scAuth.doResetPin('${data.phone}')" style="width:100%;padding:14px;background:#6366f1;color:#fff;border:none;border-radius:14px;font-size:15px;font-weight:700;cursor:pointer">שמור PIN חדש</button>
               <div id="sc-rpc-err" style="color:#ef4444;font-size:13px;text-align:center;margin-top:10px;min-height:18px"></div>`;
         }
+
+        if (step === 'change-pin-form') {
+            title.textContent = 'שינוי PIN';
+            body.innerHTML = `
+              <p style="text-align:right;font-size:13px;color:#64748b;margin:0 0 16px">הזן את ה-PIN הנוכחי שלך ואת ה-PIN החדש</p>
+              <input id="sc-cp-current" type="password" inputmode="numeric" maxlength="6" placeholder="PIN נוכחי (6 ספרות)"
+                style="width:100%;border:1.5px solid #e2e8f0;border-radius:12px;padding:12px;font-size:20px;letter-spacing:8px;text-align:center;direction:ltr;box-sizing:border-box;margin-bottom:12px"/>
+              <input id="sc-cp-new" type="password" inputmode="numeric" maxlength="6" placeholder="PIN חדש (6 ספרות)"
+                style="width:100%;border:1.5px solid #6366f1;border-radius:12px;padding:12px;font-size:20px;letter-spacing:8px;text-align:center;direction:ltr;box-sizing:border-box;margin-bottom:14px"/>
+              <button onclick="scAuth.doChangePin()" style="width:100%;padding:14px;background:#6366f1;color:#fff;border:none;border-radius:14px;font-size:15px;font-weight:700;cursor:pointer">שמור PIN חדש</button>
+              <button onclick="scAuth.openProfileEdit()" style="width:100%;margin-top:8px;background:none;border:none;color:#94a3b8;font-size:13px;cursor:pointer;text-decoration:underline">ביטול</button>
+              <div id="sc-cp-err" style="color:#ef4444;font-size:13px;text-align:center;margin-top:10px;min-height:18px"></div>`;
+            setTimeout(() => document.getElementById('sc-cp-current')?.focus(), 100);
+        }
+    },
+
+    async doChangePin() {
+        const currentPin = document.getElementById('sc-cp-current')?.value?.trim();
+        const newPin = document.getElementById('sc-cp-new')?.value?.trim();
+        if (!currentPin || !/^\d{6}$/.test(currentPin)) { document.getElementById('sc-cp-err').textContent = 'הזן PIN נוכחי בן 6 ספרות'; return; }
+        if (!newPin || !/^\d{6}$/.test(newPin)) { document.getElementById('sc-cp-err').textContent = 'PIN חדש חייב להיות 6 ספרות'; return; }
+        const btn = document.querySelector('#sc-modal-body button[onclick*="doChangePin"]');
+        btn.disabled = true; btn.textContent = '⏳ שומר...';
+        try {
+            const r = await fetch('/api/sc-auth/change-pin', {
+                method: 'PATCH', headers: {'Content-Type':'application/json','Authorization':'Bearer '+(this._token||'')},
+                body: JSON.stringify({ currentPin, newPin })
+            }).then(r => r.json());
+            if (!r.success) { btn.disabled = false; btn.textContent = 'שמור PIN חדש'; document.getElementById('sc-cp-err').textContent = r.error || 'שגיאה'; return; }
+            document.getElementById('sc-cp-err').style.color = '#10b981';
+            document.getElementById('sc-cp-err').textContent = 'ה-PIN עודכן בהצלחה ✓';
+            setTimeout(() => this.openProfileEdit(), 1200);
+        } catch(e) { btn.disabled = false; btn.textContent = 'שמור PIN חדש'; document.getElementById('sc-cp-err').textContent = 'שגיאת רשת'; }
     },
 
     async sendOtp() {

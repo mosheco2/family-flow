@@ -254,13 +254,55 @@
         }
     };
 
+    function csFmtDate(iso) {
+        try { return new Date(iso).toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }); }
+        catch(e) { return ''; }
+    }
+    const CS_STATUS_LABELS = { pending_approval: 'ממתין לאישור', approved: 'אושר', preparing: 'בהכנה', ready: 'מוכן', completed: 'הושלם', cancelled: 'בוטל' };
+
     // sc-auth.js's floating "👤 שם" button calls scAuth.openActivityPanel() by default — that
-    // panel is built around ONE business's orders/bookings (bizId from ?store=), which has no
-    // meaning on a multi-business campaign page. Override it to open profile-edit + logout
-    // directly instead (both still route through #sc-activity-panel internally, which is why
-    // that shell stays in the HTML even though its own order-history list is never populated here).
+    // panel is normally built around ONE business's orders/bookings (bizId from ?store=), which
+    // has no meaning on a multi-business campaign page. Override it to show the customer's own
+    // order history ACROSS all businesses in this campaign (GET /api/campaign/:code/my-orders)
+    // instead, plus edit-profile/logout actions — mirrors the pattern sc-auth.js itself uses for
+    // a single business (list ends with #sc-profile-btn/#sc-logout-btn).
     if (window.scAuth) {
-        window.scAuth.openActivityPanel = function() { this.openProfileEdit(); };
+        window.scAuth.openActivityPanel = async function() {
+            const panel = document.getElementById('sc-activity-panel');
+            const list = document.getElementById('sc-activity-list');
+            if (!panel || !list) return this.openProfileEdit();
+            panel.style.display = 'block';
+            list.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:30px"><i class="fa-solid fa-spinner fa-spin"></i></div>';
+            let ordersHtml = '<div style="text-align:center;color:#94a3b8;font-size:13px;padding:30px 0">עדיין אין הזמנות בקמפיין הזה</div>';
+            try {
+                const res = await fetch(`/api/campaign/${encodeURIComponent(campaignCode)}/my-orders`, { headers: { Authorization: 'Bearer ' + (this._token || '') } });
+                const data = await res.json();
+                if (data.success && data.orders && data.orders.length) {
+                    ordersHtml = data.orders.map(o => `
+                        <div style="border:1px solid #f1f5f9;border-radius:12px;padding:12px;margin-bottom:8px">
+                            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+                                <span style="font-weight:700;font-size:13px;color:#1e293b">${csSafe(o.business_name)}</span>
+                                <span style="font-size:11px;font-weight:700;color:#6366f1">${csSafe(CS_STATUS_LABELS[o.status] || o.status)}</span>
+                            </div>
+                            <div style="font-size:12px;color:#64748b;line-height:1.6">${(o.items || []).map(it => `${csSafe(it.name)} ×${it.qty}`).join(', ')}</div>
+                            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;font-size:11px;color:#94a3b8">
+                                <span>${csFmtDate(o.created_at)}</span>
+                                <span style="font-weight:700;color:#1e293b">₪${parseFloat(o.total_amount).toFixed(2)}</span>
+                            </div>
+                        </div>`).join('');
+                }
+            } catch(e) { ordersHtml = '<div style="text-align:center;color:#ef4444;font-size:13px;padding:20px">שגיאת טעינה</div>'; }
+
+            list.innerHTML = `
+                <div style="font-size:11px;font-weight:700;color:#94a3b8;padding:0 0 8px;text-align:right">📦 ההזמנות שלי בקמפיין</div>
+                ${ordersHtml}
+                <div style="border-top:1px solid #f1f5f9;margin-top:12px;padding-top:12px">
+                    <button id="cs-profile-btn" style="width:100%;padding:12px;border:1.5px solid #e2e8f0;border-radius:12px;background:#fff;font-size:14px;cursor:pointer;color:#475569">✏️ עריכת פרופיל</button>
+                    <button id="cs-logout-btn" style="width:100%;padding:11px;border:1.5px solid #fee2e2;border-radius:12px;background:#fff5f5;font-size:13px;font-weight:600;cursor:pointer;color:#dc2626;margin-top:8px;display:flex;align-items:center;justify-content:center;gap:6px">🚪 התנתקות</button>
+                </div>`;
+            list.querySelector('#cs-profile-btn')?.addEventListener('click', () => window.scAuth.openProfileEdit());
+            list.querySelector('#cs-logout-btn')?.addEventListener('click', () => window.scAuth.logout());
+        };
     }
 
     document.addEventListener('DOMContentLoaded', init);
