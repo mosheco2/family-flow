@@ -2156,22 +2156,26 @@ window.renderCatalog = function() {
                 }
 
                 const pType = item.product_type || 'retail';
+                // מוצר "רגיל" (food/retail) עם תוספות/מרכיבים מוגדרים (options_text) חייב לעבור
+                // דרך המודל — אחרת אפשר להוסיף אותו לסל דרך בקר הכמות בלי לבחור תוספות בכלל
+                let _hasModOptions = false;
+                try { const _o = JSON.parse(item.options_text || '[]'); _hasModOptions = Array.isArray(_o) && _o.length > 0; } catch(e) {}
                 let btnText = t('פרטים והוספה', 'Details & add');
                 let onclickAction = `window.openProductModal(${item.id}); event.stopPropagation();`;
 
                 if (pType === 'pizza_builder') btnText = t('הרכב פיצה', 'Build pizza');
                 else if (pType === 'service') btnText = t('📅 הזמן שירות', '📅 Book service');
-                else if (pType === 'food') btnText = t('בחר מנה', 'Choose item');
                 else if (pType === 'bundle') { btnText = t('📦 בחר חבילה', '📦 Choose bundle'); }
                 else if (pType === 'complex_builder') {
                     btnText = t('📋 צפייה במפרט', '📋 View specs');
                     onclickAction = `window.openComplexProductModal(${item.id}); event.stopPropagation();`;
                 }
+                // 'food'/'retail' (ברירת מחדל) תמיד "פרטים והוספה" — שפה אחידה, בלי קשר לתוספות
 
                 let actionHtml = `<button onclick="${onclickAction}" class="bg-slate-100 text-slate-800 hover:bg-slate-200 px-3 py-1.5 rounded-lg text-xs font-bold transition w-full border border-slate-200 shadow-sm">${btnText}</button>`;
 
-                // כפתור הוספה מהירה עם בקר כמות למוצרים רגילים
-                const canQuickAdd = pType !== 'pizza_builder' && pType !== 'complex_builder' && pType !== 'service' && pType !== 'bundle';
+                // כפתור הוספה מהירה עם בקר כמות — רק למוצרים פשוטים בלי תוספות לבחירה
+                const canQuickAdd = pType !== 'pizza_builder' && pType !== 'complex_builder' && pType !== 'service' && pType !== 'bundle' && !_hasModOptions;
                 if (canQuickAdd) {
                     const cartKey = `item_${item.id}`;
                     const qtyInCart = cart[cartKey]?.qty || 0;
