@@ -12316,7 +12316,9 @@ app.get('/campaign/:code', async (req, res) => {
         // שהמנהל הקליד ידנית בניהול (שורה שנייה) / "WEFLOWZ עושה לכם סדר" ליד הכתובת / לוגו WEFLOWZ
         const manualLine = c.share_description || c.slogan || '';
         const title = escAttr(manualLine || c.title || c.community_name || 'קמפיין קהילה');
-        const description = escAttr(c.title || c.community_name || '');
+        // ווצאפ לא מציג og:site_name בפועל ליד הדומיין (רק את שם המארח מה-URL עצמו) —
+        // הדרך היחידה למקם כיתוב "צמוד" לכתובת היא כשורה האחרונה בתיאור, ישר מעליה
+        const description = escAttr([c.title || c.community_name || '', 'WEFLOWZ עושה לכם סדר'].filter(Boolean).join('\n'));
         const image = escAttr(`${baseUrl}/api/public/logo`);
         const pageUrl = escAttr(`${baseUrl}/campaign/${c.code}`);
         const injected = html
