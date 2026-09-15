@@ -13197,6 +13197,8 @@ async function initCommunityTables() {
         `CREATE TABLE IF NOT EXISTS community_businesses (community_id INT, business_id INT, discount_pct DECIMAL DEFAULT 0, PRIMARY KEY(community_id, business_id))`,
         `ALTER TABLE community_businesses ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'approved'`,
         `ALTER TABLE community_businesses ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`,
+        `ALTER TABLE community_businesses ADD COLUMN IF NOT EXISTS rejected_at TIMESTAMP`,
+        `ALTER TABLE community_businesses ADD COLUMN IF NOT EXISTS rejected_by VARCHAR(20)`,
         `CREATE TABLE IF NOT EXISTS store_coupons (id SERIAL PRIMARY KEY, group_id INT, code VARCHAR(50), discount_pct DECIMAL DEFAULT 0, valid_until DATE, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`,
         `ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS community_id INT`,
         `ALTER TABLE communities ADD COLUMN IF NOT EXISTS city VARCHAR(100)`,
@@ -13301,7 +13303,7 @@ app.get('/api/biz/communities/my/:bizId', verifyBiz, async (req, res) => {
             (SELECT COUNT(u.id) FROM users u JOIN family_groups f ON u.group_id = f.id WHERE f.community_id = c.id AND f.type = 'FAMILY') as users_count
             FROM community_businesses cb
             JOIN communities c ON cb.community_id = c.id
-            WHERE cb.business_id = $1
+            WHERE cb.business_id = $1 AND cb.status != 'rejected'
         `, [req.params.bizId]);
         res.json({ success: true, communities: result.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
@@ -13425,7 +13427,7 @@ app.get('/api/biz/communities/available/:bizId', verifyBiz, async (req, res) => 
             (SELECT COUNT(u.id) FROM users u JOIN family_communities fc ON u.group_id = fc.group_id WHERE fc.community_id = c.id AND fc.status = 'approved') as users_count
             FROM communities c
             WHERE c.status = 'active'
-            AND c.id NOT IN (SELECT community_id FROM community_businesses WHERE business_id = $1)
+            AND c.id NOT IN (SELECT community_id FROM community_businesses WHERE business_id = $1 AND status != 'rejected')
         `, [req.params.bizId]);
         res.json({ success: true, communities: result.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
@@ -13443,7 +13445,7 @@ app.get('/api/biz/communities/via-biz/:bizCode/:myBizId', verifyBiz, async (req,
             (SELECT COUNT(*) FROM community_businesses WHERE community_id=c.id AND status='approved') as biz_count
             FROM communities c
             JOIN community_businesses cb ON cb.community_id=c.id AND cb.business_id=$1 AND cb.status='approved'
-            WHERE c.id NOT IN (SELECT community_id FROM community_businesses WHERE business_id=$2)
+            WHERE c.id NOT IN (SELECT community_id FROM community_businesses WHERE business_id=$2 AND status != 'rejected')
         `, [b.id, req.params.myBizId]);
         res.json({ success: true, via_biz: b.name, communities: result.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
@@ -13460,7 +13462,7 @@ app.post('/api/biz/communities/join', verifyBiz, async (req, res) => {
         `, [communityId]);
         const status = zoneRes.rows.length > 0 ? 'zm_pending' : 'pending';
         await pool.query(
-            'INSERT INTO community_businesses (community_id, business_id, discount_pct, status, created_at) VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP) ON CONFLICT (community_id, business_id) DO UPDATE SET discount_pct=$3, status=$4',
+            'INSERT INTO community_businesses (community_id, business_id, discount_pct, status, created_at) VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP) ON CONFLICT (community_id, business_id) DO UPDATE SET discount_pct=$3, status=$4, rejected_at=NULL',
             [communityId, businessId, parseFloat(discountPct)||0, status]
         );
         res.json({ success: true });
@@ -13487,11 +13489,12 @@ app.post('/api/community/invite-business', verifyFamily, async (req, res) => {
         // ודא שהמשפחה חברה בקהילה
         const check = await pool.query(`SELECT 1 FROM family_communities WHERE group_id=$1 AND community_id=$2 AND status='approved'`, [groupId, communityId]);
         if (!check.rows.length) return res.status(403).json({ error: 'אינך חבר מאושר בקהילה זו' });
-        // בדוק שהעסק לא כבר חבר
+        // בדוק שהעסק לא כבר חבר (שורה שנדחתה בעבר לא נחשבת "עדיין קיימת" — אפשר להזמין מחדש)
         const existing = await pool.query(`SELECT status FROM community_businesses WHERE community_id=$1 AND business_id=$2`, [communityId, businessId]);
-        if (existing.rows.length) return res.status(400).json({ error: `העסק כבר ${existing.rows[0].status === 'approved' ? 'חבר בקהילה' : 'בתהליך הצטרפות'}` });
+        if (existing.rows.length && existing.rows[0].status !== 'rejected') return res.status(400).json({ error: `העסק כבר ${existing.rows[0].status === 'approved' ? 'חבר בקהילה' : 'בתהליך הצטרפות'}` });
         await pool.query(
-            `INSERT INTO community_businesses (community_id, business_id, discount_pct, status, created_at) VALUES ($1,$2,0,'biz_invited',CURRENT_TIMESTAMP)`,
+            `INSERT INTO community_businesses (community_id, business_id, discount_pct, status, created_at) VALUES ($1,$2,0,'biz_invited',CURRENT_TIMESTAMP)
+             ON CONFLICT (community_id, business_id) DO UPDATE SET status='biz_invited', discount_pct=0, created_at=CURRENT_TIMESTAMP, rejected_at=NULL`,
             [communityId, businessId]);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
@@ -13526,7 +13529,7 @@ app.post('/api/biz/community-invitation/accept', verifyBiz, async (req, res) => 
 app.post('/api/biz/community-invitation/decline', verifyBiz, async (req, res) => {
     try {
         const { businessId, communityId } = req.body;
-        await pool.query(`DELETE FROM community_businesses WHERE community_id=$1 AND business_id=$2 AND status='biz_invited'`, [communityId, businessId]);
+        await pool.query(`UPDATE community_businesses SET status='rejected', rejected_at=CURRENT_TIMESTAMP, rejected_by='business' WHERE community_id=$1 AND business_id=$2 AND status='biz_invited'`, [communityId, businessId]);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -13554,7 +13557,8 @@ app.post('/api/community/manager/community-business/reject', verifyFamily, async
         const { communityId, businessId } = req.body;
         if (!(await verifyCommunityManagerAccess(req.familyAuth.groupId, communityId))) return res.status(403).json({ error: 'אין הרשאה לקהילה זו' });
         const r = await pool.query(
-            `DELETE FROM community_businesses WHERE community_id=$1 AND business_id=$2 AND status='comm_mgr_pending' RETURNING community_id`,
+            `UPDATE community_businesses SET status='rejected', rejected_at=CURRENT_TIMESTAMP, rejected_by='community_manager'
+             WHERE community_id=$1 AND business_id=$2 AND status='comm_mgr_pending' RETURNING community_id`,
             [communityId, businessId]);
         if (!r.rows.length) return res.status(404).json({ error: 'לא נמצאה בקשה ממתינה עבור עסק זה' });
         res.json({ success: true });
@@ -14081,7 +14085,7 @@ app.get('/api/sa/business/:bizId/communities', verifySA, async (req, res) => {
             (SELECT COUNT(u.id) FROM users u JOIN family_groups f ON u.group_id = f.id WHERE f.community_id = c.id AND f.type = 'FAMILY') as users_count
             FROM community_businesses cb
             JOIN communities c ON cb.community_id = c.id
-            WHERE cb.business_id = $1
+            WHERE cb.business_id = $1 AND cb.status != 'rejected'
         `, [req.params.bizId]);
         res.json({ success: true, communities: result.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
@@ -14173,7 +14177,7 @@ app.get('/api/sa/communities/:id/details', verifySA, async (req, res) => {
             });
         }
 
-        const businessesRes = await pool.query('SELECT b.id, b.name, b.group_code, cb.discount_pct, cb.status FROM community_businesses cb JOIN family_groups b ON cb.business_id = b.id WHERE cb.community_id = $1', [req.params.id]);
+        const businessesRes = await pool.query(`SELECT b.id, b.name, b.group_code, cb.discount_pct, cb.status FROM community_businesses cb JOIN family_groups b ON cb.business_id = b.id WHERE cb.community_id = $1 AND cb.status != 'rejected'`, [req.params.id]);
 
         res.json({ success: true, families: families, businesses: businessesRes.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
@@ -14198,7 +14202,7 @@ app.post('/api/sa/community-business', verifySA, async (req, res) => {
     try {
         const { communityId, businessId, discountPct } = req.body;
         await pool.query(
-            'INSERT INTO community_businesses (community_id, business_id, discount_pct, status, created_at) VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP) ON CONFLICT (community_id, business_id) DO UPDATE SET discount_pct=$3, status=$4', 
+            'INSERT INTO community_businesses (community_id, business_id, discount_pct, status, created_at) VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP) ON CONFLICT (community_id, business_id) DO UPDATE SET discount_pct=$3, status=$4, rejected_at=NULL', 
             [communityId, businessId, parseFloat(discountPct)||0, 'approved']
         );
         res.json({ success: true });
@@ -14208,10 +14212,10 @@ app.post('/api/sa/community-business', verifySA, async (req, res) => {
 app.get('/api/sa/community-business/:commId', verifySA, async (req, res) => {
     try {
         const result = await pool.query(`
-            SELECT cb.community_id, cb.business_id, cb.discount_pct, cb.status, b.name as business_name 
+            SELECT cb.community_id, cb.business_id, cb.discount_pct, cb.status, b.name as business_name
             FROM community_businesses cb
             JOIN family_groups b ON cb.business_id = b.id
-            WHERE cb.community_id = $1
+            WHERE cb.community_id = $1 AND cb.status != 'rejected'
         `, [req.params.commId]);
         res.json({ success: true, connections: result.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
@@ -14260,7 +14264,11 @@ app.post('/api/sa/community-business/approve', verifySA, async (req, res) => {
 app.post('/api/sa/community-business/reject', verifySA, async (req, res) => {
     try {
         const { communityId, businessId } = req.body;
-        await pool.query('DELETE FROM community_businesses WHERE community_id=$1 AND business_id=$2', [communityId, businessId]);
+        // הגבלה לסטטוסי "ממתין" בלבד — למניעת דחייה בטעות של עסק שכבר פעיל
+        await pool.query(
+            `UPDATE community_businesses SET status='rejected', rejected_at=CURRENT_TIMESTAMP, rejected_by='super_admin'
+             WHERE community_id=$1 AND business_id=$2 AND status IN ('pending','zm_pending')`,
+            [communityId, businessId]);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -14724,7 +14732,7 @@ app.post('/api/community/family-refer', verifyFamily, async (req, res) => {
             [groupId, businessId, communityId, notes || '']);
         await pool.query(
             `INSERT INTO community_businesses (community_id, business_id, discount_pct, status)
-             VALUES ($1,$2,0,'pending') ON CONFLICT (community_id, business_id) DO NOTHING`,
+             VALUES ($1,$2,0,'pending') ON CONFLICT (community_id, business_id) DO UPDATE SET status='pending', rejected_at=NULL WHERE community_businesses.status='rejected'`,
             [communityId, businessId]);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
@@ -15168,7 +15176,9 @@ app.post('/api/zone-manager/community-business/reject', verifyZoneManager, async
             WHERE c.id = $1 AND mz.manager_id = $2
         `, [communityId, managerId]);
         if (!check.rows.length) return res.status(403).json({ error: 'Unauthorized' });
-        await pool.query('DELETE FROM community_businesses WHERE community_id=$1 AND business_id=$2 AND status=$3',
+        await pool.query(
+            `UPDATE community_businesses SET status='rejected', rejected_at=CURRENT_TIMESTAMP, rejected_by='zone_manager'
+             WHERE community_id=$1 AND business_id=$2 AND status=$3`,
             [communityId, businessId, 'zm_pending']);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
