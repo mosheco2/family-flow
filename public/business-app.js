@@ -15818,19 +15818,29 @@ async function loadSAPendingRequests() {
         let html = '';
 
         if (data.success && data.pending && data.pending.length > 0) {
-            html += data.pending.map(p => `
+            const stageLabels = {
+                pending: 'ממתין לאישורך', zm_pending: 'ממתין למנהל אזור', pending_cm_review: 'ממתין למנהל קהילה',
+                comm_mgr_pending: 'ממתין לאישור מי שהזמין', biz_invited: 'ממתין לתגובת העסק'
+            };
+            html += `<h4 class="text-xs font-bold text-slate-500 mb-2 mt-1">🏢 בקשות/הזמנות עסקים לקהילה (${data.pending.length})</h4>`;
+            html += data.pending.map(p => {
+                const canApprove = p.status !== 'biz_invited';
+                return `
                 <div class="bg-white p-4 rounded-2xl shadow-sm border border-orange-100 flex justify-between items-center hover:shadow-md transition mb-2">
                     <div>
                         <h4 class="font-bold text-slate-800 text-sm">העסק: ${safeStr(p.biz_name)}</h4>
-                        <p class="text-xs text-slate-500 mt-0.5">מבקש להצטרף לקהילת: <strong>${safeStr(p.comm_name)}</strong></p>
-                        <p class="text-[11px] text-green-700 font-bold mt-1 bg-green-50 px-2 py-0.5 rounded-full inline-block border border-green-200">מוכן לתת ${p.discount_pct}% הנחה לחברי הקהילה</p>
+                        <p class="text-xs text-slate-500 mt-0.5">קהילה: <strong>${safeStr(p.comm_name)}</strong>${p.has_active_zm ? ' · <span class="text-blue-500">יש מנהל אזור</span>' : ''}</p>
+                        <div class="flex items-center gap-2 mt-1">
+                            <span class="text-[10px] font-bold border border-slate-200 bg-slate-50 text-slate-600 px-2 py-0.5 rounded-full">${stageLabels[p.status] || p.status}</span>
+                            <span class="text-[11px] text-green-700 font-bold bg-green-50 px-2 py-0.5 rounded-full border border-green-200">${p.discount_pct}% הנחה</span>
+                        </div>
                     </div>
                     <div class="flex flex-col gap-2">
-                        <button onclick="approveSABizRequest(${p.community_id}, ${p.business_id})" class="bg-slate-800 text-white px-5 py-2 rounded-xl text-xs font-bold hover:bg-slate-700 transition shadow-sm border border-slate-700"><i class="fa-solid fa-check mr-1"></i> אשר וצרף</button>
-                        <button onclick="rejectSABizRequest(${p.community_id}, ${p.business_id})" class="bg-red-50 text-red-600 px-5 py-2 rounded-xl text-xs font-bold hover:bg-red-100 transition shadow-sm border border-red-100"><i class="fa-solid fa-xmark mr-1"></i> דחה בקשה</button>
+                        ${canApprove ? `<button onclick="overrideApproveSABiz(${p.community_id}, ${p.business_id})" class="bg-slate-800 text-white px-5 py-2 rounded-xl text-xs font-bold hover:bg-slate-700 transition shadow-sm border border-slate-700"><i class="fa-solid fa-bolt mr-1"></i> אשר (עקיפה)</button>` : ''}
+                        <button onclick="overrideRejectSABiz(${p.community_id}, ${p.business_id})" class="bg-red-50 text-red-600 px-5 py-2 rounded-xl text-xs font-bold hover:bg-red-100 transition shadow-sm border border-red-100"><i class="fa-solid fa-xmark mr-1"></i> דחה בקשה</button>
                     </div>
-                </div>
-            `).join('');
+                </div>`;
+            }).join('');
         }
 
         try {
@@ -15842,7 +15852,7 @@ async function loadSAPendingRequests() {
                     <div class="bg-white p-4 rounded-2xl shadow-sm border border-red-100 flex justify-between items-center hover:shadow-md transition mb-2">
                         <div>
                             <h4 class="font-bold text-slate-800 text-sm">העסק: ${safeStr(p.biz_name)}</h4>
-                            <p class="text-xs text-slate-500 mt-0.5">קהילה: <strong>${safeStr(p.comm_name)}</strong> · פעיל כרגע עם ${p.discount_pct}% הנחה</p>
+                            <p class="text-xs text-slate-500 mt-0.5">קהילה: <strong>${safeStr(p.comm_name)}</strong>${p.has_active_zm ? ' · <span class="text-blue-500">יש מנהל אזור</span>' : ''} · פעיל כרגע עם ${p.discount_pct}% הנחה</p>
                         </div>
                         <div class="flex flex-col gap-2">
                             <button onclick="approveSARemoval(${p.community_id}, ${p.business_id})" class="bg-red-600 text-white px-5 py-2 rounded-xl text-xs font-bold hover:bg-red-700 transition shadow-sm"><i class="fa-solid fa-trash mr-1"></i> אשר הסרה</button>
@@ -15853,9 +15863,29 @@ async function loadSAPendingRequests() {
             }
         } catch(_) {}
 
-        if (html) { container.classList.remove('hidden'); list.innerHTML = html; }
-        else { container.classList.add('hidden'); }
+        if (!html) html = '<p class="text-sm text-orange-700/70 text-center py-3">אין בקשות ממתינות כרגע</p>';
+        container.classList.remove('hidden'); list.innerHTML = html;
     } catch(e) { console.error('Error loading pending requests', e); }
+}
+
+async function overrideApproveSABiz(communityId, businessId) {
+    if(!await window._uiConfirm('לאשר את העסק לקהילה? זו עקיפה של שרשרת האישור הרגילה.')) return;
+    try {
+        const res = await fetch(`${API}/sa/community-business/override-approve`, { method: 'POST', headers: {'Content-Type': 'application/json', 'Authorization': saToken}, body: JSON.stringify({ communityId, businessId }) });
+        const data = await res.json();
+        if (data.success) { showToast('success', 'העסק אושר לקהילה'); loadSAPendingRequests(); loadSACommunityData(); }
+        else showToast('error', data.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
+}
+
+async function overrideRejectSABiz(communityId, businessId) {
+    if(!await window._uiConfirm('לדחות את הבקשה/ההזמנה?')) return;
+    try {
+        const res = await fetch(`${API}/sa/community-business/override-reject`, { method: 'POST', headers: {'Content-Type': 'application/json', 'Authorization': saToken}, body: JSON.stringify({ communityId, businessId }) });
+        const data = await res.json();
+        if (data.success) { showToast('info', 'הבקשה נדחתה'); loadSAPendingRequests(); }
+        else showToast('error', data.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
 }
 
 async function approveSARemoval(communityId, businessId) {

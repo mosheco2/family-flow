@@ -619,6 +619,7 @@ window.switchViewTab = function(viewId, tabId) {
         activeBtn.style.border = '1px solid #4338ca';
     }
     // trigger data loads for specific sub-tabs
+    if (viewId === 'comm' && (tabId === 'table' || tabId === 'manage')) { try { loadSAPendingRequests(); } catch(e) {} }
     if (viewId === 'adslots' && tabId === 'slots') { /* preloader/cloudinary sub-tab, no data load */ }
     if (viewId === 'adslots' && tabId === 'manage') { try { loadBannerSlotsPanel(); loadBannerTimeline(); } catch(e) {} }
     if (viewId === 'adslots' && tabId === 'orders') { try { loadBannerOrders(); } catch(e) {} }
@@ -3582,34 +3583,43 @@ function clearSmartBizSelection() {
     const searchInput = getEl('sa-smart-biz-search'); searchInput.classList.remove('hidden'); searchInput.focus();
 }
 
+const SA_BIZ_STAGE_LABELS = {
+    pending: { text: 'ממתין לאישורך', cls: 'bg-orange-50 text-orange-600 border-orange-200' },
+    zm_pending: { text: 'ממתין למנהל אזור', cls: 'bg-blue-50 text-blue-600 border-blue-200' },
+    pending_cm_review: { text: 'ממתין למנהל קהילה', cls: 'bg-sky-50 text-sky-600 border-sky-200' },
+    comm_mgr_pending: { text: 'ממתין לאישור מי שהזמין', cls: 'bg-purple-50 text-purple-600 border-purple-200' },
+    biz_invited: { text: 'ממתין לתגובת העסק', cls: 'bg-slate-50 text-slate-500 border-slate-200' },
+};
+
 async function loadSAPendingRequests() {
-    const container = getEl('sa-pending-biz-container'); const list = getEl('sa-pending-biz-list');
-    if(!container || !list) return;
+    // הפאנל מוצג בשני מקומות (טאב "הקמה ושיוך" וטאב "טבלת קהילות") כדי שלא יוחמץ
+    const targets = [
+        { container: getEl('sa-pending-biz-container'), list: getEl('sa-pending-biz-list') },
+        { container: getEl('sa-pending-biz-container-2'), list: getEl('sa-pending-biz-list-2') },
+    ].filter(t => t.container && t.list);
+    if (!targets.length) return;
     try {
-        // בקשות עסקים
+        // בקשות עסקים — כל השלבים, בכל הקהילות (שקיפות מלאה ל-SA)
         const res = await fetch(`${API}/sa/communities/pending-businesses`, { headers: { 'Authorization': typeof saToken !== 'undefined' ? saToken : (localStorage.getItem('ofl_sa_token') || '') } }); const data = await res.json();
         let html = '';
         if (data.success && data.pending && data.pending.length > 0) {
-            html += `<h4 class="text-xs font-bold text-slate-500 mb-2 mt-1">🏢 בקשות עסקים לקהילה</h4>`;
+            html += `<h4 class="text-xs font-bold text-slate-500 mb-2 mt-1">🏢 בקשות/הזמנות עסקים לקהילה (${data.pending.length})</h4>`;
             html += data.pending.map(p => {
-                const isZmPending = p.status === 'zm_pending';
-                const actionsHtml = isZmPending
-                    ? `<div class="flex flex-col gap-1 items-end">
-                         <span class="text-[10px] bg-blue-50 text-blue-600 border border-blue-200 px-2 py-1 rounded-lg font-bold"><i class="fa-solid fa-clock mr-1"></i>ממתין למנהל אזור</span>
-                         <button onclick="approveSABizDirect(${p.community_id}, ${p.business_id})" class="text-[10px] bg-orange-100 text-orange-700 border border-orange-200 px-2 py-1 rounded-lg font-bold hover:bg-orange-200 transition"><i class="fa-solid fa-bolt mr-1"></i>אשר ישירות ללא ZM</button>
-                         <button onclick="rejectSABizRequest(${p.community_id}, ${p.business_id})" class="text-[10px] bg-red-50 text-red-600 border border-red-100 px-2 py-1 rounded-lg font-bold hover:bg-red-100 transition">דחה</button>
-                       </div>`
-                    : `<div class="flex flex-col gap-1 items-end">
-                         <button onclick="approveSABizRequest(${p.community_id}, ${p.business_id})" class="bg-slate-800 text-white px-4 py-1.5 rounded-xl text-xs font-bold shadow-sm"><i class="fa-solid fa-check mr-1"></i> אשר</button>
-                         <button onclick="rejectSABizRequest(${p.community_id}, ${p.business_id})" class="bg-red-50 text-red-600 px-4 py-1.5 rounded-xl text-xs font-bold shadow-sm"><i class="fa-solid fa-xmark mr-1"></i> דחה</button>
-                       </div>`;
-                return `<div class="bg-white p-3 rounded-2xl shadow-sm border ${isZmPending ? 'border-blue-100' : 'border-orange-100'} flex justify-between items-center hover:shadow-md transition mb-2">
+                const stage = SA_BIZ_STAGE_LABELS[p.status] || { text: p.status, cls: 'bg-slate-50 text-slate-500 border-slate-200' };
+                const canApprove = p.status !== 'biz_invited'; // העסק עוד לא הגיב בכלל — אין מה לאשר
+                return `<div class="bg-white p-3 rounded-2xl shadow-sm border border-orange-100 flex justify-between items-center hover:shadow-md transition mb-2">
                     <div>
                         <h4 class="font-bold text-slate-800 text-sm">העסק: ${safeStr(p.biz_name)}</h4>
-                        <p class="text-xs text-slate-500 mt-0.5">קהילה: <strong>${safeStr(p.comm_name)}</strong></p>
-                        <p class="text-[11px] text-green-700 font-bold mt-1 bg-green-50 px-2 py-0.5 rounded-full inline-block border border-green-200">${p.discount_pct}% הנחה לחברים</p>
+                        <p class="text-xs text-slate-500 mt-0.5">קהילה: <strong>${safeStr(p.comm_name)}</strong>${p.has_active_zm ? ' · <span class="text-blue-500">יש מנהל אזור</span>' : ''}</p>
+                        <div class="flex items-center gap-2 mt-1">
+                            <span class="text-[10px] font-bold border px-2 py-0.5 rounded-full ${stage.cls}">${stage.text}</span>
+                            <span class="text-[11px] text-green-700 font-bold bg-green-50 px-2 py-0.5 rounded-full border border-green-200">${p.discount_pct}% הנחה</span>
+                        </div>
                     </div>
-                    ${actionsHtml}
+                    <div class="flex flex-col gap-1 items-end">
+                        ${canApprove ? `<button onclick="overrideApproveSABiz(${p.community_id}, ${p.business_id})" class="bg-slate-800 text-white px-4 py-1.5 rounded-xl text-xs font-bold shadow-sm hover:bg-slate-700 transition"><i class="fa-solid fa-bolt mr-1"></i> אשר (עקיפה)</button>` : ''}
+                        <button onclick="overrideRejectSABiz(${p.community_id}, ${p.business_id})" class="bg-red-50 text-red-600 px-4 py-1.5 rounded-xl text-xs font-bold shadow-sm hover:bg-red-100 transition"><i class="fa-solid fa-xmark mr-1"></i> דחה</button>
+                    </div>
                 </div>`;
             }).join('');
         }
@@ -3653,16 +3663,16 @@ async function loadSAPendingRequests() {
             }
         } catch(_) {}
 
-        // בקשות הסרת עסק מקהילה (מנהלי קהילה ביקשו, ואין מנהל אזור פעיל לקהילה)
+        // בקשות הסרת עסק מקהילה — כולן, גם באזורים עם מנהל אזור פעיל (עקיפה אפשרית)
         try {
             const remRes = await fetch(`${API}/sa/communities/pending-removals`, { headers: { 'Authorization': typeof saToken !== 'undefined' ? saToken : (localStorage.getItem('ofl_sa_token') || '') } }); const remData = await remRes.json();
             if (remData.success && remData.pending && remData.pending.length > 0) {
-                html += `<h4 class="text-xs font-bold text-slate-500 mb-2 mt-3">🚪 בקשות הסרת עסק מקהילה</h4>`;
+                html += `<h4 class="text-xs font-bold text-slate-500 mb-2 mt-3">🚪 בקשות הסרת עסק מקהילה (${remData.pending.length})</h4>`;
                 html += remData.pending.map(p => `
                     <div class="bg-white p-3 rounded-2xl shadow-sm border border-red-100 flex justify-between items-center hover:shadow-md transition mb-2">
                         <div>
                             <h4 class="font-bold text-slate-800 text-sm">העסק: ${safeStr(p.biz_name)}</h4>
-                            <p class="text-xs text-slate-500 mt-0.5">קהילה: <strong>${safeStr(p.comm_name)}</strong> · פעיל כרגע עם ${p.discount_pct}% הנחה</p>
+                            <p class="text-xs text-slate-500 mt-0.5">קהילה: <strong>${safeStr(p.comm_name)}</strong>${p.has_active_zm ? ' · <span class="text-blue-500">יש מנהל אזור</span>' : ''} · פעיל כרגע עם ${p.discount_pct}% הנחה</p>
                         </div>
                         <div class="flex flex-col gap-1 items-end">
                             <button onclick="approveSARemoval(${p.community_id}, ${p.business_id})" class="bg-red-600 text-white px-4 py-1.5 rounded-xl text-xs font-bold shadow-sm hover:bg-red-700 transition"><i class="fa-solid fa-trash mr-1"></i> אשר הסרה</button>
@@ -3672,9 +3682,29 @@ async function loadSAPendingRequests() {
             }
         } catch(_) {}
 
-        if (html) { container.classList.remove('hidden'); list.innerHTML = html; }
-        else { container.classList.add('hidden'); }
+        if (!html) html = '<p class="text-sm text-orange-700/70 text-center py-3">אין בקשות ממתינות כרגע</p>';
+        targets.forEach(t => { t.container.classList.remove('hidden'); t.list.innerHTML = html; });
     } catch(e) { console.error('Error loading pending requests', e); }
+}
+
+async function overrideApproveSABiz(communityId, businessId) {
+    if(!confirm('לאשר את העסק לקהילה? זו עקיפה של שרשרת האישור הרגילה.')) return;
+    try {
+        const res = await fetch(`${API}/sa/community-business/override-approve`, { method: 'POST', headers: {'Content-Type': 'application/json', 'Authorization': typeof saToken !== 'undefined' ? saToken : (localStorage.getItem('ofl_sa_token') || '')}, body: JSON.stringify({ communityId, businessId }) });
+        const data = await res.json();
+        if (data.success) { showToast('success', 'העסק אושר לקהילה'); loadSAPendingRequests(); loadSACommunityData(); }
+        else showToast('error', data.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
+}
+
+async function overrideRejectSABiz(communityId, businessId) {
+    if(!confirm('לדחות את הבקשה/ההזמנה?')) return;
+    try {
+        const res = await fetch(`${API}/sa/community-business/override-reject`, { method: 'POST', headers: {'Content-Type': 'application/json', 'Authorization': typeof saToken !== 'undefined' ? saToken : (localStorage.getItem('ofl_sa_token') || '')}, body: JSON.stringify({ communityId, businessId }) });
+        const data = await res.json();
+        if (data.success) { showToast('info', 'הבקשה נדחתה'); loadSAPendingRequests(); }
+        else showToast('error', data.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
 }
 
 async function approveSARemoval(communityId, businessId) {

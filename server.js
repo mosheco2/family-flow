@@ -14248,18 +14248,53 @@ app.get('/api/sa/communities/:id/details', verifySA, async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// SA רואה את כל שלבי הבקשה בכל הקהילות — לא רק את מה שכרגע ממתין ישירות לו.
+// שקיפות מלאה, כי SA הוא "מעל" מנהל קהילה ומנהל אזור ותמיד יכול לעקוף (override).
 app.get('/api/sa/communities/pending-businesses', verifySA, async (req, res) => {
     try {
         const result = await pool.query(`
             SELECT cb.community_id, cb.business_id, cb.discount_pct, cb.status,
-                   c.name as comm_name, b.name as biz_name
+                   c.name as comm_name, b.name as biz_name,
+                   EXISTS (
+                     SELECT 1 FROM manager_zones mz JOIN zone_managers zm ON mz.manager_id=zm.id AND zm.status='active'
+                     WHERE mz.id = c.zone_id
+                   ) as has_active_zm
             FROM community_businesses cb
             JOIN communities c ON cb.community_id = c.id
             JOIN family_groups b ON cb.business_id = b.id
-            WHERE cb.status IN ('pending', 'zm_pending')
+            WHERE cb.status IN ('pending', 'zm_pending', 'pending_cm_review', 'comm_mgr_pending', 'biz_invited')
             ORDER BY cb.community_id, cb.business_id
         `);
         res.json({ success: true, pending: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// SA — אישור/דחייה עוקפים (override) לכל שלב שהוא, בלי קשר למי אמור לטפל בו כרגע.
+// שונה מ-approve/reject הרגילים שמכבדים את ההיררכיה (מעבירים למנהל אזור וכו') —
+// זה תמיד קופץ ישר לתוצאה הסופית, לשימוש כשה-SA רוצה לעקוף תקיעות.
+app.post('/api/sa/community-business/override-approve', verifySA, async (req, res) => {
+    try {
+        const { communityId, businessId } = req.body;
+        const r = await pool.query(
+            `UPDATE community_businesses SET status='approved'
+             WHERE community_id=$1 AND business_id=$2
+               AND status IN ('pending','zm_pending','pending_cm_review','comm_mgr_pending') RETURNING community_id`,
+            [communityId, businessId]);
+        if (!r.rows.length) return res.status(404).json({ error: 'לא נמצאה בקשה ממתינה עבור עסק זה' });
+        await awardFlow('business', parseInt(businessId), 'biz_join_approved', parseInt(communityId));
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+app.post('/api/sa/community-business/override-reject', verifySA, async (req, res) => {
+    try {
+        const { communityId, businessId } = req.body;
+        const r = await pool.query(
+            `UPDATE community_businesses SET status='rejected', rejected_at=CURRENT_TIMESTAMP, rejected_by='super_admin'
+             WHERE community_id=$1 AND business_id=$2
+               AND status IN ('pending','zm_pending','pending_cm_review','comm_mgr_pending','biz_invited') RETURNING community_id`,
+            [communityId, businessId]);
+        if (!r.rows.length) return res.status(404).json({ error: 'לא נמצאה בקשה ממתינה עבור עסק זה' });
+        res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -14339,20 +14374,21 @@ app.post('/api/sa/community-business/reject', verifySA, async (req, res) => {
 });
 
 // SA — רשימת בקשות הסרה ממתינות, רק לקהילות בלי מנהל אזור פעיל (אלו עם מנהל אזור מטופלות על ידו)
+// SA רואה את כל בקשות ההסרה בכל הקהילות (גם אלו שכבר אצל מנהל אזור) — שקיפות מלאה,
+// יכול לפעול (override) גם אם באופן רגיל זה תפקיד מנהל האזור
 app.get('/api/sa/communities/pending-removals', verifySA, async (req, res) => {
     try {
         const result = await pool.query(`
             SELECT cb.community_id, cb.business_id, cb.discount_pct, cb.removal_requested_at,
-                   c.name as comm_name, b.name as biz_name
+                   c.name as comm_name, b.name as biz_name,
+                   EXISTS (
+                     SELECT 1 FROM manager_zones mz JOIN zone_managers zm ON mz.manager_id=zm.id AND zm.status='active'
+                     WHERE mz.id = c.zone_id
+                   ) as has_active_zm
             FROM community_businesses cb
             JOIN communities c ON cb.community_id = c.id
             JOIN family_groups b ON cb.business_id = b.id
             WHERE cb.removal_requested = TRUE AND cb.status='approved'
-              AND NOT EXISTS (
-                SELECT 1 FROM manager_zones mz
-                JOIN zone_managers zm ON mz.manager_id = zm.id AND zm.status='active'
-                WHERE mz.id = c.zone_id
-              )
         `);
         res.json({ success: true, pending: result.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
