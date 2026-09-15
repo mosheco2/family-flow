@@ -545,6 +545,10 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                                 <i class="fa-solid fa-display text-xs"></i>
                                 <span>מסך גדול</span>
                             </a>
+                            <button onclick="switchSATab('insights')" class="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-black transition" title="תובנות מאוחדות: הזמנות, שווי כספי וכל הסביבות">
+                                <i class="fa-solid fa-chart-pie text-xs"></i>
+                                <span>תובנות מאוחדות</span>
+                            </button>
                         </div>
                     </div>
 
@@ -798,6 +802,31 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                     <span id="kpi-gmv-total" class="hidden"></span>
                     <span id="kpi-resolved-tickets" class="hidden"></span>
                     <span id="kpi-releases" class="hidden"></span>
+                </div>
+
+                <div id="sa-view-insights" class="hidden space-y-4 fade-in">
+                    <div class="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                            <h2 class="text-lg font-black text-slate-800">תובנות מאוחדות — כל הסביבות</h2>
+                            <p class="text-xs text-slate-500 mt-0.5">תעבורה, הזמנות ושווי כספי בכל 4 הסביבות. לחיצה על כרטיס פותחת פירוט מלא.</p>
+                        </div>
+                        <div class="flex gap-2">
+                            <button id="sa-insights-range-all" onclick="setSAInsightsRange('all')" style="background:#4f46e5;color:white;" class="px-3 py-1.5 rounded-lg text-xs font-bold transition">הכל</button>
+                            <button id="sa-insights-range-today" onclick="setSAInsightsRange('today')" style="background:#f1f5f9;color:#475569;" class="px-3 py-1.5 rounded-lg text-xs font-bold transition">היום</button>
+                            <button id="sa-insights-range-month" onclick="setSAInsightsRange('month')" style="background:#f1f5f9;color:#475569;" class="px-3 py-1.5 rounded-lg text-xs font-bold transition">30 יום אחרונים</button>
+                        </div>
+                    </div>
+                    <div id="sa-insights-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"></div>
+                </div>
+
+                <!-- פאנל דרילדאון KPI -->
+                <div id="sa-kpi-detail-overlay" onclick="closeSAKpiDetail()" class="hidden" style="position:fixed;inset:0;background:rgba(15,23,42,0.5);z-index:399;"></div>
+                <div id="sa-kpi-detail-panel" class="hidden" style="position:fixed;top:0;bottom:0;left:0;width:min(420px,92vw);background:white;z-index:400;box-shadow:-8px 0 24px rgba(0,0,0,0.15);display:flex;flex-direction:column;">
+                    <div class="flex items-center justify-between p-4 border-b border-slate-100">
+                        <h3 id="sa-kpi-detail-title" class="font-black text-slate-800 text-sm"></h3>
+                        <button onclick="closeSAKpiDetail()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+                    </div>
+                    <div id="sa-kpi-detail-body" class="flex-1 overflow-y-auto p-4"></div>
                 </div>
 
                 <div id="sa-view-stats" class="hidden space-y-8 fade-in">
@@ -4733,7 +4762,7 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
       </div>
     </div>
 
-    <script src="sa-app.js?v=65"></script>
+    <script src="sa-app.js?v=66"></script>
     <script src="community-help.js?v=1"></script>
     <div id="sa-sla-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[9999] flex items-center justify-center p-4 fade-in">
         <div class="bg-white w-full max-w-2xl rounded-[2rem] p-6 shadow-2xl relative">

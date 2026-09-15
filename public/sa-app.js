@@ -135,7 +135,7 @@ window.checkTabAccess = function(tabId) {
         'support': 'support', 'devops': 'devops', 'stats': 'stats',
         'comm': 'comm', 'biz': 'biz', 'content': 'content',
         'hr': 'users', 'inbox': 'marketing', 'partners': 'all',
-        'finance': 'stats', 'adslots': 'content', 'legal': 'content'
+        'finance': 'stats', 'adslots': 'content', 'legal': 'content', 'insights': 'stats'
     };
 
     if (req[tabId] && !perms.includes(req[tabId])) return false;
@@ -433,11 +433,12 @@ window.switchSATab = function(tabId) {
     window._currentSATab = tabId;
     if (tabId === 'pulse') { updateSADashboard(); loadSADashboard(); }
     if (tabId === 'stats') loadSAData();
+    if (tabId === 'insights') loadSAInsights();
     if (tabId === 'finance') loadSAFinanceData();
     if (tabId === 'legal') loadLegalDocs();
 
     if (tabId === 'adslots') window.renderAdSlotsPanel && window.renderAdSlotsPanel();
-    const allTabs = ['dashboard', 'pulse', 'devops', 'support', 'stats', 'comm', 'biz', 'inbox', 'content', 'clients', 'hr', 'partners', 'finance', 'sysmap', 'legal', 'templates', 'adslots', 'auditlog', 'archive', 'games', 'feed', 'livegames', 'marketing', 'whatsapp', 'kol-haam', 'pricing', 'ai-builder', 'masterconfig'];
+    const allTabs = ['dashboard', 'pulse', 'insights', 'devops', 'support', 'stats', 'comm', 'biz', 'inbox', 'content', 'clients', 'hr', 'partners', 'finance', 'sysmap', 'legal', 'templates', 'adslots', 'auditlog', 'archive', 'games', 'feed', 'livegames', 'marketing', 'whatsapp', 'kol-haam', 'pricing', 'ai-builder', 'masterconfig'];
     if (tabId === 'clients') { setTimeout(() => switchViewTab('clients','environments'), 50); }
     if (tabId === 'kol-haam') loadSAKolHaamQueue();
     let activeTabTitle = 'לוח בקרה';
@@ -464,7 +465,7 @@ window.switchSATab = function(tabId) {
 
     // Derive topbar title from SA_GROUPS labels
     const _tabTitles = {
-        pulse:'דופק מערכת', stats:'דוחות ופיננסים', dashboard:'ספר מוצר',
+        pulse:'דופק מערכת', insights:'תובנות מאוחדות', stats:'דוחות ופיננסים', dashboard:'ספר מוצר',
         support:'קריאות שירות', devops:'פיתוח ומוצר',
         comm:'קהילות', biz:'עסקים', clients:'סביבות',
         inbox:'שיווק והשקות', content:'מיתוג ותוכן',
@@ -520,7 +521,7 @@ window.switchSATab = function(tabId) {
 // ===== GROUP NAVIGATION =====
 
 const SA_GROUPS = {
-    home:       { tabs: ['pulse', 'stats'],             labels: ['דופק מערכת', 'דוחות'],           icons: ['fa-heart-pulse', 'fa-chart-line'],       default: 'pulse' },
+    home:       { tabs: ['pulse', 'insights', 'stats'], labels: ['דופק מערכת', 'תובנות מאוחדות', 'דוחות'], icons: ['fa-heart-pulse', 'fa-chart-pie', 'fa-chart-line'], default: 'pulse' },
     customers:  { tabs: ['comm', 'biz', 'clients', 'feed'],  labels: ['קהילות', 'עסקים', 'סביבות', 'פיד קהילתי'],  icons: ['fa-users-rays', 'fa-store', 'fa-users', 'fa-rss'],  default: 'comm' },
     finance:    { tabs: ['finance'],                    labels: [],                                  icons: [],                                         default: 'finance' },
     supportdev: { tabs: ['support', 'devops'],          labels: ['קריאות שירות', 'פיתוח ומוצר'],    icons: ['fa-headset', 'fa-code'],                  default: 'support' },
@@ -627,6 +628,117 @@ window.switchViewTab = function(viewId, tabId) {
     if (viewId === 'system' && tabId === 'auditlog') { try { loadAuditLog(); } catch(e) {} }
     if (viewId === 'system' && tabId === 'archive')   { try { loadArchive();  } catch(e) {} }
     if (viewId === 'clients' && tabId === 'environments') { try { if (saAllGroups.length > 0) renderSAGroups(); } catch(e) {} }
+};
+
+// ===== SA UNIFIED INSIGHTS (תובנות מאוחדות) =====
+let _saInsightsRange = 'all';
+let _saInsightsData = null;
+const SA_ENV_LABELS = { FAMILY: 'משפחות', BIZ: 'עסקים', SA: 'סופר אדמין', ZM: 'מנהלי אזור' };
+const SA_ENV_COLORS = { FAMILY: '#10b981', BIZ: '#3b82f6', SA: '#8b5cf6', ZM: '#f59e0b' };
+
+window.loadSAInsights = async function() {
+    const grid = document.getElementById('sa-insights-grid');
+    if (!grid) return;
+    grid.innerHTML = '<div class="text-center text-slate-400 text-sm py-8 col-span-full">טוען נתונים...</div>';
+    try {
+        const d = await saFetch('/api/sa/unified-stats').then(r => r.json());
+        if (!d.success) { grid.innerHTML = '<div class="text-red-500 text-sm text-center py-8 col-span-full">שגיאה בטעינת נתונים</div>'; return; }
+        _saInsightsData = d.kpis;
+        renderSAInsights();
+    } catch (e) {
+        grid.innerHTML = '<div class="text-red-500 text-sm text-center py-8 col-span-full">שגיאת רשת</div>';
+    }
+};
+
+window.setSAInsightsRange = function(range) {
+    _saInsightsRange = range;
+    ['all', 'today', 'month'].forEach(r => {
+        const btn = document.getElementById('sa-insights-range-' + r);
+        if (btn) {
+            btn.style.background = (r === range) ? '#4f46e5' : '#f1f5f9';
+            btn.style.color = (r === range) ? 'white' : '#475569';
+        }
+    });
+    renderSAInsights();
+};
+
+function renderSAInsights() {
+    const grid = document.getElementById('sa-insights-grid');
+    if (!grid || !_saInsightsData) return;
+    const rangeKey = _saInsightsRange; // all | today | month
+    const fmtNum = n => (parseInt(n) || 0).toLocaleString('he-IL');
+    const fmtILS = n => '₪' + (parseFloat(n) || 0).toLocaleString('he-IL', { maximumFractionDigits: 0 });
+
+    grid.innerHTML = Object.entries(_saInsightsData).map(([key, kpi]) => {
+        const count = kpi.data[rangeKey + '_count'];
+        const value = kpi.hasValue ? kpi.data[rangeKey + '_value'] : null;
+        const envLabel = SA_ENV_LABELS[kpi.env] || kpi.env;
+        const envColor = SA_ENV_COLORS[kpi.env] || '#64748b';
+        return `<div onclick="openSAKpiDetail('${key}')" class="bg-white rounded-xl border border-slate-200 shadow-sm p-4 cursor-pointer hover:shadow-md hover:border-indigo-300 transition">
+            <div class="flex items-center justify-between mb-2">
+                <span style="background:${envColor}22;color:${envColor};font-size:10px;font-weight:800;padding:2px 8px;border-radius:99px;">${envLabel}</span>
+                <i class="fa-solid fa-arrow-up-left text-slate-300 text-xs"></i>
+            </div>
+            <p class="text-xs text-slate-500 font-medium mb-1">${kpi.label}</p>
+            <p class="text-2xl font-black text-slate-800">${fmtNum(count)}</p>
+            ${kpi.hasValue ? `<p class="text-sm font-bold text-emerald-600 mt-1">${fmtILS(value)}</p>` : ''}
+        </div>`;
+    }).join('');
+}
+
+// ── דרילדאון: פאנל פירוט KPI ──
+let _saKpiDetailPage = 1;
+let _saKpiDetailKey = null;
+
+window.openSAKpiDetail = async function(kpiKey) {
+    _saKpiDetailKey = kpiKey;
+    _saKpiDetailPage = 1;
+    const panel = document.getElementById('sa-kpi-detail-panel');
+    const overlay = document.getElementById('sa-kpi-detail-overlay');
+    if (!panel) return;
+    const kpi = _saInsightsData[kpiKey];
+    document.getElementById('sa-kpi-detail-title').innerText = kpi ? kpi.label : kpiKey;
+    panel.classList.remove('hidden');
+    if (overlay) overlay.classList.remove('hidden');
+    await loadSAKpiDetailPage();
+};
+
+window.closeSAKpiDetail = function() {
+    const panel = document.getElementById('sa-kpi-detail-panel');
+    const overlay = document.getElementById('sa-kpi-detail-overlay');
+    if (panel) panel.classList.add('hidden');
+    if (overlay) overlay.classList.add('hidden');
+};
+
+window.loadSAKpiDetailPage = async function() {
+    const body = document.getElementById('sa-kpi-detail-body');
+    if (!body || !_saKpiDetailKey) return;
+    body.innerHTML = '<div class="text-center text-slate-400 text-sm py-8">טוען...</div>';
+    try {
+        const url = `/api/sa/kpi-detail?kpi=${encodeURIComponent(_saKpiDetailKey)}&range=${encodeURIComponent(_saInsightsRange)}&page=${_saKpiDetailPage}`;
+        const d = await saFetch(url).then(r => r.json());
+        if (!d.success) { body.innerHTML = '<div class="text-red-500 text-sm text-center py-8">שגיאה</div>'; return; }
+        if (!d.rows.length) { body.innerHTML = '<div class="text-slate-400 text-sm text-center py-8">אין רשומות בטווח זה</div>'; return; }
+        const fmtILS = n => (n === null || n === undefined) ? '' : '₪' + parseFloat(n).toLocaleString('he-IL', { maximumFractionDigits: 0 });
+        const fmtDate = s => new Date(s).toLocaleString('he-IL', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+        body.innerHTML = `<div class="space-y-2">${d.rows.map(r => `
+            <div class="border border-slate-100 rounded-lg p-3 flex items-center justify-between gap-3">
+                <div class="min-w-0">
+                    <p class="text-sm font-bold text-slate-700 truncate">${r.title || '—'}</p>
+                    <p class="text-xs text-slate-400">${r.entity || ''} · ${fmtDate(r.created_at)}${r.status ? ' · ' + r.status : ''}</p>
+                </div>
+                ${r.amount !== null && r.amount !== undefined ? `<span class="text-sm font-black text-emerald-600 whitespace-nowrap">${fmtILS(r.amount)}</span>` : ''}
+            </div>`).join('')}</div>
+            <div class="flex items-center justify-between mt-4 text-xs text-slate-500">
+                <span>סה"כ ${d.total.toLocaleString('he-IL')} רשומות</span>
+                <div class="flex gap-2">
+                    <button onclick="_saKpiDetailPage=Math.max(1,_saKpiDetailPage-1);loadSAKpiDetailPage()" class="px-3 py-1 rounded-lg bg-slate-100 hover:bg-slate-200" ${_saKpiDetailPage<=1?'disabled style="opacity:.4"':''}>הקודם</button>
+                    <button onclick="_saKpiDetailPage++;loadSAKpiDetailPage()" class="px-3 py-1 rounded-lg bg-slate-100 hover:bg-slate-200" ${_saKpiDetailPage*30>=d.total?'disabled style="opacity:.4"':''}>הבא</button>
+                </div>
+            </div>`;
+    } catch (e) {
+        body.innerHTML = '<div class="text-red-500 text-sm text-center py-8">שגיאת רשת</div>';
+    }
 };
 
 // ===== SA Storefront Customers =====
