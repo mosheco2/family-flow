@@ -15784,8 +15784,8 @@ let saBusinessesCache = [];
 async function loadSACommunityData() {
     try {
         const [commRes, bizRes] = await Promise.all([
-            fetch(`${API}/sa/communities`),
-            fetch(`${API}/sa/businesses`)
+            fetch(`${API}/sa/communities`, { headers: { 'Authorization': saToken } }),
+            fetch(`${API}/sa/businesses`, { headers: { 'Authorization': saToken } })
         ]);
         const commData = await commRes.json();
         const bizData = await bizRes.json();
@@ -15813,7 +15813,7 @@ async function loadSAPendingRequests() {
     if(!container || !list) return;
 
     try {
-        const res = await fetch(`${API}/sa/communities/pending-businesses`);
+        const res = await fetch(`${API}/sa/communities/pending-businesses`, { headers: { 'Authorization': saToken } });
         const data = await res.json();
         
         if (data.success && data.pending && data.pending.length > 0) {
@@ -15840,7 +15840,7 @@ async function loadSAPendingRequests() {
 async function approveSABizRequest(communityId, businessId) {
     if(!await window._uiConfirm('האם לאשר את הצטרפות העסק לקהילה? הלקוחות יראו אותו מיד.')) return;
     try {
-        const res = await fetch(`${API}/sa/community-business/approve`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ communityId, businessId }) });
+        const res = await fetch(`${API}/sa/community-business/approve`, { method: 'POST', headers: {'Content-Type': 'application/json', 'Authorization': saToken}, body: JSON.stringify({ communityId, businessId }) });
         if((await res.json()).success) { showToast('success', 'העסק אושר וצורף לקהילה!'); loadSACommunityData(); }
     } catch(e) { showToast('error', 'שגיאת רשת'); }
 }
@@ -15848,7 +15848,7 @@ async function approveSABizRequest(communityId, businessId) {
 async function rejectSABizRequest(communityId, businessId) {
     if(!await window._uiConfirm('האם לדחות ולהסיר את הבקשה של העסק?')) return;
     try {
-        const res = await fetch(`${API}/sa/community-business/reject`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ communityId, businessId }) });
+        const res = await fetch(`${API}/sa/community-business/reject`, { method: 'POST', headers: {'Content-Type': 'application/json', 'Authorization': saToken}, body: JSON.stringify({ communityId, businessId }) });
         if((await res.json()).success) { showToast('info', 'הבקשה נדחתה והוסרה מהרשימה.'); loadSACommunityData(); }
     } catch(e) { showToast('error', 'שגיאת רשת'); }
 }
@@ -15938,7 +15938,7 @@ async function createSACommunity() {
     const btn = document.querySelector('button[onclick="createSACommunity()"]');
     if(btn) { btn.disabled = true; btn.innerText = 'מקים...'; }
     try {
-        const res = await fetch(`${API}/sa/communities`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({name, city, code, managerEmail: email, managerPassword: pass})});
+        const res = await fetch(`${API}/sa/communities`, { method:'POST', headers:{'Content-Type':'application/json', 'Authorization': saToken}, body:JSON.stringify({name, city, code, managerEmail: email, managerPassword: pass})});
         const data = await res.json();
         if(data.success) { 
             showToast('success', 'קהילה הוקמה!'); 
@@ -15955,7 +15955,7 @@ async function linkBizToCommunity() {
     const communityId = val('sa-link-comm'); const businessId = val('sa-link-biz'); const discountPct = val('sa-link-discount');
     if(!communityId || !businessId) return showToast('error', 'חובה לבחור קהילה ועסק');
     try {
-        const res = await fetch(`${API}/sa/community-business`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({communityId, businessId, discountPct})});
+        const res = await fetch(`${API}/sa/community-business`, { method:'POST', headers:{'Content-Type':'application/json', 'Authorization': saToken}, body:JSON.stringify({communityId, businessId, discountPct})});
         if((await res.json()).success) { showToast('success', 'העסק חובר בהצלחה!'); loadCommunityBusinesses(); loadSACommunityData(); }
     } catch(e) { showToast('error', 'שגיאת רשת'); }
 }
@@ -15965,7 +15965,7 @@ async function loadCommunityBusinesses() {
     const list = getEl('sa-comm-biz-list');
     if(!communityId) { if(list) list.innerHTML = 'יש לבחור קהילה מהרשימה'; return; }
     try {
-        const res = await fetch(`${API}/sa/community-business/${communityId}`);
+        const res = await fetch(`${API}/sa/community-business/${communityId}`, { headers: { 'Authorization': saToken } });
         const data = await res.json();
         if(data.success && list) {
             if(data.connections.length === 0) { list.innerHTML = 'אין עסקים מקושרים'; return; }
@@ -15976,13 +15976,13 @@ async function loadCommunityBusinesses() {
 
 async function removeBizFromCommunity(commId, bizId) {
     if(!await window._uiConfirm('להסיר את העסק?', {danger:true, okLabel:'הסר'})) return;
-    await fetch(`${API}/sa/community-business/${commId}/${bizId}`, {method:'DELETE'});
+    await fetch(`${API}/sa/community-business/${commId}/${bizId}`, {method:'DELETE', headers: { 'Authorization': saToken }});
     loadCommunityBusinesses(); loadSACommunityData();
 }
 
 async function deleteSACommunity(id) {
     if(!await window._uiConfirm('למחוק את הקהילה לצמיתות?', {danger:true, okLabel:'מחק'})) return;
-    await fetch(`${API}/sa/communities/${id}`, { method: 'DELETE' });
+    await fetch(`${API}/sa/communities/${id}`, { method: 'DELETE', headers: { 'Authorization': saToken } });
     loadSACommunityData();
 }
 

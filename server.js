@@ -13515,7 +13515,7 @@ app.post('/api/biz/community-invitation/accept', verifyBiz, async (req, res) => 
         const { businessId, communityId, discountPct } = req.body;
         if (discountPct === undefined || discountPct === '') return res.status(400).json({ error: 'יש להזין אחוז הנחה' });
         const r = await pool.query(
-            `UPDATE community_businesses SET status='comm_mgr_pending', discount_pct=$1 WHERE community_id=$2 AND business_id=$3 AND status='biz_invited' RETURNING id`,
+            `UPDATE community_businesses SET status='comm_mgr_pending', discount_pct=$1 WHERE community_id=$2 AND business_id=$3 AND status='biz_invited' RETURNING community_id`,
             [parseFloat(discountPct)||0, communityId, businessId]);
         if (!r.rows.length) return res.status(404).json({ error: 'הזמנה לא נמצאה' });
         res.json({ success: true });
@@ -13527,6 +13527,36 @@ app.post('/api/biz/community-invitation/decline', verifyBiz, async (req, res) =>
     try {
         const { businessId, communityId } = req.body;
         await pool.query(`DELETE FROM community_businesses WHERE community_id=$1 AND business_id=$2 AND status='biz_invited'`, [communityId, businessId]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// מנהל קהילה — אישור עסק שהוא הזמין ואישר (comm_mgr_pending → approved, ישיר, ללא צורך
+// באישור מנהל אזור/סופר אדמין — זו ההזמנה של מנהל הקהילה עצמו). מחליף שימוש שגוי
+// ב-endpoint הפתוח /api/sa/community-business/approve שלא בדק הרשאה בכלל.
+app.post('/api/community/manager/community-business/approve', verifyFamily, async (req, res) => {
+    try {
+        const { communityId, businessId } = req.body;
+        if (!(await verifyCommunityManagerAccess(req.familyAuth.groupId, communityId))) return res.status(403).json({ error: 'אין הרשאה לקהילה זו' });
+        const r = await pool.query(
+            `UPDATE community_businesses SET status='approved' WHERE community_id=$1 AND business_id=$2 AND status='comm_mgr_pending' RETURNING community_id`,
+            [communityId, businessId]);
+        if (!r.rows.length) return res.status(404).json({ error: 'לא נמצאה בקשה ממתינה עבור עסק זה' });
+        await awardFlow('business', parseInt(businessId), 'biz_join_approved', parseInt(communityId));
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// מנהל קהילה — דחיית עסק שהוא הזמין (עדיין לא היה פעיל בקהילה, אז אין צורך במעבר
+// דרך מנהל אזור/סופר אדמין — נמחק ישירות, בדיוק כמו דחיית הזמנה בכל שלב אחר)
+app.post('/api/community/manager/community-business/reject', verifyFamily, async (req, res) => {
+    try {
+        const { communityId, businessId } = req.body;
+        if (!(await verifyCommunityManagerAccess(req.familyAuth.groupId, communityId))) return res.status(403).json({ error: 'אין הרשאה לקהילה זו' });
+        const r = await pool.query(
+            `DELETE FROM community_businesses WHERE community_id=$1 AND business_id=$2 AND status='comm_mgr_pending' RETURNING community_id`,
+            [communityId, businessId]);
+        if (!r.rows.length) return res.status(404).json({ error: 'לא נמצאה בקשה ממתינה עבור עסק זה' });
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -14041,7 +14071,23 @@ app.post('/api/b2b/orders/receive', async (req, res) => {
     }
 });
 
-app.get('/api/sa/communities', async (req, res) => {
+// SA — הקהילות שעסק מסוים מחובר אליהן (מקביל ל-/api/biz/communities/my/:bizId, אך מאומת
+// כסופר אדמין ולא כ-Bearer session של העסק עצמו — SA לא מחזיק את הטוקן של העסק)
+app.get('/api/sa/business/:bizId/communities', verifySA, async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT c.id, c.name, c.city, c.image_url, cb.discount_pct, cb.status,
+            (SELECT COUNT(*) FROM family_groups WHERE community_id = c.id AND type = 'FAMILY') as families_count,
+            (SELECT COUNT(u.id) FROM users u JOIN family_groups f ON u.group_id = f.id WHERE f.community_id = c.id AND f.type = 'FAMILY') as users_count
+            FROM community_businesses cb
+            JOIN communities c ON cb.community_id = c.id
+            WHERE cb.business_id = $1
+        `, [req.params.bizId]);
+        res.json({ success: true, communities: result.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/sa/communities', verifySA, async (req, res) => {
     try {
         const result = await pool.query(`
             SELECT c.*,
@@ -14058,7 +14104,7 @@ app.get('/api/sa/communities', async (req, res) => {
     }
 });
 
-app.post('/api/sa/communities', async (req, res) => {
+app.post('/api/sa/communities', verifySA, async (req, res) => {
     try {
         const { name, city, code, managerEmail, managerPassword, imageUrl } = req.body;
         
@@ -14083,7 +14129,7 @@ app.post('/api/sa/communities', async (req, res) => {
     }
 });
 
-app.put('/api/sa/communities/:id', async (req, res) => {
+app.put('/api/sa/communities/:id', verifySA, async (req, res) => {
     try {
         const { name, city, code, managerEmail, managerPassword, imageUrl } = req.body;
         await pool.query('UPDATE communities SET name=$1, city=$2, code=$3, manager_email=$4, manager_password=$5, image_url=$6 WHERE id=$7', 
@@ -14099,7 +14145,7 @@ app.put('/api/sa/communities/:id/approve', verifySA, async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.delete('/api/sa/communities/:id', async (req, res) => {
+app.delete('/api/sa/communities/:id', verifySA, async (req, res) => {
     try {
         await pool.query('UPDATE family_groups SET community_id = NULL WHERE community_id = $1', [req.params.id]);
         await pool.query('DELETE FROM community_businesses WHERE community_id = $1', [req.params.id]);
@@ -14108,7 +14154,7 @@ app.delete('/api/sa/communities/:id', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/api/sa/communities/:id/details', async (req, res) => {
+app.get('/api/sa/communities/:id/details', verifySA, async (req, res) => {
     try {
         const familiesRes = await pool.query(`
             SELECT f.id, f.name, f.admin_email, f.group_code, fc.is_community_manager
@@ -14133,7 +14179,7 @@ app.get('/api/sa/communities/:id/details', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/api/sa/communities/pending-businesses', async (req, res) => {
+app.get('/api/sa/communities/pending-businesses', verifySA, async (req, res) => {
     try {
         const result = await pool.query(`
             SELECT cb.community_id, cb.business_id, cb.discount_pct, cb.status,
@@ -14148,7 +14194,7 @@ app.get('/api/sa/communities/pending-businesses', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/sa/community-business', async (req, res) => {
+app.post('/api/sa/community-business', verifySA, async (req, res) => {
     try {
         const { communityId, businessId, discountPct } = req.body;
         await pool.query(
@@ -14159,7 +14205,7 @@ app.post('/api/sa/community-business', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/api/sa/community-business/:commId', async (req, res) => {
+app.get('/api/sa/community-business/:commId', verifySA, async (req, res) => {
     try {
         const result = await pool.query(`
             SELECT cb.community_id, cb.business_id, cb.discount_pct, cb.status, b.name as business_name 
@@ -14171,7 +14217,7 @@ app.get('/api/sa/community-business/:commId', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.delete('/api/sa/community-business/:commId/:bizId', async (req, res) => {
+app.delete('/api/sa/community-business/:commId/:bizId', verifySA, async (req, res) => {
     try {
         await pool.query('DELETE FROM community_businesses WHERE community_id=$1 AND business_id=$2', [req.params.commId, req.params.bizId]);
         res.json({ success: true });
@@ -14187,7 +14233,7 @@ app.put('/api/sa/community-business/discount', verifySA, async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/sa/community-business/approve', async (req, res) => {
+app.post('/api/sa/community-business/approve', verifySA, async (req, res) => {
     try {
         const { communityId, businessId } = req.body;
         // בדוק אם לקהילה יש מנהל אזור
@@ -14211,7 +14257,7 @@ app.post('/api/sa/community-business/approve', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/sa/community-business/reject', async (req, res) => {
+app.post('/api/sa/community-business/reject', verifySA, async (req, res) => {
     try {
         const { communityId, businessId } = req.body;
         await pool.query('DELETE FROM community_businesses WHERE community_id=$1 AND business_id=$2', [communityId, businessId]);
@@ -14220,7 +14266,7 @@ app.post('/api/sa/community-business/reject', async (req, res) => {
 });
 
 // SA — אישור ישיר של עסק ללא מנהל אזור
-app.post('/api/sa/community-business/approve-direct', async (req, res) => {
+app.post('/api/sa/community-business/approve-direct', verifySA, async (req, res) => {
     try {
         const { communityId, businessId } = req.body;
         await pool.query("UPDATE community_businesses SET status='approved' WHERE community_id=$1 AND business_id=$2", [communityId, businessId]);
@@ -14229,7 +14275,7 @@ app.post('/api/sa/community-business/approve-direct', async (req, res) => {
 });
 
 // SA — בקשות הצטרפות ממתינות של משפחות (רק קהילות ללא ZM פעיל — אלו עם ZM מטופלות ע"י ZM)
-app.get('/api/sa/communities/pending-families', async (req, res) => {
+app.get('/api/sa/communities/pending-families', verifySA, async (req, res) => {
     try {
         const result = await pool.query(`
             SELECT fc.group_id, fc.community_id, CASE WHEN fg.family_nickname IS NOT NULL AND fg.family_nickname != '' THEN fg.name || ' (' || fg.family_nickname || ')' ELSE fg.name END as family_name, c.name as comm_name, fc.joined_at
@@ -14249,7 +14295,7 @@ app.get('/api/sa/communities/pending-families', async (req, res) => {
 });
 
 // SA — אישור הצטרפות משפחה לקהילה
-app.post('/api/sa/community-family/approve', async (req, res) => {
+app.post('/api/sa/community-family/approve', verifySA, async (req, res) => {
     try {
         const { groupId, communityId } = req.body;
         await pool.query("UPDATE family_communities SET status='approved' WHERE group_id=$1 AND community_id=$2", [groupId, communityId]);
@@ -14258,7 +14304,7 @@ app.post('/api/sa/community-family/approve', async (req, res) => {
 });
 
 // SA — דחיית הצטרפות משפחה לקהילה
-app.post('/api/sa/community-family/reject', async (req, res) => {
+app.post('/api/sa/community-family/reject', verifySA, async (req, res) => {
     try {
         const { groupId, communityId } = req.body;
         await pool.query('DELETE FROM family_communities WHERE group_id=$1 AND community_id=$2', [groupId, communityId]);
@@ -14267,7 +14313,7 @@ app.post('/api/sa/community-family/reject', async (req, res) => {
 });
 
 // SA — אישור מבצע קהילה (עם קוד ייחודי אוטומטי)
-app.post('/api/sa/community-promo/approve', async (req, res) => {
+app.post('/api/sa/community-promo/approve', verifySA, async (req, res) => {
     try {
         const { promoId } = req.body;
         const code = 'PROMO' + Math.random().toString(36).substring(2,7).toUpperCase();
@@ -14281,7 +14327,7 @@ app.post('/api/sa/community-promo/approve', async (req, res) => {
 });
 
 // SA — דחיית מבצע קהילה
-app.post('/api/sa/community-promo/reject', async (req, res) => {
+app.post('/api/sa/community-promo/reject', verifySA, async (req, res) => {
     try {
         const { promoId } = req.body;
         await pool.query("UPDATE community_promotions SET status='rejected' WHERE id=$1", [promoId]);
@@ -14290,7 +14336,7 @@ app.post('/api/sa/community-promo/reject', async (req, res) => {
 });
 
 // SA — רשימת כל מבצעי הקהילות הממתינים
-app.get('/api/sa/community-promos/pending', async (req, res) => {
+app.get('/api/sa/community-promos/pending', verifySA, async (req, res) => {
     try {
         const result = await pool.query(`
             SELECT cp.id, cp.title, cp.content, cp.discount_pct, cp.valid_until, cp.status,
@@ -14361,7 +14407,7 @@ app.get('/api/community/promos/:groupId', verifyFamily, async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/api/sa/businesses', async (req, res) => {
+app.get('/api/sa/businesses', verifySA, async (req, res) => {
     try {
         const result = await pool.query("SELECT id, name, group_code FROM family_groups WHERE type='BUSINESS' ORDER BY name");
         res.json({ success: true, businesses: result.rows });
@@ -16719,34 +16765,8 @@ app.get('/api/biz/communities/match/:bizId', verifyBiz, async (req, res) => {
 
 // --- Feature 3: Community Ambassador/Referral (שגריר קהילה) ---
 
-// Family member refers a business to their community
-app.post('/api/community/refer-business', verifyFamily, async (req, res) => {
-    try {
-        const { referrerGroupId, businessId, communityId, notes } = req.body;
-        if (parseInt(referrerGroupId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
-        if (!referrerGroupId || !businessId || !communityId) return res.status(400).json({ error: 'חסרים שדות חובה' });
-        // Referrer must be in this community
-        const check = await pool.query(
-            `SELECT 1 FROM family_communities WHERE group_id=$1 AND community_id=$2`,
-            [referrerGroupId, communityId]);
-        if (!check.rows.length) return res.status(403).json({ error: 'אינך חבר בקהילה זו' });
-        // No duplicate referral
-        const dup = await pool.query(
-            `SELECT 1 FROM community_referrals WHERE referrer_group_id=$1 AND business_id=$2 AND community_id=$3`,
-            [referrerGroupId, businessId, communityId]);
-        if (dup.rows.length) return res.status(409).json({ error: 'כבר הפנית עסק זה לקהילה' });
-        const r = await pool.query(
-            `INSERT INTO community_referrals (referrer_group_id, business_id, community_id, notes)
-             VALUES ($1,$2,$3,$4) RETURNING *`,
-            [referrerGroupId, businessId, communityId, notes || '']);
-        // Also add the business to community_businesses in pending state
-        await pool.query(
-            `INSERT INTO community_businesses (community_id, business_id, discount_pct, status)
-             VALUES ($1,$2,0,'pending') ON CONFLICT (community_id, business_id) DO NOTHING`,
-            [communityId, businessId]);
-        res.json({ success: true, referral: r.rows[0] });
-    } catch(e) { res.status(500).json({ error: e.message }); }
-});
+// (הוסר: /api/community/refer-business היה כפילות מדויקת של /api/community/family-refer
+// למעלה — אותה לוגיקה בדיוק, ללא שום caller בפועל בפרונט-אנד)
 
 // Get my referrals
 app.get('/api/community/my-referrals/:groupId', verifyFamily, async (req, res) => {

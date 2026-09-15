@@ -3587,7 +3587,7 @@ async function loadSAPendingRequests() {
     if(!container || !list) return;
     try {
         // בקשות עסקים
-        const res = await fetch(`${API}/sa/communities/pending-businesses`); const data = await res.json();
+        const res = await fetch(`${API}/sa/communities/pending-businesses`, { headers: { 'Authorization': typeof saToken !== 'undefined' ? saToken : (localStorage.getItem('ofl_sa_token') || '') } }); const data = await res.json();
         let html = '';
         if (data.success && data.pending && data.pending.length > 0) {
             html += `<h4 class="text-xs font-bold text-slate-500 mb-2 mt-1">🏢 בקשות עסקים לקהילה</h4>`;
@@ -3616,7 +3616,7 @@ async function loadSAPendingRequests() {
 
         // בקשות משפחות
         try {
-            const famRes = await fetch(`${API}/sa/communities/pending-families`); const famData = await famRes.json();
+            const famRes = await fetch(`${API}/sa/communities/pending-families`, { headers: { 'Authorization': typeof saToken !== 'undefined' ? saToken : (localStorage.getItem('ofl_sa_token') || '') } }); const famData = await famRes.json();
             if (famData.success && famData.pending && famData.pending.length > 0) {
                 html += `<h4 class="text-xs font-bold text-slate-500 mb-2 mt-3">👨‍👩‍👧 בקשות משפחות להצטרפות לקהילה</h4>`;
                 html += famData.pending.map(p => `
@@ -3635,7 +3635,7 @@ async function loadSAPendingRequests() {
 
         // מבצעי קהילה ממתינים לאישור
         try {
-            const promoRes = await fetch(`${API}/sa/community-promos/pending`); const promoData = await promoRes.json();
+            const promoRes = await fetch(`${API}/sa/community-promos/pending`, { headers: { 'Authorization': typeof saToken !== 'undefined' ? saToken : (localStorage.getItem('ofl_sa_token') || '') } }); const promoData = await promoRes.json();
             if (promoData.success && promoData.promos && promoData.promos.length > 0) {
                 html += `<h4 class="text-xs font-bold text-slate-500 mb-2 mt-3">📢 מבצעי קהילה ממתינים לאישור</h4>`;
                 html += promoData.promos.map(p => `
@@ -3677,7 +3677,7 @@ async function approveSABizRequest(communityId, businessId) {
 async function rejectSABizRequest(communityId, businessId) {
     if(!confirm('האם לדחות ולהסיר את הבקשה של העסק?')) return;
     try {
-        const res = await fetch(`${API}/sa/community-business/reject`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ communityId, businessId }) });
+        const res = await fetch(`${API}/sa/community-business/reject`, { method: 'POST', headers: {'Content-Type': 'application/json', 'Authorization': typeof saToken !== 'undefined' ? saToken : (localStorage.getItem('ofl_sa_token') || '')}, body: JSON.stringify({ communityId, businessId }) });
         if((await res.json()).success) { showToast('info', 'הבקשה נדחתה והוסרה מהרשימה.'); loadSACommunityData(); }
     } catch(e) { showToast('error', 'שגיאת רשת'); }
 }
@@ -3685,7 +3685,7 @@ async function rejectSABizRequest(communityId, businessId) {
 async function approveSABizDirect(communityId, businessId) {
     if(!confirm('לאשר את העסק ישירות לקהילה (ללא המתנה למנהל אזור)?')) return;
     try {
-        const res = await fetch(`${API}/sa/community-business/approve-direct`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ communityId, businessId }) });
+        const res = await fetch(`${API}/sa/community-business/approve-direct`, { method: 'POST', headers: {'Content-Type': 'application/json', 'Authorization': typeof saToken !== 'undefined' ? saToken : (localStorage.getItem('ofl_sa_token') || '')}, body: JSON.stringify({ communityId, businessId }) });
         const data = await res.json();
         if(data.success) { showToast('success', 'העסק אושר ישירות לקהילה!'); loadSACommunityData(); loadSAPendingRequests(); }
         else showToast('error', data.error || 'שגיאה');
@@ -3694,7 +3694,7 @@ async function approveSABizDirect(communityId, businessId) {
 
 async function approveSAFamilyRequest(groupId, communityId) {
     try {
-        const res = await fetch(`${API}/sa/community-family/approve`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ groupId, communityId }) });
+        const res = await fetch(`${API}/sa/community-family/approve`, { method: 'POST', headers: {'Content-Type': 'application/json', 'Authorization': typeof saToken !== 'undefined' ? saToken : (localStorage.getItem('ofl_sa_token') || '')}, body: JSON.stringify({ groupId, communityId }) });
         const data = await res.json();
         if(data.success) { showToast('success', 'המשפחה אושרה לקהילה!'); loadSAPendingRequests(); }
         else showToast('error', data.error || 'שגיאה');
@@ -3704,7 +3704,7 @@ async function approveSAFamilyRequest(groupId, communityId) {
 async function rejectSAFamilyRequest(groupId, communityId) {
     if(!confirm('האם לדחות את בקשת ההצטרפות של המשפחה?')) return;
     try {
-        const res = await fetch(`${API}/sa/community-family/reject`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ groupId, communityId }) });
+        const res = await fetch(`${API}/sa/community-family/reject`, { method: 'POST', headers: {'Content-Type': 'application/json', 'Authorization': typeof saToken !== 'undefined' ? saToken : (localStorage.getItem('ofl_sa_token') || '')}, body: JSON.stringify({ groupId, communityId }) });
         const data = await res.json();
         if(data.success) { showToast('info', 'בקשת המשפחה נדחתה.'); loadSAPendingRequests(); }
         else showToast('error', data.error || 'שגיאה');
@@ -3713,7 +3713,7 @@ async function rejectSAFamilyRequest(groupId, communityId) {
 
 async function approveSAPromo(promoId) {
     try {
-        const res = await fetch(`${API}/sa/community-promo/approve`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ promoId }) });
+        const res = await fetch(`${API}/sa/community-promo/approve`, { method: 'POST', headers: {'Content-Type': 'application/json', 'Authorization': typeof saToken !== 'undefined' ? saToken : (localStorage.getItem('ofl_sa_token') || '')}, body: JSON.stringify({ promoId }) });
         const data = await res.json();
         if(data.success) { showToast('success', `המבצע אושר! קוד: ${data.promo_code}`); loadSAPendingRequests(); }
         else showToast('error', data.error || 'שגיאה');
@@ -3723,7 +3723,7 @@ async function approveSAPromo(promoId) {
 async function rejectSAPromo(promoId) {
     if(!confirm('האם לדחות את המבצע?')) return;
     try {
-        const res = await fetch(`${API}/sa/community-promo/reject`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ promoId }) });
+        const res = await fetch(`${API}/sa/community-promo/reject`, { method: 'POST', headers: {'Content-Type': 'application/json', 'Authorization': typeof saToken !== 'undefined' ? saToken : (localStorage.getItem('ofl_sa_token') || '')}, body: JSON.stringify({ promoId }) });
         const data = await res.json();
         if(data.success) { showToast('info', 'המבצע נדחה.'); loadSAPendingRequests(); }
         else showToast('error', data.error || 'שגיאה');
@@ -3946,7 +3946,7 @@ async function saveSACommunityEdit() {
     const id = val('sa-edit-comm-id'); const name = val('sa-edit-comm-name'); const code = val('sa-edit-comm-code'); const email = val('sa-edit-comm-email'); const pass = val('sa-edit-comm-pass'); const cityData = val('sa-edit-comm-city-data'); const imageUrl = val('sa-edit-comm-image-base64');
     if(!name || !code) return showToast('error', 'שם וקוד חובה'); if(!cityData) return showToast('error', 'חובה להגדיר לפחות אזור גאוגרפי אחד');
     try {
-        const res = await fetch(`${API}/sa/communities/${id}`, { method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({name, city: cityData, code, managerEmail: email, managerPassword: pass, imageUrl}) });
+        const res = await fetch(`${API}/sa/communities/${id}`, { method: 'PUT', headers: {'Content-Type': 'application/json', 'Authorization': typeof saToken !== 'undefined' ? saToken : (localStorage.getItem('ofl_sa_token') || '')}, body: JSON.stringify({name, city: cityData, code, managerEmail: email, managerPassword: pass, imageUrl}) });
         if((await res.json()).success) { showToast('success', 'הקהילה עודכנה בהצלחה!'); getEl('sa-community-modal').classList.add('hidden'); loadSACommunityData(); } else showToast('error', 'שגיאה בעדכון');
     } catch(e) { showToast('error', 'שגיאת רשת'); }
 }
@@ -3954,7 +3954,7 @@ async function saveSACommunityEdit() {
 async function deleteSACommunity() {
     const id = val('sa-edit-comm-id'); if(!confirm('מחיקת הקהילה בלתי הפיכה! האם להמשיך?')) return;
     try {
-        const res = await fetch(`${API}/sa/communities/${id}`, { method: 'DELETE' });
+        const res = await fetch(`${API}/sa/communities/${id}`, { method: 'DELETE', headers: { 'Authorization': typeof saToken !== 'undefined' ? saToken : (localStorage.getItem('ofl_sa_token') || '') } });
         if((await res.json()).success) { showToast('success', 'הקהילה נמחקה!'); getEl('sa-community-modal').classList.add('hidden'); loadSACommunityData(); } else showToast('error', 'שגיאה במחיקה');
     } catch(e) { showToast('error', 'שגיאת רשת'); }
 }
@@ -3968,7 +3968,7 @@ async function createSACommunity() {
     if(!name || !code || !cityData) return showToast('error', 'שם הקהילה, ערים וקוד - שדות חובה.');
     const btn = document.querySelector('button[onclick="createSACommunity()"]'); if(btn) { btn.disabled = true; btn.innerText = 'מקים...'; }
     try {
-        const res = await fetch(`${API}/sa/communities`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({name, city: cityData, code, managerEmail: email, managerPassword: pass, imageUrl})});
+        const res = await fetch(`${API}/sa/communities`, { method:'POST', headers:{'Content-Type':'application/json', 'Authorization': typeof saToken !== 'undefined' ? saToken : (localStorage.getItem('ofl_sa_token') || '')}, body:JSON.stringify({name, city: cityData, code, managerEmail: email, managerPassword: pass, imageUrl})});
         const data = await res.json();
         if(data.success) { 
             showToast('success', 'קהילה הוקמה בהצלחה!'); 
@@ -4001,7 +4001,7 @@ async function openSABusinessModal(bizId) {
     const list = getEl('sa-edit-biz-communities-list'); list.innerHTML = '<p class="text-xs text-slate-400 text-center py-4"><i class="fa-solid fa-spinner fa-spin"></i> מנתח נתונים בשרת...</p>';
     getEl('sa-business-modal').classList.remove('hidden');
     try {
-        const res = await fetch(`${API}/biz/communities/my/${bizId}`); const data = await res.json();
+        const res = await fetch(`${API}/sa/business/${bizId}/communities`, { headers: { 'Authorization': saToken || localStorage.getItem('ofl_sa_token') || '' } }); const data = await res.json();
         if (data.success && data.communities) {
             if (data.communities.length === 0) { list.innerHTML = '<p class="text-xs text-slate-400 text-center py-4 bg-white rounded-lg border border-dashed">העסק לא מחובר לאף קהילה כרגע.</p>'; } 
             else {
@@ -4037,7 +4037,7 @@ async function openSADiscountEdit(commId, bizId, current) {
 async function removeBizFromCommunityInModal(commId, bizId) {
     if(!confirm('להסיר את העסק מהקהילה?')) return;
     try {
-        const res = await fetch(`${API}/sa/community-business/${commId}/${bizId}`, {method:'DELETE'});
+        const res = await fetch(`${API}/sa/community-business/${commId}/${bizId}`, {method:'DELETE', headers: { 'Authorization': typeof saToken !== 'undefined' ? saToken : (localStorage.getItem('ofl_sa_token') || '') } });
         if((await res.json()).success) { showToast('success', 'העסק נותק מהקהילה בהצלחה.'); openSABusinessModal(bizId); loadSACommunityData(); }
     } catch(e) { showToast('error', 'שגיאת רשת'); }
 }
@@ -4058,7 +4058,7 @@ async function loadCommunityBusinesses() {
     if(!communityId) { list.innerHTML = 'יש לבחור קהילה ממעל'; return; }
     list.innerHTML = '<p class="text-xs text-slate-400 text-center py-2"><i class="fa-solid fa-spinner fa-spin"></i> טוען עסקים...</p>';
     try {
-        const res = await fetch(`${API}/sa/community-business/${communityId}`); const data = await res.json();
+        const res = await fetch(`${API}/sa/community-business/${communityId}`, { headers: { 'Authorization': typeof saToken !== 'undefined' ? saToken : (localStorage.getItem('ofl_sa_token') || '') } }); const data = await res.json();
         if(data.success) {
             if(data.connections.length === 0) { list.innerHTML = '<p class="text-xs text-slate-400 text-center py-2">אין עסקים שנותנים הנחות לקהילה זו.</p>'; return; }
             list.innerHTML = data.connections.map(c => `
@@ -4074,7 +4074,7 @@ async function loadCommunityBusinesses() {
 async function removeBizFromCommunity(commId, bizId) {
     if(!confirm('להסיר את העסק מהקהילה?')) return;
     try {
-        const res = await fetch(`${API}/sa/community-business/${commId}/${bizId}`, {method:'DELETE'});
+        const res = await fetch(`${API}/sa/community-business/${commId}/${bizId}`, {method:'DELETE', headers: { 'Authorization': typeof saToken !== 'undefined' ? saToken : (localStorage.getItem('ofl_sa_token') || '') } });
         if((await res.json()).success) { showToast('success', 'העסק הוסר.'); loadCommunityBusinesses(); loadSACommunityData(); }
     } catch(e) {}
 }
