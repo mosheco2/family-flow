@@ -254,5 +254,14 @@
         }
     };
 
+    // sc-auth.js's floating "👤 שם" button calls scAuth.openActivityPanel() by default — that
+    // panel is built around ONE business's orders/bookings (bizId from ?store=), which has no
+    // meaning on a multi-business campaign page. Override it to open profile-edit + logout
+    // directly instead (both still route through #sc-activity-panel internally, which is why
+    // that shell stays in the HTML even though its own order-history list is never populated here).
+    if (window.scAuth) {
+        window.scAuth.openActivityPanel = function() { this.openProfileEdit(); };
+    }
+
     document.addEventListener('DOMContentLoaded', init);
 })();
