@@ -7953,7 +7953,8 @@ app.get('/api/sa/unified-stats', verifySA, async (req, res) => {
         const [
             orders, newFamilies, newBusinesses, newUsers, newCommunities, tickets, banners, flowIssued, zmComm,
             commission, cashback, collected, debt, flowRedeemed, communityJoinReq, communityBizLinks, activeZM,
-            activeBusinesses, activeFamilies, activeUsersFamily, activeUsersBiz, activeUsersSA, activeUsersZM
+            activeBusinesses, activeFamilies, activeUsersFamily, activeUsersBiz, activeUsersSA, activeUsersZM,
+            aiUsage, onlineNow, devTasksOpen
         ] = await Promise.all([
             // BIZ — הזמנות + שווי כספי (מוחרג עסקי טסט)
             safe(`SELECT
@@ -8073,7 +8074,18 @@ app.get('/api/sa/unified-stats', verifySA, async (req, res) => {
                 FROM sa_users`, zero),
             // משתמשים פעילים — ZM
             safe(`SELECT COUNT(*) as all_count, COUNT(*) as today_count, COUNT(*) as month_count
-                FROM zone_managers WHERE status='active'`, zero)
+                FROM zone_managers WHERE status='active'`, zero),
+            // שימוש AI (לא כולל עסקי/משפחות טסט)
+            safe(`SELECT ${RANGE('al.created_at')}
+                FROM ai_usage_log al LEFT JOIN family_groups fg ON fg.id=al.group_id
+                WHERE fg.id IS NULL OR fg.is_test_env IS NOT TRUE`, zero),
+            // משתמשים מחוברים עכשיו (סטטי - לא כולל טסט)
+            safe(`SELECT COUNT(*) as all_count, COUNT(*) as today_count, COUNT(*) as month_count
+                FROM users u JOIN family_groups fg ON fg.id=u.group_id
+                WHERE u.last_seen > NOW()-INTERVAL '3 minutes' AND fg.is_test_env IS NOT TRUE`, zero),
+            // משימות פיתוח פתוחות (סטטי)
+            safe(`SELECT COUNT(*) as all_count, COUNT(*) as today_count, COUNT(*) as month_count
+                FROM sa_dev_tasks WHERE status IN ('backlog','in_progress')`, zero)
         ]);
 
         res.json({
@@ -8107,7 +8119,11 @@ app.get('/api/sa/unified-stats', verifySA, async (req, res) => {
                 active_users_family:{ label: 'משתמשים פעילים — משפחות',   env: 'FAMILY', category: 'entities',    hasValue: false, data: activeUsersFamily },
                 active_users_biz:   { label: 'משתמשים פעילים — עסקים',    env: 'BIZ',    category: 'entities',    hasValue: false, data: activeUsersBiz },
                 active_users_sa:    { label: 'משתמשים פעילים — סופר אדמין', env: 'SA',   category: 'entities',    hasValue: false, data: activeUsersSA },
-                active_users_zm:    { label: 'משתמשים פעילים — מנהלי אזור', env: 'ZM',   category: 'entities',    hasValue: false, data: activeUsersZM }
+                active_users_zm:    { label: 'משתמשים פעילים — מנהלי אזור', env: 'ZM',   category: 'entities',    hasValue: false, data: activeUsersZM },
+
+                ai_usage:          { label: 'קריאות AI',                  env: 'FAMILY', category: 'entities',    hasValue: false, data: aiUsage },
+                online_now:        { label: 'מחוברים עכשיו',              env: 'FAMILY', category: 'entities',    hasValue: false, data: onlineNow },
+                dev_tasks_open:    { label: 'משימות פיתוח פתוחות',        env: 'SA',     category: 'entities',    hasValue: false, data: devTasksOpen }
             }
         });
     } catch(e) {
@@ -8254,6 +8270,21 @@ app.get('/api/sa/kpi-detail', verifySA, async (req, res) => {
                 base: `FROM zone_managers WHERE status='active'`,
                 dateCol: 'created_at',
                 select: `id, name as title, email as entity, NULL::numeric as amount, status, created_at`
+            },
+            ai_usage: {
+                base: `FROM ai_usage_log al LEFT JOIN family_groups fg ON fg.id=al.group_id WHERE fg.id IS NULL OR fg.is_test_env IS NOT TRUE`,
+                dateCol: 'al.created_at',
+                select: `al.id, fg.name as title, NULL::text as entity, NULL::numeric as amount, NULL::text as status, al.created_at`
+            },
+            online_now: {
+                base: `FROM users u JOIN family_groups fg ON fg.id=u.group_id WHERE u.last_seen > NOW()-INTERVAL '3 minutes' AND fg.is_test_env IS NOT TRUE`,
+                dateCol: 'u.last_seen',
+                select: `u.id, COALESCE(u.first_name||' '||u.last_name, u.nickname,'—') as title, fg.name as entity, NULL::numeric as amount, NULL::text as status, u.last_seen as created_at`
+            },
+            dev_tasks_open: {
+                base: `FROM sa_dev_tasks WHERE status IN ('backlog','in_progress')`,
+                dateCol: 'created_at',
+                select: `id, title, status as entity, NULL::numeric as amount, status, created_at`
             }
         };
 
@@ -8383,7 +8414,8 @@ app.get('/api/sa/insights-top-lists', verifySA, async (req, res) => {
     try {
         const safe = (q, label) => pool.query(q).then(r => r.rows).catch(e => { console.error('[SA Top Lists]', label, e.message); return []; });
         const [
-            topBusinesses, topFamiliesCoins, topCommunities, topCommissionBiz, topWallets, topZM
+            topBusinesses, topFamiliesCoins, topCommunities, topCommissionBiz, topWallets, topZM,
+            topDebtors, topAIUsers
         ] = await Promise.all([
             // עסקים והזמנות — top 5 עסקים לפי מחזור הזמנות (לא כולל עסקי טסט)
             safe(`SELECT fg.id, fg.name as title, COUNT(so.id) as sub_count, COALESCE(SUM(so.total_amount),0) as value
@@ -8413,18 +8445,34 @@ app.get('/api/sa/insights-top-lists', verifySA, async (req, res) => {
                 ORDER BY fw.balance DESC LIMIT 5`, 'topWallets'),
             // תפעול — top 5 מנהלי אזור לפי יתרת עמלות
             safe(`SELECT id, name as title, NULL::int as sub_count, COALESCE(total_commissions,0)-COALESCE(total_paid,0) as value
-                FROM zone_managers WHERE status='active' ORDER BY value DESC LIMIT 5`, 'topZM')
+                FROM zone_managers WHERE status='active' ORDER BY value DESC LIMIT 5`, 'topZM'),
+            // כספים — top 5 חייבים (עמלות שטרם נגבו, מקובצות לפי עסק)
+            safe(`SELECT fg.id, fg.name as title, COUNT(d.id) as sub_count, COALESCE(SUM(d.commission_amount),0) as value
+                FROM business_platform_dues d JOIN family_groups fg ON fg.id=d.business_id
+                WHERE d.status='pending' AND fg.is_test_env IS NOT TRUE
+                GROUP BY fg.id, fg.name ORDER BY value DESC LIMIT 5`, 'topDebtors'),
+            // תפעול — top 5 עסקים/משפחות לפי שימוש AI (30 יום)
+            safe(`SELECT fg.id, fg.name as title, COUNT(al.id) as sub_count, NULL::numeric as value
+                FROM ai_usage_log al JOIN family_groups fg ON fg.id=al.group_id
+                WHERE al.created_at > NOW()-INTERVAL '30 days' AND fg.is_test_env IS NOT TRUE
+                GROUP BY fg.id, fg.name ORDER BY sub_count DESC LIMIT 5`, 'topAIUsers')
         ]);
 
         res.json({
             success: true,
             top_lists: {
-                business:    { label: 'עסקים מובילים לפי מחזור הזמנות', items: topBusinesses },
-                families:    { label: 'משפחות מובילות לפי יתרת מטבעות', items: topFamiliesCoins },
-                communities: { label: 'קהילות מובילות לפי עסקים מחוברים', items: topCommunities },
-                finance:     { label: 'עסקים מובילים לפי עמלות שנצברו', items: topCommissionBiz },
-                coins:       { label: 'ארנקי Flow מובילים לפי יתרה', items: topWallets },
-                entities:    { label: 'מנהלי אזור מובילים לפי יתרת עמלות', items: topZM }
+                business:    [{ label: 'עסקים מובילים לפי מחזור הזמנות', items: topBusinesses }],
+                families:    [{ label: 'משפחות מובילות לפי יתרת מטבעות', items: topFamiliesCoins }],
+                communities: [{ label: 'קהילות מובילות לפי עסקים מחוברים', items: topCommunities }],
+                finance:     [
+                    { label: 'עסקים מובילים לפי עמלות שנצברו', items: topCommissionBiz },
+                    { label: 'חייבים מובילים (חוב פתוח)', items: topDebtors }
+                ],
+                coins:       [{ label: 'ארנקי Flow מובילים לפי יתרה', items: topWallets }],
+                entities:    [
+                    { label: 'מנהלי אזור מובילים לפי יתרת עמלות', items: topZM },
+                    { label: 'שימוש AI מוביל (30 יום)', items: topAIUsers }
+                ]
             }
         });
     } catch(e) {

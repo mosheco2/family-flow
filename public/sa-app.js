@@ -693,8 +693,8 @@ function renderSAInsights() {
     const fmtVal = v => (v === null || v === undefined) ? '' : (Number.isInteger(parseFloat(v)) && parseFloat(v) < 1000 ? fmtNum(v) : fmtILS(v));
 
     grid.innerHTML = SA_INSIGHTS_CATEGORIES.filter(c => byCategory[c.key]?.length).map(cat => {
-        const top = _saInsightsTopLists?.[cat.key];
-        const topBox = (top && top.items?.length) ? `
+        const topLists = (_saInsightsTopLists?.[cat.key] || []).filter(t => t.items?.length);
+        const topBox = topLists.map(top => `
             <div class="col-span-full bg-white rounded-xl border border-slate-200 shadow-sm p-4">
                 <p class="text-xs font-bold text-slate-600 mb-2"><i class="fa-solid fa-ranking-star text-amber-400 ml-1"></i>${top.label}</p>
                 <div class="space-y-1.5">
@@ -707,7 +707,7 @@ function renderSAInsights() {
                             <span class="text-emerald-600 font-bold whitespace-nowrap">${it.value !== null ? fmtVal(it.value) : (it.sub_count ?? '')}</span>
                         </div>`).join('')}
                 </div>
-            </div>` : '';
+            </div>`).join('');
         return `
         <div class="col-span-full">
             <div class="flex items-center gap-2 mb-2 mt-1">
