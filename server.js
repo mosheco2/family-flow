@@ -125,6 +125,42 @@ app.use((req, res, next) => {
     next();
 });
 
+// ── תצוגה מקדימה דינמית לחנות ציבורית בווצאפ/רשתות (og:title/description/image) ──
+// אותו מבנה כמו קישור קמפיין קהילה: שם העסק (מודגש) / "WEFLOWZ עושה לכם סדר" (שורה שנייה)
+function injectStorefrontOg(html, row, req) {
+    const escAttr = (s) => String(s || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const baseUrl = `${req.protocol}://${req.get('host')}`;
+    const title = escAttr(row.business_name || 'חנות');
+    const description = 'WEFLOWZ עושה לכם סדר';
+    const image = escAttr(row.logo_url || `${baseUrl}/api/public/logo`);
+    const pageUrl = escAttr(`${baseUrl}${req.originalUrl}`);
+    // מסירים תגי og קיימים (יש רק ב-storefront.html; בשאר התבניות אין בכלל) כדי לא להכפיל
+    let out = html
+        .replace(/<meta property="og:[a-z:]+"[^>]*>\s*/gi, '')
+        .replace(/<title([^>]*)>[^<]*<\/title>/, `<title$1>${title}</title>`);
+    const ogBlock = `<meta property="og:type" content="website"><meta property="og:title" content="${title}"><meta property="og:description" content="${description}"><meta property="og:image" content="${image}"><meta property="og:url" content="${pageUrl}">`;
+    out = out.replace(/(<title[^>]*>[^<]*<\/title>)/, `$1${ogBlock}`);
+    return out;
+}
+const STOREFRONT_OG_TEMPLATES = ['storefront.html','storefront-restaurant.html','storefront-sport.html','storefront-market.html','storefront-professional.html','storefront-repairs.html','storefront-logistics.html'];
+app.get(STOREFRONT_OG_TEMPLATES.map(f => '/' + f), async (req, res, next) => {
+    try {
+        const storeParam = req.query.store || req.query.g;
+        if (!storeParam) return next(); // בלי פרמטר עסק — ממשיכים להגשה הרגילה (סטטית) ללא שינוי
+        const numericId = /^\d+$/.test(storeParam) ? parseInt(storeParam) : null;
+        const r = await pool.query(
+            `SELECT fg.name AS business_name, ss.logo_url
+             FROM family_groups fg LEFT JOIN store_settings ss ON ss.group_id = fg.id
+             WHERE ($3::int IS NOT NULL AND fg.id=$3) OR fg.group_code=$1 OR LOWER(ss.store_alias)=LOWER($2)
+             LIMIT 1`,
+            [String(storeParam).toUpperCase(), String(storeParam).toLowerCase(), numericId]);
+        if (!r.rows.length) return next();
+        const html = fs.readFileSync(path.join(__dirname, 'public', req.path.replace(/^\//, '')), 'utf8');
+        res.set('Cache-Control', 'no-cache, must-revalidate');
+        res.send(injectStorefrontOg(html, r.rows[0], req));
+    } catch(e) { next(); }
+});
+
 app.use(express.static('public', {
     maxAge: '7d',
     setHeaders: (res, filePath) => {
@@ -18301,7 +18337,7 @@ app.get('/:alias', async (req, res, next) => {
     try {
         const numericId = /^\d+$/.test(alias) ? parseInt(alias) : null;
         const tRes = await pool.query(`
-            SELECT ss.template_id FROM store_settings ss
+            SELECT ss.template_id, fg.name AS business_name, ss.logo_url FROM store_settings ss
             JOIN family_groups fg ON fg.id = ss.group_id
             WHERE ($3::int IS NOT NULL AND fg.id = $3) OR fg.group_code = $1 OR LOWER(ss.store_alias) = LOWER($2)
             LIMIT 1
@@ -18324,7 +18360,9 @@ app.get('/:alias', async (req, res, next) => {
         if (htmlFile !== 'storefront.html' && !fs_sync.existsSync(filePath)) {
             return res.sendFile(path.join(__dirname, 'public', 'storefront.html'));
         }
-        res.sendFile(filePath);
+        if (!tRes.rows.length) return res.sendFile(filePath);
+        const html = fs_sync.readFileSync(filePath, 'utf8');
+        res.send(injectStorefrontOg(html, tRes.rows[0], req));
     } catch(e) {
         res.sendFile(path.join(__dirname, 'public', 'storefront.html'));
     }
