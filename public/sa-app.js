@@ -636,14 +636,20 @@ let _saInsightsData = null;
 const SA_ENV_LABELS = { FAMILY: 'משפחות', BIZ: 'עסקים', SA: 'סופר אדמין', ZM: 'מנהלי אזור' };
 const SA_ENV_COLORS = { FAMILY: '#10b981', BIZ: '#3b82f6', SA: '#8b5cf6', ZM: '#f59e0b' };
 
+let _saInsightsTopLists = null;
+
 window.loadSAInsights = async function() {
     const grid = document.getElementById('sa-insights-grid');
     if (!grid) return;
     grid.innerHTML = '<div class="text-center text-slate-400 text-sm py-8 col-span-full">טוען נתונים...</div>';
     try {
-        const d = await saFetch('/api/sa/unified-stats').then(r => r.json());
-        if (!d.success) { grid.innerHTML = '<div class="text-red-500 text-sm text-center py-8 col-span-full">שגיאה בטעינת נתונים</div>'; return; }
-        _saInsightsData = d.kpis;
+        const [statsR, topR] = await Promise.all([
+            saFetch('/api/sa/unified-stats').then(r => r.json()),
+            saFetch('/api/sa/insights-top-lists').then(r => r.json()).catch(() => ({ success:false }))
+        ]);
+        if (!statsR.success) { grid.innerHTML = '<div class="text-red-500 text-sm text-center py-8 col-span-full">שגיאה בטעינת נתונים</div>'; return; }
+        _saInsightsData = statsR.kpis;
+        _saInsightsTopLists = topR.success ? topR.top_lists : null;
         renderSAInsights();
     } catch (e) {
         grid.innerHTML = '<div class="text-red-500 text-sm text-center py-8 col-span-full">שגיאת רשת</div>';
@@ -684,7 +690,25 @@ function renderSAInsights() {
         (byCategory[cat] = byCategory[cat] || []).push([key, kpi]);
     });
 
-    grid.innerHTML = SA_INSIGHTS_CATEGORIES.filter(c => byCategory[c.key]?.length).map(cat => `
+    const fmtVal = v => (v === null || v === undefined) ? '' : (Number.isInteger(parseFloat(v)) && parseFloat(v) < 1000 ? fmtNum(v) : fmtILS(v));
+
+    grid.innerHTML = SA_INSIGHTS_CATEGORIES.filter(c => byCategory[c.key]?.length).map(cat => {
+        const top = _saInsightsTopLists?.[cat.key];
+        const topBox = (top && top.items?.length) ? `
+            <div class="col-span-full bg-white rounded-xl border border-slate-200 shadow-sm p-4">
+                <p class="text-xs font-bold text-slate-600 mb-2"><i class="fa-solid fa-ranking-star text-amber-400 ml-1"></i>${top.label}</p>
+                <div class="space-y-1.5">
+                    ${top.items.map((it, i) => `
+                        <div class="flex items-center justify-between text-sm gap-2">
+                            <div class="flex items-center gap-2 min-w-0">
+                                <span class="w-5 h-5 rounded-full bg-slate-100 text-slate-500 text-[10px] font-black flex items-center justify-center flex-shrink-0">${i+1}</span>
+                                <span class="text-slate-700 font-medium truncate">${it.title || '—'}</span>
+                            </div>
+                            <span class="text-emerald-600 font-bold whitespace-nowrap">${it.value !== null ? fmtVal(it.value) : (it.sub_count ?? '')}</span>
+                        </div>`).join('')}
+                </div>
+            </div>` : '';
+        return `
         <div class="col-span-full">
             <div class="flex items-center gap-2 mb-2 mt-1">
                 <i class="fa-solid ${cat.icon} text-slate-400 text-xs"></i>
@@ -706,7 +730,8 @@ function renderSAInsights() {
                 ${kpi.hasValue ? `<p class="text-sm font-bold text-emerald-600 mt-1">${fmtILS(value)}</p>` : ''}
             </div>`;
         }).join('')}
-    `).join('');
+        ${topBox}`;
+    }).join('');
 }
 
 // ── דרילדאון: פאנל פירוט KPI ──

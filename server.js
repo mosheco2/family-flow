@@ -7941,7 +7941,8 @@ app.get('/api/sa/unified-stats', verifySA, async (req, res) => {
 
         const [
             orders, newFamilies, newBusinesses, newUsers, newCommunities, tickets, banners, flowIssued, zmComm,
-            commission, cashback, collected, debt, flowRedeemed, communityJoinReq, communityBizLinks, activeZM
+            commission, cashback, collected, debt, flowRedeemed, communityJoinReq, communityBizLinks, activeZM,
+            activeBusinesses, activeFamilies, activeUsersFamily, activeUsersBiz, activeUsersSA, activeUsersZM
         ] = await Promise.all([
             // BIZ — הזמנות + שווי כספי
             safe(`SELECT
@@ -8021,7 +8022,34 @@ app.get('/api/sa/unified-stats', verifySA, async (req, res) => {
             // קהילות — עסקים שחוברו בפועל
             safe(`SELECT ${RANGE('created_at')} FROM community_businesses WHERE status='approved'`, zero),
             // מנהלי אזור — פעילים חדשים
-            safe(`SELECT ${RANGE('created_at')} FROM zone_managers WHERE status='active'`, zero)
+            safe(`SELECT ${RANGE('created_at')} FROM zone_managers WHERE status='active'`, zero),
+            // עסקים פעילים (סטטיים - לא מסוננים לפי טווח)
+            safe(`SELECT COUNT(*) as all_count, COUNT(*) as today_count, COUNT(*) as month_count
+                FROM family_groups WHERE type='BUSINESS' AND account_status='active'`, zero),
+            // משפחות פעילות (סטטיות)
+            safe(`SELECT COUNT(*) as all_count, COUNT(*) as today_count, COUNT(*) as month_count
+                FROM family_groups WHERE type='FAMILY' AND account_status='active' AND member_type NOT IN ('member','shopper')`, zero),
+            // משתמשים פעילים — FAMILY (סטטוס active, מסונן לפי כניסה אחרונה)
+            safe(`SELECT
+                COUNT(*) FILTER (WHERE u.status='active') as all_count,
+                COUNT(*) FILTER (WHERE u.status='active' AND u.last_seen > CURRENT_DATE) as today_count,
+                COUNT(*) FILTER (WHERE u.status='active' AND u.last_seen > NOW()-INTERVAL '30 days') as month_count
+                FROM users u JOIN family_groups fg ON fg.id=u.group_id WHERE fg.type='FAMILY'`, zero),
+            // משתמשים פעילים — BIZ
+            safe(`SELECT
+                COUNT(*) FILTER (WHERE u.status='active') as all_count,
+                COUNT(*) FILTER (WHERE u.status='active' AND u.last_seen > CURRENT_DATE) as today_count,
+                COUNT(*) FILTER (WHERE u.status='active' AND u.last_seen > NOW()-INTERVAL '30 days') as month_count
+                FROM users u JOIN family_groups fg ON fg.id=u.group_id WHERE fg.type='BUSINESS'`, zero),
+            // משתמשים פעילים — SA (צוות)
+            safe(`SELECT
+                COUNT(*) FILTER (WHERE status='active') as all_count,
+                COUNT(*) FILTER (WHERE status='active') as today_count,
+                COUNT(*) FILTER (WHERE status='active') as month_count
+                FROM sa_users`, zero),
+            // משתמשים פעילים — ZM
+            safe(`SELECT COUNT(*) as all_count, COUNT(*) as today_count, COUNT(*) as month_count
+                FROM zone_managers WHERE status='active'`, zero)
         ]);
 
         res.json({
@@ -8048,7 +8076,14 @@ app.get('/api/sa/unified-stats', verifySA, async (req, res) => {
                 flow_redeemed:     { label: 'מטבעות Flow שמומשו',        env: 'FAMILY', category: 'coins',       hasValue: true,  data: flowRedeemed },
 
                 tickets:           { label: 'פניות תמיכה',               env: 'SA',     category: 'entities',    hasValue: false, data: tickets },
-                active_zm:         { label: 'מנהלי אזור פעילים חדשים',   env: 'ZM',     category: 'entities',    hasValue: false, data: activeZM }
+                active_zm:         { label: 'מנהלי אזור פעילים חדשים',   env: 'ZM',     category: 'entities',    hasValue: false, data: activeZM },
+
+                active_businesses:  { label: 'עסקים פעילים',              env: 'BIZ',    category: 'business',    hasValue: false, data: activeBusinesses },
+                active_families:    { label: 'משפחות פעילות',             env: 'FAMILY', category: 'families',    hasValue: false, data: activeFamilies },
+                active_users_family:{ label: 'משתמשים פעילים — משפחות',   env: 'FAMILY', category: 'entities',    hasValue: false, data: activeUsersFamily },
+                active_users_biz:   { label: 'משתמשים פעילים — עסקים',    env: 'BIZ',    category: 'entities',    hasValue: false, data: activeUsersBiz },
+                active_users_sa:    { label: 'משתמשים פעילים — סופר אדמין', env: 'SA',   category: 'entities',    hasValue: false, data: activeUsersSA },
+                active_users_zm:    { label: 'משתמשים פעילים — מנהלי אזור', env: 'ZM',   category: 'entities',    hasValue: false, data: activeUsersZM }
             }
         });
     } catch(e) {
@@ -8165,6 +8200,36 @@ app.get('/api/sa/kpi-detail', verifySA, async (req, res) => {
                 base: `FROM zone_managers WHERE status='active'`,
                 dateCol: 'created_at',
                 select: `id, name as title, email as entity, NULL::numeric as amount, status, created_at`
+            },
+            active_businesses: {
+                base: `FROM family_groups WHERE type='BUSINESS' AND account_status='active'`,
+                dateCol: 'created_at',
+                select: `id, name as title, NULL::text as entity, NULL::numeric as amount, account_status as status, created_at`
+            },
+            active_families: {
+                base: `FROM family_groups WHERE type='FAMILY' AND account_status='active' AND member_type NOT IN ('member','shopper')`,
+                dateCol: 'created_at',
+                select: `id, name as title, NULL::text as entity, NULL::numeric as amount, account_status as status, created_at`
+            },
+            active_users_family: {
+                base: `FROM users u JOIN family_groups fg ON fg.id=u.group_id WHERE fg.type='FAMILY' AND u.status='active'`,
+                dateCol: 'u.last_seen',
+                select: `u.id, COALESCE(u.first_name||' '||u.last_name, u.nickname,'—') as title, fg.name as entity, NULL::numeric as amount, u.status, u.last_seen as created_at`
+            },
+            active_users_biz: {
+                base: `FROM users u JOIN family_groups fg ON fg.id=u.group_id WHERE fg.type='BUSINESS' AND u.status='active'`,
+                dateCol: 'u.last_seen',
+                select: `u.id, COALESCE(u.first_name||' '||u.last_name, u.nickname,'—') as title, fg.name as entity, NULL::numeric as amount, u.status, u.last_seen as created_at`
+            },
+            active_users_sa: {
+                base: `FROM sa_users WHERE status='active'`,
+                dateCol: 'created_at',
+                select: `id, name as title, email as entity, NULL::numeric as amount, status, created_at`
+            },
+            active_users_zm: {
+                base: `FROM zone_managers WHERE status='active'`,
+                dateCol: 'created_at',
+                select: `id, name as title, email as entity, NULL::numeric as amount, status, created_at`
             }
         };
 
@@ -8182,6 +8247,58 @@ app.get('/api/sa/kpi-detail', verifySA, async (req, res) => {
         res.json({ success: true, rows: listR.rows, total: parseInt(countR.rows[0].cnt), page, limit });
     } catch(e) {
         console.error('[SA KPI Detail]', e.message);
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+// ── SA UNIFIED INSIGHTS: 5 מובילים לכל קטגוריה ───────────────────────────────
+app.get('/api/sa/insights-top-lists', verifySA, async (req, res) => {
+    try {
+        const safe = (q, label) => pool.query(q).then(r => r.rows).catch(e => { console.error('[SA Top Lists]', label, e.message); return []; });
+        const [
+            topBusinesses, topFamiliesCoins, topCommunities, topCommissionBiz, topWallets, topZM
+        ] = await Promise.all([
+            // עסקים והזמנות — top 5 עסקים לפי מחזור הזמנות
+            safe(`SELECT fg.id, fg.name as title, COUNT(so.id) as sub_count, COALESCE(SUM(so.total_amount),0) as value
+                FROM store_orders so JOIN family_groups fg ON fg.id=so.group_id
+                WHERE so.status NOT IN ('cancelled','rejected')
+                GROUP BY fg.id, fg.name ORDER BY value DESC LIMIT 5`, 'topBusinesses'),
+            // משפחות — top 5 לפי יתרת מטבעות Flow
+            safe(`SELECT fg.id, fg.name as title, NULL::int as sub_count, COALESCE(fw.balance,0) as value
+                FROM flow_wallets fw JOIN family_groups fg ON fg.id=fw.entity_id AND fw.entity_type='family'
+                WHERE fg.type='FAMILY' ORDER BY value DESC LIMIT 5`, 'topFamilies'),
+            // קהילות — top 5 לפי מספר עסקים מחוברים
+            safe(`SELECT c.id, c.name as title, COUNT(cb.business_id) as sub_count, NULL::numeric as value
+                FROM communities c LEFT JOIN community_businesses cb ON cb.community_id=c.id AND cb.status='approved'
+                GROUP BY c.id, c.name ORDER BY sub_count DESC LIMIT 5`, 'topCommunities'),
+            // כספים — top 5 עסקים לפי עמלות שנצברו
+            safe(`SELECT fg.id, fg.name as title, COUNT(d.id) as sub_count, COALESCE(SUM(d.commission_amount),0) as value
+                FROM business_platform_dues d JOIN family_groups fg ON fg.id=d.business_id
+                GROUP BY fg.id, fg.name ORDER BY value DESC LIMIT 5`, 'topCommission'),
+            // מטבעות — top 5 ארנקים לפי יתרה (כל סוגי הישויות)
+            safe(`SELECT fw.id, COALESCE(fg.name, c.name, fw.entity_type||' #'||fw.entity_id) as title, fw.entity_type as sub_count, fw.balance as value
+                FROM flow_wallets fw
+                LEFT JOIN family_groups fg ON fg.id=fw.entity_id AND fw.entity_type IN ('family','business')
+                LEFT JOIN communities c ON c.id=fw.entity_id AND fw.entity_type='community'
+                ORDER BY fw.balance DESC LIMIT 5`, 'topWallets'),
+            // תפעול — top 5 מנהלי אזור לפי יתרת עמלות
+            safe(`SELECT id, name as title, NULL::int as sub_count, COALESCE(total_commissions,0)-COALESCE(total_paid,0) as value
+                FROM zone_managers WHERE status='active' ORDER BY value DESC LIMIT 5`, 'topZM')
+        ]);
+
+        res.json({
+            success: true,
+            top_lists: {
+                business:    { label: 'עסקים מובילים לפי מחזור הזמנות', items: topBusinesses },
+                families:    { label: 'משפחות מובילות לפי יתרת מטבעות', items: topFamiliesCoins },
+                communities: { label: 'קהילות מובילות לפי עסקים מחוברים', items: topCommunities },
+                finance:     { label: 'עסקים מובילים לפי עמלות שנצברו', items: topCommissionBiz },
+                coins:       { label: 'ארנקי Flow מובילים לפי יתרה', items: topWallets },
+                entities:    { label: 'מנהלי אזור מובילים לפי יתרת עמלות', items: topZM }
+            }
+        });
+    } catch(e) {
+        console.error('[SA Top Lists]', e.message);
         res.status(500).json({ success: false, error: e.message });
     }
 });
