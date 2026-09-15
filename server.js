@@ -7927,6 +7927,166 @@ app.get('/api/sa/bigscreen-stats', verifySA, async (req, res) => {
     }
 });
 
+// ── SA UNIFIED INSIGHTS: KPI רוחביים לכל 4 הסביבות, לכל טווח (הכל/היום/חודש) ──
+app.get('/api/sa/unified-stats', verifySA, async (req, res) => {
+    try {
+        const safe = (q, def) => pool.query(q).then(r => r.rows[0] || def).catch(e => { console.error('[SA Unified KPI]', e.message); return def; });
+        const RANGE = (col) => `
+            COUNT(*) as all_count,
+            COUNT(*) FILTER (WHERE ${col} > CURRENT_DATE) as today_count,
+            COUNT(*) FILTER (WHERE ${col} > NOW()-INTERVAL '30 days') as month_count`;
+
+        const [
+            orders, families, businesses, users, communities, tickets, banners, flowVal, zmComm
+        ] = await Promise.all([
+            // BIZ — הזמנות + שווי כספי
+            safe(`SELECT
+                ${RANGE('created_at')},
+                COALESCE(SUM(total_amount),0) as all_value,
+                COALESCE(SUM(total_amount) FILTER (WHERE created_at > CURRENT_DATE),0) as today_value,
+                COALESCE(SUM(total_amount) FILTER (WHERE created_at > NOW()-INTERVAL '30 days'),0) as month_value
+                FROM store_orders WHERE status NOT IN ('cancelled','rejected')`,
+                { all_count:0, today_count:0, month_count:0, all_value:0, today_value:0, month_value:0 }),
+            // FAMILY — משפחות חדשות
+            safe(`SELECT ${RANGE('created_at')} FROM family_groups WHERE type='FAMILY' AND member_type NOT IN ('member','shopper')`,
+                { all_count:0, today_count:0, month_count:0 }),
+            // BIZ — עסקים חדשים
+            safe(`SELECT ${RANGE('created_at')} FROM family_groups WHERE type='BUSINESS'`,
+                { all_count:0, today_count:0, month_count:0 }),
+            // FAMILY — משתמשים חדשים
+            safe(`SELECT ${RANGE('created_at')} FROM users`,
+                { all_count:0, today_count:0, month_count:0 }),
+            // ZM — קהילות חדשות
+            safe(`SELECT ${RANGE('created_at')} FROM communities`,
+                { all_count:0, today_count:0, month_count:0 }),
+            // SA — פניות תמיכה
+            safe(`SELECT ${RANGE('created_at')} FROM support_tickets`,
+                { all_count:0, today_count:0, month_count:0 }),
+            // BIZ/SA — הזמנות שילוט + שווי
+            safe(`SELECT
+                ${RANGE('bo.created_at')},
+                COALESCE(SUM(bo.total_price),0) as all_value,
+                COALESCE(SUM(bo.total_price) FILTER (WHERE bo.created_at > CURRENT_DATE),0) as today_value,
+                COALESCE(SUM(bo.total_price) FILTER (WHERE bo.created_at > NOW()-INTERVAL '30 days'),0) as month_value
+                FROM banner_orders bo`,
+                { all_count:0, today_count:0, month_count:0, all_value:0, today_value:0, month_value:0 }),
+            // SA — תנועת Flow (שווי)
+            safe(`SELECT
+                ${RANGE('created_at')},
+                COALESCE(SUM(amount) FILTER (WHERE amount>0),0) as all_value,
+                COALESCE(SUM(amount) FILTER (WHERE amount>0 AND created_at > CURRENT_DATE),0) as today_value,
+                COALESCE(SUM(amount) FILTER (WHERE amount>0 AND created_at > NOW()-INTERVAL '30 days'),0) as month_value
+                FROM flow_transactions`,
+                { all_count:0, today_count:0, month_count:0, all_value:0, today_value:0, month_value:0 }),
+            // ZM — עמלות מנהלי אזור
+            safe(`SELECT
+                ${RANGE('created_at')},
+                COALESCE(SUM(amount_ils),0) as all_value,
+                COALESCE(SUM(amount_ils) FILTER (WHERE created_at > CURRENT_DATE),0) as today_value,
+                COALESCE(SUM(amount_ils) FILTER (WHERE created_at > NOW()-INTERVAL '30 days'),0) as month_value
+                FROM billing_records WHERE record_type='zm_commission'`,
+                { all_count:0, today_count:0, month_count:0, all_value:0, today_value:0, month_value:0 })
+        ]);
+
+        res.json({
+            success: true,
+            kpis: {
+                orders: { label: 'הזמנות (חנויות)', env: 'BIZ', hasValue: true, data: orders },
+                new_families: { label: 'משפחות חדשות', env: 'FAMILY', hasValue: false, data: families },
+                new_businesses: { label: 'עסקים חדשים', env: 'BIZ', hasValue: false, data: businesses },
+                new_users: { label: 'משתמשים חדשים', env: 'FAMILY', hasValue: false, data: users },
+                new_communities: { label: 'קהילות חדשות', env: 'ZM', hasValue: false, data: communities },
+                tickets: { label: 'פניות תמיכה', env: 'SA', hasValue: false, data: tickets },
+                banners: { label: 'הזמנות שילוט', env: 'BIZ', hasValue: true, data: banners },
+                flow: { label: 'תנועת Flow', env: 'SA', hasValue: true, data: flowVal },
+                zm_commissions: { label: 'עמלות מנהלי אזור', env: 'ZM', hasValue: true, data: zmComm }
+            }
+        });
+    } catch(e) {
+        console.error('[SA Unified Stats]', e.message);
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+// ── SA UNIFIED INSIGHTS: פירוט KPI — הרשימה הגולמית המרכיבה אותו ────────────
+app.get('/api/sa/kpi-detail', verifySA, async (req, res) => {
+    try {
+        const { kpi, range } = req.query;
+        const page = Math.max(1, parseInt(req.query.page) || 1);
+        const limit = 30;
+        const offset = (page - 1) * limit;
+
+        let dateCol = 'created_at';
+        let timeFilter = '';
+        if (range === 'today') timeFilter = `AND ${dateCol} > CURRENT_DATE`;
+        else if (range === 'month') timeFilter = `AND ${dateCol} > NOW()-INTERVAL '30 days'`;
+
+        const DEFS = {
+            orders: {
+                base: `FROM store_orders so LEFT JOIN family_groups fg ON fg.id=so.group_id WHERE so.status NOT IN ('cancelled','rejected')`,
+                dateCol: 'so.created_at',
+                select: `so.id, so.customer_name as title, fg.name as entity, so.total_amount as amount, so.status, so.created_at`
+            },
+            new_families: {
+                base: `FROM family_groups WHERE type='FAMILY' AND member_type NOT IN ('member','shopper')`,
+                dateCol: 'created_at',
+                select: `id, name as title, NULL::text as entity, NULL::numeric as amount, NULL::text as status, created_at`
+            },
+            new_businesses: {
+                base: `FROM family_groups WHERE type='BUSINESS'`,
+                dateCol: 'created_at',
+                select: `id, name as title, NULL::text as entity, NULL::numeric as amount, NULL::text as status, created_at`
+            },
+            new_users: {
+                base: `FROM users u LEFT JOIN family_groups fg ON fg.id=u.group_id WHERE 1=1`,
+                dateCol: 'u.created_at',
+                select: `u.id, COALESCE(u.first_name||' '||u.last_name, u.nickname,'—') as title, fg.name as entity, NULL::numeric as amount, NULL::text as status, u.created_at`
+            },
+            new_communities: {
+                base: `FROM communities WHERE 1=1`,
+                dateCol: 'created_at',
+                select: `id, name as title, status as entity, NULL::numeric as amount, status, created_at`
+            },
+            tickets: {
+                base: `FROM support_tickets t LEFT JOIN family_groups fg ON fg.id=t.group_id WHERE 1=1`,
+                dateCol: 't.created_at',
+                select: `t.id, t.subject as title, fg.name as entity, NULL::numeric as amount, t.status, t.created_at`
+            },
+            banners: {
+                base: `FROM banner_orders bo JOIN banner_slots bs ON bs.id=bo.slot_id LEFT JOIN family_groups fg ON fg.id=bo.business_id WHERE 1=1`,
+                dateCol: 'bo.created_at',
+                select: `bo.id, bs.name as title, fg.name as entity, bo.total_price as amount, bo.status, bo.created_at`
+            },
+            flow: {
+                base: `FROM flow_transactions ft LEFT JOIN family_groups fg ON ft.entity_type IN ('family','business') AND fg.id=ft.entity_id LEFT JOIN communities c ON ft.entity_type='community' AND c.id=ft.entity_id WHERE ft.amount>0`,
+                dateCol: 'ft.created_at',
+                select: `ft.id, ft.description as title, COALESCE(fg.name, c.name,'—') as entity, ft.amount, NULL::text as status, ft.created_at`
+            },
+            zm_commissions: {
+                base: `FROM billing_records WHERE record_type='zm_commission'`,
+                dateCol: 'created_at',
+                select: `id, description as title, NULL::text as entity, amount_ils as amount, payment_status as status, created_at`
+            }
+        };
+
+        const def = DEFS[kpi];
+        if (!def) return res.status(400).json({ success: false, error: 'unknown kpi' });
+
+        let tf = '';
+        if (range === 'today') tf = `AND ${def.dateCol} > CURRENT_DATE`;
+        else if (range === 'month') tf = `AND ${def.dateCol} > NOW()-INTERVAL '30 days'`;
+
+        const listQ = `SELECT ${def.select} ${def.base} ${tf} ORDER BY ${def.dateCol} DESC LIMIT ${limit} OFFSET ${offset}`;
+        const countQ = `SELECT COUNT(*) as cnt ${def.base} ${tf}`;
+
+        const [listR, countR] = await Promise.all([pool.query(listQ), pool.query(countQ)]);
+        res.json({ success: true, rows: listR.rows, total: parseInt(countR.rows[0].cnt), page, limit });
+    } catch(e) {
+        console.error('[SA KPI Detail]', e.message);
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
 // ── BIG SCREEN: activity feed (polling, since param) ─────────────────────────
 app.get('/api/sa/activity-feed', verifySA, async (req, res) => {
     try {
