@@ -16525,7 +16525,7 @@ window.discoverViaBusinessCode = async function() {
     if (!code || !currentGroup?.id) return;
     if (el) el.innerHTML = '<p class="text-xs text-slate-400 text-center py-3">מחפש...</p>';
     try {
-        const res = await fetch(`${API}/biz/communities/via-biz/${code}/${currentGroup.id}`);
+        const res = await fetch(`${API}/biz/communities/via-biz/${code}/${currentGroup.id}`, { headers: { 'Authorization': `Bearer ${window._bizToken || localStorage.getItem('ofl_family_token') || ''}` } });
         const data = await res.json();
         if (!data.success) { if (el) el.innerHTML = `<p class="text-xs text-red-500 text-center py-2">${data.error || 'שגיאה'}</p>`; return; }
         if (el) el.innerHTML = `<p class="text-xs text-green-700 font-bold bg-green-50 rounded-lg px-3 py-1.5">✅ קהילות של ${safeStr(data.via_biz)}:</p>`;
@@ -16619,7 +16619,7 @@ async function submitBizCommunityJoin() {
     
     try {
         const res = await fetch(`${API}/biz/communities/join`, {
-            method: 'POST', headers: {'Content-Type': 'application/json'},
+            method: 'POST', headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${window._bizToken || localStorage.getItem('ofl_family_token') || ''}`},
             body: JSON.stringify({ communityId: commId, businessId: currentGroup.id, discountPct: discount })
         });
         const data = await res.json();
@@ -16660,7 +16660,7 @@ window.submitUpdateDiscount = async function(commId) {
     if (val === '' || val === undefined) return showToast('error', 'יש להזין אחוז הנחה');
     try {
         const res = await fetch(`${API}/biz/community-discount`, {
-            method: 'PUT', headers: {'Content-Type':'application/json'},
+            method: 'PUT', headers: {'Content-Type':'application/json', 'Authorization': `Bearer ${window._bizToken || localStorage.getItem('ofl_family_token') || ''}`},
             body: JSON.stringify({ businessId: currentGroup.id, communityId: commId, discountPct: parseFloat(val)||0 })
         });
         const data = await res.json();
@@ -16673,7 +16673,7 @@ async function leaveBizCommunity(commId) {
     if(!await window._uiConfirm('האם אתה בטוח שברצונך להתנתק מקהילה זו? לקוחות הקהילה לא יוכלו ליהנות יותר מההטבות בחנות שלך.')) return;
     
     try {
-        const res = await fetch(`${API}/biz/communities/leave/${commId}/${currentGroup.id}`, { method: 'DELETE' });
+        const res = await fetch(`${API}/biz/communities/leave/${commId}/${currentGroup.id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${window._bizToken || localStorage.getItem('ofl_family_token') || ''}` } });
         const data = await res.json();
         if(data.success) {
             showToast('success', 'התנתקת מהקהילה בהצלחה.');
@@ -16880,7 +16880,7 @@ window.submitBizPromo = async function() {
 
     try {
         const res = await fetch(`${API}/biz/community/promotions`, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${window._bizToken || localStorage.getItem('ofl_family_token') || ''}` },
             body: JSON.stringify(body)
         });
         const data = await res.json();
@@ -16972,7 +16972,7 @@ window.loadMyBizBundles = async function() {
     if (!currentGroup?.id) return;
     try {
         // Get all communities this business is in
-        const myCommsRes = await fetch(`${API}/biz/communities/my/${currentGroup.id}`);
+        const myCommsRes = await fetch(`${API}/biz/communities/my/${currentGroup.id}`, { headers: { 'Authorization': `Bearer ${window._bizToken || localStorage.getItem('ofl_family_token') || ''}` } });
         const myCommsData = await myCommsRes.json();
         const commIds = (myCommsData.communities || []).filter(c => c.status === 'approved').map(c => c.id);
         const el = document.getElementById('biz-bundles-list');
@@ -17017,7 +17017,7 @@ window.loadMyBizPromos = async function() {
     document.body.appendChild(panel);
     if (!currentGroup?.id) return;
     try {
-        const res = await fetch(`${API}/biz/community/promotions/${currentGroup.id}`);
+        const res = await fetch(`${API}/biz/community/promotions/${currentGroup.id}`, { headers: { 'Authorization': `Bearer ${window._bizToken || localStorage.getItem('ofl_family_token') || ''}` } });
         const data = await res.json();
         const list = data.promos || data.promotions || [];
         const el = document.getElementById('biz-mypromos-list');
@@ -17056,7 +17056,7 @@ window.requestBannerForPromo = async function(promoId) {
     try {
         const res = await fetch(`${API}/biz/community/promotions/${promoId}/banner-request`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${window._bizToken || localStorage.getItem('ofl_family_token') || ''}` },
             body: JSON.stringify({ businessId: currentGroup.id })
         });
         const data = await res.json();
@@ -17368,7 +17368,7 @@ window.submitAcceptInvite = async function(commId) {
     if (discount === '' || discount === undefined) return showToast('error', 'יש להזין אחוז הנחה (ניתן 0)');
     try {
         const res = await fetch(`${API}/biz/community-invitation/accept`, {
-            method: 'POST', headers: {'Content-Type':'application/json'},
+            method: 'POST', headers: {'Content-Type':'application/json', 'Authorization': `Bearer ${window._bizToken || localStorage.getItem('ofl_family_token') || ''}`},
             body: JSON.stringify({ businessId: currentGroup.id, communityId: commId, discountPct: parseFloat(discount)||0 })
         });
         const data = await res.json();
@@ -17380,7 +17380,7 @@ window.submitAcceptInvite = async function(commId) {
 window.declineBizInvite = async function(commId) {
     try {
         const res = await fetch(`${API}/biz/community-invitation/decline`, {
-            method: 'POST', headers: {'Content-Type':'application/json'},
+            method: 'POST', headers: {'Content-Type':'application/json', 'Authorization': `Bearer ${window._bizToken || localStorage.getItem('ofl_family_token') || ''}`},
             body: JSON.stringify({ businessId: currentGroup.id, communityId: commId })
         });
         const data = await res.json();
@@ -55025,7 +55025,7 @@ async function populateBizCommunitySelect() {
     if (!sel || !currentGroup) return;
     // טוען ישירות מה-API כדי להבטיח נתונים עדכניים
     try {
-        const r = await fetch(`${API}/biz/communities/my/${currentGroup.id}`);
+        const r = await fetch(`${API}/biz/communities/my/${currentGroup.id}`, { headers: { 'Authorization': `Bearer ${window._bizToken || localStorage.getItem('ofl_family_token') || ''}` } });
         const d = await r.json();
         if (d.success && d.communities && d.communities.length) {
             myCommunityBusinessesCache = d.communities;
@@ -55051,7 +55051,7 @@ window.onBizCommunityChange = async function(communityId) {
     if (chips) chips.innerHTML = '';
     if (loading) loading.classList.remove('hidden');
     try {
-        const r = await fetch(`${API}/biz/community/${communityId}/groups`);
+        const r = await fetch(`${API}/biz/community/${communityId}/groups`, { headers: { 'Authorization': `Bearer ${window._bizToken || localStorage.getItem('ofl_family_token') || ''}` } });
         const d = await r.json();
         if (loading) loading.classList.add('hidden');
         if (!d.success || !d.groups || !d.groups.length) {
