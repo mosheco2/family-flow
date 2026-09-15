@@ -12379,6 +12379,7 @@ app.post('/api/campaign/:code/order', async (req, res) => {
             `SELECT * FROM community_campaigns WHERE code=$1 AND status='active'`, [req.params.code.toLowerCase()]);
         if (!cRes.rows.length) return res.status(404).json({ error: 'קמפיין לא נמצא' });
         const campaign = cRes.rows[0];
+        if (campaign.ordering_enabled === false) return res.status(403).json({ error: 'שמחים שאתם נלהבים כמונו ממוצרי השוק, הם יהיו זמינים בקרוב - ניתן להתעדכן מול רכזת הקהילה' });
 
         // כל הפריטים בעגלה חייבים להיות מאותו עסק בדיוק — נאכף בשרת, לא רק ב-UI
         const businessGroupIds = [...new Set(items.map(i => parseInt(i.businessGroupId)))];
@@ -13177,6 +13178,7 @@ async function initCommunityTables() {
         `ALTER TABLE community_campaigns ADD COLUMN IF NOT EXISTS slogan VARCHAR(200)`,
         `ALTER TABLE community_campaigns ADD COLUMN IF NOT EXISTS hide_title BOOLEAN DEFAULT FALSE`,
         `ALTER TABLE community_campaigns ADD COLUMN IF NOT EXISTS share_description VARCHAR(300)`,
+        `ALTER TABLE community_campaigns ADD COLUMN IF NOT EXISTS ordering_enabled BOOLEAN DEFAULT TRUE`,
         `ALTER TABLE community_campaigns ALTER COLUMN title DROP NOT NULL`,
         `CREATE TABLE IF NOT EXISTS community_campaign_businesses (
             campaign_id INT REFERENCES community_campaigns(id) ON DELETE CASCADE,
@@ -15545,7 +15547,7 @@ app.patch('/api/zone-manager/community-campaigns/:id', verifyZoneManager, async 
         const campaign = await verifyCampaignOwnership(req.params.id, managerId);
         if (!campaign) return res.status(403).json({ error: 'אין הרשאה לקמפיין זה' });
 
-        const { title, description, bannerImageUrl, status, logoUrl, slogan, hideTitle, shareDescription } = req.body;
+        const { title, description, bannerImageUrl, status, logoUrl, slogan, hideTitle, shareDescription, orderingEnabled } = req.body;
         const upd = await pool.query(
             `UPDATE community_campaigns SET
                 title = COALESCE($1, title),
@@ -15555,9 +15557,10 @@ app.patch('/api/zone-manager/community-campaigns/:id', verifyZoneManager, async 
                 logo_url = COALESCE($6, logo_url),
                 slogan = COALESCE($7, slogan),
                 hide_title = COALESCE($8, hide_title),
-                share_description = COALESCE($9, share_description)
+                share_description = COALESCE($9, share_description),
+                ordering_enabled = COALESCE($10, ordering_enabled)
              WHERE id=$5 RETURNING *`,
-            [title, description, bannerImageUrl, status, req.params.id, logoUrl, slogan, hideTitle, shareDescription]);
+            [title, description, bannerImageUrl, status, req.params.id, logoUrl, slogan, hideTitle, shareDescription, orderingEnabled]);
         res.json({ success: true, campaign: upd.rows[0] });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -16304,7 +16307,7 @@ app.patch('/api/community/manager/campaigns/:id', verifyFamily, async (req, res)
         const campaign = await verifyCampaignOwnershipFamily(req.params.id, req.familyAuth.groupId);
         if (!campaign) return res.status(403).json({ error: 'אין הרשאה לקמפיין זה' });
 
-        const { title, description, bannerImageUrl, status, logoUrl, slogan, hideTitle, shareDescription } = req.body;
+        const { title, description, bannerImageUrl, status, logoUrl, slogan, hideTitle, shareDescription, orderingEnabled } = req.body;
         const upd = await pool.query(
             `UPDATE community_campaigns SET
                 title = COALESCE($1, title),
@@ -16314,9 +16317,10 @@ app.patch('/api/community/manager/campaigns/:id', verifyFamily, async (req, res)
                 logo_url = COALESCE($6, logo_url),
                 slogan = COALESCE($7, slogan),
                 hide_title = COALESCE($8, hide_title),
-                share_description = COALESCE($9, share_description)
+                share_description = COALESCE($9, share_description),
+                ordering_enabled = COALESCE($10, ordering_enabled)
              WHERE id=$5 RETURNING *`,
-            [title, description, bannerImageUrl, status, req.params.id, logoUrl, slogan, hideTitle, shareDescription]);
+            [title, description, bannerImageUrl, status, req.params.id, logoUrl, slogan, hideTitle, shareDescription, orderingEnabled]);
         res.json({ success: true, campaign: upd.rows[0] });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });

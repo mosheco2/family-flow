@@ -1525,10 +1525,11 @@ async function zmSaveCampaignSettings(campaignId, commId) {
     const bannerImageUrl = document.getElementById(`zmc-banner-input-${campaignId}`)?.value;
     const hideTitle = !!document.getElementById(`zmc-hide-title-${campaignId}`)?.checked;
     const shareDescription = document.getElementById(`zmc-sharedesc-${campaignId}`)?.value.trim();
+    const orderingEnabled = !!document.getElementById(`zmc-ordering-${campaignId}`)?.checked;
     try {
         const res = await fetch(`${API}/zone-manager/community-campaigns/${campaignId}`, {
             method: 'PATCH', headers: { 'Content-Type': 'application/json', 'Authorization': zmToken },
-            body: JSON.stringify({ title, slogan: slogan || null, logoUrl: logoUrl || null, bannerImageUrl: bannerImageUrl || null, hideTitle, shareDescription: shareDescription || null })
+            body: JSON.stringify({ title, slogan: slogan || null, logoUrl: logoUrl || null, bannerImageUrl: bannerImageUrl || null, hideTitle, shareDescription: shareDescription || null, orderingEnabled })
         });
         const data = await res.json();
         if (!data.success) return showZMToast(data.error || 'שגיאה', 'error');
@@ -1607,6 +1608,13 @@ async function zmOpenCampaignManage(campaignId, commId) {
                             <button type="button" onclick="document.getElementById('zmc-banner-upload-${campaignId}').click()" class="text-[10px] font-bold bg-slate-100 text-slate-600 px-2.5 py-2 rounded-lg">העלה</button>
                         </div>
                     </div>
+                </div>
+                <div class="border ${c.ordering_enabled === false ? 'border-amber-200 bg-amber-50' : 'border-slate-200 bg-white'} rounded-xl p-3">
+                    <label class="flex items-center justify-between gap-2 cursor-pointer">
+                        <span class="text-sm font-bold text-slate-700">הזמנות פעילות</span>
+                        <input type="checkbox" id="zmc-ordering-${campaignId}" ${c.ordering_enabled === false ? '' : 'checked'} class="w-4 h-4 accent-emerald-600">
+                    </label>
+                    <p class="text-[10px] text-slate-400 mt-1">כשכבוי — העמוד נשאר גלוי, אבל הוספת מוצרים לסל חסומה ומוצגת ללקוח הודעה שהמוצרים יהיו זמינים בקרוב</p>
                 </div>
                 <button onclick="zmSaveCampaignSettings(${campaignId}, ${commId})" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-2.5 rounded-xl text-sm mt-1 transition"><i class="fa-solid fa-floppy-disk ml-1.5"></i>שמור הגדרות</button>
             </div>

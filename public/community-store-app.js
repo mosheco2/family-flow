@@ -9,12 +9,12 @@
     let panelState = 'cart'; // 'cart' | 'checkout' | 'done'
 
     function csSafe(s) { return (s == null ? '' : String(s)).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
-    function csToast(msg) {
+    function csToast(msg, ms) {
         const t = document.getElementById('toast');
         t.textContent = msg;
         t.style.display = 'block';
         clearTimeout(window._csToastTimer);
-        window._csToastTimer = setTimeout(() => { t.style.display = 'none'; }, 2600);
+        window._csToastTimer = setTimeout(() => { t.style.display = 'none'; }, ms || 2600);
     }
 
     async function init() {
@@ -124,6 +124,10 @@
 
     // כלל ברזל: אי אפשר להזמין מוצרים משני עסקים שונים באותה הזמנה — נאכף גם בשרת.
     window.csAddToCart = function(product) {
+        if (campaignData?.campaign?.ordering_enabled === false) {
+            csToast('שמחים שאתם נלהבים כמונו ממוצרי השוק, הם יהיו זמינים בקרוב - ניתן להתעדכן מול רכזת הקהילה', 4500);
+            return;
+        }
         if (cart.length && String(cart[0].businessGroupId) !== String(product.group_id)) {
             csOpenCart();
             csToast(`אפשר להזמין רק מעסק אחד — רוקנו את העגלה כדי לעבור ל-"${product.business_name}"`);
