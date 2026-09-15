@@ -132,7 +132,12 @@ function injectStorefrontOg(html, row, req) {
     const baseUrl = `${req.protocol}://${req.get('host')}`;
     const title = escAttr(row.business_name || 'חנות');
     const description = 'WEFLOWZ עושה לכם סדר';
-    const image = escAttr(row.logo_url || `${baseUrl}/api/public/logo`);
+    // logo_url הוא בד"כ data: URI (הועלה כ-base64) — לא URL תקין ל-og:image, שחייב להיות
+    // כתובת שאפשר להוריד ממנה בפועל. מגישים אותו דרך endpoint בינארי במקום.
+    const imageSrc = row.logo_url
+        ? (row.logo_url.startsWith('data:') ? `${baseUrl}/api/public/store-logo/${row.group_id}` : row.logo_url)
+        : `${baseUrl}/api/public/logo`;
+    const image = escAttr(imageSrc);
     const pageUrl = escAttr(`${baseUrl}${req.originalUrl}`);
     // מסירים תגי og קיימים (יש רק ב-storefront.html; בשאר התבניות אין בכלל) כדי לא להכפיל
     let out = html
@@ -149,7 +154,7 @@ app.get(STOREFRONT_OG_TEMPLATES.map(f => '/' + f), async (req, res, next) => {
         if (!storeParam) return next(); // בלי פרמטר עסק — ממשיכים להגשה הרגילה (סטטית) ללא שינוי
         const numericId = /^\d+$/.test(storeParam) ? parseInt(storeParam) : null;
         const r = await pool.query(
-            `SELECT fg.name AS business_name, ss.logo_url
+            `SELECT fg.id AS group_id, fg.name AS business_name, ss.logo_url
              FROM family_groups fg LEFT JOIN store_settings ss ON ss.group_id = fg.id
              WHERE ($3::int IS NOT NULL AND fg.id=$3) OR fg.group_code=$1 OR LOWER(ss.store_alias)=LOWER($2)
              LIMIT 1`,
@@ -18337,7 +18342,7 @@ app.get('/:alias', async (req, res, next) => {
     try {
         const numericId = /^\d+$/.test(alias) ? parseInt(alias) : null;
         const tRes = await pool.query(`
-            SELECT ss.template_id, fg.name AS business_name, ss.logo_url FROM store_settings ss
+            SELECT ss.template_id, fg.id AS group_id, fg.name AS business_name, ss.logo_url FROM store_settings ss
             JOIN family_groups fg ON fg.id = ss.group_id
             WHERE ($3::int IS NOT NULL AND fg.id = $3) OR fg.group_code = $1 OR LOWER(ss.store_alias) = LOWER($2)
             LIMIT 1
@@ -19995,6 +20000,21 @@ app.get('/api/public/campaign-image/:token', async (req, res) => {
         if (!imageUrl || !imageUrl.startsWith('data:')) return res.status(404).send('');
         const [header, base64] = imageUrl.split(',');
         const mimeType = header.match(/data:([^;]+)/)?.[1] || 'image/jpeg';
+        res.set('Content-Type', mimeType);
+        res.set('Cache-Control', 'public, max-age=3600');
+        res.send(Buffer.from(base64, 'base64'));
+    } catch(e) { res.status(500).send(''); }
+});
+
+// Serve a business's storefront logo as binary — store_settings.logo_url is normally a base64
+// data: URI (uploaded via canvas), which is not a valid og:image (must be a real fetchable URL)
+app.get('/api/public/store-logo/:groupId', async (req, res) => {
+    try {
+        const r = await pool.query('SELECT logo_url FROM store_settings WHERE group_id=$1', [req.params.groupId]);
+        const logoUrl = r.rows[0]?.logo_url || '';
+        if (!logoUrl || !logoUrl.startsWith('data:')) return res.status(404).send('');
+        const [header, base64] = logoUrl.split(',');
+        const mimeType = header.match(/data:([^;]+)/)?.[1] || 'image/png';
         res.set('Content-Type', mimeType);
         res.set('Cache-Control', 'public, max-age=3600');
         res.send(Buffer.from(base64, 'base64'));
