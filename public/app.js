@@ -8026,6 +8026,14 @@ async function openCommunityManagerPanel(commId) {
                 <div id="cm-articles-${commId}" class="mt-3 space-y-2"></div>
             </div>
 
+            <!-- קמפיין קהילה -->
+            <div class="mb-5">
+                <h4 class="font-bold text-slate-700 mb-3 flex items-center gap-2"><i class="fa-solid fa-store text-pink-500"></i> קמפיין קהילה</h4>
+                <div id="cm-campaigns-${commId}" class="space-y-2">
+                    <p class="text-slate-400 text-sm text-center py-3"><i class="fa-solid fa-spinner fa-spin mr-1"></i>טוען...</p>
+                </div>
+            </div>
+
             <!-- תנועות ארנק -->
             <div>
                 <h4 class="font-bold text-slate-700 mb-3 flex items-center gap-2"><i class="fa-solid fa-clock-rotate-left text-emerald-500"></i> היסטוריית קאשבק</h4>
@@ -8033,7 +8041,129 @@ async function openCommunityManagerPanel(commId) {
             </div>
         </div>`;
         modal.classList.remove('hidden');
+        cmLoadCampaigns(commId);
     } catch(e) { showToast('error', 'שגיאה בטעינת פאנל קהילה'); }
+}
+
+// ═══════════════ קמפיין קהילה — מנהל קהילה בצד המשפחה ═══════════════
+async function cmLoadCampaigns(commId) {
+    const box = document.getElementById(`cm-campaigns-${commId}`);
+    if (!box) return;
+    try {
+        const res = await communityFetch(`${API}/community/manager/campaigns/${commId}`);
+        const data = await res.json();
+        if (!data.success) { box.innerHTML = '<p class="text-red-400 text-sm text-center py-3">שגיאה בטעינה</p>'; return; }
+        const host = window.location.origin;
+        const campaigns = data.campaigns || [];
+        box.innerHTML = `
+        <button onclick="cmCreateCampaign(${commId})" class="w-full bg-pink-600 hover:bg-pink-700 text-white font-bold py-2.5 rounded-xl text-sm mb-2 transition"><i class="fa-solid fa-plus ml-1.5"></i>קמפיין חדש</button>
+        ${!campaigns.length ? '<p class="text-slate-400 text-sm text-center py-2">עדיין אין קמפיינים</p>' : campaigns.map(c => `
+        <div class="bg-pink-50 border border-pink-100 rounded-xl p-3">
+            <div class="flex justify-between items-start gap-2">
+                <div class="min-w-0">
+                    <p class="font-bold text-slate-800 text-sm">${safeStr(c.title)}</p>
+                    <p class="text-[10px] text-slate-400 truncate">${host}/community-store.html?c=${safeStr(c.code)}</p>
+                    <p class="text-[10px] text-slate-500 mt-0.5">${c.business_count} עסקים · ${c.product_count} מוצרים · ${c.status === 'active' ? '<span class="text-emerald-600 font-bold">פעיל</span>' : '<span class="text-slate-400">מושבת</span>'}</p>
+                </div>
+                <button onclick="cmOpenCampaignManage(${c.id}, ${commId})" class="shrink-0 text-xs font-bold bg-white border border-pink-300 text-pink-600 px-2.5 py-1.5 rounded-lg">נהל</button>
+            </div>
+        </div>`).join('')}`;
+    } catch(e) { box.innerHTML = '<p class="text-red-400 text-sm text-center py-3">שגיאת רשת</p>'; }
+}
+
+async function cmCreateCampaign(commId) {
+    const title = prompt('שם הקמפיין (יוצג ללקוחות):');
+    if (!title) return;
+    const code = prompt('קוד ייחודי לקישור הציבורי (אותיות/מספרים באנגלית):', title.trim().toLowerCase().replace(/[^a-z0-9]+/g,'-'));
+    if (!code) return;
+    try {
+        const res = await communityFetch(`${API}/community/manager/campaigns`, {
+            method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ communityId: commId, title, code })
+        });
+        const data = await res.json();
+        if (!data.success) return showToast('error', data.error || 'שגיאה');
+        showToast('success', 'הקמפיין נוצר!');
+        cmOpenCampaignManage(data.campaign.id, commId);
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
+}
+
+async function cmOpenCampaignManage(campaignId, commId) {
+    const box = document.getElementById(`cm-campaigns-${commId}`);
+    if (!box) return;
+    box.innerHTML = '<p class="text-slate-400 text-sm text-center py-3"><i class="fa-solid fa-spinner fa-spin mr-1"></i>טוען...</p>';
+    try {
+        const res = await communityFetch(`${API}/community/manager/campaigns/${campaignId}/detail`);
+        const data = await res.json();
+        if (!data.success) { box.innerHTML = `<p class="text-red-400 text-sm text-center py-3">${safeStr(data.error||'שגיאה')}</p>`; return; }
+        const host = window.location.origin;
+        const c = data.campaign;
+        box.innerHTML = `
+        <button onclick="cmLoadCampaigns(${commId})" class="text-xs text-slate-500 hover:text-slate-700 mb-2"><i class="fa-solid fa-arrow-right ml-1"></i>חזרה לרשימת קמפיינים</button>
+        <div class="bg-white border border-pink-100 rounded-xl p-3 mb-2">
+            <p class="font-bold text-slate-800 text-sm">${safeStr(c.title)}</p>
+            <div class="flex items-center gap-2 mt-1.5">
+                <input readonly value="${host}/community-store.html?c=${safeStr(c.code)}" class="flex-1 text-[10px] bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-slate-500" onclick="this.select()">
+                <button onclick="navigator.clipboard.writeText('${host}/community-store.html?c=${c.code}');showToast('success','קישור הועתק')" class="text-[10px] font-bold bg-pink-600 text-white px-2.5 py-1.5 rounded-lg shrink-0">העתק</button>
+            </div>
+        </div>
+        <p class="text-xs font-bold text-slate-600 mb-1.5">עסקים בקהילה — סמנו אילו נכללים בקמפיין</p>
+        <div class="space-y-1.5 max-h-64 overflow-y-auto modal-scroll pr-1">
+        ${(data.businesses||[]).map(b => `
+            <div class="border ${b.included ? 'border-emerald-200 bg-emerald-50' : 'border-slate-100 bg-white'} rounded-lg p-2.5">
+                <div class="flex justify-between items-center gap-2">
+                    <label class="flex items-center gap-2 cursor-pointer flex-1 min-w-0">
+                        <input type="checkbox" ${b.included ? 'checked' : ''} onchange="cmToggleCampaignBusiness(${campaignId}, ${b.group_id}, this.checked, ${commId})" class="w-4 h-4 accent-emerald-600">
+                        <span class="text-xs font-bold text-slate-700 truncate">${safeStr(b.name)}</span>
+                    </label>
+                    ${b.included ? `<button onclick="cmOpenCampaignProducts(${campaignId}, ${b.group_id}, ${commId})" class="shrink-0 text-[10px] font-bold bg-white border border-emerald-300 text-emerald-700 px-2 py-1 rounded-lg">מוצרים (${b.product_count})</button>` : ''}
+                </div>
+            </div>`).join('') || '<p class="text-slate-400 text-xs text-center py-3">אין עסקים מאושרים בקהילה זו עדיין</p>'}
+        </div>`;
+    } catch(e) { box.innerHTML = '<p class="text-red-400 text-sm text-center py-3">שגיאת רשת</p>'; }
+}
+
+async function cmToggleCampaignBusiness(campaignId, groupId, checked, commId) {
+    try {
+        const res = await communityFetch(`${API}/community/manager/campaigns/${campaignId}/businesses`, {
+            method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ businessGroupId: groupId, action: checked ? 'add' : 'remove' })
+        });
+        const data = await res.json();
+        if (!data.success) return showToast('error', data.error || 'שגיאה');
+        cmOpenCampaignManage(campaignId, commId);
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
+}
+
+async function cmOpenCampaignProducts(campaignId, groupId, commId) {
+    const box = document.getElementById(`cm-campaigns-${commId}`);
+    if (!box) return;
+    box.innerHTML = '<p class="text-slate-400 text-sm text-center py-3"><i class="fa-solid fa-spinner fa-spin mr-1"></i>טוען קטלוג...</p>';
+    try {
+        const res = await communityFetch(`${API}/community/manager/campaigns/${campaignId}/business/${groupId}/catalog`);
+        const data = await res.json();
+        if (!data.success) { box.innerHTML = `<p class="text-red-400 text-sm text-center py-3">${safeStr(data.error||'שגיאה')}</p>`; return; }
+        box.innerHTML = `
+        <button onclick="cmOpenCampaignManage(${campaignId}, ${commId})" class="text-xs text-slate-500 hover:text-slate-700 mb-2"><i class="fa-solid fa-arrow-right ml-1"></i>חזרה לרשימת העסקים</button>
+        <p class="text-xs font-bold text-slate-600 mb-1.5">סמנו אילו מוצרים יופיעו בעמוד הקמפיין</p>
+        <div class="space-y-1 max-h-64 overflow-y-auto modal-scroll pr-1">
+        ${(data.catalog||[]).map(p => `
+            <label class="flex items-center gap-2 p-2 border ${p.selected ? 'border-emerald-200 bg-emerald-50' : 'border-slate-100 bg-white'} rounded-lg cursor-pointer">
+                <input type="checkbox" ${p.selected ? 'checked' : ''} ${p.is_available ? '' : 'disabled'} onchange="cmToggleCampaignProduct(${campaignId}, ${groupId}, ${p.id}, this.checked, ${commId})" class="w-4 h-4 accent-emerald-600 shrink-0">
+                <span class="text-xs font-bold text-slate-700 flex-1">${safeStr(p.name)}${p.is_available ? '' : ' <span class=\'text-red-400 font-normal\'>(לא זמין)</span>'}</span>
+                <span class="text-[10px] text-slate-400 font-mono">₪${p.price}</span>
+            </label>`).join('') || '<p class="text-slate-400 text-xs text-center py-3">אין מוצרים בקטלוג של העסק הזה</p>'}
+        </div>`;
+    } catch(e) { box.innerHTML = '<p class="text-red-400 text-sm text-center py-3">שגיאת רשת</p>'; }
+}
+
+async function cmToggleCampaignProduct(campaignId, groupId, catalogId, checked, commId) {
+    try {
+        const res = await communityFetch(`${API}/community/manager/campaigns/${campaignId}/products`, {
+            method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ businessGroupId: groupId, catalogId, action: checked ? 'add' : 'remove' })
+        });
+        const data = await res.json();
+        if (!data.success) return showToast('error', data.error || 'שגיאה');
+        cmOpenCampaignProducts(campaignId, groupId, commId);
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
 }
 
 async function cmPublishArticle(commId) {

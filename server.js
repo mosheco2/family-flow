@@ -16167,6 +16167,174 @@ app.get('/api/community/manager-data/:groupId', verifyFamily, async (req, res) =
 });
 
 // ============================================================
+// --- COMMUNITY CAMPAIGNS — מנהל קהילה בצד המשפחה ---
+// (מקביל ל-/api/zone-manager/community-campaigns/... אבל למנהל קהילה
+//  שמנהל מתוך אפליקציית המשפחה, לא מנהל אזור עם login נפרד. אותן טבלאות
+//  בדיוק (community_campaigns/community_campaign_businesses/products),
+//  רק בדיקת הרשאה אחרת: family_communities.is_community_manager)
+// ============================================================
+
+async function verifyCommunityManagerAccess(familyGroupId, communityId) {
+    const r = await pool.query(
+        `SELECT 1 FROM family_communities WHERE group_id=$1 AND community_id=$2 AND is_community_manager=TRUE`,
+        [familyGroupId, communityId]);
+    return r.rows.length > 0;
+}
+
+async function verifyCampaignOwnershipFamily(campaignId, familyGroupId) {
+    const r = await pool.query(
+        `SELECT cc.* FROM community_campaigns cc
+         JOIN family_communities fc ON fc.community_id = cc.community_id
+         WHERE cc.id=$1 AND fc.group_id=$2 AND fc.is_community_manager=TRUE`, [campaignId, familyGroupId]);
+    return r.rows[0] || null;
+}
+
+app.get('/api/community/manager/campaigns/:communityId', verifyFamily, async (req, res) => {
+    try {
+        const familyGroupId = req.familyAuth.groupId;
+        const commId = req.params.communityId;
+        if (!(await verifyCommunityManagerAccess(familyGroupId, commId))) return res.status(403).json({ error: 'אין הרשאה לקהילה זו' });
+
+        const campaigns = await pool.query(
+            `SELECT cc.*,
+                    (SELECT COUNT(*) FROM community_campaign_businesses WHERE campaign_id=cc.id) AS business_count,
+                    (SELECT COUNT(*) FROM community_campaign_products WHERE campaign_id=cc.id) AS product_count
+             FROM community_campaigns cc WHERE cc.community_id=$1 ORDER BY cc.created_at DESC`, [commId]);
+        res.json({ success: true, campaigns: campaigns.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/community/manager/campaigns', verifyFamily, async (req, res) => {
+    try {
+        const familyGroupId = req.familyAuth.groupId;
+        const { communityId, title, code, description, bannerImageUrl } = req.body;
+        if (!communityId || !title || !code) return res.status(400).json({ error: 'חסרים שדות חובה' });
+        if (!(await verifyCommunityManagerAccess(familyGroupId, communityId))) return res.status(403).json({ error: 'אין הרשאה לקהילה זו' });
+
+        const cleanCode = String(code).trim().toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+        if (!cleanCode) return res.status(400).json({ error: 'קוד לא תקין' });
+
+        const dup = await pool.query('SELECT id FROM community_campaigns WHERE code=$1', [cleanCode]);
+        if (dup.rows.length) return res.status(409).json({ error: 'קוד זה כבר תפוס, בחרו קוד אחר' });
+
+        const ins = await pool.query(
+            `INSERT INTO community_campaigns (community_id, title, code, description, banner_image_url, created_by_manager_id)
+             VALUES ($1,$2,$3,$4,$5,NULL) RETURNING *`,
+            [communityId, title, cleanCode, description || null, bannerImageUrl || null]);
+        res.json({ success: true, campaign: ins.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.patch('/api/community/manager/campaigns/:id', verifyFamily, async (req, res) => {
+    try {
+        const campaign = await verifyCampaignOwnershipFamily(req.params.id, req.familyAuth.groupId);
+        if (!campaign) return res.status(403).json({ error: 'אין הרשאה לקמפיין זה' });
+
+        const { title, description, bannerImageUrl, status } = req.body;
+        const upd = await pool.query(
+            `UPDATE community_campaigns SET
+                title = COALESCE($1, title),
+                description = COALESCE($2, description),
+                banner_image_url = COALESCE($3, banner_image_url),
+                status = COALESCE($4, status)
+             WHERE id=$5 RETURNING *`,
+            [title, description, bannerImageUrl, status, req.params.id]);
+        res.json({ success: true, campaign: upd.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/community/manager/campaigns/:id/detail', verifyFamily, async (req, res) => {
+    try {
+        const campaign = await verifyCampaignOwnershipFamily(req.params.id, req.familyAuth.groupId);
+        if (!campaign) return res.status(403).json({ error: 'אין הרשאה לקמפיין זה' });
+
+        const eligibleBusinesses = await pool.query(
+            `SELECT fg.id AS group_id, fg.name, fg.business_type, fg.group_code,
+                    ccb.added_at IS NOT NULL AS included,
+                    (SELECT COUNT(*) FROM community_campaign_products p WHERE p.campaign_id=$1 AND p.business_group_id=fg.id) AS product_count
+             FROM community_businesses cb
+             JOIN family_groups fg ON fg.id = cb.business_id
+             LEFT JOIN community_campaign_businesses ccb ON ccb.campaign_id=$1 AND ccb.business_group_id=fg.id
+             WHERE cb.community_id=$2 AND cb.status='approved'
+             ORDER BY fg.name`, [req.params.id, campaign.community_id]);
+
+        res.json({ success: true, campaign, businesses: eligibleBusinesses.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/community/manager/campaigns/:id/businesses', verifyFamily, async (req, res) => {
+    try {
+        const campaign = await verifyCampaignOwnershipFamily(req.params.id, req.familyAuth.groupId);
+        if (!campaign) return res.status(403).json({ error: 'אין הרשאה לקמפיין זה' });
+
+        const { businessGroupId, action } = req.body;
+        if (!businessGroupId || !['add','remove'].includes(action)) return res.status(400).json({ error: 'שדות לא תקינים' });
+
+        const belongs = await pool.query(
+            `SELECT 1 FROM community_businesses WHERE community_id=$1 AND business_id=$2 AND status='approved'`,
+            [campaign.community_id, businessGroupId]);
+        if (!belongs.rows.length) return res.status(400).json({ error: 'העסק אינו חלק מקהילה זו' });
+
+        if (action === 'add') {
+            await pool.query(
+                `INSERT INTO community_campaign_businesses (campaign_id, business_group_id) VALUES ($1,$2)
+                 ON CONFLICT DO NOTHING`, [req.params.id, businessGroupId]);
+        } else {
+            await pool.query(`DELETE FROM community_campaign_businesses WHERE campaign_id=$1 AND business_group_id=$2`, [req.params.id, businessGroupId]);
+            await pool.query(`DELETE FROM community_campaign_products WHERE campaign_id=$1 AND business_group_id=$2`, [req.params.id, businessGroupId]);
+        }
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/community/manager/campaigns/:id/business/:groupId/catalog', verifyFamily, async (req, res) => {
+    try {
+        const campaign = await verifyCampaignOwnershipFamily(req.params.id, req.familyAuth.groupId);
+        if (!campaign) return res.status(403).json({ error: 'אין הרשאה לקמפיין זה' });
+
+        const included = await pool.query(
+            `SELECT 1 FROM community_campaign_businesses WHERE campaign_id=$1 AND business_group_id=$2`,
+            [req.params.id, req.params.groupId]);
+        if (!included.rows.length) return res.status(400).json({ error: 'העסק הזה עדיין לא נוסף לקמפיין' });
+
+        const catalog = await pool.query(
+            `SELECT sc.id, sc.name, sc.price, sc.category, sc.image_url, sc.is_available,
+                    p.catalog_id IS NOT NULL AS selected
+             FROM store_catalog sc
+             LEFT JOIN community_campaign_products p ON p.campaign_id=$1 AND p.catalog_id=sc.id
+             WHERE sc.group_id=$2 ORDER BY sc.category, sc.sort_order, sc.name`,
+            [req.params.id, req.params.groupId]);
+        res.json({ success: true, catalog: catalog.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/community/manager/campaigns/:id/products', verifyFamily, async (req, res) => {
+    try {
+        const campaign = await verifyCampaignOwnershipFamily(req.params.id, req.familyAuth.groupId);
+        if (!campaign) return res.status(403).json({ error: 'אין הרשאה לקמפיין זה' });
+
+        const { businessGroupId, catalogId, action } = req.body;
+        if (!businessGroupId || !catalogId || !['add','remove'].includes(action)) return res.status(400).json({ error: 'שדות לא תקינים' });
+
+        const included = await pool.query(
+            `SELECT 1 FROM community_campaign_businesses WHERE campaign_id=$1 AND business_group_id=$2`,
+            [req.params.id, businessGroupId]);
+        if (!included.rows.length) return res.status(400).json({ error: 'העסק הזה עדיין לא נוסף לקמפיין' });
+
+        if (action === 'add') {
+            const prod = await pool.query('SELECT id FROM store_catalog WHERE id=$1 AND group_id=$2', [catalogId, businessGroupId]);
+            if (!prod.rows.length) return res.status(400).json({ error: 'מוצר לא נמצא אצל עסק זה' });
+            await pool.query(
+                `INSERT INTO community_campaign_products (campaign_id, business_group_id, catalog_id) VALUES ($1,$2,$3)
+                 ON CONFLICT DO NOTHING`, [req.params.id, businessGroupId, catalogId]);
+        } else {
+            await pool.query(`DELETE FROM community_campaign_products WHERE campaign_id=$1 AND catalog_id=$2`, [req.params.id, catalogId]);
+        }
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ============================================================
 // --- COMMUNITY ADVANCED FEATURES (6 new features) ---
 // ============================================================
 
