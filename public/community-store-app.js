@@ -110,7 +110,7 @@
                     <div class="product-name">${csSafe(p.name)}</div>
                     <div class="product-footer">
                         <span class="product-price">₪${parseFloat(p.price).toFixed(0)}</span>
-                        <button class="add-pill" onclick="quickAdd(${p.id})">${hasOptions(p) ? 'התאמה' : 'הוסף'}</button>
+                        <button class="add-pill" onclick="quickAdd(${p.id})">הוספה</button>
                     </div>
                 </div>
             </div>`).join('');
