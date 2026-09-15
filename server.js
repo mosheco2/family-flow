@@ -13451,16 +13451,30 @@ app.get('/api/biz/communities/via-biz/:bizCode/:myBizId', verifyBiz, async (req,
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// קובע לאיזה סטטוס-המתנה בקשת הצטרפות/הפניה חדשה נכנסת: אם לקהילה יש מנהל קהילה
+// פעיל — הוא תמיד עוצר-ביניים ראשון (pending_cm_review); רק אחרי שהוא מאשר (או אם
+// אין בכלל מנהל קהילה) הבקשה ממשיכה לבדיקת אזור (מנהל אזור פעיל, או סופר אדמין)
+async function resolveCommunityJoinStatus(communityId) {
+    const cmRes = await pool.query(
+        `SELECT 1 FROM family_communities WHERE community_id=$1 AND is_community_manager=TRUE AND status='approved' LIMIT 1`,
+        [communityId]);
+    if (cmRes.rows.length > 0) return 'pending_cm_review';
+    return resolveCommunityFinalApprovalStatus(communityId);
+}
+async function resolveCommunityFinalApprovalStatus(communityId) {
+    const zoneRes = await pool.query(`
+        SELECT zm.id FROM communities c
+        JOIN manager_zones mz ON c.zone_id = mz.id
+        JOIN zone_managers zm ON mz.manager_id = zm.id AND zm.status = 'active'
+        WHERE c.id = $1 LIMIT 1
+    `, [communityId]);
+    return zoneRes.rows.length > 0 ? 'zm_pending' : 'pending';
+}
+
 app.post('/api/biz/communities/join', verifyBiz, async (req, res) => {
     try {
         const { communityId, businessId, discountPct } = req.body;
-        const zoneRes = await pool.query(`
-            SELECT zm.id FROM communities c
-            JOIN manager_zones mz ON c.zone_id = mz.id
-            JOIN zone_managers zm ON mz.manager_id = zm.id AND zm.status = 'active'
-            WHERE c.id = $1 LIMIT 1
-        `, [communityId]);
-        const status = zoneRes.rows.length > 0 ? 'zm_pending' : 'pending';
+        const status = await resolveCommunityJoinStatus(communityId);
         await pool.query(
             'INSERT INTO community_businesses (community_id, business_id, discount_pct, status, created_at) VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP) ON CONFLICT (community_id, business_id) DO UPDATE SET discount_pct=$3, status=$4, rejected_at=NULL',
             [communityId, businessId, parseFloat(discountPct)||0, status]
@@ -13550,18 +13564,36 @@ app.post('/api/community/manager/community-business/approve', verifyFamily, asyn
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// מנהל קהילה — דחיית עסק שהוא הזמין (עדיין לא היה פעיל בקהילה, אז אין צורך במעבר
-// דרך מנהל אזור/סופר אדמין — נמחק ישירות, בדיוק כמו דחיית הזמנה בכל שלב אחר)
+// מנהל קהילה — דוחה עסק שעדיין לא היה פעיל בקהילה (הן עסק שהוא הזמין בעצמו
+// (comm_mgr_pending) והן בקשה/הפניה עצמאית שממתינה לסקירתו (pending_cm_review)) —
+// בשני המקרים כלום עדיין לא היה פעיל, אז אין צורך במעבר דרך מנהל אזור/סופר אדמין
 app.post('/api/community/manager/community-business/reject', verifyFamily, async (req, res) => {
     try {
         const { communityId, businessId } = req.body;
         if (!(await verifyCommunityManagerAccess(req.familyAuth.groupId, communityId))) return res.status(403).json({ error: 'אין הרשאה לקהילה זו' });
         const r = await pool.query(
             `UPDATE community_businesses SET status='rejected', rejected_at=CURRENT_TIMESTAMP, rejected_by='community_manager'
-             WHERE community_id=$1 AND business_id=$2 AND status='comm_mgr_pending' RETURNING community_id`,
+             WHERE community_id=$1 AND business_id=$2 AND status IN ('comm_mgr_pending','pending_cm_review') RETURNING community_id`,
             [communityId, businessId]);
         if (!r.rows.length) return res.status(404).json({ error: 'לא נמצאה בקשה ממתינה עבור עסק זה' });
         res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// מנהל קהילה — "אישור" של בקשת הצטרפות עצמאית/הפניה (pending_cm_review) — זה לא
+// אישור סופי! רק אור ירוק ראשוני שמעביר את הבקשה הלאה לאישור מנהל אזור (אם יש
+// לקהילה) או סופר אדמין (אם אין) — בשונה מאישור הזמנה-שהתקבלה (comm_mgr_pending)
+// שכן סופי ומיידי, כי שם מנהל הקהילה כבר בחר ואישר את העסק בעצמו מראש
+app.post('/api/community/manager/community-business/forward-approve', verifyFamily, async (req, res) => {
+    try {
+        const { communityId, businessId } = req.body;
+        if (!(await verifyCommunityManagerAccess(req.familyAuth.groupId, communityId))) return res.status(403).json({ error: 'אין הרשאה לקהילה זו' });
+        const nextStatus = await resolveCommunityFinalApprovalStatus(communityId);
+        const r = await pool.query(
+            `UPDATE community_businesses SET status=$3 WHERE community_id=$1 AND business_id=$2 AND status='pending_cm_review' RETURNING community_id`,
+            [communityId, businessId, nextStatus]);
+        if (!r.rows.length) return res.status(404).json({ error: 'לא נמצאה בקשה ממתינה עבור עסק זה' });
+        res.json({ success: true, forwardedTo: nextStatus === 'zm_pending' ? 'zone_manager' : 'super_admin' });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -14730,10 +14762,11 @@ app.post('/api/community/family-refer', verifyFamily, async (req, res) => {
         await pool.query(
             `INSERT INTO community_referrals (referrer_group_id, business_id, community_id, notes) VALUES ($1,$2,$3,$4)`,
             [groupId, businessId, communityId, notes || '']);
+        const referStatus = await resolveCommunityJoinStatus(communityId);
         await pool.query(
             `INSERT INTO community_businesses (community_id, business_id, discount_pct, status)
-             VALUES ($1,$2,0,'pending') ON CONFLICT (community_id, business_id) DO UPDATE SET status='pending', rejected_at=NULL WHERE community_businesses.status='rejected'`,
-            [communityId, businessId]);
+             VALUES ($1,$2,0,$3) ON CONFLICT (community_id, business_id) DO UPDATE SET status=$3, rejected_at=NULL WHERE community_businesses.status='rejected'`,
+            [communityId, businessId, referStatus]);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });

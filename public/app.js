@@ -7916,6 +7916,7 @@ async function openCommunityManagerPanel(commId) {
         const comm = data.managed_communities.find(c => c.community_id === commId);
         const wallet = data.wallets.find(w => w.community_id === commId) || { balance: 0, total_earned: 0 };
         const pending = (data.pending_businesses || []).filter(b => b.community_id === commId && b.status === 'comm_mgr_pending');
+        const selfRequested = (data.pending_businesses || []).filter(b => b.community_id === commId && b.status === 'pending_cm_review');
         const approved = (data.pending_businesses || []).filter(b => b.community_id === commId && b.status === 'approved');
         const pendingFamilies = (data.pending_families || []).filter(f => f.community_id === commId);
         const txs = (data.transactions || []).filter(t => t.community_id === commId).slice(0, 10);
@@ -7949,6 +7950,20 @@ async function openCommunityManagerPanel(commId) {
                 <div class="text-right">
                     <p class="font-bold text-slate-800 text-sm">${safeStr(b.business_name)}</p>
                     <p class="text-[10px] text-slate-500">הנחה מוצעת: ${b.discount_pct}%</p>
+                </div>
+            </div>`).join('') : '<p class="text-slate-400 text-sm text-center py-4">אין בקשות ממתינות</p>';
+
+        // בקשות הצטרפות עצמאיות של עסקים (לא הוזמנו על ידך) + הפניות משפחות — "אישור" כאן
+        // הוא לא סופי, רק מעביר הלאה לאישור מנהל אזור/סופר אדמין
+        const selfRequestedHtml = selfRequested.length ? selfRequested.map(b => `
+            <div class="bg-sky-50 border border-sky-100 p-3 rounded-xl flex justify-between items-center mb-2">
+                <div class="flex gap-2">
+                    <button onclick="cmForwardApproveBiz(${b.community_id}, ${b.business_id})" class="bg-sky-600 text-white px-3 py-1 rounded-lg text-xs font-bold hover:bg-sky-700">אשר והעבר הלאה</button>
+                    <button onclick="cmRejectBizFromManager(${b.community_id}, ${b.business_id})" class="bg-red-100 text-red-600 px-3 py-1 rounded-lg text-xs font-bold hover:bg-red-200">דחה</button>
+                </div>
+                <div class="text-right">
+                    <p class="font-bold text-slate-800 text-sm">${safeStr(b.business_name)}</p>
+                    <p class="text-[10px] text-slate-500">ביקש להצטרף בעצמו · הנחה מוצעת: ${b.discount_pct}%</p>
                 </div>
             </div>`).join('') : '<p class="text-slate-400 text-sm text-center py-4">אין בקשות ממתינות</p>';
 
@@ -7996,8 +8011,14 @@ async function openCommunityManagerPanel(commId) {
 
             <!-- אישורי עסקים -->
             <div class="mb-5">
-                <h4 class="font-bold text-slate-700 mb-3 flex items-center gap-2"><i class="fa-solid fa-store text-orange-500"></i> בקשות עסקים ממתינות</h4>
+                <h4 class="font-bold text-slate-700 mb-3 flex items-center gap-2"><i class="fa-solid fa-store text-orange-500"></i> עסקים שהזמנת — ממתינים לאישורך</h4>
                 ${pendingHtml}
+            </div>
+
+            <!-- בקשות הצטרפות עצמאיות -->
+            <div class="mb-5">
+                <h4 class="font-bold text-slate-700 mb-3 flex items-center gap-2"><i class="fa-solid fa-hand-point-right text-sky-500"></i> עסקים שביקשו להצטרף בעצמם</h4>
+                ${selfRequestedHtml}
             </div>
 
             <!-- שותפים -->
@@ -8317,6 +8338,17 @@ async function cmRejectBizFromManager(communityId, businessId) {
         const res = await communityFetch(`${API}/community/manager/community-business/reject`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ communityId, businessId }) });
         const data = await res.json();
         if(data.success) { showToast('success', 'הבקשה נדחתה'); document.getElementById('comm-manager-modal')?.remove(); }
+        else showToast('error', data.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
+}
+
+// עסק שביקש להצטרף בעצמו (לא הוזמן) — "אישור" מנהל הקהילה כאן הוא לא סופי,
+// רק מעביר את הבקשה הלאה לאישור אחרון של מנהל אזור/סופר אדמין
+async function cmForwardApproveBiz(communityId, businessId) {
+    try {
+        const res = await communityFetch(`${API}/community/manager/community-business/forward-approve`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ communityId, businessId }) });
+        const data = await res.json();
+        if(data.success) { showToast('success', 'הבקשה הועברה לאישור אחרון'); document.getElementById('comm-manager-modal')?.remove(); }
         else showToast('error', data.error || 'שגיאה');
     } catch(e) { showToast('error', 'שגיאת רשת'); }
 }
