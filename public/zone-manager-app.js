@@ -1475,9 +1475,9 @@ async function zmLoadCommunityCampaigns(commId) {
 function safeStrZM(s) { return (s == null ? '' : String(s)).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
 
 async function zmCreateCommunityCampaign(commId) {
-    const title = prompt('שם הקמפיין (יוצג ללקוחות):');
-    if (!title) return;
-    let code = prompt('קוד ייחודי לקישור הציבורי (אותיות/מספרים באנגלית, ללא רווחים):', title.trim().toLowerCase().replace(/[^a-z0-9]+/g,'-'));
+    // הכותרת אופציונלית — לפעמים היא כבר מופיעה בצורה גרפית בתמונת הנושא
+    const title = prompt('שם הקמפיין (יוצג ללקוחות, ניתן להשאיר ריק אם הכותרת כבר בתמונת הנושא):') || '';
+    let code = prompt('קוד ייחודי לקישור הציבורי (אותיות/מספרים באנגלית, ללא רווחים):', (title || 'campaign-' + Date.now()).trim().toLowerCase().replace(/[^a-z0-9]+/g,'-'));
     if (!code) return;
     try {
         const res = await fetch(`${API}/zone-manager/community-campaigns`, {
@@ -1523,11 +1523,11 @@ async function zmSaveCampaignSettings(campaignId, commId) {
     const slogan = document.getElementById(`zmc-slogan-${campaignId}`)?.value.trim();
     const logoUrl = document.getElementById(`zmc-logo-input-${campaignId}`)?.value;
     const bannerImageUrl = document.getElementById(`zmc-banner-input-${campaignId}`)?.value;
-    if (!title) return showZMToast('כותרת היא שדה חובה', 'error');
+    const hideTitle = !!document.getElementById(`zmc-hide-title-${campaignId}`)?.checked;
     try {
         const res = await fetch(`${API}/zone-manager/community-campaigns/${campaignId}`, {
             method: 'PATCH', headers: { 'Content-Type': 'application/json', 'Authorization': zmToken },
-            body: JSON.stringify({ title, slogan: slogan || null, logoUrl: logoUrl || null, bannerImageUrl: bannerImageUrl || null })
+            body: JSON.stringify({ title, slogan: slogan || null, logoUrl: logoUrl || null, bannerImageUrl: bannerImageUrl || null, hideTitle })
         });
         const data = await res.json();
         if (!data.success) return showZMToast(data.error || 'שגיאה', 'error');
@@ -1562,8 +1562,12 @@ async function zmOpenCampaignManage(campaignId, commId) {
             <p class="text-xs font-bold text-slate-600 mb-3"><i class="fa-solid fa-sliders text-pink-500 mr-1"></i>הגדרות עמוד הקמפיין</p>
             <div class="space-y-2.5">
                 <div>
-                    <label class="text-[10px] font-bold text-slate-400 block mb-1">כותרת</label>
-                    <input id="zmc-title-${campaignId}" type="text" value="${safeStrZM(c.title)}" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm">
+                    <label class="text-[10px] font-bold text-slate-400 block mb-1">כותרת (אופציונלי)</label>
+                    <input id="zmc-title-${campaignId}" type="text" value="${safeStrZM(c.title)}" placeholder="ניתן להשאיר ריק אם הכותרת כבר בתמונת הנושא" class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm">
+                    <label class="flex items-center gap-1.5 mt-1.5 cursor-pointer">
+                        <input type="checkbox" id="zmc-hide-title-${campaignId}" ${c.hide_title ? 'checked' : ''} class="w-3.5 h-3.5 accent-pink-600">
+                        <span class="text-[10px] text-slate-500">הסתר כותרת בעמוד (הכותרת כבר מופיעה בתמונת הנושא)</span>
+                    </label>
                 </div>
                 <div>
                     <label class="text-[10px] font-bold text-slate-400 block mb-1">סלוגן (משפט קצר שיוצג ללקוחות)</label>

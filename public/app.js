@@ -8072,9 +8072,9 @@ async function cmLoadCampaigns(commId) {
 }
 
 async function cmCreateCampaign(commId) {
-    const title = prompt('שם הקמפיין (יוצג ללקוחות):');
-    if (!title) return;
-    const code = prompt('קוד ייחודי לקישור הציבורי (אותיות/מספרים באנגלית):', title.trim().toLowerCase().replace(/[^a-z0-9]+/g,'-'));
+    // הכותרת אופציונלית — לפעמים היא כבר מופיעה בצורה גרפית בתמונת הנושא
+    const title = prompt('שם הקמפיין (יוצג ללקוחות, ניתן להשאיר ריק אם הכותרת כבר בתמונת הנושא):') || '';
+    const code = prompt('קוד ייחודי לקישור הציבורי (אותיות/מספרים באנגלית):', (title || 'campaign-' + Date.now()).trim().toLowerCase().replace(/[^a-z0-9]+/g,'-'));
     if (!code) return;
     try {
         const res = await communityFetch(`${API}/community/manager/campaigns`, {
@@ -8119,11 +8119,11 @@ async function cmSaveCampaignSettings(campaignId, commId) {
     const slogan = document.getElementById(`cmc-slogan-${campaignId}`)?.value.trim();
     const logoUrl = document.getElementById(`cmc-logo-input-${campaignId}`)?.value;
     const bannerImageUrl = document.getElementById(`cmc-banner-input-${campaignId}`)?.value;
-    if (!title) return showToast('error', 'כותרת היא שדה חובה');
+    const hideTitle = !!document.getElementById(`cmc-hide-title-${campaignId}`)?.checked;
     try {
         const res = await communityFetch(`${API}/community/manager/campaigns/${campaignId}`, {
             method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ title, slogan: slogan || null, logoUrl: logoUrl || null, bannerImageUrl: bannerImageUrl || null })
+            body: JSON.stringify({ title, slogan: slogan || null, logoUrl: logoUrl || null, bannerImageUrl: bannerImageUrl || null, hideTitle })
         });
         const data = await res.json();
         if (!data.success) return showToast('error', data.error || 'שגיאה');
@@ -8157,8 +8157,12 @@ async function cmOpenCampaignManage(campaignId, commId) {
             <p class="text-xs font-bold text-slate-600 mb-2"><i class="fa-solid fa-sliders text-pink-500 mr-1"></i>הגדרות עמוד הקמפיין</p>
             <div class="space-y-2">
                 <div>
-                    <label class="text-[10px] font-bold text-slate-400 block mb-1">כותרת</label>
-                    <input id="cmc-title-${campaignId}" type="text" value="${safeStr(c.title)}" class="w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs">
+                    <label class="text-[10px] font-bold text-slate-400 block mb-1">כותרת (אופציונלי)</label>
+                    <input id="cmc-title-${campaignId}" type="text" value="${safeStr(c.title)}" placeholder="ניתן להשאיר ריק אם הכותרת כבר בתמונת הנושא" class="w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs">
+                    <label class="flex items-center gap-1.5 mt-1.5 cursor-pointer">
+                        <input type="checkbox" id="cmc-hide-title-${campaignId}" ${c.hide_title ? 'checked' : ''} class="w-3.5 h-3.5 accent-pink-600">
+                        <span class="text-[10px] text-slate-500">הסתר כותרת בעמוד (הכותרת כבר מופיעה בתמונת הנושא)</span>
+                    </label>
                 </div>
                 <div>
                     <label class="text-[10px] font-bold text-slate-400 block mb-1">סלוגן (משפט קצר שיוצג ללקוחות)</label>

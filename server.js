@@ -13115,6 +13115,8 @@ async function initCommunityTables() {
         )`,
         `ALTER TABLE community_campaigns ADD COLUMN IF NOT EXISTS logo_url TEXT`,
         `ALTER TABLE community_campaigns ADD COLUMN IF NOT EXISTS slogan VARCHAR(200)`,
+        `ALTER TABLE community_campaigns ADD COLUMN IF NOT EXISTS hide_title BOOLEAN DEFAULT FALSE`,
+        `ALTER TABLE community_campaigns ALTER COLUMN title DROP NOT NULL`,
         `CREATE TABLE IF NOT EXISTS community_campaign_businesses (
             campaign_id INT REFERENCES community_campaigns(id) ON DELETE CASCADE,
             business_group_id INT REFERENCES family_groups(id),
@@ -15452,23 +15454,25 @@ app.post('/api/zone-manager/community-campaigns', verifyZoneManager, async (req,
     try {
         const { managerId } = req.zmSession;
         const { communityId, title, code, description, bannerImageUrl } = req.body;
-        if (!communityId || !title || !code) return res.status(400).json({ error: 'חסרים שדות חובה' });
+        if (!communityId || !code) return res.status(400).json({ error: 'חסרים שדות חובה' });
 
         const cleanCode = String(code).trim().toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
         if (!cleanCode) return res.status(400).json({ error: 'קוד לא תקין' });
 
         const zoneCheck = await pool.query(
-            `SELECT c.id FROM communities c JOIN manager_zones mz ON c.zone_id=mz.id
+            `SELECT c.id, c.name FROM communities c JOIN manager_zones mz ON c.zone_id=mz.id
              WHERE c.id=$1 AND mz.manager_id=$2`, [communityId, managerId]);
         if (!zoneCheck.rows.length) return res.status(403).json({ error: 'אין הרשאה לקהילה זו' });
 
         const dup = await pool.query('SELECT id FROM community_campaigns WHERE code=$1', [cleanCode]);
         if (dup.rows.length) return res.status(409).json({ error: 'קוד זה כבר תפוס, בחרו קוד אחר' });
 
+        // הכותרת אופציונלית — לפעמים היא כבר מופיעה בצורה גרפית בתמונת הנושא
+        const finalTitle = (title && title.trim()) || `קמפיין ${zoneCheck.rows[0].name}`;
         const ins = await pool.query(
             `INSERT INTO community_campaigns (community_id, title, code, description, banner_image_url, created_by_manager_id)
              VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
-            [communityId, title, cleanCode, description || null, bannerImageUrl || null, managerId]);
+            [communityId, finalTitle, cleanCode, description || null, bannerImageUrl || null, managerId]);
         res.json({ success: true, campaign: ins.rows[0] });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -15480,7 +15484,7 @@ app.patch('/api/zone-manager/community-campaigns/:id', verifyZoneManager, async 
         const campaign = await verifyCampaignOwnership(req.params.id, managerId);
         if (!campaign) return res.status(403).json({ error: 'אין הרשאה לקמפיין זה' });
 
-        const { title, description, bannerImageUrl, status, logoUrl, slogan } = req.body;
+        const { title, description, bannerImageUrl, status, logoUrl, slogan, hideTitle } = req.body;
         const upd = await pool.query(
             `UPDATE community_campaigns SET
                 title = COALESCE($1, title),
@@ -15488,9 +15492,10 @@ app.patch('/api/zone-manager/community-campaigns/:id', verifyZoneManager, async 
                 banner_image_url = COALESCE($3, banner_image_url),
                 status = COALESCE($4, status),
                 logo_url = COALESCE($6, logo_url),
-                slogan = COALESCE($7, slogan)
+                slogan = COALESCE($7, slogan),
+                hide_title = COALESCE($8, hide_title)
              WHERE id=$5 RETURNING *`,
-            [title, description, bannerImageUrl, status, req.params.id, logoUrl, slogan]);
+            [title, description, bannerImageUrl, status, req.params.id, logoUrl, slogan, hideTitle]);
         res.json({ success: true, campaign: upd.rows[0] });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -16212,7 +16217,7 @@ app.post('/api/community/manager/campaigns', verifyFamily, async (req, res) => {
     try {
         const familyGroupId = req.familyAuth.groupId;
         const { communityId, title, code, description, bannerImageUrl } = req.body;
-        if (!communityId || !title || !code) return res.status(400).json({ error: 'חסרים שדות חובה' });
+        if (!communityId || !code) return res.status(400).json({ error: 'חסרים שדות חובה' });
         if (!(await verifyCommunityManagerAccess(familyGroupId, communityId))) return res.status(403).json({ error: 'אין הרשאה לקהילה זו' });
 
         const cleanCode = String(code).trim().toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
@@ -16221,10 +16226,13 @@ app.post('/api/community/manager/campaigns', verifyFamily, async (req, res) => {
         const dup = await pool.query('SELECT id FROM community_campaigns WHERE code=$1', [cleanCode]);
         if (dup.rows.length) return res.status(409).json({ error: 'קוד זה כבר תפוס, בחרו קוד אחר' });
 
+        // הכותרת אופציונלית — לפעמים היא כבר מופיעה בצורה גרפית בתמונת הנושא
+        const commRes = await pool.query('SELECT name FROM communities WHERE id=$1', [communityId]);
+        const finalTitle = (title && title.trim()) || `קמפיין ${commRes.rows[0]?.name || ''}`.trim();
         const ins = await pool.query(
             `INSERT INTO community_campaigns (community_id, title, code, description, banner_image_url, created_by_manager_id)
              VALUES ($1,$2,$3,$4,$5,NULL) RETURNING *`,
-            [communityId, title, cleanCode, description || null, bannerImageUrl || null]);
+            [communityId, finalTitle, cleanCode, description || null, bannerImageUrl || null]);
         res.json({ success: true, campaign: ins.rows[0] });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -16234,7 +16242,7 @@ app.patch('/api/community/manager/campaigns/:id', verifyFamily, async (req, res)
         const campaign = await verifyCampaignOwnershipFamily(req.params.id, req.familyAuth.groupId);
         if (!campaign) return res.status(403).json({ error: 'אין הרשאה לקמפיין זה' });
 
-        const { title, description, bannerImageUrl, status, logoUrl, slogan } = req.body;
+        const { title, description, bannerImageUrl, status, logoUrl, slogan, hideTitle } = req.body;
         const upd = await pool.query(
             `UPDATE community_campaigns SET
                 title = COALESCE($1, title),
@@ -16242,9 +16250,10 @@ app.patch('/api/community/manager/campaigns/:id', verifyFamily, async (req, res)
                 banner_image_url = COALESCE($3, banner_image_url),
                 status = COALESCE($4, status),
                 logo_url = COALESCE($6, logo_url),
-                slogan = COALESCE($7, slogan)
+                slogan = COALESCE($7, slogan),
+                hide_title = COALESCE($8, hide_title)
              WHERE id=$5 RETURNING *`,
-            [title, description, bannerImageUrl, status, req.params.id, logoUrl, slogan]);
+            [title, description, bannerImageUrl, status, req.params.id, logoUrl, slogan, hideTitle]);
         res.json({ success: true, campaign: upd.rows[0] });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
