@@ -8275,6 +8275,109 @@ app.get('/api/sa/kpi-detail', verifySA, async (req, res) => {
     }
 });
 
+// ── SA PENDING ACTIONS CENTER: כל מה שממתין לטיפול ברחבי המערכת ─────────────
+app.get('/api/sa/pending-actions-center', verifySA, async (req, res) => {
+    try {
+        const safe = (q, label) => pool.query(q).then(r => r.rows).catch(e => { console.error('[SA Pending Center]', label, e.message); return []; });
+        const hoursSince = ts => ts ? Math.round((Date.now() - new Date(ts).getTime()) / 3600000) : null;
+
+        const [
+            communityJoinReq, bizCommunityReq, zmPending, ticketsOpen, debtsUnpaid,
+            bannerPending, removalReq, promosPending, moduleReqRows
+        ] = await Promise.all([
+            // בקשות הצטרפות משפחה לקהילה — אחראי: מנהל קהילה
+            safe(`SELECT fc.group_id, fg.name as title, c.name as subtitle, fc.joined_at as created_at
+                FROM family_communities fc JOIN family_groups fg ON fg.id=fc.group_id JOIN communities c ON c.id=fc.community_id
+                WHERE fc.status='pending' AND fg.is_test_env IS NOT TRUE
+                ORDER BY fc.joined_at ASC`, 'communityJoinReq'),
+            // בקשות חיבור עסק לקהילה — אחראי: מנהל אזור / מנהל קהילה
+            safe(`SELECT cb.business_id, fg.name as title, c.name as subtitle, cb.created_at
+                FROM community_businesses cb JOIN family_groups fg ON fg.id=cb.business_id JOIN communities c ON c.id=cb.community_id
+                WHERE cb.status IN ('pending','zm_pending') AND fg.is_test_env IS NOT TRUE
+                ORDER BY cb.created_at ASC`, 'bizCommunityReq'),
+            // בקשות מנהלי אזור חדשים — אחראי: סופר אדמין
+            safe(`SELECT id, name as title, email as subtitle, created_at FROM zone_managers WHERE status='pending' ORDER BY created_at ASC`, 'zmPending'),
+            // פניות תמיכה פתוחות — אחראי: צוות תמיכה
+            safe(`SELECT t.id, t.subject as title, COALESCE(fg.name,'—') as subtitle, t.created_at, t.priority
+                FROM support_tickets t LEFT JOIN family_groups fg ON fg.id=t.group_id
+                WHERE t.status='open' AND (fg.id IS NULL OR fg.is_test_env IS NOT TRUE)
+                ORDER BY (t.priority='high') DESC, t.created_at ASC`, 'ticketsOpen'),
+            // חובות שטרם נגבו — אחראי: גבייה / סופר אדמין
+            safe(`SELECT d.id, fg.name as title, '₪'||d.commission_amount as subtitle, d.created_at
+                FROM business_platform_dues d LEFT JOIN family_groups fg ON fg.id=d.business_id
+                WHERE d.status='pending' AND (fg.id IS NULL OR fg.is_test_env IS NOT TRUE)
+                ORDER BY d.created_at ASC`, 'debtsUnpaid'),
+            // הזמנות שילוט ממתינות — אחראי: סופר אדמין
+            safe(`SELECT bo.id, bs.name as title, COALESCE(fg.name,'—') as subtitle, bo.created_at
+                FROM banner_orders bo JOIN banner_slots bs ON bs.id=bo.slot_id LEFT JOIN family_groups fg ON fg.id=bo.business_id
+                WHERE bo.status='pending' AND (fg.id IS NULL OR fg.is_test_env IS NOT TRUE)
+                ORDER BY bo.created_at ASC`, 'bannerPending'),
+            // בקשות הסרת עסק מקהילה — אחראי: סופר אדמין
+            safe(`SELECT cb.business_id, fg.name as title, c.name as subtitle, cb.removal_requested_at as created_at
+                FROM community_businesses cb JOIN family_groups fg ON fg.id=cb.business_id JOIN communities c ON c.id=cb.community_id
+                WHERE cb.removal_requested=true AND fg.is_test_env IS NOT TRUE
+                ORDER BY cb.removal_requested_at ASC`, 'removalReq'),
+            // מבצעי קהילה ממתינים לאישור — אחראי: סופר אדמין
+            safe(`SELECT p.id, p.title, c.name as subtitle, p.created_at
+                FROM community_promotions p JOIN communities c ON c.id=p.community_id
+                WHERE p.status='pending' ORDER BY p.created_at ASC`, 'promosPending'),
+            // בקשות פתיחת מודול — אחראי: סופר אדמין (JSON בתוך family_groups)
+            safe(`SELECT id, name, module_requests FROM family_groups
+                WHERE module_requests IS NOT NULL AND module_requests::text NOT IN ('[]','null') AND is_test_env IS NOT TRUE`, 'moduleReqRows')
+        ]);
+
+        // עיבוד בקשות מודולים מתוך JSON
+        let moduleReqItems = [];
+        moduleReqRows.forEach(g => {
+            let reqs = [];
+            try { reqs = Array.isArray(g.module_requests) ? g.module_requests : JSON.parse(g.module_requests || '[]'); } catch(e) {}
+            reqs.forEach(r => {
+                if (!r || !r.moduleId || String(r.moduleId).startsWith('CANCEL_')) return;
+                moduleReqItems.push({ id: g.id, title: g.name, subtitle: r.moduleName || r.moduleId, created_at: r.requested_at || null });
+            });
+        });
+        moduleReqItems.sort((a,b) => new Date(a.created_at||0) - new Date(b.created_at||0));
+
+        const buildCategory = (key, label, responsible, icon, rows) => {
+            const items = rows.map(r => ({
+                id: r.group_id || r.business_id || r.id,
+                title: r.title || r.name || '—',
+                subtitle: r.subtitle || '',
+                created_at: r.created_at,
+                wait_hours: hoursSince(r.created_at)
+            }));
+            return {
+                key, label, responsible, icon,
+                count: items.length,
+                oldest_wait_hours: items.length ? items[0].wait_hours : null,
+                items: items.slice(0, 8)
+            };
+        };
+
+        const categories = [
+            buildCategory('community_join', 'בקשות הצטרפות משפחה לקהילה', 'מנהל קהילה', 'fa-user-plus', communityJoinReq),
+            buildCategory('biz_community', 'בקשות חיבור עסק לקהילה', 'מנהל אזור / מנהל קהילה', 'fa-handshake', bizCommunityReq),
+            buildCategory('zm_pending', 'בקשות מנהלי אזור חדשים', 'סופר אדמין', 'fa-user-tie', zmPending),
+            buildCategory('tickets', 'פניות תמיכה פתוחות', 'צוות תמיכה', 'fa-headset', ticketsOpen),
+            buildCategory('debts', 'חובות שטרם נגבו', 'גבייה / סופר אדמין', 'fa-file-invoice-dollar', debtsUnpaid),
+            buildCategory('banners', 'הזמנות שילוט ממתינות', 'סופר אדמין', 'fa-rectangle-ad', bannerPending),
+            buildCategory('removal', 'בקשות הסרת עסק מקהילה', 'סופר אדמין', 'fa-user-minus', removalReq),
+            buildCategory('promos', 'מבצעי קהילה ממתינים לאישור', 'סופר אדמין', 'fa-tags', promosPending),
+            buildCategory('modules', 'בקשות פתיחת מודול', 'סופר אדמין', 'fa-puzzle-piece', moduleReqItems)
+        ].filter(c => c.count > 0);
+
+        categories.sort((a,b) => (b.oldest_wait_hours||0) - (a.oldest_wait_hours||0));
+
+        const totalPending = categories.reduce((s,c) => s + c.count, 0);
+        const oldestOverall = categories.length ? Math.max(...categories.map(c => c.oldest_wait_hours||0)) : 0;
+
+        res.json({ success: true, categories, total_pending: totalPending, oldest_overall_hours: oldestOverall });
+    } catch(e) {
+        console.error('[SA Pending Center]', e.message);
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
 // ── SA UNIFIED INSIGHTS: 5 מובילים לכל קטגוריה ───────────────────────────────
 app.get('/api/sa/insights-top-lists', verifySA, async (req, res) => {
     try {
