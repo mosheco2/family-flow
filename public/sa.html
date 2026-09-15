@@ -552,7 +552,20 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                         </div>
                     </div>
 
-                    <!-- ─── PENDING ACTIONS BAR ─── -->
+                    <!-- ─── מרכז פעולות ממתינות (כלל המערכת) ─── -->
+                    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 mb-3">
+                        <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
+                            <h3 class="text-sm font-black text-slate-800 flex items-center gap-1.5">
+                                <i class="fa-solid fa-list-check text-rose-500"></i> מרכז פעולות ממתינות
+                            </h3>
+                            <div id="sa-pending-center-summary" class="text-[10px] text-slate-400"></div>
+                        </div>
+                        <div id="sa-pending-center-list" class="space-y-2">
+                            <p class="text-slate-300 text-center py-6 text-xs">טוען...</p>
+                        </div>
+                    </div>
+
+                    <!-- ─── PENDING ACTIONS BAR (legacy chips) ─── -->
                     <div id="dash-pending-bar" class="hidden mb-3"></div>
 
                     <!-- ─── KPI ROW 1: ישויות ─── -->
@@ -4763,7 +4776,7 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
       </div>
     </div>
 
-    <script src="sa-app.js?v=71"></script>
+    <script src="sa-app.js?v=72"></script>
     <script src="community-help.js?v=1"></script>
     <div id="sa-sla-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[9999] flex items-center justify-center p-4 fade-in">
         <div class="bg-white w-full max-w-2xl rounded-[2rem] p-6 shadow-2xl relative">

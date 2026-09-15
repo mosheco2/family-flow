@@ -431,7 +431,7 @@ window.switchSATab = function(tabId) {
     }
 
     window._currentSATab = tabId;
-    if (tabId === 'pulse') { updateSADashboard(); loadSADashboard(); }
+    if (tabId === 'pulse') { updateSADashboard(); loadSADashboard(); loadSAPendingCenter(); }
     if (tabId === 'stats') loadSAData();
     if (tabId === 'insights') loadSAInsights();
     if (tabId === 'finance') loadSAFinanceData();
@@ -782,6 +782,70 @@ window.loadSAKpiDetailPage = async function() {
             </div>`;
     } catch (e) {
         body.innerHTML = '<div class="text-red-500 text-sm text-center py-8">שגיאת רשת</div>';
+    }
+};
+
+// ===== SA PENDING ACTIONS CENTER (דף הבית) =====
+const SA_PENDING_NAV = {
+    community_join: () => switchSATab('comm'),
+    biz_community: () => switchSATab('comm'),
+    zm_pending: () => switchSATab('partners'),
+    tickets: () => switchSATab('support'),
+    debts: () => { switchSATab('finance'); setTimeout(() => switchViewTab('finance','dues'), 200); },
+    banners: () => { switchSATab('adslots'); setTimeout(() => switchViewTab('adslots','orders'), 200); },
+    removal: () => switchSATab('comm'),
+    promos: () => switchSATab('comm'),
+    modules: () => switchSATab('clients')
+};
+
+function _saFmtWait(hours) {
+    if (hours === null || hours === undefined) return '';
+    if (hours < 1) return 'פחות משעה';
+    if (hours < 24) return `${hours} שעות`;
+    const days = Math.floor(hours / 24);
+    return `${days} ${days === 1 ? 'יום' : 'ימים'}`;
+}
+function _saWaitSeverity(hours) {
+    if (hours === null || hours === undefined) return 'bg-slate-50 border-slate-200 text-slate-500';
+    if (hours >= 72) return 'bg-red-50 border-red-300 text-red-700';
+    if (hours >= 24) return 'bg-orange-50 border-orange-300 text-orange-700';
+    return 'bg-emerald-50 border-emerald-200 text-emerald-700';
+}
+
+window.loadSAPendingCenter = async function() {
+    const list = getEl('sa-pending-center-list');
+    const summary = getEl('sa-pending-center-summary');
+    if (!list) return;
+    try {
+        const d = await saFetch('/api/sa/pending-actions-center');
+        if (!d.success) { list.innerHTML = '<p class="text-red-400 text-center py-6 text-xs">שגיאה בטעינת נתונים</p>'; return; }
+        if (summary) summary.textContent = d.total_pending > 0
+            ? `סה"כ ${d.total_pending} פעולות ממתינות · הוותיקה ביותר: ${_saFmtWait(d.oldest_overall_hours)}`
+            : '';
+        if (!d.categories.length) { list.innerHTML = '<p class="text-emerald-500 text-center py-6 text-xs font-bold"><i class="fa-solid fa-circle-check mr-1"></i> אין פעולות ממתינות — המערכת נקייה</p>'; return; }
+
+        list.innerHTML = d.categories.map(cat => {
+            const sev = _saWaitSeverity(cat.oldest_wait_hours);
+            const navFn = SA_PENDING_NAV[cat.key] ? `SA_PENDING_NAV['${cat.key}']()` : '';
+            const itemsHtml = cat.items.map(it => `
+                <div class="flex items-center justify-between gap-2 text-[10px] py-1 border-t border-slate-50 first:border-t-0 first:pt-0">
+                    <span class="text-slate-600 truncate">${safeStr(it.title)}${it.subtitle ? ` <span class="text-slate-400">· ${safeStr(it.subtitle)}</span>` : ''}</span>
+                    <span class="px-1.5 py-0.5 rounded-full border whitespace-nowrap ${_saWaitSeverity(it.wait_hours)}">${_saFmtWait(it.wait_hours)}</span>
+                </div>`).join('');
+            return `<div class="border rounded-xl p-3 ${sev}" ${navFn ? `onclick="${navFn}" style="cursor:pointer"` : ''}>
+                <div class="flex items-center justify-between mb-1.5">
+                    <span class="font-bold text-xs flex items-center gap-1.5"><i class="fa-solid ${cat.icon}"></i> ${safeStr(cat.label)}</span>
+                    <span class="flex items-center gap-2">
+                        <span class="text-[9px] bg-white/70 px-2 py-0.5 rounded-full border">${safeStr(cat.responsible)}</span>
+                        <span class="font-black text-sm">${cat.count}</span>
+                    </span>
+                </div>
+                <div class="bg-white/60 rounded-lg px-2">${itemsHtml}</div>
+                ${cat.count > cat.items.length ? `<p class="text-[9px] text-slate-400 mt-1">ועוד ${cat.count - cat.items.length}...</p>` : ''}
+            </div>`;
+        }).join('');
+    } catch(e) {
+        list.innerHTML = '<p class="text-red-400 text-center py-6 text-xs">שגיאת רשת</p>';
     }
 };
 
