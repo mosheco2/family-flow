@@ -12298,6 +12298,33 @@ app.get('/api/storefront/:code', async (req, res) => {
 // --- COMMUNITY CAMPAIGN — PUBLIC PAGE (community-store.html) ---
 // ============================================================
 
+// נתיב שיתוף קצר לקמפיין — מגיש את אותו עמוד ציבורי, אבל עם תגי og: דינמיים
+// כדי שתצוגה מקדימה של הלינק בווצאפ/רשתות תציג את הכותרת/תיאור/תמונה של
+// הקמפיין הספציפי (WhatsApp שולף רק את ה-HTML הגולמי, לא מריץ JS)
+app.get('/campaign/:code', async (req, res) => {
+    try {
+        const cRes = await pool.query(
+            `SELECT cc.*, c.name AS community_name FROM community_campaigns cc
+             JOIN communities c ON c.id = cc.community_id
+             WHERE cc.code=$1 AND cc.status='active'`, [req.params.code.toLowerCase()]);
+        const html = fs.readFileSync(path.join(__dirname, 'public', 'community-store.html'), 'utf8');
+        if (!cRes.rows.length) return res.send(html);
+        const c = cRes.rows[0];
+        const escAttr = (s) => String(s || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        const title = escAttr(c.title || c.community_name || 'קמפיין קהילה');
+        const description = escAttr(c.share_description || c.slogan || `קמפיין קהילה ב-WEFLOWZ — הצטרפו והזמינו מהעסקים המשתתפים`);
+        const image = escAttr(c.logo_url || c.banner_image_url || '');
+        const pageUrl = escAttr(`${req.protocol}://${req.get('host')}/campaign/${c.code}`);
+        const injected = html
+            .replace('<title id="page-title">קמפיין קהילה</title>', `<title id="page-title">${title}</title>`)
+            .replace('<meta property="og:title" content="קמפיין קהילה">', `<meta property="og:title" content="${title}">`)
+            .replace(/<meta property="og:description" content="[^"]*">/, `<meta property="og:description" content="${description}">`)
+            .replace('<meta property="og:image" content="">', `<meta property="og:image" content="${image}">`)
+            .replace('</head>', `<meta property="og:url" content="${pageUrl}"><script>window.__CAMPAIGN_CODE__=${JSON.stringify(c.code)};</script></head>`);
+        res.send(injected);
+    } catch(e) { res.status(500).send('שגיאת שרת'); }
+});
+
 // עמוד הקמפיין הציבורי: מוצרים מכל העסקים המשתתפים, יחד, מתוייגים לפי עסק
 app.get('/api/campaign/:code', async (req, res) => {
     try {
@@ -13116,6 +13143,7 @@ async function initCommunityTables() {
         `ALTER TABLE community_campaigns ADD COLUMN IF NOT EXISTS logo_url TEXT`,
         `ALTER TABLE community_campaigns ADD COLUMN IF NOT EXISTS slogan VARCHAR(200)`,
         `ALTER TABLE community_campaigns ADD COLUMN IF NOT EXISTS hide_title BOOLEAN DEFAULT FALSE`,
+        `ALTER TABLE community_campaigns ADD COLUMN IF NOT EXISTS share_description VARCHAR(300)`,
         `ALTER TABLE community_campaigns ALTER COLUMN title DROP NOT NULL`,
         `CREATE TABLE IF NOT EXISTS community_campaign_businesses (
             campaign_id INT REFERENCES community_campaigns(id) ON DELETE CASCADE,
@@ -15484,7 +15512,7 @@ app.patch('/api/zone-manager/community-campaigns/:id', verifyZoneManager, async 
         const campaign = await verifyCampaignOwnership(req.params.id, managerId);
         if (!campaign) return res.status(403).json({ error: 'אין הרשאה לקמפיין זה' });
 
-        const { title, description, bannerImageUrl, status, logoUrl, slogan, hideTitle } = req.body;
+        const { title, description, bannerImageUrl, status, logoUrl, slogan, hideTitle, shareDescription } = req.body;
         const upd = await pool.query(
             `UPDATE community_campaigns SET
                 title = COALESCE($1, title),
@@ -15493,9 +15521,10 @@ app.patch('/api/zone-manager/community-campaigns/:id', verifyZoneManager, async 
                 status = COALESCE($4, status),
                 logo_url = COALESCE($6, logo_url),
                 slogan = COALESCE($7, slogan),
-                hide_title = COALESCE($8, hide_title)
+                hide_title = COALESCE($8, hide_title),
+                share_description = COALESCE($9, share_description)
              WHERE id=$5 RETURNING *`,
-            [title, description, bannerImageUrl, status, req.params.id, logoUrl, slogan, hideTitle]);
+            [title, description, bannerImageUrl, status, req.params.id, logoUrl, slogan, hideTitle, shareDescription]);
         res.json({ success: true, campaign: upd.rows[0] });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -16242,7 +16271,7 @@ app.patch('/api/community/manager/campaigns/:id', verifyFamily, async (req, res)
         const campaign = await verifyCampaignOwnershipFamily(req.params.id, req.familyAuth.groupId);
         if (!campaign) return res.status(403).json({ error: 'אין הרשאה לקמפיין זה' });
 
-        const { title, description, bannerImageUrl, status, logoUrl, slogan, hideTitle } = req.body;
+        const { title, description, bannerImageUrl, status, logoUrl, slogan, hideTitle, shareDescription } = req.body;
         const upd = await pool.query(
             `UPDATE community_campaigns SET
                 title = COALESCE($1, title),
@@ -16251,9 +16280,10 @@ app.patch('/api/community/manager/campaigns/:id', verifyFamily, async (req, res)
                 status = COALESCE($4, status),
                 logo_url = COALESCE($6, logo_url),
                 slogan = COALESCE($7, slogan),
-                hide_title = COALESCE($8, hide_title)
+                hide_title = COALESCE($8, hide_title),
+                share_description = COALESCE($9, share_description)
              WHERE id=$5 RETURNING *`,
-            [title, description, bannerImageUrl, status, req.params.id, logoUrl, slogan, hideTitle]);
+            [title, description, bannerImageUrl, status, req.params.id, logoUrl, slogan, hideTitle, shareDescription]);
         res.json({ success: true, campaign: upd.rows[0] });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });

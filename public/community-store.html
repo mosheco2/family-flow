@@ -4,6 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title id="page-title">קמפיין קהילה</title>
+<!-- ברירת מחדל לתצוגה המקדימה בווצאפ/רשתות — עבור לינקים בנתיב /campaign/:code
+     השרת מחליף את התגים האלה בזמן אמת לפי הגדרות הקמפיין (ראה server.js) -->
+<meta property="og:type" content="website">
+<meta property="og:title" content="קמפיין קהילה">
+<meta property="og:description" content="קמפיין קהילה ב-WEFLOWZ — הצטרפו והזמינו מהעסקים המשתתפים">
+<meta property="og:image" content="">
 <link rel="icon" href="/api/public/logo" type="image/png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600;700;800&family=Heebo:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -35,14 +41,15 @@ input,button,select,textarea{font-family:inherit}
 #cart-header-btn:hover{background:var(--accent)}
 #cart-header-count{min-width:22px;height:22px;display:flex;align-items:center;justify-content:center;border-radius:99px;background:rgba(255,255,255,.18);font-size:11.5px;font-weight:700}
 
-/* מובייל: גובה נגזר מהתוכן (כותרת/סלוגן/תיאור) כדי שהטקסט לעולם לא ייחתך —
-   התמונה תוצג עם contain (ייתכן רווח קל בצדדים, עדיף על פני חיתוך טקסט) */
-#hero{position:relative;background:var(--dark) center/contain no-repeat;overflow:hidden}
+/* מובייל: גובה נגזר מהתוכן (כותרת/סלוגן/תיאור) כדי שהטקסט לעולם לא ייחתך,
+   אבל התמונה תמיד ב-cover כך שהיא ממלאת את כל השטח ללא רווחים/פסים כהים
+   מעל ומתחת (עלול לחתוך מעט מהצדדים בתמונה — עדיף על פני שטח ריק) */
+#hero{position:relative;background:var(--dark) center/cover no-repeat;overflow:hidden;min-height:200px}
 /* דסקטופ/טאבלט: מספיק רוחב שהטקסט תמיד נכנס גם ביחס קבוע — נועל יחס 18:5
    כדי שתמונת נושא במידות המומלצות (1800×500) תמלא בדיוק 100% מהשטח, בלי
    חיתוך ובלי רווחים */
 @media (min-width:820px){
-    #hero{aspect-ratio:18/5;display:flex;align-items:center;background-size:cover}
+    #hero{aspect-ratio:18/5;min-height:0;display:flex;align-items:center}
 }
 #hero-blob1{position:absolute;top:-30%;left:-6%;width:54%;height:80%;border-radius:50%;background:var(--accent);filter:blur(100px);opacity:.38}
 #hero-blob2{position:absolute;bottom:-30%;right:-8%;width:46%;height:70%;border-radius:50%;background:#e8a87c;filter:blur(110px);opacity:.2}
@@ -272,6 +279,6 @@ input,button,select,textarea{font-family:inherit}
 </div>
 
 <script src="/sc-auth.js"></script>
-<script src="community-store-app.js?v=5"></script>
+<script src="community-store-app.js?v=6"></script>
 </body>
 </html>

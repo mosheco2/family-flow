@@ -1,7 +1,7 @@
 // WEFLOWZ — Community Campaign public store page (visual language matches the "חמה" storefront template)
 (function() {
     const params = new URLSearchParams(window.location.search);
-    const campaignCode = params.get('c') || params.get('campaign') || '';
+    const campaignCode = window.__CAMPAIGN_CODE__ || params.get('c') || params.get('campaign') || '';
 
     let campaignData = null;
     let selectedBizFilter = 'all';

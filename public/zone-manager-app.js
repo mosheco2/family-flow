@@ -1463,7 +1463,7 @@ async function zmLoadCommunityCampaigns(commId) {
             <div class="flex justify-between items-start gap-2">
                 <div class="min-w-0">
                     <p class="font-bold text-slate-800 text-sm">${safeStrZM(c.title)}</p>
-                    <p class="text-[10px] text-slate-400 mt-0.5 truncate">${host}/community-store.html?c=${safeStrZM(c.code)}</p>
+                    <p class="text-[10px] text-slate-400 mt-0.5 truncate">${host}/campaign/${safeStrZM(c.code)}</p>
                     <p class="text-[10px] text-slate-500 mt-1">${c.business_count} עסקים · ${c.product_count} מוצרים · ${c.status === 'active' ? '<span class="text-emerald-600 font-bold">פעיל</span>' : '<span class="text-slate-400">מושבת</span>'}</p>
                 </div>
                 <button onclick="zmOpenCampaignManage(${c.id}, ${commId})" class="shrink-0 text-xs font-bold bg-pink-50 text-pink-600 px-3 py-1.5 rounded-lg hover:bg-pink-100 transition">נהל</button>
@@ -1524,16 +1524,25 @@ async function zmSaveCampaignSettings(campaignId, commId) {
     const logoUrl = document.getElementById(`zmc-logo-input-${campaignId}`)?.value;
     const bannerImageUrl = document.getElementById(`zmc-banner-input-${campaignId}`)?.value;
     const hideTitle = !!document.getElementById(`zmc-hide-title-${campaignId}`)?.checked;
+    const shareDescription = document.getElementById(`zmc-sharedesc-${campaignId}`)?.value.trim();
     try {
         const res = await fetch(`${API}/zone-manager/community-campaigns/${campaignId}`, {
             method: 'PATCH', headers: { 'Content-Type': 'application/json', 'Authorization': zmToken },
-            body: JSON.stringify({ title, slogan: slogan || null, logoUrl: logoUrl || null, bannerImageUrl: bannerImageUrl || null, hideTitle })
+            body: JSON.stringify({ title, slogan: slogan || null, logoUrl: logoUrl || null, bannerImageUrl: bannerImageUrl || null, hideTitle, shareDescription: shareDescription || null })
         });
         const data = await res.json();
         if (!data.success) return showZMToast(data.error || 'שגיאה', 'error');
         showZMToast('ההגדרות נשמרו ✅');
         zmOpenCampaignManage(campaignId, commId);
     } catch(e) { showZMToast('שגיאת רשת', 'error'); }
+}
+
+// פותח את דיאלוג השיתוף של ווצאפ עם לינק הקמפיין — ווצאפ ישלוף בעצמו את תצוגת
+// המקדימה (og:title/og:description/og:image) מנתיב /campaign/:code בזמן השליחה
+function zmShareCampaignWhatsapp(campaignId) {
+    const link = document.getElementById(`zmc-link-${campaignId}`)?.value;
+    if (!link) return;
+    window.open(`https://wa.me/?text=${encodeURIComponent(link)}`, '_blank');
 }
 
 let _zmCampaignDetail = null;
@@ -1550,11 +1559,17 @@ async function zmOpenCampaignManage(campaignId, commId) {
         body.innerHTML = `
         <button onclick="zmLoadCommunityCampaigns(${commId})" class="text-xs text-slate-500 hover:text-slate-700 mb-3"><i class="fa-solid fa-arrow-right ml-1"></i>חזרה לרשימת קמפיינים</button>
         <div class="bg-pink-50 border border-pink-100 rounded-2xl p-4 mb-3">
-            <p class="font-black text-slate-800">${safeStrZM(c.title)}</p>
+            <p class="font-black text-slate-800">קמפיין קהילה</p>
             <div class="flex items-center gap-2 mt-1.5">
-                <input readonly value="${host}/community-store.html?c=${safeStrZM(c.code)}" class="flex-1 text-[11px] bg-white border border-pink-200 rounded-lg px-2 py-1.5 text-slate-500" onclick="this.select()">
-                <button onclick="navigator.clipboard.writeText('${host}/community-store.html?c=${c.code}');showZMToast('קישור הועתק ✅')" class="text-[10px] font-bold bg-pink-600 text-white px-2.5 py-1.5 rounded-lg">העתק</button>
+                <input readonly id="zmc-link-${campaignId}" value="${host}/campaign/${safeStrZM(c.code)}" class="flex-1 text-[11px] bg-white border border-pink-200 rounded-lg px-2 py-1.5 text-slate-500" onclick="this.select()">
+                <button onclick="navigator.clipboard.writeText('${host}/campaign/${c.code}');showZMToast('קישור הועתק ✅')" class="text-[10px] font-bold bg-pink-600 text-white px-2.5 py-1.5 rounded-lg">העתק</button>
             </div>
+            <div class="mt-2.5">
+                <label class="text-[10px] font-bold text-slate-400 block mb-1">מה יופיע בתצוגה המקדימה של הלינק בווצאפ</label>
+                <input id="zmc-sharedesc-${campaignId}" type="text" value="${safeStrZM(c.share_description || '')}" placeholder="למשל: מבצעים בלעדיים לחברי הקהילה — הזמינו עכשיו" maxlength="200" class="w-full border border-pink-200 rounded-lg px-3 py-2 text-sm">
+                <p class="text-[9px] text-slate-400 mt-1">בנפרד מהודעה ידנית — זה הטקסט שווצאפ יציג אוטומטית מתחת ללינק. שמרו בכפתור "שמור הגדרות" למטה.</p>
+            </div>
+            <button onclick="zmShareCampaignWhatsapp(${campaignId})" class="w-full mt-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 rounded-xl text-sm transition"><i class="fa-brands fa-whatsapp ml-1.5"></i>שתף בווצאפ</button>
         </div>
 
         <!-- הגדרות עמוד הקמפיין: כותרת, סלוגן, לוגו, תמונת נושא — כמו בניהול חנות ציבורית -->

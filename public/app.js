@@ -8120,16 +8120,25 @@ async function cmSaveCampaignSettings(campaignId, commId) {
     const logoUrl = document.getElementById(`cmc-logo-input-${campaignId}`)?.value;
     const bannerImageUrl = document.getElementById(`cmc-banner-input-${campaignId}`)?.value;
     const hideTitle = !!document.getElementById(`cmc-hide-title-${campaignId}`)?.checked;
+    const shareDescription = document.getElementById(`cmc-sharedesc-${campaignId}`)?.value.trim();
     try {
         const res = await communityFetch(`${API}/community/manager/campaigns/${campaignId}`, {
             method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ title, slogan: slogan || null, logoUrl: logoUrl || null, bannerImageUrl: bannerImageUrl || null, hideTitle })
+            body: JSON.stringify({ title, slogan: slogan || null, logoUrl: logoUrl || null, bannerImageUrl: bannerImageUrl || null, hideTitle, shareDescription: shareDescription || null })
         });
         const data = await res.json();
         if (!data.success) return showToast('error', data.error || 'שגיאה');
         showToast('success', 'ההגדרות נשמרו');
         cmOpenCampaignManage(campaignId, commId);
     } catch(e) { showToast('error', 'שגיאת רשת'); }
+}
+
+// פותח את דיאלוג השיתוף של ווצאפ עם לינק הקמפיין — ווצאפ ישלוף בעצמו את תצוגת
+// המקדימה (og:title/og:description/og:image) מנתיב /campaign/:code בזמן השליחה
+function cmShareCampaignWhatsapp(campaignId) {
+    const link = document.getElementById(`cmc-link-${campaignId}`)?.value;
+    if (!link) return;
+    window.open(`https://wa.me/?text=${encodeURIComponent(link)}`, '_blank');
 }
 
 async function cmOpenCampaignManage(campaignId, commId) {
@@ -8145,11 +8154,17 @@ async function cmOpenCampaignManage(campaignId, commId) {
         box.innerHTML = `
         <button onclick="cmLoadCampaigns(${commId})" class="text-xs text-slate-500 hover:text-slate-700 mb-2"><i class="fa-solid fa-arrow-right ml-1"></i>חזרה לרשימת קמפיינים</button>
         <div class="bg-white border border-pink-100 rounded-xl p-3 mb-2">
-            <p class="font-bold text-slate-800 text-sm">${safeStr(c.title)}</p>
+            <p class="font-bold text-slate-800 text-sm">קמפיין קהילה</p>
             <div class="flex items-center gap-2 mt-1.5">
-                <input readonly value="${host}/community-store.html?c=${safeStr(c.code)}" class="flex-1 text-[10px] bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-slate-500" onclick="this.select()">
-                <button onclick="navigator.clipboard.writeText('${host}/community-store.html?c=${c.code}');showToast('success','קישור הועתק')" class="text-[10px] font-bold bg-pink-600 text-white px-2.5 py-1.5 rounded-lg shrink-0">העתק</button>
+                <input readonly id="cmc-link-${campaignId}" value="${host}/campaign/${safeStr(c.code)}" class="flex-1 text-[10px] bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-slate-500" onclick="this.select()">
+                <button onclick="navigator.clipboard.writeText('${host}/campaign/${c.code}');showToast('success','קישור הועתק')" class="text-[10px] font-bold bg-pink-600 text-white px-2.5 py-1.5 rounded-lg shrink-0">העתק</button>
             </div>
+            <div class="mt-2">
+                <label class="text-[10px] font-bold text-slate-400 block mb-1">מה יופיע בתצוגה המקדימה של הלינק בווצאפ</label>
+                <input id="cmc-sharedesc-${campaignId}" type="text" value="${safeStr(c.share_description || '')}" placeholder="למשל: מבצעים בלעדיים לחברי הקהילה — הזמינו עכשיו" maxlength="200" class="w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs">
+                <p class="text-[9px] text-slate-400 mt-1">בנפרד מהודעה ידנית — זה הטקסט שווצאפ יציג אוטומטית מתחת ללינק. שמרו בכפתור "שמור הגדרות" למטה.</p>
+            </div>
+            <button onclick="cmShareCampaignWhatsapp(${campaignId})" class="w-full mt-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-1.5 rounded-lg text-xs transition"><i class="fa-brands fa-whatsapp ml-1.5"></i>שתף בווצאפ</button>
         </div>
 
         <!-- הגדרות עמוד הקמפיין: כותרת, סלוגן, לוגו, תמונת נושא — כמו בניהול חנות ציבורית -->
