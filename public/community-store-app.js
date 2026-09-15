@@ -68,10 +68,9 @@
             el.style.display = 'block';
         }
         document.getElementById('hero-sub').textContent = c.description || '';
+        // הלוגו מוצג רק בכותרת העליונה הדביקה — בדיוק כמו בחנות הציבורית המקורית
+        // של עסק (storefront-restaurant.html וכו'), ששם אין בכלל לוגו בתוך הבאנר
         if (c.logo_url) {
-            const heroLogo = document.getElementById('hero-logo');
-            heroLogo.src = c.logo_url;
-            heroLogo.style.display = 'block';
             const headerLogo = document.getElementById('header-logo');
             headerLogo.innerHTML = `<img src="${c.logo_url}">`;
         }
