@@ -7503,6 +7503,25 @@ window.loadSAAssistantLogo = async function() {
     } catch(e) { console.log('SA AI Logo load skipped.'); }
 };
 
+window.confirmSAAIAction = async function(idx, btnEl) {
+    const pending = (window._saAiPendingActions || [])[idx];
+    if (!pending) return;
+    const card = btnEl.closest('div.mt-2');
+    btnEl.disabled = true;
+    btnEl.textContent = 'מבצע...';
+    try {
+        const res = await fetch(`${API}/sa/ai/confirm-action`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': saToken },
+            body: JSON.stringify({ action_type: pending.type, params: pending.params })
+        });
+        const data = await res.json();
+        if (card) card.outerHTML = `<div class="mt-2 bg-emerald-50 border border-emerald-200 rounded-xl p-2 text-[11px] text-emerald-700 font-bold">${safeStr(data.success ? (data.message || 'בוצע ✅') : (data.error || 'שגיאה בביצוע'))}</div>`;
+    } catch(e) {
+        if (card) card.outerHTML = `<div class="mt-2 bg-red-50 border border-red-200 rounded-xl p-2 text-[11px] text-red-600 font-bold">שגיאת תקשורת</div>`;
+    }
+};
+
 window.toggleSAAIChat = function() {
     const chatWindow = getEl('sa-ai-chat-window');
     if (chatWindow.classList.contains('hidden')) {
@@ -7651,12 +7670,28 @@ window.sendSAAIMessage = async function(e) {
 
             const actionsHtml = actionBtns ? `<div class="flex flex-wrap gap-1.5 mt-2">${actionBtns}</div>` : '';
 
+            let confirmHtml = '';
+            if (data.pending_action) {
+                window._saAiPendingActions = window._saAiPendingActions || [];
+                const idx = window._saAiPendingActions.length;
+                window._saAiPendingActions.push(data.pending_action);
+                confirmHtml = `
+                    <div class="mt-2 bg-amber-50 border border-amber-200 rounded-xl p-2.5">
+                        <p class="text-[11px] font-bold text-amber-700 mb-1.5"><i class="fa-solid fa-triangle-exclamation ml-1"></i>פעולה זו בלתי הפיכה — לאשר?</p>
+                        <div class="flex gap-1.5">
+                            <button onclick="confirmSAAIAction(${idx}, this)" class="flex-1 bg-amber-600 text-white text-[11px] font-bold py-1.5 rounded-lg hover:bg-amber-700 transition">אישור, בצע</button>
+                            <button onclick="this.closest('div.mt-2').remove()" class="flex-1 bg-slate-100 text-slate-500 text-[11px] font-bold py-1.5 rounded-lg hover:bg-slate-200 transition">ביטול</button>
+                        </div>
+                    </div>`;
+            }
+
             chatMessages.innerHTML += `
                 <div class="flex gap-2 fade-in">
                     <div class="w-8 h-8 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center shrink-0 shadow-sm"><img src="${currentLogo}" class="w-full h-full rounded-full object-cover"></div>
-                    <div class="bg-white border border-slate-200 p-3 rounded-2xl rounded-tr-none text-slate-700 shadow-sm text-xs leading-relaxed font-medium max-w-[85%]">
+                    <div class="bg-white border border-slate-200 p-3 rounded-2xl rounded-tr-none text-slate-700 shadow-sm text-xs leading-relaxed font-medium max-w-[85%] w-full">
                         ${reply}
                         ${actionsHtml}
+                        ${confirmHtml}
                     </div>
                 </div>
             `;

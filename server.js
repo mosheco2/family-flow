@@ -4145,135 +4145,295 @@ app.post('/api/ai/chat', verifySA, async (req, res) => {
 // ============================================================
 // SA AI ASSISTANT — full-capability endpoint
 // ============================================================
+// ספקי מידע ל-NEED_DATA של FLOW AI (סופר אדמין) - שליפה מלאה ואמינה במקום ניחוש מילות מפתח
+async function fetchSAAdditionalData(provider, params) {
+    try {
+        switch (provider) {
+            case 'tickets': {
+                const r = await pool.query(
+                    `SELECT id,subject,status,priority,created_at,
+                     (SELECT name FROM family_groups WHERE id=support_tickets.group_id) as biz_name
+                     FROM support_tickets ORDER BY created_at DESC LIMIT 40`);
+                return { total: r.rows.length, tickets: r.rows };
+            }
+            case 'banner_orders': {
+                const r = await pool.query(
+                    `SELECT bo.id,bo.status,bo.duration_days,bo.coins_used,bo.cash_amount,
+                     bo.start_date,bo.end_date,fg.name as business_name, bs.name as slot_name
+                     FROM banner_orders bo
+                     LEFT JOIN family_groups fg ON fg.id=bo.business_id
+                     LEFT JOIN banner_slots bs ON bs.id=bo.slot_id
+                     ORDER BY bo.created_at DESC LIMIT 40`);
+                return { total: r.rows.length, banner_orders: r.rows };
+            }
+            case 'billing': {
+                const r = await pool.query(
+                    `SELECT br.id,br.description,br.amount_ils,br.cash_amount,br.payment_status,
+                     br.due_date,br.paid_at,fg.name as business_name
+                     FROM billing_records br LEFT JOIN family_groups fg ON fg.id=br.business_id
+                     ORDER BY br.created_at DESC LIMIT 40`);
+                return { total: r.rows.length, billing: r.rows };
+            }
+            case 'communities': {
+                const r = await pool.query(`SELECT id,name,city,code,status,created_at FROM communities ORDER BY name LIMIT 100`);
+                return { total: r.rows.length, communities: r.rows };
+            }
+            case 'businesses': {
+                const r = await pool.query(
+                    `SELECT fg.id,fg.name,fg.type as group_type,fg.business_type,fg.account_status,fg.created_at,
+                     (SELECT COUNT(*) FROM support_tickets WHERE group_id=fg.id AND status='open') as open_tickets
+                     FROM family_groups fg WHERE fg.type='BUSINESS' AND fg.is_test_env IS NOT TRUE
+                     ORDER BY fg.created_at DESC LIMIT 150`);
+                return { total: r.rows.length, businesses: r.rows };
+            }
+            case 'wallets': {
+                const r = await pool.query(
+                    `SELECT fw.entity_type,fw.balance, COALESCE(fg.name,c.name) as owner_name
+                     FROM flow_wallets fw
+                     LEFT JOIN family_groups fg ON fw.entity_type IN ('business','family') AND fg.id=fw.entity_id
+                     LEFT JOIN communities c ON fw.entity_type='community' AND c.id=fw.entity_id
+                     ORDER BY fw.balance DESC LIMIT 30`);
+                return { total: r.rows.length, wallets: r.rows };
+            }
+            case 'zone_managers': {
+                const r = await pool.query(`SELECT id,name,email,status,commission_pct,total_commissions,total_paid,created_at FROM zone_managers ORDER BY created_at DESC LIMIT 60`);
+                return { total: r.rows.length, zone_managers: r.rows };
+            }
+            case 'pending_all': {
+                const r = await pool.query(`
+                    SELECT
+                        (SELECT COUNT(*) FROM community_businesses WHERE status IN ('pending','zm_pending')) as pending_biz_community,
+                        (SELECT COUNT(*) FROM family_communities WHERE status='pending') as pending_family_community,
+                        (SELECT COUNT(*) FROM zone_managers WHERE status='pending') as pending_zm,
+                        (SELECT COUNT(*) FROM banner_orders WHERE status='pending') as pending_banners,
+                        (SELECT COUNT(*) FROM billing_records WHERE payment_status!='paid') as unpaid_billing,
+                        (SELECT COUNT(*) FROM support_tickets WHERE status='open') as open_tickets
+                `);
+                return r.rows[0];
+            }
+            case 'users_count': {
+                const r = await pool.query(`SELECT COUNT(*) as total_users, COUNT(*) FILTER (WHERE last_seen > NOW()-INTERVAL '3 minutes') as online_now FROM users`);
+                return r.rows[0];
+            }
+            case 'families': {
+                const r = await pool.query(
+                    `SELECT id,name,account_status,created_at FROM family_groups
+                     WHERE type='FAMILY' AND member_type NOT IN ('member','shopper') AND is_test_env IS NOT TRUE
+                     ORDER BY created_at DESC LIMIT 150`);
+                return { total: r.rows.length, families: r.rows };
+            }
+            case 'platform_stats': {
+                // אותם נתוני GMV/הזמנות כלל-מערכתיים כמו מסך "תובנות מאוחדות"
+                const r = await pool.query(`
+                    SELECT
+                        (SELECT COUNT(*) FROM store_orders WHERE status NOT IN ('cancelled','rejected')) as total_orders,
+                        (SELECT COALESCE(SUM(total_amount),0) FROM store_orders WHERE status NOT IN ('cancelled','rejected')) as total_gmv,
+                        (SELECT COUNT(*) FROM store_orders WHERE created_at > NOW()-INTERVAL '30 days' AND status NOT IN ('cancelled','rejected')) as orders_30d,
+                        (SELECT COALESCE(SUM(total_amount),0) FROM store_orders WHERE created_at > NOW()-INTERVAL '30 days' AND status NOT IN ('cancelled','rejected')) as gmv_30d,
+                        (SELECT COUNT(*) FROM family_groups WHERE type='BUSINESS' AND account_status='active') as active_businesses,
+                        (SELECT COUNT(*) FROM family_groups WHERE type='FAMILY' AND account_status='active' AND member_type NOT IN ('member','shopper')) as active_families,
+                        (SELECT COUNT(*) FROM communities) as total_communities
+                `);
+                return r.rows[0];
+            }
+            case 'ai_usage': {
+                const r = await pool.query(`
+                    SELECT fg.name as business_name, COUNT(*) as calls
+                    FROM ai_usage_log al JOIN family_groups fg ON fg.id=al.group_id
+                    WHERE al.created_at > NOW()-INTERVAL '30 days'
+                    GROUP BY fg.id, fg.name ORDER BY calls DESC LIMIT 20
+                `);
+                return { top_ai_users_30d: r.rows };
+            }
+            case 'dev_tasks': {
+                const r = await pool.query(`SELECT id,title,status,priority,created_at FROM sa_dev_tasks WHERE status IN ('backlog','in_progress') ORDER BY priority DESC, created_at DESC LIMIT 40`);
+                return { total: r.rows.length, dev_tasks: r.rows };
+            }
+            default:
+                return { error: 'סוג מידע לא מוכר: ' + provider };
+        }
+    } catch(e) {
+        return { error: 'שגיאה בשליפת נתונים: ' + e.message };
+    }
+}
+
+// פעולות רגישות/בלתי-הפיכות - חייבות אישור מפורש לפני ביצוע
+const SA_AI_SENSITIVE_ACTIONS = new Set(['REJECT_ZM', 'REJECT_BIZ_COMMUNITY', 'REJECT_COMMUNITY_JOIN', 'REJECT_PROMO', 'DENY_MODULE_REQUEST', 'REMOVE_BIZ_FROM_COMMUNITY']);
+
+// מבצע בפועל פעולת FLOW AI - משמש גם לביצוע מיידי וגם לאחר אישור מפורש
+async function executeSAAction(actionType, params, saUserName) {
+    try {
+        switch (actionType) {
+            case 'CLOSE_TICKET': {
+                const [ticketId] = params;
+                await pool.query('UPDATE support_tickets SET status=$1, status_updated_at=NOW() WHERE id=$2', ['closed', ticketId]);
+                return `✅ קריאה #${ticketId} נסגרה.`;
+            }
+            case 'MARK_BILLING_PAID': {
+                const [billingId] = params;
+                await pool.query(`UPDATE billing_records SET payment_status='paid', paid_at=NOW() WHERE id=$1`, [billingId]);
+                return `✅ חיוב #${billingId} סומן כשולם.`;
+            }
+            case 'APPROVE_ZM': {
+                const [zmId] = params;
+                await pool.query(`UPDATE zone_managers SET status='active' WHERE id=$1`, [zmId]);
+                return `✅ מנהל אזור #${zmId} אושר.`;
+            }
+            case 'REJECT_ZM': {
+                const [zmId] = params;
+                await pool.query(`DELETE FROM zone_managers WHERE id=$1 AND status='pending'`, [zmId]);
+                return `🗑️ בקשת מנהל אזור #${zmId} נדחתה.`;
+            }
+            case 'APPROVE_BIZ_COMMUNITY': {
+                const [communityId, businessId] = params;
+                const r = await pool.query(
+                    `UPDATE community_businesses SET status='approved' WHERE community_id=$1 AND business_id=$2
+                     AND status IN ('pending','zm_pending','pending_cm_review','comm_mgr_pending') RETURNING community_id`,
+                    [communityId, businessId]);
+                if (!r.rows.length) return `❌ לא נמצאה בקשה ממתינה.`;
+                await awardFlow('business', parseInt(businessId), 'biz_join_approved', parseInt(communityId));
+                return `✅ חיבור העסק לקהילה אושר.`;
+            }
+            case 'REJECT_BIZ_COMMUNITY': {
+                const [communityId, businessId] = params;
+                const r = await pool.query(
+                    `UPDATE community_businesses SET status='rejected', rejected_at=NOW(), rejected_by='super_admin'
+                     WHERE community_id=$1 AND business_id=$2 AND status IN ('pending','zm_pending','pending_cm_review','comm_mgr_pending','biz_invited') RETURNING community_id`,
+                    [communityId, businessId]);
+                return r.rows.length ? `🗑️ בקשת חיבור העסק לקהילה נדחתה.` : `❌ לא נמצאה בקשה ממתינה.`;
+            }
+            case 'APPROVE_COMMUNITY_JOIN': {
+                const [groupId, communityId] = params;
+                const r = await pool.query(`UPDATE family_communities SET status='approved' WHERE group_id=$1 AND community_id=$2 AND status='pending' RETURNING group_id`, [groupId, communityId]);
+                return r.rows.length ? `✅ בקשת הצטרפות המשפחה לקהילה אושרה.` : `❌ לא נמצאה בקשה ממתינה.`;
+            }
+            case 'REJECT_COMMUNITY_JOIN': {
+                const [groupId, communityId] = params;
+                const r = await pool.query(`DELETE FROM family_communities WHERE group_id=$1 AND community_id=$2 AND status='pending' RETURNING group_id`, [groupId, communityId]);
+                return r.rows.length ? `🗑️ בקשת הצטרפות המשפחה לקהילה נדחתה.` : `❌ לא נמצאה בקשה ממתינה.`;
+            }
+            case 'APPROVE_PROMO': {
+                const [promoId] = params;
+                const code = 'PROMO' + Math.random().toString(36).substring(2,7).toUpperCase();
+                await pool.query("UPDATE community_promotions SET status='approved', promo_code=$1 WHERE id=$2", [code, promoId]);
+                const promo = await pool.query('SELECT business_id, community_id FROM community_promotions WHERE id=$1', [promoId]);
+                if (promo.rows.length) await awardFlow('business', promo.rows[0].business_id, 'biz_promo_approved', promo.rows[0].community_id, parseInt(promoId));
+                return `✅ מבצע #${promoId} אושר (קוד: ${code}).`;
+            }
+            case 'REJECT_PROMO': {
+                const [promoId] = params;
+                await pool.query("UPDATE community_promotions SET status='rejected' WHERE id=$1", [promoId]);
+                return `🗑️ מבצע #${promoId} נדחה.`;
+            }
+            case 'APPROVE_MODULE_REQUEST': {
+                const [groupId, moduleId] = params;
+                const g = await pool.query('SELECT managed_modules FROM family_groups WHERE id=$1', [groupId]);
+                if (!g.rows.length) return `❌ סביבה #${groupId} לא נמצאה.`;
+                let current = [];
+                try { current = Array.isArray(g.rows[0].managed_modules) ? g.rows[0].managed_modules : JSON.parse(g.rows[0].managed_modules || '[]'); } catch(e) {}
+                const updated = current.includes(moduleId) ? current : [...current, moduleId];
+                await pool.query(
+                    `UPDATE family_groups SET managed_modules=$1,
+                     module_requests = COALESCE((SELECT jsonb_agg(r) FROM jsonb_array_elements(COALESCE(module_requests,'[]'::jsonb)) r WHERE r->>'moduleId' != $2), '[]'::jsonb)
+                     WHERE id=$3`,
+                    [JSON.stringify(updated), moduleId, groupId]
+                );
+                return `✅ מודול "${moduleId}" אושר ונוסף לסביבה #${groupId}.`;
+            }
+            case 'DENY_MODULE_REQUEST': {
+                const [groupId, moduleId] = params;
+                await pool.query(
+                    `UPDATE family_groups SET module_requests = COALESCE((SELECT jsonb_agg(r) FROM jsonb_array_elements(COALESCE(module_requests,'[]'::jsonb)) r WHERE r->>'moduleId' != $1), '[]'::jsonb) WHERE id=$2`,
+                    [moduleId, groupId]
+                );
+                return `🗑️ בקשת מודול "${moduleId}" נדחתה.`;
+            }
+            case 'REMOVE_BIZ_FROM_COMMUNITY': {
+                const [communityId, businessId] = params;
+                const r = await pool.query(
+                    `UPDATE community_businesses SET status='removed', removed_at=NOW(), removed_by='super_admin', removal_requested=FALSE
+                     WHERE community_id=$1 AND business_id=$2 AND removal_requested=TRUE RETURNING community_id`,
+                    [communityId, businessId]);
+                return r.rows.length ? `🗑️ העסק הוסר מהקהילה.` : `❌ לא נמצאה בקשת הסרה.`;
+            }
+            case 'DECLINE_REMOVAL_REQUEST': {
+                const [communityId, businessId] = params;
+                await pool.query(`UPDATE community_businesses SET removal_requested=FALSE, removal_requested_at=NULL WHERE community_id=$1 AND business_id=$2`, [communityId, businessId]);
+                return `✅ בקשת ההסרה נדחתה - העסק ממשיך להיות פעיל בקהילה.`;
+            }
+            default:
+                return null;
+        }
+    } catch(e) {
+        return `❌ שגיאה בביצוע הפעולה: ${e.message}`;
+    }
+}
+
 app.post('/api/sa/ai/chat', verifySA, async (req, res) => {
     try {
         const { message, context = {} } = req.body;
         if (!getGenAIInstance()) return res.status(500).json({ success: false, error: 'מפתח Gemini אינו מוגדר' });
 
-        // ── auto-fetch relevant data based on keywords ──
-        const msg = (message || '').toLowerCase();
-        const fetchedData = {};
-
-        const needsTickets     = /קריא|תמיכ|ticket|פני|support|שירות/.test(msg);
-        const needsBanner      = /פרסו|באנר|banner|slot|שטח/.test(msg);
-        const needsBilling     = /גביי|חוב|תשלו|billing|חשבו|שולם|paid/.test(msg);
-        const needsCommunities = /קהיל|communit/.test(msg);
-        const needsBusinesses  = /עסק|business|לקוח/.test(msg);
-        const needsUsers       = /משתמש|user|רשו/.test(msg);
-        const needsWallet      = /מטבע|ארנק|wallet|flow|coin/.test(msg);
-        const needsAll         = /סיכום|דשבורד|כלל|הכל|overview|summary/.test(msg);
-
-        await Promise.all([
-            (needsTickets || needsAll) && pool.query(
-                `SELECT id,subject,status,priority,created_at,
-                 (SELECT name FROM family_groups WHERE id=support_tickets.group_id) as biz_name
-                 FROM support_tickets ORDER BY created_at DESC LIMIT 20`
-            ).then(r => { fetchedData.tickets = r.rows; }).catch(()=>{}),
-
-            (needsBanner || needsAll) && pool.query(
-                `SELECT bo.id,bo.status,bo.duration_days,bo.coins_used,bo.cash_amount,
-                 bo.start_date,bo.end_date,bo.community_ids,
-                 fg.name as business_name, bs.name as slot_name
-                 FROM banner_orders bo
-                 LEFT JOIN family_groups fg ON fg.id=bo.business_id
-                 LEFT JOIN banner_slots bs ON bs.id=bo.slot_id
-                 ORDER BY bo.created_at DESC LIMIT 30`
-            ).then(r => { fetchedData.banner_orders = r.rows; }).catch(()=>{}),
-
-            (needsBilling || needsAll) && pool.query(
-                `SELECT br.id,br.description,br.amount_ils,br.cash_amount,br.payment_status,
-                 br.due_date,br.paid_at,fg.name as business_name
-                 FROM billing_records br
-                 LEFT JOIN family_groups fg ON fg.id=br.business_id
-                 ORDER BY br.created_at DESC LIMIT 30`
-            ).then(r => { fetchedData.billing = r.rows; }).catch(()=>{}),
-
-            (needsCommunities || needsAll) && pool.query(
-                `SELECT id,name,city,code,created_at FROM communities ORDER BY name LIMIT 50`
-            ).then(r => { fetchedData.communities = r.rows; }).catch(()=>{}),
-
-            (needsBusinesses || needsAll) && pool.query(
-                `SELECT fg.id,fg.name,fg.type as group_type,fg.business_type,fg.created_at,
-                 (SELECT COUNT(*) FROM support_tickets WHERE group_id=fg.id AND status='open') as open_tickets
-                 FROM family_groups fg WHERE fg.type='BUSINESS'
-                 ORDER BY fg.created_at DESC LIMIT 100`
-            ).then(r => { fetchedData.businesses = r.rows; fetchedData.businesses_count = r.rows.length; }).catch(()=>{}),
-
-            (needsUsers || needsAll) && pool.query(
-                `SELECT COUNT(*) as total_users FROM users`
-            ).then(r => { fetchedData.users_count = r.rows[0].total_users; }).catch(()=>{}),
-
-            (needsWallet || needsAll) && pool.query(
-                `SELECT fw.entity_type,fw.balance,
-                 COALESCE(fg.name,u.name) as owner_name
-                 FROM flow_wallets fw
-                 LEFT JOIN family_groups fg ON fw.entity_type='business' AND fg.id=fw.entity_id
-                 LEFT JOIN users u ON fw.entity_type='user' AND u.id=fw.entity_id
-                 ORDER BY fw.balance DESC LIMIT 20`
-            ).then(r => { fetchedData.wallets = r.rows; }).catch(()=>{}),
-        ]);
+        const saUserName = req.saUser ? req.saUser.name : 'סופר אדמין';
 
         // ── system prompt ──
         const systemPrompt = `אתה "FLOW AI" — עוזרת AI מקצועית ורב-יכולת של מנהל-על (Super Admin) במערכת WEFLOWZ.
-הנך יודעת הכל על המערכת ויכולה: לשלוף נתונים, לנתח, לחזות, לבצע פעולות, ולהדריך.
+הנך יודעת הכל על המערכת ויכולה: לשלוף נתונים אמיתיים, לנתח, לחזות, ולבצע פעולות אמיתיות בפועל - לא רק לדבר עליהן.
 
-## יכולות ופעולות זמינות בסופר-אדמין:
+## שליפת מידע (NEED_DATA) - לפני שאתה עונה על סמך נתונים
+אם השאלה דורשת נתונים עדכניים (ולא רק הדרכה כללית), הוסף שורה אחת (ורק שורה זו, ללא טקסט אחר):
+[NEED_DATA:provider]
+providers זמינים: tickets, banner_orders, billing, communities, businesses, families, wallets, zone_managers, pending_all, users_count, platform_stats (הזמנות/GMV כלל-מערכתי), ai_usage (שימוש AI מוביל), dev_tasks (משימות פיתוח פתוחות)
+לאחר שתקבל את הנתונים תתבקש לענות סופית - אז אל תכתוב תשובה מלאה בשלב הזה.
+אם השאלה לא דורשת נתונים (הדרכה כללית, שיחה) - ענה ישירות כרגיל.
 
-### 🎫 תמיכה — קריאות שירות
-- צפייה בכל הקריאות (סטטוס: open/closed/pending)
-- מענה ללקוח, שיוך לנציג, סגירת קריאה
-- ניווט: [ACTION:TAB|tickets]
+## ביצוע פעולות אמיתיות (EXECUTE)
+כשהמנהל מבקש לבצע פעולה בפועל (לא רק לדבר עליה), הוסף בסוף תשובתך:
+[ACTION:EXECUTE|action_type|param1|param2]
+action_types זמינים (רק אלה - אל תמציא אחרים):
+  CLOSE_TICKET|ticket_id — סגירת קריאת שירות
+  MARK_BILLING_PAID|billing_id — סימון חיוב כשולם
+  APPROVE_ZM|zm_id — אישור מנהל אזור חדש
+  REJECT_ZM|zm_id — דחיית בקשת מנהל אזור (הרסני - ידרוש אישור נוסף מהמנהל)
+  APPROVE_BIZ_COMMUNITY|community_id|business_id — אישור חיבור עסק לקהילה
+  REJECT_BIZ_COMMUNITY|community_id|business_id — דחיית חיבור עסק לקהילה (הרסני)
+  APPROVE_COMMUNITY_JOIN|group_id|community_id — אישור הצטרפות משפחה לקהילה
+  REJECT_COMMUNITY_JOIN|group_id|community_id — דחיית הצטרפות משפחה לקהילה (הרסני)
+  APPROVE_PROMO|promo_id — אישור מבצע קהילה
+  REJECT_PROMO|promo_id — דחיית מבצע קהילה (הרסני)
+  APPROVE_MODULE_REQUEST|group_id|module_id — אישור בקשת פתיחת מודול לעסק
+  DENY_MODULE_REQUEST|group_id|module_id — דחיית בקשת מודול (הרסני)
+  REMOVE_BIZ_FROM_COMMUNITY|community_id|business_id — ביצוע הסרת עסק מקהילה (רק כשיש כבר בקשת הסרה ממתינה) (הרסני)
+  DECLINE_REMOVAL_REQUEST|community_id|business_id — דחיית בקשת הסרה - העסק נשאר פעיל
+ה-id-ים נלקחים מהנתונים שקיבלת (NEED_DATA). אל תמציא id שלא ראית.
 
-### 🏘️ קהילות
-- רשימת קהילות, עריכה, הוספה
-- אישור עסקים ממתינים לקהילה
-- ניווט: [ACTION:TAB|communities]
-
-### 🏪 עסקים ולקוחות
-- רשימת עסקים, כרטסת לקוח, עריכה
-- ניהול מנוי ומודולים
-- ניווט: [ACTION:TAB|clients] | כרטסת: [ACTION:LEDGER|BUSINESS_ID]
-
-### 📢 שטחי פרסום
-- הזמנות פרסום ממתינות לאישור
-- שיבוץ תאריכים, לוח תפוסות
-- ניווט: [ACTION:TAB|adslots] | הזמנות: [ACTION:SUBTAB|adslots|orders]
-
-### 💰 גביה ותשלומים
-- חובות פתוחים, סימון כשולם
-- ניווט: [ACTION:TAB|billing]
-
-### 🪙 Flow Wallet — מטבעות
-- יתרות עסקים ומשתמשים, העברות
-- ניווט: [ACTION:TAB|flow]
-
-### ⚙️ הגדרות מערכת
-- באנרים, Cloudinary, כיתוב טעינה
-- ניווט: [ACTION:TAB|settings]
+## ניווט במסכי הממשק
+[ACTION:TAB|tabId] | [ACTION:SUBTAB|tabId|subId] | [ACTION:LEDGER|BUSINESS_ID]
+טאבים: tickets, communities, clients, adslots, billing, flow, settings
 
 ## כללי תשובה:
 - ענה בעברית, קצר ולעניין
 - כשתדריך — תן שלבים ממוספרים
-- כשתציע ניווט — השתמש בקודי ACTION בלבד (אל תסביר את הקוד)
 - כשיש נתונים — הצג בטבלה או רשימה מסודרת
-- בסוף כל תשובה הוסף JSON בין תגיות: <SUGGESTIONS>["הצעה1","הצעה2","הצעה3"]</SUGGESTIONS>
-- אם נדרשת פעולה בלתי הפיכה (מחיקה/ביטול), בקש אישור תחילה
+- בסוף כל תשובה (שאינה NEED_DATA) הוסף JSON בין תגיות: <SUGGESTIONS>["הצעה1","הצעה2","הצעה3"]</SUGGESTIONS>
+- ספירות ומספרים — דווח **אך ורק** על בסיס נתונים שקיבלת בפועל. אל תמציא ואל תנחש.
+- אם קיבלת רשימה חלקית (LIMIT) — ציין "מוצגים X מתוך Y שנמצאו".
 
-## ⚠️ חשוב מאוד:
-- ספירות ומספרים — דווח **אך ורק** על בסיס הנתונים שקיבלת בבלוק "נתונים עדכניים". אל תמציא ואל תנחש מספרים.
-- אם לא קיבלת נתונים רלוונטיים — אמור "אין לי גישה לנתון זה כעת" ולא תנחש.
-- אם קיבלת רשימה חלקית (LIMIT) — ציין "מוצגים X מתוך Y שנמצאו".\``;
+## הקשר נוכחי
+${context.currentTab ? `טאב="${context.currentTab}"${context.extra ? ', ' + context.extra : ''}` : 'ללא'}
 
-        const dataBlock = Object.keys(fetchedData).length
-            ? `\n\n## נתונים עדכניים מהמערכת:\n${JSON.stringify(fetchedData, null, 1)}`
-            : '';
+## שאלת המנהל
+${message}`;
 
-        const contextBlock = context.currentTab
-            ? `\n\n## הקשר נוכחי: טאב="${context.currentTab}"${context.extra ? ', ' + context.extra : ''}`
-            : '';
+        let rawReply = await callGeminiDirect(systemPrompt);
 
-        const prompt = systemPrompt + dataBlock + contextBlock + `\n\n## שאלת המנהל:\n${message}`;
-        const rawReply = await callGeminiDirect(prompt);
+        const needDataMatch = rawReply.match(/\[NEED_DATA:([^\]]+)\]/);
+        if (needDataMatch) {
+            const provider = needDataMatch[1].trim();
+            const additionalData = await fetchSAAdditionalData(provider, []);
+            const followupPrompt = `${systemPrompt}\n\n## נתונים עדכניים שביקשת (${provider})\n${JSON.stringify(additionalData)}\n\nכעת ענה במלואה על שאלת המנהל על סמך הנתונים. אל תוסיף שוב [NEED_DATA:...].`;
+            rawReply = await callGeminiDirect(followupPrompt);
+        }
 
         // ── parse suggestions ──
         let suggestions = [];
@@ -4281,25 +4441,54 @@ app.post('/api/sa/ai/chat', verifySA, async (req, res) => {
         if (sugMatch) {
             try { suggestions = JSON.parse(sugMatch[1]); } catch(_) {}
         }
-        const reply = rawReply.replace(/<SUGGESTIONS>[\s\S]*?<\/SUGGESTIONS>/g, '').trim();
+        let reply = rawReply.replace(/<SUGGESTIONS>[\s\S]*?<\/SUGGESTIONS>/g, '').trim();
 
-        // ── parse inline actions ──
+        // ── parse navigation actions ──
         const actions = [];
-        const actionRe = /\[ACTION:(TAB|SUBTAB|LEDGER)\|([^\]]+)\]/g;
+        const navRe = /\[ACTION:(TAB|SUBTAB|LEDGER)\|([^\]]+)\]/g;
         let m;
-        while ((m = actionRe.exec(reply)) !== null) {
+        while ((m = navRe.exec(reply)) !== null) {
             if (m[1] === 'TAB') actions.push({ type: 'tab', tab: m[2] });
             else if (m[1] === 'SUBTAB') { const p = m[2].split('|'); actions.push({ type: 'subtab', tab: p[0], sub: p[1] }); }
             else if (m[1] === 'LEDGER') actions.push({ type: 'ledger', id: m[2] });
         }
-        // clean action codes from reply
+
+        // ── parse & handle EXECUTE action ──
+        let pendingAction = null;
+        const execMatch = reply.match(/\[ACTION:EXECUTE\|([^|\]]+)\|?([^\]]*)\]/);
+        if (execMatch) {
+            const actionType = execMatch[1].trim();
+            const params = execMatch[2].split('|').map(p => p.trim()).filter(Boolean);
+            if (SA_AI_SENSITIVE_ACTIONS.has(actionType)) {
+                pendingAction = { type: actionType, params };
+            } else {
+                const execMsg = await executeSAAction(actionType, params, saUserName);
+                if (execMsg) {
+                    reply += `\n\n${execMsg}`;
+                    logBizAction(null, null, saUserName, 'SA_AI_' + actionType, 'sa_action', params[0] || null, execMsg, { params });
+                }
+            }
+        }
+
         const cleanReply = reply.replace(/\[ACTION:[^\]]+\]/g, '').trim();
 
-        res.json({ success: true, reply: cleanReply, actions, suggestions });
+        res.json({ success: true, reply: cleanReply, actions, suggestions, pending_action: pendingAction });
     } catch(e) {
         console.error('[SA AI]', e.message);
         res.status(500).json({ success: false, error: e.message });
     }
+});
+
+// ביצוע פעולת FLOW AI רגישה לאחר אישור מפורש של הסופר אדמין
+app.post('/api/sa/ai/confirm-action', verifySA, async (req, res) => {
+    try {
+        const { action_type, params } = req.body;
+        if (!action_type || !SA_AI_SENSITIVE_ACTIONS.has(action_type)) return res.status(400).json({ success: false, error: 'פעולה לא נתמכת' });
+        const saUserName = req.saUser ? req.saUser.name : 'סופר אדמין';
+        const msg = await executeSAAction(action_type, params || [], saUserName);
+        logBizAction(null, null, saUserName, 'SA_AI_' + action_type, 'sa_action', (params||[])[0] || null, msg, { params });
+        res.json({ success: true, message: msg || 'הפעולה בוצעה.' });
+    } catch(e) { res.status(500).json({ success: false, error: e.message }); }
 });
 
 
