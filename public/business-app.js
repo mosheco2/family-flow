@@ -54230,6 +54230,7 @@ window._aiCreateTableRes = async function(name, phone, date, time, guests, notes
 };
 
 window._aiUpdateOrderStatus = async function(orderId, status, btn) {
+    if (status === 'cancelled' && !confirm('לבטל את הזמנה #' + orderId + '? פעולה זו בלתי הפיכה.')) return;
     if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מעדכן...'; }
     try {
         const res = await fetch(API + '/store/orders/status', {
@@ -54247,6 +54248,7 @@ window._aiUpdateOrderStatus = async function(orderId, status, btn) {
 };
 
 window._aiToggleCatalogItem = async function(itemId, available, btn) {
+    if (available === false && !confirm('להסתיר את המוצר מהתפריט/החנות ללקוחות?')) return;
     if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מעדכן...'; }
     try {
         const res = await fetch(API + '/ai/actions', {
@@ -54262,6 +54264,7 @@ window._aiToggleCatalogItem = async function(itemId, available, btn) {
 };
 
 window._aiUpdateCatalogPrice = async function(itemId, price, btn) {
+    if (!confirm('לעדכן את המחיר ל-₪' + price + '? המחיר יתעדכן מיד ללקוחות.')) return;
     if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מעדכן...'; }
     try {
         const res = await fetch(API + '/ai/actions', {
@@ -54278,6 +54281,7 @@ window._aiUpdateCatalogPrice = async function(itemId, price, btn) {
 
 // === AI ACTION HANDLERS — SPORT ===
 window._aiFreezeMember = async function(membershipId, reason, btn) {
+    if (!confirm('להקפיא את המנוי? הלקוח לא יוכל להשתמש במנוי עד להפשרה.')) return;
     if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מקפיא...'; }
     try {
         const res = await fetch(API + '/sport/members/' + membershipId + '/freeze', {
@@ -54339,6 +54343,7 @@ window._aiRegisterClass = async function(classId, membershipId, memberName, btn)
 
 // === AI ACTION HANDLERS — BEAUTY ===
 window._aiUpdateApptStatus = async function(apptId, status, clientName, btn) {
+    if (status === 'cancelled' && !confirm('לבטל את התור של ' + clientName + '?')) return;
     if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מעדכן...'; }
     try {
         const biz = currentGroup?.id; if (!biz) throw new Error('no biz');
@@ -54371,6 +54376,7 @@ window._aiCompleteAppt = async function(apptId, clientName, btn) {
 };
 
 window._aiNoShowAppt = async function(apptId, clientName, btn) {
+    if (!confirm('לסמן את ' + clientName + ' כ"לא הגיע/ה"?')) return;
     if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מסמן...'; }
     try {
         const biz = currentGroup?.id; if (!biz) throw new Error('no biz');
@@ -54402,6 +54408,7 @@ window._aiAddBeautyClient = async function(name, phone, notes, btn) {
 
 // === AI ACTION HANDLERS — PROFESSIONAL ===
 window._aiUpdateLeadStatus = async function(leadId, status, leadName, btn) {
+    if (status === 'closed' && !confirm('לסגור את הפנייה של ' + leadName + '?')) return;
     if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מעדכן...'; }
     try {
         const res = await fetch(API + '/professional-leads/' + leadId, {
@@ -54419,6 +54426,7 @@ window._aiUpdateLeadStatus = async function(leadId, status, leadName, btn) {
 };
 
 window._aiUpdateCaseStatus = async function(caseId, status, caseDesc, btn) {
+    if (status === 'cancelled' && !confirm('לבטל את התיק "' + caseDesc + '"?')) return;
     if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מעדכן...'; }
     try {
         const res = await fetch(API + '/work-orders/' + caseId + '/status', {
@@ -54436,6 +54444,7 @@ window._aiUpdateCaseStatus = async function(caseId, status, caseDesc, btn) {
 
 // === AI ACTION HANDLERS — MAINTENANCE/REPAIR ===
 window._aiUpdateSCStatus = async function(scId, status, scTitle, btn) {
+    if (status === 'cancelled' && !confirm('לבטל את הקריאה "' + scTitle + '"?')) return;
     if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מעדכן...'; }
     try {
         const res = await fetch(API + '/service-calls/' + scId, {
@@ -54516,6 +54525,7 @@ window._aiCreateAlertRule = async function(name, triggerType, cooldown, descript
 
 // === AI ACTION HANDLERS — LOGISTICS ===
 window._aiUpdateDeliveryStatus = async function(orderId, status, customerName, btn) {
+    if ((status === 'cancelled' || status === 'failed') && !confirm('לעדכן את המשלוח של ' + customerName + ' ל-"' + (status === 'cancelled' ? 'בוטל' : 'נכשל') + '"?')) return;
     if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מעדכן...'; }
     try {
         const res = await fetch(API + '/logistics/orders/' + orderId + '/status', {
