@@ -1915,6 +1915,24 @@ window.saveEmailSettings = async function() {
     await window.saveAllBanners();
 };
 
+window.sendTestEmail = async function() {
+    const to = val('test-email-to');
+    const type = val('test-email-type');
+    if (!to) return showToast('error', 'נא להזין כתובת מייל יעד לבדיקה');
+    const btn = getEl('btn-send-test-email');
+    const origHtml = btn.innerHTML;
+    btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> שולח...';
+    try {
+        const data = await saFetch('/api/sa/test-email', { method: 'POST', body: JSON.stringify({ type, to }) });
+        if (data.success) showToast('success', `מייל בדיקה נשלח ל-${to}`);
+        else showToast('error', data.error || 'שליחת המייל נכשלה');
+    } catch(e) {
+        showToast('error', 'שגיאת תקשורת מול השרת');
+    } finally {
+        btn.disabled = false; btn.innerHTML = origHtml;
+    }
+};
+
 window.saveAllBanners = async function() {
     try {
         const payload = {

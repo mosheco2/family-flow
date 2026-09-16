@@ -5815,6 +5815,87 @@ async function verifyZoneManager(req, res, next) {
     return res.status(403).json({ error: 'Unauthorized zone manager' });
 }
 
+// ── בדיקת שליחת מייל לפי תבנית טריגר אמיתית - ללא כתיבה ל-DB, ללא יצירת סביבה/משתמש ──
+app.post('/api/sa/test-email', verifySA, async (req, res) => {
+    try {
+        const { type, to } = req.body;
+        if (!to) return res.status(400).json({ success: false, error: 'נא להזין כתובת מייל יעד' });
+
+        const TEMPLATES = {
+            family_signup: {
+                subject: '🧪 בדיקה | WEFLOWZ | הצטרפות חדשה למערכת!',
+                html: `<div dir="rtl" style="font-family:Arial,sans-serif;max-width:540px;margin:auto;">
+                    <h2 style="color:#4f46e5;">🧪 בדיקת מייל — פתיחת סביבת משפחה חדשה</h2>
+                    <p>משפחה חדשה נרשמה למערכת: <strong>משפחת ישראלי (לדוגמה)</strong></p>
+                    <p>קוד סביבה: <strong>DEMO1234</strong> | מנהל: ישראל ישראלי | מייל: demo@example.com</p>
+                </div>`
+            },
+            family_join: {
+                subject: '🧪 בדיקה | WEFLOWZ | בן/בת משפחה חדש/ה הצטרף/ה למשפחת ישראלי',
+                html: `<div dir="rtl" style="font-family:Arial,sans-serif;max-width:540px;margin:auto;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;">
+                    <div style="background:#4f46e5;padding:20px 24px;">
+                        <h2 style="color:#fff;margin:0;font-size:18px;">⚡ התראה מ-WEFLOWZ</h2>
+                        <p style="color:#c7d2fe;margin:4px 0 0;font-size:13px;">משפחת ישראלי (לדוגמה)</p>
+                    </div>
+                    <div style="padding:24px;">
+                        <p style="font-size:15px;color:#1e293b;">🧪 בדיקה — <strong>דנה כהן</strong> (בן/בת משפחה) ביקשה להצטרף למשפחה <strong>משפחת ישראלי</strong> וממתינה לאישורך במסך ניהול החברים.</p>
+                    </div>
+                </div>`
+            },
+            business_signup: {
+                subject: '🧪 בדיקה | WEFLOWZ | עסק חדש נרשם למערכת!',
+                html: `<div dir="rtl" style="font-family:Arial,sans-serif;max-width:540px;margin:auto;">
+                    <h2 style="color:#4f46e5;">🧪 בדיקת מייל — פתיחת סביבת עסק חדשה</h2>
+                    <p>עסק חדש נרשם למערכת: <strong>הסושי של מרים (לדוגמה)</strong></p>
+                    <p>טלפון: 050-0000000</p>
+                </div>`
+            },
+            business_join: {
+                subject: '🧪 בדיקה | WEFLOWZ | עובד/ת חדש/ה הצטרף/ה להסושי של מרים',
+                html: `<div dir="rtl" style="font-family:Arial,sans-serif;max-width:540px;margin:auto;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;">
+                    <div style="background:#4f46e5;padding:20px 24px;">
+                        <h2 style="color:#fff;margin:0;font-size:18px;">⚡ התראה מ-WEFLOWZ</h2>
+                        <p style="color:#c7d2fe;margin:4px 0 0;font-size:13px;">הסושי של מרים (לדוגמה)</p>
+                    </div>
+                    <div style="padding:24px;">
+                        <p style="font-size:15px;color:#1e293b;">🧪 בדיקה — <strong>יוסי לוי</strong> (עובד) ביקש להצטרף לעסק <strong>הסושי של מרים</strong> וממתין לאישורך במסך ניהול העובדים.</p>
+                    </div>
+                </div>`
+            },
+            family_reset: {
+                subject: '🧪 בדיקה | WEFLOWZ | שחזור קוד וסיסמה לסביבה שלך',
+                html: `<div style="direction: rtl; font-family: Arial, sans-serif;">
+                    <h2>🧪 בדיקה — שחזור פרטי גישה - WEFLOWZ</h2>
+                    <p>שלום ישראל ישראלי,</p>
+                    <p>התקבלה בקשה לשחזור פרטי הגישה עבור הסביבה שלכם: "<strong>משפחת ישראלי (לדוגמה)</strong>".</p>
+                    <div style="background-color: #f8fafc; padding: 20px; border-radius: 10px; margin: 20px 0; border: 1px solid #e2e8f0;">
+                        <p style="font-size: 16px; margin: 8px 0;"><strong>קוד הסביבה שלכם הוא:</strong> <span style="font-size: 20px; color: #3b82f6; font-weight: bold;">DEMO1234</span></p>
+                        <p><a href="#" style="background:#3b82f6;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:bold;display:inline-block;">איפוס סיסמה (קישור לדוגמה - לא פעיל)</a></p>
+                    </div>
+                </div>`
+            },
+            business_reset: {
+                subject: '🧪 בדיקה | WEFLOWZ | איפוס סיסמה — הסושי של מרים',
+                html: `<div dir="rtl" style="font-family:Arial;max-width:520px">
+                    <h2>🧪 בדיקה — איפוס סיסמה — הסושי של מרים (לדוגמה)</h2>
+                    <p>קיבלנו בקשה לאיפוס הסיסמה שלך ב-WEFLOWZ.</p>
+                    <p><a href="#" style="background:#6366f1;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:bold;display:inline-block;">איפוס סיסמה (קישור לדוגמה - לא פעיל)</a></p>
+                </div>`
+            }
+        };
+
+        const tpl = TEMPLATES[type];
+        if (!tpl) return res.status(400).json({ success: false, error: 'סוג בדיקה לא מוכר' });
+
+        const ok = await sendSystemEmail(to, tpl.subject, tpl.html);
+        if (!ok) return res.status(500).json({ success: false, error: 'שליחת המייל נכשלה - בדוק SMTP_USER/SMTP_PASS ב-Render' });
+        res.json({ success: true });
+    } catch(e) {
+        console.error('test-email error:', e);
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
 async function verifySA(req, res, next) {
     const authHeader = req.headers.authorization || '';
     const xSaToken  = req.headers['x-sa-token']  || '';
