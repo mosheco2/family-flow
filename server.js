@@ -4222,6 +4222,14 @@ async function fetchSAAdditionalData(provider, params) {
                      ORDER BY created_at DESC LIMIT 150`);
                 return { total: r.rows.length, families: r.rows };
             }
+            case 'store_orders': {
+                const r = await pool.query(
+                    `SELECT so.id, so.customer_name, fg.name as business_name, so.total_amount, so.status, so.created_at
+                     FROM store_orders so LEFT JOIN family_groups fg ON fg.id=so.group_id
+                     WHERE so.status NOT IN ('cancelled','rejected') AND (fg.id IS NULL OR fg.is_test_env IS NOT TRUE)
+                     ORDER BY so.created_at DESC LIMIT 40`);
+                return { total: r.rows.length, store_orders: r.rows };
+            }
             case 'platform_stats': {
                 // אותם נתוני GMV/הזמנות כלל-מערכתיים כמו מסך "תובנות מאוחדות"
                 const r = await pool.query(`
@@ -4383,7 +4391,7 @@ app.post('/api/sa/ai/chat', verifySA, async (req, res) => {
 ## שליפת מידע (NEED_DATA) - לפני שאתה עונה על סמך נתונים
 אם השאלה דורשת נתונים עדכניים (ולא רק הדרכה כללית), הוסף שורה אחת (ורק שורה זו, ללא טקסט אחר):
 [NEED_DATA:provider]
-providers זמינים: tickets, banner_orders, billing, communities, businesses, families, wallets, zone_managers, pending_all, users_count, platform_stats (הזמנות/GMV כלל-מערכתי), ai_usage (שימוש AI מוביל), dev_tasks (משימות פיתוח פתוחות)
+providers זמינים: tickets, banner_orders (הזמנות פרסום/באנרים), store_orders (הזמנות רכישה בפועל מלקוחות בחנויות/עסקים - זה ה-provider הנכון לכל שאלה כללית על "הזמנות"), billing, communities, businesses, families, wallets, zone_managers, pending_all, users_count, platform_stats (סיכום הזמנות/GMV כלל-מערכתי - מספרים בלבד, לא רשימה), ai_usage (שימוש AI מוביל), dev_tasks (משימות פיתוח פתוחות)
 לאחר שתקבל את הנתונים תתבקש לענות סופית - אז אל תכתוב תשובה מלאה בשלב הזה.
 אם השאלה לא דורשת נתונים (הדרכה כללית, שיחה) - ענה ישירות כרגיל.
 
