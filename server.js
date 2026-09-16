@@ -13451,6 +13451,69 @@ app.post('/api/ai/actions', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// שליפת מידע נוסף לפי בקשת FamliAI, מעבר לתמונת המצב הרגילה שנשלחת מהלקוח
+async function fetchBizAdditionalData(groupId, provider, params) {
+    try {
+        switch (provider) {
+            case 'orders_range': {
+                const [from, to] = params;
+                const r = await pool.query(
+                    `SELECT id, customer_name, total_amount, status, created_at FROM store_orders
+                     WHERE group_id=$1 AND created_at >= $2 AND created_at <= $3::date + INTERVAL '1 day'
+                     ORDER BY created_at DESC LIMIT 200`,
+                    [groupId, from, to]
+                );
+                const totalRevenue = r.rows.reduce((s, o) => s + (parseFloat(o.total_amount) || 0), 0);
+                return { range: [from, to], order_count: r.rows.length, total_revenue: totalRevenue, orders: r.rows.slice(0, 60) };
+            }
+            case 'transactions_range': {
+                const [from, to] = params;
+                const r = await pool.query(
+                    `SELECT amount, description, category, type, date FROM transactions
+                     WHERE group_id=$1 AND date >= $2 AND date <= $3::date + INTERVAL '1 day'
+                     ORDER BY date DESC LIMIT 200`,
+                    [groupId, from, to]
+                );
+                const income = r.rows.filter(t => t.type === 'income').reduce((s, t) => s + (parseFloat(t.amount) || 0), 0);
+                const expense = r.rows.filter(t => t.type === 'expense').reduce((s, t) => s + (parseFloat(t.amount) || 0), 0);
+                return { range: [from, to], income, expense, net: income - expense, transactions: r.rows.slice(0, 80) };
+            }
+            case 'employee_full_history': {
+                const [name] = params;
+                const uRes = await pool.query('SELECT id, nickname FROM users WHERE group_id=$1 AND nickname ILIKE $2 LIMIT 1', [groupId, `%${name}%`]);
+                if (!uRes.rows.length) return { error: `עובד בשם "${name}" לא נמצא` };
+                const userId = uRes.rows[0].id;
+                const [tasksR, punchesR] = await Promise.all([
+                    pool.query('SELECT title, status, reward, deadline, created_at FROM tasks WHERE assigned_to=$1 ORDER BY created_at DESC LIMIT 100', [userId]),
+                    pool.query('SELECT punch_in, punch_out, total_minutes FROM time_clock WHERE user_id=$1 ORDER BY punch_in DESC LIMIT 100', [userId])
+                ]);
+                return { employee: uRes.rows[0].nickname, tasks: tasksR.rows, attendance: punchesR.rows };
+            }
+            case 'reviews_all': {
+                const r = await pool.query(
+                    `SELECT customer_rating, customer_rating_notes, customer_rated_at, LEFT(customer_name,10) as display_name
+                     FROM store_orders WHERE group_id=$1 AND customer_rating>0 ORDER BY customer_rated_at DESC LIMIT 300`,
+                    [groupId]
+                );
+                const avg = r.rows.length ? (r.rows.reduce((s, x) => s + Number(x.customer_rating), 0) / r.rows.length).toFixed(1) : null;
+                return { total: r.rows.length, avg_rating: avg ? parseFloat(avg) : null, reviews: r.rows };
+            }
+            case 'invoices_all': {
+                const r = await pool.query(
+                    `SELECT li.*, lo.order_number FROM logistics_invoices li LEFT JOIN logistics_orders lo ON lo.id=li.order_id
+                     WHERE li.group_id=$1 ORDER BY li.created_at DESC LIMIT 200`,
+                    [groupId]
+                );
+                return { total: r.rows.length, invoices: r.rows };
+            }
+            default:
+                return { error: 'סוג מידע לא מוכר: ' + provider };
+        }
+    } catch(e) {
+        return { error: 'שגיאה בשליפת נתונים נוספים: ' + e.message };
+    }
+}
+
 app.post('/api/biz/chat-assistant', verifyBiz, async (req, res) => {
     try {
         const { query, context, groupId } = req.body;
@@ -13746,10 +13809,36 @@ ${context}
 • מלאי: פריטים נגמרים, המלצת הזמנה, קצב צריכה
 • תזרים: הכנסות מול הוצאות, יתרה נטו, ניתוח קטגוריות
 • צוות: כמות עובדים, יתרות תקציב
-• חיזוי: על בסיס נתוני החודשים האחרונים, חזה מה צפוי החודש/שבוע הבא${logisticsSection}${maintenanceSection}${professionalSection}${beautySection}${sportSection}${retailSection}${constructionSection}`;
+• חיזוי: על בסיס נתוני החודשים האחרונים, חזה מה צפוי החודש/שבוע הבא${logisticsSection}${maintenanceSection}${professionalSection}${beautySection}${sportSection}${retailSection}${constructionSection}
 
-        const result = await model.generateContent(systemPrompt);
-        res.json({ success: true, answer: result.response.text().trim() });
+== מידע נוסף מעבר לתמונת המצב הנוכחית ==
+הנתונים שלמעלה הם "תמונת מצב" עדכנית אך חלקית (למשל רק 10 הזמנות אחרונות, לא כל ההיסטוריה).
+אם השאלה דורשת מידע שאינו בתמונת המצב (טווח תאריכים היסטורי, כל ההיסטוריה של עובד ספציפי, כל הביקורות, כל החשבוניות) —
+אל תמציא ואל תנחש. במקום זאת, הוסף שורה אחת בתחילת תשובתך (ורק שורה זו, ללא טקסט אחר):
+[NEED_DATA:provider|param1|param2]
+providers זמינים (רק אלה):
+  orders_range|YYYY-MM-DD|YYYY-MM-DD — כל ההזמנות בטווח תאריכים (כמות, הכנסה, פירוט)
+  transactions_range|YYYY-MM-DD|YYYY-MM-DD — כל התנועות הכספיות בטווח תאריכים
+  employee_full_history|שם עובד — כל המשימות (לא רק פתוחות) וכל רישומי הנוכחות של עובד ספציפי
+  reviews_all — כל הביקורות/הדירוגים (לא רק 10 אחרונות)
+  invoices_all — כל החשבוניות (לוגיסטיקה, לא רק ממתינות)
+לאחר שתקבל את הנתונים הנוספים תתבקש לענות סופית על סמך התמונה המלאה - אז אל תכתוב עדיין תשובה מלאה, רק את שורת ה-NEED_DATA.
+אם תמונת המצב הקיימת מספיקה לענות היטב - ענה ישירות כרגיל, בלי NEED_DATA.`;
+
+        let result = await model.generateContent(systemPrompt);
+        let answerText = result.response.text().trim();
+
+        const needDataMatch = answerText.match(/\[NEED_DATA:([^|\]]+)\|?([^\]]*)\]/);
+        if (needDataMatch) {
+            const provider = needDataMatch[1].trim();
+            const params = needDataMatch[2].split('|').map(p => p.trim()).filter(Boolean);
+            const additionalData = await fetchBizAdditionalData(groupId, provider, params);
+            const followupPrompt = `${systemPrompt}\n\n== נתונים נוספים שביקשת (${provider}) ==\n${JSON.stringify(additionalData)}\n\nכעת ענה במלואה על שאלת המנהל, על סמך כל הנתונים (תמונת המצב + הנתונים הנוספים). אל תוסיף שוב [NEED_DATA:...].`;
+            result = await model.generateContent(followupPrompt);
+            answerText = result.response.text().trim();
+        }
+
+        res.json({ success: true, answer: answerText });
     } catch(e) { handleAIError(e, res, 'שגיאה במערכת העוזרת'); }
 });
 
