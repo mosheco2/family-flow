@@ -29528,7 +29528,10 @@ app.get('/api/kids/games', verifyFamily, async (req, res) => {
 app.get('/api/kids/wallet/:userId', verifyFamily, async (req, res) => {
     try {
         const { userId } = req.params;
-        if (parseInt(userId) !== req.familyAuth.userId) return res.status(403).json({ error: 'אין הרשאה' });
+        if (parseInt(userId) !== req.familyAuth.userId) {
+            const memberCheck = await pool.query('SELECT 1 FROM users WHERE id=$1 AND group_id=$2', [userId, req.familyAuth.groupId]);
+            if (!memberCheck.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
+        }
 
         await pool.query(`
             INSERT INTO flw_kid_wallets (child_user_id, family_group_id)
