@@ -1,4 +1,4 @@
-const CACHE_NAME = 'family-flow-v256';
+const CACHE_NAME = 'family-flow-v257';
 const STATIC_ASSETS = [
   '/index.html', '/app.js', '/business.html', '/business-app.js',
   '/manifest.json', '/manifest-business.json', '/favicon.png',
@@ -36,6 +36,7 @@ self.addEventListener('fetch', event => {
     || url.pathname === '/'
     || url.pathname === '/kol-haam' || url.pathname.startsWith('/kol-haam/')
     || url.pathname.startsWith('/menu/') || url.pathname.startsWith('/menus/')
+    || url.pathname.startsWith('/campaign/')
     || /^\/[a-zA-Z0-9_-]+$/.test(url.pathname);
   if (_isHtmlRoute) {
     event.respondWith(
