@@ -813,22 +813,32 @@ function _saPendingHighlight(text, delay) {
 // מרחיב ומגלגל לכרטיס הסביבה הספציפית בטאב "סביבות" (עבור בקשות מודול)
 function _saPendingExpandGroup(groupId) {
     switchSATab('clients');
-    setTimeout(() => {
+    // ממתין בפועל לטעינת saAllGroups (loadSAData אסינכרוני) - לא delay קבוע שעלול להקדים את הטעינה
+    let findAttempt = 0;
+    const tryExpand = () => {
+        const groups = (typeof saAllGroups !== 'undefined' ? saAllGroups : []);
+        const idx = groups.findIndex(g => g.id === groupId);
+        if (idx < 0) {
+            if (findAttempt < 20) { findAttempt++; return setTimeout(tryExpand, 200); }
+            return showToast('error', 'לא ניתן היה לאתר את הסביבה - נסה לפתוח אותה ידנית בטאב "סביבות"');
+        }
         switchViewTab('clients', 'environments');
-        setTimeout(() => {
-            const idx = (typeof saAllGroups !== 'undefined' ? saAllGroups : []).findIndex(g => g.id === groupId);
-            if (idx >= 0 && typeof window._saGoPage === 'function') {
-                window._saGoPage(Math.floor(idx / SA_GROUPS_PAGE_SIZE));
+        if (typeof window._saGoPage === 'function') window._saGoPage(Math.floor(idx / SA_GROUPS_PAGE_SIZE));
+        // ממתין לרינדור בפועל של הכרטיס אחרי מעבר העמוד
+        let renderAttempt = 0;
+        const waitForCard = () => {
+            const details = getEl('sa-group-details-' + groupId);
+            if (details) {
+                details.classList.remove('hidden');
+                details.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            } else if (renderAttempt < 15) {
+                renderAttempt++;
+                setTimeout(waitForCard, 150);
             }
-            setTimeout(() => {
-                const details = getEl('sa-group-details-' + groupId);
-                if (details) {
-                    details.classList.remove('hidden');
-                    details.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                }
-            }, 250);
-        }, 150);
-    }, 100);
+        };
+        setTimeout(waitForCard, 150);
+    };
+    setTimeout(tryExpand, 150);
 }
 
 // פעולה לכל פריט בודד — פותחת ישירות את הבקשה עצמה כשיש מודל ייעודי,
