@@ -811,16 +811,24 @@ function _saPendingHighlight(text, delay) {
 }
 
 // מרחיב ומגלגל לכרטיס הסביבה הספציפית בטאב "סביבות" (עבור בקשות מודול)
-function _saPendingExpandGroup(groupId) {
+function _saPendingExpandGroup(groupId, groupTitle) {
     switchSATab('clients');
+    // מאפס חיפוש/פילטר קודמים שהיו עלולים להשאיר את הסביבה מחוץ לרשימה המסוננת
+    if (typeof window._saSetGroupFilter === 'function') window._saSetGroupFilter('all');
+    const searchEl = getEl('sa-search-group');
+    if (searchEl) searchEl.value = '';
+
     // ממתין בפועל לטעינת saAllGroups (loadSAData אסינכרוני) - לא delay קבוע שעלול להקדים את הטעינה
     let findAttempt = 0;
     const tryExpand = () => {
         const groups = (typeof saAllGroups !== 'undefined' ? saAllGroups : []);
         const idx = groups.findIndex(g => g.id === groupId);
         if (idx < 0) {
-            if (findAttempt < 20) { findAttempt++; return setTimeout(tryExpand, 200); }
-            return showToast('error', 'לא ניתן היה לאתר את הסביבה - נסה לפתוח אותה ידנית בטאב "סביבות"');
+            if (findAttempt < 30) { findAttempt++; return setTimeout(tryExpand, 250); }
+            // נמצא הפרנד/JS אבל הסביבה עצמה לא נמצאה (כנראה נמחקה/הועברה לארכיון) -
+            // ממלא חיפוש בשם העסק כדי שלפחות ינסה לאתר אותה ידנית
+            if (searchEl && groupTitle) { searchEl.value = groupTitle; filterSAGroups(); }
+            return showToast('error', `לא נמצאה סביבה פעילה בשם "${groupTitle || groupId}" - ייתכן שנמחקה או הועברה לארכיון`);
         }
         switchViewTab('clients', 'environments');
         if (typeof window._saGoPage === 'function') window._saGoPage(Math.floor(idx / SA_GROUPS_PAGE_SIZE));
@@ -850,7 +858,7 @@ const SA_PENDING_ITEM_ACTIONS = {
         setTimeout(() => switchViewTab('finance', 'adsbilling'), 200);
         setTimeout(() => { if (typeof openClientLedger === 'function') openClientLedger(item.id, item.title); }, 500);
     },
-    modules: (item) => _saPendingExpandGroup(item.id),
+    modules: (item) => _saPendingExpandGroup(item.id, item.title),
     community_join: (item) => { switchSATab('comm'); setTimeout(() => { switchViewTab('comm','manage'); _saPendingHighlight(item.title, 400); }, 250); },
     biz_community:  (item) => { switchSATab('comm'); setTimeout(() => { switchViewTab('comm','manage'); _saPendingHighlight(item.title, 400); }, 250); },
     removal:        (item) => { switchSATab('comm'); setTimeout(() => { switchViewTab('comm','manage'); _saPendingHighlight(item.title, 400); }, 250); },
