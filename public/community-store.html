@@ -74,12 +74,12 @@ input,button,select,textarea{font-family:inherit}
 /* מובייל: גובה נגזר מהתוכן (כותרת/סלוגן/תיאור) כדי שהטקסט לעולם לא ייחתך,
    אבל התמונה תמיד ב-cover כך שהיא ממלאת את כל השטח ללא רווחים/פסים כהים
    מעל ומתחת (עלול לחתוך מעט מהצדדים בתמונה — עדיף על פני שטח ריק) */
-#hero{position:relative;background:var(--dark) center/cover no-repeat;overflow:hidden;min-height:200px}
+#hero{position:relative;background:var(--dark) center/cover no-repeat;overflow:hidden;min-height:200px;display:flex;align-items:flex-end}
 /* דסקטופ/טאבלט: מספיק רוחב שהטקסט תמיד נכנס גם ביחס קבוע — נועל יחס 18:5
    כדי שתמונת נושא במידות המומלצות (1800×500) תמלא בדיוק 100% מהשטח, בלי
    חיתוך ובלי רווחים */
 @media (min-width:820px){
-    #hero{aspect-ratio:18/5;min-height:0;display:flex;align-items:flex-end}
+    #hero{aspect-ratio:18/5;min-height:0}
 }
 #hero-blob1{position:absolute;top:-30%;left:-6%;width:54%;height:80%;border-radius:50%;background:var(--accent);filter:blur(100px);opacity:.38}
 #hero-blob2{position:absolute;bottom:-30%;right:-8%;width:46%;height:70%;border-radius:50%;background:#e8a87c;filter:blur(110px);opacity:.2}
