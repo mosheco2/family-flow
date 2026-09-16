@@ -37596,7 +37596,7 @@ app.post('/api/sc-auth/send-otp', async (req, res) => {
         [cleanPhone, codeHash, purpose]
     );
 
-    const sent = await sendSMSviaTwilio(e164Phone, `קוד האימות שלך: ${code} (בתוקף 5 דקות)`);
+    const sent = await sendSMSviaTwilio(e164Phone, `WEFLOWZ\nקוד האימות שלך: ${code} (בתוקף 5 דקות)`);
     if (process.env.NODE_ENV !== 'production') console.log(`[SC-OTP] ${cleanPhone} → ${code}`);
 
     res.json({ success: true, isNew, smsSent: !!sent });
@@ -37804,7 +37804,7 @@ app.post('/api/sc-auth/forgot-pin', async (req, res) => {
         [cleanPhone, codeHash]
     );
     const e164FP = cleanPhone.startsWith('972') ? '+' + cleanPhone : cleanPhone.startsWith('0') ? '+972' + cleanPhone.slice(1) : '+' + cleanPhone;
-    await sendSMSviaTwilio(e164FP, `קוד לאיפוס ה-PIN שלך: ${code} (בתוקף 10 דקות)`);
+    await sendSMSviaTwilio(e164FP, `WEFLOWZ\nקוד לאיפוס ה-PIN שלך: ${code} (בתוקף 10 דקות)`);
     if (process.env.NODE_ENV !== 'production') console.log(`[SC-PIN-RESET] ${cleanPhone} → ${code}`);
     res.json({ success: true });
 });
@@ -38089,7 +38089,7 @@ app.post('/api/sa/sc-customers/:id/reset-pin', verifySA, async (req, res) => {
         [phone, codeHash]
     );
     const e164SA = phone.startsWith('972') ? '+' + phone : phone.startsWith('0') ? '+972' + phone.slice(1) : '+' + phone;
-    await sendSMSviaTwilio(e164SA, `המנהל איפס את ה-PIN שלך. קוד לאיפוס: ${code} (בתוקף 30 דקות)`);
+    await sendSMSviaTwilio(e164SA, `WEFLOWZ\nהמנהל איפס את ה-PIN שלך. קוד לאיפוס: ${code} (בתוקף 30 דקות)`);
     if (process.env.NODE_ENV !== 'production') console.log(`[SA-PIN-RESET] ${phone} → ${code}`);
     res.json({ success: true });
 });
