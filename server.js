@@ -100,6 +100,48 @@ app.use((req, res, next) => {
 });
 
 app.use(express.json({limit: '20mb'}));
+
+// יומן ביקורת אוטומטי לכל פעולת כתיבה עסקית מאומתת (verifyBiz/verifyBizOrLegacy) -
+// רץ ברמת ה-middleware הכללי כך שכל endpoint עסקי קיים/עתידי מכוסה אוטומטית,
+// בלי צורך לחווט כל endpoint בנפרד. לא חוסם/משנה את התגובה - רק מאזין ל-finish.
+const _BIZ_AUDIT_SKIP_EXACT = new Set([
+    '/api/ai/actions', '/api/store/orders/status', '/api/store/coupons',
+    '/api/biz/customer-chats', '/api/biz/chat-assistant'
+]);
+const _BIZ_AUDIT_SKIP_PATTERNS = [
+    /^\/api\/sport\/members\/\d+\/freeze$/,
+    /^\/api\/work-orders\/\d+\/status$/,
+    /^\/api\/professional-leads\/\d+$/,
+    /^\/api\/service-calls\/\d+$/,
+    /^\/api\/beauty\/\d+\/appointments\/\d+$/,
+    /^\/api\/logistics\/orders\/\d+\/status$/,
+    /^\/api\/logistics\/invoices\/\d+\/status$/,
+    /^\/api\/biz\/customer-chats\/\d+\/message$/
+];
+app.use((req, res, next) => {
+    if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) {
+        res.on('finish', () => {
+            try {
+                if (res.statusCode < 200 || res.statusCode >= 400) return;
+                if (!req.bizAuth || !req.bizAuth.groupId) return; // רק בקשות עם אימות עסקי אמיתי (verifyBiz / verifyBizOrLegacy)
+                if (_BIZ_AUDIT_SKIP_EXACT.has(req.path)) return; // כבר מתועד בפירוט ע"י קריאה ייעודית
+                if (_BIZ_AUDIT_SKIP_PATTERNS.some(p => p.test(req.path))) return;
+                let bodySummary = {};
+                try {
+                    if (req.body && typeof req.body === 'object') {
+                        bodySummary = Object.fromEntries(
+                            Object.entries(req.body)
+                                .filter(([k]) => !/password|token|secret|signature/i.test(k))
+                                .slice(0, 12)
+                        );
+                    }
+                } catch(e) {}
+                logBizAction(req.bizAuth.groupId, req.bizAuth.userId, null, 'HTTP_' + req.method, 'route', req.path, `${req.method} ${req.path}`, bodySummary);
+            } catch(e) {}
+        });
+    }
+    next();
+});
 app.use(express.urlencoded({limit: '20mb', extended: true}));
 // Serve WebP automatically when browser supports it and WebP version exists
 app.use((req, res, next) => {
