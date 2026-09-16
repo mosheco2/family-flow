@@ -285,7 +285,7 @@
             <div id="fo-lp-send-loader" class="loader" style="display:none;"></div>
           </button>
         </div>
-        <div id="fo-lp-step-otp" class="wiz-step" style="display:none;">
+        <div id="fo-lp-step-otp" style="display:none;">
           <div class="screen-title">קוד האימות</div>
           <div class="screen-sub" id="fo-lp-otp-sub">הזן את הקוד שנשלח לטלפון שלך</div>
           <label class="field-label">קוד 6 ספרות</label>
@@ -625,7 +625,7 @@
         foLoginState.phone = phone;
         document.getElementById('fo-lp-otp-sub').textContent = 'הקוד נשלח למספר ' + phone;
         document.getElementById('fo-lp-step-phone').style.display = 'none';
-        document.getElementById('fo-lp-step-otp').style.display = '';
+        document.getElementById('fo-lp-step-otp').style.display = 'block';
         document.getElementById('fo-lp-otp').value = '';
         document.getElementById('fo-lp-otp').focus();
       } catch(err) {
@@ -656,7 +656,7 @@
             return '<button type="button" class="link-btn" onclick="foLoginSelectOptionByIndex(' + i + ')" style="display:block;width:100%;text-align:right;">' +
               '<b>' + o.nickname + '</b> · ' + o.group_name + '</button>';
           }).join('');
-          pickEl.style.display = '';
+          pickEl.style.display = 'block';
         }
       } catch(err) {
         showToast('error', 'שגיאה בחיבור לשרת');
@@ -671,7 +671,7 @@
       foLoginState.selected = opt;
       document.getElementById('fo-lp-step-pick').style.display = 'none';
       document.getElementById('fo-lp-selected-label').textContent = opt.nickname + ' · ' + opt.group_name;
-      document.getElementById('fo-lp-step-password').style.display = '';
+      document.getElementById('fo-lp-step-password').style.display = 'block';
       document.getElementById('fo-lp-password').value = '';
       document.getElementById('fo-lp-password').focus();
     }
