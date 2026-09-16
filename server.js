@@ -3432,7 +3432,7 @@ app.post('/api/quest-library/:id/report', async (req, res) => {
 });
 
 // סופר אדמין — כל הקווסטים
-app.get('/api/sa/quest-library', async (req, res) => {
+app.get('/api/sa/quest-library', verifySA, async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT ql.*,
@@ -5358,7 +5358,7 @@ async function callGeminiDirect(prompt) {
 // ==========================================
 // --- SUPER ADMIN: AI Generator (REST OVERRIDE) ---
 // ==========================================
-app.post('/api/sa/ai-generate', async (req, res) => {
+app.post('/api/sa/ai-generate', verifySA, async (req, res) => {
     try {
         const token = req.headers['authorization'];
         if (!token) return res.json({ success: false, error: 'חסרה הרשאת סופר-אדמין' });
@@ -13955,7 +13955,7 @@ app.delete('/api/biz/feed/posts/:id', verifyBiz, async (req, res) => {
 });
 
 // SA: list all biz posts for moderation
-app.get('/api/sa/community/biz-posts', async (req, res) => {
+app.get('/api/sa/community/biz-posts', verifySA, async (req, res) => {
     try {
         const status = req.query.status || 'pending';
         const r = await pool.query(
@@ -13971,7 +13971,7 @@ app.get('/api/sa/community/biz-posts', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/api/sa/community/biz-posts/metrics', async (req, res) => {
+app.get('/api/sa/community/biz-posts/metrics', verifySA, async (req, res) => {
     try {
         const r = await pool.query(
             `SELECT biz_post_status, COUNT(*) as cnt FROM community_posts WHERE biz_post_status IS NOT NULL GROUP BY biz_post_status`
@@ -15151,7 +15151,7 @@ app.get('/api/sa/businesses', verifySA, async (req, res) => {
 });
 
 // ─── SA: AI usage log ────────────────────────────────────────────────────────
-app.get('/api/sa/ai-usage', async (req, res) => {
+app.get('/api/sa/ai-usage', verifySA, async (req, res) => {
     try {
         const days = parseInt(req.query.days) || 30;
         const summary = await pool.query(`
@@ -28150,7 +28150,7 @@ app.get('/api/biz/pool-archive/:bizGroupId', verifyBiz, async (req, res) => {
 // ============================================================
 
 // GET all banner slots
-app.get('/api/sa/banner/slots', async (req, res) => {
+app.get('/api/sa/banner/slots', verifySA, async (req, res) => {
     try {
         const slots = await pool.query(`SELECT * FROM banner_slots ORDER BY id`);
         const communities = await pool.query(`
@@ -28167,7 +28167,7 @@ app.get('/api/sa/banner/slots', async (req, res) => {
 });
 
 // POST create banner slot
-app.post('/api/sa/banner/slots', async (req, res) => {
+app.post('/api/sa/banner/slots', verifySA, async (req, res) => {
     try {
         const { name, location_key, description, base_price_coins, base_price_ils } = req.body;
         if (!name || !location_key) return res.status(400).json({error:'שם ומיקום חובה'});
@@ -28181,7 +28181,7 @@ app.post('/api/sa/banner/slots', async (req, res) => {
 });
 
 // PUT update banner slot
-app.put('/api/sa/banner/slots/:id', async (req, res) => {
+app.put('/api/sa/banner/slots/:id', verifySA, async (req, res) => {
     try {
         const { name, description, base_price_coins, base_price_ils, is_active } = req.body;
         await pool.query(
@@ -28193,7 +28193,7 @@ app.put('/api/sa/banner/slots/:id', async (req, res) => {
 });
 
 // PUT update slot community assignments
-app.put('/api/sa/banner/slots/:id/communities', async (req, res) => {
+app.put('/api/sa/banner/slots/:id/communities', verifySA, async (req, res) => {
     try {
         const slotId = parseInt(req.params.id);
         const { community_ids } = req.body; // [] = all communities
@@ -28208,7 +28208,7 @@ app.put('/api/sa/banner/slots/:id/communities', async (req, res) => {
 });
 
 // PUT update pricing for a slot
-app.put('/api/sa/banner/slots/:id/pricing', async (req, res) => {
+app.put('/api/sa/banner/slots/:id/pricing', verifySA, async (req, res) => {
     try {
         const slotId = parseInt(req.params.id);
         const { pricing } = req.body;
@@ -28230,7 +28230,7 @@ app.put('/api/sa/banner/slots/:id/pricing', async (req, res) => {
 });
 
 // GET all banner orders (SA)
-app.get('/api/sa/banner/orders', async (req, res) => {
+app.get('/api/sa/banner/orders', verifySA, async (req, res) => {
     try {
         const { status, business_id } = req.query;
         let where = 'WHERE 1=1';
@@ -28249,7 +28249,7 @@ app.get('/api/sa/banner/orders', async (req, res) => {
 });
 
 // GET availability check for a slot on a date range
-app.get('/api/sa/banner/slots/:id/availability', async (req, res) => {
+app.get('/api/sa/banner/slots/:id/availability', verifySA, async (req, res) => {
     try {
         const { start, end } = req.query;
         if (!start || !end) return res.status(400).json({error:'נדרש start ו-end'});
@@ -28269,7 +28269,7 @@ app.get('/api/sa/banner/slots/:id/availability', async (req, res) => {
 });
 
 // GET timeline — all active/upcoming orders per slot
-app.get('/api/sa/banner/timeline', async (req, res) => {
+app.get('/api/sa/banner/timeline', verifySA, async (req, res) => {
     try {
         const r = await pool.query(`
             SELECT bo.id, bo.slot_id, bo.start_date, bo.end_date, bo.duration_days, bo.status,
@@ -28286,7 +28286,7 @@ app.get('/api/sa/banner/timeline', async (req, res) => {
 });
 
 // PUT approve banner order (SA) — deducts coins, creates billing record
-app.put('/api/sa/banner/orders/:id/approve', async (req, res) => {
+app.put('/api/sa/banner/orders/:id/approve', verifySA, async (req, res) => {
     const client = await pool.connect();
     try {
         await client.query('BEGIN');
@@ -28357,7 +28357,7 @@ app.put('/api/sa/banner/orders/:id/approve', async (req, res) => {
 });
 
 // PUT update banner order communities/slot (SA)
-app.put('/api/sa/banner/orders/:id', async (req, res) => {
+app.put('/api/sa/banner/orders/:id', verifySA, async (req, res) => {
     try {
         const { community_ids, slot_id, notes } = req.body;
         const fields = [], vals = [];
@@ -28373,7 +28373,7 @@ app.put('/api/sa/banner/orders/:id', async (req, res) => {
 });
 
 // PUT cancel banner order (SA)
-app.put('/api/sa/banner/orders/:id/cancel', async (req, res) => {
+app.put('/api/sa/banner/orders/:id/cancel', verifySA, async (req, res) => {
     try {
         await pool.query(`UPDATE banner_orders SET status='cancelled' WHERE id=$1`, [req.params.id]);
         res.json({success:true});
@@ -28385,7 +28385,7 @@ app.put('/api/sa/banner/orders/:id/cancel', async (req, res) => {
 // ============================================================
 
 // GET billing overview (SA) — all unpaid records
-app.get('/api/sa/billing', async (req, res) => {
+app.get('/api/sa/billing', verifySA, async (req, res) => {
     try {
         const { business_id, status } = req.query;
         let where = 'WHERE 1=1';
@@ -28409,7 +28409,7 @@ app.get('/api/sa/billing', async (req, res) => {
 });
 
 // PUT mark billing record as paid (SA)
-app.put('/api/sa/billing/:id/paid', async (req, res) => {
+app.put('/api/sa/billing/:id/paid', verifySA, async (req, res) => {
     try {
         const { sa_note } = req.body;
         await pool.query(
@@ -28421,7 +28421,7 @@ app.put('/api/sa/billing/:id/paid', async (req, res) => {
 });
 
 // GET client ledger — all billing for a business (SA)
-app.get('/api/sa/clients/:bizId/ledger', async (req, res) => {
+app.get('/api/sa/clients/:bizId/ledger', verifySA, async (req, res) => {
     try {
         const records = await pool.query(`
             SELECT br.*, bo.slot_id, bs.name as slot_name, bs.location_key,
@@ -37165,7 +37165,7 @@ app.get('/api/sc-auth/activity/:bizGroupId', async (req, res) => {
 });
 
 // SA: GET /api/sa/sc-customers  — list storefront customers
-app.get('/api/sa/sc-customers', async (req, res) => {
+app.get('/api/sa/sc-customers', verifySA, async (req, res) => {
     const { search, limit = 50, offset = 0 } = req.query;
     let where = ''; const params = [];
     if (search) {
@@ -37186,7 +37186,7 @@ app.get('/api/sa/sc-customers', async (req, res) => {
 });
 
 // SA: POST /api/sa/sc-customers/:id/reset-pin  — admin reset PIN → send SMS
-app.post('/api/sa/sc-customers/:id/reset-pin', async (req, res) => {
+app.post('/api/sa/sc-customers/:id/reset-pin', verifySA, async (req, res) => {
     const cust = await pool.query('SELECT * FROM storefront_customers WHERE id=$1', [req.params.id]);
     if (!cust.rows.length) return res.json({ success: false, error: 'לקוח לא נמצא' });
 

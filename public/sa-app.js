@@ -870,7 +870,7 @@ window.loadSCCustomers = async function(reset = true) {
     list.innerHTML = '<div class="text-center text-slate-400 text-sm py-8">טוען...</div>';
     try {
         const url = `/api/sa/sc-customers?search=${encodeURIComponent(search)}&limit=${_scSALimit}&offset=${_scSAOffset}`;
-        const d = await fetch(url).then(r => r.json());
+        const d = await fetch(url, { headers: { Authorization: saToken } }).then(r => r.json());
         if (!d.success) { list.innerHTML = '<div class="text-red-500 text-sm text-center py-4">שגיאה</div>'; return; }
         const customers = d.customers || [];
         if (count) count.textContent = `סה"כ ${d.total} לקוחות`;
@@ -911,7 +911,7 @@ window.scSAPage = function(dir) {
 
 window.scSAResetPin = async function(id, name) {
     if (!confirm(`לאפס את ה-PIN של "${name}"?\nיישלח SMS עם קוד איפוס לטלפון שלו.`)) return;
-    const r = await fetch(`/api/sa/sc-customers/${id}/reset-pin`, { method: 'POST' }).then(r => r.json()).catch(() => ({}));
+    const r = await fetch(`/api/sa/sc-customers/${id}/reset-pin`, { method: 'POST', headers: { Authorization: saToken } }).then(r => r.json()).catch(() => ({}));
     if (r.success) showToast('success', `SMS נשלח ל-${name}`);
     else showToast('error', r.error || 'שגיאה');
 };
@@ -11253,9 +11253,9 @@ async function loadSABizFeedSection() {
 async function loadSABizFeedMetrics() {
     try {
         const [pendingRes, approvedRes, rejectedRes] = await Promise.all([
-            fetch('/api/sa/community/biz-posts?status=pending').then(r => r.json()),
-            fetch('/api/sa/community/biz-posts?status=approved').then(r => r.json()),
-            fetch('/api/sa/community/biz-posts?status=rejected').then(r => r.json()),
+            fetch('/api/sa/community/biz-posts?status=pending', { headers: { Authorization: saToken } }).then(r => r.json()),
+            fetch('/api/sa/community/biz-posts?status=approved', { headers: { Authorization: saToken } }).then(r => r.json()),
+            fetch('/api/sa/community/biz-posts?status=rejected', { headers: { Authorization: saToken } }).then(r => r.json()),
         ]);
         const el = document.getElementById('sa-biz-feed-metrics');
         if (!el) return;
@@ -11296,7 +11296,7 @@ window.loadSABizFeedPosts = async function(status = 'pending') {
     if (!list) return;
     list.innerHTML = '<div style="text-align:center;color:#94A3B8;padding:1rem">טוען...</div>';
     try {
-        const res = await fetch(`/api/sa/community/biz-posts?status=${status}`);
+        const res = await fetch(`/api/sa/community/biz-posts?status=${status}`, { headers: { Authorization: saToken } });
         const data = await res.json();
         if (!data.posts?.length) {
             list.innerHTML = `<div style="text-align:center;padding:2rem;color:#94A3B8">${
