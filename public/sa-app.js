@@ -439,7 +439,12 @@ window.switchSATab = function(tabId) {
 
     if (tabId === 'adslots') window.renderAdSlotsPanel && window.renderAdSlotsPanel();
     const allTabs = ['dashboard', 'pulse', 'insights', 'devops', 'support', 'stats', 'comm', 'biz', 'inbox', 'content', 'clients', 'hr', 'partners', 'finance', 'sysmap', 'legal', 'templates', 'adslots', 'auditlog', 'archive', 'games', 'feed', 'livegames', 'marketing', 'whatsapp', 'kol-haam', 'pricing', 'ai-builder', 'masterconfig'];
-    if (tabId === 'clients') { setTimeout(() => switchViewTab('clients','environments'), 50); }
+    if (tabId === 'clients') {
+        // מנקה חיפוש שנשאר תקוע מכניסה קודמת (למשל fallback של דרילדאון בקשת מודול)
+        const _prevSearch = getEl('sa-search-group');
+        if (_prevSearch) _prevSearch.value = '';
+        setTimeout(() => switchViewTab('clients','environments'), 50);
+    }
     if (tabId === 'kol-haam') loadSAKolHaamQueue();
     let activeTabTitle = 'לוח בקרה';
 
