@@ -2715,6 +2715,20 @@ app.get('/api/solo/search-by-phone', async (req, res) => {
       try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN DEFAULT FALSE`); } catch(e) {}
       try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP`); } catch(e) {}
       try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS is_test_env BOOLEAN DEFAULT FALSE`); } catch(e) {}
+      // יומן ביקורת פעולות עובדים בעסק (Business Audit Log) - שלב 1: מכסה פעולות מרכזיות/רגישות
+      try { await client.query(`CREATE TABLE IF NOT EXISTS biz_audit_log (
+          id SERIAL PRIMARY KEY,
+          group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+          user_id INT REFERENCES users(id) ON DELETE SET NULL,
+          actor_name VARCHAR(100),
+          action_type VARCHAR(50) NOT NULL,
+          entity_type VARCHAR(50),
+          entity_id VARCHAR(50),
+          description TEXT,
+          metadata JSONB DEFAULT '{}',
+          created_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) {}
+      try { await client.query(`CREATE INDEX IF NOT EXISTS idx_biz_audit_log_group ON biz_audit_log(group_id, created_at DESC)`); } catch(e) {}
       // החלפת UNIQUE(admin_email,type) ב-partial index — מאפשר רישום מחדש אחרי מחיקה רכה
       try { await client.query(`ALTER TABLE family_groups DROP CONSTRAINT IF EXISTS family_groups_admin_email_type_key CASCADE`); } catch(e) {}
       try { await client.query(`ALTER TABLE family_groups DROP CONSTRAINT IF EXISTS family_groups_pkey1`); } catch(e) {}
@@ -3518,6 +3532,17 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
     const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ/2) * Math.sin(Δλ/2);
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
     return R * c;
+}
+
+// רישום פעולת עובד ל-Business Audit Log - fire-and-forget, לעולם לא שובר את הקריאה שמפעילה אותה
+function logBizAction(groupId, userId, actorName, actionType, entityType, entityId, description, metadata) {
+    try {
+        pool.query(
+            `INSERT INTO biz_audit_log (group_id, user_id, actor_name, action_type, entity_type, entity_id, description, metadata)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+            [groupId || null, userId || null, actorName || null, actionType, entityType || null, entityId ? String(entityId) : null, description || null, JSON.stringify(metadata || {})]
+        ).catch(() => {});
+    } catch(e) {}
 }
 
 async function handleAITokens(groupId, endpoint = 'general') {
@@ -11008,6 +11033,23 @@ app.get('/api/biz/employee-stats/:groupId', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// יומן ביקורת - שליפה למסך ניהול (שלב 1: מכסה פעולות מרכזיות/רגישות שבוצעו דרך endpoints מתועדים)
+app.get('/api/biz/audit-log/:groupId', async (req, res) => {
+    try {
+        const { actionType, entityType, limit } = req.query;
+        const conds = ['group_id=$1'];
+        const params = [req.params.groupId];
+        if (actionType) { params.push(actionType); conds.push(`action_type=$${params.length}`); }
+        if (entityType) { params.push(entityType); conds.push(`entity_type=$${params.length}`); }
+        params.push(Math.min(parseInt(limit) || 100, 300));
+        const r = await pool.query(
+            `SELECT * FROM biz_audit_log WHERE ${conds.join(' AND ')} ORDER BY created_at DESC LIMIT $${params.length}`,
+            params
+        );
+        res.json({ success: true, log: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 app.post('/api/timeclock/punch', async (req, res) => {
     try {
         const { userId, groupId, lat, lng } = req.body;
@@ -12279,6 +12321,7 @@ app.post('/api/store/orders/status', async (req, res) => {
         }
         try {
             const orderR = await pool.query('SELECT family_group_id, group_id FROM store_orders WHERE id=$1', [orderId]);
+            if (orderR.rows.length) logBizAction(orderR.rows[0].group_id, null, req.body.actorName || 'מערכת', 'UPDATE_ORDER_STATUS', 'order', orderId, `הזמנה #${orderId} עודכנה לסטטוס ${status}`, { status });
             if (orderR.rows.length && orderR.rows[0].family_group_id) {
                 const ord = orderR.rows[0];
                 const linkR = await pool.query(
@@ -13440,10 +13483,12 @@ app.post('/api/ai/actions', async (req, res) => {
         if (action === 'UPDATE_CATALOG_PRICE') {
             const { itemId, price } = params;
             await pool.query('UPDATE store_catalog SET price=$1 WHERE id=$2 AND group_id=$3', [parseFloat(price)||0, itemId, groupId]);
+            logBizAction(groupId, null, 'FamliAI', 'UPDATE_CATALOG_PRICE', 'catalog_item', itemId, `מחיר עודכן ל-₪${price}`, { price });
             res.json({ success: true });
         } else if (action === 'TOGGLE_CATALOG_ITEM') {
             const { itemId, available } = params;
             await pool.query('UPDATE store_catalog SET is_available=$1 WHERE id=$2 AND group_id=$3', [available===true||available==='true', itemId, groupId]);
+            logBizAction(groupId, null, 'FamliAI', 'TOGGLE_CATALOG_ITEM', 'catalog_item', itemId, available ? 'מוצר הופעל' : 'מוצר הוסתר', { available });
             res.json({ success: true });
         } else {
             res.status(400).json({ error: 'Unknown action' });
@@ -13531,6 +13576,15 @@ async function fetchBizAdditionalData(groupId, provider, params) {
                     trendPct = parseFloat(((slope / lastRevenue) * 100).toFixed(1));
                 }
                 return { weekly_history: weeks, computed_trend_pct_per_week: trendPct, computed_next_week_revenue_estimate: nextWeekEstimate, method: 'linear regression on last 12 weeks revenue (real SQL aggregation, not a guess)' };
+            }
+            case 'audit_log': {
+                const [employeeName] = params;
+                let q = `SELECT actor_name, action_type, entity_type, entity_id, description, created_at FROM biz_audit_log WHERE group_id=$1`;
+                const qParams = [groupId];
+                if (employeeName) { qParams.push(`%${employeeName}%`); q += ` AND actor_name ILIKE $${qParams.length}`; }
+                q += ` ORDER BY created_at DESC LIMIT 150`;
+                const r = await pool.query(q, qParams);
+                return { total: r.rows.length, note: 'יומן ביקורת מכסה כרגע פעולות מרכזיות/רגישות בלבד (סטטוסים, מחירים, קופונים, חשבוניות, הודעות ללקוחות) - לא כל פעולה במערכת', log: r.rows };
             }
             default:
                 return { error: 'סוג מידע לא מוכר: ' + provider };
@@ -13849,6 +13903,7 @@ providers זמינים (רק אלה):
   reviews_all — כל הביקורות/הדירוגים (לא רק 10 אחרונות)
   invoices_all — כל החשבוניות (לוגיסטיקה, לא רק ממתינות)
   forecast_sales — מגמת מכירות שבועית מחושבת (12 שבועות אחרונים) + הערכת שבוע הבא מבוססת קו מגמה אמיתי (רגרסיה לינארית, לא ניחוש) - השתמש בזה בכל פעם שמתבקש חיזוי/תחזית מכירות, במקום להעריך בעצמך
+  audit_log|שם עובד (אופציונלי) — יומן פעולות שבוצעו במערכת (עדכוני סטטוס, מחירים, קופונים, חשבוניות, תגובות ללקוחות) - מכסה כרגע פעולות מרכזיות/רגישות בלבד, לא כל פעולה קיימת
 לאחר שתקבל את הנתונים הנוספים תתבקש לענות סופית על סמך התמונה המלאה - אז אל תכתוב עדיין תשובה מלאה, רק את שורת ה-NEED_DATA.
 אם תמונת המצב הקיימת מספיקה לענות היטב - ענה ישירות כרגיל, בלי NEED_DATA.`;
 
@@ -14453,6 +14508,7 @@ app.post('/api/store/coupons', async (req, res) => {
         if (!code || !discountPct) return res.status(400).json({ error: 'חסרים נתונים חובה' });
         
         await pool.query('INSERT INTO store_coupons (group_id, code, discount_pct, valid_until) VALUES ($1, $2, $3, $4)', [groupId, code.toUpperCase().trim(), parseFloat(discountPct), validUntil || null]);
+        logBizAction(groupId, null, 'מערכת', 'CREATE_COUPON', 'coupon', code, `קופון ${code} נוצר: ${discountPct}% הנחה`, { code, discountPct, validUntil });
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -21815,6 +21871,7 @@ app.patch('/api/service-calls/:id', async (req, res) => {
         if (!result.rows.length) return res.status(404).json({ error: 'לא נמצא' });
         const sc = result.rows[0];
         res.json({ success: true, call: sc });
+        if (status !== undefined) logBizAction(sc.business_group_id || sc.group_id, null, 'מערכת', 'UPDATE_SC_STATUS', 'service_call', sc.id, `קריאת שירות #${sc.id} עודכנה לסטטוס ${status}`, { status });
         if (status !== undefined && sc.family_group_id && sc.business_group_id) {
             try {
                 const linkR = await pool.query(
@@ -22482,6 +22539,7 @@ app.put('/api/work-orders/:id/status', verifyBiz, async (req, res) => {
         await pool.query(`UPDATE store_orders SET status=$1 WHERE id=$2 AND call_type='work_order'`, [status, req.params.id]);
         const statusLabels = { processing: 'בתהליך', new: 'חדש', scheduled: 'מתוזמן', completed: 'הושלם', cancelled: 'בוטל' };
         await addWorkOrderTimeline(req.params.id, 'status_change', `סטטוס שונה ל: ${statusLabels[status] || status}`, userName);
+        logBizAction(req.bizAuth.groupId, req.bizAuth.userId, userName || 'מערכת', 'UPDATE_CASE_STATUS', 'work_order', req.params.id, `תיק #${req.params.id} עודכן לסטטוס ${status}`, { status });
         // שלח notification ללקוח על שינוי סטטוס
         try {
             const woData = await pool.query(
@@ -23235,6 +23293,7 @@ app.patch('/api/professional-leads/:id', verifyBiz, async (req, res) => {
         if (!_chk.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
         const { status } = req.body;
         await pool.query('UPDATE professional_leads SET status=$1 WHERE id=$2', [status, req.params.id]);
+        logBizAction(req.bizAuth.groupId, req.bizAuth.userId, 'מערכת', 'UPDATE_LEAD_STATUS', 'lead', req.params.id, `פנייה #${req.params.id} עודכנה לסטטוס ${status}`, { status });
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -23764,7 +23823,8 @@ app.put('/api/sport/members/:id', async (req, res) => {
 app.post('/api/sport/members/:id/freeze', async (req, res) => {
     try {
         const { reason } = req.body;
-        await pool.query(`UPDATE sport_memberships SET status='frozen', frozen_at=CURRENT_DATE, frozen_reason=$1, updated_at=NOW() WHERE id=$2`, [reason||'', req.params.id]);
+        const _memR = await pool.query(`UPDATE sport_memberships SET status='frozen', frozen_at=CURRENT_DATE, frozen_reason=$1, updated_at=NOW() WHERE id=$2 RETURNING group_id`, [reason||'', req.params.id]);
+        if (_memR.rows.length) logBizAction(_memR.rows[0].group_id, null, 'מערכת', 'FREEZE_MEMBER', 'membership', req.params.id, `מנוי #${req.params.id} הוקפא`, { reason });
         res.json({ success: true });
         try {
             const linkR = await pool.query(
@@ -25706,6 +25766,7 @@ app.patch('/api/beauty/:bizId/appointments/:id', verifyBiz, async (req, res) => 
              WHERE id=$5 AND business_group_id=$6`,
             [status, notes, internal_notes, deposit_paid, req.params.id, req.params.bizId, hasPaymentConfirm, payment_confirmed||false]
         );
+        if (status) logBizAction(req.bizAuth.groupId, req.bizAuth.userId, 'מערכת', 'UPDATE_APPT_STATUS', 'appointment', req.params.id, `תור #${req.params.id} עודכן לסטטוס ${status}`, { status });
 
         // Update segment timing/practitioner/service_name if provided
         if (date || time || duration_minutes || hasPracKey || service_name !== undefined) {
@@ -26842,6 +26903,7 @@ app.patch('/api/logistics/orders/:id/status', verifyBizOrLegacy, requireModule('
         await pool.query(q, params);
         await pool.query(`INSERT INTO logistics_order_events (order_id, group_id, event_type, old_status, new_status, actor_name, notes) VALUES ($1,$2,'status_change',$3,$4,$5,$6)`,
             [req.params.id, old.rows[0].group_id, oldStatus, status, actor_name||null, notes||null]);
+        logBizAction(old.rows[0].group_id, null, actor_name || 'מערכת', 'UPDATE_DELIVERY_STATUS', 'delivery_order', req.params.id, `משלוח #${req.params.id} עודכן מ-${oldStatus} ל-${status}`, { old_status: oldStatus, status });
         res.json({ success: true });
         // Auto-invoice + income log when delivered
         if (status === 'delivered') {
@@ -27543,6 +27605,7 @@ app.patch('/api/logistics/invoices/:id/status', verifyBizOrLegacy, requireModule
         const { status } = req.body;
         const extra = status === 'paid' ? ', paid_at=NOW()' : (status === 'sent' ? ', sent_at=NOW()' : '');
         await pool.query(`UPDATE logistics_invoices SET status=$1${extra} WHERE id=$2`, [status, req.params.id]);
+        logBizAction(req.bizAuth?.groupId, req.bizAuth?.userId, 'מערכת', 'UPDATE_INVOICE_STATUS', 'invoice', req.params.id, `חשבונית #${req.params.id} עודכנה לסטטוס ${status}`, { status });
         res.json({ ok: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -37747,6 +37810,7 @@ app.post('/api/biz/customer-chats/:chatId/message', verifyBiz, async (req, res) 
             [chatId, req.bizAuth.userId, body.trim()]
         );
         await pool.query(`UPDATE customer_chats SET last_message_at=NOW() WHERE id=$1`, [chatId]);
+        logBizAction(groupId, req.bizAuth.userId, 'מערכת', 'REPLY_CUSTOMER_CHAT', 'customer_chat', chatId, `נשלחה תגובה בשיחה #${chatId}`, {});
         res.json({ success: true, message: r.rows[0] });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
