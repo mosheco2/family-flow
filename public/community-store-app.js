@@ -22,7 +22,7 @@
         if (!campaignCode) {
             document.getElementById('loading-screen').style.display = 'none';
             document.getElementById('cs-title').textContent = 'קמפיין לא נמצא';
-            document.getElementById('hero').style.display = 'block';
+            document.getElementById('hero').style.display = 'flex';
             document.getElementById('cs-products').innerHTML = '<div class="catalog-empty">לא צויין קוד קמפיין בכתובת</div>';
             return;
         }
@@ -33,12 +33,12 @@
             if (!data.success) {
                 document.getElementById('cs-title').textContent = 'קמפיין לא זמין';
                 document.getElementById('hero-sub').textContent = data.error || '';
-                document.getElementById('hero').style.display = 'block';
+                document.getElementById('hero').style.display = 'flex';
                 return;
             }
             campaignData = data;
             document.getElementById('main-header').style.display = 'block';
-            document.getElementById('hero').style.display = 'block';
+            document.getElementById('hero').style.display = 'flex';
             document.getElementById('biz-nav-wrap').style.display = 'block';
             document.getElementById('store-footer').style.display = 'block';
             renderHeader();
@@ -47,7 +47,7 @@
         } catch(e) {
             document.getElementById('loading-screen').style.display = 'none';
             document.getElementById('cs-title').textContent = 'שגיאת תקשורת';
-            document.getElementById('hero').style.display = 'block';
+            document.getElementById('hero').style.display = 'flex';
         }
     }
 
