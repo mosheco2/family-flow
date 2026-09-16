@@ -15559,6 +15559,24 @@ async function submitGlobalAI() {
             problematic: foodCostData.filter(i=>i.costs?.foodCostPct>40).map(i=>({name:i.name,fc_pct:i.costs.foodCostPct?.toFixed(1)}))
         };
     }
+    // נתונים נוספים ל-FamliAI: שיחות לקוחות ממתינות, ביקורות, נוכחות עובדים
+    let openChatsForAI = [], reviewsForAI = null, staffClockedInForAI = [], pendingInvoicesForAI = [];
+    try {
+        const promises = [
+            fetch(`${API}/biz/customer-chats`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } }).then(r=>r.json()).catch(()=>({})),
+            fetch(`${API}/store/reviews/${currentGroup.id}?limit=10`).then(r=>r.json()).catch(()=>({})),
+            fetch(`${API}/biz/staff-status/${currentGroup.id}`).then(r=>r.json()).catch(()=>({}))
+        ];
+        if (currentGroup?.business_type === 'logistics') {
+            promises.push(fetch(`${API}/logistics/invoices/${currentGroup.id}`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } }).then(r=>r.json()).catch(()=>[]));
+        }
+        const [chatsR, reviewsR, staffR, invoicesR] = await Promise.all(promises);
+        if (chatsR?.chats) openChatsForAI = chatsR.chats.filter(c=>parseInt(c.unread_count)>0).slice(0,8).map(c=>({chat_id:c.id, customer:(c.first_name||'')+' '+(c.last_name||''), last_message:c.last_body, unread:c.unread_count}));
+        if (reviewsR?.success) reviewsForAI = { avg_rating: reviewsR.avg_rating, total: reviewsR.total, recent_low_reviews: (reviewsR.reviews||[]).filter(r=>r.customer_rating<=2).slice(0,3).map(r=>({rating:r.customer_rating, note:r.customer_rating_notes, from:r.display_name})) };
+        if (staffR?.clocked_in) staffClockedInForAI = staffR.clocked_in.map(s=>({name:s.nickname, role:s.role, since:s.punch_in}));
+        if (Array.isArray(invoicesR)) pendingInvoicesForAI = invoicesR.filter(i=>i.status!=='paid').slice(0,20).map(i=>({id:i.id, order:i.order_number, amount:i.amount, status:i.status}));
+    } catch(e) {}
+
     const systemContext = {
         business_type: currentGroup?.business_type,
         business_name: currentGroup?.name,
@@ -15605,7 +15623,11 @@ async function submitGlobalAI() {
         service_calls_open: currentGroup?.business_type==='maintenance_repair'
             ? (window._serviceCallsCache||[]).filter(c=>!['done','cancelled'].includes(c.status)).slice(0,20).map(c=>({id:c.id,title:c.title,customer:c.customer_name||c.family_name,status:c.status,priority:c.priority,scheduled:c.scheduled_at,parts_status:c.parts_status}))
             : undefined,
-        my_communities: (window.myCommunityBusinessesCache||[]).filter(c=>c.status==='approved').map(c=>({id:c.id,name:c.name,type:c.type,cashback_percent:c.cashback_percent,members_count:c.members_count}))
+        my_communities: (window.myCommunityBusinessesCache||[]).filter(c=>c.status==='approved').map(c=>({id:c.id,name:c.name,type:c.type,cashback_percent:c.cashback_percent,members_count:c.members_count})),
+        open_customer_chats: openChatsForAI,
+        reviews: reviewsForAI,
+        staff_clocked_in_now: staffClockedInForAI,
+        pending_invoices: currentGroup?.business_type==='logistics' ? pendingInvoicesForAI : undefined
     };
 
     try {
@@ -15743,6 +15765,28 @@ async function submitGlobalAI() {
                 answerText = answerText.replace(createAlertMatch[0], '');
                 const arTriggerLabels = {new_order:'הזמנה חדשה',order_timeout_15:'הזמנה לא מטופלת 15 דקות',order_timeout_30:'הזמנה לא מטופלת 30 דקות',new_lead:'פנייה חדשה',new_booking:'הזמנה/תור חדש',new_service_call:'קריאת שירות חדשה',payment_received:'תשלום התקבל',low_stock:'מלאי נמוך'};
                 actionHtml += `<button onclick="window._aiCreateAlertRule('${safeStr(arName)}','${arTrigger}',${arCooldown},'${safeStr(arDesc)}',this)" class="mt-3 w-full bg-yellow-50 text-yellow-700 hover:bg-yellow-100 border border-yellow-200 py-2.5 rounded-xl text-sm font-bold transition flex items-center justify-center gap-2 shadow-sm"><i class="fa-solid fa-bell"></i> צור התראה: ${safeStr(arName)} — ${arTriggerLabels[arTrigger]||arTrigger}</button>`;
+            }
+            // AI Action Parser — מענה לשיחת לקוח
+            const replyChatMatch = answerText.match(/\[ACTION:REPLY_CUSTOMER_CHAT\|(\d+)\|([^\]]+)\]/);
+            if (replyChatMatch) {
+                const rcChatId = replyChatMatch[1], rcMsg = replyChatMatch[2].trim();
+                answerText = answerText.replace(replyChatMatch[0], '');
+                actionHtml += `<button onclick="window._aiReplyCustomerChat(${rcChatId},'${safeStr(rcMsg)}',this)" class="mt-3 w-full bg-cyan-50 text-cyan-700 hover:bg-cyan-100 border border-cyan-200 py-2.5 rounded-xl text-sm font-bold transition flex items-center justify-center gap-2 shadow-sm"><i class="fa-solid fa-comment-dots"></i> שלח ללקוח: "${safeStr(rcMsg)}"</button>`;
+            }
+            // AI Action Parser — יצירת קופון הנחה
+            const createCouponMatch = answerText.match(/\[ACTION:CREATE_COUPON\|([^|\]]+)\|([\d.]+)\|?([^\]]*)\]/);
+            if (createCouponMatch) {
+                const ccCode = createCouponMatch[1].trim(), ccPct = createCouponMatch[2], ccUntil = (createCouponMatch[3]||'').trim();
+                answerText = answerText.replace(createCouponMatch[0], '');
+                actionHtml += `<button onclick="window._aiCreateCoupon('${safeStr(ccCode)}',${ccPct},'${safeStr(ccUntil)}',this)" class="mt-3 w-full bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 py-2.5 rounded-xl text-sm font-bold transition flex items-center justify-center gap-2 shadow-sm"><i class="fa-solid fa-tags"></i> צור קופון ${safeStr(ccCode)}: ${ccPct}% הנחה</button>`;
+            }
+            // AI Action Parser — עדכון סטטוס חשבונית (לוגיסטיקה)
+            const invStatusMatch = answerText.match(/\[ACTION:UPDATE_INVOICE_STATUS\|(\d+)\|(\w+)\]/);
+            if (invStatusMatch) {
+                const isId = invStatusMatch[1], isStatus = invStatusMatch[2];
+                answerText = answerText.replace(invStatusMatch[0], '');
+                const isLabels = {paid:'שולם',sent:'נשלח',pending:'ממתין'};
+                actionHtml += `<button onclick="window._aiUpdateInvoiceStatus(${isId},'${isStatus}',this)" class="mt-3 w-full bg-teal-50 text-teal-700 hover:bg-teal-100 border border-teal-200 py-2.5 rounded-xl text-sm font-bold transition flex items-center justify-center gap-2 shadow-sm"><i class="fa-solid fa-file-invoice"></i> עדכן חשבונית #${isId} → ${isLabels[isStatus]||isStatus}</button>`;
             }
             // Markdown bold → <strong>
             answerText = answerText.trim().replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
@@ -54539,6 +54583,53 @@ window._aiUpdateDeliveryStatus = async function(orderId, status, customerName, b
             if (btn) { btn.innerHTML = '<i class="fa-solid fa-check"></i> עודכן!'; btn.className = btn.className.replace(/bg-\w+-\d+/g,'bg-green-50').replace(/text-\w+-\d+/g,'text-green-700').replace(/border-\w+-\d+/g,'border-green-200'); }
         } else { throw new Error(data.error||'error'); }
     } catch(e) { showToast('error', 'שגיאה בעדכון משלוח'); if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-truck"></i> נסה שוב'; } }
+};
+
+// === AI ACTION HANDLERS — גנרי נוסף: שיחות לקוח / קופונים / חשבוניות ===
+window._aiReplyCustomerChat = async function(chatId, message, btn) {
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> שולח...'; }
+    try {
+        const res = await fetch(API + '/biz/customer-chats/' + chatId + '/message', {
+            method: 'POST', headers: {'Content-Type':'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : ''},
+            body: JSON.stringify({ body: message })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast('success', 'ההודעה נשלחה ללקוח ✓');
+            if (btn) { btn.innerHTML = '<i class="fa-solid fa-check"></i> נשלח!'; btn.className = btn.className.replace(/bg-cyan-\d+/g,'bg-green-50').replace(/text-cyan-\d+/g,'text-green-700').replace(/border-cyan-\d+/g,'border-green-200'); }
+        } else { throw new Error(data.error||'error'); }
+    } catch(e) { showToast('error', 'שגיאה בשליחת הודעה'); if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-comment-dots"></i> נסה שוב'; } }
+};
+
+window._aiCreateCoupon = async function(code, discountPct, validUntil, btn) {
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> יוצר...'; }
+    try {
+        const res = await fetch(API + '/store/coupons', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ groupId: currentGroup.id, code, discountPct, validUntil: validUntil || null })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast('success', 'קופון ' + code + ' נוצר ✓');
+            if (btn) { btn.innerHTML = '<i class="fa-solid fa-check"></i> נוצר!'; btn.className = btn.className.replace(/bg-rose-\d+/g,'bg-green-50').replace(/text-rose-\d+/g,'text-green-700').replace(/border-rose-\d+/g,'border-green-200'); }
+        } else { throw new Error(data.error||'error'); }
+    } catch(e) { showToast('error', 'שגיאה ביצירת קופון'); if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-tags"></i> נסה שוב'; } }
+};
+
+window._aiUpdateInvoiceStatus = async function(invoiceId, status, btn) {
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מעדכן...'; }
+    try {
+        const res = await fetch(API + '/logistics/invoices/' + invoiceId + '/status', {
+            method: 'PATCH', headers: {'Content-Type':'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : ''},
+            body: JSON.stringify({ status })
+        });
+        const data = await res.json();
+        if (data.ok || data.success) {
+            const labels = {paid:'שולם',sent:'נשלח',pending:'ממתין'};
+            showToast('success', 'חשבונית #' + invoiceId + ' → ' + (labels[status]||status) + ' ✓');
+            if (btn) { btn.innerHTML = '<i class="fa-solid fa-check"></i> עודכן!'; btn.className = btn.className.replace(/bg-teal-\d+/g,'bg-green-50').replace(/text-teal-\d+/g,'text-green-700').replace(/border-teal-\d+/g,'border-green-200'); }
+        } else { throw new Error(data.error||'error'); }
+    } catch(e) { showToast('error', 'שגיאה בעדכון חשבונית'); if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-file-invoice"></i> נסה שוב'; } }
 };
 
 // ─── ייבוא מוצרים מ-PDF / תמונה ─────────────────────────────────────────────

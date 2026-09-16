@@ -10974,6 +10974,20 @@ app.get('/api/timeclock/status', async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// מי מוחתם/ת כרגע (punch-in פתוח) בעסק - לשימוש FamliAI ומסכי ניהול
+app.get('/api/biz/staff-status/:groupId', async (req, res) => {
+    try {
+        const r = await pool.query(
+            `SELECT u.nickname, u.role, tc.punch_in
+             FROM time_clock tc JOIN users u ON u.id=tc.user_id
+             WHERE u.group_id=$1 AND tc.punch_out IS NULL
+             ORDER BY tc.punch_in ASC`,
+            [req.params.groupId]
+        );
+        res.json({ success: true, clocked_in: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 app.post('/api/timeclock/punch', async (req, res) => {
     try {
         const { userId, groupId, lat, lng } = req.body;
@@ -13462,6 +13476,12 @@ app.post('/api/biz/chat-assistant', verifyBiz, async (req, res) => {
   order_id נלקח מ-orders_active[].id (מופיע בקונטקסט)
   דוגמה: "עדכן הזמנה 123 כנמסרה" → [ACTION:UPDATE_DELIVERY_STATUS|123|delivered|שם הלקוח]
 
+## עדכון סטטוס חשבונית:
+כשמבקשים לסמן חשבונית כשולמה/נשלחה → [ACTION:UPDATE_INVOICE_STATUS|invoice_id|status]
+  (סטטוסים: paid / sent / pending)
+  invoice_id נלקח מ-pending_invoices[].id שבקונטקסט
+  דוגמה: "סמן חשבונית 55 כשולמה" → [ACTION:UPDATE_INVOICE_STATUS|55|paid]
+
 ## מה לנתח מהקונטקסט שמתקבל:
 - מה שיעור ההצלחה (delivered/total) וכיצד משפר אותו
 - אלו נהגים מתפקדים הכי טוב/גרוע ולמה
@@ -13539,6 +13559,38 @@ app.post('/api/biz/chat-assistant', verifyBiz, async (req, res) => {
 • לפתוח שירותים → [ACTION:OPEN_TAB|beauty_services]
 • לפתוח עמלות → [ACTION:OPEN_TAB|beauty_commissions]
 • לפתוח קופה → [ACTION:OPEN_TAB|pos]` : '';
+
+        const retailSection = bizType === 'retail' ? `
+
+## ניתוח עסק קמעונאי (retail) — כללי ברזל:
+- מוצרים עם is_available=false שנשארו כך מעל שבוע → בדוק אם צריך להחזיר למכירה
+- avg_per_order_month נמוך → המלץ על bundle/מבצע לשורת מוצרים
+- הזמנות ב-status=new מעל 24 שעות → סיכון לביטול, טפל בדחיפות
+- מוצר עם מלאי (pantry) נמוך אבל ביקוש גבוה בהזמנות אחרונות → המלץ הזמנה מספק
+
+## קמעונאות — פקודות פעולה:
+• לעדכן מחיר מוצר → [ACTION:UPDATE_CATALOG_PRICE|catalog_id|מחיר חדש]
+• להפעיל/להשבית מוצר → [ACTION:TOGGLE_CATALOG_ITEM|catalog_id|true/false]
+• ליצור קופון הנחה → [ACTION:CREATE_COUPON|קוד|אחוז|תוקף]
+• לפתוח קופה/מכירות → [ACTION:OPEN_TAB|pos]
+• לפתוח מלאי → [ACTION:OPEN_TAB|pantry]
+• לייצא דוח מכירות → [ACTION:EXPORT_EXCEL|orders]` : '';
+
+        const constructionSection = bizType === 'construction' ? `
+
+## ניתוח עסק בנייה/קבלנות (construction) — כללי ברזל:
+- פרויקטים (work_orders) ב-status=processing מעל חודש ללא עדכון → בדוק עיכוב
+- הזמנות רכש/ציוד מספקים → עקוב אחרי סטטוס אספקה, עיכוב = סיכון ללוח זמנים
+- תזרים שלילי בפרויקט מסוים → דגל אדום, בדוק חריגה מתקציב
+- עובדים ללא שעות מדווחות היום (staff_clocked_in_now ריק/חסר) → ודא נוכחות באתר
+
+## בנייה/קבלנות — פקודות פעולה:
+• ליצור משימה/מטלה → [ACTION:CREATE_TASK|כותרת|assignee|days]
+• להוסיף לרכש חומרי בנייה → [ACTION:ADD_SHOP|שם הפריט]
+• ליצור התראה (חריגת תקציב/משימה באיחור) → [ACTION:CREATE_ALERT_RULE|שם|trigger_type|cooldown|תיאור]
+• לפתוח פרויקטים → [ACTION:OPEN_TAB|sales]
+• לפתוח צוות → [ACTION:OPEN_TAB|members]
+• לייצא תזרים → [ACTION:EXPORT_EXCEL|cashflow]` : '';
 
         const sportSection = bizType === 'sport' ? `
 
@@ -13623,6 +13675,18 @@ ${context}
 • לייצא לאקסל/CSV → הוסף [ACTION:EXPORT_EXCEL|orders] או customers/cashflow/pantry/staff/food-cost בסוף
 • לעבור לטאב → הוסף [ACTION:OPEN_TAB|tabId] בסוף (tabIds: pos/sales/customers/pantry/foodcost/cashflow/shifts/members/calendar/deliveries/tasks)
 
+== מענה ללקוח בצ'אט (לכל סוגי העסקים) ==
+כשמבקשים לענות/להשיב ללקוח בשיחה פתוחה → [ACTION:REPLY_CUSTOMER_CHAT|chat_id|תוכן ההודעה]
+  chat_id נלקח מ-open_customer_chats[].chat_id שבקונטקסט (שיחות עם הודעות שלא נקראו)
+  נסח את ההודעה בעצמך בהתאם לשאלת הלקוח (last_message) ולבקשת המנהל
+  דוגמה: "תענה ללקוח X שההזמנה שלו בדרך" → [ACTION:REPLY_CUSTOMER_CHAT|17|היי! ההזמנה שלך כבר בדרך אליך 🚚]
+
+== יצירת קופון הנחה (לכל סוגי העסקים) ==
+כשמבקשים ליצור קופון/הנחה → [ACTION:CREATE_COUPON|קוד|אחוז הנחה|תוקף]
+  קוד: אותיות/מספרים באנגלית, ללא רווחים (אם לא צוין - הצע קוד קצר וברור)
+  תוקף: תאריך YYYY-MM-DD, או השאר ריק אם לא צוין
+  דוגמה: "תן קופון 10% לכל הלקוחות עד סוף החודש" → [ACTION:CREATE_COUPON|SAVE10|10|2026-06-30]
+
 == יצירת משימה (לכל סוגי העסקים) ==
 כשמבקשים ליצור משימה → [ACTION:CREATE_TASK|כותרת|assignee|days]
   assignee: "self" = למנהל עצמו, או שם עובד מרשימת הצוות
@@ -13658,7 +13722,7 @@ ${context}
 • מלאי: פריטים נגמרים, המלצת הזמנה, קצב צריכה
 • תזרים: הכנסות מול הוצאות, יתרה נטו, ניתוח קטגוריות
 • צוות: כמות עובדים, יתרות תקציב
-• חיזוי: על בסיס נתוני החודשים האחרונים, חזה מה צפוי החודש/שבוע הבא${logisticsSection}${maintenanceSection}${professionalSection}${beautySection}${sportSection}`;
+• חיזוי: על בסיס נתוני החודשים האחרונים, חזה מה צפוי החודש/שבוע הבא${logisticsSection}${maintenanceSection}${professionalSection}${beautySection}${sportSection}${retailSection}${constructionSection}`;
 
         const result = await model.generateContent(systemPrompt);
         res.json({ success: true, answer: result.response.text().trim() });
