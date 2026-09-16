@@ -303,15 +303,50 @@
             </div>
 
             <div id="view-login" class="px-8 py-8 flex-1 overflow-y-auto hidden" style="display:none">
-                <form onsubmit="handleLogin(event)" class="space-y-5">
-                    <input type="text" id="login-code" required class="modern-input font-mono text-center tracking-widest uppercase" placeholder="קוד כניסה (לדוגמה: ABCD12)">
-                    <input type="text" id="login-nickname" required class="modern-input" placeholder="כינוי המשתמש שלך">
-                    <input type="password" id="login-password" required class="modern-input" placeholder="סיסמה">
-                    <button type="submit" class="w-full bg-blue-600 text-white py-4 rounded-xl font-bold shadow-lg shadow-blue-200 hover:shadow-blue-300 transition flex justify-center gap-2 text-lg">
-                        <span id="btn-login-text">כניסה</span>
-                        <div id="btn-login-loader" class="loader hidden border-white border-t-transparent"></div>
-                    </button>
-                </form>
+                <!-- ══ כניסה עם טלפון (ברירת מחדל) - מקביל לשיטת העסקים ══ -->
+                <div id="login-tab-phone">
+                    <div id="login-phone-step-phone">
+                        <input type="tel" id="login-phone-num" required class="modern-input text-left dir-ltr" placeholder="מספר טלפון" dir="ltr">
+                        <p class="text-xs text-slate-400 mt-2 mb-2">נשלח אליך קוד אימות ב-SMS</p>
+                        <button type="button" id="btn-login-phone-send" onclick="loginPhoneSendOtp()" class="w-full bg-blue-600 text-white py-4 rounded-xl font-bold shadow-lg shadow-blue-200 hover:shadow-blue-300 transition mt-3">שליחת קוד</button>
+                    </div>
+                    <div id="login-phone-step-otp" class="hidden">
+                        <p class="text-sm text-slate-500 mb-3">קוד אימות נשלח למספר <span id="login-phone-display" class="font-bold dir-ltr" style="unicode-bidi:plaintext"></span></p>
+                        <input type="text" id="login-phone-otp" inputmode="numeric" maxlength="6" class="modern-input text-center tracking-widest text-2xl dir-ltr" placeholder="000000" dir="ltr">
+                        <button type="button" onclick="loginPhoneVerifyOtp()" class="w-full bg-blue-600 text-white py-4 rounded-xl font-bold shadow-lg shadow-blue-200 hover:shadow-blue-300 transition mt-3">אימות קוד</button>
+                        <button type="button" onclick="loginPhoneSendOtp()" class="w-full text-slate-400 text-sm font-medium mt-2">שלח קוד שוב</button>
+                    </div>
+                    <div id="login-phone-step-pick" class="hidden space-y-2"></div>
+                    <div id="login-phone-step-password" class="hidden">
+                        <p id="login-phone-selected-label" class="text-sm text-slate-600 mb-3 font-bold"></p>
+                        <input type="password" id="login-phone-password" class="modern-input" placeholder="סיסמה">
+                        <button type="button" onclick="loginPhoneSubmitPassword()" class="w-full bg-blue-600 text-white py-4 rounded-xl font-bold shadow-lg shadow-blue-200 hover:shadow-blue-300 transition mt-3 flex justify-center gap-2">
+                            <span id="btn-login-phone-pass-text">כניסה</span>
+                            <div id="btn-login-phone-pass-loader" class="loader hidden border-white border-t-transparent"></div>
+                        </button>
+                    </div>
+                    <div id="login-phone-msg" class="text-sm font-bold text-red-500 mt-3 hidden"></div>
+                    <div class="text-center mt-5">
+                        <button type="button" onclick="switchLoginTab('password')" class="text-slate-400 text-sm font-medium">אין לך טלפון רשום? כניסה עם קוד סביבה וסיסמה</button>
+                    </div>
+                </div>
+
+                <!-- ══ כניסה עם קוד סביבה + סיסמה (השיטה הישנה - עדיין זמינה, בעיקר לילדים ללא טלפון) ══ -->
+                <div id="login-tab-password" class="hidden">
+                    <form onsubmit="handleLogin(event)" class="space-y-5">
+                        <input type="text" id="login-code" required class="modern-input font-mono text-center tracking-widest uppercase" placeholder="קוד כניסה (לדוגמה: ABCD12)">
+                        <input type="text" id="login-nickname" required class="modern-input" placeholder="כינוי המשתמש שלך">
+                        <input type="password" id="login-password" required class="modern-input" placeholder="סיסמה">
+                        <button type="submit" class="w-full bg-blue-600 text-white py-4 rounded-xl font-bold shadow-lg shadow-blue-200 hover:shadow-blue-300 transition flex justify-center gap-2 text-lg">
+                            <span id="btn-login-text">כניסה</span>
+                            <div id="btn-login-loader" class="loader hidden border-white border-t-transparent"></div>
+                        </button>
+                    </form>
+                    <div class="text-center mt-5">
+                        <button type="button" onclick="switchLoginTab('phone')" class="text-slate-400 text-sm font-medium">כניסה עם טלפון (SMS) במקום</button>
+                    </div>
+                </div>
+
                <div class="mt-8 text-center text-sm space-y-3 pb-8">
                     <button type="button" onclick="window.location.href='/family-onboarding.html?tab=create'" class="text-blue-600 font-bold bg-blue-50 px-4 py-2 rounded-lg w-full">פתיחת סביבה חדשה (משפחה / עסק)</button>
                     <button type="button" onclick="window.location.href='/family-onboarding.html?tab=join'" class="text-slate-400 font-medium block w-full">הצטרפות לארגון / משפחה קיימת</button>
@@ -3005,7 +3040,7 @@
             document.getElementById('btn-adj-add').className = isAdd ? 'flex-1 py-1.5 text-sm font-bold bg-white text-green-600 rounded-lg shadow-sm transition' : 'flex-1 py-1.5 text-sm font-bold text-slate-500 hover:text-green-600 rounded-lg transition';
         }
     </script>
-    <script src="app.js?v=85" defer></script>
+    <script src="app.js?v=86" defer></script>
     <script src="community-help.js?v=1" defer></script>
     <script>
         if ('serviceWorker' in navigator) {

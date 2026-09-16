@@ -607,6 +607,112 @@ async function handleLogin(e) {
 }
 
 
+// ── כניסה עם טלפון + OTP (מקביל לשיטת הכניסה העסקית) ──
+let _loginPhoneState = { phone: '', options: [], selected: null };
+
+function switchLoginTab(tab) {
+    getEl('login-tab-phone').classList.toggle('hidden', tab !== 'phone');
+    getEl('login-tab-password').classList.toggle('hidden', tab !== 'password');
+}
+
+function _loginPhoneShowMsg(text) {
+    const el = getEl('login-phone-msg');
+    el.textContent = text;
+    el.classList.remove('hidden');
+}
+function _loginPhoneHideMsg() { getEl('login-phone-msg').classList.add('hidden'); }
+
+async function loginPhoneSendOtp() {
+    _loginPhoneHideMsg();
+    const phone = val('login-phone-num').trim();
+    if (!phone) return _loginPhoneShowMsg('נא להזין מספר טלפון');
+    const btn = getEl('btn-login-phone-send');
+    if (btn) { btn.disabled = true; btn.innerText = 'שולח...'; }
+    try {
+        const res = await fetch(`${API}/family/login/send-otp`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ phone }) });
+        const data = await res.json();
+        if (!data.success) { _loginPhoneShowMsg(data.error || 'שגיאה בשליחת הקוד'); return; }
+        _loginPhoneState.phone = phone;
+        getEl('login-phone-display').textContent = phone;
+        getEl('login-phone-step-phone').classList.add('hidden');
+        getEl('login-phone-step-otp').classList.remove('hidden');
+        getEl('login-phone-otp').value = '';
+        getEl('login-phone-otp').focus();
+    } catch(e) {
+        _loginPhoneShowMsg('שגיאת תקשורת מול השרת');
+    } finally {
+        if (btn) { btn.disabled = false; btn.innerText = 'שליחת קוד'; }
+    }
+}
+
+async function loginPhoneVerifyOtp() {
+    _loginPhoneHideMsg();
+    const code = val('login-phone-otp').trim();
+    if (!code) return _loginPhoneShowMsg('נא להזין את הקוד שהתקבל');
+    try {
+        const res = await fetch(`${API}/family/login/verify-otp`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ phone: _loginPhoneState.phone, code }) });
+        const data = await res.json();
+        if (!data.success) { _loginPhoneShowMsg(data.error || 'קוד שגוי'); return; }
+        _loginPhoneState.options = data.options || [];
+        getEl('login-phone-step-otp').classList.add('hidden');
+        if (_loginPhoneState.options.length === 1) {
+            _loginPhoneSelectOption(_loginPhoneState.options[0]);
+        } else {
+            const pickEl = getEl('login-phone-step-pick');
+            pickEl.innerHTML = _loginPhoneState.options.map((o, i) =>
+                `<button type="button" onclick="_loginPhoneSelectOptionByIndex(${i})" class="w-full text-right border border-slate-200 rounded-xl px-4 py-3 hover:bg-blue-50 hover:border-blue-300 transition">
+                    <div class="font-bold text-slate-800">${o.nickname}</div>
+                    <div class="text-xs text-slate-400">${o.group_name}</div>
+                </button>`
+            ).join('');
+            pickEl.classList.remove('hidden');
+        }
+    } catch(e) {
+        _loginPhoneShowMsg('שגיאת תקשורת מול השרת');
+    }
+}
+
+function _loginPhoneSelectOptionByIndex(i) { _loginPhoneSelectOption(_loginPhoneState.options[i]); }
+
+function _loginPhoneSelectOption(opt) {
+    _loginPhoneState.selected = opt;
+    getEl('login-phone-step-pick').classList.add('hidden');
+    getEl('login-phone-selected-label').textContent = `${opt.nickname} · ${opt.group_name}`;
+    getEl('login-phone-step-password').classList.remove('hidden');
+    getEl('login-phone-password').value = '';
+    getEl('login-phone-password').focus();
+}
+
+async function loginPhoneSubmitPassword() {
+    _loginPhoneHideMsg();
+    const opt = _loginPhoneState.selected;
+    const password = val('login-phone-password');
+    if (!opt || !password) return _loginPhoneShowMsg('נא להזין סיסמה');
+    toggleLoader('login-phone-pass', true);
+    try {
+        const res = await fetch(`${API}/family/login/password`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ groupId: opt.group_id, userId: opt.user_id, password }) });
+        const data = await res.json();
+        if (data.success) {
+            currentUser = data.user; currentGroup = data.group;
+            localStorage.removeItem('ofl_sa_token');
+            saveSession(currentUser, currentGroup, data.token);
+            if (currentGroup.type === 'BUSINESS' && !window.location.pathname.includes('business.html')) { window.location.href = '/business.html'; return; }
+            await loadDashboard();
+            checkPostDeepLink();
+        } else if (data.account_status === 'frozen') {
+            showFrozenAccountScreen(data.days_left ?? 30);
+        } else if (data.account_status === 'archived') {
+            showToast('error', 'חשבון זה הועבר לארכיב. אנא פנה לתמיכה.');
+        } else {
+            _loginPhoneShowMsg(data.error || 'שגיאה בכניסה');
+        }
+    } catch(e) {
+        _loginPhoneShowMsg('שגיאת תקשורת מול השרת');
+    } finally {
+        toggleLoader('login-phone-pass', false);
+    }
+}
+
 function _requiresPhone(birthYear) {
     const y = parseInt(birthYear);
     if (!y || isNaN(y)) return false;

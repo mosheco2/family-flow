@@ -9451,6 +9451,123 @@ setInterval(() => {
     }
 }, 2 * 60 * 60 * 1000);
 
+// ── כניסת משפחה עם טלפון+OTP (מקביל למנגנון הכניסה העסקי) ──
+// שלב 1: שליחת קוד SMS לטלפון
+app.post('/api/family/login/send-otp', async (req, res) => {
+    try {
+        const { phone } = req.body;
+        if (!phone) return res.status(400).json({ success: false, error: 'מספר טלפון חסר' });
+        const rlRes = await pool.query(
+            `SELECT COUNT(*) FROM business_otp WHERE phone=$1 AND purpose='family_login' AND created_at > NOW() - INTERVAL '1 hour'`,
+            [phone]);
+        if (parseInt(rlRes.rows[0].count) >= 5)
+            return res.status(429).json({ success: false, error: 'שלחת יותר מדי בקשות. נסה שוב בעוד שעה.' });
+        await pool.query(`DELETE FROM business_otp WHERE phone=$1 AND purpose='family_login'`, [phone]);
+        const code = Math.floor(100000 + Math.random() * 900000).toString();
+        const codeHash = _bizHashOtp(code);
+        const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
+        await pool.query(`INSERT INTO business_otp (phone, code_hash, purpose, expires_at) VALUES ($1, $2, 'family_login', $3)`, [phone, codeHash, expiresAt]);
+        const smsText = `WEFLOWZ\nקוד הכניסה שלך: ${code}\nתקף ל-5 דקות. אין להעביר קוד זה לאחר.`;
+        const e164Phone = phone.startsWith('0') ? '+972' + phone.slice(1) : phone;
+        await sendSMSviaTwilio(e164Phone, smsText);
+        res.json({ success: true });
+    } catch(e) { console.error('family login send-otp error:', e); res.status(500).json({ success: false, error: 'שגיאה בשליחת קוד האימות' }); }
+});
+
+// שלב 2: אימות הקוד — מחזיר את כל הפרופילים (סביבות משפחה) המשויכים לטלפון הזה
+app.post('/api/family/login/verify-otp', async (req, res) => {
+    try {
+        const { phone, code } = req.body;
+        if (!phone || !code) return res.status(400).json({ success: false, error: 'פרמטרים חסרים' });
+        const otpRes = await pool.query(`SELECT * FROM business_otp WHERE phone=$1 AND purpose='family_login'`, [phone]);
+        if (otpRes.rows.length === 0) return res.status(400).json({ success: false, error: 'לא נמצאה בקשת אימות פעילה' });
+        const row = otpRes.rows[0];
+        if (new Date() > new Date(row.expires_at)) {
+            await pool.query(`DELETE FROM business_otp WHERE id=$1`, [row.id]);
+            return res.status(400).json({ success: false, error: 'פג תוקף הקוד. בקש קוד חדש.' });
+        }
+        if (_bizHashOtp(code) !== row.code_hash) {
+            const newAttempts = row.attempts + 1;
+            if (newAttempts >= 3) { await pool.query(`DELETE FROM business_otp WHERE id=$1`, [row.id]); return res.status(400).json({ success: false, error: 'קוד שגוי 3 פעמים. בקש קוד חדש.' }); }
+            await pool.query(`UPDATE business_otp SET attempts=$1 WHERE id=$2`, [newAttempts, row.id]);
+            return res.status(400).json({ success: false, error: `קוד שגוי. נותרו ${3 - newAttempts} ניסיונות.` });
+        }
+        await pool.query(`DELETE FROM business_otp WHERE id=$1`, [row.id]);
+
+        const optRes = await pool.query(
+            `SELECT u.id AS user_id, u.nickname, u.role, fg.id AS group_id, fg.name AS group_name
+             FROM users u JOIN family_groups fg ON fg.id = u.group_id
+             WHERE u.phone=$1 AND u.status='active' AND fg.type='FAMILY' AND fg.account_status NOT IN ('archived','frozen')`,
+            [phone]
+        );
+        if (!optRes.rows.length) return res.status(404).json({ success: false, error: 'לא נמצא חשבון פעיל עם מספר טלפון זה' });
+
+        res.json({ success: true, options: optRes.rows });
+    } catch(e) { console.error('family login verify-otp error:', e); res.status(500).json({ success: false, error: 'שגיאה באימות הקוד' }); }
+});
+
+// שלב 3: סיסמה — לאחר שהוזמנה זהות ע"י OTP, ידוע כבר איזה group_id/user_id רוצים להיכנס אליו
+app.post('/api/family/login/password', async (req, res) => {
+    try {
+        const { groupId, userId, password } = req.body;
+        if (!groupId || !userId || !password) return res.status(400).json({ error: 'חסרים פרטי התחברות' });
+
+        const clientIP = (req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown').split(',')[0].trim();
+        const rateKey = `uid:${userId}`;
+        const rateCheck = _checkLoginRate(clientIP, rateKey);
+        if (rateCheck.blocked) {
+            return res.status(429).json({ error: `יותר מדי ניסיונות כניסה. נסה שוב בעוד ${rateCheck.secsLeft} שניות.` });
+        }
+
+        const gRes = await pool.query('SELECT * FROM family_groups WHERE id=$1', [groupId]);
+        if (!gRes.rows.length) return res.status(401).json({ error: 'פרטי ההתחברות שגויים' });
+        const group = gRes.rows[0];
+        if (group.account_status === 'archived') return res.status(403).json({ error: 'חשבון זה הועבר לארכיב. אנא פנה לתמיכה.', account_status: 'archived' });
+        if (group.account_status === 'frozen') return res.status(403).json({ error: 'חשבון זה הוקפא לאחר איחוד משפחות.', account_status: 'frozen' });
+
+        const uRes = await pool.query('SELECT * FROM users WHERE id=$1 AND group_id=$2', [userId, groupId]);
+        if (!uRes.rows.length) { _recordLoginFailure(clientIP, rateKey); return res.status(401).json({ error: 'פרטי ההתחברות שגויים' }); }
+        const userRow = uRes.rows[0];
+
+        const storedHash = userRow.password_hash || '';
+        let passOk = false;
+        if (storedHash.startsWith('$2')) {
+            passOk = await bcrypt.compare(password, storedHash);
+        } else {
+            passOk = (password === storedHash);
+            if (passOk) {
+                const newHash = await bcrypt.hash(password, 10);
+                await pool.query('UPDATE users SET password_hash=$1 WHERE id=$2', [newHash, userRow.id]);
+            }
+        }
+        if (!passOk) { _recordLoginFailure(clientIP, rateKey); return res.status(401).json({ error: 'סיסמה שגויה' }); }
+        if (userRow.status !== 'active') return res.status(403).json({ error: 'חשבון ממתין לאישור מנהל' });
+
+        _clearLoginRate(clientIP, rateKey);
+
+        let createdByBusinessName = null;
+        if (group.created_by_business_group_id) {
+            try {
+                const bizRes = await pool.query('SELECT name FROM family_groups WHERE id=$1', [group.created_by_business_group_id]);
+                createdByBusinessName = bizRes.rows[0]?.name || null;
+            } catch(e) {}
+        }
+
+        const deviceHint = (req.headers['user-agent'] || '').slice(0, 100);
+        const rawToken = await createFamilySession(group.id, userRow.id, deviceHint, 'family');
+
+        res.json({
+            success: true,
+            user: userRow,
+            group: { ...group, created_by_business_name: createdByBusinessName },
+            token: rawToken
+        });
+    } catch(e) {
+        console.error('family login/password error:', e);
+        res.status(500).json({ error: 'שגיאת שרת: ' + e.message });
+    }
+});
+
 app.post('/api/login', async (req, res) => {
     try {
         if (!req.body.groupCode || !req.body.nickname || !req.body.password) {
