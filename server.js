@@ -10988,6 +10988,26 @@ app.get('/api/biz/staff-status/:groupId', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// פירוט מלא לכל עובד/בן צוות בעסק - לשימוש FamliAI (שעות, משימות, נוכחות)
+app.get('/api/biz/employee-stats/:groupId', async (req, res) => {
+    try {
+        const groupId = req.params.groupId;
+        const r = await pool.query(`
+            SELECT
+                u.id, u.nickname, u.role, u.balance, u.employee_role_type, u.status, u.last_seen,
+                COALESCE(ROUND((SELECT SUM(tc.total_minutes) FROM time_clock tc WHERE tc.user_id=u.id AND tc.punch_in > NOW()-INTERVAL '7 days')/60.0, 1), 0) as hours_this_week,
+                COALESCE(ROUND((SELECT SUM(tc.total_minutes) FROM time_clock tc WHERE tc.user_id=u.id AND tc.punch_in > NOW()-INTERVAL '30 days')/60.0, 1), 0) as hours_this_month,
+                (SELECT COUNT(*) FROM tasks t WHERE t.assigned_to=u.id AND t.status != 'approved') as tasks_open,
+                (SELECT COUNT(*) FROM tasks t WHERE t.assigned_to=u.id AND t.status = 'approved') as tasks_completed,
+                EXISTS(SELECT 1 FROM time_clock tc WHERE tc.user_id=u.id AND tc.punch_out IS NULL) as currently_clocked_in
+            FROM users u
+            WHERE u.group_id=$1
+            ORDER BY u.role, u.nickname
+        `, [groupId]);
+        res.json({ success: true, employees: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 app.post('/api/timeclock/punch', async (req, res) => {
     try {
         const { userId, groupId, lat, lng } = req.body;
@@ -13652,10 +13672,14 @@ app.post('/api/biz/chat-assistant', verifyBiz, async (req, res) => {
 • ממוצע ענף ישראלי: 28-35%`;
 
         const systemPrompt = `אתה "FamliAI" — עוזרת עסקית בינה מלאכותית ברמת Expert, מוטמעת במערכת WEFLOWZ BUSINESS.
-אתה מנתח נתוני עסק בזמן אמת ומספק תובנות, ניתוחים, חיזויים והמלצות ברמה הגבוהה ביותר.
+יש לך הכרות מלאה ועדכנית עם כל רחבי העסק: הזמנות, מלאי, תזרים, משימות, קופונים פעילים, התראות מוגדרות,
+שיחות לקוחות, ביקורות, וכן פירוט מלא על כל אחד מהעובדים/בני הצוות - כולל שעות עבודה השבוע/החודש,
+משימות פתוחות/שהושלמו, האם מוחתם/ת כרגע, ויתרה. אתה יכול ואמור לענות במדויק על שאלות לגבי עובד ספציפי
+("כמה שעות עבד X השבוע", "כמה משימות השלימה Y"), לא רק על נתונים כלליים.
+אתה מנתח נתוני עסק בזמן אמת ומספק תובנות, ניתוחים, חיזויים והמלצות ברמה הגבוהה ביותר, ומבצע פעולות אמיתיות.
 
 == נתוני העסק בזמן אמת ==
-להלן JSON מפורט עם כל נתוני העסק:
+להלן JSON מפורט עם כל נתוני העסק (כולל employees עם פירוט מלא לכל עובד):
 ${context}
 
 == שאלת המנהל ==

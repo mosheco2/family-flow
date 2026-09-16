@@ -15559,21 +15559,25 @@ async function submitGlobalAI() {
             problematic: foodCostData.filter(i=>i.costs?.foodCostPct>40).map(i=>({name:i.name,fc_pct:i.costs.foodCostPct?.toFixed(1)}))
         };
     }
-    // נתונים נוספים ל-FamliAI: שיחות לקוחות ממתינות, ביקורות, נוכחות עובדים
-    let openChatsForAI = [], reviewsForAI = null, staffClockedInForAI = [], pendingInvoicesForAI = [];
+    // נתונים נוספים ל-FamliAI: שיחות לקוחות, ביקורות, פירוט מלא לכל עובד, קופונים פעילים, התראות מוגדרות, חשבוניות
+    let openChatsForAI = [], reviewsForAI = null, employeesDetailedForAI = [], pendingInvoicesForAI = [], activeCouponsForAI = [], alertRulesForAI = [];
     try {
         const promises = [
             fetch(`${API}/biz/customer-chats`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } }).then(r=>r.json()).catch(()=>({})),
             fetch(`${API}/store/reviews/${currentGroup.id}?limit=10`).then(r=>r.json()).catch(()=>({})),
-            fetch(`${API}/biz/staff-status/${currentGroup.id}`).then(r=>r.json()).catch(()=>({}))
+            fetch(`${API}/biz/employee-stats/${currentGroup.id}`).then(r=>r.json()).catch(()=>({})),
+            fetch(`${API}/store/coupons/${currentGroup.id}`).then(r=>r.json()).catch(()=>({})),
+            fetch(`${API}/alerts/rules?groupId=${currentGroup.id}`).then(r=>r.json()).catch(()=>([]))
         ];
         if (currentGroup?.business_type === 'logistics') {
             promises.push(fetch(`${API}/logistics/invoices/${currentGroup.id}`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } }).then(r=>r.json()).catch(()=>[]));
         }
-        const [chatsR, reviewsR, staffR, invoicesR] = await Promise.all(promises);
+        const [chatsR, reviewsR, employeesR, couponsR, alertsR, invoicesR] = await Promise.all(promises);
         if (chatsR?.chats) openChatsForAI = chatsR.chats.filter(c=>parseInt(c.unread_count)>0).slice(0,8).map(c=>({chat_id:c.id, customer:(c.first_name||'')+' '+(c.last_name||''), last_message:c.last_body, unread:c.unread_count}));
         if (reviewsR?.success) reviewsForAI = { avg_rating: reviewsR.avg_rating, total: reviewsR.total, recent_low_reviews: (reviewsR.reviews||[]).filter(r=>r.customer_rating<=2).slice(0,3).map(r=>({rating:r.customer_rating, note:r.customer_rating_notes, from:r.display_name})) };
-        if (staffR?.clocked_in) staffClockedInForAI = staffR.clocked_in.map(s=>({name:s.nickname, role:s.role, since:s.punch_in}));
+        if (employeesR?.employees) employeesDetailedForAI = employeesR.employees.map(e=>({name:e.nickname, role:e.role, employee_type:e.employee_role_type, balance:parseFloat(e.balance)||0, hours_this_week:parseFloat(e.hours_this_week)||0, hours_this_month:parseFloat(e.hours_this_month)||0, tasks_open:parseInt(e.tasks_open)||0, tasks_completed:parseInt(e.tasks_completed)||0, currently_clocked_in:!!e.currently_clocked_in, status:e.status}));
+        if (couponsR?.coupons) activeCouponsForAI = couponsR.coupons.filter(c=>!c.valid_until || new Date(c.valid_until) >= now_ai).slice(0,20).map(c=>({code:c.code, discount_pct:c.discount_pct, valid_until:c.valid_until}));
+        if (Array.isArray(alertsR)) alertRulesForAI = alertsR.filter(a=>a.is_active).slice(0,20).map(a=>({name:a.name, trigger:a.trigger_type}));
         if (Array.isArray(invoicesR)) pendingInvoicesForAI = invoicesR.filter(i=>i.status!=='paid').slice(0,20).map(i=>({id:i.id, order:i.order_number, amount:i.amount, status:i.status}));
     } catch(e) {}
 
@@ -15593,7 +15597,7 @@ async function submitGlobalAI() {
             recent_10: allOrd.slice(0,10).map(o=>({id:o.id,status:o.status,customer:o.customer_name,amount:o.total_amount||o.total,date:o.created_at,is_delivery:o.is_delivery}))
         },
         work_orders: workOrdersCache.slice(0,20).map(wo=>({id:wo.id,customer:wo.customer_name,status:wo.status,amount:wo.total_amount,date:wo.created_at})),
-        employees: membersCache.map(m=>({name:m.nickname||m.name,role:m.role,balance:m.balance})),
+        employees: employeesDetailedForAI.length ? employeesDetailedForAI : membersCache.map(m=>({name:m.nickname||m.name,role:m.role,balance:m.balance})),
         pantry: {
             total_items: (pantryCache||[]).length,
             low_stock: lowStockItems.map(p=>({item:p.item_name,qty:p.quantity,unit:p.unit})),
@@ -15626,7 +15630,8 @@ async function submitGlobalAI() {
         my_communities: (window.myCommunityBusinessesCache||[]).filter(c=>c.status==='approved').map(c=>({id:c.id,name:c.name,type:c.type,cashback_percent:c.cashback_percent,members_count:c.members_count})),
         open_customer_chats: openChatsForAI,
         reviews: reviewsForAI,
-        staff_clocked_in_now: staffClockedInForAI,
+        active_coupons: activeCouponsForAI,
+        configured_alert_rules: alertRulesForAI,
         pending_invoices: currentGroup?.business_type==='logistics' ? pendingInvoicesForAI : undefined
     };
 
