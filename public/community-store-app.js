@@ -54,7 +54,7 @@
     function renderHeader() {
         const c = campaignData.campaign;
         document.getElementById('cs-community-name').textContent = c.community_name || 'קמפיין קהילה';
-        document.getElementById('header-name').textContent = c.title || c.community_name || 'קמפיין קהילה';
+        document.getElementById('header-name').textContent = c.community_name || 'קמפיין קהילה';
         document.getElementById('page-title').textContent = `${c.title || c.community_name || 'קמפיין קהילה'} | WEFLOWZ`;
         // הכותרת בתוך ה-hero מוסתרת אם הוגדר כך (למשל כשהיא כבר מופיעה גרפית בתמונת הנושא) או אם לא הוגדרה כותרת כלל
         if (c.hide_title || !c.title) {
