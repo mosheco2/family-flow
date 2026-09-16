@@ -13506,6 +13506,32 @@ async function fetchBizAdditionalData(groupId, provider, params) {
                 );
                 return { total: r.rows.length, invoices: r.rows };
             }
+            case 'forecast_sales': {
+                // מגמה שבועית אמיתית (מחושבת ב-SQL, לא הערכה של המודל) + הערכת המשך קו מגמה
+                const r = await pool.query(
+                    `SELECT DATE_TRUNC('week', created_at) as week, COUNT(*) as order_count, COALESCE(SUM(total_amount),0) as revenue
+                     FROM store_orders
+                     WHERE group_id=$1 AND created_at > NOW()-INTERVAL '12 weeks' AND status NOT IN ('cancelled','rejected')
+                     GROUP BY week ORDER BY week ASC`,
+                    [groupId]
+                );
+                const weeks = r.rows.map(w => ({ week: w.week, orders: parseInt(w.order_count), revenue: parseFloat(w.revenue) }));
+                let trendPct = null, nextWeekEstimate = null;
+                if (weeks.length >= 2) {
+                    const n = weeks.length;
+                    const xs = weeks.map((_, i) => i);
+                    const ys = weeks.map(w => w.revenue);
+                    const xMean = xs.reduce((a,b)=>a+b,0)/n, yMean = ys.reduce((a,b)=>a+b,0)/n;
+                    const num = xs.reduce((s,x,i)=>s+(x-xMean)*(ys[i]-yMean),0);
+                    const den = xs.reduce((s,x)=>s+(x-xMean)**2,0);
+                    const slope = den !== 0 ? num/den : 0;
+                    const intercept = yMean - slope*xMean;
+                    nextWeekEstimate = Math.max(0, Math.round(intercept + slope*n));
+                    const lastRevenue = weeks[n-1].revenue || 1;
+                    trendPct = parseFloat(((slope / lastRevenue) * 100).toFixed(1));
+                }
+                return { weekly_history: weeks, computed_trend_pct_per_week: trendPct, computed_next_week_revenue_estimate: nextWeekEstimate, method: 'linear regression on last 12 weeks revenue (real SQL aggregation, not a guess)' };
+            }
             default:
                 return { error: 'סוג מידע לא מוכר: ' + provider };
         }
@@ -13822,6 +13848,7 @@ providers זמינים (רק אלה):
   employee_full_history|שם עובד — כל המשימות (לא רק פתוחות) וכל רישומי הנוכחות של עובד ספציפי
   reviews_all — כל הביקורות/הדירוגים (לא רק 10 אחרונות)
   invoices_all — כל החשבוניות (לוגיסטיקה, לא רק ממתינות)
+  forecast_sales — מגמת מכירות שבועית מחושבת (12 שבועות אחרונים) + הערכת שבוע הבא מבוססת קו מגמה אמיתי (רגרסיה לינארית, לא ניחוש) - השתמש בזה בכל פעם שמתבקש חיזוי/תחזית מכירות, במקום להעריך בעצמך
 לאחר שתקבל את הנתונים הנוספים תתבקש לענות סופית על סמך התמונה המלאה - אז אל תכתוב עדיין תשובה מלאה, רק את שורת ה-NEED_DATA.
 אם תמונת המצב הקיימת מספיקה לענות היטב - ענה ישירות כרגיל, בלי NEED_DATA.`;
 
