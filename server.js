@@ -8334,7 +8334,7 @@ app.get('/api/sa/pending-actions-center', verifySA, async (req, res) => {
                 WHERE t.status='open' AND (fg.id IS NULL OR fg.is_test_env IS NOT TRUE)
                 ORDER BY (t.priority='high') DESC, t.created_at ASC`, 'ticketsOpen'),
             // חובות שטרם נגבו — אחראי: גבייה / סופר אדמין (מ-billing_records)
-            safe(`SELECT br.id, fg.name as title, '₪'||br.amount_ils as subtitle, br.created_at
+            safe(`SELECT br.id, br.business_id, fg.name as title, '₪'||br.amount_ils as subtitle, br.created_at
                 FROM billing_records br LEFT JOIN family_groups fg ON fg.id=br.business_id
                 WHERE br.payment_status!='paid' AND (fg.id IS NULL OR fg.is_test_env IS NOT TRUE)
                 ORDER BY br.created_at ASC`, 'debtsUnpaid'),

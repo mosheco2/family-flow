@@ -786,16 +786,75 @@ window.loadSAKpiDetailPage = async function() {
 };
 
 // ===== SA PENDING ACTIONS CENTER (דף הבית) =====
-const SA_PENDING_NAV = {
-    community_join: () => switchSATab('comm'),
-    biz_community: () => switchSATab('comm'),
-    zm_pending: () => switchSATab('partners'),
-    tickets: () => switchSATab('support'),
-    debts: () => { switchSATab('finance'); setTimeout(() => switchViewTab('finance','dues'), 200); },
-    banners: () => { switchSATab('adslots'); setTimeout(() => switchViewTab('adslots','orders'), 200); },
-    removal: () => switchSATab('comm'),
-    promos: () => switchSATab('comm'),
-    modules: () => switchSATab('clients')
+
+// מוצא טקסט (שם עסק/משפחה + קהילה) בתוך המסך הפעיל ומגלגל אליו עם הדגשה זמנית
+function _saPendingHighlight(text, delay) {
+    if (!text) return;
+    setTimeout(() => {
+        const root = getEl('sa-main-content') || document.body;
+        const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+        let node;
+        while ((node = walker.nextNode())) {
+            if (node.textContent && node.textContent.trim() && node.textContent.includes(text)) {
+                const target = node.parentElement.closest('div,tr') || node.parentElement;
+                if (!target) continue;
+                target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                const prevTransition = target.style.transition;
+                const prevBg = target.style.backgroundColor;
+                target.style.transition = 'background-color 0.6s';
+                target.style.backgroundColor = '#fef08a';
+                setTimeout(() => { target.style.backgroundColor = prevBg; target.style.transition = prevTransition; }, 2200);
+                return;
+            }
+        }
+    }, delay || 500);
+}
+
+// מרחיב ומגלגל לכרטיס הסביבה הספציפית בטאב "סביבות" (עבור בקשות מודול)
+function _saPendingExpandGroup(groupId) {
+    switchSATab('clients');
+    setTimeout(() => {
+        switchViewTab('clients', 'environments');
+        setTimeout(() => {
+            const idx = (typeof saAllGroups !== 'undefined' ? saAllGroups : []).findIndex(g => g.id === groupId);
+            if (idx >= 0 && typeof window._saGoPage === 'function') {
+                window._saGoPage(Math.floor(idx / SA_GROUPS_PAGE_SIZE));
+            }
+            setTimeout(() => {
+                const details = getEl('sa-group-details-' + groupId);
+                if (details) {
+                    details.classList.remove('hidden');
+                    details.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }, 250);
+        }, 150);
+    }, 100);
+}
+
+// פעולה לכל פריט בודד — פותחת ישירות את הבקשה עצמה כשיש מודל ייעודי,
+// ואחרת מנווטת למסך המדויק ומדגישה את השורה הרלוונטית
+const SA_PENDING_ITEM_ACTIONS = {
+    tickets: (item) => { if (typeof openSATicketModal === 'function') openSATicketModal(item.id); },
+    debts: (item) => {
+        switchSATab('finance');
+        setTimeout(() => switchViewTab('finance', 'adsbilling'), 200);
+        setTimeout(() => { if (typeof openClientLedger === 'function') openClientLedger(item.id, item.title); }, 500);
+    },
+    modules: (item) => _saPendingExpandGroup(item.id),
+    community_join: (item) => { switchSATab('comm'); setTimeout(() => { switchViewTab('comm','manage'); _saPendingHighlight(item.title, 400); }, 250); },
+    biz_community:  (item) => { switchSATab('comm'); setTimeout(() => { switchViewTab('comm','manage'); _saPendingHighlight(item.title, 400); }, 250); },
+    removal:        (item) => { switchSATab('comm'); setTimeout(() => { switchViewTab('comm','manage'); _saPendingHighlight(item.title, 400); }, 250); },
+    promos:         (item) => { switchSATab('comm'); setTimeout(() => { switchViewTab('comm','manage'); _saPendingHighlight(item.title, 400); }, 250); },
+    zm_pending:     (item) => { switchSATab('partners'); _saPendingHighlight(item.subtitle || item.title, 500); },
+    banners:        (item) => { switchSATab('adslots'); setTimeout(() => { switchViewTab('adslots','orders'); _saPendingHighlight(item.title, 400); }, 250); }
+};
+
+window._saPendingItemsFlat = [];
+window._saPendingItemClick = function(idx) {
+    const entry = window._saPendingItemsFlat[idx];
+    if (!entry) return;
+    const fn = SA_PENDING_ITEM_ACTIONS[entry.catKey];
+    if (fn) fn(entry.item);
 };
 
 function _saFmtWait(hours) {
@@ -824,6 +883,7 @@ window.loadSAPendingCenter = async function() {
             : '';
         if (!d.categories.length) { list.innerHTML = '<p class="text-emerald-500 text-center py-6 text-xs font-bold"><i class="fa-solid fa-circle-check mr-1"></i> אין פעולות ממתינות — המערכת נקייה</p>'; return; }
 
+        window._saPendingItemsFlat = [];
         list.innerHTML = d.categories.map(cat => {
             if (cat.count === 0) {
                 return `<div class="border rounded-xl p-3 bg-slate-50 border-slate-100">
@@ -834,13 +894,18 @@ window.loadSAPendingCenter = async function() {
                 </div>`;
             }
             const sev = _saWaitSeverity(cat.oldest_wait_hours);
-            const navFn = SA_PENDING_NAV[cat.key] ? `SA_PENDING_NAV['${cat.key}']()` : '';
-            const itemsHtml = cat.items.map(it => `
-                <div class="flex items-center justify-between gap-2 text-[10px] py-1 border-t border-slate-50 first:border-t-0 first:pt-0">
+            const itemsHtml = cat.items.map(it => {
+                const idx = window._saPendingItemsFlat.length;
+                window._saPendingItemsFlat.push({ catKey: cat.key, item: it });
+                return `<div onclick="_saPendingItemClick(${idx})" style="cursor:pointer" class="flex items-center justify-between gap-2 text-[10px] py-1.5 px-1 -mx-1 rounded-lg border-t border-slate-50 first:border-t-0 first:pt-0 hover:bg-white/80 transition">
                     <span class="text-slate-600 truncate">${safeStr(it.title)}${it.subtitle ? ` <span class="text-slate-400">· ${safeStr(it.subtitle)}</span>` : ''}</span>
-                    <span class="px-1.5 py-0.5 rounded-full border whitespace-nowrap ${_saWaitSeverity(it.wait_hours)}">${_saFmtWait(it.wait_hours)}</span>
-                </div>`).join('');
-            return `<div class="border rounded-xl p-3 ${sev}" ${navFn ? `onclick="${navFn}" style="cursor:pointer"` : ''}>
+                    <span class="flex items-center gap-1 whitespace-nowrap">
+                        <span class="px-1.5 py-0.5 rounded-full border ${_saWaitSeverity(it.wait_hours)}">${_saFmtWait(it.wait_hours)}</span>
+                        <i class="fa-solid fa-arrow-up-left text-slate-300 text-[9px]"></i>
+                    </span>
+                </div>`;
+            }).join('');
+            return `<div class="border rounded-xl p-3 ${sev}">
                 <div class="flex items-center justify-between mb-1.5">
                     <span class="font-bold text-xs flex items-center gap-1.5"><i class="fa-solid ${cat.icon}"></i> ${safeStr(cat.label)}</span>
                     <span class="flex items-center gap-2">
