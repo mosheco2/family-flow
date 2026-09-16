@@ -6269,7 +6269,7 @@ window.renderCollectionTab = async function() {
     if (!list || !currentGroup) return;
     list.innerHTML = '<p class="text-xs text-slate-400 text-center py-4"><i class="fa-solid fa-spinner fa-spin ml-1"></i> טוען...</p>';
     try {
-        const r = await fetch(`${API}/work-orders/collection/${currentGroup.id}`);
+        const r = await fetch(`${API}/work-orders/collection/${currentGroup.id}`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } });
         const d = await r.json();
         const items = d.items || [];
         if (!items.length) {
@@ -9337,7 +9337,7 @@ window.generateQuoteAI = async function(type, btnElement) {
     
     try {
         const res = await fetch(`${API}/biz/chat-assistant`, { 
-            method: 'POST', headers: {'Content-Type': 'application/json'}, 
+            method: 'POST', headers: {'Content-Type': 'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : ''}, 
             body: JSON.stringify({ 
                 query: query, 
                 context: JSON.stringify({ role: "מומחה לכתיבת מסמכים עסקיים ומשפטיים. אתה מנסח טקסטים בצורה רשמית, מפורטת ומקצועית בלבד, ללא אימוג'ים וללא שום טקסט מקדים או מסכם." }), 
@@ -9391,7 +9391,7 @@ window.cqGenerateIntroAI = async function() {
 
     try {
         const res = await fetch(`${API}/biz/chat-assistant`, {
-            method: 'POST', headers: {'Content-Type': 'application/json'},
+            method: 'POST', headers: {'Content-Type': 'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : ''},
             body: JSON.stringify({
                 query: query,
                 context: JSON.stringify({ role: "מומחה לכתיבת מסמכים עסקיים ומשפטיים. אתה מנסח טקסטים בצורה רשמית, מפורטת ומקצועית בלבד, ללא אימוג'ים וללא שום טקסט מקדים או מסכם." }),
@@ -9437,7 +9437,7 @@ window.cqGenerateNotesAI = async function() {
 
     try {
         const res = await fetch(`${API}/biz/chat-assistant`, {
-            method: 'POST', headers: {'Content-Type': 'application/json'},
+            method: 'POST', headers: {'Content-Type': 'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : ''},
             body: JSON.stringify({
                 query: query,
                 context: JSON.stringify({ role: "מומחה לכתיבת מסמכים עסקיים ומשפטיים. אתה מנסח טקסטים בצורה רשמית, מפורטת ומקצועית בלבד, ללא אימוג'ים וללא שום טקסט מקדים או מסכם." }),
@@ -15636,7 +15636,7 @@ async function submitGlobalAI() {
     };
 
     try {
-        const res = await fetch(`${API}/biz/chat-assistant`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ query: query, context: JSON.stringify(systemContext), groupId: currentGroup.id }) }); const data = await res.json();
+        const res = await fetch(`${API}/biz/chat-assistant`, { method: 'POST', headers: {'Content-Type': 'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : ''}, body: JSON.stringify({ query: query, context: JSON.stringify(systemContext), groupId: currentGroup.id }) }); const data = await res.json();
         if (!handleAIResponseCheck(data)) { getEl('global-ai-modal').classList.add('hidden'); btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-arrow-up"></i>'; return; }
         
         if (data.success && data.answer) { 
@@ -22582,7 +22582,7 @@ async function analyzeFoodCostAI() {
             
             const res = await fetch(`${API}/biz/chat-assistant`, { 
                 method: 'POST', 
-                headers: {'Content-Type': 'application/json'}, 
+                headers: {'Content-Type': 'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : ''}, 
                 body: JSON.stringify({ query: promptText, context: JSON.stringify({ role: "יועץ קולינרי וכלכלי למסעדות" }), groupId: currentGroup.id }) 
             });
             const data = await res.json();
@@ -24070,7 +24070,7 @@ window.getAnalyticsAIInsight = async function() {
         try {
             const res = await fetch(`${API}/biz/chat-assistant`, { 
                 method: 'POST', 
-                headers: {'Content-Type': 'application/json'}, 
+                headers: {'Content-Type': 'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : ''}, 
                 body: JSON.stringify({ 
                     query: promptText, 
                     context: JSON.stringify({ role: "אנליסט עסקי ומנהל צמיחה" }), 
@@ -40855,7 +40855,7 @@ window.convertToWorkOrder = async function(quoteId) {
     if (!await window._uiConfirm(confirmMsg)) return;
     try {
         const res = await fetch(`${API}/work-orders/convert/${quoteId}`, {
-            method: 'POST', headers: {'Content-Type': 'application/json'},
+            method: 'POST', headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '','Content-Type': 'application/json'},
             body: JSON.stringify({ userName: currentUser?.nickname || 'מנהל' })
         });
         const data = await res.json();
@@ -40878,8 +40878,8 @@ window.fetchWorkOrders = async function() {
     const filter = document.getElementById('wo-list-filter')?.value || 'all';
     try {
         const [allRes, profRes] = await Promise.all([
-            fetch(`${API}/work-orders/list/${currentGroup.id}`),
-            fetch(`${API}/work-orders/profitability/${currentGroup.id}`)
+            fetch(`${API}/work-orders/list/${currentGroup.id}`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } }),
+            fetch(`${API}/work-orders/profitability/${currentGroup.id}`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } })
         ]);
         const allData = await allRes.json();
         workOrdersCache = allData.workOrders || [];
@@ -40980,7 +40980,7 @@ window.openWorkOrderModal = async function(woId) {
     if (!woId) {
         try {
             const r = await fetch(`${API}/work-orders/new/${currentGroup.id}`, {
-                method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({})
+                method: 'POST', headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '','Content-Type':'application/json'}, body: JSON.stringify({})
             }).then(r => r.json());
             if (!r.success) { showToast('error', r.error || 'שגיאה ביצירת תיק'); return; }
             woId = r.id;
@@ -40994,7 +40994,7 @@ window.openWorkOrderModal = async function(woId) {
     window._currentWoId = woId;
     document.getElementById('wo-modal-title').textContent = 'טוען...';
     try {
-        const res = await fetch(`${API}/work-orders/detail/${woId}`);
+        const res = await fetch(`${API}/work-orders/detail/${woId}`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } });
         const data = await res.json();
         if (!data.success) return showToast('error', data.error);
         window._currentWoData = data;
@@ -41023,14 +41023,14 @@ window.openWorkOrderModal = async function(woId) {
         const statusSel = document.getElementById('wo-status-select');
         if (statusSel) statusSel.value = wo.status || 'processing';
         // load business users for assignee dropdown
-        const uRes = await fetch(`${API}/work-orders/users/${currentGroup.id}`);
+        const uRes = await fetch(`${API}/work-orders/users/${currentGroup.id}`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } });
         const uData = await uRes.json();
         const sel = document.getElementById('wo-assignee-select');
         if (sel && uData.users) {
             sel.innerHTML = '<option value="">בחר עובד</option>' + uData.users.map(u => `<option value="${u.id}" data-name="${safeStr(u.name)}">${safeStr(u.name)} (${u.employee_role_type || u.role})</option>`).join('');
         }
         // load catalog for inventory dropdown
-        const cRes = await fetch(`${API}/work-orders/catalog/${currentGroup.id}`);
+        const cRes = await fetch(`${API}/work-orders/catalog/${currentGroup.id}`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } });
         const cData = await cRes.json();
         const cSel = document.getElementById('wo-inventory-item-select');
         if (cSel && cData.items) {
@@ -41289,7 +41289,7 @@ window.updateAssigneeCost = async function(userId, hourlyRate, hoursWorked) {
     if (hoursWorked !== null) assignee.hours_worked = parseFloat(hoursWorked) || 0;
     try {
         await fetch(`${API}/work-orders/${window._currentWoId}/assignees/${userId}/cost`, {
-            method: 'PUT', headers: {'Content-Type': 'application/json'},
+            method: 'PUT', headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '','Content-Type': 'application/json'},
             body: JSON.stringify({ hourlyRate: assignee.hourly_rate, hoursWorked: assignee.hours_worked })
         });
         window.renderWoTeam(window._currentWoData.assignees || []);
@@ -41530,7 +41530,7 @@ window.updateWorkOrderStatus = async function(newStatus) {
     if (!window._currentWoId) return;
     try {
         const res = await fetch(`${API}/work-orders/${window._currentWoId}/status`, {
-            method: 'PUT', headers: {'Content-Type': 'application/json'},
+            method: 'PUT', headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '','Content-Type': 'application/json'},
             body: JSON.stringify({ status: newStatus, userName: currentUser?.nickname || 'מנהל' })
         });
         const data = await res.json();
@@ -41550,14 +41550,14 @@ window.addAssigneeToWo = async function() {
     const userName = sel.options[sel.selectedIndex]?.dataset?.name || sel.options[sel.selectedIndex]?.text || '';
     try {
         const res = await fetch(`${API}/work-orders/${window._currentWoId}/assignees`, {
-            method: 'POST', headers: {'Content-Type': 'application/json'},
+            method: 'POST', headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '','Content-Type': 'application/json'},
             body: JSON.stringify({ userId, userName, assignedBy: currentUser?.nickname || 'מנהל' })
         });
         const data = await res.json();
         if (!data.success) return showToast('error', data.error);
         document.getElementById('wo-add-assignee-panel').classList.add('hidden');
         showToast('success', 'עובד שויך בהצלחה');
-        const dRes = await fetch(`${API}/work-orders/detail/${window._currentWoId}`);
+        const dRes = await fetch(`${API}/work-orders/detail/${window._currentWoId}`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } });
         const dData = await dRes.json();
         if (dData.success) { window._currentWoData = dData; window.renderWoTeam(dData.assignees || []); window.renderWoOverview(dData); }
     } catch(e) { showToast('error', 'שגיאת תקשורת'); }
@@ -41566,11 +41566,11 @@ window.addAssigneeToWo = async function() {
 window.removeWoAssignee = async function(userId) {
     if (!await window._uiConfirm(currentGroup?.business_type === 'professional' ? 'להסיר משתתף מהתיק?' : 'להסיר עובד זה מהפקודה?')) return;
     try {
-        const res = await fetch(`${API}/work-orders/${window._currentWoId}/assignees/${userId}`, { method: 'DELETE' });
+        const res = await fetch(`${API}/work-orders/${window._currentWoId}/assignees/${userId}`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' }, method: 'DELETE' });
         const data = await res.json();
         if (!data.success) return showToast('error', data.error);
         showToast('success', 'עובד הוסר');
-        const dRes = await fetch(`${API}/work-orders/detail/${window._currentWoId}`);
+        const dRes = await fetch(`${API}/work-orders/detail/${window._currentWoId}`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } });
         const dData = await dRes.json();
         if (dData.success) { window._currentWoData = dData; window.renderWoTeam(dData.assignees || []); window.renderWoOverview(dData); }
     } catch(e) { showToast('error', 'שגיאת תקשורת'); }
@@ -41684,7 +41684,7 @@ window.addInventoryReservation = async function() {
 
     try {
         const res = await fetch(`${API}/work-orders/${window._currentWoId}/inventory`, {
-            method: 'POST', headers: {'Content-Type': 'application/json'},
+            method: 'POST', headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '','Content-Type': 'application/json'},
             body: JSON.stringify({ pantryId, itemName, neededQty, qty: neededQty, unitPrice, reservedBy: currentUser?.nickname || 'מנהל' })
         });
         const data = await res.json();
@@ -41697,7 +41697,7 @@ window.addInventoryReservation = async function() {
         } else {
             showToast('success', `ציוד שורין בהצלחה (${data.actualReserved} יח')`);
         }
-        const dRes = await fetch(`${API}/work-orders/detail/${window._currentWoId}`);
+        const dRes = await fetch(`${API}/work-orders/detail/${window._currentWoId}`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } });
         const dData = await dRes.json();
         if (dData.success) { window._currentWoData = dData; window.renderWoInventory(dData.inventory || []); window.renderWoOverview(dData); }
     } catch(e) { showToast('error', 'שגיאת תקשורת'); }
@@ -41708,13 +41708,13 @@ window.confirmInventoryUse = async function(resId, suggestedQty) {
     if (isNaN(usedQty) || usedQty <= 0) return;
     try {
         const res = await fetch(`${API}/work-orders/${window._currentWoId}/inventory/${resId}/use`, {
-            method: 'POST', headers: {'Content-Type': 'application/json'},
+            method: 'POST', headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '','Content-Type': 'application/json'},
             body: JSON.stringify({ usedQty, userName: currentUser?.nickname || 'מנהל' })
         });
         const data = await res.json();
         if (!data.success) return showToast('error', data.error);
         showToast('success', 'שימוש אושר — המלאי עודכן');
-        const dRes = await fetch(`${API}/work-orders/detail/${window._currentWoId}`);
+        const dRes = await fetch(`${API}/work-orders/detail/${window._currentWoId}`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } });
         const dData = await dRes.json();
         if (dData.success) { window._currentWoData = dData; window.renderWoInventory(dData.inventory || []); }
     } catch(e) { showToast('error', 'שגיאת תקשורת'); }
@@ -41723,11 +41723,11 @@ window.confirmInventoryUse = async function(resId, suggestedQty) {
 window.releaseInventory = async function(resId) {
     if (!await window._uiConfirm('לשחרר את השריון ולהחזיר הכמות למלאי?')) return;
     try {
-        const res = await fetch(`${API}/work-orders/${window._currentWoId}/inventory/${resId}`, { method: 'DELETE' });
+        const res = await fetch(`${API}/work-orders/${window._currentWoId}/inventory/${resId}`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' }, method: 'DELETE' });
         const data = await res.json();
         if (!data.success) return showToast('error', data.error);
         showToast('success', 'שריון שוחרר');
-        const dRes = await fetch(`${API}/work-orders/detail/${window._currentWoId}`);
+        const dRes = await fetch(`${API}/work-orders/detail/${window._currentWoId}`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } });
         const dData = await dRes.json();
         if (dData.success) { window._currentWoData = dData; window.renderWoInventory(dData.inventory || []); }
     } catch(e) { showToast('error', 'שגיאת תקשורת'); }
@@ -41739,13 +41739,13 @@ window.sendWoMessage = async function() {
     if (!msg) return;
     try {
         const res = await fetch(`${API}/work-orders/${window._currentWoId}/messages`, {
-            method: 'POST', headers: {'Content-Type': 'application/json'},
+            method: 'POST', headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '','Content-Type': 'application/json'},
             body: JSON.stringify({ userId: currentUser?.id, userName: currentUser?.nickname || 'משתמש', message: msg })
         });
         const data = await res.json();
         if (!data.success) return showToast('error', data.error);
         input.value = '';
-        const dRes = await fetch(`${API}/work-orders/detail/${window._currentWoId}`);
+        const dRes = await fetch(`${API}/work-orders/detail/${window._currentWoId}`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } });
         const dData = await dRes.json();
         if (dData.success) window.renderWoMessages(dData.messages || []);
     } catch(e) { showToast('error', 'שגיאת תקשורת'); }
@@ -41755,7 +41755,7 @@ window.saveWoNotes = async function() {
     const notes = document.getElementById('wo-notes-textarea')?.value || '';
     try {
         const res = await fetch(`${API}/work-orders/${window._currentWoId}/notes`, {
-            method: 'PUT', headers: {'Content-Type': 'application/json'},
+            method: 'PUT', headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '','Content-Type': 'application/json'},
             body: JSON.stringify({ notes, updatedBy: currentUser?.nickname || 'מנהל' })
         });
         const data = await res.json();
@@ -41768,7 +41768,7 @@ window.saveWoNotes = async function() {
 window.loadWoTimeline = async function() {
     if (!window._currentWoId) return;
     try {
-        const res = await fetch(`${API}/work-orders/${window._currentWoId}/timeline`);
+        const res = await fetch(`${API}/work-orders/${window._currentWoId}/timeline`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } });
         const data = await res.json();
         if (data.success) window.renderWoTimeline(data.timeline || []);
     } catch(e) {}
@@ -41786,7 +41786,7 @@ window.createWoCalendarEvent = async function() {
     const assigneeIds = assignees.map(a => a.user_id);
     try {
         const res = await fetch(`${API}/work-orders/${window._currentWoId}/calendar`, {
-            method: 'POST', headers: {'Content-Type': 'application/json'},
+            method: 'POST', headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '','Content-Type': 'application/json'},
             body: JSON.stringify({ groupId: currentGroup.id, title, eventDate: date, startTime: time, customerName: wo?.customer_name || '', address, notes, assigneeIds })
         });
         const data = await res.json();
@@ -42102,7 +42102,7 @@ window.loadWoPurchaseOrders = async function() {
     if (!list) return;
     list.innerHTML = '<p class="text-xs text-slate-400 text-center py-4"><i class="fa-solid fa-spinner fa-spin"></i> טוען...</p>';
     try {
-        const res = await fetch(`${API}/work-orders/${window._currentWoId}/purchase-orders`);
+        const res = await fetch(`${API}/work-orders/${window._currentWoId}/purchase-orders`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } });
         const data = await res.json();
         const pos = data.purchaseOrders || [];
         if (!pos.length) {
@@ -42286,7 +42286,7 @@ window.submitWoPurchaseOrder = async function() {
     if (!items.length) return showToast('error', 'נא להוסיף לפחות פריט אחד');
     try {
         const res = await fetch(`${API}/work-orders/${window._currentWoId}/purchase-orders`, {
-            method: 'POST', headers: {'Content-Type': 'application/json'},
+            method: 'POST', headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '','Content-Type': 'application/json'},
             body: JSON.stringify({ groupId: currentGroup.id, supplierId: supplierId ? parseInt(supplierId) : null, supplierName, items, notes: notes || null, userName: currentUser?.nickname || 'מנהל' })
         });
         const data = await res.json();
@@ -42301,7 +42301,7 @@ window.confirmWoPoReceive = async function(poId) {
     if (!await window._uiConfirm('לאשר קבלת הסחורה?\nהפריטים יתווספו אוטומטית לציוד פקודת העבודה.')) return;
     await window.updateWoPo(poId, 'delivered');
     // רענן גם את טאב הציוד
-    const dRes = await fetch(`${API}/work-orders/detail/${window._currentWoId}`);
+    const dRes = await fetch(`${API}/work-orders/detail/${window._currentWoId}`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } });
     const dData = await dRes.json();
     if (dData.success) { window._currentWoData = dData; window.renderWoInventory(dData.inventory || []); window.renderWoCosts(dData); }
 };
@@ -42310,7 +42310,7 @@ window.updateWoPo = async function(poId, status) {
     if (!window._currentWoId) return;
     try {
         const res = await fetch(`${API}/work-orders/${window._currentWoId}/purchase-orders/${poId}/status`, {
-            method: 'PATCH', headers: {'Content-Type': 'application/json'},
+            method: 'PATCH', headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '','Content-Type': 'application/json'},
             body: JSON.stringify({ status, userName: currentUser?.nickname || 'מנהל' })
         });
         const data = await res.json();
@@ -43303,7 +43303,7 @@ async function renderProfessionalDashboard(el) {
     el.innerHTML = `<div class="py-10 text-center text-slate-400 text-sm"><i class="fa-solid fa-spinner fa-spin ml-2"></i>טוען נתונים...</div>`;
     let s = { active_cases:0, completed_cases:0, unbilled_hours:0, total_hours:0, new_leads:0, total_leads:0, month_revenue:0, today_appointments:[], pending_quotes:0 };
     try {
-        const r = await fetch(`${API}/professional/dashboard/${currentGroup.id}`).then(r=>r.json());
+        const r = await fetch(`${API}/professional/dashboard/${currentGroup.id}`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } }).then(r=>r.json());
         if (!r.error) s = r;
     } catch(e) {}
 
@@ -44256,7 +44256,7 @@ window._sportLoadReports = async function(period) {
 
             const res = await fetch(`${API}/biz/chat-assistant`, {
                 method: 'POST',
-                headers: {'Content-Type':'application/json'},
+                headers: {'Content-Type':'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : ''},
                 body: JSON.stringify({ query, context: JSON.stringify(sportContext), groupId: currentGroup.id })
             });
             const data = await res.json();
@@ -48004,7 +48004,7 @@ window._beautySubmitEditAp = async function(apId) {
         : (svcSel?.options[svcSel?.selectedIndex]?.dataset?.name || svcSel?.options[svcSel?.selectedIndex]?.text?.trim() || '');
     try {
         const r = await fetch(`${API}/beauty/${biz}/appointments/${apId}`, {
-            method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+            method: 'PATCH', headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '', 'Content-Type': 'application/json' },
             body: JSON.stringify({ date, time, duration_minutes: dur, practitioner_id: pracVal ? parseInt(pracVal) : null, status, notes, service_name: service_name || undefined })
         }).then(r=>r.json());
         document.getElementById('beauty-edit-ap-modal')?.remove();
@@ -48017,7 +48017,7 @@ window._beautyConfirmApByBiz = async function(apId) {
     const biz = _beautyBizId(); if (!biz) return;
     try {
         const r = await fetch(`${API}/beauty/${biz}/appointments/${apId}`, {
-            method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+            method: 'PATCH', headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '', 'Content-Type': 'application/json' },
             body: JSON.stringify({ status: 'confirmed' })
         }).then(r=>r.json());
         document.getElementById('beauty-ap-modal')?.remove();
@@ -48029,7 +48029,7 @@ window._beautyConfirmApByBiz = async function(apId) {
 window._beautyCompleteAp = async function(apId) {
     const biz = _beautyBizId(); if (!biz) return;
     try {
-        const r = await fetch(`${API}/beauty/${biz}/appointments/${apId}/complete`, { method: 'POST' }).then(r=>r.json());
+        const r = await fetch(`${API}/beauty/${biz}/appointments/${apId}/complete`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' }, method: 'POST' }).then(r=>r.json());
         document.getElementById('beauty-ap-modal')?.remove();
         if (r.success) { showToast('success', 'טיפול הושלם! מלאי ועמלות עודכנו ✅'); loadBeautyCalendar(); }
         else showToast('error', r.error || 'שגיאה');
@@ -48039,7 +48039,7 @@ window._beautyCompleteAp = async function(apId) {
 window._beautyNoShowAp = async function(apId) {
     const biz = _beautyBizId(); if (!biz) return;
     try {
-        const r = await fetch(`${API}/beauty/${biz}/appointments/${apId}/no-show`, { method: 'POST' }).then(r=>r.json());
+        const r = await fetch(`${API}/beauty/${biz}/appointments/${apId}/no-show`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' }, method: 'POST' }).then(r=>r.json());
         document.getElementById('beauty-ap-modal')?.remove();
         if (r.success) { showToast('info', 'סומן כ"לא הגיע"'); loadBeautyCalendar(); }
         else showToast('error', r.error || 'שגיאה');
@@ -48226,7 +48226,7 @@ window._beautySubmitNewAp = async function() {
     const segments = [{ segment_order: 1, segment_type: 'active', service_name: service || 'טיפול', start_time: startTime, end_time: endTime, duration_minutes: dur, practitioner_id: pracId ? parseInt(pracId) : null, price }];
     try {
         const r = await fetch(`${API}/beauty/${biz}/appointments`, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            method: 'POST', headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '', 'Content-Type': 'application/json' },
             body: JSON.stringify({ client_name: clientName, client_phone: clientPhone, client_family_id: clientFamilyId, practitioner_id: pracId ? parseInt(pracId) : null, start_time: startTime, end_time: endTime, total_price: price, notes, segments })
         }).then(r=>r.json());
         if (r.id || r.success || r.appointment) {
@@ -48299,7 +48299,7 @@ window._beautyAddPractitioner = async function() {
     if (!name) { showToast('error', 'נא הזן שם'); return; }
     try {
         const r = await fetch(`${API}/beauty/${biz}/practitioners`, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            method: 'POST', headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '', 'Content-Type': 'application/json' },
             body: JSON.stringify({ display_name: name, tier, commission_rate_svc: commission, color_hex: color })
         }).then(r=>r.json());
         if (r.success || r.practitioner) {
@@ -48443,7 +48443,7 @@ window._beautyCheckOneflow = async function() {
     resEl.innerHTML = '<p class="text-xs text-slate-400">בודק...</p>'; resEl.classList.remove('hidden');
     try {
         const params = new URLSearchParams(); if (phone) params.set('phone', phone); if (name && !phone) params.set('name', name);
-        const d = await fetch(`${API}/beauty/${biz}/check-oneflow?${params}`).then(r=>r.json());
+        const d = await fetch(`${API}/beauty/${biz}/check-oneflow?${params}`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } }).then(r=>r.json());
         if (d.found && d.matches?.length) {
             // שמור את נתוני המשתמשים למילוי שדות
             window._bncOneflowMatches = d.matches;
@@ -48664,9 +48664,9 @@ window._beautyOpenClient = async function(clientId, openTab) {
     else if (client.client_name) aqp.set('name', client.client_name);
 
     const [fRes, pRes, aRes] = await Promise.all([
-        fetch(`${API}/beauty/${biz}/clients/${clientId}/formulas`, {headers:_aH}).then(r=>r.json()).catch(()=>({formulas:[]})),
-        fetch(`${API}/beauty/${biz}/clients/${clientId}/photos`,   {headers:_aH}).then(r=>r.json()).catch(()=>({photos:[]})),
-        fetch(`${API}/beauty/${biz}/appointments/by-customer?${aqp}`, {headers:_aH}).then(r=>r.json()).catch(()=>({appointments:[]}))
+        fetch(`${API}/beauty/${biz}/clients/${clientId}/formulas`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' },headers:_aH}).then(r=>r.json()).catch(()=>({formulas:[]})),
+        fetch(`${API}/beauty/${biz}/clients/${clientId}/photos`,   { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' },headers:_aH}).then(r=>r.json()).catch(()=>({photos:[]})),
+        fetch(`${API}/beauty/${biz}/appointments/by-customer?${aqp}`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' },headers:_aH}).then(r=>r.json()).catch(()=>({appointments:[]}))
     ]);
     window._bcmData = {
         clientId, client,
@@ -48936,8 +48936,8 @@ async function loadBeautyInventory() {
     el.innerHTML = `<div class="flex items-center justify-center py-16 text-slate-400"><i class="fa-solid fa-spinner fa-spin mr-2"></i> טוען...</div>`;
     try {
         const [invRes, alertRes] = await Promise.all([
-            fetch(`${API}/beauty/${biz}/inventory`).then(r=>r.json()),
-            fetch(`${API}/beauty/${biz}/inventory/alerts`).then(r=>r.json())
+            fetch(`${API}/beauty/${biz}/inventory`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } }).then(r=>r.json()),
+            fetch(`${API}/beauty/${biz}/inventory/alerts`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } }).then(r=>r.json())
         ]);
         window._beautyState.inventory = invRes.inventory || [];
         window._beautyState.inventoryAlerts = alertRes.alerts || [];
@@ -49058,7 +49058,7 @@ window._beautySubmitAdjust = async function(itemId, direction) {
     const adjustedQty = direction === 'add' ? qty : -qty;
     try {
         const r = await fetch(`${API}/beauty/${biz}/inventory/${itemId}/adjust`, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            method: 'POST', headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '', 'Content-Type': 'application/json' },
             body: JSON.stringify({ qty_change: adjustedQty, reason })
         }).then(r=>r.json());
         document.getElementById('beauty-adjust-modal')?.remove();
@@ -49124,7 +49124,7 @@ window._beautySubmitInventory = async function() {
     };
     try {
         const r = await fetch(`${API}/beauty/${biz}/inventory`, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            method: 'POST', headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '', 'Content-Type': 'application/json' },
             body: JSON.stringify(body)
         }).then(r=>r.json());
         if (r.success || r.item) {
@@ -49143,7 +49143,7 @@ async function loadBeautyCommissions() {
     const el = document.getElementById('content-beauty_commissions'); if (!el) return;
     el.innerHTML = `<div class="flex items-center justify-center py-16 text-slate-400"><i class="fa-solid fa-spinner fa-spin mr-2"></i> טוען...</div>`;
     try {
-        const r = await fetch(`${API}/beauty/${biz}/commissions`).then(r=>r.json());
+        const r = await fetch(`${API}/beauty/${biz}/commissions`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } }).then(r=>r.json());
         window._beautyState.commissions = r.commissions || [];
     } catch(e) { window._beautyState.commissions = []; }
     _renderBeautyCommissions();
@@ -49230,7 +49230,7 @@ window._beautyPayCommissions = async function(practitionerId) {
     const biz = _beautyBizId(); if (!biz) return;
     try {
         const r = await fetch(`${API}/beauty/${biz}/commissions/pay`, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            method: 'POST', headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '', 'Content-Type': 'application/json' },
             body: JSON.stringify({ practitioner_id: practitionerId })
         }).then(r=>r.json());
         if (r.success) { showToast('success', 'עמלות סומנו כשולמו ✅'); loadBeautyCommissions(); }
@@ -49412,7 +49412,7 @@ window._previewConsultationForm = async function() {
     if (qs.length === 0) { showToast('error', 'נא להוסיף לפחות שאלה אחת'); return; }
     try {
         const r = await fetch(`${API}/beauty/rfq/${window._selectedRfqId}/questionnaire`, {
-            method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+            method: 'PATCH', headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '', 'Content-Type': 'application/json' },
             body: JSON.stringify({ questions: qs })
         }).then(r=>r.json());
         document.getElementById('beauty-forms-modal')?.remove();
@@ -51209,7 +51209,7 @@ async function deleteLogisticsInvoice(id) {
 
             const res = await fetch(`${API}/biz/chat-assistant`, {
                 method:'POST',
-                headers:{'Content-Type':'application/json'},
+                headers:{'Content-Type':'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : ''},
                 body: JSON.stringify({ query, context: JSON.stringify(logisticsContext), groupId: currentGroup.id })
             });
             const data = await res.json();
@@ -51575,7 +51575,7 @@ async function loadBeautySubscriptions() {
     const el = document.getElementById('content-beauty_subscriptions'); if (!el) return;
     el.innerHTML = `<div class="py-10 text-center text-slate-400 text-sm"><i class="fa-solid fa-circle-notch fa-spin text-2xl mb-2 block"></i>טוען מנויים...</div>`;
     try {
-        const types = await fetch(`${API}/beauty/${biz}/subscription-types`).then(r => r.json());
+        const types = await fetch(`${API}/beauty/${biz}/subscription-types`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } }).then(r => r.json());
         _renderBeautySubscriptions(el, Array.isArray(types) ? types : []);
     } catch(e) {
         el.innerHTML = `<div class="py-10 text-center text-red-400 text-sm">שגיאה בטעינה</div>`;
@@ -51709,9 +51709,9 @@ window._beautySubmitSubType = async function(id, btn) {
     };
     try {
         if (id) {
-            await fetch(`${API}/beauty/${biz}/subscription-types/${id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+            await fetch(`${API}/beauty/${biz}/subscription-types/${id}`, { method:'PATCH', headers:{ Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '','Content-Type':'application/json'}, body:JSON.stringify(body) });
         } else {
-            await fetch(`${API}/beauty/${biz}/subscription-types`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+            await fetch(`${API}/beauty/${biz}/subscription-types`, { method:'POST', headers:{ Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '','Content-Type':'application/json'}, body:JSON.stringify(body) });
         }
         btn.closest('.fixed').remove();
         showToast('success', id ? 'החבילה עודכנה' : 'החבילה נוצרה');
@@ -51724,7 +51724,7 @@ window._beautyDeactivateSubType = async function(id, btn) {
     const biz = _beautyBizId(); if (!biz) return;
     btn.disabled = true;
     try {
-        await fetch(`${API}/beauty/${biz}/subscription-types/${id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ is_active: false }) });
+        await fetch(`${API}/beauty/${biz}/subscription-types/${id}`, { method:'PATCH', headers:{ Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '','Content-Type':'application/json'}, body:JSON.stringify({ is_active: false }) });
         btn.closest('.fixed').remove();
         showToast('success', 'החבילה הוסרה');
         loadBeautySubscriptions();
@@ -51866,7 +51866,7 @@ window._beautyRfqSendQuestionnaire = async function(rfqId) {
         questions.split(',').forEach((q, i) => { qObj[`שאלה ${i+1}`] = q.trim(); });
         await fetch(`${API}/beauty/rfq/${rfqId}/questionnaire`, {
             method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '', 'Content-Type': 'application/json' },
             body: JSON.stringify({ questions: qObj })
         });
         showToast('success', 'השאלון נשלח ללקוחה');
@@ -51926,7 +51926,7 @@ window._beautyRfqSubmitPlan = async function(rfqId, btn) {
     try {
         await fetch(`${API}/beauty/rfq/${rfqId}/plan`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '', 'Content-Type': 'application/json' },
             body: JSON.stringify({ treatment_plan: { title, description: desc, total_price: price, deposit_amount: deposit }, message: note })
         });
         btn.closest('.fixed').remove();
@@ -52393,7 +52393,7 @@ window.renderTimelogTab = async function() {
     try {
         const [timeRes, woRes] = await Promise.all([
             fetch(`${API}/timelog/${currentGroup.id}`),
-            fetch(`${API}/work-orders/list/${currentGroup.id}`)
+            fetch(`${API}/work-orders/list/${currentGroup.id}`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } })
         ]);
         const data = await timeRes.json();
         const entries = data.entries || [];
@@ -52666,9 +52666,9 @@ window.renderProfessionalContentTab = async function() {
     el.innerHTML = '<div class="flex justify-center py-10"><div class="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div></div>';
     try {
         const [contentRes, expertiseRes, articlesRes] = await Promise.all([
-            fetch(`${API}/professional-content/${currentGroup.id}`),
-            fetch(`${API}/professional-expertise/${currentGroup.id}`),
-            fetch(`${API}/professional-articles/${currentGroup.id}`)
+            fetch(`${API}/professional-content/${currentGroup.id}`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } }),
+            fetch(`${API}/professional-expertise/${currentGroup.id}`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } }),
+            fetch(`${API}/professional-articles/${currentGroup.id}`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } })
         ]);
         const content = (await contentRes.json()).content || {};
         const expertise = (await expertiseRes.json()).items || [];
@@ -52877,7 +52877,7 @@ window._saveAiExpertise = async function(items) {
     for (const x of selected) {
         try {
             await fetch(`${API}/professional-expertise/${currentGroup.id}`, {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                method: 'POST', headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '', 'Content-Type': 'application/json' },
                 body: JSON.stringify(x)
             });
             saved++;
@@ -52910,7 +52910,7 @@ window.saveProfContentHero = async function() {
         cta_text_en: document.getElementById('pc-cta-en')?.value?.trim()
     };
     try {
-        const res = await fetch(`${API}/professional-content/${currentGroup.id}`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+        const res = await fetch(`${API}/professional-content/${currentGroup.id}`, { method:'POST', headers:{ Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '','Content-Type':'application/json'}, body: JSON.stringify(body) });
         if (!res.ok) throw new Error();
         showToast('success','כותרת האתר עודכנה');
     } catch(e) { showToast('error','שגיאה בשמירה'); }
@@ -52919,7 +52919,7 @@ window.saveProfContentHero = async function() {
 window.saveProfContentAbout = async function() {
     const body = { about_text_he: document.getElementById('pc-about-he')?.value?.trim(), about_text_en: document.getElementById('pc-about-en')?.value?.trim() };
     try {
-        const res = await fetch(`${API}/professional-content/${currentGroup.id}`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+        const res = await fetch(`${API}/professional-content/${currentGroup.id}`, { method:'POST', headers:{ Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '','Content-Type':'application/json'}, body: JSON.stringify(body) });
         if (!res.ok) throw new Error();
         showToast('success','טקסט אודות עודכן');
     } catch(e) { showToast('error','שגיאה בשמירה'); }
@@ -52983,7 +52983,7 @@ window.saveExpertise = async function() {
     const body = { icon: document.getElementById('exp-icon')?.value||'⚖️', title_he: document.getElementById('exp-title-he')?.value?.trim(), title_en: document.getElementById('exp-title-en')?.value?.trim(), description_he: document.getElementById('exp-desc-he')?.value?.trim() };
     if (!body.title_he) { showToast('error','הזן שם תחום'); return; }
     try {
-        const res = await fetch(`${API}/professional-expertise/${currentGroup.id}`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+        const res = await fetch(`${API}/professional-expertise/${currentGroup.id}`, { method:'POST', headers:{ Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '','Content-Type':'application/json'}, body: JSON.stringify(body) });
         if (!res.ok) throw new Error();
         document.getElementById('add-expertise-modal')?.remove();
         showToast('success','תחום עיסוק נוסף');
@@ -53064,7 +53064,7 @@ window.saveEditExpertise = async function(id) {
     };
     if (!body.title_he) { showToast('error','הזן שם תחום'); return; }
     try {
-        await fetch(`${API}/professional-expertise/${id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+        await fetch(`${API}/professional-expertise/${id}`, { method:'PATCH', headers:{ Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '','Content-Type':'application/json'}, body: JSON.stringify(body) });
         document.getElementById('edit-expertise-modal')?.remove();
         showToast('success','תחום עיסוק עודכן');
         renderProfessionalContentTab();
@@ -53074,7 +53074,7 @@ window.saveEditExpertise = async function(id) {
 window.deleteExpertise = async function(id) {
     if (!await window._uiConfirm('למחוק תחום עיסוק זה?')) return;
     try {
-        await fetch(`${API}/professional-expertise/${id}`, { method:'DELETE' });
+        await fetch(`${API}/professional-expertise/${id}`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' }, method:'DELETE' });
         showToast('success','נמחק');
         renderProfessionalContentTab();
     } catch(e) { showToast('error','שגיאה'); }
@@ -53150,7 +53150,7 @@ window.saveArticle = async function() {
     const body = { title_he: document.getElementById('art-title-he')?.value?.trim(), title_en: document.getElementById('art-title-en')?.value?.trim(), content_he: document.getElementById('art-content-he')?.value?.trim(), content_en: document.getElementById('art-content-en')?.value?.trim(), tags: document.getElementById('art-tags')?.value?.trim(), is_published: document.getElementById('art-publish')?.checked };
     if (!body.title_he) { showToast('error','הזן כותרת'); return; }
     try {
-        const res = await fetch(`${API}/professional-articles/${currentGroup.id}`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+        const res = await fetch(`${API}/professional-articles/${currentGroup.id}`, { method:'POST', headers:{ Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '','Content-Type':'application/json'}, body: JSON.stringify(body) });
         if (!res.ok) throw new Error();
         document.getElementById('add-article-modal')?.remove();
         showToast('success','מאמר נשמר');
@@ -53160,7 +53160,7 @@ window.saveArticle = async function() {
 
 window.toggleArticlePublish = async function(id, publish) {
     try {
-        await fetch(`${API}/professional-articles/${id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ is_published: publish }) });
+        await fetch(`${API}/professional-articles/${id}`, { method:'PATCH', headers:{ Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '','Content-Type':'application/json'}, body: JSON.stringify({ is_published: publish }) });
         showToast('success', publish?'פורסם':'הוסתר');
         renderProfessionalContentTab();
     } catch(e) { showToast('error','שגיאה'); }
@@ -53168,7 +53168,7 @@ window.toggleArticlePublish = async function(id, publish) {
 
 window.deleteArticle = async function(id) {
     if (!await window._uiConfirm('למחוק מאמר זה?')) return;
-    try { await fetch(`${API}/professional-articles/${id}`, { method:'DELETE' }); showToast('success','נמחק'); renderProfessionalContentTab(); } catch(e) { showToast('error','שגיאה'); }
+    try { await fetch(`${API}/professional-articles/${id}`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' }, method:'DELETE' }); showToast('success','נמחק'); renderProfessionalContentTab(); } catch(e) { showToast('error','שגיאה'); }
 };
 
 window._renderArticlesList = function(articles, grp) {
@@ -53239,7 +53239,7 @@ window.renderProfessionalLeadsTab = async function() {
     if (!el) return;
     el.innerHTML = '<div class="flex justify-center py-10"><div class="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div></div>';
     try {
-        const res = await fetch(`${API}/professional-leads/${currentGroup.id}`);
+        const res = await fetch(`${API}/professional-leads/${currentGroup.id}`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } });
         const data = await res.json();
         const leads = data.leads || [];
         window._professionalLeadsCache = leads;
@@ -53293,7 +53293,7 @@ window.renderProfessionalLeadsTab = async function() {
 
 window.updateLeadStatus = async function(id, status) {
     try {
-        await fetch(`${API}/professional-leads/${id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ status }) });
+        await fetch(`${API}/professional-leads/${id}`, { method:'PATCH', headers:{ Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '','Content-Type':'application/json'}, body: JSON.stringify({ status }) });
         showToast('success','סטטוס עודכן');
     } catch(e) { showToast('error','שגיאה'); }
 };
@@ -53321,7 +53321,7 @@ window.convertLeadToCustomer = async function(leadId, name, phone, email) {
         const custData = await custRes.json();
         if (!custData.success) throw new Error(custData.error || 'שגיאה ביצירת לקוח');
         await fetch(`${API}/professional-leads/${leadId}`, {
-            method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+            method: 'PATCH', headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '', 'Content-Type': 'application/json' },
             body: JSON.stringify({ status: 'converted' })
         });
         // הצג אפשרות לשלוח הצעה
@@ -53372,10 +53372,10 @@ window.renderDocumentsTab = async function() {
     el.innerHTML = '<p class="text-center text-slate-400 py-10"><i class="fa-solid fa-spinner fa-spin ml-2"></i>טוען מסמכים...</p>';
     try {
         const [docsRes, templatesRes, customTypesRes, casesRes] = await Promise.all([
-            fetch(`${API}/professional-documents/${currentGroup.id}?is_template=false`).then(r => r.json()),
-            fetch(`${API}/professional-documents/${currentGroup.id}?is_template=true`).then(r => r.json()),
-            fetch(`${API}/professional-doc-types/${currentGroup.id}`).then(r => r.json()).catch(() => ({ types: [] })),
-            fetch(`${API}/work-orders/list/${currentGroup.id}`).then(r => r.json()).catch(() => ({ workOrders: [] }))
+            fetch(`${API}/professional-documents/${currentGroup.id}?is_template=false`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } }).then(r => r.json()),
+            fetch(`${API}/professional-documents/${currentGroup.id}?is_template=true`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } }).then(r => r.json()),
+            fetch(`${API}/professional-doc-types/${currentGroup.id}`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } }).then(r => r.json()).catch(() => ({ types: [] })),
+            fetch(`${API}/work-orders/list/${currentGroup.id}`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } }).then(r => r.json()).catch(() => ({ workOrders: [] }))
         ]);
         const docs = docsRes.documents || [];
         const templates = templatesRes.documents || [];
@@ -53684,7 +53684,7 @@ window.openNewDocModal = function(isTemplate = false) {
 
 window.openDocFromTemplate = async function(templateId) {
     try {
-        const r = await fetch(`${API}/professional-documents/${currentGroup.id}?is_template=true`).then(r => r.json());
+        const r = await fetch(`${API}/professional-documents/${currentGroup.id}?is_template=true`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } }).then(r => r.json());
         const tpl = (r.documents || []).find(t => t.id === templateId);
         if (!tpl) { showToast('error', 'תבנית לא נמצאה'); return; }
         document.getElementById('doc-modal-id').value = '';
@@ -53792,9 +53792,9 @@ window.saveDocModal = async function() {
     };
     try {
         if (id) {
-            await fetch(`${API}/professional-documents/${id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+            await fetch(`${API}/professional-documents/${id}`, { method:'PATCH', headers:{ Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '','Content-Type':'application/json'}, body: JSON.stringify(body) });
         } else {
-            await fetch(`${API}/professional-documents/${currentGroup.id}`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+            await fetch(`${API}/professional-documents/${currentGroup.id}`, { method:'POST', headers:{ Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '','Content-Type':'application/json'}, body: JSON.stringify(body) });
         }
         showToast('success', 'נשמר בהצלחה');
         document.getElementById('doc-edit-modal').classList.add('hidden');
@@ -53805,7 +53805,7 @@ window.saveDocModal = async function() {
 window.deleteDoc = async function(id) {
     if (!confirm('למחוק מסמך זה?')) return;
     try {
-        await fetch(`${API}/professional-documents/${id}`, { method:'DELETE' });
+        await fetch(`${API}/professional-documents/${id}`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' }, method:'DELETE' });
         showToast('success', 'נמחק');
         window.renderDocumentsTab();
     } catch(e) { showToast('error', 'שגיאה במחיקה'); }
@@ -53819,7 +53819,7 @@ window.loadCustomerDocuments = async function(name, phone) {
     try {
         const params = new URLSearchParams({ is_template: 'false' });
         if (name) params.set('customer_name', name);
-        const r = await fetch(`${API}/professional-documents/${currentGroup.id}?${params}`).then(r => r.json());
+        const r = await fetch(`${API}/professional-documents/${currentGroup.id}?${params}`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } }).then(r => r.json());
         const docs = r.documents || [];
         if (!docs.length) {
             listEl.innerHTML = `<div class="text-center py-6">
@@ -54005,7 +54005,7 @@ window._saveNewDocType = async function() {
     const icon = iconEl?.value.trim() || '📄';
     try {
         await fetch(`${API}/professional-doc-types/${currentGroup.id}`, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            method: 'POST', headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '', 'Content-Type': 'application/json' },
             body: JSON.stringify({ name, icon })
         });
         showToast('success', 'סוג נוסף');
@@ -54016,7 +54016,7 @@ window._saveNewDocType = async function() {
 window._deleteDocType = async function(id) {
     if (!confirm('למחוק סוג מסמך זה?')) return;
     try {
-        await fetch(`${API}/professional-doc-types/${id}`, { method: 'DELETE' });
+        await fetch(`${API}/professional-doc-types/${id}`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' }, method: 'DELETE' });
         showToast('success', 'נמחק');
         window.renderDocumentsTab();
     } catch(e) { showToast('error', 'שגיאה'); }
@@ -54024,7 +54024,7 @@ window._deleteDocType = async function(id) {
 
 window.updateDocStatus = async function(id, status, custName, custPhone) {
     try {
-        await fetch(`${API}/professional-documents/${id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ status }) });
+        await fetch(`${API}/professional-documents/${id}`, { method:'PATCH', headers:{ Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '','Content-Type':'application/json'}, body: JSON.stringify({ status }) });
         showToast('success', 'סטטוס עודכן');
         window.loadCustomerDocuments(custName, custPhone);
     } catch(e) { showToast('error', 'שגיאה'); }
@@ -54141,7 +54141,7 @@ window._saveSignature = async function() {
     const sigData = canvas.toDataURL('image/png');
     try {
         await fetch(`${API}/professional-documents/${window._sigDocId}`, {
-            method:'PATCH', headers:{'Content-Type':'application/json'},
+            method:'PATCH', headers:{ Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '','Content-Type':'application/json'},
             body: JSON.stringify({ signature_data: sigData, status: 'signed' })
         });
         showToast('success', 'חתימה נשמרה — סטטוס עודכן לחתום ✓');
@@ -54162,7 +54162,7 @@ window.showDocVersions = async function(docId) {
     listEl.innerHTML = '<p class="text-center text-slate-400 text-sm py-6"><i class="fa-solid fa-spinner fa-spin ml-1"></i> טוען...</p>';
     modal.classList.remove('hidden');
     try {
-        const r = await fetch(`${API}/professional-documents/${docId}/versions`).then(r => r.json());
+        const r = await fetch(`${API}/professional-documents/${docId}/versions`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } }).then(r => r.json());
         const versions = r.versions || [];
         if (!versions.length) {
             listEl.innerHTML = '<p class="text-center text-slate-400 text-sm py-8">אין גרסאות קודמות<br><span class="text-xs text-slate-300 mt-1 block">גרסה נשמרת בכל פעם שעורכים ושומרים מסמך</span></p>';
@@ -54191,14 +54191,14 @@ window.sendDocEmail = async function(docId, docTitle, defaultEmail, custName, cu
     try {
         showToast('info', 'שולח מייל...');
         const r = await fetch(`${API}/professional-documents/${docId}/send-email`, {
-            method:'POST', headers:{'Content-Type':'application/json'},
+            method:'POST', headers:{ Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '','Content-Type':'application/json'},
             body: JSON.stringify({ to_email: email })
         }).then(r => r.json());
         if (!r.success) throw new Error(r.error||'שגיאה');
         showToast('success', `מייל נשלח אל ${email} ✓`);
         if (email !== defaultEmail) {
             await fetch(`${API}/professional-documents/${docId}`, {
-                method:'PATCH', headers:{'Content-Type':'application/json'},
+                method:'PATCH', headers:{ Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '','Content-Type':'application/json'},
                 body: JSON.stringify({ customer_email: email })
             });
         }
@@ -54936,7 +54936,7 @@ window.submitBizAdOrder = async function() {
     try {
         const r = await fetch(`${API}/biz/banner/orders`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '', 'Content-Type': 'application/json' },
             body: JSON.stringify({ business_id: currentGroup.id, slot_id: slotId, duration_days: duration, payment_method: paymentMethod, coins_used: coinsToUse, cash_amount: cashAmount, total_price_ils: priceIls, notes, community_ids: selectedComms })
         });
         const d = await r.json();
@@ -54956,7 +54956,7 @@ async function _loadBizAdOrders() {
     const el = document.getElementById('biz-ads-orders-list');
     if (!el || !currentGroup) return;
     try {
-        const r = await fetch(`${API}/biz/banner/orders?business_id=${currentGroup.id}`);
+        const r = await fetch(`${API}/biz/banner/orders?business_id=${currentGroup.id}`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } });
         const d = await r.json();
         if (!d.success || !d.orders.length) { el.innerHTML = '<p class="text-slate-400 text-xs text-center py-3">אין הזמנות עדיין</p>'; return; }
         const stLabel = { pending_approval:'ממתין לאישור', active:'פעיל 🟢', expired:'הסתיים', cancelled:'בוטל', pending_payment:'ממתין לתשלום' };
@@ -54990,7 +54990,7 @@ async function _loadBizBilling() {
     const el = document.getElementById('biz-billing-list');
     if (!el || !currentGroup) return;
     try {
-        const r = await fetch(`${API}/biz/billing?business_id=${currentGroup.id}`);
+        const r = await fetch(`${API}/biz/billing?business_id=${currentGroup.id}`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } });
         const d = await r.json();
         if (!d.records?.length) { el.innerHTML = '<p class="text-slate-400 text-xs text-center py-3">אין רשומות</p>'; return; }
         const stLabel = { unpaid:'לא שולם', paid:'שולם ✓', pending_confirm:'ממתין לאישור SA', partial:'חלקי' };
@@ -55033,7 +55033,7 @@ window.confirmBizPayment = async function() {
     try {
         const r = await fetch(`${API}/biz/billing/${billingId}/confirm`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '', 'Content-Type': 'application/json' },
             body: JSON.stringify({ business_id: currentGroup.id, signature_data: sig })
         });
         const d = await r.json();
@@ -55077,7 +55077,7 @@ async function loadBizCommunityFeed() {
 
 async function loadBizFeedStats() {
     try {
-        const r = await fetch(`${API}/biz/feed/stats?business_id=${currentGroup.id}`);
+        const r = await fetch(`${API}/biz/feed/stats?business_id=${currentGroup.id}`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } });
         const d = await r.json();
         if (!d.success) return;
         const el = document.getElementById('biz-feed-stats');
@@ -55098,7 +55098,7 @@ async function loadBizFeedStats() {
 
 async function loadBizFeedPosts() {
     try {
-        const r = await fetch(`${API}/biz/feed/posts?business_id=${currentGroup.id}`);
+        const r = await fetch(`${API}/biz/feed/posts?business_id=${currentGroup.id}`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } });
         const d = await r.json();
         const el = document.getElementById('biz-feed-posts-list');
         if (!el) return;
