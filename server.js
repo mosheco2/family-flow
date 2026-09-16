@@ -5887,9 +5887,11 @@ app.post('/api/sa/test-email', verifySA, async (req, res) => {
         const tpl = TEMPLATES[type];
         if (!tpl) return res.status(400).json({ success: false, error: 'סוג בדיקה לא מוכר' });
 
-        const ok = await sendSystemEmail(to, tpl.subject, tpl.html);
-        if (!ok) return res.status(500).json({ success: false, error: 'שליחת המייל נכשלה - בדוק SMTP_USER/SMTP_PASS ב-Render' });
-        res.json({ success: true });
+        const cfg = await getEmailConfig();
+        const recipients = [...new Set([to, cfg.adminNotificationEmail].filter(Boolean))];
+        const results = await Promise.all(recipients.map(r => sendSystemEmail(r, tpl.subject, tpl.html)));
+        if (!results.some(Boolean)) return res.status(500).json({ success: false, error: 'שליחת המייל נכשלה - בדוק SMTP_USER/SMTP_PASS ב-Render' });
+        res.json({ success: true, sentTo: recipients });
     } catch(e) {
         console.error('test-email error:', e);
         res.status(500).json({ success: false, error: e.message });

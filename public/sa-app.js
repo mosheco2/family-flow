@@ -1924,7 +1924,7 @@ window.sendTestEmail = async function() {
     btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-2"></i> שולח...';
     try {
         const data = await saFetch('/api/sa/test-email', { method: 'POST', body: JSON.stringify({ type, to }) });
-        if (data.success) showToast('success', `מייל בדיקה נשלח ל-${to}`);
+        if (data.success) showToast('success', `מייל בדיקה נשלח ל: ${(data.sentTo || [to]).join(', ')}`);
         else showToast('error', data.error || 'שליחת המייל נכשלה');
     } catch(e) {
         showToast('error', 'שגיאת תקשורת מול השרת');
