@@ -1733,6 +1733,17 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
       )`); } catch(e) {}
       // ===== END BIZ WIZARD =====
 
+      // ── איפוס סיסמה למנהל משפחה (מקביל ל-biz_password_resets) ──
+      try { await client.query(`CREATE TABLE IF NOT EXISTS family_password_resets (
+          id         SERIAL PRIMARY KEY,
+          admin_email VARCHAR(255) NOT NULL,
+          group_id   INT          NOT NULL REFERENCES family_groups(id) ON DELETE CASCADE,
+          token_hash VARCHAR(64)  NOT NULL,
+          expires_at TIMESTAMPTZ  NOT NULL,
+          used       BOOLEAN      NOT NULL DEFAULT false,
+          created_at TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+      )`); } catch(e) {}
+
       // ===== MARKETPLACE =====
       try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS business_category VARCHAR(50) DEFAULT NULL`); } catch(e) {}
       try { await client.query(`CREATE TABLE IF NOT EXISTS family_business_visits (
@@ -3735,7 +3746,7 @@ async function sendSystemEmail(to, subject, htmlContent) {
 
 async function sendAlertEmail(groupId, subject, message) {
     try {
-        const gr = await pool.query('SELECT admin_email, business_name FROM family_groups WHERE id=$1', [groupId]);
+        const gr = await pool.query('SELECT admin_email, name AS business_name FROM family_groups WHERE id=$1', [groupId]);
         if (!gr.rows.length || !gr.rows[0].admin_email) return;
         const { admin_email, business_name } = gr.rows[0];
         const html = `
@@ -9088,6 +9099,24 @@ try {
         const group = gRes.rows[0];
         const sysType = group.type === 'BUSINESS' ? 'WEFLOWZ BIZ' : 'WEFLOWZ';
 
+        const gidRes = await pool.query(`SELECT id FROM family_groups WHERE group_code=$1`, [group.group_code]);
+        const groupId = gidRes.rows[0]?.id;
+
+        let resetLinkHtml = '';
+        if (groupId) {
+            const rawToken = require('crypto').randomBytes(32).toString('hex');
+            const tokenHash = _bizHashOtp(rawToken);
+            const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // שעה
+            await pool.query(`DELETE FROM family_password_resets WHERE admin_email=LOWER($1) AND group_id=$2`, [email, groupId]);
+            await pool.query(
+                `INSERT INTO family_password_resets (admin_email, group_id, token_hash, expires_at) VALUES (LOWER($1), $2, $3, $4)`,
+                [email, groupId, tokenHash, expiresAt]
+            );
+            const resetUrl = `${process.env.BASE_URL || 'https://family-flow.onrender.com'}/?reset=${rawToken}&gid=${groupId}`;
+            resetLinkHtml = `<p><a href="${resetUrl}" style="background:#3b82f6;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:bold;display:inline-block;">איפוס סיסמה</a></p>
+                <p style="color:#64748b;font-size:13px">קישור האיפוס תקף לשעה אחת.</p>`;
+        }
+
         const recoveryHtml = `
             <div style="direction: rtl; font-family: Arial, sans-serif;">
                 <h2>שחזור פרטי גישה - ${sysType}</h2>
@@ -9096,17 +9125,49 @@ try {
                 <div style="background-color: #f8fafc; padding: 20px; border-radius: 10px; margin: 20px 0; border: 1px solid #e2e8f0;">
                     <p style="font-size: 16px; margin: 8px 0;"><strong>קוד הסביבה שלכם הוא:</strong> <span style="font-size: 20px; color: #3b82f6; font-weight: bold;">${group.group_code}</span></p>
                     <p style="font-size: 16px; margin: 8px 0;"><strong>שם משתמש מנהל:</strong> <span style="font-size: 18px; color: #3b82f6;">${group.nickname}</span></p>
-                    <p style="font-size: 16px; margin: 8px 0;"><strong>סיסמת מנהל:</strong> <span style="font-size: 18px; color: #3b82f6;">${group.password_hash}</span></p>
+                    ${resetLinkHtml}
                 </div>
                 <p>אם לא ביקשתם שחזור פרטים, ניתן להתעלם מהודעה זו בביטחה.</p>
                 <p>בברכה,<br>צוות WEFLOWZ</p>
             </div>`;
-            
+
         sendSystemEmail(email, 'WEFLOWZ | שחזור קוד וסיסמה לסביבה שלך', recoveryHtml);
         res.json({ success: true });
-    } catch (e) { 
+    } catch (e) {
         console.error(e);
-        res.status(500).json({ error: 'אירעה שגיאה. נסה שוב מאוחר יותר.' }); 
+        res.status(500).json({ error: 'אירעה שגיאה. נסה שוב מאוחר יותר.' });
+    }
+});
+
+// ── איפוס סיסמת מנהל משפחה בפועל (לאחר לחיצה על הקישור מהמייל) ──
+app.post('/api/reset-password/confirm', async (req, res) => {
+    try {
+        const { token, groupId, newPassword } = req.body;
+        if (!token || !groupId || !newPassword || newPassword.length < 6) {
+            return res.status(400).json({ success: false, error: 'פרמטרים חסרים או סיסמה קצרה מדי' });
+        }
+
+        const tokenHash = _bizHashOtp(token);
+        const row = await pool.query(
+            `SELECT * FROM family_password_resets WHERE token_hash=$1 AND group_id=$2 AND used=false`,
+            [tokenHash, groupId]
+        );
+        if (!row.rows.length) return res.status(400).json({ success: false, error: 'קישור לא תקין או פג תוקפו' });
+        if (new Date() > new Date(row.rows[0].expires_at)) {
+            return res.status(400).json({ success: false, error: 'פג תוקף הקישור. בקש קישור חדש.' });
+        }
+
+        const newHash = await bcrypt.hash(newPassword, 12);
+        await pool.query(
+            `UPDATE users SET password_hash=$1 WHERE group_id=$2 AND role='ADMIN'`,
+            [newHash, groupId]
+        );
+        await pool.query(`UPDATE family_password_resets SET used=true WHERE id=$1`, [row.rows[0].id]);
+
+        res.json({ success: true });
+    } catch(e) {
+        console.error('family reset-password confirm error:', e);
+        res.status(500).json({ success: false, error: 'שגיאה באיפוס הסיסמה' });
     }
 });
 
@@ -9120,14 +9181,14 @@ app.post('/api/admin/send-credentials', async (req, res) => {
         if(groupRes.rows.length === 0 || !groupRes.rows[0].admin_email) return res.status(400).json({error: "לא נמצאה כתובת מייל מוגדרת בהרשמה."});
         
         const adminEmail = groupRes.rows[0].admin_email; const groupName = groupRes.rows[0].name; const groupType = groupRes.rows[0].type;
-        const usersRes = await pool.query("SELECT nickname, password_hash, role FROM users WHERE group_id = $1 ORDER BY role, nickname", [groupId]);
-        
-        let emailContent = `<div style="direction: rtl; font-family: Arial, sans-serif;"><h2>פרטי הגישה של משתמשי הסביבה: ${groupName}</h2><ul>`;
+        const usersRes = await pool.query("SELECT nickname, role FROM users WHERE group_id = $1 ORDER BY role, nickname", [groupId]);
+
+        let emailContent = `<div style="direction: rtl; font-family: Arial, sans-serif;"><h2>רשימת המשתמשים בסביבה: ${groupName}</h2><ul>`;
         usersRes.rows.forEach(u => {
             let roleStr = groupType === 'BUSINESS' ? (u.role === 'ADMIN' ? 'מנהל' : 'עובד') : (u.role === 'ADMIN' ? 'הורה' : 'ילד');
-            emailContent += `<li><strong>שם:</strong> ${u.nickname} | <strong>סיסמה:</strong> ${u.password_hash} | <strong>תפקיד:</strong> ${roleStr}</li>`;
+            emailContent += `<li><strong>שם:</strong> ${u.nickname} | <strong>תפקיד:</strong> ${roleStr}</li>`;
         });
-        emailContent += `</ul><p>בברכה,<br>צוות WEFLOWZ</p></div>`;
+        emailContent += `</ul><p style="color:#64748b;font-size:13px">מטעמי אבטחה לא ניתן לשלוח סיסמאות קיימות במייל. לאיפוס סיסמת המנהל ניתן להשתמש באפשרות "שכחתי סיסמה" במסך ההתחברות.</p><p>בברכה,<br>צוות WEFLOWZ</p></div>`;
 
         sendSystemEmail(adminEmail, 'WEFLOWZ - פרטי גישה של משתמשי הסביבה', emailContent);
         res.json({ success: true });
@@ -9139,9 +9200,9 @@ app.post('/api/join', async (req, res) => {
         const { groupCode, nickname, birthYear, password, role, email, employee_role_type, firstName, lastName } = req.body;
         if (!groupCode || !nickname || !password || !email) return res.status(400).json({ error: 'חסרים נתונים חובה' });
         
-        const gRes = await pool.query('SELECT id FROM family_groups WHERE group_code = $1', [groupCode.toUpperCase()]);
+        const gRes = await pool.query('SELECT id, name, type, admin_email FROM family_groups WHERE group_code = $1', [groupCode.toUpperCase()]);
         if (gRes.rows.length === 0) return res.status(404).json({ error: 'קוד ארגון/משפחה לא חוקי' });
-        
+
         const group = gRes.rows[0];
         const reqRole = role === 'ADMIN' ? 'ADMIN' : role === 'CHILD' ? 'CHILD' : 'MEMBER';
         const bYear = parseInt(birthYear) || null;
@@ -9177,10 +9238,35 @@ app.post('/api/join', async (req, res) => {
                 [group.id, nickname, firstName || null, lastName || null, bYear, pwHash, reqRole, joinPhone, joinEmail, employee_role_type || null]
             );
         }
+
+        // התראת מייל למנהל הקבוצה + לסופר אדמין על הצטרפות חבר/עובד חדש - לא חוסם את התגובה
+        (async () => {
+            try {
+                const isBiz = group.type === 'BUSINESS';
+                const displayName = (firstName && lastName) ? `${firstName} ${lastName}` : nickname;
+                const roleLabel = isBiz
+                    ? (employee_role_type ? `עובד (${employee_role_type})` : 'עובד')
+                    : (reqRole === 'CHILD' ? 'ילד/ה' : reqRole === 'ADMIN' ? 'מנהל/ת' : 'בן/בת משפחה');
+                const groupLabel = isBiz ? 'לעסק' : 'למשפחה';
+                const subject = isBiz ? `WEFLOWZ | עובד/ת חדש/ה הצטרף/ה ל-${group.name}` : `WEFLOWZ | בן/בת משפחה חדש/ה הצטרף/ה ל-${group.name}`;
+                const bodyMsg = `<strong>${displayName}</strong> (${roleLabel}) ביקש/ה להצטרף ${groupLabel} <strong>${group.name}</strong> וממתין/ה לאישורך במסך ניהול החברים.`;
+                if (group.admin_email) await sendAlertEmail(group.id, subject, bodyMsg);
+                const cfg = await getEmailConfig();
+                if (cfg.adminNotificationEmail) {
+                    await sendSystemEmail(cfg.adminNotificationEmail, subject,
+                        `<div dir="rtl" style="font-family:Arial,sans-serif;max-width:540px;margin:auto;">
+                            <h3 style="color:#4f46e5;">${subject}</h3>
+                            <p>${bodyMsg}</p>
+                            <p style="color:#64748b;font-size:12px;">קוד ${isBiz ? 'עסק' : 'משפחה'}: ${groupCode.toUpperCase()}</p>
+                        </div>`);
+                }
+            } catch(e) { console.error('Join notification email error:', e.message); }
+        })();
+
         res.json({ success: true });
-    } catch (e) { 
+    } catch (e) {
         console.error("Join Error:", e);
-        res.status(500).json({ error: 'שגיאת שרת: ' + e.message }); 
+        res.status(500).json({ error: 'שגיאת שרת: ' + e.message });
     }
 });
 

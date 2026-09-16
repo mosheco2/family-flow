@@ -102,6 +102,14 @@ window.onload = async () => {
     const failsafeTimer = setTimeout(() => { const preloader = getEl('app-preloader'); if (preloader && !preloader.classList.contains('hidden')) { hidePreloaderAndShowAuth('login'); } }, 7000);
     const urlParams = new URLSearchParams(window.location.search); const inviteCode = urlParams.get('code'); const inviteRole = urlParams.get('role');
 
+    // קישור איפוס סיסמה שהתקבל במייל — מציגים טופס סיסמה חדשה במקום מסך הכניסה הרגיל
+    if (urlParams.get('reset') && urlParams.get('gid')) {
+        clearTimeout(failsafeTimer);
+        hidePreloaderAndShowAuth('login');
+        getEl('reset-password-modal').classList.remove('hidden');
+        return;
+    }
+
     // SSO from storefront — auto-login via one-time token
     const ssoToken = urlParams.get('sso_token');
     if (ssoToken) {
@@ -5883,6 +5891,41 @@ async function submitForgotCode() {
     } finally {
         btn.disabled = false;
         btn.innerText = 'שלח קוד';
+    }
+}
+
+async function submitResetPassword() {
+    const newPass = val('reset-password-new');
+    const confirmPass = val('reset-password-confirm');
+    const msgEl = getEl('reset-password-msg');
+    const showMsg = (text) => { msgEl.textContent = text; msgEl.classList.remove('hidden'); };
+    if (!newPass || newPass.length < 6) return showMsg('הסיסמה חייבת להכיל לפחות 6 תווים');
+    if (newPass !== confirmPass) return showMsg('הסיסמאות אינן תואמות');
+
+    const btn = getEl('btn-submit-reset-password');
+    btn.disabled = true;
+    btn.innerText = 'מעדכן...';
+    try {
+        const params = new URLSearchParams(window.location.search);
+        const res = await fetch(`${API}/reset-password/confirm`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ token: params.get('reset'), groupId: params.get('gid'), newPassword: newPass })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast('success', 'הסיסמה עודכנה בהצלחה! ניתן להתחבר כעת.');
+            getEl('reset-password-modal').classList.add('hidden');
+            window.history.replaceState({}, '', '/');
+            hidePreloaderAndShowAuth('login');
+        } else {
+            showMsg(data.error || 'אירעה שגיאה באיפוס הסיסמה');
+        }
+    } catch (e) {
+        showMsg('שגיאת תקשורת מול השרת');
+    } finally {
+        btn.disabled = false;
+        btn.innerText = 'עדכון סיסמה';
     }
 }
 // ============================================================

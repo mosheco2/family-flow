@@ -2913,6 +2913,17 @@
         </div>
     </div>
 
+    <div id="reset-password-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[9999] flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-sm rounded-[2rem] p-6 shadow-2xl text-center max-h-[90vh] overflow-y-auto modal-scroll">
+            <h3 class="text-xl font-bold mb-2 text-slate-800">הגדרת סיסמה חדשה 🔒</h3>
+            <p class="text-sm text-slate-500 mb-6">הזינו סיסמה חדשה לחשבון מנהל/ת הסביבה.</p>
+            <div id="reset-password-msg" class="text-sm font-bold mb-3 hidden"></div>
+            <input type="password" id="reset-password-new" required placeholder="סיסמה חדשה (6 תווים לפחות)" class="modern-input mb-3 text-left dir-ltr">
+            <input type="password" id="reset-password-confirm" required placeholder="אימות סיסמה" class="modern-input mb-6 text-left dir-ltr">
+            <button type="button" id="btn-submit-reset-password" onclick="submitResetPassword()" class="w-full bg-blue-600 text-white py-3 rounded-xl font-bold shadow-lg hover:bg-blue-700 transition">עדכון סיסמה</button>
+        </div>
+    </div>
+
     <script>
         window.splashChoose = function(t) {
             if (t === 'BUSINESS') { window.location.href = '/biz-onboarding.html'; return; }
@@ -2994,7 +3005,7 @@
             document.getElementById('btn-adj-add').className = isAdd ? 'flex-1 py-1.5 text-sm font-bold bg-white text-green-600 rounded-lg shadow-sm transition' : 'flex-1 py-1.5 text-sm font-bold text-slate-500 hover:text-green-600 rounded-lg transition';
         }
     </script>
-    <script src="app.js?v=84" defer></script>
+    <script src="app.js?v=85" defer></script>
     <script src="community-help.js?v=1" defer></script>
     <script>
         if ('serviceWorker' in navigator) {
