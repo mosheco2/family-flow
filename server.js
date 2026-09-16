@@ -19318,68 +19318,230 @@ app.get('/api/tickets/:groupId', async (req, res) => {
     }
 });
 
+// בונה הקשר מלא ועדכני של המשפחה עבור FamilAI - נשלף ישירות מה-DB בצד השרת
+// כדי להבטיח שהעוזרת מכירה את כל המידע (כולל פרטי ילדים) ולא תלויה בנתונים שהלקוח שלח
+async function buildFamilyAIContext(groupId) {
+    const safe = (q, params) => pool.query(q, params).catch(() => ({ rows: [] }));
+    const [
+        groupRes, usersRes, pantryRes, shoppingRes, tasksRes, goalsRes, loansRes,
+        txRes, communitiesRes, walletRes, quizRes
+    ] = await Promise.all([
+        safe('SELECT name, plan FROM family_groups WHERE id=$1', [groupId]),
+        safe('SELECT id, nickname, first_name, last_name, role, birth_year, balance, allowance_amount, status FROM users WHERE group_id=$1 ORDER BY role, nickname', [groupId]),
+        safe('SELECT item_name, quantity, unit, updated_at FROM pantry WHERE group_id=$1 ORDER BY updated_at DESC LIMIT 100', [groupId]),
+        safe(`SELECT sl.item_name, sl.quantity, sl.unit, sl.status, u.nickname as requester
+              FROM shopping_list sl LEFT JOIN users u ON u.id=sl.requester_id
+              WHERE sl.group_id=$1 ORDER BY sl.added_at DESC LIMIT 100`, [groupId]),
+        safe(`SELECT t.id, t.title, t.reward, t.status, t.deadline, u.nickname as assignee_name
+              FROM tasks t LEFT JOIN users u ON u.id=t.assigned_to
+              WHERE t.group_id=$1 ORDER BY t.created_at DESC LIMIT 60`, [groupId]),
+        safe(`SELECT g.id, g.title, g.target_amount, g.current_amount, u.nickname as target_user
+              FROM goals g LEFT JOIN users u ON u.id=g.target_user_id
+              WHERE g.user_id IN (SELECT id FROM users WHERE group_id=$1) OR g.target_user_id IN (SELECT id FROM users WHERE group_id=$1)
+              ORDER BY g.created_at DESC LIMIT 30`, [groupId]),
+        safe(`SELECT l.id, l.original_amount, l.remaining_amount, l.reason, l.status, u.nickname as borrower
+              FROM loans l LEFT JOIN users u ON u.id=l.user_id
+              WHERE l.group_id=$1 ORDER BY l.created_at DESC LIMIT 30`, [groupId]),
+        safe(`SELECT tx.amount, tx.description, tx.category, tx.type, tx.date, u.nickname as user_name
+              FROM transactions tx LEFT JOIN users u ON u.id=tx.user_id
+              WHERE tx.group_id=$1 ORDER BY tx.date DESC LIMIT 60`, [groupId]),
+        safe(`SELECT c.id, c.name, c.city, fc.status
+              FROM family_communities fc JOIN communities c ON c.id=fc.community_id
+              WHERE fc.group_id=$1`, [groupId]),
+        safe(`SELECT balance FROM flow_wallets WHERE entity_type='family' AND entity_id=$1`, [groupId]),
+        safe(`SELECT ua.status, ua.score, u.nickname as child_name
+              FROM user_assignments ua JOIN users u ON u.id=ua.user_id
+              WHERE u.group_id=$1 ORDER BY ua.assigned_at DESC LIMIT 20`, [groupId])
+    ]);
+
+    const currentYear = new Date().getFullYear();
+    return {
+        family_name: groupRes.rows[0]?.name || '',
+        plan: groupRes.rows[0]?.plan || 'standard',
+        members: usersRes.rows.map(u => ({
+            name: (u.first_name && u.last_name) ? `${u.first_name} ${u.last_name}` : u.nickname,
+            nickname: u.nickname,
+            role: u.role,
+            age: u.birth_year ? (currentYear - u.birth_year) : null,
+            balance: parseFloat(u.balance) || 0,
+            allowance: parseFloat(u.allowance_amount) || 0,
+            status: u.status
+        })),
+        pantry: pantryRes.rows.map(p => ({ item: p.item_name, qty: p.quantity, unit: p.unit, updated: p.updated_at })),
+        shopping_list: shoppingRes.rows.map(s => ({ item: s.item_name, qty: s.quantity, unit: s.unit, status: s.status, requested_by: s.requester })),
+        tasks: tasksRes.rows.map(t => ({ id: t.id, title: t.title, reward: t.reward, status: t.status, deadline: t.deadline, assigned_to: t.assignee_name })),
+        goals: goalsRes.rows.map(g => ({ title: g.title, target_amount: g.target_amount, current_amount: g.current_amount, for: g.target_user })),
+        loans: loansRes.rows.map(l => ({ borrower: l.borrower, remaining: l.remaining_amount, original: l.original_amount, reason: l.reason, status: l.status })),
+        recent_transactions: txRes.rows.map(tx => ({ desc: tx.description, amount: tx.amount, type: tx.type, category: tx.category, date: tx.date, by: tx.user_name })),
+        my_communities: communitiesRes.rows.map(c => ({ id: c.id, name: c.name, city: c.city, status: c.status })),
+        flow_balance: parseFloat(walletRes.rows[0]?.balance) || 0,
+        kids_recent_quizzes: quizRes.rows.map(q => ({ child: q.child_name, status: q.status, score: q.score }))
+    };
+}
+
+// פעולות רגישות/הרסניות - חייבות אישור מפורש של המשתמש לפני ביצוע בפועל
+const FAMILY_AI_SENSITIVE_ACTIONS = new Set(['DELETE_TASK', 'DELETE_GROCERY_ITEM', 'ADJUST_BALANCE', 'JOIN_COMMUNITY']);
+
+// מבצע בפועל פעולת AI על ה-DB - משמש גם לפעולות מיידיות וגם לפעולות שאושרו לאחר "בטוח?"
+async function executeFamilyAIAction(actionType, actionData, groupId, userId) {
+    const d = actionData || {};
+    const findUserId = async (name) => {
+        if (!name) return null;
+        const r = await pool.query('SELECT id FROM users WHERE group_id=$1 AND nickname ILIKE $2', [groupId, `%${name}%`]);
+        return r.rows[0]?.id || null;
+    };
+
+    switch (actionType) {
+        case 'CREATE_TASK': {
+            const assignedToId = await findUserId(d.assignee_name);
+            const reward = parseFloat(d.reward) || 0;
+            const title = d.title || 'משימה חדשה';
+            await pool.query('INSERT INTO tasks (group_id, created_by, assigned_to, title, reward, status) VALUES ($1,$2,$3,$4,$5,$6)', [groupId, userId, assignedToId, title, reward, 'pending']);
+            return `✅ פתחתי את המשימה "${title}" במערכת.`;
+        }
+        case 'ADD_GROCERY': {
+            const item = d.item || 'מוצר';
+            const qty = parseFloat(d.qty) || 1;
+            await pool.query(`INSERT INTO shopping_list (group_id, requester_id, item_name, quantity, status) VALUES ($1,$2,$3,$4,'pending')`, [groupId, userId, item, qty]);
+            return `🛒 הוספתי "${item}" (כמות: ${qty}) לרשימת הקניות.`;
+        }
+        case 'COMPLETE_TASK': {
+            const r = await pool.query('SELECT id, reward FROM tasks WHERE group_id=$1 AND title ILIKE $2 AND status != $3 ORDER BY created_at DESC LIMIT 1', [groupId, `%${d.title}%`, 'approved']);
+            if (!r.rows.length) return `❌ לא מצאתי משימה פתוחה בשם "${d.title}".`;
+            await pool.query('UPDATE tasks SET status=$1 WHERE id=$2', ['approved', r.rows[0].id]);
+            return `✅ סימנתי את המשימה "${d.title}" כהושלמה.`;
+        }
+        case 'UPDATE_PANTRY': {
+            const item = d.item || 'מוצר';
+            const qty = parseFloat(d.qty) || 1;
+            const unit = d.unit || 'יח\'';
+            const existing = await pool.query('SELECT id FROM pantry WHERE group_id=$1 AND item_name ILIKE $2', [groupId, item]);
+            if (existing.rows.length) {
+                await pool.query('UPDATE pantry SET quantity=$1, unit=$2, updated_at=NOW() WHERE id=$3', [qty, unit, existing.rows[0].id]);
+            } else {
+                await pool.query('INSERT INTO pantry (group_id, item_name, quantity, unit) VALUES ($1,$2,$3,$4)', [groupId, item, qty, unit]);
+            }
+            return `🧊 עדכנתי במזווה: "${item}" — כמות ${qty} ${unit}.`;
+        }
+        case 'ADD_TRANSACTION': {
+            const targetId = (await findUserId(d.user_name)) || userId;
+            const amount = parseFloat(d.amount) || 0;
+            const type = d.type === 'income' ? 'income' : 'expense';
+            const desc = d.desc || d.description || 'תנועה מ-FamilAI';
+            await pool.query('INSERT INTO transactions (user_id, group_id, amount, description, category, type, is_manual) VALUES ($1,$2,$3,$4,$5,$6,true)', [targetId, groupId, amount, desc, d.category || 'כללי', type]);
+            return `💰 רשמתי ${type === 'income' ? 'הכנסה' : 'הוצאה'} של ₪${amount} — "${desc}".`;
+        }
+        case 'CREATE_GOAL': {
+            const targetId = (await findUserId(d.target_user_name)) || userId;
+            const title = d.title || 'יעד חיסכון חדש';
+            const targetAmount = parseFloat(d.target_amount) || 0;
+            await pool.query('INSERT INTO goals (user_id, target_user_id, title, target_amount, current_amount) VALUES ($1,$2,$3,$4,0)', [userId, targetId, title, targetAmount]);
+            return `🎯 יצרתי יעד חיסכון חדש: "${title}" (₪${targetAmount}).`;
+        }
+        case 'DELETE_TASK': {
+            const r = await pool.query('DELETE FROM tasks WHERE group_id=$1 AND title ILIKE $2 RETURNING id', [groupId, `%${d.title}%`]);
+            return r.rows.length ? `🗑️ מחקתי את המשימה "${d.title}".` : `❌ לא מצאתי משימה בשם "${d.title}".`;
+        }
+        case 'DELETE_GROCERY_ITEM': {
+            const r = await pool.query('DELETE FROM shopping_list WHERE group_id=$1 AND item_name ILIKE $2 RETURNING id', [groupId, `%${d.item}%`]);
+            return r.rows.length ? `🗑️ הסרתי את "${d.item}" מרשימת הקניות.` : `❌ לא מצאתי "${d.item}" ברשימת הקניות.`;
+        }
+        case 'ADJUST_BALANCE': {
+            const targetId = await findUserId(d.user_name);
+            if (!targetId) return `❌ לא מצאתי בן משפחה בשם "${d.user_name}".`;
+            const amount = parseFloat(d.amount) || 0;
+            await pool.query('UPDATE users SET balance = balance + $1 WHERE id=$2', [amount, targetId]);
+            await pool.query('INSERT INTO transactions (user_id, group_id, amount, description, category, type, is_manual) VALUES ($1,$2,$3,$4,$5,$6,true)', [targetId, groupId, Math.abs(amount), d.reason || 'העברה מ-FamilAI', 'העברה', amount >= 0 ? 'income' : 'expense']);
+            return `💸 עדכנתי את היתרה של ${d.user_name} ב-₪${amount}.`;
+        }
+        case 'JOIN_COMMUNITY': {
+            const cRes = await pool.query('SELECT id, name FROM communities WHERE code ILIKE $1 OR name ILIKE $2 LIMIT 1', [d.code || '', `%${d.name || ''}%`]);
+            if (!cRes.rows.length) return `❌ לא מצאתי קהילה תואמת ל-"${d.name || d.code}".`;
+            await pool.query('INSERT INTO family_communities (group_id, community_id, status) VALUES ($1,$2,$3) ON CONFLICT DO NOTHING', [groupId, cRes.rows[0].id, 'pending']);
+            return `🌍 שלחתי בקשת הצטרפות לקהילה "${cRes.rows[0].name}" — ממתין לאישור.`;
+        }
+        default:
+            return null;
+    }
+}
+
 // ראוט צ'אט עוזרת אישית למשפחות (FamilAI) - סוכנת חכמה ופעילה
 app.post('/api/family/chat-assistant', async (req, res) => {
     try {
-        const { query, context, groupId, userId } = req.body;
+        const { query, groupId, userId } = req.body;
         const hasTokens = await handleAITokens(groupId);
         if(!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
         if (!getGenAIInstance()) throw new Error('GEMINI_API_KEY is not set');
 
-        // אילוץ תשובה מובנית בפורמט JSON בלבד כדי שהשרת יוכל לקרוא פקודות
-        const model = getGenAIInstance().getGenerativeModel({ 
-            model: "gemini-2.5-flash", 
-            generationConfig: { responseMimeType: "application/json" } 
+        // הקשר מלא ועדכני נבנה תמיד בצד השרת - העוזרת מכירה את כל נתוני המשפחה, כולל פרטי הילדים
+        const familyContext = await buildFamilyAIContext(groupId);
+
+        const model = getGenAIInstance().getGenerativeModel({
+            model: "gemini-2.5-flash",
+            generationConfig: { responseMimeType: "application/json" }
         });
-        
-        const prompt = `You are 'FamilAI', the highly intelligent, proactive AI assistant for a family using the 'WEFLOWZ' app. 
-        You can deeply analyze data to provide forecasts (e.g., when to buy groceries based on habits, budget predictions) AND you can EXECUTE actions on behalf of the user.
-        
-        Family Data Context (Current State):
-        ${context}
-        
+
+        const prompt = `You are 'FamilAI', the highly intelligent, proactive AI assistant for a family using the 'WEFLOWZ' app.
+        You have FULL, deep knowledge of everything happening in this family: every member (including kids - their age, balance, allowance, tasks, quiz scores), all transactions, pantry, shopping list, savings goals, loans, connected communities and Flow-coin balance.
+        You can answer detailed questions about specific kids (e.g. "how much does Danny have", "what tasks does Noa have open", "how did the kids do on their last quiz") using the data below.
+        You are also highly capable and proactive - you EXECUTE real actions on behalf of the user, not just talk.
+
+        Family Data Context (Current State, JSON):
+        ${JSON.stringify(familyContext)}
+
         User's Request: "${query}"
-        
+
         Instructions:
         1. Respond in Hebrew. Be friendly, warm, and highly efficient. Use emojis.
-        2. If the user asks for a forecast, analysis, or prediction, calculate it smartly using the 'recent_transactions', 'pantry', and 'tasks' data.
-        3. Output STRICTLY as a valid JSON object matching this schema:
+        2. If asked about a specific family member (especially a child), answer precisely from the members/tasks/transactions/goals/quizzes data.
+        3. If the user asks for a forecast/analysis/prediction, calculate it smartly using recent_transactions, pantry and tasks.
+        4. Be proactive: if relevant, suggest useful actions the user could take.
+        5. Output STRICTLY as a valid JSON object matching this schema:
         {
            "answer": "Your full text response to the user in Hebrew. Use Markdown bolding (**text**) for emphasis.",
-           "action_type": "NONE", // Change to "CREATE_TASK" or "ADD_GROCERY" ONLY if the user explicitly asks you to perform an action!
-           "action_data": {} // If CREATE_TASK: {"title": "Task name", "reward": 10, "assignee_name": "Name of child/member or null"}. If ADD_GROCERY: {"item": "Item name", "qty": 1}
+           "action_type": "NONE", // one of: NONE, CREATE_TASK, ADD_GROCERY, COMPLETE_TASK, UPDATE_PANTRY, ADD_TRANSACTION, CREATE_GOAL, DELETE_TASK, DELETE_GROCERY_ITEM, ADJUST_BALANCE, JOIN_COMMUNITY - ONLY if the user explicitly asked to perform that action!
+           "action_data": {}
+           // CREATE_TASK: {"title","reward","assignee_name"}
+           // ADD_GROCERY: {"item","qty"}
+           // COMPLETE_TASK: {"title"}
+           // UPDATE_PANTRY: {"item","qty","unit"}
+           // ADD_TRANSACTION: {"desc","amount","type":"income"|"expense","category","user_name"}
+           // CREATE_GOAL: {"title","target_amount","target_user_name"}
+           // DELETE_TASK: {"title"}
+           // DELETE_GROCERY_ITEM: {"item"}
+           // ADJUST_BALANCE: {"user_name","amount" (negative to deduct),"reason"}
+           // JOIN_COMMUNITY: {"name" or "code"}
         }
         `;
-        
+
         const result = await model.generateContent(prompt);
         const aiResponse = JSON.parse(result.response.text());
-        
         let finalAnswer = aiResponse.answer;
+        const actionType = aiResponse.action_type;
+        const actionData = aiResponse.action_data;
 
-        // --- מנוע ביצוע הפעולות (Execution Engine) ---
-        if (aiResponse.action_type === 'CREATE_TASK' && aiResponse.action_data) {
-            let assignedToId = null;
-            // חיפוש חכם של הילד במסד הנתונים אם ה-AI זיהה שם
-            if (aiResponse.action_data.assignee_name) {
-                const uRes = await pool.query('SELECT id FROM users WHERE group_id = $1 AND nickname ILIKE $2', [groupId, `%${aiResponse.action_data.assignee_name}%`]);
-                if (uRes.rows.length > 0) assignedToId = uRes.rows[0].id;
+        if (actionType && actionType !== 'NONE' && actionData) {
+            if (FAMILY_AI_SENSITIVE_ACTIONS.has(actionType)) {
+                // פעולה רגישה - לא מבוצעת מיד, מוחזרת ללקוח לאישור מפורש
+                return res.json({ success: true, answer: finalAnswer, pending_action: { type: actionType, data: actionData } });
             }
-            const reward = parseFloat(aiResponse.action_data.reward) || 0;
-            const title = aiResponse.action_data.title || 'משימה חדשה';
-            
-            await pool.query('INSERT INTO tasks (group_id, created_by, assigned_to, title, reward, status) VALUES ($1, $2, $3, $4, $5, $6)', [groupId, userId, assignedToId, title, reward, 'pending']);
-            finalAnswer += `\n\n✅ **פקודה בוצעה:** פתחתי את המשימה "${title}" במערכת.`;
-        } 
-        else if (aiResponse.action_type === 'ADD_GROCERY' && aiResponse.action_data) {
-            const item = aiResponse.action_data.item || 'מוצר';
-            const qty = parseFloat(aiResponse.action_data.qty) || 1;
-            
-            await pool.query(`INSERT INTO shopping_list (group_id, requester_id, item_name, quantity, status) VALUES ($1, $2, $3, $4, 'pending')`, [groupId, userId, item, qty]);
-            finalAnswer += `\n\n🛒 **פקודה בוצעה:** הוספתי "${item}" (כמות: ${qty}) לרשימת הקניות.`;
+            const execMsg = await executeFamilyAIAction(actionType, actionData, groupId, userId);
+            if (execMsg) finalAnswer += `\n\n${execMsg}`;
         }
-        
+
         res.json({ success: true, answer: finalAnswer });
     } catch(e) { handleAIError(e, res, 'שגיאה במערכת העוזרת FamilAI'); }
+});
+
+// ביצוע פעולת FamilAI רגישה לאחר אישור מפורש של המשתמש ("בטוח?")
+app.post('/api/family/chat-assistant/confirm-action', async (req, res) => {
+    try {
+        const { groupId, userId, action_type, action_data } = req.body;
+        if (!groupId || !userId || !action_type) return res.status(400).json({ success: false, error: 'חסרים פרטים' });
+        if (!FAMILY_AI_SENSITIVE_ACTIONS.has(action_type)) return res.status(400).json({ success: false, error: 'פעולה לא נתמכת' });
+        const msg = await executeFamilyAIAction(action_type, action_data, groupId, userId);
+        res.json({ success: true, message: msg || 'הפעולה בוצעה.' });
+    } catch(e) { res.status(500).json({ success: false, error: e.message }); }
 });
 
 // ראוט לעדכון תמונת/לוגו משפחה או עסק

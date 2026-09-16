@@ -10860,6 +10860,40 @@ if (_origFetchDataForChat && !window.hookedChatFetch) {
 // ==========================================
 
 // פונקציית הפתיחה מחוברת לבועה של העוזרת שבנית ב-HTML
+window._familaiPendingActions = [];
+
+function _familaiActionLabel(pending) {
+    const d = pending.data || {};
+    switch (pending.type) {
+        case 'DELETE_TASK': return `למחוק את המשימה "${safeStr(d.title)}"?`;
+        case 'DELETE_GROCERY_ITEM': return `להסיר את "${safeStr(d.item)}" מרשימת הקניות?`;
+        case 'ADJUST_BALANCE': return `לעדכן את היתרה של ${safeStr(d.user_name)} ב-₪${d.amount}${d.reason ? ' (' + safeStr(d.reason) + ')' : ''}?`;
+        case 'JOIN_COMMUNITY': return `לשלוח בקשת הצטרפות לקהילה "${safeStr(d.name || d.code)}"?`;
+        default: return 'לבצע את הפעולה?';
+    }
+}
+
+window.confirmFamilaiAction = async function(idx, btnEl) {
+    const pending = window._familaiPendingActions[idx];
+    if (!pending) return;
+    const card = btnEl.closest('div.mt-2');
+    btnEl.disabled = true;
+    btnEl.textContent = 'מבצע...';
+    try {
+        const apiPath = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:') ? 'http://localhost:3000/api' : '/api';
+        const res = await fetch(`${apiPath}/family/chat-assistant/confirm-action`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': localStorage.getItem('ofl_token') || '' },
+            body: JSON.stringify({ groupId: currentGroup.id, userId: currentUser.id, action_type: pending.type, action_data: pending.data })
+        });
+        const data = await res.json();
+        if (card) card.outerHTML = `<div class="mt-2 bg-emerald-50 border border-emerald-200 rounded-xl p-2 text-xs text-emerald-700 font-bold">${data.success ? (data.message || 'בוצע ✅') : (data.error || 'שגיאה בביצוע')}</div>`;
+        fetchData();
+    } catch(e) {
+        if (card) card.outerHTML = `<div class="mt-2 bg-red-50 border border-red-200 rounded-xl p-2 text-xs text-red-600 font-bold">שגיאת תקשורת</div>`;
+    }
+};
+
 window.openFamilaiChatModal = function() {
     const modal = document.getElementById('familai-chat-modal');
     if (modal) {
@@ -10936,17 +10970,32 @@ window.sendFamilaiChatMessage = async function() {
             let formattedAns = data.answer;
             formattedAns = formattedAns.replace(/\*\*(.*?)\*\*/g, '<strong class="text-purple-700">$1</strong>');
             formattedAns = formattedAns.replace(/\n/g, '<br>');
-            
+
             const aiTime = new Date().toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit'});
             // כאן מתבצעת הזרקת תמונת העוזרת במקום אייקון רובוט גנרי
             const aiAvatarHtml = window.currentFamilaiLogo ? `<img src="${window.currentFamilaiLogo}" class="w-4 h-4 rounded-full object-cover shadow-sm inline-block">` : `<i class="fa-solid fa-robot"></i>`;
-            
+
+            let confirmHtml = '';
+            if (data.pending_action) {
+                const idx = window._familaiPendingActions.length;
+                window._familaiPendingActions.push(data.pending_action);
+                confirmHtml = `
+                    <div class="mt-2 bg-amber-50 border border-amber-200 rounded-xl p-3">
+                        <p class="text-xs font-bold text-amber-700 mb-2"><i class="fa-solid fa-triangle-exclamation mr-1"></i> ${_familaiActionLabel(data.pending_action)}</p>
+                        <div class="flex gap-2">
+                            <button onclick="confirmFamilaiAction(${idx}, this)" class="flex-1 bg-amber-600 text-white text-xs font-bold py-2 rounded-lg hover:bg-amber-700 transition">אישור, בצע</button>
+                            <button onclick="this.closest('div.mt-2').remove()" class="flex-1 bg-slate-100 text-slate-500 text-xs font-bold py-2 rounded-lg hover:bg-slate-200 transition">ביטול</button>
+                        </div>
+                    </div>`;
+            }
+
             container.innerHTML += `
                 <div class="flex w-full justify-start mt-2 fade-in">
                     <div class="max-w-[85%] flex flex-col items-start text-right">
                         <span class="text-[10px] font-bold text-purple-600 mb-1 px-1 flex items-center gap-1">${aiAvatarHtml} FamilAI</span>
-                        <div class="px-4 py-3 rounded-2xl text-sm whitespace-pre-wrap leading-relaxed shadow-sm bg-white border border-purple-100 text-slate-800 rounded-tr-none">
+                        <div class="px-4 py-3 rounded-2xl text-sm whitespace-pre-wrap leading-relaxed shadow-sm bg-white border border-purple-100 text-slate-800 rounded-tr-none w-full">
                             ${formattedAns}
+                            ${confirmHtml}
                         </div>
                         <span class="text-[8px] text-slate-400 mt-1 px-1 opacity-70">${aiTime}</span>
                     </div>
