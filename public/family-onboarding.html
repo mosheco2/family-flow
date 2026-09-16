@@ -272,29 +272,77 @@
 
     <!-- ── VIEW: LOGIN ── -->
     <div id="view-login" class="view active">
-      <div class="screen-title">כניסה לסביבה משפחתית</div>
-      <div class="screen-sub">הזן את פרטי הכניסה שלך</div>
 
-      <form onsubmit="doLogin(event)">
-        <label class="field-label">קוד כניסה</label>
-        <input type="text" id="fo-code" required class="field-input mono" placeholder="לדוגמה: ABCD12" autocomplete="off" autocapitalize="characters">
+      <!-- ── כניסה עם טלפון + OTP (ברירת מחדל, מקביל לשיטת העסקים) ── -->
+      <div id="fo-login-phone-tab">
+        <div id="fo-lp-step-phone">
+          <div class="screen-title">כניסה לסביבה משפחתית</div>
+          <div class="screen-sub">מה מספר הטלפון שלך? נשלח קוד אימות ב-SMS</div>
+          <label class="field-label">מספר טלפון</label>
+          <input type="tel" id="fo-lp-phone" class="field-input ltr" placeholder="050-0000000" autocomplete="tel" inputmode="tel">
+          <button class="btn-primary" onclick="foLoginSendOtp()">
+            <span id="fo-lp-send-text">שליחת קוד</span>
+            <div id="fo-lp-send-loader" class="loader" style="display:none;"></div>
+          </button>
+        </div>
+        <div id="fo-lp-step-otp" class="wiz-step" style="display:none;">
+          <div class="screen-title">קוד האימות</div>
+          <div class="screen-sub" id="fo-lp-otp-sub">הזן את הקוד שנשלח לטלפון שלך</div>
+          <label class="field-label">קוד 6 ספרות</label>
+          <input type="text" id="fo-lp-otp" class="field-input mono" placeholder="000000" maxlength="6" inputmode="numeric" autocomplete="one-time-code">
+          <button class="btn-primary" onclick="foLoginVerifyOtp()">
+            <span id="fo-lp-verify-text">אימות</span>
+            <div id="fo-lp-verify-loader" class="loader" style="display:none;"></div>
+          </button>
+          <button class="link-btn" onclick="foLoginSendOtp()" style="margin-top:10px;">שלח קוד שוב</button>
+        </div>
+        <div id="fo-lp-step-pick" class="link-row" style="display:none;"></div>
+        <div id="fo-lp-step-password" style="display:none;">
+          <div class="screen-title">סיסמה</div>
+          <div class="screen-sub" id="fo-lp-selected-label"></div>
+          <label class="field-label">סיסמה</label>
+          <input type="password" id="fo-lp-password" class="field-input" placeholder="הסיסמה שלך">
+          <button class="btn-primary" onclick="foLoginSubmitPassword()">
+            <span id="fo-lp-pass-text">כניסה</span>
+            <div id="fo-lp-pass-loader" class="loader" style="display:none;"></div>
+          </button>
+        </div>
 
-        <label class="field-label">כינוי משתמש</label>
-        <input type="text" id="fo-nickname" required class="field-input" placeholder="הכינוי שבחרת">
+        <div class="divider"><div class="div-line"></div><div class="div-chip">עוד</div><div class="div-line"></div></div>
+        <div class="link-row">
+          <button class="link-btn primary-link" onclick="window.location.href='/'">← חזרה לעמוד הבחירה</button>
+          <button class="link-btn" onclick="openForgot()">שכחתי קוד סביבה</button>
+          <button class="link-btn" onclick="foSwitchLoginTab('code')">אין לך טלפון רשום? כניסה עם קוד סביבה וסיסמה</button>
+        </div>
+      </div>
 
-        <label class="field-label">סיסמה</label>
-        <input type="password" id="fo-password" required class="field-input" placeholder="הסיסמה שלך">
+      <!-- ── כניסה עם קוד סביבה + סיסמה (השיטה הישנה - נשארת, בעיקר לילדים ללא טלפון) ── -->
+      <div id="fo-login-code-tab" style="display:none;">
+        <div class="screen-title">כניסה לסביבה משפחתית</div>
+        <div class="screen-sub">הזן את פרטי הכניסה שלך</div>
 
-        <button type="submit" class="btn-primary" id="fo-login-btn">
-          <span id="fo-login-text">כניסה</span>
-          <div id="fo-login-loader" class="loader" style="display:none;"></div>
-        </button>
-      </form>
+        <form onsubmit="doLogin(event)">
+          <label class="field-label">קוד כניסה</label>
+          <input type="text" id="fo-code" required class="field-input mono" placeholder="לדוגמה: ABCD12" autocomplete="off" autocapitalize="characters">
 
-      <div class="divider"><div class="div-line"></div><div class="div-chip">עוד</div><div class="div-line"></div></div>
-      <div class="link-row">
-        <button class="link-btn primary-link" onclick="window.location.href='/'">← חזרה לעמוד הבחירה</button>
-        <button class="link-btn" onclick="openForgot()">שכחתי קוד סביבה</button>
+          <label class="field-label">כינוי משתמש</label>
+          <input type="text" id="fo-nickname" required class="field-input" placeholder="הכינוי שבחרת">
+
+          <label class="field-label">סיסמה</label>
+          <input type="password" id="fo-password" required class="field-input" placeholder="הסיסמה שלך">
+
+          <button type="submit" class="btn-primary" id="fo-login-btn">
+            <span id="fo-login-text">כניסה</span>
+            <div id="fo-login-loader" class="loader" style="display:none;"></div>
+          </button>
+        </form>
+
+        <div class="divider"><div class="div-line"></div><div class="div-chip">עוד</div><div class="div-line"></div></div>
+        <div class="link-row">
+          <button class="link-btn primary-link" onclick="window.location.href='/'">← חזרה לעמוד הבחירה</button>
+          <button class="link-btn" onclick="openForgot()">שכחתי קוד סביבה</button>
+          <button class="link-btn" onclick="foSwitchLoginTab('phone')">כניסה עם טלפון (SMS) במקום</button>
+        </div>
       </div>
     </div>
 
@@ -543,6 +591,7 @@
         var data = await res.json();
         if (data.success) {
           localStorage.setItem('ofl_session', JSON.stringify({ user: data.user, group: data.group }));
+          if (data.token) { try { localStorage.setItem('ofl_family_token', data.token); } catch(e) {} }
           window.location.href = data.group.type === 'BUSINESS' ? '/business.html' : '/';
         } else {
           showToast('error', data.error || 'שגיאה בכניסה');
@@ -551,6 +600,104 @@
         showToast('error', 'שגיאה בחיבור לשרת');
       } finally {
         setBtnLoading('login', false);
+      }
+    }
+
+    // ── LOGIN עם טלפון + OTP (מקביל לשיטת הכניסה העסקית) ──
+    var foLoginState = { phone: '', options: [], selected: null };
+
+    function foSwitchLoginTab(tab) {
+      document.getElementById('fo-login-phone-tab').style.display = (tab === 'phone') ? '' : 'none';
+      document.getElementById('fo-login-code-tab').style.display = (tab === 'code') ? '' : 'none';
+    }
+
+    async function foLoginSendOtp() {
+      var phone = document.getElementById('fo-lp-phone').value.trim();
+      if (!phone) { showToast('error', 'נא להזין מספר טלפון'); return; }
+      setBtnLoading('lp-send', true);
+      try {
+        var res = await fetch(API + '/family/login/send-otp', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone: phone })
+        });
+        var data = await res.json();
+        if (!data.success) { showToast('error', data.error || 'שגיאה בשליחת הקוד'); return; }
+        foLoginState.phone = phone;
+        document.getElementById('fo-lp-otp-sub').textContent = 'הקוד נשלח למספר ' + phone;
+        document.getElementById('fo-lp-step-phone').style.display = 'none';
+        document.getElementById('fo-lp-step-otp').style.display = '';
+        document.getElementById('fo-lp-otp').value = '';
+        document.getElementById('fo-lp-otp').focus();
+      } catch(err) {
+        showToast('error', 'שגיאה בחיבור לשרת');
+      } finally {
+        setBtnLoading('lp-send', false);
+      }
+    }
+
+    async function foLoginVerifyOtp() {
+      var code = document.getElementById('fo-lp-otp').value.trim();
+      if (!code) { showToast('error', 'נא להזין את הקוד שהתקבל'); return; }
+      setBtnLoading('lp-verify', true);
+      try {
+        var res = await fetch(API + '/family/login/verify-otp', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone: foLoginState.phone, code: code })
+        });
+        var data = await res.json();
+        if (!data.success) { showToast('error', data.error || 'קוד שגוי'); return; }
+        foLoginState.options = data.options || [];
+        document.getElementById('fo-lp-step-otp').style.display = 'none';
+        if (foLoginState.options.length === 1) {
+          foLoginSelectOption(foLoginState.options[0]);
+        } else {
+          var pickEl = document.getElementById('fo-lp-step-pick');
+          pickEl.innerHTML = foLoginState.options.map(function(o, i) {
+            return '<button type="button" class="link-btn" onclick="foLoginSelectOptionByIndex(' + i + ')" style="display:block;width:100%;text-align:right;">' +
+              '<b>' + o.nickname + '</b> · ' + o.group_name + '</button>';
+          }).join('');
+          pickEl.style.display = '';
+        }
+      } catch(err) {
+        showToast('error', 'שגיאה בחיבור לשרת');
+      } finally {
+        setBtnLoading('lp-verify', false);
+      }
+    }
+
+    function foLoginSelectOptionByIndex(i) { foLoginSelectOption(foLoginState.options[i]); }
+
+    function foLoginSelectOption(opt) {
+      foLoginState.selected = opt;
+      document.getElementById('fo-lp-step-pick').style.display = 'none';
+      document.getElementById('fo-lp-selected-label').textContent = opt.nickname + ' · ' + opt.group_name;
+      document.getElementById('fo-lp-step-password').style.display = '';
+      document.getElementById('fo-lp-password').value = '';
+      document.getElementById('fo-lp-password').focus();
+    }
+
+    async function foLoginSubmitPassword() {
+      var opt = foLoginState.selected;
+      var password = document.getElementById('fo-lp-password').value;
+      if (!opt || !password) { showToast('error', 'נא להזין סיסמה'); return; }
+      setBtnLoading('lp-pass', true);
+      try {
+        var res = await fetch(API + '/family/login/password', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ groupId: opt.group_id, userId: opt.user_id, password: password })
+        });
+        var data = await res.json();
+        if (data.success) {
+          localStorage.setItem('ofl_session', JSON.stringify({ user: data.user, group: data.group }));
+          if (data.token) { try { localStorage.setItem('ofl_family_token', data.token); } catch(e) {} }
+          window.location.href = data.group.type === 'BUSINESS' ? '/business.html' : '/';
+        } else {
+          showToast('error', data.error || 'שגיאה בכניסה');
+        }
+      } catch(err) {
+        showToast('error', 'שגיאה בחיבור לשרת');
+      } finally {
+        setBtnLoading('lp-pass', false);
       }
     }
 
