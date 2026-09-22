@@ -959,6 +959,8 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
      try { await client.query(`CREATE TABLE IF NOT EXISTS store_promotions (id SERIAL PRIMARY KEY, group_id INT, title VARCHAR(100), type VARCHAR(20), details JSONB, start_date TIMESTAMP, end_date TIMESTAMP, is_active BOOLEAN DEFAULT TRUE)`); } catch(e) {}
       try { await client.query(`CREATE TABLE IF NOT EXISTS delivery_zones (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, name VARCHAR(100) NOT NULL, min_order DECIMAL(10,2) DEFAULT 0, delivery_fee DECIMAL(10,2) DEFAULT 0, sort_order INT DEFAULT 0, created_at TIMESTAMP DEFAULT NOW())`); } catch(e) {}
       try { await client.query(`CREATE TABLE IF NOT EXISTS business_gallery (id SERIAL PRIMARY KEY, group_id INT NOT NULL, image_url TEXT NOT NULL, caption TEXT, sort_order INT DEFAULT 0, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}
+      // נושא/תגית חופשית לתמונה, לסינון בעמוד הגלריה הציבורי (נפרד מ-caption הישן)
+      try { await client.query(`ALTER TABLE business_gallery ADD COLUMN IF NOT EXISTS tag VARCHAR(60)`); } catch(e) {}
       try { await client.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS gallery_enabled BOOLEAN DEFAULT FALSE`); } catch(e) {}
       try { await client.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS template_id VARCHAR(50) DEFAULT 'classic'`); } catch(e) {}
       try { await client.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS accent_color VARCHAR(20) DEFAULT '#e63946'`); } catch(e) {}
@@ -13518,6 +13520,7 @@ app.get('/api/storefront/:code', async (req, res) => {
         try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS site_mode VARCHAR(20) DEFAULT 'shop'`); } catch(_) {}
         try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS gallery_enabled BOOLEAN DEFAULT FALSE`); } catch(_) {}
         try { await pool.query(`CREATE TABLE IF NOT EXISTS business_gallery (id SERIAL PRIMARY KEY, group_id INT NOT NULL, image_url TEXT NOT NULL, caption TEXT, sort_order INT DEFAULT 0, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(_) {}
+        try { await pool.query(`ALTER TABLE business_gallery ADD COLUMN IF NOT EXISTS tag VARCHAR(60)`); } catch(_) {}
         try { await pool.query(`CREATE TABLE IF NOT EXISTS branding_content (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, section_type VARCHAR(50) NOT NULL, sort_order INT DEFAULT 0, data JSONB NOT NULL DEFAULT '{}', created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW())`); } catch(_) {}
         const codeOrAlias = req.params.code;
         
@@ -13901,10 +13904,10 @@ app.get('/api/store/gallery/:groupId', async (req, res) => {
 
 app.post('/api/store/gallery/:groupId', async (req, res) => {
     try {
-        const { image_url, caption } = req.body;
+        const { image_url, caption, tag } = req.body;
         const count = await pool.query('SELECT COUNT(*) FROM business_gallery WHERE group_id=$1', [req.params.groupId]);
         if (parseInt(count.rows[0].count) >= 12) return res.status(400).json({ error: 'מקסימום 12 תמונות בגלריה' });
-        const result = await pool.query('INSERT INTO business_gallery (group_id, image_url, caption) VALUES ($1, $2, $3) RETURNING *', [req.params.groupId, image_url, caption || null]);
+        const result = await pool.query('INSERT INTO business_gallery (group_id, image_url, caption, tag) VALUES ($1, $2, $3, $4) RETURNING *', [req.params.groupId, image_url, caption || null, (tag || '').trim().slice(0, 60) || null]);
         res.json({ success: true, image: result.rows[0] });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });

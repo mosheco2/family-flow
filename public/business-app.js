@@ -2657,7 +2657,7 @@ function switchTab(t) {
             }
         }
     }
-    ['feed','timeclock','shifts','calendar','shop','pantry','equipment','sales','pos','foodcost','customers','bank','cashflow','budget','forecast','tasks','deliveries','academy','community','members','surveys','settings','role-dashboard','beauty_calendar','beauty_clients','beauty_inventory','beauty_commissions','beauty_services','beauty_subscriptions','beauty_rfq','beauty_practitioners','logistics_orders','logistics_drivers','logistics_vehicles','logistics_pricing','logistics_cod','logistics_rfq','logistics_routes','logistics_tracking','logistics_reports','logistics_customers','logistics_invoices','reviews','cases','timelog','content','leads','documents','biz-ads','whatsapp-alerts','menu_templates'].forEach(x => {
+    ['feed','timeclock','shifts','calendar','shop','pantry','equipment','sales','pos','foodcost','customers','bank','cashflow','budget','forecast','tasks','deliveries','academy','community','members','surveys','settings','role-dashboard','beauty_calendar','beauty_clients','beauty_inventory','beauty_commissions','beauty_services','beauty_subscriptions','beauty_rfq','beauty_practitioners','logistics_orders','logistics_drivers','logistics_vehicles','logistics_pricing','logistics_cod','logistics_rfq','logistics_routes','logistics_tracking','logistics_reports','logistics_customers','logistics_invoices','reviews','cases','timelog','content','leads','documents','biz-ads','whatsapp-alerts','menu_templates','gallery_mgmt'].forEach(x => {
         const el = getEl(`content-${x}`); if(el) el.classList.add('hidden');
         const btn = getEl(`tab-${x}`); if(btn) btn.classList.remove('tab-active');
     });
@@ -2692,6 +2692,7 @@ function switchTab(t) {
     if (t === 'feed') try { renderDashboard(); } catch(e) {}
     if (t === 'cashflow') { try { renderCashflow(); } catch(e) {} try { fetchCommissionSummary(); } catch(e) {} try { window.switchCfSubTab('cashflow'); } catch(e) {} }
     if (t === 'community') try { loadBizCommunities(); } catch(e) {}
+    if (t === 'gallery_mgmt') try { window.loadGalleryMgmtPanel(); } catch(e) {}
     if (t === 'pantry') try { renderPantry(); } catch(e) {}
     if (t === 'forecast') try { renderForecast(); } catch(e) {}
     if (t === 'timeclock') { try { if (currentUser && currentUser.role === 'ADMIN') fetchTimeclockReport(); checkTimeclockStatus(); } catch(e) {} }
@@ -3526,6 +3527,7 @@ const ALL_TABS = [
     { id: 'logistics_customers', name: 'מזמינים ונמענים 🤝' },
     { id: 'logistics_invoices',  name: 'חשבוניות 🧾' },
     { id: 'biz-ads',   name: 'פרסום FLOW 📢' },
+    { id: 'gallery_mgmt', name: 'ניהול גלריה 🖼️' },
     { id: 'cases',     name: 'תיקים 📁' },
     { id: 'timelog',   name: 'שעות עבודה ⏱️' },
     { id: 'content',   name: 'תוכן האתר 🌐' },
@@ -4995,7 +4997,7 @@ const GNAV_GROUPS = {
     sales:     ['pos','sales','customers','cases','leads','deliveries','reviews','menu_templates','beauty_services','beauty_subscriptions','beauty_clients','beauty_rfq'],
     inventory: ['shop','pantry','equipment','foodcost','beauty_inventory'],
     finance:   ['bank','cashflow','budget','timelog','forecast','beauty_commissions','reports'],
-    more:      ['community','surveys','content','documents','biz-ads','whatsapp-alerts','settings']
+    more:      ['community','surveys','content','documents','biz-ads','whatsapp-alerts','gallery_mgmt','settings']
 };
 
 // שמירת האב המקורי של כל dropdown לצורך החזרה
@@ -24406,6 +24408,11 @@ function _syncGalleryToggle(enabled) {
     if (track) track.style.background = enabled ? '#7c3aed' : '';
     if (thumb) thumb.style.transform = enabled ? 'translateX(-1.25rem)' : '';
     if (label) label.textContent = enabled ? 'פעיל' : 'כבוי';
+    // סנכרון תג ה-toggle החדש בעמוד "ניהול גלריה" הייעודי
+    const gmTrack = document.getElementById('gm-toggle-track');
+    const gmThumb = document.getElementById('gm-toggle-thumb');
+    if (gmTrack) gmTrack.style.background = enabled ? '#7c3aed' : '';
+    if (gmThumb) gmThumb.style.transform = enabled ? 'translateX(-1.5rem)' : '';
 }
 
 window.toggleGalleryEnabled = async function() {
@@ -24469,8 +24476,62 @@ window.deleteGalleryImage = async function(id) {
     const gid = currentGroup?.id || currentGroupId;
     const r = await fetch(`${API}/store/gallery/${gid}/${id}`, { method: 'DELETE' });
     const d = await r.json();
-    if (d.success) window.loadBusinessGallery();
+    if (d.success) {
+        if (document.getElementById('biz-gallery-grid')) window.loadBusinessGallery();
+        if (document.getElementById('gm-gallery-grid')) window.loadGalleryMgmtPanel();
+    }
     else showToast('error', 'שגיאה במחיקה');
+};
+
+// ─── עמוד "ניהול גלריה" הייעודי (טאב עצמאי, נגיש לכל סוגי העסקים) ─────────────
+window.loadGalleryMgmtPanel = async function() {
+    const grid = document.getElementById('gm-gallery-grid');
+    if (!grid) return;
+    const gid = currentGroup?.id || currentGroupId;
+    grid.innerHTML = '<p class="col-span-3 text-center text-slate-400 text-xs py-4"><i class="fa-solid fa-spinner fa-spin mr-1"></i> טוען...</p>';
+    try {
+        const settingsR = await fetch(`${API}/store/settings/${gid}`).then(r=>r.json()).catch(()=>({}));
+        if (settingsR.success && settingsR.settings) _syncGalleryToggle(settingsR.settings.gallery_enabled);
+        const r = await fetch(`${API}/store/gallery/${gid}`);
+        const d = await r.json();
+        if (!d.success || !d.images || !d.images.length) {
+            grid.innerHTML = '<p class="col-span-3 text-center text-slate-400 text-xs py-4">אין תמונות בגלריה עדיין.</p>';
+            return;
+        }
+        grid.innerHTML = d.images.map(img => `
+            <div class="relative group rounded-xl overflow-hidden border border-slate-200 shadow-sm" style="aspect-ratio:1">
+                <img src="${img.image_url}" class="w-full h-full object-cover">
+                ${img.tag ? `<div class="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-[10px] px-2 py-1 truncate">${safeStr(img.tag)}</div>` : ''}
+                <button onclick="window.deleteGalleryImage(${img.id})" class="absolute top-1 left-1 bg-red-500 text-white w-6 h-6 rounded-full text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 active:opacity-100 transition shadow"><i class="fa-solid fa-trash"></i></button>
+            </div>`).join('');
+    } catch(e) { grid.innerHTML = '<p class="col-span-3 text-center text-red-400 text-xs py-4">שגיאה בטעינה.</p>'; }
+};
+
+window.uploadGalleryImagesMgmt = async function(files) {
+    if (!files || !files.length) return;
+    const gid = currentGroup?.id || currentGroupId;
+    const tag = (document.getElementById('gm-upload-tag')?.value || '').trim();
+    const status = document.getElementById('gm-upload-status');
+    const existing = await fetch(`${API}/store/gallery/${gid}`).then(r=>r.json()).catch(()=>({images:[]}));
+    const count = existing.images ? existing.images.length : 0;
+    const allowed = Math.min(files.length, 12 - count);
+    if (allowed <= 0) { showToast('error', 'הגלריה מלאה (מקסימום 12 תמונות)'); return; }
+    if (status) { status.textContent = `מעלה ${allowed} תמונות...`; status.classList.remove('hidden'); }
+    let uploaded = 0;
+    for (let i = 0; i < allowed; i++) {
+        const file = files[i];
+        const base64 = await new Promise(resolve => {
+            const reader = new FileReader();
+            reader.onload = e => resolve(e.target.result);
+            reader.readAsDataURL(file);
+        });
+        const r = await fetch(`${API}/store/gallery/${gid}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ image_url: base64, tag }) });
+        const d = await r.json();
+        if (d.success) uploaded++;
+    }
+    if (status) { status.textContent = `הועלו ${uploaded} תמונות בהצלחה ✅`; setTimeout(() => status.classList.add('hidden'), 3000); }
+    document.getElementById('gm-file-input').value = '';
+    window.loadGalleryMgmtPanel();
 };
 
 // עדכון טאב נבחר אוטומטית ברקע

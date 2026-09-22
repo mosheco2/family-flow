@@ -1363,6 +1363,29 @@
             window._isBrandingActive = true;
             // הצג תוכן תדמית דינמי
             _renderBrandingContent(data);
+
+            // אין מוצרים למכירה במצב תדמית - הצג את תמונות הגלריה ישירות בדף הבית (לא רק כפתור), ניתנות ללחיצה/הגדלה
+            const hasProducts = Array.isArray(data.catalog) && data.catalog.length > 0;
+            if (!hasProducts && typeof window._loadGalleryImages === 'function') {
+                window._loadGalleryImages().then(images => {
+                    if (!images.length) return;
+                    const section = document.createElement('div');
+                    section.id = 'branding-inline-gallery';
+                    section.style.cssText = 'max-width:900px;margin:0 auto;padding:0 20px 32px';
+                    section.innerHTML = `
+                        <h2 style="font-size:1.4rem;font-weight:900;margin-bottom:16px;color:var(--accent,#4f46e5)">גלריה</h2>
+                        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px">
+                            ${images.map((img, i) => `
+                                <div onclick="window.openGalleryLightbox(${i})" style="aspect-ratio:1;border-radius:12px;overflow:hidden;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,0.08);position:relative">
+                                    <img src="${img.image_url.replace(/"/g,'&quot;')}" style="width:100%;height:100%;object-fit:cover;display:block" loading="lazy">
+                                </div>`).join('')}
+                        </div>
+                        ${images.length > 4 ? `<button onclick="window.openGalleryPage()" style="margin-top:14px;width:100%;background:#fff;border:1px solid var(--accent,#4f46e5);color:var(--accent,#4f46e5);border-radius:1rem;padding:0.7rem;font-size:0.85rem;font-weight:700;cursor:pointer">כל התמונות והסינון לפי נושא</button>` : ''}
+                    `;
+                    const hero = document.getElementById('hero') || document.querySelector('header') || getEl('store-app');
+                    if (hero) hero.after(section);
+                });
+            }
         }
 
         // ===== רינדור תוכן תדמית דינמי =====
@@ -1704,23 +1727,62 @@
             }
             if(showContactRow) getEl('store-contact-info').classList.remove('hidden');
 
-            if (storeData.groupId && storeData.settings && storeData.settings.gallery_enabled) {
-                fetch(`${API}/public/gallery/${storeData.groupId}`)
+            // שליפת תמונות הגלריה - משותפת גם לכפתור מצב-חנות וגם לתצוגה המוטמעת במצב תדמית
+            window._loadGalleryImages = function() {
+                if (!storeData.groupId || !storeData.settings || !storeData.settings.gallery_enabled) return Promise.resolve([]);
+                return fetch(`${API}/public/gallery/${storeData.groupId}`)
                     .then(r => r.json())
                     .then(data => {
-                        if (!data.success || !data.images || data.images.length === 0) return;
-                        window._galleryImages = data.images;
-                        const btn = document.createElement('div');
-                        btn.className = 'px-4 pb-3';
-                        btn.innerHTML = `<button onclick="window.openGalleryPage()" style="width:100%;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:white;border:none;border-radius:1rem;padding:0.85rem 1.25rem;font-size:0.9rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:0.5rem;box-shadow:0 4px 12px rgba(99,102,241,0.3);"><i class="fa-solid fa-images"></i> גלריית תמונות</button>`;
-                        const catalogSection = getEl('categories-container') || getEl('store-catalog-section');
-                        if (catalogSection && catalogSection.parentNode) {
-                            catalogSection.parentNode.insertBefore(btn, catalogSection);
-                        } else {
-                            document.querySelector('#store-main-content, main, body').appendChild(btn);
-                        }
-                    }).catch(() => {});
+                        const images = (data.success && data.images) ? data.images : [];
+                        window._galleryImages = images;
+                        return images;
+                    }).catch(() => []);
+            };
+
+            // כפתור "גלריית תמונות" - רק במצב חנות רגיל (במצב תדמית התמונות מוצגות ישירות בדף הבית, ראו _enableGenericBrandingMode)
+            if (window._storeSiteMode !== 'branding') {
+                window._loadGalleryImages().then(images => {
+                    if (!images.length) return;
+                    const btn = document.createElement('div');
+                    btn.className = 'px-4 pb-3';
+                    btn.innerHTML = `<button onclick="window.openGalleryPage()" style="width:100%;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:white;border:none;border-radius:1rem;padding:0.85rem 1.25rem;font-size:0.9rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:0.5rem;box-shadow:0 4px 12px rgba(99,102,241,0.3);"><i class="fa-solid fa-images"></i> גלריית תמונות</button>`;
+                    // מוכנס לפני קטלוג המוצרים עצמו (catalog-container), לא לתוך glass-header - שם הוא נשאר גלוי תמיד, גם במצבים שבהם אזורי header אחרים מוסתרים
+                    const catalogSection = getEl('catalog-container');
+                    if (catalogSection && catalogSection.parentNode) {
+                        catalogSection.parentNode.insertBefore(btn, catalogSection);
+                    } else {
+                        document.querySelector('#store-main-content, main, body').appendChild(btn);
+                    }
+                });
             }
+
+            window._galleryActiveTag = null;
+
+            window._renderGalleryGrid = function() {
+                const grid = document.getElementById('gallery-full-page-grid');
+                if (!grid) return;
+                const images = window._galleryImages || [];
+                const activeTag = window._galleryActiveTag;
+                const filtered = activeTag ? images.filter(img => (img.tag || '') === activeTag) : images;
+                grid.innerHTML = filtered.map((img) => {
+                    const realIndex = images.indexOf(img);
+                    return `
+                        <div onclick="window.openGalleryLightbox(${realIndex})" style="aspect-ratio:1;border-radius:0.6rem;overflow:hidden;cursor:pointer;background:#e2e8f0;position:relative;transition:transform 0.18s ease,box-shadow 0.18s ease;" onmouseenter="this.style.transform='scale(1.04)';this.style.boxShadow='0 4px 16px rgba(0,0,0,0.18)'" onmouseleave="this.style.transform='';this.style.boxShadow=''">
+                            <img src="${img.image_url.replace(/"/g,'&quot;')}" style="width:100%;height:100%;object-fit:cover;display:block;" loading="lazy">
+                            ${img.caption ? `<div style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.52);color:white;font-size:0.6rem;padding:0.25rem 0.4rem;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;">${img.caption.replace(/</g,'&lt;')}</div>` : ''}
+                        </div>`;
+                }).join('') || `<div style="grid-column:1/-1;text-align:center;color:#94a3b8;font-size:0.8rem;padding:2rem 0;">אין תמונות בנושא זה</div>`;
+            };
+
+            window._setGalleryTagFilter = function(tag, btnEl) {
+                window._galleryActiveTag = tag || null;
+                document.querySelectorAll('.gallery-tag-chip').forEach(c => {
+                    const isActive = c === btnEl;
+                    c.style.background = isActive ? 'var(--accent,#6366f1)' : '#f1f5f9';
+                    c.style.color = isActive ? '#fff' : '#475569';
+                });
+                window._renderGalleryGrid();
+            };
 
             window.openGalleryPage = function() {
                 const images = window._galleryImages || [];
@@ -1729,6 +1791,8 @@
                 const existing = document.getElementById('gallery-full-page');
                 if (existing) existing.remove();
                 const storeApp = document.getElementById('store-app');
+                window._galleryActiveTag = null;
+                const tags = [...new Set(images.map(img => (img.tag || '').trim()).filter(Boolean))];
                 const page = document.createElement('div');
                 page.id = 'gallery-full-page';
                 page.style.cssText = 'position:absolute;inset:0;background:#f8fafc;z-index:500;overflow-y:auto;opacity:0;transition:opacity 0.25s ease;';
@@ -1740,13 +1804,12 @@
                             <div style="font-size:0.72rem;color:#64748b;">${storeName}</div>
                         </div>
                     </div>
-                    <div style="padding:0.75rem;display:grid;grid-template-columns:repeat(3,1fr);gap:0.4rem;">
-                        ${images.map((img, i) => `
-                            <div onclick="window.openGalleryLightbox(${i})" style="aspect-ratio:1;border-radius:0.6rem;overflow:hidden;cursor:pointer;background:#e2e8f0;position:relative;transition:transform 0.18s ease,box-shadow 0.18s ease;" onmouseenter="this.style.transform='scale(1.04)';this.style.boxShadow='0 4px 16px rgba(0,0,0,0.18)'" onmouseleave="this.style.transform='';this.style.boxShadow=''">
-                                <img src="${img.image_url.replace(/"/g,'&quot;')}" style="width:100%;height:100%;object-fit:cover;display:block;" loading="lazy">
-                                ${img.caption ? `<div style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.52);color:white;font-size:0.6rem;padding:0.25rem 0.4rem;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;">${img.caption.replace(/</g,'&lt;')}</div>` : ''}
-                            </div>`).join('')}
-                    </div>`;
+                    ${tags.length ? `
+                    <div style="display:flex;gap:0.4rem;overflow-x:auto;padding:0.75rem 0.75rem 0;">
+                        <button class="gallery-tag-chip" onclick="window._setGalleryTagFilter(null, this)" style="flex-shrink:0;border:none;border-radius:999px;padding:0.4rem 0.9rem;font-size:0.72rem;font-weight:700;cursor:pointer;background:var(--accent,#6366f1);color:#fff;">הכל</button>
+                        ${tags.map(tag => `<button class="gallery-tag-chip" onclick="window._setGalleryTagFilter('${tag.replace(/'/g,"\\'")}', this)" style="flex-shrink:0;border:none;border-radius:999px;padding:0.4rem 0.9rem;font-size:0.72rem;font-weight:700;cursor:pointer;background:#f1f5f9;color:#475569;">${tag.replace(/</g,'&lt;')}</button>`).join('')}
+                    </div>` : ''}
+                    <div id="gallery-full-page-grid" style="padding:0.75rem;display:grid;grid-template-columns:repeat(3,1fr);gap:0.4rem;"></div>`;
                 if (storeApp) {
                     storeApp.style.position = 'relative';
                     storeApp.appendChild(page);
@@ -1754,6 +1817,7 @@
                     page.style.cssText = 'position:fixed;inset:0;background:#f8fafc;z-index:9000;overflow-y:auto;opacity:0;transition:opacity 0.25s ease;';
                     document.body.appendChild(page);
                 }
+                window._renderGalleryGrid();
                 requestAnimationFrame(() => { page.style.opacity = '1'; });
             };
 
