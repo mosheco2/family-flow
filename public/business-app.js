@@ -187,8 +187,26 @@ window.exitImpersonationMode = function() {
     }, 100);
 };
 
+// דיגול לא-חוסם לסביבת דמו (כניסה דרך demo-login.html) - לא דוחס/מזיז תוכן ולא חוסם קליקים,
+// רק מסמן ויזואלית שמדובר בסביבת ניסיון, כדי שלא יתבלבלו עם עסק אמיתי.
+function checkDemoMode() {
+    try {
+        const saved = localStorage.getItem('ofl_session');
+        if (!saved) return;
+        const session = JSON.parse(saved);
+        if (session && session.group && session.group.is_demo_business && !document.getElementById('demo-mode-badge')) {
+            const badge = document.createElement('div');
+            badge.id = 'demo-mode-badge';
+            badge.style.cssText = 'position:fixed;top:6px;left:50%;transform:translateX(-50%);z-index:99998;pointer-events:none;';
+            badge.innerHTML = `<div class="bg-purple-600/90 text-white text-[11px] font-bold px-3 py-1 rounded-full shadow-md flex items-center gap-1.5"><i class="fa-solid fa-flask"></i> סביבת דמו</div>`;
+            document.body.appendChild(badge);
+        }
+    } catch(e) {}
+}
+
 // הפעלת הבדיקה
 checkImpersonationMode();
+checkDemoMode();
 // =======================================================
 window.onload = async () => { 
     // Restore pill hidden state from sessionStorage
