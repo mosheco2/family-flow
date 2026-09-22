@@ -937,6 +937,8 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
       `); } catch(err){}
       // אחוז פחת/בזבוז למרכיב (למשל קילוף/חיתוך) - כמה יותר צריך לרכוש בפועל כדי לקבל את הכמות הנקייה שבמתכון
       try { await client.query(`ALTER TABLE product_ingredients ADD COLUMN IF NOT EXISTS waste_pct DECIMAL(5,2) DEFAULT 0`); } catch(err){}
+      // משקל/נפח ליחידת ספירה (גרם ליח') - מאפשר להמיר בין מתכון שנרשם ב"יח'" לרכישה שנרשמה במשקל/נפח, ולהפך
+      try { await client.query(`ALTER TABLE product_ingredients ADD COLUMN IF NOT EXISTS unit_weight_grams DECIMAL(10,3)`); } catch(err){}
 
       try { await client.query(`CREATE TABLE IF NOT EXISTS store_orders (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, customer_name VARCHAR(100), customer_phone VARCHAR(50), total_amount DECIMAL(10,2), status VARCHAR(20) DEFAULT 'new', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}
       try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS notes TEXT`); } catch(e) {}
@@ -14544,7 +14546,7 @@ app.get('/api/biz/export-report', verifyBiz, async (req, res) => {
                 const ings = ingR.rows.filter(i=>i.catalog_id===item.id);
                 const ingredientsCost = ings.reduce((s,i)=>{
                     if (i.price_per_unit == null) return s;
-                    const conv = convertFoodCostQty(parseFloat(i.quantity)||0, i.unit, i.purchase_unit);
+                    const conv = convertFoodCostQtyWithWeight(parseFloat(i.quantity)||0, i.unit, i.purchase_unit, i.unit_weight_grams);
                     const wastePct = Math.min(parseFloat(i.waste_pct) || 0, 95);
                     const effectiveQty = wastePct > 0 ? conv.value / (1 - wastePct / 100) : conv.value;
                     return s + (parseFloat(i.price_per_unit)||0) * effectiveQty;
@@ -19427,6 +19429,28 @@ function convertFoodCostQty(qty, fromUnit, toUnit) {
     return { value: qty, ok: false };
 }
 
+// המרה חוצת-משפחה (יח' <-> משקל) - רק כשיש נתון ידני "משקל ליחידה" (unitWeightGrams) שהמשתמש הזין,
+// כי אין דרך לגזור את זה אוטומטית (משקל יחידה משתנה לפי המוצר). בלי הנתון הזה - חוזרים להתנהגות הרגילה.
+function convertFoodCostQtyWithWeight(qty, fromUnit, toUnit, unitWeightGrams) {
+    const base = convertFoodCostQty(qty, fromUnit, toUnit);
+    if (base.ok) return base;
+    const w = parseFloat(unitWeightGrams);
+    if (!w || w <= 0) return base;
+    const f = (fromUnit || '').trim();
+    const t = (toUnit || '').trim();
+    // מתכון ב"יח'", רכישה נרשמה במשקל -> המר את הכמות ביח' למשקל (גרם) ואז ליחידת הרכישה
+    if (_FOODCOST_COUNT_UNITS.has(f) && _FOODCOST_WEIGHT_UNITS[t]) {
+        const grams = qty * w;
+        return { value: grams / _FOODCOST_WEIGHT_UNITS[t], ok: true };
+    }
+    // מתכון נרשם במשקל, רכישה נרשמה ב"יח'" -> המר את הכמות למשקל בגרם ואז חלק במשקל ליחידה
+    if (_FOODCOST_WEIGHT_UNITS[f] && _FOODCOST_COUNT_UNITS.has(t)) {
+        const grams = qty * _FOODCOST_WEIGHT_UNITS[f];
+        return { value: grams / w, ok: true };
+    }
+    return base;
+}
+
 app.get('/api/food-cost/:groupId', async (req, res) => {
     try {
         const { groupId } = req.params;
@@ -19462,7 +19486,7 @@ app.get('/api/food-cost/:groupId', async (req, res) => {
                 let noPriceData = false;
                 let unitMismatch = false;
                 if (knownPrice) {
-                    const conv = convertFoodCostQty(parseFloat(ing.quantity), ing.unit, knownPrice.unit);
+                    const conv = convertFoodCostQtyWithWeight(parseFloat(ing.quantity), ing.unit, knownPrice.unit, ing.unit_weight_grams);
                     if (!conv.ok) unitMismatch = true; // יחידות לא תואמות ולא ניתנות להמרה - העלות הבאה עלולה להיות שגויה
                     // אחוז פחת (קילוף/חיתוך וכו') - כמה יותר צריך לרכוש בפועל כדי לקבל את הכמות הנקייה במתכון
                     const wastePct = Math.min(parseFloat(ing.waste_pct) || 0, 95);
@@ -19530,8 +19554,8 @@ app.post('/api/food-cost/recipe/:catalogId', async (req, res) => {
             const ingName = ing.ingredient_name || ing.name;
             if (!ingName) continue;
             await dbClient.query(
-                'INSERT INTO product_ingredients (catalog_id, ingredient_name, quantity, unit, waste_pct) VALUES ($1, $2, $3, $4, $5)',
-                [catalogId, ingName, parseFloat(ing.quantity) || 0, ing.unit || "יח'", parseFloat(ing.waste_pct) || 0]
+                'INSERT INTO product_ingredients (catalog_id, ingredient_name, quantity, unit, waste_pct, unit_weight_grams) VALUES ($1, $2, $3, $4, $5, $6)',
+                [catalogId, ingName, parseFloat(ing.quantity) || 0, ing.unit || "יח'", parseFloat(ing.waste_pct) || 0, ing.unit_weight_grams ? parseFloat(ing.unit_weight_grams) : null]
             );
         }
         
