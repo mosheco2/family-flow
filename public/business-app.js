@@ -1515,7 +1515,15 @@ window.injectBusinessUI = function() {
                             </div>
                             <p class="text-xs text-slate-500 mb-1">כשהגלריה פעילה, כפתור "גלריית תמונות" יופיע בדף החנות הציבורי שלך. עד 12 תמונות.</p>
                             <p class="text-[11px] text-purple-400 mb-4">במצב תדמית (ללא מוצרים למכירה) הגלריה תוצג אוטומטית בדף הבית. במצב חנות רגיל - תוצג רק כשמופעלת.</p>
-                            <div id="biz-gallery-grid" class="grid grid-cols-3 gap-3 mb-4"></div>
+                            <p class="text-[11px] text-slate-400 mb-2">לחץ על תמונה כדי לסמן אותה, ואז שייך את התמונות המסומנות לנושא (לצורך סינון בחנות הציבורית).</p>
+                            <div id="biz-gallery-grid" class="grid grid-cols-3 gap-3 mb-3"></div>
+                            <div id="gallery-selection-bar" class="hidden bg-purple-100 text-purple-700 text-xs font-bold rounded-xl p-2.5 mb-3 flex items-center justify-between gap-2">
+                                <span id="gallery-selection-count"></span>
+                                <div class="flex gap-2 shrink-0">
+                                    <button onclick="window.assignTagToSelected()" class="bg-purple-600 text-white px-3 py-1.5 rounded-lg">שייך לנושא שבשדה למטה</button>
+                                    <button onclick="window.clearGallerySelection()" class="text-purple-500 px-2">בטל סימון</button>
+                                </div>
+                            </div>
                             <input type="text" id="gallery-upload-tag" class="modern-input py-2 text-sm mb-2" placeholder="נושא/תגית לתמונות הבאות (למשל: עיצוב שיער, לפני-אחרי) - אופציונלי">
                             <input type="file" id="gallery-file-input" accept="image/*" multiple class="hidden" onchange="window.uploadGalleryImages(this.files)">
                             <button onclick="document.getElementById('gallery-file-input').click()" class="w-full bg-purple-600 text-white py-3 rounded-xl font-bold hover:bg-purple-700 transition flex items-center justify-center gap-2"><i class="fa-solid fa-plus"></i> הוסף תמונות</button>
@@ -24417,10 +24425,13 @@ window.toggleGalleryEnabled = async function() {
     await fetch(`${API}/store/gallery/${gid}/toggle`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ enabled: newVal }) });
 };
 
+window._gallerySelected = new Set();
+
 window.loadBusinessGallery = async function() {
     const grid = document.getElementById('biz-gallery-grid');
     if (!grid) return;
     const gid = currentGroup?.id || currentGroupId;
+    window._gallerySelected = new Set();
     grid.innerHTML = '<p class="col-span-3 text-center text-slate-400 text-xs py-4"><i class="fa-solid fa-spinner fa-spin mr-1"></i> טוען...</p>';
     try {
         const settingsR = await fetch(`${API}/store/settings/${gid}`).then(r=>r.json()).catch(()=>({}));
@@ -24429,15 +24440,66 @@ window.loadBusinessGallery = async function() {
         const d = await r.json();
         if (!d.success || !d.images || !d.images.length) {
             grid.innerHTML = '<p class="col-span-3 text-center text-slate-400 text-xs py-4">אין תמונות בגלריה עדיין.</p>';
+            window._renderGallerySelectionBar();
             return;
         }
         grid.innerHTML = d.images.map(img => `
-            <div class="relative group rounded-xl overflow-hidden border border-slate-200 shadow-sm" style="aspect-ratio:1">
+            <div class="relative group rounded-xl overflow-hidden border-2 border-slate-200 shadow-sm cursor-pointer transition" style="aspect-ratio:1" data-gallery-id="${img.id}" onclick="window._toggleGallerySelect(${img.id})">
                 <img src="${img.image_url}" class="w-full h-full object-cover">
                 ${img.tag ? `<div class="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-[10px] px-2 py-1 truncate">${safeStr(img.tag)}</div>` : ''}
-                <button onclick="window.deleteGalleryImage(${img.id})" class="absolute top-1 left-1 bg-red-500 text-white w-6 h-6 rounded-full text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 active:opacity-100 transition shadow"><i class="fa-solid fa-trash"></i></button>
+                <div class="gallery-select-check absolute top-1 right-1 w-5 h-5 rounded-full border-2 border-white bg-white/80 items-center justify-center shadow hidden"><i class="fa-solid fa-check text-purple-600 text-[10px]"></i></div>
+                <button onclick="event.stopPropagation();window.deleteGalleryImage(${img.id})" class="absolute top-1 left-1 bg-red-500 text-white w-6 h-6 rounded-full text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 active:opacity-100 transition shadow"><i class="fa-solid fa-trash"></i></button>
             </div>`).join('');
+        window._renderGallerySelectionBar();
     } catch(e) { grid.innerHTML = '<p class="col-span-3 text-center text-red-400 text-xs py-4">שגיאה בטעינה.</p>'; }
+};
+
+window._toggleGallerySelect = function(id) {
+    if (window._gallerySelected.has(id)) window._gallerySelected.delete(id);
+    else window._gallerySelected.add(id);
+    const card = document.querySelector(`[data-gallery-id="${id}"]`);
+    if (card) {
+        const check = card.querySelector('.gallery-select-check');
+        const selected = window._gallerySelected.has(id);
+        card.classList.toggle('border-purple-500', selected);
+        card.classList.toggle('border-slate-200', !selected);
+        if (check) { check.classList.toggle('hidden', !selected); check.classList.toggle('flex', selected); }
+    }
+    window._renderGallerySelectionBar();
+};
+
+window.clearGallerySelection = function() {
+    window._gallerySelected = new Set();
+    document.querySelectorAll('[data-gallery-id]').forEach(card => {
+        card.classList.add('border-slate-200'); card.classList.remove('border-purple-500');
+        const check = card.querySelector('.gallery-select-check');
+        if (check) { check.classList.add('hidden'); check.classList.remove('flex'); }
+    });
+    window._renderGallerySelectionBar();
+};
+
+window._renderGallerySelectionBar = function() {
+    const bar = document.getElementById('gallery-selection-bar');
+    const countEl = document.getElementById('gallery-selection-count');
+    if (!bar || !countEl) return;
+    const n = window._gallerySelected.size;
+    bar.classList.toggle('hidden', n === 0);
+    countEl.textContent = `${n} תמונות מסומנות`;
+};
+
+window.assignTagToSelected = async function() {
+    const gid = currentGroup?.id || currentGroupId;
+    const tag = (document.getElementById('gallery-upload-tag')?.value || '').trim();
+    const ids = [...window._gallerySelected];
+    if (!ids.length) return;
+    if (!tag) return showToast('error', 'הכנס נושא/תגית בשדה למטה לפני השיוך');
+    try {
+        await Promise.all(ids.map(id => fetch(`${API}/store/gallery/${gid}/${id}/tag`, {
+            method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tag })
+        })));
+        showToast('success', `${ids.length} תמונות שויכו לנושא "${tag}"`);
+        window.loadBusinessGallery();
+    } catch(e) { showToast('error', 'שגיאה בשיוך התמונות'); }
 };
 
 window.uploadGalleryImages = async function(files) {

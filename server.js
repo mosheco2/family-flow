@@ -13919,6 +13919,19 @@ app.delete('/api/store/gallery/:groupId/:imageId', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// שיוך/עדכון נושא-תגית לתמונה קיימת בגלריה - מאפשר לתייג תמונות שכבר הועלו (לא רק בהעלאה)
+app.put('/api/store/gallery/:groupId/:imageId/tag', async (req, res) => {
+    try {
+        const { tag } = req.body;
+        const r = await pool.query(
+            'UPDATE business_gallery SET tag=$1 WHERE id=$2 AND group_id=$3 RETURNING *',
+            [(tag || '').trim().slice(0, 60) || null, req.params.imageId, req.params.groupId]
+        );
+        if (!r.rows.length) return res.status(404).json({ success: false, error: 'תמונה לא נמצאה' });
+        res.json({ success: true, image: r.rows[0] });
+    } catch(e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
 app.put('/api/store/gallery/:groupId/reorder', async (req, res) => {
     try {
         const { order } = req.body;
