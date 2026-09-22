@@ -6540,6 +6540,25 @@ async function backfillMemberBusinessLinks() {
     return linked;
 }
 
+// מילוי רטרואקטיבי: יוצר משתמש מקושר (users) לכל מטפלת יופי שנוצרה לפני שהתווסף חיבור אוטומטי,
+// כדי שגם היא תופיע ברשימת "עובדים" הניתנים לשיוך משימות/אתגרים
+async function backfillPractitionerUsers() {
+    const rows = await pool.query(`SELECT id, business_group_id, display_name FROM beauty_practitioners WHERE user_id IS NULL`);
+    let linked = 0;
+    for (const row of rows.rows) {
+        try {
+            const userRes = await pool.query(
+                `INSERT INTO users (group_id, nickname, role, status) VALUES ($1,$2,'MEMBER','active') RETURNING id`,
+                [row.business_group_id, row.display_name]
+            );
+            await pool.query('UPDATE beauty_practitioners SET user_id=$1 WHERE id=$2', [userRes.rows[0].id, row.id]);
+            linked++;
+        } catch(e2) { console.error('[backfillPractitionerUsers] row', row.id, e2.message); }
+    }
+    console.log(`[backfill] retroactively linked ${linked} beauty practitioners to user accounts.`);
+    return linked;
+}
+
 async function logAudit(actionType, targetType, targetId, targetName, details = {}) {
     try {
         await pool.query(
@@ -10781,14 +10800,21 @@ app.post('/api/tasks/update', async (req, res) => {
 
 app.post('/api/academy/request-challenge', async (req, res) => {
     try {
-        const { userId, bundleId, groupId } = req.body;
+        const { userId, bundleId } = req.body;
         // אם bundle_id נשלח — הקצה אותו ספציפית, אחרת הגרל מהמאגר
         let targetBundleId = bundleId;
         if (!targetBundleId) {
-            // מצא לומדה שהמשתמש עדיין לא השלים
+            // group_id נשלף מהמשתמש עצמו בשרת - לא סומכים על groupId שנשלח מהלקוח
+            const userRes = await pool.query('SELECT group_id FROM users WHERE id=$1', [userId]);
+            if (!userRes.rows.length) return res.status(404).json({ success: false, error: 'משתמש לא נמצא' });
+            const userGroupId = String(userRes.rows[0].group_id);
+            // מצא לומדה שהמשתמש עדיין לא השלים - רק מתוך לומדות של העסק/משפחה הזו או תוכן מערכת גלובלי
             const done = await pool.query(`SELECT bundle_id FROM user_assignments WHERE user_id=$1 AND status IN ('completed','assigned')`, [userId]);
             const doneIds = done.rows.map(r => r.bundle_id);
-            const allBundles = await pool.query('SELECT id FROM quiz_bundles ORDER BY RANDOM() LIMIT 20');
+            const allBundles = await pool.query(
+                `SELECT id FROM quiz_bundles WHERE created_by = $1 OR created_by = 'SYSTEM' ORDER BY RANDOM() LIMIT 20`,
+                [userGroupId]
+            );
             const available = allBundles.rows.filter(r => !doneIds.includes(r.id));
             if (available.length === 0) return res.json({ success: false, error: 'כל הלומדות כבר הוקצו!' });
             targetBundleId = available[0].id;
@@ -26449,8 +26475,11 @@ app.get('/api/beauty/:bizId/practitioners/public', async (req, res) => {
 app.get('/api/beauty/:bizId/practitioners', verifyBiz, async (req, res) => {
     try {
         if (parseInt(req.params.bizId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
+        // all=1 מחזיר גם מטפלות לא פעילות - נדרש כדי שהלוח יבנה עמודה גם עבור תורים היסטוריים
+        // ששויכו למטפלת שהושבתה מאז, במקום שהם ייפלו בטעות ל"ללא שיוך"
+        const activeFilter = req.query.all === '1' ? '' : 'AND is_active=TRUE';
         const r = await pool.query(
-            'SELECT * FROM beauty_practitioners WHERE business_group_id=$1 AND is_active=TRUE ORDER BY display_name',
+            `SELECT * FROM beauty_practitioners WHERE business_group_id=$1 ${activeFilter} ORDER BY display_name`,
             [req.params.bizId]
         );
         res.json(r.rows);
@@ -26458,19 +26487,30 @@ app.get('/api/beauty/:bizId/practitioners', verifyBiz, async (req, res) => {
 });
 
 app.post('/api/beauty/:bizId/practitioners', verifyBiz, async (req, res) => {
+    const client = await pool.connect();
     try {
         const { display_name, tier, color_hex, specializations, schedule_override, commission_rate_svc, commission_rate_retail, work_days, slot_minutes } = req.body;
         if (parseInt(req.params.bizId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
-        const r = await pool.query(
-            `INSERT INTO beauty_practitioners (business_group_id, display_name, tier, color_hex, specializations, schedule_override, commission_rate_svc, commission_rate_retail, work_days, slot_minutes)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
-            [req.params.bizId, display_name, tier||'standard', color_hex||'#6366f1',
+        await client.query('BEGIN');
+        // יצירת משתמש מקושר אוטומטית - כדי שהמטפלת תופיע גם ברשימת העובדים הניתנים לשיוך משימות/אתגרים
+        // (לא ניתן להתחבר איתו - אין טלפון/סיסמה - הוא קיים רק לצורך שיוך פעולות פנימיות)
+        const userRes = await client.query(
+            `INSERT INTO users (group_id, nickname, role, status) VALUES ($1,$2,'MEMBER','active') RETURNING id`,
+            [req.params.bizId, display_name]
+        );
+        const linkedUserId = userRes.rows[0].id;
+        const r = await client.query(
+            `INSERT INTO beauty_practitioners (business_group_id, user_id, display_name, tier, color_hex, specializations, schedule_override, commission_rate_svc, commission_rate_retail, work_days, slot_minutes)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
+            [req.params.bizId, linkedUserId, display_name, tier||'standard', color_hex||'#6366f1',
              JSON.stringify(specializations||[]), schedule_override ? JSON.stringify(schedule_override) : null,
              commission_rate_svc||30, commission_rate_retail||10,
              work_days ? JSON.stringify(work_days) : null, slot_minutes||60]
         );
+        await client.query('COMMIT');
         res.json(r.rows[0]);
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch(e) { await client.query('ROLLBACK'); res.status(500).json({ error: e.message }); }
+    finally { client.release(); }
 });
 
 app.patch('/api/beauty/:bizId/practitioners/:id', verifyBiz, async (req, res) => {
@@ -26520,6 +26560,24 @@ app.patch('/api/beauty/:bizId/resources/:id', verifyBiz, async (req, res) => {
 });
 
 // --- Appointments ---
+// מרכז גביה - כל התורים בעסק שממתינים לתשלום (לא רק ללקוח בודד), למסך גביה כללי
+app.get('/api/beauty/:bizId/pending-payments', verifyBiz, async (req, res) => {
+    try {
+        if (parseInt(req.params.bizId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
+        const r = await pool.query(
+            `SELECT ba.id, ba.client_name, ba.client_phone, ba.status, ba.total_price,
+                    bas.service_name, bas.start_time
+             FROM beauty_appointments ba
+             JOIN beauty_appointment_segments bas ON bas.appointment_id = ba.id AND bas.segment_order = 1
+             WHERE ba.business_group_id=$1 AND ba.status IN ('completed','confirmed','scheduled')
+               AND COALESCE(ba.payment_confirmed,FALSE)=FALSE AND COALESCE(ba.total_price,0) > 0
+             ORDER BY bas.start_time DESC LIMIT 300`,
+            [req.params.bizId]
+        );
+        res.json({ success: true, appointments: r.rows });
+    } catch(e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
 app.get('/api/beauty/:bizId/appointments', verifyBiz, async (req, res) => {
     try {
         const { from, to, practitioner_id, resource_id, status } = req.query;
@@ -27306,7 +27364,7 @@ app.get('/api/beauty/:bizId/dashboard', verifyBiz, async (req, res) => {
         const todayEnd   = new Date(); todayEnd.setHours(23,59,59,999);
         const monthStart = new Date(todayStart.getFullYear(), todayStart.getMonth(), 1);
 
-        const [apptToday, apptPending, revenueToday, revenueMonth, unpaidComm, lowInv, noShow, totalClients, pendingCancelRes, pendingBookingRes] = await Promise.all([
+        const [apptToday, apptPending, revenueToday, revenueMonth, unpaidComm, lowInv, noShow, totalClients, pendingCancelRes, pendingBookingRes, pendingPayment] = await Promise.all([
             pool.query(
                 `SELECT COUNT(*) FROM beauty_appointments ba
                  JOIN beauty_appointment_segments bas ON bas.appointment_id=ba.id AND bas.segment_order=1
@@ -27364,6 +27422,12 @@ app.get('/api/beauty/:bizId/dashboard', verifyBiz, async (req, res) => {
                  WHERE group_id=$1 AND status='pending' AND call_type != 'table_reservation'
                  ORDER BY event_date ASC, start_time ASC LIMIT 10`,
                 [bizId]
+            ),
+            pool.query(
+                `SELECT COALESCE(SUM(ba.total_price),0) AS sum, COUNT(*) AS cnt FROM beauty_appointments ba
+                 WHERE ba.business_group_id=$1 AND ba.status IN ('completed','confirmed','scheduled')
+                   AND COALESCE(ba.payment_confirmed,FALSE)=FALSE AND COALESCE(ba.total_price,0) > 0`,
+                [bizId]
             )
         ]);
 
@@ -27378,7 +27442,9 @@ app.get('/api/beauty/:bizId/dashboard', verifyBiz, async (req, res) => {
             no_show_today:  parseInt(noShow.rows[0].count),
             total_clients:  parseInt(totalClients.rows[0].cnt),
             pending_cancel_appts: pendingCancelRes.rows,
-            pending_booking_requests: pendingBookingRes.rows
+            pending_booking_requests: pendingBookingRes.rows,
+            pending_payment_sum: parseFloat(pendingPayment.rows[0].sum),
+            pending_payment_cnt: parseInt(pendingPayment.rows[0].cnt)
         });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -38926,6 +38992,9 @@ app.listen(port, () => {
     // מילוי רטרואקטיבי: לקוחות שכבר ביצעו פעולה אצל עסק לפני שהמנגנון הזה נוסף —
     // מקבלים חשבון רשום (אם עוד אין) וקישור לעסק ב"הפעילות שלי", בדיוק כמו שקורה מעכשיו והלאה
     setTimeout(() => { backfillMemberBusinessLinks().catch(e => console.error('[backfill member_business_links]', e.message)); }, 12000);
+    // מילוי רטרואקטיבי: מטפלות יופי שנוצרו לפני שנוסף חיבור אוטומטי למשתמש (users) -
+    // בלעדיו הן לא יכולות להופיע ברשימת "עובדים" לשיוך משימות/אתגרים
+    setTimeout(() => { backfillPractitionerUsers().catch(e => console.error('[backfill practitioner users]', e.message)); }, 13000);
 });
 
 // ===== Public — קמפיין שיווקי לפי סוג עסק =====

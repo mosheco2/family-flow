@@ -43533,7 +43533,8 @@ async function renderBeautyAdminDashboard(el) {
         { label:'תורים עתידיים',   value: s.appt_pending,    icon:'⏳', color:'violet',  cb:`switchTab('beauty_calendar')` },
         { label:'לקוחות מקושרים',  value: s.total_clients,   icon:'👥', color:'blue',    cb:`switchTab('beauty_clients')` },
         { label:'עמלות לתשלום',    value:`₪${Number(s.unpaid_comm_sum).toLocaleString('he-IL',{maximumFractionDigits:0})}`, icon:'💸', color: s.unpaid_comm_cnt>0?'orange':'slate', cb:`switchTab('beauty_commissions')` },
-        { label:'הכנסה החודש',     value:`₪${Number(s.revenue_month).toLocaleString('he-IL',{maximumFractionDigits:0})}`, icon:'📊', color:'pink', cb:`switchTab('sales')` }
+        { label:'הכנסה החודש',     value:`₪${Number(s.revenue_month).toLocaleString('he-IL',{maximumFractionDigits:0})}`, icon:'📊', color:'pink', cb:`switchTab('sales')` },
+        { label:'ממתין לגביה מלקוחות', value:`₪${Number(s.pending_payment_sum||0).toLocaleString('he-IL',{maximumFractionDigits:0})}`, icon:'🧾', color: (s.pending_payment_cnt>0)?'red':'slate', cb:`window._beautyOpenCollectionCenter()` }
     ];
     const kpiHtml = kpis.map(k=>`<button type="button" onclick="${k.cb}" class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex flex-col gap-1 active:scale-95 transition touch-manipulation" style="touch-action:manipulation;cursor:pointer;"><span class="text-xl">${k.icon}</span><div class="text-lg font-black text-${k.color}-600">${k.value}</div><div class="text-[10px] text-slate-500 font-bold">${k.label}</div></button>`).join('');
 
@@ -47476,12 +47477,15 @@ async function loadBeautyCalendar() {
     }
     const _authH = { 'Authorization': `Bearer ${window._bizToken || ''}` };
     try {
-        const [prRes, apRes, calRes] = await Promise.all([
+        const [prRes, allPrRes, apRes, calRes] = await Promise.all([
             fetch(`${API}/beauty/${biz}/practitioners`, { headers: _authH }).then(r=>r.json()),
+            fetch(`${API}/beauty/${biz}/practitioners?all=1`, { headers: _authH }).then(r=>r.json()),
             fetch(`${API}/beauty/${biz}/appointments?from=${_beautyDateStr(fromDate)}&to=${_beautyDateStr(toDate)}`, { headers: _authH }).then(r=>r.json()),
             fetch(`${API}/calendar/${biz}`).then(r=>r.json()).catch(() => ({ events: [] }))
         ]);
         window._beautyState.practitioners = Array.isArray(prRes) ? prRes : (prRes.practitioners || []);
+        // רשימה מלאה כולל מטפלות לא פעילות - לבניית עמודות בלוח עבור תורים היסטוריים ולתצוגה נכונה בעריכת תור קיים
+        window._beautyState.allPractitioners = Array.isArray(allPrRes) ? allPrRes : (allPrRes.practitioners || window._beautyState.practitioners);
         window._beautyState.appointments = Array.isArray(apRes) ? apRes : (apRes.appointments || []);
         window._beautyState.services = Array.isArray(calRes.services) ? calRes.services.filter(s => s.is_active !== false) : [];
         // בקשות ממתינות מהחנות הציבורית
@@ -47493,6 +47497,7 @@ async function loadBeautyCalendar() {
         window._beautyState.calToDate = toDate;
     } catch(e) {
         window._beautyState.practitioners = [];
+        window._beautyState.allPractitioners = [];
         window._beautyState.appointments = [];
         window._beautyState.services = [];
         window._beautyState.pendingCalEvents = [];
@@ -47504,19 +47509,27 @@ async function loadBeautyCalendar() {
 function _renderBeautyCalendar() {
     const el = document.getElementById('content-beauty_calendar'); if (!el) return;
     const { practitioners, appointments, calDate } = window._beautyState;
+    const allPractitionersRaw = window._beautyState.allPractitioners || practitioners;
     const pendingCalEvents = window._beautyState.pendingCalEvents || [];
     const view = window._beautyState.calView || 'day';
     const dateLabel = calDate.toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 
+    // עמודות הלוח: כל המטפלות הפעילות, בתוספת מטפלות לא-פעילות שיש להן תור בטווח הנוכחי -
+    // כדי שתור שכבר שויך למטפלת (גם אם הושבתה מאז) יוצג תחת העמודה שלה במקום ליפול ל"ללא שיוך"
+    const referencedInactiveIds = new Set(
+        appointments.map(ap => ap.segments?.[0]?.practitioner_id).filter(id => id && !practitioners.some(p => p.id === id))
+    );
+    const displayPractitioners = practitioners.concat(allPractitionersRaw.filter(p => referencedInactiveIds.has(p.id)));
+
     const apByPrac = {};
-    practitioners.forEach(p => { apByPrac[p.id] = []; });
+    displayPractitioners.forEach(p => { apByPrac[p.id] = []; });
     appointments.forEach(ap => {
         const pracId = ap.segments?.[0]?.practitioner_id;
         if (pracId && apByPrac[pracId] !== undefined) apByPrac[pracId].push(ap);
         else { apByPrac['unassigned'] = apByPrac['unassigned'] || []; apByPrac['unassigned'].push(ap); }
     });
 
-    const colWidth = practitioners.length > 0 ? Math.max(140, Math.floor(320 / practitioners.length)) : 280;
+    const colWidth = displayPractitioners.length > 0 ? Math.max(140, Math.floor(320 / displayPractitioners.length)) : 280;
 
     const hours = Array.from({length: 13}, (_,i) => i + 8); // 08:00–20:00
 
@@ -47585,16 +47598,17 @@ function _renderBeautyCalendar() {
         </div>
     </div>` : '';
 
-    const pracCols = (practitioners.length === 0 && unassignedAps.length === 0)
+    const pracCols = (displayPractitioners.length === 0 && unassignedAps.length === 0)
         ? `<div class="text-center py-12 text-slate-400 text-sm">אין תורים ביום זה</div>`
-        : practitioners.map(p => {
+        : displayPractitioners.map(p => {
             const color = p.color_hex || '#6366f1';
+            const isInactive = !practitioners.some(pp => pp.id === p.id);
             const apCards = (apByPrac[p.id]||[]).map(ap => _apCardHtml(ap, color)).join('');
-            const freeSlots = view === 'day' ? _freeSlotCards(p.id, color) : '';
+            const freeSlots = view === 'day' && !isInactive ? _freeSlotCards(p.id, color) : '';
             return `<div class="shrink-0 border-r border-slate-100" style="width:${colWidth}px">
                 <div class="sticky top-0 z-10 bg-white border-b border-slate-200 px-2 py-2 flex items-center gap-2">
                     <div class="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-black shrink-0" style="background:${color}">${(p.display_name||'?').charAt(0)}</div>
-                    <span class="text-xs font-bold text-slate-700 truncate">${p.display_name}</span>
+                    <span class="text-xs font-bold text-slate-700 truncate">${p.display_name}${isInactive ? ' <span class="text-slate-400 font-normal">(לא פעילה)</span>' : ''}</span>
                 </div>
                 <div class="relative" style="height:${13*60}px">
                     ${hours.map(h=>`<div class="absolute w-full border-t border-slate-50" style="top:${(h-8)*60}px"></div>`).join('')}
@@ -47921,7 +47935,7 @@ window._beautyOpenAp = function(apId) {
     if (!ap) return;
     const seg0 = ap.segments?.[0];
     const pracId = seg0?.practitioner_id || ap.practitioner_id;
-    const prac = window._beautyState.practitioners.find(p => p.id === pracId);
+    const prac = (window._beautyState.allPractitioners || window._beautyState.practitioners).find(p => p.id === pracId);
     const startTs = seg0?.start_time || ap.start_time;
     const endTs = seg0?.end_time || ap.end_time;
     const serviceName = seg0?.service_name || '';
@@ -47972,8 +47986,9 @@ window._beautyEditApModal = async function(apId) {
     const ap = window._beautyState.appointments.find(a => a.id === apId);
     if (!ap) return;
     const seg0 = ap.segments?.[0] || {};
-    const practitioners = window._beautyState.practitioners;
-    const pracOpts = `<option value="">ללא מטפלת</option>` + practitioners.map(p => `<option value="${p.id}" ${seg0.practitioner_id === p.id ? 'selected' : ''}>${p.display_name}</option>`).join('');
+    // רשימה מלאה (כולל לא-פעילות) - כדי שהמטפלת המשויכת כרגע תמיד תופיע נבחרת, גם אם הושבתה מאז
+    const practitioners = window._beautyState.allPractitioners || window._beautyState.practitioners;
+    const pracOpts = `<option value="">ללא מטפלת</option>` + practitioners.map(p => `<option value="${p.id}" ${seg0.practitioner_id === p.id ? 'selected' : ''}>${p.display_name}${!window._beautyState.practitioners.some(ap2 => ap2.id === p.id) ? ' (לא פעילה)' : ''}</option>`).join('');
     const curDate = seg0.start_time ? new Date(seg0.start_time).toISOString().split('T')[0] : '';
     const curTime = seg0.start_time ? new Date(seg0.start_time).toTimeString().slice(0,5) : '';
     const curDur = seg0.duration_minutes || 60;
@@ -48913,6 +48928,74 @@ window._bcmConfirmPayment = async function(apptId, clientId) {
             }
             window._bcmTab('collection', clientId);
         } else { showToast('error', r.error||'שגיאה'); }
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
+// ─── מרכז גביה כללי - כל התורים הממתינים לתשלום בעסק, לא רק של לקוח בודד ─────────
+window._beautyOpenCollectionCenter = async function() {
+    const biz = _beautyBizId(); if (!biz) return;
+    const existing = document.getElementById('beauty-collection-center'); if (existing) existing.remove();
+    const overlay = document.createElement('div');
+    overlay.id = 'beauty-collection-center';
+    overlay.className = 'fixed inset-0 z-[300] bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4';
+    overlay.innerHTML = `
+        <div class="bg-white w-full sm:max-w-lg sm:rounded-3xl rounded-t-3xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
+            <div class="bg-gradient-to-r from-pink-500 to-rose-600 px-5 py-4 flex items-center justify-between shrink-0">
+                <h3 class="font-black text-white text-base"><i class="fa-solid fa-hand-holding-dollar mr-1"></i> מרכז גביה</h3>
+                <button onclick="document.getElementById('beauty-collection-center').remove()" class="text-white/80 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <div id="beauty-collection-body" class="p-4 overflow-y-auto flex-1">
+                <p class="text-center text-slate-400 text-xs py-8"><i class="fa-solid fa-spinner fa-spin mr-1"></i> טוען...</p>
+            </div>
+        </div>`;
+    document.body.appendChild(overlay);
+    await window._beautyRefreshCollectionCenter();
+};
+
+window._beautyRefreshCollectionCenter = async function() {
+    const biz = _beautyBizId(); if (!biz) return;
+    const body = document.getElementById('beauty-collection-body');
+    if (!body) return;
+    try {
+        const r = await fetch(`${API}/beauty/${biz}/pending-payments`, { headers: { 'Authorization': 'Bearer '+(window._bizToken||'') } }).then(r=>r.json());
+        const appts = (r.success && r.appointments) ? r.appointments : [];
+        if (!appts.length) {
+            body.innerHTML = '<p class="text-center text-slate-400 text-sm py-10"><i class="fa-solid fa-circle-check text-green-400 text-2xl block mb-2"></i>אין תשלומים ממתינים כרגע 🎉</p>';
+            return;
+        }
+        const total = appts.reduce((s,a) => s + parseFloat(a.total_price||0), 0);
+        body.innerHTML = `
+            <div class="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-3 text-center">
+                <div class="text-[10px] font-bold text-amber-600 mb-0.5">סה"כ ממתין לגביה</div>
+                <div class="text-xl font-black text-amber-700 dir-ltr">₪${total.toFixed(0)}</div>
+            </div>
+            <div class="space-y-2">
+                ${appts.map(a => {
+                    const dt = a.start_time ? new Date(a.start_time) : null;
+                    const dateStr = dt && !isNaN(dt) ? dt.toLocaleDateString('he-IL',{day:'2-digit',month:'2-digit',year:'2-digit'}) : '—';
+                    return `<div class="bg-white rounded-xl border border-amber-200 px-3 py-2.5 flex items-center gap-2">
+                        <div class="flex-1 min-w-0">
+                            <div class="text-[11px] font-bold text-slate-700 truncate">${safeStr(a.client_name||'לקוח')} <span class="text-slate-400 font-normal">· ${safeStr(a.service_name||'טיפול')}</span></div>
+                            <div class="text-[10px] text-slate-400">${dateStr}</div>
+                        </div>
+                        <div class="text-sm font-black text-amber-700 dir-ltr shrink-0">₪${parseFloat(a.total_price||0).toFixed(0)}</div>
+                        <button onclick="window._beautyConfirmPaymentGlobal(${a.id})" class="bg-green-500 text-white text-[10px] font-bold px-2.5 py-1.5 rounded-lg hover:bg-green-600 transition shrink-0">אשר גביה ✓</button>
+                    </div>`;
+                }).join('')}
+            </div>`;
+    } catch(e) { body.innerHTML = '<p class="text-center text-red-400 text-xs py-8">שגיאה בטעינה</p>'; }
+};
+
+window._beautyConfirmPaymentGlobal = async function(apptId) {
+    const biz = _beautyBizId(); if (!biz) return;
+    try {
+        const r = await fetch(`${API}/beauty/${biz}/appointments/${apptId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type':'application/json', 'Authorization':'Bearer '+(window._bizToken||'') },
+            body: JSON.stringify({ payment_confirmed: true })
+        }).then(r=>r.json());
+        if (r.success || r.appointment) { showToast('success', 'גביה אושרה ✓'); window._beautyRefreshCollectionCenter(); }
+        else showToast('error', r.error||'שגיאה');
     } catch(e) { showToast('error', 'שגיאת תקשורת'); }
 };
 
