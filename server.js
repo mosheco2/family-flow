@@ -19408,6 +19408,9 @@ app.post('/api/community/bundles/:id/purchase', verifyFamily, async (req, res) =
 // להמרה (כמו "יח'"/"מארז") מוחזרות ללא שינוי, עם דגל אי-התאמה אם הן לא זהות.
 const _FOODCOST_WEIGHT_UNITS = { 'גרם': 1, 'ג': 1, 'קג': 1000, 'ק"ג': 1000, "ק'ג": 1000 };
 const _FOODCOST_VOLUME_UNITS = { 'מל': 1, 'מ"ל': 1, 'ליטר': 1000, "ל'": 1000 };
+// יחידות ספירה - כינויים שונים לאותה יחידה בפועל (לא משפחת המרה עם יחס, אלא זהות מלאה)
+// כדי שכתיב שונה ("יח'" מול "יחידה") לא יסומן בטעות כאי-התאמת יחידות
+const _FOODCOST_COUNT_UNITS = new Set(['יח', "יח'", 'יח.', 'יחידה', 'יחידות']);
 function convertFoodCostQty(qty, fromUnit, toUnit) {
     const f = (fromUnit || '').trim();
     const t = (toUnit || '').trim();
@@ -19417,6 +19420,9 @@ function convertFoodCostQty(qty, fromUnit, toUnit) {
     }
     if (_FOODCOST_VOLUME_UNITS[f] && _FOODCOST_VOLUME_UNITS[t]) {
         return { value: qty * _FOODCOST_VOLUME_UNITS[f] / _FOODCOST_VOLUME_UNITS[t], ok: true };
+    }
+    if (_FOODCOST_COUNT_UNITS.has(f) && _FOODCOST_COUNT_UNITS.has(t)) {
+        return { value: qty, ok: true };
     }
     return { value: qty, ok: false };
 }
