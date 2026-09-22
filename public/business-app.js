@@ -15550,13 +15550,16 @@ async function submitGlobalAI() {
     // Food cost summary
     let fcSummary = null;
     if (typeof foodCostData !== 'undefined' && foodCostData?.length > 0) {
-        const withCost = foodCostData.filter(i=>i.costs?.foodCostPct>0);
+        // מנות עם נתוני מחיר חסרים/לא-תואמי-יחידה (has_incomplete_data) מוצאות מהממוצע ומדירוג הרווחיות
+        // כדי שהעוזרת לא תמליץ/תשבח מנה שנראית "רווחית" רק כי חלק מהמרכיבים חושבו כחינמיים בטעות
+        const withCost = foodCostData.filter(i=>i.costs?.foodCostPct>0 && !i.has_incomplete_data);
         fcSummary = {
             total_items: foodCostData.length,
             items_with_recipe: withCost.length,
+            items_with_incomplete_data: foodCostData.filter(i=>i.has_incomplete_data).length,
             avg_food_cost_pct: withCost.length>0 ? (withCost.reduce((a,i)=>a+i.costs.foodCostPct,0)/withCost.length).toFixed(1) : null,
-            top_profitable: foodCostData.filter(i=>i.costs?.profit>0).sort((a,b)=>b.costs.profit-a.costs.profit).slice(0,3).map(i=>({name:i.name,profit:i.costs.profit?.toFixed(2),fc_pct:i.costs.foodCostPct?.toFixed(1)})),
-            problematic: foodCostData.filter(i=>i.costs?.foodCostPct>40).map(i=>({name:i.name,fc_pct:i.costs.foodCostPct?.toFixed(1)}))
+            top_profitable: withCost.filter(i=>i.costs?.profit>0).sort((a,b)=>b.costs.profit-a.costs.profit).slice(0,3).map(i=>({name:i.name,profit:i.costs.profit?.toFixed(2),fc_pct:i.costs.foodCostPct?.toFixed(1)})),
+            problematic: withCost.filter(i=>i.costs?.foodCostPct>40).map(i=>({name:i.name,fc_pct:i.costs.foodCostPct?.toFixed(1)}))
         };
     }
     // נתונים נוספים ל-FamliAI: שיחות לקוחות, ביקורות, פירוט מלא לכל עובד, קופונים פעילים, התראות מוגדרות, חשבוניות
@@ -22882,19 +22885,25 @@ function renderFoodCostList() {
         const fc = item.costs.foodCostPct;
         let fcColor = 'text-green-600 bg-green-50 border-green-200';
         let statusIcon = '<i class="fa-solid fa-check-circle"></i>';
-        
+        // סף אחיד עם ההנחיות שהעוזרת החכמה משתמשת בהן (<28 מצוין, 28-33 טוב, 33-40 גבוה, >40 בעייתי)
+        // - בעבר היו כאן ספים שונים (35/40) שלא תאמו את מה שהעוזרת מציגה למנהל
         if (fc === 0 && item.costs.total === 0) {
             fcColor = 'text-slate-500 bg-slate-100 border-slate-200';
             statusIcon = '<i class="fa-solid fa-triangle-exclamation"></i>';
         } else if (fc > 40) {
             fcColor = 'text-red-600 bg-red-50 border-red-200';
-            statusIcon = '<i class="fa-solid fa-arrow-trend-down"></i> הפסדי';
-        } else if (fc > 35) {
+            statusIcon = '<i class="fa-solid fa-arrow-trend-down"></i> בעייתי';
+        } else if (fc > 33) {
             fcColor = 'text-orange-600 bg-orange-50 border-orange-200';
-            statusIcon = '<i class="fa-solid fa-scale-balanced"></i> גבולי';
+            statusIcon = '<i class="fa-solid fa-scale-balanced"></i> גבוה';
+        } else if (fc > 28) {
+            statusIcon = '<i class="fa-solid fa-arrow-trend-up"></i> טוב';
         } else {
-            statusIcon = '<i class="fa-solid fa-arrow-trend-up"></i> רווחי';
+            statusIcon = '<i class="fa-solid fa-arrow-trend-up"></i> מצוין';
         }
+        const incompleteWarning = item.has_incomplete_data
+            ? `<div class="mt-1 text-[10px] font-bold text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1"><i class="fa-solid fa-circle-exclamation mr-1"></i> חלק מהמרכיבים ללא מחיר רכישה תואם (מעולם לא נרכשו, או ביחידת מידה שלא ניתנת להמרה) — העלות בפועל עשויה להיות שונה</div>`
+            : '';
 
         html += `
         <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 mb-3 flex flex-col hover:border-emerald-200 transition">
@@ -22915,6 +22924,7 @@ function renderFoodCostList() {
                 </div>
                 <button onclick="openRecipeBuilder(${item.id})" class="text-[10px] font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg transition border border-indigo-100"><i class="fa-solid fa-pen mr-1"></i> עץ מוצר</button>
             </div>
+            ${incompleteWarning}
         </div>`;
     });
     
@@ -23174,7 +23184,7 @@ window.refreshRBUI = function() {
     const bar = document.getElementById('rb-fc-bar');
     bar.style.width = `${Math.min(100, fcPct)}%`;
     if (fcPct > 40) bar.className = 'h-3 transition-all duration-500 bg-red-500';
-    else if (fcPct > 35) bar.className = 'h-3 transition-all duration-500 bg-orange-400';
+    else if (fcPct > 33) bar.className = 'h-3 transition-all duration-500 bg-orange-400';
     else bar.className = 'h-3 transition-all duration-500 bg-emerald-500';
 };
 

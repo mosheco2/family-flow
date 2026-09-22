@@ -14460,7 +14460,7 @@ ${context}
 
 == יכולות ניתוח ==
 • סיכום מכירות: יומי/שבועי/חודשי, ממוצע להזמנה, מגמות
-• food cost: ממוצע (ירוק<30%, כתום 30-40%, אדום>40%); מנות הכי רווחיות; מנות בעייתיות
+• food cost: ממוצע (<28%=מצוין, 28-33%=טוב, 33-40%=גבוה, >40%=בעייתי); מנות הכי רווחיות; מנות בעייתיות (מעל 40%)
 • מלאי: פריטים נגמרים, המלצת הזמנה, קצב צריכה
 • תזרים: הכנסות מול הוצאות, יתרה נטו, ניתוח קטגוריות
 • צוות: כמות עובדים, יתרות תקציב
@@ -14533,16 +14533,27 @@ app.get('/api/biz/export-report', verifyBiz, async (req, res) => {
             csvData = 'מספר,שם,כינוי,תפקיד,אימייל,תאריך הצטרפות\n';
             r.rows.forEach(u => { csvData += [u.id,`"${(u.name||'').replace(/"/g,'""')}"`,`"${(u.nickname||'').replace(/"/g,'""')}"`,u.role||'',u.email||'',new Date(u.created_at).toLocaleDateString('he-IL')].join(',')+'\n'; });
         } else if (type === 'food-cost') {
-            const catR = await pool.query(`SELECT id,name,price,category FROM store_catalog WHERE group_id=$1 AND is_available=TRUE ORDER BY category,name`, [groupId]);
-            const ingR = await pool.query(`SELECT pi.*,sti.price_per_unit FROM product_ingredients pi LEFT JOIN (SELECT DISTINCT ON(item_name) item_name,price_per_unit FROM shopping_trip_items sti2 JOIN shopping_trips st2 ON sti2.trip_id=st2.id WHERE st2.group_id=$1 ORDER BY item_name,st2.trip_date DESC) sti ON lower(pi.ingredient_name)=lower(sti.item_name) WHERE pi.catalog_id IN (SELECT id FROM store_catalog WHERE group_id=$1)`, [groupId,groupId]);
+            const catR = await pool.query(`SELECT id,name,price,category,overhead_details FROM store_catalog WHERE group_id=$1 AND is_available=TRUE ORDER BY category,name`, [groupId]);
+            const ingR = await pool.query(`SELECT pi.*,sti.price_per_unit,sti.unit AS purchase_unit FROM product_ingredients pi LEFT JOIN (SELECT DISTINCT ON(item_name) item_name,price_per_unit,unit FROM shopping_trip_items sti2 JOIN shopping_trips st2 ON sti2.trip_id=st2.id WHERE st2.group_id=$1 ORDER BY item_name,st2.trip_date DESC) sti ON lower(pi.ingredient_name)=lower(sti.item_name) WHERE pi.catalog_id IN (SELECT id FROM store_catalog WHERE group_id=$1)`, [groupId,groupId]);
             filename = `food_cost_${new Date().toISOString().split('T')[0]}.csv`;
-            csvData = 'מנה,קטגוריה,מחיר מכירה,עלות גלם,אחוז Food Cost,רווח\n';
+            // תואם בדיוק את חישוב המסך: כולל המרת יחידות ועלויות תקורה (בעבר הייצוא כלל רק עלות מרכיבים גולמית, בלי תקורה, בניגוד למסך)
+            csvData = 'מנה,קטגוריה,מחיר מכירה,עלות גלם,תקורה,עלות כוללת,אחוז Food Cost,רווח\n';
             catR.rows.forEach(item => {
                 const ings = ingR.rows.filter(i=>i.catalog_id===item.id);
-                const totalCost = ings.reduce((s,i)=>s+(parseFloat(i.price_per_unit)||0)*(parseFloat(i.quantity)||0),0);
+                const ingredientsCost = ings.reduce((s,i)=>{
+                    if (i.price_per_unit == null) return s;
+                    const conv = convertFoodCostQty(parseFloat(i.quantity)||0, i.unit, i.purchase_unit);
+                    return s + (parseFloat(i.price_per_unit)||0) * conv.value;
+                },0);
+                let overheadTotal = 0;
+                try {
+                    const overheads = typeof item.overhead_details === 'string' ? JSON.parse(item.overhead_details) : (item.overhead_details || []);
+                    overheads.forEach(o => overheadTotal += parseFloat(o.cost) || 0);
+                } catch(e) {}
+                const totalCost = ingredientsCost + overheadTotal;
                 const price = parseFloat(item.price)||0;
                 const fcPct = price>0&&totalCost>0 ? ((totalCost/price)*100).toFixed(1) : '';
-                csvData += [`"${(item.name||'').replace(/"/g,'""')}"`,`"${(item.category||'').replace(/"/g,'""')}"`,price,totalCost.toFixed(2),fcPct,(price-totalCost).toFixed(2)].join(',')+'\n';
+                csvData += [`"${(item.name||'').replace(/"/g,'""')}"`,`"${(item.category||'').replace(/"/g,'""')}"`,price,ingredientsCost.toFixed(2),overheadTotal.toFixed(2),totalCost.toFixed(2),fcPct,(price-totalCost).toFixed(2)].join(',')+'\n';
             });
         } else if (type === 'logistics-orders') {
             const r = await pool.query(`SELECT lo.id, lo.order_number, lo.customer_name, lo.customer_phone, lo.pickup_address, lo.delivery_address, lo.scheduled_date, lo.status, COALESCE(d.name,d.nickname) as driver_name, v.name as vehicle_name, lo.delivery_fee, lo.cod_amount, lo.cod_collected, lo.failed_attempts_count, lo.delivered_at, lo.created_at FROM logistics_orders lo LEFT JOIN logistics_drivers ld ON lo.driver_id=ld.id LEFT JOIN users d ON ld.user_id=d.id LEFT JOIN logistics_vehicles v ON lo.vehicle_id=v.id WHERE lo.group_id=$1 ORDER BY lo.created_at DESC LIMIT 5000`, [groupId]);
@@ -19388,6 +19399,24 @@ app.post('/api/community/bundles/:id/purchase', verifyFamily, async (req, res) =
 // --- FOOD COST & RECIPE ENDPOINTS ---
 // ============================================================
 
+// המרת יחידות בין משקל (גרם/ק"ג) ונפח (מ"ל/ליטר) - כדי שמתכון שרשום ביחידה אחת
+// יחושב נכון גם כשהרכישה האחרונה נרשמה ביחידה אחרת מאותה משפחה. יחידות לא ניתנות
+// להמרה (כמו "יח'"/"מארז") מוחזרות ללא שינוי, עם דגל אי-התאמה אם הן לא זהות.
+const _FOODCOST_WEIGHT_UNITS = { 'גרם': 1, 'ג': 1, 'קג': 1000, 'ק"ג': 1000, "ק'ג": 1000 };
+const _FOODCOST_VOLUME_UNITS = { 'מל': 1, 'מ"ל': 1, 'ליטר': 1000, "ל'": 1000 };
+function convertFoodCostQty(qty, fromUnit, toUnit) {
+    const f = (fromUnit || '').trim();
+    const t = (toUnit || '').trim();
+    if (f === t) return { value: qty, ok: true };
+    if (_FOODCOST_WEIGHT_UNITS[f] && _FOODCOST_WEIGHT_UNITS[t]) {
+        return { value: qty * _FOODCOST_WEIGHT_UNITS[f] / _FOODCOST_WEIGHT_UNITS[t], ok: true };
+    }
+    if (_FOODCOST_VOLUME_UNITS[f] && _FOODCOST_VOLUME_UNITS[t]) {
+        return { value: qty * _FOODCOST_VOLUME_UNITS[f] / _FOODCOST_VOLUME_UNITS[t], ok: true };
+    }
+    return { value: qty, ok: false };
+}
+
 app.get('/api/food-cost/:groupId', async (req, res) => {
     try {
         const { groupId } = req.params;
@@ -19408,21 +19437,30 @@ app.get('/api/food-cost/:groupId', async (req, res) => {
         
         const priceMap = {};
         pricesRes.rows.forEach(p => {
-            priceMap[p.item_name] = { price: parseFloat(p.price_per_unit), unit: p.unit };
+            priceMap[p.item_name.trim().toLowerCase()] = { price: parseFloat(p.price_per_unit), unit: p.unit };
         });
 
         // חיבור הנתונים
         const catalog = catalogRes.rows.map(item => {
             const itemIngredients = ingredientsRes.rows.filter(i => i.catalog_id === item.id);
             let totalIngredientsCost = 0;
-            
+            let hasIncompleteData = false;
+
             const enrichedIngredients = itemIngredients.map(ing => {
-                const knownPrice = priceMap[ing.ingredient_name];
+                const knownPrice = priceMap[(ing.ingredient_name || '').trim().toLowerCase()];
                 let cost = 0;
-                // חישוב פשוט (בהנחה שהיחידות זהות. בשדרוג עתידי ניתן לבצע המרת יחידות)
-                if (knownPrice) cost = knownPrice.price * parseFloat(ing.quantity);
+                let noPriceData = false;
+                let unitMismatch = false;
+                if (knownPrice) {
+                    const conv = convertFoodCostQty(parseFloat(ing.quantity), ing.unit, knownPrice.unit);
+                    if (!conv.ok) unitMismatch = true; // יחידות לא תואמות ולא ניתנות להמרה - העלות הבאה עלולה להיות שגויה
+                    cost = knownPrice.price * conv.value;
+                } else {
+                    noPriceData = true; // המרכיב מעולם לא נרכש במערכת - אין לנו מחיר אמיתי
+                }
+                if (noPriceData || unitMismatch) hasIncompleteData = true;
                 totalIngredientsCost += cost;
-                return { ...ing, calculated_cost: cost, known_price: knownPrice ? knownPrice.price : 0 };
+                return { ...ing, calculated_cost: cost, known_price: knownPrice ? knownPrice.price : 0, no_price_data: noPriceData, unit_mismatch: unitMismatch };
             });
 
             let overheadTotal = 0;
@@ -19441,6 +19479,7 @@ app.get('/api/food-cost/:groupId', async (req, res) => {
                 ...item,
                 ingredients: enrichedIngredients,
                 overheads: overheads,
+                has_incomplete_data: hasIncompleteData,
                 costs: {
                     ingredients: totalIngredientsCost,
                     overhead: overheadTotal,
