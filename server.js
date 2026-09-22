@@ -942,6 +942,8 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
 
       try { await client.query(`CREATE TABLE IF NOT EXISTS store_orders (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, customer_name VARCHAR(100), customer_phone VARCHAR(50), total_amount DECIMAL(10,2), status VARCHAR(20) DEFAULT 'new', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}
       try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS notes TEXT`); } catch(e) {}
+      // מתי בוצע ניכוי מלאי אוטומטי (Food Cost) עבור הזמנה זו - מונע ניכוי כפול אם הסטטוס משתנה שוב בין completed/delivered
+      try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS pantry_deducted_at TIMESTAMP`); } catch(err){}
       try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS items JSONB`); } catch(e) {}
       try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS is_delivery BOOLEAN DEFAULT FALSE`); } catch(e) {}
       try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS delivery_fee DECIMAL(10,2) DEFAULT 0`); } catch(e) {}
@@ -12886,6 +12888,8 @@ app.post('/api/store/orders/status', async (req, res) => {
                     const o = oR.rows[0];
                     logBizIncome(o.group_id, o.total_amount,
                         `הזמנה הושלמה${o.customer_name ? ' — ' + o.customer_name : ''} (#${orderId})`);
+                    // ניכוי מלאי אוטומטי (Food Cost) - פועל רק אם קיים מתכון מוגדר למוצרים שנמכרו ופריט מחסן תואם
+                    deductPantryForOrder(orderId, o.group_id);
                     // הענקת FLOW למשפחה שהשתמשה במבצע קהילתי
                     if (o.community_promo_id && o.family_group_id) {
                         try {
@@ -19453,6 +19457,61 @@ function convertFoodCostQtyWithWeight(qty, fromUnit, toUnit, unitWeightGrams) {
         return { value: grams / w, ok: true };
     }
     return base;
+}
+
+// ניכוי מלאי אוטומטי מהמחסן (pantry) בעת השלמת מכירה - רק עבור מנות עם מתכון מוגדר במודול Food Cost.
+// לעסקים שלא משתמשים ב-Food Cost/מחסן, או למנות בלי מתכון/מרכיבים ללא פריט מחסן תואם - לא קורה כלום,
+// כך שזה לא פוגע בשום עסק שלא משתמש ביכולת הזו. נקרא רק אחרי שהתשובה ל-HTTP כבר נשלחה ללקוח (fire-and-forget).
+async function deductPantryForOrder(orderId, groupId) {
+    try {
+        if (!orderId || !groupId) return;
+        // תפיסה אטומית - מונעת ניכוי כפול אם הסטטוס עובר שוב בין completed/delivered לאותה הזמנה
+        const claim = await pool.query(
+            `UPDATE store_orders SET pantry_deducted_at = NOW() WHERE id = $1 AND pantry_deducted_at IS NULL RETURNING id`,
+            [orderId]
+        );
+        if (!claim.rows.length) return;
+
+        const itemsRes = await pool.query('SELECT catalog_id, quantity FROM store_order_items WHERE order_id = $1 AND catalog_id IS NOT NULL', [orderId]);
+        if (!itemsRes.rows.length) return;
+
+        const catalogIds = [...new Set(itemsRes.rows.map(i => i.catalog_id))];
+        const ingRes = await pool.query('SELECT * FROM product_ingredients WHERE catalog_id = ANY($1::int[])', [catalogIds]);
+        if (!ingRes.rows.length) return; // אין מתכונים מוגדרים למוצרים שנמכרו - אין מה לנכות
+
+        const pantryRes = await pool.query('SELECT id, item_name, quantity, unit FROM pantry WHERE group_id = $1', [groupId]);
+        if (!pantryRes.rows.length) return; // אין מחסן פעיל לעסק הזה
+        const pantryByName = {};
+        pantryRes.rows.forEach(p => { pantryByName[(p.item_name || '').trim().toLowerCase()] = p; });
+
+        // צבירת כמות הניכוי הכוללת לכל פריט מחסן (יחידות המחסן), כדי לעדכן אותו פעם אחת בלבד
+        const deductions = {}; // pantry.id -> כמות לניכוי
+        for (const item of itemsRes.rows) {
+            const soldQty = parseFloat(item.quantity) || 0;
+            if (soldQty <= 0) continue;
+            const ings = ingRes.rows.filter(i => i.catalog_id === item.catalog_id);
+            for (const ing of ings) {
+                const pantryItem = pantryByName[(ing.ingredient_name || '').trim().toLowerCase()];
+                if (!pantryItem) continue; // אין פריט מחסן בשם תואם - מדלגים, לא שוברים כלום
+                const wastePct = Math.min(parseFloat(ing.waste_pct) || 0, 95);
+                const baseQty = (parseFloat(ing.quantity) || 0) * soldQty;
+                const effectiveQty = wastePct > 0 ? baseQty / (1 - wastePct / 100) : baseQty;
+                const conv = convertFoodCostQtyWithWeight(effectiveQty, ing.unit, pantryItem.unit, ing.unit_weight_grams);
+                if (!conv.ok) continue; // יחידות לא ניתנות להמרה - עדיף לא לנכות כמות שגויה מאשר לנכות בטעות
+                deductions[pantryItem.id] = (deductions[pantryItem.id] || 0) + conv.value;
+            }
+        }
+
+        const deductedIds = Object.keys(deductions);
+        for (const pantryId of deductedIds) {
+            await pool.query('UPDATE pantry SET quantity = GREATEST(quantity - $1, 0), updated_at = CURRENT_TIMESTAMP WHERE id = $2', [deductions[pantryId], pantryId]);
+        }
+        if (deductedIds.length) {
+            logBizAction(groupId, null, 'מערכת', 'PANTRY_AUTO_DEDUCT', 'order', orderId, `ניכוי מלאי אוטומטי בעקבות מכירה (הזמנה #${orderId}, ${deductedIds.length} פריטי מחסן)`, { deductions });
+        }
+    } catch(e) {
+        console.error('[deductPantryForOrder]', e.message);
+    }
 }
 
 app.get('/api/food-cost/:groupId', async (req, res) => {
