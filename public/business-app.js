@@ -15705,6 +15705,14 @@ async function submitGlobalAI() {
                 answerText = answerText.replace(updatePriceMatch[0], '');
                 actionHtml += `<button onclick="window._aiUpdateCatalogPrice(${upId},${upPrice},this)" class="mt-3 w-full bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 py-2.5 rounded-xl text-sm font-bold transition flex items-center justify-center gap-2 shadow-sm"><i class="fa-solid fa-tag"></i> עדכן מחיר → ₪${upPrice}</button>`;
             }
+            // AI Action Parser — עדכון מרכיב במתכון (Food Cost, מסעדה/בית קפה בלבד)
+            const updateRecipeIngMatch = answerText.match(/\[ACTION:UPDATE_RECIPE_INGREDIENT\|(\d+)\|([^|\]]+)\|([\d.]+)\|([^|\]]+)\|?([\d.]*)\]/);
+            if (updateRecipeIngMatch) {
+                const [, riCatalogId, riName, riQty, riUnit, riWaste] = updateRecipeIngMatch;
+                answerText = answerText.replace(updateRecipeIngMatch[0], '');
+                const riWasteStr = riWaste ? `, ${riWaste}% פחת` : '';
+                actionHtml += `<button onclick="window._aiUpdateRecipeIngredient(${riCatalogId},'${safeStr(riName)}',${riQty},'${safeStr(riUnit)}',${riWaste||0},this)" class="mt-3 w-full bg-teal-50 text-teal-700 hover:bg-teal-100 border border-teal-200 py-2.5 rounded-xl text-sm font-bold transition flex items-center justify-center gap-2 shadow-sm"><i class="fa-solid fa-carrot"></i> עדכן מתכון: ${safeStr(riName)} → ${riQty} ${safeStr(riUnit)}${riWasteStr}</button>`;
+            }
             // AI Action Parser — עדכון סטטוס תור (יופי)
             const beautyApptMatch = answerText.match(/\[ACTION:UPDATE_APPT_STATUS\|(\d+)\|([\w_]+)\|([^\]]*)\]/);
             if (beautyApptMatch) {
@@ -54285,6 +54293,23 @@ window._aiUpdateCatalogPrice = async function(itemId, price, btn) {
             if (btn) { btn.innerHTML = '<i class="fa-solid fa-check"></i> עודכן!'; btn.className = btn.className.replace(/bg-emerald-\d+/g,'bg-green-50').replace(/text-emerald-\d+/g,'text-green-700').replace(/border-emerald-\d+/g,'border-green-200'); }
         } else { throw new Error(); }
     } catch(e) { showToast('error', 'שגיאה בעדכון מחיר'); if (btn) { btn.disabled = false; } }
+};
+
+window._aiUpdateRecipeIngredient = async function(catalogId, ingredientName, quantity, unit, wastePct, btn) {
+    if (!confirm(`לעדכן את המתכון: "${ingredientName}" → ${quantity} ${unit}${wastePct > 0 ? ` (${wastePct}% פחת)` : ''}?`)) return;
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מעדכן...'; }
+    try {
+        const res = await fetch(API + '/food-cost/recipe/' + catalogId + '/ingredient', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ groupId: currentGroup.id, ingredient_name: ingredientName, quantity, unit, waste_pct: wastePct })
+        });
+        const data = await res.json();
+        if (data.success) {
+            showToast('success', `מתכון עודכן: ${ingredientName} ✓`);
+            if (btn) { btn.innerHTML = '<i class="fa-solid fa-check"></i> עודכן!'; btn.className = btn.className.replace(/bg-teal-\d+/g,'bg-green-50').replace(/text-teal-\d+/g,'text-green-700').replace(/border-teal-\d+/g,'border-green-200'); }
+            if (typeof fetchFoodCost === 'function') fetchFoodCost().catch(function(){});
+        } else { throw new Error(data.error || ''); }
+    } catch(e) { showToast('error', 'שגיאה בעדכון המתכון'); if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-carrot"></i> נסה שוב'; } }
 };
 
 // === AI ACTION HANDLERS — SPORT ===

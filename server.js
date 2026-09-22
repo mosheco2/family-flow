@@ -14382,6 +14382,10 @@ app.post('/api/biz/chat-assistant', verifyBiz, async (req, res) => {
 כשמבקשים להפעיל/להשבית מנה → [ACTION:TOGGLE_CATALOG_ITEM|catalog_id|true/false]
   catalog_id נלקח מרשימת catalog[].id שבקונטקסט
 כשמבקשים לשנות מחיר מנה → [ACTION:UPDATE_CATALOG_PRICE|catalog_id|מחיר חדש]
+כשמבקשים לעדכן/להוסיף מרכיב במתכון של מנה (כמות, יחידה, או אחוז פחת) → [ACTION:UPDATE_RECIPE_INGREDIENT|catalog_id|שם מרכיב|כמות|יחידה|אחוז פחת]
+  catalog_id נלקח מרשימת catalog[].id שבקונטקסט. אחוז פחת אופציונלי - אם לא נאמר, השתמש ב-0.
+  פעולה זו מעדכנת/מוסיפה מרכיב בודד בלבד - שאר המרכיבים במתכון לא נמחקים.
+  דוגמה: "עדכן את כמות העגבניות בהמבורגר ל-80 גרם" → [ACTION:UPDATE_RECIPE_INGREDIENT|17|עגבניות|80|גרם|0]
 • לפתוח הזמנות → [ACTION:OPEN_TAB|pos]
 • לפתוח תפריט/קטלוג → [ACTION:OPEN_TAB|catalog]
 • לפתוח שולחנות/יומן → [ACTION:OPEN_TAB|calendar]
@@ -19566,6 +19570,51 @@ app.post('/api/food-cost/recipe/:catalogId', async (req, res) => {
         res.status(500).json({ error: e.message });
     } finally {
         if(dbClient) dbClient.release();
+    }
+});
+
+// עדכון/הוספת מרכיב בודד במתכון, בלי למחוק את שאר עץ המוצר - שימוש עיקרי: FamliAI (מנוע פעולות ה-AI)
+// שמבצעת שינוי ממוקד במתכון בעקבות בקשת מנהל, ולא רוצה לדרוס מרכיבים אחרים שלא נגעו בהם.
+app.post('/api/food-cost/recipe/:catalogId/ingredient', async (req, res) => {
+    try {
+        const { catalogId } = req.params;
+        const { groupId, ingredient_name, quantity, unit, waste_pct, unit_weight_grams } = req.body;
+        if (!groupId) return res.status(400).json({ success: false, error: 'groupId required' });
+        if (!ingredient_name || !String(ingredient_name).trim()) return res.status(400).json({ success: false, error: 'שם מרכיב חסר' });
+        const qty = parseFloat(quantity);
+        if (!qty || qty <= 0) return res.status(400).json({ success: false, error: 'כמות לא תקינה' });
+
+        // וידוא שהמנה שייכת לעסק המבקש - מונע עדכון מתכון של עסק אחר
+        const catCheck = await pool.query('SELECT id FROM store_catalog WHERE id = $1 AND group_id = $2', [catalogId, groupId]);
+        if (!catCheck.rows.length) return res.status(404).json({ success: false, error: 'מנה לא נמצאה בעסק זה' });
+
+        const name = String(ingredient_name).trim();
+        const wastePctVal = Math.min(parseFloat(waste_pct) || 0, 95);
+        const unitWeightVal = unit_weight_grams ? parseFloat(unit_weight_grams) : null;
+        const unitVal = unit || "יח'";
+
+        // התאמה לפי שם ללא תלות ברישיות - עקבי עם מנגנון ההתאמה בתצוגה החיה ובייצוא ה-CSV
+        const existing = await pool.query(
+            'SELECT id FROM product_ingredients WHERE catalog_id = $1 AND lower(trim(ingredient_name)) = lower(trim($2))',
+            [catalogId, name]
+        );
+
+        if (existing.rows.length) {
+            await pool.query(
+                'UPDATE product_ingredients SET quantity = $1, unit = $2, waste_pct = $3, unit_weight_grams = $4 WHERE id = $5',
+                [qty, unitVal, wastePctVal, unitWeightVal, existing.rows[0].id]
+            );
+        } else {
+            await pool.query(
+                'INSERT INTO product_ingredients (catalog_id, ingredient_name, quantity, unit, waste_pct, unit_weight_grams) VALUES ($1, $2, $3, $4, $5, $6)',
+                [catalogId, name, qty, unitVal, wastePctVal, unitWeightVal]
+            );
+        }
+
+        logBizAction(groupId, null, 'FamliAI', 'UPDATE_RECIPE_INGREDIENT', 'catalog_item', catalogId, `מרכיב "${name}" עודכן: ${qty} ${unitVal}${wastePctVal > 0 ? ` (${wastePctVal}% פחת)` : ''}`, { ingredient_name: name, quantity: qty, unit: unitVal, waste_pct: wastePctVal });
+        res.json({ success: true });
+    } catch(e) {
+        res.status(500).json({ success: false, error: e.message });
     }
 });
 
