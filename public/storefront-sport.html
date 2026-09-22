@@ -82,6 +82,8 @@ input,select,textarea{font-family:inherit}
 
 /* Layout */
 #store-layout{max-width:1100px;margin:0 auto;padding:24px 20px;display:grid;grid-template-columns:220px 1fr 300px;gap:20px;align-items:start}
+.gal-tag-chip{flex-shrink:0;border:none;border-radius:999px;padding:6px 14px;font-size:.75rem;font-weight:700;cursor:pointer;background:#f1f5f9;color:#475569}
+.gal-tag-chip[data-active="true"]{background:var(--accent,#4f46e5);color:#fff}
 
 /* Sidebar */
 #sidebar{position:sticky;top:72px}
@@ -719,6 +721,26 @@ function _enableBrandingMode(data) {
   hide('deals-section');    // באנרים
   document.querySelectorAll('#search-wrap, .search-bar, [id*="search-wrap"]').forEach(el => el.style.display = 'none');
   _renderBrandingContent(data);
+
+  // אין מוצרים למכירה במצב תדמית - הצג את תמונות הגלריה ישירות בדף הבית, ניתנות ללחיצה/הגדלה
+  const hasProducts = Array.isArray(data.catalog) && data.catalog.length > 0;
+  if (!hasProducts && data.settings?.gallery_enabled && data.groupId) {
+    fetch(`${API}/public/gallery/${data.groupId}`).then(r => r.json()).then(d => {
+      if (!d.success || !d.images || !d.images.length) return;
+      window._galleryImages = d.images;
+      const section = document.createElement('div');
+      section.style.cssText = 'max-width:900px;margin:0 auto;padding:0 20px 32px';
+      section.innerHTML = `
+        <h2 style="font-size:1.4rem;font-weight:900;margin-bottom:16px;color:var(--accent,#4f46e5)">גלריה</h2>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px">
+          ${d.images.map((img, i) => `<div onclick="openGallery(${i})" style="aspect-ratio:1;border-radius:12px;overflow:hidden;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,0.08)"><img src="${escHtml(img.image_url)}" style="width:100%;height:100%;object-fit:cover;display:block" loading="lazy"></div>`).join('')}
+        </div>
+        ${d.images.length > 4 ? `<button onclick="openGalleryGrid()" style="margin-top:14px;width:100%;background:#fff;border:1px solid var(--accent,#4f46e5);color:var(--accent,#4f46e5);border-radius:1rem;padding:0.7rem;font-size:0.85rem;font-weight:700;cursor:pointer">כל התמונות והסינון לפי נושא</button>` : ''}
+      `;
+      const hero = document.getElementById('hero') || document.querySelector('section');
+      if (hero) hero.after(section);
+    }).catch(() => {});
+  }
 }
 
 function _renderBrandingContent(data) {
@@ -954,21 +976,60 @@ async function loadAsync() {
     if (d.success && d.reviews?.length) renderReviews(d.reviews);
   } catch(e) {}
   try {
-    const r = await fetch(`${API}/public/gallery/${groupId}`);
-    const d = await r.json();
-    if (d.success && d.images?.length) {
-      const btn = document.createElement('button');
-      btn.className = 'qa-btn';
-      btn.style.cssText = 'border-color:rgba(255,255,255,.4)';
-      btn.textContent = `🖼 גלריה · ${d.images.length} תמונות`;
-      btn.onclick = () => { window._galleryImages = d.images; openGallery(0); };
-      document.getElementById('quick-actions').appendChild(btn);
-      document.getElementById('quick-actions').style.display = 'flex';
+    if (storeData.settings?.gallery_enabled) {
+      const r = await fetch(`${API}/public/gallery/${groupId}`);
+      const d = await r.json();
+      if (d.success && d.images?.length) {
+        window._galleryImages = d.images;
+        const btn = document.createElement('button');
+        btn.className = 'qa-btn';
+        btn.style.cssText = 'border-color:rgba(255,255,255,.4)';
+        btn.textContent = `🖼 גלריה · ${d.images.length} תמונות`;
+        btn.onclick = () => openGalleryGrid();
+        document.getElementById('quick-actions').appendChild(btn);
+        document.getElementById('quick-actions').style.display = 'flex';
+      }
     }
   } catch(e) {}
 }
 
-let _lbIndex = 0;
+let _lbIndex = 0, _galTag = null;
+function openGalleryGrid() {
+  const imgs = window._galleryImages || [];
+  if (!imgs.length) return;
+  const existing = document.getElementById('gallery-grid-overlay'); if (existing) existing.remove();
+  _galTag = null;
+  const tags = [...new Set(imgs.map(i => (i.tag||'').trim()).filter(Boolean))];
+  const ov = document.createElement('div');
+  ov.id = 'gallery-grid-overlay';
+  ov.style.cssText = 'position:fixed;inset:0;z-index:8900;background:#f8fafc;overflow-y:auto';
+  ov.innerHTML = `
+    <div style="background:#fff;border-bottom:1px solid #e2e8f0;padding:14px 18px;display:flex;align-items:center;gap:10px;position:sticky;top:0">
+      <button onclick="document.getElementById('gallery-grid-overlay').remove()" style="background:#f1f5f9;border:none;border-radius:50%;width:34px;height:34px;cursor:pointer">✕</button>
+      <div style="font-weight:800;font-size:.95rem">גלריה</div>
+    </div>
+    ${tags.length ? `<div id="gallery-tags-row" style="display:flex;gap:8px;overflow-x:auto;padding:12px 14px 0"></div>` : ''}
+    <div id="gallery-grid-inner" style="padding:14px;display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px"></div>`;
+  document.body.appendChild(ov);
+  _renderGalleryTagsRow(tags);
+  _renderGalleryGridInner();
+}
+function _renderGalleryTagsRow(tags) {
+  const row = document.getElementById('gallery-tags-row');
+  if (!row) return;
+  row.innerHTML = `<button class="gal-tag-chip" data-active="${_galTag===null}" onclick="_setGalTag(null)">הכל</button>` +
+    tags.map(tg => `<button class="gal-tag-chip" data-active="${_galTag===tg}" onclick="_setGalTag('${escHtml(tg).replace(/'/g,"\\'")}')">${escHtml(tg)}</button>`).join('');
+}
+function _setGalTag(tg) { _galTag = tg; _renderGalleryTagsRow([...new Set((window._galleryImages||[]).map(i=>(i.tag||'').trim()).filter(Boolean))]); _renderGalleryGridInner(); }
+function _renderGalleryGridInner() {
+  const grid = document.getElementById('gallery-grid-inner');
+  const imgs = window._galleryImages || [];
+  const filtered = _galTag ? imgs.filter(i => (i.tag||'') === _galTag) : imgs;
+  grid.innerHTML = filtered.map(img => {
+    const idx = imgs.indexOf(img);
+    return `<div onclick="openGallery(${idx})" style="aspect-ratio:1;border-radius:12px;overflow:hidden;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.08)"><img src="${escHtml(img.image_url)}" style="width:100%;height:100%;object-fit:cover;display:block" loading="lazy"></div>`;
+  }).join('') || `<div style="grid-column:1/-1;text-align:center;color:#94a3b8;padding:2rem 0">אין תמונות בנושא זה</div>`;
+}
 function openGallery(i) {
   _lbIndex = i;
   const imgs = window._galleryImages || [];
@@ -978,7 +1039,7 @@ function openGallery(i) {
   ov.style.cssText = 'position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,.92);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px';
   ov.innerHTML = `<button onclick="document.getElementById(\'lb-overlay\').remove()" style="position:absolute;top:16px;left:16px;background:rgba(255,255,255,.12);border:none;color:#fff;font-size:22px;width:40px;height:40px;border-radius:50%;cursor:pointer">✕</button>
     <button onclick="lbNav(-1)" style="position:absolute;right:16px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,.12);border:none;color:#fff;font-size:22px;width:44px;height:44px;border-radius:50%;cursor:pointer">›</button>
-    <img id="lb-img" src="${escHtml(imgs[i].url||imgs[i])}" style="max-width:90vw;max-height:75vh;border-radius:12px;object-fit:contain">
+    <img id="lb-img" src="${escHtml(imgs[i].image_url)}" style="max-width:90vw;max-height:75vh;border-radius:12px;object-fit:contain">
     <div id="lb-counter" style="color:rgba(255,255,255,.55);font-size:13px">${i+1} / ${imgs.length}</div>
     <button onclick="lbNav(1)" style="position:absolute;left:16px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,.12);border:none;color:#fff;font-size:22px;width:44px;height:44px;border-radius:50%;cursor:pointer">‹</button>`;
   document.body.appendChild(ov);
@@ -987,7 +1048,7 @@ function lbNav(dir) {
   const imgs = window._galleryImages || [];
   _lbIndex = (_lbIndex + dir + imgs.length) % imgs.length;
   const ov = document.getElementById('lb-overlay');
-  if (ov) { ov.querySelector('#lb-img').src = escHtml(imgs[_lbIndex].url||imgs[_lbIndex]); ov.querySelector('#lb-counter').textContent = `${_lbIndex+1} / ${imgs.length}`; }
+  if (ov) { ov.querySelector('#lb-img').src = escHtml(imgs[_lbIndex].image_url); ov.querySelector('#lb-counter').textContent = `${_lbIndex+1} / ${imgs.length}`; }
 }
 
 /* ── i18n static DOM ── */
