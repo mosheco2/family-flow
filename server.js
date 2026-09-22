@@ -1718,6 +1718,16 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
       try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS opening_hours JSONB DEFAULT NULL`); } catch(e) {}
       try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS wizard_completed BOOLEAN DEFAULT FALSE`); } catch(e) {}
       try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS terms_accepted_at TIMESTAMPTZ DEFAULT NULL`); } catch(e) {}
+      // עסק דמו (כניסה ללא הרשמה ללקוחות פוטנציאליים) - טלפון/סיסמה ייעודיים + סימון לאיפוס אוטומטי מחזורי
+      try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS is_demo_business BOOLEAN DEFAULT FALSE`); } catch(e) {}
+      try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS demo_phone VARCHAR(20)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS demo_password_plain VARCHAR(50)`); } catch(e) {}
+      // "צילום מצב" של הנתונים התפעוליים של עסק דמו, לשחזור אוטומטי מחזורי (מוחק את מה שמבקרים שינו)
+      try { await client.query(`CREATE TABLE IF NOT EXISTS demo_snapshots (
+          group_id INT PRIMARY KEY REFERENCES family_groups(id) ON DELETE CASCADE,
+          snapshot JSONB,
+          captured_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`); } catch(e) {}
       try { await client.query(`CREATE TABLE IF NOT EXISTS business_otp (
           id         SERIAL PRIMARY KEY,
           phone      VARCHAR(20)  NOT NULL,
@@ -16009,6 +16019,146 @@ app.get('/api/sa/businesses', verifySA, async (req, res) => {
         const result = await pool.query("SELECT id, name, group_code FROM family_groups WHERE type='BUSINESS' ORDER BY name");
         res.json({ success: true, businesses: result.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── SA: עסק דמו — כניסה ללקוחות פוטנציאליים ללא הרשמה ────────────────────────
+// הטבלאות התפעוליות שמתאפסות בעסק דמו כל 6 שעות (לא כולל תפריט/מתכונים - אלה נשארים קבועים)
+const DEMO_RESET_TABLES = ['store_orders', 'store_order_items', 'store_customers', 'transactions', 'tasks', 'pantry'];
+
+async function _demoInsertRows(client, tableName, rows) {
+    if (!rows || !rows.length) return;
+    const cols = Object.keys(rows[0]);
+    const colList = cols.join(',');
+    for (const row of rows) {
+        const placeholders = cols.map((_, i) => `$${i + 1}`).join(',');
+        await client.query(`INSERT INTO ${tableName} (${colList}) VALUES (${placeholders})`, cols.map(c => row[c]));
+    }
+}
+
+async function captureDemoSnapshot(groupId) {
+    const ordersR = await pool.query('SELECT * FROM store_orders WHERE group_id=$1', [groupId]);
+    const orderIds = ordersR.rows.map(o => o.id);
+    const itemsR = orderIds.length ? await pool.query('SELECT * FROM store_order_items WHERE order_id = ANY($1::int[])', [orderIds]) : { rows: [] };
+    const [customersR, transactionsR, tasksR, pantryR] = await Promise.all([
+        pool.query('SELECT * FROM store_customers WHERE group_id=$1', [groupId]),
+        pool.query('SELECT * FROM transactions WHERE group_id=$1', [groupId]),
+        pool.query('SELECT * FROM tasks WHERE group_id=$1', [groupId]),
+        pool.query('SELECT * FROM pantry WHERE group_id=$1', [groupId])
+    ]);
+    const snapshot = {
+        store_orders: ordersR.rows, store_order_items: itemsR.rows, store_customers: customersR.rows,
+        transactions: transactionsR.rows, tasks: tasksR.rows, pantry: pantryR.rows
+    };
+    await pool.query(
+        `INSERT INTO demo_snapshots (group_id, snapshot, captured_at) VALUES ($1, $2, NOW())
+         ON CONFLICT (group_id) DO UPDATE SET snapshot = $2, captured_at = NOW()`,
+        [groupId, JSON.stringify(snapshot)]
+    );
+    return snapshot;
+}
+
+// משחזר עסק דמו למצב שנשמר לאחרונה - מוחק את כל מה שמבקרים שינו מאז הלכידה
+async function restoreDemoSnapshot(groupId) {
+    const snapR = await pool.query('SELECT snapshot FROM demo_snapshots WHERE group_id=$1', [groupId]);
+    if (!snapR.rows.length) return false;
+    const snapshot = snapR.rows[0].snapshot;
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+        // מחיקה בסדר שמכבד תלויות (store_order_items תלוי ב-store_orders)
+        const orderIds = (await client.query('SELECT id FROM store_orders WHERE group_id=$1', [groupId])).rows.map(r => r.id);
+        if (orderIds.length) await client.query('DELETE FROM store_order_items WHERE order_id = ANY($1::int[])', [orderIds]);
+        await client.query('DELETE FROM store_orders WHERE group_id=$1', [groupId]);
+        await client.query('DELETE FROM store_customers WHERE group_id=$1', [groupId]);
+        await client.query('DELETE FROM transactions WHERE group_id=$1', [groupId]);
+        await client.query('DELETE FROM tasks WHERE group_id=$1', [groupId]);
+        await client.query('DELETE FROM pantry WHERE group_id=$1', [groupId]);
+
+        await _demoInsertRows(client, 'store_orders', snapshot.store_orders);
+        await _demoInsertRows(client, 'store_order_items', snapshot.store_order_items);
+        await _demoInsertRows(client, 'store_customers', snapshot.store_customers);
+        await _demoInsertRows(client, 'transactions', snapshot.transactions);
+        await _demoInsertRows(client, 'tasks', snapshot.tasks);
+        await _demoInsertRows(client, 'pantry', snapshot.pantry);
+
+        // איפוס ה-sequence של כל טבלה, כדי שהזנות עתידיות לא יתנגשו עם ה-id-ים ששוחזרו
+        for (const t of DEMO_RESET_TABLES) {
+            await client.query(`SELECT setval(pg_get_serial_sequence('${t}', 'id'), COALESCE((SELECT MAX(id) FROM ${t}), 1))`);
+        }
+
+        await client.query('COMMIT');
+        return true;
+    } catch(e) {
+        await client.query('ROLLBACK');
+        console.error('[restoreDemoSnapshot]', groupId, e.message);
+        return false;
+    } finally {
+        client.release();
+    }
+}
+
+// שליפת מצב הדמו הנוכחי של עסק (האם מופעל, פרטי כניסה, מתי נלכד snapshot לאחרונה)
+app.get('/api/sa/businesses/:groupId/demo', verifySA, async (req, res) => {
+    try {
+        const gRes = await pool.query('SELECT is_demo_business, demo_phone, demo_password_plain FROM family_groups WHERE id=$1', [req.params.groupId]);
+        if (!gRes.rows.length) return res.status(404).json({ success: false, error: 'עסק לא נמצא' });
+        const snapR = await pool.query('SELECT captured_at FROM demo_snapshots WHERE group_id=$1', [req.params.groupId]);
+        res.json({
+            success: true,
+            is_demo_business: gRes.rows[0].is_demo_business,
+            demo_phone: gRes.rows[0].demo_phone,
+            demo_password: gRes.rows[0].demo_password_plain,
+            link_path: `/demo-login.html?gid=${req.params.groupId}`,
+            snapshot_captured_at: snapR.rows[0] ? snapR.rows[0].captured_at : null
+        });
+    } catch(e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
+// הפעלת/יצירת עסק דמו - יוצר (או מנצל) משתמש ADMIN ייעודי לכניסה ללא הרשמה, בלי OTP
+app.post('/api/sa/businesses/:groupId/demo/enable', verifySA, async (req, res) => {
+    try {
+        const groupId = req.params.groupId;
+        const gRes = await pool.query('SELECT demo_phone, demo_password_plain FROM family_groups WHERE id=$1', [groupId]);
+        if (!gRes.rows.length) return res.status(404).json({ success: false, error: 'עסק לא נמצא' });
+
+        let { demo_phone: demoPhone, demo_password_plain: demoPassword } = gRes.rows[0];
+        if (!demoPhone) {
+            demoPhone = `DEMO${groupId}`;
+            demoPassword = Math.random().toString(36).slice(-8);
+            const passwordHash = await bcrypt.hash(demoPassword, 10);
+
+            const existingUser = await pool.query('SELECT id FROM users WHERE group_id=$1 AND phone=$2', [groupId, demoPhone]);
+            if (existingUser.rows.length) {
+                await pool.query('UPDATE users SET password_hash=$1, status=$2 WHERE id=$3', [passwordHash, 'active', existingUser.rows[0].id]);
+            } else {
+                await pool.query(
+                    `INSERT INTO users (group_id, nickname, role, phone, password_hash, status) VALUES ($1, 'לקוח דמו', 'ADMIN', $2, $3, 'active')`,
+                    [groupId, demoPhone, passwordHash]
+                );
+            }
+            await pool.query('UPDATE family_groups SET is_demo_business=TRUE, demo_phone=$1, demo_password_plain=$2 WHERE id=$3', [demoPhone, demoPassword, groupId]);
+        } else {
+            await pool.query('UPDATE family_groups SET is_demo_business=TRUE WHERE id=$1', [groupId]);
+        }
+
+        res.json({ success: true, demo_phone: demoPhone, demo_password: demoPassword, link_path: `/demo-login.html?gid=${groupId}` });
+    } catch(e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
+// כיבוי מצב דמו - לא מוחק את המשתמש/הצילום, רק מפסיק את הכניסה הציבורית ואת האיפוס האוטומטי
+app.post('/api/sa/businesses/:groupId/demo/disable', verifySA, async (req, res) => {
+    try {
+        await pool.query('UPDATE family_groups SET is_demo_business=FALSE WHERE id=$1', [req.params.groupId]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
+// לכידת "מצב נקי" ידנית - לאחר שסופר-אדמין סיים להגדיר את העסק כפי שרוצים להציג ללקוחות
+app.post('/api/sa/businesses/:groupId/demo/snapshot', verifySA, async (req, res) => {
+    try {
+        await captureDemoSnapshot(req.params.groupId);
+        res.json({ success: true, captured_at: new Date().toISOString() });
+    } catch(e) { res.status(500).json({ success: false, error: e.message }); }
 });
 
 // ─── SA: AI usage log ────────────────────────────────────────────────────────
@@ -39496,6 +39646,20 @@ async function runPhase3MonthlyCron() {
     }
 }
 setInterval(runPhase3MonthlyCron, 20 * 24 * 60 * 60 * 1000); // 20 ימים — בטוח מתחת ל-INT32_MAX
+
+// ── איפוס אוטומטי מחזורי לעסקי דמו (כניסה ללא הרשמה) - מחזיר לכל עסק דמו את הנתונים התפעוליים
+// למצב שנלכד לאחרונה, כך שמבקרים שונים תמיד רואים סביבה "נקייה" ולא מקולקלת ע"י מבקר קודם.
+async function runDemoBusinessesResetCron() {
+    try {
+        const demoR = await pool.query('SELECT id FROM family_groups WHERE is_demo_business = TRUE');
+        for (const row of demoR.rows) {
+            await restoreDemoSnapshot(row.id);
+        }
+    } catch(e) {
+        console.error('[demo reset cron] error:', e.message);
+    }
+}
+setInterval(runDemoBusinessesResetCron, 6 * 60 * 60 * 1000); // כל 6 שעות
 
 // ── Phase 3 API Endpoints ─────────────────────────────────────
 

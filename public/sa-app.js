@@ -4407,9 +4407,110 @@ function renderSABusinessesTable() {
             <td class="px-4 py-4 font-bold text-slate-800 text-right">${safeStr(b.name)}<div class="text-[10px] text-slate-500 mt-1 font-mono">קוד: ${safeStr(b.group_code)}</div></td>
             <td class="px-4 py-4 text-right"><span class="bg-slate-100 text-slate-600 px-2 py-1 rounded text-xs">עסק רשום</span></td>
             <td class="px-4 py-4 text-center"><span class="bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-full font-bold text-xs" title="חיבורים מנוהלים פנימה"><i class="fa-solid fa-link"></i> בדיקה בניהול</span></td>
-            <td class="px-4 py-4 text-center"><button onclick="openSABusinessModal(${b.id})" class="bg-emerald-100 text-emerald-700 hover:bg-emerald-200 px-3 py-1.5 rounded-lg text-xs font-bold transition"><i class="fa-solid fa-gear"></i> ניהול חיבורים</button></td>
+            <td class="px-4 py-4 text-center">
+                <button onclick="openSABusinessModal(${b.id})" class="bg-emerald-100 text-emerald-700 hover:bg-emerald-200 px-3 py-1.5 rounded-lg text-xs font-bold transition"><i class="fa-solid fa-gear"></i> ניהול חיבורים</button>
+                <button onclick="openSADemoModal(${b.id}, '${safeStr(b.name)}')" class="bg-purple-100 text-purple-700 hover:bg-purple-200 px-3 py-1.5 rounded-lg text-xs font-bold transition mr-1"><i class="fa-solid fa-flask"></i> דמו</button>
+            </td>
         </tr>
     `).join('');
+}
+
+// ─── עסק דמו — כניסה ללקוחות פוטנציאליים ללא הרשמה ─────────────────────────────
+async function openSADemoModal(bizId, bizName) {
+    let modal = document.getElementById('sa-demo-modal');
+    if (!modal) {
+        document.body.insertAdjacentHTML('beforeend', `
+        <div id="sa-demo-modal" class="fixed inset-0 bg-black/50 z-[100] hidden flex items-center justify-center p-4">
+            <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="font-black text-slate-800 text-lg"><i class="fa-solid fa-flask text-purple-600 mr-2"></i> <span id="sa-demo-title">עסק דמו</span></h3>
+                    <button onclick="document.getElementById('sa-demo-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-xl"></i></button>
+                </div>
+                <div id="sa-demo-body" class="space-y-3 text-sm"></div>
+            </div>
+        </div>`);
+        modal = document.getElementById('sa-demo-modal');
+    }
+    document.getElementById('sa-demo-title').innerText = 'עסק דמו — ' + bizName;
+    modal.dataset.bizId = bizId;
+    modal.classList.remove('hidden');
+    document.getElementById('sa-demo-body').innerHTML = '<p class="text-xs text-slate-400 text-center py-4"><i class="fa-solid fa-spinner fa-spin"></i> טוען...</p>';
+    await refreshSADemoModal(bizId);
+}
+
+async function refreshSADemoModal(bizId) {
+    try {
+        const res = await fetch(`${API}/sa/businesses/${bizId}/demo`, { headers: { 'Authorization': typeof saToken !== 'undefined' ? saToken : (localStorage.getItem('ofl_sa_token') || '') } });
+        const data = await res.json();
+        if (!data.success) { document.getElementById('sa-demo-body').innerHTML = '<p class="text-xs text-red-500 text-center py-4">שגיאה בטעינה</p>'; return; }
+
+        const body = document.getElementById('sa-demo-body');
+        if (!data.is_demo_business) {
+            body.innerHTML = `
+                <p class="text-xs text-slate-500">עסק זה עדיין לא מוגדר כעסק דמו. הפעלה תיצור עבורו כניסה ייעודית (שם משתמש+סיסמה) שאפשר לשתף עם לקוחות פוטנציאליים, בלי שיצטרכו להירשם.</p>
+                <button onclick="enableSADemoBusiness(${bizId})" class="w-full bg-purple-600 hover:bg-purple-700 text-white py-2.5 rounded-xl font-bold text-sm transition"><i class="fa-solid fa-flask mr-1"></i> הפוך לעסק דמו</button>
+            `;
+            return;
+        }
+
+        const origin = window.location.origin;
+        const link = origin + data.link_path;
+        const snapshotText = data.snapshot_captured_at
+            ? 'מצב נשמר לאחרונה: ' + new Date(data.snapshot_captured_at).toLocaleString('he-IL')
+            : 'טרם נשמר "מצב נקי" - הנתונים לא יתאפסו אוטומטית עד ללכידה ראשונה';
+
+        body.innerHTML = `
+            <div class="bg-purple-50 border border-purple-200 rounded-xl p-3">
+                <label class="text-[10px] font-bold text-purple-600 block mb-1">קישור כניסה לשיתוף</label>
+                <div class="flex gap-1.5">
+                    <input id="sa-demo-link" readonly value="${link}" class="flex-1 text-xs bg-white border border-purple-200 rounded-lg px-2 py-1.5 font-mono">
+                    <button onclick="navigator.clipboard.writeText('${link}').then(()=>showToast('success','הקישור הועתק'))" class="bg-purple-600 text-white px-2.5 rounded-lg text-xs"><i class="fa-solid fa-copy"></i></button>
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+                <div class="bg-slate-50 border border-slate-200 rounded-xl p-2.5">
+                    <label class="text-[10px] font-bold text-slate-400 block mb-1">שם משתמש</label>
+                    <span class="font-mono text-xs font-bold">${safeStr(data.demo_phone)}</span>
+                </div>
+                <div class="bg-slate-50 border border-slate-200 rounded-xl p-2.5">
+                    <label class="text-[10px] font-bold text-slate-400 block mb-1">סיסמה</label>
+                    <span class="font-mono text-xs font-bold">${safeStr(data.demo_password)}</span>
+                </div>
+            </div>
+            <p class="text-[10px] text-slate-400">${snapshotText}</p>
+            <p class="text-[10px] text-slate-400">נתוני ההזמנות/לקוחות/מלאי בעסק זה מתאפסים אוטומטית כל 6 שעות למצב שנלכד לאחרונה. תפריט/מתכונים לא מתאפסים.</p>
+            <button onclick="captureSADemoSnapshot(${bizId})" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 py-2.5 rounded-xl font-bold text-sm transition"><i class="fa-solid fa-camera mr-1"></i> שמור מצב נוכחי כברירת מחדל לאיפוס</button>
+            <button onclick="disableSADemoBusiness(${bizId})" class="w-full text-red-500 hover:bg-red-50 py-2 rounded-xl font-bold text-xs transition">כבה מצב דמו</button>
+        `;
+    } catch(e) { document.getElementById('sa-demo-body').innerHTML = '<p class="text-xs text-red-500 text-center py-4">שגיאת רשת</p>'; }
+}
+
+async function enableSADemoBusiness(bizId) {
+    try {
+        const res = await fetch(`${API}/sa/businesses/${bizId}/demo/enable`, { method: 'POST', headers: { 'Authorization': typeof saToken !== 'undefined' ? saToken : (localStorage.getItem('ofl_sa_token') || '') } });
+        const data = await res.json();
+        if (data.success) { showToast('success', 'עסק הדמו הופעל'); refreshSADemoModal(bizId); }
+        else showToast('error', data.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
+}
+
+async function disableSADemoBusiness(bizId) {
+    if (!confirm('לכבות את מצב הדמו? הקישור הציבורי יפסיק לעבוד (אפשר להפעיל מחדש בכל עת).')) return;
+    try {
+        const res = await fetch(`${API}/sa/businesses/${bizId}/demo/disable`, { method: 'POST', headers: { 'Authorization': typeof saToken !== 'undefined' ? saToken : (localStorage.getItem('ofl_sa_token') || '') } });
+        const data = await res.json();
+        if (data.success) { showToast('success', 'מצב הדמו כובה'); refreshSADemoModal(bizId); }
+        else showToast('error', data.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
+}
+
+async function captureSADemoSnapshot(bizId) {
+    try {
+        const res = await fetch(`${API}/sa/businesses/${bizId}/demo/snapshot`, { method: 'POST', headers: { 'Authorization': typeof saToken !== 'undefined' ? saToken : (localStorage.getItem('ofl_sa_token') || '') } });
+        const data = await res.json();
+        if (data.success) { showToast('success', 'המצב הנוכחי נשמר כברירת מחדל לאיפוס'); refreshSADemoModal(bizId); }
+        else showToast('error', data.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
 }
 
 function filterSABusinessesTable() { renderSABusinessesTable(); }
