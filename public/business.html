@@ -810,7 +810,6 @@
                       <button onclick="switchTab('community');closeNavDropdowns()" class="w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition flex items-center gap-2" id="gdrop-community">🏘️ קהילות</button>
                       <button onclick="switchTab('surveys');closeNavDropdowns()" class="w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition flex items-center gap-2" id="gdrop-surveys">📣 תקשורת</button>
                       <button onclick="switchTab('biz-ads');closeNavDropdowns()" class="w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-purple-50 hover:text-purple-700 transition flex items-center gap-2" id="gdrop-biz-ads">📢 פרסום FLOW</button>
-                      <button onclick="switchTab('gallery_mgmt');closeNavDropdowns()" class="w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-purple-50 hover:text-purple-700 transition flex items-center gap-2" id="gdrop-gallery_mgmt">🖼️ ניהול גלריה</button>
                       <button id="gnav-btn-settings" onclick="switchTab('settings');closeNavDropdowns()" class="hidden w-full text-right px-4 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition flex items-center gap-2">⚙️ הגדרות</button>
                     </div>
                   </div>
@@ -1828,19 +1827,7 @@
                                     </div>
                                 </div>
 
-                                <!-- Gallery Section -->
-                                <div class="bg-slate-50 p-4 rounded-2xl border border-slate-100 shadow-sm">
-                                    <label class="text-xs font-bold text-slate-700 block mb-3"><i class="fa-solid fa-images text-indigo-500"></i> גלריית תמונות (עד 12)</label>
-                                    <div id="biz-gallery-grid" class="grid grid-cols-3 gap-2 mb-3"></div>
-                                    <div class="space-y-2">
-                                        <input type="text" id="biz-gallery-caption" class="modern-input py-2 text-sm" placeholder="כיתוב לתמונות (אופציונלי)">
-                                        <div class="flex gap-2">
-                                            <button type="button" onclick="document.getElementById('biz-gallery-file').click()" class="flex-1 bg-indigo-50 text-indigo-700 px-3 py-2 rounded-xl text-xs font-bold border border-indigo-100 hover:bg-indigo-100 transition"><i class="fa-solid fa-upload"></i> בחר תמונות</button>
-                                            <button type="button" onclick="uploadGalleryImages()" class="flex-1 bg-slate-800 text-white px-3 py-2 rounded-xl text-xs font-bold hover:bg-slate-700 transition"><i class="fa-solid fa-cloud-upload-alt"></i> העלה תמונות</button>
-                                        </div>
-                                        <input type="file" id="biz-gallery-file" accept="image/*" multiple class="hidden">
-                                    </div>
-                                </div>
+                                <!-- גלריית התמונות עברה לטאב ייעודי "גלריה" תחת מכירות/חנות (ראו sales-view-gallery) -->
 
                                 <div class="bg-blue-50 p-4 rounded-xl border border-blue-100">
                                     <label class="text-xs font-bold text-blue-800 block mb-1.5">קישור לחנות הציבורית שלכם:</label>
@@ -1919,10 +1906,20 @@
 
                             <div id="sales-view-gallery" class="hidden space-y-5 pb-8">
                                 <div class="bg-purple-50 border border-purple-100 rounded-2xl p-5">
-                                    <h4 class="font-bold text-slate-800 mb-1 flex items-center gap-2"><i class="fa-solid fa-images text-purple-500"></i> גלריית תמונות לחנות</h4>
-                                    <p class="text-xs text-slate-500 mb-4">תמונות אלו יוצגו בעמוד החנות הציבורי שלך. עד 12 תמונות.</p>
+                                    <div class="flex items-center justify-between mb-1">
+                                        <h4 class="font-bold text-slate-800 flex items-center gap-2"><i class="fa-solid fa-images text-purple-500"></i> גלריית תמונות לחנות</h4>
+                                        <div class="flex items-center gap-2">
+                                            <span id="gallery-toggle-label" class="text-[10px] font-bold text-slate-400">כבוי</span>
+                                            <button onclick="window.toggleGalleryEnabled()" class="relative w-11 h-6 rounded-full bg-slate-200 transition shrink-0" id="gallery-toggle-track">
+                                                <span class="absolute top-0.5 right-0.5 w-5 h-5 bg-white rounded-full shadow transition" id="gallery-toggle-thumb"></span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <p class="text-xs text-slate-500 mb-1">תמונות אלו יוצגו בעמוד החנות הציבורי שלך. עד 12 תמונות.</p>
+                                    <p class="text-[11px] text-purple-400 mb-4">במצב תדמית (ללא מוצרים למכירה) הגלריה תוצג אוטומטית בדף הבית. במצב חנות רגיל - תוצג רק כשמופעלת.</p>
                                     <div id="biz-gallery-grid" class="grid grid-cols-3 gap-3 mb-4"></div>
                                     <div class="flex flex-col gap-2">
+                                        <input type="text" id="gallery-upload-tag" class="modern-input py-2 text-sm" placeholder="נושא/תגית לתמונות הבאות (למשל: עיצוב שיער, לפני-אחרי) - אופציונלי">
                                         <input type="file" id="gallery-file-input" accept="image/*" multiple class="hidden" onchange="window.uploadGalleryImages(this.files)">
                                         <button onclick="document.getElementById('gallery-file-input').click()" class="w-full bg-purple-600 text-white py-3 rounded-xl font-bold hover:bg-purple-700 transition flex items-center justify-center gap-2"><i class="fa-solid fa-plus"></i> הוסף תמונות</button>
                                     </div>
@@ -2483,35 +2480,6 @@
                                 </div>
                             </div>
                             <div id="biz-available-communities-list" class="grid grid-cols-1 sm:grid-cols-2 gap-4 pb-20"></div>
-                        </div>
-                    </div>
-                    <div id="content-gallery_mgmt" class="hidden pt-4 pb-20">
-                        <div class="bg-gradient-to-r from-purple-500 to-indigo-500 rounded-[2rem] p-6 text-white shadow-xl mb-5 relative overflow-hidden">
-                            <h3 class="text-xl font-bold mb-1">ניהול גלריה 🖼️</h3>
-                            <p class="text-purple-50 text-xs opacity-90">תמונות שיוצגו לציבור בדף הבית / בעמוד הגלריה של החנות שלכם. עד 12 תמונות.</p>
-                            <i class="fa-solid fa-images absolute -left-4 -bottom-4 text-8xl text-white opacity-20 rotate-12"></i>
-                        </div>
-                        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm mb-4 flex items-center justify-between">
-                            <div>
-                                <h4 class="font-bold text-slate-800 text-sm">הצגת הגלריה בחנות הציבורית</h4>
-                                <p class="text-[11px] text-slate-400 mt-0.5">במצב תדמית (ללא מוצרים למכירה) הגלריה תוצג אוטומטית בדף הבית. במצב חנות רגיל - תוצג רק אם מופעל.</p>
-                            </div>
-                            <button onclick="window.toggleGalleryEnabled()" class="relative w-12 h-6 rounded-full bg-slate-200 transition shrink-0" id="gm-toggle-track">
-                                <span class="absolute top-0.5 right-0.5 w-5 h-5 bg-white rounded-full shadow transition" id="gm-toggle-thumb"></span>
-                            </button>
-                        </div>
-                        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm mb-4">
-                            <h4 class="font-bold text-slate-700 text-sm mb-3">הוספת תמונות</h4>
-                            <div class="flex gap-2 mb-2">
-                                <input type="text" id="gm-upload-tag" class="modern-input flex-1 py-2 px-3 text-xs" placeholder="נושא/תגית לתמונות (למשל: עיצוב שיער, לפני-אחרי) - אופציונלי">
-                            </div>
-                            <input type="file" id="gm-file-input" accept="image/*" multiple class="hidden" onchange="window.uploadGalleryImagesMgmt(this.files)">
-                            <button onclick="document.getElementById('gm-file-input').click()" class="w-full bg-purple-50 text-purple-600 border border-purple-200 rounded-xl py-3 text-sm font-bold hover:bg-purple-100 transition"><i class="fa-solid fa-upload mr-1"></i> בחר תמונות להעלאה</button>
-                            <p id="gm-upload-status" class="hidden text-xs text-slate-500 mt-2 text-center"></p>
-                        </div>
-                        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
-                            <h4 class="font-bold text-slate-700 text-sm mb-3">התמונות בגלריה</h4>
-                            <div id="gm-gallery-grid" class="grid grid-cols-3 gap-2"></div>
                         </div>
                     </div>
                     <div id="content-members" class="hidden space-y-6">
@@ -4163,7 +4131,7 @@
         }
     </script>
 
-    <script src="business-app.js?v=239" defer></script>
+    <script src="business-app.js?v=240" defer></script>
     <script>
         function checkShopUnit() {
             const unit = document.getElementById('shop-unit').value;

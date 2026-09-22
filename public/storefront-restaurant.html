@@ -139,6 +139,8 @@ input,button,select,textarea{font-family:inherit}
 #gallery-title{font-family:'Rubik',sans-serif;font-size:17px;font-weight:700}
 #gallery-close{margin-right:auto;width:32px;height:32px;border:none;border-radius:50%;background:var(--subtle);font-size:14px;cursor:pointer}
 #gallery-grid{flex:1;overflow:auto;padding:16px;display:grid;grid-template-columns:repeat(auto-fill,minmax(min(160px,100%),1fr));gap:10px;max-width:1280px;width:100%;margin:0 auto}
+.gallery-tag-chip{flex-shrink:0;border:none;border-radius:999px;padding:6px 14px;font-size:.75rem;font-weight:700;cursor:pointer;background:#f1f5f9;color:#475569}
+.gallery-tag-chip[data-active="true"]{background:var(--accent,#e63946);color:#fff}
 .gallery-thumb{aspect-ratio:1;border-radius:14px;overflow:hidden;cursor:pointer;background:var(--subtle)}
 .gallery-thumb img{width:100%;height:100%;object-fit:cover;transition:.18s}
 .gallery-thumb:hover img{transform:scale(1.06)}
@@ -514,6 +516,7 @@ input,button,select,textarea{font-family:inherit}
     <div id="gallery-title">גלריה</div>
     <button id="gallery-close" onclick="closeGallery()">✕</button>
   </div>
+  <div id="gallery-tags" style="display:flex;gap:8px;overflow-x:auto;padding:0 16px 8px"></div>
   <div id="gallery-grid"></div>
 </div>
 <div id="lb-overlay">
@@ -986,6 +989,26 @@ function _enableBrandingMode(data) {
   hide('footer-col-info');   // עמודת "מידע" ב-footer (שעות ומשלוחים)
   document.querySelectorAll('.cat-section-anchor').forEach(el => el.style.display = 'none');
   _renderBrandingContent(data);
+
+  // אין מוצרים למכירה במצב תדמית - הצג את תמונות הגלריה ישירות בדף הבית, ניתנות ללחיצה/הגדלה
+  const hasProducts = Array.isArray(data.catalog) && data.catalog.length > 0;
+  if (!hasProducts && data.settings?.gallery_enabled && data.groupId) {
+    fetch(`${API}/public/gallery/${data.groupId}`).then(r => r.json()).then(d => {
+      if (!d.success || !d.images || !d.images.length) return;
+      _galleryImages = d.images;
+      const section = document.createElement('div');
+      section.style.cssText = 'max-width:900px;margin:0 auto;padding:0 20px 32px';
+      section.innerHTML = `
+        <h2 style="font-size:1.4rem;font-weight:900;margin-bottom:16px;color:var(--accent,#e63946)">גלריה</h2>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px">
+          ${d.images.map((img, i) => `<div onclick="openLb(${i})" style="aspect-ratio:1;border-radius:12px;overflow:hidden;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,0.08)"><img src="${escHtml(img.image_url)}" style="width:100%;height:100%;object-fit:cover;display:block" loading="lazy"></div>`).join('')}
+        </div>
+        ${d.images.length > 4 ? `<button onclick="openGallery()" style="margin-top:14px;width:100%;background:#fff;border:1px solid var(--accent,#e63946);color:var(--accent,#e63946);border-radius:1rem;padding:0.7rem;font-size:0.85rem;font-weight:700;cursor:pointer">כל התמונות והסינון לפי נושא</button>` : ''}
+      `;
+      const hero = document.getElementById('hero') || document.querySelector('section');
+      if (hero) hero.after(section);
+    }).catch(() => {});
+  }
 }
 
 function _renderBrandingContent(data) {
@@ -1052,12 +1075,13 @@ async function initStore() {
     renderAll(data);
     if (window.btypeInit) window.btypeInit(data);
     renderCommunityBanner(data);
+    const _rSiteMode = data.settings?.site_mode || ((data.businessType || data.business_type) === 'professional' ? 'branding' : 'shop');
+    window._rIsBranding = (_rSiteMode === 'branding');
     loadAsync(data.groupId);
     document.getElementById('loading-screen').style.display = 'none';
     initScrollSpy();
     initSlots();
-    const _rSiteMode = data.settings?.site_mode || ((data.businessType || data.business_type) === 'professional' ? 'branding' : 'shop');
-    if (_rSiteMode === 'branding') _enableBrandingMode(data);
+    if (window._rIsBranding) _enableBrandingMode(data);
   } catch(e) {
     showError('שגיאה בטעינת החנות');
     console.error(e);
@@ -2424,12 +2448,27 @@ function smsDigitInput(el, idx) {
 }
 
 // ===== GALLERY =====
-let _galleryImages = [], _lbIndex = 0;
-function openGallery() {
+let _galleryImages = [], _lbIndex = 0, _galleryActiveTag = null;
+function _renderGalleryTags() {
+  const tagsEl = document.getElementById('gallery-tags');
+  const tags = [...new Set(_galleryImages.map(i => (i.tag||'').trim()).filter(Boolean))];
+  if (!tags.length) { tagsEl.innerHTML = ''; return; }
+  tagsEl.innerHTML = `<button class="gallery-tag-chip" data-active="${_galleryActiveTag===null}" onclick="_setGalleryTag(null)">הכל</button>` +
+    tags.map(t => `<button class="gallery-tag-chip" data-active="${_galleryActiveTag===t}" onclick="_setGalleryTag('${escHtml(t).replace(/'/g,"\\'")}')">${escHtml(t)}</button>`).join('');
+}
+function _setGalleryTag(tag) { _galleryActiveTag = tag; _renderGalleryTags(); _renderGalleryGrid(); }
+function _renderGalleryGrid() {
   const grid = document.getElementById('gallery-grid');
-  grid.innerHTML = _galleryImages.map((img, i) =>
-    `<div class="gallery-thumb" onclick="openLb(${i})"><img src="${escHtml(img.url||img)}" loading="lazy" alt="תמונה ${i+1}"></div>`
-  ).join('');
+  const filtered = _galleryActiveTag ? _galleryImages.filter(i => (i.tag||'') === _galleryActiveTag) : _galleryImages;
+  grid.innerHTML = filtered.map((img) => {
+    const realIdx = _galleryImages.indexOf(img);
+    return `<div class="gallery-thumb" onclick="openLb(${realIdx})"><img src="${escHtml(img.image_url)}" loading="lazy" alt="תמונה ${realIdx+1}"></div>`;
+  }).join('') || '<div style="grid-column:1/-1;text-align:center;color:#94a3b8;padding:2rem 0">אין תמונות בנושא זה</div>';
+}
+function openGallery() {
+  _galleryActiveTag = null;
+  _renderGalleryTags();
+  _renderGalleryGrid();
   document.getElementById('gallery-overlay').style.display = 'flex';
   document.body.style.overflow = 'hidden';
 }
@@ -2443,7 +2482,7 @@ function closeLb() { document.getElementById('lb-overlay').style.display = 'none
 function lbNav(dir) { _lbIndex = (_lbIndex + dir + _galleryImages.length) % _galleryImages.length; renderLb(); }
 function renderLb() {
   const img = _galleryImages[_lbIndex];
-  document.getElementById('lb-img').src = img.url || img;
+  document.getElementById('lb-img').src = img.image_url;
   document.getElementById('lb-counter').textContent = `${_lbIndex + 1} / ${_galleryImages.length}`;
 }
 
