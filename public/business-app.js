@@ -22462,139 +22462,10 @@ window.showOnboardingWizardV2 = function showOnboardingWizardV2(skipInit) {
     updateWizardUIV2();
 }
 
-// --- מנגנון מחשבון תמחיר מנה (Food Cost) ---
-let fcIngredients = [];
-
-function openFoodCostModal() {
-    fcIngredients = [];
-    renderFCIngredients();
-    populateFCPantrySelect();
-    calculateFC();
-    getEl('food-cost-modal').classList.remove('hidden');
-}
-
-function populateFCPantrySelect() {
-    const select = getEl('fc-ingredient-select');
-    if (!select) return;
-    
-    let html = '<option value="">בחר מוצר מהמלאי...</option>';
-    if (typeof pantryCache !== 'undefined' && pantryCache.length > 0) {
-        pantryCache.forEach(item => {
-            const cost = parseFloat(item.price) || 0; // בהנחה שהשדה הוא price
-            html += `<option value="${item.id}" data-name="${safeStr(item.item_name)}" data-cost="${cost}">${safeStr(item.item_name)} (₪${cost}/${item.unit || "יח'"})</option>`;
-        });
-    }
-    html += '<option value="custom">-- הזנה ידנית של חומר גלם --</option>';
-    select.innerHTML = html;
-}
-
-async function addFCIngredient() {
-    const select = getEl('fc-ingredient-select');
-    const qtyInput = getEl('fc-ingredient-qty');
-    const qty = parseFloat(qtyInput.value);
-
-    if (select.value === '') return showToast('error', 'יש לבחור מוצר מהמלאי');
-    if (!qty || qty <= 0) return showToast('error', 'יש להזין כמות תקינה (למשל: 1, 0.5)');
-
-    const option = select.options[select.selectedIndex];
-    let name = option.getAttribute('data-name');
-    let costPerUnit = parseFloat(option.getAttribute('data-cost')) || 0;
-
-    if (select.value === 'custom') {
-        name = await window._uiPrompt('שם חומר הגלם:');
-        if (!name) return;
-        const costInput = await window._uiPrompt(`מהי העלות ליחידה אחת של ${name}? (₪)`, {type:'number'});
-        costPerUnit = parseFloat(costInput) || 0;
-    }
-
-    fcIngredients.push({ name: name, qty: qty, costPerUnit: costPerUnit });
-    qtyInput.value = '';
-    select.value = '';
-    renderFCIngredients();
-    calculateFC();
-}
-
-function removeFCIngredient(index) {
-    fcIngredients.splice(index, 1);
-    renderFCIngredients();
-    calculateFC();
-}
-
-function renderFCIngredients() {
-    const list = getEl('fc-ingredients-list');
-    if (!list) return;
-    if (fcIngredients.length === 0) {
-        list.innerHTML = '<p class="text-[10px] text-emerald-600/70 text-center py-2 font-medium">טרם הוספו מרכיבים.</p>';
-        return;
-    }
-    let html = '';
-    fcIngredients.forEach((ing, idx) => {
-        const total = ing.qty * ing.costPerUnit;
-        html += `
-        <div class="flex justify-between items-center bg-white p-2 rounded border border-emerald-100 text-xs shadow-sm">
-            <span>${safeStr(ing.name)} <span class="text-slate-400 mx-1">x${ing.qty}</span></span>
-            <div class="flex items-center gap-2">
-                <span class="font-bold text-slate-700">₪${total.toFixed(2)}</span>
-                <button onclick="removeFCIngredient(${idx})" class="text-red-400 hover:text-red-600 w-5 h-5 flex items-center justify-center bg-slate-50 rounded"><i class="fa-solid fa-times"></i></button>
-            </div>
-        </div>`;
-    });
-    list.innerHTML = html;
-}
-
-function calculateFC() {
-    let totalMatCost = 0;
-    fcIngredients.forEach(ing => totalMatCost += (ing.qty * ing.costPerUnit));
-    
-    const overhead = parseFloat(val('fc-overhead')) || 0;
-    const targetPct = parseFloat(val('fc-target-pct')) || 30;
-    
-    const totalCost = totalMatCost + overhead;
-    let recPrice = 0;
-    
-    if (targetPct > 0) {
-        recPrice = totalCost / (targetPct / 100);
-    }
-    
-    getEl('fc-total-cost').innerText = `₪${totalCost.toFixed(2)}`;
-    getEl('fc-recommended-price').innerText = `₪${recPrice.toFixed(0)}`; // מעגלים לשקל שלם
-    getEl('fc-recommended-price').dataset.raw = recPrice.toFixed(2);
-}
-
-function applyFCPrice() {
-    const recPriceEl = getEl('fc-recommended-price');
-    const priceStr = recPriceEl.dataset.raw || recPriceEl.innerText.replace('₪', '');
-    const price = parseFloat(priceStr);
-    
-    if (price > 0) {
-        const priceInput = getEl('sp-price');
-        if (priceInput) {
-            priceInput.value = Math.ceil(price); // מעגל כלפי מעלה בחנות
-            showToast('success', 'המחיר עודכן בטופס!');
-        }
-    }
-    getEl('food-cost-modal').classList.add('hidden');
-}
-
-async function analyzeFoodCostAI() {
-    executeWithAIWarning(async () => {
-        showAIModal('אנליסט התמחור AI', null); getEl('familai-loading-text').innerText = 'מנתח אפשרויות להוזלת המנה...';
-        try {
-            const ingredientsData = fcIngredients.map(i => `${i.name}: ${i.qty} יח' (₪${i.costPerUnit}/יח')`).join(', ');
-            const promptText = `נתח את עלות המנה הבאה והצע חלופות לחומרי גלם כדי להוריד את ה-Food Cost:\n${ingredientsData}\nהוצאות עקיפות: ₪${val('fc-overhead')}\nיעד רצוי: ${val('fc-target-pct')}%`;
-            
-            const res = await fetch(`${API}/biz/chat-assistant`, { 
-                method: 'POST', 
-                headers: {'Content-Type': 'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : ''}, 
-                body: JSON.stringify({ query: promptText, context: JSON.stringify({ role: "יועץ קולינרי וכלכלי למסעדות" }), groupId: currentGroup.id }) 
-            });
-            const data = await res.json();
-            if(!handleAIResponseCheck(data)) { getEl('familai-advisor-modal').classList.add('hidden'); return; }
-            if(data.success && data.answer) { showAIModal('אנליסט התמחור AI', data.answer); }
-            else { getEl('familai-advisor-modal').classList.add('hidden'); showToast('error', 'שגיאה בניתוח'); }
-        } catch(e) { getEl('familai-advisor-modal').classList.add('hidden'); showToast('error', 'שגיאה בתקשורת'); }
-    });
-}
+// --- מחשבון תמחיר יעד וייעוץ AI להוזלת עלות אוחדו לתוך בונה המתכון (openRecipeBuilder) ---
+// היה כאן בעבר כלי נפרד (openFoodCostModal) שלא נשמר לצמיתות ולא היה לו שום כפתור פתיחה
+// בממשק בפועל (קוד מת) - הפונקציונליות המועילה שלו (מחיר מומלץ לפי יעד % + ייעוץ AI)
+// שולבה בתוך window.calcRBTargetPrice / window.applyRBTargetPrice / window.analyzeRBCostAI למטה.
 // --- מסופון שליחים משופר (Dropdown UI) ---
 let _courierPollingInterval = null;
 function startCourierPolling() {
@@ -23013,6 +22884,18 @@ window.openRecipeBuilder = function(catalogId = null) {
                         <button onclick="window.addRBOverhead()" class="bg-blue-100 text-blue-600 w-8 h-8 rounded-lg flex items-center justify-center hover:bg-blue-200 transition shrink-0"><i class="fa-solid fa-plus"></i></button>
                     </div>
                 </div>
+
+                <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+                    <h4 class="font-bold text-slate-700 text-sm mb-3 border-b border-slate-100 pb-2"><i class="fa-solid fa-bullseye text-emerald-500 mr-1"></i> מחיר מומלץ לפי יעד Food Cost</h4>
+                    <div class="flex gap-2 items-center">
+                        <input type="number" id="rb-target-pct" oninput="window.calcRBTargetPrice()" value="30" min="1" max="100" class="modern-input py-2 px-2 text-xs w-20 text-center" placeholder="30">
+                        <span class="text-xs text-slate-400">% יעד</span>
+                        <span class="text-xs text-slate-400 mx-1">→</span>
+                        <span class="text-sm font-black text-emerald-600" id="rb-target-price">₪0</span>
+                        <button type="button" onclick="window.applyRBTargetPrice()" class="text-[10px] font-bold text-emerald-600 bg-emerald-50 hover:bg-emerald-100 px-2.5 py-1.5 rounded-lg transition border border-emerald-100 mr-auto">החל כמחיר מכירה</button>
+                    </div>
+                    <button type="button" onclick="window.analyzeRBCostAI()" class="w-full mt-3 text-xs font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 py-2 rounded-lg transition border border-indigo-100"><i class="fa-solid fa-wand-magic-sparkles mr-1"></i> ייעוץ AI להוזלת עלות המנה</button>
+                </div>
             </div>
 
             <div class="p-4 sm:p-5 border-t border-slate-200 bg-white shrink-0 z-10 shadow-[0_-4px_15px_rgba(0,0,0,0.02)]">
@@ -23186,6 +23069,50 @@ window.refreshRBUI = function() {
     if (fcPct > 40) bar.className = 'h-3 transition-all duration-500 bg-red-500';
     else if (fcPct > 33) bar.className = 'h-3 transition-all duration-500 bg-orange-400';
     else bar.className = 'h-3 transition-all duration-500 bg-emerald-500';
+
+    window._rbTotalCost = totalCost;
+    if (document.getElementById('rb-target-pct')) window.calcRBTargetPrice();
+};
+
+// מחיר מכירה מומלץ לפי יעד Food Cost % שהוגדר, על סמך עלות המנה הנוכחית בבונה המתכון
+window.calcRBTargetPrice = function() {
+    const targetPct = parseFloat(val('rb-target-pct')) || 30;
+    const totalCost = window._rbTotalCost || 0;
+    const recPrice = targetPct > 0 ? totalCost / (targetPct / 100) : 0;
+    const el = document.getElementById('rb-target-price');
+    if (el) { el.innerText = `₪${recPrice.toFixed(0)}`; el.dataset.raw = recPrice.toFixed(2); }
+};
+
+window.applyRBTargetPrice = function() {
+    const el = document.getElementById('rb-target-price');
+    const price = parseFloat(el?.dataset.raw || 0);
+    if (price > 0) {
+        document.getElementById('rb-edit-price').value = Math.ceil(price);
+        window.refreshRBUI();
+        showToast('success', 'מחיר המכירה עודכן לפי היעד');
+    }
+};
+
+// ייעוץ AI להוזלת עלות המנה - פועל על המתכון שנבנה כרגע בעורך (גם אם עוד לא נשמר)
+window.analyzeRBCostAI = function() {
+    if (!rbIngredients.length) return showToast('error', 'יש להוסיף חומרי גלם קודם');
+    executeWithAIWarning(async () => {
+        showAIModal('אנליסט התמחור AI', null); getEl('familai-loading-text').innerText = 'מנתח אפשרויות להוזלת המנה...';
+        try {
+            const ingredientsData = rbIngredients.map(i => `${i.ingredient_name}: ${i.quantity} ${i.unit} (₪${i.calculated_cost.toFixed(2)} סה"כ)`).join(', ');
+            const overheadData = rbOverheads.map(o => `${o.name}: ₪${o.cost}`).join(', ') || 'אין';
+            const promptText = `נתח את עלות המנה הבאה והצע חלופות לחומרי גלם כדי להוריד את ה-Food Cost:\n${ingredientsData}\nהוצאות נלוות: ${overheadData}\nיעד רצוי: ${val('rb-target-pct')}%`;
+            const res = await fetch(`${API}/biz/chat-assistant`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : ''},
+                body: JSON.stringify({ query: promptText, context: JSON.stringify({ role: "יועץ קולינרי וכלכלי למסעדות" }), groupId: currentGroup.id })
+            });
+            const data = await res.json();
+            if(!handleAIResponseCheck(data)) { getEl('familai-advisor-modal').classList.add('hidden'); return; }
+            if(data.success && data.answer) { showAIModal('אנליסט התמחור AI', data.answer); }
+            else { getEl('familai-advisor-modal').classList.add('hidden'); showToast('error', 'שגיאה בניתוח'); }
+        } catch(e) { getEl('familai-advisor-modal').classList.add('hidden'); showToast('error', 'שגיאה בתקשורת'); }
+    });
 };
 
 window.saveRecipeBuilder = async function() {
