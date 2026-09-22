@@ -4397,12 +4397,18 @@ async function createSACommunity() {
 }
 
 function renderSABusinessesTable() {
-    const tbody = getEl('sa-businesses-table-body'); if (!tbody) return;
+    const tbody = getEl('sa-businesses-table-body');
+    const cardsWrap = getEl('sa-businesses-cards');
+    if (!tbody && !cardsWrap) return;
     const query = getEl('sa-search-businesses') ? getEl('sa-search-businesses').value.toLowerCase() : '';
     let filtered = [...saBusinessesCache];
     if (query) filtered = filtered.filter(b => (b.name && b.name.toLowerCase().includes(query)) || (b.group_code && b.group_code.toLowerCase().includes(query)));
-    if (filtered.length === 0) { tbody.innerHTML = `<tr><td colspan="4" class="px-4 py-8 text-center text-slate-400">לא נמצאו עסקים.</td></tr>`; return; }
-    tbody.innerHTML = filtered.map(b => `
+    if (filtered.length === 0) {
+        if (tbody) tbody.innerHTML = `<tr><td colspan="4" class="px-4 py-8 text-center text-slate-400">לא נמצאו עסקים.</td></tr>`;
+        if (cardsWrap) cardsWrap.innerHTML = `<p class="text-center text-slate-400 py-8">לא נמצאו עסקים.</p>`;
+        return;
+    }
+    if (tbody) tbody.innerHTML = filtered.map(b => `
         <tr class="hover:bg-emerald-50 transition border-b border-slate-50 last:border-0">
             <td class="px-4 py-4 font-bold text-slate-800 text-right">${safeStr(b.name)}<div class="text-[10px] text-slate-500 mt-1 font-mono">קוד: ${safeStr(b.group_code)}</div></td>
             <td class="px-4 py-4 text-right"><span class="bg-slate-100 text-slate-600 px-2 py-1 rounded text-xs">עסק רשום</span></td>
@@ -4412,6 +4418,17 @@ function renderSABusinessesTable() {
                 <button onclick="openSADemoModal(${b.id}, '${safeStr(b.name)}')" class="bg-purple-100 text-purple-700 hover:bg-purple-200 px-3 py-1.5 rounded-lg text-xs font-bold transition mr-1"><i class="fa-solid fa-flask"></i> דמו</button>
             </td>
         </tr>
+    `).join('');
+    if (cardsWrap) cardsWrap.innerHTML = filtered.map(b => `
+        <div class="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
+            <div class="font-bold text-slate-800">${safeStr(b.name)}</div>
+            <div class="text-[10px] text-slate-500 mt-0.5 font-mono">קוד: ${safeStr(b.group_code)}</div>
+            <span class="inline-block bg-slate-100 text-slate-600 px-2 py-1 rounded text-xs mt-2">עסק רשום</span>
+            <div class="flex gap-2 mt-3">
+                <button onclick="openSABusinessModal(${b.id})" class="flex-1 bg-emerald-100 text-emerald-700 hover:bg-emerald-200 px-3 py-2 rounded-lg text-xs font-bold transition"><i class="fa-solid fa-gear"></i> ניהול חיבורים</button>
+                <button onclick="openSADemoModal(${b.id}, '${safeStr(b.name)}')" class="flex-1 bg-purple-100 text-purple-700 hover:bg-purple-200 px-3 py-2 rounded-lg text-xs font-bold transition"><i class="fa-solid fa-flask"></i> דמו</button>
+            </div>
+        </div>
     `).join('');
 }
 
