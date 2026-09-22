@@ -1513,8 +1513,10 @@ window.injectBusinessUI = function() {
                                     </div>
                                 </label>
                             </div>
-                            <p class="text-xs text-slate-500 mb-4">כשהגלריה פעילה, כפתור "גלריית תמונות" יופיע בדף החנות הציבורי שלך. עד 12 תמונות.</p>
+                            <p class="text-xs text-slate-500 mb-1">כשהגלריה פעילה, כפתור "גלריית תמונות" יופיע בדף החנות הציבורי שלך. עד 12 תמונות.</p>
+                            <p class="text-[11px] text-purple-400 mb-4">במצב תדמית (ללא מוצרים למכירה) הגלריה תוצג אוטומטית בדף הבית. במצב חנות רגיל - תוצג רק כשמופעלת.</p>
                             <div id="biz-gallery-grid" class="grid grid-cols-3 gap-3 mb-4"></div>
+                            <input type="text" id="gallery-upload-tag" class="modern-input py-2 text-sm mb-2" placeholder="נושא/תגית לתמונות הבאות (למשל: עיצוב שיער, לפני-אחרי) - אופציונלי">
                             <input type="file" id="gallery-file-input" accept="image/*" multiple class="hidden" onchange="window.uploadGalleryImages(this.files)">
                             <button onclick="document.getElementById('gallery-file-input').click()" class="w-full bg-purple-600 text-white py-3 rounded-xl font-bold hover:bg-purple-700 transition flex items-center justify-center gap-2"><i class="fa-solid fa-plus"></i> הוסף תמונות</button>
                             <p id="gallery-upload-status" class="text-xs text-slate-400 mt-2 text-center hidden"></p>
