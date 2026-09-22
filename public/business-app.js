@@ -22793,7 +22793,10 @@ function renderFoodCostList() {
                     <div class="flex flex-col"><span class="text-slate-400">עלות יצור</span><span class="text-slate-700 text-xs">₪${item.costs.total.toFixed(2)}</span></div>
                     <div class="flex flex-col"><span class="text-slate-400">רווח גולמי</span><span class="text-green-600 text-xs">₪${item.costs.profit.toFixed(2)}</span></div>
                 </div>
-                <button onclick="openRecipeBuilder(${item.id})" class="text-[10px] font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg transition border border-indigo-100"><i class="fa-solid fa-pen mr-1"></i> עץ מוצר</button>
+                <div class="flex gap-1.5">
+                    <button onclick="window.duplicateRecipeFromFC(${item.id})" class="text-[10px] font-bold text-slate-500 bg-slate-50 hover:bg-slate-100 px-3 py-1.5 rounded-lg transition border border-slate-200"><i class="fa-solid fa-copy mr-1"></i> שכפל</button>
+                    <button onclick="openRecipeBuilder(${item.id})" class="text-[10px] font-bold text-indigo-600 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-lg transition border border-indigo-100"><i class="fa-solid fa-pen mr-1"></i> עץ מוצר</button>
+                </div>
             </div>
             ${incompleteWarning}
         </div>`;
@@ -22870,6 +22873,7 @@ window.openRecipeBuilder = function(catalogId = null) {
                             <option value="ליטר">ליטר</option>
                             <option value="מארז">מארז</option>
                         </select>
+                        <input type="number" id="rb-add-ing-waste" class="modern-input py-2 px-2 text-xs w-14 text-center" placeholder="% פחת" min="0" max="95" step="1" title="אחוז פחת (קילוף/חיתוך) - אופציונלי">
                         <button onclick="window.addRBIngredient()" class="bg-orange-100 text-orange-600 w-8 h-8 rounded-lg flex items-center justify-center hover:bg-orange-200 transition shrink-0"><i class="fa-solid fa-plus"></i></button>
                     </div>
                 </div>
@@ -22980,17 +22984,32 @@ window.closeRecipeBuilder = function() {
     rbCurrentItem = null;
 };
 
+// שכפול מנה קיימת: פותח בונה מתכון למנה חדשה עם עותק של המרכיבים והתקורות של המנה המקורית
+window.duplicateRecipeFromFC = function(catalogId) {
+    const source = foodCostData.find(i => i.id === catalogId);
+    if (!source) return;
+    window.openRecipeBuilder(null);
+    document.getElementById('rb-edit-category').value = source.category || 'כללי';
+    rbIngredients = JSON.parse(JSON.stringify(source.ingredients || []));
+    rbOverheads = JSON.parse(JSON.stringify(source.overheads || []));
+    window.refreshRBUI();
+    showToast('success', `שוכפלו המרכיבים והתקורות מ"${source.name}" — הזן שם ומחיר למנה החדשה`);
+};
+
 window.addRBIngredient = function() {
     const name = val('rb-add-ing-name');
     const qty = parseFloat(val('rb-add-ing-qty'));
     const unit = val('rb-add-ing-unit');
+    const wastePct = Math.min(parseFloat(val('rb-add-ing-waste')) || 0, 95);
     if(!name || !qty || qty <= 0) return showToast('error', 'הכנס שם וכמות תקינה');
     const knownPrice = (typeof foodCostPrices !== 'undefined' && foodCostPrices[name]) ? foodCostPrices[name].price : 0;
-    
-    rbIngredients.push({ ingredient_name: name, quantity: qty, unit: unit, calculated_cost: knownPrice * qty, known_price: knownPrice });
-    
+    const effectiveQty = wastePct > 0 ? qty / (1 - wastePct / 100) : qty;
+
+    rbIngredients.push({ ingredient_name: name, quantity: qty, unit: unit, waste_pct: wastePct, calculated_cost: knownPrice * effectiveQty, known_price: knownPrice });
+
     document.getElementById('rb-add-ing-name').value = '';
     document.getElementById('rb-add-ing-qty').value = '';
+    document.getElementById('rb-add-ing-waste').value = '';
     window.refreshRBUI();
 };
 
@@ -23029,7 +23048,7 @@ window.refreshRBUI = function() {
             const priceWarning = ing.known_price === 0 ? '<i class="fa-solid fa-triangle-exclamation text-orange-400 ml-1" title="לא נמצא מחיר קנייה במערכת"></i>' : '';
             return `
             <div class="flex justify-between items-center text-xs border-b border-slate-100 pb-2 mb-2 last:border-0 last:pb-0 last:mb-0">
-                <div class="flex items-center gap-2"><button onclick="window.removeRBIngredient(${idx})" class="text-red-400 hover:text-red-600 w-6 h-6 bg-red-50 rounded flex items-center justify-center transition"><i class="fa-solid fa-times"></i></button> <span class="font-bold text-slate-700">${safeStr(ing.ingredient_name)}</span> <span class="text-[10px] text-slate-400">(${ing.quantity} ${ing.unit})</span></div>
+                <div class="flex items-center gap-2"><button onclick="window.removeRBIngredient(${idx})" class="text-red-400 hover:text-red-600 w-6 h-6 bg-red-50 rounded flex items-center justify-center transition"><i class="fa-solid fa-times"></i></button> <span class="font-bold text-slate-700">${safeStr(ing.ingredient_name)}</span> <span class="text-[10px] text-slate-400">(${ing.quantity} ${ing.unit}${ing.waste_pct > 0 ? `, ${ing.waste_pct}% פחת` : ''})</span></div>
                 <div class="font-mono text-slate-600 font-bold">${priceWarning}₪${ing.calculated_cost.toFixed(2)}</div>
             </div>`;
         }).join('');

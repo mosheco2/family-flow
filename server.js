@@ -935,6 +935,8 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
               unit VARCHAR(20)
           )
       `); } catch(err){}
+      // אחוז פחת/בזבוז למרכיב (למשל קילוף/חיתוך) - כמה יותר צריך לרכוש בפועל כדי לקבל את הכמות הנקייה שבמתכון
+      try { await client.query(`ALTER TABLE product_ingredients ADD COLUMN IF NOT EXISTS waste_pct DECIMAL(5,2) DEFAULT 0`); } catch(err){}
 
       try { await client.query(`CREATE TABLE IF NOT EXISTS store_orders (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, customer_name VARCHAR(100), customer_phone VARCHAR(50), total_amount DECIMAL(10,2), status VARCHAR(20) DEFAULT 'new', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}
       try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS notes TEXT`); } catch(e) {}
@@ -14543,7 +14545,9 @@ app.get('/api/biz/export-report', verifyBiz, async (req, res) => {
                 const ingredientsCost = ings.reduce((s,i)=>{
                     if (i.price_per_unit == null) return s;
                     const conv = convertFoodCostQty(parseFloat(i.quantity)||0, i.unit, i.purchase_unit);
-                    return s + (parseFloat(i.price_per_unit)||0) * conv.value;
+                    const wastePct = Math.min(parseFloat(i.waste_pct) || 0, 95);
+                    const effectiveQty = wastePct > 0 ? conv.value / (1 - wastePct / 100) : conv.value;
+                    return s + (parseFloat(i.price_per_unit)||0) * effectiveQty;
                 },0);
                 let overheadTotal = 0;
                 try {
@@ -19454,7 +19458,10 @@ app.get('/api/food-cost/:groupId', async (req, res) => {
                 if (knownPrice) {
                     const conv = convertFoodCostQty(parseFloat(ing.quantity), ing.unit, knownPrice.unit);
                     if (!conv.ok) unitMismatch = true; // יחידות לא תואמות ולא ניתנות להמרה - העלות הבאה עלולה להיות שגויה
-                    cost = knownPrice.price * conv.value;
+                    // אחוז פחת (קילוף/חיתוך וכו') - כמה יותר צריך לרכוש בפועל כדי לקבל את הכמות הנקייה במתכון
+                    const wastePct = Math.min(parseFloat(ing.waste_pct) || 0, 95);
+                    const effectiveQty = wastePct > 0 ? conv.value / (1 - wastePct / 100) : conv.value;
+                    cost = knownPrice.price * effectiveQty;
                 } else {
                     noPriceData = true; // המרכיב מעולם לא נרכש במערכת - אין לנו מחיר אמיתי
                 }
@@ -19512,9 +19519,13 @@ app.post('/api/food-cost/recipe/:catalogId', async (req, res) => {
         await dbClient.query('DELETE FROM product_ingredients WHERE catalog_id = $1', [catalogId]);
         
         for (let ing of ingredients) {
+            // תוקן: הפרונט תמיד שלח את שם המרכיב בשדה ingredient_name (לא name) - קודם זה גרם
+            // לכל שם מרכיב שנשמר דרך בונה המתכון להיכנס כ-NULL. תמיכה בשני השמות ליתר ביטחון.
+            const ingName = ing.ingredient_name || ing.name;
+            if (!ingName) continue;
             await dbClient.query(
-                'INSERT INTO product_ingredients (catalog_id, ingredient_name, quantity, unit) VALUES ($1, $2, $3, $4)',
-                [catalogId, ing.name, parseFloat(ing.quantity) || 0, ing.unit || "יח'"]
+                'INSERT INTO product_ingredients (catalog_id, ingredient_name, quantity, unit, waste_pct) VALUES ($1, $2, $3, $4, $5)',
+                [catalogId, ingName, parseFloat(ing.quantity) || 0, ing.unit || "יח'", parseFloat(ing.waste_pct) || 0]
             );
         }
         
