@@ -19826,20 +19826,19 @@ async function deductPantryForOrder(orderId, groupId) {
     }
 }
 
-// שמות מרכיבים מוכרים למלאי (pantry) ומהיסטוריית רכש (shopping_trip_items) - לבחירה מדויקת
-// בבונה המתכון, כדי שהשם שנבחר יתאים בדיוק למקור המחיר ולא יסומן "אין נתוני מחיר"/"אי-התאמת יחידות"
+// שמות מרכיבים מוכרים עם מחיר רכישה בפועל (shopping_trip_items) - לבחירה מדויקת בבונה המתכון.
+// חשוב: pantry (מלאי) לא כולל מחיר בכלל (הוספה למלאי אפשרית ללא רישום רכישה/מחיר) - לכן
+// שם שקיים רק ב-pantry לא יכול לפתור את אזהרת "אין נתוני מחיר" גם אם ייבחר, ולכן לא נכלל כאן.
+// כדי לפתור את האזהרה למרכיב, צריך שתהיה לו רשומת רכישה (עם מחיר) בהיסטוריית הרכש.
 app.get('/api/food-cost/:groupId/known-ingredients', async (req, res) => {
     try {
-        const [pantryRes, purchasedRes] = await Promise.all([
-            pool.query('SELECT DISTINCT item_name FROM pantry WHERE group_id=$1', [req.params.groupId]),
-            pool.query(
-                `SELECT DISTINCT sti.item_name FROM shopping_trip_items sti
-                 JOIN shopping_trips st ON st.id = sti.trip_id WHERE st.group_id=$1`,
-                [req.params.groupId]
-            )
-        ]);
+        const purchasedRes = await pool.query(
+            `SELECT DISTINCT sti.item_name FROM shopping_trip_items sti
+             JOIN shopping_trips st ON st.id = sti.trip_id WHERE st.group_id=$1`,
+            [req.params.groupId]
+        );
         const names = [...new Set(
-            [...pantryRes.rows, ...purchasedRes.rows].map(r => (r.item_name || '').trim()).filter(Boolean)
+            purchasedRes.rows.map(r => (r.item_name || '').trim()).filter(Boolean)
         )].sort((a, b) => a.localeCompare('he'));
         res.json({ success: true, names });
     } catch(e) { res.status(500).json({ success: false, error: e.message }); }

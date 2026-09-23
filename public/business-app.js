@@ -22998,7 +22998,7 @@ window.openRecipeBuilder = function(catalogId = null) {
                     <div id="rb-ingredients-list" class="space-y-2 mb-3 min-h-[50px]"></div>
                     
                     <div class="flex gap-2 items-center bg-slate-50 p-2 rounded-xl border border-slate-200 border-dashed mt-2">
-                        <input type="text" id="rb-add-ing-name" list="rb-known-ingredients" class="modern-input py-2 px-2 text-xs flex-[2]" placeholder="שם חומר גלם - התחל להקליד לבחירה ממלאי/רכש קיים" autocomplete="off">
+                        <input type="text" id="rb-add-ing-name" list="rb-known-ingredients" class="modern-input py-2 px-2 text-xs flex-[2]" placeholder="שם חומר גלם - בחר מהרשימה כדי שיהיה מחיר ידוע" title="ההצעות ברשימה הן פריטים שנרכשו בעבר ויש להם מחיר בפועל. פריט שקיים רק במלאי בלי רכישה רשומה - עדיין יסומן ללא מחיר, גם אם תבחר בו." autocomplete="off">
                         <datalist id="rb-known-ingredients"></datalist>
                         <input type="number" id="rb-add-ing-qty" class="modern-input py-2 px-2 text-xs flex-1 text-center" placeholder="כמות" min="0.01" step="0.01">
                         <select id="rb-add-ing-unit" class="modern-input py-2 px-1 text-xs bg-white w-16 text-center">
