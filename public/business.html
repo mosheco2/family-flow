@@ -2057,6 +2057,8 @@
                             <input type="text" id="fc-search" onkeyup="renderFoodCostList()" class="modern-input py-2 text-sm bg-white shadow-sm flex-1" placeholder="חיפוש מנה...">
                         </div>
 
+                        <div id="fc-warning-banner" class="px-2 mb-3"></div>
+
                         <div id="fc-list" class="space-y-3 pb-24 px-1 min-h-[300px]">
                             <p class="text-xs text-slate-400 text-center py-10">טוען נתונים...</p>
                         </div>
@@ -4136,7 +4138,7 @@
         }
     </script>
 
-    <script src="business-app.js?v=250" defer></script>
+    <script src="business-app.js?v=251" defer></script>
     <script>
         function checkShopUnit() {
             const unit = document.getElementById('shop-unit').value;

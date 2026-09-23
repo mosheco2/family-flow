@@ -22788,15 +22788,48 @@ async function fetchFoodCost() {
     }
 }
 
+// אזהרת רווחיות ברמת כל התפריט (לא רק בבונה המתכון) - כדי שבעל העסק יראה מיד, בלי לפתוח
+// כל מנה בנפרד, אם יש מנות שחורגות מהסטנדרט (Food Cost מעל 33%) או נמכרות בהפסד.
+// מחושב תמיד על כל התפריט (foodCostData), לא רק על התוצאות המסוננות בחיפוש.
+function renderFoodCostWarningBanner() {
+    const banner = getEl('fc-warning-banner');
+    if (!banner) return;
+    const withCost = (foodCostData || []).filter(i => i.price > 0 && i.costs.total > 0);
+    const losing = withCost.filter(i => i.costs.profit < 0);
+    const problematic = withCost.filter(i => i.costs.profit >= 0 && i.costs.foodCostPct > 40);
+    const high = withCost.filter(i => i.costs.profit >= 0 && i.costs.foodCostPct > 33 && i.costs.foodCostPct <= 40);
+
+    if (!losing.length && !problematic.length && !high.length) {
+        banner.innerHTML = '';
+        return;
+    }
+
+    const parts = [];
+    if (losing.length) parts.push(`<b>${losing.length}</b> מנות נמכרות בהפסד`);
+    if (problematic.length) parts.push(`<b>${problematic.length}</b> מנות עם Food Cost בעייתי (מעל 40%)`);
+    if (high.length) parts.push(`<b>${high.length}</b> מנות מעל הסטנדרט המומלץ (33%-40%)`);
+
+    const severe = losing.length > 0 || problematic.length > 0;
+    const colorClasses = severe ? 'bg-red-50 border-red-200 text-red-700' : 'bg-orange-50 border-orange-200 text-orange-700';
+
+    banner.innerHTML = `
+        <div class="${colorClasses} border rounded-xl p-3 text-xs font-bold flex items-start gap-2">
+            <i class="fa-solid fa-triangle-exclamation mt-0.5"></i>
+            <div>שימו לב לרווחיות התפריט: ${parts.join(', ')}. גללו למטה לבדיקת המנות המסומנות.</div>
+        </div>`;
+}
+
 function renderFoodCostList() {
     const list = getEl('fc-list');
     const query = val('fc-search').toLowerCase().trim();
-    
+
+    renderFoodCostWarningBanner();
+
     let filtered = foodCostData;
     if (query) {
         filtered = filtered.filter(item => item.name.toLowerCase().includes(query) || item.category.toLowerCase().includes(query));
     }
-    
+
     if (filtered.length === 0) {
         list.innerHTML = '<p class="text-xs text-slate-400 text-center py-10 bg-white rounded-xl border border-dashed">לא נמצאו מנות תואמות.</p>';
         return;
