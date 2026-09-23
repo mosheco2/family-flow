@@ -4231,7 +4231,7 @@ async function fetchSAAdditionalData(provider, params) {
             case 'pending_all': {
                 const r = await pool.query(`
                     SELECT
-                        (SELECT COUNT(*) FROM community_businesses WHERE status IN ('pending','zm_pending')) as pending_biz_community,
+                        (SELECT COUNT(*) FROM community_businesses WHERE status IN ('pending','zm_pending','comm_mgr_pending','pending_cm_review')) as pending_biz_community,
                         (SELECT COUNT(*) FROM family_communities WHERE status='pending') as pending_family_community,
                         (SELECT COUNT(*) FROM zone_managers WHERE status='pending') as pending_zm,
                         (SELECT COUNT(*) FROM banner_orders WHERE status='pending') as pending_banners,
@@ -8148,7 +8148,7 @@ app.get('/api/sa/dashboard', verifySA, async (req, res) => {
                 (SELECT COUNT(*) FROM family_groups WHERE type='FAMILY' AND created_at > NOW()-INTERVAL '24 hours') as fam_24h,
                 (SELECT COUNT(*) FROM family_groups WHERE type='BUSINESS' AND created_at > NOW()-INTERVAL '24 hours') as biz_24h
             `),
-            safe(`SELECT COUNT(*) as cnt FROM community_businesses WHERE status IN ('pending','zm_pending')`, [{ cnt: 0 }]),
+            safe(`SELECT COUNT(*) as cnt FROM community_businesses WHERE status IN ('pending','zm_pending','comm_mgr_pending','pending_cm_review')`, [{ cnt: 0 }]),
             safe(`SELECT COUNT(*) as cnt FROM family_communities WHERE status='pending'`, [{ cnt: 0 }]),
             safe(`SELECT COUNT(*) as cnt FROM banner_orders WHERE status='pending'`, [{ cnt: 0 }]),
             safe(`SELECT COUNT(*) as cnt FROM zone_managers WHERE status='pending'`, [{ cnt: 0 }]),
@@ -8247,7 +8247,7 @@ app.get('/api/sa/bigscreen-stats', verifySA, async (req, res) => {
                 (SELECT COUNT(*) FROM community_businesses WHERE status='approved') as connections,
                 (SELECT COUNT(*) FROM users) as total_users,
                 (SELECT COUNT(*) FROM users WHERE last_seen > NOW()-INTERVAL '3 minutes') as online_now,
-                (SELECT COUNT(*) FROM community_businesses WHERE status IN ('pending','zm_pending')) as biz_joins_pending,
+                (SELECT COUNT(*) FROM community_businesses WHERE status IN ('pending','zm_pending','comm_mgr_pending','pending_cm_review')) as biz_joins_pending,
                 (SELECT COUNT(*) FROM family_communities WHERE status='pending') as fam_joins_pending,
                 (SELECT COUNT(*) FROM community_promotions WHERE status='pending') as promos_pending,
                 (SELECT COUNT(*) FROM zone_managers WHERE status='pending') as zm_pending,
@@ -8767,9 +8767,13 @@ app.get('/api/sa/pending-actions-center', verifySA, async (req, res) => {
                 WHERE fc.status='pending' AND fg.is_test_env IS NOT TRUE AND (fg.is_deleted=false OR fg.is_deleted IS NULL)
                 ORDER BY fc.joined_at ASC`, 'communityJoinReq'),
             // בקשות חיבור עסק לקהילה — אחראי: מנהל אזור / מנהל קהילה (לא כולל סביבות מחוקות)
+            // כולל את כל הסטטוסים שמייצגים בקשה שממתינה בפועל לפעולת אדמין/מנהל קהילה/מנהל אזור -
+            // pending/zm_pending (הבקשות ה"ישנות"/ישירות), comm_mgr_pending (עסק אישר הזמנה, ממתין למנהל קהילה),
+            // pending_cm_review (בקשה/הפניה עצמאית, ממתינה לסקירת מנהל קהילה). לא כולל biz_invited -
+            // זה תור העסק להגיב, לא של הצוות הפנימי
             safe(`SELECT cb.business_id, fg.name as title, c.name as subtitle, cb.created_at
                 FROM community_businesses cb JOIN family_groups fg ON fg.id=cb.business_id JOIN communities c ON c.id=cb.community_id
-                WHERE cb.status IN ('pending','zm_pending') AND fg.is_test_env IS NOT TRUE AND (fg.is_deleted=false OR fg.is_deleted IS NULL)
+                WHERE cb.status IN ('pending','zm_pending','comm_mgr_pending','pending_cm_review') AND fg.is_test_env IS NOT TRUE AND (fg.is_deleted=false OR fg.is_deleted IS NULL)
                 ORDER BY cb.created_at ASC`, 'bizCommunityReq'),
             // בקשות מנהלי אזור חדשים — אחראי: סופר אדמין
             safe(`SELECT id, name as title, email as subtitle, created_at FROM zone_managers WHERE status='pending' ORDER BY created_at ASC`, 'zmPending'),
@@ -18843,7 +18847,7 @@ app.get('/api/sa/communities/map-data', verifySA, async (req, res) => {
             `SELECT c.id, c.name, c.city, c.status, c.community_type, c.interest_tags,
              (SELECT COUNT(*) FROM family_communities WHERE community_id=c.id) as family_count,
              (SELECT COUNT(*) FROM community_businesses WHERE community_id=c.id AND status='approved') as biz_count,
-             (SELECT COUNT(*) FROM community_businesses WHERE community_id=c.id AND status='pending') as pending_biz,
+             (SELECT COUNT(*) FROM community_businesses WHERE community_id=c.id AND status IN ('pending','zm_pending','comm_mgr_pending','pending_cm_review')) as pending_biz,
              (SELECT COALESCE(SUM(amount),0) FROM community_wallet_transactions WHERE community_id=c.id AND type='credit') as total_credit,
              mz.name as zone_name
              FROM communities c
