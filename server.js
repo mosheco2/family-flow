@@ -19914,7 +19914,7 @@ async function computeFixedOverhead(groupId) {
     if (autoQty <= 0) salesWindow = 'none';
 
     // 3. רווח תרומה ממוצע למנה (מחיר - עלות חומרי גלם בלבד, ללא תקורה) - משוקלל לפי מכירות בפועל אם יש היסטוריה
-    const catalogRes = await pool.query('SELECT id, price FROM store_catalog WHERE group_id=$1 AND is_available=TRUE', [groupId]);
+    const catalogRes = await pool.query('SELECT id, name, price FROM store_catalog WHERE group_id=$1 AND is_available=TRUE', [groupId]);
     const ingRes = await pool.query('SELECT pi.* FROM product_ingredients pi JOIN store_catalog sc ON pi.catalog_id=sc.id WHERE sc.group_id=$1', [groupId]);
     const pricesRes = await pool.query(
         `SELECT DISTINCT ON (item_name) item_name, price_per_unit, unit FROM shopping_trip_items sti JOIN shopping_trips st ON sti.trip_id=st.id WHERE st.group_id=$1 ORDER BY item_name, st.trip_date DESC`,
@@ -19923,7 +19923,10 @@ async function computeFixedOverhead(groupId) {
     const priceMap = {};
     pricesRes.rows.forEach(p => { priceMap[p.item_name.trim().toLowerCase()] = { price: parseFloat(p.price_per_unit), unit: p.unit }; });
 
-    const dishes = catalogRes.rows.map(c => {
+    // מעקב שקוף אחרי בדיוק אילו מנות נכללו בממוצע ואילו לא (ולמה) - כדי שהמשתמש יראה במפורש
+    // מאיפה המספר נגזר, במקום "קופסה שחורה".
+    const excludedDishes = [];
+    const allDishesRaw = catalogRes.rows.map(c => {
         const ings = ingRes.rows.filter(i => i.catalog_id === c.id);
         let cost = 0;
         ings.forEach(ing => {
@@ -19935,10 +19938,18 @@ async function computeFixedOverhead(groupId) {
             const conv = convertFoodCostQtyWithWeight(effectiveQty, ing.unit, known.unit, ing.unit_weight_grams);
             if (conv.ok) cost += conv.value * known.price;
         });
-        return { catalog_id: c.id, price: parseFloat(c.price) || 0, cost };
-    }).filter(d => d.price > 0 && d.cost > 0);
+        const price = parseFloat(c.price) || 0;
+        let reason = null;
+        if (price <= 0) reason = 'אין מחיר מכירה מוגדר למוצר';
+        else if (!ings.length) reason = 'אין עץ מוצר מוגדר (לא נבנה מתכון בבונה המתכון)';
+        else if (cost <= 0) reason = 'לא נמצא מחיר רכישה תואם לחומרי הגלם שלה';
+        if (reason) excludedDishes.push({ name: c.name, reason });
+        return { catalog_id: c.id, name: c.name, price, cost, included: !reason };
+    });
+    const dishes = allDishesRaw.filter(d => d.included);
 
     let avgPrice = 0, avgCM = 0;
+    const includedDishes = [];
     if (salesWindow !== 'none' && salesMix.length) {
         const mixByCatalogId = {}; salesMix.forEach(m => { mixByCatalogId[m.catalog_id] = parseFloat(m.qty) || 0; });
         const totalMixQty = Object.values(mixByCatalogId).reduce((s, q) => s + q, 0);
@@ -19947,12 +19958,15 @@ async function computeFixedOverhead(groupId) {
                 const w = (mixByCatalogId[d.catalog_id] || 0) / totalMixQty;
                 avgPrice += w * d.price;
                 avgCM += w * (d.price - d.cost);
+                includedDishes.push({ name: d.name, price: d.price, cost: d.cost, weightPct: w * 100 });
             });
         }
     }
     if (avgPrice === 0 && dishes.length) {
         avgPrice = dishes.reduce((s, d) => s + d.price, 0) / dishes.length;
         avgCM = dishes.reduce((s, d) => s + (d.price - d.cost), 0) / dishes.length;
+        includedDishes.length = 0;
+        dishes.forEach(d => includedDishes.push({ name: d.name, price: d.price, cost: d.cost, weightPct: 100 / dishes.length }));
     }
 
     // 4. כמות אפקטיבית לחישוב התקורה למנה
@@ -19976,6 +19990,8 @@ async function computeFixedOverhead(groupId) {
         qtyMode, qtyManual, autoQty: autoQty > 0 ? autoQty : null, salesWindow,
         effectiveQty, overheadPerDish,
         avgPrice, avgCM,
+        includedDishes: includedDishes.sort((a, b) => b.weightPct - a.weightPct),
+        excludedDishes,
         profitTargets, targetsResult
     };
 }
