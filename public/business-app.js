@@ -18721,7 +18721,7 @@ async function submitReceiveGoods() {
     items.forEach((item, idx) => {
         const receivedQty = parseFloat(document.getElementById(`rg-received-${idx}`)?.value || 0);
         const missingQty = parseFloat(document.getElementById(`rg-missing-${idx}`)?.value || 0);
-        if (receivedQty > 0) receivedItems.push({ name: item.name, qty: receivedQty, unit: item.unit || "יח'" });
+        if (receivedQty > 0) receivedItems.push({ name: item.name, qty: receivedQty, unit: item.unit || "יח'", price: item.price_per_unit || 0 });
         // הוספתי שמירה של מזהה המוצר כדי שנוכל להחזיר אותו לעגלה!
         if (missingQty > 0) missingItems.push({ id: item.id, sku: item.sku || '', name: item.name, qty: missingQty, unit: item.unit || "יח'", price: item.price_per_unit || 0 });
     });

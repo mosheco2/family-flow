@@ -15526,6 +15526,32 @@ app.post('/api/b2b/orders/receive', async (req, res) => {
             }
         }
 
+        // 1b. רישום מחיר הרכישה כ"קניה" (shopping_trip_items) - זה מקור המחיר היחיד שמודול Food Cost
+        // יודע לקרוא ממנו. בלי זה, פריט שהתקבל מהזמנת רכש (B2B) נכנס למלאי אך בלי מחיר בר-שימוש,
+        // וכל מנה שמשתמשת בו מסומנת בטעות "ללא נתוני מחיר" למרות שהמחיר היה ידוע בהזמנה.
+        try {
+            const pricedItems = receivedItems.filter(i => parseFloat(i.price) > 0);
+            if (pricedItems.length) {
+                const supRes = await dbClient.query(
+                    `SELECT s.name FROM purchase_orders po LEFT JOIN suppliers s ON s.id = po.supplier_id WHERE po.id=$1`,
+                    [orderId]
+                );
+                const storeName = supRes.rows[0]?.name || 'ספק';
+                const totalAmount = pricedItems.reduce((sum, i) => sum + (parseFloat(i.price) || 0) * (parseFloat(i.qty) || 0), 0);
+                const tripRes = await dbClient.query(
+                    `INSERT INTO shopping_trips (group_id, buyer_id, store_name, total_amount) VALUES ($1, $2, $3, $4) RETURNING id`,
+                    [groupId, userId || null, storeName, totalAmount]
+                );
+                const tripId = tripRes.rows[0].id;
+                for (const item of pricedItems) {
+                    await dbClient.query(
+                        `INSERT INTO shopping_trip_items (trip_id, item_name, quantity, unit, price_per_unit) VALUES ($1, $2, $3, $4, $5)`,
+                        [tripId, item.name, parseFloat(item.qty) || 0, item.unit || "יח'", parseFloat(item.price) || 0]
+                    );
+                }
+            }
+        } catch(priceErr) { console.warn('[b2b receive] price record skipped:', priceErr.message); }
+
         // 2. יצירת הזמנת רכש חדשה עבור החוסרים בסטטוס 'טיוטה' (draft)
         if (missingItems && missingItems.length > 0) {
             const origOrderRes = await dbClient.query('SELECT supplier_id FROM purchase_orders WHERE id = $1', [orderId]);
