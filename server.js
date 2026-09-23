@@ -947,6 +947,18 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
           overheads JSONB NOT NULL DEFAULT '[]',
           created_at TIMESTAMP DEFAULT NOW()
       )`); } catch(err){}
+      // תצורת "תקורה תפעולית קבועה" ונקודות רווחיות למודול Food Cost: הוצאות קבועות חודשיות (שכירות/חשמל/עובדים
+      // וכו') שנבחרות מהתזרים/תקציב, וכמות מנות (אוטומטית ממכירות בפועל, או ידנית) שמחלקים בהן - כדי לחשב
+      // תקורה ממוצעת למנה, ולהציג נקודת איזון ויעדי רווחיות (כמה מנות צריך למכור כדי להגיע ל-X% רווח).
+      try { await client.query(`CREATE TABLE IF NOT EXISTS food_cost_fixed_overhead (
+          group_id INT PRIMARY KEY REFERENCES family_groups(id) ON DELETE CASCADE,
+          selected_categories JSONB NOT NULL DEFAULT '[]',
+          labor_cost_manual DECIMAL(10,2) NOT NULL DEFAULT 0,
+          qty_mode VARCHAR(10) NOT NULL DEFAULT 'auto',
+          qty_manual DECIMAL(10,2),
+          profit_targets JSONB NOT NULL DEFAULT '[0,10,20,30]',
+          updated_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(err){}
 
       try { await client.query(`CREATE TABLE IF NOT EXISTS store_orders (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, customer_name VARCHAR(100), customer_phone VARCHAR(50), total_amount DECIMAL(10,2), status VARCHAR(20) DEFAULT 'new', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}
       try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS notes TEXT`); } catch(e) {}
@@ -19837,6 +19849,172 @@ app.delete('/api/food-cost/:groupId/overhead-presets/:id', async (req, res) => {
     try {
         await pool.query('DELETE FROM food_cost_overhead_presets WHERE id=$1 AND group_id=$2', [req.params.id, req.params.groupId]);
         res.json({ success: true });
+    } catch(e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
+// ─── תקורה תפעולית קבועה ונקודות רווחיות (Food Cost) ────────────────────────────
+// מחשבת: (1) סה"כ הוצאות קבועות חודשיות, מקטגוריות נבחרות מהתזרים (transactions, בפועל החודש)
+// או מהתקציב (budget_allocations, מוקצה) + עלות עובדים ממוצעת שמוזנת ידנית. (2) תקורה ממוצעת
+// למנה = הוצאות קבועות ÷ כמות מנות (אוטומטית ממכירות בפועל בחודש האחרון עם היסטוריה, או ידנית).
+// (3) נקודת איזון ויעדי רווחיות: כמה מנות (סה"כ, לפי רווח תרומה ממוצע משוקלל-מכירות כשיש היסטוריה,
+// אחרת ממוצע פשוט) צריך למכור כדי להגיע לכל אחוז רווח שהוגדר כיעד.
+async function computeFixedOverhead(groupId) {
+    const cfgRes = await pool.query('SELECT * FROM food_cost_fixed_overhead WHERE group_id=$1', [groupId]);
+    const cfg = cfgRes.rows[0] || { selected_categories: [], labor_cost_manual: 0, qty_mode: 'auto', qty_manual: null, profit_targets: [0, 10, 20, 30] };
+    const selectedCategories = Array.isArray(cfg.selected_categories) ? cfg.selected_categories : [];
+
+    // 1. סכימת הקטגוריות הנבחרות מהתזרים/תקציב
+    const categoryAmounts = [];
+    for (const sel of selectedCategories) {
+        const category = sel.category;
+        const source = sel.source === 'budget' ? 'budget' : 'actual';
+        let amount = 0;
+        if (source === 'budget') {
+            const r = await pool.query(
+                `SELECT COALESCE(MAX(amount_limit), 0) amt FROM budget_allocations WHERE group_id=$1 AND category=$2 AND target_user_id IS NULL`,
+                [groupId, category]
+            );
+            amount = parseFloat(r.rows[0]?.amt) || 0;
+        } else {
+            const r = await pool.query(
+                `SELECT COALESCE(SUM(amount), 0) amt FROM transactions WHERE group_id=$1 AND type='expense' AND category=$2 AND date >= date_trunc('month', CURRENT_DATE)`,
+                [groupId, category]
+            );
+            amount = parseFloat(r.rows[0]?.amt) || 0;
+        }
+        categoryAmounts.push({ category, source, amount });
+    }
+    const laborCost = parseFloat(cfg.labor_cost_manual) || 0;
+    const totalFixed = categoryAmounts.reduce((s, c) => s + c.amount, 0) + laborCost;
+
+    // 2. כמות מנות אוטומטית ממכירות בפועל - קודם מנסים חודש קלנדרי שלם שחלף, אח"כ 30 יום אחרונים
+    async function soldQtyAndMix(dateFilterSql) {
+        const r = await pool.query(
+            `SELECT soi.catalog_id, SUM(soi.quantity) qty
+             FROM store_order_items soi JOIN store_orders so ON soi.order_id = so.id
+             WHERE so.group_id=$1 AND so.status IN ('completed','delivered') AND soi.catalog_id IS NOT NULL AND ${dateFilterSql}
+             GROUP BY soi.catalog_id`,
+            [groupId]
+        );
+        const totalQty = r.rows.reduce((s, row) => s + (parseFloat(row.qty) || 0), 0);
+        return { totalQty, mix: r.rows };
+    }
+    let salesWindow = 'last_month';
+    let { totalQty: autoQty, mix: salesMix } = await soldQtyAndMix(
+        `so.created_at >= date_trunc('month', CURRENT_DATE - INTERVAL '1 month') AND so.created_at < date_trunc('month', CURRENT_DATE)`
+    );
+    if (autoQty <= 0) {
+        salesWindow = 'trailing_30d';
+        ({ totalQty: autoQty, mix: salesMix } = await soldQtyAndMix(`so.created_at >= NOW() - INTERVAL '30 days'`));
+    }
+    if (autoQty <= 0) salesWindow = 'none';
+
+    // 3. רווח תרומה ממוצע למנה (מחיר - עלות חומרי גלם בלבד, ללא תקורה) - משוקלל לפי מכירות בפועל אם יש היסטוריה
+    const catalogRes = await pool.query('SELECT id, price FROM store_catalog WHERE group_id=$1 AND is_available=TRUE', [groupId]);
+    const ingRes = await pool.query('SELECT pi.* FROM product_ingredients pi JOIN store_catalog sc ON pi.catalog_id=sc.id WHERE sc.group_id=$1', [groupId]);
+    const pricesRes = await pool.query(
+        `SELECT DISTINCT ON (item_name) item_name, price_per_unit, unit FROM shopping_trip_items sti JOIN shopping_trips st ON sti.trip_id=st.id WHERE st.group_id=$1 ORDER BY item_name, st.trip_date DESC`,
+        [groupId]
+    );
+    const priceMap = {};
+    pricesRes.rows.forEach(p => { priceMap[p.item_name.trim().toLowerCase()] = { price: parseFloat(p.price_per_unit), unit: p.unit }; });
+
+    const dishes = catalogRes.rows.map(c => {
+        const ings = ingRes.rows.filter(i => i.catalog_id === c.id);
+        let cost = 0;
+        ings.forEach(ing => {
+            const known = priceMap[(ing.ingredient_name || '').trim().toLowerCase()];
+            if (!known) return;
+            const wastePct = Math.min(parseFloat(ing.waste_pct) || 0, 95);
+            const baseQty = parseFloat(ing.quantity) || 0;
+            const effectiveQty = wastePct > 0 ? baseQty / (1 - wastePct / 100) : baseQty;
+            const conv = convertFoodCostQtyWithWeight(effectiveQty, ing.unit, known.unit, ing.unit_weight_grams);
+            if (conv.ok) cost += conv.value * known.price;
+        });
+        return { catalog_id: c.id, price: parseFloat(c.price) || 0, cost };
+    }).filter(d => d.price > 0 && d.cost > 0);
+
+    let avgPrice = 0, avgCM = 0;
+    if (salesWindow !== 'none' && salesMix.length) {
+        const mixByCatalogId = {}; salesMix.forEach(m => { mixByCatalogId[m.catalog_id] = parseFloat(m.qty) || 0; });
+        const totalMixQty = Object.values(mixByCatalogId).reduce((s, q) => s + q, 0);
+        if (totalMixQty > 0) {
+            dishes.forEach(d => {
+                const w = (mixByCatalogId[d.catalog_id] || 0) / totalMixQty;
+                avgPrice += w * d.price;
+                avgCM += w * (d.price - d.cost);
+            });
+        }
+    }
+    if (avgPrice === 0 && dishes.length) {
+        avgPrice = dishes.reduce((s, d) => s + d.price, 0) / dishes.length;
+        avgCM = dishes.reduce((s, d) => s + (d.price - d.cost), 0) / dishes.length;
+    }
+
+    // 4. כמות אפקטיבית לחישוב התקורה למנה
+    const qtyMode = cfg.qty_mode === 'manual' ? 'manual' : 'auto';
+    const qtyManual = cfg.qty_manual != null ? parseFloat(cfg.qty_manual) : null;
+    const effectiveQty = qtyMode === 'manual' && qtyManual > 0 ? qtyManual : (autoQty > 0 ? autoQty : null);
+    const overheadPerDish = effectiveQty > 0 ? totalFixed / effectiveQty : null;
+
+    // 5. נקודת איזון ויעדי רווחיות: N = הוצאות קבועות / (רווח תרומה ממוצע - יעד% * מחיר ממוצע)
+    const profitTargets = Array.isArray(cfg.profit_targets) ? cfg.profit_targets : [0, 10, 20, 30];
+    const targetsResult = profitTargets.map(targetPct => {
+        const denom = avgCM - (targetPct / 100) * avgPrice;
+        if (!(avgPrice > 0) || denom <= 0) return { targetPct, feasible: false, requiredQty: null };
+        return { targetPct, feasible: true, requiredQty: Math.ceil(totalFixed / denom) };
+    });
+
+    return {
+        selectedCategories: categoryAmounts,
+        laborCost,
+        totalFixed,
+        qtyMode, qtyManual, autoQty: autoQty > 0 ? autoQty : null, salesWindow,
+        effectiveQty, overheadPerDish,
+        avgPrice, avgCM,
+        profitTargets, targetsResult
+    };
+}
+
+app.get('/api/food-cost/:groupId/fixed-overhead', async (req, res) => {
+    try {
+        const data = await computeFixedOverhead(req.params.groupId);
+        res.json({ success: true, ...data });
+    } catch(e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
+app.post('/api/food-cost/:groupId/fixed-overhead', async (req, res) => {
+    try {
+        const { groupId } = req.params;
+        const { selectedCategories, laborCost, qtyMode, qtyManual, profitTargets } = req.body;
+        const cleanCats = Array.isArray(selectedCategories)
+            ? selectedCategories.filter(c => c && c.category).map(c => ({ category: String(c.category), source: c.source === 'budget' ? 'budget' : 'actual' }))
+            : [];
+        const cleanTargets = Array.isArray(profitTargets) && profitTargets.length
+            ? [...new Set(profitTargets.map(t => Math.max(0, Math.round(parseFloat(t) || 0))))].sort((a, b) => a - b)
+            : [0, 10, 20, 30];
+
+        await pool.query(`
+            INSERT INTO food_cost_fixed_overhead (group_id, selected_categories, labor_cost_manual, qty_mode, qty_manual, profit_targets, updated_at)
+            VALUES ($1, $2, $3, $4, $5, $6, NOW())
+            ON CONFLICT (group_id) DO UPDATE SET selected_categories=$2, labor_cost_manual=$3, qty_mode=$4, qty_manual=$5, profit_targets=$6, updated_at=NOW()
+        `, [groupId, JSON.stringify(cleanCats), parseFloat(laborCost) || 0, qtyMode === 'manual' ? 'manual' : 'auto', qtyManual != null && qtyManual !== '' ? parseFloat(qtyManual) : null, JSON.stringify(cleanTargets)]);
+
+        // עדכון/יצירת סט תקורה מוכן ("תקורה תפעולית קבועה (מחושב)") כדי שאפשר יהיה להחיל אותו על מנה
+        // בלחיצה אחת בבונה המתכון, דרך אותו מנגנון "טען סט" שכבר קיים - בלי צורך בממשק נוסף.
+        const computed = await computeFixedOverhead(groupId);
+        if (computed.overheadPerDish > 0) {
+            const presetName = 'תקורה תפעולית קבועה (מחושב)';
+            const overheads = [{ name: 'תקורה תפעולית קבועה', cost: Math.round(computed.overheadPerDish * 100) / 100 }];
+            const existing = await pool.query('SELECT id FROM food_cost_overhead_presets WHERE group_id=$1 AND name=$2', [groupId, presetName]);
+            if (existing.rows.length) {
+                await pool.query('UPDATE food_cost_overhead_presets SET overheads=$1 WHERE id=$2', [JSON.stringify(overheads), existing.rows[0].id]);
+            } else {
+                await pool.query('INSERT INTO food_cost_overhead_presets (group_id, name, overheads) VALUES ($1, $2, $3)', [groupId, presetName, JSON.stringify(overheads)]);
+            }
+        }
+
+        res.json({ success: true, ...computed });
     } catch(e) { res.status(500).json({ success: false, error: e.message }); }
 });
 

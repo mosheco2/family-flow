@@ -22979,6 +22979,184 @@ window.openFoodCostGuideModal = function() {
     document.body.appendChild(modal);
 };
 
+// ─── תקורה תפעולית קבועה ונקודת איזון ─────────────────────────────────────────
+// מאפשר לבחור הוצאות קבועות חודשיות (שכירות/חשמל/וכו') מהתזרים או מהתקציב, להוסיף עלות עובדים
+// ממוצעת ידנית, ולחשב מתוכן תקורה ממוצעת למנה (מחולקת בכמות מנות שנמכרה בפועל בחודש האחרון, או
+// ידנית) - ולהציג כמה מנות בסה"כ צריך למכור כדי להגיע לנקודת איזון ולכל יעד רווחיות שמוגדר.
+window._foTargets = [0, 10, 20, 30];
+window._foSelectedCats = {}; // category -> source ('actual'|'budget')
+
+window.openFixedOverheadModal = function() {
+    let modal = document.getElementById('fixed-overhead-modal');
+    if (modal) modal.remove();
+    modal = document.createElement('div');
+    modal.id = 'fixed-overhead-modal';
+    modal.className = 'fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[95] flex items-center justify-center p-0 sm:p-4';
+    modal.innerHTML = `
+        <div class="bg-slate-50 w-full max-w-lg rounded-t-[2rem] sm:rounded-[2rem] shadow-2xl flex flex-col h-[95vh] sm:max-h-[90vh] overflow-hidden">
+            <div class="p-5 bg-gradient-to-r from-indigo-600 to-blue-600 text-white flex justify-between items-center shrink-0">
+                <h3 class="font-black text-lg"><i class="fa-solid fa-scale-balanced mr-1"></i> תקורה קבועה ונקודת איזון</h3>
+                <button onclick="document.getElementById('fixed-overhead-modal').classList.add('hidden')" class="w-8 h-8 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 transition"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="flex-1 overflow-y-auto p-4 space-y-4 modal-scroll" id="fo-modal-body">
+                <p class="text-xs text-slate-400 text-center py-10">טוען נתונים...</p>
+            </div>
+        </div>`;
+    document.body.appendChild(modal);
+    window._foLoad();
+};
+
+window._foLoad = async function() {
+    const gid = currentGroup?.id || currentGroupId;
+    if (!gid) return;
+    try {
+        const r = await fetch(`${API}/food-cost/${gid}/fixed-overhead`);
+        const d = await r.json();
+        if (!d.success) throw new Error(d.error);
+        window._foSelectedCats = {};
+        (d.selectedCategories || []).forEach(c => { window._foSelectedCats[c.category] = c.source; });
+        window._foTargets = (d.profitTargets && d.profitTargets.length) ? d.profitTargets : [0, 10, 20, 30];
+        window._foLastData = d;
+        window._foQtyMode = d.qtyMode || 'auto';
+        window._foQtyManual = d.qtyManual || '';
+        window._foLaborCost = d.laborCost || 0;
+        window._foRenderModal(d);
+    } catch(e) {
+        const body = document.getElementById('fo-modal-body');
+        if (body) body.innerHTML = '<p class="text-xs text-red-500 text-center py-10">שגיאה בטעינת נתונים</p>';
+    }
+};
+
+window._foRenderModal = function(d) {
+    const body = document.getElementById('fo-modal-body');
+    if (!body) return;
+
+    const catsHtml = CATEGORIES.expense.map(c => {
+        const checked = window._foSelectedCats[c.value] !== undefined;
+        const source = window._foSelectedCats[c.value] || 'actual';
+        const found = (d.selectedCategories || []).find(x => x.category === c.value);
+        const amountLabel = checked && found ? `<span class="text-[10px] font-mono font-bold text-slate-500">₪${found.amount.toFixed(0)}</span>` : '';
+        return `
+        <div class="flex items-center gap-2 bg-white p-2 rounded-xl border border-slate-200">
+            <input type="checkbox" id="fo-cat-${c.value}" ${checked ? 'checked' : ''} onchange="window._foToggleCat('${c.value}')" class="w-4 h-4 accent-indigo-600">
+            <label for="fo-cat-${c.value}" class="text-xs font-bold text-slate-700 flex-1">${c.label}</label>
+            ${checked ? `
+            <select onchange="window._foSetCatSource('${c.value}', this.value)" class="modern-input py-1 px-1.5 text-[10px] w-24">
+                <option value="actual" ${source==='actual'?'selected':''}>בפועל החודש</option>
+                <option value="budget" ${source==='budget'?'selected':''}>תקציב מוקצה</option>
+            </select>` : ''}
+            ${amountLabel}
+        </div>`;
+    }).join('');
+
+    const qtyModeLabel = d.salesWindow === 'last_month' ? 'לפי מכירות בפועל בחודש שעבר'
+        : d.salesWindow === 'trailing_30d' ? 'לפי מכירות בפועל ב-30 הימים האחרונים'
+        : 'אין עדיין היסטוריית מכירות';
+
+    const targetsHtml = (d.targetsResult || []).map((t, idx) => `
+        <div class="flex items-center justify-between bg-white p-2.5 rounded-xl border border-slate-200 text-xs">
+            <div class="flex items-center gap-2">
+                <span class="font-black text-slate-700">${t.targetPct === 0 ? 'נקודת איזון (0%)' : `רווחיות ${t.targetPct}%`}</span>
+                ${t.targetPct !== 0 ? `<button onclick="window._foRemoveTarget(${t.targetPct})" class="text-red-400 hover:text-red-600 w-5 h-5 flex items-center justify-center"><i class="fa-solid fa-times text-[10px]"></i></button>` : ''}
+            </div>
+            ${t.feasible
+                ? `<span class="font-mono font-black text-indigo-600">${t.requiredQty} מנות/חודש</span>`
+                : `<span class="text-red-500 font-bold text-[10px]">לא ניתן להשיג בתמחור הנוכחי</span>`}
+        </div>`).join('');
+
+    body.innerHTML = `
+        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+            <h4 class="font-bold text-slate-700 text-sm mb-2 border-b border-slate-100 pb-2"><i class="fa-solid fa-file-invoice-dollar text-indigo-500 mr-1"></i> הוצאות קבועות מהתזרים/תקציב</h4>
+            <div class="space-y-1.5">${catsHtml}</div>
+        </div>
+
+        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+            <label class="text-xs font-bold text-slate-600 block mb-1">עלות עובדים ממוצעת חודשית (₪, ידני):</label>
+            <input type="number" id="fo-labor-cost" value="${window._foLaborCost}" oninput="window._foLaborCost=parseFloat(this.value)||0" class="modern-input py-2 px-3 text-sm w-full" placeholder="0">
+        </div>
+
+        <div class="bg-indigo-50 border border-indigo-200 p-4 rounded-2xl text-center">
+            <div class="text-[10px] font-bold text-indigo-500">סה"כ הוצאות קבועות חודשיות</div>
+            <div class="text-2xl font-black text-indigo-700">₪${d.totalFixed.toFixed(0)}</div>
+        </div>
+
+        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+            <h4 class="font-bold text-slate-700 text-sm mb-2 border-b border-slate-100 pb-2"><i class="fa-solid fa-cubes text-orange-500 mr-1"></i> כמות מנות לחלוקת התקורה</h4>
+            <div class="flex gap-2 mb-2 text-xs">
+                <label class="flex items-center gap-1.5 font-bold text-slate-600"><input type="radio" name="fo-qty-mode" value="auto" ${window._foQtyMode==='auto'?'checked':''} onchange="window._foQtyMode='auto'; window._foRenderModal(window._foLastData)"> אוטומטי</label>
+                <label class="flex items-center gap-1.5 font-bold text-slate-600"><input type="radio" name="fo-qty-mode" value="manual" ${window._foQtyMode==='manual'?'checked':''} onchange="window._foQtyMode='manual'; window._foRenderModal(window._foLastData)"> ידני</label>
+            </div>
+            ${window._foQtyMode === 'auto'
+                ? `<div class="text-xs text-slate-500">${d.autoQty ? `<b class="text-slate-800">${d.autoQty}</b> מנות (${qtyModeLabel})` : `<span class="text-amber-600 font-bold">${qtyModeLabel} - נדרשת הזנה ידנית</span>`}</div>`
+                : `<input type="number" id="fo-qty-manual" value="${window._foQtyManual}" oninput="window._foQtyManual=this.value" class="modern-input py-2 px-3 text-sm w-full" placeholder="כמות מנות משוערת לחודש">`}
+            ${d.overheadPerDish ? `<div class="mt-3 text-center bg-emerald-50 border border-emerald-200 rounded-xl p-2"><span class="text-[10px] font-bold text-emerald-600">תקורה ממוצעת למנה</span><div class="text-lg font-black text-emerald-700">₪${d.overheadPerDish.toFixed(2)}</div></div>` : ''}
+        </div>
+
+        <button onclick="window._foSave()" id="btn-fo-save" class="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold shadow-lg hover:bg-indigo-700 transition"><i class="fa-solid fa-save mr-1"></i> שמור וחשב מחדש</button>
+
+        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+            <h4 class="font-bold text-slate-700 text-sm mb-2 border-b border-slate-100 pb-2"><i class="fa-solid fa-bullseye text-emerald-500 mr-1"></i> נקודת איזון ויעדי רווחיות</h4>
+            <p class="text-[10px] text-slate-400 mb-2">כמה מנות (סה"כ, מכל התפריט) צריך למכור בחודש כדי להגיע לכל יעד - לפי רווח התרומה הממוצע הנוכחי בתפריט.</p>
+            <div class="space-y-1.5 mb-3">${targetsHtml}</div>
+            <div class="flex gap-2 items-center bg-slate-50 p-2 rounded-xl border border-slate-200 border-dashed">
+                <input type="number" id="fo-new-target" min="1" max="95" class="modern-input py-2 px-2 text-xs flex-1" placeholder="הוסף יעד רווחיות % נוסף">
+                <button onclick="window._foAddTarget()" class="bg-emerald-100 text-emerald-600 w-8 h-8 rounded-lg flex items-center justify-center hover:bg-emerald-200 transition shrink-0"><i class="fa-solid fa-plus"></i></button>
+            </div>
+        </div>
+
+        <p class="text-center text-[10px] text-slate-400 pb-2">התקורה הממוצעת שמחושבת כאן נשמרת אוטומטית כסט "תקורה תפעולית קבועה" - ניתן להחיל אותו על כל מנה בבונה המתכון בלחיצה על "טען סט".</p>
+    `;
+};
+
+window._foToggleCat = function(category) {
+    if (window._foSelectedCats[category] !== undefined) delete window._foSelectedCats[category];
+    else window._foSelectedCats[category] = 'actual';
+    window._foRenderModal(window._foLastData);
+};
+window._foSetCatSource = function(category, source) {
+    window._foSelectedCats[category] = source;
+};
+window._foAddTarget = function() {
+    const val = Math.round(parseFloat(document.getElementById('fo-new-target')?.value));
+    if (!val || val <= 0 || val >= 100) return showToast('error', 'הזן אחוז רווחיות תקין (1-99)');
+    if (!window._foTargets.includes(val)) { window._foTargets.push(val); window._foTargets.sort((a,b)=>a-b); }
+    window._foSaveTargetsOnly();
+};
+window._foRemoveTarget = function(val) {
+    window._foTargets = window._foTargets.filter(t => t !== val);
+    window._foSaveTargetsOnly();
+};
+window._foSaveTargetsOnly = async function() {
+    await window._foSave(true);
+};
+
+window._foSave = async function(silent) {
+    const gid = currentGroup?.id || currentGroupId;
+    const btn = document.getElementById('btn-fo-save');
+    if (btn && !silent) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מחשב...'; }
+    try {
+        const selectedCategories = Object.keys(window._foSelectedCats).map(category => ({ category, source: window._foSelectedCats[category] }));
+        const payload = {
+            selectedCategories,
+            laborCost: window._foLaborCost || 0,
+            qtyMode: window._foQtyMode || 'auto',
+            qtyManual: window._foQtyManual || null,
+            profitTargets: window._foTargets
+        };
+        const r = await fetch(`${API}/food-cost/${gid}/fixed-overhead`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+        const d = await r.json();
+        if (!d.success) throw new Error(d.error);
+        window._foLastData = d;
+        window._foRenderModal(d);
+        if (!silent) showToast('success', 'התקורה חושבה ונשמרה בהצלחה');
+        if (typeof window._rbLoadOverheadPresets === 'function') window._rbLoadOverheadPresets();
+    } catch(e) {
+        if (!silent) showToast('error', 'שגיאה בשמירה');
+    } finally {
+        if (btn && !silent) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-save mr-1"></i> שמור וחשב מחדש'; }
+    }
+};
+
 window.openRecipeBuilder = function(catalogId = null) {
     rbIngredients = [];
     rbOverheads = [];
