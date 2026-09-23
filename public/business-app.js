@@ -22856,6 +22856,89 @@ function renderFoodCostList() {
     list.innerHTML = html;
 }
 
+// ─── מדריך "איך זה עובד" למודול Food Cost - הסבר פשוט ולא טכני לבעל העסק ─────────
+window.openFoodCostGuideModal = function() {
+    const existing = document.getElementById('food-cost-guide-modal');
+    if (existing) { existing.classList.remove('hidden'); return; }
+
+    const sections = [
+        {
+            icon: 'fa-percent', color: 'emerald', title: '1. מה זה בכלל Food Cost?',
+            body: `לכל מנה יש <b>מחיר מכירה</b> (מה שהלקוח משלם) ו<b>עלות ייצור</b> (כמה עולה לכם להכין אותה — חומרי גלם + הוצאות נלוות). המערכת מחשבת:
+            <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-3 my-2 text-center font-bold text-emerald-700 text-sm">עלות ייצור ÷ מחיר מכירה × 100 = אחוז Food Cost</div>
+            זה המספר שאומר לכם כמה אחוז מהכסף שהלקוח משלם "נבלע" בעלות החומרים, ומה נשאר לכם כרווח גולמי.
+            <div class="grid grid-cols-2 gap-2 mt-3 text-xs">
+                <div class="bg-green-50 border border-green-200 rounded-lg p-2 text-center"><b class="text-green-700">מתחת ל-28%</b><br>🟢 מצוין</div>
+                <div class="bg-green-50 border border-green-200 rounded-lg p-2 text-center"><b class="text-green-700">28%-33%</b><br>🟢 טוב</div>
+                <div class="bg-orange-50 border border-orange-200 rounded-lg p-2 text-center"><b class="text-orange-700">33%-40%</b><br>🟠 גבוה</div>
+                <div class="bg-red-50 border border-red-200 rounded-lg p-2 text-center"><b class="text-red-700">מעל 40%</b><br>🔴 בעייתי</div>
+            </div>`
+        },
+        {
+            icon: 'fa-carrot', color: 'orange', title: '2. איך המערכת יודעת כמה עולים המרכיבים?',
+            body: `לכל מנה בונים <b>"עץ מוצר"</b> — רשימת המרכיבים שנכנסים אליה וכמה מכל אחד (למשל "עגבניות — 80 גרם").
+            כדי לתרגם את זה לשקלים, המערכת מסתכלת על <b>המחיר האחרון ששילמתם בפועל</b> על אותו מרכיב, לפי היסטוריית הרכש שלכם — היא לא מנחשת מחיר, אלא לוקחת את המחיר האמיתי מהקנייה האחרונה שנרשמה.
+            <p class="mt-2">אם קניתם עגבניות ב"ק"ג" אבל במתכון רשום "גרם" — המערכת ממירה אוטומטית ביניהם.</p>
+            <p class="mt-2 text-amber-700">אם לא נמצא מחיר בכלל למרכיב (מעולם לא נרכש), או שהיחידות לא ניתנות להמרה — המנה תסומן באזהרה שהעלות עשויה להיות לא מדויקת.</p>`
+        },
+        {
+            icon: 'fa-scissors', color: 'rose', title: '3. פחת (קילוף, חיתוך, בזבוז)',
+            body: `אם קילוף/חיתוך גורם ל"אבדן" חלק מהחומר (למשל קולפים בצל וזורקים 10% ממנו) — אפשר להגדיר לכל מרכיב <b>אחוז פחת</b>. המערכת מחשבת כמה בפועל צריך לקנות כדי לקבל את הכמות הנקייה שבמתכון, ומתאימה את העלות בהתאם.`
+        },
+        {
+            icon: 'fa-box', color: 'blue', title: '4. תקורה (הוצאות נלוות)',
+            body: `מעבר לחומרי הגלם, אפשר להוסיף לכל מנה <b>הוצאות תקורה</b> — למשל אריזה, גז, חשמל למנה — שגם הן נכנסות לחישוב העלות הכוללת ולאחוז ה-Food Cost.`
+        },
+        {
+            icon: 'fa-bullseye', color: 'indigo', title: '5. מחיר לפי יעד רווח',
+            body: `בבונה המתכון יש כלי: אתם קובעים "אני רוצה Food Cost של 30%" והמערכת מחשבת אוטומטית מה המחיר שצריך לגבות כדי להגיע ליעד — ובלחיצת כפתור אפשר לעדכן את מחיר המכירה בעצמה.`
+        },
+        {
+            icon: 'fa-copy', color: 'slate', title: '6. שכפול מתכון',
+            body: `יש מנה דומה למנה חדשה שרוצים להוסיף (וריאציה בתפריט)? כפתור "שכפל" מעתיק את כל המרכיבים והתקורות מהמנה הקיימת למנה החדשה — נשאר רק לתת שם ומחיר.`
+        },
+        {
+            icon: 'fa-wand-magic-sparkles', color: 'purple', title: '7. ייעוץ AI',
+            body: `כפתור ייעוץ AI בבונה המתכון מסתכל על המתכון שלכם ומציע רעיונות להוזלת העלות — למשל החלפת מרכיב יקר או צמצום כמות.`
+        },
+        {
+            icon: 'fa-warehouse', color: 'teal', title: '8. ניכוי מלאי אוטומטי',
+            body: `כשהזמנה עם מנה מסוימת מסומנת "הושלמה" — המערכת מנכה אוטומטית מהמלאי שלכם את כמות חומרי הגלם שנצרכו בפועל, כדי שהמלאי תמיד ישקף את המציאות בלי עדכון ידני.`
+        },
+        {
+            icon: 'fa-robot', color: 'pink', title: '9. העוזרת החכמה יכולה לעדכן מתכון',
+            body: `אפשר לבקש מהעוזרת החכמה (FamliAI) "תעדכן את כמות העגבניות בהמבורגר ל-80 גרם" — היא מבצעת זאת ישירות, עם כפתור אישור לפני שהשינוי נשמר בפועל.`
+        },
+        {
+            icon: 'fa-file-excel', color: 'green', title: '10. ייצוא לאקסל',
+            body: `כפתור "ייצוא Excel" מוריד דוח CSV עם כל המנות, העלויות והרווחיות — לניתוח מחוץ למערכת.`
+        }
+    ];
+
+    const sectionsHtml = sections.map(s => `
+        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
+            <h4 class="font-bold text-slate-800 text-sm mb-2 flex items-center gap-2"><i class="fa-solid ${s.icon} text-${s.color}-500"></i> ${s.title}</h4>
+            <div class="text-xs text-slate-600 leading-relaxed">${s.body}</div>
+        </div>
+    `).join('');
+
+    const modal = document.createElement('div');
+    modal.id = 'food-cost-guide-modal';
+    modal.className = 'fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[90] flex items-center justify-center p-0 sm:p-4';
+    modal.innerHTML = `
+        <div class="bg-slate-50 w-full max-w-lg rounded-t-[2rem] sm:rounded-[2rem] shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
+            <div class="p-5 bg-gradient-to-r from-emerald-500 to-teal-600 text-white flex justify-between items-center shrink-0">
+                <h3 class="font-black text-lg"><i class="fa-solid fa-circle-question mr-1"></i> איך עובד מודול Food Cost?</h3>
+                <button onclick="document.getElementById('food-cost-guide-modal').classList.add('hidden')" class="w-8 h-8 flex items-center justify-center rounded-full bg-white/20 hover:bg-white/30 transition"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="flex-1 overflow-y-auto p-4 space-y-3 modal-scroll">
+                ${sectionsHtml}
+                <p class="text-center text-[11px] text-slate-400 pb-2">בקצרה: המערכת לוקחת מחירים אמיתיים מהקניות שלכם, מתאימה יחידות ופחת, מחברת תקורה, ונותנת תמונה מדויקת של כמה כל מנה באמת עולה — ועד כמה אתם מרוויחים עליה.</p>
+            </div>
+        </div>`;
+    document.body.appendChild(modal);
+};
+
 window.openRecipeBuilder = function(catalogId = null) {
     rbIngredients = [];
     rbOverheads = [];
