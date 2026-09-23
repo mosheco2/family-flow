@@ -16237,6 +16237,114 @@ app.get('/api/sa/ai-usage', verifySA, async (req, res) => {
 // =========================================================
 // פונקציית מערכת המיילים לספקים (B2B Orders) - מאובטחת ועמידה!
 // =========================================================
+// שלב 1 בשיגור הזמנת רכש: יצירת ההזמנות בפועל ב-DB בלבד (ללא מייל/PDF) - כדי שיהיה מספר
+// הזמנה אמיתי לפני שמייצרים את קובץ ה-PDF בצד הלקוח (שם היה עד כה placeholder "חדש" קבוע)
+app.post('/api/b2b/orders/create', async (req, res) => {
+    let dbClient;
+    try {
+        const { groupId, userId, orders } = req.body;
+        dbClient = await pool.connect();
+        await dbClient.query('BEGIN');
+        const created = [];
+        for (let order of orders) {
+            const result = await dbClient.query(`
+                INSERT INTO purchase_orders (group_id, created_by, supplier_id, items, total_amount, status)
+                VALUES ($1, $2, $3, $4, $5, 'sent') RETURNING id
+            `, [groupId, userId, order.supplierId, JSON.stringify(order.items), order.totalAmount]);
+            const newOrderId = result.rows[0].id;
+
+            if (order.serviceCallId) {
+                try {
+                    await dbClient.query('UPDATE purchase_orders SET service_call_id=$1 WHERE id=$2', [order.serviceCallId, newOrderId]);
+                    await dbClient.query("UPDATE service_calls SET parts_status='waiting_delivery', updated_at=NOW() WHERE id=$1", [order.serviceCallId]);
+                } catch(linkErr) { console.warn('SC-PO link skipped:', linkErr.message); }
+            }
+
+            let poConfirmUrl = '';
+            try {
+                const poToken = require('crypto').randomBytes(24).toString('hex');
+                await dbClient.query('UPDATE purchase_orders SET confirm_token=$1 WHERE id=$2', [poToken, newOrderId]);
+                const baseUrl = process.env.APP_URL || `https://${req.get('host')}`;
+                poConfirmUrl = `${baseUrl}/c/po/${newOrderId}/${poToken}`;
+            } catch(tokenErr) { console.warn('confirm_token update skipped:', tokenErr.message); }
+
+            created.push({ orderId: newOrderId, confirmUrl: poConfirmUrl });
+        }
+        await dbClient.query('COMMIT');
+        res.json({ success: true, orders: created });
+    } catch(e) {
+        if (dbClient) await dbClient.query('ROLLBACK');
+        console.error('Order Create Error:', e);
+        res.status(500).json({ success: false, error: e.message });
+    } finally {
+        if (dbClient) dbClient.release();
+    }
+});
+
+// שלב 2: שליחת מייל לספק עבור הזמנה שכבר נוצרה (עם מספר הזמנה אמיתי ו-PDF שכבר מכיל אותו)
+app.post('/api/b2b/orders/send-email', async (req, res) => {
+    try {
+        const { groupId, orderId, supplierId, items, confirmUrl, pdfBase64 } = req.body;
+        const user = process.env.SMTP_USER;
+        const pass = process.env.SMTP_PASS;
+        if (!user || !pass) return res.json({ success: true });
+
+        const [supplierRes, groupRes] = await Promise.all([
+            pool.query('SELECT name, email FROM suppliers WHERE id=$1', [supplierId]),
+            pool.query('SELECT name FROM family_groups WHERE id=$1', [groupId])
+        ]);
+        const supplier = supplierRes.rows[0];
+        if (!supplier || !supplier.email) return res.json({ success: true });
+        const businessName = groupRes.rows[0]?.name || 'לקוח WEFLOWZ';
+
+        const transporter = nodemailer.createTransport({
+            host: 'smtp.gmail.com', port: 465, secure: true, auth: { user, pass }
+        });
+
+        const itemsHtmlList = (items || []).map(i => `<li>${i.name} - כמות: ${i.quantity}</li>`).join('');
+        const mailOptions = {
+            from: `"מערכת רכש WEFLOWZ" <${user}>`,
+            to: supplier.email,
+            subject: `הזמנת רכש חדשה מ-${businessName} (הזמנה #${orderId})`,
+            html: `
+                <div dir="rtl" style="font-family: Arial, sans-serif; color: #333;">
+                    <h2>שלום רב לצוות ${supplier.name},</h2>
+                    <p>מצ"ב הזמנת רכש חדשה שהופקה עבורכם דרך מערכת WEFLOWZ.</p>
+
+                    <div style="background: #f8fafc; padding: 15px; border-radius: 10px; margin: 15px 0; border: 1px solid #e2e8f0;">
+                        <p style="margin:0 0 6px 0;"><b>מספר הזמנה:</b> #${orderId}</p>
+                        <p style="margin:0 0 12px 0;"><b>שם הלקוח (המזמין):</b> ${businessName}</p>
+                        <h3 style="margin-top:0;">תקציר ההזמנה:</h3>
+                        <ul>${itemsHtmlList}</ul>
+                    </div>
+
+                    <p>אנא עברו על ההזמנה ואשרו לנו את קבלתה ומועד האספקה המשוער.</p>
+                    <div style="margin: 20px 0; text-align: center;">
+                        <a href="${confirmUrl}" style="display:inline-block;background:#22c55e;color:#fff;padding:14px 32px;border-radius:12px;font-weight:bold;font-size:15px;text-decoration:none;">✅ אשר קבלת הזמנה</a>
+                        <p style="font-size:11px;color:#94a3b8;margin-top:8px;">לחיצה תסמן אוטומטית שהמסמך התקבל אצלכם</p>
+                    </div>
+                    <br>
+                    <p>בברכה,</p>
+                    <p><b>${businessName}</b> (לקוח WEFLOWZ BIZ)</p>
+                </div>
+            `,
+            attachments: pdfBase64 ? [{
+                filename: `Purchase_Order_${orderId}.pdf`,
+                content: pdfBase64.replace(/^data:application\/pdf;base64,/, ''),
+                encoding: 'base64'
+            }] : []
+        };
+
+        try {
+            await transporter.sendMail(mailOptions);
+            console.log(`✅ Email sent successfully to ${supplier.email}`);
+        } catch (mailErr) {
+            console.error(`❌ Failed to send email to ${supplier.email}:`, mailErr);
+        }
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
 app.post('/api/b2b/orders', async (req, res) => {
     let dbClient;
     try {
@@ -19709,6 +19817,25 @@ async function deductPantryForOrder(orderId, groupId) {
         console.error('[deductPantryForOrder]', e.message);
     }
 }
+
+// שמות מרכיבים מוכרים למלאי (pantry) ומהיסטוריית רכש (shopping_trip_items) - לבחירה מדויקת
+// בבונה המתכון, כדי שהשם שנבחר יתאים בדיוק למקור המחיר ולא יסומן "אין נתוני מחיר"/"אי-התאמת יחידות"
+app.get('/api/food-cost/:groupId/known-ingredients', async (req, res) => {
+    try {
+        const [pantryRes, purchasedRes] = await Promise.all([
+            pool.query('SELECT DISTINCT item_name FROM pantry WHERE group_id=$1', [req.params.groupId]),
+            pool.query(
+                `SELECT DISTINCT sti.item_name FROM shopping_trip_items sti
+                 JOIN shopping_trips st ON st.id = sti.trip_id WHERE st.group_id=$1`,
+                [req.params.groupId]
+            )
+        ]);
+        const names = [...new Set(
+            [...pantryRes.rows, ...purchasedRes.rows].map(r => (r.item_name || '').trim()).filter(Boolean)
+        )].sort((a, b) => a.localeCompare('he'));
+        res.json({ success: true, names });
+    } catch(e) { res.status(500).json({ success: false, error: e.message }); }
+});
 
 app.get('/api/food-cost/:groupId', async (req, res) => {
     try {

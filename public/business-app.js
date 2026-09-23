@@ -18319,22 +18319,37 @@ async function submitB2BOrders() {
 
     let submitted = false;
     try {
+        if (window._pendingScForPo) {
+            splitOrders.forEach(o => { o.serviceCallId = window._pendingScForPo; });
+        }
+
+        // שלב 1: יצירת ההזמנות ב-DB כדי לקבל מספרי הזמנה אמיתיים (לפני שמייצרים PDF - כדי שהוא יכיל את המספר הנכון, לא "חדש")
+        const createRes = await fetch(`${API}/b2b/orders/create`, {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ groupId: currentGroup.id, userId: currentUser.id, orders: splitOrders })
+        });
+        const createData = await createRes.json();
+        if (!createData.success) throw new Error(createData.error || 'שגיאה ביצירת ההזמנות');
+
+        splitOrders.forEach((o, i) => {
+            o.orderId = createData.orders[i]?.orderId || o.orderId;
+            o._confirmUrl = createData.orders[i]?.confirmUrl || '';
+        });
+
+        // שלב 2: יצירת PDF לכל הזמנה - עכשיו עם מספר ההזמנה האמיתי
         for (let order of splitOrders) {
             try { order.pdfBase64 = await generateOrderPDFBase64(order); } catch(pdfErr) { order.pdfBase64 = null; }
         }
 
-        if (window._pendingScForPo) {
-            splitOrders.forEach(o => { o.serviceCallId = window._pendingScForPo; });
-        }
-        const res = await fetch(`${API}/b2b/orders`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ groupId: currentGroup.id, userId: currentUser.id, orders: splitOrders }) });
-        const data = await res.json();
         submitted = true;
 
-        if (data.success) {
-            triggerConfetti(); showToast('success', 'ההזמנה שוגרה בהצלחה לספקים!');
-        } else {
-            showToast('warning', 'ההזמנה נשמרה אך אירעה שגיאה: ' + (data.error || 'שגיאה לא ידועה'));
-        }
+        // שלב 3: שליחת מייל לספקים - כולל מספר הזמנה, שם העסק המזמין, וה-PDF עם המספר הנכון
+        await Promise.all(splitOrders.map(order => fetch(`${API}/b2b/orders/send-email`, {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ groupId: currentGroup.id, orderId: order.orderId, supplierId: order.supplierId, items: order.items, confirmUrl: order._confirmUrl, pdfBase64: order.pdfBase64 })
+        })));
+
+        triggerConfetti(); showToast('success', 'ההזמנה שוגרה בהצלחה לספקים!');
     } catch(e) {
         showToast('warning', 'ההזמנה נשלחה — בדוק את ההיסטוריה לאישור');
     } finally {
@@ -22900,7 +22915,8 @@ window.openRecipeBuilder = function(catalogId = null) {
                     <div id="rb-ingredients-list" class="space-y-2 mb-3 min-h-[50px]"></div>
                     
                     <div class="flex gap-2 items-center bg-slate-50 p-2 rounded-xl border border-slate-200 border-dashed mt-2">
-                        <input type="text" id="rb-add-ing-name" class="modern-input py-2 px-2 text-xs flex-[2]" placeholder="שם חומר גלם">
+                        <input type="text" id="rb-add-ing-name" list="rb-known-ingredients" class="modern-input py-2 px-2 text-xs flex-[2]" placeholder="שם חומר גלם - התחל להקליד לבחירה ממלאי/רכש קיים" autocomplete="off">
+                        <datalist id="rb-known-ingredients"></datalist>
                         <input type="number" id="rb-add-ing-qty" class="modern-input py-2 px-2 text-xs flex-1 text-center" placeholder="כמות" min="0.01" step="0.01">
                         <select id="rb-add-ing-unit" class="modern-input py-2 px-1 text-xs bg-white w-16 text-center">
                             <option value="קג">ק"ג</option>
@@ -22999,6 +23015,22 @@ window.openRecipeBuilder = function(catalogId = null) {
     
     modal.classList.remove('hidden');
     window.refreshRBUI();
+    window._rbLoadKnownIngredients();
+};
+
+// טעינת שמות מרכיבים מוכרים (ממלאי ומהיסטוריית רכש) לבחירה מדויקת בבונה המתכון -
+// כדי שהשם שנבחר יתאים בדיוק לשם שנשמר במלאי/ברכש, ולא יסומן כ"אין נתוני מחיר"
+window._rbLoadKnownIngredients = async function() {
+    const gid = currentGroup?.id || currentGroupId;
+    if (!gid) return;
+    try {
+        const r = await fetch(`${API}/food-cost/${gid}/known-ingredients`);
+        const d = await r.json();
+        const list = document.getElementById('rb-known-ingredients');
+        if (list && d.success && Array.isArray(d.names)) {
+            list.innerHTML = d.names.map(n => `<option value="${safeStr(n)}"></option>`).join('');
+        }
+    } catch(e) {}
 };
 
 function injectCreateRecipeBtn() {
