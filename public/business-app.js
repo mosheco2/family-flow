@@ -23180,7 +23180,8 @@ window.saveRecipeBuilder = async function() {
     const dynamicPriceInput = getEl('rb-edit-price');
     const dynamicCatInput = getEl('rb-edit-category');
     
-    const btn = document.querySelector('#recipe-builder-modal button.bg-slate-900');
+    const btn = document.getElementById('btn-submit-rb');
+    if (!btn) return;
     btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> שומר...';
     
     try {
@@ -23192,7 +23193,7 @@ window.saveRecipeBuilder = async function() {
             
             if (!name || price <= 0) {
                 showToast('error', 'יש להזין שם מנה ומחיר מכירה גדול מ-0');
-                btn.disabled = false; btn.innerText = 'שמור עץ מוצר';
+                btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-save"></i> שמור מנה לחנות';
                 return;
             }
             
@@ -23216,7 +23217,7 @@ window.saveRecipeBuilder = async function() {
             
             if (!catData.success) {
                 showToast('error', 'שגיאה ביצירת המנה בקטלוג הראשי');
-                btn.disabled = false; btn.innerText = 'שמור עץ מוצר';
+                btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-save"></i> שמור מנה לחנות';
                 return;
             }
             
@@ -23245,7 +23246,7 @@ window.saveRecipeBuilder = async function() {
     } catch(e) {
         showToast('error', 'שגיאת רשת מול השרת');
     } finally {
-        btn.disabled = false; btn.innerText = 'שמור עץ מוצר';
+        btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-save"></i> שמור מנה לחנות';
     }
 };
 // הוספת מזהה גרסה בתחתית המסך
