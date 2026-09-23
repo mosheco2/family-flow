@@ -19987,8 +19987,10 @@ app.post('/api/food-cost/:groupId/fixed-overhead', async (req, res) => {
     try {
         const { groupId } = req.params;
         const { selectedCategories, laborCost, qtyMode, qtyManual, profitTargets } = req.body;
+        // 'salary' מוסר תמיד כאן גם אם הגיע מהלקוח - עלות עובדים נכללת אך ורק דרך laborCost הידני,
+        // כדי למנוע ספירה כפולה של עלות עובדים גם מהקטגוריה וגם מהשדה הידני.
         const cleanCats = Array.isArray(selectedCategories)
-            ? selectedCategories.filter(c => c && c.category).map(c => ({ category: String(c.category), source: c.source === 'budget' ? 'budget' : 'actual' }))
+            ? selectedCategories.filter(c => c && c.category && c.category !== 'salary').map(c => ({ category: String(c.category), source: c.source === 'budget' ? 'budget' : 'actual' }))
             : [];
         const cleanTargets = Array.isArray(profitTargets) && profitTargets.length
             ? [...new Set(profitTargets.map(t => Math.max(0, Math.round(parseFloat(t) || 0))))].sort((a, b) => a - b)
