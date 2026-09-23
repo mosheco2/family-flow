@@ -23146,13 +23146,19 @@ window._foRenderModal = function(d) {
     `;
 };
 
+// שינוי בחירת קטגוריה/מקור שומר ומחשב מחדש באופן שקט ומיידי (בלי לחכות ללחיצה על "שמור וחשב
+// מחדש") - כדי שהסכום הכולל וסכום כל קטגוריה יתעדכנו מיד עם הסימון, ולא יישארו על ₪0 (הערך
+// הישן שנטען בפעם האחרונה) עד שהמשתמש ילחץ שמירה במפורש - זו הייתה הסיבה שהסכום הכולל נראה
+// כאילו "לא נמשך" למרות שהתקציב כן מוגדר: הוא פשוט טרם חושב מחדש בשרת.
 window._foToggleCat = function(category) {
     if (window._foSelectedCats[category] !== undefined) delete window._foSelectedCats[category];
     else window._foSelectedCats[category] = 'actual';
     window._foRenderModal(window._foLastData);
+    window._foSave(true);
 };
 window._foSetCatSource = function(category, source) {
     window._foSelectedCats[category] = source;
+    window._foSave(true);
 };
 window._foAddTarget = function() {
     const val = Math.round(parseFloat(document.getElementById('fo-new-target')?.value));
