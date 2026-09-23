@@ -4234,7 +4234,7 @@ async function fetchSAAdditionalData(provider, params) {
                         (SELECT COUNT(*) FROM community_businesses WHERE status IN ('pending','zm_pending','comm_mgr_pending','pending_cm_review')) as pending_biz_community,
                         (SELECT COUNT(*) FROM family_communities WHERE status='pending') as pending_family_community,
                         (SELECT COUNT(*) FROM zone_managers WHERE status='pending') as pending_zm,
-                        (SELECT COUNT(*) FROM banner_orders WHERE status='pending') as pending_banners,
+                        (SELECT COUNT(*) FROM banner_orders WHERE status='pending_approval') as pending_banners,
                         (SELECT COUNT(*) FROM billing_records WHERE payment_status!='paid') as unpaid_billing,
                         (SELECT COUNT(*) FROM support_tickets WHERE status='open') as open_tickets
                 `);
@@ -8150,11 +8150,11 @@ app.get('/api/sa/dashboard', verifySA, async (req, res) => {
             `),
             safe(`SELECT COUNT(*) as cnt FROM community_businesses WHERE status IN ('pending','zm_pending','comm_mgr_pending','pending_cm_review')`, [{ cnt: 0 }]),
             safe(`SELECT COUNT(*) as cnt FROM family_communities WHERE status='pending'`, [{ cnt: 0 }]),
-            safe(`SELECT COUNT(*) as cnt FROM banner_orders WHERE status='pending'`, [{ cnt: 0 }]),
+            safe(`SELECT COUNT(*) as cnt FROM banner_orders WHERE status='pending_approval'`, [{ cnt: 0 }]),
             safe(`SELECT COUNT(*) as cnt FROM zone_managers WHERE status='pending'`, [{ cnt: 0 }]),
             safe(`SELECT COUNT(*) as cnt FROM community_promotions WHERE status='pending'`, [{ cnt: 0 }]),
             safe(`SELECT COUNT(*) as cnt FROM communities WHERE status='pending'`, [{ cnt: 0 }]),
-            safe(`SELECT COUNT(*) as cnt FROM billing_records WHERE payment_status='pending'`, [{ cnt: 0 }]),
+            safe(`SELECT COUNT(*) as cnt FROM billing_records WHERE payment_status='unpaid'`, [{ cnt: 0 }]),
             safe(`SELECT
                 COUNT(*) FILTER (WHERE status='open') as open_cnt,
                 COUNT(*) FILTER (WHERE status='open' AND priority='high') as urgent_cnt,
@@ -8251,8 +8251,8 @@ app.get('/api/sa/bigscreen-stats', verifySA, async (req, res) => {
                 (SELECT COUNT(*) FROM family_communities WHERE status='pending') as fam_joins_pending,
                 (SELECT COUNT(*) FROM community_promotions WHERE status='pending') as promos_pending,
                 (SELECT COUNT(*) FROM zone_managers WHERE status='pending') as zm_pending,
-                (SELECT COUNT(*) FROM banner_orders WHERE status='pending') as banner_pending,
-                (SELECT COUNT(*) FROM billing_records WHERE payment_status='pending') as billing_pending
+                (SELECT COUNT(*) FROM banner_orders WHERE status='pending_approval') as banner_pending,
+                (SELECT COUNT(*) FROM billing_records WHERE payment_status='unpaid') as billing_pending
             `),
             // ── תמיכה ──
             safe(`SELECT
@@ -8284,7 +8284,7 @@ app.get('/api/sa/bigscreen-stats', verifySA, async (req, res) => {
                 FROM flow_wallets GROUP BY entity_type`, []),
             // ── פרסום ──
             safe(`SELECT
-                COUNT(*) FILTER (WHERE status='pending') as pending_orders,
+                COUNT(*) FILTER (WHERE status='pending_approval') as pending_orders,
                 COUNT(*) FILTER (WHERE status='active') as active_banners,
                 COALESCE(SUM(br.amount_ils) FILTER (WHERE br.payment_status='paid' AND br.created_at > NOW()-INTERVAL '30 days'),0) as ads_revenue_month
                 FROM banner_orders bo
@@ -8790,7 +8790,7 @@ app.get('/api/sa/pending-actions-center', verifySA, async (req, res) => {
             // הזמנות שילוט ממתינות — אחראי: סופר אדמין (לא כולל סביבות מחוקות)
             safe(`SELECT bo.id, bs.name as title, COALESCE(fg.name,'—') as subtitle, bo.created_at
                 FROM banner_orders bo JOIN banner_slots bs ON bs.id=bo.slot_id LEFT JOIN family_groups fg ON fg.id=bo.business_id
-                WHERE bo.status='pending' AND (fg.id IS NULL OR (fg.is_test_env IS NOT TRUE AND (fg.is_deleted=false OR fg.is_deleted IS NULL)))
+                WHERE bo.status='pending_approval' AND (fg.id IS NULL OR (fg.is_test_env IS NOT TRUE AND (fg.is_deleted=false OR fg.is_deleted IS NULL)))
                 ORDER BY bo.created_at ASC`, 'bannerPending'),
             // בקשות הסרת עסק מקהילה — אחראי: סופר אדמין (לא כולל סביבות מחוקות)
             safe(`SELECT cb.business_id, fg.name as title, c.name as subtitle, cb.removal_requested_at as created_at
