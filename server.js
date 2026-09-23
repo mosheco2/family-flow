@@ -19870,8 +19870,12 @@ async function computeFixedOverhead(groupId) {
         const source = sel.source === 'budget' ? 'budget' : 'actual';
         let amount = 0;
         if (source === 'budget') {
+            // סכימה על פני כל שורות ההקצאה לקטגוריה - גם הקצאה כללית (target_user_id NULL) וגם הקצאות
+            // פר-עובד/יעד (target_user_id ספציפי) - כדי לשקף את סך התקציב שהוקצה בפועל לקטגוריה הזו,
+            // בלי קשר לאיזה משתמש/יעד היא שויכה. חיפוש רק לפי target_user_id IS NULL פספס לגמרי הקצאות
+            // שנשמרו עם יעד ספציפי, והחזיר 0 גם כשהתקציב כן הוגדר.
             const r = await pool.query(
-                `SELECT COALESCE(MAX(amount_limit), 0) amt FROM budget_allocations WHERE group_id=$1 AND category=$2 AND target_user_id IS NULL`,
+                `SELECT COALESCE(SUM(amount_limit), 0) amt FROM budget_allocations WHERE group_id=$1 AND category=$2`,
                 [groupId, category]
             );
             amount = parseFloat(r.rows[0]?.amt) || 0;
