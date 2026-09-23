@@ -22969,7 +22969,7 @@ window.openFoodCostGuideModal = function() {
         {
             icon: 'fa-scale-balanced', color: 'indigo', title: '13. תקורה תפעולית קבועה ונקודת איזון',
             body: `כפתור <b>"תקורה קבועה ונקודת איזון"</b> בראש עמוד פוד קוסט עונה על שאלה שהתקורות הרגילות (סעיף 4) לא פותרות: איך מכלילים בעלות מנה הוצאות קבועות שלא תלויות במנה עצמה — שכירות, חשמל, מים, עלות עובדים?
-            <p class="mt-2"><b>שלב 1 — בחירת ההוצאות הקבועות:</b> מסמנים אילו קטגוריות הוצאה להכליל — כולל <b>משכורות</b> — ולכל אחת בוחרים אם לשאוב אותה מהסכום שבפועל שולם החודש בתזרים, או מהסכום שהוקצה לה בתקציב. כל קטגוריה (כולל משכורות) נשלפת ממקור מידע יחיד — אין שדה הזנה ידני נפרד ומקביל לשום קטגוריה, כדי שלא יהיו שני מקומות שונים שיכולים להזין את אותו נתון ולגרום לספירה כפולה.</p>
+            <p class="mt-2"><b>שלב 1 — בחירת ההוצאות הקבועות:</b> רשימת הקטגוריות מוצגת <b>אוטומטית לפי מה שכבר קיים אצלכם</b> בתקציב או בתזרים — כולל כל קטגוריה מותאמת אישית שהוספתם — כך שאין צורך "לסנכרן" ידנית; קטגוריה חדשה שתוסיפו בתקציב תופיע כאן לבד. מסמנים אילו קטגוריות להכליל (כולל משכורות), ולכל אחת בוחרים אם לשאוב אותה מהסכום שבפועל שולם החודש בתזרים, או מהסכום שהוקצה לה בתקציב. כל קטגוריה נשלפת ממקור מידע יחיד — אין שדה הזנה ידני נפרד ומקביל לשום קטגוריה, כדי שלא יהיו שני מקומות שונים שיכולים להזין את אותו נתון ולגרום לספירה כפולה.</p>
             <p class="mt-2"><b>שלב 2 — תקורה ממוצעת למנה:</b> המערכת מחלקת את סך ההוצאות הקבועות בכמות המנות שנמכרה. הכמות נשלפת אוטומטית מהמכירות בפועל (חודש שעבר, או 30 הימים האחרונים אם אין נתון לחודש שלם), ותמיד אפשר לדרוס אותה ידנית. את התוצאה שומרים בלחיצה על "שמור וחשב מחדש" — היא נשמרת אוטומטית כ"סט תקורות" בשם "תקורה תפעולית קבועה (מחושב)", וניתן להחיל אותו על כל מנה בבונה המתכון בלחיצה אחת על "טען סט" (בדיוק כמו כל סט אחר שנשמר).</p>
             <p class="mt-2"><b>שלב 3 — נקודת איזון ויעדי רווחיות:</b> טבלה שמראה כמה מנות (סה"כ, מכל התפריט ביחד) צריך למכור בחודש כדי לכסות בדיוק את ההוצאות הקבועות (נקודת איזון, 0%), וכמה כדי להגיע לכל יעד רווח שתגדירו (10%, 20%, 30%, או כל אחוז אחר שתוסיפו). ככל שהתפריט רווחי יותר בממוצע — נדרשות פחות מנות כדי להגיע ליעד.</p>
             <p class="mt-2 text-amber-700">אם יעד מסוים מסומן "לא ניתן להשיג בתמחור הנוכחי" — המשמעות היא שגם במכירת כמות בלתי מוגבלת של מנות, המחירים/עלויות הנוכחיים בתפריט לא מאפשרים להגיע לאחוז הרווח הזה, ויש צורך להעלות מחירים או להוזיל עלויות כדי שהיעד יהיה בר-השגה בכלל.</p>`
@@ -23031,13 +23031,23 @@ window._foLoad = async function() {
     const gid = currentGroup?.id || currentGroupId;
     if (!gid) return;
     try {
-        const r = await fetch(`${API}/food-cost/${gid}/fixed-overhead`);
+        const [r, rc] = await Promise.all([
+            fetch(`${API}/food-cost/${gid}/fixed-overhead`),
+            fetch(`${API}/food-cost/${gid}/expense-categories`)
+        ]);
         const d = await r.json();
+        const dc = await rc.json();
         if (!d.success) throw new Error(d.error);
         window._foSelectedCats = {};
         // 'משכורות' נשלפת בדיוק כמו כל הוצאה קבועה אחרת - ממקור מידע יחיד (תזרים/תקציב), בלי שדה
         // הזנה ידני מקביל, כדי שלא יהיו שני מקומות שונים שאפשר להזין בהם את אותו נתון.
         (d.selectedCategories || []).forEach(c => { window._foSelectedCats[c.category] = c.source; });
+        // רשימת הקטגוריות הניתנות לבחירה נשלפת דינמית מכל קטגוריה שקיימת בפועל בתקציב/תזרים של
+        // העסק (כולל קטגוריות מותאמות אישית) - לא רשימה קבועה - כדי שקטגוריה חדשה שמוסיפים תופיע
+        // כאן אוטומטית. נוספת גם כל קטגוריה שכבר נבחרה בעבר, למקרה שהיא כבר לא קיימת יותר בתקציב/
+        // בתזרים (למשל נמחקה) - כדי לא "לאבד" בחירה שמורה בלי אפשרות להסיר אותה.
+        const dynamicCats = (dc.success && Array.isArray(dc.categories)) ? dc.categories : [];
+        window._foAvailableCats = [...new Set([...dynamicCats, ...Object.keys(window._foSelectedCats)])].sort((a, b) => a.localeCompare('he'));
         window._foTargets = (d.profitTargets && d.profitTargets.length) ? d.profitTargets : [0, 10, 20, 30];
         window._foLastData = d;
         window._foQtyMode = d.qtyMode || 'auto';
@@ -23053,23 +23063,24 @@ window._foRenderModal = function(d) {
     const body = document.getElementById('fo-modal-body');
     if (!body) return;
 
-    const catsHtml = CATEGORIES.expense.map(c => {
-        const checked = window._foSelectedCats[c.value] !== undefined;
-        const source = window._foSelectedCats[c.value] || 'actual';
-        const found = (d.selectedCategories || []).find(x => x.category === c.value);
+    const catsHtml = (window._foAvailableCats || []).map((catValue, idx) => {
+        const checked = window._foSelectedCats[catValue] !== undefined;
+        const source = window._foSelectedCats[catValue] || 'actual';
+        const found = (d.selectedCategories || []).find(x => x.category === catValue);
+        const label = BUDGET_LABELS[catValue] || catValue;
         const amountLabel = checked && found ? `<span class="text-[10px] font-mono font-bold text-slate-500">₪${found.amount.toFixed(0)}</span>` : '';
         return `
         <div class="flex items-center gap-2 bg-white p-2 rounded-xl border border-slate-200">
-            <input type="checkbox" id="fo-cat-${c.value}" ${checked ? 'checked' : ''} onchange="window._foToggleCat('${c.value}')" class="w-4 h-4 accent-indigo-600">
-            <label for="fo-cat-${c.value}" class="text-xs font-bold text-slate-700 flex-1">${c.label}</label>
+            <input type="checkbox" id="fo-cat-${idx}" ${checked ? 'checked' : ''} onchange="window._foToggleCat('${jsAttrStr(catValue)}')" class="w-4 h-4 accent-indigo-600">
+            <label for="fo-cat-${idx}" class="text-xs font-bold text-slate-700 flex-1">${safeStr(label)}</label>
             ${checked ? `
-            <select onchange="window._foSetCatSource('${c.value}', this.value)" class="modern-input py-1 px-1.5 text-[10px] w-24">
+            <select onchange="window._foSetCatSource('${jsAttrStr(catValue)}', this.value)" class="modern-input py-1 px-1.5 text-[10px] w-24">
                 <option value="actual" ${source==='actual'?'selected':''}>בפועל החודש</option>
                 <option value="budget" ${source==='budget'?'selected':''}>תקציב מוקצה</option>
             </select>` : ''}
             ${amountLabel}
         </div>`;
-    }).join('');
+    }).join('') || '<p class="text-[10px] text-slate-400 text-center py-3">אין עדיין קטגוריות הוצאה בתקציב/בתזרים - הוסיפו קטגוריית הוצאה שם כדי שתופיע כאן.</p>';
 
     const qtyModeLabel = d.salesWindow === 'last_month' ? 'לפי מכירות בפועל בחודש שעבר'
         : d.salesWindow === 'trailing_30d' ? 'לפי מכירות בפועל ב-30 הימים האחרונים'

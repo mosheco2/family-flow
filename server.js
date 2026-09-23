@@ -19987,6 +19987,27 @@ app.get('/api/food-cost/:groupId/fixed-overhead', async (req, res) => {
     } catch(e) { res.status(500).json({ success: false, error: e.message }); }
 });
 
+// קטגוריות הוצאה זמינות לבחירה כ"הוצאה קבועה" - נשלפות דינמית מכל קטגוריה שקיימת בפועל
+// אצל העסק הזה (בתקציב או בתזרים), כולל קטגוריות מותאמות אישית שהעסק הוסיף בעצמו - כדי
+// שרשימת הבחירה תמיד תשקף את הקטגוריות האמיתיות ולא רשימה קבועה שעלולה לפספס תוספות.
+// קטגוריות שאינן הוצאה תפעולית אמיתית (יעדים/בונוסים/הקצאות מחלקתיות) מוחרגות בכוונה.
+const _FO_EXCLUDED_CATEGORIES = ['allocations', 'allowance', 'tasks', 'academy', 'savings'];
+app.get('/api/food-cost/:groupId/expense-categories', async (req, res) => {
+    try {
+        const { groupId } = req.params;
+        const r = await pool.query(`
+            SELECT DISTINCT category FROM (
+                SELECT category FROM budget_allocations WHERE group_id=$1
+                UNION
+                SELECT category FROM transactions WHERE group_id=$1 AND type='expense'
+            ) x WHERE category IS NOT NULL AND category != ''
+            ORDER BY category
+        `, [groupId]);
+        const categories = r.rows.map(row => row.category).filter(c => !_FO_EXCLUDED_CATEGORIES.includes(c));
+        res.json({ success: true, categories });
+    } catch(e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
 app.post('/api/food-cost/:groupId/fixed-overhead', async (req, res) => {
     try {
         const { groupId } = req.params;
