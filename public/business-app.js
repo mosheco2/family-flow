@@ -23337,13 +23337,40 @@ window.analyzeRBCostAI = function() {
     });
 };
 
+// אישור רווחיות אמיתי לפני שמירת מנה: אם ה-Food Cost % חורג מהסטנדרט (אותם ספים שמוצגים
+// בבונה המתכון עצמו - ראו window.refreshRBUI), חוסמים שמירה שקטה ודורשים אישור מפורש של המשתמש,
+// עם אפשרות לשמור בכל זאת (לדוגמה מנת דגל/פרסום שמוכרים בכוונה מתחת לעלות). ללא חומרי גלם/מחיר
+// מכירה עדיין אין מה לאשר - לא חוסמים במקרה כזה.
+function checkRBProfitabilityBeforeSave() {
+    const totalCost = window._rbTotalCost || 0;
+    const dynamicPriceInput = document.getElementById('rb-edit-price');
+    const salePrice = dynamicPriceInput ? (parseFloat(dynamicPriceInput.value) || 0) : (rbCurrentItem ? parseFloat(rbCurrentItem.price) || 0 : 0);
+    if (totalCost <= 0 || salePrice <= 0) return true; // אין נתונים מספיקים לחישוב - לא חוסמים
+
+    const fcPct = (totalCost / salePrice) * 100;
+    const profit = salePrice - totalCost;
+
+    if (profit < 0) {
+        return confirm(`⚠️ אזהרה: המנה נמכרת בהפסד!\n\nעלות: ₪${totalCost.toFixed(2)} | מחיר מכירה: ₪${salePrice.toFixed(2)} | הפסד: ₪${Math.abs(profit).toFixed(2)} (Food Cost ${fcPct.toFixed(1)}%)\n\nלשמור את המנה בכל זאת?`);
+    }
+    if (fcPct > 40) {
+        return confirm(`⚠️ Food Cost גבוה מאוד (${fcPct.toFixed(1)}%) - רווחיות המנה בעייתית ואינה עומדת בסטנדרט המומלץ (עד 33%).\n\nרווח למנה: ₪${profit.toFixed(2)}\n\nלשמור את המנה בכל זאת?`);
+    }
+    if (fcPct > 33) {
+        return confirm(`רווחיות המנה גבוהה מהסטנדרט המומלץ: Food Cost ${fcPct.toFixed(1)}% (מומלץ עד 33%).\n\nרווח למנה: ₪${profit.toFixed(2)}\n\nלשמור את המנה בכל זאת?`);
+    }
+    return true; // בתוך הסטנדרט - שומרים ללא אישור נוסף
+}
+
 window.saveRecipeBuilder = async function() {
     let catalogId = val('rb-catalog-id');
-    
+
     const dynamicNameInput = getEl('rb-edit-name');
     const dynamicPriceInput = getEl('rb-edit-price');
     const dynamicCatInput = getEl('rb-edit-category');
-    
+
+    if (!checkRBProfitabilityBeforeSave()) return;
+
     const btn = document.getElementById('btn-submit-rb');
     if (!btn) return;
     btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> שומר...';
