@@ -20046,6 +20046,40 @@ app.post('/api/food-cost/:groupId/fixed-overhead', async (req, res) => {
     } catch(e) { res.status(500).json({ success: false, error: e.message }); }
 });
 
+// החלת התקורה התפעולית הקבועה המחושבת על כל מנה בתפריט בבת אחת, במקום לטעון את הסט ידנית
+// מנה-מנה בבונה המתכון. מוסיפה/מעדכנת בכל מנה שורת תקורה יחידה בשם "תקורה תפעולית קבועה" בתוך
+// overhead_details (אותו שדה שבונה המתכון עצמו שומר אליו) - שורה קיימת עם אותו שם מוחלפת (לא
+// מוכפלת) בכל הרצה חוזרת, כדי שאפשר יהיה להריץ את זה שוב אחרי כל עדכון של ההוצאות הקבועות.
+app.post('/api/food-cost/:groupId/fixed-overhead/apply-to-all', async (req, res) => {
+    let dbClient;
+    try {
+        const { groupId } = req.params;
+        const computed = await computeFixedOverhead(groupId);
+        if (!(computed.overheadPerDish > 0)) {
+            return res.status(400).json({ success: false, error: 'אין עדיין תקורה ממוצעת למנה לחישוב (חסרות הוצאות קבועות ו/או כמות מנות)' });
+        }
+        const overheadLine = { name: 'תקורה תפעולית קבועה', cost: Math.round(computed.overheadPerDish * 100) / 100 };
+
+        dbClient = await pool.connect();
+        await dbClient.query('BEGIN');
+        const catalogRes = await dbClient.query('SELECT id, overhead_details FROM store_catalog WHERE group_id=$1', [groupId]);
+        for (const row of catalogRes.rows) {
+            let overheads = [];
+            try { overheads = Array.isArray(row.overhead_details) ? row.overhead_details : JSON.parse(row.overhead_details || '[]'); } catch(e) { overheads = []; }
+            overheads = overheads.filter(o => o && o.name !== overheadLine.name);
+            overheads.push(overheadLine);
+            await dbClient.query('UPDATE store_catalog SET overhead_details=$1 WHERE id=$2', [JSON.stringify(overheads), row.id]);
+        }
+        await dbClient.query('COMMIT');
+        res.json({ success: true, updatedCount: catalogRes.rows.length, overheadPerDish: computed.overheadPerDish });
+    } catch(e) {
+        if (dbClient) await dbClient.query('ROLLBACK');
+        res.status(500).json({ success: false, error: e.message });
+    } finally {
+        if (dbClient) dbClient.release();
+    }
+});
+
 app.get('/api/food-cost/:groupId', async (req, res) => {
     try {
         const { groupId } = req.params;

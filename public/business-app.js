@@ -22970,7 +22970,8 @@ window.openFoodCostGuideModal = function() {
             icon: 'fa-scale-balanced', color: 'indigo', title: '13. תקורה תפעולית קבועה ונקודת איזון',
             body: `כפתור <b>"תקורה קבועה ונקודת איזון"</b> בראש עמוד פוד קוסט עונה על שאלה שהתקורות הרגילות (סעיף 4) לא פותרות: איך מכלילים בעלות מנה הוצאות קבועות שלא תלויות במנה עצמה — שכירות, חשמל, מים, עלות עובדים?
             <p class="mt-2"><b>שלב 1 — בחירת ההוצאות הקבועות:</b> רשימת הקטגוריות מוצגת <b>אוטומטית לפי מה שכבר קיים אצלכם</b> בתקציב או בתזרים — כולל כל קטגוריה מותאמת אישית שהוספתם — כך שאין צורך "לסנכרן" ידנית; קטגוריה חדשה שתוסיפו בתקציב תופיע כאן לבד. מסמנים אילו קטגוריות להכליל (כולל משכורות), ולכל אחת בוחרים אם לשאוב אותה מהסכום שבפועל שולם החודש בתזרים, או מהסכום שהוקצה לה בתקציב. כל קטגוריה נשלפת ממקור מידע יחיד — אין שדה הזנה ידני נפרד ומקביל לשום קטגוריה, כדי שלא יהיו שני מקומות שונים שיכולים להזין את אותו נתון ולגרום לספירה כפולה.</p>
-            <p class="mt-2"><b>שלב 2 — תקורה ממוצעת למנה:</b> המערכת מחלקת את סך ההוצאות הקבועות בכמות המנות שנמכרה. הכמות נשלפת אוטומטית מהמכירות בפועל (חודש שעבר, או 30 הימים האחרונים אם אין נתון לחודש שלם), ותמיד אפשר לדרוס אותה ידנית. את התוצאה שומרים בלחיצה על "שמור וחשב מחדש" — היא נשמרת אוטומטית כ"סט תקורות" בשם "תקורה תפעולית קבועה (מחושב)", וניתן להחיל אותו על כל מנה בבונה המתכון בלחיצה אחת על "טען סט" (בדיוק כמו כל סט אחר שנשמר).</p>
+            <p class="mt-2"><b>שלב 2 — תקורה ממוצעת למנה:</b> המערכת מחלקת את סך ההוצאות הקבועות בכמות המנות שנמכרה. הכמות נשלפת אוטומטית מהמכירות בפועל (חודש שעבר, או 30 הימים האחרונים אם אין נתון לחודש שלם), ותמיד אפשר לדרוס אותה ידנית. את התוצאה שומרים בלחיצה על "שמור וחשב מחדש" — היא נשמרת אוטומטית כ"סט תקורות" בשם "תקורה תפעולית קבועה (מחושב)", וניתן להחיל אותו על מנה בודדת בבונה המתכון בלחיצה אחת על "טען סט" (בדיוק כמו כל סט אחר שנשמר).</p>
+            <p class="mt-2"><b>החלה על כל התפריט בבת אחת:</b> כדי לא לעבור מנה-מנה, יש כפתור ירוק "החל תקורה על כל התפריט" (מופיע אחרי חישוב תקין) שמוסיף/מעדכן את שורת התקורה בכל המנות בתפריט יחד, בלחיצה אחת ואחרי אישור. הרצה חוזרת (אחרי עדכון ההוצאות הקבועות) מעדכנת את הסכום הקיים בכל מנה במקום ליצור שורה כפולה.</p>
             <p class="mt-2"><b>שלב 3 — נקודת איזון ויעדי רווחיות:</b> טבלה שמראה כמה מנות (סה"כ, מכל התפריט ביחד) צריך למכור בחודש כדי לכסות בדיוק את ההוצאות הקבועות (נקודת איזון, 0%), וכמה כדי להגיע לכל יעד רווח שתגדירו (10%, 20%, 30%, או כל אחוז אחר שתוסיפו). ככל שהתפריט רווחי יותר בממוצע — נדרשות פחות מנות כדי להגיע ליעד.</p>
             <p class="mt-2 text-amber-700">אם יעד מסוים מסומן "לא ניתן להשיג בתמחור הנוכחי" — המשמעות היא שגם במכירת כמות בלתי מוגבלת של מנות, המחירים/עלויות הנוכחיים בתפריט לא מאפשרים להגיע לאחוז הרווח הזה, ויש צורך להעלות מחירים או להוזיל עלויות כדי שהיעד יהיה בר-השגה בכלל.</p>`
         }
@@ -23122,6 +23123,10 @@ window._foRenderModal = function(d) {
 
         <button onclick="window._foSave()" id="btn-fo-save" class="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold shadow-lg hover:bg-indigo-700 transition"><i class="fa-solid fa-save mr-1"></i> שמור וחשב מחדש</button>
 
+        ${d.overheadPerDish ? `
+        <button onclick="window._foApplyToAll()" id="btn-fo-apply-all" class="w-full bg-emerald-600 text-white py-3 rounded-xl font-bold shadow-lg hover:bg-emerald-700 transition"><i class="fa-solid fa-layer-group mr-1"></i> החל תקורה על כל התפריט (${(foodCostData || []).length || ''} מנות)</button>
+        <p class="text-[10px] text-slate-400 text-center -mt-2">מוסיף/מעדכן שורת "תקורה תפעולית קבועה" בכל המנות בתפריט בבת אחת, במקום לטעון את הסט ידנית לכל מנה. הרצה חוזרת מעדכנת את הסכום הקיים ולא יוצרת שורה כפולה.</p>` : ''}
+
         <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
             <h4 class="font-bold text-slate-700 text-sm mb-2 border-b border-slate-100 pb-2"><i class="fa-solid fa-bullseye text-emerald-500 mr-1"></i> נקודת איזון ויעדי רווחיות</h4>
             <p class="text-[10px] text-slate-400 mb-2">כמה מנות (סה"כ, מכל התפריט) צריך למכור בחודש כדי להגיע לכל יעד - לפי רווח התרומה הממוצע הנוכחי בתפריט.</p>
@@ -23181,6 +23186,31 @@ window._foSave = async function(silent) {
         if (!silent) showToast('error', 'שגיאה בשמירה');
     } finally {
         if (btn && !silent) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-save mr-1"></i> שמור וחשב מחדש'; }
+    }
+};
+
+// מחיל את התקורה התפעולית הקבועה המחושבת על כל מנה בתפריט בבת אחת - פעולה גורפת (משנה את כל
+// המנות), ולכן דורשת אישור מפורש מהמשתמש לפני ביצוע.
+window._foApplyToAll = async function() {
+    const d = window._foLastData;
+    if (!d || !(d.overheadPerDish > 0)) return;
+    const count = (foodCostData || []).length;
+    const msg = `להחיל תקורה תפעולית קבועה של ₪${d.overheadPerDish.toFixed(2)} על כל ${count || ''} המנות בתפריט?\n\nכל מנה תקבל/תעדכן שורת תקורה בשם "תקורה תפעולית קבועה" - בלי לפגוע בחומרי הגלם או בתקורות אחרות שכבר הוגדרו לה.`;
+    if (!confirm(msg)) return;
+
+    const gid = currentGroup?.id || currentGroupId;
+    const btn = document.getElementById('btn-fo-apply-all');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מחיל על כל התפריט...'; }
+    try {
+        const r = await fetch(`${API}/food-cost/${gid}/fixed-overhead/apply-to-all`, { method: 'POST' });
+        const d2 = await r.json();
+        if (!d2.success) throw new Error(d2.error);
+        showToast('success', `התקורה הוחלה על ${d2.updatedCount} מנות בהצלחה`);
+        if (typeof fetchFoodCost === 'function') fetchFoodCost();
+    } catch(e) {
+        showToast('error', 'שגיאה בהחלת התקורה על התפריט');
+    } finally {
+        if (btn) { btn.disabled = false; btn.innerHTML = `<i class="fa-solid fa-layer-group mr-1"></i> החל תקורה על כל התפריט`; }
     }
 };
 
