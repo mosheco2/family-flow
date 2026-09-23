@@ -939,6 +939,14 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
       try { await client.query(`ALTER TABLE product_ingredients ADD COLUMN IF NOT EXISTS waste_pct DECIMAL(5,2) DEFAULT 0`); } catch(err){}
       // משקל/נפח ליחידת ספירה (גרם ליח') - מאפשר להמיר בין מתכון שנרשם ב"יח'" לרכישה שנרשמה במשקל/נפח, ולהפך
       try { await client.query(`ALTER TABLE product_ingredients ADD COLUMN IF NOT EXISTS unit_weight_grams DECIMAL(10,3)`); } catch(err){}
+      // סטי תקורות שמורים - להחלה על מנה חדשה בלחיצה אחת (מודול Food Cost)
+      try { await client.query(`CREATE TABLE IF NOT EXISTS food_cost_overhead_presets (
+          id SERIAL PRIMARY KEY,
+          group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+          name VARCHAR(100) NOT NULL,
+          overheads JSONB NOT NULL DEFAULT '[]',
+          created_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(err){}
 
       try { await client.query(`CREATE TABLE IF NOT EXISTS store_orders (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, customer_name VARCHAR(100), customer_phone VARCHAR(50), total_amount DECIMAL(10,2), status VARCHAR(20) DEFAULT 'new', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}
       try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS notes TEXT`); } catch(e) {}
@@ -19834,6 +19842,37 @@ app.get('/api/food-cost/:groupId/known-ingredients', async (req, res) => {
             [...pantryRes.rows, ...purchasedRes.rows].map(r => (r.item_name || '').trim()).filter(Boolean)
         )].sort((a, b) => a.localeCompare('he'));
         res.json({ success: true, names });
+    } catch(e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
+// סטי תקורות שמורים - מאפשרים להחיל תקורות (אריזה, כוח אדם וכו') על מנה חדשה בלחיצה אחת
+// במקום להזין אותן מחדש בכל פעם
+app.get('/api/food-cost/:groupId/overhead-presets', async (req, res) => {
+    try {
+        const r = await pool.query(
+            'SELECT id, name, overheads FROM food_cost_overhead_presets WHERE group_id=$1 ORDER BY name',
+            [req.params.groupId]
+        );
+        res.json({ success: true, presets: r.rows });
+    } catch(e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
+app.post('/api/food-cost/:groupId/overhead-presets', async (req, res) => {
+    try {
+        const { name, overheads } = req.body;
+        if (!name || !String(name).trim()) return res.status(400).json({ success: false, error: 'שם הסט חסר' });
+        const r = await pool.query(
+            'INSERT INTO food_cost_overhead_presets (group_id, name, overheads) VALUES ($1, $2, $3) RETURNING id, name, overheads',
+            [req.params.groupId, String(name).trim().slice(0, 100), JSON.stringify(overheads || [])]
+        );
+        res.json({ success: true, preset: r.rows[0] });
+    } catch(e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
+app.delete('/api/food-cost/:groupId/overhead-presets/:id', async (req, res) => {
+    try {
+        await pool.query('DELETE FROM food_cost_overhead_presets WHERE id=$1 AND group_id=$2', [req.params.id, req.params.groupId]);
+        res.json({ success: true });
     } catch(e) { res.status(500).json({ success: false, error: e.message }); }
 });
 

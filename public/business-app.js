@@ -23016,8 +23016,13 @@ window.openRecipeBuilder = function(catalogId = null) {
 
                 <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
                     <h4 class="font-bold text-slate-700 text-sm mb-3 border-b border-slate-100 pb-2"><i class="fa-solid fa-file-invoice-dollar text-blue-500 mr-1"></i> הוצאות נלוות (אריזה, תפעול)</h4>
+                    <div class="flex gap-2 items-center mb-2">
+                        <select id="rb-ovh-preset-select" class="modern-input py-1.5 px-2 text-xs flex-1"><option value="">בחר סט תקורות שמור...</option></select>
+                        <button type="button" onclick="window.applyOverheadPreset()" class="text-[10px] font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 px-2.5 py-1.5 rounded-lg transition border border-blue-100 whitespace-nowrap shrink-0">טען סט</button>
+                        <button type="button" onclick="window.saveOverheadPreset()" class="text-[10px] font-bold text-slate-500 hover:bg-slate-100 px-2.5 py-1.5 rounded-lg transition border border-slate-200 whitespace-nowrap shrink-0">שמור כסט</button>
+                    </div>
                     <div id="rb-overhead-list" class="space-y-2 mb-3 min-h-[50px]"></div>
-                    
+
                     <div class="flex gap-2 items-center bg-slate-50 p-2 rounded-xl border border-slate-200 border-dashed mt-2">
                         <input type="text" id="rb-add-ovh-name" class="modern-input py-2 px-2 text-xs flex-[2]" placeholder="למשל: קופסת קרטון">
                         <input type="number" id="rb-add-ovh-cost" class="modern-input py-2 px-2 text-xs flex-1 text-center" placeholder="עלות ב-₪" min="0.01" step="0.01">
@@ -23099,6 +23104,7 @@ window.openRecipeBuilder = function(catalogId = null) {
     modal.classList.remove('hidden');
     window.refreshRBUI();
     window._rbLoadKnownIngredients();
+    window._rbLoadOverheadPresets();
 };
 
 // טעינת שמות מרכיבים מוכרים (ממלאי ומהיסטוריית רכש) לבחירה מדויקת בבונה המתכון -
@@ -23114,6 +23120,49 @@ window._rbLoadKnownIngredients = async function() {
             list.innerHTML = d.names.map(n => `<option value="${safeStr(n)}"></option>`).join('');
         }
     } catch(e) {}
+};
+
+// ─── סטי תקורות שמורים - החלה על מנה בלחיצה אחת במקום הקלדה חוזרת ─────────────
+window._rbOverheadPresets = [];
+window._rbLoadOverheadPresets = async function() {
+    const gid = currentGroup?.id || currentGroupId;
+    if (!gid) return;
+    try {
+        const r = await fetch(`${API}/food-cost/${gid}/overhead-presets`);
+        const d = await r.json();
+        const select = document.getElementById('rb-ovh-preset-select');
+        if (!select) return;
+        window._rbOverheadPresets = (d.success && Array.isArray(d.presets)) ? d.presets : [];
+        select.innerHTML = '<option value="">בחר סט תקורות שמור...</option>' +
+            window._rbOverheadPresets.map(p => `<option value="${p.id}">${safeStr(p.name)}</option>`).join('');
+    } catch(e) {}
+};
+
+window.applyOverheadPreset = function() {
+    const select = document.getElementById('rb-ovh-preset-select');
+    const presetId = select ? parseInt(select.value) : null;
+    if (!presetId) return showToast('error', 'בחר סט תקורות מהרשימה');
+    const preset = window._rbOverheadPresets.find(p => p.id === presetId);
+    if (!preset) return;
+    rbOverheads = JSON.parse(JSON.stringify(preset.overheads || []));
+    window.refreshRBUI();
+    showToast('success', `סט התקורות "${preset.name}" הוחל על המנה`);
+};
+
+window.saveOverheadPreset = async function() {
+    if (!rbOverheads.length) return showToast('error', 'אין תקורות להוסיף למנה כדי לשמור כסט');
+    const name = prompt('שם לסט התקורות (למשל: "מנות עיקריות", "קינוחים"):');
+    if (!name || !name.trim()) return;
+    const gid = currentGroup?.id || currentGroupId;
+    try {
+        const r = await fetch(`${API}/food-cost/${gid}/overhead-presets`, {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ name: name.trim(), overheads: rbOverheads })
+        });
+        const d = await r.json();
+        if (d.success) { showToast('success', 'סט התקורות נשמר לשימוש חוזר'); window._rbLoadOverheadPresets(); }
+        else showToast('error', d.error || 'שגיאה בשמירת הסט');
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
 };
 
 function injectCreateRecipeBtn() {
