@@ -22976,8 +22976,9 @@ window.openFoodCostGuideModal = function() {
             icon: 'fa-scale-balanced', color: 'indigo', title: '13. תקורה תפעולית קבועה ונקודת איזון',
             body: `כפתור <b>"תקורה קבועה ונקודת איזון"</b> בראש עמוד פוד קוסט עונה על שאלה שהתקורות הרגילות (סעיף 4) לא פותרות: איך מכלילים בעלות מנה הוצאות קבועות שלא תלויות במנה עצמה — שכירות, חשמל, מים, עלות עובדים?
             <p class="mt-2"><b>שלב 1 — בחירת ההוצאות הקבועות:</b> רשימת הקטגוריות מוצגת <b>אוטומטית לפי מה שכבר קיים אצלכם</b> בתקציב או בתזרים — כולל כל קטגוריה מותאמת אישית שהוספתם — כך שאין צורך "לסנכרן" ידנית; קטגוריה חדשה שתוסיפו בתקציב תופיע כאן לבד. מסמנים אילו קטגוריות להכליל (כולל משכורות), ולכל אחת בוחרים אם לשאוב אותה מהסכום שבפועל שולם החודש בתזרים, או מהסכום שהוקצה לה בתקציב. כל קטגוריה נשלפת ממקור מידע יחיד — אין שדה הזנה ידני נפרד ומקביל לשום קטגוריה, כדי שלא יהיו שני מקומות שונים שיכולים להזין את אותו נתון ולגרום לספירה כפולה.</p>
-            <p class="mt-2"><b>שלב 2 — תקורה ממוצעת למנה:</b> המערכת מחלקת את סך ההוצאות הקבועות ב<b>כמות המנות שנמכרה בסה"כ מכל התפריט בחודש</b> (לא כמות של מנה אחת ספציפית). הכמות נשלפת אוטומטית מהמכירות בפועל (חודש שעבר, או 30 הימים האחרונים אם אין נתון לחודש שלם), ותמיד אפשר לדרוס אותה ידנית — למשל אם אין עדיין מספיק היסטוריה, או שרוצים למדל תרחיש שונה. ככל שהכמות גבוהה יותר, התקורה שכל מנה "סופגת" נמוכה יותר. את התוצאה שומרים בלחיצה על "שמור וחשב מחדש" — היא נשמרת אוטומטית כ"סט תקורות" בשם "תקורה תפעולית קבועה (מחושב)", וניתן להחיל אותו על מנה בודדת בבונה המתכון בלחיצה אחת על "טען סט" (בדיוק כמו כל סט אחר שנשמר).</p>
-            <p class="mt-2"><b>החלה על כל התפריט בבת אחת:</b> כדי לא לעבור מנה-מנה, יש כפתור ירוק "החל תקורה על כל התפריט" (מופיע אחרי חישוב תקין) שמוסיף/מעדכן את שורת התקורה בכל המנות בתפריט יחד, בלחיצה אחת ואחרי אישור. הרצה חוזרת (אחרי עדכון ההוצאות הקבועות) מעדכנת את הסכום הקיים בכל מנה במקום ליצור שורה כפולה.</p>
+            <p class="mt-2"><b>שלב 2 — אחוז תקורה, לא סכום קבוע אחיד לכל מנה:</b> תקורה קבועה בשקלים זהה לכל מנה (למשל ₪34 גם לשתייה זולה וגם למנה עיקרית יקרה) מעוותת מנות זולות בצורה קיצונית - שתייה ב-₪10 עם תקורה של ₪34 תיראה כמפסידה ענק, למרות שבפועל היא רק "אחראית" על חלק קטן מההוצאות הקבועות ביחס למחירה. לכן המערכת מחשבת <b>אחוז תקורה יחסי למחיר</b> = סך ההוצאות הקבועות ÷ הכנסה חודשית משוערת (כמות מנות × מחיר, או הכנסה אמיתית מההיסטוריה אם יש). לכל מנה: <b>תקורה = האחוז הזה × מחיר אותה מנה עצמה</b> - כך מנה יקרה סופגת יותר תקורה בשקלים, ומנה זולה סופגת פחות, באופן יחסי והוגן. הכמות/הכנסה נשלפת אוטומטית מהמכירות בפועל (חודש שעבר, או 30 הימים האחרונים), ותמיד אפשר לדרוס ידנית.</p>
+            <p class="mt-2"><b>החלה בבונה המתכון:</b> כשפותחים מנה, כפתור ייעודי "הוסף תקורה תפעולית קבועה (X% ממחיר המנה)" מחשב ומציג מראש את הסכום המדויק בשקלים לפי מחיר <u>אותה מנה</u> לפני שלוחצים, ומוסיף שורת תקורה עם האחוז והסכום כתובים בפירוש בשמה.</p>
+            <p class="mt-2"><b>החלה על כל התפריט בבת אחת:</b> כדי לא לעבור מנה-מנה, יש כפתור ירוק "החל תקורה על כל התפריט" (מופיע אחרי חישוב תקין) שמוסיף/מעדכן בכל מנה שורת תקורה בסכום שלה-עצמה (לפי מחירה), בלחיצה אחת ואחרי אישור שמפרט דוגמה בשקלים. הרצה חוזרת (אחרי עדכון ההוצאות הקבועות) מעדכנת את הסכום הקיים בכל מנה במקום ליצור שורה כפולה.</p>
             <p class="mt-2"><b>שלב 3 — נקודת איזון ויעדי רווחיות:</b> טבלה שמראה כמה מנות (סה"כ, מכל התפריט ביחד) צריך למכור בחודש כדי לכסות בדיוק את ההוצאות הקבועות (נקודת איזון, 0%), וכמה כדי להגיע לכל יעד רווח שתגדירו (10%, 20%, 30%, או כל אחוז אחר שתוסיפו). החישוב מתבסס על "רווח תרומה ממוצע למנה" (מחיר מכירה ממוצע פחות עלות חומרי גלם בלבד, בלי התקורה) — ככל שהוא גבוה יותר ביחס למחיר, נדרשות פחות מנות כדי להגיע ליעד. בתוך החלונית מוצג תמיד גם פירוט המספרים המדויקים שהחישוב מתבסס עליהם, כולל רשימה מלאה של אילו מנות נכללו בממוצע (עם משקלן) ואילו לא נכללו ולמה (בד"כ כי אין להן עדיין עץ מוצר מוגדר) — כך שהחישוב אף פעם לא "קופסה שחורה".</p>
             <p class="mt-2 text-amber-700">אם יעד מסוים מסומן "לא ניתן להשיג בתמחור הנוכחי" — המשמעות היא שגם במכירת כמות בלתי מוגבלת של מנות, המחירים/עלויות הנוכחיים בתפריט לא מאפשרים להגיע לאחוז הרווח הזה, ויש צורך להעלות מחירים או להוזיל עלויות כדי שהיעד יהיה בר-השגה בכלל.</p>`
         }
@@ -23125,14 +23126,27 @@ window._foRenderModal = function(d) {
             ${window._foQtyMode === 'auto'
                 ? `<div class="text-xs text-slate-500">${d.autoQty ? `<b class="text-slate-800">${d.autoQty}</b> מנות (${qtyModeLabel})` : `<span class="text-amber-600 font-bold">${qtyModeLabel} - נדרשת הזנה ידנית</span>`}</div>`
                 : `<input type="number" id="fo-qty-manual" value="${window._foQtyManual}" oninput="window._foQtyManual=this.value" onblur="window._foSave(true)" class="modern-input py-2 px-3 text-sm w-full" placeholder="כמות מנות משוערת לחודש (מכל התפריט)">`}
-            ${d.overheadPerDish ? `<div class="mt-3 text-center bg-emerald-50 border border-emerald-200 rounded-xl p-2"><span class="text-[10px] font-bold text-emerald-600">תקורה ממוצעת למנה</span><div class="text-lg font-black text-emerald-700">₪${d.overheadPerDish.toFixed(2)}</div><div class="text-[9px] text-emerald-600 mt-1">= ₪${d.totalFixed.toFixed(0)} הוצאות קבועות ÷ ${window._foQtyMode==='manual' ? (window._foQtyManual||'?') : (d.autoQty||'?')} מנות</div></div>` : ''}
+            ${d.overheadPct ? `
+            <div class="mt-3 bg-emerald-50 border border-emerald-200 rounded-xl p-3">
+                <div class="text-center">
+                    <span class="text-[10px] font-bold text-emerald-600">אחוז תקורה יחסי למחיר כל מנה</span>
+                    <div class="text-lg font-black text-emerald-700">${(d.overheadPct * 100).toFixed(1)}%</div>
+                    <div class="text-[9px] text-emerald-600 mt-1">= ₪${d.totalFixed.toFixed(0)} הוצאות קבועות ÷ ₪${(d.effectiveRevenue || 0).toFixed(0)} הכנסה חודשית משוערת (${window._foQtyMode==='manual' ? (window._foQtyManual||'?') : (d.autoQty||'?')} מנות)</div>
+                </div>
+                <div class="mt-2 pt-2 border-t border-emerald-200 text-[10px] text-emerald-700 leading-relaxed">
+                    <b>דוגמה - כך זה נראה בשקלים לפי מחיר המנה:</b><br>
+                    מנה שמחירה ₪20 (למשל שתייה) → תקורה של ₪${(20 * d.overheadPct).toFixed(2)}.<br>
+                    מנה שמחירה ₪100 (למשל מנה עיקרית) → תקורה של ₪${(100 * d.overheadPct).toFixed(2)}.<br>
+                    בכל מנה זה תמיד אותו אחוז (${(d.overheadPct * 100).toFixed(1)}%) מהמחיר שלה - לא סכום קבוע זהה לכולן.
+                </div>
+            </div>` : ''}
         </div>
 
         <button onclick="window._foSave()" id="btn-fo-save" class="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold shadow-lg hover:bg-indigo-700 transition"><i class="fa-solid fa-save mr-1"></i> שמור וחשב מחדש</button>
 
-        ${d.overheadPerDish ? `
+        ${d.overheadPct ? `
         <button onclick="window._foApplyToAll()" id="btn-fo-apply-all" class="w-full bg-emerald-600 text-white py-3 rounded-xl font-bold shadow-lg hover:bg-emerald-700 transition"><i class="fa-solid fa-layer-group mr-1"></i> החל תקורה על כל התפריט (${(foodCostData || []).length || ''} מנות)</button>
-        <p class="text-[10px] text-slate-400 text-center -mt-2">מוסיף/מעדכן שורת "תקורה תפעולית קבועה" בכל המנות בתפריט בבת אחת, במקום לטעון את הסט ידנית לכל מנה. הרצה חוזרת מעדכנת את הסכום הקיים ולא יוצרת שורה כפולה.</p>` : ''}
+        <p class="text-[10px] text-slate-400 text-center -mt-2">מוסיף/מעדכן בכל מנה בתפריט שורת תקורה בשקלים ששווה ${(d.overheadPct * 100).toFixed(1)}% ממחיר <b>אותה מנה עצמה</b> (לא סכום זהה לכולן) - במקום להוסיף ידנית מנה-מנה. הרצה חוזרת מעדכנת את הסכום הקיים ולא יוצרת שורה כפולה.</p>` : ''}
 
         <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
             <h4 class="font-bold text-slate-700 text-sm mb-2 border-b border-slate-100 pb-2"><i class="fa-solid fa-bullseye text-emerald-500 mr-1"></i> נקודת איזון ויעדי רווחיות</h4>
@@ -23170,7 +23184,7 @@ window._foRenderModal = function(d) {
             </div>
         </div>
 
-        <p class="text-center text-[10px] text-slate-400 pb-2">התקורה הממוצעת שמחושבת כאן נשמרת אוטומטית כסט "תקורה תפעולית קבועה" - ניתן להחיל אותו על כל מנה בבונה המתכון בלחיצה על "טען סט".</p>
+        <p class="text-center text-[10px] text-slate-400 pb-2">אחוז התקורה שמחושב כאן זמין מיד בבונה המתכון - כפתור ייעודי "הוסף תקורה תפעולית קבועה" (ליד אזור ההוצאות הנלוות) מחשב אוטומטית את הסכום בשקלים לפי מחיר המנה הספציפית שפותחים.</p>
     `;
 };
 
@@ -23232,9 +23246,10 @@ window._foSave = async function(silent) {
 // המנות), ולכן דורשת אישור מפורש מהמשתמש לפני ביצוע.
 window._foApplyToAll = async function() {
     const d = window._foLastData;
-    if (!d || !(d.overheadPerDish > 0)) return;
+    if (!d || !(d.overheadPct > 0)) return;
     const count = (foodCostData || []).length;
-    const msg = `להחיל תקורה תפעולית קבועה של ₪${d.overheadPerDish.toFixed(2)} על כל ${count || ''} המנות בתפריט?\n\nכל מנה תקבל/תעדכן שורת תקורה בשם "תקורה תפעולית קבועה" - בלי לפגוע בחומרי הגלם או בתקורות אחרות שכבר הוגדרו לה.`;
+    const pctLabel = (d.overheadPct * 100).toFixed(1);
+    const msg = `להחיל תקורה תפעולית קבועה של ${pctLabel}% ממחיר כל מנה על כל ${count || ''} המנות בתפריט?\n\nלדוגמה: מנה ב-₪20 תקבל תקורה של ₪${(20*d.overheadPct).toFixed(2)}, מנה ב-₪100 תקבל ₪${(100*d.overheadPct).toFixed(2)} - כל מנה לפי מחירה שלה, לא סכום זהה לכולן.\n\nבלי לפגוע בחומרי הגלם או בתקורות אחרות שכבר הוגדרו לכל מנה.`;
     if (!confirm(msg)) return;
 
     const gid = currentGroup?.id || currentGroupId;
@@ -23244,7 +23259,7 @@ window._foApplyToAll = async function() {
         const r = await fetch(`${API}/food-cost/${gid}/fixed-overhead/apply-to-all`, { method: 'POST' });
         const d2 = await r.json();
         if (!d2.success) throw new Error(d2.error);
-        showToast('success', `התקורה הוחלה על ${d2.updatedCount} מנות בהצלחה`);
+        showToast('success', `התקורה (${(d2.overheadPct*100).toFixed(1)}% ממחיר כל מנה) הוחלה על ${d2.updatedCount} מנות בהצלחה${d2.skippedCount ? ` (${d2.skippedCount} מנות ללא מחיר מכירה דולגו)` : ''}`);
         if (typeof fetchFoodCost === 'function') fetchFoodCost();
     } catch(e) {
         showToast('error', 'שגיאה בהחלת התקורה על התפריט');
@@ -23335,6 +23350,7 @@ window.openRecipeBuilder = function(catalogId = null) {
                         <button type="button" onclick="window.applyOverheadPreset()" class="text-[10px] font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 px-2.5 py-1.5 rounded-lg transition border border-blue-100 whitespace-nowrap shrink-0">טען סט</button>
                         <button type="button" onclick="window.saveOverheadPreset()" class="text-[10px] font-bold text-slate-500 hover:bg-slate-100 px-2.5 py-1.5 rounded-lg transition border border-slate-200 whitespace-nowrap shrink-0">שמור כסט</button>
                     </div>
+                    <div id="rb-fixed-overhead-btn-wrap" class="mb-2"></div>
                     <div id="rb-overhead-list" class="space-y-2 mb-3 min-h-[50px]"></div>
 
                     <div class="flex gap-2 items-center bg-slate-50 p-2 rounded-xl border border-slate-200 border-dashed mt-2">
@@ -23419,6 +23435,52 @@ window.openRecipeBuilder = function(catalogId = null) {
     window.refreshRBUI();
     window._rbLoadKnownIngredients();
     window._rbLoadOverheadPresets();
+    window._rbLoadFixedOverheadPct();
+};
+
+// אחוז התקורה התפעולית הקבועה (מחושב בחלונית "תקורה קבועה ונקודת איזון") - נטען כל פעם שבונה
+// המתכון נפתח, כדי שכפתור "הוסף תקורה תפעולית קבועה" יחשב תמיד לפי מחיר המנה הנוכחית ולפי
+// האחוז העדכני ביותר, ולא לפי ערך ישן שנשמר בעבר.
+window._rbFixedOverheadPct = null;
+window._rbLoadFixedOverheadPct = async function() {
+    const gid = currentGroup?.id || currentGroupId;
+    if (!gid) return;
+    try {
+        const r = await fetch(`${API}/food-cost/${gid}/fixed-overhead`);
+        const d = await r.json();
+        window._rbFixedOverheadPct = (d.success && d.overheadPct > 0) ? d.overheadPct : null;
+        window._rbRenderFixedOverheadBtn();
+    } catch(e) {}
+};
+
+window._rbRenderFixedOverheadBtn = function() {
+    const wrap = document.getElementById('rb-fixed-overhead-btn-wrap');
+    if (!wrap) return;
+    if (!window._rbFixedOverheadPct) { wrap.innerHTML = ''; return; }
+    const priceInput = document.getElementById('rb-edit-price');
+    const price = priceInput ? (parseFloat(priceInput.value) || 0) : (rbCurrentItem ? parseFloat(rbCurrentItem.price) || 0 : 0);
+    const pctLabel = (window._rbFixedOverheadPct * 100).toFixed(1);
+    const cost = price > 0 ? (price * window._rbFixedOverheadPct) : 0;
+    wrap.innerHTML = `<button type="button" onclick="window.addFixedOverheadToRB()" class="w-full text-[10px] font-bold text-emerald-600 bg-emerald-50 hover:bg-emerald-100 px-2.5 py-2 rounded-lg transition border border-emerald-100">
+        <i class="fa-solid fa-scale-balanced mr-1"></i> הוסף תקורה תפעולית קבועה (${pctLabel}% ממחיר המנה${price > 0 ? ` = ₪${cost.toFixed(2)}` : ''})
+    </button>`;
+};
+
+// מוסיף/מעדכן שורת תקורה תפעולית קבועה למנה הנוכחית בבונה המתכון, בשקלים ביחס למחיר המנה
+// הזו עצמה (לא סכום קבוע זהה לכל מנה) - כדי לשקף רק את החלק היחסי שמנה במחיר הזה "אחראית" עליו
+// מתוך ההוצאות הקבועות. דורש שמחיר המכירה כבר יוזן.
+window.addFixedOverheadToRB = function() {
+    if (!window._rbFixedOverheadPct) return;
+    const priceInput = document.getElementById('rb-edit-price');
+    const price = priceInput ? (parseFloat(priceInput.value) || 0) : (rbCurrentItem ? parseFloat(rbCurrentItem.price) || 0 : 0);
+    if (!(price > 0)) return showToast('error', 'יש להזין מחיר מכירה למנה קודם');
+    const pctLabel = (window._rbFixedOverheadPct * 100).toFixed(1);
+    const cost = Math.round(price * window._rbFixedOverheadPct * 100) / 100;
+    const namePrefix = 'תקורה תפעולית קבועה (';
+    rbOverheads = rbOverheads.filter(o => !(o && typeof o.name === 'string' && o.name.startsWith(namePrefix)));
+    rbOverheads.push({ name: `${namePrefix}${pctLabel}% ממחיר המנה = ₪${cost.toFixed(2)})`, cost });
+    window.refreshRBUI();
+    showToast('success', 'תקורה תפעולית קבועה נוספה למנה');
 };
 
 // טעינת שמות מרכיבים מוכרים (ממלאי ומהיסטוריית רכש) לבחירה מדויקת בבונה המתכון -
@@ -23646,6 +23708,7 @@ window.refreshRBUI = function() {
 
     window._rbTotalCost = totalCost;
     if (document.getElementById('rb-target-pct')) window.calcRBTargetPrice();
+    if (typeof window._rbRenderFixedOverheadBtn === 'function') window._rbRenderFixedOverheadBtn();
 };
 
 // מחיר מכירה מומלץ לפי יעד Food Cost % שהוגדר, על סמך עלות המנה הנוכחית בבונה המתכון

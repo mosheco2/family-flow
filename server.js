@@ -19891,25 +19891,28 @@ async function computeFixedOverhead(groupId) {
     const laborCost = parseFloat(cfg.labor_cost_manual) || 0;
     const totalFixed = categoryAmounts.reduce((s, c) => s + c.amount, 0) + laborCost;
 
-    // 2. כמות מנות אוטומטית ממכירות בפועל - קודם מנסים חודש קלנדרי שלם שחלף, אח"כ 30 יום אחרונים
+    // 2. כמות מנות והכנסה אוטומטיות ממכירות בפועל - קודם מנסים חודש קלנדרי שלם שחלף, אח"כ 30 יום אחרונים.
+    // ההכנסה מחושבת לפי המחיר שבו המנה נמכרה בפועל (price_at_order) - לא לפי המחיר הנוכחי בקטלוג -
+    // כדי לשקף בדיוק מה שקרה בפועל באותה תקופה, גם אם המחיר עודכן מאז.
     async function soldQtyAndMix(dateFilterSql) {
         const r = await pool.query(
-            `SELECT soi.catalog_id, SUM(soi.quantity) qty
+            `SELECT soi.catalog_id, SUM(soi.quantity) qty, SUM(soi.quantity * soi.price_at_order) revenue
              FROM store_order_items soi JOIN store_orders so ON soi.order_id = so.id
              WHERE so.group_id=$1 AND so.status IN ('completed','delivered') AND soi.catalog_id IS NOT NULL AND ${dateFilterSql}
              GROUP BY soi.catalog_id`,
             [groupId]
         );
         const totalQty = r.rows.reduce((s, row) => s + (parseFloat(row.qty) || 0), 0);
-        return { totalQty, mix: r.rows };
+        const totalRevenue = r.rows.reduce((s, row) => s + (parseFloat(row.revenue) || 0), 0);
+        return { totalQty, totalRevenue, mix: r.rows };
     }
     let salesWindow = 'last_month';
-    let { totalQty: autoQty, mix: salesMix } = await soldQtyAndMix(
+    let { totalQty: autoQty, totalRevenue: autoRevenue, mix: salesMix } = await soldQtyAndMix(
         `so.created_at >= date_trunc('month', CURRENT_DATE - INTERVAL '1 month') AND so.created_at < date_trunc('month', CURRENT_DATE)`
     );
     if (autoQty <= 0) {
         salesWindow = 'trailing_30d';
-        ({ totalQty: autoQty, mix: salesMix } = await soldQtyAndMix(`so.created_at >= NOW() - INTERVAL '30 days'`));
+        ({ totalQty: autoQty, totalRevenue: autoRevenue, mix: salesMix } = await soldQtyAndMix(`so.created_at >= NOW() - INTERVAL '30 days'`));
     }
     if (autoQty <= 0) salesWindow = 'none';
 
@@ -19969,11 +19972,26 @@ async function computeFixedOverhead(groupId) {
         dishes.forEach(d => includedDishes.push({ name: d.name, price: d.price, cost: d.cost, weightPct: 100 / dishes.length }));
     }
 
-    // 4. כמות אפקטיבית לחישוב התקורה למנה
+    // 4. אחוז תקורה יחסי למחיר המנה - לא סכום קבוע אחיד לכל מנה. תקורה קבועה שווה בשקלים לכל מנה
+    // (למשל ₪34 גם לשתייה זולה וגם למנה עיקרית יקרה) מעוותת מנות זולות בצורה קיצונית ולא הוגנת -
+    // לכן מחשבים כאן אחוז מהתקורה מתוך ההכנסה הכוללת, ומיישמים אותו יחסית למחיר כל מנה בנפרד
+    // (תקורה למנה = % × מחיר אותה מנה, לא סכום זהה לכולן).
     const qtyMode = cfg.qty_mode === 'manual' ? 'manual' : 'auto';
     const qtyManual = cfg.qty_manual != null ? parseFloat(cfg.qty_manual) : null;
     const effectiveQty = qtyMode === 'manual' && qtyManual > 0 ? qtyManual : (autoQty > 0 ? autoQty : null);
-    const overheadPerDish = effectiveQty > 0 ? totalFixed / effectiveQty : null;
+
+    // מחיר מכירה ממוצע על פני כל הקטלוג הזמין (לא רק מנות עם עץ מוצר) - לשמש כהערכת הכנסה
+    // כשאין נתוני הכנסה אמיתיים לתקופה (למשל במצב ידני, או כשאין עדיין היסטוריית מכירות)
+    const allPricesRes = await pool.query('SELECT AVG(price) avgp FROM store_catalog WHERE group_id=$1 AND is_available=TRUE AND price > 0', [groupId]);
+    const avgCatalogPriceAll = parseFloat(allPricesRes.rows[0]?.avgp) || 0;
+
+    let effectiveRevenue = null;
+    if (qtyMode === 'manual' && qtyManual > 0) {
+        effectiveRevenue = qtyManual * (avgCatalogPriceAll || avgPrice || 0);
+    } else if (autoQty > 0) {
+        effectiveRevenue = autoRevenue > 0 ? autoRevenue : autoQty * (avgCatalogPriceAll || avgPrice || 0);
+    }
+    const overheadPct = effectiveRevenue > 0 ? (totalFixed / effectiveRevenue) : null;
 
     // 5. נקודת איזון ויעדי רווחיות: N = הוצאות קבועות / (רווח תרומה ממוצע - יעד% * מחיר ממוצע)
     const profitTargets = Array.isArray(cfg.profit_targets) ? cfg.profit_targets : [0, 10, 20, 30];
@@ -19988,7 +20006,7 @@ async function computeFixedOverhead(groupId) {
         laborCost,
         totalFixed,
         qtyMode, qtyManual, autoQty: autoQty > 0 ? autoQty : null, salesWindow,
-        effectiveQty, overheadPerDish,
+        effectiveQty, effectiveRevenue, overheadPct,
         avgPrice, avgCM,
         includedDishes: includedDishes.sort((a, b) => b.weightPct - a.weightPct),
         excludedDishes,
@@ -20044,20 +20062,10 @@ app.post('/api/food-cost/:groupId/fixed-overhead', async (req, res) => {
             ON CONFLICT (group_id) DO UPDATE SET selected_categories=$2, labor_cost_manual=$3, qty_mode=$4, qty_manual=$5, profit_targets=$6, updated_at=NOW()
         `, [groupId, JSON.stringify(cleanCats), 0, qtyMode === 'manual' ? 'manual' : 'auto', qtyManual != null && qtyManual !== '' ? parseFloat(qtyManual) : null, JSON.stringify(cleanTargets)]);
 
-        // עדכון/יצירת סט תקורה מוכן ("תקורה תפעולית קבועה (מחושב)") כדי שאפשר יהיה להחיל אותו על מנה
-        // בלחיצה אחת בבונה המתכון, דרך אותו מנגנון "טען סט" שכבר קיים - בלי צורך בממשק נוסף.
+        // הערה: אין יותר "סט תקורה מוכן" קבוע לטעינה - התקורה היא אחוז יחסי למחיר, לא סכום ₪ אחיד
+        // לכל מנה, ולכן חייבת להיחושב מחדש לכל מנה בנפרד לפי מחירה שלה (ראו /fixed-overhead/apply-to-all
+        // להחלה על כל התפריט בבת אחת, או את הכפתור הייעודי בבונה המתכון להחלה על מנה בודדת).
         const computed = await computeFixedOverhead(groupId);
-        if (computed.overheadPerDish > 0) {
-            const presetName = 'תקורה תפעולית קבועה (מחושב)';
-            const overheads = [{ name: 'תקורה תפעולית קבועה', cost: Math.round(computed.overheadPerDish * 100) / 100 }];
-            const existing = await pool.query('SELECT id FROM food_cost_overhead_presets WHERE group_id=$1 AND name=$2', [groupId, presetName]);
-            if (existing.rows.length) {
-                await pool.query('UPDATE food_cost_overhead_presets SET overheads=$1 WHERE id=$2', [JSON.stringify(overheads), existing.rows[0].id]);
-            } else {
-                await pool.query('INSERT INTO food_cost_overhead_presets (group_id, name, overheads) VALUES ($1, $2, $3)', [groupId, presetName, JSON.stringify(overheads)]);
-            }
-        }
-
         res.json({ success: true, ...computed });
     } catch(e) { res.status(500).json({ success: false, error: e.message }); }
 });
@@ -20071,23 +20079,33 @@ app.post('/api/food-cost/:groupId/fixed-overhead/apply-to-all', async (req, res)
     try {
         const { groupId } = req.params;
         const computed = await computeFixedOverhead(groupId);
-        if (!(computed.overheadPerDish > 0)) {
-            return res.status(400).json({ success: false, error: 'אין עדיין תקורה ממוצעת למנה לחישוב (חסרות הוצאות קבועות ו/או כמות מנות)' });
+        if (!(computed.overheadPct > 0)) {
+            return res.status(400).json({ success: false, error: 'אין עדיין אחוז תקורה לחישוב (חסרות הוצאות קבועות ו/או נתוני מכירות/כמות מנות)' });
         }
-        const overheadLine = { name: 'תקורה תפעולית קבועה', cost: Math.round(computed.overheadPerDish * 100) / 100 };
+        const pctLabel = (computed.overheadPct * 100).toFixed(1);
+        // שם השורה כולל תמיד את האחוז במפורש - כך שגם בתצוגת עלות המנה הרגילה (רשימת המנות) ברור
+        // מיד באיזה אחוז חושבה התקורה, בלי צורך לחזור לחלונית הזו כדי לדעת.
+        const lineNamePrefix = 'תקורה תפעולית קבועה (';
 
         dbClient = await pool.connect();
         await dbClient.query('BEGIN');
-        const catalogRes = await dbClient.query('SELECT id, overhead_details FROM store_catalog WHERE group_id=$1', [groupId]);
+        const catalogRes = await dbClient.query('SELECT id, price, overhead_details FROM store_catalog WHERE group_id=$1', [groupId]);
+        let updatedCount = 0;
+        const skipped = [];
         for (const row of catalogRes.rows) {
+            const price = parseFloat(row.price) || 0;
+            if (price <= 0) { skipped.push(row.id); continue; }
+            const cost = Math.round(price * computed.overheadPct * 100) / 100;
+            const overheadLine = { name: `${lineNamePrefix}${pctLabel}% ממחיר המנה = ₪${cost.toFixed(2)})`, cost };
             let overheads = [];
             try { overheads = Array.isArray(row.overhead_details) ? row.overhead_details : JSON.parse(row.overhead_details || '[]'); } catch(e) { overheads = []; }
-            overheads = overheads.filter(o => o && o.name !== overheadLine.name);
+            overheads = overheads.filter(o => !(o && typeof o.name === 'string' && o.name.startsWith(lineNamePrefix)));
             overheads.push(overheadLine);
             await dbClient.query('UPDATE store_catalog SET overhead_details=$1 WHERE id=$2', [JSON.stringify(overheads), row.id]);
+            updatedCount++;
         }
         await dbClient.query('COMMIT');
-        res.json({ success: true, updatedCount: catalogRes.rows.length, overheadPerDish: computed.overheadPerDish });
+        res.json({ success: true, updatedCount, skippedCount: skipped.length, overheadPct: computed.overheadPct });
     } catch(e) {
         if (dbClient) await dbClient.query('ROLLBACK');
         res.status(500).json({ success: false, error: e.message });
