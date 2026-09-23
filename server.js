@@ -19986,11 +19986,12 @@ app.get('/api/food-cost/:groupId/fixed-overhead', async (req, res) => {
 app.post('/api/food-cost/:groupId/fixed-overhead', async (req, res) => {
     try {
         const { groupId } = req.params;
-        const { selectedCategories, laborCost, qtyMode, qtyManual, profitTargets } = req.body;
-        // 'salary' מוסר תמיד כאן גם אם הגיע מהלקוח - עלות עובדים נכללת אך ורק דרך laborCost הידני,
-        // כדי למנוע ספירה כפולה של עלות עובדים גם מהקטגוריה וגם מהשדה הידני.
+        const { selectedCategories, qtyMode, qtyManual, profitTargets } = req.body;
+        // 'משכורות' נכללת ברשימה הרגילה כמו כל הוצאה קבועה אחרת - נשלפת ממקור מידע יחיד
+        // (תזרים בפועל/תקציב מוקצה). אין שדה הזנה ידני מקביל לעלות עובדים, כדי שלא יהיו
+        // שני מקומות שונים שאפשר להזין בהם את אותו נתון.
         const cleanCats = Array.isArray(selectedCategories)
-            ? selectedCategories.filter(c => c && c.category && c.category !== 'salary').map(c => ({ category: String(c.category), source: c.source === 'budget' ? 'budget' : 'actual' }))
+            ? selectedCategories.filter(c => c && c.category).map(c => ({ category: String(c.category), source: c.source === 'budget' ? 'budget' : 'actual' }))
             : [];
         const cleanTargets = Array.isArray(profitTargets) && profitTargets.length
             ? [...new Set(profitTargets.map(t => Math.max(0, Math.round(parseFloat(t) || 0))))].sort((a, b) => a - b)
@@ -20000,7 +20001,7 @@ app.post('/api/food-cost/:groupId/fixed-overhead', async (req, res) => {
             INSERT INTO food_cost_fixed_overhead (group_id, selected_categories, labor_cost_manual, qty_mode, qty_manual, profit_targets, updated_at)
             VALUES ($1, $2, $3, $4, $5, $6, NOW())
             ON CONFLICT (group_id) DO UPDATE SET selected_categories=$2, labor_cost_manual=$3, qty_mode=$4, qty_manual=$5, profit_targets=$6, updated_at=NOW()
-        `, [groupId, JSON.stringify(cleanCats), parseFloat(laborCost) || 0, qtyMode === 'manual' ? 'manual' : 'auto', qtyManual != null && qtyManual !== '' ? parseFloat(qtyManual) : null, JSON.stringify(cleanTargets)]);
+        `, [groupId, JSON.stringify(cleanCats), 0, qtyMode === 'manual' ? 'manual' : 'auto', qtyManual != null && qtyManual !== '' ? parseFloat(qtyManual) : null, JSON.stringify(cleanTargets)]);
 
         // עדכון/יצירת סט תקורה מוכן ("תקורה תפעולית קבועה (מחושב)") כדי שאפשר יהיה להחיל אותו על מנה
         // בלחיצה אחת בבונה המתכון, דרך אותו מנגנון "טען סט" שכבר קיים - בלי צורך בממשק נוסף.

@@ -22969,7 +22969,7 @@ window.openFoodCostGuideModal = function() {
         {
             icon: 'fa-scale-balanced', color: 'indigo', title: '13. תקורה תפעולית קבועה ונקודת איזון',
             body: `כפתור <b>"תקורה קבועה ונקודת איזון"</b> בראש עמוד פוד קוסט עונה על שאלה שהתקורות הרגילות (סעיף 4) לא פותרות: איך מכלילים בעלות מנה הוצאות קבועות שלא תלויות במנה עצמה — שכירות, חשמל, מים, עלות עובדים?
-            <p class="mt-2"><b>שלב 1 — בחירת ההוצאות הקבועות:</b> מסמנים אילו קטגוריות הוצאה (שכירות, שיווק, נסיעות וכו') להכליל, ולכל אחת בוחרים אם לשאוב אותה מהסכום שבפועל שולם החודש בתזרים, או מהסכום שהוקצה לה בתקציב. עלות עובדים <b>לא</b> נבחרת מהרשימה הזו (כדי למנוע ספירה כפולה) — מזינים אותה רק בשדה הנפרד "עלות עובדים ממוצעת חודשית" (כולל את עצמכם אם אתם עובדים בעסק).</p>
+            <p class="mt-2"><b>שלב 1 — בחירת ההוצאות הקבועות:</b> מסמנים אילו קטגוריות הוצאה להכליל — כולל <b>משכורות</b> — ולכל אחת בוחרים אם לשאוב אותה מהסכום שבפועל שולם החודש בתזרים, או מהסכום שהוקצה לה בתקציב. כל קטגוריה (כולל משכורות) נשלפת ממקור מידע יחיד — אין שדה הזנה ידני נפרד ומקביל לשום קטגוריה, כדי שלא יהיו שני מקומות שונים שיכולים להזין את אותו נתון ולגרום לספירה כפולה.</p>
             <p class="mt-2"><b>שלב 2 — תקורה ממוצעת למנה:</b> המערכת מחלקת את סך ההוצאות הקבועות בכמות המנות שנמכרה. הכמות נשלפת אוטומטית מהמכירות בפועל (חודש שעבר, או 30 הימים האחרונים אם אין נתון לחודש שלם), ותמיד אפשר לדרוס אותה ידנית. את התוצאה שומרים בלחיצה על "שמור וחשב מחדש" — היא נשמרת אוטומטית כ"סט תקורות" בשם "תקורה תפעולית קבועה (מחושב)", וניתן להחיל אותו על כל מנה בבונה המתכון בלחיצה אחת על "טען סט" (בדיוק כמו כל סט אחר שנשמר).</p>
             <p class="mt-2"><b>שלב 3 — נקודת איזון ויעדי רווחיות:</b> טבלה שמראה כמה מנות (סה"כ, מכל התפריט ביחד) צריך למכור בחודש כדי לכסות בדיוק את ההוצאות הקבועות (נקודת איזון, 0%), וכמה כדי להגיע לכל יעד רווח שתגדירו (10%, 20%, 30%, או כל אחוז אחר שתוסיפו). ככל שהתפריט רווחי יותר בממוצע — נדרשות פחות מנות כדי להגיע ליעד.</p>
             <p class="mt-2 text-amber-700">אם יעד מסוים מסומן "לא ניתן להשיג בתמחור הנוכחי" — המשמעות היא שגם במכירת כמות בלתי מוגבלת של מנות, המחירים/עלויות הנוכחיים בתפריט לא מאפשרים להגיע לאחוז הרווח הזה, ויש צורך להעלות מחירים או להוזיל עלויות כדי שהיעד יהיה בר-השגה בכלל.</p>`
@@ -23035,15 +23035,13 @@ window._foLoad = async function() {
         const d = await r.json();
         if (!d.success) throw new Error(d.error);
         window._foSelectedCats = {};
-        // 'salary' (משכורות) מוסר במכוון מרשימת הבחירה - כל עלות עובדים מנוהלת אך ורק דרך השדה הידני
-        // למטה, כדי למנוע ספירה כפולה (גם קטגוריה מהתזרים וגם השדה הידני). אם נשמרה בעבר בחירה ישנה
-        // שכללה 'salary', היא מוסרת אוטומטית כאן ולא תיכלל יותר בחישוב.
-        (d.selectedCategories || []).filter(c => c.category !== 'salary').forEach(c => { window._foSelectedCats[c.category] = c.source; });
+        // 'משכורות' נשלפת בדיוק כמו כל הוצאה קבועה אחרת - ממקור מידע יחיד (תזרים/תקציב), בלי שדה
+        // הזנה ידני מקביל, כדי שלא יהיו שני מקומות שונים שאפשר להזין בהם את אותו נתון.
+        (d.selectedCategories || []).forEach(c => { window._foSelectedCats[c.category] = c.source; });
         window._foTargets = (d.profitTargets && d.profitTargets.length) ? d.profitTargets : [0, 10, 20, 30];
         window._foLastData = d;
         window._foQtyMode = d.qtyMode || 'auto';
         window._foQtyManual = d.qtyManual || '';
-        window._foLaborCost = d.laborCost || 0;
         window._foRenderModal(d);
     } catch(e) {
         const body = document.getElementById('fo-modal-body');
@@ -23055,7 +23053,7 @@ window._foRenderModal = function(d) {
     const body = document.getElementById('fo-modal-body');
     if (!body) return;
 
-    const catsHtml = CATEGORIES.expense.filter(c => c.value !== 'salary').map(c => {
+    const catsHtml = CATEGORIES.expense.map(c => {
         const checked = window._foSelectedCats[c.value] !== undefined;
         const source = window._foSelectedCats[c.value] || 'actual';
         const found = (d.selectedCategories || []).find(x => x.category === c.value);
@@ -23092,12 +23090,6 @@ window._foRenderModal = function(d) {
         <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
             <h4 class="font-bold text-slate-700 text-sm mb-2 border-b border-slate-100 pb-2"><i class="fa-solid fa-file-invoice-dollar text-indigo-500 mr-1"></i> הוצאות קבועות מהתזרים/תקציב</h4>
             <div class="space-y-1.5">${catsHtml}</div>
-        </div>
-
-        <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
-            <label class="text-xs font-bold text-slate-600 block mb-1">עלות עובדים ממוצעת חודשית (₪, ידני):</label>
-            <input type="number" id="fo-labor-cost" value="${window._foLaborCost}" oninput="window._foLaborCost=parseFloat(this.value)||0" class="modern-input py-2 px-3 text-sm w-full" placeholder="0">
-            <p class="text-[10px] text-slate-400 mt-1.5"><i class="fa-solid fa-circle-info ml-0.5"></i> "משכורות" הוסרה במכוון מרשימת הקטגוריות למעלה - עלות עובדים נכללת אך ורק דרך השדה הזה, כדי למנוע ספירה כפולה. אם רוצים להזין לפי סכום המשכורות בפועל בתזרים, אפשר להעתיק אותו לכאן ידנית.</p>
         </div>
 
         <div class="bg-indigo-50 border border-indigo-200 p-4 rounded-2xl text-center">
@@ -23163,7 +23155,6 @@ window._foSave = async function(silent) {
         const selectedCategories = Object.keys(window._foSelectedCats).map(category => ({ category, source: window._foSelectedCats[category] }));
         const payload = {
             selectedCategories,
-            laborCost: window._foLaborCost || 0,
             qtyMode: window._foQtyMode || 'auto',
             qtyManual: window._foQtyManual || null,
             profitTargets: window._foTargets
