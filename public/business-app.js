@@ -23431,17 +23431,53 @@ window.duplicateRecipeFromFC = function(catalogId) {
     showToast('success', `שוכפלו המרכיבים והתקורות מ"${source.name}" — הזן שם ומחיר למנה החדשה`);
 };
 
+// המרת יחידות בין משקל (גרם/ק"ג) ונפח (מ"ל/ליטר) - זהה לחלוטין למנגנון שבשרת (convertFoodCostQty
+// ב-server.js), כדי שהתצוגה החיה בבונה המתכון תראה את אותה עלות שתתקבל אחרי השמירה. בלי זה, מתכון
+// שרשום למשל ב"גרם" בעוד שהרכישה האחרונה נרשמה ב"קג" מציג עלות מנופחת פי 1000 (מחיר ל-ק"ג מוכפל
+// ישירות בכמות בגרמים, בלי המרה) - זו הסיבה שעלות של 100 גרם עגבניות יכולה להיראות כ-₪1000+.
+const _FOODCOST_WEIGHT_UNITS = { 'גרם': 1, 'ג': 1, 'קג': 1000, 'ק"ג': 1000, "ק'ג": 1000 };
+const _FOODCOST_VOLUME_UNITS = { 'מל': 1, 'מ"ל': 1, 'ליטר': 1000, "ל'": 1000 };
+const _FOODCOST_COUNT_UNITS = new Set(['יח', "יח'", 'יח.', 'יחידה', 'יחידות']);
+function convertFoodCostQty(qty, fromUnit, toUnit) {
+    const f = (fromUnit || '').trim();
+    const t = (toUnit || '').trim();
+    if (f === t) return { value: qty, ok: true };
+    if (_FOODCOST_WEIGHT_UNITS[f] && _FOODCOST_WEIGHT_UNITS[t]) return { value: qty * _FOODCOST_WEIGHT_UNITS[f] / _FOODCOST_WEIGHT_UNITS[t], ok: true };
+    if (_FOODCOST_VOLUME_UNITS[f] && _FOODCOST_VOLUME_UNITS[t]) return { value: qty * _FOODCOST_VOLUME_UNITS[f] / _FOODCOST_VOLUME_UNITS[t], ok: true };
+    if (_FOODCOST_COUNT_UNITS.has(f) && _FOODCOST_COUNT_UNITS.has(t)) return { value: qty, ok: true };
+    return { value: qty, ok: false };
+}
+function convertFoodCostQtyWithWeight(qty, fromUnit, toUnit, unitWeightGrams) {
+    const base = convertFoodCostQty(qty, fromUnit, toUnit);
+    if (base.ok) return base;
+    const w = parseFloat(unitWeightGrams);
+    if (!w || w <= 0) return base;
+    const f = (fromUnit || '').trim();
+    const t = (toUnit || '').trim();
+    if (_FOODCOST_COUNT_UNITS.has(f) && _FOODCOST_WEIGHT_UNITS[t]) return { value: (qty * w) / _FOODCOST_WEIGHT_UNITS[t], ok: true };
+    if (_FOODCOST_WEIGHT_UNITS[f] && _FOODCOST_COUNT_UNITS.has(t)) return { value: (qty * _FOODCOST_WEIGHT_UNITS[f]) / w, ok: true };
+    return base;
+}
+
 window.addRBIngredient = function() {
-    const name = val('rb-add-ing-name');
+    const name = val('rb-add-ing-name').trim();
     const qty = parseFloat(val('rb-add-ing-qty'));
     const unit = val('rb-add-ing-unit');
     const wastePct = Math.min(parseFloat(val('rb-add-ing-waste')) || 0, 95);
     const unitWeightGrams = parseFloat(val('rb-add-ing-unitweight')) || 0;
     if(!name || !qty || qty <= 0) return showToast('error', 'הכנס שם וכמות תקינה');
-    const knownPrice = (typeof foodCostPrices !== 'undefined' && foodCostPrices[name]) ? foodCostPrices[name].price : 0;
+    const known = (typeof foodCostPrices !== 'undefined') ? foodCostPrices[name.toLowerCase()] : null;
     const effectiveQty = wastePct > 0 ? qty / (1 - wastePct / 100) : qty;
 
-    rbIngredients.push({ ingredient_name: name, quantity: qty, unit: unit, waste_pct: wastePct, unit_weight_grams: unitWeightGrams || null, calculated_cost: knownPrice * effectiveQty, known_price: knownPrice });
+    let calculatedCost = 0, knownPrice = 0, convOk = true;
+    if (known) {
+        knownPrice = known.price;
+        const conv = convertFoodCostQtyWithWeight(effectiveQty, unit, known.unit, unitWeightGrams);
+        convOk = conv.ok;
+        calculatedCost = conv.ok ? conv.value * known.price : 0;
+    }
+
+    rbIngredients.push({ ingredient_name: name, quantity: qty, unit: unit, waste_pct: wastePct, unit_weight_grams: unitWeightGrams || null, calculated_cost: calculatedCost, known_price: knownPrice, conv_ok: convOk });
 
     document.getElementById('rb-add-ing-name').value = '';
     document.getElementById('rb-add-ing-qty').value = '';
@@ -23482,7 +23518,9 @@ window.refreshRBUI = function() {
     } else {
         ingList.innerHTML = rbIngredients.map((ing, idx) => {
             ingTotal += ing.calculated_cost;
-            const priceWarning = ing.known_price === 0 ? '<i class="fa-solid fa-triangle-exclamation text-orange-400 ml-1" title="לא נמצא מחיר קנייה במערכת"></i>' : '';
+            const priceWarning = ing.known_price === 0
+                ? '<i class="fa-solid fa-triangle-exclamation text-orange-400 ml-1" title="לא נמצא מחיר קנייה במערכת"></i>'
+                : (ing.conv_ok === false ? '<i class="fa-solid fa-triangle-exclamation text-orange-400 ml-1" title="לא ניתן להמיר בין יחידת המתכון ליחידת הרכישה - העלות לא חושבה. מלאו \'גרם/יח׳\' אם המתכון והרכישה ביחידות שונות (למשל מתכון ביח׳ ורכישה במשקל)"></i>' : '');
             return `
             <div class="flex justify-between items-center text-xs border-b border-slate-100 pb-2 mb-2 last:border-0 last:pb-0 last:mb-0">
                 <div class="flex items-center gap-2"><button onclick="window.removeRBIngredient(${idx})" class="text-red-400 hover:text-red-600 w-6 h-6 bg-red-50 rounded flex items-center justify-center transition"><i class="fa-solid fa-times"></i></button> <span class="font-bold text-slate-700">${safeStr(ing.ingredient_name)}</span> <span class="text-[10px] text-slate-400">(${ing.quantity} ${ing.unit}${ing.waste_pct > 0 ? `, ${ing.waste_pct}% פחת` : ''}${ing.unit_weight_grams > 0 ? `, ${ing.unit_weight_grams} גרם/יח'` : ''})</span></div>
