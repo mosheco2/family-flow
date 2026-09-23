@@ -47,6 +47,12 @@ function triggerCoinAnimationBiz(newBalance) {
 const getEl = id => document.getElementById(id);
 const val = id => getEl(id) ? getEl(id).value : '';
 const safeStr = str => (str || '').toString().replace(/'/g, "&#39;").replace(/"/g, "&quot;");
+// בטוח להטמעה כארגומנט מחרוזת (מוקף גרשיים בודדים) בתוך תכונת onclick="..." מוקפת גרשיים כפולים.
+// שונה מ-safeStr: safeStr ממיר גרש בודד ל-&#39; שמותאם לתוכן HTML רגיל, אבל בתוך onclick זה שובר -
+// הדפדפן מפענח את ה-HTML entity חזרה לגרש בודד *לפני* שהוא מפרש את התכונה כקוד JS, כך שהגרש
+// חוזר לשבור את המחרוזת (התפוצצות שכיחה עם ערכים כמו יחידת המידה הנפוצה "יח'"). לכן כאן בורחים
+// עם \' (שהדפדפן לא נוגע בו בשלב הפענוח של attribute), לא עם ישות HTML.
+const jsAttrStr = str => (str || '').toString().replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
 
 let currentUser = null; let currentGroup = null; let pollInterval = null; let saToken = null; let saAllGroups = []; let saAllUsers = [];
 let membersCache = []; let shoppingListCache = []; let wisdomCache = {};
@@ -8029,6 +8035,7 @@ function renderPantry() {
     if(pantryCache.length === 0) { list.innerHTML = '<p class="text-center text-slate-400 text-sm py-8">המלאי ריק. קלטו ציוד וחומרי גלם כדי לעקוב אחרי המלאי בעסק!</p>'; return; }
     pantryCache.forEach(p => {
         const n = safeStr(p.item_name); const u = safeStr(p.unit || "יח'");
+        const nJs = jsAttrStr(p.item_name); const uJs = jsAttrStr(p.unit || "יח'");
         const packQty = parseFloat(p.quantity); const upp = parseInt(p.units_per_package) || 1;
         const reserved = parseFloat(p.reserved_qty || 0);
         const bufferQty = packQty * (bufferPct / 100);
@@ -8039,7 +8046,7 @@ function renderPantry() {
 
         const reservedDisplay = reserved > 0 ? `<div class="mt-2 bg-amber-50 border border-amber-200 rounded-xl p-2 text-[10px] flex items-center justify-between">
             <span class="text-amber-700 font-bold">⚠️ משוריין לפקודות עבודה: ${reserved} ${u}</span>
-            <button onclick="window.showPantryWoReservations(${p.id}, '${safeStr(p.item_name).replace(/'/g,"\'")}'); event.stopPropagation();" class="bg-amber-600 text-white px-2 py-1 rounded-lg text-[9px] font-bold hover:bg-amber-700 transition">ראה פקודות</button>
+            <button onclick="window.showPantryWoReservations(${p.id}, '${nJs}'); event.stopPropagation();" class="bg-amber-600 text-white px-2 py-1 rounded-lg text-[9px] font-bold hover:bg-amber-700 transition">ראה פקודות</button>
         </div>` : '';
 
         let qtyDisplay = '';
@@ -8084,8 +8091,8 @@ function renderPantry() {
             </div>
             ${reservedDisplay}
             <div class="flex gap-2 mt-1 border-t border-slate-100 pt-3">
-                <button onclick="openPantryUseModal('${n}', '${u}', ${packQty}, ${upp}, ${reserved}, ${bufferPct})" class="flex-1 bg-slate-100 text-slate-700 py-2 rounded-xl flex items-center justify-center gap-2 hover:bg-slate-200 transition shadow-sm text-xs font-bold"><i class="fa-solid fa-dolly text-slate-500"></i> דיווח שימוש</button>
-                <button onclick="movePantryToCart(${p.id}, '${n}', '${u}')" class="flex-1 bg-slate-800 text-white py-2 rounded-xl flex items-center justify-center gap-2 hover:bg-slate-700 transition shadow-sm text-xs font-bold"><i class="fa-solid fa-cart-arrow-down text-slate-300"></i> העבר לרכש</button>
+                <button onclick="openPantryUseModal('${nJs}', '${uJs}', ${packQty}, ${upp}, ${reserved}, ${bufferPct})" class="flex-1 bg-slate-100 text-slate-700 py-2 rounded-xl flex items-center justify-center gap-2 hover:bg-slate-200 transition shadow-sm text-xs font-bold"><i class="fa-solid fa-dolly text-slate-500"></i> דיווח שימוש</button>
+                <button onclick="movePantryToCart(${p.id}, '${nJs}', '${uJs}')" class="flex-1 bg-slate-800 text-white py-2 rounded-xl flex items-center justify-center gap-2 hover:bg-slate-700 transition shadow-sm text-xs font-bold"><i class="fa-solid fa-cart-arrow-down text-slate-300"></i> העבר לרכש</button>
             </div>
         </div>`;
     });
