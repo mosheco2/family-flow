@@ -42154,7 +42154,13 @@ window.renderWoOverview = function(data) {
             const parts = [];
             if (wo.menu_template_name) parts.push(`תפריט: ${safeStr(wo.menu_template_name)}`);
             if (wo.event_guest_count) parts.push(`${wo.event_guest_count} סועדים`);
-            eventText.textContent = parts.join(' · ');
+            let html = safeStr(parts.join(' · '));
+            if (wo.menu_template_name) {
+                html += wo.menu_template_is_public && wo.menu_template_slug
+                    ? ` <a href="/menu/${safeStr(wo.menu_template_slug)}" target="_blank" class="text-emerald-600 underline text-xs font-bold">צפה בתפריט המקורי ↗</a>`
+                    : ` <button type="button" onclick="window.switchTab('menu_templates')" class="text-emerald-600 underline text-xs font-bold">פתח בתפריטים</button>`;
+            }
+            eventText.innerHTML = html;
             eventRow.classList.remove('hidden');
         } else {
             eventRow.classList.add('hidden');

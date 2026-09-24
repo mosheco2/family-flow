@@ -12586,8 +12586,10 @@ app.get('/api/store/quotes/family/:familyGroupId', async (req, res) => {
         // מחפש הצעות מחיר אמיתיות בלבד:
         // 1. status='quote' (הצעה רגילה) — כולל טיוטות שנשלחו לפי family_group_id/phone
         // 2. status NOT IN הזמנות-רגילות + quote_status פעיל + קשורות ל-family (לא draft בלבד)
-        const r = await pool.query(`SELECT DISTINCT so.*, fg.name as business_name
+        const r = await pool.query(`SELECT DISTINCT so.*, fg.name as business_name,
+            mt.name as menu_template_name, mt.public_slug as menu_template_slug, mt.is_public as menu_template_is_public
             FROM store_orders so JOIN family_groups fg ON so.group_id=fg.id
+            LEFT JOIN menu_templates mt ON mt.id = so.menu_template_id
             WHERE (
               so.status='quote'
               OR (so.status NOT IN ('new','processing','ready','shipped','completed','cancelled')
@@ -23934,7 +23936,8 @@ app.get('/api/work-orders/detail/:id', verifyBiz, async (req, res) => {
         const _wo = await pool.query('SELECT 1 FROM store_orders WHERE id=$1 AND group_id=$2 AND call_type=\'work_order\'', [id, req.bizAuth.groupId]);
         if (!_wo.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
         const [woRes, assigneesRes, inventoryRes, messagesRes, timelineRes, calendarRes, equipmentRes] = await Promise.all([
-            pool.query(`SELECT so.*, mt.name as menu_template_name, mt.min_guests as menu_min_guests, mt.max_guests as menu_max_guests
+            pool.query(`SELECT so.*, mt.name as menu_template_name, mt.min_guests as menu_min_guests, mt.max_guests as menu_max_guests,
+                        mt.public_slug as menu_template_slug, mt.is_public as menu_template_is_public
                         FROM store_orders so LEFT JOIN menu_templates mt ON mt.id = so.menu_template_id
                         WHERE so.id=$1 AND so.call_type='work_order'`, [id]),
             pool.query('SELECT * FROM work_order_assignees WHERE work_order_id=$1 ORDER BY assigned_at', [id]),

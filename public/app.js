@@ -1585,6 +1585,7 @@ window.openFamilyQuoteView = function(quoteId) {
             <div class="flex-1 overflow-y-auto p-4 space-y-3">
                 ${businessMessagesHtml}
                 ${introText ? `<div class="bg-slate-50 rounded-xl p-3 text-xs text-slate-600 whitespace-pre-line border border-slate-200">${safeStr(introText)}</div>` : ''}
+                ${q.menu_template_is_public && q.menu_template_slug ? `<a href="/menu/${safeStr(q.menu_template_slug)}" target="_blank" class="block bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-xs font-bold text-emerald-700 text-center hover:bg-emerald-100 transition"><i class="fa-solid fa-utensils ml-1"></i> צפה בתפריט המקורי "${safeStr(q.menu_template_name || '')}" ↗</a>` : ''}
                 <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
                     <div class="bg-slate-50 px-3 py-2 text-[10px] font-bold text-slate-500 border-b border-slate-200 grid grid-cols-12 gap-1">
                         <span class="col-span-6">תיאור</span><span class="col-span-2 text-center">כמות</span><span class="col-span-2 text-center">מחיר</span><span class="col-span-2 text-center">סה"כ</span>
