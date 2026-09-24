@@ -1379,6 +1379,8 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
           notes TEXT
       )`); } catch(e) {}
       try { await client.query(`CREATE INDEX IF NOT EXISTS idx_wo_equipment_lookup ON work_order_equipment(equipment_item_id, event_date, status)`); } catch(e) {}
+      // עלות שימוש בציוד לאירוע הספציפי (השכרה/בלאי) — נכנסת לחישוב הרווחיות לצד עלות צוות ומצרכים
+      try { await client.query(`ALTER TABLE work_order_equipment ADD COLUMN IF NOT EXISTS cost DECIMAL(10,2) DEFAULT 0`); } catch(e) {}
       // ===== END EVENTS / PROJECTS HUB =====
 
       // ===== PROFESSIONAL / TIMELOG MODULE =====
@@ -23900,14 +23902,15 @@ app.get('/api/work-orders/profitability/:groupId', verifyBiz, async (req, res) =
             SELECT so.id, so.quote_number, so.customer_name, so.status, so.created_at, so.quote_title,
                 COALESCE(so.total_amount, 0)::float as revenue,
                 COALESCE((SELECT SUM(hourly_rate * hours_worked) FROM work_order_assignees WHERE work_order_id=so.id), 0)::float as team_cost,
-                COALESCE((SELECT SUM(unit_price * reserved_qty) FROM work_order_inventory WHERE work_order_id=so.id AND status!='released'), 0)::float as inventory_cost
+                COALESCE((SELECT SUM(unit_price * reserved_qty) FROM work_order_inventory WHERE work_order_id=so.id AND status!='released'), 0)::float as inventory_cost,
+                COALESCE((SELECT SUM(cost) FROM work_order_equipment WHERE work_order_id=so.id AND status!='released'), 0)::float as equipment_cost
             FROM store_orders so
             WHERE so.group_id=$1 AND so.call_type='work_order'
             ORDER BY so.created_at DESC`, [req.params.groupId]);
         const items = r.rows.map(row => ({
             ...row,
-            total_cost: parseFloat(row.team_cost) + parseFloat(row.inventory_cost),
-            profit: parseFloat(row.revenue) - parseFloat(row.team_cost) - parseFloat(row.inventory_cost)
+            total_cost: parseFloat(row.team_cost) + parseFloat(row.inventory_cost) + parseFloat(row.equipment_cost),
+            profit: parseFloat(row.revenue) - parseFloat(row.team_cost) - parseFloat(row.inventory_cost) - parseFloat(row.equipment_cost)
         }));
         res.json({ success: true, items });
     } catch(e) { res.status(500).json({ error: e.message }); }
@@ -24212,7 +24215,7 @@ app.get('/api/work-orders/:id/equipment', verifyBiz, async (req, res) => {
 
 app.post('/api/work-orders/:id/equipment', verifyBiz, async (req, res) => {
     try {
-        const { equipmentItemId, eventDate, startTime, durationMinutes, reservedBy, notes } = req.body;
+        const { equipmentItemId, eventDate, startTime, durationMinutes, reservedBy, notes, cost } = req.body;
         const _wo = await pool.query('SELECT 1 FROM store_orders WHERE id=$1 AND group_id=$2', [req.params.id, req.bizAuth.groupId]);
         if (!_wo.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
         if (!equipmentItemId || !eventDate || !startTime) return res.status(400).json({ error: 'חסרים נתוני ציוד/תאריך/שעה' });
@@ -24234,9 +24237,9 @@ app.post('/api/work-orders/:id/equipment', verifyBiz, async (req, res) => {
         }
 
         const r = await pool.query(
-            `INSERT INTO work_order_equipment (work_order_id, equipment_item_id, equipment_name, event_date, start_time, duration_minutes, reserved_by, notes)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
-            [req.params.id, equipmentItemId, eqRes.rows[0].name, eventDate, startTime, dur, reservedBy || null, notes || null]
+            `INSERT INTO work_order_equipment (work_order_id, equipment_item_id, equipment_name, event_date, start_time, duration_minutes, reserved_by, notes, cost)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+            [req.params.id, equipmentItemId, eqRes.rows[0].name, eventDate, startTime, dur, reservedBy || null, notes || null, parseFloat(cost) || 0]
         );
         await addWorkOrderTimeline(req.params.id, 'equipment_reserved', `ציוד שויך: ${eqRes.rows[0].name}`, reservedBy);
         res.json({ success: true, reservation: r.rows[0] });

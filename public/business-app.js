@@ -41459,9 +41459,15 @@ async function saToggleLicense(groupId, featureKey, isActive) {
           <input type="date" id="wo-eq-date" class="modern-input py-2 px-3 text-sm rounded-xl border border-slate-200 outline-none focus:border-cyan-400">
           <input type="time" id="wo-eq-time" class="modern-input py-2 px-3 text-sm rounded-xl border border-slate-200 outline-none focus:border-cyan-400">
         </div>
-        <div class="mb-3">
-          <label class="text-[10px] text-slate-400 block mb-0.5">משך (דקות)</label>
-          <input type="number" id="wo-eq-duration" min="15" step="15" value="120" class="modern-input w-full py-2 px-3 text-sm rounded-xl border border-slate-200 outline-none focus:border-cyan-400">
+        <div class="grid grid-cols-2 gap-2 mb-3">
+          <div>
+            <label class="text-[10px] text-slate-400 block mb-0.5">משך (דקות)</label>
+            <input type="number" id="wo-eq-duration" min="15" step="15" value="120" class="modern-input w-full py-2 px-3 text-sm rounded-xl border border-slate-200 outline-none focus:border-cyan-400">
+          </div>
+          <div>
+            <label class="text-[10px] text-slate-400 block mb-0.5">₪ עלות שימוש (אופציונלי)</label>
+            <input type="number" id="wo-eq-cost" min="0" step="0.01" value="0" class="modern-input w-full py-2 px-3 text-sm rounded-xl border border-slate-200 outline-none focus:border-cyan-400">
+          </div>
         </div>
         <div class="flex gap-2">
           <button onclick="window.addEquipmentReservation()" class="flex-1 bg-cyan-600 text-white py-2 rounded-xl text-xs font-bold hover:bg-cyan-700 transition">שייך ציוד</button>
@@ -42325,9 +42331,11 @@ window.renderWoCosts = function(data) {
     const isPro = currentGroup?.business_type === 'professional';
     const assignees = data.assignees || [];
     const inventory = data.inventory || [];
+    const equipment = data.equipment || [];
     const teamCost = assignees.reduce((s, a) => s + (parseFloat(a.hourly_rate || 0) * parseFloat(a.hours_worked || 0)), 0);
     const inventoryCost = isPro ? 0 : inventory.filter(i => i.status !== 'released').reduce((s, i) => s + (parseFloat(i.unit_price || 0) * parseFloat(i.reserved_qty || 0)), 0);
-    const totalCost = teamCost + inventoryCost;
+    const equipmentCost = equipment.reduce((s, e) => s + (parseFloat(e.cost) || 0), 0);
+    const totalCost = teamCost + inventoryCost + equipmentCost;
     const quoteAmount = parseFloat(data.workOrder?.total_amount || 0);
     const profit = quoteAmount - totalCost;
     const fmtM = n => { const v = parseFloat(parseFloat(n).toFixed(2)); return v === 0 ? '0' : v.toLocaleString('he-IL', {minimumFractionDigits: 0, maximumFractionDigits: 2}); };
@@ -42360,7 +42368,7 @@ window.renderWoCosts = function(data) {
         html += `
         <div class="bg-amber-50 rounded-2xl p-4 border border-amber-100">
             <div class="flex justify-between items-center mb-2">
-                <span class="text-sm font-bold text-slate-700">עלות ציוד וחומרים</span>
+                <span class="text-sm font-bold text-slate-700">עלות מצרכים</span>
                 <span class="text-sm font-black text-slate-700">₪${inventoryCost.toFixed(2)}</span>
             </div>
             <div class="text-xs text-slate-500 space-y-1 ml-2">
@@ -42371,11 +42379,23 @@ window.renderWoCosts = function(data) {
                 return cost > 0 ? `<div class="flex justify-between"><span>${safeStr(i.item_name)} (${i.reserved_qty})</span><span>₪${cost.toFixed(2)}</span></div>` : '';
             }).join('');
         } else {
-            html += '<p>אין ציוד משויך</p>';
+            html += '<p>אין מצרכים משויכים</p>';
         }
         html += `
             </div>
         </div>`;
+        if (equipment.length > 0) {
+            html += `
+            <div class="bg-cyan-50 rounded-2xl p-4 border border-cyan-100">
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-sm font-bold text-slate-700">עלות ציוד אירוע</span>
+                    <span class="text-sm font-black text-slate-700">₪${equipmentCost.toFixed(2)}</span>
+                </div>
+                <div class="text-xs text-slate-500 space-y-1 ml-2">
+                    ${equipment.map(e => parseFloat(e.cost) > 0 ? `<div class="flex justify-between"><span>${safeStr(e.equipment_name)}</span><span>₪${parseFloat(e.cost).toFixed(2)}</span></div>` : '').join('') || '<p>ללא עלות רשומה</p>'}
+                </div>
+            </div>`;
+        }
     }
     html += `
         <div class="bg-indigo-100 rounded-2xl p-4 border border-indigo-200">
@@ -42755,13 +42775,14 @@ window.renderWoEquipment = function(equipment) {
     const list = document.getElementById('wo-equipment-list');
     if (!list) return;
     if (!equipment.length) { list.innerHTML = `<p class="text-slate-400 text-xs text-center py-4">טרם שויך ציוד לאירוע זה</p>`; return; }
+    const total = equipment.reduce((s, eq) => s + (parseFloat(eq.cost) || 0), 0);
     list.innerHTML = equipment.map(eq => `<div class="bg-slate-50 rounded-xl p-3 border border-slate-100 mb-2 flex items-center justify-between">
         <div>
             <p class="font-bold text-slate-700 text-sm">${safeStr(eq.equipment_name)}</p>
-            <p class="text-[10px] text-slate-500 mt-0.5">${eq.event_date} ${eq.start_time?.substring(0,5) || ''} · ${eq.duration_minutes || 120} דק'</p>
+            <p class="text-[10px] text-slate-500 mt-0.5">${eq.event_date} ${eq.start_time?.substring(0,5) || ''} · ${eq.duration_minutes || 120} דק'${parseFloat(eq.cost) > 0 ? ` · ₪${parseFloat(eq.cost).toFixed(2)}` : ''}</p>
         </div>
         <button onclick="window.removeWoEquipment(${eq.id})" class="text-red-400 hover:text-red-600 text-xs p-1"><i class="fa-solid fa-times"></i></button>
-    </div>`).join('');
+    </div>`).join('') + (total > 0 ? `<div class="mt-1 bg-cyan-50 rounded-xl p-3 border border-cyan-100 flex justify-between items-center"><span class="text-xs font-bold text-slate-600">סה"כ עלות ציוד</span><span class="font-black text-cyan-700">₪${total.toFixed(2)}</span></div>` : '');
 };
 
 window.quickCreateEquipmentItem = async function() {
@@ -42807,19 +42828,24 @@ window.addEquipmentReservation = async function() {
     const eventDate = document.getElementById('wo-eq-date')?.value;
     const startTime = document.getElementById('wo-eq-time')?.value;
     const durationMinutes = document.getElementById('wo-eq-duration')?.value || 120;
+    const cost = document.getElementById('wo-eq-cost')?.value || 0;
     if (!sel || !sel.value) return showToast('error', 'נא לבחור פריט ציוד');
     if (!eventDate || !startTime) return showToast('error', 'נא למלא תאריך ושעה');
     try {
         const res = await fetch(`${API}/work-orders/${window._currentWoId}/equipment`, {
             method: 'POST', headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '','Content-Type': 'application/json'},
-            body: JSON.stringify({ equipmentItemId: sel.value, eventDate, startTime, durationMinutes, reservedBy: currentUser?.nickname || 'מנהל' })
+            body: JSON.stringify({ equipmentItemId: sel.value, eventDate, startTime, durationMinutes, reservedBy: currentUser?.nickname || 'מנהל', cost })
         });
         const data = await res.json();
         if (!data.success) return showToast('error', data.error || 'שגיאה בשיוך הציוד');
         document.getElementById('wo-add-equipment-panel').classList.add('hidden');
         showToast('success', 'ציוד שויך בהצלחה');
         window.loadWoEquipment();
-        if (window._currentWoData) { window._currentWoData.equipment = [...(window._currentWoData.equipment || []), data.reservation]; window.renderWoOverview(window._currentWoData); }
+        if (window._currentWoData) {
+            window._currentWoData.equipment = [...(window._currentWoData.equipment || []), data.reservation];
+            window.renderWoOverview(window._currentWoData);
+            window.renderWoCosts(window._currentWoData);
+        }
     } catch(e) { showToast('error', 'שגיאת תקשורת'); }
 };
 
@@ -42831,7 +42857,11 @@ window.removeWoEquipment = async function(resId) {
         if (!data.success) return showToast('error', data.error);
         showToast('success', 'ציוד שוחרר');
         window.loadWoEquipment();
-        if (window._currentWoData) { window._currentWoData.equipment = (window._currentWoData.equipment || []).filter(e => e.id !== resId); window.renderWoOverview(window._currentWoData); }
+        if (window._currentWoData) {
+            window._currentWoData.equipment = (window._currentWoData.equipment || []).filter(e => e.id !== resId);
+            window.renderWoOverview(window._currentWoData);
+            window.renderWoCosts(window._currentWoData);
+        }
     } catch(e) { showToast('error', 'שגיאת תקשורת'); }
 };
 
