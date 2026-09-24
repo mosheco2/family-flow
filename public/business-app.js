@@ -41356,7 +41356,8 @@ async function saToggleLicense(groupId, featureKey, isActive) {
     <button onclick="window.switchWoTab('team')" id="wo-tab-team" class="wo-tab-btn whitespace-nowrap px-3 py-1.5 rounded-t-lg text-xs font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-700">צוות</button>
     <button onclick="window.switchWoTab('inventory')" id="wo-tab-inventory" class="wo-tab-btn whitespace-nowrap px-3 py-1.5 rounded-t-lg text-xs font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-700">מצרכים</button>
     <button onclick="window.switchWoTab('equipment')" id="wo-tab-equipment" class="wo-tab-btn whitespace-nowrap px-3 py-1.5 rounded-t-lg text-xs font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-700">ציוד אירוע</button>
-    <button onclick="window.switchWoTab('chat')" id="wo-tab-chat" class="wo-tab-btn whitespace-nowrap px-3 py-1.5 rounded-t-lg text-xs font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-700">שיח</button>
+    <button onclick="window.switchWoTab('chat')" id="wo-tab-chat" class="wo-tab-btn whitespace-nowrap px-3 py-1.5 rounded-t-lg text-xs font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-700">שיח פנימי</button>
+    <button onclick="window.switchWoTab('custchat')" id="wo-tab-custchat" class="wo-tab-btn whitespace-nowrap px-3 py-1.5 rounded-t-lg text-xs font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-700">💬 שיח עם הלקוח</button>
     <button onclick="window.switchWoTab('notes')" id="wo-tab-notes" class="wo-tab-btn whitespace-nowrap px-3 py-1.5 rounded-t-lg text-xs font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-700">הערות</button>
     <button onclick="window.switchWoTab('timeline')" id="wo-tab-timeline" class="wo-tab-btn whitespace-nowrap px-3 py-1.5 rounded-t-lg text-xs font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-700">ציר זמן</button>
     <button onclick="window.switchWoTab('calendar')" id="wo-tab-calendar" class="wo-tab-btn whitespace-nowrap px-3 py-1.5 rounded-t-lg text-xs font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-700">ניהול יומן</button>
@@ -41482,6 +41483,14 @@ async function saToggleLicense(groupId, featureKey, isActive) {
         <button onclick="window.sendWoMessage()" class="bg-indigo-600 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-indigo-700 transition"><i class="fa-solid fa-paper-plane"></i></button>
       </div>
     </div>
+    <div id="wo-view-custchat" class="hidden flex flex-col" style="min-height:320px;">
+      <div class="bg-blue-50 rounded-xl p-2.5 border border-blue-100 text-[10px] text-blue-700 mb-3"><i class="fa-solid fa-circle-info mr-1"></i> שיח זה מתועד גם בתור היסטוריית ההצעה, וגלוי ללקוח דרך אפליקציית הצרכנים שלו.</div>
+      <div id="wo-custchat-list" class="flex-1 space-y-2 mb-3 overflow-y-auto max-h-64"></div>
+      <div class="flex gap-2 mt-auto">
+        <input type="text" id="wo-custchat-input" placeholder="כתוב הודעה ללקוח..." class="flex-1 modern-input py-2 px-3 text-sm rounded-xl border border-slate-200 outline-none focus:border-blue-400" onkeydown="if(event.key==='Enter') window.sendWoCustomerMessage()">
+        <button onclick="window.sendWoCustomerMessage()" class="bg-blue-600 text-white px-4 py-2 rounded-xl text-xs font-bold hover:bg-blue-700 transition"><i class="fa-solid fa-paper-plane"></i></button>
+      </div>
+    </div>
     <div id="wo-view-notes" class="hidden">
       <div class="flex justify-between items-center mb-3">
         <h4 class="font-bold text-slate-700 text-sm">הערות פקודה</h4>
@@ -41599,7 +41608,7 @@ window._currentWoId = null;
 window._currentWoData = null;
 
 window.switchWoTab = function(tab) {
-    ['overview','team','inventory','equipment','chat','notes','timeline','calendar','purchase','costs','payments','timelogs'].forEach(t => {
+    ['overview','team','inventory','equipment','chat','custchat','notes','timeline','calendar','purchase','costs','payments','timelogs'].forEach(t => {
         const v = document.getElementById(`wo-view-${t}`); if(v) v.classList.add('hidden');
         const b = document.getElementById(`wo-tab-${t}`);
         if(b) b.className = 'wo-tab-btn whitespace-nowrap px-3 py-1.5 rounded-t-lg text-xs font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-700';
@@ -41608,6 +41617,7 @@ window.switchWoTab = function(tab) {
     const b = document.getElementById(`wo-tab-${tab}`);
     if(b) b.className = 'wo-tab-btn whitespace-nowrap px-3 py-1.5 rounded-t-lg text-xs font-bold border-b-2 border-indigo-500 text-indigo-600 bg-indigo-50';
     if(tab === 'chat') setTimeout(() => { const msgs = document.getElementById('wo-messages-list'); if(msgs) msgs.scrollTop = msgs.scrollHeight; }, 100);
+    if(tab === 'custchat') { window.renderWoCustomerChat(); setTimeout(() => { const msgs = document.getElementById('wo-custchat-list'); if(msgs) msgs.scrollTop = msgs.scrollHeight; }, 100); }
     if(tab === 'timeline') window.loadWoTimeline();
     if(tab === 'purchase') window.loadWoPurchaseOrders();
     if(tab === 'payments') window.loadWoPayments();
@@ -42446,6 +42456,61 @@ window.renderWoMessages = function(messages) {
         </div>`;
     }).join('');
     setTimeout(() => { list.scrollTop = list.scrollHeight; }, 50);
+};
+
+// שיח עם הלקוח — מבוסס על יומן ההיסטוריה הקיים של הצעת המחיר (quote_history) על אותה הזמנה,
+// לא מערכת נפרדת: כל הודעה עסקית/תגובת לקוח שכבר קיימת מוצגת כאן כבועות שיחה, וניתן להשיב ישירות מכאן.
+window.renderWoCustomerChat = function() {
+    const list = document.getElementById('wo-custchat-list');
+    if (!list) return;
+    const wo = window._currentWoData?.workOrder;
+    let history = [];
+    try { history = typeof wo?.quote_history === 'string' ? JSON.parse(wo.quote_history || '[]') : (wo?.quote_history || []); } catch(e) {}
+    const msgTypes = { business_message: true, customer_response: true };
+    const respLabels = { approved:'✅ אישר את ההצעה', rejected:'❌ סירב להצעה', discount_request:'💬 ביקש הנחה', items_request:'📋 ביקש שינויים', message:null };
+    const msgs = history.filter(ev => msgTypes[ev.type]).sort((a,b) => new Date(a.ts) - new Date(b.ts));
+    if (!msgs.length) { list.innerHTML = '<p class="text-slate-400 text-xs text-center py-4">אין עדיין שיחה עם הלקוח על הצעה זו</p>'; return; }
+    list.innerHTML = msgs.map(ev => {
+        const isBiz = ev.type === 'business_message' || ev.actor === 'business';
+        const timeStr = ev.ts ? new Date(ev.ts).toLocaleString('he-IL', {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'}) : '';
+        let bodyText = ev.text || '';
+        if (ev.type === 'customer_response') {
+            const label = respLabels[ev.responseType];
+            bodyText = label ? (ev.text ? `${label} — ${ev.text}` : label) : (ev.text || '');
+        }
+        if (!bodyText) return '';
+        return `<div class="flex ${isBiz ? 'justify-end' : 'justify-start'}">
+            <div class="max-w-[75%] ${isBiz ? 'bg-blue-600 text-white rounded-t-2xl rounded-bl-2xl' : 'bg-amber-50 text-slate-800 rounded-t-2xl rounded-br-2xl border border-amber-100'} px-3 py-2">
+                ${!isBiz ? `<p class="text-[10px] font-bold mb-0.5 text-amber-600">${safeStr(wo?.customer_name || 'לקוח')}</p>` : ''}
+                <p class="text-sm">${safeStr(bodyText)}</p>
+                <p class="text-[9px] mt-0.5 ${isBiz ? 'text-blue-200' : 'text-slate-400'} text-left">${timeStr}</p>
+            </div>
+        </div>`;
+    }).join('');
+    setTimeout(() => { list.scrollTop = list.scrollHeight; }, 50);
+};
+
+window.sendWoCustomerMessage = async function() {
+    const input = document.getElementById('wo-custchat-input');
+    const text = input?.value?.trim();
+    if (!text) return;
+    try {
+        const res = await fetch(`${API}/store/quotes/${window._currentWoId}/business-message`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text })
+        });
+        const data = await res.json();
+        if (!data.success) return showToast('error', data.error || 'שגיאה בשליחת ההודעה');
+        input.value = '';
+        const wo = window._currentWoData?.workOrder;
+        if (wo) {
+            let history = [];
+            try { history = typeof wo.quote_history === 'string' ? JSON.parse(wo.quote_history || '[]') : (wo.quote_history || []); } catch(e) {}
+            history.push({ type: 'business_message', actor: 'business', ts: new Date().toISOString(), text });
+            wo.quote_history = history;
+        }
+        window.renderWoCustomerChat();
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
 };
 
 window.renderWoTimeline = function(timeline) {
