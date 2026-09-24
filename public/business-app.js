@@ -5988,7 +5988,27 @@ function buildSparklineSVG(data, stroke, w = 120, h = 28) {
     </svg>`;
 }
 
-function renderSparklines() {
+async function _fetchDashboardMetricHistory(metricKey) {
+    try {
+        const r = await fetch(`${API}/biz/dashboard-metrics?metricKey=${metricKey}&days=7`, {
+            headers: { 'Authorization': `Bearer ${window._bizToken || ''}` }
+        });
+        if (!r.ok) return null;
+        const data = await r.json();
+        return (data.history || []).map(row => ({ date: row.stat_date, value: row.value }));
+    } catch (e) { return null; }
+}
+
+function _snapshotDashboardMetric(metricKey, value) {
+    // רישום שקט של הערך של היום — לא חוסם את הרינדור, כדי שמחר יהיה נתון אמיתי נוסף בגרף
+    fetch(`${API}/biz/dashboard-metrics/snapshot`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${window._bizToken || ''}` },
+        body: JSON.stringify({ metricKey, value })
+    }).catch(() => {});
+}
+
+async function renderSparklines() {
     const now = new Date();
     const days7 = Array.from({length: 7}, (_, i) => {
         const d = new Date(now); d.setDate(d.getDate() - (6 - i)); return d.toDateString();
@@ -6005,18 +6025,28 @@ function renderSparklines() {
         o.status === 'new' && new Date(o.created_at).toDateString() <= ds
     ).length);
 
-    // משימות פתוחות (פשוט — אותו מספר לכל יום, ניתן לשפר)
-    const openTasksNow = (allTasks || []).filter(t => t.status === 'pending').length;
-    const tasksByDay = days7.map((_, i) => Math.max(0, openTasksNow - (6 - i) * 0.3 | 0));
-
-    // עובדים — קבוע (אין היסטוריה)
-    const staffCount = (membersCache || []).filter(m => m.role !== 'ADMIN').length;
-    const staffByDay = days7.map(() => staffCount);
-
     const sp = document.getElementById('spark-sales');
     if (sp) sp.innerHTML = buildSparklineSVG(salesByDay, 'rgba(255,255,255,0.8)');
     const so = document.getElementById('spark-orders');
     if (so) so.innerHTML = buildSparklineSVG(ordersByDay, '#f59e0b');
+
+    // משימות פתוחות — נתון אמיתי היום, נשמר בשרת; הגרף מציג היסטוריה אמיתית מצטברת (לא קירוב מלאכותי)
+    const openTasksNow = (allTasks || []).filter(t => t.status === 'pending').length;
+    _snapshotDashboardMetric('tasks_open', openTasksNow);
+
+    // עובדים פעילים היום — אותו עיקרון
+    const staffCount = (membersCache || []).filter(m => m.role !== 'ADMIN').length;
+    _snapshotDashboardMetric('active_employees', staffCount);
+
+    const [tasksHistory, staffHistory] = await Promise.all([
+        _fetchDashboardMetricHistory('tasks_open'),
+        _fetchDashboardMetricHistory('active_employees')
+    ]);
+
+    // עד שמצטברת היסטוריה אמיתית של כמה ימים — מציגים את מה שכבר נשמר בפועל, בלי להמציא נתונים חסרים
+    const tasksByDay = (tasksHistory && tasksHistory.length >= 2) ? tasksHistory.map(h => h.value) : [openTasksNow, openTasksNow];
+    const staffByDay = (staffHistory && staffHistory.length >= 2) ? staffHistory.map(h => h.value) : [staffCount, staffCount];
+
     const st = document.getElementById('spark-tasks');
     if (st) st.innerHTML = buildSparklineSVG(tasksByDay, '#f43f5e');
     const ss = document.getElementById('spark-staff');
@@ -36664,7 +36694,7 @@ const ROLE_TYPE_TABS = {
     support:        ['customers','tasks','calendar','timeclock'],
     cashier:        ['pos','sales','tasks','timeclock','shifts'],
     shift_manager:  ['pos','sales','tasks','members','timeclock','shifts','customers','cashflow','reviews'],
-    branch_manager: ['pos','sales','tasks','members','timeclock','shifts','customers','cashflow','budget','pantry','reviews'],
+    branch_manager: ['pos','sales','tasks','members','timeclock','shifts','customers','cashflow','budget','pantry','reviews','equipment'],
     waiter:         ['pos','sales','tasks','calendar','members','shifts','timeclock'],
     cook:           ['pantry','tasks','shifts','foodcost','timeclock'],
 };
@@ -38483,12 +38513,16 @@ async function renderSupportDashboard(el) {
 async function renderCashierDashboard(el) {
     let todaySales = 0, txCount = 0, cashIn = 0, cashOut = 0;
     const today = new Date().toISOString().split('T')[0];
-    const regKey = `register_${currentGroup.id}_${today}`;
     let regState = {};
-    try { regState = JSON.parse(localStorage.getItem(regKey) || '{}'); } catch(e) {}
-    const isOpen = !!regState.openedAt;
-    const openTime = regState.openedAt ? new Date(regState.openedAt).toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'}) : null;
-    const openFloat = regState.openFloat || 0;
+    try {
+        const rr = await fetch(`${API}/biz/register/today`, { headers: { 'Authorization': `Bearer ${window._bizToken || ''}` } });
+        const rd = await rr.json();
+        regState = rd.session || {};
+    } catch(e) {}
+    const isOpen = !!regState.opened_at && !regState.closed_at;
+    const openTime = regState.opened_at ? new Date(regState.opened_at).toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'}) : null;
+    const openFloat = parseFloat(regState.open_float) || 0;
+    const sessionId = regState.id || null;
 
     try {
         const r = await fetch(`/api/transactions/${currentGroup.id}`);
@@ -38505,15 +38539,25 @@ async function renderCashierDashboard(el) {
 
     window.cashierOpenRegister = async function() {
         const floatVal = parseFloat(await window._uiPrompt('סכום פתיחה בקופה (מזומן):', {defaultValue:'0', type:'number'}) || '0') || 0;
-        const state = { openedAt: new Date().toISOString(), openFloat: floatVal };
-        localStorage.setItem(regKey, JSON.stringify(state));
+        try {
+            await fetch(`${API}/biz/register/open`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${window._bizToken || ''}` },
+                body: JSON.stringify({ openFloat: floatVal })
+            });
+        } catch(e) {}
         renderCashierDashboard(el);
     };
     window.cashierCloseRegister = async function() {
         const actualCash = parseFloat(await window._uiPrompt(`סכום מזומן בקופה לספירה (צפוי: ${fmt(expectedCash)}):`, {defaultValue:String(expectedCash), type:'number'}) || String(expectedCash));
         const diff = actualCash - expectedCash;
-        const state = { ...regState, closedAt: new Date().toISOString(), actualCash, diff };
-        localStorage.setItem(regKey, JSON.stringify(state));
+        try {
+            await fetch(`${API}/biz/register/close`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${window._bizToken || ''}` },
+                body: JSON.stringify({ sessionId, expectedCash, actualCash })
+            });
+        } catch(e) {}
         const msg = diff === 0 ? 'הקופה מאוזנת ✅' : diff > 0 ? `עודף ${fmt(Math.abs(diff))} 📈` : `חסר ${fmt(Math.abs(diff))} ⚠️`;
         await window._uiAlert(`סגירת קופה — ${msg}`);
         renderCashierDashboard(el);

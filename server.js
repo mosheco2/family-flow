@@ -2839,6 +2839,33 @@ app.get('/api/solo/search-by-phone', async (req, res) => {
       try { await client.query(`ALTER TABLE group_snapshots ADD COLUMN IF NOT EXISTS snapshot_type VARCHAR(20) DEFAULT 'auto'`); } catch(e) {}
       try { await client.query(`CREATE INDEX IF NOT EXISTS idx_group_snapshots_group_id ON group_snapshots(group_id, created_at DESC)`); } catch(e) {}
 
+      // היסטוריית מדדי דשבורד יומית (למשל: משימות פתוחות, עובדים פעילים) — לגרפי מגמה אמיתיים בדף הבית
+      try { await client.query(`CREATE TABLE IF NOT EXISTS dashboard_metric_history (
+          group_id INT NOT NULL,
+          metric_key VARCHAR(40) NOT NULL,
+          stat_date DATE NOT NULL,
+          value INT NOT NULL DEFAULT 0,
+          updated_at TIMESTAMP DEFAULT NOW(),
+          PRIMARY KEY (group_id, metric_key, stat_date)
+      )`); } catch(e) {}
+      try { await client.query(`CREATE INDEX IF NOT EXISTS idx_dashboard_metric_history_lookup ON dashboard_metric_history(group_id, metric_key, stat_date DESC)`); } catch(e) {}
+
+      // מצב פתיחה/סגירה של קופה פיזית לפי משתמש/יום — מחליף שמירה מקומית בדפדפן בלבד
+      try { await client.query(`CREATE TABLE IF NOT EXISTS register_sessions (
+          id SERIAL PRIMARY KEY,
+          group_id INT NOT NULL,
+          user_id INT NOT NULL,
+          session_date DATE NOT NULL,
+          opened_at TIMESTAMP,
+          open_float NUMERIC(10,2) DEFAULT 0,
+          closed_at TIMESTAMP,
+          expected_cash NUMERIC(10,2),
+          actual_cash NUMERIC(10,2),
+          diff NUMERIC(10,2),
+          created_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) {}
+      try { await client.query(`CREATE INDEX IF NOT EXISTS idx_register_sessions_lookup ON register_sessions(group_id, user_id, session_date)`); } catch(e) {}
+
       // לוג ביקורת — פעולות קריטיות על ידי SA
       try { await client.query(`CREATE TABLE IF NOT EXISTS sa_audit_log (
           id SERIAL PRIMARY KEY,
@@ -37393,6 +37420,93 @@ async function verifyBiz(req, res, next) {
     req.bizAuth = { groupId: row.group_id, userId: row.user_id };
     next();
 }
+
+// ===== DASHBOARD METRIC HISTORY API (sparklines בדף הבית) =====
+// metric_key מוגבל לרשימה סגורה כדי למנוע כתיבה חופשית של מפתחות שרירותיים
+const ALLOWED_DASHBOARD_METRICS = new Set(['tasks_open', 'active_employees']);
+
+app.post('/api/biz/dashboard-metrics/snapshot', verifyBiz, async (req, res) => {
+    const groupId = req.bizAuth.groupId;
+    const { metricKey, value } = req.body || {};
+    if (!ALLOWED_DASHBOARD_METRICS.has(metricKey)) return res.status(400).json({ error: 'מדד לא מוכר' });
+    const v = parseInt(value, 10);
+    if (!Number.isFinite(v) || v < 0) return res.status(400).json({ error: 'ערך לא תקין' });
+    try {
+        await pool.query(
+            `INSERT INTO dashboard_metric_history (group_id, metric_key, stat_date, value, updated_at)
+             VALUES ($1, $2, CURRENT_DATE, $3, NOW())
+             ON CONFLICT (group_id, metric_key, stat_date) DO UPDATE SET value=$3, updated_at=NOW()`,
+            [groupId, metricKey, v]
+        );
+        res.json({ success: true });
+    } catch (e) { res.status(500).json({ error: 'שגיאה בשמירת מדד' }); }
+});
+
+app.get('/api/biz/dashboard-metrics', verifyBiz, async (req, res) => {
+    const groupId = req.bizAuth.groupId;
+    const metricKey = req.query.metricKey;
+    const days = Math.min(parseInt(req.query.days, 10) || 7, 30);
+    if (!ALLOWED_DASHBOARD_METRICS.has(metricKey)) return res.status(400).json({ error: 'מדד לא מוכר' });
+    try {
+        const r = await pool.query(
+            `SELECT stat_date, value FROM dashboard_metric_history
+             WHERE group_id=$1 AND metric_key=$2 AND stat_date >= CURRENT_DATE - ($3 || ' days')::interval
+             ORDER BY stat_date ASC`,
+            [groupId, metricKey, days]
+        );
+        res.json({ history: r.rows });
+    } catch (e) { res.status(500).json({ error: 'שגיאה בטעינת היסטוריה' }); }
+});
+
+// ===== REGISTER (קופה) SESSION API — מחליף שמירה מקומית בדפדפן =====
+
+app.get('/api/biz/register/today', verifyBiz, async (req, res) => {
+    const groupId = req.bizAuth.groupId;
+    const userId = req.bizAuth.userId;
+    try {
+        const r = await pool.query(
+            `SELECT * FROM register_sessions WHERE group_id=$1 AND user_id=$2 AND session_date=CURRENT_DATE ORDER BY id DESC LIMIT 1`,
+            [groupId, userId]
+        );
+        res.json({ session: r.rows[0] || null });
+    } catch (e) { res.status(500).json({ error: 'שגיאה בטעינת מצב קופה' }); }
+});
+
+app.post('/api/biz/register/open', verifyBiz, async (req, res) => {
+    const groupId = req.bizAuth.groupId;
+    const userId = req.bizAuth.userId;
+    const openFloat = parseFloat(req.body?.openFloat) || 0;
+    try {
+        const existing = await pool.query(
+            `SELECT id FROM register_sessions WHERE group_id=$1 AND user_id=$2 AND session_date=CURRENT_DATE AND closed_at IS NULL`,
+            [groupId, userId]
+        );
+        if (existing.rows[0]) return res.json({ session: existing.rows[0] });
+        const r = await pool.query(
+            `INSERT INTO register_sessions (group_id, user_id, session_date, opened_at, open_float)
+             VALUES ($1, $2, CURRENT_DATE, NOW(), $3) RETURNING *`,
+            [groupId, userId, openFloat]
+        );
+        res.json({ session: r.rows[0] });
+    } catch (e) { res.status(500).json({ error: 'שגיאה בפתיחת קופה' }); }
+});
+
+app.post('/api/biz/register/close', verifyBiz, async (req, res) => {
+    const groupId = req.bizAuth.groupId;
+    const userId = req.bizAuth.userId;
+    const { sessionId, expectedCash, actualCash } = req.body || {};
+    const exp = parseFloat(expectedCash) || 0;
+    const act = parseFloat(actualCash) || 0;
+    try {
+        const r = await pool.query(
+            `UPDATE register_sessions SET closed_at=NOW(), expected_cash=$1, actual_cash=$2, diff=$2-$1
+             WHERE id=$3 AND group_id=$4 AND user_id=$5 RETURNING *`,
+            [exp, act, sessionId, groupId, userId]
+        );
+        if (!r.rows[0]) return res.status(404).json({ error: 'לא נמצאה קופה פתוחה תואמת' });
+        res.json({ session: r.rows[0] });
+    } catch (e) { res.status(500).json({ error: 'שגיאה בסגירת קופה' }); }
+});
 
 // ===== MENU TEMPLATES API (read-only) =====
 
