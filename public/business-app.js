@@ -41371,6 +41371,10 @@ async function saToggleLicense(groupId, featureKey, isActive) {
         <p class="text-[10px] text-slate-500 mb-1">שירות / עבודה</p>
         <p id="wo-info-service" class="font-bold text-indigo-700 text-sm leading-snug"></p>
       </div>
+      <div id="wo-event-info-row" class="bg-emerald-50 rounded-2xl p-3 border border-emerald-100 mb-3 hidden">
+        <p class="text-[10px] text-emerald-600 mb-1"><i class="fa-solid fa-champagne-glasses mr-1"></i>פרטי אירוע</p>
+        <p id="wo-event-info-text" class="font-bold text-emerald-800 text-sm leading-snug"></p>
+      </div>
       <div class="grid grid-cols-2 gap-3 mb-4">
         <div class="bg-slate-50 rounded-2xl p-3 border border-slate-100"><p class="text-[10px] text-slate-500 mb-1">לקוח</p><p id="wo-info-customer" class="font-bold text-slate-800 text-sm">—</p></div>
         <div class="bg-slate-50 rounded-2xl p-3 border border-slate-100"><p class="text-[10px] text-slate-500 mb-1">סכום</p><p id="wo-info-amount" class="font-black text-indigo-600 text-sm">—</p></div>
@@ -41391,6 +41395,7 @@ async function saToggleLicense(groupId, featureKey, isActive) {
       </div>
       <div id="wo-assignees-preview" class="mb-3"></div>
       <div id="wo-inventory-preview" class="mb-3"></div>
+      <div id="wo-equipment-preview" class="mb-3"></div>
       <button id="wo-kickoff-btn" class="hidden w-full bg-teal-50 text-teal-700 border border-teal-200 rounded-2xl py-3 font-bold text-sm hover:bg-teal-100 transition flex items-center justify-center gap-2 mb-2">
         <i class="fa-solid fa-calendar-check"></i> תזמן פגישת קיקאוף
       </button>
@@ -41661,7 +41666,8 @@ window.openNewEventFromMenuModal = async function() {
             <div class="flex-1 overflow-y-auto p-4 space-y-3">
                 <div>
                     <label class="text-xs font-bold text-slate-600 mb-1 block">תבנית תפריט</label>
-                    <select id="ne-template" class="modern-input w-full">${optionsHtml}</select>
+                    <select id="ne-template" onchange="window._updateNewEventGuestConstraints()" class="modern-input w-full">${optionsHtml}</select>
+                    <p id="ne-template-hint" class="text-[10px] text-slate-400 mt-1"></p>
                 </div>
                 <div>
                     <label class="text-xs font-bold text-slate-600 mb-1 block">שם הלקוח *</label>
@@ -41674,7 +41680,7 @@ window.openNewEventFromMenuModal = async function() {
                 <div class="grid grid-cols-2 gap-3">
                     <div>
                         <label class="text-xs font-bold text-slate-600 mb-1 block">מספר סועדים</label>
-                        <input type="number" id="ne-guests" class="modern-input w-full" value="50" min="1">
+                        <input type="number" id="ne-guests" oninput="window._updateNewEventPriceEstimate()" class="modern-input w-full" value="50" min="1">
                     </div>
                     <div>
                         <label class="text-xs font-bold text-slate-600 mb-1 block">תאריך אירוע</label>
@@ -41685,12 +41691,56 @@ window.openNewEventFromMenuModal = async function() {
                     <label class="text-xs font-bold text-slate-600 mb-1 block">הערות</label>
                     <textarea id="ne-notes" class="modern-input w-full" rows="2" placeholder="הערות ללקוח..."></textarea>
                 </div>
+                <div id="ne-price-estimate" class="bg-emerald-50 border border-emerald-100 rounded-xl p-3 text-sm font-bold text-emerald-700 hidden"></div>
             </div>
             <div class="p-4 border-t border-slate-200 shrink-0">
                 <button id="btn-submit-new-event" onclick="window.submitNewEventFromMenu()" class="w-full bg-emerald-600 text-white py-3 rounded-xl font-bold text-sm shadow-md hover:bg-emerald-700 transition">צור הצעת מחיר לאירוע</button>
             </div>
         </div>
     </div>`);
+
+    window._newEventTemplates = templates;
+    window._updateNewEventGuestConstraints();
+};
+
+window._updateNewEventGuestConstraints = function() {
+    const templateId = document.getElementById('ne-template')?.value;
+    const tmpl = (window._newEventTemplates || []).find(t => String(t.id) === String(templateId));
+    const hint = document.getElementById('ne-template-hint');
+    const guestsInput = document.getElementById('ne-guests');
+    if (!tmpl) return;
+    const parts = [];
+    if (tmpl.min_guests) parts.push(`מינימום ${tmpl.min_guests} סועדים`);
+    if (tmpl.max_guests) parts.push(`מקסימום ${tmpl.max_guests} סועדים`);
+    if (tmpl.pricing_mode === 'per_person' && tmpl.base_price_per_person) parts.push(`בסיס ₪${tmpl.base_price_per_person} לסועד`);
+    if (hint) hint.textContent = parts.join(' · ');
+    if (guestsInput && tmpl.min_guests && parseInt(guestsInput.value) < tmpl.min_guests) guestsInput.value = tmpl.min_guests;
+    window._updateNewEventPriceEstimate();
+};
+
+window._updateNewEventPriceEstimate = function() {
+    const templateId = document.getElementById('ne-template')?.value;
+    const tmpl = (window._newEventTemplates || []).find(t => String(t.id) === String(templateId));
+    const guests = parseInt(document.getElementById('ne-guests')?.value) || 0;
+    const box = document.getElementById('ne-price-estimate');
+    if (!box || !tmpl) return;
+    const guestsInput = document.getElementById('ne-guests');
+    const warnings = [];
+    if (tmpl.min_guests && guests < tmpl.min_guests) warnings.push(`מתחת למינימום (${tmpl.min_guests})`);
+    if (tmpl.max_guests && guests > tmpl.max_guests) warnings.push(`מעל המקסימום (${tmpl.max_guests})`);
+    if (tmpl.pricing_mode === 'per_person' && tmpl.base_price_per_person && guests > 0) {
+        const est = parseFloat(tmpl.base_price_per_person) * guests;
+        box.textContent = `הערכת מחיר בסיס: ₪${est.toLocaleString('he-IL')}${warnings.length ? ' — ⚠ ' + warnings.join(', ') : ''}`;
+        box.classList.remove('hidden');
+        box.className = 'rounded-xl p-3 text-sm font-bold border ' + (warnings.length ? 'bg-red-50 border-red-200 text-red-700' : 'bg-emerald-50 border-emerald-100 text-emerald-700');
+    } else if (warnings.length) {
+        box.textContent = '⚠ ' + warnings.join(', ');
+        box.className = 'rounded-xl p-3 text-sm font-bold border bg-red-50 border-red-200 text-red-700';
+        box.classList.remove('hidden');
+    } else {
+        box.classList.add('hidden');
+    }
+    if (guestsInput) guestsInput.classList.toggle('border-red-400', warnings.length > 0);
 };
 
 window.submitNewEventFromMenu = async function() {
@@ -41702,6 +41752,12 @@ window.submitNewEventFromMenu = async function() {
     const notes = document.getElementById('ne-notes')?.value.trim();
 
     if (!customerName) return showToast('error', 'שם הלקוח הוא שדה חובה');
+    const tmpl = (window._newEventTemplates || []).find(t => String(t.id) === String(templateId));
+    if (tmpl) {
+        const guests = parseInt(guestCount) || 0;
+        const outOfRange = (tmpl.min_guests && guests < tmpl.min_guests) || (tmpl.max_guests && guests > tmpl.max_guests);
+        if (outOfRange && !await window._uiConfirm('מספר הסועדים חורג מטווח התבנית — להמשיך בכל זאת?')) return;
+    }
 
     const btn = document.getElementById('btn-submit-new-event');
     if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> יוצר...'; }
@@ -42066,10 +42122,28 @@ window.renderWoOverview = function(data) {
     }
 
     const ap = document.getElementById('wo-assignees-preview');
-    if (ap) ap.innerHTML = data.assignees?.length ? `<div class="bg-slate-50 rounded-xl p-2.5 border border-slate-100 text-xs text-slate-600"><i class="fa-solid fa-users mr-1.5"></i>${data.assignees.map(a => safeStr(a.user_name)).join(' • ')}</div>` : '';
+    if (ap) ap.innerHTML = data.assignees?.length ? `<div class="bg-slate-50 rounded-xl p-2.5 border border-slate-100 text-xs text-slate-600"><i class="fa-solid fa-users mr-1.5"></i>${data.assignees.map(a => safeStr(a.user_name) + (a.role_label ? ` (${safeStr(a.role_label)})` : '')).join(' • ')}</div>` : '';
     const ip = document.getElementById('wo-inventory-preview');
     const reserved = (data.inventory || []).filter(i => i.status === 'reserved');
     if (ip) ip.innerHTML = (!isPro && reserved.length) ? `<div class="bg-amber-50 rounded-xl p-2.5 border border-amber-100 text-xs text-amber-700"><i class="fa-solid fa-boxes-stacked mr-1.5"></i>${reserved.map(i => `${safeStr(i.item_name)} (${i.reserved_qty})`).join(' • ')}</div>` : '';
+    const eqPrev = document.getElementById('wo-equipment-preview');
+    const eqReserved = data.equipment || [];
+    if (eqPrev) eqPrev.innerHTML = eqReserved.length ? `<div class="bg-cyan-50 rounded-xl p-2.5 border border-cyan-100 text-xs text-cyan-700"><i class="fa-solid fa-champagne-glasses mr-1.5"></i>${eqReserved.map(e => safeStr(e.equipment_name)).join(' • ')}</div>` : '';
+
+    // פרטי אירוע (מסעדה): תפריט מקושר + מספר סועדים
+    const eventRow = document.getElementById('wo-event-info-row');
+    const eventText = document.getElementById('wo-event-info-text');
+    if (eventRow && eventText) {
+        if (wo.menu_template_name || wo.event_guest_count) {
+            const parts = [];
+            if (wo.menu_template_name) parts.push(`תפריט: ${safeStr(wo.menu_template_name)}`);
+            if (wo.event_guest_count) parts.push(`${wo.event_guest_count} סועדים`);
+            eventText.textContent = parts.join(' · ');
+            eventRow.classList.remove('hidden');
+        } else {
+            eventRow.classList.add('hidden');
+        }
+    }
 
     // כפתור קיקאוף — רק לעסק מקצועי כשהתיק עדיין פתוח
     const kickoffEl = document.getElementById('wo-kickoff-btn');
@@ -42217,7 +42291,10 @@ window.renderWoInventory = function(inventory) {
             : `<p class="text-xs text-slate-500 mb-2">כמות: ${fmtN(reservedQty)} יח'${item.unit_price > 0 ? ` | ₪${parseFloat(item.unit_price).toFixed(2)} ליח'` : ''}</p>`;
 
         const poAlert = shortage > 0 && item.status === 'reserved'
-            ? `<div class="bg-red-50 border border-red-200 rounded-lg p-2 mb-2 text-[10px] text-red-700 font-bold">⚠️ חסרים ${fmtN(shortage)} יח' — יש לפתוח הזמנת רכש</div>` : '';
+            ? `<div class="bg-red-50 border border-red-200 rounded-lg p-2 mb-2 text-[10px] text-red-700 font-bold flex items-center justify-between gap-2">
+                <span>⚠️ חסרים ${fmtN(shortage)} יח'</span>
+                <button onclick="window.draftPurchaseOrderForShortage('${safeStr(item.item_name).replace(/'/g,"\\'")}', ${shortage})" class="bg-red-600 text-white px-2 py-1 rounded-lg text-[10px] font-bold hover:bg-red-700 transition shrink-0"><i class="fa-solid fa-cart-plus mr-1"></i>פתח הזמנת רכש</button>
+               </div>` : '';
 
         const stockInfo = (item.pantry_id || item.catalog_id) ? `<div class="bg-blue-50 rounded-lg p-2 mb-2 border border-blue-200 text-[10px]">
             ${parseFloat(pantryTotal) > 0 ? `<div class="flex justify-between mb-1"><span class="text-slate-600">מלאי כולל:</span><span class="font-bold text-blue-700">${fmtN(pantryTotal)} ${pantryUnit}</span></div>` : ''}
@@ -42635,14 +42712,17 @@ window.autoReserveInventoryFromMenu = async function() {
         const data = await res.json();
         if (!data.success) return showToast('error', data.error);
         const shortages = (data.reservations || []).filter(r => r.shortage > 0);
-        if (shortages.length) {
-            showToast('warning', `שוריינו ${data.reservations.length} מרכיבים — ${shortages.length} עם מחסור. בדוק ברשימה ובצע רכש נדרש.`);
-        } else {
-            showToast('success', `${data.reservations.length} מרכיבים שוריינו אוטומטית מהתפריט`);
-        }
         const dRes = await fetch(`${API}/work-orders/detail/${window._currentWoId}`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } });
         const dData = await dRes.json();
         if (dData.success) { window._currentWoData = dData; window.renderWoInventory(dData.inventory || []); window.renderWoOverview(dData); }
+        if (shortages.length) {
+            showToast('warning', `שוריינו ${data.reservations.length} מרכיבים — ${shortages.length} עם מחסור.`);
+            if (await window._uiConfirm(`נמצא מחסור ב-${shortages.length} מרכיבים. להכין טיוטת הזמנת רכש לכולם עכשיו?`)) {
+                window.draftPurchaseOrderForAllShortages();
+            }
+        } else {
+            showToast('success', `${data.reservations.length} מרכיבים שוריינו אוטומטית מהתפריט`);
+        }
     } catch(e) { showToast('error', 'שגיאת תקשורת'); }
 };
 
@@ -42739,6 +42819,7 @@ window.addEquipmentReservation = async function() {
         document.getElementById('wo-add-equipment-panel').classList.add('hidden');
         showToast('success', 'ציוד שויך בהצלחה');
         window.loadWoEquipment();
+        if (window._currentWoData) { window._currentWoData.equipment = [...(window._currentWoData.equipment || []), data.reservation]; window.renderWoOverview(window._currentWoData); }
     } catch(e) { showToast('error', 'שגיאת תקשורת'); }
 };
 
@@ -42750,6 +42831,7 @@ window.removeWoEquipment = async function(resId) {
         if (!data.success) return showToast('error', data.error);
         showToast('success', 'ציוד שוחרר');
         window.loadWoEquipment();
+        if (window._currentWoData) { window._currentWoData.equipment = (window._currentWoData.equipment || []).filter(e => e.id !== resId); window.renderWoOverview(window._currentWoData); }
     } catch(e) { showToast('error', 'שגיאת תקשורת'); }
 };
 
@@ -43251,6 +43333,38 @@ window.openAddPurchasePanel = async function() {
             supplierSel.classList.add('hidden');
         }
     }
+};
+
+window.draftPurchaseOrderForShortage = async function(itemName, shortageQty) {
+    window.switchWoTab('purchase');
+    await window.openAddPurchasePanel();
+    const row = document.querySelector('#wo-po-items .wo-po-item-row');
+    if (row) {
+        const nameInput = row.querySelector('.wo-po-item-name');
+        const qtyInput = row.querySelector('.wo-po-item-qty');
+        if (nameInput) nameInput.value = itemName;
+        if (qtyInput) qtyInput.value = Math.ceil(shortageQty);
+    }
+    showToast('success', `הזמנת רכש מוכנה למילוי — נותר לבחור ספק ולשלוח`);
+};
+
+window.draftPurchaseOrderForAllShortages = async function() {
+    const shortageItems = (window._currentWoData?.inventory || [])
+        .filter(i => i.status === 'reserved' && parseFloat(i.needed_qty || 0) > parseFloat(i.reserved_qty || 0))
+        .map(i => ({ name: i.item_name, qty: Math.ceil(parseFloat(i.needed_qty) - parseFloat(i.reserved_qty)) }));
+    if (!shortageItems.length) return showToast('error', 'אין כרגע מחסור פתוח');
+    window.switchWoTab('purchase');
+    await window.openAddPurchasePanel();
+    const container = document.getElementById('wo-po-items');
+    if (container) {
+        container.innerHTML = shortageItems.map(it => `<div class="wo-po-item-row flex gap-2">
+            <input type="text" value="${safeStr(it.name)}" class="flex-1 modern-input py-1.5 px-2 text-xs rounded-lg border border-slate-200 outline-none focus:border-orange-400 wo-po-item-name">
+            <input type="number" min="1" value="${it.qty}" class="w-16 modern-input py-1.5 px-2 text-xs rounded-lg border border-slate-200 outline-none focus:border-orange-400 wo-po-item-qty">
+            <input type="number" min="0" step="0.01" value="0" placeholder="₪ מחיר" class="w-20 modern-input py-1.5 px-2 text-xs rounded-lg border border-slate-200 outline-none focus:border-orange-400 wo-po-item-price">
+            <button onclick="this.parentNode.remove()" class="text-slate-300 hover:text-red-400 transition text-xs px-1"><i class="fa-solid fa-xmark"></i></button>
+        </div>`).join('');
+    }
+    showToast('success', `${shortageItems.length} פריטים חסרים נטענו — נותר לבחור ספק ולשלוח`);
 };
 
 window.addPurchaseItemRow = function(productId, supplierProduct) {

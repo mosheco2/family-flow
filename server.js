@@ -23930,8 +23930,10 @@ app.get('/api/work-orders/detail/:id', verifyBiz, async (req, res) => {
         const id = req.params.id;
         const _wo = await pool.query('SELECT 1 FROM store_orders WHERE id=$1 AND group_id=$2 AND call_type=\'work_order\'', [id, req.bizAuth.groupId]);
         if (!_wo.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
-        const [woRes, assigneesRes, inventoryRes, messagesRes, timelineRes, calendarRes] = await Promise.all([
-            pool.query(`SELECT * FROM store_orders WHERE id=$1 AND call_type='work_order'`, [id]),
+        const [woRes, assigneesRes, inventoryRes, messagesRes, timelineRes, calendarRes, equipmentRes] = await Promise.all([
+            pool.query(`SELECT so.*, mt.name as menu_template_name, mt.min_guests as menu_min_guests, mt.max_guests as menu_max_guests
+                        FROM store_orders so LEFT JOIN menu_templates mt ON mt.id = so.menu_template_id
+                        WHERE so.id=$1 AND so.call_type='work_order'`, [id]),
             pool.query('SELECT * FROM work_order_assignees WHERE work_order_id=$1 ORDER BY assigned_at', [id]),
             pool.query(`SELECT wi.*,
                         p.quantity as pantry_total, COALESCE(p.reserved_qty,0) as pantry_reserved, p.unit as pantry_unit,
@@ -23942,10 +23944,11 @@ app.get('/api/work-orders/detail/:id', verifyBiz, async (req, res) => {
                         WHERE wi.work_order_id=$1 ORDER BY wi.reserved_at`, [id]),
             pool.query('SELECT * FROM work_order_messages WHERE work_order_id=$1 ORDER BY created_at', [id]),
             pool.query('SELECT * FROM work_order_timeline WHERE work_order_id=$1 ORDER BY created_at DESC', [id]),
-            pool.query('SELECT * FROM calendar_events WHERE work_order_id=$1 ORDER BY event_date ASC, start_time ASC', [id])
+            pool.query('SELECT * FROM calendar_events WHERE work_order_id=$1 ORDER BY event_date ASC, start_time ASC', [id]),
+            pool.query(`SELECT * FROM work_order_equipment WHERE work_order_id=$1 AND status='reserved' ORDER BY event_date, start_time`, [id])
         ]);
         if (!woRes.rows.length) return res.status(404).json({ error: 'פקודה לא נמצאה' });
-        res.json({ success: true, workOrder: woRes.rows[0], assignees: assigneesRes.rows, inventory: inventoryRes.rows, messages: messagesRes.rows, timeline: timelineRes.rows, calendarEvents: calendarRes.rows });
+        res.json({ success: true, workOrder: woRes.rows[0], assignees: assigneesRes.rows, inventory: inventoryRes.rows, messages: messagesRes.rows, timeline: timelineRes.rows, calendarEvents: calendarRes.rows, equipment: equipmentRes.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
