@@ -908,14 +908,18 @@ window.injectBusinessUI = function() {
 
                     <div id="sales-view-work-orders" class="hidden space-y-4">
                         <div class="flex justify-between items-center mb-2 px-1">
-                            <h4 class="font-bold text-slate-700 text-sm">פקודות עבודה 🔨</h4>
-                            <select id="wo-list-filter" onchange="window.fetchWorkOrders()" class="modern-input py-1.5 px-3 text-xs font-bold bg-slate-50 border-slate-200 rounded-xl outline-none focus:border-indigo-400">
-                                <option value="all">כל הפקודות</option>
-                                <option value="processing">בתהליך</option>
-                                <option value="scheduled">מתוזמנות</option>
-                                <option value="completed">הושלמו</option>
-                                <option value="cancelled">בוטלו</option>
-                            </select>
+                            <h4 class="font-bold text-slate-700 text-sm" id="wo-view-title">פקודות עבודה 🔨</h4>
+                            <div class="flex items-center gap-2">
+                                <button id="btn-new-event-from-menu" onclick="window.openNewEventFromMenuModal()" class="hidden bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold shadow-md hover:bg-emerald-700 transition"><i class="fa-solid fa-plus mr-1"></i> אירוע חדש מתפריט</button>
+                                <select id="wo-list-filter" onchange="window.fetchWorkOrders()" class="modern-input py-1.5 px-3 text-xs font-bold bg-slate-50 border-slate-200 rounded-xl outline-none focus:border-indigo-400">
+                                    <option value="all">הכל</option>
+                                    <option value="quote">הצעות טרם אושרו</option>
+                                    <option value="processing">בתהליך</option>
+                                    <option value="scheduled">מתוזמנות</option>
+                                    <option value="completed">הושלמו</option>
+                                    <option value="cancelled">בוטלו</option>
+                                </select>
+                            </div>
                         </div>
                         <div id="wo-profit-summary" class="hidden grid grid-cols-3 gap-2 mb-2">
                             <div class="bg-green-50 border border-green-200 rounded-2xl p-3 text-center">
@@ -2747,15 +2751,13 @@ function switchTab(t) {
             const bQ = document.getElementById('btn-sales-quotes');
             if (bQ) { bQ.innerHTML = '<i class="fa-solid fa-file-invoice text-sm"></i>הצעות מחיר'; }
 
-            // מסעדה: "פרויקטים" -> "אירועים" — מפעיל את הכרטיסייה (הייתה נעולה "בקרוב" לכולם)
-            if (currentGroup?.business_type === 'restaurant' && bComplex) {
-                bComplex.removeAttribute('disabled');
-                bComplex.style.cursor = '';
-                bComplex.style.opacity = '';
-                bComplex.classList.remove('text-slate-400');
-                bComplex.classList.add('text-slate-600');
-                bComplex.setAttribute('onclick', "window.switchSalesTab('complex')");
-                bComplex.innerHTML = '<i class="fa-solid fa-layer-group text-sm"></i>אירועים';
+            // מסעדה: "אירועים" הוא שם ההקשר של "פקודות עבודה" (קייטרינג/אירועים) — הכרטיסייה עצמה (complex) נשארת כפי שהייתה
+            if (currentGroup?.business_type === 'restaurant' && bWO) {
+                bWO.innerHTML = '<i class="fa-solid fa-champagne-glasses text-sm"></i>אירועים';
+                const woTitle = document.getElementById('wo-view-title');
+                if (woTitle) woTitle.textContent = 'אירועים 🥂';
+                const newEventBtn = document.getElementById('btn-new-event-from-menu');
+                if (newEventBtn) newEventBtn.classList.remove('hidden');
             }
 
             switchSalesTab('orders');
@@ -8750,7 +8752,7 @@ window.renderStoreQuotes = function() {
             
             const isApproved = currentStatus === 'approved';
             const isWoBusinessType = ['services','construction','maintenance_repair','events','healthcare','restaurant','cafe','professional'].includes(currentGroup?.business_type);
-            const woLabel = currentGroup?.business_type === 'professional' ? 'תיק' : 'פקודת עבודה';
+            const woLabel = currentGroup?.business_type === 'professional' ? 'תיק' : (currentGroup?.business_type === 'restaurant' ? 'אירוע' : 'פקודת עבודה');
             const optionsHtml = Object.keys(statuses).map(k => `<option value="${k}" ${currentStatus === k ? 'selected' : ''}>${statuses[k]}</option>`).join('');
 
             const totalAmount = q.total_amount ? parseFloat(q.total_amount).toFixed(2) : "0.00";
@@ -41352,7 +41354,8 @@ async function saToggleLicense(groupId, featureKey, isActive) {
   <div class="flex gap-1 px-4 pt-3 pb-0 border-b border-slate-100 overflow-x-auto shrink-0" id="wo-tabs-bar">
     <button onclick="window.switchWoTab('overview')" id="wo-tab-overview" class="wo-tab-btn whitespace-nowrap px-3 py-1.5 rounded-t-lg text-xs font-bold border-b-2 border-indigo-500 text-indigo-600 bg-indigo-50">סקירה</button>
     <button onclick="window.switchWoTab('team')" id="wo-tab-team" class="wo-tab-btn whitespace-nowrap px-3 py-1.5 rounded-t-lg text-xs font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-700">צוות</button>
-    <button onclick="window.switchWoTab('inventory')" id="wo-tab-inventory" class="wo-tab-btn whitespace-nowrap px-3 py-1.5 rounded-t-lg text-xs font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-700">ציוד</button>
+    <button onclick="window.switchWoTab('inventory')" id="wo-tab-inventory" class="wo-tab-btn whitespace-nowrap px-3 py-1.5 rounded-t-lg text-xs font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-700">מצרכים</button>
+    <button onclick="window.switchWoTab('equipment')" id="wo-tab-equipment" class="wo-tab-btn whitespace-nowrap px-3 py-1.5 rounded-t-lg text-xs font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-700">ציוד אירוע</button>
     <button onclick="window.switchWoTab('chat')" id="wo-tab-chat" class="wo-tab-btn whitespace-nowrap px-3 py-1.5 rounded-t-lg text-xs font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-700">שיח</button>
     <button onclick="window.switchWoTab('notes')" id="wo-tab-notes" class="wo-tab-btn whitespace-nowrap px-3 py-1.5 rounded-t-lg text-xs font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-700">הערות</button>
     <button onclick="window.switchWoTab('timeline')" id="wo-tab-timeline" class="wo-tab-btn whitespace-nowrap px-3 py-1.5 rounded-t-lg text-xs font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-700">ציר זמן</button>
@@ -41400,7 +41403,8 @@ async function saToggleLicense(groupId, featureKey, isActive) {
       <div id="wo-assignees-list" class="space-y-2"></div>
       <div id="wo-add-assignee-panel" class="hidden mt-4 bg-slate-50 rounded-2xl p-4 border border-slate-200">
         <p class="text-xs font-bold text-slate-600 mb-2">בחר עובד לשיוך:</p>
-        <select id="wo-assignee-select" class="modern-input w-full py-2 px-3 text-sm mb-3 rounded-xl border border-slate-200 outline-none focus:border-indigo-400"></select>
+        <select id="wo-assignee-select" class="modern-input w-full py-2 px-3 text-sm mb-2 rounded-xl border border-slate-200 outline-none focus:border-indigo-400"></select>
+        <input type="text" id="wo-assignee-role" placeholder="תפקיד באירוע (למשל: מלצר ראשי, טבח אחראי)" class="modern-input w-full py-2 px-3 text-sm mb-3 rounded-xl border border-slate-200 outline-none focus:border-indigo-400">
         <div class="flex gap-2">
           <button onclick="window.addAssigneeToWo()" class="flex-1 bg-indigo-600 text-white py-2 rounded-xl text-xs font-bold hover:bg-indigo-700 transition">שייך</button>
           <button onclick="document.getElementById('wo-add-assignee-panel').classList.add('hidden')" class="flex-1 bg-slate-200 text-slate-600 py-2 rounded-xl text-xs font-bold hover:bg-slate-300 transition">ביטול</button>
@@ -41408,9 +41412,12 @@ async function saToggleLicense(groupId, featureKey, isActive) {
       </div>
     </div>
     <div id="wo-view-inventory" class="hidden">
-      <div class="flex justify-between items-center mb-3">
-        <h4 class="font-bold text-slate-700 text-sm">חומרי גלם וציוד</h4>
-        <button onclick="window.openAddInventoryPanel()" class="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-indigo-700 transition"><i class="fa-solid fa-plus mr-1"></i> הוסף ציוד</button>
+      <div class="flex justify-between items-center mb-3 flex-wrap gap-2">
+        <h4 class="font-bold text-slate-700 text-sm">מצרכים וחומרי גלם</h4>
+        <div class="flex gap-2">
+          <button onclick="window.autoReserveInventoryFromMenu()" class="bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-emerald-700 transition"><i class="fa-solid fa-wand-magic-sparkles mr-1"></i> שריון אוטומטי מהתפריט</button>
+          <button onclick="window.openAddInventoryPanel()" class="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-indigo-700 transition"><i class="fa-solid fa-plus mr-1"></i> הוסף ידנית</button>
+        </div>
       </div>
       <div id="wo-inventory-list" class="space-y-2"></div>
       <div id="wo-add-inventory-panel" class="hidden mt-4 bg-slate-50 rounded-2xl p-4 border border-slate-200">
@@ -41428,8 +41435,32 @@ async function saToggleLicense(groupId, featureKey, isActive) {
           </div>
         </div>
         <div class="flex gap-2">
-          <button onclick="window.addInventoryReservation()" class="flex-1 bg-indigo-600 text-white py-2 rounded-xl text-xs font-bold hover:bg-indigo-700 transition">שייך ציוד</button>
+          <button onclick="window.addInventoryReservation()" class="flex-1 bg-indigo-600 text-white py-2 rounded-xl text-xs font-bold hover:bg-indigo-700 transition">שייך</button>
           <button onclick="document.getElementById('wo-add-inventory-panel').classList.add('hidden')" class="flex-1 bg-slate-200 text-slate-600 py-2 rounded-xl text-xs font-bold hover:bg-slate-300 transition">ביטול</button>
+        </div>
+      </div>
+    </div>
+    <div id="wo-view-equipment" class="hidden">
+      <div class="flex justify-between items-center mb-3">
+        <h4 class="font-bold text-slate-700 text-sm">ציוד משויך לאירוע</h4>
+        <button onclick="window.openAddEquipmentPanel()" class="bg-cyan-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-cyan-700 transition"><i class="fa-solid fa-plus mr-1"></i> שייך ציוד</button>
+      </div>
+      <div id="wo-equipment-list" class="space-y-2"></div>
+      <div id="wo-add-equipment-panel" class="hidden mt-4 bg-slate-50 rounded-2xl p-4 border border-slate-200">
+        <p class="text-xs font-bold text-slate-600 mb-2">בחר פריט ציוד:</p>
+        <select id="wo-equipment-item-select" class="modern-input w-full py-2 px-3 text-sm mb-1 rounded-xl border border-slate-200 outline-none focus:border-cyan-400"></select>
+        <button type="button" onclick="window.quickCreateEquipmentItem()" class="text-[10px] text-cyan-700 font-bold mb-2 hover:underline"><i class="fa-solid fa-plus mr-1"></i> פריט ציוד חדש</button>
+        <div class="grid grid-cols-2 gap-2 mb-2">
+          <input type="date" id="wo-eq-date" class="modern-input py-2 px-3 text-sm rounded-xl border border-slate-200 outline-none focus:border-cyan-400">
+          <input type="time" id="wo-eq-time" class="modern-input py-2 px-3 text-sm rounded-xl border border-slate-200 outline-none focus:border-cyan-400">
+        </div>
+        <div class="mb-3">
+          <label class="text-[10px] text-slate-400 block mb-0.5">משך (דקות)</label>
+          <input type="number" id="wo-eq-duration" min="15" step="15" value="120" class="modern-input w-full py-2 px-3 text-sm rounded-xl border border-slate-200 outline-none focus:border-cyan-400">
+        </div>
+        <div class="flex gap-2">
+          <button onclick="window.addEquipmentReservation()" class="flex-1 bg-cyan-600 text-white py-2 rounded-xl text-xs font-bold hover:bg-cyan-700 transition">שייך ציוד</button>
+          <button onclick="document.getElementById('wo-add-equipment-panel').classList.add('hidden')" class="flex-1 bg-slate-200 text-slate-600 py-2 rounded-xl text-xs font-bold hover:bg-slate-300 transition">ביטול</button>
         </div>
       </div>
     </div>
@@ -41456,9 +41487,10 @@ async function saToggleLicense(groupId, featureKey, isActive) {
       <h4 class="font-bold text-slate-700 text-sm mb-3">קביעת זימון</h4>
       <div class="space-y-3">
         <input type="text" id="wo-cal-title" placeholder="נושא הזימון" class="w-full modern-input py-2 px-3 text-sm rounded-xl border border-slate-200 outline-none focus:border-indigo-400">
-        <div class="grid grid-cols-2 gap-2">
+        <div class="grid grid-cols-3 gap-2">
           <input type="date" id="wo-cal-date" class="modern-input py-2 px-3 text-sm rounded-xl border border-slate-200 outline-none focus:border-indigo-400">
           <input type="time" id="wo-cal-time" class="modern-input py-2 px-3 text-sm rounded-xl border border-slate-200 outline-none focus:border-indigo-400">
+          <input type="number" id="wo-cal-duration" min="15" step="15" placeholder="משך (דק')" class="modern-input py-2 px-3 text-sm rounded-xl border border-slate-200 outline-none focus:border-indigo-400">
         </div>
         <input type="text" id="wo-cal-address" placeholder="כתובת (אופציונלי)" class="w-full modern-input py-2 px-3 text-sm rounded-xl border border-slate-200 outline-none focus:border-indigo-400">
         <input type="text" id="wo-cal-notes" placeholder="הערות לזימון" class="w-full modern-input py-2 px-3 text-sm rounded-xl border border-slate-200 outline-none focus:border-indigo-400">
@@ -41498,9 +41530,12 @@ async function saToggleLicense(groupId, featureKey, isActive) {
       <div id="wo-costs-summary" class="space-y-3"></div>
     </div>
     <div id="wo-view-payments" class="hidden pb-20">
-      <div class="flex justify-between items-center mb-3">
+      <div class="flex justify-between items-center mb-3 flex-wrap gap-2">
         <h4 class="font-bold text-slate-700 text-sm">תחנות תשלום</h4>
-        <button onclick="window.openAddPaymentMilestone()" class="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-indigo-700 transition"><i class="fa-solid fa-plus mr-1"></i> הוסף תחנה</button>
+        <div class="flex gap-2">
+          <button onclick="window.applyPaymentMilestoneTemplate()" class="bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-emerald-700 transition"><i class="fa-solid fa-wand-magic-sparkles mr-1"></i> מקדמה + יתרה</button>
+          <button onclick="window.openAddPaymentMilestone()" class="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-indigo-700 transition"><i class="fa-solid fa-plus mr-1"></i> הוסף תחנה</button>
+        </div>
       </div>
       <div id="wo-payments-list" class="space-y-2 mb-4"></div>
       <div id="wo-add-payment-panel" class="hidden mt-2 bg-white rounded-xl p-3 border border-indigo-100 space-y-2">
@@ -41553,7 +41588,7 @@ window._currentWoId = null;
 window._currentWoData = null;
 
 window.switchWoTab = function(tab) {
-    ['overview','team','inventory','chat','notes','timeline','calendar','purchase','costs','payments','timelogs'].forEach(t => {
+    ['overview','team','inventory','equipment','chat','notes','timeline','calendar','purchase','costs','payments','timelogs'].forEach(t => {
         const v = document.getElementById(`wo-view-${t}`); if(v) v.classList.add('hidden');
         const b = document.getElementById(`wo-tab-${t}`);
         if(b) b.className = 'wo-tab-btn whitespace-nowrap px-3 py-1.5 rounded-t-lg text-xs font-bold border-b-2 border-transparent text-slate-500 hover:text-slate-700';
@@ -41567,6 +41602,7 @@ window.switchWoTab = function(tab) {
     if(tab === 'payments') window.loadWoPayments();
     if(tab === 'costs') { if(window._currentWoData) window.renderWoCosts(window._currentWoData); }
     if(tab === 'timelogs') window.loadWoTimeLogs();
+    if(tab === 'equipment') window.loadWoEquipment();
 };
 
 window.convertToWorkOrder = async function(quoteId) {
@@ -41592,6 +41628,99 @@ window.convertToWorkOrder = async function(quoteId) {
             window.switchSalesTab('work-orders');
         }
     } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
+// ===== EVENTS HUB — יצירת אירוע חדש מתוך תבנית תפריט קיימת =====
+window.openNewEventFromMenuModal = async function() {
+    let modal = document.getElementById('new-event-modal');
+    if (modal) modal.remove();
+
+    let templates = [];
+    try {
+        const r = await fetch(`${API}/menu-templates?groupId=${currentGroup.id}`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } });
+        const d = await r.json();
+        templates = Array.isArray(d) ? d : (d.templates || d.menuTemplates || []);
+    } catch(e) {}
+
+    if (!templates.length) {
+        if (await window._uiConfirm('לא נמצאו תבניות תפריט. לעבור למסך "תפריטים" כדי ליצור אחת?')) {
+            window.switchTab('menu_templates');
+        }
+        return;
+    }
+
+    const optionsHtml = templates.map(t => `<option value="${t.id}">${safeStr(t.name)}${t.event_type ? ' — ' + safeStr(t.event_type) : ''}</option>`).join('');
+
+    document.body.insertAdjacentHTML('beforeend', `
+    <div id="new-event-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[95] flex items-center justify-center p-3 fade-in">
+        <div class="bg-white w-full max-w-md rounded-[2rem] shadow-2xl relative flex flex-col max-h-[92vh] overflow-hidden border border-slate-200">
+            <div class="flex justify-between items-center p-4 border-b border-slate-200 shrink-0">
+                <h3 class="text-lg font-black text-slate-800"><i class="fa-solid fa-champagne-glasses text-emerald-500 mr-2"></i> אירוע חדש מתפריט</h3>
+                <button type="button" onclick="document.getElementById('new-event-modal').remove()" class="w-8 h-8 bg-slate-100 rounded-full text-slate-500 flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="flex-1 overflow-y-auto p-4 space-y-3">
+                <div>
+                    <label class="text-xs font-bold text-slate-600 mb-1 block">תבנית תפריט</label>
+                    <select id="ne-template" class="modern-input w-full">${optionsHtml}</select>
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-600 mb-1 block">שם הלקוח *</label>
+                    <input type="text" id="ne-customer-name" class="modern-input w-full" placeholder="שם מלא">
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-600 mb-1 block">טלפון</label>
+                    <input type="tel" id="ne-customer-phone" class="modern-input w-full" placeholder="05X-XXXXXXX">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="text-xs font-bold text-slate-600 mb-1 block">מספר סועדים</label>
+                        <input type="number" id="ne-guests" class="modern-input w-full" value="50" min="1">
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-slate-600 mb-1 block">תאריך אירוע</label>
+                        <input type="date" id="ne-date" class="modern-input w-full">
+                    </div>
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-600 mb-1 block">הערות</label>
+                    <textarea id="ne-notes" class="modern-input w-full" rows="2" placeholder="הערות ללקוח..."></textarea>
+                </div>
+            </div>
+            <div class="p-4 border-t border-slate-200 shrink-0">
+                <button id="btn-submit-new-event" onclick="window.submitNewEventFromMenu()" class="w-full bg-emerald-600 text-white py-3 rounded-xl font-bold text-sm shadow-md hover:bg-emerald-700 transition">צור הצעת מחיר לאירוע</button>
+            </div>
+        </div>
+    </div>`);
+};
+
+window.submitNewEventFromMenu = async function() {
+    const templateId = document.getElementById('ne-template')?.value;
+    const customerName = document.getElementById('ne-customer-name')?.value.trim();
+    const customerPhone = document.getElementById('ne-customer-phone')?.value.trim();
+    const guestCount = document.getElementById('ne-guests')?.value;
+    const eventDate = document.getElementById('ne-date')?.value;
+    const notes = document.getElementById('ne-notes')?.value.trim();
+
+    if (!customerName) return showToast('error', 'שם הלקוח הוא שדה חובה');
+
+    const btn = document.getElementById('btn-submit-new-event');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> יוצר...'; }
+    try {
+        const res = await fetch(`${API}/store/quotes/from-template`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' },
+            body: JSON.stringify({ templateId, customerName, customerPhone, guestCount, eventDate, notes })
+        });
+        const data = await res.json();
+        if (!data.success) { showToast('error', data.error || 'שגיאה ביצירת האירוע'); if (btn) { btn.disabled = false; btn.innerHTML = 'צור הצעת מחיר לאירוע'; } return; }
+        showToast('success', `הצעת מחיר לאירוע נוצרה (${data.itemCount} פריטים, ₪${data.totalAmount})`);
+        document.getElementById('new-event-modal')?.remove();
+        if (typeof window.fetchWorkOrders === 'function') window.fetchWorkOrders();
+        if (typeof window.fetchStoreQuotes === 'function') window.fetchStoreQuotes();
+    } catch(e) {
+        showToast('error', 'שגיאת תקשורת');
+        if (btn) { btn.disabled = false; btn.innerHTML = 'צור הצעת מחיר לאירוע'; }
+    }
 };
 
 window._woProfCache = {};
@@ -41633,17 +41762,42 @@ window.renderWorkOrdersList = function(workOrders) {
     if (!list) return;
     if (!workOrders.length) {
         const _isPro = currentGroup?.business_type === 'professional';
-        list.innerHTML = `<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200">${_isPro ? 'לא נמצאו תיקים. לחץ <strong>🔨 המר לתיק</strong> בכרטיס הצעה.' : 'לא נמצאו פקודות עבודה. לחץ <strong>🔨 המר לפקודת עבודה</strong> בכרטיס הצעת מחיר.'}</p>`;
+        const _isRest = currentGroup?.business_type === 'restaurant';
+        const emptyMsg = _isPro ? 'לא נמצאו תיקים. לחץ <strong>🔨 המר לתיק</strong> בכרטיס הצעה.'
+            : _isRest ? 'לא נמצאו אירועים. לחץ <strong>+ אירוע חדש מתפריט</strong> כדי להתחיל.'
+            : 'לא נמצאו פקודות עבודה. לחץ <strong>🔨 המר לפקודת עבודה</strong> בכרטיס הצעת מחיר.';
+        list.innerHTML = `<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200">${emptyMsg}</p>`;
         return;
     }
-    const statusLabels = { open: { label: 'פתוח', cls: 'bg-orange-100 text-orange-700 border-orange-200' }, new: { label: 'חדש', cls: 'bg-slate-100 text-slate-600 border-slate-200' }, processing: { label: 'בתהליך', cls: 'bg-blue-100 text-blue-700 border-blue-200' }, scheduled: { label: 'מתוזמן', cls: 'bg-purple-100 text-purple-700 border-purple-200' }, pending_payment: { label: 'ממתין לתשלום', cls: 'bg-yellow-100 text-yellow-700 border-yellow-200' }, completed: { label: 'הושלם', cls: 'bg-green-100 text-green-700 border-green-200' }, cancelled: { label: 'בוטל', cls: 'bg-red-100 text-red-700 border-red-200' } };
+    const statusLabels = { quote: { label: 'הצעה — טרם אושרה', cls: 'bg-indigo-100 text-indigo-700 border-indigo-200' }, open: { label: 'פתוח', cls: 'bg-orange-100 text-orange-700 border-orange-200' }, new: { label: 'חדש', cls: 'bg-slate-100 text-slate-600 border-slate-200' }, processing: { label: 'בתהליך', cls: 'bg-blue-100 text-blue-700 border-blue-200' }, scheduled: { label: 'מתוזמן', cls: 'bg-purple-100 text-purple-700 border-purple-200' }, pending_payment: { label: 'ממתין לתשלום', cls: 'bg-yellow-100 text-yellow-700 border-yellow-200' }, completed: { label: 'הושלם', cls: 'bg-green-100 text-green-700 border-green-200' }, cancelled: { label: 'בוטל', cls: 'bg-red-100 text-red-700 border-red-200' } };
     const fmtM = n => parseFloat(parseFloat(n || 0).toFixed(2));
     list.innerHTML = workOrders.map(wo => {
+        // אירוע שעדיין בשלב הצעת מחיר (טרם הומר לפקודת עבודה) — לא נפתח במודל פקודת העבודה, מנווט לטאב הצעות
+        if (wo.status === 'quote') {
+            const st = statusLabels.quote;
+            const revenue = parseFloat(wo.total_amount || 0);
+            const dateStr = wo.created_at ? new Date(wo.created_at).toLocaleDateString('he-IL') : '';
+            return `<div class="p-4 rounded-2xl border border-indigo-200 bg-indigo-50/40 shadow-sm hover:shadow-md transition cursor-pointer" onclick="window.switchSalesTab('quotes')">
+                <div class="flex justify-between items-start mb-2">
+                    <div class="flex-1 min-w-0">
+                        <h4 class="font-bold text-slate-800 text-sm truncate">${wo.quote_number || `אירוע #${wo.id}`} — ${safeStr(wo.customer_name || 'לקוח')}</h4>
+                        ${wo.quote_title ? `<p class="text-[11px] text-indigo-700 font-bold mt-0.5 truncate"><i class="fa-solid fa-utensils mr-1"></i>${safeStr(wo.quote_title)}</p>` : ''}
+                        <p class="text-lg font-black text-indigo-600 mt-0.5">₪${revenue > 0 ? fmtM(revenue) : '—'}</p>
+                        <p class="text-[10px] text-slate-500 mt-1">${dateStr} | ${safeStr(wo.customer_phone || 'ללא טלפון')}${wo.event_guest_count ? ` | ${wo.event_guest_count} סועדים` : ''}</p>
+                    </div>
+                    <span class="text-[10px] font-bold px-2 py-1 rounded-full border ${st.cls}">${st.label}</span>
+                </div>
+                <div class="flex gap-2 text-[10px] text-slate-500 mt-2">
+                    <span class="bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full border border-indigo-200 mr-auto"><i class="fa-solid fa-arrow-left mr-1"></i>המשך בטאב הצעות מחיר</span>
+                </div>
+            </div>`;
+        }
         const st = statusLabels[wo.status] || statusLabels.new;
         const revenue = parseFloat(wo.total_amount || 0);
         const dateStr = wo.created_at ? new Date(wo.created_at).toLocaleDateString('he-IL') : '';
         const assignCount = parseInt(wo.assignee_count) || 0;
         const invCount = parseInt(wo.inventory_count) || 0;
+        const eqCount = parseInt(wo.equipment_count) || 0;
         let serviceTitle = wo.quote_title || '';
         if (!serviceTitle) {
             try {
@@ -41679,7 +41833,8 @@ window.renderWorkOrdersList = function(workOrders) {
             </div>
             <div class="flex gap-2 text-[10px] text-slate-500 mt-2">
                 ${assignCount ? `<span class="bg-slate-100 px-2 py-0.5 rounded-full"><i class="fa-solid fa-users mr-1"></i>${assignCount} משויכים</span>` : ''}
-                ${invCount ? `<span class="bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full border border-amber-200"><i class="fa-solid fa-boxes-stacked mr-1"></i>${invCount} פריטי ציוד</span>` : ''}
+                ${invCount ? `<span class="bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full border border-amber-200"><i class="fa-solid fa-boxes-stacked mr-1"></i>${invCount} מצרכים</span>` : ''}
+                ${eqCount ? `<span class="bg-cyan-50 text-cyan-700 px-2 py-0.5 rounded-full border border-cyan-200"><i class="fa-solid fa-champagne-glasses mr-1"></i>${eqCount} ציוד</span>` : ''}
                 <span class="bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded-full border border-indigo-100 mr-auto"><i class="fa-solid fa-arrow-left mr-1"></i>פתח</span>
             </div>
             ${profitBar}
@@ -41749,7 +41904,17 @@ window.openWorkOrderModal = async function(woId) {
         const uData = await uRes.json();
         const sel = document.getElementById('wo-assignee-select');
         if (sel && uData.users) {
-            sel.innerHTML = '<option value="">בחר עובד</option>' + uData.users.map(u => `<option value="${u.id}" data-name="${safeStr(u.name)}">${safeStr(u.name)} (${u.employee_role_type || u.role})</option>`).join('');
+            let suggestedIds = new Set();
+            if (existingCal?.event_date) {
+                try {
+                    const sRes = await fetch(`${API}/work-orders/suggest-staff/${currentGroup.id}?eventDate=${existingCal.event_date.split('T')[0]}`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } });
+                    const sData = await sRes.json();
+                    suggestedIds = new Set((sData.suggested || []).map(u => u.id));
+                } catch(e) {}
+            }
+            sel.innerHTML = '<option value="">בחר עובד</option>' + uData.users.map(u =>
+                `<option value="${u.id}" data-name="${safeStr(u.name)}">${suggestedIds.has(u.id) ? '⭐ ' : ''}${safeStr(u.name)} (${u.employee_role_type || u.role})${suggestedIds.has(u.id) ? ' — במשמרת בתאריך זה' : ''}</option>`
+            ).join('');
         }
         // load catalog for inventory dropdown
         const cRes = await fetch(`${API}/work-orders/catalog/${currentGroup.id}`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } });
@@ -41984,7 +42149,10 @@ window.renderWoTeam = function(assignees) {
         <div class="flex items-center justify-between mb-2">
             <div class="flex items-center gap-2">
                 <div class="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold text-sm">${(a.user_name || '?')[0]}</div>
-                <span class="font-bold text-slate-700 text-sm">${safeStr(a.user_name)}</span>
+                <div>
+                    <span class="font-bold text-slate-700 text-sm block">${safeStr(a.user_name)}</span>
+                    ${a.role_label ? `<span class="text-[10px] text-indigo-600 font-bold">${safeStr(a.role_label)}</span>` : ''}
+                </div>
             </div>
             <button onclick="window.removeWoAssignee(${a.user_id})" class="text-red-400 hover:text-red-600 text-xs p-1"><i class="fa-solid fa-times"></i></button>
         </div>
@@ -42270,14 +42438,16 @@ window.addAssigneeToWo = async function() {
     if (!sel || !sel.value) return showToast('error', 'בחר עובד');
     const userId = sel.value;
     const userName = sel.options[sel.selectedIndex]?.dataset?.name || sel.options[sel.selectedIndex]?.text || '';
+    const roleLabel = document.getElementById('wo-assignee-role')?.value.trim() || '';
     try {
         const res = await fetch(`${API}/work-orders/${window._currentWoId}/assignees`, {
             method: 'POST', headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '','Content-Type': 'application/json'},
-            body: JSON.stringify({ userId, userName, assignedBy: currentUser?.nickname || 'מנהל' })
+            body: JSON.stringify({ userId, userName, assignedBy: currentUser?.nickname || 'מנהל', roleLabel })
         });
         const data = await res.json();
         if (!data.success) return showToast('error', data.error);
         document.getElementById('wo-add-assignee-panel').classList.add('hidden');
+        const roleInput = document.getElementById('wo-assignee-role'); if (roleInput) roleInput.value = '';
         showToast('success', 'עובד שויך בהצלחה');
         const dRes = await fetch(`${API}/work-orders/detail/${window._currentWoId}`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } });
         const dData = await dRes.json();
@@ -42455,6 +42625,134 @@ window.releaseInventory = async function(resId) {
     } catch(e) { showToast('error', 'שגיאת תקשורת'); }
 };
 
+window.autoReserveInventoryFromMenu = async function() {
+    if (!await window._uiConfirm('לשריין אוטומטית את כל המצרכים הנדרשים לפי התפריט ומספר הסועדים?')) return;
+    try {
+        const res = await fetch(`${API}/work-orders/${window._currentWoId}/inventory/auto-from-menu`, {
+            method: 'POST', headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '','Content-Type': 'application/json'},
+            body: JSON.stringify({ reservedBy: currentUser?.nickname || 'מנהל' })
+        });
+        const data = await res.json();
+        if (!data.success) return showToast('error', data.error);
+        const shortages = (data.reservations || []).filter(r => r.shortage > 0);
+        if (shortages.length) {
+            showToast('warning', `שוריינו ${data.reservations.length} מרכיבים — ${shortages.length} עם מחסור. בדוק ברשימה ובצע רכש נדרש.`);
+        } else {
+            showToast('success', `${data.reservations.length} מרכיבים שוריינו אוטומטית מהתפריט`);
+        }
+        const dRes = await fetch(`${API}/work-orders/detail/${window._currentWoId}`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } });
+        const dData = await dRes.json();
+        if (dData.success) { window._currentWoData = dData; window.renderWoInventory(dData.inventory || []); window.renderWoOverview(dData); }
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
+window.applyPaymentMilestoneTemplate = async function() {
+    const pctStr = await window._uiPrompt('אחוז מקדמה (10-90):', { defaultValue: '30', type: 'number' });
+    if (pctStr === null) return;
+    try {
+        const res = await fetch(`${API}/work-orders/${window._currentWoId}/payments/apply-template`, {
+            method: 'POST', headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '','Content-Type': 'application/json'},
+            body: JSON.stringify({ depositPct: pctStr })
+        });
+        const data = await res.json();
+        if (!data.success) return showToast('error', data.error);
+        showToast('success', `נוצרו אבני דרך: מקדמה ₪${data.depositAmount} + יתרה ₪${data.balanceAmount}`);
+        window.loadWoPayments();
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
+// --- Equipment for Work Orders (אירועים) ---
+window.loadWoEquipment = async function() {
+    if (!window._currentWoId) return;
+    try {
+        const res = await fetch(`${API}/work-orders/${window._currentWoId}/equipment`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } });
+        const data = await res.json();
+        window.renderWoEquipment(data.equipment || []);
+    } catch(e) {}
+};
+
+window.renderWoEquipment = function(equipment) {
+    const list = document.getElementById('wo-equipment-list');
+    if (!list) return;
+    if (!equipment.length) { list.innerHTML = `<p class="text-slate-400 text-xs text-center py-4">טרם שויך ציוד לאירוע זה</p>`; return; }
+    list.innerHTML = equipment.map(eq => `<div class="bg-slate-50 rounded-xl p-3 border border-slate-100 mb-2 flex items-center justify-between">
+        <div>
+            <p class="font-bold text-slate-700 text-sm">${safeStr(eq.equipment_name)}</p>
+            <p class="text-[10px] text-slate-500 mt-0.5">${eq.event_date} ${eq.start_time?.substring(0,5) || ''} · ${eq.duration_minutes || 120} דק'</p>
+        </div>
+        <button onclick="window.removeWoEquipment(${eq.id})" class="text-red-400 hover:text-red-600 text-xs p-1"><i class="fa-solid fa-times"></i></button>
+    </div>`).join('');
+};
+
+window.quickCreateEquipmentItem = async function() {
+    const name = await window._uiPrompt('שם פריט הציוד (למשל: מכונת קפה ניידת, פודיום הגשה):', { defaultValue: '' });
+    if (!name || !name.trim()) return;
+    try {
+        const res = await fetch(`${API}/equipment/items`, {
+            method: 'POST', headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '','Content-Type': 'application/json'},
+            body: JSON.stringify({ groupId: currentGroup.id, name: name.trim(), category: 'אירועים' })
+        });
+        const data = await res.json();
+        if (!data.success) return showToast('error', data.error || 'שגיאה ביצירת פריט');
+        showToast('success', 'פריט ציוד נוצר');
+        window.openAddEquipmentPanel();
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
+window.openAddEquipmentPanel = async function() {
+    document.getElementById('wo-add-equipment-panel').classList.remove('hidden');
+    const sel = document.getElementById('wo-equipment-item-select');
+    if (!sel) return;
+    sel.innerHTML = '<option value="">טוען...</option>';
+    try {
+        const res = await fetch(`${API}/equipment/items/${currentGroup.id}`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } });
+        const data = await res.json();
+        const items = data.items || [];
+        if (!items.length) {
+            sel.innerHTML = '<option value="">אין פריטי ציוד רשומים — הוסף דרך "יצירת פריט ציוד"</option>';
+            return;
+        }
+        sel.innerHTML = '<option value="">בחר פריט</option>' + items.map(i => `<option value="${i.id}">${safeStr(i.name)}${i.category ? ' (' + safeStr(i.category) + ')' : ''}</option>`).join('');
+    } catch(e) { sel.innerHTML = '<option value="">שגיאה בטעינה</option>'; }
+    // ברירת מחדל לתאריך/שעה מהזימון הקיים אם יש
+    const cal = (window._currentWoData?.calendarEvents || [])[0];
+    if (cal) {
+        const d = document.getElementById('wo-eq-date'); if (d && !d.value) d.value = cal.event_date?.split('T')[0] || '';
+        const t = document.getElementById('wo-eq-time'); if (t && !t.value) t.value = cal.start_time?.substring(0,5) || '';
+    }
+};
+
+window.addEquipmentReservation = async function() {
+    const sel = document.getElementById('wo-equipment-item-select');
+    const eventDate = document.getElementById('wo-eq-date')?.value;
+    const startTime = document.getElementById('wo-eq-time')?.value;
+    const durationMinutes = document.getElementById('wo-eq-duration')?.value || 120;
+    if (!sel || !sel.value) return showToast('error', 'נא לבחור פריט ציוד');
+    if (!eventDate || !startTime) return showToast('error', 'נא למלא תאריך ושעה');
+    try {
+        const res = await fetch(`${API}/work-orders/${window._currentWoId}/equipment`, {
+            method: 'POST', headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '','Content-Type': 'application/json'},
+            body: JSON.stringify({ equipmentItemId: sel.value, eventDate, startTime, durationMinutes, reservedBy: currentUser?.nickname || 'מנהל' })
+        });
+        const data = await res.json();
+        if (!data.success) return showToast('error', data.error || 'שגיאה בשיוך הציוד');
+        document.getElementById('wo-add-equipment-panel').classList.add('hidden');
+        showToast('success', 'ציוד שויך בהצלחה');
+        window.loadWoEquipment();
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
+window.removeWoEquipment = async function(resId) {
+    if (!await window._uiConfirm('לשחרר את הציוד המשויך?')) return;
+    try {
+        const res = await fetch(`${API}/work-orders/${window._currentWoId}/equipment/${resId}`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' }, method: 'DELETE' });
+        const data = await res.json();
+        if (!data.success) return showToast('error', data.error);
+        showToast('success', 'ציוד שוחרר');
+        window.loadWoEquipment();
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
 window.sendWoMessage = async function() {
     const input = document.getElementById('wo-chat-input');
     const msg = input?.value?.trim();
@@ -42502,6 +42800,7 @@ window.createWoCalendarEvent = async function() {
     const time = document.getElementById('wo-cal-time')?.value;
     const address = document.getElementById('wo-cal-address')?.value || '';
     const notes = document.getElementById('wo-cal-notes')?.value || '';
+    const durationMinutes = document.getElementById('wo-cal-duration')?.value || null;
     if (!title || !date || !time) return showToast('error', 'נא למלא נושא, תאריך ושעה');
     const wo = window._currentWoData?.workOrder;
     const assignees = window._currentWoData?.assignees || [];
@@ -42509,7 +42808,7 @@ window.createWoCalendarEvent = async function() {
     try {
         const res = await fetch(`${API}/work-orders/${window._currentWoId}/calendar`, {
             method: 'POST', headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '','Content-Type': 'application/json'},
-            body: JSON.stringify({ groupId: currentGroup.id, title, eventDate: date, startTime: time, customerName: wo?.customer_name || '', address, notes, assigneeIds })
+            body: JSON.stringify({ groupId: currentGroup.id, title, eventDate: date, startTime: time, customerName: wo?.customer_name || '', address, notes, assigneeIds, durationMinutes })
         });
         const data = await res.json();
         if (!data.success) return showToast('error', data.error);

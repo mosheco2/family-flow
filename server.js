@@ -1354,6 +1354,33 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
       try { await client.query(`ALTER TABLE service_calls ADD COLUMN IF NOT EXISTS payment_status VARCHAR(30) DEFAULT NULL`); } catch(e) {}
       // ===== END WORK ORDER PAYMENTS MODULE =====
 
+      // ===== EVENTS / PROJECTS HUB (מסעדה — "אירועים") — תוספות טהורות, לא נוגעות בשום שורה קיימת =====
+      // קישור הזמנה/הצעת מחיר/פקודת עבודה לתבנית תפריט שממנה היא נוצרה, ודגל שמסמן שזו רשומת "אירוע"
+      try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS menu_template_id INT REFERENCES menu_templates(id) ON DELETE SET NULL`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS is_event BOOLEAN DEFAULT FALSE`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS event_guest_count INT`); } catch(e) {}
+      // תפקיד לכל איש צוות המשויך לפקודת עבודה/אירוע (למשל "מלצר ראשי", "טבח אחראי")
+      try { await client.query(`ALTER TABLE work_order_assignees ADD COLUMN IF NOT EXISTS role_label VARCHAR(100)`); } catch(e) {}
+      // משך זמן לאירוע ביומן (לצד תאריך/שעת התחלה הקיימים) — לבדיקת התנגשות צוות/ציוד
+      try { await client.query(`ALTER TABLE calendar_events ADD COLUMN IF NOT EXISTS duration_minutes INT`); } catch(e) {}
+      // שיוך ציוד לפקודת עבודה/אירוע — מקביל במבנה לשיוך המלאי הקיים (work_order_inventory)
+      try { await client.query(`CREATE TABLE IF NOT EXISTS work_order_equipment (
+          id SERIAL PRIMARY KEY,
+          work_order_id INT REFERENCES store_orders(id) ON DELETE CASCADE,
+          equipment_item_id INT REFERENCES equipment_items(id) ON DELETE CASCADE,
+          equipment_name VARCHAR(200),
+          event_date DATE,
+          start_time TIME,
+          duration_minutes INT,
+          status VARCHAR(20) DEFAULT 'reserved',
+          reserved_at TIMESTAMP DEFAULT NOW(),
+          released_at TIMESTAMP,
+          reserved_by VARCHAR(100),
+          notes TEXT
+      )`); } catch(e) {}
+      try { await client.query(`CREATE INDEX IF NOT EXISTS idx_wo_equipment_lookup ON work_order_equipment(equipment_item_id, event_date, status)`); } catch(e) {}
+      // ===== END EVENTS / PROJECTS HUB =====
+
       // ===== PROFESSIONAL / TIMELOG MODULE =====
       try { await client.query(`CREATE TABLE IF NOT EXISTS time_logs (
           id SERIAL PRIMARY KEY,
@@ -23854,9 +23881,10 @@ app.get('/api/work-orders/list/:groupId', verifyBiz, async (req, res) => {
         if (parseInt(req.params.groupId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         let q = `SELECT so.*,
             (SELECT COUNT(*) FROM work_order_assignees WHERE work_order_id=so.id) as assignee_count,
-            (SELECT COUNT(*) FROM work_order_inventory WHERE work_order_id=so.id AND status='reserved') as inventory_count
+            (SELECT COUNT(*) FROM work_order_inventory WHERE work_order_id=so.id AND status='reserved') as inventory_count,
+            (SELECT COUNT(*) FROM work_order_equipment WHERE work_order_id=so.id AND status='reserved') as equipment_count
             FROM store_orders so
-            WHERE so.group_id=$1 AND so.call_type='work_order'`;
+            WHERE so.group_id=$1 AND (so.call_type='work_order' OR (so.is_event=TRUE AND so.status='quote'))`;
         const params = [req.params.groupId];
         if (status && status !== 'all') { q += ` AND so.status=$2`; params.push(status); }
         q += ' ORDER BY so.created_at DESC';
@@ -23967,14 +23995,30 @@ app.get('/api/work-orders/users/:groupId', verifyBiz, async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// עובדים בעלי משמרת מאושרת בתאריך האירוע — הצעה בלבד, לא חוסם שיוך של עובד אחר
+app.get('/api/work-orders/suggest-staff/:groupId', verifyBiz, async (req, res) => {
+    try {
+        if (parseInt(req.params.groupId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
+        const eventDate = req.query.eventDate;
+        if (!eventDate) return res.status(400).json({ error: 'חסר תאריך' });
+        const r = await pool.query(
+            `SELECT DISTINCT u.id, u.nickname as name, u.employee_role_type
+             FROM tasks t JOIN users u ON u.id = t.assigned_to
+             WHERE t.group_id=$1 AND t.status='approved' AND t.title LIKE $2`,
+            [req.params.groupId, `SHIFT|${eventDate}|%`]
+        );
+        res.json({ success: true, suggested: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 app.post('/api/work-orders/:id/assignees', verifyBiz, async (req, res) => {
     try {
-        const { userId, userName, assignedBy } = req.body;
+        const { userId, userName, assignedBy, roleLabel } = req.body;
         const _wo = await pool.query('SELECT 1 FROM store_orders WHERE id=$1 AND group_id=$2 AND call_type=\'work_order\'', [req.params.id, req.bizAuth.groupId]);
         if (!_wo.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
         await pool.query(
-            'INSERT INTO work_order_assignees (work_order_id, user_id, user_name, assigned_by) VALUES ($1,$2,$3,$4) ON CONFLICT (work_order_id, user_id) DO NOTHING',
-            [req.params.id, userId, userName, assignedBy]
+            'INSERT INTO work_order_assignees (work_order_id, user_id, user_name, assigned_by, role_label) VALUES ($1,$2,$3,$4,$5) ON CONFLICT (work_order_id, user_id) DO UPDATE SET role_label=$5',
+            [req.params.id, userId, userName, assignedBy, roleLabel || null]
         );
         await addWorkOrderTimeline(req.params.id, 'assignee_added', `שויך עובד: ${userName}`, assignedBy);
         // שלח התראה לעובד שמושייך — לא חסום אם נכשל
@@ -24153,6 +24197,198 @@ app.delete('/api/work-orders/:id/inventory/:resId', verifyBiz, async (req, res) 
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// ===== EVENTS HUB — שיוך ציוד לפקודת עבודה/אירוע =====
+app.get('/api/work-orders/:id/equipment', verifyBiz, async (req, res) => {
+    try {
+        const _wo = await pool.query('SELECT 1 FROM store_orders WHERE id=$1 AND group_id=$2', [req.params.id, req.bizAuth.groupId]);
+        if (!_wo.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
+        const r = await pool.query(`SELECT * FROM work_order_equipment WHERE work_order_id=$1 AND status='reserved' ORDER BY id`, [req.params.id]);
+        res.json({ success: true, equipment: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/work-orders/:id/equipment', verifyBiz, async (req, res) => {
+    try {
+        const { equipmentItemId, eventDate, startTime, durationMinutes, reservedBy, notes } = req.body;
+        const _wo = await pool.query('SELECT 1 FROM store_orders WHERE id=$1 AND group_id=$2', [req.params.id, req.bizAuth.groupId]);
+        if (!_wo.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
+        if (!equipmentItemId || !eventDate || !startTime) return res.status(400).json({ error: 'חסרים נתוני ציוד/תאריך/שעה' });
+        const eqRes = await pool.query('SELECT * FROM equipment_items WHERE id=$1 AND group_id=$2', [equipmentItemId, req.bizAuth.groupId]);
+        if (!eqRes.rows.length) return res.status(404).json({ error: 'פריט ציוד לא נמצא' });
+
+        // בדיקת התנגשות: אותו פריט ציוד משוריין כבר לאירוע אחר שחופף בזמן
+        const dur = parseInt(durationMinutes) || 120;
+        const conflict = await pool.query(
+            `SELECT wo.id, wo.customer_name FROM work_order_equipment woe
+             JOIN store_orders wo ON wo.id = woe.work_order_id
+             WHERE woe.equipment_item_id=$1 AND woe.status='reserved' AND woe.event_date=$2
+               AND (woe.start_time, woe.start_time + (COALESCE(woe.duration_minutes,120) || ' minutes')::interval)
+                   OVERLAPS ($3::time, $3::time + ($4 || ' minutes')::interval)`,
+            [equipmentItemId, eventDate, startTime, dur]
+        );
+        if (conflict.rows.length) {
+            return res.status(409).json({ error: `הפריט כבר משוריין לאירוע אחר (${conflict.rows[0].customer_name || '#' + conflict.rows[0].id}) באותו חלון זמן` });
+        }
+
+        const r = await pool.query(
+            `INSERT INTO work_order_equipment (work_order_id, equipment_item_id, equipment_name, event_date, start_time, duration_minutes, reserved_by, notes)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+            [req.params.id, equipmentItemId, eqRes.rows[0].name, eventDate, startTime, dur, reservedBy || null, notes || null]
+        );
+        await addWorkOrderTimeline(req.params.id, 'equipment_reserved', `ציוד שויך: ${eqRes.rows[0].name}`, reservedBy);
+        res.json({ success: true, reservation: r.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/work-orders/:id/equipment/:resId', verifyBiz, async (req, res) => {
+    try {
+        const _wo = await pool.query('SELECT 1 FROM store_orders WHERE id=$1 AND group_id=$2', [req.params.id, req.bizAuth.groupId]);
+        if (!_wo.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
+        const r = await pool.query(`UPDATE work_order_equipment SET status='released', released_at=NOW() WHERE id=$1 AND work_order_id=$2 RETURNING equipment_name`, [req.params.resId, req.params.id]);
+        if (!r.rows.length) return res.status(404).json({ error: 'שיוך לא נמצא' });
+        await addWorkOrderTimeline(req.params.id, 'equipment_released', `ציוד שוחרר: ${r.rows[0].equipment_name}`, 'מנהל');
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ===== EVENTS HUB — שריון מלאי אוטומטי מתוך התפריט המקושר (לפי מתכונים במודול פוד קוסט) =====
+app.post('/api/work-orders/:id/inventory/auto-from-menu', verifyBiz, async (req, res) => {
+    try {
+        const { reservedBy } = req.body;
+        const woRes = await pool.query(
+            `SELECT * FROM store_orders WHERE id=$1 AND group_id=$2 AND call_type='work_order'`,
+            [req.params.id, req.bizAuth.groupId]
+        );
+        if (!woRes.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
+        const wo = woRes.rows[0];
+        if (!wo.menu_template_id) return res.status(400).json({ error: 'לאירוע זה לא משויך תפריט' });
+        const guestCount = parseInt(wo.event_guest_count) || 1;
+
+        const itemsRes = await pool.query(
+            `SELECT mi.catalog_item_id FROM menu_items mi
+             JOIN menu_sections ms ON ms.id = mi.section_id
+             WHERE ms.template_id=$1 AND mi.catalog_item_id IS NOT NULL`,
+            [wo.menu_template_id]
+        );
+        const catalogIds = [...new Set(itemsRes.rows.map(r => r.catalog_item_id))];
+        if (!catalogIds.length) return res.json({ success: true, reservations: [], message: 'לתפריט זה אין פריטים עם מתכון מקושר' });
+
+        const ingRes = await pool.query('SELECT * FROM product_ingredients WHERE catalog_id = ANY($1::int[])', [catalogIds]);
+        // איחוד מצרכים לפי שם (כמה מנות עשויות לחלוק אותו מרכיב)
+        const needed = {}; // name -> {qty, unit}
+        ingRes.rows.forEach(ing => {
+            const qtyPerGuest = parseFloat(ing.quantity || 0) * (1 + parseFloat(ing.waste_pct || 0) / 100);
+            const key = (ing.ingredient_name || '').trim().toLowerCase();
+            if (!key) return;
+            if (!needed[key]) needed[key] = { name: ing.ingredient_name, unit: ing.unit, qty: 0 };
+            needed[key].qty += qtyPerGuest * guestCount;
+        });
+
+        const results = [];
+        for (const key of Object.keys(needed)) {
+            const { name, qty } = needed[key];
+            const pRes = await pool.query('SELECT * FROM pantry WHERE group_id=$1 AND LOWER(item_name)=$2', [req.bizAuth.groupId, key]);
+            if (!pRes.rows.length) {
+                results.push({ ingredient: name, needed: qty, reserved: 0, shortage: qty, note: 'לא נמצא פריט תואם במחסן' });
+                continue;
+            }
+            const p = pRes.rows[0];
+            const fgRes = await pool.query('SELECT min_stock_buffer_pct FROM family_groups WHERE id=$1', [req.bizAuth.groupId]);
+            const bufferPct = parseFloat(fgRes.rows[0]?.min_stock_buffer_pct || 0);
+            const totalStock = parseFloat(p.quantity || 0);
+            const alreadyReserved = parseFloat(p.reserved_qty || 0);
+            const bufferQty = totalStock * (bufferPct / 100);
+            const available = Math.max(0, totalStock - alreadyReserved - bufferQty);
+            const actualReserved = Math.min(qty, available);
+            const shortage = parseFloat((qty - actualReserved).toFixed(4));
+            if (actualReserved > 0) {
+                await pool.query('UPDATE pantry SET reserved_qty = COALESCE(reserved_qty,0) + $1 WHERE id=$2', [actualReserved, p.id]);
+                await pool.query(
+                    'INSERT INTO work_order_inventory (work_order_id, pantry_id, item_name, needed_qty, reserved_qty, reserved_by) VALUES ($1,$2,$3,$4,$5,$6)',
+                    [req.params.id, p.id, p.item_name, qty, actualReserved, reservedBy || 'אוטומטי מתפריט']
+                );
+            }
+            results.push({ ingredient: name, needed: qty, reserved: actualReserved, shortage });
+        }
+
+        const shortageCount = results.filter(r => r.shortage > 0).length;
+        await addWorkOrderTimeline(req.params.id, 'inventory_auto_reserved',
+            `שריון אוטומטי מהתפריט: ${results.length} מרכיבים${shortageCount ? `, ${shortageCount} עם מחסור` : ''}`, reservedBy);
+        res.json({ success: true, reservations: results });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ===== EVENTS HUB — יצירת הצעת מחיר אוטומטית מתוך תבנית תפריט =====
+app.post('/api/store/quotes/from-template', verifyBiz, async (req, res) => {
+    try {
+        const { templateId, customerName, customerPhone, guestCount, eventDate, notes } = req.body;
+        if (!templateId || !customerName) return res.status(400).json({ error: 'חסרים נתוני תבנית/לקוח' });
+        const tmplRes = await pool.query('SELECT * FROM menu_templates WHERE id=$1 AND group_id=$2', [templateId, req.bizAuth.groupId]);
+        if (!tmplRes.rows.length) return res.status(404).json({ error: 'תבנית לא נמצאה' });
+        const tmpl = tmplRes.rows[0];
+
+        const itemsRes = await pool.query(
+            `SELECT mi.*, ms.name as section_name FROM menu_items mi
+             JOIN menu_sections ms ON ms.id = mi.section_id
+             WHERE ms.template_id=$1 AND mi.is_available IS NOT FALSE ORDER BY ms.sort_order, mi.sort_order`,
+            [templateId]
+        );
+        const guests = Math.max(1, parseInt(guestCount) || tmpl.min_guests || 1);
+        const perPerson = tmpl.pricing_mode === 'per_person';
+        const items = itemsRes.rows.map(mi => {
+            const price = parseFloat(mi.custom_price || 0);
+            return {
+                name: mi.name,
+                catalogId: mi.catalog_item_id || null,
+                price_at_order: price,
+                quantity: perPerson ? guests : 1,
+                notes: mi.section_name,
+            };
+        });
+        if (perPerson && tmpl.base_price_per_person) {
+            items.push({ name: `${tmpl.name} — מחיר בסיס לסועד`, catalogId: null, price_at_order: parseFloat(tmpl.base_price_per_person), quantity: guests });
+        }
+        const totalAmount = items.reduce((s, it) => s + (it.price_at_order * it.quantity), 0);
+
+        const r = await pool.query(
+            `INSERT INTO store_orders (group_id, customer_name, customer_phone, total_amount, status, notes, items, quote_title, menu_template_id, is_event, event_guest_count, target_datetime, created_at)
+             VALUES ($1,$2,$3,$4,'quote',$5,$6,$7,$8,TRUE,$9,$10, CURRENT_TIMESTAMP) RETURNING id`,
+            [req.bizAuth.groupId, customerName, customerPhone || null, totalAmount, notes || null, JSON.stringify(items), tmpl.name, templateId, guests, eventDate || null]
+        );
+        const quoteId = r.rows[0].id;
+        const quoteNumber = `QT-${String(quoteId).padStart(6, '0')}`;
+        await pool.query('UPDATE store_orders SET quote_number=$1 WHERE id=$2', [quoteNumber, quoteId]);
+        res.json({ success: true, quoteId, quoteNumber, totalAmount, itemCount: items.length });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ===== EVENTS HUB — החלת תבנית אבני-דרך תשלום סטנדרטית =====
+app.post('/api/work-orders/:id/payments/apply-template', verifyBiz, async (req, res) => {
+    try {
+        const { depositPct } = req.body;
+        const woRes = await pool.query(`SELECT * FROM store_orders WHERE id=$1 AND group_id=$2 AND call_type='work_order'`, [req.params.id, req.bizAuth.groupId]);
+        if (!woRes.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
+        const existing = await pool.query('SELECT 1 FROM work_order_payments WHERE work_order_id=$1', [req.params.id]);
+        if (existing.rows.length) return res.status(400).json({ error: 'כבר קיימות אבני דרך לפרויקט זה' });
+        const total = parseFloat(woRes.rows[0].total_amount || 0);
+        const pct = Math.min(90, Math.max(10, parseFloat(depositPct) || 30));
+        const depositAmount = parseFloat((total * pct / 100).toFixed(2));
+        const balanceAmount = parseFloat((total - depositAmount).toFixed(2));
+        const eventDate = woRes.rows[0].target_datetime;
+        await pool.query(
+            `INSERT INTO work_order_payments (work_order_id, milestone_name, amount, due_date, status, total_amount) VALUES ($1,'מקדמה',$2,CURRENT_DATE,'pending',$3)`,
+            [req.params.id, depositAmount, total]
+        );
+        await pool.query(
+            `INSERT INTO work_order_payments (work_order_id, milestone_name, amount, due_date, status, total_amount) VALUES ($1,'יתרה — יום האירוע',$2,$3,'pending',$4)`,
+            [req.params.id, balanceAmount, eventDate || null, total]
+        );
+        await pool.query(`UPDATE store_orders SET payment_status = COALESCE(payment_status,'pending_payment') WHERE id=$1`, [req.params.id]);
+        await addWorkOrderTimeline(req.params.id, 'payments_template_applied', `הוחלה תבנית תשלום: מקדמה ${pct}% / יתרה`, 'מנהל');
+        res.json({ success: true, depositAmount, balanceAmount });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 app.get('/api/work-orders/:id/messages', verifyBiz, async (req, res) => {
     try {
         const _wo = await pool.query('SELECT 1 FROM store_orders WHERE id=$1 AND group_id=$2 AND call_type=\'work_order\'', [req.params.id, req.bizAuth.groupId]);
@@ -24198,14 +24434,14 @@ app.get('/api/work-orders/:id/timeline', verifyBiz, async (req, res) => {
 
 app.post('/api/work-orders/:id/calendar', verifyBiz, async (req, res) => {
     try {
-        const { groupId, title, eventDate, startTime, customerName, address, assigneeIds, notes } = req.body;
+        const { groupId, title, eventDate, startTime, customerName, address, assigneeIds, notes, durationMinutes } = req.body;
         if (parseInt(groupId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const _wo = await pool.query('SELECT 1 FROM store_orders WHERE id=$1 AND group_id=$2 AND call_type=\'work_order\'', [req.params.id, req.bizAuth.groupId]);
         if (!_wo.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
         const r = await pool.query(
-            `INSERT INTO calendar_events (group_id, title, event_date, start_time, customer_phone, customer_name, notes, status, work_order_id, address, attendees_user_ids)
-             VALUES ($1,$2,$3,$4,$5,$6,$7,'approved',$8,$9,$10) RETURNING id`,
-            [groupId, title, eventDate, startTime, customerName || '', customerName || '', notes || '', req.params.id, address || '', JSON.stringify(assigneeIds || [])]
+            `INSERT INTO calendar_events (group_id, title, event_date, start_time, customer_phone, customer_name, notes, status, work_order_id, address, attendees_user_ids, duration_minutes)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,'approved',$8,$9,$10,$11) RETURNING id`,
+            [groupId, title, eventDate, startTime, customerName || '', customerName || '', notes || '', req.params.id, address || '', JSON.stringify(assigneeIds || []), durationMinutes || null]
         );
         await addWorkOrderTimeline(req.params.id, 'calendar_event', `זימון נקבע ל-${eventDate} ${startTime}`, 'מנהל');
         res.json({ success: true, eventId: r.rows[0].id });
