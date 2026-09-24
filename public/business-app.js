@@ -2746,6 +2746,18 @@ function switchTab(t) {
             if (bCat) { bCat.innerHTML = '<i class="fa-solid fa-book-open text-sm"></i>קטלוג'; }
             const bQ = document.getElementById('btn-sales-quotes');
             if (bQ) { bQ.innerHTML = '<i class="fa-solid fa-file-invoice text-sm"></i>הצעות מחיר'; }
+
+            // מסעדה: "פרויקטים" -> "אירועים" — מפעיל את הכרטיסייה (הייתה נעולה "בקרוב" לכולם)
+            if (currentGroup?.business_type === 'restaurant' && bComplex) {
+                bComplex.removeAttribute('disabled');
+                bComplex.style.cursor = '';
+                bComplex.style.opacity = '';
+                bComplex.classList.remove('text-slate-400');
+                bComplex.classList.add('text-slate-600');
+                bComplex.setAttribute('onclick', "window.switchSalesTab('complex')");
+                bComplex.innerHTML = '<i class="fa-solid fa-layer-group text-sm"></i>אירועים';
+            }
+
             switchSalesTab('orders');
         }
     } catch(e) {}
