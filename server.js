@@ -1660,6 +1660,8 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )`); } catch(e) {}
+      // קישור אמיתי בין ליד לחבר שנוצר ממנו — קודם ההמרה הייתה רק מילוי-אוטומטי של טופס, ללא עקבה בבסיס הנתונים
+      try { await client.query(`ALTER TABLE sport_leads ADD COLUMN IF NOT EXISTS converted_to_membership_id INT REFERENCES sport_memberships(id) ON DELETE SET NULL`); } catch(e) {}
       // Sport Trainer Appointments (personal training / PT sessions)
       try { await client.query(`CREATE TABLE IF NOT EXISTS sport_appointments (
           id SERIAL PRIMARY KEY, group_id INT NOT NULL,
@@ -26570,9 +26572,10 @@ app.post('/api/sport/leads', async (req, res) => {
 });
 
 app.put('/api/sport/leads/:id', async (req, res) => {
-    const { status, notes } = req.body;
+    const { status, notes, convertedToMembershipId } = req.body;
     try {
-        await pool.query('UPDATE sport_leads SET status=COALESCE($1,status), notes=COALESCE($2,notes), updated_at=NOW() WHERE id=$3', [status||null, notes||null, req.params.id]);
+        await pool.query('UPDATE sport_leads SET status=COALESCE($1,status), notes=COALESCE($2,notes), converted_to_membership_id=COALESCE($3,converted_to_membership_id), updated_at=NOW() WHERE id=$4',
+            [status||null, notes||null, convertedToMembershipId||null, req.params.id]);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });

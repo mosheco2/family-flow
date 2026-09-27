@@ -47301,6 +47301,9 @@ window._sportSubmitNewMember = async function() {
     const typeId = document.getElementById('sport-new-type')?.value;
     const startDate = document.getElementById('sport-new-start')?.value;
     const notes = document.getElementById('sport-new-notes')?.value?.trim();
+    const idNumber = document.getElementById('sport-new-idnumber')?.value?.trim();
+    const paymentAmount = document.getElementById('sport-new-payment')?.value;
+    const paymentMethod = document.getElementById('sport-new-payment-method')?.value;
     const dob = document.getElementById('sport-new-dob')?.value || null;
     const gender = document.getElementById('sport-new-gender')?.value || null;
     if (!name) { showToast('error', 'יש להזין שם'); return; }
@@ -47308,9 +47311,19 @@ window._sportSubmitNewMember = async function() {
     try {
         const d = await fetch(`${API}/sport/members`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ groupId: currentGroup.id, memberName: name, memberPhone: phone, memberEmail: email, membershipTypeId: parseInt(typeId), startDate, notes, dateOfBirth: dob, gender })
+            body: JSON.stringify({ groupId: currentGroup.id, memberName: name, memberPhone: phone, memberEmail: email, membershipTypeId: parseInt(typeId), startDate, notes, idNumber, paymentAmount, paymentMethod, dateOfBirth: dob, gender })
         }).then(r => r.json());
         if (!d.success) { showToast('error', d.error || 'שגיאה'); return; }
+        // אם ההוספה הגיעה מהמרת ליד — סימון הליד כ"הומר" וקישור לחבר שנוצר בפועל, ולא מיד בלחיצת "המר"
+        if (window._sportConvertingLeadId) {
+            try {
+                await fetch(`${API}/sport/leads/${window._sportConvertingLeadId}`, {
+                    method: 'PUT', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ status: 'converted', convertedToMembershipId: d.memberId || d.member?.id })
+                });
+            } catch(e2) {}
+            window._sportConvertingLeadId = null;
+        }
         showToast('success', `${name} נוסף/ה בהצלחה 🎉`);
         window._sportBack();
     } catch(e) { showToast('error', 'שגיאת תקשורת'); }
@@ -47501,13 +47514,8 @@ window._sportSubmitLead = async function() {
 };
 
 window._sportConvertLead = async function(leadId, name, phone) {
-    // Mark lead as converted, then open add member with prefilled data
-    try {
-        await fetch(`${API}/sport/leads/${leadId}`, {
-            method: 'PUT', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ status: 'converted' })
-        });
-    } catch(e) {}
+    // סימון הליד כ"הומר" ושמירת קישור אמיתי לחבר שנוצר — קורה רק לאחר שהחבר נוצר בפועל (ראו _sportSubmitNewMember), לא מיד בלחיצה
+    window._sportConvertingLeadId = leadId;
     await window.showSportAddMember();
     // Prefill name and phone
     const nameEl = document.getElementById('sport-new-name');
