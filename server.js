@@ -25954,6 +25954,27 @@ app.post('/api/sport/classes/:id/attendance', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// הודעה ללקוח שהתפנה לו מקום מרשימת המתנה — קודם לא הייתה שום התראה כזו בשום מסלול קידום
+async function _notifyWaitlistPromoted(classId, membershipId) {
+    try {
+        const cls = await pool.query('SELECT * FROM sport_classes WHERE id=$1', [classId]);
+        if (!cls.rows.length) return;
+        const bizR = await pool.query('SELECT name FROM family_groups WHERE id=$1', [cls.rows[0].group_id]);
+        const bizName = bizR.rows[0]?.name || 'העסק';
+        const linkR = await pool.query(
+            `SELECT mbl.member_group_id FROM member_business_links mbl
+             WHERE mbl.linked_member_ref_id=$1 AND mbl.status='active' AND mbl.is_active=true LIMIT 1`,
+            [membershipId]
+        );
+        if (linkR.rows.length) {
+            const dateStr = cls.rows[0].class_date ? new Date(cls.rows[0].class_date).toLocaleDateString('he-IL') : '';
+            await _sendMemberBizNotif(linkR.rows[0].member_group_id, bizName,
+                `התפנה לך מקום בשיעור "${cls.rows[0].class_name||''}" ב${bizName} ב-${dateStr}! יש לך 30 דקות לאשר את המקום`,
+                `mbiz_sport_waitlist_promoted_${classId}_${membershipId}_${Date.now()}`);
+        }
+    } catch(e) {}
+}
+
 // ─── Waitlist ────────────────────────────────────────────────────────────────
 app.get('/api/sport/classes/:id/waitlist', async (req, res) => {
     try {
@@ -26019,6 +26040,7 @@ app.get('/api/sport/waitlist-pending/:groupId', async (req, res) => {
             if (next.rows.length) {
                 const nw = next.rows[0];
                 await pool.query(`UPDATE sport_class_waitlist SET status='pending',promoted_at=NOW(),expires_at=NOW()+INTERVAL '30 minutes' WHERE id=$1`, [nw.id]);
+                _notifyWaitlistPromoted(ex.class_id, nw.membership_id);
             }
         }
         const r = await pool.query(`SELECT w.*, sc.class_name, sc.class_date, sc.start_time FROM sport_class_waitlist w
@@ -26074,6 +26096,7 @@ app.delete('/api/sport/classes/:id/registrations/:membershipId', async (req, res
             const w = first.rows[0];
             await pool.query(`UPDATE sport_class_waitlist SET status='pending',promoted_at=NOW(),expires_at=NOW()+INTERVAL '30 minutes' WHERE id=$1`, [w.id]);
             promoted = { memberName: w.member_name, membershipId: w.membership_id };
+            _notifyWaitlistPromoted(req.params.id, w.membership_id);
         }
         res.json({ success: true, lateCancelApplied, promoted });
     } catch(e) { res.status(500).json({ error: e.message }); }
@@ -26273,6 +26296,7 @@ app.delete('/api/sport/public-class-register', async (req, res) => {
         const first = await pool.query(`SELECT * FROM sport_class_waitlist WHERE class_id=$1 AND status='waiting' ORDER BY position LIMIT 1`, [classId]);
         if (first.rows.length) {
             await pool.query(`UPDATE sport_class_waitlist SET status='pending',promoted_at=NOW(),expires_at=NOW()+INTERVAL '30 minutes' WHERE id=$1`, [first.rows[0].id]);
+            _notifyWaitlistPromoted(classId, first.rows[0].membership_id);
         }
         res.json({ success: true, lateCancelApplied });
     } catch(e) { res.status(500).json({ error: e.message }); }
