@@ -58013,7 +58013,7 @@ window._mtExportPDF = function(slug, name) {
 
     window._mtPdfCurrentSlug = slug;
     window._mtPdfCurrentName = name || '';
-    const previewUrl = () => `/menu/${encodeURIComponent(slug)}?palette=${d.palette}&plating=${d.plating}&air=${d.airiness}`;
+    const previewUrl = () => `/menu/${encodeURIComponent(slug)}?palette=${d.palette}&plating=${d.plating}&air=${d.airiness}&preview_token=${encodeURIComponent(window._bizToken||'')}`;
     const publicUrl = () => `/menu/${encodeURIComponent(slug)}?palette=${d.palette}&plating=${d.plating}&air=${d.airiness}`;
 
     const overlay = document.createElement('div');
@@ -58117,7 +58117,7 @@ window._mtPdfPreviewRefresh = function() {
         const d = window._mtPdfDesign;
         const slug = window._mtPdfCurrentSlug;
         if (!slug) return;
-        const url = `/menu/${encodeURIComponent(slug)}?palette=${d.palette}&plating=${d.plating}&air=${d.airiness}`;
+        const url = `/menu/${encodeURIComponent(slug)}?palette=${d.palette}&plating=${d.plating}&air=${d.airiness}&preview_token=${encodeURIComponent(window._bizToken||'')}`;
         const fr = document.getElementById('mtpdf-preview-frame');
         if (fr) fr.src = url;
         const lb = document.getElementById('mtpdf-link-btn');
@@ -58128,7 +58128,7 @@ window._mtPdfPreviewRefresh = function() {
 window._mtPdfConfirm = function(slug) {
     document.getElementById('mt-pdf-design-overlay')?.remove();
     const d = window._mtPdfDesign;
-    const url = `/menu/${encodeURIComponent(slug)}?pdf=1&palette=${d.palette}&plating=${d.plating}&air=${d.airiness}`;
+    const url = `/menu/${encodeURIComponent(slug)}?pdf=1&palette=${d.palette}&plating=${d.plating}&air=${d.airiness}&preview_token=${encodeURIComponent(window._bizToken||'')}`;
     const w = window.open(url, '_blank', 'width=900,height=700');
     if (!w) showToast('error', 'חסום חלון קופץ — אפשר זאת בדפדפן ונסה שוב');
 };

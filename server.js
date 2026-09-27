@@ -38311,15 +38311,28 @@ app.get('/api/menu/public/:slug', async (req, res) => {
         const tmplRes = await pool.query(
             `SELECT id,name,description,event_type,min_guests,max_guests,
                     base_price_per_person,pricing_mode,cover_image_url,logo_url,slogan,
-                    contact_phone,contact_address,group_id,
+                    contact_phone,contact_address,group_id,is_public,
                     event_mode,hide_prices,event_greeting,event_intro,event_image_url
              FROM menu_templates
-             WHERE public_slug=$1 AND is_active=true AND is_public=true AND template_type='menu'`,
+             WHERE public_slug=$1 AND is_active=true AND template_type='menu'`,
             [req.params.slug]
         );
         if (!tmplRes.rows.length) return res.status(404).json({ error: 'תבנית לא נמצאה' });
 
         const tmpl = tmplRes.rows[0];
+
+        // תפריט שעדיין לא פורסם (is_public=false) נגיש רק לבעל העסק עצמו, לצורך תצוגה מקדימה לפני פרסום —
+        // דורש טוקן עסקי תקף של אותה קבוצה, מועבר כפרמטר preview_token
+        if (!tmpl.is_public) {
+            const previewToken = req.query.preview_token;
+            if (!previewToken) return res.status(404).json({ error: 'תבנית לא נמצאה' });
+            const tokenHash = _hashToken(previewToken);
+            const sess = await pool.query(
+                `SELECT group_id FROM family_sessions WHERE token_hash=$1 AND session_type='biz' AND expires_at > NOW()`,
+                [tokenHash]
+            ).catch(() => ({ rows: [] }));
+            if (!sess.rows[0] || sess.rows[0].group_id !== tmpl.group_id) return res.status(404).json({ error: 'תבנית לא נמצאה' });
+        }
 
         // extra fields — resilient to missing columns/rows
         let showRelated = false, storeId = null, pricingMode = 'per_person';
@@ -38375,7 +38388,7 @@ app.get('/api/menu/public/:slug', async (req, res) => {
             }))
         }));
 
-        const { group_id, ...tmplPublic } = tmpl;
+        const { group_id, is_public, ...tmplPublic } = tmpl;
         res.json({ ...tmplPublic, pricing_mode: pricingMode, show_related_options: showRelated, store_id: storeId, sections });
     } catch(e) {
         console.error('GET /api/menu/public/:slug:', e.message);
@@ -38550,10 +38563,18 @@ app.get('/api/menu/public/:slug/related', async (req, res) => {
 app.get('/api/menu/public/:slug/catalog', async (req, res) => {
     try {
         const tmplRes = await pool.query(
-            `SELECT group_id FROM menu_templates WHERE public_slug=$1 AND is_active=true AND is_public=true AND template_type='menu'`,
+            `SELECT group_id, is_public FROM menu_templates WHERE public_slug=$1 AND is_active=true AND template_type='menu'`,
             [req.params.slug]
         );
         if (!tmplRes.rows.length) return res.status(404).json({ error: 'תבנית לא נמצאה' });
+        if (!tmplRes.rows[0].is_public) {
+            const previewToken = req.query.preview_token;
+            const sess = previewToken ? await pool.query(
+                `SELECT group_id FROM family_sessions WHERE token_hash=$1 AND session_type='biz' AND expires_at > NOW()`,
+                [_hashToken(previewToken)]
+            ).catch(() => ({ rows: [] })) : { rows: [] };
+            if (!sess.rows[0] || sess.rows[0].group_id !== tmplRes.rows[0].group_id) return res.status(404).json({ error: 'תבנית לא נמצאה' });
+        }
         const groupId = tmplRes.rows[0].group_id;
         const catRes = await pool.query(
             `SELECT id,name,description,price,image_url,category,is_available FROM store_catalog WHERE group_id=$1 AND is_available=true ORDER BY sort_order,id`,
