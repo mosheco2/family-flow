@@ -3034,19 +3034,22 @@ async function setBusinessLocation() {
     if (!navigator.geolocation) { 
         return showToast('error', 'הדפדפן או הטאבלט שלך אינם תומכים ב-GPS');
     }
-    if (!await window._uiConfirm('האם להגדיר את המיקום הנוכחי שלך ב-GPS כמיקום העסק? עובדים יוכלו לדווח נוכחות רק ברדיוס של 150 מטר ממיקום זה.')) return;
-    
+    const radiusInput = await window._uiPrompt('רדיוס מותר להחתמת נוכחות (במטרים) ממיקום זה — ברירת מחדל 150. עסק עם מתחם גדול (למשל אולם ספורט חיצוני) יכול להגדיר רדיוס גדול יותר:', { defaultValue: String(currentGroup?.location_radius_m || 150), type: 'number' });
+    if (radiusInput === null) return;
+    const radiusMeters = Math.min(2000, Math.max(20, parseInt(radiusInput) || 150));
+    if (!await window._uiConfirm(`האם להגדיר את המיקום הנוכחי שלך ב-GPS כמיקום העסק? עובדים יוכלו לדווח נוכחות רק ברדיוס של ${radiusMeters} מטר ממיקום זה.`)) return;
+
     showToast('info', 'מאתר מיקום... נא לאשר גישה למיקום בטאבלט.');
-    
+
     navigator.geolocation.getCurrentPosition(async (position) => {
-        const lat = position.coords.latitude; 
+        const lat = position.coords.latitude;
         const lng = position.coords.longitude;
-        
+
         try {
-            const res = await fetch(`${API}/timeclock/set-location`, { 
-                method: 'POST', 
-                headers: {'Content-Type': 'application/json'}, 
-                body: JSON.stringify({ groupId: currentGroup.id, adminId: currentUser.id, lat, lng }) 
+            const res = await fetch(`${API}/timeclock/set-location`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ groupId: currentGroup.id, adminId: currentUser.id, lat, lng, radiusMeters })
             });
             
             if (!res.ok) {
@@ -3059,10 +3062,11 @@ async function setBusinessLocation() {
                 showToast('success', 'מיקום העסק נשמר בהצלחה בהנהלה!');
                 
                 // שמירה מקומית כדי שהדפיקות של הלקוח מיד אחרי השמירה יעברו במנגנון בלי קריסה
-                currentGroup.location_lat = lat; 
+                currentGroup.location_lat = lat;
                 currentGroup.location_lng = lng;
-                
-                // עדכון הממשק בלייב למנהל ללא צורך ברענון הדף 
+                currentGroup.location_radius_m = radiusMeters;
+
+                // עדכון הממשק בלייב למנהל ללא צורך ברענון הדף
                 const locEl = document.getElementById('tc-location-status');
                 if(locEl) {
                     locEl.className = 'text-xs font-bold text-green-600 mt-1 block bg-green-50 p-1.5 rounded-lg';

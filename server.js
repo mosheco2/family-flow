@@ -775,6 +775,8 @@ try { await client.query(`ALTER TABLE game_assignments ADD COLUMN IF NOT EXISTS 
       
       try { await client.query('ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS location_lat DOUBLE PRECISION'); } catch(e) {}
       try { await client.query('ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS location_lng DOUBLE PRECISION'); } catch(e) {}
+      // רדיוס אימות המיקום להחתמת נוכחות — ניתן להתאמה אישית לעסק (למשל מתחם ספורט גדול), במקום ערך קבוע בקוד
+      try { await client.query('ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS location_radius_m INT DEFAULT 150'); } catch(e) {}
       try { await client.query('ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS is_onboarded BOOLEAN DEFAULT FALSE'); } catch(e) {}
       try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS vat_number VARCHAR(50) DEFAULT ''`); } catch(e) {}
       try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS contact_name VARCHAR(100) DEFAULT ''`); } catch(e) {}
@@ -11748,11 +11750,12 @@ app.post('/api/guide/chat', async (req, res) => {
 
 app.post('/api/timeclock/set-location', async (req, res) => {
     try {
-        const { groupId, adminId, lat, lng } = req.body;
+        const { groupId, adminId, lat, lng, radiusMeters } = req.body;
         const uRes = await pool.query('SELECT role FROM users WHERE id=$1 AND group_id=$2', [adminId, groupId]);
         if (uRes.rows.length === 0 || uRes.rows[0].role !== 'ADMIN') return res.status(403).json({error: 'רק מנהל רשאי להגדיר את מיקום העסק'});
-        
-        await pool.query('UPDATE family_groups SET location_lat=$1, location_lng=$2 WHERE id=$3', [lat, lng, groupId]);
+
+        const radius = Math.min(2000, Math.max(20, parseInt(radiusMeters) || 150));
+        await pool.query('UPDATE family_groups SET location_lat=$1, location_lng=$2, location_radius_m=$3 WHERE id=$4', [lat, lng, radius, groupId]);
         res.json({ success: true });
     } catch(e) { res.status(500).json({error: e.message}); }
 });
@@ -11824,19 +11827,19 @@ app.post('/api/timeclock/punch', async (req, res) => {
             return res.status(400).json({ error: 'לא התקבל מיקום. חובה לאשר גישה למיקום (GPS) כדי לדווח.' });
         }
 
-        const gRes = await pool.query('SELECT location_lat, location_lng FROM family_groups WHERE id=$1', [groupId]);
+        const gRes = await pool.query('SELECT location_lat, location_lng, location_radius_m FROM family_groups WHERE id=$1', [groupId]);
         if (gRes.rows.length === 0) return res.status(404).json({ error: 'קבוצה לא נמצאה' });
-        
+
         const bizLat = gRes.rows[0].location_lat;
         const bizLng = gRes.rows[0].location_lng;
-        
+
         if (!bizLat || !bizLng) {
             return res.status(400).json({ error: 'המנהל טרם הגדיר את מיקום העסק במערכת. פנה להנהלה.' });
         }
-        
+
         const distance = calculateDistance(lat, lng, bizLat, bizLng);
-        const MAX_ALLOWED_DISTANCE = 150; 
-        
+        const MAX_ALLOWED_DISTANCE = parseInt(gRes.rows[0].location_radius_m) || 150;
+
         if (distance > MAX_ALLOWED_DISTANCE) {
             return res.status(403).json({ error: `אינך נמצא בקרבת העסק. מרחק נוכחי: ${Math.round(distance)} מטר. מותר עד ${MAX_ALLOWED_DISTANCE} מטר.` });
         }
