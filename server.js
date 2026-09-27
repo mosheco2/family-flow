@@ -11867,15 +11867,21 @@ app.post('/api/timeclock/punch', async (req, res) => {
 
 app.get('/api/timeclock/report', async (req, res) => {
     try {
-        const { groupId, userId } = req.query;
+        const { groupId, userId, from, to } = req.query;
+        // סינון תאריכים בצד שרת (אופציונלי) — כשלא מסופק, שומרים על ההתנהגות הקיימת (כל ההיסטוריה) כדי לא לשבור מסכי דוח קיימים שמסננים בעצמם בצד לקוח
         let query, params;
+        const dateClauses = [];
         if (userId === 'all') {
-            query = `SELECT tc.*, u.nickname FROM time_clock tc JOIN users u ON tc.user_id = u.id WHERE tc.group_id=$1 ORDER BY tc.punch_in DESC`;
+            query = `SELECT tc.*, u.nickname FROM time_clock tc JOIN users u ON tc.user_id = u.id WHERE tc.group_id=$1`;
             params = [groupId];
         } else {
-            query = `SELECT tc.*, u.nickname FROM time_clock tc JOIN users u ON tc.user_id = u.id WHERE tc.user_id=$1 ORDER BY tc.punch_in DESC`;
+            query = `SELECT tc.*, u.nickname FROM time_clock tc JOIN users u ON tc.user_id = u.id WHERE tc.user_id=$1`;
             params = [userId];
         }
+        if (from) { params.push(from); dateClauses.push(`tc.punch_in >= $${params.length}`); }
+        if (to) { params.push(to); dateClauses.push(`tc.punch_in <= $${params.length}::date + INTERVAL '1 day'`); }
+        if (dateClauses.length) query += ' AND ' + dateClauses.join(' AND ');
+        query += ' ORDER BY tc.punch_in DESC';
         const result = await pool.query(query, params);
         res.json(result.rows);
     } catch (e) { res.status(500).json({ error: e.message }); }

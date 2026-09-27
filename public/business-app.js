@@ -5494,7 +5494,7 @@ window.renderDashboard = async function(forceRefresh = false) {
         let activeStaff = 0;
         let missingStaff = [];
         try {
-            const tcRes = await fetch(`${API}/timeclock/report?groupId=${currentGroup.id}&userId=all`);
+            const tcRes = await fetch(`${API}/timeclock/report?groupId=${currentGroup.id}&userId=all&from=${now.toISOString().split('T')[0]}`);
             if (tcRes.ok) {
                 const tcData = await tcRes.json();
                 const todayStr2 = now.toDateString();
@@ -5846,7 +5846,7 @@ async function renderUrgentItems() {
 
         // ─ עובדים מתוזמנים ללא החתמת כניסה — fetch lightweight ─
         try {
-            const tcRes = await fetch(`${API}/timeclock/report?groupId=${currentGroup.id}&userId=all`);
+            const tcRes = await fetch(`${API}/timeclock/report?groupId=${currentGroup.id}&userId=all&from=${now.toISOString().split('T')[0]}`);
             const tcData = await tcRes.json();
             const todayPunches = tcData.filter(p => new Date(p.punch_in).toDateString() === todayStr);
             const punchedIds = new Set(todayPunches.map(p => p.user_id));
