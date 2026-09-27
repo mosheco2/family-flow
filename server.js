@@ -25548,6 +25548,21 @@ app.post('/api/sport/members/:id/unfreeze', async (req, res) => {
 });
 
 // Check-in
+// בודק חסימות משותפות לכל מסלולי הצ'ק-אין: הצהרת בריאות תקפה (אם נדרשת), וכפילות כניסה היום
+async function sportCheckinGuards(m, groupId) {
+    const tmpl = await pool.query('SELECT * FROM sport_waiver_templates WHERE group_id=$1 AND is_active=true LIMIT 1', [groupId]);
+    if (tmpl.rows[0]?.require_for_registration) {
+        const validWaiver = m.waiver_valid_until && new Date(m.waiver_valid_until) > new Date();
+        if (!validWaiver) return { error: 'נדרשת חתימה על הצהרת בריאות תקפה לפני כניסה', status: 'waiver_required' };
+    }
+    const existing = await pool.query(
+        `SELECT id FROM sport_checkins WHERE membership_id=$1 AND DATE(checked_in_at)=CURRENT_DATE`,
+        [m.id]
+    );
+    if (existing.rows.length) return { error: 'כבר בוצע צ׳ק-אין היום', status: 'already_in', alreadyIn: true };
+    return null;
+}
+
 app.post('/api/sport/checkin', async (req, res) => {
     try {
         const { groupId, membershipId, memberName } = req.body;
@@ -25559,6 +25574,8 @@ app.post('/api/sport/checkin', async (req, res) => {
         if (m.status === 'frozen') return res.status(400).json({ error: 'המנוי מוקפא', status: 'frozen' });
         if (m.status === 'cancelled') return res.status(400).json({ error: 'המנוי בוטל', status: 'cancelled' });
         if (m.sessions_total !== null && m.sessions_used >= m.sessions_total) return res.status(400).json({ error: 'כרטיסייה מנוצלת עד תום', status: 'no_sessions' });
+        const guard = await sportCheckinGuards(m, groupId);
+        if (guard) return res.status(400).json(guard);
         await pool.query('INSERT INTO sport_checkins (group_id,membership_id,member_name) VALUES ($1,$2,$3)', [groupId, membershipId, memberName || m.member_name]);
         if (m.sessions_total !== null) await pool.query('UPDATE sport_memberships SET sessions_used=sessions_used+1, updated_at=NOW() WHERE id=$1', [membershipId]);
         res.json({ success: true, member: m });
@@ -25585,12 +25602,8 @@ app.post('/api/sport/self-checkin', async (req, res) => {
         if (!mem.rows.length) return res.status(400).json({ error: 'לא נמצא מנוי פעיל' });
         const m = mem.rows[0];
         if (m.sessions_total !== null && m.sessions_used >= m.sessions_total) return res.status(400).json({ error: 'כרטיסייה מנוצלת עד תום' });
-        // prevent double checkin today
-        const existing = await pool.query(
-            `SELECT id FROM sport_checkins WHERE membership_id=$1 AND DATE(checked_in_at)=CURRENT_DATE`,
-            [m.id]
-        );
-        if (existing.rows.length) return res.status(400).json({ error: 'כבר בוצע צ׳ק-אין היום', alreadyIn: true });
+        const guard = await sportCheckinGuards(m, groupId);
+        if (guard) return res.status(400).json(guard);
         await pool.query('INSERT INTO sport_checkins (group_id,membership_id,member_name) VALUES ($1,$2,$3)', [groupId, m.id, m.member_name]);
         if (m.sessions_total !== null) await pool.query('UPDATE sport_memberships SET sessions_used=sessions_used+1, updated_at=NOW() WHERE id=$1', [m.id]);
         res.json({ success: true, memberName: m.member_name, sessionsLeft: m.sessions_total !== null ? m.sessions_total - m.sessions_used - 1 : null });
@@ -26554,6 +26567,9 @@ app.post('/api/sport/qr-checkin', async (req, res) => {
         if (!mem.rows.length) return res.status(404).json({ error: 'כרטיס לא נמצא' });
         const m = mem.rows[0];
         if (m.status !== 'active') return res.status(400).json({ error: `מנוי ${m.status === 'frozen' ? 'מוקפא' : 'לא פעיל'}`, memberName: m.member_name });
+        if (m.sessions_total !== null && m.sessions_used >= m.sessions_total) return res.status(400).json({ error: 'כרטיסייה מנוצלת עד תום', memberName: m.member_name, status: 'no_sessions' });
+        const guard = await sportCheckinGuards(m, m.group_id);
+        if (guard) return res.status(400).json({ ...guard, memberName: m.member_name });
         await pool.query('INSERT INTO sport_checkins (group_id,membership_id,member_name) VALUES ($1,$2,$3)', [m.group_id, m.id, m.member_name]);
         if (m.sessions_total !== null) await pool.query('UPDATE sport_memberships SET sessions_used=sessions_used+1, updated_at=NOW() WHERE id=$1', [m.id]);
         const remaining = m.sessions_total !== null ? m.sessions_total - (m.sessions_used + 1) : null;
