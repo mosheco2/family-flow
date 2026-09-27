@@ -38588,9 +38588,9 @@ async function renderCashierDashboard(el) {
         const todayTx = (Array.isArray(d) ? d : []).filter(t => t.date && t.date.startsWith(today) && t.type==='income' && t.amount > 0);
         todaySales = todayTx.reduce((s,t) => s + parseFloat(t.amount||0), 0);
         txCount = todayTx.length;
-        // אין הבחנה בין מזומן לאשראי בטבלת התנועות הכללית — כל ההכנסות נחשבות כאן כמזומן צפוי
-        cashIn = todaySales;
-        cashOut = 0;
+        // אמצעי תשלום נרשם רק בחלק מהמקורות (למשל מנויי ספורט) — תנועה ללא אמצעי תשלום ידוע נספרת כמזומן, בהיעדר מידע טוב יותר
+        cashIn = todayTx.filter(t => !t.payment_method || t.payment_method === 'cash').reduce((s,t) => s + parseFloat(t.amount||0), 0);
+        cashOut = todayTx.filter(t => t.payment_method && t.payment_method !== 'cash').reduce((s,t) => s + parseFloat(t.amount||0), 0);
     } catch(e) {}
 
     const fmt = v => `₪${v.toLocaleString('he-IL',{minimumFractionDigits:0,maximumFractionDigits:0})}`;

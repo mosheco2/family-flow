@@ -3723,26 +3723,26 @@ async function handleAITokens(groupId, endpoint = 'general') {
     }
 }
 
-async function logBizIncome(groupId, amount, description, date = null) {
+async function logBizIncome(groupId, amount, description, paymentMethod = null, date = null) {
     if (!amount || parseFloat(amount) <= 0) return;
     try {
         const adminU = await pool.query(`SELECT id FROM users WHERE group_id=$1 AND role='ADMIN' LIMIT 1`, [groupId]);
         await pool.query(
-            `INSERT INTO transactions (user_id, group_id, amount, description, category, type, date, is_manual)
-             VALUES ($1,$2,$3,$4,'sales','income',$5,FALSE)`,
-            [adminU.rows[0]?.id || null, groupId, parseFloat(amount), description, date || new Date()]
+            `INSERT INTO transactions (user_id, group_id, amount, description, category, type, date, is_manual, payment_method)
+             VALUES ($1,$2,$3,$4,'sales','income',$5,FALSE,$6)`,
+            [adminU.rows[0]?.id || null, groupId, parseFloat(amount), description, date || new Date(), paymentMethod || null]
         );
     } catch(e) {}
 }
 
-async function logBizExpense(groupId, amount, description, category = 'other', date = null) {
+async function logBizExpense(groupId, amount, description, category = 'other', paymentMethod = null, date = null) {
     if (!amount || parseFloat(amount) <= 0) return;
     try {
         const adminU = await pool.query(`SELECT id FROM users WHERE group_id=$1 AND role='ADMIN' LIMIT 1`, [groupId]);
         await pool.query(
-            `INSERT INTO transactions (user_id, group_id, amount, description, category, type, date, is_manual)
-             VALUES ($1,$2,$3,$4,$5,'expense',$6,FALSE)`,
-            [adminU.rows[0]?.id || null, groupId, parseFloat(amount), description, category, date || new Date()]
+            `INSERT INTO transactions (user_id, group_id, amount, description, category, type, date, is_manual, payment_method)
+             VALUES ($1,$2,$3,$4,$5,'expense',$6,FALSE,$7)`,
+            [adminU.rows[0]?.id || null, groupId, parseFloat(amount), description, category, date || new Date(), paymentMethod || null]
         );
     } catch(e) {}
 }
@@ -5797,6 +5797,7 @@ app.get('/api/force-upgrade', async (req, res) => {
             'ALTER TABLE transactions ADD COLUMN IF NOT EXISTS is_recurring BOOLEAN DEFAULT FALSE',
             'ALTER TABLE transactions ADD COLUMN IF NOT EXISTS end_month VARCHAR(10)',
             'ALTER TABLE transactions ADD COLUMN IF NOT EXISTS is_manual BOOLEAN DEFAULT TRUE',
+            'ALTER TABLE transactions ADD COLUMN IF NOT EXISTS payment_method VARCHAR(30)',
             'ALTER TABLE budget_allocations ADD COLUMN IF NOT EXISTS target_user_id INT REFERENCES users(id) ON DELETE CASCADE',
             'ALTER TABLE shopping_list ADD COLUMN IF NOT EXISTS units_per_package INT DEFAULT 1',
             'ALTER TABLE shopping_trip_items ADD COLUMN IF NOT EXISTS units_per_package INT DEFAULT 1',
@@ -25488,7 +25489,7 @@ app.post('/api/sport/members', async (req, res) => {
         if (paymentAmount && parseFloat(paymentAmount) > 0) {
             await pool.query(`INSERT INTO sport_payments (group_id,membership_id,member_name,amount,payment_method,notes) VALUES ($1,$2,$3,$4,$5,$6)`,
                 [groupId, m.id, mName, paymentAmount, paymentMethod || 'cash', 'הצטרפות מנוי חדש']);
-            logBizIncome(groupId, paymentAmount, `הצטרפות מנוי חדש — ${mName || ''}`.trim());
+            logBizIncome(groupId, paymentAmount, `הצטרפות מנוי חדש — ${mName || ''}`.trim(), paymentMethod || 'cash');
         }
         // כרטיסיית לקוח אחת מזוהה לפי טלפון — מקשר/מאחד עם רשומת הלקוח הכללית של העסק, לא יוצר כרטיס נפרד למנוי הספורט
         upsertStoreCustomer(groupId, { name: mName, phone: mPhone, email: mEmail, notes: `חבר מועדון: ${mtype?.name || ''}`.trim() });
@@ -25787,7 +25788,7 @@ app.post('/api/sport/members/:id/renew', async (req, res) => {
         if (paymentAmount && parseFloat(paymentAmount) > 0) {
             await pool.query(`INSERT INTO sport_payments (group_id,membership_id,member_name,amount,payment_method,notes) VALUES ($1,$2,$3,$4,$5,$6)`,
                 [m.group_id, m.id, m.member_name, paymentAmount, paymentMethod || 'cash', notes || '']);
-            logBizIncome(m.group_id, paymentAmount, `מנוי ספורט — ${m.member_name || ''}`.trim());
+            logBizIncome(m.group_id, paymentAmount, `מנוי ספורט — ${m.member_name || ''}`.trim(), paymentMethod || 'cash');
         }
         res.json({ success: true, member: m });
     } catch(e) { res.status(500).json({ error: e.message }); }
@@ -25799,7 +25800,7 @@ app.post('/api/sport/payments', async (req, res) => {
     try {
         const r = await pool.query(`INSERT INTO sport_payments (group_id,membership_id,member_name,amount,payment_method,notes) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
             [groupId, membershipId, memberName, amount, paymentMethod || 'cash', notes || '']);
-        logBizIncome(groupId, amount, `מנוי ספורט — ${memberName || ''}`.trim());
+        logBizIncome(groupId, amount, `מנוי ספורט — ${memberName || ''}`.trim(), paymentMethod || 'cash');
         res.json({ success: true, payment: r.rows[0] });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -26118,7 +26119,7 @@ app.post('/api/sport/public-membership-purchase', async (req, res) => {
         if (t.price && parseFloat(t.price) > 0) {
             await pool.query(`INSERT INTO sport_payments (group_id,membership_id,member_name,amount,payment_method,notes) VALUES ($1,$2,$3,$4,$5,$6)`,
                 [groupId, m.id, memberName, t.price, 'app', 'רכישת מנוי דרך עמוד ציבורי']);
-            logBizIncome(groupId, t.price, `הצטרפות מנוי (עצמאי) — ${memberName || ''}`.trim());
+            logBizIncome(groupId, t.price, `הצטרפות מנוי (עצמאי) — ${memberName || ''}`.trim(), 'app');
         }
         upsertStoreCustomer(groupId, { name: memberName, phone: memberPhone, email: memberEmail, notes: `רכש מנוי: ${t.name}` });
         res.json({ success: true, memberId: m.id, memberName: m.member_name, qrToken, membershipType: t.name, endDate, price: t.price });
