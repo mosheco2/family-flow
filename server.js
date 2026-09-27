@@ -1619,6 +1619,7 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
       try { await client.query(`ALTER TABLE sport_memberships ADD COLUMN IF NOT EXISTS date_of_birth DATE`); } catch(e) {}
       try { await client.query(`ALTER TABLE sport_memberships ADD COLUMN IF NOT EXISTS gender VARCHAR(10)`); } catch(e) {}
       try { await client.query(`ALTER TABLE sport_memberships ADD COLUMN IF NOT EXISTS id_number VARCHAR(20)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE sport_memberships ADD COLUMN IF NOT EXISTS frozen_until DATE`); } catch(e) {}
       // Trainers / Staff
       try { await client.query(`CREATE TABLE IF NOT EXISTS sport_trainers (
           id SERIAL PRIMARY KEY, group_id INT NOT NULL,
@@ -10894,7 +10895,7 @@ app.post('/api/tasks/update', verifyFamilyOrBiz, async (req, res) => {
         }
         await pool.query('BEGIN');
         await pool.query('UPDATE tasks SET status=$1, reward=$2 WHERE id=$3', [status, rew, taskId]);
-        if (status === 'approved') {
+        if (status === 'approved' && rew > 0) {
             await pool.query('UPDATE users SET balance = balance + $1 WHERE id=$2', [rew, t.assigned_to]);
             await pool.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type) VALUES ($1, $2, $3, $4, 'tasks', 'income')`, [t.assigned_to, t.group_id, rew, 'תגמול משימה: ' + t.title]);
             await pool.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type, is_manual) SELECT id, $1, $2, $3, 'tasks', 'expense', FALSE FROM users WHERE group_id=$1 AND role='ADMIN' LIMIT 1`, [t.group_id, rew, 'תגמול משימה: ' + t.title]);
@@ -25463,6 +25464,19 @@ app.get('/api/sport/members/:groupId', async (req, res) => {
         // auto-expire memberships past end_date
         const toExpire = r.rows.filter(m => m.status === 'active' && m.end_date && new Date(m.end_date) < new Date());
         for (const m of toExpire) { await pool.query(`UPDATE sport_memberships SET status='expired' WHERE id=$1`, [m.id]); m.status = 'expired'; }
+        // auto-unfreeze memberships whose planned freeze period (frozen_until) has passed — makes the "days" field on the freeze form actually enforced, not decorative
+        const toUnfreeze = r.rows.filter(m => m.status === 'frozen' && m.frozen_until && new Date(m.frozen_until) < new Date());
+        for (const m of toUnfreeze) {
+            let newEndDate = m.end_date;
+            if (m.frozen_at && m.end_date) {
+                const frozenDays = Math.floor((new Date(m.frozen_until) - new Date(m.frozen_at)) / 86400000);
+                const current = new Date(m.end_date);
+                current.setDate(current.getDate() + frozenDays);
+                newEndDate = current.toISOString().split('T')[0];
+            }
+            await pool.query(`UPDATE sport_memberships SET status='active', frozen_at=NULL, frozen_reason=NULL, frozen_until=NULL, end_date=$1, updated_at=NOW() WHERE id=$2`, [newEndDate, m.id]);
+            m.status = 'active'; m.end_date = newEndDate; m.frozen_at = null; m.frozen_reason = null; m.frozen_until = null;
+        }
         res.json({ success: true, members: r.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -25525,8 +25539,10 @@ app.put('/api/sport/members/:id', async (req, res) => {
 
 app.post('/api/sport/members/:id/freeze', async (req, res) => {
     try {
-        const { reason } = req.body;
-        const _memR = await pool.query(`UPDATE sport_memberships SET status='frozen', frozen_at=CURRENT_DATE, frozen_reason=$1, updated_at=NOW() WHERE id=$2 RETURNING group_id`, [reason||'', req.params.id]);
+        const { reason, days } = req.body;
+        // ימי ההקפאה נשמרים ונאכפים בפועל כעת (frozen_until) — לא רק שדה תיעוד; רשימת החברים מפשירה אוטומטית כשהתאריך חולף
+        const frozenUntil = days ? new Date(Date.now() + parseInt(days) * 86400000).toISOString().split('T')[0] : null;
+        const _memR = await pool.query(`UPDATE sport_memberships SET status='frozen', frozen_at=CURRENT_DATE, frozen_reason=$1, frozen_until=$3, updated_at=NOW() WHERE id=$2 RETURNING group_id`, [reason||'', req.params.id, frozenUntil]);
         if (_memR.rows.length) logBizAction(_memR.rows[0].group_id, null, 'מערכת', 'FREEZE_MEMBER', 'membership', req.params.id, `מנוי #${req.params.id} הוקפא`, { reason });
         res.json({ success: true });
         try {
@@ -25556,7 +25572,7 @@ app.post('/api/sport/members/:id/unfreeze', async (req, res) => {
             current.setDate(current.getDate() + frozenDays);
             newEndDate = current.toISOString().split('T')[0];
         }
-        await pool.query(`UPDATE sport_memberships SET status='active', frozen_at=NULL, frozen_reason=NULL, end_date=$1, updated_at=NOW() WHERE id=$2`, [newEndDate, req.params.id]);
+        await pool.query(`UPDATE sport_memberships SET status='active', frozen_at=NULL, frozen_reason=NULL, frozen_until=NULL, end_date=$1, updated_at=NOW() WHERE id=$2`, [newEndDate, req.params.id]);
         res.json({ success: true });
         try {
             const linkR = await pool.query(

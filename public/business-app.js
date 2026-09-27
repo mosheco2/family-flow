@@ -43878,7 +43878,7 @@ window.showSportFreeze = function(memberId, memberName) {
                     class="w-full border border-slate-200 rounded-xl px-4 py-3 text-right text-sm focus:outline-none focus:ring-2 focus:ring-violet-300"/>
             </div>
             <div>
-                <label class="text-xs font-bold text-slate-600 block mb-1">מספר ימים (אופציונלי)</label>
+                <label class="text-xs font-bold text-slate-600 block mb-1">מספר ימים (אופציונלי — המנוי יופשר אוטומטית כשיחלוף)</label>
                 <input id="sport-freeze-days" type="number" placeholder="30" min="1" max="365"
                     class="w-full border border-slate-200 rounded-xl px-4 py-3 text-right text-sm focus:outline-none focus:ring-2 focus:ring-violet-300"/>
             </div>
