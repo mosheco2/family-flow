@@ -49945,6 +49945,7 @@ window._beautyOpenClient = async function(clientId, openTab) {
             <button id="bcm-btn-details"     onclick="window._bcmTab('details',${clientId})"     class="flex-1 py-1.5 px-2 text-[11px] font-bold bg-white text-slate-800 rounded-lg shadow-sm transition">פרטים ומאזן</button>
             <button id="bcm-btn-appts"       onclick="window._bcmTab('appts',${clientId})"       class="flex-1 py-1.5 px-2 text-[11px] font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">📅 תורים</button>
             <button id="bcm-btn-beauty"      onclick="window._bcmTab('beauty',${clientId})"      class="flex-1 py-1.5 px-2 text-[11px] font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">💅 יופי</button>
+            <button id="bcm-btn-sub"         onclick="window._bcmTab('sub',${clientId})"         class="flex-1 py-1.5 px-2 text-[11px] font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">🎁 מנוי</button>
             <button id="bcm-btn-collection"  onclick="window._bcmTab('collection',${clientId})"  class="flex-1 py-1.5 px-2 text-[11px] font-bold text-slate-500 hover:text-slate-700 rounded-lg transition">💰 גביה</button>
         </div>
         <div id="bcm-body" class="flex-1 overflow-y-auto p-4 modal-scroll">
@@ -49965,16 +49966,20 @@ window._beautyOpenClient = async function(clientId, openTab) {
     if (client.client_phone) aqp.set('phone', client.client_phone);
     else if (client.client_name) aqp.set('name', client.client_name);
 
-    const [fRes, pRes, aRes] = await Promise.all([
+    const [fRes, pRes, aRes, subRes, subTypesRes] = await Promise.all([
         fetch(`${API}/beauty/${biz}/clients/${clientId}/formulas`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' },headers:_aH}).then(r=>r.json()).catch(()=>({formulas:[]})),
         fetch(`${API}/beauty/${biz}/clients/${clientId}/photos`,   { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' },headers:_aH}).then(r=>r.json()).catch(()=>({photos:[]})),
-        fetch(`${API}/beauty/${biz}/appointments/by-customer?${aqp}`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' },headers:_aH}).then(r=>r.json()).catch(()=>({appointments:[]}))
+        fetch(`${API}/beauty/${biz}/appointments/by-customer?${aqp}`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' },headers:_aH}).then(r=>r.json()).catch(()=>({appointments:[]})),
+        fetch(`${API}/beauty/${biz}/client-subscriptions/${clientId}`, { headers: _aH }).then(r=>r.json()).catch(()=>[]),
+        fetch(`${API}/beauty/${biz}/subscription-types`, { headers: _aH }).then(r=>r.json()).catch(()=>[])
     ]);
     window._bcmData = {
         clientId, client,
         formulas: Array.isArray(fRes) ? fRes : [],
         photos:   Array.isArray(pRes) ? pRes : [],
-        appts:    aRes.appointments || []
+        appts:    aRes.appointments || [],
+        subs:     Array.isArray(subRes) ? subRes : [],
+        subTypes: Array.isArray(subTypesRes) ? subTypesRes : []
     };
     window._bcmTab(openTab || 'details', clientId);
 };
@@ -49986,10 +49991,12 @@ window._bcmTab = function(tab, clientId) {
     const formulas = d.formulas || [];
     const photos   = d.photos   || [];
     const appts    = d.appts    || [];
+    const subs     = d.subs     || [];
+    const subTypes = d.subTypes || [];
 
     const activeC   = 'flex-1 py-1.5 px-2 text-[11px] font-bold bg-white text-slate-800 rounded-lg shadow-sm transition';
     const inactiveC = 'flex-1 py-1.5 px-2 text-[11px] font-bold text-slate-500 hover:text-slate-700 rounded-lg transition';
-    ['details','appts','beauty','collection'].forEach(t => {
+    ['details','appts','beauty','sub','collection'].forEach(t => {
         const b = document.getElementById('bcm-btn-'+t);
         if (b) b.className = t === tab ? activeC : inactiveC;
     });
@@ -50106,6 +50113,32 @@ window._bcmTab = function(tab, clientId) {
             </div>
         </div>`;
 
+    } else if (tab === 'sub') {
+        const subCards = subs.length === 0
+            ? '<p class="text-slate-400 text-xs text-center py-6 bg-slate-50 rounded-xl">אין ללקוחה מנוי כרגע</p>'
+            : subs.map(s => {
+                const remaining = Math.max(0, (s.sessions_total||0) - (s.sessions_used||0));
+                const expDate = s.expires_at ? new Date(s.expires_at) : null;
+                const isExpired = expDate && !isNaN(expDate) && expDate < new Date();
+                const isDepleted = !s.is_active;
+                const statusLabel = isDepleted ? (isExpired ? 'פג תוקף' : 'נוצל במלואו') : 'פעיל';
+                const statusColor = isDepleted ? 'bg-slate-100 text-slate-500' : (isExpired ? 'bg-orange-100 text-orange-600' : 'bg-green-100 text-green-700');
+                return `<div class="bg-white rounded-xl border ${s.is_active && !isExpired ? 'border-green-200' : 'border-slate-200'} p-3 space-y-2">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-xs font-bold text-slate-700">${safeStr(s.subscription_name || s.type_name || 'מנוי')}</p>
+                            <p class="text-[10px] text-slate-400">נותרו ${remaining} מתוך ${s.sessions_total} כניסות ${expDate && !isNaN(expDate) ? '· בתוקף עד ' + expDate.toLocaleDateString('he-IL') : ''}</p>
+                        </div>
+                        <span class="text-[9px] font-bold px-2 py-0.5 rounded-full shrink-0 ${statusColor}">${statusLabel}</span>
+                    </div>
+                    ${s.is_active && !isExpired && remaining > 0 ? `<button onclick="window._bcmUseSubscription(${s.id},${clientId})" class="w-full bg-indigo-600 text-white text-[11px] font-bold py-1.5 rounded-lg hover:bg-indigo-700 transition">סמן כניסה כמנוצלת (−1)</button>` : ''}
+                </div>`;
+            }).join('');
+        body.innerHTML = `<div class="space-y-3">
+            <button onclick="window._bcmSellSubscriptionModal(${clientId})" class="w-full bg-gradient-to-r from-pink-500 to-purple-600 text-white py-2.5 rounded-xl text-sm font-black shadow-sm hover:opacity-90 transition">+ מכור מנוי חדש</button>
+            <div class="space-y-2">${subCards}</div>
+        </div>`;
+
     } else if (tab === 'collection') {
         // גביה — מבוסס על תורי יופי של הלקוח
         const collAppts = appts.filter(a => ['completed','confirmed','scheduled'].includes(a.status) && parseFloat(a.total_price||0) > 0);
@@ -50165,6 +50198,86 @@ window._bcmConfirmPayment = async function(apptId, clientId) {
             }
             window._bcmTab('collection', clientId);
         } else { showToast('error', r.error||'שגיאה'); }
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
+window._bcmUseSubscription = async function(subId, clientId) {
+    const biz = _beautyBizId(); if (!biz) return;
+    try {
+        const r = await fetch(`${API}/beauty/${biz}/client-subscriptions/${subId}/use`, {
+            method: 'PATCH', headers: { 'Authorization': 'Bearer ' + (window._bizToken || '') }
+        }).then(r=>r.json());
+        if (r.id) {
+            showToast('success', 'כניסה נוצלה ✓');
+            const s = (window._bcmData?.subs || []).find(x => x.id === subId);
+            if (s) { s.sessions_used = r.sessions_used; s.is_active = r.is_active; }
+            window._bcmTab('sub', clientId);
+        } else { showToast('error', r.error || 'שגיאה'); }
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
+window._bcmSellSubscriptionModal = function(clientId) {
+    const subTypes = window._bcmData?.subTypes || [];
+    const typeOpts = subTypes.map(t => `<option value="${t.id}" data-sessions="${t.sessions_count}" data-validity="${t.validity_days||365}" data-name="${safeStr(t.name)}">${safeStr(t.name)} — ${t.sessions_count} כניסות · ₪${t.price}</option>`).join('');
+    const html = `
+<div id="beauty-sell-sub-modal" class="fixed inset-0 z-[400] flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+    <div class="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden">
+        <div class="bg-gradient-to-r from-pink-500 to-purple-600 px-5 py-4 flex items-center justify-between">
+            <h3 class="font-black text-white text-base">מכירת מנוי חדש 🎁</h3>
+            <button onclick="document.getElementById('beauty-sell-sub-modal').remove()" class="text-white/70 hover:text-white text-xl"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="p-5 space-y-3">
+            ${subTypes.length ? `
+            <div><label class="text-xs font-bold text-slate-600 block mb-1">חבילה</label>
+                <select id="bss-type" onchange="window._bcmSubTypeChange(this)" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm bg-white">
+                    <option value="">בחר חבילה מהקטלוג...</option>${typeOpts}
+                    <option value="__custom__">מנוי מותאם אישית</option>
+                </select></div>` : `<p class="text-xs text-amber-600 bg-amber-50 rounded-xl p-3">לא הוגדרו חבילות מנוי בקטלוג — ניתן ליצור מנוי מותאם אישית ללקוחה.</p>`}
+            <div><label class="text-xs font-bold text-slate-600 block mb-1">שם המנוי</label>
+                <input id="bss-name" type="text" placeholder="לדוגמה: כרטיסיית 10 טיפולי פנים" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm"/></div>
+            <div class="grid grid-cols-2 gap-3">
+                <div><label class="text-xs font-bold text-slate-600 block mb-1">כמות כניסות *</label>
+                    <input id="bss-sessions" type="number" min="1" value="5" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm"/></div>
+                <div><label class="text-xs font-bold text-slate-600 block mb-1">תוקף (ימים)</label>
+                    <input id="bss-validity" type="number" min="1" value="365" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm"/></div>
+            </div>
+            <p class="text-[10px] text-slate-400">בעת המכירה, יש לגבות את התשלום מהלקוחה בנפרד (קופה/מזומן) — פעולה זו רק פותחת ללקוחה יתרת כניסות במערכת.</p>
+        </div>
+        <div class="p-5 border-t">
+            <button onclick="window._bcmSubmitSellSubscription(${clientId})" class="w-full bg-gradient-to-r from-pink-500 to-purple-600 text-white py-3 rounded-2xl text-sm font-black shadow-sm hover:opacity-90 transition">מכור מנוי ✅</button>
+        </div>
+    </div>
+</div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+};
+
+window._bcmSubTypeChange = function(sel) {
+    if (sel.value === '__custom__' || !sel.value) return;
+    const opt = sel.options[sel.selectedIndex];
+    document.getElementById('bss-name').value = opt.dataset.name || '';
+    document.getElementById('bss-sessions').value = opt.dataset.sessions || 1;
+    document.getElementById('bss-validity').value = opt.dataset.validity || 365;
+};
+
+window._bcmSubmitSellSubscription = async function(clientId) {
+    const biz = _beautyBizId(); if (!biz) return;
+    const typeSel = document.getElementById('bss-type');
+    const subscriptionTypeId = (typeSel && typeSel.value && typeSel.value !== '__custom__') ? parseInt(typeSel.value) : null;
+    const name = document.getElementById('bss-name')?.value?.trim();
+    const sessions = parseInt(document.getElementById('bss-sessions')?.value) || 0;
+    const validity = parseInt(document.getElementById('bss-validity')?.value) || 365;
+    if (!sessions || sessions < 1) { showToast('error', 'נא הזן כמות כניסות תקינה'); return; }
+    try {
+        const r = await fetch(`${API}/beauty/${biz}/client-subscriptions`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (window._bizToken || '') },
+            body: JSON.stringify({ client_record_id: clientId, subscription_type_id: subscriptionTypeId, subscription_name: name || null, sessions_total: sessions, validity_days: validity })
+        }).then(r=>r.json());
+        if (r.id) {
+            document.getElementById('beauty-sell-sub-modal')?.remove();
+            showToast('success', 'המנוי נמכר ללקוחה ✅');
+            if (window._bcmData) window._bcmData.subs = [r, ...(window._bcmData.subs||[])];
+            window._bcmTab('sub', clientId);
+        } else { showToast('error', r.error || 'שגיאה'); }
     } catch(e) { showToast('error', 'שגיאת תקשורת'); }
 };
 
