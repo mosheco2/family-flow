@@ -27166,7 +27166,7 @@ app.get('/api/beauty/:bizId/practitioners', verifyBiz, async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/beauty/:bizId/practitioners', verifyBiz, async (req, res) => {
+app.post('/api/beauty/:bizId/practitioners', verifyBiz, verifyBeautyPractitionerAccess, async (req, res) => {
     const client = await pool.connect();
     try {
         const { display_name, tier, color_hex, specializations, schedule_override, commission_rate_svc, commission_rate_retail, work_days, slot_minutes } = req.body;
@@ -27193,7 +27193,7 @@ app.post('/api/beauty/:bizId/practitioners', verifyBiz, async (req, res) => {
     finally { client.release(); }
 });
 
-app.patch('/api/beauty/:bizId/practitioners/:id', verifyBiz, async (req, res) => {
+app.patch('/api/beauty/:bizId/practitioners/:id', verifyBiz, verifyBeautyPractitionerAccess, async (req, res) => {
     try {
         if (parseInt(req.params.bizId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const fields = ['display_name','tier','color_hex','specializations','schedule_override','commission_rate_svc','commission_rate_retail','is_active','work_days','slot_minutes'];
@@ -37679,6 +37679,14 @@ function verifyBeautyClientAccess(req, res, next) {
     const auth = req.bizAuth || {};
     if (auth.role === 'ADMIN' || (auth.employeeRoleType && BEAUTY_CLIENT_DATA_ROLES.has(auth.employeeRoleType))) return next();
     return res.status(403).json({ error: 'אין הרשאה לגשת למידע לקוחות' });
+}
+
+// תפקידים שרשאים לנהל צוות מטפלות (כולל שיעורי עמלה) — תואם לגישת הטאב beauty_practitioners בממשק
+const BEAUTY_PRACTITIONER_MGMT_ROLES = new Set(['senior_therapist']);
+function verifyBeautyPractitionerAccess(req, res, next) {
+    const auth = req.bizAuth || {};
+    if (auth.role === 'ADMIN' || (auth.employeeRoleType && BEAUTY_PRACTITIONER_MGMT_ROLES.has(auth.employeeRoleType))) return next();
+    return res.status(403).json({ error: 'אין הרשאה לנהל צוות מטפלות' });
 }
 
 // ===== DASHBOARD METRIC HISTORY API (sparklines בדף הבית) =====
