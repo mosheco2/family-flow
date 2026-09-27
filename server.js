@@ -25393,6 +25393,9 @@ app.get('/api/clients/financial-summary/:groupId', async (req, res) => {
 
 // ===== SPORT / FITNESS API =====
 
+// חלון "עומד לפוג" אחיד לכל המערכת — במקום שלושה ערכים שונים (30/14/7) שהיו מפוזרים במסכים שונים
+const SPORT_MEMBERSHIP_EXPIRING_SOON_DAYS = 14;
+
 // Dashboard stats
 app.get('/api/sport/dashboard/:groupId', async (req, res) => {
     try {
@@ -25400,7 +25403,7 @@ app.get('/api/sport/dashboard/:groupId', async (req, res) => {
         const today = new Date().toISOString().split('T')[0];
         const [activeRes, expiringRes, checkinsTodayRes, currentlyInRes, atRiskRes] = await Promise.all([
             pool.query(`SELECT COUNT(*) FROM sport_memberships WHERE group_id=$1 AND status='active'`, [gid]),
-            pool.query(`SELECT COUNT(*) FROM sport_memberships WHERE group_id=$1 AND status='active' AND end_date IS NOT NULL AND end_date BETWEEN CURRENT_DATE AND CURRENT_DATE+30`, [gid]),
+            pool.query(`SELECT COUNT(*) FROM sport_memberships WHERE group_id=$1 AND status='active' AND end_date IS NOT NULL AND end_date BETWEEN CURRENT_DATE AND CURRENT_DATE+$2`, [gid, SPORT_MEMBERSHIP_EXPIRING_SOON_DAYS]),
             pool.query(`SELECT COUNT(*) FROM sport_checkins WHERE group_id=$1 AND DATE(checked_in_at)=$2`, [gid, today]),
             pool.query(`SELECT COUNT(*) FROM sport_checkins WHERE group_id=$1 AND DATE(checked_in_at)=$2 AND checked_out_at IS NULL`, [gid, today]),
             pool.query(`SELECT COUNT(*) FROM sport_memberships WHERE group_id=$1 AND status='active' AND id NOT IN (SELECT DISTINCT membership_id FROM sport_checkins WHERE group_id=$1 AND checked_in_at >= CURRENT_DATE - 30 AND membership_id IS NOT NULL)`, [gid])

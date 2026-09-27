@@ -45110,7 +45110,7 @@ function _sportMemberCard(m) {
                 ${m.status==='active'?`<button onclick="window._sportDoCheckin(${m.id},'${(m.member_name||'').replace(/'/g,"\\'")}','${m.status}')" class="font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-lg">כניסה ✅</button>`:''}
                 ${m.status==='active'?`<button onclick="window.showSportFreeze(${m.id},'${(m.member_name||'').replace(/'/g,"\\'")}')}" class="font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-lg">❄️</button>`:''}
                 ${m.status==='frozen'?`<button onclick="window.sportUnfreeze(${m.id})" class="font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg">הפשר ☀️</button>`:''}
-                ${(m.status==='expired'||(days!==null&&days<=7))?`<button onclick="window.showSportRenewMember(${m.id},'${(m.member_name||'').replace(/'/g,"\\'")}',${m.membership_type_id||'null'})" class="font-bold text-orange-600 bg-orange-50 px-2 py-1 rounded-lg">חדש</button>`:''}
+                ${(m.status==='expired'||(days!==null&&days<=14))?`<button onclick="window.showSportRenewMember(${m.id},'${(m.member_name||'').replace(/'/g,"\\'")}',${m.membership_type_id||'null'})" class="font-bold text-orange-600 bg-orange-50 px-2 py-1 rounded-lg">חדש</button>`:''}
             </div>
             <div class="text-right text-slate-500">${warn} ${sessions} עד ${endDate}</div>
         </div>
@@ -46269,7 +46269,7 @@ function _sportMemberCard(m) {
                 ${m.status==='active'?`<button onclick="window._sportDoCheckin(${m.id},'${(m.member_name||'').replace(/'/g,"\\'")}','${m.status}')" class="font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-lg">כניסה ✅</button>`:''}
                 ${m.status==='active'?`<button onclick="window.showSportFreeze(${m.id},'${(m.member_name||'').replace(/'/g,"\\'")}')}" class="font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-lg">❄️</button>`:''}
                 ${m.status==='frozen'?`<button onclick="window.sportUnfreeze(${m.id})" class="font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg">הפשר ☀️</button>`:''}
-                ${(m.status==='expired'||(days!==null&&days<=7))?`<button onclick="window.showSportRenewMember(${m.id},'${(m.member_name||'').replace(/'/g,"\\'")}',${m.membership_type_id||'null'})" class="font-bold text-orange-600 bg-orange-50 px-2 py-1 rounded-lg">חדש</button>`:''}
+                ${(m.status==='expired'||(days!==null&&days<=14))?`<button onclick="window.showSportRenewMember(${m.id},'${(m.member_name||'').replace(/'/g,"\\'")}',${m.membership_type_id||'null'})" class="font-bold text-orange-600 bg-orange-50 px-2 py-1 rounded-lg">חדש</button>`:''}
                 <button onclick="event.stopPropagation();window.showAddToOneflow('${(m.member_name||'').replace(/'/g,"\\'")}','${(m.member_phone||'').replace(/'/g,"\\'")}',${m.id})" class="font-bold text-violet-600 bg-violet-50 px-2 py-1 rounded-lg border border-violet-100">🔗</button>
             </div>
             <div class="text-right text-slate-500">${warn} ${sessions} עד ${endDate}</div>
@@ -47216,7 +47216,7 @@ function _sportMemberCard(m) {
     let pill = { color: 'slate', text: m.status };
     if (m.status === 'active') {
         if (waiverExpired || waiverMissing) pill = { color: 'amber', dot: '🟡', text: 'ממתין להצהרה' };
-        else if (days !== null && days <= 7) pill = { color: 'orange', dot: '🟠', text: `פג ${days <= 0 ? 'היום!' : 'בעוד ' + days + 'י'}` };
+        else if (days !== null && days <= 14) pill = { color: 'orange', dot: '🟠', text: `פג ${days <= 0 ? 'היום!' : 'בעוד ' + days + 'י'}` };
         else pill = { color: 'emerald', dot: '🟢', text: 'פעיל' };
     } else if (m.status === 'frozen') {
         pill = { color: 'violet', dot: '🟣', text: 'מוקפא' };
@@ -47250,7 +47250,7 @@ function _sportMemberCard(m) {
                 ${m.status === 'active' ? `<button onclick="window._sportDoCheckin(${m.id},'${(m.member_name || '').replace(/'/g, "\\'")}','${m.status}')" class="font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-lg">כניסה ✅</button>` : ''}
                 ${m.status === 'active' ? `<button onclick="window.showSportFreeze(${m.id},'${(m.member_name || '').replace(/'/g, "\\'")}')}" class="font-bold text-violet-600 bg-violet-50 px-2 py-1 rounded-lg">❄️</button>` : ''}
                 ${m.status === 'frozen' ? `<button onclick="window.sportUnfreeze(${m.id})" class="font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg">הפשר ☀️</button>` : ''}
-                ${(m.status === 'expired' || (days !== null && days <= 7 && m.status === 'active')) ? `<button onclick="window.showSportRenewMember(${m.id},'${(m.member_name || '').replace(/'/g, "\\'")}',${m.membership_type_id || 'null'})" class="font-bold text-orange-600 bg-orange-50 px-2 py-1 rounded-lg">חדש</button>` : ''}
+                ${(m.status === 'expired' || (days !== null && days <= 14 && m.status === 'active')) ? `<button onclick="window.showSportRenewMember(${m.id},'${(m.member_name || '').replace(/'/g, "\\'")}',${m.membership_type_id || 'null'})" class="font-bold text-orange-600 bg-orange-50 px-2 py-1 rounded-lg">חדש</button>` : ''}
                 ${(waiverMissing || waiverExpired) && m.status === 'active' ? `<button onclick="window.showSportAdminSignWaiver(${m.id},'${(m.member_name || '').replace(/'/g, "\\'")}','${m.member_phone || ''}')" class="font-bold text-amber-600 bg-amber-50 px-2 py-1 rounded-lg">📋</button>` : ''}
             </div>
             <div class="text-right text-slate-500">${warn} ${sessions} עד ${endDate}</div>
