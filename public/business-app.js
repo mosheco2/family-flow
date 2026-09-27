@@ -50482,6 +50482,7 @@ function _renderBeautyInventory(filter) {
                         <button onclick="window._beautyAdjustStock(${item.id},'remove')" class="w-7 h-7 rounded-lg bg-red-100 text-red-600 font-black text-sm hover:bg-red-200 transition flex items-center justify-center">−</button>
                     </div>
                 </div>
+                ${item.inventory_type === 'retail' ? `<button onclick="window._beautySellInventoryModal(${item.id})" class="mt-2 w-full bg-pink-500 text-white text-xs font-bold py-2 rounded-xl hover:bg-pink-600 transition flex items-center justify-center gap-1"><i class="fa-solid fa-cash-register"></i> מכור ללקוחה (₪${item.retail_price||0})</button>` : ''}
             </div>`;
         }).join('');
 
@@ -50547,6 +50548,48 @@ window._beautySubmitAdjust = async function(itemId, direction) {
         document.getElementById('beauty-adjust-modal')?.remove();
         if (r.success) { showToast('success', 'מלאי עודכן ✅'); loadBeautyInventory(); }
         else showToast('error', r.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
+window._beautySellInventoryModal = function(itemId) {
+    const item = (window._beautyState.inventory || []).find(i => i.id === itemId); if (!item) return;
+    const html = `
+<div id="beauty-sell-inv-modal" class="fixed inset-0 z-[300] flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+    <div class="bg-white w-full max-w-sm rounded-3xl shadow-2xl overflow-hidden">
+        <div class="bg-gradient-to-r from-pink-500 to-purple-600 px-5 py-4 flex items-center justify-between">
+            <h3 class="font-black text-white text-base">מכירת ${safeStr(item.product_name)} 🛍️</h3>
+            <button onclick="document.getElementById('beauty-sell-inv-modal').remove()" class="text-white/70 hover:text-white text-xl"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="p-5 space-y-3">
+            <p class="text-xs text-slate-400">במלאי: ${item.stock_qty} ${item.unit||'יח׳'}</p>
+            <div><label class="text-xs font-bold text-slate-600 block mb-1">כמות</label>
+                <input id="bsi-qty" type="number" min="1" max="${item.stock_qty}" value="1" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm"/></div>
+            <div><label class="text-xs font-bold text-slate-600 block mb-1">מחיר ליחידה (₪)</label>
+                <input id="bsi-price" type="number" min="0" step="0.01" value="${item.retail_price||0}" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm"/></div>
+        </div>
+        <div class="p-5 border-t">
+            <button onclick="window._beautySubmitSellInventory(${itemId})" class="w-full bg-gradient-to-r from-pink-500 to-purple-600 text-white py-3 rounded-2xl text-sm font-black shadow-sm hover:opacity-90 transition">אשר מכירה ✅</button>
+        </div>
+    </div>
+</div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+};
+
+window._beautySubmitSellInventory = async function(itemId) {
+    const biz = _beautyBizId(); if (!biz) return;
+    const qty = parseInt(document.getElementById('bsi-qty')?.value) || 0;
+    const unitPrice = parseFloat(document.getElementById('bsi-price')?.value) || 0;
+    if (!qty || qty < 1) { showToast('error', 'נא הזן כמות תקינה'); return; }
+    try {
+        const r = await fetch(`${API}/beauty/${biz}/inventory/${itemId}/sell`, {
+            method: 'POST', headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '', 'Content-Type': 'application/json' },
+            body: JSON.stringify({ qty, unit_price: unitPrice })
+        }).then(r=>r.json());
+        if (r.success) {
+            document.getElementById('beauty-sell-inv-modal')?.remove();
+            showToast('success', `נמכרו ${qty} יח׳ · ₪${(r.total_price||0).toFixed(0)} ✅`);
+            loadBeautyInventory();
+        } else showToast('error', r.error || 'שגיאה');
     } catch(e) { showToast('error', 'שגיאת תקשורת'); }
 };
 

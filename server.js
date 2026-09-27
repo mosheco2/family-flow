@@ -28046,6 +28046,30 @@ app.post('/api/beauty/:bizId/inventory/:id/adjust', verifyBiz, async (req, res) 
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// מכירת פריט קמעונאי מהמלאי המקצועי: מנכה כמות ורושמת הכנסה — בלי תלות בקופה הכללית
+app.post('/api/beauty/:bizId/inventory/:id/sell', verifyBiz, async (req, res) => {
+    try {
+        if (parseInt(req.params.bizId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
+        const qty = parseInt(req.body.qty);
+        if (!Number.isFinite(qty) || qty < 1) return res.status(400).json({ error: 'נדרשת כמות תקינה' });
+        const itemR = await pool.query('SELECT * FROM beauty_inventory WHERE id=$1 AND business_group_id=$2', [req.params.id, req.params.bizId]);
+        const item = itemR.rows[0];
+        if (!item) return res.status(404).json({ error: 'פריט לא נמצא' });
+        if (parseFloat(item.stock_qty) < qty) return res.status(400).json({ error: 'אין מספיק מלאי לכמות המבוקשת' });
+        const unitPrice = req.body.unit_price !== undefined ? parseFloat(req.body.unit_price) : parseFloat(item.retail_price || 0);
+        const totalPrice = unitPrice * qty;
+        const r = await pool.query(
+            'UPDATE beauty_inventory SET stock_qty=stock_qty-$1, updated_at=NOW() WHERE id=$2 AND business_group_id=$3 AND stock_qty>=$1 RETURNING stock_qty',
+            [qty, req.params.id, req.params.bizId]
+        );
+        if (!r.rows.length) return res.status(409).json({ error: 'המלאי השתנה, נסה שוב' });
+        if (totalPrice > 0) {
+            await logBizIncome(req.params.bizId, totalPrice, `מכירת מוצר — ${item.product_name} × ${qty}`);
+        }
+        res.json({ success: true, stock_qty: r.rows[0].stock_qty, total_price: totalPrice });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 app.get('/api/beauty/:bizId/dashboard', verifyBiz, async (req, res) => {
     try {
         const bizId = req.params.bizId;
