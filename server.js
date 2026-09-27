@@ -25452,7 +25452,7 @@ app.get('/api/sport/members/:groupId', async (req, res) => {
 
 app.post('/api/sport/members', async (req, res) => {
     try {
-        const { groupId, name, memberName, phone, memberPhone, email, memberEmail, membershipTypeId, startDate, notes, dateOfBirth, gender, idNumber } = req.body;
+        const { groupId, name, memberName, phone, memberPhone, email, memberEmail, membershipTypeId, startDate, notes, dateOfBirth, gender, idNumber, paymentAmount, paymentMethod } = req.body;
         const mName = name || memberName;
         const mPhone = phone || memberPhone || '';
         const mEmail = email || memberEmail || '';
@@ -25467,7 +25467,14 @@ app.post('/api/sport/members', async (req, res) => {
             `INSERT INTO sport_memberships (group_id,member_name,member_phone,member_email,membership_type_id,start_date,end_date,sessions_total,notes,date_of_birth,gender,id_number) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
             [groupId, mName, mPhone, mEmail, membershipTypeId||null, startDate||new Date().toISOString().split('T')[0], endDate, sessionsTotal, notes||'', dateOfBirth||null, gender||null, idNumber||null]
         );
-        res.json({ success: true, member: r.rows[0] });
+        const m = r.rows[0];
+        // רישום תשלום ההצטרפות בפועל — ללא זה, ההכנסה מהצטרפות חבר חדש הייתה נעלמת מהמערכת כליל
+        if (paymentAmount && parseFloat(paymentAmount) > 0) {
+            await pool.query(`INSERT INTO sport_payments (group_id,membership_id,member_name,amount,payment_method,notes) VALUES ($1,$2,$3,$4,$5,$6)`,
+                [groupId, m.id, mName, paymentAmount, paymentMethod || 'cash', 'הצטרפות מנוי חדש']);
+            logBizIncome(groupId, paymentAmount, `הצטרפות מנוי חדש — ${mName || ''}`.trim());
+        }
+        res.json({ success: true, member: m });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 

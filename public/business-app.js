@@ -38586,13 +38586,14 @@ async function renderCashierDashboard(el) {
     const sessionId = regState.id || null;
 
     try {
-        const r = await fetch(`/api/transactions/${currentGroup.id}`);
+        const r = await fetch(`/api/transactions?groupId=${currentGroup.id}&userId=all&limit=500`);
         const d = await r.json();
-        const todayTx = (d.transactions||[]).filter(t => t.created_at && t.created_at.startsWith(today) && t.amount > 0);
+        const todayTx = (Array.isArray(d) ? d : []).filter(t => t.date && t.date.startsWith(today) && t.type==='income' && t.amount > 0);
         todaySales = todayTx.reduce((s,t) => s + parseFloat(t.amount||0), 0);
         txCount = todayTx.length;
-        cashIn = todayTx.filter(t=>t.payment_method==='cash').reduce((s,t)=>s+parseFloat(t.amount||0),0);
-        cashOut = todayTx.filter(t=>t.payment_method!=='cash'&&t.payment_method).reduce((s,t)=>s+parseFloat(t.amount||0),0);
+        // אין הבחנה בין מזומן לאשראי בטבלת התנועות הכללית — כל ההכנסות נחשבות כאן כמזומן צפוי
+        cashIn = todaySales;
+        cashOut = 0;
     } catch(e) {}
 
     const fmt = v => `₪${v.toLocaleString('he-IL',{minimumFractionDigits:0,maximumFractionDigits:0})}`;
@@ -38684,7 +38685,7 @@ async function renderShiftManagerDashboard(el) {
     try { const r = await fetch(`/api/timeclock/${currentGroup.id}/report`); const d = await r.json(); clocked = d.records||d.report||[]; } catch(e) {}
     try { const r = await fetch(`/api/members/${currentGroup.id}`); const d = await r.json(); members = (d.members||[]).filter(m => m.role !== 'ADMIN'); } catch(e) {}
     if (isRestaurant) {
-        try { const r = await fetch(`/api/transactions/${currentGroup.id}`); const d = await r.json(); const tx = (d.transactions||[]).filter(t => t.created_at?.startsWith(today) && t.amount > 0); todaySales = tx.reduce((s,t)=>s+parseFloat(t.amount||0),0); txCount = tx.length; } catch(e) {}
+        try { const r = await fetch(`/api/transactions?groupId=${currentGroup.id}&userId=all&limit=500`); const d = await r.json(); const tx = (Array.isArray(d) ? d : []).filter(t => t.date && t.date.startsWith(today) && t.type==='income' && t.amount > 0); todaySales = tx.reduce((s,t)=>s+parseFloat(t.amount||0),0); txCount = tx.length; } catch(e) {}
     }
 
     const present = clocked.filter(c => c.punch_in && !c.punch_out).length;
@@ -38860,7 +38861,7 @@ async function renderBranchManagerDashboard(el) {
     }
     let todaySales = 0, txCount = 0, present = 0, totalMembers = 0, faultsCount = 0;
     const today = new Date().toISOString().split('T')[0];
-    try { const r = await fetch(`/api/transactions/${currentGroup.id}`); const d = await r.json(); const tx = (d.transactions||[]).filter(t => t.created_at?.startsWith(today) && t.amount > 0); todaySales = tx.reduce((s,t)=>s+parseFloat(t.amount||0),0); txCount = tx.length; } catch(e) {}
+    try { const r = await fetch(`/api/transactions?groupId=${currentGroup.id}&userId=all&limit=500`); const d = await r.json(); const tx = (Array.isArray(d) ? d : []).filter(t => t.date && t.date.startsWith(today) && t.type==='income' && t.amount > 0); todaySales = tx.reduce((s,t)=>s+parseFloat(t.amount||0),0); txCount = tx.length; } catch(e) {}
     try { const r = await fetch(`/api/timeclock/${currentGroup.id}/report`); const d = await r.json(); present = (d.records||d.report||[]).filter(c=>c.punch_in&&!c.punch_out).length; } catch(e) {}
     try { const r = await fetch(`/api/members/${currentGroup.id}`); const d = await r.json(); totalMembers = ((d.members||[]).filter(m=>m.role!=='ADMIN')).length; } catch(e) {}
     try { const r = await fetch(`/api/equipment/faults/${currentGroup.id}`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } }); const d = await r.json(); faultsCount = (d.faults||[]).filter(f=>f.status!=='resolved').length; } catch(e) {}
@@ -43970,12 +43971,27 @@ window.showSportAddMember = async function() {
             </div>
             <div>
                 <label class="text-xs font-bold text-slate-600 block mb-1 text-right">סוג מנוי *</label>
-                ${types.length ? `<select id="sport-new-type" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-right text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300">
+                ${types.length ? `<select id="sport-new-type" onchange="window._sportNewMemberTypeChange()" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-right text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300">
                     <option value="">-- בחר סוג מנוי --</option>
-                    ${types.map(t => `<option value="${t.id}">₪${t.price} — ${t.name} (${t.type})</option>`).join('')}
+                    ${types.map(t => `<option value="${t.id}" data-price="${t.price||0}">₪${t.price} — ${t.name} (${t.type})</option>`).join('')}
                 </select>` : `<div class="text-sm text-orange-500 bg-orange-50 rounded-xl p-3 text-right">
                     אין סוגי מנויים מוגדרים. <button onclick="window.showSportMembershipTypes()" class="underline font-bold">הוסף סוג מנוי</button>
                 </div>`}
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="text-xs font-bold text-slate-600 block mb-1 text-right">סכום ששולם (₪)</label>
+                    <input id="sport-new-payment" type="number" min="0" step="0.01" placeholder="0" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-right text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300"/>
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-600 block mb-1 text-right">אמצעי תשלום</label>
+                    <select id="sport-new-payment-method" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-right text-sm focus:outline-none focus:ring-2 focus:ring-indigo-300">
+                        <option value="cash">מזומן</option>
+                        <option value="credit">אשראי</option>
+                        <option value="transfer">העברה</option>
+                        <option value="app">אפליקציה</option>
+                    </select>
+                </div>
             </div>
             <div>
                 <label class="text-xs font-bold text-slate-600 block mb-1 text-right">תאריך התחלה</label>
@@ -43997,6 +44013,15 @@ window.showSportAddMember = async function() {
     modal.classList.remove('hidden');
 };
 
+window._sportNewMemberTypeChange = function() {
+    const sel = document.getElementById('sport-new-type');
+    const paymentInput = document.getElementById('sport-new-payment');
+    if (!sel || !paymentInput) return;
+    const opt = sel.options[sel.selectedIndex];
+    const price = opt ? parseFloat(opt.getAttribute('data-price')) || 0 : 0;
+    paymentInput.value = price || '';
+};
+
 window._sportSubmitNewMember = async function() {
     const name = document.getElementById('sport-new-name')?.value?.trim();
     const phone = document.getElementById('sport-new-phone')?.value?.trim();
@@ -44005,12 +44030,14 @@ window._sportSubmitNewMember = async function() {
     const startDate = document.getElementById('sport-new-start')?.value;
     const notes = document.getElementById('sport-new-notes')?.value?.trim();
     const idNumber = document.getElementById('sport-new-idnumber')?.value?.trim();
+    const paymentAmount = document.getElementById('sport-new-payment')?.value;
+    const paymentMethod = document.getElementById('sport-new-payment-method')?.value;
     if (!name) { showToast('error', 'יש להזין שם'); return; }
     if (!typeId) { showToast('error', 'יש לבחור סוג מנוי'); return; }
     try {
         const r = await fetch(`${API}/sport/members`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ groupId: currentGroup.id, memberName: name, memberPhone: phone, memberEmail: email, membershipTypeId: parseInt(typeId), startDate, notes, idNumber })
+            body: JSON.stringify({ groupId: currentGroup.id, memberName: name, memberPhone: phone, memberEmail: email, membershipTypeId: parseInt(typeId), startDate, notes, idNumber, paymentAmount, paymentMethod })
         });
         const d = await r.json();
         if (!d.success) { showToast('error', d.error || 'שגיאה'); return; }
