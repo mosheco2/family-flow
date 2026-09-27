@@ -27316,23 +27316,6 @@ app.post('/api/beauty/:bizId/appointments', verifyFamilyOrBiz, async (req, res) 
             }
         }
 
-        // Validate patch test if needed
-        if (client_family_id) {
-            const patchBlock = req.body.requires_patch_test;
-            if (patchBlock) {
-                const cr = await client.query(
-                    `SELECT patch_test_status, patch_test_expires_at FROM beauty_client_records
-                     WHERE client_family_id=$1 AND business_group_id=$2`,
-                    [client_family_id, req.params.bizId]
-                );
-                const rec = cr.rows[0];
-                if (!rec || rec.patch_test_status !== 'passed' || (rec.patch_test_expires_at && new Date(rec.patch_test_expires_at) < new Date())) {
-                    await client.query('ROLLBACK'); client.release();
-                    return res.status(400).json({ error: 'PATCH_TEST_REQUIRED' });
-                }
-            }
-        }
-
         const totalPrice = (segments||[]).reduce((s, seg) => s + parseFloat(seg.price||0), 0);
 
         // אם לא הועבר client_family_id, ננסה לזהות לפי טלפון (עם נרמול ספרות בלבד)
@@ -27357,6 +27340,32 @@ app.post('/api/beauty/:bizId/appointments', verifyFamilyOrBiz, async (req, res) 
                     [req.params.bizId, digits, alt]
                 ).catch(() => ({ rows: [] }));
                 if (bcrR.rows[0]?.client_family_id) resolvedFamilyId = bcrR.rows[0].client_family_id;
+            }
+        }
+
+        // Validate patch test if needed — הדרישה נגזרת מהשירות בקטלוג עצמו (לא רק מדגל שהלקוח שלח),
+        // ונבדקת לפי הלקוח שזוהה (לפי חשבון מקושר או טלפון) ולא רק לפי לקוח בעל חשבון מקושר מראש
+        const catalogIds = (segments||[]).map(s => s.service_catalog_id).filter(Boolean);
+        let needsPatchTest = !!req.body.requires_patch_test;
+        if (!needsPatchTest && catalogIds.length) {
+            const svcR = await client.query(
+                `SELECT 1 FROM beauty_service_catalog WHERE id=ANY($1) AND business_group_id=$2 AND requires_patch_test=TRUE LIMIT 1`,
+                [catalogIds, req.params.bizId]
+            ).catch(() => ({ rows: [] }));
+            needsPatchTest = svcR.rows.length > 0;
+        }
+        if (needsPatchTest) {
+            const digits2 = (client_phone || '').replace(/\D/g, '');
+            const cr = await client.query(
+                `SELECT patch_test_status, patch_test_expires_at FROM beauty_client_records
+                 WHERE business_group_id=$1 AND (client_family_id=$2 OR ($3 <> '' AND REGEXP_REPLACE(client_phone,'[^0-9]','','g')=$3))
+                 LIMIT 1`,
+                [req.params.bizId, resolvedFamilyId, digits2]
+            );
+            const rec = cr.rows[0];
+            if (!rec || rec.patch_test_status !== 'passed' || (rec.patch_test_expires_at && new Date(rec.patch_test_expires_at) < new Date())) {
+                await client.query('ROLLBACK'); client.release();
+                return res.status(400).json({ error: 'PATCH_TEST_REQUIRED' });
             }
         }
 

@@ -49511,7 +49511,8 @@ window._beautySubmitNewAp = async function() {
     const startTime = `${date}T${time}:00`;
     const endDt = new Date(startTime); endDt.setMinutes(endDt.getMinutes() + dur);
     const endTime = endDt.toISOString().slice(0,19);
-    const segments = [{ segment_order: 1, segment_type: 'active', service_name: service || 'טיפול', start_time: startTime, end_time: endTime, duration_minutes: dur, practitioner_id: pracId ? parseInt(pracId) : null, price }];
+    const serviceCatalogId = (svcSelVal && svcSelVal !== '__other__') ? parseInt(svcSelVal) : null;
+    const segments = [{ segment_order: 1, segment_type: 'active', service_name: service || 'טיפול', service_catalog_id: serviceCatalogId, start_time: startTime, end_time: endTime, duration_minutes: dur, practitioner_id: pracId ? parseInt(pracId) : null, price }];
     try {
         const r = await fetch(`${API}/beauty/${biz}/appointments`, {
             method: 'POST', headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '', 'Content-Type': 'application/json' },
@@ -49525,7 +49526,10 @@ window._beautySubmitNewAp = async function() {
             showToast('success', isPending ? `תור נשלח ללקוח לאישור ⏳${familyTag}` : 'תור נקבע בהצלחה! 💅');
             loadBeautyCalendar();
         } else {
-            showToast('error', r.error || 'שגיאה ביצירת תור');
+            const errMsg = r.error === 'PATCH_TEST_REQUIRED'
+                ? 'לא ניתן לקבוע תור — נדרשת בדיקת רגישות (פאץ׳ טסט) תקפה ללקוחה עבור שירות זה'
+                : (r.error || 'שגיאה ביצירת תור');
+            showToast('error', errMsg);
             if (btn) { btn.disabled = false; btn.innerHTML = 'קבע תור ✅'; }
         }
     } catch(e) {
