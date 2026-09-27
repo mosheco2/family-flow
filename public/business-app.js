@@ -45197,7 +45197,7 @@ window.showSportAddClass = async function() {
                     <option value="">-- ללא --</option>${types.map(t=>`<option value="${t.id}">${t.name}</option>`).join('')}
                 </select></div>`:''}
             <div><label class="text-xs font-bold text-slate-600 block mb-1 text-right">מאמן/ת</label>
-                ${trainers.length?`<select id="sport-cls-trainer" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-right text-sm"><option value="">-- ללא מאמן --</option>${trainers.map(t=>`<option value="${(t.full_name||t.name||'').replace(/"/g,'&quot;')}">${t.full_name||t.name||''}</option>`).join('')}</select>`:`<input id="sport-cls-trainer" type="text" placeholder="שם המאמן" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-right text-sm"/>`}
+                ${trainers.length?`<select id="sport-cls-trainer" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-right text-sm"><option value="">-- ללא מאמן --</option>${trainers.map(t=>`<option value="${t.id}" data-name="${(t.full_name||t.name||'').replace(/"/g,'&quot;')}">${t.full_name||t.name||''}</option>`).join('')}</select>`:`<input id="sport-cls-trainer" type="text" placeholder="שם המאמן" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-right text-sm"/>`}
             </div>
             <div><label class="text-xs font-bold text-slate-600 block mb-1 text-right">תאריך *</label>
                 <input id="sport-cls-date" type="date" value="${new Date().toISOString().split('T')[0]}" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm"/></div>
@@ -45221,10 +45221,16 @@ window._sportSubmitClass = async function() {
     const name=document.getElementById('sport-cls-name')?.value?.trim();
     const date=document.getElementById('sport-cls-date')?.value;
     if(!name||!date){showToast('error','שם ותאריך הם שדות חובה');return;}
+    const trainerEl = document.getElementById('sport-cls-trainer');
+    const isTrainerSelect = trainerEl && trainerEl.tagName === 'SELECT';
+    const trainerId = isTrainerSelect ? (trainerEl.value || null) : null;
+    const trainerName = isTrainerSelect
+        ? (trainerEl.selectedOptions[0]?.getAttribute('data-name') || '')
+        : (trainerEl?.value?.trim() || '');
     try{
         const d=await fetch(`${API}/sport/classes`,{method:'POST',headers:{'Content-Type':'application/json'},
             body:JSON.stringify({groupId:currentGroup.id,classTypeId:document.getElementById('sport-cls-type')?.value||null,
-            className:name,trainerName:document.getElementById('sport-cls-trainer')?.value?.trim()||'',
+            className:name,trainerName,trainerId,
             classDate:date,startTime:document.getElementById('sport-cls-start')?.value||null,
             endTime:document.getElementById('sport-cls-end')?.value||null,
             capacity:parseInt(document.getElementById('sport-cls-cap')?.value)||20})
@@ -48570,7 +48576,7 @@ window.showSportEditClass = async function(classId) {
                     ${types.map(t=>`<option value="${t.id}" ${c.class_type_id==t.id?'selected':''}>${t.name}</option>`).join('')}
                 </select></div>`:''}
             <div><label class="text-xs font-bold text-slate-600 block mb-1 text-right">מאמן/ת</label>
-                ${trainers.length?`<select id="sedit-cls-trainer" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-right text-sm"><option value="">-- ללא מאמן --</option>${trainers.map(t=>`<option value="${(t.full_name||t.name||'').replace(/"/g,'&quot;')}" ${(c.trainer_name||'')===(t.full_name||t.name||'')?'selected':''}>${t.full_name||t.name||''}</option>`).join('')}</select>`:`<input id="sedit-cls-trainer" type="text" value="${(c.trainer_name||'').replace(/"/g,'&quot;')}" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-right text-sm"/>`}
+                ${trainers.length?`<select id="sedit-cls-trainer" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-right text-sm"><option value="">-- ללא מאמן --</option>${trainers.map(t=>`<option value="${t.id}" data-name="${(t.full_name||t.name||'').replace(/"/g,'&quot;')}" ${(c.trainer_id&&String(c.trainer_id)===String(t.id))?'selected':''}>${t.full_name||t.name||''}</option>`).join('')}</select>`:`<input id="sedit-cls-trainer" type="text" value="${(c.trainer_name||'').replace(/"/g,'&quot;')}" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-right text-sm"/>`}
             </div>
             <div><label class="text-xs font-bold text-slate-600 block mb-1 text-right">תאריך *</label>
                 <input id="sedit-cls-date" type="date" value="${(c.class_date||'').substring(0,10)}" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm"/></div>
@@ -48593,7 +48599,12 @@ window.showSportEditClass = async function(classId) {
 window._sportSubmitEditClass = async function(classId) {
     const name    = document.getElementById('sedit-cls-name')?.value?.trim();
     const date    = document.getElementById('sedit-cls-date')?.value;
-    const trainer = document.getElementById('sedit-cls-trainer')?.value?.trim() || '';
+    const trainerEl = document.getElementById('sedit-cls-trainer');
+    const isTrainerSelect = trainerEl && trainerEl.tagName === 'SELECT';
+    const trainerId = isTrainerSelect ? (trainerEl.value || null) : null;
+    const trainer = isTrainerSelect
+        ? (trainerEl.selectedOptions[0]?.getAttribute('data-name') || '')
+        : (trainerEl?.value?.trim() || '');
     const start   = document.getElementById('sedit-cls-start')?.value || null;
     const end     = document.getElementById('sedit-cls-end')?.value   || null;
     const cap     = parseInt(document.getElementById('sedit-cls-cap')?.value) || 20;
@@ -48601,7 +48612,7 @@ window._sportSubmitEditClass = async function(classId) {
     try {
         const d = await fetch(`${API}/sport/classes/${classId}`, {
             method: 'PUT', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ className: name, trainerName: trainer, classDate: date, startTime: start, endTime: end, capacity: cap, status: 'scheduled' })
+            body: JSON.stringify({ className: name, trainerName: trainer, trainerId, classDate: date, startTime: start, endTime: end, capacity: cap, status: 'scheduled' })
         }).then(r => r.json());
         if (!d.success) { showToast('error', d.error || 'שגיאה'); return; }
         showToast('success', 'שיעור עודכן ✅');

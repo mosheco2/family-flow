@@ -25897,28 +25897,30 @@ app.get('/api/sport/classes/:groupId', async (req, res) => {
     const toDate = to || (() => { const d = new Date(); d.setDate(d.getDate()+14); return d.toISOString().split('T')[0]; })();
     try {
         const r = await pool.query(`SELECT sc2.*, sct.name as type_name, sct.color,
+            COALESCE(tr.name, sc2.trainer_name) as trainer_name,
             (SELECT COUNT(*) FROM sport_class_registrations WHERE class_id=sc2.id) as registered_count
             FROM sport_classes sc2 LEFT JOIN sport_class_types sct ON sc2.class_type_id=sct.id
+            LEFT JOIN sport_trainers tr ON sc2.trainer_id=tr.id
             WHERE sc2.group_id=$1 AND sc2.class_date BETWEEN $2 AND $3 ORDER BY sc2.class_date, sc2.start_time`, [req.params.groupId, fromDate, toDate]);
         res.json({ classes: r.rows });
     } catch(e) { res.json({ classes: [] }); }
 });
 
 app.post('/api/sport/classes', async (req, res) => {
-    const { groupId, classTypeId, className, trainerName, classDate, startTime, endTime, capacity, notes } = req.body;
+    const { groupId, classTypeId, className, trainerName, trainerId, classDate, startTime, endTime, capacity, notes } = req.body;
     try {
-        const r = await pool.query(`INSERT INTO sport_classes (group_id,class_type_id,class_name,trainer_name,class_date,start_time,end_time,capacity,notes)
-            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
-            [groupId, classTypeId || null, className, trainerName || '', classDate, startTime || null, endTime || null, capacity || 20, notes || '']);
+        const r = await pool.query(`INSERT INTO sport_classes (group_id,class_type_id,class_name,trainer_name,trainer_id,class_date,start_time,end_time,capacity,notes)
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING *`,
+            [groupId, classTypeId || null, className, trainerName || '', trainerId || null, classDate, startTime || null, endTime || null, capacity || 20, notes || '']);
         res.json({ success: true, class: r.rows[0] });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 app.put('/api/sport/classes/:id', async (req, res) => {
-    const { className, trainerName, classDate, startTime, endTime, capacity, status, notes } = req.body;
+    const { className, trainerName, trainerId, classDate, startTime, endTime, capacity, status, notes } = req.body;
     try {
-        await pool.query(`UPDATE sport_classes SET class_name=$1,trainer_name=$2,class_date=$3,start_time=$4,end_time=$5,capacity=$6,status=$7,notes=$8 WHERE id=$9`,
-            [className, trainerName || '', classDate, startTime || null, endTime || null, capacity || 20, status || 'scheduled', notes || '', req.params.id]);
+        await pool.query(`UPDATE sport_classes SET class_name=$1,trainer_name=$2,trainer_id=$3,class_date=$4,start_time=$5,end_time=$6,capacity=$7,status=$8,notes=$9 WHERE id=$10`,
+            [className, trainerName || '', trainerId || null, classDate, startTime || null, endTime || null, capacity || 20, status || 'scheduled', notes || '', req.params.id]);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
