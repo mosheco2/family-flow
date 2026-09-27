@@ -50295,8 +50295,8 @@ async function loadBeautyInventory() {
             fetch(`${API}/beauty/${biz}/inventory`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } }).then(r=>r.json()),
             fetch(`${API}/beauty/${biz}/inventory/alerts`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } }).then(r=>r.json())
         ]);
-        window._beautyState.inventory = invRes.inventory || [];
-        window._beautyState.inventoryAlerts = alertRes.alerts || [];
+        window._beautyState.inventory = Array.isArray(invRes) ? invRes : [];
+        window._beautyState.inventoryAlerts = Array.isArray(alertRes) ? alertRes : [];
     } catch(e) { window._beautyState.inventory = []; window._beautyState.inventoryAlerts = []; }
     _renderBeautyInventory();
 }
@@ -50415,7 +50415,7 @@ window._beautySubmitAdjust = async function(itemId, direction) {
     try {
         const r = await fetch(`${API}/beauty/${biz}/inventory/${itemId}/adjust`, {
             method: 'POST', headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '', 'Content-Type': 'application/json' },
-            body: JSON.stringify({ qty_change: adjustedQty, reason })
+            body: JSON.stringify({ delta: adjustedQty, reason })
         }).then(r=>r.json());
         document.getElementById('beauty-adjust-modal')?.remove();
         if (r.success) { showToast('success', 'מלאי עודכן ✅'); loadBeautyInventory(); }
@@ -50483,7 +50483,7 @@ window._beautySubmitInventory = async function() {
             method: 'POST', headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '', 'Content-Type': 'application/json' },
             body: JSON.stringify(body)
         }).then(r=>r.json());
-        if (r.success || r.item) {
+        if (r.id) {
             document.getElementById('beauty-inv-modal')?.remove();
             showToast('success', `${name} נוסף למלאי ✅`);
             loadBeautyInventory();

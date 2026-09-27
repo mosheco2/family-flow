@@ -6370,11 +6370,11 @@ app.post('/api/sa/snapshots/:id/restore', verifySA, async (req, res) => {
         // שחזור beauty_inventory
         for (const item of (d.beauty_inventory || [])) {
             await client.query(
-                `INSERT INTO beauty_inventory (id, business_group_id, product_name, inventory_type, brand, stock_qty, unit_price, reorder_threshold, is_active)
-                 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
-                 ON CONFLICT (id) DO UPDATE SET product_name=$3, inventory_type=$4, brand=$5, stock_qty=$6, unit_price=$7, reorder_threshold=$8, is_active=$9`,
+                `INSERT INTO beauty_inventory (id, business_group_id, product_name, inventory_type, brand, stock_qty, cost_price, retail_price, reorder_threshold, is_active)
+                 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+                 ON CONFLICT (id) DO UPDATE SET product_name=$3, inventory_type=$4, brand=$5, stock_qty=$6, cost_price=$7, retail_price=$8, reorder_threshold=$9, is_active=$10`,
                 [item.id, groupId, item.product_name, item.inventory_type, item.brand,
-                 item.stock_qty, item.unit_price, item.reorder_threshold, item.is_active]
+                 item.stock_qty, item.cost_price, item.retail_price, item.reorder_threshold, item.is_active]
             );
         }
 
@@ -28026,13 +28026,14 @@ app.patch('/api/beauty/:bizId/inventory/:id', verifyBiz, async (req, res) => {
 
 app.post('/api/beauty/:bizId/inventory/:id/adjust', verifyBiz, async (req, res) => {
     try {
-        const { delta, reason } = req.body;
+        const delta = parseFloat(req.body.delta);
+        if (!Number.isFinite(delta)) return res.status(400).json({ error: 'נדרש שינוי כמות תקין' });
         if (parseInt(req.params.bizId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
-        await pool.query(
-            'UPDATE beauty_inventory SET stock_qty=stock_qty+$1, updated_at=NOW() WHERE id=$2 AND business_group_id=$3',
+        const r = await pool.query(
+            'UPDATE beauty_inventory SET stock_qty=GREATEST(stock_qty+$1,0), updated_at=NOW() WHERE id=$2 AND business_group_id=$3 RETURNING stock_qty',
             [delta, req.params.id, req.params.bizId]
         );
-        res.json({ success: true });
+        res.json({ success: true, stock_qty: r.rows[0]?.stock_qty });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
