@@ -43938,6 +43938,34 @@ window.sportUnfreeze = async function(memberId) {
     } catch(e) { showToast('error', 'שגיאת תקשורת'); }
 };
 
+window.sportCancelMembership = async function(memberId, memberName) {
+    const reason = await window._uiPrompt(`ביטול מנוי ל${memberName || 'החבר/ה'} — סיבה (אופציונלי):`, { defaultValue: '' });
+    if (reason === null) return; // cancelled the prompt itself
+    if (!await window._uiConfirm(`לבטל את המנוי של ${memberName || 'החבר/ה'}? הפעולה ניתנת לביטול ע"י "חידוש" מאוחר יותר.`, { danger: true, okLabel: 'בטל מנוי' })) return;
+    try {
+        const r = await fetch(`${API}/sport/members/${memberId}/cancel`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ reason }) });
+        const d = await r.json();
+        if (!d.success) { showToast('error', d.error || 'שגיאה'); return; }
+        showToast('success', 'המנוי בוטל');
+        if (document.getElementById('sport-member-detail-content')) {
+            window.showSportMemberDetail(memberId);
+        } else if (document.getElementById('sport-members-list')) {
+            window._sportLoadMembers(window._sportCurrentFilter || 'all');
+        }
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
+window.sportDeleteMember = async function(memberId, memberName) {
+    if (!await window._uiConfirm(`למחוק לצמיתות את ${memberName || 'החבר/ה'}? כל היסטוריית הכניסות, התשלומים והרישום לשיעורים שלו/ה יימחקו גם כן. פעולה זו אינה הפיכה.`, { danger: true, okLabel: 'מחק לצמיתות' })) return;
+    try {
+        const r = await fetch(`${API}/sport/members/${memberId}`, { method: 'DELETE' });
+        const d = await r.json();
+        if (!d.success) { showToast('error', d.error || 'שגיאה'); return; }
+        showToast('info', 'החבר/ה נמחק/ה לצמיתות');
+        window.showSportMembers();
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
 // ─── Add Member Screen ────────────────────────────────────────────────────────
 window.showSportAddMember = async function() {
     _ensureSportModal();
@@ -46291,6 +46319,8 @@ window.showSportMemberDetail = async function(memberId) {
                 ${m.status==='frozen'?`<button onclick="window.sportUnfreeze(${m.id})" class="flex-1 min-w-[72px] bg-emerald-100 text-emerald-700 font-bold py-2 rounded-xl text-xs">הפשר ☀️</button>`:''}
                 <button onclick="window._sportAddPayment(${m.id},'${(m.member_name||'').replace(/'/g,"\\'")}',${m.type_price||0})" class="flex-1 min-w-[72px] bg-emerald-100 text-emerald-700 font-bold py-2 rounded-xl text-xs">תשלום 💰</button>
                 <button onclick="window.showAddToOneflow('${(m.member_name||'').replace(/'/g,"\\'")}','${(m.member_phone||'').replace(/'/g,"\\'")}',${m.id})" class="flex-1 min-w-[72px] bg-violet-100 text-violet-700 font-bold py-2 rounded-xl text-xs">🔗 WEFLOWZ</button>
+                ${m.status!=='cancelled'?`<button onclick="window.sportCancelMembership(${m.id},'${(m.member_name||'').replace(/'/g,"\\'")}')" class="flex-1 min-w-[72px] bg-orange-100 text-orange-700 font-bold py-2 rounded-xl text-xs">בטל מנוי ⛔</button>`:''}
+                <button onclick="window.sportDeleteMember(${m.id},'${(m.member_name||'').replace(/'/g,"\\'")}')" class="flex-1 min-w-[72px] bg-red-100 text-red-700 font-bold py-2 rounded-xl text-xs">מחק לצמיתות 🗑️</button>
             </div>
             <div class="mb-3"><div class="text-xs font-black text-slate-600 mb-2 text-right">כניסות אחרונות</div>${checkinRows}</div>
             ${d.classes?.length?`<div class="mb-3"><div class="text-xs font-black text-slate-600 mb-2 text-right">שיעורים</div>${classRows}</div>`:''}

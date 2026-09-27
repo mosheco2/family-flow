@@ -25566,6 +25566,40 @@ app.post('/api/sport/members/:id/unfreeze', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// Cancel membership (feature build — previously there was no reachable path to cancel a membership)
+app.post('/api/sport/members/:id/cancel', async (req, res) => {
+    try {
+        const { reason } = req.body;
+        const r = await pool.query(`UPDATE sport_memberships SET status='cancelled', updated_at=NOW() WHERE id=$1 RETURNING group_id, member_name`, [req.params.id]);
+        if (!r.rows.length) return res.status(404).json({ error: 'לא נמצא' });
+        logBizAction(r.rows[0].group_id, null, 'מערכת', 'CANCEL_MEMBER', 'membership', req.params.id, `מנוי #${req.params.id} בוטל`, { reason: reason || '' });
+        res.json({ success: true });
+        try {
+            const linkR = await pool.query(
+                `SELECT mbl.member_group_id, fg.name AS biz_name FROM member_business_links mbl
+                 JOIN family_groups fg ON fg.id = mbl.business_group_id
+                 WHERE mbl.linked_member_ref_id=$1 AND mbl.status='active' AND mbl.is_active=true LIMIT 1`,
+                [parseInt(req.params.id)]
+            );
+            if (linkR.rows.length) {
+                await _sendMemberBizNotif(linkR.rows[0].member_group_id, linkR.rows[0].biz_name,
+                    `המנוי שלך ב${linkR.rows[0].biz_name} בוטל`, `mbiz_sport_${req.params.id}_cancelled`);
+            }
+        } catch(e) {}
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Permanently delete a member record (feature build — previously there was no deletion endpoint at all)
+app.delete('/api/sport/members/:id', async (req, res) => {
+    try {
+        const r = await pool.query('SELECT group_id, member_name FROM sport_memberships WHERE id=$1', [req.params.id]);
+        if (!r.rows.length) return res.status(404).json({ error: 'לא נמצא' });
+        await pool.query('DELETE FROM sport_memberships WHERE id=$1', [req.params.id]);
+        logBizAction(r.rows[0].group_id, null, 'מערכת', 'DELETE_MEMBER', 'membership', req.params.id, `חבר "${r.rows[0].member_name || ''}" נמחק לצמיתות`, {});
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // Check-in
 // בודק חסימות משותפות לכל מסלולי הצ'ק-אין: הצהרת בריאות תקפה (אם נדרשת), וכפילות כניסה היום
 async function sportCheckinGuards(m, groupId) {
