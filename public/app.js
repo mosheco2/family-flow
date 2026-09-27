@@ -2530,7 +2530,7 @@ async function submitGoodDeed() {
     const reward = getEl('gd-reward')?.value || 0;
     if (!title) return showToast('error', 'כתבי מה עשית 😊');
     try {
-        const res = await fetch(`${API}/tasks`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ title, reward: reward || 0, assignedTo: currentUser.id, days: null, status: 'done', groupId: currentGroup.id, requireAiCheck: false, createdBy: currentUser.id }) });
+        const res = await fetch(`${API}/tasks`, { method:'POST', headers:{'Content-Type':'application/json', 'Authorization': `Bearer ${getFamilyToken() || ''}`}, body: JSON.stringify({ title, reward: reward || 0, assignedTo: currentUser.id, days: null, status: 'done', requireAiCheck: false }) });
         const data = await res.json();
         if (data.success) { triggerConfetti(); closeGoodDeedModal(); showToast('success', 'נשלח לאישור ההורה! 🌟'); fetchData(); }
         else showToast('error', data.error || 'שגיאה');
@@ -2640,10 +2640,10 @@ async function submitTask() {
     try {
         let res, data;
         if (assignees.length === 1) {
-            res = await fetch(`${API}/tasks`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ title, reward: reward || 0, assignedTo: assignees[0], days, status: 'pending', groupId: currentGroup.id, requireAiCheck, isRecurring, recurringDays, createdBy: currentUser.id, priority }) });
+            res = await fetch(`${API}/tasks`, { method:'POST', headers:{'Content-Type':'application/json', 'Authorization': `Bearer ${getFamilyToken() || ''}`}, body:JSON.stringify({ title, reward: reward || 0, assignedTo: assignees[0], days, status: 'pending', requireAiCheck, isRecurring, recurringDays, priority }) });
             data = await res.json();
         } else {
-            res = await fetch(`${API}/tasks/bulk`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ title, reward: reward || 0, assignees, days, groupId: currentGroup.id, requireAiCheck, isRecurring, recurringDays, createdBy: currentUser.id, priority }) });
+            res = await fetch(`${API}/tasks/bulk`, { method:'POST', headers:{'Content-Type':'application/json', 'Authorization': `Bearer ${getFamilyToken() || ''}`}, body:JSON.stringify({ title, reward: reward || 0, assignees, days, requireAiCheck, isRecurring, recurringDays, priority }) });
             data = await res.json();
         }
         if (data.success) {
@@ -3057,7 +3057,7 @@ function openApproveTaskModal(id, title, currentReward) { getEl('approve-task-id
 async function submitTaskApproval() {
     const id = getEl('approve-task-id').value; const finalReward = getEl('approve-task-reward').value;
     getEl('approve-task-modal').classList.add('hidden'); triggerConfetti();
-    const res = await fetch(`${API}/tasks/update`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ taskId: id, status: 'approved', finalReward: finalReward }) });
+    const res = await fetch(`${API}/tasks/update`, { method: 'POST', headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${getFamilyToken() || ''}`}, body: JSON.stringify({ taskId: id, status: 'approved', finalReward: finalReward }) });
     const data = await res.json();
     if(data.success) { showToast('success', 'המשימה אושרה והתגמול הועבר!'); fetchData(); } else showToast('error', data.error);
 }
@@ -3169,7 +3169,7 @@ function renderTasks(tasks) {
     else list.innerHTML = htmlStr;
 }
 
-async function updateTask(id, s) { if(s==='done' || s==='completed_self') triggerConfetti(); await fetch(`${API}/tasks/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({taskId:id, status:s})}); fetchData(); }
+async function updateTask(id, s) { if(s==='done' || s==='completed_self') triggerConfetti(); await fetch(`${API}/tasks/update`, {method:'POST', headers:{'Content-Type':'application/json', 'Authorization': `Bearer ${getFamilyToken() || ''}`}, body:JSON.stringify({taskId:id, status:s})}); fetchData(); }
 
 function openEditFamilyTaskModal(id, title, reward, priority) {
     getEl('edit-ftask-id').value = id;
@@ -3187,7 +3187,7 @@ async function submitEditFamilyTask() {
     const priority = getEl('edit-ftask-priority').value;
     if (!title) return showToast('error', 'יש לכתוב כותרת');
     try {
-        const res = await fetch(`${API}/tasks/${id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ title, reward, days: days || undefined, priority }) });
+        const res = await fetch(`${API}/tasks/${id}`, { method:'PATCH', headers:{'Content-Type':'application/json', 'Authorization': `Bearer ${getFamilyToken() || ''}`}, body:JSON.stringify({ title, reward, days: days || undefined, priority }) });
         const data = await res.json();
         if (data.success) { getEl('edit-family-task-modal').classList.add('hidden'); showToast('success', 'המשימה עודכנה'); fetchData(); }
         else showToast('error', data.error || 'שגיאה בעדכון');
@@ -3197,7 +3197,7 @@ async function submitEditFamilyTask() {
 async function rejectFamilyTask() {
     const id = getEl('approve-task-id').value;
     getEl('approve-task-modal').classList.add('hidden');
-    const res = await fetch(`${API}/tasks/update`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ taskId: id, status: 'rejected' }) });
+    const res = await fetch(`${API}/tasks/update`, { method:'POST', headers:{'Content-Type':'application/json', 'Authorization': `Bearer ${getFamilyToken() || ''}`}, body:JSON.stringify({ taskId: id, status: 'rejected' }) });
     const data = await res.json();
     if (data.success) { showToast('success', 'המשימה הוחזרה לילד'); fetchData(); }
     else showToast('error', data.error || 'שגיאה');
@@ -3223,7 +3223,7 @@ async function handleFamilyTaskProofCloudinaryUpload(event) {
         const upR = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, { method:'POST', body: formData });
         const upData = await upR.json();
         if (!upData.secure_url) return showToast('error', 'שגיאה בהעלאה');
-        const res = await fetch(`${API}/tasks/${_ftaskCloudinaryTaskId}/proof`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ proofImageUrl: upData.secure_url }) });
+        const res = await fetch(`${API}/tasks/${_ftaskCloudinaryTaskId}/proof`, { method:'POST', headers:{'Content-Type':'application/json', 'Authorization': `Bearer ${getFamilyToken() || ''}`}, body:JSON.stringify({ proofImageUrl: upData.secure_url }) });
         const data = await res.json();
         if (data.success) { triggerConfetti(); showToast('success', 'הוכחה נשלחה! ממתין לאישור ההורה 🌟'); fetchData(); }
         else showToast('error', data.error || 'שגיאה');
@@ -3241,7 +3241,7 @@ async function loadFamilyTaskComments(taskId) {
     const listEl = getEl('ftask-comments-list');
     listEl.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">טוען...</p>';
     try {
-        const res = await fetch(`${API}/tasks/${taskId}/comments`);
+        const res = await fetch(`${API}/tasks/${taskId}/comments`, { headers: { 'Authorization': `Bearer ${getFamilyToken() || ''}` } });
         const data = await res.json();
         const comments = data.comments || [];
         if (!comments.length) { listEl.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">אין הערות עדיין</p>'; return; }
@@ -3265,7 +3265,7 @@ async function addFamilyTaskComment() {
     if (!text) return;
     getEl('ftask-comment-input').value = '';
     try {
-        const res = await fetch(`${API}/tasks/${taskId}/comments`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ text, userId: currentUser.id, groupId: currentGroup.id }) });
+        const res = await fetch(`${API}/tasks/${taskId}/comments`, { method:'POST', headers:{'Content-Type':'application/json', 'Authorization': `Bearer ${getFamilyToken() || ''}`}, body:JSON.stringify({ text }) });
         const data = await res.json();
         if (data.success) loadFamilyTaskComments(taskId);
     } catch(e) { showToast('error', 'שגיאת תקשורת'); }

@@ -10742,9 +10742,13 @@ app.post('/api/admin/payday', async (req, res) => {
 // --- TASKS ENDPOINTS ---
 // ============================================================
 
-app.post('/api/tasks', async (req, res) => {
+app.post('/api/tasks', verifyFamilyOrBiz, async (req, res) => {
     try {
-        const { title, reward, assignedTo, days, status, groupId, requireAiCheck, isRecurring, recurringDays, createdBy, priority } = req.body;
+        const { title, reward, assignedTo, days, status, requireAiCheck, isRecurring, recurringDays, priority } = req.body;
+        const { groupId, userId: createdBy, role } = req.callerAuth;
+        if (assignedTo && String(assignedTo) !== String(createdBy) && role !== 'ADMIN') {
+            return res.status(403).json({ error: 'רק מנהל/ת יכול/ה להקצות משימה לאדם אחר' });
+        }
         const deadline = (!isRecurring && days) ? new Date(Date.now() + days * 24 * 60 * 60 * 1000) : null;
         const aiCheck = requireAiCheck !== undefined ? requireAiCheck : true;
         const recurring = !!isRecurring;
@@ -10759,10 +10763,12 @@ app.post('/api/tasks', async (req, res) => {
     } catch(e) { res.status(500).json({error: e.message}); }
 });
 
-// יצירת משימה מרובה עובדים
-app.post('/api/tasks/bulk', async (req, res) => {
+// יצירת משימה מרובה עובדים (מנהל/ת בלבד)
+app.post('/api/tasks/bulk', verifyFamilyOrBiz, async (req, res) => {
     try {
-        const { assignees, title, reward, days, groupId, requireAiCheck, isRecurring, recurringDays, createdBy, priority } = req.body;
+        const { assignees, title, reward, days, requireAiCheck, isRecurring, recurringDays, priority } = req.body;
+        const { groupId, userId: createdBy, role } = req.callerAuth;
+        if (role !== 'ADMIN') return res.status(403).json({ error: 'רק מנהל/ת יכול/ה להקצות משימות לצוות' });
         if (!assignees || !Array.isArray(assignees) || assignees.length === 0) return res.status(400).json({ error: 'assignees required' });
         const deadline = (!isRecurring && days) ? new Date(Date.now() + days * 24 * 60 * 60 * 1000) : null;
         const aiCheck = requireAiCheck !== undefined ? requireAiCheck : true;
@@ -10781,10 +10787,12 @@ app.post('/api/tasks/bulk', async (req, res) => {
 });
 
 // עריכת משימה קיימת (admin בלבד, status=pending בלבד)
-app.patch('/api/tasks/:id', async (req, res) => {
+app.patch('/api/tasks/:id', verifyFamilyOrBiz, async (req, res) => {
     try {
         const { title, reward, days, priority } = req.body;
-        const tRes = await pool.query('SELECT * FROM tasks WHERE id=$1', [req.params.id]);
+        const { groupId, role } = req.callerAuth;
+        if (role !== 'ADMIN') return res.status(403).json({ error: 'רק מנהל/ת יכול/ה לערוך משימות' });
+        const tRes = await pool.query('SELECT * FROM tasks WHERE id=$1 AND group_id=$2', [req.params.id, groupId]);
         if (!tRes.rows[0]) return res.status(404).json({ error: 'not found' });
         const t = tRes.rows[0];
         if (t.status !== 'pending') return res.status(400).json({ error: 'ניתן לערוך רק משימות בסטטוס pending' });
@@ -10797,23 +10805,29 @@ app.patch('/api/tasks/:id', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// שמירת הוכחת תמונה (Cloudinary URL)
-app.post('/api/tasks/:id/proof', async (req, res) => {
+// שמירת הוכחת תמונה (Cloudinary URL) — רק בעל/ת המשימה או מנהל/ת
+app.post('/api/tasks/:id/proof', verifyFamilyOrBiz, async (req, res) => {
     try {
         const { proofImageUrl } = req.body;
+        const { groupId, userId, role } = req.callerAuth;
         if (!proofImageUrl) return res.status(400).json({ error: 'proofImageUrl required' });
-        const tRes = await pool.query('SELECT * FROM tasks WHERE id=$1', [req.params.id]);
+        const tRes = await pool.query('SELECT * FROM tasks WHERE id=$1 AND group_id=$2', [req.params.id, groupId]);
         if (!tRes.rows[0]) return res.status(404).json({ error: 'not found' });
-        await pool.query('UPDATE tasks SET proof_image_url=$1, status=\'done\', updated_at=NOW() WHERE id=$2', [proofImageUrl, req.params.id]);
         const t = tRes.rows[0];
+        if (role !== 'ADMIN' && String(t.assigned_to) !== String(userId)) {
+            return res.status(403).json({ error: 'אין הרשאה לעדכן משימה זו' });
+        }
+        await pool.query('UPDATE tasks SET proof_image_url=$1, status=\'done\', updated_at=NOW() WHERE id=$2', [proofImageUrl, req.params.id]);
         await logActivity(t.group_id, t.assigned_to, null, 'task', 'task_done', `משימה הושלמה (עם תמונה): ${t.title}`);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 // תגובות על משימה
-app.get('/api/tasks/:id/comments', async (req, res) => {
+app.get('/api/tasks/:id/comments', verifyFamilyOrBiz, async (req, res) => {
     try {
+        const owned = await pool.query('SELECT id FROM tasks WHERE id=$1 AND group_id=$2', [req.params.id, req.callerAuth.groupId]);
+        if (!owned.rows.length) return res.status(404).json({ error: 'not found' });
         const result = await pool.query(
             `SELECT tc.*, u.nickname as user_name FROM task_comments tc LEFT JOIN users u ON tc.user_id = u.id WHERE tc.task_id = $1 ORDER BY tc.created_at ASC`,
             [req.params.id]
@@ -10822,10 +10836,13 @@ app.get('/api/tasks/:id/comments', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/tasks/:id/comments', async (req, res) => {
+app.post('/api/tasks/:id/comments', verifyFamilyOrBiz, async (req, res) => {
     try {
-        const { text, userId, groupId } = req.body;
-        if (!text || !userId) return res.status(400).json({ error: 'text and userId required' });
+        const { text } = req.body;
+        const { groupId, userId } = req.callerAuth;
+        if (!text) return res.status(400).json({ error: 'text required' });
+        const owned = await pool.query('SELECT id FROM tasks WHERE id=$1 AND group_id=$2', [req.params.id, groupId]);
+        if (!owned.rows.length) return res.status(404).json({ error: 'not found' });
         const result = await pool.query(
             'INSERT INTO task_comments (task_id, user_id, group_id, text) VALUES ($1,$2,$3,$4) RETURNING *',
             [req.params.id, userId, groupId, text]
@@ -10836,11 +10853,26 @@ app.post('/api/tasks/:id/comments', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/tasks/update', async (req, res) => {
+app.post('/api/tasks/update', verifyFamilyOrBiz, async (req, res) => {
     try {
         const { taskId, status, finalReward } = req.body;
-        const tRes = await pool.query('SELECT * FROM tasks WHERE id=$1', [taskId]);
-        const t = tRes.rows[0]; const rew = finalReward !== undefined ? (parseFloat(finalReward)||0) : (parseFloat(t.reward)||0);
+        const { groupId, userId, role } = req.callerAuth;
+        const tRes = await pool.query('SELECT * FROM tasks WHERE id=$1 AND group_id=$2', [taskId, groupId]);
+        if (!tRes.rows[0]) return res.status(404).json({ error: 'not found' });
+        const t = tRes.rows[0];
+        const isOwnTask = String(t.assigned_to) === String(userId);
+        const isAdmin = role === 'ADMIN';
+        // סימון "בוצע" מותר לבעל/ת המשימה או למנהל/ת; אישור תשלום/דחייה/מחיקת משימה של אחר — מנהל/ת בלבד
+        if (status === 'approved' && !isAdmin) {
+            return res.status(403).json({ error: 'רק מנהל/ת יכול/ה לאשר ולשלם על משימה' });
+        }
+        if ((status === 'done' || status === 'completed_self') && !isAdmin && !isOwnTask) {
+            return res.status(403).json({ error: 'ניתן לסמן כבוצע רק משימה שהוקצתה לך' });
+        }
+        if ((status === 'deleted' || status === 'rejected') && !isAdmin && !isOwnTask) {
+            return res.status(403).json({ error: 'אין הרשאה לבטל משימה זו' });
+        }
+        const rew = finalReward !== undefined ? (parseFloat(finalReward)||0) : (parseFloat(t.reward)||0);
         // משימה חוזרת שסומנה כ"בוצע" — רק מעדכן last_completed_at, לא משנה סטטוס
         if (t.is_recurring && status === 'done') {
             await pool.query('UPDATE tasks SET last_completed_at=NOW() WHERE id=$1', [taskId]);
@@ -38900,6 +38932,10 @@ async function verifyFamilyOrBiz(req, res, next) {
         }
         pool.query(`UPDATE family_sessions SET last_seen=NOW() WHERE token_hash=$1`, [tokenHash]).catch(() => {});
         req.callerAuth = { groupId: row.group_id, userId: row.user_id, type: row.session_type === 'biz' ? 'business' : 'family' };
+        try {
+            const ur = await pool.query('SELECT role FROM users WHERE id=$1', [row.user_id]);
+            if (ur.rows[0]) req.callerAuth.role = ur.rows[0].role;
+        } catch(e2) {}
         next();
     } catch(e) {
         return res.status(500).json({ error: 'שגיאה פנימית' });

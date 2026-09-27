@@ -4407,7 +4407,7 @@ window.submitEditTask = async function() {
     const priority = getEl('edit-task-priority').value;
     if(!title) return showToast('error', 'נא למלא תיאור משימה');
     try {
-        const res = await fetch(`${API}/tasks/${id}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ title, reward, days: days || null, priority }) });
+        const res = await fetch(`${API}/tasks/${id}`, { method:'PATCH', headers:{'Content-Type':'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : ''}, body:JSON.stringify({ title, reward, days: days || null, priority }) });
         const data = await res.json();
         if(data.success) { getEl('edit-task-modal').classList.add('hidden'); showToast('success', 'המשימה עודכנה בהצלחה!'); fetchData(); }
         else showToast('error', data.error || 'שגיאה בעדכון');
@@ -4426,7 +4426,7 @@ async function loadTaskComments(taskId) {
     const list = getEl('comments-list');
     list.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">טוען תגובות...</p>';
     try {
-        const res = await fetch(`${API}/tasks/${taskId}/comments`);
+        const res = await fetch(`${API}/tasks/${taskId}/comments`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } });
         const data = await res.json();
         if(!data.comments || data.comments.length === 0) {
             list.innerHTML = '<p class="text-xs text-slate-400 text-center py-4">אין תגובות עדיין. היו ראשונים!</p>';
@@ -4445,7 +4445,7 @@ window.addTaskComment = async function() {
     const text = getEl('new-comment-text').value.trim();
     if(!text) return;
     try {
-        const res = await fetch(`${API}/tasks/${taskId}/comments`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ text, userId: currentUser.id, groupId: currentGroup.id }) });
+        const res = await fetch(`${API}/tasks/${taskId}/comments`, { method:'POST', headers:{'Content-Type':'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : ''}, body:JSON.stringify({ text }) });
         const data = await res.json();
         if(data.success) { getEl('new-comment-text').value = ''; await loadTaskComments(taskId); }
         else showToast('error', data.error || 'שגיאה');
@@ -4484,8 +4484,9 @@ async function submitTask() {
     if(!title) return showToast('error', 'נא לפרט את תוכן המשימה');
     const btn = getEl('btn-submit-task'); if (btn) { btn.disabled = true; btn.innerText = 'שומר...'; }
     try {
+        const authHdr = { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' };
         if (isSelf) {
-            await fetch(`${API}/tasks`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ title, reward: reward || 0, assignedTo: currentUser.id, days, status: 'done', groupId: currentGroup.id, priority }) });
+            await fetch(`${API}/tasks`, { method:'POST', headers:{'Content-Type':'application/json', ...authHdr}, body:JSON.stringify({ title, reward: reward || 0, assignedTo: currentUser.id, days, status: 'done', priority }) });
             triggerConfetti();
         } else {
             // multi-assign
@@ -4493,9 +4494,9 @@ async function submitTask() {
             const assignees = Array.from(cbs).map(cb => cb.value);
             if(assignees.length === 0) return showToast('error', 'יש לבחור לפחות עובד אחד');
             if(assignees.length === 1) {
-                await fetch(`${API}/tasks`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ title, reward: reward || 0, assignedTo: assignees[0], days, status: 'pending', groupId: currentGroup.id, priority }) });
+                await fetch(`${API}/tasks`, { method:'POST', headers:{'Content-Type':'application/json', ...authHdr}, body:JSON.stringify({ title, reward: reward || 0, assignedTo: assignees[0], days, status: 'pending', priority }) });
             } else {
-                await fetch(`${API}/tasks/bulk`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ assignees, title, reward: reward || 0, days, groupId: currentGroup.id, priority }) });
+                await fetch(`${API}/tasks/bulk`, { method:'POST', headers:{'Content-Type':'application/json', ...authHdr}, body:JSON.stringify({ assignees, title, reward: reward || 0, days, priority }) });
             }
         }
         closeTaskModal();
@@ -4570,7 +4571,7 @@ window.handleTaskProofCloudinaryUpload = async function(event) {
         const upData = await upRes.json();
         if(!upData.secure_url) return showToast('error', 'שגיאה בהעלאת התמונה');
         // שמור URL בשרת ועדכן סטטוס ל-done
-        const saveRes = await fetch(`${API}/tasks/${taskId}/proof`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ proofImageUrl: upData.secure_url }) });
+        const saveRes = await fetch(`${API}/tasks/${taskId}/proof`, { method:'POST', headers:{'Content-Type':'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : ''}, body:JSON.stringify({ proofImageUrl: upData.secure_url }) });
         const saveData = await saveRes.json();
         if(saveData.success) { showToast('success', 'התמונה הועלתה והמשימה הועברה לאישור מנהל!'); triggerConfetti(); fetchData(); }
         else showToast('error', saveData.error || 'שגיאה בשמירה');
@@ -4652,7 +4653,7 @@ window.openApproveTaskModal = function(id, title, currentReward) { getEl('approv
 window.submitTaskApproval = async function() {
     const id = getEl('approve-task-id').value; const finalReward = getEl('approve-task-reward').value;
     getEl('approve-task-modal').classList.add('hidden'); triggerConfetti();
-    const res = await fetch(`${API}/tasks/update`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ taskId: id, status: 'approved', finalReward: finalReward }) });
+    const res = await fetch(`${API}/tasks/update`, { method: 'POST', headers: {'Content-Type': 'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : ''}, body: JSON.stringify({ taskId: id, status: 'approved', finalReward: finalReward }) });
     const data = await res.json();
     if(data.success) { showToast('success', 'המשימה אושרה והבונוס שוחרר לעובד!'); fetchData(); } else showToast('error', data.error);
 };
@@ -5008,7 +5009,7 @@ async function submitShift() {
     const status = currentUser.role === 'ADMIN' ? 'approved' : 'pending';
     const btn = getEl('btn-submit-shift'); btn.disabled = true; btn.innerText = 'שומר...';
     try {
-        await fetch(`${API}/tasks`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ title, reward:0, assignedTo:userId, days:null, status, groupId:currentGroup.id }) });
+        await fetch(`${API}/tasks`, { method:'POST', headers:{'Content-Type':'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : ''}, body:JSON.stringify({ title, reward:0, assignedTo:userId, days:null, status }) });
         getEl('shift-modal').classList.add('hidden');
         showToast('success', status === 'approved' ? 'המשמרת שובצה!' : 'הבקשה נשלחה למנהל!');
         fetchData();
@@ -5018,11 +5019,11 @@ async function submitShift() {
 
 async function updateTask(id, s) {
     if(s==='done' || s==='completed_self') triggerConfetti();
-    const res = await fetch(`${API}/tasks/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({taskId:id, status:s})});
+    const res = await fetch(`${API}/tasks/update`, {method:'POST', headers:{'Content-Type':'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : ''}, body:JSON.stringify({taskId:id, status:s})});
     fetchData();
     try { const d = await res.json(); if (d.triggeredPopup) setTimeout(() => showEmpTriggeredPopup(d.triggeredPopup), 800); } catch(e) {}
 }
-async function deleteTask(id) { if(!await window._uiConfirm('האם למחוק/לסרב לבקשה?', {danger:true, okLabel:'מחק'})) return; await fetch(`${API}/tasks/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({taskId:id, status:'deleted'})}); fetchData(); } 
+async function deleteTask(id) { if(!await window._uiConfirm('האם למחוק/לסרב לבקשה?', {danger:true, okLabel:'מחק'})) return; await fetch(`${API}/tasks/update`, {method:'POST', headers:{'Content-Type':'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : ''}, body:JSON.stringify({taskId:id, status:'deleted'})}); fetchData(); } 
 
 window.currentFeedPage = 1;
 
@@ -30049,18 +30050,17 @@ window.submitAssignTaskSet = async function() {
     const combinedTitle = `SOP|${JSON.stringify(sopPayload)}`;
     
     try {
-        const res = await fetch(`${API}/tasks`, { 
-            method:'POST', 
-            headers:{'Content-Type':'application/json'}, 
-            body:JSON.stringify({ 
-                title: combinedTitle, 
-                reward: reward, 
-                assignedTo: userId, 
-                days: days, 
-                status: 'pending', 
-                groupId: currentGroup.id 
-            }) 
-        }); 
+        const res = await fetch(`${API}/tasks`, {
+            method:'POST',
+            headers:{'Content-Type':'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : ''},
+            body:JSON.stringify({
+                title: combinedTitle,
+                reward: reward,
+                assignedTo: userId,
+                days: days,
+                status: 'pending'
+            })
+        });
         
         const data = await res.json();
         if(data.success) {
@@ -30167,7 +30167,7 @@ window.checkSOPProgress = function() {
         clearTimeout(window.sopProgressDebounce);
         window.sopProgressDebounce = setTimeout(() => {
             fetch(`${API}/tasks/update`, {
-                method: 'POST', headers: {'Content-Type': 'application/json'},
+                method: 'POST', headers: {'Content-Type': 'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : ''},
                 // מנצלים את שדה notes כדי לשתול חיווי התקדמות (למנהל יש גישה אליו)
                 body: JSON.stringify({ taskId: window.currentSOPTaskContext.id, status: 'pending', notes: `PROGRESS:${checked}/${total}` })
             }).catch(e=>{});
@@ -30189,9 +30189,9 @@ window.completeSOP = async function() {
     } else {
         // סגור עצמאית ללא צילום מול השרת
         try {
-            await fetch(`${API}/tasks/update`, { 
-                method: 'POST', headers: {'Content-Type': 'application/json'}, 
-                body: JSON.stringify({ taskId: ctx.id, status: 'done', notes: 'הושלם (לא נדרש צילום הוכחה)' }) 
+            await fetch(`${API}/tasks/update`, {
+                method: 'POST', headers: {'Content-Type': 'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : ''},
+                body: JSON.stringify({ taskId: ctx.id, status: 'done', notes: 'הושלם (לא נדרש צילום הוכחה)' })
             });
             showToast('success', 'הנוהל הושלם ונשלח לאישור מנהל!');
             if (typeof triggerConfetti === 'function') triggerConfetti();
@@ -40793,7 +40793,7 @@ async function renderCookDashboard(el) {
 // Helper: quick task complete from role dashboard
 async function completeTaskQuick(taskId, btn) {
     try {
-        await fetch(`/api/tasks/update`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({taskId, status:'done'}) });
+        await fetch(`/api/tasks/update`, { method:'POST', headers:{'Content-Type':'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : ''}, body: JSON.stringify({taskId, status:'done'}) });
         if (btn) { btn.innerHTML = '<i class="fa-solid fa-check text-[10px]"></i>'; btn.className = 'w-5 h-5 rounded-full bg-green-500 border-2 border-green-500 flex items-center justify-center text-white'; }
         const t = (allTasks||[]).find(x => x.id == taskId); if (t) t.status = 'done';
     } catch(e) {}
@@ -56092,8 +56092,8 @@ window._aiCreateTask = async function(title, assignee, days, btn) {
             if (match) assignedTo = match.id;
         }
         const res = await fetch(API + '/tasks', {
-            method: 'POST', headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({ title, assignedTo, days: parseInt(days)||1, reward: 0, groupId: currentGroup.id, requireAiCheck: false })
+            method: 'POST', headers: {'Content-Type':'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : ''},
+            body: JSON.stringify({ title, assignedTo, days: parseInt(days)||1, reward: 0, requireAiCheck: false })
         });
         const data = await res.json();
         if (data.success || data.task || data.id) {
