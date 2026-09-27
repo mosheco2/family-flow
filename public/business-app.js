@@ -5910,8 +5910,8 @@ async function renderUrgentItems() {
         // ─ תחזוקת ציוד + תקלות ─
         try {
             const [eqMRes, eqFRes] = await Promise.all([
-                fetch(`${API}/equipment/maintenance/${currentGroup.id}`),
-                fetch(`${API}/equipment/faults/${currentGroup.id}`)
+                fetch(`${API}/equipment/maintenance/${currentGroup.id}`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } }),
+                fetch(`${API}/equipment/faults/${currentGroup.id}`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } })
             ]);
             const eqMData = await eqMRes.json();
             const eqFData = await eqFRes.json();
@@ -17275,7 +17275,7 @@ async function renderBizFlowWidget() {
     }
 
     try {
-        const res = await fetch(`${API}/flow/wallet/business/${currentGroup.id}`);
+        const res = await fetch(`${API}/flow/wallet/business/${currentGroup.id}`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } });
         const data = await res.json();
         const bal = Math.floor(parseFloat(data.balance || 0));
         // Update header chip
@@ -17330,7 +17330,7 @@ window.openBizFlowWallet = async function() {
     </div>`;
     document.body.appendChild(modal);
     try {
-        const res = await fetch(`${API}/flow/wallet/business/${currentGroup.id}`);
+        const res = await fetch(`${API}/flow/wallet/business/${currentGroup.id}`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } });
         const data = await res.json();
         const bal = parseFloat(data.balance || 0);
         document.getElementById('biz-flow-wallet-content').innerHTML = `
@@ -35692,7 +35692,7 @@ async function loadEquipment() {
 
 async function checkEquipmentNotifications() {
     try {
-        const res = await fetch(`${API}/equipment/notifications/check/${currentGroup.id}`, { method: 'POST' });
+        const res = await fetch(`${API}/equipment/notifications/check/${currentGroup.id}`, { method: 'POST', headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } });
         const data = await res.json();
         if (data.success && data.created > 0) updateAlertBadge();
     } catch(e) {}
@@ -35700,7 +35700,7 @@ async function checkEquipmentNotifications() {
 
 async function fetchEquipmentItems() {
     try {
-        const res = await fetch(`${API}/equipment/items/${currentGroup.id}`);
+        const res = await fetch(`${API}/equipment/items/${currentGroup.id}`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } });
         const data = await res.json();
         if (data.success) equipmentItems = data.items;
         renderEquipmentItems();
@@ -35709,7 +35709,7 @@ async function fetchEquipmentItems() {
 
 async function fetchEquipmentMaintenance() {
     try {
-        const res = await fetch(`${API}/equipment/maintenance/${currentGroup.id}`);
+        const res = await fetch(`${API}/equipment/maintenance/${currentGroup.id}`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } });
         const data = await res.json();
         if (data.success) equipmentMaintenance = data.records;
         renderEquipmentMaintenance();
@@ -35719,7 +35719,7 @@ async function fetchEquipmentMaintenance() {
 
 async function fetchEquipmentFaults() {
     try {
-        const res = await fetch(`${API}/equipment/faults/${currentGroup.id}`);
+        const res = await fetch(`${API}/equipment/faults/${currentGroup.id}`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } });
         const data = await res.json();
         if (data.success) equipmentFaults = data.faults;
         renderEquipmentFaults();
@@ -35965,7 +35965,7 @@ async function openEquipmentHistory(itemId) {
     getEl('eqhist-search').value = '';
     modal.classList.remove('hidden');
     try {
-        const res = await fetch(`${API}/equipment/items/${itemId}/history?groupId=${currentGroup.id}`);
+        const res = await fetch(`${API}/equipment/items/${itemId}/history?groupId=${currentGroup.id}`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } });
         const data = await res.json();
         if (data.success) {
             eqHistData = data.history;
@@ -36083,7 +36083,7 @@ async function fetchAndRenderFaultNotes(faultId) {
     const container = getEl(`fnotes-list-${faultId}`);
     if (!container) return;
     try {
-        const res = await fetch(`${API}/equipment/faults/${faultId}/notes`);
+        const res = await fetch(`${API}/equipment/faults/${faultId}/notes`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } });
         const data = await res.json();
         if (!data.success) return;
         equipmentFaultNotes[faultId] = data.notes;
@@ -36150,8 +36150,8 @@ async function submitAddNote() {
     if (!note) { showToast('error', 'יש לכתוב הערה'); return; }
     try {
         const res = await fetch(`${API}/equipment/faults/${faultId}/notes`, {
-            method: 'POST', headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({ note, groupId: currentGroup.id })
+            method: 'POST', headers: {'Content-Type':'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : ''},
+            body: JSON.stringify({ note })
         });
         const data = await res.json();
         if (data.success) {
@@ -36222,8 +36222,8 @@ async function submitEquipmentItem() {
     if (!name) { showToast('error', 'שם הציוד חובה'); return; }
     try {
         const res = await fetch(`${API}/equipment/items`, {
-            method: 'POST', headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({ id: id||null, groupId: currentGroup.id, name,
+            method: 'POST', headers: {'Content-Type':'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : ''},
+            body: JSON.stringify({ id: id||null, name,
                 category: getEl('eqitem-category').value, serialNumber: getEl('eqitem-serial').value||null,
                 purchaseDate: getEl('eqitem-purchase').value||null, warrantyExpiry: getEl('eqitem-warranty').value||null,
                 status: getEl('eqitem-status').value, notes: getEl('eqitem-notes').value||null,
@@ -36238,7 +36238,7 @@ async function submitEquipmentItem() {
 async function deleteEquipmentItem(id) {
     if (!await window._uiConfirm('למחוק ציוד זה? כל נתוני התחזוקה והתקלות שלו יימחקו.', {danger:true, okLabel:'מחק'})) return;
     try {
-        await fetch(`${API}/equipment/items/${id}`, { method: 'DELETE' });
+        await fetch(`${API}/equipment/items/${id}`, { method: 'DELETE', headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } });
         showToast('info', 'ציוד נמחק');
         await Promise.all([fetchEquipmentItems(), fetchEquipmentMaintenance(), fetchEquipmentFaults()]);
     } catch(e) {}
@@ -36371,8 +36371,8 @@ async function submitMaintenanceRecord() {
     if (!equipmentId) { showToast('error', 'יש לבחור ציוד'); return; }
     try {
         const res = await fetch(`${API}/equipment/maintenance`, {
-            method: 'POST', headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({ id: id||null, groupId: currentGroup.id, equipmentId,
+            method: 'POST', headers: {'Content-Type':'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : ''},
+            body: JSON.stringify({ id: id||null, equipmentId,
                 maintenanceType: getEl('eqmaint-type').value, description: getEl('eqmaint-desc').value||null,
                 scheduledDate: getEl('eqmaint-date').value||null, technicianName: getEl('eqmaint-tech').value||null,
                 technicianPhone: getEl('eqmaint-phone').value||null, cost: getEl('eqmaint-cost').value||null,
@@ -36387,7 +36387,7 @@ async function submitMaintenanceRecord() {
 
 async function completeMaintenanceRecord(id) {
     try {
-        const res = await fetch(`${API}/equipment/maintenance/${id}/complete`, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify({}) });
+        const res = await fetch(`${API}/equipment/maintenance/${id}/complete`, { method: 'PUT', headers: {'Content-Type':'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : ''}, body: JSON.stringify({}) });
         const data = await res.json();
         if (data.success) {
             showToast('success', data.nextScheduled ? 'בוצע ✓ — תזכורת הבאה נוצרה אוטומטית 🔄' : 'תחזוקה סומנה כבוצעה ✓');
@@ -36398,7 +36398,7 @@ async function completeMaintenanceRecord(id) {
 
 async function deleteMaintenanceRecord(id) {
     if (!await window._uiConfirm('למחוק רשומת תחזוקה זו?', {danger:true, okLabel:'מחק'})) return;
-    try { await fetch(`${API}/equipment/maintenance/${id}`, { method: 'DELETE' }); showToast('info', 'נמחק'); await fetchEquipmentMaintenance(); } catch(e) {}
+    try { await fetch(`${API}/equipment/maintenance/${id}`, { method: 'DELETE', headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } }); showToast('info', 'נמחק'); await fetchEquipmentMaintenance(); } catch(e) {}
 }
 
 function openFaultModal(id = null) {
@@ -36489,8 +36489,8 @@ async function submitFault() {
     }
     try {
         const res = await fetch(`${API}/equipment/faults`, {
-            method: 'POST', headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({ id: id||null, groupId: currentGroup.id, equipmentId, title,
+            method: 'POST', headers: {'Content-Type':'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : ''},
+            body: JSON.stringify({ id: id||null, equipmentId, title,
                 description: getEl('eqfault-desc').value||null, imageUrl: window._eqFaultImageData||null,
                 severity: getEl('eqfault-severity').value, status: statusVal,
                 resolutionNotes: getEl('eqfault-resolution').value||null, resolvedDate })
@@ -36506,7 +36506,7 @@ async function submitFault() {
 
 async function deleteFault(id) {
     if (!await window._uiConfirm('למחוק תקלה זו?', {danger:true, okLabel:'מחק'})) return;
-    try { await fetch(`${API}/equipment/faults/${id}`, { method: 'DELETE' }); showToast('info', 'נמחק'); await fetchEquipmentFaults(); } catch(e) {}
+    try { await fetch(`${API}/equipment/faults/${id}`, { method: 'DELETE', headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } }); showToast('info', 'נמחק'); await fetchEquipmentFaults(); } catch(e) {}
 }
 
 function openFaultStatusPopup(faultId) {
@@ -36556,8 +36556,8 @@ async function submitFaultStatusChange() {
     const note = getEl('fsp-note').value.trim();
     try {
         const res = await fetch(`${API}/equipment/faults/${id}/status`, {
-            method: 'PATCH', headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({ status, note, groupId: currentGroup.id })
+            method: 'PATCH', headers: {'Content-Type':'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : ''},
+            body: JSON.stringify({ status, note })
         });
         const data = await res.json();
         if (data.success) {
@@ -36573,7 +36573,7 @@ async function submitFaultStatusChange() {
 
 async function fetchEquipmentTechnicians() {
     try {
-        const res = await fetch(`${API}/equipment/technicians/${currentGroup.id}`);
+        const res = await fetch(`${API}/equipment/technicians/${currentGroup.id}`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } });
         const data = await res.json();
         if (data.success) equipmentTechnicians = data.technicians;
     } catch(e) {}
@@ -36658,8 +36658,8 @@ async function submitTechnician() {
     if (!name) { showToast('error', 'שם חובה'); return; }
     try {
         const res = await fetch(`${API}/equipment/technicians`, {
-            method: 'POST', headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({ id: id||null, groupId: currentGroup.id, name,
+            method: 'POST', headers: {'Content-Type':'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : ''},
+            body: JSON.stringify({ id: id||null, name,
                 companyName: getEl('eqtech-company').value||null, phone: getEl('eqtech-phone').value||null,
                 email: getEl('eqtech-email').value||null, specialty: getEl('eqtech-specialty').value||null,
                 notes: getEl('eqtech-notes').value||null })
@@ -36676,7 +36676,7 @@ async function submitTechnician() {
 
 async function deleteTechnician(id) {
     if (!await window._uiConfirm('למחוק טכנאי זה?', {danger:true, okLabel:'מחק'})) return;
-    try { await fetch(`${API}/equipment/technicians/${id}`, { method: 'DELETE' }); showToast('info', 'נמחק'); await fetchEquipmentTechnicians(); renderEquipmentTechnicians(); } catch(e) {}
+    try { await fetch(`${API}/equipment/technicians/${id}`, { method: 'DELETE', headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } }); showToast('info', 'נמחק'); await fetchEquipmentTechnicians(); renderEquipmentTechnicians(); } catch(e) {}
 }
 
 // שליחת קריאת שירות
@@ -37427,7 +37427,7 @@ async function renderFieldTechDashboard(el) {
         return renderFieldTechMaintenanceDashboard(el);
     }
     let faults = [], tasks = [];
-    try { const r = await fetch(`/api/equipment/faults/${currentGroup.id}`); const d = await r.json(); faults = (d.faults||[]).filter(f => f.status !== 'resolved').slice(0,5); } catch(e) {}
+    try { const r = await fetch(`/api/equipment/faults/${currentGroup.id}`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } }); const d = await r.json(); faults = (d.faults||[]).filter(f => f.status !== 'resolved').slice(0,5); } catch(e) {}
     tasks = (allTasks||[]).filter(t => !t.title?.startsWith('SHIFT|') && (!t.assigned_to || t.assigned_to == currentUser.id) && t.status !== 'done').slice(0,4);
 
     const faultColors = {low:'bg-green-100 text-green-700', medium:'bg-yellow-100 text-yellow-700', high:'bg-orange-100 text-orange-700', critical:'bg-red-100 text-red-700'};
@@ -38863,7 +38863,7 @@ async function renderBranchManagerDashboard(el) {
     try { const r = await fetch(`/api/transactions/${currentGroup.id}`); const d = await r.json(); const tx = (d.transactions||[]).filter(t => t.created_at?.startsWith(today) && t.amount > 0); todaySales = tx.reduce((s,t)=>s+parseFloat(t.amount||0),0); txCount = tx.length; } catch(e) {}
     try { const r = await fetch(`/api/timeclock/${currentGroup.id}/report`); const d = await r.json(); present = (d.records||d.report||[]).filter(c=>c.punch_in&&!c.punch_out).length; } catch(e) {}
     try { const r = await fetch(`/api/members/${currentGroup.id}`); const d = await r.json(); totalMembers = ((d.members||[]).filter(m=>m.role!=='ADMIN')).length; } catch(e) {}
-    try { const r = await fetch(`/api/equipment/faults/${currentGroup.id}`); const d = await r.json(); faultsCount = (d.faults||[]).filter(f=>f.status!=='resolved').length; } catch(e) {}
+    try { const r = await fetch(`/api/equipment/faults/${currentGroup.id}`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } }); const d = await r.json(); faultsCount = (d.faults||[]).filter(f=>f.status!=='resolved').length; } catch(e) {}
 
     const kpis = [
         {label:'מכירות היום', value:`₪${todaySales.toLocaleString('he-IL',{maximumFractionDigits:0})}`, icon:'💰', color:'emerald', tab:'cashflow'},
@@ -56351,7 +56351,7 @@ async function renderBizAdsTab() {
 async function _loadBizAdSlots() {
     try {
         // load coin balance
-        const walletRes = await fetch(`${API}/flow/wallet/business/${currentGroup.id}`).catch(()=>null);
+        const walletRes = await fetch(`${API}/flow/wallet/business/${currentGroup.id}`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } }).catch(()=>null);
         if (walletRes?.ok) { const wd = await walletRes.json(); _bizAdFlowBalance = parseFloat(wd.balance || 0); }
 
         const communityIds = currentGroup._communityIds || [];

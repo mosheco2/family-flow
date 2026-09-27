@@ -19486,9 +19486,9 @@ app.get('/api/flow/wallet/family/:groupId', async (req, res) => {
 });
 
 // Business — get FLOW wallet
-app.get('/api/flow/wallet/business/:groupId', async (req, res) => {
+app.get('/api/flow/wallet/business/:groupId', verifyBiz, async (req, res) => {
     try {
-        const gid = parseInt(req.params.groupId);
+        const gid = req.bizAuth.groupId;
         const [wallet, txs] = await Promise.all([
             pool.query(`SELECT balance FROM flow_wallets WHERE entity_type='business' AND entity_id=$1`, [gid]),
             pool.query(`SELECT amount, description, action_key, created_at FROM flow_transactions WHERE entity_type='business' AND entity_id=$1 ORDER BY created_at DESC LIMIT 50`, [gid])
@@ -22964,17 +22964,18 @@ app.get('/api/members/:groupId', async (req, res) => {
 // ============================================================
 
 // טכנאים
-app.get('/api/equipment/technicians/:groupId', async (req, res) => {
+app.get('/api/equipment/technicians/:groupId', verifyBiz, async (req, res) => {
     try {
-        const result = await pool.query('SELECT * FROM equipment_technicians WHERE group_id=$1 ORDER BY name ASC', [req.params.groupId]);
+        const result = await pool.query('SELECT * FROM equipment_technicians WHERE group_id=$1 ORDER BY name ASC', [req.bizAuth.groupId]);
         res.json({ success: true, technicians: result.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/equipment/technicians', async (req, res) => {
+app.post('/api/equipment/technicians', verifyBiz, async (req, res) => {
     try {
-        const { id, groupId, name, companyName, phone, email, specialty, notes, businessGroupId } = req.body;
-        if (!groupId || !name) return res.status(400).json({ error: 'שם חובה' });
+        const { id, name, companyName, phone, email, specialty, notes, businessGroupId } = req.body;
+        const groupId = req.bizAuth.groupId;
+        if (!name) return res.status(400).json({ error: 'שם חובה' });
         let result;
         if (id) {
             result = await pool.query(
@@ -22989,9 +22990,9 @@ app.post('/api/equipment/technicians', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.delete('/api/equipment/technicians/:id', async (req, res) => {
+app.delete('/api/equipment/technicians/:id', verifyBiz, async (req, res) => {
     try {
-        await pool.query('DELETE FROM equipment_technicians WHERE id=$1', [req.params.id]);
+        await pool.query('DELETE FROM equipment_technicians WHERE id=$1 AND group_id=$2', [req.params.id, req.bizAuth.groupId]);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -23440,22 +23441,23 @@ app.get('/api/service-calls/analytics/:businessGroupId', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/api/equipment/items/:groupId', async (req, res) => {
+app.get('/api/equipment/items/:groupId', verifyBiz, async (req, res) => {
     try {
         const result = await pool.query(
             `SELECT ei.*, et.name as technician_name, et.phone as technician_phone, et.email as technician_email
              FROM equipment_items ei
              LEFT JOIN equipment_technicians et ON et.id=ei.technician_id
              WHERE ei.group_id=$1 ORDER BY ei.name ASC`,
-            [req.params.groupId]);
+            [req.bizAuth.groupId]);
         res.json({ success: true, items: result.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/equipment/items', async (req, res) => {
+app.post('/api/equipment/items', verifyBiz, async (req, res) => {
     try {
-        const { id, groupId, name, category, serialNumber, purchaseDate, warrantyExpiry, status, notes, technicianId } = req.body;
-        if (!groupId || !name) return res.status(400).json({ error: 'שם וקבוצה חובה' });
+        const { id, name, category, serialNumber, purchaseDate, warrantyExpiry, status, notes, technicianId } = req.body;
+        const groupId = req.bizAuth.groupId;
+        if (!name) return res.status(400).json({ error: 'שם חובה' });
         let result;
         if (id) {
             result = await pool.query(
@@ -23470,28 +23472,29 @@ app.post('/api/equipment/items', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.delete('/api/equipment/items/:id', async (req, res) => {
+app.delete('/api/equipment/items/:id', verifyBiz, async (req, res) => {
     try {
-        await pool.query('DELETE FROM equipment_items WHERE id=$1', [req.params.id]);
+        await pool.query('DELETE FROM equipment_items WHERE id=$1 AND group_id=$2', [req.params.id, req.bizAuth.groupId]);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/api/equipment/maintenance/:groupId', async (req, res) => {
+app.get('/api/equipment/maintenance/:groupId', verifyBiz, async (req, res) => {
     try {
         const result = await pool.query(
             `SELECT m.*, e.name as equipment_name, e.category as equipment_category
              FROM equipment_maintenance m JOIN equipment_items e ON e.id=m.equipment_id
              WHERE m.group_id=$1 ORDER BY m.scheduled_date ASC NULLS LAST, m.created_at DESC`,
-            [req.params.groupId]);
+            [req.bizAuth.groupId]);
         res.json({ success: true, records: result.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/equipment/maintenance', async (req, res) => {
+app.post('/api/equipment/maintenance', verifyBiz, async (req, res) => {
     try {
-        const { id, groupId, equipmentId, maintenanceType, description, scheduledDate, cost, technicianName, technicianPhone, notes, intervalDays } = req.body;
-        if (!groupId || !equipmentId) return res.status(400).json({ error: 'ציוד וקבוצה חובה' });
+        const { id, equipmentId, maintenanceType, description, scheduledDate, cost, technicianName, technicianPhone, notes, intervalDays } = req.body;
+        const groupId = req.bizAuth.groupId;
+        if (!equipmentId) return res.status(400).json({ error: 'ציוד חובה' });
         let result;
         if (id) {
             result = await pool.query(
@@ -23506,12 +23509,12 @@ app.post('/api/equipment/maintenance', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.put('/api/equipment/maintenance/:id/complete', async (req, res) => {
+app.put('/api/equipment/maintenance/:id/complete', verifyBiz, async (req, res) => {
     try {
         const { cost, technicianName, notes } = req.body;
         const updated = await pool.query(
-            `UPDATE equipment_maintenance SET status='completed', completed_date=CURRENT_DATE, cost=COALESCE($1,cost), technician_name=COALESCE($2,technician_name), notes=COALESCE($3,notes) WHERE id=$4 RETURNING *`,
-            [cost||null, technicianName||null, notes||null, req.params.id]);
+            `UPDATE equipment_maintenance SET status='completed', completed_date=CURRENT_DATE, cost=COALESCE($1,cost), technician_name=COALESCE($2,technician_name), notes=COALESCE($3,notes) WHERE id=$4 AND group_id=$5 RETURNING *`,
+            [cost||null, technicianName||null, notes||null, req.params.id, req.bizAuth.groupId]);
         const rec = updated.rows[0];
         // תזמון אוטומטי — אם הוגדר interval_days, צור רשומה הבאה
         if (rec && rec.interval_days) {
@@ -23526,14 +23529,14 @@ app.put('/api/equipment/maintenance/:id/complete', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.delete('/api/equipment/maintenance/:id', async (req, res) => {
+app.delete('/api/equipment/maintenance/:id', verifyBiz, async (req, res) => {
     try {
-        await pool.query('DELETE FROM equipment_maintenance WHERE id=$1', [req.params.id]);
+        await pool.query('DELETE FROM equipment_maintenance WHERE id=$1 AND group_id=$2', [req.params.id, req.bizAuth.groupId]);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/api/equipment/faults/:groupId', async (req, res) => {
+app.get('/api/equipment/faults/:groupId', verifyBiz, async (req, res) => {
     try {
         const result = await pool.query(
             `SELECT f.*, e.name as equipment_name, e.category as equipment_category,
@@ -23543,7 +23546,7 @@ app.get('/api/equipment/faults/:groupId', async (req, res) => {
              FROM equipment_faults f JOIN equipment_items e ON e.id=f.equipment_id
              LEFT JOIN equipment_technicians et ON et.id=f.technician_id
              WHERE f.group_id=$1 ORDER BY f.created_at DESC`,
-            [req.params.groupId]);
+            [req.bizAuth.groupId]);
         res.json({ success: true, faults: result.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -23564,8 +23567,10 @@ app.get('/api/service-calls/family/:businessGroupId', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/api/equipment/faults/:id/notes', async (req, res) => {
+app.get('/api/equipment/faults/:id/notes', verifyBiz, async (req, res) => {
     try {
+        const owned = await pool.query('SELECT id FROM equipment_faults WHERE id=$1 AND group_id=$2', [req.params.id, req.bizAuth.groupId]);
+        if (!owned.rows.length) return res.status(404).json({ error: 'לא נמצא' });
         const result = await pool.query(
             `SELECT * FROM equipment_fault_notes WHERE fault_id=$1 ORDER BY created_at ASC`,
             [req.params.id]);
@@ -23573,21 +23578,25 @@ app.get('/api/equipment/faults/:id/notes', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/equipment/faults/:id/notes', async (req, res) => {
+app.post('/api/equipment/faults/:id/notes', verifyBiz, async (req, res) => {
     try {
-        const { note, statusFrom, statusTo, groupId } = req.body;
-        if (!note || !groupId) return res.status(400).json({ error: 'חסרים שדות' });
+        const { note } = req.body;
+        const groupId = req.bizAuth.groupId;
+        if (!note) return res.status(400).json({ error: 'חסרים שדות' });
+        const owned = await pool.query('SELECT id FROM equipment_faults WHERE id=$1 AND group_id=$2', [req.params.id, groupId]);
+        if (!owned.rows.length) return res.status(404).json({ error: 'לא נמצא' });
         const result = await pool.query(
-            `INSERT INTO equipment_fault_notes (fault_id, group_id, note, status_from, status_to) VALUES ($1,$2,$3,$4,$5) RETURNING *`,
-            [req.params.id, groupId, note, statusFrom||null, statusTo||null]);
+            `INSERT INTO equipment_fault_notes (fault_id, group_id, note) VALUES ($1,$2,$3) RETURNING *`,
+            [req.params.id, groupId, note]);
         res.json({ success: true, note: result.rows[0] });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/equipment/faults', async (req, res) => {
+app.post('/api/equipment/faults', verifyBiz, async (req, res) => {
     try {
-        const { id, groupId, equipmentId, title, description, imageUrl, severity, status, resolutionNotes, resolvedDate, technicianId, scheduledDate } = req.body;
-        if (!groupId || !equipmentId || !title) return res.status(400).json({ error: 'ציוד וכותרת חובה' });
+        const { id, equipmentId, title, description, imageUrl, severity, status, resolutionNotes, resolvedDate, technicianId, scheduledDate } = req.body;
+        const groupId = req.bizAuth.groupId;
+        if (!equipmentId || !title) return res.status(400).json({ error: 'ציוד וכותרת חובה' });
         let result;
         if (id) {
             result = await pool.query(
@@ -23603,10 +23612,11 @@ app.post('/api/equipment/faults', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.patch('/api/equipment/faults/:id/status', async (req, res) => {
+app.patch('/api/equipment/faults/:id/status', verifyBiz, async (req, res) => {
     try {
-        const { status, note, groupId } = req.body;
-        if (!status || !groupId) return res.status(400).json({ error: 'חסרים שדות' });
+        const { status, note } = req.body;
+        const groupId = req.bizAuth.groupId;
+        if (!status) return res.status(400).json({ error: 'חסרים שדות' });
         const existing = await pool.query('SELECT * FROM equipment_faults WHERE id=$1 AND group_id=$2', [req.params.id, groupId]);
         if (!existing.rows.length) return res.status(404).json({ error: 'לא נמצא' });
         const fault = existing.rows[0];
@@ -23632,17 +23642,16 @@ app.patch('/api/equipment/faults/:id/status', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.delete('/api/equipment/faults/:id', async (req, res) => {
+app.delete('/api/equipment/faults/:id', verifyBiz, async (req, res) => {
     try {
-        await pool.query('DELETE FROM equipment_faults WHERE id=$1', [req.params.id]);
+        await pool.query('DELETE FROM equipment_faults WHERE id=$1 AND group_id=$2', [req.params.id, req.bizAuth.groupId]);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/api/equipment/items/:id/history', async (req, res) => {
+app.get('/api/equipment/items/:id/history', verifyBiz, async (req, res) => {
     try {
-        const { groupId } = req.query;
-        if (!groupId) return res.status(400).json({ error: 'חסר groupId' });
+        const groupId = req.bizAuth.groupId;
         const maintenance = await pool.query(
             `SELECT id, 'maintenance' as type,
              COALESCE(description, maintenance_type) as title,
@@ -23662,9 +23671,9 @@ app.get('/api/equipment/items/:id/history', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/equipment/notifications/check/:groupId', async (req, res) => {
+app.post('/api/equipment/notifications/check/:groupId', verifyBiz, async (req, res) => {
     try {
-        const groupId = req.params.groupId;
+        const groupId = req.bizAuth.groupId;
         const today = new Date(); today.setHours(0,0,0,0);
         const in7 = new Date(today); in7.setDate(today.getDate() + 7);
         const upcoming = await pool.query(
@@ -30651,9 +30660,10 @@ app.get('/api/biz/banner/slots', verifyBiz, async (req, res) => {
 // POST submit banner order (business)
 app.post('/api/biz/banner/orders', verifyBiz, async (req, res) => {
     try {
-        const { business_id, slot_id, community_ids, duration_days, payment_method, notes,
-                coins_used: clientCoins, cash_amount: clientCash, total_price_ils: clientTotal } = req.body;
-        if (!business_id || !slot_id || !duration_days) return res.status(400).json({error:'שדות חסרים'});
+        const business_id = req.bizAuth.groupId;
+        const { slot_id, community_ids, duration_days, payment_method, notes,
+                coins_used: clientCoins, cash_amount: clientCash } = req.body;
+        if (!slot_id || !duration_days) return res.status(400).json({error:'שדות חסרים'});
 
         // validate pricing exists — prefer community_count match, fallback to 0
         const commCount = Array.isArray(community_ids) ? community_ids.length : 0;
@@ -30667,16 +30677,20 @@ app.post('/api/biz/banner/orders', verifyBiz, async (req, res) => {
         const p = pricingBase.rows[0];
         const total_price_ils = parseFloat(p.price_ils);
 
-        // validate coin balance if coins used
+        // סכום המטבעות/מזומן מחושב במלואו בשרת — לא מתקבל מהלקוח, כדי למנוע פרסום ללא תשלום מלא
+        const rateCfg = await pool.query(`SELECT personal_amount FROM flow_config WHERE key='flow_to_ils_rate' LIMIT 1`).catch(()=>({rows:[]}));
+        const flow_rate = parseFloat(rateCfg.rows[0]?.personal_amount || 100); // X מטבעות = 10 ש"ח
         let coins_used = Math.max(0, parseFloat(clientCoins) || 0);
-        let cash_amount = parseFloat(clientCash) ?? Math.max(0, total_price_ils - coins_used * (10/100));
         if (coins_used > 0) {
             const wallet = await pool.query(
                 `SELECT COALESCE(balance,0) as balance FROM flow_wallets WHERE entity_type='business' AND entity_id=$1`, [business_id]
             );
             const bal = parseFloat(wallet.rows[0]?.balance || 0);
             if (coins_used > bal) return res.status(400).json({error:`יתרת מטבעות לא מספיקה (יתרה: ${bal.toFixed(0)})`});
+            const coinsValueIls = (coins_used / flow_rate) * 10;
+            if (coinsValueIls > total_price_ils) coins_used = Math.floor((total_price_ils / 10) * flow_rate);
         }
+        const cash_amount = Math.max(0, total_price_ils - (coins_used / flow_rate) * 10);
 
         const r = await pool.query(
             `INSERT INTO banner_orders(business_id,slot_id,community_ids,duration_days,total_price_ils,coins_used,cash_amount,payment_method,notes)
@@ -30691,8 +30705,7 @@ app.post('/api/biz/banner/orders', verifyBiz, async (req, res) => {
 // GET business banner orders
 app.get('/api/biz/banner/orders', verifyBiz, async (req, res) => {
     try {
-        const { business_id } = req.query;
-        if (!business_id) return res.status(400).json({error:'business_id חסר'});
+        const business_id = req.bizAuth.groupId;
         const r = await pool.query(`
             SELECT bo.*, bs.name as slot_name, bs.location_key
             FROM banner_orders bo
@@ -30706,8 +30719,7 @@ app.get('/api/biz/banner/orders', verifyBiz, async (req, res) => {
 // GET business billing ledger (business side)
 app.get('/api/biz/billing', verifyBiz, async (req, res) => {
     try {
-        const { business_id } = req.query;
-        if (!business_id) return res.status(400).json({error:'business_id חסר'});
+        const business_id = req.bizAuth.groupId;
         const r = await pool.query(`
             SELECT br.*, bs.name as slot_name,
                    pc.confirmed_at as payment_confirmed_at, pc.signature_data
@@ -30724,7 +30736,8 @@ app.get('/api/biz/billing', verifyBiz, async (req, res) => {
 // POST confirm payment + digital signature (business)
 app.post('/api/biz/billing/:id/confirm', verifyBiz, async (req, res) => {
     try {
-        const { business_id, signature_data } = req.body;
+        const business_id = req.bizAuth.groupId;
+        const { signature_data } = req.body;
         if (!signature_data) return res.status(400).json({error:'חתימה דיגיטלית חסרה'});
         const br = await pool.query(`SELECT * FROM billing_records WHERE id=$1 AND business_id=$2`, [req.params.id, business_id]);
         if (!br.rows.length) return res.status(404).json({error:'רשומה לא נמצאה'});
