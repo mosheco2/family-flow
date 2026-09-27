@@ -3735,6 +3735,18 @@ async function logBizIncome(groupId, amount, description, date = null) {
     } catch(e) {}
 }
 
+async function logBizExpense(groupId, amount, description, category = 'other', date = null) {
+    if (!amount || parseFloat(amount) <= 0) return;
+    try {
+        const adminU = await pool.query(`SELECT id FROM users WHERE group_id=$1 AND role='ADMIN' LIMIT 1`, [groupId]);
+        await pool.query(
+            `INSERT INTO transactions (user_id, group_id, amount, description, category, type, date, is_manual)
+             VALUES ($1,$2,$3,$4,$5,'expense',$6,FALSE)`,
+            [adminU.rows[0]?.id || null, groupId, parseFloat(amount), description, category, date || new Date()]
+        );
+    } catch(e) {}
+}
+
 const handleAIError = (e, res, defaultMsg) => {
     console.error('AI Error:', e);
     if (e.message && e.message.includes('429')) return res.status(429).json({ success: false, error: 'מערכת ה-AI עמוסה כרגע. אנא המתינו כדקה ונסו שוב.' });
@@ -14766,21 +14778,21 @@ app.get('/api/biz/export-report', verifyBiz, async (req, res) => {
             csvData = 'מספר,שם,טלפון,אימייל,סוג מנוי,תחילה,סיום,סטטוס,סיבת הקפאה,הערות,תאריך הצטרפות\n';
             r.rows.forEach(m => { csvData += [m.id,`"${(m.member_name||'').replace(/"/g,'""')}"`,m.member_phone||'',m.member_email||'',`"${(m.membership_type||'').replace(/"/g,'""')}"`,m.start_date?new Date(m.start_date).toLocaleDateString('he-IL'):'',m.end_date?new Date(m.end_date).toLocaleDateString('he-IL'):'',smMap[m.status]||m.status||'',`"${(m.frozen_reason||'').replace(/"/g,'""')}"`,`"${(m.notes||'').replace(/"/g,'""')}"`,new Date(m.created_at).toLocaleDateString('he-IL')].join(',')+'\n'; });
         } else if (type === 'sport-checkins') {
-            const r = await pool.query(`SELECT sc.id, sm.member_name, sm.member_phone, sc.checkin_time, sc.notes FROM sport_checkins sc LEFT JOIN sport_memberships sm ON sc.membership_id=sm.id WHERE sc.group_id=$1 ORDER BY sc.checkin_time DESC LIMIT 5000`, [groupId]);
+            const r = await pool.query(`SELECT sc.id, sm.member_name, sm.member_phone, sc.checked_in_at, sc.checked_out_at FROM sport_checkins sc LEFT JOIN sport_memberships sm ON sc.membership_id=sm.id WHERE sc.group_id=$1 ORDER BY sc.checked_in_at DESC LIMIT 5000`, [groupId]);
             filename = `כניסות_ספורט_${new Date().toISOString().split('T')[0]}.csv`;
-            csvData = 'מספר,שם חבר,טלפון,זמן כניסה,הערות\n';
-            r.rows.forEach(c => { csvData += [c.id,`"${(c.member_name||'').replace(/"/g,'""')}"`,c.member_phone||'',c.checkin_time?new Date(c.checkin_time).toLocaleString('he-IL'):'',`"${(c.notes||'').replace(/"/g,'""')}"`].join(',')+'\n'; });
+            csvData = 'מספר,שם חבר,טלפון,זמן כניסה,זמן יציאה\n';
+            r.rows.forEach(c => { csvData += [c.id,`"${(c.member_name||'').replace(/"/g,'""')}"`,c.member_phone||'',c.checked_in_at?new Date(c.checked_in_at).toLocaleString('he-IL'):'',c.checked_out_at?new Date(c.checked_out_at).toLocaleString('he-IL'):''].join(',')+'\n'; });
         } else if (type === 'sport-revenue') {
-            const r = await pool.query(`SELECT sp.id, sm.member_name, sm.member_phone, sp.amount, sp.payment_type, sp.payment_date, mt.name as membership_type, sp.notes FROM sport_payments sp LEFT JOIN sport_memberships sm ON sp.membership_id=sm.id LEFT JOIN sport_membership_types mt ON sm.membership_type_id=mt.id WHERE sp.group_id=$1 ORDER BY sp.payment_date DESC LIMIT 5000`, [groupId]);
+            const r = await pool.query(`SELECT sp.id, sm.member_name, sm.member_phone, sp.amount, sp.payment_method, sp.paid_at, mt.name as membership_type, sp.notes FROM sport_payments sp LEFT JOIN sport_memberships sm ON sp.membership_id=sm.id LEFT JOIN sport_membership_types mt ON sm.membership_type_id=mt.id WHERE sp.group_id=$1 ORDER BY sp.paid_at DESC LIMIT 5000`, [groupId]);
             filename = `הכנסות_ספורט_${new Date().toISOString().split('T')[0]}.csv`;
-            const ptMap = {cash:'מזומן',credit:'אשראי',transfer:'העברה',check:'המחאה'};
+            const ptMap = {cash:'מזומן',credit:'אשראי',transfer:'העברה',app:'אפליקציה',check:'המחאה'};
             csvData = 'מספר,שם חבר,טלפון,סכום,אמצעי תשלום,תאריך תשלום,סוג מנוי,הערות\n';
-            r.rows.forEach(p => { csvData += [p.id,`"${(p.member_name||'').replace(/"/g,'""')}"`,p.member_phone||'',p.amount||0,ptMap[p.payment_type]||p.payment_type||'',p.payment_date?new Date(p.payment_date).toLocaleDateString('he-IL'):'',`"${(p.membership_type||'').replace(/"/g,'""')}"`,`"${(p.notes||'').replace(/"/g,'""')}"`].join(',')+'\n'; });
+            r.rows.forEach(p => { csvData += [p.id,`"${(p.member_name||'').replace(/"/g,'""')}"`,p.member_phone||'',p.amount||0,ptMap[p.payment_method]||p.payment_method||'',p.paid_at?new Date(p.paid_at).toLocaleDateString('he-IL'):'',`"${(p.membership_type||'').replace(/"/g,'""')}"`,`"${(p.notes||'').replace(/"/g,'""')}"`].join(',')+'\n'; });
         } else if (type === 'sport-classes') {
-            const r = await pool.query(`SELECT sc.id, ct.name as class_name, sc.start_time, sc.end_time, COALESCE(t.nickname,t.name) as trainer_name, sc.max_participants, COUNT(scr.id) as registrations FROM sport_classes sc LEFT JOIN sport_class_types ct ON sc.class_type_id=ct.id LEFT JOIN users t ON sc.trainer_id=t.id LEFT JOIN sport_class_registrations scr ON scr.class_id=sc.id AND scr.status!='cancelled' WHERE sc.group_id=$1 GROUP BY sc.id,ct.name,sc.start_time,sc.end_time,t.nickname,t.name,sc.max_participants ORDER BY sc.start_time DESC LIMIT 2000`, [groupId]);
+            const r = await pool.query(`SELECT sc.id, COALESCE(ct.name,sc.class_name) as class_name, sc.class_date, sc.start_time, sc.end_time, sc.trainer_name, sc.capacity, COUNT(scr.id) as registrations FROM sport_classes sc LEFT JOIN sport_class_types ct ON sc.class_type_id=ct.id LEFT JOIN sport_class_registrations scr ON scr.class_id=sc.id WHERE sc.group_id=$1 GROUP BY sc.id,ct.name,sc.class_name,sc.class_date,sc.start_time,sc.end_time,sc.trainer_name,sc.capacity ORDER BY sc.class_date DESC LIMIT 2000`, [groupId]);
             filename = `שיעורים_ספורט_${new Date().toISOString().split('T')[0]}.csv`;
-            csvData = 'מספר,שם שיעור,תחילה,סיום,מאמן,רשומים,קיבולת,אחוז מילוי\n';
-            r.rows.forEach(c => { const fill=c.max_participants>0?((c.registrations/c.max_participants)*100).toFixed(0):''; csvData += [c.id,`"${(c.class_name||'').replace(/"/g,'""')}"`,c.start_time?new Date(c.start_time).toLocaleString('he-IL'):'',c.end_time?new Date(c.end_time).toLocaleString('he-IL'):'',`"${(c.trainer_name||'').replace(/"/g,'""')}"`,c.registrations||0,c.max_participants||0,fill].join(',')+'\n'; });
+            csvData = 'מספר,שם שיעור,תאריך,תחילה,סיום,מאמן,רשומים,קיבולת,אחוז מילוי\n';
+            r.rows.forEach(c => { const fill=c.capacity>0?((c.registrations/c.capacity)*100).toFixed(0):''; csvData += [c.id,`"${(c.class_name||'').replace(/"/g,'""')}"`,c.class_date?new Date(c.class_date).toLocaleDateString('he-IL'):'',c.start_time||'',c.end_time||'',`"${(c.trainer_name||'').replace(/"/g,'""')}"`,c.registrations||0,c.capacity||0,fill].join(',')+'\n'; });
         } else {
             return res.status(400).json({ error: 'סוג דוח לא ידוע' });
         }
@@ -26058,10 +26070,17 @@ app.post('/api/sport/public-membership-purchase', async (req, res) => {
         const qrToken = crypto.randomBytes(16).toString('hex');
         const r = await pool.query(`INSERT INTO sport_memberships
             (group_id,member_name,member_phone,member_email,membership_type_id,start_date,end_date,sessions_total,health_notes,emergency_contact,emergency_phone,qr_token,status)
-            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'pending') RETURNING id,member_name,qr_token`,
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'active') RETURNING id,member_name,qr_token`,
             [groupId, memberName, memberPhone||'', memberEmail||'', membershipTypeId, sd, endDate, t.sessions||null, healthNotes||'', emergencyContact||'', emergencyPhone||'', qrToken]);
+        const m = r.rows[0];
+        // רישום התשלום בפועל — ללא זה, הכנסה ממנוי שנרכש דרך העמוד הציבורי הייתה נעלמת לחלוטין מהתזרים ומהדוחות
+        if (t.price && parseFloat(t.price) > 0) {
+            await pool.query(`INSERT INTO sport_payments (group_id,membership_id,member_name,amount,payment_method,notes) VALUES ($1,$2,$3,$4,$5,$6)`,
+                [groupId, m.id, memberName, t.price, 'app', 'רכישת מנוי דרך עמוד ציבורי']);
+            logBizIncome(groupId, t.price, `הצטרפות מנוי (עצמאי) — ${memberName || ''}`.trim());
+        }
         upsertStoreCustomer(groupId, { name: memberName, phone: memberPhone, email: memberEmail, notes: `רכש מנוי: ${t.name}` });
-        res.json({ success: true, memberId: r.rows[0].id, memberName: r.rows[0].member_name, qrToken, membershipType: t.name, endDate, price: t.price });
+        res.json({ success: true, memberId: m.id, memberName: m.member_name, qrToken, membershipType: t.name, endDate, price: t.price });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -26519,7 +26538,25 @@ app.post('/api/sport/trainer-sessions/mark-paid', async (req, res) => {
     const { sessionIds } = req.body;
     if (!sessionIds?.length) return res.status(400).json({ error: 'לא נבחרו sessions' });
     try {
+        const sessions = await pool.query(
+            `SELECT ts.group_id, ts.pay_amount, t.name as trainer_name
+             FROM sport_trainer_sessions ts LEFT JOIN sport_trainers t ON t.id=ts.trainer_id
+             WHERE ts.id = ANY($1) AND ts.paid_at IS NULL`,
+            [sessionIds]);
         await pool.query('UPDATE sport_trainer_sessions SET paid_at=NOW() WHERE id=ANY($1)', [sessionIds]);
+        // רישום הוצאה בתזרים — ללא זה, תשלום שכר מאמנים לא היה מופיע כלל כהוצאה
+        const byGroup = {};
+        for (const s of sessions.rows) {
+            const amt = parseFloat(s.pay_amount) || 0;
+            if (amt <= 0) continue;
+            byGroup[s.group_id] = byGroup[s.group_id] || { total: 0, names: new Set() };
+            byGroup[s.group_id].total += amt;
+            if (s.trainer_name) byGroup[s.group_id].names.add(s.trainer_name);
+        }
+        for (const gid of Object.keys(byGroup)) {
+            const names = [...byGroup[gid].names].join(', ');
+            await logBizExpense(gid, byGroup[gid].total, `שכר מאמנים${names ? ' — ' + names : ''}`, 'salary');
+        }
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
