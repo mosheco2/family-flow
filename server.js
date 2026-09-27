@@ -30658,7 +30658,7 @@ app.get('/api/biz/banner/slots', verifyBiz, async (req, res) => {
 });
 
 // POST submit banner order (business)
-app.post('/api/biz/banner/orders', verifyBiz, async (req, res) => {
+app.post('/api/biz/banner/orders', verifyBiz, verifyBizAdminOnly, async (req, res) => {
     try {
         const business_id = req.bizAuth.groupId;
         const { slot_id, community_ids, duration_days, payment_method, notes,
@@ -30734,7 +30734,7 @@ app.get('/api/biz/billing', verifyBiz, async (req, res) => {
 });
 
 // POST confirm payment + digital signature (business)
-app.post('/api/biz/billing/:id/confirm', verifyBiz, async (req, res) => {
+app.post('/api/biz/billing/:id/confirm', verifyBiz, verifyBizAdminOnly, async (req, res) => {
     try {
         const business_id = req.bizAuth.groupId;
         const { signature_data } = req.body;
@@ -37749,6 +37749,13 @@ function verifyBeautyClientAccess(req, res, next) {
     const auth = req.bizAuth || {};
     if (auth.role === 'ADMIN' || (auth.employeeRoleType && BEAUTY_CLIENT_DATA_ROLES.has(auth.employeeRoleType))) return next();
     return res.status(403).json({ error: 'אין הרשאה לגשת למידע לקוחות' });
+}
+
+// רק מנהל/ת העסק (ADMIN) רשאי/ת לאשר הוצאת כסף/מטבעות של העסק על פרסום, ולחתום דיגיטלית על אישור תשלום
+function verifyBizAdminOnly(req, res, next) {
+    const auth = req.bizAuth || {};
+    if (auth.role === 'ADMIN') return next();
+    return res.status(403).json({ error: 'פעולה זו דורשת הרשאת מנהל/ת עסק' });
 }
 
 // תפקידים שרשאים לנהל צוות מטפלות (כולל שיעורי עמלה) — תואם לגישת הטאב beauty_practitioners בממשק

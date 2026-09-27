@@ -56341,6 +56341,16 @@ let _bizAdFlowRate = 100; // 100 coins = ₪10, i.e. 10 coins = ₪1
 async function renderBizAdsTab() {
     if (!currentGroup) return;
     switchBizFlowTab('main');
+    const submitBtn = document.getElementById('btn-submit-biz-ad');
+    if (submitBtn) {
+        const isAdminUser = currentUser && currentUser.role === 'ADMIN';
+        submitBtn.disabled = !isAdminUser;
+        submitBtn.classList.toggle('opacity-50', !isAdminUser);
+        submitBtn.classList.toggle('cursor-not-allowed', !isAdminUser);
+        submitBtn.innerHTML = isAdminUser
+            ? '<i class="fa-solid fa-paper-plane"></i> שלח בקשת פרסום'
+            : '<i class="fa-solid fa-lock"></i> רק מנהל/ת העסק יכול/ה לשלוח בקשת פרסום';
+    }
     await Promise.all([
         _loadBizAdSlots(),
         _loadBizAdOrders(),
@@ -56481,6 +56491,7 @@ window.bizAdsCalc = function() {
 };
 
 window.submitBizAdOrder = async function() {
+    if (!currentUser || currentUser.role !== 'ADMIN') return showToast('error', 'רק מנהל/ת העסק יכול/ה לשלוח בקשת פרסום');
     const slotId = parseInt(document.getElementById('biz-ads-slot')?.value);
     const duration = parseInt(document.getElementById('biz-ads-duration')?.value);
     const notes = document.getElementById('biz-ads-notes')?.value || '';
@@ -56570,9 +56581,10 @@ async function _loadBizBilling() {
         el.innerHTML = d.records.map(b => {
             const sc = stColor[b.payment_status] || 'slate';
             const sl = stLabel[b.payment_status] || b.payment_status;
-            const confirmBtn = b.payment_status === 'unpaid' && b.cash_amount > 0
+            const confirmBtn = b.payment_status === 'unpaid' && b.cash_amount > 0 && currentUser.role === 'ADMIN'
                 ? `<button onclick="openBizPaymentConfirm(${b.id},'${(b.description||'').replace(/'/g,"\\'")}',${b.cash_amount})" class="text-[10px] bg-green-600 hover:bg-green-700 text-white font-bold px-3 py-1 rounded-full transition mt-1">אשר תשלום ✍</button>`
-                : '';
+                : (b.payment_status === 'unpaid' && b.cash_amount > 0
+                    ? `<p class="text-[10px] text-slate-400 mt-1">רק מנהל/ת העסק יכול/ה לאשר תשלום זה</p>` : '');
             const sigLine = b.signature_data
                 ? `<p class="text-[10px] text-blue-500">✍ חתמת: ${b.signature_data}</p>`
                 : '';
@@ -56598,6 +56610,7 @@ window.openBizPaymentConfirm = function(billingId, desc, cashAmount) {
 };
 
 window.confirmBizPayment = async function() {
+    if (!currentUser || currentUser.role !== 'ADMIN') return showToast('error', 'רק מנהל/ת העסק יכול/ה לאשר תשלום');
     const billingId = document.getElementById('biz-payment-billing-id').value;
     const sig = document.getElementById('biz-payment-signature').value.trim();
     if (!sig) return showToast('error', 'נא לרשום שמך המלא כחתימה');
