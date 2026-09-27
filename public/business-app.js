@@ -11528,8 +11528,8 @@ window.loadCustomerBeautyTab = async function(name, phone) {
         }
         const [aRes, fRes, pRes] = await Promise.all(promises);
         const appts = aRes.appointments || [];
-        const formulas = (fRes||{}).formulas || [];
-        const photos = (pRes||{}).photos || [];
+        const formulas = Array.isArray(fRes) ? fRes : [];
+        const photos = Array.isArray(pRes) ? pRes : [];
 
         const bStatusColors = { scheduled:'#6366f1', confirmed:'#10b981', pending_cancel:'#f97316', cancelled:'#ef4444', completed:'#10b981', no_show:'#94a3b8' };
         const bStatusLabels = { scheduled:'ממתין לאישור', confirmed:'מאושר ✓', pending_cancel:'בקשת ביטול ⏳', cancelled:'בוטל ✗', completed:'הושלם ✅', no_show:'לא הגיע' };
@@ -11591,8 +11591,8 @@ window.loadCustomerBeautyTab = async function(name, phone) {
             html += formulas.length === 0
                 ? '<p class="text-slate-400 text-xs text-center py-2 bg-slate-50 rounded-xl">אין פורמולות</p>'
                 : '<div class="space-y-2">' + formulas.map(f => `<div class="bg-slate-50 rounded-xl p-3 text-xs">
-                    <p class="font-bold text-slate-700">${safeStr(f.service_type||'שירות')} · ${new Date(f.created_at).toLocaleDateString('he-IL')}</p>
-                    <p class="text-slate-500 mt-1 whitespace-pre-wrap">${safeStr(f.formula_data ? JSON.stringify(f.formula_data,null,2) : f.notes||'—')}</p>
+                    <p class="font-bold text-slate-700">${safeStr(f.treatment_type||'שירות')} · ${new Date(f.created_at).toLocaleDateString('he-IL')}</p>
+                    <p class="text-slate-500 mt-1 whitespace-pre-wrap">${safeStr(f.application_notes || (f.formula_data && Object.keys(f.formula_data).length ? JSON.stringify(f.formula_data,null,2) : '') || '—')}</p>
                 </div>`).join('') + '</div>';
             html += '</div>';
 
@@ -11603,7 +11603,7 @@ window.loadCustomerBeautyTab = async function(name, phone) {
             </div>`;
             html += photos.length === 0
                 ? '<p class="text-slate-400 text-xs text-center py-2 bg-slate-50 rounded-xl">אין תמונות</p>'
-                : `<div class="grid grid-cols-3 gap-2">${photos.map(p=>`<div class="aspect-square rounded-xl overflow-hidden bg-slate-100"><img src="${p.photo_url}" class="w-full h-full object-cover" onerror="this.parentElement.innerHTML='📷'"/></div>`).join('')}</div>`;
+                : `<div class="grid grid-cols-3 gap-2">${photos.map(p=>`<div class="aspect-square rounded-xl overflow-hidden bg-slate-100"><img src="${p.image_url}" class="w-full h-full object-cover" onerror="this.parentElement.innerHTML='📷'"/></div>`).join('')}</div>`;
             html += '</div>';
         }
 
@@ -49958,8 +49958,8 @@ window._beautyOpenClient = async function(clientId, openTab) {
     ]);
     window._bcmData = {
         clientId, client,
-        formulas: fRes.formulas || [],
-        photos:   pRes.photos   || [],
+        formulas: Array.isArray(fRes) ? fRes : [],
+        photos:   Array.isArray(pRes) ? pRes : [],
         appts:    aRes.appointments || []
     };
     window._bcmTab(openTab || 'details', clientId);
@@ -50069,12 +50069,12 @@ window._bcmTab = function(tab, clientId) {
         const formulaRows = formulas.length === 0
             ? '<p class="text-slate-400 text-xs text-center py-3 bg-slate-50 rounded-xl">אין פורמולות שמורות</p>'
             : formulas.map(f=>`<div class="bg-slate-50 rounded-xl p-3 text-xs border border-slate-100">
-                <p class="font-bold text-slate-700">${safeStr(f.service_type||'שירות')} · ${_beautyFmtDate(f.created_at)}</p>
-                <p class="text-slate-500 mt-1 whitespace-pre-wrap">${safeStr(f.formula_data?JSON.stringify(f.formula_data,null,2):f.notes||'—')}</p>
+                <p class="font-bold text-slate-700">${safeStr(f.treatment_type||'שירות')} · ${_beautyFmtDate(f.created_at)}</p>
+                <p class="text-slate-500 mt-1 whitespace-pre-wrap">${safeStr(f.application_notes || (f.formula_data && Object.keys(f.formula_data).length ? JSON.stringify(f.formula_data,null,2) : '') || '—')}</p>
               </div>`).join('');
         const photoGrid = photos.length === 0
             ? '<p class="text-slate-400 text-xs text-center py-3 bg-slate-50 rounded-xl">אין תמונות</p>'
-            : `<div class="grid grid-cols-3 gap-2">${photos.map(p=>`<div class="aspect-square rounded-xl overflow-hidden bg-slate-100"><img src="${p.photo_url}" class="w-full h-full object-cover" onerror="this.parentElement.innerHTML='📷'"/></div>`).join('')}</div>`;
+            : `<div class="grid grid-cols-3 gap-2">${photos.map(p=>`<div class="aspect-square rounded-xl overflow-hidden bg-slate-100"><img src="${p.image_url}" class="w-full h-full object-cover" onerror="this.parentElement.innerHTML='📷'"/></div>`).join('')}</div>`;
         body.innerHTML = `<div class="space-y-4">
             <div>
                 <div class="flex items-center justify-between mb-2">
@@ -50272,9 +50272,9 @@ window._beautySubmitFormula = async function(clientId) {
     try {
         const r = await fetch(`${API}/beauty/${biz}/clients/${clientId}/formulas`, {
             method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${window._bizToken || ''}` },
-            body: JSON.stringify({ service_type: type || 'כללי', formula_data: {}, notes })
+            body: JSON.stringify({ treatment_type: type || 'כללי', formula_data: {}, application_notes: notes })
         }).then(r=>r.json());
-        if (r.success || r.formula) {
+        if (r.id) {
             document.getElementById('beauty-formula-modal')?.remove();
             showToast('success', 'פורמולה נשמרה ✅');
             document.getElementById('beauty-client-modal')?.remove();
@@ -50620,6 +50620,9 @@ window._beautyUploadPhotoModal = function(clientId) {
                 <input id="bpu-url" type="url" placeholder="https://..." class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm"/></div>
             <div><label class="text-xs font-bold text-slate-600 block mb-1">הערה</label>
                 <input id="bpu-note" type="text" placeholder="טיפול, תאריך..." class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm"/></div>
+            <label class="flex items-center gap-2 text-xs font-bold text-slate-600">
+                <input id="bpu-consent" type="checkbox" class="w-4 h-4 rounded"/> קיבלתי את הסכמת הלקוחה לצילום
+            </label>
             <button onclick="window._beautySubmitPhoto(${clientId})" class="w-full bg-gradient-to-r from-pink-500 to-purple-600 text-white py-3 rounded-2xl text-sm font-black shadow-sm hover:opacity-90 transition">הוסף תמונה ✅</button>
         </div>
     </div>
@@ -50632,14 +50635,15 @@ window._beautySubmitPhoto = async function(clientId) {
     const photoType = document.getElementById('bpu-type')?.value;
     const photoUrl = document.getElementById('bpu-url')?.value?.trim();
     const note = document.getElementById('bpu-note')?.value?.trim();
+    const consent = !!document.getElementById('bpu-consent')?.checked;
     if (!photoUrl) { showToast('error', 'נא הזן URL לתמונה'); return; }
     try {
         const r = await fetch(`${API}/beauty/${biz}/clients/${clientId}/photos`, {
             method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${window._bizToken || ''}` },
-            body: JSON.stringify({ photo_type: photoType, photo_url: photoUrl, notes: note })
+            body: JSON.stringify({ photo_type: photoType, image_url: photoUrl, notes: note, is_consent_given: consent })
         }).then(r=>r.json());
         document.getElementById('beauty-photo-upload-modal')?.remove();
-        if (r.success || r.photo) {
+        if (r.id) {
             showToast('success', 'תמונה נוספה ✅');
             document.getElementById('beauty-client-modal')?.remove();
             window._beautyOpenClient(clientId);
