@@ -10763,6 +10763,25 @@ app.post('/api/tasks', verifyFamilyOrBiz, async (req, res) => {
         if (assignedTo && String(assignedTo) !== String(createdBy) && role !== 'ADMIN') {
             return res.status(403).json({ error: 'רק מנהל/ת יכול/ה להקצות משימה לאדם אחר' });
         }
+        // בדיקת התנגשות שעות — רק עבור משמרות (SHIFT|תאריך|התחלה|סיום|...), לא הייתה קיימת קודם
+        if (title && title.startsWith('SHIFT|') && assignedTo) {
+            const parts = title.split('|');
+            const [, shiftDate, shiftStart, shiftEnd] = parts;
+            if (shiftDate && shiftStart && shiftEnd) {
+                const existing = await pool.query(
+                    `SELECT title FROM tasks WHERE group_id=$1 AND assigned_to=$2 AND title LIKE $3 AND status IN ('approved','pending')`,
+                    [groupId, assignedTo, `SHIFT|${shiftDate}|%`]
+                );
+                const newStart = shiftStart, newEnd = shiftEnd;
+                const overlaps = existing.rows.some(r => {
+                    const p = r.title.split('|');
+                    const [, , exStart, exEnd] = p;
+                    if (!exStart || !exEnd) return false;
+                    return newStart < exEnd && exStart < newEnd;
+                });
+                if (overlaps) return res.status(400).json({ error: 'כבר קיימת משמרת חופפת לעובד/ת זה/זו באותו יום' });
+            }
+        }
         const deadline = (!isRecurring && days) ? new Date(Date.now() + days * 24 * 60 * 60 * 1000) : null;
         const aiCheck = requireAiCheck !== undefined ? requireAiCheck : true;
         const recurring = !!isRecurring;

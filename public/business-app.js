@@ -5009,7 +5009,9 @@ async function submitShift() {
     const status = currentUser.role === 'ADMIN' ? 'approved' : 'pending';
     const btn = getEl('btn-submit-shift'); btn.disabled = true; btn.innerText = 'שומר...';
     try {
-        await fetch(`${API}/tasks`, { method:'POST', headers:{'Content-Type':'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : ''}, body:JSON.stringify({ title, reward:0, assignedTo:userId, days:null, status }) });
+        const res = await fetch(`${API}/tasks`, { method:'POST', headers:{'Content-Type':'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : ''}, body:JSON.stringify({ title, reward:0, assignedTo:userId, days:null, status }) });
+        const d = await res.json();
+        if (!d.success) { showToast('error', d.error || 'שגיאה בשמירת המשמרת'); return; }
         getEl('shift-modal').classList.add('hidden');
         showToast('success', status === 'approved' ? 'המשמרת שובצה!' : 'הבקשה נשלחה למנהל!');
         fetchData();
