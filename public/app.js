@@ -15039,9 +15039,10 @@ window._beautyRfqState = { businesses: [], rfqs: [] };
 async function _prefetchBeautyRfqs() {
     if (!currentGroup) return;
     try {
+        const _authH = { 'Authorization': `Bearer ${getFamilyToken() || ''}` };
         const [bizRes, rfqRes] = await Promise.all([
             fetch(`${API}/beauty/businesses`).then(r=>r.json()),
-            fetch(`${API}/beauty/rfq/family/${currentGroup.id}`).then(r=>r.json())
+            fetch(`${API}/beauty/rfq/family/${currentGroup.id}`, { headers: _authH }).then(r=>r.json())
         ]);
         window._beautyRfqState.businesses = bizRes.businesses || [];
         window._beautyRfqState.rfqs = rfqRes.rfqs || [];
@@ -15181,7 +15182,7 @@ window._submitFamilyRfq = async function(bizId) {
     if (!currentGroup) return;
     try {
         const r = await fetch(`${API}/beauty/rfq`, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getFamilyToken() || ''}` },
             body: JSON.stringify({ business_group_id: bizId, client_family_id: currentGroup.id, service_description: desc })
         }).then(r=>r.json());
         document.getElementById('family-rfq-modal')?.remove();
@@ -15278,7 +15279,7 @@ window._submitRfqAnswers = async function(rfqId, count) {
     }
     try {
         const r = await fetch(`${API}/beauty/rfq/${rfqId}/client-response`, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getFamilyToken() || ''}` },
             body: JSON.stringify({ answers, photos: [] })
         }).then(r=>r.json());
         document.getElementById('family-rfq-detail-modal')?.remove();
@@ -15291,7 +15292,7 @@ window._submitRfqAnswers = async function(rfqId, count) {
 
 window._acceptRfqPlan = async function(rfqId) {
     try {
-        const r = await fetch(`${API}/beauty/rfq/${rfqId}/accept`, { method: 'POST' }).then(r=>r.json());
+        const r = await fetch(`${API}/beauty/rfq/${rfqId}/accept`, { method: 'POST', headers: { 'Authorization': `Bearer ${getFamilyToken() || ''}` } }).then(r=>r.json());
         document.getElementById('family-rfq-detail-modal')?.remove();
         if (r.success) {
             if (window.showToast) showToast('success', 'תוכנית הטיפול אושרה! 🎉');
@@ -15305,7 +15306,7 @@ window._sendRfqMsg = async function(rfqId) {
     if (!text) return;
     try {
         const r = await fetch(`${API}/beauty/rfq/${rfqId}/message`, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${getFamilyToken() || ''}` },
             body: JSON.stringify({ from: 'client', text })
         }).then(r=>r.json());
         if (r.success) {

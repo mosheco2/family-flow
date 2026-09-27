@@ -50500,7 +50500,7 @@ async function loadBeautyCommissions() {
     el.innerHTML = `<div class="flex items-center justify-center py-16 text-slate-400"><i class="fa-solid fa-spinner fa-spin mr-2"></i> טוען...</div>`;
     try {
         const r = await fetch(`${API}/beauty/${biz}/commissions`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } }).then(r=>r.json());
-        window._beautyState.commissions = r.commissions || [];
+        window._beautyState.commissions = Array.isArray(r) ? r : [];
     } catch(e) { window._beautyState.commissions = []; }
     _renderBeautyCommissions();
 }
@@ -53287,8 +53287,15 @@ window._beautyRfqSubmitPlan = async function(rfqId, btn) {
         await fetch(`${API}/beauty/rfq/${rfqId}/plan`, {
             method: 'POST',
             headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '', 'Content-Type': 'application/json' },
-            body: JSON.stringify({ treatment_plan: { title, description: desc, total_price: price, deposit_amount: deposit }, message: note })
+            body: JSON.stringify({ title, sessions: [{ name: desc || title, price }], total_price: price })
         });
+        if (note) {
+            await fetch(`${API}/beauty/rfq/${rfqId}/message`, {
+                method: 'POST',
+                headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '', 'Content-Type': 'application/json' },
+                body: JSON.stringify({ from: 'biz', text: note })
+            }).catch(()=>{});
+        }
         btn.closest('.fixed').remove();
         showToast('success', 'תוכנית הטיפולים נשלחה ללקוחה');
         loadBeautyRfq();
@@ -53302,7 +53309,7 @@ window._beautyRfqChat = async function(rfqId) {
     try {
         await fetch(`${API}/beauty/rfq/${rfqId}/message`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '', 'Content-Type': 'application/json' },
             body: JSON.stringify({ text, from: 'biz' })
         });
         showToast('success', 'ההודעה נשלחה');

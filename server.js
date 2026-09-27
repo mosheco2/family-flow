@@ -28161,15 +28161,25 @@ app.get('/api/beauty/:bizId/commissions', verifyBiz, async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/beauty/:bizId/commissions/pay', verifyBiz, async (req, res) => {
+app.post('/api/beauty/:bizId/commissions/pay', verifyBiz, verifyBeautyPractitionerAccess, async (req, res) => {
     try {
-        const { commission_ids } = req.body;
+        const { commission_ids, practitioner_id } = req.body;
         if (parseInt(req.params.bizId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
-        await pool.query(
-            `UPDATE beauty_commissions SET is_paid=TRUE, paid_at=NOW() WHERE id=ANY($1) AND business_group_id=$2`,
-            [commission_ids, req.params.bizId]
-        );
-        res.json({ success: true });
+        let r;
+        if (Array.isArray(commission_ids) && commission_ids.length) {
+            r = await pool.query(
+                `UPDATE beauty_commissions SET is_paid=TRUE, paid_at=NOW() WHERE id=ANY($1) AND business_group_id=$2 AND is_paid=FALSE`,
+                [commission_ids, req.params.bizId]
+            );
+        } else if (practitioner_id) {
+            r = await pool.query(
+                `UPDATE beauty_commissions SET is_paid=TRUE, paid_at=NOW() WHERE practitioner_id=$1 AND business_group_id=$2 AND is_paid=FALSE`,
+                [practitioner_id, req.params.bizId]
+            );
+        } else {
+            return res.status(400).json({ error: 'נדרש commission_ids או practitioner_id' });
+        }
+        res.json({ success: true, updated: r.rowCount });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
