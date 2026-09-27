@@ -3241,7 +3241,7 @@ window.submitManualPunch = async function() {
     btn.disabled = true;
     
     try {
-        const res = await fetch(`${API}/timeclock/manual`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({groupId: currentGroup.id, userId: uid, punchIn, punchOut, totalMins: diffMins}) });
+        const res = await fetch(`${API}/timeclock/manual`, { method: 'POST', headers: {'Content-Type':'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : ''}, body: JSON.stringify({userId: uid, punchIn, punchOut, totalMins: diffMins}) });
         
         if (!res.ok) {
             const errData = await res.json();
@@ -5209,20 +5209,17 @@ async function renderEmployeeDashboard() {
         const punchEl  = document.getElementById('emp-punch-status');
         const shiftEl  = document.getElementById('emp-shift-label');
         if (punchEl) {
-            if (stData.punch_in && !stData.punch_out) {
-                const since = new Date(stData.punch_in);
+            if (stData.isPunchedIn) {
+                const since = new Date(stData.punchInTime);
                 const hrs   = ((now - since) / 3600000).toFixed(1);
                 punchEl.textContent = `✅ בעבודה כבר ${hrs} שעות`;
                 punchEl.className   = 'text-[10px] text-emerald-600 font-bold';
-            } else if (stData.punch_out) {
-                punchEl.textContent = 'יציאה מוקלטת ✓';
-                punchEl.className   = 'text-[10px] text-slate-500';
             } else {
                 punchEl.textContent = '⚠️ לא החתמת כניסה';
                 punchEl.className   = 'text-[10px] text-red-500 font-bold';
             }
         }
-        if (shiftEl) shiftEl.textContent = stData.punch_in ? `כניסה: ${new Date(stData.punch_in).toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit'})}` : 'לא בשמרת פעילה';
+        if (shiftEl) shiftEl.textContent = stData.isPunchedIn ? `כניסה: ${new Date(stData.punchInTime).toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit'})}` : 'לא בשמרת פעילה';
     } catch(e) {
         const punchEl = document.getElementById('emp-punch-status');
         if (punchEl) punchEl.textContent = 'לא זמין';
@@ -5507,7 +5504,7 @@ window.renderDashboard = async function(forceRefresh = false) {
                 const todayShifts = (allTasks || []).filter(t =>
                     t.title && t.title.startsWith('SHIFT|') &&
                     t.title.includes(todayDateStr) &&
-                    (t.status === 'approved' || t.status === 'completed' || t.status === 'pending')
+                    (t.status === 'approved' || t.status === 'completed')
                 );
                 const scheduledEmployeeIds = new Set(todayShifts.map(s => s.assigned_to));
 
@@ -5857,7 +5854,7 @@ async function renderUrgentItems() {
             const todayShifts = (allTasks || []).filter(t =>
                 t.title && t.title.startsWith('SHIFT|') &&
                 t.title.includes(todayDateStr) &&
-                (t.status === 'approved' || t.status === 'completed' || t.status === 'pending')
+                (t.status === 'approved' || t.status === 'completed')
             );
             const scheduledEmployeeIds = new Set(todayShifts.map(s => s.assigned_to));
 
@@ -5949,7 +5946,7 @@ async function renderUrgentItems() {
         try {
             const stRes = await fetch(`${API}/timeclock/status?userId=${currentUser.id}`);
             const stData = await stRes.json();
-            if (!stData.punch_in) {
+            if (!stData.isPunchedIn) {
                 items.push({ icon:'⏱', urgency:'high',
                     title:'לא החתמת כניסה היום',
                     sub:'לחץ להחתמה מהירה',
@@ -36718,7 +36715,7 @@ const ROLE_TYPE_TABS = {
     support:        ['customers','tasks','calendar','timeclock'],
     cashier:        ['pos','sales','tasks','timeclock','shifts'],
     shift_manager:  ['pos','sales','tasks','members','timeclock','shifts','customers','cashflow','reviews'],
-    branch_manager: ['pos','sales','tasks','members','timeclock','shifts','customers','cashflow','budget','pantry','reviews','equipment'],
+    branch_manager: ['pos','sales','tasks','members','timeclock','shifts','customers','cashflow','budget','pantry','reviews','equipment','reports'],
     waiter:         ['pos','sales','tasks','calendar','members','shifts','timeclock'],
     cook:           ['pantry','tasks','shifts','foodcost','timeclock'],
     reception:        ['beauty_calendar','beauty_clients','pos','tasks','timeclock'],

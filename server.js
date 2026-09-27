@@ -11860,9 +11860,13 @@ app.get('/api/timeclock/report', async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/timeclock/manual', async (req, res) => {
+app.post('/api/timeclock/manual', verifyBiz, verifyBizAdminOnly, async (req, res) => {
     try {
-        const { groupId, userId, punchIn, punchOut, totalMins } = req.body;
+        const { userId, punchIn, punchOut, totalMins } = req.body;
+        const groupId = req.bizAuth.groupId;
+        // וידוא שהעובד שעבורו נרשמת ההחתמה הידנית שייך לעסק המבקש
+        const target = await pool.query('SELECT id FROM users WHERE id=$1 AND group_id=$2', [userId, groupId]);
+        if (!target.rows.length) return res.status(404).json({ error: 'עובד/ת לא נמצא/ה בעסק זה' });
         await pool.query('INSERT INTO time_clock (user_id, group_id, punch_in, punch_out, total_minutes) VALUES ($1, $2, $3, $4, $5)', [userId, groupId, punchIn, punchOut, totalMins]);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
