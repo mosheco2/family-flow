@@ -15228,6 +15228,7 @@ window._openFamilyRfq = async function(rfqId) {
                 ${plan.total_price ? `<p class="text-sm font-black text-slate-800">סה"כ: ₪${plan.total_price}</p>` : ''}
                 <div class="flex gap-2 mt-2">
                     <button onclick="window._acceptRfqPlan(${rfqId})" class="flex-1 bg-green-600 text-white py-2.5 rounded-xl text-xs font-black hover:bg-green-700 transition">אשר תוכנית ✅</button>
+                    <button onclick="window._rejectRfqPlan(${rfqId})" class="flex-1 bg-white border border-red-200 text-red-600 py-2.5 rounded-xl text-xs font-black hover:bg-red-50 transition">דחה ✕</button>
                     ${plan.payment_link ? `<a href="${plan.payment_link}" target="_blank" class="flex-1 bg-blue-600 text-white py-2.5 rounded-xl text-xs font-black hover:bg-blue-700 transition text-center">שלם עכשיו 💳</a>` : ''}
                 </div>
             </div>`;
@@ -15296,6 +15297,18 @@ window._acceptRfqPlan = async function(rfqId) {
         document.getElementById('family-rfq-detail-modal')?.remove();
         if (r.success) {
             if (window.showToast) showToast('success', 'תוכנית הטיפול אושרה! 🎉');
+            loadFamilyBeautyRfqInline();
+        } else { if (window.showToast) showToast('error', r.error || 'שגיאה'); }
+    } catch(e) { if (window.showToast) showToast('error', 'שגיאת תקשורת'); }
+};
+
+window._rejectRfqPlan = async function(rfqId) {
+    if (!confirm('לדחות את תוכנית הטיפול?')) return;
+    try {
+        const r = await fetch(`${API}/beauty/rfq/${rfqId}/reject`, { method: 'POST', headers: { 'Authorization': `Bearer ${getFamilyToken() || ''}` } }).then(r=>r.json());
+        document.getElementById('family-rfq-detail-modal')?.remove();
+        if (r.success) {
+            if (window.showToast) showToast('success', 'התוכנית נדחתה');
             loadFamilyBeautyRfqInline();
         } else { if (window.showToast) showToast('error', r.error || 'שגיאה'); }
     } catch(e) { if (window.showToast) showToast('error', 'שגיאת תקשורת'); }

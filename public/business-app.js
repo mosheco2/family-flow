@@ -44764,7 +44764,7 @@ async function renderBeautyAdminDashboard(el) {
         { label:'תורים היום',      value: s.appt_today,      icon:'📅', color:'indigo',  cb:`switchTab('beauty_calendar')` },
         { label:'הכנסה היום',      value:`₪${Number(s.revenue_today).toLocaleString('he-IL',{maximumFractionDigits:0})}`, icon:'💰', color:'emerald', cb:`switchTab('sales')` },
         { label:'תורים עתידיים',   value: s.appt_pending,    icon:'⏳', color:'violet',  cb:`switchTab('beauty_calendar')` },
-        { label:'לקוחות מקושרים',  value: s.total_clients,   icon:'👥', color:'blue',    cb:`switchTab('beauty_clients')` },
+        { label:'לקוחות עם חשבון מקושר',  value: s.total_clients,   icon:'👥', color:'blue',    cb:`switchTab('beauty_clients')` },
         { label:'עמלות לתשלום',    value:`₪${Number(s.unpaid_comm_sum).toLocaleString('he-IL',{maximumFractionDigits:0})}`, icon:'💸', color: s.unpaid_comm_cnt>0?'orange':'slate', cb:`switchTab('beauty_commissions')` },
         { label:'הכנסה החודש',     value:`₪${Number(s.revenue_month).toLocaleString('he-IL',{maximumFractionDigits:0})}`, icon:'📊', color:'pink', cb:`switchTab('sales')` },
         { label:'ממתין לגביה מלקוחות', value:`₪${Number(s.pending_payment_sum||0).toLocaleString('he-IL',{maximumFractionDigits:0})}`, icon:'🧾', color: (s.pending_payment_cnt>0)?'red':'slate', cb:`window._beautyOpenCollectionCenter()` }
@@ -53383,9 +53383,26 @@ function _beautyRfqCard(rfq) {
                 class="flex-1 py-2 bg-slate-100 text-slate-700 rounded-xl text-xs font-bold">
                 💬 צ'אט
             </button>
+            ${!['accepted','rejected'].includes(rfq.status) ? `
+            <button onclick="window._beautyRfqReject(${rfq.id})"
+                class="flex-1 py-2 bg-red-50 text-red-600 rounded-xl text-xs font-bold">
+                ✕ דחה בקשה
+            </button>` : ''}
         </div>
     </div>`;
 }
+
+window._beautyRfqReject = async function(rfqId) {
+    if (!confirm('לדחות את הבקשה? הלקוחה תראה שהבקשה נדחתה ולא ניתן יהיה לשנות זאת.')) return;
+    const biz = _beautyBizId(); if (!biz) return;
+    try {
+        const r = await fetch(`${API}/beauty/rfq/${rfqId}/reject`, {
+            method: 'POST', headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' }
+        }).then(r=>r.json());
+        if (r.success) { showToast('success', 'הבקשה נדחתה'); loadBeautyRfq(); }
+        else showToast('error', r.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
 
 window._beautyRfqSendQuestionnaire = async function(rfqId) {
     const questions = await window._uiPrompt('הכנס שאלות לשאלון (מופרדות בפסיק):', {defaultValue:'האם יש אלרגיות?,האם בוצע Patch Test בעבר?,תאר את מצב העור/שיער הנוכחי'});

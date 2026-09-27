@@ -28297,6 +28297,19 @@ app.post('/api/beauty/rfq/:id/accept', verifyFamily, async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+app.post('/api/beauty/rfq/:id/reject', verifyFamilyOrBiz, async (req, res) => {
+    try {
+        const rfqR = await pool.query('SELECT business_group_id, client_family_id, status FROM beauty_rfq WHERE id=$1', [req.params.id]);
+        if (!rfqR.rows.length) return res.status(404).json({ error: 'לא נמצא' });
+        const { business_group_id, client_family_id, status } = rfqR.rows[0];
+        const g = req.callerAuth.groupId;
+        if (g !== business_group_id && g !== client_family_id) return res.status(403).json({ error: 'אין הרשאה' });
+        if (status === 'accepted') return res.status(400).json({ error: 'לא ניתן לדחות בקשה שכבר אושרה' });
+        await pool.query("UPDATE beauty_rfq SET status='rejected', updated_at=NOW() WHERE id=$1", [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 app.post('/api/beauty/rfq/:id/message', verifyFamilyOrBiz, async (req, res) => {
     try {
         const { from, text } = req.body;
