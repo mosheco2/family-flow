@@ -46201,6 +46201,19 @@ window.showSportMemberEdit = async function(memberId) {
                     <input id="sedit-phone" type="tel" value="${m.member_phone||''}" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-right text-sm"/></div>
                 <div><label class="text-xs font-bold text-slate-600 block mb-1 text-right">אימייל</label>
                     <input id="sedit-email" type="email" value="${m.member_email||''}" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm" dir="ltr"/></div>
+                <div class="grid grid-cols-2 gap-2">
+                    <div><label class="text-xs font-bold text-slate-600 block mb-1 text-right">תאריך לידה</label>
+                        <input id="sedit-dob" type="date" value="${m.date_of_birth ? new Date(m.date_of_birth).toISOString().split('T')[0] : ''}" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm"/></div>
+                    <div><label class="text-xs font-bold text-slate-600 block mb-1 text-right">מגדר</label>
+                        <select id="sedit-gender" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-right text-sm">
+                            <option value="">-- לא צוין --</option>
+                            <option value="male" ${m.gender==='male'?'selected':''}>זכר</option>
+                            <option value="female" ${m.gender==='female'?'selected':''}>נקבה</option>
+                            <option value="other" ${m.gender==='other'?'selected':''}>אחר</option>
+                        </select></div>
+                </div>
+                <div><label class="text-xs font-bold text-slate-600 block mb-1 text-right">תעודת זהות</label>
+                    <input id="sedit-idnumber" type="text" value="${m.id_number||''}" dir="ltr" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-right text-sm"/></div>
                 <div class="text-xs font-black text-slate-500 text-right border-b pb-2 mt-2 mb-1">איש קשר לחירום</div>
                 <div class="grid grid-cols-2 gap-2">
                     <div><label class="text-xs font-bold text-slate-600 block mb-1 text-right">טלפון</label>
@@ -46231,6 +46244,9 @@ window._sportSubmitEdit = async function(memberId) {
     const health = document.getElementById('sedit-health')?.value?.trim();
     const trial = document.getElementById('sedit-trial')?.checked;
     const notes = document.getElementById('sedit-notes')?.value?.trim();
+    const dob = document.getElementById('sedit-dob')?.value;
+    const gender = document.getElementById('sedit-gender')?.value;
+    const idNumber = document.getElementById('sedit-idnumber')?.value?.trim();
     try {
         await Promise.all([
             fetch(`${API}/sport/members/${memberId}`, {
@@ -46239,7 +46255,7 @@ window._sportSubmitEdit = async function(memberId) {
             }),
             fetch(`${API}/sport/members/${memberId}/extended`, {
                 method:'PUT', headers:{'Content-Type':'application/json'},
-                body: JSON.stringify({emergencyContact:emergName, emergencyPhone:emergPhone, healthNotes:health, isTrial:trial})
+                body: JSON.stringify({emergencyContact:emergName, emergencyPhone:emergPhone, healthNotes:health, isTrial:trial, dateOfBirth:dob||null, gender:gender||null, idNumber:idNumber||null})
             })
         ]);
         showToast('success', 'נשמר ✅');

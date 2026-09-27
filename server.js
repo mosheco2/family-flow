@@ -26676,10 +26676,11 @@ app.get('/api/sport/member-qr/:id', async (req, res) => {
 
 // Update member with extended fields
 app.put('/api/sport/members/:id/extended', async (req, res) => {
-    const { emergencyContact, emergencyPhone, healthNotes, isTrial } = req.body;
+    const { emergencyContact, emergencyPhone, healthNotes, isTrial, dateOfBirth, gender, idNumber } = req.body;
     try {
-        await pool.query(`UPDATE sport_memberships SET emergency_contact=$1, emergency_phone=$2, health_notes=$3, is_trial=$4, updated_at=NOW() WHERE id=$5`,
-            [emergencyContact||'', emergencyPhone||'', healthNotes||'', isTrial||false, req.params.id]);
+        await pool.query(`UPDATE sport_memberships SET emergency_contact=$1, emergency_phone=$2, health_notes=$3, is_trial=$4,
+            date_of_birth=$5, gender=$6, id_number=$7, updated_at=NOW() WHERE id=$8`,
+            [emergencyContact||'', emergencyPhone||'', healthNotes||'', isTrial||false, dateOfBirth||null, gender||null, idNumber||null, req.params.id]);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
