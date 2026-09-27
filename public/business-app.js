@@ -45155,10 +45155,10 @@ window._sportLoadSchedule = async function(from, to) {
                         <div class="flex items-start justify-between">
                             <div class="flex gap-1.5">
                                 <button onclick="window.showSportClassDetail(${c.id})" class="text-[11px] font-bold px-2 py-1 rounded-lg bg-white/70">נוכחות</button>
-                                <button onclick="window._sportDeleteClass(${c.id})" class="text-[11px] text-red-400 px-1">🗑️</button>
+                                ${c.status!=='cancelled'?`<button onclick="window._sportCancelClass(${c.id})" class="text-[11px] text-orange-400 px-1" title="בטל שיעור">⛔</button>`:''}<button onclick="window._sportDeleteClass(${c.id})" class="text-[11px] text-red-400 px-1">🗑️</button>
                             </div>
                             <div class="text-right">
-                                <div class="font-black text-sm">${c.class_name||c.type_name||'שיעור'}</div>
+                                <div class="font-black text-sm ${c.status==='cancelled'?'line-through opacity-50':''}">${c.class_name||c.type_name||'שיעור'}${c.status==='cancelled'?' <span class="text-[10px] font-bold text-red-500">(בוטל)</span>':''}</div>
                                 <div class="text-[11px]">${c.start_time?c.start_time.substring(0,5):''}${c.end_time?'–'+c.end_time.substring(0,5):''}${c.trainer_name?' · '+c.trainer_name:''}</div>
                             </div>
                         </div>
@@ -45230,8 +45230,18 @@ window._sportSubmitClass = async function() {
     }catch(e){showToast('error','שגיאת תקשורת');}
 };
 
+window._sportCancelClass = async function(classId) {
+    if(!await window._uiConfirm('לבטל שיעור זה? השיעור יישאר ברשומות (לא יימחק) ויסומן כמבוטל — הרשומים ייראו זאת.', {danger:true, okLabel:'בטל שיעור'}))return;
+    try{
+        const d = await fetch(`${API}/sport/classes/${classId}/status`,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({status:'cancelled'})}).then(r=>r.json());
+        if(!d.success){showToast('error',d.error||'שגיאה');return;}
+        showToast('success','השיעור בוטל');
+        window.showSportSchedule();
+    } catch(e){showToast('error','שגיאת תקשורת');}
+};
+
 window._sportDeleteClass = async function(classId) {
-    if(!await window._uiConfirm('למחוק שיעור זה?', {danger:true, okLabel:'מחק'}))return;
+    if(!await window._uiConfirm('למחוק שיעור זה לצמיתות? מומלץ להשתמש ב"בטל שיעור" אם רק רוצים להסיר אותו מהתוכנית מבלי לאבד את ההיסטוריה.', {danger:true, okLabel:'מחק'}))return;
     try{await fetch(`${API}/sport/classes/${classId}`,{method:'DELETE'});showToast('success','נמחק');window.showSportSchedule();}
     catch(e){showToast('error','שגיאת תקשורת');}
 };
@@ -48427,10 +48437,10 @@ window._sportRenderSchedule = function(classes) {
                         <div class="flex gap-1.5">
                             <button onclick="window.showSportClassDetail(${c.id})" class="text-[11px] font-bold px-2 py-1 rounded-lg bg-white/70">נוכחות</button>
                             <button onclick="window.showSportEditClass(${c.id})" class="text-[11px] font-bold px-2 py-1 rounded-lg bg-white/70 text-indigo-600">✏️</button>
-                            <button onclick="window._sportDeleteClass(${c.id})" class="text-[11px] text-red-400 px-1">🗑️</button>
+                            ${c.status!=='cancelled'?`<button onclick="window._sportCancelClass(${c.id})" class="text-[11px] text-orange-400 px-1" title="בטל שיעור">⛔</button>`:''}<button onclick="window._sportDeleteClass(${c.id})" class="text-[11px] text-red-400 px-1">🗑️</button>
                         </div>
                         <div class="text-right">
-                            <div class="font-black text-sm">${c.class_name||c.type_name||'שיעור'}</div>
+                            <div class="font-black text-sm ${c.status==='cancelled'?'line-through opacity-50':''}">${c.class_name||c.type_name||'שיעור'}${c.status==='cancelled'?' <span class="text-[10px] font-bold text-red-500">(בוטל)</span>':''}</div>
                             <div class="text-[11px]">${c.start_time?c.start_time.substring(0,5):''}${c.end_time?'–'+c.end_time.substring(0,5):''}${c.trainer_name?' · '+c.trainer_name:''}</div>
                         </div>
                     </div>

@@ -25883,6 +25883,17 @@ app.delete('/api/sport/classes/:id', async (req, res) => {
     try { await pool.query('DELETE FROM sport_classes WHERE id=$1', [req.params.id]); res.json({ success: true }); } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// ביטול שיעור (feature build) — לשמור היסטוריה במקום מחיקה מוחלטת, בניגוד למחיקה הקיימת
+app.patch('/api/sport/classes/:id/status', async (req, res) => {
+    try {
+        const { status } = req.body;
+        if (!status) return res.status(400).json({ error: 'חסר status' });
+        const r = await pool.query('UPDATE sport_classes SET status=$1 WHERE id=$2 RETURNING *', [status, req.params.id]);
+        if (!r.rows.length) return res.status(404).json({ error: 'לא נמצא' });
+        res.json({ success: true, class: r.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 app.get('/api/sport/classes/:id/registrations', async (req, res) => {
     try {
         const r = await pool.query(`SELECT scr.*, sm.member_phone FROM sport_class_registrations scr
