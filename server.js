@@ -25884,13 +25884,38 @@ app.delete('/api/sport/classes/:id', async (req, res) => {
 });
 
 // ביטול שיעור (feature build) — לשמור היסטוריה במקום מחיקה מוחלטת, בניגוד למחיקה הקיימת
+// ביטול נעשה תמיד ביוזמת/באישור הצד העסקי (המסך הזה נגיש רק לצוות ניהול העסק) — עם חיווי מיידי לאזור האישי של כל לקוח רשום
 app.patch('/api/sport/classes/:id/status', async (req, res) => {
     try {
         const { status } = req.body;
         if (!status) return res.status(400).json({ error: 'חסר status' });
         const r = await pool.query('UPDATE sport_classes SET status=$1 WHERE id=$2 RETURNING *', [status, req.params.id]);
         if (!r.rows.length) return res.status(404).json({ error: 'לא נמצא' });
-        res.json({ success: true, class: r.rows[0] });
+        const cls = r.rows[0];
+        if (status === 'cancelled') {
+            try {
+                const bizR = await pool.query('SELECT name FROM family_groups WHERE id=$1', [cls.group_id]);
+                const bizName = bizR.rows[0]?.name || 'העסק';
+                const regs = await pool.query(
+                    `SELECT DISTINCT scr.membership_id FROM sport_class_registrations scr WHERE scr.class_id=$1 AND scr.membership_id IS NOT NULL`,
+                    [req.params.id]
+                );
+                const dateStr = cls.class_date ? new Date(cls.class_date).toLocaleDateString('he-IL') : '';
+                for (const reg of regs.rows) {
+                    const linkR = await pool.query(
+                        `SELECT mbl.member_group_id FROM member_business_links mbl
+                         WHERE mbl.linked_member_ref_id=$1 AND mbl.status='active' AND mbl.is_active=true LIMIT 1`,
+                        [reg.membership_id]
+                    );
+                    if (linkR.rows.length) {
+                        await _sendMemberBizNotif(linkR.rows[0].member_group_id, bizName,
+                            `השיעור "${cls.class_name||''}" ב${bizName} ב-${dateStr} בוטל`,
+                            `mbiz_sport_class_${req.params.id}_cancelled`);
+                    }
+                }
+            } catch(e2) {}
+        }
+        res.json({ success: true, class: cls });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
