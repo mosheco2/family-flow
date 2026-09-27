@@ -361,7 +361,7 @@ const TAB_RENAME = {
 | `senior_therapist` — מטפלת בכירה | beauty tabs | beauty |
 | `nail_tech` — טכנאית ציפורניים | beauty tabs | beauty |
 | `makeup_artist` — איפורנית | beauty tabs | beauty |
-| `reception` — קבלנית | beauty tabs | beauty |
+| `reception` — פקידת קבלה | beauty tabs | beauty |
 
 ### 5.3 Feature Flags (הרשאות מודולים)
 

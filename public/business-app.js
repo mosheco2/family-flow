@@ -3606,7 +3606,7 @@ function enforcePermissions() {
 
     // 1. נעילה ויזואלית לפי תפקיד (Role) - טאבים ללא הרשאה מוצגים נעולים ולא לחיצים
     ALL_TABS.forEach(tab => {
-        const allowed = userTabs.includes(tab.id) || isAdmin || (tab.id === 'members' && isAccountOwner);
+        const allowed = userTabs.includes(tab.id) || isAdmin || (tab.id === 'members' && isAccountOwner) || ['feed','settings','biz-ads'].includes(tab.id);
 
         // Old hidden tab bar (kept for JS compatibility)
         const btn = getEl(`tab-${tab.id}`);
@@ -20708,7 +20708,7 @@ function _renderWizardV2StepContent(stepName) {
         const bizType = currentGroup?.business_type || 'other';
         const TEAM_ROLES_BY_TYPE = {
             restaurant:   ['מלצר/ית','טבח/ית','קופאי/ת','שליח/ה','מנהל/ת משמרת'],
-            beauty:       ['מטפלת','איפורנית','טכנאית ציפורניים','קבלנית'],
+            beauty:       ['מטפלת','איפורנית','טכנאית ציפורניים','פקידת קבלה'],
             sport:        ['מאמן/ת','קופאי/ת','מנהל/ת משמרת'],
             services:     ['טכנאי/ת שטח','נציג/ת שירות','קופאי/ת'],
             professional: ['יועץ/ת','עוזר/ת אדמיניסטרטיב/ית','שותף/ה'],
@@ -36711,6 +36711,11 @@ const ROLE_TYPE_TABS = {
     branch_manager: ['pos','sales','tasks','members','timeclock','shifts','customers','cashflow','budget','pantry','reviews','equipment'],
     waiter:         ['pos','sales','tasks','calendar','members','shifts','timeclock'],
     cook:           ['pantry','tasks','shifts','foodcost','timeclock'],
+    reception:        ['beauty_calendar','beauty_clients','pos','tasks','timeclock'],
+    therapist:        ['beauty_calendar','beauty_clients','tasks','timeclock'],
+    senior_therapist: ['beauty_calendar','beauty_clients','beauty_practitioners','beauty_commissions','tasks','timeclock'],
+    nail_tech:        ['beauty_calendar','beauty_clients','tasks','timeclock'],
+    makeup_artist:    ['beauty_calendar','beauty_clients','tasks','timeclock'],
 };
 
 const BUSINESS_TYPES = [
@@ -36770,7 +36775,7 @@ const EMPLOYEE_ROLE_TYPES = [
     { id: 'senior_therapist', name: 'מטפלת בכירה',      icon: '⭐', feature_key: 'role_senior_therapist', price: 29, color: 'purple',  business_types: ['beauty'] },
     { id: 'nail_tech',        name: 'טכנאית ציפורניים', icon: '💅', feature_key: 'role_nail_tech',        price: 19, color: 'rose',    business_types: ['beauty'] },
     { id: 'makeup_artist',    name: 'איפורנית',          icon: '💄', feature_key: 'role_makeup_artist',    price: 19, color: 'fuchsia', business_types: ['beauty'] },
-    { id: 'reception',        name: 'קבלנית',            icon: '🗓️', feature_key: 'role_reception',        price: 15, color: 'teal',    business_types: ['beauty'] },
+    { id: 'reception',        name: 'פקידת קבלה',        icon: '🗓️', feature_key: 'role_reception',        price: 15, color: 'teal',    business_types: ['beauty'] },
     { id: 'consultant',       name: 'יועץ / מומחה',      icon: '🎯', feature_key: 'role_consultant',       price: 29, color: 'indigo',  business_types: ['professional'] },
     { id: 'associate',        name: 'עוזר / אסיסטנט',    icon: '📋', feature_key: 'role_associate',        price: 19, color: 'slate',   business_types: ['professional'] },
     { id: 'partner',          name: 'שותף בכיר',         icon: '🤝', feature_key: 'role_partner',          price: 39, color: 'amber',   business_types: ['professional'] },
@@ -37247,6 +37252,11 @@ async function showRoleDashboard(roleType) {
         case 'branch_manager': await renderBranchManagerDashboard(dashEl);  break;
         case 'waiter':         await renderWaiterDashboard(dashEl);         break;
         case 'cook':           await renderCookDashboard(dashEl);           break;
+        case 'therapist':
+        case 'senior_therapist':
+        case 'nail_tech':
+        case 'makeup_artist':
+        case 'reception':      await renderBeautyStaffDashboard(dashEl, roleType); break;
     }
     // Start auto-refresh for operational roles that need real-time updates
     if (['waiter','cook','shift_manager'].includes(roleType)) startRoleAutoRefresh(roleType);
@@ -38481,6 +38491,33 @@ async function renderCleanerDashboard(el) {
             {icon:'⚠️', label:'דיווח בעיה', tab:'tasks'},
             {icon:'✅', label:'כל המשימות', tab:'tasks'}
         ])}
+        ${roleFullMenuBtn()}`;
+}
+
+// --- Generic beauty staff dashboard (therapist / senior_therapist / nail_tech / makeup_artist / reception) ---
+async function renderBeautyStaffDashboard(el, roleType) {
+    const CONFIG = {
+        therapist:        { icon:'💆', title:'ממשק מטפלת',            subtitle:'יומן תורים וכרטיסי לקוחות',            from:'from-pink-500',    to:'to-rose-600',   actions:[{icon:'📅',label:'יומן תורים',tab:'beauty_calendar'},{icon:'👥',label:'לקוחות',tab:'beauty_clients'},{icon:'✅',label:'משימות',tab:'tasks'}] },
+        senior_therapist: { icon:'⭐', title:'ממשק מטפלת בכירה',       subtitle:'יומן תורים, צוות ועמלות',              from:'from-purple-500',  to:'to-fuchsia-600',actions:[{icon:'📅',label:'יומן תורים',tab:'beauty_calendar'},{icon:'👥',label:'לקוחות',tab:'beauty_clients'},{icon:'👩‍⚕️',label:'צוות מטפלות',tab:'beauty_practitioners'},{icon:'💸',label:'עמלות',tab:'beauty_commissions'},{icon:'✅',label:'משימות',tab:'tasks'}] },
+        nail_tech:        { icon:'💅', title:'ממשק טכנאית ציפורניים', subtitle:'יומן תורים וכרטיסי לקוחות',            from:'from-rose-500',    to:'to-pink-600',    actions:[{icon:'📅',label:'יומן תורים',tab:'beauty_calendar'},{icon:'👥',label:'לקוחות',tab:'beauty_clients'},{icon:'✅',label:'משימות',tab:'tasks'}] },
+        makeup_artist:    { icon:'💄', title:'ממשק איפורנית',          subtitle:'יומן תורים וכרטיסי לקוחות',            from:'from-fuchsia-500', to:'to-purple-600',  actions:[{icon:'📅',label:'יומן תורים',tab:'beauty_calendar'},{icon:'👥',label:'לקוחות',tab:'beauty_clients'},{icon:'✅',label:'משימות',tab:'tasks'}] },
+        reception:        { icon:'🗓️', title:'ממשק פקידת קבלה',       subtitle:'קביעת תורים, קבלת קהל וגביה',          from:'from-teal-500',    to:'to-cyan-600',    actions:[{icon:'📅',label:'יומן תורים',tab:'beauty_calendar'},{icon:'👥',label:'לקוחות',tab:'beauty_clients'},{icon:'💳',label:'קופה',tab:'pos'},{icon:'✅',label:'משימות',tab:'tasks'}] },
+    };
+    const cfg = CONFIG[roleType] || CONFIG.therapist;
+
+    let tasks = (allTasks||[]).filter(t => !t.title?.startsWith('SHIFT|') && (!t.assigned_to || t.assigned_to == currentUser.id) && t.status !== 'done').slice(0,6);
+    const tasksHtml = tasks.length ? tasks.map(t => `<div class="flex items-center gap-3 py-2.5 border-b border-slate-50 last:border-0">
+        <button onclick="completeTaskQuick(${t.id},this)" class="w-6 h-6 rounded-full border-2 border-pink-300 shrink-0 flex items-center justify-center text-xs transition"></button>
+        <span class="text-sm text-slate-700 flex-1 truncate">${safeStr(t.title)}</span>
+    </div>`).join('') : `<p class="text-center text-slate-400 text-sm py-5">אין משימות פתוחות</p>`;
+
+    el.innerHTML = `
+        ${roleDashboardHeader(cfg.icon, cfg.title, cfg.subtitle, cfg.from, cfg.to)}
+        ${roleQuickActions(cfg.actions)}
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-100 mb-4 overflow-hidden">
+            <div class="px-4 py-3 border-b border-slate-50"><h3 class="font-black text-slate-800 text-sm">✅ משימות פתוחות</h3></div>
+            <div class="px-4 py-0">${tasksHtml}</div>
+        </div>
         ${roleFullMenuBtn()}`;
 }
 
