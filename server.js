@@ -27592,7 +27592,7 @@ app.get('/api/beauty/:bizId/availability', async (req, res) => {
 });
 
 // --- Client Records ---
-app.get('/api/beauty/:bizId/clients', verifyBiz, async (req, res) => {
+app.get('/api/beauty/:bizId/clients', verifyBiz, verifyBeautyClientAccess, async (req, res) => {
     try {
         const { q } = req.query;
         if (parseInt(req.params.bizId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
@@ -27605,7 +27605,7 @@ app.get('/api/beauty/:bizId/clients', verifyBiz, async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/api/beauty/:bizId/clients/:id', verifyBiz, async (req, res) => {
+app.get('/api/beauty/:bizId/clients/:id', verifyBiz, verifyBeautyClientAccess, async (req, res) => {
     try {
         if (parseInt(req.params.bizId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const [rec, formulas, photos, appts] = await Promise.all([
@@ -27890,7 +27890,7 @@ app.put('/api/family/:familyGroupId/beauty/appointments/:id/client-confirm', asy
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/beauty/:bizId/clients', verifyBiz, async (req, res) => {
+app.post('/api/beauty/:bizId/clients', verifyBiz, verifyBeautyClientAccess, async (req, res) => {
     try {
         const { client_family_id, client_name, client_phone, client_email, date_of_birth, medical_notes, skin_type, hair_type, id_number } = req.body;
         if (parseInt(req.params.bizId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
@@ -27915,7 +27915,7 @@ app.post('/api/beauty/:bizId/clients', verifyBiz, async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.patch('/api/beauty/:bizId/clients/:id', verifyBiz, async (req, res) => {
+app.patch('/api/beauty/:bizId/clients/:id', verifyBiz, verifyBeautyClientAccess, async (req, res) => {
     try {
         const f = req.body;
         if (parseInt(req.params.bizId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
@@ -27930,7 +27930,7 @@ app.patch('/api/beauty/:bizId/clients/:id', verifyBiz, async (req, res) => {
 });
 
 // Formulas
-app.post('/api/beauty/:bizId/clients/:id/formulas', verifyBiz, async (req, res) => {
+app.post('/api/beauty/:bizId/clients/:id/formulas', verifyBiz, verifyBeautyClientAccess, async (req, res) => {
     try {
         const { appointment_id, practitioner_id, treatment_type, formula_data, application_notes, result_notes, processing_time_min } = req.body;
         if (parseInt(req.params.bizId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
@@ -27946,7 +27946,7 @@ app.post('/api/beauty/:bizId/clients/:id/formulas', verifyBiz, async (req, res) 
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/api/beauty/:bizId/clients/:id/formulas', verifyBiz, async (req, res) => {
+app.get('/api/beauty/:bizId/clients/:id/formulas', verifyBiz, verifyBeautyClientAccess, async (req, res) => {
     try {
         if (parseInt(req.params.bizId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const _cr = await pool.query('SELECT 1 FROM beauty_client_records WHERE id=$1 AND business_group_id=$2', [req.params.id, req.bizAuth.groupId]);
@@ -27957,7 +27957,7 @@ app.get('/api/beauty/:bizId/clients/:id/formulas', verifyBiz, async (req, res) =
 });
 
 // Photos
-app.post('/api/beauty/:bizId/clients/:id/photos', verifyBiz, async (req, res) => {
+app.post('/api/beauty/:bizId/clients/:id/photos', verifyBiz, verifyBeautyClientAccess, async (req, res) => {
     try {
         const { appointment_id, photo_type, image_url, thumbnail_url, treatment_area, notes, taken_by, is_consent_given } = req.body;
         if (parseInt(req.params.bizId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
@@ -27973,7 +27973,7 @@ app.post('/api/beauty/:bizId/clients/:id/photos', verifyBiz, async (req, res) =>
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/api/beauty/:bizId/clients/:id/photos', verifyBiz, async (req, res) => {
+app.get('/api/beauty/:bizId/clients/:id/photos', verifyBiz, verifyBeautyClientAccess, async (req, res) => {
     try {
         if (parseInt(req.params.bizId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const _cr = await pool.query('SELECT 1 FROM beauty_client_records WHERE id=$1 AND business_group_id=$2', [req.params.id, req.bizAuth.groupId]);
@@ -37663,7 +37663,22 @@ async function verifyBiz(req, res, next) {
 
     pool.query(`UPDATE family_sessions SET last_seen=NOW() WHERE token_hash=$1`, [tokenHash]).catch(() => {});
     req.bizAuth = { groupId: row.group_id, userId: row.user_id };
+    try {
+        const ur = await pool.query('SELECT role, employee_role_type FROM users WHERE id=$1', [row.user_id]);
+        if (ur.rows[0]) {
+            req.bizAuth.role = ur.rows[0].role;
+            req.bizAuth.employeeRoleType = ur.rows[0].employee_role_type;
+        }
+    } catch(e) {}
     next();
+}
+
+// תפקידים שרשאים לגשת למידע רגיש של לקוחות יופי (הערות רפואיות, פורמולות, תמונות)
+const BEAUTY_CLIENT_DATA_ROLES = new Set(['therapist', 'senior_therapist', 'nail_tech', 'makeup_artist', 'reception']);
+function verifyBeautyClientAccess(req, res, next) {
+    const auth = req.bizAuth || {};
+    if (auth.role === 'ADMIN' || (auth.employeeRoleType && BEAUTY_CLIENT_DATA_ROLES.has(auth.employeeRoleType))) return next();
+    return res.status(403).json({ error: 'אין הרשאה לגשת למידע לקוחות' });
 }
 
 // ===== DASHBOARD METRIC HISTORY API (sparklines בדף הבית) =====
