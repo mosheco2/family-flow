@@ -45359,6 +45359,19 @@ window._sportLoadReports = async function(period) {
                 <span class="text-xs text-slate-500">${mo}/${y} · ${m.count} עסקאות</span>
             </div>`;
         }).join('')||'<div class="text-xs text-slate-400 text-center py-4">אין נתונים</div>';
+        const classRows=(d.classStats||[]).map(c=>{
+            const cap=parseInt(c.capacity)||0;
+            const reg=parseInt(c.registered)||0;
+            const fill=cap>0?Math.min(100,Math.round((reg/cap)*100)):0;
+            const dt=c.class_date?new Date(c.class_date).toLocaleDateString('he-IL',{day:'2-digit',month:'2-digit'}):'';
+            return `<div class="py-1.5 border-b border-slate-50">
+                <div class="flex items-center justify-between text-xs mb-1">
+                    <span class="font-bold ${fill>=100?'text-red-600':'text-slate-600'}">${reg}/${cap||'—'}</span>
+                    <span class="text-slate-700 font-bold">${safeStr(c.class_name||'שיעור')} <span class="text-slate-400 font-normal">${dt}${c.trainer_name?' · '+safeStr(c.trainer_name):''}</span></span>
+                </div>
+                <div class="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden"><div class="h-full ${fill>=100?'bg-red-400':'bg-emerald-400'} rounded-full" style="width:${fill}%"></div></div>
+            </div>`;
+        }).join('')||'<div class="text-xs text-slate-400 text-center py-4">אין שיעורים ב-30 הימים האחרונים</div>';
         el.innerHTML=`
             <div class="grid grid-cols-2 gap-3 mb-4">
                 <div class="bg-emerald-50 rounded-2xl p-3 text-right"><div class="text-lg font-black text-emerald-700">₪${totalRev.toLocaleString('he-IL',{maximumFractionDigits:0})}</div><div class="text-[11px] text-emerald-500">${period==='year'?'הכנסות השנה':'הכנסות החודש'}</div></div>
@@ -45367,7 +45380,8 @@ window._sportLoadReports = async function(period) {
             <div class="mb-4"><div class="text-xs font-black text-slate-600 mb-2 text-right">הכנסות לפי סוג מנוי</div>${revRows}</div>
             <div class="mb-4"><div class="text-xs font-black text-slate-600 mb-2 text-right">סטטוס חברים</div>${memRows}</div>
             <div class="mb-4"><div class="text-xs font-black text-slate-600 mb-2 text-right">כניסות יומיות (14 ימים)</div>${checkinRows}</div>
-            <div class="mb-4"><div class="text-xs font-black text-slate-600 mb-2 text-right">הכנסות לפי חודש</div>${monthRows}</div>`;
+            <div class="mb-4"><div class="text-xs font-black text-slate-600 mb-2 text-right">הכנסות לפי חודש</div>${monthRows}</div>
+            <div class="mb-4"><div class="text-xs font-black text-slate-600 mb-2 text-right">תפוסת חוגים (30 יום אחרונים)</div>${classRows}</div>`;
     }catch(e){el.innerHTML='<div class="text-center py-8 text-red-400 text-sm">שגיאה</div>';}
 };
 
