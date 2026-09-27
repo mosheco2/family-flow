@@ -25490,6 +25490,8 @@ app.post('/api/sport/members', async (req, res) => {
                 [groupId, m.id, mName, paymentAmount, paymentMethod || 'cash', 'הצטרפות מנוי חדש']);
             logBizIncome(groupId, paymentAmount, `הצטרפות מנוי חדש — ${mName || ''}`.trim());
         }
+        // כרטיסיית לקוח אחת מזוהה לפי טלפון — מקשר/מאחד עם רשומת הלקוח הכללית של העסק, לא יוצר כרטיס נפרד למנוי הספורט
+        upsertStoreCustomer(groupId, { name: mName, phone: mPhone, email: mEmail, notes: `חבר מועדון: ${mtype?.name || ''}`.trim() });
         res.json({ success: true, member: m });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -25500,6 +25502,7 @@ app.put('/api/sport/members/:id', async (req, res) => {
         const smR = await pool.query('SELECT group_id FROM sport_memberships WHERE id=$1', [req.params.id]);
         await pool.query(`UPDATE sport_memberships SET member_name=$1,member_phone=$2,member_email=$3,notes=$4,status=COALESCE($5,status),updated_at=NOW() WHERE id=$6`,
             [name, phone||'', email||'', notes||'', status||null, req.params.id]);
+        if (smR.rows.length) upsertStoreCustomer(smR.rows[0].group_id, { name, phone, email });
         res.json({ success: true });
         if (status && smR.rows.length) {
             try {
