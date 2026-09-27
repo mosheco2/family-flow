@@ -2524,6 +2524,8 @@ window._reportsExportCSV = function() {
     csv += `הכנסות,${c.income||0}\nהוצאות,${c.expense||0}\nעסקאות,${c.transactions||0}\n\n`;
     if (data.top_items?.length) { csv += `מוצר,כמות,הכנסה\n`; data.top_items.forEach(i=>{csv+=`${i.item_name},${i.qty},${i.revenue}\n`;}); csv+='\n'; }
     if (data.sport?.revenueByType?.length) { csv+=`סוג מנוי,כמות,הכנסה\n`; data.sport.revenueByType.forEach(t=>{csv+=`${t.type_name},${t.count},${t.total}\n`;}); csv+='\n'; }
+    if (data.beauty?.apptByStatus?.length) { const bsl={scheduled:'ממתין',confirmed:'מאושר',completed:'הושלם',cancelled:'בוטל',no_show:'לא הגיע',pending_cancel:'בקשת ביטול'}; csv+=`סטטוס תור,כמות,הכנסה\n`; data.beauty.apptByStatus.forEach(s=>{csv+=`${bsl[s.status]||s.status},${s.count},${s.revenue}\n`;}); csv+='\n'; }
+    if (data.beauty?.revByPractitioner?.length) { csv+=`מטפלת,שירותים,הכנסה\n`; data.beauty.revByPractitioner.forEach(p=>{csv+=`${p.display_name},${p.services},${p.revenue}\n`;}); csv+='\n'; }
     if (data.beauty?.topServices?.length) { csv+=`שירות,כמות,הכנסה\n`; data.beauty.topServices.forEach(s=>{csv+=`${s.service_name},${s.count},${s.revenue}\n`;}); csv+='\n'; }
     if (data.logistics?.by_driver?.length) { csv+=`נהג,משלוחים,הכנסה\n`; data.logistics.by_driver.forEach(d=>{csv+=`${d.driver_name},${d.total_orders},${d.revenue}\n`;}); csv+='\n'; }
     if (data.professional?.casesByStatus?.length) { csv+=`סטטוס תיק,כמות,הכנסה\n`; data.professional.casesByStatus.forEach(s=>{csv+=`${s.status},${s.count},${s.revenue}\n`;}); csv+='\n'; }
@@ -2586,6 +2588,13 @@ window._reportsExportPDF = function() {
         body += sectionTitle('חברים לפי סטטוס');
         body += `<table style="${tableStyle}"><thead><tr><th style="${thStyle}">סטטוס</th><th style="${thStyle}text-align:left;">כמות</th></tr></thead><tbody>`;
         data.sport.membersByStatus.forEach(m => { body += `<tr><td style="${tdStyle}">${sl[m.status]||m.status}</td><td style="${tdStyle}">${fmt(m.count)}</td></tr>`; });
+        body += '</tbody></table>';
+    }
+    if (data.beauty?.apptByStatus?.length) {
+        const bsl = { scheduled:'ממתין', confirmed:'מאושר', completed:'הושלם', cancelled:'בוטל', no_show:'לא הגיע', pending_cancel:'בקשת ביטול' };
+        body += sectionTitle('תורים לפי סטטוס');
+        body += `<table style="${tableStyle}"><thead><tr><th style="${thStyle}">סטטוס</th><th style="${thStyle}text-align:center;">כמות</th><th style="${thStyle}text-align:left;">הכנסה</th></tr></thead><tbody>`;
+        data.beauty.apptByStatus.forEach(s => { body += `<tr><td style="${tdStyle}">${bsl[s.status]||s.status}</td><td style="${tdStyle}text-align:center;">${fmt(s.count)}</td><td style="${tdMoneyStyle}">${fmtM(s.revenue)}</td></tr>`; });
         body += '</tbody></table>';
     }
     if (data.beauty?.revByPractitioner?.length) {
@@ -4346,7 +4355,8 @@ function openTaskModal(isSelf = false) {
             membersCache.forEach(m => {
                 if (m.role !== 'ADMIN') {
                     hasMembers = true;
-                    checkboxContainer.innerHTML += `<label class="flex items-center gap-2 text-sm text-slate-700 cursor-pointer py-0.5"><input type="checkbox" class="task-assignee-cb rounded" value="${m.id}"> ${safeStr(fmtUserName(m) || m.nickname)}</label>`;
+                    const noLoginWarn = !m.phone ? ' <span class="text-amber-500 text-[10px]" title="לחשבון זה אין פרטי התחברות — ייתכן שהוא רשומת מטפלת בלבד ולא עובד/ת שמתחבר/ת בפועל, ולכן לא יראה/תראה משימות שישויכו אליו/ה">⚠️ ללא התחברות</span>' : '';
+                    checkboxContainer.innerHTML += `<label class="flex items-center gap-2 text-sm text-slate-700 cursor-pointer py-0.5"><input type="checkbox" class="task-assignee-cb rounded" value="${m.id}"> ${safeStr(fmtUserName(m) || m.nickname)}${noLoginWarn}</label>`;
                 }
             });
             if (!hasMembers) checkboxContainer.innerHTML = '<p class="text-xs text-slate-400">אין אנשי צוות רשומים</p>';
@@ -6325,8 +6335,8 @@ async function fetchCommissionSummary() {
                 <div class="text-[9px] text-${color}-400 mt-0.5">${barPct}% שולם</div>
             </div>`;
         container.innerHTML =
-            cube('fa-file-invoice-dollar', 'blue', 'סה"כ עמלה', fmt(s.total_commission), fmt(s.total_collected), 'שולם', totalPct, 'rgb(99,102,241)', '') +
-            cube('fa-file-invoice-dollar', 'indigo', 'עמלה החודש', fmt(s.month_commission), fmt(s.month_collected), 'שולם', monthPct, 'rgb(99,102,241)', 'חודש שוטף');
+            cube('fa-file-invoice-dollar', 'blue', 'סה"כ עמלת פלטפורמה', fmt(s.total_commission), fmt(s.total_collected), 'שולם', totalPct, 'rgb(99,102,241)', '') +
+            cube('fa-file-invoice-dollar', 'indigo', 'עמלת פלטפורמה החודש', fmt(s.month_commission), fmt(s.month_collected), 'שולם', monthPct, 'rgb(99,102,241)', 'חודש שוטף');
     } catch(e) { if(container) container.innerHTML = '<div class="col-span-2 text-center text-xs text-slate-400 py-2">אין נתוני עמלות עדיין</div>'; }
 }
 
@@ -44752,7 +44762,7 @@ async function renderBeautyAdminDashboard(el) {
 
     const kpis = [
         { label:'תורים היום',      value: s.appt_today,      icon:'📅', color:'indigo',  cb:`switchTab('beauty_calendar')` },
-        { label:'הכנסה היום',      value:`₪${Number(s.revenue_today).toLocaleString('he-IL',{maximumFractionDigits:0})}`, icon:'💰', color:'emerald', cb:`switchTab('beauty_commissions')` },
+        { label:'הכנסה היום',      value:`₪${Number(s.revenue_today).toLocaleString('he-IL',{maximumFractionDigits:0})}`, icon:'💰', color:'emerald', cb:`switchTab('sales')` },
         { label:'תורים עתידיים',   value: s.appt_pending,    icon:'⏳', color:'violet',  cb:`switchTab('beauty_calendar')` },
         { label:'לקוחות מקושרים',  value: s.total_clients,   icon:'👥', color:'blue',    cb:`switchTab('beauty_clients')` },
         { label:'עמלות לתשלום',    value:`₪${Number(s.unpaid_comm_sum).toLocaleString('he-IL',{maximumFractionDigits:0})}`, icon:'💸', color: s.unpaid_comm_cnt>0?'orange':'slate', cb:`switchTab('beauty_commissions')` },
