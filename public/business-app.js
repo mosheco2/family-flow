@@ -4739,16 +4739,16 @@ window.renderTasks = function(tasks) {
 };
 
 // ── Shift Templates (stored per group in localStorage) ───────────────────────
-function getShiftTemplates() {
-    const key = `biz_shift_tpl_${currentGroup?.id}`;
-    try { const s = localStorage.getItem(key); if(s) return JSON.parse(s); } catch(e) {}
-    return [
-        { id: 1, name: 'בוקר', start: '08:00', end: '16:00' },
-        { id: 2, name: 'ערב', start: '16:00', end: '23:00' }
-    ];
-}
-function saveShiftTemplates(tpls) {
-    localStorage.setItem(`biz_shift_tpl_${currentGroup?.id}`, JSON.stringify(tpls));
+// תבניות משמרת — נטענות ונשמרות בשרת (משותפות לכל המנהלים/המכשירים של העסק), לא רק ב-localStorage של הדפדפן הנוכחי
+let _shiftTemplatesCache = [];
+function getShiftTemplates() { return _shiftTemplatesCache; }
+async function _loadShiftTemplates() {
+    if (!currentGroup?.id) return;
+    try {
+        const r = await fetch(`${API}/shift-templates/${currentGroup.id}`);
+        const d = await r.json();
+        _shiftTemplatesCache = (d.templates || []).map(t => ({ id: t.id, name: t.name, start: t.start_time, end: t.end_time }));
+    } catch(e) {}
 }
 
 // ── View state ────────────────────────────────────────────────────────────────
@@ -4811,9 +4811,13 @@ async function openAddTemplateModal() {
     const name  = await window._uiPrompt('שם המשמרת (למשל: בוקר, ערב, לילה):'); if(!name) return;
     const start = await window._uiPrompt('שעת התחלה (HH:MM):'); if(!start) return;
     const end   = await window._uiPrompt('שעת סיום (HH:MM):');   if(!end) return;
-    const tpls  = getShiftTemplates();
-    tpls.push({ id: Date.now(), name: name.trim(), start, end });
-    saveShiftTemplates(tpls);
+    try {
+        await fetch(`${API}/shift-templates`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ groupId: currentGroup.id, name: name.trim(), start, end })
+        });
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); return; }
+    await _loadShiftTemplates();
     renderShiftTemplatesMgr();
     // refresh template buttons in modal if open
     const wrap = getEl('shift-tpl-buttons'); if(wrap) renderTemplateBtns(wrap);
@@ -4821,8 +4825,8 @@ async function openAddTemplateModal() {
 
 async function deleteShiftTemplate(id) {
     if(!await window._uiConfirm('למחוק תבנית זו?', {danger:true, okLabel:'מחק'})) return;
-    const tpls = getShiftTemplates().filter(t => t.id !== id);
-    saveShiftTemplates(tpls);
+    try { await fetch(`${API}/shift-templates/${id}`, { method: 'DELETE' }); } catch(e) {}
+    await _loadShiftTemplates();
     renderShiftTemplatesMgr();
 }
 
@@ -4855,7 +4859,8 @@ function selectShiftTemplate(id) {
 }
 
 // ── Main render ───────────────────────────────────────────────────────────────
-function renderShifts() {
+async function renderShifts() {
+    await _loadShiftTemplates();
     renderShiftTemplatesMgr();
     const isAdmin = currentUser.role === 'ADMIN';
     const shiftTasks = allTasks.filter(t => t.title && t.title.startsWith('SHIFT|'));
@@ -4986,7 +4991,10 @@ function openShiftModal() {
     }
     // render template buttons
     const wrap = getEl('shift-tpl-buttons');
-    if(wrap) renderTemplateBtns(wrap);
+    if (wrap) {
+        if (!_shiftTemplatesCache.length) { _loadShiftTemplates().then(() => renderTemplateBtns(wrap)); }
+        else renderTemplateBtns(wrap);
+    }
     // reset
     const hr = getEl('shift-hours-row'); if(hr) hr.classList.remove('hidden');
     document.querySelectorAll('.shift-tpl-pick').forEach(b => {

@@ -710,6 +710,15 @@ try { await client.query(`ALTER TABLE game_assignments ADD COLUMN IF NOT EXISTS 
           notes TEXT,
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )`);
+      // תבניות משמרת — קודם נשמרו רק ב-localStorage בדפדפן, כך שלא היו משותפות בין מנהלים/מכשירים שונים
+      try { await client.query(`CREATE TABLE IF NOT EXISTS shift_templates (
+          id SERIAL PRIMARY KEY,
+          group_id INTEGER NOT NULL,
+          name VARCHAR(50) NOT NULL,
+          start_time VARCHAR(5) NOT NULL,
+          end_time VARCHAR(5) NOT NULL,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )`); } catch(e) {}
       try { await client.query('ALTER TABLE transactions ADD COLUMN IF NOT EXISTS end_month VARCHAR(10)'); } catch(e) {}
       try { await client.query('ALTER TABLE transactions ADD COLUMN IF NOT EXISTS is_manual BOOLEAN DEFAULT TRUE'); } catch(e) {}
       try { await client.query('ALTER TABLE budget_allocations ADD COLUMN IF NOT EXISTS target_user_id INT REFERENCES users(id) ON DELETE CASCADE'); } catch(e) {}
@@ -11904,6 +11913,39 @@ app.post('/api/timeclock/manual', verifyBiz, verifyBizAdminOnly, async (req, res
         const target = await pool.query('SELECT id FROM users WHERE id=$1 AND group_id=$2', [userId, groupId]);
         if (!target.rows.length) return res.status(404).json({ error: 'עובד/ת לא נמצא/ה בעסק זה' });
         await pool.query('INSERT INTO time_clock (user_id, group_id, punch_in, punch_out, total_minutes) VALUES ($1, $2, $3, $4, $5)', [userId, groupId, punchIn, punchOut, totalMins]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── Shift Templates (shared across all admins/devices of a business) ────────
+app.get('/api/shift-templates/:groupId', async (req, res) => {
+    try {
+        let r = await pool.query('SELECT * FROM shift_templates WHERE group_id=$1 ORDER BY id', [req.params.groupId]);
+        if (!r.rows.length) {
+            // זריעת שתי תבניות ברירת מחדל בפעם הראשונה בלבד — תואם להתנהגות הקודמת (localStorage) שתמיד הציגה בוקר/ערב מוכנים
+            const seeded = await pool.query(
+                `INSERT INTO shift_templates (group_id,name,start_time,end_time)
+                 VALUES ($1,'בוקר','08:00','16:00'),($1,'ערב','16:00','23:00') RETURNING *`,
+                [req.params.groupId]
+            );
+            r = seeded;
+        }
+        res.json({ success: true, templates: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/shift-templates', async (req, res) => {
+    try {
+        const { groupId, name, start, end } = req.body;
+        if (!groupId || !name || !start || !end) return res.status(400).json({ error: 'חסרים שדות' });
+        const r = await pool.query('INSERT INTO shift_templates (group_id,name,start_time,end_time) VALUES ($1,$2,$3,$4) RETURNING *', [groupId, name, start, end]);
+        res.json({ success: true, template: r.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/shift-templates/:id', async (req, res) => {
+    try {
+        await pool.query('DELETE FROM shift_templates WHERE id=$1', [req.params.id]);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
