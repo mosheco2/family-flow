@@ -48802,6 +48802,255 @@ window._sportRenderCalGrid = async function() {
     }
 };
 
+// ===== SPORT: הרחבת תצוגות — קיבוץ לפי מאמן/ת (רשימה) + יום/שבוע/חודש (רשימה ויומן) =====
+window._sportListGroupBy = window._sportListGroupBy || 'date';
+window._sportCalPeriod = window._sportCalPeriod || 'day';
+
+function _sportPeriodRange(period, base) {
+    const d = new Date(base || new Date());
+    let from, to;
+    if (period === 'week') {
+        from = new Date(d); from.setDate(d.getDate() - d.getDay());
+        to = new Date(from); to.setDate(from.getDate() + 6);
+    } else if (period === 'month') {
+        from = new Date(d.getFullYear(), d.getMonth(), 1);
+        to = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+    } else {
+        from = new Date(d); to = new Date(d);
+    }
+    const fmt = (x) => x.toISOString().split('T')[0];
+    return { from: fmt(from), to: fmt(to) };
+}
+
+// --- רשימה: קיבוץ לפי מאמן/ת (בנוסף לקיבוץ הקיים לפי תאריך) ---
+const _origRenderScheduleByDate = window._sportRenderSchedule;
+window._sportRenderSchedule = function(classes) {
+    if (window._sportListGroupBy === 'trainer') window._sportRenderScheduleByTrainer(classes);
+    else _origRenderScheduleByDate(classes);
+};
+
+window._sportRenderScheduleByTrainer = function(classes) {
+    const el = document.getElementById('sport-schedule-list');
+    if (!el) return;
+    if (!classes.length) { el.innerHTML = `<div class="text-center py-8 text-slate-400 text-sm">אין שיעורים תואמים</div>`; return; }
+    const byTrainer = {};
+    classes.forEach(c => { const key = c.trainer_name || 'ללא מאמן משויך'; (byTrainer[key] = byTrainer[key] || []).push(c); });
+    const colorMap = { indigo:'bg-indigo-50 border-indigo-200 text-indigo-700', violet:'bg-violet-50 border-violet-200 text-violet-700', emerald:'bg-emerald-50 border-emerald-200 text-emerald-700', orange:'bg-orange-50 border-orange-200 text-orange-700', red:'bg-red-50 border-red-200 text-red-700', blue:'bg-blue-50 border-blue-200 text-blue-700', teal:'bg-teal-50 border-teal-200 text-teal-700' };
+    const days = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
+    const todayStr = new Date().toISOString().split('T')[0];
+    el.innerHTML = Object.keys(byTrainer).sort((a,b) => a==='ללא מאמן משויך'?1:(b==='ללא מאמן משויך'?-1:a.localeCompare(b,'he'))).map(trainer => {
+        const list = byTrainer[trainer].slice().sort((a,b) => (a.class_date+(a.start_time||'')).localeCompare(b.class_date+(b.start_time||'')));
+        return `<div class="mb-4">
+            <div class="text-xs font-black text-slate-600 mb-2 text-right">👤 ${safeStr(trainer)}</div>
+            ${list.map(c => {
+                const cls = colorMap[c.color] || colorMap.indigo;
+                const fill = Math.min(100, Math.round((c.registered_count / (c.capacity||20)) * 100));
+                const full = parseInt(c.registered_count) >= (c.capacity||20);
+                const isToday = c.class_date === todayStr;
+                const d2 = new Date(c.class_date);
+                return `<div class="border rounded-2xl p-3 mb-2 ${cls}">
+                    <div class="flex items-start justify-between">
+                        <div class="flex gap-1.5">
+                            <button onclick="window.showSportClassDetail(${c.id})" class="text-[11px] font-bold px-2 py-1 rounded-lg bg-white/70">נוכחות</button>
+                            <button onclick="window.showSportEditClass(${c.id})" class="text-[11px] font-bold px-2 py-1 rounded-lg bg-white/70 text-indigo-600">✏️</button>
+                            ${c.status!=='cancelled'?`<button onclick="window._sportCancelClass(${c.id})" class="text-[11px] text-orange-400 px-1" title="בטל שיעור">⛔</button>`:''}<button onclick="window._sportDeleteClass(${c.id})" class="text-[11px] text-red-400 px-1">🗑️</button>
+                        </div>
+                        <div class="text-right">
+                            <div class="font-black text-sm ${c.status==='cancelled'?'line-through opacity-50':''}">${c.class_name||c.type_name||'שיעור'}${c.status==='cancelled'?' <span class="text-[10px] font-bold text-red-500">(בוטל)</span>':''}</div>
+                            <div class="text-[11px]">${isToday?'📍 היום · ':days[d2.getDay()]+' '+d2.toLocaleDateString('he-IL',{day:'2-digit',month:'2-digit'})+' · '}${c.start_time?c.start_time.substring(0,5):''}${c.end_time?'–'+c.end_time.substring(0,5):''}</div>
+                        </div>
+                    </div>
+                    <div class="mt-2 flex items-center justify-between">
+                        <span class="text-[11px] font-bold ${full?'text-red-600':''}">${c.registered_count}/${c.capacity} ${full?'🔴 מלא':''}</span>
+                        <div class="w-24 h-1.5 bg-white/50 rounded-full overflow-hidden"><div class="h-full rounded-full ${full?'bg-red-500':'bg-current opacity-60'}" style="width:${fill}%"></div></div>
+                    </div>
+                </div>`;
+            }).join('')}
+        </div>`;
+    }).join('');
+};
+
+window._sportSetListGroupBy = function(mode) {
+    window._sportListGroupBy = mode;
+    const btnDate = document.getElementById('sport-sched-group-date');
+    const btnTrainer = document.getElementById('sport-sched-group-trainer');
+    [[btnDate, mode==='date'], [btnTrainer, mode==='trainer']].forEach(([btn, active]) => {
+        if (!btn) return;
+        btn.classList.toggle('bg-indigo-600', active); btn.classList.toggle('text-white', active);
+        btn.classList.toggle('bg-slate-100', !active); btn.classList.toggle('text-slate-500', !active);
+    });
+    window._sportRenderSchedule(window._sportScheduleAllClasses);
+};
+
+window._sportSetListPeriod = function(period) {
+    window._sportCalPeriod = period;
+    ['day','week','month'].forEach(p => {
+        const btn = document.getElementById(`sport-sched-period-${p}`);
+        if (!btn) return;
+        const active = p === period;
+        btn.classList.toggle('bg-indigo-600', active); btn.classList.toggle('text-white', active);
+        btn.classList.toggle('bg-slate-100', !active); btn.classList.toggle('text-slate-500', !active);
+    });
+    const { from, to } = _sportPeriodRange(period, window._sportCalDate);
+    const fromEl = document.getElementById('sport-sched-from'); if (fromEl) fromEl.value = from;
+    const toEl = document.getElementById('sport-sched-to'); if (toEl) toEl.value = to;
+    window._sportLoadSchedule(from, to);
+};
+
+// --- הוספת סרגל קיבוץ + תקופה לרשימה ---
+const _origShowSportScheduleGroupExt = window.showSportSchedule;
+window.showSportSchedule = async function() {
+    await _origShowSportScheduleGroupExt();
+    const modal = document.getElementById('sport-modal');
+    if (!modal || modal.querySelector('#sport-sched-extra-toolbar')) return;
+    const bar = modal.querySelector('#sport-sched-search')?.closest('.space-y-2');
+    if (!bar) return;
+    const extra = document.createElement('div');
+    extra.id = 'sport-sched-extra-toolbar';
+    extra.className = 'flex gap-3 flex-wrap';
+    extra.innerHTML = `
+        <div class="flex gap-1.5 flex-1 min-w-[140px]">
+            <button id="sport-sched-period-day" onclick="window._sportSetListPeriod('day')" class="flex-1 text-[11px] font-bold py-1.5 rounded-lg transition bg-slate-100 text-slate-500">יום</button>
+            <button id="sport-sched-period-week" onclick="window._sportSetListPeriod('week')" class="flex-1 text-[11px] font-bold py-1.5 rounded-lg transition bg-slate-100 text-slate-500">שבוע</button>
+            <button id="sport-sched-period-month" onclick="window._sportSetListPeriod('month')" class="flex-1 text-[11px] font-bold py-1.5 rounded-lg transition bg-slate-100 text-slate-500">חודש</button>
+        </div>
+        <div class="flex gap-1.5 flex-1 min-w-[140px]">
+            <button id="sport-sched-group-date" onclick="window._sportSetListGroupBy('date')" class="flex-1 text-[11px] font-bold py-1.5 rounded-lg transition bg-indigo-600 text-white">📅 לפי תאריך</button>
+            <button id="sport-sched-group-trainer" onclick="window._sportSetListGroupBy('trainer')" class="flex-1 text-[11px] font-bold py-1.5 rounded-lg transition bg-slate-100 text-slate-500">👤 לפי מאמן/ת</button>
+        </div>
+    `;
+    bar.insertAdjacentElement('afterbegin', extra);
+};
+
+// --- יומן ויזואלי: הוספת תצוגות שבוע/חודש לצד תצוגת היום הקיימת ---
+window._sportCalGridNav = function(delta) {
+    const period = window._sportCalPeriod || 'day';
+    if (delta === 0) window._sportCalDate = new Date();
+    else if (period === 'week') window._sportCalDate.setDate(window._sportCalDate.getDate() + delta * 7);
+    else if (period === 'month') window._sportCalDate.setMonth(window._sportCalDate.getMonth() + delta);
+    else window._sportCalDate.setDate(window._sportCalDate.getDate() + delta);
+    window._sportRenderCalGrid();
+};
+
+window._sportRenderCalGridWeek = async function() {
+    const wrap = document.getElementById('sport-sched-grid-wrap');
+    if (!wrap) return;
+    const { from, to } = _sportPeriodRange('week', window._sportCalDate);
+    const fromD = new Date(from);
+    const label = `שבוע ${fromD.toLocaleDateString('he-IL',{day:'2-digit',month:'2-digit'})} – ${new Date(to).toLocaleDateString('he-IL',{day:'2-digit',month:'2-digit'})}`;
+    wrap.innerHTML = `
+        <div class="flex items-center justify-between px-3 py-2 border-b border-slate-100 shrink-0">
+            <button onclick="window._sportCalGridNav(1)" class="text-slate-400 hover:text-slate-700 px-2">›</button>
+            <div class="text-center"><div class="font-black text-sm text-slate-800">${label}</div><button onclick="window._sportCalGridNav(0)" class="text-[10px] text-indigo-500 font-bold">השבוע הנוכחי</button></div>
+            <button onclick="window._sportCalGridNav(-1)" class="text-slate-400 hover:text-slate-700 px-2">‹</button>
+        </div>
+        <div id="sport-cal-grid-body" class="flex-1 overflow-auto"><div class="text-center py-8 text-slate-400 text-sm">טוען...</div></div>
+    `;
+    const body = document.getElementById('sport-cal-grid-body');
+    try {
+        const [trRes, clRes] = await Promise.all([
+            fetch(`${API}/sport/trainers/${currentGroup.id}`).then(r => r.json()),
+            fetch(`${API}/sport/classes/${currentGroup.id}?from=${from}&to=${to}`).then(r => r.json()),
+        ]);
+        const trainers = Array.isArray(trRes) ? trRes : (trRes.trainers || []);
+        const classes = (clRes.classes || []).filter(c => c.status !== 'cancelled');
+        const trainerIdsWithClasses = new Set(classes.map(c => c.trainer_id).filter(Boolean));
+        let rows = trainers.filter(t => trainerIdsWithClasses.has(t.id)).map(t => ({ id: t.id, name: t.name }));
+        if (classes.some(c => !c.trainer_id)) rows.push({ id: null, name: 'ללא מאמן משויך' });
+        if (!rows.length) { body.innerHTML = `<div class="text-center py-10 text-slate-400 text-sm">אין שיעורים מתוזמנים בשבוע זה</div>`; return; }
+        const days = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
+        const dayDates = Array.from({length:7}, (_,i) => { const d=new Date(fromD); d.setDate(fromD.getDate()+i); return d; });
+        const colorMap = { indigo:'#6366f1', violet:'#8b5cf6', emerald:'#10b981', orange:'#f97316', red:'#ef4444', blue:'#3b82f6', teal:'#14b8a6' };
+        const headerCells = dayDates.map(d => `<div class="text-center text-[10px] font-bold text-slate-600 py-1.5 border-b border-slate-100">${days[d.getDay()]}<br>${d.toLocaleDateString('he-IL',{day:'2-digit',month:'2-digit'})}</div>`).join('');
+        const rowsHtml = rows.map(row => {
+            const cells = dayDates.map(d => {
+                const dStr = d.toISOString().split('T')[0];
+                const dayClasses = classes.filter(c => (c.trainer_id||null)===row.id && c.class_date===dStr).sort((a,b)=>(a.start_time||'').localeCompare(b.start_time||''));
+                return `<div class="border-l border-slate-100 p-1 min-h-[50px] space-y-1">${dayClasses.map(c => `<div onclick="window.showSportClassDetail(${c.id})" class="rounded-md px-1 py-0.5 text-[9px] font-bold text-white cursor-pointer truncate" style="background:${colorMap[c.color]||colorMap.indigo}">${c.start_time?c.start_time.substring(0,5):''} ${safeStr(c.class_name||c.type_name||'')}</div>`).join('')}</div>`;
+            }).join('');
+            return `<div class="text-[11px] font-black text-slate-700 bg-slate-50 px-2 py-1 border-b border-slate-100">👤 ${safeStr(row.name)}</div><div class="grid grid-cols-7">${cells}</div>`;
+        }).join('');
+        body.innerHTML = `<div class="grid grid-cols-7 sticky top-0 bg-white z-10">${headerCells}</div>${rowsHtml}`;
+    } catch (e) {
+        console.error('sport calendar week failed:', e);
+        body.innerHTML = `<div class="text-center py-8 text-red-400 text-sm">שגיאה בטעינת היומן</div>`;
+    }
+};
+
+window._sportRenderCalGridMonth = async function() {
+    const wrap = document.getElementById('sport-sched-grid-wrap');
+    if (!wrap) return;
+    const base = window._sportCalDate;
+    const label = base.toLocaleDateString('he-IL', { month: 'long', year: 'numeric' });
+    wrap.innerHTML = `
+        <div class="flex items-center justify-between px-3 py-2 border-b border-slate-100 shrink-0">
+            <button onclick="window._sportCalGridNav(1)" class="text-slate-400 hover:text-slate-700 px-2">›</button>
+            <div class="text-center"><div class="font-black text-sm text-slate-800">${label}</div><button onclick="window._sportCalGridNav(0)" class="text-[10px] text-indigo-500 font-bold">היום</button></div>
+            <button onclick="window._sportCalGridNav(-1)" class="text-slate-400 hover:text-slate-700 px-2">‹</button>
+        </div>
+        <div id="sport-cal-grid-body" class="flex-1 overflow-auto p-2"><div class="text-center py-8 text-slate-400 text-sm">טוען...</div></div>
+    `;
+    const body = document.getElementById('sport-cal-grid-body');
+    const first = new Date(base.getFullYear(), base.getMonth(), 1);
+    const last = new Date(base.getFullYear(), base.getMonth()+1, 0);
+    const fromStr = first.toISOString().split('T')[0], toStr = last.toISOString().split('T')[0];
+    try {
+        const clRes = await fetch(`${API}/sport/classes/${currentGroup.id}?from=${fromStr}&to=${toStr}`).then(r=>r.json());
+        const classes = (clRes.classes||[]).filter(c=>c.status!=='cancelled');
+        const byDate = {};
+        classes.forEach(c => { (byDate[c.class_date] = byDate[c.class_date]||[]).push(c); });
+        const days = ['א','ב','ג','ד','ה','ו','ש'];
+        const startOffset = first.getDay();
+        const totalDays = last.getDate();
+        const todayStr = new Date().toISOString().split('T')[0];
+        const cells = [];
+        for (let i=0;i<startOffset;i++) cells.push('<div></div>');
+        for (let day=1; day<=totalDays; day++) {
+            const d = new Date(base.getFullYear(), base.getMonth(), day);
+            const dStr = d.toISOString().split('T')[0];
+            const count = (byDate[dStr]||[]).length;
+            const isToday = dStr === todayStr;
+            cells.push(`<div onclick="window._sportCalGridMonthPickDay('${dStr}')" class="aspect-square border border-slate-100 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:bg-indigo-50 transition ${isToday?'ring-2 ring-indigo-400':''}">
+                <span class="text-xs font-bold ${isToday?'text-indigo-600':'text-slate-700'}">${day}</span>
+                ${count?`<span class="text-[9px] font-black text-white bg-indigo-500 rounded-full px-1.5 mt-0.5">${count}</span>`:''}
+            </div>`);
+        }
+        body.innerHTML = `<div class="grid grid-cols-7 gap-1 mb-1 text-[10px] font-bold text-slate-400 text-center">${days.map(d=>`<div>${d}</div>`).join('')}</div><div class="grid grid-cols-7 gap-1">${cells.join('')}</div>`;
+    } catch (e) {
+        console.error('sport calendar month failed:', e);
+        body.innerHTML = `<div class="text-center py-8 text-red-400 text-sm">שגיאה בטעינת היומן</div>`;
+    }
+};
+
+window._sportCalGridMonthPickDay = function(dateStr) {
+    window._sportCalDate = new Date(dateStr);
+    window._sportSetGridPeriod('day');
+};
+
+window._sportSetGridPeriod = function(period) {
+    window._sportCalPeriod = period;
+    window._sportRenderCalGrid();
+};
+
+const _origRenderCalGridDay = window._sportRenderCalGrid;
+window._sportRenderCalGrid = async function() {
+    const period = window._sportCalPeriod || 'day';
+    if (period === 'week') await window._sportRenderCalGridWeek();
+    else if (period === 'month') await window._sportRenderCalGridMonth();
+    else await _origRenderCalGridDay();
+    const wrap = document.getElementById('sport-sched-grid-wrap');
+    if (!wrap) return;
+    const toolbar = document.createElement('div');
+    toolbar.id = 'sport-cal-period-toolbar';
+    toolbar.className = 'flex gap-1.5 px-3 pt-2 pb-1 shrink-0';
+    toolbar.innerHTML = `
+        <button id="sport-cal-period-day" onclick="window._sportSetGridPeriod('day')" class="flex-1 text-[11px] font-bold py-1.5 rounded-lg transition ${period==='day'?'bg-indigo-600 text-white':'bg-slate-100 text-slate-500'}">יום</button>
+        <button id="sport-cal-period-week" onclick="window._sportSetGridPeriod('week')" class="flex-1 text-[11px] font-bold py-1.5 rounded-lg transition ${period==='week'?'bg-indigo-600 text-white':'bg-slate-100 text-slate-500'}">שבוע</button>
+        <button id="sport-cal-period-month" onclick="window._sportSetGridPeriod('month')" class="flex-1 text-[11px] font-bold py-1.5 rounded-lg transition ${period==='month'?'bg-indigo-600 text-white':'bg-slate-100 text-slate-500'}">חודש</button>
+    `;
+    wrap.insertAdjacentElement('afterbegin', toolbar);
+};
+
 // ===== SPORT PHASE 11 — Edit Class, Styled Payment, Styled Freeze =====
 
 window.showSportEditClass = async function(classId) {
