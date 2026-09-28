@@ -91,6 +91,29 @@ async function login(page) {
     await loginBtn.click();
     await page.waitForTimeout(2500);
   }
+
+  await dismissOverlays(page);
+}
+
+// סוגר את אשף הברוכים-הבאים (welcome tour) ואת באנר "הוסף לדף הבית", שחוסמים את המסך בכניסה ראשונה
+async function dismissOverlays(page) {
+  for (let i = 0; i < 3; i++) {
+    const skipBtn = page.locator('button:has-text("דלג")').first();
+    if (await skipBtn.isVisible().catch(() => false)) {
+      await skipBtn.click();
+      await page.waitForTimeout(600);
+      continue;
+    }
+    const installBanner = page.locator('button:has-text("הוסף לדף הבית")').first();
+    if (await installBanner.isVisible().catch(() => false)) {
+      const closeX = page.locator('button:has(i.fa-xmark), button:has-text("×")').first();
+      if (await closeX.isVisible().catch(() => false)) { await closeX.click(); await page.waitForTimeout(400); }
+      else break;
+      continue;
+    }
+    break;
+  }
+  await page.waitForTimeout(500);
 }
 
 async function switchTab(page, tabId) {
@@ -160,6 +183,7 @@ async function main() {
         continue;
       }
       await switchTab(page, screen.tab);
+      await dismissOverlays(page);
       if (screen.afterSwitch) await screen.afterSwitch(page);
       await capture(page, screen.id, screen.label);
     } catch (e) {
