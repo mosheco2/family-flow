@@ -786,6 +786,8 @@ try { await client.query(`ALTER TABLE game_assignments ADD COLUMN IF NOT EXISTS 
       try { await client.query('ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS location_lng DOUBLE PRECISION'); } catch(e) {}
       // רדיוס אימות המיקום להחתמת נוכחות — ניתן להתאמה אישית לעסק (למשל מתחם ספורט גדול), במקום ערך קבוע בקוד
       try { await client.query('ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS location_radius_m INT DEFAULT 150'); } catch(e) {}
+      // אמצעי תשלום לתנועת הכנסה/הוצאה כללית — היה קיים רק ב-route ידני (/api/force-upgrade) ולכן מעולם לא נוצר בפועל בסביבת הייצור
+      try { await client.query('ALTER TABLE transactions ADD COLUMN IF NOT EXISTS payment_method VARCHAR(30)'); } catch(e) {}
       try { await client.query('ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS is_onboarded BOOLEAN DEFAULT FALSE'); } catch(e) {}
       try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS vat_number VARCHAR(50) DEFAULT ''`); } catch(e) {}
       try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS contact_name VARCHAR(100) DEFAULT ''`); } catch(e) {}
