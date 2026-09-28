@@ -10366,11 +10366,15 @@ app.post('/api/budget/update', async (req, res) => {
 
 app.get('/api/transactions', async (req, res) => {
     try {
-        const { groupId, userId, limit } = req.query;
+        const { groupId, userId, limit, from, to } = req.query;
         let q = `SELECT t.*, u.nickname as user_name FROM transactions t LEFT JOIN users u ON t.user_id = u.id WHERE t.group_id = $1`;
         let p = [groupId];
-        if(userId !== 'all') { q += ` AND t.user_id = $2`; p.push(userId); }
-        q += ` ORDER BY t.date DESC LIMIT $${p.length + 1}`; p.push(limit || 200);
+        if(userId !== 'all') { q += ` AND t.user_id = $${p.length + 1}`; p.push(userId); }
+        // סינון תאריכים אופציונלי בצד שרת — כשמסופק, לא מוגבל ל-limit הקבוע כדי שהמסנן יציג את כל התנועות בטווח שנבחר, לא רק חתך מתוך 200 האחרונות
+        if (from) { p.push(from); q += ` AND t.date >= $${p.length}`; }
+        if (to) { p.push(to); q += ` AND t.date <= $${p.length}::date + INTERVAL '1 day'`; }
+        q += ` ORDER BY t.date DESC`;
+        if (!from && !to) { q += ` LIMIT $${p.length + 1}`; p.push(limit || 200); }
         const result = await pool.query(q, p); res.json(result.rows);
     } catch(e) { res.status(500).json({error: e.message}); }
 });

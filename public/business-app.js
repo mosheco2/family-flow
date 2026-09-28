@@ -6437,13 +6437,24 @@ window._colMarkReceived = async function(paymentId) {
     } catch(e) { showToast('error', 'שגיאת תקשורת'); }
 };
 
-function renderCashflow() {
+async function renderCashflow() {
     const list = getEl('cashflow-list'); if (!list) return;
     const userFilter = val('cashflow-user-filter') || 'all'; const dateFilter = val('cashflow-date-filter') || 'all';
-    let filtered = allTransactions; 
-    if (currentUser.role !== 'ADMIN') { filtered = allTransactions.filter(t => String(t.user_id) === String(currentUser.id)); const cfFilter = getEl('cashflow-user-filter'); if(cfFilter) cfFilter.classList.add('hidden'); } 
-    else { const cfFilter = getEl('cashflow-user-filter'); if(cfFilter) cfFilter.classList.remove('hidden'); if (userFilter !== 'all' && userFilter !== '') { filtered = allTransactions.filter(t => String(t.user_id) === String(userFilter)); } }
-    if (dateFilter !== 'all') { const monthsBack = parseInt(dateFilter); const cutoffDate = new Date(); cutoffDate.setMonth(cutoffDate.getMonth() - monthsBack); filtered = filtered.filter(t => new Date(t.date) >= cutoffDate); }
+    let filtered = allTransactions;
+    let sourceRows = allTransactions;
+    if (dateFilter !== 'all') {
+        // מסנן תאריכים פעיל — שולפים מהשרת את כל התנועות בטווח, במקום לסנן רק בתוך 200 השורות האחרונות שכבר נטענו
+        const monthsBack = parseInt(dateFilter); const cutoffDate = new Date(); cutoffDate.setMonth(cutoffDate.getMonth() - monthsBack);
+        const fromStr = cutoffDate.toISOString().split('T')[0];
+        try {
+            const queryUserId = currentUser.role === 'ADMIN' ? 'all' : currentUser.id;
+            const r = await fetch(`${API}/transactions?groupId=${currentGroup.id}&userId=${queryUserId}&from=${fromStr}`);
+            if (r.ok) { const d = await r.json(); sourceRows = Array.isArray(d) ? d : (d.transactions || allTransactions); }
+        } catch(e) {}
+    }
+    filtered = sourceRows;
+    if (currentUser.role !== 'ADMIN') { filtered = sourceRows.filter(t => String(t.user_id) === String(currentUser.id)); const cfFilter = getEl('cashflow-user-filter'); if(cfFilter) cfFilter.classList.add('hidden'); }
+    else { const cfFilter = getEl('cashflow-user-filter'); if(cfFilter) cfFilter.classList.remove('hidden'); if (userFilter !== 'all' && userFilter !== '') { filtered = sourceRows.filter(t => String(t.user_id) === String(userFilter)); } }
     if (filtered.length === 0) { list.innerHTML = '<p class="text-center text-slate-400 text-sm py-4 bg-slate-50 rounded-2xl border border-dashed border-slate-200 mt-2">אין תנועות תזרים להצגה בתקופה זו.</p>'; return; }
     let html = '';
     filtered.forEach(t => {
