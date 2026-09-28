@@ -29997,13 +29997,27 @@ app.get('/api/reports/:groupId', async (req, res) => {
 
         // ספורט
         if (btype === 'sport') {
-            const [revByType, membersByStatus, checkinsByDay, revByMonth] = await Promise.all([
+            const [revByType, membersByStatus, checkinsByDay, revByMonth, classStats, churnByMonth] = await Promise.all([
                 pool.query(`SELECT smt.name AS type_name, COUNT(*) AS count, SUM(sp.amount) AS total FROM sport_payments sp LEFT JOIN sport_memberships sm ON sp.membership_id=sm.id LEFT JOIN sport_membership_types smt ON sm.membership_type_id=smt.id WHERE sp.group_id=$1 AND sp.paid_at >= ${df} GROUP BY smt.name ORDER BY total DESC`, [gid]),
                 pool.query(`SELECT status, COUNT(*) AS count FROM sport_memberships WHERE group_id=$1 GROUP BY status`, [gid]),
                 pool.query(`SELECT TO_CHAR(checked_in_at,'YYYY-MM-DD') AS day, COUNT(*) AS count FROM sport_checkins WHERE group_id=$1 AND checked_in_at >= ${df} GROUP BY day ORDER BY day`, [gid]),
-                pool.query(`SELECT TO_CHAR(paid_at,'YYYY-MM') AS month, SUM(amount) AS total FROM sport_payments WHERE group_id=$1 AND paid_at >= CURRENT_DATE - INTERVAL '6 months' GROUP BY month ORDER BY month`, [gid])
+                pool.query(`SELECT TO_CHAR(paid_at,'YYYY-MM') AS month, SUM(amount) AS total FROM sport_payments WHERE group_id=$1 AND paid_at >= CURRENT_DATE - INTERVAL '6 months' GROUP BY month ORDER BY month`, [gid]),
+                pool.query(`SELECT sc2.class_name, sc2.class_date, sc2.trainer_name, COUNT(scr.id) AS registered, sc2.capacity
+                    FROM sport_classes sc2 LEFT JOIN sport_class_registrations scr ON sc2.id=scr.class_id
+                    WHERE sc2.group_id=$1 AND sc2.class_date >= CURRENT_DATE-30
+                    GROUP BY sc2.id ORDER BY sc2.class_date DESC LIMIT 20`, [gid]),
+                pool.query(`
+                    SELECT month, SUM(count) as count FROM (
+                        SELECT TO_CHAR(end_date,'YYYY-MM') as month, COUNT(*) as count
+                        FROM sport_memberships WHERE group_id=$1 AND status='expired' AND end_date >= CURRENT_DATE - INTERVAL '6 months'
+                        GROUP BY month
+                        UNION ALL
+                        SELECT TO_CHAR(updated_at,'YYYY-MM') as month, COUNT(*) as count
+                        FROM sport_memberships WHERE group_id=$1 AND status='cancelled' AND updated_at >= CURRENT_DATE - INTERVAL '6 months'
+                        GROUP BY month
+                    ) x GROUP BY month ORDER BY month`, [gid])
             ]);
-            result.sport = { revenueByType: revByType.rows, membersByStatus: membersByStatus.rows, checkinsByDay: checkinsByDay.rows, revenueByMonth: revByMonth.rows };
+            result.sport = { revenueByType: revByType.rows, membersByStatus: membersByStatus.rows, checkinsByDay: checkinsByDay.rows, revenueByMonth: revByMonth.rows, classStats: classStats.rows, churnByMonth: churnByMonth.rows };
         }
 
         // יופי / קוסמטיקה

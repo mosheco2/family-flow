@@ -2406,6 +2406,29 @@ function _buildReportsHTML(data, bType, period) {
                 </tbody></table>
             </div>`;
         }
+        if ((s.classStats||[]).length) {
+            html += `<div class="bg-white rounded-2xl border border-slate-100 p-4 shadow-sm mb-4">
+                <div class="font-bold text-slate-700 text-sm mb-3">תפוסת חוגים (30 יום אחרונים)</div>
+                ${s.classStats.map(c=>{
+                    const cap=parseInt(c.capacity)||0; const reg=parseInt(c.registered)||0;
+                    const fill=cap>0?Math.min(100,Math.round((reg/cap)*100)):0;
+                    const dt=c.class_date?new Date(c.class_date).toLocaleDateString('he-IL',{day:'2-digit',month:'2-digit'}):'';
+                    return `<div class="py-1.5 border-b border-slate-50 last:border-0">
+                        <div class="flex items-center justify-between text-xs mb-1">
+                            <span class="font-bold ${fill>=100?'text-red-600':'text-slate-700'}">${reg}/${cap||'—'}</span>
+                            <span class="text-slate-700">${safeStr(c.class_name||'שיעור')} <span class="text-slate-400">${dt}${c.trainer_name?' · '+safeStr(c.trainer_name):''}</span></span>
+                        </div>
+                        <div class="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden"><div class="h-full ${fill>=100?'bg-red-400':'bg-emerald-400'} rounded-full" style="width:${fill}%"></div></div>
+                    </div>`;
+                }).join('')}
+            </div>`;
+        }
+        if ((s.churnByMonth||[]).length) {
+            html += `<div class="bg-white rounded-2xl border border-slate-100 p-4 shadow-sm mb-4">
+                <div class="font-bold text-slate-700 text-sm mb-3">נטישה לפי חודש</div>
+                ${s.churnByMonth.map(c=>{const[y,mo]=c.month.split('-');return `<div class="flex justify-between items-center py-1.5 border-b border-slate-50 last:border-0"><span class="text-sm text-red-500 font-black">${c.count}</span><span class="text-xs text-slate-500">${mo}/${y}</span></div>`;}).join('')}
+            </div>`;
+        }
     }
 
     // יופי / קוסמטיקה
@@ -45340,94 +45363,10 @@ window._sportRegisterToClass = async function(classId) {
 };
 
 // ─── Reports Screen ───────────────────────────────────────────────────────────
-window.showSportReports = async function() {
-    _ensureSportModal();
-    const modal=document.getElementById('sport-modal');
-    modal.innerHTML=`<div class="flex flex-col h-full">
-        <div class="flex items-center justify-between p-4 border-b border-slate-100">
-            <button onclick="window._sportBack()" class="text-slate-400 text-xl">✕</button>
-            <h2 class="text-lg font-black text-slate-800">דוחות 📊</h2>
-            <select id="sport-report-period" onchange="window._sportLoadReports(this.value)" class="text-xs border border-slate-200 rounded-lg px-2 py-1">
-                <option value="month">החודש</option><option value="year">השנה</option>
-            </select>
-        </div>
-        <div id="sport-reports-content" class="flex-1 overflow-y-auto p-4"><div class="text-center py-8 text-slate-400">טוען...</div></div>
-    </div>`;
-    modal.classList.remove('hidden');
-    window._sportLoadReports('month');
-};
-
-window._sportLoadReports = async function(period) {
-    const el=document.getElementById('sport-reports-content');
-    if(!el)return;
-    try{
-        const d=await fetch(`${API}/sport/reports/${currentGroup.id}?period=${period}`).then(r=>r.json());
-        const sl={active:'פעיל',frozen:'מוקפא',expired:'פג',cancelled:'בוטל'};
-        const totalRev=(d.revenueByType||[]).reduce((s,t)=>s+parseFloat(t.total||0),0);
-        const totalMem=(d.membersByStatus||[]).reduce((s,m)=>s+parseInt(m.count||0),0);
-        const revRows=(d.revenueByType||[]).map(t=>`<div class="flex items-center justify-between py-2 border-b border-slate-50">
-            <span class="font-bold text-emerald-600">₪${parseFloat(t.total||0).toLocaleString('he-IL',{maximumFractionDigits:0})}</span>
-            <div class="text-right"><div class="text-sm font-bold text-slate-700">${t.type_name||'לא מוגדר'}</div><div class="text-xs text-slate-400">${t.count} מנויים</div></div>
-        </div>`).join('')||'<div class="text-xs text-slate-400 text-center py-4">אין נתונים</div>';
-        const memRows=(d.membersByStatus||[]).map(m=>`<div class="flex items-center justify-between py-2 border-b border-slate-50">
-            <span class="font-bold text-slate-700">${m.count}</span>
-            <span class="text-sm text-slate-600">${sl[m.status]||m.status}</span>
-        </div>`).join('');
-        const maxCheckins=Math.max(1,...(d.checkinsByDay||[]).map(c=>parseInt(c.count)));
-        const checkinRows=(d.checkinsByDay||[]).slice(-14).map(c=>{
-            const dt=new Date(c.day).toLocaleDateString('he-IL',{day:'2-digit',month:'2-digit'});
-            const pct=Math.round((parseInt(c.count)/maxCheckins)*100);
-            return `<div class="flex items-center gap-2 py-1">
-                <span class="text-xs text-slate-400 w-12 text-left">${dt}</span>
-                <div class="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden"><div class="h-full bg-indigo-400 rounded-full" style="width:${pct}%"></div></div>
-                <span class="text-xs font-bold text-indigo-600 w-6">${c.count}</span>
-            </div>`;
-        }).join('')||'<div class="text-xs text-slate-400 text-center py-4">אין נתונים</div>';
-        const monthRows=(d.revenueByMonth||[]).map(m=>{
-            const[y,mo]=m.month.split('-');
-            return `<div class="flex items-center justify-between py-1.5 border-b border-slate-50">
-                <span class="font-bold text-emerald-600">₪${parseFloat(m.total||0).toLocaleString('he-IL',{maximumFractionDigits:0})}</span>
-                <span class="text-xs text-slate-500">${mo}/${y} · ${m.count} עסקאות</span>
-            </div>`;
-        }).join('')||'<div class="text-xs text-slate-400 text-center py-4">אין נתונים</div>';
-        const classRows=(d.classStats||[]).map(c=>{
-            const cap=parseInt(c.capacity)||0;
-            const reg=parseInt(c.registered)||0;
-            const fill=cap>0?Math.min(100,Math.round((reg/cap)*100)):0;
-            const dt=c.class_date?new Date(c.class_date).toLocaleDateString('he-IL',{day:'2-digit',month:'2-digit'}):'';
-            return `<div class="py-1.5 border-b border-slate-50">
-                <div class="flex items-center justify-between text-xs mb-1">
-                    <span class="font-bold ${fill>=100?'text-red-600':'text-slate-600'}">${reg}/${cap||'—'}</span>
-                    <span class="text-slate-700 font-bold">${safeStr(c.class_name||'שיעור')} <span class="text-slate-400 font-normal">${dt}${c.trainer_name?' · '+safeStr(c.trainer_name):''}</span></span>
-                </div>
-                <div class="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden"><div class="h-full ${fill>=100?'bg-red-400':'bg-emerald-400'} rounded-full" style="width:${fill}%"></div></div>
-            </div>`;
-        }).join('')||'<div class="text-xs text-slate-400 text-center py-4">אין שיעורים ב-30 הימים האחרונים</div>';
-        const churnRows=(d.churnByMonth||[]).map(c=>{
-            const[y,mo]=c.month.split('-');
-            return `<div class="flex items-center justify-between py-1.5 border-b border-slate-50">
-                <span class="font-bold text-red-500">${c.count}</span>
-                <span class="text-xs text-slate-500">${mo}/${y} · מנויים שנטשו (פג תוקף/בוטל)</span>
-            </div>`;
-        }).join('')||'<div class="text-xs text-slate-400 text-center py-4">אין נתונים</div>';
-        el.innerHTML=`
-            <div class="grid grid-cols-2 gap-3 mb-4">
-                <div class="bg-emerald-50 rounded-2xl p-3 text-right"><div class="text-lg font-black text-emerald-700">₪${totalRev.toLocaleString('he-IL',{maximumFractionDigits:0})}</div><div class="text-[11px] text-emerald-500">${period==='year'?'הכנסות השנה':'הכנסות החודש'}</div></div>
-                <div class="bg-indigo-50 rounded-2xl p-3 text-right"><div class="text-lg font-black text-indigo-700">${totalMem}</div><div class="text-[11px] text-indigo-500">סה"כ חברים</div></div>
-            </div>
-            <div class="mb-4"><div class="text-xs font-black text-slate-600 mb-2 text-right">הכנסות לפי סוג מנוי</div>${revRows}</div>
-            <div class="mb-4"><div class="text-xs font-black text-slate-600 mb-2 text-right">סטטוס חברים</div>${memRows}</div>
-            <div class="mb-4"><div class="text-xs font-black text-slate-600 mb-2 text-right">כניסות יומיות (14 ימים)</div>${checkinRows}</div>
-            <div class="mb-4"><div class="text-xs font-black text-slate-600 mb-2 text-right">הכנסות לפי חודש</div>${monthRows}</div>
-            <div class="mb-4"><div class="text-xs font-black text-slate-600 mb-2 text-right">תפוסת חוגים (30 יום אחרונים)</div>${classRows}</div>
-            <div class="mb-4">
-                <div class="flex items-center justify-between mb-2">
-                    <span class="text-[11px] font-bold px-2 py-1 rounded-full bg-red-50 text-red-600">${d.churnRatePercent||0}% נטישה החודש (קירוב)</span>
-                    <span class="text-xs font-black text-slate-600 text-right">נטישה לפי חודש (6 חודשים אחרונים)</span>
-                </div>
-                ${churnRows}
-            </div>`;
-    }catch(e){el.innerHTML='<div class="text-center py-8 text-red-400 text-sm">שגיאה</div>';}
+// הוחזר ל-nav helper בלבד — דוחות מרוכזים כעת במסך אחד יחיד (הטאב "דוחות" הראשי), במקום שני מסכים חופפים
+// עם נתונים לא תמיד זהים (המסך הישן כאן ומסך renderUnifiedReportsTab הכללי)
+window.showSportReports = function() {
+    switchTab('reports');
 };
 
 // ─── rdAction routing — sport Phase 2 ────────────────────────────────────────
