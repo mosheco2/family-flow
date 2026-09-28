@@ -5414,19 +5414,43 @@ app.get('/api/sa/module-requests', verifySA, async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// tabId (כפי שנשלח בבקשת המודול) → מפתח features (כפי שקרוא ע"י enforceModule בצד הלקוח)
+const MODULE_ID_TO_FEATURE_KEY = {
+    sales: 'store', shop: 'b2b', academy: 'academy', calendar: 'calendar', bank: 'finance',
+    pantry: 'inventory', customers: 'crm', deliveries: 'deliveries', foodcost: 'foodcost',
+    timeclock: 'timeclock', cashflow: 'cashflow', budget: 'budget', forecast: 'forecast',
+    tasks: 'tasks', community: 'community', members: 'members', shifts: 'shifts',
+};
+
 // SA: אישור/דחיית בקשת מודול
 app.patch('/api/sa/groups/:id/module-request', verifySA, async (req, res) => {
     const { moduleId, action, managed_modules } = req.body; // action: 'approve'|'deny'
     if (!moduleId || !action) return res.status(400).json({ error: 'missing fields' });
     try {
         if (action === 'approve' && Array.isArray(managed_modules)) {
+            // האישור חייב לפתוח בפועל בצד הלקוח — לא רק לעדכן את רשימת ה-managed_modules
+            // (allow-list בצד השרת). enforceModule() בקליינט קורא מ-currentGroup.features,
+            // ושער הניווט ב-switchTab קורא מ-currentGroup.billing_config.modules — שני שדות
+            // נפרדים שה-checkbox הידני במפרט התכולה מעדכן, אבל האישור כאן לא עדכן עד כה.
+            const featureKey = MODULE_ID_TO_FEATURE_KEY[moduleId];
+            const gRes = await pool.query('SELECT features, billing_config FROM family_groups WHERE id=$1', [req.params.id]);
+            let features = {};
+            try { features = typeof gRes.rows[0]?.features === 'string' ? JSON.parse(gRes.rows[0].features) : (gRes.rows[0]?.features || {}); } catch(e) {}
+            if (featureKey) features[featureKey] = true;
+
+            let billingConfig = null;
+            try { billingConfig = typeof gRes.rows[0]?.billing_config === 'string' ? JSON.parse(gRes.rows[0].billing_config) : gRes.rows[0]?.billing_config; } catch(e) {}
+            if (billingConfig && Array.isArray(billingConfig.modules) && !billingConfig.modules.includes(moduleId)) {
+                billingConfig.modules.push(moduleId);
+            }
+
             await pool.query(
-                `UPDATE family_groups SET managed_modules=$1,
+                `UPDATE family_groups SET managed_modules=$1, features=$2, billing_config=$3,
                  module_requests = COALESCE(
-                     (SELECT jsonb_agg(r) FROM jsonb_array_elements(COALESCE(module_requests,'[]'::jsonb)) r WHERE r->>'moduleId' != $2),
+                     (SELECT jsonb_agg(r) FROM jsonb_array_elements(COALESCE(module_requests,'[]'::jsonb)) r WHERE r->>'moduleId' != $4),
                      '[]'::jsonb
-                 ) WHERE id=$3`,
-                [JSON.stringify(managed_modules), moduleId, req.params.id]
+                 ) WHERE id=$5`,
+                [JSON.stringify(managed_modules), JSON.stringify(features), billingConfig ? JSON.stringify(billingConfig) : null, moduleId, req.params.id]
             );
         } else {
             await pool.query(
@@ -8259,7 +8283,7 @@ app.get('/api/sa/dashboard', verifySA, async (req, res) => {
     try {
         const safe = (q, def) => pool.query(q).catch(() => ({ rows: def }));
         const [
-            statsR, pendBizR, pendFamR, pendBannerR, pendZMR, pendPromosR, pendCommR, pendBillingR,
+            statsR, pendBizR, pendFamR, pendBannerR, pendZMR, pendPromosR, pendCommR, pendBillingR, pendModReqR,
             ticketsR, financeR, zmR, flowR, aiTopR, growthR, debtorsR, walletsR
         ] = await Promise.all([
             pool.query(`SELECT
@@ -8279,6 +8303,7 @@ app.get('/api/sa/dashboard', verifySA, async (req, res) => {
             safe(`SELECT COUNT(*) as cnt FROM community_promotions WHERE status='pending'`, [{ cnt: 0 }]),
             safe(`SELECT COUNT(*) as cnt FROM communities WHERE status='pending'`, [{ cnt: 0 }]),
             safe(`SELECT COUNT(*) as cnt FROM billing_records WHERE payment_status='unpaid'`, [{ cnt: 0 }]),
+            safe(`SELECT COALESCE(SUM(jsonb_array_length(COALESCE(module_requests,'[]'::jsonb))),0) as cnt FROM family_groups WHERE type='BUSINESS'`, [{ cnt: 0 }]),
             safe(`SELECT
                 COUNT(*) FILTER (WHERE status='open') as open_cnt,
                 COUNT(*) FILTER (WHERE status='open' AND priority='high') as urgent_cnt,
@@ -8332,6 +8357,7 @@ app.get('/api/sa/dashboard', verifySA, async (req, res) => {
                 promos: parseInt(pendPromosR.rows[0]?.cnt) || 0,
                 pending_communities: parseInt(pendCommR.rows[0]?.cnt) || 0,
                 pending_billing: parseInt(pendBillingR.rows[0]?.cnt) || 0,
+                module_requests: parseInt(pendModReqR.rows[0]?.cnt) || 0,
                 open_tickets: parseInt(ticketsR.rows[0]?.open_cnt) || 0,
                 urgent_tickets: parseInt(ticketsR.rows[0]?.urgent_cnt) || 0,
                 closed_24h: parseInt(ticketsR.rows[0]?.closed_24h) || 0,

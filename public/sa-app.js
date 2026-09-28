@@ -348,6 +348,7 @@ window.loadSADashboard = async function() {
             if (p.promos > 0) chips.push({ label: `🎟️ ${p.promos} פרסומות קהילה ממתינות`, color: 'bg-pink-50 border-pink-200 text-pink-700', fn: `switchSATab('comm');setTimeout(()=>{switchViewTab('comm','manage');setTimeout(()=>{const el=document.getElementById('sa-pending-promos-container');if(el){el.classList.remove('hidden');el.scrollIntoView({behavior:'smooth',block:'start'})}},150)},200)` });
             if (p.pending_communities > 0) chips.push({ label: `🌍 ${p.pending_communities} קהילות לאישור`, color: 'bg-teal-50 border-teal-200 text-teal-700', fn: `switchSATab('comm');setTimeout(()=>{switchViewTab('comm','table');setTimeout(()=>{const sel=document.getElementById('sa-filter-comm-count');if(sel){sel.value='pending';filterSACommunities();}},150)},200)` });
             if (p.pending_billing > 0) chips.push({ label: `⏳ ${p.pending_billing} תשלומים ממתינים לאישור`, color: 'bg-orange-50 border-orange-200 text-orange-700', fn: `switchSATab('finance');setTimeout(()=>switchViewTab('finance','adsbilling'),200)` });
+            if (p.module_requests > 0) chips.push({ label: `🧩 ${p.module_requests} בקשות פתיחת מודול`, color: 'bg-violet-50 border-violet-200 text-violet-700', fn: `switchSATab('biz')` });
 
             if (chips.length) {
                 pendBar.classList.remove('hidden');
@@ -512,6 +513,7 @@ window.switchSATab = function(tabId) {
     if (tabId === 'clients') loadSAData();
     if (tabId === 'partners') loadSAPartners();
     if (tabId === 'comm') loadSACommunityData();
+    if (tabId === 'biz') loadSABusinesses();
     if (tabId === 'templates') window.loadBizTemplates && window.loadBizTemplates();
     if (tabId === 'games') loadSAGames();
     if (tabId === 'feed') loadSACommunityFeed();
@@ -4394,6 +4396,21 @@ async function createSACommunity() {
             getEl('sa-comm-name').value=''; getEl('sa-comm-city-input').value=''; getEl('sa-comm-code').value=''; getEl('sa-comm-email').value=''; getEl('sa-comm-pass').value=''; getEl('sa-comm-image-base64').value=''; const prevCont = getEl('sa-comm-img-preview-container'); if(prevCont) prevCont.classList.add('hidden'); createCityTags = []; updateCityTagsDisplay('create'); loadSACommunityData(); 
         } else { showToast('error', data.error || 'שגיאה ביצירת הקהילה'); }
     } catch(e) { showToast('error', 'שגיאת תקשורת'); } finally { if(btn) { btn.disabled = false; btn.innerText = 'הקמת קהילה'; } }
+}
+
+async function loadSABusinesses() {
+    try {
+        const bizRes = await fetch(`${API}/sa/businesses`, { headers: { 'Authorization': saToken || '' } });
+        const bizData = await bizRes.json();
+        if (bizData.success) {
+            saBusinessesCache = bizData.businesses || [];
+            renderSABusinessesTable();
+        } else {
+            showToast('error', bizData.error || 'שגיאה בטעינת רשימת העסקים');
+        }
+    } catch (e) {
+        showToast('error', 'שגיאת תקשורת בטעינת רשימת העסקים');
+    }
 }
 
 function renderSABusinessesTable() {
