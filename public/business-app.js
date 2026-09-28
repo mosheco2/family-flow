@@ -505,7 +505,7 @@ function renderSAGroups() {
         const createdDate = g.created_at ? new Date(g.created_at).toLocaleDateString('he-IL') : 'לא ידוע';
         const bizInfo = g.type === 'BUSINESS' ? (BUSINESS_TYPES.find(b => b.id === (g.business_type||'other')) || BUSINESS_TYPES[BUSINESS_TYPES.length-1]) : null;
         const bizBadge = bizInfo ? `<span class="bg-violet-100 text-violet-700 text-[10px] px-2 py-0.5 rounded-full font-bold ml-2 border border-violet-200">${bizInfo.icon} ${bizInfo.name}</span>` : '';
-        const bizBtn = g.type === 'BUSINESS' ? `<button type="button" onclick="saChangeBizType(${g.id}, '${safeStr(g.name).replace(/'/g,"\\'")}', '${g.business_type||'other'}')" class="bg-violet-100 text-violet-700 px-3 py-1 rounded text-[10px] font-bold hover:bg-violet-200 transition"><i class="fa-solid fa-store mr-1"></i> מהות עסק</button>` : '';
+        const bizBtn = g.type === 'BUSINESS' ? `<button type="button" onclick="saChangeBizType(${g.id}, '${jsAttrStr(g.name)}', '${g.business_type||'other'}')" class="bg-violet-100 text-violet-700 px-3 py-1 rounded text-[10px] font-bold hover:bg-violet-200 transition"><i class="fa-solid fa-store mr-1"></i> מהות עסק</button>` : '';
         gHtml += `<div class="bg-white rounded-xl border border-slate-200 mb-2 overflow-hidden shadow-sm"><div class="p-4 cursor-pointer flex justify-between items-center hover:bg-slate-50 transition" onclick="document.getElementById('sa-group-details-${g.id}').classList.toggle('hidden')"><div class="flex items-center"><div class="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-full flex items-center justify-center ml-3"><i class="fa-solid ${g.type === 'BUSINESS' ? 'fa-building' : 'fa-users'}"></i></div><div><h3 class="font-bold text-slate-800 text-sm flex items-center">${safeStr(g.name)} ${isPro} ${typeBadge}${bizBadge}</h3><p class="text-xs text-slate-500 font-mono tracking-widest mt-0.5">קוד: ${g.group_code} | ⚡ ${aiTokens} | <span class="font-sans text-[10px]">הוקם: ${createdDate}</span></p></div></div><i class="fa-solid fa-chevron-down text-slate-300"></i></div><div id="sa-group-details-${g.id}" class="hidden p-4 pt-0 border-t border-slate-100 bg-slate-50/50"><div class="mt-3 mb-2 flex justify-between items-center gap-2 flex-wrap"><h4 class="text-xs font-bold text-slate-600">משתמשים:</h4><div class="flex gap-2 flex-wrap">${bizBtn}<button type="button" onclick="open360Report(${g.id})" class="bg-blue-100 text-blue-700 px-3 py-1 rounded text-[10px] font-bold hover:bg-blue-200 transition"><i class="fa-solid fa-eye"></i> דוח 360</button>${proToggleBtn}<button type="button" onclick="saDeleteGroup(${g.id})" class="bg-red-100 text-red-600 px-3 py-1 rounded text-[10px] font-bold hover:bg-red-200 transition"><i class="fa-solid fa-trash"></i> מחיקה</button></div></div>${uHtml}</div></div>`;
     }); 
     groupsList.innerHTML = gHtml;
@@ -7068,7 +7068,7 @@ window.renderB2BPendingRequests = function() {
                 <span class="text-[10px] text-slate-500 mt-0.5 block"><i class="fa-regular fa-user mr-0.5"></i> ${safeStr(req.requester_name)} | כמות: <span class="font-bold text-slate-700">${req.quantity} ${safeStr(req.unit)}</span></span>
             </div>
             <div class="flex gap-2 shrink-0 items-center pl-1">
-                <button onclick="window.openAssignSupplierModal(${req.id}, '${safeStr(req.item_name).replace(/'/g, "\\'")}', ${req.quantity}, '${safeStr(req.unit).replace(/'/g, "\\'")}')" class="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-[10px] font-bold shadow-sm hover:bg-indigo-700 transition flex items-center gap-1.5"><i class="fa-solid fa-truck"></i> שיוך לספק</button>
+                <button onclick="window.openAssignSupplierModal(${req.id}, '${jsAttrStr(req.item_name)}', ${req.quantity}, '${jsAttrStr(req.unit)}')" class="bg-indigo-600 text-white px-3 py-1.5 rounded-lg text-[10px] font-bold shadow-sm hover:bg-indigo-700 transition flex items-center gap-1.5"><i class="fa-solid fa-truck"></i> שיוך לספק</button>
                 <button onclick="deleteItem(${req.id})" class="bg-white text-slate-400 w-8 h-8 rounded-lg flex items-center justify-center hover:text-red-500 hover:bg-red-50 transition border border-slate-200 shadow-sm"><i class="fa-solid fa-trash-can text-xs"></i></button>
             </div>
         </div>
@@ -9144,7 +9144,7 @@ window.oflPickSearch = async function(quoteId, q) {
         const d = await r.json();
         const groups = (d.groups || d.results || []).slice(0,6);
         if (!groups.length) { resultsEl.innerHTML = '<p class="text-xs text-slate-400 text-center py-2">לא נמצאו תוצאות</p>'; return; }
-        resultsEl.innerHTML = groups.map(g => `<button type="button" onclick="window.assignAndSendQuote(${quoteId},${g.id},'${safeStr(g.name||'').replace(/'/g,"\\'")}');" class="w-full text-right text-xs px-3 py-2 rounded-xl bg-slate-50 hover:bg-indigo-50 border border-slate-100 font-medium text-slate-700 flex items-center gap-2"><span>👤</span><div class="flex-1 truncate">${safeStr(g.name||'')}${g.admin_nickname?' · '+safeStr(g.admin_nickname):''}</div></button>`).join('');
+        resultsEl.innerHTML = groups.map(g => `<button type="button" onclick="window.assignAndSendQuote(${quoteId},${g.id},'${jsAttrStr(g.name||'')}');" class="w-full text-right text-xs px-3 py-2 rounded-xl bg-slate-50 hover:bg-indigo-50 border border-slate-100 font-medium text-slate-700 flex items-center gap-2"><span>👤</span><div class="flex-1 truncate">${safeStr(g.name||'')}${g.admin_nickname?' · '+safeStr(g.admin_nickname):''}</div></button>`).join('');
     } catch(e) { resultsEl.innerHTML = '<p class="text-xs text-red-400 py-2">שגיאה בחיפוש</p>'; }
 };
 window.assignAndSendQuote = async function(quoteId, familyGroupId, familyName) {
@@ -10763,7 +10763,7 @@ window.renderStoreCustomers = function() {
                     ? (c.account_status === 'pending_activation'
                         ? `<span class="text-[9px] font-bold bg-amber-100 text-amber-700 border border-amber-200 px-2 py-1 rounded-lg">⏳ SOLO ממתין</span>`
                         : `<span class="text-[9px] font-bold bg-violet-100 text-violet-700 border border-violet-200 px-2 py-1 rounded-lg">🔗 SOLO פעיל</span>`)
-                    : `<button onclick="event.stopPropagation(); window.showAddToOneflow('${safeStr(c.name).replace(/'/g,"\\'")}','${safeStr(c.phone||'').replace(/'/g,"\\'")}',null)" class="text-violet-500 hover:text-violet-700 bg-violet-50 px-2 h-8 rounded-lg flex items-center justify-center transition border border-violet-100 shadow-sm text-[10px] font-bold whitespace-nowrap" title="פתח חשבון SOLO">🔗 SOLO</button>`}
+                    : `<button onclick="event.stopPropagation(); window.showAddToOneflow('${jsAttrStr(c.name)}','${jsAttrStr(c.phone||'')}',null)" class="text-violet-500 hover:text-violet-700 bg-violet-50 px-2 h-8 rounded-lg flex items-center justify-center transition border border-violet-100 shadow-sm text-[10px] font-bold whitespace-nowrap" title="פתח חשבון SOLO">🔗 SOLO</button>`}
             </div>
         </div>
         `;
@@ -12296,10 +12296,10 @@ window._cqOflSearch = async function() {
             resEl.innerHTML = groups.map(g => {
                 const displayName = g.admin_nickname || g.name || '';
                 const subName = g.admin_nickname ? g.name : '';
-                const safeDisplayName = safeStr(displayName).replace(/'/g,"\\'");
-                const safePhone = safeStr(g.phone||'').replace(/'/g,"\\'");
-                const safeEmail = safeStr(g.admin_email||'').replace(/'/g,"\\'");
-                return `<button type="button" onclick="window._cqOflLink(${g.id},'${safeStr(g.name||'').replace(/'/g,"\\'")}','${safeDisplayName}','${safePhone}','${safeEmail}')" class="w-full text-right text-xs px-3 py-2 rounded-xl bg-slate-50 hover:bg-indigo-50 border border-slate-100 font-medium text-slate-700 flex items-center gap-2 mb-1"><span>👤</span><div class="flex-1 truncate">${safeStr(displayName)}${subName ? ' · ' + safeStr(subName) : ''}</div></button>`;
+                const safeDisplayName = jsAttrStr(displayName);
+                const safePhone = jsAttrStr(g.phone||'');
+                const safeEmail = jsAttrStr(g.admin_email||'');
+                return `<button type="button" onclick="window._cqOflLink(${g.id},'${jsAttrStr(g.name||'')}','${safeDisplayName}','${safePhone}','${safeEmail}')" class="w-full text-right text-xs px-3 py-2 rounded-xl bg-slate-50 hover:bg-indigo-50 border border-slate-100 font-medium text-slate-700 flex items-center gap-2 mb-1"><span>👤</span><div class="flex-1 truncate">${safeStr(displayName)}${subName ? ' · ' + safeStr(subName) : ''}</div></button>`;
             }).join('');
         } else {
             const name = (document.getElementById('cq-customer-name')?.value || '').trim();
@@ -16356,7 +16356,7 @@ async function loadBizCommunities() {
                         let statusHtml = c.status === 'approved' ? '<span class="text-green-600 bg-green-50 px-2 py-0.5 rounded text-[10px] border border-green-100">מאושר</span>' : '<span class="text-orange-500 bg-orange-50 px-2 py-0.5 rounded text-[10px] border border-orange-100">ממתין לאישור</span>';
                         const imgHtml = c.image_url ? `<img src="${c.image_url}" class="w-10 h-10 rounded-lg object-cover shadow-sm shrink-0">` : `<div class="w-10 h-10 bg-indigo-50 text-indigo-600 rounded-lg flex items-center justify-center shrink-0"><i class="fa-solid fa-users-rays"></i></div>`;
                         
-                        const updateBtn = c.status === 'approved' ? `<button onclick="openUpdateDiscountModal(${c.id},'${safeStr(c.name).replace(/'/g,"\\'")}',${c.discount_pct})" class="text-[10px] font-bold text-teal-600 hover:bg-teal-50 px-2 py-1 rounded border border-transparent hover:border-teal-200 transition"><i class="fa-solid fa-percent mr-1"></i>עדכן הנחה</button>` : '';
+                        const updateBtn = c.status === 'approved' ? `<button onclick="openUpdateDiscountModal(${c.id},'${jsAttrStr(c.name)}',${c.discount_pct})" class="text-[10px] font-bold text-teal-600 hover:bg-teal-50 px-2 py-1 rounded border border-transparent hover:border-teal-200 transition"><i class="fa-solid fa-percent mr-1"></i>עדכן הנחה</button>` : '';
                         return `<div class="bg-white p-3 rounded-xl shadow-sm border border-slate-100 flex justify-between items-center mb-2"><div class="flex items-center gap-3">${imgHtml}<div><h4 class="font-bold text-slate-800 text-sm">${safeStr(c.name)}</h4><p class="text-[10px] text-slate-500 mt-0.5"><i class="fa-solid fa-location-dot text-red-400"></i> ${safeStr(c.city || 'כללי')} • <i class="fa-solid fa-house ml-1"></i> ${c.families_count || 0} משפחות (${c.users_count || 0} משתמשים)</p><p class="text-[10px] text-slate-500 mt-0.5">הצעת הנחה: <span class="font-bold text-slate-700">${c.discount_pct}%</span></p></div></div><div class="flex flex-col items-end gap-2">${statusHtml}${updateBtn}<button onclick="leaveBizCommunity(${c.id})" class="text-[10px] font-bold text-red-500 hover:underline">התנתק</button></div></div>`;
                     }).join('');
                 }
@@ -16427,7 +16427,7 @@ function renderBizMyBids() {
                     </div>
                 </div>
                 <p class="text-[11px] text-slate-600 mb-2">הצעתי: <span class="font-black">₪${Number(b.price).toLocaleString()}</span> — ${safeStr(b.description)}</p>
-                ${!poolClosed ? `<button onclick="openBizPoolChat(${b.pool_id},'${safeStr(b.title).replace(/'/g,"\\'")}','${safeStr(b.initiator_name).replace(/'/g,"\\'")}',${b.initiator_id})" class="text-[11px] font-bold bg-white/70 hover:bg-white border border-current px-3 py-1 rounded-xl transition">
+                ${!poolClosed ? `<button onclick="openBizPoolChat(${b.pool_id},'${jsAttrStr(b.title)}','${jsAttrStr(b.initiator_name)}',${b.initiator_id})" class="text-[11px] font-bold bg-white/70 hover:bg-white border border-current px-3 py-1 rounded-xl transition">
                     💬 שלח הודעה ליוזם
                 </button>` : ''}
                 ${st === 'accepted' ? `<p class="text-[11px] font-bold mt-2">🎉 מזל טוב! ההצעה שלך נבחרה. צור קשר עם ${safeStr(b.initiator_name)} להמשך.</p>` : ''}
@@ -16524,7 +16524,7 @@ async function loadBizPools() {
             } else {
                 actionBtn = myBid
                     ? `<div class="w-full py-2 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 text-xs font-bold text-center">⏳ הצעה הוגשה — ₪${Number(myBid.price).toLocaleString()}</div>`
-                    : `<button onclick="openBizBidModal(${p.id},'${safeStr(p.title).replace(/'/g,"\\'")}',${p.max_price||0})" class="w-full py-2 rounded-xl bg-blue-500 text-white text-xs font-bold hover:bg-blue-600 transition shadow-sm"><i class="fa-solid fa-gavel ml-1"></i>הגש הצעת מחיר</button>`;
+                    : `<button onclick="openBizBidModal(${p.id},'${jsAttrStr(p.title)}',${p.max_price||0})" class="w-full py-2 rounded-xl bg-blue-500 text-white text-xs font-bold hover:bg-blue-600 transition shadow-sm"><i class="fa-solid fa-gavel ml-1"></i>הגש הצעת מחיר</button>`;
             }
             return `<div class="bg-white rounded-2xl border ${isExpired ? 'border-orange-100' : 'border-slate-100'} shadow-sm p-4">
                 <div class="flex justify-between items-start mb-2">
@@ -16769,7 +16769,7 @@ window.discoverViaBusinessCode = async function() {
                         <p class="text-[10px] text-slate-500"><i class="fa-solid fa-location-dot text-red-400"></i> ${safeStr(c.city || 'כללי')} · ${c.families_count || 0} משפחות</p>
                     </div>
                 </div>
-                <button onclick="openBizJoinModal(${c.id}, '${safeStr(c.name).replace(/'/g,"\\'")}') " class="w-full bg-slate-800 text-white py-2 rounded-xl text-xs font-bold hover:bg-slate-700 transition">הצטרף לקהילה</button>
+                <button onclick="openBizJoinModal(${c.id}, '${jsAttrStr(c.name)}') " class="w-full bg-slate-800 text-white py-2 rounded-xl text-xs font-bold hover:bg-slate-700 transition">הצטרף לקהילה</button>
             </div>`;
         }).join('');
     } catch(e) { if (el) el.innerHTML = '<p class="text-xs text-red-500 text-center py-2">שגיאת רשת</p>'; }
@@ -17175,7 +17175,7 @@ window.loadBizCommunitiesWithMatch = async function() {
                         </div>
                     </div>
                 </div>
-                <button onclick="openBizJoinModal(${c.id}, '${safeStr(c.name).replace(/'/g,"\\'")}');document.getElementById('biz-match-panel').remove()" class="w-full bg-slate-800 text-white py-2 rounded-xl text-xs font-bold hover:bg-slate-700 transition">הצטרף לקהילה</button>
+                <button onclick="openBizJoinModal(${c.id}, '${jsAttrStr(c.name)}');document.getElementById('biz-match-panel').remove()" class="w-full bg-slate-800 text-white py-2 rounded-xl text-xs font-bold hover:bg-slate-700 transition">הצטרף לקהילה</button>
             </div>`;
         }).join('');
     } catch(e) { const el = document.getElementById('biz-match-panel-list'); if(el) el.innerHTML = '<p class="text-red-400 text-sm text-center py-8">שגיאה בטעינה</p>'; }
@@ -17504,7 +17504,7 @@ window.searchByInterest = async function() {
                 <div class="text-xs text-slate-500">${safeStr(c.city || 'כללי')} · ${c.family_count} משפחות · ${c.biz_count} עסקים</div>
                 <div class="text-[10px] text-teal-600 mt-0.5">תגית: ${safeStr(c.interest_tag)}</div>
             </div>
-            <button onclick="openBizJoinModal(${c.id},'${safeStr(c.name).replace(/'/g,"\\'")}');document.getElementById('biz-interest-search-modal')?.remove()" class="bg-slate-800 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-slate-700 transition">הצטרף</button>
+            <button onclick="openBizJoinModal(${c.id},'${jsAttrStr(c.name)}');document.getElementById('biz-interest-search-modal')?.remove()" class="bg-slate-800 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-slate-700 transition">הצטרף</button>
         </div>`).join('');
     } catch(e) { el.innerHTML = '<p class="text-red-400 text-xs text-center py-4">שגיאה</p>'; }
 };
@@ -17558,7 +17558,7 @@ async function loadBizCommunityInvitations() {
             ${data.invitations.map(inv => `
             <div class="bg-white border border-teal-100 rounded-xl p-3 mb-2 flex justify-between items-center">
                 <div class="flex gap-2">
-                    <button onclick="openAcceptInviteModal(${inv.community_id},'${safeStr(inv.comm_name).replace(/'/g,"\\'")}')" class="bg-teal-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-teal-600">אשר + הגדר הנחה</button>
+                    <button onclick="openAcceptInviteModal(${inv.community_id},'${jsAttrStr(inv.comm_name)}')" class="bg-teal-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-teal-600">אשר + הגדר הנחה</button>
                     <button onclick="declineBizInvite(${inv.community_id})" class="bg-red-50 text-red-500 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-red-100">דחה</button>
                 </div>
                 <div class="text-right">
@@ -32469,7 +32469,7 @@ window.renderPosPizzaBuilderUI = function() {
     };
 
     const toppingsHtml = toppings.map(t => `
-        <button type="button" class="px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap shadow-sm transition border ${t.name === active ? 'bg-red-600 text-white border-red-700' : 'bg-white text-slate-700 border-slate-200 hover:bg-red-50'}" onclick="window.selectPosPizzaTopping('${safeStr(t.name).replace(/'/g,"\\'")}')">
+        <button type="button" class="px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap shadow-sm transition border ${t.name === active ? 'bg-red-600 text-white border-red-700' : 'bg-white text-slate-700 border-slate-200 hover:bg-red-50'}" onclick="window.selectPosPizzaTopping('${jsAttrStr(t.name)}')">
             ${safeStr(t.name)} (+₪${t.price})
         </button>
     `).join('');
@@ -38324,7 +38324,7 @@ window.scSearchCustomerInOneFlow = async function() {
     const bizHtml = bizCusts.map(c => {
         const name = c.company_name || c.name || '';
         const phone = c.phone || '';
-        return `<button type="button" onclick="scSelectCustomer(null,'${safeStr(name).replace(/'/g,"\\'")}','${safeStr(c.address||'').replace(/'/g,"\\'")}','${safeStr(phone).replace(/'/g,"\\'")}','','${safeStr(name).replace(/'/g,"\\'")}');" class="w-full text-right text-xs px-3 py-2 rounded-xl bg-orange-50 hover:bg-orange-100 border border-orange-100 hover:border-orange-300 transition font-medium text-slate-700 flex items-center gap-2" style="touch-action:manipulation;"><span class="text-base">🏪</span><div class="flex-1 min-w-0 text-right"><div class="truncate">${safeStr(name)} <span class="text-[9px] text-orange-500 font-bold">לקוח עסק</span></div>${phone?`<div class="text-[10px] text-slate-400">${safeStr(phone)}</div>`:''}</div></button>`;
+        return `<button type="button" onclick="scSelectCustomer(null,'${jsAttrStr(name)}','${jsAttrStr(c.address||'')}','${jsAttrStr(phone)}','','${jsAttrStr(name)}');" class="w-full text-right text-xs px-3 py-2 rounded-xl bg-orange-50 hover:bg-orange-100 border border-orange-100 hover:border-orange-300 transition font-medium text-slate-700 flex items-center gap-2" style="touch-action:manipulation;"><span class="text-base">🏪</span><div class="flex-1 min-w-0 text-right"><div class="truncate">${safeStr(name)} <span class="text-[9px] text-orange-500 font-bold">לקוח עסק</span></div>${phone?`<div class="text-[10px] text-slate-400">${safeStr(phone)}</div>`:''}</div></button>`;
     }).join('');
 
     try {
@@ -38343,7 +38343,7 @@ window.scSearchCustomerInOneFlow = async function() {
             const groupLabel = familyNickname || (g.name || g.group_name);
             // בחיפוש לפי טלפון, הראה שם האיש הספציפי ואחריו שם המשפחה
             const displayPerson = matchedFullName || adminNickname || contactName;
-            return `<button type="button" onclick="scSelectCustomer(${g.id},'${safeStr(g.name||g.group_name).replace(/'/g,"\\'")}','${addr.replace(/'/g,"\\'")}','${safeStr(g.phone||'').replace(/'/g,"\\'")}','${contactName.replace(/'/g,"\\'")}','${(matchedFullName||adminNickname).replace(/'/g,"\\'")}');" class="w-full text-right text-xs px-3 py-2 rounded-xl bg-slate-50 hover:bg-orange-50 border border-slate-100 hover:border-orange-200 transition font-medium text-slate-700 flex items-center gap-2" style="touch-action:manipulation;"><span class="text-base">👤</span><div class="flex-1 min-w-0 text-right"><div class="truncate">${displayPerson ? safeStr(displayPerson) + ' · ' : ''}${safeStr(groupLabel)} <span class="text-[9px] text-indigo-500 font-bold">WEFLOWZ</span></div>${g.phone?`<div class="text-[10px] text-slate-400">${safeStr(g.phone)}${addr ? ' · ' + safeStr(addr) : ''}</div>`:''}</div></button>`;
+            return `<button type="button" onclick="scSelectCustomer(${g.id},'${jsAttrStr(g.name||g.group_name)}','${addr.replace(/'/g,"\\'")}','${jsAttrStr(g.phone||'')}','${contactName.replace(/'/g,"\\'")}','${(matchedFullName||adminNickname).replace(/'/g,"\\'")}');" class="w-full text-right text-xs px-3 py-2 rounded-xl bg-slate-50 hover:bg-orange-50 border border-slate-100 hover:border-orange-200 transition font-medium text-slate-700 flex items-center gap-2" style="touch-action:manipulation;"><span class="text-base">👤</span><div class="flex-1 min-w-0 text-right"><div class="truncate">${displayPerson ? safeStr(displayPerson) + ' · ' : ''}${safeStr(groupLabel)} <span class="text-[9px] text-indigo-500 font-bold">WEFLOWZ</span></div>${g.phone?`<div class="text-[10px] text-slate-400">${safeStr(g.phone)}${addr ? ' · ' + safeStr(addr) : ''}</div>`:''}</div></button>`;
         }).join('');
         if (resultsEl) {
             const combined = bizHtml + oneflowHtml;
@@ -42515,7 +42515,7 @@ window.renderWoInventory = function(inventory) {
         const poAlert = shortage > 0 && item.status === 'reserved'
             ? `<div class="bg-red-50 border border-red-200 rounded-lg p-2 mb-2 text-[10px] text-red-700 font-bold flex items-center justify-between gap-2">
                 <span>⚠️ חסרים ${fmtN(shortage)} יח'</span>
-                <button onclick="window.draftPurchaseOrderForShortage('${safeStr(item.item_name).replace(/'/g,"\\'")}', ${shortage})" class="bg-red-600 text-white px-2 py-1 rounded-lg text-[10px] font-bold hover:bg-red-700 transition shrink-0"><i class="fa-solid fa-cart-plus mr-1"></i>פתח הזמנת רכש</button>
+                <button onclick="window.draftPurchaseOrderForShortage('${jsAttrStr(item.item_name)}', ${shortage})" class="bg-red-600 text-white px-2 py-1 rounded-lg text-[10px] font-bold hover:bg-red-700 transition shrink-0"><i class="fa-solid fa-cart-plus mr-1"></i>פתח הזמנת רכש</button>
                </div>` : '';
 
         const stockInfo = (item.pantry_id || item.catalog_id) ? `<div class="bg-blue-50 rounded-lg p-2 mb-2 border border-blue-200 text-[10px]">
