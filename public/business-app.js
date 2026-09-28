@@ -2693,6 +2693,11 @@ window._reportsExportPDF = function() {
 };
 
 function switchTab(t) {
+    // ניווט דרך שורת הטאבים הראשית — לא דרך כפתור החזרה הפנימי של מסך ספורט (_sportBack) —
+    // משמעו שיצאנו ממסך הספורט המוצג בתוך content-feed. בלי זה, הדגל נשאר תקוע על true
+    // ו-renderDashboard נמנע מלרנדר מחדש את הדשבורד כשחוזרים ל"ראשי", ומשאיר אותו ריק.
+    window._sportScreenActive = false;
+
     // עסקי יופי: הפנה מ-customers ל-beauty_clients
     if (t === 'customers' && currentGroup?.business_type === 'beauty') t = 'beauty_clients';
 
