@@ -48666,6 +48666,142 @@ window.showSportSchedule = async function() {
 
 // ===== END SPORT PHASE 9 =====
 
+// ===== SPORT: יומן ויזואלי — עמודה לכל מאמן/ת, כל השיבוצים ביום אחד במבט אחד =====
+// (מקביל למה שקיים ביופי — showSportSchedule הקודם היה רק רשימה כרונולוגית שטוחה)
+window._sportCalDate = window._sportCalDate || new Date();
+window._sportCalMode = window._sportCalMode || 'list';
+
+const _origShowSportScheduleFinal = window.showSportSchedule;
+window.showSportSchedule = async function() {
+    await _origShowSportScheduleFinal();
+    const modal = document.getElementById('sport-modal');
+    if (!modal || modal.querySelector('#sport-sched-view-toggle')) return;
+    const titleRow = modal.querySelector('.flex.items-center.justify-between.p-4.border-b');
+    if (!titleRow) return;
+    const toggle = document.createElement('div');
+    toggle.id = 'sport-sched-view-toggle';
+    toggle.className = 'flex gap-1.5 px-3 pt-2';
+    toggle.innerHTML = `
+        <button onclick="window._sportSetCalMode('list')" id="sport-sched-mode-list" class="flex-1 text-xs font-bold py-2 rounded-xl transition ${window._sportCalMode==='list'?'bg-indigo-600 text-white':'bg-slate-100 text-slate-500'}">📋 רשימה</button>
+        <button onclick="window._sportSetCalMode('grid')" id="sport-sched-mode-grid" class="flex-1 text-xs font-bold py-2 rounded-xl transition ${window._sportCalMode==='grid'?'bg-indigo-600 text-white':'bg-slate-100 text-slate-500'}">🗓️ יומן — כל המאמנים</button>
+    `;
+    titleRow.insertAdjacentElement('afterend', toggle);
+    const gridWrap = document.createElement('div');
+    gridWrap.id = 'sport-sched-grid-wrap';
+    gridWrap.className = 'hidden flex-1 overflow-hidden flex flex-col';
+    modal.querySelector('#sport-schedule-list')?.insertAdjacentElement('afterend', gridWrap);
+    window._sportSetCalMode(window._sportCalMode, true);
+};
+
+window._sportSetCalMode = function(mode, silent) {
+    window._sportCalMode = mode;
+    const listEl = document.getElementById('sport-schedule-list');
+    const barEl = document.getElementById('sport-sched-search')?.closest('.space-y-2');
+    const gridEl = document.getElementById('sport-sched-grid-wrap');
+    const btnList = document.getElementById('sport-sched-mode-list');
+    const btnGrid = document.getElementById('sport-sched-mode-grid');
+    if (!listEl || !gridEl) return;
+    if (mode === 'grid') {
+        listEl.classList.add('hidden');
+        if (barEl) barEl.classList.add('hidden');
+        gridEl.classList.remove('hidden');
+        btnList?.classList.replace('bg-indigo-600', 'bg-slate-100'); btnList?.classList.replace('text-white', 'text-slate-500');
+        btnGrid?.classList.replace('bg-slate-100', 'bg-indigo-600'); btnGrid?.classList.replace('text-slate-500', 'text-white');
+        window._sportRenderCalGrid();
+    } else {
+        listEl.classList.remove('hidden');
+        if (barEl) barEl.classList.remove('hidden');
+        gridEl.classList.add('hidden');
+        btnGrid?.classList.replace('bg-indigo-600', 'bg-slate-100'); btnGrid?.classList.replace('text-white', 'text-slate-500');
+        btnList?.classList.replace('bg-slate-100', 'bg-indigo-600'); btnList?.classList.replace('text-slate-500', 'text-white');
+        if (!silent) return;
+    }
+};
+
+window._sportCalGridNav = function(delta) {
+    if (delta === 0) window._sportCalDate = new Date();
+    else window._sportCalDate.setDate(window._sportCalDate.getDate() + delta);
+    window._sportRenderCalGrid();
+};
+
+window._sportRenderCalGrid = async function() {
+    const wrap = document.getElementById('sport-sched-grid-wrap');
+    if (!wrap) return;
+    const dateStr = window._sportCalDate.toISOString().split('T')[0];
+    const dateLabel = window._sportCalDate.toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'long' });
+    wrap.innerHTML = `
+        <div class="flex items-center justify-between px-3 py-2 border-b border-slate-100 shrink-0">
+            <button onclick="window._sportCalGridNav(1)" class="text-slate-400 hover:text-slate-700 px-2">›</button>
+            <div class="text-center">
+                <div class="font-black text-sm text-slate-800">${dateLabel}</div>
+                <button onclick="window._sportCalGridNav(0)" class="text-[10px] text-indigo-500 font-bold">היום</button>
+            </div>
+            <button onclick="window._sportCalGridNav(-1)" class="text-slate-400 hover:text-slate-700 px-2">‹</button>
+        </div>
+        <div id="sport-cal-grid-body" class="flex-1 overflow-auto"><div class="text-center py-8 text-slate-400 text-sm">טוען...</div></div>
+    `;
+    const body = document.getElementById('sport-cal-grid-body');
+    try {
+        const [trRes, clRes] = await Promise.all([
+            fetch(`${API}/sport/trainers/${currentGroup.id}`).then(r => r.json()),
+            fetch(`${API}/sport/classes/${currentGroup.id}?from=${dateStr}&to=${dateStr}`).then(r => r.json()),
+        ]);
+        const trainers = Array.isArray(trRes) ? trRes : (trRes.trainers || []);
+        const classes = (clRes.classes || []).filter(c => c.status !== 'cancelled');
+
+        // עמודות: כל מאמן/ת שיש לו/ה שיעור היום, ובתוספת עמודת "ללא מאמן" אם רלוונטי — לא כל המאמנים
+        // הרשומים בעסק (רובם לא מלמדים באותו יום), כדי שהלוח לא יתמלא בעמודות ריקות
+        const trainerIdsWithClasses = new Set(classes.map(c => c.trainer_id).filter(Boolean));
+        let columns = trainers.filter(t => trainerIdsWithClasses.has(t.id)).map(t => ({ id: t.id, name: t.name }));
+        const hasUnassigned = classes.some(c => !c.trainer_id);
+        if (hasUnassigned) columns.push({ id: null, name: 'ללא מאמן משויך' });
+        if (!columns.length) {
+            body.innerHTML = `<div class="text-center py-10 text-slate-400 text-sm">אין שיעורים מתוזמנים ביום זה<br><button onclick="window.showSportAddClass()" class="mt-3 text-indigo-600 font-bold text-sm underline">הוסף שיעור</button></div>`;
+            return;
+        }
+
+        const HOUR_START = 6, HOUR_END = 22, SPAN = HOUR_END - HOUR_START;
+        const colorMap = { indigo:'#6366f1', violet:'#8b5cf6', emerald:'#10b981', orange:'#f97316', red:'#ef4444', blue:'#3b82f6', teal:'#14b8a6' };
+        const timeToPct = (t) => {
+            if (!t) return 0;
+            const [h, m] = t.split(':').map(Number);
+            return Math.min(100, Math.max(0, ((h + m/60) - HOUR_START) / SPAN * 100));
+        };
+        const hourLines = Array.from({ length: SPAN + 1 }, (_, i) => HOUR_START + i);
+
+        const colsHtml = columns.map(col => {
+            const colClasses = classes.filter(c => (c.trainer_id || null) === col.id);
+            const blocks = colClasses.map(c => {
+                const top = timeToPct(c.start_time?.substring(0,5));
+                const bottom = timeToPct(c.end_time?.substring(0,5) || c.start_time?.substring(0,5));
+                const height = Math.max(bottom - top, 3);
+                const color = colorMap[c.color] || colorMap.indigo;
+                const full = parseInt(c.registered_count) >= (c.capacity || 20);
+                return `<div onclick="window.showSportClassDetail(${c.id})" class="absolute right-1 left-1 rounded-lg p-1.5 text-white text-[10px] font-bold shadow cursor-pointer hover:brightness-110 transition overflow-hidden"
+                    style="top:${top.toFixed(1)}%;height:${height.toFixed(1)}%;background:${color};min-height:30px">
+                    <div class="truncate">${safeStr(c.class_name || c.type_name || 'שיעור')}</div>
+                    <div class="opacity-80 truncate">${c.start_time?c.start_time.substring(0,5):''}–${c.end_time?c.end_time.substring(0,5):''}</div>
+                    <div class="opacity-80">${c.registered_count}/${c.capacity}${full?' 🔴':''}</div>
+                </div>`;
+            }).join('');
+            return `<div class="flex-1 min-w-[130px] border-l border-slate-100 relative">
+                <div class="sticky top-0 bg-white z-10 text-center text-xs font-bold text-slate-700 py-2 border-b border-slate-100 truncate px-1">${safeStr(col.name || 'ללא מאמן')}</div>
+                <div class="relative" style="height:${SPAN * 60}px">${blocks}</div>
+            </div>`;
+        }).join('');
+
+        const hoursHtml = hourLines.map(h => `<div class="text-[10px] text-slate-400 text-left pl-1" style="height:60px">${String(h).padStart(2,'0')}:00</div>`).join('');
+
+        body.innerHTML = `<div class="flex">
+            <div class="w-10 shrink-0 pt-9">${hoursHtml}</div>
+            <div class="flex flex-1 overflow-x-auto">${colsHtml}</div>
+        </div>`;
+    } catch (e) {
+        console.error('sport calendar grid failed:', e);
+        body.innerHTML = `<div class="text-center py-8 text-red-400 text-sm">שגיאה בטעינת היומן</div>`;
+    }
+};
+
 // ===== SPORT PHASE 11 — Edit Class, Styled Payment, Styled Freeze =====
 
 window.showSportEditClass = async function(classId) {
