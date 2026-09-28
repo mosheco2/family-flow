@@ -4991,9 +4991,10 @@ app.post('/api/sa/ai-create-business', verifySA, async (req, res) => {
       : '05' + String(groupId).padStart(8, '0').slice(0, 8);
     const adminPassword = _bizCrypto.randomBytes(4).toString('hex').toLowerCase();
     const adminPasswordHash = await bcrypt.hash(adminPassword, 10);
+    // ה-nickname הוא השם הפרטי של המשתמש (מוצג בברכת "שלום, ..." בדף הבית) — לא שם העסק
     await client.query(
       `INSERT INTO users (group_id, nickname, role, phone, password_hash, status) VALUES ($1,$2,'ADMIN',$3,$4,'active')`,
-      [groupId, profile.name, adminPhone, adminPasswordHash]
+      [groupId, profile.owner_name || 'בעל/ת העסק', adminPhone, adminPasswordHash]
     );
 
     await client.query('COMMIT');
@@ -7299,12 +7300,13 @@ app.post('/api/biz/register', async (req, res) => {
         );
         const groupId = gRes.rows[0].id;
 
-        // INSERT users (admin)
+        // INSERT users (admin) — nickname זמני ("בעל/ת העסק"), לא שם העסק; מוחלף בשם האישי האמיתי
+        // בסיום האשף (PATCH /api/biz/wizard/complete)
         const uRes = await pool.query(
             `INSERT INTO users (group_id, nickname, role, phone, password_hash, status)
              VALUES ($1, $2, 'ADMIN', $3, $4, 'active')
              RETURNING id`,
-            [groupId, business_name, phone, passwordHash]
+            [groupId, 'בעל/ת העסק', phone, passwordHash]
         );
         const userId = uRes.rows[0].id;
 

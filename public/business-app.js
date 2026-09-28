@@ -41834,10 +41834,10 @@ window.openNewEventFromMenuModal = async function() {
 
     let templates = [];
     try {
-        const r = await fetch(`${API}/menu-templates?groupId=${currentGroup.id}`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } });
+        const r = await fetch(`${API}/menu-templates`, { headers: { Authorization: `Bearer ${window._bizToken}` } });
         const d = await r.json();
         templates = Array.isArray(d) ? d : (d.templates || d.menuTemplates || []);
-    } catch(e) {}
+    } catch(e) { console.error('menu-templates fetch failed:', e); }
 
     if (!templates.length) {
         if (await window._uiConfirm('לא נמצאו תבניות תפריט. לעבור למסך "תפריטים" כדי ליצור אחת?')) {
