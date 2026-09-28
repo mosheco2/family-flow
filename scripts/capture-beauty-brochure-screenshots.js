@@ -247,6 +247,7 @@ async function main() {
       await switchTab(page, screen.tab);
       await dismissOverlays(page);
       if (screen.afterSwitch) await screen.afterSwitch(page);
+      await dismissOverlays(page); // חלק מהרינדורים (כמו renderBeautyAdminDashboard) יכולים להציג מחדש את אשף הברוכים-הבאים
       await capture(page, screen.id, screen.label);
     } catch (e) {
       console.warn(`⚠️  דילג על ${screen.id}: ${e.message}`);
