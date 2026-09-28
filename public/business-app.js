@@ -45403,6 +45403,13 @@ window._sportLoadReports = async function(period) {
                 <div class="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden"><div class="h-full ${fill>=100?'bg-red-400':'bg-emerald-400'} rounded-full" style="width:${fill}%"></div></div>
             </div>`;
         }).join('')||'<div class="text-xs text-slate-400 text-center py-4">אין שיעורים ב-30 הימים האחרונים</div>';
+        const churnRows=(d.churnByMonth||[]).map(c=>{
+            const[y,mo]=c.month.split('-');
+            return `<div class="flex items-center justify-between py-1.5 border-b border-slate-50">
+                <span class="font-bold text-red-500">${c.count}</span>
+                <span class="text-xs text-slate-500">${mo}/${y} · מנויים שנטשו (פג תוקף/בוטל)</span>
+            </div>`;
+        }).join('')||'<div class="text-xs text-slate-400 text-center py-4">אין נתונים</div>';
         el.innerHTML=`
             <div class="grid grid-cols-2 gap-3 mb-4">
                 <div class="bg-emerald-50 rounded-2xl p-3 text-right"><div class="text-lg font-black text-emerald-700">₪${totalRev.toLocaleString('he-IL',{maximumFractionDigits:0})}</div><div class="text-[11px] text-emerald-500">${period==='year'?'הכנסות השנה':'הכנסות החודש'}</div></div>
@@ -45412,7 +45419,14 @@ window._sportLoadReports = async function(period) {
             <div class="mb-4"><div class="text-xs font-black text-slate-600 mb-2 text-right">סטטוס חברים</div>${memRows}</div>
             <div class="mb-4"><div class="text-xs font-black text-slate-600 mb-2 text-right">כניסות יומיות (14 ימים)</div>${checkinRows}</div>
             <div class="mb-4"><div class="text-xs font-black text-slate-600 mb-2 text-right">הכנסות לפי חודש</div>${monthRows}</div>
-            <div class="mb-4"><div class="text-xs font-black text-slate-600 mb-2 text-right">תפוסת חוגים (30 יום אחרונים)</div>${classRows}</div>`;
+            <div class="mb-4"><div class="text-xs font-black text-slate-600 mb-2 text-right">תפוסת חוגים (30 יום אחרונים)</div>${classRows}</div>
+            <div class="mb-4">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-[11px] font-bold px-2 py-1 rounded-full bg-red-50 text-red-600">${d.churnRatePercent||0}% נטישה החודש (קירוב)</span>
+                    <span class="text-xs font-black text-slate-600 text-right">נטישה לפי חודש (6 חודשים אחרונים)</span>
+                </div>
+                ${churnRows}
+            </div>`;
     }catch(e){el.innerHTML='<div class="text-center py-8 text-red-400 text-sm">שגיאה</div>';}
 };
 

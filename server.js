@@ -25542,7 +25542,7 @@ app.get('/api/sport/members/:groupId', async (req, res) => {
         const r = await pool.query(q, params);
         // auto-expire memberships past end_date
         const toExpire = r.rows.filter(m => m.status === 'active' && m.end_date && new Date(m.end_date) < new Date());
-        for (const m of toExpire) { await pool.query(`UPDATE sport_memberships SET status='expired' WHERE id=$1`, [m.id]); m.status = 'expired'; }
+        for (const m of toExpire) { await pool.query(`UPDATE sport_memberships SET status='expired', updated_at=NOW() WHERE id=$1`, [m.id]); m.status = 'expired'; }
         // auto-unfreeze memberships whose planned freeze period (frozen_until) has passed — makes the "days" field on the freeze form actually enforced, not decorative
         const toUnfreeze = r.rows.filter(m => m.status === 'frozen' && m.frozen_until && new Date(m.frozen_until) < new Date());
         for (const m of toUnfreeze) {
@@ -25821,7 +25821,7 @@ app.get('/api/sport/reports/:groupId', async (req, res) => {
     const { period } = req.query; // month, year
     const dateFilter = period === 'year' ? `paid_at >= date_trunc('year', CURRENT_DATE)` : `paid_at >= date_trunc('month', CURRENT_DATE)`;
     try {
-        const [revenueByType, revenueByMonth, checkinsByDay, membersByStatus, classStats] = await Promise.all([
+        const [revenueByType, revenueByMonth, checkinsByDay, membersByStatus, classStats, churnByMonth] = await Promise.all([
             pool.query(`SELECT smt.name as type_name, COUNT(*) as count, SUM(sp.amount) as total
                 FROM sport_payments sp LEFT JOIN sport_memberships sm ON sp.membership_id=sm.id
                 LEFT JOIN sport_membership_types smt ON sm.membership_type_id=smt.id
@@ -25837,14 +25837,29 @@ app.get('/api/sport/reports/:groupId', async (req, res) => {
             pool.query(`SELECT sc2.class_name, sc2.class_date, sc2.trainer_name, COUNT(scr.id) as registered, sc2.capacity
                 FROM sport_classes sc2 LEFT JOIN sport_class_registrations scr ON sc2.id=scr.class_id
                 WHERE sc2.group_id=$1 AND sc2.class_date >= CURRENT_DATE-30
-                GROUP BY sc2.id ORDER BY sc2.class_date DESC LIMIT 20`, [gid])
+                GROUP BY sc2.id ORDER BY sc2.class_date DESC LIMIT 20`, [gid]),
+            // דוח נטישה (churn) — מנוי "פג תוקף" נספר לפי חודש תאריך הסיום שלו; מנוי "בוטל" נספר לפי חודש הביטול בפועל (updated_at)
+            pool.query(`
+                SELECT month, SUM(count) as count FROM (
+                    SELECT TO_CHAR(end_date,'YYYY-MM') as month, COUNT(*) as count
+                    FROM sport_memberships WHERE group_id=$1 AND status='expired' AND end_date >= CURRENT_DATE - INTERVAL '6 months'
+                    GROUP BY month
+                    UNION ALL
+                    SELECT TO_CHAR(updated_at,'YYYY-MM') as month, COUNT(*) as count
+                    FROM sport_memberships WHERE group_id=$1 AND status='cancelled' AND updated_at >= CURRENT_DATE - INTERVAL '6 months'
+                    GROUP BY month
+                ) x GROUP BY month ORDER BY month`, [gid])
         ]);
+        const activeNow = parseInt((membersByStatus.rows.find(r => r.status === 'active') || {}).count || 0);
+        const churnedThisMonth = parseInt((churnByMonth.rows.find(r => r.month === new Date().toISOString().slice(0,7)) || {}).count || 0);
+        const churnRatePercent = (activeNow + churnedThisMonth) > 0 ? Math.round((churnedThisMonth / (activeNow + churnedThisMonth)) * 1000) / 10 : 0;
         res.json({
             revenueByType: revenueByType.rows, revenueByMonth: revenueByMonth.rows,
             checkinsByDay: checkinsByDay.rows, membersByStatus: membersByStatus.rows,
-            classStats: classStats.rows
+            classStats: classStats.rows,
+            churnByMonth: churnByMonth.rows, churnedThisMonth, churnRatePercent
         });
-    } catch(e) { res.json({ revenueByType:[], revenueByMonth:[], checkinsByDay:[], membersByStatus:[], classStats:[] }); }
+    } catch(e) { res.json({ revenueByType:[], revenueByMonth:[], checkinsByDay:[], membersByStatus:[], classStats:[], churnByMonth:[], churnedThisMonth:0, churnRatePercent:0 }); }
 });
 
 // ─── Sport Member Detail & Renewal ───────────────────────────────────────────
