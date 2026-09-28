@@ -48604,9 +48604,11 @@ window.showSportSchedule = async function() {
 window.showSportEditClass = async function(classId) {
     const c = (window._sportScheduleAllClasses || []).find(x => x.id === classId);
     if (!c) { showToast('error', 'לא נמצא שיעור'); return; }
-    let types = [], trainers = [];
+    let types = [], trainers = [], equipmentItems = [], classEquipmentIds = [];
     try { types = (await fetch(`${API}/sport/class-types/${currentGroup.id}`).then(r=>r.json())).types || []; } catch(e){}
     try{const tr=await fetch(`${API}/sport/trainers/${currentGroup.id}`).then(r=>r.json()); trainers=Array.isArray(tr)?tr:(tr.trainers||[]);}catch(e){}
+    try { const eq = await fetch(`${API}/equipment/items/${currentGroup.id}`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } }).then(r=>r.json()); equipmentItems = eq.items || []; } catch(e) {}
+    try { const ce = await fetch(`${API}/sport/classes/${classId}/equipment`).then(r=>r.json()); classEquipmentIds = (ce.equipment||[]).map(x=>x.equipment_item_id); } catch(e) {}
     _ensureSportModal();
     const modal = document.getElementById('sport-modal');
     modal.innerHTML = `<div class="flex flex-col h-full">
@@ -48635,6 +48637,15 @@ window.showSportEditClass = async function(classId) {
             </div>
             <div><label class="text-xs font-bold text-slate-600 block mb-1 text-right">קיבולת</label>
                 <input id="sedit-cls-cap" type="number" value="${c.capacity||20}" class="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm"/></div>
+            ${equipmentItems.length?`<div>
+                <label class="text-xs font-bold text-slate-600 block mb-1 text-right">שיוך ציוד לשיעור</label>
+                <div class="flex flex-wrap gap-2 justify-end">
+                    ${equipmentItems.map(eq=>`<label class="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 cursor-pointer text-xs font-bold text-slate-700">
+                        <input type="checkbox" class="sedit-cls-equipment-cb accent-indigo-600 w-3.5 h-3.5" value="${eq.id}" ${classEquipmentIds.includes(eq.id)?'checked':''}>
+                        ${safeStr(eq.name)}
+                    </label>`).join('')}
+                </div>
+            </div>`:''}
         </div>
         <div class="p-4 border-t">
             <button onclick="window._sportSubmitEditClass(${classId})" class="w-full bg-indigo-600 text-white font-black py-3 rounded-2xl text-sm">שמור שינויים ✅</button>
@@ -48662,6 +48673,13 @@ window._sportSubmitEditClass = async function(classId) {
             body: JSON.stringify({ className: name, trainerName: trainer, trainerId, classDate: date, startTime: start, endTime: end, capacity: cap, status: 'scheduled' })
         }).then(r => r.json());
         if (!d.success) { showToast('error', d.error || 'שגיאה'); return; }
+        const equipmentItemIds = Array.from(document.querySelectorAll('.sedit-cls-equipment-cb:checked')).map(cb => parseInt(cb.value));
+        try {
+            await fetch(`${API}/sport/classes/${classId}/equipment`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ equipmentItemIds })
+            });
+        } catch(e2) {}
         showToast('success', 'שיעור עודכן ✅');
         window.showSportSchedule();
     } catch(e) { showToast('error', 'שגיאת תקשורת'); }

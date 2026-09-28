@@ -1555,6 +1555,12 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
           registered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           UNIQUE(class_id, membership_id)
       )`); } catch(e) {}
+      // שיוך ציוד לחוג ספציפי — קודם לא הייתה שום דרך לשריין ציוד (מזרנים, ברבלים וכד') לשיעור
+      try { await client.query(`CREATE TABLE IF NOT EXISTS sport_class_equipment (
+          id SERIAL PRIMARY KEY, class_id INT REFERENCES sport_classes(id) ON DELETE CASCADE,
+          equipment_item_id INT REFERENCES equipment_items(id) ON DELETE CASCADE,
+          UNIQUE(class_id, equipment_item_id)
+      )`); } catch(e) {}
       // Sport Phase 3 — Payments
       try { await client.query(`CREATE TABLE IF NOT EXISTS sport_payments (
           id SERIAL PRIMARY KEY, group_id INT NOT NULL,
@@ -25993,6 +25999,29 @@ app.put('/api/sport/classes/:id', async (req, res) => {
 
 app.delete('/api/sport/classes/:id', async (req, res) => {
     try { await pool.query('DELETE FROM sport_classes WHERE id=$1', [req.params.id]); res.json({ success: true }); } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// שיוך ציוד לחוג — פיצ'ר חדש, לא היה קיים כלל
+app.get('/api/sport/classes/:id/equipment', async (req, res) => {
+    try {
+        const r = await pool.query(
+            `SELECT ce.id, ei.id as equipment_item_id, ei.name, ei.category
+             FROM sport_class_equipment ce JOIN equipment_items ei ON ce.equipment_item_id=ei.id
+             WHERE ce.class_id=$1 ORDER BY ei.name`, [req.params.id]);
+        res.json({ success: true, equipment: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/sport/classes/:id/equipment', async (req, res) => {
+    try {
+        const { equipmentItemIds } = req.body;
+        await pool.query('DELETE FROM sport_class_equipment WHERE class_id=$1', [req.params.id]);
+        if (Array.isArray(equipmentItemIds) && equipmentItemIds.length) {
+            const values = equipmentItemIds.map((_, i) => `($1,$${i+2})`).join(',');
+            await pool.query(`INSERT INTO sport_class_equipment (class_id,equipment_item_id) VALUES ${values} ON CONFLICT DO NOTHING`, [req.params.id, ...equipmentItemIds]);
+        }
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 // ביטול שיעור (feature build) — לשמור היסטוריה במקום מחיקה מוחלטת, בניגוד למחיקה הקיימת
