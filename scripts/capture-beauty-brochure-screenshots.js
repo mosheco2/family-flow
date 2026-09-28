@@ -31,40 +31,49 @@ const BIZ_PASS = process.env.BIZ_PASS || '123456';
 // ------------------------------------------------------------------
 // כל שורה תואמת לעמוד מקביל בחוברת (המספר בהערה = מספר העמוד ב-PDF)
 // ------------------------------------------------------------------
+// כל id ממופה למסמך הטקסט המדויק של אותו עמוד בחוברת — לא לטאב כללי,
+// אלא למצב הפעולה הספציפי שהטקסט מתאר (כרטיס פתוח, טאב פנימי, מודל וכו'),
+// באותה רמת דיוק שנעשתה בעסק מהסוג מסעדה.
+// ------------------------------------------------------------------
 const SCREENS = [
-  // עמ' 4 — "יום עבודה במערכת אחת" → לוח הבקרה הראשי עם ההתראות
-  { id: 'p04-dashboard',       tab: 'feed',              label: 'לוח בקרה ראשי + פאנל התראות' },
+  // עמ' 4 — "יום עבודה במערכת אחת": לוח הבקרה הראשי עם פאנל ההתראות בכניסה
+  { id: 'p04-dashboard',          tab: 'feed',              label: 'לוח בקרה ראשי + פאנל התראות' },
 
-  // עמ' 5 — "יומן תורים"
-  { id: 'p05-calendar',        tab: 'beauty_calendar',   label: 'יומן תורים' },
+  // עמ' 5 — "יומן תורים": התצוגה היומית עם עמודה נפרדת לכל מטפלת
+  { id: 'p05-calendar',           tab: 'beauty_calendar',   label: 'יומן תורים — תצוגה יומית' },
+  // עמ' 5 — מודל קביעת תור חדש: בחירת שירות/מטפלת/משאב עם בדיקת זמינות כפולה
+  { id: 'p05-new-appointment',    tab: 'beauty_calendar',   label: 'מודל קביעת תור חדש', afterSwitch: openNewAppointmentModal },
 
-  // עמ' 6 — "כרטיס הלקוחה" (פתוח על לקוחה ספציפית, לא רשימה)
-  { id: 'p06-client-card',     tab: 'beauty_clients',    label: 'כרטיס לקוחה פתוח', afterSwitch: openFirstBeautyClient },
+  // עמ' 6 — "כרטיס הלקוחה": כרטיס פתוח על לקוחה ספציפית, טאב "פרטים ומאזן"
+  { id: 'p06-client-details',     tab: 'beauty_clients',    label: 'כרטיס לקוחה — פרטים ומאזן', afterSwitch: openFirstBeautyClient },
+  // עמ' 6 — טאב "יופי" בתוך הכרטיס: פורמולות טיפול + תמונות לפני/אחרי
+  { id: 'p06-client-formulas',    tab: 'beauty_clients',    label: 'כרטיס לקוחה — פורמולות ותמונות', afterSwitch: (p) => openClientCardTab(p, 'beauty') },
 
-  // עמ' 7 — "מנויים וחבילות טיפולים" + "קטלוג שירותים"
-  { id: 'p07-subscriptions',   tab: 'beauty_subscriptions', label: 'מנויים וחבילות טיפולים' },
-  { id: 'p07-services',        tab: 'beauty_services',      label: 'קטלוג שירותים' },
+  // עמ' 7 — "מנויים וחבילות טיפולים": יתרת כניסות של לקוחה ספציפית, לא קטלוג המסלולים
+  { id: 'p07-client-subscription', tab: 'beauty_clients',   label: 'כרטיס לקוחה — טאב מנוי', afterSwitch: (p) => openClientCardTab(p, 'sub') },
+  // עמ' 7 — "קטלוג שירותים": הגדרת השירותים והתמחור (מסך ניהול, פעם אחת)
+  { id: 'p07-services',           tab: 'beauty_services',   label: 'קטלוג שירותים' },
 
   // עמ' 8 — "צוות מטפלות ועמלות"
-  { id: 'p08-practitioners',   tab: 'beauty_practitioners', label: 'צוות מטפלות' },
-  { id: 'p08-commissions',     tab: 'beauty_commissions',   label: 'מסך עמלות' },
+  { id: 'p08-practitioners',      tab: 'beauty_practitioners', label: 'צוות מטפלות' },
+  { id: 'p08-commissions',        tab: 'beauty_commissions',   label: 'מסך עמלות — חישוב אוטומטי' },
 
-  // עמ' 9 — "מלאי מקצועי"
-  { id: 'p09-inventory',       tab: 'beauty_inventory',     label: 'מלאי מקצועי + קמעונאי' },
+  // עמ' 9 — "מלאי מקצועי": הפרדה בין back-bar למלאי קמעונאי
+  { id: 'p09-inventory',          tab: 'beauty_inventory',     label: 'מלאי מקצועי + קמעונאי' },
 
   // עמ' 10 — "קופה וגבייה" + "פניות ותוכניות טיפול"
-  { id: 'p10-pos',             tab: 'pos',                  label: 'קופה' },
-  { id: 'p10-collection',      tab: 'beauty_clients',       label: 'מרכז גבייה', afterSwitch: openCollectionCenter },
-  { id: 'p10-rfq',             tab: 'beauty_rfq',           label: 'פניות ותוכניות טיפול' },
+  { id: 'p10-pos',                tab: 'pos',                  label: 'קופה' },
+  { id: 'p10-collection',         tab: 'beauty_clients',       label: 'מרכז גבייה', afterSwitch: openCollectionCenter },
+  { id: 'p10-rfq',                tab: 'beauty_rfq',           label: 'פניות ותוכניות טיפול' },
 
   // עמ' 11 — "אתר עסק וחנות מקוונת" (עמוד ציבורי נפרד, לא טאב בממשק הניהול)
-  { id: 'p11-storefront',      publicUrl: true,             label: 'אתר עסק ציבורי' },
+  { id: 'p11-storefront',         publicUrl: true,             label: 'אתר עסק ציבורי' },
 
-  // עמ' 12 — "בקרה ודוחות"
-  { id: 'p12-reports',         tab: 'reports',              label: 'דוחות' },
+  // עמ' 12 — "בקרה ודוחות": דווקא לוח הבקרה הראשי (KPIs + התראות בזמן אמת) — לא טאב "דוחות" הכללי
+  { id: 'p12-dashboard-kpis',     tab: 'feed',                 label: 'לוח בקרה — KPIs ודוחות' },
 
   // עמ' 13 — "חיבור לקהילות"
-  { id: 'p13-biz-ads',         tab: 'biz-ads',              label: 'פרסום לקהילות' },
+  { id: 'p13-biz-ads',            tab: 'biz-ads',              label: 'פרסום לקהילות' },
 ];
 
 // ------------------------------------------------------------------
@@ -131,6 +140,26 @@ async function openFirstBeautyClient(page) {
     if (firstCard) firstCard.click();
   });
   await page.waitForTimeout(1200);
+}
+
+// פותח את כרטיס הלקוחה הראשונה ועובר לטאב פנימי ספציפי בתוכו (details/appts/beauty/sub/collection)
+async function openClientCardTab(page, tabName) {
+  await openFirstBeautyClient(page);
+  await page.evaluate((t) => {
+    if (typeof window._bcmTab === 'function' && window._bcmData && window._bcmData.clientId) {
+      window._bcmTab(t, window._bcmData.clientId);
+    }
+  }, tabName).catch(() => {});
+  await page.waitForTimeout(900);
+}
+
+// פותח את מודל "קביעת תור חדש" (בחירת שירות/מטפלת/משאב) מעל היומן
+async function openNewAppointmentModal(page) {
+  await page.waitForTimeout(500);
+  await page.evaluate(() => {
+    if (typeof window._beautyNewApModal === 'function') window._beautyNewApModal();
+  }).catch(() => {});
+  await page.waitForTimeout(1000);
 }
 
 async function openCollectionCenter(page) {
