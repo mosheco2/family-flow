@@ -1127,6 +1127,17 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
           resolution_notes TEXT,
           created_at TIMESTAMP DEFAULT NOW()
       )`); } catch(e) {}
+      // השאלת ציוד ללקוחות/חברים — פיצ'ר חדש, לא היה קיים כלל
+      try { await client.query(`CREATE TABLE IF NOT EXISTS equipment_loans (
+          id SERIAL PRIMARY KEY,
+          equipment_id INT REFERENCES equipment_items(id) ON DELETE CASCADE,
+          group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+          borrower_name VARCHAR(100) NOT NULL,
+          borrower_phone VARCHAR(30),
+          loaned_at TIMESTAMP DEFAULT NOW(),
+          returned_at TIMESTAMP,
+          notes TEXT
+      )`); } catch(e) {}
 
       try { await client.query(`CREATE TABLE IF NOT EXISTS equipment_fault_notes (
           id SERIAL PRIMARY KEY,
@@ -23856,6 +23867,58 @@ app.post('/api/equipment/notifications/check/:groupId', verifyBiz, async (req, r
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// ─── Equipment Loans (feature build — previously there was no way to loan equipment to a customer/member) ───
+app.get('/api/equipment/loans/:groupId', verifyBiz, async (req, res) => {
+    try {
+        const r = await pool.query(
+            `SELECT el.*, ei.name as equipment_name FROM equipment_loans el
+             JOIN equipment_items ei ON ei.id=el.equipment_id
+             WHERE el.group_id=$1 AND el.returned_at IS NULL ORDER BY el.loaned_at DESC`,
+            [req.bizAuth.groupId]);
+        res.json({ success: true, loans: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/equipment/loans', verifyBiz, async (req, res) => {
+    try {
+        const { equipmentId, borrowerName, borrowerPhone, notes } = req.body;
+        const groupId = req.bizAuth.groupId;
+        if (!equipmentId || !borrowerName) return res.status(400).json({ error: 'ציוד ושם לקוח חובה' });
+        const existing = await pool.query('SELECT id FROM equipment_loans WHERE equipment_id=$1 AND returned_at IS NULL', [equipmentId]);
+        if (existing.rows.length) return res.status(400).json({ error: 'הפריט כבר מושאל כרגע' });
+        const r = await pool.query(
+            `INSERT INTO equipment_loans (equipment_id,group_id,borrower_name,borrower_phone,notes) VALUES ($1,$2,$3,$4,$5) RETURNING *`,
+            [equipmentId, groupId, borrowerName, borrowerPhone||'', notes||'']);
+        res.json({ success: true, loan: r.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/equipment/loans/:id/return', verifyBiz, async (req, res) => {
+    try {
+        const r = await pool.query(
+            `UPDATE equipment_loans SET returned_at=NOW() WHERE id=$1 AND group_id=$2 AND returned_at IS NULL RETURNING *`,
+            [req.params.id, req.bizAuth.groupId]);
+        if (!r.rows.length) return res.status(404).json({ error: 'לא נמצאה השאלה פעילה' });
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── Equipment cost summary report (feature build — previously only per-item history existed, no business-wide total) ───
+app.get('/api/equipment/costs/:groupId', verifyBiz, async (req, res) => {
+    try {
+        const groupId = req.bizAuth.groupId;
+        const [byMonth, total] = await Promise.all([
+            pool.query(
+                `SELECT TO_CHAR(COALESCE(completed_date,scheduled_date),'YYYY-MM') as month, SUM(cost) as total, COUNT(*) as count
+                 FROM equipment_maintenance WHERE group_id=$1 AND cost IS NOT NULL AND cost > 0
+                 AND COALESCE(completed_date,scheduled_date) >= CURRENT_DATE - INTERVAL '6 months'
+                 GROUP BY month ORDER BY month`, [groupId]),
+            pool.query(`SELECT COALESCE(SUM(cost),0) as total FROM equipment_maintenance WHERE group_id=$1 AND cost IS NOT NULL AND completed_date >= CURRENT_DATE - INTERVAL '12 months'`, [groupId])
+        ]);
+        res.json({ success: true, byMonth: byMonth.rows, totalLast12Months: parseFloat(total.rows[0]?.total || 0) });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // ===== BUSINESS TYPE & LICENSING ENDPOINTS =====
 
 app.patch('/api/groups/:id/business-settings', async (req, res) => {
@@ -25537,12 +25600,19 @@ app.post('/api/sport/store-settings', async (req, res) => {
 // Members
 app.get('/api/sport/members/:groupId', async (req, res) => {
     try {
-        const { search, status } = req.query;
+        const { status } = req.query;
+        const search = req.query.search || req.query.q; // הממשק שולח q, השרת ציפה ל-search בלבד — תמיכה בשניהם
         let q = `SELECT sm.*, smt.name as type_name, smt.color as type_color, smt.type as type_kind
                  FROM sport_memberships sm LEFT JOIN sport_membership_types smt ON sm.membership_type_id=smt.id
                  WHERE sm.group_id=$1`;
         const params = [req.params.groupId];
-        if (status && status !== 'all') { q += ` AND sm.status=$${params.length+1}`; params.push(status); }
+        if (status === 'expiring') {
+            // "עומד לפוג" אינו ערך סטטוס אמיתי בטבלה — מדובר במנוי פעיל שתאריך הסיום שלו קרוב, לא סטטוס נפרד
+            q += ` AND sm.status='active' AND sm.end_date IS NOT NULL AND sm.end_date BETWEEN CURRENT_DATE AND CURRENT_DATE + $${params.length+1}`;
+            params.push(SPORT_MEMBERSHIP_EXPIRING_SOON_DAYS);
+        } else if (status && status !== 'all') {
+            q += ` AND sm.status=$${params.length+1}`; params.push(status);
+        }
         if (search) { q += ` AND (sm.member_name ILIKE $${params.length+1} OR sm.member_phone ILIKE $${params.length+1})`; params.push(`%${search}%`); }
         q += ' ORDER BY sm.created_at DESC';
         const r = await pool.query(q, params);

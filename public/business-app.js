@@ -58,6 +58,8 @@ let currentUser = null; let currentGroup = null; let pollInterval = null; let sa
 let membersCache = []; let shoppingListCache = []; let wisdomCache = {};
 let bundlesCache = []; let allBundles = []; let pantryCache = [];
 let allTasks = []; let allTransactions = []; let feedCache = [];
+// זיהוי משימה שהיא בעצם משמרת (כותרת מתחילה ב-SHIFT|) — פונקציית עזר משותפת במקום בדיקה חוזרת בעשרות מקומות
+function isShiftTask(t) { return !!(t && t.title && t.title.indexOf('SHIFT|') === 0); }
 let forecastCache = { startingBalance: 0, items: [] };
 let currentVerifyTaskId = null; let currentVerifyTaskTitle = null; let currentWrongAnswers = [];
 let forecastRatioChart = null;
@@ -4651,7 +4653,7 @@ window.renderEmployeeTodo = function() {
     let hasItems = false; let htmlStr = '';
     const myTasks = allTasks.filter(t => String(t.assigned_to) === String(currentUser.id) && t.status === 'pending');
     myTasks.forEach(t => {
-        if(t.title && t.title.startsWith('SHIFT|')) return;
+        if(isShiftTask(t)) return;
         hasItems = true; let dMsg = ''; if (t.deadline) { const diff = Math.ceil((new Date(t.deadline) - new Date()) / (1000 * 60 * 60 * 24)); dMsg = diff > 0 ? ` • <span class="text-orange-500">נותרו ${diff} ימ'</span>` : ` • <span class="text-red-500 font-bold">חריגה!</span>`; }
         const dateStr = t.created_at ? new Date(t.created_at).toLocaleDateString('he-IL') : '';
         
@@ -4688,7 +4690,7 @@ window.submitTaskApproval = async function() {
 window.renderTasks = function(tasks) {
     const list = getEl('tasks-list'); if(!list) return; let htmlStr = ''; let count = 0;
     tasks.forEach(t => {
-        if(t.title && t.title.startsWith('SHIFT|')) return;
+        if(isShiftTask(t)) return;
         const isMyTask = String(t.assigned_to) === String(currentUser.id); const isAdmin = currentUser.role === 'ADMIN'; if (!isMyTask && !isAdmin) return; count++;
         
         let isSop = false;
@@ -4886,7 +4888,7 @@ async function renderShifts() {
     await _loadShiftTemplates();
     renderShiftTemplatesMgr();
     const isAdmin = currentUser.role === 'ADMIN';
-    const shiftTasks = allTasks.filter(t => t.title && t.title.startsWith('SHIFT|'));
+    const shiftTasks = allTasks.filter(t => isShiftTask(t));
     const visible = shiftTasks.filter(t => isAdmin || String(t.assigned_to) === String(currentUser.id));
     const list = getEl('shifts-list'); if(!list) return;
 
@@ -4940,7 +4942,8 @@ function renderShiftDaily(shifts) {
         const isPending = t.status === 'pending';
         let actions = '';
         if(isAdmin && isPending) actions = `<button onclick="updateTask(${t.id},'approved')" class="bg-indigo-600 text-white px-3 py-1 rounded-lg text-xs font-bold">✓ אשר</button> <button onclick="deleteTask(${t.id})" class="bg-red-50 text-red-500 px-3 py-1 rounded-lg text-xs font-bold">✗ סרב</button>`;
-        if(isAdmin) actions += ` <button onclick="deleteTask(${t.id})" class="text-slate-300 hover:text-red-500 mr-1"><i class="fa-solid fa-trash text-xs"></i></button>`;
+        if(isAdmin) actions += ` <button onclick="editShiftTask(${t.id})" class="text-slate-300 hover:text-indigo-500 mr-1" title="ערוך משמרת"><i class="fa-solid fa-pen text-xs"></i></button> <button onclick="deleteTask(${t.id})" class="text-slate-300 hover:text-red-500 mr-1"><i class="fa-solid fa-trash text-xs"></i></button>`;
+        else if (String(t.assigned_to) === String(currentUser.id)) actions += ` <button onclick="deleteTask(${t.id})" class="text-slate-300 hover:text-red-500 mr-1" title="בטל שיבוץ"><i class="fa-solid fa-trash text-xs"></i></button>`;
         html += `<div class="bg-white p-3 rounded-2xl border ${isPending ? 'border-orange-200' : 'border-slate-100'} shadow-sm flex justify-between items-center mb-2">
           <div class="flex items-center gap-3">
             <div class="w-10 h-10 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-xs font-black">${start.slice(0,5)}</div>
@@ -4989,6 +4992,7 @@ function renderShiftWeekly(shifts) {
                   </div>
                   <div class="flex items-center gap-1">
                     ${isPending && isAdmin ? `<button onclick="updateTask(${t.id},'approved')" class="text-[10px] bg-indigo-600 text-white px-2 py-0.5 rounded-full font-bold">אשר</button><button onclick="deleteTask(${t.id})" class="text-[10px] text-red-400 hover:text-red-600">✗</button>` : ''}
+                    ${isAdmin ? `<button onclick="editShiftTask(${t.id})" class="text-[10px] text-slate-300 hover:text-indigo-500" title="ערוך"><i class="fa-solid fa-pen"></i></button><button onclick="deleteTask(${t.id})" class="text-[10px] text-slate-300 hover:text-red-500" title="מחק"><i class="fa-solid fa-trash"></i></button>` : (String(t.assigned_to)===String(currentUser.id) ? `<button onclick="deleteTask(${t.id})" class="text-[10px] text-slate-300 hover:text-red-500" title="בטל שיבוץ"><i class="fa-solid fa-trash"></i></button>` : '')}
                     ${!isPending ? '<span class="text-[10px] text-green-500">✓</span>' : ''}
                   </div>
                 </div>`;
@@ -5005,6 +5009,7 @@ function openShiftModal() {
     if(!getEl('shift-modal')) return;
     getEl('shift-modal').classList.remove('hidden');
     window._selectedShiftTplId = null;
+    window._editingShiftId = null;
     // populate employee selector
     const userSel = getEl('shift-user');
     if(userSel) {
@@ -5025,6 +5030,23 @@ function openShiftModal() {
     });
 }
 
+// עריכת משמרת קיימת — פותח את אותו מודל שיבוץ, ממולא מראש בנתוני המשמרת
+window.editShiftTask = function(taskId) {
+    const t = (allTasks || []).find(x => x.id === taskId);
+    if (!t || !isShiftTask(t)) return;
+    const parts = t.title.split('|');
+    openShiftModal();
+    window._editingShiftId = taskId;
+    setTimeout(() => {
+        const dateEl = getEl('shift-date'); if (dateEl) dateEl.value = parts[1] || '';
+        const userEl = getEl('shift-user'); if (userEl) userEl.value = t.assigned_to;
+        const startEl = getEl('shift-start'); if (startEl) startEl.value = parts[2] || '';
+        const endEl = getEl('shift-end'); if (endEl) endEl.value = parts[3] || '';
+        window._selectedShiftTplId = 'custom';
+        const customRow = getEl('shift-hours-row'); if (customRow) customRow.classList.remove('hidden');
+    }, 50);
+};
+
 async function submitShift() {
     const date   = val('shift-date');
     const userId = val('shift-user');
@@ -5042,8 +5064,14 @@ async function submitShift() {
     if(!date || !start || !end || !userId) return showToast('error', 'נא למלא תאריך ושעות');
     const title  = `SHIFT|${date}|${start}|${end}${tplName ? '|'+tplName : ''}`;
     const status = currentUser.role === 'ADMIN' ? 'approved' : 'pending';
+    const editingId = window._editingShiftId;
     const btn = getEl('btn-submit-shift'); btn.disabled = true; btn.innerText = 'שומר...';
     try {
+        // "עריכת" משמרת קיימת — אין נתיב עדכון ישיר למשמרת מאושרת, אז מוחקים את הישנה ויוצרים חדשה במקומה כפעולה אחת מבחינת המשתמש/ת
+        if (editingId) {
+            await fetch(`${API}/tasks/update`, { method:'POST', headers:{'Content-Type':'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : ''}, body:JSON.stringify({ taskId: editingId, status: 'deleted' }) });
+            window._editingShiftId = null;
+        }
         const res = await fetch(`${API}/tasks`, { method:'POST', headers:{'Content-Type':'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : ''}, body:JSON.stringify({ title, reward:0, assignedTo:userId, days:null, status }) });
         const d = await res.json();
         if (!d.success) { showToast('error', d.error || 'שגיאה בשמירת המשמרת'); return; }
@@ -5539,7 +5567,7 @@ window.renderDashboard = async function(forceRefresh = false) {
                 // Get today's scheduled shifts from tasks with "SHIFT|" prefix
                 const todayDateStr = now.toISOString().split('T')[0];
                 const todayShifts = (allTasks || []).filter(t =>
-                    t.title && t.title.startsWith('SHIFT|') &&
+                    isShiftTask(t) &&
                     t.title.includes(todayDateStr) &&
                     (t.status === 'approved' || t.status === 'completed')
                 );
@@ -5889,7 +5917,7 @@ async function renderUrgentItems() {
             // Get today's scheduled shifts from tasks with "SHIFT|" prefix
             const todayDateStr = now.toISOString().split('T')[0];
             const todayShifts = (allTasks || []).filter(t =>
-                t.title && t.title.startsWith('SHIFT|') &&
+                isShiftTask(t) &&
                 t.title.includes(todayDateStr) &&
                 (t.status === 'approved' || t.status === 'completed')
             );
@@ -6233,7 +6261,7 @@ function buildAndRenderFeed() {
 
     if(Array.isArray(allTasks)) {
         allTasks.forEach(t => {
-            if(t.title && !t.title.startsWith('SHIFT|')) {
+            if(t.title && !isShiftTask(t)) {
                 const statusLabel = t.status === 'pending' ? 'פתוח' : (t.status === 'done' ? 'ממתין לאישור' : 'הושלם');
                 
                 let displayTitle = t.title || 'ללא שם';
@@ -8043,7 +8071,7 @@ async function open360Report(groupId) {
             users: membersCache,
             transactions: (allTransactions || []).filter(t => { const d = new Date(t.date); return (Date.now() - d) < 30*24*60*60*1000; }),
             tasksSummary: (() => {
-                const counts = {}; (allTasks || []).forEach(t => { if(!t.title?.startsWith('SHIFT|')) { counts[t.status] = (counts[t.status]||0)+1; } });
+                const counts = {}; (allTasks || []).forEach(t => { if(!isShiftTask(t)) { counts[t.status] = (counts[t.status]||0)+1; } });
                 return Object.entries(counts).map(([status, count]) => ({status, count}));
             })()
         };
@@ -35714,6 +35742,7 @@ let equipmentTechnicians = [];
 let equipmentFaultNotes = {};
 let equipmentMaintenanceFilter = 'all';
 let equipmentFaultsFilter = 'all';
+let equipmentLoans = [];
 
 function switchEquipmentTab(tab) {
     ['items','maintenance','faults','technicians'].forEach(t => {
@@ -35733,10 +35762,54 @@ function switchEquipmentTab(tab) {
 
 async function loadEquipment() {
     if (!currentGroup) return;
-    await Promise.all([fetchEquipmentItems(), fetchEquipmentMaintenance(), fetchEquipmentFaults(), fetchEquipmentTechnicians()]);
+    await Promise.all([fetchEquipmentItems(), fetchEquipmentMaintenance(), fetchEquipmentFaults(), fetchEquipmentTechnicians(), fetchEquipmentLoans()]);
     switchEquipmentTab('items');
     checkEquipmentNotifications();
+    fetchEquipmentCostSummary();
 }
+
+async function fetchEquipmentCostSummary() {
+    const el = getEl('eq-cost-summary'); if (!el) return;
+    try {
+        const res = await fetch(`${API}/equipment/costs/${currentGroup.id}`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } });
+        const data = await res.json();
+        if (!data.success) return;
+        el.textContent = `💰 סה"כ עלות תחזוקת ציוד ב-12 החודשים האחרונים: ₪${data.totalLast12Months.toLocaleString('he-IL', {maximumFractionDigits:0})}`;
+        el.classList.remove('hidden');
+    } catch(e) {}
+}
+
+async function fetchEquipmentLoans() {
+    try {
+        const res = await fetch(`${API}/equipment/loans/${currentGroup.id}`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } });
+        const data = await res.json();
+        if (data.success) equipmentLoans = data.loans;
+    } catch(e) {}
+}
+
+window._eqLoanItem = async function(itemId) {
+    const name = await window._uiPrompt('שם הלקוח/ה שמשאיל/ה את הציוד:'); if (!name) return;
+    const phone = await window._uiPrompt('טלפון (אופציונלי):', { defaultValue: '' });
+    try {
+        const res = await fetch(`${API}/equipment/loans`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' },
+            body: JSON.stringify({ equipmentId: itemId, borrowerName: name.trim(), borrowerPhone: (phone||'').trim() })
+        });
+        const d = await res.json();
+        if (!d.success) { showToast('error', d.error || 'שגיאה'); return; }
+        showToast('success', 'הציוד סומן כמושאל');
+        await fetchEquipmentLoans(); renderEquipmentItems();
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
+window._eqReturnLoan = async function(loanId) {
+    if (!await window._uiConfirm('לסמן את הציוד כהוחזר?')) return;
+    try {
+        await fetch(`${API}/equipment/loans/${loanId}/return`, { method: 'POST', headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } });
+        showToast('success', 'הציוד הוחזר');
+        await fetchEquipmentLoans(); renderEquipmentItems();
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
 
 async function checkEquipmentNotifications() {
     try {
@@ -35814,6 +35887,7 @@ function renderEquipmentItems() {
         const stLabel = EQ_STATUS_LABELS[item.status] || item.status;
         const mCount = equipmentMaintenance.filter(m => m.equipment_id === item.id && m.status !== 'completed').length;
         const fCount = equipmentFaults.filter(f => f.equipment_id === item.id && f.status !== 'resolved').length;
+        const activeLoan = equipmentLoans.find(l => l.equipment_id === item.id);
         let warrantyHtml = '';
         if (item.warranty_expiry) {
             const exp = new Date(item.warranty_expiry);
@@ -35834,10 +35908,14 @@ function renderEquipmentItems() {
                     <div class="flex gap-2 mt-2 flex-wrap">
                         ${mCount > 0 ? `<span class="text-[10px] text-amber-600 font-bold bg-amber-50 px-2 py-0.5 rounded-full border border-amber-100"><i class="fa-solid fa-wrench ml-1"></i>${mCount} תחזוקה</span>` : ''}
                         ${fCount > 0 ? `<span class="text-[10px] text-red-600 font-bold bg-red-50 px-2 py-0.5 rounded-full border border-red-100"><i class="fa-solid fa-triangle-exclamation ml-1"></i>${fCount} תקלות</span>` : ''}
+                        ${activeLoan ? `<span class="text-[10px] text-violet-600 font-bold bg-violet-50 px-2 py-0.5 rounded-full border border-violet-100"><i class="fa-solid fa-hand-holding ml-1"></i>מושאל ל${safeStr(activeLoan.borrower_name)}</span>` : ''}
                     </div>
                 </div>
                 <div class="flex gap-2 mr-2 shrink-0">
                     <button onclick="openEquipmentHistory(${item.id})" title="היסטוריית טיפול" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-50 hover:bg-indigo-50 transition text-slate-400 hover:text-indigo-600"><i class="fa-solid fa-clock-rotate-left text-xs"></i></button>
+                    ${activeLoan
+                        ? `<button onclick="window._eqReturnLoan(${activeLoan.id})" title="סמן כהוחזר" class="w-8 h-8 flex items-center justify-center rounded-full bg-violet-50 hover:bg-violet-100 transition text-violet-500"><i class="fa-solid fa-rotate-left text-xs"></i></button>`
+                        : `<button onclick="window._eqLoanItem(${item.id})" title="השאל ללקוח/ה" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-50 hover:bg-violet-50 transition text-slate-400 hover:text-violet-500"><i class="fa-solid fa-hand-holding text-xs"></i></button>`}
                     <button onclick="openEquipmentItemModal(${item.id})" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-50 hover:bg-slate-100 transition text-slate-500"><i class="fa-solid fa-pen text-xs"></i></button>
                     <button onclick="deleteEquipmentItem(${item.id})" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-50 hover:bg-red-50 transition text-slate-400 hover:text-red-500"><i class="fa-solid fa-trash text-xs"></i></button>
                 </div>
@@ -37363,13 +37441,13 @@ function roleTodayWidget() {
     const today = new Date().toDateString();
     const todayStr = new Date().toISOString().split('T')[0];
     const tasks = (allTasks || []).filter(t =>
-        !t.title?.startsWith('SHIFT|') &&
+        !isShiftTask(t) &&
         (!t.assigned_to || t.assigned_to == currentUser.id) &&
         t.status !== 'done' && t.status !== 'deleted' &&
         t.due_date && new Date(t.due_date).toDateString() === today
     ).slice(0, 4);
     const shifts = (allTasks || []).filter(t =>
-        t.title?.startsWith('SHIFT|') && t.title.includes(todayStr) &&
+        isShiftTask(t) && t.title.includes(todayStr) &&
         (!t.assigned_to || t.assigned_to == currentUser.id)
     ).slice(0, 2);
     const total = tasks.length + shifts.length;
@@ -37423,7 +37501,7 @@ function roleFullMenuBtn() {
 // --- 1. Salesperson Dashboard ---
 async function renderSalespersonDashboard(el) {
     let tasks = [], customers = [];
-    tasks = (allTasks||[]).filter(t => !t.title?.startsWith('SHIFT|') && (!t.assigned_to || t.assigned_to == currentUser.id) && t.status !== 'done').slice(0,5);
+    tasks = (allTasks||[]).filter(t => !isShiftTask(t) && (!t.assigned_to || t.assigned_to == currentUser.id) && t.status !== 'done').slice(0,5);
     try { const r = await fetch(`/api/store/customers/${currentGroup.id}`); const d = await r.json(); customers = (d.customers||[]).slice(0,3); } catch(e) {}
 
     const tasksHtml = tasks.length ? tasks.map(t => `<div class="flex items-center gap-3 py-2.5 border-b border-slate-50 last:border-0">
@@ -37478,7 +37556,7 @@ async function renderFieldTechDashboard(el) {
     }
     let faults = [], tasks = [];
     try { const r = await fetch(`/api/equipment/faults/${currentGroup.id}`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } }); const d = await r.json(); faults = (d.faults||[]).filter(f => f.status !== 'resolved').slice(0,5); } catch(e) {}
-    tasks = (allTasks||[]).filter(t => !t.title?.startsWith('SHIFT|') && (!t.assigned_to || t.assigned_to == currentUser.id) && t.status !== 'done').slice(0,4);
+    tasks = (allTasks||[]).filter(t => !isShiftTask(t) && (!t.assigned_to || t.assigned_to == currentUser.id) && t.status !== 'done').slice(0,4);
 
     const faultColors = {low:'bg-green-100 text-green-700', medium:'bg-yellow-100 text-yellow-700', high:'bg-orange-100 text-orange-700', critical:'bg-red-100 text-red-700'};
     const faultLabels = {open:'פתוחה', in_progress:'בטיפול', pending_parts:'ממתין לחלקים'};
@@ -38518,7 +38596,7 @@ async function renderWarehouseDashboard(el) {
 // --- 5. Cleaner Dashboard ---
 async function renderCleanerDashboard(el) {
     let tasks = [];
-    tasks = (allTasks||[]).filter(t => !t.title?.startsWith('SHIFT|') && (!t.assigned_to || t.assigned_to == currentUser.id)).slice(0,8);
+    tasks = (allTasks||[]).filter(t => !isShiftTask(t) && (!t.assigned_to || t.assigned_to == currentUser.id)).slice(0,8);
 
     const done = tasks.filter(t => t.status === 'done').length;
     const total = tasks.length;
@@ -38565,7 +38643,7 @@ async function renderBeautyStaffDashboard(el, roleType) {
     };
     const cfg = CONFIG[roleType] || CONFIG.therapist;
 
-    let tasks = (allTasks||[]).filter(t => !t.title?.startsWith('SHIFT|') && (!t.assigned_to || t.assigned_to == currentUser.id) && t.status !== 'done').slice(0,6);
+    let tasks = (allTasks||[]).filter(t => !isShiftTask(t) && (!t.assigned_to || t.assigned_to == currentUser.id) && t.status !== 'done').slice(0,6);
     const tasksHtml = tasks.length ? tasks.map(t => `<div class="flex items-center gap-3 py-2.5 border-b border-slate-50 last:border-0">
         <button onclick="completeTaskQuick(${t.id},this)" class="w-6 h-6 rounded-full border-2 border-pink-300 shrink-0 flex items-center justify-center text-xs transition"></button>
         <span class="text-sm text-slate-700 flex-1 truncate">${safeStr(t.title)}</span>
@@ -40230,8 +40308,8 @@ async function renderWaiterDashboard(el) {
     } catch(e) {}
 
     const todayStr = new Date().toISOString().split('T')[0];
-    const myShifts = (allTasks||[]).filter(t => t.title?.startsWith('SHIFT|') && t.title.includes(todayStr) && (!t.assigned_to || t.assigned_to == currentUser.id)).slice(0,2);
-    const myTasks  = (allTasks||[]).filter(t => !t.title?.startsWith('SHIFT|') && (!t.assigned_to || t.assigned_to == currentUser.id) && t.status !== 'done').slice(0,5);
+    const myShifts = (allTasks||[]).filter(t => isShiftTask(t) && t.title.includes(todayStr) && (!t.assigned_to || t.assigned_to == currentUser.id)).slice(0,2);
+    const myTasks  = (allTasks||[]).filter(t => !isShiftTask(t) && (!t.assigned_to || t.assigned_to == currentUser.id) && t.status !== 'done').slice(0,5);
 
     const shiftHtml = myShifts.length ? myShifts.map(t => {
         const p = t.title.split('|');
@@ -40674,7 +40752,7 @@ window.openAdminKDSPanel = async function() {
 
 // --- 11. Cook Dashboard (מסעדה / ייצור מזון) ---
 async function renderCookDashboard(el) {
-    const myTasks = (allTasks||[]).filter(t => !t.title?.startsWith('SHIFT|') && (!t.assigned_to || t.assigned_to == currentUser.id) && t.status !== 'done').slice(0,6);
+    const myTasks = (allTasks||[]).filter(t => !isShiftTask(t) && (!t.assigned_to || t.assigned_to == currentUser.id) && t.status !== 'done').slice(0,6);
     let lowStock = [], kdsTickets = [];
     const todayLocal = new Date();
     const today = `${todayLocal.getFullYear()}-${String(todayLocal.getMonth()+1).padStart(2,'0')}-${String(todayLocal.getDate()).padStart(2,'0')}`;
@@ -44575,7 +44653,7 @@ async function renderProfessionalDashboard(el) {
     const tomorrow = new Date(now); tomorrow.setDate(tomorrow.getDate() + 1);
     const urgentTasks = (allTasks || []).filter(t => {
         if (!t.deadline || t.status !== 'pending') return false;
-        if (t.title && t.title.startsWith('SHIFT|')) return false;
+        if (isShiftTask(t)) return false;
         const dl = new Date(t.deadline); dl.setHours(0,0,0,0);
         return dl <= tomorrow;
     }).slice(0, 5);
