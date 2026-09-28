@@ -24666,6 +24666,25 @@ app.put('/api/work-orders/:id/notes', verifyBiz, async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// שיוך/הסרת תפריט לפקודת עבודה — לא היה קיים כלל בממשק, רק באירועים שנוצרו ישירות מתוך תפריט
+app.put('/api/work-orders/:id/menu', verifyBiz, async (req, res) => {
+    try {
+        const { menuTemplateId } = req.body;
+        const _wo = await pool.query('SELECT 1 FROM store_orders WHERE id=$1 AND group_id=$2 AND call_type=\'work_order\'', [req.params.id, req.bizAuth.groupId]);
+        if (!_wo.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
+        if (menuTemplateId) {
+            const _mt = await pool.query('SELECT name FROM menu_templates WHERE id=$1 AND group_id=$2', [menuTemplateId, req.bizAuth.groupId]);
+            if (!_mt.rows.length) return res.status(400).json({ error: 'תפריט לא נמצא' });
+            await pool.query('UPDATE store_orders SET menu_template_id=$1 WHERE id=$2', [menuTemplateId, req.params.id]);
+            await addWorkOrderTimeline(req.params.id, 'menu_assigned', `תפריט "${_mt.rows[0].name}" שויך לפקודה`, null);
+        } else {
+            await pool.query('UPDATE store_orders SET menu_template_id=NULL WHERE id=$1', [req.params.id]);
+            await addWorkOrderTimeline(req.params.id, 'menu_removed', 'שיוך התפריט הוסר', null);
+        }
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 app.get('/api/work-orders/:id/timeline', verifyBiz, async (req, res) => {
     try {
         const _wo = await pool.query('SELECT 1 FROM store_orders WHERE id=$1 AND group_id=$2 AND call_type=\'work_order\'', [req.params.id, req.bizAuth.groupId]);

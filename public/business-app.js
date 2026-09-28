@@ -2741,7 +2741,7 @@ function switchTab(t) {
         const footer = getEl('cart-footer'); if (footer) footer.classList.add('hidden'); 
         const fab = getEl('fab-container'); if(fab) fab.classList.remove('fab-lifted'); 
     } else if (t === 'shop') { 
-        try { renderShopList(); } catch(e) {} 
+        try { renderShopList(); } catch(e) { console.error('renderShopList failed:', e); } 
     } else if (t === 'pos') {
         const footer = getEl('cart-footer'); if (footer) footer.classList.add('hidden'); 
         const fab = getEl('fab-container'); if(fab) fab.classList.remove('fab-lifted'); 
@@ -2949,7 +2949,7 @@ async function loadDashboard() {
         try { if(typeof window.loadBusinessGallery === 'function') window.loadBusinessGallery(); } catch(e){}
         
         const dashGroupName = getEl('dash-group-name'); if(dashGroupName) dashGroupName.textContent = safeStr(currentGroup.name);
-        const headerOrgCode = document.getElementById('header-org-code'); if(headerOrgCode) headerOrgCode.textContent = currentGroup.group_code ? `קוד ארגון: ${currentGroup.group_code}` : '';
+        const headerOrgCode = document.getElementById('header-org-code'); if(headerOrgCode) headerOrgCode.textContent = currentGroup.group_code ? `קוד עסק: ${currentGroup.group_code}` : '';
         const dashNick = getEl('dash-nickname'); if(dashNick) dashNick.innerText = fmtUserName(currentUser) || currentUser.nickname; 
 
         // === תיקון סדר טאבים במובייל ובתפריט גלילה עליון: שליחויות מיד אחרי חנות ===
@@ -41552,6 +41552,14 @@ async function saToggleLicense(groupId, featureKey, isActive) {
         <p class="text-[10px] text-emerald-600 mb-1"><i class="fa-solid fa-champagne-glasses mr-1"></i>פרטי אירוע</p>
         <p id="wo-event-info-text" class="font-bold text-emerald-800 text-sm leading-snug"></p>
       </div>
+      <div class="bg-white rounded-2xl p-3 border border-slate-200 mb-3">
+        <p class="text-[10px] text-slate-500 mb-1.5"><i class="fa-solid fa-utensils mr-1"></i>תפריט משויך</p>
+        <div id="wo-menu-display" class="hidden font-bold text-slate-800 text-sm mb-2"></div>
+        <div class="flex gap-2">
+          <select id="wo-menu-select" class="modern-input flex-1 py-2 px-3 text-xs rounded-xl border border-slate-200 outline-none focus:border-indigo-400"><option value="">ללא תפריט</option></select>
+          <button onclick="window.saveWoMenu()" class="bg-indigo-600 text-white px-3 py-2 rounded-xl text-xs font-bold hover:bg-indigo-700 transition shrink-0">שייך</button>
+        </div>
+      </div>
       <div class="grid grid-cols-2 gap-3 mb-4">
         <div class="bg-slate-50 rounded-2xl p-3 border border-slate-100"><p class="text-[10px] text-slate-500 mb-1">לקוח</p><p id="wo-info-customer" class="font-bold text-slate-800 text-sm">—</p></div>
         <div class="bg-slate-50 rounded-2xl p-3 border border-slate-100"><p class="text-[10px] text-slate-500 mb-1">סכום</p><p id="wo-info-amount" class="font-black text-indigo-600 text-sm">—</p></div>
@@ -42171,6 +42179,22 @@ window.openWorkOrderModal = async function(woId) {
         if (cSel && cData.items) {
             cSel.innerHTML = '<option value="">בחר פריט</option>' + cData.items.map(i => `<option value="${i.id}" data-name="${safeStr(i.name)}" data-avail="${i.available_qty}">${safeStr(i.name)} (זמין: ${i.available_qty})</option>`).join('');
         }
+        // load menu templates for the menu-association dropdown
+        try {
+            const mRes = await fetch(`${API}/menu-templates`, { headers: { Authorization: `Bearer ${window._bizToken}` } });
+            const mData = await mRes.json();
+            const menuTemplates = Array.isArray(mData) ? mData : (mData.templates || []);
+            const mSel = document.getElementById('wo-menu-select');
+            if (mSel) {
+                mSel.innerHTML = '<option value="">ללא תפריט</option>' + menuTemplates.map(t => `<option value="${t.id}">${safeStr(t.name)}</option>`).join('');
+                mSel.value = wo.menu_template_id || '';
+            }
+            const mDisp = document.getElementById('wo-menu-display');
+            if (mDisp) {
+                if (wo.menu_template_name) { mDisp.textContent = wo.menu_template_name; mDisp.classList.remove('hidden'); }
+                else mDisp.classList.add('hidden');
+            }
+        } catch(e) { console.error('menu-templates fetch failed:', e); }
         window.switchWoTab('overview');
         // התאמת ממשק לסוג עסק מקצועי
         const isProfWo = currentGroup?.business_type === 'professional';
@@ -43141,6 +43165,27 @@ window.saveWoNotes = async function() {
         if (!data.success) return showToast('error', data.error);
         showToast('success', 'הערות נשמרו');
         document.getElementById('wo-notes-meta').textContent = `עודכן ע"י ${currentUser?.nickname || 'מנהל'}`;
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
+window.saveWoMenu = async function() {
+    const sel = document.getElementById('wo-menu-select');
+    const menuTemplateId = sel?.value || null;
+    try {
+        const res = await fetch(`${API}/work-orders/${window._currentWoId}/menu`, {
+            method: 'PUT', headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '', 'Content-Type': 'application/json' },
+            body: JSON.stringify({ menuTemplateId })
+        });
+        const data = await res.json();
+        if (!data.success) return showToast('error', data.error);
+        showToast('success', menuTemplateId ? 'התפריט שויך' : 'שיוך התפריט הוסר');
+        const mDisp = document.getElementById('wo-menu-display');
+        if (mDisp) {
+            const name = sel.options[sel.selectedIndex]?.textContent || '';
+            if (menuTemplateId) { mDisp.textContent = name; mDisp.classList.remove('hidden'); }
+            else mDisp.classList.add('hidden');
+        }
+        window.loadWoTimeline?.();
     } catch(e) { showToast('error', 'שגיאת תקשורת'); }
 };
 
