@@ -45477,15 +45477,53 @@ window._sportSaveAttendance = async function(classId, memberIds) {
 };
 
 window._sportRegisterToClass = async function(classId) {
-    const q=await window._uiPrompt('שם חבר לרישום:');
-    if(!q)return;
+    const modal=document.getElementById('sport-modal');
+    if(!modal)return;
+    const overlay=document.createElement('div');
+    overlay.id='sport-register-picker';
+    overlay.className='fixed inset-0 bg-black/40 z-[200] flex items-center justify-center p-4';
+    overlay.innerHTML=`<div class="bg-white rounded-2xl w-full max-w-sm max-h-[80vh] flex flex-col overflow-hidden">
+        <div class="p-4 border-b border-slate-100">
+            <h3 class="font-black text-slate-800 text-sm mb-2 text-right">הוספת נרשם/ת — בחירה מתוך לקוחות קיימים</h3>
+            <input id="sport-register-search" type="text" placeholder="חיפוש לפי שם..." dir="rtl" autofocus
+                class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm text-right bg-slate-50 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+                oninput="window._sportRegisterPickerSearch(${classId})"/>
+        </div>
+        <div id="sport-register-results" class="flex-1 overflow-y-auto p-3"><div class="text-center py-6 text-slate-400 text-sm">התחל/י להקליד שם לחיפוש</div></div>
+        <div class="p-3 border-t border-slate-100">
+            <button onclick="document.getElementById('sport-register-picker').remove()" class="w-full bg-slate-100 text-slate-700 font-bold py-2.5 rounded-xl text-sm">ביטול</button>
+        </div>
+    </div>`;
+    modal.appendChild(overlay);
+    document.getElementById('sport-register-search')?.focus();
+};
+
+window._sportRegisterPickerSearch = async function(classId) {
+    const q=(document.getElementById('sport-register-search')?.value||'').trim();
+    const el=document.getElementById('sport-register-results');
+    if(!el)return;
+    if(!q){el.innerHTML='<div class="text-center py-6 text-slate-400 text-sm">התחל/י להקליד שם לחיפוש</div>';return;}
     try{
         const members=(await fetch(`${API}/sport/members/${currentGroup.id}?q=${encodeURIComponent(q)}`).then(r=>r.json())).members||[];
-        if(!members.length){showToast('error','חבר לא נמצא');return;}
-        const m=members[0];
-        const d=await fetch(`${API}/sport/classes/${classId}/register`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({membershipId:m.id,memberName:m.member_name})}).then(r=>r.json());
+        if(!members.length){
+            el.innerHTML=`<div class="text-center py-6 text-slate-400 text-sm mb-3">לא נמצא לקוח/ה קיים/ת בשם "${safeStr(q)}"</div>
+                <button onclick="window.showSportAddMember()" class="w-full bg-indigo-600 text-white font-black py-2.5 rounded-xl text-sm">פתיחת כרטיס לקוח חדש ➕</button>`;
+            return;
+        }
+        el.innerHTML=members.map(m=>`<button onclick="window._sportRegisterConfirm(${classId},${m.id},'${jsAttrStr(m.member_name)}')"
+            class="w-full flex items-center justify-between bg-slate-50 hover:bg-indigo-50 rounded-xl p-3 mb-2 text-right transition">
+            <span class="text-slate-400 text-xs">${m.status==='active'?'':'⚠️ '+safeStr(m.status||'')}</span>
+            <span class="font-bold text-slate-800 text-sm">${safeStr(m.member_name||'')}</span>
+        </button>`).join('');
+    }catch(e){el.innerHTML='<div class="text-center py-6 text-red-400 text-sm">שגיאת תקשורת</div>';}
+};
+
+window._sportRegisterConfirm = async function(classId, membershipId, memberName) {
+    document.getElementById('sport-register-picker')?.remove();
+    try{
+        const d=await fetch(`${API}/sport/classes/${classId}/register`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({membershipId,memberName})}).then(r=>r.json());
         if(!d.success){showToast('error',d.error||'שגיאה');return;}
-        showToast('success',`${m.member_name} נרשם/ה ✅`);
+        showToast('success',`${memberName} נרשם/ה ✅`);
         window.showSportClassDetail(classId);
     }catch(e){showToast('error','שגיאת תקשורת');}
 };
