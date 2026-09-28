@@ -2425,12 +2425,12 @@ function _buildReportsHTML(data, bType, period) {
                 }).join('')}
             </div>`;
         }
-        if ((s.churnByMonth||[]).length) {
-            html += `<div class="bg-white rounded-2xl border border-slate-100 p-4 shadow-sm mb-4">
-                <div class="font-bold text-slate-700 text-sm mb-3">נטישה לפי חודש</div>
-                ${s.churnByMonth.map(c=>{const[y,mo]=c.month.split('-');return `<div class="flex justify-between items-center py-1.5 border-b border-slate-50 last:border-0"><span class="text-sm text-red-500 font-black">${c.count}</span><span class="text-xs text-slate-500">${mo}/${y}</span></div>`;}).join('')}
-            </div>`;
-        }
+        html += `<div class="bg-white rounded-2xl border border-slate-100 p-4 shadow-sm mb-4">
+            <div class="font-bold text-slate-700 text-sm mb-3">נטישה לפי חודש</div>
+            ${(s.churnByMonth||[]).length
+                ? s.churnByMonth.map(c=>{const[y,mo]=c.month.split('-');return `<div class="flex justify-between items-center py-1.5 border-b border-slate-50 last:border-0"><span class="text-sm text-red-500 font-black">${c.count}</span><span class="text-xs text-slate-500">${mo}/${y}</span></div>`;}).join('')
+                : `<div class="text-center py-4 text-slate-400 text-xs">אין עדיין נתוני נטישה — הדוח יתמלא כאשר מנויים יפוגו או יבוטלו</div>`}
+        </div>`;
     }
 
     // יופי / קוסמטיקה
