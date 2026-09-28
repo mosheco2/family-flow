@@ -25523,7 +25523,7 @@ app.get('/api/sport/dashboard/:groupId', async (req, res) => {
         const today = new Date().toISOString().split('T')[0];
         const [activeRes, expiringRes, checkinsTodayRes, currentlyInRes, atRiskRes] = await Promise.all([
             pool.query(`SELECT COUNT(*) FROM sport_memberships WHERE group_id=$1 AND status='active'`, [gid]),
-            pool.query(`SELECT COUNT(*) FROM sport_memberships WHERE group_id=$1 AND status='active' AND end_date IS NOT NULL AND end_date BETWEEN CURRENT_DATE AND CURRENT_DATE+$2`, [gid, SPORT_MEMBERSHIP_EXPIRING_SOON_DAYS]),
+            pool.query(`SELECT COUNT(*) FROM sport_memberships WHERE group_id=$1 AND status='active' AND end_date IS NOT NULL AND end_date BETWEEN CURRENT_DATE AND CURRENT_DATE+$2::int`, [gid, SPORT_MEMBERSHIP_EXPIRING_SOON_DAYS]),
             pool.query(`SELECT COUNT(*) FROM sport_checkins WHERE group_id=$1 AND DATE(checked_in_at)=$2`, [gid, today]),
             pool.query(`SELECT COUNT(*) FROM sport_checkins WHERE group_id=$1 AND DATE(checked_in_at)=$2 AND checked_out_at IS NULL`, [gid, today]),
             pool.query(`SELECT COUNT(*) FROM sport_memberships WHERE group_id=$1 AND status='active' AND id NOT IN (SELECT DISTINCT membership_id FROM sport_checkins WHERE group_id=$1 AND checked_in_at >= CURRENT_DATE - 30 AND membership_id IS NOT NULL)`, [gid])
@@ -25608,7 +25608,7 @@ app.get('/api/sport/members/:groupId', async (req, res) => {
         const params = [req.params.groupId];
         if (status === 'expiring') {
             // "עומד לפוג" אינו ערך סטטוס אמיתי בטבלה — מדובר במנוי פעיל שתאריך הסיום שלו קרוב, לא סטטוס נפרד
-            q += ` AND sm.status='active' AND sm.end_date IS NOT NULL AND sm.end_date BETWEEN CURRENT_DATE AND CURRENT_DATE + $${params.length+1}`;
+            q += ` AND sm.status='active' AND sm.end_date IS NOT NULL AND sm.end_date BETWEEN CURRENT_DATE AND CURRENT_DATE + $${params.length+1}::int`;
             params.push(SPORT_MEMBERSHIP_EXPIRING_SOON_DAYS);
         } else if (status && status !== 'all') {
             q += ` AND sm.status=$${params.length+1}`; params.push(status);
