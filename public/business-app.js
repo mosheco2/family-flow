@@ -3951,7 +3951,7 @@ window.submitBalanceAdjustment = async function() {
 const _ROLE_TYPE_OPTIONS = {
     restaurant:   [{v:'waiter',label:'מלצר/ית'},{v:'cook',label:'טבח/ית'},{v:'cashier',label:'קופאי/ת'},{v:'delivery',label:'שליח/ה'},{v:'shift_manager',label:'אחמ"ש'},{v:'branch_manager',label:'מנהל/ת סניף'}],
     beauty:       [{v:'therapist',label:'מטפל/ת'},{v:'makeup_artist',label:'איפור'},{v:'nail_tech',label:'טכנאית ציפורניים'},{v:'reception',label:'קבלה'},{v:'branch_manager',label:'מנהל/ת סניף'}],
-    sport:        [{v:'field_tech',label:'מדריך/ה'},{v:'cashier',label:'קופאי/ת'},{v:'shift_manager',label:'אחמ"ש'},{v:'branch_manager',label:'מנהל/ת סניף'}],
+    sport:        [{v:'instructor',label:'מדריך/ה'},{v:'cashier',label:'קופאי/ת'},{v:'shift_manager',label:'אחמ"ש'},{v:'branch_manager',label:'מנהל/ת סניף'}],
     services:     [{v:'field_tech',label:'איש/ת שטח'},{v:'support',label:'תמיכה'},{v:'cashier',label:'קופאי/ת'},{v:'branch_manager',label:'מנהל/ת סניף'}],
     professional: [{v:'consultant',label:'יועץ/ת'},{v:'associate',label:'שותף/ה זוטר/ה'},{v:'partner',label:'שותף/ה'}],
     other:        [{v:'branch_manager',label:'מנהל/ת סניף'}],
@@ -20677,7 +20677,7 @@ function _renderWizardV2StepContent(stepName) {
             ],
             sport: [
                 { value: 'branch_manager', label: 'מנהל/ת סניף',  icon: 'fa-user-tie' },
-                { value: 'field_tech',     label: 'מדריך/ה',       icon: 'fa-dumbbell' },
+                { value: 'instructor',     label: 'מדריך/ה',       icon: 'fa-dumbbell' },
                 { value: 'cashier',        label: 'קופאי/ת',       icon: 'fa-cash-register' },
                 { value: 'shift_manager',  label: 'מנהל/ת משמרת',  icon: 'fa-clock' },
             ],
@@ -36718,6 +36718,7 @@ function sendFaultEmail(faultId) {
 const ROLE_TYPE_TABS = {
     salesperson:    ['pos','sales','customers','tasks','calendar','timeclock','shifts'],
     field_tech:     ['tasks','equipment','calendar','timeclock','shifts'],
+    instructor:     ['tasks','equipment','calendar','timeclock','shifts'],
     delivery:       ['deliveries','tasks','timeclock','shifts'],
     warehouse:      ['pantry','shop','tasks','timeclock','shifts'],
     cleaner:        ['tasks','timeclock','shifts'],
@@ -36778,6 +36779,7 @@ function getBizTerm(key) {
 const EMPLOYEE_ROLE_TYPES = [
     { id: 'salesperson',    name: 'איש מכירות',    icon: '💼', feature_key: 'role_salesperson',    price: 29, color: 'blue',    business_types: ['retail','services','construction','food_production','other'] },
     { id: 'field_tech',     name: 'טכנאי שטח',     icon: '🔧', feature_key: 'role_field_tech',     price: 29, color: 'orange',  business_types: ['maintenance_repair','construction','logistics','other'] },
+    { id: 'instructor',     name: 'מדריך/ה',       icon: '🏋️', feature_key: 'role_instructor',     price: 29, color: 'orange',  business_types: ['sport'] },
     { id: 'delivery',       name: 'שליח / נהג',    icon: '🛵', feature_key: 'role_delivery',       price: 19, color: 'green',   business_types: ['restaurant','retail','logistics','food_production','other'] },
     { id: 'warehouse',      name: 'מחסנאי',         icon: '📦', feature_key: 'role_warehouse',      price: 19, color: 'amber',   business_types: ['restaurant','retail','logistics','food_production','construction','other'] },
     { id: 'cleaner',        name: 'מנקה / אחזקה',  icon: '🧹', feature_key: 'role_cleaner',        price: 15, color: 'teal',    business_types: ['restaurant','retail','beauty','sport','events','other'] },
