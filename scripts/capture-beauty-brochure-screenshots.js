@@ -37,7 +37,7 @@ const BIZ_PASS = process.env.BIZ_PASS || '123456';
 // ------------------------------------------------------------------
 const SCREENS = [
   // עמ' 4 — "יום עבודה במערכת אחת": לוח הבקרה הראשי עם פאנל ההתראות בכניסה
-  { id: 'p04-dashboard',          tab: 'feed',              label: 'לוח בקרה ראשי + פאנל התראות' },
+  { id: 'p04-dashboard',          tab: 'feed',              label: 'לוח בקרה ראשי + פאנל התראות', afterSwitch: waitForBeautyAdminDashboard },
 
   // עמ' 5 — "יומן תורים": התצוגה היומית עם עמודה נפרדת לכל מטפלת
   { id: 'p05-calendar',           tab: 'beauty_calendar',   label: 'יומן תורים — תצוגה יומית' },
@@ -70,7 +70,7 @@ const SCREENS = [
   { id: 'p11-storefront',         publicUrl: true,             label: 'אתר עסק ציבורי' },
 
   // עמ' 12 — "בקרה ודוחות": דווקא לוח הבקרה הראשי (KPIs + התראות בזמן אמת) — לא טאב "דוחות" הכללי
-  { id: 'p12-dashboard-kpis',     tab: 'feed',                 label: 'לוח בקרה — KPIs ודוחות' },
+  { id: 'p12-dashboard-kpis',     tab: 'feed',                 label: 'לוח בקרה — KPIs ודוחות', afterSwitch: waitForBeautyAdminDashboard },
 
   // עמ' 13 — "חיבור לקהילות"
   { id: 'p13-biz-ads',            tab: 'biz-ads',              label: 'פרסום לקהילות' },
@@ -125,20 +125,41 @@ async function dismissOverlays(page) {
   await page.waitForTimeout(500);
 }
 
+// סוגר כל מודל/overlay פתוח משלב קודם (כרטיס לקוח, תור חדש, מרכז גבייה...) —
+// אחרת הוא נשאר צף מעל הטאב הבא ונתפס בטעות בצילום שלו
+async function closeAnyOpenModal(page) {
+  await page.evaluate(() => {
+    ['beauty-client-modal', 'beauty-collection-center'].forEach(id => {
+      const el = document.getElementById(id); if (el) el.remove();
+    });
+    document.querySelectorAll('.fixed.inset-0').forEach(el => {
+      const z = parseInt(getComputedStyle(el).zIndex || '0', 10);
+      if (z >= 100) el.remove();
+    });
+  }).catch(() => {});
+  await page.waitForTimeout(300);
+}
+
 async function switchTab(page, tabId) {
+  await closeAnyOpenModal(page);
   await page.evaluate((id) => {
     if (typeof window.switchTab === 'function') window.switchTab(id);
   }, tabId).catch(() => {});
   await page.waitForTimeout(1200);
 }
 
-// פותח את כרטיס הלקוחה הראשונה ברשימה (יש להריץ אחרי seed_vivi_beauty.js כדי שתהיה רשימה אמיתית)
+// פותח כרטיס לקוחה אמיתית וספציפית מתוך seed_vivi_beauty.js — לא "הראשונה ברשימה" סתם,
+// כי ייתכנו רשומות ישנות/טסט שקדמו לזריעת הנתונים ומכילות שדות ריקים
+const DEMO_CLIENT_NAME = process.env.DEMO_CLIENT_NAME || 'מאיה בן דוד';
 async function openFirstBeautyClient(page) {
   await page.waitForTimeout(800);
-  await page.evaluate(() => {
-    const firstCard = document.querySelector('[onclick^="window._beautyOpenClient("]');
-    if (firstCard) firstCard.click();
-  });
+  const clicked = await page.evaluate((name) => {
+    const cards = Array.from(document.querySelectorAll('[onclick^="window._beautyOpenClient("]'));
+    const match = cards.find(c => c.textContent && c.textContent.includes(name)) || cards[0];
+    if (match) { match.click(); return true; }
+    return false;
+  }, DEMO_CLIENT_NAME);
+  if (!clicked) console.warn(`⚠️  לא נמצאה לקוחה בשם "${DEMO_CLIENT_NAME}" — ודא ש-seed_vivi_beauty.js רץ קודם`);
   await page.waitForTimeout(1200);
 }
 
@@ -151,6 +172,18 @@ async function openClientCardTab(page, tabName) {
     }
   }, tabName).catch(() => {});
   await page.waitForTimeout(900);
+}
+
+// טאב "ראשי" למנהל/ת עסק יופי מציג את renderBeautyAdminDashboard (KPIs + התראות), לא את content-feed
+// הכללי — הוא נטען אסינכרונית וקצת אחרי switchTab, אז קוראים לו במפורש וממתינים שיסתיים
+async function waitForBeautyAdminDashboard(page) {
+  await page.evaluate(async () => {
+    const el = document.getElementById('content-role-dashboard');
+    if (el && typeof window.renderBeautyAdminDashboard === 'function') {
+      await window.renderBeautyAdminDashboard(el);
+    }
+  }).catch(() => {});
+  await page.waitForTimeout(1000);
 }
 
 // פותח את מודל "קביעת תור חדש" (בחירת שירות/מטפלת/משאב) מעל היומן
