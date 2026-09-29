@@ -4758,8 +4758,73 @@ app.post('/api/sa/ai-build-business', verifySA, async (req, res) => {
     const langStr = languages.includes('en') ? 'Hebrew AND English' : 'Hebrew only';
 
     const isSport = businessType === 'sport';
+    const isMaintenance = businessType === 'maintenance_repair';
 
-    const prompt = isSport ? `You are a business content generator for an Israeli fitness/sport studio platform.
+    const prompt = isMaintenance ? `You are a business content generator for an Israeli home/appliance maintenance & repair company platform.
+Generate a COMPLETE, realistic maintenance & repair business profile as valid JSON for:
+- Business name (Hebrew): ${businessName}
+- Business name (English): ${businessNameEn || businessName}
+- Style/vibe: ${style}
+- Target audience: ${audience}
+- Languages: ${langStr}
+
+MAINTENANCE & REPAIR BUSINESS RULES:
+1. catalog: Generate 5-8 realistic service categories (e.g. מיזוג אוויר, אינסטלציה, חשמל, מוצרי חשמל, נגרות) each with 2-4 "products" that are actually SERVICES or PARTS typical for an Israeli maintenance/repair company. Use realistic Israeli 2024 prices — a service call (קריאת שירות/אבחון) ≈ ₪150-250, small repair ≈ ₪200-450, part replacement ≈ ₪100-600, larger job (e.g. תיקון דוד שמש) ≈ ₪500-1200. options_text should stay empty string "" for services (no size/topping variants).
+2. promotions: 2-3 promotions relevant to a repair business (e.g. "10% הנחה על קריאה ראשונה", "אחריות 6 חודשים על כל תיקון").
+3. logo_prompt: SHORT English FLUX prompt for a maintenance/repair company logo icon (wrench, toolbox, or similar).
+4. banner_prompt: SHORT English FLUX prompt for a wide photo of a technician at work / toolbox scene.
+5. settings: since this is a service business (no delivery), set delivery_fee=0, min_order=0, free_delivery_above=0, and realistic open_time/close_time for a repair company (e.g. "08:00"/"18:00").
+
+Return ONLY valid JSON, no markdown fences:
+{
+  "profile": {
+    "name": "שם בעברית",
+    "name_en": "English name",
+    "slogan": "סלוגן בעברית",
+    "slogan_en": "English slogan",
+    "welcome_message": "הודעת ברוך הבא בעברית",
+    "welcome_message_en": "English welcome",
+    "accent_color": "#HEX matching a trustworthy/technical vibe (e.g. steel blue, orange)"
+  },
+  "settings": {
+    "delivery_fee": 0,
+    "min_order": 0,
+    "delivery_eta_min": 0,
+    "open_time": "08:00",
+    "close_time": "18:00",
+    "free_delivery_above": 0
+  },
+  "catalog": [
+    {
+      "category": "קטגוריית שירות בעברית",
+      "category_en": "English category name",
+      "products": [
+        {
+          "name": "שם השירות/חלק בעברית",
+          "name_en": "English service/part name",
+          "description": "תיאור קצר ועובדתי בעברית",
+          "description_en": "Short factual English description",
+          "price": 250,
+          "original_price": 0,
+          "badge_text": "",
+          "options_text": ""
+        }
+      ]
+    }
+  ],
+  "promotions": [
+    {
+      "title": "Hebrew promo title",
+      "title_en": "English promo title",
+      "promo_type": "percent",
+      "promo_value": 10,
+      "min_order": 0,
+      "show_in_banner": true
+    }
+  ],
+  "logo_prompt": "flat minimal icon of a wrench and toolbox, clean solid background matching accent_color, vector style, no text, max 25 words",
+  "banner_prompt": "wide photo of a professional technician repairing a home appliance, tools scattered, natural lighting, photorealistic, no text"
+}` : isSport ? `You are a business content generator for an Israeli fitness/sport studio platform.
 Generate a COMPLETE, realistic sport studio profile as valid JSON for:
 - Business name (Hebrew): ${businessName}
 - Business name (English): ${businessNameEn || businessName}
