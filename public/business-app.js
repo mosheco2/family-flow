@@ -2490,7 +2490,7 @@ function _buildReportsHTML(data, bType, period) {
         </div>`;
         if ((m.byTech||[]).length) {
             const techSort = window._techSortMode || 'revenue';
-            const sortedTech = [...m.byTech].sort((a,b) => techSort === 'count' ? (b.done_c-a.done_c) : (b.revenue-a.revenue));
+            const sortedTech = [...m.byTech].sort((a,b) => techSort === 'count' ? (b.done_c-a.done_c) : (b.revenue-a.revenue)).slice(0, 10);
             html += `<div class="bg-white rounded-2xl border border-slate-100 p-4 shadow-sm mb-4">
                 <div class="flex justify-between items-center mb-3">
                     <div class="font-bold text-slate-700 text-sm">ביצועי טכנאים</div>
@@ -37905,10 +37905,18 @@ window.showMaintenanceReports = async function(memberId) {
         </div>`;
 
         // By technician (managers only)
-        const techHtml = (isMgr && !filterMemberId && d.byTech?.length) ? `<div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
-            <h3 class="font-black text-slate-800 text-sm mb-3">👷 ביצועי טכנאים</h3>
+        const techSortMode2 = window._techSortMode || 'revenue';
+        const sortedTech2 = (d.byTech||[]).slice().sort((a,b) => techSortMode2 === 'count' ? (b.done_c-a.done_c) : (b.revenue-a.revenue)).slice(0, 10);
+        const techHtml = (isMgr && !filterMemberId && sortedTech2.length) ? `<div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
+            <div class="flex justify-between items-center mb-3">
+                <h3 class="font-black text-slate-800 text-sm">👷 ביצועי טכנאים</h3>
+                <div class="flex gap-1 bg-slate-100 rounded-lg p-0.5">
+                    <button onclick="window._techSortMode='revenue'; showMaintenanceReports(${filterMemberId||''})" class="text-[10px] font-bold px-2 py-1 rounded-md transition ${techSortMode2==='revenue'?'bg-white text-indigo-600 shadow-sm':'text-slate-400'}">לפי הכנסה</button>
+                    <button onclick="window._techSortMode='count'; showMaintenanceReports(${filterMemberId||''})" class="text-[10px] font-bold px-2 py-1 rounded-md transition ${techSortMode2==='count'?'bg-white text-indigo-600 shadow-sm':'text-slate-400'}">לפי כמות</button>
+                </div>
+            </div>
             <div class="space-y-2">
-                ${d.byTech.map((t,i) => `<div class="flex items-center gap-3 py-2 border-b border-slate-50 last:border-0">
+                ${sortedTech2.map((t,i) => `<div class="flex items-center gap-3 py-2 border-b border-slate-50 last:border-0">
                     <div class="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-[10px] font-black text-slate-500">${i+1}</div>
                     <div class="flex-1 min-w-0">
                         <div class="text-xs font-bold text-slate-800 truncate">${safeStr(t.name||'טכנאי')}</div>

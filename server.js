@@ -23583,7 +23583,7 @@ app.get('/api/service-calls/analytics/:businessGroupId', async (req, res) => {
             FROM service_calls sc
             JOIN users u ON u.id = sc.assigned_member_id
             WHERE sc.business_group_id=$1 AND sc.assigned_member_id IS NOT NULL
-            GROUP BY u.id, u.nickname ORDER BY revenue DESC, done_c DESC LIMIT 10`, [gid]);
+            GROUP BY u.id, u.nickname ORDER BY revenue DESC, done_c DESC`, [gid]);
 
         // Last 7 days trend
         const trend = await pool.query(`
@@ -30134,7 +30134,7 @@ app.get('/api/reports/:groupId', async (req, res) => {
                         COALESCE(SUM(sc.price_quote) FILTER (WHERE sc.status='done'),0) AS revenue
                     FROM service_calls sc JOIN users u ON u.id=sc.assigned_member_id
                     WHERE sc.business_group_id=$1 AND sc.created_at >= ${df}
-                    GROUP BY u.id, u.nickname ORDER BY revenue DESC LIMIT 10`, [gid])
+                    GROUP BY u.id, u.nickname ORDER BY revenue DESC`, [gid])
             ]);
             result.maintenance = { callsByStatus: callsRes.rows, revenue: parseFloat(revRes.rows[0]?.total||0), byTech: byTechRes.rows };
         }
