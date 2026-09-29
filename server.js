@@ -13654,21 +13654,6 @@ app.post('/api/store/quotes/:id/business-message', verifyBizOrLegacy, requireMod
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// --- [LEGACY] שליפת פקודות עבודה מ-service_calls (טבלה ישנה) ---
-// endpoint זה אינו בשימוש פעיל — המערכת עברה ל-/api/work-orders/list/:groupId
-// ניתן להסיר לאחר וידוא שאין קריאות אליו
-app.get('/api/work-orders/:businessGroupId', verifyBiz, async (req, res) => {
-    try {
-        if (parseInt(req.params.businessGroupId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
-        const r = await pool.query(`SELECT sc.*, fg.name as family_name
-            FROM service_calls sc LEFT JOIN family_groups fg ON sc.family_group_id=fg.id
-            WHERE sc.business_group_id=$1 AND sc.call_type='work_order'
-            ORDER BY sc.created_at DESC`, [req.params.businessGroupId]);
-        res.json({ success: true, workOrders: r.rows });
-    } catch(e) { res.status(500).json({ error: e.message }); }
-});
-
-
 // --- מועדון לקוחות (שליפה, הוספה, ועריכה) ---
 app.get('/api/store/customers/:groupId', async (req, res) => {
     try {
