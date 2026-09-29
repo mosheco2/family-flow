@@ -23645,9 +23645,9 @@ app.get('/api/service-calls/by-customer/:businessGroupId', async (req, res) => {
 });
 
 // Service calls analytics for reports page
-app.get('/api/service-calls/analytics/:businessGroupId', async (req, res) => {
+app.get('/api/service-calls/analytics/:businessGroupId', verifyBiz, async (req, res) => {
     try {
-        const gid = req.params.businessGroupId;
+        const gid = req.bizAuth.groupId;
         const memberFilter = req.query.memberId ? `AND assigned_member_id=$2` : '';
         const params = req.query.memberId ? [gid, req.query.memberId] : [gid];
 
