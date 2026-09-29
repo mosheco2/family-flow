@@ -23855,8 +23855,10 @@ app.post('/api/equipment/notifications/check/:groupId', verifyBiz, async (req, r
         const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
         const scheduledCalls = await pool.query(
             `SELECT id, title FROM service_calls
-             WHERE family_group_id IN (SELECT id FROM family_groups WHERE community_id IN (SELECT community_id FROM family_groups WHERE id=$1))
+             WHERE (
+                family_group_id IN (SELECT id FROM family_groups WHERE community_id IN (SELECT community_id FROM family_groups WHERE id=$1))
                 OR business_group_id=$1
+             )
              AND scheduled_at IS NOT NULL AND DATE(scheduled_at)=$2 AND status NOT IN ('done','cancelled')`,
             [groupId, tomorrow.toISOString().split('T')[0]]);
         for (const sc of scheduledCalls.rows) {
