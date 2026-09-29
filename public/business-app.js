@@ -29999,22 +29999,28 @@ window.currentTaskSetSubTasks = [];
 window.currentSOPTaskContext = null;
 window.editingTaskSetId = null;
 
-window.loadTaskSetTemplates = function() {
+// הועבר משמירה מקומית (localStorage) לשרת — כך שכל המנהלים/מכשירים של אותו עסק רואים את אותם הנהלים
+window.loadTaskSetTemplates = async function() {
     if (!currentGroup || !currentGroup.id) return;
     try {
-        const saved = localStorage.getItem('ofl_task_sets_' + currentGroup.id);
-        if (saved) window.taskSetTemplates = JSON.parse(saved);
-        else window.taskSetTemplates = [];
+        const r = await fetch(`${API}/task-set-templates/${currentGroup.id}`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } });
+        const d = await r.json();
+        window.taskSetTemplates = d.templates || [];
     } catch(e) { window.taskSetTemplates = []; }
 };
 
-window.saveTaskSetTemplates = function() {
+window.saveTaskSetTemplates = async function() {
     if (!currentGroup || !currentGroup.id) return;
-    localStorage.setItem('ofl_task_sets_' + currentGroup.id, JSON.stringify(window.taskSetTemplates));
+    try {
+        await fetch(`${API}/task-set-templates/${currentGroup.id}`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' },
+            body: JSON.stringify({ templates: window.taskSetTemplates })
+        });
+    } catch(e) {}
 };
 
-window.openTaskSetManagerModal = function() {
-    window.loadTaskSetTemplates();
+window.openTaskSetManagerModal = async function() {
+    await window.loadTaskSetTemplates();
     window.renderTaskSetsList();
     const modal = document.getElementById('task-set-manager-modal');
     if(modal) modal.classList.remove('hidden');
@@ -37833,6 +37839,17 @@ async function renderFieldTechMaintenanceDashboard(el) {
             <i class="fa-solid fa-chevron-left text-slate-300 text-xs mt-1 shrink-0"></i>
         </div>`).join('') : `<p class="text-center text-slate-400 text-sm py-6">אין קריאות פתוחות 🎉</p>`;
 
+    // משימות רגילות (לא קריאות שירות) שהוקצו לטכנאי — עד כה לא הוצגו כלל בלוח הבית הזה
+    let myTasks = [];
+    try { myTasks = (window.allTasks || []).filter(t => t.assigned_to == currentUser.id && t.status === 'pending' && !(t.title||'').startsWith('SHIFT|')); } catch(e) {}
+    const tasksHtml = myTasks.length ? `<div class="bg-white rounded-2xl shadow-sm border border-slate-100 mb-4">
+        <div class="px-4 py-3 border-b border-slate-50 flex justify-between items-center">
+            <h3 class="font-black text-slate-800 text-sm">📋 המשימות שלי</h3>
+            <button type="button" onclick="switchTab('tasks')" class="text-orange-500 text-xs font-bold" style="touch-action:manipulation;cursor:pointer;">הכל →</button>
+        </div>
+        <div class="px-4 py-1">${myTasks.slice(0,4).map(t => `<div class="py-2 border-b border-slate-50 last:border-0 text-sm text-slate-700 truncate">• ${safeStr(t.title)}</div>`).join('')}</div>
+    </div>` : '';
+
     el.innerHTML = `
         ${roleDashboardHeader('🔧','ממשק טכנאי שטח','קריאות שירות ופניות לקוחות','from-orange-500','to-red-600')}
         ${kpiHtml}
@@ -37846,8 +37863,10 @@ async function renderFieldTechMaintenanceDashboard(el) {
             </div>
             <div class="px-2 py-1">${callsHtml}</div>
         </div>
+        ${tasksHtml}
         ${roleQuickActions([
             {icon:'🔧', label:'כל הקריאות', action:'show-all-sc'},
+            {icon:'📋', label:'משימות', tab:'tasks'},
             {icon:'📊', label:'הביצועים שלי', action:'show-reports'},
             {icon:'📅', label:'יומן', tab:'calendar'}
         ])}

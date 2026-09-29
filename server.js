@@ -495,6 +495,8 @@ pool.connect()
       try { await client.query(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS proof_image_url TEXT`); } catch(e) {}
       try { await client.query(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW()`); } catch(e) {}
       try { await client.query(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS notes TEXT`); } catch(e) {}
+      try { await client.query(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS require_ai_check BOOLEAN DEFAULT FALSE`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS task_set_templates (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, client_id VARCHAR(50), data JSONB NOT NULL, created_at TIMESTAMP DEFAULT NOW())`); } catch(e) {}
       try { await client.query(`CREATE TABLE IF NOT EXISTS task_comments (id SERIAL PRIMARY KEY, task_id INT REFERENCES tasks(id) ON DELETE CASCADE, user_id INT REFERENCES users(id) ON DELETE CASCADE, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, text TEXT NOT NULL, created_at TIMESTAMPTZ DEFAULT NOW())`); } catch(e) {}
       try { await client.query(`ALTER TABLE game_assignments ADD COLUMN IF NOT EXISTS start_level INTEGER DEFAULT 1`); } catch(e) {}
       try { await client.query(`ALTER TABLE game_assignments ADD COLUMN IF NOT EXISTS finance_age INT DEFAULT NULL`); } catch(e) {}
@@ -12087,6 +12089,31 @@ app.delete('/api/shift-templates/:id', async (req, res) => {
         await pool.query('DELETE FROM shift_templates WHERE id=$1', [req.params.id]);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ─── Task Set (SOP) Templates — הועברו מ-localStorage לשרת, כדי שכל המנהלים/מכשירים
+// של אותו עסק יראו את אותם הנהלים, בדומה ל-shift_templates שכבר עברו את אותו שדרוג ───
+app.get('/api/task-set-templates/:groupId', async (req, res) => {
+    try {
+        const r = await pool.query('SELECT data FROM task_set_templates WHERE group_id=$1 ORDER BY id', [req.params.groupId]);
+        res.json({ success: true, templates: r.rows.map(row => row.data) });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// שמירה מלאה — מחליפה את כל אוסף התבניות של העסק (תואם לסמנטיקת ה-localStorage הקודמת,
+// ששמרה תמיד את כל המערך בבת אחת)
+app.post('/api/task-set-templates/:groupId', async (req, res) => {
+    const groupId = req.params.groupId;
+    const templates = Array.isArray(req.body.templates) ? req.body.templates : [];
+    try {
+        await pool.query('BEGIN');
+        await pool.query('DELETE FROM task_set_templates WHERE group_id=$1', [groupId]);
+        for (const t of templates) {
+            await pool.query('INSERT INTO task_set_templates (group_id, client_id, data) VALUES ($1,$2,$3)', [groupId, t.id || null, JSON.stringify(t)]);
+        }
+        await pool.query('COMMIT');
+        res.json({ success: true });
+    } catch(e) { await pool.query('ROLLBACK'); res.status(500).json({ error: e.message }); }
 });
 
 // ============================================================
