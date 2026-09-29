@@ -18659,9 +18659,11 @@ function renderB2BOrders() {
                 {val: 'sent', label: 'נשלח לספק'},
                 {val: 'processing', label: 'בטיפול אצל הספק'},
                 {val: 'shipped', label: 'בדרך אלינו'},
-                {val: 'delivered', label: 'סופק במלואו'},
                 {val: 'cancelled', label: 'בוטל'}
             ];
+            // "סופק במלואו" מוסר בכוונה מהבחירה הידנית — מעבר לסטטוס זה חייב לעבור דרך "קבלת סחורה ועדכון מלאי"
+            // (עודכן isDelivered) כדי שתופעות הלוואי האמיתיות (מלאי, תמחור, טיוטת חוסרים) תמיד יתבצעו
+            if (o.status === 'delivered') statuses.push({val: 'delivered', label: 'סופק במלואו'});
             let opts = statuses.map(s => `<option value="${s.val}" ${o.status === s.val ? 'selected' : ''}>${s.label}</option>`).join('');
             statusSelectHtml = `<select onchange="updateB2BOrderStatus(${o.id}, this.value)" class="modern-input py-1 px-2 text-[10px] font-bold bg-white border border-slate-200 mt-2 w-full text-center outline-none focus:border-indigo-400 rounded-lg shadow-sm">${opts}</select>`;
         }
@@ -18802,12 +18804,19 @@ window.sendPurchaseOrderWhatsApp = async function(orderId) {
 };
 
 async function updateB2BOrderStatus(orderId, status) {
+    if (status === 'delivered') {
+        // מעבר ישיר ל"סופק" דרך הבורר מדלג על זרימת קבלת הסחורה הרשמית (עדכון מלאי בפועל, רישום מחיר, טיוטת חוסרים) —
+        // מנתבים תמיד דרך openReceiveGoodsModal כדי שתופעות הלוואי האמיתיות תמיד יתבצעו, ולא ידלגו בשקט
+        showToast('info', 'לסימון כ"סופק" יש להשתמש בכפתור "קבלת סחורה ועדכון מלאי" — כך המלאי יתעדכן בפועל');
+        fetchB2BOrders();
+        return;
+    }
     try {
         const res = await fetch(`${API}/b2b/orders/status`, {
             method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ orderId, status })
         });
         const data = await res.json();
-        if(data.success) { showToast('success', 'סטטוס הזמנה עודכן בהצלחה'); fetchB2BOrders(); } 
+        if(data.success) { showToast('success', 'סטטוס הזמנה עודכן בהצלחה'); fetchB2BOrders(); }
         else { showToast('error', data.error || 'שגיאה בעדכון סטטוס'); }
     } catch(e) { showToast('error', 'שגיאת רשת בעדכון סטטוס'); }
 }
