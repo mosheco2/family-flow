@@ -38212,10 +38212,20 @@ window.createCustomerFromCall = async function(callId) {
         const d = await r.json();
         const call = (d.calls||[]).find(c => c.id === callId);
         if (!call) { showToast('error', 'קריאה לא נמצאה'); return; }
-        const name = call.family_name || call.title || 'לקוח חדש';
+        const name = call.customer_name || call.family_name || call.title || 'לקוח חדש';
+        const phone = call.customer_phone || '';
         const notes = call.address ? `כתובת: ${call.address}` : '';
+        if (phone) {
+            const digits = phone.replace(/\D/g,'');
+            try {
+                const cr = await fetch(`/api/store/customers/${currentGroup.id}`);
+                const cd = await cr.json();
+                const dup = (cd.customers||[]).find(c => (c.phone||'').replace(/\D/g,'') === digits && digits);
+                if (dup) { showToast('info', `כבר קיים לקוח עם טלפון זה — "${dup.name}"`); return; }
+            } catch(e) {}
+        }
         const res = await fetch('/api/store/customers', { method:'POST', headers:{'Content-Type':'application/json'},
-            body: JSON.stringify({ groupId: currentGroup.id, name, phone:'', email:'', businessId: currentGroup.id, notes }) });
+            body: JSON.stringify({ groupId: currentGroup.id, name, phone, email:'', businessId: currentGroup.id, notes }) });
         const data = await res.json();
         if (data.success) showToast('success', 'לקוח נוצר בהצלחה');
         else showToast('error', data.error || 'שגיאה ביצירת לקוח');
