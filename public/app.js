@@ -12604,7 +12604,7 @@ window.openFamilyCallModal = async function(callId) {
     let payments = [];
     try { const rp = await fetch(`/api/service-calls/${callId}/payments`); const dp = await rp.json(); payments = dp.payments||[]; } catch(e) {}
     document.getElementById('fam-sc-modal')?.remove();
-    const SC_STATUS_LABELS_FAM = { new:'ממתינה', seen:'נצפתה', in_progress:'בטיפול', pending_parts:'ממתין לחלקים', done:'הושלם', cancelled:'בוטל' };
+    const SC_STATUS_LABELS_FAM = { new:'ממתינה', seen:'נצפתה', in_progress:'בטיפול', pending_parts:'ממתין לחלקים', pending_cancel:'ממתין לאישור ביטול', done:'הושלם', cancelled:'בוטל' };
     const msgHtml = messages.map(m => `<div class="flex ${m.sender_type==='family'?'justify-start':'justify-end'} mb-2">
         <div class="max-w-[80%] ${m.sender_type==='family'?'bg-slate-100 text-slate-800':'bg-indigo-500 text-white'} rounded-2xl px-3 py-2 text-xs">
             <div class="font-bold text-[10px] mb-1 opacity-70">${safeStr(m.sender_name||m.sender_type)}</div>
@@ -12724,13 +12724,13 @@ window.sendFamilyScMessage = async function(callId) {
 };
 
 window.cancelFamilyServiceCall = async function(callId) {
-    if (!confirm('לבטל את הקריאה?')) return;
+    if (!confirm('לשלוח בקשת ביטול? הביטול יאושר סופית ע"י העסק.')) return;
     try {
         const r = await fetch(`/api/service-calls/${callId}`, { method:'DELETE' });
         if (r.ok) {
             document.getElementById('fam-sc-modal')?.remove();
             await loadFamilyServiceCalls();
-            if (typeof showToast === 'function') showToast('success', 'הקריאה בוטלה');
+            if (typeof showToast === 'function') showToast('success', 'בקשת הביטול נשלחה לאישור העסק');
         }
     } catch(e) {}
 };

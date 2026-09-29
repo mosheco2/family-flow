@@ -2480,7 +2480,7 @@ function _buildReportsHTML(data, bType, period) {
     // תחזוקה / תיקונים
     if (bType === 'maintenance_repair' && data.maintenance) {
         const m = data.maintenance;
-        const sl = { new:'חדשה', seen:'נצפתה', in_progress:'בטיפול', pending_parts:'ממתין לחלקים', pending_payment:'ממתין לתשלום', open:'פתוחה', done:'הושלמה', cancelled:'בוטלה' };
+        const sl = { new:'חדשה', seen:'נצפתה', in_progress:'בטיפול', pending_parts:'ממתין לחלקים', pending_payment:'ממתין לתשלום', pending_cancel:'בקשת ביטול', open:'פתוחה', done:'הושלמה', cancelled:'בוטלה' };
         html += `<div class="bg-white rounded-2xl border border-slate-100 p-4 shadow-sm mb-4">
             <div class="flex justify-between items-center mb-3">
                 <div class="font-bold text-slate-700 text-sm">קריאות שירות</div>
@@ -2668,7 +2668,7 @@ window._reportsExportPDF = function() {
         body += '</tbody></table>';
     }
     if (data.maintenance?.callsByStatus?.length) {
-        const sl = { open:'פתוחה', in_progress:'בטיפול', done:'הושלמה', cancelled:'בוטלה' };
+        const sl = { new:'חדשה', seen:'נצפתה', in_progress:'בטיפול', pending_parts:'ממתין לחלקים', pending_payment:'ממתין לתשלום', pending_cancel:'בקשת ביטול', open:'פתוחה', done:'הושלמה', cancelled:'בוטלה' };
         body += sectionTitle('קריאות שירות');
         body += `<table style="${tableStyle}"><thead><tr><th style="${thStyle}">סטטוס</th><th style="${thStyle}text-align:center;">כמות</th><th style="${thStyle}text-align:left;">הכנסה</th></tr></thead><tbody>`;
         data.maintenance.callsByStatus.forEach(s => { body += `<tr><td style="${tdStyle}">${sl[s.status]||s.status}</td><td style="${tdStyle}text-align:center;">${fmt(s.count)}</td><td style="${tdMoneyStyle}">${fmtM(s.revenue)}</td></tr>`; });
@@ -37693,8 +37693,8 @@ async function renderFieldTechDashboard(el) {
 }
 
 // ─── MAINTENANCE_REPAIR: Field Tech Dashboard ───────────────────────────────
-const SC_STATUS_LABELS = { new:'חדשה', seen:'נצפתה', in_progress:'בטיפול', pending_parts:'ממתין לחלקים', pending_payment:'ממתין לתשלום', done:'הושלם', cancelled:'בוטל' };
-const SC_STATUS_COLORS = { new:'bg-blue-100 text-blue-700', seen:'bg-indigo-100 text-indigo-700', in_progress:'bg-amber-100 text-amber-700', pending_parts:'bg-purple-100 text-purple-700', pending_payment:'bg-orange-100 text-orange-700', done:'bg-green-100 text-green-700', cancelled:'bg-slate-100 text-slate-400' };
+const SC_STATUS_LABELS = { new:'חדשה', seen:'נצפתה', in_progress:'בטיפול', pending_parts:'ממתין לחלקים', pending_payment:'ממתין לתשלום', pending_cancel:'בקשת ביטול', done:'הושלם', cancelled:'בוטל' };
+const SC_STATUS_COLORS = { new:'bg-blue-100 text-blue-700', seen:'bg-indigo-100 text-indigo-700', in_progress:'bg-amber-100 text-amber-700', pending_parts:'bg-purple-100 text-purple-700', pending_payment:'bg-orange-100 text-orange-700', pending_cancel:'bg-red-100 text-red-700', done:'bg-green-100 text-green-700', cancelled:'bg-slate-100 text-slate-400' };
 const SC_PRIORITY_COLORS = { urgent:'bg-red-100 text-red-700', high:'bg-orange-100 text-orange-700', normal:'bg-slate-100 text-slate-600', low:'bg-green-100 text-green-700' };
 const SC_PRIORITY_LABELS = { urgent:'דחוף', high:'גבוה', normal:'רגיל', low:'נמוך' };
 
@@ -37861,7 +37861,7 @@ window.showMaintenanceReports = async function(memberId) {
         const el = document.getElementById('sc-reports-content');
         if (!el) return;
 
-        const SC_STATUS_HEB = { new:'חדשה', seen:'נצפתה', in_progress:'בטיפול', pending_parts:'ממתין לחלקים', done:'הושלם', cancelled:'בוטל' };
+        const SC_STATUS_HEB = { new:'חדשה', seen:'נצפתה', in_progress:'בטיפול', pending_parts:'ממתין לחלקים', pending_cancel:'בקשת ביטול', done:'הושלם', cancelled:'בוטל' };
         const PRIORITY_HEB = { urgent:'דחוף', high:'גבוה', normal:'רגיל', low:'נמוך' };
 
         // KPI cards
@@ -37966,7 +37966,7 @@ window.showServiceCallModal = async function(callId) {
 
     const isMgr = currentUser?.role === 'ADMIN' || currentUser?.employee_role_type === 'branch_manager';
     const isFieldTech = currentUser?.employee_role_type === 'field_tech';
-    const statusOptions = Object.entries(SC_STATUS_LABELS).filter(([k]) => k !== 'cancelled').map(([k,v]) =>
+    const statusOptions = Object.entries(SC_STATUS_LABELS).filter(([k]) => k !== 'cancelled' && k !== 'pending_cancel').map(([k,v]) =>
         `<option value="${k}" ${call.status===k?'selected':''}>${v}</option>`).join('');
     const memberOptions = `<option value="">ללא שיוך</option>` + members.map(m =>
         `<option value="${m.id}" ${call.assigned_member_id==m.id?'selected':''}>${safeStr(m.nickname||m.name)}</option>`).join('');
@@ -38041,6 +38041,14 @@ window.showServiceCallModal = async function(callId) {
                     ${call.scheduled_at ? `<span class="text-[10px] font-bold bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">📅 תואם: ${new Date(call.scheduled_at).toLocaleString('he-IL',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</span>` : ''}
                 </div>
             </div>
+
+            ${call.status === 'pending_cancel' && isMgr ? `<div class="bg-red-50 border border-red-200 rounded-2xl p-3 flex items-center justify-between gap-2">
+                <div class="text-xs font-bold text-red-700">⏳ הלקוח ביקש לבטל את הקריאה</div>
+                <div class="flex gap-2 shrink-0">
+                    <button onclick="scResolveCancelRequest(${callId}, true)" class="text-[11px] font-black bg-red-600 text-white px-3 py-1.5 rounded-xl active:scale-95 transition" style="touch-action:manipulation;">אשר ביטול</button>
+                    <button onclick="scResolveCancelRequest(${callId}, false)" class="text-[11px] font-black bg-white text-slate-600 border border-slate-200 px-3 py-1.5 rounded-xl active:scale-95 transition" style="touch-action:manipulation;">דחה בקשה</button>
+                </div>
+            </div>` : ''}
 
             ${isMgr ? `<div class="grid grid-cols-2 gap-2">
                 <div><label class="text-[10px] font-bold text-slate-500 mb-1 block">סטטוס</label>
@@ -38238,6 +38246,16 @@ window.sendServiceCallMessage = async function(callId, senderType) {
             chatEl.scrollTop = chatEl.scrollHeight;
         }
     } catch(e) { showToast('error', 'שגיאה בשליחה'); }
+};
+
+window.scResolveCancelRequest = async function(callId, approve) {
+    const newStatus = approve ? 'cancelled' : 'seen';
+    try {
+        await fetch(`/api/service-calls/${callId}`, { method:'PATCH', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ status: newStatus }) });
+        showToast('success', approve ? 'בקשת הביטול אושרה' : 'בקשת הביטול נדחתה — הקריאה חוזרת לטיפול');
+        window.showServiceCallModal(callId);
+    } catch(e) { showToast('error', 'שגיאה'); }
 };
 
 window.markServiceCallDone = async function(callId) {
