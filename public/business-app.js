@@ -5859,7 +5859,7 @@ async function renderFamilyServiceCallsSection() {
         urgentSection.parentNode.insertBefore(section, urgentSection.nextSibling);
     }
     try {
-        const r = await fetch(`/api/service-calls/family/${currentGroup.id}`);
+        const r = await fetch(`/api/service-calls/family/${currentGroup.id}`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } });
         const d = await r.json();
         const calls = d.calls || [];
         if (!calls.length) { section.innerHTML = ''; return; }
@@ -9342,7 +9342,7 @@ window.saveWorkOrderSchedule = async function(woId) {
     const dt = document.getElementById('wo-sched-dt')?.value;
     if (!dt) { showToast('error', 'נא לבחור תאריך ושעה'); return; }
     try {
-        const r = await fetch(`${API}/service-calls/${woId}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ scheduledAt: dt }) });
+        const r = await fetch(`${API}/service-calls/${woId}`, { method:'PATCH', headers:{'Content-Type':'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : ''}, body: JSON.stringify({ scheduledAt: dt }) });
         if (r.ok) {
             showToast('success', 'תזמון נשמר!');
             document.getElementById('wo-sched-modal')?.remove();
@@ -11946,7 +11946,7 @@ window.loadCustomerServiceCalls = async function(customerName, customerPhone) {
     listEl.innerHTML = '<p class="text-center text-slate-400 text-xs py-4">טוען...</p>';
     try {
         const phoneQ = customerPhone ? `&phone=${encodeURIComponent(customerPhone)}` : '';
-        const r = await fetch(`/api/service-calls/by-customer/${currentGroup.id}?name=${encodeURIComponent(customerName||'')}${phoneQ}`);
+        const r = await fetch(`/api/service-calls/by-customer/${currentGroup.id}?name=${encodeURIComponent(customerName||'')}${phoneQ}`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } });
         const d = await r.json();
         const calls = d.calls || [];
         if (!calls.length) { listEl.innerHTML = '<p class="text-center text-slate-400 text-xs py-4">אין קריאות שירות ללקוח זה</p>'; return; }
@@ -22523,7 +22523,7 @@ async function _nextWizardV2Step() {
                 body: JSON.stringify({ groupId: currentGroup.id, name, phone, address, businessId: currentGroup.id })
             });
             if (createCall) await fetch(`${API}/service-calls`, {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' },
                 body: JSON.stringify({ groupId: currentGroup.id, customerName: name, title: 'קריאת שירות ראשונה', status: 'new' })
             });
             if (createQuote) await fetch(`${API}/store/quotes`, {
@@ -25784,7 +25784,7 @@ window.renderScheduledServiceCallsSection = async function() {
 
     let calls = [];
     try {
-        const r = await fetch(`/api/service-calls/business/${currentGroup.id}`);
+        const r = await fetch(`/api/service-calls/business/${currentGroup.id}`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } });
         const d = await r.json();
         const now = new Date();
         calls = (d.calls||[])
@@ -26359,7 +26359,7 @@ window.syncServiceCallsToCalendar = async function() {
     // Remove previous sc_ events from cache
     calEventsCache = (calEventsCache || []).filter(e => !String(e.id).startsWith('sc_'));
     try {
-        const r = await fetch(`/api/service-calls/business/${currentGroup.id}`);
+        const r = await fetch(`/api/service-calls/business/${currentGroup.id}`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } });
         const d = await r.json();
         const scheduled = (d.calls||[]).filter(c => c.scheduled_at && !['done','cancelled'].includes(c.status));
         const existingIds = new Set(calEventsCache.map(e => String(e.id)));
@@ -37798,7 +37798,7 @@ const SC_PRIORITY_LABELS = { urgent:'דחוף', high:'גבוה', normal:'רגי�
 async function renderFieldTechMaintenanceDashboard(el) {
     let calls = [];
     try {
-        const r = await fetch(`/api/service-calls/business/${currentGroup.id}`);
+        const r = await fetch(`/api/service-calls/business/${currentGroup.id}`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } });
         const d = await r.json();
         // Show calls assigned to this tech, OR created by this tech (for needs_triage visibility)
         calls = (d.calls||[]).filter(c => c.assigned_member_id == currentUser.id || c.created_by_user_id == currentUser.id);
@@ -37857,10 +37857,10 @@ async function renderFieldTechMaintenanceDashboard(el) {
 window._serviceCallsCache = [];
 async function renderBranchManagerMaintenanceDashboard(el) {
     let calls = [], members = [];
-    try { const r = await fetch(`/api/service-calls/business/${currentGroup.id}`); const d = await r.json(); calls = d.calls||[]; window._serviceCallsCache = calls; } catch(e) {}
+    try { const r = await fetch(`/api/service-calls/business/${currentGroup.id}`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } }); const d = await r.json(); calls = d.calls||[]; window._serviceCallsCache = calls; } catch(e) {}
     try { const r = await fetch(`/api/members/${currentGroup.id}`); const d = await r.json(); members = (d.members||[]).filter(m => m.role !== 'ADMIN' && m.employee_role_type === 'field_tech'); } catch(e) {}
     // בדיקת התראות תאריכים (אחרי טעינה, לא חוסם)
-    fetch(`/api/service-calls/check-schedule-notifications/${currentGroup.id}`, {method:'POST'}).catch(()=>{});
+    fetch(`/api/service-calls/check-schedule-notifications/${currentGroup.id}`, {method:'POST', headers:{ Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' }}).catch(()=>{});
 
     const open = calls.filter(c => !['done','cancelled'].includes(c.status));
     const done = calls.filter(c => c.status === 'done');
@@ -37951,7 +37951,7 @@ window.showMaintenanceReports = async function(memberId) {
     // Fetch analytics
     try {
         const url = `/api/service-calls/analytics/${currentGroup.id}${filterMemberId ? '?memberId=' + filterMemberId : ''}`;
-        const r = await fetch(url);
+        const r = await fetch(url, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } });
         const d = await r.json();
         if (!d.success) throw new Error('שגיאה בטעינה');
         const s = d.stats;
@@ -38051,11 +38051,11 @@ window.showMaintenanceReports = async function(memberId) {
 window.showServiceCallModal = async function(callId) {
     window._latestScModalCallId = callId;
     let call = null, messages = [], members = [], notes = [];
-    try { const r = await fetch(`/api/service-calls/business/${currentGroup.id}`); const d = await r.json(); call = (d.calls||[]).find(c => c.id === callId); } catch(e) {}
+    try { const r = await fetch(`/api/service-calls/business/${currentGroup.id}`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } }); const d = await r.json(); call = (d.calls||[]).find(c => c.id === callId); } catch(e) {}
     if (!call) return;
     if (window._latestScModalCallId !== callId) return;
-    try { const r = await fetch(`/api/service-calls/${callId}/messages`); const d = await r.json(); messages = d.messages||[]; } catch(e) {}
-    try { const r = await fetch(`/api/service-calls/${callId}/notes`); const d = await r.json(); notes = d.notes||[]; } catch(e) {}
+    try { const r = await fetch(`/api/service-calls/${callId}/messages`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } }); const d = await r.json(); messages = d.messages||[]; } catch(e) {}
+    try { const r = await fetch(`/api/service-calls/${callId}/notes`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } }); const d = await r.json(); notes = d.notes||[]; } catch(e) {}
     try { const r = await fetch(`/api/members/${currentGroup.id}`); const d = await r.json(); members = (d.members||[]).filter(m => m.employee_role_type === 'field_tech'); } catch(e) {}
     if (window._latestScModalCallId !== callId) return;
 
@@ -38244,7 +38244,7 @@ window.showServiceCallModal = async function(callId) {
         const chatEl = document.getElementById(`sc-chat-${callId}`);
         if (!chatEl || !document.getElementById('sc-modal')) { clearInterval(window._scChatInterval); return; }
         try {
-            const r2 = await fetch(`/api/service-calls/${callId}/messages`);
+            const r2 = await fetch(`/api/service-calls/${callId}/messages`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } });
             const d2 = await r2.json();
             chatEl.innerHTML = (d2.messages||[]).map(m => `<div class="flex ${m.sender_type==='business'?'justify-start':'justify-end'} mb-2"><div class="max-w-[80%] ${m.sender_type==='business'?'bg-slate-100 text-slate-800':'bg-orange-500 text-white'} rounded-2xl px-3 py-2 text-xs"><div class="font-bold text-[10px] mb-1 opacity-70">${safeStr(m.sender_name||m.sender_type)}</div>${safeStr(m.message)}</div></div>`).join('') || '<p class="text-center text-slate-400 text-xs py-4">אין הודעות עדיין</p>';
             chatEl.scrollTop = chatEl.scrollHeight;
@@ -38258,7 +38258,7 @@ window.saveServiceCallUpdates = async function(callId) {
     const priceQuote = document.getElementById(`sc-quote-${callId}`)?.value || null;
     const scheduledAt = document.getElementById(`sc-scheduled-${callId}`)?.value || null;
     try {
-        const res = await fetch(`/api/service-calls/${callId}`, { method:'PATCH', headers:{'Content-Type':'application/json'},
+        const res = await fetch(`/api/service-calls/${callId}`, { method:'PATCH', headers:{'Content-Type':'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : ''},
             body: JSON.stringify({ status, assignedMemberId: assignedMemberId||null, priceQuote: priceQuote||null, scheduledAt: scheduledAt||null }) });
         if (!res.ok) throw new Error();
         showToast('success', 'עודכן בהצלחה');
@@ -38291,7 +38291,7 @@ window.saveServiceCallUpdates = async function(callId) {
 
 window.returnCallToManager = async function(callId) {
     try {
-        await fetch(`/api/service-calls/${callId}`, { method:'PATCH', headers:{'Content-Type':'application/json'},
+        await fetch(`/api/service-calls/${callId}`, { method:'PATCH', headers:{'Content-Type':'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : ''},
             body: JSON.stringify({ assignedMemberId: null, status: 'seen' }) });
         showToast('info', 'הקריאה הוחזרה למנהל');
         document.getElementById('sc-modal')?.remove();
@@ -38307,9 +38307,9 @@ window.addServiceCallNote = async function(callId) {
     if (!note) return;
     input.value = '';
     try {
-        await fetch(`/api/service-calls/${callId}/notes`, { method:'POST', headers:{'Content-Type':'application/json'},
+        await fetch(`/api/service-calls/${callId}/notes`, { method:'POST', headers:{'Content-Type':'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : ''},
             body: JSON.stringify({ authorName: currentUser?.nickname || 'טכנאי', note }) });
-        const r = await fetch(`/api/service-calls/${callId}/notes`);
+        const r = await fetch(`/api/service-calls/${callId}/notes`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } });
         const d = await r.json();
         const notesEl = document.getElementById(`sc-notes-${callId}`);
         if (notesEl) {
@@ -38327,10 +38327,10 @@ window.sendServiceCallMessage = async function(callId, senderType) {
     if (!msg) return;
     input.value = '';
     try {
-        await fetch(`/api/service-calls/${callId}/messages`, { method:'POST', headers:{'Content-Type':'application/json'},
+        await fetch(`/api/service-calls/${callId}/messages`, { method:'POST', headers:{'Content-Type':'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : ''},
             body: JSON.stringify({ senderType, senderName: currentUser?.nickname || senderType, message: msg }) });
         // re-render chat
-        const r = await fetch(`/api/service-calls/${callId}/messages`);
+        const r = await fetch(`/api/service-calls/${callId}/messages`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } });
         const d = await r.json();
         const chatEl = document.getElementById(`sc-chat-${callId}`);
         if (chatEl) {
@@ -38348,7 +38348,7 @@ window.sendServiceCallMessage = async function(callId, senderType) {
 window.scResolveCancelRequest = async function(callId, approve) {
     const newStatus = approve ? 'cancelled' : 'seen';
     try {
-        await fetch(`/api/service-calls/${callId}`, { method:'PATCH', headers:{'Content-Type':'application/json'},
+        await fetch(`/api/service-calls/${callId}`, { method:'PATCH', headers:{'Content-Type':'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : ''},
             body: JSON.stringify({ status: newStatus }) });
         showToast('success', approve ? 'בקשת הביטול אושרה' : 'בקשת הביטול נדחתה — הקריאה חוזרת לטיפול');
         window.showServiceCallModal(callId);
@@ -38357,7 +38357,7 @@ window.scResolveCancelRequest = async function(callId, approve) {
 
 window.markServiceCallDone = async function(callId) {
     try {
-        await fetch(`/api/service-calls/${callId}`, { method:'PATCH', headers:{'Content-Type':'application/json'},
+        await fetch(`/api/service-calls/${callId}`, { method:'PATCH', headers:{'Content-Type':'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : ''},
             body: JSON.stringify({ status: 'done' }) });
         showToast('success', 'הקריאה סומנה כהושלמה');
         document.getElementById('sc-modal')?.remove();
@@ -38371,16 +38371,16 @@ window.markServiceCallDone = async function(callId) {
 // ננסה להציע פתיחת תחנת גביה מיידית כדי שהתזרים לא "יישכח" הכנסה שהקריאה כבר מסומנת כהושלמה עבורה
 window._offerServiceCallCollection = async function(callId) {
     try {
-        const r = await fetch(`/api/service-calls/business/${currentGroup.id}`);
+        const r = await fetch(`/api/service-calls/business/${currentGroup.id}`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } });
         const d = await r.json();
         const call = (d.calls||[]).find(c => c.id === callId);
         const amount = parseFloat(call?.price_quote || 0);
         if (!call || !(amount > 0)) return;
-        const existing = await fetch(`/api/service-calls/${callId}/payments`).then(r2=>r2.json()).catch(()=>null);
+        const existing = await fetch(`/api/service-calls/${callId}/payments`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } }).then(r2=>r2.json()).catch(()=>null);
         if ((existing?.payments||[]).length) return; // כבר נפתחה תחנת גביה לקריאה זו — לא מציעים שוב
         const ok = await window._uiConfirm(`לפתוח תחנת גביה על סכום ההצעה (₪${amount.toLocaleString()}) כדי שההכנסה תופיע בתזרים?`, { okLabel: 'פתח תחנת גביה', cancelLabel: 'לא כרגע' });
         if (!ok) return;
-        await fetch(`/api/service-calls/${callId}/payments`, { method:'POST', headers:{'Content-Type':'application/json'},
+        await fetch(`/api/service-calls/${callId}/payments`, { method:'POST', headers:{'Content-Type':'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : ''},
             body: JSON.stringify({ milestoneName: 'תשלום מלא', amount, totalAmount: amount }) });
         showToast('success', 'תחנת גביה נפתחה — ניתן לסמן כהתקבל בטאב "גביה"');
     } catch(e) {}
@@ -38388,7 +38388,7 @@ window._offerServiceCallCollection = async function(callId) {
 
 window.createCustomerFromCall = async function(callId) {
     try {
-        const r = await fetch(`/api/service-calls/business/${currentGroup.id}`);
+        const r = await fetch(`/api/service-calls/business/${currentGroup.id}`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } });
         const d = await r.json();
         const call = (d.calls||[]).find(c => c.id === callId);
         if (!call) { showToast('error', 'קריאה לא נמצאה'); return; }
@@ -38522,7 +38522,7 @@ window._scOflLink = async function(callId, familyGroupId, familyName) {
     if (resEl) resEl.innerHTML = '<p class="text-xs text-slate-400 p-2 text-center"><i class="fa-solid fa-spinner fa-spin ml-1"></i> מקשר...</p>';
     try {
         const r = await fetch(`/api/service-calls/${callId}/link-oneflow`, {
-            method: 'PATCH', headers: {'Content-Type': 'application/json'},
+            method: 'PATCH', headers: {'Content-Type': 'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : ''},
             body: JSON.stringify({ familyGroupId })
         }).then(res => res.json());
         if (r.success) {
@@ -38619,7 +38619,7 @@ window.submitNewServiceCall = async function() {
     const assignedMemberId = document.getElementById('scn-member')?.value || null;
     const needsTriage = document.getElementById('scn-triage')?.checked || false;
     try {
-        const r = await fetch('/api/service-calls', { method:'POST', headers:{'Content-Type':'application/json'},
+        const r = await fetch('/api/service-calls', { method:'POST', headers:{'Content-Type':'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : ''},
             body: JSON.stringify({
                 familyGroupId: familyGroupIdOverride || null,
                 businessGroupId: currentGroup.id,
@@ -38675,7 +38675,7 @@ window.openProcurementForSC = function(callId) {
 
 window.showAllServiceCalls = async function(filterStatus) {
     let allCalls = [];
-    try { const r = await fetch(`/api/service-calls/business/${currentGroup.id}`); const d = await r.json(); allCalls = d.calls||[]; } catch(e) {}
+    try { const r = await fetch(`/api/service-calls/business/${currentGroup.id}`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } }); const d = await r.json(); allCalls = d.calls||[]; } catch(e) {}
     // טכנאי שטח — רואה רק קריאות המשויכות אליו (מנהל רואה הכל)
     const isFieldTech = currentUser?.employee_role_type === 'field_tech';
     if (isFieldTech) allCalls = allCalls.filter(c => c.assigned_member_id == currentUser.id);
@@ -38723,7 +38723,7 @@ window.filterSCAllSearch = function() {
 
 window.filterSCAll = async function(status) {
     let calls = [];
-    try { const r = await fetch(`/api/service-calls/business/${currentGroup.id}`); const d = await r.json(); calls = d.calls||[]; } catch(e) {}
+    try { const r = await fetch(`/api/service-calls/business/${currentGroup.id}`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } }); const d = await r.json(); calls = d.calls||[]; } catch(e) {}
     if (status) calls = calls.filter(c => c.status === status);
     document.querySelectorAll('[id^="sc-filter-"]').forEach(b => {
         const s = b.id.replace('sc-filter-','');
@@ -43622,7 +43622,7 @@ window.loadScPayments = async function(callId) {
     if (!list) return;
     list.innerHTML = '<p class="text-[10px] text-slate-400 text-center py-2"><i class="fa-solid fa-spinner fa-spin ml-1"></i></p>';
     try {
-        const r = await fetch(`/api/service-calls/${callId}/payments`);
+        const r = await fetch(`/api/service-calls/${callId}/payments`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } });
         const d = await r.json();
         const payments = d.payments || [];
         if (!payments.length) {
@@ -43697,7 +43697,7 @@ window.openAddScPaymentMilestone = async function(callId) {
     const totalAmtEl = document.getElementById(`sc-pay-original-amount-${callId}`);
     if (totalAmtEl && !totalAmtEl.value) {
         try {
-            const r = await fetch(`/api/service-calls/${callId}/payments`);
+            const r = await fetch(`/api/service-calls/${callId}/payments`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } });
             const d = await r.json();
             const payments = d.payments || [];
             if (payments.length > 0) {
@@ -43717,7 +43717,7 @@ window.saveScPaymentMilestone = async function(callId) {
     if (!amount || amount <= 0) { showToast('error', 'נא להזין סכום'); return; }
     try {
         const r = await fetch(`/api/service-calls/${callId}/payments`, {
-            method: 'POST', headers: {'Content-Type':'application/json'},
+            method: 'POST', headers: {'Content-Type':'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : ''},
             body: JSON.stringify({ milestoneName: name || 'תשלום', amount, dueDate, paymentMethod: method, totalAmount })
         });
         const d = await r.json();
@@ -48338,7 +48338,7 @@ window._ofwSubmit = async function() {
         // קישור לקריאת שירות אם יש callId
         if (st.callId && r.member_group_id) {
             await fetch(`/api/service-calls/${st.callId}/link-oneflow`, {
-                method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+                method: 'PATCH', headers: { 'Content-Type': 'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' },
                 body: JSON.stringify({ familyGroupId: r.member_group_id })
             }).catch(() => {});
         }
@@ -48364,7 +48364,7 @@ async function _ofwLinkExisting(familyGroupId, name, phone) {
         const st = window._ofwState;
         if (st.callId && r.member_group_id) {
             await fetch(`/api/service-calls/${st.callId}/link-oneflow`, {
-                method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+                method: 'PATCH', headers: { 'Content-Type': 'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' },
                 body: JSON.stringify({ familyGroupId: r.member_group_id })
             }).catch(() => {});
         }
@@ -56841,7 +56841,7 @@ window._aiUpdateSCStatus = async function(scId, status, scTitle, btn) {
     if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מעדכן...'; }
     try {
         const res = await fetch(API + '/service-calls/' + scId, {
-            method: 'PATCH', headers: {'Content-Type':'application/json'},
+            method: 'PATCH', headers: {'Content-Type':'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : ''},
             body: JSON.stringify({ status })
         });
         const data = await res.json();
