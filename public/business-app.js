@@ -36764,6 +36764,7 @@ function openTechnicianModal(id = null) {
                     <button onclick="getEl('equipment-technician-modal').classList.add('hidden')" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500"><i class="fa-solid fa-xmark"></i></button>
                 </div>
                 <div class="p-5 space-y-3 overflow-y-auto max-h-[70vh]">
+                    <div class="text-[11px] text-slate-400 bg-slate-50 rounded-xl p-2.5">ℹ️ זהו כרטיס "איש קשר" בלבד — ללא התחברות למערכת. אם מדובר בעובד/ת עם חשבון משתמש (למשל טכנאי שטח), שייכו אותו/ה במסך "ניהול צוות" — שתי הרשומות אינן מסתנכרנות אוטומטית.</div>
                     <input type="hidden" id="eqtech-id">
                     <div><label class="text-xs font-bold text-slate-500 mb-1 block">שם איש קשר *</label><input id="eqtech-name" type="text" placeholder="שם מלא" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none"></div>
                     <div><label class="text-xs font-bold text-slate-500 mb-1 block">שם חברה</label><input id="eqtech-company" type="text" placeholder="חברת השירות" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-indigo-300 outline-none"></div>
@@ -36795,6 +36796,21 @@ async function submitTechnician() {
     const id = getEl('eqtech-id').value;
     const name = getEl('eqtech-name').value.trim();
     if (!name) { showToast('error', 'שם חובה'); return; }
+    if (!id) {
+        // רק בהוספת איש קשר חדש (לא בעריכה): אם קיים עובד רשום (עם התחברות למערכת) בשם דומה,
+        // מתריעים שמדובר בשתי רשומות נפרדות שאינן מסתנכרנות — כדי למנוע רישום כפול/לא-מסונכרן לאותו אדם בפועל
+        let members = membersCache;
+        try { const mr = await fetch(`${API}/members/${currentGroup.id}`); const md = await mr.json(); members = md.members || members; } catch(e) {}
+        const dupUser = (members || []).find(m => m.employee_role_type === 'field_tech' &&
+            (m.nickname || '').trim().toLowerCase() === name.toLowerCase());
+        if (dupUser) {
+            const cont = await window._uiConfirm(
+                `קיים כבר עובד רשום בשם "${dupUser.nickname}" (טכנאי שטח עם התחברות למערכת). רשומת "איש קשר" כאן היא נפרדת לגמרי ואינה מסונכרנת איתו — עדכון טלפון/פרטים כאן לא ישפיע על כרטיס העובד ולהיפך. להמשיך וליצור בכל זאת איש קשר נפרד?`,
+                { okLabel: 'כן, צור בכל זאת', cancelLabel: 'ביטול' }
+            );
+            if (!cont) return;
+        }
+    }
     try {
         const res = await fetch(`${API}/equipment/technicians`, {
             method: 'POST', headers: {'Content-Type':'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : ''},
