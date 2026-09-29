@@ -494,6 +494,7 @@ pool.connect()
       try { await client.query(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS priority VARCHAR(10) DEFAULT 'medium'`); } catch(e) {}
       try { await client.query(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS proof_image_url TEXT`); } catch(e) {}
       try { await client.query(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW()`); } catch(e) {}
+      try { await client.query(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS notes TEXT`); } catch(e) {}
       try { await client.query(`CREATE TABLE IF NOT EXISTS task_comments (id SERIAL PRIMARY KEY, task_id INT REFERENCES tasks(id) ON DELETE CASCADE, user_id INT REFERENCES users(id) ON DELETE CASCADE, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, text TEXT NOT NULL, created_at TIMESTAMPTZ DEFAULT NOW())`); } catch(e) {}
       try { await client.query(`ALTER TABLE game_assignments ADD COLUMN IF NOT EXISTS start_level INTEGER DEFAULT 1`); } catch(e) {}
       try { await client.query(`ALTER TABLE game_assignments ADD COLUMN IF NOT EXISTS finance_age INT DEFAULT NULL`); } catch(e) {}
@@ -10952,7 +10953,7 @@ app.post('/api/tasks/:id/comments', verifyFamilyOrBiz, async (req, res) => {
 
 app.post('/api/tasks/update', verifyFamilyOrBiz, async (req, res) => {
     try {
-        const { taskId, status, finalReward } = req.body;
+        const { taskId, status, finalReward, notes } = req.body;
         const { groupId, userId, role } = req.callerAuth;
         const tRes = await pool.query('SELECT * FROM tasks WHERE id=$1 AND group_id=$2', [taskId, groupId]);
         if (!tRes.rows[0]) return res.status(404).json({ error: 'not found' });
@@ -10977,7 +10978,11 @@ app.post('/api/tasks/update', verifyFamilyOrBiz, async (req, res) => {
             return res.json({success:true, recurring:true});
         }
         await pool.query('BEGIN');
-        await pool.query('UPDATE tasks SET status=$1, reward=$2 WHERE id=$3', [status, rew, taskId]);
+        if (notes !== undefined) {
+            await pool.query('UPDATE tasks SET status=$1, reward=$2, notes=$3 WHERE id=$4', [status, rew, notes, taskId]);
+        } else {
+            await pool.query('UPDATE tasks SET status=$1, reward=$2 WHERE id=$3', [status, rew, taskId]);
+        }
         if (status === 'approved' && rew > 0) {
             await pool.query('UPDATE users SET balance = balance + $1 WHERE id=$2', [rew, t.assigned_to]);
             await pool.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type) VALUES ($1, $2, $3, $4, 'tasks', 'income')`, [t.assigned_to, t.group_id, rew, 'תגמול משימה: ' + t.title]);
