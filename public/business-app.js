@@ -37970,7 +37970,8 @@ window.showMaintenanceReports = async function(memberId) {
 
     // Fetch analytics
     try {
-        const url = `/api/service-calls/analytics/${currentGroup.id}${filterMemberId ? '?memberId=' + filterMemberId : ''}`;
+        const trendDays = window._scTrendDays || 6;
+        const url = `/api/service-calls/analytics/${currentGroup.id}?days=${trendDays}${filterMemberId ? '&memberId=' + filterMemberId : ''}`;
         const r = await fetch(url, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } });
         const d = await r.json();
         if (!d.success) throw new Error('שגיאה בטעינה');
@@ -38000,10 +38001,17 @@ window.showMaintenanceReports = async function(memberId) {
             </div>`).join('')}
         </div>`;
 
-        // Trend chart (last 7 days)
+        // Trend chart — ניתן לבחור טווח תצוגה
         const trendMax = Math.max(...(d.trend||[]).map(t => parseInt(t.created)), 1);
+        const trendPeriodLabel = trendDays <= 6 ? '7 ימים אחרונים' : trendDays <= 30 ? '30 יום אחרונים' : '90 יום אחרונים';
+        const trendToggle = `<div class="flex gap-1 bg-slate-100 rounded-lg p-0.5">
+            ${[[6,'7ד'],[29,'30ד'],[89,'90ד']].map(([days,lbl]) => `<button onclick="window._scTrendDays=${days}; showMaintenanceReports(${filterMemberId||''})" class="text-[10px] font-bold px-2 py-1 rounded-md transition ${trendDays===days?'bg-white text-indigo-600 shadow-sm':'text-slate-400'}">${lbl}</button>`).join('')}
+        </div>`;
         const trendHtml = d.trend?.length ? `<div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
-            <h3 class="font-black text-slate-800 text-sm mb-3">📈 קריאות — 7 ימים אחרונים</h3>
+            <div class="flex justify-between items-center mb-3">
+                <h3 class="font-black text-slate-800 text-sm">📈 קריאות — ${trendPeriodLabel}</h3>
+                ${trendToggle}
+            </div>
             <div class="flex items-end gap-1.5 h-20">
                 ${d.trend.map(t => {
                     const day = new Date(t.day).toLocaleDateString('he-IL',{weekday:'short',day:'numeric'});

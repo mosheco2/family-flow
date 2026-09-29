@@ -23736,12 +23736,13 @@ app.get('/api/service-calls/analytics/:businessGroupId', verifyBiz, async (req, 
             WHERE sc.business_group_id=$1 AND sc.assigned_member_id IS NOT NULL
             GROUP BY u.id, u.nickname ORDER BY revenue DESC, done_c DESC`, [gid]);
 
-        // Last 7 days trend
+        // מגמה — טווח ימים ניתן לבחירה (ברירת מחדל 7 ימים, כמו קודם), כדי לאפשר בורר תקופה במסך
+        const trendDays = Math.min(Math.max(parseInt(req.query.days) || 6, 6), 89);
         const trend = await pool.query(`
             SELECT DATE(created_at) as day, COUNT(*) as created,
               COUNT(*) FILTER (WHERE status='done') as done_c
             FROM service_calls
-            WHERE business_group_id=$1 AND created_at >= CURRENT_DATE - INTERVAL '6 days'
+            WHERE business_group_id=$1 AND created_at >= CURRENT_DATE - INTERVAL '${trendDays} days'
             GROUP BY DATE(created_at) ORDER BY day ASC`, [gid]);
 
         res.json({
@@ -30279,8 +30280,11 @@ app.get('/api/reports/:groupId', async (req, res) => {
         // תחזוקה / תיקונים
         if (btype === 'maintenance_repair') {
             const [callsRes, revRes, byTechRes] = await Promise.all([
+                // פילוח לפי סטטוס: קריאות שנוצרו בתקופה (created_at) — רלוונטי גם לסטטוסים פתוחים
                 pool.query(`SELECT status, COUNT(*) AS count, COALESCE(SUM(price_quote),0) AS revenue FROM service_calls WHERE business_group_id=$1 AND created_at >= ${df} GROUP BY status`, [gid]),
-                pool.query(`SELECT COALESCE(SUM(price_quote),0) AS total FROM service_calls WHERE business_group_id=$1 AND status='done' AND created_at >= ${df}`, [gid]),
+                // "הכנסות" — לפי updated_at (מועד ההשלמה בפועל), לא created_at (מועד הפתיחה) —
+                // כך שהמספר תואם את ההגדרה שכבר בשימוש במסך ביצועי-הטכנאים (revenue_this_month/total_revenue)
+                pool.query(`SELECT COALESCE(SUM(price_quote),0) AS total FROM service_calls WHERE business_group_id=$1 AND status='done' AND updated_at >= ${df}`, [gid]),
                 pool.query(`SELECT u.id AS member_id, u.nickname AS name,
                         COUNT(*) FILTER (WHERE sc.status NOT IN ('done','cancelled')) AS open_c,
                         COUNT(*) FILTER (WHERE sc.status='done') AS done_c,
