@@ -4195,8 +4195,22 @@ async function fetchMembers() {
         let json = await res.json(); 
         
         membersCache = json.members || (Array.isArray(json) ? json : []);
-        
-        if (currentUser.role === 'ADMIN') { 
+        try { window.renderTeamFeed(); } catch(e) {}
+
+        // תחזוקה ותיקונים: ספירת קריאות שירות פתוחות לכל טכנאי שטח, להצגה כתג ליד השם במסך ניהול הצוות
+        // (עד כה מידע זה היה קיים רק בלוחות בקרה נפרדים, לא במסך ניהול הצוות עצמו)
+        window._memberOpenCallCounts = {};
+        if (currentGroup?.business_type === 'maintenance_repair') {
+            try {
+                const scR = await fetch(`${API}/service-calls/business/${currentGroup.id}`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } });
+                const scD = await scR.json();
+                (scD.calls||[]).filter(c => !['done','cancelled'].includes(c.status) && c.assigned_member_id).forEach(c => {
+                    window._memberOpenCallCounts[c.assigned_member_id] = (window._memberOpenCallCounts[c.assigned_member_id]||0) + 1;
+                });
+            } catch(e) {}
+        }
+
+        if (currentUser.role === 'ADMIN') {
             try {
                 const bF = getEl('budget-filter'); const fF = getEl('feed-user-filter'); const gS = getEl('goal-target-user'); const cfF = getEl('cashflow-user-filter');
                 if (bF) { const cur = bF.value; bF.innerHTML = '<option value="all">כלל הארגון</option>'; membersCache.forEach(m => bF.innerHTML += `<option value="${m.id}">${safeStr(fmtUserName(m) || m.nickname)}</option>`); if(cur) bF.value = cur; } 
@@ -4229,8 +4243,10 @@ async function fetchMembers() {
                     const adminSettingsBtn = currentUser.role === 'ADMIN' ? `<button onclick="openBankSettings(${m.id}, '${safeStr(m.nickname)}', ${m.allowance_amount || 0}, ${m.interest_rate || 0}, ${m.base_salary || 0})" class="mr-2 text-slate-500 hover:text-slate-700 bg-slate-100 w-8 h-8 rounded-full flex items-center justify-center transition shadow-sm" title="הגדרות שכר"><i class="fa-solid fa-gear text-sm"></i></button>` : '';
                     const adminPermsBtn = currentUser.role === 'ADMIN' ? `<button onclick="openPermissionsModal(${m.id}, '${safeStr(m.nickname)}', '${m.role}', '${permsStr}')" class="mr-2 text-purple-600 hover:text-purple-800 bg-purple-50 w-8 h-8 rounded-full flex items-center justify-center transition shadow-sm" title="סיווג והרשאות"><i class="fa-solid fa-user-shield text-sm"></i></button>` : '';
                     const adminDeleteBtn = (currentUser.role === 'ADMIN' && m.id !== currentUser.id) ? `<button onclick="deleteUser(${m.id}, '${safeStr(m.nickname)}')" class="mr-2 text-red-400 hover:text-red-600 bg-red-50 w-8 h-8 rounded-full flex items-center justify-center transition shadow-sm" title="מחיקת עובד"><i class="fa-solid fa-trash text-sm"></i></button>` : '';
-                    
-                    c.innerHTML += `<div class="p-3 flex justify-between items-center border-b border-slate-50 last:border-0 hover:bg-slate-50 transition"><div class="flex items-center gap-3"><div class="w-9 h-9 bg-slate-100 rounded-full flex items-center justify-center font-bold text-slate-500 text-sm border-2 border-white shadow-sm">${initial}</div><span class="font-bold text-sm text-slate-700">${safeStr(m.nickname) || 'משתמש'} <span class="text-[10px] font-normal text-slate-400">(${m.role === 'ADMIN' ? 'מנהל' : 'עובד'})</span></span></div><div class="flex items-center"><span class="text-xs font-bold text-slate-400 bg-slate-50 px-2 py-1.5 rounded-lg ml-2">${m.balance !== null && m.balance !== undefined ? `₪${m.balance}` : '🔒'}</span>${adminSettingsBtn}${adminPermsBtn}${adminDeleteBtn}</div></div>`; 
+                    const openCallsCount = window._memberOpenCallCounts?.[m.id];
+                    const callsBadge = (m.employee_role_type === 'field_tech' && openCallsCount) ? `<span class="text-[10px] font-bold text-orange-600 bg-orange-50 px-2 py-1 rounded-lg ml-2" title="קריאות שירות פתוחות">🔧 ${openCallsCount}</span>` : '';
+
+                    c.innerHTML += `<div class="p-3 flex justify-between items-center border-b border-slate-50 last:border-0 hover:bg-slate-50 transition"><div class="flex items-center gap-3"><div class="w-9 h-9 bg-slate-100 rounded-full flex items-center justify-center font-bold text-slate-500 text-sm border-2 border-white shadow-sm">${initial}</div><span class="font-bold text-sm text-slate-700">${safeStr(m.nickname) || 'משתמש'} <span class="text-[10px] font-normal text-slate-400">(${m.role === 'ADMIN' ? 'מנהל' : 'עובד'})</span></span></div><div class="flex items-center">${callsBadge}<span class="text-xs font-bold text-slate-400 bg-slate-50 px-2 py-1.5 rounded-lg ml-2">${m.balance !== null && m.balance !== undefined ? `₪${m.balance}` : '🔒'}</span>${adminSettingsBtn}${adminPermsBtn}${adminDeleteBtn}</div></div>`;
                 }); 
             }
         } catch(err) {}
@@ -7360,6 +7376,58 @@ window._wiz2SendAdminInvite = function(joinLink, bizName) {
 function toggleFab() { getEl('fab-container').classList.toggle('fab-open'); }
 
 async function openHistoryModal() { const res = await fetch(`${API}/shopping/history?groupId=${currentGroup.id}`); const trips = await res.json(); const list = getEl('history-list'); list.innerHTML = ''; if(trips.length === 0) list.innerHTML = '<p class="text-center text-slate-400 text-sm">אין היסטוריה עדיין</p>'; trips.forEach(t => { let itemsHtml = ''; t.items.forEach(i => itemsHtml += `<div class="text-xs flex justify-between bg-slate-100 p-2 rounded mb-1"><span>${safeStr(i.item_name)} (x${i.quantity} ${safeStr(i.unit || "יח'")})</span><span class="font-bold">₪${i.price_per_unit || 0}/${safeStr(i.unit || "יח'")}</span></div>`); list.innerHTML += `<div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm"><div onclick="document.getElementById('trip-items-${t.id}').classList.toggle('hidden')" class="flex justify-between items-center cursor-pointer"><div><h4 class="font-bold text-slate-800">${safeStr(t.store_name)} ${t.branch_name ? `(${safeStr(t.branch_name)})` : ''}</h4><p class="text-xs text-slate-400">${new Date(t.trip_date).toLocaleDateString()} • אישור: ${safeStr(t.nickname)}</p></div><span class="font-bold text-blue-600 text-lg">₪${t.total_amount} <i class="fa-solid fa-chevron-down text-xs ml-1"></i></span></div><div id="trip-items-${t.id}" class="hidden mt-3 pt-3 border-t border-slate-50">${itemsHtml}<button onclick="copyList(${t.id})" class="w-full mt-2 bg-slate-800 text-white py-2 rounded-xl text-xs font-bold hover:bg-slate-700">יבא דרישה שוב</button></div></div>`; }); getEl('history-modal').classList.remove('hidden'); }
+// ─── פיד הצוות — לוח הודעות פנימי (הוזכר באונבורדינג ומעולם לא מומש) ────────────
+window.renderTeamFeed = async function() {
+    const el = document.getElementById('team-feed-section');
+    if (!el || !currentGroup?.id) return;
+    const canPost = currentUser?.role === 'ADMIN' || currentUser?.employee_role_type === 'branch_manager';
+    let posts = [];
+    try {
+        const r = await fetch(`${API}/team-posts/${currentGroup.id}`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } });
+        const d = await r.json();
+        posts = d.posts || [];
+    } catch(e) {}
+    const canDelete = currentUser?.role === 'ADMIN';
+    el.innerHTML = `<div class="bg-white rounded-2xl border border-slate-100 shadow-sm mb-2">
+        <div class="px-4 py-3 border-b border-slate-50">
+            <h3 class="font-black text-slate-800 text-sm">📣 פיד הצוות</h3>
+        </div>
+        ${canPost ? `<div class="p-3 border-b border-slate-50 flex gap-2">
+            <input id="team-feed-msg" type="text" placeholder="שתפו עדכון עם הצוות..." dir="rtl" class="flex-1 border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-200">
+            <button onclick="window.submitTeamPost()" class="bg-indigo-600 text-white px-4 py-2 rounded-xl text-xs font-bold shrink-0">שלח</button>
+        </div>` : ''}
+        <div class="max-h-60 overflow-y-auto">
+            ${posts.length ? posts.map(p => `<div class="px-4 py-2.5 border-b border-slate-50 last:border-0 flex items-start justify-between gap-2">
+                <div class="min-w-0">
+                    <p class="text-sm text-slate-700">${safeStr(p.message)}</p>
+                    <p class="text-[10px] text-slate-400 mt-0.5">${safeStr(p.author_name||'צוות')} · ${new Date(p.created_at).toLocaleDateString('he-IL',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}</p>
+                </div>
+                ${canDelete ? `<button onclick="window.deleteTeamPost(${p.id})" class="text-slate-300 hover:text-red-500 shrink-0"><i class="fa-solid fa-xmark"></i></button>` : ''}
+            </div>`).join('') : '<p class="text-center text-slate-400 text-xs py-6">אין עדכונים עדיין</p>'}
+        </div>
+    </div>`;
+};
+
+window.submitTeamPost = async function() {
+    const input = document.getElementById('team-feed-msg');
+    const message = input?.value?.trim();
+    if (!message) return;
+    try {
+        await fetch(`${API}/team-posts`, { method:'POST', headers:{'Content-Type':'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : ''},
+            body: JSON.stringify({ groupId: currentGroup.id, authorUserId: currentUser.id, authorName: currentUser.nickname, message }) });
+        if (input) input.value = '';
+        window.renderTeamFeed();
+    } catch(e) { showToast('error', 'שגיאה בשליחת עדכון'); }
+};
+
+window.deleteTeamPost = async function(id) {
+    if (!await window._uiConfirm('למחוק עדכון זה?')) return;
+    try {
+        await fetch(`${API}/team-posts/${id}`, { method:'DELETE', headers:{ Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } });
+        window.renderTeamFeed();
+    } catch(e) {}
+};
+
 window.openBankSettings = function(id, name, allowance, interest, baseSalary) {
     if (!document.getElementById('bank-settings-modal')) {
         document.body.insertAdjacentHTML('beforeend', `

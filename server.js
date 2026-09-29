@@ -497,6 +497,8 @@ pool.connect()
       try { await client.query(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS notes TEXT`); } catch(e) {}
       try { await client.query(`ALTER TABLE tasks ADD COLUMN IF NOT EXISTS require_ai_check BOOLEAN DEFAULT FALSE`); } catch(e) {}
       try { await client.query(`CREATE TABLE IF NOT EXISTS task_set_templates (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, client_id VARCHAR(50), data JSONB NOT NULL, created_at TIMESTAMP DEFAULT NOW())`); } catch(e) {}
+      // "פיד הצוות" — לוח הודעות פנימי לעובדים, הוזכר באונבורדינג של תחזוקה ותיקונים אך מעולם לא מומש
+      try { await client.query(`CREATE TABLE IF NOT EXISTS team_posts (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, author_user_id INT, author_name VARCHAR(100), message TEXT NOT NULL, created_at TIMESTAMP DEFAULT NOW())`); } catch(e) {}
       try { await client.query(`CREATE TABLE IF NOT EXISTS task_comments (id SERIAL PRIMARY KEY, task_id INT REFERENCES tasks(id) ON DELETE CASCADE, user_id INT REFERENCES users(id) ON DELETE CASCADE, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, text TEXT NOT NULL, created_at TIMESTAMPTZ DEFAULT NOW())`); } catch(e) {}
       try { await client.query(`ALTER TABLE game_assignments ADD COLUMN IF NOT EXISTS start_level INTEGER DEFAULT 1`); } catch(e) {}
       try { await client.query(`ALTER TABLE game_assignments ADD COLUMN IF NOT EXISTS finance_age INT DEFAULT NULL`); } catch(e) {}
@@ -12114,6 +12116,32 @@ app.post('/api/task-set-templates/:groupId', async (req, res) => {
         await pool.query('COMMIT');
         res.json({ success: true });
     } catch(e) { await pool.query('ROLLBACK'); res.status(500).json({ error: e.message }); }
+});
+
+// ─── פיד הצוות — לוח הודעות פנימי לעובדי העסק ─────────────────────────────────
+app.get('/api/team-posts/:groupId', async (req, res) => {
+    try {
+        const r = await pool.query('SELECT * FROM team_posts WHERE group_id=$1 ORDER BY created_at DESC LIMIT 50', [req.params.groupId]);
+        res.json({ success: true, posts: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/team-posts', async (req, res) => {
+    try {
+        const { groupId, authorUserId, authorName, message } = req.body;
+        if (!groupId || !message || !message.trim()) return res.status(400).json({ error: 'חסרים שדות' });
+        const r = await pool.query(
+            'INSERT INTO team_posts (group_id, author_user_id, author_name, message) VALUES ($1,$2,$3,$4) RETURNING *',
+            [groupId, authorUserId||null, authorName||'צוות', message.trim()]);
+        res.json({ success: true, post: r.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/team-posts/:id', async (req, res) => {
+    try {
+        await pool.query('DELETE FROM team_posts WHERE id=$1', [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 // ============================================================
