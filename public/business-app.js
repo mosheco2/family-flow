@@ -2807,6 +2807,13 @@ function switchTab(t) {
                 if (newEventBtn) newEventBtn.classList.remove('hidden');
             }
 
+            // תחזוקה ותיקונים: "פקודת עבודה" מוצגת כ"קריאה" — תואם למינוח order:'קריאה' שכבר מוגדר לסוג עסק זה
+            if (currentGroup?.business_type === 'maintenance_repair' && bWO) {
+                bWO.innerHTML = '<i class="fa-solid fa-screwdriver-wrench text-sm"></i>קריאות';
+                const woTitle = document.getElementById('wo-view-title');
+                if (woTitle) woTitle.textContent = 'קריאות 🔧';
+            }
+
             switchSalesTab('orders');
         }
     } catch(e) {}
@@ -8752,7 +8759,7 @@ function _renderBizQuoteTimeline(historyRaw) {
         sent_to_customer:        {icon:'fa-paper-plane',  label:'נשלחה ללקוח',              actorColor:'text-indigo-600'},
         resent_updated:          {icon:'fa-rotate-right', label:'גרסה מעודכנת נשלחה',       actorColor:'text-indigo-600'},
         customer_response:       {icon:'fa-reply',        label:'תגובת לקוח',               actorColor:'text-amber-600'},
-        converted_to_work_order: {icon:'fa-hammer',       label: currentGroup?.business_type === 'professional' ? 'הומרה לתיק' : 'הומרה לפקודת עבודה',       actorColor:'text-emerald-600'},
+        converted_to_work_order: {icon:'fa-hammer',       label: currentGroup?.business_type === 'professional' ? 'הומרה לתיק' : (currentGroup?.business_type === 'maintenance_repair' ? 'הומרה לקריאה' : 'הומרה לפקודת עבודה'),       actorColor:'text-emerald-600'},
         approved:                {icon:'fa-check-circle', label:'אושרה',                    actorColor:'text-green-600'},
         business_message:        {icon:'fa-comment',      label:'שלחת הודעה ללקוח',         actorColor:'text-purple-600'},
     };
@@ -8850,7 +8857,7 @@ window.renderStoreQuotes = function() {
             
             const isApproved = currentStatus === 'approved';
             const isWoBusinessType = ['services','construction','maintenance_repair','events','healthcare','restaurant','cafe','professional'].includes(currentGroup?.business_type);
-            const woLabel = currentGroup?.business_type === 'professional' ? 'תיק' : (currentGroup?.business_type === 'restaurant' ? 'אירוע' : 'פקודת עבודה');
+            const woLabel = currentGroup?.business_type === 'professional' ? 'תיק' : (currentGroup?.business_type === 'restaurant' ? 'אירוע' : (currentGroup?.business_type === 'maintenance_repair' ? 'קריאה' : 'פקודת עבודה'));
             const optionsHtml = Object.keys(statuses).map(k => `<option value="${k}" ${currentStatus === k ? 'selected' : ''}>${statuses[k]}</option>`).join('');
 
             const totalAmount = q.total_amount ? parseFloat(q.total_amount).toFixed(2) : "0.00";
@@ -9196,7 +9203,7 @@ window.openWorkOrderSchedule = function(woId) {
     document.getElementById('wo-sched-modal')?.remove();
     const html = `<div id="wo-sched-modal" class="fixed inset-0 bg-slate-900/60 z-[9999] flex items-center justify-center p-4" style="direction:rtl;">
         <div class="bg-white w-full max-w-sm rounded-3xl shadow-2xl p-5">
-            <h3 class="font-black text-slate-800 mb-3">📅 ${currentGroup?.business_type === 'professional' ? 'תזמון פגישה לתיק' : 'תזמון פקודת עבודה'}</h3>
+            <h3 class="font-black text-slate-800 mb-3">📅 ${currentGroup?.business_type === 'professional' ? 'תזמון פגישה לתיק' : (currentGroup?.business_type === 'maintenance_repair' ? 'תזמון קריאה' : 'תזמון פקודת עבודה')}</h3>
             <p class="text-xs text-slate-500 mb-2">${safeStr(wo?.title||'')}</p>
             <input id="wo-sched-dt" type="datetime-local" value="${current}" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm mb-3">
             <textarea id="wo-sched-note" rows="2" placeholder="הערת תזמון (אופציונלי)..." class="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs mb-3"></textarea>
@@ -10943,12 +10950,12 @@ window.renderCustomerHistory = async function(forceSync = false, context = 'moda
                 <div class="flex items-center gap-2 shrink-0">
                     <span class="font-bold text-slate-600 dir-ltr">₪${parseFloat(q.total_amount || 0).toFixed(2)}</span>
                     <button onclick="event.stopPropagation(); ${closeCust} if(typeof window.openQuotePreview === 'function') window.openQuotePreview(${q.id})" class="text-slate-400 hover:text-orange-600 bg-slate-50 w-8 h-8 rounded-lg flex items-center justify-center transition border border-slate-100 shadow-sm" title="פתח הצעה"><i class="fa-solid fa-eye text-xs"></i></button>
-                    ${relatedWO ? `<button onclick="event.stopPropagation(); ${closeCust} if(typeof window.openWorkOrderModal === 'function') window.openWorkOrderModal(${relatedWO.id})" class="text-blue-500 hover:text-blue-700 bg-blue-50 w-8 h-8 rounded-lg flex items-center justify-center transition border border-blue-100 shadow-sm" title="${currentGroup?.business_type==='professional'?'פתח תיק קשור':'פתח פקודת עבודה קשורה'}"><i class="fa-solid fa-screwdriver-wrench text-xs"></i></button>` : ''}
+                    ${relatedWO ? `<button onclick="event.stopPropagation(); ${closeCust} if(typeof window.openWorkOrderModal === 'function') window.openWorkOrderModal(${relatedWO.id})" class="text-blue-500 hover:text-blue-700 bg-blue-50 w-8 h-8 rounded-lg flex items-center justify-center transition border border-blue-100 shadow-sm" title="${currentGroup?.business_type==='professional'?'פתח תיק קשור':(currentGroup?.business_type==='maintenance_repair'?'פתח קריאה קשורה':'פתח פקודת עבודה קשורה')}"><i class="fa-solid fa-screwdriver-wrench text-xs"></i></button>` : ''}
                 </div>
             </div>`;
         });
         workOrders.forEach(o => {
-            const _woTermCust = currentGroup?.business_type === 'professional' ? 'תיק' : 'פקודת עבודה';
+            const _woTermCust = currentGroup?.business_type === 'professional' ? 'תיק' : (currentGroup?.business_type === 'maintenance_repair' ? 'קריאה' : 'פקודת עבודה');
             const woTitle = o.quote_title || (o.quote_number ? `${_woTermCust} #${o.quote_number}` : `${_woTermCust} #${o.id}`);
             const closeCust = `document.getElementById('customer-modal').classList.add('hidden');`;
             historyHtml += `
@@ -18657,7 +18664,7 @@ function renderB2BOrders() {
                 <div class="flex-1 pr-2">
                     <h4 class="font-bold text-slate-800 text-sm flex items-center gap-2"><i class="fa-solid fa-file-invoice text-indigo-400"></i> ${safeStr(o.supplier_name || o.supplier_name_text || 'ללא ספק')} <span class="text-[10px] font-bold text-indigo-500 bg-indigo-50 px-1.5 py-0.5 rounded-md border border-indigo-100">#${o.id}</span></h4>
                     <p class="text-[10px] text-slate-500 mt-1"><i class="fa-regular fa-calendar mr-1"></i> ${dateStr}</p>
-                    ${o.work_order_id ? `<button onclick="window.openWorkOrderModal(${o.work_order_id})" class="inline-flex items-center gap-1 mt-1 bg-teal-50 text-teal-700 border border-teal-200 rounded-full px-2 py-0.5 text-[10px] font-bold hover:bg-teal-100 transition"><i class="fa-solid fa-hammer text-xs"></i> ${currentGroup?.business_type==='professional'?'מתיק':'מפקודת עבודה'}${o.wo_customer_name ? ': '+safeStr(o.wo_customer_name) : ''}</button>` : ''}
+                    ${o.work_order_id ? `<button onclick="window.openWorkOrderModal(${o.work_order_id})" class="inline-flex items-center gap-1 mt-1 bg-teal-50 text-teal-700 border border-teal-200 rounded-full px-2 py-0.5 text-[10px] font-bold hover:bg-teal-100 transition"><i class="fa-solid fa-hammer text-xs"></i> ${currentGroup?.business_type==='professional'?'מתיק':(currentGroup?.business_type==='maintenance_repair'?'מקריאה':'מפקודת עבודה')}${o.wo_customer_name ? ': '+safeStr(o.wo_customer_name) : ''}</button>` : ''}
                     ${o.supplier_confirmed_at ? `<span class="inline-flex items-center gap-1 mt-1 bg-green-100 text-green-700 border border-green-300 rounded-full px-2.5 py-0.5 text-[10px] font-bold"><i class="fa-solid fa-circle-check text-xs"></i> התקבל אצל הספק • ${new Date(o.supplier_confirmed_at).toLocaleDateString('he-IL')} • ${new Date(o.supplier_confirmed_at).toLocaleTimeString('he-IL', {hour:'2-digit', minute:'2-digit'})}</span>` : ''}
                 </div>
                 <div class="flex flex-col items-end gap-1 w-[140px] shrink-0">
@@ -42309,7 +42316,7 @@ window.openWorkOrderModal = async function(woId) {
 window.renderWoOverview = function(data) {
     const wo = data.workOrder;
     const isPro = currentGroup?.business_type === 'professional';
-    document.getElementById('wo-modal-title').textContent = wo.quote_number || (isPro ? `תיק #${wo.id}` : `פקודה #${wo.id}`);
+    document.getElementById('wo-modal-title').textContent = wo.quote_number || (isPro ? `תיק #${wo.id}` : (currentGroup?.business_type === 'maintenance_repair' ? `קריאה #${wo.id}` : `פקודה #${wo.id}`));
     document.getElementById('wo-modal-subtitle').textContent = safeStr(wo.customer_name || '');
     document.getElementById('wo-info-customer').textContent = safeStr(wo.customer_name || '—');
     document.getElementById('wo-info-amount').textContent = wo.total_amount ? `₪${parseFloat(wo.total_amount).toFixed(2)}` : '—';
@@ -42892,7 +42899,7 @@ window.addAssigneeToWo = async function() {
 };
 
 window.removeWoAssignee = async function(userId) {
-    if (!await window._uiConfirm(currentGroup?.business_type === 'professional' ? 'להסיר משתתף מהתיק?' : 'להסיר עובד זה מהפקודה?')) return;
+    if (!await window._uiConfirm(currentGroup?.business_type === 'professional' ? 'להסיר משתתף מהתיק?' : (currentGroup?.business_type === 'maintenance_repair' ? 'להסיר עובד זה מהקריאה?' : 'להסיר עובד זה מהפקודה?'))) return;
     try {
         const res = await fetch(`${API}/work-orders/${window._currentWoId}/assignees/${userId}`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' }, method: 'DELETE' });
         const data = await res.json();
