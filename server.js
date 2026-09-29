@@ -4189,9 +4189,17 @@ async function runWhatsAppCron() {
                 try {
                     const already = await checkAlreadySent(pool, groupId, 'low_inventory', ownerPhone, 20);
                     if (!already) {
-                        const lowItems = await pool.query(`SELECT name, quantity, min_quantity FROM pantry WHERE group_id=$1 AND min_quantity IS NOT NULL AND quantity <= min_quantity`, [groupId]);
+                        // מבוסס על אותו מנגנון אחוזי-באפר/התראה (min_stock_buffer_pct/min_stock_warning_pct) שבו משתמש מסך המלאי בפועל —
+                        // לטבלת pantry אין עמודת סף לכל פריט (min_quantity), כך שזו הדרך היחידה העקבית לחשב "מלאי נמוך"
+                        const lowItems = await pool.query(
+                            `SELECT p.item_name, p.quantity, p.unit,
+                                    GREATEST(0, p.quantity - COALESCE(p.reserved_qty,0) - p.quantity * COALESCE(fg.min_stock_buffer_pct,0)/100.0) AS available,
+                                    p.quantity * COALESCE(fg.min_stock_warning_pct,0)/100.0 AS warning_threshold
+                             FROM pantry p JOIN family_groups fg ON fg.id = p.group_id
+                             WHERE p.group_id=$1 AND p.quantity > 0 AND COALESCE(fg.min_stock_warning_pct,0) > 0`, [groupId]);
+                        lowItems.rows = lowItems.rows.filter(r => parseFloat(r.available) <= parseFloat(r.warning_threshold));
                         if (lowItems.rows.length > 0) {
-                            const list = lowItems.rows.map(i => `• ${i.name}: ${i.quantity}/${i.min_quantity}`).join('\n');
+                            const list = lowItems.rows.map(i => `• ${i.item_name}: ${parseFloat(i.quantity).toFixed(1)} ${i.unit||''}`).join('\n');
                             await sendWhatsApp(pool, groupId, ownerPhone, bizName, applyWATpl(s.tpl_low_inventory || gDef.tpl_low_inventory || WA_DEFAULTS.low_inventory, {רשימת_מלאי: list, שם_עסק: bizName}), null, 'owner', 'מנהל', 'low_inventory');
                         }
                     }
@@ -10274,7 +10282,7 @@ app.get('/api/pantry/:groupId', async (req, res) => {
     try {
         const r = await pool.query(
             `SELECT id, item_name, COALESCE(quantity,0) as quantity, COALESCE(reserved_qty,0) as reserved_qty,
-                    unit, units_per_package, category
+                    unit, units_per_package
              FROM pantry WHERE group_id=$1 ORDER BY item_name`,
             [req.params.groupId]
         );
@@ -14847,10 +14855,10 @@ app.get('/api/biz/export-report', verifyBiz, async (req, res) => {
             csvData = 'מספר,סוג,קטגוריה,תיאור,סכום,עובד,תאריך\n';
             r.rows.forEach(t => { csvData += [t.id,t.type==='income'?'הכנסה':'הוצאה',`"${(t.category||'').replace(/"/g,'""')}"`,`"${(t.description||'').replace(/"/g,'""')}"`,t.amount||0,t.user_name||'',new Date(t.date).toLocaleDateString('he-IL')].join(',')+'\n'; });
         } else if (type === 'pantry') {
-            const r = await pool.query(`SELECT id,item_name,quantity,unit,category,min_quantity,expiry_date,last_updated FROM pantry WHERE group_id=$1 ORDER BY category,item_name`, [groupId]);
+            const r = await pool.query(`SELECT id,item_name,quantity,unit,reserved_qty,updated_at FROM pantry WHERE group_id=$1 ORDER BY item_name`, [groupId]);
             filename = `מלאי_${new Date().toISOString().split('T')[0]}.csv`;
-            csvData = 'מספר,פריט,כמות,יחידה,קטגוריה,מינימום,תפוגה,עדכון אחרון\n';
-            r.rows.forEach(p => { csvData += [p.id,`"${(p.item_name||'').replace(/"/g,'""')}"`,p.quantity||0,p.unit||'',`"${(p.category||'').replace(/"/g,'""')}"`,p.min_quantity||0,p.expiry_date?new Date(p.expiry_date).toLocaleDateString('he-IL'):'',p.last_updated?new Date(p.last_updated).toLocaleDateString('he-IL'):''].join(',')+'\n'; });
+            csvData = 'מספר,פריט,כמות,יחידה,משוריין,עדכון אחרון\n';
+            r.rows.forEach(p => { csvData += [p.id,`"${(p.item_name||'').replace(/"/g,'""')}"`,p.quantity||0,p.unit||'',p.reserved_qty||0,p.updated_at?new Date(p.updated_at).toLocaleDateString('he-IL'):''].join(',')+'\n'; });
         } else if (type === 'staff') {
             const r = await pool.query(`SELECT id,name,nickname,role,email,created_at FROM users WHERE group_id=$1 ORDER BY role,name`, [groupId]);
             filename = `צוות_${new Date().toISOString().split('T')[0]}.csv`;
