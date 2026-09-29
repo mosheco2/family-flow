@@ -38168,7 +38168,26 @@ window.markServiceCallDone = async function(callId) {
         const roleToRefresh = window._currentShowingRole || currentUser?.employee_role_type;
         if (roleToRefresh) setTimeout(() => showRoleDashboard(roleToRefresh), 100);
         else if (currentUser?.role === 'ADMIN') setTimeout(() => renderDashboard(), 100);
+        await window._offerServiceCallCollection(callId);
     } catch(e) { showToast('error', 'שגיאה'); }
+};
+
+// ננסה להציע פתיחת תחנת גביה מיידית כדי שהתזרים לא "יישכח" הכנסה שהקריאה כבר מסומנת כהושלמה עבורה
+window._offerServiceCallCollection = async function(callId) {
+    try {
+        const r = await fetch(`/api/service-calls/business/${currentGroup.id}`);
+        const d = await r.json();
+        const call = (d.calls||[]).find(c => c.id === callId);
+        const amount = parseFloat(call?.price_quote || 0);
+        if (!call || !(amount > 0)) return;
+        const existing = await fetch(`/api/service-calls/${callId}/payments`).then(r2=>r2.json()).catch(()=>null);
+        if ((existing?.payments||[]).length) return; // כבר נפתחה תחנת גביה לקריאה זו — לא מציעים שוב
+        const ok = await window._uiConfirm(`לפתוח תחנת גביה על סכום ההצעה (₪${amount.toLocaleString()}) כדי שההכנסה תופיע בתזרים?`, { okLabel: 'פתח תחנת גביה', cancelLabel: 'לא כרגע' });
+        if (!ok) return;
+        await fetch(`/api/service-calls/${callId}/payments`, { method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ milestoneName: 'תשלום מלא', amount, totalAmount: amount }) });
+        showToast('success', 'תחנת גביה נפתחה — ניתן לסמן כהתקבל בטאב "גביה"');
+    } catch(e) {}
 };
 
 window.createCustomerFromCall = async function(callId) {
