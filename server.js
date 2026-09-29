@@ -787,6 +787,11 @@ try { await client.query(`ALTER TABLE game_assignments ADD COLUMN IF NOT EXISTS 
       try { await client.query('ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS location_lng DOUBLE PRECISION'); } catch(e) {}
       // רדיוס אימות המיקום להחתמת נוכחות — ניתן להתאמה אישית לעסק (למשל מתחם ספורט גדול), במקום ערך קבוע בקוד
       try { await client.query('ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS location_radius_m INT DEFAULT 150'); } catch(e) {}
+      // תיעוד ביקורת (audit trail) של מיקום ה-GPS בפועל בזמן הדיווח — נאסף ממילא לצורך אימות המרחק, אך לא נשמר עד כה
+      try { await client.query('ALTER TABLE time_clock ADD COLUMN IF NOT EXISTS punch_in_lat DOUBLE PRECISION'); } catch(e) {}
+      try { await client.query('ALTER TABLE time_clock ADD COLUMN IF NOT EXISTS punch_in_lng DOUBLE PRECISION'); } catch(e) {}
+      try { await client.query('ALTER TABLE time_clock ADD COLUMN IF NOT EXISTS punch_out_lat DOUBLE PRECISION'); } catch(e) {}
+      try { await client.query('ALTER TABLE time_clock ADD COLUMN IF NOT EXISTS punch_out_lng DOUBLE PRECISION'); } catch(e) {}
       // אמצעי תשלום לתנועת הכנסה/הוצאה כללית — היה קיים רק ב-route ידני (/api/force-upgrade) ולכן מעולם לא נוצר בפועל בסביבת הייצור
       try { await client.query('ALTER TABLE transactions ADD COLUMN IF NOT EXISTS payment_method VARCHAR(30)'); } catch(e) {}
       try { await client.query('ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS is_onboarded BOOLEAN DEFAULT FALSE'); } catch(e) {}
@@ -11923,10 +11928,10 @@ app.post('/api/timeclock/punch', async (req, res) => {
             const punchIn = new Date(openPunch.rows[0].punch_in);
             const punchOut = new Date();
             const diffMins = Math.max(0, Math.round((punchOut - punchIn) / 60000));
-            await pool.query('UPDATE time_clock SET punch_out=$1, total_minutes=$2 WHERE id=$3', [punchOut, diffMins, punchId]);
+            await pool.query('UPDATE time_clock SET punch_out=$1, total_minutes=$2, punch_out_lat=$3, punch_out_lng=$4 WHERE id=$5', [punchOut, diffMins, lat, lng, punchId]);
             res.json({ success: true, status: 'out' });
         } else {
-            await pool.query('INSERT INTO time_clock (user_id, group_id, punch_in) VALUES ($1, $2, CURRENT_TIMESTAMP)', [userId, groupId]);
+            await pool.query('INSERT INTO time_clock (user_id, group_id, punch_in, punch_in_lat, punch_in_lng) VALUES ($1, $2, CURRENT_TIMESTAMP, $3, $4)', [userId, groupId, lat, lng]);
             let triggeredPopup = null;
             try {
                 const pRes = await pool.query(
