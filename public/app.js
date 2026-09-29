@@ -12726,7 +12726,7 @@ window.sendFamilyScMessage = async function(callId) {
 window.cancelFamilyServiceCall = async function(callId) {
     if (!confirm('לשלוח בקשת ביטול? הביטול יאושר סופית ע"י העסק.')) return;
     try {
-        const r = await fetch(`/api/service-calls/${callId}`, { method:'DELETE' });
+        const r = await fetch(`/api/service-calls/${callId}`, { method:'DELETE', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ groupId: currentGroup.id }) });
         if (r.ok) {
             document.getElementById('fam-sc-modal')?.remove();
             await loadFamilyServiceCalls();
@@ -12737,7 +12737,7 @@ window.cancelFamilyServiceCall = async function(callId) {
 
 window.rateFamilyServiceCall = async function(callId, rating) {
     try {
-        const r = await fetch(`/api/service-calls/${callId}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ rating }) });
+        const r = await fetch(`/api/service-calls/${callId}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ rating, groupId: currentGroup.id }) });
         if (r.ok) {
             const idx = familyServiceCalls.findIndex(c => c.id === callId);
             if (idx >= 0) familyServiceCalls[idx].rating = rating;
@@ -13679,7 +13679,7 @@ window._memberSendScMsg = async function(callId, bizGroupId) {
 window._memberCancelSc = async function(callId, bizGroupId) {
     if (!confirm('לבטל את הקריאה?')) return;
     try {
-        const r = await fetch(`/api/service-calls/${callId}`, { method:'DELETE' });
+        const r = await fetch(`/api/service-calls/${callId}`, { method:'DELETE', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ groupId: bizGroupId }) });
         if (r.ok) {
             document.getElementById('member-sc-modal')?.remove();
             _memberLoadOrders(bizGroupId, 'maintenance_repair');
@@ -13689,7 +13689,7 @@ window._memberCancelSc = async function(callId, bizGroupId) {
 
 window._memberRateSc = async function(callId, rating, bizGroupId) {
     try {
-        await fetch(`/api/service-calls/${callId}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ rating }) });
+        await fetch(`/api/service-calls/${callId}`, { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ rating, groupId: bizGroupId }) });
         document.getElementById('member-sc-modal')?.remove();
         _memberLoadOrders(bizGroupId, 'maintenance_repair');
     } catch(e) {}

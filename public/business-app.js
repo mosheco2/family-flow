@@ -9342,7 +9342,7 @@ window.saveWorkOrderSchedule = async function(woId) {
     const dt = document.getElementById('wo-sched-dt')?.value;
     if (!dt) { showToast('error', 'נא לבחור תאריך ושעה'); return; }
     try {
-        const r = await fetch(`${API}/service-calls/${woId}`, { method:'PATCH', headers:{'Content-Type':'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : ''}, body: JSON.stringify({ scheduledAt: dt }) });
+        const r = await fetch(`${API}/service-calls/${woId}`, { method:'PATCH', headers:{'Content-Type':'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : ''}, body: JSON.stringify({ scheduledAt: dt, groupId: currentGroup.id }) });
         if (r.ok) {
             showToast('success', 'תזמון נשמר!');
             document.getElementById('wo-sched-modal')?.remove();
@@ -38259,7 +38259,7 @@ window.saveServiceCallUpdates = async function(callId) {
     const scheduledAt = document.getElementById(`sc-scheduled-${callId}`)?.value || null;
     try {
         const res = await fetch(`/api/service-calls/${callId}`, { method:'PATCH', headers:{'Content-Type':'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : ''},
-            body: JSON.stringify({ status, assignedMemberId: assignedMemberId||null, priceQuote: priceQuote||null, scheduledAt: scheduledAt||null }) });
+            body: JSON.stringify({ status, assignedMemberId: assignedMemberId||null, priceQuote: priceQuote||null, scheduledAt: scheduledAt||null, groupId: currentGroup.id }) });
         if (!res.ok) throw new Error();
         showToast('success', 'עודכן בהצלחה');
         if (window._scChatInterval) clearInterval(window._scChatInterval);
@@ -38292,7 +38292,7 @@ window.saveServiceCallUpdates = async function(callId) {
 window.returnCallToManager = async function(callId) {
     try {
         await fetch(`/api/service-calls/${callId}`, { method:'PATCH', headers:{'Content-Type':'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : ''},
-            body: JSON.stringify({ assignedMemberId: null, status: 'seen' }) });
+            body: JSON.stringify({ assignedMemberId: null, status: 'seen', groupId: currentGroup.id }) });
         showToast('info', 'הקריאה הוחזרה למנהל');
         document.getElementById('sc-modal')?.remove();
         if(window._scChatInterval) clearInterval(window._scChatInterval);
@@ -38349,7 +38349,7 @@ window.scResolveCancelRequest = async function(callId, approve) {
     const newStatus = approve ? 'cancelled' : 'seen';
     try {
         await fetch(`/api/service-calls/${callId}`, { method:'PATCH', headers:{'Content-Type':'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : ''},
-            body: JSON.stringify({ status: newStatus }) });
+            body: JSON.stringify({ status: newStatus, groupId: currentGroup.id }) });
         showToast('success', approve ? 'בקשת הביטול אושרה' : 'בקשת הביטול נדחתה — הקריאה חוזרת לטיפול');
         window.showServiceCallModal(callId);
     } catch(e) { showToast('error', 'שגיאה'); }
@@ -38358,7 +38358,7 @@ window.scResolveCancelRequest = async function(callId, approve) {
 window.markServiceCallDone = async function(callId) {
     try {
         await fetch(`/api/service-calls/${callId}`, { method:'PATCH', headers:{'Content-Type':'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : ''},
-            body: JSON.stringify({ status: 'done' }) });
+            body: JSON.stringify({ status: 'done', groupId: currentGroup.id }) });
         showToast('success', 'הקריאה סומנה כהושלמה');
         document.getElementById('sc-modal')?.remove();
         const roleToRefresh = window._currentShowingRole || currentUser?.employee_role_type;
@@ -56842,7 +56842,7 @@ window._aiUpdateSCStatus = async function(scId, status, scTitle, btn) {
     try {
         const res = await fetch(API + '/service-calls/' + scId, {
             method: 'PATCH', headers: {'Content-Type':'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : ''},
-            body: JSON.stringify({ status })
+            body: JSON.stringify({ status, groupId: currentGroup.id })
         });
         const data = await res.json();
         if (data.success) {

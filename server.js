@@ -23518,6 +23518,17 @@ app.get('/api/service-calls/customer/:businessGroupId/:familyGroupId', async (re
 app.patch('/api/service-calls/:id', async (req, res) => {
     try {
         const { status, assignedMemberId, scheduledAt, priceQuote, discountPct, communityDiscount } = req.body;
+        // בדיקת שייכות מתונה — לא תחליף לאימות אמיתי (שדורש שדרוג נפרד לכל אפליקציית המשפחה),
+        // אך חוסמת ניחוש/שינוי של callId שלא שייך לקבוצה (עסקית או משפחתית) שהמבקש טוען שהוא שייך אליה
+        if (req.body.groupId !== undefined) {
+            const owner = await pool.query('SELECT family_group_id, business_group_id FROM service_calls WHERE id=$1', [req.params.id]);
+            if (!owner.rows.length) return res.status(404).json({ error: 'לא נמצא' });
+            const gid = parseInt(req.body.groupId);
+            const o = owner.rows[0];
+            if (gid !== o.family_group_id && gid !== o.business_group_id) {
+                return res.status(403).json({ error: 'אין הרשאה לעדכן קריאה זו' });
+            }
+        }
         const sets = [], vals = [];
         let i = 1;
         if (status !== undefined)           { sets.push(`status=$${i++}`);             vals.push(status); }
@@ -23561,8 +23572,15 @@ app.delete('/api/service-calls/:id', async (req, res) => {
     try {
         // ביטול ע"י הלקוח הוא בקשה בלבד, בדומה לביטול תור יופי (pending_cancel) — הביטול בפועל
         // ממתין לאישור העסק, ולא מבוצע מיידית בלחיצת כפתור אחת
-        const cur = await pool.query('SELECT status FROM service_calls WHERE id=$1', [req.params.id]);
+        const cur = await pool.query('SELECT status, family_group_id, business_group_id FROM service_calls WHERE id=$1', [req.params.id]);
         if (!cur.rows.length) return res.status(404).json({ error: 'קריאה לא נמצאה' });
+        // בדיקת שייכות מתונה — ראו הערה מקבילה ב-PATCH לעיל
+        if (req.body?.groupId !== undefined) {
+            const gid = parseInt(req.body.groupId);
+            if (gid !== cur.rows[0].family_group_id && gid !== cur.rows[0].business_group_id) {
+                return res.status(403).json({ error: 'אין הרשאה לבטל קריאה זו' });
+            }
+        }
         if (!['new','seen'].includes(cur.rows[0].status)) {
             return res.status(400).json({ error: 'ניתן לבקש ביטול רק לקריאה שטרם החל בה טיפול' });
         }
