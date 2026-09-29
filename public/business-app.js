@@ -2827,7 +2827,14 @@ function switchTab(t) {
     if (t === 'members') try { fetchMembers(); } catch(e) {}
     if (t === 'foodcost') try { fetchFoodCost(); } catch(e) {}
     if (t === 'pos') { try { window.renderPOSCatalog('all'); } catch(e) {} }
-    if (t === 'shop') try { switchProcurementTab('list'); } catch(e) {}
+    if (t === 'shop') try {
+        switchProcurementTab('list');
+        // תחזוקה ותיקונים: "ספקים" מוצג כ"ספקי חלקים" — תואם למינוח supplier:'ספק חלקים' שכבר מוגדר לסוג עסק זה
+        if (currentGroup?.business_type === 'maintenance_repair') {
+            const bSup = document.getElementById('btn-proc-suppliers');
+            if (bSup) bSup.textContent = 'מאגר ספקי חלקים';
+        }
+    } catch(e) {}
     if (t === 'calendar') try { window.switchCalendarTab('main'); } catch(e) {}
     if (t === 'beauty_calendar') try { loadBeautyCalendar(); } catch(e) {}
     if (t === 'beauty_clients') try { loadBeautyClients(); } catch(e) {}
@@ -17745,9 +17752,10 @@ function renderSuppliers() {
     if (!list) return;
     
     if (suppliersList.length === 0) {
+        const emptyLabel = currentGroup?.business_type === 'maintenance_repair' ? 'אין ספקי חלקים עדיין' : 'אין ספקים עדיין';
         list.innerHTML = `<div class="text-center py-10 text-slate-400">
   <i class="fa-solid fa-truck text-4xl mb-3"></i>
-  <p class="font-bold text-sm">אין ספקים עדיין</p>
+  <p class="font-bold text-sm">${emptyLabel}</p>
   <p class="text-xs mt-1">לחץ "ספק חדש" כדי להוסיף</p>
 </div>`;
         return;
