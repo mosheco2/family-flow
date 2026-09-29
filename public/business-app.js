@@ -42864,7 +42864,7 @@ window.renderWoTimeline = function(timeline) {
     const list = document.getElementById('wo-timeline-list');
     if (!list) return;
     if (!timeline.length) { list.innerHTML = '<p class="text-slate-400 text-xs text-center py-4">אין אירועים בציר הזמן</p>'; return; }
-    const icons = { created: '🔨', status_change: '🔄', assignee_added: '👤', assignee_removed: '👤', inventory_reserved: '📦', inventory_used: '✅', inventory_released: '↩️', notes_updated: '📝', calendar_event: '📅', default: '•' };
+    const icons = { created: '🔨', status_change: '🔄', assignee_added: '👤', assignee_removed: '👤', inventory_reserved: '📦', inventory_used: '✅', inventory_released: '↩️', inventory_auto_reserved: '📦', equipment_reserved: '🧰', equipment_released: '↩️', payments_template_applied: '💳', notes_updated: '📝', calendar_event: '📅', menu_assigned: '🍽️', menu_removed: '🍽️', purchase_order_created: '🛒', purchase_order_updated: '🛒', default: '•' };
     list.innerHTML = timeline.map(t => {
         const d = t.created_at ? new Date(t.created_at).toLocaleString('he-IL', {day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'}) : '';
         const icon = icons[t.event_type] || icons.default;
