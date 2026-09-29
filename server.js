@@ -23583,7 +23583,7 @@ app.get('/api/service-calls/analytics/:businessGroupId', async (req, res) => {
             FROM service_calls sc
             JOIN users u ON u.id = sc.assigned_member_id
             WHERE sc.business_group_id=$1 AND sc.assigned_member_id IS NOT NULL
-            GROUP BY u.id, u.nickname ORDER BY done_c DESC LIMIT 10`, [gid]);
+            GROUP BY u.id, u.nickname ORDER BY revenue DESC, done_c DESC LIMIT 10`, [gid]);
 
         // Last 7 days trend
         const trend = await pool.query(`
