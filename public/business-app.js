@@ -37425,6 +37425,15 @@ async function showRoleDashboard(roleType) {
         case 'nail_tech':
         case 'makeup_artist':
         case 'reception':      await renderBeautyStaffDashboard(dashEl, roleType); break;
+        default:
+            // תפקיד מקצועי ללא לוח בקרה ייעודי (למשל תפקיד ששויך שלא דרך מסך ההרשאות הרגיל) —
+            // מציגים הודעה ברורה במקום מסך ריק, כדי שהעובד לא יישאר תקוע בלי הסבר
+            dashEl.innerHTML = `<div class="text-center py-16 px-6">
+                <div class="text-4xl mb-3">🧭</div>
+                <p class="text-sm font-bold text-slate-600 mb-1">לא נמצא לוח בקרה ייעודי לתפקיד "${safeStr(roleInfo.name||roleType)}"</p>
+                <p class="text-xs text-slate-400">ניתן לעדכן את התפקיד המקצועי במסך "ניהול צוות"</p>
+            </div>`;
+            break;
     }
     // Start auto-refresh for operational roles that need real-time updates
     if (['waiter','cook','shift_manager'].includes(roleType)) startRoleAutoRefresh(roleType);
