@@ -3991,6 +3991,7 @@ const _ROLE_TYPE_OPTIONS = {
     beauty:       [{v:'therapist',label:'מטפל/ת'},{v:'makeup_artist',label:'איפור'},{v:'nail_tech',label:'טכנאית ציפורניים'},{v:'reception',label:'קבלה'},{v:'branch_manager',label:'מנהל/ת סניף'}],
     sport:        [{v:'instructor',label:'מדריך/ה'},{v:'cashier',label:'קופאי/ת'},{v:'shift_manager',label:'אחמ"ש'},{v:'branch_manager',label:'מנהל/ת סניף'}],
     services:     [{v:'field_tech',label:'איש/ת שטח'},{v:'support',label:'תמיכה'},{v:'cashier',label:'קופאי/ת'},{v:'branch_manager',label:'מנהל/ת סניף'}],
+    maintenance_repair: [{v:'field_tech',label:'טכנאי/ת שטח'},{v:'branch_manager',label:'מנהל/ת סניף'}],
     professional: [{v:'consultant',label:'יועץ/ת'},{v:'associate',label:'שותף/ה זוטר/ה'},{v:'partner',label:'שותף/ה'}],
     other:        [{v:'branch_manager',label:'מנהל/ת סניף'}],
 };
