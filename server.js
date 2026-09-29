@@ -23421,8 +23421,11 @@ app.get('/api/service-calls/family/:groupId', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/api/service-calls/business/:groupId', async (req, res) => {
+app.get('/api/service-calls/business/:groupId', verifyBiz, async (req, res) => {
     try {
+        // נשלף מהטוקן המאומת (req.bizAuth), לא מפרמטר ה-URL - כך שעסק לא יכול לקרוא נתוני עסק אחר
+        // ע"י שינוי groupId בכתובת. שלב ב' הראשון בסגירת פער ההרשאות שתועד עבור מודול קריאות שירות.
+        const groupId = req.bizAuth.groupId;
         const result = await pool.query(
             `SELECT sc.*, fg.name as family_name, u.nickname as assigned_member_name,
              creator.nickname as creator_nickname
@@ -23432,7 +23435,7 @@ app.get('/api/service-calls/business/:groupId', async (req, res) => {
              LEFT JOIN users creator ON creator.id = sc.created_by_user_id
              WHERE sc.business_group_id=$1
              ORDER BY sc.created_at DESC`,
-            [req.params.groupId]);
+            [groupId]);
         res.json({ success: true, calls: result.rows });
     } catch(e) { console.error('SC business query error:', e.message); res.status(500).json({ error: e.message }); }
 });
