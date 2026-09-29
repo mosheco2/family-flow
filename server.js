@@ -13783,17 +13783,6 @@ app.post('/api/store/customers/:id/send-quote', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.put('/api/store/customers/:id', async (req, res) => {
-    try {
-        const { name, phone, email, businessId, notes } = req.body;
-        await pool.query(
-            `UPDATE store_customers SET name=$1, phone=$2, email=$3, business_id=$4, notes=$5 WHERE id=$6`,
-            [name, phone, email, businessId, notes, req.params.id]
-        );
-        res.json({ success: true });
-    } catch(e) { res.status(500).json({ error: e.message }); }
-});
-
 app.get('/api/storefront/:code', async (req, res) => {
     try {
         try { await pool.query(`ALTER TABLE store_settings ADD COLUMN IF NOT EXISTS site_mode VARCHAR(20) DEFAULT 'shop'`); } catch(_) {}
