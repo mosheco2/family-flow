@@ -24202,7 +24202,7 @@ app.put('/api/work-orders/:id/status', verifyBiz, async (req, res) => {
         const _wo = await pool.query('SELECT 1 FROM store_orders WHERE id=$1 AND group_id=$2 AND call_type=\'work_order\'', [req.params.id, req.bizAuth.groupId]);
         if (!_wo.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
         await pool.query(`UPDATE store_orders SET status=$1 WHERE id=$2 AND call_type='work_order'`, [status, req.params.id]);
-        const statusLabels = { processing: 'בתהליך', new: 'חדש', scheduled: 'מתוזמן', completed: 'הושלם', cancelled: 'בוטל' };
+        const statusLabels = { open: 'פתוח', processing: 'בתהליך', new: 'חדש', scheduled: 'מתוזמן', pending_payment: 'בוצע — ממתין לתשלום', completed: 'הושלם', cancelled: 'בוטל' };
         await addWorkOrderTimeline(req.params.id, 'status_change', `סטטוס שונה ל: ${statusLabels[status] || status}`, userName);
         logBizAction(req.bizAuth.groupId, req.bizAuth.userId, userName || 'מערכת', 'UPDATE_CASE_STATUS', 'work_order', req.params.id, `תיק #${req.params.id} עודכן לסטטוס ${status}`, { status });
         // שלח notification ללקוח על שינוי סטטוס
