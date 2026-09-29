@@ -11247,9 +11247,24 @@ window.submitNewCustomer = async function() {
     if (_crf.email && !email) return showToast('error', 'אימייל הוא שדה חובה לפי הגדרות העסק');
     if (_crf.id && !businessId) return showToast('error', 'ת.ז / ח.פ הוא שדה חובה לפי הגדרות העסק');
 
+    // בהוספת לקוח חדש (לא בעריכה) עם טלפון - בדיקת כפילות לפני שמירה, כדי שטופס ידני לא ייצור
+    // רשומה כפולה ללקוח שכבר קיים (בניגוד ל-upsertStoreCustomer שמטפל בזה רק בזרימות ציבוריות)
+    if (!id && phone) {
+        try {
+            const digits = phone.replace(/\D/g,'');
+            const cr = await fetch(`${API}/store/customers/${currentGroup.id}`);
+            const cd = await cr.json();
+            const dup = (cd.customers||[]).find(c => (c.phone||'').replace(/\D/g,'') === digits && digits);
+            if (dup) {
+                const cont = await window._uiConfirm(`כבר קיים לקוח עם טלפון זה — "${dup.name}". להמשיך וליצור בכל זאת לקוח נפרד?`, { okLabel:'כן, צור בכל זאת', cancelLabel:'ביטול' });
+                if (!cont) return;
+            }
+        } catch(e) {}
+    }
+
     const btn = document.getElementById('btn-submit-customer');
     if(btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> שומר...'; }
-    
+
     try {
         const url = id ? `${API}/store/customers/${id}` : `${API}/store/customers`;
         const method = id ? 'PUT' : 'POST';
