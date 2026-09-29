@@ -25,10 +25,11 @@ const OUT_DIR = path.join(__dirname, '..', 'public', 'screenshots', 'brochure-ma
 fs.mkdirSync(OUT_DIR, { recursive: true });
 
 const BIZ_URL  = process.env.BIZ_URL  || 'https://weflowz.co.il/business.html';
-const BIZ_CODE = process.env.BIZ_CODE || '';
-const BIZ_NAME = process.env.BIZ_NAME || '';
-const BIZ_PASS = process.env.BIZ_PASS || '';
+const BIZ_CODE = process.env.BIZ_CODE || 'J3X2AR';
+const BIZ_NAME = process.env.BIZ_NAME || 'דויד כהן';
+const BIZ_PASS = process.env.BIZ_PASS || '123456';
 const DEMO_CUSTOMER_NAME = process.env.DEMO_CUSTOMER_NAME || '';
+// עסק ברירת מחדל: דויד תיקונים (J3X2AR)
 
 if (!BIZ_CODE || !BIZ_NAME || !BIZ_PASS) {
   console.error('❌ חובה לספק BIZ_CODE, BIZ_NAME, BIZ_PASS (משתני סביבה).');
