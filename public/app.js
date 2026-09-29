@@ -13218,7 +13218,7 @@ window.loadMemberFeedFaults = async function() {
     if (!list || !currentGroup) return;
     list.innerHTML = '<p style="font-size:11px;color:#94a3b8;text-align:center;padding:24px;"><i class="fa-solid fa-spinner fa-spin"></i></p>';
     try {
-        const res = await fetch(`${API}/family/service-calls/${currentGroup.id}`);
+        const res = await fetch(`${API}/service-calls/family/${currentGroup.id}`);
         const data = await res.json();
         const calls = data.calls || [];
         if (!calls.length) { list.innerHTML = '<p style="font-size:12px;color:#94a3b8;text-align:center;padding:32px;background:#f8fafc;border-radius:12px;border:1px dashed #e2e8f0;">אין קריאות שירות פתוחות</p>'; return; }

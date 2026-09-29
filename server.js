@@ -23737,22 +23737,6 @@ app.get('/api/equipment/faults/:groupId', verifyBiz, async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/api/service-calls/family/:businessGroupId', async (req, res) => {
-    try {
-        const result = await pool.query(
-            `SELECT f.*, e.name as equipment_name, fg.name as family_name,
-             et.name as tech_name, et.phone as tech_phone
-             FROM equipment_faults f
-             JOIN equipment_items e ON e.id=f.equipment_id
-             JOIN equipment_technicians et ON et.id=f.technician_id
-             JOIN family_groups fg ON fg.id=f.group_id
-             WHERE et.business_group_id=$1 AND f.status != 'resolved'
-             ORDER BY f.created_at DESC`,
-            [req.params.businessGroupId]);
-        res.json({ success: true, calls: result.rows });
-    } catch(e) { res.status(500).json({ error: e.message }); }
-});
-
 app.get('/api/equipment/faults/:id/notes', verifyBiz, async (req, res) => {
     try {
         const owned = await pool.query('SELECT id FROM equipment_faults WHERE id=$1 AND group_id=$2', [req.params.id, req.bizAuth.groupId]);
