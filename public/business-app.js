@@ -2470,7 +2470,7 @@ function _buildReportsHTML(data, bType, period) {
     // תחזוקה / תיקונים
     if (bType === 'maintenance_repair' && data.maintenance) {
         const m = data.maintenance;
-        const sl = { open:'פתוחה', in_progress:'בטיפול', done:'הושלמה', cancelled:'בוטלה' };
+        const sl = { new:'חדשה', seen:'נצפתה', in_progress:'בטיפול', pending_parts:'ממתין לחלקים', pending_payment:'ממתין לתשלום', open:'פתוחה', done:'הושלמה', cancelled:'בוטלה' };
         html += `<div class="bg-white rounded-2xl border border-slate-100 p-4 shadow-sm mb-4">
             <div class="flex justify-between items-center mb-3">
                 <div class="font-bold text-slate-700 text-sm">קריאות שירות</div>
@@ -2478,6 +2478,14 @@ function _buildReportsHTML(data, bType, period) {
             </div>
             ${(m.callsByStatus||[]).map(s=>`<div class="flex justify-between items-center py-1.5 border-b border-slate-50 last:border-0"><span class="text-sm text-slate-700">${sl[s.status]||s.status}</span><div class="flex gap-3"><span class="text-sm font-black">${fmt(s.count)}</span><span class="text-sm text-emerald-700">${fmtM(s.revenue)}</span></div></div>`).join('')}
         </div>`;
+        if ((m.byTech||[]).length) {
+            html += `<div class="bg-white rounded-2xl border border-slate-100 p-4 shadow-sm mb-4">
+                <div class="font-bold text-slate-700 text-sm mb-3">ביצועי טכנאים</div>
+                <table class="w-full text-xs"><thead><tr class="text-slate-400 border-b border-slate-100"><th class="pb-2 text-right font-medium">טכנאי/ת</th><th class="pb-2 text-center font-medium">פתוחות</th><th class="pb-2 text-center font-medium">הושלמו</th><th class="pb-2 text-left font-medium">הכנסה</th></tr></thead><tbody>
+                ${m.byTech.map(t=>`<tr class="border-b border-slate-50"><td class="py-2 text-slate-700">${t.name||'—'}</td><td class="py-2 text-center">${fmt(t.open_c)}</td><td class="py-2 text-center">${fmt(t.done_c)}</td><td class="py-2 text-left text-emerald-700 font-bold">${fmtM(t.revenue)}</td></tr>`).join('')}
+                </tbody></table>
+            </div>`;
+        }
     }
 
     // לוגיסטיקה
@@ -37356,7 +37364,7 @@ window.rdAction = function(tab, action) {
     if (action === 'camera') { if(typeof openCamera === 'function') openCamera(); else showToast('info','לחץ על הוספת משימה'); return; }
     if (action === 'inbox') { if(typeof openInboxModal === 'function') openInboxModal(); else switchTab('team'); return; }
     if (action === 'show-all-sc') { if(typeof showAllServiceCalls === 'function') showAllServiceCalls(); return; }
-    if (action === 'show-reports') { if(typeof showMaintenanceReports === 'function') showMaintenanceReports(); return; }
+    if (action === 'show-reports') { switchTab('reports'); return; }
     if (action === 'waiter-pos') { if(typeof window.showWaiterPOS === 'function') window.showWaiterPOS(); return; }
     if (action === 'nav-work-orders') { switchTab('sales'); setTimeout(() => { if(typeof window.switchSalesTab === 'function') window.switchSalesTab('work-orders'); }, 150); return; }
     if (action === 'nav-quotes') { switchTab('sales'); setTimeout(() => { if(typeof window.switchSalesTab === 'function') window.switchSalesTab('quotes'); }, 150); return; }

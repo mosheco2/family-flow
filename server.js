@@ -30151,11 +30151,18 @@ app.get('/api/reports/:groupId', async (req, res) => {
 
         // תחזוקה / תיקונים
         if (btype === 'maintenance_repair') {
-            const [callsRes, revRes] = await Promise.all([
+            const [callsRes, revRes, byTechRes] = await Promise.all([
                 pool.query(`SELECT status, COUNT(*) AS count, COALESCE(SUM(price_quote),0) AS revenue FROM service_calls WHERE business_group_id=$1 AND created_at >= ${df} GROUP BY status`, [gid]),
-                pool.query(`SELECT COALESCE(SUM(price_quote),0) AS total FROM service_calls WHERE business_group_id=$1 AND status='done' AND created_at >= ${df}`, [gid])
+                pool.query(`SELECT COALESCE(SUM(price_quote),0) AS total FROM service_calls WHERE business_group_id=$1 AND status='done' AND created_at >= ${df}`, [gid]),
+                pool.query(`SELECT u.id AS member_id, u.nickname AS name,
+                        COUNT(*) FILTER (WHERE sc.status NOT IN ('done','cancelled')) AS open_c,
+                        COUNT(*) FILTER (WHERE sc.status='done') AS done_c,
+                        COALESCE(SUM(sc.price_quote) FILTER (WHERE sc.status='done'),0) AS revenue
+                    FROM service_calls sc JOIN users u ON u.id=sc.assigned_member_id
+                    WHERE sc.business_group_id=$1 AND sc.created_at >= ${df}
+                    GROUP BY u.id, u.nickname ORDER BY revenue DESC LIMIT 10`, [gid])
             ]);
-            result.maintenance = { callsByStatus: callsRes.rows, revenue: parseFloat(revRes.rows[0]?.total||0) };
+            result.maintenance = { callsByStatus: callsRes.rows, revenue: parseFloat(revRes.rows[0]?.total||0), byTech: byTechRes.rows };
         }
 
         // לוגיסטיקה
