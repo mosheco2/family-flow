@@ -12601,6 +12601,8 @@ window.openFamilyCallModal = async function(callId) {
     if (!call) return;
     let messages = [];
     try { const r = await fetch(`/api/service-calls/${callId}/messages`); const d = await r.json(); messages = d.messages||[]; } catch(e) {}
+    let payments = [];
+    try { const rp = await fetch(`/api/service-calls/${callId}/payments`); const dp = await rp.json(); payments = dp.payments||[]; } catch(e) {}
     document.getElementById('fam-sc-modal')?.remove();
     const SC_STATUS_LABELS_FAM = { new:'ממתינה', seen:'נצפתה', in_progress:'בטיפול', pending_parts:'ממתין לחלקים', done:'הושלם', cancelled:'בוטל' };
     const msgHtml = messages.map(m => `<div class="flex ${m.sender_type==='family'?'justify-start':'justify-end'} mb-2">
@@ -12616,6 +12618,24 @@ window.openFamilyCallModal = async function(callId) {
         return `<div class="rounded-2xl p-3 border ${partsBgs[call.parts_status]||'bg-slate-50 border-slate-200 text-slate-600'}">
             <div class="text-[10px] font-bold mb-1">מצב חלקים</div>
             <div class="text-xs font-bold">${partsLabels[call.parts_status]||call.parts_status}</div>
+        </div>`;
+    })() : '';
+
+    const paymentsHtml = payments.length ? (() => {
+        const sumAmounts = payments.reduce((a,p) => a + parseFloat(p.amount||0), 0);
+        const totalCharged = Math.max(sumAmounts, ...payments.map(p => parseFloat(p.total_amount||0)));
+        const totalReceived = payments.reduce((a,p) => a + (p.status === 'received' ? parseFloat(p.received_amount||p.amount||0) : 0), 0);
+        const rows = payments.map(p => `<div class="flex justify-between items-center text-xs py-1.5 border-b border-slate-100 last:border-0">
+            <span class="text-slate-600">${safeStr(p.milestone_name||'תשלום')}${p.due_date ? ' · ' + new Date(p.due_date).toLocaleDateString('he-IL',{day:'numeric',month:'short'}) : ''}</span>
+            <span class="font-bold ${p.status==='received'?'text-emerald-600':'text-slate-700'}">₪${parseFloat(p.amount||0).toLocaleString()} ${p.status==='received' ? '✓ שולם' : '· ממתין'}</span>
+        </div>`).join('');
+        return `<div class="bg-slate-50 rounded-2xl p-3">
+            <div class="text-[10px] font-bold text-slate-500 mb-2">💳 תחנות תשלום</div>
+            ${rows}
+            <div class="flex justify-between text-xs font-black mt-2 pt-2 border-t border-slate-200">
+                <span class="text-slate-500">נותר לתשלום</span>
+                <span class="text-indigo-700">₪${Math.max(0, totalCharged-totalReceived).toLocaleString()}</span>
+            </div>
         </div>`;
     })() : '';
 
@@ -12651,6 +12671,7 @@ window.openFamilyCallModal = async function(callId) {
                 ${call.price_quote ? `<div class="p-2 bg-indigo-50 rounded-xl text-xs font-bold text-indigo-800">הצעת מחיר מהעסק: ₪${parseFloat(call.price_quote).toFixed(0)}</div>` : ''}
             </div>
             ${partsHtml}
+            ${paymentsHtml}
             ${rateHtml}
             <div class="bg-slate-50 rounded-2xl p-3">
                 <div class="text-[10px] font-bold text-slate-500 mb-2">💬 שיחה עם בעל המקצוע</div>
