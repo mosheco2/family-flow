@@ -63,7 +63,6 @@ window.v2NavTo = function(tabId, btnEl) {
   if (tabId === 'clients'  && typeof window.loadSAData     === 'function') window.loadSAData();
   if (tabId === 'support'  && typeof window.loadSATickets  === 'function') window.loadSATickets();
   if (tabId === 'comm'     && typeof window.loadSACommunities === 'function') window.loadSACommunities();
-  if (tabId === 'biz'      && typeof window.loadSACommunityData === 'function') window.loadSACommunityData();
   if (tabId === 'hr'       && typeof window.loadSAHRData   === 'function') window.loadSAHRData();
   if (tabId === 'partners' && typeof window.loadSAPartners === 'function') window.loadSAPartners();
   if (tabId === 'auditlog' && typeof window.loadAuditLog   === 'function') window.loadAuditLog();

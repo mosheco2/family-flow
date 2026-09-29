@@ -1576,7 +1576,11 @@ function productCardHtml(p) {
 }
 
 function hasOptions(p) {
-  try { const o = JSON.parse(p.options_text||'[]'); return Array.isArray(o) && o.length > 0; } catch(e) { return false; }
+  try {
+    const o = JSON.parse(p.options_text||'[]');
+    if (p.product_type === 'pizza_builder' || (o && !Array.isArray(o) && o.isPizza)) return !!(o && o.toppings && o.toppings.length);
+    return Array.isArray(o) && o.length > 0;
+  } catch(e) { return false; }
 }
 function toggleFav(id) {
   if (favs.has(id)) favs.delete(id); else favs.add(id);
@@ -1715,9 +1719,10 @@ function openSheet(id) {
   let optHtml = '';
   try {
     const opts = JSON.parse(p.options_text||'[]');
-    // detect pizza_builder
-    if (p.product_type === 'pizza_builder' || (Array.isArray(opts) && opts.length && opts[0].isPizza)) {
-      const toppings = (Array.isArray(opts) && opts.length && opts[0].toppings) ? opts[0].toppings
+    // detect pizza_builder (options_text is an object {isPizza, toppings} for pizza/build-your-own items)
+    if (p.product_type === 'pizza_builder' || (opts && !Array.isArray(opts) && opts.isPizza) || (Array.isArray(opts) && opts.length && opts[0].isPizza)) {
+      const toppings = (opts && !Array.isArray(opts) && opts.toppings) ? opts.toppings
+        : (Array.isArray(opts) && opts.length && opts[0].toppings) ? opts[0].toppings
         : Array.isArray(opts) ? opts : [];
       initPizzaBuilder(toppings);
       optHtml = `<div id="pizza-builder-wrapper"></div>`;

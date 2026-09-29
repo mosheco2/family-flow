@@ -118,7 +118,139 @@
 
     // מוצר עם תוספות/מרכיבים לבחירה (options_text) — כמו בחנות הציבורית המקורית
     function hasOptions(p) {
-        try { const o = JSON.parse(p.options_text || '[]'); return Array.isArray(o) && o.length > 0; } catch(e) { return false; }
+        try {
+            const o = JSON.parse(p.options_text || '[]');
+            if (p.product_type === 'pizza_builder' || (o && !Array.isArray(o) && o.isPizza)) return !!(o && o.toppings && o.toppings.length);
+            return Array.isArray(o) && o.length > 0;
+        } catch(e) { return false; }
+    }
+
+    // ===== PIZZA BUILDER (הרכבת פיצה/מנת-בסיס עם תוספות ברבעים) =====
+    let _isPizzaProduct = false;
+    let _pizzaToppings = [];
+    let _pizzaState = {};
+    let _activePizzaTopping = null;
+
+    function initPizzaBuilder(toppings) {
+        _isPizzaProduct = true;
+        _pizzaToppings = toppings || [];
+        _pizzaState = {};
+        _pizzaToppings.forEach(t => _pizzaState[t.name] = [0, 0, 0, 0]);
+        _activePizzaTopping = _pizzaToppings.length > 0 ? _pizzaToppings[0].name : null;
+    }
+
+    function renderPizzaBuilder() {
+        const wrapper = document.getElementById('pizza-builder-wrapper');
+        if (!wrapper) return;
+        const getFill = qi => {
+            if (!_activePizzaTopping || !_pizzaState[_activePizzaTopping]) return 'transparent';
+            const v = _pizzaState[_activePizzaTopping][qi];
+            return v === 2 ? '#ef4444' : v === 1 ? '#fca5a5' : 'transparent';
+        };
+        const getX2 = (qi, x, y) => {
+            if (_activePizzaTopping && _pizzaState[_activePizzaTopping] && _pizzaState[_activePizzaTopping][qi] === 2)
+                return `<text x="${x}" y="${y}" font-size="10" font-weight="900" fill="#fff" text-anchor="middle" pointer-events="none">X2</text>`;
+            return '';
+        };
+        const toppingsHtml = _pizzaToppings.map(t =>
+            `<button class="pizza-topping-btn${t.name === _activePizzaTopping ? ' active' : ''}" onclick="selectPizzaTopping('${csSafe(t.name)}')">${csSafe(t.name)} (+₪${t.price})</button>`
+        ).join('');
+        let summaryParts = [];
+        _pizzaToppings.forEach(t => {
+            const vals = _pizzaState[t.name];
+            const active = vals.reduce((s, v) => s + Number(v || 0), 0);
+            if (!active) return;
+            let q1 = [], q2 = [];
+            vals.forEach((v, i) => { if (v === 1) q1.push(i + 1); if (v === 2) q2.push(i + 1); });
+            let parts = [];
+            if (q1.length) parts.push(q1.length === 4 ? 'מגש שלם' : `רבעים ${q1.join(', ')}`);
+            if (q2.length) parts.push(q2.length === 4 ? 'כפול הכל' : `כפול ${q2.join(', ')}`);
+            summaryParts.push(`<span style="display:inline-block;background:#fee2e2;color:#b91c1c;padding:3px 8px;border-radius:8px;font-size:11px;font-weight:700;margin:2px">${csSafe(t.name)} — ${parts.join(' | ')}</span>`);
+        });
+        wrapper.innerHTML = `
+        <div style="background:#fff8f8;border:1px solid #fecaca;border-radius:18px;padding:16px;margin-bottom:14px">
+            <h4 style="font-family:'Rubik',sans-serif;font-size:14px;font-weight:700;color:#991b1b;text-align:center;margin:0 0 4px">🍕 הרכבת הפיצה</h4>
+            <p style="font-size:11px;color:#b91c1c;text-align:center;margin:0 0 12px">בחרו תוספת, לחצו על רבע פיצה. לחיצה כפולה = X2</p>
+            <div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:8px;scroll-snap-type:x mandatory">${toppingsHtml}</div>
+            <div style="position:relative;width:200px;height:200px;margin:16px auto">
+                <svg viewBox="0 0 100 100" style="width:100%;height:100%;drop-shadow:0 4px 12px rgba(0,0,0,.15)">
+                    <circle cx="50" cy="50" r="48" fill="#fef08a" stroke="#f59e0b" stroke-width="2"/>
+                    <path d="M50 50 L50 2 A48 48 0 0 1 98 50 Z" fill="${getFill(0)}" class="pizza-slice" onclick="togglePizzaSlice(0)"/>
+                    <path d="M50 50 L98 50 A48 48 0 0 1 50 98 Z" fill="${getFill(1)}" class="pizza-slice" onclick="togglePizzaSlice(1)"/>
+                    <path d="M50 50 L50 98 A48 48 0 0 1 2 50 Z" fill="${getFill(2)}" class="pizza-slice" onclick="togglePizzaSlice(2)"/>
+                    <path d="M50 50 L2 50 A48 48 0 0 1 50 2 Z" fill="${getFill(3)}" class="pizza-slice" onclick="togglePizzaSlice(3)"/>
+                    <line x1="50" y1="2" x2="50" y2="98" stroke="#f59e0b" stroke-width="2" pointer-events="none"/>
+                    <line x1="2" y1="50" x2="98" y2="50" stroke="#f59e0b" stroke-width="2" pointer-events="none"/>
+                    <text x="75" y="29" font-size="13" font-weight="900" fill="#b45309" text-anchor="middle" dominant-baseline="middle" pointer-events="none">1</text>
+                    <text x="75" y="71" font-size="13" font-weight="900" fill="#b45309" text-anchor="middle" dominant-baseline="middle" pointer-events="none">2</text>
+                    <text x="25" y="71" font-size="13" font-weight="900" fill="#b45309" text-anchor="middle" dominant-baseline="middle" pointer-events="none">3</text>
+                    <text x="25" y="29" font-size="13" font-weight="900" fill="#b45309" text-anchor="middle" dominant-baseline="middle" pointer-events="none">4</text>
+                    ${getX2(0, 75, 40)}${getX2(1, 75, 85)}${getX2(2, 25, 85)}${getX2(3, 25, 40)}
+                </svg>
+                <div style="position:absolute;inset:0;pointer-events:none;display:flex;align-items:center;justify-content:center">
+                    <div style="background:rgba(255,255,255,.9);padding:4px 12px;border-radius:99px;font-size:11px;font-weight:700;color:#991b1b;border:1px solid #fecaca">
+                        ${_activePizzaTopping ? 'פעיל: ' + _activePizzaTopping : 'בחרו תוספת'}
+                    </div>
+                </div>
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-bottom:12px">
+                <button onclick="fillPizza('whole')" style="padding:7px 14px;border:1px solid #fecaca;border-radius:10px;background:#fff;color:#b91c1c;font-size:11px;font-weight:700;cursor:pointer">מגש שלם</button>
+                <button onclick="fillPizza('half1')" style="padding:7px 14px;border:1px solid #fecaca;border-radius:10px;background:#fff;color:#b91c1c;font-size:11px;font-weight:700;cursor:pointer">חצי ימין</button>
+                <button onclick="fillPizza('half2')" style="padding:7px 14px;border:1px solid #fecaca;border-radius:10px;background:#fff;color:#b91c1c;font-size:11px;font-weight:700;cursor:pointer">חצי שמאל</button>
+                <button onclick="fillPizza('clear')" style="padding:7px 14px;border:1px solid #e2e8f0;border-radius:10px;background:#fff;color:#64748b;font-size:11px;font-weight:700;cursor:pointer">נקה</button>
+            </div>
+            <div style="background:#fff;padding:10px;border-radius:12px;border:1px solid #fecaca;min-height:42px">
+                <div style="font-size:10px;font-weight:600;color:#9ca3af;margin-bottom:4px">סיכום:</div>
+                ${summaryParts.length ? summaryParts.join('') : `<div style="font-size:11px;color:#9ca3af">פיצה חלקה (ללא תוספות)</div>`}
+            </div>
+        </div>`;
+    }
+
+    window.selectPizzaTopping = function(name) {
+        _activePizzaTopping = name;
+        renderPizzaBuilder();
+    };
+    window.togglePizzaSlice = function(qi) {
+        if (!_activePizzaTopping) { csToast('בחרו תוספת תחילה'); return; }
+        const v = _pizzaState[_activePizzaTopping][qi] || 0;
+        _pizzaState[_activePizzaTopping][qi] = v === 0 ? 1 : v === 1 ? 2 : 0;
+        renderPizzaBuilder();
+        updateSheetTotal();
+    };
+    window.fillPizza = function(action) {
+        if (!_activePizzaTopping && action !== 'clear') { csToast('בחרו תוספת תחילה'); return; }
+        if (action === 'clear') _pizzaToppings.forEach(t2 => _pizzaState[t2.name] = [0, 0, 0, 0]);
+        else if (action === 'whole') _pizzaState[_activePizzaTopping] = [1, 1, 1, 1];
+        else if (action === 'half1') { _pizzaState[_activePizzaTopping][0] = 1; _pizzaState[_activePizzaTopping][1] = 1; }
+        else if (action === 'half2') { _pizzaState[_activePizzaTopping][2] = 1; _pizzaState[_activePizzaTopping][3] = 1; }
+        renderPizzaBuilder();
+        updateSheetTotal();
+    };
+    function calcPizzaExtra() {
+        let total = 0;
+        _pizzaToppings.forEach(t2 => {
+            if (_pizzaState[t2.name]) {
+                const quarters = _pizzaState[t2.name].reduce((s, v) => s + Number(v || 0), 0);
+                total += (parseFloat(t2.price) || 0) / 4 * quarters;
+            }
+        });
+        return total;
+    }
+    function getPizzaSelections() {
+        let selections = [], extraPrice = 0;
+        _pizzaToppings.forEach(top => {
+            const vals = _pizzaState[top.name];
+            const active = vals.reduce((s, v) => s + Number(v || 0), 0);
+            if (!active) return;
+            extraPrice += (parseFloat(top.price) || 0) / 4 * active;
+            let q1 = [], q2 = [];
+            vals.forEach((v, i) => { if (v === 1) q1.push(i + 1); if (v === 2) q2.push(i + 1); });
+            let parts = [];
+            if (q1.length) parts.push(q1.length === 4 ? 'מגש שלם' : `רבעים ${q1.join(',')}`);
+            if (q2.length) parts.push(q2.length === 4 ? 'כפול הכל' : `כפול ${q2.join(',')}`);
+            selections.push(`${top.name} (${parts.join(' | ')})`);
+        });
+        return { selections, extraPrice };
     }
 
     function findProduct(id) { return (campaignData.products || []).find(x => x.id === id); }
@@ -143,7 +275,7 @@
             csToast(`אפשר להזמין רק מעסק אחד — רוקנו את העגלה כדי לעבור ל-"${p.business_name}"`);
             return;
         }
-        _sheetId = id; _sheetQty = 1; _sheetExtras = {};
+        _sheetId = id; _sheetQty = 1; _sheetExtras = {}; _isPizzaProduct = false;
         document.getElementById('sheet-name').textContent = p.name;
         document.getElementById('sheet-price').textContent = `₪${p.price}`;
         document.getElementById('sheet-desc').textContent = p.description || '';
@@ -161,7 +293,11 @@
         let optHtml = '';
         try {
             const opts = JSON.parse(p.options_text || '[]');
-            if (Array.isArray(opts) && opts.length) {
+            if (p.product_type === 'pizza_builder' || (opts && !Array.isArray(opts) && opts.isPizza)) {
+                const toppings = (opts && !Array.isArray(opts) && opts.toppings) ? opts.toppings : [];
+                initPizzaBuilder(toppings);
+                optHtml = `<div id="pizza-builder-wrapper"></div>`;
+            } else if (Array.isArray(opts) && opts.length) {
                 optHtml = opts.map((g, gi) => `
                 <div>
                     <div class="sheet-section-title">${csSafe(g.name || g.title || '')}</div>
@@ -178,6 +314,7 @@
             }
         } catch(e) {}
         document.getElementById('sheet-options').innerHTML = optHtml;
+        if (_isPizzaProduct) renderPizzaBuilder();
 
         updateSheetTotal();
         document.getElementById('sheet-overlay').style.display = 'flex';
@@ -223,6 +360,7 @@
         const p = findProduct(_sheetId);
         let extra = 0;
         if (!p) return extra;
+        if (_isPizzaProduct) return calcPizzaExtra();
         try {
             const opts = JSON.parse(p.options_text || '[]');
             Object.entries(_sheetExtras).forEach(([gi, sel]) => {
@@ -250,14 +388,18 @@
             return;
         }
         const extra = _sheetExtraTotal();
-        const noteArr = [];
-        try {
-            const opts = JSON.parse(p.options_text || '[]');
-            Object.entries(_sheetExtras).forEach(([gi, sel]) => {
-                const g = opts[gi], items = g?.options || g?.items || [];
-                sel.forEach(oi => { const o = items[oi]; const nm = typeof o === 'string' ? o : (o?.name || ''); if (nm) noteArr.push(nm); });
-            });
-        } catch(e) {}
+        let noteArr = [];
+        if (_isPizzaProduct) {
+            noteArr = getPizzaSelections().selections;
+        } else {
+            try {
+                const opts = JSON.parse(p.options_text || '[]');
+                Object.entries(_sheetExtras).forEach(([gi, sel]) => {
+                    const g = opts[gi], items = g?.options || g?.items || [];
+                    sel.forEach(oi => { const o = items[oi]; const nm = typeof o === 'string' ? o : (o?.name || ''); if (nm) noteArr.push(nm); });
+                });
+            } catch(e) {}
+        }
         const note = [document.getElementById('sheet-note-input').value.trim(), ...noteArr].filter(Boolean).join(', ');
         const finalPrice = parseFloat(p.price) + extra;
         // מוצר עם תוספות שונות נשמר כשורה נפרדת בעגלה (לפי שילוב המחיר+הערה),
