@@ -38020,6 +38020,100 @@ async function renderBranchManagerMaintenanceDashboard(el) {
 }
 
 // ─── MAINTENANCE REPORTS ─────────────────────────────────────────────────────
+// ייצוא CSV/PDF למסך "דוחות ואנליטיקות" - אותו תוכן שהמסך מציג (KPI, פילוח סטטוס, מגמה, ביצועי טכנאים)
+window._scReportsExportCSV = function() {
+    const d = window._scReportsLastData;
+    if (!d) { showToast('error', 'אין נתונים לייצוא'); return; }
+    const s = d.stats || {};
+    const SC_STATUS_HEB = { new:'חדשה', seen:'נצפתה', in_progress:'בטיפול', pending_parts:'ממתין לחלקים', pending_cancel:'בקשת ביטול', done:'הושלם', cancelled:'בוטל' };
+    let csv = '﻿';
+    csv += `דוחות ואנליטיקות — ${currentGroup?.name||''}\n\n`;
+    csv += `מדד,ערך\n`;
+    csv += `קריאות פתוחות,${s.open_calls||0}\n`;
+    csv += `הושלמו החודש,${s.completed_month||0}\n`;
+    csv += `הושלמו השבוע,${s.completed_week||0}\n`;
+    csv += `הושלמו היום,${s.completed_today||0}\n`;
+    csv += `דחופות פתוחות,${s.urgent_open||0}\n`;
+    csv += `זמן ממוצע (שע')(אומדן),${s.avg_completion_hours||0}\n`;
+    csv += `הכנסות החודש,${s.revenue_this_month||0}\n`;
+    csv += `סה"כ הכנסות,${s.total_revenue||0}\n\n`;
+    if (d.byStatus?.length) { csv += `סטטוס,כמות\n`; d.byStatus.forEach(r=>{csv+=`${SC_STATUS_HEB[r.status]||r.status},${r.count}\n`;}); csv+='\n'; }
+    if (d.trend?.length) { csv += `תאריך,קריאות שנוצרו,הושלמו\n`; d.trend.forEach(t=>{csv+=`${t.day},${t.created},${t.done_c}\n`;}); csv+='\n'; }
+    if (d.byTech?.length) { csv += `טכנאי/ת,פתוחות,הושלמו,הכנסה\n`; d.byTech.forEach(t=>{csv+=`${t.name||''},${t.open_c},${t.done_c},${t.revenue}\n`;}); csv+='\n'; }
+    const blob = new Blob([csv],{type:'text/csv;charset=utf-8;'});
+    const a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`דוחות-קריאות-שירות.csv`; a.click();
+    showToast('success', 'הקובץ מוכן להורדה');
+};
+
+window._scReportsExportPDF = function() {
+    const d = window._scReportsLastData;
+    if (!d) { showToast('error', 'אין נתונים לייצוא'); return; }
+    const s = d.stats || {};
+    const SC_STATUS_HEB = { new:'חדשה', seen:'נצפתה', in_progress:'בטיפול', pending_parts:'ממתין לחלקים', pending_cancel:'בקשת ביטול', done:'הושלם', cancelled:'בוטל' };
+    const grpName = currentGroup?.name || '';
+    const now = new Date().toLocaleDateString('he-IL');
+    const fmt = n => Number(n||0).toLocaleString('he-IL', { maximumFractionDigits: 0 });
+    const fmtM = n => '₪' + fmt(n);
+    const tableStyle = 'width:100%;border-collapse:collapse;margin-bottom:20px;font-size:13px;';
+    const thStyle = 'background:#f1f5f9;padding:8px 12px;text-align:right;font-weight:700;border-bottom:2px solid #e2e8f0;color:#475569;';
+    const tdStyle = 'padding:8px 12px;border-bottom:1px solid #f1f5f9;color:#1e293b;';
+    const tdMoneyStyle = tdStyle + 'color:#059669;font-weight:700;';
+    const sectionTitle = t => `<h3 style="font-size:14px;font-weight:800;color:#334155;margin:24px 0 10px;border-right:4px solid #6366f1;padding-right:10px;">${t}</h3>`;
+
+    const kpiRows = [
+        ['קריאות פתוחות', s.open_calls], ['הושלמו החודש', s.completed_month], ['הושלמו השבוע', s.completed_week],
+        ['הושלמו היום', s.completed_today], ['דחופות פתוחות', s.urgent_open], ["זמן ממוצע (שע', אומדן)", s.avg_completion_hours],
+        ['הכנסות החודש', fmtM(s.revenue_this_month)], ['סה"כ הכנסות', fmtM(s.total_revenue)],
+    ];
+    let body = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px;">
+        ${kpiRows.map(([label,val]) => `<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:10px 14px;display:flex;justify-content:space-between;"><span style="color:#64748b;font-size:12px;">${label}</span><strong style="font-size:13px;">${val ?? '-'}</strong></div>`).join('')}
+    </div>`;
+
+    if (d.byStatus?.length) {
+        body += sectionTitle('קריאות לפי סטטוס');
+        body += `<table style="${tableStyle}"><thead><tr><th style="${thStyle}">סטטוס</th><th style="${thStyle}text-align:left;">כמות</th></tr></thead><tbody>`;
+        d.byStatus.forEach(r => { body += `<tr><td style="${tdStyle}">${SC_STATUS_HEB[r.status]||r.status}</td><td style="${tdStyle}text-align:left;">${fmt(r.count)}</td></tr>`; });
+        body += '</tbody></table>';
+    }
+    if (d.byTech?.length) {
+        body += sectionTitle('ביצועי טכנאים');
+        body += `<table style="${tableStyle}"><thead><tr><th style="${thStyle}">טכנאי/ת</th><th style="${thStyle}text-align:center;">פתוחות</th><th style="${thStyle}text-align:center;">הושלמו</th><th style="${thStyle}text-align:left;">הכנסה</th></tr></thead><tbody>`;
+        d.byTech.forEach(t => { body += `<tr><td style="${tdStyle}">${t.name||'—'}</td><td style="${tdStyle}text-align:center;">${fmt(t.open_c)}</td><td style="${tdStyle}text-align:center;">${fmt(t.done_c)}</td><td style="${tdMoneyStyle}">${fmtM(t.revenue)}</td></tr>`; });
+        body += '</tbody></table>';
+    }
+    if (d.trend?.length) {
+        body += sectionTitle('מגמת קריאות');
+        body += `<table style="${tableStyle}"><thead><tr><th style="${thStyle}">תאריך</th><th style="${thStyle}text-align:center;">נוצרו</th><th style="${thStyle}text-align:left;">הושלמו</th></tr></thead><tbody>`;
+        d.trend.forEach(t => { body += `<tr><td style="${tdStyle}">${new Date(t.day).toLocaleDateString('he-IL')}</td><td style="${tdStyle}text-align:center;">${fmt(t.created)}</td><td style="${tdStyle}text-align:left;">${fmt(t.done_c)}</td></tr>`; });
+        body += '</tbody></table>';
+    }
+
+    const html = `<!DOCTYPE html><html lang="he" dir="rtl"><head><meta charset="UTF-8">
+        <title>דוחות ואנליטיקות - ${grpName}</title>
+        <style>
+            @media print { body { margin: 0; } .no-print { display: none; } }
+            body { font-family: 'Segoe UI', Arial, sans-serif; direction: rtl; background: #fff; color: #1e293b; padding: 32px; max-width: 800px; margin: 0 auto; }
+        </style>
+    </head><body>
+        <div style="margin-bottom:24px;padding-bottom:16px;border-bottom:2px solid #e2e8f0;">
+            <h1 style="font-size:22px;font-weight:900;color:#1e293b;margin:0 0 4px;">📊 דוחות ואנליטיקות — קריאות שירות</h1>
+            <div style="font-size:14px;color:#64748b;">${grpName} | הופק: ${now}</div>
+        </div>
+        ${body}
+        <div style="margin-top:32px;padding-top:16px;border-top:1px solid #e2e8f0;font-size:11px;color:#94a3b8;text-align:center;">
+            דוח זה הופק על ידי מערכת WEFLOWZ — ${now}
+        </div>
+        <div class="no-print" style="text-align:center;margin-top:24px;">
+            <button onclick="window.print()" style="background:#6366f1;color:#fff;border:none;padding:12px 32px;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;">🖨️ הדפס / שמור PDF</button>
+        </div>
+    </body></html>`;
+
+    const w = window.open('', '_blank');
+    if (!w) { showToast('error', 'אפשר את פתיחת חלונות קופצים בדפדפן'); return; }
+    w.document.write(html);
+    w.document.close();
+};
+
 window.showMaintenanceReports = async function(memberId) {
     document.getElementById('sc-reports-modal')?.remove();
     const isMgr = currentUser?.role === 'ADMIN' || currentUser?.employee_role_type === 'branch_manager';
@@ -38030,6 +38124,8 @@ window.showMaintenanceReports = async function(memberId) {
         <div class="flex items-center gap-3 px-4 py-3 bg-gradient-to-l from-slate-700 to-slate-900 text-white shrink-0">
             <button onclick="document.getElementById('sc-reports-modal').remove()" class="text-xl w-8 h-8 flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
             <h2 class="font-black text-base flex-1">📊 דוחות ואנליטיקות</h2>
+            <button onclick="window._scReportsExportCSV()" class="text-[10px] bg-emerald-500/20 text-emerald-200 border border-emerald-400/30 font-bold px-2 py-1.5 rounded-lg ml-1">CSV</button>
+            <button onclick="window._scReportsExportPDF()" class="text-[10px] bg-red-500/20 text-red-200 border border-red-400/30 font-bold px-2 py-1.5 rounded-lg ml-1">PDF</button>
             ${isMgr ? `<select id="sc-rep-filter-member" onchange="showMaintenanceReports(this.value||undefined)" class="text-xs bg-white/20 text-white border border-white/30 rounded-lg px-2 py-1"><option value="">כל הצוות</option></select>` : ''}
         </div>
         <div id="sc-reports-content" class="flex-1 overflow-y-auto p-4 space-y-4">
@@ -38058,6 +38154,7 @@ window.showMaintenanceReports = async function(memberId) {
         const r = await fetch(url, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } });
         const d = await r.json();
         if (!d.success) throw new Error('שגיאה בטעינה');
+        window._scReportsLastData = d;
         const s = d.stats;
         const el = document.getElementById('sc-reports-content');
         if (!el) return;
