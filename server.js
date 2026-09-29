@@ -792,6 +792,10 @@ try { await client.query(`ALTER TABLE game_assignments ADD COLUMN IF NOT EXISTS 
       try { await client.query('ALTER TABLE time_clock ADD COLUMN IF NOT EXISTS punch_in_lng DOUBLE PRECISION'); } catch(e) {}
       try { await client.query('ALTER TABLE time_clock ADD COLUMN IF NOT EXISTS punch_out_lat DOUBLE PRECISION'); } catch(e) {}
       try { await client.query('ALTER TABLE time_clock ADD COLUMN IF NOT EXISTS punch_out_lng DOUBLE PRECISION'); } catch(e) {}
+      // תשלום שכר עסקי מבוסס נוכחות (נפרד לגמרי מ"דמי כיס" המשפחתיים על אותה טבלת users) —
+      // משכורת בסיס קבועה + סימון אילו רישומי נוכחות כבר שולמו, כדי לא לשלם פעמיים על אותן שעות
+      try { await client.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS base_salary DECIMAL(10,2) DEFAULT 0'); } catch(e) {}
+      try { await client.query('ALTER TABLE time_clock ADD COLUMN IF NOT EXISTS paid_at TIMESTAMP'); } catch(e) {}
       // אמצעי תשלום לתנועת הכנסה/הוצאה כללית — היה קיים רק ב-route ידני (/api/force-upgrade) ולכן מעולם לא נוצר בפועל בסביבת הייצור
       try { await client.query('ALTER TABLE transactions ADD COLUMN IF NOT EXISTS payment_method VARCHAR(30)'); } catch(e) {}
       try { await client.query('ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS is_onboarded BOOLEAN DEFAULT FALSE'); } catch(e) {}
@@ -10569,7 +10573,7 @@ app.get('/api/group/members', async (req, res) => {
         const { groupId } = req.query;
         let users;
         try {
-            users = await pool.query('SELECT id, nickname, role, balance, allowance_amount, interest_rate, birth_year, permissions, employee_role_type, last_seen FROM users WHERE group_id=$1 AND status=$2 ORDER BY role, nickname', [groupId, 'active']);
+            users = await pool.query('SELECT id, nickname, role, balance, allowance_amount, interest_rate, base_salary, birth_year, permissions, employee_role_type, last_seen FROM users WHERE group_id=$1 AND status=$2 ORDER BY role, nickname', [groupId, 'active']);
         } catch(err) {
             users = await pool.query('SELECT id, nickname, role, balance, allowance_amount, interest_rate, birth_year, employee_role_type, last_seen FROM users WHERE group_id=$1 AND status=$2 ORDER BY role, nickname', [groupId, 'active']);
         }
@@ -10805,8 +10809,15 @@ app.get('/api/admin/audit-log', verifyFamily, async (req, res) => {
 });
 
 app.post('/api/admin/update-settings', async (req, res) => {
-    try { const { userId, allowance, interest } = req.body; await pool.query('UPDATE users SET allowance_amount=$1, interest_rate=$2 WHERE id=$3', [parseFloat(allowance)||0, parseFloat(interest)||0, userId]); res.json({success:true}); } 
-    catch(e) { res.status(500).json({error: e.message}); }
+    try {
+        const { userId, allowance, interest, baseSalary } = req.body;
+        if (baseSalary !== undefined) {
+            await pool.query('UPDATE users SET allowance_amount=$1, interest_rate=$2, base_salary=$3 WHERE id=$4', [parseFloat(allowance)||0, parseFloat(interest)||0, parseFloat(baseSalary)||0, userId]);
+        } else {
+            await pool.query('UPDATE users SET allowance_amount=$1, interest_rate=$2 WHERE id=$3', [parseFloat(allowance)||0, parseFloat(interest)||0, userId]);
+        }
+        res.json({success:true});
+    } catch(e) { res.status(500).json({error: e.message}); }
 });
 
 app.post('/api/admin/payday', async (req, res) => {
@@ -10828,6 +10839,69 @@ app.post('/api/admin/payday', async (req, res) => {
         }
         await pool.query('COMMIT'); res.json({success:true, totalDistributed});
     } catch(e) { await pool.query('ROLLBACK'); res.status(500).json({error: e.message}); }
+});
+
+// ============================================================
+// --- BUSINESS PAYROLL (שכר עסקי מבוסס נוכחות) ---
+// נפרד לגמרי מ-/api/admin/payday (דמי כיס משפחתיים) - לא נוגע בו ולא בהתנהגותו
+// ============================================================
+
+// תצוגה מקדימה: לכל עובד פעיל - משכורת בסיס + שעות שטרם שולמו × תעריף שעתי = סה"כ מחושב (ניתן לתיקון ידני לפני התשלום בפועל)
+app.get('/api/timeclock/payroll-preview/:groupId', async (req, res) => {
+    try {
+        const groupId = req.params.groupId;
+        const users = await pool.query(
+            `SELECT id, nickname, allowance_amount, base_salary FROM users WHERE group_id=$1 AND status='active' AND role != 'ADMIN'`,
+            [groupId]);
+        const rows = [];
+        for (const u of users.rows) {
+            const hoursRes = await pool.query(
+                `SELECT COALESCE(SUM(total_minutes),0) AS mins FROM time_clock
+                 WHERE user_id=$1 AND punch_out IS NOT NULL AND paid_at IS NULL`,
+                [u.id]);
+            const unpaidHours = parseFloat(hoursRes.rows[0].mins) / 60;
+            const hourlyRate = parseFloat(u.allowance_amount) || 0;
+            const baseSalary = parseFloat(u.base_salary) || 0;
+            const computed = baseSalary + (unpaidHours * hourlyRate);
+            rows.push({ userId: u.id, name: u.nickname, baseSalary, hourlyRate, unpaidHours: Math.round(unpaidHours*100)/100, computed: Math.round(computed*100)/100 });
+        }
+        res.json({ success: true, employees: rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ביצוע תשלום שכר בפועל: מקבל סכום סופי לכל עובד (יכול להיות מתוקן ידנית מהתצוגה המקדימה) —
+// מוסיף ליתרה, רושם תנועה, ומסמן את כל רישומי הנוכחות שטרם שולמו כ"שולמו" כדי שלא ישולמו שוב במחזור הבא
+app.post('/api/timeclock/payroll-run', async (req, res) => {
+    try {
+        const { groupId, items } = req.body; // items: [{userId, amount, note}]
+        if (!Array.isArray(items) || !items.length) return res.status(400).json({ error: 'אין עובדים לתשלום' });
+        let totalDistributed = 0;
+        await pool.query('BEGIN');
+        for (const it of items) {
+            const amount = parseFloat(it.amount) || 0;
+            if (amount <= 0) continue;
+            const desc = 'תשלום שכר' + (it.note ? ` — ${it.note}` : '');
+            await pool.query('UPDATE users SET balance = balance + $1 WHERE id=$2 AND group_id=$3', [amount, it.userId, groupId]);
+            await pool.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type) VALUES ($1,$2,$3,$4,'payroll','income')`, [it.userId, groupId, amount, desc]);
+            await pool.query(`UPDATE time_clock SET paid_at=NOW() WHERE user_id=$1 AND punch_out IS NOT NULL AND paid_at IS NULL`, [it.userId]);
+            totalDistributed += amount;
+        }
+        await pool.query('COMMIT');
+        res.json({ success: true, totalDistributed });
+    } catch(e) { await pool.query('ROLLBACK'); res.status(500).json({ error: e.message }); }
+});
+
+// תשלום חד-פעמי לעובד בודד (בונוס, החזר הוצאה וכו') - לא קשור לשעות נוכחות
+app.post('/api/timeclock/adhoc-payment', async (req, res) => {
+    try {
+        const { groupId, userId, amount, description } = req.body;
+        const amt = parseFloat(amount) || 0;
+        if (amt <= 0) return res.status(400).json({ error: 'סכום לא תקין' });
+        await pool.query('UPDATE users SET balance = balance + $1 WHERE id=$2 AND group_id=$3', [amt, userId, groupId]);
+        await pool.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type) VALUES ($1,$2,$3,$4,'payroll','income')`,
+            [userId, groupId, amt, description || 'תשלום חד פעמי']);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 // ============================================================

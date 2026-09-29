@@ -3293,6 +3293,97 @@ window.handlePunch = async function() {
     }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
 };
 
+// ─── תשלום שכר עסקי מבוסס נוכחות (בנפרד לגמרי מ"דמי כיס" המשפחתיים) ───────────
+window.openPayrollModal = async function() {
+    document.getElementById('payroll-modal')?.remove();
+    const html = `<div id="payroll-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[95] flex items-end justify-center sm:items-center p-0 sm:p-4">
+        <div class="bg-white w-full sm:max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
+            <div class="flex items-center justify-between p-5 border-b border-slate-100 shrink-0">
+                <h3 class="font-black text-slate-800 text-base"><i class="fa-solid fa-sack-dollar text-emerald-500 mr-2"></i>תשלום שכר לפי נוכחות</h3>
+                <button onclick="document.getElementById('payroll-modal').remove()" class="w-8 h-8 flex items-center justify-center rounded-full bg-slate-100 text-slate-500"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div id="payroll-body" class="p-5 overflow-y-auto space-y-3 flex-1">
+                <div class="text-center py-8 text-slate-400"><i class="fa-solid fa-spinner fa-spin"></i></div>
+            </div>
+            <div class="p-4 border-t border-slate-100 shrink-0">
+                <button onclick="window.submitPayrollRun()" class="w-full bg-emerald-600 text-white py-3 rounded-2xl font-black text-sm hover:bg-emerald-700 transition shadow-md">בצע תשלום לכל העובדים המסומנים</button>
+            </div>
+        </div>
+    </div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+    try {
+        const r = await fetch(`${API}/timeclock/payroll-preview/${currentGroup.id}`);
+        const d = await r.json();
+        window._payrollEmployees = d.employees || [];
+        const body = document.getElementById('payroll-body');
+        if (!window._payrollEmployees.length) { body.innerHTML = '<p class="text-center text-slate-400 text-sm py-6">אין עובדים פעילים</p>'; return; }
+        body.innerHTML = window._payrollEmployees.map(e => `
+            <div class="bg-slate-50 rounded-2xl p-3 border border-slate-100">
+                <div class="flex items-center justify-between mb-2">
+                    <label class="flex items-center gap-2 font-bold text-sm text-slate-800">
+                        <input type="checkbox" id="pr-inc-${e.userId}" checked class="w-4 h-4 accent-emerald-600">
+                        ${safeStr(e.name)}
+                    </label>
+                    <span class="text-[10px] text-slate-400">${e.unpaidHours} שע׳ × ₪${e.hourlyRate}${e.baseSalary ? ` + בסיס ₪${e.baseSalary}` : ''}</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="text-xs text-slate-500">סה"כ לתשלום:</span>
+                    <input type="number" id="pr-amt-${e.userId}" value="${e.computed}" class="modern-input py-1.5 text-sm dir-ltr text-center font-bold text-emerald-700 bg-white flex-1">
+                </div>
+            </div>`).join('') + `
+            <button onclick="window.openAdhocPaymentModal()" class="w-full border-2 border-dashed border-slate-300 text-slate-500 py-2.5 rounded-xl text-xs font-bold hover:border-emerald-300 hover:text-emerald-600 transition">+ תשלום חד פעמי לעובד בודד</button>`;
+    } catch(e) {
+        document.getElementById('payroll-body').innerHTML = '<p class="text-center text-red-400 text-sm py-6">שגיאה בטעינת נתונים</p>';
+    }
+};
+
+window.submitPayrollRun = async function() {
+    const items = (window._payrollEmployees || []).filter(e => document.getElementById(`pr-inc-${e.userId}`)?.checked)
+        .map(e => ({ userId: e.userId, amount: parseFloat(document.getElementById(`pr-amt-${e.userId}`)?.value) || 0, note: e.name }))
+        .filter(it => it.amount > 0);
+    if (!items.length) { showToast('error', 'לא נבחרו עובדים לתשלום'); return; }
+    try {
+        const res = await fetch(`${API}/timeclock/payroll-run`, { method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ groupId: currentGroup.id, items }) });
+        const data = await res.json();
+        if (data.success) {
+            showToast('success', `שולם בהצלחה — סה"כ ₪${data.totalDistributed.toLocaleString()}`);
+            document.getElementById('payroll-modal')?.remove();
+            if (typeof fetchTimeclockReport === 'function') fetchTimeclockReport();
+        } else showToast('error', data.error || 'שגיאה בתשלום');
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
+window.openAdhocPaymentModal = function() {
+    const opts = (window._payrollEmployees || []).map(e => `<option value="${e.userId}">${safeStr(e.name)}</option>`).join('');
+    document.getElementById('adhoc-payment-modal')?.remove();
+    document.body.insertAdjacentHTML('beforeend', `<div id="adhoc-payment-modal" class="fixed inset-0 bg-slate-900/70 z-[96] flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-xs rounded-2xl p-5 shadow-2xl space-y-3">
+            <h4 class="font-black text-slate-800 text-sm">תשלום חד פעמי</h4>
+            <select id="adhoc-user" class="modern-input py-2 text-sm w-full bg-white">${opts}</select>
+            <input type="number" id="adhoc-amount" placeholder="סכום ₪" class="modern-input py-2 text-sm w-full dir-ltr text-center">
+            <input type="text" id="adhoc-desc" placeholder="תיאור (למשל: בונוס)" class="modern-input py-2 text-sm w-full">
+            <div class="flex gap-2 pt-1">
+                <button onclick="document.getElementById('adhoc-payment-modal').remove()" class="flex-1 bg-slate-100 text-slate-600 py-2 rounded-xl text-xs font-bold">ביטול</button>
+                <button onclick="window.submitAdhocPayment()" class="flex-1 bg-emerald-600 text-white py-2 rounded-xl text-xs font-bold">שלם</button>
+            </div>
+        </div>
+    </div>`);
+};
+
+window.submitAdhocPayment = async function() {
+    const userId = document.getElementById('adhoc-user').value;
+    const amount = document.getElementById('adhoc-amount').value;
+    const description = document.getElementById('adhoc-desc').value;
+    try {
+        const res = await fetch(`${API}/timeclock/adhoc-payment`, { method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ groupId: currentGroup.id, userId, amount, description }) });
+        const data = await res.json();
+        if (data.success) { showToast('success', 'התשלום בוצע'); document.getElementById('adhoc-payment-modal')?.remove(); }
+        else showToast('error', data.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
 window.openManualPunchModal = function() {
     document.getElementById('manual-punch-modal').classList.remove('hidden');
     const uSelect = document.getElementById('mp-user'); uSelect.innerHTML = '';
@@ -4135,7 +4226,7 @@ async function fetchMembers() {
                     const initial = m.nickname ? m.nickname.charAt(0).toUpperCase() : '?'; 
                     const permsStr = safeStr(JSON.stringify(m.permissions || {}));
                     
-                    const adminSettingsBtn = currentUser.role === 'ADMIN' ? `<button onclick="openBankSettings(${m.id}, '${safeStr(m.nickname)}', ${m.allowance_amount || 0}, ${m.interest_rate || 0})" class="mr-2 text-slate-500 hover:text-slate-700 bg-slate-100 w-8 h-8 rounded-full flex items-center justify-center transition shadow-sm" title="הגדרות שכר"><i class="fa-solid fa-gear text-sm"></i></button>` : '';
+                    const adminSettingsBtn = currentUser.role === 'ADMIN' ? `<button onclick="openBankSettings(${m.id}, '${safeStr(m.nickname)}', ${m.allowance_amount || 0}, ${m.interest_rate || 0}, ${m.base_salary || 0})" class="mr-2 text-slate-500 hover:text-slate-700 bg-slate-100 w-8 h-8 rounded-full flex items-center justify-center transition shadow-sm" title="הגדרות שכר"><i class="fa-solid fa-gear text-sm"></i></button>` : '';
                     const adminPermsBtn = currentUser.role === 'ADMIN' ? `<button onclick="openPermissionsModal(${m.id}, '${safeStr(m.nickname)}', '${m.role}', '${permsStr}')" class="mr-2 text-purple-600 hover:text-purple-800 bg-purple-50 w-8 h-8 rounded-full flex items-center justify-center transition shadow-sm" title="סיווג והרשאות"><i class="fa-solid fa-user-shield text-sm"></i></button>` : '';
                     const adminDeleteBtn = (currentUser.role === 'ADMIN' && m.id !== currentUser.id) ? `<button onclick="deleteUser(${m.id}, '${safeStr(m.nickname)}')" class="mr-2 text-red-400 hover:text-red-600 bg-red-50 w-8 h-8 rounded-full flex items-center justify-center transition shadow-sm" title="מחיקת עובד"><i class="fa-solid fa-trash text-sm"></i></button>` : '';
                     
@@ -7268,7 +7359,7 @@ window._wiz2SendAdminInvite = function(joinLink, bizName) {
 function toggleFab() { getEl('fab-container').classList.toggle('fab-open'); }
 
 async function openHistoryModal() { const res = await fetch(`${API}/shopping/history?groupId=${currentGroup.id}`); const trips = await res.json(); const list = getEl('history-list'); list.innerHTML = ''; if(trips.length === 0) list.innerHTML = '<p class="text-center text-slate-400 text-sm">אין היסטוריה עדיין</p>'; trips.forEach(t => { let itemsHtml = ''; t.items.forEach(i => itemsHtml += `<div class="text-xs flex justify-between bg-slate-100 p-2 rounded mb-1"><span>${safeStr(i.item_name)} (x${i.quantity} ${safeStr(i.unit || "יח'")})</span><span class="font-bold">₪${i.price_per_unit || 0}/${safeStr(i.unit || "יח'")}</span></div>`); list.innerHTML += `<div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm"><div onclick="document.getElementById('trip-items-${t.id}').classList.toggle('hidden')" class="flex justify-between items-center cursor-pointer"><div><h4 class="font-bold text-slate-800">${safeStr(t.store_name)} ${t.branch_name ? `(${safeStr(t.branch_name)})` : ''}</h4><p class="text-xs text-slate-400">${new Date(t.trip_date).toLocaleDateString()} • אישור: ${safeStr(t.nickname)}</p></div><span class="font-bold text-blue-600 text-lg">₪${t.total_amount} <i class="fa-solid fa-chevron-down text-xs ml-1"></i></span></div><div id="trip-items-${t.id}" class="hidden mt-3 pt-3 border-t border-slate-50">${itemsHtml}<button onclick="copyList(${t.id})" class="w-full mt-2 bg-slate-800 text-white py-2 rounded-xl text-xs font-bold hover:bg-slate-700">יבא דרישה שוב</button></div></div>`; }); getEl('history-modal').classList.remove('hidden'); }
-window.openBankSettings = function(id, name, allowance, interest) {
+window.openBankSettings = function(id, name, allowance, interest, baseSalary) {
     if (!document.getElementById('bank-settings-modal')) {
         document.body.insertAdjacentHTML('beforeend', `
         <div id="bank-settings-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[80] flex items-center justify-center p-4 fade-in">
@@ -7277,8 +7368,12 @@ window.openBankSettings = function(id, name, allowance, interest) {
                 <h3 class="text-xl font-black text-slate-800 mb-2"><i class="fa-solid fa-sack-dollar text-emerald-500 mr-2"></i>הגדרות שכר ותעריף</h3>
                 <p id="bank-user-name" class="text-xs font-bold text-slate-500 mb-6"></p>
                 <input type="hidden" id="bank-user-id">
-                
+
                 <div class="space-y-4">
+                    <div>
+                        <label class="text-[10px] font-bold text-slate-500 block mb-1">משכורת בסיס קבועה (₪, אופציונלי):</label>
+                        <input type="number" id="bank-base-salary" class="modern-input py-2.5 text-sm dir-ltr text-center font-bold text-emerald-700 bg-emerald-50 border-emerald-100 w-full" placeholder="למשל: 3000">
+                    </div>
                     <div>
                         <label class="text-[10px] font-bold text-slate-500 block mb-1">תעריף שכר לשעה (₪):</label>
                         <input type="number" id="bank-allowance" class="modern-input py-2.5 text-sm dir-ltr text-center font-bold text-indigo-700 bg-indigo-50 border-indigo-100 w-full" placeholder="למשל: 50">
@@ -7288,32 +7383,34 @@ window.openBankSettings = function(id, name, allowance, interest) {
                         <input type="number" id="bank-interest" class="modern-input py-2.5 text-sm dir-ltr text-center w-full" placeholder="למשל: 100">
                     </div>
                 </div>
-                
+
                 <button onclick="window.submitBankSettings()" class="w-full mt-6 bg-slate-800 text-white py-3 rounded-xl font-bold shadow-lg hover:bg-slate-700 transition">שמור הגדרות עובד</button>
             </div>
         </div>`);
     }
-    
-    document.getElementById('bank-user-id').value = id; 
-    document.getElementById('bank-user-name').innerText = `עבור העובד/ת: ${name}`; 
-    document.getElementById('bank-allowance').value = allowance; 
-    document.getElementById('bank-interest').value = interest; 
-    document.getElementById('bank-settings-modal').classList.remove('hidden'); 
+
+    document.getElementById('bank-user-id').value = id;
+    document.getElementById('bank-user-name').innerText = `עבור העובד/ת: ${name}`;
+    document.getElementById('bank-allowance').value = allowance;
+    document.getElementById('bank-interest').value = interest;
+    document.getElementById('bank-base-salary').value = baseSalary || 0;
+    document.getElementById('bank-settings-modal').classList.remove('hidden');
 };
 
-window.submitBankSettings = async function() { 
-    const uid = document.getElementById('bank-user-id').value; 
-    const allowance = document.getElementById('bank-allowance').value; 
-    const interest = document.getElementById('bank-interest').value; 
-    
+window.submitBankSettings = async function() {
+    const uid = document.getElementById('bank-user-id').value;
+    const allowance = document.getElementById('bank-allowance').value;
+    const interest = document.getElementById('bank-interest').value;
+    const baseSalary = document.getElementById('bank-base-salary').value;
+
     const btn = document.querySelector('#bank-settings-modal button.bg-slate-800');
     if(btn) { btn.disabled = true; btn.innerText = 'שומר...'; }
-    
+
     try {
-        const res = await fetch(`${API}/admin/update-settings`, { 
-            method: 'POST', headers: {'Content-Type': 'application/json'}, 
-            body: JSON.stringify({ userId: uid, allowance, interest }) 
-        }); 
+        const res = await fetch(`${API}/admin/update-settings`, {
+            method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ userId: uid, allowance, interest, baseSalary })
+        });
         
         if (res.ok) {
             document.getElementById('bank-settings-modal').classList.add('hidden'); 
