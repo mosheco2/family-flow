@@ -23472,6 +23472,9 @@ app.patch('/api/service-calls/:id', async (req, res) => {
         if (communityDiscount !== undefined) { sets.push(`community_discount=$${i++}`);  vals.push(!!communityDiscount); }
         if (req.body.partsStatus !== undefined)  { sets.push(`parts_status=$${i++}`);        vals.push(req.body.partsStatus||null); }
         if (req.body.rating !== undefined)        { sets.push(`rating=$${i++}`);              vals.push(req.body.rating||null); }
+        if (req.body.needsTriage !== undefined)   { sets.push(`needs_triage=$${i++}`);         vals.push(!!req.body.needsTriage); }
+        // שיוך טכנאי לקריאה הוא הנקודה הטבעית שבה הסיווג הראשוני הושלם — מנקים את הדגל אוטומטית אם לא נשלח ערך מפורש
+        else if (assignedMemberId !== undefined && assignedMemberId) { sets.push(`needs_triage=$${i++}`); vals.push(false); }
         if (!sets.length) return res.status(400).json({ error: 'אין שדות לעדכון' });
         sets.push(`updated_at=NOW()`);
         vals.push(req.params.id);
