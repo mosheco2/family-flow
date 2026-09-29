@@ -23482,6 +23482,13 @@ app.patch('/api/service-calls/:id', async (req, res) => {
 
 app.delete('/api/service-calls/:id', async (req, res) => {
     try {
+        // אכיפת התנאי שגם צד הלקוח מציג (כפתור "ביטול קריאה" מוצג רק על new/seen) — מונע ביטול של קריאה
+        // שכבר בטיפול/הושלמה/ממתינה לחלקים דרך קריאת API ישירה, שגם ככה לא הייתה נגישה מהממשק
+        const cur = await pool.query('SELECT status FROM service_calls WHERE id=$1', [req.params.id]);
+        if (!cur.rows.length) return res.status(404).json({ error: 'קריאה לא נמצאה' });
+        if (!['new','seen'].includes(cur.rows[0].status)) {
+            return res.status(400).json({ error: 'ניתן לבטל רק קריאה שטרם החל בה טיפול' });
+        }
         await pool.query('UPDATE service_calls SET status=$1, updated_at=NOW() WHERE id=$2', ['cancelled', req.params.id]);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
