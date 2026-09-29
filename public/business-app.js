@@ -11607,7 +11607,8 @@ window.switchCustomerTab = function(tab) {
         if(btnCalls) btnCalls.className = activeClass;
         if(viewCalls) viewCalls.classList.remove('hidden');
         const custName = document.getElementById('cust-name')?.value?.trim();
-        window.loadCustomerServiceCalls(custName);
+        const custPhone = document.getElementById('cust-phone')?.value?.trim();
+        window.loadCustomerServiceCalls(custName, custPhone);
     } else if (tab === 'collection') {
         if(btnCollection) btnCollection.className = activeClass;
         if(viewCollection) viewCollection.classList.remove('hidden');
@@ -11842,12 +11843,13 @@ window._custAutoSave = async function() {
     } catch(e) { /* silent */ }
 };
 
-window.loadCustomerServiceCalls = async function(customerName) {
+window.loadCustomerServiceCalls = async function(customerName, customerPhone) {
     const listEl = document.getElementById('cust-calls-list');
     if (!listEl || currentGroup?.business_type !== 'maintenance_repair') return;
     listEl.innerHTML = '<p class="text-center text-slate-400 text-xs py-4">טוען...</p>';
     try {
-        const r = await fetch(`/api/service-calls/by-customer/${currentGroup.id}?name=${encodeURIComponent(customerName||'')}`);
+        const phoneQ = customerPhone ? `&phone=${encodeURIComponent(customerPhone)}` : '';
+        const r = await fetch(`/api/service-calls/by-customer/${currentGroup.id}?name=${encodeURIComponent(customerName||'')}${phoneQ}`);
         const d = await r.json();
         const calls = d.calls || [];
         if (!calls.length) { listEl.innerHTML = '<p class="text-center text-slate-400 text-xs py-4">אין קריאות שירות ללקוח זה</p>'; return; }

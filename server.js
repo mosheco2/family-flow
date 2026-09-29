@@ -23524,17 +23524,33 @@ app.post('/api/service-calls/:id/notes', async (req, res) => {
 // Service calls by customer name (for customer history tab)
 app.get('/api/service-calls/by-customer/:businessGroupId', async (req, res) => {
     try {
-        const { name } = req.query;
-        if (!name) return res.json({ success: true, calls: [] });
-        const result = await pool.query(
-            `SELECT sc.*, fg.name as family_name, u.nickname as assigned_member_name
-             FROM service_calls sc
-             LEFT JOIN family_groups fg ON fg.id = sc.family_group_id
-             LEFT JOIN users u ON u.id = sc.assigned_member_id
-             WHERE sc.business_group_id=$1
-               AND (LOWER(fg.name) LIKE LOWER($2) OR LOWER(sc.description) LIKE LOWER($2))
-             ORDER BY sc.created_at DESC LIMIT 20`,
-            [req.params.businessGroupId, `%${name}%`]);
+        const { name, phone } = req.query;
+        if (!name && !phone) return res.json({ success: true, calls: [] });
+        const phoneDigits = phone ? phone.replace(/\D/g, '') : '';
+        // התאמה לפי טלפון (מדויקת, אמינה) עדיפה על פני התאמת שם חופשית (LIKE) שעלולה להחמיץ/לטעות —
+        // עם fallback לשם כשאין טלפון, כדי לא לפגוע בהתאמות קיימות עבור קריאות ישנות ללא customer_phone
+        const result = phoneDigits
+            ? await pool.query(
+                `SELECT sc.*, fg.name as family_name, u.nickname as assigned_member_name
+                 FROM service_calls sc
+                 LEFT JOIN family_groups fg ON fg.id = sc.family_group_id
+                 LEFT JOIN users u ON u.id = sc.assigned_member_id
+                 WHERE sc.business_group_id=$1
+                   AND (
+                     regexp_replace(COALESCE(sc.customer_phone,''), '\\D', '', 'g') = $2
+                     OR (($3)::text IS NOT NULL AND (LOWER(fg.name) LIKE LOWER($3) OR LOWER(sc.description) LIKE LOWER($3)))
+                   )
+                 ORDER BY sc.created_at DESC LIMIT 20`,
+                [req.params.businessGroupId, phoneDigits, name ? `%${name}%` : null])
+            : await pool.query(
+                `SELECT sc.*, fg.name as family_name, u.nickname as assigned_member_name
+                 FROM service_calls sc
+                 LEFT JOIN family_groups fg ON fg.id = sc.family_group_id
+                 LEFT JOIN users u ON u.id = sc.assigned_member_id
+                 WHERE sc.business_group_id=$1
+                   AND (LOWER(fg.name) LIKE LOWER($2) OR LOWER(sc.description) LIKE LOWER($2))
+                 ORDER BY sc.created_at DESC LIMIT 20`,
+                [req.params.businessGroupId, `%${name}%`]);
         res.json({ success: true, calls: result.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
