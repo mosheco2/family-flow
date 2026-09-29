@@ -23349,9 +23349,9 @@ app.post('/api/service-calls', async (req, res) => {
                  VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING *`,
                 [resolvedFamilyGroupId, resolvedBusinessGroupId, technicianContactId||null, title, fullDesc, address||null, customerPhone||null, customerName||null, priority||'normal', createdByUserId||null, resolvedMemberId, scheduledAt||null, requestedDate||null]);
         }
-        res.json({ success: true, call: result.rows[0] });
-
-        // אם קיים family_group_id אמיתי — צור קישור אוטומטי ל"הפעילויות שלי" של המשפחה
+        // אם קיים family_group_id אמיתי — צור קישור אוטומטי ל"הפעילויות שלי" של המשפחה.
+        // ממתינים לסיום הקישור (או לכישלונו) לפני שליחת התשובה, כדי שהלקוח יידע אם השיוך למשפחה באמת הצליח
+        let familyLinked = true;
         if (resolvedFamilyGroupId && resolvedBusinessGroupId && resolvedFamilyGroupId !== resolvedBusinessGroupId) {
             try {
                 const bizTypeR = await pool.query('SELECT business_type, name FROM family_groups WHERE id=$1', [resolvedBusinessGroupId]);
@@ -23366,8 +23366,9 @@ app.post('/api/service-calls', async (req, res) => {
                         [resolvedFamilyGroupId, resolvedBusinessGroupId, business_type || 'maintenance_repair', bizName || 'עסק']
                     );
                 }
-            } catch(linkErr) { /* non-blocking */ }
+            } catch(linkErr) { familyLinked = false; }
         }
+        res.json({ success: true, call: result.rows[0], familyLinked });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 

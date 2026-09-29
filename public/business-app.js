@@ -5863,8 +5863,9 @@ async function renderFamilyServiceCallsSection() {
         const d = await r.json();
         const calls = d.calls || [];
         if (!calls.length) { section.innerHTML = ''; return; }
-        const sevColors = { low:'bg-slate-100 text-slate-600', medium:'bg-amber-100 text-amber-700', high:'bg-orange-100 text-orange-700', critical:'bg-red-100 text-red-700' };
-        const sevLabels = { low:'נמוכה', medium:'בינונית', high:'גבוהה', critical:'קריטית' };
+        // תוקן: היה c.severity (שדה שלא קיים בכלל ב-service_calls, שייך לטבלה אחרת) — הוחלף בשדה priority האמיתי
+        const prioColors = { low:'bg-slate-100 text-slate-600', normal:'bg-amber-100 text-amber-700', high:'bg-orange-100 text-orange-700', urgent:'bg-red-100 text-red-700' };
+        const prioLabels = { low:'נמוכה', normal:'רגילה', high:'גבוהה', urgent:'דחופה' };
         section.innerHTML = `<div class="bg-white rounded-2xl shadow-sm border border-orange-100 overflow-hidden">
             <div class="flex items-center justify-between px-4 py-3 bg-orange-50 border-b border-orange-100">
                 <h3 class="font-black text-orange-800 text-sm flex items-center gap-2">🔧 קריאות שירות ממשפחות <span class="bg-orange-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full">${calls.length}</span></h3>
@@ -5874,10 +5875,10 @@ async function renderFamilyServiceCallsSection() {
                     <div class="flex-1 min-w-0">
                         <div class="flex items-center gap-1.5 flex-wrap">
                             <span class="font-bold text-slate-800 text-sm truncate">${safeStr(c.title)}</span>
-                            <span class="text-[10px] px-1.5 py-0.5 rounded-full font-bold ${sevColors[c.severity]||'bg-slate-100 text-slate-600'}">${sevLabels[c.severity]||c.severity}</span>
+                            <span class="text-[10px] px-1.5 py-0.5 rounded-full font-bold ${prioColors[c.priority]||'bg-slate-100 text-slate-600'}">${prioLabels[c.priority]||c.priority||''}</span>
                         </div>
                         <p class="text-[11px] text-slate-400">${safeStr(c.family_name||'')} · ${new Date(c.created_at).toLocaleDateString('he-IL')}</p>
-                        ${c.scheduled_date ? `<p class="text-[10px] text-indigo-500 font-bold"><i class="fa-solid fa-calendar-check ml-1"></i>${new Date(c.scheduled_date).toLocaleString('he-IL',{dateStyle:'short',timeStyle:'short'})}</p>` : ''}
+                        ${c.scheduled_at ? `<p class="text-[10px] text-indigo-500 font-bold"><i class="fa-solid fa-calendar-check ml-1"></i>${new Date(c.scheduled_at).toLocaleString('he-IL',{dateStyle:'short',timeStyle:'short'})}</p>` : ''}
                         ${c.description ? `<p class="text-[11px] text-slate-500 truncate">${safeStr(c.description)}</p>` : ''}
                     </div>
                 </div>`).join('')}
@@ -37968,15 +37969,15 @@ window.showMaintenanceReports = async function(memberId) {
             { label:'הושלמו השבוע', val: s.completed_week, icon:'📅', color:'blue' },
             { label:'הושלמו היום', val: s.completed_today, icon:'⚡', color:'emerald' },
             { label:'דחופות פתוחות', val: s.urgent_open, icon:'🚨', color: s.urgent_open>0?'red':'slate' },
-            { label:'זמן ממוצע (שע׳)', val: s.avg_completion_hours ? Number(s.avg_completion_hours).toFixed(1) : '-', icon:'⏱️', color:'purple' },
+            { label:'זמן ממוצע (שע׳)', val: s.avg_completion_hours ? Number(s.avg_completion_hours).toFixed(1) : '-', icon:'⏱️', color:'purple', tip:'אומדן קירוב: הזמן שחלף מיצירת הקריאה ועד לעדכון האחרון שלה (לא בהכרח רגע הסיום המדויק)' },
             { label:'הכנסות החודש', val: s.revenue_this_month > 0 ? '₪' + Number(s.revenue_this_month).toLocaleString() : '-', icon:'💰', color:'amber' },
             { label:'סה"כ הכנסות', val: s.total_revenue > 0 ? '₪' + Number(s.total_revenue).toLocaleString() : '-', icon:'💵', color:'yellow' }
         ];
         const kpiHtml = `<div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            ${kpiData.map(k => `<div class="bg-white rounded-2xl p-3 shadow-sm border border-slate-100 text-center">
+            ${kpiData.map(k => `<div class="bg-white rounded-2xl p-3 shadow-sm border border-slate-100 text-center relative">
                 <div class="text-xl mb-1">${k.icon}</div>
                 <div class="text-base font-black text-${k.color}-600">${k.val}</div>
-                <div class="text-[10px] text-slate-500 font-bold">${k.label}</div>
+                <div class="text-[10px] text-slate-500 font-bold">${k.label}${k.tip ? ` <span title="${safeStr(k.tip)}" class="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full bg-slate-200 text-slate-500 text-[9px] font-black cursor-help">?</span>` : ''}</div>
             </div>`).join('')}
         </div>`;
 
