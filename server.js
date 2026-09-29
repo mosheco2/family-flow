@@ -23492,7 +23492,7 @@ app.patch('/api/service-calls/:id', async (req, res) => {
                     [sc.family_group_id, sc.business_group_id]
                 );
                 if (linkR.rows.length) {
-                    const lbl = { new:'חדש', scheduled:'נקבע תור', processing:'בטיפול', done:'הושלם', cancelled:'בוטל', quote:'הצעת מחיר', waiting_parts:'ממתין לחלקים' }[status] || status;
+                    const lbl = { new:'חדשה', seen:'נצפתה', in_progress:'בטיפול', pending_parts:'ממתין לחלקים', pending_payment:'ממתין לתשלום', done:'הושלם', cancelled:'בוטל' }[status] || status;
                     await _sendMemberBizNotif(linkR.rows[0].member_group_id, linkR.rows[0].biz_name,
                         `קריאת השירות שלך ב${linkR.rows[0].biz_name} עודכנה: ${lbl}`, `mbiz_sc_${req.params.id}_${status}`);
                 }
