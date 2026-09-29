@@ -2295,6 +2295,16 @@ async function renderUnifiedReportsTab() {
     }
 }
 
+window._reportsSetTechSort = function(mode) {
+    window._techSortMode = mode;
+    const inner = document.getElementById('reports-inner');
+    if (inner && window._reportsLastData) {
+        const bType = currentGroup?.business_type || 'other';
+        const period = window._reportsPeriod || 'month';
+        inner.innerHTML = _buildReportsHTML(window._reportsLastData, bType, period);
+    }
+};
+
 function _buildReportsHTML(data, bType, period) {
     const fmt = n => Number(n||0).toLocaleString('he-IL', { maximumFractionDigits: 0 });
     const fmtM = n => '₪' + fmt(n);
@@ -2479,10 +2489,18 @@ function _buildReportsHTML(data, bType, period) {
             ${(m.callsByStatus||[]).map(s=>`<div class="flex justify-between items-center py-1.5 border-b border-slate-50 last:border-0"><span class="text-sm text-slate-700">${sl[s.status]||s.status}</span><div class="flex gap-3"><span class="text-sm font-black">${fmt(s.count)}</span><span class="text-sm text-emerald-700">${fmtM(s.revenue)}</span></div></div>`).join('')}
         </div>`;
         if ((m.byTech||[]).length) {
+            const techSort = window._techSortMode || 'revenue';
+            const sortedTech = [...m.byTech].sort((a,b) => techSort === 'count' ? (b.done_c-a.done_c) : (b.revenue-a.revenue));
             html += `<div class="bg-white rounded-2xl border border-slate-100 p-4 shadow-sm mb-4">
-                <div class="font-bold text-slate-700 text-sm mb-3">ביצועי טכנאים</div>
+                <div class="flex justify-between items-center mb-3">
+                    <div class="font-bold text-slate-700 text-sm">ביצועי טכנאים</div>
+                    <div class="flex gap-1 bg-slate-100 rounded-lg p-0.5">
+                        <button onclick="window._reportsSetTechSort('revenue')" class="text-[11px] font-bold px-2 py-1 rounded-md transition ${techSort==='revenue'?'bg-white text-indigo-600 shadow-sm':'text-slate-400'}">לפי הכנסה</button>
+                        <button onclick="window._reportsSetTechSort('count')" class="text-[11px] font-bold px-2 py-1 rounded-md transition ${techSort==='count'?'bg-white text-indigo-600 shadow-sm':'text-slate-400'}">לפי כמות</button>
+                    </div>
+                </div>
                 <table class="w-full text-xs"><thead><tr class="text-slate-400 border-b border-slate-100"><th class="pb-2 text-right font-medium">טכנאי/ת</th><th class="pb-2 text-center font-medium">פתוחות</th><th class="pb-2 text-center font-medium">הושלמו</th><th class="pb-2 text-left font-medium">הכנסה</th></tr></thead><tbody>
-                ${m.byTech.map(t=>`<tr class="border-b border-slate-50"><td class="py-2 text-slate-700">${t.name||'—'}</td><td class="py-2 text-center">${fmt(t.open_c)}</td><td class="py-2 text-center">${fmt(t.done_c)}</td><td class="py-2 text-left text-emerald-700 font-bold">${fmtM(t.revenue)}</td></tr>`).join('')}
+                ${sortedTech.map(t=>`<tr class="border-b border-slate-50"><td class="py-2 text-slate-700">${t.name||'—'}</td><td class="py-2 text-center">${fmt(t.open_c)}</td><td class="py-2 text-center">${fmt(t.done_c)}</td><td class="py-2 text-left text-emerald-700 font-bold">${fmtM(t.revenue)}</td></tr>`).join('')}
                 </tbody></table>
             </div>`;
         }
