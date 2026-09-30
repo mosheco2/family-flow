@@ -147,6 +147,11 @@
             </div>
         </div>
 
+        <div id="mr-mode-toggle" class="hidden w-full px-4 pt-2 pb-1 flex gap-2 border-t border-slate-100">
+            <button id="mr-mode-btn-services" onclick="window.setMrMode('services')" class="catmode-btn active"><i class="fa-solid fa-wrench mr-1"></i> שירותים</button>
+            <button id="mr-mode-btn-catalog" onclick="window.setMrMode('catalog')" class="catmode-btn"><i class="fa-solid fa-basket-shopping mr-1"></i> קטלוג מוצרים</button>
+        </div>
+
         <div class="relative w-full px-2 pb-2 group border-t border-slate-100 pt-2">
             <button id="scroll-right-btn" onclick="window.scrollCategories(1)" class="absolute right-0 top-1/2 -translate-y-1/2 z-10 w-7 h-7 flex items-center justify-center bg-white/90 backdrop-blur rounded-full shadow-md text-slate-800 hover:scale-110 transition border border-slate-200">
                 <i class="fa-solid fa-chevron-right text-[10px]"></i>
@@ -654,6 +659,7 @@
         let cart = {}; 
         let currentCategory = 'all';
         let searchQuery = '';
+        let mrMode = 'services'; // רלוונטי רק לעסק מסוג maintenance_repair: 'services' | 'catalog'
         let currentModifierProduct = null;
         let currentModifierBasePrice = 0;
         let currentModalQty = 1;
@@ -2021,20 +2027,37 @@
             }
         };
 
+        window.setMrMode = function(mode) {
+            mrMode = mode;
+            currentCategory = 'all';
+            document.getElementById('mr-mode-btn-services')?.classList.toggle('active', mode === 'services');
+            document.getElementById('mr-mode-btn-catalog')?.classList.toggle('active', mode === 'catalog');
+            window.extractCategories();
+            window.renderCatalog();
+        };
+
         window.extractCategories = function() {
-            const container = getEl('categories-container'); 
+            const container = getEl('categories-container');
             const sideList = getEl('side-categories-list');
             const complexBanner = getEl('complex-banner-container');
             if (!storeData.catalog) return;
-            
+
+            const isMaintenance = (storeData.businessType || storeData.business_type) === 'maintenance_repair';
+            const mrToggle = getEl('mr-mode-toggle');
+            if (mrToggle) mrToggle.classList.toggle('hidden', !isMaintenance);
+
             const categories = new Set();
             const complexItems = storeData.catalog.filter(item => item.product_type === 'complex_builder');
             const hasComplexItems = complexItems.length > 0;
 
             storeData.catalog.forEach(item => {
-                if (item.product_type !== 'complex_builder' && item.category) {
-                    categories.add(item.category.trim());
+                if (item.product_type === 'complex_builder' || !item.category) return;
+                // בעסק תחזוקה ותיקונים — הפילטרים תלויי-מצב: שירותים בלבד או מוצרים בלבד
+                if (isMaintenance) {
+                    if (mrMode === 'services' && item.product_type !== 'service') return;
+                    if (mrMode === 'catalog' && item.product_type === 'service') return;
                 }
+                categories.add(item.category.trim());
             });
 
             if (hasComplexItems && complexBanner) {
@@ -2186,10 +2209,14 @@ window.renderCatalog = function() {
                 return;
             }
 
+            const isMaintenance = (storeData.businessType || storeData.business_type) === 'maintenance_repair';
+
             let filtered = storeData.catalog;
-            
+
             if (currentCategory === 'complex_view') {
                 filtered = filtered.filter(item => item.product_type === 'complex_builder');
+            } else if (isMaintenance && mrMode === 'services') {
+                filtered = []; // בעסק תחזוקה ותיקונים, במצב "שירותים" לא מציגים כלל את רשת המוצרים
             } else {
                 filtered = filtered.filter(item => item.product_type !== 'complex_builder' && item.product_type !== 'service');
                 if (currentCategory !== 'all') filtered = filtered.filter(item => item.category === currentCategory);
@@ -2198,9 +2225,10 @@ window.renderCatalog = function() {
             if (searchQuery.trim() !== '') filtered = filtered.filter(item => item.name.toLowerCase().includes(searchQuery));
 
             // שירותים (product_type='service') מוצגים בנפרד — קטלוג לצפייה בלבד עם
-            // "בקש שירות" (לא "הוסף לעגלה"), ללא תמונה, לא נכללים ברשת המוצרים הרגילה
+            // "בקש שירות" (לא "הוסף לעגלה"), ללא תמונה, לא נכללים ברשת המוצרים הרגילה.
+            // בעסק תחזוקה ותיקונים הקטע הזה מוצג רק במצב "שירותים" (mrMode) — לא מעורבב עם הקטלוג.
             let servicesHtml = '';
-            if (currentCategory !== 'complex_view') {
+            if (currentCategory !== 'complex_view' && !(isMaintenance && mrMode === 'catalog')) {
                 let services = (storeData.catalog || []).filter(item => item.product_type === 'service');
                 if (currentCategory !== 'all') services = services.filter(item => item.category === currentCategory);
                 if (searchQuery.trim() !== '') services = services.filter(item => item.name.toLowerCase().includes(searchQuery));
