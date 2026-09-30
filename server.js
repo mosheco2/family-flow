@@ -8991,7 +8991,8 @@ app.get('/api/sa/kpi-detail', verifySA, async (req, res) => {
 // ── SA PENDING ACTIONS CENTER: כל מה שממתין לטיפול ברחבי המערכת ─────────────
 app.get('/api/sa/pending-actions-center', verifySA, async (req, res) => {
     try {
-        const safe = (q, label) => pool.query(q).then(r => r.rows).catch(e => { console.error('[SA Pending Center]', label, e.message); return []; });
+        const sqlErrors = [];
+        const safe = (q, label) => pool.query(q).then(r => r.rows).catch(e => { console.error('[SA Pending Center]', label, e.message); sqlErrors.push({ label, error: e.message }); return []; });
         const hoursSince = ts => ts ? Math.round((Date.now() - new Date(ts).getTime()) / 3600000) : null;
 
         const [
@@ -9096,7 +9097,7 @@ app.get('/api/sa/pending-actions-center', verifySA, async (req, res) => {
         const totalPending = nonEmpty.reduce((s,c) => s + c.count, 0);
         const oldestOverall = nonEmpty.length ? Math.max(...nonEmpty.map(c => c.oldest_wait_hours||0)) : 0;
 
-        res.json({ success: true, categories, total_pending: totalPending, oldest_overall_hours: oldestOverall });
+        res.json({ success: true, categories, total_pending: totalPending, oldest_overall_hours: oldestOverall, sql_errors: sqlErrors });
     } catch(e) {
         console.error('[SA Pending Center]', e.message);
         res.status(500).json({ success: false, error: e.message });

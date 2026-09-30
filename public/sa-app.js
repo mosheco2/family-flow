@@ -906,10 +906,17 @@ window.loadSAPendingCenter = async function() {
         if (summary) summary.textContent = d.total_pending > 0
             ? `סה"כ ${d.total_pending} פעולות ממתינות · הוותיקה ביותר: ${_saFmtWait(d.oldest_overall_hours)}`
             : '';
-        if (!d.categories.length) { list.innerHTML = '<p class="text-emerald-500 text-center py-6 text-xs font-bold"><i class="fa-solid fa-circle-check mr-1"></i> אין פעולות ממתינות — המערכת נקייה</p>'; return; }
+        // אם שאילתת SQL אחת או יותר נכשלה בשרת, הקטגוריה המתאימה תוצג כ"ריקה" בלי
+        // שום סימן — מציגים כאן אזהרה מפורשת כדי שלא ייראה כאילו באמת אין בקשות.
+        const errBanner = (d.sql_errors && d.sql_errors.length)
+            ? `<div class="border border-red-200 bg-red-50 text-red-700 rounded-xl p-3 mb-2 text-[10px] font-bold">
+                <i class="fa-solid fa-triangle-exclamation mr-1"></i> שגיאת שרת ב-${d.sql_errors.length} קטגוריות (${d.sql_errors.map(e=>safeStr(e.label)).join(', ')}) — הנתונים שלהן לא נטענו ועשויים להיראות "ריקים" בטעות. פרטים מלאים בלוג השרת.
+              </div>`
+            : '';
+        if (!d.categories.length) { list.innerHTML = errBanner + '<p class="text-emerald-500 text-center py-6 text-xs font-bold"><i class="fa-solid fa-circle-check mr-1"></i> אין פעולות ממתינות — המערכת נקייה</p>'; return; }
 
         window._saPendingItemsFlat = [];
-        list.innerHTML = d.categories.map(cat => {
+        list.innerHTML = errBanner + d.categories.map(cat => {
             if (cat.count === 0) {
                 return `<div class="border rounded-xl p-3 bg-slate-50 border-slate-100">
                     <div class="flex items-center justify-between">
