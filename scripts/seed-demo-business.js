@@ -11,6 +11,9 @@
  *   כך /api/biz/login מזהה משתמשים. אם לא ידוע, אפשר לבדוק/לאפס אותו דרך Super Admin.
  * - group_id מספרי נפתר אוטומטית מ-group_code דרך GET /api/storefront/:code (ציבורי);
  *   אם זה נכשל אפשר לעקוף עם BIZ_GROUP_ID (מזהה מספרי).
+ * - הסקריפט גם מקים 2 עובדים (טכנאי + מנהלת סניף) דרך /api/join + /api/admin/approve-user,
+ *   ומייצר ביניהם ובין המנהל פעילות "דומינו" חוצת-משתמשים: שיוך טכנאי לפקודת עבודה,
+ *   הודעות הלוך-חזור בשיח הפנימי, ודיווח שעות נוכחות בפועל.
  */
 
 const BASE_URL = process.env.BIZ_URL || 'https://weflowz.co.il';
@@ -18,6 +21,7 @@ const API = `${BASE_URL}/api`;
 const GROUP_CODE = process.env.BIZ_CODE || 'BC327E18';
 const ADMIN_NAME = process.env.BIZ_NAME || 'יוסי';
 const ADMIN_PASS = process.env.BIZ_PASS || '123456';
+const ADMIN_PHONE = process.env.BIZ_PHONE || '0500000149';
 
 let TOKEN = null;
 let GROUP_ID = null;
@@ -52,10 +56,8 @@ async function resolveGroupIdAndLogin() {
     if (!GROUP_ID) throw new Error(`לא הצלחתי לפתור group_id מקוד העסק (${JSON.stringify(lookup.data)}) — קבע BIZ_GROUP_ID (מזהה מספרי) והרץ שוב.`);
   }
 
-  // /api/biz/login דורש phone (לא שם) + groupId מספרי — יש להעביר BIZ_PHONE במשתני הסביבה
-  const phone = process.env.BIZ_PHONE;
-  if (!phone) throw new Error('חובה להעביר BIZ_PHONE (מספר הטלפון של המנהל שנרשם בעסק) — ההתחברות העסקית מבוססת טלפון, לא שם משתמש.');
-  const r = await api('POST', '/biz/login', { phone, password: ADMIN_PASS, groupId: GROUP_ID }, false);
+  // /api/biz/login דורש phone (לא שם) + groupId מספרי
+  const r = await api('POST', '/biz/login', { phone: ADMIN_PHONE, password: ADMIN_PASS, groupId: GROUP_ID }, false);
   if (!r.ok || !r.data.success || !r.data.token) {
     throw new Error(`התחברות נכשלה: ${JSON.stringify(r.data)}. ודא/י ש-BIZ_PHONE, BIZ_PASS ו-group_id נכונים.`);
   }
@@ -126,6 +128,37 @@ async function seedStoreSettings() {
 }
 
 // ------------------------------------------------------------------
+// 3.5 צוות — הקמת עובדים (טכנאים) ואישורם
+const TEAM = [
+  { nickname: 'אבי טכנאי', firstName: 'אבי', lastName: 'כהן', phone: '0500000201', email: 'avi.tech@example.com', employee_role_type: 'field_tech' },
+  { nickname: 'שירה מנהלת סניף', firstName: 'שירה', lastName: 'לוי', phone: '0500000202', email: 'shira.mgr@example.com', employee_role_type: 'branch_manager' },
+];
+let teamUserIds = {}; // nickname -> userId
+
+async function seedTeam() {
+  console.log('\n👷 צוות — עובדים');
+  for (const t of TEAM) {
+    const joinRes = await api('POST', '/join', {
+      groupCode: GROUP_CODE, nickname: t.nickname, firstName: t.firstName, lastName: t.lastName,
+      phone: t.phone, email: t.email, password: '123456', role: 'MEMBER', employee_role_type: t.employee_role_type,
+    }, false);
+    log(joinRes.ok && joinRes.data.error === undefined, `בקשת הצטרפות: ${t.nickname}`, joinRes.ok ? '' : JSON.stringify(joinRes.data));
+
+    // מציאת ה-userId שנוצר דרך רשימת הממתינים לאישור, ואז אישורו
+    const pendingRes = await api('GET', `/admin/pending-users?groupId=${GROUP_ID}`, undefined, false);
+    const pendingList = Array.isArray(pendingRes.data) ? pendingRes.data : [];
+    const match = pendingList.find(u => u.nickname === t.nickname);
+    if (match) {
+      const approveRes = await api('POST', '/admin/approve-user', { userId: match.id }, false);
+      log(approveRes.ok && approveRes.data.success !== false, `אישור עובד: ${t.nickname}`, approveRes.ok ? '' : JSON.stringify(approveRes.data));
+      teamUserIds[t.nickname] = match.id;
+    } else {
+      log(false, `אישור עובד: ${t.nickname}`, 'לא נמצא ברשימת הממתינים לאישור (ייתכן שכבר קיים משתמש עם אותו טלפון)');
+    }
+  }
+}
+
+// ------------------------------------------------------------------
 // 4. לקוחות
 const CUSTOMERS = [
   { name: 'דנה כהן', phone: '0521112233', email: 'dana@example.com', notes: 'לקוחה קבועה, דירה בקומה 3' },
@@ -171,17 +204,18 @@ async function seedOrders() {
 }
 
 // ------------------------------------------------------------------
-// 7. קריאות שירות
+// 7. קריאות שירות — קריאה אחת מוקצית ישירות לטכנאי (אבי טכנאי), כדי להמחיש שיוך בין אנשי צוות
 async function seedServiceCalls() {
   console.log('\n🔧 קריאות שירות');
+  const techId = teamUserIds['אבי טכנאי'] || null;
   const calls = [
-    { title: 'נזילה מתחת לכיור', description: 'טפטוף מתמשך מתחת לכיור המטבח', customerName: 'דנה כהן', customerPhone: '0521112233', priority: 'high', businessGroupId: GROUP_ID },
+    { title: 'נזילה מתחת לכיור', description: 'טפטוף מתמשך מתחת לכיור המטבח', customerName: 'דנה כהן', customerPhone: '0521112233', priority: 'high', businessGroupId: GROUP_ID, assignedMemberId: techId },
     { title: 'תקלה בלוח חשמל', description: 'נתיך קופץ שוב ושוב', customerName: 'משה לוי', customerPhone: '0522223344', priority: 'normal', businessGroupId: GROUP_ID },
     { title: 'סתימה בביוב חוזרת', description: 'סתימה שחוזרת כל כמה שבועות', customerName: 'רונית אברהם', customerPhone: '0523334455', priority: 'normal', businessGroupId: GROUP_ID },
   ];
   for (const c of calls) {
     const r = await api('POST', '/service-calls', c, false);
-    log(r.ok && r.data.success !== false, `קריאה: ${c.title}`, r.ok ? '' : JSON.stringify(r.data));
+    log(r.ok && r.data.success !== false, `קריאה: ${c.title}${c.assignedMemberId ? ' (משויכת ל-אבי טכנאי)' : ''}`, r.ok ? '' : JSON.stringify(r.data));
   }
 }
 
@@ -205,10 +239,12 @@ async function seedTransactions() {
 // 9. משימות
 async function seedTasks() {
   console.log('\n✅ משימות');
+  const techId = teamUserIds['אבי טכנאי'] || null;
+  const mgrId = teamUserIds['שירה מנהלת סניף'] || null;
   const tasks = [
-    { title: 'להזמין מלאי אטמים נוספים', priority: 'medium', requireAiCheck: false },
-    { title: 'לחזור ללקוחה דנה כהן עם הצעת מחיר', priority: 'high', requireAiCheck: false },
-    { title: 'לתאם ביקורת תקינות ללוח חשמל', priority: 'low', requireAiCheck: false },
+    { title: 'להזמין מלאי אטמים נוספים', priority: 'medium', requireAiCheck: false, assignedTo: mgrId || undefined },
+    { title: 'לחזור ללקוחה דנה כהן עם הצעת מחיר', priority: 'high', requireAiCheck: false, assignedTo: mgrId || undefined },
+    { title: 'לתאם ביקורת תקינות ללוח חשמל', priority: 'low', requireAiCheck: false, assignedTo: techId || undefined },
   ];
   for (const t of tasks) {
     const r = await api('POST', '/tasks', t);
@@ -262,8 +298,29 @@ async function seedWorkOrdersAndProcurement() {
       userName: ADMIN_NAME,
     });
     log(poR.ok && poR.data.success !== false, 'הזמנת רכש על פקודת עבודה', poR.ok ? '' : JSON.stringify(poR.data));
+
+    // ── שיוך בין-משתמשי (דומינו): מנהל משייך טכנאי לפקודת העבודה, שולח לו הודעה
+    // בשיח הפנימי, והטכנאי מדווח שעות עבודה בפועל — כדי להמחיש זרימה מלאה בין אנשי צוות
+    const techId = teamUserIds['אבי טכנאי'];
+    if (techId) {
+      const assignR = await api('POST', `/work-orders/${woId}/assignees`, {
+        userId: techId, userName: 'אבי טכנאי', assignedBy: ADMIN_NAME, roleLabel: 'טכנאי אינסטלציה',
+      });
+      log(assignR.ok && assignR.data.success !== false, 'שיוך אבי טכנאי לפקודת העבודה', assignR.ok ? '' : JSON.stringify(assignR.data));
+
+      const msg1 = await api('POST', `/work-orders/${woId}/messages`, { userId: null, userName: ADMIN_NAME, message: 'אבי, זו קריאה דחופה — תוכל להגיע היום אחה"צ?' });
+      log(msg1.ok && msg1.data.success !== false, 'הודעה: מנהל → אבי טכנאי');
+      const msg2 = await api('POST', `/work-orders/${woId}/messages`, { userId: techId, userName: 'אבי טכנאי', message: 'בטח, אני שם ב-15:00 עם כל הציוד' });
+      log(msg2.ok && msg2.data.success !== false, 'הודעה: אבי טכנאי → מנהל');
+
+      const today = new Date().toISOString().slice(0, 10);
+      const punchR = await api('POST', '/timeclock/manual', {
+        userId: techId, punchIn: `${today}T08:30:00`, punchOut: `${today}T16:30:00`, totalMins: 480,
+      });
+      log(punchR.ok && punchR.data.success !== false, 'דיווח שעות (נוכחות) לאבי טכנאי', punchR.ok ? '' : JSON.stringify(punchR.data));
+    }
   } else {
-    console.log('   ⚠️  לא נוצרה פקודת עבודה — מדלג על הזמנת הרכש');
+    console.log('   ⚠️  לא נוצרה פקודת עבודה — מדלג על הזמנת הרכש והשיוך הבין-משתמשי');
   }
 }
 
@@ -290,6 +347,7 @@ async function main() {
     await seedStoreSettings();
     await seedCatalog();
     await seedPromotionsAndCoupons();
+    await seedTeam();
     await seedCustomers();
     await seedQuotes();
     await seedOrders();
