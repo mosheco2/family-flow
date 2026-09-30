@@ -54,6 +54,13 @@
         
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        .catmode-btn { flex: 1; padding: 0.6rem 1rem; border-radius: 12px; font-size: 0.85rem; font-weight: 700; background: white; color: #4b5563; border: 1px solid #e5e7eb; transition: all 0.2s; cursor: pointer; }
+        .catmode-btn.active { background: #000; color: white; border-color: #000; }
+        .service-card { transition: all 0.3s ease; border: 1px solid #e5e7eb; }
+        .service-card:hover { transform: translateY(-3px); box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1); }
+        .sr-window-btn { border-radius: 12px; text-align: center; cursor: pointer; }
+        .sr-window-btn.active { background: #eff6ff; border-color: #2563eb !important; color: #1d4ed8; }
     </style>
 </head>
 <body class="text-slate-800 pb-32">
@@ -464,6 +471,50 @@
 
             <div class="p-0 border-t border-slate-100 bg-white shrink-0 flex flex-col gap-3">
                 <button type="button" onclick="window.submitTableReservation()" id="btn-submit-table-res" class="w-full bg-orange-600 text-white py-4 rounded-2xl font-bold shadow-xl text-base hover:bg-orange-700 transition active:scale-95 flex justify-center items-center gap-2">
+                    <span>שליחת בקשה</span> <i class="fa-solid fa-send"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Service Request Modal (עסקי תחזוקה ותיקונים) -->
+    <div id="service-request-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[85] flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <div class="bg-white w-full max-w-md rounded-t-[2rem] sm:rounded-2xl p-6 shadow-2xl relative max-h-[90vh] flex flex-col slide-up overflow-hidden">
+            <button onclick="window.closeServiceRequestModal()" class="absolute top-4 right-4 text-slate-400 hover:text-slate-600 w-8 h-8 bg-slate-100 rounded-full transition flex items-center justify-center z-10"><i class="fa-solid fa-xmark"></i></button>
+
+            <h3 class="text-xl font-black text-slate-800 mb-1 border-b border-slate-100 pb-3 shrink-0"><i class="fa-solid fa-wrench text-blue-600 mr-1"></i> בקשת שירות</h3>
+            <p id="sr-service-name" class="text-sm font-bold text-slate-700 mt-2 mb-2"></p>
+
+            <div class="flex-1 overflow-y-auto modal-scroll pr-1 pb-4 space-y-4">
+                <div>
+                    <label class="text-xs font-bold text-slate-600 block mb-2">תיאור התקלה / הבקשה</label>
+                    <textarea id="sr-description" class="modern-input py-2.5 text-sm bg-white border-slate-200 h-20" placeholder="פרטו במה מדובר..." required></textarea>
+                </div>
+
+                <div>
+                    <label class="text-xs font-bold text-slate-600 block mb-2">תאריך מועדף</label>
+                    <input type="date" id="sr-date" class="modern-input py-2.5 text-sm bg-white border-slate-200 text-center font-bold" required>
+                </div>
+
+                <div>
+                    <label class="text-xs font-bold text-slate-600 block mb-2">חלון זמן מועדף</label>
+                    <div class="grid grid-cols-3 gap-2">
+                        <button type="button" data-window="morning" onclick="window.selectSrWindow('morning')" class="sr-window-btn modern-input py-2.5 text-xs font-bold bg-white border-slate-200">בוקר</button>
+                        <button type="button" data-window="afternoon" onclick="window.selectSrWindow('afternoon')" class="sr-window-btn modern-input py-2.5 text-xs font-bold bg-white border-slate-200">צהריים</button>
+                        <button type="button" data-window="evening" onclick="window.selectSrWindow('evening')" class="sr-window-btn modern-input py-2.5 text-xs font-bold bg-white border-slate-200">ערב</button>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="text-xs font-bold text-slate-600 block mb-2">כתובת</label>
+                    <input type="text" id="sr-address" class="modern-input py-2.5 text-sm bg-white border-slate-200" placeholder="רחוב, מספר, עיר">
+                </div>
+
+                <p class="text-[11px] text-slate-400 leading-relaxed"><i class="fa-solid fa-circle-info mr-1"></i> זו בקשה בלבד — העסק יאשר ויתאם איתך מועד מדויק.</p>
+            </div>
+
+            <div class="p-0 border-t border-slate-100 bg-white shrink-0 flex flex-col gap-3">
+                <button type="button" onclick="window.submitServiceRequest()" id="btn-submit-sr" class="w-full bg-blue-600 text-white py-4 rounded-2xl font-bold shadow-xl text-base hover:bg-blue-700 transition active:scale-95 flex justify-center items-center gap-2">
                     <span>שליחת בקשה</span> <i class="fa-solid fa-send"></i>
                 </button>
             </div>
@@ -2136,11 +2187,31 @@ window.renderCatalog = function() {
             if (currentCategory === 'complex_view') {
                 filtered = filtered.filter(item => item.product_type === 'complex_builder');
             } else {
-                filtered = filtered.filter(item => item.product_type !== 'complex_builder');
+                filtered = filtered.filter(item => item.product_type !== 'complex_builder' && item.product_type !== 'service');
                 if (currentCategory !== 'all') filtered = filtered.filter(item => item.category === currentCategory);
             }
 
             if (searchQuery.trim() !== '') filtered = filtered.filter(item => item.name.toLowerCase().includes(searchQuery));
+
+            // שירותים (product_type='service') מוצגים בנפרד — קטלוג לצפייה בלבד עם
+            // "בקש שירות" (לא "הוסף לעגלה"), ללא תמונה, לא נכללים ברשת המוצרים הרגילה
+            let servicesHtml = '';
+            if (currentCategory !== 'complex_view') {
+                let services = (storeData.catalog || []).filter(item => item.product_type === 'service');
+                if (searchQuery.trim() !== '') services = services.filter(item => item.name.toLowerCase().includes(searchQuery));
+                if (services.length) {
+                    servicesHtml = `<div class="mb-2"><h3 class="text-sm font-black text-slate-700 px-1 mb-2"><i class="fa-solid fa-wrench text-blue-500 mr-1"></i> ${t('שירותים להזמנה','Services')}</h3>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">${services.map(item => `
+                        <div class="service-card bg-white rounded-2xl p-4 flex items-center justify-between gap-3">
+                            <div class="min-w-0">
+                                <div class="font-bold text-sm text-slate-800 truncate">${safeStr(item.name)}</div>
+                                ${item.description ? `<div class="text-xs text-slate-400 truncate mt-0.5">${safeStr(item.description)}</div>` : ''}
+                                <div class="text-xs font-bold text-blue-600 mt-1">${t('החל מ-','From ')}₪${item.price}</div>
+                            </div>
+                            <button onclick="window.openServiceRequestModal('${safeStr(item.name).replace(/'/g,"\\'")}')" class="shrink-0 bg-blue-600 text-white text-xs font-bold px-3 py-2 rounded-xl hover:bg-blue-700 transition">${t('בקש שירות','Request')}</button>
+                        </div>`).join('')}</div></div>`;
+                }
+            }
 
             const activePromos = storeData.promotions ? storeData.promotions.filter(p => {
                 const isActive = p.isActive !== undefined ? p.isActive : p.is_active;
@@ -2150,7 +2221,7 @@ window.renderCatalog = function() {
             let html = catalogViewMode === 'grid' ? '<div class="grid grid-cols-2 sm:grid-cols-3 gap-4">' : '<div class="flex flex-col gap-4">';
 
             if (filtered.length === 0) {
-                container.innerHTML = `<p class="text-center text-slate-400 py-12">${t('לא נמצאו תוצאות.', 'No results found.')}</p>`;
+                container.innerHTML = servicesHtml + (servicesHtml ? '' : `<p class="text-center text-slate-400 py-12">${t('לא נמצאו תוצאות.', 'No results found.')}</p>`);
                 return;
             }
 
@@ -2263,7 +2334,7 @@ window.renderCatalog = function() {
                     html += `<div onclick="${onclickAction.replace('event.stopPropagation();', '')}" class="bg-white p-3.5 rounded-2xl border border-slate-100 product-card shadow-sm flex gap-4 fade-in cursor-pointer">${imgHtml}<div class="flex-1 flex flex-col justify-between"><div><h3 class="font-bold text-slate-900 text-[15px] leading-tight">${safeStr(itemName)}</h3><p class="text-[11px] text-slate-500 mt-1 leading-snug line-clamp-2">${safeStr(itemDesc)}</p></div><div class="flex flex-col gap-1"><div class="flex items-center">${priceHtml}</div><div class="flex gap-1">${actionHtml}</div></div></div></div>`;
                 }
             });
-            container.innerHTML = html + '</div>';
+            container.innerHTML = servicesHtml + html + '</div>';
         };
 
         window.calculateModTotal = function() {
@@ -4058,6 +4129,71 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
                 showToast('error', 'שגיאת תקשורת');
             } finally {
                 if(btn) { btn.disabled = false; btn.innerHTML = '<span>שליחת בקשה</span> <i class="fa-solid fa-send"></i>'; }
+            }
+        };
+
+        // ==========================================
+        // בקשת שירות (עסקי תחזוקה ותיקונים)
+        // ==========================================
+        let srCurrentService = null;
+        let srSelectedWindow = null;
+
+        window.openServiceRequestModal = function(name) {
+            srCurrentService = name;
+            srSelectedWindow = null;
+            const modal = document.getElementById('service-request-modal');
+            if (!modal) return;
+            document.getElementById('sr-service-name').textContent = name;
+            document.getElementById('sr-description').value = '';
+            document.getElementById('sr-address').value = '';
+            const dateInput = document.getElementById('sr-date');
+            dateInput.value = '';
+            dateInput.min = new Date().toISOString().slice(0, 10);
+            document.querySelectorAll('.sr-window-btn').forEach(b => b.classList.remove('active'));
+            modal.classList.remove('hidden');
+        };
+
+        window.closeServiceRequestModal = function() {
+            const modal = document.getElementById('service-request-modal');
+            if (modal) modal.classList.add('hidden');
+        };
+
+        window.selectSrWindow = function(w) {
+            srSelectedWindow = w;
+            document.querySelectorAll('.sr-window-btn').forEach(b => b.classList.toggle('active', b.dataset.window === w));
+        };
+
+        window.submitServiceRequest = async function() {
+            const description = document.getElementById('sr-description').value.trim();
+            const date = document.getElementById('sr-date').value;
+            const address = document.getElementById('sr-address').value.trim();
+
+            if (!description || !date) return showToast('error', 'יש למלא תיאור ותאריך מועדף');
+            if (window.scAuth && !window.scAuth.requireLogin('submitServiceRequest', '🔒 כדי לשלוח בקשת שירות יש להתחבר או להירשם.')) return;
+
+            const btn = document.getElementById('btn-submit-sr');
+            if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> שולח בקשה...'; }
+
+            try {
+                const res = await fetch(`${API}/store/service-request/${storeData.groupId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + (window.scAuth?._token || '') },
+                    body: JSON.stringify({
+                        serviceName: srCurrentService,
+                        description, preferredDate: date, timeWindow: srSelectedWindow, address
+                    })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast('success', 'הבקשה נשלחה — העסק יחזור אליך לתיאום מועד מדויק');
+                    window.closeServiceRequestModal();
+                } else {
+                    showToast('error', data.error || 'שגיאה בשליחת הבקשה');
+                }
+            } catch(e) {
+                showToast('error', 'שגיאת תקשורת');
+            } finally {
+                if (btn) { btn.disabled = false; btn.innerHTML = '<span>שליחת בקשה</span> <i class="fa-solid fa-send"></i>'; }
             }
         };
 

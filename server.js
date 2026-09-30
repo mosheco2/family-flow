@@ -942,6 +942,8 @@ try { await client.query(`ALTER TABLE game_assignments ADD COLUMN IF NOT EXISTS 
       try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS badge_text VARCHAR(50)`); } catch(err){}
       try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS badge_color VARCHAR(20) DEFAULT 'red'`); } catch(err){}
 try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS product_type VARCHAR(50) DEFAULT 'retail'`); } catch(err){}
+      // תיקון חד-פעמי: קטלוגים של עסקי תחזוקה ותיקונים שנוצרו לפני product_type='service' ייעודי — כל הפריטים שלהם הם שירותים
+      try { await client.query(`UPDATE store_catalog SET product_type='service' WHERE product_type='retail' AND group_id IN (SELECT id FROM family_groups WHERE business_type='maintenance_repair')`); } catch(err){}
       try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS long_description TEXT`); } catch(err){}
       try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS gallery TEXT`); } catch(err){}
       
@@ -5026,6 +5028,7 @@ app.post('/api/sa/ai-create-business', verifySA, async (req, res) => {
     const { profile, settings, catalog = [], promotions = [], coupons = [],
             membership_types = [], class_types = [] } = generatedData;
     const isSport = storeType === 'sport';
+    const isMaintenance = storeType === 'maintenance_repair';
     // Generate unique group code
     const groupCode = 'B' + _bizCrypto.randomBytes(4).toString('hex').toUpperCase().slice(0, 7);
     const gRes = await client.query(
@@ -5062,11 +5065,11 @@ app.post('/api/sa/ai-create-business', verifySA, async (req, res) => {
           ? JSON.stringify(p.options_text) : (p.options_text || '');
         const imgUrl = (p._tempId && productImages[p._tempId]) ? productImages[p._tempId] : null;
         const pRes = await client.query(
-          `INSERT INTO store_catalog (group_id, name, name_en, description, description_en, category, category_en, price, original_price, badge_text, options_text, image_url, is_available)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,true) RETURNING id`,
+          `INSERT INTO store_catalog (group_id, name, name_en, description, description_en, category, category_en, price, original_price, badge_text, options_text, image_url, is_available, product_type)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,true,$13) RETURNING id`,
           [groupId, p.name, p.name_en||'', p.description||'', p.description_en||'',
            cat.category, cat.category_en||'', p.price||0, p.original_price||0,
-           p.badge_text||'', optText, imgUrl]
+           p.badge_text||'', optText, imgUrl, isMaintenance ? 'service' : 'retail']
         );
         if (p._tempId) productIds[p._tempId] = pRes.rows[0].id;
       }
@@ -23491,6 +23494,54 @@ app.post('/api/service-calls', async (req, res) => {
         }
         res.json({ success: true, call: result.rows[0], familyLinked });
     } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- בקשת שירות מהחנות הציבורית (עסק מסוג תחזוקה ותיקונים) ---
+// דורש התחברות sc-auth (Authorization: Bearer <token>) — family_group_id נגזר בשרת
+// מתוך ה-token, לא מסתמך על מה שהלקוח שולח בגוף הבקשה.
+app.post('/api/store/service-request/:groupId', async (req, res) => {
+    try {
+        const token = (req.headers.authorization || '').replace('Bearer ', '').trim();
+        const customer = await _scGetCustomerByToken(token);
+        if (!customer) return res.status(401).json({ error: 'יש להתחבר לפני שליחת בקשת שירות' });
+        if (!customer.family_group_id) return res.status(400).json({ error: 'שגיאה בזיהוי חשבון — נסה להתחבר מחדש' });
+
+        const groupId = parseInt(req.params.groupId);
+        const bizR = await pool.query('SELECT id, name, business_type FROM family_groups WHERE id=$1', [groupId]);
+        if (!bizR.rows.length) return res.status(404).json({ error: 'עסק לא נמצא' });
+
+        const { serviceName, description, preferredDate, timeWindow, address } = req.body;
+        if (!serviceName) return res.status(400).json({ error: 'חסר שם שירות' });
+        if (!preferredDate) return res.status(400).json({ error: 'יש לבחור תאריך מועדף' });
+
+        const windowLabels = { morning: 'בוקר (08:00-12:00)', afternoon: 'צהריים (12:00-16:00)', evening: 'ערב (16:00-20:00)' };
+        const windowText = windowLabels[timeWindow] || timeWindow || '';
+        const fullDesc = [description || '', windowText ? `חלון זמן מועדף: ${windowText}` : ''].filter(Boolean).join('\n');
+
+        const result = await pool.query(
+            `INSERT INTO service_calls (family_group_id, business_group_id, title, description, address, customer_phone, customer_name, priority, requested_date, needs_triage)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,'normal',$8,true) RETURNING *`,
+            [customer.family_group_id, groupId, serviceName, fullDesc || null, address || null,
+             customer.phone || null, `${customer.first_name||''} ${customer.last_name||''}`.trim() || null, preferredDate]
+        );
+
+        // קישור אוטומטי ל"הפעילויות שלי" של הלקוח — ממתין לאישור העסק, בדיוק כמו כל בקשת שירות אחרת
+        try {
+            await pool.query(
+                `INSERT INTO member_business_links (member_group_id, business_group_id, business_type, linked_by_admin_name, linked_at, is_active, status)
+                 VALUES ($1, $2, $3, $4, NOW(), true, 'pending')
+                 ON CONFLICT (member_group_id, business_group_id) DO UPDATE
+                 SET is_active=true, linked_at=NOW(),
+                 status=CASE WHEN member_business_links.status='active' THEN 'active' ELSE 'pending' END`,
+                [customer.family_group_id, groupId, bizR.rows[0].business_type || 'maintenance_repair', bizR.rows[0].name || 'עסק']
+            );
+        } catch(linkErr) { console.error('[service-request link]', linkErr.message); }
+
+        res.json({ success: true, call: result.rows[0] });
+    } catch(e) {
+        console.error('[service-request]', e.message);
+        res.status(500).json({ error: e.message });
+    }
 });
 
 // --- קישור קריאת שירות קיימת ללקוח WEFLOWZ ---
