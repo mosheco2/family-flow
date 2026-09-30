@@ -2825,12 +2825,12 @@ function switchTab(t) {
                 if (newEventBtn) newEventBtn.classList.remove('hidden');
             }
 
-            // תחזוקה ותיקונים: "פקודת עבודה" מוצגת כ"קריאה" — תואם למינוח order:'קריאה' שכבר מוגדר לסוג עסק זה
-            if (currentGroup?.business_type === 'maintenance_repair' && bWO) {
-                bWO.innerHTML = '<i class="fa-solid fa-screwdriver-wrench text-sm"></i>קריאות';
-                const woTitle = document.getElementById('wo-view-title');
-                if (woTitle) woTitle.textContent = 'קריאות 🔧';
-            }
+            // תחזוקה ותיקונים: "תפריטים" ו"פניות תפריט" הם מושגים ייחודיים למסעדנות — לא רלוונטיים
+            const bMenuTpl = document.getElementById('btn-sales-menutpl');
+            const bMenuReq = document.getElementById('btn-sales-menu-requests');
+            const isMaintenance = currentGroup?.business_type === 'maintenance_repair';
+            if (bMenuTpl) bMenuTpl.classList.toggle('hidden', isMaintenance);
+            if (bMenuReq) bMenuReq.classList.toggle('hidden', isMaintenance);
 
             switchSalesTab('orders');
         }
@@ -9048,7 +9048,10 @@ window.renderStoreQuotes = function() {
             
             const isApproved = currentStatus === 'approved';
             const isWoBusinessType = ['services','construction','maintenance_repair','events','healthcare','restaurant','cafe','professional'].includes(currentGroup?.business_type);
-            const woLabel = currentGroup?.business_type === 'professional' ? 'תיק' : (currentGroup?.business_type === 'restaurant' ? 'אירוע' : (currentGroup?.business_type === 'maintenance_repair' ? 'קריאה' : 'פקודת עבודה'));
+            // הערה: 'קריאה' לא משמש כאן לעסק תחזוקה ותיקונים בכוונה — המונח הזה כבר תפוס
+            // ע"י "קריאת שירות" (service_calls), ישות נפרדת לגמרי מפקודת עבודה. שימוש
+            // כפול היה יוצר בלבול בין שני מסכים שונים לגמרי.
+            const woLabel = currentGroup?.business_type === 'professional' ? 'תיק' : (currentGroup?.business_type === 'restaurant' ? 'אירוע' : 'פקודת עבודה');
             const optionsHtml = Object.keys(statuses).map(k => `<option value="${k}" ${currentStatus === k ? 'selected' : ''}>${statuses[k]}</option>`).join('');
 
             const totalAmount = q.total_amount ? parseFloat(q.total_amount).toFixed(2) : "0.00";
@@ -11141,7 +11144,7 @@ window.renderCustomerHistory = async function(forceSync = false, context = 'moda
                 <div class="flex items-center gap-2 shrink-0">
                     <span class="font-bold text-slate-600 dir-ltr">₪${parseFloat(q.total_amount || 0).toFixed(2)}</span>
                     <button onclick="event.stopPropagation(); ${closeCust} if(typeof window.openQuotePreview === 'function') window.openQuotePreview(${q.id})" class="text-slate-400 hover:text-orange-600 bg-slate-50 w-8 h-8 rounded-lg flex items-center justify-center transition border border-slate-100 shadow-sm" title="פתח הצעה"><i class="fa-solid fa-eye text-xs"></i></button>
-                    ${relatedWO ? `<button onclick="event.stopPropagation(); ${closeCust} if(typeof window.openWorkOrderModal === 'function') window.openWorkOrderModal(${relatedWO.id})" class="text-blue-500 hover:text-blue-700 bg-blue-50 w-8 h-8 rounded-lg flex items-center justify-center transition border border-blue-100 shadow-sm" title="${currentGroup?.business_type==='professional'?'פתח תיק קשור':(currentGroup?.business_type==='maintenance_repair'?'פתח קריאה קשורה':'פתח פקודת עבודה קשורה')}"><i class="fa-solid fa-screwdriver-wrench text-xs"></i></button>` : ''}
+                    ${relatedWO ? `<button onclick="event.stopPropagation(); ${closeCust} if(typeof window.openWorkOrderModal === 'function') window.openWorkOrderModal(${relatedWO.id})" class="text-blue-500 hover:text-blue-700 bg-blue-50 w-8 h-8 rounded-lg flex items-center justify-center transition border border-blue-100 shadow-sm" title="${currentGroup?.business_type==='professional'?'פתח תיק קשור':'פתח פקודת עבודה קשורה'}"><i class="fa-solid fa-screwdriver-wrench text-xs"></i></button>` : ''}
                 </div>
             </div>`;
         });
