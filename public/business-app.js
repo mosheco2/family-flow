@@ -13015,6 +13015,10 @@ window.openCqCatalogPicker = async function() {
         catSelect.innerHTML = '<option value="all">כל הקטגוריות</option>' + cats.map(c => `<option value="${safeStr(c)}">${safeStr(c)}</option>`).join('');
     }
     window.renderCqCatalogGrid();
+    // רינדור חוזר קצר לאחר פתיחת המודל — Tailwind CDN מזריק CSS למחלקות חדשות באופן
+    // אסינכרוני, וברינדור הראשון (מיידי מרגע פתיחת המודל) ה-CSS לפעמים לא מוכן עדיין,
+    // מה שגורם לכרטיסים להיראות ריקים/קורסים עד לאינטראקציה הבאה (למשל בחירת קטגוריה)
+    setTimeout(() => window.renderCqCatalogGrid(), 80);
 };
 
 window.renderCqCatalogGrid = function() {
@@ -13032,8 +13036,8 @@ window.renderCqCatalogGrid = function() {
     if (!items.length) { grid.innerHTML = '<div class="col-span-full text-center py-8 text-slate-400 text-xs">לא נמצאו מוצרים.</div>'; return; }
     const showCatBadge = cat === 'all' || !!search;
     grid.innerHTML = items.map(p => {
-        const imgHtml = p.image_url ? `<img src="${p.image_url}" class="w-full h-20 object-cover rounded-t-xl">` : `<div class="w-full h-20 bg-slate-100 flex items-center justify-center rounded-t-xl"><i class="fa-solid fa-image text-2xl text-slate-300"></i></div>`;
-        const catBadge = showCatBadge ? `<span class="block text-[9px] bg-amber-50 text-amber-600 px-1.5 py-0.5 rounded-full mb-1 truncate">${safeStr(p.category||'כללי')}</span>` : '';
+        const imgHtml = p.image_url ? `<img src="${p.image_url}" class="w-full h-20 object-cover rounded-t-xl" style="width:100%;height:80px;object-fit:cover">` : `<div class="w-full h-20 bg-slate-100 flex items-center justify-center rounded-t-xl" style="width:100%;height:80px;background:#f1f5f9;display:flex;align-items:center;justify-content:center"><i class="fa-solid fa-image text-2xl text-slate-300" style="color:#cbd5e1"></i></div>`;
+        const catBadge = showCatBadge ? `<span class="block text-[9px] bg-amber-50 text-amber-600 px-1.5 py-0.5 rounded-full mb-1 truncate" style="display:block;font-size:9px;background:#fffbeb;color:#d97706;padding:2px 6px;border-radius:99px;margin-bottom:4px">${safeStr(p.category||'כללי')}</span>` : '';
         // style inline בכוונה (בנוסף למחלקות Tailwind) — ל-Tailwind CDN יש באג ידוע שבו
         // מחלקות שמופיעות רק בתוכן שמוזרק דינמית ב-innerHTML (כמו הכרטיס הזה) לפעמים
         // לא נוצרות בכלל ב-CSS, וכל הטקסט נראה "נעלם" גם כשהוא קיים ותקין ב-DOM
