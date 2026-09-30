@@ -171,13 +171,23 @@ function checkImpersonationMode() {
                 warningBar.className = 'fixed top-0 left-0 right-0 z-[9999999] bg-red-600 text-white p-2 flex justify-center items-center gap-4 shadow-md font-bold text-sm text-center';
                 warningBar.innerHTML = `
                     <div class="flex items-center gap-2">
-                        <i class="fa-solid fa-ghost text-lg animate-pulse"></i> 
+                        <i class="fa-solid fa-ghost text-lg animate-pulse"></i>
                         מצב תמיכה והשתלטות! אתה צופה כרגע בנתוני הלקוח: ${session.group.name}
                     </div>
+                    <button onclick="window.refreshImpersonatedBusiness()" title="רענן נתוני עסק בלי לצאת מהשתלטות" class="bg-white/20 hover:bg-white/30 text-white px-3 py-1 rounded-full text-xs font-black shadow-sm transition"><i class="fa-solid fa-rotate"></i> רענון נתונים</button>
+                    <button onclick="window.toggleImpersonationBar(true)" title="מזער" class="bg-white/20 hover:bg-white/30 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs font-black shadow-sm transition"><i class="fa-solid fa-minus"></i></button>
                     <button onclick="exitImpersonationMode()" class="bg-white text-red-600 px-4 py-1 rounded-full text-xs font-black shadow-sm hover:bg-slate-100 transition">התנתקות</button>
                 `;
                 document.body.prepend(warningBar);
-                
+
+                const minimizedPill = document.createElement('button');
+                minimizedPill.id = 'impersonation-minimized-pill';
+                minimizedPill.title = 'מצב השתלטות פעיל — לחץ להרחבה';
+                minimizedPill.onclick = () => window.toggleImpersonationBar(false);
+                minimizedPill.className = 'hidden fixed top-2 left-2 z-[9999999] bg-red-600 text-white w-9 h-9 rounded-full items-center justify-center shadow-lg animate-pulse';
+                minimizedPill.innerHTML = '<i class="fa-solid fa-ghost"></i>';
+                document.body.prepend(minimizedPill);
+
                 setTimeout(() => {
                     const dashContainer = document.getElementById('dashboard-container');
                     if (dashContainer) dashContainer.style.marginTop = '40px';
@@ -186,6 +196,37 @@ function checkImpersonationMode() {
         }
     } catch(e) { console.error("Impersonation Check Error:", e); }
 }
+
+window.toggleImpersonationBar = function(minimize) {
+    const bar = document.getElementById('impersonation-warning-bar');
+    const pill = document.getElementById('impersonation-minimized-pill');
+    const dashContainer = document.getElementById('dashboard-container');
+    if (!bar || !pill) return;
+    if (minimize) {
+        bar.classList.add('hidden');
+        pill.classList.remove('hidden');
+        pill.classList.add('flex');
+        if (dashContainer) dashContainer.style.marginTop = '0';
+    } else {
+        bar.classList.remove('hidden');
+        pill.classList.add('hidden');
+        pill.classList.remove('flex');
+        if (dashContainer) dashContainer.style.marginTop = '40px';
+    }
+};
+
+// רענון נתוני העסק המושתלט מהשרת בלי לצאת ממצב ההשתלטות ובלי רענון דף מלא —
+// כדי לראות שינויים (הזרמת דמו, עדכוני מודול וכו') בלי לאבד את ה-session impersonation
+window.refreshImpersonatedBusiness = async function() {
+    try {
+        const res = await fetch(`${API}/biz/me`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } });
+        const data = await res.json();
+        if (!data.success) return showToast('error', data.error || 'שגיאה ברענון נתוני העסק');
+        Object.assign(currentGroup, data);
+        showToast('success', 'נתוני העסק רועננו');
+        switchTab(window._lastTab || 'feed');
+    } catch(e) { showToast('error', 'שגיאת תקשורת ברענון'); }
+};
 
 window.exitImpersonationMode = function() {
     // ניקוי סשן ההשתלטות
@@ -2719,6 +2760,7 @@ window._reportsExportPDF = function() {
 };
 
 function switchTab(t) {
+    window._lastTab = t;
     // ניווט דרך שורת הטאבים הראשית — לא דרך כפתור החזרה הפנימי של מסך ספורט (_sportBack) —
     // משמעו שיצאנו ממסך הספורט המוצג בתוך content-feed. בלי זה, הדגל נשאר תקוע על true
     // ו-renderDashboard נמנע מלרנדר מחדש את הדשבורד כשחוזרים ל"ראשי", ומשאיר אותו ריק.
