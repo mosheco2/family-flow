@@ -2867,12 +2867,12 @@ function switchTab(t) {
                 if (newEventBtn) newEventBtn.classList.remove('hidden');
             }
 
-            // תחזוקה ותיקונים: "תפריטים" ו"פניות תפריט" הם מושגים ייחודיים למסעדנות — לא רלוונטיים
+            // תחזוקה ותיקונים: "תפריטים" הוא מושג ייחודי למסעדנות — לא רלוונטי.
+            // ("פניות תפריט" מוסתר בתוך switchSalesTab עצמה — היא מאפסת className על כל
+            // כפתורי התת-טאבים בכל קריאה, כך שהסתרה כאן בלבד הייתה נדרסת מיד ע"י switchSalesTab('orders') למטה)
             const bMenuTpl = document.getElementById('btn-sales-menutpl');
-            const bMenuReq = document.getElementById('btn-sales-menu-requests');
             const isMaintenance = currentGroup?.business_type === 'maintenance_repair';
             if (bMenuTpl) bMenuTpl.classList.toggle('hidden', isMaintenance);
-            if (bMenuReq) bMenuReq.classList.toggle('hidden', isMaintenance);
 
             switchSalesTab('orders');
         }
@@ -25357,10 +25357,18 @@ window._deleteBrandingSection = async function(id) {
 
 window.switchSalesTab = function(subTab) {
     window._currentBizSubTab = 'sales.' + subTab;
-    ['pos', 'orders', 'catalog', 'complex', 'marketing', 'settings', 'quotes', 'analytics', 'reviews', 'work-orders', 'gallery', 'menu-requests'].forEach(t => {
-        const view = document.getElementById(`sales-view-${t}`); if(view) view.classList.add('hidden');
-        const btn = document.getElementById(`btn-sales-${t}`); if(btn) btn.className = 'flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition';
-    });
+    const isMaintenanceSales = currentGroup?.business_type === 'maintenance_repair';
+    ['pos', 'orders', 'catalog', 'complex', 'marketing', 'settings', 'quotes', 'analytics', 'reviews', 'work-orders', 'gallery', 'menu-requests'].forEach(t => {
+        const view = document.getElementById(`sales-view-${t}`); if(view) view.classList.add('hidden');
+        const btn = document.getElementById(`btn-sales-${t}`);
+        if(btn) {
+            btn.className = 'flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition';
+            // "פניות תפריט" לא רלוונטי לעסק תחזוקה ותיקונים — הלולאה הזו מאפסת className
+            // על כל כפתור בכל מעבר תת-טאב, ולכן חייבים להסתיר כאן מחדש (לא מספיק להסתיר
+            // פעם אחת ב-switchTab('sales'), כי הקריאה הזו דורסת את זה בכל switchSalesTab)
+            if (isMaintenanceSales && t === 'menu-requests') btn.classList.add('hidden');
+        }
+    });
 
     // show work-orders button for all business types
     const woBtn = document.getElementById('btn-sales-work-orders');
@@ -37181,7 +37189,7 @@ const BUSINESS_TYPES = [
     { id: 'retail',             name: 'חנות קמעונאית',         icon: '🛍️', modules: ['feed','pos','sales','pantry','shop','customers','cashflow','budget','members','timeclock','tasks','bank','biz-ads','reports'] },
     { id: 'services',           name: 'שירותים מקצועיים',      icon: '💼', modules: ['feed','calendar','tasks','customers','cashflow','budget','members','timeclock','bank','pos','sales','biz-ads','reports'] },
     { id: 'construction',       name: 'בנייה / קבלנות',        icon: '🏗️', modules: ['feed','equipment','tasks','shifts','timeclock','members','cashflow','customers','bank','shop','pantry','budget','biz-ads','reports'] },
-    { id: 'maintenance_repair', name: 'תחזוקה ותיקונים',       icon: '🔧', modules: ['feed','calendar','tasks','customers','members','timeclock','cashflow','pantry','shop','sales','biz-ads','reports'] },
+    { id: 'maintenance_repair', name: 'תחזוקה ותיקונים',       icon: '🔧', modules: ['feed','calendar','tasks','customers','members','timeclock','timelog','cashflow','pantry','shop','sales','biz-ads','reports'] },
     { id: 'logistics',          name: 'לוגיסטיקה / הפצה',     icon: '🚚', modules: ['feed','logistics_orders','logistics_drivers','logistics_vehicles','logistics_pricing','logistics_cod','logistics_rfq','logistics_routes','logistics_tracking','logistics_reports','logistics_customers','logistics_invoices','members','timeclock','cashflow','tasks','biz-ads','reports'] },
     { id: 'healthcare',         name: 'בריאות / קליניקה',      icon: '🏥', modules: ['feed','calendar','customers','tasks','members','timeclock','cashflow','bank','pos','pantry','biz-ads','reports'] },
     { id: 'beauty',             name: 'יופי / קוסמטיקה',       icon: '💅', modules: ['feed','beauty_calendar','beauty_practitioners','beauty_services','beauty_subscriptions','pos','beauty_clients','beauty_inventory','beauty_commissions','beauty_rfq','timeclock','cashflow','tasks','shop','biz-ads','reports'] },
