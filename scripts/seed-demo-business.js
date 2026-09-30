@@ -48,12 +48,12 @@ function log(ok, label, extra) {
 async function resolveGroupIdAndLogin() {
   console.log(`🔎 מאתר עסק לפי קוד ${GROUP_CODE}...`);
   const lookup = await api('GET', `/storefront/${GROUP_CODE}`, undefined, false);
-  if (lookup.ok && lookup.data && lookup.data.id) {
-    GROUP_ID = lookup.data.id;
-    console.log(`   נמצא group_id=${GROUP_ID} (${lookup.data.name || ''})`);
+  if (lookup.ok && lookup.data && lookup.data.groupId) {
+    GROUP_ID = lookup.data.groupId;
+    console.log(`   נמצא group_id=${GROUP_ID} (${lookup.data.groupName || ''})`);
   } else {
     GROUP_ID = process.env.BIZ_GROUP_ID ? parseInt(process.env.BIZ_GROUP_ID) : null;
-    if (!GROUP_ID) throw new Error(`לא הצלחתי לפתור group_id מקוד העסק (${JSON.stringify(lookup.data)}) — קבע BIZ_GROUP_ID (מזהה מספרי) והרץ שוב.`);
+    if (!GROUP_ID) throw new Error(`לא הצלחתי לפתור group_id מקוד העסק (status ${lookup.status}, error: ${lookup.data?.error || 'unknown'}) — קבע BIZ_GROUP_ID (מזהה מספרי) והרץ שוב.`);
   }
 
   // /api/biz/login דורש phone (לא שם) + groupId מספרי
