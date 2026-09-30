@@ -24429,10 +24429,12 @@ app.post('/api/work-orders/new/:groupId', verifyBiz, async (req, res) => {
     try {
         const { customer_name, customer_phone, title, notes } = req.body;
         if (parseInt(req.params.groupId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
+        // כותרת הפקודה נשמרת ב-quote_title (לא ב-notes!) — אחרת הצד הלקוח מפרש את notes
+        // כ"הערה פנימית" ומציג אותה עם תווית מטעה "🔒 עסק: <כותרת>"
         const r = await pool.query(
-            `INSERT INTO store_orders (group_id, customer_name, customer_phone, status, call_type, notes, items, total_amount, created_at)
-             VALUES ($1,$2,$3,'open','work_order',$4,'[]',0,NOW()) RETURNING id`,
-            [req.params.groupId, customer_name||null, customer_phone||null, (title ? title + (notes?'\n'+notes:'') : notes)||null]);
+            `INSERT INTO store_orders (group_id, customer_name, customer_phone, status, call_type, quote_title, notes, items, total_amount, created_at)
+             VALUES ($1,$2,$3,'open','work_order',$4,$5,'[]',0,NOW()) RETURNING id`,
+            [req.params.groupId, customer_name||null, customer_phone||null, title||null, notes||null]);
         res.json({ success: true, id: r.rows[0].id });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });

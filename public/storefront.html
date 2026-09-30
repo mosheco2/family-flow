@@ -106,7 +106,7 @@
                 
                 <div id="store-contact-info" class="flex flex-wrap items-center justify-center sm:justify-start gap-2 text-xs font-bold hidden w-full">
                     <span id="header-hours" class="hidden bg-slate-50 text-slate-600 px-3 py-1.5 rounded-lg border border-slate-200 flex items-center gap-1.5 shadow-sm"><i class="fa-regular fa-clock text-slate-400"></i> <span id="header-hours-text" dir="ltr"></span></span>
-                    <button onclick="window.openContactModal()" class="bg-indigo-50 text-indigo-600 hover:bg-indigo-100 px-3 py-1.5 rounded-lg border border-indigo-200 flex items-center gap-1.5 transition shadow-sm"><i class="fa-regular fa-envelope text-xs"></i> צור קשר</button>
+                    <button id="btn-contact-form" onclick="window.openContactModal()" class="bg-indigo-50 text-indigo-600 hover:bg-indigo-100 px-3 py-1.5 rounded-lg border border-indigo-200 flex items-center gap-1.5 transition shadow-sm"><i class="fa-regular fa-envelope text-xs"></i> צור קשר</button>
                     <a id="header-wa" href="#" target="_blank" class="hidden bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366]/20 px-3 py-1.5 rounded-lg border border-[#25D366]/20 flex items-center gap-1.5 transition shadow-sm"><i class="fa-brands fa-whatsapp text-sm"></i> וואטסאפ</a>
                     <a id="header-phone" href="#" class="hidden bg-blue-50 text-blue-600 hover:bg-blue-100 px-3 py-1.5 rounded-lg border border-blue-200 flex items-center gap-1.5 transition shadow-sm"><i class="fa-solid fa-phone text-xs"></i> חייג</a>
                     <button onclick="toggleLang()" style="display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border:1px solid rgba(0,0,0,.15);border-radius:99px;background:transparent;font-size:12px;cursor:pointer">🌐 <span id="lang-label">English</span></button>
@@ -1777,6 +1777,10 @@
                 showContactRow = true;
             }
             if(showContactRow) getEl('store-contact-info').classList.remove('hidden');
+            // בעסקי תחזוקה ותיקונים "צור קשר" כללי מיותר — יש מסלול ייעודי "בקש שירות" לכל שירות
+            if ((storeData.businessType || storeData.business_type) === 'maintenance_repair') {
+                getEl('btn-contact-form')?.classList.add('hidden');
+            }
 
             // שליפת תמונות הגלריה - משותפת גם לכפתור מצב-חנות וגם לתצוגה המוטמעת במצב תדמית
             window._loadGalleryImages = function() {
