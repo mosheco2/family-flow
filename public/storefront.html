@@ -2202,6 +2202,7 @@ window.renderCatalog = function() {
             let servicesHtml = '';
             if (currentCategory !== 'complex_view') {
                 let services = (storeData.catalog || []).filter(item => item.product_type === 'service');
+                if (currentCategory !== 'all') services = services.filter(item => item.category === currentCategory);
                 if (searchQuery.trim() !== '') services = services.filter(item => item.name.toLowerCase().includes(searchQuery));
                 if (services.length) {
                     servicesHtml = `<div class="mb-2"><h3 class="text-sm font-black text-slate-700 px-1 mb-2"><i class="fa-solid fa-wrench text-blue-500 mr-1"></i> ${t('שירותים להזמנה','Services')}</h3>
