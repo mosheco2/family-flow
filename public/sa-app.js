@@ -4417,6 +4417,13 @@ function renderSABusinessesTable() {
     const tbody = getEl('sa-businesses-table-body');
     const cardsWrap = getEl('sa-businesses-cards');
     if (!tbody && !cardsWrap) return;
+    // תצוגה נקבעת ישירות ב-JS ולא ב-CSS (hidden/sm:block) — CDN של Tailwind לפעמים
+    // לא שומר סדר cascade נכון עבור תוכן שמוזרק דינמית, וזה גורם לשני המכלים
+    // (טבלה+כרטיסים) להיות display:none בו-זמנית גם כשהנתונים קיימים ב-DOM.
+    const tableWrap = tbody ? tbody.closest('div') : null;
+    const isSmallScreen = window.innerWidth < 640;
+    if (tableWrap) tableWrap.style.display = isSmallScreen ? 'none' : 'block';
+    if (cardsWrap) cardsWrap.style.display = isSmallScreen ? 'block' : 'none';
     const query = getEl('sa-search-businesses') ? getEl('sa-search-businesses').value.toLowerCase() : '';
     let filtered = [...saBusinessesCache];
     if (query) filtered = filtered.filter(b => (b.name && b.name.toLowerCase().includes(query)) || (b.group_code && b.group_code.toLowerCase().includes(query)));
