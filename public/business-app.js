@@ -12992,14 +12992,17 @@ window.renderCqCatalogGrid = function() {
     grid.innerHTML = items.map(p => {
         const imgHtml = p.image_url ? `<img src="${p.image_url}" class="w-full h-20 object-cover rounded-t-xl">` : `<div class="w-full h-20 bg-slate-100 flex items-center justify-center rounded-t-xl"><i class="fa-solid fa-image text-2xl text-slate-300"></i></div>`;
         const catBadge = showCatBadge ? `<span class="block text-[9px] bg-amber-50 text-amber-600 px-1.5 py-0.5 rounded-full mb-1 truncate">${safeStr(p.category||'כללי')}</span>` : '';
-        return `<div onclick="window.cqAddCatalogLine('${p.id}')" class="bg-white rounded-xl border border-slate-200 shadow-sm hover:border-amber-400 hover:shadow-md transition cursor-pointer overflow-hidden group flex flex-col">
+        // style inline בכוונה (בנוסף למחלקות Tailwind) — ל-Tailwind CDN יש באג ידוע שבו
+        // מחלקות שמופיעות רק בתוכן שמוזרק דינמית ב-innerHTML (כמו הכרטיס הזה) לפעמים
+        // לא נוצרות בכלל ב-CSS, וכל הטקסט נראה "נעלם" גם כשהוא קיים ותקין ב-DOM
+        return `<div onclick="window.cqAddCatalogLine('${p.id}')" class="bg-white rounded-xl border border-slate-200 shadow-sm hover:border-amber-400 hover:shadow-md transition cursor-pointer overflow-hidden group flex flex-col" style="background:#fff;border:1px solid #e2e8f0">
             ${imgHtml}
             <div class="p-3 border-t border-slate-100 flex-1 flex flex-col justify-between">
                 ${catBadge}
-                <div class="font-bold text-slate-700 text-xs leading-tight mb-2 line-clamp-2">${safeStr(p.name)}</div>
+                <div class="font-bold text-slate-700 text-xs leading-tight mb-2 line-clamp-2" style="color:#334155;font-weight:700;font-size:12px;min-height:14px">${safeStr(p.name) || '&nbsp;'}</div>
                 <div class="flex justify-between items-center mt-auto">
-                    <span class="text-amber-600 font-black text-sm dir-ltr">&#8362;${parseFloat(p.price||0).toFixed(2)}</span>
-                    <span class="bg-amber-50 group-hover:bg-amber-500 group-hover:text-white text-amber-600 w-5 h-5 rounded flex items-center justify-center transition"><i class="fa-solid fa-plus text-[10px]"></i></span>
+                    <span class="text-amber-600 font-black text-sm dir-ltr" style="color:#d97706;font-weight:900;font-size:14px">&#8362;${parseFloat(p.price||0).toFixed(2)}</span>
+                    <span class="bg-amber-50 group-hover:bg-amber-500 group-hover:text-white text-amber-600 w-5 h-5 rounded flex items-center justify-center transition" style="background:#fffbeb;color:#d97706"><i class="fa-solid fa-plus text-[10px]"></i></span>
                 </div>
             </div>
         </div>`;
