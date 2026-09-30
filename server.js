@@ -24895,7 +24895,12 @@ app.post('/api/work-orders/:id/payments/apply-template', verifyBiz, async (req, 
         if (!woRes.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
         const existing = await pool.query('SELECT 1 FROM work_order_payments WHERE work_order_id=$1', [req.params.id]);
         if (existing.rows.length) return res.status(400).json({ error: 'כבר קיימות אבני דרך לפרויקט זה' });
-        const total = parseFloat(woRes.rows[0].total_amount || 0);
+        // הכנסה כוללת = total_amount של הפקודה עצמה + סכום כל ההצעות המשויכות אליה —
+        // אותו חישוב כמו בטאב "עלויות" וב"סכום" בסקירה, כדי שהתבנית תתבסס על אותו מספר בכל מקום
+        const linkedQuotesRes = await pool.query(
+            `SELECT COALESCE(SUM(q.total_amount),0) as sum FROM work_order_quote_links l
+             JOIN store_orders q ON q.id = l.quote_id WHERE l.work_order_id=$1`, [req.params.id]);
+        const total = parseFloat(woRes.rows[0].total_amount || 0) + parseFloat(linkedQuotesRes.rows[0].sum || 0);
         const pct = Math.min(90, Math.max(10, parseFloat(depositPct) || 30));
         const depositAmount = parseFloat((total * pct / 100).toFixed(2));
         const balanceAmount = parseFloat((total - depositAmount).toFixed(2));
@@ -25193,11 +25198,15 @@ app.post('/api/work-orders/:id/payments', verifyBiz, async (req, res) => {
         const _wo = await pool.query('SELECT 1 FROM store_orders WHERE id=$1 AND group_id=$2 AND call_type=\'work_order\'', [req.params.id, req.bizAuth.groupId]);
         if (!_wo.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
 
-        // קבע סכום עסקה כוללת — ברירת מחדל = סכום הפקודה או התחנה הקודמת
+        // קבע סכום עסקה כוללת — ברירת מחדל = total_amount של הפקודה + סכום הצעות משויכות
         let finalTotalAmount = parseFloat(totalAmount);
         if (!finalTotalAmount || finalTotalAmount <= 0) {
             const woR = await pool.query('SELECT total_amount FROM store_orders WHERE id=$1', [req.params.id]);
-            finalTotalAmount = woR.rows[0]?.total_amount ? parseFloat(woR.rows[0].total_amount) : parseFloat(amount);
+            const linkedR = await pool.query(
+                `SELECT COALESCE(SUM(q.total_amount),0) as sum FROM work_order_quote_links l
+                 JOIN store_orders q ON q.id = l.quote_id WHERE l.work_order_id=$1`, [req.params.id]);
+            const combined = parseFloat(woR.rows[0]?.total_amount || 0) + parseFloat(linkedR.rows[0]?.sum || 0);
+            finalTotalAmount = combined > 0 ? combined : parseFloat(amount);
         }
 
         const r = await pool.query(

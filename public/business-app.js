@@ -42774,7 +42774,11 @@ window.renderWoOverview = function(data) {
     document.getElementById('wo-modal-title').textContent = wo.quote_number || (isPro ? `תיק #${wo.id}` : (currentGroup?.business_type === 'maintenance_repair' ? `קריאה #${wo.id}` : `פקודה #${wo.id}`));
     document.getElementById('wo-modal-subtitle').textContent = safeStr(wo.customer_name || '');
     document.getElementById('wo-info-customer').textContent = safeStr(wo.customer_name || '—');
-    document.getElementById('wo-info-amount').textContent = wo.total_amount ? `₪${parseFloat(wo.total_amount).toFixed(2)}` : '—';
+    // סכום מוצג = total_amount של הפקודה עצמה + סכום כל ההצעות המשויכות (אותו חישוב
+    // בדיוק כמו בטאב "עלויות" — כדי שהמספר יהיה עקבי בכל הטאבים ולא רק ב"סקירה" הבסיסית)
+    const woLinkedQuotesTotal = (data.linkedQuotes || []).reduce((s, q) => s + (parseFloat(q.total_amount) || 0), 0);
+    const woCombinedAmount = parseFloat(wo.total_amount || 0) + woLinkedQuotesTotal;
+    document.getElementById('wo-info-amount').textContent = woCombinedAmount ? `₪${woCombinedAmount.toFixed(2)}` : '—';
     document.getElementById('wo-info-phone').textContent = safeStr(wo.customer_phone || '—');
     document.getElementById('wo-info-date').textContent = wo.created_at ? new Date(wo.created_at).toLocaleDateString('he-IL') : '—';
 
