@@ -1,5 +1,15 @@
 // WEFLOWZ BIZ - Business Logic Application
 
+// גרסת קובץ ה-JS הטעונה כרגע בדפדפן (לפי ה-query param ?v= של תגית ה-script שטענה
+// אותו) — משמשת לזיהוי מצב שבו קוד חדש יותר נדחף לשרת אך הדפדפן עדיין רץ על גרסה ישנה
+(function() {
+    try {
+        const el = document.querySelector('script[src*="business-app.js"]');
+        const m = el && el.src.match(/[?&]v=([^&]+)/);
+        window.APP_JS_VERSION = m ? m[1] : null;
+    } catch(e) { window.APP_JS_VERSION = null; }
+})();
+
 // פונקציות עזר בסיסיות (מוגדרות גם ב-common.js/app.js אך business.html לא טוען אותן)
 function fmtUserName(u) {
     if (!u) return '';
@@ -223,8 +233,22 @@ window.refreshImpersonatedBusiness = async function() {
         const data = await res.json();
         if (!data.success) return showToast('error', data.error || 'שגיאה ברענון נתוני העסק');
         Object.assign(currentGroup, data);
-        showToast('success', 'נתוני העסק רועננו');
         switchTab(window._lastTab || 'feed');
+
+        // בדיקת גרסת קוד: "רענון נתונים" מעדכן רק נתונים, לא את קובץ ה-JS עצמו — אם
+        // יש בשרת גרסה חדשה יותר, שינויי קוד/UI לא ייכנסו לתוקף עד רענון מלא של הדף
+        try {
+            const htmlRes = await fetch('/business.html', { cache: 'no-store' });
+            const html = await htmlRes.text();
+            const m = html.match(/business-app\.js\?v=([^"'&]+)/);
+            const liveVersion = m ? m[1] : null;
+            if (liveVersion && window.APP_JS_VERSION && liveVersion !== window.APP_JS_VERSION) {
+                showToast('warning', `⚠️ יש עדכון קוד בשרת (v${liveVersion}, אתה על v${window.APP_JS_VERSION}) — נתונים רועננו אך שינויי ממשק/UI ידרשו רענון מלא של הדף`);
+                return;
+            }
+        } catch(e) { /* בדיקת הגרסה היא bonus — לא חוסמת את הרענון עצמו אם נכשלה */ }
+
+        showToast('success', 'נתוני העסק רועננו — הקוד הטעון עדכני');
     } catch(e) { showToast('error', 'שגיאת תקשורת ברענון'); }
 };
 
