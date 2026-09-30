@@ -42001,12 +42001,20 @@ async function saToggleLicense(groupId, featureKey, isActive) {
         <p class="text-[10px] text-emerald-600 mb-1"><i class="fa-solid fa-champagne-glasses mr-1"></i>פרטי אירוע</p>
         <p id="wo-event-info-text" class="font-bold text-emerald-800 text-sm leading-snug"></p>
       </div>
-      <div class="bg-white rounded-2xl p-3 border border-slate-200 mb-3">
+      <div id="wo-menu-section" class="bg-white rounded-2xl p-3 border border-slate-200 mb-3">
         <p class="text-[10px] text-slate-500 mb-1.5"><i class="fa-solid fa-utensils mr-1"></i>תפריט משויך</p>
         <div id="wo-menu-display" class="hidden font-bold text-slate-800 text-sm mb-2"></div>
         <div class="flex gap-2">
           <select id="wo-menu-select" class="modern-input flex-1 py-2 px-3 text-xs rounded-xl border border-slate-200 outline-none focus:border-indigo-400"><option value="">ללא תפריט</option></select>
           <button onclick="window.saveWoMenu()" class="bg-indigo-600 text-white px-3 py-2 rounded-xl text-xs font-bold hover:bg-indigo-700 transition shrink-0">שייך</button>
+        </div>
+      </div>
+      <div id="wo-quote-link-section" class="hidden bg-white rounded-2xl p-3 border border-slate-200 mb-3">
+        <p class="text-[10px] text-slate-500 mb-1.5"><i class="fa-solid fa-file-invoice mr-1"></i>הצעות מחיר משויכות</p>
+        <div id="wo-linked-quotes-list" class="space-y-1.5 mb-2"></div>
+        <div class="flex gap-2">
+          <select id="wo-quote-link-select" class="modern-input flex-1 py-2 px-3 text-xs rounded-xl border border-slate-200 outline-none focus:border-indigo-400"><option value="">בחר הצעת מחיר לשיוך</option></select>
+          <button onclick="window.saveWoQuoteLink()" class="bg-indigo-600 text-white px-3 py-2 rounded-xl text-xs font-bold hover:bg-indigo-700 transition shrink-0">שייך</button>
         </div>
       </div>
       <div class="grid grid-cols-2 gap-3 mb-4">
@@ -42644,6 +42652,25 @@ window.openWorkOrderModal = async function(woId) {
                 else mDisp.classList.add('hidden');
             }
         } catch(e) { console.error('menu-templates fetch failed:', e); }
+        // עסק תחזוקה ותיקונים: שיוך להצעות מחיר במקום תפריט (מסעדנות)
+        const isMaintenanceWo = currentGroup?.business_type === 'maintenance_repair';
+        const menuSection = document.getElementById('wo-menu-section');
+        const quoteLinkSection = document.getElementById('wo-quote-link-section');
+        if (menuSection) menuSection.classList.toggle('hidden', isMaintenanceWo);
+        if (quoteLinkSection) quoteLinkSection.classList.toggle('hidden', !isMaintenanceWo);
+        if (isMaintenanceWo) {
+            window.renderWoLinkedQuotes(data.linkedQuotes || []);
+            try {
+                const aRes = await fetch(`${API}/work-orders/${woId}/available-quotes`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } });
+                const aData = await aRes.json();
+                const qSel = document.getElementById('wo-quote-link-select');
+                if (qSel && aData.quotes) {
+                    qSel.innerHTML = '<option value="">בחר הצעת מחיר לשיוך</option>' + aData.quotes.map(q =>
+                        `<option value="${q.id}">${safeStr(q.quote_title || q.quote_number || ('הצעה #' + q.id))} — ${safeStr(q.customer_name || '')} (₪${q.total_amount})</option>`
+                    ).join('');
+                }
+            } catch(e) { console.error('available-quotes fetch failed:', e); }
+        }
         window.switchWoTab('overview');
         // התאמת ממשק לסוג עסק מקצועי
         const isProfWo = currentGroup?.business_type === 'professional';
@@ -43001,7 +43028,10 @@ window.renderWoCosts = function(data) {
     const inventoryCost = isPro ? 0 : inventory.filter(i => i.status !== 'released').reduce((s, i) => s + (parseFloat(i.unit_price || 0) * parseFloat(i.reserved_qty || 0)), 0);
     const equipmentCost = equipment.reduce((s, e) => s + (parseFloat(e.cost) || 0), 0);
     const totalCost = teamCost + inventoryCost + equipmentCost;
-    const quoteAmount = parseFloat(data.workOrder?.total_amount || 0);
+    // הכנסה צפויה: total_amount של הפקודה עצמה (למשל אם נוצרה מהמרת הצעה — אותה שורה בדיוק)
+    // בתוספת סכום כל ההצעות שנקשרו אליה ידנית (relevant בעיקר לעסקי תחזוקה ותיקונים)
+    const linkedQuotesTotal = (data.linkedQuotes || []).reduce((s, q) => s + (parseFloat(q.total_amount) || 0), 0);
+    const quoteAmount = parseFloat(data.workOrder?.total_amount || 0) + linkedQuotesTotal;
     const profit = quoteAmount - totalCost;
     const fmtM = n => { const v = parseFloat(parseFloat(n).toFixed(2)); return v === 0 ? '0' : v.toLocaleString('he-IL', {minimumFractionDigits: 0, maximumFractionDigits: 2}); };
     const teamLabel = isPro ? 'שעות עבודה בתיק' : 'עלות צוות';
@@ -43635,6 +43665,51 @@ window.saveWoMenu = async function() {
             else mDisp.classList.add('hidden');
         }
         window.loadWoTimeline?.();
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
+window.renderWoLinkedQuotes = function(quotes) {
+    const list = document.getElementById('wo-linked-quotes-list');
+    if (!list) return;
+    if (!quotes.length) { list.innerHTML = '<p class="text-xs text-slate-400">אין הצעות מחיר משויכות</p>'; return; }
+    list.innerHTML = quotes.map(q => `
+        <div class="flex items-center justify-between bg-slate-50 rounded-lg px-2.5 py-1.5 border border-slate-100">
+            <span class="text-xs font-bold text-slate-700 truncate">${safeStr(q.quote_title || q.quote_number || ('הצעה #' + q.id))}${q.customer_name ? ` · ${safeStr(q.customer_name)}` : ''}</span>
+            <span class="flex items-center gap-2 shrink-0">
+                <span class="text-xs font-black text-indigo-600">₪${parseFloat(q.total_amount || 0).toFixed(0)}</span>
+                <button onclick="window.removeWoQuoteLink(${q.id})" class="text-red-400 hover:text-red-600 w-5 h-5 flex items-center justify-center" title="הסר שיוך"><i class="fa-solid fa-xmark text-xs"></i></button>
+            </span>
+        </div>`).join('');
+};
+
+window.saveWoQuoteLink = async function() {
+    const sel = document.getElementById('wo-quote-link-select');
+    const quoteId = sel?.value;
+    if (!quoteId) return showToast('error', 'יש לבחור הצעת מחיר');
+    try {
+        const res = await fetch(`${API}/work-orders/${window._currentWoId}/quotes`, {
+            method: 'POST', headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '', 'Content-Type': 'application/json' },
+            body: JSON.stringify({ quoteId, userName: currentUser?.nickname || 'מנהל' })
+        });
+        const data = await res.json();
+        if (!data.success) return showToast('error', data.error);
+        showToast('success', 'הצעת המחיר שויכה');
+        window.openWorkOrderModal(window._currentWoId);
+        window.renderWoCosts?.(window._currentWoData);
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
+window.removeWoQuoteLink = async function(quoteId) {
+    if (!await window._uiConfirm('להסיר את שיוך הצעת המחיר?')) return;
+    try {
+        const res = await fetch(`${API}/work-orders/${window._currentWoId}/quotes/${quoteId}`, {
+            method: 'DELETE', headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '', 'Content-Type': 'application/json' },
+            body: JSON.stringify({ userName: currentUser?.nickname || 'מנהל' })
+        });
+        const data = await res.json();
+        if (!data.success) return showToast('error', data.error);
+        showToast('success', 'שיוך הצעת המחיר הוסר');
+        window.openWorkOrderModal(window._currentWoId);
     } catch(e) { showToast('error', 'שגיאת תקשורת'); }
 };
 

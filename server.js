@@ -1351,6 +1351,13 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
           message_text TEXT NOT NULL,
           created_at TIMESTAMP DEFAULT NOW()
       )`); } catch(e) {}
+      try { await client.query(`CREATE TABLE IF NOT EXISTS work_order_quote_links (
+          id SERIAL PRIMARY KEY,
+          work_order_id INT REFERENCES store_orders(id) ON DELETE CASCADE,
+          quote_id INT REFERENCES store_orders(id) ON DELETE CASCADE,
+          linked_at TIMESTAMP DEFAULT NOW(),
+          UNIQUE(work_order_id, quote_id)
+      )`); } catch(e) {}
       try { await client.query(`CREATE TABLE IF NOT EXISTS work_order_timeline (
           id SERIAL PRIMARY KEY,
           work_order_id INT REFERENCES store_orders(id) ON DELETE CASCADE,
@@ -24442,7 +24449,7 @@ app.get('/api/work-orders/detail/:id', verifyBiz, async (req, res) => {
         const id = req.params.id;
         const _wo = await pool.query('SELECT 1 FROM store_orders WHERE id=$1 AND group_id=$2 AND call_type=\'work_order\'', [id, req.bizAuth.groupId]);
         if (!_wo.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
-        const [woRes, assigneesRes, inventoryRes, messagesRes, timelineRes, calendarRes, equipmentRes] = await Promise.all([
+        const [woRes, assigneesRes, inventoryRes, messagesRes, timelineRes, calendarRes, equipmentRes, linkedQuotesRes] = await Promise.all([
             pool.query(`SELECT so.*, mt.name as menu_template_name, mt.min_guests as menu_min_guests, mt.max_guests as menu_max_guests,
                         mt.public_slug as menu_template_slug, mt.is_public as menu_template_is_public
                         FROM store_orders so LEFT JOIN menu_templates mt ON mt.id = so.menu_template_id
@@ -24458,10 +24465,12 @@ app.get('/api/work-orders/detail/:id', verifyBiz, async (req, res) => {
             pool.query('SELECT * FROM work_order_messages WHERE work_order_id=$1 ORDER BY created_at', [id]),
             pool.query('SELECT * FROM work_order_timeline WHERE work_order_id=$1 ORDER BY created_at DESC', [id]),
             pool.query('SELECT * FROM calendar_events WHERE work_order_id=$1 ORDER BY event_date ASC, start_time ASC', [id]),
-            pool.query(`SELECT * FROM work_order_equipment WHERE work_order_id=$1 AND status='reserved' ORDER BY event_date, start_time`, [id])
+            pool.query(`SELECT * FROM work_order_equipment WHERE work_order_id=$1 AND status='reserved' ORDER BY event_date, start_time`, [id]),
+            pool.query(`SELECT q.id, q.quote_number, q.quote_title, q.customer_name, q.total_amount FROM work_order_quote_links l
+                        JOIN store_orders q ON q.id = l.quote_id WHERE l.work_order_id=$1 ORDER BY l.linked_at ASC`, [id]).catch(() => ({ rows: [] }))
         ]);
         if (!woRes.rows.length) return res.status(404).json({ error: 'פקודה לא נמצאה' });
-        res.json({ success: true, workOrder: woRes.rows[0], assignees: assigneesRes.rows, inventory: inventoryRes.rows, messages: messagesRes.rows, timeline: timelineRes.rows, calendarEvents: calendarRes.rows, equipment: equipmentRes.rows });
+        res.json({ success: true, workOrder: woRes.rows[0], assignees: assigneesRes.rows, inventory: inventoryRes.rows, messages: messagesRes.rows, timeline: timelineRes.rows, calendarEvents: calendarRes.rows, equipment: equipmentRes.rows, linkedQuotes: linkedQuotesRes.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -24954,6 +24963,60 @@ app.put('/api/work-orders/:id/menu', verifyBiz, async (req, res) => {
             await pool.query('UPDATE store_orders SET menu_template_id=NULL WHERE id=$1', [req.params.id]);
             await addWorkOrderTimeline(req.params.id, 'menu_removed', 'שיוך התפריט הוסר', null);
         }
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- שיוך הצעות מחיר לפקודת עבודה (עסקי תחזוקה ותיקונים ודומים) ---
+// שימושי כשפקודת העבודה נוצרה ישירות (POST /work-orders/new) ולא ע"י המרת הצעה —
+// אז אין קשר אוטומטי בין ה-total_amount של הפקודה לבין שווי ההצעה/ות שמייצגות אותה.
+app.get('/api/work-orders/:id/quotes', verifyBiz, async (req, res) => {
+    try {
+        const _wo = await pool.query('SELECT 1 FROM store_orders WHERE id=$1 AND group_id=$2 AND call_type=\'work_order\'', [req.params.id, req.bizAuth.groupId]);
+        if (!_wo.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
+        const r = await pool.query(
+            `SELECT q.id, q.quote_number, q.quote_title, q.customer_name, q.total_amount, l.linked_at
+             FROM work_order_quote_links l JOIN store_orders q ON q.id = l.quote_id
+             WHERE l.work_order_id=$1 ORDER BY l.linked_at ASC`, [req.params.id]);
+        res.json({ success: true, quotes: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/work-orders/:id/available-quotes', verifyBiz, async (req, res) => {
+    try {
+        const _wo = await pool.query('SELECT 1 FROM store_orders WHERE id=$1 AND group_id=$2 AND call_type=\'work_order\'', [req.params.id, req.bizAuth.groupId]);
+        if (!_wo.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
+        const r = await pool.query(
+            `SELECT id, quote_number, quote_title, customer_name, total_amount FROM store_orders
+             WHERE group_id=$1 AND (call_type IS NULL OR call_type NOT IN ('work_order')) AND status='quote'
+             AND id NOT IN (SELECT quote_id FROM work_order_quote_links WHERE work_order_id=$2)
+             ORDER BY created_at DESC LIMIT 100`, [req.bizAuth.groupId, req.params.id]);
+        res.json({ success: true, quotes: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/work-orders/:id/quotes', verifyBiz, async (req, res) => {
+    try {
+        const { quoteId, userName } = req.body;
+        const _wo = await pool.query('SELECT 1 FROM store_orders WHERE id=$1 AND group_id=$2 AND call_type=\'work_order\'', [req.params.id, req.bizAuth.groupId]);
+        if (!_wo.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
+        const q = await pool.query('SELECT quote_number, quote_title, customer_name, total_amount FROM store_orders WHERE id=$1 AND group_id=$2', [quoteId, req.bizAuth.groupId]);
+        if (!q.rows.length) return res.status(404).json({ error: 'הצעת מחיר לא נמצאה' });
+        await pool.query(
+            `INSERT INTO work_order_quote_links (work_order_id, quote_id) VALUES ($1,$2) ON CONFLICT (work_order_id, quote_id) DO NOTHING`,
+            [req.params.id, quoteId]);
+        const label = q.rows[0].quote_title || q.rows[0].quote_number || `הצעה #${quoteId}`;
+        await addWorkOrderTimeline(req.params.id, 'quote_linked', `שויכה הצעת מחיר: ${label} (₪${q.rows[0].total_amount})`, userName || null);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/work-orders/:id/quotes/:quoteId', verifyBiz, async (req, res) => {
+    try {
+        const _wo = await pool.query('SELECT 1 FROM store_orders WHERE id=$1 AND group_id=$2 AND call_type=\'work_order\'', [req.params.id, req.bizAuth.groupId]);
+        if (!_wo.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
+        await pool.query('DELETE FROM work_order_quote_links WHERE work_order_id=$1 AND quote_id=$2', [req.params.id, req.params.quoteId]);
+        await addWorkOrderTimeline(req.params.id, 'quote_unlinked', `הוסר שיוך הצעת מחיר #${req.params.quoteId}`, req.body.userName || null);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
