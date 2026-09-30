@@ -942,8 +942,6 @@ try { await client.query(`ALTER TABLE game_assignments ADD COLUMN IF NOT EXISTS 
       try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS badge_text VARCHAR(50)`); } catch(err){}
       try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS badge_color VARCHAR(20) DEFAULT 'red'`); } catch(err){}
 try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS product_type VARCHAR(50) DEFAULT 'retail'`); } catch(err){}
-      // תיקון חד-פעמי: קטלוגים של עסקי תחזוקה ותיקונים שנוצרו לפני product_type='service' ייעודי — כל הפריטים שלהם הם שירותים
-      try { await client.query(`UPDATE store_catalog SET product_type='service' WHERE product_type='retail' AND group_id IN (SELECT id FROM family_groups WHERE business_type='maintenance_repair')`); } catch(err){}
       try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS long_description TEXT`); } catch(err){}
       try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS gallery TEXT`); } catch(err){}
       
