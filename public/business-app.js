@@ -919,7 +919,7 @@ window.injectBusinessUI = function() {
                         <button id="btn-sales-work-orders" onclick="window.switchSalesTab('work-orders')" class="flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition"><i class="fa-solid fa-hammer text-sm"></i>פקודות עבודה</button>
                         <button id="btn-sales-catalog" onclick="window.switchSalesTab('catalog')" class="flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition"><i class="fa-solid fa-book-open text-sm"></i>קטלוג</button>
                         <button id="btn-sales-menutpl" onclick="window.switchTab('menu_templates')" class="flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition"><i class="fa-solid fa-utensils text-sm"></i>תפריטים</button>
-                        <button id="btn-sales-complex" disabled style="cursor:not-allowed;opacity:.55" class="flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-400 transition relative"><i class="fa-solid fa-layer-group text-sm"></i>פרויקטים<span style="position:absolute;top:4px;inset-inline-end:4px;font-size:8px;background:#6366f1;color:#fff;border-radius:4px;padding:1px 4px;letter-spacing:.04em">בקרוב</span></button>
+                        <button id="btn-sales-complex" onclick="window.switchTab('routines')" class="flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition"><i class="fa-solid fa-rotate text-sm"></i>שגרות</button>
                         <button id="btn-sales-marketing" onclick="window.switchSalesTab('marketing')" class="flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition"><i class="fa-solid fa-bullhorn text-sm"></i>שיווק</button>
                         <button id="btn-sales-reviews" onclick="window.switchSalesTab('reviews')" class="flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition"><i class="fa-solid fa-star text-sm"></i>דירוגים ⭐</button>
                         <button id="btn-sales-settings" onclick="window.switchSalesTab('settings')" class="flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition"><i class="fa-solid fa-gear text-sm"></i>הגדרות</button>
@@ -25407,10 +25407,11 @@ window.switchSalesTab = function(subTab) {
 
     // Sport business: adapt tab bar and views
     const isSport = currentGroup?.business_type === 'sport';
+    // כפתור "שגרות" (היה "פרויקטים") — מוצג רק למסעדות ותחזוקה/תיקונים, כמו שאר המודול
     const complexBtn = document.getElementById('btn-sales-complex');
     if (complexBtn) {
-        if (isSport) { complexBtn.classList.add('hidden'); complexBtn.classList.remove('flex'); }
-        else { complexBtn.classList.remove('hidden'); }
+        if (['restaurant', 'maintenance_repair'].includes(currentGroup?.business_type)) { complexBtn.classList.remove('hidden'); }
+        else { complexBtn.classList.add('hidden'); complexBtn.classList.remove('flex'); }
     }
     if (isSport) {
         const catalogBtn = document.getElementById('btn-sales-catalog');
