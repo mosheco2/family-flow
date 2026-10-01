@@ -3654,6 +3654,8 @@ app.get('/api/solo/search-by-phone', async (req, res) => {
       // שלב 8: הפקת מסמכים — פרמטרי הפקה (טווח/היקף/כלילת תמונות-תעודות) נשמרים לכל מסמך
       try { await client.query(`ALTER TABLE routine_documents ADD COLUMN IF NOT EXISTS params JSONB DEFAULT '{}'`); } catch(e) {}
       try { await client.query(`CREATE INDEX IF NOT EXISTS idx_routine_documents_token ON routine_documents(view_token) WHERE view_token IS NOT NULL`); } catch(e) {}
+      // מודול "שגרות" חייב להיות מודול בתשלום לכל דבר, באותה לוגיקת פתיחה כמו שאר המודולים
+      // (ויזארד הקמה / בקשת פתיחה / סופר אדמין) — ראו patchPricingCatalogForRoutines() למטה.
       // ===== END ROUTINES MODULE =====
 
       // ===== END COMMUNITY FEED SYSTEM =====
@@ -3664,8 +3666,48 @@ app.get('/api/solo/search-by-phone', async (req, res) => {
           client.release();
       }
       runQuestLibrarySeed().catch(e => console.error('quest seed via function:', e.message));
+      patchPricingCatalogForRoutines().catch(e => console.error('routines pricing catalog patch:', e.message));
   })
   .catch(err => console.error('Connection Error', err.stack));
+
+// חד-פעמי, אידמפוטנטי: מוסיף את מודול "שגרות" לקטלוג התמחור השמור ב-DB (אם קיים ועדיין חסר בו),
+// כולל שני מחרוזות ה-desc של חבילות מסעדה/תחזוקה — כדי שמודול "שגרות" יעבור בדיוק את אותה לוגיקת
+// פתיחה בתשלום כמו כל מודול אחר (ויזארד הקמה / בקשת פתיחה דרך openModuleUnlockModal / אישור סופר אדמין),
+// בלי להמתין שמישהו ילחץ שמירה מחדש במסך ניהול התמחור. לא נוגע בשום מודול/חבילה אחרים.
+async function patchPricingCatalogForRoutines() {
+    const r = await pool.query("SELECT value FROM system_settings WHERE key = 'module_pricing_catalog'");
+    if (!r.rows.length) return; // אין קטלוג שמור עדיין ב-DB — הקטלוג שישמר ע"י SA כבר כולל 'routines' כברירת מחדל
+    let catalog;
+    try { catalog = JSON.parse(r.rows[0].value); } catch(e) { return; }
+    if (!Array.isArray(catalog)) return;
+
+    let changed = false;
+    const hasRoutinesEntry = catalog.some(g => Array.isArray(g.modules) && g.modules.some(m => m.id === 'routines'));
+    if (!hasRoutinesEntry) {
+        const teamGroup = catalog.find(g => g.groupId === 'team');
+        if (teamGroup && Array.isArray(teamGroup.modules)) {
+            teamGroup.modules.push({ id: 'routines', name: 'שגרות', price: 19, free: false, desc: 'פעולות תחזוקה/תפעול חוזרות, מעקב ביצוע, תיעוד ואישורים (מסעדות ותחזוקה/תיקונים)' });
+            changed = true;
+        }
+    }
+    for (const bundleId of ['bundle_restaurant', 'bundle_maintenance_repair']) {
+        for (const g of catalog) {
+            if (!Array.isArray(g.modules)) continue;
+            const m = g.modules.find(x => x.id === bundleId);
+            if (m && typeof m.desc === 'string' && !m.desc.includes('routines')) {
+                m.desc = m.desc.replace(/,\s*reports/, ', routines, reports');
+                changed = true;
+            }
+        }
+    }
+    if (changed) {
+        await pool.query(
+            "INSERT INTO system_settings (key, value) VALUES ('module_pricing_catalog', $1) ON CONFLICT (key) DO UPDATE SET value = $1",
+            [JSON.stringify(catalog)]
+        );
+        console.log('[ROUTINES] קטלוג התמחור עודכן אוטומטית עם מודול "שגרות"');
+    }
+}
 
 async function runQuestLibrarySeed() {
   for (const q of BUILTIN_QUESTS_DATA) {

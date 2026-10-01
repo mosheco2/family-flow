@@ -14432,11 +14432,11 @@ window.saKHDeleteCategory = saKHDeleteCategory;
 
 // מיפוי מודולים לפי סוג עסק — זהה ל-BUSINESS_TYPES ב-business-app.js
 const BIZ_TYPE_MODULES = {
-    restaurant:         ['pos','sales','pantry','shop','customers','shifts','timeclock','tasks','cashflow','budget','members','calendar','deliveries','foodcost','reviews','menu_templates','reports'],
+    restaurant:         ['pos','sales','pantry','shop','customers','shifts','timeclock','tasks','cashflow','budget','members','calendar','deliveries','foodcost','reviews','menu_templates','routines','reports'],
     retail:             ['pos','sales','pantry','shop','customers','cashflow','budget','members','timeclock','tasks','bank','reports'],
     services:           ['calendar','tasks','customers','cashflow','budget','members','timeclock','bank','pos','sales','reports'],
     construction:       ['equipment','tasks','shifts','timeclock','members','cashflow','customers','bank','shop','pantry','budget','reports'],
-    maintenance_repair: ['calendar','tasks','customers','members','timeclock','cashflow','pantry','shop','reports'],
+    maintenance_repair: ['calendar','tasks','customers','members','timeclock','cashflow','pantry','shop','routines','reports'],
     logistics:          ['members','timeclock','cashflow','tasks','reports'],  // חבילת לוגיסטיקה מכסה את שאר המודולים
     healthcare:         ['calendar','customers','tasks','members','timeclock','cashflow','bank','pos','pantry','reports'],
     beauty:             ['timeclock','cashflow','tasks','shop','reports'],       // חבילת יופי מכסה את שאר המודולים
@@ -14492,6 +14492,7 @@ const PRICING_CATALOG_DEFAULT = [
       { id: 'timeclock', name: 'נוכחות',       price: 15, free: false, desc: 'כניסה/יציאה מהמשמרת, דוחות שעות, צ׳ק-אין מיקום' },
       { id: 'shifts',    name: 'משמרות',       price: 15, free: false, desc: 'תכנון לוח משמרות שבועי, תבניות, שינויים' },
       { id: 'tasks',     name: 'משימות',       price: 15, free: false, desc: 'יצירת משימות, הקצאה, מעקב ביצוע עם תמונה/AI' },
+      { id: 'routines',  name: 'שגרות',        price: 19, free: false, desc: 'פעולות תחזוקה/תפעול חוזרות, מעקב ביצוע, תיעוד ואישורים (מסעדות ותחזוקה/תיקונים)' },
       { id: 'academy',   name: 'הכשרות',      price: 25, free: false, desc: 'קורסים לעובדים, שאלות, מעקב ביצוע, טוטור AI' },
     ]
   },
@@ -14530,7 +14531,7 @@ const PRICING_CATALOG_DEFAULT = [
     groupId: 'bundle_restaurant', groupName: 'חבילת מסעדה / בית קפה 🍕', color: 'red', bundle: true,
     modules: [
       { id: 'bundle_restaurant', name: 'חבילת מסעדה מלאה', price: 249, free: false, bundle: true,
-        desc: 'pos, sales, pantry, shop, customers, shifts, timeclock, tasks, cashflow, budget, members, calendar, deliveries, foodcost, reviews, menu_templates, reports (17 מודולים — חיסכון ~28%)' },
+        desc: 'pos, sales, pantry, shop, customers, shifts, timeclock, tasks, cashflow, budget, members, calendar, deliveries, foodcost, reviews, menu_templates, routines, reports (18 מודולים — חיסכון ~28%)' },
     ]
   },
   {
@@ -14558,7 +14559,7 @@ const PRICING_CATALOG_DEFAULT = [
     groupId: 'bundle_maintenance', groupName: 'חבילת תחזוקה ותיקונים 🔧', color: 'slate', bundle: true,
     modules: [
       { id: 'bundle_maintenance_repair', name: 'חבילת תחזוקה מלאה', price: 119, free: false, bundle: true,
-        desc: 'calendar, tasks, customers, members, timeclock, cashflow, pantry, shop, reports (9 מודולים — חיסכון ~28%)' },
+        desc: 'calendar, tasks, customers, members, timeclock, cashflow, pantry, shop, routines, reports (10 מודולים — חיסכון ~28%)' },
     ]
   },
   {
