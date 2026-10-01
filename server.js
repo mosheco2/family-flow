@@ -3434,6 +3434,228 @@ app.get('/api/solo/search-by-phone', async (req, res) => {
       try { await client.query(`ALTER TABLE menu_templates ADD COLUMN IF NOT EXISTS event_image_url TEXT`); } catch(e) {}
       // ===== END MENU TEMPLATES MODULE =====
 
+      // ===== ROUTINES MODULE (שגרות) — restaurant + maintenance_repair only =====
+      try { await client.query(`CREATE TABLE IF NOT EXISTS routine_sites (
+          id SERIAL PRIMARY KEY,
+          group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+          customer_id INT,
+          name VARCHAR(200) NOT NULL,
+          address TEXT,
+          contact_name VARCHAR(150),
+          contact_phone VARCHAR(50),
+          access_notes TEXT,
+          is_internal BOOLEAN DEFAULT FALSE,
+          created_at TIMESTAMP DEFAULT NOW(),
+          updated_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) { console.error('routine_sites:', e.message); }
+
+      try { await client.query(`CREATE TABLE IF NOT EXISTS routine_facilities (
+          id SERIAL PRIMARY KEY,
+          site_id INT REFERENCES routine_sites(id) ON DELETE CASCADE,
+          name VARCHAR(200) NOT NULL,
+          facility_type VARCHAR(100),
+          notes TEXT,
+          created_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) { console.error('routine_facilities:', e.message); }
+
+      try { await client.query(`CREATE TABLE IF NOT EXISTS routine_items (
+          id SERIAL PRIMARY KEY,
+          facility_id INT REFERENCES routine_facilities(id) ON DELETE CASCADE,
+          name VARCHAR(200) NOT NULL,
+          serial_number VARCHAR(100),
+          install_date DATE,
+          notes TEXT,
+          created_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) { console.error('routine_items:', e.message); }
+
+      try { await client.query(`CREATE TABLE IF NOT EXISTS routine_service_contracts (
+          id SERIAL PRIMARY KEY,
+          group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+          customer_id INT,
+          site_id INT REFERENCES routine_sites(id) ON DELETE SET NULL,
+          start_date DATE,
+          end_date DATE,
+          auto_renew BOOLEAN DEFAULT FALSE,
+          billing_model VARCHAR(20) DEFAULT 'per_visit' CHECK (billing_model IN ('subscription','per_visit')),
+          subscription_amount DECIMAL(10,2),
+          coverage_scope VARCHAR(20) DEFAULT 'labor' CHECK (coverage_scope IN ('labor','labor_parts','full')),
+          visits_included_per_year INT,
+          response_time_standard_hours INT,
+          response_time_emergency_hours INT,
+          availability VARCHAR(20) DEFAULT 'business_hours' CHECK (availability IN ('business_hours','24_7')),
+          after_hours_surcharge_pct DECIMAL(5,2),
+          status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active','ended','cancelled')),
+          created_at TIMESTAMP DEFAULT NOW(),
+          updated_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) { console.error('routine_service_contracts:', e.message); }
+
+      try { await client.query(`CREATE TABLE IF NOT EXISTS routines (
+          id SERIAL PRIMARY KEY,
+          group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+          business_type VARCHAR(30) NOT NULL CHECK (business_type IN ('restaurant','maintenance_repair')),
+          name VARCHAR(200) NOT NULL,
+          description TEXT,
+          instructions TEXT,
+          category VARCHAR(30) NOT NULL DEFAULT 'operational' CHECK (category IN ('regulatory','safety','preventive_maintenance','operational','logistics')),
+          obligation_source VARCHAR(20) CHECK (obligation_source IN ('law','standard','contract','insurer','internal_policy')),
+          target_level VARCHAR(20) NOT NULL DEFAULT 'site' CHECK (target_level IN ('customer','site','facility','item')),
+          customer_id INT,
+          site_id INT REFERENCES routine_sites(id) ON DELETE CASCADE,
+          facility_id INT REFERENCES routine_facilities(id) ON DELETE CASCADE,
+          item_id INT REFERENCES routine_items(id) ON DELETE CASCADE,
+          service_contract_id INT REFERENCES routine_service_contracts(id) ON DELETE SET NULL,
+          output_type VARCHAR(20) NOT NULL DEFAULT 'task' CHECK (output_type IN ('task','task_calendar','work_order_template')),
+          work_order_template JSONB DEFAULT '{}',
+          frequency_type VARCHAR(20) NOT NULL DEFAULT 'fixed' CHECK (frequency_type IN ('fixed','certificate_expiry','condition_based')),
+          frequency_interval VARCHAR(30),
+          frequency_weekdays VARCHAR(20),
+          scheduled_time TIME,
+          grace_period_minutes INT DEFAULT 60,
+          start_date DATE NOT NULL DEFAULT CURRENT_DATE,
+          end_date DATE,
+          max_occurrences INT,
+          skip_weekends BOOLEAN DEFAULT FALSE,
+          skip_holiday_calendar_id INT,
+          assignee_mode VARCHAR(20) NOT NULL DEFAULT 'employee' CHECK (assignee_mode IN ('employee','role','external_vendor')),
+          assignee_user_id INT,
+          assignee_role VARCHAR(50),
+          vendor_name VARCHAR(150),
+          vendor_phone VARCHAR(50),
+          evidence_requirements JSONB DEFAULT '["confirm"]',
+          checklist_items JSONB DEFAULT '[]',
+          value_range_min DECIMAL(10,2),
+          value_range_max DECIMAL(10,2),
+          value_unit VARCHAR(30),
+          retention_period_days INT DEFAULT 365,
+          requires_internal_approval BOOLEAN DEFAULT FALSE,
+          internal_approver_user_id INT,
+          internal_approver_role VARCHAR(50),
+          internal_approval_mode VARCHAR(20) DEFAULT 'click' CHECK (internal_approval_mode IN ('click','click_with_note','checklist_review')),
+          requires_customer_approval_events JSONB DEFAULT '[]',
+          customer_approval_wait_hours INT DEFAULT 48,
+          customer_approval_default_policy VARCHAR(20) DEFAULT 'proceed' CHECK (customer_approval_default_policy IN ('proceed','stop_and_alert')),
+          escalation_user_id INT,
+          escalation_after_hours INT,
+          reminder_before_hours INT,
+          template_source VARCHAR(100),
+          is_active BOOLEAN DEFAULT TRUE,
+          created_by VARCHAR(150),
+          created_at TIMESTAMP DEFAULT NOW(),
+          updated_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) { console.error('routines:', e.message); }
+
+      try { await client.query(`CREATE TABLE IF NOT EXISTS routine_occurrences (
+          id SERIAL PRIMARY KEY,
+          routine_id INT REFERENCES routines(id) ON DELETE CASCADE,
+          group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+          scheduled_date DATE NOT NULL,
+          scheduled_time TIME,
+          grace_deadline TIMESTAMP,
+          assignee_user_id INT,
+          status VARCHAR(25) NOT NULL DEFAULT 'planned' CHECK (status IN (
+              'planned','open','in_progress','completed','completed_with_exception',
+              'overdue','move_requested','skipped','cancelled'
+          )),
+          skip_reason TEXT,
+          move_requested_date DATE,
+          move_requested_note TEXT,
+          move_approved_by VARCHAR(150),
+          linked_task_id INT,
+          linked_calendar_event_id INT,
+          linked_work_order_id INT,
+          completed_at TIMESTAMP,
+          completed_by VARCHAR(150),
+          exception_flag BOOLEAN DEFAULT FALSE,
+          created_at TIMESTAMP DEFAULT NOW(),
+          updated_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) { console.error('routine_occurrences:', e.message); }
+
+      try { await client.query(`CREATE TABLE IF NOT EXISTS routine_evidence (
+          id SERIAL PRIMARY KEY,
+          occurrence_id INT REFERENCES routine_occurrences(id) ON DELETE CASCADE,
+          evidence_type VARCHAR(20) NOT NULL CHECK (evidence_type IN ('note','numeric_value','checklist','photo','document')),
+          numeric_value DECIMAL(10,2),
+          is_out_of_range BOOLEAN DEFAULT FALSE,
+          checklist_state JSONB,
+          note_text TEXT,
+          file_url TEXT,
+          document_issuer VARCHAR(150),
+          document_license_number VARCHAR(100),
+          document_issue_date DATE,
+          document_expiry_date DATE,
+          document_form_type VARCHAR(100),
+          created_by VARCHAR(150),
+          created_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) { console.error('routine_evidence:', e.message); }
+
+      try { await client.query(`CREATE TABLE IF NOT EXISTS routine_approval_rounds (
+          id SERIAL PRIMARY KEY,
+          occurrence_id INT REFERENCES routine_occurrences(id) ON DELETE CASCADE,
+          round_number INT NOT NULL DEFAULT 1,
+          submitted_by VARCHAR(150),
+          submitted_at TIMESTAMP DEFAULT NOW(),
+          internal_status VARCHAR(20) DEFAULT 'pending' CHECK (internal_status IN ('pending','approved','rejected','skipped')),
+          internal_decided_by VARCHAR(150),
+          internal_decided_at TIMESTAMP,
+          internal_rejection_reason TEXT,
+          customer_status VARCHAR(20) DEFAULT 'not_required' CHECK (customer_status IN ('not_required','pending','approved','rejected','replied','expired')),
+          customer_decided_at TIMESTAMP,
+          customer_rejection_reason TEXT,
+          customer_reply_text TEXT,
+          customer_channel VARCHAR(20),
+          customer_viewed_at TIMESTAMP,
+          created_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) { console.error('routine_approval_rounds:', e.message); }
+
+      try { await client.query(`CREATE TABLE IF NOT EXISTS routine_event_log (
+          id SERIAL PRIMARY KEY,
+          group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+          routine_id INT REFERENCES routines(id) ON DELETE CASCADE,
+          occurrence_id INT REFERENCES routine_occurrences(id) ON DELETE CASCADE,
+          event_type VARCHAR(60) NOT NULL,
+          actor_type VARCHAR(20) NOT NULL DEFAULT 'user' CHECK (actor_type IN ('user','customer','system')),
+          actor_name VARCHAR(150),
+          channel VARCHAR(30),
+          value_before TEXT,
+          value_after TEXT,
+          note TEXT,
+          created_at TIMESTAMP DEFAULT NOW()
+      )`); } catch(e) { console.error('routine_event_log:', e.message); }
+
+      try { await client.query(`CREATE TABLE IF NOT EXISTS routine_documents (
+          id SERIAL PRIMARY KEY,
+          group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+          site_id INT REFERENCES routine_sites(id) ON DELETE CASCADE,
+          occurrence_id INT REFERENCES routine_occurrences(id) ON DELETE SET NULL,
+          document_type VARCHAR(20) NOT NULL CHECK (document_type IN ('occurrence_report','routine_period_report','site_file')),
+          exposure_level VARCHAR(10) NOT NULL DEFAULT 'customer' CHECK (exposure_level IN ('internal','customer')),
+          document_number VARCHAR(50) NOT NULL,
+          file_url TEXT,
+          view_token VARCHAR(64) UNIQUE,
+          generated_by VARCHAR(150),
+          generated_at TIMESTAMP DEFAULT NOW(),
+          sent_channel VARCHAR(20),
+          sent_to VARCHAR(200),
+          sent_at TIMESTAMP,
+          viewed_at TIMESTAMP
+      )`); } catch(e) { console.error('routine_documents:', e.message); }
+
+      try { await client.query(`CREATE INDEX IF NOT EXISTS idx_routines_group ON routines(group_id, is_active)`); } catch(e) {}
+      try { await client.query(`CREATE INDEX IF NOT EXISTS idx_routine_occurrences_routine ON routine_occurrences(routine_id, scheduled_date)`); } catch(e) {}
+      try { await client.query(`CREATE INDEX IF NOT EXISTS idx_routine_occurrences_group_status ON routine_occurrences(group_id, status, scheduled_date)`); } catch(e) {}
+      try { await client.query(`CREATE INDEX IF NOT EXISTS idx_routine_occurrences_assignee ON routine_occurrences(assignee_user_id, scheduled_date)`); } catch(e) {}
+      try { await client.query(`CREATE INDEX IF NOT EXISTS idx_routine_evidence_occurrence ON routine_evidence(occurrence_id)`); } catch(e) {}
+      try { await client.query(`CREATE INDEX IF NOT EXISTS idx_routine_approval_rounds_occurrence ON routine_approval_rounds(occurrence_id)`); } catch(e) {}
+      try { await client.query(`CREATE INDEX IF NOT EXISTS idx_routine_event_log_group ON routine_event_log(group_id, created_at DESC)`); } catch(e) {}
+      try { await client.query(`CREATE INDEX IF NOT EXISTS idx_routine_sites_group ON routine_sites(group_id)`); } catch(e) {}
+      // שלב 5: אישורי לקוח — קישור ציבורי לסבב אישור (אותו דפוס confirm_token כמו הצעות מחיר/רכש)
+      try { await client.query(`ALTER TABLE routine_approval_rounds ADD COLUMN IF NOT EXISTS confirm_token VARCHAR(64)`); } catch(e) {}
+      try { await client.query(`CREATE INDEX IF NOT EXISTS idx_routine_approval_rounds_token ON routine_approval_rounds(confirm_token) WHERE confirm_token IS NOT NULL`); } catch(e) {}
+      // שלב 8: הפקת מסמכים — פרמטרי הפקה (טווח/היקף/כלילת תמונות-תעודות) נשמרים לכל מסמך
+      try { await client.query(`ALTER TABLE routine_documents ADD COLUMN IF NOT EXISTS params JSONB DEFAULT '{}'`); } catch(e) {}
+      try { await client.query(`CREATE INDEX IF NOT EXISTS idx_routine_documents_token ON routine_documents(view_token) WHERE view_token IS NOT NULL`); } catch(e) {}
+      // ===== END ROUTINES MODULE =====
+
       // ===== END COMMUNITY FEED SYSTEM =====
 
       } catch(e) {
@@ -6365,6 +6587,231 @@ async function dispatchRecurringTasks() {
 }
 setInterval(dispatchRecurringTasks, 5 * 60 * 1000); // כל 5 דקות
 setTimeout(dispatchRecurringTasks, 90000); // דחייה 90 שניות מסטארטאפ
+
+// ===== מודול "שגרות" — מנוע ייצור מופעים (restaurant + maintenance_repair בלבד) =====
+// שלב 1: תדירות קבועה בלבד (fixed). certificate_expiry / condition_based — הרחבה עתידית (ראה חלק ה' באפיון).
+const ROUTINE_HEBREW_WEEKDAYS = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
+
+async function logRoutineEvent(client, { groupId, routineId, occurrenceId, eventType, actorType = 'system', actorName = 'המערכת', channel = null, valueBefore = null, valueAfter = null, note = null }) {
+    try {
+        await (client || pool).query(
+            `INSERT INTO routine_event_log (group_id, routine_id, occurrence_id, event_type, actor_type, actor_name, channel, value_before, value_after, note)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+            [groupId, routineId || null, occurrenceId || null, eventType, actorType, actorName, channel, valueBefore, valueAfter, note]
+        );
+    } catch (e) { console.error('[ROUTINES] log error:', e.message); }
+}
+
+function routineAddInterval(date, intervalType) {
+    const d = new Date(date);
+    switch (intervalType) {
+        case 'daily': d.setDate(d.getDate() + 1); break;
+        case 'weekly': d.setDate(d.getDate() + 7); break;
+        case 'biweekly': d.setDate(d.getDate() + 14); break;
+        case 'monthly': d.setMonth(d.getMonth() + 1); break;
+        case 'quarterly': d.setMonth(d.getMonth() + 3); break;
+        case 'semiannual': d.setMonth(d.getMonth() + 6); break;
+        case 'yearly': d.setFullYear(d.getFullYear() + 1); break;
+        default: d.setDate(d.getDate() + 7); break;
+    }
+    return d;
+}
+
+function routineHorizonDays(intervalType) {
+    // שישים יום קדימה לשגרות יומיות/שבועיות, שנים עשר חודשים לחודשיות ומעלה (3.1 באפיון)
+    if (intervalType === 'daily' || intervalType === 'weekly' || intervalType === 'weekly_days' || intervalType === 'biweekly') return 60;
+    return 365;
+}
+
+function routineMatchesWeekday(date, weekdaysCsv) {
+    if (!weekdaysCsv) return true;
+    const name = ROUTINE_HEBREW_WEEKDAYS[date.getDay()];
+    return weekdaysCsv.split(',').map(s => s.trim()).includes(name);
+}
+
+// מייצר תאריכי מופע חסרים לכל שגרה פעילה, בתוך חלון ההיערכות
+async function generateRoutineOccurrences() {
+    try {
+        // מצטמצם רק לקבוצות שסוג העסק שלהן עדיין מאפשר שגרות — אם סוג העסק שונה בדיעבד, לא ממשיכים לייצר מופעים
+        const routines = await pool.query(
+            `SELECT r.* FROM routines r JOIN family_groups g ON g.id=r.group_id
+             WHERE r.is_active=TRUE AND r.frequency_type='fixed' AND g.business_type = ANY($1)`,
+            [ROUTINES_ALLOWED_BIZ_TYPES]
+        );
+        const today = new Date(); today.setHours(0,0,0,0);
+        for (const rt of routines.rows) {
+            const horizonDays = routineHorizonDays(rt.frequency_interval);
+            const horizonDate = new Date(today); horizonDate.setDate(horizonDate.getDate() + horizonDays);
+            const endDate = rt.end_date ? new Date(rt.end_date) : null;
+
+            const lastRes = await pool.query(
+                `SELECT MAX(scheduled_date) as last_date, COUNT(*) as cnt FROM routine_occurrences WHERE routine_id=$1`,
+                [rt.id]
+            );
+            let cursor = lastRes.rows[0].last_date ? new Date(lastRes.rows[0].last_date) : new Date(rt.start_date);
+            let occurrenceCount = parseInt(lastRes.rows[0].cnt || 0, 10);
+            const isFirst = !lastRes.rows[0].last_date;
+            if (!isFirst) cursor = rt.frequency_interval === 'weekly_days' ? addDaysRoutine(cursor, 1) : routineAddInterval(cursor, rt.frequency_interval);
+
+            let guard = 0;
+            while (cursor <= horizonDate && guard < 400) {
+                guard++;
+                if (endDate && cursor > endDate) break;
+                if (rt.max_occurrences && occurrenceCount >= rt.max_occurrences) break;
+
+                let candidate = cursor;
+                let isValidDay = true;
+                if (rt.frequency_interval === 'weekly_days') {
+                    isValidDay = routineMatchesWeekday(candidate, rt.frequency_weekdays);
+                }
+                if (rt.skip_weekends && (candidate.getDay() === 5 || candidate.getDay() === 6)) isValidDay = false;
+
+                if (isValidDay) {
+                    const dateStr = candidate.toISOString().slice(0, 10);
+                    const exists = await pool.query(
+                        `SELECT 1 FROM routine_occurrences WHERE routine_id=$1 AND scheduled_date=$2`,
+                        [rt.id, dateStr]
+                    );
+                    if (!exists.rows.length) {
+                        const scheduledTime = rt.scheduled_time || null;
+                        let graceDeadline = null;
+                        if (scheduledTime) {
+                            graceDeadline = new Date(`${dateStr}T${scheduledTime}`);
+                            graceDeadline.setMinutes(graceDeadline.getMinutes() + (rt.grace_period_minutes || 60));
+                        } else {
+                            graceDeadline = new Date(`${dateStr}T23:59:59`);
+                            graceDeadline.setMinutes(graceDeadline.getMinutes() + (rt.grace_period_minutes || 60));
+                        }
+                        const occRes = await pool.query(
+                            `INSERT INTO routine_occurrences (routine_id, group_id, scheduled_date, scheduled_time, grace_deadline, assignee_user_id, status)
+                             VALUES ($1,$2,$3,$4,$5,$6,'planned') RETURNING id`,
+                            [rt.id, rt.group_id, dateStr, scheduledTime, graceDeadline, rt.assignee_user_id || null]
+                        );
+                        occurrenceCount++;
+                        await logRoutineEvent(null, { groupId: rt.group_id, routineId: rt.id, occurrenceId: occRes.rows[0].id, eventType: 'occurrence_created', note: `נוצר מופע ל-${dateStr}` });
+                    }
+                }
+
+                cursor = rt.frequency_interval === 'weekly_days' ? addDaysRoutine(candidate, 1) : routineAddInterval(candidate, rt.frequency_interval);
+            }
+        }
+    } catch (e) { console.error('[ROUTINES] generate error:', e.message); }
+}
+function addDaysRoutine(date, n) { const d = new Date(date); d.setDate(d.getDate() + n); return d; }
+
+// מפעיל מופעים שהגיע מועדם — יוצר את הרשומה המחוברת (משימה/יומן/פקודת עבודה) דרך התשתיות הקיימות בלבד
+async function activateDueRoutineOccurrences() {
+    try {
+        const today = new Date().toISOString().slice(0, 10);
+        const due = await pool.query(
+            `SELECT o.*, r.name as routine_name, r.output_type, r.work_order_template, r.site_id
+             FROM routine_occurrences o JOIN routines r ON r.id=o.routine_id
+             WHERE o.status='planned' AND o.scheduled_date<=$1`,
+            [today]
+        );
+        for (const occ of due.rows) {
+            try {
+                let linkedTaskId = null, linkedCalendarEventId = null, linkedWorkOrderId = null;
+                let assigneeName = null;
+                if (occ.assignee_user_id) {
+                    const uRes = await pool.query('SELECT name FROM users WHERE id=$1', [occ.assignee_user_id]);
+                    assigneeName = uRes.rows[0]?.name || null;
+                }
+
+                if (occ.output_type === 'task' || occ.output_type === 'task_calendar') {
+                    const deadline = occ.scheduled_time ? new Date(`${occ.scheduled_date}T${occ.scheduled_time}`) : new Date(`${occ.scheduled_date}T23:59:59`);
+                    const tRes = await pool.query(
+                        `INSERT INTO tasks (group_id, title, reward, assigned_to, deadline, status, is_recurring, recurring_days, created_by, priority)
+                         VALUES ($1,$2,0,$3,$4,'pending',FALSE,'',$5,'medium') RETURNING id`,
+                        [occ.group_id, occ.routine_name, occ.assignee_user_id || null, deadline, 'שגרות']
+                    );
+                    linkedTaskId = tRes.rows[0].id;
+                }
+
+                if (occ.output_type === 'task_calendar') {
+                    let siteTitle = occ.routine_name, siteAddress = '';
+                    if (occ.site_id) {
+                        const sRes = await pool.query('SELECT name, address FROM routine_sites WHERE id=$1', [occ.site_id]);
+                        if (sRes.rows.length) { siteTitle = `${occ.routine_name} — ${sRes.rows[0].name}`; siteAddress = sRes.rows[0].address || ''; }
+                    }
+                    const cRes = await pool.query(
+                        `INSERT INTO calendar_events (group_id, title, event_date, start_time, notes, status, attendees_user_ids)
+                         VALUES ($1,$2,$3,$4,$5,'approved',$6) RETURNING id`,
+                        [occ.group_id, siteTitle, occ.scheduled_date, occ.scheduled_time || '09:00', siteAddress, JSON.stringify(occ.assignee_user_id ? [occ.assignee_user_id] : [])]
+                    );
+                    linkedCalendarEventId = cRes.rows[0].id;
+                }
+
+                if (occ.output_type === 'work_order_template') {
+                    let customerName = null;
+                    const tpl = occ.work_order_template || {};
+                    if (occ.site_id) {
+                        const sRes = await pool.query('SELECT name, address, contact_name, contact_phone FROM routine_sites WHERE id=$1', [occ.site_id]);
+                        if (sRes.rows.length) customerName = sRes.rows[0].contact_name || sRes.rows[0].name;
+                    }
+                    const woRes = await pool.query(
+                        `INSERT INTO store_orders (group_id, customer_name, customer_phone, status, call_type, quote_title, notes, items, total_amount, created_at)
+                         VALUES ($1,$2,$3,'open','work_order',$4,$5,'[]',0,NOW()) RETURNING id`,
+                        [occ.group_id, customerName, null, occ.routine_name, tpl.notes || `נוצר אוטומטית משגרה: ${occ.routine_name}`]
+                    );
+                    linkedWorkOrderId = woRes.rows[0].id;
+                    if (occ.assignee_user_id) {
+                        await pool.query(
+                            `INSERT INTO work_order_assignees (work_order_id, user_id, user_name, assigned_by, role_label) VALUES ($1,$2,$3,'שגרות',$4)
+                             ON CONFLICT (work_order_id, user_id) DO NOTHING`,
+                            [linkedWorkOrderId, occ.assignee_user_id, assigneeName, tpl.roleLabel || null]
+                        );
+                    }
+                }
+
+                await pool.query(
+                    `UPDATE routine_occurrences SET status='open', linked_task_id=$1, linked_calendar_event_id=$2, linked_work_order_id=$3, updated_at=NOW() WHERE id=$4`,
+                    [linkedTaskId, linkedCalendarEventId, linkedWorkOrderId, occ.id]
+                );
+                await logRoutineEvent(null, { groupId: occ.group_id, routineId: occ.routine_id, occurrenceId: occ.id, eventType: 'occurrence_activated', note: `הופעל (task=${linkedTaskId||'-'}, calendar=${linkedCalendarEventId||'-'}, work_order=${linkedWorkOrderId||'-'})` });
+            } catch (eInner) { console.error('[ROUTINES] activate occurrence error:', occ.id, eInner.message); }
+        }
+    } catch (e) { console.error('[ROUTINES] activate error:', e.message); }
+}
+
+// מסמן מופעים שחרגו מחלון החסד כ"בפיגור" (3.3 באפיון)
+async function markOverdueRoutineOccurrences() {
+    try {
+        const overdue = await pool.query(
+            `SELECT id, group_id, routine_id FROM routine_occurrences
+             WHERE status IN ('open','in_progress') AND grace_deadline IS NOT NULL AND grace_deadline < NOW()`
+        );
+        for (const occ of overdue.rows) {
+            await pool.query(`UPDATE routine_occurrences SET status='overdue', updated_at=NOW() WHERE id=$1`, [occ.id]);
+            await logRoutineEvent(null, { groupId: occ.group_id, routineId: occ.routine_id, occurrenceId: occ.id, eventType: 'occurrence_overdue', note: 'חלון החסד חלף' });
+        }
+    } catch (e) { console.error('[ROUTINES] overdue error:', e.message); }
+}
+
+// מוחק מופעים סגורים (ועמם, בזכות ON DELETE CASCADE: ראיות, סבבי אישור ואירועי יומן) שחלפה תקופת
+// השמירה שהוגדרה לשגרה שלהם (7.4/14.3). רץ פעם ביום בלבד — לא קריטי-זמן.
+async function cleanupExpiredRoutineRecords() {
+    try {
+        const r = await pool.query(
+            `DELETE FROM routine_occurrences o USING routines r
+             WHERE o.routine_id=r.id
+               AND o.status IN ('completed','completed_with_exception','skipped','cancelled')
+               AND o.scheduled_date < (CURRENT_DATE - (COALESCE(r.retention_period_days, 365) || ' days')::interval)
+             RETURNING o.id`
+        );
+        if (r.rowCount) console.log(`[ROUTINES] נוקו ${r.rowCount} מופעים שחלפה תקופת השמירה שלהם`);
+    } catch (e) { console.error('[ROUTINES] cleanup error:', e.message); }
+}
+
+async function runRoutinesCron() {
+    await generateRoutineOccurrences();
+    await activateDueRoutineOccurrences();
+    await markOverdueRoutineOccurrences();
+}
+setInterval(runRoutinesCron, 15 * 60 * 1000); // כל 15 דקות
+setTimeout(runRoutinesCron, 100000); // דחייה מסטארטאפ, אחרי שאר המיגרציות
+setInterval(cleanupExpiredRoutineRecords, 24 * 60 * 60 * 1000); // פעם ביממה
+setTimeout(cleanupExpiredRoutineRecords, 180000);
 
 // ===== ניקוי חודשי של תמונות הוכחה מ-Cloudinary (ה-1 לחודש) =====
 async function monthlyCloudinaryCleanup() {
@@ -25048,6 +25495,1115 @@ app.post('/api/work-orders/:id/calendar', verifyBiz, async (req, res) => {
         );
         await addWorkOrderTimeline(req.params.id, 'calendar_event', `זימון נקבע ל-${eventDate} ${startTime}`, 'מנהל');
         res.json({ success: true, eventId: r.rows[0].id });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ===== מודול "שגרות" (Routines) — מסעדות ותיקונים בלבד =====
+// שלב 2: CRUD בסיסי לשגרות + אתרים, לוח שגרות, לוח היום, דוח "מה פוספס", סימון ביצוע פשוט (בלי סבב אישורים — שלב 4).
+const ROUTINES_ALLOWED_BIZ_TYPES = ['restaurant', 'maintenance_repair'];
+async function verifyRoutinesBizType(req, res, next) {
+    try {
+        const r = await pool.query('SELECT business_type FROM family_groups WHERE id=$1', [req.bizAuth.groupId]);
+        const bt = r.rows[0]?.business_type;
+        if (!ROUTINES_ALLOWED_BIZ_TYPES.includes(bt)) {
+            return res.status(403).json({ error: 'מודול "שגרות" זמין רק לעסקי מסעדנות ותחזוקה/תיקונים' });
+        }
+        next();
+    } catch(e) { res.status(500).json({ error: e.message }); }
+}
+
+// הגנה נוספת, חד-ענפית: "מצב ציות" רלוונטי למסעדות בלבד, "חוזי שירות"/"דוח כיסוי" לתחזוקה ותיקונים בלבד —
+// לא מספיק להסתמך על הסתרת הטאב ב-UI, חייב להיאכף גם בשרת (אחרת API ישיר עוקף את ההגבלה).
+function verifyRoutinesSpecificBizType(allowedType) {
+    return async (req, res, next) => {
+        try {
+            const r = await pool.query('SELECT business_type FROM family_groups WHERE id=$1', [req.bizAuth.groupId]);
+            if (r.rows[0]?.business_type !== allowedType) {
+                return res.status(403).json({ error: 'תכונה זו אינה זמינה לסוג העסק שלך' });
+            }
+            next();
+        } catch(e) { res.status(500).json({ error: e.message }); }
+    };
+}
+
+// ===== שלב 9: ספריית תבניות לפי ענף (חלק ד' באפיון) =====
+// התדירויות כאן הן המלצת ברירת מחדל בלבד — "התבנית מציעה, העסק קובע" (חלק ד').
+const ROUTINE_TEMPLATE_CATALOG = {
+    restaurant: [
+        // משפחה 1 — רגולציה ובטיחות
+        { key: 'temp_log', name: 'רישום טמפרטורות קירור והקפאה', family: 'רגולציה ובטיחות', category: 'regulatory', obligationSource: 'law', frequencyInterval: 'daily', evidenceRequirements: ['numeric_value'], valueUnit: '°C', retentionPeriodDays: 365 },
+        { key: 'closing_clean', name: 'ניקוי בגמר יום העבודה', family: 'רגולציה ובטיחות', category: 'regulatory', frequencyInterval: 'daily', evidenceRequirements: ['checklist'] },
+        { key: 'extinguisher_visual', name: 'בדיקה ויזואלית של מטפים', family: 'רגולציה ובטיחות', category: 'safety', frequencyInterval: 'monthly', evidenceRequirements: ['checklist', 'photo'] },
+        { key: 'pest_control', name: 'הדברה', family: 'רגולציה ובטיחות', category: 'regulatory', obligationSource: 'law', frequencyInterval: 'monthly', evidenceRequirements: ['document'], retentionPeriodDays: 730 },
+        { key: 'hood_cleaning', name: 'ניקוי מנדפים ותעלות', family: 'רגולציה ובטיחות', category: 'regulatory', obligationSource: 'insurer', frequencyInterval: 'quarterly', evidenceRequirements: ['document', 'photo'], retentionPeriodDays: 1095 },
+        { key: 'grease_trap', name: 'שאיבת מפריד שומן', family: 'רגולציה ובטיחות', category: 'regulatory', frequencyInterval: 'monthly', evidenceRequirements: ['document'] },
+        { key: 'fire_system_annual', name: 'בדיקת מערכת כיבוי במנדף', family: 'רגולציה ובטיחות', category: 'safety', obligationSource: 'law', frequencyInterval: 'yearly', evidenceRequirements: ['document'], retentionPeriodDays: 1460 },
+        { key: 'extinguisher_annual', name: 'בדיקת מטפים בידי בודק מוסמך', family: 'רגולציה ובטיחות', category: 'safety', obligationSource: 'law', frequencyInterval: 'yearly', evidenceRequirements: ['document'] },
+        { key: 'electric_check', name: 'בדיקת חשמל ותאורת חירום', family: 'רגולציה ובטיחות', category: 'safety', obligationSource: 'insurer', frequencyInterval: 'yearly', evidenceRequirements: ['document'] },
+        { key: 'used_oil', name: 'פינוי שמן טיגון משומש', family: 'רגולציה ובטיחות', category: 'operational', frequencyInterval: 'weekly', evidenceRequirements: ['document'] },
+        { key: 'kashrut_renewal', name: 'חידוש תעודת כשרות', family: 'רגולציה ובטיחות', category: 'regulatory', frequencyType: 'certificate_expiry', evidenceRequirements: ['document'], retentionPeriodDays: 365 },
+        // משפחה 2 — תחזוקת ציוד
+        { key: 'coffee_filter', name: 'החלפת פילטר מים — מכונת קפה ומכונת קרח', family: 'תחזוקת ציוד', category: 'preventive_maintenance', frequencyInterval: 'monthly', evidenceRequirements: ['confirm'] },
+        { key: 'ice_machine_clean', name: 'ניקוי וחיטוי מכונת קרח', family: 'תחזוקת ציוד', category: 'preventive_maintenance', frequencyInterval: 'weekly', evidenceRequirements: ['checklist'] },
+        { key: 'ac_service', name: 'שירות מערכת מיזוג', family: 'תחזוקת ציוד', category: 'preventive_maintenance', frequencyInterval: 'semiannual', evidenceRequirements: ['document'] },
+        // משפחה 3 — תפעול ובקרה
+        { key: 'opening_checklist', name: 'צ\'קליסט פתיחה', family: 'תפעול ובקרה', category: 'operational', frequencyInterval: 'daily', evidenceRequirements: ['checklist'] },
+        { key: 'closing_checklist', name: 'צ\'קליסט סגירה', family: 'תפעול ובקרה', category: 'operational', frequencyInterval: 'daily', evidenceRequirements: ['checklist'] },
+        { key: 'cash_register_close', name: 'סגירת קופה והתאמה', family: 'תפעול ובקרה', category: 'operational', frequencyInterval: 'daily', evidenceRequirements: ['numeric_value'] },
+        { key: 'inventory_count', name: 'ספירת מלאי', family: 'תפעול ובקרה', category: 'operational', frequencyInterval: 'weekly', evidenceRequirements: ['confirm'] },
+        { key: 'foodcost_calc', name: 'חישוב פודקוסט', family: 'תפעול ובקרה', category: 'operational', frequencyInterval: 'weekly', evidenceRequirements: ['confirm'] },
+    ],
+    maintenance_repair: [
+        { key: 'elevator_periodic', name: 'בדיקה תקופתית — מעלית', family: 'מעלית', category: 'regulatory', obligationSource: 'law', frequencyInterval: 'semiannual', evidenceRequirements: ['document'], retentionPeriodDays: 1095 },
+        { key: 'elevator_maintenance', name: 'טיפול מונע — מעלית', family: 'מעלית', category: 'preventive_maintenance', frequencyInterval: 'monthly', evidenceRequirements: ['checklist'] },
+        { key: 'electric_inspector', name: 'בדיקת חשמלאי בודק', family: 'מתקן חשמל', category: 'regulatory', obligationSource: 'law', frequencyInterval: 'yearly', evidenceRequirements: ['document'] },
+        { key: 'thermal_panel_scan', name: 'בדיקה תרמוגרפית — לוחות חשמל', family: 'מתקן חשמל', category: 'safety', obligationSource: 'insurer', frequencyInterval: 'yearly', evidenceRequirements: ['document', 'photo'] },
+        { key: 'sprinkler_check', name: 'בדיקה תקופתית — מערכת מתזים', family: 'כיבוי אש', category: 'safety', obligationSource: 'law', frequencyInterval: 'yearly', evidenceRequirements: ['document'] },
+        { key: 'fire_detection_check', name: 'בדיקה ותחזוקה — גילוי אש', family: 'כיבוי אש', category: 'safety', obligationSource: 'law', frequencyInterval: 'yearly', evidenceRequirements: ['document'] },
+        { key: 'extinguisher_annual_mr', name: 'בדיקה שנתית — מטפים', family: 'כיבוי אש', category: 'safety', obligationSource: 'law', frequencyInterval: 'yearly', evidenceRequirements: ['document'] },
+        { key: 'hydrant_check', name: 'בדיקה — גלגלונים והידרנטים', family: 'כיבוי אש', category: 'safety', obligationSource: 'law', frequencyInterval: 'yearly', evidenceRequirements: ['document'] },
+        { key: 'generator_run', name: 'הרצה — גנרטור חירום', family: 'גנרטור', category: 'preventive_maintenance', frequencyInterval: 'monthly', evidenceRequirements: ['checklist'] },
+        { key: 'generator_load_test', name: 'בדיקה מקיפה עם עומס — גנרטור חירום', family: 'גנרטור', category: 'safety', obligationSource: 'law', frequencyInterval: 'yearly', evidenceRequirements: ['document'] },
+        { key: 'water_tank_clean', name: 'ניקוי וחיטוי — מאגר מים', family: 'מאגר מים', category: 'regulatory', obligationSource: 'law', frequencyInterval: 'yearly', evidenceRequirements: ['document'] },
+        { key: 'ac_maintenance', name: 'טיפול מונע — מיזוג אוויר', family: 'חוזי בלבד', category: 'preventive_maintenance', frequencyInterval: 'semiannual', evidenceRequirements: ['confirm'] },
+        { key: 'ac_filters', name: 'ניקוי מסננים — מיזוג אוויר', family: 'חוזי בלבד', category: 'preventive_maintenance', frequencyInterval: 'quarterly', evidenceRequirements: ['confirm'] },
+        { key: 'pump_maintenance', name: 'טיפול מונע — משאבות', family: 'חוזי בלבד', category: 'preventive_maintenance', frequencyInterval: 'quarterly', evidenceRequirements: ['confirm'] },
+        { key: 'contract_visit', name: 'ביקור שגרתי אצל לקוח בחוזה', family: 'שגרות ללא מתקן', category: 'operational', frequencyInterval: 'monthly', evidenceRequirements: ['confirm'], outputType: 'work_order_template' },
+        { key: 'contract_renewal', name: 'תזכורת חידוש חוזה שירות', family: 'שגרות ללא מתקן', category: 'operational', frequencyInterval: 'yearly', evidenceRequirements: ['confirm'] },
+        { key: 'tech_cert_renewal', name: 'חידוש רישיונות והסמכות של הטכנאים', family: 'שגרות ללא מתקן', category: 'regulatory', frequencyType: 'certificate_expiry', evidenceRequirements: ['document'] },
+    ],
+};
+
+app.get('/api/routines/:groupId/templates', verifyBiz, verifyRoutinesBizType, async (req, res) => {
+    try {
+        const gr = await pool.query('SELECT business_type FROM family_groups WHERE id=$1', [req.params.groupId]);
+        const templates = ROUTINE_TEMPLATE_CATALOG[gr.rows[0]?.business_type] || [];
+        res.json({ success: true, templates });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/routines/:groupId/templates/apply', verifyBiz, verifyRoutinesBizType, async (req, res) => {
+    try {
+        if (parseInt(req.params.groupId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
+        const gr = await pool.query('SELECT business_type FROM family_groups WHERE id=$1', [req.params.groupId]);
+        const businessType = gr.rows[0]?.business_type;
+        const catalog = ROUTINE_TEMPLATE_CATALOG[businessType] || [];
+        const b = req.body || {};
+        const selectedKeys = Array.isArray(b.templateKeys) ? b.templateKeys : [];
+        const siteId = b.siteId || null;
+        const createdIds = [];
+        for (const key of selectedKeys) {
+            const tpl = catalog.find(t => t.key === key);
+            if (!tpl) continue;
+            const r = await pool.query(
+                `INSERT INTO routines (
+                    group_id, business_type, name, category, obligation_source, target_level, site_id,
+                    output_type, frequency_type, frequency_interval, evidence_requirements, value_unit,
+                    retention_period_days, template_source, created_by
+                ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) RETURNING id`,
+                [
+                    req.params.groupId, businessType, tpl.name, tpl.category || 'operational', tpl.obligationSource || null,
+                    'site', siteId,
+                    tpl.outputType || 'task', tpl.frequencyType || 'fixed', tpl.frequencyInterval || 'monthly',
+                    JSON.stringify(tpl.evidenceRequirements || ['confirm']), tpl.valueUnit || null,
+                    tpl.retentionPeriodDays || 365, tpl.key, b.createdBy || null
+                ]
+            );
+            createdIds.push(r.rows[0].id);
+            await logRoutineEvent(null, { groupId: req.params.groupId, routineId: r.rows[0].id, eventType: 'routine_created', actorType: 'user', actorName: b.createdBy || 'מנהל', note: `נוצר מתבנית: ${tpl.name}` });
+        }
+        res.json({ success: true, createdIds });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- שגרות: CRUD ---
+app.get('/api/routines/:groupId', verifyBiz, verifyRoutinesBizType, async (req, res) => {
+    try {
+        if (parseInt(req.params.groupId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
+        const r = await pool.query(
+            `SELECT r.*, s.name as site_name,
+                    (SELECT MIN(scheduled_date) FROM routine_occurrences o WHERE o.routine_id=r.id AND o.status IN ('planned','open','in_progress','overdue','move_requested')) as next_occurrence_date
+             FROM routines r LEFT JOIN routine_sites s ON s.id=r.site_id
+             WHERE r.group_id=$1 ORDER BY r.is_active DESC, r.created_at DESC`,
+            [req.params.groupId]
+        );
+        res.json({ success: true, routines: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/routines/:groupId', verifyBiz, verifyRoutinesBizType, async (req, res) => {
+    try {
+        if (parseInt(req.params.groupId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
+        const gr = await pool.query('SELECT business_type FROM family_groups WHERE id=$1', [req.params.groupId]);
+        const businessType = gr.rows[0]?.business_type;
+        const b = req.body || {};
+        const r = await pool.query(
+            `INSERT INTO routines (
+                group_id, business_type, name, description, instructions, category, obligation_source,
+                target_level, customer_id, site_id, facility_id, item_id, service_contract_id,
+                output_type, work_order_template, frequency_type, frequency_interval, frequency_weekdays,
+                scheduled_time, grace_period_minutes, start_date, end_date, max_occurrences, skip_weekends,
+                assignee_mode, assignee_user_id, assignee_role, vendor_name, vendor_phone,
+                evidence_requirements, checklist_items, value_range_min, value_range_max, value_unit,
+                retention_period_days, template_source, created_by, requires_internal_approval, internal_approval_mode,
+                requires_customer_approval_events, customer_approval_wait_hours, customer_approval_default_policy
+            ) VALUES (
+                $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,$42
+            ) RETURNING id`,
+            [
+                req.params.groupId, businessType, b.name, b.description || null, b.instructions || null,
+                b.category || 'operational', b.obligationSource || null,
+                b.targetLevel || 'site', b.customerId || null, b.siteId || null, b.facilityId || null, b.itemId || null, b.serviceContractId || null,
+                b.outputType || 'task', JSON.stringify(b.workOrderTemplate || {}), b.frequencyType || 'fixed', b.frequencyInterval || 'weekly', b.frequencyWeekdays || null,
+                b.scheduledTime || null, b.gracePeriodMinutes ?? 60, b.startDate || new Date().toISOString().slice(0,10), b.endDate || null, b.maxOccurrences || null, !!b.skipWeekends,
+                b.assigneeMode || 'employee', b.assigneeUserId || null, b.assigneeRole || null, b.vendorName || null, b.vendorPhone || null,
+                JSON.stringify(b.evidenceRequirements || ['confirm']), JSON.stringify(b.checklistItems || []), b.valueRangeMin ?? null, b.valueRangeMax ?? null, b.valueUnit || null,
+                b.retentionPeriodDays ?? 365, b.templateSource || null, b.createdBy || null, !!b.requiresInternalApproval, b.internalApprovalMode || 'click',
+                JSON.stringify(b.requiresCustomerApprovalEvents || []), b.customerApprovalWaitHours ?? 48, b.customerApprovalDefaultPolicy || 'proceed'
+            ]
+        );
+        await logRoutineEvent(null, { groupId: req.params.groupId, routineId: r.rows[0].id, eventType: 'routine_created', actorType: 'user', actorName: b.createdBy || 'מנהל', note: `שגרה נוצרה: ${b.name}` });
+        res.json({ success: true, id: r.rows[0].id });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/routines/:id', verifyBiz, verifyRoutinesBizType, async (req, res) => {
+    try {
+        const own = await pool.query('SELECT * FROM routines WHERE id=$1 AND group_id=$2', [req.params.id, req.bizAuth.groupId]);
+        if (!own.rows.length) return res.status(404).json({ error: 'שגרה לא נמצאה' });
+        const before = own.rows[0];
+        const b = req.body || {};
+        await pool.query(
+            `UPDATE routines SET name=$1, description=$2, instructions=$3, category=$4, obligation_source=$5,
+                frequency_interval=$6, frequency_weekdays=$7, scheduled_time=$8, grace_period_minutes=$9,
+                end_date=$10, max_occurrences=$11, skip_weekends=$12,
+                assignee_mode=$13, assignee_user_id=$14, assignee_role=$15, vendor_name=$16, vendor_phone=$17,
+                evidence_requirements=$18, checklist_items=$19, is_active=$20,
+                requires_internal_approval=$21, internal_approval_mode=$22,
+                requires_customer_approval_events=$23, customer_approval_wait_hours=$24, customer_approval_default_policy=$25, updated_at=NOW()
+             WHERE id=$26`,
+            [
+                b.name ?? before.name, b.description ?? before.description, b.instructions ?? before.instructions,
+                b.category ?? before.category, b.obligationSource ?? before.obligation_source,
+                b.frequencyInterval ?? before.frequency_interval, b.frequencyWeekdays ?? before.frequency_weekdays,
+                b.scheduledTime ?? before.scheduled_time, b.gracePeriodMinutes ?? before.grace_period_minutes,
+                b.endDate ?? before.end_date, b.maxOccurrences ?? before.max_occurrences, b.skipWeekends ?? before.skip_weekends,
+                b.assigneeMode ?? before.assignee_mode, b.assigneeUserId ?? before.assignee_user_id, b.assigneeRole ?? before.assignee_role,
+                b.vendorName ?? before.vendor_name, b.vendorPhone ?? before.vendor_phone,
+                JSON.stringify(b.evidenceRequirements ?? before.evidence_requirements), JSON.stringify(b.checklistItems ?? before.checklist_items),
+                b.isActive ?? before.is_active,
+                b.requiresInternalApproval ?? before.requires_internal_approval, b.internalApprovalMode ?? before.internal_approval_mode,
+                JSON.stringify(b.requiresCustomerApprovalEvents ?? before.requires_customer_approval_events),
+                b.customerApprovalWaitHours ?? before.customer_approval_wait_hours, b.customerApprovalDefaultPolicy ?? before.customer_approval_default_policy,
+                req.params.id
+            ]
+        );
+        if (b.frequencyInterval && b.frequencyInterval !== before.frequency_interval) {
+            await logRoutineEvent(null, { groupId: req.bizAuth.groupId, routineId: req.params.id, eventType: 'frequency_changed', actorType: 'user', actorName: b.updatedBy || 'מנהל', valueBefore: before.frequency_interval, valueAfter: b.frequencyInterval });
+        }
+        await logRoutineEvent(null, { groupId: req.bizAuth.groupId, routineId: req.params.id, eventType: 'routine_updated', actorType: 'user', actorName: b.updatedBy || 'מנהל' });
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/routines/:id', verifyBiz, verifyRoutinesBizType, async (req, res) => {
+    try {
+        const own = await pool.query('SELECT 1 FROM routines WHERE id=$1 AND group_id=$2', [req.params.id, req.bizAuth.groupId]);
+        if (!own.rows.length) return res.status(404).json({ error: 'שגרה לא נמצאה' });
+        await pool.query(`UPDATE routines SET is_active=FALSE, updated_at=NOW() WHERE id=$1`, [req.params.id]);
+        await pool.query(`UPDATE routine_occurrences SET status='cancelled', updated_at=NOW() WHERE routine_id=$1 AND status IN ('planned','open')`, [req.params.id]);
+        await logRoutineEvent(null, { groupId: req.bizAuth.groupId, routineId: req.params.id, eventType: 'routine_deactivated', actorType: 'user', actorName: req.body?.userName || 'מנהל' });
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- אתרים (routine_sites) — בסיסי, להרחבה בשלב 7 (תיק אתר + היררכיה מלאה) ---
+app.get('/api/routines/:groupId/sites', verifyBiz, verifyRoutinesBizType, async (req, res) => {
+    try {
+        if (parseInt(req.params.groupId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
+        const r = await pool.query('SELECT * FROM routine_sites WHERE group_id=$1 ORDER BY name', [req.params.groupId]);
+        res.json({ success: true, sites: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/routines/:groupId/sites', verifyBiz, verifyRoutinesBizType, async (req, res) => {
+    try {
+        if (parseInt(req.params.groupId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
+        const b = req.body || {};
+        const r = await pool.query(
+            `INSERT INTO routine_sites (group_id, customer_id, name, address, contact_name, contact_phone, access_notes, is_internal)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id`,
+            [req.params.groupId, b.customerId || null, b.name, b.address || null, b.contactName || null, b.contactPhone || null, b.accessNotes || null, !!b.isInternal]
+        );
+        res.json({ success: true, id: r.rows[0].id });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- היררכיה: מתקנים (4) ---
+app.get('/api/routines/sites/:siteId/facilities', verifyBiz, verifyRoutinesBizType, async (req, res) => {
+    try {
+        const own = await pool.query('SELECT 1 FROM routine_sites WHERE id=$1 AND group_id=$2', [req.params.siteId, req.bizAuth.groupId]);
+        if (!own.rows.length) return res.status(404).json({ error: 'אתר לא נמצא' });
+        const r = await pool.query('SELECT * FROM routine_facilities WHERE site_id=$1 ORDER BY name', [req.params.siteId]);
+        res.json({ success: true, facilities: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/routines/sites/:siteId/facilities', verifyBiz, verifyRoutinesBizType, async (req, res) => {
+    try {
+        const own = await pool.query('SELECT 1 FROM routine_sites WHERE id=$1 AND group_id=$2', [req.params.siteId, req.bizAuth.groupId]);
+        if (!own.rows.length) return res.status(404).json({ error: 'אתר לא נמצא' });
+        const b = req.body || {};
+        const r = await pool.query(
+            `INSERT INTO routine_facilities (site_id, name, facility_type, notes) VALUES ($1,$2,$3,$4) RETURNING id`,
+            [req.params.siteId, b.name, b.facilityType || null, b.notes || null]
+        );
+        res.json({ success: true, id: r.rows[0].id });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- היררכיה: פריטים (4) — היחידה שעליה נתלים תדירות/תקן/תעודה/תוקף ---
+app.get('/api/routines/facilities/:facilityId/items', verifyBiz, verifyRoutinesBizType, async (req, res) => {
+    try {
+        const own = await pool.query(
+            `SELECT 1 FROM routine_facilities f JOIN routine_sites s ON s.id=f.site_id WHERE f.id=$1 AND s.group_id=$2`,
+            [req.params.facilityId, req.bizAuth.groupId]
+        );
+        if (!own.rows.length) return res.status(404).json({ error: 'מתקן לא נמצא' });
+        const r = await pool.query('SELECT * FROM routine_items WHERE facility_id=$1 ORDER BY name', [req.params.facilityId]);
+        res.json({ success: true, items: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/routines/facilities/:facilityId/items', verifyBiz, verifyRoutinesBizType, async (req, res) => {
+    try {
+        const own = await pool.query(
+            `SELECT 1 FROM routine_facilities f JOIN routine_sites s ON s.id=f.site_id WHERE f.id=$1 AND s.group_id=$2`,
+            [req.params.facilityId, req.bizAuth.groupId]
+        );
+        if (!own.rows.length) return res.status(404).json({ error: 'מתקן לא נמצא' });
+        const b = req.body || {};
+        const r = await pool.query(
+            `INSERT INTO routine_items (facility_id, name, serial_number, install_date, notes) VALUES ($1,$2,$3,$4,$5) RETURNING id`,
+            [req.params.facilityId, b.name, b.serialNumber || null, b.installDate || null, b.notes || null]
+        );
+        res.json({ success: true, id: r.rows[0].id });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- חוזי שירות (19) — "נספח הציוד" הוא בפועל אותה רשימת מתקנים/פריטים שהשגרות שלהם תחת site_id/facility_id/item_id של החוזה ---
+app.get('/api/routines/:groupId/contracts', verifyBiz, verifyRoutinesBizType, verifyRoutinesSpecificBizType('maintenance_repair'), async (req, res) => {
+    try {
+        if (parseInt(req.params.groupId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
+        const r = await pool.query(
+            `SELECT c.*, s.name as site_name,
+                    (SELECT COUNT(*) FROM routines rt WHERE rt.service_contract_id=c.id) as routines_count
+             FROM routine_service_contracts c LEFT JOIN routine_sites s ON s.id=c.site_id
+             WHERE c.group_id=$1 ORDER BY c.status ASC, c.end_date ASC NULLS LAST`,
+            [req.params.groupId]
+        );
+        res.json({ success: true, contracts: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/routines/:groupId/contracts', verifyBiz, verifyRoutinesBizType, verifyRoutinesSpecificBizType('maintenance_repair'), async (req, res) => {
+    try {
+        if (parseInt(req.params.groupId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
+        const b = req.body || {};
+        const r = await pool.query(
+            `INSERT INTO routine_service_contracts (
+                group_id, customer_id, site_id, start_date, end_date, auto_renew, billing_model, subscription_amount,
+                coverage_scope, visits_included_per_year, response_time_standard_hours, response_time_emergency_hours,
+                availability, after_hours_surcharge_pct, status
+             ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,'active') RETURNING id`,
+            [
+                req.params.groupId, b.customerId || null, b.siteId || null, b.startDate || null, b.endDate || null, !!b.autoRenew,
+                b.billingModel || 'per_visit', b.subscriptionAmount ?? null, b.coverageScope || 'labor', b.visitsIncludedPerYear ?? null,
+                b.responseTimeStandardHours ?? null, b.responseTimeEmergencyHours ?? null, b.availability || 'business_hours', b.afterHoursSurchargePct ?? null
+            ]
+        );
+        await logRoutineEvent(null, { groupId: req.params.groupId, eventType: 'service_contract_created', actorType: 'user', actorName: b.createdBy || 'מנהל', note: `חוזה שירות נוצר (#${r.rows[0].id})` });
+        res.json({ success: true, id: r.rows[0].id });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/routines/contracts/:id', verifyBiz, verifyRoutinesBizType, verifyRoutinesSpecificBizType('maintenance_repair'), async (req, res) => {
+    try {
+        const own = await pool.query('SELECT * FROM routine_service_contracts WHERE id=$1 AND group_id=$2', [req.params.id, req.bizAuth.groupId]);
+        if (!own.rows.length) return res.status(404).json({ error: 'חוזה לא נמצא' });
+        const before = own.rows[0];
+        const b = req.body || {};
+        await pool.query(
+            `UPDATE routine_service_contracts SET end_date=$1, auto_renew=$2, status=$3, visits_included_per_year=$4, updated_at=NOW() WHERE id=$5`,
+            [b.endDate ?? before.end_date, b.autoRenew ?? before.auto_renew, b.status ?? before.status, b.visitsIncludedPerYear ?? before.visits_included_per_year, req.params.id]
+        );
+        // סיום חוזה מפסיק אוטומטית את כל השגרות שלו (19)
+        if (b.status === 'ended' && before.status !== 'ended') {
+            const linked = await pool.query('SELECT id FROM routines WHERE service_contract_id=$1 AND is_active=TRUE', [req.params.id]);
+            for (const rt of linked.rows) {
+                await pool.query(`UPDATE routines SET is_active=FALSE, updated_at=NOW() WHERE id=$1`, [rt.id]);
+                await pool.query(`UPDATE routine_occurrences SET status='cancelled', updated_at=NOW() WHERE routine_id=$1 AND status IN ('planned','open')`, [rt.id]);
+                await logRoutineEvent(null, { groupId: req.bizAuth.groupId, routineId: rt.id, eventType: 'routine_deactivated', actorType: 'user', actorName: b.updatedBy || 'מנהל', note: `חוזה #${req.params.id} הסתיים` });
+            }
+        }
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- דוח כיסוי חוזי (22) — ביקורים שנמכרו מול שבוצעו, לשיחת החידוש ---
+// --- מסך "מצב ציות לרישוי" (17) — כל השגרות הרגולטוריות/בטיחות באתר ומצב התעודות שלהן: בתוקף/עומד לפוג/פג ---
+app.get('/api/routines/:groupId/compliance-status', verifyBiz, verifyRoutinesBizType, verifyRoutinesSpecificBizType('restaurant'), async (req, res) => {
+    try {
+        if (parseInt(req.params.groupId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
+        const routines = await pool.query(
+            `SELECT r.id, r.name, r.category, r.obligation_source, r.site_id, s.name as site_name
+             FROM routines r LEFT JOIN routine_sites s ON s.id=r.site_id
+             WHERE r.group_id=$1 AND r.is_active=TRUE AND r.category IN ('regulatory','safety')
+             ORDER BY r.name`,
+            [req.params.groupId]
+        );
+        const result = [];
+        for (const rt of routines.rows) {
+            const latestDoc = await pool.query(
+                `SELECT ev.document_expiry_date, ev.document_issuer FROM routine_evidence ev
+                 JOIN routine_occurrences o ON o.id=ev.occurrence_id
+                 WHERE o.routine_id=$1 AND ev.evidence_type='document' AND ev.document_expiry_date IS NOT NULL
+                 ORDER BY ev.document_expiry_date DESC LIMIT 1`,
+                [rt.id]
+            );
+            const doc = latestDoc.rows[0];
+            let docStatus = 'none'; // אין עדיין תעודה רשומה
+            if (doc?.document_expiry_date) {
+                const daysLeft = Math.ceil((new Date(doc.document_expiry_date) - new Date()) / 86400000);
+                docStatus = daysLeft < 0 ? 'expired' : (daysLeft <= 30 ? 'expiring_soon' : 'valid');
+            }
+            result.push({
+                routineId: rt.id, name: rt.name, category: rt.category, obligationSource: rt.obligation_source,
+                siteName: rt.site_name, expiryDate: doc?.document_expiry_date || null, issuer: doc?.document_issuer || null, status: docStatus,
+            });
+        }
+        result.sort((a, b) => {
+            const order = { expired: 0, expiring_soon: 1, none: 2, valid: 3 };
+            return order[a.status] - order[b.status];
+        });
+        res.json({ success: true, items: result });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/routines/:groupId/contract-coverage', verifyBiz, verifyRoutinesBizType, verifyRoutinesSpecificBizType('maintenance_repair'), async (req, res) => {
+    try {
+        if (parseInt(req.params.groupId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
+        const contracts = await pool.query(
+            `SELECT c.*, s.name as site_name FROM routine_service_contracts c LEFT JOIN routine_sites s ON s.id=c.site_id
+             WHERE c.group_id=$1 AND c.status='active'`,
+            [req.params.groupId]
+        );
+        const result = [];
+        for (const c of contracts.rows) {
+            const yearStart = new Date(); yearStart.setFullYear(yearStart.getFullYear() - 1);
+            const done = await pool.query(
+                `SELECT COUNT(*) as cnt FROM routine_occurrences o JOIN routines rt ON rt.id=o.routine_id
+                 WHERE rt.service_contract_id=$1 AND o.status IN ('completed','completed_with_exception') AND o.scheduled_date >= $2`,
+                [c.id, yearStart.toISOString().slice(0,10)]
+            );
+            const expiringDocs = await pool.query(
+                `SELECT COUNT(*) as cnt FROM routine_evidence ev
+                 JOIN routine_occurrences o ON o.id=ev.occurrence_id JOIN routines rt ON rt.id=o.routine_id
+                 WHERE rt.service_contract_id=$1 AND ev.evidence_type='document' AND ev.document_expiry_date IS NOT NULL
+                   AND ev.document_expiry_date < (CURRENT_DATE + INTERVAL '30 days')`,
+                [c.id]
+            );
+            const nextRes = await pool.query(
+                `SELECT MIN(o.scheduled_date) as next_date FROM routine_occurrences o JOIN routines rt ON rt.id=o.routine_id
+                 WHERE rt.service_contract_id=$1 AND o.status IN ('planned','open')`,
+                [c.id]
+            );
+            result.push({
+                contractId: c.id, siteName: c.site_name, visitsIncluded: c.visits_included_per_year,
+                visitsDone: parseInt(done.rows[0].cnt, 10), visitsRemaining: c.visits_included_per_year != null ? Math.max(0, c.visits_included_per_year - parseInt(done.rows[0].cnt, 10)) : null,
+                nextVisitDate: nextRes.rows[0]?.next_date || null, expiringDocumentsCount: parseInt(expiringDocs.rows[0].cnt, 10),
+                endDate: c.end_date,
+            });
+        }
+        res.json({ success: true, coverage: result });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- תיק אתר (8) — מסך אחד: פרטי אתר, מתקנים ופריטים, שגרות פעילות, היסטוריית מופעים, תעודות, חריגות ---
+app.get('/api/routines/sites/:id/file', verifyBiz, verifyRoutinesBizType, async (req, res) => {
+    try {
+        const siteRes = await pool.query('SELECT * FROM routine_sites WHERE id=$1 AND group_id=$2', [req.params.id, req.bizAuth.groupId]);
+        if (!siteRes.rows.length) return res.status(404).json({ error: 'אתר לא נמצא' });
+        const site = siteRes.rows[0];
+        const [facilities, routines, history, documents, openExceptions] = await Promise.all([
+            pool.query(
+                `SELECT f.*, (SELECT json_agg(i.*) FROM routine_items i WHERE i.facility_id=f.id) as items
+                 FROM routine_facilities f WHERE f.site_id=$1 ORDER BY f.name`, [req.params.id]
+            ),
+            pool.query(
+                `SELECT r.*, (SELECT MIN(scheduled_date) FROM routine_occurrences o WHERE o.routine_id=r.id AND o.status IN ('planned','open','in_progress','overdue')) as next_occurrence_date
+                 FROM routines r WHERE r.site_id=$1 AND r.is_active=TRUE ORDER BY r.category`, [req.params.id]
+            ),
+            pool.query(
+                `SELECT o.id, o.scheduled_date, o.status, o.completed_by, r.name as routine_name
+                 FROM routine_occurrences o JOIN routines r ON r.id=o.routine_id
+                 WHERE r.site_id=$1 ORDER BY o.scheduled_date DESC LIMIT 100`, [req.params.id]
+            ),
+            pool.query('SELECT * FROM routine_documents WHERE site_id=$1 ORDER BY generated_at DESC', [req.params.id]),
+            pool.query(
+                `SELECT o.id, o.scheduled_date, r.name as routine_name FROM routine_occurrences o JOIN routines r ON r.id=o.routine_id
+                 WHERE r.site_id=$1 AND o.status='completed_with_exception' ORDER BY o.scheduled_date DESC LIMIT 20`, [req.params.id]
+            ),
+        ]);
+        res.json({
+            success: true, site, facilities: facilities.rows, routines: routines.rows,
+            history: history.rows, documents: documents.rows, openExceptions: openExceptions.rows,
+        });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ===== שלב 8: הפקת מסמכים ושליחתם (11) =====
+// אין ספריית PDF שרתית בפרויקט — אותו דפוס שכבר נהוג בקוד (הצעות מחיר/ניוזלטרים): עמוד HTML מעוצב
+// עם כפתור "הדפס / שמור PDF" (window.print). מיתוג זהה לחנות/הצעות מחיר — שם/טלפון/כתובת/לוגו מ-family_groups.
+async function _routineDocBranding(groupId) {
+    const r = await pool.query('SELECT name, phone, address, logo_base64 FROM family_groups WHERE id=$1', [groupId]).catch(() => ({ rows: [{}] }));
+    return r.rows[0] || {};
+}
+function _routineDocNumber(groupId) {
+    return `RT-${groupId}-${Date.now().toString(36).toUpperCase()}`;
+}
+function _routineDocHeader(biz, docTitle, docNumber) {
+    const logoHtml = biz.logo_base64
+        ? `<img src="${biz.logo_base64}" style="max-height:64px;max-width:160px;border-radius:8px;object-fit:contain;">`
+        : `<div style="font-size:20px;font-weight:900;color:#0f766e;">${biz.name || ''}</div>`;
+    return `
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #0f766e;padding-bottom:14px;margin-bottom:16px;">
+        <div>${logoHtml}
+            <div style="font-size:11px;color:#64748b;margin-top:6px;">${biz.name ? '<strong>' + biz.name + '</strong><br>' : ''}${biz.phone ? '📞 ' + biz.phone + '<br>' : ''}${biz.address ? '📍 ' + biz.address : ''}</div>
+        </div>
+        <div style="text-align:left;min-width:160px;">
+            <div style="font-size:18px;font-weight:900;color:#0f766e;margin-bottom:4px;">${docTitle}</div>
+            <div style="font-size:10px;color:#64748b;">מס׳ מסמך: <strong>${docNumber}</strong></div>
+            <div style="font-size:10px;color:#64748b;">הופק: ${new Date().toLocaleString('he-IL')}</div>
+        </div>
+    </div>`;
+}
+function _routineDocShell(title, bodyHtml) {
+    return `<!DOCTYPE html><html dir="rtl" lang="he"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${title}</title>
+<style>
+*{box-sizing:border-box}body{font-family:Arial,sans-serif;color:#0f172a;margin:0;padding:24px;background:#f8fafc}
+@page{size:A4 portrait;margin:15mm 18mm}
+@media print{.no-print{display:none!important}body{background:#fff;padding:0}}
+.sheet{max-width:800px;margin:0 auto;background:#fff;border-radius:16px;padding:24px;box-shadow:0 4px 20px rgba(0,0,0,.06)}
+table{width:100%;border-collapse:collapse;margin:10px 0;font-size:12px}
+th{background:#f0fdfa;padding:8px;text-align:right;border-bottom:2px solid #0f766e;color:#0f766e}
+td{padding:7px 8px;border-bottom:1px solid #f1f5f9}
+.print-btn{background:#0f766e;color:#fff;border:none;padding:10px 24px;border-radius:10px;font-weight:700;cursor:pointer;font-size:14px;margin-bottom:16px}
+.badge{display:inline-block;font-size:10px;padding:2px 8px;border-radius:999px;background:#f1f5f9;color:#475569}
+.ok{background:#dcfce7;color:#166534}.warn{background:#fef3c7;color:#92400e}.bad{background:#fee2e2;color:#b91c1c}
+</style></head>
+<body>
+<div class="no-print" style="text-align:center"><button class="print-btn" onclick="window.print()">🖨️ הדפס / שמור PDF</button></div>
+<div class="sheet">${bodyHtml}</div>
+</body></html>`;
+}
+
+// --- מסמך 1: אישור ביצוע למופע בודד (11.1) ---
+app.post('/api/routine-occurrences/:id/documents/occurrence-report', verifyBiz, verifyRoutinesBizType, async (req, res) => {
+    try {
+        const occRes = await pool.query('SELECT 1 FROM routine_occurrences WHERE id=$1 AND group_id=$2', [req.params.id, req.bizAuth.groupId]);
+        if (!occRes.rows.length) return res.status(404).json({ error: 'מופע לא נמצא' });
+        const exposureLevel = req.body?.exposureLevel === 'internal' ? 'internal' : 'customer';
+        const token = require('crypto').randomBytes(24).toString('hex');
+        const docRes = await pool.query(
+            `INSERT INTO routine_documents (group_id, occurrence_id, document_type, exposure_level, document_number, view_token, generated_by)
+             VALUES ($1,$2,'occurrence_report',$3,$4,$5,$6) RETURNING id`,
+            [req.bizAuth.groupId, req.params.id, exposureLevel, _routineDocNumber(req.bizAuth.groupId), token, req.body?.userName || null]
+        );
+        await logRoutineEvent(null, { groupId: req.bizAuth.groupId, occurrenceId: req.params.id, eventType: 'document_generated', actorType: 'user', actorName: req.body?.userName || 'מנהל', note: `אישור ביצוע (${exposureLevel})` });
+        const baseUrl = process.env.APP_URL || `https://${req.get('host')}`;
+        res.json({ success: true, documentId: docRes.rows[0].id, url: `${baseUrl}/c/rt-doc/${docRes.rows[0].id}/${token}` });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- מסמך 2: דוח שגרה לתקופה (11.1) ---
+app.post('/api/routines/:id/documents/period-report', verifyBiz, verifyRoutinesBizType, async (req, res) => {
+    try {
+        const own = await pool.query('SELECT 1 FROM routines WHERE id=$1 AND group_id=$2', [req.params.id, req.bizAuth.groupId]);
+        if (!own.rows.length) return res.status(404).json({ error: 'שגרה לא נמצאה' });
+        const exposureLevel = req.body?.exposureLevel === 'internal' ? 'internal' : 'customer';
+        const params = { fromDate: req.body?.fromDate || null, toDate: req.body?.toDate || null };
+        const token = require('crypto').randomBytes(24).toString('hex');
+        const docRes = await pool.query(
+            `INSERT INTO routine_documents (group_id, document_type, exposure_level, document_number, view_token, generated_by, params)
+             VALUES ($1,'routine_period_report',$2,$3,$4,$5,$6) RETURNING id`,
+            [req.bizAuth.groupId, exposureLevel, _routineDocNumber(req.bizAuth.groupId), token, req.body?.userName || null, JSON.stringify({ ...params, routineId: req.params.id })]
+        );
+        await logRoutineEvent(null, { groupId: req.bizAuth.groupId, routineId: req.params.id, eventType: 'document_generated', actorType: 'user', actorName: req.body?.userName || 'מנהל', note: `דוח שגרה לתקופה (${exposureLevel})` });
+        const baseUrl = process.env.APP_URL || `https://${req.get('host')}`;
+        res.json({ success: true, documentId: docRes.rows[0].id, url: `${baseUrl}/c/rt-doc/${docRes.rows[0].id}/${token}` });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- מסמך 3: תיק אתר מלא (11.1-11.2) — שתי תצורות מוכנות: audit (ביקורת) / customer (ללקוח) ---
+app.post('/api/routines/sites/:id/documents/site-file', verifyBiz, verifyRoutinesBizType, async (req, res) => {
+    try {
+        const own = await pool.query('SELECT 1 FROM routine_sites WHERE id=$1 AND group_id=$2', [req.params.id, req.bizAuth.groupId]);
+        if (!own.rows.length) return res.status(404).json({ error: 'אתר לא נמצא' });
+        const preset = req.body?.preset === 'customer' ? 'customer' : 'audit';
+        const exposureLevel = preset === 'customer' ? 'customer' : 'internal';
+        const months = preset === 'customer' ? (req.body?.historyMonths ?? 3) : 12;
+        const params = { preset, historyMonths: months, regulatoryOnly: preset === 'audit', embedCertFiles: preset === 'audit', includeImages: !!req.body?.includeImages };
+        const token = require('crypto').randomBytes(24).toString('hex');
+        const docRes = await pool.query(
+            `INSERT INTO routine_documents (group_id, site_id, document_type, exposure_level, document_number, view_token, generated_by, params)
+             VALUES ($1,$2,'site_file',$3,$4,$5,$6,$7) RETURNING id`,
+            [req.bizAuth.groupId, req.params.id, exposureLevel, _routineDocNumber(req.bizAuth.groupId), token, req.body?.userName || null, JSON.stringify(params)]
+        );
+        await logRoutineEvent(null, { groupId: req.bizAuth.groupId, eventType: 'document_generated', actorType: 'user', actorName: req.body?.userName || 'מנהל', note: `תיק אתר (${preset})` });
+        const baseUrl = process.env.APP_URL || `https://${req.get('host')}`;
+        res.json({ success: true, documentId: docRes.rows[0].id, url: `${baseUrl}/c/rt-doc/${docRes.rows[0].id}/${token}` });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- עמוד צפייה ציבורי (11.5: "קישור צפייה") — אותו דפוס confirm_token, קריאה בלבד, בלי הרשמה ---
+app.get('/c/rt-doc/:id/:token', async (req, res) => {
+    try {
+        const docRes = await pool.query('SELECT * FROM routine_documents WHERE id=$1 AND view_token=$2', [req.params.id, req.params.token]);
+        if (!docRes.rows.length) return res.status(404).send('<h2 style="text-align:center;font-family:Arial;margin-top:20vh">קישור לא תקף</h2>');
+        const doc = docRes.rows[0];
+        if (!doc.viewed_at) await pool.query('UPDATE routine_documents SET viewed_at=NOW() WHERE id=$1', [doc.id]);
+        const biz = await _routineDocBranding(doc.group_id);
+        const isInternal = doc.exposure_level === 'internal';
+
+        if (doc.document_type === 'occurrence_report') {
+            const occRes = await pool.query(
+                `SELECT o.*, r.name as routine_name, r.category, u.name as assignee_name, s.name as site_name
+                 FROM routine_occurrences o JOIN routines r ON r.id=o.routine_id LEFT JOIN users u ON u.id=o.assignee_user_id LEFT JOIN routine_sites s ON s.id=r.site_id
+                 WHERE o.id=$1`, [doc.occurrence_id]
+            );
+            const occ = occRes.rows[0];
+            const evidence = (await pool.query('SELECT * FROM routine_evidence WHERE occurrence_id=$1 ORDER BY created_at', [doc.occurrence_id])).rows;
+            const rounds = isInternal ? (await pool.query('SELECT * FROM routine_approval_rounds WHERE occurrence_id=$1 ORDER BY round_number', [doc.occurrence_id])).rows : [];
+            const body = `
+                ${_routineDocHeader(biz, 'אישור ביצוע', doc.document_number)}
+                <h2 style="font-size:16px;margin-bottom:4px;">${occ?.routine_name || ''}</h2>
+                <div style="font-size:12px;color:#64748b;margin-bottom:12px;">${occ?.site_name ? occ.site_name + ' · ' : ''}בוצע בתאריך ${occ?.scheduled_date}${occ?.completed_by ? ' · בידי ' + occ.completed_by : ''}</div>
+                <span class="badge ${occ?.status === 'completed_with_exception' ? 'warn' : 'ok'}">${occ?.status === 'completed_with_exception' ? 'הושלם עם חריגה' : 'הושלם'}</span>
+                ${evidence.length ? `<table><tr><th>סוג</th><th>פירוט</th></tr>${evidence.map(e => `<tr><td>${e.evidence_type}</td><td>${e.note_text || e.numeric_value || e.document_issuer || ''}</td></tr>`).join('')}</table>` : ''}
+                ${isInternal && rounds.length ? `<h3 style="font-size:13px;margin-top:16px;">שרשרת אישורים</h3><table><tr><th>סבב</th><th>פנימי</th><th>לקוח</th></tr>${rounds.map(r => `<tr><td>${r.round_number}</td><td>${r.internal_status}${r.internal_decided_by ? ' · ' + r.internal_decided_by : ''}</td><td>${r.customer_status}${r.customer_decided_at ? ' · ' + new Date(r.customer_decided_at).toLocaleDateString('he-IL') : ''}</td></tr>`).join('')}</table>` : ''}
+            `;
+            return res.send(_routineDocShell('אישור ביצוע', body));
+        }
+
+        if (doc.document_type === 'routine_period_report') {
+            const p = typeof doc.params === 'string' ? JSON.parse(doc.params) : (doc.params || {});
+            const rtRes = await pool.query('SELECT * FROM routines WHERE id=$1', [p.routineId]);
+            const rt = rtRes.rows[0];
+            const conds = ['o.routine_id=$1']; const qp = [p.routineId];
+            if (p.fromDate) { qp.push(p.fromDate); conds.push(`o.scheduled_date >= $${qp.length}`); }
+            if (p.toDate) { qp.push(p.toDate); conds.push(`o.scheduled_date <= $${qp.length}`); }
+            const occs = (await pool.query(`SELECT * FROM routine_occurrences o WHERE ${conds.join(' AND ')} ORDER BY o.scheduled_date ASC`, qp)).rows;
+            const body = `
+                ${_routineDocHeader(biz, 'דוח שגרה לתקופה', doc.document_number)}
+                <h2 style="font-size:16px;margin-bottom:4px;">${rt?.name || ''}</h2>
+                <div style="font-size:12px;color:#64748b;margin-bottom:12px;">${p.fromDate || 'מההתחלה'} — ${p.toDate || 'היום'} · ${occs.length} מופעים</div>
+                <table><tr><th>תאריך</th><th>סטטוס</th><th>מבצע</th></tr>
+                ${occs.map(o => `<tr><td>${o.scheduled_date}</td><td><span class="badge ${o.status.includes('completed') ? 'ok' : (o.status === 'overdue' ? 'bad' : '')}">${o.status}</span></td><td>${o.completed_by || '-'}</td></tr>`).join('')}
+                </table>
+            `;
+            return res.send(_routineDocShell('דוח שגרה לתקופה', body));
+        }
+
+        if (doc.document_type === 'site_file') {
+            const p = typeof doc.params === 'string' ? JSON.parse(doc.params) : (doc.params || {});
+            const site = (await pool.query('SELECT * FROM routine_sites WHERE id=$1', [doc.site_id])).rows[0];
+            const facilities = (await pool.query(
+                `SELECT f.*, (SELECT json_agg(i.*) FROM routine_items i WHERE i.facility_id=f.id) as items FROM routine_facilities f WHERE f.site_id=$1`, [doc.site_id]
+            )).rows;
+            const routineConds = ['r.site_id=$1', 'r.is_active=TRUE'];
+            if (p.regulatoryOnly) routineConds.push(`r.category IN ('regulatory','safety')`);
+            const routines = (await pool.query(`SELECT * FROM routines r WHERE ${routineConds.join(' AND ')}`, [doc.site_id])).rows;
+            const since = new Date(); since.setMonth(since.getMonth() - (p.historyMonths || 3));
+            const history = (await pool.query(
+                `SELECT o.*, r.name as routine_name FROM routine_occurrences o JOIN routines r ON r.id=o.routine_id
+                 WHERE r.site_id=$1 AND o.scheduled_date >= $2 ORDER BY o.scheduled_date DESC`, [doc.site_id, since.toISOString().slice(0,10)]
+            )).rows;
+            const certs = p.embedCertFiles ? (await pool.query(
+                `SELECT ev.* FROM routine_evidence ev JOIN routine_occurrences o ON o.id=ev.occurrence_id JOIN routines r ON r.id=o.routine_id
+                 WHERE r.site_id=$1 AND ev.evidence_type='document' ORDER BY ev.document_expiry_date DESC NULLS LAST`, [doc.site_id]
+            )).rows : [];
+            const body = `
+                ${_routineDocHeader(biz, p.preset === 'customer' ? 'דוח שירות ללקוח' : 'תיק ביקורת', doc.document_number)}
+                <h2 style="font-size:16px;margin-bottom:4px;">${site?.name || ''}</h2>
+                <div style="font-size:12px;color:#64748b;margin-bottom:12px;">${site?.address || ''}</div>
+                <h3 style="font-size:13px;margin-top:14px;">מתקנים ופריטים</h3>
+                <table><tr><th>מתקן</th><th>פריטים</th></tr>${facilities.map(f => `<tr><td>${f.name}</td><td>${(f.items||[]).map(i=>i.name).join(', ')}</td></tr>`).join('')}</table>
+                <h3 style="font-size:13px;margin-top:14px;">שגרות פעילות</h3>
+                <table><tr><th>שם</th><th>קטגוריה</th></tr>${routines.map(r => `<tr><td>${r.name}</td><td>${r.category}</td></tr>`).join('')}</table>
+                <h3 style="font-size:13px;margin-top:14px;">היסטוריית ביצוע (${p.historyMonths} חודשים אחרונים)</h3>
+                <table><tr><th>תאריך</th><th>שגרה</th><th>סטטוס</th></tr>${history.map(h => `<tr><td>${h.scheduled_date}</td><td>${h.routine_name}</td><td>${h.status}</td></tr>`).join('')}</table>
+                ${certs.length ? `<h3 style="font-size:13px;margin-top:14px;">תעודות</h3><table><tr><th>מנפיק</th><th>תוקף עד</th></tr>${certs.map(c => `<tr><td>${c.document_issuer || ''}</td><td>${c.document_expiry_date || ''}</td></tr>`).join('')}</table>` : ''}
+            `;
+            return res.send(_routineDocShell(p.preset === 'customer' ? 'דוח שירות' : 'תיק ביקורת', body));
+        }
+
+        res.status(400).send('סוג מסמך לא נתמך');
+    } catch(e) { res.status(500).send('שגיאה: ' + e.message); }
+});
+
+// --- שליחה (11.5-11.6) — וואטסאפ (אינטגרציה קיימת) / מייל / הורדה / קישור צפייה, עם תיעוד שליחה ---
+app.post('/api/routine-documents/:id/send', verifyBiz, verifyRoutinesBizType, async (req, res) => {
+    try {
+        const docRes = await pool.query('SELECT * FROM routine_documents WHERE id=$1 AND group_id=$2', [req.params.id, req.bizAuth.groupId]);
+        if (!docRes.rows.length) return res.status(404).json({ error: 'מסמך לא נמצא' });
+        const doc = docRes.rows[0];
+        const { channel, to, recipientName } = req.body || {};
+        const baseUrl = process.env.APP_URL || `https://${req.get('host')}`;
+        const url = `${baseUrl}/c/rt-doc/${doc.id}/${doc.view_token}`;
+
+        if (channel === 'whatsapp') {
+            if (!to) return res.status(400).json({ error: 'נדרש מספר טלפון' });
+            const biz = await _routineDocBranding(req.bizAuth.groupId);
+            await sendWhatsApp(pool, req.bizAuth.groupId, to, biz.name || 'העסק', 'מסמך חדש זמין לצפייה:', url, 'customer', recipientName || '', 'routine_document');
+        } else if (channel === 'email') {
+            if (!to) return res.status(400).json({ error: 'נדרש כתובת מייל' });
+            await sendSystemEmail(to, 'מסמך חדש', `<p>שלום,</p><p>מסמך חדש זמין לצפייה: <a href="${url}">${url}</a></p>`).catch(() => {});
+        }
+        // 'download' ו-'view_link' — אין פעולת שרת נוספת, רק תיעוד השליחה/השימוש
+
+        await pool.query(`UPDATE routine_documents SET sent_channel=$1, sent_to=$2, sent_at=NOW() WHERE id=$3`, [channel, to || null, req.params.id]);
+        await logRoutineEvent(null, { groupId: req.bizAuth.groupId, occurrenceId: doc.occurrence_id, eventType: 'document_sent', actorType: 'user', actorName: req.body?.userName || 'מנהל', channel, note: `מסמך #${doc.id} נשלח ל-${to || 'הורדה/קישור'}` });
+        res.json({ success: true, url });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- לוח מופעים: היום / טווח / "מה פוספס" ---
+app.get('/api/routines/:groupId/occurrences', verifyBiz, verifyRoutinesBizType, async (req, res) => {
+    try {
+        if (parseInt(req.params.groupId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
+        const { from, to, status, assigneeUserId } = req.query;
+        const conds = ['o.group_id=$1'];
+        const params = [req.params.groupId];
+        if (from) { params.push(from); conds.push(`o.scheduled_date >= $${params.length}`); }
+        if (to) { params.push(to); conds.push(`o.scheduled_date <= $${params.length}`); }
+        if (status) { params.push(status); conds.push(`o.status = $${params.length}`); }
+        if (assigneeUserId) { params.push(assigneeUserId); conds.push(`o.assignee_user_id = $${params.length}`); }
+        const r = await pool.query(
+            `SELECT o.*, r.name as routine_name, r.category, r.output_type, u.name as assignee_name
+             FROM routine_occurrences o
+             JOIN routines r ON r.id=o.routine_id
+             LEFT JOIN users u ON u.id=o.assignee_user_id
+             WHERE ${conds.join(' AND ')}
+             ORDER BY o.scheduled_date ASC, o.scheduled_time ASC NULLS LAST`,
+            params
+        );
+        res.json({ success: true, occurrences: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/routines/:groupId/today', verifyBiz, verifyRoutinesBizType, async (req, res) => {
+    try {
+        if (parseInt(req.params.groupId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
+        const today = new Date().toISOString().slice(0, 10);
+        const r = await pool.query(
+            `SELECT o.*, r.name as routine_name, r.category, u.name as assignee_name
+             FROM routine_occurrences o JOIN routines r ON r.id=o.routine_id LEFT JOIN users u ON u.id=o.assignee_user_id
+             WHERE o.group_id=$1 AND o.scheduled_date=$2
+             ORDER BY o.scheduled_time ASC NULLS LAST`,
+            [req.params.groupId, today]
+        );
+        res.json({ success: true, occurrences: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// דוח "מה פוספס" — רגולטורי/בטיחות קודם, לפי האפיון (סעיף 10)
+app.get('/api/routines/:groupId/missed', verifyBiz, verifyRoutinesBizType, async (req, res) => {
+    try {
+        if (parseInt(req.params.groupId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
+        const r = await pool.query(
+            `SELECT o.*, r.name as routine_name, r.category, r.obligation_source, u.name as assignee_name
+             FROM routine_occurrences o JOIN routines r ON r.id=o.routine_id LEFT JOIN users u ON u.id=o.assignee_user_id
+             WHERE o.group_id=$1 AND o.status='overdue'
+             ORDER BY CASE r.category WHEN 'regulatory' THEN 0 WHEN 'safety' THEN 1 ELSE 2 END, o.scheduled_date ASC`,
+            [req.params.groupId]
+        );
+        res.json({ success: true, occurrences: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- סימון מופע כבוצע — מסלול מהיר (תחנה אחת), ללא סבב אישורים. סבב מלא: שלב 4 ---
+// מסלול ביצוע (13.1-13.2 באפיון): אם לשגרה אין requires_internal_approval — סגירה מיידית (מסלול מהיר, כברירת המחדל).
+// אם כן — נפתח סבב אישורים, העובד מגיש, והמופע נסגר רק אחרי אישור פנימי (ואישור לקוח — שלב 5).
+// שלב 5: אם לשגרה דרוש גם אישור לקוח לסיום ("אישור ביצוע בסיום" — 12.2), תחנת האישור הפנימי אינה סוגרת
+// את המופע לבדה — רק פותחת את שער הלקוח. הסגירה בפועל קורית ב-_maybeCloseRoutineRound.
+function _routineRequiresCustomerCompletionApproval(routine) {
+    try {
+        const events = typeof routine.requires_customer_approval_events === 'string'
+            ? JSON.parse(routine.requires_customer_approval_events) : (routine.requires_customer_approval_events || []);
+        return Array.isArray(events) && events.includes('completion');
+    } catch(e) { return false; }
+}
+
+async function _ensureRoutineRoundCustomerToken(roundId) {
+    const token = require('crypto').randomBytes(24).toString('hex');
+    await pool.query(`UPDATE routine_approval_rounds SET confirm_token=$1, customer_status='pending' WHERE id=$2 AND confirm_token IS NULL`, [token, roundId]);
+    const r = await pool.query('SELECT confirm_token FROM routine_approval_rounds WHERE id=$1', [roundId]);
+    return r.rows[0]?.confirm_token;
+}
+
+// סוגר את המופע בפועל רק כששני השערים (פנימי ולקוח) עברו — או שאינם נדרשים
+async function _maybeCloseRoutineRound(groupId, occId, roundId) {
+    const round = (await pool.query('SELECT * FROM routine_approval_rounds WHERE id=$1', [roundId])).rows[0];
+    const occ = (await pool.query('SELECT * FROM routine_occurrences WHERE id=$1', [occId])).rows[0];
+    if (!round || !occ) return;
+    const internalOk = ['approved', 'skipped'].includes(round.internal_status);
+    const customerOk = ['not_required', 'approved'].includes(round.customer_status);
+    if (internalOk && customerOk) {
+        await pool.query(
+            `UPDATE routine_occurrences SET status=$1, completed_at=NOW(), completed_by=$2, updated_at=NOW() WHERE id=$3`,
+            [occ.exception_flag ? 'completed_with_exception' : 'completed', round.submitted_by, occId]
+        );
+        await logRoutineEvent(null, { groupId, routineId: occ.routine_id, occurrenceId: occId, eventType: occ.exception_flag ? 'occurrence_completed_with_exception' : 'occurrence_completed', actorType: 'system', note: `סבב ${round.round_number} אושר במלואו` });
+    }
+}
+
+app.post('/api/routine-occurrences/:id/complete', verifyBiz, verifyRoutinesBizType, async (req, res) => {
+    try {
+        const occRes = await pool.query(
+            `SELECT o.*, r.requires_internal_approval, r.internal_approval_mode, r.requires_customer_approval_events
+             FROM routine_occurrences o JOIN routines r ON r.id=o.routine_id WHERE o.id=$1 AND o.group_id=$2`,
+            [req.params.id, req.bizAuth.groupId]
+        );
+        if (!occRes.rows.length) return res.status(404).json({ error: 'מופע לא נמצא' });
+        const occ = occRes.rows[0];
+        if (!['open', 'in_progress', 'overdue'].includes(occ.status)) return res.status(400).json({ error: 'לא ניתן לסמן ביצוע למופע במצב הנוכחי' });
+        const b = req.body || {};
+        const needsCustomer = _routineRequiresCustomerCompletionApproval(occ);
+
+        if (b.note || b.numericValue != null) {
+            await pool.query(
+                `INSERT INTO routine_evidence (occurrence_id, evidence_type, numeric_value, is_out_of_range, note_text, created_by)
+                 VALUES ($1,$2,$3,$4,$5,$6)`,
+                [req.params.id, b.numericValue != null ? 'numeric_value' : 'note', b.numericValue ?? null, !!b.hasException, b.note || null, b.userName || null]
+            );
+        }
+
+        if (!occ.requires_internal_approval && !needsCustomer) {
+            // מסלול מהיר — ברירת המחדל (13.2/13.3)
+            await pool.query(
+                `UPDATE routine_occurrences SET status=$1, completed_at=NOW(), completed_by=$2, exception_flag=$3, updated_at=NOW() WHERE id=$4`,
+                [b.hasException ? 'completed_with_exception' : 'completed', b.userName || null, !!b.hasException, req.params.id]
+            );
+            await logRoutineEvent(null, { groupId: req.bizAuth.groupId, routineId: occ.routine_id, occurrenceId: req.params.id, eventType: b.hasException ? 'occurrence_completed_with_exception' : 'occurrence_completed', actorType: 'user', actorName: b.userName || 'עובד' });
+            return res.json({ success: true, requiresApproval: false });
+        }
+
+        // מסלול מלא: פותחים סבב חדש (13.4 — דחייה קודמת אינה נמחקת, רק נספר מספר סבב חדש)
+        const roundRes = await pool.query('SELECT COALESCE(MAX(round_number),0) as last_round FROM routine_approval_rounds WHERE occurrence_id=$1', [req.params.id]);
+        const roundNumber = parseInt(roundRes.rows[0].last_round, 10) + 1;
+        const internalStatus = occ.requires_internal_approval ? 'pending' : 'skipped';
+        // אם אין צורך באישור פנימי אך יש צורך באישור לקוח — שער הלקוח נפתח מיד
+        const customerStatus = needsCustomer ? (occ.requires_internal_approval ? 'not_required' : 'pending') : 'not_required';
+        const newRound = await pool.query(
+            `INSERT INTO routine_approval_rounds (occurrence_id, round_number, submitted_by, internal_status, customer_status)
+             VALUES ($1,$2,$3,$4,$5) RETURNING id`,
+            [req.params.id, roundNumber, b.userName || null, internalStatus, customerStatus]
+        );
+        const roundId = newRound.rows[0].id;
+        await pool.query(
+            `UPDATE routine_occurrences SET status='in_progress', exception_flag=$1, updated_at=NOW() WHERE id=$2`,
+            [!!b.hasException, req.params.id]
+        );
+        await logRoutineEvent(null, { groupId: req.bizAuth.groupId, routineId: occ.routine_id, occurrenceId: req.params.id, eventType: 'occurrence_submitted', actorType: 'user', actorName: b.userName || 'עובד', note: `סבב ${roundNumber}` });
+
+        let customerApprovalUrl = null;
+        if (customerStatus === 'pending') {
+            const token = await _ensureRoutineRoundCustomerToken(roundId);
+            const baseUrl = process.env.APP_URL || `https://${req.get('host')}`;
+            customerApprovalUrl = `${baseUrl}/c/rt/${req.params.id}/${token}`;
+            await logRoutineEvent(null, { groupId: req.bizAuth.groupId, routineId: occ.routine_id, occurrenceId: req.params.id, eventType: 'customer_approval_requested', actorType: 'system', note: `סבב ${roundNumber}` });
+        }
+        await _maybeCloseRoutineRound(req.bizAuth.groupId, req.params.id, roundId); // אם אין שערים פעילים בפועל — נסגר מיד
+        res.json({ success: true, requiresApproval: true, roundId, roundNumber, customerApprovalUrl });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- החלטת אישור פנימי על סבב (13.2-13.4) ---
+app.post('/api/routine-occurrences/:id/approval-rounds/:roundId/decide', verifyBiz, verifyRoutinesBizType, async (req, res) => {
+    try {
+        const occRes = await pool.query('SELECT * FROM routine_occurrences WHERE id=$1 AND group_id=$2', [req.params.id, req.bizAuth.groupId]);
+        if (!occRes.rows.length) return res.status(404).json({ error: 'מופע לא נמצא' });
+        const occ = occRes.rows[0];
+        const roundRes = await pool.query('SELECT * FROM routine_approval_rounds WHERE id=$1 AND occurrence_id=$2', [req.params.roundId, req.params.id]);
+        if (!roundRes.rows.length) return res.status(404).json({ error: 'סבב אישור לא נמצא' });
+        const round = roundRes.rows[0];
+        if (round.internal_status !== 'pending') return res.status(400).json({ error: 'הסבב כבר הוכרע' });
+        const b = req.body || {};
+        const decidedBy = b.userName || 'מנהל';
+
+        if (b.approve) {
+            await pool.query(
+                `UPDATE routine_approval_rounds SET internal_status='approved', internal_decided_by=$1, internal_decided_at=NOW() WHERE id=$2`,
+                [decidedBy, req.params.roundId]
+            );
+            await logRoutineEvent(null, { groupId: req.bizAuth.groupId, routineId: occ.routine_id, occurrenceId: req.params.id, eventType: 'internal_approved', actorType: 'user', actorName: decidedBy, note: `סבב ${round.round_number}` });
+
+            let customerApprovalUrl = null;
+            const _rtRow = (await pool.query('SELECT * FROM routines WHERE id=$1', [occ.routine_id])).rows[0];
+            if (round.customer_status === 'not_required' && _routineRequiresCustomerCompletionApproval(_rtRow)) {
+                // שגרה דורשת גם אישור לקוח — השער נפתח רק עכשיו, אחרי אישור פנימי
+                await pool.query(`UPDATE routine_approval_rounds SET customer_status='pending' WHERE id=$1`, [req.params.roundId]);
+                const token = await _ensureRoutineRoundCustomerToken(req.params.roundId);
+                const baseUrl = process.env.APP_URL || `https://${req.get('host')}`;
+                customerApprovalUrl = `${baseUrl}/c/rt/${req.params.id}/${token}`;
+                await logRoutineEvent(null, { groupId: req.bizAuth.groupId, routineId: occ.routine_id, occurrenceId: req.params.id, eventType: 'customer_approval_requested', actorType: 'system', note: `סבב ${round.round_number}` });
+            }
+            await _maybeCloseRoutineRound(req.bizAuth.groupId, req.params.id, req.params.roundId);
+            return res.json({ success: true, customerApprovalUrl });
+        } else {
+            if (!b.reason) return res.status(400).json({ error: 'יש לציין סיבת דחייה' });
+            await pool.query(
+                `UPDATE routine_approval_rounds SET internal_status='rejected', internal_decided_by=$1, internal_decided_at=NOW(), internal_rejection_reason=$2 WHERE id=$3`,
+                [decidedBy, b.reason, req.params.roundId]
+            );
+            // חוזר לעובד — הגשה חוזרת תפתח סבב חדש וממוספר (13.4), הסבב הנוכחי נשמר במלואו
+            await pool.query(`UPDATE routine_occurrences SET status='open', updated_at=NOW() WHERE id=$1`, [req.params.id]);
+            await logRoutineEvent(null, { groupId: req.bizAuth.groupId, routineId: occ.routine_id, occurrenceId: req.params.id, eventType: 'internal_rejected', actorType: 'user', actorName: decidedBy, note: `סבב ${round.round_number}: ${b.reason}` });
+        }
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- עמוד אישור לקוח ציבורי (12.3) — אותו דפוס confirm_token כמו /c/q ו-/c/po, בלי הרשמה/סיסמה ---
+app.get('/c/rt/:occurrenceId/:token', async (req, res) => {
+    try {
+        const r = await pool.query(
+            `SELECT ar.*, o.scheduled_date, o.scheduled_time, rt.name as routine_name, rt.group_id, s.name as site_name
+             FROM routine_approval_rounds ar
+             JOIN routine_occurrences o ON o.id=ar.occurrence_id
+             JOIN routines rt ON rt.id=o.routine_id
+             LEFT JOIN routine_sites s ON s.id=rt.site_id
+             WHERE o.id=$1 AND ar.confirm_token=$2`,
+            [req.params.occurrenceId, req.params.token]
+        );
+        if (!r.rows.length) return res.status(404).send('<h2 style="text-align:center;font-family:Arial;margin-top:20vh">קישור לא תקף או פג תוקפו</h2>');
+        const round = r.rows[0];
+        if (!round.customer_viewed_at) {
+            await pool.query('UPDATE routine_approval_rounds SET customer_viewed_at=NOW() WHERE id=$1', [round.id]);
+        }
+        if (round.customer_status !== 'pending') {
+            const statusMsg = { approved: 'כבר אישרת ביצוע זה. תודה!', rejected: 'כבר דחית ביצוע זה. ניצור איתך קשר.', replied: 'תגובתך התקבלה. ניצור איתך קשר.' }[round.customer_status] || 'הבקשה כבר טופלה.';
+            return res.send(confirmationPage(round.routine_name, statusMsg, true));
+        }
+        const bizNameRow = await pool.query('SELECT name FROM family_groups WHERE id=$1', [round.group_id]);
+        const bizName = bizNameRow.rows[0]?.name || 'העסק';
+        res.send(`<!DOCTYPE html><html dir="rtl" lang="he"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>אישור ביצוע — ${round.routine_name}</title>
+<style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;background:#f0fdf4;display:flex;align-items:center;justify-content:center;min-height:100vh;padding:20px}.card{background:#fff;border-radius:24px;padding:36px 28px;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.12);max-width:400px;width:100%}.icon{font-size:48px;margin-bottom:12px}.title{font-size:19px;font-weight:900;color:#1e293b;margin-bottom:6px}.sub{font-size:13px;color:#64748b;line-height:1.6;margin-bottom:20px}button{border:none;padding:14px;border-radius:14px;font-size:15px;font-weight:700;cursor:pointer;width:100%;margin-bottom:8px}#approveBtn{background:#22c55e;color:#fff}#rejectBtn{background:#fee2e2;color:#b91c1c}textarea{width:100%;border:1px solid #e2e8f0;border-radius:12px;padding:10px;font-family:inherit;font-size:13px;margin-bottom:10px;resize:vertical}</style></head>
+<body><div class="card">
+<div class="icon">✅</div>
+<h1 class="title">${round.routine_name}</h1>
+<p class="sub">${bizName}${round.site_name ? ' · ' + round.site_name : ''}<br>בוצע בתאריך ${round.scheduled_date}${round.scheduled_time ? ' בשעה ' + String(round.scheduled_time).slice(0,5) : ''}.<br>נא לאשר שהביצוע תקין.</p>
+<textarea id="replyText" rows="2" placeholder="הערה (לא חובה)"></textarea>
+<button id="approveBtn" onclick="send('approve')">✅ מאשר/ת</button>
+<button id="rejectBtn" onclick="send('reject')">✖️ לא מאשר/ת</button>
+<script>
+function send(decision) {
+    const text = document.getElementById('replyText').value;
+    if (decision === 'reject' && !text) { alert('נא לציין הערה לדחייה'); return; }
+    fetch(window.location.pathname, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ decision, text }) })
+        .then(r => r.json()).then(d => { document.querySelector('.card').innerHTML = '<div class="icon">🙏</div><h1 class="title">תודה!</h1><p class="sub">' + (d.message || 'התגובה נשלחה') + '</p>'; })
+        .catch(() => alert('שגיאה בשליחה, נסו שוב'));
+}
+</script>
+</div></body></html>`);
+    } catch(e) { res.status(500).send('שגיאה: ' + e.message); }
+});
+
+app.post('/c/rt/:occurrenceId/:token', async (req, res) => {
+    try {
+        const r = await pool.query(
+            `SELECT ar.*, o.group_id, o.routine_id FROM routine_approval_rounds ar JOIN routine_occurrences o ON o.id=ar.occurrence_id
+             WHERE o.id=$1 AND ar.confirm_token=$2`,
+            [req.params.occurrenceId, req.params.token]
+        );
+        if (!r.rows.length) return res.status(404).json({ error: 'קישור לא תקף' });
+        const round = r.rows[0];
+        if (round.customer_status !== 'pending') return res.json({ success: true, message: 'הבקשה כבר טופלה בעבר.' });
+        const { decision, text } = req.body || {};
+
+        if (decision === 'approve') {
+            await pool.query(`UPDATE routine_approval_rounds SET customer_status='approved', customer_decided_at=NOW(), customer_reply_text=$1, customer_channel='link' WHERE id=$2`, [text || null, round.id]);
+            await logRoutineEvent(null, { groupId: round.group_id, routineId: round.routine_id, occurrenceId: req.params.occurrenceId, eventType: 'customer_approved', actorType: 'customer', channel: 'link', note: text || null });
+            await _maybeCloseRoutineRound(round.group_id, req.params.occurrenceId, round.id);
+            return res.json({ success: true, message: 'תודה על האישור!' });
+        }
+        if (decision === 'reject') {
+            await pool.query(`UPDATE routine_approval_rounds SET customer_status='rejected', customer_decided_at=NOW(), customer_rejection_reason=$1, customer_channel='link' WHERE id=$2`, [text || null, round.id]);
+            await logRoutineEvent(null, { groupId: round.group_id, routineId: round.routine_id, occurrenceId: req.params.occurrenceId, eventType: 'customer_rejected', actorType: 'customer', channel: 'link', note: text || null });
+            return res.json({ success: true, message: 'התגובה נשלחה — ניצור איתך קשר בהקדם.' });
+        }
+        return res.status(400).json({ error: 'תגובה לא תקינה' });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- היסטוריית סבבים למופע (ציר הזמן שמוצג למפקח — 13.6) ---
+app.get('/api/routine-occurrences/:id/approval-rounds', verifyBiz, verifyRoutinesBizType, async (req, res) => {
+    try {
+        const occRes = await pool.query('SELECT 1 FROM routine_occurrences WHERE id=$1 AND group_id=$2', [req.params.id, req.bizAuth.groupId]);
+        if (!occRes.rows.length) return res.status(404).json({ error: 'מופע לא נמצא' });
+        const r = await pool.query('SELECT * FROM routine_approval_rounds WHERE occurrence_id=$1 ORDER BY round_number ASC', [req.params.id]);
+        res.json({ success: true, rounds: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- ציר זמן מלא למופע (14.6: "בתוך המופע") — המסך שפותחים כששואלים "מה קרה כאן" ---
+app.get('/api/routine-occurrences/:id/detail', verifyBiz, verifyRoutinesBizType, async (req, res) => {
+    try {
+        const occRes = await pool.query(
+            `SELECT o.*, r.name as routine_name, r.category, r.obligation_source, u.name as assignee_name
+             FROM routine_occurrences o JOIN routines r ON r.id=o.routine_id LEFT JOIN users u ON u.id=o.assignee_user_id
+             WHERE o.id=$1 AND o.group_id=$2`,
+            [req.params.id, req.bizAuth.groupId]
+        );
+        if (!occRes.rows.length) return res.status(404).json({ error: 'מופע לא נמצא' });
+        const [evidence, rounds, events] = await Promise.all([
+            pool.query('SELECT * FROM routine_evidence WHERE occurrence_id=$1 ORDER BY created_at ASC', [req.params.id]),
+            pool.query('SELECT * FROM routine_approval_rounds WHERE occurrence_id=$1 ORDER BY round_number ASC', [req.params.id]),
+            pool.query('SELECT * FROM routine_event_log WHERE occurrence_id=$1 ORDER BY created_at ASC', [req.params.id]),
+        ]);
+        res.json({ success: true, occurrence: occRes.rows[0], evidence: evidence.rows, rounds: rounds.rows, events: events.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- יומן שינויים ברמת השגרה (14.3: "בתוך השגרה") ---
+app.get('/api/routines/:id/event-log', verifyBiz, verifyRoutinesBizType, async (req, res) => {
+    try {
+        const own = await pool.query('SELECT 1 FROM routines WHERE id=$1 AND group_id=$2', [req.params.id, req.bizAuth.groupId]);
+        if (!own.rows.length) return res.status(404).json({ error: 'שגרה לא נמצאה' });
+        const r = await pool.query('SELECT * FROM routine_event_log WHERE routine_id=$1 AND occurrence_id IS NULL ORDER BY created_at DESC', [req.params.id]);
+        res.json({ success: true, events: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- תור אישורים פנימיים ממתינים (לוח המנהל) ---
+app.get('/api/routines/:groupId/pending-approvals', verifyBiz, verifyRoutinesBizType, async (req, res) => {
+    try {
+        if (parseInt(req.params.groupId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
+        const r = await pool.query(
+            `SELECT ar.*, o.scheduled_date, o.exception_flag, rt.name as routine_name
+             FROM routine_approval_rounds ar
+             JOIN routine_occurrences o ON o.id=ar.occurrence_id
+             JOIN routines rt ON rt.id=o.routine_id
+             WHERE o.group_id=$1 AND ar.internal_status='pending'
+             ORDER BY ar.submitted_at ASC`,
+            [req.params.groupId]
+        );
+        res.json({ success: true, rounds: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- דילוג על מופע (3.2 באפיון) — לא נספר כפיגור ---
+app.post('/api/routine-occurrences/:id/skip', verifyBiz, verifyRoutinesBizType, async (req, res) => {
+    try {
+        const occRes = await pool.query('SELECT * FROM routine_occurrences WHERE id=$1 AND group_id=$2', [req.params.id, req.bizAuth.groupId]);
+        if (!occRes.rows.length) return res.status(404).json({ error: 'מופע לא נמצא' });
+        if (!['planned', 'open', 'in_progress', 'overdue'].includes(occRes.rows[0].status)) return res.status(400).json({ error: 'לא ניתן לדלג על מופע במצב הנוכחי' });
+        const b = req.body || {};
+        if (!b.reason) return res.status(400).json({ error: 'יש לציין סיבת דילוג' });
+        await pool.query(`UPDATE routine_occurrences SET status='skipped', skip_reason=$1, updated_at=NOW() WHERE id=$2`, [b.reason, req.params.id]);
+        await logRoutineEvent(null, { groupId: req.bizAuth.groupId, routineId: occRes.rows[0].routine_id, occurrenceId: req.params.id, eventType: 'occurrence_skipped', actorType: 'user', actorName: b.userName || 'עובד', note: b.reason });
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- בקשת הזזה (3.2) — מחייבת הערה, עוברת לאישור מנהל, המופע נשאר במועד המקורי עד לאישור ---
+app.post('/api/routine-occurrences/:id/move-request', verifyBiz, verifyRoutinesBizType, async (req, res) => {
+    try {
+        const occRes = await pool.query('SELECT * FROM routine_occurrences WHERE id=$1 AND group_id=$2', [req.params.id, req.bizAuth.groupId]);
+        if (!occRes.rows.length) return res.status(404).json({ error: 'מופע לא נמצא' });
+        const b = req.body || {};
+        if (!b.newDate) return res.status(400).json({ error: 'יש לציין תאריך מבוקש' });
+        if (!b.note) return res.status(400).json({ error: 'הזזה מחייבת הערה' });
+        await pool.query(
+            `UPDATE routine_occurrences SET status='move_requested', move_requested_date=$1, move_requested_note=$2, updated_at=NOW() WHERE id=$3`,
+            [b.newDate, b.note, req.params.id]
+        );
+        await logRoutineEvent(null, { groupId: req.bizAuth.groupId, routineId: occRes.rows[0].routine_id, occurrenceId: req.params.id, eventType: 'move_requested', actorType: 'user', actorName: b.userName || 'עובד', valueAfter: b.newDate, note: b.note });
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- החלטת מנהל על בקשת הזזה ---
+app.post('/api/routine-occurrences/:id/move-decision', verifyBiz, verifyRoutinesBizType, async (req, res) => {
+    try {
+        const occRes = await pool.query('SELECT * FROM routine_occurrences WHERE id=$1 AND group_id=$2', [req.params.id, req.bizAuth.groupId]);
+        if (!occRes.rows.length) return res.status(404).json({ error: 'מופע לא נמצא' });
+        const occ = occRes.rows[0];
+        if (occ.status !== 'move_requested') return res.status(400).json({ error: 'אין בקשת הזזה ממתינה למופע זה' });
+        const b = req.body || {};
+        const decidedBy = b.userName || 'מנהל';
+        if (b.approve) {
+            const newDate = occ.move_requested_date;
+            let graceDeadline = null;
+            if (occ.scheduled_time) {
+                graceDeadline = new Date(`${newDate}T${occ.scheduled_time}`);
+            } else {
+                graceDeadline = new Date(`${newDate}T23:59:59`);
+            }
+            const rtRes = await pool.query('SELECT grace_period_minutes FROM routines WHERE id=$1', [occ.routine_id]);
+            graceDeadline.setMinutes(graceDeadline.getMinutes() + (rtRes.rows[0]?.grace_period_minutes || 60));
+            await pool.query(
+                `UPDATE routine_occurrences SET status='planned', scheduled_date=$1, grace_deadline=$2, move_approved_by=$3, updated_at=NOW() WHERE id=$4`,
+                [newDate, graceDeadline, decidedBy, req.params.id]
+            );
+            await logRoutineEvent(null, { groupId: req.bizAuth.groupId, routineId: occ.routine_id, occurrenceId: req.params.id, eventType: 'move_approved', actorType: 'user', actorName: decidedBy, valueBefore: occ.scheduled_date, valueAfter: newDate });
+        } else {
+            await pool.query(`UPDATE routine_occurrences SET status='open', move_requested_date=NULL, move_requested_note=NULL, updated_at=NOW() WHERE id=$1`, [req.params.id]);
+            await logRoutineEvent(null, { groupId: req.bizAuth.groupId, routineId: occ.routine_id, occurrenceId: req.params.id, eventType: 'move_rejected', actorType: 'user', actorName: decidedBy, note: b.reason || null });
+        }
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- החלפת אחראי — מופע בודד או כל הסדרה מכאן והלאה (3.2) ---
+app.post('/api/routine-occurrences/:id/reassign', verifyBiz, verifyRoutinesBizType, async (req, res) => {
+    try {
+        const occRes = await pool.query('SELECT * FROM routine_occurrences WHERE id=$1 AND group_id=$2', [req.params.id, req.bizAuth.groupId]);
+        if (!occRes.rows.length) return res.status(404).json({ error: 'מופע לא נמצא' });
+        const occ = occRes.rows[0];
+        const b = req.body || {};
+        if (!b.userId) return res.status(400).json({ error: 'יש לבחור עובד' });
+        const changedBy = b.changedBy || 'מנהל';
+
+        if (b.scope === 'series') {
+            await pool.query(`UPDATE routines SET assignee_user_id=$1, updated_at=NOW() WHERE id=$2`, [b.userId, occ.routine_id]);
+            await pool.query(
+                `UPDATE routine_occurrences SET assignee_user_id=$1, updated_at=NOW() WHERE routine_id=$2 AND status IN ('planned','open')`,
+                [b.userId, occ.routine_id]
+            );
+            await logRoutineEvent(null, { groupId: req.bizAuth.groupId, routineId: occ.routine_id, occurrenceId: req.params.id, eventType: 'assignee_changed_series', actorType: 'user', actorName: changedBy, valueBefore: String(occ.assignee_user_id || ''), valueAfter: String(b.userId) });
+        } else {
+            await pool.query(`UPDATE routine_occurrences SET assignee_user_id=$1, updated_at=NOW() WHERE id=$2`, [b.userId, req.params.id]);
+            await logRoutineEvent(null, { groupId: req.bizAuth.groupId, routineId: occ.routine_id, occurrenceId: req.params.id, eventType: 'assignee_changed_single', actorType: 'user', actorName: changedBy, valueBefore: String(occ.assignee_user_id || ''), valueAfter: String(b.userId) });
+        }
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// --- בקשות הזזה ממתינות (לתור אישור מנהל) ---
+app.get('/api/routines/:groupId/move-requests', verifyBiz, verifyRoutinesBizType, async (req, res) => {
+    try {
+        if (parseInt(req.params.groupId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
+        const r = await pool.query(
+            `SELECT o.*, r.name as routine_name, u.name as assignee_name
+             FROM routine_occurrences o JOIN routines r ON r.id=o.routine_id LEFT JOIN users u ON u.id=o.assignee_user_id
+             WHERE o.group_id=$1 AND o.status='move_requested' ORDER BY o.updated_at ASC`,
+            [req.params.groupId]
+        );
+        res.json({ success: true, occurrences: r.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 

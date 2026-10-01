@@ -2793,6 +2793,9 @@ function switchTab(t) {
     // עסקי יופי: הפנה מ-customers ל-beauty_clients
     if (t === 'customers' && currentGroup?.business_type === 'beauty') t = 'beauty_clients';
 
+    // מודול "שגרות" רלוונטי רק למסעדות ותיקונים
+    if (t === 'routines' && !['restaurant','maintenance_repair'].includes(currentGroup?.business_type)) return;
+
     // חסימת ניווט לטאב נעול לפי billing_config
     const ALWAYS_OPEN = ['feed', 'settings', 'biz-ads'];
     if (!ALWAYS_OPEN.includes(t)) {
@@ -2813,7 +2816,7 @@ function switchTab(t) {
             }
         }
     }
-    ['feed','timeclock','shifts','calendar','shop','pantry','equipment','sales','pos','foodcost','customers','bank','cashflow','budget','forecast','tasks','deliveries','academy','community','members','surveys','settings','role-dashboard','reports','beauty_calendar','beauty_clients','beauty_inventory','beauty_commissions','beauty_services','beauty_subscriptions','beauty_rfq','beauty_practitioners','logistics_orders','logistics_drivers','logistics_vehicles','logistics_pricing','logistics_cod','logistics_rfq','logistics_routes','logistics_tracking','logistics_reports','logistics_customers','logistics_invoices','reviews','cases','timelog','content','leads','documents','biz-ads','whatsapp-alerts','menu_templates'].forEach(x => {
+    ['feed','timeclock','shifts','calendar','shop','pantry','equipment','sales','pos','foodcost','customers','bank','cashflow','budget','forecast','tasks','deliveries','academy','community','members','surveys','settings','role-dashboard','reports','beauty_calendar','beauty_clients','beauty_inventory','beauty_commissions','beauty_services','beauty_subscriptions','beauty_rfq','beauty_practitioners','logistics_orders','logistics_drivers','logistics_vehicles','logistics_pricing','logistics_cod','logistics_rfq','logistics_routes','logistics_tracking','logistics_reports','logistics_customers','logistics_invoices','reviews','cases','timelog','content','leads','documents','biz-ads','whatsapp-alerts','menu_templates','routines'].forEach(x => {
         const el = getEl(`content-${x}`); if(el) el.classList.add('hidden');
         const btn = getEl(`tab-${x}`); if(btn) btn.classList.remove('tab-active');
     });
@@ -2949,6 +2952,7 @@ function switchTab(t) {
     if (t === 'reports')   try { renderUnifiedReportsTab(); } catch(e) {}
     if (t === 'reviews')               try { loadReviews(); } catch(e) {}
     if (t === 'menu_templates')        try { loadMenuTemplates(); } catch(e) {}
+    if (t === 'routines')              try { renderRoutinesTab(); } catch(e) {}
     if (t === 'settings')              { try { renderSettingsHub(); } catch(e) {} try { const _w = document.getElementById('biz-main-content-wrap'); if(_w) _w.scrollTop = 0; } catch(e) {} document.documentElement.scrollTop = 0; document.body.scrollTop = 0; window.scrollTo({ top: 0, behavior: 'instant' }); }
 }
 
@@ -3808,7 +3812,8 @@ const ALL_TABS = [
     { id: 'documents', name: 'מסמכים 📄' },
     { id: 'reports',   name: 'דוחות 📊' },
     { id: 'whatsapp-alerts', name: 'התראות WhatsApp 📱' },
-    { id: 'menu_templates', name: 'תפריטים 📋' }
+    { id: 'menu_templates', name: 'תפריטים 📋' },
+    { id: 'routines', name: 'שגרות 🔁' }
 ];
 
 const ROLE_DEFAULTS = {
@@ -5321,7 +5326,7 @@ window.changeFeedPage = function(direction) {
 // --- GROUP NAV — 5 קבוצות ניווט ---
 // ============================================================
 const GNAV_GROUPS = {
-    team:      ['timeclock','shifts','calendar','tasks','academy','members','beauty_calendar','beauty_practitioners'],
+    team:      ['timeclock','shifts','calendar','tasks','academy','members','beauty_calendar','beauty_practitioners','routines'],
     sales:     ['pos','sales','customers','cases','leads','deliveries','reviews','menu_templates','beauty_services','beauty_subscriptions','beauty_clients','beauty_rfq'],
     inventory: ['shop','pantry','equipment','foodcost','beauty_inventory'],
     finance:   ['bank','cashflow','budget','timelog','forecast','beauty_commissions','reports'],
@@ -37209,11 +37214,11 @@ const ROLE_TYPE_TABS = {
 };
 
 const BUSINESS_TYPES = [
-    { id: 'restaurant',         name: 'מסעדה / בית קפה',      icon: '🍕', modules: ['feed','pos','sales','pantry','shop','customers','shifts','timeclock','tasks','cashflow','budget','members','calendar','deliveries','foodcost','kds','reviews','menu_templates','biz-ads','reports'] },
+    { id: 'restaurant',         name: 'מסעדה / בית קפה',      icon: '🍕', modules: ['feed','pos','sales','pantry','shop','customers','shifts','timeclock','tasks','cashflow','budget','members','calendar','deliveries','foodcost','kds','reviews','menu_templates','routines','biz-ads','reports'] },
     { id: 'retail',             name: 'חנות קמעונאית',         icon: '🛍️', modules: ['feed','pos','sales','pantry','shop','customers','cashflow','budget','members','timeclock','tasks','bank','biz-ads','reports'] },
     { id: 'services',           name: 'שירותים מקצועיים',      icon: '💼', modules: ['feed','calendar','tasks','customers','cashflow','budget','members','timeclock','bank','pos','sales','biz-ads','reports'] },
     { id: 'construction',       name: 'בנייה / קבלנות',        icon: '🏗️', modules: ['feed','equipment','tasks','shifts','timeclock','members','cashflow','customers','bank','shop','pantry','budget','biz-ads','reports'] },
-    { id: 'maintenance_repair', name: 'תחזוקה ותיקונים',       icon: '🔧', modules: ['feed','calendar','tasks','customers','members','timeclock','timelog','cashflow','pantry','shop','sales','biz-ads','reports'] },
+    { id: 'maintenance_repair', name: 'תחזוקה ותיקונים',       icon: '🔧', modules: ['feed','calendar','tasks','customers','members','timeclock','timelog','cashflow','pantry','shop','sales','routines','biz-ads','reports'] },
     { id: 'logistics',          name: 'לוגיסטיקה / הפצה',     icon: '🚚', modules: ['feed','logistics_orders','logistics_drivers','logistics_vehicles','logistics_pricing','logistics_cod','logistics_rfq','logistics_routes','logistics_tracking','logistics_reports','logistics_customers','logistics_invoices','members','timeclock','cashflow','tasks','biz-ads','reports'] },
     { id: 'healthcare',         name: 'בריאות / קליניקה',      icon: '🏥', modules: ['feed','calendar','customers','tasks','members','timeclock','cashflow','bank','pos','pantry','biz-ads','reports'] },
     { id: 'beauty',             name: 'יופי / קוסמטיקה',       icon: '💅', modules: ['feed','beauty_calendar','beauty_practitioners','beauty_services','beauty_subscriptions','pos','beauty_clients','beauty_inventory','beauty_commissions','beauty_rfq','timeclock','cashflow','tasks','shop','biz-ads','reports'] },
@@ -37319,6 +37324,7 @@ const MODULE_DESCRIPTIONS = {
     timelog:      { icon:'⏱️', name:'שעות עבודה',      desc:'דיווח שעות לפרויקט, חשבונית שעתית ודוחות.' },
     reports:      { icon:'📈', name:'דוחות',            desc:'דוחות מפורטים לכל תחום — מכירות, צוות, כספים.' },
     menu_templates:         { icon:'📋', name:'תבניות תפריט',    desc:'ניהול תפריטים דיגיטליים, QR ועיצוב מותאם.' },
+    routines:               { icon:'🔁', name:'שגרות',          desc:'ניהול פעולות חוזרות בלוח זמנים קבוע, עם מעקב ביצוע ותיעוד.' },
     beauty_calendar:        { icon:'📅', name:'יומן תורים',       desc:'ניהול תורים ופגישות, שיבוץ מטפלות, תזכורות ללקוחות.' },
     beauty_clients:         { icon:'📋', name:'תיקי לקוחות',      desc:'CRM לקוסמטיקה: היסטוריית טיפולים, אלרגיות, העדפות.' },
     beauty_inventory:       { icon:'🧴', name:'מלאי מקצועי',      desc:'מעקב מוצרי טיפוח, הזמנות ספקים, עלויות חומרים.' },
@@ -37574,6 +37580,22 @@ window.openModuleCancelRequest = function(moduleId, moduleName) {
     }).then(() => showToast('success', 'בקשת הביטול נשלחה — תטופל ידנית'));
 };
 
+// מודול "שגרות" רלוונטי רק למסעדות ותיקונים (כלל קבוע) — נאכף כאן ללא תלות ב-billing_config,
+// כי applyBusinessTypeFilter מציג הכל כשאין billing_config מוגדר לעסק.
+const ROUTINES_ALLOWED_BUSINESS_TYPES = ['restaurant', 'maintenance_repair'];
+function enforceRoutinesTabVisibility() {
+    const allowed = ROUTINES_ALLOWED_BUSINESS_TYPES.includes(currentGroup?.business_type);
+    const tabBtn = getEl('tab-routines');
+    const dropBtn = getEl('gdrop-routines');
+    if (!allowed) {
+        if (tabBtn) tabBtn.classList.add('hidden', 'locked-module');
+        if (dropBtn) dropBtn.style.display = 'none';
+        return;
+    }
+    if (tabBtn) tabBtn.classList.remove('hidden', 'locked-module');
+    if (dropBtn) dropBtn.style.display = '';
+}
+
 function applyBusinessTypeFilter() {
     if (!currentUser) return;
     const isAdminOrManager = currentUser.role === 'ADMIN' || currentUser.role === 'MANAGER';
@@ -37632,6 +37654,7 @@ function applyBusinessTypeFilter() {
             if (dropBtn) { dropBtn.style.display = ''; _removeLockFromDropBtn(dropBtn); }
         });
         ['team','sales','inventory','finance','more'].forEach(g => { const b = getEl(`gnav-btn-${g}`); if (b) b.style.display = ''; });
+        enforceRoutinesTabVisibility();
         return;
     }
 
@@ -37692,6 +37715,7 @@ function applyBusinessTypeFilter() {
             if (dropBtn && !dropBtn.querySelector('[id]')) dropBtn.textContent = label;
         });
     }
+    enforceRoutinesTabVisibility();
 }
 
 // --- Role dashboard dispatcher ---
@@ -60716,3 +60740,755 @@ window._sportApptSave = async function() {
 
 })();
 // ===== END CUSTOMER CHAT =====
+
+// ===== מודול "שגרות" (Routines) — מסעדות ותיקונים בלבד =====
+// שלב 2: לוח שגרות + יצירה + לוח היום + דוח "מה פוספס" + סימון ביצוע מהיר.
+(function() {
+    const ROUTINE_CATEGORY_LABELS = { regulatory: 'רגולציה', safety: 'בטיחות', preventive_maintenance: 'תחזוקה מונעת', operational: 'תפעול', logistics: 'לוגיסטיקה' };
+    const ROUTINE_OUTPUT_LABELS = { task: 'משימה', task_calendar: 'משימה + יומן', work_order_template: 'פקודת עבודה' };
+    const ROUTINE_FREQ_LABELS = { daily: 'יומי', weekly: 'שבועי', weekly_days: 'ימים נבחרים בשבוע', biweekly: 'דו-שבועי', monthly: 'חודשי', quarterly: 'רבעוני', semiannual: 'חצי-שנתי', yearly: 'שנתי' };
+    const ROUTINE_STATUS_LABELS = { planned: 'מתוכנן', open: 'פתוח', in_progress: 'בביצוע', completed: 'הושלם', completed_with_exception: 'הושלם עם חריגה', overdue: 'בפיגור', move_requested: 'בקשת הזזה', skipped: 'מדולג', cancelled: 'בוטל' };
+    const ROUTINE_STATUS_COLORS = { planned: 'bg-slate-100 text-slate-600', open: 'bg-blue-100 text-blue-700', in_progress: 'bg-indigo-100 text-indigo-700', completed: 'bg-emerald-100 text-emerald-700', completed_with_exception: 'bg-amber-100 text-amber-700', overdue: 'bg-red-100 text-red-700', move_requested: 'bg-purple-100 text-purple-700', skipped: 'bg-slate-100 text-slate-500', cancelled: 'bg-slate-100 text-slate-400' };
+
+    let _routinesSubTab = 'list';
+    let _routinesTeam = [];
+
+    function _authHdr() { return { 'Content-Type': 'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' }; }
+
+    async function _routinesFetchTeam() {
+        try {
+            const res = await fetch(`${API}/work-orders/users/${currentGroup.id}`, { headers: _authHdr() });
+            const data = await res.json();
+            _routinesTeam = data.users || [];
+        } catch(e) { _routinesTeam = []; }
+    }
+
+    window.renderRoutinesTab = async function() {
+        const root = document.getElementById('routines-root');
+        if (!root || !currentGroup) return;
+        if (!['restaurant', 'maintenance_repair'].includes(currentGroup.business_type)) {
+            root.innerHTML = `<div class="p-6 text-center text-slate-400 text-sm">מודול זה אינו זמין לסוג העסק שלך.</div>`;
+            return;
+        }
+        root.innerHTML = `
+            <div class="bg-gradient-to-r from-teal-600 to-emerald-700 rounded-[2rem] p-5 text-white shadow-xl mb-4">
+                <h3 class="text-lg font-bold mb-1 flex items-center gap-2"><i class="fa-solid fa-rotate"></i> שגרות</h3>
+                <p class="text-teal-100 text-xs opacity-90">פעולות שחוזרות על עצמן בלוח זמנים קבוע — עם מעקב ביצוע ותיעוד.</p>
+            </div>
+            <div class="flex gap-2 mb-4 overflow-x-auto pb-1">
+                <button onclick="window.switchRoutinesSubTab('list')" id="rtab-list" class="px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition"></button>
+                <button onclick="window.switchRoutinesSubTab('today')" id="rtab-today" class="px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition"></button>
+                <button onclick="window.switchRoutinesSubTab('missed')" id="rtab-missed" class="px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition"></button>
+                <button onclick="window.switchRoutinesSubTab('approvals')" id="rtab-approvals" class="px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition"></button>
+                <button onclick="window.switchRoutinesSubTab('internal_approvals')" id="rtab-internal_approvals" class="px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition"></button>
+                <button onclick="window.switchRoutinesSubTab('sites')" id="rtab-sites" class="px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition"></button>
+                <button onclick="window.switchRoutinesSubTab('contracts')" id="rtab-contracts" class="px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition"></button>
+                <button onclick="window.switchRoutinesSubTab('compliance')" id="rtab-compliance" class="px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition"></button>
+            </div>
+            <div id="routines-subtab-content"></div>
+        `;
+        await _routinesFetchTeam();
+        window.switchRoutinesSubTab(_routinesSubTab);
+    };
+
+    window.switchRoutinesSubTab = function(t) {
+        _routinesSubTab = t;
+        [['list','רשימת שגרות'], ['today','לוח היום'], ['missed','מה פוספס'], ['approvals','בקשות הזזה'], ['internal_approvals','אישורי ביצוע'], ['sites','אתרים'], ['contracts','חוזי שירות'], ['compliance','מצב ציות']].forEach(([id, label]) => {
+            const b = document.getElementById(`rtab-${id}`);
+            if (!b) return;
+            b.textContent = label;
+            b.className = `px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition ${id === t ? 'bg-teal-600 text-white' : 'bg-white text-slate-500 border border-slate-200'}`;
+        });
+        if (t === 'list') _renderRoutinesList();
+        if (t === 'today') _renderRoutinesToday();
+        if (t === 'missed') _renderRoutinesMissed();
+        if (t === 'approvals') _renderRoutinesApprovals();
+        if (t === 'internal_approvals') _renderRoutinesInternalApprovals();
+        if (t === 'sites') _renderRoutinesSites();
+        if (t === 'contracts') _renderRoutinesContracts();
+        if (t === 'compliance') _renderRoutinesCompliance();
+    };
+
+    async function _renderRoutinesList() {
+        const el = document.getElementById('routines-subtab-content');
+        if (!el) return;
+        el.innerHTML = `<div class="text-center text-slate-400 text-xs py-6">טוען…</div>`;
+        try {
+            const res = await fetch(`${API}/routines/${currentGroup.id}`, { headers: _authHdr() });
+            const data = await res.json();
+            const routines = data.routines || [];
+            el.innerHTML = `
+                <div class="grid grid-cols-2 gap-2 mb-3">
+                    <button onclick="window.openCreateRoutineModal()" class="py-3 rounded-xl bg-teal-600 text-white text-sm font-bold hover:bg-teal-700 transition"><i class="fa-solid fa-plus"></i> שגרה חדשה</button>
+                    <button onclick="window.openRoutineTemplatesModal()" class="py-3 rounded-xl bg-teal-50 text-teal-700 text-sm font-bold hover:bg-teal-100 transition"><i class="fa-solid fa-list-check"></i> מתוך ספריית תבניות</button>
+                </div>
+                ${routines.length === 0 ? `<div class="text-center text-slate-400 text-xs py-8">אין עדיין שגרות מוגדרות.</div>` : routines.map(r => `
+                    <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 mb-2 ${r.is_active ? '' : 'opacity-50'}">
+                        <div class="flex items-center justify-between mb-1">
+                            <div class="font-bold text-sm">${r.name}</div>
+                            <span class="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">${ROUTINE_CATEGORY_LABELS[r.category] || r.category}</span>
+                        </div>
+                        <div class="text-[11px] text-slate-500 flex flex-wrap gap-x-3 gap-y-1">
+                            <span><i class="fa-regular fa-clock"></i> ${ROUTINE_FREQ_LABELS[r.frequency_interval] || r.frequency_interval}</span>
+                            <span><i class="fa-solid fa-diagram-project"></i> ${ROUTINE_OUTPUT_LABELS[r.output_type] || r.output_type}</span>
+                            ${r.site_name ? `<span><i class="fa-solid fa-location-dot"></i> ${r.site_name}</span>` : ''}
+                            ${r.next_occurrence_date ? `<span><i class="fa-solid fa-calendar"></i> הבא: ${r.next_occurrence_date}</span>` : ''}
+                        </div>
+                        <div class="flex gap-2 mt-2">
+                            <button onclick="window.toggleRoutineActive(${r.id}, ${r.is_active})" class="text-[11px] font-bold text-slate-500 hover:text-red-600">${r.is_active ? 'השבת שגרה' : 'מושבתת'}</button>
+                        </div>
+                    </div>
+                `).join('')}
+            `;
+        } catch(e) { el.innerHTML = `<div class="text-center text-red-400 text-xs py-6">שגיאה בטעינת שגרות</div>`; }
+    }
+
+    async function _renderOccurrenceCards(containerEl, occurrences, emptyMsg) {
+        if (!occurrences.length) { containerEl.innerHTML = `<div class="text-center text-slate-400 text-xs py-8">${emptyMsg}</div>`; return; }
+        containerEl.innerHTML = occurrences.map(o => `
+            <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 mb-2">
+                <div class="flex items-center justify-between mb-1">
+                    <div class="font-bold text-sm">${o.routine_name}</div>
+                    <span class="text-[10px] px-2 py-0.5 rounded-full ${ROUTINE_STATUS_COLORS[o.status] || 'bg-slate-100 text-slate-600'}">${ROUTINE_STATUS_LABELS[o.status] || o.status}</span>
+                </div>
+                <div class="text-[11px] text-slate-500 flex flex-wrap gap-x-3 gap-y-1">
+                    <span><i class="fa-solid fa-calendar"></i> ${o.scheduled_date}${o.scheduled_time ? ' ' + o.scheduled_time.slice(0,5) : ''}</span>
+                    ${o.assignee_name ? `<span><i class="fa-solid fa-user"></i> ${o.assignee_name}</span>` : ''}
+                </div>
+                ${['open','in_progress','overdue'].includes(o.status) ? `
+                    <div class="flex flex-wrap gap-2 mt-2">
+                        <button onclick="window.completeRoutineOccurrence(${o.id})" class="text-[11px] font-bold px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100">סמן כבוצע</button>
+                        <button onclick="window.completeRoutineOccurrence(${o.id}, true)" class="text-[11px] font-bold px-3 py-1.5 rounded-lg bg-amber-50 text-amber-700 hover:bg-amber-100">בוצע עם חריגה</button>
+                        <button onclick="window.openMoveRoutineOccurrenceModal(${o.id})" class="text-[11px] font-bold px-3 py-1.5 rounded-lg bg-purple-50 text-purple-700 hover:bg-purple-100">בקשת הזזה</button>
+                        <button onclick="window.skipRoutineOccurrence(${o.id})" class="text-[11px] font-bold px-3 py-1.5 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200">דילוג</button>
+                        <button onclick="window.openReassignRoutineOccurrenceModal(${o.id}, ${o.routine_id})" class="text-[11px] font-bold px-3 py-1.5 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100">החלפת אחראי</button>
+                    </div>
+                ` : ''}
+                <button onclick="window.openRoutineOccurrenceTimeline(${o.id})" class="text-[11px] font-bold text-slate-400 hover:text-slate-600 mt-2"><i class="fa-regular fa-clock"></i> מה קרה כאן</button>
+            </div>
+        `).join('');
+    }
+
+    const ROUTINE_EVENT_LABELS = {
+        occurrence_created: 'מופע נוצר', occurrence_activated: 'מופע הופעל', occurrence_overdue: 'סומן כפיגור',
+        occurrence_completed: 'סומן כבוצע', occurrence_completed_with_exception: 'סומן כבוצע עם חריגה',
+        occurrence_submitted: 'הוגש לאישור', internal_approved: 'אושר פנימית', internal_rejected: 'נדחה פנימית',
+        customer_approval_requested: 'נשלחה בקשת אישור ללקוח', customer_approved: 'הלקוח אישר', customer_rejected: 'הלקוח דחה',
+        move_requested: 'התבקשה הזזה', move_approved: 'הזזה אושרה', move_rejected: 'הזזה נדחתה',
+        occurrence_skipped: 'דולג', assignee_changed_single: 'הוחלף אחראי (מופע זה)', assignee_changed_series: 'הוחלף אחראי (כל הסדרה)',
+        document_generated: 'הופק מסמך', document_sent: 'מסמך נשלח',
+    };
+
+    window.openRoutineOccurrenceTimeline = async function(occId) {
+        const html = `
+            <div id="routine-timeline-modal" class="fixed inset-0 bg-black/50 z-[9999] flex items-end sm:items-center justify-center p-0 sm:p-4" onclick="if(event.target===this) this.remove()">
+                <div class="bg-white rounded-t-3xl sm:rounded-3xl w-full sm:max-w-md max-h-[85vh] overflow-y-auto p-5">
+                    <h3 class="text-lg font-bold mb-3">מה קרה כאן</h3>
+                    <div id="routine-timeline-content" class="text-center text-slate-400 text-xs py-6">טוען…</div>
+                    <button onclick="window.generateRoutineOccurrenceDocument(${occId})" class="w-full mt-3 py-2.5 rounded-xl bg-teal-50 text-teal-700 text-sm font-bold">📄 הפקת אישור ביצוע</button>
+                    <button onclick="document.getElementById('routine-timeline-modal').remove()" class="w-full mt-2 py-2.5 rounded-xl bg-slate-100 text-slate-600 text-sm font-bold">סגירה</button>
+                </div>
+            </div>`;
+        document.body.insertAdjacentHTML('beforeend', html);
+        try {
+            const res = await fetch(`${API}/routine-occurrences/${occId}/detail`, { headers: _authHdr() });
+            const data = await res.json();
+            const el = document.getElementById('routine-timeline-content');
+            if (!el) return;
+            if (!data.success) { el.innerHTML = `<div class="text-red-400 text-xs">שגיאה בטעינה</div>`; return; }
+            const events = (data.events || []).slice().sort((a,b) => new Date(a.created_at) - new Date(b.created_at));
+            if (!events.length) { el.innerHTML = `<div class="text-slate-400 text-xs">אין עדיין אירועים רשומים.</div>`; return; }
+            el.innerHTML = `<div class="space-y-2 text-right">` + events.map(ev => `
+                <div class="border-r-2 border-teal-200 pr-3 py-1">
+                    <div class="text-xs font-bold text-slate-700">${ROUTINE_EVENT_LABELS[ev.event_type] || ev.event_type}</div>
+                    <div class="text-[10px] text-slate-400">${new Date(ev.created_at).toLocaleString('he-IL')} · ${ev.actor_name || (ev.actor_type === 'system' ? 'המערכת' : '')}</div>
+                    ${ev.note ? `<div class="text-[11px] text-slate-500 mt-0.5">${ev.note}</div>` : ''}
+                </div>
+            `).join('') + `</div>`;
+        } catch(e) {
+            const el = document.getElementById('routine-timeline-content');
+            if (el) el.innerHTML = `<div class="text-red-400 text-xs">שגיאת רשת</div>`;
+        }
+    };
+
+    // --- הפקת מסמכים ושליחה (סעיף 11) ---
+    window.generateRoutineOccurrenceDocument = async function(occId) {
+        const exposureLevel = confirm('להפיק ברמת חשיפה "פנימי" (כולל שרשרת אישורים)?\nאישור = פנימי · ביטול = ללקוח') ? 'internal' : 'customer';
+        try {
+            const res = await fetch(`${API}/routine-occurrences/${occId}/documents/occurrence-report`, {
+                method: 'POST', headers: _authHdr(), body: JSON.stringify({ exposureLevel, userName: currentUser?.name || null })
+            });
+            const data = await res.json();
+            if (data.success) _openRoutineDocumentSendModal(data.documentId, data.url);
+            else showToast('error', data.error || 'שגיאה בהפקת המסמך');
+        } catch(e) { showToast('error', 'שגיאת רשת'); }
+    };
+
+    window.generateRoutineSiteFileDocument = async function(siteId, preset) {
+        try {
+            const res = await fetch(`${API}/routines/sites/${siteId}/documents/site-file`, {
+                method: 'POST', headers: _authHdr(), body: JSON.stringify({ preset, userName: currentUser?.name || null })
+            });
+            const data = await res.json();
+            if (data.success) _openRoutineDocumentSendModal(data.documentId, data.url);
+            else showToast('error', data.error || 'שגיאה בהפקת המסמך');
+        } catch(e) { showToast('error', 'שגיאת רשת'); }
+    };
+
+    function _openRoutineDocumentSendModal(documentId, url) {
+        const html = `
+            <div id="routine-doc-send-modal" class="fixed inset-0 bg-black/50 z-[9999] flex items-end sm:items-center justify-center p-0 sm:p-4" onclick="if(event.target===this) this.remove()">
+                <div class="bg-white rounded-t-3xl sm:rounded-3xl w-full sm:max-w-sm p-5">
+                    <div class="text-3xl mb-2 text-center">📄</div>
+                    <h3 class="text-lg font-bold mb-2 text-center">המסמך הופק</h3>
+                    <div class="bg-slate-50 rounded-xl p-3 text-[11px] break-all mb-3 select-all">${url}</div>
+                    <input id="rtdoc-send-to" type="text" placeholder="טלפון (לוואטסאפ) או אימייל" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm mb-2">
+                    <div class="grid grid-cols-2 gap-2 mb-2">
+                        <button onclick="window.sendRoutineDocument(${documentId}, 'whatsapp')" class="py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-bold">וואטסאפ</button>
+                        <button onclick="window.sendRoutineDocument(${documentId}, 'email')" class="py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-bold">מייל</button>
+                    </div>
+                    <a href="${url}" target="_blank" onclick="window.sendRoutineDocument(${documentId}, 'view_link')" class="block text-center w-full py-2.5 rounded-xl bg-slate-100 text-slate-600 text-sm font-bold mb-2">פתיחה / הורדה כ-PDF</a>
+                    <button onclick="document.getElementById('routine-doc-send-modal').remove()" class="w-full py-2.5 rounded-xl bg-slate-50 text-slate-400 text-xs font-bold">סגירה</button>
+                </div>
+            </div>`;
+        document.body.insertAdjacentHTML('beforeend', html);
+    }
+
+    window.sendRoutineDocument = async function(documentId, channel) {
+        const to = document.getElementById('rtdoc-send-to')?.value?.trim() || null;
+        if ((channel === 'whatsapp' || channel === 'email') && !to) { showToast('error', 'נא להזין טלפון או אימייל'); return; }
+        try {
+            const res = await fetch(`${API}/routine-documents/${documentId}/send`, {
+                method: 'POST', headers: _authHdr(), body: JSON.stringify({ channel, to, userName: currentUser?.name || null })
+            });
+            const data = await res.json();
+            if (data.success) { showToast('success', channel === 'view_link' ? 'המסמך נפתח' : 'המסמך נשלח'); document.getElementById('routine-doc-send-modal')?.remove(); }
+            else showToast('error', data.error || 'שגיאה בשליחה');
+        } catch(e) { showToast('error', 'שגיאת רשת'); }
+    };
+
+    window.skipRoutineOccurrence = async function(occId) {
+        const reason = prompt('סיבת הדילוג (חג, סגירה זמנית, ביטול לקוח וכו׳):');
+        if (!reason) return;
+        try {
+            const res = await fetch(`${API}/routine-occurrences/${occId}/skip`, { method: 'POST', headers: _authHdr(), body: JSON.stringify({ reason, userName: currentUser?.name || null }) });
+            const data = await res.json();
+            if (data.success) { showToast('success', 'המופע סומן כמדולג'); window.switchRoutinesSubTab(_routinesSubTab); }
+            else showToast('error', data.error || 'שגיאה');
+        } catch(e) { showToast('error', 'שגיאת רשת'); }
+    };
+
+    window.openMoveRoutineOccurrenceModal = function(occId) {
+        const html = `
+            <div id="routine-move-modal" class="fixed inset-0 bg-black/50 z-[9999] flex items-end sm:items-center justify-center p-0 sm:p-4" onclick="if(event.target===this) this.remove()">
+                <div class="bg-white rounded-t-3xl sm:rounded-3xl w-full sm:max-w-sm p-5">
+                    <h3 class="text-lg font-bold mb-3">בקשת הזזת מופע</h3>
+                    <p class="text-[11px] text-slate-500 mb-2">ההזזה מחייבת הערה ועוברת לאישור מנהל. המופע נשאר במועד המקורי עד לאישור.</p>
+                    <input id="rtmv-date" type="date" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm mb-2">
+                    <textarea id="rtmv-note" placeholder="הערה (חובה)" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm" rows="2"></textarea>
+                    <div class="flex gap-2 mt-4">
+                        <button onclick="document.getElementById('routine-move-modal').remove()" class="flex-1 py-2.5 rounded-xl bg-slate-100 text-slate-600 text-sm font-bold">ביטול</button>
+                        <button onclick="window.submitMoveRoutineOccurrence(${occId})" class="flex-1 py-2.5 rounded-xl bg-purple-600 text-white text-sm font-bold">שליחת בקשה</button>
+                    </div>
+                </div>
+            </div>`;
+        document.body.insertAdjacentHTML('beforeend', html);
+    };
+
+    window.submitMoveRoutineOccurrence = async function(occId) {
+        const newDate = document.getElementById('rtmv-date').value;
+        const note = document.getElementById('rtmv-note').value.trim();
+        if (!newDate || !note) { showToast('error', 'יש להזין תאריך והערה'); return; }
+        try {
+            const res = await fetch(`${API}/routine-occurrences/${occId}/move-request`, { method: 'POST', headers: _authHdr(), body: JSON.stringify({ newDate, note, userName: currentUser?.name || null }) });
+            const data = await res.json();
+            if (data.success) { showToast('success', 'בקשת ההזזה נשלחה לאישור מנהל'); document.getElementById('routine-move-modal')?.remove(); window.switchRoutinesSubTab(_routinesSubTab); }
+            else showToast('error', data.error || 'שגיאה');
+        } catch(e) { showToast('error', 'שגיאת רשת'); }
+    };
+
+    window.openReassignRoutineOccurrenceModal = function(occId, routineId) {
+        const teamOptions = _routinesTeam.map(u => `<option value="${u.id}">${u.name}</option>`).join('');
+        const html = `
+            <div id="routine-reassign-modal" class="fixed inset-0 bg-black/50 z-[9999] flex items-end sm:items-center justify-center p-0 sm:p-4" onclick="if(event.target===this) this.remove()">
+                <div class="bg-white rounded-t-3xl sm:rounded-3xl w-full sm:max-w-sm p-5">
+                    <h3 class="text-lg font-bold mb-3">החלפת אחראי</h3>
+                    <select id="rtrs-user" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm mb-3">${teamOptions}</select>
+                    <div class="flex flex-col gap-2 text-sm">
+                        <label class="flex items-center gap-2"><input type="radio" name="rtrs-scope" value="single" checked> החלפה למופע הזה בלבד</label>
+                        <label class="flex items-center gap-2"><input type="radio" name="rtrs-scope" value="series"> החלפה קבועה לכל הסדרה מכאן והלאה</label>
+                    </div>
+                    <div class="flex gap-2 mt-4">
+                        <button onclick="document.getElementById('routine-reassign-modal').remove()" class="flex-1 py-2.5 rounded-xl bg-slate-100 text-slate-600 text-sm font-bold">ביטול</button>
+                        <button onclick="window.submitReassignRoutineOccurrence(${occId})" class="flex-1 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-bold">אישור</button>
+                    </div>
+                </div>
+            </div>`;
+        document.body.insertAdjacentHTML('beforeend', html);
+    };
+
+    window.submitReassignRoutineOccurrence = async function(occId) {
+        const userId = document.getElementById('rtrs-user').value;
+        const scope = document.querySelector('input[name="rtrs-scope"]:checked')?.value || 'single';
+        if (!userId) { showToast('error', 'יש לבחור עובד'); return; }
+        try {
+            const res = await fetch(`${API}/routine-occurrences/${occId}/reassign`, { method: 'POST', headers: _authHdr(), body: JSON.stringify({ userId, scope, changedBy: currentUser?.name || null }) });
+            const data = await res.json();
+            if (data.success) { showToast('success', 'האחראי עודכן'); document.getElementById('routine-reassign-modal')?.remove(); window.switchRoutinesSubTab(_routinesSubTab); }
+            else showToast('error', data.error || 'שגיאה');
+        } catch(e) { showToast('error', 'שגיאת רשת'); }
+    };
+
+    async function _renderRoutinesApprovals() {
+        const el = document.getElementById('routines-subtab-content');
+        if (!el) return;
+        el.innerHTML = `<div class="text-center text-slate-400 text-xs py-6">טוען…</div>`;
+        try {
+            const res = await fetch(`${API}/routines/${currentGroup.id}/move-requests`, { headers: _authHdr() });
+            const data = await res.json();
+            const list = data.occurrences || [];
+            if (!list.length) { el.innerHTML = `<div class="text-center text-slate-400 text-xs py-8">אין בקשות הזזה ממתינות.</div>`; return; }
+            el.innerHTML = list.map(o => `
+                <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 mb-2">
+                    <div class="font-bold text-sm mb-1">${o.routine_name}</div>
+                    <div class="text-[11px] text-slate-500 mb-1">מועד מקורי: ${o.scheduled_date} ← מבוקש: ${o.move_requested_date}</div>
+                    <div class="text-[11px] text-slate-600 mb-2">הערה: ${o.move_requested_note || ''}</div>
+                    ${o.assignee_name ? `<div class="text-[11px] text-slate-500 mb-2"><i class="fa-solid fa-user"></i> ${o.assignee_name}</div>` : ''}
+                    <div class="flex gap-2">
+                        <button onclick="window.decideMoveRoutineOccurrence(${o.id}, true)" class="text-[11px] font-bold px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100">אישור הזזה</button>
+                        <button onclick="window.decideMoveRoutineOccurrence(${o.id}, false)" class="text-[11px] font-bold px-3 py-1.5 rounded-lg bg-red-50 text-red-700 hover:bg-red-100">דחייה</button>
+                    </div>
+                </div>
+            `).join('');
+        } catch(e) { el.innerHTML = `<div class="text-center text-red-400 text-xs py-6">שגיאה בטעינה</div>`; }
+    }
+
+    window.decideMoveRoutineOccurrence = async function(occId, approve) {
+        try {
+            const res = await fetch(`${API}/routine-occurrences/${occId}/move-decision`, { method: 'POST', headers: _authHdr(), body: JSON.stringify({ approve, userName: currentUser?.name || null }) });
+            const data = await res.json();
+            if (data.success) { showToast('success', approve ? 'ההזזה אושרה' : 'הבקשה נדחתה'); _renderRoutinesApprovals(); }
+            else showToast('error', data.error || 'שגיאה');
+        } catch(e) { showToast('error', 'שגיאת רשת'); }
+    };
+
+    async function _renderRoutinesInternalApprovals() {
+        const el = document.getElementById('routines-subtab-content');
+        if (!el) return;
+        el.innerHTML = `<div class="text-center text-slate-400 text-xs py-6">טוען…</div>`;
+        try {
+            const res = await fetch(`${API}/routines/${currentGroup.id}/pending-approvals`, { headers: _authHdr() });
+            const data = await res.json();
+            const list = data.rounds || [];
+            if (!list.length) { el.innerHTML = `<div class="text-center text-slate-400 text-xs py-8">אין ביצועים הממתינים לאישור.</div>`; return; }
+            el.innerHTML = list.map(rd => `
+                <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 mb-2">
+                    <div class="flex items-center justify-between mb-1">
+                        <div class="font-bold text-sm">${rd.routine_name}</div>
+                        ${rd.exception_flag ? `<span class="text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">דווחה חריגה</span>` : ''}
+                    </div>
+                    <div class="text-[11px] text-slate-500 mb-2">תאריך מופע: ${rd.scheduled_date} · סבב ${rd.round_number} · הוגש ע"י ${rd.submitted_by || '—'}</div>
+                    <div class="flex gap-2">
+                        <button onclick="window.decideInternalApproval(${rd.occurrence_id}, ${rd.id}, true)" class="text-[11px] font-bold px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100">אישור</button>
+                        <button onclick="window.decideInternalApproval(${rd.occurrence_id}, ${rd.id}, false)" class="text-[11px] font-bold px-3 py-1.5 rounded-lg bg-red-50 text-red-700 hover:bg-red-100">דחייה</button>
+                    </div>
+                </div>
+            `).join('');
+        } catch(e) { el.innerHTML = `<div class="text-center text-red-400 text-xs py-6">שגיאה בטעינה</div>`; }
+    }
+
+    window.decideInternalApproval = async function(occId, roundId, approve) {
+        let reason = null;
+        if (!approve) { reason = prompt('סיבת הדחייה:'); if (!reason) return; }
+        try {
+            const res = await fetch(`${API}/routine-occurrences/${occId}/approval-rounds/${roundId}/decide`, {
+                method: 'POST', headers: _authHdr(), body: JSON.stringify({ approve, reason, userName: currentUser?.name || null })
+            });
+            const data = await res.json();
+            if (data.success) {
+                showToast('success', approve ? 'הביצוע אושר' : 'הביצוע נדחה וחזר לעובד');
+                if (data.customerApprovalUrl) _showRoutineCustomerLinkModal(data.customerApprovalUrl);
+                _renderRoutinesInternalApprovals();
+            } else showToast('error', data.error || 'שגיאה');
+        } catch(e) { showToast('error', 'שגיאת רשת'); }
+    };
+
+    function _showRoutineCustomerLinkModal(url) {
+        const html = `
+            <div id="routine-customer-link-modal" class="fixed inset-0 bg-black/50 z-[9999] flex items-end sm:items-center justify-center p-0 sm:p-4" onclick="if(event.target===this) this.remove()">
+                <div class="bg-white rounded-t-3xl sm:rounded-3xl w-full sm:max-w-sm p-5 text-center">
+                    <div class="text-3xl mb-2">📨</div>
+                    <h3 class="text-lg font-bold mb-2">נדרש אישור לקוח</h3>
+                    <p class="text-xs text-slate-500 mb-3">שלחו ללקוח את הקישור הבא לאישור הביצוע (ללא הרשמה/סיסמה):</p>
+                    <div class="bg-slate-50 rounded-xl p-3 text-[11px] break-all mb-3 select-all">${url}</div>
+                    <div class="flex gap-2">
+                        <a href="https://wa.me/?text=${encodeURIComponent('נא לאשר את ביצוע השירות: ' + url)}" target="_blank" class="flex-1 py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-bold">שליחה בוואטסאפ</a>
+                        <button onclick="document.getElementById('routine-customer-link-modal').remove()" class="flex-1 py-2.5 rounded-xl bg-slate-100 text-slate-600 text-sm font-bold">סגירה</button>
+                    </div>
+                </div>
+            </div>`;
+        document.body.insertAdjacentHTML('beforeend', html);
+    }
+
+    async function _renderRoutinesToday() {
+        const el = document.getElementById('routines-subtab-content');
+        if (!el) return;
+        el.innerHTML = `<div class="text-center text-slate-400 text-xs py-6">טוען…</div>`;
+        try {
+            const res = await fetch(`${API}/routines/${currentGroup.id}/today`, { headers: _authHdr() });
+            const data = await res.json();
+            await _renderOccurrenceCards(el, data.occurrences || [], 'אין מופעים מתוכננים להיום.');
+        } catch(e) { el.innerHTML = `<div class="text-center text-red-400 text-xs py-6">שגיאה בטעינה</div>`; }
+    }
+
+    async function _renderRoutinesMissed() {
+        const el = document.getElementById('routines-subtab-content');
+        if (!el) return;
+        el.innerHTML = `<div class="text-center text-slate-400 text-xs py-6">טוען…</div>`;
+        try {
+            const res = await fetch(`${API}/routines/${currentGroup.id}/missed`, { headers: _authHdr() });
+            const data = await res.json();
+            await _renderOccurrenceCards(el, data.occurrences || [], 'אין מופעים בפיגור כרגע 🎉');
+        } catch(e) { el.innerHTML = `<div class="text-center text-red-400 text-xs py-6">שגיאה בטעינה</div>`; }
+    }
+
+    window.completeRoutineOccurrence = async function(occId, hasException) {
+        let note = null;
+        if (hasException) { note = prompt('מה החריגה שהתגלתה?') || ''; }
+        try {
+            const res = await fetch(`${API}/routine-occurrences/${occId}/complete`, {
+                method: 'POST', headers: _authHdr(),
+                body: JSON.stringify({ hasException: !!hasException, note, userName: currentUser?.name || null })
+            });
+            const data = await res.json();
+            if (data.success) {
+                showToast('success', data.requiresApproval ? 'הביצוע הוגש לאישור' : 'המופע סומן כבוצע');
+                if (data.customerApprovalUrl) _showRoutineCustomerLinkModal(data.customerApprovalUrl);
+                window.switchRoutinesSubTab(_routinesSubTab);
+            } else showToast('error', data.error || 'שגיאה');
+        } catch(e) { showToast('error', 'שגיאת רשת'); }
+    };
+
+    window.toggleRoutineActive = async function(routineId, isActive) {
+        if (!isActive) return; // מושבתת כבר — אין פעולת הפעלה מחדש בשלב זה
+        if (!confirm('להשבית את השגרה? מופעים עתידיים שלא הופעלו יבוטלו.')) return;
+        try {
+            const res = await fetch(`${API}/routines/${routineId}`, { method: 'DELETE', headers: _authHdr(), body: JSON.stringify({ userName: currentUser?.name || null }) });
+            const data = await res.json();
+            if (data.success) { showToast('success', 'השגרה הושבתה'); _renderRoutinesList(); }
+            else showToast('error', data.error || 'שגיאה');
+        } catch(e) { showToast('error', 'שגיאת רשת'); }
+    };
+
+    window.openRoutineTemplatesModal = async function() {
+        const html = `
+            <div id="routine-templates-modal" class="fixed inset-0 bg-black/50 z-[9999] flex items-end sm:items-center justify-center p-0 sm:p-4" onclick="if(event.target===this) this.remove()">
+                <div class="bg-white rounded-t-3xl sm:rounded-3xl w-full sm:max-w-md max-h-[85vh] overflow-y-auto p-5">
+                    <h3 class="text-lg font-bold mb-1">ספריית תבניות</h3>
+                    <p class="text-[11px] text-slate-500 mb-3">בחרו אילו שגרות מוכרות בענף רלוונטיות לכם — התדירות היא המלצה, אפשר לשנות אחר כך.</p>
+                    <div id="routine-templates-content" class="text-center text-slate-400 text-xs py-6">טוען…</div>
+                    <div class="flex gap-2 mt-4">
+                        <button onclick="document.getElementById('routine-templates-modal').remove()" class="flex-1 py-2.5 rounded-xl bg-slate-100 text-slate-600 text-sm font-bold">ביטול</button>
+                        <button onclick="window.submitApplyRoutineTemplates()" class="flex-1 py-2.5 rounded-xl bg-teal-600 text-white text-sm font-bold">הוספת השגרות הנבחרות</button>
+                    </div>
+                </div>
+            </div>`;
+        document.body.insertAdjacentHTML('beforeend', html);
+        try {
+            const res = await fetch(`${API}/routines/${currentGroup.id}/templates`, { headers: _authHdr() });
+            const data = await res.json();
+            const el = document.getElementById('routine-templates-content');
+            if (!el) return;
+            const templates = data.templates || [];
+            const families = [...new Set(templates.map(t => t.family))];
+            el.innerHTML = families.map(fam => `
+                <div class="mb-3">
+                    <div class="text-xs font-bold text-slate-600 mb-1">${fam}</div>
+                    ${templates.filter(t => t.family === fam).map(t => `
+                        <label class="flex items-start gap-2 text-xs text-slate-700 py-1">
+                            <input type="checkbox" class="rt-template-cb mt-0.5" value="${t.key}">
+                            <span>${t.name} <span class="text-slate-400">(${ROUTINE_FREQ_LABELS[t.frequencyInterval] || ROUTINE_FREQ_LABELS[t.frequencyType] || ''})</span></span>
+                        </label>
+                    `).join('')}
+                </div>
+            `).join('');
+        } catch(e) {
+            const el = document.getElementById('routine-templates-content');
+            if (el) el.innerHTML = `<div class="text-red-400 text-xs">שגיאת רשת</div>`;
+        }
+    };
+
+    window.submitApplyRoutineTemplates = async function() {
+        const keys = Array.from(document.querySelectorAll('.rt-template-cb:checked')).map(cb => cb.value);
+        if (!keys.length) { showToast('error', 'יש לבחור לפחות שגרה אחת'); return; }
+        try {
+            const res = await fetch(`${API}/routines/${currentGroup.id}/templates/apply`, {
+                method: 'POST', headers: _authHdr(), body: JSON.stringify({ templateKeys: keys, createdBy: currentUser?.name || null })
+            });
+            const data = await res.json();
+            if (data.success) { showToast('success', `נוספו ${data.createdIds.length} שגרות`); document.getElementById('routine-templates-modal')?.remove(); _renderRoutinesList(); }
+            else showToast('error', data.error || 'שגיאה');
+        } catch(e) { showToast('error', 'שגיאת רשת'); }
+    };
+
+    window.openCreateRoutineModal = function() {
+        const teamOptions = _routinesTeam.map(u => `<option value="${u.id}">${u.name}</option>`).join('');
+        const modalHtml = `
+            <div id="routine-create-modal" class="fixed inset-0 bg-black/50 z-[9999] flex items-end sm:items-center justify-center p-0 sm:p-4" onclick="if(event.target===this) this.remove()">
+                <div class="bg-white rounded-t-3xl sm:rounded-3xl w-full sm:max-w-md max-h-[90vh] overflow-y-auto p-5">
+                    <h3 class="text-lg font-bold mb-3">שגרה חדשה</h3>
+                    <div class="space-y-3">
+                        <input id="rt-name" type="text" placeholder="שם השגרה (למשל: ניקוי מנדפים)" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm">
+                        <textarea id="rt-desc" placeholder="תיאור / הנחיות ביצוע (אופציונלי)" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm" rows="2"></textarea>
+                        <select id="rt-category" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm">
+                            <option value="regulatory">רגולציה</option>
+                            <option value="safety">בטיחות</option>
+                            <option value="preventive_maintenance">תחזוקה מונעת</option>
+                            <option value="operational" selected>תפעול</option>
+                            <option value="logistics">לוגיסטיקה</option>
+                        </select>
+                        <select id="rt-output" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm">
+                            <option value="task">משימה בלבד</option>
+                            <option value="task_calendar">משימה + אירוע ביומן</option>
+                            <option value="work_order_template">פקודת עבודה מלאה</option>
+                        </select>
+                        <div class="grid grid-cols-2 gap-2">
+                            <select id="rt-freq" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm">
+                                <option value="daily">יומי</option>
+                                <option value="weekly" selected>שבועי</option>
+                                <option value="biweekly">דו-שבועי</option>
+                                <option value="monthly">חודשי</option>
+                                <option value="quarterly">רבעוני</option>
+                                <option value="semiannual">חצי-שנתי</option>
+                                <option value="yearly">שנתי</option>
+                            </select>
+                            <input id="rt-time" type="time" value="09:00" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm">
+                        </div>
+                        <select id="rt-assignee" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm">
+                            <option value="">ללא אחראי קבוע</option>
+                            ${teamOptions}
+                        </select>
+                        <input id="rt-grace" type="number" placeholder="חלון חסד (דקות)" value="60" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm">
+                        <label class="flex items-center gap-2 text-xs font-bold text-slate-600"><input id="rt-requires-approval" type="checkbox"> דורש אישור מנהל לפני סגירת מופע (מסלול מלא)</label>
+                        <label class="flex items-center gap-2 text-xs font-bold text-slate-600"><input id="rt-requires-customer-approval" type="checkbox"> דורש גם אישור לקוח בסיום (קישור אישי ללא הרשמה)</label>
+                    </div>
+                    <div class="flex gap-2 mt-4">
+                        <button onclick="document.getElementById('routine-create-modal').remove()" class="flex-1 py-2.5 rounded-xl bg-slate-100 text-slate-600 text-sm font-bold">ביטול</button>
+                        <button onclick="window.submitCreateRoutine()" class="flex-1 py-2.5 rounded-xl bg-teal-600 text-white text-sm font-bold">שמירה</button>
+                    </div>
+                </div>
+            </div>`;
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+    };
+
+    window.submitCreateRoutine = async function() {
+        const name = document.getElementById('rt-name').value.trim();
+        if (!name) { showToast('error', 'יש להזין שם לשגרה'); return; }
+        const body = {
+            name,
+            description: document.getElementById('rt-desc').value.trim() || null,
+            category: document.getElementById('rt-category').value,
+            outputType: document.getElementById('rt-output').value,
+            frequencyType: 'fixed',
+            frequencyInterval: document.getElementById('rt-freq').value,
+            scheduledTime: document.getElementById('rt-time').value || null,
+            assigneeUserId: document.getElementById('rt-assignee').value || null,
+            gracePeriodMinutes: parseInt(document.getElementById('rt-grace').value, 10) || 60,
+            requiresInternalApproval: document.getElementById('rt-requires-approval').checked,
+            requiresCustomerApprovalEvents: document.getElementById('rt-requires-customer-approval').checked ? ['completion'] : [],
+            createdBy: currentUser?.name || null,
+        };
+        try {
+            const res = await fetch(`${API}/routines/${currentGroup.id}`, { method: 'POST', headers: _authHdr(), body: JSON.stringify(body) });
+            const data = await res.json();
+            if (data.success) {
+                showToast('success', 'השגרה נוצרה');
+                document.getElementById('routine-create-modal')?.remove();
+                _renderRoutinesList();
+            } else showToast('error', data.error || 'שגיאה ביצירת השגרה');
+        } catch(e) { showToast('error', 'שגיאת רשת'); }
+    };
+
+    // --- אתרים + תיק אתר (סעיף 8) ---
+    async function _renderRoutinesSites() {
+        const el = document.getElementById('routines-subtab-content');
+        if (!el) return;
+        el.innerHTML = `<div class="text-center text-slate-400 text-xs py-6">טוען…</div>`;
+        try {
+            const res = await fetch(`${API}/routines/${currentGroup.id}/sites`, { headers: _authHdr() });
+            const data = await res.json();
+            const sites = data.sites || [];
+            el.innerHTML = `
+                <button onclick="window.openCreateRoutineSiteModal()" class="w-full mb-3 py-3 rounded-xl bg-teal-600 text-white text-sm font-bold hover:bg-teal-700 transition"><i class="fa-solid fa-plus"></i> אתר חדש</button>
+                ${sites.length === 0 ? `<div class="text-center text-slate-400 text-xs py-8">אין עדיין אתרים מוגדרים.</div>` : sites.map(s => `
+                    <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 mb-2 cursor-pointer hover:bg-slate-50" onclick="window.openRoutineSiteFile(${s.id})">
+                        <div class="font-bold text-sm mb-1">${s.name}${s.is_internal ? ' <span class="text-[10px] text-slate-400">(פנימי)</span>' : ''}</div>
+                        <div class="text-[11px] text-slate-500">${s.address || ''}${s.contact_name ? ' · ' + s.contact_name : ''}</div>
+                    </div>
+                `).join('')}
+            `;
+        } catch(e) { el.innerHTML = `<div class="text-center text-red-400 text-xs py-6">שגיאה בטעינה</div>`; }
+    }
+
+    window.openCreateRoutineSiteModal = function() {
+        const html = `
+            <div id="routine-site-modal" class="fixed inset-0 bg-black/50 z-[9999] flex items-end sm:items-center justify-center p-0 sm:p-4" onclick="if(event.target===this) this.remove()">
+                <div class="bg-white rounded-t-3xl sm:rounded-3xl w-full sm:max-w-sm p-5">
+                    <h3 class="text-lg font-bold mb-3">אתר חדש</h3>
+                    <div class="space-y-2">
+                        <input id="rts-name" type="text" placeholder="שם האתר" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm">
+                        <input id="rts-address" type="text" placeholder="כתובת" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm">
+                        <input id="rts-contact-name" type="text" placeholder="איש קשר" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm">
+                        <input id="rts-contact-phone" type="text" placeholder="טלפון איש קשר" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm">
+                        <label class="flex items-center gap-2 text-xs font-bold text-slate-600"><input id="rts-internal" type="checkbox"> אתר פנימי (העסק עצמו)</label>
+                    </div>
+                    <div class="flex gap-2 mt-4">
+                        <button onclick="document.getElementById('routine-site-modal').remove()" class="flex-1 py-2.5 rounded-xl bg-slate-100 text-slate-600 text-sm font-bold">ביטול</button>
+                        <button onclick="window.submitCreateRoutineSite()" class="flex-1 py-2.5 rounded-xl bg-teal-600 text-white text-sm font-bold">שמירה</button>
+                    </div>
+                </div>
+            </div>`;
+        document.body.insertAdjacentHTML('beforeend', html);
+    };
+
+    window.submitCreateRoutineSite = async function() {
+        const name = document.getElementById('rts-name').value.trim();
+        if (!name) { showToast('error', 'יש להזין שם לאתר'); return; }
+        const body = {
+            name, address: document.getElementById('rts-address').value.trim() || null,
+            contactName: document.getElementById('rts-contact-name').value.trim() || null,
+            contactPhone: document.getElementById('rts-contact-phone').value.trim() || null,
+            isInternal: document.getElementById('rts-internal').checked,
+        };
+        try {
+            const res = await fetch(`${API}/routines/${currentGroup.id}/sites`, { method: 'POST', headers: _authHdr(), body: JSON.stringify(body) });
+            const data = await res.json();
+            if (data.success) { showToast('success', 'האתר נוצר'); document.getElementById('routine-site-modal')?.remove(); _renderRoutinesSites(); }
+            else showToast('error', data.error || 'שגיאה');
+        } catch(e) { showToast('error', 'שגיאת רשת'); }
+    };
+
+    window.openRoutineSiteFile = async function(siteId) {
+        const html = `
+            <div id="routine-sitefile-modal" class="fixed inset-0 bg-black/50 z-[9999] flex items-end sm:items-center justify-center p-0 sm:p-4" onclick="if(event.target===this) this.remove()">
+                <div class="bg-white rounded-t-3xl sm:rounded-3xl w-full sm:max-w-lg max-h-[85vh] overflow-y-auto p-5">
+                    <div id="routine-sitefile-content" class="text-center text-slate-400 text-xs py-6">טוען…</div>
+                    <button onclick="document.getElementById('routine-sitefile-modal').remove()" class="w-full mt-3 py-2.5 rounded-xl bg-slate-100 text-slate-600 text-sm font-bold">סגירה</button>
+                </div>
+            </div>`;
+        document.body.insertAdjacentHTML('beforeend', html);
+        try {
+            const res = await fetch(`${API}/routines/sites/${siteId}/file`, { headers: _authHdr() });
+            const data = await res.json();
+            const el = document.getElementById('routine-sitefile-content');
+            if (!el) return;
+            if (!data.success) { el.innerHTML = `<div class="text-red-400 text-xs">שגיאה בטעינה</div>`; return; }
+            const { site, facilities, routines, history, openExceptions } = data;
+            el.innerHTML = `
+                <h3 class="text-lg font-bold mb-1">תיק אתר — ${site.name}</h3>
+                <p class="text-[11px] text-slate-500 mb-4">${site.address || ''}${site.contact_name ? ' · ' + site.contact_name + (site.contact_phone ? ' (' + site.contact_phone + ')' : '') : ''}</p>
+
+                <div class="font-bold text-xs text-slate-600 mb-2">מתקנים ופריטים (${facilities.length})</div>
+                ${facilities.length ? facilities.map(f => `
+                    <div class="bg-slate-50 rounded-xl p-3 mb-2 text-xs">
+                        <div class="font-bold">${f.name}${f.facility_type ? ' · ' + f.facility_type : ''}</div>
+                        ${(f.items || []).map(i => `<div class="text-[11px] text-slate-500 mt-1">↳ ${i.name}${i.serial_number ? ' (מספר סידורי: ' + i.serial_number + ')' : ''}</div>`).join('')}
+                    </div>
+                `).join('') : `<div class="text-[11px] text-slate-400 mb-3">אין מתקנים רשומים.</div>`}
+
+                <div class="font-bold text-xs text-slate-600 mt-4 mb-2">שגרות פעילות באתר (${routines.length})</div>
+                ${routines.length ? routines.map(r => `
+                    <div class="text-[11px] text-slate-600 flex justify-between border-b border-slate-100 py-1.5">
+                        <span>${r.name}</span><span class="text-slate-400">${r.next_occurrence_date ? 'הבא: ' + r.next_occurrence_date : ''}</span>
+                    </div>
+                `).join('') : `<div class="text-[11px] text-slate-400">אין שגרות פעילות.</div>`}
+
+                ${openExceptions.length ? `
+                    <div class="font-bold text-xs text-amber-700 mt-4 mb-2">חריגות פתוחות (${openExceptions.length})</div>
+                    ${openExceptions.map(e => `<div class="text-[11px] text-amber-700">${e.routine_name} · ${e.scheduled_date}</div>`).join('')}
+                ` : ''}
+
+                <div class="font-bold text-xs text-slate-600 mt-4 mb-2">היסטוריית מופעים (${history.length})</div>
+                <div class="max-h-40 overflow-y-auto">
+                ${history.length ? history.map(h => `
+                    <div class="text-[11px] text-slate-500 flex justify-between border-b border-slate-50 py-1">
+                        <span>${h.routine_name}</span><span>${h.scheduled_date} · ${ROUTINE_STATUS_LABELS[h.status] || h.status}</span>
+                    </div>
+                `).join('') : `<div class="text-[11px] text-slate-400">אין עדיין היסטוריה.</div>`}
+                </div>
+                <div class="grid grid-cols-2 gap-2 mt-4">
+                    <button onclick="window.generateRoutineSiteFileDocument(${siteId}, 'audit')" class="py-2.5 rounded-xl bg-teal-600 text-white text-xs font-bold">📄 תיק ביקורת</button>
+                    <button onclick="window.generateRoutineSiteFileDocument(${siteId}, 'customer')" class="py-2.5 rounded-xl bg-teal-50 text-teal-700 text-xs font-bold">📄 דוח ללקוח</button>
+                </div>
+            `;
+        } catch(e) {
+            const el = document.getElementById('routine-sitefile-content');
+            if (el) el.innerHTML = `<div class="text-red-400 text-xs">שגיאת רשת</div>`;
+        }
+    };
+
+    // --- חוזי שירות + דוח כיסוי חוזי (19, 22) ---
+    async function _renderRoutinesContracts() {
+        const el = document.getElementById('routines-subtab-content');
+        if (!el) return;
+        if (currentGroup?.business_type !== 'maintenance_repair') {
+            el.innerHTML = `<div class="text-center text-slate-400 text-xs py-8">חוזי שירות רלוונטיים לעסקי תחזוקה ותיקונים.</div>`;
+            return;
+        }
+        el.innerHTML = `<div class="text-center text-slate-400 text-xs py-6">טוען…</div>`;
+        try {
+            const res = await fetch(`${API}/routines/${currentGroup.id}/contract-coverage`, { headers: _authHdr() });
+            const data = await res.json();
+            const list = data.coverage || [];
+            el.innerHTML = `
+                ${list.length === 0 ? `<div class="text-center text-slate-400 text-xs py-8">אין חוזי שירות פעילים.</div>` : list.map(c => `
+                    <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 mb-2">
+                        <div class="font-bold text-sm mb-1">${c.siteName || 'חוזה #' + c.contractId}</div>
+                        <div class="text-[11px] text-slate-500 flex flex-wrap gap-x-3 gap-y-1">
+                            ${c.visitsIncluded != null ? `<span>ביקורים: ${c.visitsDone}/${c.visitsIncluded} (נותרו ${c.visitsRemaining})</span>` : ''}
+                            ${c.nextVisitDate ? `<span>הבא: ${c.nextVisitDate}</span>` : ''}
+                            ${c.endDate ? `<span>תוקף עד: ${c.endDate}</span>` : ''}
+                        </div>
+                        ${c.expiringDocumentsCount > 0 ? `<div class="text-[11px] text-amber-700 mt-1"><i class="fa-solid fa-triangle-exclamation"></i> ${c.expiringDocumentsCount} תעודות עומדות לפוג ב-30 הימים הקרובים</div>` : ''}
+                    </div>
+                `).join('')}
+            `;
+        } catch(e) { el.innerHTML = `<div class="text-center text-red-400 text-xs py-6">שגיאה בטעינה</div>`; }
+    }
+
+    // --- מסך "מצב ציות לרישוי" (17) — רלוונטי למסעדות; מצטבר לקראת חידוש רישיון עסק ---
+    const ROUTINE_COMPLIANCE_LABELS = { valid: 'בתוקף', expiring_soon: 'עומד לפוג', expired: 'פג תוקף', none: 'אין עדיין תעודה' };
+    const ROUTINE_COMPLIANCE_COLORS = { valid: 'bg-emerald-100 text-emerald-700', expiring_soon: 'bg-amber-100 text-amber-700', expired: 'bg-red-100 text-red-700', none: 'bg-slate-100 text-slate-500' };
+
+    async function _renderRoutinesCompliance() {
+        const el = document.getElementById('routines-subtab-content');
+        if (!el) return;
+        if (currentGroup?.business_type !== 'restaurant') {
+            el.innerHTML = `<div class="text-center text-slate-400 text-xs py-8">מסך "מצב ציות" רלוונטי לעסקי מסעדנות.</div>`;
+            return;
+        }
+        el.innerHTML = `<div class="text-center text-slate-400 text-xs py-6">טוען…</div>`;
+        try {
+            const res = await fetch(`${API}/routines/${currentGroup.id}/compliance-status`, { headers: _authHdr() });
+            const data = await res.json();
+            const list = data.items || [];
+            el.innerHTML = `
+                <p class="text-[11px] text-slate-500 mb-3">כל השגרות הרגולטוריות והבטיחותיות ומצב התעודה שלהן — לקראת חידוש רישיון העסק או ביקורת פתע.</p>
+                ${list.length === 0 ? `<div class="text-center text-slate-400 text-xs py-8">אין עדיין שגרות רגולטוריות/בטיחות מוגדרות.</div>` : list.map(i => `
+                    <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 mb-2">
+                        <div class="flex items-center justify-between mb-1">
+                            <div class="font-bold text-sm">${i.name}</div>
+                            <span class="text-[10px] px-2 py-0.5 rounded-full ${ROUTINE_COMPLIANCE_COLORS[i.status]}">${ROUTINE_COMPLIANCE_LABELS[i.status]}</span>
+                        </div>
+                        <div class="text-[11px] text-slate-500 flex flex-wrap gap-x-3 gap-y-1">
+                            ${i.siteName ? `<span>${i.siteName}</span>` : ''}
+                            ${i.expiryDate ? `<span>תוקף עד: ${i.expiryDate}</span>` : ''}
+                            ${i.issuer ? `<span>מנפיק: ${i.issuer}</span>` : ''}
+                        </div>
+                    </div>
+                `).join('')}
+            `;
+        } catch(e) { el.innerHTML = `<div class="text-center text-red-400 text-xs py-6">שגיאה בטעינה</div>`; }
+    }
+})();
+// ===== END ROUTINES MODULE =====
