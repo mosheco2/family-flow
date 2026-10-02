@@ -565,8 +565,83 @@ function _updateSAGroupNav(tabId) {
     }
 
     _updateSubNavBar(groupId, tabId);
+    _updateTopbarCrumb(groupId);
     _updateMobileNav();
 }
+
+// כותרת הקבוצה בסרגל העליון (תצוגה בלבד) — מוצגת רק כשיש לקבוצה כמה לשוניות
+function _updateTopbarCrumb(groupId) {
+    const grpEl = getEl('sa-topbar-group');
+    const sepEl = getEl('sa-topbar-sep');
+    if (!grpEl || !sepEl) return;
+    const group = SA_GROUPS[groupId];
+    const btn = getEl(`btn-sa-group-${groupId}`);
+    const show = !!(group && btn && group.tabs.length > 1);
+    grpEl.textContent = show ? _saGroupBtnLabel(btn) : '';
+    grpEl.style.display = show ? '' : 'none';
+    sepEl.style.display = show ? '' : 'none';
+}
+function _saGroupBtnLabel(btn) {
+    return Array.from(btn.childNodes).filter(n => n.nodeType === 3).map(n => n.textContent).join(' ').trim();
+}
+
+// ===== חיפוש מסכים בסרגל העליון — ניווט בלבד, דרך switchSATab הקיים =====
+let _saNavSearchSel = 0;
+function _saNavSearchIndex() {
+    const items = [];
+    Object.entries(SA_GROUPS).forEach(([gId, g]) => {
+        const btn = getEl(`btn-sa-group-${gId}`);
+        const groupLabel = btn ? _saGroupBtnLabel(btn) : gId;
+        g.tabs.forEach((t, i) => {
+            const label = g.labels[i] || groupLabel;
+            const icon = g.icons[i] || (btn && btn.querySelector('i') ? btn.querySelector('i').className.split(' ').find(c => c.startsWith('fa-') && c !== 'fa-solid' && c !== 'fa-brands') : 'fa-circle');
+            items.push({ tab: t, label, group: groupLabel, icon });
+        });
+    });
+    return items;
+}
+window.saNavSearch = function(q) {
+    const box = getEl('sa-nav-search-results');
+    if (!box) return;
+    q = (q || '').trim();
+    if (!q) { box.classList.add('hidden'); box.innerHTML = ''; return; }
+    const ql = q.toLowerCase();
+    const res = _saNavSearchIndex().filter(it =>
+        (typeof window.checkTabAccess !== 'function' || window.checkTabAccess(it.tab)) &&
+        (it.label.toLowerCase().includes(ql) || it.group.toLowerCase().includes(ql))
+    ).slice(0, 10);
+    _saNavSearchSel = 0;
+    box.innerHTML = res.length
+        ? res.map((it, i) => `<button type="button" data-tab="${safeStr(it.tab)}" class="${i === 0 ? 'is-active' : ''}" onmousedown="event.preventDefault();saNavSearchGo('${safeStr(it.tab)}')"><i class="fa-solid ${safeStr(it.icon)} text-indigo-400 w-4 text-center"></i><span>${safeStr(it.label)}</span>${it.label !== it.group ? `<small>${safeStr(it.group)}</small>` : ''}</button>`).join('')
+        : '<div class="text-center text-slate-400 text-xs py-3">לא נמצאו מסכים</div>';
+    box.classList.remove('hidden');
+};
+window.saNavSearchGo = function(tab) {
+    const input = getEl('sa-nav-search');
+    if (input) { input.value = ''; input.blur(); }
+    saNavSearchClose();
+    window.switchSATab(tab);
+};
+window.saNavSearchClose = function() {
+    const box = getEl('sa-nav-search-results');
+    if (box) box.classList.add('hidden');
+};
+window.saNavSearchKey = function(e) {
+    const box = getEl('sa-nav-search-results');
+    if (!box || box.classList.contains('hidden')) return;
+    const btns = Array.from(box.querySelectorAll('button[data-tab]'));
+    if (!btns.length) return;
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        _saNavSearchSel = (_saNavSearchSel + (e.key === 'ArrowDown' ? 1 : -1) + btns.length) % btns.length;
+        btns.forEach((b, i) => b.classList.toggle('is-active', i === _saNavSearchSel));
+    } else if (e.key === 'Enter') {
+        e.preventDefault();
+        saNavSearchGo(btns[_saNavSearchSel].dataset.tab);
+    } else if (e.key === 'Escape') {
+        saNavSearchClose();
+    }
+};
 
 function _updateSubNavBar(groupId, activeTabId) {
     const bar = document.getElementById('sa-subnav-bar');
@@ -896,61 +971,131 @@ function _saWaitSeverity(hours) {
     return 'bg-emerald-50 border-emerald-200 text-emerald-700';
 }
 
+function _saWaitLevel(hours) {
+    if (hours === null || hours === undefined) return 'none';
+    if (hours >= 72) return 'red';
+    if (hours >= 24) return 'orange';
+    return 'green';
+}
+const _SA_PC_CARD = {
+    red:    { card: 'bg-rose-50/40 border-rose-200 ring-1 ring-rose-100', icon: 'bg-rose-100 text-rose-600',       count: 'bg-rose-500 shadow-rose-500/30' },
+    orange: { card: 'bg-amber-50/40 border-amber-200',                    icon: 'bg-amber-100 text-amber-600',     count: 'bg-amber-500 shadow-amber-500/30' },
+    green:  { card: 'bg-emerald-50/30 border-emerald-200',                icon: 'bg-emerald-100 text-emerald-600', count: 'bg-emerald-500 shadow-emerald-500/30' },
+    none:   { card: 'bg-white border-slate-200',                          icon: 'bg-slate-100 text-slate-500',     count: 'bg-slate-500 shadow-slate-500/20' }
+};
+// מיפוי קטגוריות מרכז הפעולות לקבוצות בתפריט הצד — לתצוגת מונה בלבד
+const _SA_PENDING_GROUP_OF = {
+    community_join: 'customers', biz_community: 'customers', removal: 'customers', promos: 'customers', modules: 'customers',
+    zm_pending: 'partners', tickets: 'supportdev', debts: 'finance', banners: 'contentmkt'
+};
+function _saSetHealthPill(state, text) {
+    const pill = getEl('sa-health-pill');
+    if (!pill) return;
+    const styles = {
+        ok:   'bg-emerald-50 border-emerald-200 text-emerald-700',
+        warn: 'bg-amber-50 border-amber-200 text-amber-700',
+        err:  'bg-rose-50 border-rose-200 text-rose-700'
+    };
+    const dot = { ok: 'bg-emerald-500', warn: 'bg-amber-500', err: 'bg-rose-500' };
+    pill.className = `inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-bold ${styles[state]}`;
+    pill.innerHTML = `<span class="w-1.5 h-1.5 rounded-full ${dot[state]}"></span>${safeStr(text)}`;
+}
+function _saUpdateSidebarBadges(categories) {
+    const totals = {};
+    (categories || []).forEach(cat => {
+        const g = _SA_PENDING_GROUP_OF[cat.key];
+        if (!g || !cat.count) return;
+        if (!totals[g]) totals[g] = { count: 0, oldest: 0 };
+        totals[g].count += cat.count;
+        totals[g].oldest = Math.max(totals[g].oldest, cat.oldest_wait_hours || 0);
+    });
+    document.querySelectorAll('#sa-sidebar [id^="btn-sa-group-"]').forEach(btn => {
+        const g = btn.id.replace('btn-sa-group-', '');
+        let badge = btn.querySelector('.sb-badge');
+        const t = totals[g];
+        if (!t) { if (badge) badge.remove(); return; }
+        if (!badge) { badge = document.createElement('span'); btn.appendChild(badge); }
+        badge.className = 'sb-badge' + (t.oldest >= 72 ? '' : ' sb-badge-warn');
+        badge.title = `${t.count} פעולות ממתינות`;
+        badge.textContent = t.count > 99 ? '99+' : t.count;
+    });
+}
+
 window.loadSAPendingCenter = async function() {
     const list = getEl('sa-pending-center-list');
     const summary = getEl('sa-pending-center-summary');
     if (!list) return;
     try {
         const d = await saFetch('/api/sa/pending-actions-center');
-        if (!d.success) { list.innerHTML = '<p class="text-red-400 text-center py-6 text-xs">שגיאה בטעינת נתונים</p>'; return; }
-        if (summary) summary.textContent = d.total_pending > 0
-            ? `סה"כ ${d.total_pending} פעולות ממתינות · הוותיקה ביותר: ${_saFmtWait(d.oldest_overall_hours)}`
+        if (!d.success) { _saSetHealthPill('err', 'שגיאה בטעינת נתונים'); list.innerHTML = '<p class="col-span-full text-red-400 text-center py-6 text-xs">שגיאה בטעינת נתונים</p>'; return; }
+        if (summary) summary.innerHTML = d.total_pending > 0
+            ? `<i class="fa-regular fa-clock ml-1"></i> סה"כ ${d.total_pending} פעולות ממתינות · הוותיקה ביותר: ${_saFmtWait(d.oldest_overall_hours)}`
             : '';
+        if (d.sql_errors && d.sql_errors.length) _saSetHealthPill('warn', `שגיאת שרת ב-${d.sql_errors.length} קטגוריות`);
+        else _saSetHealthPill('ok', 'תקינות מלאה');
+        _saUpdateSidebarBadges(d.categories);
         // אם שאילתת SQL אחת או יותר נכשלה בשרת, הקטגוריה המתאימה תוצג כ"ריקה" בלי
         // שום סימן — מציגים כאן אזהרה מפורשת כדי שלא ייראה כאילו באמת אין בקשות.
         const errBanner = (d.sql_errors && d.sql_errors.length)
-            ? `<div class="border border-red-200 bg-red-50 text-red-700 rounded-xl p-3 mb-2 text-[10px] font-bold">
+            ? `<div class="col-span-full border border-red-200 bg-red-50 text-red-700 rounded-xl p-3 text-[11px] font-bold">
                 <i class="fa-solid fa-triangle-exclamation mr-1"></i> שגיאת שרת ב-${d.sql_errors.length} קטגוריות (${d.sql_errors.map(e=>safeStr(e.label)).join(', ')}) — הנתונים שלהן לא נטענו ועשויים להיראות "ריקים" בטעות. פרטים מלאים בלוג השרת.
               </div>`
             : '';
-        if (!d.categories.length) { list.innerHTML = errBanner + '<p class="text-emerald-500 text-center py-6 text-xs font-bold"><i class="fa-solid fa-circle-check mr-1"></i> אין פעולות ממתינות — המערכת נקייה</p>'; return; }
+        if (!d.categories.length) { list.innerHTML = errBanner + '<p class="col-span-full text-emerald-500 text-center py-6 text-xs font-bold"><i class="fa-solid fa-circle-check mr-1"></i> אין פעולות ממתינות — המערכת נקייה</p>'; return; }
 
         window._saPendingItemsFlat = [];
         list.innerHTML = errBanner + d.categories.map(cat => {
             if (cat.count === 0) {
-                return `<div class="border rounded-xl p-3 bg-slate-50 border-slate-100">
-                    <div class="flex items-center justify-between">
-                        <span class="font-bold text-xs flex items-center gap-1.5 text-slate-400"><i class="fa-solid ${cat.icon}"></i> ${safeStr(cat.label)}</span>
-                        <span class="text-[10px] text-emerald-500 font-bold flex items-center gap-1"><i class="fa-solid fa-circle-check"></i> אין פעולות ממתינות</span>
+                return `<div class="border rounded-2xl p-4 bg-slate-50/70 border-slate-200/70">
+                    <div class="flex items-center gap-3">
+                        <span class="w-9 h-9 rounded-xl bg-white border border-slate-200 text-slate-400 flex items-center justify-center shrink-0"><i class="fa-solid ${cat.icon} text-sm"></i></span>
+                        <span class="font-bold text-sm text-slate-500 flex-1 min-w-0 leading-snug">${safeStr(cat.label)}</span>
+                        <span class="text-[11px] text-emerald-600 font-bold flex items-center gap-1 whitespace-nowrap"><i class="fa-solid fa-circle-check"></i> אין פעולות ממתינות</span>
                     </div>
                 </div>`;
             }
-            const sev = _saWaitSeverity(cat.oldest_wait_hours);
+            const lvl = _saWaitLevel(cat.oldest_wait_hours);
+            const tone = _SA_PC_CARD[lvl];
+            let firstIdx = null;
             const itemsHtml = cat.items.map(it => {
                 const idx = window._saPendingItemsFlat.length;
+                if (firstIdx === null) firstIdx = idx;
                 window._saPendingItemsFlat.push({ catKey: cat.key, item: it });
-                return `<div onclick="_saPendingItemClick(${idx})" style="cursor:pointer" class="flex items-center justify-between gap-2 text-[10px] py-1.5 px-1 -mx-1 rounded-lg border-t border-slate-50 first:border-t-0 first:pt-0 hover:bg-white/80 transition">
-                    <span class="text-slate-600 truncate">${safeStr(it.title)}${it.subtitle ? ` <span class="text-slate-400">· ${safeStr(it.subtitle)}</span>` : ''}</span>
-                    <span class="flex items-center gap-1 whitespace-nowrap">
-                        <span class="px-1.5 py-0.5 rounded-full border ${_saWaitSeverity(it.wait_hours)}">${_saFmtWait(it.wait_hours)}</span>
-                        <i class="fa-solid fa-arrow-up-left text-slate-300 text-[9px]"></i>
+                const wait = _saFmtWait(it.wait_hours);
+                const waitIcon = _saWaitLevel(it.wait_hours) === 'red' ? 'fa-solid fa-triangle-exclamation' : 'fa-regular fa-clock';
+                return `<div onclick="_saPendingItemClick(${idx})" style="cursor:pointer" class="flex items-center justify-between gap-2 bg-white border border-slate-100 rounded-xl px-3 py-2.5 hover:border-indigo-200 hover:shadow-sm transition">
+                    <div class="min-w-0">
+                        <div class="text-xs font-bold text-slate-700 truncate">${safeStr(it.title)}</div>
+                        ${it.subtitle ? `<div class="text-[11px] text-slate-400 truncate mt-0.5">${safeStr(it.subtitle)}</div>` : ''}
+                    </div>
+                    <span class="flex items-center gap-1.5 whitespace-nowrap">
+                        ${wait ? `<span class="flex items-center gap-1 px-2 py-0.5 rounded-full border text-[10px] font-bold ${_saWaitSeverity(it.wait_hours)}"><i class="${waitIcon} text-[9px]"></i>${wait}</span>` : ''}
+                        <i class="fa-solid fa-chevron-left text-slate-300 text-[9px]"></i>
                     </span>
                 </div>`;
             }).join('');
-            return `<div class="border rounded-xl p-3 ${sev}">
-                <div class="flex items-center justify-between mb-1.5">
-                    <span class="font-bold text-xs flex items-center gap-1.5"><i class="fa-solid ${cat.icon}"></i> ${safeStr(cat.label)}</span>
-                    <span class="flex items-center gap-2">
-                        <span class="text-[9px] bg-white/70 px-2 py-0.5 rounded-full border">${safeStr(cat.responsible)}</span>
-                        <span class="font-black text-sm">${cat.count}</span>
-                    </span>
+            const more = cat.count > cat.items.length ? `<span class="text-indigo-600 font-bold">ועוד ${cat.count - cat.items.length}...</span>` : '';
+            const late = lvl === 'red' ? `<span class="text-rose-600 font-bold"><i class="fa-solid fa-triangle-exclamation ml-1"></i>ממתין מעל 3 ימים</span>` : '';
+            const footerLeft = [more, late].filter(Boolean).join('<span class="text-slate-300 mx-1.5">·</span>');
+            return `<div class="border rounded-2xl p-4 flex flex-col ${tone.card}">
+                <div class="flex items-start gap-3 mb-3">
+                    <span class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${tone.icon}"><i class="fa-solid ${cat.icon}"></i></span>
+                    <div class="flex-1 min-w-0">
+                        <div class="font-extrabold text-sm text-slate-800 leading-snug">${safeStr(cat.label)}</div>
+                        <span class="inline-block mt-1.5 text-[10px] font-bold px-2 py-0.5 rounded-md bg-white/80 border border-slate-200 text-slate-500">${safeStr(cat.responsible)}</span>
+                    </div>
+                    <span class="min-w-[2.25rem] h-9 px-2 rounded-xl flex items-center justify-center font-extrabold text-base text-white shadow-md ${tone.count}">${cat.count}</span>
                 </div>
-                <div class="bg-white/60 rounded-lg px-2">${itemsHtml}</div>
-                ${cat.count > cat.items.length ? `<p class="text-[9px] text-slate-400 mt-1">ועוד ${cat.count - cat.items.length}...</p>` : ''}
+                <div class="space-y-2 flex-1">${itemsHtml}</div>
+                <div class="flex items-center justify-between gap-2 mt-3 pt-3 border-t border-slate-200/70 text-[11px]">
+                    <span class="min-w-0">${footerLeft}</span>
+                    ${firstIdx !== null ? `<button onclick="_saPendingItemClick(${firstIdx})" class="font-bold text-indigo-600 hover:text-indigo-800 whitespace-nowrap flex items-center gap-1 transition">מעבר לטיפול <i class="fa-solid fa-arrow-left text-[9px]"></i></button>` : ''}
+                </div>
             </div>`;
         }).join('');
     } catch(e) {
-        list.innerHTML = '<p class="text-red-400 text-center py-6 text-xs">שגיאת רשת</p>';
+        _saSetHealthPill('err', 'שגיאת רשת');
+        list.innerHTML = '<p class="col-span-full text-red-400 text-center py-6 text-xs">שגיאת רשת</p>';
     }
 };
 

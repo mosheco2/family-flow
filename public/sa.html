@@ -43,38 +43,65 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
 /* LAYOUT */
 #sa-dashboard-container{background:#f1f5f9!important;overflow-y:auto}
 #sa-layout{display:flex;min-height:100vh}
-#sa-sidebar{width:260px;background:#0f172a;color:white;position:fixed;top:0;bottom:0;right:0;overflow-y:auto;z-index:200;display:flex;flex-direction:column;flex-shrink:0}
+#sa-sidebar{width:260px;background:linear-gradient(180deg,#0b1222 0%,#0f172a 55%,#121b36 100%);color:white;position:fixed;top:0;bottom:0;right:0;overflow-y:auto;z-index:200;display:flex;flex-direction:column;flex-shrink:0;border-left:1px solid rgba(255,255,255,0.06);box-shadow:-8px 0 30px rgba(15,23,42,0.18)}
+#sa-sidebar::-webkit-scrollbar-track{background:transparent}
+#sa-sidebar::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.12)}
 #sa-main-content{margin-right:260px;flex:1;padding:1.5rem;min-height:100vh;overflow-y:auto}
 /* Sidebar header */
-.sb-header{padding:1.2rem 1rem;border-bottom:1px solid rgba(255,255,255,0.1)}
-.sb-header h1{font-size:0.95rem;font-weight:800;color:white;margin:0;display:flex;align-items:center;gap:0.4rem}
-.sb-header p{font-size:0.68rem;color:#94a3b8;margin:3px 0 0}
-.sb-ver{background:#1e3a5f;border-radius:6px;padding:0.45rem 1rem;margin:0.75rem;font-size:0.68rem;color:#7dd3fc;display:flex;justify-content:space-between;align-items:center}
+.sb-header{padding:1.35rem 1.1rem 1rem;display:flex;align-items:center;gap:0.75rem}
+.sb-logo{width:42px;height:42px;border-radius:0.9rem;background:linear-gradient(135deg,#4f46e5,#7c3aed);display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 6px 18px rgba(99,102,241,0.45)}
+.sb-logo i{color:white;font-size:1.05rem}
+.sb-header h1{font-size:1.05rem;font-weight:800;color:white;margin:0;letter-spacing:-0.01em}
+.sb-header p{font-size:0.66rem;color:#94a3b8;margin:2px 0 0;letter-spacing:0.04em;font-weight:600}
+.sb-ver{background:rgba(99,102,241,0.08);border:1px solid rgba(129,140,248,0.35);border-radius:99px;padding:0.35rem 0.85rem;margin:0 1.1rem 0.6rem;font-size:0.68rem;color:#c7d2fe;display:flex;justify-content:space-between;align-items:center;font-weight:600}
+.sb-ver .sb-dot{width:6px;height:6px;border-radius:50%;background:#818cf8;display:inline-block;margin-left:6px;box-shadow:0 0 0 3px rgba(129,140,248,0.2)}
 .sb-label{font-size:0.62rem;font-weight:700;color:#475569;padding:0.5rem 1rem;text-transform:uppercase;letter-spacing:0.05em}
+.sb-nav{padding:0.6rem 0;border-top:1px solid rgba(255,255,255,0.06)}
 /* Sidebar tab buttons */
-#sa-sidebar button:not(.sb-logout){display:flex!important;align-items:center!important;gap:0.5rem!important;width:100%!important;padding:0.5rem 1rem!important;color:#94a3b8!important;background:transparent!important;border-right:3px solid transparent!important;border-top:none!important;border-bottom:none!important;border-left:none!important;cursor:pointer!important;font-size:0.8rem!important;font-weight:500!important;font-family:'Rubik',sans-serif!important;text-align:right!important;white-space:nowrap!important;transition:all 0.15s!important;border-radius:0!important;flex:none!important;box-shadow:none!important}
+#sa-sidebar button:not(.sb-logout){display:flex!important;align-items:center!important;gap:0.7rem!important;width:calc(100% - 1.5rem)!important;margin:2px 0.75rem!important;padding:0.62rem 0.85rem!important;color:#94a3b8!important;background:transparent!important;border:1px solid transparent!important;cursor:pointer!important;font-size:0.82rem!important;font-weight:500!important;font-family:'Rubik',sans-serif!important;text-align:right!important;white-space:nowrap!important;transition:all 0.15s!important;border-radius:0.8rem!important;flex:none!important;box-shadow:none!important;position:relative}
 #sa-sidebar button:not(.sb-logout):hover{color:white!important;background:rgba(255,255,255,0.05)!important}
-/* Active state — detected from className strings set by switchSATab() */
-#sa-sidebar button[class*="bg-slate-800"],
-#sa-sidebar button[class*="bg-white"],
-#sa-sidebar button[class*="bg-blue-50"],
-#sa-sidebar button[class*="bg-indigo-50"]{color:white!important;background:rgba(59,130,246,0.12)!important;border-right-color:#3b82f6!important}
-#sa-sidebar button[class*="hidden"]{color:#94a3b8!important;background:transparent!important;border-right-color:transparent!important}
-#sa-sidebar button i{width:16px;text-align:center;font-size:0.75rem;flex-shrink:0}
+/* Active state — group button gets bg-indigo-600 from _updateSAGroupNav() */
+#sa-sidebar button[class*="bg-indigo-600"]{color:white!important;font-weight:700!important;background:linear-gradient(135deg,#4f46e5 0%,#6366f1 100%)!important;border-color:rgba(165,180,252,0.35)!important;box-shadow:0 8px 20px rgba(79,70,229,0.35)!important}
+#sa-sidebar button[class*="bg-indigo-600"] i{color:white!important}
+#sa-sidebar button[class*="bg-indigo-600"]::after{content:'';position:absolute;left:0.85rem;top:50%;width:6px;height:6px;margin-top:-3px;border-radius:50%;background:#67e8f9;box-shadow:0 0 0 3px rgba(103,232,249,0.25)}
+#sa-sidebar button[class*="bg-indigo-600"] .sb-badge{display:none!important}
+#sa-sidebar button i{width:18px;text-align:center;font-size:0.85rem;flex-shrink:0}
+.sb-badge{margin-right:auto;min-width:1.4rem;height:1.25rem;padding:0 0.4rem;border-radius:0.45rem;font-size:0.65rem;font-weight:800;display:inline-flex;align-items:center;justify-content:center;background:rgba(244,63,94,0.14);color:#fda4af;border:1px solid rgba(244,63,94,0.35)}
+.sb-badge.sb-badge-warn{background:rgba(245,158,11,0.12);color:#fcd34d;border-color:rgba(245,158,11,0.35)}
 /* Sidebar footer */
 .sb-footer{padding:1rem;margin-top:auto;border-top:1px solid rgba(255,255,255,0.08)}
-.sb-logout{width:100%;background:rgba(239,68,68,0.12);color:#fca5a5;border:1px solid rgba(239,68,68,0.2)!important;border-radius:0.6rem!important;padding:0.6rem 1rem!important;font-family:'Rubik',sans-serif!important;font-size:0.8rem!important;font-weight:700!important;cursor:pointer;transition:all 0.2s;display:flex!important;align-items:center!important;justify-content:center!important;gap:0.5rem!important}
-.sb-logout:hover{background:rgba(239,68,68,0.25)!important;color:white!important}
+.sb-logout{width:100%;background:transparent;color:#fb7185;border:1px solid rgba(244,63,94,0.25)!important;border-radius:0.8rem!important;padding:0.6rem 1rem!important;font-family:'Rubik',sans-serif!important;font-size:0.8rem!important;font-weight:700!important;cursor:pointer;transition:all 0.2s;display:flex!important;align-items:center!important;justify-content:center!important;gap:0.5rem!important}
+.sb-logout:hover{background:rgba(244,63,94,0.15)!important;color:white!important}
 /* Top bar */
-.sa-top-bar{background:white;border-radius:1rem;padding:0.9rem 1.25rem;margin-bottom:1.25rem;border:1px solid #e2e8f0;display:flex;align-items:center;justify-content:space-between;box-shadow:0 1px 3px rgba(0,0,0,0.04)}
-.sa-top-bar-title{font-size:1rem;font-weight:800;color:#0f172a;display:flex;align-items:center;gap:0.5rem}
+.sa-top-bar{position:relative;z-index:60;background:rgba(255,255,255,0.92);backdrop-filter:blur(10px);border-radius:1.1rem;padding:0.7rem 1rem 0.7rem 1rem;margin-bottom:1.25rem;border:1px solid #e2e8f0;display:flex;align-items:center;justify-content:space-between;gap:0.75rem;flex-wrap:wrap;box-shadow:0 1px 2px rgba(15,23,42,0.04),0 8px 24px rgba(15,23,42,0.04)}
+.sa-top-bar-title{font-size:1.05rem;font-weight:800;color:#0f172a;display:flex;align-items:center;gap:0.5rem}
+.sa-crumb{display:flex;align-items:center;gap:0.5rem;min-width:0}
+.sa-crumb-group{font-size:1.15rem;font-weight:800;color:#0f172a;white-space:nowrap}
+.sa-crumb-sep{color:#cbd5e1;font-size:1rem}
+.sa-crumb .sa-top-bar-title{font-size:0.82rem;font-weight:600;color:#64748b}
+/* Sub-nav inside the top bar — segmented control (buttons are rendered by _updateSubNavBar with inline styles) */
+.sa-top-bar #sa-subnav-bar{background:#f1f5f9!important;border:1px solid #e2e8f0!important;border-radius:0.9rem!important;padding:0.25rem!important;margin:0!important;gap:0.2rem!important;box-shadow:none!important;flex-wrap:nowrap!important;overflow-x:auto;max-width:100%}
+.sa-top-bar #sa-subnav-bar button{background:transparent!important;color:#64748b!important;border:1px solid transparent!important;border-radius:0.7rem!important;padding:0.45rem 0.9rem!important;font-size:0.8rem!important}
+.sa-top-bar #sa-subnav-bar button:hover{color:#1e293b!important;background:rgba(255,255,255,0.6)!important}
+.sa-top-bar #sa-subnav-bar button[style*="4f46e5"]{background:white!important;color:#4338ca!important;border-color:#e0e7ff!important;box-shadow:0 1px 3px rgba(15,23,42,0.08)!important;font-weight:700!important}
+/* Global nav search */
+.sa-search{position:relative;width:240px}
+.sa-search input{width:100%;background:#f8fafc;border:1px solid #e2e8f0;border-radius:0.8rem;padding:0.5rem 2.1rem 0.5rem 0.8rem;font-family:'Rubik',sans-serif;font-size:0.8rem;color:#1e293b;outline:none;transition:all 0.15s}
+.sa-search input:focus{background:white;border-color:#a5b4fc;box-shadow:0 0 0 3px rgba(99,102,241,0.12)}
+.sa-search>i{position:absolute;right:0.8rem;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:0.8rem;pointer-events:none}
+.sa-search-results{position:absolute;top:calc(100% + 6px);right:0;left:0;background:white;border:1px solid #e2e8f0;border-radius:0.9rem;box-shadow:0 20px 40px rgba(15,23,42,0.12);padding:0.35rem;z-index:400;max-height:320px;overflow-y:auto}
+.sa-search-results button{display:flex;align-items:center;gap:0.6rem;width:100%;text-align:right;padding:0.5rem 0.65rem;border-radius:0.6rem;font-size:0.8rem;color:#334155;background:transparent;border:none;cursor:pointer;font-family:'Rubik',sans-serif}
+.sa-search-results button:hover,.sa-search-results button.is-active{background:#eef2ff;color:#3730a3}
+.sa-search-results button small{margin-right:auto;color:#94a3b8;font-size:0.68rem}
+@media(max-width:1100px){.sa-search{width:180px}}
+@media(max-width:640px){.sa-search{display:none}}
 #toast{font-family:'Rubik',sans-serif!important;border-radius:99px!important}
 @media(max-width:900px){#sa-sidebar{width:220px}#sa-main-content{margin-right:220px;padding:1rem}}
 @media(max-width:640px){
   #sa-sidebar{transform:translateX(100%);transition:transform 0.25s ease;position:fixed!important;top:0;bottom:0;right:0;z-index:300!important}
   #sa-sidebar.sidebar-open{transform:translateX(0)}
   #sa-main-content{margin-right:0!important;padding:0.75rem!important}
-  .sa-top-bar{border-radius:0.5rem;padding:0.6rem 0.85rem;margin-bottom:0.75rem}
+  .sa-top-bar{border-radius:0.75rem;padding:0.6rem 0.85rem 0.6rem 0.85rem;padding-right:3.25rem;margin-bottom:0.75rem}
   #sa-subnav-bar{flex-wrap:nowrap!important;overflow-x:auto!important}
   #sa-view-pulse .grid>div{overflow:hidden}
   #sa-view-pulse .grid>div .text-center>span{font-size:clamp(0.7rem,4.5vw,1.5rem)!important;word-break:break-all;display:block}
@@ -171,11 +198,14 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
       <div id="sa-layout">
 <nav id="sa-sidebar">
           <div class="sb-header">
-            <h1><i class="fa-solid fa-shield-halved" style="color:#6366f1"></i> SuperAdmin</h1>
-            <p>WEFLOWZ — ניהול מערכת</p>
+            <span class="sb-logo"><i class="fa-solid fa-shield-halved"></i></span>
+            <div>
+              <h1>SuperAdmin</h1>
+              <p>WEFLOWZ — ניהול מערכת</p>
+            </div>
           </div>
-          <div class="sb-ver"><span>מערכת ראשית</span><span style="font-weight:800;color:#c4b5fd">v2</span></div>
-          <div style="padding:0.75rem 0">
+          <div class="sb-ver"><span><span class="sb-dot"></span>מערכת ראשית</span><span style="font-weight:800;color:#c4b5fd">v2</span></div>
+          <div class="sb-nav">
             <button id="btn-sa-group-home" onclick="switchSAGroup('home')" class="hidden flex">
               <i class="fa-solid fa-gauge-high" style="color:#f87171"></i> בית
             </button>
@@ -234,17 +264,30 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
             </button>
 
             <div class="sa-top-bar">
-                <div class="sa-top-bar-title" id="sa-topbar-title">
-                    <i class="fa-solid fa-gauge-high" style="color:#6366f1"></i> לוח בקרה
+                <div class="flex items-center gap-4 flex-wrap min-w-0">
+                    <div class="sa-crumb">
+                        <span class="sa-crumb-group" id="sa-topbar-group" style="display:none"></span>
+                        <span class="sa-crumb-sep" id="sa-topbar-sep" style="display:none">/</span>
+                        <div class="sa-top-bar-title" id="sa-topbar-title">
+                            <i class="fa-solid fa-gauge-high" style="color:#6366f1"></i> לוח בקרה
+                        </div>
+                    </div>
+                    <!-- Sub-navigation bar: shows context tabs within merged sections -->
+                    <div id="sa-subnav-bar" style="display:none;background:white;border:1px solid #e2e8f0;border-radius:0.75rem;padding:0.5rem 0.75rem;margin-bottom:1.25rem;gap:0.5rem;align-items:center;flex-wrap:wrap;box-shadow:0 1px 3px rgba(0,0,0,0.04);overflow-x:auto;"></div>
                 </div>
                 
-                <div class="flex items-center gap-4 relative z-50">
-                    <button onclick="showSAHelp()" title="עזרה בדף הנוכחי" class="w-8 h-8 bg-indigo-100 hover:bg-indigo-200 text-indigo-600 rounded-full flex items-center justify-center font-black text-sm transition">?</button>
+                <div class="flex items-center gap-3 relative z-50">
+                    <div class="sa-search">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                        <input type="search" id="sa-nav-search" placeholder="חיפוש מסך: קהילות, עסקים, פיננסים..." autocomplete="off" oninput="saNavSearch(this.value)" onkeydown="saNavSearchKey(event)" onfocus="saNavSearch(this.value)" onblur="setTimeout(()=>saNavSearchClose(),150)">
+                        <div id="sa-nav-search-results" class="sa-search-results hidden"></div>
+                    </div>
+                    <button onclick="showSAHelp()" title="עזרה בדף הנוכחי" class="w-10 h-10 bg-white border border-slate-200 hover:border-indigo-200 hover:bg-indigo-50 text-slate-500 hover:text-indigo-600 rounded-xl flex items-center justify-center text-sm transition"><i class="fa-regular fa-circle-question text-base"></i></button>
                     <div class="relative cursor-pointer" onclick="toggleSANotifications()">
-                        <div class="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center text-slate-500 hover:bg-slate-200 transition">
-                            <i class="fa-solid fa-bell"></i>
+                        <div class="w-10 h-10 bg-white border border-slate-200 rounded-xl flex items-center justify-center text-slate-500 hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-600 transition">
+                            <i class="fa-regular fa-bell text-base"></i>
                         </div>
-                        <span id="sa-notif-badge" class="absolute -top-1 -right-1 bg-red-500 text-white text-[9px] font-bold w-4 h-4 flex items-center justify-center rounded-full hidden border border-white">0</span>
+                        <span id="sa-notif-badge" class="absolute -top-1.5 -right-1.5 bg-rose-500 text-white text-[9px] font-bold min-w-[1.1rem] h-[1.1rem] px-1 flex items-center justify-center rounded-full hidden border-2 border-white shadow">0</span>
                         
                         <div id="sa-notif-dropdown" class="hidden absolute left-0 top-12 w-80 bg-white border border-slate-200 shadow-2xl rounded-2xl overflow-hidden cursor-default" onclick="event.stopPropagation()">
                             <div class="bg-slate-50 border-b border-slate-100 p-3 flex justify-between items-center">
@@ -257,20 +300,18 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                         </div>
                     </div>
                     
-                    <div class="flex items-center gap-2 border-r border-slate-200 pr-4 cursor-pointer group" onclick="openSAProfileModal()">
-                        <div class="text-right hidden sm:block">
+                    <div class="flex items-center gap-2.5 border-r border-slate-200 pr-3 mr-1 cursor-pointer group" onclick="openSAProfileModal()">
+                        <div class="text-right max-sm:hidden">
                             <div id="topbar-user-name" class="font-bold text-sm text-slate-800 group-hover:text-indigo-600 transition leading-none">מנהל מערכת</div>
-                            <div class="text-[10px] text-slate-400 font-bold mt-1">צפה בפרופיל</div>
+                            <div class="text-[10px] text-indigo-500 font-bold mt-1">צפה בפרופיל</div>
                         </div>
-                        <div class="w-10 h-10 bg-indigo-50 text-indigo-600 group-hover:bg-indigo-100 rounded-full flex items-center justify-center text-sm shadow-inner transition">
+                        <div class="relative w-10 h-10 bg-gradient-to-br from-indigo-500 to-violet-600 text-white rounded-xl flex items-center justify-center text-sm shadow-md shadow-indigo-500/30 group-hover:scale-105 transition">
                             <i class="fa-solid fa-user-astronaut"></i>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Sub-navigation bar: shows context tabs within merged sections -->
-            <div id="sa-subnav-bar" style="display:none;background:white;border:1px solid #e2e8f0;border-radius:0.75rem;padding:0.5rem 0.75rem;margin-bottom:1.25rem;gap:0.5rem;align-items:center;flex-wrap:wrap;box-shadow:0 1px 3px rgba(0,0,0,0.04);overflow-x:auto;"></div>
 
             <div class="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 modal-scroll relative">
 
@@ -519,52 +560,58 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                 <div id="sa-view-pulse" class="hidden fade-in">
 
                     <!-- ─── HEADER ─── -->
-                    <div class="flex items-center justify-between mb-3">
-                        <div class="flex items-center gap-2">
-                            <span class="w-8 h-8 rounded-xl bg-slate-800 flex items-center justify-center flex-shrink-0">
-                                <i class="fa-solid fa-gauge-high text-red-400 text-sm animate-pulse"></i>
+                    <div class="flex items-center justify-between gap-4 flex-wrap mb-6">
+                        <div class="flex items-center gap-3.5">
+                            <span class="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center flex-shrink-0 shadow-lg shadow-indigo-500/30">
+                                <i class="fa-solid fa-wave-square text-white text-lg"></i>
                             </span>
                             <div>
-                                <h2 class="text-base font-black text-slate-800 leading-tight">לוח בקרה מרכזי</h2>
-                                <p class="text-[9px] text-slate-400 font-mono" id="pulse-last-update">טוען...</p>
+                                <div class="flex items-center gap-2.5 flex-wrap">
+                                    <h2 class="text-2xl font-extrabold text-slate-900 leading-tight tracking-tight">לוח בקרה מרכזי</h2>
+                                    <span id="sa-health-pill" class="hidden items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-[11px] font-bold"></span>
+                                </div>
+                                <p class="text-xs text-slate-400 mt-1 flex items-center gap-1.5"><i class="fa-regular fa-clock text-[10px]"></i><span class="font-mono" id="pulse-last-update">טוען...</span></p>
                             </div>
                         </div>
-                        <div class="flex items-center gap-2">
-                            <span class="flex items-center gap-1 bg-emerald-50 border border-emerald-200 rounded-lg px-2 py-1">
-                                <span class="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse"></span>
-                                <span class="text-[10px] font-black text-emerald-600" id="kpi-online-users">--</span>
-                                <span class="text-[9px] text-emerald-500 font-medium">מחוברים</span>
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <span class="flex items-center gap-1.5 bg-emerald-50 border border-emerald-200 rounded-xl px-3 h-10">
+                                <span class="relative flex w-2 h-2"><span class="absolute inline-flex w-full h-full rounded-full bg-emerald-400 opacity-75 animate-ping"></span><span class="relative inline-flex w-2 h-2 rounded-full bg-emerald-500"></span></span>
+                                <span class="text-sm font-extrabold text-emerald-700" id="kpi-online-users">--</span>
+                                <span class="text-xs text-emerald-600 font-semibold">מחוברים</span>
                             </span>
-                            <button onclick="loadSADashboard()" class="w-7 h-7 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition" title="רענן">
-                                <i class="fa-solid fa-rotate-right text-xs"></i>
+                            <button onclick="loadSADashboard()" class="w-10 h-10 rounded-xl bg-white border border-slate-200 hover:border-indigo-200 hover:bg-indigo-50 text-slate-500 hover:text-indigo-600 flex items-center justify-center transition" title="רענן">
+                                <i class="fa-solid fa-rotate-right text-sm"></i>
                             </button>
-                            <button onclick="togglePulseFullscreen()" class="w-7 h-7 rounded-lg bg-slate-800 text-white hover:bg-slate-700 flex items-center justify-center transition" title="מסך מלא">
-                                <i class="fa-solid fa-expand text-xs"></i>
+                            <button onclick="togglePulseFullscreen()" class="w-10 h-10 rounded-xl bg-white border border-slate-200 hover:border-indigo-200 hover:bg-indigo-50 text-slate-500 hover:text-indigo-600 flex items-center justify-center transition" title="מסך מלא">
+                                <i class="fa-solid fa-expand text-sm"></i>
                             </button>
-                            <a href="/sa-bigscreen.html" target="_blank" class="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white text-[10px] font-black transition" title="פתח דשבורד מסך גדול">
-                                <i class="fa-solid fa-display text-xs"></i>
+                            <a href="/sa-bigscreen.html" target="_blank" class="flex items-center gap-2 px-4 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-cyan-700 hover:from-cyan-400 hover:to-cyan-600 text-white text-sm font-bold shadow-md shadow-cyan-600/25 transition" title="פתח דשבורד מסך גדול">
+                                <i class="fa-solid fa-display text-sm"></i>
                                 <span>מסך גדול</span>
                             </a>
-                            <button onclick="switchSATab('insights')" class="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-black transition" title="תובנות מאוחדות: הזמנות, שווי כספי וכל הסביבות">
-                                <i class="fa-solid fa-chart-pie text-xs"></i>
+                            <button onclick="switchSATab('insights')" class="flex items-center gap-2 px-4 h-10 rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white text-sm font-bold shadow-md shadow-indigo-600/30 transition" title="תובנות מאוחדות: הזמנות, שווי כספי וכל הסביבות">
+                                <i class="fa-solid fa-wand-magic-sparkles text-sm"></i>
                                 <span>תובנות מאוחדות</span>
                             </button>
                         </div>
                     </div>
 
                     <!-- ─── מרכז פעולות ממתינות (כלל המערכת) ─── -->
-                    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 mb-3">
-                        <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
-                            <h3 class="text-sm font-black text-slate-800 flex items-center gap-1.5">
-                                <i class="fa-solid fa-list-check text-rose-500"></i> מרכז פעולות ממתינות
-                            </h3>
-                            <div id="sa-pending-center-summary" class="text-[10px] text-slate-400"></div>
+                    <div class="bg-white rounded-3xl border border-slate-200 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_12px_32px_rgba(15,23,42,0.05)] p-5 sm:p-6 mb-3">
+                        <div class="flex items-start justify-between mb-5 pb-5 border-b border-slate-100 flex-wrap gap-3">
+                            <div class="flex items-center gap-3">
+                                <span class="w-11 h-11 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center flex-shrink-0"><i class="fa-solid fa-clipboard-list text-lg"></i></span>
+                                <div>
+                                    <h3 class="text-lg font-extrabold text-slate-900 leading-tight">מרכז פעולות ממתינות</h3>
+                                    <p class="text-xs text-slate-400 mt-0.5">מעקב בזמן אמת אחר כל הבקשות והפניות שממתינות לטיפול</p>
+                                </div>
+                            </div>
+                            <div id="sa-pending-center-summary" class="text-xs font-bold text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 empty:hidden"></div>
                         </div>
-                        <div id="sa-pending-center-list" class="space-y-2">
-                            <p class="text-slate-300 text-center py-6 text-xs">טוען...</p>
+                        <div id="sa-pending-center-list" class="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-4">
+                            <p class="col-span-full text-slate-400 text-center py-6 text-xs">טוען...</p>
                         </div>
                     </div>
-
                     <!-- JS compat — dash-pending-bar kept hidden so updateSADashboard doesn't crash (superseded by מרכז פעולות ממתינות above) -->
                     <div id="dash-pending-bar" class="hidden"></div>
 
@@ -4588,7 +4635,7 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
       </div>
     </div>
 
-    <script src="sa-app.js?v=85"></script>
+    <script src="sa-app.js?v=86"></script>
     <script src="community-help.js?v=1"></script>
     <div id="sa-sla-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[9999] flex items-center justify-center p-4 fade-in">
         <div class="bg-white w-full max-w-2xl rounded-[2rem] p-6 shadow-2xl relative">
