@@ -17410,8 +17410,8 @@ app.post('/api/ai/generate-catalog', async (req, res) => {
         if (type === 'BUSINESS') {
             sysPrompt = `You are a business consultant. The user has a business described as "${promptText}". Generate a realistic starter catalog/menu with 6-10 common products or services for this business type in Hebrew.
 Output ONLY a valid JSON array (no markdown, no code fences, no extra text) in this exact format:
-[{"name": "שם המוצר", "category": "קטגוריה", "price": 15.5, "description": "תיאור קצר"}]
-Make prices realistic in ILS (Israeli Shekels).`;
+[{"name": "שם המוצר", "nameEn": "canonical 2-4 word English product name, for stock photo search", "category": "קטגוריה", "price": 15.5, "description": "תיאור קצר"}]
+Make prices realistic in ILS (Israeli Shekels). The "nameEn" field is required for every item — never leave it empty.`;
         } else {
             sysPrompt = `You are a home management expert. The user wants to populate their pantry/shopping list. Family type: "${promptText}". Generate a realistic starter pantry list with 8-12 common grocery/household items in Hebrew.
 Output ONLY a valid JSON array (no markdown, no code fences, no extra text) in this exact format:

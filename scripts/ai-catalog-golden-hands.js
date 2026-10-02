@@ -65,14 +65,16 @@ async function main() {
     for (const item of items) {
       if (existingNames.has(item.name)) { console.log(`   ↷ קיים כבר: ${item.name}`); continue; }
 
+      // nameEn מגיע מה-AI (generate-catalog מעודכן לספק אותו) — חיפוש תמונה מדויק בלי תלות
+      // בתרגום-נפילה פנימי (שכשל קודם ברגע ש-Gemini היה עמוס, והחזיר תמונות אקראיות לגמרי)
       const imgRes = await api('POST', '/store/catalog/generate-image', {
-        groupId: GROUP_ID, productName: item.name, description: item.description || '', category: item.category || '',
+        groupId: GROUP_ID, productName: item.name, nameEn: item.nameEn || '', description: item.description || '', category: item.category || '',
       });
       const imageUrl = (imgRes.ok && imgRes.data.success) ? imgRes.data.imageUrl : null;
-      log(!!imageUrl, `תמונה עבור: ${item.name}`, imageUrl ? `(${imgRes.data.source})` : JSON.stringify(imgRes.data));
+      log(!!imageUrl, `תמונה עבור: ${item.name} (${item.nameEn || 'ללא nameEn'})`, imageUrl ? `(${imgRes.data.source})` : JSON.stringify(imgRes.data));
 
       const createRes = await api('POST', '/store/catalog', {
-        name: item.name, description: item.description || '', price: item.price || 0, category: item.category || '',
+        name: item.name, nameEn: item.nameEn || '', description: item.description || '', price: item.price || 0, category: item.category || '',
         imageUrl: imageUrl || undefined, productType,
       });
       log(createRes.ok && createRes.data.success !== false, `נוסף לקטלוג: ${item.name}`, createRes.ok ? '' : JSON.stringify(createRes.data));
