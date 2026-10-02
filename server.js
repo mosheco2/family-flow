@@ -13041,8 +13041,22 @@ app.post('/api/upload/product-image', _uploadImg.single('image'), (req, res) => 
 
 app.post('/api/store/catalog/generate-image', async (req, res) => {
     try {
-        const { groupId, productName, nameEn, description, category } = req.body;
+        const { groupId, productName, nameEn, description, category, productType } = req.body;
         if (groupId === undefined || groupId === null || !productName) return res.status(400).json({ error: 'שם מוצר נדרש' });
+
+        // שירותים (productType='service') הם פעולות מופשטות ("פתיחת סתימה", "החלפת צילינדר") —
+        // לתמונות סטוק חינמיות (Pixabay/Pexels) כמעט אין התאמה אמיתית עליהן, והתוצאה בפועל היא
+        // תמונה "קיימת טכנית" אך לא קשורה בכלל (אנשים במשרד, מפת עולם וכו'). לכן לשירותים קופצים
+        // ישר ליצירת תמונה ב-AI עם פרומפט שמתאר את פעולת השירות, ולא מנסים חיפוש סטוק כלל —
+        // למוצרים פיזיים (retail) ממשיכים דרך Pixabay/Pexels כרגיל, ששם ההתאמה סבירה בפועל.
+        if (productType === 'service') {
+            const seed = Math.floor(Math.random() * 99999);
+            const svcQueryBase = (nameEn || productName || '').replace(/[^a-zA-Z0-9 ]/g, '').trim() || (productName || 'service');
+            const svcPrompt = `a professional home repair technician performing: ${svcQueryBase}, realistic photo, natural lighting, no text, no logo`;
+            const neg = encodeURIComponent('text, logo, watermark, cartoon, blurry, low quality, deformed hands');
+            const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(svcPrompt)}?width=512&height=512&model=flux&nologo=true&seed=${seed}&negative=${neg}`;
+            return res.json({ success: true, imageUrl, url: imageUrl, source: 'pollinations-service' });
+        }
 
         // Build English search query
         // Strategy: use nameEn directly when it's a clean English term (AI builder now generates English-first names)

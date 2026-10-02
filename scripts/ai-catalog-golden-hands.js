@@ -68,7 +68,7 @@ async function main() {
       // nameEn מגיע מה-AI (generate-catalog מעודכן לספק אותו) — חיפוש תמונה מדויק בלי תלות
       // בתרגום-נפילה פנימי (שכשל קודם ברגע ש-Gemini היה עמוס, והחזיר תמונות אקראיות לגמרי)
       const imgRes = await api('POST', '/store/catalog/generate-image', {
-        groupId: GROUP_ID, productName: item.name, nameEn: item.nameEn || '', description: item.description || '', category: item.category || '',
+        groupId: GROUP_ID, productName: item.name, nameEn: item.nameEn || '', description: item.description || '', category: item.category || '', productType,
       });
       const imageUrl = (imgRes.ok && imgRes.data.success) ? imgRes.data.imageUrl : null;
       log(!!imageUrl, `תמונה עבור: ${item.name} (${item.nameEn || 'ללא nameEn'})`, imageUrl ? `(${imgRes.data.source})` : JSON.stringify(imgRes.data));

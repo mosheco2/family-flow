@@ -15921,6 +15921,7 @@ window.generateProductImage = async function() {
     const productName = (getEl('sp-name') || document.getElementById('sp-name'))?.value?.trim();
     const description = (getEl('sp-desc') || document.getElementById('sp-desc') || getEl('sp-description') || document.getElementById('sp-description'))?.value?.trim();
     const category = (getEl('sp-category') || document.getElementById('sp-category'))?.value?.trim();
+    const productType = (getEl('sp-product-type') || document.getElementById('sp-product-type'))?.value?.trim();
 
     if (!productName || !description) {
         document.getElementById('sp-ai-image-alert')?.remove();
@@ -15952,7 +15953,7 @@ window.generateProductImage = async function() {
         const res = await fetch(`${API}/store/catalog/generate-image`, {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ groupId: currentGroup.id, productName, description, category })
+            body: JSON.stringify({ groupId: currentGroup.id, productName, description, category, productType })
         });
         const data = await res.json();
         if (!data.success) return showToast('error', data.error || 'שגיאה ביצירת תמונה');
