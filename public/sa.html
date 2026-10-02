@@ -106,6 +106,17 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
 .sa-sysmap .grid>a:hover{background:#fff!important;border-color:#c7d2fe!important;transform:translateY(-2px);box-shadow:0 10px 24px -10px rgba(79,70,229,0.25)}
 .sa-sysmap .grid>:is(a,div)>div:first-child{box-shadow:0 4px 10px -3px rgba(15,23,42,0.25)}
 .sa-sysmap .grid p.text-xs{color:#94a3b8!important;line-height:1.5}
+/* חלונות קופצים — שפה אחידה (נראות בלבד; לא נוגע בפתיחה/סגירה) */
+@keyframes saModalIn{from{opacity:0;transform:translateY(10px) scale(.98)}to{opacity:1;transform:none}}
+.fixed.inset-0[id$="-modal"]:not(#sa-ticket-modal){background-color:rgba(15,23,42,0.55);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+.fixed.inset-0[id$="-modal"]:not(.hidden)>div:first-child{animation:saModalIn .22s ease-out}
+.fixed.inset-0[id$="-modal"]:not(#sa-ticket-modal)>div.bg-white:first-child{border-radius:1.5rem;border:1px solid rgba(226,232,240,0.9);box-shadow:0 30px 80px -16px rgba(15,23,42,0.45);background-image:linear-gradient(90deg,#6366f1,#8b5cf6,#d946ef);background-size:100% 4px;background-repeat:no-repeat;background-position:top}
+.fixed.inset-0[id$="-modal"]>div:first-child>button.absolute:first-child{border-radius:0.75rem;background:#f1f5f9;transition:background-color .15s,color .15s}
+.fixed.inset-0[id$="-modal"]>div:first-child>button.absolute:first-child:hover{background:#e2e8f0;color:#0f172a}
+.fixed.inset-0[id$="-modal"]:not(#sa-ticket-modal)>div:first-child>h3:first-of-type{font-weight:800;color:#0f172a;letter-spacing:-0.01em}
+.fixed.inset-0[id$="-modal"]:not(#sa-ticket-modal)>div:first-child>h3:first-of-type>i:first-child{width:2.25rem;height:2.25rem;display:inline-flex;align-items:center;justify-content:center;border-radius:0.8rem;background:color-mix(in srgb,currentColor 12%,white);font-size:0.95rem;flex-shrink:0}
+.fixed.inset-0[id$="-modal"]:not(#sa-ticket-modal) :is(button.bg-indigo-600,button.bg-blue-600){background-image:linear-gradient(135deg,#4f46e5,#7c3aed);box-shadow:0 8px 20px -8px rgba(79,70,229,0.6)}
+.fixed.inset-0[id$="-modal"]:not(#sa-ticket-modal) :is(button.bg-indigo-600,button.bg-blue-600):hover{filter:brightness(1.08)}
 /* מסכים שנמצאים מחוץ לעוטף הריפוד: לא משאירים ריפוד ריק מעליהם */
 #sa-main-content > div.overflow-y-auto:not(:has(> [id^="sa-view-"]:not(.hidden))){padding-top:0;padding-bottom:0}
 /* בורר סוג עסק בתבניות — בקרה מפולחת */
@@ -4742,7 +4753,7 @@ button[id^="vtnav-"][style*="4f46e5"],button[id^="vtnav-"][style*="79, 70, 229"]
       </div>
     </div>
 
-    <script src="sa-app.js?v=94"></script>
+    <script src="sa-app.js?v=95"></script>
     <script src="community-help.js?v=1"></script>
     <div id="sa-sla-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[9999] flex items-center justify-center p-4 fade-in">
         <div class="bg-white w-full max-w-2xl rounded-[2rem] p-6 shadow-2xl relative">
