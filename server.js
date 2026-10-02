@@ -13113,9 +13113,10 @@ Reply with ONLY the English term, nothing else.`;
                         const finalUrl = permanentUrl || candidateUrl;
                         return res.json({ success: true, imageUrl: finalUrl, url: finalUrl, source: permanentUrl ? 'cloudinary' : 'pollinations-service' });
                     }
-                } catch(e) { /* timeout/network — ננסה שוב בלולאה, או ניפול ל-retail למטה */ }
+                } catch(e) { /* timeout/network — ננסה שוב בלולאה, או ניפול לחיפוש סטוק למטה */ }
             }
-            return res.json({ success: false, error: 'יצירת תמונת AI לשירות נכשלה פעמיים — נסה שוב' });
+            // AI נכשל פעמיים — עדיף תמונת סטוק לא-מושלמת מאשר שום תמונה בכלל; ממשיכים לקוד
+            // ה-Pixabay/Pexels הרגיל למטה (לא עוצרים כאן), באותה שרשרת שמשרתת מוצרים פיזיים
         }
 
         // 1) Pixabay — free stock photos, no attribution required, real product images
