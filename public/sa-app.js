@@ -1178,12 +1178,12 @@ window.switchDevTab = function(tabId) {
         const view = document.getElementById(`dev-content-${t}`);
         const btn = document.getElementById(`btn-dev-tab-${t}`);
         if (view) view.classList.add('hidden');
-        if (btn) btn.className = 'flex-1 px-4 py-2 text-sm font-bold text-slate-500 hover:text-slate-800 rounded-lg transition whitespace-nowrap';
+        if (btn) btn.className = 'flex-1 px-4 py-2 text-sm font-semibold text-slate-500 hover:text-slate-800 hover:bg-white/60 rounded-xl transition whitespace-nowrap';
     });
     const activeView = document.getElementById(`dev-content-${tabId}`);
     const activeBtn = document.getElementById(`btn-dev-tab-${tabId}`);
     if (activeView) activeView.classList.remove('hidden');
-    if (activeBtn) activeBtn.className = 'flex-1 px-4 py-2 text-sm font-bold bg-white text-indigo-700 rounded-lg shadow-sm transition whitespace-nowrap';
+    if (activeBtn) activeBtn.className = 'flex-1 px-4 py-2 text-sm font-bold bg-white text-indigo-700 rounded-xl shadow-sm ring-1 ring-indigo-100 transition whitespace-nowrap';
     if (tabId === 'alm') window.renderALMHub && window.renderALMHub();
     if (tabId === 'qa') window.renderQAStaging && window.renderQAStaging();
 };
@@ -6276,56 +6276,56 @@ window.renderKanbanBoard = function() {
         counts[task.status]++;
         
         let typeBadge = '';
-        if(task.type === 'bug') typeBadge = '<span class="bg-red-100 text-red-600 px-1.5 py-0.5 rounded text-[9px] font-bold"><i class="fa-solid fa-bug"></i> באג</span>';
-        else if(task.type === 'feature') typeBadge = '<span class="bg-green-100 text-green-600 px-1.5 py-0.5 rounded text-[9px] font-bold"><i class="fa-solid fa-wand-magic-sparkles"></i> פיצ\'ר</span>';
-        else if(task.type === 'ui') typeBadge = '<span class="bg-purple-100 text-purple-600 px-1.5 py-0.5 rounded text-[9px] font-bold"><i class="fa-solid fa-palette"></i> עיצוב</span>';
-        else if(task.type === 'tech') typeBadge = '<span class="bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded text-[9px] font-bold"><i class="fa-solid fa-wrench"></i> תשתיות</span>';
+        if(task.type === 'bug') typeBadge = '<span class="inline-flex items-center gap-1 bg-red-50 text-red-600 border border-red-100 px-2 py-0.5 rounded-full text-[10px] font-bold"><i class="fa-solid fa-bug"></i> באג</span>';
+        else if(task.type === 'feature') typeBadge = '<span class="inline-flex items-center gap-1 bg-emerald-50 text-emerald-600 border border-emerald-100 px-2 py-0.5 rounded-full text-[10px] font-bold"><i class="fa-solid fa-wand-magic-sparkles"></i> פיצ\'ר</span>';
+        else if(task.type === 'ui') typeBadge = '<span class="inline-flex items-center gap-1 bg-violet-50 text-violet-600 border border-violet-100 px-2 py-0.5 rounded-full text-[10px] font-bold"><i class="fa-solid fa-palette"></i> עיצוב</span>';
+        else if(task.type === 'tech') typeBadge = '<span class="inline-flex items-center gap-1 bg-slate-100 text-slate-600 border border-slate-200 px-2 py-0.5 rounded-full text-[10px] font-bold"><i class="fa-solid fa-wrench"></i> תשתיות</span>';
 
         let prioIcon = '🟡';
         if(task.priority === 'critical') prioIcon = '🚨';
         else if(task.priority === 'high') prioIcon = '🔴';
         else if(task.priority === 'low') prioIcon = '🔵';
+        const prioStripe = { critical: '#dc2626', high: '#f43f5e', low: '#38bdf8' }[task.priority] || '#f59e0b';
 
         // הדיגול הויזואלי החכם בהתאם לסטטוס בספר (סעיף 5 באפיון)
         let statusBadge = '';
         if (task.version === 'SORTING') {
-            statusBadge = '<span class="bg-purple-100 text-purple-700 border border-purple-200 px-1.5 py-0.5 rounded text-[9px] font-bold"><i class="fa-solid fa-inbox"></i> ממתין למיון בספר</span>';
+            statusBadge = '<span class="inline-flex items-center gap-1 bg-purple-50 text-purple-700 border border-purple-200 px-2 py-0.5 rounded-full text-[10px] font-bold"><i class="fa-solid fa-inbox"></i> ממתין למיון בספר</span>';
         } else if (task.status === 'in_progress' && task.version) {
-            statusBadge = `<span class="bg-blue-100 text-blue-700 border border-blue-200 px-1.5 py-0.5 rounded text-[9px] font-bold"><i class="fa-solid fa-code"></i> יעד: ${task.version}</span>`;
+            statusBadge = `<span class="inline-flex items-center gap-1 bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-full text-[10px] font-bold font-mono"><i class="fa-solid fa-code"></i> יעד: ${task.version}</span>`;
         } else if (task.status === 'qa') {
-            statusBadge = '<span class="bg-orange-100 text-orange-700 border border-orange-200 px-1.5 py-0.5 rounded text-[9px] font-bold"><i class="fa-solid fa-vial"></i> ממתין ל-QA בספר</span>';
+            statusBadge = '<span class="inline-flex items-center gap-1 bg-orange-50 text-orange-700 border border-orange-200 px-2 py-0.5 rounded-full text-[10px] font-bold"><i class="fa-solid fa-vial"></i> ממתין ל-QA בספר</span>';
         } else if (task.status === 'done') {
-            statusBadge = '<span class="bg-green-100 text-green-700 border border-green-200 px-1.5 py-0.5 rounded text-[9px] font-bold"><i class="fa-solid fa-check-double"></i> שוחרר ללקוחות</span>';
+            statusBadge = '<span class="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full text-[10px] font-bold"><i class="fa-solid fa-check-double"></i> שוחרר ללקוחות</span>';
         }
 
         // כפתור סגירת מעגל - מוצג רק למשימות שסיימו ובאו מלקוח
         let feedbackBtn = '';
         if (task.status === 'done' && task.original_ticket_id) {
-            feedbackBtn = `<button onclick="event.stopPropagation(); window.openFeedbackLoopModal('${task.id}', '${task.original_ticket_id}')" class="w-full mt-3 bg-emerald-50 text-emerald-600 border border-emerald-200 py-1.5 rounded-lg text-[10px] font-black hover:bg-emerald-100 transition shadow-sm"><i class="fa-solid fa-handshake mr-1"></i> סגירת מעגל ללקוח</button>`;
+            feedbackBtn = `<button onclick="event.stopPropagation(); window.openFeedbackLoopModal('${task.id}', '${task.original_ticket_id}')" class="w-full mt-3 bg-emerald-50 text-emerald-700 border border-emerald-200 py-2 rounded-xl text-[11px] font-bold hover:bg-emerald-100 transition"><i class="fa-solid fa-handshake mr-1"></i> סגירת מעגל ללקוח</button>`;
         }
 
         // הפקת תצוגה מקדימה נקייה וקריאה של תוכן הלקוח מבחוץ (סעיף 1)
         const cleanDesc = task.desc ? task.desc.replace(/\\n/g, ' ').substring(0, 75) + (task.desc.length > 75 ? '...' : '') : 'ללא תיאור מורחב';
 
         const cardHtml = `
-        <div id="${task.id}" draggable="true" ondragstart="dragKanbanTask(event)" onclick="openKanbanTaskModal('${task.id}')" class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm cursor-grab active:cursor-grabbing hover:border-indigo-300 transition group relative flex flex-col min-h-[120px]">
-            <div class="mb-2 w-full text-right">${statusBadge}</div>
-            <div class="flex justify-between items-start mb-2">
-                ${typeBadge}
-                <span class="text-[10px]" title="דחיפות">${prioIcon}</span>
+        <div id="${task.id}" draggable="true" ondragstart="dragKanbanTask(event)" onclick="openKanbanTaskModal('${task.id}')" style="box-shadow: inset -3px 0 0 ${prioStripe}, 0 1px 2px rgba(15,23,42,0.05);" class="bg-white p-3.5 rounded-xl border border-slate-200 cursor-grab active:cursor-grabbing hover:border-indigo-300 hover:-translate-y-0.5 transition group relative flex flex-col min-h-[120px]">
+            <div class="flex justify-between items-center gap-2 mb-2.5">
+                <div class="flex flex-wrap items-center gap-1">${typeBadge}${statusBadge}</div>
+                <span class="text-[11px] shrink-0" title="דחיפות">${prioIcon}</span>
             </div>
             
-            <h5 class="font-black text-slate-800 text-xs leading-snug mb-1.5">${safeStr(task.title)}</h5>
-            <p class="text-[10px] text-slate-500 bg-slate-50 border border-slate-100 rounded-lg p-2 mb-3 leading-normal font-medium">${safeStr(cleanDesc)}</p>
+            <h5 class="font-extrabold text-slate-900 text-[13px] leading-snug mb-1.5">${safeStr(task.title)}</h5>
+            <p class="text-[11px] text-slate-500 leading-relaxed mb-3">${safeStr(cleanDesc)}</p>
             
             ${task.original_ticket_id ? `
-            <div class="mt-2 mb-1 flex items-center gap-1.5 bg-indigo-50 border border-indigo-100 rounded-lg px-2 py-1.5">
-                <i class="fa-solid fa-ticket text-indigo-400 text-[9px]"></i>
-                <span class="text-[10px] font-bold text-indigo-600 flex-1">קריאת שירות #${task.original_ticket_id}</span>
-                <button onclick="event.stopPropagation(); window.openTicketFromTask(${task.original_ticket_id})" class="text-[9px] text-indigo-500 hover:text-indigo-700 font-bold bg-white border border-indigo-200 px-1.5 py-0.5 rounded transition"><i class="fa-solid fa-arrow-up-right-from-square"></i> פתח</button>
+            <div class="mb-2 flex items-center gap-1.5 bg-indigo-50/70 border border-indigo-100 rounded-lg px-2 py-1.5">
+                <i class="fa-solid fa-ticket text-indigo-400 text-[10px]"></i>
+                <span class="text-[11px] font-bold text-indigo-700 flex-1">קריאת שירות #${task.original_ticket_id}</span>
+                <button onclick="event.stopPropagation(); window.openTicketFromTask(${task.original_ticket_id})" class="text-[10px] text-indigo-600 hover:text-white hover:bg-indigo-600 font-bold bg-white border border-indigo-200 px-1.5 py-0.5 rounded-md transition"><i class="fa-solid fa-arrow-up-right-from-square"></i> פתח</button>
             </div>` : ''}
-            <div class="flex justify-between items-end mt-auto">
-                <span class="text-[9px] text-slate-400 font-mono">#${task.id}</span>
+            <div class="flex justify-between items-center mt-auto pt-2 border-t border-slate-100">
+                <span class="text-[10px] text-slate-400 font-mono font-bold">#${task.id}</span>
             </div>
             ${feedbackBtn}
         </div>
