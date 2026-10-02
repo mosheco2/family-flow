@@ -98,6 +98,14 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
 #aib-preview>div:first-child>button{border-radius:0.75rem!important;border-bottom:none!important;margin-bottom:0!important;white-space:nowrap}
 #aib-preview>div:first-child>button.aib-tab-active{background:#fff!important;box-shadow:0 1px 3px rgba(15,23,42,0.08)}
 @media (max-width:640px){#sa-view-ai-builder [style*="grid-template-columns"]{grid-template-columns:1fr!important}}
+/* מפת המערכת — כרטיסים לבנים עם ריחוף (נראות בלבד) */
+.sa-sysmap>.mb-8:not(:first-child){background:#fff;border:1px solid #e2e8f0;border-radius:1.5rem;padding:1.25rem 1.25rem 1.4rem;box-shadow:0 1px 2px rgba(15,23,42,0.04),0 12px 32px -14px rgba(15,23,42,0.10);margin-bottom:1.25rem!important}
+.sa-sysmap>.mb-8 h3{font-weight:800!important;color:#0f172a!important;font-size:1.05rem!important}
+.sa-sysmap>.mb-8>div:first-child>div:first-child{width:2.5rem!important;height:2.5rem!important;border-radius:0.85rem!important}
+.sa-sysmap .grid>:is(a,div){background:#f8fafc!important;border-color:#eef2f7!important;border-radius:1rem!important;transition:transform .15s,box-shadow .15s,border-color .15s,background-color .15s}
+.sa-sysmap .grid>a:hover{background:#fff!important;border-color:#c7d2fe!important;transform:translateY(-2px);box-shadow:0 10px 24px -10px rgba(79,70,229,0.25)}
+.sa-sysmap .grid>:is(a,div)>div:first-child{box-shadow:0 4px 10px -3px rgba(15,23,42,0.25)}
+.sa-sysmap .grid p.text-xs{color:#94a3b8!important;line-height:1.5}
 /* מסכים שנמצאים מחוץ לעוטף הריפוד: לא משאירים ריפוד ריק מעליהם */
 #sa-main-content > div.overflow-y-auto:not(:has(> [id^="sa-view-"]:not(.hidden))){padding-top:0;padding-bottom:0}
 /* בורר סוג עסק בתבניות — בקרה מפולחת */
@@ -2340,10 +2348,13 @@ button[id^="vtnav-"][style*="4f46e5"],button[id^="vtnav-"][style*="79, 70, 229"]
 
                 <!-- מפת המערכת -->
                 <div id="sa-view-sysmap" class="hidden space-y-8 fade-in">
-                <div class="bg-white p-6 sm:p-8 rounded-[2rem] border border-slate-200 shadow-md">
-                    <div class="mb-8 border-b border-slate-100 pb-6">
-                        <h2 class="text-2xl font-black text-slate-800 flex items-center gap-2"><i class="fa-solid fa-map text-indigo-600"></i> מפת המערכת</h2>
-                        <p class="text-sm text-slate-500 mt-1">כל עמודי ומסכי WEFLOWZ — לינקים, תפקיד וסביבה</p>
+                <div class="sa-sysmap">
+                    <div class="mb-8 flex items-center gap-3.5">
+                        <span class="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-600 to-sky-500 text-white flex items-center justify-center shrink-0 shadow-lg shadow-indigo-500/30"><i class="fa-solid fa-map text-lg"></i></span>
+                        <div>
+                            <h2 class="text-2xl font-extrabold text-slate-900 tracking-tight">מפת המערכת</h2>
+                            <p class="text-sm text-slate-400 mt-0.5">כל עמודי ומסכי WEFLOWZ — לינקים, תפקיד וסביבה</p>
+                        </div>
                     </div>
                     <div class="mb-8">
                         <div class="flex items-center gap-2 mb-4">
@@ -2392,7 +2403,7 @@ button[id^="vtnav-"][style*="4f46e5"],button[id^="vtnav-"][style*="79, 70, 229"]
                         </div>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                             <a href="/zone-manager.html" target="_blank" class="flex items-start gap-4 p-4 bg-violet-50 rounded-2xl border border-violet-100 hover:bg-violet-100 transition group">
-                                <div class="w-10 h-10 rounded-xl bg-violet-600 flex items-center justify-center flex-shrink-0"><i class="fa-solid fa-chart-network text-white text-sm"></i></div>
+                                <div class="w-10 h-10 rounded-xl bg-violet-600 flex items-center justify-center flex-shrink-0"><i class="fa-solid fa-chart-line text-white text-sm"></i></div>
                                 <div><p class="font-bold text-slate-800 group-hover:text-violet-700 transition">לוח בקרה Zone Manager <i class="fa-solid fa-arrow-up-right-from-square text-xs text-violet-400 mr-1"></i></p><p class="text-xs text-slate-500 mt-0.5">/zone-manager.html — קמפיינים, לידים, אינבוקס, AI לטקסט ותמונה</p></div>
                             </a>
                             <div class="flex items-start gap-4 p-4 bg-violet-50 rounded-2xl border border-violet-100">
@@ -4731,7 +4742,7 @@ button[id^="vtnav-"][style*="4f46e5"],button[id^="vtnav-"][style*="79, 70, 229"]
       </div>
     </div>
 
-    <script src="sa-app.js?v=93"></script>
+    <script src="sa-app.js?v=94"></script>
     <script src="community-help.js?v=1"></script>
     <div id="sa-sla-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[9999] flex items-center justify-center p-4 fade-in">
         <div class="bg-white w-full max-w-2xl rounded-[2rem] p-6 shadow-2xl relative">
