@@ -50,7 +50,7 @@ async function main() {
   const existing = Array.isArray(catalogRes.data) ? catalogRes.data : (catalogRes.data.catalog || catalogRes.data.items || []);
   console.log(`\n🗑️  מנקה קטלוג קיים (${(existing || []).length} פריטים)...`);
   for (const item of (existing || [])) {
-    const delRes = await api('DELETE', `/store/catalog/${item.id}`);
+    const delRes = await api('DELETE', `/store/catalog/${item.id}`, { groupId: GROUP_ID });
     log(delRes.ok && delRes.data.success !== false, `נמחק: ${item.name}`, delRes.ok ? '' : JSON.stringify(delRes.data));
   }
   const existingNames = new Set();
