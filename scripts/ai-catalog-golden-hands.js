@@ -40,11 +40,11 @@ function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
 // שתי קריאות ה-AI הצמודות (מוצרים ואז שירותים) נתקלות שוב ושוב ב-503 דווקא בקריאה השנייה —
 // זה מתנהג יותר כמו הגבלת קצב מאשר מזל רע אקראי, אז מנסים שוב עם השהיה גוברת
-async function generateCatalogWithRetry(promptText, groupId, attempts = 3) {
+async function generateCatalogWithRetry(promptText, groupId, attempts = 5) {
   for (let i = 1; i <= attempts; i++) {
     const r = await api('POST', '/ai/generate-catalog', { promptText, type: 'BUSINESS', groupId });
     if (r.ok && r.data.success) return r;
-    if (i < attempts) { console.log(`   ⏳ ניסיון ${i} נכשל (${r.data.error || r.data.detail || ''}) — ממתין ${i * 8} שניות ומנסה שוב...`); await sleep(i * 8000); }
+    if (i < attempts) { console.log(`   ⏳ ניסיון ${i} נכשל (${r.data.error || r.data.detail || ''}) — ממתין ${i * 12} שניות ומנסה שוב...`); await sleep(i * 12000); }
     else return r;
   }
 }
@@ -60,16 +60,23 @@ async function main() {
 
   const catalogRes = await api('GET', `/store/catalog/${GROUP_ID}`);
   const existing = Array.isArray(catalogRes.data) ? catalogRes.data : (catalogRes.data.catalog || catalogRes.data.items || []);
-  console.log(`\n🗑️  מנקה קטלוג קיים (${(existing || []).length} פריטים)...`);
-  for (const item of (existing || [])) {
-    const delRes = await api('DELETE', `/store/catalog/${item.id}`, { groupId: GROUP_ID });
-    log(delRes.ok && delRes.data.success !== false, `נמחק: ${item.name}`, delRes.ok ? '' : JSON.stringify(delRes.data));
+  // SKIP_CLEAR=true — להרצה חוזרת ממוקדת (למשל רק שירותים שנכשלו) בלי למחוק פריטים שכבר הצליחו
+  if (process.env.SKIP_CLEAR !== 'true') {
+    console.log(`\n🗑️  מנקה קטלוג קיים (${(existing || []).length} פריטים)...`);
+    for (const item of (existing || [])) {
+      const delRes = await api('DELETE', `/store/catalog/${item.id}`, { groupId: GROUP_ID });
+      log(delRes.ok && delRes.data.success !== false, `נמחק: ${item.name}`, delRes.ok ? '' : JSON.stringify(delRes.data));
+    }
+  } else {
+    console.log(`\n↷ SKIP_CLEAR=true — לא נוגעים ב-${(existing || []).length} הפריטים הקיימים`);
   }
-  const existingNames = new Set();
+  const existingNames = new Set(process.env.SKIP_CLEAR === 'true' ? (existing || []).map(i => i.name) : []);
   const itemsMissingImage = []; // { catalogId, name, nameEn, description, category }
 
-  for (let promptIdx = 0; promptIdx < PROMPTS.length; promptIdx++) {
-    const { promptText, productType } = PROMPTS[promptIdx];
+  // ONLY_TYPE=retail|service — להריץ רק אחת משתי הרשימות (ברירת מחדל: שתיהן)
+  const promptsToRun = process.env.ONLY_TYPE ? PROMPTS.filter(p => p.productType === process.env.ONLY_TYPE) : PROMPTS;
+  for (let promptIdx = 0; promptIdx < promptsToRun.length; promptIdx++) {
+    const { promptText, productType } = promptsToRun[promptIdx];
     if (promptIdx > 0) await sleep(5000); // רווח יזום בין שתי קריאות AI צמודות, כדי לא לפגוע ב-rate limit מראש
     console.log(`\n🤖 יצירת רשימת ${productType === 'retail' ? 'מוצרים' : 'שירותים'} ע"י AI...`);
     const genRes = await generateCatalogWithRetry(promptText, GROUP_ID);
