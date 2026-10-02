@@ -4330,27 +4330,29 @@ function renderSACommunitiesTable() {
     
     tbody.innerHTML = filtered.map(c => {
         const isPending = c.status === 'pending';
-        const rowClass = isPending ? 'bg-amber-50 hover:bg-amber-100 border-b border-amber-100' : 'hover:bg-slate-50 border-b border-slate-50';
+        const rowClass = isPending ? 'bg-amber-50/60 hover:bg-amber-50 border-b border-amber-100' : 'hover:bg-slate-50/80 border-b border-slate-100';
         return `
         <tr class="${rowClass} transition last:border-0">
-            <td class="px-4 py-4 font-bold text-slate-800 text-right flex items-center gap-3">
-                ${c.image_url ? `<img src="${c.image_url}" class="w-8 h-8 rounded-lg object-cover shadow-sm shrink-0">` : `<div class="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-300 shrink-0"><i class="fa-solid fa-users"></i></div>`}
+            <td class="px-5 py-4 text-right">
+                <div class="flex items-center gap-3">
+                ${c.image_url ? `<img src="${c.image_url}" class="w-10 h-10 rounded-xl object-cover shadow-sm shrink-0 ring-1 ring-slate-200">` : `<div class="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-50 to-violet-100 flex items-center justify-center text-indigo-400 shrink-0"><i class="fa-solid fa-users"></i></div>`}
                 <div>
-                    <div class="flex items-center gap-2">${safeStr(c.name || 'ללא שם')}${isPending ? `<span class="bg-amber-200 text-amber-800 text-[9px] font-black px-1.5 py-0.5 rounded-full uppercase">⏳ ממתין לאישור</span>` : ''}</div>
-                    <div class="text-[10px] text-slate-500 mt-1 flex flex-wrap gap-1 max-w-[200px] overflow-hidden">${(c.city || 'לא הוגדר').split(',').map(city => `<span class="bg-slate-100 px-1.5 py-0.5 rounded text-slate-500"><i class="fa-solid fa-location-dot text-orange-400"></i> ${city.trim()}</span>`).join('')}</div>
+                    <div class="flex items-center gap-2 font-bold text-slate-800">${safeStr(c.name || 'ללא שם')}${isPending ? `<span class="bg-amber-100 text-amber-800 border border-amber-200 text-[10px] font-bold px-2 py-0.5 rounded-full">⏳ ממתין לאישור</span>` : ''}</div>
+                    <div class="text-[10px] text-slate-500 mt-1.5 flex flex-wrap gap-1 max-w-[220px] overflow-hidden">${(c.city || 'לא הוגדר').split(',').map(city => `<span class="bg-white border border-slate-200 px-1.5 py-0.5 rounded-md text-slate-500"><i class="fa-solid fa-location-dot text-indigo-300"></i> ${city.trim()}</span>`).join('')}</div>
+                </div>
                 </div>
             </td>
-            <td class="px-4 py-4 font-mono text-orange-600 font-bold tracking-widest text-right">${safeStr(c.code || '---')}</td>
-            <td class="px-4 py-4 text-right"><div class="text-xs text-slate-600 mb-1"><span class="text-slate-400 font-bold ml-1">מייל:</span> ${safeStr(c.manager_email || '---')}</div><div class="text-xs text-slate-600"><span class="text-slate-400 font-bold ml-1">סיסמה:</span> ${safeStr(c.manager_password || '---')}</div></td>
-            <td class="px-4 py-4 text-center">
-                <span class="bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-full font-bold text-xs"><i class="fa-solid fa-house text-[10px]"></i> ${c.family_count || 0} משפחות</span>
-                <span class="bg-emerald-50 text-emerald-600 px-3 py-1.5 rounded-full font-bold text-xs ml-1"><i class="fa-solid fa-briefcase text-[10px]"></i> ${c.business_count || 0} עסקים</span>
+            <td class="px-5 py-4 text-right"><span class="font-mono text-xs font-bold tracking-widest text-indigo-700 bg-indigo-50 border border-indigo-100 px-2.5 py-1 rounded-lg">${safeStr(c.code || '---')}</span></td>
+            <td class="px-5 py-4 text-right"><div class="text-xs text-slate-600 mb-1"><span class="text-slate-400 font-semibold ml-1">מייל:</span> ${safeStr(c.manager_email || '---')}</div><div class="text-xs text-slate-600"><span class="text-slate-400 font-semibold ml-1">סיסמה:</span> <span class="font-mono">${safeStr(c.manager_password || '---')}</span></div></td>
+            <td class="px-5 py-4 text-center">
+                <span class="inline-flex items-center gap-1.5 bg-indigo-50 text-indigo-700 border border-indigo-100 px-2.5 py-1 rounded-full font-bold text-xs"><i class="fa-solid fa-house text-[10px]"></i> ${c.family_count || 0} משפחות</span>
+                <span class="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-700 border border-emerald-100 px-2.5 py-1 rounded-full font-bold text-xs mr-1"><i class="fa-solid fa-briefcase text-[10px]"></i> ${c.business_count || 0} עסקים</span>
             </td>
-            <td class="px-4 py-4 text-center">
+            <td class="px-5 py-4 text-center">
                 <div class="flex flex-wrap gap-1.5 justify-center">
-                    ${isPending ? `<button onclick="approveSACommunity(${c.id})" class="bg-green-500 text-white hover:bg-green-600 px-2.5 py-1.5 rounded-lg text-xs font-bold transition"><i class="fa-solid fa-check"></i> אשר</button>` : ''}
-                    <button onclick="openSACommunityModal(${c.id})" class="bg-blue-100 text-blue-600 hover:bg-blue-200 px-2.5 py-1.5 rounded-lg text-xs font-bold transition"><i class="fa-solid fa-gear"></i> ניהול</button>
-                    <button onclick="openInterestTagsModal(${c.id},'${safeStr(c.name).replace(/'/g,"\\'")}')" class="bg-teal-100 text-teal-700 hover:bg-teal-200 px-2.5 py-1.5 rounded-lg text-xs font-bold transition" title="תגיות עניין">🏷️</button>
+                    ${isPending ? `<button onclick="approveSACommunity(${c.id})" class="bg-emerald-500 text-white hover:bg-emerald-600 shadow-sm shadow-emerald-500/30 px-3 py-1.5 rounded-lg text-xs font-bold transition"><i class="fa-solid fa-check"></i> אשר</button>` : ''}
+                    <button onclick="openSACommunityModal(${c.id})" class="bg-white border border-slate-200 text-slate-700 hover:border-indigo-300 hover:text-indigo-700 hover:bg-indigo-50 px-3 py-1.5 rounded-lg text-xs font-bold transition"><i class="fa-solid fa-gear"></i> ניהול</button>
+                    <button onclick="openInterestTagsModal(${c.id},'${safeStr(c.name).replace(/'/g,"\\'")}')" class="bg-white border border-slate-200 hover:border-teal-300 hover:bg-teal-50 px-2.5 py-1.5 rounded-lg text-xs font-bold transition" title="תגיות עניין">🏷️</button>
                 </div>
             </td>
         </tr>`;
@@ -4599,25 +4601,39 @@ function renderSABusinessesTable() {
         if (cardsWrap) cardsWrap.innerHTML = `<p class="text-center text-slate-400 py-8">לא נמצאו עסקים.</p>`;
         return;
     }
+    const _bizAvatar = (b, size) => `<div class="${size} rounded-xl bg-gradient-to-br from-emerald-50 to-teal-100 text-emerald-600 flex items-center justify-center font-extrabold shrink-0">${safeStr((b.name || '?').trim().charAt(0))}</div>`;
     if (tbody) tbody.innerHTML = filtered.map(b => `
-        <tr class="hover:bg-emerald-50 transition border-b border-slate-50 last:border-0">
-            <td class="px-4 py-4 font-bold text-slate-800 text-right">${safeStr(b.name)}<div class="text-[10px] text-slate-500 mt-1 font-mono">קוד: ${safeStr(b.group_code)}</div></td>
-            <td class="px-4 py-4 text-right"><span class="bg-slate-100 text-slate-600 px-2 py-1 rounded text-xs">עסק רשום</span></td>
-            <td class="px-4 py-4 text-center"><span class="bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-full font-bold text-xs" title="חיבורים מנוהלים פנימה"><i class="fa-solid fa-link"></i> בדיקה בניהול</span></td>
-            <td class="px-4 py-4 text-center">
-                <button onclick="openSABusinessModal(${b.id})" class="bg-emerald-100 text-emerald-700 hover:bg-emerald-200 px-3 py-1.5 rounded-lg text-xs font-bold transition"><i class="fa-solid fa-gear"></i> ניהול חיבורים</button>
-                <button onclick="openSADemoModal(${b.id}, '${safeStr(b.name)}')" class="bg-purple-100 text-purple-700 hover:bg-purple-200 px-3 py-1.5 rounded-lg text-xs font-bold transition mr-1"><i class="fa-solid fa-flask"></i> דמו</button>
+        <tr class="hover:bg-slate-50/80 transition border-b border-slate-100 last:border-0">
+            <td class="px-5 py-4 text-right">
+                <div class="flex items-center gap-3">
+                    ${_bizAvatar(b, 'w-10 h-10')}
+                    <div>
+                        <div class="font-bold text-slate-800">${safeStr(b.name)}</div>
+                        <div class="text-[10px] text-slate-500 mt-1 font-mono">קוד: <span class="font-bold text-slate-600 tracking-wider">${safeStr(b.group_code)}</span></div>
+                    </div>
+                </div>
+            </td>
+            <td class="px-5 py-4 text-right"><span class="bg-slate-100 text-slate-600 border border-slate-200 px-2.5 py-1 rounded-lg text-xs font-semibold">עסק רשום</span></td>
+            <td class="px-5 py-4 text-center"><span class="inline-flex items-center gap-1.5 bg-indigo-50 text-indigo-700 border border-indigo-100 px-2.5 py-1 rounded-full font-bold text-xs" title="חיבורים מנוהלים פנימה"><i class="fa-solid fa-link text-[10px]"></i> בדיקה בניהול</span></td>
+            <td class="px-5 py-4 text-center">
+                <button onclick="openSABusinessModal(${b.id})" class="bg-white border border-slate-200 text-slate-700 hover:border-emerald-300 hover:text-emerald-700 hover:bg-emerald-50 px-3 py-1.5 rounded-lg text-xs font-bold transition"><i class="fa-solid fa-gear"></i> ניהול חיבורים</button>
+                <button onclick="openSADemoModal(${b.id}, '${safeStr(b.name)}')" class="bg-white border border-slate-200 text-slate-700 hover:border-violet-300 hover:text-violet-700 hover:bg-violet-50 px-3 py-1.5 rounded-lg text-xs font-bold transition mr-1"><i class="fa-solid fa-flask"></i> דמו</button>
             </td>
         </tr>
     `).join('');
     if (cardsWrap) cardsWrap.innerHTML = filtered.map(b => `
         <div class="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm">
-            <div class="font-bold text-slate-800">${safeStr(b.name)}</div>
-            <div class="text-[10px] text-slate-500 mt-0.5 font-mono">קוד: ${safeStr(b.group_code)}</div>
-            <span class="inline-block bg-slate-100 text-slate-600 px-2 py-1 rounded text-xs mt-2">עסק רשום</span>
+            <div class="flex items-center gap-3">
+                ${_bizAvatar(b, 'w-10 h-10')}
+                <div class="min-w-0 flex-1">
+                    <div class="font-bold text-slate-800 truncate">${safeStr(b.name)}</div>
+                    <div class="text-[10px] text-slate-500 mt-0.5 font-mono">קוד: ${safeStr(b.group_code)}</div>
+                </div>
+                <span class="bg-slate-100 text-slate-600 border border-slate-200 px-2 py-1 rounded-lg text-[10px] font-semibold shrink-0">עסק רשום</span>
+            </div>
             <div class="flex gap-2 mt-3">
-                <button onclick="openSABusinessModal(${b.id})" class="flex-1 bg-emerald-100 text-emerald-700 hover:bg-emerald-200 px-3 py-2 rounded-lg text-xs font-bold transition"><i class="fa-solid fa-gear"></i> ניהול חיבורים</button>
-                <button onclick="openSADemoModal(${b.id}, '${safeStr(b.name)}')" class="flex-1 bg-purple-100 text-purple-700 hover:bg-purple-200 px-3 py-2 rounded-lg text-xs font-bold transition"><i class="fa-solid fa-flask"></i> דמו</button>
+                <button onclick="openSABusinessModal(${b.id})" class="flex-1 bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-100 px-3 py-2 rounded-xl text-xs font-bold transition"><i class="fa-solid fa-gear"></i> ניהול חיבורים</button>
+                <button onclick="openSADemoModal(${b.id}, '${safeStr(b.name)}')" class="flex-1 bg-violet-50 border border-violet-200 text-violet-700 hover:bg-violet-100 px-3 py-2 rounded-xl text-xs font-bold transition"><i class="fa-solid fa-flask"></i> דמו</button>
             </div>
         </div>
     `).join('');
