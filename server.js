@@ -2820,41 +2820,6 @@ app.post('/api/sa/groups/:id/mark-test', verifySA, async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// SA: פרטי כניסה ישירה (טלפון+סיסמה אמיתיים) לעסק טסט — להבדיל ממנגנון "עסק דמו" הציבורי,
-// זה המשתמש ADMIN האמיתי של העסק, לצורך כניסה ידנית לבדיקות. מוצג רק לעסק המסומן is_test_env.
-app.get('/api/sa/groups/:id/test-credentials', verifySA, async (req, res) => {
-    try {
-        const gRes = await pool.query('SELECT is_test_env, test_login_password_plain FROM family_groups WHERE id=$1', [req.params.id]);
-        if (!gRes.rows.length) return res.status(404).json({ success: false, error: 'עסק לא נמצא' });
-        if (!gRes.rows[0].is_test_env) return res.status(400).json({ success: false, error: 'העסק אינו מסומן כסביבת טסט' });
-        const uRes = await pool.query(`SELECT phone FROM users WHERE group_id=$1 AND UPPER(role)='ADMIN' ORDER BY id ASC LIMIT 1`, [req.params.id]);
-        res.json({
-            success: true,
-            phone: uRes.rows[0]?.phone || null,
-            password: gRes.rows[0].test_login_password_plain || null,
-            has_admin_user: uRes.rows.length > 0,
-        });
-    } catch(e) { res.status(500).json({ success: false, error: e.message }); }
-});
-
-// SA: יצירה/איפוס סיסמה ידועה למשתמש ה-ADMIN האמיתי של עסק טסט (לא יוצר משתמש דמו נפרד)
-app.post('/api/sa/groups/:id/test-credentials/reset', verifySA, async (req, res) => {
-    try {
-        const gRes = await pool.query('SELECT is_test_env FROM family_groups WHERE id=$1', [req.params.id]);
-        if (!gRes.rows.length) return res.status(404).json({ success: false, error: 'עסק לא נמצא' });
-        if (!gRes.rows[0].is_test_env) return res.status(400).json({ success: false, error: 'העסק אינו מסומן כסביבת טסט' });
-        const uRes = await pool.query(`SELECT id, phone FROM users WHERE group_id=$1 AND UPPER(role)='ADMIN' ORDER BY id ASC LIMIT 1`, [req.params.id]);
-        if (!uRes.rows.length) return res.status(400).json({ success: false, error: 'לעסק זה אין עדיין משתמש ADMIN — יש להגדיר קודם טלפון מנהל בעריכת פרטי הסביבה' });
-        if (!uRes.rows[0].phone) return res.status(400).json({ success: false, error: 'למשתמש ה-ADMIN של העסק אין טלפון מוגדר — יש להגדיר קודם בעריכת פרטי הסביבה' });
-        const newPassword = Math.random().toString(36).slice(-10);
-        const passwordHash = await bcrypt.hash(newPassword, 10);
-        await pool.query(`UPDATE users SET password_hash=$1, status='active' WHERE id=$2`, [passwordHash, uRes.rows[0].id]);
-        await pool.query(`UPDATE family_groups SET test_login_password_plain=$1 WHERE id=$2`, [newPassword, req.params.id]);
-        await logAudit('RESET_TEST_CREDENTIALS', 'GROUP', parseInt(req.params.id), '', {});
-        res.json({ success: true, phone: uRes.rows[0].phone, password: newPassword });
-    } catch(e) { res.status(500).json({ success: false, error: e.message }); }
-});
-
 // SA: רשימת חשבונות לפי account_status
 app.get('/api/sa/groups/by-status/:status', verifySA, async (req, res) => {
     try {
@@ -2924,9 +2889,6 @@ app.get('/api/solo/search-by-phone', async (req, res) => {
       try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN DEFAULT FALSE`); } catch(e) {}
       try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP`); } catch(e) {}
       try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS is_test_env BOOLEAN DEFAULT FALSE`); } catch(e) {}
-      // סיסמה בטקסט גלוי לכניסה ישירה של סופר אדמין לעסקי טסט (נפרד לגמרי ממנגנון "עסק דמו" הציבורי
-      // שמאפס נתונים — כאן זה המשתמש האמיתי של העסק, לצורך בדיקה ידנית בלבד)
-      try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS test_login_password_plain VARCHAR(100)`); } catch(e) {}
       // יומן ביקורת פעולות עובדים בעסק (Business Audit Log) - שלב 1: מכסה פעולות מרכזיות/רגישות
       try { await client.query(`CREATE TABLE IF NOT EXISTS biz_audit_log (
           id SERIAL PRIMARY KEY,
@@ -10311,10 +10273,16 @@ app.post('/api/family/login/verify-otp', async (req, res) => {
         }
         await pool.query(`DELETE FROM business_otp WHERE id=$1`, [row.id]);
 
+        // fg.type='FAMILY' בלבד הדיר בטעות עסקים מלאים (type='BUSINESS', כמו עסקים שנוצרו דרך המחולל) —
+        // רק עסקי "member biz" הקלים (FAMILY עם member_type='biz') הופיעו כאן. מתוקן לאותו תנאי כולל
+        // שכבר בשימוש בזיהוי סביבות בהתחברות עסקית (/api/biz/verify-otp, purpose=login_disambiguate)
         const optRes = await pool.query(
             `SELECT u.id AS user_id, u.nickname, u.role, fg.id AS group_id, fg.name AS group_name
              FROM users u JOIN family_groups fg ON fg.id = u.group_id
-             WHERE u.phone=$1 AND u.status='active' AND fg.type='FAMILY' AND fg.account_status NOT IN ('archived','frozen')`,
+             WHERE u.phone=$1 AND u.status='active'
+               AND (fg.type='FAMILY' OR fg.member_type='biz' OR fg.type='BUSINESS')
+               AND fg.account_status NOT IN ('archived','frozen')
+               AND (fg.is_deleted IS NULL OR fg.is_deleted=false)`,
             [phone]
         );
         if (!optRes.rows.length) return res.status(404).json({ success: false, error: 'לא נמצא חשבון פעיל עם מספר טלפון זה' });
@@ -17133,6 +17101,36 @@ app.post('/api/sa/businesses/:groupId/demo/enable', verifySA, async (req, res) =
 });
 
 // כיבוי מצב דמו - לא מוחק את המשתמש/הצילום, רק מפסיק את הכניסה הציבורית ואת האיפוס האוטומטי
+// עדכון ידני של טלפון/סיסמה לכניסת הדמו הציבורית — כדי לאפשר ל-SA לבחור ערכים משלו
+// במקום הערכים האקראיים שנוצרים אוטומטית ב-enable
+app.patch('/api/sa/businesses/:groupId/demo/credentials', verifySA, async (req, res) => {
+    try {
+        const groupId = req.params.groupId;
+        const gRes = await pool.query('SELECT demo_phone, is_demo_business FROM family_groups WHERE id=$1', [groupId]);
+        if (!gRes.rows.length) return res.status(404).json({ success: false, error: 'עסק לא נמצא' });
+        if (!gRes.rows[0].is_demo_business) return res.status(400).json({ success: false, error: 'יש להפוך את העסק לעסק דמו קודם' });
+
+        const oldPhone = gRes.rows[0].demo_phone;
+        let { phone, password } = req.body || {};
+        phone = (phone || '').trim();
+        password = (password || '').trim();
+        if (!phone || !password) return res.status(400).json({ success: false, error: 'יש להזין גם שם משתמש וגם סיסמה' });
+
+        const passwordHash = await bcrypt.hash(password, 10);
+        const existingUser = await pool.query('SELECT id FROM users WHERE group_id=$1 AND phone=$2', [groupId, oldPhone]);
+        if (existingUser.rows.length) {
+            await pool.query('UPDATE users SET phone=$1, password_hash=$2, status=$3 WHERE id=$4', [phone, passwordHash, 'active', existingUser.rows[0].id]);
+        } else {
+            await pool.query(
+                `INSERT INTO users (group_id, nickname, role, phone, password_hash, status) VALUES ($1, 'לקוח דמו', 'ADMIN', $2, $3, 'active')`,
+                [groupId, phone, passwordHash]
+            );
+        }
+        await pool.query('UPDATE family_groups SET demo_phone=$1, demo_password_plain=$2 WHERE id=$3', [phone, password, groupId]);
+        res.json({ success: true, demo_phone: phone, demo_password: password });
+    } catch(e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
 app.post('/api/sa/businesses/:groupId/demo/disable', verifySA, async (req, res) => {
     try {
         await pool.query('UPDATE family_groups SET is_demo_business=FALSE WHERE id=$1', [req.params.groupId]);

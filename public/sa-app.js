@@ -2372,7 +2372,9 @@ function renderSAGroups() {
         const freezeBtn = g.account_status !== 'frozen' && g.account_status !== 'archived' ? `<button onclick="saFreezeGroup(${g.id},'${safeStr(fmtGroupName(g))}')" class="bg-cyan-100 text-cyan-700 px-3 py-1 rounded text-[10px] font-bold hover:bg-cyan-200 transition"><i class="fa-solid fa-snowflake mr-1"></i> הקפאה</button>` : '';
         const resendSoloBtn = g.account_status === 'pending_activation' ? `<button onclick="saResendSoloCredentials(${g.id})" class="bg-amber-100 text-amber-700 px-3 py-1 rounded text-[10px] font-bold hover:bg-amber-200 transition"><i class="fa-solid fa-paper-plane mr-1"></i> שלח פרטי כניסה שוב</button>` : '';
         const testEnvBtn = `<button onclick="saToggleTestEnv(${g.id},'${safeStr(fmtGroupName(g))}',${!!g.is_test_env})" class="${g.is_test_env ? 'bg-orange-600 text-white hover:bg-orange-700' : 'bg-orange-50 text-orange-700 hover:bg-orange-100'} px-3 py-1 rounded text-[10px] font-bold transition"><i class="fa-solid fa-flask mr-1"></i> ${g.is_test_env ? 'בטל סימון טסט' : 'סמן כסביבת טסט'}</button>`;
-        const testCredsBtn = g.is_test_env ? `<button onclick="openSATestCredentialsModal(${g.id},'${safeStr(fmtGroupName(g))}')" class="bg-orange-100 text-orange-700 px-3 py-1 rounded text-[10px] font-bold hover:bg-orange-200 transition"><i class="fa-solid fa-key mr-1"></i> פרטי כניסה</button>` : '';
+        // קישור ציבורי + פרטי כניסה לשיתוף עם לקוחות כעסק דמו — נגיש ישירות משורת עסק הטסט,
+        // באמצעות אותו מודאל "עסק דמו" הקיים (לא מנגנון נפרד)
+        const testCredsBtn = g.is_test_env ? `<button onclick="openSADemoModal(${g.id},'${safeStr(fmtGroupName(g))}')" class="bg-purple-100 text-purple-700 px-3 py-1 rounded text-[10px] font-bold hover:bg-purple-200 transition"><i class="fa-solid fa-flask mr-1"></i> קישור דמו ללקוחות</button>` : '';
 
         const _billingCfg = (() => { try { return typeof g.billing_config === 'string' ? JSON.parse(g.billing_config) : (g.billing_config || null); } catch(e) { return null; } })();
         const _badgeTotal = (() => {
@@ -4529,15 +4531,16 @@ async function refreshSADemoModal(bizId) {
                 </div>
             </div>
             <div class="grid grid-cols-2 gap-2">
-                <div class="bg-slate-50 border border-slate-200 rounded-xl p-2.5">
+                <div>
                     <label class="text-[10px] font-bold text-slate-400 block mb-1">שם משתמש</label>
-                    <span class="font-mono text-xs font-bold">${safeStr(data.demo_phone)}</span>
+                    <input id="sa-demo-phone-input" value="${safeStr(data.demo_phone)}" class="w-full text-xs font-mono font-bold bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5">
                 </div>
-                <div class="bg-slate-50 border border-slate-200 rounded-xl p-2.5">
+                <div>
                     <label class="text-[10px] font-bold text-slate-400 block mb-1">סיסמה</label>
-                    <span class="font-mono text-xs font-bold">${safeStr(data.demo_password)}</span>
+                    <input id="sa-demo-password-input" value="${safeStr(data.demo_password)}" class="w-full text-xs font-mono font-bold bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5">
                 </div>
             </div>
+            <button onclick="saUpdateDemoCredentials(${bizId})" class="w-full bg-purple-50 hover:bg-purple-100 text-purple-700 py-2 rounded-xl font-bold text-xs transition"><i class="fa-solid fa-floppy-disk mr-1"></i> עדכן פרטי כניסה (אפשר לבחור ערכים משלכם)</button>
             <p class="text-[10px] text-slate-400">${snapshotText}</p>
             <p class="text-[10px] text-slate-400">נתוני ההזמנות/לקוחות/מלאי בעסק זה מתאפסים אוטומטית כל 6 שעות למצב שנלכד לאחרונה. תפריט/מתכונים לא מתאפסים.</p>
             <button onclick="captureSADemoSnapshot(${bizId})" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 py-2.5 rounded-xl font-bold text-sm transition"><i class="fa-solid fa-camera mr-1"></i> שמור מצב נוכחי כברירת מחדל לאיפוס</button>
@@ -4551,6 +4554,22 @@ async function enableSADemoBusiness(bizId) {
         const res = await fetch(`${API}/sa/businesses/${bizId}/demo/enable`, { method: 'POST', headers: { 'Authorization': typeof saToken !== 'undefined' ? saToken : (localStorage.getItem('ofl_sa_token') || '') } });
         const data = await res.json();
         if (data.success) { showToast('success', 'עסק הדמו הופעל'); refreshSADemoModal(bizId); }
+        else showToast('error', data.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
+}
+
+async function saUpdateDemoCredentials(bizId) {
+    const phone = (document.getElementById('sa-demo-phone-input')?.value || '').trim();
+    const password = (document.getElementById('sa-demo-password-input')?.value || '').trim();
+    if (!phone || !password) { showToast('error', 'יש להזין גם שם משתמש וגם סיסמה'); return; }
+    try {
+        const res = await fetch(`${API}/sa/businesses/${bizId}/demo/credentials`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json', 'Authorization': typeof saToken !== 'undefined' ? saToken : (localStorage.getItem('ofl_sa_token') || '') },
+            body: JSON.stringify({ phone, password })
+        });
+        const data = await res.json();
+        if (data.success) { showToast('success', 'פרטי הכניסה עודכנו'); refreshSADemoModal(bizId); }
         else showToast('error', data.error || 'שגיאה');
     } catch(e) { showToast('error', 'שגיאת רשת'); }
 }
@@ -4574,67 +4593,6 @@ async function captureSADemoSnapshot(bizId) {
     } catch(e) { showToast('error', 'שגיאת רשת'); }
 }
 
-// --- פרטי כניסה ישירה לעסק טסט (המשתמש ADMIN האמיתי, לא משתמש דמו נפרד) ---
-function _saAuthHdr() { return { 'Authorization': typeof saToken !== 'undefined' ? saToken : (localStorage.getItem('ofl_sa_token') || '') }; }
-
-async function openSATestCredentialsModal(bizId, bizName) {
-    const html = `
-        <div id="sa-test-creds-modal" class="fixed inset-0 bg-black/50 z-[9999] flex items-center justify-center p-4" onclick="if(event.target===this) this.remove()">
-            <div class="bg-white rounded-2xl w-full max-w-sm p-5">
-                <h3 class="text-lg font-bold mb-1">פרטי כניסה — ${bizName}</h3>
-                <p class="text-[11px] text-slate-500 mb-3">הטלפון והסיסמה של משתמש ה-ADMIN האמיתי של העסק, לכניסה ישירה בדף ההתחברות הרגיל.</p>
-                <div id="sa-test-creds-body" class="text-center text-slate-400 text-xs py-4"><i class="fa-solid fa-spinner fa-spin"></i> טוען...</div>
-                <button onclick="document.getElementById('sa-test-creds-modal').remove()" class="w-full mt-3 py-2.5 rounded-xl bg-slate-100 text-slate-600 text-sm font-bold">סגירה</button>
-            </div>
-        </div>`;
-    document.body.insertAdjacentHTML('beforeend', html);
-    await _refreshSATestCredentials(bizId);
-}
-
-async function _refreshSATestCredentials(bizId) {
-    const body = document.getElementById('sa-test-creds-body');
-    if (!body) return;
-    body.innerHTML = `<div class="text-center text-slate-400 text-xs py-4"><i class="fa-solid fa-spinner fa-spin"></i> טוען...</div>`;
-    try {
-        const res = await fetch(`${API}/sa/groups/${bizId}/test-credentials`, { headers: _saAuthHdr() });
-        const data = await res.json();
-        if (!data.success) { body.innerHTML = `<p class="text-xs text-red-500 text-center py-2">${data.error || 'שגיאה בטעינה'}</p>`; return; }
-        if (!data.phone) {
-            body.innerHTML = `<p class="text-xs text-slate-500">לעסק אין עדיין טלפון מנהל מוגדר — יש להגדיר אותו תחת "ערוך פרטים" לפני יצירת פרטי כניסה.</p>`;
-            return;
-        }
-        if (!data.password) {
-            body.innerHTML = `
-                <p class="text-xs text-slate-500 mb-3">טלפון המנהל: <span class="font-mono font-bold">${data.phone}</span><br>טרם נוצרה סיסמה ידועה לכניסה ישירה.</p>
-                <button onclick="_saResetTestCredentials(${bizId})" class="w-full bg-orange-600 hover:bg-orange-700 text-white py-2.5 rounded-xl font-bold text-sm transition">צור סיסמה לכניסה ישירה</button>
-            `;
-            return;
-        }
-        body.innerHTML = `
-            <div class="grid grid-cols-2 gap-2">
-                <div class="bg-slate-50 border border-slate-200 rounded-xl p-2.5">
-                    <label class="text-[10px] font-bold text-slate-400 block mb-1">טלפון</label>
-                    <span class="font-mono text-xs font-bold">${data.phone}</span>
-                </div>
-                <div class="bg-slate-50 border border-slate-200 rounded-xl p-2.5">
-                    <label class="text-[10px] font-bold text-slate-400 block mb-1">סיסמה</label>
-                    <span class="font-mono text-xs font-bold">${data.password}</span>
-                </div>
-            </div>
-            <button onclick="navigator.clipboard.writeText('${data.phone} / ${data.password}').then(()=>showToast('success','הועתק'))" class="w-full mt-2 bg-slate-100 hover:bg-slate-200 text-slate-700 py-2 rounded-xl font-bold text-xs transition"><i class="fa-solid fa-copy mr-1"></i> העתק</button>
-            <button onclick="_saResetTestCredentials(${bizId})" class="w-full mt-2 text-orange-600 hover:bg-orange-50 py-2 rounded-xl font-bold text-xs transition">צור סיסמה חדשה</button>
-        `;
-    } catch(e) { body.innerHTML = `<p class="text-xs text-red-500 text-center py-2">שגיאת רשת</p>`; }
-}
-
-async function _saResetTestCredentials(bizId) {
-    try {
-        const res = await fetch(`${API}/sa/groups/${bizId}/test-credentials/reset`, { method: 'POST', headers: _saAuthHdr() });
-        const data = await res.json();
-        if (data.success) { showToast('success', 'נוצרה סיסמה חדשה'); _refreshSATestCredentials(bizId); }
-        else showToast('error', data.error || 'שגיאה');
-    } catch(e) { showToast('error', 'שגיאת רשת'); }
-}
 
 function filterSABusinessesTable() { renderSABusinessesTable(); }
 
