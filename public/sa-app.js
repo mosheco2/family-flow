@@ -8994,6 +8994,7 @@ window.loadBizTemplates = async function() {
 function renderBizTemplatesView(type) {
     _vizCurrentType = type;
     // Update type selector buttons
+    document.querySelectorAll('#viz-type-tabs .viz-type-btn').forEach(b => b.classList.toggle('is-active', b.id === `viz-tab-${type}`));
     Object.keys(BIZ_TEMPLATE_TREE).forEach(t => {
         const btn = document.getElementById(`viz-type-${t}`);
         if (!btn) return;
@@ -9027,6 +9028,10 @@ function renderBizTemplatesView(type) {
             <div class="text-[10px] text-slate-400">פעילים</div>
         </div>`;
 
+    const _vs = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+    _vs('viz-stat-total', total); _vs('viz-stat-active', total - hiddenCount); _vs('viz-stat-hidden', hiddenCount);
+    document.getElementById('viz-stats-bar')?.classList.remove('hidden');
+
     const container = document.getElementById('viz-elements-container');
     if (!container) return;
     container.innerHTML = tree.elements.map(el => renderVizElement(type, el, hidden, 0)).join('');
@@ -9040,33 +9045,47 @@ function countElements(elements) {
 
 function renderVizElement(type, el, hidden, depth) {
     const isHidden = hidden.has(el.key);
-    const ml = depth > 0 ? `style="margin-right:${depth * 20}px"` : '';
-    const bgCls = el.type === 'tab' ? 'bg-slate-50 border-slate-200' :
-                  el.type === 'subtab' ? 'bg-blue-50 border-blue-100' :
-                  'bg-white border-slate-100';
     const typeBadge = el.type === 'tab'
-        ? '<span class="text-[9px] font-black bg-indigo-100 text-indigo-600 px-1.5 py-0.5 rounded-full">טאב</span>'
+        ? '<span class="text-[10px] font-extrabold bg-indigo-50 text-indigo-600 border border-indigo-100 px-2 py-0.5 rounded-md shrink-0">טאב</span>'
         : el.type === 'subtab'
-        ? '<span class="text-[9px] font-black bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded-full">תת-טאב</span>'
-        : '<span class="text-[9px] font-black bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-full">פיצ׳ר</span>';
-    const opacityCls = isHidden ? 'opacity-50' : '';
-    const labelCls = isHidden ? 'text-slate-400 line-through' : (depth === 0 ? 'text-slate-800 font-bold' : 'text-slate-700 font-medium');
+        ? '<span class="text-[10px] font-extrabold bg-sky-50 text-sky-600 border border-sky-100 px-2 py-0.5 rounded-md shrink-0">תת-טאב</span>'
+        : '<span class="text-[10px] font-extrabold bg-slate-100 text-slate-500 px-2 py-0.5 rounded-md shrink-0">פיצ׳ר</span>';
+    const labelCls = isHidden ? 'text-slate-400 line-through' : (depth === 0 ? 'text-slate-900 font-extrabold' : 'text-slate-700 font-medium');
+    const toggle = `<label dir="ltr" class="relative inline-flex items-center cursor-pointer shrink-0 mr-2">
+                <input type="checkbox" ${isHidden ? '' : 'checked'} onchange="window.toggleVizElement('${type}','${el.key}',!this.checked)" class="sr-only peer">
+                <div class="w-10 h-[22px] bg-rose-300 rounded-full peer peer-checked:bg-emerald-500 after:content-[''] after:absolute after:top-[3px] after:left-[3px] after:bg-white after:rounded-full after:h-4 after:w-4 after:shadow after:transition-all peer-checked:after:translate-x-[18px]"></div>
+            </label>`;
+    const hiddenPill = isHidden ? '<span class="inline-flex items-center gap-1 text-[10px] text-rose-600 bg-rose-50 border border-rose-100 font-bold px-2 py-0.5 rounded-full shrink-0"><span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>מוסתר</span>' : '';
+    const kids = el.children ? el.children.map(child => renderVizElement(type, child, hidden, depth + 1)).join('') : '';
 
-    let html = `<div ${ml} class="mb-1.5">
-        <div class="flex items-center justify-between px-3 py-2 rounded-xl border ${bgCls} ${opacityCls} transition-all">
+    if (depth === 0) {
+        const cnt = el.children ? countElements(el.children) : 0;
+        return `<div class="sa-table-card overflow-hidden ${isHidden ? 'opacity-60' : ''} transition-all">
+        <div class="flex items-center justify-between gap-3 px-5 py-3.5 ${kids ? 'border-b border-slate-100' : ''}">
+            <div class="flex items-center gap-2.5 min-w-0">
+                ${typeBadge}
+                <span class="text-[15px] ${labelCls} truncate">${el.label}</span>
+                ${hiddenPill}
+                ${cnt ? `<span class="text-[11px] font-bold text-slate-400 shrink-0">${cnt} פריטים</span>` : ''}
+            </div>
+            ${toggle}
+        </div>
+        ${kids ? `<div class="py-1.5">${kids}</div>` : ''}
+    </div>`;
+    }
+    const pad = 20 + (depth - 1) * 22;
+    return `<div>
+        <div class="flex items-center justify-between gap-3 py-2 pl-5 hover:bg-slate-50/80 ${isHidden ? 'opacity-50' : ''} transition-all" style="padding-right:${pad}px">
             <div class="flex items-center gap-2 min-w-0">
+                <span class="w-1.5 h-1.5 rounded-full ${isHidden ? 'bg-slate-300' : 'bg-emerald-400'} shrink-0"></span>
                 ${typeBadge}
                 <span class="text-sm ${labelCls} truncate">${el.label}</span>
-                ${isHidden ? '<span class="text-[9px] text-red-500 font-bold shrink-0">● מוסתר</span>' : ''}
+                ${hiddenPill}
             </div>
-            <label class="relative inline-flex items-center cursor-pointer shrink-0 mr-2">
-                <input type="checkbox" ${isHidden ? '' : 'checked'} onchange="window.toggleVizElement('${type}','${el.key}',!this.checked)" class="sr-only peer">
-                <div class="w-10 h-5 bg-red-300 rounded-full peer peer-checked:bg-emerald-500 after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-5"></div>
-            </label>
+            ${toggle}
         </div>
-        ${el.children ? el.children.map(child => renderVizElement(type, child, hidden, depth + 1)).join('') : ''}
+        ${kids}
     </div>`;
-    return html;
 }
 
 window.toggleVizElement = async function(type, key, makeHidden) {

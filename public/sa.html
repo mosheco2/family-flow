@@ -82,6 +82,27 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
 .sa-top-bar.is-wide .sa-crumb{order:1}
 .sa-top-bar.is-wide>div:last-child{order:2}
 .sa-top-bar.is-wide #sa-subnav-bar{order:3;flex-basis:100%;max-width:max-content}
+/* מחולל עסקים AI — ליטוש נראות בלבד (דורס סגנונות inline) */
+#sa-view-ai-builder :is(#aib-step1,#aib-loading,#aib-success,#aib-templates-panel,#aib-drafts-panel,[id^="aib-panel-"]){border-radius:1.5rem!important;border-color:#e2e8f0!important;box-shadow:0 1px 2px rgba(15,23,42,0.04),0 12px 32px -12px rgba(15,23,42,0.10)}
+#sa-view-ai-builder #aib-step1{padding:2rem!important;position:relative;overflow:hidden}
+#sa-view-ai-builder #aib-step1::before{content:"";position:absolute;inset:0 0 auto 0;height:4px;background:linear-gradient(90deg,#6366f1,#8b5cf6,#d946ef)}
+#sa-view-ai-builder :is(input[type=text],input[type=number],input[type=time],input:not([type]),select,textarea){border:1px solid #e2e8f0!important;border-radius:0.85rem!important;background-color:#f8fafc!important;transition:border-color .15s,box-shadow .15s,background-color .15s;outline:none}
+#sa-view-ai-builder :is(input[type=text],input[type=number],input[type=time],input:not([type]),select,textarea):focus{border-color:#818cf8!important;background-color:#fff!important;box-shadow:0 0 0 4px rgba(99,102,241,0.12)}
+#sa-view-ai-builder label{font-weight:700!important;color:#475569}
+#sa-view-ai-builder h3{font-weight:800!important;color:#0f172a!important}
+#sa-view-ai-builder input[type=checkbox]{accent-color:#6366f1;width:16px;height:16px}
+#aib-generate-btn,#aib-create-btn{box-shadow:0 10px 24px -8px rgba(99,102,241,0.55);transition:filter .15s,transform .15s}
+#aib-create-btn{box-shadow:0 10px 24px -8px rgba(16,185,129,0.55)}
+#aib-generate-btn:hover,#aib-create-btn:hover{filter:brightness(1.07);transform:translateY(-1px)}
+#aib-preview>div:first-child{background:#f1f5f9;border:1px solid #e2e8f0!important;border-radius:1rem;padding:0.35rem!important;gap:0.25rem!important;display:inline-flex!important;max-width:100%;overflow-x:auto}
+#aib-preview>div:first-child>button{border-radius:0.75rem!important;border-bottom:none!important;margin-bottom:0!important;white-space:nowrap}
+#aib-preview>div:first-child>button.aib-tab-active{background:#fff!important;box-shadow:0 1px 3px rgba(15,23,42,0.08)}
+@media (max-width:640px){#sa-view-ai-builder [style*="grid-template-columns"]{grid-template-columns:1fr!important}}
+/* מסכים שנמצאים מחוץ לעוטף הריפוד: לא משאירים ריפוד ריק מעליהם */
+#sa-main-content > div.overflow-y-auto:not(:has(> [id^="sa-view-"]:not(.hidden))){padding-top:0;padding-bottom:0}
+/* בורר סוג עסק בתבניות — בקרה מפולחת */
+.sa-viz-types{background:#f1f5f9;border:1px solid #e2e8f0;border-radius:1rem;padding:0.35rem;display:inline-block;max-width:100%}
+.viz-type-btn.is-active{background:linear-gradient(135deg,#10b981,#0d9488)!important;color:#fff!important;border-color:transparent!important;box-shadow:0 4px 12px -2px rgba(16,185,129,0.4)}
 .sa-crumb-group{font-size:1.15rem;font-weight:800;color:#0f172a;white-space:nowrap}
 .sa-crumb-sep{color:#cbd5e1;font-size:1rem}
 .sa-crumb .sa-top-bar-title{font-size:0.82rem;font-weight:600;color:#64748b}
@@ -3026,11 +3047,12 @@ button[id^="vtnav-"][style*="4f46e5"],button[id^="vtnav-"][style*="79, 70, 229"]
             <!-- ══════════════════════════════════════════════════ -->
             <div id="sa-view-games" class="hidden space-y-6 fade-in">
 
-              <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
-                <h2 class="text-2xl font-black text-slate-800 flex items-center gap-3 mb-1">
-                  <i class="fa-solid fa-gamepad text-purple-500"></i> משחקי ילדים
-                </h2>
-                <p class="text-sm text-slate-500">ניהול קטלוג משחקים, דמות גלובלית וסטטיסטיקות</p>
+              <div class="flex items-center gap-3.5">
+                <span class="w-12 h-12 rounded-2xl bg-gradient-to-br from-fuchsia-500 to-purple-600 text-white flex items-center justify-center shrink-0 shadow-lg shadow-purple-500/30"><i class="fa-solid fa-gamepad text-lg"></i></span>
+                <div>
+                  <h2 class="text-2xl font-extrabold text-slate-900 tracking-tight">משחקי ילדים</h2>
+                  <p class="text-sm text-slate-400 mt-0.5">ניהול קטלוג משחקים, דמות גלובלית וסטטיסטיקות</p>
+                </div>
               </div>
 
               <!-- Sub-nav -->
@@ -3288,62 +3310,84 @@ button[id^="vtnav-"][style*="4f46e5"],button[id^="vtnav-"][style*="79, 70, 229"]
             <div id="sa-view-templates" class="hidden space-y-6 fade-in">
 
               <!-- כותרת + הוראות -->
-              <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-6">
-                <h2 class="text-xl font-bold text-slate-800 flex items-center gap-3 mb-1">
-                  <i class="fa-solid fa-layer-group text-emerald-500"></i> ניהול תבניות עסקים
-                </h2>
-                <p class="text-sm text-slate-500">הסתר/הצג טאבים, פיצ'רים ולחצנים לפי סוג עסק. השינויים חלים על כל העסקים מאותו סוג.</p>
+              <div class="flex items-center gap-3.5">
+                <span class="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white flex items-center justify-center shrink-0 shadow-lg shadow-emerald-500/30"><i class="fa-solid fa-layer-group text-lg"></i></span>
+                <div>
+                  <h2 class="text-2xl font-extrabold text-slate-900 tracking-tight">ניהול תבניות עסקים</h2>
+                  <p class="text-sm text-slate-400 mt-0.5">הסתר/הצג טאבים, פיצ'רים ולחצנים לפי סוג עסק. השינויים חלים על כל העסקים מאותו סוג.</p>
+                </div>
               </div>
 
               <!-- בורר סוג עסק -->
-              <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
-                <div class="flex flex-wrap gap-2" id="viz-type-tabs">
+              <div class="sa-viz-types">
+                <div class="flex flex-wrap gap-1.5" id="viz-type-tabs">
                   <button onclick="window.renderBizTemplatesView && window.renderBizTemplatesView('restaurant')"
                     id="viz-tab-restaurant"
-                    class="viz-type-btn px-4 py-2 rounded-xl text-sm font-bold border border-slate-200 bg-slate-50 text-slate-600 hover:bg-emerald-50 hover:border-emerald-300 hover:text-emerald-700 transition">
+                    class="viz-type-btn px-4 py-2 rounded-xl text-sm font-bold border border-transparent text-slate-500 hover:bg-white hover:text-emerald-700 transition">
                     🍽️ מסעדה ואוכל
                   </button>
                   <button onclick="window.renderBizTemplatesView && window.renderBizTemplatesView('sport')"
                     id="viz-tab-sport"
-                    class="viz-type-btn px-4 py-2 rounded-xl text-sm font-bold border border-slate-200 bg-slate-50 text-slate-600 hover:bg-emerald-50 hover:border-emerald-300 hover:text-emerald-700 transition">
+                    class="viz-type-btn px-4 py-2 rounded-xl text-sm font-bold border border-transparent text-slate-500 hover:bg-white hover:text-emerald-700 transition">
                     🏋️ ספורט וכושר
                   </button>
                   <button onclick="window.renderBizTemplatesView && window.renderBizTemplatesView('beauty')"
                     id="viz-tab-beauty"
-                    class="viz-type-btn px-4 py-2 rounded-xl text-sm font-bold border border-slate-200 bg-slate-50 text-slate-600 hover:bg-emerald-50 hover:border-emerald-300 hover:text-emerald-700 transition">
+                    class="viz-type-btn px-4 py-2 rounded-xl text-sm font-bold border border-transparent text-slate-500 hover:bg-white hover:text-emerald-700 transition">
                     💅 יופי וקוסמטיקה
                   </button>
                   <button onclick="window.renderBizTemplatesView && window.renderBizTemplatesView('maintenance_repair')"
                     id="viz-tab-maintenance_repair"
-                    class="viz-type-btn px-4 py-2 rounded-xl text-sm font-bold border border-slate-200 bg-slate-50 text-slate-600 hover:bg-emerald-50 hover:border-emerald-300 hover:text-emerald-700 transition">
+                    class="viz-type-btn px-4 py-2 rounded-xl text-sm font-bold border border-transparent text-slate-500 hover:bg-white hover:text-emerald-700 transition">
                     🔧 תיקונים ותחזוקה
                   </button>
                   <button onclick="window.renderBizTemplatesView && window.renderBizTemplatesView('professional')"
                     id="viz-tab-professional"
-                    class="viz-type-btn px-4 py-2 rounded-xl text-sm font-bold border border-slate-200 bg-slate-50 text-slate-600 hover:bg-emerald-50 hover:border-emerald-300 hover:text-emerald-700 transition">
+                    class="viz-type-btn px-4 py-2 rounded-xl text-sm font-bold border border-transparent text-slate-500 hover:bg-white hover:text-emerald-700 transition">
                     🎓 מומחים ומקצועות
                   </button>
                   <button onclick="window.renderBizTemplatesView && window.renderBizTemplatesView('logistics')"
                     id="viz-tab-logistics"
-                    class="viz-type-btn px-4 py-2 rounded-xl text-sm font-bold border border-slate-200 bg-slate-50 text-slate-600 hover:bg-emerald-50 hover:border-emerald-300 hover:text-emerald-700 transition">
+                    class="viz-type-btn px-4 py-2 rounded-xl text-sm font-bold border border-transparent text-slate-500 hover:bg-white hover:text-emerald-700 transition">
                     🚚 לוגיסטיקה ומשלוחים
                   </button>
                 </div>
               </div>
 
               <!-- סרגל סטטיסטיקות -->
-              <div id="viz-stats-bar" class="hidden grid grid-cols-3 gap-4">
-                <div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 text-center">
-                  <div class="text-2xl font-black text-slate-800" id="viz-stat-total">0</div>
-                  <div class="text-xs text-slate-500 mt-1">סה"כ אלמנטים</div>
+              <div id="viz-stats-bar" class="hidden grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div class="relative overflow-hidden bg-white rounded-2xl border border-slate-200 p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)]">
+                  <div class="absolute -left-6 -top-6 w-24 h-24 rounded-full bg-gradient-to-br from-indigo-500 to-violet-500 opacity-10"></div>
+                  <div class="flex items-center justify-between gap-3 relative">
+                    <div>
+                      <div class="text-xs font-bold text-slate-400">סה"כ אלמנטים</div>
+                      <div class="text-3xl font-extrabold text-slate-900 mt-1 leading-none" id="viz-stat-total">0</div>
+                      <div class="text-[11px] text-slate-400 mt-1.5">טאבים, תתי-טאבים ופיצ׳רים</div>
+                    </div>
+                    <span class="w-11 h-11 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-500 text-white flex items-center justify-center shadow-md shrink-0"><i class="fa-solid fa-cubes"></i></span>
+                  </div>
                 </div>
-                <div class="bg-white rounded-2xl border border-emerald-100 shadow-sm p-4 text-center">
-                  <div class="text-2xl font-black text-emerald-600" id="viz-stat-active">0</div>
-                  <div class="text-xs text-slate-500 mt-1">פעילים</div>
+                <div class="relative overflow-hidden bg-white rounded-2xl border border-slate-200 p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)]">
+                  <div class="absolute -left-6 -top-6 w-24 h-24 rounded-full bg-gradient-to-br from-emerald-500 to-teal-500 opacity-10"></div>
+                  <div class="flex items-center justify-between gap-3 relative">
+                    <div>
+                      <div class="text-xs font-bold text-slate-400">פעילים</div>
+                      <div class="text-3xl font-extrabold text-slate-900 mt-1 leading-none" id="viz-stat-active">0</div>
+                      <div class="text-[11px] text-slate-400 mt-1.5">מוצגים לעסקים מסוג זה</div>
+                    </div>
+                    <span class="w-11 h-11 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-500 text-white flex items-center justify-center shadow-md shrink-0"><i class="fa-solid fa-eye"></i></span>
+                  </div>
                 </div>
-                <div class="bg-white rounded-2xl border border-red-100 shadow-sm p-4 text-center">
-                  <div class="text-2xl font-black text-red-500" id="viz-stat-hidden">0</div>
-                  <div class="text-xs text-slate-500 mt-1">מוסתרים</div>
+                <div class="relative overflow-hidden bg-white rounded-2xl border border-slate-200 p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)]">
+                  <div class="absolute -left-6 -top-6 w-24 h-24 rounded-full bg-gradient-to-br from-rose-500 to-pink-500 opacity-10"></div>
+                  <div class="flex items-center justify-between gap-3 relative">
+                    <div>
+                      <div class="text-xs font-bold text-slate-400">מוסתרים</div>
+                      <div class="text-3xl font-extrabold text-slate-900 mt-1 leading-none" id="viz-stat-hidden">0</div>
+                      <div class="text-[11px] text-slate-400 mt-1.5">מוסתרים מכל העסקים מסוג זה</div>
+                    </div>
+                    <span class="w-11 h-11 rounded-xl bg-gradient-to-br from-rose-500 to-pink-500 text-white flex items-center justify-center shadow-md shrink-0"><i class="fa-solid fa-eye-slash"></i></span>
+                  </div>
                 </div>
               </div>
 
@@ -3353,7 +3397,7 @@ button[id^="vtnav-"][style*="4f46e5"],button[id^="vtnav-"][style*="79, 70, 229"]
                 <p class="text-sm text-slate-500">טוען נתונים...</p>
               </div>
 
-              <div id="viz-elements-container" class="space-y-3"></div>
+              <div id="viz-elements-container" class="space-y-4"></div>
 
             </div><!-- /sa-view-templates -->
 
@@ -3539,16 +3583,19 @@ button[id^="vtnav-"][style*="4f46e5"],button[id^="vtnav-"][style*="79, 70, 229"]
             <div id="sa-view-ai-builder" class="hidden" style="padding:24px;max-width:960px;margin:0 auto;font-family:Rubik,sans-serif">
 
               <!-- Header -->
-              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px">
-                <div>
-                  <h2 style="font-size:22px;font-weight:800;margin:0">🤖 מחולל עסקים AI</h2>
-                  <p style="color:#64748b;font-size:13px;margin:4px 0 0">צור עסק שלם עם קטלוג, מבצעים ותמונות בכמה לחיצות</p>
+              <div class="flex flex-wrap justify-between items-center gap-4 mb-6">
+                <div class="flex items-center gap-3.5">
+                  <span class="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-600 via-violet-600 to-fuchsia-500 text-white flex items-center justify-center shrink-0 shadow-lg shadow-violet-500/30"><i class="fa-solid fa-wand-magic-sparkles text-lg"></i></span>
+                  <div>
+                    <h2 class="text-2xl font-extrabold text-slate-900 tracking-tight" style="margin:0">מחולל עסקים AI</h2>
+                    <p class="text-sm text-slate-400 mt-0.5" style="margin-bottom:0">צור עסק שלם עם קטלוג, מבצעים ותמונות בכמה לחיצות</p>
+                  </div>
                 </div>
-                <div style="display:flex;gap:8px">
-                  <button onclick="document.getElementById('aib-templates-panel').style.display=document.getElementById('aib-templates-panel').style.display==='none'?'block':'none';aiLoadTemplates()" style="padding:8px 16px;border:1px solid #e2e8f0;border-radius:10px;background:#fff;cursor:pointer;font-size:13px">📂 Templates שמורים</button>
-                  <button onclick="aiSaveCurrentDraft()" id="aib-save-draft-btn" style="padding:8px 16px;border:1px solid #e2e8f0;border-radius:10px;background:#fff;cursor:pointer;font-size:13px">💾 שמור טיוטה</button>
-                  <button onclick="aiShowDrafts()" style="padding:8px 16px;border:1px solid #e2e8f0;border-radius:10px;background:#fff;cursor:pointer;font-size:13px">📋 טיוטות</button>
-                  <button onclick="aiResetBuilder()" style="padding:8px 16px;border:1px solid #e2e8f0;border-radius:10px;background:#fff;cursor:pointer;font-size:13px">🔄 התחל מחדש</button>
+                <div class="flex flex-wrap gap-2">
+                  <button onclick="document.getElementById('aib-templates-panel').style.display=document.getElementById('aib-templates-panel').style.display==='none'?'block':'none';aiLoadTemplates()" class="bg-white border border-slate-200 text-slate-600 hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700 px-3.5 h-10 rounded-xl font-bold text-sm transition flex items-center gap-2 shrink-0"><i class="fa-solid fa-folder-open"></i> Templates שמורים</button>
+                  <button onclick="aiSaveCurrentDraft()" id="aib-save-draft-btn" class="bg-white border border-slate-200 text-slate-600 hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700 px-3.5 h-10 rounded-xl font-bold text-sm transition flex items-center gap-2 shrink-0"><i class="fa-solid fa-floppy-disk"></i> שמור טיוטה</button>
+                  <button onclick="aiShowDrafts()" class="bg-white border border-slate-200 text-slate-600 hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700 px-3.5 h-10 rounded-xl font-bold text-sm transition flex items-center gap-2 shrink-0"><i class="fa-solid fa-clipboard-list"></i> טיוטות</button>
+                  <button onclick="aiResetBuilder()" class="bg-white border border-slate-200 text-slate-600 hover:border-indigo-200 hover:bg-indigo-50 hover:text-indigo-700 px-3.5 h-10 rounded-xl font-bold text-sm transition flex items-center gap-2 shrink-0"><i class="fa-solid fa-rotate-right"></i> התחל מחדש</button>
                 </div>
               </div>
 
@@ -4684,7 +4731,7 @@ button[id^="vtnav-"][style*="4f46e5"],button[id^="vtnav-"][style*="79, 70, 229"]
       </div>
     </div>
 
-    <script src="sa-app.js?v=92"></script>
+    <script src="sa-app.js?v=93"></script>
     <script src="community-help.js?v=1"></script>
     <div id="sa-sla-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[9999] flex items-center justify-center p-4 fade-in">
         <div class="bg-white w-full max-w-2xl rounded-[2rem] p-6 shadow-2xl relative">
