@@ -482,6 +482,7 @@ window.switchSATab = function(tabId) {
         'kol-haam': 'קול העם',
         pricing: 'מחירון מודולים',
         'ai-builder': 'מחולל עסקים AI',
+        whatsapp: 'מרכז WhatsApp',
         masterconfig: '🔐 הגדרות חיבורים (Master)'
     };
     if (tabId === 'pricing') renderPricingCatalogView();
@@ -7560,11 +7561,11 @@ window.renderChatSidebar = function() {
     // 1. חדר כללי (תמיד מופיע)
     if (!query || 'כללי'.includes(query)) {
         html += `
-        <div onclick="window.selectChatRoom('general', 'חדר כללי', 'fa-hashtag')" id="sidebar-room-general" class="flex items-center gap-3 p-3 rounded-xl cursor-pointer hover:bg-white transition group ${window.currentChatRoom === 'general' ? 'bg-white shadow-sm border border-slate-100' : ''}">
-            <div class="w-10 h-10 rounded-full bg-slate-800 text-white flex items-center justify-center text-sm"><i class="fa-solid fa-hashtag"></i></div>
+        <div onclick="window.selectChatRoom('general', 'חדר כללי', 'fa-hashtag')" id="sidebar-room-general" class="flex items-center gap-3 p-2.5 rounded-2xl cursor-pointer hover:bg-white/[0.06] transition group ${window.currentChatRoom === 'general' ? 'bg-gradient-to-l from-indigo-600/90 to-violet-600/80 shadow-lg shadow-indigo-900/40' : ''}">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-slate-500 to-slate-700 text-white flex items-center justify-center text-sm shrink-0 shadow-sm"><i class="fa-solid fa-hashtag"></i></div>
             <div class="flex-1 min-w-0">
-                <div class="text-xs font-black text-slate-800">חדר כללי</div>
-                <div class="text-[10px] text-slate-400 truncate font-bold uppercase">כל החברה</div>
+                <div class="text-[13px] font-bold text-white">חדר כללי</div>
+                <div class="text-[11px] text-slate-400 truncate">כל החברה</div>
             </div>
         </div>`;
     }
@@ -7576,11 +7577,11 @@ window.renderChatSidebar = function() {
                 if (!query || t.name.toLowerCase().includes(query)) {
                     const roomId = `team_${t.id}`;
                     html += `
-                    <div onclick="window.selectChatRoom('${roomId}', 'צוות: ${safeStr(t.name)}', 'fa-shield-cat')" id="sidebar-room-${roomId}" class="flex items-center gap-3 p-3 rounded-xl cursor-pointer hover:bg-white transition group ${window.currentChatRoom === roomId ? 'bg-white shadow-sm border border-slate-100' : ''}">
-                        <div class="w-10 h-10 rounded-full bg-indigo-50 text-indigo-600 flex items-center justify-center text-sm border border-indigo-100"><i class="fa-solid fa-shield-cat"></i></div>
+                    <div onclick="window.selectChatRoom('${roomId}', 'צוות: ${safeStr(t.name)}', 'fa-shield-cat')" id="sidebar-room-${roomId}" class="flex items-center gap-3 p-2.5 rounded-2xl cursor-pointer hover:bg-white/[0.06] transition group ${window.currentChatRoom === roomId ? 'bg-gradient-to-l from-indigo-600/90 to-violet-600/80 shadow-lg shadow-indigo-900/40' : ''}">
+                        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-500 text-white flex items-center justify-center text-sm shrink-0 shadow-sm"><i class="fa-solid fa-shield-cat"></i></div>
                         <div class="flex-1 min-w-0">
-                            <div class="text-xs font-black text-slate-800">${safeStr(t.name)}</div>
-                            <div class="text-[10px] text-slate-400 truncate">ערוץ צוות פנימי</div>
+                            <div class="text-[13px] font-bold text-white truncate">${safeStr(t.name)}</div>
+                            <div class="text-[11px] text-slate-400 truncate">ערוץ צוות פנימי</div>
                         </div>
                     </div>`;
                 }
@@ -7590,17 +7591,17 @@ window.renderChatSidebar = function() {
 
     // 3. הודעות פרטיות (DMs)
     if (saStaffCache && saStaffCache.length > 0) {
-        html += '<div class="text-[9px] font-black text-slate-400 mt-4 mb-2 px-2 uppercase tracking-widest border-t border-slate-200 pt-3">הודעות פרטיות</div>';
+        html += '<div class="text-[10px] font-extrabold text-slate-500 mt-4 mb-1.5 px-2.5 tracking-widest border-t border-white/[0.06] pt-3">הודעות פרטיות</div>';
         saStaffCache.forEach(s => {
             if (s.id === myId || s.status !== 'active') return;
             if (!query || s.name.toLowerCase().includes(query)) {
                 const roomId = `dm_${Math.min(myId, s.id)}_${Math.max(myId, s.id)}`;
                 html += `
-                <div onclick="window.selectChatRoom('${roomId}', '${safeStr(s.name)}', 'fa-user')" id="sidebar-room-${roomId}" class="flex items-center gap-3 p-3 rounded-xl cursor-pointer hover:bg-white transition group ${window.currentChatRoom === roomId ? 'bg-white shadow-sm border border-slate-100' : ''}">
-                    <div class="w-10 h-10 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center text-sm border border-emerald-100 group-hover:bg-emerald-600 group-hover:text-white transition"><i class="fa-solid fa-user"></i></div>
+                <div onclick="window.selectChatRoom('${roomId}', '${safeStr(s.name)}', 'fa-user')" id="sidebar-room-${roomId}" class="flex items-center gap-3 p-2.5 rounded-2xl cursor-pointer hover:bg-white/[0.06] transition group ${window.currentChatRoom === roomId ? 'bg-gradient-to-l from-indigo-600/90 to-violet-600/80 shadow-lg shadow-indigo-900/40' : ''}">
+                    ${_saInitialAvatar(s.name, s.id, 'w-10 h-10 rounded-full text-sm')}
                     <div class="flex-1 min-w-0">
-                        <div class="text-xs font-black text-slate-800">${safeStr(s.name)}</div>
-                        <div class="text-[10px] text-slate-400 truncate">${safeStr(s.team_name || 'נציג מערכת')}</div>
+                        <div class="text-[13px] font-bold text-white truncate">${safeStr(s.name)}</div>
+                        <div class="text-[11px] text-slate-400 truncate">${safeStr(s.team_name || 'נציג מערכת')}</div>
                     </div>
                 </div>`;
             }
@@ -7673,18 +7674,14 @@ window.renderInternalChatMessages = function(messages) {
         if (isMe) {
             return `
             <div class="flex flex-col items-end mb-3 fade-in">
-                <div class="bg-indigo-600 text-white p-3 rounded-2xl rounded-tr-sm max-w-[80%] shadow-sm text-sm whitespace-pre-wrap leading-relaxed">
-                    ${safeStr(m.message)}
-                </div>
+                <div class="bg-gradient-to-br from-indigo-600 to-violet-600 text-white px-3.5 py-2.5 rounded-2xl rounded-tr-md max-w-[80%] shadow-md shadow-indigo-500/20 text-sm whitespace-pre-wrap leading-relaxed">${safeStr(m.message)}</div>
                 <span class="text-[9px] text-slate-400 mt-1 pr-1 font-bold">${timeStr} <i class="fa-solid fa-check-double text-indigo-400 ml-1"></i></span>
             </div>`;
         } else {
             return `
             <div class="flex flex-col items-start mb-3 fade-in">
-                <span class="text-[9px] text-slate-400 mb-1 pl-1 font-black uppercase tracking-wider">${safeStr(m.sender_name)}</span>
-                <div class="bg-white border border-slate-200 text-slate-700 p-3 rounded-2xl rounded-tl-sm max-w-[80%] shadow-sm text-sm whitespace-pre-wrap leading-relaxed">
-                    ${safeStr(m.message)}
-                </div>
+                <span class="text-[11px] text-slate-500 mb-1 pl-1 font-bold">${safeStr(m.sender_name)}</span>
+                <div class="bg-white border border-slate-200/80 text-slate-700 px-3.5 py-2.5 rounded-2xl rounded-tl-md max-w-[80%] shadow-sm text-sm whitespace-pre-wrap leading-relaxed">${safeStr(m.message)}</div>
                 <span class="text-[9px] text-slate-400 mt-1 pl-1 font-bold">${timeStr}</span>
             </div>`;
         }
@@ -13113,15 +13110,15 @@ async function loadSAWhatsAppHub() {
         const groups = [...new Set(WA_TYPE_META.map(t=>t.group))];
         let globalRows = '';
         groups.forEach(g => {
-            globalRows += `<tr class="bg-slate-50"><td colspan="2" class="px-3 py-1.5 text-[11px] font-bold text-slate-500 uppercase tracking-wide">${g}</td></tr>`;
+            globalRows += `<tr><td colspan="2" class="px-5 pt-4 pb-1.5"><span class="inline-flex items-center gap-1.5 text-[11px] font-extrabold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-lg">${g}</span></td></tr>`;
             WA_TYPE_META.filter(t=>t.group===g).forEach(t => {
                 const on = defs[t.key] !== false;
-                globalRows += `<tr class="border-t border-slate-100 hover:bg-slate-50">
-                    <td class="px-3 py-2 text-sm text-slate-700">${t.label}</td>
-                    <td class="px-3 py-2 text-left">
+                globalRows += `<tr class="hover:bg-emerald-50/40 transition">
+                    <td class="px-5 py-2.5 text-sm font-medium text-slate-700">${t.label}</td>
+                    <td class="px-5 py-2.5 text-left">
                         <label class="relative inline-flex items-center cursor-pointer">
                             <input type="checkbox" class="sr-only peer wa-global-toggle" data-key="${t.key}" ${on?'checked':''}>
-                            <div class="w-9 h-5 bg-slate-200 rounded-full peer peer-checked:bg-[#25D366] after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:after:translate-x-4"></div>
+                            <div class="w-10 h-[22px] bg-slate-200 rounded-full peer peer-checked:bg-[#25D366] after:content-[''] after:absolute after:top-[3px] after:left-[3px] after:bg-white after:rounded-full after:h-4 after:w-4 after:shadow after:transition-all peer-checked:after:translate-x-[18px]"></div>
                         </label>
                     </td>
                 </tr>`;
@@ -13130,146 +13127,156 @@ async function loadSAWhatsAppHub() {
 
         // עסקים עם התאמות
         const customBadges = customized.map(c => `
-            <div class="flex items-center justify-between p-2.5 rounded-xl border border-amber-200 bg-amber-50">
-                <span class="text-sm font-bold text-slate-700">${c.name}</span>
-                <button onclick="openSAWhatsAppModal(${c.group_id},'${c.name.replace(/'/g,"\\'")}','overrides')" class="text-xs text-amber-700 font-bold bg-amber-100 px-2 py-1 rounded-lg hover:bg-amber-200 transition">⚙️ ראה עקיפות</button>
+            <div class="flex items-center justify-between gap-3 p-3 rounded-2xl border border-slate-100 bg-slate-50/60 hover:border-amber-200 hover:bg-amber-50/50 transition">
+                <div class="flex items-center gap-3 min-w-0">
+                    ${_saInitialAvatar(c.name, c.group_id, 'w-9 h-9 rounded-xl text-sm')}
+                    <span class="text-sm font-bold text-slate-800 truncate">${c.name}</span>
+                </div>
+                <button onclick="openSAWhatsAppModal(${c.group_id},'${c.name.replace(/'/g,"\\'")}','overrides')" class="shrink-0 text-xs text-amber-700 font-bold bg-white border border-amber-200 px-3 h-8 rounded-xl hover:bg-amber-100 transition flex items-center gap-1.5"><i class="fa-solid fa-sliders"></i> ראה עקיפות</button>
             </div>`).join('');
 
+        const sentCnt = (stats.byStatus||[]).find(s=>s.status==='sent')?.cnt || 0;
+        const totalCnt = stats.total || 0;
+        const sentPct = totalCnt ? Math.round(sentCnt / totalCnt * 100) : 0;
+        const kpi = (label, value, icon, tone, sub) => `
+            <div class="relative overflow-hidden bg-white rounded-2xl border border-slate-200 p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)]">
+                <div class="absolute -left-6 -top-6 w-24 h-24 rounded-full bg-gradient-to-br ${tone} opacity-10"></div>
+                <div class="flex items-center justify-between gap-3 relative">
+                    <div>
+                        <div class="text-xs font-bold text-slate-400">${label}</div>
+                        <div class="text-3xl font-extrabold text-slate-900 mt-1 leading-none">${Number(value).toLocaleString('he-IL')}</div>
+                        ${sub ? `<div class="text-[11px] text-slate-400 mt-1.5">${sub}</div>` : ''}
+                    </div>
+                    <span class="w-11 h-11 rounded-xl bg-gradient-to-br ${tone} text-white flex items-center justify-center shadow-md shrink-0"><i class="${icon}"></i></span>
+                </div>
+            </div>`;
+        const cardHead = (icon, tone, title, sub, action) => `
+            <div class="flex items-center justify-between gap-3 px-5 py-4 border-b border-slate-100">
+                <div class="flex items-center gap-3 min-w-0">
+                    <span class="w-10 h-10 rounded-xl ${tone} flex items-center justify-center shrink-0"><i class="${icon}"></i></span>
+                    <div class="min-w-0">
+                        <p class="font-extrabold text-slate-900">${title}</p>
+                        <p class="text-xs text-slate-400 mt-0.5">${sub}</p>
+                    </div>
+                </div>
+                ${action || ''}
+            </div>`;
+        const waStatus = s => s==='sent'
+            ? '<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-100"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>נשלח</span>'
+            : s==='no_config'
+            ? '<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-amber-50 text-amber-700 border border-amber-100"><span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>אין הגדרה</span>'
+            : '<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-rose-50 text-rose-700 border border-rose-100"><span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>שגיאה</span>';
+
         hub.innerHTML = `
-        <div class="p-4 max-w-4xl mx-auto space-y-5">
-            <div class="flex items-center gap-3 mb-2">
-                <div class="w-10 h-10 bg-[#25D366]/10 rounded-xl flex items-center justify-center text-[#25D366] text-xl"><i class="fa-brands fa-whatsapp"></i></div>
-                <div><h2 class="font-black text-slate-800 text-lg">מרכז WhatsApp — סופר אדמין</h2><p class="text-xs text-slate-500">ניהול גלובלי + התאמות לעסקים ספציפיים</p></div>
+        <div class="space-y-6">
+            <div class="flex items-center gap-3.5">
+                <span class="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#25D366] to-emerald-600 text-white flex items-center justify-center shrink-0 shadow-lg shadow-emerald-500/30"><i class="fa-brands fa-whatsapp text-xl"></i></span>
+                <div>
+                    <h2 class="text-2xl font-extrabold text-slate-900 tracking-tight">מרכז WhatsApp</h2>
+                    <p class="text-sm text-slate-400 mt-0.5">ניהול גלובלי של התראות, תבניות והתאמות לעסקים ספציפיים</p>
+                </div>
             </div>
 
             <!-- כרטיסי סטטיסטיקה -->
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <div class="bg-white rounded-2xl border p-4 shadow-sm text-center">
-                    <p class="text-2xl font-black text-[#25D366]">${stats.total || 0}</p>
-                    <p class="text-xs text-slate-500 mt-1">הודעות החודש</p>
-                </div>
-                <div class="bg-white rounded-2xl border p-4 shadow-sm text-center">
-                    <p class="text-2xl font-black text-indigo-600">${stats.activeBiz || 0}</p>
-                    <p class="text-xs text-slate-500 mt-1">עסקים פעילים</p>
-                </div>
-                <div class="bg-white rounded-2xl border p-4 shadow-sm text-center">
-                    <p class="text-2xl font-black text-green-600">${(stats.byStatus||[]).find(s=>s.status==='sent')?.cnt || 0}</p>
-                    <p class="text-xs text-slate-500 mt-1">נשלחו בהצלחה</p>
-                </div>
-                <div class="bg-white rounded-2xl border p-4 shadow-sm text-center">
-                    <p class="text-2xl font-black text-amber-500">${customized.length}</p>
-                    <p class="text-xs text-slate-500 mt-1">עסקים עם התאמות</p>
-                </div>
+            <div class="grid grid-cols-2 xl:grid-cols-4 gap-4">
+                ${kpi('הודעות החודש', totalCnt, 'fa-brands fa-whatsapp', 'from-[#25D366] to-emerald-600', 'בכל העסקים')}
+                ${kpi('עסקים פעילים', stats.activeBiz || 0, 'fa-solid fa-store', 'from-indigo-500 to-violet-500', 'עם WhatsApp מחובר')}
+                ${kpi('נשלחו בהצלחה', sentCnt, 'fa-solid fa-circle-check', 'from-emerald-500 to-teal-500', totalCnt ? `${sentPct}% הצלחה` : '')}
+                ${kpi('עסקים עם התאמות', customized.length, 'fa-solid fa-sliders', 'from-amber-500 to-orange-500', 'עוקפים את ברירת המחדל')}
             </div>
 
-            <!-- ברירות מחדל גלובליות -->
-            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                <div class="p-4 border-b bg-slate-50 flex justify-between items-center">
-                    <div>
-                        <p class="font-bold text-slate-800">⚙️ ברירות מחדל גלובליות</p>
-                        <p class="text-xs text-slate-500 mt-0.5">חלות על כל העסקים שאין להם עקיפה ספציפית</p>
+            <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
+                <!-- ברירות מחדל גלובליות -->
+                <div class="sa-table-card overflow-hidden">
+                    ${cardHead('fa-solid fa-toggle-on', 'bg-emerald-50 text-emerald-600', 'ברירות מחדל גלובליות', 'חלות על כל העסקים שאין להם עקיפה ספציפית',
+                        `<button onclick="saveGlobalWADefaults()" class="shrink-0 bg-gradient-to-br from-[#25D366] to-emerald-600 text-white text-xs font-bold px-4 h-9 rounded-xl shadow-md shadow-emerald-500/25 hover:brightness-105 transition flex items-center gap-1.5"><i class="fa-solid fa-floppy-disk"></i> שמור</button>`)}
+                    <table class="w-full text-sm">
+                        <tbody>${globalRows}</tbody>
+                    </table>
+                    <div class="h-3"></div>
+                </div>
+
+                <div class="space-y-6">
+                    <!-- עסקים עם התאמות ספציפיות -->
+                    ${customized.length > 0 ? `
+                    <div class="sa-table-card overflow-hidden">
+                        ${cardHead('fa-solid fa-sliders', 'bg-amber-50 text-amber-600', 'עסקים עם התאמות ספציפיות', 'עסקים שהגדרותיהם שונות מברירת המחדל',
+                            `<span class="shrink-0 bg-amber-100 text-amber-700 text-xs font-extrabold px-2.5 py-1 rounded-full">${customized.length}</span>`)}
+                        <div class="p-4 space-y-2">${customBadges}</div>
+                    </div>` : ''}
+
+                    <!-- סוגי התראות דינמיים -->
+                    <div class="sa-table-card overflow-hidden">
+                        ${cardHead('fa-solid fa-bolt', 'bg-indigo-50 text-indigo-600', 'סוגי התראות מותאמים', 'הוסף התראות חדשות ללא קוד, פועלות על כל העסקים הפעילים',
+                            `<button onclick="openWATypeModal()" class="shrink-0 bg-gradient-to-br from-indigo-600 to-violet-600 text-white text-xs font-bold px-4 h-9 rounded-xl shadow-md shadow-indigo-600/25 hover:brightness-110 transition flex items-center gap-1.5"><i class="fa-solid fa-plus"></i> סוג חדש</button>`)}
+                        ${dynTypes.length === 0
+                            ? `<div class="p-8 text-center text-slate-400 text-sm"><i class="fa-solid fa-bolt text-2xl text-slate-200 mb-2 block"></i>אין סוגי התראות מותאמים עדיין.<br><span class="text-xs">לחץ על "סוג חדש" להוסיף.</span></div>`
+                            : `<div class="overflow-x-auto"><table class="w-full text-xs">
+                                <thead><tr>
+                                    <th class="text-right px-4 py-3">שם</th>
+                                    <th class="text-right px-4 py-3">טריגר</th>
+                                    <th class="text-right px-4 py-3">נמען</th>
+                                    <th class="text-right px-4 py-3">מצב</th>
+                                    <th class="px-4 py-3"></th>
+                                </tr></thead>
+                                <tbody>
+                                ${dynTypes.map(t => `<tr class="border-t border-slate-100 hover:bg-slate-50/70" id="wa-type-row-${t.id}">
+                                    <td class="px-4 py-3 min-w-[140px]"><div class="font-bold text-slate-800 text-sm">${t.name}</div>${t.description ? `<div class="text-slate-400 mt-0.5">${t.description}</div>` : ''}</td>
+                                    <td class="px-4 py-3 whitespace-nowrap"><span class="font-mono text-[11px] text-slate-600 bg-slate-100 px-2 py-1 rounded-lg">${_waHookLabel(t.trigger_hook)}</span></td>
+                                    <td class="px-4 py-3 text-slate-600 whitespace-nowrap">${_waRecipientLabel(t.recipient_type)}</td>
+                                    <td class="px-4 py-3 whitespace-nowrap">
+                                        <button onclick="toggleWAType(${t.id}, this)" class="px-2 py-1 rounded-full text-[10px] font-bold transition ${t.enabled ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-slate-200 text-slate-500 hover:bg-slate-300'}">
+                                            ${t.enabled ? '✓ פעיל' : '⏸ מושהה'}
+                                        </button>
+                                    </td>
+                                    <td class="px-4 py-3"><div class="flex gap-1.5 justify-end">
+                                        <button onclick="openWATypeModal(${t.id})" class="text-slate-500 hover:text-indigo-700 bg-white border border-slate-200 hover:border-indigo-200 hover:bg-indigo-50 w-8 h-8 rounded-lg flex items-center justify-center transition" title="ערוך"><i class="fa-solid fa-pen text-xs"></i></button>
+                                        <button onclick="deleteWAType(${t.id})" class="text-slate-400 hover:text-rose-600 bg-white border border-slate-200 hover:border-rose-200 hover:bg-rose-50 w-8 h-8 rounded-lg flex items-center justify-center transition" title="מחק"><i class="fa-solid fa-trash text-xs"></i></button>
+                                    </div></td>
+                                </tr>`).join('')}
+                                </tbody>
+                            </table></div>`}
                     </div>
-                    <button onclick="saveGlobalWADefaults()" class="bg-[#25D366] text-white text-xs font-bold px-4 py-2 rounded-xl hover:bg-[#1ebd58] transition">
-                        <i class="fa-solid fa-floppy-disk ml-1"></i> שמור
-                    </button>
                 </div>
-                <table class="w-full text-sm">
-                    <tbody>${globalRows}</tbody>
-                </table>
             </div>
-
-            <!-- עסקים עם התאמות ספציפיות -->
-            ${customized.length > 0 ? `
-            <div class="bg-white rounded-2xl border border-amber-200 shadow-sm p-4">
-                <div class="flex items-center gap-2 mb-3">
-                    <span class="text-amber-500 text-lg">⚙️</span>
-                    <p class="font-bold text-slate-800">עסקים עם התאמות ספציפיות</p>
-                    <span class="bg-amber-100 text-amber-700 text-xs font-bold px-2 py-0.5 rounded-full">${customized.length}</span>
-                </div>
-                <div class="space-y-2">${customBadges}</div>
-            </div>` : ''}
 
             <!-- תבניות הודעות גלובליות -->
-            <div style="background:#fff;border-radius:1rem;border:1px solid #e2e8f0;box-shadow:0 1px 3px rgba(0,0,0,0.06);overflow:hidden;">
-                <div style="padding:1rem;border-bottom:1px solid #e2e8f0;background:#f8fafc;display:flex;justify-content:space-between;align-items:center;">
-                    <div>
-                        <p style="font-weight:700;color:#1e293b;">📝 תבניות הודעות — ברירת מחדל גלובלית</p>
-                        <p style="font-size:0.75rem;color:#64748b;margin-top:0.25rem;">חלות על כל העסקים שאין להם תבנית ספציפית. השאר ריק לשימוש בטקסט הסטנדרטי.</p>
-                    </div>
-                    <button onclick="saveGlobalWATemplates()" style="background:#25D366;color:#fff;border:none;padding:0.4rem 1rem;border-radius:0.5rem;font-weight:700;cursor:pointer;font-size:0.8rem;">💾 שמור</button>
-                </div>
-                <div style="padding:1rem;display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+            <div class="sa-table-card overflow-hidden">
+                ${cardHead('fa-solid fa-message', 'bg-sky-50 text-sky-600', 'תבניות הודעות: ברירת מחדל גלובלית', 'חלות על כל העסקים שאין להם תבנית ספציפית. השאר ריק לשימוש בטקסט הסטנדרטי.',
+                    `<button onclick="saveGlobalWATemplates()" class="shrink-0 bg-gradient-to-br from-[#25D366] to-emerald-600 text-white text-xs font-bold px-4 h-9 rounded-xl shadow-md shadow-emerald-500/25 hover:brightness-105 transition flex items-center gap-1.5"><i class="fa-solid fa-floppy-disk"></i> שמור</button>`)}
+                <div class="p-5 grid grid-cols-1 lg:grid-cols-2 gap-4">
                     ${TPL_DEFS.map(t => {
                         const curVal = (globalTpls[`tpl_${t.key}`] || WA_DEFAULTS_JS[t.key] || '').replace(/</g,'&lt;');
-                        return `<div>
-                            <label style="font-weight:700;font-size:0.8rem;color:#1e293b;display:block;margin-bottom:0.2rem;">${t.label}</label>
-                            <span style="font-size:0.7rem;color:#94a3b8;display:block;margin-bottom:0.3rem;">משתנים: ${t.vars}</span>
-                            <textarea id="wa-gtpl-${t.key}" style="width:100%;padding:0.4rem;border:1px solid #e2e8f0;border-radius:0.375rem;font-size:0.75rem;min-height:70px;resize:vertical;font-family:inherit;direction:rtl;box-sizing:border-box;">${curVal}</textarea>
-                            <button onclick="resetWAGlobalTpl('${t.key}')" style="font-size:0.7rem;color:#94a3b8;background:none;border:none;cursor:pointer;padding:0;">↺ אפס לדיפולט</button>
+                        return `<div class="rounded-2xl border border-slate-100 bg-slate-50/60 p-4">
+                            <div class="flex items-center justify-between gap-2 mb-2">
+                                <label class="font-bold text-sm text-slate-800">${t.label}</label>
+                                <button onclick="resetWAGlobalTpl('${t.key}')" class="text-[11px] font-bold text-slate-400 hover:text-indigo-600 transition shrink-0"><i class="fa-solid fa-rotate-left ml-1"></i>אפס לדיפולט</button>
+                            </div>
+                            <div class="flex flex-wrap gap-1 mb-2">${t.vars.split(',').map(v => `<span class="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 px-1.5 py-0.5 rounded-md">${v.trim()}</span>`).join('')}</div>
+                            <textarea id="wa-gtpl-${t.key}" dir="rtl" class="w-full bg-white border border-slate-200 rounded-xl px-3 py-2.5 text-xs leading-relaxed text-slate-700 min-h-[84px] resize-y outline-none focus:border-[#25D366] focus:ring-4 focus:ring-emerald-500/10 transition" style="font-family:inherit;">${curVal}</textarea>
                         </div>`;
                     }).join('')}
                 </div>
             </div>
 
-            <!-- סוגי התראות דינמיים -->
-            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                <div class="p-4 border-b bg-slate-50 flex justify-between items-center">
-                    <div>
-                        <p class="font-bold text-slate-800">➕ סוגי התראות מותאמים</p>
-                        <p class="text-xs text-slate-500 mt-0.5">הוסף התראות חדשות ללא קוד — פועלות על כל העסקים הפעילים</p>
-                    </div>
-                    <button onclick="openWATypeModal()" class="bg-indigo-600 text-white text-xs font-bold px-4 py-2 rounded-xl hover:bg-indigo-700 transition">
-                        <i class="fa-solid fa-plus ml-1"></i> סוג חדש
-                    </button>
-                </div>
-                ${dynTypes.length === 0
-                    ? `<div class="p-6 text-center text-slate-400 text-sm">אין סוגי התראות מותאמים עדיין.<br><span class="text-xs">לחץ על "סוג חדש" להוסיף.</span></div>`
-                    : `<table class="w-full text-xs">
-                        <thead class="bg-slate-50 border-b"><tr class="text-slate-500">
-                            <th class="text-right p-3">שם</th>
-                            <th class="text-right p-3">טריגר</th>
-                            <th class="text-right p-3">נמען</th>
-                            <th class="text-right p-3">מצב</th>
-                            <th class="p-3"></th>
-                        </tr></thead>
-                        <tbody>
-                        ${dynTypes.map(t => `<tr class="border-t hover:bg-slate-50" id="wa-type-row-${t.id}">
-                            <td class="p-3 font-bold text-slate-700">${t.name}<br><span class="text-slate-400 font-normal">${t.description||''}</span></td>
-                            <td class="p-3 font-mono text-slate-500">${_waHookLabel(t.trigger_hook)}</td>
-                            <td class="p-3">${_waRecipientLabel(t.recipient_type)}</td>
-                            <td class="p-3">
-                                <button onclick="toggleWAType(${t.id}, this)" class="px-2 py-1 rounded-full text-[10px] font-bold transition ${t.enabled ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-slate-200 text-slate-500 hover:bg-slate-300'}">
-                                    ${t.enabled ? '✓ פעיל' : '⏸ מושהה'}
-                                </button>
-                            </td>
-                            <td class="p-3 flex gap-1.5 justify-end">
-                                <button onclick="openWATypeModal(${t.id})" class="text-indigo-500 hover:text-indigo-700 bg-indigo-50 w-7 h-7 rounded-lg flex items-center justify-center transition" title="ערוך"><i class="fa-solid fa-pen text-xs"></i></button>
-                                <button onclick="deleteWAType(${t.id})" class="text-red-400 hover:text-red-600 bg-red-50 w-7 h-7 rounded-lg flex items-center justify-center transition" title="מחק"><i class="fa-solid fa-trash text-xs"></i></button>
-                            </td>
-                        </tr>`).join('')}
-                        </tbody>
-                    </table>`}
-            </div>
-
             <!-- לוג הודעות -->
-            <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                <div class="p-4 border-b flex justify-between items-center">
-                    <p class="font-bold text-slate-700">לוג הודעות אחרון</p>
-                    <span class="text-xs text-slate-400">${log.length} רשומות</span>
-                </div>
+            <div class="sa-table-card overflow-hidden">
+                ${cardHead('fa-solid fa-clock-rotate-left', 'bg-slate-100 text-slate-600', 'לוג הודעות אחרון', 'ההודעות האחרונות שנשלחו מכל העסקים',
+                    `<span class="shrink-0 text-xs font-bold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-full">${log.length} רשומות</span>`)}
                 <div class="overflow-x-auto">
                 <table class="w-full text-xs">
-                    <thead class="bg-slate-50"><tr class="text-slate-500">
-                        <th class="text-right p-3">עסק</th><th class="text-right p-3">סוג הודעה</th>
-                        <th class="text-right p-3">נמען</th><th class="text-right p-3">סטטוס</th><th class="text-right p-3">זמן</th>
+                    <thead><tr>
+                        <th class="text-right px-5 py-3">עסק</th><th class="text-right px-4 py-3">סוג הודעה</th>
+                        <th class="text-right px-4 py-3">נמען</th><th class="text-right px-4 py-3">סטטוס</th><th class="text-right px-4 py-3">זמן</th>
                     </tr></thead>
                     <tbody>
-                    ${log.map(l => `<tr class="border-t hover:bg-slate-50">
-                        <td class="p-3 font-medium">${l.biz_name || '—'}</td>
-                        <td class="p-3">${typeLabels[l.message_type] || l.message_type}</td>
-                        <td class="p-3 text-slate-600">${l.recipient_name || l.recipient_phone || '—'}</td>
-                        <td class="p-3"><span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${l.status==='sent'?'bg-green-100 text-green-700':l.status==='no_config'?'bg-amber-100 text-amber-700':'bg-red-100 text-red-700'}">${l.status==='sent'?'✓ נשלח':l.status==='no_config'?'⚙ אין הגדרה':'✗ שגיאה'}</span></td>
-                        <td class="p-3 text-slate-400">${new Date(l.sent_at).toLocaleString('he-IL',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}</td>
+                    ${log.length === 0 ? `<tr><td colspan="5" class="p-8 text-center text-slate-400 text-sm">אין הודעות בלוג עדיין.</td></tr>` : ''}
+                    ${log.map(l => `<tr class="border-t border-slate-100 hover:bg-slate-50/70">
+                        <td class="px-5 py-3"><div class="flex items-center gap-2.5">${l.biz_name ? _saInitialAvatar(l.biz_name, l.biz_name.length, 'w-8 h-8 rounded-lg text-xs') : ''}<span class="font-bold text-slate-800 text-sm">${l.biz_name || '—'}</span></div></td>
+                        <td class="px-4 py-3 text-slate-600">${typeLabels[l.message_type] || l.message_type}</td>
+                        <td class="px-4 py-3 text-slate-600">${l.recipient_name || l.recipient_phone || '—'}</td>
+                        <td class="px-4 py-3">${waStatus(l.status)}</td>
+                        <td class="px-4 py-3 text-slate-400 whitespace-nowrap">${new Date(l.sent_at).toLocaleString('he-IL',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}</td>
                     </tr>`).join('')}
                     </tbody>
                 </table>
