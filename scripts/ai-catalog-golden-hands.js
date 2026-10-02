@@ -36,6 +36,18 @@ async function api(method, path, body) {
   return { ok: res.ok, status: res.status, data };
 }
 function log(ok, label, extra) { console.log(`${ok ? '✅' : '❌'} ${label}${extra ? ' — ' + extra : ''}`); }
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// שתי קריאות ה-AI הצמודות (מוצרים ואז שירותים) נתקלות שוב ושוב ב-503 דווקא בקריאה השנייה —
+// זה מתנהג יותר כמו הגבלת קצב מאשר מזל רע אקראי, אז מנסים שוב עם השהיה גוברת
+async function generateCatalogWithRetry(promptText, groupId, attempts = 3) {
+  for (let i = 1; i <= attempts; i++) {
+    const r = await api('POST', '/ai/generate-catalog', { promptText, type: 'BUSINESS', groupId });
+    if (r.ok && r.data.success) return r;
+    if (i < attempts) { console.log(`   ⏳ ניסיון ${i} נכשל (${r.data.error || r.data.detail || ''}) — ממתין ${i * 8} שניות ומנסה שוב...`); await sleep(i * 8000); }
+    else return r;
+  }
+}
 
 async function main() {
   const lookup = await fetch(`${API}/storefront/${GROUP_CODE}`).then(r => r.json());
@@ -55,10 +67,12 @@ async function main() {
   }
   const existingNames = new Set();
 
-  for (const { promptText, productType } of PROMPTS) {
+  for (let promptIdx = 0; promptIdx < PROMPTS.length; promptIdx++) {
+    const { promptText, productType } = PROMPTS[promptIdx];
+    if (promptIdx > 0) await sleep(5000); // רווח יזום בין שתי קריאות AI צמודות, כדי לא לפגוע ב-rate limit מראש
     console.log(`\n🤖 יצירת רשימת ${productType === 'retail' ? 'מוצרים' : 'שירותים'} ע"י AI...`);
-    const genRes = await api('POST', '/ai/generate-catalog', { promptText, type: 'BUSINESS', groupId: GROUP_ID });
-    if (!genRes.ok || !genRes.data.success) { log(false, 'יצירת קטלוג AI נכשלה', JSON.stringify(genRes.data)); continue; }
+    const genRes = await generateCatalogWithRetry(promptText, GROUP_ID);
+    if (!genRes.ok || !genRes.data.success) { log(false, 'יצירת קטלוג AI נכשלה אחרי מספר ניסיונות', JSON.stringify(genRes.data)); continue; }
     const items = genRes.data.items || [];
     log(true, `AI יצר ${items.length} פריטים`);
 
