@@ -210,7 +210,7 @@ async function seedRoutines() {
   }
 
   // תבניות מוכנות לענף התחזוקה/תיקונים
-  const templatesR = await api('GET', `/routines/${GROUP_ID}/templates`, undefined, false);
+  const templatesR = await api('GET', `/routines/${GROUP_ID}/templates`);
   if (templatesR.ok && Array.isArray(templatesR.data.templates)) {
     const keys = templatesR.data.templates.slice(0, 5).map(t => t.key);
     const applyR = await api('POST', `/routines/${GROUP_ID}/templates/apply`, { templateKeys: keys, siteId, createdBy: ADMIN_NAME });
