@@ -2364,12 +2364,15 @@ function renderSAGroups() {
         const createdDate = g.created_at ? new Date(g.created_at).toLocaleDateString('he-IL') : 'לא ידוע';
 
         const adminUser = saAllUsers.find(u => u.group_id === g.id && u.role === 'ADMIN') || saAllUsers.find(u => u.group_id === g.id);
-        const impersonateBtn = adminUser ? `<button onclick="impersonateGroup(${g.id}, ${adminUser.id})" class="bg-slate-800 text-white px-3 py-1 rounded text-[10px] font-bold hover:bg-slate-700 transition flex items-center gap-1 shadow-sm"><i class="fa-solid fa-user-secret"></i> כניסה לסביבה</button>` : '';
+        // הכפתור תמיד מוצג גם בלי admin תואם ברשימה המקומית (שעלולה להיות לא מעודכנת, למשל
+        // לעסק שנוצר הרגע) — impersonateGroup() כבר יודע להתמודד עם משתמש שלא נמצא מראש.
+        const impersonateBtn = `<button onclick="impersonateGroup(${g.id}${adminUser ? ', ' + adminUser.id : ''})" class="bg-slate-800 text-white px-3 py-1 rounded text-[10px] font-bold hover:bg-slate-700 transition flex items-center gap-1 shadow-sm"><i class="fa-solid fa-user-secret"></i> כניסה לסביבה</button>`;
         const upgradeBtn = g.member_type === 'member' ? `<button onclick="saUpgradeToFamily(${g.id})" class="bg-violet-100 text-violet-700 px-3 py-1 rounded text-[10px] font-bold hover:bg-violet-200 transition"><i class="fa-solid fa-arrow-up-right-dots mr-1"></i> שדרג למשפחה</button>` : '';
         const unfreezeBtn = g.account_status === 'frozen' ? `<button onclick="saUnfreezeGroup(${g.id})" class="bg-blue-100 text-blue-700 px-3 py-1 rounded text-[10px] font-bold hover:bg-blue-200 transition"><i class="fa-solid fa-snowflake mr-1"></i> בטל הקפאה</button>` : '';
         const freezeBtn = g.account_status !== 'frozen' && g.account_status !== 'archived' ? `<button onclick="saFreezeGroup(${g.id},'${safeStr(fmtGroupName(g))}')" class="bg-cyan-100 text-cyan-700 px-3 py-1 rounded text-[10px] font-bold hover:bg-cyan-200 transition"><i class="fa-solid fa-snowflake mr-1"></i> הקפאה</button>` : '';
         const resendSoloBtn = g.account_status === 'pending_activation' ? `<button onclick="saResendSoloCredentials(${g.id})" class="bg-amber-100 text-amber-700 px-3 py-1 rounded text-[10px] font-bold hover:bg-amber-200 transition"><i class="fa-solid fa-paper-plane mr-1"></i> שלח פרטי כניסה שוב</button>` : '';
         const testEnvBtn = `<button onclick="saToggleTestEnv(${g.id},'${safeStr(fmtGroupName(g))}',${!!g.is_test_env})" class="${g.is_test_env ? 'bg-orange-600 text-white hover:bg-orange-700' : 'bg-orange-50 text-orange-700 hover:bg-orange-100'} px-3 py-1 rounded text-[10px] font-bold transition"><i class="fa-solid fa-flask mr-1"></i> ${g.is_test_env ? 'בטל סימון טסט' : 'סמן כסביבת טסט'}</button>`;
+        const testCredsBtn = g.is_test_env ? `<button onclick="openSATestCredentialsModal(${g.id},'${safeStr(fmtGroupName(g))}')" class="bg-orange-100 text-orange-700 px-3 py-1 rounded text-[10px] font-bold hover:bg-orange-200 transition"><i class="fa-solid fa-key mr-1"></i> פרטי כניסה</button>` : '';
 
         const _billingCfg = (() => { try { return typeof g.billing_config === 'string' ? JSON.parse(g.billing_config) : (g.billing_config || null); } catch(e) { return null; } })();
         const _badgeTotal = (() => {
@@ -2428,6 +2431,7 @@ function renderSAGroups() {
                         ${unfreezeBtn}
                         ${resendSoloBtn}
                         ${testEnvBtn}
+                        ${testCredsBtn}
                         <button onclick="openSAEditGroupModal(${g.id}, '${safeStr(fmtGroupName(g))}', '${safeStr(g.admin_email)}')" class="bg-blue-100 text-blue-700 px-3 py-1 rounded text-[10px] font-bold hover:bg-blue-200 transition"><i class="fa-solid fa-pen"></i> ערוך פרטים</button>
                         ${planSelector}
                         <button onclick="openSnapshotsModal(${g.id},'${safeStr(fmtGroupName(g))}')" class="bg-indigo-100 text-indigo-700 px-3 py-1 rounded text-[10px] font-bold hover:bg-indigo-200 transition"><i class="fa-solid fa-clock-rotate-left"></i> גיבויים</button>
@@ -3571,7 +3575,10 @@ async function saveSAEditGroup() {
     const isMember = group?.member_type === 'member';
 
     try {
-        const extraGroupFields = { city, streetAddress, adminPhone };
+        // טלפון ריק כמעט תמיד אומר "השדה לא נטען", לא "רוצה למחוק" — לכן לא נשלח בכלל אם ריק,
+        // כדי לא לדרוס בטעות טלפון קיים ל-NULL ולנתק את העסק מהתחברות (ראו גם ההגנה בשרת).
+        const extraGroupFields = { city, streetAddress };
+        if (adminPhone) extraGroupFields.adminPhone = adminPhone;
         const groupIndex = saAllGroups.findIndex(g => g.id === parseInt(id));
 
         if (isMember) {
@@ -3624,8 +3631,8 @@ async function saveSAEditGroup() {
             }
         }
 
-        // עדכון טלפון בזיכרון המקומי
-        if (adminPhone !== undefined) {
+        // עדכון טלפון בזיכרון המקומי — רק אם באמת נשלח ערך (ראו הערה למעלה)
+        if (adminPhone) {
             const adminUserIdx = saAllUsers.findIndex(u => u.group_id === parseInt(id) && u.role === 'ADMIN');
             if (adminUserIdx > -1) saAllUsers[adminUserIdx].phone = adminPhone;
         }
@@ -4563,6 +4570,68 @@ async function captureSADemoSnapshot(bizId) {
         const res = await fetch(`${API}/sa/businesses/${bizId}/demo/snapshot`, { method: 'POST', headers: { 'Authorization': typeof saToken !== 'undefined' ? saToken : (localStorage.getItem('ofl_sa_token') || '') } });
         const data = await res.json();
         if (data.success) { showToast('success', 'המצב הנוכחי נשמר כברירת מחדל לאיפוס'); refreshSADemoModal(bizId); }
+        else showToast('error', data.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
+}
+
+// --- פרטי כניסה ישירה לעסק טסט (המשתמש ADMIN האמיתי, לא משתמש דמו נפרד) ---
+function _saAuthHdr() { return { 'Authorization': typeof saToken !== 'undefined' ? saToken : (localStorage.getItem('ofl_sa_token') || '') }; }
+
+async function openSATestCredentialsModal(bizId, bizName) {
+    const html = `
+        <div id="sa-test-creds-modal" class="fixed inset-0 bg-black/50 z-[9999] flex items-center justify-center p-4" onclick="if(event.target===this) this.remove()">
+            <div class="bg-white rounded-2xl w-full max-w-sm p-5">
+                <h3 class="text-lg font-bold mb-1">פרטי כניסה — ${bizName}</h3>
+                <p class="text-[11px] text-slate-500 mb-3">הטלפון והסיסמה של משתמש ה-ADMIN האמיתי של העסק, לכניסה ישירה בדף ההתחברות הרגיל.</p>
+                <div id="sa-test-creds-body" class="text-center text-slate-400 text-xs py-4"><i class="fa-solid fa-spinner fa-spin"></i> טוען...</div>
+                <button onclick="document.getElementById('sa-test-creds-modal').remove()" class="w-full mt-3 py-2.5 rounded-xl bg-slate-100 text-slate-600 text-sm font-bold">סגירה</button>
+            </div>
+        </div>`;
+    document.body.insertAdjacentHTML('beforeend', html);
+    await _refreshSATestCredentials(bizId);
+}
+
+async function _refreshSATestCredentials(bizId) {
+    const body = document.getElementById('sa-test-creds-body');
+    if (!body) return;
+    body.innerHTML = `<div class="text-center text-slate-400 text-xs py-4"><i class="fa-solid fa-spinner fa-spin"></i> טוען...</div>`;
+    try {
+        const res = await fetch(`${API}/sa/groups/${bizId}/test-credentials`, { headers: _saAuthHdr() });
+        const data = await res.json();
+        if (!data.success) { body.innerHTML = `<p class="text-xs text-red-500 text-center py-2">${data.error || 'שגיאה בטעינה'}</p>`; return; }
+        if (!data.phone) {
+            body.innerHTML = `<p class="text-xs text-slate-500">לעסק אין עדיין טלפון מנהל מוגדר — יש להגדיר אותו תחת "ערוך פרטים" לפני יצירת פרטי כניסה.</p>`;
+            return;
+        }
+        if (!data.password) {
+            body.innerHTML = `
+                <p class="text-xs text-slate-500 mb-3">טלפון המנהל: <span class="font-mono font-bold">${data.phone}</span><br>טרם נוצרה סיסמה ידועה לכניסה ישירה.</p>
+                <button onclick="_saResetTestCredentials(${bizId})" class="w-full bg-orange-600 hover:bg-orange-700 text-white py-2.5 rounded-xl font-bold text-sm transition">צור סיסמה לכניסה ישירה</button>
+            `;
+            return;
+        }
+        body.innerHTML = `
+            <div class="grid grid-cols-2 gap-2">
+                <div class="bg-slate-50 border border-slate-200 rounded-xl p-2.5">
+                    <label class="text-[10px] font-bold text-slate-400 block mb-1">טלפון</label>
+                    <span class="font-mono text-xs font-bold">${data.phone}</span>
+                </div>
+                <div class="bg-slate-50 border border-slate-200 rounded-xl p-2.5">
+                    <label class="text-[10px] font-bold text-slate-400 block mb-1">סיסמה</label>
+                    <span class="font-mono text-xs font-bold">${data.password}</span>
+                </div>
+            </div>
+            <button onclick="navigator.clipboard.writeText('${data.phone} / ${data.password}').then(()=>showToast('success','הועתק'))" class="w-full mt-2 bg-slate-100 hover:bg-slate-200 text-slate-700 py-2 rounded-xl font-bold text-xs transition"><i class="fa-solid fa-copy mr-1"></i> העתק</button>
+            <button onclick="_saResetTestCredentials(${bizId})" class="w-full mt-2 text-orange-600 hover:bg-orange-50 py-2 rounded-xl font-bold text-xs transition">צור סיסמה חדשה</button>
+        `;
+    } catch(e) { body.innerHTML = `<p class="text-xs text-red-500 text-center py-2">שגיאת רשת</p>`; }
+}
+
+async function _saResetTestCredentials(bizId) {
+    try {
+        const res = await fetch(`${API}/sa/groups/${bizId}/test-credentials/reset`, { method: 'POST', headers: _saAuthHdr() });
+        const data = await res.json();
+        if (data.success) { showToast('success', 'נוצרה סיסמה חדשה'); _refreshSATestCredentials(bizId); }
         else showToast('error', data.error || 'שגיאה');
     } catch(e) { showToast('error', 'שגיאת רשת'); }
 }

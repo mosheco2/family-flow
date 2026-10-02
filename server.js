@@ -2820,6 +2820,41 @@ app.post('/api/sa/groups/:id/mark-test', verifySA, async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// SA: פרטי כניסה ישירה (טלפון+סיסמה אמיתיים) לעסק טסט — להבדיל ממנגנון "עסק דמו" הציבורי,
+// זה המשתמש ADMIN האמיתי של העסק, לצורך כניסה ידנית לבדיקות. מוצג רק לעסק המסומן is_test_env.
+app.get('/api/sa/groups/:id/test-credentials', verifySA, async (req, res) => {
+    try {
+        const gRes = await pool.query('SELECT is_test_env, test_login_password_plain FROM family_groups WHERE id=$1', [req.params.id]);
+        if (!gRes.rows.length) return res.status(404).json({ success: false, error: 'עסק לא נמצא' });
+        if (!gRes.rows[0].is_test_env) return res.status(400).json({ success: false, error: 'העסק אינו מסומן כסביבת טסט' });
+        const uRes = await pool.query(`SELECT phone FROM users WHERE group_id=$1 AND UPPER(role)='ADMIN' ORDER BY id ASC LIMIT 1`, [req.params.id]);
+        res.json({
+            success: true,
+            phone: uRes.rows[0]?.phone || null,
+            password: gRes.rows[0].test_login_password_plain || null,
+            has_admin_user: uRes.rows.length > 0,
+        });
+    } catch(e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
+// SA: יצירה/איפוס סיסמה ידועה למשתמש ה-ADMIN האמיתי של עסק טסט (לא יוצר משתמש דמו נפרד)
+app.post('/api/sa/groups/:id/test-credentials/reset', verifySA, async (req, res) => {
+    try {
+        const gRes = await pool.query('SELECT is_test_env FROM family_groups WHERE id=$1', [req.params.id]);
+        if (!gRes.rows.length) return res.status(404).json({ success: false, error: 'עסק לא נמצא' });
+        if (!gRes.rows[0].is_test_env) return res.status(400).json({ success: false, error: 'העסק אינו מסומן כסביבת טסט' });
+        const uRes = await pool.query(`SELECT id, phone FROM users WHERE group_id=$1 AND UPPER(role)='ADMIN' ORDER BY id ASC LIMIT 1`, [req.params.id]);
+        if (!uRes.rows.length) return res.status(400).json({ success: false, error: 'לעסק זה אין עדיין משתמש ADMIN — יש להגדיר קודם טלפון מנהל בעריכת פרטי הסביבה' });
+        if (!uRes.rows[0].phone) return res.status(400).json({ success: false, error: 'למשתמש ה-ADMIN של העסק אין טלפון מוגדר — יש להגדיר קודם בעריכת פרטי הסביבה' });
+        const newPassword = Math.random().toString(36).slice(-10);
+        const passwordHash = await bcrypt.hash(newPassword, 10);
+        await pool.query(`UPDATE users SET password_hash=$1, status='active' WHERE id=$2`, [passwordHash, uRes.rows[0].id]);
+        await pool.query(`UPDATE family_groups SET test_login_password_plain=$1 WHERE id=$2`, [newPassword, req.params.id]);
+        await logAudit('RESET_TEST_CREDENTIALS', 'GROUP', parseInt(req.params.id), '', {});
+        res.json({ success: true, phone: uRes.rows[0].phone, password: newPassword });
+    } catch(e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
 // SA: רשימת חשבונות לפי account_status
 app.get('/api/sa/groups/by-status/:status', verifySA, async (req, res) => {
     try {
@@ -2889,6 +2924,9 @@ app.get('/api/solo/search-by-phone', async (req, res) => {
       try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN DEFAULT FALSE`); } catch(e) {}
       try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMP`); } catch(e) {}
       try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS is_test_env BOOLEAN DEFAULT FALSE`); } catch(e) {}
+      // סיסמה בטקסט גלוי לכניסה ישירה של סופר אדמין לעסקי טסט (נפרד לגמרי ממנגנון "עסק דמו" הציבורי
+      // שמאפס נתונים — כאן זה המשתמש האמיתי של העסק, לצורך בדיקה ידנית בלבד)
+      try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS test_login_password_plain VARCHAR(100)`); } catch(e) {}
       // יומן ביקורת פעולות עובדים בעסק (Business Audit Log) - שלב 1: מכסה פעולות מרכזיות/רגישות
       try { await client.query(`CREATE TABLE IF NOT EXISTS biz_audit_log (
           id SERIAL PRIMARY KEY,
@@ -8542,7 +8580,10 @@ app.put('/api/sa/groups/:id', verifySA, async (req, res) => {
         const result = await pool.query(`UPDATE family_groups SET ${sets.join(', ')} WHERE id=$${vals.length}`, vals);
         if (result.rowCount === 0) return res.status(404).json({ error: 'קבוצה לא נמצאה' });
         // עדכון פרטי מנהל בטבלת users
-        if (adminPhone !== undefined) {
+        // הגנה קריטית: טלפון ריק לא נשלח בכוונה כמעט אף פעם (השדה פשוט לא נטען בטופס) — דריסה
+        // שקטה ל-NULL מנתקת את העסק מהתחברות לפי טלפון (הוא נעלם מרשימת הבחירה של המשתמש).
+        // לכן ריקון מכוון דורש clearAdminPhone=true מפורש; ערך ריק ללא הדגל מתעלם ולא נוגע בטלפון הקיים.
+        if (adminPhone !== undefined && (adminPhone || req.body.clearAdminPhone === true)) {
             let normalizedAdminPhone = adminPhone ? adminPhone.replace(/[-\s()]/g, '') : null;
             // נרמול קידומת בינלאומית (+972/972) לפורמט מקומי (05...) — כדי להתאים לפורמט שמשמש להתחברות לעסק
             if (normalizedAdminPhone) {
