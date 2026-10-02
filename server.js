@@ -13044,20 +13044,6 @@ app.post('/api/store/catalog/generate-image', async (req, res) => {
         const { groupId, productName, nameEn, description, category, productType } = req.body;
         if (groupId === undefined || groupId === null || !productName) return res.status(400).json({ error: 'שם מוצר נדרש' });
 
-        // שירותים (productType='service') הם פעולות מופשטות ("פתיחת סתימה", "החלפת צילינדר") —
-        // לתמונות סטוק חינמיות (Pixabay/Pexels) כמעט אין התאמה אמיתית עליהן, והתוצאה בפועל היא
-        // תמונה "קיימת טכנית" אך לא קשורה בכלל (אנשים במשרד, מפת עולם וכו'). לכן לשירותים קופצים
-        // ישר ליצירת תמונה ב-AI עם פרומפט שמתאר את פעולת השירות, ולא מנסים חיפוש סטוק כלל —
-        // למוצרים פיזיים (retail) ממשיכים דרך Pixabay/Pexels כרגיל, ששם ההתאמה סבירה בפועל.
-        if (productType === 'service') {
-            const seed = Math.floor(Math.random() * 99999);
-            const svcQueryBase = (nameEn || productName || '').replace(/[^a-zA-Z0-9 ]/g, '').trim() || (productName || 'service');
-            const svcPrompt = `a professional home repair technician performing: ${svcQueryBase}, realistic photo, natural lighting, no text, no logo`;
-            const neg = encodeURIComponent('text, logo, watermark, cartoon, blurry, low quality, deformed hands');
-            const imageUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(svcPrompt)}?width=512&height=512&model=flux&nologo=true&seed=${seed}&negative=${neg}`;
-            return res.json({ success: true, imageUrl, url: imageUrl, source: 'pollinations-service' });
-        }
-
         // Build English search query
         // Strategy: use nameEn directly when it's a clean English term (AI builder now generates English-first names)
         // Only call Gemini translation if nameEn is missing or too short
@@ -13102,6 +13088,35 @@ Reply with ONLY the English term, nothing else.`;
                 return uploadData.secure_url || null;
             } catch(e) { return null; }
         };
+
+        // שירותים (productType='service') הם פעולות מופשטות ("פתיחת סתימה", "החלפת צילינדר") —
+        // לתמונות סטוק חינמיות (Pixabay/Pexels) כמעט אין התאמה אמיתית עליהן. לכן לשירותים קופצים
+        // ישר ליצירת תמונה ב-AI, ולא מנסים חיפוש סטוק כלל — למוצרים פיזיים (retail) ממשיכים
+        // דרך Pixabay/Pexels כרגיל. חשוב: מאמתים בפועל שה-AI הצליח לייצר תמונה תקינה (לא רק
+        // בונים URL ומניחים שהוא יעבוד) — Pollinations מייצר "תוך כדי תנועה" ולפעמים נכשל/נתקע,
+        // ובלי אימות קיבלנו בעבר "הצלחה" על תמונה שבורה שלא נטענת בפועל אצל הלקוח.
+        if (productType === 'service') {
+            const svcQueryBase = (nameEn || productName || '').replace(/[^a-zA-Z0-9 ]/g, '').trim() || (productName || 'service');
+            const svcPrompt = `a professional home repair technician performing: ${svcQueryBase}, realistic photo, natural lighting, no text, no logo`;
+            const neg = encodeURIComponent('text, logo, watermark, cartoon, blurry, low quality, deformed hands');
+            for (let attempt = 0; attempt < 2; attempt++) {
+                const seed = Math.floor(Math.random() * 99999);
+                const candidateUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(svcPrompt)}?width=512&height=512&model=flux&nologo=true&seed=${seed}&negative=${neg}`;
+                try {
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 20000);
+                    const checkResp = await fetch(candidateUrl, { signal: controller.signal });
+                    clearTimeout(timeoutId);
+                    const contentType = checkResp.headers.get('content-type') || '';
+                    if (checkResp.ok && contentType.startsWith('image/')) {
+                        const permanentUrl = await uploadToCloudinaryFromUrl(candidateUrl);
+                        const finalUrl = permanentUrl || candidateUrl;
+                        return res.json({ success: true, imageUrl: finalUrl, url: finalUrl, source: permanentUrl ? 'cloudinary' : 'pollinations-service' });
+                    }
+                } catch(e) { /* timeout/network — ננסה שוב בלולאה, או ניפול ל-retail למטה */ }
+            }
+            return res.json({ success: false, error: 'יצירת תמונת AI לשירות נכשלה פעמיים — נסה שוב' });
+        }
 
         // 1) Pixabay — free stock photos, no attribution required, real product images
         const pixabayKey = process.env.PIXABAY_API_KEY;
