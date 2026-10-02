@@ -80,6 +80,7 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
 .sa-crumb-group{font-size:1.15rem;font-weight:800;color:#0f172a;white-space:nowrap}
 .sa-crumb-sep{color:#cbd5e1;font-size:1rem}
 .sa-crumb .sa-top-bar-title{font-size:0.82rem;font-weight:600;color:#64748b}
+.sa-crumb.is-solo .sa-top-bar-title{font-size:1.15rem;font-weight:800;color:#0f172a}
 /* Sub-nav inside the top bar — segmented control (buttons are rendered by _updateSubNavBar with inline styles) */
 .sa-top-bar #sa-subnav-bar{background:#f1f5f9!important;border:1px solid #e2e8f0!important;border-radius:0.9rem!important;padding:0.25rem!important;margin:0!important;gap:0.2rem!important;box-shadow:none!important;flex-wrap:nowrap!important;overflow-x:auto;max-width:100%}
 .sa-top-bar #sa-subnav-bar button{background:transparent!important;color:#64748b!important;border:1px solid transparent!important;border-radius:0.7rem!important;padding:0.45rem 0.9rem!important;font-size:0.8rem!important}
@@ -116,6 +117,17 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
 .sa-table-card{background:white;border:1px solid #e2e8f0;border-radius:1.5rem;box-shadow:0 1px 2px rgba(15,23,42,0.04),0 12px 32px rgba(15,23,42,0.05)}
 .sa-table-wrap{border:1px solid #eef2f7;border-radius:1rem;overflow-x:auto}
 .sa-table-wrap table thead th{background:#f8fafc;border-bottom:1px solid #e2e8f0}
+/* VIEW TAB BARS (vtnav-*) — segmented control. Buttons get inline styles from switchViewTab(); active = #4f46e5 / rgb(79, 70, 229) */
+div:has(> button[id^="vtnav-"]){display:inline-flex!important;max-width:100%;background:#e9eef5!important;border:1px solid #dde4ee!important;border-radius:1rem!important;padding:0.3rem!important;gap:0.25rem!important;box-shadow:inset 0 1px 2px rgba(15,23,42,0.05)!important;flex-wrap:nowrap!important;overflow-x:auto}
+button[id^="vtnav-"]{background:transparent!important;color:#64748b!important;border:1px solid transparent!important;border-radius:0.75rem!important;padding:0.5rem 1.05rem!important;font-size:0.82rem!important;font-weight:600!important;box-shadow:none!important}
+button[id^="vtnav-"]:hover{color:#1e293b!important;background:rgba(255,255,255,0.55)!important}
+button[id^="vtnav-"][style*="4f46e5"],button[id^="vtnav-"][style*="79, 70, 229"]{background:white!important;color:#4338ca!important;border-color:#e0e7ff!important;font-weight:700!important;box-shadow:0 1px 3px rgba(15,23,42,0.1),0 4px 12px rgba(79,70,229,0.08)!important}
+/* Community advanced tools strip — unified quiet chips */
+#sa-comm-advanced-toolbar > span > button:first-child,#sa-comm-advanced-toolbar > button{background:white!important;color:#334155!important;border:1px solid #e2e8f0!important;border-radius:0.7rem!important}
+#sa-comm-advanced-toolbar > span > button:first-child:hover,#sa-comm-advanced-toolbar > button:hover{border-color:#a5b4fc!important;color:#4338ca!important;background:#eef2ff!important}
+#sa-comm-advanced-toolbar > span > button:last-child{background:transparent!important;border-color:#e2e8f0!important;color:#94a3b8!important}
+#sa-comm-advanced-toolbar > a{background:#eef2ff!important;color:#4338ca!important;border:1px solid #e0e7ff;border-radius:0.7rem!important}
+#sa-comm-advanced-toolbar > a:hover{background:#4f46e5!important;color:white!important}
 .legal-editor p{margin-bottom:0.6rem}
 /* KPI number overflow protection */
 #sa-view-pulse .text-2xl.font-black{word-break:break-all;overflow-wrap:break-word;min-width:0;max-width:100%}
@@ -911,6 +923,7 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
 
                 </div><!-- /vt-comm-manage -->
                 <div id="vt-comm-table" class="vt-comm hidden">
+                    <div id="sa-comm-kpis" class="grid grid-cols-2 xl:grid-cols-4 gap-4 mb-6"></div>
                     <div id="sa-pending-biz-container-2" class="hidden bg-amber-50/60 p-5 sm:p-6 rounded-3xl border border-amber-200 shadow-sm mb-6">
                         <h3 class="font-extrabold text-amber-900 text-base mb-4 flex items-center gap-2.5"><span class="w-9 h-9 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center"><i class="fa-solid fa-bell"></i></span> בקשות ואישורים ממתינים (כל השלבים)</h3>
                         <div id="sa-pending-biz-list-2" class="space-y-3"></div>
@@ -1164,7 +1177,7 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
                             <div class="flex items-center gap-3">
                                 <span class="w-11 h-11 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0"><i class="fa-solid fa-store text-lg"></i></span>
                                 <div>
-                                    <h2 class="text-lg font-extrabold text-slate-900 leading-tight">ניהול עסקים במערכת</h2>
+                                    <h2 class="text-lg font-extrabold text-slate-900 leading-tight flex items-center gap-2">ניהול עסקים במערכת <span id="sa-biz-count" class="text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-full empty:hidden"></span></h2>
                                     <p class="text-xs text-slate-400 mt-0.5">כל העסקים הרשומים, חיבורים לקהילות ועסקי דמו</p>
                                 </div>
                             </div>
@@ -4656,7 +4669,7 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
       </div>
     </div>
 
-    <script src="sa-app.js?v=87"></script>
+    <script src="sa-app.js?v=88"></script>
     <script src="community-help.js?v=1"></script>
     <div id="sa-sla-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[9999] flex items-center justify-center p-4 fade-in">
         <div class="bg-white w-full max-w-2xl rounded-[2rem] p-6 shadow-2xl relative">
