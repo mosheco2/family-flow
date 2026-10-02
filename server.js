@@ -24972,6 +24972,19 @@ app.post('/api/work-orders/new/:groupId', verifyBiz, async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// מחיקת פקודת עבודה — רוב הטבלאות הקשורות (צוות, מלאי, ציוד, תשלומים, ציר זמן, שיח) כבר
+// ON DELETE CASCADE על store_orders(id); טבלאות עם ON DELETE SET NULL (יומן, רכש) מתנקות מאליהן.
+app.delete('/api/work-orders/:id', verifyBiz, async (req, res) => {
+    try {
+        const r = await pool.query(
+            `DELETE FROM store_orders WHERE id=$1 AND group_id=$2 AND call_type='work_order' RETURNING id`,
+            [req.params.id, req.bizAuth.groupId]
+        );
+        if (!r.rows.length) return res.status(404).json({ error: 'פקודת עבודה לא נמצאה' });
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 app.get('/api/work-orders/detail/:id', verifyBiz, async (req, res) => {
     try {
         const id = req.params.id;
