@@ -38,9 +38,9 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
 .modal-scroll::-webkit-scrollbar-track{background:#f1f5f9;border-radius:8px}
 .modal-scroll::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:8px}
 /* INPUTS */
-.modern-input{width:100%;padding:0.6rem 0.85rem;background:#f8fafc;border-radius:0.75rem;border:1px solid #e2e8f0;transition:all 0.2s;outline:none;font-size:0.85rem;color:#1e293b;font-family:'Rubik',sans-serif}
+.modern-input{width:100%;padding:0.6rem 0.85rem;background:#f8fafc;border-radius:0.85rem;border:1px solid #e2e8f0;transition:all 0.2s;outline:none;font-size:0.85rem;color:#1e293b;font-family:'Rubik',sans-serif}
 .modern-input.pr-10{padding-right:2.5rem}
-.modern-input:focus{background:white;border-color:#3b82f6;box-shadow:0 0 0 3px rgba(59,130,246,0.1)}
+.modern-input:focus{background:white;border-color:#818cf8;box-shadow:0 0 0 4px rgba(99,102,241,0.12)}
 /* LAYOUT */
 #sa-dashboard-container{background:#f1f5f9!important;overflow-y:auto}
 #sa-layout{display:flex;min-height:100vh}
@@ -77,6 +77,11 @@ body{font-family:'Rubik',sans-serif;background:#f1f5f9;color:#1e293b;font-size:1
 .sa-top-bar{position:relative;z-index:60;background:rgba(255,255,255,0.92);backdrop-filter:blur(10px);border-radius:1.1rem;padding:0.7rem 1rem 0.7rem 1rem;margin-bottom:1.25rem;border:1px solid #e2e8f0;display:flex;align-items:center;justify-content:space-between;gap:0.75rem;flex-wrap:wrap;box-shadow:0 1px 2px rgba(15,23,42,0.04),0 8px 24px rgba(15,23,42,0.04)}
 .sa-top-bar-title{font-size:1.05rem;font-weight:800;color:#0f172a;display:flex;align-items:center;gap:0.5rem}
 .sa-crumb{display:flex;align-items:center;gap:0.5rem;min-width:0}
+/* many sub-tabs: crumb + actions stay on the first row, tabs get their own full row */
+.sa-top-bar.is-wide>div:first-child{display:contents}
+.sa-top-bar.is-wide .sa-crumb{order:1}
+.sa-top-bar.is-wide>div:last-child{order:2}
+.sa-top-bar.is-wide #sa-subnav-bar{order:3;flex-basis:100%;max-width:max-content}
 .sa-crumb-group{font-size:1.15rem;font-weight:800;color:#0f172a;white-space:nowrap}
 .sa-crumb-sep{color:#cbd5e1;font-size:1rem}
 .sa-crumb .sa-top-bar-title{font-size:0.82rem;font-weight:600;color:#64748b}
@@ -4679,7 +4684,7 @@ button[id^="vtnav-"][style*="4f46e5"],button[id^="vtnav-"][style*="79, 70, 229"]
       </div>
     </div>
 
-    <script src="sa-app.js?v=90"></script>
+    <script src="sa-app.js?v=91"></script>
     <script src="community-help.js?v=1"></script>
     <div id="sa-sla-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-[9999] flex items-center justify-center p-4 fade-in">
         <div class="bg-white w-full max-w-2xl rounded-[2rem] p-6 shadow-2xl relative">

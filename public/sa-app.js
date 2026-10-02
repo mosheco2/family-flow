@@ -649,6 +649,8 @@ function _updateSubNavBar(groupId, activeTabId) {
     const bar = document.getElementById('sa-subnav-bar');
     if (!bar) return;
     const group = SA_GROUPS[groupId];
+    const topBar = bar.closest('.sa-top-bar');
+    if (topBar) topBar.classList.toggle('is-wide', !!(group && group.tabs.length > 4));
     if (!group || group.tabs.length <= 1) {
         bar.style.display = 'none';
         return;
