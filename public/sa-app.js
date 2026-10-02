@@ -1513,7 +1513,41 @@ window.applyTicketFilters = function() {
 
     filtered.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
     renderSATicketsTable(filtered);
+    _saRenderTicketKpis();
 };
+
+// פס מדדים מעל טבלת הקריאות — מחושב מ-saTicketsCache שכבר נטען, באותה לוגיקת SLA של הטבלה
+function _saTicketSlaBreached(t) {
+    if (t.status === 'resolved') return false;
+    const hoursOpen = Math.floor((new Date() - new Date(t.status_updated_at || t.created_at)) / (1000 * 60 * 60));
+    return hoursOpen >= getTicketSlaMaxHours(t.ticket_type || 'general', t.priority || 'normal');
+}
+function _saRenderTicketKpis() {
+    const wrap = getEl('sa-tickets-kpis');
+    if (!wrap) return;
+    const all = saTicketsCache || [];
+    const open = all.filter(t => t.status === 'open' || !t.status).length;
+    const inProg = all.filter(t => t.status === 'in_progress').length;
+    const resolved = all.filter(t => t.status === 'resolved').length;
+    const breached = all.filter(_saTicketSlaBreached).length;
+    const tile = (label, value, icon, tone, sub) => `
+        <div class="relative overflow-hidden bg-white rounded-2xl border border-slate-200 p-4 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_rgba(15,23,42,0.04)]">
+            <div class="absolute -left-6 -top-6 w-24 h-24 rounded-full bg-gradient-to-br ${tone} opacity-10"></div>
+            <div class="flex items-center justify-between gap-3 relative">
+                <div>
+                    <div class="text-xs font-bold text-slate-400">${label}</div>
+                    <div class="text-3xl font-extrabold text-slate-900 mt-1 leading-none">${value.toLocaleString('he-IL')}</div>
+                    ${sub ? `<div class="text-[11px] text-slate-400 mt-1.5">${sub}</div>` : ''}
+                </div>
+                <span class="w-11 h-11 rounded-xl bg-gradient-to-br ${tone} text-white flex items-center justify-center shadow-md shrink-0"><i class="fa-solid ${icon}"></i></span>
+            </div>
+        </div>`;
+    wrap.innerHTML =
+        tile('קריאות פתוחות', open, 'fa-inbox', 'from-rose-500 to-pink-500', 'ממתינות למענה') +
+        tile('בטיפול', inProg, 'fa-person-digging', 'from-amber-500 to-orange-500', 'בעבודה אצל הצוותים') +
+        tile('חריגות SLA', breached, 'fa-fire', breached ? 'from-red-600 to-rose-600' : 'from-slate-400 to-slate-500', breached ? 'דורשות טיפול מיידי' : 'הכל בזמן') +
+        tile('נסגרו', resolved, 'fa-circle-check', 'from-emerald-500 to-teal-500', `מתוך ${all.length} קריאות`);
+}
 
 let saSlaRulesCache = [];
 
@@ -1544,15 +1578,16 @@ function renderSATicketsTable(tickets) {
         return;
     }
 
-    if (saSlaRulesCache.length === 0) loadSlaMatrix();
+    if (saSlaRulesCache.length === 0) loadSlaMatrix().then(() => _saRenderTicketKpis());
 
     const statusMap = {
-        'open': { text: 'פתוח', color: 'bg-red-100 text-red-700 border-red-200' },
-        'in_progress': { text: 'בטיפול', color: 'bg-orange-100 text-orange-700 border-orange-200' },
-        'resolved': { text: 'סגור', color: 'bg-green-100 text-green-700 border-green-200 opacity-60' }
+        'open': { text: 'פתוח', color: 'bg-rose-50 text-rose-700 border-rose-200', dot: 'bg-rose-500' },
+        'in_progress': { text: 'בטיפול', color: 'bg-amber-50 text-amber-700 border-amber-200', dot: 'bg-amber-500' },
+        'resolved': { text: 'סגור', color: 'bg-emerald-50 text-emerald-700 border-emerald-200', dot: 'bg-emerald-500' }
     };
     
     const prioMap = { 'critical': '🚨 קריטית', 'high': '🔴 גבוהה', 'normal': '🟡 רגילה', 'low': '🔵 נמוכה' };
+    const prioCls = { 'critical': 'bg-red-600 text-white border-red-600', 'high': 'bg-rose-50 text-rose-700 border-rose-200', 'normal': 'bg-amber-50 text-amber-700 border-amber-200', 'low': 'bg-sky-50 text-sky-700 border-sky-200' };
 
     tbody.innerHTML = tickets.map(t => {
         const st = statusMap[t.status] || statusMap['open'];
@@ -1566,35 +1601,41 @@ function renderSATicketsTable(tickets) {
             const maxHours = getTicketSlaMaxHours(t.ticket_type || 'general', t.priority || 'normal');
             
             if (hoursOpen >= maxHours) {
-                slaHtml = `<span class="bg-red-100 text-red-700 px-1.5 py-0.5 rounded ml-2 border border-red-200 font-bold animate-pulse text-[10px]" title="יעד: ${maxHours} שעות"><i class="fa-solid fa-fire"></i> חריגת SLA</span>`;
+                slaHtml = `<span class="inline-flex items-center gap-1 bg-red-600 text-white px-2 py-0.5 rounded-full font-bold animate-pulse text-[10px] shadow-sm shadow-red-500/30" title="יעד: ${maxHours} שעות"><i class="fa-solid fa-fire"></i> חריגת SLA</span>`;
             } else {
-                slaHtml = `<span class="bg-green-100 text-green-700 px-1.5 py-0.5 rounded ml-2 border border-green-200 font-bold text-[10px]" title="יעד: ${maxHours} שעות"><i class="fa-regular fa-clock"></i> SLA תקין</span>`;
+                slaHtml = `<span class="inline-flex items-center gap-1 text-emerald-600 font-bold text-[10px]" title="יעד: ${maxHours} שעות"><i class="fa-regular fa-clock"></i> SLA תקין</span>`;
             }
         }
+        const isResolved = t.status === 'resolved';
 
         return `
-            <tr class="hover:bg-slate-50 transition border-b border-slate-100 group">
-                <td class="px-4 py-3 text-slate-400 font-bold text-xs">#${t.id}</td>
-                <td class="px-4 py-3 max-w-[250px]">
-                    <div class="font-bold text-slate-800 text-sm truncate" title="${safeStr(t.subject)}">${safeStr(t.subject)}</div>
-                    <div class="text-[11px] text-slate-500 truncate mt-0.5" title="${safeStr(t.description)}">${safeStr(t.description)}</div>
+            <tr class="hover:bg-indigo-50/30 transition border-b border-slate-100 group ${isResolved ? 'opacity-70' : ''}">
+                <td class="px-4 py-4"><span class="font-mono text-[11px] font-bold text-slate-500 bg-slate-100 px-2 py-1 rounded-lg">#${t.id}</span></td>
+                <td class="px-4 py-4 max-w-[240px]">
+                    <div class="font-bold text-slate-900 text-sm truncate" title="${safeStr(t.subject)}">${safeStr(t.subject)}</div>
+                    <div class="text-[11px] text-slate-500 truncate mt-1" title="${safeStr(t.description)}">${safeStr(t.description)}</div>
                 </td>
-                <td class="px-4 py-3 text-slate-600 text-xs">
-                    <div class="font-bold">${safeStr(t.group_name)}</div>
-                    <div class="text-[10px] text-slate-400"><i class="fa-regular fa-user mr-1"></i>${safeStr(t.user_name)}</div>
+                <td class="px-4 py-4 text-xs">
+                    <div class="flex items-center gap-2.5">
+                        ${_saInitialAvatar(t.group_name || t.user_name, t.group_id || t.id, 'w-8 h-8 rounded-xl text-xs')}
+                        <div>
+                            <div class="font-bold text-slate-700">${safeStr(t.group_name)}</div>
+                            <div class="text-[10px] text-slate-400 mt-0.5"><i class="fa-regular fa-user ml-1"></i>${safeStr(t.user_name)}</div>
+                        </div>
+                    </div>
                 </td>
-                <td class="px-4 py-3 text-slate-500 dir-ltr text-right text-xs">${dateStr}</td>
-                <td class="px-4 py-3 text-center text-xs font-medium">${pLabel}</td>
-                <td class="px-4 py-3 text-center">
-                    <div class="flex flex-col items-center gap-1">
-                        <span class="text-[10px] font-bold px-2 py-0.5 rounded-md border ${st.color} whitespace-nowrap">${st.text}</span>
+                <td class="px-4 py-4 text-slate-500 dir-ltr text-right text-xs font-medium">${dateStr}</td>
+                <td class="px-4 py-4 text-center"><span class="inline-block text-[11px] font-bold px-2.5 py-1 rounded-full border ${prioCls[t.priority] || prioCls['normal']}">${pLabel}</span></td>
+                <td class="px-4 py-4 text-center">
+                    <div class="flex flex-col items-center gap-1.5">
+                        <span class="inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1 rounded-full border ${st.color} whitespace-nowrap"><span class="w-1.5 h-1.5 rounded-full ${st.dot}"></span>${st.text}</span>
                         ${slaHtml}
                     </div>
                 </td>
-                <td class="px-4 py-3 text-center">
+                <td class="px-4 py-4 text-center">
                     <div class="flex items-center justify-center gap-2">
-                        <button onclick="openSATicketModal(${t.id})" class="bg-indigo-50 text-indigo-600 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-indigo-100 transition shadow-sm border border-indigo-100"><i class="fa-solid fa-expand ml-1"></i>פרטים</button>
-                        <button onclick="deleteTicket(${t.id})" class="bg-white text-slate-300 px-2.5 py-1.5 rounded-lg text-xs hover:text-red-600 hover:bg-red-50 transition border border-slate-200 hover:border-red-100" title="מחק קריאה"><i class="fa-solid fa-trash"></i></button>
+                        <button onclick="openSATicketModal(${t.id})" class="bg-indigo-50 text-indigo-700 border border-indigo-100 hover:bg-indigo-600 hover:text-white hover:border-indigo-600 px-3.5 py-2 rounded-xl text-xs font-bold transition"><i class="fa-solid fa-expand ml-1"></i>פרטים</button>
+                        <button onclick="deleteTicket(${t.id})" class="bg-white text-slate-300 w-9 h-9 rounded-xl text-xs hover:text-red-600 hover:bg-red-50 transition border border-slate-200 hover:border-red-200" title="מחק קריאה"><i class="fa-solid fa-trash"></i></button>
                     </div>
                 </td>
             </tr>
