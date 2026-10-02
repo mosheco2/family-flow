@@ -66,6 +66,7 @@ async function main() {
     log(delRes.ok && delRes.data.success !== false, `נמחק: ${item.name}`, delRes.ok ? '' : JSON.stringify(delRes.data));
   }
   const existingNames = new Set();
+  const itemsMissingImage = []; // { catalogId, name, nameEn, description, category }
 
   for (let promptIdx = 0; promptIdx < PROMPTS.length; promptIdx++) {
     const { promptText, productType } = PROMPTS[promptIdx];
@@ -78,6 +79,10 @@ async function main() {
 
     for (const item of items) {
       if (existingNames.has(item.name)) { console.log(`   ↷ קיים כבר: ${item.name}`); continue; }
+
+      // תמונות שירות (AI, Pollinations) נחסמות אם מבקשים אותן צפוף מדי ברצף — השהיה בין פריט
+      // לפריט כדי לא להיתקל שוב ב-rate limit (מוצרים ממשיכים דרך Pixabay/Pexels, מהיר ולא רגיש לזה)
+      if (productType === 'service' && existingNames.size > 0) await sleep(4000);
 
       // nameEn מגיע מה-AI (generate-catalog מעודכן לספק אותו) — חיפוש תמונה מדויק בלי תלות
       // בתרגום-נפילה פנימי (שכשל קודם ברגע ש-Gemini היה עמוס, והחזיר תמונות אקראיות לגמרי)
@@ -93,8 +98,32 @@ async function main() {
       });
       log(createRes.ok && createRes.data.success !== false, `נוסף לקטלוג: ${item.name}`, createRes.ok ? '' : JSON.stringify(createRes.data));
       existingNames.add(item.name);
+      if (!imageUrl && productType === 'service' && createRes.ok && createRes.data.item) {
+        itemsMissingImage.push({ catalogId: createRes.data.item.id, name: item.name, nameEn: item.nameEn || '', description: item.description || '', category: item.category || '', price: item.price || 0 });
+      }
     }
   }
+
+  // סבב שני: שירותים שנכשלו בתמונה בניסיון הראשון — בפיזור זמן גדול יותר, אחרי שכל שאר הבקשות
+  // כבר נגמרו, יש סיכוי טוב יותר ש-Pollinations כבר לא יהיה ברף ה-rate limit
+  if (itemsMissingImage.length) {
+    console.log(`\n🔁 סבב שני לתמונות שנכשלו (${itemsMissingImage.length} שירותים)...`);
+    for (const item of itemsMissingImage) {
+      await sleep(10000);
+      const imgRes = await api('POST', '/store/catalog/generate-image', {
+        groupId: GROUP_ID, productName: item.name, nameEn: item.nameEn, description: item.description, category: item.category, productType: 'service',
+      });
+      const imageUrl = (imgRes.ok && imgRes.data.success) ? imgRes.data.imageUrl : null;
+      log(!!imageUrl, `תמונה (סבב שני) עבור: ${item.name}`, imageUrl ? `(${imgRes.data.source})` : JSON.stringify(imgRes.data));
+      if (imageUrl) {
+        const updRes = await api('PUT', `/store/catalog/${item.catalogId}`, {
+          name: item.name, nameEn: item.nameEn, description: item.description, category: item.category, price: item.price, imageUrl, productType: 'service',
+        });
+        log(updRes.ok && updRes.data.success !== false, `עודכן: ${item.name}`, updRes.ok ? '' : JSON.stringify(updRes.data));
+      }
+    }
+  }
+
   console.log('\n✅ הושלם.');
 }
 
