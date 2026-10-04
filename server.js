@@ -5582,11 +5582,26 @@ app.post('/api/sa/groups/:id/billing', verifySA, async (req, res) => {
     try {
         const { billing_config } = req.body;
         if (!billing_config) return res.status(400).json({ error: 'billing_config missing' });
+        // זוהי הקריאה ש"בפועל" שומרת את התצורה (נשלחת אחרונה מה-SA), ולכן חייבת גם היא
+        // לעדכן managed_modules — אחרת סימון "פתוח" במסך הזה ממשיך לא להשפיע על requireModule()
+        // בצד הלקוח, בדיוק כמו הבאג שתוקן ב-PUT /api/sa/groups/:id.
+        const sets = ['billing_config=$1'];
+        const vals = [JSON.stringify(billing_config)];
+        if (Array.isArray(billing_config.modules)) {
+            const openModuleIds = billing_config.modules
+                .filter(m => typeof m === 'string' ? true : m.open !== false)
+                .map(m => typeof m === 'string' ? m : m.id)
+                .filter(Boolean);
+            vals.push(JSON.stringify(openModuleIds));
+            sets.push(`managed_modules=$${vals.length}`);
+        }
+        vals.push(req.params.id);
         const r = await pool.query(
-            'UPDATE family_groups SET billing_config=$1 WHERE id=$2 RETURNING id',
-            [JSON.stringify(billing_config), req.params.id]
+            `UPDATE family_groups SET ${sets.join(', ')} WHERE id=$${vals.length} RETURNING id`,
+            vals
         );
         if (r.rowCount === 0) return res.status(404).json({ error: 'group not found' });
+        _modCache.delete(String(req.params.id));
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -8558,9 +8573,22 @@ app.put('/api/sa/groups/:id', verifySA, async (req, res) => {
         if (contactName !== undefined) { vals.push(contactName || null); sets.push(`contact_name=$${vals.length}`); }
         const { billingConfig } = req.body;
         if (billingConfig !== undefined && billingConfig !== null) { vals.push(JSON.stringify(billingConfig)); sets.push(`billing_config=$${vals.length}`); }
+        // billing_config קובע מה מוצג/מחויב ב-SA, אבל requireModule() (שחוסם בפועל גישת API
+        // ללקוח) בודק מול managed_modules — עמודה נפרדת לגמרי שלא עודכנה כאן מעולם. סימון
+        // "פתוח" ב-SA הוסיף/הסיר מודולים בתצוגה בלבד, בלי לשנות בפועל את מה שפתוח ללקוח.
+        // גוזרים managed_modules ישירות מהמודולים המסומנים "open" ב-billingConfig שנשמר.
+        if (billingConfig !== undefined && billingConfig !== null && Array.isArray(billingConfig.modules)) {
+            const openModuleIds = billingConfig.modules
+                .filter(m => typeof m === 'string' ? true : m.open !== false)
+                .map(m => typeof m === 'string' ? m : m.id)
+                .filter(Boolean);
+            vals.push(JSON.stringify(openModuleIds));
+            sets.push(`managed_modules=$${vals.length}`);
+        }
         vals.push(req.params.id);
         const result = await pool.query(`UPDATE family_groups SET ${sets.join(', ')} WHERE id=$${vals.length}`, vals);
         if (result.rowCount === 0) return res.status(404).json({ error: 'קבוצה לא נמצאה' });
+        if (typeof _modCache !== 'undefined') _modCache.delete(String(req.params.id));
         // עדכון פרטי מנהל בטבלת users
         // הגנה קריטית: טלפון ריק לא נשלח בכוונה כמעט אף פעם (השדה פשוט לא נטען בטופס) — דריסה
         // שקטה ל-NULL מנתקת את העסק מהתחברות לפי טלפון (הוא נעלם מרשימת הבחירה של המשתמש).
