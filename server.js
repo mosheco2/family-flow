@@ -23954,14 +23954,14 @@ app.get('/api/members/:groupId', async (req, res) => {
 // ============================================================
 
 // טכנאים
-app.get('/api/equipment/technicians/:groupId', verifyBiz, async (req, res) => {
+app.get('/api/equipment/technicians/:groupId', verifyFamilyOrBiz, async (req, res) => {
     try {
         const result = await pool.query('SELECT * FROM equipment_technicians WHERE group_id=$1 ORDER BY name ASC', [req.bizAuth.groupId]);
         res.json({ success: true, technicians: result.rows });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/equipment/technicians', verifyBiz, async (req, res) => {
+app.post('/api/equipment/technicians', verifyFamilyOrBiz, async (req, res) => {
     try {
         const { id, name, companyName, phone, email, specialty, notes, businessGroupId } = req.body;
         const groupId = req.bizAuth.groupId;
@@ -23980,7 +23980,7 @@ app.post('/api/equipment/technicians', verifyBiz, async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.delete('/api/equipment/technicians/:id', verifyBiz, async (req, res) => {
+app.delete('/api/equipment/technicians/:id', verifyFamilyOrBiz, async (req, res) => {
     try {
         await pool.query('DELETE FROM equipment_technicians WHERE id=$1 AND group_id=$2', [req.params.id, req.bizAuth.groupId]);
         res.json({ success: true });
@@ -23988,12 +23988,14 @@ app.delete('/api/equipment/technicians/:id', verifyBiz, async (req, res) => {
 });
 
 // Link a technician contact to a WEFLOWZ business group
-app.post('/api/equipment/technicians/:id/link-business', async (req, res) => {
+app.post('/api/equipment/technicians/:id/link-business', verifyFamilyOrBiz, async (req, res) => {
     try {
         const { businessGroupId } = req.body;
+        // הגנה: בלי סינון group_id כל אחד עם token תקין כלשהו (לא בהכרח בעל איש הקשר) היה יכול
+        // לשייך טכנאי של קבוצה אחרת לעסק כלשהו ולסמן אותו "מאומת" — מגבילים לטכנאי של הקבוצה שלי בלבד
         const result = await pool.query(
-            'UPDATE equipment_technicians SET business_group_id=$1, oneflow_verified=true WHERE id=$2 RETURNING *',
-            [businessGroupId || null, req.params.id]);
+            'UPDATE equipment_technicians SET business_group_id=$1, oneflow_verified=true WHERE id=$2 AND group_id=$3 RETURNING *',
+            [businessGroupId || null, req.params.id, req.bizAuth.groupId]);
         if (!result.rows.length) return res.status(404).json({ error: 'לא נמצא' });
         res.json({ success: true, technician: result.rows[0] });
     } catch(e) { res.status(500).json({ error: e.message }); }
@@ -24528,7 +24530,7 @@ app.get('/api/service-calls/analytics/:businessGroupId', verifyBiz, async (req, 
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/api/equipment/items/:groupId', verifyBiz, async (req, res) => {
+app.get('/api/equipment/items/:groupId', verifyFamilyOrBiz, async (req, res) => {
     try {
         const result = await pool.query(
             `SELECT ei.*, et.name as technician_name, et.phone as technician_phone, et.email as technician_email
@@ -24540,7 +24542,7 @@ app.get('/api/equipment/items/:groupId', verifyBiz, async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/equipment/items', verifyBiz, async (req, res) => {
+app.post('/api/equipment/items', verifyFamilyOrBiz, async (req, res) => {
     try {
         const { id, name, category, serialNumber, purchaseDate, warrantyExpiry, status, notes, technicianId } = req.body;
         const groupId = req.bizAuth.groupId;
@@ -24559,14 +24561,14 @@ app.post('/api/equipment/items', verifyBiz, async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.delete('/api/equipment/items/:id', verifyBiz, async (req, res) => {
+app.delete('/api/equipment/items/:id', verifyFamilyOrBiz, async (req, res) => {
     try {
         await pool.query('DELETE FROM equipment_items WHERE id=$1 AND group_id=$2', [req.params.id, req.bizAuth.groupId]);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/api/equipment/maintenance/:groupId', verifyBiz, async (req, res) => {
+app.get('/api/equipment/maintenance/:groupId', verifyFamilyOrBiz, async (req, res) => {
     try {
         const result = await pool.query(
             `SELECT m.*, e.name as equipment_name, e.category as equipment_category
@@ -24577,7 +24579,7 @@ app.get('/api/equipment/maintenance/:groupId', verifyBiz, async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/equipment/maintenance', verifyBiz, async (req, res) => {
+app.post('/api/equipment/maintenance', verifyFamilyOrBiz, async (req, res) => {
     try {
         const { id, equipmentId, maintenanceType, description, scheduledDate, cost, technicianName, technicianPhone, notes, intervalDays } = req.body;
         const groupId = req.bizAuth.groupId;
@@ -24596,7 +24598,7 @@ app.post('/api/equipment/maintenance', verifyBiz, async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.put('/api/equipment/maintenance/:id/complete', verifyBiz, async (req, res) => {
+app.put('/api/equipment/maintenance/:id/complete', verifyFamilyOrBiz, async (req, res) => {
     try {
         const { cost, technicianName, notes } = req.body;
         const updated = await pool.query(
@@ -24616,14 +24618,14 @@ app.put('/api/equipment/maintenance/:id/complete', verifyBiz, async (req, res) =
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.delete('/api/equipment/maintenance/:id', verifyBiz, async (req, res) => {
+app.delete('/api/equipment/maintenance/:id', verifyFamilyOrBiz, async (req, res) => {
     try {
         await pool.query('DELETE FROM equipment_maintenance WHERE id=$1 AND group_id=$2', [req.params.id, req.bizAuth.groupId]);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/api/equipment/faults/:groupId', verifyBiz, async (req, res) => {
+app.get('/api/equipment/faults/:groupId', verifyFamilyOrBiz, async (req, res) => {
     try {
         const result = await pool.query(
             `SELECT f.*, e.name as equipment_name, e.category as equipment_category,
@@ -24638,7 +24640,7 @@ app.get('/api/equipment/faults/:groupId', verifyBiz, async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/api/equipment/faults/:id/notes', verifyBiz, async (req, res) => {
+app.get('/api/equipment/faults/:id/notes', verifyFamilyOrBiz, async (req, res) => {
     try {
         const owned = await pool.query('SELECT id FROM equipment_faults WHERE id=$1 AND group_id=$2', [req.params.id, req.bizAuth.groupId]);
         if (!owned.rows.length) return res.status(404).json({ error: 'לא נמצא' });
@@ -24649,7 +24651,7 @@ app.get('/api/equipment/faults/:id/notes', verifyBiz, async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/equipment/faults/:id/notes', verifyBiz, async (req, res) => {
+app.post('/api/equipment/faults/:id/notes', verifyFamilyOrBiz, async (req, res) => {
     try {
         const { note } = req.body;
         const groupId = req.bizAuth.groupId;
@@ -24663,7 +24665,7 @@ app.post('/api/equipment/faults/:id/notes', verifyBiz, async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/equipment/faults', verifyBiz, async (req, res) => {
+app.post('/api/equipment/faults', verifyFamilyOrBiz, async (req, res) => {
     try {
         const { id, equipmentId, title, description, imageUrl, severity, status, resolutionNotes, resolvedDate, technicianId, scheduledDate } = req.body;
         const groupId = req.bizAuth.groupId;
@@ -24683,7 +24685,7 @@ app.post('/api/equipment/faults', verifyBiz, async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.patch('/api/equipment/faults/:id/status', verifyBiz, async (req, res) => {
+app.patch('/api/equipment/faults/:id/status', verifyFamilyOrBiz, async (req, res) => {
     try {
         const { status, note } = req.body;
         const groupId = req.bizAuth.groupId;
@@ -24713,14 +24715,14 @@ app.patch('/api/equipment/faults/:id/status', verifyBiz, async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.delete('/api/equipment/faults/:id', verifyBiz, async (req, res) => {
+app.delete('/api/equipment/faults/:id', verifyFamilyOrBiz, async (req, res) => {
     try {
         await pool.query('DELETE FROM equipment_faults WHERE id=$1 AND group_id=$2', [req.params.id, req.bizAuth.groupId]);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/api/equipment/items/:id/history', verifyBiz, async (req, res) => {
+app.get('/api/equipment/items/:id/history', verifyFamilyOrBiz, async (req, res) => {
     try {
         const groupId = req.bizAuth.groupId;
         const maintenance = await pool.query(
@@ -24742,7 +24744,7 @@ app.get('/api/equipment/items/:id/history', verifyBiz, async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/equipment/notifications/check/:groupId', verifyBiz, async (req, res) => {
+app.post('/api/equipment/notifications/check/:groupId', verifyFamilyOrBiz, async (req, res) => {
     try {
         const groupId = req.bizAuth.groupId;
         const today = new Date(); today.setHours(0,0,0,0);
@@ -41474,9 +41476,12 @@ async function verifyFamilyOrBiz(req, res, next) {
         }
         pool.query(`UPDATE family_sessions SET last_seen=NOW() WHERE token_hash=$1`, [tokenHash]).catch(() => {});
         req.callerAuth = { groupId: row.group_id, userId: row.user_id, type: row.session_type === 'biz' ? 'business' : 'family' };
+        // alias ל-req.bizAuth — כדי שהנדלרים הקיימים שנכתבו במקור ל-verifyBiz בלבד (ומניחים
+        // req.bizAuth.groupId) יעבדו בלי שינוי גם כשמשתמשים ב-middleware הזה (עם session משפחתי)
+        req.bizAuth = { groupId: row.group_id, userId: row.user_id };
         try {
             const ur = await pool.query('SELECT role FROM users WHERE id=$1', [row.user_id]);
-            if (ur.rows[0]) req.callerAuth.role = ur.rows[0].role;
+            if (ur.rows[0]) { req.callerAuth.role = ur.rows[0].role; req.bizAuth.role = ur.rows[0].role; }
         } catch(e2) {}
         next();
     } catch(e) {

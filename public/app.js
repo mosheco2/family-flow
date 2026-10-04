@@ -1115,7 +1115,7 @@ async function renderMyFaultsAsServiceCalls() {
     if (!hmFaults || !hmFaults.length) {
         list.innerHTML = '<p class="text-xs text-slate-400 text-center py-6"><i class="fa-solid fa-spinner fa-spin ml-1"></i> טוען...</p>';
         try {
-            const r = await fetch(`/api/equipment/faults/${currentGroup.id}`);
+            const r = await communityFetch(`/api/equipment/faults/${currentGroup.id}`);
             const d = await r.json();
             if (d.success) hmFaults = d.faults || [];
         } catch(e) {}
@@ -11451,8 +11451,8 @@ async function renderFamilyUrgentItems() {
         // ─ תחזוקה ותקלות בבית ─
         try {
             const [hmMRes, hmFRes] = await Promise.all([
-                fetch(`/api/equipment/maintenance/${currentGroup.id}`),
-                fetch(`/api/equipment/faults/${currentGroup.id}`)
+                communityFetch(`/api/equipment/maintenance/${currentGroup.id}`),
+                communityFetch(`/api/equipment/faults/${currentGroup.id}`)
             ]);
             const hmMData = await hmMRes.json();
             const hmFData = await hmFRes.json();
@@ -11832,7 +11832,7 @@ const HM_MTYPE_LABELS = { 'periodic':'תקופתי','repair':'תיקון','inspe
 const HM_MTYPE_COLORS = { 'periodic':'bg-blue-100 text-blue-700','repair':'bg-orange-100 text-orange-700','inspection':'bg-violet-100 text-violet-700' };
 const HM_SEV_COLORS = { 'low':'bg-slate-100 text-slate-600','medium':'bg-amber-100 text-amber-700','high':'bg-orange-100 text-orange-700','critical':'bg-red-100 text-red-700' };
 const HM_SEV_LABELS = { 'low':'נמוכה','medium':'בינונית','high':'גבוהה','critical':'קריטית' };
-const HM_FSTATUS_LABELS = { 'open':'פתוח','in_progress':'בטיפול','resolved':'נסגר' };
+const HM_FSTATUS_LABELS = { 'open':'פתוח','in_progress':'בטיפול','resolved':'טופל' };
 const HM_FSTATUS_COLORS = { 'open':'bg-red-100 text-red-700','in_progress':'bg-blue-100 text-blue-700','resolved':'bg-emerald-100 text-emerald-700' };
 
 async function loadHomeMaintenance() {
@@ -11845,7 +11845,7 @@ async function loadHomeMaintenance() {
 
 async function checkHMNotifications() {
     try {
-        const res = await fetch(`/api/equipment/notifications/check/${currentGroup.id}`, { method: 'POST' });
+        const res = await communityFetch(`/api/equipment/notifications/check/${currentGroup.id}`, { method: 'POST' });
         const data = await res.json();
         if (data.success && data.created > 0) {
             const badge = document.getElementById('fgnav-bell-badge');
@@ -11855,21 +11855,36 @@ async function checkHMNotifications() {
 }
 
 async function fetchHMItems() {
-    try { const r = await fetch(`/api/equipment/items/${currentGroup.id}`); const d = await r.json(); if (d.success) hmItems = d.items; renderHMItems(); } catch(e) {}
+    try {
+        const r = await communityFetch(`/api/equipment/items/${currentGroup.id}`);
+        const d = await r.json();
+        if (d.success) hmItems = d.items; else showToast('error', d.error || 'שגיאה בטעינת ציוד');
+        renderHMItems();
+    } catch(e) { showToast('error', 'שגיאת תקשורת בטעינת ציוד'); }
 }
 async function fetchHMMaintenance() {
-    try { const r = await fetch(`/api/equipment/maintenance/${currentGroup.id}`); const d = await r.json(); if (d.success) hmMaintenance = d.records; renderHMMaintenance(); updateHMBadge(); } catch(e) {}
+    try {
+        const r = await communityFetch(`/api/equipment/maintenance/${currentGroup.id}`);
+        const d = await r.json();
+        if (d.success) hmMaintenance = d.records; else showToast('error', d.error || 'שגיאה בטעינת תחזוקה');
+        renderHMMaintenance(); updateHMBadge();
+    } catch(e) { showToast('error', 'שגיאת תקשורת בטעינת תחזוקה'); }
 }
 async function fetchHMFaults() {
-    try { const r = await fetch(`/api/equipment/faults/${currentGroup.id}`); const d = await r.json(); if (d.success) hmFaults = d.faults; renderHMFaults(); updateHMBadge(); } catch(e) {}
+    try {
+        const r = await communityFetch(`/api/equipment/faults/${currentGroup.id}`);
+        const d = await r.json();
+        if (d.success) hmFaults = d.faults; else showToast('error', d.error || 'שגיאה בטעינת תקלות');
+        renderHMFaults(); updateHMBadge();
+    } catch(e) { showToast('error', 'שגיאת תקשורת בטעינת תקלות'); }
 }
 async function fetchHMContacts() {
     try {
-        const r = await fetch(`/api/equipment/technicians/${currentGroup.id}`);
+        const r = await communityFetch(`/api/equipment/technicians/${currentGroup.id}`);
         const d = await r.json();
-        if (d.success) hmContacts = d.technicians || [];
+        if (d.success) hmContacts = d.technicians || []; else showToast('error', d.error || 'שגיאה בטעינת אנשי קשר');
         renderHMContacts();
-    } catch(e) { console.error('fetchHMContacts error:', e); }
+    } catch(e) { console.error('fetchHMContacts error:', e); showToast('error', 'שגיאת תקשורת בטעינת אנשי קשר'); }
 }
 
 function updateHMBadge() {
@@ -11877,7 +11892,7 @@ function updateHMBadge() {
     if (!badge) return;
     const today = new Date(); today.setHours(0,0,0,0);
     const in7 = new Date(today); in7.setDate(today.getDate() + 7);
-    const urgMaint = hmMaintenance.filter(m => !m.status === 'completed' && m.scheduled_date && new Date(m.scheduled_date) <= in7).length;
+    const urgMaint = hmMaintenance.filter(m => m.status !== 'completed' && m.scheduled_date && new Date(m.scheduled_date) <= in7).length;
     const openFaults = hmFaults.filter(f => f.status !== 'resolved').length;
     const total = urgMaint + openFaults;
     if (total > 0) { badge.textContent = total; badge.classList.remove('hidden'); }
@@ -11993,7 +12008,7 @@ async function submitHMItem() {
     const name = getEl('hmitem-name').value.trim();
     if (!name) { showToast('error', 'שם הציוד חובה'); return; }
     try {
-        const res = await fetch('/api/equipment/items', { method: 'POST', headers: {'Content-Type':'application/json'},
+        const res = await communityFetch('/api/equipment/items', { method: 'POST', headers: {'Content-Type':'application/json'},
             body: JSON.stringify({ id: id||null, groupId: currentGroup.id, name,
                 category: getEl('hmitem-category').value, serialNumber: getEl('hmitem-serial').value||null,
                 purchaseDate: getEl('hmitem-purchase').value||null, warrantyExpiry: getEl('hmitem-warranty').value||null,
@@ -12007,7 +12022,12 @@ async function submitHMItem() {
 
 async function deleteHMItem(id) {
     if (!confirm('למחוק ציוד זה?')) return;
-    try { await fetch(`/api/equipment/items/${id}`, { method: 'DELETE' }); showToast('info', 'נמחק'); await fetchHMItems(); } catch(e) {}
+    try {
+        const r = await communityFetch(`/api/equipment/items/${id}`, { method: 'DELETE' });
+        const d = await r.json();
+        if (!d.success) { showToast('error', d.error || 'שגיאה במחיקה'); return; }
+        showToast('info', 'נמחק'); await fetchHMItems();
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
 }
 
 // --- MAINTENANCE ---
@@ -12119,7 +12139,7 @@ async function submitHMMaintenance() {
     const equipmentId = getEl('hmmaint-equipment').value;
     if (!equipmentId) { showToast('error', 'יש לבחור ציוד'); return; }
     try {
-        const res = await fetch('/api/equipment/maintenance', { method: 'POST', headers: {'Content-Type':'application/json'},
+        const res = await communityFetch('/api/equipment/maintenance', { method: 'POST', headers: {'Content-Type':'application/json'},
             body: JSON.stringify({ id: id||null, groupId: currentGroup.id, equipmentId,
                 maintenanceType: getEl('hmmaint-type').value, description: getEl('hmmaint-desc').value||null,
                 scheduledDate: getEl('hmmaint-date').value||null, cost: getEl('hmmaint-cost').value||null,
@@ -12133,7 +12153,10 @@ async function submitHMMaintenance() {
 
 async function completeHMMaintenance(id) {
     try {
-        const res = await fetch(`/api/equipment/maintenance/${id}/complete`, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify({}) });
+        // השרת תומך בעלות/הערות בסיום תחזוקה — הכפתור המהיר לא אסף אותן בכלל; שדה אופציונלי
+        const costInput = prompt('עלות התחזוקה (אופציונלי, ₪) — אפשר להשאיר ריק');
+        const cost = costInput && !isNaN(parseFloat(costInput)) ? parseFloat(costInput) : undefined;
+        const res = await communityFetch(`/api/equipment/maintenance/${id}/complete`, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ cost }) });
         const data = await res.json();
         if (data.success) { showToast('success', data.nextScheduled ? 'בוצע! תחזוקה הבאה תוזמנה' : 'בוצע!'); await fetchHMMaintenance(); }
         else showToast('error', data.error || 'שגיאה');
@@ -12142,7 +12165,12 @@ async function completeHMMaintenance(id) {
 
 async function deleteHMMaintenance(id) {
     if (!confirm('למחוק?')) return;
-    try { await fetch(`/api/equipment/maintenance/${id}`, { method: 'DELETE' }); showToast('info', 'נמחק'); await fetchHMMaintenance(); } catch(e) {}
+    try {
+        const r = await communityFetch(`/api/equipment/maintenance/${id}`, { method: 'DELETE' });
+        const d = await r.json();
+        if (!d.success) { showToast('error', d.error || 'שגיאה במחיקה'); return; }
+        showToast('info', 'נמחק'); await fetchHMMaintenance();
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
 }
 
 // --- FAULTS ---
@@ -12249,7 +12277,7 @@ async function showHMFaultTab(faultId, tab) {
 async function fetchAndRenderHMFaultNotes(faultId) {
     const container = getEl(`hm-fnotes-list-${faultId}`); if (!container) return;
     try {
-        const res = await fetch(`/api/equipment/faults/${faultId}/notes`);
+        const res = await communityFetch(`/api/equipment/faults/${faultId}/notes`);
         const data = await res.json();
         if (!data.success) return;
         hmFaultNotes[faultId] = data.notes;
@@ -12345,6 +12373,20 @@ function handleHMFaultImage(input) {
     reader.readAsDataURL(file);
 }
 
+// ממיר data-URL (base64) לקובץ ומעלה אותו ל-/api/upload/product-image, מחזיר URL קבוע —
+// במקום לשמור את התמונה כ-base64 ישירות בטור image_url (TEXT) ב-DB, מה שמנפח כל שליפה
+async function uploadHMFaultImage(dataUrl) {
+    if (!dataUrl || !dataUrl.startsWith('data:')) return dataUrl; // כבר URL קיים, לא base64 חדש
+    try {
+        const blob = await (await fetch(dataUrl)).blob();
+        const fd = new FormData();
+        fd.append('image', blob, 'fault.jpg');
+        const r = await communityFetch('/api/upload/product-image', { method: 'POST', body: fd });
+        const d = await r.json();
+        return d.success ? d.url : null;
+    } catch(e) { return null; }
+}
+
 async function submitHMFault() {
     const id = getEl('hmfault-id').value;
     const equipmentId = getEl('hmfault-equipment').value;
@@ -12360,9 +12402,10 @@ async function submitHMFault() {
         resolvedDate = existing?.resolved_date ? existing.resolved_date.split('T')[0] : new Date().toISOString().split('T')[0];
     }
     try {
-        const res = await fetch('/api/equipment/faults', { method: 'POST', headers: {'Content-Type':'application/json'},
+        const imageUrl = await uploadHMFaultImage(window._hmFaultImageData);
+        const res = await communityFetch('/api/equipment/faults', { method: 'POST', headers: {'Content-Type':'application/json'},
             body: JSON.stringify({ id: id||null, groupId: currentGroup.id, equipmentId, title,
-                description: getEl('hmfault-desc').value||null, imageUrl: window._hmFaultImageData||null,
+                description: getEl('hmfault-desc').value||null, imageUrl: imageUrl||null,
                 severity: getEl('hmfault-severity').value, status: statusVal, resolvedDate,
                 technicianId: technicianId||null, scheduledDate: scheduledDate||null }) });
         const data = await res.json();
@@ -12387,7 +12430,12 @@ async function submitHMFault() {
 
 async function deleteHMFault(id) {
     if (!confirm('למחוק?')) return;
-    try { await fetch(`/api/equipment/faults/${id}`, { method: 'DELETE' }); showToast('info', 'נמחק'); await fetchHMFaults(); } catch(e) {}
+    try {
+        const r = await communityFetch(`/api/equipment/faults/${id}`, { method: 'DELETE' });
+        const d = await r.json();
+        if (!d.success) { showToast('error', d.error || 'שגיאה במחיקה'); return; }
+        showToast('info', 'נמחק'); await fetchHMFaults();
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
 }
 
 function openHMFaultStatusPopup(faultId) {
@@ -12429,7 +12477,7 @@ async function submitHMFaultStatus() {
     const status = getEl('hmfsp-status').value;
     const note = getEl('hmfsp-note').value.trim();
     try {
-        const res = await fetch(`/api/equipment/faults/${id}/status`, { method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ status, note, groupId: currentGroup.id }) });
+        const res = await communityFetch(`/api/equipment/faults/${id}/status`, { method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ status, note, groupId: currentGroup.id }) });
         const data = await res.json();
         if (data.success) { showToast('success', 'סטטוס עודכן'); getEl('hm-fault-status-popup').classList.add('hidden'); await fetchHMFaults(); setTimeout(() => showHMFaultTab(parseInt(id), 'notes'), 50); }
         else showToast('error', data.error || 'שגיאה');
@@ -12468,18 +12516,11 @@ async function submitHMNote() {
     const note = getEl('hmanp-note').value.trim();
     if (!note) { showToast('error', 'יש לכתוב הערה'); return; }
     try {
-        const res = await fetch(`/api/equipment/faults/${faultId}/notes`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ note, groupId: currentGroup.id }) });
+        const res = await communityFetch(`/api/equipment/faults/${faultId}/notes`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ note, groupId: currentGroup.id }) });
         const data = await res.json();
         if (data.success) { showToast('success', 'הערה נשמרה'); getEl('hm-add-note-popup').classList.add('hidden'); await fetchHMFaults(); setTimeout(() => showHMFaultTab(parseInt(faultId), 'notes'), 50); }
         else showToast('error', data.error || 'שגיאה');
     } catch(e) { showToast('error', 'שגיאת רשת'); }
-}
-
-function sendHMFaultWhatsApp(faultId) {
-    const fault = hmFaults.find(f => f.id === faultId); if (!fault) return;
-    const item = hmItems.find(i => i.id === fault.equipment_id); if (!item?.technician_phone) return;
-    const msg = `שלום, יש לנו בעיה בבית:\n*${fault.title}*\nציוד: ${item.name}\n${fault.description ? 'פירוט: ' + fault.description : ''}`;
-    window.open(`https://wa.me/${item.technician_phone.replace(/\D/g,'')}?text=${encodeURIComponent(msg)}`, '_blank');
 }
 
 // --- CONTACTS (אנשי קשר לתיקונים) ---
@@ -12552,8 +12593,8 @@ function renderBusinessServiceCallsTab() {
         return;
     }
     const faultsHtml = openFaults.map(f => {
-        const sev = { low:'🟢', normal:'🔵', medium:'🟠', high:'🔴', critical:'🚨' }[f.severity] || '⚠️';
-        const stF = { open:'פתוחה', in_progress:'בטיפול' }[f.status] || f.status;
+        const sev = { low:'🟢', medium:'🟠', high:'🔴', critical:'🚨' }[f.severity] || '⚠️';
+        const stF = HM_FSTATUS_LABELS[f.status] || f.status;
         return `<div onclick="switchTab('home-maintenance');setTimeout(()=>{switchHomeMaintenanceTab('faults')},150)" class="border-r-4 border-orange-300 bg-orange-50 rounded-2xl p-3 mb-2 cursor-pointer active:scale-[0.99] transition shadow-sm" style="touch-action:manipulation;">
             <div class="flex items-start justify-between gap-2">
                 <div class="flex-1 min-w-0">
@@ -12881,13 +12922,13 @@ window.linkTechToBusiness = async function(techId, bizGroupId, bizName, bizPhone
     try {
         let newTech = null;
         if (!techId) {
-            const r = await fetch('/api/equipment/technicians', { method:'POST', headers:{'Content-Type':'application/json'},
+            const r = await communityFetch('/api/equipment/technicians', { method:'POST', headers:{'Content-Type':'application/json'},
                 body: JSON.stringify({ groupId: currentGroup.id, name: bizName || 'בעל מקצוע', phone: bizPhone || null, businessGroupId: bizGroupId }) });
             const d = await r.json();
             if (!d.success) throw new Error(d.error || 'שגיאת שרת');
             newTech = d.technician;
         } else {
-            const r = await fetch(`/api/equipment/technicians/${techId}/link-business`, { method:'POST', headers:{'Content-Type':'application/json'},
+            const r = await communityFetch(`/api/equipment/technicians/${techId}/link-business`, { method:'POST', headers:{'Content-Type':'application/json'},
                 body: JSON.stringify({ businessGroupId: bizGroupId }) });
             const d = await r.json();
             if (!d.success) throw new Error(d.error || 'שגיאה בקישור');
@@ -12945,7 +12986,7 @@ async function submitHMContact() {
     const name = getEl('hmcontact-name').value.trim();
     if (!name) { showToast('error', 'שם חובה'); return; }
     try {
-        const res = await fetch('/api/equipment/technicians', { method: 'POST', headers: {'Content-Type':'application/json'},
+        const res = await communityFetch('/api/equipment/technicians', { method: 'POST', headers: {'Content-Type':'application/json'},
             body: JSON.stringify({ id: id||null, groupId: currentGroup.id, name,
                 companyName: getEl('hmcontact-company').value||null, specialty: getEl('hmcontact-specialty').value||null,
                 phone: getEl('hmcontact-phone').value||null, email: getEl('hmcontact-email').value||null,
@@ -12958,7 +12999,12 @@ async function submitHMContact() {
 
 async function deleteHMContact(id) {
     if (!confirm('למחוק?')) return;
-    try { await fetch(`/api/equipment/technicians/${id}`, { method: 'DELETE' }); showToast('info', 'נמחק'); await fetchHMContacts(); } catch(e) {}
+    try {
+        const r = await communityFetch(`/api/equipment/technicians/${id}`, { method: 'DELETE' });
+        const d = await r.json();
+        if (!d.success) { showToast('error', d.error || 'שגיאה במחיקה'); return; }
+        showToast('info', 'נמחק'); await fetchHMContacts();
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
 }
 
 // --- HISTORY ---
@@ -13001,9 +13047,10 @@ async function openHMHistory(itemId) {
     getEl('hmhist-search').value = '';
     modal.classList.remove('hidden');
     try {
-        const res = await fetch(`/api/equipment/items/${itemId}/history?groupId=${currentGroup.id}`);
+        const res = await communityFetch(`/api/equipment/items/${itemId}/history?groupId=${currentGroup.id}`);
         const data = await res.json();
         if (data.success) { hmHistData = data.history; getEl('hmhist-subtitle').textContent = `${hmHistData.length} רשומות`; renderHMHistFiltered(); }
+        else { getEl('hmhist-subtitle').textContent = data.error || 'שגיאה בטעינה'; }
     } catch(e) { getEl('hmhist-subtitle').textContent = 'שגיאה בטעינה'; }
 }
 
