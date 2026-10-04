@@ -3722,7 +3722,7 @@ async function patchPricingCatalogForRoutines() {
             "INSERT INTO system_settings (key, value) VALUES ('module_pricing_catalog', $1) ON CONFLICT (key) DO UPDATE SET value = $1",
             [JSON.stringify(catalog)]
         );
-        console.log('[ROUTINES] קטלוג התמחור עודכן אוטומטית עם מודול "שגרות"');
+        console.log('[PRICING-CATALOG] קטלוג התמחור עודכן אוטומטית עם מודולים חסרים');
     }
 }
 
@@ -5612,6 +5612,9 @@ app.patch('/api/sa/groups/:id/trial', verifySA, async (req, res) => {
 // ── Pricing Catalog ────────────────────────────────────────────────────────
 app.get('/api/sa/pricing-catalog', verifySA, async (req, res) => {
     try {
+        // מוודאים שהקטלוג השמור ב-DB לא "קפא" בגרסה ישנה (למשל אם ה-patch בעליית השרת
+        // רץ לפני ש-deploy חדש הגיע לייצור) — ריצה אידמפוטנטית וזולה בכל טעינה של המסך
+        await patchPricingCatalogForRoutines().catch(e => console.error('pricing catalog self-heal:', e.message));
         const [r, fm, pt] = await Promise.all([
             pool.query("SELECT value FROM system_settings WHERE key = 'module_pricing_catalog'"),
             pool.query("SELECT value FROM system_settings WHERE key = 'wizard_free_months'"),
