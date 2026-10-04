@@ -579,32 +579,116 @@ switchTab(t) {
 
 ### 3.12 קהילה / שכונה (`content-community`)
 
-**מטרה:** חיבור לעסקים מקומיים, הטבות, חדשות קהילתיות.
+> עודכן: 2026-10 | אומת מול קוד בפועל (server.js + public/app.js) כחלק מתהליך אפיון עומק.
+> **נכון לגרסה שלפני אוקטובר 2026 — נמצא XSS מאוחסן במאמרי קהילה (יכול לפגוע בכל חברי
+> הקהילה) ו-IDOR שיטתי ב-8+ endpoints עסקיים של קהילה.** כולם תוקנו, מתועד למטה.
 
-**3 תת-טאבים:**
+**מטרה:** חיבור משפחות ועסקים באותה שכונה/יישוב — הצטרפות לקהילה, הטבות/מבצעים מעסקים
+מקומיים, חדשות קהילתיות, ורכישה קבוצתית (FlowPool, ר' סעיף 3.12.1).
 
+#### הקמת קהילה — שני נתיבים
+1. **Super-Admin** — `POST /api/sa/communities` (`verifySA`): יוצר ישירות, כולל מנהל קהילה
+   (אימייל/סיסמה) אם צוין.
+2. **משפחה יוזמת** — `POST /api/community/user-create` (`verifyFamily`): יוצר קהילה
+   ב-`status='pending'` (ממתינה לאישור SA), מקצה קוד `C-XXXXXX`, ומצרף את היוזמת אוטומטית
+   כחברה — **אך לא כמנהלת קהילה** (`is_community_manager` נשאר `FALSE` כברירת מחדל).
+   מינוי מנהל קהילה הוא פעולה נפרדת שדורשת SA או מנהל אזור (ר' למטה).
+
+#### הצטרפות משפחה לקהילה
+`POST /api/community/join` — לפי קוד קהילה (6 תווים, UPPERCASE), עם תמיכה בקוד הפניה
+(`referralCode`). מגבלה: **עד 5 קהילות מאושרות** במקביל למשפחה. ההצטרפות יוצרת שורה
+ב-`status='pending'` — **דורשת אישור מנהל קהילה** (`POST /api/community/manager/family/approve`)
+לפני שהחברות הופכת פעילה (לא הצטרפות מיידית).
+
+**יציאה מקהילה** — `DELETE /api/community/leave/:groupId/:communityId`: מוחק את שורת
+החברות. **אם המשפחה העוזבת היא מנהלת הקהילה היחידה — הפעולה נחסמת** (תוקן, ר' הערה
+היסטורית) כדי שהקהילה לא תישאר ללא מנהל כלל.
+
+#### תפקיד "מנהל קהילה" (`is_community_manager`)
+עמודה ברמת **המשפחה (group)**, לא ברמת משתמש בודד — כל מי שמחובר תחת אותה קבוצה נחשב
+"מנהל". מוענק ע"י SA (`PUT /api/sa/communities/:commId/set-manager`) או מנהל אזור
+(`POST /api/zone-manager/set-community-manager`, עם בדיקת שיוך האזור). ניתן למנות יותר
+ממשפחה אחת כמנהלת לאותה קהילה (אין unique constraint). **מנהל אזור לא נגע בתהליך זה —
+מנוהל במלואו ע"י הסופר-אדמין/מנהל האזור, כפי שהוחלט, ולא שונה.**
+
+**סמכויות מנהל קהילה:** אישור/דחיית עסקים ומשפחות ממתינות, בקשת הסרת עסק (לא הסרה ישירה —
+עובר דרך מנהל אזור/SA), ניהול קמפיינים ("אשכולות" קידום משותף), פרסום מאמרים/חדשות, צפייה
+בארנק הקהילה (Flow coins) ותנועותיו.
+
+**הגבלת תפקיד בתוך המשפחה (תוקן):** כל פעולות הניהול הפעילות (אישור/דחיית עסק ומשפחה,
+בקשת/ביטול הסרת עסק, פרסום מאמר, יצירה/עריכת קמפיין, הוספת עסק/מוצר לקמפיין) **חסומות כעת
+למשתמש מסוג CHILD** בשרת, גם אם המשפחה שלו מוגדרת כמנהלת קהילה — תואם את התיקון המקביל
+שבוצע במודול FlowPool. צפייה בנתונים (רשימת קמפיינים, קטלוג עסק) נשארה פתוחה לכל התפקידים.
+
+#### תתי-טאבים ב-UI
 | Tab | תיאור |
 |---|---|
-| חיבור | התחברות לקהילה בקוד |
-| הטבות | עסקים מקומיים + הנחות בלעדיות |
-| חדשות | עדכוני קהילה (Coming Soon) |
+| חיבור | הצטרפות לקהילה בקוד, רשימת קהילות מחוברות, "התנתק" |
+| הטבות | עסקים מקומיים + הנחות בלעדיות (`renderFamilyCommunities`) |
+| חדשות | מאמרים שמפרסם מנהל הקהילה |
+| FlowPool / ארכיון | ר' סעיף 3.12.1 |
 
-**חיבור לקהילה:**
-- שדה קוד קהילה (6 תווים, UPPERCASE) + כפתור "התחבר"
-- `POST /api/community/user-create` → שיוך לקהילה
-- `currentGroup.community_id` מתעדכן
-- "התנתק" → `leaveCommunity()`
+#### אינטגרציית עסקים
+- הזמנת עסק ע"י משפחה (`POST /api/community/invite-business`) → עסק מאשר ובוחר הנחה
+  (`biz_invited`→`comm_mgr_pending`) → מנהל קהילה מאשר ישירות, **או**
+- הצטרפות עצמאית של עסק (`POST /api/biz/communities/join`) → עובר דרך `pending_cm_review`
+  → "אור ירוק" ראשוני ממנהל הקהילה (`forward-approve`) → אישור סופי ממנהל אזור/SA.
+- פרסום הטבה (`POST /api/biz/community/promotions`, `status='pending'`) דורש אישור SA.
+- מימוש הטבה ע"י משפחה (`POST /api/community/promotions/:id/redeem`) — **כעת דורש חברות
+  פעילה (`status='approved'`) בקהילה הרלוונטית** (תוקן, ר' הערה היסטורית).
+- באנרים: בקשת באנר על הטבה מאושרת (`banner-request`) → אישור SA → מוצג ב-
+  `GET /api/community/approved-banners` (ציבורי).
 
-**הטבות עסקים:**
-- `renderFamilyCommunities(window.communityBusinessesCache)` — רנדור עסקים מהקהילה
-- כרטיס עסק: שם, הנחה, כפתור "הזמן"
-- חיבור ל-`/api/storefront/:code` של העסק
-
-**API:**
+**API עיקרי:**
 | Method | Path | תיאור |
 |---|---|---|
-| POST | `/api/community/user-create` | הצטרפות לקהילה |
-| GET | `/api/community/my-initiatives/:groupId` | יוזמות |
+| POST | `/api/community/user-create` | יצירת קהילה ע"י משפחה |
+| GET | `/api/community/my-initiatives/:groupId` | קהילות שהמשפחה יזמה |
+| POST | `/api/community/join` | הצטרפות (ממתין לאישור) |
+| DELETE | `/api/community/leave/:groupId/:communityId` | יציאה (חסום אם מנהל יחיד) |
+| POST | `/api/community/manager/family/approve\|reject` | אישור/דחיית משפחה ע"י מנהל קהילה |
+| POST | `/api/community/manager/community-business/approve\|reject\|forward-approve\|request-removal\|cancel-removal-request` | ניהול עסקים ע"י מנהל קהילה |
+| GET | `/api/community/manager-data/:groupId` | ארנק הקהילה + תנועות |
+| GET/POST | `/api/community/manager/campaigns*` | קמפיינים |
+| POST | `/api/community/manager/articles` | פרסום מאמר/חדשות |
+| POST | `/api/biz/communities/join`, `/api/biz/community-invitation/accept\|decline`, `/api/biz/community/promotions*`, `/api/biz/community-discount` | צד עסק — כולן מוגנות כעת בהשוואת זהות מול session (ר' הערה היסטורית) |
+
+**טבלאות:** `communities`, `family_communities` (`is_community_manager`, `status`),
+`community_businesses` (`status`: biz_invited/comm_mgr_pending/pending_cm_review/zm_pending/
+approved/rejected/removed), `community_promotions`, `community_banner_requests`,
+`community_articles`, `community_campaigns` + `community_campaign_businesses/products`.
+
+**הערה היסטורית (תועד למען שקיפות)**: עד לתיקון —
+1. **XSS מאוחסן במאמרי/חדשות קהילה** — `safeStr` (לא בורח `<`/`>`) הזריק `title`/`body` של
+   מאמרים ל-`innerHTML`. מנהל קהילה (כולל ילד/ה, לפני תיקון #3) יכול היה להזריק קוד שירוץ
+   אצל **כל** חברי הקהילה שפותחים את טאב החדשות. תוקן ל-`escHtml`.
+2. **IDOR שיטתי ב-8 endpoints עסקיים**: `POST /api/biz/communities/join`,
+   `GET /api/biz/community-invitations/:bizId`,
+   `POST /api/biz/community-invitation/accept|decline`,
+   `DELETE /api/biz/communities/leave/:communityId/:bizId`,
+   `POST /api/biz/community/promotions`, `GET /api/biz/community/promotions/:bizId`,
+   `POST /api/biz/community/promotions/:id/banner-request`, `PUT /api/biz/community-discount`,
+   וגם `GET /api/biz/communities/my/:bizId` — כולם קיבלו `businessId`/`bizId` מה-body/URL
+   **ללא השוואה** ל-`req.bizAuth.groupId` שה-middleware `verifyBiz` מספק. כל עסק מחובר יכול
+   היה לפעול בשם כל עסק אחר (הצטרפות/עזיבת קהילות, קביעת הנחות, פרסום הטבות, בקשת באנרים).
+   תוקן בכולם.
+3. **ילד (CHILD) קיבל בפועל את כל סמכויות מנהל הקהילה** — כתוצאה משילוב של טאב "קהילה"
+   המוחרג לגמרי מהרשאות (`enforcePermissions`) ונכפה על ילדים, עם בדיקות שרת שבדקו רק
+   `group_id` ולא `role`. תוקן: נוספה בדיקת `role!=='CHILD'` (`blockIfChildFamilyUser`,
+   הפונקציה המשותפת שנוספה כבר במודול FlowPool) בכל פעולת ניהול קהילה פעילה.
+4. **מימוש הטבת קהילה (`redeem`) ללא בדיקת חברות בקהילה כלל** — כל משפחה שמכירה
+   `promotionId` קיבלה זיכוי Flow, גם ללא חברות פעילה (או לאחר עזיבה). תוקן.
+5. **עזיבת קהילה ע"י מנהל יחיד הייתה אפשרית ללא כל התראה**, והייתה משאירה את הקהילה ללא
+   מנהל כלל, ללא מנגנון חלופי. תוקן: הפעולה נחסמת כעת (409) במקרה כזה, עם הנחיה לפנות
+   ל-SA/מנהל אזור למינוי מנהל חלופי לפני העזיבה.
+6. דליפת `e.message` גולמי ברוב ה-endpoints שנסקרו — תוקנו ההודעות שנגעו בממצאים לעיל
+   להודעות כלליות בעברית (לא בוצע מעבר גורף על כל קובץ הקהילות, ר' מגבלות).
+7. XSS נוסף בשם/עיר קהילה ובתוכן הטבות עסק (אותה בעיית `safeStr`) ברוב מוקדי הרינדור —
+   תוקן ל-`escHtml`.
+
+**מגבלות ידועות (לא תוקנו — מחוץ לסקופ הממצאים שתועדו):** לא כל endpoint עם `e.message`
+במודול הקהילות נסרק/תוקן (המיקוד היה בממצאים המתועדים); ייתכנו עוד מוקדי `safeStr` לא
+קריטיים ברינדור קהילה שלא אותרו בסבב זה.
 
 ---
 

@@ -6083,13 +6083,13 @@ async function loadCommunityArticles(communityId) {
             const shortBody = isLong ? a.body.slice(0, 200) + '...' : a.body;
             const id = `article-body-${a.id}`;
             return `<div class="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-                ${a.image_url ? `<img src="${safeStr(a.image_url)}" class="w-full h-36 object-cover">` : ''}
+                ${a.image_url ? `<img src="${escHtml(a.image_url)}" class="w-full h-36 object-cover">` : ''}
                 <div class="p-4">
                     <div class="flex justify-between items-start mb-2">
-                        <h4 class="font-bold text-slate-800 text-sm">${safeStr(a.title)}</h4>
+                        <h4 class="font-bold text-slate-800 text-sm">${escHtml(a.title)}</h4>
                         <span class="text-[10px] text-slate-400 shrink-0 ml-2">${date}</span>
                     </div>
-                    <p id="${id}" class="text-xs text-slate-600 leading-relaxed">${safeStr(shortBody)}</p>
+                    <p id="${id}" class="text-xs text-slate-600 leading-relaxed">${escHtml(shortBody)}</p>
                     ${isLong ? `<button onclick="
                         const el=document.getElementById('${id}');
                         const btn=this;
@@ -6165,7 +6165,7 @@ function renderFamCommunityBenefits() {
         const multiComm = comms.length > 1;
         const commBadges = comms.map(c => {
             const active = parseInt(c.family_count) >= (parseInt(c.min_families) || 30);
-            return `<span class="text-[9px] font-bold ${active ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-amber-50 text-amber-700 border-amber-100'} border px-1.5 py-0.5 rounded-md">${c.discount_pct}% הנחה ב-${safeStr(c.name)}</span>`;
+            return `<span class="text-[9px] font-bold ${active ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-amber-50 text-amber-700 border-amber-100'} border px-1.5 py-0.5 rounded-md">${c.discount_pct}% הנחה ב-${escHtml(c.name)}</span>`;
         }).join('');
         const actionBtn = multiComm
             ? `<button onclick="openBizCommunityPicker('${safeStr(biz.group_code)}','${safeStr(biz.business_name).replace(/'/g,"\\'")}',${JSON.stringify(comms).replace(/"/g,'&quot;')})" class="bg-slate-900 text-white px-3 py-2 rounded-xl text-xs font-bold hover:bg-slate-800 transition shadow-sm shrink-0">לחנות ▾</button>`
@@ -6740,7 +6740,7 @@ function renderMyInitiatives() {
         <div class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 mb-3 fade-in">
             <div class="flex justify-between items-start mb-2">
                 <div>
-                    <h4 class="font-bold text-slate-800">${safeStr(c.name)} <span class="text-[10px] font-normal text-slate-500 bg-slate-100 px-1.5 rounded max-w-[150px] inline-block truncate align-bottom">${safeStr(c.city)}</span></h4>
+                    <h4 class="font-bold text-slate-800">${escHtml(c.name)} <span class="text-[10px] font-normal text-slate-500 bg-slate-100 px-1.5 rounded max-w-[150px] inline-block truncate align-bottom">${escHtml(c.city)}</span></h4>
                     <p class="text-[10px] text-${color}-600 font-bold bg-${color}-50 px-2 py-0.5 rounded-lg border border-${color}-100 inline-block mt-1">סטטוס: ${statusText}</p>
                 </div>
                 <button onclick="window.open('https://wa.me/?text=${waText}', '_blank')" class="bg-[#25D366] text-white w-8 h-8 rounded-full flex items-center justify-center hover:bg-[#1ebd58] transition shadow-sm" title="שלח הזמנה לחברים בוואטסאפ"><i class="fa-brands fa-whatsapp"></i></button>
@@ -6821,7 +6821,7 @@ function renderFamilyCommunities() {
                                 <button onclick="event.stopPropagation();leaveCommunity(${c.id}, '${safeStr(c.name)}')" class="text-[10px] font-bold text-red-500 hover:bg-red-50 px-2 py-1 rounded transition border border-transparent hover:border-red-200">התנתק</button>
                             </div>
                             <div class="text-right">
-                                <h4 class="font-bold text-indigo-900 text-sm">${safeStr(c.name)}</h4>
+                                <h4 class="font-bold text-indigo-900 text-sm">${escHtml(c.name)}</h4>
                                 <p class="text-[10px] text-indigo-700">אזורים: ${safeStr(c.city || 'כללי')}</p>
                                 <div class="flex gap-1 mt-1 justify-end">${walletBadge}${managerBadge}</div>
                             </div>
@@ -6841,7 +6841,7 @@ function renderFamilyCommunities() {
                         <div class="flex justify-between items-center">
                             <span class="text-[10px] font-bold bg-amber-100 text-amber-700 px-2 py-1 rounded-lg border border-amber-200"><i class="fa-solid fa-hourglass-half mr-1"></i>ממתין לאישור מנהל</span>
                             <div class="text-right">
-                                <h4 class="font-bold text-amber-900 text-sm">${safeStr(c.name)}</h4>
+                                <h4 class="font-bold text-amber-900 text-sm">${escHtml(c.name)}</h4>
                                 <p class="text-[10px] text-amber-700">אזורים: ${safeStr(c.city || 'כללי')}</p>
                             </div>
                         </div>
@@ -6971,7 +6971,7 @@ window.openBizCommunityPicker = function(groupCode, bizName, comms) {
                     : `<span class="text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-100">${c.discount_pct}% הנחה — ${c.family_count}/${c.min_families || 30} משפחות</span>`;
                 return `<a href="${window.location.origin}/storefront.html?store=${groupCode}&communityId=${c.id}" target="_blank" onclick="getEl('biz-comm-picker-modal').remove()"
                     class="flex justify-between items-center bg-slate-50 hover:bg-indigo-50 border border-slate-100 hover:border-indigo-200 rounded-2xl px-4 py-3 transition cursor-pointer">
-                    <div class="font-bold text-slate-800 text-sm">${safeStr(c.name)}</div>
+                    <div class="font-bold text-slate-800 text-sm">${escHtml(c.name)}</div>
                     ${badge}
                 </a>`;
             }).join('')}
@@ -7058,7 +7058,7 @@ function renderCommunityPromotions(promos) {
                 <div class="text-[10px] text-slate-400 mt-0.5">${safeStr(p.biz_name || p.business_name)} · ${safeStr(p.comm_name || p.community_name)}</div>
             </div>
         </div>
-        ${p.content ? `<p class="text-xs text-slate-600 leading-relaxed mb-2">${safeStr(p.content)}</p>` : ''}
+        ${p.content ? `<p class="text-xs text-slate-600 leading-relaxed mb-2">${escHtml(p.content)}</p>` : ''}
         <div class="flex justify-between items-center pt-2 border-t border-orange-100">
             <span class="text-[10px] text-slate-400"></span>
             ${p.valid_until ? `<span class="text-[10px] text-orange-500 font-bold">⏰ עד ${new Date(p.valid_until).toLocaleDateString('he-IL')}</span>` : ''}
@@ -7669,7 +7669,7 @@ window.openFamReferralModal = function() {
             <div>
                 <label class="text-xs font-bold text-slate-600 mb-1 block">לאיזו קהילה?</label>
                 <select id="fam-refer-comm" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm">
-                    ${comms.map(c => `<option value="${c.id}">${safeStr(c.name)}</option>`).join('')}
+                    ${comms.map(c => `<option value="${c.id}">${escHtml(c.name)}</option>`).join('')}
                 </select>
             </div>` : '<p class="text-xs text-red-400">אינך חבר בקהילה. הצטרף לקהילה תחילה.</p>'}
             <div>
@@ -7717,7 +7717,7 @@ window.famSearchByInterest = async function() {
             const joined = myIds.has(String(c.id));
             return `<div class="bg-white border border-slate-100 rounded-2xl p-3 shadow-sm flex justify-between items-center">
                 <div class="text-right">
-                    <div class="font-bold text-slate-800 text-sm">${safeStr(c.name)}</div>
+                    <div class="font-bold text-slate-800 text-sm">${escHtml(c.name)}</div>
                     <div class="text-xs text-slate-500">${safeStr(c.city || 'ארצי')} · ${c.family_count || 0} משפחות · ${c.biz_count || 0} עסקים</div>
                     <div class="text-[10px] text-teal-600 mt-0.5">תגית: ${safeStr(c.interest_tag || tag)}</div>
                 </div>
@@ -7790,7 +7790,7 @@ function _renderDiscoveryMyComms() {
         html += approved.map(c => `
             <div class="bg-white border border-green-100 rounded-xl p-3 mb-2 shadow-sm flex justify-between items-center">
                 <div class="text-right">
-                    <div class="font-bold text-slate-800 text-sm">${safeStr(c.name)}</div>
+                    <div class="font-bold text-slate-800 text-sm">${escHtml(c.name)}</div>
                     <div class="text-xs text-slate-500">${safeStr(c.city || 'כללי')}</div>
                 </div>
                 <span class="text-xs text-green-600 font-bold bg-green-50 px-3 py-1.5 rounded-xl border border-green-100">✅ חבר</span>
@@ -7801,7 +7801,7 @@ function _renderDiscoveryMyComms() {
         html += pending.map(c => `
             <div class="bg-white border border-amber-100 rounded-xl p-3 mb-2 shadow-sm flex justify-between items-center">
                 <div class="text-right">
-                    <div class="font-bold text-slate-800 text-sm">${safeStr(c.name)}</div>
+                    <div class="font-bold text-slate-800 text-sm">${escHtml(c.name)}</div>
                     <div class="text-xs text-slate-500">${safeStr(c.city || 'כללי')}</div>
                 </div>
                 <span class="text-xs text-amber-600 font-bold bg-amber-50 px-3 py-1.5 rounded-xl border border-amber-100">⏳ ממתין</span>
@@ -7851,7 +7851,7 @@ window.searchCommunitiesByCity = async function(city) {
                     const typeLabel = c.community_type === 'interest' ? '🔖 עניין' : '📍 גיאוגרפית';
                     return `<div class="bg-white border border-slate-100 rounded-xl p-3 mb-2 shadow-sm flex justify-between items-center">
                         <div class="text-right">
-                            <div class="font-bold text-slate-800 text-sm">${safeStr(c.name)}</div>
+                            <div class="font-bold text-slate-800 text-sm">${escHtml(c.name)}</div>
                             <div class="text-xs text-slate-500">${c.family_count || 0} משפחות · ${c.biz_count || 0} עסקים · ${typeLabel}</div>
                             ${c.zone_name ? `<div class="text-[10px] text-indigo-500 mt-0.5">📍 ${safeStr(c.zone_name)}</div>` : ''}
                             ${c.interest_tags ? `<div class="text-[10px] text-teal-600 mt-0.5">${safeStr(c.interest_tags)}</div>` : ''}
@@ -7906,7 +7906,7 @@ function renderFamilyCommunityPromos(promos) {
                     <p class="text-[10px] text-slate-500">מאת: ${safeStr(p.biz_name || 'עסק')}</p>
                 </div>
             </div>
-            ${p.content ? `<p class="text-xs text-slate-600 mb-3 text-right leading-relaxed">${safeStr(p.content)}</p>` : ''}
+            ${p.content ? `<p class="text-xs text-slate-600 mb-3 text-right leading-relaxed">${escHtml(p.content)}</p>` : ''}
             ${p.promo_code ? `<div class="mt-2 text-center"><span class="font-mono font-black text-base bg-slate-900 text-white px-4 py-1.5 rounded-xl tracking-widest">${safeStr(p.promo_code)}</span></div>` : ''}
             ${storeBtn}${phoneBtn}
         </div>`;
@@ -8141,7 +8141,7 @@ async function openCommunityManagerPanel(commId) {
         <div class="bg-white w-full max-w-lg rounded-3xl p-6 shadow-2xl flex flex-col max-h-[90vh] overflow-y-auto modal-scroll relative" dir="rtl">
             <button onclick="document.getElementById('comm-manager-modal').remove()" class="absolute top-4 left-4 text-slate-400 hover:text-slate-600 bg-slate-100 w-8 h-8 rounded-full flex items-center justify-center transition"><i class="fa-solid fa-xmark"></i></button>
             <h3 class="text-xl font-bold mb-1 text-slate-800"><i class="fa-solid fa-star text-purple-500 mr-2"></i> ניהול קהילה</h3>
-            <p class="text-sm text-slate-500 mb-5">${safeStr(comm?.community_name || '')}</p>
+            <p class="text-sm text-slate-500 mb-5">${escHtml(comm?.community_name || '')}</p>
 
             <!-- ארנק -->
             <div class="bg-gradient-to-l from-amber-50 to-yellow-50 border border-amber-200 rounded-2xl p-5 mb-5">
@@ -8547,7 +8547,7 @@ window.openInviteBizModal = function(commId, commName) {
     modal.innerHTML = `
     <div class="bg-white rounded-t-3xl w-full max-w-lg p-5 pb-8" dir="rtl">
         <div class="flex justify-between items-center mb-4">
-            <h3 class="font-bold text-slate-800">🏪 הזמן עסק לקהילת ${safeStr(commName)}</h3>
+            <h3 class="font-bold text-slate-800">🏪 הזמן עסק לקהילת ${escHtml(commName)}</h3>
             <button onclick="document.getElementById('invite-biz-modal').remove()" class="text-slate-400 text-xl">&times;</button>
         </div>
         <div class="flex gap-2 mb-3">

@@ -15134,18 +15134,20 @@ app.post('/api/community/manager/articles', verifyFamily, async (req, res) => {
         const { community_id, group_id, title, body, image_url } = req.body;
         if (parseInt(group_id) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         if (!title || !body || !community_id) return res.status(400).json({ error: 'missing fields' });
+        if (String(title).length > 200 || String(body).length > 5000) return res.status(400).json({ error: 'טקסט ארוך מדי' });
         // verify that group_id is indeed community manager of community_id
         const check = await pool.query(
             `SELECT 1 FROM family_communities WHERE group_id=$1 AND community_id=$2 AND is_community_manager=TRUE`,
             [group_id, community_id]
         );
         if (!check.rows.length) return res.status(403).json({ error: 'Not a community manager' });
+        if (await blockIfChildFamilyUser(req, res)) return;
         const result = await pool.query(
             'INSERT INTO community_articles (community_id, author_type, author_id, title, body, image_url) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *',
             [community_id, 'community_manager', group_id, title, body, image_url || null]
         );
         res.json({ article: result.rows[0] });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch(e) { res.status(500).json({ error: 'שגיאה פנימית' }); }
 });
 
 app.post('/api/store/ai-desc', async (req, res) => {
@@ -15834,6 +15836,8 @@ app.post('/api/community/user-create', verifyFamily, async (req, res) => {
     try {
         const { name, city, groupId } = req.body;
         if (parseInt(groupId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
+        if (!name || !city) return res.status(400).json({ error: 'חסרים שדות חובה' });
+        if (String(name).length > 100 || String(city).length > 100) return res.status(400).json({ error: 'טקסט ארוך מדי' });
         const code = 'C-' + generateGroupCode();
         const result = await pool.query(
             `INSERT INTO communities (name, city, code, created_by_group_id, status, min_families) VALUES ($1, $2, $3, $4, 'pending', 30) RETURNING *`,
@@ -15846,7 +15850,7 @@ app.post('/api/community/user-create', verifyFamily, async (req, res) => {
             [groupId, commId]
         );
         res.json({ success: true, community: result.rows[0] });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch(e) { res.status(500).json({ error: 'שגיאה פנימית' }); }
 });
 
 app.get('/api/community/my-initiatives/:groupId', verifyFamily, async (req, res) => {
@@ -15867,6 +15871,7 @@ app.get('/api/community/my-initiatives/:groupId', verifyFamily, async (req, res)
 
 app.get('/api/biz/communities/my/:bizId', verifyBiz, async (req, res) => {
     try {
+        if (parseInt(req.params.bizId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const result = await pool.query(`
             SELECT c.id, c.name, c.city, c.image_url, cb.discount_pct, cb.status,
             (SELECT COUNT(*) FROM family_groups WHERE community_id = c.id AND type = 'FAMILY') as families_count,
@@ -16044,13 +16049,14 @@ async function resolveCommunityFinalApprovalStatus(communityId) {
 app.post('/api/biz/communities/join', verifyBiz, async (req, res) => {
     try {
         const { communityId, businessId, discountPct } = req.body;
+        if (parseInt(businessId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const status = await resolveCommunityJoinStatus(communityId);
         await pool.query(
             'INSERT INTO community_businesses (community_id, business_id, discount_pct, status, created_at) VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP) ON CONFLICT (community_id, business_id) DO UPDATE SET discount_pct=$3, status=$4, rejected_at=NULL, removal_requested=FALSE, removed_at=NULL, removed_by=NULL',
             [communityId, businessId, parseFloat(discountPct)||0, status]
         );
         res.json({ success: true });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch(e) { res.status(500).json({ error: 'שגיאה פנימית' }); }
 });
 
 // משפחה — חיפוש עסקים להמלצה
@@ -16087,35 +16093,38 @@ app.post('/api/community/invite-business', verifyFamily, async (req, res) => {
 // עסק — הזמנות ממתינות מקהילות
 app.get('/api/biz/community-invitations/:bizId', verifyBiz, async (req, res) => {
     try {
+        if (parseInt(req.params.bizId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const result = await pool.query(
             `SELECT cb.community_id, c.name as comm_name, c.city, cb.created_at
              FROM community_businesses cb JOIN communities c ON c.id=cb.community_id
              WHERE cb.business_id=$1 AND cb.status='biz_invited' ORDER BY cb.created_at DESC`,
             [req.params.bizId]);
         res.json({ success: true, invitations: result.rows });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch(e) { res.status(500).json({ error: 'שגיאה פנימית' }); }
 });
 
 // עסק — אישור הזמנה + קביעת אחוז הנחה → comm_mgr_pending
 app.post('/api/biz/community-invitation/accept', verifyBiz, async (req, res) => {
     try {
         const { businessId, communityId, discountPct } = req.body;
+        if (parseInt(businessId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         if (discountPct === undefined || discountPct === '') return res.status(400).json({ error: 'יש להזין אחוז הנחה' });
         const r = await pool.query(
             `UPDATE community_businesses SET status='comm_mgr_pending', discount_pct=$1 WHERE community_id=$2 AND business_id=$3 AND status='biz_invited' RETURNING community_id`,
             [parseFloat(discountPct)||0, communityId, businessId]);
         if (!r.rows.length) return res.status(404).json({ error: 'הזמנה לא נמצאה' });
         res.json({ success: true });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch(e) { res.status(500).json({ error: 'שגיאה פנימית' }); }
 });
 
 // עסק — דחיית הזמנה
 app.post('/api/biz/community-invitation/decline', verifyBiz, async (req, res) => {
     try {
         const { businessId, communityId } = req.body;
+        if (parseInt(businessId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         await pool.query(`UPDATE community_businesses SET status='rejected', rejected_at=CURRENT_TIMESTAMP, rejected_by='business' WHERE community_id=$1 AND business_id=$2 AND status='biz_invited'`, [communityId, businessId]);
         res.json({ success: true });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch(e) { res.status(500).json({ error: 'שגיאה פנימית' }); }
 });
 
 // מנהל קהילה — אישור עסק שהוא הזמין ואישר (comm_mgr_pending → approved, ישיר, ללא צורך
@@ -16125,6 +16134,7 @@ app.post('/api/community/manager/community-business/approve', verifyFamily, asyn
     try {
         const { communityId, businessId } = req.body;
         if (!(await verifyCommunityManagerAccess(req.familyAuth.groupId, communityId))) return res.status(403).json({ error: 'אין הרשאה לקהילה זו' });
+        if (await blockIfChildFamilyUser(req, res)) return;
         const r = await pool.query(
             `UPDATE community_businesses SET status='approved' WHERE community_id=$1 AND business_id=$2 AND status='comm_mgr_pending' RETURNING community_id`,
             [communityId, businessId]);
@@ -16141,6 +16151,7 @@ app.post('/api/community/manager/community-business/reject', verifyFamily, async
     try {
         const { communityId, businessId } = req.body;
         if (!(await verifyCommunityManagerAccess(req.familyAuth.groupId, communityId))) return res.status(403).json({ error: 'אין הרשאה לקהילה זו' });
+        if (await blockIfChildFamilyUser(req, res)) return;
         const r = await pool.query(
             `UPDATE community_businesses SET status='rejected', rejected_at=CURRENT_TIMESTAMP, rejected_by='community_manager'
              WHERE community_id=$1 AND business_id=$2 AND status IN ('comm_mgr_pending','pending_cm_review') RETURNING community_id`,
@@ -16158,6 +16169,7 @@ app.post('/api/community/manager/community-business/forward-approve', verifyFami
     try {
         const { communityId, businessId } = req.body;
         if (!(await verifyCommunityManagerAccess(req.familyAuth.groupId, communityId))) return res.status(403).json({ error: 'אין הרשאה לקהילה זו' });
+        if (await blockIfChildFamilyUser(req, res)) return;
         const nextStatus = await resolveCommunityFinalApprovalStatus(communityId);
         const r = await pool.query(
             `UPDATE community_businesses SET status=$3 WHERE community_id=$1 AND business_id=$2 AND status='pending_cm_review' RETURNING community_id`,
@@ -16174,6 +16186,7 @@ app.post('/api/community/manager/community-business/request-removal', verifyFami
     try {
         const { communityId, businessId } = req.body;
         if (!(await verifyCommunityManagerAccess(req.familyAuth.groupId, communityId))) return res.status(403).json({ error: 'אין הרשאה לקהילה זו' });
+        if (await blockIfChildFamilyUser(req, res)) return;
         const r = await pool.query(
             `UPDATE community_businesses SET removal_requested=TRUE, removal_requested_at=CURRENT_TIMESTAMP
              WHERE community_id=$1 AND business_id=$2 AND status='approved' RETURNING community_id`,
@@ -16188,6 +16201,7 @@ app.post('/api/community/manager/community-business/cancel-removal-request', ver
     try {
         const { communityId, businessId } = req.body;
         if (!(await verifyCommunityManagerAccess(req.familyAuth.groupId, communityId))) return res.status(403).json({ error: 'אין הרשאה לקהילה זו' });
+        if (await blockIfChildFamilyUser(req, res)) return;
         await pool.query(
             `UPDATE community_businesses SET removal_requested=FALSE, removal_requested_at=NULL
              WHERE community_id=$1 AND business_id=$2 AND status='approved'`,
@@ -16198,9 +16212,10 @@ app.post('/api/community/manager/community-business/cancel-removal-request', ver
 
 app.delete('/api/biz/communities/leave/:communityId/:bizId', verifyBiz, async (req, res) => {
     try {
+        if (parseInt(req.params.bizId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         await pool.query('DELETE FROM community_businesses WHERE community_id=$1 AND business_id=$2', [req.params.communityId, req.params.bizId]);
         res.json({ success: true });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch(e) { res.status(500).json({ error: 'שגיאה פנימית' }); }
 });
 
 // Validate store coupon at checkout (must be before /:groupId to avoid route conflict)
@@ -17043,6 +17058,7 @@ app.post('/api/biz/community/promotions', verifyBiz, async (req, res) => {
     try {
         const { businessId, communityId, title, content, discountPct, validUntil, promoType, catalogItemId, productPromoPrice, conditionType, conditionValue, conditionItemId, conditionCategory } = req.body;
         if (!businessId || !communityId || !title) return res.status(400).json({ error: 'חסרים שדות חובה' });
+        if (parseInt(businessId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const check = await pool.query(
             `SELECT 1 FROM community_businesses WHERE community_id=$1 AND business_id=$2 AND status='approved'`,
             [communityId, businessId]);
@@ -17056,12 +17072,13 @@ app.post('/api/biz/community/promotions', verifyBiz, async (req, res) => {
              type, catalogItemId || null, productPromoPrice != null ? parseFloat(productPromoPrice) : null,
              cType, conditionValue != null ? parseFloat(conditionValue) : null, conditionItemId || null, conditionCategory || null]);
         res.json({ success: true, promo: result.rows[0] });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch(e) { res.status(500).json({ error: 'שגיאה פנימית' }); }
 });
 
 // עסק — רשימת מבצעי הקהילה של העסק
 app.get('/api/biz/community/promotions/:bizId', verifyBiz, async (req, res) => {
     try {
+        if (parseInt(req.params.bizId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const result = await pool.query(`
             SELECT cp.*, c.name as comm_name
             FROM community_promotions cp
@@ -17070,7 +17087,7 @@ app.get('/api/biz/community/promotions/:bizId', verifyBiz, async (req, res) => {
             ORDER BY cp.created_at DESC
         `, [req.params.bizId]);
         res.json({ success: true, promos: result.rows });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch(e) { res.status(500).json({ error: 'שגיאה פנימית' }); }
 });
 
 // משפחה — מבצעים מאושרים בקהילות שלה
@@ -17730,16 +17747,28 @@ app.post('/api/community/join', verifyFamily, async (req, res) => {
             [groupId, commId, 'pending', referrerId]);
 
         res.json({success: true, pending: true, community: commRes.rows[0], referrerFound: !!referrerId});
-    } catch(e) { res.status(500).json({error: e.message}); }
+    } catch(e) { res.status(500).json({error: 'שגיאה פנימית'}); }
 });
 
-// 4. ניתוק מקהילה ספציפית
+// 4. ניתוק מקהילה ספציפית — חסום אם זו המשפחה היחידה שמנהלת את הקהילה (כדי שלא
+// תישאר קהילה ללא שום מנהל; יש לפנות ל-SA/מנהל אזור למינוי מנהל אחר לפני העזיבה)
 app.delete('/api/community/leave/:groupId/:communityId', verifyFamily, async (req, res) => {
     try {
         if (parseInt(req.params.groupId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
+        const myRow = await pool.query(
+            `SELECT is_community_manager FROM family_communities WHERE group_id=$1 AND community_id=$2`,
+            [req.params.groupId, req.params.communityId]);
+        if (myRow.rows.length && myRow.rows[0].is_community_manager) {
+            const otherManagers = await pool.query(
+                `SELECT 1 FROM family_communities WHERE community_id=$1 AND is_community_manager=TRUE AND group_id!=$2`,
+                [req.params.communityId, req.params.groupId]);
+            if (!otherManagers.rows.length) {
+                return res.status(409).json({ error: 'את/ה מנהל/ת הקהילה היחיד/ה — יש למנות מנהל/ת אחר/ת (דרך הסופר-אדמין/מנהל האזור) לפני העזיבה' });
+            }
+        }
         await pool.query('DELETE FROM family_communities WHERE group_id = $1 AND community_id = $2', [req.params.groupId, req.params.communityId]);
         res.json({success: true});
-    } catch(e) { res.status(500).json({error: e.message}); }
+    } catch(e) { res.status(500).json({error: 'שגיאה פנימית'}); }
 });
 
 // 5. דריסת השאילתות של הסופר-אדמין לספירת משפחות מתוך הטבלה החדשה
@@ -18278,11 +18307,12 @@ app.put('/api/zone-manager/community-business/discount', verifyZoneManager, asyn
 app.put('/api/biz/community-discount', verifyBiz, async (req, res) => {
     try {
         const { businessId, communityId, discountPct } = req.body;
+        if (parseInt(businessId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const check = await pool.query(`SELECT 1 FROM community_businesses WHERE community_id=$1 AND business_id=$2 AND status='approved'`, [communityId, businessId]);
         if (!check.rows.length) return res.status(403).json({ error: 'אין הרשאה לעדכן — החיבור לא מאושר' });
         await pool.query('UPDATE community_businesses SET discount_pct=$1 WHERE community_id=$2 AND business_id=$3', [parseFloat(discountPct)||0, communityId, businessId]);
         res.json({ success: true });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch(e) { res.status(500).json({ error: 'שגיאה פנימית' }); }
 });
 
 // ZM — בקשות הצטרפות משפחות לקהילות באזורו
@@ -19351,9 +19381,10 @@ app.post('/api/community/manager/family/approve', verifyFamily, async (req, res)
         // ודא שהמבקש הוא מנהל הקהילה
         const check = await pool.query(`SELECT 1 FROM family_communities WHERE group_id=$1 AND community_id=$2 AND is_community_manager=TRUE`, [groupId, communityId]);
         if (!check.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
+        if (await blockIfChildFamilyUser(req, res)) return;
         await pool.query(`UPDATE family_communities SET status='approved' WHERE group_id=$1 AND community_id=$2 AND status='pending'`, [targetGroupId, communityId]);
         res.json({ success: true });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch(e) { res.status(500).json({ error: 'שגיאה פנימית' }); }
 });
 
 app.post('/api/community/manager/family/reject', verifyFamily, async (req, res) => {
@@ -19362,9 +19393,10 @@ app.post('/api/community/manager/family/reject', verifyFamily, async (req, res) 
         if (parseInt(groupId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const check = await pool.query(`SELECT 1 FROM family_communities WHERE group_id=$1 AND community_id=$2 AND is_community_manager=TRUE`, [groupId, communityId]);
         if (!check.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
+        if (await blockIfChildFamilyUser(req, res)) return;
         await pool.query(`DELETE FROM family_communities WHERE group_id=$1 AND community_id=$2 AND status='pending'`, [targetGroupId, communityId]);
         res.json({ success: true });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch(e) { res.status(500).json({ error: 'שגיאה פנימית' }); }
 });
 
 // ניהול ארנק קהילה למנהל קהילה: רשימת עסקים + תנועות
@@ -19459,6 +19491,7 @@ app.post('/api/community/manager/campaigns', verifyFamily, async (req, res) => {
         const { communityId, title, code, description, bannerImageUrl } = req.body;
         if (!communityId || !code) return res.status(400).json({ error: 'חסרים שדות חובה' });
         if (!(await verifyCommunityManagerAccess(familyGroupId, communityId))) return res.status(403).json({ error: 'אין הרשאה לקהילה זו' });
+        if (await blockIfChildFamilyUser(req, res)) return;
 
         const cleanCode = String(code).trim().toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
         if (!cleanCode) return res.status(400).json({ error: 'קוד לא תקין' });
@@ -19481,6 +19514,7 @@ app.patch('/api/community/manager/campaigns/:id', verifyFamily, async (req, res)
     try {
         const campaign = await verifyCampaignOwnershipFamily(req.params.id, req.familyAuth.groupId);
         if (!campaign) return res.status(403).json({ error: 'אין הרשאה לקמפיין זה' });
+        if (await blockIfChildFamilyUser(req, res)) return;
 
         const { title, description, bannerImageUrl, status, logoUrl, slogan, hideTitle, shareDescription, orderingEnabled } = req.body;
         const upd = await pool.query(
@@ -19523,6 +19557,7 @@ app.post('/api/community/manager/campaigns/:id/businesses', verifyFamily, async 
     try {
         const campaign = await verifyCampaignOwnershipFamily(req.params.id, req.familyAuth.groupId);
         if (!campaign) return res.status(403).json({ error: 'אין הרשאה לקמפיין זה' });
+        if (await blockIfChildFamilyUser(req, res)) return;
 
         const { businessGroupId, action } = req.body;
         if (!businessGroupId || !['add','remove'].includes(action)) return res.status(400).json({ error: 'שדות לא תקינים' });
@@ -19569,6 +19604,7 @@ app.post('/api/community/manager/campaigns/:id/products', verifyFamily, async (r
     try {
         const campaign = await verifyCampaignOwnershipFamily(req.params.id, req.familyAuth.groupId);
         if (!campaign) return res.status(403).json({ error: 'אין הרשאה לקמפיין זה' });
+        if (await blockIfChildFamilyUser(req, res)) return;
 
         const { businessGroupId, catalogId, action } = req.body;
         if (!businessGroupId || !catalogId || !['add','remove'].includes(action)) return res.status(400).json({ error: 'שדות לא תקינים' });
@@ -20036,6 +20072,7 @@ app.post('/api/biz/community/promotions/:id/banner-request', verifyBiz, async (r
     try {
         const { businessId } = req.body;
         if (!businessId) return res.status(400).json({ error: 'חסר businessId' });
+        if (parseInt(businessId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const promo = await pool.query(
             `SELECT * FROM community_promotions WHERE id=$1 AND business_id=$2 AND status='approved'`,
             [req.params.id, businessId]);
@@ -20048,7 +20085,7 @@ app.post('/api/biz/community/promotions/:id/banner-request', verifyBiz, async (r
             `INSERT INTO community_banner_requests (promotion_id, business_id, community_id) VALUES ($1,$2,$3) RETURNING id`,
             [p.id, p.business_id, p.community_id]);
         res.json({ success: true, requestId: r.rows[0].id });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch(e) { res.status(500).json({ error: 'שגיאה פנימית' }); }
 });
 
 // Public — approved banners for community home page
@@ -20705,6 +20742,10 @@ app.post('/api/community/promotions/:id/redeem', verifyFamily, async (req, res) 
         const promo = await pool.query(`SELECT * FROM community_promotions WHERE id=$1 AND status='approved'`, [req.params.id]);
         if (!promo.rows.length) return res.status(404).json({ error: 'מבצע לא נמצא' });
         const p = promo.rows[0];
+        if (p.community_id) {
+            const mem = await pool.query(`SELECT 1 FROM family_communities WHERE group_id=$1 AND community_id=$2 AND status='approved'`, [groupId, p.community_id]);
+            if (!mem.rows.length) return res.status(403).json({ error: 'יש להיות חבר מאושר בקהילה כדי לממש הטבה זו' });
+        }
         // Award family (personal + community share)
         await awardFlow('family', parseInt(groupId), 'promo_redemption', p.community_id, p.id);
         // Award business
@@ -20712,7 +20753,7 @@ app.post('/api/community/promotions/:id/redeem', verifyFamily, async (req, res) 
         // Award community wallet
         if (p.community_id) await awardFlow('community', p.community_id, 'promo_community', p.community_id, p.id);
         res.json({ success: true });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch(e) { res.status(500).json({ error: 'שגיאה פנימית' }); }
 });
 
 // Family writes a review on a business
