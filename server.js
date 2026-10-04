@@ -12851,7 +12851,12 @@ app.post('/api/store/settings', async (req, res) => {
 
         const orderEmailVal = orderNotificationEmail && orderNotificationEmail.trim() !== '' ? orderNotificationEmail.trim() : null;
 
-        const templateIdVal = templateId && templateId.trim() ? templateId.trim() : 'classic';
+        // עסקי ספורט תמיד משתמשים בתבנית "דינמית" (storefront-sport.html) — לא ניתן לבחור
+        // תבנית אחרת. בלי זה, עסק חדש מסוג ספורט נופל לתבנית הגנרית כברירת מחדל (עמודת ה-DB
+        // ברירת המחדל שלה 'classic'), ואף אחד מה-UI/תכונות הספציפיות לספורט לא מופיע בפועל.
+        const _bizTypeRow = await pool.query('SELECT business_type FROM family_groups WHERE id=$1', [groupId]);
+        const _isSportBiz = _bizTypeRow.rows[0]?.business_type === 'sport';
+        const templateIdVal = _isSportBiz ? 'sport' : (templateId && templateId.trim() ? templateId.trim() : 'classic');
         const accentColorVal = accentColor && accentColor.trim() ? accentColor.trim() : '#e63946';
         const _dEtaParsed = parseInt(deliveryEtaMin); const deliveryEtaVal = isNaN(_dEtaParsed) ? 35 : _dEtaParsed;
         const _pEtaParsed = parseInt(pickupEtaMin); const pickupEtaVal = isNaN(_pEtaParsed) ? 15 : _pEtaParsed;
@@ -21885,13 +21890,16 @@ app.get('/:alias', async (req, res, next) => {
     try {
         const numericId = /^\d+$/.test(alias) ? parseInt(alias) : null;
         const tRes = await pool.query(`
-            SELECT ss.template_id, fg.id AS group_id, fg.name AS business_name, ss.logo_url FROM store_settings ss
+            SELECT ss.template_id, fg.id AS group_id, fg.name AS business_name, fg.business_type, ss.logo_url FROM store_settings ss
             JOIN family_groups fg ON fg.id = ss.group_id
             WHERE ($3::int IS NOT NULL AND fg.id = $3) OR fg.group_code = $1 OR LOWER(ss.store_alias) = LOWER($2)
             LIMIT 1
         `, [alias.toUpperCase(), alias.toLowerCase(), numericId]);
 
-        const templateId = tRes.rows.length > 0 ? (tRes.rows[0].template_id || 'classic') : 'classic';
+        // עסקי ספורט תמיד מוגשים מתבנית "דינמית" — גם אם store_settings.template_id נשאר
+        // ישן/ברירת מחדל ('classic') מלפני שהעסק הוגדר כספורט, או לא נבחר אף פעם בפועל.
+        const templateId = tRes.rows[0]?.business_type === 'sport' ? 'sport'
+            : (tRes.rows.length > 0 ? (tRes.rows[0].template_id || 'classic') : 'classic');
         const templateMap = {
             'classic': 'storefront.html',
             'restaurant': 'storefront-restaurant.html',

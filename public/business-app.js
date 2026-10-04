@@ -13243,6 +13243,7 @@ window.fetchStoreSettings = async function() {
             const templateInput = document.getElementById('store-template-id');
             if (templateInput) templateInput.value = templateId;
             if (typeof selectStoreTemplate === 'function') selectStoreTemplate(templateId, false);
+            if (typeof window._lockStoreTemplatePickerForSport === 'function') window._lockStoreTemplatePickerForSport();
 
             const accentColorEl = document.getElementById('store-accent-color');
             const accentColorTextEl = document.getElementById('store-accent-color-text');
@@ -13291,6 +13292,9 @@ window.previewTemplate = function(tid, e) {
 };
 
 window.selectStoreTemplate = function(tid, save = false) {
+    // עסקי ספורט תמיד על תבנית "דינמית" — לא ניתן לבחור תבנית אחרת (גם השרת אוכף את זה
+    // בצד שמירה והגשה, אבל נועל כאן גם את ה-UI כדי לא להטעות עם בחירה שלא תתפוס בפועל)
+    if (currentGroup?.business_type === 'sport') tid = 'sport';
     const input = document.getElementById('store-template-id');
     if (input) input.value = tid;
     document.querySelectorAll('#template-picker .template-card').forEach(card => {
@@ -13302,6 +13306,23 @@ window.selectStoreTemplate = function(tid, save = false) {
     });
     const extra = document.getElementById('restaurant-extra-fields');
     if (extra) extra.style.display = (tid === 'restaurant' || tid === 'sport' || tid === 'market') ? '' : 'none';
+};
+
+// נועל את בורר התבנית לעסקי ספורט בלבד (לא מציג/לא לוחץ על כרטיסי תבניות אחרות)
+window._lockStoreTemplatePickerForSport = function() {
+    if (currentGroup?.business_type !== 'sport') return;
+    document.querySelectorAll('#template-picker .template-card').forEach(card => {
+        if (card.dataset.tid !== 'sport') {
+            card.style.display = 'none';
+        } else {
+            card.style.pointerEvents = 'none';
+        }
+    });
+    const hint = document.getElementById('template-picker-sport-lock-hint');
+    if (!hint) {
+        const picker = document.getElementById('template-picker');
+        if (picker) picker.insertAdjacentHTML('afterend', `<p id="template-picker-sport-lock-hint" class="text-[10px] text-indigo-400 mt-1">עסקי ספורט תמיד מוצגים בתבנית הדינמית — לא ניתן להחליף.</p>`);
+    }
 };
 
 // sync color picker ↔ text input
@@ -29421,6 +29442,7 @@ window.fetchStoreSettings = async function() { console.trace("[FSS-ACTIVE]");
             const ti2 = document.getElementById('store-template-id');
             if (ti2) ti2.value = tid2;
             if (typeof selectStoreTemplate === 'function') selectStoreTemplate(tid2, false);
+            if (typeof window._lockStoreTemplatePickerForSport === 'function') window._lockStoreTemplatePickerForSport();
             const acEl2 = document.getElementById('store-accent-color');
             const acTxt2 = document.getElementById('store-accent-color-text');
             const acVal2 = s.accent_color || '#e63946';

@@ -1608,7 +1608,17 @@ function renderCatalog() {
     return;
   }
   // שירותים/מנויים מוצגים ככרטיסים (בחירה → פתיחת הזמנה), בנפרד מהתצוגה המלאה
-  // של קטלוג מוצרים (שורות עגלה) — הפרדה ברורה בין "קונים" ל"מזמינים שירות"
+  // של קטלוג מוצרים (שורות עגלה) — הפרדה ברורה בין "קונים" ל"מזמינים שירות".
+  // בניגוד למוצרים (שגלויים לעיון חופשי), פרטי שירותים/מנויים דורשים התחברות — לכן
+  // בלי משתמש מחובר מוצג רק קריאה-לפעולה להתחברות, לא פרטי השירותים עצמם
+  if (_filterType === 'service' && window.scAuth && !window.scAuth._customer) {
+    container.innerHTML = `<div class="catalog-empty" style="display:flex;flex-direction:column;gap:12px;align-items:center;padding:40px 20px">
+      <div style="font-size:15px;color:var(--muted)">${t('יש להתחבר או להירשם כדי לצפות בשירותים ובמנויים','Log in or register to view services & plans')}</div>
+      <button class="cta-primary" style="background:var(--accent)" onclick="window.scAuth.requireLogin('_resumeShowServices','🔒 כדי לצפות בשירותים ובמנויים יש להתחבר או להירשם.')">${t('התחברות / הרשמה','Log in / Register')}</button>
+    </div>`;
+    window._resumeShowServices = () => renderCatalog();
+    return;
+  }
   container.innerHTML = _filterType === 'service'
     ? `<div id="services-grid">${items.map(p => serviceCardHtml(p)).join('')}</div>`
     : items.map(p => productRowHtml(p)).join('');
@@ -2061,6 +2071,13 @@ function openSheet(id, e) {
   if (e) e.stopPropagation();
   const p = catalog.find(x => x.id == id);
   if (!p) return;
+  // מוצרים פיזיים (retail) נשארים גלויים לעיון חופשי — רק הזמנה בפועל דורשת התחברות (ראו
+  // submitOrder). שירותים/מנויים (כרטיסים) דורשים התחברות כבר כדי לצפות בפרטים, לא רק להזמין.
+  if (p.product_type === 'service' && window.scAuth && !window.scAuth._customer) {
+    window._resumeOpenSheet = () => openSheet(id);
+    window.scAuth.requireLogin('_resumeOpenSheet', '🔒 כדי לצפות בפרטי השירות ולהזמין יש להתחבר או להירשם.');
+    return;
+  }
   _sheetId = id; _sheetQty = 1; _sheetExtras = {}; _sheetNote = '';
   // Image
   const imgEl = document.getElementById('sheet-img-wrap');
@@ -2505,6 +2522,9 @@ function schedFmtDate(d) {
 }
 
 async function openScheduleModal() {
+  // גלישה בקטלוג מוצרים מותרת בלי התחברות — כל שאר המידע/הפעולות (לוח שיעורים, מנויים,
+  // אימונים אישיים) דורשים הרשמה/התחברות לפני הצפייה, לא רק לפני אישור סופי
+  if (window.scAuth && !window.scAuth.requireLogin('openScheduleModal', '🔒 כדי לצפות בלוח השיעורים יש להתחבר או להירשם.')) return;
   _schedGroupId = storeData?.groupId || storeData?.group_id;
   _schedOffset = 0;
   document.getElementById('schedule-modal').style.display = 'flex';
@@ -2612,6 +2632,7 @@ let _memSelectedTypeId = null;
 let _memSelectedType = null;
 
 async function openMembershipModal() {
+  if (window.scAuth && !window.scAuth.requireLogin('openMembershipModal', '🔒 כדי לצפות במנויים יש להתחבר או להירשם.')) return;
   _memSelectedTypeId = null;
   const gid = storeData?.groupId || storeData?.group_id;
   document.getElementById('membership-modal').style.display = 'flex';
@@ -2779,6 +2800,7 @@ window.submitMembership = async function() {
   let _tbmTrainerId = null, _tbmTrainerName = null, _tbmSlotStart = null, _tbmSlotEnd = null;
 
   async function openTrainerBooking() {
+    if (window.scAuth && !window.scAuth.requireLogin('openTrainerBooking', '🔒 כדי לקבוע אימון אישי יש להתחבר או להירשם.')) return;
     const modal = document.getElementById('trainer-booking-modal');
     modal.style.display = 'flex';
     tbmShowStep(1);
