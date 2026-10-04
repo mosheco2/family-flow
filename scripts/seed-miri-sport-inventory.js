@@ -123,12 +123,21 @@ async function main() {
     });
     log(r.ok && r.data.success !== false, `הזמנת רכש נוצרה (סה"כ ₪${totalAmount})`, r.ok ? '' : JSON.stringify(r.data));
   }
-  // מסמנים את ההזמנה הראשונה כ"התקבלה" כדי לדמות מצב אמיתי של רכש בתהליך
+  // מסמנים את ההזמנה הראשונה כ"התקבלה" — לא עם PUT /status בלבד (זה רק מסמן סטטוס, לא
+  // מכניס בפועל כלום לשום מקום), אלא דרך POST /receive האמיתי, שהוא היחיד שבאמת מזין את
+  // הפריטים שהתקבלו ל"מזווה וארונות" (pantry) — היעד האמיתי שאליו נכנסת סחורה שמתקבלת מרכש
   const ordersRes = await api('GET', `/b2b/orders/${GROUP_ID}`);
   const createdOrders = ordersRes.data.orders || [];
-  if (createdOrders[0]) {
-    const r = await api('PUT', `/b2b/orders/${createdOrders[0].id}/status`, { status: 'delivered' });
-    log(r.ok && r.data.success !== false, `הזמנת רכש #${createdOrders[0].id} סומנה כהתקבלה`);
+  const firstPo = poOrders[0];
+  const matchedOrder = createdOrders.find(o => o.supplier_id === firstPo.supplierId);
+  if (matchedOrder) {
+    const receivedItems = firstPo.items.map(i => ({ name: i.item_name, qty: i.quantity, unit: "יח'", price: i.unit_price }));
+    const r = await api('POST', '/b2b/orders/receive', {
+      orderId: matchedOrder.id, groupId: GROUP_ID, userId: USER_ID, receivedItems, missingItems: [],
+    });
+    log(r.ok && r.data.success !== false, `הזמנת רכש #${matchedOrder.id} התקבלה בפועל ונכנסה ל"מזווה"`, r.ok ? '' : JSON.stringify(r.data));
+  } else {
+    log(false, 'לא נמצאה הזמנת הרכש הראשונה לסימון כהתקבלה');
   }
 
   // ── ציוד (equipment items) ───────────────────────────────────────────
