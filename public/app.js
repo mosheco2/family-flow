@@ -15489,9 +15489,12 @@ window._openQuoteFromActivity = async function(quoteId) {
                     <p class="text-xs text-amber-900 leading-relaxed" style="white-space:pre-line;">${safeStr(metaData.notes)}</p>
                 </div>` : ''}
 
+                <div class="bg-indigo-50 border border-indigo-200 rounded-xl p-3 text-xs text-indigo-900">
+                    זהו תקציר בלבד. לצפייה בפרטים המלאים ולביצוע פעולות (אישור/בקשת הנחה/בקשת שינויים/הודעה) יש לפתוח את ההצעה במסך "הצעות מחיר".
+                </div>
                 <div class="border-t border-slate-100 pt-4 flex gap-2">
                     <button onclick="this.closest('.fixed').remove()" class="flex-1 bg-slate-100 text-slate-600 px-3 py-2 rounded-lg text-xs font-bold hover:bg-slate-200 transition">סגור</button>
-                    <button onclick="this.closest('.fixed').remove(); switchTab('myorders'); switchMyOrdersTab('quotes'); loadFamilyQuotes();" class="flex-1 bg-indigo-600 text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-indigo-700 transition">📋 פתח בהצעות שלי</button>
+                    <button onclick="this.closest('.fixed').remove(); switchTab('myorders'); switchMyOrdersTab('quotes'); loadFamilyQuotes().then(() => window.openFamilyQuoteView(${quoteId}));" class="flex-1 bg-indigo-600 text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-indigo-700 transition">📋 פתח פרטים ופעולות מלאות</button>
                 </div>
             </div>
         </div>`;

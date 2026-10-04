@@ -30325,18 +30325,23 @@ app.get('/api/family/business-activity/:familyGroupId/:bizGroupId', async (req, 
             result.activity = { memberships: memR.rows, checkins: checkR.rows };
 
         } else if (bizType === 'restaurant' || bizType === 'services') {
+            // הצעת מחיר שאושרה והומרה לפקודת עבודה (status='processing', call_type='work_order')
+            // עדיין "שייכת" להצעה המקורית — לכן מסתמכים על quote_status (נשאר ממולא) כדי שהיא
+            // תמשיך להופיע ברשימת ה"הצעות" לכל אורך חייה, ולא תיעלם/תיבלע בשקט ברשימת
+            // ה"הזמנות" הרגילה (שמציגה פורמט שונה, לא מתאים להצגת פרטי הצעה/אירוע)
             const ordR = await pool.query(`SELECT so.id, so.status, so.total_amount AS total_price, so.notes, so.created_at, so.is_delivery, so.order_source, so.customer_rating, so.customer_rating_notes,
                                 (SELECT json_agg(json_build_object('name',soi.item_name,'qty',soi.quantity,'price',soi.price_at_order) ORDER BY soi.id)
                                  FROM store_order_items soi WHERE soi.order_id=so.id) AS items
                             FROM store_orders so
                             WHERE so.group_id=$1 AND (so.customer_phone = ANY($2::text[]) OR so.family_group_id=$3)
                               AND (so.status IS NULL OR so.status != 'quote')
+                              AND so.quote_status IS NULL
                             ORDER BY so.created_at DESC LIMIT 20`,
                 [bizGroupId, familyPhones, familyGroupId]).catch(() => ({ rows: [] }));
-            const quoteR = await pool.query(`SELECT id, quote_status AS status, total_amount AS total_price, created_at
+            const quoteR = await pool.query(`SELECT id, status AS order_status, COALESCE(quote_status, status) AS status, total_amount AS total_price, created_at, call_type
                             FROM store_orders
                             WHERE group_id=$1 AND (customer_phone = ANY($2::text[]) OR family_group_id=$3)
-                              AND status = 'quote'
+                              AND (status = 'quote' OR quote_status IS NOT NULL)
                             ORDER BY created_at DESC LIMIT 10`,
                 [bizGroupId, familyPhones, familyGroupId]).catch(() => ({ rows: [] }));
             const tableResR = await pool.query(
