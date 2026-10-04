@@ -25430,7 +25430,7 @@ window.switchSalesTab = function(subTab) {
             const icon = catalogBtn.querySelector('i');
             if (icon) icon.className = 'fa-solid fa-id-card text-sm';
             const textNodes = Array.from(catalogBtn.childNodes).filter(n => n.nodeType === 3);
-            if (textNodes.length) textNodes[textNodes.length - 1].textContent = 'מנויים';
+            if (textNodes.length) textNodes[textNodes.length - 1].textContent = 'מנויים ומוצרים';
         }
         const storeTitle = document.querySelector('#content-sales h3');
         if (storeTitle && storeTitle.textContent.includes('חנות')) storeTitle.textContent = 'ניהול מנויים ומכירות 🏋️';
@@ -44965,6 +44965,9 @@ window.renderSportSalesCatalogView = async function() {
         ]);
         const memTypes = memRes.types || [];
         const catalogItems = Array.isArray(catalogRes) ? catalogRes : [];
+        // openStoreProductModal(id) קורא נתוני עריכה מתוך window.storeCatalogCache — בלי העדכון הזה
+        // המודאל נפתח ריק (לא מוצא את הפריט ב-cache) וצריך להזין הכל מחדש בכל עריכה
+        window.storeCatalogCache = catalogItems;
         const kindLabel = { monthly:'חודשי', yearly:'שנתי', punch_card:'כרטיסייה', day_pass:'יומי', pt_sessions:'PT' };
 
         const memHtml = memTypes.length ? memTypes.map(t => `
