@@ -6212,7 +6212,7 @@ async function renderFamPools() {
 
         let commSelector = '';
         if (communities.length > 1) {
-            const opts = communities.map(c => `<option value="${c.id}" ${c.id == commId ? 'selected' : ''}>${safeStr(c.name)}</option>`).join('');
+            const opts = communities.map(c => `<option value="${c.id}" ${c.id == commId ? 'selected' : ''}>${escHtml(c.name)}</option>`).join('');
             commSelector = `<select onchange="_activeFamPoolCommunityId=this.value;renderFamPools()" class="modern-input py-1 text-xs mb-3 w-full">${opts}</select>`;
         }
 
@@ -6229,8 +6229,8 @@ async function renderFamPools() {
             return `<div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 cursor-pointer hover:shadow-md transition" onclick="openFamPoolDetail(${p.id})">
                 <div class="flex justify-between items-start mb-2">
                     <div class="flex-1 min-w-0">
-                        <h4 class="font-bold text-slate-800 text-sm truncate">${safeStr(p.title)}</h4>
-                        ${p.service_category ? `<span class="text-[10px] text-slate-400">${safeStr(p.service_category)}</span>` : ''}
+                        <h4 class="font-bold text-slate-800 text-sm truncate">${escHtml(p.title)}</h4>
+                        ${p.service_category ? `<span class="text-[10px] text-slate-400">${escHtml(p.service_category)}</span>` : ''}
                     </div>
                     <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${statusColor} mr-2 shrink-0">${statusLabel}</span>
                 </div>
@@ -6329,7 +6329,7 @@ async function openFamPoolDetail(poolId) {
                 <div class="space-y-1">
                     ${members.map(m => `<div class="flex justify-between items-center bg-white rounded-lg px-2.5 py-1.5 text-xs border border-blue-50">
                         <button onclick="removePoolMember(${p.id},${m.group_id})" class="text-[10px] text-red-400 hover:text-red-600 transition font-bold">הסר</button>
-                        <span class="font-medium text-slate-700">${safeStr(m.name)}${m.group_id == currentGroup.id ? ' <span class="text-[9px] text-blue-500">(את/ה)</span>' : ''}</span>
+                        <span class="font-medium text-slate-700">${escHtml(m.name)}${m.group_id == currentGroup.id ? ' <span class="text-[9px] text-blue-500">(את/ה)</span>' : ''}</span>
                     </div>`).join('')}
                 </div>
             </div>`;
@@ -6341,12 +6341,12 @@ async function openFamPoolDetail(poolId) {
                 <h4 class="text-xs font-bold text-amber-800 mb-2">📋 הצעות עסקים (${bids.length})</h4>
                 <div class="space-y-2">
                     ${bids.map(b => {
-                        const storeLink = b.biz_code ? `<a href="/storefront.html?store=${safeStr(b.biz_code)}&communityId=${p.community_id}" target="_blank" class="text-blue-600 underline text-[10px]">🛒 חנות</a>` : '';
-                        const phoneLink = b.biz_phone ? `<a href="tel:${safeStr(b.biz_phone)}" class="text-green-600 text-[10px]">📞 ${safeStr(b.biz_phone)}</a>` : '';
+                        const storeLink = b.biz_code ? `<a href="/storefront.html?store=${encodeURIComponent(b.biz_code)}&communityId=${p.community_id}" target="_blank" class="text-blue-600 underline text-[10px]">🛒 חנות</a>` : '';
+                        const phoneLink = b.biz_phone ? `<a href="tel:${encodeURIComponent(b.biz_phone)}" class="text-green-600 text-[10px]">📞 ${escHtml(b.biz_phone)}</a>` : '';
                         return `<div class="bg-white rounded-lg p-2 border border-amber-100 text-xs">
                         <div class="flex justify-between items-start mb-1">
                             <div>
-                                <span class="font-bold text-slate-800 text-[12px]">🏪 ${safeStr(b.business_name || b.biz_name || '')}</span>
+                                <span class="font-bold text-slate-800 text-[12px]">🏪 ${escHtml(b.business_name || b.biz_name || '')}</span>
                                 ${b.is_guest ? '<span class="text-purple-600 text-[10px] mr-1">👤 אורח</span>' : ''}
                                 <div class="flex gap-2 mt-0.5">${storeLink}${phoneLink}</div>
                             </div>
@@ -6355,7 +6355,7 @@ async function openFamPoolDetail(poolId) {
                                 ${b.status === 'pending' && p.status !== 'closed' ? `<button onclick="selectPoolBid(${p.id},${b.id})" class="text-[10px] bg-green-500 text-white px-2 py-0.5 rounded-full font-bold hover:bg-green-600 transition mt-0.5">בחר ✓</button>` : `<span class="text-[10px] font-bold ${b.status==='accepted'?'text-green-600':'text-slate-400'}">${b.status==='accepted'?'✅ נבחר':''}</span>`}
                             </div>
                         </div>
-                        ${b.description ? `<p class="text-slate-600 text-[11px] border-t border-slate-50 pt-1 mt-1 whitespace-pre-wrap">${safeStr(b.description)}</p>` : ''}
+                        ${b.description ? `<p class="text-slate-600 text-[11px] border-t border-slate-50 pt-1 mt-1 whitespace-pre-wrap">${escHtml(b.description)}</p>` : ''}
                     </div>`;}).join('')}
                 </div>
                 ${p.status === 'open_r1' ? `<button onclick="openFamPoolRound2(${p.id})" class="mt-2 w-full py-1.5 text-xs font-bold text-purple-700 bg-purple-50 border border-purple-200 rounded-lg hover:bg-purple-100 transition">פתח סיבוב 2 לעסקים חיצוניים</button>` : ''}
@@ -6365,8 +6365,8 @@ async function openFamPoolDetail(poolId) {
         const msgsHtml = messages.length ? messages.map(m => {
             const align = m.sender_type === 'family' ? 'flex-row-reverse' : 'flex-row';
             const bg = m.sender_type === 'system' ? 'bg-slate-100 text-slate-500 text-center mx-auto rounded-full px-3 py-1 text-[11px]' : m.sender_type === 'family' ? 'bg-blue-100 text-blue-800 rounded-br-none' : 'bg-slate-100 text-slate-700 rounded-bl-none';
-            if (m.sender_type === 'system') return `<div class="${bg}">${safeStr(m.content)}</div>`;
-            return `<div class="flex ${align}"><div class="max-w-[80%] px-3 py-2 rounded-2xl text-xs ${bg}">${safeStr(m.content)}</div></div>`;
+            if (m.sender_type === 'system') return `<div class="${bg}">${escHtml(m.content)}</div>`;
+            return `<div class="flex ${align}"><div class="max-w-[80%] px-3 py-2 rounded-2xl text-xs ${bg}">${escHtml(m.content)}</div></div>`;
         }).join('') : '<p class="text-xs text-slate-300 text-center py-4">אין הודעות עדיין</p>';
 
         body.innerHTML = `
@@ -6376,7 +6376,7 @@ async function openFamPoolDetail(poolId) {
                 <span><i class="fa-solid fa-users ml-1"></i>${members.length} משפחות</span>
                 ${p.max_price > 0 ? `<span>· עד ₪${Number(p.max_price).toLocaleString()}</span>` : ''}
             </div>
-            ${p.description ? `<p class="text-sm text-slate-600">${safeStr(p.description)}</p>` : ''}
+            ${p.description ? `<p class="text-sm text-slate-600">${escHtml(p.description)}</p>` : ''}
             ${membersHtml}
             ${bidsHtml}
             ${isOpen && !isMember && !isFamInitiator ? `<button onclick="joinFamPool(${p.id})" class="w-full py-3 rounded-xl bg-blue-500 text-white font-bold text-sm hover:bg-blue-600 transition shadow-md">🌊 הצטרף לפול</button>` : ''}
@@ -6477,10 +6477,10 @@ async function loadFamPoolArchive() {
                 : '';
             return `<div class="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
                 <div class="flex justify-between items-start mb-2">
-                    <h4 class="font-bold text-slate-800 text-sm">${safeStr(p.title)}</h4>
+                    <h4 class="font-bold text-slate-800 text-sm">${escHtml(p.title)}</h4>
                     <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${statusColor[st] || 'bg-slate-100 text-slate-600'} mr-1 shrink-0">${statusLabel[st] || st}</span>
                 </div>
-                ${p.description ? `<p class="text-xs text-slate-500 mb-2 line-clamp-2">${safeStr(p.description)}</p>` : ''}
+                ${p.description ? `<p class="text-xs text-slate-500 mb-2 line-clamp-2">${escHtml(p.description)}</p>` : ''}
                 <div class="flex gap-3 text-[11px] text-slate-400">
                     <span><i class="fa-solid fa-users ml-1"></i>${p.members_count || 0} משפחות</span>
                     ${p.bids_count > 0 ? `<span><i class="fa-solid fa-gavel ml-1"></i>${p.bids_count} הצעות</span>` : ''}
@@ -6508,11 +6508,11 @@ function openEditFamPool(poolId, title, description, maxPrice) {
             </div>
             <div class="space-y-2">
                 <label class="text-xs font-bold text-slate-500">כותרת הפול</label>
-                <input id="edit-pool-title" type="text" value="${title}" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm">
+                <input id="edit-pool-title" type="text" value="${escHtml(title)}" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm">
             </div>
             <div class="space-y-2">
                 <label class="text-xs font-bold text-slate-500">תיאור הצורך</label>
-                <textarea id="edit-pool-description" rows="3" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm resize-none">${description}</textarea>
+                <textarea id="edit-pool-description" rows="3" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm resize-none">${escHtml(description)}</textarea>
             </div>
             <div class="space-y-2">
                 <label class="text-xs font-bold text-slate-500">תקציב מקסימלי (₪)</label>
@@ -6581,7 +6581,7 @@ async function sendPoolMessage(poolId) {
     const content = input ? input.value.trim() : '';
     if (!content) return;
     try {
-        const res = await communityFetch(`${API}/community/pool/${poolId}/message`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content, sender_type: 'family', sender_id: currentGroup.id }) });
+        const res = await communityFetch(`${API}/community/pool/${poolId}/message`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content, senderType: 'family', senderId: currentGroup.id }) });
         const data = await res.json();
         if (!data.success) throw new Error(data.error || 'שגיאה');
         input.value = '';

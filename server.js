@@ -32418,11 +32418,24 @@ app.post('/api/ai/parse-pdf', async (req, res) => {
     } catch(e) { console.error('[FlowPool migration]', e.message); }
 })();
 
+// עוזר: חוסם פעולות ניהול פול ממשתמש מסוג CHILD (ילד/ה) — רק בודק role, לא חוסם משפחה כולה
+async function blockIfChildFamilyUser(req, res) {
+    try {
+        const u = await pool.query('SELECT role FROM users WHERE id=$1 AND group_id=$2', [req.familyAuth.userId, req.familyAuth.groupId]);
+        if (u.rows.length && u.rows[0].role === 'CHILD') {
+            res.status(403).json({ error: 'פעולה זו אינה זמינה למשתמש מסוג ילד/ה' });
+            return true;
+        }
+    } catch (e) { /* אם הבדיקה נכשלת, לא חוסמים (fail-open על בדיקת role בלבד, לא על אימות) */ }
+    return false;
+}
+
 // יצירת פול חדש (משפחה או עסק)
 app.post('/api/community/pool', verifyFamily, async (req, res) => {
     try {
         const { communityId, initiatorType, initiatorId, title, description, serviceCategory, maxPrice, offerPrice, minFamilies } = req.body;
         if (parseInt(initiatorId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
+        if (await blockIfChildFamilyUser(req, res)) return;
         if (!communityId || !initiatorType || !initiatorId || !title) return res.status(400).json({ error: 'חסרים שדות חובה' });
         // ווידוא שהיוזם חבר בקהילה
         const membership = await pool.query(
@@ -32442,12 +32455,14 @@ app.post('/api/community/pool', verifyFamily, async (req, res) => {
         await pool.query(`INSERT INTO flow_pool_messages (pool_id, sender_type, sender_id, content) VALUES ($1,'system',NULL,$2)`, [p.id, `פול חדש נפתח: ${title}`]);
         await awardFlow('family', parseInt(initiatorId), 'pool_create', parseInt(communityId), p.id);
         res.json({ success: true, pool: p });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch(e) { res.status(500).json({ error: 'שגיאה פנימית' }); }
 });
 
-// רשימת פולים בקהילה (כולל פגי תוקף, לא כולל סגורים/ארכיב)
-app.get('/api/community/pool/community/:communityId', async (req, res) => {
+// רשימת פולים בקהילה (כולל פגי תוקף, לא כולל סגורים/ארכיב) — רק לחברי הקהילה
+app.get('/api/community/pool/community/:communityId', verifyFamily, async (req, res) => {
     try {
+        const mem = await pool.query(`SELECT 1 FROM family_communities WHERE group_id=$1 AND community_id=$2`, [req.familyAuth.groupId, req.params.communityId]);
+        if (!mem.rows.length) return res.status(403).json({ error: 'אינך חבר בקהילה זו' });
         // עדכון אוטומטי לסטטוס 'expired' עבור פולים שפג תוקפם
         await pool.query(`UPDATE flow_pools SET status='expired' WHERE community_id=$1 AND status IN ('open_r1','open_r2') AND expires_at <= NOW()`, [req.params.communityId]);
         const r = await pool.query(`
@@ -32459,11 +32474,11 @@ app.get('/api/community/pool/community/:communityId', async (req, res) => {
             WHERE fp.community_id=$1 AND fp.status NOT IN ('closed','archived')
             ORDER BY fp.created_at DESC`, [req.params.communityId]);
         res.json({ success: true, pools: r.rows });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch(e) { res.status(500).json({ error: 'שגיאה פנימית' }); }
 });
 
-// פרטי פול בודד
-app.get('/api/community/pool/:id', async (req, res) => {
+// פרטי פול בודד — רק לחברי הקהילה שהפול שייך לה (או ליוזם)
+app.get('/api/community/pool/:id', verifyFamily, async (req, res) => {
     try {
         const r = await pool.query(`
             SELECT fp.*, fg.name as initiator_name,
@@ -32472,10 +32487,15 @@ app.get('/api/community/pool/:id', async (req, res) => {
             WHERE fp.id=$1`, [req.params.id]);
         if (!r.rows.length) return res.status(404).json({ error: 'פול לא נמצא' });
         const p = r.rows[0];
+        const isInitiator = p.initiator_type === 'family' && p.initiator_id === req.familyAuth.groupId;
+        if (!isInitiator) {
+            const mem = await pool.query(`SELECT 1 FROM family_communities WHERE group_id=$1 AND community_id=$2`, [req.familyAuth.groupId, p.community_id]);
+            if (!mem.rows.length) return res.status(403).json({ error: 'אין הרשאה לצפות בפול זה' });
+        }
         const members = await pool.query(`SELECT fpm.group_id, fg.name FROM flow_pool_members fpm JOIN family_groups fg ON fg.id=fpm.group_id WHERE fpm.pool_id=$1`, [p.id]);
         const messages = await pool.query(`SELECT fpm.*, fg.name as sender_name FROM flow_pool_messages fpm LEFT JOIN family_groups fg ON fg.id=fpm.sender_id WHERE fpm.pool_id=$1 ORDER BY fpm.created_at ASC`, [p.id]);
         res.json({ success: true, pool: p, members: members.rows, messages: messages.rows });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch(e) { res.status(500).json({ error: 'שגיאה פנימית' }); }
 });
 
 // הסרת חברה מהפול (ע"י היוזמת)
@@ -32483,13 +32503,14 @@ app.post('/api/community/pool/:id/remove-member', verifyFamily, async (req, res)
     try {
         const { groupId, initiatorId } = req.body;
         if (parseInt(initiatorId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
+        if (await blockIfChildFamilyUser(req, res)) return;
         const check = await pool.query(
             `SELECT 1 FROM flow_pools WHERE id=$1 AND initiator_type='family' AND initiator_id=$2`,
             [req.params.id, initiatorId]);
         if (!check.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
         await pool.query(`DELETE FROM flow_pool_members WHERE pool_id=$1 AND group_id=$2`, [req.params.id, groupId]);
         res.json({ success: true });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch(e) { res.status(500).json({ error: 'שגיאה פנימית' }); }
 });
 
 // הצטרפות לפול (משפחה)
@@ -32508,7 +32529,7 @@ app.post('/api/community/pool/:id/join', verifyFamily, async (req, res) => {
         await awardFlow('family', parseInt(groupId), 'pool_join', fp.community_id, fp.id);
         const count = await pool.query(`SELECT COUNT(*) FROM flow_pool_members WHERE pool_id=$1`, [fp.id]);
         res.json({ success: true, member_count: parseInt(count.rows[0].count) });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch(e) { res.status(500).json({ error: 'שגיאה פנימית' }); }
 });
 
 // הגשת הצעה לפול (עסק)
@@ -32516,22 +32537,27 @@ app.post('/api/community/pool/:id/bid', verifyBiz, async (req, res) => {
     try {
         const { businessGroupId, price, description, isGuest } = req.body;
         if (req.bizAuth.groupId !== parseInt(businessGroupId)) return res.status(403).json({ error: 'אין הרשאה להגיש הצעה בשם עסק אחר' });
+        const priceNum = parseFloat(price);
+        if (!Number.isFinite(priceNum) || priceNum <= 0) return res.status(400).json({ error: 'מחיר ההצעה אינו תקין' });
         const pRes = await pool.query(`SELECT * FROM flow_pools WHERE id=$1 AND initiator_type='family' AND status IN ('open_r1','open_r2') AND expires_at>NOW()`, [req.params.id]);
         if (!pRes.rows.length) return res.status(400).json({ error: 'הפול אינו פתוח להצעות' });
         const fp = pRes.rows[0];
+        // עסק "אורח" (לא חבר קהילה מאושר) מורשה להגיש הצעה רק בסיבוב 2
         if (!isGuest) {
             const mem = await pool.query(`SELECT 1 FROM community_businesses WHERE business_id=$1 AND community_id=$2 AND status='approved'`, [businessGroupId, fp.community_id]);
             if (!mem.rows.length) return res.status(403).json({ error: 'העסק אינו חבר בקהילה' });
+        } else if (fp.status !== 'open_r2') {
+            return res.status(403).json({ error: 'עסק שאינו חבר בקהילה יכול להגיש הצעה רק בסיבוב 2' });
         }
         // עסק יכול להגיש הצעה אחת בלבד לכל פול
         await pool.query(`DELETE FROM flow_pool_bids WHERE pool_id=$1 AND business_group_id=$2`, [fp.id, businessGroupId]);
         const r = await pool.query(
             `INSERT INTO flow_pool_bids (pool_id, business_group_id, price, description, is_guest) VALUES ($1,$2,$3,$4,$5) RETURNING *`,
-            [fp.id, businessGroupId, price, description || '', isGuest || false]);
+            [fp.id, businessGroupId, priceNum, description || '', isGuest || false]);
         const fg = await pool.query(`SELECT name FROM family_groups WHERE id=$1`, [businessGroupId]);
         await pool.query(`INSERT INTO flow_pool_messages (pool_id, sender_type, sender_id, content) VALUES ($1,'system',NULL,$2)`, [fp.id, `הצעה חדשה התקבלה`]);
         res.json({ success: true, bid: r.rows[0] });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch(e) { res.status(500).json({ error: 'שגיאה פנימית' }); }
 });
 
 // הצגת הצעות לפול (למנהל ויוזמת)
@@ -32554,20 +32580,26 @@ app.get('/api/community/pool/:id/bids', verifyFamily, async (req, res) => {
             LEFT JOIN store_settings ss ON ss.group_id=fg.id
             WHERE fpb.pool_id=$1 ORDER BY fpb.price ASC`, [req.params.id]);
         res.json({ success: true, bids: bids.rows });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch(e) { res.status(500).json({ error: 'שגיאה פנימית' }); }
 });
 
-// בחירת הצעה מנצחת
+// בחירת הצעה מנצחת (closeOnly=true: סגירת הפול ללא בחירת הצעה — למשל כשהעסקה בוצעה ישירות מול העסק)
 app.post('/api/community/pool/:id/select-bid', verifyFamily, async (req, res) => {
     try {
-        const { bidId, viewerId } = req.body;
+        const { bidId, viewerId, closeOnly } = req.body;
         if (parseInt(viewerId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
+        if (await blockIfChildFamilyUser(req, res)) return;
         const pRes = await pool.query(`SELECT * FROM flow_pools WHERE id=$1`, [req.params.id]);
         if (!pRes.rows.length) return res.status(404).json({ error: 'פול לא נמצא' });
         const fp = pRes.rows[0];
         const isInitiator = parseInt(viewerId) === fp.initiator_id;
         const isManager = await pool.query(`SELECT 1 FROM family_communities WHERE group_id=$1 AND community_id=$2 AND is_community_manager=TRUE`, [viewerId, fp.community_id]);
         if (!isInitiator && !isManager.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
+        if (closeOnly) {
+            await pool.query(`UPDATE flow_pools SET status='closed' WHERE id=$1`, [fp.id]);
+            await pool.query(`INSERT INTO flow_pool_messages (pool_id, sender_type, sender_id, content) VALUES ($1,'system',NULL,'הפול נסגר ללא בחירת הצעה')`, [fp.id]);
+            return res.json({ success: true });
+        }
         const bid = await pool.query(`SELECT * FROM flow_pool_bids WHERE id=$1 AND pool_id=$2`, [bidId, fp.id]);
         if (!bid.rows.length) return res.status(404).json({ error: 'הצעה לא נמצאה' });
         await pool.query(`UPDATE flow_pools SET status='closed', winner_bid_id=$1 WHERE id=$2`, [bidId, fp.id]);
@@ -32576,7 +32608,7 @@ app.post('/api/community/pool/:id/select-bid', verifyFamily, async (req, res) =>
         await pool.query(`INSERT INTO flow_pool_messages (pool_id, sender_type, sender_id, content) VALUES ($1,'system',NULL,'הצעה נבחרה — הפול נסגר בהצלחה!')`, [fp.id]);
         await awardFlow('business', bid.rows[0].business_group_id, 'pool_bid_accepted', fp.community_id, fp.id);
         res.json({ success: true });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch(e) { res.status(500).json({ error: 'שגיאה פנימית' }); }
 });
 
 // פתיחת סיבוב 2 (עסקים חיצוניים)
@@ -32584,6 +32616,7 @@ app.post('/api/community/pool/:id/open-round2', verifyFamily, async (req, res) =
     try {
         const { viewerId } = req.body;
         if (parseInt(viewerId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
+        if (await blockIfChildFamilyUser(req, res)) return;
         const pRes = await pool.query(`SELECT * FROM flow_pools WHERE id=$1 AND status='open_r1'`, [req.params.id]);
         if (!pRes.rows.length) return res.status(400).json({ error: 'הפול לא בסיבוב 1' });
         const fp = pRes.rows[0];
@@ -32593,7 +32626,7 @@ app.post('/api/community/pool/:id/open-round2', verifyFamily, async (req, res) =
         await pool.query(`UPDATE flow_pools SET status='open_r2' WHERE id=$1`, [fp.id]);
         await pool.query(`INSERT INTO flow_pool_messages (pool_id, sender_type, sender_id, content) VALUES ($1,'system',NULL,'הפול נפתח לעסקים מחוץ לקהילה')`, [fp.id]);
         res.json({ success: true });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch(e) { res.status(500).json({ error: 'שגיאה פנימית' }); }
 });
 
 // ארכיב פול — יוזם (משפחה) משנה סטטוס גלובלי; עסק מסתיר רק בצד שלו
@@ -32613,11 +32646,12 @@ app.post('/api/community/pool/:id/archive', verifyFamilyOrBiz, async (req, res) 
         } else {
             // יוזם משפחה: ארכיב גלובלי
             if (parseInt(viewerId) !== fp.initiator_id) return res.status(403).json({ error: 'רק היוזם יכול לארכב' });
+            if (req.callerAuth.type === 'family' && await blockIfChildFamilyUser(req, res)) return;
             await pool.query(`UPDATE flow_pools SET status='archived' WHERE id=$1`, [fp.id]);
             await pool.query(`INSERT INTO flow_pool_messages (pool_id, sender_type, sender_id, content) VALUES ($1,'system',NULL,'הפול הועבר לארכיב')`, [fp.id]);
         }
         res.json({ success: true });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch(e) { res.status(500).json({ error: 'שגיאה פנימית' }); }
 });
 
 // חידוש תוקף פול (יוזם בלבד)
@@ -32625,6 +32659,7 @@ app.post('/api/community/pool/:id/renew', verifyFamily, async (req, res) => {
     try {
         const { viewerId, days } = req.body;
         if (parseInt(viewerId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
+        if (await blockIfChildFamilyUser(req, res)) return;
         const pRes = await pool.query(`SELECT * FROM flow_pools WHERE id=$1`, [req.params.id]);
         if (!pRes.rows.length) return res.status(404).json({ error: 'פול לא נמצא' });
         const fp = pRes.rows[0];
@@ -32635,7 +32670,7 @@ app.post('/api/community/pool/:id/renew', verifyFamily, async (req, res) => {
         await pool.query(`UPDATE flow_pools SET status='open_r1', expires_at=$1 WHERE id=$2`, [newExpiry, fp.id]);
         await pool.query(`INSERT INTO flow_pool_messages (pool_id, sender_type, sender_id, content) VALUES ($1,'system',NULL,$2)`, [fp.id, `תוקף הפול חודש עד ${newExpiry.toLocaleDateString('he-IL')}`]);
         res.json({ success: true });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch(e) { res.status(500).json({ error: 'שגיאה פנימית' }); }
 });
 
 // עריכת פול
@@ -32643,16 +32678,17 @@ app.post('/api/community/pool/:id/edit', verifyFamily, async (req, res) => {
     try {
         const { viewerId, title, description, maxPrice } = req.body;
         if (parseInt(viewerId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
+        if (await blockIfChildFamilyUser(req, res)) return;
         if (!viewerId || !title) return res.status(400).json({ error: 'חסרים שדות' });
         const fp = await pool.query(`SELECT * FROM flow_pools WHERE id=$1`, [req.params.id]);
         if (!fp.rows.length) return res.status(404).json({ error: 'פול לא נמצא' });
-        if (fp.rows[0].initiator_group_id != viewerId) return res.status(403).json({ error: 'רק היוזם יכול לערוך' });
+        if (parseInt(fp.rows[0].initiator_id) !== parseInt(viewerId)) return res.status(403).json({ error: 'רק היוזם יכול לערוך' });
         await pool.query(`UPDATE flow_pools SET title=$1, description=$2, max_price=$3 WHERE id=$4`,
             [title, description || null, parseFloat(maxPrice) || 0, req.params.id]);
         await pool.query(`INSERT INTO flow_pool_messages (pool_id, sender_type, sender_id, content) VALUES ($1,'system',NULL,$2)`,
             [fp.rows[0].id, 'הפול עודכן על ידי היוזם']);
         res.json({ success: true });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch(e) { res.status(500).json({ error: 'שגיאה פנימית' }); }
 });
 
 // החזרת פול מארכיב (יוזם בלבד)
@@ -32660,6 +32696,7 @@ app.post('/api/community/pool/:id/restore', verifyFamily, async (req, res) => {
     try {
         const { viewerId } = req.body;
         if (parseInt(viewerId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
+        if (await blockIfChildFamilyUser(req, res)) return;
         const pRes = await pool.query(`SELECT * FROM flow_pools WHERE id=$1`, [req.params.id]);
         if (!pRes.rows.length) return res.status(404).json({ error: 'פול לא נמצא' });
         const fp = pRes.rows[0];
@@ -32671,15 +32708,31 @@ app.post('/api/community/pool/:id/restore', verifyFamily, async (req, res) => {
         await pool.query(`UPDATE flow_pools SET status='open_r1', expires_at=$1 WHERE id=$2`, [newExpiry, fp.id]);
         await pool.query(`INSERT INTO flow_pool_messages (pool_id, sender_type, sender_id, content) VALUES ($1,'system',NULL,'הפול הוחזר לפעילות')`, [fp.id]);
         res.json({ success: true });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch(e) { res.status(500).json({ error: 'שגיאה פנימית' }); }
 });
 
-// הודעות פול
-app.get('/api/community/pool/:id/messages', async (req, res) => {
+// הודעות פול — נדרש אימות (משפחה/עסק) ובדיקת שייכות לקהילה/פול
+app.get('/api/community/pool/:id/messages', verifyFamilyOrBiz, async (req, res) => {
     try {
+        const pRes = await pool.query(`SELECT * FROM flow_pools WHERE id=$1`, [req.params.id]);
+        if (!pRes.rows.length) return res.status(404).json({ error: 'פול לא נמצא' });
+        const fp = pRes.rows[0];
+        const callerGroupId = req.callerAuth.groupId;
+        let allowed = (fp.initiator_type === req.callerAuth.type && parseInt(fp.initiator_id) === parseInt(callerGroupId));
+        if (!allowed && req.callerAuth.type === 'family') {
+            const mem = await pool.query(`SELECT 1 FROM family_communities WHERE group_id=$1 AND community_id=$2`, [callerGroupId, fp.community_id]);
+            allowed = !!mem.rows.length;
+        } else if (!allowed && req.callerAuth.type === 'business') {
+            const mem = await pool.query(
+                `SELECT 1 FROM community_businesses WHERE business_id=$1 AND community_id=$2 AND status='approved'
+                 UNION SELECT 1 FROM flow_pool_bids WHERE pool_id=$3 AND business_group_id=$1`,
+                [callerGroupId, fp.community_id, fp.id]);
+            allowed = !!mem.rows.length;
+        }
+        if (!allowed) return res.status(403).json({ error: 'אין הרשאה לצפות בפול זה' });
         const r = await pool.query(`SELECT fpm.*, fg.name as sender_name FROM flow_pool_messages fpm LEFT JOIN family_groups fg ON fg.id=fpm.sender_id WHERE fpm.pool_id=$1 ORDER BY fpm.created_at ASC`, [req.params.id]);
         res.json({ success: true, messages: r.rows });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch(e) { res.status(500).json({ error: 'שגיאה פנימית' }); }
 });
 
 app.post('/api/community/pool/:id/message', verifyFamilyOrBiz, async (req, res) => {
@@ -32691,14 +32744,16 @@ app.post('/api/community/pool/:id/message', verifyFamilyOrBiz, async (req, res) 
         }
         const pRes = await pool.query(`SELECT id FROM flow_pools WHERE id=$1 AND status IN ('open_r1','open_r2') AND expires_at>NOW()`, [req.params.id]);
         if (!pRes.rows.length) return res.status(400).json({ error: 'הפול לא פעיל' });
-        const r = await pool.query(`INSERT INTO flow_pool_messages (pool_id, sender_type, sender_id, content) VALUES ($1,$2,$3,$4) RETURNING *`, [req.params.id, senderType, senderId, content.trim()]);
+        const trimmed = content.trim().slice(0, 1000);
+        const r = await pool.query(`INSERT INTO flow_pool_messages (pool_id, sender_type, sender_id, content) VALUES ($1,$2,$3,$4) RETURNING *`, [req.params.id, senderType, senderId, trimmed]);
         res.json({ success: true, message: r.rows[0] });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch(e) { res.status(500).json({ error: 'שגיאה פנימית' }); }
 });
 
 // הצעות שעסק הגיש לפולים
 app.get('/api/biz/my-pool-bids/:bizGroupId', verifyBiz, async (req, res) => {
     try {
+        if (parseInt(req.params.bizGroupId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const r = await pool.query(`
             SELECT fpb.id as bid_id, fpb.price, fpb.description, fpb.status as bid_status, fpb.created_at as bid_at,
                    fp.id as pool_id, fp.title, fp.status as pool_status, fp.community_id,
@@ -32710,7 +32765,7 @@ app.get('/api/biz/my-pool-bids/:bizGroupId', verifyBiz, async (req, res) => {
             ORDER BY fpb.created_at DESC
         `, [req.params.bizGroupId]);
         res.json({ success: true, bids: r.rows });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch(e) { res.status(500).json({ error: 'שגיאה פנימית' }); }
 });
 
 // ניקוי פולים שפג תוקפם (נקרא בחצות)
@@ -32722,12 +32777,13 @@ app.post('/api/community/pool/cleanup', verifySA, async (req, res) => {
             await pool.query(`DELETE FROM flow_pool_messages WHERE pool_id = ANY($1::int[])`, [ids]);
         }
         res.json({ success: true, expired: expired.rows.length });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch(e) { res.status(500).json({ error: 'שגיאה פנימית' }); }
 });
 
 // פולים פתוחים בקהילות שהעסק חבר בהן
 app.get('/api/biz/pools/:bizGroupId', verifyBiz, async (req, res) => {
     try {
+        if (parseInt(req.params.bizGroupId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         // עדכון אוטומטי לסטטוס expired
         await pool.query(`
             UPDATE flow_pools SET status='expired'
@@ -32764,7 +32820,7 @@ app.get('/api/biz/pools/:bizGroupId', verifyBiz, async (req, res) => {
         `, [req.params.bizGroupId]);
 
         res.json({ success: true, pools: r.rows, expiredPools: expiredR.rows });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch(e) { res.status(500).json({ error: 'שגיאה פנימית' }); }
 });
 
 // ארכיב פולים לעסק — כל פולים מוארכבים שהעסק השתתף בהם
@@ -32782,11 +32838,12 @@ app.get('/api/community/pool/family-archive/:groupId', verifyFamily, async (req,
             ORDER BY fp.created_at DESC
         `, [req.params.groupId]);
         res.json({ success: true, pools: r.rows });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch(e) { res.status(500).json({ error: 'שגיאה פנימית' }); }
 });
 
 // ארכיב פולים לעסק — פולים מ-biz_pool_hidden + פולים גלובלי archived שהעסק השתתף בהם
 app.get('/api/biz/pool-archive/:bizGroupId', verifyBiz, async (req, res) => {
+    if (parseInt(req.params.bizGroupId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
     try {
         const r = await pool.query(`
             SELECT DISTINCT fp.id, fp.title, fp.description, fp.status, fp.created_at,
@@ -32809,7 +32866,7 @@ app.get('/api/biz/pool-archive/:bizGroupId', verifyBiz, async (req, res) => {
             ORDER BY fp.created_at DESC
         `, [req.params.bizGroupId]);
         res.json({ success: true, pools: r.rows });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch(e) { res.status(500).json({ error: 'שגיאה פנימית' }); }
 });
 
 // ============================================================
