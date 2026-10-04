@@ -18487,7 +18487,9 @@ function loadMarketplaceTab() {
     if (!el) return;
     if (el.dataset.loaded) return;
     el.dataset.loaded = '1';
-    var token = localStorage.getItem('familyToken') || localStorage.getItem('token') || '';
+    // מפתח ה-localStorage האמיתי של טוקן המשפחה הוא 'ofl_family_token' (ראו getFamilyToken) —
+    // 'familyToken'/'token' לא קיימים בפועל, כך שהטוקן תמיד היה מגיע ריק למרקטפלייס
+    var token = (typeof getFamilyToken === 'function' ? getFamilyToken() : null) || localStorage.getItem('ofl_family_token') || '';
     var groupId = currentGroup && currentGroup.id ? currentGroup.id : '';
     var name = currentGroup && currentGroup.name ? currentGroup.name : '';
     var src = '/marketplace?groupId=' + groupId + '&token=' + encodeURIComponent(token) + '&familyName=' + encodeURIComponent(name);
@@ -18506,8 +18508,10 @@ function loadMarketplaceTab() {
     window.addEventListener('resize', _setMktHeight);
     window.addEventListener('scroll', _setMktHeight, { passive: true });
 
-    // handle postMessage from iframe
+    // handle postMessage from iframe — מגבילים למקור של האתר עצמו, כדי שלא יהיה אפשר לשלוח
+    // הודעות מזויפות מדף חיצוני שיגרמו לפתיחת storefront/ארנק/היסטוריה בשם המשתמש
     window.addEventListener('message', function(e) {
+        if (e.origin !== window.location.origin) return;
         if (!e.data || !e.data.action) return;
         if (e.data.action === 'openStorefront') {
             var bizId = e.data.bizId;

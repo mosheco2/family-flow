@@ -7623,6 +7623,9 @@ app.post('/api/family/visit-business', verifyFamily, async (req, res) => {
         const familyGroupId = req.familyAuth.groupId;
         const { businessGroupId } = req.body;
         if (!businessGroupId) return res.status(400).json({ error: 'businessGroupId חסר' });
+        // ולידציה שזה אכן עסק קיים — בלי זה אפשר היה להכניס כל ID (כולל קבוצות לא-עסקיות) ולזהם את הנתונים
+        const bizCheck = await pool.query(`SELECT 1 FROM family_groups WHERE id=$1 AND type='BUSINESS'`, [businessGroupId]);
+        if (!bizCheck.rows.length) return res.status(404).json({ error: 'עסק לא נמצא' });
         await pool.query(
             `INSERT INTO family_business_visits (family_group_id, business_group_id, last_visited_at, visit_count)
              VALUES ($1, $2, NOW(), 1)
@@ -7631,7 +7634,7 @@ app.post('/api/family/visit-business', verifyFamily, async (req, res) => {
             [familyGroupId, businessGroupId]
         );
         res.json({ success: true });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch(e) { res.status(500).json({ error: 'שגיאה פנימית' }); }
 });
 
 // ── Geocode עיר → lat/lng (Nominatim, ללא API key) ────────────────────────────
@@ -7784,6 +7787,8 @@ app.delete('/api/family/preferred-areas/:groupId/:areaId', verifyFamily, async (
 app.get('/api/family/marketplace-history/:groupId', verifyFamily, async (req, res) => {
     try {
         const { groupId } = req.params;
+        // IDOR: בלי הבדיקה הזו כל משתמש מחובר יכול לקרוא היסטוריית ביקורים (עד 50 רשומות) של כל משפחה אחרת
+        if (parseInt(groupId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const rows = await pool.query(
             `SELECT fbv.last_visited_at, fbv.visit_count,
                     fg.id as biz_id, fg.name as biz_name, fg.image_url,
@@ -7797,13 +7802,16 @@ app.get('/api/family/marketplace-history/:groupId', verifyFamily, async (req, re
             [groupId]
         );
         res.json({ visits: rows.rows });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch(e) { res.status(500).json({ error: 'שגיאה פנימית' }); }
 });
 
 // נתוני מרקטפלייס
-app.get('/api/family/marketplace/:groupId', async (req, res) => {
+// verifyFamily: בלי זה היה אפשר לשלוח כל groupId ולקבל יתרת FLW (כספי!) והרגלי ביקור של כל
+// משפחה אחרת, בלי טוקן בכלל. groupId בכתובת חייב להיות זהה למשפחה המחוברת בפועל.
+app.get('/api/family/marketplace/:groupId', verifyFamily, async (req, res) => {
     try {
         const { groupId } = req.params;
+        if (parseInt(groupId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const { category, q, lat, lng, radius } = req.query;
 
         // יתרת FLW
@@ -7813,14 +7821,17 @@ app.get('/api/family/marketplace/:groupId', async (req, res) => {
         );
         const flwBalance = walletRes.rows[0]?.balance || 0;
 
-        // ביקרת לאחרונה (3 אחרונים)
+        // ביקרת לאחרונה (3 אחרונים) — מסונן לעסקים פעילים בלבד, כמו ברשימה הראשית וב-history
         let recentRows = [];
         try {
             const recentRes = await pool.query(
-                `SELECT fg.id, fg.name, fg.image_url, fg.business_type as business_category
+                `SELECT fg.id, fg.name, fg.image_url, fg.business_type as business_category, ss.logo_url
                  FROM family_business_visits fbv
                  JOIN family_groups fg ON fg.id = fbv.business_group_id
+                 LEFT JOIN store_settings ss ON ss.group_id = fg.id
                  WHERE fbv.family_group_id=$1
+                   AND (fg.is_deleted=false OR fg.is_deleted IS NULL)
+                   AND (fg.account_status IS NULL OR fg.account_status NOT IN ('frozen','archived'))
                  ORDER BY fbv.last_visited_at DESC LIMIT 3`,
                 [groupId]
             );
@@ -7857,8 +7868,11 @@ app.get('/api/family/marketplace/:groupId', async (req, res) => {
             const userRadius = nearFilter ? (parseFloat(radius) || 15) : null;
 
             let bizQuery = `SELECT fg.id, fg.name, fg.image_url, fg.business_type as business_category, ${hasSS ? 'ss.logo_url, ss.phone,' : 'NULL as logo_url, NULL as phone,'} NULL as max_discount`;
+            // לא עושים GROUP BY עם MIN(lat)/MIN(lng) נפרדים — זה "ממציא" נקודת מיקום מלאכותית
+            // שלא קיימת בפועל כשלעסק יש כמה אזורי שירות. שולפים כל שורת אזור בנפרד ומצמצמים
+            // בצד השרת (אחרי חישוב מרחק) לאזור הקרוב ביותר לכל עסק.
             if (nearFilter) {
-                bizQuery += `, MIN(bsa.lat) as biz_lat, MIN(bsa.lng) as biz_lng, MIN(bsa.radius_km) as biz_radius`;
+                bizQuery += `, bsa.lat as biz_lat, bsa.lng as biz_lng, bsa.radius_km as biz_radius`;
             }
             bizQuery += ` FROM family_groups fg`;
             if (hasSS) bizQuery += ` LEFT JOIN store_settings ss ON ss.group_id = fg.id`;
@@ -7867,19 +7881,28 @@ app.get('/api/family/marketplace/:groupId', async (req, res) => {
             const params = [];
             if (category) { params.push(category); bizQuery += ` AND fg.business_type ILIKE $${params.length}`; }
             if (q) { params.push('%' + q + '%'); bizQuery += ` AND fg.name ILIKE $${params.length}`; }
-            bizQuery += ` GROUP BY fg.id, fg.name, fg.image_url, fg.business_type${hasSS ? ', ss.logo_url, ss.phone' : ''}`;
-            bizQuery += ` ORDER BY fg.name LIMIT 200`;
+            if (!nearFilter) {
+                bizQuery += ` GROUP BY fg.id, fg.name, fg.image_url, fg.business_type${hasSS ? ', ss.logo_url, ss.phone' : ''}`;
+            }
+            bizQuery += ` ORDER BY fg.name LIMIT 500`;
             const bizRes = await pool.query(bizQuery, params);
             let rows = bizRes.rows;
-            // סינון מרחק בצד שרת
+            // סינון מרחק בצד שרת — לכל עסק לוקחים רק את אזור השירות הקרוב ביותר שבתוך הרדיוס שלו
             if (nearFilter) {
-                rows = rows.filter(b => {
-                    if (!b.biz_lat || !b.biz_lng) return false;
+                const byBiz = new Map();
+                for (const b of rows) {
+                    if (!b.biz_lat || !b.biz_lng) continue;
                     const dist = haversineKm(userLat, userLng, b.biz_lat, b.biz_lng);
-                    b.distance_km = Math.round(dist * 10) / 10;
-                    return dist <= (b.biz_radius || userRadius);
-                });
-                rows.sort((a, b) => a.distance_km - b.distance_km);
+                    if (dist > (b.biz_radius || userRadius)) continue;
+                    const existing = byBiz.get(b.id);
+                    if (!existing || dist < existing.distance_km) {
+                        b.distance_km = Math.round(dist * 10) / 10;
+                        byBiz.set(b.id, b);
+                    }
+                }
+                rows = [...byBiz.values()].sort((a, b) => a.distance_km - b.distance_km).slice(0, 200);
+            } else {
+                rows = rows.slice(0, 200);
             }
             bizRows = rows;
         } catch(e) { console.error('[marketplace] bizRes error:', e.message); }
@@ -7892,7 +7915,7 @@ app.get('/api/family/marketplace/:groupId', async (req, res) => {
             businesses: bizRows,
             total: bizRows.length
         });
-    } catch(e) { console.error('[marketplace] ERROR:', e.message); res.status(500).json({ error: e.message }); }
+    } catch(e) { console.error('[marketplace] ERROR:', e.message); res.status(500).json({ error: 'שגיאה פנימית' }); }
 });
 
 // ============================================================

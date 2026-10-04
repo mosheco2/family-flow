@@ -760,6 +760,133 @@ switchTab(t) {
 
 ---
 
+### 3.16 מרקטפלייס (`content-marketplace`)
+
+> עודכן: 2026-10 | אומת מול קוד בפועל (server.js + public/app.js + public/marketplace.html)
+> כחלק מתהליך אפיון עומק.
+> **נכון לגרסה שלפני אוקטובר 2026 — ה-endpoint המרכזי של המודול לא היה מוגן אימות בכלל**
+> (כל בקשה, אפילו ללא טוקן, קיבלה את כל רשימת העסקים הפעילים). התיקון תועד למטה ונכלל בקוד
+> הנוכחי.
+
+**מטרה:** גילוי עסקים (חנות ציבורית) מתוך סביבת המשפחה — חיפוש, סינון לפי קטגוריה/קרבה
+גיאוגרפית, "ביקרתי לאחרונה", מבצעי שבוע, אזורים מועדפים, כניסה לחנות הציבורית (storefront)
+של כל עסק.
+
+**ארכיטקטורה:** הטאב `loadMarketplaceTab()` (`app.js:~18485`) מטמיע `<iframe>` עצמאי
+ל-`public/marketplace.html?groupId=&token=&familyName=` (דף נפרד, same-origin, עם
+`<script>` עצמאי). תקשורת הורה↔iframe דרך `postMessage` (למשל `openStorefront` כדי לפתוח
+את `storefront.html` של העסק בלשונית/טאב חדש, עם `e.origin` מאומת משני הצדדים).
+
+**גישה לפי סוג משתמש (`ROLE_DEFAULTS`, `app.js:9097`):** הטאב `marketplace` **אינו** ברירת
+מחדל לאף תפקיד חוץ מ-`ADMIN` (`ALL_TABS` המלא). `MANAGER`, `SENIOR`, `MEMBER`, `CHILD` לא
+רואים את הטאב כברירת מחדל — הוא נחשף להם רק אם ADMIN הרחיב ידנית את הרשאות ה-tabs שלהם
+(`PUT /api/users/:id/permissions`, מודול 3.14 "ניהול/Members"). בפועל, המודול מיועד בעיקר
+להורה/מנהל המשפחה, אך אינו חסום באופן מהותי לשאר התפקידים ברגע שהוענקה הרשאת tab —
+כל ה-endpoints בודקים רק זהות **קבוצה** (`req.familyAuth.groupId`), לא תפקיד בתוך הקבוצה,
+כך שכל חבר משפחה עם טוקן תקף וגישה לטאב רואה את **אותם** נתונים (אין הבדלי תוכן בין
+ADMIN/MEMBER/CHILD בתוך המודול עצמו — ההבדל היחיד הוא האם הטאב מוצג).
+
+**טוקן:** `marketplace.html` קורא את טוקן המשפחה ישירות מ-`localStorage.getItem('ofl_family_token')`
+(אותו מפתח שמשמש את `getFamilyToken()` ב-`app.js`) — פרמטר ה-URL `token`/`familyToken` הוא
+רק fallback (כדי לא לחשוף את הטוקן מיותר ב-query string כששומרים אותו ממילא ב-localStorage
+של אותו origin). כל קריאות ה-API הפנימיות עוברות דרך עוטפת `apiFetch()` שמוסיפה אוטומטית
+`Authorization: Bearer <FAMILY_TOKEN>`.
+
+**טעינת הנתונים — `GET /api/family/marketplace/:groupId`:** endpoint יחיד שמחזיר בבת אחת:
+1. **יתרת Flow coins (FLW)** של המשפחה — `SELECT balance FROM flow_wallets WHERE entity_type='family' AND entity_id=groupId` (מוצג בראש הדף, רלוונטי למימוש הטבות/מטבעות מול עסקים).
+2. **ביקרתי לאחרונה** — 3 העסקים האחרונים לפי `family_business_visits.last_visited_at`,
+   מסונן לעסקים לא-מחוקים/לא-מוקפאים בלבד (`is_deleted`, `account_status`).
+3. **מבצעי השבוע** — 2 ה-`community_promotions` עם `discount_pct` הגבוה ביותר שעדיין בתוקף
+   (`valid_until > NOW()`), ללא תלות במשפחה הספציפית (רשימה גלובלית לכל המשתמשים).
+4. **רשימת כל העסקים** — כל `family_groups` מסוג `BUSINESS` פעילים, עם סינון אופציונלי
+   `category` (`business_type ILIKE`) ו-`q` (`name ILIKE`), ועד 500 שורות.
+5. **סינון "קרוב אליי"** (כש-`lat`+`lng` מגיעים ב-query) — JOIN עם `biz_service_areas`,
+   חישוב מרחק אווירי (Haversine) בין מיקום המשתמש לכל אזור שירות של כל עסק בנפרד, השוואה
+   מול רדיוס השירות של אותו אזור (`radius_km`, ברירת מחדל 15 אם לא סופק `radius`), ובחירת
+   אזור השירות הקרוב ביותר כ"מרחק האמיתי" של העסק (לא ממוצע/מינימום מלאכותי בין כמה אזורים).
+   תוצאה: עד 200 עסקים, ממוינים לפי מרחק עולה.
+
+**תת-אזורים ב-UI (`public/marketplace.html`):**
+- **ביקרתי לאחרונה** (`renderRecent`, שורה ~758) — 3 כרטיסים, לוגו/תמונה, שם, קטגוריה.
+- **מבצעי השבוע** (`renderWeekly`, שורה ~776) — כרטיס מבצע עם כותרת ההטבה, אחוז הנחה,
+  תוקף, ושם/לוגו/קטגוריה (`catLabel()`) של העסק המציע.
+- **מומלץ לי** (`renderRecommended`, שורה ~798) — שילוב תצוגתי של מבצעי שבוע + מדגם
+  מתוך רשימת העסקים (לא אלגוריתם המלצה אישי — ר' "מגבלות ידועות").
+- **רשימת עסקים מלאה** (`_renderBizPage`, שורה ~829) — צ'יפים לסינון קטגוריה: הכל, יופי,
+  ספורט, התקנות/שירות (ועוד לפי `catLabel`/`BUSINESS_TYPES`, כולל `services` שנוסף בתיקון
+  זה), חיפוש טקסט חופשי (מסונן כרגע **רק בצד הלקוח** על התוצאות שכבר נטענו — הפרמטר `q`
+  קיים ונתמך במלואו בשרת, אך הלקוח לא שולח אותו היום — ר' מגבלות), וסינון "קרוב אליי".
+  כל כרטיס עסק מציג: לוגו/תמונה, שם, קטגוריה, טלפון (אם קיים ב-`store_settings`), ומרחק
+  בק"מ כש"קרוב אליי" פעיל.
+- **אזורים מועדפים** (`loadFamilyAreas`/`addFamilyArea`/`delFamilyArea`) — ניהול רשימת
+  אזורי מגורים/עניין של המשפחה: הוספת עיר (עם `is_primary` לאזור ראשי), geocoding אוטומטי
+  דרך Nominatim (OpenStreetMap, חיצוני) אם לא סופקו קואורדינטות ידנית, מחיקה. משמש כקלט
+  לסינון "קרוב אליי" (המשתמש יכול לבחור אזור שמור במקום GPS חי).
+- **חיפוש חי** (`showSearchResults`) — תיבת חיפוש עם dropdown עד 8 תוצאות מיידי, סגנון
+  זהה (לוגו-עיגול/ראשי-תיבות, שם, קטגוריה), כל שורה פותחת עסק באותה דרך כמו שאר הכרטיסים.
+
+**פתיחת עסק (`openBiz(el)`):** קורא `data-biz-id`/`data-biz-name` מהאלמנט שנלחץ → בונה
+`storefront.html?groupId=<biz>&familyGroupId=<family>&flowRedeem=1` → שולח `postMessage`
+להורה (`{action:'openStorefront', bizId, bizName, url}`, עם `location.origin` כיעד) כדי
+שה-`app.js` ההורה יפתח את ה-storefront בטאב/חלון חדש; אם הדף לא רץ בתוך iframe (למשל
+נפתח ישירות), פותח `window.open` בעצמו. במקביל (אם יש טוקן+קבוצה) שולח ברקע
+`POST /api/family/visit-business` לרישום הביקור — לא חוסם את הניווט אם הקריאה נכשלת.
+
+**API** (family-side, כולן מוגנות `verifyFamily` + בדיקת `groupId===req.familyAuth.groupId`):
+
+| Method | Path | Query/Body | תיאור |
+|---|---|---|---|
+| GET | `/api/family/marketplace/:groupId` | `category`, `q`, `lat`, `lng`, `radius` | נתוני המרקטפלייס המלאים: יתרת FLW + recent + weekly + רשימת עסקים (+near אם lat/lng) |
+| GET | `/api/family/marketplace-history/:groupId` | — | היסטוריית עסקים שביקרו (כל הרשומות, לא רק 3 אחרונים) |
+| POST | `/api/family/visit-business` | `businessGroupId` | רישום/עדכון ביקור (upsert לפי זוג family+business, מולידציה שהעסק קיים ומסוג BUSINESS) |
+| GET | `/api/family/preferred-areas/:groupId` | — | רשימת אזורים מועדפים (ראשי קודם) |
+| POST | `/api/family/preferred-areas/:groupId` | `city`, `radius_km`, `is_primary`, `lat?`, `lng?` | הוספה/עדכון אזור (upsert לפי עיר, geocoding אוטומטי אם אין קואורדינטות) |
+| DELETE | `/api/family/preferred-areas/:groupId/:areaId` | — | מחיקת אזור |
+
+**טבלאות:** `family_business_visits` (ביקורים, `last_visited_at`), `biz_service_areas`
+(`lat`/`lng`/`radius_km` לכל אזור שירות של עסק), `family_preferred_areas` (`city`,`lat`,
+`lng`,`radius_km`,`is_primary`), `family_groups` (type=`BUSINESS`, `business_type`,
+`is_deleted`, `account_status`), `store_settings` (`logo_url`,`phone`), `community_promotions`
+(מבצעי שבוע, `discount_pct`,`valid_until`,`biz_code`), `flow_wallets` (יתרת FLW,
+`entity_type='family'`).
+
+**הערה היסטורית (תועד למען שקיפות)**: עד לתיקון —
+1. `GET /api/family/marketplace/:groupId` לא היה מוגן ב-`verifyFamily` כלל, וגם לא בדק
+   התאמת `groupId` מה-URL לזהות המתקשר (IDOR) — כל גורם ללא טוקן יכול היה למשוך את כל
+   רשימת העסקים הפעילים, נתוני "מי ביקר לאחרונה" של כל משפחה, ועסקאות אחרות.
+2. `GET /api/family/marketplace-history/:groupId` היה מוגן ב-`verifyFamily` אך ללא בדיקת
+   בעלות (IDOR) — אפשר היה למשוך היסטוריית ביקורים של משפחה אחרת לפי שינוי `groupId` ב-URL.
+3. `loadMarketplaceTab()` ב-`app.js` קרא את טוקן המשפחה ממפתחות localStorage שגויים
+   (`'familyToken'`/`'token'`, שלא היו קיימים בפועל) במקום `'ofl_family_token'` — כך שהטוקן
+   שהוזרם בפועל ל-iframe היה תמיד ריק. זה לא גרם לתקלה גלויה כל עוד ה-endpoint לא דרש
+   אימות, אבל היה הופך את כל המודול ללא פעיל ברגע שמוסיפים אימות — תוקן לפני שהתיקון האחר
+   נכנס לתוקף.
+4. חישוב "קרוב אליי" השתמש ב-`MIN(lat), MIN(lng), MIN(radius_km)` בנפרד על פני כל אזורי
+   השירות של עסק (GROUP BY), מה שיכול "להמציא" נקודת מיקום לא קיימת לעסק עם כמה אזורי
+   שירות — תוקן לחישוב מרחק אמיתי לכל אזור שירות בנפרד ובחירת המרחק המינימלי האמיתי.
+5. `POST /api/family/visit-business` לא בדק שה-`businessGroupId` שהתקבל אכן קיים והוא
+   מסוג `BUSINESS` — תוקן.
+6. כרטיסי עסק ב-`marketplace.html` נבנו עם `onclick="openBiz(' + id + ',\'' + name + '\')"` —
+   דפוס XSS: גם אחרי `esc()`, הדפדפן מפענח entities בערכי attribute *לפני* שהתוכן מתפרש כ-JS,
+   כך ששם עסק עם `'` יכול לשבור מחוץ למחרוזת ה-JS. גם `src` של לוגו/תמונת עסק לא עבר `esc()`.
+   תוקן בכל 5 מוקדי הרינדור: מעבר ל-`data-biz-id`/`data-biz-name` + `onclick="openBiz(this)"`,
+   ו-`esc()` על כל `src`.
+7. `postMessage(msg, '*')` (3 מוקדים) — הודעות בין ה-iframe להורה נשלחו לכל origin; תוקן
+   ל-`postMessage(msg, location.origin)`, וגם ה-listener בצד ההורה (`app.js`) נבדק כעת מול
+   `e.origin !== window.location.origin`.
+8. שגיאות שרת (`catch`) החזירו `e.message` גולמי ללקוח בחלק מה-endpoints — תוקן להודעות
+   כלליות בעברית.
+9. `biz_category` הוצג כקוד גולמי (למשל `beauty`) במקום תווית בעברית במבצעי השבוע — תוקן
+   ל-`catLabel()`. `distance_km` חושב בשרת אך לא הוצג ללקוח — נוסף לכרטיסי הרשימה.
+
+**מגבלות ידועות (לא תוקנו — החלטות מוצר, לא באגים):**
+- "מבצעי השבוע"/"מומלץ לי" אינם מותאמים אישית למשפחה — זו רשימה גלובלית.
+- חיפוש הטקסט החופשי מסונן כרגע רק בצד הלקוח; הפרמטר `q` קיים ונתמך בשרת אך לא נשלח.
+- טיפול `storefront.html` בפרמטר `familyToken` ב-URL לא נבדק כחלק מהמודול הזה (קובץ נפרד,
+  בשימוש רחב ממקומות נוספים — סומן לבדיקה נפרדת).
+
+---
+
 ## 4. Flow הזמנות שלי — renderMyOrders
 
 ### 4.1 זרימת טעינה

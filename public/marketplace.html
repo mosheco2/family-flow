@@ -656,6 +656,7 @@ html, body {
     <div class="chip" data-cat="beauty" onclick="setCategory('beauty',this)">יופי</div>
     <div class="chip" data-cat="sport" onclick="setCategory('sport',this)">ספורט</div>
     <div class="chip" data-cat="logistics" onclick="setCategory('logistics',this)">לוגיסטיקה</div>
+    <div class="chip" data-cat="services" onclick="setCategory('services',this)">שירותים</div>
     <div class="chip" data-cat="other" onclick="setCategory('other',this)">אחר</div>
   </div>
 
@@ -706,12 +707,23 @@ var currentFilter = 'for-me';
 var _bizPage = 0;
 var BIZ_PAGE_SIZE = 5;
 
-// קבלת params מה-URL
+// קבלת groupId מה-URL, אבל את הטוקן קוראים ישירות מ-localStorage (אותו origin בדיוק כמו
+// הדף הראשי) — כדי שהוא לא יישאר בכתובת (היסטוריית דפדפן/לוגים/Referer). ה-URL נשאר כ-fallback
+// למקרה נדיר שבו localStorage לא זמין (למשל חסימת cookies/storage ב-iframe).
 (function() {
   var p = new URLSearchParams(location.search);
   GROUP_ID = p.get('groupId') || p.get('group_id');
-  FAMILY_TOKEN = p.get('token') || p.get('familyToken');
+  try { FAMILY_TOKEN = localStorage.getItem('ofl_family_token') || null; } catch(e) { FAMILY_TOKEN = null; }
+  if (!FAMILY_TOKEN) FAMILY_TOKEN = p.get('token') || p.get('familyToken');
 })();
+
+// עוטף fetch עם Authorization — בלי זה כל קריאה ל-API הפנימי (/api/family/*) נענית ב-401,
+// כי ה-endpoints האלה דורשים כעת טוקן משפחתי (ראו תיקון אבטחה בצד השרת)
+function apiFetch(url, opts) {
+  opts = opts || {};
+  opts.headers = Object.assign({}, opts.headers || {}, FAMILY_TOKEN ? { 'Authorization': 'Bearer ' + FAMILY_TOKEN } : {});
+  return fetch(url, opts);
+}
 
 // ── Data ──────────────────────────────────────────────────────
 async function loadMarketplace() {
@@ -719,7 +731,7 @@ async function loadMarketplace() {
   var url = '/api/family/marketplace/' + GROUP_ID;
   if (currentCategory) url += '?category=' + encodeURIComponent(currentCategory);
   try {
-    var res = await fetch(url);
+    var res = await apiFetch(url);
     var data = await res.json();
     if (data.error) { renderAll({ businesses: [], recentlyVisited: [], weeklyDeals: [], flwBalance: 0 }); return; }
     renderAll(data);
@@ -756,9 +768,9 @@ function renderRecent(items) {
     var logo = b.logo_url || b.image_url;
     var initial = (b.name || '?').charAt(0);
     var avatarHtml = logo
-      ? '<img src="' + logo + '" alt="">'
+      ? '<img src="' + esc(logo) + '" alt="">'
       : initial;
-    return '<div class="recent-biz" onclick="openBiz(' + b.id + ',\'' + esc(b.name) + '\')">' +
+    return '<div class="recent-biz" onclick="openBiz(this)" data-biz-id="' + esc(b.id) + '" data-biz-name="' + esc(b.name) + '">' +
       '<div class="recent-avatar">' + avatarHtml + '</div>' +
       '<div class="recent-name">' + esc(b.name) + '</div>' +
       '</div>';
@@ -773,11 +785,11 @@ function renderWeekly(items) {
   grid.innerHTML = items.map(function(d) {
     var logo = d.logo_url || d.biz_logo;
     var imgHtml = logo
-      ? '<img src="' + logo + '" alt="">'
+      ? '<img src="' + esc(logo) + '" alt="">'
       : '<div class="deal-image-placeholder"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></div>';
     var discBadge = d.discount_pct ? '<div class="deal-badge">' + d.discount_pct + '% הנחה</div>' : '';
-    var meta = [d.biz_category, d.valid_until ? 'עד ' + formatDate(d.valid_until) : ''].filter(Boolean).join(' · ');
-    return '<div class="deal-card" onclick="openBiz(' + d.biz_id + ',\'' + esc(d.biz_name) + '\')">' +
+    var meta = [d.biz_category ? catLabel(d.biz_category) : '', d.valid_until ? 'עד ' + formatDate(d.valid_until) : ''].filter(Boolean).join(' · ');
+    return '<div class="deal-card" onclick="openBiz(this)" data-biz-id="' + esc(d.biz_id) + '" data-biz-name="' + esc(d.biz_name) + '">' +
       '<div class="deal-image">' + imgHtml + discBadge + '</div>' +
       '<div class="deal-info">' +
         '<div class="deal-name">' + esc(d.biz_name) + '</div>' +
@@ -797,10 +809,10 @@ function renderRecommended(weeklyDeals, businesses) {
   grid.innerHTML = items.map(function(b) {
     var logo = b.logo_url || b.image_url;
     var imgHtml = logo
-      ? '<img src="' + logo + '" alt="">'
+      ? '<img src="' + esc(logo) + '" alt="">'
       : '<div class="deal-image-placeholder"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></div>';
     var cat = b.business_category ? catLabel(b.business_category) : '';
-    return '<div class="deal-card" onclick="openBiz(' + b.id + ',\'' + esc(b.name) + '\')">' +
+    return '<div class="deal-card" onclick="openBiz(this)" data-biz-id="' + esc(b.id) + '" data-biz-name="' + esc(b.name) + '">' +
       '<div class="deal-image">' + imgHtml + '</div>' +
       '<div class="deal-info">' +
         '<div class="deal-name">' + esc(b.name) + '</div>' +
@@ -836,10 +848,12 @@ function _renderBizPage() {
   list.innerHTML = slice.map(function(b) {
     var logo = b.logo_url || b.image_url;
     var initial = (b.name || '?').charAt(0);
-    var avatarHtml = logo ? '<img src="' + logo + '" alt="">' : initial;
-    var meta = [b.business_category ? catLabel(b.business_category) : '', b.city || ''].filter(Boolean).join(' · ');
+    var avatarHtml = logo ? '<img src="' + esc(logo) + '" alt="">' : initial;
+    var metaParts = [b.business_category ? catLabel(b.business_category) : '', b.city || ''];
+    if (b.distance_km != null) metaParts.push(b.distance_km + ' ק"מ');
+    var meta = metaParts.filter(Boolean).join(' · ');
     var disc = b.max_discount ? '<div class="biz-row-discount">' + b.max_discount + '%</div>' : '<div class="biz-row-discount" style="visibility:hidden">-</div>';
-    return '<div class="biz-row" onclick="openBiz(' + b.id + ',\'' + esc(b.name) + '\')">' +
+    return '<div class="biz-row" onclick="openBiz(this)" data-biz-id="' + esc(b.id) + '" data-biz-name="' + esc(b.name) + '">' +
       disc +
       '<div class="biz-row-info">' +
         '<div class="biz-row-name">' + esc(b.name) + '</div>' +
@@ -898,7 +912,7 @@ function applyNearFilter() {
   }
   // אם יש אזורים שמורים — טען לפיהם
   if (GROUP_ID) {
-    fetch('/api/family/preferred-areas/' + GROUP_ID).then(function(r) { return r.json(); }).then(function(data) {
+    apiFetch('/api/family/preferred-areas/' + GROUP_ID).then(function(r) { return r.json(); }).then(function(data) {
       var areas = data.areas || [];
       if (areas.length) {
         // קח את האזור הראשי (או הראשון)
@@ -944,7 +958,7 @@ function loadMarketplaceNear(lat, lng, radius) {
   if (currentCategory) url += '&category=' + encodeURIComponent(currentCategory);
   var label = document.getElementById('biz-count-label');
   if (label) label.textContent = 'טוען עסקים קרובים...';
-  fetch(url).then(function(r) { return r.json(); }).then(function(data) {
+  apiFetch(url).then(function(r) { return r.json(); }).then(function(data) {
     var businesses = data.businesses || [];
     renderBusinesses(businesses);
     if (label) label.textContent = businesses.length + ' עסקים בטווח ' + radius + ' ק"מ';
@@ -969,7 +983,7 @@ function loadFamilyAreas() {
   if (!GROUP_ID) return;
   var el = document.getElementById('family-areas-list');
   if (el) el.innerHTML = '<span style="font-size:12px;color:var(--muted)">טוען...</span>';
-  fetch('/api/family/preferred-areas/' + GROUP_ID).then(function(r) { return r.json(); }).then(function(data) {
+  apiFetch('/api/family/preferred-areas/' + GROUP_ID).then(function(r) { return r.json(); }).then(function(data) {
     var areas = data.areas || [];
     if (!el) return;
     if (!areas.length) { el.innerHTML = '<span style="font-size:12px;color:var(--muted);font-style:italic">אין אזורים מוגדרים עדיין</span>'; return; }
@@ -999,7 +1013,7 @@ function addFamilyArea() {
   var radius_km = radiusInput ? parseInt(radiusInput.value) : 15;
   var isFirst = document.getElementById('family-areas-list').children.length === 0 ||
     document.getElementById('family-areas-list').textContent.includes('אין אזורים');
-  fetch('/api/family/preferred-areas/' + GROUP_ID, {
+  apiFetch('/api/family/preferred-areas/' + GROUP_ID, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ city: city, radius_km: radius_km, is_primary: isFirst, lat: lat, lng: lng })
   }).then(function(r) { return r.json(); }).then(function(data) {
@@ -1145,7 +1159,7 @@ function _initNominatimAC(inputId) {
 }
 
 function delFamilyArea(areaId) {
-  fetch('/api/family/preferred-areas/' + GROUP_ID + '/' + areaId, { method: 'DELETE' })
+  apiFetch('/api/family/preferred-areas/' + GROUP_ID + '/' + areaId, { method: 'DELETE' })
     .then(function() { loadFamilyAreas(); _gpsLat = null; _gpsLng = null; });
 }
 
@@ -1196,10 +1210,10 @@ function onSearch(q) {
         dd.innerHTML = filtered.slice(0,8).map(function(b) {
           var logo = b.logo_url || b.image_url;
           var avatar = logo
-            ? '<img src="' + logo + '" style="width:34px;height:34px;border-radius:50%;object-fit:cover;flex-shrink:0">'
+            ? '<img src="' + esc(logo) + '" style="width:34px;height:34px;border-radius:50%;object-fit:cover;flex-shrink:0">'
             : '<div style="width:34px;height:34px;border-radius:50%;background:var(--dark);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0">' + esc((b.name||'?').charAt(0)) + '</div>';
           var cat = b.business_category ? catLabel(b.business_category) : '';
-          return '<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--border)" onclick="openBiz(' + b.id + ',\'' + esc(b.name) + '\');hideSearchResults()">' +
+          return '<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--border)" onclick="openBiz(this);hideSearchResults()" data-biz-id="' + esc(b.id) + '" data-biz-name="' + esc(b.name) + '">' +
             avatar +
             '<div style="flex:1;text-align:right">' +
               '<div style="font-size:13px;font-weight:600;color:var(--text)">' + esc(b.name) + '</div>' +
@@ -1227,12 +1241,17 @@ function toggleNear() {
   if (chip) chip.click();
 }
 
-function openBiz(bizId, bizName) {
+// מקבל אלמנט (לא id+name כפרמטרים ישירים בתוך onclick) — כדי לא לבנות קוד JS ממחרוזת שם עסק
+// שעברה HTML-escape: אלמנט ה-HTML עובר decode פעם אחת בלבד (ל-dataset), ולא מתפרש כקוד JS אחריו
+function openBiz(el) {
+  var bizId = el.dataset.bizId;
+  var bizName = el.dataset.bizName || '';
+  if (!bizId) return;
   // רישום ביקור
   if (FAMILY_TOKEN && GROUP_ID) {
-    fetch('/api/family/visit-business', {
+    apiFetch('/api/family/visit-business', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + FAMILY_TOKEN },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ businessGroupId: bizId })
     }).catch(function(){});
   }
@@ -1241,13 +1260,13 @@ function openBiz(bizId, bizName) {
     (GROUP_ID ? '&familyGroupId=' + GROUP_ID : '') +
     (FAMILY_TOKEN ? '&flowRedeem=1' : '');
   var msg = { action: 'openStorefront', bizId: bizId, bizName: bizName, url: url };
-  try { window.parent.postMessage(msg, '*'); } catch(e) {}
+  try { window.parent.postMessage(msg, location.origin); } catch(e) {}
   // fallback — פתיחה בחלון חדש (לא משנה את iframe עצמו)
   if (window.self === window.top) { window.open(url, '_blank'); }
 }
 
 function redeemFlw() {
-  try { window.parent.postMessage({ action: 'openFlwRedeem' }, '*'); } catch(e) {}
+  try { window.parent.postMessage({ action: 'openFlwRedeem' }, location.origin); } catch(e) {}
 }
 
 // ── Helpers ───────────────────────────────────────────────────
@@ -1282,7 +1301,7 @@ function navTo(tab) {
     var target = (weekly && weekly.style.display !== 'none') ? weekly : rec;
     if (target) target.scrollIntoView({ behavior: 'smooth' });
   } else if (tab === 'profile') {
-    try { window.parent.postMessage({ action: 'openProfile' }, '*'); } catch(e) {}
+    try { window.parent.postMessage({ action: 'openProfile' }, location.origin); } catch(e) {}
     // fallback — גלול לראש
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
