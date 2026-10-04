@@ -1001,7 +1001,24 @@ ADMIN/MEMBER/CHILD בתוך המודול עצמו — ההבדל היחיד הו
 
 ---
 
-## 4. Flow הזמנות שלי — renderMyOrders
+## 4. "הזמנות שלי" — renderMyOrders
+
+> עודכן: 2026-10 | אומת מול קוד בפועל (server.js + public/app.js) כחלק מתהליך אפיון עומק.
+> **נכון לגרסה שלפני אוקטובר 2026 — המודול סבל מהכשל האבטחתי החמור ביותר שנמצא עד כה
+> בתהליך האפיון**: חמישה endpoints קריטיים ללא אימות כלל (כולל שניים שאפשרו שינוי/כתיבת
+> נתונים), ו-**stored XSS שניתן לניצול ללא חשבון בכלל** דרך שילוב של שניים מהם. כולם תוקנו.
+
+**מטרה:** מרכז את כל האינטראקציה הפיננסית/שירותית של המשפחה מול עסקים: הזמנות ממסעכים/
+חנויות, הצעות מחיר (RFQ), קריאות שירות (עם צ'אט פנימי ותחנות תשלום), ופעילות מול כל סוג עסק
+(יופי/ספורט/מסעדות/שירותים) ב-accordion מאוחד.
+
+**גישה לפי סוג משתמש:** הטאב `myorders` מוגדר כ-`ALWAYS_OPEN_TABS`/`ALWAYS_OPEN_DROPS`
+(`app.js:13130-13134`) — **לכל סוגי המשתמשים, כולל CHILD, יש גישה מלאה וזהה** לכל תתי-הטאבים,
+ללא שום סינון תפקיד. גם בצד השרת, לאחר התיקון, כל ה-endpoints בודקים רק **זהות קבוצה**
+(session תקף של המשפחה), לא תפקיד בתוכה — כך שכל חבר משפחה מחובר, כולל ילד/ה, יכול לאשר/
+לסרב הצעת מחיר פיננסית (כגון עבודת שיפוץ יקרה) ולראות את כל הנתונים הכספיים מול עסקים. זהו
+מצב קיים ומכוון (לא תוקן כחלק מהתיקון, בניגוד למודול FlowPool שבו הוגבל CHILD) — ראו הערה
+בסוף.
 
 ### 4.1 זרימת טעינה
 
@@ -1009,10 +1026,11 @@ ADMIN/MEMBER/CHILD בתוך המודול עצמו — ההבדל היחיד הו
 switchTab('myorders')
   → switchMyOrdersTab('orders') // last session tab
   → fetchMyOrders()
-    → GET /api/store/orders/my/:userId
+    → GET /api/store/orders/my/:userId (מאומת — session המשפחה)
     → myOrdersCache = data.orders
     → renderMyOrders()
   → loadFamilyServiceCalls()
+  → startMyOrdersAutoRefresh()
 ```
 
 ### 4.2 renderMyOrders — לוגיקה מלאה
@@ -1045,14 +1063,80 @@ renderMyOrders() {
   - **הערות** (אם קיים)
   - **Badge "הומרה מהצעת מחיר #X"** (אם quote_status=approved)
   - **אישור קבלה** (הזמנות is_delivery=true, status=completed):
-    - "✅ כן, קיבלתי" → prompt דירוג 1-5 → POST feedback
-    - "❌ לא קיבלתי" → הודעת פנייה לעסק
+    - "✅ כן, קיבלתי" → פתיחת מודל דירוג 1-5 (`_orderRatingModal`/`_submitOrderRating`) → POST feedback
+    - "❌ לא קיבלתי" → הודעת פנייה לעסק, ללא ביטול בפועל — **אין מנגנון "ביטול הזמנה" צד-לקוח במודול זה**, רק דיווח "לא קיבלתי"
 
-### 4.4 Auto-refresh
+### 4.4 תתי-טאבים נוספים
 
-`startMyOrdersAutoRefresh()` → כל 20 שניות, **רק כשב-myorders tab**:
-- שולף הזמנות + מרנדר
-- אם tab הצעות פתוח → שולף הצעות גם
+- **הצעות מחיר** (`renderFamilyQuotesTab`/`openFamilyQuoteView`) — טיימליין אירועי הצעה מלא,
+  תצוגת פריטים/הנחה/מע"מ, תגובת לקוח (אישור/סירוב/בקשת הנחה/בקשת שינויים/הודעה חופשית) דרך
+  `PATCH /api/store/quotes/:id/customer-response`.
+- **קריאות שירות** (`renderBusinessServiceCallsTab`/`openFamilyCallModal`) — תקלות בית
+  (`renderMyFaultsAsServiceCalls`, מוצג גם כאן) + קריאות שירות חיצוניות מול עסקים, עם צ'אט
+  פנימי (`service_call_messages`) ותחנות תשלום (`work_order_payments`), ו-polling נפרד של
+  הצ'אט כל 10 שניות כל עוד המודל פתוח.
+- **הפעילות שלי** (`loadMyActivities`/`_renderBizAccordion`) — accordion לכל עסק מקושר, מרונדר
+  לפי `bizType`: תורים/RFQ/אישור-דחיית תור ללקוחות יופי, מנויים/צ'ק-אינים לספורט, היסטוריית
+  הזמנות למסעדות/שירותים. מקור הנתונים: `GET /api/family/business-activity/:familyGroupId/:bizGroupId`.
+
+### 4.5 Auto-refresh
+
+`startMyOrdersAutoRefresh()` — **רץ כל 3 שניות בפועל** (לא 20 שניות כפי שתועד בעבר — תוקן כאן
+לשקף את הקוד האמיתי), ללא קשר לטאב הפעיל: מרענן תמיד את `myOrdersCache` ובודק שינויי סטטוס
+(מציג toast + בד bell-badge), אך מעדכן את ה-DOM בפועל רק אם `myorders` הוא הטאב הפעיל. אם טאב
+"הצעות" גלוי — שולף גם הצעות מחיר. ה-interval אינו נוקה באופן מפורש (`clearInterval`) באף
+מקום, אך בפועל אינו מהווה דליפה — `logout()` מבצע ניווט מלא (`window.location.href='/'`)
+שמאפס את כל מצב ה-JS, כולל אינטרוולים, באותו אופן כמו אינטרוולים גלובליים נוספים באפליקציה
+(למשל `pollInterval`, רענון bell badge).
+
+**API — כל ה-endpoints הבאים מוגנים כעת `verifyFamily`/`verifyFamilyOrBiz`/`verifyBiz` עם
+בדיקת בעלות (לאחר התיקון המתואר למטה):**
+
+| Method | Path | תיאור |
+|---|---|---|
+| GET | `/api/store/orders/my/:userId` | הזמנות (לא כולל הצעות) — `userId` נבדק מול session |
+| GET | `/api/store/quotes/family/:familyGroupId` | הצעות מחיר פעילות למשפחה |
+| POST | `/api/store/orders/:id/customer-feedback` | אישור קבלה / "לא קיבלתי" + דירוג (1-5, נאכף) |
+| PATCH | `/api/store/quotes/:id/customer-response` | תגובת לקוח להצעה (allow-list לסוגי תגובה) |
+| GET | `/api/family/business-activity/:familyGroupId/:bizGroupId` | פעילות accordion לפי סוג עסק |
+| PUT | `/api/family/:familyGroupId/beauty/appointments/:id/client-confirm` | אישור/דחיית תור יופי |
+| GET/POST | `/api/service-calls/:id/messages` | צ'אט קריאת שירות (משפחה/עסק, לפי שייכות בפועל) |
+| GET | `/api/service-calls/:id/payments` | תחנות תשלום לקריאת שירות |
+| POST | `/api/service-calls/:id/payments` | הוספת תחנת תשלום (עסק בלבד) |
+| GET | `/api/family/linked-businesses/:groupId` | עסקים מקושרים (היה מוגן נכון גם לפני התיקון) |
+
+**הערה היסטורית (תועד למען שקיפות)**: עד לתיקון —
+1. **5 endpoints ללא אימות כלל**: `GET /api/store/orders/my/:userId`,
+   `GET /api/store/quotes/family/:familyGroupId`,
+   `GET /api/family/business-activity/:familyGroupId/:bizGroupId`,
+   `GET`/`POST /api/service-calls/:id/messages`, `GET`/`POST /api/service-calls/:id/payments`,
+   ו-`PUT /api/family/:familyGroupId/beauty/appointments/:id/client-confirm` — כולם קיבלו את
+   מזהה המשפחה/המשתמש **מה-URL או מגוף הבקשה בלבד**, ללא session. כל גורם לא-מחובר, בניחוש
+   ID רציף, יכול היה לקרוא היסטוריית הזמנות מלאה, הצעות מחיר פיננסיות (כולל הנחות), תורים/
+   מנויים/RFQ אישיים, וצ'אט פרטי + תשלומים של כל קריאת שירות — **ואף לכתוב** הודעות מזויפות
+   "מהעסק" ולשנות סטטוס תור, ללא שום הרשאה.
+2. **Stored XSS הניתן לניצול ללא חשבון כלל**: בשילוב עם #1, `safeStr()` (הפונקציה ששימשה
+   כמעט בכל רינדור במודול) מבצעת escaping חלקי בלבד (`'`/`"`, לא `<`/`>`/`&`). תוקף שאינו
+   מחובר בכלל יכול היה להזריק הודעת צ'אט זדונית (`POST /api/service-calls/:id/messages` ללא
+   אימות) לכל `call_id` נחוש, וכל משתמש משפחה שפותח את אותה קריאת שירות (`openFamilyCallModal`)
+   מריץ את הקוד הזדוני בדפדפנו. תוקן: מעבר ל-`escHtml()` (בריחה מלאה) בכל תצוגת טקסט חיצוני
+   במודול (הודעות, כותרות, תיאורים, שמות עסק/טכנאי, הערות, תגובות לקוח).
+3. **Bypass מובנה בבדיקת ה-IDOR היחידה שהייתה קיימת** ב-`customer-response`: הבדיקה
+   `if (familyGroupId && ...)` דילגה על עצמה לחלוטין אם הקורא פשוט לא שלח `familyGroupId`
+   בגוף הבקשה. תוקן: המזהה נלקח כעת מה-session בלבד (`req.familyAuth.groupId`), לא מהבקשה.
+4. דליפת `e.message` גולמי ללקוח בכל ה-endpoints שנסקרו — תוקן להודעות כלליות בעברית.
+5. אין ולידציה על `rating` (נדרש 1-5) — תוקן (ערך מחוץ לטווח נדחה לערך ריק).
+6. אין allow-list לסוגי תגובת לקוח (`responseType`) בהצעת מחיר — תוקן.
+7. אין הגבלת אורך על טקסט חופשי (הערות/תגובות/הודעות צ'אט) — נוספה הגבלה (1000-2000 תווים
+   לפי סוג השדה), בדומה לתיקון המקביל במודול FlowPool.
+8. פער תיעוד: Auto-refresh תועד בעבר כ"20 שניות", בפועל 3 שניות — תוקן כאן.
+
+**לא תוקן (סיכון/שינוי התנהגות, הוחלט להשאיר כמגבלה ידועה ולא כקוד שבור):** היעדר בידול
+הרשאות role בתוך המודול (CHILD = ADMIN מבחינת יכולת אישור הצעות מחיר וצפייה בנתונים
+פיננסיים) — בשונה ממודול FlowPool, כאן לא נחסם CHILD, מכיוון שחסימה גורפת עלולה לפגוע
+בתרחישי שימוש לגיטימיים (למשל נער/ה שמנהל/ת בעצמו/ה תיאום מול מורה פרטי). אם רצוי לשנות
+זאת, יש להחליט תחילה אילו פעולות ספציפיות (למשל רק אישור הצעת מחיר מעל סכום מסוים) ראוי
+להגביל ל-ADMIN, כדי לא לפגוע בפונקציונליות קיימת.
 
 ---
 

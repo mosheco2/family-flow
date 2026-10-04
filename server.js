@@ -13579,9 +13579,10 @@ app.post('/api/store/quotes', verifyBizOrLegacy, requireModule('sales'), async (
 });
 
 // --- שליפת הצעות מחיר לצד משפחה ---
-app.get('/api/store/quotes/family/:familyGroupId', async (req, res) => {
+app.get('/api/store/quotes/family/:familyGroupId', verifyFamily, async (req, res) => {
     try {
         const familyGroupId = req.params.familyGroupId;
+        if (parseInt(familyGroupId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const userId = req.query.userId;
         // שליפת טלפון המשתמש לצורך matching ישיר (כמו ב-orders/my)
         let userPhone = null;
@@ -13609,7 +13610,7 @@ app.get('/api/store/quotes/family/:familyGroupId', async (req, res) => {
                 OR so.customer_phone IN (SELECT phone FROM users WHERE group_id=$1 AND phone IS NOT NULL AND phone <> ''))
             ORDER BY so.created_at DESC`, [familyGroupId, userPhone || null]);
         res.json({ success: true, quotes: r.rows });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch(e) { res.status(500).json({ error: 'שגיאה פנימית' }); }
 });
 
 app.get('/api/store/quotes/:groupId', verifyBizOrLegacy, requireModule('sales'), async (req, res) => {
@@ -14049,10 +14050,13 @@ app.post('/api/store/orders/status', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/store/orders/:id/customer-feedback', async (req, res) => {
+app.post('/api/store/orders/:id/customer-feedback', verifyFamily, async (req, res) => {
     try {
-        const { rating, notes, familyGroupId, received } = req.body;
+        const { notes, received } = req.body;
+        let rating = parseInt(req.body.rating);
+        if (!Number.isFinite(rating) || rating < 1 || rating > 5) rating = null;
         const orderId = parseInt(req.params.id);
+        const familyGroupId = req.familyAuth.groupId;
         const chk = await pool.query(
             `SELECT id, group_id, status FROM store_orders WHERE id=$1 AND (family_group_id=$2 OR customer_phone=(SELECT phone FROM users WHERE group_id=$2 AND phone IS NOT NULL LIMIT 1))`,
             [orderId, familyGroupId]
@@ -14073,10 +14077,10 @@ app.post('/api/store/orders/:id/customer-feedback', async (req, res) => {
         // Customer received and rated
         await pool.query(
             `UPDATE store_orders SET customer_rating=$1, customer_rating_notes=$2, customer_rated_at=NOW(), customer_received_at=COALESCE(customer_received_at, NOW()), status=$3 WHERE id=$4`,
-            [rating || null, notes || null, newStatus, orderId]
+            [rating, notes ? String(notes).slice(0, 1000) : null, newStatus, orderId]
         );
         res.json({ success: true });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch(e) { res.status(500).json({ error: 'שגיאה פנימית' }); }
 });
 
 app.patch('/api/store/orders/:id/target-date', async (req, res) => {
@@ -14099,8 +14103,9 @@ app.patch('/api/store/quotes/:id/status', verifyBizOrLegacy, requireModule('sale
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 // --- שליפת הזמנות ללקוח קצה (משפחה) ---
-app.get('/api/store/orders/my/:userId', async (req, res) => {
+app.get('/api/store/orders/my/:userId', verifyFamily, async (req, res) => {
     try {
+        if (parseInt(req.params.userId) !== req.familyAuth.userId) return res.status(403).json({ error: 'אין הרשאה' });
         const uRes = await pool.query('SELECT group_id, phone FROM users WHERE id=$1', [req.params.userId]);
         if (uRes.rows.length === 0) return res.status(404).json({ error: 'משתמש לא נמצא' });
         const { group_id: familyGroupId, phone: userPhone } = uRes.rows[0];
@@ -14119,7 +14124,7 @@ app.get('/api/store/orders/my/:userId', async (req, res) => {
 
         res.json({ success: true, orders: orders.rows });
     } catch(e) {
-        res.status(500).json({ error: e.message });
+        res.status(500).json({ error: 'שגיאה פנימית' });
     }
 });
 // --- אישור הצעת מחיר והפיכתה להזמנה במקום ---
@@ -14371,34 +14376,40 @@ app.post('/api/store/quotes/:id/link-only', verifyBizOrLegacy, requireModule('sa
 });
 
 // --- תגובת לקוח להצעת מחיר ---
-app.patch('/api/store/quotes/:id/customer-response', async (req, res) => {
+app.patch('/api/store/quotes/:id/customer-response', verifyFamily, async (req, res) => {
     try {
-        const { responseType, responseText, familyGroupId } = req.body;
+        const { responseType, responseText } = req.body;
         const quoteId = req.params.id;
-        // וידוא שהקריאה מגיעה מה-family_group_id הנכון
+        const familyGroupId = req.familyAuth.groupId;
+        // וידוא שהקריאה מגיעה מה-family_group_id הנכון — לפי family_group_id ישיר, או התאמת טלפון לקוח לחבר באותה משפחה
         const q = await pool.query('SELECT * FROM store_orders WHERE id=$1', [quoteId]);
         if (!q.rows.length) return res.status(404).json({ error: 'הצעה לא נמצאה' });
         const quote = q.rows[0];
-        if (familyGroupId && String(quote.family_group_id) !== String(familyGroupId))
-            return res.status(403).json({ error: 'אין הרשאה' });
+        const allowed = parseInt(quote.family_group_id) === familyGroupId
+            || (quote.customer_phone && (await pool.query(
+                `SELECT 1 FROM users WHERE group_id=$1 AND phone=$2`, [familyGroupId, quote.customer_phone])).rows.length);
+        if (!allowed) return res.status(403).json({ error: 'אין הרשאה' });
+        const ALLOWED_RESPONSE_TYPES = ['approved', 'rejected', 'discount_request', 'items_request', 'message'];
+        if (!ALLOWED_RESPONSE_TYPES.includes(responseType)) return res.status(400).json({ error: 'סוג תגובה לא תקין' });
+        const safeResponseText = responseText ? String(responseText).slice(0, 1000) : null;
 
         const newStatus = responseType === 'approved' ? 'customer_approved'
             : responseType === 'rejected' ? 'cancelled'
             : 'waiting_customer';
-        const custHistEvent = JSON.stringify({ type: 'customer_response', actor: 'customer', ts: new Date().toISOString(), responseType, text: responseText || null });
+        const custHistEvent = JSON.stringify({ type: 'customer_response', actor: 'customer', ts: new Date().toISOString(), responseType, text: safeResponseText });
         await pool.query(`UPDATE store_orders SET customer_response=$1, customer_response_type=$2, customer_response_at=NOW(), quote_status=$3,
             quote_history = COALESCE(quote_history, '[]'::jsonb) || $5::jsonb
             WHERE id=$4`,
-            [responseText || null, responseType, newStatus, quoteId, `[${custHistEvent}]`]);
+            [safeResponseText, responseType, newStatus, quoteId, `[${custHistEvent}]`]);
         // התראה לעסק
         try {
             const typeLabel = {approved:'✅ אישר את ההצעה', rejected:'❌ סירב להצעה', discount_request:'💬 ביקש הנחה', items_request:'📋 ביקש שינויים', message:'💬 שלח הודעה'}[responseType] || responseType;
             await pool.query(`INSERT INTO alert_notifications (group_id, type, title, message, reference_id, reference_key, created_at)
                 VALUES ($1, 'quote_response', 'תגובת לקוח להצעה', $2, $3, 'quote', NOW())`,
-                [quote.group_id, `${quote.customer_name || 'לקוח'} ${typeLabel}${responseText ? ': ' + responseText : ''}`, quoteId]);
+                [quote.group_id, `${quote.customer_name || 'לקוח'} ${typeLabel}${safeResponseText ? ': ' + safeResponseText : ''}`, quoteId]);
         } catch(e) {}
         res.json({ success: true });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch(e) { res.status(500).json({ error: 'שגיאה פנימית' }); }
 });
 
 // --- המרת הצעת מחיר לפקודת עבודה ---
@@ -24414,25 +24425,41 @@ app.delete('/api/service-calls/:id', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.get('/api/service-calls/:id/messages', async (req, res) => {
+// עוזר: מוודא שהמתקשר (משפחה/עסק) שייך בפועל לקריאת השירות המבוקשת
+async function _assertServiceCallAccess(req, res) {
+    const call = await pool.query('SELECT family_group_id, business_group_id FROM service_calls WHERE id=$1', [req.params.id]);
+    if (!call.rows.length) { res.status(404).json({ error: 'קריאת שירות לא נמצאה' }); return null; }
+    const c = call.rows[0];
+    const callerGroupId = req.callerAuth.groupId;
+    const allowed = (req.callerAuth.type === 'family' && parseInt(c.family_group_id) === parseInt(callerGroupId))
+        || (req.callerAuth.type === 'business' && parseInt(c.business_group_id) === parseInt(callerGroupId));
+    if (!allowed) { res.status(403).json({ error: 'אין הרשאה לצפות בקריאת שירות זו' }); return null; }
+    return c;
+}
+
+app.get('/api/service-calls/:id/messages', verifyFamilyOrBiz, async (req, res) => {
     try {
+        if (!(await _assertServiceCallAccess(req, res))) return;
         const result = await pool.query('SELECT * FROM service_call_messages WHERE call_id=$1 ORDER BY created_at ASC', [req.params.id]);
         res.json({ success: true, messages: result.rows });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch(e) { res.status(500).json({ error: 'שגיאה פנימית' }); }
 });
 
-app.post('/api/service-calls/:id/messages', async (req, res) => {
+app.post('/api/service-calls/:id/messages', verifyFamilyOrBiz, async (req, res) => {
     try {
-        const { senderType, senderName, message } = req.body;
-        if (!senderType || !message) return res.status(400).json({ error: 'שדות חסרים' });
+        const { senderName, message } = req.body;
+        if (!message || !message.trim()) return res.status(400).json({ error: 'שדות חסרים' });
+        if (!(await _assertServiceCallAccess(req, res))) return;
+        // senderType נקבע מזהות המתקשר המאומתת, לא מגוף הבקשה — מונע התחזות
+        const senderType = req.callerAuth.type === 'business' ? 'business' : 'family';
         if (senderType === 'family') {
             await pool.query(`UPDATE service_calls SET updated_at=NOW() WHERE id=$1`, [req.params.id]);
         }
         const result = await pool.query(
             'INSERT INTO service_call_messages (call_id, sender_type, sender_name, message) VALUES ($1,$2,$3,$4) RETURNING *',
-            [req.params.id, senderType, senderName||null, message]);
+            [req.params.id, senderType, senderName||null, message.trim().slice(0, 2000)]);
         res.json({ success: true, message: result.rows[0] });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch(e) { res.status(500).json({ error: 'שגיאה פנימית' }); }
 });
 
 app.get('/api/service-calls/:id/notes', async (req, res) => {
@@ -27476,18 +27503,22 @@ app.get('/api/professional/dashboard/:groupId', verifyBiz, async (req, res) => {
 // ===== END PROFESSIONAL DASHBOARD API =====
 
 // קבלת תחנות תשלום לקריאת שירות
-app.get('/api/service-calls/:id/payments', async (req, res) => {
+app.get('/api/service-calls/:id/payments', verifyFamilyOrBiz, async (req, res) => {
     try {
+        if (!(await _assertServiceCallAccess(req, res))) return;
         const r = await pool.query(
             `SELECT * FROM work_order_payments WHERE service_call_id=$1 ORDER BY due_date ASC NULLS LAST, created_at ASC`,
             [req.params.id]);
         res.json({ success: true, payments: r.rows });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch(e) { res.status(500).json({ error: 'שגיאה פנימית' }); }
 });
 
-// הוספת תחנת תשלום לקריאת שירות
-app.post('/api/service-calls/:id/payments', async (req, res) => {
+// הוספת תחנת תשלום לקריאת שירות (עסק בלבד — קביעת תנאי תשלום היא פעולה עסקית)
+app.post('/api/service-calls/:id/payments', verifyBiz, async (req, res) => {
     try {
+        const callCheck = await pool.query('SELECT business_group_id FROM service_calls WHERE id=$1', [req.params.id]);
+        if (!callCheck.rows.length) return res.status(404).json({ error: 'קריאת שירות לא נמצאה' });
+        if (parseInt(callCheck.rows[0].business_group_id) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const { milestoneName, amount, dueDate, paymentMethod, totalAmount } = req.body;
         if (!amount || parseFloat(amount) <= 0) return res.status(400).json({ error: 'סכום נדרש' });
 
@@ -27514,7 +27545,7 @@ app.post('/api/service-calls/:id/payments', async (req, res) => {
             [req.params.id]
         );
         res.json({ success: true, payment: r.rows[0] });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch(e) { res.status(500).json({ error: 'שגיאה פנימית' }); }
 });
 
 // טאב גביה — כל תחנות הגביה של העסק (פקודות עבודה + קריאות שירות)
@@ -30288,10 +30319,11 @@ app.get('/api/family/linked-businesses/:groupId', verifyFamily, async (req, res)
     } catch(e) { res.status(500).json({ error: e.message, businesses: [] }); }
 });
 
-app.get('/api/family/business-activity/:familyGroupId/:bizGroupId', async (req, res) => {
+app.get('/api/family/business-activity/:familyGroupId/:bizGroupId', verifyFamily, async (req, res) => {
     try {
         const familyGroupId = parseInt(req.params.familyGroupId);
         const bizGroupId = parseInt(req.params.bizGroupId);
+        if (familyGroupId !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const [bizR, phoneR] = await Promise.all([
             pool.query('SELECT business_type FROM family_groups WHERE id=$1', [bizGroupId]),
             // מחפשים את הטלפונים של *כל* בני המשפחה (לא רק אחד אקראי) — כדי שההזמנה תימצא
@@ -30464,12 +30496,13 @@ app.get('/api/family/business-activity/:familyGroupId/:bizGroupId', async (req, 
         result.activity.log = logItems.slice(0, 50);
 
         res.json(result);
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch(e) { res.status(500).json({ error: 'שגיאה פנימית' }); }
 });
 
 // Client confirms or declines a pending_client beauty appointment
-app.put('/api/family/:familyGroupId/beauty/appointments/:id/client-confirm', async (req, res) => {
+app.put('/api/family/:familyGroupId/beauty/appointments/:id/client-confirm', verifyFamily, async (req, res) => {
     try {
+        if (parseInt(req.params.familyGroupId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const { action } = req.body; // 'confirm' or 'decline'
         const newStatus = action === 'confirm' ? 'confirmed' : 'cancelled';
         const r = await pool.query(
@@ -30480,7 +30513,7 @@ app.put('/api/family/:familyGroupId/beauty/appointments/:id/client-confirm', asy
         );
         if (!r.rows.length) return res.status(404).json({ error: 'לא נמצא או שהסטטוס שונה כבר' });
         res.json({ success: true, newStatus });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch(e) { res.status(500).json({ error: 'שגיאה פנימית' }); }
 });
 
 app.post('/api/beauty/:bizId/clients', verifyBiz, verifyBeautyClientAccess, async (req, res) => {

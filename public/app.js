@@ -924,7 +924,7 @@ function startMyOrdersAutoRefresh() {
     if (_myordersRefreshInterval) return;
     _myordersRefreshInterval = setInterval(async () => {
         try {
-            const res = await fetch(`${API}/store/orders/my/${currentUser.id}`);
+            const res = await communityFetch(`${API}/store/orders/my/${currentUser.id}`);
             const d = await res.json();
             if (d.success) {
                 const newOrders = d.orders || [];
@@ -971,7 +971,7 @@ function startMyOrdersAutoRefresh() {
                                 delete accordion.dataset.loaded;
                                 // אם accordion פתוח, רענן אוטומטית
                                 if (!accordion.classList.contains('hidden')) {
-                                    fetch(`${API}/family/business-activity/${currentGroup.id}/${bizGroupId}`)
+                                    communityFetch(`${API}/family/business-activity/${currentGroup.id}/${bizGroupId}`)
                                         .then(r => r.json())
                                         .then(res => _renderBizAccordion(accordion, res, res.type || 'restaurant'))
                                         .catch(() => {});
@@ -1008,7 +1008,7 @@ function startMyOrdersAutoRefresh() {
         if (quotesSection && !quotesSection.classList.contains('hidden') && currentGroup) {
             try {
                 const uid = currentUser ? currentUser.id : '';
-                const res = await fetch(`${API}/store/quotes/family/${currentGroup.id}?userId=${uid}`);
+                const res = await communityFetch(`${API}/store/quotes/family/${currentGroup.id}?userId=${uid}`);
                 const d = await res.json();
                 if (d.success) { familyQuotesCache = d.quotes || []; renderFamilyQuotesTab(); }
             } catch(e) {}
@@ -1028,7 +1028,7 @@ async function fetchMyOrders() {
     }, 10000);
     
     try {
-        const res = await fetch(`${API}/store/orders/my/${currentUser.id}`);
+        const res = await communityFetch(`${API}/store/orders/my/${currentUser.id}`);
         const data = await res.json();
         clearTimeout(timeoutId);
         
@@ -1053,7 +1053,7 @@ window._scTypeFilter = window._scTypeFilter || 'all';
 function _renderOrderItems(items) {
     let arr = items;
     if (!arr) return '<span class="text-slate-400 text-[11px]">ללא פרטים</span>';
-    if (typeof arr === 'string') { try { arr = JSON.parse(arr); } catch(e) { return `<span class="text-slate-500 text-[11px]">${safeStr(arr)}</span>`; } }
+    if (typeof arr === 'string') { try { arr = JSON.parse(arr); } catch(e) { return `<span class="text-slate-500 text-[11px]">${escHtml(arr)}</span>`; } }
     if (!Array.isArray(arr)) return '<span class="text-slate-400 text-[11px]">ללא פרטים</span>';
     const visible = arr.filter(i => !i.is_quote_metadata && (i.name || i.item_name));
     if (!visible.length) return '<span class="text-slate-400 text-[11px]">ללא פרטים</span>';
@@ -1063,7 +1063,7 @@ function _renderOrderItems(items) {
         const price = parseFloat(i.price || i.price_per_unit || 0);
         const lineTotal = qty * price;
         return `<div class="flex justify-between items-center py-1 border-b border-slate-50 last:border-0 gap-2">
-            <span class="text-slate-700 text-[11px] flex-1 min-w-0">${safeStr(name)}</span>
+            <span class="text-slate-700 text-[11px] flex-1 min-w-0">${escHtml(name)}</span>
             <span class="text-slate-400 text-[10px] shrink-0 dir-ltr">×${qty}${lineTotal > 0 ? ' · ₪' + lineTotal.toFixed(0) : ''}</span>
         </div>`;
     }).join('');
@@ -1140,12 +1140,12 @@ async function renderMyFaultsAsServiceCalls() {
             <div class="flex items-start justify-between gap-2">
                 <div class="flex-1 min-w-0">
                     <div class="flex items-center gap-1.5 flex-wrap mb-1">
-                        <span class="font-bold text-slate-800 text-sm">${safeStr(f.title)}</span>
+                        <span class="font-bold text-slate-800 text-sm">${escHtml(f.title)}</span>
                         <span class="text-[10px] px-2 py-0.5 rounded-full font-bold ${sev}">${sevL}</span>
                         <span class="text-[10px] px-2 py-0.5 rounded-full font-bold ${sc.replace('bg-','text-').replace('-50','')}">${sl}</span>
                     </div>
-                    <p class="text-[11px] text-slate-400 mb-1">${safeStr(f.equipment_name || '')} · ${dateStr}</p>
-                    ${f.fault_tech_name ? `<p class="text-[11px] text-indigo-600"><i class="fa-solid fa-user-gear ml-1"></i>${safeStr(f.fault_tech_name)}${f.fault_tech_company ? ' — ' + safeStr(f.fault_tech_company) : ''}</p>` : ''}
+                    <p class="text-[11px] text-slate-400 mb-1">${escHtml(f.equipment_name || '')} · ${dateStr}</p>
+                    ${f.fault_tech_name ? `<p class="text-[11px] text-indigo-600"><i class="fa-solid fa-user-gear ml-1"></i>${escHtml(f.fault_tech_name)}${f.fault_tech_company ? ' — ' + escHtml(f.fault_tech_company) : ''}</p>` : ''}
                     ${f.scheduled_date ? `<p class="text-[10px] text-indigo-500 font-bold mt-0.5"><i class="fa-solid fa-calendar-check ml-1"></i>${new Date(f.scheduled_date).toLocaleString('he-IL',{dateStyle:'short',timeStyle:'short'})}</p>` : ''}
                     ${phone ? `<div class="flex gap-1.5 mt-2 flex-wrap">
                         <a href="tel:${phone.replace(/\D/g,'')}" class="flex items-center gap-1 text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-1 rounded-lg"><i class="fa-solid fa-phone"></i> חייג</a>
@@ -1229,7 +1229,7 @@ function renderMyOrders() {
         html += `<div class="bg-white rounded-2xl border ${borderCls} border-r-4 mb-3 cursor-pointer active:scale-[0.99] transition overflow-hidden" onclick="document.getElementById('order-details-${o.id}').classList.toggle('hidden')" style="touch-action:manipulation;">
             <div class="p-3 flex justify-between items-center gap-2">
                 <div class="flex-1 min-w-0">
-                    <div class="flex items-center gap-1.5"><i class="fa-solid fa-store text-slate-400 text-[10px] shrink-0"></i><h4 class="font-bold text-slate-800 text-sm truncate">${safeStr(o.store_name || 'עסק מקומי')}</h4>${orderTypeBadge}</div>
+                    <div class="flex items-center gap-1.5"><i class="fa-solid fa-store text-slate-400 text-[10px] shrink-0"></i><h4 class="font-bold text-slate-800 text-sm truncate">${escHtml(o.store_name || 'עסק מקומי')}</h4>${orderTypeBadge}</div>
                     <p class="text-[10px] text-slate-500 mt-0.5"><i class="fa-solid ${statusIcon} ml-1"></i> ${statusText} · ${dateStr}</p>
                     ${fromQuote}
                 </div>
@@ -1241,7 +1241,7 @@ function renderMyOrders() {
             <div id="order-details-${o.id}" class="hidden border-t border-slate-100 bg-slate-50 p-3">
                 <div class="text-xs text-slate-600 bg-white p-2 rounded-xl border border-slate-100">
                     ${_renderOrderItems(o.items)}
-                    ${(o.notes && !o.quote_status) ? `<p class="mt-2 pt-2 border-t border-slate-200 text-[11px]"><strong>הערות:</strong> ${safeStr(o.notes)}</p>` : ''}
+                    ${(o.notes && !o.quote_status) ? `<p class="mt-2 pt-2 border-t border-slate-200 text-[11px]"><strong>הערות:</strong> ${escHtml(o.notes)}</p>` : ''}
                 </div>
                 ${(o.status === 'completed' && (o.is_delivery == 1 || o.is_delivery === true || o.is_delivery === 'true')) ? (
                     o.customer_rating
@@ -1286,9 +1286,9 @@ async function confirmOrderReceipt(orderId, received) {
     const container = document.getElementById(`order-confirm-${orderId}`);
     if (!received) {
         try {
-            await fetch(`${API}/store/orders/${orderId}/customer-feedback`, {
+            await communityFetch(`${API}/store/orders/${orderId}/customer-feedback`, {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ received: false, familyGroupId: currentGroup?.id })
+                body: JSON.stringify({ received: false })
             });
             if (container) container.innerHTML = `<div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:10px;padding:8px 12px;font-size:11px;color:#dc2626;font-weight:700;text-align:center;">😟 דיווח נשמר. צוות העסק יצור קשר איתך.</div>`;
         } catch(e) {
@@ -1331,7 +1331,7 @@ async function loadFamilyQuotes() {
     list.innerHTML = '<p class="text-xs text-slate-400 text-center py-10"><i class="fa-solid fa-spinner fa-spin ml-1"></i> טוען הצעות מחיר...</p>';
     try {
         const uid = currentUser ? currentUser.id : '';
-        const res = await fetch(`${API}/store/quotes/family/${currentGroup.id}?userId=${uid}`);
+        const res = await communityFetch(`${API}/store/quotes/family/${currentGroup.id}?userId=${uid}`);
         const data = await res.json();
         if (data.success) { familyQuotesCache = data.quotes || []; renderFamilyQuotesTab(); }
         else list.innerHTML = `<p class="text-xs text-red-500 text-center py-10">${data.error || 'שגיאה'}</p>`;
@@ -1355,7 +1355,7 @@ function _renderQuoteTimeline(historyRaw) {
         const e = evMap[ev.type] || {icon:'fa-circle-dot', label:ev.type, color:'slate'};
         const label = ev.type === 'customer_response' ? (respLabels[ev.responseType] || ev.responseType) : e.label;
         const dateStr = new Date(ev.ts).toLocaleDateString('he-IL',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
-        const textSnip = ev.text ? `<span class="text-slate-400 mr-1">: ${safeStr(ev.text.substring(0,40))}${ev.text.length>40?'…':''}</span>` : '';
+        const textSnip = ev.text ? `<span class="text-slate-400 mr-1">: ${escHtml(ev.text.substring(0,40))}${ev.text.length>40?'…':''}</span>` : '';
         const isLast = i === sorted.length-1;
         return `<div class="flex items-start gap-2 ${isLast?'':'pb-2'} relative">
             ${isLast?'':'<div class="absolute right-[5px] top-4 bottom-0 w-px bg-slate-200"></div>'}
@@ -1451,7 +1451,7 @@ function renderFamilyQuotesTab() {
 
         // תגובה קודמת שנשלחה (אם יש ועדיין רלוונטית)
         const prevRespHtml = q.customer_response && customerWaiting
-            ? `<div class="mt-1.5 text-[11px] bg-blue-50 rounded-xl p-2 border border-blue-100"><i class="fa-solid fa-reply text-blue-400 ml-1"></i><span class="font-bold text-blue-700">תגובתך: </span>${safeStr(q.customer_response)}</div>`
+            ? `<div class="mt-1.5 text-[11px] bg-blue-50 rounded-xl p-2 border border-blue-100"><i class="fa-solid fa-reply text-blue-400 ml-1"></i><span class="font-bold text-blue-700">תגובתך: </span>${escHtml(q.customer_response)}</div>`
             : '';
 
         // הודעה אחרונה מהעסק — מוצגת בגוף הכרטיס
@@ -1459,7 +1459,7 @@ function renderFamilyQuotesTab() {
         const bizMsgHtml = lastBizMsg
             ? `<div class="mt-1.5 text-[11px] bg-purple-50 rounded-xl p-2 border border-purple-200 flex items-start gap-1.5">
                 <i class="fa-solid fa-comment text-purple-400 mt-0.5 shrink-0"></i>
-                <div><span class="font-bold text-purple-700">עסק: </span><span class="text-purple-800">${safeStr(lastBizMsg.text||'')}</span></div>
+                <div><span class="font-bold text-purple-700">עסק: </span><span class="text-purple-800">${escHtml(lastBizMsg.text||'')}</span></div>
                </div>`
             : '';
 
@@ -1472,9 +1472,9 @@ function renderFamilyQuotesTab() {
                         <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold ${st.color}">${st.label}</span>
                         ${isCancelled ? '<span class="text-[10px] font-bold text-red-500"><i class="fa-solid fa-ban ml-0.5"></i>בוטלה</span>' : ''}
                     </div>
-                    <h4 class="font-bold text-slate-800 text-sm ${isCancelled?'line-through opacity-60':''}">${safeStr(title)}</h4>
-                    <p class="text-[11px] text-slate-500 mt-0.5"><i class="fa-solid fa-store ml-1"></i>${safeStr(bizName)} • ${dateStr}</p>
-                    ${metaValidity && !isCancelled ? `<p class="text-[10px] text-slate-400 mt-0.5"><i class="fa-regular fa-calendar ml-1"></i>תוקף: ${safeStr(metaValidity)}</p>` : ''}
+                    <h4 class="font-bold text-slate-800 text-sm ${isCancelled?'line-through opacity-60':''}">${escHtml(title)}</h4>
+                    <p class="text-[11px] text-slate-500 mt-0.5"><i class="fa-solid fa-store ml-1"></i>${escHtml(bizName)} • ${dateStr}</p>
+                    ${metaValidity && !isCancelled ? `<p class="text-[10px] text-slate-400 mt-0.5"><i class="fa-regular fa-calendar ml-1"></i>תוקף: ${escHtml(metaValidity)}</p>` : ''}
                 </div>
                 <div class="text-left shrink-0">
                     <span class="font-black text-slate-800 text-sm ${isCancelled?'line-through opacity-50':''}" dir="ltr">₪${parseFloat(q.total_amount||0).toFixed(2)}</span>
@@ -1484,7 +1484,7 @@ function renderFamilyQuotesTab() {
             ${cancelledBanner}${convertedBanner}${waitingBizBanner}
             <div class="border-t border-slate-100 bg-slate-50/50 p-3 text-xs text-slate-600">
                 <div class="space-y-1 mb-2">${_renderOrderItems(q.items)}</div>
-                ${metaNotes && !isCancelled ? `<p class="text-[10px] text-slate-500 pt-2 border-t border-slate-100"><i class="fa-solid fa-note-sticky ml-1"></i>${safeStr(metaNotes)}</p>` : ''}
+                ${metaNotes && !isCancelled ? `<p class="text-[10px] text-slate-500 pt-2 border-t border-slate-100"><i class="fa-solid fa-note-sticky ml-1"></i>${escHtml(metaNotes)}</p>` : ''}
                 ${prevRespHtml}
                 ${bizMsgHtml}
                 ${timelineHtml}
@@ -1528,7 +1528,7 @@ window.openFamilyQuoteView = function(quoteId) {
     const itemsHtml = visibleItems.map(i => {
         const n = i.name||i.item_name||''; const qty = parseFloat(i.quantity||i.qty||1); const price = parseFloat(i.price||0);
         return `<div class="flex justify-between items-center py-2 border-b border-slate-100 last:border-0">
-            <span class="flex-1 text-slate-700 text-sm font-medium">${safeStr(n)}</span>
+            <span class="flex-1 text-slate-700 text-sm font-medium">${escHtml(n)}</span>
             <span class="text-slate-500 text-xs mx-3 shrink-0">×${qty}</span>
             <span class="text-slate-500 text-xs mx-2 shrink-0 dir-ltr">₪${price.toFixed(0)}</span>
             <span class="font-bold text-slate-800 text-sm dir-ltr shrink-0">₪${(qty*price).toFixed(2)}</span>
@@ -1546,7 +1546,7 @@ window.openFamilyQuoteView = function(quoteId) {
         const dateStr = new Date(msg.ts).toLocaleDateString('he-IL', {day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
         return `<div class="bg-purple-50 border border-purple-200 rounded-xl p-3 text-sm text-purple-900">
             <p class="font-bold text-xs text-purple-500 mb-1"><i class="fa-solid fa-comment ml-1"></i> הודעה מהעסק:</p>
-            <p class="text-xs leading-relaxed whitespace-pre-line">${safeStr(msg.text || '')}</p>
+            <p class="text-xs leading-relaxed whitespace-pre-line">${escHtml(msg.text || '')}</p>
             <p class="text-[10px] text-purple-400 mt-2 text-left">${dateStr}</p>
         </div>`;
     }).join('') : '';
@@ -1554,7 +1554,7 @@ window.openFamilyQuoteView = function(quoteId) {
     let actionHtml = '';
     if (canRespond) {
         const prevResponseHtml = alreadyResponded
-            ? `<div class="bg-blue-50 border border-blue-200 rounded-xl px-3 py-2 mb-2 text-xs text-blue-700 text-center"><i class="fa-solid fa-clock-rotate-left ml-1"></i><strong>תגובתך הקודמת:</strong> ${responseLabel}${q.customer_response ? ` — ${safeStr(q.customer_response)}` : ''}</div>`
+            ? `<div class="bg-blue-50 border border-blue-200 rounded-xl px-3 py-2 mb-2 text-xs text-blue-700 text-center"><i class="fa-solid fa-clock-rotate-left ml-1"></i><strong>תגובתך הקודמת:</strong> ${responseLabel}${q.customer_response ? ` — ${escHtml(q.customer_response)}` : ''}</div>`
             : '';
         actionHtml = `<div class="border-t border-slate-100 p-4 space-y-2 shrink-0 bg-white">
             ${prevResponseHtml}
@@ -1569,7 +1569,7 @@ window.openFamilyQuoteView = function(quoteId) {
         </div>`;
     } else if (alreadyResponded) {
         actionHtml = `<div class="border-t border-slate-100 p-3 shrink-0 bg-slate-50">
-            <p class="text-xs text-center font-bold text-slate-500">${responseLabel}${q.customer_response ? `: ${safeStr(q.customer_response)}` : ''}</p>
+            <p class="text-xs text-center font-bold text-slate-500">${responseLabel}${q.customer_response ? `: ${escHtml(q.customer_response)}` : ''}</p>
         </div>`;
     }
 
@@ -1577,15 +1577,15 @@ window.openFamilyQuoteView = function(quoteId) {
         <div class="bg-white w-full max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl flex flex-col max-h-[93vh] overflow-hidden">
             <div class="flex items-center justify-between px-5 py-4 bg-indigo-600 text-white shrink-0">
                 <div>
-                    <h2 class="font-black text-base">${safeStr(title||'הצעת מחיר')}</h2>
-                    <p class="text-[11px] text-indigo-200 mt-0.5"><i class="fa-solid fa-store ml-1"></i>${safeStr(q.business_name||'')} · ${dateStr}${validity ? ` · תוקף ${validity} יום` : ''}</p>
+                    <h2 class="font-black text-base">${escHtml(title||'הצעת מחיר')}</h2>
+                    <p class="text-[11px] text-indigo-200 mt-0.5"><i class="fa-solid fa-store ml-1"></i>${escHtml(q.business_name||'')} · ${dateStr}${validity ? ` · תוקף ${validity} יום` : ''}</p>
                 </div>
                 <button onclick="document.getElementById('fqv-modal').remove()" class="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center shrink-0"><i class="fa-solid fa-xmark"></i></button>
             </div>
             <div class="flex-1 overflow-y-auto p-4 space-y-3">
                 ${businessMessagesHtml}
-                ${introText ? `<div class="bg-slate-50 rounded-xl p-3 text-xs text-slate-600 whitespace-pre-line border border-slate-200">${safeStr(introText)}</div>` : ''}
-                ${q.menu_template_is_public && q.menu_template_slug ? `<a href="/menu/${safeStr(q.menu_template_slug)}" target="_blank" class="block bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-xs font-bold text-emerald-700 text-center hover:bg-emerald-100 transition"><i class="fa-solid fa-utensils ml-1"></i> צפה בתפריט המקורי "${safeStr(q.menu_template_name || '')}" ↗</a>` : ''}
+                ${introText ? `<div class="bg-slate-50 rounded-xl p-3 text-xs text-slate-600 whitespace-pre-line border border-slate-200">${escHtml(introText)}</div>` : ''}
+                ${q.menu_template_is_public && q.menu_template_slug ? `<a href="/menu/${escHtml(q.menu_template_slug)}" target="_blank" class="block bg-emerald-50 border border-emerald-200 rounded-xl p-3 text-xs font-bold text-emerald-700 text-center hover:bg-emerald-100 transition"><i class="fa-solid fa-utensils ml-1"></i> צפה בתפריט המקורי "${escHtml(q.menu_template_name || '')}" ↗</a>` : ''}
                 <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
                     <div class="bg-slate-50 px-3 py-2 text-[10px] font-bold text-slate-500 border-b border-slate-200 grid grid-cols-12 gap-1">
                         <span class="col-span-6">תיאור</span><span class="col-span-2 text-center">כמות</span><span class="col-span-2 text-center">מחיר</span><span class="col-span-2 text-center">סה"כ</span>
@@ -1599,7 +1599,7 @@ window.openFamilyQuoteView = function(quoteId) {
                         <div class="flex justify-between text-sm font-black border-t border-slate-200 pt-2 mt-1"><span>סה"כ לתשלום:</span><span dir="ltr" class="text-indigo-700">₪${total.toFixed(2)}</span></div>
                     </div>
                 </div>
-                ${notes ? `<div class="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800"><strong>הערות ותנאי תשלום:</strong><br><span class="whitespace-pre-line mt-1 block">${safeStr(notes)}</span></div>` : ''}
+                ${notes ? `<div class="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800"><strong>הערות ותנאי תשלום:</strong><br><span class="whitespace-pre-line mt-1 block">${escHtml(notes)}</span></div>` : ''}
             </div>
             ${actionHtml}
             <div id="fqv-request-panel" class="hidden border-t border-slate-100 p-4 bg-white shrink-0">
@@ -1630,9 +1630,9 @@ window._fqvSubmitRequest = function(quoteId) {
 };
 window._fqvRespond = async function(quoteId, responseType, responseText) {
     try {
-        const res = await fetch(`${API}/store/quotes/${quoteId}/customer-response`, {
+        const res = await communityFetch(`${API}/store/quotes/${quoteId}/customer-response`, {
             method: 'PATCH', headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({ responseType, responseText, familyGroupId: currentGroup ? currentGroup.id : null })
+            body: JSON.stringify({ responseType, responseText })
         });
         const data = await res.json();
         if (data.success) {
@@ -1668,10 +1668,10 @@ window.submitQuoteResponse = async function() {
     const btn = getEl('qrm-submit-btn');
     if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin ml-1"></i> שולח...'; }
     try {
-        const res = await fetch(`${API}/store/quotes/${quoteId}/customer-response`, {
+        const res = await communityFetch(`${API}/store/quotes/${quoteId}/customer-response`, {
             method: 'PATCH',
             headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({ responseType, responseText: message, familyGroupId: currentGroup ? currentGroup.id : null })
+            body: JSON.stringify({ responseType, responseText: message })
         });
         const data = await res.json();
         if (data.success) {
@@ -12601,8 +12601,8 @@ function renderBusinessServiceCallsTab() {
                     <div class="flex items-center gap-1.5 mb-0.5">
                         <span class="text-[9px] font-black text-orange-700 bg-white border border-orange-200 px-1.5 py-0.5 rounded-full">🏠 תקלה בבית</span>
                     </div>
-                    <div class="text-sm font-bold text-slate-800 truncate">${sev} ${safeStr(f.title)}</div>
-                    <div class="text-[10px] text-slate-500">${safeStr(f.equipment_name||'')} · ${stF}</div>
+                    <div class="text-sm font-bold text-slate-800 truncate">${sev} ${escHtml(f.title)}</div>
+                    <div class="text-[10px] text-slate-500">${escHtml(f.equipment_name||'')} · ${stF}</div>
                 </div>
                 <span class="text-[9px] font-bold text-orange-600 bg-white border border-orange-200 px-2 py-0.5 rounded-full shrink-0">פרטים →</span>
             </div>
@@ -12621,8 +12621,8 @@ function renderBusinessServiceCallsTab() {
         return `<div onclick="openFamilyCallModal(${c.id})" class="border-r-4 ${borderCls} ${bgCls} rounded-2xl p-3 mb-2 cursor-pointer active:scale-[0.99] transition bg-white shadow-sm" style="touch-action:manipulation;">
             <div class="flex items-start justify-between gap-2">
                 <div class="flex-1 min-w-0">
-                    <div class="text-sm font-bold text-slate-800 truncate">${safeStr(c.title)}</div>
-                    <div class="text-[10px] text-slate-500">${c.business_name ? safeStr(c.business_name) : 'בעל מקצוע'}${createdStr ? ' · ' + createdStr : ''}</div>
+                    <div class="text-sm font-bold text-slate-800 truncate">${escHtml(c.title)}</div>
+                    <div class="text-[10px] text-slate-500">${c.business_name ? escHtml(c.business_name) : 'בעל מקצוע'}${createdStr ? ' · ' + createdStr : ''}</div>
                     ${scheduledStr ? `<div class="text-[10px] text-blue-600 font-bold mt-0.5">📅 ${scheduledStr}</div>` : ''}
                     ${(noDateFlag || partsFlag) ? `<div class="flex gap-1 flex-wrap mt-1">${noDateFlag}${partsFlag}</div>` : ''}
                 </div>
@@ -12641,15 +12641,15 @@ window.openFamilyCallModal = async function(callId) {
     const call = familyServiceCalls.find(c => c.id === callId);
     if (!call) return;
     let messages = [];
-    try { const r = await fetch(`/api/service-calls/${callId}/messages`); const d = await r.json(); messages = d.messages||[]; } catch(e) {}
+    try { const r = await communityFetch(`/api/service-calls/${callId}/messages`); const d = await r.json(); messages = d.messages||[]; } catch(e) {}
     let payments = [];
-    try { const rp = await fetch(`/api/service-calls/${callId}/payments`); const dp = await rp.json(); payments = dp.payments||[]; } catch(e) {}
+    try { const rp = await communityFetch(`/api/service-calls/${callId}/payments`); const dp = await rp.json(); payments = dp.payments||[]; } catch(e) {}
     document.getElementById('fam-sc-modal')?.remove();
     const SC_STATUS_LABELS_FAM = { new:'ממתינה', seen:'נצפתה', in_progress:'בטיפול', pending_parts:'ממתין לחלקים', pending_cancel:'ממתין לאישור ביטול', done:'הושלם', cancelled:'בוטל' };
     const msgHtml = messages.map(m => `<div class="flex ${m.sender_type==='family'?'justify-start':'justify-end'} mb-2">
         <div class="max-w-[80%] ${m.sender_type==='family'?'bg-slate-100 text-slate-800':'bg-indigo-500 text-white'} rounded-2xl px-3 py-2 text-xs">
-            <div class="font-bold text-[10px] mb-1 opacity-70">${safeStr(m.sender_name||m.sender_type)}</div>
-            ${safeStr(m.message)}
+            <div class="font-bold text-[10px] mb-1 opacity-70">${escHtml(m.sender_name||m.sender_type)}</div>
+            ${escHtml(m.message)}
         </div>
     </div>`).join('');
 
@@ -12667,7 +12667,7 @@ window.openFamilyCallModal = async function(callId) {
         const totalCharged = Math.max(sumAmounts, ...payments.map(p => parseFloat(p.total_amount||0)));
         const totalReceived = payments.reduce((a,p) => a + (p.status === 'received' ? parseFloat(p.received_amount||p.amount||0) : 0), 0);
         const rows = payments.map(p => `<div class="flex justify-between items-center text-xs py-1.5 border-b border-slate-100 last:border-0">
-            <span class="text-slate-600">${safeStr(p.milestone_name||'תשלום')}${p.due_date ? ' · ' + new Date(p.due_date).toLocaleDateString('he-IL',{day:'numeric',month:'short'}) : ''}</span>
+            <span class="text-slate-600">${escHtml(p.milestone_name||'תשלום')}${p.due_date ? ' · ' + new Date(p.due_date).toLocaleDateString('he-IL',{day:'numeric',month:'short'}) : ''}</span>
             <span class="font-bold ${p.status==='received'?'text-emerald-600':'text-slate-700'}">₪${parseFloat(p.amount||0).toLocaleString()} ${p.status==='received' ? '✓ שולם' : '· ממתין'}</span>
         </div>`).join('');
         return `<div class="bg-slate-50 rounded-2xl p-3">
@@ -12697,16 +12697,16 @@ window.openFamilyCallModal = async function(callId) {
         <div class="flex items-center gap-3 px-4 py-3 bg-indigo-600 text-white shrink-0">
             <button onclick="document.getElementById('fam-sc-modal').remove()" class="text-xl"><i class="fa-solid fa-xmark"></i></button>
             <div class="flex-1 min-w-0">
-                <div class="font-black text-sm truncate">${safeStr(call.title)}</div>
-                <div class="text-[10px] opacity-80">${call.business_name ? safeStr(call.business_name) : 'בעל מקצוע'}</div>
+                <div class="font-black text-sm truncate">${escHtml(call.title)}</div>
+                <div class="text-[10px] opacity-80">${call.business_name ? escHtml(call.business_name) : 'בעל מקצוע'}</div>
             </div>
             <span class="text-[10px] font-bold bg-white/20 px-2 py-1 rounded-lg">${SC_STATUS_LABELS_FAM[call.status]||call.status}</span>
         </div>
         <div class="flex-1 overflow-y-auto p-4 space-y-3">
             <div class="bg-slate-50 rounded-2xl p-3 text-sm space-y-1.5">
                 ${call.created_at ? `<p class="text-[10px] text-slate-400">נפתחה: ${new Date(call.created_at).toLocaleDateString('he-IL',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})}</p>` : ''}
-                ${call.description ? `<p class="text-slate-700 mt-1">${safeStr(call.description)}</p>` : ''}
-                ${call.address ? `<p class="text-xs text-slate-500"><i class="fa-solid fa-location-dot ml-1 text-indigo-400"></i>${safeStr(call.address)}</p>` : ''}
+                ${call.description ? `<p class="text-slate-700 mt-1">${escHtml(call.description)}</p>` : ''}
+                ${call.address ? `<p class="text-xs text-slate-500"><i class="fa-solid fa-location-dot ml-1 text-indigo-400"></i>${escHtml(call.address)}</p>` : ''}
                 ${call.requested_date ? `<p class="text-xs text-slate-500"><i class="fa-solid fa-calendar ml-1 text-amber-400"></i>תאריך מבוקש: ${new Date(call.requested_date).toLocaleDateString('he-IL',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</p>` : ''}
                 ${call.scheduled_at ? `<p class="text-xs font-bold text-blue-700 bg-blue-50 rounded-lg px-2 py-1 inline-flex items-center gap-1"><i class="fa-solid fa-calendar-check"></i> תאריך טיפול מתוזמן: ${new Date(call.scheduled_at).toLocaleDateString('he-IL',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}</p>` : `<p class="text-[10px] text-amber-600 font-bold">⚠️ טרם תוזמן תאריך טיפול</p>`}
                 ${call.price_quote ? `<div class="p-2 bg-indigo-50 rounded-xl text-xs font-bold text-indigo-800">הצעת מחיר מהעסק: ₪${parseFloat(call.price_quote).toFixed(0)}</div>` : ''}
@@ -12733,9 +12733,9 @@ window.openFamilyCallModal = async function(callId) {
         const chatEl = document.getElementById(`fam-sc-chat-${callId}`);
         if (!chatEl || !document.getElementById('fam-sc-modal')) { clearInterval(window._famScChatInterval); return; }
         try {
-            const r2 = await fetch(`/api/service-calls/${callId}/messages`);
+            const r2 = await communityFetch(`/api/service-calls/${callId}/messages`);
             const d2 = await r2.json();
-            chatEl.innerHTML = (d2.messages||[]).map(m => `<div class="flex ${m.sender_type==='family'?'justify-start':'justify-end'} mb-2"><div class="max-w-[80%] ${m.sender_type==='family'?'bg-slate-100 text-slate-800':'bg-indigo-500 text-white'} rounded-2xl px-3 py-2 text-xs"><div class="font-bold text-[10px] mb-1 opacity-70">${safeStr(m.sender_name||m.sender_type)}</div>${safeStr(m.message)}</div></div>`).join('') || '<p class="text-center text-slate-400 text-xs py-4">אין הודעות עדיין</p>';
+            chatEl.innerHTML = (d2.messages||[]).map(m => `<div class="flex ${m.sender_type==='family'?'justify-start':'justify-end'} mb-2"><div class="max-w-[80%] ${m.sender_type==='family'?'bg-slate-100 text-slate-800':'bg-indigo-500 text-white'} rounded-2xl px-3 py-2 text-xs"><div class="font-bold text-[10px] mb-1 opacity-70">${escHtml(m.sender_name||m.sender_type)}</div>${escHtml(m.message)}</div></div>`).join('') || '<p class="text-center text-slate-400 text-xs py-4">אין הודעות עדיין</p>';
             chatEl.scrollTop = chatEl.scrollHeight;
         } catch(e) {}
     }, 10000);
@@ -12747,16 +12747,16 @@ window.sendFamilyScMessage = async function(callId) {
     if (!msg) return;
     input.value = '';
     try {
-        await fetch(`/api/service-calls/${callId}/messages`, { method:'POST', headers:{'Content-Type':'application/json'},
+        await communityFetch(`/api/service-calls/${callId}/messages`, { method:'POST', headers:{'Content-Type':'application/json'},
             body: JSON.stringify({ senderType: 'family', senderName: currentUser?.nickname || 'משפחה', message: msg }) });
-        const r = await fetch(`/api/service-calls/${callId}/messages`);
+        const r = await communityFetch(`/api/service-calls/${callId}/messages`);
         const d = await r.json();
         const chatEl = document.getElementById(`fam-sc-chat-${callId}`);
         if (chatEl) {
             chatEl.innerHTML = (d.messages||[]).map(m => `<div class="flex ${m.sender_type==='family'?'justify-start':'justify-end'} mb-2">
                 <div class="max-w-[80%] ${m.sender_type==='family'?'bg-slate-100 text-slate-800':'bg-indigo-500 text-white'} rounded-2xl px-3 py-2 text-xs">
-                    <div class="font-bold text-[10px] mb-1 opacity-70">${safeStr(m.sender_name||m.sender_type)}</div>
-                    ${safeStr(m.message)}
+                    <div class="font-bold text-[10px] mb-1 opacity-70">${escHtml(m.sender_name||m.sender_type)}</div>
+                    ${escHtml(m.message)}
                 </div>
             </div>`).join('');
             chatEl.scrollTop = chatEl.scrollHeight;
@@ -13174,7 +13174,7 @@ window.fetchMemberFeedOrders = async function() {
     if (!list || !currentUser) return;
     list.innerHTML = '<p style="font-size:11px;color:#94a3b8;text-align:center;padding:24px;background:#f8fafc;border-radius:12px;border:1px dashed #e2e8f0;">טוען הזמנות... <i class="fa-solid fa-spinner fa-spin ml-1"></i></p>';
     try {
-        const res = await fetch(`${API}/store/orders/my/${currentUser.id}`);
+        const res = await communityFetch(`${API}/store/orders/my/${currentUser.id}`);
         const data = await res.json();
         if (data.success) {
             const newOrders = data.orders || [];
@@ -13684,15 +13684,15 @@ window._memberOpenScDetails = async function(callId, title, status, priceQuote, 
     document.body.appendChild(modal);
     modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
     try {
-        const r = await fetch(`/api/service-calls/${callId}/messages`);
+        const r = await communityFetch(`/api/service-calls/${callId}/messages`);
         const d = await r.json();
         const chatEl = document.getElementById(`member-sc-chat-${callId}`);
         if (chatEl) {
             const msgs = d.messages || [];
             chatEl.innerHTML = msgs.length ? msgs.map(m => `<div style="display:flex;justify-content:${m.sender_type==='family'?'flex-start':'flex-end'};margin-bottom:8px;">
                 <div style="max-width:80%;background:${m.sender_type==='family'?'#f1f5f9':'#4f46e5'};color:${m.sender_type==='family'?'#1e293b':'white'};border-radius:12px;padding:8px 12px;font-size:12px;">
-                    <div style="font-size:9px;opacity:0.7;margin-bottom:2px;font-weight:700;">${safeStr(m.sender_name||m.sender_type)}</div>
-                    ${safeStr(m.message)}
+                    <div style="font-size:9px;opacity:0.7;margin-bottom:2px;font-weight:700;">${escHtml(m.sender_name||m.sender_type)}</div>
+                    ${escHtml(m.message)}
                 </div>
             </div>`).join('') : '<div style="text-align:center;color:#94a3b8;font-size:12px;padding:16px;">אין הודעות עדיין</div>';
             chatEl.scrollTop = chatEl.scrollHeight;
@@ -13706,16 +13706,16 @@ window._memberSendScMsg = async function(callId, bizGroupId) {
     if (!msg) return;
     input.value = '';
     try {
-        await fetch(`/api/service-calls/${callId}/messages`, { method:'POST', headers:{'Content-Type':'application/json'},
+        await communityFetch(`/api/service-calls/${callId}/messages`, { method:'POST', headers:{'Content-Type':'application/json'},
             body: JSON.stringify({ senderType:'family', senderName: currentUser?.nickname || 'לקוח', message: msg }) });
-        const r2 = await fetch(`/api/service-calls/${callId}/messages`);
+        const r2 = await communityFetch(`/api/service-calls/${callId}/messages`);
         const d2 = await r2.json();
         const chatEl = document.getElementById(`member-sc-chat-${callId}`);
         if (chatEl) {
             chatEl.innerHTML = (d2.messages||[]).map(m => `<div style="display:flex;justify-content:${m.sender_type==='family'?'flex-start':'flex-end'};margin-bottom:8px;">
                 <div style="max-width:80%;background:${m.sender_type==='family'?'#f1f5f9':'#4f46e5'};color:${m.sender_type==='family'?'#1e293b':'white'};border-radius:12px;padding:8px 12px;font-size:12px;">
-                    <div style="font-size:9px;opacity:0.7;margin-bottom:2px;font-weight:700;">${safeStr(m.sender_name||m.sender_type)}</div>
-                    ${safeStr(m.message)}
+                    <div style="font-size:9px;opacity:0.7;margin-bottom:2px;font-weight:700;">${escHtml(m.sender_name||m.sender_type)}</div>
+                    ${escHtml(m.message)}
                 </div>
             </div>`).join('');
             chatEl.scrollTop = chatEl.scrollHeight;
@@ -13829,7 +13829,7 @@ async function _memberLoadQuotes(bizGroupId) {
     const el = document.getElementById(`quotes-${bizGroupId}`);
     if (!el) return;
     try {
-        const r = await fetch(`${API}/store/quotes/family/${currentGroup.id}?userId=${currentUser?.id||''}`);
+        const r = await communityFetch(`${API}/store/quotes/family/${currentGroup.id}?userId=${currentUser?.id||''}`);
         const d = await r.json();
         const quotes = (d.quotes||[]).filter(q => String(q.group_id) === String(bizGroupId));
         if (!quotes.length) return;
@@ -13850,7 +13850,7 @@ async function _memberLoadQuotes(bizGroupId) {
                 return `<div style="background:#fffbeb;border:1px solid #fcd34d;border-radius:10px;padding:8px 10px;margin-bottom:6px;display:flex;align-items:center;justify-content:space-between;">
                     <button onclick="openFamilyQuoteView(${q.id})" style="background:#f59e0b;color:white;border:none;border-radius:8px;padding:4px 10px;font-size:10px;font-weight:700;cursor:pointer;">צפה</button>
                     <div style="text-align:right;">
-                        <div style="font-size:12px;font-weight:800;color:#1e293b;">${safeStr(q.quote_title||'הצעת מחיר')}</div>
+                        <div style="font-size:12px;font-weight:800;color:#1e293b;">${escHtml(q.quote_title||'הצעת מחיר')}</div>
                         <div style="font-size:10px;color:#92400e;">${qLabel}${total?' · '+total:''}${date?' · '+date:''}</div>
                     </div>
                 </div>`;
@@ -14011,10 +14011,10 @@ function _actRender(filterType, searchQ) {
             const isPending = b.status === 'pending';
 
             const logoHtml = b.logo_url
-                ? `<img src="${safeStr(b.logo_url)}" alt="${safeStr(b.business_name)}" class="w-10 h-10 rounded-xl object-cover flex-shrink-0" onerror="this.outerHTML='<div class=\\'w-10 h-10 rounded-xl bg-gradient-to-br from-slate-50 to-slate-100 border border-slate-200 flex items-center justify-center text-xl flex-shrink-0\\'>${cat.icon}</div>'">`
+                ? `<img src="${escHtml(b.logo_url)}" alt="${escHtml(b.business_name)}" class="w-10 h-10 rounded-xl object-cover flex-shrink-0" onerror="this.outerHTML='<div class=\\'w-10 h-10 rounded-xl bg-gradient-to-br from-slate-50 to-slate-100 border border-slate-200 flex items-center justify-center text-xl flex-shrink-0\\'>${cat.icon}</div>'">`
                 : `<div class="w-10 h-10 rounded-xl bg-gradient-to-br from-slate-50 to-slate-100 border border-slate-200 flex items-center justify-center text-xl flex-shrink-0">${cat.icon}</div>`;
             const logoHtmlPending = b.logo_url
-                ? `<img src="${safeStr(b.logo_url)}" alt="${safeStr(b.business_name)}" class="w-10 h-10 rounded-xl object-cover flex-shrink-0" onerror="this.outerHTML='<div class=\\'w-10 h-10 rounded-xl bg-amber-100 border border-amber-200 flex items-center justify-center text-xl flex-shrink-0\\'>${cat.icon}</div>'">`
+                ? `<img src="${escHtml(b.logo_url)}" alt="${escHtml(b.business_name)}" class="w-10 h-10 rounded-xl object-cover flex-shrink-0" onerror="this.outerHTML='<div class=\\'w-10 h-10 rounded-xl bg-amber-100 border border-amber-200 flex items-center justify-center text-xl flex-shrink-0\\'>${cat.icon}</div>'">`
                 : `<div class="w-10 h-10 rounded-xl bg-amber-100 border border-amber-200 flex items-center justify-center text-xl flex-shrink-0">${cat.icon}</div>`;
 
             if (isPending) {
@@ -14023,10 +14023,10 @@ function _actRender(filterType, searchQ) {
                         ${logoHtmlPending}
                         <div class="flex-1 min-w-0">
                             <div class="flex items-center gap-1.5 flex-wrap">
-                                <p class="font-black text-slate-800 text-sm truncate">${safeStr(b.business_name)}</p>
+                                <p class="font-black text-slate-800 text-sm truncate">${escHtml(b.business_name)}</p>
                                 <span class="text-[9px] font-black bg-amber-200 text-amber-800 px-1.5 py-0.5 rounded-full">⏳ ממתין לאישורך</span>
                             </div>
-                            <p class="text-[10px] text-amber-700 mt-0.5">${b.linked_by_admin_name ? 'בקשה מ' + safeStr(b.linked_by_admin_name) : cat.label}${linkedDate ? ' · ' + linkedDate : ''}</p>
+                            <p class="text-[10px] text-amber-700 mt-0.5">${b.linked_by_admin_name ? 'בקשה מ' + escHtml(b.linked_by_admin_name) : cat.label}${linkedDate ? ' · ' + linkedDate : ''}</p>
                         </div>
                         <div class="flex flex-col gap-1.5 shrink-0">
                             <button onclick="window._actRespond(${b.link_id},'approve')" class="bg-emerald-500 text-white rounded-lg px-3 py-1.5 text-[11px] font-bold whitespace-nowrap">✅ אשר</button>
@@ -14042,7 +14042,7 @@ function _actRender(filterType, searchQ) {
                     ${logoHtml}
                     <div class="flex-1 min-w-0">
                         <div class="flex items-center gap-1.5 flex-wrap">
-                            <p class="font-black text-slate-800 text-sm truncate">${safeStr(b.business_name)}</p>
+                            <p class="font-black text-slate-800 text-sm truncate">${escHtml(b.business_name)}</p>
                             <span id="biz-appt-pending-badge-${bizId}" class="hidden text-[9px] font-black bg-amber-500 text-white px-1.5 py-0.5 rounded-full">⏳ ממתין לאישורך</span>
                         </div>
                         <p class="text-[10px] text-slate-400 mt-0.5">${cat.label}${linkedDate ? ' · מ-' + linkedDate : ''}</p>
@@ -14130,7 +14130,7 @@ window._bizQuickActions = function(bizGroupId, bizType, bizName, groupCode) {
     sheet.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.4);display:flex;align-items:flex-end;direction:rtl;';
     sheet.innerHTML = `<div style="background:white;border-radius:24px 24px 0 0;padding:20px;width:100%;max-width:480px;margin:0 auto;">
         <div style="width:40px;height:4px;background:#e2e8f0;border-radius:4px;margin:0 auto 16px;"></div>
-        <p style="font-weight:900;font-size:14px;color:#1e293b;margin-bottom:12px;">פעולות מהירות — ${safeStr(bizName)}</p>
+        <p style="font-weight:900;font-size:14px;color:#1e293b;margin-bottom:12px;">פעולות מהירות — ${escHtml(bizName)}</p>
         <div style="display:flex;flex-direction:column;gap:8px;">${btns}</div>
         <button onclick="document.getElementById('biz-qs-sheet')?.remove()" style="width:100%;margin-top:12px;padding:12px;background:#f1f5f9;border:none;border-radius:16px;font-weight:700;font-size:13px;color:#64748b;cursor:pointer;">ביטול</button>
     </div>`;
@@ -14143,7 +14143,7 @@ window._bizMessageModal = function(bizGroupId, bizName) {
     modal.id = 'biz-msg-modal';
     modal.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;padding:20px;direction:rtl;';
     modal.innerHTML = `<div style="background:white;border-radius:24px;padding:24px;width:100%;max-width:400px;">
-        <p style="font-weight:900;font-size:16px;color:#1e293b;margin-bottom:4px;">✉️ שלח הודעה ל-${safeStr(bizName)}</p>
+        <p style="font-weight:900;font-size:16px;color:#1e293b;margin-bottom:4px;">✉️ שלח הודעה ל-${escHtml(bizName)}</p>
         <p style="font-size:11px;color:#94a3b8;margin-bottom:16px;">ההודעה תגיע ל-Inbox של העסק</p>
         <textarea id="biz-msg-text" rows="4" placeholder="כתוב את הודעתך כאן..." style="width:100%;border:1.5px solid #e2e8f0;border-radius:12px;padding:12px;font-size:14px;resize:none;box-sizing:border-box;outline:none;"></textarea>
         <div id="biz-msg-err" style="display:none;color:#dc2626;font-size:12px;margin-top:6px;"></div>
@@ -14220,9 +14220,9 @@ window._submitOrderRating = async function(orderId, bizGroupId) {
     const btn = document.getElementById('rating-submit-btn');
     if(btn){btn.disabled=true; btn.textContent='שולח...';}
     try {
-        const r = await fetch(`${API}/store/orders/${orderId}/customer-feedback`, {
+        const r = await communityFetch(`${API}/store/orders/${orderId}/customer-feedback`, {
             method:'POST', headers:{'Content-Type':'application/json'},
-            body: JSON.stringify({ rating, notes, received: true, familyGroupId: currentGroup?.id })
+            body: JSON.stringify({ rating, notes, received: true })
         }).then(r=>r.json());
         if(r.success){
             document.getElementById('order-rating-modal')?.remove();
@@ -14240,7 +14240,7 @@ window._submitOrderRating = async function(orderId, bizGroupId) {
                     if(accordion){
                         delete accordion.dataset.loaded;
                         accordion.innerHTML='<p class="p-4 text-xs text-slate-400 text-center"><i class="fa-solid fa-spinner fa-spin ml-1"></i> טוען...</p>';
-                        const res = await fetch(`${API}/family/business-activity/${currentGroup.id}/${bizGroupId}`).then(r=>r.json());
+                        const res = await communityFetch(`${API}/family/business-activity/${currentGroup.id}/${bizGroupId}`).then(r=>r.json());
                         _renderBizAccordion(accordion, res, 'restaurant');
                     }
                 }, 1500);
@@ -14262,7 +14262,7 @@ window._tableReservationModal = function(bizGroupId, bizName) {
             <button onclick="document.getElementById('table-res-modal')?.remove()" style="background:#f1f5f9;border:none;border-radius:12px;width:32px;height:32px;cursor:pointer;font-size:16px;color:#64748b;">✕</button>
             <div style="text-align:right;">
                 <p style="font-weight:900;font-size:15px;color:#1e293b;">🍽️ הזמנת שולחן</p>
-                <p style="font-size:11px;color:#94a3b8;">${safeStr(bizName)}</p>
+                <p style="font-size:11px;color:#94a3b8;">${escHtml(bizName)}</p>
             </div>
         </div>
         <div style="display:flex;flex-direction:column;gap:12px;">
@@ -14408,7 +14408,7 @@ window._submitTableReservation = async function(bizGroupId, bizName, btn) {
             if (accordion && currentGroup) {
                 delete accordion.dataset.loaded;
                 accordion.innerHTML = '<p class="p-4 text-xs text-slate-400 text-center"><i class="fa-solid fa-spinner fa-spin ml-1"></i> טוען...</p>';
-                fetch(`${API}/family/business-activity/${currentGroup.id}/${bizGroupId}`)
+                communityFetch(`${API}/family/business-activity/${currentGroup.id}/${bizGroupId}`)
                     .then(r => r.json())
                     .then(res => _renderBizAccordion(accordion, res, res.type || 'restaurant'))
                     .catch(() => {});
@@ -14421,7 +14421,7 @@ window._clientConfirmBeautyAppt = async function(apptId, action, btn) {
     if (!currentGroup) return;
     if (btn) { btn.disabled = true; btn.textContent = action === 'confirm' ? 'שומר...' : 'דוחה...'; }
     try {
-        const r = await fetch(`${API}/family/${currentGroup.id}/beauty/appointments/${apptId}/client-confirm`, {
+        const r = await communityFetch(`${API}/family/${currentGroup.id}/beauty/appointments/${apptId}/client-confirm`, {
             method: 'PUT', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ action })
         }).then(r => r.json());
@@ -14433,7 +14433,7 @@ window._clientConfirmBeautyAppt = async function(apptId, action, btn) {
             if (accordion && bizGroupId && currentGroup) {
                 delete accordion.dataset.loaded;
                 accordion.innerHTML = '<p class="p-4 text-xs text-slate-400 text-center"><i class="fa-solid fa-spinner fa-spin ml-1"></i> טוען...</p>';
-                const res = await fetch(`${API}/family/business-activity/${currentGroup.id}/${bizGroupId}`).then(r => r.json());
+                const res = await communityFetch(`${API}/family/business-activity/${currentGroup.id}/${bizGroupId}`).then(r => r.json());
                 _renderBizAccordion(accordion, res, res.type);
             }
         } else { showToast('error', r.error || 'שגיאה'); if(btn){ btn.disabled=false; btn.textContent=action==='confirm'?'✅ אשר תור':'✕ דחה'; } }
@@ -14566,7 +14566,7 @@ window._toggleBizAccordion = async function(btn, bizGroupId, bizType) {
     accordion.dataset.loaded = String(Date.now());
     accordion.dataset.loading = '1';
     try {
-        const r = await fetch(`${API}/family/business-activity/${currentGroup.id}/${bizGroupId}`).then(r => r.json());
+        const r = await communityFetch(`${API}/family/business-activity/${currentGroup.id}/${bizGroupId}`).then(r => r.json());
         _renderBizAccordion(accordion, r, bizType);
         // Show badge if there are pending_client appointments
         const pendingCount = (r.activity?.appointments || []).filter(a => a.status === 'pending_client').length;
@@ -15411,7 +15411,7 @@ window._openQuoteFromActivity = async function(quoteId) {
     try {
         // Fetch full quote data from family quotes API
         const userId = window.currentUser?.id || '';
-        const res = await fetch(`${API}/store/quotes/family/${currentGroup.id}?userId=${userId}`);
+        const res = await communityFetch(`${API}/store/quotes/family/${currentGroup.id}?userId=${userId}`);
         const data = await res.json();
         loader.remove();
 
