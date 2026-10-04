@@ -5618,7 +5618,7 @@ function closeAccessibilityModal() { getEl('accessibility-modal').classList.add(
 async function fetchMembers() {
     try {
         if (!currentGroup || !currentGroup.id) return;
-        const res = await fetch(`${API}/group/members?groupId=${currentGroup.id}&requesterId=${currentUser.id}`);
+        const res = await communityFetch(`${API}/group/members?groupId=${currentGroup.id}&requesterId=${currentUser.id}`);
         membersCache = await res.json();
         if (!Array.isArray(membersCache)) membersCache = [];
 
@@ -5632,7 +5632,7 @@ async function fetchMembers() {
                 if (bF) { const cur = bF.value; bF.innerHTML = '<option value="all">כל המשפחה</option>'; membersCache.forEach(m => bF.innerHTML += `<option value="${m.id}">${safeStr(fmtUserName(m) || m.nickname)}</option>`); if (cur) bF.value = cur; }
                 if (fF) { const cur = fF.value; fF.innerHTML = '<option value="all">כל בני המשפחה</option>'; membersCache.forEach(m => fF.innerHTML += `<option value="${m.id}">${safeStr(fmtUserName(m) || m.nickname)}</option>`); if (cur) fF.value = cur; }
                 if (cfF) { const cur = cfF.value; cfF.innerHTML = '<option value="all">כל בני המשפחה</option>'; membersCache.forEach(m => cfF.innerHTML += `<option value="${m.id}">${safeStr(fmtUserName(m) || m.nickname)}</option>`); if (cur) cfF.value = cur; }
-                if (gS) { const cur = gS.value; gS.innerHTML = '<option value="">עבור מי ביעד?</option>'; membersCache.filter(m => m.role !== 'ADMIN').forEach(m => { gS.innerHTML += `<option value="${m.id}">עבור ${safeStr(m.nickname)}</option>`; }); if (cur) gS.value = cur; }
+                if (gS) { const cur = gS.value; gS.innerHTML = '<option value="">עבור מי ביעד?</option>'; membersCache.filter(m => m.role !== 'ADMIN').forEach(m => { gS.innerHTML += `<option value="${m.id}">עבור ${escHtml(m.nickname)}</option>`; }); if (cur) gS.value = cur; }
             } catch (err) {}
         }
 
@@ -5658,7 +5658,7 @@ async function fetchMembers() {
                         const avatars = onlineMembers.map(m => {
                             const ini = m.nickname ? m.nickname.charAt(0).toUpperCase() : '?';
                             const isMe = m.id === currentUser.id;
-                            return `<div class="flex flex-col items-center gap-1"><div class="relative w-10 h-10"><div class="w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm ${isMe ? 'bg-emerald-500 text-white' : 'bg-white text-slate-700 border-2 border-emerald-200'} shadow">${ini}</div><span class="absolute bottom-0 right-0 w-3 h-3 bg-emerald-400 border-2 border-white rounded-full"></span></div><span class="text-[10px] text-slate-500 font-medium max-w-[40px] truncate">${isMe ? 'אני' : safeStr(m.nickname)}</span></div>`;
+                            return `<div class="flex flex-col items-center gap-1"><div class="relative w-10 h-10"><div class="w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm ${isMe ? 'bg-emerald-500 text-white' : 'bg-white text-slate-700 border-2 border-emerald-200'} shadow">${ini}</div><span class="absolute bottom-0 right-0 w-3 h-3 bg-emerald-400 border-2 border-white rounded-full"></span></div><span class="text-[10px] text-slate-500 font-medium max-w-[40px] truncate">${isMe ? 'אני' : escHtml(m.nickname)}</span></div>`;
                         }).join('');
                         ob.innerHTML = `<div class="mx-0 mb-3 px-4 py-3 bg-gradient-to-l from-emerald-50 to-teal-50 border border-emerald-100 rounded-2xl"><div class="flex items-center justify-between mb-2"><div class="flex items-center gap-2"><span class="w-2 h-2 bg-emerald-400 rounded-full animate-pulse inline-block"></span><span class="text-xs font-black text-emerald-700">מחוברים עכשיו</span><span class="text-[10px] bg-emerald-100 text-emerald-600 font-bold px-1.5 py-0.5 rounded-full">${onlineMembers.length}</span></div><span class="text-[10px] text-slate-400">מעודכן כל 30 שניות</span></div><div class="flex gap-3 flex-wrap">${avatars}</div></div>`;
                     }
@@ -5684,7 +5684,7 @@ async function fetchMembers() {
                     const adminPermsBtn = currentUser.role === 'ADMIN' ? `<button onclick="openPermissionsModal(${m.id}, '${safeStr(m.nickname)}', '${permsStr}')" class="mr-2 text-purple-600 hover:text-purple-800 bg-purple-50 w-8 h-8 rounded-full flex items-center justify-center transition shadow-sm" title="הרשאות"><i class="fa-solid fa-user-shield text-sm"></i></button>` : '';
                     const adminRoleBtn = (currentUser.role === 'ADMIN' && m.id !== currentUser.id) ? `<button onclick="changeUserRole(${m.id}, '${m.role}', '${safeStr(m.nickname)}')" class="mr-2 text-amber-500 hover:text-amber-700 bg-amber-50 hover:bg-amber-100 w-8 h-8 rounded-full flex items-center justify-center transition shadow-sm" title="${m.role === 'ADMIN' ? 'הורד לילד' : 'קדם להורה'}"><i class="fa-solid fa-arrow-right-arrow-left text-sm"></i></button>` : '';
                     const adminDeleteBtn = (currentUser.role === 'ADMIN' && m.id !== currentUser.id) ? `<button onclick="deleteUser(${m.id}, '${safeStr(m.nickname)}')" class="mr-2 text-red-400 hover:text-red-600 bg-red-50 w-8 h-8 rounded-full flex items-center justify-center transition shadow-sm" title="הסר מהמשפחה"><i class="fa-solid fa-trash text-sm"></i></button>` : '';
-                    c.innerHTML += `<div class="p-3 flex justify-between items-center border-b border-slate-50 last:border-0 hover:bg-slate-50 transition"><div class="flex items-center gap-3">${avatarWrap}<span class="font-bold text-sm text-slate-700">${safeStr(m.nickname) || 'משתמש'} <span class="text-[10px] font-normal text-slate-400">(${roleLabel})</span></span></div><div class="flex items-center"><span class="text-xs font-bold text-slate-400 bg-slate-50 px-2 py-1.5 rounded-lg ml-2">${m.balance !== null ? `₪${m.balance}` : '🔒'}</span>${adminEditBtn}${adminRoleBtn}${adminPermsBtn}${adminDeleteBtn}</div></div>`;
+                    c.innerHTML += `<div class="p-3 flex justify-between items-center border-b border-slate-50 last:border-0 hover:bg-slate-50 transition"><div class="flex items-center gap-3">${avatarWrap}<span class="font-bold text-sm text-slate-700">${escHtml(m.nickname) || 'משתמש'} <span class="text-[10px] font-normal text-slate-400">(${roleLabel})</span></span></div><div class="flex items-center"><span class="text-xs font-bold text-slate-400 bg-slate-50 px-2 py-1.5 rounded-lg ml-2">${m.balance !== null ? `₪${m.balance}` : '🔒'}</span>${adminEditBtn}${adminRoleBtn}${adminPermsBtn}${adminDeleteBtn}</div></div>`;
                 });
             }
         } catch (err) {}
@@ -5704,7 +5704,7 @@ async function fetchMembers() {
                     children.forEach(m => {
                         const initial = m.nickname ? m.nickname.charAt(0).toUpperCase() : '?';
                         const permsStr = safeStr(JSON.stringify(m.permissions || {}));
-                        a.innerHTML += `<div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-50 flex justify-between items-center mb-2"><div class="flex items-center gap-3"><div class="w-10 h-10 bg-slate-100 text-slate-600 rounded-full flex items-center justify-center font-bold text-lg">${initial}</div><div><h4 class="font-bold text-slate-800 text-sm">${safeStr(m.nickname) || 'ילד'}</h4><p class="text-[10px] text-slate-400">דמי כיס: ₪${m.allowance_amount || 0} • ריבית: ${m.interest_rate || 0}%</p><p class="text-xs font-bold text-slate-700 mt-1">יתרה: <span class="text-slate-800">₪${m.balance || 0}</span></p></div></div><div class="flex gap-1 sm:gap-2"><button onclick="openAdjustBalanceModal(${m.id}, '${safeStr(m.nickname)}')" class="w-8 h-8 rounded-full bg-green-50 hover:bg-green-100 text-green-600 flex items-center justify-center transition" title="הפרש דמי כיס"><i class="fa-solid fa-coins text-sm"></i></button><button onclick="openPermissionsModal(${m.id}, '${safeStr(m.nickname)}', '${permsStr}')" class="w-8 h-8 rounded-full bg-purple-50 hover:bg-purple-100 text-purple-600 flex items-center justify-center transition" title="הרשאות"><i class="fa-solid fa-user-shield text-sm"></i></button><button onclick="openBankSettings(${m.id}, '${safeStr(m.nickname)}', ${m.allowance_amount || 0}, ${m.interest_rate || 0})" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition"><i class="fa-solid fa-gear text-sm"></i></button><button onclick="deleteUser(${m.id}, '${safeStr(m.nickname)}')" class="w-8 h-8 rounded-full bg-red-50 hover:bg-red-100 text-red-500 flex items-center justify-center transition"><i class="fa-solid fa-trash text-sm"></i></button></div></div>`;
+                        a.innerHTML += `<div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-50 flex justify-between items-center mb-2"><div class="flex items-center gap-3"><div class="w-10 h-10 bg-slate-100 text-slate-600 rounded-full flex items-center justify-center font-bold text-lg">${initial}</div><div><h4 class="font-bold text-slate-800 text-sm">${escHtml(m.nickname) || 'ילד'}</h4><p class="text-[10px] text-slate-400">דמי כיס: ₪${m.allowance_amount || 0} • ריבית: ${m.interest_rate || 0}%</p><p class="text-xs font-bold text-slate-700 mt-1">יתרה: <span class="text-slate-800">₪${m.balance || 0}</span></p></div></div><div class="flex gap-1 sm:gap-2"><button onclick="openAdjustBalanceModal(${m.id}, '${safeStr(m.nickname)}')" class="w-8 h-8 rounded-full bg-green-50 hover:bg-green-100 text-green-600 flex items-center justify-center transition" title="הפרש דמי כיס"><i class="fa-solid fa-coins text-sm"></i></button><button onclick="openPermissionsModal(${m.id}, '${safeStr(m.nickname)}', '${permsStr}')" class="w-8 h-8 rounded-full bg-purple-50 hover:bg-purple-100 text-purple-600 flex items-center justify-center transition" title="הרשאות"><i class="fa-solid fa-user-shield text-sm"></i></button><button onclick="openBankSettings(${m.id}, '${safeStr(m.nickname)}', ${m.allowance_amount || 0}, ${m.interest_rate || 0})" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition"><i class="fa-solid fa-gear text-sm"></i></button><button onclick="deleteUser(${m.id}, '${safeStr(m.nickname)}')" class="w-8 h-8 rounded-full bg-red-50 hover:bg-red-100 text-red-500 flex items-center justify-center transition"><i class="fa-solid fa-trash text-sm"></i></button></div></div>`;
                     });
                 }
             }
@@ -5716,15 +5716,15 @@ async function fetchMembers() {
 async function fetchPendingUsers() {
     try {
         if(!currentGroup || !currentGroup.id) return; 
-        const res = await fetch(`${API}/admin/pending-users?groupId=${currentGroup.id}`); const users = await res.json(); const list = getEl('pending-list'); const container = getEl('admin-panel'); 
+        const res = await communityFetch(`${API}/admin/pending-users?groupId=${currentGroup.id}`); const users = await res.json(); const list = getEl('pending-list'); const container = getEl('admin-panel');
         if (users && users.length > 0) { 
             container.classList.remove('hidden'); list.innerHTML = ''; 
-            users.forEach(u => { const roleBadge = u.role === 'ADMIN' ? '<span class="text-[10px] bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded font-bold">הורה</span>' : u.role === 'CHILD' ? '<span class="text-[10px] bg-violet-100 text-violet-700 px-2 py-0.5 rounded font-bold">ילד/ה</span>' : '<span class="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded font-bold">חבר</span>'; const isInvited = u.status === 'invited'; const statusBadge = isInvited ? '<span class="text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded font-bold">ממתין להרשמה</span>' : '<span class="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded font-bold">ממתין לאישור</span>'; const actionBtn = isInvited ? '' : `<button onclick="approveUser(${u.id})" class="bg-slate-800 text-white px-3 py-1 rounded-lg text-xs font-bold shadow-md hover:bg-slate-700 transition">אשר</button>`; list.innerHTML += `<div class="flex justify-between items-center bg-white p-2 rounded-xl mb-1 shadow-sm"><div class="flex items-center gap-2 flex-wrap"><span class="text-sm font-bold text-slate-700">${safeStr(u.nickname)}</span>${roleBadge}${statusBadge}</div><div class="flex gap-2">${actionBtn}</div></div>`; }); 
+            users.forEach(u => { const roleBadge = u.role === 'ADMIN' ? '<span class="text-[10px] bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded font-bold">הורה</span>' : u.role === 'CHILD' ? '<span class="text-[10px] bg-violet-100 text-violet-700 px-2 py-0.5 rounded font-bold">ילד/ה</span>' : '<span class="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded font-bold">חבר</span>'; const isInvited = u.status === 'invited'; const statusBadge = isInvited ? '<span class="text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded font-bold">ממתין להרשמה</span>' : '<span class="text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded font-bold">ממתין לאישור</span>'; const actionBtn = isInvited ? '' : `<button onclick="approveUser(${u.id})" class="bg-slate-800 text-white px-3 py-1 rounded-lg text-xs font-bold shadow-md hover:bg-slate-700 transition">אשר</button>`; list.innerHTML += `<div class="flex justify-between items-center bg-white p-2 rounded-xl mb-1 shadow-sm"><div class="flex items-center gap-2 flex-wrap"><span class="text-sm font-bold text-slate-700">${escHtml(u.nickname)}</span>${roleBadge}${statusBadge}</div><div class="flex gap-2">${actionBtn}</div></div>`; }); 
         } else { if(container) container.classList.add('hidden'); } 
     } catch(e) {} 
 }
 
-async function approveUser(id) { await fetch(`${API}/admin/approve-user`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: id }) }); showToast('success', 'אושר כבן משפחה!'); fetchPendingUsers(); fetchMembers(); }
+async function approveUser(id) { await communityFetch(`${API}/admin/approve-user`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: id }) }); showToast('success', 'אושר כבן משפחה!'); fetchPendingUsers(); fetchMembers(); }
 
 function setEditMemberRole(role) {
     const adminBtn = getEl('edit-member-role-admin');
@@ -5749,7 +5749,7 @@ async function openEditMemberModal(userId) {
     getEl('edit-member-name-label').textContent = 'טוען...';
     modal.classList.remove('hidden');
     try {
-        const res = await fetch(`${API}/admin/user-details/${userId}?adminId=${currentUser.id}`);
+        const res = await communityFetch(`${API}/admin/user-details/${userId}`);
         const data = await res.json();
         if (!data.success) { showToast('error', data.error || 'שגיאה'); modal.classList.add('hidden'); return; }
         const u = data.user;
@@ -5798,7 +5798,7 @@ async function changeUserRole(userId, currentRole, nickname) {
     const curLabel = currentRole === 'ADMIN' ? 'הורה' : currentRole === 'CHILD' ? 'ילד/ה' : 'חבר';
     if (!confirm(`לשנות את תפקיד "${nickname}" מ${curLabel} ל${newLabel}?\nההרשאות יעודכנו אוטומטית.`)) return;
     try {
-        const res = await fetch(`${API}/admin/change-role`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ adminId: currentUser.id, userId, newRole }) });
+        const res = await communityFetch(`${API}/admin/change-role`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, newRole }) });
         const data = await res.json();
         if (data.success) { showToast('success', `תפקיד עודכן ל${newLabel} וההרשאות עודכנו`); fetchMembers(); }
         else showToast('error', data.error || 'שגיאה');
@@ -5895,7 +5895,7 @@ async function saveFamilyNickname() {
 }
 
 async function submitChangePassword(e) { e.preventDefault(); const oldP = val('old-password'); const newP = val('new-password'); const btn = e.target.querySelector('button[type="submit"]'); btn.disabled = true; btn.innerText = 'מעדכן...'; try { const res = await fetch(`${API}/users/${currentUser.id}/password`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ oldPassword: oldP, newPassword: newP }) }); const data = await res.json(); if(data.success) { showToast('success', 'הסיסמה שונתה בהצלחה!'); getEl('profile-modal').classList.add('hidden'); } else { showToast('error', data.error || 'שגיאה בשינוי סיסמה'); } } catch(err) { showToast('error', 'שגיאה בתקשורת'); } finally { btn.disabled = false; btn.innerText = 'עדכון סיסמת גישה'; } }
-async function deleteUser(id, name) { if(!confirm(`האם אתה בטוח שברצונך למחוק את המשתמש לצמיתות?`)) return; try { const res = await fetch(`${API}/users/${id}?adminId=${currentUser.id}`, { method: 'DELETE' }); const data = await res.json(); if(data.success) { showToast('success', 'המשתמש הוסר בהצלחה'); fetchMembers(); fetchData(); } else { showToast('error', data.error || 'שגיאה במחיקה'); } } catch(e) { showToast('error', 'שגיאה בתקשורת'); } }
+async function deleteUser(id, name) { if(!confirm(`האם אתה בטוח שברצונך למחוק את המשתמש לצמיתות?`)) return; try { const res = await communityFetch(`${API}/users/${id}`, { method: 'DELETE' }); const data = await res.json(); if(data.success) { showToast('success', 'המשתמש הוסר בהצלחה'); fetchMembers(); fetchData(); } else { showToast('error', data.error || 'שגיאה במחיקה'); } } catch(e) { showToast('error', 'שגיאה בתקשורת'); } }
 
 
 // אפשרות הורדת PDF מדוח 360 הוסרה לטובת תצוגת UI נקייה ומהירה יותר
@@ -9855,9 +9855,9 @@ window.savePermissions = async function() {
 
     try {
         const apiPath = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:') ? 'http://localhost:3000/api' : '/api';
-        const res = await fetch(`${apiPath}/users/${userId}/permissions`, {
+        const res = await communityFetch(`${apiPath}/users/${userId}/permissions`, {
             method: 'PUT',
-            headers: { 'Content-Type': 'application/json', 'Authorization': localStorage.getItem('ofl_token') || '' },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ tabs: selectedTabs, community: communityPerms })
         });
 
@@ -11280,7 +11280,7 @@ async function openActivityPanel() {
     getEl('activity-filters').classList.remove('hidden');
     const sel = getEl('filter-user');
     sel.innerHTML = '<option value="">כל המשתמשים</option>';
-    if (membersCache) membersCache.forEach(m => sel.innerHTML += `<option value="${m.id}">${safeStr(m.nickname)}</option>`);
+    if (membersCache) membersCache.forEach(m => sel.innerHTML += `<option value="${m.id}">${escHtml(m.nickname)}</option>`);
   }
   ['filter-days','filter-type','filter-user'].forEach(id => {
     const el = getEl(id);
@@ -15979,7 +15979,7 @@ async function loadFlwKidParentPanel() {
     // אם membersCache ריק — טען קודם
     if (!membersCache || membersCache.length === 0) {
         try {
-            const r = await fetch(`/api/group/members?groupId=${currentGroup?.id}`);
+            const r = await communityFetch(`/api/group/members?groupId=${currentGroup?.id}`);
             membersCache = await r.json();
             if (!Array.isArray(membersCache)) membersCache = [];
         } catch(e) {}
@@ -16134,7 +16134,7 @@ async function openAssignGameModal() {
   try {
     const [gamesRes, membersRes] = await Promise.all([
       communityFetch(`/api/kids/games?userId=${currentUser?.id}`),
-      fetch(`/api/group/members?groupId=${currentGroup?.id}`)
+      communityFetch(`/api/group/members?groupId=${currentGroup?.id}`)
     ]);
     const gamesData   = await gamesRes.json();
     const membersData = await membersRes.json();
@@ -16552,7 +16552,7 @@ function openQuestWizard() {
         </div>
       `;
 
-      fetch(`/api/group/members?groupId=${currentGroup?.id}`)
+      communityFetch(`/api/group/members?groupId=${currentGroup?.id}`)
         .then(r => r.json())
         .then(data => {
           const allMembers = Array.isArray(data) ? data : (data.members || []);

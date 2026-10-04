@@ -4268,7 +4268,7 @@ window.sendSmartWhatsAppInvite = function() {
 async function fetchMembers() { 
     try {
         if(!currentGroup || !currentGroup.id) return;
-        const res = await fetch(`${API}/group/members?groupId=${currentGroup.id}&requesterId=${currentUser.id}`); 
+        const res = await fetch(`${API}/group/members?groupId=${currentGroup.id}&requesterId=${currentUser.id}`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } }); 
         let json = await res.json(); 
         
         membersCache = json.members || (Array.isArray(json) ? json : []);
@@ -4347,7 +4347,7 @@ async function sendCredentialsEmail() {
     const btn = document.querySelector('#admin-members-tools button'); if(!btn) return;
     const originalText = btn.innerHTML; btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מעבד ושולח...';
     try {
-        const res = await fetch(`${API}/admin/send-credentials`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ groupId: currentGroup.id, adminId: currentUser.id }) }); const data = await res.json();
+        const res = await fetch(`${API}/admin/send-credentials`, { method: 'POST', headers: {'Content-Type': 'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : ''}, body: JSON.stringify({ groupId: currentGroup.id }) }); const data = await res.json();
         if (data.success) { showToast('success', 'דוח הגישה נשלח בהצלחה למייל המנהל!'); } else { showToast('error', data.error || 'שגיאה בשליחת המייל'); }
     } catch(e) { showToast('error', 'שגיאת תקשורת מול השרת'); } finally { btn.disabled = false; btn.innerHTML = originalText; }
 }
@@ -8055,7 +8055,7 @@ function closeAccessibilityModal() { getEl('accessibility-modal').classList.add(
 async function fetchPendingUsers() { 
     try { 
         if(!currentGroup || !currentGroup.id) return; 
-        const res = await fetch(`${API}/admin/pending-users?groupId=${currentGroup.id}`); const users = await res.json(); const list = getEl('pending-list'); const container = getEl('admin-panel'); 
+        const res = await fetch(`${API}/admin/pending-users?groupId=${currentGroup.id}`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } }); const users = await res.json(); const list = getEl('pending-list'); const container = getEl('admin-panel'); 
         if (users && users.length > 0) { 
             container.classList.remove('hidden'); list.innerHTML = ''; 
             users.forEach(u => { list.innerHTML += `<div class="flex justify-between items-center bg-white p-2 rounded-xl mb-1 shadow-sm"><span class="text-sm font-bold text-slate-700">${safeStr(u.nickname)}</span><div class="flex gap-2"><button onclick="approveUser(${u.id})" class="bg-slate-800 text-white px-3 py-1 rounded-lg text-xs font-bold shadow-md hover:bg-slate-700 transition">אשר צוות</button></div></div>`; }); 
@@ -8063,7 +8063,7 @@ async function fetchPendingUsers() {
     } catch(e) {} 
 }
 
-async function approveUser(id) { await fetch(`${API}/admin/approve-user`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: id }) }); showToast('success', 'אושר כעובד בארגון!'); fetchPendingUsers(); fetchMembers(); }
+async function approveUser(id) { await fetch(`${API}/admin/approve-user`, { method: 'POST', headers: {'Content-Type': 'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : ''}, body: JSON.stringify({ userId: id }) }); showToast('success', 'אושר כעובד בארגון!'); fetchPendingUsers(); fetchMembers(); }
 window.triggerManualTour = function() {
     const modal = document.getElementById('profile-modal');
     if (modal) modal.classList.add('hidden');

@@ -10154,11 +10154,10 @@ app.post('/api/reset-password/confirm', async (req, res) => {
     }
 });
 
-app.post('/api/admin/send-credentials', async (req, res) => {
+app.post('/api/admin/send-credentials', verifyFamilyOrBiz, async (req, res) => {
     try {
-        const { groupId, adminId } = req.body;
-        const adminCheck = await pool.query("SELECT role FROM users WHERE id = $1 AND group_id = $2", [adminId, groupId]);
-        if(adminCheck.rows.length === 0 || adminCheck.rows[0].role !== 'ADMIN') return res.status(403).json({error: "רק מנהל מורשה לבצע פעולה זו"});
+        if (req.callerAuth.role !== 'ADMIN') return res.status(403).json({error: "רק מנהל מורשה לבצע פעולה זו"});
+        const groupId = req.callerAuth.groupId;
 
         const groupRes = await pool.query("SELECT admin_email, name, type FROM family_groups WHERE id = $1", [groupId]);
         if(groupRes.rows.length === 0 || !groupRes.rows[0].admin_email) return res.status(400).json({error: "לא נמצאה כתובת מייל מוגדרת בהרשמה."});
@@ -10175,7 +10174,7 @@ app.post('/api/admin/send-credentials', async (req, res) => {
 
         sendSystemEmail(adminEmail, 'WEFLOWZ - פרטי גישה של משתמשי הסביבה', emailContent);
         res.json({ success: true });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch(e) { res.status(500).json({ error: 'שגיאה פנימית' }); }
 });
 
 app.post('/api/join', async (req, res) => {
@@ -10187,7 +10186,9 @@ app.post('/api/join', async (req, res) => {
         if (gRes.rows.length === 0) return res.status(404).json({ error: 'קוד ארגון/משפחה לא חוקי' });
 
         const group = gRes.rows[0];
-        const reqRole = role === 'ADMIN' ? 'ADMIN' : role === 'CHILD' ? 'CHILD' : 'MEMBER';
+        // הצטרפות לקבוצה קיימת לעולם לא מעניקה ADMIN עצמאית — תפקיד ADMIN ראשון נקבע רק
+        // בזרימת הקמת קבוצה חדשה (wizard), לא דרך הצטרפות בקוד. כל בקשה אחרת לכל היותר MEMBER/CHILD
+        const reqRole = role === 'CHILD' ? 'CHILD' : 'MEMBER';
         const bYear = parseInt(birthYear) || null;
         const joinPhone = (req.body.phone || '').trim() || null;
 
@@ -11229,9 +11230,10 @@ app.post('/api/goals/deposit', async (req, res) => {
 // --- MEMBERS & ADMIN TOOLS ---
 // ============================================================
 
-app.get('/api/group/members', async (req, res) => {
+app.get('/api/group/members', verifyFamilyOrBiz, async (req, res) => {
     try {
         const { groupId } = req.query;
+        if (parseInt(groupId) !== req.callerAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         let users;
         try {
             users = await pool.query('SELECT id, nickname, role, balance, allowance_amount, interest_rate, base_salary, birth_year, permissions, employee_role_type, last_seen FROM users WHERE group_id=$1 AND status=$2 ORDER BY role, nickname', [groupId, 'active']);
@@ -11239,7 +11241,7 @@ app.get('/api/group/members', async (req, res) => {
             users = await pool.query('SELECT id, nickname, role, balance, allowance_amount, interest_rate, birth_year, employee_role_type, last_seen FROM users WHERE group_id=$1 AND status=$2 ORDER BY role, nickname', [groupId, 'active']);
         }
         res.json(users.rows);
-    } catch(e) { res.status(500).json({error: e.message}); }
+    } catch(e) { res.status(500).json({error: 'שגיאה פנימית'}); }
 });
 
 app.put('/api/users/:id/permissions', verifyFamily, async (req, res) => {
@@ -11271,29 +11273,38 @@ app.put('/api/users/:id/permissions', verifyFamily, async (req, res) => {
     }
 });
 
-app.get('/api/admin/pending-users', async (req, res) => {
+app.get('/api/admin/pending-users', verifyFamilyOrBiz, async (req, res) => {
     try {
         const { groupId } = req.query;
+        if (parseInt(groupId) !== req.callerAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
+        if (req.callerAuth.role !== 'ADMIN') return res.status(403).json({ error: 'רק מנהל/ת יכול/ה לצפות בבקשות ממתינות' });
         const users = await pool.query(
             `SELECT id, nickname, role, birth_year, phone, status FROM users
              WHERE group_id=$1 AND status IN ('pending','invited') ORDER BY status, nickname`,
             [groupId]);
         res.json(users.rows);
-    } catch(e) { res.status(500).json({error: e.message}); }
+    } catch(e) { res.status(500).json({error: 'שגיאה פנימית'}); }
 });
 
-app.post('/api/admin/approve-user', async (req, res) => {
-    try { await pool.query('UPDATE users SET status=$1 WHERE id=$2', ['active', req.body.userId]); res.json({success:true}); } catch(e) { res.status(500).json({error: e.message}); }
-});
-
-app.post('/api/admin/change-role', async (req, res) => {
+app.post('/api/admin/approve-user', verifyFamilyOrBiz, async (req, res) => {
     try {
-        const { adminId, userId, newRole } = req.body;
+        if (req.callerAuth.role !== 'ADMIN') return res.status(403).json({ error: 'רק מנהל/ת יכול/ה לאשר בקשות' });
+        const target = await pool.query('SELECT group_id FROM users WHERE id=$1', [req.body.userId]);
+        if (!target.rows.length || parseInt(target.rows[0].group_id) !== req.callerAuth.groupId) {
+            return res.status(403).json({ error: 'משתמש לא שייך לקבוצה זו' });
+        }
+        await pool.query('UPDATE users SET status=$1 WHERE id=$2', ['active', req.body.userId]);
+        res.json({success:true});
+    } catch(e) { res.status(500).json({error: 'שגיאה פנימית'}); }
+});
+
+app.post('/api/admin/change-role', verifyFamilyOrBiz, async (req, res) => {
+    try {
+        const { userId, newRole } = req.body;
         if (!['ADMIN','CHILD','MEMBER'].includes(newRole)) return res.status(400).json({ error: 'תפקיד לא חוקי' });
-        const adminRes = await pool.query('SELECT group_id, role FROM users WHERE id=$1', [adminId]);
-        if (!adminRes.rows.length || adminRes.rows[0].role !== 'ADMIN') return res.status(403).json({ error: 'רק מנהל רשאי לשנות תפקידים' });
+        if (req.callerAuth.role !== 'ADMIN') return res.status(403).json({ error: 'רק מנהל רשאי לשנות תפקידים' });
         const targetRes = await pool.query('SELECT group_id FROM users WHERE id=$1', [userId]);
-        if (!targetRes.rows.length || targetRes.rows[0].group_id !== adminRes.rows[0].group_id) return res.status(403).json({ error: 'משתמש לא שייך לאותה קבוצה' });
+        if (!targetRes.rows.length || parseInt(targetRes.rows[0].group_id) !== req.callerAuth.groupId) return res.status(403).json({ error: 'משתמש לא שייך לאותה קבוצה' });
         // הרשאות אוטומטיות לפי תפקיד
         const autoPerms = newRole === 'ADMIN'
             ? { tabs: ['feed','shop','tasks','budget','members','goals','pantry','loans','academy','cashflow','community'] }
@@ -11302,7 +11313,7 @@ app.post('/api/admin/change-role', async (req, res) => {
             : { tabs: ['feed','community'] };
         await pool.query('UPDATE users SET role=$1, permissions=$2 WHERE id=$3', [newRole, JSON.stringify(autoPerms), userId]);
         res.json({ success: true });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch(e) { res.status(500).json({ error: 'שגיאה פנימית' }); }
 });
 
 app.delete('/api/users/:id', verifyFamily, async (req, res) => {
@@ -11337,40 +11348,34 @@ app.delete('/api/users/:id', verifyFamily, async (req, res) => {
 });
 
 // ניהול משפחה — עריכת פרטי משתמש מלאים (מנהל בלבד)
-app.get('/api/admin/user-details/:userId', async (req, res) => {
+app.get('/api/admin/user-details/:userId', verifyFamilyOrBiz, async (req, res) => {
     try {
-        const { adminId } = req.query;
-        const aRes = await pool.query('SELECT group_id, role FROM users WHERE id=$1', [adminId]);
-        if (!aRes.rows.length || aRes.rows[0].role !== 'ADMIN') return res.status(403).json({ error: 'אין הרשאה' });
-        const uRes = await pool.query('SELECT id, nickname, email, phone, password_hash, role, birth_year FROM users WHERE id=$1 AND group_id=$2', [req.params.userId, aRes.rows[0].group_id]);
+        if (req.callerAuth.role !== 'ADMIN') return res.status(403).json({ error: 'אין הרשאה' });
+        const uRes = await pool.query('SELECT id, nickname, email, phone, role, birth_year FROM users WHERE id=$1 AND group_id=$2', [req.params.userId, req.callerAuth.groupId]);
         if (!uRes.rows.length) return res.status(404).json({ error: 'משתמש לא נמצא' });
         res.json({ success: true, user: uRes.rows[0] });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch(e) { res.status(500).json({ error: 'שגיאה פנימית' }); }
 });
 
-app.put('/api/admin/user-details/:userId', async (req, res) => {
+app.put('/api/admin/user-details/:userId', verifyFamilyOrBiz, async (req, res) => {
     try {
-        const adminUserId = req.body.adminId;
+        if (req.callerAuth.role !== 'ADMIN') return res.status(403).json({ error: 'אין הרשאה' });
         const targetUserId = req.params.userId;
-
-        const aRes = await pool.query('SELECT group_id, role FROM users WHERE id=$1', [adminUserId]);
-        if (!aRes.rows.length || aRes.rows[0].role !== 'ADMIN') return res.status(403).json({ error: 'אין הרשאה' });
-        const adminGroupId = aRes.rows[0].group_id;
-        const uRes = await pool.query('SELECT group_id FROM users WHERE id=$1 AND group_id=$2', [targetUserId, adminGroupId]);
+        const uRes = await pool.query('SELECT group_id FROM users WHERE id=$1 AND group_id=$2', [targetUserId, req.callerAuth.groupId]);
         if (!uRes.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
 
         const { nickname, email, phone, password, role } = req.body;
         const sets = []; const vals = [];
-        if (nickname && nickname.trim()) { vals.push(nickname.trim()); sets.push(`nickname=$${vals.length}`); }
+        if (nickname && nickname.trim()) { vals.push(nickname.trim().slice(0, 100)); sets.push(`nickname=$${vals.length}`); }
         if (email !== undefined) { vals.push(email ? email.trim().toLowerCase() : null); sets.push(`email=$${vals.length}`); }
         if (phone !== undefined) { vals.push(phone ? phone.trim() : null); sets.push(`phone=$${vals.length}`); }
-        if (password && password.trim().length >= 4) { vals.push(password.trim()); sets.push(`password_hash=$${vals.length}`); }
+        if (password && password.trim().length >= 4) { vals.push(await bcrypt.hash(password.trim(), 10)); sets.push(`password_hash=$${vals.length}`); }
         if (role && ['ADMIN','CHILD','MEMBER'].includes(role)) { vals.push(role); sets.push(`role=$${vals.length}`); }
         if (sets.length === 0) return res.json({ success: true });
         vals.push(targetUserId);
         await pool.query(`UPDATE users SET ${sets.join(',')} WHERE id=$${vals.length}`, vals);
         res.json({ success: true });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch(e) { res.status(500).json({ error: 'שגיאה פנימית' }); }
 });
 
 app.post('/api/users/:id/password', verifyFamily, async (req, res) => {
