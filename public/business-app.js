@@ -2894,12 +2894,18 @@ function switchTab(t) {
                 if (newEventBtn) newEventBtn.classList.remove('hidden');
             }
 
-            // תחזוקה ותיקונים: "תפריטים" הוא מושג ייחודי למסעדנות — לא רלוונטי.
+            // "תפריטים" הוא מושג ייחודי למסעדנות/הפקת מזון — לא רלוונטי לעסקים אחרים.
             // ("פניות תפריט" מוסתר בתוך switchSalesTab עצמה — היא מאפסת className על כל
             // כפתורי התת-טאבים בכל קריאה, כך שהסתרה כאן בלבד הייתה נדרסת מיד ע"י switchSalesTab('orders') למטה)
             const bMenuTpl = document.getElementById('btn-sales-menutpl');
-            const isMaintenance = currentGroup?.business_type === 'maintenance_repair';
-            if (bMenuTpl) bMenuTpl.classList.toggle('hidden', isMaintenance);
+            const menuRelevantTypes = ['restaurant', 'events', 'food_production'];
+            const hideMenuTpl = !menuRelevantTypes.includes(currentGroup?.business_type);
+            if (bMenuTpl) bMenuTpl.classList.toggle('hidden', hideMenuTpl);
+
+            // "פקודות עבודה" (המרת הצעת מחיר לעבודה בשטח עם צוות/ציוד/יומן) רלוונטי לעסקי שירות
+            // בשטח — לא לעסקים שמוכרים מוצרים/מנויים/שיעורים בלבד (כמו ספורט, קמעונאות, יופי)
+            const workOrderIrrelevantTypes = ['sport', 'retail', 'beauty', 'store_only', 'logistics', 'education', 'healthcare'];
+            if (bWO) bWO.classList.toggle('hidden', workOrderIrrelevantTypes.includes(currentGroup?.business_type));
 
             switchSalesTab('orders');
         }
@@ -25387,23 +25393,27 @@ window._deleteBrandingSection = async function(id) {
 
 window.switchSalesTab = function(subTab) {
     window._currentBizSubTab = 'sales.' + subTab;
-    const isMaintenanceSales = currentGroup?.business_type === 'maintenance_repair';
+    const menuRelevantTypes = ['restaurant', 'events', 'food_production'];
+    const hideMenuStuff = !menuRelevantTypes.includes(currentGroup?.business_type);
     ['pos', 'orders', 'catalog', 'complex', 'marketing', 'settings', 'quotes', 'analytics', 'reviews', 'work-orders', 'gallery', 'menu-requests'].forEach(t => {
         const view = document.getElementById(`sales-view-${t}`); if(view) view.classList.add('hidden');
         const btn = document.getElementById(`btn-sales-${t}`);
         if(btn) {
             btn.className = 'flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition';
-            // "פניות תפריט" לא רלוונטי לעסק תחזוקה ותיקונים — הלולאה הזו מאפסת className
-            // על כל כפתור בכל מעבר תת-טאב, ולכן חייבים להסתיר כאן מחדש (לא מספיק להסתיר
-            // פעם אחת ב-switchTab('sales'), כי הקריאה הזו דורסת את זה בכל switchSalesTab)
-            if (isMaintenanceSales && t === 'menu-requests') btn.classList.add('hidden');
+            // "פניות תפריט"/"תפריטים" לא רלוונטיים לעסקים שלא עובדים עם תפריטים — הלולאה הזו
+            // מאפסת className על כל כפתור בכל מעבר תת-טאב, ולכן חייבים להסתיר כאן מחדש (לא
+            // מספיק להסתיר פעם אחת ב-switchTab('sales'), כי הקריאה הזו דורסת את זה בכל switchSalesTab)
+            if (hideMenuStuff && t === 'menu-requests') btn.classList.add('hidden');
         }
     });
 
-    // show work-orders button for all business types
+    // "פקודות עבודה" לא רלוונטי לעסקים שמוכרים מוצרים/מנויים/שיעורים בלבד (ראו גם switchTab('sales') —
+    // חייבים לחזור על ההסתרה כאן כי הלולאה למעלה מאפסת className על כל כפתור בכל מעבר תת-טאב)
     const woBtn = document.getElementById('btn-sales-work-orders');
     if (woBtn) {
-        woBtn.classList.remove('hidden'); woBtn.classList.add('flex');
+        const workOrderIrrelevantTypes = ['sport', 'retail', 'beauty', 'store_only', 'logistics', 'education', 'healthcare'];
+        if (workOrderIrrelevantTypes.includes(currentGroup?.business_type)) { woBtn.classList.add('hidden'); }
+        else { woBtn.classList.remove('hidden'); woBtn.classList.add('flex'); }
     }
 
     // Sport business: adapt tab bar and views
