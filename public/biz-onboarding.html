@@ -57,6 +57,28 @@
     .wiz-hero-title { color:#fff; font-size:26px; font-weight:800; margin-bottom:6px; }
     .wiz-hero-sub { color:rgba(255,255,255,0.55); font-size:14px; }
 
+    /* ── Marketing videos (self-contained card, works regardless of page background) ── */
+    .wiz-videos {
+      width:100%; max-width:1000px; margin:28px auto 0;
+      padding:24px 28px; box-sizing:border-box;
+      background:#fff; border-radius:24px; box-shadow:0 10px 30px rgba(20,10,60,0.12);
+    }
+    .wiz-videos-title { text-align:center; font-size:19px; font-weight:800; color:#1B2440; margin-bottom:18px; }
+    .wiz-videos-grid { display:flex; gap:16px; justify-content:center; flex-wrap:wrap; }
+    .wiz-video-item { display:flex; flex-direction:column; align-items:center; gap:8px; width:190px; }
+    .wiz-video-box { width:100%; aspect-ratio:9/16; border-radius:16px; overflow:hidden; background:#0f0c29; box-shadow:0 4px 14px rgba(20,10,60,0.18); }
+    .wiz-video-box video { width:100%; height:100%; object-fit:cover; display:block; }
+    .wiz-video-label { font-size:13px; font-weight:700; color:#1B2440; text-align:center; }
+
+    @media (max-width:640px) {
+      .wiz-videos { padding:18px 16px; border-radius:18px; }
+      .wiz-videos-title { font-size:16px; margin-bottom:14px; }
+      .wiz-videos-grid { flex-direction:column; gap:10px; }
+      .wiz-video-item { flex-direction:row; width:100%; align-items:center; gap:12px; }
+      .wiz-video-box { width:56px; flex:none; aspect-ratio:9/16; border-radius:10px; }
+      .wiz-video-label { text-align:right; font-size:14px; }
+    }
+
     /* ── Progress bar segments ── */
     .wiz-seg-bar {
       width:100%; display:flex; gap:6px;
@@ -525,15 +547,7 @@
 
   <!-- ── Header ── -->
   <div class="wiz-header">
-    <div class="wiz-brand">
-      <div id="wiz-logo-wrap" style="background:#fff; border-radius:20px; padding:10px; box-shadow:0 4px 18px rgba(20,10,60,0.13); display:flex; align-items:center; justify-content:center;">
-        <div id="wiz-logo-box" style="width:104px; height:104px; border-radius:16px; background:#6c5ce7; display:flex; align-items:center; justify-content:center; color:#fff; font-weight:800; font-size:44px; overflow:hidden;">
-          <img id="wiz-logo-img" src="" alt="" style="display:none; width:100%; height:100%; object-fit:contain;"
-          onerror="this.style.display='none'; document.getElementById('wiz-logo-letter').style.display=''; document.getElementById('wiz-logo-box').style.background='#6c5ce7';">
-          <span id="wiz-logo-letter">O</span>
-        </div>
-      </div>
-    </div>
+    <div class="wiz-brand"></div>
     <div class="wiz-promo-badge" id="promo-banner" style="display:none;">
       <span id="promo-banner-text"></span>
     </div>
@@ -543,6 +557,29 @@
   <div class="wiz-hero" id="wiz-hero">
     <div class="wiz-hero-title" id="wiz-hero-title"></div>
     <div class="wiz-hero-sub" id="wiz-hero-sub"></div>
+  </div>
+
+  <!-- ── Marketing videos ── -->
+  <div class="wiz-videos">
+    <div class="wiz-videos-title">WEFLOWZ עושה לכם סדר בעסק</div>
+    <div class="wiz-videos-grid">
+      <div class="wiz-video-item">
+        <div class="wiz-video-box"><video src="/videos/marketing/installers.mp4" autoplay muted loop playsinline></video></div>
+        <div class="wiz-video-label">מתקינים / התקנות</div>
+      </div>
+      <div class="wiz-video-item">
+        <div class="wiz-video-box"><video src="/videos/marketing/restaurants.mp4" autoplay muted loop playsinline></video></div>
+        <div class="wiz-video-label">מסעדות / קייטרינג</div>
+      </div>
+      <div class="wiz-video-item">
+        <div class="wiz-video-box"><video src="/videos/marketing/beauty.mp4" autoplay muted loop playsinline></video></div>
+        <div class="wiz-video-label">יופי / אסתטיקה</div>
+      </div>
+      <div class="wiz-video-item">
+        <div class="wiz-video-box"><video src="/videos/marketing/sport.mp4" autoplay muted loop playsinline></video></div>
+        <div class="wiz-video-label">ספורט / אימונים</div>
+      </div>
+    </div>
   </div>
 
   <div class="card">
