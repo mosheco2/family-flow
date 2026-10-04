@@ -3690,6 +3690,23 @@ async function patchPricingCatalogForRoutines() {
             changed = true;
         }
     }
+    // אותו באג חוזר עבור כל מודול שנוסף בקוד אחרי שקטלוג ה-DB כבר נשמר בפעם הראשונה —
+    // קטלוג ה-DB "קופא" בגרסה הישנה ולא רואה מודולים חדשים (routines, menu_templates, ...),
+    // מה שמונע הן את ההצגה שלהם במסך ההרשאות של סופר-אדמין והן את הפתיחה שלהם בפועל לעסק
+    // (requireModule בודק מול billing_config שנשמר מתוך הקטלוג הזה). מוסיפים כל מודול חסר
+    // לקבוצה המתאימה בקטלוג ה-DB, ולא רק 'routines' בנפרד.
+    const MISSING_MODULE_FIXUPS = [
+        { groupId: 'sales', id: 'menu_templates', name: 'תפריטים', price: 19, free: false, desc: 'יצירה וניהול תבניות תפריט, ייצוא, שיתוף' },
+    ];
+    for (const fix of MISSING_MODULE_FIXUPS) {
+        const hasEntry = catalog.some(g => Array.isArray(g.modules) && g.modules.some(m => m.id === fix.id));
+        if (hasEntry) continue;
+        const targetGroup = catalog.find(g => g.groupId === fix.groupId);
+        if (targetGroup && Array.isArray(targetGroup.modules)) {
+            targetGroup.modules.push({ id: fix.id, name: fix.name, price: fix.price, free: fix.free, desc: fix.desc });
+            changed = true;
+        }
+    }
     for (const bundleId of ['bundle_restaurant', 'bundle_maintenance_repair']) {
         for (const g of catalog) {
             if (!Array.isArray(g.modules)) continue;
