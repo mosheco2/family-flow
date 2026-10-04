@@ -120,6 +120,15 @@ input,select,textarea{font-family:inherit}
 .product-meta-row{display:flex;align-items:center;gap:8px;margin-top:3px;flex-wrap:wrap}
 .product-sku{font-size:11px;color:var(--muted)}
 .product-stock-note{font-size:11px;color:var(--muted)}
+/* Service cards — תצוגת "שירותים ומנויים", נפרדת מהקטלוג (שורות עגלה), בדומה לכרטיסי שירות בעסק תיקונים */
+#services-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px}
+.service-card{border:1.5px solid var(--border);border-radius:var(--radius);padding:18px 16px;background:var(--card);cursor:pointer;transition:.2s;position:relative;overflow:hidden}
+.service-card:hover{border-color:var(--accent);box-shadow:0 4px 16px rgba(0,0,0,.08);transform:translateY(-2px)}
+.service-card-icon{width:46px;height:46px;border-radius:12px;background:var(--subtle);display:flex;align-items:center;justify-content:center;font-size:22px;margin-bottom:12px;overflow:hidden}
+.service-card-icon img{width:100%;height:100%;object-fit:cover}
+.service-card-name{font-family:'Rubik',sans-serif;font-size:15px;font-weight:700;margin:0 0 6px}
+.service-card-desc{font-size:12.5px;color:var(--muted);line-height:1.5;margin:0 0 12px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.service-card-price{font-size:12px;font-weight:700;color:var(--accent);padding:4px 10px;border-radius:99px;background:var(--subtle);display:inline-block}
 .product-badge-pill{padding:2px 8px;border-radius:99px;font-size:10px;font-weight:700}
 .product-badge-pill.red{background:#fee2e2;color:#b91c1c}
 .product-badge-pill.green{background:#dcfce7;color:#166534}
@@ -441,6 +450,10 @@ input,select,textarea{font-family:inherit}
   <!-- Sidebar -->
   <aside id="sidebar">
     <div class="sidebar-card">
+      <div class="sidebar-title">תצוגה</div>
+      <div class="cat-list" id="type-list"></div>
+    </div>
+    <div class="sidebar-card">
       <div class="sidebar-title">קטגוריות</div>
       <div class="cat-list" id="cat-list"></div>
     </div>
@@ -675,6 +688,9 @@ let _selectedColors = {};
 let _selectedQtys = {};
 let _filterCat = '', _sortMode = 'popular', _priceMax = 10000;
 let _onlyDeals = false, _onlyStock = false, _searchQ = '';
+// תצוגת "קטלוג מוצרים" מול "שירותים ומנויים" — כמו בעסק תחזוקה/תיקונים, לפי productType
+// בפועל במערכת: 'service' = שירות, כל השאר (retail/bundle/complex_builder וכו') = קטלוג
+let _filterType = '';
 
 /* ── Utilities ── */
 function escHtml(s) {
@@ -802,6 +818,8 @@ async function initStore() {
     storeData = await res.json();
     groupId = storeData.groupId; window._scBizId = groupId; window._scGroupId = groupId; window._scBizType = storeData.businessType || storeData.business_type || 'sport'; window.storeData = storeData; window.API = API;
     catalog = (storeData.catalog || []).filter(p => p.is_available !== false);
+    // ברירת מחדל: אם יש שירותים/מנויים, פותחים בתצוגת קטלוג מוצרים (לא מעורבב) — ראו renderTypeTabs
+    if (catalog.some(p => p.product_type === 'service')) _filterType = 'catalog';
     applyAccent(storeData.settings?.accent_color || '#FF6A1A');
     const ll=document.getElementById('lang-label'); if(ll) ll.textContent=isEn?'עברית':'English';
     applyI18n();
@@ -1482,11 +1500,37 @@ function renderBundles() {
   }).join('');
 }
 
+function renderTypeTabs() {
+  const list = document.getElementById('type-list');
+  if (!list) return;
+  const serviceCount = catalog.filter(p => p.product_type === 'service').length;
+  const catalogCount = catalog.length - serviceCount;
+  if (!serviceCount) { list.innerHTML = ''; return; } // אין שירותים לעסק הזה — לא מציגים את הברירה בכלל
+  // הפרדה ברורה ומכוונת, בלי תצוגה מעורבת: או קטלוג מוצרים (תצוגה מלאה, כמו היום) או
+  // שירותים/מנויים (כרטיסים, כמו בעסק תיקונים) — לא "הכל" מעורבב
+  const types = [
+    { id: 'catalog', label: t('📦 קטלוג מוצרים','📦 Products'), count: catalogCount },
+    { id: 'service', label: t('📅 שירותים ומנויים','📅 Services & plans'), count: serviceCount },
+  ];
+  list.innerHTML = types.map(x =>
+    `<button class="cat-item${_filterType===x.id?' active':''}" onclick="setType('${x.id}')">
+      <span>${x.label}</span>
+      <span class="cat-count">${x.count}</span>
+    </button>`
+  ).join('');
+}
+
+function setType(type) { _filterType = type; _filterCat = ''; renderSidebar(); renderCatalog(); }
+
 function renderSidebar() {
-  const catNames = [...new Set(catalog.map(p=>p.category).filter(Boolean))];
+  renderTypeTabs();
+  const byType = _filterType === 'service' ? catalog.filter(p=>p.product_type==='service')
+    : _filterType === 'catalog' ? catalog.filter(p=>p.product_type!=='service')
+    : catalog;
+  const catNames = [...new Set(byType.map(p=>p.category).filter(Boolean))];
   const counts = {};
   const catDisplayMap = {};
-  catalog.forEach(p => {
+  byType.forEach(p => {
     counts[p.category||''] = (counts[p.category||'']||0)+1;
     if (p.category) catDisplayMap[p.category] = (isEn && p.category_en) ? p.category_en : p.category;
   });
@@ -1501,7 +1545,7 @@ function renderSidebar() {
   document.getElementById('cat-list').innerHTML = hotBtn + all.map(cat =>
     `<button class="cat-item${_filterCat===cat?' active':''}" onclick="setCategory('${escHtml(cat)}')">
       <span>${escHtml(cat ? (catDisplayMap[cat]||cat) : t('כל הקטגוריות','All'))}</span>
-      <span class="cat-count">${cat ? (counts[cat]||0) : catalog.length}</span>
+      <span class="cat-count">${cat ? (counts[cat]||0) : byType.length}</span>
     </button>`
   ).join('');
 }
@@ -1509,6 +1553,8 @@ function renderSidebar() {
 /* ── Catalog ── */
 function getFiltered() {
   let items = [...catalog];
+  if (_filterType === 'service') items = items.filter(p => p.product_type === 'service');
+  else if (_filterType === 'catalog') items = items.filter(p => p.product_type !== 'service');
   if (_searchQ) {
     const q = _searchQ.toLowerCase();
     items = items.filter(p => (p.name||'').toLowerCase().includes(q) || (p.sku||'').toLowerCase().includes(q));
@@ -1528,6 +1574,10 @@ function getFiltered() {
 
 function renderCatalog() {
   const container = document.getElementById('products-container');
+  const titleEl = document.getElementById('catalog-title');
+  if (titleEl) titleEl.textContent = _filterType === 'service' ? t('שירותים ומנויים','Services & plans')
+    : _filterType === 'catalog' ? t('קטלוג מוצרים','Products')
+    : t('הכל','Everything');
   if (_filterCat === '__deals__') {
     const deals = _activePromos.filter(p => p.show_in_tab && p.is_active);
     document.getElementById('catalog-count').textContent = `${deals.length} ${t('מבצעים','deals')}`;
@@ -1551,12 +1601,29 @@ function renderCatalog() {
     return;
   }
   const items = getFiltered();
-  document.getElementById('catalog-count').textContent = `${items.length} ${t('מוצרים','products')}`;
+  const countLabel = _filterType === 'service' ? t('שירותים','services') : t('מוצרים','products');
+  document.getElementById('catalog-count').textContent = `${items.length} ${countLabel}`;
   if (!items.length) {
-    container.innerHTML = `<div class="catalog-empty">${t('לא נמצאו מוצרים לסינון זה','No products found for this filter')}</div>`;
+    container.innerHTML = `<div class="catalog-empty">${_filterType === 'service' ? t('אין שירותים להצגה כרגע','No services to show') : t('לא נמצאו מוצרים לסינון זה','No products found for this filter')}</div>`;
     return;
   }
-  container.innerHTML = items.map(p => productRowHtml(p)).join('');
+  // שירותים/מנויים מוצגים ככרטיסים (בחירה → פתיחת הזמנה), בנפרד מהתצוגה המלאה
+  // של קטלוג מוצרים (שורות עגלה) — הפרדה ברורה בין "קונים" ל"מזמינים שירות"
+  container.innerHTML = _filterType === 'service'
+    ? `<div id="services-grid">${items.map(p => serviceCardHtml(p)).join('')}</div>`
+    : items.map(p => productRowHtml(p)).join('');
+}
+
+function serviceCardHtml(p) {
+  const pName = (isEn && p.name_en) ? p.name_en : p.name;
+  const pDesc = (isEn && p.description_en) ? p.description_en : (p.description || '');
+  const price = p.price ? `${t('החל מ-','From')} ${fmtPrice(p.price)}` : '';
+  return `<div class="service-card" onclick="openSheet(${p.id})">
+    <div class="service-card-icon">${p.has_image ? `<img src="${API}/store/item-image/${p.id}" alt="${escHtml(pName)}" loading="lazy">` : '📅'}</div>
+    <div class="service-card-name">${escHtml(pName)}</div>
+    ${pDesc ? `<div class="service-card-desc">${escHtml(pDesc)}</div>` : ''}
+    ${price ? `<div class="service-card-price">${price}</div>` : ''}
+  </div>`;
 }
 
 function productRowHtml(p) {
