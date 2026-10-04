@@ -4694,7 +4694,7 @@ async function loadTaskComments(taskId) {
         list.innerHTML = data.comments.map(c => {
             const time = c.created_at ? new Date(c.created_at).toLocaleString('he-IL', {hour:'2-digit',minute:'2-digit',day:'numeric',month:'numeric'}) : '';
             const isMe = String(c.user_id) === String(currentUser?.id);
-            return `<div class="rounded-xl p-2.5 text-xs ${isMe ? 'bg-blue-50 border border-blue-100 text-right' : 'bg-slate-50 border border-slate-100'}"><div class="font-bold text-slate-700 mb-0.5">${safeStr(c.user_name)} <span class="text-slate-400 font-normal">${time}</span></div><div class="text-slate-600">${safeStr(c.text)}</div></div>`;
+            return `<div class="rounded-xl p-2.5 text-xs ${isMe ? 'bg-blue-50 border border-blue-100 text-right' : 'bg-slate-50 border border-slate-100'}"><div class="font-bold text-slate-700 mb-0.5">${escHtml(c.user_name)} <span class="text-slate-400 font-normal">${time}</span></div><div class="text-slate-600">${escHtml(c.text)}</div></div>`;
         }).join('');
     } catch(e) { list.innerHTML = '<p class="text-xs text-red-400 text-center py-4">שגיאה בטעינת תגובות</p>'; }
 }
@@ -4721,7 +4721,7 @@ async function generateAITasks() {
         if(!topic) return showToast('error', 'תארו בקצרה את הפרויקט...');
         btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> מפרק למשימות...';
         try {
-            const res = await fetch(`${API}/tasks/ai-generate`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ age: age, topic: topic + " (בסביבת עבודה ארגונית)", groupId: currentGroup.id }) }); const data = await res.json();
+            const res = await fetch(`${API}/tasks/ai-generate`, { method: 'POST', headers: {'Content-Type': 'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : ''}, body: JSON.stringify({ age: age, topic: topic + " (בסביבת עבודה ארגונית)", groupId: currentGroup.id }) }); const data = await res.json();
             if(!handleAIResponseCheck(data)) return;
             if(data.success && data.tasks && data.tasks.length > 0) {
                 const resultsContainer = getEl('ai-task-results'); resultsContainer.innerHTML = '<p class="text-xs text-slate-500 mb-2 mt-1 font-bold">הקליקו על הטיקט שתרצו להוסיף לצוות:</p>';
@@ -4787,7 +4787,7 @@ function handleTaskProofUpload(event) {
         compressImage(file, 800, 800, 0.7, async (compressedDataUrl) => {
             const base64 = compressedDataUrl.split(',')[1];
             try {
-                const res = await fetch(`${API}/tasks/vision-verify`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ taskId: currentVerifyTaskId, title: currentVerifyTaskTitle, imageBase64: base64, mimeType: 'image/jpeg', groupId: currentGroup.id }) }); const data = await res.json();
+                const res = await fetch(`${API}/tasks/vision-verify`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' }, body: JSON.stringify({ taskId: currentVerifyTaskId, title: currentVerifyTaskTitle, imageBase64: base64, mimeType: 'image/jpeg', groupId: currentGroup.id }) }); const data = await res.json();
                 if(!handleAIResponseCheck(data)) { getEl('familai-advisor-modal').classList.add('hidden'); return; }
                 if(data.success) { showAIModal('בקרת איכות (QA)', data.message); if(data.verified) { triggerConfetti(); fetchData(); } } else { getEl('familai-advisor-modal').classList.add('hidden'); showToast('error', 'שגיאה בניתוח התמונה.'); }
             } catch(err) { getEl('familai-advisor-modal').classList.add('hidden'); showToast('error', 'הקובץ עדיין גדול מדי או שגיאת תקשורת.'); }

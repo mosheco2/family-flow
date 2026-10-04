@@ -2597,7 +2597,7 @@ async function generateAITasks() {
         if(!topic) return showToast('error', 'כתבו ל-familAI באיזה נושא לעזור');
         btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> חושבת...';
         try {
-            const res = await fetch(`${API}/tasks/ai-generate`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ age: age, topic: topic, groupId: currentGroup.id }) }); const data = await res.json();
+            const res = await communityFetch(`${API}/tasks/ai-generate`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ age: age, topic: topic, groupId: currentGroup.id }) }); const data = await res.json();
             if(!handleAIResponseCheck(data)) return;
             if(data.success && data.tasks && data.tasks.length > 0) {
                 const resultsContainer = getEl('ai-task-results'); resultsContainer.innerHTML = '<p class="text-xs text-slate-500 mb-2 mt-1 font-bold">הקליקו על המשימה שתרצו:</p>';
@@ -2677,7 +2677,7 @@ function handleTaskProofUpload(event) {
         compressImage(file, 800, 800, 0.7, async (compressedDataUrl) => {
             const base64 = compressedDataUrl.split(',')[1];
             try {
-                const res = await fetch(`${API}/tasks/vision-verify`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ taskId: currentVerifyTaskId, title: currentVerifyTaskTitle, imageBase64: base64, mimeType: 'image/jpeg', groupId: currentGroup.id }) }); const data = await res.json();
+                const res = await communityFetch(`${API}/tasks/vision-verify`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ taskId: currentVerifyTaskId, title: currentVerifyTaskTitle, imageBase64: base64, mimeType: 'image/jpeg', groupId: currentGroup.id }) }); const data = await res.json();
                 if(!handleAIResponseCheck(data)) { getEl('familai-advisor-modal').classList.add('hidden'); return; }
                 if(data.success) { showFamilAIModal('בקרת איכות', data.message); if(data.verified) { triggerConfetti(); fetchData(); } } else { getEl('familai-advisor-modal').classList.add('hidden'); showToast('error', 'שגיאה בניתוח התמונה.'); }
             } catch(err) { getEl('familai-advisor-modal').classList.add('hidden'); showToast('error', 'הקובץ עדיין גדול מדי או שגיאת תקשורת.'); }
@@ -3150,12 +3150,12 @@ function renderTasks(tasks) {
         }
         const dateStr = t.created_at ? new Date(t.created_at).toLocaleDateString('he-IL') : '';
         const dateBadge = dateStr ? `<span class="text-[9px] text-slate-400 mr-2">📅 ${dateStr}</span>` : '';
-        const assigneeBadge = isAdmin && t.assignee_name ? `<span class="text-xs text-slate-500">${safeStr(t.assignee_name)}</span>` : '';
+        const assigneeBadge = isAdmin && t.assignee_name ? `<span class="text-xs text-slate-500">${escHtml(t.assignee_name)}</span>` : '';
 
         htmlStr += `<div class="card-modern p-4 mb-2 rounded-2xl border shadow-sm ${statusColor}">
             <div class="flex justify-between items-center">
                 <div class="flex-1 min-w-0 ml-2">
-                    <p class="font-bold text-slate-800">${priBadge}${safeStr(t.title)} ${deadlineBadge}</p>
+                    <p class="font-bold text-slate-800">${priBadge}${escHtml(t.title)} ${deadlineBadge}</p>
                     <div class="flex items-center flex-wrap gap-1 mt-1">${assigneeBadge}${rewardDisplay}${recurringBadge}${dateBadge}</div>
                 </div>
                 <div class="flex flex-col items-end gap-1 shrink-0">
@@ -3250,8 +3250,8 @@ async function loadFamilyTaskComments(taskId) {
             const time = c.created_at ? new Date(c.created_at).toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'}) : '';
             return `<div class="flex ${isMe?'justify-end':'justify-start'}">
                 <div class="max-w-[80%] ${isMe?'bg-blue-600 text-white':'bg-slate-100 text-slate-800'} rounded-2xl px-3 py-2">
-                    ${!isMe?`<p class="text-[10px] font-bold opacity-60 mb-0.5">${safeStr(c.user_name||'')}</p>`:''}
-                    <p class="text-sm">${safeStr(c.text)}</p>
+                    ${!isMe?`<p class="text-[10px] font-bold opacity-60 mb-0.5">${escHtml(c.user_name||'')}</p>`:''}
+                    <p class="text-sm">${escHtml(c.text)}</p>
                     <p class="text-[9px] opacity-50 mt-0.5 text-left">${time}</p>
                 </div>
             </div>`;

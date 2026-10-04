@@ -11600,13 +11600,14 @@ app.post('/api/tasks', verifyFamilyOrBiz, async (req, res) => {
         const recurring = !!isRecurring;
         const rDays = recurring ? (recurringDays || '') : '';
         const prio = priority || 'medium';
+        const safeReward = Math.min(Math.max(parseFloat(reward) || 0, 0), 100000);
         await pool.query(
             'INSERT INTO tasks (group_id, title, reward, assigned_to, deadline, status, require_ai_check, is_recurring, recurring_days, created_by, priority) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)',
-            [groupId, title, parseFloat(reward)||0, assignedTo, deadline, status, aiCheck, recurring, rDays, createdBy || null, prio]
+            [groupId, title, safeReward, assignedTo, deadline, status, aiCheck, recurring, rDays, createdBy || null, prio]
         );
         await logActivity(groupId, assignedTo || null, null, 'task', 'task_created', `משימה חדשה: ${title}`);
         res.json({success:true});
-    } catch(e) { res.status(500).json({error: e.message}); }
+    } catch(e) { res.status(500).json({error: 'שגיאה פנימית'}); }
 });
 
 // יצירת משימה מרובה עובדים (מנהל/ת בלבד)
@@ -11621,15 +11622,16 @@ app.post('/api/tasks/bulk', verifyFamilyOrBiz, async (req, res) => {
         const recurring = !!isRecurring;
         const rDays = recurring ? (recurringDays || '') : '';
         const prio = priority || 'medium';
+        const safeReward = Math.min(Math.max(parseFloat(reward) || 0, 0), 100000);
         for (const assignedTo of assignees) {
             await pool.query(
                 'INSERT INTO tasks (group_id, title, reward, assigned_to, deadline, status, require_ai_check, is_recurring, recurring_days, created_by, priority) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)',
-                [groupId, title, parseFloat(reward)||0, assignedTo, deadline, 'pending', aiCheck, recurring, rDays, createdBy || null, prio]
+                [groupId, title, safeReward, assignedTo, deadline, 'pending', aiCheck, recurring, rDays, createdBy || null, prio]
             );
             await logActivity(groupId, assignedTo, null, 'task', 'task_created', `משימה חדשה: ${title}`);
         }
         res.json({ success: true, count: assignees.length });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch(e) { res.status(500).json({ error: 'שגיאה פנימית' }); }
 });
 
 // עריכת משימה קיימת (admin בלבד, status=pending בלבד)
@@ -11643,12 +11645,13 @@ app.patch('/api/tasks/:id', verifyFamilyOrBiz, async (req, res) => {
         const t = tRes.rows[0];
         if (t.status !== 'pending') return res.status(400).json({ error: 'ניתן לערוך רק משימות בסטטוס pending' });
         const deadline = days ? new Date(Date.now() + days * 24 * 60 * 60 * 1000) : t.deadline;
+        const safeReward = reward !== undefined ? Math.min(Math.max(parseFloat(reward) || 0, 0), 100000) : t.reward;
         await pool.query(
             'UPDATE tasks SET title=$1, reward=$2, deadline=$3, priority=$4, updated_at=NOW() WHERE id=$5',
-            [title || t.title, parseFloat(reward) ?? t.reward, deadline, priority || t.priority, req.params.id]
+            [title || t.title, safeReward, deadline, priority || t.priority, req.params.id]
         );
         res.json({ success: true });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch(e) { res.status(500).json({ error: 'שגיאה פנימית' }); }
 });
 
 // שמירת הוכחת תמונה (Cloudinary URL) — רק בעל/ת המשימה או מנהל/ת
@@ -11666,7 +11669,7 @@ app.post('/api/tasks/:id/proof', verifyFamilyOrBiz, async (req, res) => {
         await pool.query('UPDATE tasks SET proof_image_url=$1, status=\'done\', updated_at=NOW() WHERE id=$2', [proofImageUrl, req.params.id]);
         await logActivity(t.group_id, t.assigned_to, null, 'task', 'task_done', `משימה הושלמה (עם תמונה): ${t.title}`);
         res.json({ success: true });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch(e) { res.status(500).json({ error: 'שגיאה פנימית' }); }
 });
 
 // תגובות על משימה
@@ -11679,24 +11682,24 @@ app.get('/api/tasks/:id/comments', verifyFamilyOrBiz, async (req, res) => {
             [req.params.id]
         );
         res.json({ comments: result.rows });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch(e) { res.status(500).json({ error: 'שגיאה פנימית' }); }
 });
 
 app.post('/api/tasks/:id/comments', verifyFamilyOrBiz, async (req, res) => {
     try {
         const { text } = req.body;
         const { groupId, userId } = req.callerAuth;
-        if (!text) return res.status(400).json({ error: 'text required' });
+        if (!text || !text.trim()) return res.status(400).json({ error: 'text required' });
         const owned = await pool.query('SELECT id FROM tasks WHERE id=$1 AND group_id=$2', [req.params.id, groupId]);
         if (!owned.rows.length) return res.status(404).json({ error: 'not found' });
         const result = await pool.query(
             'INSERT INTO task_comments (task_id, user_id, group_id, text) VALUES ($1,$2,$3,$4) RETURNING *',
-            [req.params.id, userId, groupId, text]
+            [req.params.id, userId, groupId, text.trim().slice(0, 1000)]
         );
         const userRes = await pool.query('SELECT nickname FROM users WHERE id=$1', [userId]);
         const comment = { ...result.rows[0], user_name: userRes.rows[0]?.nickname };
         res.json({ success: true, comment });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch(e) { res.status(500).json({ error: 'שגיאה פנימית' }); }
 });
 
 app.post('/api/tasks/update', verifyFamilyOrBiz, async (req, res) => {
@@ -11718,7 +11721,7 @@ app.post('/api/tasks/update', verifyFamilyOrBiz, async (req, res) => {
         if ((status === 'deleted' || status === 'rejected') && !isAdmin && !isOwnTask) {
             return res.status(403).json({ error: 'אין הרשאה לבטל משימה זו' });
         }
-        const rew = finalReward !== undefined ? (parseFloat(finalReward)||0) : (parseFloat(t.reward)||0);
+        const rew = finalReward !== undefined ? Math.min(Math.max(parseFloat(finalReward) || 0, 0), 100000) : (parseFloat(t.reward)||0);
         // משימה חוזרת שסומנה כ"בוצע" — רק מעדכן last_completed_at, לא משנה סטטוס
         if (t.is_recurring && status === 'done') {
             await pool.query('UPDATE tasks SET last_completed_at=NOW() WHERE id=$1', [taskId]);
@@ -11753,7 +11756,7 @@ app.post('/api/tasks/update', verifyFamilyOrBiz, async (req, res) => {
             } catch(e2) {}
         }
         res.json({success:true, triggeredPopup});
-    } catch(e) { await pool.query('ROLLBACK'); res.status(500).json({error: e.message}); }
+    } catch(e) { await pool.query('ROLLBACK'); res.status(500).json({error: 'שגיאה פנימית'}); }
 });
 
 // ============================================================
@@ -12040,9 +12043,10 @@ app.put('/api/academy/bundles/:id', async (req, res) => {
     } finally { if(dbClient) dbClient.release(); }
 });
 
-app.post('/api/tasks/ai-generate', async (req, res) => {
+app.post('/api/tasks/ai-generate', verifyFamilyOrBiz, async (req, res) => {
     try {
         const { age, topic, groupId } = req.body;
+        if (parseInt(groupId) !== req.callerAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const hasTokens = await handleAITokens(groupId);
         if(!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
         if (!getGenAIInstance()) throw new Error('GEMINI_API_KEY is not set');
@@ -12270,9 +12274,17 @@ app.post('/api/forecast/familai-insight', async (req, res) => {
     } catch (e) { handleAIError(e, res, 'שגיאה בניתוח התשקיף'); }
 });
 
-app.post('/api/tasks/vision-verify', async (req, res) => {
+app.post('/api/tasks/vision-verify', verifyFamilyOrBiz, async (req, res) => {
     try {
         const { taskId, title, imageBase64, mimeType, groupId } = req.body;
+        if (parseInt(groupId) !== req.callerAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
+        const taskCheck = await pool.query('SELECT assigned_to, group_id, status, title FROM tasks WHERE id=$1', [taskId]);
+        if (!taskCheck.rows.length || parseInt(taskCheck.rows[0].group_id) !== req.callerAuth.groupId) {
+            return res.status(404).json({ error: 'משימה לא נמצאה' });
+        }
+        const isOwnTask = parseInt(taskCheck.rows[0].assigned_to) === req.callerAuth.userId;
+        if (!isOwnTask && req.callerAuth.role !== 'ADMIN') return res.status(403).json({ error: 'אין הרשאה לאמת משימה זו' });
+        if (taskCheck.rows[0].status === 'approved') return res.status(400).json({ error: 'המשימה כבר אושרה' });
         const hasTokens = await handleAITokens(groupId);
         if(!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
         if (!getGenAIInstance()) throw new Error('GEMINI_API_KEY is not set');
@@ -12281,12 +12293,13 @@ app.post('/api/tasks/vision-verify', async (req, res) => {
         const gType = gRes.rows.length > 0 ? gRes.rows[0].type : 'FAMILY';
 
         const model = getGenAIInstance().getGenerativeModel({ model: "gemini-2.5-flash", generationConfig: { responseMimeType: "application/json" } });
-        
+        const realTitle = taskCheck.rows[0].title || title || '';
+
         let prompt = "";
         if (gType === 'BUSINESS') {
-            prompt = `You are an AI QA manager. An employee claims they completed the task/ticket: "${title}". Look at the attached image proof. Is the task reasonably completed? Return JSON strictly matching this schema: { "verified": true/false, "message": "Short feedback in Hebrew speaking directly to the employee. If verified, acknowledge it professionally. If not, clarify what is missing." }`;
+            prompt = `You are an AI QA manager. An employee claims they completed the task/ticket: "${realTitle}". Look at the attached image proof. Is the task reasonably completed? Return JSON strictly matching this schema: { "verified": true/false, "message": "Short feedback in Hebrew speaking directly to the employee. If verified, acknowledge it professionally. If not, clarify what is missing." }`;
         } else {
-            prompt = `You are 'familAI'. A child claims they completed the task: "${title}". Look at the attached image. Is the task reasonably done? Be forgiving but honest. Return JSON strictly matching this schema: { "verified": true/false, "message": "Short feedback in Hebrew speaking directly to the child. If verified, praise them. If not, nicely tell them what is missing." }`;
+            prompt = `You are 'familAI'. A child claims they completed the task: "${realTitle}". Look at the attached image. Is the task reasonably done? Be forgiving but honest. Return JSON strictly matching this schema: { "verified": true/false, "message": "Short feedback in Hebrew speaking directly to the child. If verified, praise them. If not, nicely tell them what is missing." }`;
         }
 
         const result = await model.generateContent([ prompt, { inlineData: { data: imageBase64, mimeType: mimeType || "image/jpeg" } } ]);
