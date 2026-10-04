@@ -77,6 +77,8 @@
       box-shadow:0 6px 18px rgba(91,70,229,0.35); transition:transform .15s, box-shadow .15s;
     }
     .wiz-videos-cta:hover { transform:translateY(-1px); box-shadow:0 8px 22px rgba(91,70,229,0.45); }
+    .wiz-videos-cta-top { width:calc(100% - 64px); max-width:1000px; margin:0 auto 20px; }
+    @media (max-width:640px) { .wiz-videos-cta-top { width:calc(100% - 32px); } }
 
     @media (max-width:640px) {
       .wiz-videos { padding:18px 16px; border-radius:18px; }
@@ -568,6 +570,9 @@
   </div>
 
   <!-- ── Marketing videos ── -->
+  <button type="button" class="wiz-videos-cta wiz-videos-cta-top" onclick="document.getElementById('reg-login-card').scrollIntoView({behavior:'smooth', block:'start'})">
+    להרשמה / כניסה לעסק ←
+  </button>
   <div class="wiz-videos">
     <div class="wiz-videos-title">WEFLOWZ עושה לכם סדר בעסק</div>
     <div class="wiz-videos-grid">
@@ -588,9 +593,6 @@
         <div class="wiz-video-label">ספורט / אימונים</div>
       </div>
     </div>
-    <button type="button" class="wiz-videos-cta" onclick="document.getElementById('reg-login-card').scrollIntoView({behavior:'smooth', block:'start'})">
-      להרשמה / כניסה לעסק ←
-    </button>
   </div>
 
   <div class="card" id="reg-login-card">
