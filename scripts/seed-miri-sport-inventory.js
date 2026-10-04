@@ -66,6 +66,27 @@ async function main() {
   USER_ID = loginRes.data.user_id || null;
   log(true, 'התחברות הצליחה', `group_id=${GROUP_ID}`);
 
+  // ONLY_RECEIVE=true — הרצה חוזרת ממוקדת: רק מתקנת את ה"קבלה" של הזמנת הרכש הראשונה דרך
+  // ה-endpoint האמיתי, בלי ליצור שוב ספקים/הזמנות/ציוד כפולים מהריצה הקודמת
+  if (process.env.ONLY_RECEIVE === 'true') {
+    console.log('\n↷ ONLY_RECEIVE=true — מדלג על מלאי/ספקים/הזמנות/ציוד, מתקן רק את הקבלה');
+    const ordersRes = await api('GET', `/b2b/orders/${GROUP_ID}`);
+    const createdOrders = ordersRes.data.orders || [];
+    const matchedOrder = createdOrders.find(o => o.supplier_name === 'ספורט-פרו ציוד כושר בע"מ');
+    if (matchedOrder) {
+      const receivedItems = [
+        { name: 'מזרן יוגה פרימיום', qty: 20, unit: "יח'", price: 65 },
+        { name: 'גומיות התנגדות (סט 3)', qty: 25, unit: "יח'", price: 32 },
+      ];
+      const r = await api('POST', '/b2b/orders/receive', { orderId: matchedOrder.id, groupId: GROUP_ID, userId: USER_ID, receivedItems, missingItems: [] });
+      log(r.ok && r.data.success !== false, `הזמנת רכש #${matchedOrder.id} התקבלה בפועל ונכנסה ל"מזווה"`, r.ok ? '' : JSON.stringify(r.data));
+    } else {
+      log(false, 'לא נמצאה הזמנת הרכש הראשונה מהספק "ספורט-פרו"');
+    }
+    console.log('\n✅ הושלם.');
+    return;
+  }
+
   // ── מלאי לקטלוג קיים ──────────────────────────────────────────────────
   console.log('\n📦 מעדכן מלאי למוצרי הקטלוג...');
   const catRes = await api('GET', `/store/catalog/${GROUP_ID}`);
