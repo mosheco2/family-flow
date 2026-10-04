@@ -2207,7 +2207,7 @@ async function fetchData() {
     try {
         if (!currentGroup || !currentGroup.id) return; if (document.activeElement.classList.contains('price-input')) return;
         await ensureFamilyToken();
-        const res = await fetch(`${API}/data/${currentUser.id}`); const data = await res.json();
+        const res = await communityFetch(`${API}/data/${currentUser.id}`); const data = await res.json();
         if (!data || !data.user) return;
         
         currentUser.balance = data.user.balance; 
@@ -2305,7 +2305,7 @@ async function fetchData() {
 
         try {
             const limit = 200; const queryUserId = currentUser.role === 'ADMIN' ? 'all' : currentUser.id;
-            const transRes = await fetch(`${API}/transactions?groupId=${currentGroup.id}&userId=${queryUserId}&limit=${limit}`);
+            const transRes = await communityFetch(`${API}/transactions?groupId=${currentGroup.id}&userId=${queryUserId}&limit=${limit}`);
             if(transRes.ok) { const transData = await transRes.json(); allTransactions = Array.isArray(transData) ? transData : []; }
         } catch(e) { allTransactions = []; }
 
@@ -3409,7 +3409,7 @@ function renderUnifiedFeed() {
             const userIdNum = parseInt(item.user_id) || 0;
             const colorClass = item.type === 'system' ? 'bg-orange-50 border-orange-100' : (userColors[userIdNum % userColors.length] || 'bg-white border-slate-50'); 
             
-            const userNameDisplay = item.type !== 'system' && item.user_name ? `<span class="text-xs font-bold text-slate-500 block mb-0.5">${safeStr(item.user_name)}</span>` : '';
+            const userNameDisplay = item.type !== 'system' && item.user_name ? `<span class="text-xs font-bold text-slate-500 block mb-0.5">${escHtml(item.user_name)}</span>` : '';
             
             const d = item.date; 
             const isToday = d.getDate() === today.getDate() && d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear();
@@ -3421,20 +3421,20 @@ function renderUnifiedFeed() {
                 const icon = item.isIncome ? '<i class="fa-solid fa-arrow-trend-up text-green-500 bg-green-100 p-1.5 rounded-full text-[10px]"></i>' : '<i class="fa-solid fa-arrow-trend-down text-red-500 bg-red-100 p-1.5 rounded-full text-[10px]"></i>';
                 const amountClass = item.isIncome ? 'text-green-600' : 'text-red-600'; 
                 const prefix = item.isIncome ? '+' : '-';
-                contentHtml = `<div class="flex justify-between items-center w-full"><div>${userNameDisplay}<p class="font-bold text-slate-800 leading-tight flex items-center gap-2 mt-0.5">${icon} <span>${safeStr(item.title)}</span></p><p class="text-[10px] text-slate-400 mt-1">${dateStr}</p></div><span class="font-bold text-lg ${amountClass}" dir="ltr">${prefix}₪${parseFloat(item.amount || 0).toFixed(2)}</span></div>`;
+                contentHtml = `<div class="flex justify-between items-center w-full"><div>${userNameDisplay}<p class="font-bold text-slate-800 leading-tight flex items-center gap-2 mt-0.5">${icon} <span>${escHtml(item.title)}</span></p><p class="text-[10px] text-slate-400 mt-1">${dateStr}</p></div><span class="font-bold text-lg ${amountClass}" dir="ltr">${prefix}₪${parseFloat(item.amount || 0).toFixed(2)}</span></div>`;
             } else if (item.type === 'task') {
                 const icon = '<i class="fa-solid fa-list-check text-blue-500 bg-blue-100 p-1.5 rounded-full text-[10px]"></i>'; 
                 let statusLabel = item.status === 'pending' ? 'הוקצתה' : (item.status === 'done' ? 'ממתין לאישור' : 'הושלמה'); 
                 let badgeClass = item.status === 'pending' ? 'bg-slate-100 text-slate-500' : (item.status === 'done' ? 'bg-orange-100 text-orange-600' : 'bg-green-100 text-green-600');
-                contentHtml = `<div class="flex justify-between items-center w-full opacity-90"><div>${userNameDisplay}<p class="font-bold text-slate-700 leading-tight flex items-center gap-2 mt-0.5">${icon} <span>${safeStr(item.title)}</span></p><p class="text-[10px] text-slate-400 mt-1">${dateStr} • <span class="px-1.5 rounded ${badgeClass}">${statusLabel}</span></p></div><span class="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-lg">₪${item.amount}</span></div>`;
+                contentHtml = `<div class="flex justify-between items-center w-full opacity-90"><div>${userNameDisplay}<p class="font-bold text-slate-700 leading-tight flex items-center gap-2 mt-0.5">${icon} <span>${escHtml(item.title)}</span></p><p class="text-[10px] text-slate-400 mt-1">${dateStr} • <span class="px-1.5 rounded ${badgeClass}">${statusLabel}</span></p></div><span class="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-lg">₪${item.amount}</span></div>`;
             } else if (item.type === 'quiz') {
                 const icon = '<i class="fa-solid fa-graduation-cap text-purple-500 bg-purple-100 p-1.5 rounded-full text-[10px]"></i>'; 
                 let statusLabel = item.status === 'assigned' ? 'הוקצה' : (item.status === 'completed' ? 'הושלם בהצטיינות' : 'נכשל/פג תוקף'); 
                 let badgeClass = item.status === 'assigned' ? 'bg-slate-100 text-slate-500' : (item.status === 'completed' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600');
-                contentHtml = `<div class="flex justify-between items-center w-full opacity-90"><div>${userNameDisplay}<p class="font-bold text-slate-700 leading-tight flex items-center gap-2 mt-0.5">${icon} <span>${safeStr(item.title)}</span></p><p class="text-[10px] text-slate-400 mt-1">${dateStr} • <span class="px-1.5 rounded ${badgeClass}">${statusLabel}</span></p></div><span class="text-xs font-bold text-purple-600 bg-purple-50 px-2 py-1 rounded-lg">₪${item.amount}</span></div>`;
+                contentHtml = `<div class="flex justify-between items-center w-full opacity-90"><div>${userNameDisplay}<p class="font-bold text-slate-700 leading-tight flex items-center gap-2 mt-0.5">${icon} <span>${escHtml(item.title)}</span></p><p class="text-[10px] text-slate-400 mt-1">${dateStr} • <span class="px-1.5 rounded ${badgeClass}">${statusLabel}</span></p></div><span class="text-xs font-bold text-purple-600 bg-purple-50 px-2 py-1 rounded-lg">₪${item.amount}</span></div>`;
             } else if (item.type === 'system') {
                 const icon = '<i class="fa-solid fa-house text-orange-500 bg-orange-100 p-1.5 rounded-full text-[10px]"></i>';
-                contentHtml = `<div class="flex justify-between items-center w-full"><div><p class="font-bold text-slate-800 leading-tight flex items-center gap-2 mt-0.5">${icon} <span>${safeStr(item.title)}</span></p><p class="text-[10px] text-slate-400 mt-1">${dateStr}</p></div></div>`;
+                contentHtml = `<div class="flex justify-between items-center w-full"><div><p class="font-bold text-slate-800 leading-tight flex items-center gap-2 mt-0.5">${icon} <span>${escHtml(item.title)}</span></p><p class="text-[10px] text-slate-400 mt-1">${dateStr}</p></div></div>`;
             }
             
             html += `<div class="${colorClass} p-3.5 rounded-2xl shadow-sm border transform transition hover:scale-[1.01] mb-2 flex items-center">${contentHtml}</div>`;
@@ -3457,7 +3457,7 @@ async function fetchCashflowData() {
     if (list) list.innerHTML = '<p class="text-center text-slate-400 text-sm py-4">מביא נתוני תזרים...</p>';
     try {
         const queryUserId = currentUser.role === 'ADMIN' ? 'all' : currentUser.id;
-        const res = await fetch(`${API}/transactions?groupId=${currentGroup.id}&userId=${queryUserId}&limit=200`);
+        const res = await communityFetch(`${API}/transactions?groupId=${currentGroup.id}&userId=${queryUserId}&limit=200`);
         if (res.ok) {
             const data = await res.json();
             allTransactions = Array.isArray(data) ? data : [];
@@ -3515,7 +3515,7 @@ async function submitEditTransaction() {
     if(!amount) return showToast('error', 'נא להזין סכום');
     const btn = getEl('btn-submit-edit-transaction'); if(btn) { btn.disabled = true; btn.innerText = 'שומר...'; }
     try {
-        const res = await fetch(`${API}/transaction/${id}`, { method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ amount, description: desc, category: cat, requesterId: currentUser.id, groupId: currentGroup.id }) }); const data = await res.json();
+        const res = await communityFetch(`${API}/transaction/${id}`, { method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ amount, description: desc, category: cat, requesterId: currentUser.id, groupId: currentGroup.id }) }); const data = await res.json();
         if(data.success) { showToast('success', 'הפעולה עודכנה!'); getEl('edit-transaction-modal').classList.add('hidden'); fetchData(); } else { showToast('error', data.error || 'שגיאה בעדכון'); }
     } catch(e) { showToast('error', 'שגיאת תקשורת'); } finally { if(btn) { btn.disabled = false; btn.innerText = 'שמור שינויים'; } }
 }
@@ -3523,7 +3523,7 @@ async function submitEditTransaction() {
 async function deleteTransaction() {
     const id = val('edit-trans-id'); if(!confirm('האם אתה בטוח שברצונך למחוק פעולה זו לחלוטין? היתרה תתעדכן בהתאם.')) return;
     try {
-        const res = await fetch(`${API}/transaction/${id}?requesterId=${currentUser.id}`, { method: 'DELETE' }); const data = await res.json();
+        const res = await communityFetch(`${API}/transaction/${id}?requesterId=${currentUser.id}`, { method: 'DELETE' }); const data = await res.json();
         if(data.success) { showToast('success', 'הפעולה נמחקה!'); getEl('edit-transaction-modal').classList.add('hidden'); fetchData(); } else { showToast('error', data.error || 'שגיאה במחיקה'); }
     } catch(e) { showToast('error', 'שגיאת תקשורת'); }
 }
@@ -3589,7 +3589,7 @@ async function loadKidsOverview() {
           gamesHtml += `
             <div>
               <div class="flex justify-between items-center mb-0.5">
-                <span class="text-[10px] text-slate-600 font-medium truncate max-w-[100px]">${g.icon || '🎮'} ${g.game_name}</span>
+                <span class="text-[10px] text-slate-600 font-medium truncate max-w-[100px]">${g.icon || '🎮'} ${escHtml(g.game_name)}</span>
                 <span class="text-[9px] ${g.status === 'completed' ? 'text-green-600' : 'text-blue-600'} font-bold ml-1 whitespace-nowrap">${g.rounds_used}/${g.rounds_total}</span>
               </div>
               <div class="w-full bg-slate-100 rounded-full h-1.5">
@@ -3609,13 +3609,13 @@ async function loadKidsOverview() {
           <div class="flex items-center gap-2">
             <div class="relative flex-shrink-0" onclick="event.stopPropagation();triggerKidImageUpload(${k.id},this)" style="cursor:pointer">
               ${k.profile_image
-                ? `<img src="${k.profile_image}" class="w-11 h-11 rounded-full object-cover border-2 border-purple-200 shadow-sm">`
+                ? `<img src="${escHtml(k.profile_image)}" class="w-11 h-11 rounded-full object-cover border-2 border-purple-200 shadow-sm">`
                 : `<div class="w-11 h-11 rounded-full bg-gradient-to-br from-purple-400 to-indigo-500 flex items-center justify-center text-white font-bold text-lg shadow-sm border-2 border-purple-200">${initials}</div>`}
               <div class="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-white rounded-full border border-slate-200 flex items-center justify-center text-[8px] shadow">📷</div>
               <input type="file" accept="image/*" class="hidden kid-img-upload" data-kid-id="${k.id}" onchange="uploadKidProfileImage(${k.id},this)">
             </div>
             <div class="min-w-0">
-              <div class="font-bold text-slate-800 text-xs truncate">${k.nickname}</div>
+              <div class="font-bold text-slate-800 text-xs truncate">${escHtml(k.nickname)}</div>
               <div class="text-[10px] ${flwRaw > 0 ? 'text-yellow-600 font-bold' : 'text-slate-400 font-medium'}">🪙 ${flw} מטבעות</div>
             </div>
           </div>
@@ -3660,10 +3660,10 @@ async function loadKidsOverview() {
               ${completed ? '✅' : '⏳'}
             </div>
             <div class="flex-1 min-w-0">
-              <div class="font-bold text-slate-700 text-sm truncate">${h.title || 'אתגר'}</div>
+              <div class="font-bold text-slate-700 text-sm truncate">${escHtml(h.title || 'אתגר')}</div>
               <div class="text-[10px] text-slate-500 mt-0.5">
-                ל: <span class="font-bold text-slate-600">${h.child_name || ''}</span>
-                ${h.created_by_name ? ` · נוצר ע"י ${h.created_by_name}` : ''}
+                ל: <span class="font-bold text-slate-600">${escHtml(h.child_name || '')}</span>
+                ${h.created_by_name ? ` · נוצר ע"י ${escHtml(h.created_by_name)}` : ''}
                 · ${created}
               </div>
               ${completed ? `<div class="text-[10px] text-green-600 font-bold mt-0.5">בוצע: ${completed} · ציון ${h.score || 0}%</div>` : ''}
@@ -5019,7 +5019,7 @@ function startSmFastPoll() {
     stopSmFastPoll();
     _smFastPollInterval = setInterval(async () => {
         try {
-            const res = await fetch(`${API}/data/${currentUser.id}`);
+            const res = await communityFetch(`${API}/data/${currentUser.id}`);
             const data = await res.json();
             if (!data || !data.shopping_list) return;
             const prevIds = _smKnownItemIds;
@@ -5358,7 +5358,7 @@ async function submitTransaction() {
     const btn = getEl('btn-submit-transaction'); if (btn) { btn.disabled = true; btn.innerText = 'שומר...'; }
     const isRecurring = val('trans-is-recurring') === 'true'; let transDate = val('trans-date'); if (!transDate) transDate = new Date().toISOString().split('T')[0];
     try {
-        const res = await fetch(`${API}/transaction`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ userId: currentUser.id, amount, description: val('trans-desc')||'פעולה', category: val('trans-cat'), type: val('trans-type'), date: transDate, isRecurring: isRecurring, endMonth: isRecurring ? val('trans-end-month') : null, groupId: currentGroup.id }) }); 
+        const res = await communityFetch(`${API}/transaction`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ userId: currentUser.id, amount, description: val('trans-desc')||'פעולה', category: val('trans-cat'), type: val('trans-type'), date: transDate, isRecurring: isRecurring, endMonth: isRecurring ? val('trans-end-month') : null, groupId: currentGroup.id }) });
         const data = await res.json();
         if (data.success) { getEl('transaction-modal').classList.add('hidden'); showToast('success', 'נרשם בהצלחה!'); fetchData(); } else { showToast('error', data.error || 'שגיאה ברישום הפעולה'); }
     } catch(e) { showToast('error', 'שגיאת שרת בשמירת פעולה'); } finally { if(btn) { btn.disabled = false; btn.innerText = 'רשום פעולה'; } }
@@ -8985,7 +8985,7 @@ async function nextWizardStep() {
         if (budget > 0) {
             btnNext.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
             try {
-                await fetch(`${API}/transaction`, {
+                await communityFetch(`${API}/transaction`, {
                     method: 'POST', headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({ userId: currentUser.id, amount: budget, description: 'תקציב התחלתי פנוי', category: 'salary', type: 'income', groupId: currentGroup.id })
                 });

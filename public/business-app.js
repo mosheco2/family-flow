@@ -4357,7 +4357,7 @@ async function fetchData() {
         if (!currentUser || !currentUser.id || !currentGroup || !currentGroup.id) return;
         if (document.activeElement && document.activeElement.classList && document.activeElement.classList.contains('price-input')) return;
 
-        const res = await fetch(`${API}/data/${currentUser.id}?groupId=${currentGroup.id}`);
+        const res = await fetch(`${API}/data/${currentUser.id}?groupId=${currentGroup.id}`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } });
         let parsed = {};
         try { parsed = await res.json(); } catch(err) { console.warn("JSON Error, continuing with empty data", err); }
         
@@ -6771,7 +6771,7 @@ async function submitEditTransaction() {
     if(!amount) return showToast('error', 'נא להזין סכום');
     const btn = getEl('btn-submit-edit-transaction'); if(btn) { btn.disabled = true; btn.innerText = 'שומר...'; }
     try {
-        const res = await fetch(`${API}/transaction/${id}`, { method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ amount, description: desc, category: cat, requesterId: currentUser.id, groupId: currentGroup.id }) }); const data = await res.json();
+        const res = await fetch(`${API}/transaction/${id}`, { method: 'PUT', headers: {'Content-Type': 'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : ''}, body: JSON.stringify({ amount, description: desc, category: cat, requesterId: currentUser.id, groupId: currentGroup.id }) }); const data = await res.json();
         if(data.success) { showToast('success', 'הפעולה עודכנה!'); getEl('edit-transaction-modal').classList.add('hidden'); fetchData(); } else { showToast('error', data.error || 'שגיאה בעדכון'); }
     } catch(e) { showToast('error', 'שגיאת תקשורת'); } finally { if(btn) { btn.disabled = false; btn.innerText = 'שמור שינויים'; } }
 }
@@ -6779,7 +6779,7 @@ async function submitEditTransaction() {
 async function deleteTransaction() {
     const id = val('edit-trans-id'); if(!await window._uiConfirm('האם אתה בטוח שברצונך למחוק פעולה זו לחלוטין? היתרה תתעדכן בהתאם.', {danger:true, okLabel:'מחק'})) return;
     try {
-        const res = await fetch(`${API}/transaction/${id}?requesterId=${currentUser.id}`, { method: 'DELETE' }); const data = await res.json();
+        const res = await fetch(`${API}/transaction/${id}?requesterId=${currentUser.id}`, { method: 'DELETE', headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } }); const data = await res.json();
         if(data.success) { showToast('success', 'הפעולה נמחקה!'); getEl('edit-transaction-modal').classList.add('hidden'); fetchData(); } else { showToast('error', data.error || 'שגיאה במחיקה'); }
     } catch(e) { showToast('error', 'שגיאת תקשורת'); }
 }
@@ -7598,7 +7598,7 @@ async function submitTransaction() {
     }
 
     try {
-        const res = await fetch(`${API}/transaction`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ userId: currentUser.id, amount, description: val('trans-desc')||'פעולה', category: val('trans-cat'), type: val('trans-type'), date: transDate, isRecurring: isRecurring, endMonth: isRecurring ? val('trans-end-month') : null, groupId: currentGroup.id }) }); 
+        const res = await fetch(`${API}/transaction`, { method:'POST', headers:{'Content-Type':'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : ''}, body:JSON.stringify({ userId: currentUser.id, amount, description: val('trans-desc')||'פעולה', category: val('trans-cat'), type: val('trans-type'), date: transDate, isRecurring: isRecurring, endMonth: isRecurring ? val('trans-end-month') : null, groupId: currentGroup.id }) }); 
         const data = await res.json();
         if (data.success) { getEl('transaction-modal').classList.add('hidden'); showToast('success', 'נרשם בהצלחה!'); fetchData(); } else { showToast('error', data.error || 'שגיאה ברישום הפעולה'); }
     } catch(e) { showToast('error', 'שגיאת שרת בשמירת פעולה'); } finally { if(btn) { btn.disabled = false; btn.innerText = 'רשום פעולה'; } }
@@ -7617,7 +7617,7 @@ async function submitEditTransaction() {
     if(!amount) return showToast('error', 'נא להזין סכום תקין');
     const btn = getEl('btn-submit-edit-transaction'); if(btn) { btn.disabled = true; btn.innerText = 'שומר...'; }
     try {
-        const res = await fetch(`${API}/transaction/${id}`, { method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ amount, description: desc, category: cat, requesterId: currentUser.id, groupId: currentGroup.id }) }); const data = await res.json();
+        const res = await fetch(`${API}/transaction/${id}`, { method: 'PUT', headers: {'Content-Type': 'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : ''}, body: JSON.stringify({ amount, description: desc, category: cat, requesterId: currentUser.id, groupId: currentGroup.id }) }); const data = await res.json();
         if(data.success) { showToast('success', 'הפעולה עודכנה!'); getEl('edit-transaction-modal').classList.add('hidden'); fetchData(); } else { showToast('error', data.error || 'שגיאה בעדכון'); }
     } catch(e) { showToast('error', 'שגיאת תקשורת'); } finally { if(btn) { btn.disabled = false; btn.innerText = 'שמור שינויים'; } }
 }
@@ -7625,7 +7625,7 @@ async function submitEditTransaction() {
 async function deleteTransaction() {
     const id = val('edit-trans-id'); if(!await window._uiConfirm('האם אתה בטוח שברצונך למחוק פעולה זו לחלוטין? היתרה תתעדכן בהתאם.', {danger:true, okLabel:'מחק'})) return;
     try {
-        const res = await fetch(`${API}/transaction/${id}?requesterId=${currentUser.id}`, { method: 'DELETE' }); const data = await res.json();
+        const res = await fetch(`${API}/transaction/${id}?requesterId=${currentUser.id}`, { method: 'DELETE', headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } }); const data = await res.json();
         if(data.success) { showToast('success', 'הפעולה נמחקה!'); getEl('edit-transaction-modal').classList.add('hidden'); fetchData(); } else { showToast('error', data.error || 'שגיאה במחיקה'); }
     } catch(e) { showToast('error', 'שגיאת תקשורת'); }
 }
@@ -20820,7 +20820,7 @@ async function nextWizardStep() {
             btnNext.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
             try {
                 await fetch(`${API}/transaction`, {
-                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    method: 'POST', headers: {'Content-Type': 'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : ''},
                     body: JSON.stringify({ userId: currentUser.id, amount: budget, description: 'תקציב / מסגרת התחלתית', category: 'business', type: 'income', groupId: currentGroup.id })
                 });
             } catch(e) {}
@@ -39307,7 +39307,7 @@ async function renderCashierDashboard(el) {
     const sessionId = regState.id || null;
 
     try {
-        const r = await fetch(`/api/transactions?groupId=${currentGroup.id}&userId=all&limit=500`);
+        const r = await fetch(`/api/transactions?groupId=${currentGroup.id}&userId=all&limit=500`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } });
         const d = await r.json();
         const todayTx = (Array.isArray(d) ? d : []).filter(t => t.date && t.date.startsWith(today) && t.type==='income' && t.amount > 0);
         todaySales = todayTx.reduce((s,t) => s + parseFloat(t.amount||0), 0);
@@ -39406,7 +39406,7 @@ async function renderShiftManagerDashboard(el) {
     try { const r = await fetch(`/api/timeclock/${currentGroup.id}/report`); const d = await r.json(); clocked = d.records||d.report||[]; } catch(e) {}
     try { const r = await fetch(`/api/members/${currentGroup.id}`); const d = await r.json(); members = (d.members||[]).filter(m => m.role !== 'ADMIN'); } catch(e) {}
     if (isRestaurant) {
-        try { const r = await fetch(`/api/transactions?groupId=${currentGroup.id}&userId=all&limit=500`); const d = await r.json(); const tx = (Array.isArray(d) ? d : []).filter(t => t.date && t.date.startsWith(today) && t.type==='income' && t.amount > 0); todaySales = tx.reduce((s,t)=>s+parseFloat(t.amount||0),0); txCount = tx.length; } catch(e) {}
+        try { const r = await fetch(`/api/transactions?groupId=${currentGroup.id}&userId=all&limit=500`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } }); const d = await r.json(); const tx = (Array.isArray(d) ? d : []).filter(t => t.date && t.date.startsWith(today) && t.type==='income' && t.amount > 0); todaySales = tx.reduce((s,t)=>s+parseFloat(t.amount||0),0); txCount = tx.length; } catch(e) {}
     }
 
     const present = clocked.filter(c => c.punch_in && !c.punch_out).length;
@@ -39582,7 +39582,7 @@ async function renderBranchManagerDashboard(el) {
     }
     let todaySales = 0, txCount = 0, present = 0, totalMembers = 0, faultsCount = 0;
     const today = new Date().toISOString().split('T')[0];
-    try { const r = await fetch(`/api/transactions?groupId=${currentGroup.id}&userId=all&limit=500`); const d = await r.json(); const tx = (Array.isArray(d) ? d : []).filter(t => t.date && t.date.startsWith(today) && t.type==='income' && t.amount > 0); todaySales = tx.reduce((s,t)=>s+parseFloat(t.amount||0),0); txCount = tx.length; } catch(e) {}
+    try { const r = await fetch(`/api/transactions?groupId=${currentGroup.id}&userId=all&limit=500`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } }); const d = await r.json(); const tx = (Array.isArray(d) ? d : []).filter(t => t.date && t.date.startsWith(today) && t.type==='income' && t.amount > 0); todaySales = tx.reduce((s,t)=>s+parseFloat(t.amount||0),0); txCount = tx.length; } catch(e) {}
     try { const r = await fetch(`/api/timeclock/${currentGroup.id}/report`); const d = await r.json(); present = (d.records||d.report||[]).filter(c=>c.punch_in&&!c.punch_out).length; } catch(e) {}
     try { const r = await fetch(`/api/members/${currentGroup.id}`); const d = await r.json(); totalMembers = ((d.members||[]).filter(m=>m.role!=='ADMIN')).length; } catch(e) {}
     try { const r = await fetch(`/api/equipment/faults/${currentGroup.id}`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } }); const d = await r.json(); faultsCount = (d.faults||[]).filter(f=>f.status!=='resolved').length; } catch(e) {}

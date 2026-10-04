@@ -10560,12 +10560,14 @@ app.post('/api/logout', async (req, res) => {
 // --- CORE DATA ENDPOINTS ---
 // ============================================================
 
-app.get('/api/data/:userId', async (req, res) => {
+app.get('/api/data/:userId', verifyFamilyOrBiz, async (req, res) => {
     const _t0 = Date.now();
     try {
+        if (parseInt(req.params.userId) !== req.callerAuth.userId) return res.status(403).json({ error: 'אין הרשאה' });
         const userRes = await pool.query('SELECT * FROM users WHERE id = $1', [req.params.userId]);
         if (userRes.rows.length === 0) return res.status(404).json({ error: 'User not found' });
         const user = userRes.rows[0];
+        delete user.password_hash;
 
         // עדכון last_seen + מכסת AI יומית (fire-and-forget — לא מחכים)
         pool.query('UPDATE users SET last_seen=NOW() WHERE id=$1', [user.id]).catch(()=>{});
@@ -10658,7 +10660,7 @@ app.get('/api/data/:userId', async (req, res) => {
         });
     } catch (e) {
         console.error('Error in /api/data/:userId:', e);
-        res.status(500).json({ error: e.message });
+        res.status(500).json({ error: 'שגיאה פנימית' });
     }
 });
 
@@ -11085,9 +11087,10 @@ app.post('/api/budget/update', async (req, res) => {
 // --- TRANSACTIONS ENDPOINTS ---
 // ============================================================
 
-app.get('/api/transactions', async (req, res) => {
+app.get('/api/transactions', verifyFamilyOrBiz, async (req, res) => {
     try {
         const { groupId, userId, limit, from, to } = req.query;
+        if (parseInt(groupId) !== req.callerAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         let q = `SELECT t.*, u.nickname as user_name FROM transactions t LEFT JOIN users u ON t.user_id = u.id WHERE t.group_id = $1`;
         let p = [groupId];
         if(userId !== 'all') { q += ` AND t.user_id = $${p.length + 1}`; p.push(userId); }
@@ -11097,18 +11100,29 @@ app.get('/api/transactions', async (req, res) => {
         q += ` ORDER BY t.date DESC`;
         if (!from && !to) { q += ` LIMIT $${p.length + 1}`; p.push(limit || 200); }
         const result = await pool.query(q, p); res.json(result.rows);
-    } catch(e) { res.status(500).json({error: e.message}); }
+    } catch(e) { res.status(500).json({error: 'שגיאה פנימית'}); }
 });
 
-app.post('/api/transaction', async (req, res) => {
+app.post('/api/transaction', verifyFamilyOrBiz, async (req, res) => {
     try {
         const { userId, amount, description, category, type, date, isRecurring, endMonth, groupId } = req.body;
-        await pool.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type, date, is_recurring, end_month, is_manual) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, TRUE)`, [userId, groupId, parseFloat(amount)||0, description, category, type, date || new Date(), isRecurring, endMonth]);
-        if (type === 'expense') await pool.query(`UPDATE users SET balance = balance - $1 WHERE id=$2`, [parseFloat(amount)||0, userId]);
-        else await pool.query(`UPDATE users SET balance = balance + $1 WHERE id=$2`, [parseFloat(amount)||0, userId]);
-        await logActivity(groupId, userId || null, null, 'finance', 'transaction', `${type === 'income' ? 'הכנסה' : 'הוצאה'}: ₪${amount} — ${description}`);
+        if (parseInt(groupId) !== req.callerAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
+        if (parseInt(userId) !== req.callerAuth.userId) {
+            // מותר להזין תנועה עבור חבר אחר באותה קבוצה רק למנהל/ת (ADMIN)
+            const requester = await pool.query('SELECT role FROM users WHERE id=$1 AND group_id=$2', [req.callerAuth.userId, groupId]);
+            if (!requester.rows.length || requester.rows[0].role !== 'ADMIN') return res.status(403).json({ error: 'אין הרשאה' });
+            const target = await pool.query('SELECT 1 FROM users WHERE id=$1 AND group_id=$2', [userId, groupId]);
+            if (!target.rows.length) return res.status(400).json({ error: 'משתמש לא נמצא בקבוצה זו' });
+        }
+        if (!['income', 'expense'].includes(type)) return res.status(400).json({ error: 'סוג תנועה לא תקין' });
+        const safeAmount = parseFloat(amount) || 0;
+        const safeDescription = description ? String(description).slice(0, 300) : '';
+        await pool.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type, date, is_recurring, end_month, is_manual) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, TRUE)`, [userId, groupId, safeAmount, safeDescription, category, type, date || new Date(), isRecurring, endMonth]);
+        if (type === 'expense') await pool.query(`UPDATE users SET balance = balance - $1 WHERE id=$2`, [safeAmount, userId]);
+        else await pool.query(`UPDATE users SET balance = balance + $1 WHERE id=$2`, [safeAmount, userId]);
+        await logActivity(groupId, userId || null, null, 'finance', 'transaction', `${type === 'income' ? 'הכנסה' : 'הוצאה'}: ₪${safeAmount} — ${safeDescription}`);
         res.json({success:true});
-    } catch(e) { res.status(500).json({error: e.message}); }
+    } catch(e) { res.status(500).json({error: 'שגיאה פנימית'}); }
 });
 
 app.put('/api/transaction/:id', verifyFamily, async (req, res) => {
@@ -34249,6 +34263,8 @@ app.post('/api/kids/quests', verifyFamily, async (req, res) => {
             description, flwReward, passScore,
             dueDate, questions, createdBy } = req.body;
     if (parseInt(familyGroupId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
+    const requester = await pool.query('SELECT role FROM users WHERE id=$1 AND group_id=$2', [req.familyAuth.userId, req.familyAuth.groupId]);
+    if (!requester.rows.length || requester.rows[0].role !== 'ADMIN') return res.status(403).json({ error: 'רק מנהל/ת יכול/ה ליצור אתגרים' });
 
     if(!questions?.length)
       return res.status(400).json({ error: 'נדרשת לפחות שאלה אחת' });
@@ -34286,7 +34302,7 @@ app.post('/api/kids/quests', verifyFamily, async (req, res) => {
     } catch(e) {}
 
     res.json({ success: true, quest: quest.rows[0], questId });
-  } catch(e) { res.status(500).json({ error: e.message }); }
+  } catch(e) { res.status(500).json({ error: 'שגיאה פנימית' }); }
 });
 
 // קווסטים פעילים לילד (כולל פגי תוקף לארכיון)

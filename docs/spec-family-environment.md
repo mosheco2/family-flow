@@ -193,31 +193,90 @@ switchTab(t) {
 
 ### 3.1 Dashboard / Feed ראשי (`content-feed`)
 
-**מטרה:** מסך הבית — מציג יתרה, פעילות, משימות ממתינות, ופיד פעולות משפחתי.
+> עודכן: 2026-10 | אומת מול קוד בפועל (server.js + public/app.js + public/business-app.js)
+> כחלק מתהליך אפיון עומק.
+> **נכון לגרסה שלפני אוקטובר 2026 — זהו המודול החמור ביותר שנמצא בתהליך כולו**: שלושת
+> ה-endpoints המרכזיים שמזינים את הפיד (`/api/data/:userId`, `/api/transactions`,
+> `/api/transaction`) היו **פתוחים לחלוטין ללא שום אימות**, כאשר האחרון מאפשר **שינוי ישיר
+> של יתרות כספיות** של כל משתמש במערכת. כולם תוקנו, מתועד למטה.
+
+**מטרה:** מסך הבית — מציג יתרה, פעילות, משימות ממתינות, ופיד פעולות משפחתי. **אין endpoint
+ייעודי ל"פיד"** — הוא קומפוזיציה בצד הלקוח (`buildAndRenderFeed`) מתוך payload שמגיע
+מ-`GET /api/data/:userId` (המזין כמעט את כל נתוני המסך: עסקאות\*, משימות, יעדים, מכסת AI,
+יתרות, עדכוני קהילה) בשילוב `GET /api/transactions` הנפרד (\*בפועל העסקאות עצמן לא חוזרות
+מ-`/api/data`, אלא נטענות בנפרד מ-`/api/transactions`).
 
 **רכיבי UI:**
-- **מה מחכה לך עכשיו** (`#family-urgent-section`) — badge עם ספירה, רשימת פריטים דחופים
-- **CHILD HOME HEADER** (מוצג לילדים בלבד) — כרטיס סגול עם יתרה, כפתורי "בקשת קנייה" ו"אתגר אקדמיה"
-- **כרטיס יתרה** (`#tour-balance-card`) — gradient כחול-אינדיגו, מציג יתרה כספית
-  - ADMIN: מציג `admin_total_balance` (יתרה כוללת של הקבוצה)
-  - CHILD: מציג `currentUser.balance` (יתרה אישית)
-- **Quick Tiles** (`#quick-tiles`) — 6 כרטיסי קישור מהיר (JS מרנדר)
-- **פיד פעילות** (`#unified-feed-list`) — פיד מאוחד מסונן לפי user/תאריך
+- **מה מחכה לך עכשיו** (`#family-urgent-section`) — מבוסס על caches קיימים בלבד, לא endpoint נפרד.
+- **CHILD HOME HEADER** (מוצג לילדים בלבד) — כרטיס סגול עם יתרה, כפתורי "בקשת קנייה" ו"אתגר אקדמיה".
+- **כרטיס יתרה** (`#tour-balance-card`) — ADMIN: `admin_total_balance` (סכום קבוצתי מכל
+  העסקאות של משתמשי ADMIN); לא-ADMIN: `computed_balance`/`currentUser.balance` (יתרה אישית).
+- **Quick Tiles** (`renderQuickTiles`) — 8 אריחי קיצור דרך; כולם מבצעים אך ורק `switchTab(...)`
+  (ניווט client-side) או חסימת מודול ל-member — **אין קריאת API מתוך הקליקים עצמם**.
+- **פיד פעילות מאוחד** (`#unified-feed-list`, `buildAndRenderFeed`/`renderUnifiedFeed`) —
+  5 סוגי פריטים: (1) הודעת פתיחת סביבה, (2) תנועות עובר ושב, (3) משימות ב-`status='approved'`
+  בלבד, (4) אתגרי אקדמיה (`bundlesCache`), (5) עדכוני קהילה/הטבות עסקים — ממוין לפי תאריך
+  יורד, חתוך ל-30 פריטים.
+- **סקירת ילדים** (`loadKidsOverview`, ADMIN בלבד) — כרטיסי ילדים + היסטוריית אתגרים,
+  מבוסס על `GET /api/kids/parent-overview/:groupId` (מוגן כראוי, `verifyFamily`+IDOR).
 
-**אלמנטים בפיד (buildAndRenderFeed):**
-1. הודעת פתיחת סביבה (system event)
-2. תנועות עובר ושב (transactions)
-3. משימות מאושרות
-4. חידוני אקדמיה
-5. עדכוני קהילה
+**פילטרים בפיד:** לפי משתמש (ADMIN בלבד, ברירת מחדל מוסתר), לפי תאריך (הכל/חודש/3 חודשים).
+**הבדל הרשאה אמיתי היחיד** בלוגיקת הפיד עצמה: `role==='ADMIN'` רואה הכל, כל תפקיד אחר
+(MANAGER/SENIOR/MEMBER/CHILD — ללא הבחנה ביניהם) מסונן לפריטים ששייכים לו בלבד + פריטי
+מערכת. **זהו סינון client-side בלבד** — לא גיבוי שרת נפרד (לפני התיקון, זה היה חמור עוד יותר
+כי גם ה-API עצמו לא אכף שום הרשאה; כעת לפחות ה-API מאמת זהות וקבוצה, אך לא role).
 
-**פילטרים בפיד:**
-- לפי משתמש (`feed-user-filter`) — מוסתר כברירת מחדל
-- לפי תאריך (`feed-date-filter`) — הכל / חודש אחרון / 3 חודשים
+**Child-specific:** `#child-todo-section` (משימות ממתינות + אתגרי אקדמיה), `#child-home-footer`
+(3 כפתורי ניווט: חיסכון, היסטוריה, קהילה).
 
-**Child-specific:**
-- `#child-todo-section` — רשימת "לביצוע" (משימות ממתינות + אתגרי אקדמיה)
-- `#child-home-footer` — 3 כפתורי ניווט מהיר: חיסכון, היסטוריה, קהילה
+**Polling:** `pollInterval`, כל **30 שניות** (`setInterval(fetchData, 30000)`), עם guard נגד
+כפילות (`if(!pollInterval)`). לא נוקה באופן מפורש (`clearInterval`) באף מקום, אך בפועל אינו
+דליפה — `logout()` מבצע ניווט מלא (`location.href='/'`) שמאפס את כל מצב ה-JS, כמו שתועד
+כבר במודול "הזמנות שלי".
+
+**API:**
+| Method | Path | תיאור |
+|---|---|---|
+| GET | `/api/data/:userId` | Payload מרכזי: user/group/tasks/pantry/shopping_list/goals/bundles/game_assignments/weekly_stats/community_updates |
+| GET | `/api/transactions` | עסקאות כספיות (`groupId`, `userId`='all'/מזהה, `limit`, `from`, `to`) |
+| POST | `/api/transaction` | יצירת עסקה ועדכון יתרה |
+| PUT/DELETE | `/api/transaction/:id` | עריכה/מחיקת עסקה (ADMIN בלבד) |
+| GET | `/api/kids/parent-overview/:groupId` | סקירת ילדים (ADMIN) |
+| POST | `/api/kids/quests` | יצירת אתגר לילד (ADMIN בלבד — תוקן) |
+
+**שימוש כפול (FAMILY+BUSINESS):** `GET /api/data/:userId`, `GET /api/transactions`,
+`POST/PUT/DELETE /api/transaction*` משמשים **גם** את סביבת העסק (`business-app.js`, טאב
+Feed/תזרים עסקי) — אותם endpoints בדיוק, מוגנים כעת ב-`verifyFamilyOrBiz`/`verifyBiz` לפי
+הצורך, כך שגם session עסקי תקף עובד מולם.
+
+**הערה היסטורית (תועד למען שקיפות)**: עד לתיקון —
+1. **`GET /api/data/:userId` — ללא כל authentication.** החזיר `SELECT *` מטבלת `users` לכל
+   `userId` נחוש (אינטגר רציף), **כולל `password_hash`**, טלפון, יתרות, עסקאות, משימות,
+   יעדים — לכל גורם לא-מחובר. תוקן: נוספה `verifyFamilyOrBiz` + בדיקת
+   `userId===req.callerAuth.userId`, והוסרה החזרת `password_hash` מהתגובה כהגנת-עומק נוספת
+   (defense in depth) גם למקרה של תקלת הרשאה עתידית.
+2. **`GET /api/transactions` — ללא כל authentication.** `groupId`/`userId` מגיעים חופשי
+   מ-query string — IDOR מלא על כל ההיסטוריה הכספית של כל משפחה/עסק במערכת. תוקן: נוספה
+   `verifyFamilyOrBiz` + בדיקת `groupId===req.callerAuth.groupId`.
+3. **`POST /api/transaction` — ללא כל authentication.** אפשרה לכל גורם ליצור עסקה שרירותית
+   **ולשנות ישירות את שדה ה-`balance`** של כל `userId` — לא רק דליפת מידע אלא שינוי מצב כספי
+   ממשי (גניבת/הזרמת כסף וירטואלי). תוקן: נוספה `verifyFamilyOrBiz` + בדיקת `groupId`, ואימות
+   שה-`userId` הוא המשתמש המחובר עצמו **או** ש-ADMIN יוצר עסקה עבור חבר אחר באותה קבוצה.
+   נוספה גם ולידציית `type` (allow-list `income`/`expense`) והגבלת אורך `description`.
+4. **Stored XSS בפיד הראשי** — `safeStr` (לא בורח `<`/`>`) הציג `description`/`title` של
+   עסקאות/משימות/אתגרים כ-HTML גולמי; בשילוב עם #3 (יצירת עסקה חופשית) זה אפשר הזרקת קוד
+   שהוצג לכל בני המשפחה. תוקן ל-`escHtml` בכל רינדור הפיד (`renderUnifiedFeed`).
+5. **Stored XSS ללא כל escaping בהיסטוריית אתגרים ("סקירת ילדים")** — `h.title`,
+   `h.child_name`, `h.created_by_name`, `k.nickname`, `g.game_name` ו-`src` של תמונת פרופיל
+   ילד הוזרקו ל-`innerHTML` ללא שום בריחה (לא `safeStr` ולא `escHtml`). תוקן ל-`escHtml`.
+6. **`POST /api/kids/quests` ללא בדיקת role ADMIN** — מוגן רק ב-`verifyFamily`+groupId; כל
+   חבר משפחה מחובר, כולל ילד, יכול היה ליצור אתגרים/פרסים לכל ילד בקבוצה (כולל לעצמו).
+   תוקן: נוספה בדיקת `role==='ADMIN'`.
+7. דליפת `e.message` גולמי בכל ה-endpoints שנסקרו — תוקן להודעות כלליות בעברית.
+8. **תיקון נלווה (פונקציונלי, לא אבטחתי)**: עריכה/מחיקת עסקה (`PUT`/`DELETE
+   /api/transaction/:id`) כבר הייתה מוגנת `verifyFamily` בשרת, אך כל קריאות ה-client (בשני
+   האפליקציות) שלחו `fetch` רגיל **ללא** Authorization header — כך שהעריכה/מחיקה היו
+   **שבורות בפועל** (401 שקט) עוד לפני תהליך האפיון הזה. תוקן יחד עם שאר התיקונים.
 
 ---
 
