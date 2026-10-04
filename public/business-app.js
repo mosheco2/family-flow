@@ -9364,8 +9364,8 @@ window.sendBizReply = async function(quoteId) {
     const text = input.value.trim();
     try {
         const r = await fetch(`${API}/store/quotes/${quoteId}/business-message`, {
-            method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ text })
+            method: 'POST', headers: {'Content-Type': 'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : ''},
+            body: JSON.stringify({ text, groupId: currentGroup?.id })
         });
         const d = await r.json();
         if (d.success) {
@@ -43297,8 +43297,8 @@ window.sendWoCustomerMessage = async function() {
     if (!text) return;
     try {
         const res = await fetch(`${API}/store/quotes/${window._currentWoId}/business-message`, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ text })
+            method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' },
+            body: JSON.stringify({ text, groupId: currentGroup?.id })
         });
         const data = await res.json();
         if (!data.success) return showToast('error', data.error || 'שגיאה בשליחת ההודעה');
