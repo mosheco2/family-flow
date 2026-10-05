@@ -93,11 +93,56 @@ async function findByNameILike(client, table, pattern, extraWhere = '', extraPar
   return r.rows[0] || null;
 }
 
+const DEMO_ADMIN_EMAIL = 'demo.family.weflowz@example.com';
+
+// הסקריפט אינו אידמפוטנטי מטבעו (כל הרצה יוצרת group_code חדש) - הרצות
+// חוזרות (לצורך בדיקה/תיקון) היו משאירות משפחות-דמו "יתומות" ברקע, מה
+// שעלול לבלבל איזו מהן באמת מלאה בנתונים. לכן: לפני יצירת משפחה חדשה,
+// מנקים כל משפחת-דמו קודמת (לפי admin_email הקבוע) כולל כל הרשומות
+// התלויות בה שאין להן ON DELETE CASCADE אמיתי בסכמה (למשל store_orders -
+// family_group_id הוא עמודה רגילה בלי FK בפועל).
+async function cleanupPreviousDemoFamily(client) {
+  const prev = await client.query(`SELECT id, name, group_code FROM family_groups WHERE LOWER(admin_email)=$1 AND type='FAMILY'`, [DEMO_ADMIN_EMAIL]);
+  if (prev.rows.length === 0) { console.log('✓ אין משפחת-דמו קודמת לניקוי.'); return; }
+  for (const row of prev.rows) {
+    console.log(`… מנקה משפחת-דמו קודמת: id=${row.id}, name="${row.name}", group_code=${row.group_code}`);
+    await client.query('BEGIN');
+    try {
+      // טבלאות עם family_group_id/group_id ללא ON DELETE CASCADE אמיתי בסכמה
+      await client.query(`DELETE FROM store_order_items WHERE order_id IN (SELECT id FROM store_orders WHERE family_group_id=$1)`, [row.id]);
+      await client.query(`DELETE FROM store_orders WHERE family_group_id=$1`, [row.id]);
+      // service_calls/service_call_messages/work_order_payments כן נמחקים
+      // אוטומטית ב-CASCADE דרך family_groups, אך מוחקים כאן מפורשות ליתר
+      // ביטחון (אם הסכמה בפועל שונה מהתיעוד שנבדק).
+      await client.query(`DELETE FROM work_order_payments WHERE service_call_id IN (SELECT id FROM service_calls WHERE family_group_id=$1)`, [row.id]);
+      await client.query(`DELETE FROM service_call_messages WHERE call_id IN (SELECT id FROM service_calls WHERE family_group_id=$1)`, [row.id]);
+      await client.query(`DELETE FROM service_calls WHERE family_group_id=$1`, [row.id]);
+      // לומדות אקדמיה שנוצרו ע"י הסקריפט (לא קשורות ל-group_id ישירות)
+      await client.query(`DELETE FROM quiz_bundles WHERE created_by='SEED'`);
+      // family_groups עצמה - ON DELETE CASCADE אמור לנקות users/transactions/
+      // goals/loans/pantry/shopping_list/tasks/flw_kid_wallets/flow_wallets/
+      // family_communities וכו' (כולם מוגדרים עם group_id REFERENCES
+      // family_groups(id) ON DELETE CASCADE בסכמה)
+      await client.query(`DELETE FROM family_groups WHERE id=$1`, [row.id]);
+      await client.query('COMMIT');
+      console.log(`✓ נוקתה משפחת-דמו קודמת id=${row.id}`);
+    } catch (e) {
+      await client.query('ROLLBACK');
+      console.error(`✗ ניקוי משפחת-דמו קודמת id=${row.id} נכשל (ממשיכים בכל זאת ליצירת משפחה חדשה):`, e.message);
+    }
+  }
+}
+
 async function main() {
   const client = await pool.connect();
   console.log('=== seed-demo-family.js — זריעת משפחת דמו ===');
 
   try {
+    // -----------------------------------------------------------
+    // שלב -1: ניקוי משפחת-דמו קודמת (ר' הסבר ב-cleanupPreviousDemoFamily)
+    // -----------------------------------------------------------
+    await cleanupPreviousDemoFamily(client);
+
     // -----------------------------------------------------------
     // שלב 0: איתור ישויות קיימות (קהילה + 2 עסקים) — אסור ליצור!
     // -----------------------------------------------------------
@@ -131,13 +176,13 @@ async function main() {
     await client.query('BEGIN');
     try {
       const groupCode = await uniqueGroupCode(client);
-      const familyLastName = 'כהן-לוי';
+      const familyLastName = 'לוי';
       const familyCity = 'ראשון לציון';
 
       const gRes = await client.query(
         `INSERT INTO family_groups (type, name, admin_email, group_code, community_id, family_nickname, last_name, city, plan, account_status, referred_by_group_id)
          VALUES ('FAMILY', $1, LOWER($2), $3, $4, $5, $6, $7, 'solo', 'active', NULL) RETURNING *`,
-        [`משפחת ${familyLastName}`, 'demo.family.weflowz@example.com', groupCode, community.id, 'משפחת הדמו', familyLastName, familyCity]
+        [`משפחת ${familyLastName}`, DEMO_ADMIN_EMAIL, groupCode, community.id, 'משפחת הדמו', familyLastName, familyCity]
       );
       group = gRes.rows[0];
       bump('family_groups');
