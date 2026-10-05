@@ -12337,21 +12337,26 @@ app.post('/api/pantry/familai-insight', verifyFamilyOrBiz, async (req, res) => {
     } catch (e) { handleAIError(e, res, 'שגיאה בניתוח המלאי'); }
 });
 
-app.post('/api/forecast/familai-insight', async (req, res) => {
+app.post('/api/forecast/familai-insight', verifyFamilyOrBiz, async (req, res) => {
     try {
-        const { groupId, period, mode, targetUserId } = req.body;
+        const { period, mode, targetUserId } = req.body;
+        const groupId = req.callerAuth.groupId;
         const hasTokens = await handleAITokens(groupId);
         if(!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
         if (!getGenAIInstance()) throw new Error('GEMINI_API_KEY is not set');
-        
+
         const gRes = await pool.query('SELECT type FROM family_groups WHERE id=$1', [groupId]);
         const gType = gRes.rows.length > 0 ? gRes.rows[0].type : 'FAMILY';
 
         let txsRes;
         if(targetUserId === 'all') {
+            if (req.callerAuth.role !== 'ADMIN') return res.status(403).json({ error: 'אין הרשאה' });
             txsRes = await pool.query(`SELECT amount, category, type, is_recurring, description FROM transactions WHERE group_id=$1 AND is_recurring = TRUE`, [groupId]);
         } else {
-            txsRes = await pool.query(`SELECT amount, category, type, is_recurring, description FROM transactions WHERE user_id=$1 AND is_recurring = TRUE`, [targetUserId]);
+            const effectiveUserId = (req.callerAuth.role === 'ADMIN' && targetUserId) ? targetUserId : req.callerAuth.userId;
+            const uCheck = await pool.query('SELECT id FROM users WHERE id=$1 AND group_id=$2', [effectiveUserId, groupId]);
+            if (uCheck.rows.length === 0) return res.status(404).json({ error: 'משתמש לא נמצא בקבוצה' });
+            txsRes = await pool.query(`SELECT amount, category, type, is_recurring, description FROM transactions WHERE user_id=$1 AND is_recurring = TRUE`, [effectiveUserId]);
         }
         
         const model = getGenAIInstance().getGenerativeModel({ model: "gemini-2.5-flash" });

@@ -479,6 +479,12 @@ Feed/תזרים עסקי) — אותם endpoints בדיוק, מוגנים כעת
 
 ### 3.5 תשקיף (`content-forecast`)
 
+> עודכן: 2026-10 | אומת מול קוד בפועל (server.js + public/app.js + public/business-app.js)
+> כחלק מתהליך אפיון עומק.
+> המודול מבוסס כולו על `GET /api/transactions` (שתוקן ואומת כבר במודול תזרים/תקציב) —
+> נבדק כאן רק ה-endpoint הייחודי למודול, `/api/forecast/familai-insight`, שהיה ללא
+> אימות ואפשר דליפת תנועות קבועות של משתמש/משפחה זרה. תוקן, מתועד למטה.
+
 **מטרה:** ניהול הכנסות/הוצאות עתידיות וקבועות.
 
 **רכיבי UI:**
@@ -491,11 +497,28 @@ Feed/תזרים עסקי) — אותם endpoints בדיוק, מוגנים כעת
 
 **Recurring transactions:** תמיכה בפעולות קבועות (`is_recurring=true`, `end_month`)
 
+**הרשאות:** ADMIN רואה תחזית לכל המשפחה ("all") או לחבר ספציפי; תפקיד אחר רואה אך ורק
+את התחזית של עצמו — נאכף כעת גם בשרת (לא רק UI) ב-`familai-insight`.
+
 **API:**
 | Method | Path | תיאור |
 |---|---|---|
-| GET | `/api/transactions?is_recurring=true` | תנועות קבועות |
+| GET | `/api/transactions?is_recurring=true` | תנועות קבועות (מאומת, ראו מודול תזרים/תקציב) |
 | POST | `/api/forecast/familai-insight` | תובנות AI לתשקיף |
+
+**הערה היסטורית (תועד למען שקיפות)**: עד לתיקון —
+1. **`POST /api/forecast/familai-insight` — ללא כל middleware אימות.** `groupId`
+   ו-`targetUserId` הגיעו מהבקשה ללא בדיקה: תוקף יכול היה לקבל תובנת AI המבוססת על
+   התנועות הקבועות של **כל משתמש בכל קבוצה** (דליפת מידע פיננסי — סכומי הכנסה/הוצאה
+   קבועים ותיאורם), וכן לנצל את מכסת ה-AI-tokens של משפחה זרה באמצעות `groupId` שרירותי.
+   תוקן: נוספה `verifyFamilyOrBiz`, `groupId` נלקח מהסשן, בקשת `targetUserId==='all'`
+   דורשת role=ADMIN, ובקשת משתמש בודד מאומתת ששייך לקבוצת המתקשר (או מוחלפת ב-userId של
+   המתקשר עצמו אם הוא אינו ADMIN).
+2. **Stored XSS** — `item.description`/`item.user_name` בתצוגת `#forecast-list` הוצגו
+   עם `safeStr` (מגן רק על מרכאות) במקום `escHtml`, בשתי הסביבות app.js/business-app.js.
+   `description` מקורו בתנועות שנוצרות דרך `/api/transactions` (שעבר כבר sanitization
+   במודול התזרים/תקציב), כך שזהו תיקון הגנה-כפולה (defense in depth) ולא היה ניצן בפועל
+   ללא פרצה נוספת שמזריקה טקסט לתיאור תנועה — תוקן בכל זאת ל-`escHtml`.
 
 ---
 
