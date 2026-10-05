@@ -14886,9 +14886,9 @@ app.post('/api/campaign/:code/order', async (req, res) => {
         const customerName = [customer.first_name, customer.last_name].filter(Boolean).join(' ') || 'לקוח';
 
         const oRes = await pool.query(
-            `INSERT INTO store_orders (group_id, customer_name, customer_phone, total_amount, status, created_at, is_delivery, delivery_details, family_group_id, notes, order_source)
-             VALUES ($1,$2,$3,$4,'pending_approval',CURRENT_TIMESTAMP,$5,$6,$7,$8,'community_campaign') RETURNING id`,
-            [groupId, customerName, customer.phone, serverTotal, isDeliv, deliveryDetailsStr, customer.family_group_id || null, notes || null]);
+            `INSERT INTO store_orders (group_id, customer_name, customer_phone, total_amount, status, created_at, is_delivery, delivery_details, family_group_id, notes, order_source, campaign_id)
+             VALUES ($1,$2,$3,$4,'pending_approval',CURRENT_TIMESTAMP,$5,$6,$7,$8,'community_campaign',$9) RETURNING id`,
+            [groupId, customerName, customer.phone, serverTotal, isDeliv, deliveryDetailsStr, customer.family_group_id || null, notes || null, campaign.id]);
         const orderId = oRes.rows[0].id;
         await pool.query('UPDATE store_orders SET items = $1 WHERE id = $2', [JSON.stringify(items), orderId]);
         for (const item of items) {
@@ -15882,7 +15882,25 @@ async function initCommunityTables() {
             catalog_id INT REFERENCES store_catalog(id),
             added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             PRIMARY KEY (campaign_id, catalog_id)
-        )`
+        )`,
+        // ── "שוקה": הצטרפות עסקים יזומה לקמפייני שוק (רדאר + בקשות/הזמנות) ──
+        `ALTER TABLE community_campaigns ADD COLUMN IF NOT EXISTS start_at TIMESTAMP`,
+        `ALTER TABLE community_campaigns ADD COLUMN IF NOT EXISTS end_at TIMESTAMP`,
+        `ALTER TABLE community_campaigns ADD COLUMN IF NOT EXISTS recurrence VARCHAR(20) DEFAULT 'none'`,
+        `ALTER TABLE community_campaigns ADD COLUMN IF NOT EXISTS is_open_for_requests BOOLEAN DEFAULT TRUE`,
+        `CREATE TABLE IF NOT EXISTS community_campaign_requests (
+            id SERIAL PRIMARY KEY,
+            campaign_id INT REFERENCES community_campaigns(id) ON DELETE CASCADE,
+            business_group_id INT REFERENCES family_groups(id) ON DELETE CASCADE,
+            direction VARCHAR(20) NOT NULL,
+            status VARCHAR(20) DEFAULT 'pending',
+            requested_by_user_id INT,
+            message TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            responded_at TIMESTAMP
+        )`,
+        `CREATE UNIQUE INDEX IF NOT EXISTS idx_campaign_requests_open ON community_campaign_requests (campaign_id, business_group_id) WHERE status='pending'`,
+        `ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS campaign_id INT REFERENCES community_campaigns(id) ON DELETE SET NULL`
     ];
 
     for (let q of queries) {
@@ -18946,6 +18964,78 @@ app.post('/api/zone-manager/community-campaigns/:id/products', verifyZoneManager
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// ── "שוקה": בקשות הצטרפות/הזמנות עסקים לקמפיין (זורם דרך community_campaign_requests) ──
+
+// תור בקשות הצטרפות ממתינות (ביוזמת העסק) לקמפיין
+app.get('/api/zone-manager/community-campaigns/:id/requests', verifyZoneManager, async (req, res) => {
+    try {
+        const { managerId } = req.zmSession;
+        const campaign = await verifyCampaignOwnership(req.params.id, managerId);
+        if (!campaign) return res.status(403).json({ error: 'אין הרשאה לקמפיין זה' });
+        const r = await pool.query(
+            `SELECT cr.*, fg.name AS business_name, fg.business_type, fg.group_code
+             FROM community_campaign_requests cr
+             JOIN family_groups fg ON fg.id = cr.business_group_id
+             WHERE cr.campaign_id=$1 ORDER BY cr.created_at DESC`,
+            [req.params.id]);
+        res.json({ success: true, requests: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// אישור/דחייה של בקשת עסק (direction='business_request') - מוסיף/לא מוסיף ל-community_campaign_businesses
+app.post('/api/zone-manager/community-campaigns/:id/requests/:requestId/respond', verifyZoneManager, async (req, res) => {
+    try {
+        const { managerId } = req.zmSession;
+        const campaign = await verifyCampaignOwnership(req.params.id, managerId);
+        if (!campaign) return res.status(403).json({ error: 'אין הרשאה לקמפיין זה' });
+        const { action } = req.body; // 'approve' | 'reject'
+        if (!['approve', 'reject'].includes(action)) return res.status(400).json({ error: 'פעולה לא תקינה' });
+
+        const reqRow = await pool.query(
+            `SELECT * FROM community_campaign_requests WHERE id=$1 AND campaign_id=$2 AND status='pending'`,
+            [req.params.requestId, req.params.id]);
+        if (!reqRow.rows.length) return res.status(404).json({ error: 'בקשה לא נמצאה או שכבר טופלה' });
+        const request = reqRow.rows[0];
+
+        if (action === 'approve') {
+            await pool.query(
+                `INSERT INTO community_campaign_businesses (campaign_id, business_group_id) VALUES ($1,$2) ON CONFLICT DO NOTHING`,
+                [campaign.id, request.business_group_id]);
+        }
+        await pool.query(
+            `UPDATE community_campaign_requests SET status=$1, responded_at=NOW() WHERE id=$2`,
+            [action === 'approve' ? 'approved' : 'rejected', request.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// הזמנת עסק יזומה מצד הקהילה (direction='manager_invite') - ממתין לאישור העסק
+app.post('/api/zone-manager/community-campaigns/:id/invite', verifyZoneManager, async (req, res) => {
+    try {
+        const { managerId } = req.zmSession;
+        const campaign = await verifyCampaignOwnership(req.params.id, managerId);
+        if (!campaign) return res.status(403).json({ error: 'אין הרשאה לקמפיין זה' });
+        const { businessGroupId, message } = req.body;
+        if (!businessGroupId) return res.status(400).json({ error: 'חסר עסק' });
+
+        const belongs = await pool.query(
+            `SELECT 1 FROM community_businesses WHERE community_id=$1 AND business_id=$2 AND status='approved'`,
+            [campaign.community_id, businessGroupId]);
+        if (!belongs.rows.length) return res.status(400).json({ error: 'העסק אינו חלק מקהילה זו' });
+
+        const already = await pool.query(
+            `SELECT 1 FROM community_campaign_businesses WHERE campaign_id=$1 AND business_group_id=$2`,
+            [campaign.id, businessGroupId]);
+        if (already.rows.length) return res.status(400).json({ error: 'העסק כבר חלק מהקמפיין' });
+
+        await pool.query(
+            `INSERT INTO community_campaign_requests (campaign_id, business_group_id, direction, status, message)
+             VALUES ($1,$2,'manager_invite','pending',$3)`,
+            [campaign.id, businessGroupId, message || null]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // מינוי/הסרת מנהל קהילה ע"י מנהל אזור (משפיע על אותו שדה ש-SA משתמש בו)
 app.post('/api/zone-manager/set-community-manager', verifyZoneManager, async (req, res) => {
     try {
@@ -19697,6 +19787,249 @@ app.post('/api/community/manager/campaigns/:id/products', verifyFamily, async (r
                  ON CONFLICT DO NOTHING`, [req.params.id, businessGroupId, catalogId]);
         } else {
             await pool.query(`DELETE FROM community_campaign_products WHERE campaign_id=$1 AND catalog_id=$2`, [req.params.id, catalogId]);
+        }
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── "שוקה": בקשות הצטרפות/הזמנות עסקים לקמפיין (מנהל קהילה מתוך אפליקציית המשפחה) ──
+
+app.get('/api/community/manager/campaigns/:id/requests', verifyFamily, async (req, res) => {
+    try {
+        const campaign = await verifyCampaignOwnershipFamily(req.params.id, req.familyAuth.groupId);
+        if (!campaign) return res.status(403).json({ error: 'אין הרשאה לקמפיין זה' });
+        const r = await pool.query(
+            `SELECT cr.*, fg.name AS business_name, fg.business_type, fg.group_code
+             FROM community_campaign_requests cr
+             JOIN family_groups fg ON fg.id = cr.business_group_id
+             WHERE cr.campaign_id=$1 ORDER BY cr.created_at DESC`,
+            [req.params.id]);
+        res.json({ success: true, requests: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/community/manager/campaigns/:id/requests/:requestId/respond', verifyFamily, async (req, res) => {
+    try {
+        const campaign = await verifyCampaignOwnershipFamily(req.params.id, req.familyAuth.groupId);
+        if (!campaign) return res.status(403).json({ error: 'אין הרשאה לקמפיין זה' });
+        if (await blockIfChildFamilyUser(req, res)) return;
+        const { action } = req.body; // 'approve' | 'reject'
+        if (!['approve', 'reject'].includes(action)) return res.status(400).json({ error: 'פעולה לא תקינה' });
+
+        const reqRow = await pool.query(
+            `SELECT * FROM community_campaign_requests WHERE id=$1 AND campaign_id=$2 AND status='pending'`,
+            [req.params.requestId, req.params.id]);
+        if (!reqRow.rows.length) return res.status(404).json({ error: 'בקשה לא נמצאה או שכבר טופלה' });
+        const request = reqRow.rows[0];
+
+        if (action === 'approve') {
+            await pool.query(
+                `INSERT INTO community_campaign_businesses (campaign_id, business_group_id) VALUES ($1,$2) ON CONFLICT DO NOTHING`,
+                [campaign.id, request.business_group_id]);
+        }
+        await pool.query(
+            `UPDATE community_campaign_requests SET status=$1, responded_at=NOW() WHERE id=$2`,
+            [action === 'approve' ? 'approved' : 'rejected', request.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/community/manager/campaigns/:id/invite', verifyFamily, async (req, res) => {
+    try {
+        const campaign = await verifyCampaignOwnershipFamily(req.params.id, req.familyAuth.groupId);
+        if (!campaign) return res.status(403).json({ error: 'אין הרשאה לקמפיין זה' });
+        if (await blockIfChildFamilyUser(req, res)) return;
+        const { businessGroupId, message } = req.body;
+        if (!businessGroupId) return res.status(400).json({ error: 'חסר עסק' });
+
+        const belongs = await pool.query(
+            `SELECT 1 FROM community_businesses WHERE community_id=$1 AND business_id=$2 AND status='approved'`,
+            [campaign.community_id, businessGroupId]);
+        if (!belongs.rows.length) return res.status(400).json({ error: 'העסק אינו חלק מקהילה זו' });
+
+        const already = await pool.query(
+            `SELECT 1 FROM community_campaign_businesses WHERE campaign_id=$1 AND business_group_id=$2`,
+            [campaign.id, businessGroupId]);
+        if (already.rows.length) return res.status(400).json({ error: 'העסק כבר חלק מהקמפיין' });
+
+        await pool.query(
+            `INSERT INTO community_campaign_requests (campaign_id, business_group_id, direction, status, message)
+             VALUES ($1,$2,'manager_invite','pending',$3)`,
+            [campaign.id, businessGroupId, message || null]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ============================================================
+// --- "שוקה": צד העסק — רדאר שווקים, בקשות הצטרפות, ניהול מוצרים עצמי ---
+// ============================================================
+
+// רדאר שווקים: סריקה חופשית של כל קמפייני השוק הפעילים בכל הקהילות,
+// גם אם העסק עדיין לא חבר באותה קהילה (לא נדרש community_businesses).
+// סינון: עיר, תגיות-עניין של הקהילה, טווח תאריכים, חיפוש טקסט חופשי.
+app.get('/api/biz/market-radar', verifyBiz, async (req, res) => {
+    try {
+        const groupId = req.bizAuth.groupId;
+        const { city, interest, dateFrom, dateTo, search } = req.query;
+        const params = [groupId];
+        let where = `cc.status='active'`;
+        if (city) { params.push(`%${city}%`); where += ` AND c.city ILIKE $${params.length}`; }
+        if (interest) { params.push(`%${interest}%`); where += ` AND c.interest_tags ILIKE $${params.length}`; }
+        if (search) { params.push(`%${search}%`); where += ` AND (cc.title ILIKE $${params.length} OR c.name ILIKE $${params.length})`; }
+        if (dateFrom) { params.push(dateFrom); where += ` AND (cc.end_at IS NULL OR cc.end_at >= $${params.length})`; }
+        if (dateTo) { params.push(dateTo); where += ` AND (cc.start_at IS NULL OR cc.start_at <= $${params.length})`; }
+
+        const rows = await pool.query(
+            `SELECT cc.id, cc.title, cc.code, cc.description, cc.banner_image_url, cc.logo_url,
+                    cc.start_at, cc.end_at, cc.recurrence, cc.is_open_for_requests,
+                    c.id AS community_id, c.name AS community_name, c.city, c.interest_tags,
+                    (SELECT COUNT(*) FROM community_campaign_businesses WHERE campaign_id=cc.id) AS business_count,
+                    EXISTS(SELECT 1 FROM community_businesses cb WHERE cb.community_id=c.id AND cb.business_id=$1 AND cb.status='approved') AS is_community_member,
+                    EXISTS(SELECT 1 FROM community_campaign_businesses ccb WHERE ccb.campaign_id=cc.id AND ccb.business_group_id=$1) AS already_joined,
+                    (SELECT cr.status FROM community_campaign_requests cr WHERE cr.campaign_id=cc.id AND cr.business_group_id=$1 AND cr.status='pending' ORDER BY cr.created_at DESC LIMIT 1) AS pending_request_status
+             FROM community_campaigns cc
+             JOIN communities c ON c.id = cc.community_id
+             WHERE ${where}
+             ORDER BY cc.start_at NULLS LAST, cc.created_at DESC
+             LIMIT 100`,
+            params);
+        res.json({ success: true, campaigns: rows.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// כל הבקשות/הזמנות/שווקים שהעסק מעורב בהם (לטאבים "ההזמנות שלי" ו"השווקים שלי")
+app.get('/api/biz/market-campaigns/mine', verifyBiz, async (req, res) => {
+    try {
+        const groupId = req.bizAuth.groupId;
+        const requests = await pool.query(
+            `SELECT cr.*, cc.title AS campaign_title, cc.code AS campaign_code, c.name AS community_name
+             FROM community_campaign_requests cr
+             JOIN community_campaigns cc ON cc.id = cr.campaign_id
+             JOIN communities c ON c.id = cc.community_id
+             WHERE cr.business_group_id=$1 ORDER BY cr.created_at DESC`,
+            [groupId]);
+        const active = await pool.query(
+            `SELECT cc.id, cc.title, cc.code, cc.status, cc.start_at, cc.end_at,
+                    c.name AS community_name,
+                    (SELECT COUNT(*) FROM community_campaign_products p WHERE p.campaign_id=cc.id AND p.business_group_id=$1) AS product_count
+             FROM community_campaign_businesses ccb
+             JOIN community_campaigns cc ON cc.id = ccb.campaign_id
+             JOIN communities c ON c.id = cc.community_id
+             WHERE ccb.business_group_id=$1 ORDER BY ccb.added_at DESC`,
+            [groupId]);
+        res.json({ success: true, requests: requests.rows, activeCampaigns: active.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// העסק מבקש להצטרף לקמפיין (direction='business_request') - דורש חברות מאושרת בקהילה מראש
+app.post('/api/biz/market-campaigns/:campaignId/request', verifyBiz, async (req, res) => {
+    try {
+        const groupId = req.bizAuth.groupId;
+        const campaignRes = await pool.query(`SELECT * FROM community_campaigns WHERE id=$1 AND status='active'`, [req.params.campaignId]);
+        if (!campaignRes.rows.length) return res.status(404).json({ error: 'קמפיין לא נמצא' });
+        const campaign = campaignRes.rows[0];
+        if (campaign.is_open_for_requests === false) return res.status(403).json({ error: 'שוק זה סגור כרגע לבקשות הצטרפות חדשות' });
+
+        const isMember = await pool.query(
+            `SELECT 1 FROM community_businesses WHERE community_id=$1 AND business_id=$2 AND status='approved'`,
+            [campaign.community_id, groupId]);
+        if (!isMember.rows.length) {
+            return res.status(409).json({ error: 'צריך קודם להצטרף לקהילה הזו לפני בקשת הצטרפות לשוק', code: 'COMMUNITY_MEMBERSHIP_REQUIRED', communityId: campaign.community_id });
+        }
+
+        const already = await pool.query(
+            `SELECT 1 FROM community_campaign_businesses WHERE campaign_id=$1 AND business_group_id=$2`,
+            [campaign.id, groupId]);
+        if (already.rows.length) return res.status(400).json({ error: 'העסק כבר חלק מהקמפיין' });
+
+        const pending = await pool.query(
+            `SELECT 1 FROM community_campaign_requests WHERE campaign_id=$1 AND business_group_id=$2 AND status='pending'`,
+            [campaign.id, groupId]);
+        if (pending.rows.length) return res.status(400).json({ error: 'כבר יש בקשה ממתינה לשוק הזה' });
+
+        await pool.query(
+            `INSERT INTO community_campaign_requests (campaign_id, business_group_id, direction, status, requested_by_user_id, message)
+             VALUES ($1,$2,'business_request','pending',$3,$4)`,
+            [campaign.id, groupId, req.bizAuth.userId, req.body?.message || null]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// העסק מגיב להזמנה שקיבל ממנהל קהילה (direction='manager_invite')
+app.post('/api/biz/market-campaigns/requests/:requestId/respond', verifyBiz, async (req, res) => {
+    try {
+        const groupId = req.bizAuth.groupId;
+        const { action } = req.body; // 'approve' | 'reject'
+        if (!['approve', 'reject'].includes(action)) return res.status(400).json({ error: 'פעולה לא תקינה' });
+
+        const reqRow = await pool.query(
+            `SELECT * FROM community_campaign_requests WHERE id=$1 AND business_group_id=$2 AND direction='manager_invite' AND status='pending'`,
+            [req.params.requestId, groupId]);
+        if (!reqRow.rows.length) return res.status(404).json({ error: 'הזמנה לא נמצאה או שכבר טופלה' });
+        const request = reqRow.rows[0];
+
+        if (action === 'approve') {
+            await pool.query(
+                `INSERT INTO community_campaign_businesses (campaign_id, business_group_id) VALUES ($1,$2) ON CONFLICT DO NOTHING`,
+                [request.campaign_id, groupId]);
+        }
+        await pool.query(
+            `UPDATE community_campaign_requests SET status=$1, responded_at=NOW() WHERE id=$2`,
+            [action === 'approve' ? 'approved' : 'rejected', request.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// עזיבת שוק (מסיר גם את המוצרים של העסק מהקמפיין)
+app.post('/api/biz/market-campaigns/:campaignId/leave', verifyBiz, async (req, res) => {
+    try {
+        const groupId = req.bizAuth.groupId;
+        await pool.query(`DELETE FROM community_campaign_businesses WHERE campaign_id=$1 AND business_group_id=$2`, [req.params.campaignId, groupId]);
+        await pool.query(`DELETE FROM community_campaign_products WHERE campaign_id=$1 AND business_group_id=$2`, [req.params.campaignId, groupId]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// קטלוג העסק עצמו, מתוייג אילו פריטים כבר נבחרו לקמפיין הזה
+app.get('/api/biz/market-campaigns/:campaignId/products', verifyBiz, async (req, res) => {
+    try {
+        const groupId = req.bizAuth.groupId;
+        const included = await pool.query(
+            `SELECT 1 FROM community_campaign_businesses WHERE campaign_id=$1 AND business_group_id=$2`,
+            [req.params.campaignId, groupId]);
+        if (!included.rows.length) return res.status(400).json({ error: 'העסק עדיין לא חלק מהשוק הזה' });
+
+        const catalog = await pool.query(
+            `SELECT sc.id, sc.name, sc.price, sc.category, sc.image_url, sc.is_available,
+                    p.catalog_id IS NOT NULL AS selected
+             FROM store_catalog sc
+             LEFT JOIN community_campaign_products p ON p.campaign_id=$1 AND p.catalog_id=sc.id
+             WHERE sc.group_id=$2 ORDER BY sc.category, sc.sort_order, sc.name`,
+            [req.params.campaignId, groupId]);
+        res.json({ success: true, catalog: catalog.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// העסק בוחר/מסיר בעצמו מוצר מהקטלוג שלו לשוק שהוא כבר חבר בו
+app.post('/api/biz/market-campaigns/:campaignId/products', verifyBiz, async (req, res) => {
+    try {
+        const groupId = req.bizAuth.groupId;
+        const { catalogId, action } = req.body;
+        if (!catalogId || !['add','remove'].includes(action)) return res.status(400).json({ error: 'שדות לא תקינים' });
+
+        const included = await pool.query(
+            `SELECT 1 FROM community_campaign_businesses WHERE campaign_id=$1 AND business_group_id=$2`,
+            [req.params.campaignId, groupId]);
+        if (!included.rows.length) return res.status(400).json({ error: 'העסק עדיין לא חלק מהשוק הזה' });
+
+        if (action === 'add') {
+            const prod = await pool.query('SELECT id FROM store_catalog WHERE id=$1 AND group_id=$2', [catalogId, groupId]);
+            if (!prod.rows.length) return res.status(400).json({ error: 'מוצר לא נמצא בקטלוג שלך' });
+            await pool.query(
+                `INSERT INTO community_campaign_products (campaign_id, business_group_id, catalog_id) VALUES ($1,$2,$3)
+                 ON CONFLICT DO NOTHING`, [req.params.campaignId, groupId, catalogId]);
+        } else {
+            await pool.query(`DELETE FROM community_campaign_products WHERE campaign_id=$1 AND catalog_id=$2 AND business_group_id=$3`, [req.params.campaignId, catalogId, groupId]);
         }
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
