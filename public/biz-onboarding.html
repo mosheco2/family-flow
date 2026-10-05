@@ -66,8 +66,10 @@
     .wiz-videos-title { text-align:center; font-size:19px; font-weight:800; color:#1B2440; margin-bottom:18px; }
     .wiz-videos-grid { display:flex; gap:16px; justify-content:center; flex-wrap:wrap; }
     .wiz-video-item { display:flex; flex-direction:column-reverse; align-items:center; gap:8px; width:190px; }
-    .wiz-video-box { width:100%; aspect-ratio:9/16; border-radius:16px; overflow:hidden; background:#0f0c29; box-shadow:0 4px 14px rgba(20,10,60,0.18); }
-    .wiz-video-box video { width:100%; height:100%; object-fit:cover; display:block; }
+    .wiz-video-box { position:relative; width:100%; aspect-ratio:9/16; border-radius:16px; overflow:hidden; background:#0f0c29; box-shadow:0 4px 14px rgba(20,10,60,0.18); cursor:pointer; }
+    .wiz-video-box video { width:100%; height:100%; object-fit:cover; display:block; pointer-events:none; }
+    .wiz-video-play { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; pointer-events:none; }
+    .wiz-video-play svg { width:42px; height:42px; filter:drop-shadow(0 2px 8px rgba(0,0,0,.45)); }
     .wiz-video-label { font-size:13px; font-weight:700; color:#1B2440; text-align:center; }
     .wiz-videos-cta {
       display:flex; align-items:center; justify-content:center; gap:10px;
@@ -83,10 +85,30 @@
     @media (max-width:640px) {
       .wiz-videos { padding:18px 16px; border-radius:18px; }
       .wiz-videos-title { font-size:16px; margin-bottom:14px; }
-      .wiz-videos-grid { flex-direction:column; gap:10px; }
-      .wiz-video-item { flex-direction:row; width:100%; align-items:center; gap:12px; }
-      .wiz-video-box { width:56px; flex:none; aspect-ratio:9/16; border-radius:10px; }
-      .wiz-video-label { text-align:right; font-size:14px; }
+      .wiz-videos-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px 10px; justify-content:stretch; }
+      .wiz-video-item { flex-direction:column-reverse; width:100%; align-items:stretch; gap:6px; }
+      .wiz-video-box { width:100%; aspect-ratio:9/16; border-radius:12px; }
+      .wiz-video-play svg { width:34px; height:34px; }
+      .wiz-video-label { text-align:center; font-size:12.5px; }
+    }
+
+    /* ── Marketing video fullscreen lightbox ── */
+    .wiz-video-modal {
+      position:fixed; inset:0; z-index:99999; background:rgba(5,3,20,0.92);
+      display:none; align-items:center; justify-content:center; padding:24px; box-sizing:border-box;
+    }
+    .wiz-video-modal.open { display:flex; }
+    .wiz-video-modal-inner { position:relative; width:100%; max-width:480px; }
+    .wiz-video-modal video { width:100%; max-height:88vh; border-radius:18px; display:block; background:#000; }
+    .wiz-video-modal-close {
+      position:absolute; top:-44px; left:0; width:36px; height:36px; border-radius:50%;
+      background:rgba(255,255,255,0.12); border:none; color:#fff; font-size:20px; line-height:1;
+      cursor:pointer; display:flex; align-items:center; justify-content:center;
+    }
+    .wiz-video-modal-close:hover { background:rgba(255,255,255,0.22); }
+    @media (max-width:640px) {
+      .wiz-video-modal { padding:12px; }
+      .wiz-video-modal-close { top:-40px; }
     }
 
     /* ── Progress bar segments ── */
@@ -577,21 +599,41 @@
     <div class="wiz-videos-title">WEFLOWZ עושה לכם סדר בעסק</div>
     <div class="wiz-videos-grid">
       <div class="wiz-video-item">
-        <div class="wiz-video-box"><video src="/videos/marketing/sport.mp4" autoplay muted loop playsinline></video></div>
+        <div class="wiz-video-box" onclick="openWizVideo('/videos/marketing/sport.mp4')">
+          <video src="/videos/marketing/sport.mp4" autoplay muted loop playsinline></video>
+          <div class="wiz-video-play"><svg viewBox="0 0 24 24" fill="rgba(255,255,255,0.92)"><circle cx="12" cy="12" r="12" fill="rgba(0,0,0,0.35)"/><path d="M10 8.5v7l6-3.5z" fill="#fff"/></svg></div>
+        </div>
         <div class="wiz-video-label">מתקינים / התקנות</div>
       </div>
       <div class="wiz-video-item">
-        <div class="wiz-video-box"><video src="/videos/marketing/beauty.mp4" autoplay muted loop playsinline></video></div>
+        <div class="wiz-video-box" onclick="openWizVideo('/videos/marketing/beauty.mp4')">
+          <video src="/videos/marketing/beauty.mp4" autoplay muted loop playsinline></video>
+          <div class="wiz-video-play"><svg viewBox="0 0 24 24" fill="rgba(255,255,255,0.92)"><circle cx="12" cy="12" r="12" fill="rgba(0,0,0,0.35)"/><path d="M10 8.5v7l6-3.5z" fill="#fff"/></svg></div>
+        </div>
         <div class="wiz-video-label">מסעדות / קייטרינג</div>
       </div>
       <div class="wiz-video-item">
-        <div class="wiz-video-box"><video src="/videos/marketing/restaurants.mp4" autoplay muted loop playsinline></video></div>
+        <div class="wiz-video-box" onclick="openWizVideo('/videos/marketing/restaurants.mp4')">
+          <video src="/videos/marketing/restaurants.mp4" autoplay muted loop playsinline></video>
+          <div class="wiz-video-play"><svg viewBox="0 0 24 24" fill="rgba(255,255,255,0.92)"><circle cx="12" cy="12" r="12" fill="rgba(0,0,0,0.35)"/><path d="M10 8.5v7l6-3.5z" fill="#fff"/></svg></div>
+        </div>
         <div class="wiz-video-label">יופי / אסתטיקה</div>
       </div>
       <div class="wiz-video-item">
-        <div class="wiz-video-box"><video src="/videos/marketing/installers.mp4" autoplay muted loop playsinline></video></div>
+        <div class="wiz-video-box" onclick="openWizVideo('/videos/marketing/installers.mp4')">
+          <video src="/videos/marketing/installers.mp4" autoplay muted loop playsinline></video>
+          <div class="wiz-video-play"><svg viewBox="0 0 24 24" fill="rgba(255,255,255,0.92)"><circle cx="12" cy="12" r="12" fill="rgba(0,0,0,0.35)"/><path d="M10 8.5v7l6-3.5z" fill="#fff"/></svg></div>
+        </div>
         <div class="wiz-video-label">ספורט / אימונים</div>
       </div>
+    </div>
+  </div>
+
+  <!-- ── Marketing video fullscreen lightbox ── -->
+  <div class="wiz-video-modal" id="wiz-video-modal" onclick="if(event.target===this) closeWizVideo()">
+    <div class="wiz-video-modal-inner">
+      <button type="button" class="wiz-video-modal-close" onclick="closeWizVideo()" aria-label="סגור">✕</button>
+      <video id="wiz-video-modal-player" controls playsinline></video>
     </div>
   </div>
 
@@ -1009,6 +1051,28 @@
 
   <script>
     const API = window.location.hostname === 'localhost' ? 'http://localhost:3000/api' : '/api';
+
+    // ── Marketing video lightbox ──
+    function openWizVideo(src) {
+      const modal = document.getElementById('wiz-video-modal');
+      const player = document.getElementById('wiz-video-modal-player');
+      if (!modal || !player) return;
+      player.src = src;
+      modal.classList.add('open');
+      player.currentTime = 0;
+      player.muted = false;
+      player.play().catch(() => {});
+    }
+    function closeWizVideo() {
+      const modal = document.getElementById('wiz-video-modal');
+      const player = document.getElementById('wiz-video-modal-player');
+      if (!modal || !player) return;
+      player.pause();
+      player.removeAttribute('src');
+      player.load();
+      modal.classList.remove('open');
+    }
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeWizVideo(); });
 
     // ── State ──
     let _state = {
