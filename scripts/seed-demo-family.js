@@ -647,7 +647,15 @@ async function main() {
 
       const techRows = [
         { name: 'דורון חשמלאי', company: 'דורון שירותי חשמל', phone: '0521234567', specialty: 'חשמל' },
-        { name: 'אבי מזגנים', company: 'קרירות אבי', phone: '0537654321', specialty: 'מזגן' }
+        { name: 'אבי מזגנים', company: 'קרירות אבי', phone: '0537654321', specialty: 'מזגן' },
+        { name: 'משה אינסטלטור', company: 'מים ומשה', phone: '0541122334', specialty: 'אינסטלציה' },
+        { name: 'רוני תיקוני רכב', company: 'מוסך רוני', phone: '0528899001', specialty: 'רכב' },
+        { name: 'יעל מקררים', company: 'קירור יעל', phone: '0533344556', specialty: 'מקרר/הקפאה' },
+        { name: 'שי תנורים ואפייה', company: 'שי שירות טכני', phone: '0509988776', specialty: 'תנור/אפייה' },
+        { name: 'עומר הנדימן כללי', company: 'הנדימן עומר', phone: '0527766554', specialty: 'כללי' },
+        { name: 'גלית מנעולנית', company: 'מנעולי גלית', phone: '0546677889', specialty: 'אינסטלציה' },
+        { name: 'בני חשמלאי מוסמך', company: 'חשמל בני ובניו', phone: '0512233445', specialty: 'חשמל' },
+        { name: 'טל גינון ותחזוקה', company: 'גינות טל', phone: '0539900112', specialty: 'כללי' }
       ];
       const techIds = [];
       for (const t of techRows) {
@@ -660,10 +668,16 @@ async function main() {
       }
 
       const itemRows = [
-        { name: 'מקרר סמסונג', category: 'מקרר/הקפאה', serial: 'SN-RF-2021', purchase: hmDaysAgo(900), warranty: hmDaysAhead(0 - 30), techIdx: null },
+        { name: 'מקרר סמסונג', category: 'מקרר/הקפאה', serial: 'SN-RF-2021', purchase: hmDaysAgo(900), warranty: hmDaysAhead(0 - 30), techIdx: 4 },
         { name: 'מזגן סלון', category: 'מזגן', serial: 'SN-AC-1180', purchase: hmDaysAgo(400), warranty: hmDaysAhead(330), techIdx: 1 },
-        { name: 'תנור אפייה', category: 'תנור/אפייה', serial: 'SN-OV-0099', purchase: hmDaysAgo(650), warranty: hmDaysAgo(20), techIdx: null },
-        { name: 'רכב משפחתי - מאזדה 3', category: 'רכב', serial: 'SN-CAR-7788', purchase: hmDaysAgo(1200), warranty: null, techIdx: null }
+        { name: 'תנור אפייה', category: 'תנור/אפייה', serial: 'SN-OV-0099', purchase: hmDaysAgo(650), warranty: hmDaysAgo(20), techIdx: 5 },
+        { name: 'רכב משפחתי - מאזדה 3', category: 'רכב', serial: 'SN-CAR-7788', purchase: hmDaysAgo(1200), warranty: null, techIdx: 3 },
+        { name: 'מזגן חדר הורים', category: 'מזגן', serial: 'SN-AC-2290', purchase: hmDaysAgo(250), warranty: hmDaysAhead(480), techIdx: 1 },
+        { name: 'דוד שמש', category: 'אינסטלציה', serial: 'SN-WH-0456', purchase: hmDaysAgo(1500), warranty: null, techIdx: 2 },
+        { name: 'לוח חשמל ראשי', category: 'חשמל', serial: 'SN-EL-1122', purchase: hmDaysAgo(2000), warranty: null, techIdx: 8 },
+        { name: 'מכונת כביסה', category: 'כללי', serial: 'SN-WM-3344', purchase: hmDaysAgo(500), warranty: hmDaysAhead(210), techIdx: 6 },
+        { name: 'מייבש כביסה', category: 'כללי', serial: 'SN-DR-5566', purchase: hmDaysAgo(500), warranty: hmDaysAhead(210), techIdx: 6 },
+        { name: 'מדיח כלים', category: 'כללי', serial: 'SN-DW-7788', purchase: hmDaysAgo(300), warranty: hmDaysAhead(430), techIdx: 6 }
       ];
       const itemIds = [];
       for (const it of itemRows) {
@@ -677,39 +691,81 @@ async function main() {
         bump('equipment_items');
       }
 
-      // תחזוקה: אחת שהושלמה, אחת מתוכננת קדימה (תזכורת פעילה)
-      await client.query(
-        `INSERT INTO equipment_maintenance (equipment_id, group_id, maintenance_type, description, scheduled_date, completed_date, status, cost, technician_name, technician_phone)
-         VALUES ($1,$2,'periodic','ניקוי מסננים וגז',$3,$3,'completed',280,$4,$5)`,
-        [itemIds[1], group.id, hmDaysAgo(60), techRows[1].name, techRows[1].phone]
-      );
-      await client.query(
-        `INSERT INTO equipment_maintenance (equipment_id, group_id, maintenance_type, description, scheduled_date, status, interval_days)
-         VALUES ($1,$2,'periodic','בדיקת תקינות שנתית',$3,'pending',365)`,
-        [itemIds[0], group.id, hmDaysAhead(14)]
-      );
-      bump('equipment_maintenance', 2);
+      // תחזוקה — 10 רשומות: הושלמו/ממתינות/מתוזמנות
+      const maintRows = [
+        { itemIdx: 1, type: 'periodic', desc: 'ניקוי מסננים וגז', days: -60, status: 'completed', cost: 280, techIdx: 1 },
+        { itemIdx: 0, type: 'periodic', desc: 'בדיקת תקינות שנתית', days: 14, status: 'pending', cost: null, techIdx: 4 },
+        { itemIdx: 4, type: 'periodic', desc: 'ניקוי מסננים וגז - חדר הורים', days: -30, status: 'completed', cost: 260, techIdx: 1 },
+        { itemIdx: 5, type: 'periodic', desc: 'בדיקת אלמנט חימום בדוד', days: 21, status: 'pending', cost: null, techIdx: 2 },
+        { itemIdx: 6, type: 'periodic', desc: 'בדיקת לוח חשמל תקופתית', days: -400, status: 'completed', cost: 350, techIdx: 8 },
+        { itemIdx: 2, type: 'repair', desc: 'החלפת גוף חימום בתנור', days: -15, status: 'completed', cost: 420, techIdx: 5 },
+        { itemIdx: 3, type: 'periodic', desc: 'טיפול 10,000 ק"מ', days: 30, status: 'pending', cost: null, techIdx: 3 },
+        { itemIdx: 7, type: 'repair', desc: 'תיקון דליפה במכונת כביסה', days: -10, status: 'completed', cost: 190, techIdx: 6 },
+        { itemIdx: 8, type: 'periodic', desc: 'ניקוי מסנן מייבש', days: 7, status: 'pending', cost: null, techIdx: 6 },
+        { itemIdx: 9, type: 'periodic', desc: 'ניקוי מסנני מדיח', days: -5, status: 'completed', cost: 0, techIdx: 6 }
+      ];
+      for (const m of maintRows) {
+        const tech = techRows[m.techIdx];
+        if (m.status === 'completed') {
+          await client.query(
+            `INSERT INTO equipment_maintenance (equipment_id, group_id, maintenance_type, description, scheduled_date, completed_date, status, cost, technician_name, technician_phone)
+             VALUES ($1,$2,$3,$4,$5,$5,'completed',$6,$7,$8)`,
+            [itemIds[m.itemIdx], group.id, m.type, m.desc, hmDaysAgo(-m.days), m.cost, tech.name, tech.phone]
+          );
+        } else {
+          await client.query(
+            `INSERT INTO equipment_maintenance (equipment_id, group_id, maintenance_type, description, scheduled_date, status, technician_name, technician_phone, interval_days)
+             VALUES ($1,$2,$3,$4,$5,'pending',$6,$7,365)`,
+            [itemIds[m.itemIdx], group.id, m.type, m.desc, hmDaysAhead(m.days), tech.name, tech.phone]
+          );
+        }
+        bump('equipment_maintenance');
+      }
 
-      // תקלות: אחת פתוחה (דחופה), אחת טופלה
-      await client.query(
-        `INSERT INTO equipment_faults (equipment_id, group_id, title, description, severity, status)
-         VALUES ($1,$2,'תנור לא מתחמם כראוי','התנור לוקח הרבה זמן להגיע לטמפרטורה, ייתכן תקלה בגוף חימום','high','open')`,
-        [itemIds[2], group.id]
-      );
-      await client.query(
-        `INSERT INTO equipment_faults (equipment_id, group_id, title, description, severity, status, resolved_date, resolution_notes)
-         VALUES ($1,$2,'מזגן מרעיש בהפעלה','רעש קליקים בהפעלה ראשונית','low','resolved',$3,'התברר כאוויר בצנרת - טופל בבדיקת השירות התקופתית')`,
-        [itemIds[1], group.id, hmDaysAgo(55)]
-      );
-      bump('equipment_faults', 2);
+      // תקלות — 10 רשומות: פתוחות/בטיפול/טופלו, חומרות מגוונות
+      const faultRows = [
+        { itemIdx: 2, title: 'תנור לא מתחמם כראוי', desc: 'התנור לוקח הרבה זמן להגיע לטמפרטורה, ייתכן תקלה בגוף חימום', severity: 'high', status: 'open' },
+        { itemIdx: 1, title: 'מזגן מרעיש בהפעלה', desc: 'רעש קליקים בהפעלה ראשונית', severity: 'low', status: 'resolved', resDays: -55, resNotes: 'התברר כאוויר בצנרת - טופל בבדיקת השירות התקופתית' },
+        { itemIdx: 6, title: 'נתיך קופץ בחדר הכביסה', desc: 'הנתיך הראשי קופץ כשמפעילים כביסה ומזגן יחד', severity: 'high', status: 'open' },
+        { itemIdx: 5, title: 'מים פושרים בלבד', desc: 'דוד השמש לא מספק מים חמים מספיק בימים מעוננים', severity: 'medium', status: 'open' },
+        { itemIdx: 3, title: 'חריקה בבלמים', desc: 'חריקה קלה בבלימה, נשמעת בעיקר במהירות נמוכה', severity: 'medium', status: 'resolved', resDays: -20, resNotes: 'הוחלפו רפידות בלם במוסך' },
+        { itemIdx: 7, title: 'מכונת כביסה מרעידה חזק', desc: 'רעידות חזקות בסחיטה, ייתכן חוסר איזון', severity: 'medium', status: 'in_progress' },
+        { itemIdx: 0, title: 'איטום דלת מקרר רופף', desc: 'הגומייה סביב הדלת לא אוטמת היטב', severity: 'low', status: 'open' },
+        { itemIdx: 9, title: 'מדיח לא מייבש כלים', desc: 'הכלים יוצאים רטובים בסוף המחזור', severity: 'low', status: 'resolved', resDays: -8, resNotes: 'התברר מחסור במלח למדיח - טופל' },
+        { itemIdx: 4, title: 'טפטוף מהמזגן', desc: 'טפטוף מים קל מיחידת המזגן בחדר ההורים', severity: 'medium', status: 'open' },
+        { itemIdx: 8, title: 'מייבש לא מסיים ייבוש', desc: 'הבגדים יוצאים לחים בסוף התוכנית', severity: 'medium', status: 'in_progress' }
+      ];
+      for (const f of faultRows) {
+        if (f.status === 'resolved') {
+          await client.query(
+            `INSERT INTO equipment_faults (equipment_id, group_id, title, description, severity, status, resolved_date, resolution_notes)
+             VALUES ($1,$2,$3,$4,$5,'resolved',$6,$7)`,
+            [itemIds[f.itemIdx], group.id, f.title, f.desc, f.severity, hmDaysAgo(-f.resDays), f.resNotes]
+          );
+        } else {
+          await client.query(
+            `INSERT INTO equipment_faults (equipment_id, group_id, title, description, severity, status)
+             VALUES ($1,$2,$3,$4,$5,$6)`,
+            [itemIds[f.itemIdx], group.id, f.title, f.desc, f.severity, f.status]
+          );
+        }
+        bump('equipment_faults');
+      }
 
-      // השאלת ציוד לשכן
-      await client.query(
-        `INSERT INTO equipment_loans (equipment_id, group_id, borrower_name, borrower_phone, loaned_at, notes)
-         VALUES ($1,$2,'יונתן השכן','0541112233',$3,'השאלת סולם לצורך תלייה')`,
-        [itemIds[3], group.id, hmDaysAgo(5)]
-      );
-      bump('equipment_loans');
+      // השאלות ציוד — 3 (לא נדרש 10, פיצ'ר משני)
+      const loanRows = [
+        { itemIdx: 3, borrower: 'יונתן השכן', phone: '0541112233', days: 5, notes: 'השאלת סולם לצורך תלייה', returned: false },
+        { itemIdx: 6, borrower: 'משפחת אברג׳יל', phone: '0528765432', days: 20, notes: 'השאלת מברג חשמלי', returned: true },
+        { itemIdx: 7, borrower: 'אורית מהבניין', phone: '0537651234', days: 2, notes: 'השאלת מגהץ קיטור', returned: false }
+      ];
+      for (const l of loanRows) {
+        await client.query(
+          `INSERT INTO equipment_loans (equipment_id, group_id, borrower_name, borrower_phone, loaned_at, returned_at, notes)
+           VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+          [itemIds[l.itemIdx], group.id, l.borrower, l.phone, hmDaysAgo(l.days), l.returned ? hmDaysAgo(l.days - 3) : null, l.notes]
+        );
+        bump('equipment_loans');
+      }
 
       await client.query('COMMIT');
       console.log('✓ SECTION J (ניהול הבית: ציוד/תחזוקה/תקלות/אנשי קשר/השאלות) הושלם בהצלחה');
@@ -733,7 +789,13 @@ async function main() {
         { user: parentUsers[0], amount: 4500, desc: 'שכירות דירה', cat: 'דיור', type: 'expense' },
         { user: parentUsers[1], amount: 420, desc: 'ביטוח רכב חודשי', cat: 'תחבורה ודלק', type: 'expense' },
         { user: parentUsers[0], amount: 150, desc: 'מנוי חדר כושר', cat: 'בריאות וספורט', type: 'expense' },
-        { user: parentUsers[1], amount: 300, desc: 'קצבת ילדים (ביטוח לאומי)', cat: 'קצבאות', type: 'income' }
+        { user: parentUsers[1], amount: 300, desc: 'קצבת ילדים (ביטוח לאומי)', cat: 'קצבאות', type: 'income' },
+        { user: parentUsers[0], amount: 220, desc: 'ביטוח בריאות משלים', cat: 'בריאות וספורט', type: 'expense' },
+        { user: parentUsers[1], amount: 180, desc: 'ארנונה חודשית', cat: 'דיור', type: 'expense' },
+        { user: parentUsers[0], amount: 99, desc: 'מנוי סטרימינג (טלוויזיה+סרטים)', cat: 'בילויים ופנאי', type: 'expense' },
+        { user: parentUsers[1], amount: 250, desc: 'חוג כדורגל - עומר', cat: 'חוגים לילדים', type: 'expense' },
+        { user: parentUsers[0], amount: 200, desc: 'חוג בלט - נויה', cat: 'חוגים לילדים', type: 'expense' },
+        { user: parentUsers[1], amount: 12500, desc: 'משכורת חודשית', cat: 'עסק', type: 'income' }
       ];
       for (const r of recurringRows) {
         await client.query(
