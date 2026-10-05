@@ -11227,57 +11227,85 @@ app.delete('/api/transaction/:id', verifyFamily, async (req, res) => {
 // --- LOANS ENDPOINTS ---
 // ============================================================
 
-app.get('/api/loans', async (req, res) => {
+app.get('/api/loans', verifyFamilyOrBiz, async (req, res) => {
     try {
-        const loans = await pool.query('SELECT l.*, u.nickname FROM loans l JOIN users u ON l.user_id = u.id WHERE l.group_id=$1 ORDER BY l.created_at DESC', [req.query.groupId]);
+        const loans = await pool.query('SELECT l.*, u.nickname FROM loans l JOIN users u ON l.user_id = u.id WHERE l.group_id=$1 ORDER BY l.created_at DESC', [req.callerAuth.groupId]);
         res.json(loans.rows);
-    } catch(e) { res.status(500).json({error: e.message}); }
+    } catch(e) { res.status(500).json({error: 'שגיאה פנימית'}); }
 });
 
-app.post('/api/loans/request', async (req, res) => {
+app.post('/api/loans/request', verifyFamilyOrBiz, async (req, res) => {
     try {
-        const { userId, amount, reason, groupId } = req.body;
-        await pool.query('INSERT INTO loans (user_id, group_id, original_amount, remaining_amount, reason) VALUES ($1, $2, $3, $4, $5)', [userId, groupId, parseFloat(amount)||0, parseFloat(amount)||0, reason]);
+        const { amount, reason } = req.body;
+        const amt = Math.max(0.01, parseFloat(amount) || 0);
+        const safeReason = String(reason || '').trim().substring(0, 300);
+        await pool.query('INSERT INTO loans (user_id, group_id, original_amount, remaining_amount, reason) VALUES ($1, $2, $3, $4, $5)', [req.callerAuth.userId, req.callerAuth.groupId, amt, amt, safeReason]);
         res.json({success:true});
-    } catch(e) { res.status(500).json({error: e.message}); }
+    } catch(e) { res.status(500).json({error: 'שגיאה פנימית'}); }
 });
 
-app.post('/api/loans/approve', async (req, res) => {
+app.post('/api/loans/approve', verifyFamilyOrBiz, async (req, res) => {
     try {
-        const { loanId, userId, amount, adminId } = req.body;
-        const l = await pool.query('SELECT group_id FROM loans WHERE id=$1', [loanId]);
+        if (req.callerAuth.role !== 'ADMIN') return res.status(403).json({ error: 'נדרשת הרשאת מנהל' });
+        const { loanId } = req.body;
+        const l = await pool.query('SELECT group_id, user_id, original_amount, status FROM loans WHERE id=$1', [loanId]);
+        if (l.rows.length === 0) return res.status(404).json({ error: 'הלוואה לא נמצאה' });
+        if (l.rows[0].group_id !== req.callerAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
+        if (l.rows[0].status !== 'pending') return res.status(400).json({ error: 'הלוואה זו כבר טופלה' });
+        const { user_id: borrowerId, group_id: groupId, original_amount: amount } = l.rows[0];
         await pool.query('UPDATE loans SET status=$1 WHERE id=$2', ['approved', loanId]);
-        await pool.query('UPDATE users SET balance = balance + $1 WHERE id=$2', [parseFloat(amount)||0, userId]);
-        await pool.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type) VALUES ($1, $2, $3, 'הלוואה / מקדמה אושרה', 'other', 'income')`, [userId, l.rows[0].group_id, parseFloat(amount)||0]);
+        await pool.query('UPDATE users SET balance = balance + $1 WHERE id=$2', [amount, borrowerId]);
+        await pool.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type) VALUES ($1, $2, $3, 'הלוואה / מקדמה אושרה', 'other', 'income')`, [borrowerId, groupId, amount]);
         res.json({success:true});
-    } catch(e) { res.status(500).json({error: e.message}); }
+    } catch(e) { res.status(500).json({error: 'שגיאה פנימית'}); }
 });
 
-app.post('/api/loans/reject', async (req, res) => {
-    try { await pool.query('UPDATE loans SET status=$1 WHERE id=$2', ['rejected', req.body.loanId]); res.json({success:true}); } catch(e) { res.status(500).json({error: e.message}); }
+app.post('/api/loans/reject', verifyFamilyOrBiz, async (req, res) => {
+    try {
+        if (req.callerAuth.role !== 'ADMIN') return res.status(403).json({ error: 'נדרשת הרשאת מנהל' });
+        const l = await pool.query('SELECT group_id FROM loans WHERE id=$1', [req.body.loanId]);
+        if (l.rows.length === 0) return res.status(404).json({ error: 'הלוואה לא נמצאה' });
+        if (l.rows[0].group_id !== req.callerAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
+        await pool.query('UPDATE loans SET status=$1 WHERE id=$2', ['rejected', req.body.loanId]);
+        res.json({success:true});
+    } catch(e) { res.status(500).json({error: 'שגיאה פנימית'}); }
 });
 
 // ============================================================
 // --- GOALS ENDPOINTS ---
 // ============================================================
 
-app.post('/api/goals', async (req, res) => {
+app.post('/api/goals', verifyFamilyOrBiz, async (req, res) => {
     try {
-        const { userId, targetUserId, title, target, groupId } = req.body;
-        await pool.query('INSERT INTO goals (user_id, target_user_id, title, target_amount) VALUES ($1, $2, $3, $4)', [userId, targetUserId || null, title, parseFloat(target)||0]);
+        const { targetUserId, title, target } = req.body;
+        const safeTitle = String(title || '').trim().substring(0, 150);
+        let finalTargetUserId = null;
+        if (targetUserId) {
+            if (req.callerAuth.role !== 'ADMIN') return res.status(403).json({ error: 'נדרשת הרשאת מנהל' });
+            const tCheck = await pool.query('SELECT id FROM users WHERE id=$1 AND group_id=$2', [targetUserId, req.callerAuth.groupId]);
+            if (tCheck.rows.length === 0) return res.status(404).json({ error: 'משתמש לא נמצא בקבוצה' });
+            finalTargetUserId = targetUserId;
+        }
+        await pool.query('INSERT INTO goals (user_id, target_user_id, title, target_amount) VALUES ($1, $2, $3, $4)', [req.callerAuth.userId, finalTargetUserId, safeTitle, Math.max(0, parseFloat(target)||0)]);
         res.json({success:true});
-    } catch(e) { res.status(500).json({error: e.message}); }
+    } catch(e) { res.status(500).json({error: 'שגיאה פנימית'}); }
 });
 
-app.post('/api/goals/deposit', async (req, res) => {
+app.post('/api/goals/deposit', verifyFamilyOrBiz, async (req, res) => {
     try {
-        const { userId, goalId, amount, groupId } = req.body;
+        const { goalId, amount } = req.body;
+        const amt = Math.max(0.01, parseFloat(amount) || 0);
+        const userId = req.callerAuth.userId;
+        const groupId = req.callerAuth.groupId;
+        const gCheck = await pool.query('SELECT user_id FROM goals WHERE id=$1 AND user_id IN (SELECT id FROM users WHERE group_id=$2)', [goalId, groupId]);
+        if (gCheck.rows.length === 0) return res.status(404).json({ error: 'יעד לא נמצא' });
         await pool.query('BEGIN');
-        await pool.query('UPDATE users SET balance = balance - $1 WHERE id=$2', [parseFloat(amount)||0, userId]);
-        const g = await pool.query('UPDATE goals SET current_amount = current_amount + $1 WHERE id=$2 RETURNING title', [parseFloat(amount)||0, goalId]);
-        await pool.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type) VALUES ($1, $2, $3, $4, 'savings', 'expense')`, [userId, groupId, parseFloat(amount)||0, 'הפקדה ליעד: ' + g.rows[0].title]);
+        const balRes = await pool.query('UPDATE users SET balance = balance - $1 WHERE id=$2 AND balance >= $1 RETURNING balance', [amt, userId]);
+        if (balRes.rows.length === 0) { await pool.query('ROLLBACK'); return res.status(400).json({ error: 'אין יתרה מספיקה' }); }
+        const g = await pool.query('UPDATE goals SET current_amount = current_amount + $1 WHERE id=$2 RETURNING title', [amt, goalId]);
+        await pool.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type) VALUES ($1, $2, $3, $4, 'savings', 'expense')`, [userId, groupId, amt, 'הפקדה ליעד: ' + g.rows[0].title]);
         await pool.query('COMMIT'); res.json({success:true});
-    } catch(e) { await pool.query('ROLLBACK'); res.status(500).json({error: e.message}); }
+    } catch(e) { await pool.query('ROLLBACK'); res.status(500).json({error: 'שגיאה פנימית'}); }
 });
 
 // ============================================================
@@ -11510,7 +11538,7 @@ app.post('/api/admin/adjust-balance', verifyFamily, async (req, res) => {
         );
         await logActivity(adminGroupId, childId || null, null, 'finance', 'balance_adjust', `הפרשת דמי כיס: ₪${amount} — ${reason || ''}`);
         res.json({ success: true });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch(e) { res.status(500).json({ error: 'שגיאה פנימית' }); }
 });
 
 app.get('/api/admin/audit-log', verifyFamily, async (req, res) => {
@@ -11528,21 +11556,25 @@ app.get('/api/admin/audit-log', verifyFamily, async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/admin/update-settings', async (req, res) => {
+app.post('/api/admin/update-settings', verifyFamilyOrBiz, async (req, res) => {
     try {
+        if (req.callerAuth.role !== 'ADMIN') return res.status(403).json({ error: 'נדרשת הרשאת מנהל' });
         const { userId, allowance, interest, baseSalary } = req.body;
+        const uCheck = await pool.query('SELECT id FROM users WHERE id=$1 AND group_id=$2', [userId, req.callerAuth.groupId]);
+        if (uCheck.rows.length === 0) return res.status(404).json({ error: 'משתמש לא נמצא בקבוצה' });
         if (baseSalary !== undefined) {
-            await pool.query('UPDATE users SET allowance_amount=$1, interest_rate=$2, base_salary=$3 WHERE id=$4', [parseFloat(allowance)||0, parseFloat(interest)||0, parseFloat(baseSalary)||0, userId]);
+            await pool.query('UPDATE users SET allowance_amount=$1, interest_rate=$2, base_salary=$3 WHERE id=$4', [Math.max(0, parseFloat(allowance)||0), Math.max(0, parseFloat(interest)||0), Math.max(0, parseFloat(baseSalary)||0), userId]);
         } else {
-            await pool.query('UPDATE users SET allowance_amount=$1, interest_rate=$2 WHERE id=$3', [parseFloat(allowance)||0, parseFloat(interest)||0, userId]);
+            await pool.query('UPDATE users SET allowance_amount=$1, interest_rate=$2 WHERE id=$3', [Math.max(0, parseFloat(allowance)||0), Math.max(0, parseFloat(interest)||0), userId]);
         }
         res.json({success:true});
-    } catch(e) { res.status(500).json({error: e.message}); }
+    } catch(e) { res.status(500).json({error: 'שגיאה פנימית'}); }
 });
 
-app.post('/api/admin/payday', async (req, res) => {
+app.post('/api/admin/payday', verifyFamilyOrBiz, async (req, res) => {
     try {
-        const { groupId } = req.body;
+        if (req.callerAuth.role !== 'ADMIN') return res.status(403).json({ error: 'נדרשת הרשאת מנהל' });
+        const groupId = req.callerAuth.groupId;
         const users = await pool.query(`SELECT id, allowance_amount, interest_rate, balance FROM users WHERE group_id=$1 AND status='active' AND role != 'ADMIN'`, [groupId]);
         let totalDistributed = 0;
         await pool.query('BEGIN');
@@ -11558,7 +11590,7 @@ app.post('/api/admin/payday', async (req, res) => {
             }
         }
         await pool.query('COMMIT'); res.json({success:true, totalDistributed});
-    } catch(e) { await pool.query('ROLLBACK'); res.status(500).json({error: e.message}); }
+    } catch(e) { await pool.query('ROLLBACK'); res.status(500).json({error: 'שגיאה פנימית'}); }
 });
 
 // ============================================================
@@ -12222,9 +12254,10 @@ app.post('/api/ai/generate-image', async (req, res) => {
         res.json({ success: false, error: 'שגיאה ביצירת תמונה: ' + (e.message || 'נסה שוב.') });
     }
 });
-app.post('/api/goals/familai-advice', async (req, res) => {
+app.post('/api/goals/familai-advice', verifyFamilyOrBiz, async (req, res) => {
     try {
-        const { userId, goalId, groupId } = req.body;
+        const { userId, goalId } = req.body;
+        const groupId = req.callerAuth.groupId;
         const hasTokens = await handleAITokens(groupId);
         if(!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
         if (!getGenAIInstance()) throw new Error('GEMINI_API_KEY is not set');
@@ -12232,8 +12265,8 @@ app.post('/api/goals/familai-advice', async (req, res) => {
         const gRes = await pool.query('SELECT type FROM family_groups WHERE id=$1', [groupId]);
         const gType = gRes.rows.length > 0 ? gRes.rows[0].type : 'FAMILY';
 
-        const userRes = await pool.query('SELECT nickname, birth_year, balance, allowance_amount FROM users WHERE id=$1', [userId]);
-        const goalRes = await pool.query('SELECT title, target_amount, current_amount FROM goals WHERE id=$1', [goalId]);
+        const userRes = await pool.query('SELECT nickname, birth_year, balance, allowance_amount FROM users WHERE id=$1 AND group_id=$2', [userId, groupId]);
+        const goalRes = await pool.query('SELECT title, target_amount, current_amount FROM goals WHERE id=$1 AND user_id IN (SELECT id FROM users WHERE group_id=$2)', [goalId, groupId]);
         if (userRes.rows.length === 0 || goalRes.rows.length === 0) throw new Error('Data not found');
         const user = userRes.rows[0]; const goal = goalRes.rows[0]; const age = calculateAge(user.birth_year);
         

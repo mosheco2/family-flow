@@ -282,6 +282,12 @@ Feed/תזרים עסקי) — אותם endpoints בדיוק, מוגנים כעת
 
 ### 3.2 בנק משפחתי (`content-bank`)
 
+> עודכן: 2026-10 | אומת מול קוד בפועל (server.js + public/app.js + public/business-app.js)
+> כחלק מתהליך אפיון עומק.
+> **נכון לגרסה שלפני אוקטובר 2026 — 8 מתוך 9 ה-endpoints של המודול (כל חלקי ההלוואות
+> והיעדים, update-settings ו-payday) היו ללא כל אימות, כולל אפשרות להזרים כסף שרירותי
+> לכל משתמש באמצעות "אישור הלוואה".** כולם תוקנו, מתועד למטה.
+
 **מטרה:** ניהול חשבונות ילדים, דמי כיס, הלוואות ויעדי חיסכון.
 
 **תצוגת ADMIN (`bank-admin-view`):**
@@ -302,19 +308,74 @@ Feed/תזרים עסקי) — אותם endpoints בדיוק, מוגנים כעת
 - **יעדים שלי** (`#my-goals-container`) — radial progress per goal
 - **הלוואות שלי** (`#my-loans-list`)
 
+**הרשאות (אומת בפועל לאחר התיקון):** `payday`, `loans/approve`, `loans/reject`,
+`admin/update-settings` ו-`admin/adjust-balance` — ADMIN בלבד, נאכף בשרת. בקשת הלוואה
+והפקדה ליעד — כל חבר קבוצה מחובר, לגבי עצמו בלבד (`userId` נגזר מהסשן, לא מהבקשה).
+יצירת יעד עבור משתמש אחר (`targetUserId`) — ADMIN בלבד.
+
 **API Endpoints:**
 | Method | Path | תיאור |
 |---|---|---|
-| POST | `/api/admin/payday` | ביצוע PayDay |
-| GET | `/api/loans` | שליפת הלוואות |
-| POST | `/api/loans/request` | בקשת הלוואה |
-| POST | `/api/loans/approve` | אישור הלוואה |
-| POST | `/api/loans/reject` | דחיית הלוואה |
-| POST | `/api/goals` | יצירת יעד חיסכון |
-| POST | `/api/goals/deposit` | הפקדה ליעד |
+| POST | `/api/admin/payday` | ביצוע PayDay — ADMIN בלבד |
+| GET | `/api/loans` | שליפת הלוואות של הקבוצה |
+| POST | `/api/loans/request` | בקשת הלוואה (לעצמי) |
+| POST | `/api/loans/approve` | אישור הלוואה — ADMIN בלבד, לפי סכום ההלוואה בפועל |
+| POST | `/api/loans/reject` | דחיית הלוואה — ADMIN בלבד |
+| POST | `/api/goals` | יצירת יעד חיסכון (לעצמי, או לילד — ADMIN בלבד) |
+| POST | `/api/goals/deposit` | הפקדה ליעד (מהיתרה של המפקיד) |
 | POST | `/api/goals/familai-advice` | ייעוץ AI ליעד |
-| POST | `/api/admin/adjust-balance` | התאמת יתרה ידנית |
-| POST | `/api/admin/update-settings` | עדכון הגדרות דמי כיס/ריבית |
+| POST | `/api/admin/adjust-balance` | התאמת יתרה ידנית — ADMIN בלבד |
+| POST | `/api/admin/update-settings` | עדכון הגדרות דמי כיס/ריבית — ADMIN בלבד |
+
+**הערה היסטורית (תועד למען שקיפות)**: עד לתיקון —
+1. **8 מתוך 9 ה-endpoints — ללא כל middleware אימות** (היחיד שהיה תקין מראש:
+   `admin/adjust-balance`, עם `verifyFamily` + בדיקת role + בדיקת שהילד שייך לקבוצה —
+   שימש כמודל לתיקון השאר). תוקן: נוספה `verifyFamilyOrBiz` לכל 8 ה-endpoints, עם
+   `groupId`/`userId` הנלקחים אך ורק מ-`req.callerAuth`.
+2. **`POST /api/loans/approve` — הממצא הקריטי ביותר במודול.** ללא אימות וללא בדיקת role
+   כלל, וה-`amount` וה-`userId` שהוזרמו ישירות ל-`balance = balance + amount` הגיעו
+   **מגוף הבקשה**, ללא קשר לסכום ההלוואה האמיתי או לזהות הלווה — איפשר לכל תוקף אנונימי
+   להזרים כסף שרירותי לכל חשבון, ולהזרים אותו שוב ושוב על ידי קריאה חזרתית לאותו
+   `loanId` (ללא בדיקת `status`, היה ניתן "לאשר" הלוואה שאושרה/נדחתה כבר שוב ושוב).
+   תוקן: נדרש role=ADMIN, אימות שההלוואה שייכת לקבוצת המתקשר ובמצב `pending`, וה-
+   `amount`/`userId` נלקחים כעת מרשומת ההלוואה בפועל (`original_amount`/`user_id`
+   מה-DB) ולא מהבקשה.
+3. **`POST /api/loans/reject`** — היה ללא אימות כלל, כל תוקף יכול היה לדחות כל הלוואה
+   בכל משפחה. תוקן: ADMIN + בדיקת שייכות לקבוצה.
+4. **`GET /api/loans`, `POST /api/loans/request`, `POST /api/goals`** — `groupId`/
+   `userId` נלקחו מהבקשה, מה שאיפשר קריאת הלוואות של משפחה זרה, ופתיחת בקשת הלוואה/יעד
+   חיסכון בשם כל משתמש בכל קבוצה. תוקן: `userId`/`groupId` מה-session בלבד; יצירת יעד
+   עם `targetUserId` (עבור ילד) דורשת כעת ADMIN ובדיקה שהילד שייך לקבוצה.
+5. **`POST /api/goals/deposit`** — הפחתת היתרה (`balance - amount`) ללא בדיקת יתרה
+   מספקת (יתרה יכולה לרדת לשלילי), ו-`userId` שרירותי מהבקשה (ניתן "להפקיד" מהיתרה של
+   כל משתמש אחר). תוקן: הפחתה אטומית עם `WHERE balance >= $1` (401/400 אם אין כיסוי),
+   `userId` מה-session בלבד, ובדיקה שהיעד שייך לקבוצת המתקשר.
+6. **`POST /api/goals/familai-advice`** — `userId`/`groupId` מהבקשה איפשרו דליפת מידע
+   אישי (יתרה, דמי כיס, שנת לידה) של משתמש בכל קבוצה דרך תשובת ה-AI, וניצול מכסת
+   ה-AI-tokens של משפחה זרה. תוקן: `groupId` מה-session, ו-`userId`/`goalId` מאומתים
+   כשייכים לאותה קבוצה לפני שליפת הנתונים.
+7. **`POST /api/admin/update-settings`, `POST /api/admin/payday`** — ללא אימות וללא
+   בדיקת role, איפשרו לכל תוקף לשנות דמי כיס/ריבית/שכר בסיס של כל משתמש, ולהפעיל חלוקת
+   דמי כיס+ריבית לכל ילדי קבוצה כלשהי, ללא הגבלה וללא cooldown. תוקן: ADMIN בלבד,
+   `groupId` מה-session, ו-`update-settings` בודק גם ש-`userId` שייך לקבוצת המתקשר.
+8. **Stored XSS** — `title`/`reason`/`nickname`/`owner_name` הוצגו עם `safeStr` (מגן רק
+   על מרכאות) במקום `escHtml` בתוכן HTML, ב-`fetchGoals`/`fetchLoans` (אזורי ADMIN
+   ו-CHILD) ובהודעת האישור של `ADJUST_BALANCE` ב-familAI actions — בשתי הסביבות
+   app.js/business-app.js. בשילוב עם סעיפים #2/#4 (לפני התיקון ניתן היה ליצור הלוואה/יעד
+   בשם כל משתמש) זה איפשר הזרקת סקריפט. תוקן ל-`escHtml` בכל מקומות התצוגה (השימוש
+   היחיד שנשאר ב-`safeStr` הוא ארגומנט מוגן-מרכאות בתוך `onclick`, שם זה השימוש הנכון).
+9. דליפת `e.message` גולמי בכל 9 ה-endpoints (מלבד `familai-advice` שהשתמש ב-
+   `handleAIError`) — תוקן להודעות עבריות כלליות.
+10. אין ולידציה על סכומים שליליים בבקשת הלוואה/יעד — תוקן ל-`Math.max(...)`; אורך
+    `reason`/`title` הוגבל (300/150 תווים בהתאמה).
+11. **עדכון client נדרש בשתי הסביבות** — כל קריאות ה-`fetch` הרלוונטיות ב-`app.js`
+    הומרו ל-`communityFetch`, וב-`business-app.js` נוסף `Authorization` header עם
+    `window._bizToken`, כולל ל-`admin/adjust-balance` שלא שלח טוקן כלל קודם (אף שהשרת
+    כבר דרש `verifyFamily`) — ייתכן שהקריאה נכשלה בפרקטיקה לפני תיקון זה.
+
+**מגבלות ידועות (לא תוקנו — תועד בלבד)**: אין הגבלת cooldown על `admin/payday` ברמת
+ה-DB (רק הרשאת ADMIN) — הפעלה חזרתית על ידי ADMIN עצמו (לא תוקף) תחלק דמי כיס שוב;
+החלטה עסקית/UX ולא תיקון אבטחה.
 
 ---
 
