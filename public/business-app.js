@@ -6060,7 +6060,7 @@ window.renderRestaurantPendingOrders = async function() {
                 ? '<span class="text-[9px] font-black text-orange-600 bg-orange-100 px-1.5 py-0.5 rounded-full ml-1">🛵 משלוח</span>'
                 : '<span class="text-[9px] font-black text-blue-600 bg-blue-100 px-1.5 py-0.5 rounded-full ml-1">🚗 איסוף</span>';
             const shukaBadge = r.orderSource === 'community_campaign'
-                ? `<span class="text-[9px] font-black text-purple-700 bg-purple-100 px-1.5 py-0.5 rounded-full ml-1">🛒 שוקה${r.campaignTitle ? ' · ' + safeStr(r.campaignTitle) : ''}</span>`
+                ? `<span class="text-xs font-black text-purple-700 bg-purple-100 px-2.5 py-1 rounded-lg border border-purple-300 ml-1">🛒 שוקה${r.campaignTitle ? ' · ' + safeStr(r.campaignTitle) : ''}</span>`
                 : '';
             const totalStr = r.totalAmount ? `<span class="text-[10px] font-black text-green-700 ml-1">₪${parseFloat(r.totalAmount).toFixed(0)}</span>` : '';
             return `<div class="flex items-start gap-2 px-4 py-3">
@@ -15601,7 +15601,7 @@ window.renderStoreOrders = function() {
         const meta = getDeliveryMeta(o);
         const isDelivery = (o.is_delivery == 1 || o.is_delivery === true || o.is_delivery === 'true' || meta);
         const deliveryTag = isDelivery ? '<span class="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-lg border border-slate-200 ml-1"><i class="fa-solid fa-motorcycle"></i> משלוח</span>' : '<span class="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-lg border border-slate-200 ml-1"><i class="fa-solid fa-person-walking"></i> איסוף</span>';
-        const srcTag = o.order_source === 'table' ? '<span class="text-[10px] bg-violet-50 text-violet-600 px-2 py-0.5 rounded-lg border border-violet-200 ml-1">🍽️ שולחן</span>' : o.order_source === 'community_campaign' ? '<span class="text-[10px] bg-amber-50 text-amber-600 px-2 py-0.5 rounded-lg border border-amber-200 ml-1">🛒 שוקה</span>' : '<span class="text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded-lg border border-blue-200 ml-1">🌐 אתר</span>';
+        const srcTag = o.order_source === 'table' ? '<span class="text-[10px] bg-violet-50 text-violet-600 px-2 py-0.5 rounded-lg border border-violet-200 ml-1">🍽️ שולחן</span>' : o.order_source === 'community_campaign' ? `<span class="text-xs font-black bg-amber-100 text-amber-700 px-2.5 py-1 rounded-lg border border-amber-300 ml-1">🛒 שוקה${o.campaign_title ? ' · ' + safeStr(o.campaign_title) : ''}</span>` : '<span class="text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded-lg border border-blue-200 ml-1">🌐 אתר</span>';
         const promoTag = o.community_promo_code ? `<span class="text-[10px] bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-lg border border-emerald-200 ml-1 font-bold"><i class="fa-solid fa-tag"></i> קוד: ${safeStr(o.community_promo_code)}</span>` : '';
         
         let deliveryData = {};

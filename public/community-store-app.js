@@ -625,6 +625,8 @@
             cart = [];
             updateCartBadges();
             setPanelState('done');
+            const doneSub = document.getElementById('done-sub');
+            if (doneSub && data.orderId) doneSub.textContent = `מספר הזמנה #${data.orderId} — ניתן לאסוף מהעסק בהתאם לתיאום`;
         } catch(e) {
             csToast('שגיאת תקשורת, נסו שנית');
             btn.disabled = false; btn.textContent = 'שלח הזמנה';
