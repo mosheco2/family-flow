@@ -19000,6 +19000,51 @@ app.post('/api/zone-manager/community-campaigns/:id/products/review', verifyZone
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// ============================================================
+// --- "שוקה": אזור פיקוח ב-Super Admin (חוצה קהילות/אזורים) ---
+// ============================================================
+
+// טבלה גלובלית של כל קמפייני השוק בכל הקהילות, עם מדדים
+app.get('/api/sa/shuka/campaigns', verifySA, async (req, res) => {
+    try {
+        const { search, status, communityId } = req.query;
+        const params = [];
+        let where = '1=1';
+        if (search) { params.push(`%${search}%`); where += ` AND (cc.title ILIKE $${params.length} OR c.name ILIKE $${params.length})`; }
+        if (status) { params.push(status); where += ` AND cc.status = $${params.length}`; }
+        if (communityId) { params.push(communityId); where += ` AND cc.community_id = $${params.length}`; }
+
+        const rows = await pool.query(
+            `SELECT cc.id, cc.title, cc.code, cc.status, cc.start_at, cc.end_at, cc.recurrence, cc.created_at,
+                    c.id AS community_id, c.name AS community_name, c.city,
+                    mz.id AS zone_id, mz.name AS zone_name,
+                    (SELECT COUNT(*) FROM community_campaign_businesses WHERE campaign_id=cc.id) AS business_count,
+                    (SELECT COUNT(*) FROM community_campaign_products WHERE campaign_id=cc.id AND approval_status='approved') AS product_count,
+                    (SELECT COUNT(*) FROM community_campaign_products WHERE campaign_id=cc.id AND approval_status='pending') AS pending_product_count,
+                    (SELECT COUNT(*) FROM community_campaign_requests WHERE campaign_id=cc.id AND status='pending') AS pending_request_count,
+                    (SELECT COUNT(*) FROM store_orders WHERE campaign_id=cc.id) AS order_count,
+                    (SELECT COALESCE(SUM(total_amount),0) FROM store_orders WHERE campaign_id=cc.id AND status != 'quote') AS gmv
+             FROM community_campaigns cc
+             JOIN communities c ON c.id = cc.community_id
+             LEFT JOIN manager_zones mz ON mz.id = c.zone_id
+             WHERE ${where}
+             ORDER BY cc.created_at DESC`,
+            params);
+        res.json({ success: true, campaigns: rows.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// השעיה/הפעלה מחדש ישירה של שוק ע"י SA (ללא תלות במנהל האזור/קהילה)
+app.post('/api/sa/shuka/campaigns/:id/status', verifySA, async (req, res) => {
+    try {
+        const { status } = req.body;
+        if (!['active', 'suspended'].includes(status)) return res.status(400).json({ error: 'סטטוס לא תקין' });
+        const upd = await pool.query(`UPDATE community_campaigns SET status=$1 WHERE id=$2 RETURNING *`, [status, req.params.id]);
+        if (!upd.rows.length) return res.status(404).json({ error: 'קמפיין לא נמצא' });
+        res.json({ success: true, campaign: upd.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // ── "שוקה": בקשות הצטרפות/הזמנות עסקים לקמפיין (זורם דרך community_campaign_requests) ──
 
 // תור בקשות הצטרפות ממתינות (ביוזמת העסק) לקמפיין

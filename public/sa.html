@@ -1223,6 +1223,40 @@ button[id^="vtnav-"][style*="4f46e5"],button[id^="vtnav-"][style*="79, 70, 229"]
 
                 </div><!-- /sa-view-finance -->
 
+                <div id="sa-view-shuka" class="hidden space-y-5 fade-in">
+                    <div class="sa-table-card p-5 sm:p-6">
+                        <h2 class="text-xl font-black text-slate-800 flex items-center gap-2 mb-4"><i class="fa-solid fa-store-alt text-amber-500"></i> שוקה — שווקים קהילתיים</h2>
+                        <div id="shuka-sa-stats" class="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-5"></div>
+                        <div class="flex gap-2 mb-4">
+                            <input type="text" id="shuka-sa-search" placeholder="חיפוש לפי שם שוק/קהילה..." oninput="renderSAShukaPanel()" class="flex-1 text-xs border border-slate-200 rounded-xl px-3 py-2 focus:outline-none">
+                            <select id="shuka-sa-status-filter" onchange="renderSAShukaPanel()" class="text-xs border border-slate-200 rounded-xl px-3 py-2 focus:outline-none">
+                                <option value="">כל הסטטוסים</option>
+                                <option value="active">פעיל</option>
+                                <option value="suspended">מושעה</option>
+                            </select>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm">
+                                <thead>
+                                    <tr class="text-right text-[11px] text-slate-400 border-b border-slate-100">
+                                        <th class="py-2 px-2">שוק</th>
+                                        <th class="py-2 px-2">קהילה</th>
+                                        <th class="py-2 px-2">אזור</th>
+                                        <th class="py-2 px-2">עסקים</th>
+                                        <th class="py-2 px-2">מוצרים</th>
+                                        <th class="py-2 px-2">ממתינים</th>
+                                        <th class="py-2 px-2">הזמנות</th>
+                                        <th class="py-2 px-2">מחזור</th>
+                                        <th class="py-2 px-2">סטטוס</th>
+                                        <th class="py-2 px-2"></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="shuka-sa-table-body" class="divide-y divide-slate-50"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div><!-- /sa-view-shuka -->
+
                 <div id="sa-view-biz" class="hidden space-y-8 fade-in">
                     <div class="sa-table-card p-5 sm:p-6">
                         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-5 gap-4">
