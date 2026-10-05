@@ -1433,6 +1433,7 @@
                                 <button id="btn-sales-settings" onclick="window.switchSalesTab('settings')" class="flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition"><i class="fa-solid fa-gear text-sm"></i>הגדרות</button>
                                 <button id="btn-sales-analytics" onclick="window.switchSalesTab('analytics')" class="hidden flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition"><i class="fa-solid fa-chart-bar text-sm"></i>אנליטיקה</button>
                                 <button id="btn-sales-gallery" onclick="window.switchSalesTab('gallery')" class="flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition"><i class="fa-solid fa-images text-sm"></i>גלריה</button>
+                                <button id="btn-sales-shuka" onclick="window.switchSalesTab('shuka')" class="flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition"><i class="fa-solid fa-store text-sm"></i>שוקה</button>
                             </div>
 
                             <div id="sales-view-orders" class="space-y-4">
@@ -1934,6 +1935,35 @@
                                         <button onclick="document.getElementById('gallery-file-input').click()" class="w-full bg-purple-600 text-white py-3 rounded-xl font-bold hover:bg-purple-700 transition flex items-center justify-center gap-2"><i class="fa-solid fa-plus"></i> הוסף תמונות</button>
                                     </div>
                                     <p id="gallery-upload-status" class="text-xs text-slate-400 mt-2 text-center hidden"></p>
+                                </div>
+                            </div>
+
+                            <div id="sales-view-shuka" class="hidden space-y-5 pb-8">
+                                <div class="bg-amber-50 border border-amber-100 rounded-2xl p-5">
+                                    <div class="flex items-center justify-between mb-1">
+                                        <h4 class="font-bold text-slate-800 flex items-center gap-2"><i class="fa-solid fa-store text-amber-500"></i> שוקה — שווקים קהילתיים</h4>
+                                    </div>
+                                    <p class="text-xs text-slate-500 mb-4">הצטרפו יזומית לשווקי קהילה פתוחים, בחרו אילו מוצרים לשקף בכל שוק, וקבלו הזמנות ישירות מלקוחות הקהילה.</p>
+                                    <div class="flex bg-white p-1 rounded-xl w-full mb-4 border border-amber-100">
+                                        <button id="btn-shuka-radar" onclick="window.switchShukaTab('radar')" class="flex-1 py-1.5 px-1 text-xs sm:text-sm font-bold bg-amber-500 text-white rounded-lg shadow-sm transition text-center">🔭 רדאר שווקים</button>
+                                        <button id="btn-shuka-mine" onclick="window.switchShukaTab('mine')" class="flex-1 py-1.5 px-1 text-xs sm:text-sm font-bold text-slate-500 rounded-lg transition text-center">השווקים שלי</button>
+                                    </div>
+
+                                    <div id="shuka-view-radar">
+                                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
+                                            <input type="text" id="shuka-radar-city" placeholder="עיר" class="modern-input py-1.5 px-2 text-xs bg-slate-50 h-auto">
+                                            <input type="text" id="shuka-radar-interest" placeholder="תחום עניין" class="modern-input py-1.5 px-2 text-xs bg-slate-50 h-auto">
+                                            <input type="text" id="shuka-radar-search" placeholder="חיפוש חופשי" class="modern-input py-1.5 px-2 text-xs bg-slate-50 h-auto">
+                                            <button onclick="window.fetchShukaRadar()" class="bg-amber-500 text-white rounded-xl text-xs font-bold py-1.5 hover:bg-amber-600 transition"><i class="fa-solid fa-magnifying-glass ml-1"></i>סנן</button>
+                                        </div>
+                                        <div id="shuka-radar-list" class="space-y-3"></div>
+                                    </div>
+                                    <div id="shuka-view-mine" class="hidden">
+                                        <h5 class="font-bold text-slate-700 text-xs mb-2">בקשות והזמנות</h5>
+                                        <div id="shuka-requests-list" class="space-y-2 mb-5"></div>
+                                        <h5 class="font-bold text-slate-700 text-xs mb-2">שווקים פעילים</h5>
+                                        <div id="shuka-active-list" class="space-y-3"></div>
+                                    </div>
                                 </div>
                             </div>
 

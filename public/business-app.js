@@ -15568,7 +15568,7 @@ window.renderStoreOrders = function() {
         const meta = getDeliveryMeta(o);
         const isDelivery = (o.is_delivery == 1 || o.is_delivery === true || o.is_delivery === 'true' || meta);
         const deliveryTag = isDelivery ? '<span class="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-lg border border-slate-200 ml-1"><i class="fa-solid fa-motorcycle"></i> משלוח</span>' : '<span class="text-[10px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-lg border border-slate-200 ml-1"><i class="fa-solid fa-person-walking"></i> איסוף</span>';
-        const srcTag = o.order_source === 'table' ? '<span class="text-[10px] bg-violet-50 text-violet-600 px-2 py-0.5 rounded-lg border border-violet-200 ml-1">🍽️ שולחן</span>' : '<span class="text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded-lg border border-blue-200 ml-1">🌐 אתר</span>';
+        const srcTag = o.order_source === 'table' ? '<span class="text-[10px] bg-violet-50 text-violet-600 px-2 py-0.5 rounded-lg border border-violet-200 ml-1">🍽️ שולחן</span>' : o.order_source === 'community_campaign' ? '<span class="text-[10px] bg-amber-50 text-amber-600 px-2 py-0.5 rounded-lg border border-amber-200 ml-1">🛒 שוקה</span>' : '<span class="text-[10px] bg-blue-50 text-blue-600 px-2 py-0.5 rounded-lg border border-blue-200 ml-1">🌐 אתר</span>';
         const promoTag = o.community_promo_code ? `<span class="text-[10px] bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-lg border border-emerald-200 ml-1 font-bold"><i class="fa-solid fa-tag"></i> קוד: ${safeStr(o.community_promo_code)}</span>` : '';
         
         let deliveryData = {};
@@ -25419,7 +25419,7 @@ window.switchSalesTab = function(subTab) {
     window._currentBizSubTab = 'sales.' + subTab;
     const menuRelevantTypes = ['restaurant', 'events', 'food_production'];
     const hideMenuStuff = !menuRelevantTypes.includes(currentGroup?.business_type);
-    ['pos', 'orders', 'catalog', 'complex', 'marketing', 'settings', 'quotes', 'analytics', 'reviews', 'work-orders', 'gallery', 'menu-requests'].forEach(t => {
+    ['pos', 'orders', 'catalog', 'complex', 'marketing', 'settings', 'quotes', 'analytics', 'reviews', 'work-orders', 'gallery', 'menu-requests', 'shuka'].forEach(t => {
         const view = document.getElementById(`sales-view-${t}`); if(view) view.classList.add('hidden');
         const btn = document.getElementById(`btn-sales-${t}`);
         if(btn) {
@@ -25500,6 +25500,9 @@ window.switchSalesTab = function(subTab) {
     }
     if (subTab === 'menu-requests') {
         window.fetchMenuRequests();
+    }
+    if (subTab === 'shuka') {
+        if (typeof window.initShukaTab === 'function') window.initShukaTab();
     }
     if (subTab === 'analytics') {
         setTimeout(() => { if (typeof window.renderAnalytics === 'function') window.renderAnalytics(); }, 150);
@@ -40431,7 +40434,7 @@ window._renderSeatingWindows = async function(dateStr) {
             <h4 class="font-black text-slate-700 text-xs mb-2">📋 רשימת הזמנות ליום זה</h4>
             ${reservations.map(r => {
                 const isApproved = r.status === 'approved';
-                const sourceLabel = r.order_source === 'website' ? '🌐 אתר' : r.order_source === 'internal' ? '👤 עובד' : r.order_source === 'table' ? '🍽️ שולחן' : '';
+                const sourceLabel = r.order_source === 'website' ? '🌐 אתר' : r.order_source === 'internal' ? '👤 עובד' : r.order_source === 'table' ? '🍽️ שולחן' : r.order_source === 'community_campaign' ? '🛒 שוקה' : '';
                 return `<div class="flex items-center gap-3 py-2 border-b border-slate-50 last:border-0">
                     <div class="w-10 h-10 rounded-xl ${isApproved?'bg-blue-100':'bg-amber-100'} flex flex-col items-center justify-center shrink-0">
                         <span class="text-[10px] font-black ${isApproved?'text-blue-700':'text-amber-700'}">${String(r.start_time||'').slice(0,5)}</span>
@@ -41449,7 +41452,7 @@ async function renderCookDashboard(el) {
 
         const ticketTable = (() => { try { const m = JSON.parse(t.notes||'{}'); return m.tableNumber||null; } catch(e){return null;} })();
         const tableLabel = ticketTable ? `<span class="text-[10px] font-black text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">שולחן ${ticketTable}</span>` : '';
-        const srcLabel = t.order_source === 'table' ? `<span class="text-[10px] font-black text-violet-600 bg-violet-50 px-2 py-0.5 rounded-full">🍽️ שולחן</span>` : `<span class="text-[10px] font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">🌐 אתר</span>`;
+        const srcLabel = t.order_source === 'table' ? `<span class="text-[10px] font-black text-violet-600 bg-violet-50 px-2 py-0.5 rounded-full">🍽️ שולחן</span>` : t.order_source === 'community_campaign' ? `<span class="text-[10px] font-black text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">🛒 שוקה</span>` : `<span class="text-[10px] font-black text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">🌐 אתר</span>`;
         return `<div class="kds-ticket bg-white border-2 border-orange-200 rounded-2xl p-3 relative" id="kds-ticket-${t.id}" data-table-num="${ticketTable||''}" data-status="${t.status||'new'}">
             <div class="flex items-center justify-between mb-2 flex-wrap gap-1">
                 <span class="text-[10px] font-black text-orange-600 bg-orange-50 px-2 py-0.5 rounded-full">#${t.id}</span>
@@ -61532,3 +61535,231 @@ window._sportApptSave = async function() {
     }
 })();
 // ===== END ROUTINES MODULE =====
+
+// ============================================================
+// --- "שוקה" — רדאר שווקים קהילתיים + ניהול הצטרפות/מוצרים (צד עסק) ---
+// ============================================================
+
+window.switchShukaTab = function(tab) {
+    const radarView = document.getElementById('shuka-view-radar');
+    const mineView = document.getElementById('shuka-view-mine');
+    const radarBtn = document.getElementById('btn-shuka-radar');
+    const mineBtn = document.getElementById('btn-shuka-mine');
+    if (radarView) radarView.classList.toggle('hidden', tab !== 'radar');
+    if (mineView) mineView.classList.toggle('hidden', tab !== 'mine');
+    const activeCls = 'flex-1 py-1.5 px-1 text-xs sm:text-sm font-bold bg-amber-500 text-white rounded-lg shadow-sm transition text-center';
+    const inactiveCls = 'flex-1 py-1.5 px-1 text-xs sm:text-sm font-bold text-slate-500 rounded-lg transition text-center';
+    if (radarBtn) radarBtn.className = tab === 'radar' ? activeCls : inactiveCls;
+    if (mineBtn) mineBtn.className = tab === 'mine' ? activeCls : inactiveCls;
+    if (tab === 'radar') window.fetchShukaRadar();
+    if (tab === 'mine') window.fetchShukaMine();
+};
+
+window.initShukaTab = function() {
+    window.switchShukaTab('radar');
+};
+
+function _shukaAuthHeaders() {
+    return { 'Content-Type': 'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' };
+}
+
+window.fetchShukaRadar = async function() {
+    const list = document.getElementById('shuka-radar-list');
+    if (!list) return;
+    list.innerHTML = '<p class="text-center text-slate-400 py-6 text-xs"><i class="fa-solid fa-spinner fa-spin mr-2"></i>סורק שווקים...</p>';
+    try {
+        const city = document.getElementById('shuka-radar-city')?.value || '';
+        const interest = document.getElementById('shuka-radar-interest')?.value || '';
+        const search = document.getElementById('shuka-radar-search')?.value || '';
+        const params = new URLSearchParams();
+        if (city) params.set('city', city);
+        if (interest) params.set('interest', interest);
+        if (search) params.set('search', search);
+        const res = await fetch(`${API}/biz/market-radar?${params.toString()}`, { headers: _shukaAuthHeaders() });
+        const data = await res.json();
+        if (!data.success) { list.innerHTML = `<p class="text-center text-red-400 py-6 text-xs">${safeStr(data.error || 'שגיאה')}</p>`; return; }
+        window._shukaRadarCache = data.campaigns || [];
+        window.renderShukaRadar();
+    } catch(e) { list.innerHTML = '<p class="text-center text-red-400 py-6 text-xs">שגיאת תקשורת</p>'; }
+};
+
+window.renderShukaRadar = function() {
+    const list = document.getElementById('shuka-radar-list');
+    if (!list) return;
+    const campaigns = window._shukaRadarCache || [];
+    if (!campaigns.length) { list.innerHTML = '<p class="text-center text-slate-400 py-8 bg-white rounded-2xl border border-dashed border-slate-200 text-xs">לא נמצאו שווקים פעילים התואמים לסינון.</p>'; return; }
+    list.innerHTML = campaigns.map(c => {
+        const dates = c.start_at ? `<span class="text-[10px] text-slate-400">${new Date(c.start_at).toLocaleDateString('he-IL')}${c.end_at ? ' - ' + new Date(c.end_at).toLocaleDateString('he-IL') : ''}</span>` : '';
+        let actionHtml;
+        if (c.already_joined) {
+            actionHtml = `<span class="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-lg">✓ אתם כבר בשוק הזה</span>`;
+        } else if (c.pending_request_status === 'pending') {
+            actionHtml = `<span class="text-[11px] font-bold text-amber-600 bg-amber-50 px-3 py-1.5 rounded-lg">בקשה ממתינה לאישור</span>`;
+        } else {
+            actionHtml = `<button onclick="window.shukaRequestJoin(${c.id}, ${c.community_id})" class="bg-amber-500 text-white text-xs font-bold px-3 py-1.5 rounded-lg hover:bg-amber-600 transition">בקש להצטרף</button>`;
+        }
+        return `<div class="bg-white border border-slate-100 rounded-2xl p-4 flex items-center justify-between gap-3 shadow-sm">
+            <div class="flex-1 min-w-0">
+                <div class="font-bold text-slate-800 text-sm truncate">${safeStr(c.title || c.community_name)}</div>
+                <div class="text-[11px] text-slate-400">${safeStr(c.community_name)}${c.city ? ' · ' + safeStr(c.city) : ''}</div>
+                <div class="flex items-center gap-2 mt-1">${dates}<span class="text-[10px] text-slate-400">${c.business_count || 0} עסקים משתתפים</span></div>
+            </div>
+            <div class="shrink-0">${actionHtml}</div>
+        </div>`;
+    }).join('');
+};
+
+window.shukaRequestJoin = async function(campaignId, communityId) {
+    try {
+        const res = await fetch(`${API}/biz/market-campaigns/${campaignId}/request`, { method: 'POST', headers: _shukaAuthHeaders(), body: JSON.stringify({}) });
+        const data = await res.json();
+        if (data.success) {
+            showToast('success', 'בקשת ההצטרפות נשלחה לאישור מנהל הקהילה');
+            window.fetchShukaRadar();
+        } else if (data.code === 'COMMUNITY_MEMBERSHIP_REQUIRED') {
+            showToast('error', 'צריך קודם להצטרף לקהילה הזו כדי לבקש הצטרפות לשוק');
+        } else {
+            showToast('error', data.error || 'שגיאה בשליחת הבקשה');
+        }
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
+window.fetchShukaMine = async function() {
+    const reqList = document.getElementById('shuka-requests-list');
+    const activeList = document.getElementById('shuka-active-list');
+    if (reqList) reqList.innerHTML = '<p class="text-center text-slate-400 py-4 text-xs"><i class="fa-solid fa-spinner fa-spin mr-2"></i>טוען...</p>';
+    try {
+        const res = await fetch(`${API}/biz/market-campaigns/mine`, { headers: _shukaAuthHeaders() });
+        const data = await res.json();
+        if (!data.success) { if (reqList) reqList.innerHTML = `<p class="text-center text-red-400 py-4 text-xs">${safeStr(data.error || 'שגיאה')}</p>`; return; }
+        window._shukaMineCache = data;
+        window.renderShukaMine();
+    } catch(e) { if (reqList) reqList.innerHTML = '<p class="text-center text-red-400 py-4 text-xs">שגיאת תקשורת</p>'; }
+};
+
+window.renderShukaMine = function() {
+    const data = window._shukaMineCache || { requests: [], activeCampaigns: [] };
+    const reqList = document.getElementById('shuka-requests-list');
+    const activeList = document.getElementById('shuka-active-list');
+
+    const statusLabel = { pending: 'ממתין', approved: 'אושר', rejected: 'נדחה' };
+    const statusColor = { pending: 'text-amber-600 bg-amber-50', approved: 'text-emerald-600 bg-emerald-50', rejected: 'text-red-500 bg-red-50' };
+
+    if (reqList) {
+        const pendingInvites = data.requests.filter(r => r.direction === 'manager_invite' && r.status === 'pending');
+        const others = data.requests.filter(r => !(r.direction === 'manager_invite' && r.status === 'pending'));
+        let html = '';
+        pendingInvites.forEach(r => {
+            html += `<div class="bg-indigo-50 border border-indigo-100 rounded-xl p-3 flex items-center justify-between gap-2">
+                <div class="min-w-0">
+                    <div class="text-xs font-bold text-indigo-800 truncate">הוזמנתם לשוק: ${safeStr(r.campaign_title)}</div>
+                    <div class="text-[10px] text-indigo-400">${safeStr(r.community_name)}${r.message ? ' · ' + safeStr(r.message) : ''}</div>
+                </div>
+                <div class="flex gap-1 shrink-0">
+                    <button onclick="window.shukaRespondInvite(${r.id}, 'approve')" class="bg-indigo-600 text-white text-[11px] font-bold px-2.5 py-1.5 rounded-lg hover:bg-indigo-700 transition">אשר</button>
+                    <button onclick="window.shukaRespondInvite(${r.id}, 'reject')" class="bg-white text-slate-500 border border-slate-200 text-[11px] font-bold px-2.5 py-1.5 rounded-lg hover:bg-slate-50 transition">דחה</button>
+                </div>
+            </div>`;
+        });
+        if (!others.length && !pendingInvites.length) {
+            html = '<p class="text-center text-slate-400 py-4 bg-white rounded-xl border border-dashed border-slate-200 text-xs">אין בקשות/הזמנות.</p>';
+        } else {
+            others.forEach(r => {
+                const cls = statusColor[r.status] || 'text-slate-500 bg-slate-50';
+                const dirLabel = r.direction === 'manager_invite' ? 'הוזמנתם' : 'ביקשתם להצטרף';
+                html += `<div class="bg-white border border-slate-100 rounded-xl p-3 flex items-center justify-between gap-2">
+                    <div class="min-w-0">
+                        <div class="text-xs font-bold text-slate-700 truncate">${safeStr(r.campaign_title)}</div>
+                        <div class="text-[10px] text-slate-400">${safeStr(r.community_name)} · ${dirLabel}</div>
+                    </div>
+                    <span class="text-[10px] font-bold px-2 py-1 rounded-lg shrink-0 ${cls}">${statusLabel[r.status] || r.status}</span>
+                </div>`;
+            });
+        }
+        reqList.innerHTML = html;
+    }
+
+    if (activeList) {
+        if (!data.activeCampaigns.length) {
+            activeList.innerHTML = '<p class="text-center text-slate-400 py-6 bg-white rounded-xl border border-dashed border-slate-200 text-xs">עדיין לא הצטרפתם לאף שוק.</p>';
+        } else {
+            activeList.innerHTML = data.activeCampaigns.map(c => `
+                <div class="bg-white border border-slate-100 rounded-2xl p-4 flex items-center justify-between gap-3 shadow-sm">
+                    <div class="min-w-0">
+                        <div class="font-bold text-slate-800 text-sm truncate">${safeStr(c.title)}</div>
+                        <div class="text-[11px] text-slate-400">${safeStr(c.community_name)} · ${c.product_count || 0} מוצרים משוקפים</div>
+                    </div>
+                    <div class="flex gap-1 shrink-0">
+                        <button onclick="window.shukaOpenProducts(${c.id}, '${safeStr(c.title).replace(/'/g,"\\'")}')" class="bg-amber-500 text-white text-[11px] font-bold px-3 py-1.5 rounded-lg hover:bg-amber-600 transition">מוצרים</button>
+                        <button onclick="window.shukaLeaveMarket(${c.id})" class="bg-white text-red-500 border border-red-100 text-[11px] font-bold px-3 py-1.5 rounded-lg hover:bg-red-50 transition">עזוב</button>
+                    </div>
+                </div>`).join('');
+        }
+    }
+};
+
+window.shukaRespondInvite = async function(requestId, action) {
+    try {
+        const res = await fetch(`${API}/biz/market-campaigns/requests/${requestId}/respond`, { method: 'POST', headers: _shukaAuthHeaders(), body: JSON.stringify({ action }) });
+        const data = await res.json();
+        if (data.success) { showToast('success', action === 'approve' ? 'הצטרפתם לשוק!' : 'ההזמנה נדחתה'); window.fetchShukaMine(); }
+        else showToast('error', data.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
+window.shukaLeaveMarket = async function(campaignId) {
+    const ok = await window._uiConfirm('לעזוב את השוק? המוצרים שלכם יוסרו ממנו.', { danger: true, okLabel: 'עזוב שוק' });
+    if (!ok) return;
+    try {
+        const res = await fetch(`${API}/biz/market-campaigns/${campaignId}/leave`, { method: 'POST', headers: _shukaAuthHeaders() });
+        const data = await res.json();
+        if (data.success) { showToast('success', 'עזבתם את השוק'); window.fetchShukaMine(); }
+        else showToast('error', data.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
+window.shukaOpenProducts = async function(campaignId, campaignTitle) {
+    document.getElementById('_shuka-products-modal')?.remove();
+    const modal = document.createElement('div');
+    modal.id = '_shuka-products-modal';
+    modal.style.cssText = 'position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:rgba(15,23,42,0.55);backdrop-filter:blur(2px);direction:rtl;';
+    modal.innerHTML = `<div style="background:white;border-radius:20px;padding:20px;width:min(94vw,480px);max-height:84vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.25);">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+            <h3 style="font-weight:900;font-size:15px;color:#1e293b;">בחירת מוצרים — ${escHtml(campaignTitle)}</h3>
+            <button onclick="document.getElementById('_shuka-products-modal').remove()" style="color:#94a3b8;font-size:18px;background:none;border:none;cursor:pointer;">✕</button>
+        </div>
+        <p style="font-size:11px;color:#94a3b8;margin-bottom:10px;">סמנו אילו מוצרים מהקטלוג שלכם יוצגו ללקוחות בשוק הזה.</p>
+        <div id="_shuka-products-list" style="display:flex;flex-direction:column;gap:6px;">טוען...</div>
+    </div>`;
+    modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+    document.body.appendChild(modal);
+
+    try {
+        const res = await fetch(`${API}/biz/market-campaigns/${campaignId}/products`, { headers: _shukaAuthHeaders() });
+        const data = await res.json();
+        const listEl = document.getElementById('_shuka-products-list');
+        if (!listEl) return;
+        if (!data.success) { listEl.innerHTML = `<p style="color:#ef4444;font-size:12px;text-align:center;">${escHtml(data.error || 'שגיאה')}</p>`; return; }
+        if (!data.catalog.length) { listEl.innerHTML = '<p style="color:#94a3b8;font-size:12px;text-align:center;">אין פריטים בקטלוג שלכם עדיין.</p>'; return; }
+        listEl.innerHTML = data.catalog.map(p => `
+            <label style="display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid #f1f5f9;border-radius:12px;cursor:pointer;">
+                <input type="checkbox" ${p.selected ? 'checked' : ''} onchange="window.shukaToggleProduct(${campaignId}, ${p.id}, this.checked)" style="width:16px;height:16px;">
+                <span style="flex:1;font-size:13px;font-weight:700;color:#334155;">${escHtml(p.name)}</span>
+                <span style="font-size:11px;color:#94a3b8;">₪${p.price}</span>
+            </label>`).join('');
+    } catch(e) {
+        const listEl = document.getElementById('_shuka-products-list');
+        if (listEl) listEl.innerHTML = '<p style="color:#ef4444;font-size:12px;text-align:center;">שגיאת תקשורת</p>';
+    }
+};
+
+window.shukaToggleProduct = async function(campaignId, catalogId, checked) {
+    try {
+        const res = await fetch(`${API}/biz/market-campaigns/${campaignId}/products`, {
+            method: 'POST', headers: _shukaAuthHeaders(),
+            body: JSON.stringify({ catalogId, action: checked ? 'add' : 'remove' })
+        });
+        const data = await res.json();
+        if (!data.success) showToast('error', data.error || 'שגיאה');
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
