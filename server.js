@@ -11854,16 +11854,14 @@ app.post('/api/tasks/update', verifyFamilyOrBiz, async (req, res) => {
 // --- ACADEMY ENDPOINTS ---
 // ============================================================
 
-app.post('/api/academy/request-challenge', async (req, res) => {
+app.post('/api/academy/request-challenge', verifyFamilyOrBiz, async (req, res) => {
     try {
-        const { userId, bundleId } = req.body;
+        const { bundleId } = req.body;
+        const userId = req.callerAuth.userId;
         // אם bundle_id נשלח — הקצה אותו ספציפית, אחרת הגרל מהמאגר
         let targetBundleId = bundleId;
         if (!targetBundleId) {
-            // group_id נשלף מהמשתמש עצמו בשרת - לא סומכים על groupId שנשלח מהלקוח
-            const userRes = await pool.query('SELECT group_id FROM users WHERE id=$1', [userId]);
-            if (!userRes.rows.length) return res.status(404).json({ success: false, error: 'משתמש לא נמצא' });
-            const userGroupId = String(userRes.rows[0].group_id);
+            const userGroupId = String(req.callerAuth.groupId);
             // מצא לומדה שהמשתמש עדיין לא השלים - רק מתוך לומדות של העסק/משפחה הזו או תוכן מערכת גלובלי
             const done = await pool.query(`SELECT bundle_id FROM user_assignments WHERE user_id=$1 AND status IN ('completed','assigned')`, [userId]);
             const doneIds = done.rows.map(r => r.bundle_id);
@@ -11874,80 +11872,102 @@ app.post('/api/academy/request-challenge', async (req, res) => {
             const available = allBundles.rows.filter(r => !doneIds.includes(r.id));
             if (available.length === 0) return res.json({ success: false, error: 'כל הלומדות כבר הוקצו!' });
             targetBundleId = available[0].id;
+        } else {
+            const bCheck = await pool.query(`SELECT id FROM quiz_bundles WHERE id=$1 AND (created_by = $2 OR created_by = 'SYSTEM')`, [targetBundleId, String(req.callerAuth.groupId)]);
+            if (bCheck.rows.length === 0) return res.status(404).json({ success: false, error: 'לומדה לא נמצאה' });
         }
         await pool.query('INSERT INTO user_assignments (user_id, bundle_id) VALUES ($1, $2) ON CONFLICT DO NOTHING', [userId, targetBundleId]);
         res.json({ success: true });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch(e) { res.status(500).json({ error: 'שגיאה פנימית' }); }
 });
 
-app.post('/api/academy/assign', async (req, res) => {
-    try {
-        const { userId, bundleId, reward, days, groupId } = req.body;
-        const deadline = days ? new Date(Date.now() + days * 24 * 60 * 60 * 1000) : null;
-        await pool.query('INSERT INTO user_assignments (user_id, bundle_id, custom_reward, deadline) VALUES ($1, $2, $3, $4)', [userId, bundleId, reward || null, deadline]);
-        res.json({success:true});
-    } catch(e) { res.status(500).json({error: e.message}); }
-});
-
-app.post('/api/academy/submit', async (req, res) => {
+app.post('/api/academy/assign', verifyFamilyOrBiz, async (req, res) => {
     try {
-        const { userId, bundleId, score, groupId } = req.body;
+        if (req.callerAuth.role !== 'ADMIN') return res.status(403).json({ error: 'נדרשת הרשאת מנהל' });
+        const { userId, bundleId, days } = req.body;
+        const reward = Math.max(0, parseFloat(req.body.reward) || 0);
+        const uCheck = await pool.query('SELECT id FROM users WHERE id=$1 AND group_id=$2', [userId, req.callerAuth.groupId]);
+        if (uCheck.rows.length === 0) return res.status(404).json({ error: 'משתמש לא נמצא בקבוצה' });
+        const bCheck = await pool.query(`SELECT id FROM quiz_bundles WHERE id=$1 AND (created_by = $2 OR created_by = 'SYSTEM')`, [bundleId, String(req.callerAuth.groupId)]);
+        if (bCheck.rows.length === 0) return res.status(404).json({ error: 'לומדה לא נמצאה' });
+        const deadline = days ? new Date(Date.now() + days * 24 * 60 * 60 * 1000) : null;
+        await pool.query('INSERT INTO user_assignments (user_id, bundle_id, custom_reward, deadline) VALUES ($1, $2, $3, $4)', [userId, bundleId, reward || null, deadline]);
+        res.json({success:true});
+    } catch(e) { res.status(500).json({error: 'שגיאה פנימית'}); }
+});
+
+app.post('/api/academy/submit', verifyFamilyOrBiz, async (req, res) => {
+    try {
+        const { bundleId, answers } = req.body;
+        const userId = req.callerAuth.userId;
+        const groupId = req.callerAuth.groupId;
         const b = await pool.query('SELECT threshold, reward as default_reward FROM quiz_bundles WHERE id=$1', [bundleId]);
-        const ua = await pool.query(`SELECT id, custom_reward FROM user_assignments WHERE user_id=$1 AND bundle_id=$2 AND status='assigned' ORDER BY id DESC LIMIT 1`, [userId, bundleId]);
+        if (b.rows.length === 0) return res.status(404).json({ error: 'לומדה לא נמצאה' });
+        const qRes = await pool.query('SELECT correct FROM quiz_questions WHERE bundle_id=$1 ORDER BY id ASC', [bundleId]);
+        if (qRes.rows.length === 0 || !Array.isArray(answers) || answers.length !== qRes.rows.length) {
+            return res.status(400).json({ error: 'תשובות לא תקינות' });
+        }
+        let correctCount = 0;
+        qRes.rows.forEach((q, i) => { if (parseInt(answers[i]) === q.correct) correctCount++; });
+        const score = Math.round((correctCount / qRes.rows.length) * 100);
         const passed = score >= b.rows[0].threshold; const status = passed ? 'completed' : 'failed';
+        let rewardCredited = 0;
         await pool.query('BEGIN');
-        if (ua.rows.length > 0) {
-            await pool.query('UPDATE user_assignments SET status=$1, score=$2 WHERE id=$3', [status, score, ua.rows[0].id]);
-            if (passed) {
-                const rew = parseFloat(ua.rows[0].custom_reward) || parseFloat(b.rows[0].default_reward) || 0;
-                if (rew > 0) {
-                    // מזכה מטבעות פלואו קיד בארנק הילד
-                    await pool.query(`
-                        INSERT INTO flw_kid_wallets (child_user_id, family_group_id, balance_flw, lifetime_flw)
-                        SELECT $1, $2, $3, $3
-                        ON CONFLICT (child_user_id) DO UPDATE SET
-                            balance_flw  = flw_kid_wallets.balance_flw  + $3,
-                            lifetime_flw = flw_kid_wallets.lifetime_flw + $3,
-                            updated_at   = NOW()
-                    `, [userId, groupId, rew]);
-                }
+        const ua = await pool.query(`UPDATE user_assignments SET status=$1, score=$2 WHERE user_id=$3 AND bundle_id=$4 AND status='assigned' RETURNING id, custom_reward`, [status, score, userId, bundleId]);
+        if (ua.rows.length > 0 && passed) {
+            const rew = parseFloat(ua.rows[0].custom_reward) || parseFloat(b.rows[0].default_reward) || 0;
+            if (rew > 0) {
+                // מזכה מטבעות פלואו קיד בארנק הילד
+                await pool.query(`
+                    INSERT INTO flw_kid_wallets (child_user_id, family_group_id, balance_flw, lifetime_flw)
+                    SELECT $1, $2, $3, $3
+                    ON CONFLICT (child_user_id) DO UPDATE SET
+                        balance_flw  = flw_kid_wallets.balance_flw  + $3,
+                        lifetime_flw = flw_kid_wallets.lifetime_flw + $3,
+                        updated_at   = NOW()
+                `, [userId, groupId, rew]);
+                rewardCredited = rew;
             }
         }
-        await pool.query('COMMIT'); res.json({ success: true, passed, score });
-    } catch(e) { await pool.query('ROLLBACK'); res.status(500).json({error: e.message}); }
+        await pool.query('COMMIT'); res.json({ success: true, passed, score, rewardCredited });
+    } catch(e) { await pool.query('ROLLBACK'); res.status(500).json({error: 'שגיאה פנימית'}); }
 });
 
+
 // יצירת הכשרה / חפיפה ידנית ושמירה למאגר
-app.post('/api/academy/bundles', async (req, res) => {
+app.post('/api/academy/bundles', verifyFamilyOrBiz, async (req, res) => {
+    if (req.callerAuth.role !== 'ADMIN') return res.status(403).json({ error: 'נדרשת הרשאת מנהל' });
     let dbClient;
     try {
-        const { groupId, title, ageGroup, reward, textContent, questions, type } = req.body;
+        const { title, ageGroup, textContent, questions, type } = req.body;
+        const reward = Math.max(0, parseFloat(req.body.reward) || 0);
+        const groupId = req.callerAuth.groupId;
         dbClient = await pool.connect();
         await dbClient.query('BEGIN');
 
         const bundleType = type || 'professional';
-        
+
         const bundleRes = await dbClient.query(
-            `INSERT INTO quiz_bundles (type, age_group, title, text_content, threshold, reward, created_by) VALUES ($1, $2, $3, $4, 80, $5, $6) RETURNING id`, 
-            [bundleType, ageGroup || 'כללי', title, textContent || '', parseFloat(reward)||0, String(groupId)]
+            `INSERT INTO quiz_bundles (type, age_group, title, text_content, threshold, reward, created_by) VALUES ($1, $2, $3, $4, 80, $5, $6) RETURNING id`,
+            [bundleType, ageGroup || 'כללי', title, textContent || '', reward, String(groupId)]
         );
-        
+
         const newBundleId = bundleRes.rows[0].id;
-        
+
         if (questions && Array.isArray(questions)) {
             for (const q of questions) {
                 await dbClient.query(
-                    `INSERT INTO quiz_questions (bundle_id, q, options, correct) VALUES ($1, $2, $3, $4)`, 
+                    `INSERT INTO quiz_questions (bundle_id, q, options, correct) VALUES ($1, $2, $3, $4)`,
                     [newBundleId, q.q, JSON.stringify(q.options), q.correct]
                 );
             }
         }
-        
+
         await dbClient.query('COMMIT');
         res.json({ success: true, bundleId: newBundleId });
-    } catch (e) { 
+    } catch (e) {
         if(dbClient) await dbClient.query('ROLLBACK');
-        res.status(500).json({ error: e.message }); 
+        res.status(500).json({ error: 'שגיאה פנימית' });
     } finally {
         if(dbClient) dbClient.release();
     }
@@ -11976,9 +11996,11 @@ app.post('/api/recipes/generate', verifyFamilyOrBiz, async (req, res) => {
     } catch (error) { handleAIError(error, res, 'שגיאה ביצירת המתכון מול ה-AI.'); }
 });
 
-app.post('/api/academy/ai-generate', async (req, res) => {
+app.post('/api/academy/ai-generate', verifyFamilyOrBiz, async (req, res) => {
     try {
-        const { ageGroup, topic, groupId } = req.body;
+        if (req.callerAuth.role !== 'ADMIN') return res.status(403).json({ error: 'נדרשת הרשאת מנהל' });
+        const { ageGroup, topic } = req.body;
+        const groupId = req.callerAuth.groupId;
         const hasTokens = await handleAITokens(groupId);
         if(!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
         if (!getGenAIInstance()) throw new Error('GEMINI_API_KEY is not set');
@@ -11987,7 +12009,7 @@ app.post('/api/academy/ai-generate', async (req, res) => {
         const gType = gRes.rows.length > 0 ? gRes.rows[0].type : 'FAMILY';
 
         const model = getGenAIInstance().getGenerativeModel({ model: "gemini-2.5-flash", generationConfig: { responseMimeType: "application/json" } });
-        
+
         let prompt = "";
         if (gType === 'BUSINESS') {
             prompt = `Create a professional 5-question multiple-choice training/onboarding quiz in Hebrew about "${topic}" for employees.
@@ -12001,7 +12023,7 @@ app.post('/api/academy/ai-generate', async (req, res) => {
 
         const result = await model.generateContent(prompt);
         let rawText = result.response.text().trim();
-        
+
         // תיקון חילוץ JSON בטוח ממבנה Markdown אם נוצר בטעות על ידי ה-AI
         const jsonStart = rawText.indexOf('{');
         const jsonEnd = rawText.lastIndexOf('}');
@@ -12016,53 +12038,33 @@ app.post('/api/academy/ai-generate', async (req, res) => {
     } catch (e) { handleAIError(e, res, 'שגיאה ביצירת הלומדה - נסה שנית'); }
 });
 
-// --- נתיבים לניהול ועריכת הכשרות ---
-app.post('/api/academy/bundles', async (req, res) => {
-    let dbClient;
-    try {
-        const { groupId, title, ageGroup, reward, textContent, questions, type } = req.body;
-        dbClient = await pool.connect();
-        await dbClient.query('BEGIN');
-
-        const bundleType = type || 'professional';
-        const bundleRes = await dbClient.query(
-            `INSERT INTO quiz_bundles (type, age_group, title, text_content, threshold, reward, created_by) VALUES ($1, $2, $3, $4, 80, $5, $6) RETURNING id`, 
-            [bundleType, ageGroup || 'כללי', title, textContent || '', parseFloat(reward)||0, String(groupId)]
-        );
-        const newBundleId = bundleRes.rows[0].id;
-        
-        if (questions && Array.isArray(questions)) {
-            for (const q of questions) {
-                await dbClient.query(`INSERT INTO quiz_questions (bundle_id, q, options, correct) VALUES ($1, $2, $3, $4)`, [newBundleId, q.q, JSON.stringify(q.options), q.correct]);
-            }
-        }
-        await dbClient.query('COMMIT');
-        res.json({ success: true, bundleId: newBundleId });
-    } catch (e) { 
-        if(dbClient) await dbClient.query('ROLLBACK');
-        res.status(500).json({ error: e.message }); 
-    } finally { if(dbClient) dbClient.release(); }
-});
-
-app.get('/api/academy/bundles/:id', async (req, res) => {
+app.get('/api/academy/bundles/:id', verifyFamilyOrBiz, async (req, res) => {
     try {
         const bRes = await pool.query('SELECT * FROM quiz_bundles WHERE id = $1', [req.params.id]);
         if (bRes.rows.length === 0) return res.status(404).json({ error: 'לא נמצאה הכשרה' });
+        if (bRes.rows[0].created_by !== String(req.callerAuth.groupId) && bRes.rows[0].created_by !== 'SYSTEM') {
+            return res.status(403).json({ error: 'אין הרשאה' });
+        }
         const qRes = await pool.query('SELECT * FROM quiz_questions WHERE bundle_id = $1 ORDER BY id ASC', [req.params.id]);
         res.json({ success: true, bundle: { ...bRes.rows[0], questions: qRes.rows } });
-    } catch (e) { res.status(500).json({ error: e.message }); }
+    } catch (e) { res.status(500).json({ error: 'שגיאה פנימית' }); }
 });
 
-app.put('/api/academy/bundles/:id', async (req, res) => {
+app.put('/api/academy/bundles/:id', verifyFamilyOrBiz, async (req, res) => {
+    if (req.callerAuth.role !== 'ADMIN') return res.status(403).json({ error: 'נדרשת הרשאת מנהל' });
     let dbClient;
     try {
-        const { title, ageGroup, reward, textContent, questions } = req.body;
+        const bCheck = await pool.query('SELECT created_by FROM quiz_bundles WHERE id=$1', [req.params.id]);
+        if (bCheck.rows.length === 0) return res.status(404).json({ error: 'לא נמצאה הכשרה' });
+        if (bCheck.rows[0].created_by !== String(req.callerAuth.groupId)) return res.status(403).json({ error: 'אין הרשאה' });
+        const { title, ageGroup, textContent, questions } = req.body;
+        const reward = Math.max(0, parseFloat(req.body.reward) || 0);
         dbClient = await pool.connect();
         await dbClient.query('BEGIN');
 
-        await dbClient.query(`UPDATE quiz_bundles SET title=$1, age_group=$2, reward=$3, text_content=$4 WHERE id=$5`, [title, ageGroup || 'כללי', parseFloat(reward)||0, textContent || '', req.params.id]);
+        await dbClient.query(`UPDATE quiz_bundles SET title=$1, age_group=$2, reward=$3, text_content=$4 WHERE id=$5`, [title, ageGroup || 'כללי', reward, textContent || '', req.params.id]);
         await dbClient.query('DELETE FROM quiz_questions WHERE bundle_id = $1', [req.params.id]);
-        
+
         if (questions && Array.isArray(questions)) {
             for (const q of questions) {
                 await dbClient.query(`INSERT INTO quiz_questions (bundle_id, q, options, correct) VALUES ($1, $2, $3, $4)`, [req.params.id, q.q, JSON.stringify(q.options), q.correct]);
@@ -12070,71 +12072,13 @@ app.put('/api/academy/bundles/:id', async (req, res) => {
         }
         await dbClient.query('COMMIT');
         res.json({ success: true });
-    } catch (e) { 
+    } catch (e) {
         if(dbClient) await dbClient.query('ROLLBACK');
-        res.status(500).json({ error: e.message }); 
+        res.status(500).json({ error: 'שגיאה פנימית' });
     } finally { if(dbClient) dbClient.release(); }
 });
 
-// --- נתיבים לניהול ועריכת הכשרות ---
-app.post('/api/academy/bundles', async (req, res) => {
-    let dbClient;
-    try {
-        const { groupId, title, ageGroup, reward, textContent, questions, type } = req.body;
-        dbClient = await pool.connect();
-        await dbClient.query('BEGIN');
 
-        const bundleType = type || 'professional';
-        const bundleRes = await dbClient.query(
-            `INSERT INTO quiz_bundles (type, age_group, title, text_content, threshold, reward, created_by) VALUES ($1, $2, $3, $4, 80, $5, $6) RETURNING id`, 
-            [bundleType, ageGroup || 'כללי', title, textContent || '', parseFloat(reward)||0, String(groupId)]
-        );
-        const newBundleId = bundleRes.rows[0].id;
-        
-        if (questions && Array.isArray(questions)) {
-            for (const q of questions) {
-                await dbClient.query(`INSERT INTO quiz_questions (bundle_id, q, options, correct) VALUES ($1, $2, $3, $4)`, [newBundleId, q.q, JSON.stringify(q.options), q.correct]);
-            }
-        }
-        await dbClient.query('COMMIT');
-        res.json({ success: true, bundleId: newBundleId });
-    } catch (e) { 
-        if(dbClient) await dbClient.query('ROLLBACK');
-        res.status(500).json({ error: e.message }); 
-    } finally { if(dbClient) dbClient.release(); }
-});
-
-app.get('/api/academy/bundles/:id', async (req, res) => {
-    try {
-        const bRes = await pool.query('SELECT * FROM quiz_bundles WHERE id = $1', [req.params.id]);
-        if (bRes.rows.length === 0) return res.status(404).json({ error: 'לא נמצאה הכשרה' });
-        const qRes = await pool.query('SELECT * FROM quiz_questions WHERE bundle_id = $1 ORDER BY id ASC', [req.params.id]);
-        res.json({ success: true, bundle: { ...bRes.rows[0], questions: qRes.rows } });
-    } catch (e) { res.status(500).json({ error: e.message }); }
-});
-
-app.put('/api/academy/bundles/:id', async (req, res) => {
-    let dbClient;
-    try {
-        const { title, ageGroup, reward, textContent, questions } = req.body;
-        dbClient = await pool.connect();
-        await dbClient.query('BEGIN');
-
-        await dbClient.query(`UPDATE quiz_bundles SET title=$1, age_group=$2, reward=$3, text_content=$4 WHERE id=$5`, [title, ageGroup || 'כללי', parseFloat(reward)||0, textContent || '', req.params.id]);
-        await dbClient.query('DELETE FROM quiz_questions WHERE bundle_id = $1', [req.params.id]);
-        
-        if (questions && Array.isArray(questions)) {
-            for (const q of questions) {
-                await dbClient.query(`INSERT INTO quiz_questions (bundle_id, q, options, correct) VALUES ($1, $2, $3, $4)`, [req.params.id, q.q, JSON.stringify(q.options), q.correct]);
-            }
-        }
-        await dbClient.query('COMMIT');
-        res.json({ success: true });
-    } catch (e) { 
-        if(dbClient) await dbClient.query('ROLLBACK');
-        res.status(500).json({ error: e.message }); 
-    } finally { if(dbClient) dbClient.release(); }
-});
 
 app.post('/api/tasks/ai-generate', verifyFamilyOrBiz, async (req, res) => {
     try {
@@ -12596,9 +12540,10 @@ app.post('/api/shopping/supermarket/end', verifyFamilyOrBiz, async (req, res) =>
     } catch(e) { res.status(500).json({ success: false, error: 'שגיאה פנימית' }); }
 });
 
-app.post('/api/academy/tutor', async (req, res) => {
+app.post('/api/academy/tutor', verifyFamilyOrBiz, async (req, res) => {
     try {
-        const { question, wrongAnswer, correctAnswer, groupId } = req.body;
+        const { question, wrongAnswer, correctAnswer } = req.body;
+        const groupId = req.callerAuth.groupId;
         const hasTokens = await handleAITokens(groupId);
         if(!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
         if (!getGenAIInstance()) throw new Error('GEMINI_API_KEY is not set');

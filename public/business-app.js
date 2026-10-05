@@ -71,7 +71,7 @@ let allTasks = []; let allTransactions = []; let feedCache = [];
 // זיהוי משימה שהיא בעצם משמרת (כותרת מתחילה ב-SHIFT|) — פונקציית עזר משותפת במקום בדיקה חוזרת בעשרות מקומות
 function isShiftTask(t) { return !!(t && t.title && t.title.indexOf('SHIFT|') === 0); }
 let forecastCache = { startingBalance: 0, items: [] };
-let currentVerifyTaskId = null; let currentVerifyTaskTitle = null; let currentWrongAnswers = [];
+let currentVerifyTaskId = null; let currentVerifyTaskTitle = null; let currentWrongAnswers = []; let currentQuizAnswers = [];
 let forecastRatioChart = null;
 let currentForecastMode = 'monthly';
 let currentScanTarget = ''; 
@@ -4557,7 +4557,7 @@ async function askTutor() {
     executeWithAIWarning(async () => {
         const w = currentWrongAnswers[0]; getEl('btn-tutor').disabled = true; getEl('btn-tutor').innerText = 'מייצר הסבר... ⏳';
         try {
-            const res = await fetch(`${API}/academy/tutor`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ question: w.q, wrongAnswer: w.wrong, correctAnswer: w.correct, groupId: currentGroup.id }) }); const data = await res.json();
+            const res = await fetch(`${API}/academy/tutor`, { method: 'POST', headers: {'Content-Type': 'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : ''}, body: JSON.stringify({ question: w.q, wrongAnswer: w.wrong, correctAnswer: w.correct, groupId: currentGroup.id }) }); const data = await res.json();
             if(!handleAIResponseCheck(data)) return;
             if(data.success) { showAIModal('ניתוח שגיאה מקצועי (AI)', data.explanation); fetchData(); }
         } catch(e) { showToast('error', 'שגיאה בהבאת ההסבר'); } finally { getEl('btn-tutor').disabled = false; getEl('btn-tutor').innerHTML = '<i class="fa-solid fa-brain"></i> ניתוח שגיאה ע"י AI'; }
@@ -6835,7 +6835,7 @@ window.submitAssignQuiz = async function() {
     if(!childId) return showToast('error', 'אנא בחר איש צוות לשיוך'); if(!bundleId) return showToast('error', 'אנא בחר הכשרה');
     const btn = getEl('btn-submit-assign'); if(btn) { btn.disabled = true; btn.innerText = 'משייך...'; }
     try {
-        const res = await fetch(`${API}/academy/assign`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: childId, bundleId: bundleId, reward: reward, days: days, groupId: currentGroup.id }) });
+        const res = await fetch(`${API}/academy/assign`, { method: 'POST', headers: {'Content-Type': 'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : ''}, body: JSON.stringify({ userId: childId, bundleId: bundleId, reward: reward, days: days, groupId: currentGroup.id }) });
         const data = await res.json();
         if(data.success) { getEl('assign-quiz-modal').classList.add('hidden'); showToast('success', 'השיוך בוצע בהצלחה'); if(typeof fetchData === 'function') fetchData(); } else showToast('error', data.error);
     } catch(e) { showToast('error', 'שגיאת רשת'); } finally { if(btn) { btn.disabled = false; btn.innerText = 'שייך לעובד'; } }
@@ -7135,7 +7135,7 @@ window.submitTrainingTrack = async function() {
 
                 const res = await fetch(`${API}/academy/assign`, {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
+                    headers: {'Content-Type': 'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : ''},
                     body: JSON.stringify(payload)
                 });
                 
@@ -7193,15 +7193,15 @@ function renderMyAssignments(bundles) {
 async function requestChallenge(bundleId = null) {
     const btn = document.querySelector('#academy-user-view button'); if(btn) { btn.disabled = true; btn.innerText = 'מבקש...'; }
     try {
-        const res = await fetch(`${API}/academy/request-challenge`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: currentUser.id, bundleId: bundleId, groupId: currentGroup.id }) }); const data = await res.json();
+        const res = await fetch(`${API}/academy/request-challenge`, { method: 'POST', headers: {'Content-Type': 'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : ''}, body: JSON.stringify({ userId: currentUser.id, bundleId: bundleId, groupId: currentGroup.id }) }); const data = await res.json();
         if (data.success) { triggerConfetti(); showToast('success', 'הלומדה שויכה בהצלחה!'); fetchData(); } else showToast('error', data.error);
     } catch(e) { showToast('error', 'שגיאה בתקשורת'); } finally { if(btn) { btn.disabled = false; btn.innerText = '🙋‍♂️ הגרל אתגר מהיר'; } }
 }
 
 async function startQuiz(bundleId) {
     const bundle = bundlesCache.find(b => b.bundle_id == bundleId); if(!bundle) return;
-    currentQuizData = bundle; currentQuestionIndex = 0; quizScore = 0; currentWrongAnswers = []; 
-    getEl('quiz-title').innerText = bundle.title; getEl('btn-tutor').classList.add('hidden'); 
+    currentQuizData = bundle; currentQuestionIndex = 0; quizScore = 0; currentWrongAnswers = []; currentQuizAnswers = [];
+    getEl('quiz-title').innerText = bundle.title; getEl('btn-tutor').classList.add('hidden');
     const textContainer = getEl('quiz-text-container');
     if (bundle.text_content) { textContainer.innerHTML = `<p>${bundle.text_content}</p>`; textContainer.classList.remove('hidden'); } else { textContainer.classList.add('hidden'); }
     getEl('quiz-runner-modal').classList.remove('hidden'); renderQuestion();
@@ -7211,11 +7211,12 @@ function renderQuestion() {
     const q = currentQuizData.questions[currentQuestionIndex];
     getEl('q-progress').innerText = `${currentQuestionIndex + 1} / ${currentQuizData.questions.length}`; getEl('q-text').innerText = q.q;
     const optsContainer = getEl('q-options'); optsContainer.innerHTML = '';
-    q.options.forEach((opt, idx) => { optsContainer.innerHTML += `<button onclick="submitAnswer(${idx})" class="quiz-option w-full p-4 rounded-xl text-right bg-slate-50 font-medium hover:bg-slate-100 text-slate-700">${opt}</button>`; });
+    q.options.forEach((opt, idx) => { optsContainer.innerHTML += `<button onclick="submitAnswer(${idx})" class="quiz-option w-full p-4 rounded-xl text-right bg-slate-50 font-medium hover:bg-slate-100 text-slate-700">${escHtml(opt)}</button>`; });
 }
 
 async function submitAnswer(selectedIdx) {
     const q = currentQuizData.questions[currentQuestionIndex]; const isCorrect = selectedIdx === q.correct; const btns = document.querySelectorAll('.quiz-option');
+    currentQuizAnswers[currentQuestionIndex] = selectedIdx;
     btns[selectedIdx].classList.add(isCorrect ? 'correct' : 'wrong');
     if(!isCorrect) { btns[q.correct].classList.add('correct'); currentWrongAnswers.push({ q: q.q, wrong: q.options[selectedIdx], correct: q.options[q.correct] }); }
     if(isCorrect) quizScore++;
@@ -7228,8 +7229,8 @@ async function finishQuiz() {
     getEl('quiz-icon').innerHTML = passed ? '🏆' : '📚'; getEl('quiz-msg-title').innerText = passed ? 'כל הכבוד!' : 'לא נורא, אפשר לנסות שוב...'; getEl('quiz-msg-desc').innerText = passed ? `השלמת את חפיפת הנהלים וזכית בתמריץ של ₪${currentQuizData.custom_reward || currentQuizData.default_reward}` : `יש להגיע לציון של ${currentQuizData.threshold}% כדי לעבור את ההכשרה.`; getEl('quiz-score-display').innerText = `ציון סופי: ${finalScore}%`;
     if (!passed && currentWrongAnswers.length > 0) getEl('btn-tutor').classList.remove('hidden');
     if (passed) triggerConfetti();
-    await fetch(`${API}/academy/submit`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: currentUser.id, bundleId: currentQuizData.bundle_id, score: finalScore, groupId: currentGroup.id }) });
-    fetchData(); 
+    await fetch(`${API}/academy/submit`, { method: 'POST', headers: {'Content-Type': 'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : ''}, body: JSON.stringify({ bundleId: currentQuizData.bundle_id, answers: currentQuizAnswers, groupId: currentGroup.id }) });
+    fetchData();
 }
 
 function closeQuiz() { getEl('quiz-runner-modal').classList.add('hidden'); getEl('question-container').classList.remove('hidden'); getEl('quiz-result').classList.add('hidden'); }
@@ -29596,7 +29597,7 @@ window.submitManualQuiz = async function() {
     try {
         const res = await fetch(`${API}/academy/bundles`, {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
+            headers: {'Content-Type': 'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : ''},
             body: JSON.stringify(payload)
         });
         
@@ -29642,7 +29643,7 @@ window.generateAIQuiz = async function() {
             
             const res = await fetch(`${API}/academy/ai-generate`, { 
                 method: 'POST', 
-                headers: {'Content-Type': 'application/json'}, 
+                headers: {'Content-Type': 'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : ''}, 
                 body: JSON.stringify(payload) 
             });
             
@@ -29738,7 +29739,7 @@ window.submitAssignQuiz = async function() {
     if(!childId) return showToast('error', 'אנא בחר איש צוות לשיוך'); if(!bundleId) return showToast('error', 'אנא בחר הכשרה');
     const btn = getEl('btn-submit-assign'); if(btn) { btn.disabled = true; btn.innerText = 'משייך...'; }
     try {
-        const res = await fetch(`${API}/academy/assign`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: childId, bundleId: bundleId, reward: reward, days: days, groupId: currentGroup.id }) });
+        const res = await fetch(`${API}/academy/assign`, { method: 'POST', headers: {'Content-Type': 'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : ''}, body: JSON.stringify({ userId: childId, bundleId: bundleId, reward: reward, days: days, groupId: currentGroup.id }) });
         const data = await res.json();
         if(data.success) { getEl('assign-quiz-modal').classList.add('hidden'); showToast('success', 'השיוך בוצע בהצלחה'); if(typeof fetchData === 'function') fetchData(); } else showToast('error', data.error);
     } catch(e) { showToast('error', 'שגיאת רשת'); } finally { if(btn) { btn.disabled = false; btn.innerText = 'שייך לעובד'; } }
@@ -29752,7 +29753,7 @@ window.openEditBundleModal = async function(id) {
     getEl('btn-submit-mq').innerHTML = 'עדכן הכשרה <i class="fa-solid fa-check"></i>';
     
     try {
-        const res = await fetch(`${API}/academy/bundles/${id}`);
+        const res = await fetch(`${API}/academy/bundles/${id}`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } });
         const data = await res.json();
         if (data.success && data.bundle) {
             window.editingBundleId = id;
@@ -29962,7 +29963,7 @@ window.submitManualQuiz = async function() {
         
         const res = await fetch(url, {
             method: method,
-            headers: {'Content-Type': 'application/json'},
+            headers: {'Content-Type': 'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : ''},
             body: JSON.stringify(payload)
         });
 
@@ -30005,7 +30006,7 @@ window.generateAIQuiz = async function() {
             
             const res = await fetch(`${API}/academy/ai-generate`, { 
                 method: 'POST', 
-                headers: {'Content-Type': 'application/json'}, 
+                headers: {'Content-Type': 'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : ''}, 
                 body: JSON.stringify(payload) 
             });
             
@@ -30185,7 +30186,7 @@ window.submitTrainingTrack = async function() {
 
                 const res = await fetch(`${API}/academy/assign`, {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
+                    headers: {'Content-Type': 'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : ''},
                     body: JSON.stringify(payload)
                 });
                 

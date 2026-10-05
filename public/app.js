@@ -39,7 +39,7 @@ function getCatScore(name, normalized) {
 }
 let allTasks = []; let allTransactions = []; let feedCache = [];
 let forecastCache = { startingBalance: 0, items: [] };
-let currentVerifyTaskId = null; let currentVerifyTaskTitle = null; let currentWrongAnswers = [];
+let currentVerifyTaskId = null; let currentVerifyTaskTitle = null; let currentWrongAnswers = []; let currentQuizAnswers = [];
 let forceTourStart = false;
 let forecastRatioChart = null;
 let currentForecastMode = 'monthly';
@@ -2381,14 +2381,14 @@ async function generateAIQuiz() {
         if(!childId) return showToast('error', 'נא לבחור ילד');
         btn.disabled = true; btn.innerText = 'familAI חושבת... ⏳';
         try {
-            const res = await fetch(`${API}/academy/ai-generate`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ ageGroup: val('ai-age'), topic: val('ai-topic'), groupId: currentGroup.id }) });
+            const res = await communityFetch(`${API}/academy/ai-generate`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ ageGroup: val('ai-age'), topic: val('ai-topic'), groupId: currentGroup.id }) });
             const data = await res.json();
             if(!handleAIResponseCheck(data)) return;
             if(data.success) {
                 getEl('ai-modal').classList.add('hidden');
                 getEl('ai-topic').value = '';
                 // הקצה אוטומטית לילד שנבחר
-                const assignRes = await fetch(`${API}/academy/assign`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: childId, bundleId: data.bundleId, groupId: currentGroup.id }) });
+                const assignRes = await communityFetch(`${API}/academy/assign`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: childId, bundleId: data.bundleId, groupId: currentGroup.id }) });
                 const assignData = await assignRes.json();
                 if(assignData.success) showToast('success', '✅ האתגר נוצר והוקצה לילד בהצלחה!');
                 else showToast('error', assignData.error || 'שגיאה בהקצאה');
@@ -2439,7 +2439,7 @@ async function askTutor() {
     executeWithAIWarning(async () => {
         const w = currentWrongAnswers[0]; getEl('btn-tutor').disabled = true; getEl('btn-tutor').innerText = 'מכינה הסבר... ⏳';
         try {
-            const res = await fetch(`${API}/academy/tutor`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ question: w.q, wrongAnswer: w.wrong, correctAnswer: w.correct, groupId: currentGroup.id }) }); const data = await res.json();
+            const res = await communityFetch(`${API}/academy/tutor`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ question: w.q, wrongAnswer: w.wrong, correctAnswer: w.correct, groupId: currentGroup.id }) }); const data = await res.json();
             if(!handleAIResponseCheck(data)) return;
             if(data.success) { showFamilAIModal('המורה הפרטית שלך', data.explanation); fetchData(); }
        } catch(e) { showToast('error', 'שגיאה בהבאת ההסבר'); } finally { 
@@ -3540,7 +3540,7 @@ function openAssignModalSpecific(bundleId) { openAssignModal(); setTimeout(() =>
 async function submitAssignQuiz() {
     const childId = val('assign-child-select'); const bundleId = val('assign-bundle-select'); const reward = val('assign-reward'); const days = val('assign-days');
     if(!childId) return showToast('error', 'אנא בחר ילד להקצאה'); if(!bundleId) return showToast('error', 'אנא בחר אתגר להקצאה');
-    const res = await fetch(`${API}/academy/assign`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: childId, bundleId: bundleId, reward: reward, days: days, groupId: currentGroup.id }) });
+    const res = await communityFetch(`${API}/academy/assign`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: childId, bundleId: bundleId, reward: reward, days: days, groupId: currentGroup.id }) });
     const data = await res.json();
     if(data.success) { getEl('assign-quiz-modal').classList.add('hidden'); showToast('success', 'הוקצה בהצלחה'); fetchData(); } else showToast('error', data.error);
 }
@@ -4335,14 +4335,14 @@ function renderMyAssignments(bundles) {
 
 async function previewBundleAsParent(bundleId) {
     try {
-        const res = await fetch(`${API}/academy/bundles/${bundleId}`);
+        const res = await communityFetch(`${API}/academy/bundles/${bundleId}`);
         const data = await res.json();
         if(!data.success || !data.bundle) return showToast('error', 'שגיאה בטעינת המבחן');
         const bundle = data.bundle;
         if(!bundle.questions || bundle.questions.length === 0) return showToast('error', 'אין שאלות במבחן זה');
         window._parentPreviewMode = true;
         currentQuizData = { ...bundle, bundle_id: bundleId, custom_reward: null, default_reward: bundle.reward };
-        currentQuestionIndex = 0; quizScore = 0; currentWrongAnswers = [];
+        currentQuestionIndex = 0; quizScore = 0; currentWrongAnswers = []; currentQuizAnswers = [];
         getEl('quiz-title').innerText = `👁️ תצוגת הורה: ${bundle.title}`;
         getEl('btn-tutor').classList.add('hidden');
         const textContainer = getEl('quiz-text-container');
@@ -4354,7 +4354,7 @@ async function previewBundleAsParent(bundleId) {
 async function requestChallenge(bundleId = null) {
     const btn = document.querySelector('#academy-user-view button'); if(btn) { btn.disabled = true; btn.innerText = 'מבקש...'; }
     try {
-        const res = await fetch(`${API}/academy/request-challenge`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: currentUser.id, bundleId: bundleId, groupId: currentGroup.id }) }); const data = await res.json();
+        const res = await communityFetch(`${API}/academy/request-challenge`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: currentUser.id, bundleId: bundleId, groupId: currentGroup.id }) }); const data = await res.json();
         if (data.success) { triggerConfetti(); showToast('success', 'הלומדה שויכה בהצלחה!'); fetchData(); } else showToast('error', data.error);
     } catch(e) { showToast('error', 'שגיאה בתקשורת'); } finally { if(btn) { btn.disabled = false; btn.innerText = '🙋‍♂️ הגרל אתגר מהיר'; } }
 }
@@ -4363,7 +4363,7 @@ async function startQuizReview(bundleId) {
     const bundle = bundlesCache.find(b => b.bundle_id == bundleId); if(!bundle) return;
     let qs = [];
     try {
-        const res = await fetch(`${API}/academy/bundles/${bundleId}`);
+        const res = await communityFetch(`${API}/academy/bundles/${bundleId}`);
         const data = await res.json();
         qs = data.bundle?.questions || [];
     } catch(e) {}
@@ -4416,12 +4416,12 @@ async function startQuizReview(bundleId) {
 async function startQuiz(bundleId) {
     const bundleMeta = bundlesCache.find(b => b.bundle_id == bundleId); if(!bundleMeta) return;
     try {
-        const res = await fetch(`${API}/academy/bundles/${bundleMeta.bundle_id}`);
+        const res = await communityFetch(`${API}/academy/bundles/${bundleMeta.bundle_id}`);
         const data = await res.json();
         if(!data.success || !data.bundle) return showToast('error', 'שגיאה בטעינת השאלות');
         if(!data.bundle.questions || data.bundle.questions.length === 0) return showToast('error', 'אין שאלות במבחן זה');
         currentQuizData = { ...bundleMeta, questions: data.bundle.questions, text_content: data.bundle.text_content };
-        currentQuestionIndex = 0; quizScore = 0; currentWrongAnswers = [];
+        currentQuestionIndex = 0; quizScore = 0; currentWrongAnswers = []; currentQuizAnswers = [];
         getEl('quiz-title').innerText = bundleMeta.title; getEl('btn-tutor').classList.add('hidden');
         getEl('quiz-text-container').classList.add('hidden');
         getEl('quiz-runner-modal').classList.remove('hidden'); renderQuestion();
@@ -4432,11 +4432,12 @@ function renderQuestion() {
     const q = currentQuizData.questions[currentQuestionIndex];
     getEl('q-progress').innerText = `${currentQuestionIndex + 1} / ${currentQuizData.questions.length}`; getEl('q-text').innerText = q.q;
     const optsContainer = getEl('q-options'); optsContainer.innerHTML = '';
-    q.options.forEach((opt, idx) => { optsContainer.innerHTML += `<button onclick="submitAnswer(${idx})" class="quiz-option w-full p-4 rounded-xl text-right bg-slate-50 font-medium hover:bg-slate-100 text-slate-700">${opt}</button>`; });
+    q.options.forEach((opt, idx) => { optsContainer.innerHTML += `<button onclick="submitAnswer(${idx})" class="quiz-option w-full p-4 rounded-xl text-right bg-slate-50 font-medium hover:bg-slate-100 text-slate-700">${escHtml(opt)}</button>`; });
 }
 
 async function submitAnswer(selectedIdx) {
     const q = currentQuizData.questions[currentQuestionIndex]; const isCorrect = selectedIdx === q.correct; const btns = document.querySelectorAll('.quiz-option');
+    currentQuizAnswers[currentQuestionIndex] = selectedIdx;
     btns[selectedIdx].classList.add(isCorrect ? 'correct' : 'wrong');
     if(!isCorrect) { btns[q.correct].classList.add('correct'); currentWrongAnswers.push({ q: q.q, wrong: q.options[selectedIdx], correct: q.options[q.correct] }); }
     if(isCorrect) quizScore++;
@@ -4458,22 +4459,14 @@ async function finishQuiz() {
     if (!passed && currentWrongAnswers.length > 0 && !window._parentPreviewMode) getEl('btn-tutor').classList.remove('hidden');
     if (passed) triggerConfetti();
     if (!window._parentPreviewMode) {
-        await fetch(`${API}/academy/submit`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: currentUser.id, bundleId: currentQuizData.bundle_id, score: finalScore, groupId: currentGroup.id }) });
-        if (passed && currentUser.role !== 'ADMIN') {
-            const flwReward = Math.max(5, Math.min(20, Math.round((currentQuizData.custom_reward || currentQuizData.default_reward || 10) * 1.5)));
-            try {
-                const awardRes = await communityFetch(`${API}/kids/award-flw`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ userId: currentUser.id, gameId: null, score: finalScore, flwEarned: flwReward, durationSeconds: 0 }) });
-                const awardData = await awardRes.json();
-                if (awardData.flwEarned > 0) {
-                    const descEl = getEl('quiz-msg-desc');
-                    if (descEl) descEl.innerHTML += `<br><span style="color:#7c3aed;font-weight:900;">🪙 +${awardData.flwEarned} FLW לארנק שלך!</span>`;
-                    kidFlwBalance = parseFloat(awardData.newBalance || kidFlwBalance);
-                    triggerCoinAnimation(kidFlwBalance);
-                    const numEl = getEl('header-flw-num');
-                    if (numEl) numEl.textContent = Math.floor(kidFlwBalance);
-                }
-            } catch(e) {}
-        }
+        try {
+            const res = await communityFetch(`${API}/academy/submit`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ bundleId: currentQuizData.bundle_id, answers: currentQuizAnswers, groupId: currentGroup.id }) });
+            const data = await res.json();
+            if (data.success && data.passed && data.rewardCredited > 0) {
+                const descEl = getEl('quiz-msg-desc');
+                if (descEl) descEl.innerHTML += `<br><span style="color:#7c3aed;font-weight:900;">🪙 +${data.rewardCredited} FLW לארנק שלך!</span>`;
+            }
+        } catch(e) {}
         fetchData();
     }
 }
