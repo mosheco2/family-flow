@@ -145,7 +145,12 @@
             return;
         }
         grid.innerHTML = items.map(p => {
-            const orig = parseFloat(p.original_price);
+            // "מחיר מקור" להשוואה: הגבוה מבין original_price (מבצע בחנות הרגילה, אם קיים)
+            // ו-base_price (מחיר הקטלוג הרגיל) - כדי שתגית ההנחה תופיע גם כשההנחה
+            // היא רק מחיר-שוק ייעודי (price_override) שהעסק הגדיר, בלי שום קשר למבצע קיים
+            const basePrice = parseFloat(p.base_price) || 0;
+            const origPrice = parseFloat(p.original_price) || 0;
+            const orig = Math.max(basePrice, origPrice);
             const curr = parseFloat(p.price);
             const hasDiscount = orig && orig > curr;
             const priceHtml = hasDiscount
@@ -653,7 +658,7 @@
                     ordersHtml = data.orders.map(o => `
                         <div style="border:1px solid #f1f5f9;border-radius:12px;padding:12px;margin-bottom:8px">
                             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-                                <span style="font-weight:700;font-size:13px;color:#1e293b">${csSafe(o.business_name)}</span>
+                                <span style="font-weight:700;font-size:13px;color:#1e293b">${csSafe(o.business_name)} <span style="color:#94a3b8;font-weight:600">#${o.id}</span></span>
                                 <span style="font-size:11px;font-weight:700;color:#6366f1">${csSafe(CS_STATUS_LABELS[o.status] || o.status)}</span>
                             </div>
                             <div style="font-size:12px;color:#64748b;line-height:1.6">${(o.items || []).map(it => `${csSafe(it.name)} ×${it.qty}`).join(', ')}</div>

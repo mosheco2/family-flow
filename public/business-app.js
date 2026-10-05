@@ -6035,7 +6035,7 @@ window.renderRestaurantPendingOrders = async function() {
                 let items = [];
                 try { items = (Array.isArray(o.items) ? o.items : JSON.parse(o.items||'[]')).filter(i => !i.is_quote_metadata && !(i.name && i.name.startsWith('DELIVERY_META|'))); } catch(e) {}
                 const isDeliv = o.is_delivery == 1 || o.is_delivery === true || o.is_delivery === 'true';
-                pendingOrders.push({ orderId: o.id, items, customerName: o.customer_name, customerPhone: o.customer_phone, deliveryDetails: o.delivery_details, isDelivery: isDeliv, totalAmount: o.total_amount });
+                pendingOrders.push({ orderId: o.id, items, customerName: o.customer_name, customerPhone: o.customer_phone, deliveryDetails: o.delivery_details, isDelivery: isDeliv, totalAmount: o.total_amount, orderSource: o.order_source, campaignTitle: o.campaign_title });
             });
         }
     } catch(e) {}
@@ -6059,10 +6059,13 @@ window.renderRestaurantPendingOrders = async function() {
             const typeBadge = r.isDelivery
                 ? '<span class="text-[9px] font-black text-orange-600 bg-orange-100 px-1.5 py-0.5 rounded-full ml-1">🛵 משלוח</span>'
                 : '<span class="text-[9px] font-black text-blue-600 bg-blue-100 px-1.5 py-0.5 rounded-full ml-1">🚗 איסוף</span>';
+            const shukaBadge = r.orderSource === 'community_campaign'
+                ? `<span class="text-[9px] font-black text-purple-700 bg-purple-100 px-1.5 py-0.5 rounded-full ml-1">🛒 שוקה${r.campaignTitle ? ' · ' + safeStr(r.campaignTitle) : ''}</span>`
+                : '';
             const totalStr = r.totalAmount ? `<span class="text-[10px] font-black text-green-700 ml-1">₪${parseFloat(r.totalAmount).toFixed(0)}</span>` : '';
             return `<div class="flex items-start gap-2 px-4 py-3">
                 <div class="flex-1 min-w-0">
-                    <div class="flex items-center gap-1 mb-0.5"><span class="text-xs font-black text-orange-700 bg-orange-100 px-1.5 py-0.5 rounded-full">#${r.orderId}</span>${typeBadge}<span class="text-xs font-black text-slate-800">${safeStr(r.customerName || '')} ${totalStr}</span></div>
+                    <div class="flex items-center gap-1 mb-0.5 flex-wrap"><span class="text-xs font-black text-orange-700 bg-orange-100 px-1.5 py-0.5 rounded-full">#${r.orderId}</span>${typeBadge}${shukaBadge}<span class="text-xs font-black text-slate-800">${safeStr(r.customerName || '')} ${totalStr}</span></div>
                     ${r.customerPhone ? `<div class="text-[10px] text-slate-500 mb-0.5">📞 ${safeStr(r.customerPhone)}</div>` : ''}
                     <div class="text-[10px] text-slate-500">${safeStr(dishList) || '—'}</div>
                     ${addr ? `<div class="text-[10px] text-indigo-600">📍 ${safeStr(addr)}</div>` : ''}

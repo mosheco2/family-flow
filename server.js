@@ -13831,7 +13831,7 @@ app.put('/api/tables/:groupId/bills', async (req, res) => {
 
 app.get('/api/store/orders/:groupId', async (req, res) => {
     try {
-        const orders = await pool.query("SELECT * FROM store_orders WHERE group_id=$1 AND status != 'quote' ORDER BY created_at DESC", [req.params.groupId]);
+        const orders = await pool.query("SELECT so.*, cc.title AS campaign_title FROM store_orders so LEFT JOIN community_campaigns cc ON cc.id = so.campaign_id WHERE so.group_id=$1 AND so.status != 'quote' ORDER BY so.created_at DESC", [req.params.groupId]);
         // Enrich items: prefer JSONB items (have name/catalogId), fall back to store_order_items rows
         const catRes = await pool.query('SELECT id, name, kitchen_station FROM store_catalog WHERE group_id=$1', [req.params.groupId]);
         const catMap = {};
@@ -14802,7 +14802,7 @@ app.get('/api/campaign/:code', async (req, res) => {
 
         const productsRes = await pool.query(
             `SELECT sc.id, sc.group_id, sc.name, sc.description,
-                    COALESCE(p.price_override, sc.price) AS price, sc.original_price, sc.category,
+                    COALESCE(p.price_override, sc.price) AS price, sc.price AS base_price, sc.original_price, sc.category,
                     sc.options_text, sc.product_type,
                     (sc.image_url IS NOT NULL AND sc.image_url != '') as has_image,
                     fg.name AS business_name
@@ -14901,8 +14901,8 @@ app.post('/api/campaign/:code/order', async (req, res) => {
         const customerName = [customer.first_name, customer.last_name].filter(Boolean).join(' ') || 'לקוח';
 
         const oRes = await pool.query(
-            `INSERT INTO store_orders (group_id, customer_name, customer_phone, total_amount, status, created_at, is_delivery, delivery_details, family_group_id, notes, order_source, campaign_id)
-             VALUES ($1,$2,$3,$4,'pending_approval',CURRENT_TIMESTAMP,$5,$6,$7,$8,'community_campaign',$9) RETURNING id`,
+            `INSERT INTO store_orders (group_id, customer_name, customer_phone, total_amount, status, created_at, is_delivery, delivery_details, family_group_id, notes, order_source, campaign_id, quote_status)
+             VALUES ($1,$2,$3,$4,'pending_approval',CURRENT_TIMESTAMP,$5,$6,$7,$8,'community_campaign',$9,NULL) RETURNING id`,
             [groupId, customerName, customer.phone, serverTotal, isDeliv, deliveryDetailsStr, customer.family_group_id || null, notes || null, campaign.id]);
         const orderId = oRes.rows[0].id;
         await pool.query('UPDATE store_orders SET items = $1 WHERE id = $2', [JSON.stringify(items), orderId]);
