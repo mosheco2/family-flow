@@ -14808,7 +14808,7 @@ app.get('/api/campaign/:code', async (req, res) => {
              FROM community_campaign_products p
              JOIN store_catalog sc ON sc.id = p.catalog_id
              JOIN family_groups fg ON fg.id = p.business_group_id
-             WHERE p.campaign_id=$1 AND p.approval_status='approved' AND sc.is_available = TRUE AND fg.account_status != 'frozen'
+             WHERE p.campaign_id=$1 AND p.approval_status='approved' AND fg.account_status != 'frozen'
              ORDER BY fg.name, sc.category, sc.name`, [campaign.id]);
 
         res.json({ success: true, campaign, businesses: businessesRes.rows, products: productsRes.rows });
@@ -14863,7 +14863,7 @@ app.post('/api/campaign/:code/order', async (req, res) => {
         const campaignProducts = await pool.query(
             `SELECT sc.id, COALESCE(p.price_override, sc.price) AS price, sc.options_text FROM community_campaign_products p
              JOIN store_catalog sc ON sc.id = p.catalog_id
-             WHERE p.campaign_id=$1 AND p.business_group_id=$2 AND p.approval_status='approved' AND sc.is_available=TRUE`,
+             WHERE p.campaign_id=$1 AND p.business_group_id=$2 AND p.approval_status='approved'`,
             [campaign.id, groupId]);
         const priceMap = {};
         campaignProducts.rows.forEach(r => { priceMap[r.id] = { base: parseFloat(r.price), maxExtra: _maxOptionsExtra(r.options_text) }; });
