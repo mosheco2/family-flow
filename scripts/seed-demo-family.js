@@ -635,6 +635,123 @@ async function main() {
     }
 
     // =================================================================
+    // SECTION J: ניהול הבית — equipment_technicians / equipment_items /
+    // equipment_maintenance / equipment_faults / equipment_loans
+    // (קטגוריות תואמות ל-HM_CAT_COLORS ב-public/app.js)
+    // =================================================================
+    try {
+      await client.query('BEGIN');
+      const hmNow = new Date();
+      const hmDaysAgo = (n) => new Date(hmNow.getTime() - n * 24 * 60 * 60 * 1000);
+      const hmDaysAhead = (n) => new Date(hmNow.getTime() + n * 24 * 60 * 60 * 1000);
+
+      const techRows = [
+        { name: 'דורון חשמלאי', company: 'דורון שירותי חשמל', phone: '0521234567', specialty: 'חשמל' },
+        { name: 'אבי מזגנים', company: 'קרירות אבי', phone: '0537654321', specialty: 'מזגן' }
+      ];
+      const techIds = [];
+      for (const t of techRows) {
+        const r = await client.query(
+          `INSERT INTO equipment_technicians (group_id, name, company_name, phone, specialty) VALUES ($1,$2,$3,$4,$5) RETURNING id`,
+          [group.id, t.name, t.company, t.phone, t.specialty]
+        );
+        techIds.push(r.rows[0].id);
+        bump('equipment_technicians');
+      }
+
+      const itemRows = [
+        { name: 'מקרר סמסונג', category: 'מקרר/הקפאה', serial: 'SN-RF-2021', purchase: hmDaysAgo(900), warranty: hmDaysAhead(0 - 30), techIdx: null },
+        { name: 'מזגן סלון', category: 'מזגן', serial: 'SN-AC-1180', purchase: hmDaysAgo(400), warranty: hmDaysAhead(330), techIdx: 1 },
+        { name: 'תנור אפייה', category: 'תנור/אפייה', serial: 'SN-OV-0099', purchase: hmDaysAgo(650), warranty: hmDaysAgo(20), techIdx: null },
+        { name: 'רכב משפחתי - מאזדה 3', category: 'רכב', serial: 'SN-CAR-7788', purchase: hmDaysAgo(1200), warranty: null, techIdx: null }
+      ];
+      const itemIds = [];
+      for (const it of itemRows) {
+        const techId = it.techIdx !== null ? techIds[it.techIdx] : null;
+        const r = await client.query(
+          `INSERT INTO equipment_items (group_id, name, category, serial_number, purchase_date, warranty_expiry, status, technician_id)
+           VALUES ($1,$2,$3,$4,$5,$6,'active',$7) RETURNING id`,
+          [group.id, it.name, it.category, it.serial, it.purchase, it.warranty, techId]
+        );
+        itemIds.push(r.rows[0].id);
+        bump('equipment_items');
+      }
+
+      // תחזוקה: אחת שהושלמה, אחת מתוכננת קדימה (תזכורת פעילה)
+      await client.query(
+        `INSERT INTO equipment_maintenance (equipment_id, group_id, maintenance_type, description, scheduled_date, completed_date, status, cost, technician_name, technician_phone)
+         VALUES ($1,$2,'periodic','ניקוי מסננים וגז',$3,$3,'completed',280,$4,$5)`,
+        [itemIds[1], group.id, hmDaysAgo(60), techRows[1].name, techRows[1].phone]
+      );
+      await client.query(
+        `INSERT INTO equipment_maintenance (equipment_id, group_id, maintenance_type, description, scheduled_date, status, interval_days)
+         VALUES ($1,$2,'periodic','בדיקת תקינות שנתית',$3,'pending',365)`,
+        [itemIds[0], group.id, hmDaysAhead(14)]
+      );
+      bump('equipment_maintenance', 2);
+
+      // תקלות: אחת פתוחה (דחופה), אחת טופלה
+      await client.query(
+        `INSERT INTO equipment_faults (equipment_id, group_id, title, description, severity, status)
+         VALUES ($1,$2,'תנור לא מתחמם כראוי','התנור לוקח הרבה זמן להגיע לטמפרטורה, ייתכן תקלה בגוף חימום','high','open')`,
+        [itemIds[2], group.id]
+      );
+      await client.query(
+        `INSERT INTO equipment_faults (equipment_id, group_id, title, description, severity, status, resolved_date, resolution_notes)
+         VALUES ($1,$2,'מזגן מרעיש בהפעלה','רעש קליקים בהפעלה ראשונית','low','resolved',$3,'התברר כאוויר בצנרת - טופל בבדיקת השירות התקופתית')`,
+        [itemIds[1], group.id, hmDaysAgo(55)]
+      );
+      bump('equipment_faults', 2);
+
+      // השאלת ציוד לשכן
+      await client.query(
+        `INSERT INTO equipment_loans (equipment_id, group_id, borrower_name, borrower_phone, loaned_at, notes)
+         VALUES ($1,$2,'יונתן השכן','0541112233',$3,'השאלת סולם לצורך תלייה')`,
+        [itemIds[3], group.id, hmDaysAgo(5)]
+      );
+      bump('equipment_loans');
+
+      await client.query('COMMIT');
+      console.log('✓ SECTION J (ניהול הבית: ציוד/תחזוקה/תקלות/אנשי קשר/השאלות) הושלם בהצלחה');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      console.error('✗ SECTION J FAILED (ניהול הבית):', e.message);
+    }
+
+    // =================================================================
+    // SECTION K: תשקיף — תנועות קבועות (recurring) לטווח קדימה
+    // (התשקיף נגזר ב-UI ישירות מ-transactions עם is_recurring=true,
+    // אין טבלה ייעודית - ר' renderForecast ב-public/app.js)
+    // =================================================================
+    try {
+      await client.query('BEGIN');
+      const fcNow = new Date();
+      const fcMonthStr = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const fcEndMonth = fcMonthStr(new Date(fcNow.getFullYear(), fcNow.getMonth() + 6, 1));
+
+      const recurringRows = [
+        { user: parentUsers[0], amount: 4500, desc: 'שכירות דירה', cat: 'דיור', type: 'expense' },
+        { user: parentUsers[1], amount: 420, desc: 'ביטוח רכב חודשי', cat: 'תחבורה ודלק', type: 'expense' },
+        { user: parentUsers[0], amount: 150, desc: 'מנוי חדר כושר', cat: 'בריאות וספורט', type: 'expense' },
+        { user: parentUsers[1], amount: 300, desc: 'קצבת ילדים (ביטוח לאומי)', cat: 'קצבאות', type: 'income' }
+      ];
+      for (const r of recurringRows) {
+        await client.query(
+          `INSERT INTO transactions (user_id, group_id, amount, description, category, type, date, is_recurring, end_month, is_manual)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,TRUE,$8,TRUE)`,
+          [r.user.id, group.id, r.amount, r.desc, r.cat, r.type, fcNow, fcEndMonth]
+        );
+        bump('transactions');
+      }
+
+      await client.query('COMMIT');
+      console.log('✓ SECTION K (תשקיף: תנועות קבועות 6 חודשים קדימה) הושלם בהצלחה');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      console.error('✗ SECTION K FAILED (תשקיף):', e.message);
+    }
+
+    // =================================================================
     // סיכום סופי
     // =================================================================
     console.log('\n================= סיכום =================');
