@@ -61741,12 +61741,20 @@ window.shukaOpenProducts = async function(campaignId, campaignTitle) {
         if (!listEl) return;
         if (!data.success) { listEl.innerHTML = `<p style="color:#ef4444;font-size:12px;text-align:center;">${escHtml(data.error || 'שגיאה')}</p>`; return; }
         if (!data.catalog.length) { listEl.innerHTML = '<p style="color:#94a3b8;font-size:12px;text-align:center;">אין פריטים בקטלוג שלכם עדיין.</p>'; return; }
-        listEl.innerHTML = data.catalog.map(p => `
-            <label style="display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid #f1f5f9;border-radius:12px;cursor:pointer;">
+        const statusBadge = { pending: ['ממתין לאישור', '#d97706', '#fffbeb'], approved: ['אושר', '#059669', '#ecfdf5'], rejected: ['נדחה', '#dc2626', '#fef2f2'] };
+        listEl.innerHTML = data.catalog.map(p => {
+            const badge = p.selected && statusBadge[p.approval_status] ? statusBadge[p.approval_status] : null;
+            const priceVal = p.selected && p.price_override != null ? p.price_override : '';
+            return `<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid #f1f5f9;border-radius:12px;">
                 <input type="checkbox" ${p.selected ? 'checked' : ''} onchange="window.shukaToggleProduct(${campaignId}, ${p.id}, this.checked)" style="width:16px;height:16px;">
-                <span style="flex:1;font-size:13px;font-weight:700;color:#334155;">${escHtml(p.name)}</span>
-                <span style="font-size:11px;color:#94a3b8;">₪${p.price}</span>
-            </label>`).join('');
+                <div style="flex:1;min-width:0;">
+                    <div style="font-size:13px;font-weight:700;color:#334155;">${escHtml(p.name)}</div>
+                    <div style="font-size:10px;color:#94a3b8;">מחיר בקטלוג: ₪${p.base_price}</div>
+                </div>
+                ${p.selected ? `<input type="number" min="0" step="0.5" placeholder="מחיר לשוק" value="${priceVal}" onchange="window.shukaSetPrice(${campaignId}, ${p.id}, this.value)" style="width:72px;font-size:12px;padding:4px 6px;border:1px solid #e2e8f0;border-radius:8px;" dir="ltr">` : ''}
+                ${badge ? `<span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:8px;color:${badge[1]};background:${badge[2]};white-space:nowrap;">${badge[0]}</span>` : ''}
+            </div>`;
+        }).join('');
     } catch(e) {
         const listEl = document.getElementById('_shuka-products-list');
         if (listEl) listEl.innerHTML = '<p style="color:#ef4444;font-size:12px;text-align:center;">שגיאת תקשורת</p>';
@@ -61760,6 +61768,20 @@ window.shukaToggleProduct = async function(campaignId, catalogId, checked) {
             body: JSON.stringify({ catalogId, action: checked ? 'add' : 'remove' })
         });
         const data = await res.json();
-        if (!data.success) showToast('error', data.error || 'שגיאה');
+        if (!data.success) { showToast('error', data.error || 'שגיאה'); return; }
+        if (checked) showToast('success', 'המוצר הוקצה לשוק וממתין לאישור מנהל השוק');
+        window.shukaOpenProducts(campaignId, document.querySelector('#_shuka-products-modal h3')?.textContent?.replace('בחירת מוצרים — ', '') || '');
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
+window.shukaSetPrice = async function(campaignId, catalogId, price) {
+    try {
+        const res = await fetch(`${API}/biz/market-campaigns/${campaignId}/products`, {
+            method: 'POST', headers: _shukaAuthHeaders(),
+            body: JSON.stringify({ catalogId, action: 'add', price })
+        });
+        const data = await res.json();
+        if (!data.success) { showToast('error', data.error || 'שגיאה'); return; }
+        showToast('success', 'המחיר עודכן, ממתין לאישור מנהל השוק');
     } catch(e) { showToast('error', 'שגיאת תקשורת'); }
 };

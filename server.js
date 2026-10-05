@@ -14800,14 +14800,15 @@ app.get('/api/campaign/:code', async (req, res) => {
              ORDER BY fg.name`, [campaign.id]);
 
         const productsRes = await pool.query(
-            `SELECT sc.id, sc.group_id, sc.name, sc.description, sc.price, sc.original_price, sc.category,
+            `SELECT sc.id, sc.group_id, sc.name, sc.description,
+                    COALESCE(p.price_override, sc.price) AS price, sc.original_price, sc.category,
                     sc.options_text, sc.product_type,
                     (sc.image_url IS NOT NULL AND sc.image_url != '') as has_image,
                     fg.name AS business_name
              FROM community_campaign_products p
              JOIN store_catalog sc ON sc.id = p.catalog_id
              JOIN family_groups fg ON fg.id = p.business_group_id
-             WHERE p.campaign_id=$1 AND sc.is_available = TRUE AND fg.account_status != 'frozen'
+             WHERE p.campaign_id=$1 AND p.approval_status='approved' AND sc.is_available = TRUE AND fg.account_status != 'frozen'
              ORDER BY fg.name, sc.category, sc.name`, [campaign.id]);
 
         res.json({ success: true, campaign, businesses: businessesRes.rows, products: productsRes.rows });
@@ -14858,11 +14859,11 @@ app.post('/api/campaign/:code/order', async (req, res) => {
             [campaign.id, groupId]);
         if (!included.rows.length) return res.status(400).json({ error: 'העסק אינו חלק מקמפיין זה' });
 
-        // אימות מחירים מול הקטלוג האמיתי + שכל פריט אכן נבחר לקמפיין עבור העסק הזה
+        // אימות מחירים מול המחיר שהעסק קבע לשוק הזה (price_override) + שהמוצר אושר ע"י מנהל השוק
         const campaignProducts = await pool.query(
-            `SELECT sc.id, sc.price, sc.options_text FROM community_campaign_products p
+            `SELECT sc.id, COALESCE(p.price_override, sc.price) AS price, sc.options_text FROM community_campaign_products p
              JOIN store_catalog sc ON sc.id = p.catalog_id
-             WHERE p.campaign_id=$1 AND p.business_group_id=$2 AND sc.is_available=TRUE`,
+             WHERE p.campaign_id=$1 AND p.business_group_id=$2 AND p.approval_status='approved' AND sc.is_available=TRUE`,
             [campaign.id, groupId]);
         const priceMap = {};
         campaignProducts.rows.forEach(r => { priceMap[r.id] = { base: parseFloat(r.price), maxExtra: _maxOptionsExtra(r.options_text) }; });
@@ -15900,7 +15901,13 @@ async function initCommunityTables() {
             responded_at TIMESTAMP
         )`,
         `CREATE UNIQUE INDEX IF NOT EXISTS idx_campaign_requests_open ON community_campaign_requests (campaign_id, business_group_id) WHERE status='pending'`,
-        `ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS campaign_id INT REFERENCES community_campaigns(id) ON DELETE SET NULL`
+        `ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS campaign_id INT REFERENCES community_campaigns(id) ON DELETE SET NULL`,
+        // העסק קובע בעצמו אילו מוצרים, לאיזה שוק ובאיזה מחיר (price_override) -
+        // מנהל השוק מאשר/דוחה כל מוצר שהוקצה (approval_status), לא בוחר בעצמו.
+        `ALTER TABLE community_campaign_products ADD COLUMN IF NOT EXISTS price_override DECIMAL(10,2)`,
+        `ALTER TABLE community_campaign_products ADD COLUMN IF NOT EXISTS approval_status VARCHAR(20) DEFAULT 'pending'`,
+        `ALTER TABLE community_campaign_products ADD COLUMN IF NOT EXISTS submitted_by_user_id INT`,
+        `ALTER TABLE community_campaign_products ADD COLUMN IF NOT EXISTS reviewed_at TIMESTAMP`
     ];
 
     for (let q of queries) {
@@ -18936,30 +18943,59 @@ app.get('/api/zone-manager/community-campaigns/:id/business/:groupId/catalog', v
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// הוספה/הסרה של מוצר ספציפי לקמפיין
+// הסרת מוצר מהקמפיין ע"י מנהל השוק (override/takedown) - בחירת מוצרים חדשים
+// מתבצעת אך ורק ע"י העסק עצמו (ר' POST /api/biz/market-campaigns/:id/products);
+// למנהל נותרת רק יכולת ההסרה/הטייק-דאון וה-אישור/דחייה (ר' endpoint הבא)
 app.post('/api/zone-manager/community-campaigns/:id/products', verifyZoneManager, async (req, res) => {
     try {
         const { managerId } = req.zmSession;
         const campaign = await verifyCampaignOwnership(req.params.id, managerId);
         if (!campaign) return res.status(403).json({ error: 'אין הרשאה לקמפיין זה' });
 
+        const { catalogId, action } = req.body;
+        if (!catalogId || action !== 'remove') return res.status(400).json({ error: 'ניתן רק להסיר מוצר קיים - בחירת מוצרים חדשים מתבצעת ע"י העסק עצמו' });
+        await pool.query(`DELETE FROM community_campaign_products WHERE campaign_id=$1 AND catalog_id=$2`, [req.params.id, catalogId]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// תור בקרה: כל המוצרים שעסקים הקצו לשוק הזה (לכל הסטטוסים, או מסונן ל-pending)
+app.get('/api/zone-manager/community-campaigns/:id/products-review', verifyZoneManager, async (req, res) => {
+    try {
+        const { managerId } = req.zmSession;
+        const campaign = await verifyCampaignOwnership(req.params.id, managerId);
+        if (!campaign) return res.status(403).json({ error: 'אין הרשאה לקמפיין זה' });
+        const statusFilter = req.query.status; // אופציונלי: 'pending'/'approved'/'rejected'
+        const params = [req.params.id];
+        let where = 'p.campaign_id=$1';
+        if (statusFilter) { params.push(statusFilter); where += ` AND p.approval_status=$${params.length}`; }
+        const rows = await pool.query(
+            `SELECT p.campaign_id, p.business_group_id, p.catalog_id, p.price_override, p.approval_status, p.added_at, p.reviewed_at,
+                    sc.name AS product_name, sc.price AS base_price, sc.category,
+                    fg.name AS business_name
+             FROM community_campaign_products p
+             JOIN store_catalog sc ON sc.id = p.catalog_id
+             JOIN family_groups fg ON fg.id = p.business_group_id
+             WHERE ${where}
+             ORDER BY p.approval_status = 'pending' DESC, p.added_at DESC`,
+            params);
+        res.json({ success: true, products: rows.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// אישור/דחייה של מוצר שהעסק הקצה לשוק
+app.post('/api/zone-manager/community-campaigns/:id/products/review', verifyZoneManager, async (req, res) => {
+    try {
+        const { managerId } = req.zmSession;
+        const campaign = await verifyCampaignOwnership(req.params.id, managerId);
+        if (!campaign) return res.status(403).json({ error: 'אין הרשאה לקמפיין זה' });
         const { businessGroupId, catalogId, action } = req.body;
-        if (!businessGroupId || !catalogId || !['add','remove'].includes(action)) return res.status(400).json({ error: 'שדות לא תקינים' });
-
-        const included = await pool.query(
-            `SELECT 1 FROM community_campaign_businesses WHERE campaign_id=$1 AND business_group_id=$2`,
-            [req.params.id, businessGroupId]);
-        if (!included.rows.length) return res.status(400).json({ error: 'העסק הזה עדיין לא נוסף לקמפיין' });
-
-        if (action === 'add') {
-            const prod = await pool.query('SELECT id FROM store_catalog WHERE id=$1 AND group_id=$2', [catalogId, businessGroupId]);
-            if (!prod.rows.length) return res.status(400).json({ error: 'מוצר לא נמצא אצל עסק זה' });
-            await pool.query(
-                `INSERT INTO community_campaign_products (campaign_id, business_group_id, catalog_id) VALUES ($1,$2,$3)
-                 ON CONFLICT DO NOTHING`, [req.params.id, businessGroupId, catalogId]);
-        } else {
-            await pool.query(`DELETE FROM community_campaign_products WHERE campaign_id=$1 AND catalog_id=$2`, [req.params.id, catalogId]);
-        }
+        if (!businessGroupId || !catalogId || !['approve','reject'].includes(action)) return res.status(400).json({ error: 'שדות לא תקינים' });
+        const upd = await pool.query(
+            `UPDATE community_campaign_products SET approval_status=$1, reviewed_at=NOW()
+             WHERE campaign_id=$2 AND business_group_id=$3 AND catalog_id=$4 RETURNING *`,
+            [action === 'approve' ? 'approved' : 'rejected', req.params.id, businessGroupId, catalogId]);
+        if (!upd.rows.length) return res.status(404).json({ error: 'מוצר לא נמצא' });
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -19765,29 +19801,56 @@ app.get('/api/community/manager/campaigns/:id/business/:groupId/catalog', verify
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// הסרת מוצר מהקמפיין ע"י מנהל הקהילה (override/takedown) - בחירת מוצרים חדשים
+// מתבצעת אך ורק ע"י העסק עצמו (ר' POST /api/biz/market-campaigns/:id/products)
 app.post('/api/community/manager/campaigns/:id/products', verifyFamily, async (req, res) => {
     try {
         const campaign = await verifyCampaignOwnershipFamily(req.params.id, req.familyAuth.groupId);
         if (!campaign) return res.status(403).json({ error: 'אין הרשאה לקמפיין זה' });
         if (await blockIfChildFamilyUser(req, res)) return;
 
+        const { catalogId, action } = req.body;
+        if (!catalogId || action !== 'remove') return res.status(400).json({ error: 'ניתן רק להסיר מוצר קיים - בחירת מוצרים חדשים מתבצעת ע"י העסק עצמו' });
+        await pool.query(`DELETE FROM community_campaign_products WHERE campaign_id=$1 AND catalog_id=$2`, [req.params.id, catalogId]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// תור בקרה: כל המוצרים שעסקים הקצו לשוק הזה
+app.get('/api/community/manager/campaigns/:id/products-review', verifyFamily, async (req, res) => {
+    try {
+        const campaign = await verifyCampaignOwnershipFamily(req.params.id, req.familyAuth.groupId);
+        if (!campaign) return res.status(403).json({ error: 'אין הרשאה לקמפיין זה' });
+        const statusFilter = req.query.status;
+        const params = [req.params.id];
+        let where = 'p.campaign_id=$1';
+        if (statusFilter) { params.push(statusFilter); where += ` AND p.approval_status=$${params.length}`; }
+        const rows = await pool.query(
+            `SELECT p.campaign_id, p.business_group_id, p.catalog_id, p.price_override, p.approval_status, p.added_at, p.reviewed_at,
+                    sc.name AS product_name, sc.price AS base_price, sc.category,
+                    fg.name AS business_name
+             FROM community_campaign_products p
+             JOIN store_catalog sc ON sc.id = p.catalog_id
+             JOIN family_groups fg ON fg.id = p.business_group_id
+             WHERE ${where}
+             ORDER BY p.approval_status = 'pending' DESC, p.added_at DESC`,
+            params);
+        res.json({ success: true, products: rows.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/community/manager/campaigns/:id/products/review', verifyFamily, async (req, res) => {
+    try {
+        const campaign = await verifyCampaignOwnershipFamily(req.params.id, req.familyAuth.groupId);
+        if (!campaign) return res.status(403).json({ error: 'אין הרשאה לקמפיין זה' });
+        if (await blockIfChildFamilyUser(req, res)) return;
         const { businessGroupId, catalogId, action } = req.body;
-        if (!businessGroupId || !catalogId || !['add','remove'].includes(action)) return res.status(400).json({ error: 'שדות לא תקינים' });
-
-        const included = await pool.query(
-            `SELECT 1 FROM community_campaign_businesses WHERE campaign_id=$1 AND business_group_id=$2`,
-            [req.params.id, businessGroupId]);
-        if (!included.rows.length) return res.status(400).json({ error: 'העסק הזה עדיין לא נוסף לקמפיין' });
-
-        if (action === 'add') {
-            const prod = await pool.query('SELECT id FROM store_catalog WHERE id=$1 AND group_id=$2', [catalogId, businessGroupId]);
-            if (!prod.rows.length) return res.status(400).json({ error: 'מוצר לא נמצא אצל עסק זה' });
-            await pool.query(
-                `INSERT INTO community_campaign_products (campaign_id, business_group_id, catalog_id) VALUES ($1,$2,$3)
-                 ON CONFLICT DO NOTHING`, [req.params.id, businessGroupId, catalogId]);
-        } else {
-            await pool.query(`DELETE FROM community_campaign_products WHERE campaign_id=$1 AND catalog_id=$2`, [req.params.id, catalogId]);
-        }
+        if (!businessGroupId || !catalogId || !['approve','reject'].includes(action)) return res.status(400).json({ error: 'שדות לא תקינים' });
+        const upd = await pool.query(
+            `UPDATE community_campaign_products SET approval_status=$1, reviewed_at=NOW()
+             WHERE campaign_id=$2 AND business_group_id=$3 AND catalog_id=$4 RETURNING *`,
+            [action === 'approve' ? 'approved' : 'rejected', req.params.id, businessGroupId, catalogId]);
+        if (!upd.rows.length) return res.status(404).json({ error: 'מוצר לא נמצא' });
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -20000,8 +20063,8 @@ app.get('/api/biz/market-campaigns/:campaignId/products', verifyBiz, async (req,
         if (!included.rows.length) return res.status(400).json({ error: 'העסק עדיין לא חלק מהשוק הזה' });
 
         const catalog = await pool.query(
-            `SELECT sc.id, sc.name, sc.price, sc.category, sc.image_url, sc.is_available,
-                    p.catalog_id IS NOT NULL AS selected
+            `SELECT sc.id, sc.name, sc.price AS base_price, sc.category, sc.image_url, sc.is_available,
+                    p.catalog_id IS NOT NULL AS selected, p.price_override, p.approval_status
              FROM store_catalog sc
              LEFT JOIN community_campaign_products p ON p.campaign_id=$1 AND p.catalog_id=sc.id
              WHERE sc.group_id=$2 ORDER BY sc.category, sc.sort_order, sc.name`,
@@ -20010,11 +20073,12 @@ app.get('/api/biz/market-campaigns/:campaignId/products', verifyBiz, async (req,
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// העסק בוחר/מסיר בעצמו מוצר מהקטלוג שלו לשוק שהוא כבר חבר בו
+// העסק בוחר/מסיר בעצמו מוצר מהקטלוג שלו לשוק, וקובע את המחיר לשוק הזה -
+// כל מוצר שמוקצה נכנס במצב 'pending' וממתין לאישור מנהל השוק (לא אוטומטי)
 app.post('/api/biz/market-campaigns/:campaignId/products', verifyBiz, async (req, res) => {
     try {
         const groupId = req.bizAuth.groupId;
-        const { catalogId, action } = req.body;
+        const { catalogId, action, price } = req.body;
         if (!catalogId || !['add','remove'].includes(action)) return res.status(400).json({ error: 'שדות לא תקינים' });
 
         const included = await pool.query(
@@ -20023,11 +20087,15 @@ app.post('/api/biz/market-campaigns/:campaignId/products', verifyBiz, async (req
         if (!included.rows.length) return res.status(400).json({ error: 'העסק עדיין לא חלק מהשוק הזה' });
 
         if (action === 'add') {
-            const prod = await pool.query('SELECT id FROM store_catalog WHERE id=$1 AND group_id=$2', [catalogId, groupId]);
+            const prod = await pool.query('SELECT id, price FROM store_catalog WHERE id=$1 AND group_id=$2', [catalogId, groupId]);
             if (!prod.rows.length) return res.status(400).json({ error: 'מוצר לא נמצא בקטלוג שלך' });
+            const priceOverride = (price !== undefined && price !== null && price !== '') ? parseFloat(price) : null;
+            if (priceOverride !== null && (isNaN(priceOverride) || priceOverride < 0)) return res.status(400).json({ error: 'מחיר לא תקין' });
             await pool.query(
-                `INSERT INTO community_campaign_products (campaign_id, business_group_id, catalog_id) VALUES ($1,$2,$3)
-                 ON CONFLICT DO NOTHING`, [req.params.campaignId, groupId, catalogId]);
+                `INSERT INTO community_campaign_products (campaign_id, business_group_id, catalog_id, price_override, approval_status, submitted_by_user_id)
+                 VALUES ($1,$2,$3,$4,'pending',$5)
+                 ON CONFLICT (campaign_id, catalog_id) DO UPDATE SET price_override=$4, approval_status='pending', submitted_by_user_id=$5, reviewed_at=NULL`,
+                [req.params.campaignId, groupId, catalogId, priceOverride, req.bizAuth.userId]);
         } else {
             await pool.query(`DELETE FROM community_campaign_products WHERE campaign_id=$1 AND catalog_id=$2 AND business_group_id=$3`, [req.params.campaignId, catalogId, groupId]);
         }

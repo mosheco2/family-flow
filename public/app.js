@@ -8388,7 +8388,17 @@ async function cmOpenCampaignManage(campaignId, commId) {
             </div>
         </div>
 
-        <p class="text-xs font-bold text-slate-600 mb-1.5">עסקים בקהילה — סמנו אילו נכללים בקמפיין</p>
+        <div class="flex items-center justify-between mb-1.5">
+            <p class="text-xs font-bold text-slate-600">בקשות הצטרפות ממתינות</p>
+        </div>
+        <div id="cmc-requests-${campaignId}" class="space-y-1.5 mb-3">
+            <p class="text-slate-400 text-xs text-center py-2"><i class="fa-solid fa-spinner fa-spin"></i></p>
+        </div>
+
+        <div class="flex items-center justify-between mb-1.5">
+            <p class="text-xs font-bold text-slate-600">עסקים בקהילה — סמנו אילו נכללים בקמפיין</p>
+            <button onclick="cmOpenProductsReview(${campaignId}, ${commId})" class="text-[10px] font-bold bg-amber-50 border border-amber-200 text-amber-700 px-2.5 py-1.5 rounded-lg shrink-0"><i class="fa-solid fa-magnifying-glass ml-1"></i>סקירת מוצרים</button>
+        </div>
         <div class="space-y-1.5 max-h-64 overflow-y-auto modal-scroll pr-1">
         ${(data.businesses||[]).map(b => `
             <div class="border ${b.included ? 'border-emerald-200 bg-emerald-50' : 'border-slate-100 bg-white'} rounded-lg p-2.5">
@@ -8397,11 +8407,60 @@ async function cmOpenCampaignManage(campaignId, commId) {
                         <input type="checkbox" ${b.included ? 'checked' : ''} onchange="cmToggleCampaignBusiness(${campaignId}, ${b.group_id}, this.checked, ${commId})" class="w-4 h-4 accent-emerald-600">
                         <span class="text-xs font-bold text-slate-700 truncate">${safeStr(b.name)}</span>
                     </label>
-                    ${b.included ? `<button onclick="cmOpenCampaignProducts(${campaignId}, ${b.group_id}, ${commId})" class="shrink-0 text-[10px] font-bold bg-white border border-emerald-300 text-emerald-700 px-2 py-1 rounded-lg">מוצרים (${b.product_count})</button>` : ''}
+                    ${b.included ? `<span class="shrink-0 text-[10px] font-bold text-slate-400">${b.product_count} מוצרים</span>` : `<button onclick="cmInviteCampaignBusiness(${campaignId}, ${b.group_id}, ${commId})" class="shrink-0 text-[10px] font-bold bg-white border border-pink-300 text-pink-600 px-2 py-1 rounded-lg">הזמן</button>`}
                 </div>
             </div>`).join('') || '<p class="text-slate-400 text-xs text-center py-3">אין עסקים מאושרים בקהילה זו עדיין</p>'}
         </div>`;
+        cmLoadCampaignRequests(campaignId, commId);
     } catch(e) { box.innerHTML = '<p class="text-red-400 text-sm text-center py-3">שגיאת רשת</p>'; }
+}
+
+async function cmLoadCampaignRequests(campaignId, commId) {
+    const box = document.getElementById(`cmc-requests-${campaignId}`);
+    if (!box) return;
+    try {
+        const res = await communityFetch(`${API}/community/manager/campaigns/${campaignId}/requests`);
+        const data = await res.json();
+        if (!data.success) { box.innerHTML = '<p class="text-red-400 text-xs text-center py-2">שגיאה בטעינה</p>'; return; }
+        const pending = (data.requests || []).filter(r => r.status === 'pending');
+        if (!pending.length) { box.innerHTML = '<p class="text-slate-400 text-xs text-center py-2">אין בקשות ממתינות</p>'; return; }
+        box.innerHTML = pending.map(r => `
+            <div class="border border-indigo-100 bg-indigo-50 rounded-lg p-2.5 flex items-center justify-between gap-2">
+                <div class="min-w-0">
+                    <p class="text-xs font-bold text-indigo-800 truncate">${safeStr(r.business_name)}</p>
+                    <p class="text-[10px] text-indigo-400">${r.direction === 'business_request' ? 'העסק ביקש להצטרף' : 'ממתין לאישור העסק להזמנה'}</p>
+                </div>
+                ${r.direction === 'business_request' ? `
+                <div class="flex gap-1 shrink-0">
+                    <button onclick="cmRespondCampaignRequest(${campaignId}, ${r.id}, 'approve', ${commId})" class="bg-indigo-600 text-white text-[10px] font-bold px-2.5 py-1.5 rounded-lg">אשר</button>
+                    <button onclick="cmRespondCampaignRequest(${campaignId}, ${r.id}, 'reject', ${commId})" class="bg-white text-slate-500 border border-slate-200 text-[10px] font-bold px-2.5 py-1.5 rounded-lg">דחה</button>
+                </div>` : ''}
+            </div>`).join('');
+    } catch(e) { box.innerHTML = '<p class="text-red-400 text-xs text-center py-2">שגיאת רשת</p>'; }
+}
+
+async function cmRespondCampaignRequest(campaignId, requestId, action, commId) {
+    try {
+        const res = await communityFetch(`${API}/community/manager/campaigns/${campaignId}/requests/${requestId}/respond`, {
+            method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ action })
+        });
+        const data = await res.json();
+        if (!data.success) return showToast('error', data.error || 'שגיאה');
+        showToast('success', action === 'approve' ? 'העסק הצטרף לקמפיין' : 'הבקשה נדחתה');
+        cmOpenCampaignManage(campaignId, commId);
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
+}
+
+async function cmInviteCampaignBusiness(campaignId, groupId, commId) {
+    const message = prompt('הודעה אישית להזמנה (אופציונלי):', '') || '';
+    try {
+        const res = await communityFetch(`${API}/community/manager/campaigns/${campaignId}/invite`, {
+            method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ businessGroupId: groupId, message })
+        });
+        const data = await res.json();
+        if (!data.success) return showToast('error', data.error || 'שגיאה');
+        showToast('success', 'ההזמנה נשלחה לעסק');
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
 }
 
 async function cmToggleCampaignBusiness(campaignId, groupId, checked, commId) {
@@ -8415,45 +8474,66 @@ async function cmToggleCampaignBusiness(campaignId, groupId, checked, commId) {
     } catch(e) { showToast('error', 'שגיאת רשת'); }
 }
 
-async function cmOpenCampaignProducts(campaignId, groupId, commId) {
+// המוצרים נבחרים ע"י העסק עצמו (ר' POST /api/biz/market-campaigns/:id/products) -
+// כאן מנהל הקהילה רק מאשר/דוחה את מה שהוקצה, ויכול להסיר מוצר שכבר אושר (takedown)
+async function cmOpenProductsReview(campaignId, commId) {
     const box = document.getElementById(`cm-campaigns-${commId}`);
     if (!box) return;
-    box.innerHTML = '<p class="text-slate-400 text-sm text-center py-3"><i class="fa-solid fa-spinner fa-spin mr-1"></i>טוען קטלוג...</p>';
+    box.innerHTML = '<p class="text-slate-400 text-sm text-center py-3"><i class="fa-solid fa-spinner fa-spin mr-1"></i>טוען...</p>';
     try {
-        const res = await communityFetch(`${API}/community/manager/campaigns/${campaignId}/business/${groupId}/catalog`);
+        const res = await communityFetch(`${API}/community/manager/campaigns/${campaignId}/products-review`);
         const data = await res.json();
         if (!data.success) { box.innerHTML = `<p class="text-red-400 text-sm text-center py-3">${safeStr(data.error||'שגיאה')}</p>`; return; }
+        const statusLabel = { pending: 'ממתין לאישור', approved: 'אושר', rejected: 'נדחה' };
+        const statusCls = { pending: 'border-amber-200 bg-amber-50', approved: 'border-emerald-200 bg-emerald-50', rejected: 'border-red-200 bg-red-50' };
         box.innerHTML = `
-        <button onclick="cmOpenCampaignManage(${campaignId}, ${commId})" class="text-xs text-slate-500 hover:text-slate-700 mb-2"><i class="fa-solid fa-arrow-right ml-1"></i>חזרה לרשימת העסקים</button>
-        <p class="text-xs font-bold text-slate-600 mb-1.5">סמנו אילו מוצרים יופיעו בעמוד הקמפיין</p>
-        <div class="space-y-1 max-h-64 overflow-y-auto modal-scroll pr-1">
-        ${(data.catalog||[]).map(p => `
-            <label class="flex items-center gap-2 p-2 border ${p.selected ? 'border-emerald-200 bg-emerald-50' : 'border-slate-100 bg-white'} rounded-lg cursor-pointer">
-                <input type="checkbox" ${p.selected ? 'checked' : ''} ${p.is_available ? '' : 'disabled'} onchange="cmToggleCampaignProduct(${campaignId}, ${groupId}, ${p.id}, this.checked, this)" class="w-4 h-4 accent-emerald-600 shrink-0">
-                <span class="text-xs font-bold text-slate-700 flex-1">${safeStr(p.name)}${p.is_available ? '' : ' <span class=\'text-red-400 font-normal\'>(לא זמין)</span>'}</span>
-                <span class="text-[10px] text-slate-400 font-mono">₪${p.price}</span>
-            </label>`).join('') || '<p class="text-slate-400 text-xs text-center py-3">אין מוצרים בקטלוג של העסק הזה</p>'}
+        <button onclick="cmOpenCampaignManage(${campaignId}, ${commId})" class="text-xs text-slate-500 hover:text-slate-700 mb-2"><i class="fa-solid fa-arrow-right ml-1"></i>חזרה לקמפיין</button>
+        <p class="text-xs font-bold text-slate-600 mb-1.5">מוצרים שעסקים הקצו לשוק הזה</p>
+        <div class="space-y-1.5 max-h-80 overflow-y-auto modal-scroll pr-1">
+        ${(data.products||[]).map(p => `
+            <div class="border ${statusCls[p.approval_status] || 'border-slate-100 bg-white'} rounded-lg p-2.5">
+                <div class="flex justify-between items-start gap-2">
+                    <div class="min-w-0">
+                        <p class="text-xs font-bold text-slate-700 truncate">${safeStr(p.product_name)}</p>
+                        <p class="text-[10px] text-slate-400">${safeStr(p.business_name)} · מחיר לשוק: ₪${p.price_override != null ? p.price_override : p.base_price}${p.price_override != null ? ` (קטלוג: ₪${p.base_price})` : ''}</p>
+                    </div>
+                    <span class="shrink-0 text-[10px] font-bold text-slate-500">${statusLabel[p.approval_status] || p.approval_status}</span>
+                </div>
+                <div class="flex gap-1 mt-2">
+                    ${p.approval_status === 'pending' ? `
+                        <button onclick="cmReviewCampaignProduct(${campaignId}, ${p.business_group_id}, ${p.catalog_id}, 'approve', ${commId})" class="flex-1 bg-emerald-600 text-white text-[10px] font-bold py-1.5 rounded-lg">אשר</button>
+                        <button onclick="cmReviewCampaignProduct(${campaignId}, ${p.business_group_id}, ${p.catalog_id}, 'reject', ${commId})" class="flex-1 bg-white text-slate-500 border border-slate-200 text-[10px] font-bold py-1.5 rounded-lg">דחה</button>
+                    ` : `
+                        <button onclick="cmRemoveCampaignProduct(${campaignId}, ${p.catalog_id}, ${commId})" class="flex-1 bg-white text-red-500 border border-red-100 text-[10px] font-bold py-1.5 rounded-lg">הסר מהשוק</button>
+                    `}
+                </div>
+            </div>`).join('') || '<p class="text-slate-400 text-xs text-center py-3">אין עדיין מוצרים שהוקצו לשוק הזה</p>'}
         </div>`;
     } catch(e) { box.innerHTML = '<p class="text-red-400 text-sm text-center py-3">שגיאת רשת</p>'; }
 }
 
-// עדכון מקומי בלבד (בלי לטעון מחדש את כל הקטלוג) — כדי שאפשר לסמן כמה מוצרים
-// ברצף בלי שהמסך "יקפוץ"/יתאפס בין כל סימון
-async function cmToggleCampaignProduct(campaignId, groupId, catalogId, checked, checkboxEl) {
-    const label = checkboxEl?.closest('label');
+async function cmReviewCampaignProduct(campaignId, groupId, catalogId, action, commId) {
     try {
-        const res = await communityFetch(`${API}/community/manager/campaigns/${campaignId}/products`, {
-            method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ businessGroupId: groupId, catalogId, action: checked ? 'add' : 'remove' })
+        const res = await communityFetch(`${API}/community/manager/campaigns/${campaignId}/products/review`, {
+            method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ businessGroupId: groupId, catalogId, action })
         });
         const data = await res.json();
-        if (!data.success) { if (checkboxEl) checkboxEl.checked = !checked; showToast('error', data.error || 'שגיאה'); return; }
-        if (label) {
-            label.classList.toggle('border-emerald-200', checked);
-            label.classList.toggle('bg-emerald-50', checked);
-            label.classList.toggle('border-slate-100', !checked);
-            label.classList.toggle('bg-white', !checked);
-        }
-    } catch(e) { if (checkboxEl) checkboxEl.checked = !checked; showToast('error', 'שגיאת רשת'); }
+        if (!data.success) return showToast('error', data.error || 'שגיאה');
+        showToast('success', action === 'approve' ? 'המוצר אושר' : 'המוצר נדחה');
+        cmOpenProductsReview(campaignId, commId);
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
+}
+
+async function cmRemoveCampaignProduct(campaignId, catalogId, commId) {
+    try {
+        const res = await communityFetch(`${API}/community/manager/campaigns/${campaignId}/products`, {
+            method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ catalogId, action: 'remove' })
+        });
+        const data = await res.json();
+        if (!data.success) return showToast('error', data.error || 'שגיאה');
+        showToast('success', 'המוצר הוסר מהשוק');
+        cmOpenProductsReview(campaignId, commId);
+    } catch(e) { showToast('error', 'שגיאת רשת'); }
 }
 
 async function cmPublishArticle(commId) {

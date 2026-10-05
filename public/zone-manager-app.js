@@ -1814,7 +1814,17 @@ async function zmOpenCampaignManage(campaignId, commId) {
             </div>
         </div>
 
-        <p class="text-xs font-bold text-slate-600 mb-2">עסקים בקהילה — סמנו אילו נכללים בקמפיין</p>
+        <div class="flex items-center justify-between mb-2">
+            <p class="text-xs font-bold text-slate-600">בקשות הצטרפות ממתינות</p>
+        </div>
+        <div id="zmc-requests-${campaignId}" class="space-y-2 mb-4">
+            <div class="text-center text-slate-400 py-2 text-xs"><i class="fa-solid fa-spinner fa-spin"></i></div>
+        </div>
+
+        <div class="flex items-center justify-between mb-2">
+            <p class="text-xs font-bold text-slate-600">עסקים בקהילה — סמנו אילו נכללים בקמפיין</p>
+            <button onclick="zmOpenProductsReview(${campaignId}, ${commId})" class="text-[10px] font-bold bg-amber-50 border border-amber-200 text-amber-700 px-2.5 py-1.5 rounded-lg shrink-0"><i class="fa-solid fa-magnifying-glass ml-1"></i>סקירת מוצרים</button>
+        </div>
         <div class="space-y-2">
         ${data.businesses.map(b => `
             <div class="border ${b.included ? 'border-emerald-200 bg-emerald-50' : 'border-slate-100 bg-white'} rounded-xl p-3">
@@ -1823,11 +1833,62 @@ async function zmOpenCampaignManage(campaignId, commId) {
                         <input type="checkbox" ${b.included ? 'checked' : ''} onchange="zmToggleCampaignBusiness(${campaignId}, ${b.group_id}, this.checked, ${commId})" class="w-4 h-4 accent-emerald-600">
                         <span class="text-sm font-bold text-slate-700 truncate">${safeStrZM(b.name)}</span>
                     </label>
-                    ${b.included ? `<button onclick="zmOpenCampaignProducts(${campaignId}, ${b.group_id}, ${commId})" class="shrink-0 text-[10px] font-bold bg-white border border-emerald-300 text-emerald-700 px-2.5 py-1.5 rounded-lg">מוצרים (${b.product_count})</button>` : ''}
+                    ${b.included ? `<span class="shrink-0 text-[10px] font-bold text-slate-400">${b.product_count} מוצרים</span>` : `<button onclick="zmInviteCampaignBusiness(${campaignId}, ${b.group_id}, ${commId})" class="shrink-0 text-[10px] font-bold bg-white border border-pink-300 text-pink-600 px-2.5 py-1.5 rounded-lg">הזמן</button>`}
                 </div>
             </div>`).join('') || '<div class="text-center text-slate-400 py-6 text-xs">אין עסקים מאושרים בקהילה זו עדיין</div>'}
         </div>`;
+        zmLoadCampaignRequests(campaignId, commId);
     } catch(e) { body.innerHTML = '<div class="text-red-400 text-center py-6">שגיאת תקשורת</div>'; }
+}
+
+async function zmLoadCampaignRequests(campaignId, commId) {
+    const box = document.getElementById(`zmc-requests-${campaignId}`);
+    if (!box) return;
+    try {
+        const res = await fetch(`${API}/zone-manager/community-campaigns/${campaignId}/requests`, { headers: { 'Authorization': zmToken } });
+        const data = await res.json();
+        if (!data.success) { box.innerHTML = '<div class="text-red-400 text-xs text-center py-2">שגיאה בטעינה</div>'; return; }
+        const pending = (data.requests || []).filter(r => r.status === 'pending');
+        if (!pending.length) { box.innerHTML = '<div class="text-slate-400 text-xs text-center py-2">אין בקשות ממתינות</div>'; return; }
+        box.innerHTML = pending.map(r => `
+            <div class="border border-indigo-100 bg-indigo-50 rounded-xl p-3 flex items-center justify-between gap-2">
+                <div class="min-w-0">
+                    <p class="text-xs font-bold text-indigo-800 truncate">${safeStrZM(r.business_name)}</p>
+                    <p class="text-[10px] text-indigo-400">${r.direction === 'business_request' ? 'העסק ביקש להצטרף' : 'ממתין לאישור העסק להזמנה'}</p>
+                </div>
+                ${r.direction === 'business_request' ? `
+                <div class="flex gap-1 shrink-0">
+                    <button onclick="zmRespondCampaignRequest(${campaignId}, ${r.id}, 'approve', ${commId})" class="bg-indigo-600 text-white text-[10px] font-bold px-2.5 py-1.5 rounded-lg">אשר</button>
+                    <button onclick="zmRespondCampaignRequest(${campaignId}, ${r.id}, 'reject', ${commId})" class="bg-white text-slate-500 border border-slate-200 text-[10px] font-bold px-2.5 py-1.5 rounded-lg">דחה</button>
+                </div>` : ''}
+            </div>`).join('');
+    } catch(e) { box.innerHTML = '<div class="text-red-400 text-xs text-center py-2">שגיאת רשת</div>'; }
+}
+
+async function zmRespondCampaignRequest(campaignId, requestId, action, commId) {
+    try {
+        const res = await fetch(`${API}/zone-manager/community-campaigns/${campaignId}/requests/${requestId}/respond`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': zmToken },
+            body: JSON.stringify({ action })
+        });
+        const data = await res.json();
+        if (!data.success) return showZMToast(data.error || 'שגיאה', 'error');
+        showZMToast(action === 'approve' ? 'העסק הצטרף לקמפיין' : 'הבקשה נדחתה');
+        zmOpenCampaignManage(campaignId, commId);
+    } catch(e) { showZMToast('שגיאת רשת', 'error'); }
+}
+
+async function zmInviteCampaignBusiness(campaignId, groupId, commId) {
+    const message = prompt('הודעה אישית להזמנה (אופציונלי):', '') || '';
+    try {
+        const res = await fetch(`${API}/zone-manager/community-campaigns/${campaignId}/invite`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': zmToken },
+            body: JSON.stringify({ businessGroupId: groupId, message })
+        });
+        const data = await res.json();
+        if (!data.success) return showZMToast(data.error || 'שגיאה', 'error');
+        showZMToast('ההזמנה נשלחה לעסק');
+    } catch(e) { showZMToast('שגיאת רשת', 'error'); }
 }
 
 async function zmToggleCampaignBusiness(campaignId, groupId, checked, commId) {
@@ -1842,45 +1903,67 @@ async function zmToggleCampaignBusiness(campaignId, groupId, checked, commId) {
     } catch(e) { showZMToast('שגיאת רשת', 'error'); }
 }
 
-async function zmOpenCampaignProducts(campaignId, groupId, commId) {
+// המוצרים נבחרים ע"י העסק עצמו (ר' POST /api/biz/market-campaigns/:id/products) -
+// כאן מנהל האזור רק מאשר/דוחה את מה שהוקצה, ויכול להסיר מוצר שכבר אושר (takedown)
+async function zmOpenProductsReview(campaignId, commId) {
     const body = document.getElementById('zm-cd-body');
-    body.innerHTML = '<div class="text-center text-slate-400 py-8"><i class="fa-solid fa-spinner fa-spin mr-2"></i>טוען קטלוג...</div>';
+    body.innerHTML = '<div class="text-center text-slate-400 py-8"><i class="fa-solid fa-spinner fa-spin mr-2"></i>טוען...</div>';
     try {
-        const res = await fetch(`${API}/zone-manager/community-campaigns/${campaignId}/business/${groupId}/catalog`, { headers: { 'Authorization': zmToken } });
+        const res = await fetch(`${API}/zone-manager/community-campaigns/${campaignId}/products-review`, { headers: { 'Authorization': zmToken } });
         const data = await res.json();
         if (!data.success) { body.innerHTML = `<div class="text-red-400 text-center py-6">${data.error || 'שגיאה'}</div>`; return; }
+        const statusLabel = { pending: 'ממתין לאישור', approved: 'אושר', rejected: 'נדחה' };
+        const statusCls = { pending: 'border-amber-200 bg-amber-50', approved: 'border-emerald-200 bg-emerald-50', rejected: 'border-red-200 bg-red-50' };
         body.innerHTML = `
-        <button onclick="zmOpenCampaignManage(${campaignId}, ${commId})" class="text-xs text-slate-500 hover:text-slate-700 mb-3"><i class="fa-solid fa-arrow-right ml-1"></i>חזרה לרשימת העסקים</button>
-        <p class="text-xs font-bold text-slate-600 mb-2">סמנו אילו מוצרים יופיעו בעמוד הקמפיין</p>
-        <div class="space-y-1.5">
-        ${data.catalog.map(p => `
-            <label class="flex items-center gap-2 p-2.5 border ${p.selected ? 'border-emerald-200 bg-emerald-50' : 'border-slate-100 bg-white'} rounded-xl cursor-pointer">
-                <input type="checkbox" ${p.selected ? 'checked' : ''} ${p.is_available ? '' : 'disabled'} onchange="zmToggleCampaignProduct(${campaignId}, ${groupId}, ${p.id}, this.checked, this)" class="w-4 h-4 accent-emerald-600 shrink-0">
-                <span class="text-xs font-bold text-slate-700 flex-1">${safeStrZM(p.name)}${p.is_available ? '' : ' <span class=\'text-red-400 font-normal\'>(לא זמין אצל העסק)</span>'}</span>
-                <span class="text-xs text-slate-400 font-mono">₪${p.price}</span>
-            </label>`).join('') || '<div class="text-center text-slate-400 py-6 text-xs">אין מוצרים בקטלוג של העסק הזה</div>'}
+        <button onclick="zmOpenCampaignManage(${campaignId}, ${commId})" class="text-xs text-slate-500 hover:text-slate-700 mb-3"><i class="fa-solid fa-arrow-right ml-1"></i>חזרה לקמפיין</button>
+        <p class="text-xs font-bold text-slate-600 mb-2">מוצרים שעסקים הקצו לשוק הזה</p>
+        <div class="space-y-2">
+        ${(data.products||[]).map(p => `
+            <div class="border ${statusCls[p.approval_status] || 'border-slate-100 bg-white'} rounded-xl p-3">
+                <div class="flex justify-between items-start gap-2">
+                    <div class="min-w-0">
+                        <p class="text-sm font-bold text-slate-700 truncate">${safeStrZM(p.product_name)}</p>
+                        <p class="text-[10px] text-slate-400">${safeStrZM(p.business_name)} · מחיר לשוק: ₪${p.price_override != null ? p.price_override : p.base_price}${p.price_override != null ? ` (קטלוג: ₪${p.base_price})` : ''}</p>
+                    </div>
+                    <span class="shrink-0 text-[10px] font-bold text-slate-500">${statusLabel[p.approval_status] || p.approval_status}</span>
+                </div>
+                <div class="flex gap-1.5 mt-2">
+                    ${p.approval_status === 'pending' ? `
+                        <button onclick="zmReviewCampaignProduct(${campaignId}, ${p.business_group_id}, ${p.catalog_id}, 'approve', ${commId})" class="flex-1 bg-emerald-600 text-white text-xs font-bold py-2 rounded-lg">אשר</button>
+                        <button onclick="zmReviewCampaignProduct(${campaignId}, ${p.business_group_id}, ${p.catalog_id}, 'reject', ${commId})" class="flex-1 bg-white text-slate-500 border border-slate-200 text-xs font-bold py-2 rounded-lg">דחה</button>
+                    ` : `
+                        <button onclick="zmRemoveCampaignProduct(${campaignId}, ${p.catalog_id}, ${commId})" class="flex-1 bg-white text-red-500 border border-red-100 text-xs font-bold py-2 rounded-lg">הסר מהשוק</button>
+                    `}
+                </div>
+            </div>`).join('') || '<div class="text-center text-slate-400 py-6 text-xs">אין עדיין מוצרים שהוקצו לשוק הזה</div>'}
         </div>`;
     } catch(e) { body.innerHTML = '<div class="text-red-400 text-center py-6">שגיאת תקשורת</div>'; }
 }
 
-// עדכון מקומי בלבד (בלי לטעון מחדש את כל הקטלוג) — כדי שאפשר לסמן כמה מוצרים
-// ברצף בלי שהמסך "יקפוץ"/יתאפס בין כל סימון
-async function zmToggleCampaignProduct(campaignId, groupId, catalogId, checked, checkboxEl) {
-    const label = checkboxEl?.closest('label');
+async function zmReviewCampaignProduct(campaignId, groupId, catalogId, action, commId) {
+    try {
+        const res = await fetch(`${API}/zone-manager/community-campaigns/${campaignId}/products/review`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': zmToken },
+            body: JSON.stringify({ businessGroupId: groupId, catalogId, action })
+        });
+        const data = await res.json();
+        if (!data.success) return showZMToast(data.error || 'שגיאה', 'error');
+        showZMToast(action === 'approve' ? 'המוצר אושר' : 'המוצר נדחה');
+        zmOpenProductsReview(campaignId, commId);
+    } catch(e) { showZMToast('שגיאת רשת', 'error'); }
+}
+
+async function zmRemoveCampaignProduct(campaignId, catalogId, commId) {
     try {
         const res = await fetch(`${API}/zone-manager/community-campaigns/${campaignId}/products`, {
             method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': zmToken },
-            body: JSON.stringify({ businessGroupId: groupId, catalogId, action: checked ? 'add' : 'remove' })
+            body: JSON.stringify({ catalogId, action: 'remove' })
         });
         const data = await res.json();
-        if (!data.success) { if (checkboxEl) checkboxEl.checked = !checked; showZMToast(data.error || 'שגיאה', 'error'); return; }
-        if (label) {
-            label.classList.toggle('border-emerald-200', checked);
-            label.classList.toggle('bg-emerald-50', checked);
-            label.classList.toggle('border-slate-100', !checked);
-            label.classList.toggle('bg-white', !checked);
-        }
-    } catch(e) { if (checkboxEl) checkboxEl.checked = !checked; showZMToast('שגיאת רשת', 'error'); }
+        if (!data.success) return showZMToast(data.error || 'שגיאה', 'error');
+        showZMToast('המוצר הוסר מהשוק');
+        zmOpenProductsReview(campaignId, commId);
+    } catch(e) { showZMToast('שגיאת רשת', 'error'); }
 }
 
 async function zmApproveFamily(groupId, commId) {
