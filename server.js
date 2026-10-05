@@ -8701,9 +8701,11 @@ app.delete('/api/superadmin/users/:id', verifySA, async (req, res) => {
 
 app.patch('/api/superadmin/users/:id', verifySA, async (req, res) => {
     try {
-        const { nickname, phone, birth_year, id_number, email, role, status, new_password } = req.body;
+        const { nickname, first_name, last_name, phone, birth_year, id_number, email, role, status, new_password } = req.body;
         const sets = []; const vals = [];
         if (nickname !== undefined) { vals.push(nickname); sets.push(`nickname=$${vals.length}`); }
+        if (first_name !== undefined) { vals.push(first_name || null); sets.push(`first_name=$${vals.length}`); }
+        if (last_name !== undefined) { vals.push(last_name || null); sets.push(`last_name=$${vals.length}`); }
         if (phone !== undefined)    { vals.push(phone || null); sets.push(`phone=$${vals.length}`); }
         if (birth_year !== undefined) { vals.push(birth_year || null); sets.push(`birth_year=$${vals.length}`); }
         if (id_number !== undefined) { vals.push(id_number || null); sets.push(`id_number=$${vals.length}`); }
@@ -8714,7 +8716,7 @@ app.patch('/api/superadmin/users/:id', verifySA, async (req, res) => {
         if (sets.length === 0) return res.status(400).json({ error: 'no fields to update' });
         vals.push(req.params.id);
         await pool.query(`UPDATE users SET ${sets.join(',')} WHERE id=$${vals.length}`, vals);
-        const updated = await pool.query('SELECT id, nickname, phone, birth_year, id_number, email, role, status, balance, group_id FROM users WHERE id=$1', [req.params.id]);
+        const updated = await pool.query('SELECT id, nickname, first_name, last_name, phone, birth_year, id_number, email, role, status, balance, group_id FROM users WHERE id=$1', [req.params.id]);
         res.json({ success: true, user: updated.rows[0] });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });

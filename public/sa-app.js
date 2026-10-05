@@ -2625,7 +2625,7 @@ function renderSAGroups() {
                         ${resendSoloBtn}
                         ${testEnvBtn}
                         ${testCredsBtn}
-                        <button onclick="openSAEditGroupModal(${g.id}, '${safeStr(fmtGroupName(g))}', '${safeStr(g.admin_email)}')" class="bg-blue-100 text-blue-700 px-3 py-1 rounded text-[10px] font-bold hover:bg-blue-200 transition"><i class="fa-solid fa-pen"></i> ערוך פרטים</button>
+                        <button onclick="openSAEditGroupModal(${g.id}, '${safeStr(g.name)}', '${safeStr(g.admin_email)}')" class="bg-blue-100 text-blue-700 px-3 py-1 rounded text-[10px] font-bold hover:bg-blue-200 transition"><i class="fa-solid fa-pen"></i> ערוך פרטים</button>
                         ${planSelector}
                         <button onclick="openSnapshotsModal(${g.id},'${safeStr(fmtGroupName(g))}')" class="bg-indigo-100 text-indigo-700 px-3 py-1 rounded text-[10px] font-bold hover:bg-indigo-200 transition"><i class="fa-solid fa-clock-rotate-left"></i> גיבויים</button>
                         ${g.type === 'FAMILY' ? `<button onclick="openMergeDuplicateModal(${g.id}, '${safeStr(fmtGroupName(g))}')" class="bg-amber-100 text-amber-700 px-3 py-1 rounded text-[10px] font-bold hover:bg-amber-200 transition"><i class="fa-solid fa-code-merge"></i> מזג כפילות</button>` : ''}
@@ -3877,7 +3877,9 @@ function openSAEditUserModal(id) {
     if (!u) return;
     const group = saAllGroups.find(g => g.id === u.group_id);
     getEl('sa-edit-user-id').value = id;
-    getEl('sa-edit-user-name').value = fmtUserName(u) || u.nickname || '';
+    getEl('sa-edit-user-name').value = u.nickname || '';
+    const firstNameEl = getEl('sa-edit-user-first-name'); if (firstNameEl) firstNameEl.value = u.first_name || '';
+    const lastNameEl = getEl('sa-edit-user-last-name'); if (lastNameEl) lastNameEl.value = u.last_name || '';
     getEl('sa-edit-user-phone').value = u.phone || '';
     getEl('sa-edit-user-phone').className = `w-full border ${u.phone ? 'border-slate-200' : 'border-red-200 bg-red-50'} rounded-xl px-3 py-2.5 text-sm focus:border-indigo-400 focus:outline-none`;
     getEl('sa-edit-user-id-number').value = u.id_number || '';
@@ -3899,6 +3901,8 @@ async function saveSAEditUser() {
     if (!nickname) return showToast('error', 'נא למלא שם תצוגה');
     const body = {
         nickname,
+        first_name: val('sa-edit-user-first-name')?.trim() || null,
+        last_name: val('sa-edit-user-last-name')?.trim() || null,
         phone: val('sa-edit-user-phone')?.trim() || null,
         id_number: val('sa-edit-user-id-number')?.trim() || null,
         email: val('sa-edit-user-email')?.trim() || null,
