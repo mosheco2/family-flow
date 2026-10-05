@@ -98,7 +98,7 @@ window.applyUserPermissions = function() {
         'support': 'support', 'devops': 'devops', 'stats': 'stats',
         'comm': 'comm', 'biz': 'biz', 'content': 'content',
         'hr': 'users', 'inbox': 'marketing', 'partners': 'all', 'finance': 'stats',
-        'marketing': 'marketing',
+        'marketing': 'marketing', 'shuka': 'comm',
         'masterconfig': 'all'
     };
 
@@ -532,7 +532,8 @@ window.switchSATab = function(tabId) {
 
 const SA_GROUPS = {
     home:       { tabs: ['pulse', 'insights', 'stats'], labels: ['דופק מערכת', 'תובנות מאוחדות', 'דוחות'], icons: ['fa-heart-pulse', 'fa-chart-pie', 'fa-chart-line'], default: 'pulse' },
-    customers:  { tabs: ['comm', 'biz', 'clients', 'feed', 'shuka'],  labels: ['קהילות', 'עסקים', 'סביבות', 'פיד קהילתי', 'שוקה'],  icons: ['fa-users-rays', 'fa-store', 'fa-users', 'fa-rss', 'fa-store-alt'],  default: 'comm' },
+    customers:  { tabs: ['comm', 'biz', 'clients', 'feed'],  labels: ['קהילות', 'עסקים', 'סביבות', 'פיד קהילתי'],  icons: ['fa-users-rays', 'fa-store', 'fa-users', 'fa-rss'],  default: 'comm' },
+    shukagrp:   { tabs: ['shuka'], labels: [], icons: [], default: 'shuka' },
     finance:    { tabs: ['finance'],                    labels: [],                                  icons: [],                                         default: 'finance' },
     supportdev: { tabs: ['support', 'devops'],          labels: ['קריאות שירות', 'פיתוח ומוצר'],    icons: ['fa-headset', 'fa-code'],                  default: 'support' },
     contentmkt: { tabs: ['content', 'inbox', 'legal', 'adslots', 'games', 'marketing', 'kol-haam'],  labels: ['מיתוג ותוכן', 'שיווק', 'משפטי', 'שטחי פרסום', 'משחקי ילדים', 'שיווק והשקות', 'קול העם'], icons: ['fa-image', 'fa-bullhorn', 'fa-file-contract', 'fa-rectangle-ad', 'fa-gamepad', 'fa-whatsapp', 'fa-bullhorn'], default: 'content' },
@@ -1072,7 +1073,7 @@ window.loadSAPendingCenter = async function() {
                 const waitIcon = _saWaitLevel(it.wait_hours) === 'red' ? 'fa-solid fa-triangle-exclamation' : 'fa-regular fa-clock';
                 return `<div onclick="_saPendingItemClick(${idx})" style="cursor:pointer" class="flex items-center justify-between gap-2 bg-white border border-slate-100 rounded-xl px-3 py-2.5 hover:border-indigo-200 hover:shadow-sm transition">
                     <div class="min-w-0">
-                        <div class="text-xs font-bold text-slate-700 truncate">${safeStr(it.title)}</div>
+                        <div class="text-xs font-bold text-slate-700 truncate flex items-center gap-1.5">${it.is_test ? '<span class="shrink-0 text-[9px] font-black px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-700 border border-amber-200">TEST</span>' : ''}${safeStr(it.title)}</div>
                         ${it.subtitle ? `<div class="text-[11px] text-slate-400 truncate mt-0.5">${safeStr(it.subtitle)}</div>` : ''}
                     </div>
                     <span class="flex items-center gap-1.5 whitespace-nowrap">

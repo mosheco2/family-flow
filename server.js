@@ -9572,50 +9572,50 @@ app.get('/api/sa/pending-actions-center', verifySA, async (req, res) => {
             communityJoinReq, bizCommunityReq, zmPending, ticketsOpen, debtsUnpaid,
             bannerPending, removalReq, promosPending, moduleReqRows
         ] = await Promise.all([
-            // בקשות הצטרפות משפחה לקהילה — אחראי: מנהל קהילה (לא כולל סביבות מחוקות)
-            safe(`SELECT fc.group_id, fg.name as title, c.name as subtitle, fc.joined_at as created_at
+            // בקשות הצטרפות משפחה לקהילה — אחראי: מנהל קהילה (סביבות טסט כן מוצגות, מתוייגות is_test)
+            safe(`SELECT fc.group_id, fg.name as title, c.name as subtitle, fc.joined_at as created_at, fg.is_test_env
                 FROM family_communities fc JOIN family_groups fg ON fg.id=fc.group_id JOIN communities c ON c.id=fc.community_id
-                WHERE fc.status='pending' AND fg.is_test_env IS NOT TRUE AND (fg.is_deleted=false OR fg.is_deleted IS NULL)
+                WHERE fc.status='pending' AND (fg.is_deleted=false OR fg.is_deleted IS NULL)
                 ORDER BY fc.joined_at ASC`, 'communityJoinReq'),
-            // בקשות חיבור עסק לקהילה — אחראי: מנהל אזור / מנהל קהילה (לא כולל סביבות מחוקות)
+            // בקשות חיבור עסק לקהילה — אחראי: מנהל אזור / מנהל קהילה (סביבות טסט כן מוצגות, מתוייגות is_test)
             // כולל את כל הסטטוסים שמייצגים בקשה שממתינה בפועל לפעולת אדמין/מנהל קהילה/מנהל אזור -
             // pending/zm_pending (הבקשות ה"ישנות"/ישירות), comm_mgr_pending (עסק אישר הזמנה, ממתין למנהל קהילה),
             // pending_cm_review (בקשה/הפניה עצמאית, ממתינה לסקירת מנהל קהילה). לא כולל biz_invited -
             // זה תור העסק להגיב, לא של הצוות הפנימי
-            safe(`SELECT cb.business_id, fg.name as title, c.name as subtitle, cb.created_at
+            safe(`SELECT cb.business_id, fg.name as title, c.name as subtitle, cb.created_at, fg.is_test_env
                 FROM community_businesses cb JOIN family_groups fg ON fg.id=cb.business_id JOIN communities c ON c.id=cb.community_id
-                WHERE cb.status IN ('pending','zm_pending','comm_mgr_pending','pending_cm_review') AND fg.is_test_env IS NOT TRUE AND (fg.is_deleted=false OR fg.is_deleted IS NULL)
+                WHERE cb.status IN ('pending','zm_pending','comm_mgr_pending','pending_cm_review') AND (fg.is_deleted=false OR fg.is_deleted IS NULL)
                 ORDER BY cb.created_at ASC`, 'bizCommunityReq'),
             // בקשות מנהלי אזור חדשים — אחראי: סופר אדמין
             safe(`SELECT id, name as title, email as subtitle, created_at FROM zone_managers WHERE status='pending' ORDER BY created_at ASC`, 'zmPending'),
-            // פניות תמיכה פתוחות — אחראי: צוות תמיכה (לא כולל סביבות מחוקות)
-            safe(`SELECT t.id, t.subject as title, COALESCE(fg.name,'—') as subtitle, t.created_at, t.priority
+            // פניות תמיכה פתוחות — אחראי: צוות תמיכה (סביבות טסט כן מוצגות, מתוייגות is_test)
+            safe(`SELECT t.id, t.subject as title, COALESCE(fg.name,'—') as subtitle, t.created_at, t.priority, fg.is_test_env
                 FROM support_tickets t LEFT JOIN family_groups fg ON fg.id=t.group_id
-                WHERE t.status='open' AND (fg.id IS NULL OR (fg.is_test_env IS NOT TRUE AND (fg.is_deleted=false OR fg.is_deleted IS NULL)))
+                WHERE t.status='open' AND (fg.id IS NULL OR (fg.is_deleted=false OR fg.is_deleted IS NULL))
                 ORDER BY (t.priority='high') DESC, t.created_at ASC`, 'ticketsOpen'),
-            // חובות שטרם נגבו — אחראי: גבייה / סופר אדמין (מ-billing_records, לא כולל סביבות מחוקות)
-            safe(`SELECT br.id, br.business_id, fg.name as title, '₪'||br.amount_ils as subtitle, br.created_at
+            // חובות שטרם נגבו — אחראי: גבייה / סופר אדמין (מ-billing_records, סביבות טסט כן מוצגות, מתוייגות is_test)
+            safe(`SELECT br.id, br.business_id, fg.name as title, '₪'||br.amount_ils as subtitle, br.created_at, fg.is_test_env
                 FROM billing_records br LEFT JOIN family_groups fg ON fg.id=br.business_id
-                WHERE br.payment_status!='paid' AND (fg.id IS NULL OR (fg.is_test_env IS NOT TRUE AND (fg.is_deleted=false OR fg.is_deleted IS NULL)))
+                WHERE br.payment_status!='paid' AND (fg.id IS NULL OR (fg.is_deleted=false OR fg.is_deleted IS NULL))
                 ORDER BY br.created_at ASC`, 'debtsUnpaid'),
-            // הזמנות שילוט ממתינות — אחראי: סופר אדמין (לא כולל סביבות מחוקות)
-            safe(`SELECT bo.id, bs.name as title, COALESCE(fg.name,'—') as subtitle, bo.created_at
+            // הזמנות שילוט ממתינות — אחראי: סופר אדמין (סביבות טסט כן מוצגות, מתוייגות is_test)
+            safe(`SELECT bo.id, bs.name as title, COALESCE(fg.name,'—') as subtitle, bo.created_at, fg.is_test_env
                 FROM banner_orders bo JOIN banner_slots bs ON bs.id=bo.slot_id LEFT JOIN family_groups fg ON fg.id=bo.business_id
-                WHERE bo.status='pending_approval' AND (fg.id IS NULL OR (fg.is_test_env IS NOT TRUE AND (fg.is_deleted=false OR fg.is_deleted IS NULL)))
+                WHERE bo.status='pending_approval' AND (fg.id IS NULL OR (fg.is_deleted=false OR fg.is_deleted IS NULL))
                 ORDER BY bo.created_at ASC`, 'bannerPending'),
-            // בקשות הסרת עסק מקהילה — אחראי: סופר אדמין (לא כולל סביבות מחוקות)
-            safe(`SELECT cb.business_id, fg.name as title, c.name as subtitle, cb.removal_requested_at as created_at
+            // בקשות הסרת עסק מקהילה — אחראי: סופר אדמין (סביבות טסט כן מוצגות, מתוייגות is_test)
+            safe(`SELECT cb.business_id, fg.name as title, c.name as subtitle, cb.removal_requested_at as created_at, fg.is_test_env
                 FROM community_businesses cb JOIN family_groups fg ON fg.id=cb.business_id JOIN communities c ON c.id=cb.community_id
-                WHERE cb.removal_requested=true AND fg.is_test_env IS NOT TRUE AND (fg.is_deleted=false OR fg.is_deleted IS NULL)
+                WHERE cb.removal_requested=true AND (fg.is_deleted=false OR fg.is_deleted IS NULL)
                 ORDER BY cb.removal_requested_at ASC`, 'removalReq'),
             // מבצעי קהילה ממתינים לאישור — אחראי: סופר אדמין
             safe(`SELECT p.id, p.title, c.name as subtitle, p.created_at
                 FROM community_promotions p JOIN communities c ON c.id=p.community_id
                 WHERE p.status='pending' ORDER BY p.created_at ASC`, 'promosPending'),
-            // בקשות פתיחת מודול — אחראי: סופר אדמין (JSON בתוך family_groups, לא כולל סביבות מחוקות)
-            safe(`SELECT id, name, module_requests FROM family_groups
+            // בקשות פתיחת מודול — אחראי: סופר אדמין (JSON בתוך family_groups, סביבות טסט כן מוצגות, מתוייגות is_test)
+            safe(`SELECT id, name, module_requests, is_test_env FROM family_groups
                 WHERE module_requests IS NOT NULL AND module_requests::text NOT IN ('[]','null')
-                AND is_test_env IS NOT TRUE AND (is_deleted=false OR is_deleted IS NULL)`, 'moduleReqRows')
+                AND (is_deleted=false OR is_deleted IS NULL)`, 'moduleReqRows')
         ]);
 
         // עיבוד בקשות מודולים מתוך JSON
@@ -9625,7 +9625,7 @@ app.get('/api/sa/pending-actions-center', verifySA, async (req, res) => {
             try { reqs = Array.isArray(g.module_requests) ? g.module_requests : JSON.parse(g.module_requests || '[]'); } catch(e) {}
             reqs.forEach(r => {
                 if (!r || !r.moduleId || String(r.moduleId).startsWith('CANCEL_')) return;
-                moduleReqItems.push({ id: g.id, title: g.name, subtitle: r.moduleName || r.moduleId, created_at: r.requested_at || null });
+                moduleReqItems.push({ id: g.id, title: g.name, subtitle: r.moduleName || r.moduleId, created_at: r.requested_at || null, is_test_env: g.is_test_env });
             });
         });
         moduleReqItems.sort((a,b) => new Date(a.created_at||0) - new Date(b.created_at||0));
@@ -9636,7 +9636,8 @@ app.get('/api/sa/pending-actions-center', verifySA, async (req, res) => {
                 title: r.title || r.name || '—',
                 subtitle: r.subtitle || '',
                 created_at: r.created_at,
-                wait_hours: hoursSince(r.created_at)
+                wait_hours: hoursSince(r.created_at),
+                is_test: r.is_test_env === true
             }));
             return {
                 key, label, responsible, icon,
