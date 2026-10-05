@@ -4532,7 +4532,7 @@ async function getBudgetInsight() {
     executeWithAIWarning(async () => {
         showAIModal('אנליסט התקציב AI', null); getEl('familai-loading-text').innerText = 'מנתח חריגות ושימושים החודש...';
         try {
-            const res = await fetch(`${API}/budget/familai-insight`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ groupId: currentGroup.id }) }); const data = await res.json();
+            const res = await fetch(`${API}/budget/familai-insight`, { method: 'POST', headers: {'Content-Type': 'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : ''}, body: JSON.stringify({ groupId: currentGroup.id }) }); const data = await res.json();
             if(!handleAIResponseCheck(data)) { getEl('familai-advisor-modal').classList.add('hidden'); return; }
             if(data.success && data.insight) { showAIModal('אנליסט התקציב AI', data.insight); fetchData(); }
             else { getEl('familai-advisor-modal').classList.add('hidden'); showToast('error', 'שגיאה ביצירת תובנות תקציב'); }
@@ -7819,10 +7819,12 @@ window.fetchBudget = async function() {
         const createRow = (category, spent, limit, isSub = false) => {
             const pct = limit > 0 ? (spent / limit) * 100 : 0; let color = 'bg-slate-700'; if (pct > 80) color = 'bg-orange-500'; if (pct > 100) color = 'bg-red-500';
             const limitDisplay = limit > 0 ? `₪${limit}` : 'ללא יעד'; const catName = BUDGET_LABELS[category] || category;
+            const safeCategoryAttr = String(category).replace(/\\/g,'\\\\').replace(/'/g, "\\'");
+            const safeCatNameAttr = String(catName).replace(/\\/g,'\\\\').replace(/'/g, "\\'");
             // קריאה מאובטחת וחסינה דרך אובייקט חלון
-            const editBtn = (category !== 'allocations') ? `<button onclick="if(typeof window.openBudgetModal === 'function') window.openBudgetModal('${category}', '${catName}', ${limit}); event.stopPropagation();" class="text-[10px] text-blue-600 font-bold ml-2 bg-blue-50 hover:bg-blue-100 px-2 py-0.5 rounded transition">עדכון תקציב</button>` : '';
+            const editBtn = (category !== 'allocations') ? `<button onclick="if(typeof window.openBudgetModal === 'function') window.openBudgetModal('${safeCategoryAttr}', '${safeCatNameAttr}', ${limit}); event.stopPropagation();" class="text-[10px] text-blue-600 font-bold ml-2 bg-blue-50 hover:bg-blue-100 px-2 py-0.5 rounded transition">עדכון תקציב</button>` : '';
             const textSize = isSub ? 'text-sm' : 'text-base'; const containerClass = isSub ? 'pl-2 border-r-2 border-slate-300 pr-2 mb-3' : 'mb-5';
-            return `<div class="${containerClass}"><div class="flex justify-between items-end mb-1"><span class="font-bold text-slate-700 ${textSize}">${catName} ${editBtn}</span><span class="text-xs text-slate-500 font-medium">₪${spent} / ${limitDisplay}</span></div><div class="w-full bg-slate-200 rounded-full ${isSub ? 'h-1.5' : 'h-2.5'} overflow-hidden shadow-inner"><div class="${color} ${isSub ? 'h-1.5' : 'h-2.5'} rounded-full transition-all duration-500" style="width: ${Math.min(100, pct)}%"></div></div></div>`;
+            return `<div class="${containerClass}"><div class="flex justify-between items-end mb-1"><span class="font-bold text-slate-700 ${textSize}">${escHtml(catName)} ${editBtn}</span><span class="text-xs text-slate-500 font-medium">₪${spent} / ${limitDisplay}</span></div><div class="w-full bg-slate-200 rounded-full ${isSub ? 'h-1.5' : 'h-2.5'} overflow-hidden shadow-inner"><div class="${color} ${isSub ? 'h-1.5' : 'h-2.5'} rounded-full transition-all duration-500" style="width: ${Math.min(100, pct)}%"></div></div></div>`;
         };
 
         if (childrenItems.length > 0) {
@@ -7867,7 +7869,7 @@ window.submitNewBudgetCat = async function() { 
     const target = currentUser.role === 'ADMIN' ? (val('budget-filter') || 'all') : currentUser.id; 
     const btn = getEl('btn-submit-budget-cat'); if(btn) { btn.disabled = true; btn.innerText = 'שומר...'; }
     try { 
-        await fetch(`${API}/budget/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({groupId:currentGroup.id, category:catName, limit:0, targetUserId: target})}); 
+        await fetch(`${API}/budget/update`, {method:'POST', headers:{'Content-Type':'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : ''}, body:JSON.stringify({groupId:currentGroup.id, category:catName, limit:0, targetUserId: target})});
         getEl('add-budget-cat-modal').classList.add('hidden'); 
         window.fetchBudget(); 
     } catch(e) { 
@@ -7913,7 +7915,7 @@ window.submitBudgetUpdate = async function() { 
     const target = currentUser.role === 'ADMIN' ? (val('budget-filter') || 'all') : currentUser.id; 
     const btn = getEl('btn-submit-budget-update'); if (btn) { btn.disabled = true; btn.innerText = 'שומר...'; }
     try { 
-        await fetch(`${API}/budget/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({groupId:currentGroup.id, category:cat, limit:limit, targetUserId: target})}); 
+        await fetch(`${API}/budget/update`, {method:'POST', headers:{'Content-Type':'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : ''}, body:JSON.stringify({groupId:currentGroup.id, category:cat, limit:limit, targetUserId: target})});
         getEl('budget-modal').classList.add('hidden'); 
         window.fetchBudget(); 
     } catch(e) { 

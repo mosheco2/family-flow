@@ -11059,9 +11059,12 @@ app.post('/api/pantry/bulk-update', async (req, res) => {
 // --- BUDGET ENDPOINTS ---
 // ============================================================
 
-app.get('/api/budget/filter', async (req, res) => {
+app.get('/api/budget/filter', verifyFamilyOrBiz, async (req, res) => {
     try {
-        const { groupId, targetUserId } = req.query;
+        let { groupId, targetUserId } = req.query;
+        if (parseInt(groupId) !== req.callerAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
+        // מי שאינו ADMIN רואה אך ורק את נתוני התקציב/ההוצאות של עצמו, לא את כל המשפחה
+        if (req.callerAuth.role !== 'ADMIN') targetUserId = String(req.callerAuth.userId);
         let params = [groupId]; let targetFilterA = ''; let targetFilterE = '';
         if (targetUserId && targetUserId !== 'all' && targetUserId !== 'undefined') { params.push(targetUserId); targetFilterA = `AND (target_user_id = $2 OR target_user_id IS NULL)`; targetFilterE = `AND user_id = $2`; }
 
@@ -11072,16 +11075,25 @@ app.get('/api/budget/filter', async (req, res) => {
             FROM Allocations a FULL OUTER JOIN Expenses e ON a.category = e.category GROUP BY COALESCE(a.category, e.category)
         `;
         const result = await pool.query(query, params); res.json(result.rows || []);
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch(e) { res.status(500).json({ error: 'שגיאה פנימית' }); }
 });
 
-app.post('/api/budget/update', async (req, res) => {
+app.post('/api/budget/update', verifyFamilyOrBiz, async (req, res) => {
     try {
         const { groupId, category, limit, targetUserId } = req.body;
+        if (parseInt(groupId) !== req.callerAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
+        if (req.callerAuth.role !== 'ADMIN') return res.status(403).json({ error: 'רק מנהל/ת יכול/ה לקבוע תקציב' });
+        if (!category || !String(category).trim()) return res.status(400).json({ error: 'קטגוריה נדרשת' });
         const finalUserId = targetUserId === 'all' ? null : targetUserId;
-        await pool.query(`INSERT INTO budget_allocations (group_id, category, target_user_id, amount_limit) VALUES ($1, $2, $3, $4) ON CONFLICT (group_id, category, target_user_id) DO UPDATE SET amount_limit = $4`, [groupId, category, finalUserId, parseFloat(limit) || 0]);
+        if (finalUserId) {
+            const belongs = await pool.query('SELECT 1 FROM users WHERE id=$1 AND group_id=$2', [finalUserId, groupId]);
+            if (!belongs.rows.length) return res.status(400).json({ error: 'משתמש לא שייך לקבוצה זו' });
+        }
+        const safeLimit = Math.max(0, parseFloat(limit) || 0);
+        const safeCategory = String(category).trim().slice(0, 50);
+        await pool.query(`INSERT INTO budget_allocations (group_id, category, target_user_id, amount_limit) VALUES ($1, $2, $3, $4) ON CONFLICT (group_id, category, target_user_id) DO UPDATE SET amount_limit = $4`, [groupId, safeCategory, finalUserId, safeLimit]);
         res.json({ success: true });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch(e) { res.status(500).json({ error: 'שגיאה פנימית' }); }
 });
 
 // ============================================================
@@ -12197,9 +12209,10 @@ app.post('/api/goals/familai-advice', async (req, res) => {
     } catch (e) { handleAIError(e, res, 'שגיאה ביצירת עצה'); }
 });
 
-app.post('/api/budget/familai-insight', async (req, res) => {
+app.post('/api/budget/familai-insight', verifyFamilyOrBiz, async (req, res) => {
     try {
         const { groupId } = req.body;
+        if (parseInt(groupId) !== req.callerAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const hasTokens = await handleAITokens(groupId);
         if(!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
         if (!getGenAIInstance()) throw new Error('GEMINI_API_KEY is not set');
@@ -15675,6 +15688,7 @@ app.get('/api/biz/export-report', verifyBiz, async (req, res) => {
     try {
         const { groupId, type } = req.query;
         if (!groupId) return res.status(400).json({ error: 'groupId required' });
+        if (parseInt(groupId) !== req.bizAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         let csvData = '', filename = `report_${new Date().toISOString().split('T')[0]}.csv`;
 
         if (type === 'orders') {
