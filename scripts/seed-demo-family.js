@@ -40,6 +40,10 @@ const pool = new Pool({
 });
 
 const DEMO_PASSWORD = 'Demo1234';
+// קוד קבוצה קבוע למשפחת הדמו - כדי שתמיד תהיה אותה כתובת/קוד כניסה בין
+// הרצות חוזרות (נמחק ונוצר מחדש בכל הרצה, אך תמיד עם אותו group_code),
+// ולא קוד אקראי חדש שמבלבל איזו משפחה היא העדכנית.
+const FIXED_GROUP_CODE = '7ITOMA';
 const COMMUNITY_NAME_PATTERN = '%נוקדים%';
 const BIZ_PIZZA_PATTERN = '%פיצה%מושיק%';
 const BIZ_GOLD_PATTERN = '%ידי%זהב%'; // "יוסי ובניו ידי זהב"
@@ -175,7 +179,14 @@ async function main() {
 
     await client.query('BEGIN');
     try {
-      const groupCode = await uniqueGroupCode(client);
+      // אם קוד הקבוצה הקבוע תפוס ע"י רשומה שלא נוקתה (למשל כשל בניקוי קודם),
+      // נופלים חזרה לקוד אקראי במקום להיכשל - אבל במצב הרגיל (ניקוי הצליח)
+      // תמיד ייווצר כאן עם FIXED_GROUP_CODE.
+      const codeTaken = await client.query('SELECT 1 FROM family_groups WHERE group_code=$1', [FIXED_GROUP_CODE]);
+      const groupCode = codeTaken.rows.length === 0 ? FIXED_GROUP_CODE : await uniqueGroupCode(client);
+      if (groupCode !== FIXED_GROUP_CODE) {
+        console.warn(`⚠ קוד הקבוצה הקבוע ${FIXED_GROUP_CODE} תפוס - נוצר קוד אקראי ${groupCode} במקום (ייתכן שהניקוי הקודם נכשל - כדאי לבדוק)`);
+      }
       const familyLastName = 'לוי';
       const familyCity = 'ראשון לציון';
 
