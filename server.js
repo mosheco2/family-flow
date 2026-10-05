@@ -13680,8 +13680,8 @@ app.get('/api/store/quotes/family/:familyGroupId', verifyFamily, async (req, res
                   AND so.created_at > NOW() - INTERVAL '90 days')
             )
             AND (so.family_group_id=$1
-                OR ($2::text IS NOT NULL AND $2::text <> '' AND so.customer_phone = $2::text)
-                OR so.customer_phone IN (SELECT phone FROM users WHERE group_id=$1 AND phone IS NOT NULL AND phone <> ''))
+                OR (so.family_group_id IS NULL AND $2::text IS NOT NULL AND $2::text <> '' AND so.customer_phone = $2::text)
+                OR (so.family_group_id IS NULL AND so.customer_phone IN (SELECT phone FROM users WHERE group_id=$1 AND phone IS NOT NULL AND phone <> '')))
             ORDER BY so.created_at DESC`, [familyGroupId, userPhone || null]);
         res.json({ success: true, quotes: r.rows });
     } catch(e) { res.status(500).json({ error: 'שגיאה פנימית' }); }
@@ -14132,7 +14132,7 @@ app.post('/api/store/orders/:id/customer-feedback', verifyFamily, async (req, re
         const orderId = parseInt(req.params.id);
         const familyGroupId = req.familyAuth.groupId;
         const chk = await pool.query(
-            `SELECT id, group_id, status FROM store_orders WHERE id=$1 AND (family_group_id=$2 OR customer_phone=(SELECT phone FROM users WHERE group_id=$2 AND phone IS NOT NULL LIMIT 1))`,
+            `SELECT id, group_id, status FROM store_orders WHERE id=$1 AND (family_group_id=$2 OR (family_group_id IS NULL AND customer_phone=(SELECT phone FROM users WHERE group_id=$2 AND phone IS NOT NULL LIMIT 1)))`,
             [orderId, familyGroupId]
         );
         if (!chk.rows.length) return res.status(403).json({ error: 'הזמנה לא נמצאה' });
@@ -14192,7 +14192,7 @@ app.get('/api/store/orders/my/:userId', verifyFamily, async (req, res) => {
             WHERE so.status != 'quote'
               AND (so.quote_status IS NULL OR so.quote_status = 'approved')
               AND (so.family_group_id = $1
-               OR ($2::text IS NOT NULL AND $2::text <> '' AND so.customer_phone = $2::text))
+               OR (so.family_group_id IS NULL AND $2::text IS NOT NULL AND $2::text <> '' AND so.customer_phone = $2::text))
             ORDER BY so.created_at DESC
         `, [familyGroupId, userPhone || null]);
 
@@ -30516,29 +30516,29 @@ app.get('/api/family/business-activity/:familyGroupId/:bizGroupId', verifyFamily
                             JOIN beauty_appointment_segments bas ON bas.appointment_id = ba.id
                             WHERE ba.business_group_id=$1
                               AND (
-                                ($2::text IS NOT NULL AND ba.client_phone=$2::text)
-                                OR ba.client_family_id=$3::integer
-                                OR EXISTS (
+                                ba.client_family_id=$3::integer
+                                OR (ba.client_family_id IS NULL AND $2::text IS NOT NULL AND ba.client_phone=$2::text)
+                                OR (ba.client_family_id IS NULL AND EXISTS (
                                   SELECT 1 FROM beauty_client_records bcr2
                                   WHERE bcr2.business_group_id=$1 AND bcr2.client_family_id=$3::integer
                                     AND ba.client_phone IS NOT NULL AND ba.client_phone=bcr2.client_phone
-                                )
-                                OR EXISTS (
+                                ))
+                                OR (ba.client_family_id IS NULL AND EXISTS (
                                   SELECT 1 FROM users u2
                                   WHERE u2.group_id=$3::integer
                                     AND ba.client_phone IS NOT NULL AND ba.client_phone=u2.phone
-                                )
+                                ))
                               )
                             GROUP BY ba.id ORDER BY MIN(bas.start_time) DESC LIMIT 30`,
                     [bizGroupId, familyPhone, familyGroupId]).catch(e => { console.error('[APPT-QUERY]', e.message); return { rows: [] }; }),
                 pool.query(`SELECT id, status, service_description, preferred_date, created_at
                             FROM beauty_rfq WHERE business_group_id=$1
-                              AND (client_phone = ANY($2::text[]) OR client_family_id=$3)
+                              AND (client_family_id=$3 OR (client_family_id IS NULL AND client_phone = ANY($2::text[])))
                             ORDER BY created_at DESC LIMIT 20`,
                     [bizGroupId, familyPhones, familyGroupId]).catch(() => ({ rows: [] })),
                 pool.query(`SELECT id, title, event_date, start_time, status, notes
                             FROM calendar_events WHERE group_id=$1
-                              AND (customer_phone = ANY($2::text[]) OR customer_group_id=$3)
+                              AND (customer_group_id=$3 OR (customer_group_id IS NULL AND customer_phone = ANY($2::text[])))
                               AND status NOT IN ('cancelled','done')
                             ORDER BY event_date DESC, start_time DESC LIMIT 20`,
                     [bizGroupId, familyPhones, familyGroupId]).catch(() => ({ rows: [] }))
@@ -30569,14 +30569,14 @@ app.get('/api/family/business-activity/:familyGroupId/:bizGroupId', verifyFamily
                                 (SELECT json_agg(json_build_object('name',soi.item_name,'qty',soi.quantity,'price',soi.price_at_order) ORDER BY soi.id)
                                  FROM store_order_items soi WHERE soi.order_id=so.id) AS items
                             FROM store_orders so
-                            WHERE so.group_id=$1 AND (so.customer_phone = ANY($2::text[]) OR so.family_group_id=$3)
+                            WHERE so.group_id=$1 AND (so.family_group_id=$3 OR (so.family_group_id IS NULL AND so.customer_phone = ANY($2::text[])))
                               AND (so.status IS NULL OR so.status != 'quote')
                               AND so.quote_status IS NULL
                             ORDER BY so.created_at DESC LIMIT 20`,
                 [bizGroupId, familyPhones, familyGroupId]).catch(() => ({ rows: [] }));
             const quoteR = await pool.query(`SELECT id, status AS order_status, COALESCE(quote_status, status) AS status, total_amount AS total_price, created_at, call_type
                             FROM store_orders
-                            WHERE group_id=$1 AND (customer_phone = ANY($2::text[]) OR family_group_id=$3)
+                            WHERE group_id=$1 AND (family_group_id=$3 OR (family_group_id IS NULL AND customer_phone = ANY($2::text[])))
                               AND (status = 'quote' OR quote_status IS NOT NULL)
                             ORDER BY created_at DESC LIMIT 10`,
                 [bizGroupId, familyPhones, familyGroupId]).catch(() => ({ rows: [] }));
