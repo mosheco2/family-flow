@@ -1806,7 +1806,7 @@ async function loadDashboard() {
 
     const codeBadge = currentGroup.group_code ? `<span class="text-[10px] font-mono bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full mr-2 tracking-widest">${currentGroup.group_code}</span>` : '';
     const _groupDisplayName = fmtGroupName(currentGroup);
-    getEl('dash-group-name').innerHTML = `${safeStr(_groupDisplayName)} ${codeBadge}`; getEl('dash-nickname').innerText = fmtUserName(currentUser) || currentUser.nickname;
+    getEl('dash-group-name').innerHTML = `${escHtml(_groupDisplayName)} ${codeBadge}`; getEl('dash-nickname').innerText = fmtUserName(currentUser) || currentUser.nickname;
 
     const isAdmin = currentUser.role === 'ADMIN';
     if(isAdmin) { 
@@ -2173,7 +2173,7 @@ window._submitForcePassword = async function() {
         if (idNum) payload.id_number = idNum;
         if (email) payload.email = email;
         if (year) payload.birth_year = parseInt(year);
-        const r = await fetch(`${API}/users/${currentUser.id}/set-first-password`, {
+        const r = await communityFetch(`${API}/users/${currentUser.id}/set-first-password`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         }).then(r => r.json());
@@ -5806,13 +5806,13 @@ async function openProfileModal() {
     loadFamilyAddress();
     // Load phone
     try {
-        const r = await fetch(`${API}/users/${currentUser.id}/phone`);
+        const r = await communityFetch(`${API}/users/${currentUser.id}/phone`);
         const d = await r.json();
         if (d.success && getEl('user-phone-input')) getEl('user-phone-input').value = d.phone || '';
     } catch(e) {}
     // Load email
     try {
-        const r = await fetch(`${API}/users/${currentUser.id}/email`);
+        const r = await communityFetch(`${API}/users/${currentUser.id}/email`);
         const d = await r.json();
         if (d.success && getEl('user-email-input')) getEl('user-email-input').value = d.email || '';
     } catch(e) {}
@@ -5823,7 +5823,7 @@ async function openProfileModal() {
 async function saveUserPhone() {
     const phone = (getEl('user-phone-input')?.value || '').trim();
     try {
-        const res = await fetch(`${API}/users/${currentUser.id}/phone`, {
+        const res = await communityFetch(`${API}/users/${currentUser.id}/phone`, {
             method: 'PUT', headers: {'Content-Type':'application/json'},
             body: JSON.stringify({ phone })
         });
@@ -5836,7 +5836,7 @@ async function saveUserPhone() {
 async function saveUserEmail() {
     const email = (getEl('user-email-input')?.value || '').trim();
     try {
-        const res = await fetch(`${API}/users/${currentUser.id}/email`, {
+        const res = await communityFetch(`${API}/users/${currentUser.id}/email`, {
             method: 'PUT', headers: {'Content-Type':'application/json'},
             body: JSON.stringify({ email })
         });
@@ -5851,7 +5851,7 @@ async function saveFamilyAddress() {
     const streetAddress = (getEl('family-address-input')?.value || '').trim();
     if (!city && !streetAddress) { showToast('error', 'יש למלא לפחות עיר או כתובת'); return; }
     try {
-        const res = await fetch(`/api/groups/${currentGroup.id}/address`, {
+        const res = await communityFetch(`/api/groups/${currentGroup.id}/address`, {
             method: 'PUT', headers: {'Content-Type':'application/json'},
             body: JSON.stringify({ city, streetAddress })
         });
@@ -5877,7 +5877,7 @@ function loadFamilyAddress() {
 async function saveFamilyNickname() {
     const nickname = (getEl('profile-family-nickname')?.value || '').trim();
     try {
-        const res = await fetch(`/api/groups/${currentGroup.id}/nickname`, {
+        const res = await communityFetch(`/api/groups/${currentGroup.id}/nickname`, {
             method: 'PATCH', headers: {'Content-Type':'application/json'},
             body: JSON.stringify({ familyNickname: nickname })
         });
@@ -9562,7 +9562,7 @@ window.renderGroupInfo = function() {
     const nameEl = document.getElementById('dash-group-name');
     if (nameEl) {
         const codeBadge = currentGroup.group_code ? `<span class="text-[10px] font-mono bg-blue-100 text-blue-600 px-2 py-0.5 rounded-full mr-2 tracking-widest">${currentGroup.group_code}</span>` : '';
-        nameEl.innerHTML = `${safeStr(currentGroup.family_nickname || currentGroup.name)} ${codeBadge}`;
+        nameEl.innerHTML = `${escHtml(currentGroup.family_nickname || currentGroup.name)} ${codeBadge}`;
     }
 
     const logo = currentGroup.logo || currentGroup.logo_url || currentGroup.image_url;
@@ -9631,7 +9631,7 @@ window.saveUpgradeModal = async function() {
         const nickname = (document.getElementById('upgrade-family-nickname')?.value || '').trim();
         const updates = [];
         if (nickname || window._upgradePhotoBase64) {
-            if (nickname) updates.push(fetch(`${API}/groups/${currentGroup.id}/nickname`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ familyNickname: nickname }) }));
+            if (nickname) updates.push(communityFetch(`${API}/groups/${currentGroup.id}/nickname`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ familyNickname: nickname }) }));
             if (window._upgradePhotoBase64) updates.push(fetch(`${API}/groups/${currentGroup.id}/logo`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ logo: window._upgradePhotoBase64 }) }));
             await Promise.all(updates);
             if (nickname) currentGroup.family_nickname = nickname;

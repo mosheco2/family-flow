@@ -11476,12 +11476,13 @@ app.post('/api/users/:id/password', verifyFamily, async (req, res) => {
         if (!oldOk) return res.status(401).json({ error: 'סיסמה נוכחית שגויה' });
         await pool.query('UPDATE users SET password_hash=$1 WHERE id=$2', [await bcrypt.hash(newPassword, 10), targetId]);
         res.json({ success: true });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch(e) { res.status(500).json({ error: 'שגיאה פנימית' }); }
 });
 
 // First-login password set (for member accounts created by business — no old password required)
-app.post('/api/users/:id/set-first-password', async (req, res) => {
+app.post('/api/users/:id/set-first-password', verifyFamily, async (req, res) => {
     try {
+        if (req.familyAuth.userId !== parseInt(req.params.id)) return res.status(403).json({ error: 'אין הרשאה' });
         const { newPassword, id_number, email, birth_year } = req.body;
         if (!newPassword || newPassword.length < 4) return res.status(400).json({ error: 'סיסמה חייבת להכיל לפחות 4 תווים' });
         const u = await pool.query('SELECT must_change_password FROM users WHERE id=$1', [req.params.id]);
@@ -11489,14 +11490,14 @@ app.post('/api/users/:id/set-first-password', async (req, res) => {
         if (!u.rows[0].must_change_password) return res.status(403).json({ error: 'לא ניתן לאפס סיסמה בשלב זה' });
         const sets = ['password_hash=$1', 'must_change_password=false'];
         const vals = [await bcrypt.hash(newPassword, 10)];
-        if (id_number !== undefined && String(id_number).trim() !== '') { vals.push(String(id_number).trim()); sets.push(`id_number=$${vals.length}`); }
-        if (email !== undefined && String(email).trim() !== '') { vals.push(String(email).trim().toLowerCase()); sets.push(`email=$${vals.length}`); }
+        if (id_number !== undefined && String(id_number).trim() !== '') { vals.push(String(id_number).trim().substring(0, 20)); sets.push(`id_number=$${vals.length}`); }
+        if (email !== undefined && String(email).trim() !== '') { vals.push(String(email).trim().toLowerCase().substring(0, 200)); sets.push(`email=$${vals.length}`); }
         const by = parseInt(birth_year);
         if (!isNaN(by) && by >= 1920 && by <= 2020) { vals.push(by); sets.push(`birth_year=$${vals.length}`); }
         vals.push(req.params.id);
         await pool.query(`UPDATE users SET ${sets.join(', ')} WHERE id=$${vals.length}`, vals);
         res.json({ success: true });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch(e) { res.status(500).json({ error: 'שגיאה פנימית' }); }
 });
 
 app.post('/api/admin/adjust-balance', verifyFamily, async (req, res) => {
@@ -23366,11 +23367,22 @@ app.put('/api/store/kiosk-password', async (req, res) => {
 });
 
 // GET/PUT user phone
-app.get('/api/users/:userId/phone', async (req, res) => {
+app.get('/api/users/:userId/phone', verifyFamily, async (req, res) => {
     try {
-        const r = await pool.query('SELECT phone FROM users WHERE id=$1', [req.params.userId]);
+        const requesterId = req.familyAuth.userId;
+        const requesterGroupId = req.familyAuth.groupId;
+        const targetId = parseInt(req.params.userId);
+        const targetCheck = await pool.query('SELECT group_id FROM users WHERE id=$1 AND group_id=$2', [targetId, requesterGroupId]);
+        if (!targetCheck.rows.length) return res.status(404).json({ error: 'משתמש לא נמצא בקבוצה' });
+        if (requesterId !== targetId) {
+            const adminCheck = await pool.query('SELECT role FROM users WHERE id=$1', [requesterId]);
+            if (!adminCheck.rows.length || adminCheck.rows[0].role !== 'ADMIN') {
+                return res.status(403).json({ error: 'נדרשת הרשאת מנהל לצפייה בפרטי משתמש אחר' });
+            }
+        }
+        const r = await pool.query('SELECT phone FROM users WHERE id=$1', [targetId]);
         res.json({ success: true, phone: r.rows[0]?.phone || '' });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch(e) { res.status(500).json({ error: 'שגיאה פנימית' }); }
 });
 
 app.put('/api/users/:userId/phone', verifyFamily, async (req, res) => {
@@ -23390,16 +23402,27 @@ app.put('/api/users/:userId/phone', verifyFamily, async (req, res) => {
         }
 
         const { phone } = req.body;
-        await pool.query('UPDATE users SET phone=$1 WHERE id=$2', [phone, targetId]);
+        await pool.query('UPDATE users SET phone=$1 WHERE id=$2', [String(phone || '').trim().substring(0, 30), targetId]);
         res.json({ success: true });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch(e) { res.status(500).json({ error: 'שגיאה פנימית' }); }
 });
 
-app.get('/api/users/:userId/email', async (req, res) => {
+app.get('/api/users/:userId/email', verifyFamily, async (req, res) => {
     try {
-        const r = await pool.query('SELECT email FROM users WHERE id=$1', [req.params.userId]);
+        const requesterId = req.familyAuth.userId;
+        const requesterGroupId = req.familyAuth.groupId;
+        const targetId = parseInt(req.params.userId);
+        const targetCheck = await pool.query('SELECT group_id FROM users WHERE id=$1 AND group_id=$2', [targetId, requesterGroupId]);
+        if (!targetCheck.rows.length) return res.status(404).json({ error: 'משתמש לא נמצא בקבוצה' });
+        if (requesterId !== targetId) {
+            const adminCheck = await pool.query('SELECT role FROM users WHERE id=$1', [requesterId]);
+            if (!adminCheck.rows.length || adminCheck.rows[0].role !== 'ADMIN') {
+                return res.status(403).json({ error: 'נדרשת הרשאת מנהל לצפייה בפרטי משתמש אחר' });
+            }
+        }
+        const r = await pool.query('SELECT email FROM users WHERE id=$1', [targetId]);
         res.json({ success: true, email: r.rows[0]?.email || '' });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch(e) { res.status(500).json({ error: 'שגיאה פנימית' }); }
 });
 
 app.put('/api/users/:userId/email', verifyFamily, async (req, res) => {
@@ -23419,9 +23442,9 @@ app.put('/api/users/:userId/email', verifyFamily, async (req, res) => {
         }
 
         const { email } = req.body;
-        await pool.query('UPDATE users SET email=$1 WHERE id=$2', [email || null, targetId]);
+        await pool.query('UPDATE users SET email=$1 WHERE id=$2', [email ? String(email).trim().toLowerCase().substring(0, 200) : null, targetId]);
         res.json({ success: true });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch(e) { res.status(500).json({ error: 'שגיאה פנימית' }); }
 });
 
 // ─── SURVEYS API ────────────────────────────────────────────────
@@ -24085,33 +24108,37 @@ ${ogImage ? `<meta property="og:image" content="${ogImage}">` : ''}
 });
 
 // Save family/group address
-app.put('/api/groups/:id/address', async (req, res) => {
+app.put('/api/groups/:id/address', verifyFamily, async (req, res) => {
     try {
+        if (parseInt(req.params.id) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const { streetAddress, city } = req.body;
+        const safeStreet = streetAddress ? String(streetAddress).trim().substring(0, 200) : null;
+        const safeCity = city ? String(city).trim().substring(0, 100) : null;
         await pool.query('UPDATE family_groups SET street_address=$1, city=$2 WHERE id=$3',
-            [streetAddress || null, city || null, req.params.id]);
+            [safeStreet, safeCity, req.params.id]);
         // Award profile_complete FLOW once per family (check if already awarded)
         const gid = parseInt(req.params.id);
         const alreadyAwarded = await pool.query(
             `SELECT 1 FROM flow_transactions WHERE entity_type='family' AND entity_id=$1 AND action_key='profile_complete' LIMIT 1`, [gid]);
-        if (!alreadyAwarded.rows.length && streetAddress && city) {
+        if (!alreadyAwarded.rows.length && safeStreet && safeCity) {
             const grp = await pool.query(`SELECT type FROM family_groups WHERE id=$1`, [gid]);
             if (grp.rows.length && grp.rows[0].type === 'FAMILY') {
                 await awardFlow('family', gid, 'profile_complete', null, null);
             }
         }
         res.json({ success: true });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch(e) { res.status(500).json({ error: 'שגיאה פנימית' }); }
 });
 
 // עדכון כינוי משפחה (family_nickname) — נקרא ממודל שדרוג חבר→משפחה
-app.patch('/api/groups/:id/nickname', async (req, res) => {
+app.patch('/api/groups/:id/nickname', verifyFamily, async (req, res) => {
     try {
+        if (parseInt(req.params.id) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const { familyNickname } = req.body;
         await pool.query('UPDATE family_groups SET family_nickname=$1 WHERE id=$2',
-            [familyNickname ? familyNickname.trim() : null, req.params.id]);
+            [familyNickname ? String(familyNickname).trim().substring(0, 50) : null, req.params.id]);
         res.json({ success: true });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch(e) { res.status(500).json({ error: 'שגיאה פנימית' }); }
 });
 
 // Members by groupId path param (used by role dashboards for tech assignment)
