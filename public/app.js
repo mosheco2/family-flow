@@ -2695,7 +2695,7 @@ function handleReceiptUpload(event) {
             const controller = new AbortController();
             const timeout = setTimeout(() => controller.abort(), 90000);
             try {
-                const res = await fetch(`${API}/shopping/scan-receipt`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: currentUser.id, imageBase64: base64, mimeType: 'image/jpeg' }), signal: controller.signal });
+                const res = await communityFetch(`${API}/shopping/scan-receipt`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: currentUser.id, imageBase64: base64, mimeType: 'image/jpeg' }), signal: controller.signal });
                 clearTimeout(timeout);
                 const data = await res.json();
                 if(!handleAIResponseCheck(data)) { getEl('familai-advisor-modal').classList.add('hidden'); return; }
@@ -2738,8 +2738,8 @@ function showReceiptReviewModal(items, storeName) {
         return `<label class="flex items-center gap-3 p-2.5 rounded-xl border border-slate-200 bg-white hover:bg-purple-50 cursor-pointer transition">
             <input type="checkbox" class="receipt-item-cb w-4 h-4 accent-purple-600 rounded shrink-0" data-idx="${idx}" checked>
             <div class="flex-1 min-w-0">
-                <div class="text-xs font-bold text-slate-800 truncate">${safeStr(item.name)}</div>
-                <div class="text-[10px] text-slate-400">${qty > 1 ? qty + ' ' + (item.unit || 'יח') + ' × ' : ''}${item.unit || 'יח'} ליחידה</div>
+                <div class="text-xs font-bold text-slate-800 truncate">${escHtml(item.name)}</div>
+                <div class="text-[10px] text-slate-400">${qty > 1 ? qty + ' ' + escHtml(item.unit || 'יח') + ' × ' : ''}${escHtml(item.unit || 'יח')} ליחידה</div>
             </div>
             <div class="text-left shrink-0">${priceDisplay}</div>
         </label>`;
@@ -2754,7 +2754,7 @@ async function confirmReceiptItems() {
     if(!selected.length) return showToast('error', 'לא נבחרו פריטים להוספה');
     getEl('receipt-review-modal').classList.add('hidden');
     try {
-        const res = await fetch(`${API}/shopping/scan-receipt/save`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items: selected, userId: currentUser.id }) });
+        const res = await communityFetch(`${API}/shopping/scan-receipt/save`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items: selected, userId: currentUser.id }) });
         const data = await res.json();
         if(data.success) {
             for (const item of selected) {
@@ -2762,7 +2762,7 @@ async function confirmReceiptItems() {
                 const saveKey = item.normalized_name || item.name;
                 if (detectedCat && detectedCat !== 'שונות' && !categoryMapCache[saveKey]) {
                     categoryMapCache[saveKey] = detectedCat;
-                    fetch(`${API}/shopping/category-map`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ groupId: currentGroup.id, normalizedName: saveKey, category: detectedCat }) });
+                    communityFetch(`${API}/shopping/category-map`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ groupId: currentGroup.id, normalizedName: saveKey, category: detectedCat }) });
                 }
             }
             showFamilAIModal('קופאית אוטומאטית', `✅ הוספתי ${data.count} פריטים מהקבלה לרשימת הקניות!`); triggerConfetti(); fetchData();
@@ -4500,7 +4500,7 @@ async function _doSubmitShopItem(item, qty, est, unit, upp) {
     const btn = getEl('btn-submit-shop');
     if (btn) { btn.disabled = true; btn.innerText = 'מוסיף...'; }
     try {
-        const res = await fetch(`${API}/shopping/add`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemName: item, quantity: qty, unit: unit, estimatedPrice: est, unitsPerPackage: upp, userId: currentUser.id, groupId: currentGroup.id}) });
+        const res = await communityFetch(`${API}/shopping/add`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemName: item, quantity: qty, unit: unit, estimatedPrice: est, unitsPerPackage: upp, userId: currentUser.id, groupId: currentGroup.id}) });
         const data = await res.json();
         if (data.success) {
             const itemInput = getEl('shop-item');
@@ -4524,7 +4524,7 @@ async function confirmCategoryPick(category) {
     const p = window._pendingShopItem;
     if (!p) return;
     categoryMapCache[p.item] = category;
-    fetch(`${API}/shopping/category-map`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ groupId: currentGroup.id, normalizedName: p.item, category }) });
+    communityFetch(`${API}/shopping/category-map`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ groupId: currentGroup.id, normalizedName: p.item, category }) });
     if (p._fromSupermarket) {
         await _doSmQuickAdd(p.item);
     } else {
@@ -4545,7 +4545,7 @@ async function openAiShoppingModal() {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 25000);
     try {
-        const res = await fetch(`${API}/shopping/ai-generate-list`, {
+        const res = await communityFetch(`${API}/shopping/ai-generate-list`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ userId: currentUser.id, groupId: currentGroup.id }),
             signal: controller.signal
@@ -4612,7 +4612,7 @@ async function confirmAiShoppingList() {
     showToast('success', `מוסיף ${toAdd.length} פריטים לרשימה...`);
     for (const item of toAdd) {
         try {
-            await fetch(`${API}/shopping/add`, {
+            await communityFetch(`${API}/shopping/add`, {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ itemName: item.name, quantity: item.qty, unit: item.unit, estimatedPrice: 0, unitsPerPackage: 1, userId: currentUser.id, groupId: currentGroup.id })
             });
@@ -4624,13 +4624,13 @@ async function confirmAiShoppingList() {
 async function loadCategoryMap() {
     if (!currentGroup || !currentGroup.id) return;
     try {
-        const res = await fetch(`${API}/shopping/category-map?groupId=${currentGroup.id}`);
+        const res = await communityFetch(`${API}/shopping/category-map?groupId=${currentGroup.id}`);
         const data = await res.json();
         if (Array.isArray(data)) { data.forEach(r => { categoryMapCache[r.normalized_name] = r.category; }); }
     } catch(e) {}
 }
 
-async function deleteItem(id) { if(!confirm('למחוק פריט דרישה זה?')) return; await fetch(`${API}/shopping/delete/${id}`, { method: 'DELETE' }); showToast('success', 'נמחק בהצלחה'); fetchData(); }
+async function deleteItem(id) { if(!confirm('למחוק פריט דרישה זה?')) return; await communityFetch(`${API}/shopping/delete/${id}`, { method: 'DELETE' }); showToast('success', 'נמחק בהצלחה'); fetchData(); }
 function toggleShopMultiDelete() {
     shopMultiDeleteMode = !shopMultiDeleteMode;
     const btn = document.getElementById('btn-shop-multi-delete');
@@ -4654,7 +4654,7 @@ async function deleteSelectedShopItems() {
     if (cbs.length === 0) return showToast('error', 'לא נבחרו פריטים למחיקה');
     if (!confirm('למחוק ' + cbs.length + ' פריטים?')) return;
     const ids = Array.from(cbs).map(cb => cb.dataset.id);
-    await Promise.all(ids.map(id => fetch(`${API}/shopping/delete/${id}`, { method: 'DELETE' })));
+    await Promise.all(ids.map(id => communityFetch(`${API}/shopping/delete/${id}`, { method: 'DELETE' })));
     showToast('success', ids.length + ' פריטים נמחקו');
     shopMultiDeleteMode = false;
     const bar = document.getElementById('shop-delete-bar');
@@ -4699,7 +4699,7 @@ async function deleteSelectedPantryItems() {
 
 async function clearEntireCart() {
     if(!confirm('האם אתה בטוח שברצונך למחוק את כל בקשות הרכש? פעולה זו אינה הפיכה.')) return;
-    try { const res = await fetch(`${API}/shopping/clear/${currentGroup.id}`, { method: 'DELETE' }); const data = await res.json(); if(data.success) { showToast('success', 'הרשימה אופסה בהצלחה!'); fetchData(); } else { showToast('error', data.error || 'שגיאה בריקון הרשימה'); } } catch(e) { showToast('error', 'שגיאת תקשורת מול השרת'); }
+    try { const res = await communityFetch(`${API}/shopping/clear/${currentGroup.id}`, { method: 'DELETE' }); const data = await res.json(); if(data.success) { showToast('success', 'הרשימה אופסה בהצלחה!'); fetchData(); } else { showToast('error', data.error || 'שגיאה בריקון הרשימה'); } } catch(e) { showToast('error', 'שגיאת תקשורת מול השרת'); }
 }
 
 function toggleSelectAll() { const allItems = shoppingListCache; const anyPending = allItems.some(i => i.status === 'pending'); const targetStatus = anyPending; document.querySelectorAll('.shop-row').forEach(row => { if(row.classList.contains('missing')) return; const cb = row.querySelector('input[type="checkbox"]'); const inp = row.querySelector('.price-input'); cb.checked = targetStatus; row.classList.toggle('in-cart', targetStatus); inp.disabled = !targetStatus; }); calcRunningTotal(); allItems.forEach(i => { if(i.status !== 'bought') updateRow(i.id, 'check', targetStatus); }); }
@@ -4715,7 +4715,7 @@ function renderShopList() {
         reqContainer.classList.remove('hidden');
         requestedItems.forEach(i => {
             const actions = currentUser.role === 'ADMIN' ? `<div class="flex gap-2"><button onclick="updateRow(${i.id}, 'approve_request')" class="bg-green-100 text-green-600 w-8 h-8 rounded-full flex items-center justify-center hover:bg-green-200"><i class="fa-solid fa-check"></i></button><button onclick="deleteItem(${i.id})" class="bg-red-100 text-red-600 w-8 h-8 rounded-full flex items-center justify-center hover:bg-red-200"><i class="fa-solid fa-xmark"></i></button></div>` : `<span class="text-xs font-bold text-orange-500 bg-orange-100 px-2 py-1 rounded-lg">ממתין להורה</span>`;
-            reqHtml += `<div class="flex justify-between items-center bg-white p-2 rounded-xl shadow-sm border border-orange-200 mb-2"><div><span class="font-bold text-slate-700">${safeStr(i.item_name)}</span><span class="text-xs text-slate-500 block">בקשה מאת: ${safeStr(i.requester_name)}</span></div>${actions}</div>`;
+            reqHtml += `<div class="flex justify-between items-center bg-white p-2 rounded-xl shadow-sm border border-orange-200 mb-2"><div><span class="font-bold text-slate-700">${escHtml(i.item_name)}</span><span class="text-xs text-slate-500 block">בקשה מאת: ${escHtml(i.requester_name)}</span></div>${actions}</div>`;
         });
         reqList.innerHTML = reqHtml;
     } else { reqContainer.classList.add('hidden'); }
@@ -4770,20 +4770,20 @@ function renderShopList() {
             const sourceText = i.best_price.is_local ? 'קנית בעבר' : 'חוכמת ההמונים';
             const badgeColor = i.best_price.is_local ? 'bg-blue-50 text-blue-600' : 'bg-purple-50 text-purple-600';
             const icon = i.best_price.is_local ? 'fa-clock-rotate-left' : 'fa-users';
-            bestPriceHtml = `<div class="text-[9px] font-bold ${badgeColor} px-2 py-1 rounded-lg mt-1 w-fit"><i class="fa-solid ${icon}"></i> ${sourceText}: ₪${bestP}/${i.unit || "יח'"} (${safeStr(i.best_price.store_name)}, ${dDate})</div>`; 
+            bestPriceHtml = `<div class="text-[9px] font-bold ${badgeColor} px-2 py-1 rounded-lg mt-1 w-fit"><i class="fa-solid ${icon}"></i> ${sourceText}: ₪${bestP}/${escHtml(i.unit || "יח'")} (${escHtml(i.best_price.store_name)}, ${dDate})</div>`;
         }
 
         const delCb = shopMultiDeleteMode ? `<label class="flex items-center flex-shrink-0 mr-1 cursor-pointer"><input type="checkbox" class="shop-del-cb w-5 h-5 accent-red-500 cursor-pointer rounded" data-id="${i.id}" onchange="updateShopDeleteCount()"></label>` : '';
-        shopHtml += `<div class="shop-row bg-white p-3 rounded-xl border ${shopMultiDeleteMode ? 'border-red-100' : 'border-slate-100'} flex flex-col gap-2 shadow-sm mb-2 ${isChecked?'in-cart':''}" id="row-${i.id}"><div class="flex items-center gap-3">${delCb}<input type="checkbox" ${isChecked?'checked':''} onchange="updateRow(${i.id}, 'check', this.checked)" class="w-5 h-5 accent-blue-500 rounded-lg cursor-pointer flex-shrink-0"><div class="flex-1"><div class="flex justify-between items-start"><span class="text-slate-700 font-medium item-name">${safeStr(i.item_name)}</span><div class="flex gap-1"><button onclick="openEditShopItem(${i.id})" class="text-slate-300 hover:text-blue-500 text-xs px-1.5"><i class="fa-solid fa-pen-to-square"></i></button><button onclick="deleteItem(${i.id})" class="text-slate-300 hover:text-red-500 text-xs px-1.5"><i class="fa-solid fa-trash"></i></button></div></div><span class="text-[10px] text-slate-400">ביקש/ה: ${safeStr(i.requester_name)}</span>${bestPriceHtml}<div id="wisdom-${i.id}" class="text-xs text-blue-700 mt-2 font-medium ${showWisdom ? 'flex' : 'hidden'} bg-blue-50 border border-blue-100 px-3 py-1.5 rounded-lg w-fit wisdom-alert items-center gap-2 transition-all"><i class="fa-solid fa-lightbulb text-yellow-400"></i><span>${savedWisdom || ''}</span></div></div></div><div class="flex gap-2 items-center pl-0 mt-1"><div class="relative w-24"><span class="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-slate-400">ל${safeStr(i.unit || "יח'")}</span><input type="number" id="price-${i.id}" value="${valPrice}" ${isChecked ? '' : 'disabled'} oninput="updateRow(${i.id}, 'price_calc', this.value)" onchange="updateRow(${i.id}, 'price_save', this.value)" class="price-input w-full bg-slate-50 border border-slate-200 rounded-lg py-1.5 pr-8 pl-1 text-sm outline-none focus:border-blue-500 font-bold text-center"></div><div class="flex flex-col items-center leading-none"><span class="text-[9px] text-slate-400 mb-0.5">סה"כ</span><span class="text-xs font-bold text-slate-600" id="row-total-${i.id}">₪${totalRowPrice.toFixed(1)}</span></div><div class="flex flex-col items-center leading-none ml-auto"><span class="text-[9px] text-slate-400 mb-0.5">כמות</span><div class="flex items-center gap-1"><button onclick="adjustShopQty(${i.id},-1)" class="w-9 h-9 bg-slate-200 active:bg-red-200 text-slate-600 active:text-red-600 rounded-full text-lg font-black leading-none flex items-center justify-center transition shrink-0 touch-manipulation select-none">−</button><span class="text-xs font-bold text-slate-700 min-w-[2.8rem] text-center">${i.quantity}<br><span class="text-[9px] font-normal text-slate-400">${safeStr(i.unit || "יח'")}</span></span><button onclick="adjustShopQty(${i.id},1)" class="w-9 h-9 bg-slate-200 active:bg-green-200 text-slate-600 active:text-green-600 rounded-full text-lg font-black leading-none flex items-center justify-center transition shrink-0 touch-manipulation select-none">+</button></div></div><button onclick="toggleMissingLocal(${i.id})" class="text-[10px] font-bold px-2 py-1.5 rounded-lg border border-slate-200 text-slate-400 hover:text-orange-500 hover:border-orange-500 transition mr-2" id="btn-missing-${i.id}">חסר בספק</button></div></div>`;
+        shopHtml += `<div class="shop-row bg-white p-3 rounded-xl border ${shopMultiDeleteMode ? 'border-red-100' : 'border-slate-100'} flex flex-col gap-2 shadow-sm mb-2 ${isChecked?'in-cart':''}" id="row-${i.id}"><div class="flex items-center gap-3">${delCb}<input type="checkbox" ${isChecked?'checked':''} onchange="updateRow(${i.id}, 'check', this.checked)" class="w-5 h-5 accent-blue-500 rounded-lg cursor-pointer flex-shrink-0"><div class="flex-1"><div class="flex justify-between items-start"><span class="text-slate-700 font-medium item-name">${escHtml(i.item_name)}</span><div class="flex gap-1"><button onclick="openEditShopItem(${i.id})" class="text-slate-300 hover:text-blue-500 text-xs px-1.5"><i class="fa-solid fa-pen-to-square"></i></button><button onclick="deleteItem(${i.id})" class="text-slate-300 hover:text-red-500 text-xs px-1.5"><i class="fa-solid fa-trash"></i></button></div></div><span class="text-[10px] text-slate-400">ביקש/ה: ${escHtml(i.requester_name)}</span>${bestPriceHtml}<div id="wisdom-${i.id}" class="text-xs text-blue-700 mt-2 font-medium ${showWisdom ? 'flex' : 'hidden'} bg-blue-50 border border-blue-100 px-3 py-1.5 rounded-lg w-fit wisdom-alert items-center gap-2 transition-all"><i class="fa-solid fa-lightbulb text-yellow-400"></i><span>${escHtml(savedWisdom || '')}</span></div></div></div><div class="flex gap-2 items-center pl-0 mt-1"><div class="relative w-24"><span class="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-slate-400">ל${escHtml(i.unit || "יח'")}</span><input type="number" id="price-${i.id}" value="${valPrice}" ${isChecked ? '' : 'disabled'} oninput="updateRow(${i.id}, 'price_calc', this.value)" onchange="updateRow(${i.id}, 'price_save', this.value)" class="price-input w-full bg-slate-50 border border-slate-200 rounded-lg py-1.5 pr-8 pl-1 text-sm outline-none focus:border-blue-500 font-bold text-center"></div><div class="flex flex-col items-center leading-none"><span class="text-[9px] text-slate-400 mb-0.5">סה"כ</span><span class="text-xs font-bold text-slate-600" id="row-total-${i.id}">₪${totalRowPrice.toFixed(1)}</span></div><div class="flex flex-col items-center leading-none ml-auto"><span class="text-[9px] text-slate-400 mb-0.5">כמות</span><div class="flex items-center gap-1"><button onclick="adjustShopQty(${i.id},-1)" class="w-9 h-9 bg-slate-200 active:bg-red-200 text-slate-600 active:text-red-600 rounded-full text-lg font-black leading-none flex items-center justify-center transition shrink-0 touch-manipulation select-none">−</button><span class="text-xs font-bold text-slate-700 min-w-[2.8rem] text-center">${i.quantity}<br><span class="text-[9px] font-normal text-slate-400">${escHtml(i.unit || "יח'")}</span></span><button onclick="adjustShopQty(${i.id},1)" class="w-9 h-9 bg-slate-200 active:bg-green-200 text-slate-600 active:text-green-600 rounded-full text-lg font-black leading-none flex items-center justify-center transition shrink-0 touch-manipulation select-none">+</button></div></div><button onclick="toggleMissingLocal(${i.id})" class="text-[10px] font-bold px-2 py-1.5 rounded-lg border border-slate-200 text-slate-400 hover:text-orange-500 hover:border-orange-500 transition mr-2" id="btn-missing-${i.id}">חסר בספק</button></div></div>`;
     });
     list.innerHTML = shopHtml; calcRunningTotal();
 }
 
 async function updateRow(id, type, value) {
-    if (type === 'approve_request') { await fetch(`${API}/shopping/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemId:id, status: 'pending'})}); }
-    else if (type === 'check') { const row = getEl(`row-${id}`); const input = getEl(`price-${id}`); if(row) { row.classList.toggle('in-cart', value); input.disabled = !value; } await fetch(`${API}/shopping/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemId:id, status: value ? 'in_cart' : 'pending'})}); } 
+    if (type === 'approve_request') { await communityFetch(`${API}/shopping/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemId:id, status: 'pending'})}); }
+    else if (type === 'check') { const row = getEl(`row-${id}`); const input = getEl(`price-${id}`); if(row) { row.classList.toggle('in-cart', value); input.disabled = !value; } await communityFetch(`${API}/shopping/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemId:id, status: value ? 'in_cart' : 'pending'})}); } 
     else if (type === 'price_calc') { const item = shoppingListCache.find(i => i.id == id); if(item) { const unitPrice = parseFloat(value) || 0; const total = unitPrice * parseFloat(item.quantity); const totalEl = getEl(`row-total-${id}`); if(totalEl) totalEl.innerText = `₪${total.toFixed(1)}`; } calcRunningTotal(); return; }
-    else if (type === 'price_save') { const res = await fetch(`${API}/shopping/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemId:id, estimatedPrice: parseFloat(value) || 0})}); const data = await res.json(); const freshWisdomDiv = getEl(`wisdom-${id}`); if(freshWisdomDiv) { if(data.alert) { wisdomCache[id] = data.alert.msg; freshWisdomDiv.querySelector('span').innerText = data.alert.msg; freshWisdomDiv.classList.remove('hidden'); freshWisdomDiv.classList.add('flex'); } else { delete wisdomCache[id]; freshWisdomDiv.classList.add('hidden'); freshWisdomDiv.classList.remove('flex'); } } const cachedItem = shoppingListCache.find(i => i.id == id); if(cachedItem) cachedItem.estimated_price = parseFloat(value) || 0; } 
+    else if (type === 'price_save') { const res = await communityFetch(`${API}/shopping/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemId:id, estimatedPrice: parseFloat(value) || 0})}); const data = await res.json(); const freshWisdomDiv = getEl(`wisdom-${id}`); if(freshWisdomDiv) { if(data.alert) { wisdomCache[id] = data.alert.msg; freshWisdomDiv.querySelector('span').innerText = data.alert.msg; freshWisdomDiv.classList.remove('hidden'); freshWisdomDiv.classList.add('flex'); } else { delete wisdomCache[id]; freshWisdomDiv.classList.add('hidden'); freshWisdomDiv.classList.remove('flex'); } } const cachedItem = shoppingListCache.find(i => i.id == id); if(cachedItem) cachedItem.estimated_price = parseFloat(value) || 0; } 
     if(type === 'approve_request') fetchData(); else calcRunningTotal(); 
 }
 
@@ -4825,7 +4825,7 @@ async function submitFinalCheckout() {
             boughtItems.push({ id, name: itemData ? itemData.item_name : 'פריט', quantity: qty, price: rowTotal });
         }
     });
-    const res = await fetch(`${API}/shopping/checkout`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ totalAmount: total, userId: currentUser.id, storeName: store, branchName: branch, boughtItems, missingItems }) });
+    const res = await communityFetch(`${API}/shopping/checkout`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ totalAmount: total, userId: currentUser.id, storeName: store, branchName: branch, boughtItems, missingItems }) });
     const data = await res.json();
     if(data.success) {
         getEl('confirm-checkout-modal').classList.add('hidden');
@@ -4839,7 +4839,7 @@ async function submitFinalCheckout() {
     } else showToast('error', data.error);
 }
 
-async function copyList(tripId) { if(!confirm('האם לייבא את דרישת הרכש מחדש?')) return; await fetch(`${API}/shopping/copy`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({tripId, userId: currentUser.id}) }); getEl('history-modal').classList.add('hidden'); showToast('success', 'הדרישה הועתקה!'); fetchData(); }
+async function copyList(tripId) { if(!confirm('האם לייבא את דרישת הרכש מחדש?')) return; await communityFetch(`${API}/shopping/copy`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({tripId, userId: currentUser.id}) }); getEl('history-modal').classList.add('hidden'); showToast('success', 'הדרישה הועתקה!'); fetchData(); }
 
 function openInviteModal() { const codeSpan = getEl('display-group-code'); if (currentGroup && currentGroup.group_code) { codeSpan.innerText = currentGroup.group_code; } else { codeSpan.innerText = 'שגיאה: חסר קוד'; } getEl('invite-modal').classList.remove('hidden'); }
 function shareReferralLink() {
@@ -5003,7 +5003,7 @@ function openSupermarketMode() {
     getEl('supermarket-modal').classList.remove('hidden');
     document.body.style.overflow = 'hidden';
     // רישום בשרת שאני בסופר + polling מהיר
-    fetch(`${API}/shopping/supermarket/start`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: currentUser.id, groupId: currentGroup.id }) }).catch(() => {});
+    communityFetch(`${API}/shopping/supermarket/start`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: currentUser.id, groupId: currentGroup.id }) }).catch(() => {});
     startSmFastPoll();
 }
 
@@ -5011,7 +5011,7 @@ function closeSupermarketMode() {
     getEl('supermarket-modal').classList.add('hidden');
     document.body.style.overflow = '';
     // סיום רישום בשרת + עצירת polling מהיר
-    fetch(`${API}/shopping/supermarket/end`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ groupId: currentGroup.id }) }).catch(() => {});
+    communityFetch(`${API}/shopping/supermarket/end`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ groupId: currentGroup.id }) }).catch(() => {});
     stopSmFastPoll();
 }
 
@@ -5113,7 +5113,7 @@ function smToggleItem(id) {
     const newStatus = isChecked ? 'pending' : 'in_cart';
     item.status = newStatus;
     item._smMissing = false;
-    fetch(`${API}/shopping/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemId: id, status: newStatus})});
+    communityFetch(`${API}/shopping/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemId: id, status: newStatus})});
     renderSupermarketList();
     if (newStatus === 'in_cart') {
         _smPriceModalItemId = id;
@@ -5179,12 +5179,12 @@ async function saveEditShopItem() {
     const category = getEl('edit-item-category').value;
     if (!name) return showToast('error', 'שם הפריט חסר');
     try {
-        const res = await fetch(`${API}/shopping/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({itemId: id, itemName: name, quantity: qty, unit, estimatedPrice: price})});
+        const res = await communityFetch(`${API}/shopping/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({itemId: id, itemName: name, quantity: qty, unit, estimatedPrice: price})});
         const data = await res.json();
         if (data.success) {
             if (category) {
                 categoryMapCache[name] = category;
-                fetch(`${API}/shopping/category-map`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({groupId: currentGroup.id, normalizedName: name, category})});
+                communityFetch(`${API}/shopping/category-map`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({groupId: currentGroup.id, normalizedName: name, category})});
             }
             const cachedItem = shoppingListCache.find(i => i.id == id);
             if (cachedItem) { cachedItem.item_name = name; cachedItem.normalized_name = name; }
@@ -5202,7 +5202,7 @@ async function adjustShopQty(id, delta) {
     item.quantity = newQty;
     renderShopList();
     try {
-        await fetch(`${API}/shopping/update`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ itemId: id, quantity: newQty }) });
+        await communityFetch(`${API}/shopping/update`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ itemId: id, quantity: newQty }) });
     } catch(e) { item.quantity = parseFloat(item.quantity) - delta; renderShopList(); }
 }
 
@@ -5225,7 +5225,7 @@ async function smQuickAdd() {
 
 async function _doSmQuickAdd(name) {
     try {
-        const res = await fetch(`${API}/shopping/add`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemName: name, quantity: 1, unit: "יח'", estimatedPrice: 0, userId: currentUser.id, groupId: currentGroup.id})});
+        const res = await communityFetch(`${API}/shopping/add`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemName: name, quantity: 1, unit: "יח'", estimatedPrice: 0, userId: currentUser.id, groupId: currentGroup.id})});
         const data = await res.json();
         if (data.success) { await fetchData(); renderSupermarketList(); showToast('success', `${name} נוסף לרשימה`); }
         else showToast('error', data.error || 'שגיאה');
@@ -5236,7 +5236,7 @@ function smToggleMissing(id) {
     const item = shoppingListCache.find(i => i.id == id);
     if (!item) return;
     item._smMissing = !item._smMissing;
-    if (item._smMissing) { item.status = 'pending'; fetch(`${API}/shopping/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemId: id, status: 'pending'})}); }
+    if (item._smMissing) { item.status = 'pending'; communityFetch(`${API}/shopping/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemId: id, status: 'pending'})}); }
     renderSupermarketList();
 }
 
@@ -5246,7 +5246,7 @@ function smUpdatePrice(id, value) {
     smCalcTotal();
     clearTimeout(window._smPriceTimer);
     window._smPriceTimer = setTimeout(() => {
-        fetch(`${API}/shopping/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemId: id, estimatedPrice: parseFloat(value) || 0})});
+        communityFetch(`${API}/shopping/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemId: id, estimatedPrice: parseFloat(value) || 0})});
     }, 800);
 }
 
@@ -5270,7 +5270,7 @@ async function openSavedListsModal() {
 
 async function loadSavedLists() {
     try {
-        const res = await fetch(`${API}/shopping/saved?groupId=${currentGroup.id}`);
+        const res = await communityFetch(`${API}/shopping/saved?groupId=${currentGroup.id}`);
         const data = await res.json();
         const container = getEl('saved-lists-content');
         if (!data || data.length === 0) { container.innerHTML = '<p class="text-slate-400 text-sm text-center py-4">אין רשימות שמורות עדיין</p>'; return; }
@@ -5294,7 +5294,7 @@ async function saveCurrentList() {
     if (activeItems.length === 0) { showToast('error', 'אין פריטים ברשימה לשמירה'); return; }
     const itemsToSave = activeItems.map(i => ({ item_name: i.item_name, quantity: i.quantity, unit: i.unit, estimated_price: i.estimated_price, units_per_package: i.units_per_package }));
     try {
-        const res = await fetch(`${API}/shopping/save`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ groupId: currentGroup.id, name, items: itemsToSave }) });
+        const res = await communityFetch(`${API}/shopping/save`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ groupId: currentGroup.id, name, items: itemsToSave }) });
         const data = await res.json();
         if (data.success) { getEl('save-list-name').value = ''; showToast('success', 'הרשימה נשמרה!'); await loadSavedLists(); } else showToast('error', 'שגיאה בשמירת הרשימה');
     } catch(e) { showToast('error', 'שגיאת תקשורת'); }
@@ -5303,7 +5303,7 @@ async function saveCurrentList() {
 async function loadSavedList(listId) {
     if (!confirm('לטעון את הרשימה השמורה לרשימת הקניות הנוכחית?')) return;
     try {
-        const res = await fetch(`${API}/shopping/load-saved`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ listId, userId: currentUser.id }) });
+        const res = await communityFetch(`${API}/shopping/load-saved`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ listId, userId: currentUser.id }) });
         const data = await res.json();
         if (data.success) { getEl('saved-lists-modal').classList.add('hidden'); showToast('success', `${data.count} פריטים נטענו לרשימה!`); fetchData(); } else showToast('error', data.error || 'שגיאה בטעינת הרשימה');
     } catch(e) { showToast('error', 'שגיאת תקשורת'); }
@@ -5312,7 +5312,7 @@ async function loadSavedList(listId) {
 async function deleteSavedList(listId) {
     if (!confirm('למחוק רשימה שמורה זו?')) return;
     try {
-        await fetch(`${API}/shopping/saved/${listId}`, { method:'DELETE' });
+        await communityFetch(`${API}/shopping/saved/${listId}`, { method:'DELETE' });
         await loadSavedLists();
     } catch(e) { showToast('error', 'שגיאת תקשורת'); }
 }
@@ -5326,7 +5326,7 @@ async function createDraftFromMissing() {
     if (items.length === 0) { getEl('missing-draft-modal').classList.add('hidden'); return; }
     try {
         for (const item of items) {
-            await fetch(`${API}/shopping/add`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ itemName: item.item_name, quantity: item.quantity, unit: item.unit, estimatedPrice: item.estimated_price, unitsPerPackage: item.units_per_package, userId: currentUser.id, groupId: currentGroup.id }) });
+            await communityFetch(`${API}/shopping/add`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ itemName: item.item_name, quantity: item.quantity, unit: item.unit, estimatedPrice: item.estimated_price, unitsPerPackage: item.units_per_package, userId: currentUser.id, groupId: currentGroup.id }) });
         }
         getEl('missing-draft-modal').classList.add('hidden');
         showToast('success', `${items.length} פריטים חסרים נוספו לרשימה חדשה!`);
@@ -5335,7 +5335,7 @@ async function createDraftFromMissing() {
     } catch(e) { showToast('error', 'שגיאת תקשורת'); }
 }
 
-async function openHistoryModal() { const res = await fetch(`${API}/shopping/history?groupId=${currentGroup.id}`); const trips = await res.json(); const list = getEl('history-list'); list.innerHTML = ''; if(trips.length === 0) list.innerHTML = '<p class="text-center text-slate-400 text-sm">אין היסטוריה עדיין</p>'; trips.forEach(t => { let itemsHtml = ''; t.items.forEach(i => itemsHtml += `<div class="text-xs flex justify-between bg-slate-100 p-2 rounded mb-1"><span>${safeStr(i.item_name)} (x${i.quantity} ${safeStr(i.unit || "יח'")})</span><span class="font-bold">₪${i.price_per_unit || 0}/${safeStr(i.unit || "יח'")}</span></div>`); list.innerHTML += `<div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm"><div onclick="document.getElementById('trip-items-${t.id}').classList.toggle('hidden')" class="flex justify-between items-center cursor-pointer"><div><h4 class="font-bold text-slate-800">${safeStr(t.store_name)} ${t.branch_name ? `(${safeStr(t.branch_name)})` : ''}</h4><p class="text-xs text-slate-400">${new Date(t.trip_date).toLocaleDateString()} • אישור: ${safeStr(t.nickname)}</p></div><span class="font-bold text-blue-600 text-lg">₪${t.total_amount} <i class="fa-solid fa-chevron-down text-xs ml-1"></i></span></div><div id="trip-items-${t.id}" class="hidden mt-3 pt-3 border-t border-slate-50">${itemsHtml}<button onclick="copyList(${t.id})" class="w-full mt-2 bg-slate-800 text-white py-2 rounded-xl text-xs font-bold hover:bg-slate-700">יבא דרישה שוב</button></div></div>`; }); getEl('history-modal').classList.remove('hidden'); }
+async function openHistoryModal() { const res = await communityFetch(`${API}/shopping/history?groupId=${currentGroup.id}`); const trips = await res.json(); const list = getEl('history-list'); list.innerHTML = ''; if(trips.length === 0) list.innerHTML = '<p class="text-center text-slate-400 text-sm">אין היסטוריה עדיין</p>'; trips.forEach(t => { let itemsHtml = ''; t.items.forEach(i => itemsHtml += `<div class="text-xs flex justify-between bg-slate-100 p-2 rounded mb-1"><span>${escHtml(i.item_name)} (x${i.quantity} ${escHtml(i.unit || "יח'")})</span><span class="font-bold">₪${i.price_per_unit || 0}/${escHtml(i.unit || "יח'")}</span></div>`); list.innerHTML += `<div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm"><div onclick="document.getElementById('trip-items-${t.id}').classList.toggle('hidden')" class="flex justify-between items-center cursor-pointer"><div><h4 class="font-bold text-slate-800">${escHtml(t.store_name)} ${t.branch_name ? `(${escHtml(t.branch_name)})` : ''}</h4><p class="text-xs text-slate-400">${new Date(t.trip_date).toLocaleDateString()} • אישור: ${escHtml(t.nickname)}</p></div><span class="font-bold text-blue-600 text-lg">₪${t.total_amount} <i class="fa-solid fa-chevron-down text-xs ml-1"></i></span></div><div id="trip-items-${t.id}" class="hidden mt-3 pt-3 border-t border-slate-50">${itemsHtml}<button onclick="copyList(${t.id})" class="w-full mt-2 bg-slate-800 text-white py-2 rounded-xl text-xs font-bold hover:bg-slate-700">יבא דרישה שוב</button></div></div>`; }); getEl('history-modal').classList.remove('hidden'); }
 function openBankSettings(id, name, allowance, interest) { getEl('bank-user-id').value = id; getEl('bank-user-name').innerText = `תקציב דמי כיס: ${name}`; getEl('bank-allowance').value = allowance; getEl('bank-interest').value = interest; getEl('bank-settings-modal').classList.remove('hidden'); }
 async function submitBankSettings() { const uid = val('bank-user-id'); const allowance = val('bank-allowance'); const interest = val('bank-interest'); await fetch(`${API}/admin/update-settings`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ userId: uid, allowance, interest }) }); getEl('bank-settings-modal').classList.add('hidden'); showToast('success', 'הגדרות עודכנו'); fetchMembers(); }
 function openAdjustBalanceModal(id, name) { getEl('adjustment-user-id').value = id; getEl('adjustment-user-name').innerText = `עבור: ${name}`; getEl('adjustment-amount').value = ''; getEl('adjustment-reason').value = ''; toggleAdjustmentType('add'); getEl('balance-adjustment-modal').classList.remove('hidden'); }
@@ -5460,7 +5460,7 @@ async function submitPastedList() {
     const btn = getEl('btn-submit-paste'); btn.disabled = true; btn.innerText = 'קולט...';
     const lines = text.split('\n').filter(l => l.trim() !== '');
     try {
-        for (let line of lines) { await fetch(`${API}/shopping/add`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemName: line.trim(), quantity: 1, unit: "יח'", estimatedPrice: 0, unitsPerPackage: 1, userId: currentUser.id, groupId: currentGroup.id}) }); }
+        for (let line of lines) { await communityFetch(`${API}/shopping/add`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemName: line.trim(), quantity: 1, unit: "יח'", estimatedPrice: 0, unitsPerPackage: 1, userId: currentUser.id, groupId: currentGroup.id}) }); }
         getEl('paste-list-modal').classList.add('hidden'); showToast('success', `נקלטו ${lines.length} שורות!`); fetchData();
     } catch(e) { showToast('error', 'שגיאה בקליטה'); } finally { btn.disabled = false; btn.innerText = 'קלוט רשימה'; }
 }

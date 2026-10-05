@@ -4844,7 +4844,7 @@ function handleReceiptUpload(event) {
         compressImage(file, 1200, 1200, 0.8, async (compressedDataUrl) => {
             const base64 = compressedDataUrl.split(',')[1];
             try {
-                const res = await fetch(`${API}/shopping/scan-receipt`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: currentUser.id, imageBase64: base64, mimeType: 'image/jpeg' }) }); const data = await res.json();
+                const res = await fetch(`${API}/shopping/scan-receipt`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' }, body: JSON.stringify({ userId: currentUser.id, imageBase64: base64, mimeType: 'image/jpeg' }) }); const data = await res.json();
                 if(!handleAIResponseCheck(data)) { getEl('familai-advisor-modal').classList.add('hidden'); return; }
                 if(data.success) { showAIModal('רואה חשבון אוטומטי', `סרקתי והוספתי ${data.count} פריטים מהחשבונית לדרישות הרכש שלכם בהצלחה!`); triggerConfetti(); fetchData(); } else { getEl('familai-advisor-modal').classList.add('hidden'); showToast('error', 'שגיאה בקריאת החשבונית.'); }
             } catch(err) { getEl('familai-advisor-modal').classList.add('hidden'); showToast('error', 'שגיאת תקשורת עם השרת.'); }
@@ -7242,7 +7242,7 @@ async function submitShopItem() {
     if(!item) return; if (btn && btn.disabled) return; 
     if (btn) { btn.disabled = true; btn.innerText = 'מוסיף...'; }
     try { 
-        const res = await fetch(`${API}/shopping/add`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemName: item, quantity: qty, unit: unit, estimatedPrice: est, unitsPerPackage: upp, userId: currentUser.id, groupId: currentGroup.id}) }); 
+        const res = await fetch(`${API}/shopping/add`, { method:'POST', headers:{'Content-Type':'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : ''}, body:JSON.stringify({itemName: item, quantity: qty, unit: unit, estimatedPrice: est, unitsPerPackage: upp, userId: currentUser.id, groupId: currentGroup.id}) }); 
         const data = await res.json(); 
         if (data.success) { 
             getEl('shop-modal').classList.add('hidden'); itemInput.value = ''; getEl('shop-est-price').value = ''; getEl('shop-quantity').value = 1; getEl('shop-unit').value = "יח'"; getEl('shop-upp').value = 1; getEl('suggestions').classList.add('hidden'); 
@@ -7252,11 +7252,11 @@ async function submitShopItem() {
     } catch(e) { showToast('error', 'שגיאת תקשורת מול השרת'); } finally { if (btn) { btn.disabled = false; btn.innerText = 'הוסף'; } } 
 }
 
-async function deleteItem(id) { if(!await window._uiConfirm('למחוק פריט דרישה זה?', {danger:true, okLabel:'מחק'})) return; await fetch(`${API}/shopping/delete/${id}`, { method: 'DELETE' }); showToast('success', 'נמחק בהצלחה'); fetchData(); }
+async function deleteItem(id) { if(!await window._uiConfirm('למחוק פריט דרישה זה?', {danger:true, okLabel:'מחק'})) return; await fetch(`${API}/shopping/delete/${id}`, { method: 'DELETE', headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } }); showToast('success', 'נמחק בהצלחה'); fetchData(); }
 
 async function clearEntireCart() {
     if(!await window._uiConfirm('האם אתה בטוח שברצונך למחוק את כל בקשות הרכש? פעולה זו אינה הפיכה.', {danger:true, okLabel:'מחק הכל'})) return;
-    try { const res = await fetch(`${API}/shopping/clear/${currentGroup.id}`, { method: 'DELETE' }); const data = await res.json(); if(data.success) { showToast('success', 'הרשימה אופסה בהצלחה!'); fetchData(); } else { showToast('error', data.error || 'שגיאה בריקון הרשימה'); } } catch(e) { showToast('error', 'שגיאת תקשורת מול השרת'); }
+    try { const res = await fetch(`${API}/shopping/clear/${currentGroup.id}`, { method: 'DELETE', headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } }); const data = await res.json(); if(data.success) { showToast('success', 'הרשימה אופסה בהצלחה!'); fetchData(); } else { showToast('error', data.error || 'שגיאה בריקון הרשימה'); } } catch(e) { showToast('error', 'שגיאת תקשורת מול השרת'); }
 }
 
 window.renderShopList = function() {
@@ -7399,7 +7399,7 @@ window.submitAssignSupplier = async function() {
         const data = await res.json();
         
         if (data.success) {
-            await fetch(`${API}/shopping/delete/${reqId}`, { method: 'DELETE' });
+            await fetch(`${API}/shopping/delete/${reqId}`, { method: 'DELETE', headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } });
             
             showToast('success', 'הדרישה הועברה בהצלחה לטיוטת הזמנה אצל הספק!');
             document.getElementById('assign-supplier-modal').classList.add('hidden');
@@ -7418,7 +7418,7 @@ window.submitAssignSupplier = async function() {
     }
 };
 
-async function copyList(tripId) { if(!await window._uiConfirm('האם לייבא את דרישת הרכש מחדש?')) return; await fetch(`${API}/shopping/copy`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({tripId, userId: currentUser.id}) }); getEl('history-modal').classList.add('hidden'); showToast('success', 'הדרישה הועתקה!'); fetchData(); }
+async function copyList(tripId) { if(!await window._uiConfirm('האם לייבא את דרישת הרכש מחדש?')) return; await fetch(`${API}/shopping/copy`, { method:'POST', headers:{'Content-Type':'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : ''}, body:JSON.stringify({tripId, userId: currentUser.id}) }); getEl('history-modal').classList.add('hidden'); showToast('success', 'הדרישה הועתקה!'); fetchData(); }
 
 function openInviteModal() { const codeSpan = getEl('display-group-code'); if (currentGroup && currentGroup.group_code) { codeSpan.innerText = currentGroup.group_code; } else { codeSpan.innerText = 'שגיאה: חסר קוד'; } getEl('invite-modal').classList.remove('hidden'); }
 function sendWhatsAppInvite(role) { 
@@ -7452,7 +7452,7 @@ window._wiz2SendAdminInvite = function(joinLink, bizName) {
 
 function toggleFab() { getEl('fab-container').classList.toggle('fab-open'); }
 
-async function openHistoryModal() { const res = await fetch(`${API}/shopping/history?groupId=${currentGroup.id}`); const trips = await res.json(); const list = getEl('history-list'); list.innerHTML = ''; if(trips.length === 0) list.innerHTML = '<p class="text-center text-slate-400 text-sm">אין היסטוריה עדיין</p>'; trips.forEach(t => { let itemsHtml = ''; t.items.forEach(i => itemsHtml += `<div class="text-xs flex justify-between bg-slate-100 p-2 rounded mb-1"><span>${safeStr(i.item_name)} (x${i.quantity} ${safeStr(i.unit || "יח'")})</span><span class="font-bold">₪${i.price_per_unit || 0}/${safeStr(i.unit || "יח'")}</span></div>`); list.innerHTML += `<div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm"><div onclick="document.getElementById('trip-items-${t.id}').classList.toggle('hidden')" class="flex justify-between items-center cursor-pointer"><div><h4 class="font-bold text-slate-800">${safeStr(t.store_name)} ${t.branch_name ? `(${safeStr(t.branch_name)})` : ''}</h4><p class="text-xs text-slate-400">${new Date(t.trip_date).toLocaleDateString()} • אישור: ${safeStr(t.nickname)}</p></div><span class="font-bold text-blue-600 text-lg">₪${t.total_amount} <i class="fa-solid fa-chevron-down text-xs ml-1"></i></span></div><div id="trip-items-${t.id}" class="hidden mt-3 pt-3 border-t border-slate-50">${itemsHtml}<button onclick="copyList(${t.id})" class="w-full mt-2 bg-slate-800 text-white py-2 rounded-xl text-xs font-bold hover:bg-slate-700">יבא דרישה שוב</button></div></div>`; }); getEl('history-modal').classList.remove('hidden'); }
+async function openHistoryModal() { const res = await fetch(`${API}/shopping/history?groupId=${currentGroup.id}`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } }); const trips = await res.json(); const list = getEl('history-list'); list.innerHTML = ''; if(trips.length === 0) list.innerHTML = '<p class="text-center text-slate-400 text-sm">אין היסטוריה עדיין</p>'; trips.forEach(t => { let itemsHtml = ''; t.items.forEach(i => itemsHtml += `<div class="text-xs flex justify-between bg-slate-100 p-2 rounded mb-1"><span>${escHtml(i.item_name)} (x${i.quantity} ${escHtml(i.unit || "יח'")})</span><span class="font-bold">₪${i.price_per_unit || 0}/${escHtml(i.unit || "יח'")}</span></div>`); list.innerHTML += `<div class="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm"><div onclick="document.getElementById('trip-items-${t.id}').classList.toggle('hidden')" class="flex justify-between items-center cursor-pointer"><div><h4 class="font-bold text-slate-800">${escHtml(t.store_name)} ${t.branch_name ? `(${escHtml(t.branch_name)})` : ''}</h4><p class="text-xs text-slate-400">${new Date(t.trip_date).toLocaleDateString()} • אישור: ${escHtml(t.nickname)}</p></div><span class="font-bold text-blue-600 text-lg">₪${t.total_amount} <i class="fa-solid fa-chevron-down text-xs ml-1"></i></span></div><div id="trip-items-${t.id}" class="hidden mt-3 pt-3 border-t border-slate-50">${itemsHtml}<button onclick="copyList(${t.id})" class="w-full mt-2 bg-slate-800 text-white py-2 rounded-xl text-xs font-bold hover:bg-slate-700">יבא דרישה שוב</button></div></div>`; }); getEl('history-modal').classList.remove('hidden'); }
 // ─── פיד הצוות — לוח הודעות פנימי (הוזכר באונבורדינג ומעולם לא מומש) ────────────
 window.renderTeamFeed = async function() {
     const el = document.getElementById('team-feed-section');
@@ -7770,7 +7770,7 @@ window.submitPastedList = async function() {
     const btn = getEl('btn-submit-paste'); btn.disabled = true; btn.innerText = 'קולט...';
     const lines = text.split('\n').filter(l => l.trim() !== '');
     try {
-        for (let line of lines) { await fetch(`${API}/shopping/add`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemName: line.trim(), quantity: 1, unit: "יח'", estimatedPrice: 0, unitsPerPackage: 1, userId: currentUser.id, groupId: currentGroup.id}) }); }
+        for (let line of lines) { await fetch(`${API}/shopping/add`, { method:'POST', headers:{'Content-Type':'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : ''}, body:JSON.stringify({itemName: line.trim(), quantity: 1, unit: "יח'", estimatedPrice: 0, unitsPerPackage: 1, userId: currentUser.id, groupId: currentGroup.id}) }); }
         getEl('paste-list-modal').classList.add('hidden'); showToast('success', `נקלטו ${lines.length} שורות!`); fetchData();
     } catch(e) { showToast('error', 'שגיאה בקליטה'); } finally { btn.disabled = false; btn.innerText = 'קלוט רשימה'; }
 };

@@ -440,7 +440,15 @@ Feed/תזרים עסקי) — אותם endpoints בדיוק, מוגנים כעת
 
 ### 3.6 רשימת קניות / סופר (`content-shop`)
 
-**מטרה:** ניהול רשימת קניות משותפת, מצב "אני בסופר", checkout.
+> עודכן: 2026-10 | אומת מול קוד בפועל (server.js + public/app.js + public/business-app.js)
+> כחלק מתהליך אפיון עומק.
+> **נכון לגרסה שלפני אוקטובר 2026 — כל 18 ה-endpoints של המודול היו ללא כל אימות,**
+> כולל ה-checkout שיוצר רשומת תנועה כספית (`transactions`) ומעדכן מלאי, ושם פריט הוזרק
+> ל-innerHTML עם `safeStr` בלבד (לא `escHtml`) בכמה מקומות תצוגה. כולם תוקנו, מתועד למטה.
+
+**מטרה:** ניהול רשימת קניות משותפת, בקשות רכש לאישור הורה, מצב "אני בסופר", checkout
+עם עדכון מלאי אוטומטי ורישום הוצאה בתזרים, רשימות שמורות, וסריקת קבלות/יצירת רשימה ב-AI.
+המודול משותף במלואו לסביבת BUSINESS.
 
 **רכיבי UI:**
 - כפתורי כותרת: היסטוריה, סרוק קבלה (ADMIN), סרוק מוצר, הוסף
@@ -450,10 +458,8 @@ Feed/תזרים עסקי) — אותם endpoints בדיוק, מוגנים כעת
 - `#shop-requests-container` — בקשות ממתינות לאישור הורה (CHILD mode)
 - `#shop-list` — רשימת הפריטים
 
-**מצבי פריט:**
-- `pending` → רגיל (לבן)
-- `in-cart` → ירוק (`bg-green-50`)
-- `missing` → כתום, strike-through
+**מצבי פריט:** `requested` (בקשת ילד הממתינה לאישור הורה) → `pending` (רגיל, לבן) →
+`in-cart` (ירוק, `bg-green-50`) / `missing` (כתום, strike-through).
 
 **Cart Footer (sticky):**
 - `#cart-footer` — מציג סה"כ בעגלה + כפתור "סיום ואישור רשימת קניות"
@@ -461,24 +467,88 @@ Feed/תזרים עסקי) — אותם endpoints בדיוק, מוגנים כעת
 
 **AI בסופר:**
 - סריקת קבלה: `POST /api/shopping/scan-receipt` → `showReceiptReviewModal` → confirmation → שמירה
-- זיהוי מוצר מצולום: `POST /api/shopping/identify-product`
+- יצירת רשימה שבועית: `POST /api/shopping/ai-generate-list`
+- זיהוי מוצר מצולום: `POST /api/shopping/identify-product` — **endpoint לא קיים בשרת**
+  (נקרא מה-client בשתי הסביבות אך אין לו מימוש ב-`server.js`; הקריאה נכשלת תמיד). לא תוקן
+  כחלק ממודול זה — החלטה עסקית האם לממש את הפיצ'ר או להסיר את הקריאה.
 
 **PRODUCT_DB:** מיפוי מוצרים לקטגוריות מובנה בקוד (ירקות, חלב, לחם, מזווה, בשר, ניקיון, חטיפים).
+
+**הרשאות (אומת בפועל לאחר התיקון):**
+- הוספת פריט: כל חבר משפחה מחובר. אם המוסיף הוא CHILD, הפריט נכנס כ-`requested` וממתין
+  לאישור הורה; ADMIN — נכנס ישירות כ-`pending`. קביעת ה-role כעת מגיעה אך ורק מהסשן
+  המאומת (`req.callerAuth.role`), לא מגוף הבקשה.
+- אישור בקשת רכש (מעבר מ-`requested` לכל סטטוס אחר) — **ADMIN בלבד**, נאכף כעת בשרת.
+- מחיקה/עדכון/checkout/היסטוריה/רשימות שמורות — כל חבר קבוצה מחובר (אין עוד בידול role
+  מעבר לאישור בקשות; תואם להתנהגות הקיימת של שאר מודולי המשפחה).
 
 **API:**
 | Method | Path | תיאור |
 |---|---|---|
-| POST | `/api/shopping/add` | הוספת פריט |
-| POST | `/api/shopping/update` | עדכון פריט |
+| POST | `/api/shopping/add` | הוספת פריט (role קובע requested/pending) |
+| POST | `/api/shopping/update` | עדכון פריט (סטטוס/מחיר/שם/כמות/יחידה) — אישור בקשה דורש ADMIN |
 | DELETE | `/api/shopping/delete/:id` | מחיקת פריט |
 | DELETE | `/api/shopping/clear/:groupId` | ניקוי כל העגלה |
-| POST | `/api/shopping/checkout` | סיום קניה + עדכון מלאי |
-| GET | `/api/shopping/history` | היסטוריית קניות |
-| POST | `/api/shopping/copy` | העתקת רשימה שמורה |
-| POST | `/api/shopping/scan-receipt` | סריקת קבלה AI |
-| POST | `/api/shopping/scan-receipt/save` | שמירת פריטים מקבלה |
-| POST | `/api/shopping/identify-product` | זיהוי מוצר מתמונה |
+| GET | `/api/shopping/category-map` | שליפת מיפוי קטגוריות לקבוצה |
 | POST | `/api/shopping/category-map` | שמירת מיפוי קטגוריה |
+| POST | `/api/shopping/checkout` | סיום קניה: רישום trip + הוצאה בתזרים + עדכון מלאי + ניקוי רשימה |
+| GET | `/api/shopping/history` | היסטוריית קניות (trips + items) |
+| POST | `/api/shopping/copy` | ייבוא מחדש של קניה היסטורית לרשימה |
+| GET | `/api/shopping/saved` | רשימת הרשימות השמורות |
+| POST | `/api/shopping/save` | שמירת הרשימה הנוכחית בשם |
+| POST | `/api/shopping/load-saved` | טעינת רשימה שמורה לעגלה |
+| DELETE | `/api/shopping/saved/:id` | מחיקת רשימה שמורה |
+| POST | `/api/shopping/scan-receipt` | סריקת קבלה AI (לא שומר, מחזיר פריטים לתצוגה) |
+| POST | `/api/shopping/ai-generate-list` | יצירת רשימה שבועית ב-AI (fallback קבוע אם אין AI) |
+| POST | `/api/shopping/scan-receipt/save` | שמירת פריטים שאושרו מהקבלה לרשימה |
+| POST | `/api/shopping/supermarket/start` | סימון "מישהו בסופר" לקבוצה |
+| POST | `/api/shopping/supermarket/end` | סיום מצב "בסופר" |
+
+**טבלאות:** `shopping_list`, `shopping_trips`, `shopping_trip_items`, `saved_shopping_lists`,
+`product_category_map`, וכתיבה צולבת ל-`pantry` ול-`transactions` ב-checkout.
+
+**הערה היסטורית (תועד למען שקיפות)**: עד לתיקון —
+1. **כל 18 ה-endpoints — ללא כל middleware אימות.** כל תוקף אנונימי יכול היה לקרוא/להוסיף/
+   לעדכן/למחוק פריטי רשימת קניות, רשימות שמורות והיסטוריית קניות של **כל משפחה/עסק
+   במערכת**, וכן לבצע `checkout` בשם קבוצה זרה — כולל **יצירת רשומת הוצאה כספית אמיתית
+   בתזרים (`transactions`) ועדכון מלאי (`pantry`) של קבוצה אחרת**. תוקן: נוספה
+   `verifyFamilyOrBiz` לכל 18 ה-endpoints, עם `groupId`/`userId` הנלקחים אך ורק
+   מ-`req.callerAuth` ולא מגוף/query הבקשה.
+2. **`DELETE /api/shopping/delete/:id` ו-`DELETE /api/shopping/saved/:id`** — מחיקה
+   לפי `id` בלבד ללא שדה `groupId` כלל בבקשה המקורית. תוקן: נוספה בדיקת בעלות
+   (`SELECT ... WHERE id=$1` ואז השוואת `group_id` ל-`req.callerAuth.groupId`, 404/403
+   בהתאם) לפני מחיקה, וכן ב-`/api/shopping/update`.
+3. **עקיפת אישור הורה (parent-approval bypass) — חמור.** ההגבלה "רק ADMIN יכול לאשר בקשת
+   רכש של ילד" הייתה **רק ב-UI** (`currentUser.role === 'ADMIN'` לפני הצגת כפתור "אשר"
+   ב-`renderShopList`) — קריאה ישירה ל-`POST /api/shopping/update` עם
+   `{itemId, status:'pending'}` איפשרה לכל משתמש, כולל CHILD, לאשר את בקשת הרכש של עצמו
+   ללא מעורבות הורה כלל. תוקן: נוספה בדיקת role בשרת — מעבר סטטוס מ-`requested` לכל סטטוס
+   אחר דורש כעת `req.callerAuth.role === 'ADMIN'`, אחרת מוחזר 403.
+4. **ברירת מחדל מסוכנת ב-`/api/shopping/add`** — כאשר `userId` חסר/שגוי, הקוד קבע
+   `userRole = 'ADMIN'` כברירת מחדל, מה שהיה מאפשר לכל בקשה אנונימית להיכנס ישירות
+   כפריט `pending` מאושר (ולא כ-`requested` הממתין לאישור). תוקן: ה-role נגזר כעת תמיד
+   מהסשן המאומת של הקורא, אין עוד ברירת מחדל.
+5. **Stored XSS — `safeStr` שימש להצגת תוכן HTML במקום `escHtml`** עבור `item_name`,
+   `requester_name`, `unit`, `best_price.store_name` ב-`renderShopList()`, וכן `item.name`/
+   `item.unit` ב-`showReceiptReviewModal()`, ו-`store_name`/`branch_name`/`nickname`/
+   `item_name`/`unit` ב-`openHistoryModal()` (בשתי הסביבות app.js/business-app.js).
+   `safeStr` מגן רק על ציטוטים בתוך ארגומנט `onclick`, לא על `<`/`>`/`&` בתוכן HTML —
+   שילוב עם סעיף #1 (לפני התיקון כל אחד יכול היה להוסיף פריט לכל קבוצה) איפשר הזרקת
+   סקריפט שירוץ אצל כל מי שצופה ברשימה/בהיסטוריה. תוקן ל-`escHtml` בכל המקומות הנ"ל.
+6. דליפת `e.message` גולמי כמעט בכל ה-endpoints — תוקן להודעות כלליות בעברית (למעט
+   `scan-receipt`/`ai-generate-list` שכבר השתמשו בטיפול שגיאות ייעודי ל-AI).
+7. אין ולידציה על כמויות/מחירים/סכום checkout שליליים — תוקן: `Math.max(0, ...)` על
+   `quantity`, `estimatedPrice`, `totalAmount`, מחירי פריטי קבלה, ועוד. שם פריט/רשימה
+   שמורה הוגבל ל-200 תווים.
+8. **עדכון client נדרש בשתי הסביבות** — כל קריאות ה-`fetch` הרלוונטיות ב-`app.js`
+   (הומרו ל-`communityFetch`) וב-`business-app.js` (נוסף `Authorization` header עם
+   `window._bizToken`) עודכנו לשלוח טוקן אימות, עבור כל 18 ה-endpoints (כולל אלו שרק
+   *קוראות* נתונים, כמו היסטוריה ומיפוי קטגוריות).
+
+**מגבלות ידועות (לא תוקנו — תועד בלבד)**: `/api/shopping/identify-product` נקרא מה-client
+אך אינו קיים בשרת — פיצ'ר שלא מומש מעולם, לא תיקון אבטחה. מידע "חוכמת ההמונים"
+(`best_price` מקניות קודמות) ממשיך להיות משותף לפי שם מוצר גלובלי ולא רק בתוך הקבוצה —
+עיצוב מכוון של הפיצ'ר (לא נבדק שוב במסגרת מודול זה, מעבר לכך שתצוגתו עברה escaping תקין).
 
 ---
 

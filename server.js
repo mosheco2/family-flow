@@ -10669,57 +10669,73 @@ app.get('/api/data/:userId', verifyFamilyOrBiz, async (req, res) => {
 // --- SHOPPING LIST ENDPOINTS ---
 // ============================================================
 
-app.post('/api/shopping/add', async (req, res) => {
+app.post('/api/shopping/add', verifyFamilyOrBiz, async (req, res) => {
     try {
-        const { itemName, quantity, unit, estimatedPrice, userId, groupId, unitsPerPackage } = req.body;
-        let actualGroupId = parseInt(groupId);
-        let userRole = 'ADMIN';
-        if (userId) {
-            const uRes = await pool.query('SELECT group_id, role FROM users WHERE id=$1', [userId]);
-            if (uRes.rows.length > 0) { if (isNaN(actualGroupId)) actualGroupId = uRes.rows[0].group_id; userRole = uRes.rows[0].role; }
-        }
-        if (!actualGroupId) return res.status(400).json({ success: false, error: 'Group ID is missing' });
+        const { itemName, quantity, unit, estimatedPrice, unitsPerPackage } = req.body;
+        const actualGroupId = req.callerAuth.groupId;
+        const userId = req.callerAuth.userId;
+        const userRole = req.callerAuth.role;
+        if (!itemName || !String(itemName).trim()) return res.status(400).json({ success: false, error: 'שם פריט חסר' });
+        const safeItemName = String(itemName).trim().substring(0, 200);
         const itemStatus = userRole === 'ADMIN' ? 'pending' : 'requested';
-        await pool.query(`INSERT INTO shopping_list (group_id, requester_id, item_name, quantity, unit, estimated_price, units_per_package, status) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`, [actualGroupId, userId || null, itemName, parseFloat(quantity) || 1, unit || 'יח\'', parseFloat(estimatedPrice) || 0, parseInt(unitsPerPackage) || 1, itemStatus]);
-        await logActivity(actualGroupId, userId || null, null, 'shopping', 'item_added', `${itemName} נוסף לרשימת הקניות`);
+        await pool.query(`INSERT INTO shopping_list (group_id, requester_id, item_name, quantity, unit, estimated_price, units_per_package, status) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`, [actualGroupId, userId || null, safeItemName, Math.max(0, parseFloat(quantity) || 1), unit || 'יח\'', Math.max(0, parseFloat(estimatedPrice) || 0), Math.max(1, parseInt(unitsPerPackage) || 1), itemStatus]);
+        await logActivity(actualGroupId, userId || null, null, 'shopping', 'item_added', `${safeItemName} נוסף לרשימת הקניות`);
         res.json({ success: true, status: itemStatus });
-    } catch(e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch(e) { res.status(500).json({ success: false, error: 'שגיאה פנימית' }); }
 });
 
-app.post('/api/shopping/update', async (req, res) => {
+app.post('/api/shopping/update', verifyFamilyOrBiz, async (req, res) => {
     try {
         const { itemId, status, estimatedPrice, itemName, quantity, unit } = req.body;
-        if (status !== undefined) await pool.query('UPDATE shopping_list SET status=$1 WHERE id=$2', [status, itemId]);
-        if (estimatedPrice !== undefined) await pool.query('UPDATE shopping_list SET estimated_price=$1 WHERE id=$2', [parseFloat(estimatedPrice) || 0, itemId]);
-        if (itemName !== undefined) await pool.query('UPDATE shopping_list SET item_name=$1, normalized_name=$1 WHERE id=$2', [itemName, itemId]);
-        if (quantity !== undefined) await pool.query('UPDATE shopping_list SET quantity=$1 WHERE id=$2', [parseFloat(quantity) || 1, itemId]);
+        const groupId = req.callerAuth.groupId;
+        const itemRes = await pool.query('SELECT group_id, status AS current_status FROM shopping_list WHERE id=$1', [itemId]);
+        if (itemRes.rows.length === 0) return res.status(404).json({ error: 'פריט לא נמצא' });
+        if (itemRes.rows[0].group_id !== groupId) return res.status(403).json({ error: 'אין הרשאה' });
+        if (status !== undefined) {
+            const isApprovingRequest = itemRes.rows[0].current_status === 'requested' && status !== 'requested';
+            if (isApprovingRequest && req.callerAuth.role !== 'ADMIN') return res.status(403).json({ error: 'רק הורה יכול לאשר בקשת רכש' });
+            await pool.query('UPDATE shopping_list SET status=$1 WHERE id=$2', [status, itemId]);
+        }
+        if (estimatedPrice !== undefined) await pool.query('UPDATE shopping_list SET estimated_price=$1 WHERE id=$2', [Math.max(0, parseFloat(estimatedPrice) || 0), itemId]);
+        if (itemName !== undefined) { const safeName = String(itemName).trim().substring(0, 200); await pool.query('UPDATE shopping_list SET item_name=$1, normalized_name=$1 WHERE id=$2', [safeName, itemId]); }
+        if (quantity !== undefined) await pool.query('UPDATE shopping_list SET quantity=$1 WHERE id=$2', [Math.max(0, parseFloat(quantity) || 1), itemId]);
         if (unit !== undefined) await pool.query('UPDATE shopping_list SET unit=$1 WHERE id=$2', [unit, itemId]);
         res.json({ success: true });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch(e) { res.status(500).json({ error: 'שגיאה פנימית' }); }
 });
 
-app.delete('/api/shopping/delete/:id', async (req, res) => {
-    try { await pool.query('DELETE FROM shopping_list WHERE id=$1', [req.params.id]); res.json({ success: true }); } catch(e) { res.status(500).json({ error: e.message }); }
-});
-
-app.delete('/api/shopping/clear/:groupId', async (req, res) => {
-    try { await pool.query('DELETE FROM shopping_list WHERE group_id=$1', [req.params.groupId]); res.json({ success: true }); } catch(e) { res.status(500).json({ error: e.message }); }
-});
-
-app.get('/api/shopping/category-map', async (req, res) => {
+app.delete('/api/shopping/delete/:id', verifyFamilyOrBiz, async (req, res) => {
     try {
-        const { groupId } = req.query;
-        const result = await pool.query('SELECT normalized_name, category FROM product_category_map WHERE group_id=$1', [groupId]);
-        res.json(result.rows);
-    } catch(e) { res.status(500).json({ error: e.message }); }
-});
-
-app.post('/api/shopping/category-map', async (req, res) => {
-    try {
-        const { groupId, normalizedName, category } = req.body;
-        await pool.query('INSERT INTO product_category_map (group_id, normalized_name, category) VALUES ($1, $2, $3) ON CONFLICT (group_id, normalized_name) DO UPDATE SET category=$3', [groupId, normalizedName, category]);
+        const itemRes = await pool.query('SELECT group_id FROM shopping_list WHERE id=$1', [req.params.id]);
+        if (itemRes.rows.length === 0) return res.status(404).json({ error: 'פריט לא נמצא' });
+        if (itemRes.rows[0].group_id !== req.callerAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
+        await pool.query('DELETE FROM shopping_list WHERE id=$1', [req.params.id]);
         res.json({ success: true });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch(e) { res.status(500).json({ error: 'שגיאה פנימית' }); }
+});
+
+app.delete('/api/shopping/clear/:groupId', verifyFamilyOrBiz, async (req, res) => {
+    try {
+        if (parseInt(req.params.groupId) !== req.callerAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
+        await pool.query('DELETE FROM shopping_list WHERE group_id=$1', [req.params.groupId]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: 'שגיאה פנימית' }); }
+});
+
+app.get('/api/shopping/category-map', verifyFamilyOrBiz, async (req, res) => {
+    try {
+        if (parseInt(req.query.groupId) !== req.callerAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
+        const result = await pool.query('SELECT normalized_name, category FROM product_category_map WHERE group_id=$1', [req.callerAuth.groupId]);
+        res.json(result.rows);
+    } catch(e) { res.status(500).json({ error: 'שגיאה פנימית' }); }
+});
+
+app.post('/api/shopping/category-map', verifyFamilyOrBiz, async (req, res) => {
+    try {
+        const { normalizedName, category } = req.body;
+        await pool.query('INSERT INTO product_category_map (group_id, normalized_name, category) VALUES ($1, $2, $3) ON CONFLICT (group_id, normalized_name) DO UPDATE SET category=$3', [req.callerAuth.groupId, normalizedName, category]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: 'שגיאה פנימית' }); }
 });
 
 // ── ALERT RULES CRUD ────────────────────────────────────────────
@@ -10836,89 +10852,94 @@ app.delete('/api/sla/:id', async (req, res) => {
 });
 
 
-app.post('/api/shopping/checkout', async (req, res) => {
+app.post('/api/shopping/checkout', verifyFamilyOrBiz, async (req, res) => {
     try {
-        const { totalAmount, userId, storeName, branchName, boughtItems, missingItems } = req.body;
-        const uRes = await pool.query('SELECT group_id FROM users WHERE id=$1', [userId]);
-        const groupId = uRes.rows[0].group_id;
-        
+        const { storeName, branchName, boughtItems, missingItems } = req.body;
+        const groupId = req.callerAuth.groupId;
+        const userId = req.callerAuth.userId;
+        const totalAmount = Math.max(0, parseFloat(req.body.totalAmount) || 0);
+
         await pool.query('BEGIN');
         const tripRes = await pool.query(`INSERT INTO shopping_trips (group_id, buyer_id, store_name, branch_name, total_amount) VALUES ($1, $2, $3, $4, $5) RETURNING id`, [groupId, userId, storeName, branchName, totalAmount]);
         const tripId = tripRes.rows[0].id;
-        
+
         await pool.query(`INSERT INTO transactions (user_id, group_id, amount, description, category, type) VALUES ($1, $2, $3, $4, 'groceries', 'expense')`, [userId, groupId, totalAmount, `רכש מלאי/סופר: ${storeName}`]);
-        
-        for (let item of boughtItems) {
-            const originalItemRes = await pool.query('SELECT unit, units_per_package FROM shopping_list WHERE id=$1', [item.id]);
+
+        for (let item of (Array.isArray(boughtItems) ? boughtItems : [])) {
+            const originalItemRes = await pool.query('SELECT unit, units_per_package FROM shopping_list WHERE id=$1 AND group_id=$2', [item.id, groupId]);
             let itemUnit = "יח'"; let itemUpp = 1;
             if (originalItemRes.rows.length > 0) { itemUnit = originalItemRes.rows[0].unit || "יח'"; itemUpp = originalItemRes.rows[0].units_per_package || 1; }
+            const qty = Math.max(0, parseFloat(item.quantity) || 0);
+            const price = Math.max(0, parseFloat(item.price) || 0);
 
-            await pool.query(`INSERT INTO shopping_trip_items (trip_id, item_name, quantity, price_per_unit, units_per_package, unit) VALUES ($1, $2, $3, $4, $5, $6)`, [tripId, item.name, item.quantity, item.price / (item.quantity||1), itemUpp, itemUnit]);
-            
+            await pool.query(`INSERT INTO shopping_trip_items (trip_id, item_name, quantity, price_per_unit, units_per_package, unit) VALUES ($1, $2, $3, $4, $5, $6)`, [tripId, item.name, qty, price / (qty||1), itemUpp, itemUnit]);
+
             const pRes = await pool.query(`SELECT id, quantity FROM pantry WHERE group_id=$1 AND item_name=$2`, [groupId, item.name]);
             if (pRes.rows.length > 0) {
-                await pool.query(`UPDATE pantry SET quantity = quantity + $1, updated_at = CURRENT_TIMESTAMP, units_per_package = $2, unit = $3 WHERE id=$4`, [item.quantity, itemUpp, itemUnit, pRes.rows[0].id]);
+                await pool.query(`UPDATE pantry SET quantity = quantity + $1, updated_at = CURRENT_TIMESTAMP, units_per_package = $2, unit = $3 WHERE id=$4`, [qty, itemUpp, itemUnit, pRes.rows[0].id]);
             } else {
-                await pool.query(`INSERT INTO pantry (group_id, item_name, quantity, unit, units_per_package) VALUES ($1, $2, $3, $4, $5)`, [groupId, item.name, item.quantity, itemUnit, itemUpp]);
+                await pool.query(`INSERT INTO pantry (group_id, item_name, quantity, unit, units_per_package) VALUES ($1, $2, $3, $4, $5)`, [groupId, item.name, qty, itemUnit, itemUpp]);
             }
-            await pool.query(`DELETE FROM shopping_list WHERE id=$1`, [item.id]);
+            await pool.query(`DELETE FROM shopping_list WHERE id=$1 AND group_id=$2`, [item.id, groupId]);
         }
-        
-        for (let item of missingItems) { await pool.query(`UPDATE shopping_list SET status='pending' WHERE id=$1`, [item.id]); }
+
+        for (let item of (Array.isArray(missingItems) ? missingItems : [])) { await pool.query(`UPDATE shopping_list SET status='pending' WHERE id=$1 AND group_id=$2`, [item.id, groupId]); }
         await pool.query('COMMIT');
-        await logActivity(groupId, userId, null, 'shopping', 'checkout', `קניה הושלמה ב-${storeName} — ₪${parseFloat(totalAmount).toFixed(2)}`);
+        await logActivity(groupId, userId, null, 'shopping', 'checkout', `קניה הושלמה ב-${storeName} — ₪${totalAmount.toFixed(2)}`);
         res.json({ success: true });
-    } catch(e) { await pool.query('ROLLBACK'); res.status(500).json({ error: e.message }); }
+    } catch(e) { await pool.query('ROLLBACK'); res.status(500).json({ error: 'שגיאה פנימית' }); }
 });
 
-app.get('/api/shopping/history', async (req, res) => {
+app.get('/api/shopping/history', verifyFamilyOrBiz, async (req, res) => {
     try {
-        const { groupId } = req.query;
-        const trips = await pool.query('SELECT st.*, u.nickname FROM shopping_trips st LEFT JOIN users u ON st.buyer_id = u.id WHERE st.group_id=$1 ORDER BY st.trip_date DESC', [groupId]);
+        if (parseInt(req.query.groupId) !== req.callerAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
+        const trips = await pool.query('SELECT st.*, u.nickname FROM shopping_trips st LEFT JOIN users u ON st.buyer_id = u.id WHERE st.group_id=$1 ORDER BY st.trip_date DESC', [req.callerAuth.groupId]);
         for (let t of trips.rows) { const items = await pool.query('SELECT * FROM shopping_trip_items WHERE trip_id=$1', [t.id]); t.items = items.rows; }
         res.json(trips.rows);
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch(e) { res.status(500).json({ error: 'שגיאה פנימית' }); }
 });
 
-app.post('/api/shopping/copy', async (req, res) => {
+app.post('/api/shopping/copy', verifyFamilyOrBiz, async (req, res) => {
     try {
-        const { tripId, userId } = req.body;
-        const uRes = await pool.query('SELECT group_id FROM users WHERE id=$1', [userId]);
-        const groupId = uRes.rows[0].group_id;
+        const { tripId } = req.body;
+        const groupId = req.callerAuth.groupId;
+        const userId = req.callerAuth.userId;
+        const tripRes = await pool.query('SELECT id FROM shopping_trips WHERE id=$1 AND group_id=$2', [tripId, groupId]);
+        if (tripRes.rows.length === 0) return res.status(404).json({ error: 'קנייה לא נמצאה' });
         const items = await pool.query('SELECT * FROM shopping_trip_items WHERE trip_id=$1', [tripId]);
         for(let i of items.rows) {
             await pool.query(`INSERT INTO shopping_list (group_id, requester_id, item_name, quantity, status, unit, units_per_package) VALUES ($1, $2, $3, $4, 'pending', $5, $6)`, [groupId, userId, i.item_name, i.quantity, i.unit, i.units_per_package]);
         }
         res.json({ success: true });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch(e) { res.status(500).json({ error: 'שגיאה פנימית' }); }
 });
 
 // ============================================================
 // --- SAVED SHOPPING LISTS ENDPOINTS ---
 // ============================================================
 
-app.get('/api/shopping/saved', async (req, res) => {
+app.get('/api/shopping/saved', verifyFamilyOrBiz, async (req, res) => {
     try {
-        const { groupId } = req.query;
-        const result = await pool.query('SELECT * FROM saved_shopping_lists WHERE group_id=$1 ORDER BY created_at DESC', [groupId]);
+        if (parseInt(req.query.groupId) !== req.callerAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
+        const result = await pool.query('SELECT * FROM saved_shopping_lists WHERE group_id=$1 ORDER BY created_at DESC', [req.callerAuth.groupId]);
         res.json(result.rows);
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch(e) { res.status(500).json({ error: 'שגיאה פנימית' }); }
 });
 
-app.post('/api/shopping/save', async (req, res) => {
+app.post('/api/shopping/save', verifyFamilyOrBiz, async (req, res) => {
     try {
-        const { groupId, name, items } = req.body;
+        const { name, items } = req.body;
         if (!name || !items || items.length === 0) return res.status(400).json({ error: 'Missing name or items' });
-        const result = await pool.query('INSERT INTO saved_shopping_lists (group_id, name, items) VALUES ($1, $2, $3) RETURNING id', [groupId, name, JSON.stringify(items)]);
+        const result = await pool.query('INSERT INTO saved_shopping_lists (group_id, name, items) VALUES ($1, $2, $3) RETURNING id', [req.callerAuth.groupId, String(name).trim().substring(0, 200), JSON.stringify(items)]);
         res.json({ success: true, id: result.rows[0].id });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch(e) { res.status(500).json({ error: 'שגיאה פנימית' }); }
 });
 
-app.post('/api/shopping/load-saved', async (req, res) => {
+app.post('/api/shopping/load-saved', verifyFamilyOrBiz, async (req, res) => {
     try {
-        const { listId, userId } = req.body;
-        const uRes = await pool.query('SELECT group_id FROM users WHERE id=$1', [userId]);
-        const groupId = uRes.rows[0].group_id;
+        const { listId } = req.body;
+        const groupId = req.callerAuth.groupId;
+        const userId = req.callerAuth.userId;
         const listRes = await pool.query('SELECT * FROM saved_shopping_lists WHERE id=$1 AND group_id=$2', [listId, groupId]);
         if (listRes.rows.length === 0) return res.status(404).json({ error: 'List not found' });
         const items = listRes.rows[0].items;
@@ -10926,11 +10947,17 @@ app.post('/api/shopping/load-saved', async (req, res) => {
             await pool.query(`INSERT INTO shopping_list (group_id, requester_id, item_name, quantity, unit, estimated_price, units_per_package, status) VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending')`, [groupId, userId, item.item_name, item.quantity || 1, item.unit || "יח'", item.estimated_price || 0, item.units_per_package || 1]);
         }
         res.json({ success: true, count: items.length });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch(e) { res.status(500).json({ error: 'שגיאה פנימית' }); }
 });
 
-app.delete('/api/shopping/saved/:id', async (req, res) => {
-    try { await pool.query('DELETE FROM saved_shopping_lists WHERE id=$1', [req.params.id]); res.json({ success: true }); } catch(e) { res.status(500).json({ error: e.message }); }
+app.delete('/api/shopping/saved/:id', verifyFamilyOrBiz, async (req, res) => {
+    try {
+        const row = await pool.query('SELECT group_id FROM saved_shopping_lists WHERE id=$1', [req.params.id]);
+        if (row.rows.length === 0) return res.status(404).json({ error: 'לא נמצא' });
+        if (row.rows[0].group_id !== req.callerAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
+        await pool.query('DELETE FROM saved_shopping_lists WHERE id=$1', [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: 'שגיאה פנימית' }); }
 });
 
 // ============================================================
@@ -12358,11 +12385,10 @@ app.post('/api/tasks/vision-verify', verifyFamilyOrBiz, async (req, res) => {
     } catch (e) { handleAIError(e, res, 'שגיאה בניתוח התמונה'); }
 });
 
-app.post('/api/shopping/scan-receipt', async (req, res) => {
+app.post('/api/shopping/scan-receipt', verifyFamilyOrBiz, async (req, res) => {
     try {
-        const { imageBase64, mimeType, userId } = req.body;
-        const uRes = await pool.query('SELECT group_id FROM users WHERE id=$1', [userId]);
-        const groupId = uRes.rows[0].group_id;
+        const { imageBase64, mimeType } = req.body;
+        const groupId = req.callerAuth.groupId;
 
         const hasTokens = await handleAITokens(groupId);
         if(!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
@@ -12460,7 +12486,7 @@ Return ONLY valid JSON: { "store_name": "...", "items": [...] }`;
     } catch (e) { handleAIError(e, res, 'שגיאה בקריאת החשבונית'); }
 });
 
-app.post('/api/shopping/ai-generate-list', async (req, res) => {
+app.post('/api/shopping/ai-generate-list', verifyFamilyOrBiz, async (req, res) => {
     const FALLBACK = [
         { name: 'ירקות', items: [{ name: 'עגבניות', qty: 1, unit: 'ק"ג' }, { name: 'מלפפון', qty: 1, unit: 'ק"ג' }, { name: 'פלפל', qty: 0.5, unit: 'ק"ג' }, { name: 'גזר', qty: 0.5, unit: 'ק"ג' }, { name: 'בצל', qty: 1, unit: 'ק"ג' }, { name: 'שום', qty: 1, unit: "יח'" }] },
         { name: 'פירות', items: [{ name: 'תפוחים', qty: 1, unit: 'ק"ג' }, { name: 'בננות', qty: 1, unit: 'ק"ג' }, { name: 'תפוזים', qty: 1, unit: 'ק"ג' }, { name: 'ענבים', qty: 0.5, unit: 'ק"ג' }, { name: 'לימון', qty: 3, unit: "יח'" }] },
@@ -12470,9 +12496,7 @@ app.post('/api/shopping/ai-generate-list', async (req, res) => {
         { name: 'שתיה', items: [{ name: 'מים מינרלים', qty: 6, unit: "יח'" }, { name: 'מיץ תפוזים', qty: 2, unit: "יח'" }, { name: 'מים מוגזים', qty: 2, unit: "יח'" }, { name: 'מיץ ענבים', qty: 1, unit: "יח'" }] }
     ];
     try {
-        const { userId } = req.body;
-        const uRes = await pool.query('SELECT group_id FROM users WHERE id=$1', [userId]);
-        const groupId = uRes.rows[0].group_id;
+        const groupId = req.callerAuth.groupId;
         const hasTokens = await handleAITokens(groupId);
         if (!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
         if (!getGenAIInstance()) return res.json({ success: true, categories: FALLBACK });
@@ -12492,43 +12516,44 @@ app.post('/api/shopping/ai-generate-list', async (req, res) => {
     }
 });
 
-app.post('/api/shopping/scan-receipt/save', async (req, res) => {
+app.post('/api/shopping/scan-receipt/save', verifyFamilyOrBiz, async (req, res) => {
     try {
-        const { items, userId } = req.body;
-        if (!Array.isArray(items) || !userId) return res.status(400).json({ error: 'missing fields' });
-        const uRes = await pool.query('SELECT group_id FROM users WHERE id=$1', [userId]);
-        const groupId = uRes.rows[0].group_id;
+        const { items } = req.body;
+        if (!Array.isArray(items)) return res.status(400).json({ error: 'missing fields' });
+        const groupId = req.callerAuth.groupId;
+        const userId = req.callerAuth.userId;
         for (const item of items) {
-            const netPrice = parseFloat(item.net_unit_price) || parseFloat(item.unit_price) || 0;
+            const netPrice = Math.max(0, parseFloat(item.net_unit_price) || parseFloat(item.unit_price) || 0);
+            const safeName = String(item.name || '').trim().substring(0, 200);
             await pool.query(
                 `INSERT INTO shopping_list (group_id, requester_id, item_name, normalized_name, quantity, unit, estimated_price, status) VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending')`,
-                [groupId, userId, item.name, item.normalized_name || item.name, parseFloat(item.qty) || 1, item.unit || 'יח', netPrice]
+                [groupId, userId, safeName, (item.normalized_name || safeName).substring(0, 200), Math.max(0, parseFloat(item.qty) || 1), item.unit || 'יח', netPrice]
             );
         }
         res.json({ success: true, count: items.length });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch(e) { res.status(500).json({ error: 'שגיאה פנימית' }); }
 });
 
 // ============================================================
 // --- SUPERMARKET MODE: START / END ---
 // ============================================================
 
-app.post('/api/shopping/supermarket/start', async (req, res) => {
+app.post('/api/shopping/supermarket/start', verifyFamilyOrBiz, async (req, res) => {
     try {
-        const { userId, groupId } = req.body;
+        const groupId = req.callerAuth.groupId;
+        const userId = req.callerAuth.userId;
         const uRes = await pool.query('SELECT nickname FROM users WHERE id=$1', [userId]);
         const name = uRes.rows[0]?.nickname || 'מישהו';
         await pool.query('UPDATE family_groups SET sm_user_id=$1, sm_user_name=$2, sm_started_at=NOW() WHERE id=$3', [userId, name, groupId]);
         res.json({ success: true });
-    } catch(e) { res.json({ success: false, error: e.message }); }
+    } catch(e) { res.status(500).json({ success: false, error: 'שגיאה פנימית' }); }
 });
 
-app.post('/api/shopping/supermarket/end', async (req, res) => {
+app.post('/api/shopping/supermarket/end', verifyFamilyOrBiz, async (req, res) => {
     try {
-        const { groupId } = req.body;
-        await pool.query('UPDATE family_groups SET sm_user_id=NULL, sm_user_name=NULL, sm_started_at=NULL WHERE id=$1', [groupId]);
+        await pool.query('UPDATE family_groups SET sm_user_id=NULL, sm_user_name=NULL, sm_started_at=NULL WHERE id=$1', [req.callerAuth.groupId]);
         res.json({ success: true });
-    } catch(e) { res.json({ success: false, error: e.message }); }
+    } catch(e) { res.status(500).json({ success: false, error: 'שגיאה פנימית' }); }
 });
 
 app.post('/api/academy/tutor', async (req, res) => {
