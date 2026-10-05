@@ -100,7 +100,21 @@
             grid.innerHTML = '<div class="catalog-empty" style="grid-column:1/-1">אין מוצרים להצגה</div>';
             return;
         }
-        grid.innerHTML = items.map(p => `
+        grid.innerHTML = items.map(p => {
+            const orig = parseFloat(p.original_price);
+            const curr = parseFloat(p.price);
+            const hasDiscount = orig && orig > curr;
+            const priceHtml = hasDiscount
+                ? `<span style="display:flex;flex-direction:column;align-items:flex-start;gap:1px">
+                     <span style="font-size:9px;font-weight:800;color:#059669;background:#ecfdf5;border:1px solid #a7f3d0;padding:1px 6px;border-radius:6px;width:fit-content">מחיר שוק ✨</span>
+                     <span style="display:flex;align-items:center;gap:5px">
+                       <span style="font-size:11px;color:#94a3b8;text-decoration:line-through">₪${orig.toFixed(0)}</span>
+                       <span class="product-price">₪${curr.toFixed(0)}</span>
+                     </span>
+                   </span>`
+                : `<span class="product-price">₪${curr.toFixed(0)}</span>`;
+            const btnText = csProductBtnLabel(p);
+            return `
             <div class="product-card">
                 <div class="product-img-wrap">
                     ${p.has_image ? `<img src="/api/store/item-image/${p.id}" onerror="this.parentElement.innerHTML='<i class=\\'fa-solid fa-image product-img-ph\\'></i>'">` : '<i class="fa-solid fa-box product-img-ph"></i>'}
@@ -109,11 +123,21 @@
                     <span class="community-badge"><i class="fa-solid fa-store" style="font-size:9px"></i> ${csSafe(p.business_name)}</span>
                     <div class="product-name">${csSafe(p.name)}</div>
                     <div class="product-footer">
-                        <span class="product-price">₪${parseFloat(p.price).toFixed(0)}</span>
-                        <button class="add-pill" onclick="quickAdd(${p.id})">הוספה</button>
+                        ${priceHtml}
+                        <button class="add-pill" onclick="quickAdd(${p.id})">${btnText}</button>
                     </div>
                 </div>
-            </div>`).join('');
+            </div>`;
+        }).join('');
+    }
+
+    // טקסט כפתור לפי product_type — כמו בחנות הציבורית המקורית (storefront.html)
+    function csProductBtnLabel(p) {
+        if (p.product_type === 'pizza_builder') return 'הרכב פיצה';
+        if (p.product_type === 'service') return '📅 הזמן שירות';
+        if (p.product_type === 'bundle') return '📦 בחר חבילה';
+        if (p.product_type === 'complex_builder') return '📋 צפייה במפרט';
+        return 'הוספה';
     }
 
     // מוצר עם תוספות/מרכיבים לבחירה (options_text) — כמו בחנות הציבורית המקורית
@@ -258,6 +282,7 @@
     window.quickAdd = function(id) {
         const p = findProduct(id);
         if (!p) return;
+        if (p.product_type === 'complex_builder') { window.openComplexProductModal(id); return; }
         if (hasOptions(p)) { openSheet(id); return; }
         csAddToCart({ id: p.id, group_id: p.group_id, business_name: p.business_name, name: p.name, price: parseFloat(p.price) });
     };
@@ -610,3 +635,188 @@
 
     document.addEventListener('DOMContentLoaded', init);
 })();
+
+// ===== COMPLEX BUILDER (מנה מורכבת/קומבו/חבילה עם שלבי בחירה) — פורטינג מ-storefront.html =====
+let _cxProduct = null, _cxBasePrice = 0, _cxQty = 1, _cxSteps = [], _cxPriceMode = 'per_guest';
+
+function _cxEnsureModal() {
+    if (document.getElementById('cx-modal-overlay')) return;
+    const el = document.createElement('div');
+    el.id = 'cx-modal-overlay';
+    el.style.cssText = 'position:fixed;inset:0;z-index:99999;display:none;align-items:center;justify-content:center;background:rgba(15,23,42,.6);backdrop-filter:blur(2px);direction:rtl;padding:12px;';
+    el.innerHTML = `
+    <div style="background:#fff;border-radius:22px;width:min(96vw,520px);max-height:88vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3);">
+        <div id="cx-modal-image-wrap" class="hidden"><img id="cx-modal-image" style="width:100%;height:160px;object-fit:cover;border-radius:22px 22px 0 0;"></div>
+        <div style="padding:18px;">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px;">
+                <div style="min-width:0;">
+                    <h3 id="cx-modal-title" style="font-weight:900;font-size:16px;color:#1e293b;margin:0;"></h3>
+                    <div id="cx-modal-types" style="display:flex;gap:4px;flex-wrap:wrap;margin-top:4px;"></div>
+                </div>
+                <button onclick="window.closeComplexProductModal()" style="color:#94a3b8;font-size:20px;background:none;border:none;cursor:pointer;flex-shrink:0;">✕</button>
+            </div>
+            <p id="cx-modal-desc" style="font-size:12px;color:#64748b;margin:0 0 14px;"></p>
+            <div id="cx-modal-steps-container"></div>
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:10px;padding-top:12px;border-top:1px solid #f1f5f9;">
+                <div style="display:flex;align-items:center;gap:10px;">
+                    <span style="font-size:12px;font-weight:700;color:#475569;">כמות</span>
+                    <div style="display:flex;align-items:center;gap:8px;background:#f8fafc;border-radius:10px;padding:4px 10px;">
+                        <button onclick="window.cxChangeQty(-1)" style="width:26px;height:26px;border:none;background:#fff;border-radius:8px;font-weight:900;cursor:pointer;">−</button>
+                        <span id="cx-modal-qty-val" style="font-weight:800;min-width:16px;text-align:center;">1</span>
+                        <button onclick="window.cxChangeQty(1)" style="width:26px;height:26px;border:none;background:#fff;border-radius:8px;font-weight:900;cursor:pointer;">+</button>
+                    </div>
+                </div>
+            </div>
+            <button onclick="window.submitComplexProduct()" style="width:100%;margin-top:14px;background:#059669;color:#fff;border:none;border-radius:14px;padding:14px;font-size:14px;font-weight:900;cursor:pointer;">הוספה לעגלה <span id="cx-total-display">(₪0)</span></button>
+        </div>
+    </div>`;
+    el.addEventListener('click', e => { if (e.target === el) window.closeComplexProductModal(); });
+    document.body.appendChild(el);
+}
+
+window.openComplexProductModal = function(id) {
+    const p = findProduct(id);
+    if (!p) return;
+    if (campaignData?.campaign?.ordering_enabled === false) {
+        csToast('שמחים שאתם נלהבים כמונו ממוצרי השוק, הם יהיו זמינים בקרוב - ניתן להתעדכן מול רכזת הקהילה', 4500);
+        return;
+    }
+    if (cart.length && String(cart[0].businessGroupId) !== String(p.group_id)) {
+        csOpenCart();
+        csToast(`אפשר להזמין רק מעסק אחד — רוקנו את העגלה כדי לעבור ל-"${p.business_name}"`);
+        return;
+    }
+    _cxEnsureModal();
+    _cxProduct = p;
+    _cxBasePrice = parseFloat(p.price) || 0;
+    _cxQty = 1;
+    _cxSteps = [];
+    _cxPriceMode = 'per_guest';
+
+    try {
+        const parsed = JSON.parse(p.options_text);
+        if (parsed && parsed.isComplex) {
+            _cxSteps = parsed.steps || [];
+            _cxPriceMode = parsed.priceMode || 'per_guest';
+            const imgWrap = document.getElementById('cx-modal-image-wrap');
+            const imgEl = document.getElementById('cx-modal-image');
+            if (parsed.imageUrl && imgWrap && imgEl) { imgEl.src = parsed.imageUrl; imgWrap.classList.remove('hidden'); }
+            else if (imgWrap) imgWrap.classList.add('hidden');
+            const typesEl = document.getElementById('cx-modal-types');
+            const typeLabels = { event: 'ארוע', catering: 'קייטרינג', project: 'פרויקט', other: 'אחר' };
+            const types = Array.isArray(parsed.complexTypes) ? parsed.complexTypes : (parsed.complexType ? [parsed.complexType] : []);
+            if (typesEl) typesEl.innerHTML = types.map(t2 => `<span style="font-size:9px;font-weight:800;background:#ecfdf5;color:#059669;padding:2px 8px;border-radius:999px;border:1px solid #a7f3d0;">${csSafe(typeLabels[t2] || t2)}</span>`).join('');
+        }
+    } catch(e) {}
+
+    document.getElementById('cx-modal-title').textContent = p.name;
+    document.getElementById('cx-modal-desc').textContent = p.description || '';
+    document.getElementById('cx-modal-qty-val').textContent = _cxQty;
+    const qtyRow = document.getElementById('cx-modal-qty-val')?.closest('div')?.parentElement;
+    if (qtyRow) qtyRow.style.display = _cxPriceMode === 'per_total' ? 'none' : '';
+
+    window.renderComplexStepsSelectionUI();
+    window.calculateComplexTotal();
+    document.getElementById('cx-modal-overlay').style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+};
+
+window.closeComplexProductModal = function() {
+    const el = document.getElementById('cx-modal-overlay');
+    if (el) el.style.display = 'none';
+    document.body.style.overflow = '';
+};
+
+window.cxChangeQty = function(delta) {
+    _cxQty = Math.max(1, _cxQty + delta);
+    document.getElementById('cx-modal-qty-val').textContent = _cxQty;
+    window.calculateComplexTotal();
+};
+
+window.renderComplexStepsSelectionUI = function() {
+    const container = document.getElementById('cx-modal-steps-container');
+    if (!container) return;
+    let html = '';
+    _cxSteps.forEach((step, stepIdx) => {
+        const isMulti = step.max > 1 || step.max === 0;
+        const inputType = isMulti ? 'checkbox' : 'radio';
+        const badgeText = isMulti
+            ? `בחר ${step.min > 0 ? `לפחות ${step.min} ` : ''}${step.max > 0 ? `ועד ${step.max}` : 'ללא הגבלה'}`
+            : (step.min > 0 ? 'חובה לבחור 1' : 'בחירה אופציונלית');
+        const optionsHtml = (step.options || []).map((opt, optIdx) => {
+            const priceBadge = opt.price > 0 ? `<span style="font-size:10px;font-weight:800;color:#059669;background:#ecfdf5;padding:3px 8px;border-radius:8px;border:1px solid #a7f3d0;">+₪${opt.price}</span>` : '';
+            return `<label style="display:flex;align-items:center;justify-content:space-between;padding:10px;background:#fff;border:1px solid #e2e8f0;border-radius:12px;cursor:pointer;margin-bottom:6px;">
+                <div style="display:flex;align-items:center;gap:8px;">
+                    <input type="${inputType}" name="cx_step_${stepIdx}" value="${optIdx}" data-price="${opt.price}" class="cx-input-step-${stepIdx}" style="width:16px;height:16px;" onchange="window.handleComplexSelection(${stepIdx}, ${step.max}, this)">
+                    <div style="display:flex;flex-direction:column;">
+                        <span style="font-size:13px;font-weight:700;color:#334155;">${csSafe(opt.name)}</span>
+                        ${opt.note ? `<span style="font-size:10px;color:#94a3b8;">${csSafe(opt.note)}</span>` : ''}
+                    </div>
+                </div>
+                ${priceBadge}
+            </label>`;
+        }).join('');
+        const stepPriceHtml = step.stepPrice > 0 ? `<span style="font-size:10px;font-weight:800;color:#059669;background:#ecfdf5;padding:2px 8px;border-radius:6px;border:1px solid #a7f3d0;">תוספת לשלב: ₪${step.stepPrice}</span>` : '';
+        html += `<div style="background:#f8fafc;padding:12px;border-radius:14px;border:1px solid #e2e8f0;margin-bottom:10px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;border-bottom:1px solid #e2e8f0;padding-bottom:6px;">
+                <div style="display:flex;align-items:center;gap:6px;">
+                    <span style="width:18px;height:18px;background:#ecfdf5;color:#059669;border-radius:999px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;">${stepIdx + 1}</span>
+                    <h4 style="font-weight:800;font-size:13px;color:#1e293b;margin:0;">${csSafe(step.name)}</h4>
+                </div>
+                <div style="display:flex;align-items:center;gap:6px;">
+                    ${stepPriceHtml}
+                    <span style="font-size:9px;font-weight:700;color:#64748b;background:#fff;padding:3px 7px;border-radius:6px;border:1px solid #e2e8f0;">${badgeText}</span>
+                </div>
+            </div>
+            ${optionsHtml}
+        </div>`;
+    });
+    container.innerHTML = html;
+};
+
+window.handleComplexSelection = function(stepIdx, max, inputEl) {
+    if (max > 1) {
+        const checked = document.querySelectorAll(`.cx-input-step-${stepIdx}:checked`);
+        if (checked.length > max) { inputEl.checked = false; csToast(`ניתן לבחור עד ${max} אפשרויות בשלב זה`); }
+    }
+    window.calculateComplexTotal();
+};
+
+window.calculateComplexTotal = function() {
+    let optionsTotal = 0, stepBaseTotals = 0;
+    _cxSteps.forEach((step, stepIdx) => {
+        const checked = document.querySelectorAll(`.cx-input-step-${stepIdx}:checked`);
+        if (checked.length > 0 && step.stepPrice > 0) stepBaseTotals += parseFloat(step.stepPrice) || 0;
+        checked.forEach(inp => { optionsTotal += parseFloat(inp.dataset.price) || 0; });
+    });
+    const subtotal = _cxBasePrice + stepBaseTotals + optionsTotal;
+    const grandTotal = _cxPriceMode === 'per_total' ? subtotal : subtotal * _cxQty;
+    const displayEl = document.getElementById('cx-total-display');
+    if (displayEl) displayEl.textContent = `(₪${grandTotal.toFixed(2)})`;
+};
+
+window.submitComplexProduct = function() {
+    let optionsSum = 0, stepBaseSum = 0, selectedTexts = [], isValid = true;
+    _cxSteps.forEach((step, stepIdx) => {
+        const checked = document.querySelectorAll(`.cx-input-step-${stepIdx}:checked`);
+        if (step.min > 0 && checked.length < step.min) { csToast(`חובה לבחור לפחות ${step.min} אפשרויות ב: ${step.name}`); isValid = false; }
+        let stepSelections = [];
+        if (checked.length > 0 && step.stepPrice > 0) stepBaseSum += parseFloat(step.stepPrice) || 0;
+        checked.forEach(inp => {
+            const opt = step.options[parseInt(inp.value)];
+            optionsSum += parseFloat(opt.price) || 0;
+            stepSelections.push(opt.name);
+        });
+        if (stepSelections.length) selectedTexts.push(`${step.name}: ${stepSelections.join(', ')}`);
+    });
+    if (!isValid) return;
+
+    const subtotal = _cxBasePrice + stepBaseSum + optionsSum;
+    const unitPrice = _cxPriceMode === 'per_total' ? subtotal : subtotal; // מחיר ליחידה; הכמות נשמרת בשדה quantity כמו שאר העגלה
+    const note = selectedTexts.join(' | ');
+
+    cart.push({ catalogId: _cxProduct.id, businessGroupId: _cxProduct.group_id, businessName: _cxProduct.business_name, name: _cxProduct.name, price: unitPrice, quantity: _cxPriceMode === 'per_total' ? 1 : _cxQty, note });
+    window.closeComplexProductModal();
+    updateCartBadges();
+    csToast('המפרט נוסף לעגלה בהצלחה! 📋');
+};
