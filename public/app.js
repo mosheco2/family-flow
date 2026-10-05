@@ -151,6 +151,8 @@ window.onload = async () => {
             if(session && session.user && session.group) {
                 if (session.group.type === 'BUSINESS') { window.location.href = '/business.html'; return; }
                 currentUser = session.user; currentGroup = session.group;
+                // שחזור טוקן השתלטות (SA) אם קיים על הסשן השמור
+                if (session.token) localStorage.setItem('ofl_family_token', session.token);
                 // שחזור לוגו קבוצה ממפתח נפרד (למנוע ניפוח הסשן)
                 if (currentGroup.id) { const cl = localStorage.getItem(`ofl_logo_${currentGroup.id}`); if(cl) currentGroup.image_url = cl; }
                 // אם יש splash פעיל מ-cache — ממתינים לסיום האנימציה לפני מעבר לדאשבורד

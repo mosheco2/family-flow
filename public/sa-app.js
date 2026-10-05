@@ -5904,13 +5904,13 @@ window.impersonateGroup = async function(groupId, userId) {
         };
         if (targetGroup.type) sessionData.group.type = targetGroup.type.toString().toUpperCase();
 
-        // לעסקים — יצירת biz token זמני כדי שכל ה-API calls יעבדו עם groupId הנכון
-        if (isBiz && currentToken) {
+        // יצירת טוקן השתלטות זמני (עסק או משפחה) כדי שכל ה-API calls יעבדו עם groupId הנכון
+        if (currentToken) {
             try {
                 const r = await fetch('/api/sa/biz-impersonate-token', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'Authorization': currentToken },
-                    body: JSON.stringify({ groupId })
+                    body: JSON.stringify({ groupId, userId: targetUser.id })
                 });
                 const d = await r.json();
                 if (d.success && d.token) sessionData.token = d.token;
