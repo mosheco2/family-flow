@@ -5,6 +5,7 @@
 
     let campaignData = null;
     let selectedBizFilter = 'all';
+    let searchQuery = '';
     let cart = []; // [{catalogId, businessGroupId, businessName, name, price, quantity, note}]
     let panelState = 'cart'; // 'cart' | 'checkout' | 'done'
     let _sheetId = null, _sheetQty = 1, _sheetExtras = {};
@@ -81,9 +82,17 @@
         }
     }
 
+    // עסקים עם לפחות מוצר מאושר אחד — עסק בלי אף מוצר מוצג לא מופיע בכלל בסינון
+    // (כל campaignData.products כבר מגיע מהשרת מסונן ל-approved בלבד)
+    function _bizWithProducts() {
+        const idsWithProducts = new Set(campaignData.products.map(p => String(p.group_id)));
+        return campaignData.businesses.filter(b => idsWithProducts.has(String(b.group_id)));
+    }
+
     function renderBizChips() {
         const wrap = document.getElementById('biz-nav');
-        const chips = [{ group_id: 'all', name: 'הכל', logo_url: null }].concat(campaignData.businesses);
+        const activeBiz = _bizWithProducts();
+        const chips = [{ group_id: 'all', name: 'הכל', logo_url: null }].concat(activeBiz);
         wrap.innerHTML = chips.map(b => `
             <button onclick="csFilterBiz('${b.group_id}')" class="biz-pill ${selectedBizFilter == b.group_id ? 'active' : ''}">
                 ${b.logo_url ? `<img src="${b.logo_url}">` : ''}
@@ -91,13 +100,48 @@
             </button>`).join('');
     }
 
+    window.csScrollBizNav = function(dir) {
+        const nav = document.getElementById('biz-nav');
+        if (!nav) return;
+        nav.scrollBy({ left: dir * Math.round(nav.clientWidth * 0.75), behavior: 'smooth' });
+    };
+
+    window.csOpenBizDrawer = function() {
+        const list = document.getElementById('biz-drawer-list');
+        const activeBiz = _bizWithProducts();
+        const counts = {};
+        campaignData.products.forEach(p => { counts[p.group_id] = (counts[p.group_id] || 0) + 1; });
+        const rows = [{ group_id: 'all', name: 'כל העסקים', logo_url: null }].concat(activeBiz);
+        list.innerHTML = rows.map(b => `
+            <div class="biz-drawer-item ${selectedBizFilter == b.group_id ? 'active' : ''}" onclick="csFilterBiz('${b.group_id}');csCloseBizDrawer()">
+                ${b.logo_url ? `<img src="${b.logo_url}">` : '<div style="width:32px;height:32px;border-radius:50%;background:var(--subtle);flex:none;display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--muted)"><i class="fa-solid fa-store"></i></div>'}
+                <span class="biz-drawer-item-name">${csSafe(b.name)}</span>
+                ${b.group_id !== 'all' ? `<span class="biz-drawer-item-count">${counts[b.group_id] || 0}</span>` : ''}
+            </div>`).join('');
+        document.getElementById('biz-drawer-overlay').style.display = 'block';
+    };
+    window.csCloseBizDrawer = function() {
+        document.getElementById('biz-drawer-overlay').style.display = 'none';
+    };
+
+    window.csSearch = function(value) {
+        searchQuery = (value || '').trim().toLowerCase();
+        renderProducts();
+    };
+
     function renderProducts() {
         const grid = document.getElementById('cs-products');
-        const items = selectedBizFilter === 'all'
+        let items = selectedBizFilter === 'all'
             ? campaignData.products
             : campaignData.products.filter(p => String(p.group_id) === String(selectedBizFilter));
+        if (searchQuery) {
+            items = items.filter(p =>
+                (p.name || '').toLowerCase().includes(searchQuery) ||
+                (p.business_name || '').toLowerCase().includes(searchQuery) ||
+                (p.description || '').toLowerCase().includes(searchQuery));
+        }
         if (!items.length) {
-            grid.innerHTML = '<div class="catalog-empty" style="grid-column:1/-1">אין מוצרים להצגה</div>';
+            grid.innerHTML = `<div class="catalog-empty" style="grid-column:1/-1">${searchQuery ? 'לא נמצאו תוצאות לחיפוש' : 'אין מוצרים להצגה'}</div>`;
             return;
         }
         grid.innerHTML = items.map(p => {
