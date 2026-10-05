@@ -11187,7 +11187,7 @@ if (_originalFetchDataForPermsAndLogo && !window.hookedPermsAndLogoFetch) {
             // 2. עדכון הרשאות רציף מול השרת לילדים / בדיקת גיבוי תמונה מהשרת
             if (currentUser && currentUser.id) {
                 const apiPath = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:') ? 'http://localhost:3000/api' : '/api';
-                const res = await fetch(`${apiPath}/data/${currentUser.id}`); 
+                const res = await communityFetch(`${apiPath}/data/${currentUser.id}`);
                 const data = await res.json();
                 
                 // גיבוי תמונה מהשרת למקרה שאין לנו במטמון המקומי
@@ -13303,7 +13303,7 @@ window.loadMemberFeedQuotes = async function() {
     if (!list || !currentGroup) return;
     list.innerHTML = '<p style="font-size:11px;color:#94a3b8;text-align:center;padding:24px;"><i class="fa-solid fa-spinner fa-spin"></i></p>';
     try {
-        const res = await fetch(`${API}/family/quotes/${currentGroup.id}`);
+        const res = await communityFetch(`${API}/store/quotes/family/${currentGroup.id}`);
         const data = await res.json();
         const quotes = data.quotes || [];
         if (!quotes.length) { list.innerHTML = '<p style="font-size:12px;color:#94a3b8;text-align:center;padding:32px;background:#f8fafc;border-radius:12px;border:1px dashed #e2e8f0;">אין הצעות מחיר</p>'; return; }
