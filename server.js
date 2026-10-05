@@ -11956,17 +11956,19 @@ app.post('/api/academy/bundles', async (req, res) => {
 // --- AI ENDPOINTS (ADAPTED FOR FAMILY / BUSINESS) ---
 // ============================================================
 
-app.post('/api/recipes/generate', async (req, res) => {
+app.post('/api/recipes/generate', verifyFamilyOrBiz, async (req, res) => {
     try {
-        const { groupId, mealType, diners, ignorePantry, customIngredients, pantryItems } = req.body;
+        const { mealType, ignorePantry, customIngredients, pantryItems } = req.body;
+        const groupId = req.callerAuth.groupId;
+        const diners = Math.min(50, Math.max(1, parseInt(req.body.diners) || 4));
         const hasTokens = await handleAITokens(groupId);
         if(!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
         if (!getGenAIInstance()) return res.status(500).json({ error: 'מפתח API חסר בשרת' });
 
         const model = getGenAIInstance().getGenerativeModel({ model: "gemini-2.5-flash" });
         let prompt = `You are a professional family chef. Create a delicious recipe in Hebrew for ${diners} people. Meal type: ${mealType}.\n`;
-        if (ignorePantry) prompt += `The user wants to cook using ONLY these specific ingredients: ${customIngredients}.\n`;
-        else prompt += `The user wants to cook using these specific items they have selected from their pantry: ${pantryItems}.\nTry to prioritize using these items. You can assume basic staples (salt, pepper, oil, water) are available.\n`;
+        if (ignorePantry) prompt += `The user wants to cook using ONLY these specific ingredients: ${String(customIngredients || '').substring(0, 500)}.\n`;
+        else prompt += `The user wants to cook using these specific items they have selected from their pantry: ${String(pantryItems || '').substring(0, 500)}.\nTry to prioritize using these items. You can assume basic staples (salt, pepper, oil, water) are available.\n`;
         prompt += `Provide a catchy title, a short warm description, prep time, a clear list of exact ingredients with amounts, and clear numbered instructions. Format the response nicely using simple Markdown. Make it fun and engaging! Make sure to output simple Markdown TEXT, do not output JSON.`;
 
         const result = await model.generateContent(prompt);
