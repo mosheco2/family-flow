@@ -14822,10 +14822,23 @@ app.get('/api/campaign/:code', async (req, res) => {
 // לא דורש לשחזר את כל לוגיקת ה-min/max לכל קבוצה, כמו שגם החנות הרגילה לא עושה)
 function _maxOptionsExtra(optionsText) {
     try {
-        const groups = JSON.parse(optionsText || '[]');
-        if (!Array.isArray(groups)) return 0;
+        const parsed = JSON.parse(optionsText || '[]');
+        // תבנית מורכבת (complex_builder/catering/project) — אובייקט עם steps, לא מערך groups
+        // רגיל. גבול עליון שמרני: לכל שלב - תוספת השלב (stepPrice) + כל אפשרויות השלב (מניח
+        // תרחיש שבו המשתמש בוחר את כל האפשרויות, גם אם בפועל יש הגבלת max לכל שלב) + הכפלה
+        // ב-quantity המקסימלי הסביר (עד 50, למניעת bypass ע"י quantity ענק) - נבדק בנפרד מול
+        // quantity שנשלח בפועל ב-/api/campaign/:code/order.
+        if (parsed && !Array.isArray(parsed) && parsed.isComplex && Array.isArray(parsed.steps)) {
+            let total = 0;
+            parsed.steps.forEach(step => {
+                total += parseFloat(step?.stepPrice) || 0;
+                (step?.options || []).forEach(o => { total += parseFloat(o?.price) || 0; });
+            });
+            return total;
+        }
+        if (!Array.isArray(parsed)) return 0;
         let total = 0;
-        groups.forEach(g => {
+        parsed.forEach(g => {
             const items = g?.options || g?.items || [];
             items.forEach(o => { if (o && typeof o === 'object' && o.price) total += parseFloat(o.price) || 0; });
         });
