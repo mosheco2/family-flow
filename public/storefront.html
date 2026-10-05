@@ -654,6 +654,15 @@
     <script>
         // JS Globals
         const API = window.location.hostname === 'localhost' ? 'http://localhost:3000/api' : '/api';
+        // מימוש Flow coins (ארנק משפחה/קוד הנחה) דורש כעת אימות session — אם המשפחה מחוברת
+        // לאפליקציה הראשית באותו דפדפן (אותו origin), הטוקן זמין ב-localStorage
+        function _flowAuthFetch(url, opts) {
+            opts = opts || {};
+            let token = null;
+            try { token = localStorage.getItem('ofl_family_token'); } catch(e) {}
+            opts.headers = Object.assign({}, opts.headers || {}, token ? { 'Authorization': 'Bearer ' + token } : {});
+            return fetch(url, opts);
+        }
         function _sfImgErr(el) { el.outerHTML = '<div class="w-full h-full bg-slate-100 text-slate-300 rounded-xl flex items-center justify-center shadow-sm"><i class="fa-solid fa-image text-3xl"></i></div>'; }
         let storeData = null;
         let cart = {}; 
@@ -3098,7 +3107,7 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
                 if (hintEl) hintEl.textContent = `${t('כל', 'Every')} 100 Flw = ₪10 ${t('הנחה · מינימום', 'discount · minimum')} 100 Flw`;
                 section.classList.remove('hidden');
             }
-            fetch(`${API}/flow/wallet/family/${familyGroupId}`)
+            _flowAuthFetch(`${API}/flow/wallet/family/${familyGroupId}`)
                 .then(r => r.json())
                 .then(d => {
                     _flowRedeemParams.rate = parseFloat(d.rate || 100);
@@ -3136,7 +3145,7 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
                 const session = JSON.parse(localStorage.getItem('ofl_session'));
                 if (!session || !session.group || session.group.type !== 'FAMILY' || !session.group.id) return;
                 const familyGroupId = session.group.id;
-                fetch(`${API}/flow/wallet/family/${familyGroupId}`)
+                _flowAuthFetch(`${API}/flow/wallet/family/${familyGroupId}`)
                     .then(r => r.json())
                     .then(d => {
                         const bal = parseFloat(d.balance || 0);
@@ -3202,7 +3211,7 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
 
                 // FL* codes — Flow manual redemption codes
                 if (/^FL[A-Z0-9]{6}$/.test(code)) {
-                    const flRes = await fetch(`${API}/flow/redeem/validate`, {
+                    const flRes = await _flowAuthFetch(`${API}/flow/redeem/validate`, {
                         method: 'POST', headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ code, groupId: storeData?.groupId })
                     });
@@ -3517,7 +3526,7 @@ window.updateCart = function(cartKey, delta, name, price, originalCatalogId = nu
                     // Deduct flow coins if redemption was applied
                     if (flowRedeemAmount > 0 && flowFamilyGroupId) {
                         try {
-                            await fetch(`${API}/flow/deduct`, {
+                            await _flowAuthFetch(`${API}/flow/deduct`, {
                                 method: 'POST', headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify({
                                     familyGroupId: flowFamilyGroupId,

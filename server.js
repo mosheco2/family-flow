@@ -20353,6 +20353,9 @@ app.patch('/api/sa/community/bundles/:id', verifySA, async (req, res) => {
                 used_at TIMESTAMP
             );
         `);
+        // מונע יתרה שלילית ברמת ה-DB — הגנת-עומק נוספת מעבר לבדיקת היתרה באפליקציה
+        // (שלבדה חשופה ל-race condition בין שתי בקשות redeem/deduct מקבילות)
+        await pool.query(`ALTER TABLE flow_wallets ADD CONSTRAINT flow_wallets_balance_nonneg CHECK (balance >= 0)`).catch(() => {});
         await pool.query(`
             INSERT INTO flow_config (key, personal_amount, community_amount, description) VALUES
             ('join_community',       15,  5,  'הצטרפות לקהילה חדשה'),
@@ -20568,9 +20571,10 @@ app.post('/api/sa/flow/grant', verifySA, async (req, res) => {
 });
 
 // Family — get personal FLOW wallet
-app.get('/api/flow/wallet/family/:groupId', async (req, res) => {
+app.get('/api/flow/wallet/family/:groupId', verifyFamily, async (req, res) => {
     try {
         const gid = parseInt(req.params.groupId);
+        if (gid !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const [wallet, txs, pastRedeem, cfg] = await Promise.all([
             pool.query(`SELECT balance FROM flow_wallets WHERE entity_type='family' AND entity_id=$1`, [gid]),
             pool.query(`SELECT amount, description, created_at FROM flow_transactions WHERE entity_type='family' AND entity_id=$1 ORDER BY created_at DESC LIMIT 20`, [gid]),
@@ -20586,7 +20590,7 @@ app.get('/api/flow/wallet/family/:groupId', async (req, res) => {
             min_redeem: cfgMap.flow_min_redeem || 100,
             redeem_quarter: cfgMap.flow_redeem_quarter || 0
         });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch(e) { res.status(500).json({ error: 'שגיאה פנימית' }); }
 });
 
 // Business — get FLOW wallet
@@ -20601,23 +20605,33 @@ app.get('/api/flow/wallet/business/:groupId', verifyBiz, async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// Community wallet — visible to members
-app.get('/api/flow/community-wallet/:communityId', async (req, res) => {
+// Community wallet — visible to members בלבד
+app.get('/api/flow/community-wallet/:communityId', verifyFamilyOrBiz, async (req, res) => {
     try {
         const cid = parseInt(req.params.communityId);
+        let isMember = false;
+        if (req.callerAuth.type === 'family') {
+            const mem = await pool.query(`SELECT 1 FROM family_communities WHERE group_id=$1 AND community_id=$2 AND status='approved'`, [req.callerAuth.groupId, cid]);
+            isMember = !!mem.rows.length;
+        } else {
+            const mem = await pool.query(`SELECT 1 FROM community_businesses WHERE business_id=$1 AND community_id=$2 AND status='approved'`, [req.callerAuth.groupId, cid]);
+            isMember = !!mem.rows.length;
+        }
+        if (!isMember) return res.status(403).json({ error: 'אין הרשאה לקהילה זו' });
         const [wallet, txs] = await Promise.all([
             pool.query(`SELECT balance FROM flow_wallets WHERE entity_type='community' AND entity_id=$1`, [cid]),
             pool.query(`SELECT amount, description, created_at FROM flow_transactions WHERE entity_type='community' AND entity_id=$1 ORDER BY created_at DESC LIMIT 20`, [cid])
         ]);
         res.json({ balance: parseFloat(wallet.rows[0]?.balance || 0), transactions: txs.rows });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch(e) { res.status(500).json({ error: 'שגיאה פנימית' }); }
 });
 
 // Family redeems FLOW for a discount code
-app.post('/api/flow/redeem', async (req, res) => {
+app.post('/api/flow/redeem', verifyFamily, async (req, res) => {
     try {
         const { familyGroupId, businessGroupId, flowAmount } = req.body;
         if (!familyGroupId || !businessGroupId || !flowAmount) return res.status(400).json({ error: 'חסרים שדות חובה' });
+        if (parseInt(familyGroupId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const fa = parseFloat(flowAmount);
         if (fa <= 0) return res.status(400).json({ error: 'כמות לא תקינה' });
 
@@ -20627,11 +20641,6 @@ app.post('/api/flow/redeem', async (req, res) => {
         const rateVal = cfgMap.flow_to_ils_rate || 100;
         const minRedeem = cfgMap.flow_min_redeem || 100;
         const redeemQuarter = cfgMap.flow_redeem_quarter || 0;
-
-        // Check balance
-        const wallet = await pool.query(`SELECT balance FROM flow_wallets WHERE entity_type='family' AND entity_id=$1`, [familyGroupId]);
-        const bal = parseFloat(wallet.rows[0]?.balance || 0);
-        if (bal < fa) return res.status(400).json({ error: `אין מספיק Flw (יש לך ${bal} Flw)` });
 
         // מי שמימש בעבר יכול לממש גם ביתרה חלקית (פחות מminRedeem)
         const pastRedeem = await pool.query(`SELECT 1 FROM flow_transactions WHERE entity_type='family' AND entity_id=$1 AND action_key IN ('redeem','store_redeem') LIMIT 1`, [familyGroupId]);
@@ -20661,12 +20670,21 @@ app.post('/api/flow/redeem', async (req, res) => {
         const bizRow = await pool.query(`SELECT name FROM family_groups WHERE id=$1`, [businessGroupId]);
         const bizName = bizRow.rows[0]?.name || 'עסק';
 
-        // Deduct family balance
+        // ניכוי אטומי מותנה ביתרה — מונע race condition/double-spend בין בקשות מקבילות
+        // (ה-WHERE balance>=$1 הוא הבדיקה האמיתית; ה-SELECT הקודם שימש רק להודעת שגיאה ידידותית)
         const code = 'FL' + Math.random().toString(36).substring(2,8).toUpperCase();
         const bizEarn = Math.floor(fa / 3);
 
+        const deductRes = await pool.query(
+            `UPDATE flow_wallets SET balance=balance-$1, updated_at=NOW() WHERE entity_type='family' AND entity_id=$2 AND balance>=$1 RETURNING balance`,
+            [fa, familyGroupId]);
+        if (!deductRes.rows.length) {
+            const walletNow = await pool.query(`SELECT balance FROM flow_wallets WHERE entity_type='family' AND entity_id=$1`, [familyGroupId]);
+            const bal = parseFloat(walletNow.rows[0]?.balance || 0);
+            return res.status(400).json({ error: `אין מספיק Flw (יש לך ${bal} Flw)` });
+        }
+
         await Promise.all([
-            pool.query(`UPDATE flow_wallets SET balance=balance-$1, updated_at=NOW() WHERE entity_type='family' AND entity_id=$2`, [fa, familyGroupId]),
             pool.query(`INSERT INTO flow_transactions (entity_type, entity_id, amount, action_key, description) VALUES ('family',$1,$2,'redeem',$3)`, [familyGroupId, -fa, `מימוש הנחה ב${bizName} — קוד ${code}`]),
             pool.query(`INSERT INTO flow_redemptions (family_group_id, business_group_id, flow_amount, discount_ils, discount_code, expires_at) VALUES ($1,$2,$3,$4,$5,$6)`, [familyGroupId, businessGroupId, fa, discountIls, code, expiresAt]),
         ]);
@@ -20680,37 +20698,36 @@ app.post('/api/flow/redeem', async (req, res) => {
         }
 
         res.json({ success: true, code, discountIls, flowSpent: fa, expiresAt });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch(e) { res.status(500).json({ error: 'שגיאה פנימית' }); }
 });
 
 // Validate and consume a FL* manual redemption code (used in storefront coupon field)
-app.post('/api/flow/redeem/validate', async (req, res) => {
+app.post('/api/flow/redeem/validate', verifyFamilyOrBiz, async (req, res) => {
     try {
-        const { code, groupId } = req.body;
+        const { code } = req.body;
         if (!code) return res.status(400).json({ error: 'חסר קוד' });
         const r = await pool.query(`SELECT * FROM flow_redemptions WHERE discount_code=$1 AND (status IS NULL OR status='pending')`, [code]);
         if (!r.rows[0]) return res.status(400).json({ error: 'קוד לא תקין או כבר נוצל' });
         const red = r.rows[0];
         if (red.expires_at && new Date(red.expires_at) < new Date()) return res.status(400).json({ error: 'קוד פג תוקף' });
-        if (red.business_group_id && groupId && String(red.business_group_id) !== String(groupId)) {
-            return res.status(400).json({ error: 'קוד לא תקף לחנות זו' });
-        }
-        await pool.query(`UPDATE flow_redemptions SET status='used', used_at=NOW() WHERE discount_code=$1`, [code]);
+        // רק המשפחה שיצרה את הקוד או העסק שעבורו נוצר רשאים להשתמש בו
+        const callerMatches = (req.callerAuth.type === 'family' && parseInt(red.family_group_id) === req.callerAuth.groupId)
+            || (req.callerAuth.type === 'business' && parseInt(red.business_group_id) === req.callerAuth.groupId);
+        if (!callerMatches) return res.status(403).json({ error: 'קוד לא תקף עבורך' });
+        const used = await pool.query(`UPDATE flow_redemptions SET status='used', used_at=NOW() WHERE discount_code=$1 AND (status IS NULL OR status='pending') RETURNING id`, [code]);
+        if (!used.rows.length) return res.status(400).json({ error: 'קוד לא תקין או כבר נוצל' });
         res.json({ success: true, discountIls: parseFloat(red.discount_ils), flowAmount: parseFloat(red.flow_amount) });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch(e) { res.status(500).json({ error: 'שגיאה פנימית' }); }
 });
 
 // Direct flow deduction (used after storefront order with coin discount)
-app.post('/api/flow/deduct', async (req, res) => {
+app.post('/api/flow/deduct', verifyFamily, async (req, res) => {
     try {
         const { familyGroupId, amount, description, businessGroupId, orderId } = req.body;
         if (!familyGroupId || !amount) return res.status(400).json({ error: 'חסרים שדות חובה' });
+        if (parseInt(familyGroupId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const fa = parseFloat(amount);
         if (fa <= 0) return res.status(400).json({ error: 'כמות לא תקינה' });
-
-        const wallet = await pool.query(`SELECT balance FROM flow_wallets WHERE entity_type='family' AND entity_id=$1`, [familyGroupId]);
-        const bal = parseFloat(wallet.rows[0]?.balance || 0);
-        if (bal < fa) return res.status(400).json({ error: `אין מספיק Flw (יש ${bal})` });
 
         // Build description with business name from DB (ignore client-provided description)
         let finalDesc, bizNameForCredit = 'חנות';
@@ -20724,10 +20741,18 @@ app.post('/api/flow/deduct', async (req, res) => {
 
         const bizEarnDeduct = businessGroupId ? Math.floor(fa / 3) : 0;
 
-        await Promise.all([
-            pool.query(`UPDATE flow_wallets SET balance=balance-$1, updated_at=NOW() WHERE entity_type='family' AND entity_id=$2`, [fa, familyGroupId]),
-            pool.query(`INSERT INTO flow_transactions (entity_type, entity_id, amount, action_key, description) VALUES ('family',$1,$2,'store_redeem',$3)`, [familyGroupId, -fa, finalDesc]),
-        ]);
+        // ניכוי אטומי מותנה ביתרה — מונע race condition/double-spend
+        const deductRes = await pool.query(
+            `UPDATE flow_wallets SET balance=balance-$1, updated_at=NOW() WHERE entity_type='family' AND entity_id=$2 AND balance>=$1 RETURNING balance`,
+            [fa, familyGroupId]);
+        if (!deductRes.rows.length) {
+            const walletNow = await pool.query(`SELECT balance FROM flow_wallets WHERE entity_type='family' AND entity_id=$1`, [familyGroupId]);
+            const bal = parseFloat(walletNow.rows[0]?.balance || 0);
+            return res.status(400).json({ error: `אין מספיק Flw (יש ${bal})` });
+        }
+        const remaining = parseFloat(deductRes.rows[0].balance);
+
+        await pool.query(`INSERT INTO flow_transactions (entity_type, entity_id, amount, action_key, description) VALUES ('family',$1,$2,'store_redeem',$3)`, [familyGroupId, -fa, finalDesc]);
 
         // Credit business wallet: 1 coin per 3 redeemed by customer
         if (bizEarnDeduct > 0) {
@@ -20737,15 +20762,16 @@ app.post('/api/flow/deduct', async (req, res) => {
             await pool.query(`INSERT INTO flow_transactions (entity_type, entity_id, amount, action_key, description) VALUES ('business',$1,$2,'customer_redeem',$3)`, [businessGroupId, bizEarnDeduct, `צבירה ממימוש — ${famNameD} (${fa} Flw)${orderId ? ` הזמנה #${orderId}` : ''}`]);
         }
 
-        res.json({ success: true, deducted: fa, remaining: bal - fa });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+        res.json({ success: true, deducted: fa, remaining });
+    } catch(e) { res.status(500).json({ error: 'שגיאה פנימית' }); }
 });
 
 // Family daily login reward
-app.post('/api/flow/daily-login', async (req, res) => {
+app.post('/api/flow/daily-login', verifyFamily, async (req, res) => {
     try {
         const { groupId } = req.body;
         if (!groupId) return res.status(400).json({ error: 'חסר groupId' });
+        if (parseInt(groupId) !== req.familyAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         // Check if already awarded today
         const today = await pool.query(
             `SELECT id FROM flow_transactions WHERE entity_type='family' AND entity_id=$1 AND action_key='daily_login' AND created_at::date=CURRENT_DATE`,
@@ -20753,7 +20779,7 @@ app.post('/api/flow/daily-login', async (req, res) => {
         if (today.rows.length) return res.json({ success: false, reason: 'כבר קיבלת Flw היום' });
         await awardFlow('family', groupId, 'daily_login', null, null);
         res.json({ success: true });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch(e) { res.status(500).json({ error: 'שגיאה פנימית' }); }
 });
 
 // SA — list active redemption codes
@@ -20770,13 +20796,16 @@ app.get('/api/sa/flow/redemptions', verifySA, async (req, res) => {
 });
 
 // Business marks a redemption code as used
-app.post('/api/flow/redemptions/:code/use', async (req, res) => {
+app.post('/api/flow/redemptions/:code/use', verifyBiz, async (req, res) => {
     try {
-        const r = await pool.query(`SELECT * FROM flow_redemptions WHERE discount_code=$1 AND status='active'`, [req.params.code.toUpperCase()]);
+        const code = req.params.code.toUpperCase();
+        const r = await pool.query(`SELECT * FROM flow_redemptions WHERE discount_code=$1 AND status='active'`, [code]);
         if (!r.rows.length) return res.status(404).json({ error: 'קוד לא תקין או כבר מומש' });
-        await pool.query(`UPDATE flow_redemptions SET status='used', used_at=NOW() WHERE discount_code=$1`, [req.params.code.toUpperCase()]);
-        res.json({ success: true, discountIls: r.rows[0].discount_ils });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+        if (parseInt(r.rows[0].business_group_id) !== req.bizAuth.groupId) return res.status(403).json({ error: 'קוד לא תקף לעסק זה' });
+        const used = await pool.query(`UPDATE flow_redemptions SET status='used', used_at=NOW() WHERE discount_code=$1 AND status='active' RETURNING discount_ils`, [code]);
+        if (!used.rows.length) return res.status(404).json({ error: 'קוד לא תקין או כבר מומש' });
+        res.json({ success: true, discountIls: used.rows[0].discount_ils });
+    } catch(e) { res.status(500).json({ error: 'שגיאה פנימית' }); }
 });
 
 // Family redeems a community promotion (marks it as used → FLOW to family + biz + community)

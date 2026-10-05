@@ -7317,7 +7317,7 @@ async function loadFamilyFlowWallet() {
     if (!currentGroup || currentGroup.type !== 'FAMILY') return;
     if (currentUser && currentUser.role !== 'ADMIN') return;
     try {
-        const res = await fetch(`${API}/flow/wallet/family/${currentGroup.id}`);
+        const res = await communityFetch(`${API}/flow/wallet/family/${currentGroup.id}`);
         if (!res.ok) return;
         const data = await res.json();
         const prevBal = familyFlowBalance;
@@ -7327,7 +7327,7 @@ async function loadFamilyFlowWallet() {
         familyFlowRedeemQuarter = data.redeem_quarter || 0;
 
         // Daily login reward
-        fetch(`${API}/flow/daily-login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ groupId: currentGroup.id }) }).catch(() => {});
+        communityFetch(`${API}/flow/daily-login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ groupId: currentGroup.id }) }).catch(() => {});
 
         // Update FLOW badge in news tab button
         const flowBadge = getEl('comm-news-flow-badge');
@@ -7417,7 +7417,7 @@ function renderFlowWalletContent(data) {
             return `
         <div class="flex justify-between items-center text-xs py-2 border-b border-slate-100">
             <div>
-                <span class="text-slate-600">${safeStr(t.description || '')}</span>
+                <span class="text-slate-600">${escHtml(t.description || '')}</span>
                 ${dateStr ? `<div class="text-[10px] text-slate-400 mt-0.5">${dateStr}</div>` : ''}
             </div>
             <span class="font-bold shrink-0 mr-2 ${t.amount > 0 ? 'text-green-600' : 'text-red-500'}">${t.amount > 0 ? '+' : ''}${parseFloat(t.amount).toFixed(0)} Flw</span>
@@ -7446,7 +7446,7 @@ window.openFlowWalletModal = async function() {
     </div>`;
     document.body.appendChild(modal);
     try {
-        const res = await fetch(`${API}/flow/wallet/family/${currentGroup.id}`);
+        const res = await communityFetch(`${API}/flow/wallet/family/${currentGroup.id}`);
         const data = await res.json();
         renderFlowWalletContent(data);
     } catch(e) { document.getElementById('flow-wallet-content').innerHTML = '<p class="text-red-500 text-sm text-center py-6">שגיאה בטעינת הארנק</p>'; }
@@ -7621,7 +7621,7 @@ window.submitFlowRedeem = async function() {
     if (!flowAmt || flowAmt < minR) { showToast && showToast('error',`מינימום ${minR} Flw`); return; }
     if (flowAmt > familyFlowBalance) { showToast && showToast('error','אין מספיק Flw בארנק'); return; }
     try {
-        const res = await fetch(`${API}/flow/redeem`, {
+        const res = await communityFetch(`${API}/flow/redeem`, {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ familyGroupId: currentGroup.id, businessGroupId: bizId, flowAmount: flowAmt })
         });

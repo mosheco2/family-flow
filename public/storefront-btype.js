@@ -66,6 +66,13 @@
   // Helpers
   // ----------------------------------------------------------
   function _getAPI() { return window.API || '/api'; }
+  function _flowAuthFetch(url, opts) {
+    opts = opts || {};
+    var token = null;
+    try { token = localStorage.getItem('ofl_family_token'); } catch(e) {}
+    opts.headers = Object.assign({}, opts.headers || {}, token ? { 'Authorization': 'Bearer ' + token } : {});
+    return fetch(url, opts);
+  }
 
   function _showEl(id) {
     var el = document.getElementById(id);
@@ -108,7 +115,7 @@
         if (hintEl) hintEl.textContent = 'כל 100 Flw = ₪10 הנחה · מינימום 100 Flw';
         _showEl('flow-redeem-section');
       }
-      fetch(_getAPI() + '/flow/wallet/family/' + familyGroupId)
+      _flowAuthFetch(_getAPI() + '/flow/wallet/family/' + familyGroupId)
         .then(function (r) { return r.json(); })
         .then(function (d) {
           p.rate = parseFloat(d.rate || 100);
@@ -178,7 +185,7 @@
       var session = JSON.parse(localStorage.getItem('ofl_session'));
       if (!session || !session.group || session.group.type !== 'FAMILY' || !session.group.id) return;
       var familyGroupId = session.group.id;
-      fetch(_getAPI() + '/flow/wallet/family/' + familyGroupId)
+      _flowAuthFetch(_getAPI() + '/flow/wallet/family/' + familyGroupId)
         .then(function (r) { return r.json(); })
         .then(function (d) {
           var bal = parseFloat(d.balance || 0);

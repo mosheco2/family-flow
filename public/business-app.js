@@ -17768,7 +17768,7 @@ window.openBizFlowWallet = async function() {
                 const icon = isCustomer ? '🪙' : (t.amount > 0 ? '⬆️' : '⬇️');
                 const amtColor = t.amount > 0 ? 'text-green-600' : 'text-red-500';
                 return `<div class="flex justify-between items-center text-xs py-2 ${rowBg}">
-                    <span class="text-slate-600 leading-snug">${icon} ${safeStr(t.description || '')}</span>
+                    <span class="text-slate-600 leading-snug">${icon} ${escHtml(t.description || '')}</span>
                     <span class="font-bold ${amtColor} shrink-0 mr-2">${t.amount > 0 ? '+' : ''}${parseFloat(t.amount).toFixed(0)} Flw</span>
                 </div>`;
             }).join('') : '<p class="text-xs text-slate-400 text-center py-4">אין פעילות עדיין</p>'}
@@ -17791,7 +17791,7 @@ window.bizVerifyFlowCode = async function() {
     result.classList.remove('hidden');
     result.innerHTML = '<p class="text-xs text-slate-400">בודק...</p>';
     try {
-        const res = await fetch(`${API}/flow/redemptions/${code}/use`, { method: 'POST' });
+        const res = await fetch(`${API}/flow/redemptions/${code}/use`, { method: 'POST', headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } });
         const data = await res.json();
         if (data.success) {
             launchFlowConfetti();

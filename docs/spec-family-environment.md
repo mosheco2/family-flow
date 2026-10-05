@@ -971,6 +971,88 @@ CHILD** (נבדק מול `role` האמיתי של המשתמש שהתחבר, ל�
 
 ---
 
+### 3.12.2 Flow Coins — ארנק משפחה (מטבע פנימי, Gamification)
+
+> עודכן: 2026-10 | אומת מול קוד בפועל (server.js + public/app.js + public/business-app.js +
+> public/storefront.html + public/storefront-btype.js) כחלק מתהליך אפיון עומק.
+> **נכון לגרסה שלפני אוקטובר 2026 — רוב ה-endpoints של ליבת מערכת ה-Flow (יתרה, מימוש,
+> ניכוי, בונוס יומי) היו ללא כל אימות, כולל שניים שאיפשרו רוקנות/שינוי ישיר של יתרת כל
+> משפחה אחרת.** כולם תוקנו, כולל סגירת חלון מרוץ (race condition) אפשרי בין בקשות מקבילות.
+
+**מטרה:** מטבע משחקי פנימי ("Flw") שמוענק על פעילות חיובית במערכת (הצטרפות לקהילה, הפניית
+חבר, יצירה/הצטרפות ל-FlowPool, כתיבת ביקורת, מימוש הטבת קהילה ועוד — ר' `flow_config`),
+ושניתן למימוש כקוד הנחה אצל עסקים. **Flow אינו מומר ישירות לכסף אמיתי/ליתרת המשפחה הרגילה**
+— המרה היחידה שקיימת היא יצירת קוד הנחה (`flow_redemptions`) שעסק מקבל ידנית בקופה/בהזמנה.
+
+**`awardFlow(entityType, entityId, actionKey, communityId, referenceId)`** — פונקציה פנימית
+בלבד (**אינה** חשופה כ-endpoint ללקוח, ואומת שאין נתיב שקורא לה ישירות). קוראת `flow_config`
+לפי `actionKey`, מזכה `flow_wallets` (UPSERT), ורושמת `flow_transactions`. **אין בה הגנת
+dedup גנרית** — מניעת זיכוי כפול תלויה בכל endpoint קורא בנפרד (חלקם כן בודקים, למשל
+`daily_login` בודק תאריך; חלקם לא, כמו `pool_join`/`pool_create`/`bundle_purchase`).
+
+**ארנק משפחה — UI:** מודאל ייעודי (`openFlowWalletModal`/`renderFlowWalletContent`) מציג
+יתרה, שווי משוער בש"ח, היסטוריית 20 התנועות האחרונות, וכפתורי מימוש (קוד הנחה ידני / מימוש
+ישיר בחנות עסק). נגיש גם מתוך דף הבית (widget יתרה) ומה-storefront הציבורי של עסקים (לצורך
+החלת הנחת Flow בקופה, דרך `familyGroupId`+`flowRedeem` ב-URL).
+
+**API:**
+| Method | Path | תיאור |
+|---|---|---|
+| GET | `/api/flow/wallet/family/:groupId` | יתרה + 20 תנועות אחרונות + קונפיג מימוש (ADMIN/כל חבר משפחה) |
+| GET | `/api/flow/wallet/business/:groupId` | יתרה+תנועות ארנק עסקי |
+| GET | `/api/flow/community-wallet/:communityId` | יתרה+תנועות ארנק קהילה (חברי הקהילה בלבד) |
+| POST | `/api/flow/redeem` | מימוש Flw → קוד הנחה (`FLxxxxxx`) לעסק נבחר |
+| POST | `/api/flow/redeem/validate` | אימוש קוד הנחה ידני בקופה/בצ'קאאוט |
+| POST | `/api/flow/deduct` | ניכוי ישיר לאחר הזמנה בחנות עם הנחת Flow |
+| POST | `/api/flow/redemptions/:code/use` | עסק מסמן קוד כ"נוצל" |
+| POST | `/api/flow/daily-login` | בונוס התחברות יומי (פעם ביום, נבדק בשרת) |
+| GET/PUT/POST | `/api/sa/flow/*` | ניהול/קונפיג/דוחות Flow — Super-Admin בלבד |
+
+**טבלאות:** `flow_config` (מגדיר `personal_amount`/`community_amount` לכל `action_key`),
+`flow_wallets` (`entity_type`,`entity_id`,`balance`, UNIQUE לזוג), `flow_transactions`
+(לוג היסטוריה), `flow_redemptions` (קודי הנחה: `family_group_id`,`business_group_id`,
+`flow_amount`,`discount_ils`,`discount_code`,`status`,`expires_at`).
+
+**הערה היסטורית (תועד למען שקיפות)**: עד לתיקון —
+1. **`GET /api/flow/wallet/family/:groupId` — ללא כל אימות.** חשף יתרה+היסטוריית תנועות
+   Flow (כולל תיאורים עם שמות עסקים) של כל משפחה במערכת, לכל גולש לא-מחובר לפי `groupId`
+   נחוש. תוקן: נוספה `verifyFamily` + בדיקת `groupId` מול session.
+2. **`POST /api/flow/redeem` — ללא כל אימות.** `familyGroupId` הגיע מה-body בלבד — כל אחד
+   יכול היה לרוקן יתרת Flow של **כל משפחה אחרת** ולקבל בעצמו קוד הנחה לשימוש אישי. תוקן:
+   `verifyFamily` + בדיקת `familyGroupId===req.familyAuth.groupId`.
+3. **`POST /api/flow/deduct` — ללא כל אימות.** אותה בעיה בדיוק — ניכוי ישיר מיתרת משפחה
+   שרירותית, כולל זיכוי Flow לעסק שרירותי על חשבון הקורבן. תוקן באותו אופן.
+4. **`POST /api/flow/daily-login` — ללא אימות**, `groupId` חופשי מה-body. תוקן.
+5. **`POST /api/flow/redeem/validate` ו-`POST /api/flow/redemptions/:code/use` — ללא אימות
+   כלל**, ואף ללא בדיקה שהקוד שייך בכלל למבקש — כל מי שידע/ניחש קוד (`FL`+6 תווים) יכול
+   היה לממש/לסמן אותו כנוצל ולקבל את שווי ההנחה, גם אם לא שלו. תוקן: שניהם דורשים כעת
+   session (`verifyFamilyOrBiz`/`verifyBiz` בהתאמה) + בדיקה שהקוד שייך בפועל למשפחה/לעסק
+   המבקשים (לפי `family_group_id`/`business_group_id` השמורים ב-`flow_redemptions`).
+6. **Race condition / double-spend אפשרי** — הבדיקה "האם יש מספיק יתרה" וההפחתה בפועל
+   התבצעו כשתי פעולות DB נפרדות (`SELECT` ואז `UPDATE`), ללא טרנזקציה אטומית — שתי בקשות
+   `redeem`/`deduct` מקבילות יכלו לעבור את הבדיקה בו-זמנית ולגרום ליתרה שלילית בפועל. תוקן
+   בשתי דרכים משלימות: (א) ה-`UPDATE` עצמו הפך לתנאי אטומי יחיד
+   (`WHERE balance>=$1 RETURNING balance`, במקום SELECT נפרד ואז UPDATE ללא תנאי) — כך
+   שה-DB עצמו, לא האפליקציה, קובע אם הניכוי מתבצע; (ב) נוספה הגנת-עומק ברמת הסכמה:
+   `CHECK (balance >= 0)` על `flow_wallets.balance`, כך שגם במקרה קצה בלתי צפוי ה-DB יחסום
+   יתרה שלילית.
+7. **Stored XSS פוטנציאלי** — תיאור תנועת Flow (יכול לכלול שם עסק/משפחה שהמשתמש קבע בעצמו)
+   הוצג דרך `safeStr` (לא בורח `<`/`>`) בתוך `innerHTML` במודאל הארנק (גם בעותק המקביל בצד
+   העסק). תוקן ל-`escHtml` בשני המקומות.
+8. דליפת `e.message` גולמי בכל endpoints ה-Flow — תוקן להודעות כלליות בעברית.
+9. **עדכון קריאות client נדרש בכל מקום שהמודול נגיש**: מלבד `app.js`/`business-app.js`
+   (תוקנו דרך `communityFetch`/`Authorization` header רגיל), גם `storefront.html` ו-
+   `storefront-btype.js` — דפים ציבוריים שה-family עשוי לגשת אליהם ללא session של האפליקציה
+   הראשית פתוחה — עודכנו עם פונקציית `_flowAuthFetch` ייעודית שקוראת את טוקן המשפחה
+   מ-`localStorage` (אותו origin) ומצרפת אותו אם קיים, כדי שלא לשבור את זרימת מימוש ה-Flow
+   בחנות הציבורית.
+
+**מגבלות ידועות (לא תוקנו — חומרה נמוכה/מידע ציבורי)**: `GET /api/flow/community-wallet/:id`
+תוקן לדרוש חברות בקהילה, אך לא נמצא בקוד אף קורא פעיל לו כיום (endpoint לא בשימוש בפועל).
+אין rate limiting ייעודי על אף endpoint של Flow (כולל קודי הנחה שניתן לנסות לנחש).
+
+---
+
 ### 3.13 ניהול הבית (`content-home-maintenance`)
 
 > עודכן: 2026-10 | אומת מול קוד בפועל (server.js + public/app.js) כחלק מתהליך אפיון עומק.
