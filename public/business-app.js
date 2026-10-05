@@ -4475,7 +4475,7 @@ if(data.group) {
 
         try {
             const limit = 200; const queryUserId = currentUser.role === 'ADMIN' ? 'all' : currentUser.id;
-            const transRes = await fetch(`${API}/transactions?groupId=${currentGroup.id}&userId=${queryUserId}&limit=${limit}`);
+            const transRes = await fetch(`${API}/transactions?groupId=${currentGroup.id}&userId=${queryUserId}&limit=${limit}`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } });
             if(transRes.ok) { 
                 let transData = await transRes.json(); 
                 allTransactions = transData.transactions || (Array.isArray(transData) ? transData : []); 
@@ -6738,7 +6738,7 @@ async function renderCashflow() {
         const fromStr = cutoffDate.toISOString().split('T')[0];
         try {
             const queryUserId = currentUser.role === 'ADMIN' ? 'all' : currentUser.id;
-            const r = await fetch(`${API}/transactions?groupId=${currentGroup.id}&userId=${queryUserId}&from=${fromStr}`);
+            const r = await fetch(`${API}/transactions?groupId=${currentGroup.id}&userId=${queryUserId}&from=${fromStr}`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } });
             if (r.ok) { const d = await r.json(); sourceRows = Array.isArray(d) ? d : (d.transactions || allTransactions); }
         } catch(e) {}
     }
@@ -7790,7 +7790,7 @@ window.exportShopToWhatsApp = function() {
 window.fetchBudget = async function() {
     const cat = currentUser.role === 'ADMIN' ? (val('budget-filter') || 'all') : currentUser.id;
     try {
-        const res = await fetch(`${API}/budget/filter?groupId=${currentGroup.id}&targetUserId=${cat}`); 
+        const res = await fetch(`${API}/budget/filter?groupId=${currentGroup.id}&targetUserId=${cat}`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } }); 
         let data = await res.json(); if (!Array.isArray(data)) data = []; 
         const list = getEl('budget-list'); 
         if(!list) return; // הגנה
