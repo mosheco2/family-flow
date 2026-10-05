@@ -106,7 +106,15 @@ const DEMO_ADMIN_EMAIL = 'demo.family.weflowz@example.com';
 // התלויות בה שאין להן ON DELETE CASCADE אמיתי בסכמה (למשל store_orders -
 // family_group_id הוא עמודה רגילה בלי FK בפועל).
 async function cleanupPreviousDemoFamily(client) {
-  const prev = await client.query(`SELECT id, name, group_code FROM family_groups WHERE LOWER(admin_email)=$1 AND type='FAMILY'`, [DEMO_ADMIN_EMAIL]);
+  // מזהים לפי admin_email המקורי *וגם* לפי group_code הקבוע/family_nickname -
+  // כי admin_email עלול להשתנות בין הרצות (למשל אם נערך ידנית ב-SA לצורך
+  // בדיקה, כפי שקרה בפועל), ואז זיהוי לפי admin_email בלבד משאיר רשומה
+  // יתומה שתופסת את ה-group_code הקבוע לצמיתות.
+  const prev = await client.query(
+    `SELECT id, name, group_code FROM family_groups
+     WHERE type='FAMILY' AND (LOWER(admin_email)=$1 OR group_code=$2 OR family_nickname='משפחת הדמו')`,
+    [DEMO_ADMIN_EMAIL, FIXED_GROUP_CODE]
+  );
   if (prev.rows.length === 0) { console.log('✓ אין משפחת-דמו קודמת לניקוי.'); return; }
   for (const row of prev.rows) {
     console.log(`… מנקה משפחת-דמו קודמת: id=${row.id}, name="${row.name}", group_code=${row.group_code}`);
