@@ -8476,43 +8476,114 @@ async function cmToggleCampaignBusiness(campaignId, groupId, checked, commId) {
 
 // המוצרים נבחרים ע"י העסק עצמו (ר' POST /api/biz/market-campaigns/:id/products) -
 // כאן מנהל הקהילה רק מאשר/דוחה את מה שהוקצה, ויכול להסיר מוצר שכבר אושר (takedown)
+// ═══════════ סקירת מוצרים — מסך גדול ייעודי (overlay במקום תיבת הצד הצרה) ═══════════
+const _cmReview = { campaignId: null, commId: null, products: [], statusFilter: 'pending', bizFilter: 'all' };
+
+function _cmEnsureReviewModal() {
+    if (document.getElementById('cm-review-overlay')) return;
+    const el = document.createElement('div');
+    el.id = 'cm-review-overlay';
+    el.style.cssText = 'position:fixed;inset:0;z-index:99999;display:none;background:rgba(15,23,42,.6);backdrop-filter:blur(2px);direction:rtl;padding:16px;';
+    el.innerHTML = `
+    <div style="background:#fff;border-radius:22px;width:100%;max-width:1100px;height:calc(100vh - 32px);margin:0 auto;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.3);overflow:hidden;">
+        <div style="padding:16px 20px;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;">
+            <h3 style="font-weight:900;font-size:16px;color:#1e293b;margin:0;">🔍 סקירת מוצרי שוק</h3>
+            <button onclick="cmCloseProductsReview()" style="color:#94a3b8;font-size:20px;background:none;border:none;cursor:pointer;">✕</button>
+        </div>
+        <div style="padding:12px 20px;border-bottom:1px solid #f1f5f9;flex-shrink:0;display:flex;flex-direction:column;gap:10px;">
+            <div id="cm-review-status-tabs" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
+            <select id="cm-review-biz-filter" onchange="cmSetReviewBizFilter(this.value)" style="border:1px solid #e2e8f0;border-radius:10px;padding:7px 10px;font-size:12px;max-width:260px;"></select>
+        </div>
+        <div id="cm-review-body" style="flex:1;overflow-y:auto;padding:16px 20px;"></div>
+    </div>`;
+    el.addEventListener('click', e => { if (e.target === el) cmCloseProductsReview(); });
+    document.body.appendChild(el);
+}
+
+window.cmCloseProductsReview = function() {
+    const el = document.getElementById('cm-review-overlay');
+    if (el) el.style.display = 'none';
+};
+
 async function cmOpenProductsReview(campaignId, commId) {
-    const box = document.getElementById(`cm-campaigns-${commId}`);
-    if (!box) return;
-    box.innerHTML = '<p class="text-slate-400 text-sm text-center py-3"><i class="fa-solid fa-spinner fa-spin mr-1"></i>טוען...</p>';
+    _cmEnsureReviewModal();
+    _cmReview.campaignId = campaignId;
+    _cmReview.commId = commId;
+    _cmReview.statusFilter = 'pending';
+    _cmReview.bizFilter = 'all';
+    document.getElementById('cm-review-overlay').style.display = 'block';
+    document.getElementById('cm-review-body').innerHTML = '<p class="text-slate-400 text-sm text-center py-6"><i class="fa-solid fa-spinner fa-spin mr-1"></i>טוען...</p>';
     try {
         const res = await communityFetch(`${API}/community/manager/campaigns/${campaignId}/products-review`);
         const data = await res.json();
-        if (!data.success) { box.innerHTML = `<p class="text-red-400 text-sm text-center py-3">${safeStr(data.error||'שגיאה')}</p>`; return; }
-        const statusLabel = { pending: 'ממתין לאישור', approved: 'אושר', rejected: 'נדחה' };
-        const statusCls = { pending: 'border-amber-200 bg-amber-50', approved: 'border-emerald-200 bg-emerald-50', rejected: 'border-red-200 bg-red-50' };
-        box.innerHTML = `
-        <button onclick="cmOpenCampaignManage(${campaignId}, ${commId})" class="text-xs text-slate-500 hover:text-slate-700 mb-2"><i class="fa-solid fa-arrow-right ml-1"></i>חזרה לקמפיין</button>
-        <p class="text-xs font-bold text-slate-600 mb-1.5">מוצרים שעסקים הקצו לשוק הזה</p>
-        <div class="space-y-1.5 max-h-80 overflow-y-auto modal-scroll pr-1">
-        ${(data.products||[]).map(p => `
-            <div class="border ${statusCls[p.approval_status] || 'border-slate-100 bg-white'} rounded-lg p-2.5">
-                <div class="flex justify-between items-start gap-2">
-                    <div class="min-w-0">
-                        <p class="text-xs font-bold text-slate-700 truncate">${safeStr(p.product_name)}</p>
-                        <p class="text-[10px] text-slate-400">${safeStr(p.business_name)} · מחיר לשוק: ₪${p.price_override != null ? p.price_override : p.base_price}${p.price_override != null ? ` (קטלוג: ₪${p.base_price})` : ''}</p>
-                    </div>
-                    <span class="shrink-0 text-[10px] font-bold text-slate-500">${statusLabel[p.approval_status] || p.approval_status}</span>
-                </div>
-                <div class="flex gap-1 mt-2">
-                    ${p.approval_status === 'pending' ? `
-                        <button onclick="cmReviewCampaignProduct(${campaignId}, ${p.business_group_id}, ${p.catalog_id}, 'approve', ${commId})" class="flex-1 bg-emerald-600 text-white text-[10px] font-bold py-1.5 rounded-lg">אשר</button>
-                        <button onclick="cmReviewCampaignProduct(${campaignId}, ${p.business_group_id}, ${p.catalog_id}, 'reject', ${commId})" class="flex-1 bg-white text-slate-500 border border-slate-200 text-[10px] font-bold py-1.5 rounded-lg">דחה</button>
-                    ` : `
-                        <button onclick="cmRemoveCampaignProduct(${campaignId}, ${p.catalog_id}, ${commId})" class="flex-1 bg-white text-red-500 border border-red-100 text-[10px] font-bold py-1.5 rounded-lg">הסר מהשוק</button>
-                    `}
-                </div>
-            </div>`).join('') || '<p class="text-slate-400 text-xs text-center py-3">אין עדיין מוצרים שהוקצו לשוק הזה</p>'}
-        </div>`;
-    } catch(e) { box.innerHTML = '<p class="text-red-400 text-sm text-center py-3">שגיאת רשת</p>'; }
+        if (!data.success) { document.getElementById('cm-review-body').innerHTML = `<p class="text-red-400 text-sm text-center py-6">${safeStr(data.error||'שגיאה')}</p>`; return; }
+        _cmReview.products = data.products || [];
+        cmRenderProductsReview();
+    } catch(e) { document.getElementById('cm-review-body').innerHTML = '<p class="text-red-400 text-sm text-center py-6">שגיאת רשת</p>'; }
 }
 
-async function cmReviewCampaignProduct(campaignId, groupId, catalogId, action, commId) {
+window.cmSetReviewStatusFilter = function(status) { _cmReview.statusFilter = status; cmRenderProductsReview(); };
+window.cmSetReviewBizFilter = function(bizId) { _cmReview.bizFilter = bizId; cmRenderProductsReview(); };
+
+function cmRenderProductsReview() {
+    const { products, statusFilter, bizFilter } = _cmReview;
+    const statusLabel = { pending: 'ממתין לאישור', approved: 'אושר', rejected: 'נדחה' };
+
+    // טאבי סטטוס עם ספירה
+    const counts = { all: products.length, pending: 0, approved: 0, rejected: 0 };
+    products.forEach(p => { counts[p.approval_status] = (counts[p.approval_status] || 0) + 1; });
+    const tabsEl = document.getElementById('cm-review-status-tabs');
+    const tabDefs = [['pending', 'ממתינים'], ['approved', 'מאושרים'], ['rejected', 'נדחו'], ['all', 'הכל']];
+    tabsEl.innerHTML = tabDefs.map(([key, label]) => {
+        const active = statusFilter === key;
+        return `<button onclick="cmSetReviewStatusFilter('${key}')" style="padding:7px 14px;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;border:1px solid ${active ? '#4f46e5' : '#e2e8f0'};background:${active ? '#4f46e5' : '#fff'};color:${active ? '#fff' : '#475569'};">${label} (${counts[key] || 0})</button>`;
+    }).join('');
+
+    // סינון עסק — רשימת עסקים ייחודית מתוך הדאטה שכבר נטען
+    const bizMap = new Map();
+    products.forEach(p => { if (!bizMap.has(p.business_group_id)) bizMap.set(p.business_group_id, p.business_name); });
+    const bizSelect = document.getElementById('cm-review-biz-filter');
+    bizSelect.innerHTML = `<option value="all">כל העסקים (${products.length})</option>` +
+        [...bizMap.entries()].map(([id, name]) => `<option value="${id}" ${String(bizFilter) === String(id) ? 'selected' : ''}>${safeStr(name)}</option>`).join('');
+    bizSelect.value = bizFilter;
+
+    let filtered = products;
+    if (statusFilter !== 'all') filtered = filtered.filter(p => p.approval_status === statusFilter);
+    if (bizFilter !== 'all') filtered = filtered.filter(p => String(p.business_group_id) === String(bizFilter));
+
+    // קיבוץ לפי עסק
+    const grouped = new Map();
+    filtered.forEach(p => { if (!grouped.has(p.business_group_id)) grouped.set(p.business_group_id, []); grouped.get(p.business_group_id).push(p); });
+
+    const body = document.getElementById('cm-review-body');
+    if (!grouped.size) { body.innerHTML = '<p class="text-slate-400 text-sm text-center py-10">אין מוצרים התואמים לסינון הנוכחי</p>'; return; }
+
+    body.innerHTML = [...grouped.entries()].map(([bizId, items]) => `
+        <div style="margin-bottom:18px;">
+            <div style="font-weight:800;font-size:13px;color:#1e293b;margin-bottom:8px;display:flex;align-items:center;gap:6px;"><i class="fa-solid fa-store text-indigo-400" style="font-size:11px;"></i>${safeStr(items[0].business_name)} <span style="font-weight:400;color:#94a3b8;">(${items.length})</span></div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px;">
+            ${items.map(p => `
+                <div style="border:1px solid ${p.approval_status === 'pending' ? '#fde68a' : p.approval_status === 'approved' ? '#a7f3d0' : '#fecaca'};background:${p.approval_status === 'pending' ? '#fffbeb' : p.approval_status === 'approved' ? '#ecfdf5' : '#fef2f2'};border-radius:12px;padding:10px 12px;">
+                    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:6px;">
+                        <span style="font-size:13px;font-weight:700;color:#334155;">${safeStr(p.product_name)}</span>
+                        <span style="font-size:10px;font-weight:700;color:#64748b;flex-shrink:0;">${statusLabel[p.approval_status] || p.approval_status}</span>
+                    </div>
+                    <div style="font-size:11px;color:#94a3b8;margin-top:2px;">מחיר לשוק: ₪${p.price_override != null ? p.price_override : p.base_price}${p.price_override != null ? ` (קטלוג: ₪${p.base_price})` : ''}</div>
+                    <div style="display:flex;gap:6px;margin-top:8px;">
+                    ${p.approval_status === 'pending' ? `
+                        <button onclick="cmReviewCampaignProduct(${p.business_group_id}, ${p.catalog_id}, 'approve')" style="flex:1;background:#059669;color:#fff;border:none;border-radius:8px;padding:7px;font-size:11px;font-weight:700;cursor:pointer;">אשר</button>
+                        <button onclick="cmReviewCampaignProduct(${p.business_group_id}, ${p.catalog_id}, 'reject')" style="flex:1;background:#fff;color:#64748b;border:1px solid #e2e8f0;border-radius:8px;padding:7px;font-size:11px;font-weight:700;cursor:pointer;">דחה</button>
+                    ` : `
+                        <button onclick="cmRemoveCampaignProduct(${p.catalog_id})" style="flex:1;background:#fff;color:#dc2626;border:1px solid #fecaca;border-radius:8px;padding:7px;font-size:11px;font-weight:700;cursor:pointer;">הסר מהשוק</button>
+                    `}
+                    </div>
+                </div>`).join('')}
+            </div>
+        </div>`).join('');
+}
+
+async function cmReviewCampaignProduct(groupId, catalogId, action) {
+    const { campaignId } = _cmReview;
     try {
         const res = await communityFetch(`${API}/community/manager/campaigns/${campaignId}/products/review`, {
             method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ businessGroupId: groupId, catalogId, action })
@@ -8520,11 +8591,14 @@ async function cmReviewCampaignProduct(campaignId, groupId, catalogId, action, c
         const data = await res.json();
         if (!data.success) return showToast('error', data.error || 'שגיאה');
         showToast('success', action === 'approve' ? 'המוצר אושר' : 'המוצר נדחה');
-        cmOpenProductsReview(campaignId, commId);
+        const item = _cmReview.products.find(p => p.catalog_id === catalogId && p.business_group_id === groupId);
+        if (item) item.approval_status = action === 'approve' ? 'approved' : 'rejected';
+        cmRenderProductsReview();
     } catch(e) { showToast('error', 'שגיאת רשת'); }
 }
 
-async function cmRemoveCampaignProduct(campaignId, catalogId, commId) {
+async function cmRemoveCampaignProduct(catalogId) {
+    const { campaignId } = _cmReview;
     try {
         const res = await communityFetch(`${API}/community/manager/campaigns/${campaignId}/products`, {
             method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ catalogId, action: 'remove' })
@@ -8532,7 +8606,8 @@ async function cmRemoveCampaignProduct(campaignId, catalogId, commId) {
         const data = await res.json();
         if (!data.success) return showToast('error', data.error || 'שגיאה');
         showToast('success', 'המוצר הוסר מהשוק');
-        cmOpenProductsReview(campaignId, commId);
+        _cmReview.products = _cmReview.products.filter(p => p.catalog_id !== catalogId);
+        cmRenderProductsReview();
     } catch(e) { showToast('error', 'שגיאת רשת'); }
 }
 

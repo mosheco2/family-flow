@@ -1905,42 +1905,111 @@ async function zmToggleCampaignBusiness(campaignId, groupId, checked, commId) {
 
 // המוצרים נבחרים ע"י העסק עצמו (ר' POST /api/biz/market-campaigns/:id/products) -
 // כאן מנהל האזור רק מאשר/דוחה את מה שהוקצה, ויכול להסיר מוצר שכבר אושר (takedown)
+// ═══════════ סקירת מוצרים — מסך גדול ייעודי (overlay במקום תיבת הצד הצרה) ═══════════
+const _zmReview = { campaignId: null, commId: null, products: [], statusFilter: 'pending', bizFilter: 'all' };
+
+function _zmEnsureReviewModal() {
+    if (document.getElementById('zm-review-overlay')) return;
+    const el = document.createElement('div');
+    el.id = 'zm-review-overlay';
+    el.style.cssText = 'position:fixed;inset:0;z-index:99999;display:none;background:rgba(15,23,42,.6);backdrop-filter:blur(2px);direction:rtl;padding:16px;';
+    el.innerHTML = `
+    <div style="background:#fff;border-radius:22px;width:100%;max-width:1100px;height:calc(100vh - 32px);margin:0 auto;display:flex;flex-direction:column;box-shadow:0 20px 60px rgba(0,0,0,.3);overflow:hidden;">
+        <div style="padding:16px 20px;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;">
+            <h3 style="font-weight:900;font-size:16px;color:#1e293b;margin:0;">🔍 סקירת מוצרי שוק</h3>
+            <button onclick="zmCloseProductsReview()" style="color:#94a3b8;font-size:20px;background:none;border:none;cursor:pointer;">✕</button>
+        </div>
+        <div style="padding:12px 20px;border-bottom:1px solid #f1f5f9;flex-shrink:0;display:flex;flex-direction:column;gap:10px;">
+            <div id="zm-review-status-tabs" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
+            <select id="zm-review-biz-filter" onchange="zmSetReviewBizFilter(this.value)" style="border:1px solid #e2e8f0;border-radius:10px;padding:7px 10px;font-size:12px;max-width:260px;"></select>
+        </div>
+        <div id="zm-review-body" style="flex:1;overflow-y:auto;padding:16px 20px;"></div>
+    </div>`;
+    el.addEventListener('click', e => { if (e.target === el) zmCloseProductsReview(); });
+    document.body.appendChild(el);
+}
+
+window.zmCloseProductsReview = function() {
+    const el = document.getElementById('zm-review-overlay');
+    if (el) el.style.display = 'none';
+};
+
 async function zmOpenProductsReview(campaignId, commId) {
-    const body = document.getElementById('zm-cd-body');
-    body.innerHTML = '<div class="text-center text-slate-400 py-8"><i class="fa-solid fa-spinner fa-spin mr-2"></i>טוען...</div>';
+    _zmEnsureReviewModal();
+    _zmReview.campaignId = campaignId;
+    _zmReview.commId = commId;
+    _zmReview.statusFilter = 'pending';
+    _zmReview.bizFilter = 'all';
+    document.getElementById('zm-review-overlay').style.display = 'block';
+    document.getElementById('zm-review-body').innerHTML = '<div class="text-center text-slate-400 py-8"><i class="fa-solid fa-spinner fa-spin mr-2"></i>טוען...</div>';
     try {
         const res = await fetch(`${API}/zone-manager/community-campaigns/${campaignId}/products-review`, { headers: { 'Authorization': zmToken } });
         const data = await res.json();
-        if (!data.success) { body.innerHTML = `<div class="text-red-400 text-center py-6">${data.error || 'שגיאה'}</div>`; return; }
-        const statusLabel = { pending: 'ממתין לאישור', approved: 'אושר', rejected: 'נדחה' };
-        const statusCls = { pending: 'border-amber-200 bg-amber-50', approved: 'border-emerald-200 bg-emerald-50', rejected: 'border-red-200 bg-red-50' };
-        body.innerHTML = `
-        <button onclick="zmOpenCampaignManage(${campaignId}, ${commId})" class="text-xs text-slate-500 hover:text-slate-700 mb-3"><i class="fa-solid fa-arrow-right ml-1"></i>חזרה לקמפיין</button>
-        <p class="text-xs font-bold text-slate-600 mb-2">מוצרים שעסקים הקצו לשוק הזה</p>
-        <div class="space-y-2">
-        ${(data.products||[]).map(p => `
-            <div class="border ${statusCls[p.approval_status] || 'border-slate-100 bg-white'} rounded-xl p-3">
-                <div class="flex justify-between items-start gap-2">
-                    <div class="min-w-0">
-                        <p class="text-sm font-bold text-slate-700 truncate">${safeStrZM(p.product_name)}</p>
-                        <p class="text-[10px] text-slate-400">${safeStrZM(p.business_name)} · מחיר לשוק: ₪${p.price_override != null ? p.price_override : p.base_price}${p.price_override != null ? ` (קטלוג: ₪${p.base_price})` : ''}</p>
-                    </div>
-                    <span class="shrink-0 text-[10px] font-bold text-slate-500">${statusLabel[p.approval_status] || p.approval_status}</span>
-                </div>
-                <div class="flex gap-1.5 mt-2">
-                    ${p.approval_status === 'pending' ? `
-                        <button onclick="zmReviewCampaignProduct(${campaignId}, ${p.business_group_id}, ${p.catalog_id}, 'approve', ${commId})" class="flex-1 bg-emerald-600 text-white text-xs font-bold py-2 rounded-lg">אשר</button>
-                        <button onclick="zmReviewCampaignProduct(${campaignId}, ${p.business_group_id}, ${p.catalog_id}, 'reject', ${commId})" class="flex-1 bg-white text-slate-500 border border-slate-200 text-xs font-bold py-2 rounded-lg">דחה</button>
-                    ` : `
-                        <button onclick="zmRemoveCampaignProduct(${campaignId}, ${p.catalog_id}, ${commId})" class="flex-1 bg-white text-red-500 border border-red-100 text-xs font-bold py-2 rounded-lg">הסר מהשוק</button>
-                    `}
-                </div>
-            </div>`).join('') || '<div class="text-center text-slate-400 py-6 text-xs">אין עדיין מוצרים שהוקצו לשוק הזה</div>'}
-        </div>`;
-    } catch(e) { body.innerHTML = '<div class="text-red-400 text-center py-6">שגיאת תקשורת</div>'; }
+        if (!data.success) { document.getElementById('zm-review-body').innerHTML = `<div class="text-red-400 text-center py-6">${data.error || 'שגיאה'}</div>`; return; }
+        _zmReview.products = data.products || [];
+        zmRenderProductsReview();
+    } catch(e) { document.getElementById('zm-review-body').innerHTML = '<div class="text-red-400 text-center py-6">שגיאת תקשורת</div>'; }
 }
 
-async function zmReviewCampaignProduct(campaignId, groupId, catalogId, action, commId) {
+window.zmSetReviewStatusFilter = function(status) { _zmReview.statusFilter = status; zmRenderProductsReview(); };
+window.zmSetReviewBizFilter = function(bizId) { _zmReview.bizFilter = bizId; zmRenderProductsReview(); };
+
+function zmRenderProductsReview() {
+    const { products, statusFilter, bizFilter } = _zmReview;
+    const statusLabel = { pending: 'ממתין לאישור', approved: 'אושר', rejected: 'נדחה' };
+
+    const counts = { all: products.length, pending: 0, approved: 0, rejected: 0 };
+    products.forEach(p => { counts[p.approval_status] = (counts[p.approval_status] || 0) + 1; });
+    const tabsEl = document.getElementById('zm-review-status-tabs');
+    const tabDefs = [['pending', 'ממתינים'], ['approved', 'מאושרים'], ['rejected', 'נדחו'], ['all', 'הכל']];
+    tabsEl.innerHTML = tabDefs.map(([key, label]) => {
+        const active = statusFilter === key;
+        return `<button onclick="zmSetReviewStatusFilter('${key}')" style="padding:7px 14px;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;border:1px solid ${active ? '#4f46e5' : '#e2e8f0'};background:${active ? '#4f46e5' : '#fff'};color:${active ? '#fff' : '#475569'};">${label} (${counts[key] || 0})</button>`;
+    }).join('');
+
+    const bizMap = new Map();
+    products.forEach(p => { if (!bizMap.has(p.business_group_id)) bizMap.set(p.business_group_id, p.business_name); });
+    const bizSelect = document.getElementById('zm-review-biz-filter');
+    bizSelect.innerHTML = `<option value="all">כל העסקים (${products.length})</option>` +
+        [...bizMap.entries()].map(([id, name]) => `<option value="${id}" ${String(bizFilter) === String(id) ? 'selected' : ''}>${safeStrZM(name)}</option>`).join('');
+    bizSelect.value = bizFilter;
+
+    let filtered = products;
+    if (statusFilter !== 'all') filtered = filtered.filter(p => p.approval_status === statusFilter);
+    if (bizFilter !== 'all') filtered = filtered.filter(p => String(p.business_group_id) === String(bizFilter));
+
+    const grouped = new Map();
+    filtered.forEach(p => { if (!grouped.has(p.business_group_id)) grouped.set(p.business_group_id, []); grouped.get(p.business_group_id).push(p); });
+
+    const body = document.getElementById('zm-review-body');
+    if (!grouped.size) { body.innerHTML = '<p class="text-center text-slate-400 py-10 text-sm">אין מוצרים התואמים לסינון הנוכחי</p>'; return; }
+
+    body.innerHTML = [...grouped.entries()].map(([bizId, items]) => `
+        <div style="margin-bottom:18px;">
+            <div style="font-weight:800;font-size:13px;color:#1e293b;margin-bottom:8px;display:flex;align-items:center;gap:6px;"><i class="fa-solid fa-store text-pink-400" style="font-size:11px;"></i>${safeStrZM(items[0].business_name)} <span style="font-weight:400;color:#94a3b8;">(${items.length})</span></div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px;">
+            ${items.map(p => `
+                <div style="border:1px solid ${p.approval_status === 'pending' ? '#fde68a' : p.approval_status === 'approved' ? '#a7f3d0' : '#fecaca'};background:${p.approval_status === 'pending' ? '#fffbeb' : p.approval_status === 'approved' ? '#ecfdf5' : '#fef2f2'};border-radius:12px;padding:10px 12px;">
+                    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:6px;">
+                        <span style="font-size:13px;font-weight:700;color:#334155;">${safeStrZM(p.product_name)}</span>
+                        <span style="font-size:10px;font-weight:700;color:#64748b;flex-shrink:0;">${statusLabel[p.approval_status] || p.approval_status}</span>
+                    </div>
+                    <div style="font-size:11px;color:#94a3b8;margin-top:2px;">מחיר לשוק: ₪${p.price_override != null ? p.price_override : p.base_price}${p.price_override != null ? ` (קטלוג: ₪${p.base_price})` : ''}</div>
+                    <div style="display:flex;gap:6px;margin-top:8px;">
+                    ${p.approval_status === 'pending' ? `
+                        <button onclick="zmReviewCampaignProduct(${p.business_group_id}, ${p.catalog_id}, 'approve')" style="flex:1;background:#059669;color:#fff;border:none;border-radius:8px;padding:7px;font-size:11px;font-weight:700;cursor:pointer;">אשר</button>
+                        <button onclick="zmReviewCampaignProduct(${p.business_group_id}, ${p.catalog_id}, 'reject')" style="flex:1;background:#fff;color:#64748b;border:1px solid #e2e8f0;border-radius:8px;padding:7px;font-size:11px;font-weight:700;cursor:pointer;">דחה</button>
+                    ` : `
+                        <button onclick="zmRemoveCampaignProduct(${p.catalog_id})" style="flex:1;background:#fff;color:#dc2626;border:1px solid #fecaca;border-radius:8px;padding:7px;font-size:11px;font-weight:700;cursor:pointer;">הסר מהשוק</button>
+                    `}
+                    </div>
+                </div>`).join('')}
+            </div>
+        </div>`).join('');
+}
+
+async function zmReviewCampaignProduct(groupId, catalogId, action) {
+    const { campaignId } = _zmReview;
     try {
         const res = await fetch(`${API}/zone-manager/community-campaigns/${campaignId}/products/review`, {
             method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': zmToken },
@@ -1949,11 +2018,14 @@ async function zmReviewCampaignProduct(campaignId, groupId, catalogId, action, c
         const data = await res.json();
         if (!data.success) return showZMToast(data.error || 'שגיאה', 'error');
         showZMToast(action === 'approve' ? 'המוצר אושר' : 'המוצר נדחה');
-        zmOpenProductsReview(campaignId, commId);
+        const item = _zmReview.products.find(p => p.catalog_id === catalogId && p.business_group_id === groupId);
+        if (item) item.approval_status = action === 'approve' ? 'approved' : 'rejected';
+        zmRenderProductsReview();
     } catch(e) { showZMToast('שגיאת רשת', 'error'); }
 }
 
-async function zmRemoveCampaignProduct(campaignId, catalogId, commId) {
+async function zmRemoveCampaignProduct(catalogId) {
+    const { campaignId } = _zmReview;
     try {
         const res = await fetch(`${API}/zone-manager/community-campaigns/${campaignId}/products`, {
             method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': zmToken },
@@ -1962,7 +2034,8 @@ async function zmRemoveCampaignProduct(campaignId, catalogId, commId) {
         const data = await res.json();
         if (!data.success) return showZMToast(data.error || 'שגיאה', 'error');
         showZMToast('המוצר הוסר מהשוק');
-        zmOpenProductsReview(campaignId, commId);
+        _zmReview.products = _zmReview.products.filter(p => p.catalog_id !== catalogId);
+        zmRenderProductsReview();
     } catch(e) { showZMToast('שגיאת רשת', 'error'); }
 }
 
