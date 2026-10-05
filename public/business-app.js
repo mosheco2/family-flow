@@ -4544,7 +4544,7 @@ async function getPantryInsight() {
     executeWithAIWarning(async () => {
         showAIModal('מנהל הרכש והמלאי AI', null); getEl('familai-loading-text').innerText = 'מחשב כמויות מול צריכה בפועל...';
         try {
-            const res = await fetch(`${API}/pantry/familai-insight`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ groupId: currentGroup.id }) }); const data = await res.json();
+            const res = await fetch(`${API}/pantry/familai-insight`, { method: 'POST', headers: {'Content-Type': 'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : ''}, body: JSON.stringify({ groupId: currentGroup.id }) }); const data = await res.json();
             if(!handleAIResponseCheck(data)) { getEl('familai-advisor-modal').classList.add('hidden'); return; }
             if(data.success && data.insight) { showAIModal('מנהל הרכש והמלאי AI', data.insight); fetchData(); }
             else { getEl('familai-advisor-modal').classList.add('hidden'); showToast('error', 'שגיאה בניתוח המלאי'); }
@@ -8469,7 +8469,7 @@ function renderPantry() {
         const showAvailable = available < packQty;
 
         const reservedDisplay = reserved > 0 ? `<div class="mt-2 bg-amber-50 border border-amber-200 rounded-xl p-2 text-[10px] flex items-center justify-between">
-            <span class="text-amber-700 font-bold">⚠️ משוריין לפקודות עבודה: ${reserved} ${u}</span>
+            <span class="text-amber-700 font-bold">⚠️ משוריין לפקודות עבודה: ${reserved} ${escHtml(p.unit || "יח'")}</span>
             <button onclick="window.showPantryWoReservations(${p.id}, '${nJs}'); event.stopPropagation();" class="bg-amber-600 text-white px-2 py-1 rounded-lg text-[9px] font-bold hover:bg-amber-700 transition">ראה פקודות</button>
         </div>` : '';
 
@@ -8478,18 +8478,18 @@ function renderPantry() {
             qtyDisplay = `
             <div class="flex flex-col items-center px-3 min-w-[75px]">
                 <span class="text-2xl font-black text-slate-800 leading-none">${packQty.toFixed(2)}</span>
-                <span class="text-[10px] font-bold text-slate-400 mt-1">${u}</span>
+                <span class="text-[10px] font-bold text-slate-400 mt-1">${escHtml(p.unit || "יח'")}</span>
                 <span class="text-[10px] font-bold text-indigo-600 bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded-full mt-1.5 w-max shadow-sm tracking-tight">${totalSubUnits} יחידות</span>
                 ${showAvailable ? `<div class="text-[10px] font-bold text-green-700 bg-green-50 border border-green-100 px-2 py-1 rounded-full mt-1 w-max text-center">
                     <div>זמין לפקודות: ${availableSubUnits} יח'</div>
-                    <div class="text-[9px] opacity-90">לשימוש שוטף: ${bufferQty.toFixed(2)} ${u}</div>
+                    <div class="text-[9px] opacity-90">לשימוש שוטף: ${bufferQty.toFixed(2)} ${escHtml(p.unit || "יח'")}</div>
                 </div>` : ''}
             </div>`;
         } else {
             qtyDisplay = `
             <div class="flex flex-col items-center px-3 min-w-[75px]">
                 <span class="text-2xl font-black text-slate-800 leading-none">${packQty}</span>
-                <span class="text-xs font-bold text-slate-400 mt-1">${u}</span>
+                <span class="text-xs font-bold text-slate-400 mt-1">${escHtml(p.unit || "יח'")}</span>
                 ${showAvailable ? `<div class="text-[10px] font-bold text-green-700 bg-green-50 border border-green-100 px-2 py-1 rounded-full mt-1 w-max text-center">
                     <div>זמין לפקודות: ${Math.ceil(available)}</div>
                     <div class="text-[9px] opacity-90">לשימוש שוטף: ${bufferQty.toFixed(2)}</div>
@@ -8504,7 +8504,7 @@ function renderPantry() {
         <div class="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-sm flex flex-col mb-3">
             <div class="flex justify-between items-center mb-3">
                 <div class="flex-1 pr-2">
-                    <h4 class="font-bold text-slate-800 text-sm">${p.item_name}</h4>
+                    <h4 class="font-bold text-slate-800 text-sm">${escHtml(p.item_name)}</h4>
                     <p class="text-[10px] text-slate-400 mt-1">עודכן: ${new Date(p.updated_at).toLocaleDateString('he-IL')} | מארז: ${upp} יח'</p>
                 </div>
                 <div class="flex items-center bg-slate-50 px-2 py-2 rounded-xl border border-slate-100 shadow-inner">
@@ -8631,7 +8631,7 @@ window.submitPantryItem = async function() {
     try {
         const res = await fetch(`${API}/pantry/add`, { 
             method: 'POST', 
-            headers: {'Content-Type': 'application/json'}, 
+            headers: {'Content-Type': 'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : ''}, 
             body: JSON.stringify({groupId: currentGroup.id, itemName: name, quantity: qty, unit: unit, unitsPerPackage: upp}) 
         });
         
@@ -8670,8 +8670,8 @@ async function updatePantryQty(id, newQty, reservedQty, bufferPct) {
         showToast('warning', `לא ניתן לרדת מתחת ל-${minAllowed.toFixed(2)} (שריון + מאגר). כדי לשחרר פריטים — שחרר שריונות בפקודות העבודה.`);
         return;
     }
-    if(newQty <= 0) { if(!await window._uiConfirm('המוצר אזל מהמלאי. האם למחוק את הרישום? (ניתן להעביר לרכש במקום)')) return; await fetch(`${API}/pantry/delete/${id}`, { method:'DELETE' }); } 
-    else { await fetch(`${API}/pantry/update`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemId: id, quantity: newQty}) }); } fetchData();
+    if(newQty <= 0) { if(!await window._uiConfirm('המוצר אזל מהמלאי. האם למחוק את הרישום? (ניתן להעביר לרכש במקום)')) return; await fetch(`${API}/pantry/delete/${id}`, { method:'DELETE', headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } }); } 
+    else { await fetch(`${API}/pantry/update`, { method:'POST', headers:{'Content-Type':'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : ''}, body:JSON.stringify({itemId: id, quantity: newQty}) }); } fetchData();
 }
 
 function openPantryUseModal(name, unit, qty, upp, reservedQty, bufferPct) { 
@@ -8738,12 +8738,12 @@ async function submitPantryUse() {
     if((!qty || parseFloat(qty) <= 0) && (!units || parseFloat(units) <= 0)) return showToast('error', 'נא להזין כמות תקינה');
     
     try {
-        const res = await fetch(`${API}/pantry/use`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ groupId: currentGroup.id, itemName: name, usedQuantity: parseFloat(qty) || 0, usedUnits: parseFloat(units) || 0 }) }); const data = await res.json();
+        const res = await fetch(`${API}/pantry/use`, { method: 'POST', headers: {'Content-Type': 'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : ''}, body: JSON.stringify({ groupId: currentGroup.id, itemName: name, usedQuantity: parseFloat(qty) || 0, usedUnits: parseFloat(units) || 0 }) }); const data = await res.json();
         if(data.success) { showToast('success', 'המלאי נגרע בהצלחה'); getEl('pantry-use-modal').classList.add('hidden'); fetchData(); } else { showToast('error', data.error); }
     } catch(e) { showToast('error', 'שגיאה בעדכון המלאי'); }
 }
 
-async function movePantryToCart(pantryId, itemName, unit) { await fetch(`${API}/shopping/add`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemName: itemName, quantity: 1, unit: unit, estimatedPrice: 0, userId: currentUser.id, groupId: currentGroup.id}) }); await fetch(`${API}/pantry/delete/${pantryId}`, { method:'DELETE' }); showToast('success', 'המוצר הועבר לבקשת רכש!'); fetchData(); }
+async function movePantryToCart(pantryId, itemName, unit) { await fetch(`${API}/shopping/add`, { method:'POST', headers:{'Content-Type':'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : ''}, body:JSON.stringify({itemName: itemName, quantity: 1, unit: unit, estimatedPrice: 0, userId: currentUser.id, groupId: currentGroup.id}) }); await fetch(`${API}/pantry/delete/${pantryId}`, { method:'DELETE', headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } }); showToast('success', 'המוצר הועבר לבקשת רכש!'); fetchData(); }
 // ==========================================
 // --- פונקציות שחזור קוד סביבה למייל ---
 // ==========================================
@@ -14018,7 +14018,7 @@ window.saveInventoryCount = async function(sendEmail) {
     if (btn) btn.textContent = 'שולח...';
     try {
         const res = await fetch(`${API}/pantry/bulk-update`, {
-            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' },
             body: JSON.stringify({ groupId: currentGroup.id, items, sendEmail: !!sendEmail, pdfBase64 })
         });
         const data = await res.json();
@@ -39155,7 +39155,7 @@ async function renderDeliveryDashboard(el) {
 // --- 4. Warehouse Dashboard ---
 async function renderWarehouseDashboard(el) {
     let pantry = [];
-    try { const r = await fetch(`/api/pantry/${currentGroup.id}`); const d = await r.json(); pantry = (d.items||[]).sort((a,b)=>(a.quantity||0)-(b.quantity||0)).slice(0,6); } catch(e) {}
+    try { const r = await fetch(`/api/pantry/${currentGroup.id}`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } }); const d = await r.json(); pantry = (d.items||[]).sort((a,b)=>(a.quantity||0)-(b.quantity||0)).slice(0,6); } catch(e) {}
 
     const lowStock = pantry.filter(p => p.quantity !== null && p.quantity <= (p.min_quantity||2));
     const lowHtml = lowStock.length ? lowStock.map(p => `<div class="flex items-center justify-between py-2.5 border-b border-slate-50 last:border-0">
@@ -41351,7 +41351,7 @@ async function renderCookDashboard(el) {
     let lowStock = [], kdsTickets = [];
     const todayLocal = new Date();
     const today = `${todayLocal.getFullYear()}-${String(todayLocal.getMonth()+1).padStart(2,'0')}-${String(todayLocal.getDate()).padStart(2,'0')}`;
-    try { const r = await fetch(`/api/pantry/${currentGroup.id}`); const d = await r.json(); lowStock = (d.items||[]).filter(p => p.quantity !== null && p.quantity <= (p.min_quantity||2)).slice(0,5); } catch(e) {}
+    try { const r = await fetch(`/api/pantry/${currentGroup.id}`, { headers: { Authorization: window._bizToken ? `Bearer ${window._bizToken}` : '' } }); const d = await r.json(); lowStock = (d.items||[]).filter(p => p.quantity !== null && p.quantity <= (p.min_quantity||2)).slice(0,5); } catch(e) {}
     // Ensure catalog is loaded so station labels and name-fallback work for cook
     if (!storeCatalogCache || !storeCatalogCache.length) {
         try { const cr = await fetch(`/api/store/catalog/${currentGroup.id}`); const cd = await cr.json(); if (Array.isArray(cd) && cd.length) storeCatalogCache = cd; } catch(e) {}

@@ -10937,8 +10937,9 @@ app.delete('/api/shopping/saved/:id', async (req, res) => {
 // --- PANTRY ENDPOINTS ---
 // ============================================================
 
-app.get('/api/pantry/:groupId', async (req, res) => {
+app.get('/api/pantry/:groupId', verifyFamilyOrBiz, async (req, res) => {
     try {
+        if (parseInt(req.params.groupId) !== req.callerAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const r = await pool.query(
             `SELECT id, item_name, COALESCE(quantity,0) as quantity, COALESCE(reserved_qty,0) as reserved_qty,
                     unit, units_per_package
@@ -10946,63 +10947,77 @@ app.get('/api/pantry/:groupId', async (req, res) => {
             [req.params.groupId]
         );
         res.json({ success: true, items: r.rows });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch(e) { res.status(500).json({ error: 'שגיאה פנימית' }); }
 });
 
-app.post('/api/pantry/add', async (req, res) => {
+app.post('/api/pantry/add', verifyFamilyOrBiz, async (req, res) => {
     try {
-        const { groupId, itemName, quantity, unit, unitsPerPackage } = req.body;
-        const actualGroupId = parseInt(groupId);
-        if (!actualGroupId) return res.status(400).json({ success: false, error: 'Group ID is missing' });
+        const { itemName, unit, unitsPerPackage } = req.body;
+        const actualGroupId = req.callerAuth.groupId;
+        const quantity = Math.max(0, parseFloat(req.body.quantity) || 1);
+        if (!itemName || !String(itemName).trim()) return res.status(400).json({ success: false, error: 'שם פריט נדרש' });
+        const safeItemName = String(itemName).trim().slice(0, 100);
 
-        const existing = await pool.query('SELECT id FROM pantry WHERE group_id=$1 AND item_name=$2', [actualGroupId, itemName]);
+        const existing = await pool.query('SELECT id FROM pantry WHERE group_id=$1 AND item_name=$2', [actualGroupId, safeItemName]);
         if (existing.rows.length > 0) {
-            await pool.query('UPDATE pantry SET quantity = quantity + $1, updated_at=CURRENT_TIMESTAMP WHERE id=$2', [parseFloat(quantity) || 1, existing.rows[0].id]);
+            await pool.query('UPDATE pantry SET quantity = quantity + $1, updated_at=CURRENT_TIMESTAMP WHERE id=$2', [quantity, existing.rows[0].id]);
         } else {
-            await pool.query('INSERT INTO pantry (group_id, item_name, quantity, unit, units_per_package) VALUES ($1, $2, $3, $4, $5)', [actualGroupId, itemName, parseFloat(quantity) || 1, unit || 'יח\'', parseInt(unitsPerPackage) || 1]);
+            await pool.query('INSERT INTO pantry (group_id, item_name, quantity, unit, units_per_package) VALUES ($1, $2, $3, $4, $5)', [actualGroupId, safeItemName, quantity, unit || 'יח\'', parseInt(unitsPerPackage) || 1]);
         }
-        await logActivity(actualGroupId, null, null, 'pantry', 'pantry_add', `${itemName} נוסף למזווה`);
+        await logActivity(actualGroupId, null, null, 'pantry', 'pantry_add', `${safeItemName} נוסף למזווה`);
         res.json({ success: true });
-    } catch(e) { res.status(500).json({ success: false, error: e.message }); }
+    } catch(e) { res.status(500).json({ success: false, error: 'שגיאה פנימית' }); }
 });
 
-app.post('/api/pantry/update', async (req, res) => {
+app.post('/api/pantry/update', verifyFamilyOrBiz, async (req, res) => {
     try {
-        const { itemId, quantity } = req.body;
-        await pool.query('UPDATE pantry SET quantity=$1, updated_at=CURRENT_TIMESTAMP WHERE id=$2', [parseFloat(quantity) || 0, itemId]);
+        const { itemId } = req.body;
+        const quantity = Math.max(0, parseFloat(req.body.quantity) || 0);
+        const owned = await pool.query('SELECT id FROM pantry WHERE id=$1 AND group_id=$2', [itemId, req.callerAuth.groupId]);
+        if (!owned.rows.length) return res.status(404).json({ error: 'פריט לא נמצא' });
+        await pool.query('UPDATE pantry SET quantity=$1, updated_at=CURRENT_TIMESTAMP WHERE id=$2', [quantity, itemId]);
         res.json({ success: true });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch(e) { res.status(500).json({ error: 'שגיאה פנימית' }); }
 });
 
-app.post('/api/pantry/use', async (req, res) => {
+app.post('/api/pantry/use', verifyFamilyOrBiz, async (req, res) => {
     try {
-        const { groupId, itemName, usedQuantity, usedUnits } = req.body;
+        const { itemName } = req.body;
+        const groupId = req.callerAuth.groupId;
+        const usedQuantity = Math.max(0, parseFloat(req.body.usedQuantity) || 0);
+        const usedUnits = Math.max(0, parseFloat(req.body.usedUnits) || 0);
         const pRes = await pool.query('SELECT * FROM pantry WHERE group_id=$1 AND item_name=$2', [groupId, itemName]);
         if(pRes.rows.length === 0) return res.status(404).json({ error: 'Item not found' });
-        
+
         const item = pRes.rows[0];
         let deductAmount = (usedUnits > 0 && item.units_per_package > 0) ? (usedUnits / item.units_per_package) : usedQuantity;
         const newQty = Math.max(0, item.quantity - deductAmount);
-        
-        if (newQty <= 0) { await pool.query('DELETE FROM pantry WHERE id=$1', [item.id]); } 
+
+        if (newQty <= 0) { await pool.query('DELETE FROM pantry WHERE id=$1', [item.id]); }
         else { await pool.query('UPDATE pantry SET quantity=$1, updated_at=CURRENT_TIMESTAMP WHERE id=$2', [newQty, item.id]); }
         res.json({ success: true });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch(e) { res.status(500).json({ error: 'שגיאה פנימית' }); }
 });
 
-app.delete('/api/pantry/delete/:id', async (req, res) => {
-    try { await pool.query('DELETE FROM pantry WHERE id=$1', [req.params.id]); res.json({ success: true }); } catch(e) { res.status(500).json({ error: e.message }); }
-});
-
-app.post('/api/pantry/bulk-update', async (req, res) => {
+app.delete('/api/pantry/delete/:id', verifyFamilyOrBiz, async (req, res) => {
     try {
-        const { groupId, items, sendEmail, pdfBase64 } = req.body;
-        if (!groupId || !Array.isArray(items)) return res.status(400).json({ error: 'נתונים חסרים' });
+        const owned = await pool.query('SELECT id FROM pantry WHERE id=$1 AND group_id=$2', [req.params.id, req.callerAuth.groupId]);
+        if (!owned.rows.length) return res.status(404).json({ error: 'פריט לא נמצא' });
+        await pool.query('DELETE FROM pantry WHERE id=$1', [req.params.id]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: 'שגיאה פנימית' }); }
+});
+
+app.post('/api/pantry/bulk-update', verifyFamilyOrBiz, async (req, res) => {
+    try {
+        const { items, sendEmail, pdfBase64 } = req.body;
+        const groupId = req.callerAuth.groupId;
+        if (!Array.isArray(items)) return res.status(400).json({ error: 'נתונים חסרים' });
         for (const item of items) {
             if (item.id && item.quantity !== undefined && item.quantity !== '') {
                 await pool.query(
                     'UPDATE pantry SET quantity=$1, updated_at=CURRENT_TIMESTAMP WHERE id=$2 AND group_id=$3',
-                    [parseFloat(item.quantity) || 0, item.id, groupId]
+                    [Math.max(0, parseFloat(item.quantity) || 0), item.id, groupId]
                 );
             }
         }
@@ -11052,7 +11067,7 @@ app.post('/api/pantry/bulk-update', async (req, res) => {
             }
         }
         res.json({ success: true });
-    } catch(e) { res.status(500).json({ error: e.message }); }
+    } catch(e) { res.status(500).json({ error: 'שגיאה פנימית' }); }
 });
 
 // ============================================================
@@ -12235,9 +12250,10 @@ app.post('/api/budget/familai-insight', verifyFamilyOrBiz, async (req, res) => {
     } catch (e) { handleAIError(e, res, 'שגיאה בניתוח התקציב'); }
 });
 
-app.post('/api/pantry/familai-insight', async (req, res) => {
+app.post('/api/pantry/familai-insight', verifyFamilyOrBiz, async (req, res) => {
     try {
         const { groupId } = req.body;
+        if (parseInt(groupId) !== req.callerAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
         const hasTokens = await handleAITokens(groupId);
         if(!hasTokens) return res.json({ success: false, error: 'BATTERY_EMPTY' });
         if (!getGenAIInstance()) throw new Error('GEMINI_API_KEY is not set');

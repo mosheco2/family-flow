@@ -2426,7 +2426,7 @@ async function getPantryInsight() {
     executeWithAIWarning(async () => {
         showFamilAIModal('מנהלת המזווה', null); getEl('familai-loading-text').innerText = 'מחשבת כמויות ומרגלי קנייה...';
         try {
-            const res = await fetch(`${API}/pantry/familai-insight`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ groupId: currentGroup.id }) }); const data = await res.json();
+            const res = await communityFetch(`${API}/pantry/familai-insight`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ groupId: currentGroup.id }) }); const data = await res.json();
             if(!handleAIResponseCheck(data)) { getEl('familai-advisor-modal').classList.add('hidden'); return; }
             if(data.success && data.insight) { showFamilAIModal('מנהלת המזווה', data.insight); fetchData(); }
             else { getEl('familai-advisor-modal').classList.add('hidden'); showToast('error', 'שגיאה בניתוח המלאי'); }
@@ -2455,7 +2455,7 @@ function renderRecipePantrySelection() {
     const list = getEl('recipe-pantry-items-list'); if (!list) return; list.innerHTML = '';
     if (!pantryCache || pantryCache.length === 0) { list.innerHTML = '<p class="text-xs text-slate-400">המזווה ריק. הוסיפו מוצרים למזווה כדי שהשף יוכל להשתמש בהם.</p>'; return; }
     pantryCache.forEach(p => {
-        list.innerHTML += `<label class="flex items-center gap-1.5 bg-slate-50 border border-slate-200 px-2 py-1 rounded cursor-pointer hover:bg-slate-100 transition"><input type="checkbox" class="recipe-pantry-cb w-3 h-3 accent-orange-500" value="${safeStr(p.item_name)}" checked><span class="text-[11px] text-slate-600 font-medium">${safeStr(p.item_name)}</span></label>`;
+        list.innerHTML += `<label class="flex items-center gap-1.5 bg-slate-50 border border-slate-200 px-2 py-1 rounded cursor-pointer hover:bg-slate-100 transition"><input type="checkbox" class="recipe-pantry-cb w-3 h-3 accent-orange-500" value="${safeStr(p.item_name)}" checked><span class="text-[11px] text-slate-600 font-medium">${escHtml(p.item_name)}</span></label>`;
     });
 }
 
@@ -2812,14 +2812,14 @@ function renderPantry() {
             qtyDisplay = `
             <div class="flex flex-col items-center px-3 min-w-[75px]">
                 <span class="text-2xl font-black text-slate-800 leading-none">${packQty.toFixed(2)}</span>
-                <span class="text-[10px] font-bold text-slate-400 mt-1">${u}</span>
+                <span class="text-[10px] font-bold text-slate-400 mt-1">${escHtml(p.unit || "יח'")}</span>
                 <span class="text-[10px] font-bold text-orange-600 bg-orange-50 border border-orange-100 px-2 py-0.5 rounded-full mt-1.5 w-max shadow-sm tracking-tight">${totalSubUnits} יחידות</span>
             </div>`;
         } else {
             qtyDisplay = `
             <div class="flex flex-col items-center px-3 min-w-[75px]">
                 <span class="text-2xl font-black text-slate-800 leading-none">${packQty}</span>
-                <span class="text-xs font-bold text-slate-400 mt-1">${u}</span>
+                <span class="text-xs font-bold text-slate-400 mt-1">${escHtml(p.unit || "יח'")}</span>
             </div>`;
         }
 
@@ -2831,7 +2831,7 @@ function renderPantry() {
         <div class="bg-white p-3.5 rounded-2xl border ${pantryMultiDeleteMode ? 'border-red-100' : 'border-slate-200'} shadow-sm flex flex-col mb-3 relative">${pantryDelCb}
             <div class="flex justify-between items-center mb-3">
                 <div class="flex-1 pr-2">
-                    <h4 class="font-bold text-slate-800 text-sm">${p.item_name}</h4>
+                    <h4 class="font-bold text-slate-800 text-sm">${escHtml(p.item_name)}</h4>
                     <p class="text-[10px] text-slate-400 mt-1">עודכן: ${new Date(p.updated_at).toLocaleDateString('he-IL')} | מארז: ${upp} יח'</p>
                 </div>
                 <div class="flex items-center bg-slate-50 px-2 py-2 rounded-xl border border-slate-100 shadow-inner">
@@ -2855,7 +2855,7 @@ async function submitPantryItem() {
     if(!name) return showToast('error', 'יש להזין שם מוצר');
     const btn = getEl('btn-submit-pantry'); if (btn) { btn.disabled = true; btn.innerText = 'שומר...'; }
     try {
-        const res = await fetch(`${API}/pantry/add`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({groupId: currentGroup.id, itemName: name, quantity: qty, unit: unit, unitsPerPackage: upp}) });
+        const res = await communityFetch(`${API}/pantry/add`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({groupId: currentGroup.id, itemName: name, quantity: qty, unit: unit, unitsPerPackage: upp}) });
         const data = await res.json();
         if (data.success) { getEl('pantry-modal').classList.add('hidden'); val('pantry-item', ''); val('pantry-quantity', 1); getEl('pantry-unit').value = "יח'"; getEl('pantry-upp').value = 1; fetchData(); showToast('success', 'המוצר נקלט במלאי'); } 
         else { showToast('error', data.error || 'שגיאת שרת בהוספת הפריט'); }
@@ -2863,8 +2863,8 @@ async function submitPantryItem() {
 }
 
 async function updatePantryQty(id, newQty) {
-    if(newQty <= 0) { if(!confirm('המוצר אזל מהמלאי. האם למחוק את הרישום? (ניתן להעביר לרכש במקום)')) return; await fetch(`${API}/pantry/delete/${id}`, { method:'DELETE' }); } 
-    else { await fetch(`${API}/pantry/update`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemId: id, quantity: newQty}) }); } fetchData();
+    if(newQty <= 0) { if(!confirm('המוצר אזל מהמלאי. האם למחוק את הרישום? (ניתן להעביר לרכש במקום)')) return; await communityFetch(`${API}/pantry/delete/${id}`, { method:'DELETE' }); } 
+    else { await communityFetch(`${API}/pantry/update`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemId: id, quantity: newQty}) }); } fetchData();
 }
 
 function openPantryUseModal(name, unit, qty, upp) { 
@@ -2922,12 +2922,12 @@ async function submitPantryUse() {
     if((!qty || parseFloat(qty) <= 0) && (!units || parseFloat(units) <= 0)) return showToast('error', 'נא להזין כמות תקינה');
     
     try {
-        const res = await fetch(`${API}/pantry/use`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ groupId: currentGroup.id, itemName: name, usedQuantity: parseFloat(qty) || 0, usedUnits: parseFloat(units) || 0 }) }); const data = await res.json();
+        const res = await communityFetch(`${API}/pantry/use`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ groupId: currentGroup.id, itemName: name, usedQuantity: parseFloat(qty) || 0, usedUnits: parseFloat(units) || 0 }) }); const data = await res.json();
         if(data.success) { showToast('success', 'המלאי נגרע בהצלחה'); getEl('pantry-use-modal').classList.add('hidden'); fetchData(); } else { showToast('error', data.error); }
     } catch(e) { showToast('error', 'שגיאה בעדכון המלאי'); }
 }
 
-async function movePantryToCart(pantryId, itemName, unit) { await fetch(`${API}/shopping/add`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemName: itemName, quantity: 1, unit: unit, estimatedPrice: 0, userId: currentUser.id, groupId: currentGroup.id}) }); await fetch(`${API}/pantry/delete/${pantryId}`, { method:'DELETE' }); showToast('success', 'המוצר הועבר לבקשת רכש!'); fetchData(); }
+async function movePantryToCart(pantryId, itemName, unit) { await communityFetch(`${API}/shopping/add`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemName: itemName, quantity: 1, unit: unit, estimatedPrice: 0, userId: currentUser.id, groupId: currentGroup.id}) }); await communityFetch(`${API}/pantry/delete/${pantryId}`, { method:'DELETE' }); showToast('success', 'המוצר הועבר לבקשת רכש!'); fetchData(); }
 
 function renderChildTodo() {
     const todoSection = getEl('child-todo-section'); const todoList = getEl('child-todo-list');
@@ -4687,7 +4687,7 @@ async function deleteSelectedPantryItems() {
     if (cbs.length === 0) return showToast('error', 'לא נבחרו פריטים למחיקה');
     if (!confirm('למחוק ' + cbs.length + ' פריטים מהמזווה?')) return;
     const ids = Array.from(cbs).map(cb => cb.dataset.id);
-    await Promise.all(ids.map(id => fetch(`${API}/pantry/delete/${id}`, { method: 'DELETE' })));
+    await Promise.all(ids.map(id => communityFetch(`${API}/pantry/delete/${id}`, { method: 'DELETE' })));
     showToast('success', ids.length + ' פריטים נמחקו');
     pantryMultiDeleteMode = false;
     const bar = document.getElementById('pantry-delete-bar');
@@ -5958,7 +5958,7 @@ async function submitPantryUse() {
     if((!qty || parseFloat(qty) <= 0) && (!units || parseFloat(units) <= 0)) return showToast('error', 'נא להזין כמות תקינה');
     
     try {
-        const res = await fetch(`${API}/pantry/use`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ groupId: currentGroup.id, itemName: name, usedQuantity: parseFloat(qty) || 0, usedUnits: parseFloat(units) || 0 }) }); const data = await res.json();
+        const res = await communityFetch(`${API}/pantry/use`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ groupId: currentGroup.id, itemName: name, usedQuantity: parseFloat(qty) || 0, usedUnits: parseFloat(units) || 0 }) }); const data = await res.json();
         if(data.success) { showToast('success', 'המלאי נגרע בהצלחה'); getEl('pantry-use-modal').classList.add('hidden'); fetchData(); } else { showToast('error', data.error); }
     } catch(e) { showToast('error', 'שגיאה בעדכון המלאי'); }
 }
@@ -9000,7 +9000,7 @@ async function nextWizardStep() {
             btnNext.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> ממלא מזווה...';
             try {
                 for (let p of wizardProducts) {
-                    await fetch(`${API}/pantry/add`, {
+                    await communityFetch(`${API}/pantry/add`, {
                         method: 'POST', headers: {'Content-Type': 'application/json'},
                         body: JSON.stringify({ groupId: currentGroup.id, itemName: p.name, quantity: 1, unit: "יח'", unitsPerPackage: 1 })
                     });
