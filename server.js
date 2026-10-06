@@ -8164,7 +8164,7 @@ app.post('/api/biz/login', async (req, res) => {
         }
 
         const uRes = await pool.query(
-            `SELECT u.id, u.group_id, u.password_hash, fg.wizard_completed, fg.name AS business_name
+            `SELECT u.id, u.group_id, u.password_hash, fg.wizard_completed, fg.name AS business_name, fg.is_onboarded
              FROM users u
              JOIN family_groups fg ON fg.id = u.group_id
              WHERE REPLACE(REPLACE(u.phone, '-', ''), ' ', '')=$1 AND u.group_id=$2
@@ -8185,9 +8185,13 @@ app.post('/api/biz/login', async (req, res) => {
         const deviceHint = req.headers['user-agent']?.slice(0, 100) || null;
         const token = await createFamilySession(user.group_id, user.id, deviceHint, 'biz');
 
-        // עסקים ישנים שנוצרו לפני הוויזארד — wizard_completed=null, מתייחסים כאילו הושלם
-        const wizardDone = user.wizard_completed !== false;
-        if (user.wizard_completed === null) {
+        // עסקים ישנים שנוצרו לפני הוויזארד — wizard_completed=null, מתייחסים כאילו הושלם.
+        // בנוסף: עסק שכבר "רץ" בפועל (is_onboarded=true, מסומן ע"י אשף הדאשבורד הקל ב-
+        // business.html דרך /api/groups/onboard) לא אמור לחזור לאשף המלא (biz-onboarding.html)
+        // רק כי wizard_completed נשאר false - שתי הדגלים לא תמיד מתעדכנים יחד, ועסקים קיימים
+        // שהוקמו/הושלמו בנתיב השני נתקעים לנצח בחזרה לאשף המלא בכל כניסה.
+        const wizardDone = user.wizard_completed !== false || user.is_onboarded === true;
+        if (wizardDone && user.wizard_completed !== true) {
             pool.query(`UPDATE family_groups SET wizard_completed=true WHERE id=$1`, [user.group_id]).catch(() => {});
         }
 
