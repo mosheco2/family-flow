@@ -1636,7 +1636,9 @@ function renderCartSummary() {
   if (typeof _couponDiscount === 'number' && _couponDiscount > 0) couponDisc = Math.round(sub * _couponDiscount);
   else if (typeof _couponDiscount === 'string' && _couponDiscount.startsWith('fixed:'))
     couponDisc = Math.min(sub, parseFloat(_couponDiscount.split(':')[1])||0);
-  const delivery = storeData?.settings?.delivery_fee || 0;
+  // parseFloat חובה כאן: delivery_fee מגיע מהשרת כמחרוזת (PostgreSQL DECIMAL),
+  // ו-"+" על מספר ומחרוזת הוא שרשור טקסט ולא חיבור (למשל 2100 + "0.00" = "21000.00"!)
+  const delivery = parseFloat(storeData?.settings?.delivery_fee) || 0;
   const total = Math.max(0, sub - bogoDisc - couponDisc + delivery);
   const cd = storeData?.communityData;
   const commDisc = (cd?.discount_active && cd?.discount_pct > 0 && sub > 0) ? Math.round(sub * cd.discount_pct / 100) : 0;
