@@ -1256,6 +1256,154 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
       try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS wo_notes_updated_at TIMESTAMP`); } catch(e) {}
       try { await client.query(`ALTER TABLE store_orders ADD COLUMN IF NOT EXISTS wo_notes_updated_by VARCHAR(100)`); } catch(e) {}
       try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS reserved_qty DECIMAL(10,2) DEFAULT 0`); } catch(e) {}
+
+      // --- חנות קמעונאית (retail) — שלב א': יסודות מלאי + וריאציות ---
+      // כל השדות/טבלאות הבאות הם תוספתיים בלבד (nullable / ברירת מחדל שקופה) —
+      // לא משנים התנהגות קיימת לעסקים שאינם retail (מסעדה/יופי/ספורט/תיקונים/מומחים)
+      try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS barcode VARCHAR(50)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS unit_type VARCHAR(20) DEFAULT 'piece'`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS cost_price DECIMAL(10,2)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS low_stock_threshold INT`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS supplier_id INT`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS supplier_sku VARCHAR(100)`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS has_variants BOOLEAN DEFAULT FALSE`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS track_inventory BOOLEAN DEFAULT TRUE`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS variant_attributes_schema JSONB`); } catch(e) {}
+      try { await client.query(`CREATE INDEX IF NOT EXISTS idx_store_catalog_barcode ON store_catalog(group_id, barcode)`); } catch(e) {}
+
+      try { await client.query(`
+        CREATE TABLE IF NOT EXISTS store_product_variants (
+            id SERIAL PRIMARY KEY,
+            catalog_id INT REFERENCES store_catalog(id) ON DELETE CASCADE,
+            group_id INT REFERENCES family_groups(id),
+            variant_name VARCHAR(150),
+            attributes JSONB,
+            sku VARCHAR(100),
+            barcode VARCHAR(50),
+            price_override DECIMAL(10,2),
+            stock_quantity INT DEFAULT 0,
+            reserved_qty DECIMAL(10,2) DEFAULT 0,
+            image_url TEXT,
+            is_active BOOLEAN DEFAULT TRUE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )`); } catch(e) {}
+      try { await client.query(`CREATE INDEX IF NOT EXISTS idx_variants_catalog ON store_product_variants(catalog_id)`); } catch(e) {}
+
+      try { await client.query(`
+        CREATE TABLE IF NOT EXISTS store_suppliers (
+            id SERIAL PRIMARY KEY,
+            group_id INT REFERENCES family_groups(id),
+            name VARCHAR(150) NOT NULL,
+            contact_name VARCHAR(100),
+            phone VARCHAR(30),
+            email VARCHAR(150),
+            payment_terms VARCHAR(100),
+            notes TEXT,
+            is_active BOOLEAN DEFAULT TRUE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )`); } catch(e) {}
+
+      try { await client.query(`
+        CREATE TABLE IF NOT EXISTS store_purchase_orders (
+            id SERIAL PRIMARY KEY,
+            group_id INT REFERENCES family_groups(id),
+            supplier_id INT REFERENCES store_suppliers(id),
+            status VARCHAR(20) DEFAULT 'draft',
+            expected_date DATE,
+            total_cost DECIMAL(10,2) DEFAULT 0,
+            notes TEXT,
+            created_by_user_id INT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            received_at TIMESTAMP
+        )`); } catch(e) {}
+      try { await client.query(`
+        CREATE TABLE IF NOT EXISTS store_purchase_order_items (
+            id SERIAL PRIMARY KEY,
+            purchase_order_id INT REFERENCES store_purchase_orders(id) ON DELETE CASCADE,
+            catalog_id INT REFERENCES store_catalog(id),
+            variant_id INT REFERENCES store_product_variants(id),
+            qty_ordered INT NOT NULL,
+            qty_received INT DEFAULT 0,
+            unit_cost DECIMAL(10,2)
+        )`); } catch(e) {}
+
+      try { await client.query(`
+        CREATE TABLE IF NOT EXISTS store_inventory_movements (
+            id SERIAL PRIMARY KEY,
+            group_id INT REFERENCES family_groups(id),
+            catalog_id INT REFERENCES store_catalog(id),
+            variant_id INT REFERENCES store_product_variants(id),
+            change_qty INT NOT NULL,
+            reason VARCHAR(30) NOT NULL,
+            reference_id INT,
+            note TEXT,
+            created_by_user_id INT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )`); } catch(e) {}
+      try { await client.query(`CREATE INDEX IF NOT EXISTS idx_inv_movements_catalog ON store_inventory_movements(catalog_id, created_at)`); } catch(e) {}
+
+      try { await client.query(`
+        CREATE TABLE IF NOT EXISTS store_stock_counts (
+            id SERIAL PRIMARY KEY,
+            group_id INT REFERENCES family_groups(id),
+            status VARCHAR(20) DEFAULT 'in_progress',
+            started_by_user_id INT,
+            started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            completed_at TIMESTAMP
+        )`); } catch(e) {}
+      try { await client.query(`
+        CREATE TABLE IF NOT EXISTS store_stock_count_items (
+            id SERIAL PRIMARY KEY,
+            stock_count_id INT REFERENCES store_stock_counts(id) ON DELETE CASCADE,
+            catalog_id INT REFERENCES store_catalog(id),
+            variant_id INT REFERENCES store_product_variants(id),
+            expected_qty INT,
+            counted_qty INT,
+            diff_qty INT GENERATED ALWAYS AS (counted_qty - expected_qty) STORED
+        )`); } catch(e) {}
+
+      try { await client.query(`
+        CREATE TABLE IF NOT EXISTS store_promotions (
+            id SERIAL PRIMARY KEY,
+            group_id INT REFERENCES family_groups(id),
+            title VARCHAR(150),
+            promo_type VARCHAR(30),
+            scope VARCHAR(20),
+            scope_value JSONB,
+            value DECIMAL(10,2),
+            buy_qty INT,
+            get_qty INT,
+            coupon_code VARCHAR(30),
+            starts_at TIMESTAMP,
+            ends_at TIMESTAMP,
+            is_active BOOLEAN DEFAULT TRUE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )`); } catch(e) {}
+
+      try { await client.query(`
+        CREATE TABLE IF NOT EXISTS store_returns (
+            id SERIAL PRIMARY KEY,
+            group_id INT REFERENCES family_groups(id),
+            original_order_id INT REFERENCES store_orders(id),
+            status VARCHAR(20) DEFAULT 'pending',
+            refund_method VARCHAR(20),
+            total_refund DECIMAL(10,2),
+            reason TEXT,
+            restock BOOLEAN DEFAULT TRUE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            completed_at TIMESTAMP
+        )`); } catch(e) {}
+      try { await client.query(`
+        CREATE TABLE IF NOT EXISTS store_return_items (
+            id SERIAL PRIMARY KEY,
+            return_id INT REFERENCES store_returns(id) ON DELETE CASCADE,
+            catalog_id INT,
+            variant_id INT,
+            qty INT,
+            unit_price DECIMAL(10,2)
+        )`); } catch(e) {}
+      // --- סוף סכמת חנות קמעונאית שלב א' ---
+
       try { await client.query(`ALTER TABLE calendar_events ADD COLUMN IF NOT EXISTS work_order_id INT REFERENCES store_orders(id) ON DELETE SET NULL`); } catch(e) {}
       try { await client.query(`ALTER TABLE calendar_events ADD COLUMN IF NOT EXISTS address TEXT`); } catch(e) {}
       try { await client.query(`ALTER TABLE calendar_events ADD COLUMN IF NOT EXISTS attendees_user_ids JSONB DEFAULT '[]'::jsonb`); } catch(e) {}
