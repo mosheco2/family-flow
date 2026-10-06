@@ -7367,6 +7367,23 @@ async function getOrCreateStorefrontCustomer(phone, { name, email } = {}) {
 // נקרא מכל נקודת הרשמה ציבורית (הזמנה, תור, בקשת שירות) בכל סוגי העסקים,
 // כדי שלכל לקוח שנרשם בחנות הציבורית ייפתח כרטיס מלא ברשימת הלקוחות אצל בעל העסק,
 // וגם חשבון לקוח רשום (storefront_customers) המוצג בסופר אדמין ומקנה יכולות משתמש רשום.
+// --- חנות קמעונאית: רישום תנועת מלאי מרכזי (לוג + עדכון כמות בפועל) ---
+// reason: 'sale' | 'return' | 'purchase_receipt' | 'manual_adjustment' | 'stock_count' | 'cancelled_order'
+async function recordInventoryMovement({ groupId, catalogId, variantId = null, changeQty, reason, referenceId = null, note = null, userId = null }) {
+    if (!groupId || !catalogId || !changeQty) return;
+    try {
+        if (variantId) {
+            await pool.query('UPDATE store_product_variants SET stock_quantity = stock_quantity + $1 WHERE id=$2', [changeQty, variantId]);
+        } else {
+            await pool.query('UPDATE store_catalog SET stock_quantity = COALESCE(stock_quantity,0) + $1 WHERE id=$2', [changeQty, catalogId]);
+        }
+        await pool.query(
+            `INSERT INTO store_inventory_movements (group_id, catalog_id, variant_id, change_qty, reason, reference_id, note, created_by_user_id)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+            [groupId, catalogId, variantId, changeQty, reason, referenceId, note, userId]);
+    } catch(e) { console.error('[recordInventoryMovement] error:', e.message); }
+}
+
 async function upsertStoreCustomer(groupId, { name, phone, email, notes } = {}) {
     try {
         if (!groupId || (!phone && !email && !name)) return;
@@ -13263,11 +13280,20 @@ app.put('/api/store/catalog/:id', verifyBizOrLegacy, requireModule('sales'), asy
     try {
         const groupId = req.bizAuth.groupId;
         if (!groupId) return res.status(400).json({ error: 'groupId נדרש' });
-        const { name, description, price, category, imageUrl, optionsText, badgeText, badgeColor, productType, longDescription, kitchenStation, isComplimentary, nameEn, descriptionEn, categoryEn } = req.body;
+        const { name, description, price, category, imageUrl, optionsText, badgeText, badgeColor, productType, longDescription, kitchenStation, isComplimentary, nameEn, descriptionEn, categoryEn,
+                barcode, unitType, costPrice, lowStockThreshold, supplierId, supplierSku, hasVariants, trackInventory, variantAttributesSchema } = req.body;
 
         const result = await pool.query(
-            'UPDATE store_catalog SET name=$1, description=$2, price=$3, category=$4, image_url=COALESCE($5, image_url), options_text=$6, badge_text=$7, badge_color=$8, product_type=$9, long_description=$10, sku=$11, kitchen_station=$12, is_complimentary=$13, name_en=$14, description_en=$15, category_en=$16 WHERE id=$17 AND group_id=$18 RETURNING *',
-            [name, description, parseFloat(price)||0, category, imageUrl, optionsText, badgeText || null, badgeColor || 'red', productType || 'retail', longDescription || '', req.body.sku || '', kitchenStation || 'other', isComplimentary ? true : false, nameEn || '', descriptionEn || '', categoryEn || '', req.params.id, groupId]
+            `UPDATE store_catalog SET name=$1, description=$2, price=$3, category=$4, image_url=COALESCE($5, image_url), options_text=$6, badge_text=$7, badge_color=$8, product_type=$9, long_description=$10, sku=$11, kitchen_station=$12, is_complimentary=$13, name_en=$14, description_en=$15, category_en=$16,
+                barcode=COALESCE($19, barcode), unit_type=COALESCE($20, unit_type), cost_price=COALESCE($21, cost_price), low_stock_threshold=COALESCE($22, low_stock_threshold),
+                supplier_id=COALESCE($23, supplier_id), supplier_sku=COALESCE($24, supplier_sku), has_variants=COALESCE($25, has_variants), track_inventory=COALESCE($26, track_inventory),
+                variant_attributes_schema=COALESCE($27, variant_attributes_schema)
+             WHERE id=$17 AND group_id=$18 RETURNING *`,
+            [name, description, parseFloat(price)||0, category, imageUrl, optionsText, badgeText || null, badgeColor || 'red', productType || 'retail', longDescription || '', req.body.sku || '', kitchenStation || 'other', isComplimentary ? true : false, nameEn || '', descriptionEn || '', categoryEn || '', req.params.id, groupId,
+             barcode ?? null, unitType ?? null, (costPrice !== undefined && costPrice !== null && costPrice !== '') ? parseFloat(costPrice) : null,
+             (lowStockThreshold !== undefined && lowStockThreshold !== null && lowStockThreshold !== '') ? parseInt(lowStockThreshold) : null,
+             supplierId ?? null, supplierSku ?? null, (typeof hasVariants === 'boolean') ? hasVariants : null, (typeof trackInventory === 'boolean') ? trackInventory : null,
+             variantAttributesSchema ? JSON.stringify(variantAttributesSchema) : null]
         );
         if (result.rowCount === 0) return res.status(404).json({ error: 'פריט לא נמצא או אין הרשאה' });
         res.json({ success: true, item: result.rows[0] });
@@ -13281,6 +13307,133 @@ app.post('/api/store/catalog/toggle', verifyBizOrLegacy, requireModule('sales'),
         const { itemId, isAvailable } = req.body;
         const result = await pool.query('UPDATE store_catalog SET is_available=$1 WHERE id=$2 AND group_id=$3 RETURNING id', [isAvailable, itemId, groupId]);
         if (result.rowCount === 0) return res.status(404).json({ error: 'פריט לא נמצא או אין הרשאה' });
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ═══════════════════════════════════════════════════════════
+//  חנות קמעונאית (retail) — שלב א': מלאי, וריאציות, תנועות
+// ═══════════════════════════════════════════════════════════
+
+// סקירת מלאי: כל מוצרי הקטלוג עם סטטוס מלאי (נמוך/אזל) + מספר וריאציות
+app.get('/api/biz/retail/inventory/:groupId', verifyBizOrLegacy, requireModule('sales'), async (req, res) => {
+    try {
+        const groupId = req.bizAuth.groupId || req.params.groupId;
+        if (!groupId) return res.status(400).json({ error: 'groupId נדרש' });
+        const items = await pool.query(
+            `SELECT sc.id, sc.name, sc.category, sc.sku, sc.barcode, sc.unit_type, sc.cost_price, sc.price,
+                    sc.stock_quantity, sc.reserved_qty, sc.low_stock_threshold, sc.has_variants, sc.track_inventory,
+                    (SELECT COUNT(*) FROM store_product_variants v WHERE v.catalog_id=sc.id AND v.is_active=TRUE) AS variant_count,
+                    (SELECT COALESCE(SUM(v.stock_quantity),0) FROM store_product_variants v WHERE v.catalog_id=sc.id AND v.is_active=TRUE) AS variants_total_stock
+             FROM store_catalog sc WHERE sc.group_id=$1 AND sc.track_inventory = TRUE ORDER BY sc.sort_order ASC, sc.id ASC`,
+            [groupId]);
+        res.json(items.rows);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// יומן תנועות מלאי (מסונן אופציונלית לפי מוצר)
+app.get('/api/biz/retail/inventory/:groupId/movements', verifyBizOrLegacy, requireModule('sales'), async (req, res) => {
+    try {
+        const groupId = req.bizAuth.groupId || req.params.groupId;
+        if (!groupId) return res.status(400).json({ error: 'groupId נדרש' });
+        const { catalogId } = req.query;
+        const params = [groupId];
+        let where = 'm.group_id=$1';
+        if (catalogId) { params.push(catalogId); where += ` AND m.catalog_id=$${params.length}`; }
+        const rows = await pool.query(
+            `SELECT m.*, sc.name AS product_name FROM store_inventory_movements m
+             JOIN store_catalog sc ON sc.id = m.catalog_id
+             WHERE ${where} ORDER BY m.created_at DESC LIMIT 200`, params);
+        res.json(rows.rows);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// תיקון מלאי ידני (כולל סיבה חופשית)
+app.post('/api/biz/retail/inventory/:catalogId/adjust', verifyBizOrLegacy, requireModule('sales'), async (req, res) => {
+    try {
+        const groupId = req.bizAuth.groupId;
+        if (!groupId) return res.status(400).json({ error: 'groupId נדרש' });
+        const catalogId = parseInt(req.params.catalogId);
+        const { changeQty, note, variantId } = req.body;
+        const delta = parseInt(changeQty);
+        if (!delta) return res.status(400).json({ error: 'יש להזין כמות שינוי שונה מאפס' });
+        const own = await pool.query('SELECT id FROM store_catalog WHERE id=$1 AND group_id=$2', [catalogId, groupId]);
+        if (!own.rows.length) return res.status(404).json({ error: 'מוצר לא נמצא' });
+        await recordInventoryMovement({ groupId, catalogId, variantId: variantId || null, changeQty: delta, reason: 'manual_adjustment', note: note || null, userId: req.bizAuth.userId || null });
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// וריאציות מוצר — רשימה
+app.get('/api/biz/retail/variants/:catalogId', verifyBizOrLegacy, requireModule('sales'), async (req, res) => {
+    try {
+        const groupId = req.bizAuth.groupId;
+        if (!groupId) return res.status(400).json({ error: 'groupId נדרש' });
+        const rows = await pool.query('SELECT * FROM store_product_variants WHERE catalog_id=$1 AND group_id=$2 ORDER BY id ASC', [req.params.catalogId, groupId]);
+        res.json(rows.rows);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// וריאציית מוצר — יצירה
+app.post('/api/biz/retail/variants/:catalogId', verifyBizOrLegacy, requireModule('sales'), async (req, res) => {
+    try {
+        const groupId = req.bizAuth.groupId;
+        if (!groupId) return res.status(400).json({ error: 'groupId נדרש' });
+        const catalogId = parseInt(req.params.catalogId);
+        const own = await pool.query('SELECT id FROM store_catalog WHERE id=$1 AND group_id=$2', [catalogId, groupId]);
+        if (!own.rows.length) return res.status(404).json({ error: 'מוצר לא נמצא' });
+        const { variantName, attributes, sku, barcode, priceOverride, stockQuantity, imageUrl } = req.body;
+        const ins = await pool.query(
+            `INSERT INTO store_product_variants (catalog_id, group_id, variant_name, attributes, sku, barcode, price_override, stock_quantity, image_url)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING *`,
+            [catalogId, groupId, variantName || null, attributes ? JSON.stringify(attributes) : null, sku || null, barcode || null,
+             (priceOverride !== undefined && priceOverride !== null && priceOverride !== '') ? parseFloat(priceOverride) : null,
+             parseInt(stockQuantity) || 0, imageUrl || null]);
+        await pool.query('UPDATE store_catalog SET has_variants=TRUE WHERE id=$1', [catalogId]);
+        res.json({ success: true, variant: ins.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// וריאציית מוצר — עדכון
+app.put('/api/biz/retail/variants/:variantId', verifyBizOrLegacy, requireModule('sales'), async (req, res) => {
+    try {
+        const groupId = req.bizAuth.groupId;
+        if (!groupId) return res.status(400).json({ error: 'groupId נדרש' });
+        const { variantName, attributes, sku, barcode, priceOverride, imageUrl, isActive } = req.body;
+        const upd = await pool.query(
+            `UPDATE store_product_variants SET
+                variant_name=COALESCE($1, variant_name), attributes=COALESCE($2, attributes), sku=COALESCE($3, sku),
+                barcode=COALESCE($4, barcode), price_override=$5, image_url=COALESCE($6, image_url), is_active=COALESCE($7, is_active)
+             WHERE id=$8 AND group_id=$9 RETURNING *`,
+            [variantName || null, attributes ? JSON.stringify(attributes) : null, sku || null, barcode || null,
+             (priceOverride !== undefined && priceOverride !== null && priceOverride !== '') ? parseFloat(priceOverride) : null,
+             imageUrl || null, (typeof isActive === 'boolean') ? isActive : null, req.params.variantId, groupId]);
+        if (!upd.rows.length) return res.status(404).json({ error: 'וריאציה לא נמצאה' });
+        res.json({ success: true, variant: upd.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// וריאציית מוצר — מחיקה
+app.delete('/api/biz/retail/variants/:variantId', verifyBizOrLegacy, requireModule('sales'), async (req, res) => {
+    try {
+        const groupId = req.bizAuth.groupId;
+        if (!groupId) return res.status(400).json({ error: 'groupId נדרש' });
+        const del = await pool.query('DELETE FROM store_product_variants WHERE id=$1 AND group_id=$2 RETURNING id', [req.params.variantId, groupId]);
+        if (!del.rows.length) return res.status(404).json({ error: 'וריאציה לא נמצאה' });
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// עדכון מלאי וריאציה (תיקון ידני ברמת וריאציה)
+app.post('/api/biz/retail/variants/:variantId/adjust', verifyBizOrLegacy, requireModule('sales'), async (req, res) => {
+    try {
+        const groupId = req.bizAuth.groupId;
+        if (!groupId) return res.status(400).json({ error: 'groupId נדרש' });
+        const v = await pool.query('SELECT catalog_id FROM store_product_variants WHERE id=$1 AND group_id=$2', [req.params.variantId, groupId]);
+        if (!v.rows.length) return res.status(404).json({ error: 'וריאציה לא נמצאה' });
+        const delta = parseInt(req.body.changeQty);
+        if (!delta) return res.status(400).json({ error: 'יש להזין כמות שינוי שונה מאפס' });
+        await recordInventoryMovement({ groupId, catalogId: v.rows[0].catalog_id, variantId: parseInt(req.params.variantId), changeQty: delta, reason: 'manual_adjustment', note: req.body.note || null, userId: req.bizAuth.userId || null });
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
