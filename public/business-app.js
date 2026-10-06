@@ -28909,7 +28909,11 @@ window.togglePromotionStatus = async function(id, nextStatus) {
 window.deletePromotion = async function(id) {
     if(!await window._uiConfirm('למחוק מבצע זה לחלוטין?', {danger:true, okLabel:'מחק'})) return;
     try {
-        const res = await fetch(`${API}/store/promotions/${id}`, { method: 'DELETE' });
+        const res = await fetch(`${API}/store/promotions/${id}`, {
+            method: 'DELETE',
+            headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ groupId: currentGroup.id })
+        });
         const data = await res.json();
         if (data.success) {
             showToast('info', 'המבצע נמחק');
