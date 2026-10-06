@@ -39,7 +39,7 @@
 | `unit_type` | VARCHAR(20) DEFAULT `'piece'` | `'piece'` \| `'weight_kg'` \| `'weight_gram'` \| `'volume_liter'` \| `'length_meter'` — קובע אם המכירה היא ביחידות שלמות או כמות משתנה |
 | `cost_price` | DECIMAL(10,2) | מחיר עלות (לצורך חישוב רווחיות ודוחות — לא מוצג ללקוח) |
 | `low_stock_threshold` | INT | סף להתראת "מלאי נמוך"; `NULL` = לא עוקבים |
-| `supplier_id` | INT → `store_suppliers(id)` | ספק ברירת מחדל למוצר |
+| `supplier_id` | INT → `suppliers(id)` **(טבלה קיימת! לא חדשה — ראו תיקון 3.3)** | ספק ברירת מחדל למוצר |
 | `supplier_sku` | VARCHAR(100) | מק"ט אצל הספק (להזמנת רכש) |
 | `has_variants` | BOOLEAN DEFAULT FALSE | TRUE ⇒ המלאי/מחיר מנוהלים ברמת `store_product_variants`, לא בשורת הקטלוג עצמה |
 | `track_inventory` | BOOLEAN DEFAULT TRUE | אפשרות לכבות מעקב מלאי למוצר ספציפי (למשל שירות נלווה) |
@@ -69,50 +69,14 @@ CREATE INDEX idx_variants_catalog ON store_product_variants(catalog_id);
 
 **מבנה בחירת מאפיינים** (ל-UI בעריכת קטלוג): `store_catalog.variant_attributes_schema JSONB` — לדוגמה `[{"name":"צבע","values":["שחור","לבן","אדום"]},{"name":"מידה","values":["S","M","L","XL"]}]`. המערכת בונה אוטומטית את כל צירופי הווריאציות (מטריצה) בעת שמירת הסכמה, והעסק ממלא מלאי/מחיר/ברקוד לכל שורה שנוצרה (או מוחק צירופים לא רלוונטיים).
 
-### 3.3 `store_suppliers` (טבלה חדשה)
+### 3.3 ספקים והזמנות רכש — **תיקון: שימוש בתשתית קיימת, לא טבלאות חדשות**
 
-```sql
-CREATE TABLE store_suppliers (
-    id SERIAL PRIMARY KEY,
-    group_id INT REFERENCES family_groups(id),
-    name VARCHAR(150) NOT NULL,
-    contact_name VARCHAR(100),
-    phone VARCHAR(30),
-    email VARCHAR(150),
-    payment_terms VARCHAR(100),         -- "שוטף+30" וכו', טקסט חופשי
-    notes TEXT,
-    is_active BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-```
-
-### 3.4 `store_purchase_orders` + `store_purchase_order_items` (הזמנות רכש)
-
-```sql
-CREATE TABLE store_purchase_orders (
-    id SERIAL PRIMARY KEY,
-    group_id INT REFERENCES family_groups(id),
-    supplier_id INT REFERENCES store_suppliers(id),
-    status VARCHAR(20) DEFAULT 'draft',   -- draft | sent | partially_received | received | cancelled
-    expected_date DATE,
-    total_cost DECIMAL(10,2) DEFAULT 0,
-    notes TEXT,
-    created_by_user_id INT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    received_at TIMESTAMP
-);
-CREATE TABLE store_purchase_order_items (
-    id SERIAL PRIMARY KEY,
-    purchase_order_id INT REFERENCES store_purchase_orders(id) ON DELETE CASCADE,
-    catalog_id INT REFERENCES store_catalog(id),
-    variant_id INT REFERENCES store_product_variants(id),  -- NULL אם אין וריאציות
-    qty_ordered INT NOT NULL,
-    qty_received INT DEFAULT 0,
-    unit_cost DECIMAL(10,2)
-);
-```
-
-**זרימה:** יצירת הזמנת רכש (draft) → שליחה לספק (sent, אין אינטגרציה אוטומטית — ייצוא/שיתוף הזמנה כטקסט/PDF) → **קבלת סחורה** (מסך "קבלת מלאי": סורקים/מזינים כמות שהתקבלה בפועל לכל שורה) → המערכת **מעדכנת `stock_quantity`** של המוצר/וריאציה הרלוונטיים אוטומטית + רושמת תנועת מלאי (ראו 3.5) + מעדכנת `cost_price` אם השתנה.
+> ⚠️ **תיקון לאחר סקירה (2026-10-06):** בניסיון ראשון נבנו בטעות טבלאות מקבילות (`store_suppliers`, `store_purchase_orders`, `store_purchase_order_items`) מבלי לבדוק קודם אם קיימת תשתית דומה. התברר שכן — `suppliers` + `supplier_products` + `purchase_orders` (server.js ~16940 ואילך) הן תשתית B2B קיימת, גנרית (לא תלויית `business_type`), כבר בשימוש בזרימת פקודות עבודה (construction/maintenance), עם `GET/POST/DELETE /api/suppliers*`. הטבלאות הכפולות ושימושיהן **הוסרו** מהקוד. ההמשך לחנות קמעונאית ישתמש **בתשתית הקיימת**:
+> - `suppliers` (`id, group_id, name, contact_person, phone, email, category, min_order, delivery_days, cutoff_time`)
+> - `supplier_products` (`id, group_id, supplier_id, name, description, price, unit_type, units_per_package, properties`)
+> - `purchase_orders` (`id, group_id, created_by, supplier_id, items JSONB, total_amount, status, expected_delivery, notes`) — `items` הוא JSON גמיש שכבר כולל `catalog_id` לקישור לקטלוג, וסטטוס `'delivered'` כבר מפעיל לוגיקת עדכון `stock_quantity` קיימת בקוד.
+>
+> **מה עוד צריך**, בלי טבלאות נוספות: UI צד עסק לחנות קמעונאית שמשתמש ב-endpoints הקיימים (`/api/suppliers`, `/api/suppliers/:id/products`, זרימת purchase_orders הקיימת) — ולא endpoints חדשים תחת `/api/biz/retail/...`. ייתכן שיידרשו שדות נוספים קטנים בטבלאות הקיימות (לבדוק בפועל מול הקוד לפני הוספה, לא להניח).
 
 ### 3.5 `store_inventory_movements` (יומן תנועות מלאי — טבלה חדשה)
 
@@ -157,10 +121,12 @@ CREATE TABLE store_stock_count_items (
 
 בסיום ספירה, המערכת מציעה "ליישר" את המלאי לפי הנספר בפועל — כל פער יוצר רשומה ב-`store_inventory_movements` עם `reason='stock_count'`.
 
-### 3.7 הנחות ומבצעים — `store_promotions` (טבלה חדשה)
+### 3.7 הנחות ומבצעים — `store_retail_promotions` (טבלה חדשה)
+
+> ⚠️ **תיקון:** השם המקורי שתוכנן (`store_promotions`) כבר תפוס ע"י טבלה קיימת ופעילה (server.js ~1006/16683, מנוהלת דרך `/api/store/promotions*`, בשימוש כבר היום לבאנרים/טאב מבצעים בחנות) עם סכמה שונה. שונה השם ל-`store_retail_promotions` כדי לא להתנגש. יש לשקול בעתיד אם לאחד את שתי המערכות (שתיהן "מבצעים לחנות") או להשאירן נפרדות במכוון (הישנה כללית לכל סוגי העסק, זו ייעודית ל-retail עם buy_x_get_y/scope מתקדם).
 
 ```sql
-CREATE TABLE store_promotions (
+CREATE TABLE store_retail_promotions (
     id SERIAL PRIMARY KEY,
     group_id INT REFERENCES family_groups(id),
     title VARCHAR(150),
@@ -214,7 +180,7 @@ CREATE TABLE store_return_items (
 - **יחידת מידה** — בורר `יחידה בודדת / משקל (ק"ג) / משקל (גרם) / נפח (ליטר) / אורך (מטר)`; כשנבחר משקל/נפח/אורך — שדה המחיר משתנה ל"מחיר ל-ק"ג/ליטר/מטר" וב-POS/storefront מוצג שדה הזנת כמות (0.250 ק"ג וכו').
 - **ברקוד** — שדה טקסט + כפתור "סרוק" (ראו 6.1).
 - **מלאי נמוך** — שדה סף + toggle התראות.
-- **ספק ועלות** — בורר ספק (מתוך `store_suppliers`, עם אפשרות "ספק חדש" inline) + מחיר עלות (לדוחות רווחיות, לא גלוי ללקוח).
+- **ספק ועלות** — בורר ספק (מתוך `suppliers` הקיימת, עם אפשרות "ספק חדש" inline) + מחיר עלות (לדוחות רווחיות, לא גלוי ללקוח).
 
 ### 4.2 מסך "מלאי" חדש (טאב עצמאי בתוך "מכירות"/`shop`, בדומה למבנה שוקה)
 
@@ -292,7 +258,7 @@ CREATE TABLE store_return_items (
 ברקוד (סורק USB/בלוטות' בלבד — ללא סריקת מצלמה בשלב זה), יחידת מידה/משקל, cost_price, סף מלאי נמוך + התראה בדשבורד, יומן תנועות מלאי, חיבור storefront, **ו-`store_product_variants` + UI מטריצת וריאציות + תמיכה ב-storefront/POS/עגלה** (וריאציות נדרשות כבר בגל הראשון).
 
 **שלב ב' — ספקים ורכש:**
-`store_suppliers`, הזמנות רכש, קבלת סחורה מעדכנת מלאי.
+UI צד עסק שמשתמש בתשתית `suppliers`/`purchase_orders` הקיימת, קבלת סחורה מעדכנת מלאי.
 
 **שלב ג' — מבצעים (כולל "קנה X קבל Y"):**
 `store_promotions` + מנוע חישוב מחיר שרתי + UI ניהול — **ניהול/אישור מבצעים מוגבל לבעל העסק (Admin) בלבד, לא לעובדים**, גם עם הרשאה.
