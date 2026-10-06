@@ -43228,11 +43228,14 @@ app.get('/api/sc-auth/my-families', async (req, res) => {
     if (cust.phone !== SC_MULTI_FAMILY_TEST_PHONE) {
         return res.json({ success: true, families: cust.family_group_id ? [{ id: cust.family_group_id }] : [] });
     }
-    // מספר הבדיקות בלבד: שליפת כל חשבונות המשפחה הפעילים שבהם הטלפון רשום כמשתמש
+    // מספר הבדיקות בלבד: שליפת כל חשבונות המשפחה הפעילים שבהם הטלפון רשום כמשתמש -
+    // מוחרגים חשבונות "סולו" שנוצרו אוטומטית (member_type='shopper', ראו getOrCreateStorefrontCustomer/
+    // sc-auth register) - אלו חשבונות-צל, לא משפחות אמיתיות שהמשתמש התכוון להציג בבחירה
     const r = await pool.query(
         `SELECT DISTINCT fg.id, fg.name FROM users u
          JOIN family_groups fg ON fg.id = u.group_id
          WHERE REGEXP_REPLACE(u.phone,'[^0-9]','','g')=$1 AND fg.account_status='active' AND fg.type='FAMILY'
+           AND (fg.member_type IS NULL OR fg.member_type NOT IN ('shopper','member'))
          ORDER BY fg.id`,
         [cust.phone]
     );
@@ -43251,7 +43254,10 @@ app.get('/api/sc-auth/sso-token', async (req, res) => {
     const requestedGroupId = parseInt(req.query.familyGroupId);
     if (requestedGroupId && cust.phone === SC_MULTI_FAMILY_TEST_PHONE) {
         const ok = await pool.query(
-            `SELECT 1 FROM users u WHERE u.group_id=$1 AND REGEXP_REPLACE(u.phone,'[^0-9]','','g')=$2`,
+            `SELECT 1 FROM users u JOIN family_groups fg ON fg.id=u.group_id
+             WHERE u.group_id=$1 AND REGEXP_REPLACE(u.phone,'[^0-9]','','g')=$2
+               AND fg.account_status='active' AND fg.type='FAMILY'
+               AND (fg.member_type IS NULL OR fg.member_type NOT IN ('shopper','member'))`,
             [requestedGroupId, cust.phone]
         );
         if (ok.rows.length) targetFamilyGroupId = requestedGroupId;
