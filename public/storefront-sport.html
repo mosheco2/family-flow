@@ -320,6 +320,10 @@ input,select,textarea{font-family:inherit}
 @media(max-width:767px){
   #store-layout{grid-template-columns:1fr}
   #cart-dock{position:static}
+  /* תמונת הנושא (banner) לרוב רחבה יותר מגבוהה - "cover" במסך צר חותך משמעותית
+     מהצדדים. במובייל עוברים ל-"contain" כדי שהתמונה כולה תיכנס */
+  #hero{min-height:220px}
+  #hero-banner-bg{background-size:contain;background-repeat:no-repeat;background-position:center}
   #top-bar{padding:6px 12px;font-size:11px}
   #top-bar-center{display:none}
   #ref-badge{font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:120px}
