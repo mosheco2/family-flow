@@ -22863,8 +22863,13 @@ app.get('/:alias', async (req, res, next) => {
 
         // עסקי ספורט תמיד מוגשים מתבנית "דינמית" — גם אם store_settings.template_id נשאר
         // ישן/ברירת מחדל ('classic') מלפני שהעסק הוגדר כספורט, או לא נבחר אף פעם בפועל.
+        // אותו עיקרון לחנות קמעונאית (retail/store_only) — ברירת מחדל ל-storefront-market.html,
+        // אלא אם העסק בחר במפורש תבנית אחרת (template_id מוגדר ושונה מ-'classic')
+        const isRetailBizType = ['retail', 'store_only'].includes(tRes.rows[0]?.business_type);
+        const explicitTemplate = tRes.rows[0]?.template_id && tRes.rows[0].template_id !== 'classic' ? tRes.rows[0].template_id : null;
         const templateId = tRes.rows[0]?.business_type === 'sport' ? 'sport'
-            : (tRes.rows.length > 0 ? (tRes.rows[0].template_id || 'classic') : 'classic');
+            : (isRetailBizType ? (explicitTemplate || 'market')
+            : (tRes.rows.length > 0 ? (tRes.rows[0].template_id || 'classic') : 'classic'));
         const templateMap = {
             'classic': 'storefront.html',
             'restaurant': 'storefront-restaurant.html',
