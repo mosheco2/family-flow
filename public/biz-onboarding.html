@@ -571,9 +571,23 @@
     .nom-item:last-child { border-bottom:none; }
     .nom-item:hover, .nom-item.focused { background:#F3F0FF; color:#5B46E5; }
     .nom-item small { display:block; font-size:11px; color:#94a3b8; }
+
+    /* ── כפתורי יצירת קשר צפים (שיחה + וואטסאפ) ── */
+    .contact-fab-wrap { position:fixed; bottom:20px; left:20px; z-index:99999; display:flex; flex-direction:column; gap:10px; }
+    .contact-fab { width:52px; height:52px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+      font-size:24px; text-decoration:none; box-shadow:0 6px 20px rgba(0,0,0,0.25); transition:transform 0.15s; }
+    .contact-fab:hover { transform:scale(1.08); }
+    .contact-fab.fab-call { background:#5B46E5; color:#fff; }
+    .contact-fab.fab-whatsapp { background:#25D366; color:#fff; }
   </style>
 </head>
 <body>
+
+  <!-- ── יצירת קשר לפרטים נוספים ותמיכה ── -->
+  <div class="contact-fab-wrap">
+    <a href="tel:0526626619" class="contact-fab fab-call" title="שיחה ישירה: 052-6626619">📞</a>
+    <a href="https://wa.me/972504000024" target="_blank" rel="noopener" class="contact-fab fab-whatsapp" title="וואטסאפ: 050-4000024">💬</a>
+  </div>
 
   <div id="wiz-outer">
 
