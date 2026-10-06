@@ -1030,11 +1030,12 @@ function renderDeals(promos) {
     if (p.promo_type==='discount_pct') disc = `${p.promo_value}% ${t('הנחה','discount')}`;
     else if (p.promo_type==='discount_fixed') disc = `₪${p.promo_value} ${t('הנחה','discount')}`;
     else if (p.promo_type==='bogo') disc = t('קנה 1 קבל 1','Buy 1 Get 1');
+    else if (p.promo_type==='buy_x_get_y') disc = t(`קנה ${p.buy_qty} קבל ${p.get_qty} במתנה`,`Buy ${p.buy_qty} Get ${p.get_qty} Free`);
     else if (p.promo_type==='free_item') disc = t('פריט חינם','Free item');
     const code = p.promo_code ? `<button class="deal-btn" onclick="window._applyDealCode('${p.promo_code}')">${t('קוד','Code')}: ${p.promo_code}</button>` : '';
     return `<div class="deal-card ${c}">
       <div class="deal-kicker">${disc}</div>
-      <div class="deal-title">${p.promo_name||t('מבצע','Deal')}</div>
+      <div class="deal-title">${p.title||t('מבצע','Deal')}</div>
       ${p.description ? `<div class="deal-sub">${p.description}</div>` : ''}
       ${code}
     </div>`;
@@ -1530,6 +1531,7 @@ function renderCatalog() {
         const disc = p.promo_type==='discount_pct'?`${p.promo_value}% ${t('הנחה','discount')}`
           : p.promo_type==='discount_fixed'?`₪${p.promo_value} ${t('הנחה','discount')}`
           : p.promo_type==='bogo'?t('קנה 1 קבל 1','Buy 1 Get 1')
+          : p.promo_type==='buy_x_get_y'?t(`קנה ${p.buy_qty} קבל ${p.get_qty} במתנה`,`Buy ${p.buy_qty} Get ${p.get_qty} Free`)
           : p.promo_type==='free_item'?t('פריט חינם','Free item'):t('מבצע מיוחד','Special deal');
         return `<div style="background:var(--card);border:1px solid var(--border-light);border-radius:16px;padding:16px 20px;display:flex;align-items:center;gap:16px">
           <div style="flex:1">
@@ -1666,13 +1668,18 @@ function renderCartSummary() {
 }
 
 function calcBogoDiscount() {
-  const bogo = _activePromos.find(p => p.promo_type==='bogo' && p.is_active);
-  if (!bogo || _couponDiscount) return 0;
+  const promo = _activePromos.find(p => (p.promo_type==='bogo' || p.promo_type==='buy_x_get_y') && p.is_active);
+  if (!promo || _couponDiscount) return 0;
+  // 'bogo' קלאסי: קנה 1 קבל 1 (קבוצות של 2, אחד מתוכן חינם) - ללא buy_qty/get_qty משלו.
+  // 'buy_x_get_y': כמויות מותאמות לפי buy_qty/get_qty שהוגדרו במבצע
+  const buyQty = promo.promo_type==='buy_x_get_y' ? (parseInt(promo.buy_qty)||1) : 1;
+  const getQty = promo.promo_type==='buy_x_get_y' ? (parseInt(promo.get_qty)||1) : 1;
+  const groupSize = buyQty + getQty;
   const byId = {};
   Object.values(cart).forEach(c => { byId[c.id] = (byId[c.id]||0) + c.qty; });
   return Object.entries(byId).reduce((sum,[id,qty]) => {
     const p = catalog.find(x=>x.id==id);
-    return sum + (p ? Math.floor(qty/2)*p.price : 0);
+    return sum + (p ? Math.floor(qty/groupSize)*getQty*p.price : 0);
   }, 0);
 }
 
