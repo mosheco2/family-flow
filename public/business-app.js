@@ -27575,6 +27575,8 @@ window.openStoreProductModal = function(id = null) {
                 <input type="checkbox" id="sp-track-inventory" class="w-4 h-4 rounded text-emerald-600" checked>
                 <span class="text-xs font-bold text-emerald-700">מעקב מלאי פעיל למוצר זה</span>
             </label>
+            ${id ? `<button type="button" onclick="window.openVariantsManager(${id})" class="w-full bg-white text-emerald-700 border border-emerald-200 py-2.5 rounded-xl text-xs font-bold hover:bg-emerald-100 transition"><i class="fa-solid fa-layer-group mr-1"></i> ניהול וריאציות (מידה/צבע)</button>`
+                : `<p class="text-[10px] text-emerald-600">וריאציות (מידה/צבע) ניתן להוסיף אחרי השמירה הראשונה של המוצר</p>`}
         </div>`;
 
     document.body.insertAdjacentHTML('beforeend', `
@@ -62015,5 +62017,117 @@ window.invSubmitAdjust = async function(catalogId) {
         showToast('success', 'המלאי עודכן');
         document.getElementById('inv-adjust-modal')?.remove();
         window.fetchInventoryItems();
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
+// ── ניהול וריאציות מוצר (מידה/צבע) — נפתח ממודאל עריכת מוצר, לאחר שמירה ראשונה ──
+let _varCatalogId = null;
+let _varList = [];
+
+window.openVariantsManager = async function(catalogId) {
+    _varCatalogId = catalogId;
+    const product = (typeof storeCatalogCache !== 'undefined' && storeCatalogCache) ? storeCatalogCache.find(p => p.id === catalogId) : null;
+    document.getElementById('variants-manager-modal')?.remove();
+    document.body.insertAdjacentHTML('beforeend', `
+    <div id="variants-manager-modal" class="fixed inset-0 bg-slate-900/75 backdrop-blur-sm z-[97] flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-lg rounded-[2rem] shadow-2xl flex flex-col max-h-[85vh]">
+            <div class="flex justify-between items-center p-4 border-b border-slate-100 shrink-0">
+                <h3 class="font-black text-slate-800">ניהול וריאציות ${product ? '— ' + safeStr(product.name) : ''}</h3>
+                <button onclick="document.getElementById('variants-manager-modal').remove()" class="w-8 h-8 bg-slate-100 rounded-full text-slate-500 flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="flex-1 overflow-y-auto modal-scroll p-4 space-y-3">
+                <div id="variants-list"><p class="text-center text-slate-400 py-6"><i class="fa-solid fa-spinner fa-spin mr-2"></i> טוען...</p></div>
+                <div class="bg-emerald-50 p-3 rounded-2xl border border-emerald-100 space-y-2">
+                    <div class="text-xs font-bold text-emerald-800">הוספת וריאציה חדשה:</div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <input id="var-new-name" type="text" class="modern-input py-2 text-sm bg-white" placeholder="שם (למשל: אדום / L)">
+                        <input id="var-new-sku" type="text" class="modern-input py-2 text-sm bg-white dir-ltr text-left" placeholder="SKU">
+                    </div>
+                    <div class="grid grid-cols-3 gap-2">
+                        <input id="var-new-barcode" type="text" class="modern-input py-2 text-sm bg-white dir-ltr text-left" placeholder="ברקוד">
+                        <input id="var-new-price" type="number" class="modern-input py-2 text-sm bg-white dir-ltr text-left" placeholder="מחיר (ריק=כמוצר)">
+                        <input id="var-new-stock" type="number" class="modern-input py-2 text-sm bg-white dir-ltr text-left" placeholder="מלאי התחלתי">
+                    </div>
+                    <button onclick="window.addVariant()" class="w-full bg-emerald-600 text-white py-2.5 rounded-xl text-xs font-bold"><i class="fa-solid fa-plus mr-1"></i> הוסף וריאציה</button>
+                </div>
+            </div>
+        </div>
+    </div>`);
+    await window.fetchVariants();
+};
+
+window.fetchVariants = async function() {
+    try {
+        const res = await fetch(`${API}/biz/retail/variants/${_varCatalogId}`, { headers: _shukaAuthHeaders() });
+        _varList = await res.json();
+        if (!Array.isArray(_varList)) _varList = [];
+        window.renderVariants();
+    } catch(e) {
+        const el = document.getElementById('variants-list');
+        if (el) el.innerHTML = '<p class="text-center text-red-400 py-4">שגיאה בטעינה</p>';
+    }
+};
+
+window.renderVariants = function() {
+    const el = document.getElementById('variants-list');
+    if (!el) return;
+    if (!_varList.length) { el.innerHTML = '<p class="text-center text-slate-400 py-4 text-sm">אין עדיין וריאציות למוצר זה</p>'; return; }
+    el.innerHTML = _varList.map(v => `
+        <div class="flex items-center gap-2 bg-slate-50 rounded-xl border border-slate-100 px-3 py-2.5">
+            <div class="flex-1 min-w-0">
+                <div class="text-xs font-bold text-slate-800">${safeStr(v.variant_name || '—')}</div>
+                <div class="text-[10px] text-slate-400">${v.sku ? 'SKU: ' + safeStr(v.sku) : ''}${v.price_override != null ? ' · ₪' + parseFloat(v.price_override).toFixed(0) : ''}</div>
+            </div>
+            <div class="text-sm font-black text-slate-700">${v.stock_quantity ?? 0}</div>
+            <button onclick="window.adjustVariantStock(${v.id})" class="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-1.5 rounded-lg">תיקון מלאי</button>
+            <button onclick="window.deleteVariant(${v.id})" class="text-[10px] font-bold text-red-500 bg-red-50 px-2 py-1.5 rounded-lg"><i class="fa-solid fa-trash"></i></button>
+        </div>`).join('');
+};
+
+window.addVariant = async function() {
+    const variantName = document.getElementById('var-new-name')?.value?.trim();
+    if (!variantName) { showToast('error', 'יש להזין שם לוריאציה'); return; }
+    const sku = document.getElementById('var-new-sku')?.value?.trim() || null;
+    const barcode = document.getElementById('var-new-barcode')?.value?.trim() || null;
+    const priceVal = document.getElementById('var-new-price')?.value;
+    const stockVal = document.getElementById('var-new-stock')?.value;
+    try {
+        const res = await fetch(`${API}/biz/retail/variants/${_varCatalogId}`, {
+            method: 'POST', headers: _shukaAuthHeaders(),
+            body: JSON.stringify({ variantName, sku, barcode, priceOverride: priceVal || null, stockQuantity: stockVal || 0 })
+        });
+        const data = await res.json();
+        if (!data.success) { showToast('error', data.error || 'שגיאה'); return; }
+        document.getElementById('var-new-name').value = '';
+        document.getElementById('var-new-sku').value = '';
+        document.getElementById('var-new-barcode').value = '';
+        document.getElementById('var-new-price').value = '';
+        document.getElementById('var-new-stock').value = '';
+        showToast('success', 'וריאציה נוספה');
+        window.fetchVariants();
+        if (typeof window.fetchStoreCatalog === 'function') window.fetchStoreCatalog();
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
+window.deleteVariant = async function(variantId) {
+    if (!await window._uiConfirm('למחוק וריאציה זו?', { danger: true, okLabel: 'מחק' })) return;
+    try {
+        const res = await fetch(`${API}/biz/retail/variants/${variantId}`, { method: 'DELETE', headers: _shukaAuthHeaders() });
+        const data = await res.json();
+        if (!data.success) { showToast('error', data.error || 'שגיאה'); return; }
+        window.fetchVariants();
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
+window.adjustVariantStock = async function(variantId) {
+    const qty = parseInt(window.prompt('שינוי כמות (חיובי=הוספה, שלילי=הפחתה):'));
+    if (!qty) return;
+    try {
+        const res = await fetch(`${API}/biz/retail/variants/${variantId}/adjust`, {
+            method: 'POST', headers: _shukaAuthHeaders(), body: JSON.stringify({ changeQty: qty })
+        });
+        const data = await res.json();
+        if (!data.success) { showToast('error', data.error || 'שגיאה'); return; }
+        window.fetchVariants();
     } catch(e) { showToast('error', 'שגיאת תקשורת'); }
 };
