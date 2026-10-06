@@ -13463,6 +13463,146 @@ app.post('/api/biz/retail/variants/:variantId/adjust', verifyBizOrLegacy, requir
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// ═══════════════════════════════════════════════════════════
+//  חנות קמעונאית שלב ב' — ספקים והזמנות רכש
+// ═══════════════════════════════════════════════════════════
+
+app.get('/api/biz/retail/suppliers/:groupId', verifyBizOrLegacy, requireModule('sales'), async (req, res) => {
+    try {
+        const groupId = req.bizAuth.groupId || req.params.groupId;
+        if (!groupId) return res.status(400).json({ error: 'groupId נדרש' });
+        const rows = await pool.query('SELECT * FROM store_suppliers WHERE group_id=$1 ORDER BY is_active DESC, name ASC', [groupId]);
+        res.json(rows.rows);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/biz/retail/suppliers', verifyBizOrLegacy, requireModule('sales'), async (req, res) => {
+    try {
+        const groupId = req.bizAuth.groupId;
+        if (!groupId) return res.status(400).json({ error: 'groupId נדרש' });
+        const { name, contactName, phone, email, paymentTerms, notes } = req.body;
+        if (!name) return res.status(400).json({ error: 'שם הספק נדרש' });
+        const ins = await pool.query(
+            `INSERT INTO store_suppliers (group_id, name, contact_name, phone, email, payment_terms, notes) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+            [groupId, name, contactName || null, phone || null, email || null, paymentTerms || null, notes || null]);
+        res.json({ success: true, supplier: ins.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.put('/api/biz/retail/suppliers/:id', verifyBizOrLegacy, requireModule('sales'), async (req, res) => {
+    try {
+        const groupId = req.bizAuth.groupId;
+        if (!groupId) return res.status(400).json({ error: 'groupId נדרש' });
+        const { name, contactName, phone, email, paymentTerms, notes, isActive } = req.body;
+        const upd = await pool.query(
+            `UPDATE store_suppliers SET name=COALESCE($1,name), contact_name=COALESCE($2,contact_name), phone=COALESCE($3,phone),
+                email=COALESCE($4,email), payment_terms=COALESCE($5,payment_terms), notes=COALESCE($6,notes), is_active=COALESCE($7,is_active)
+             WHERE id=$8 AND group_id=$9 RETURNING *`,
+            [name || null, contactName || null, phone || null, email || null, paymentTerms || null, notes || null, (typeof isActive === 'boolean') ? isActive : null, req.params.id, groupId]);
+        if (!upd.rows.length) return res.status(404).json({ error: 'ספק לא נמצא' });
+        res.json({ success: true, supplier: upd.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/biz/retail/suppliers/:id', verifyBizOrLegacy, requireModule('sales'), async (req, res) => {
+    try {
+        const groupId = req.bizAuth.groupId;
+        if (!groupId) return res.status(400).json({ error: 'groupId נדרש' });
+        const del = await pool.query('DELETE FROM store_suppliers WHERE id=$1 AND group_id=$2 RETURNING id', [req.params.id, groupId]);
+        if (!del.rows.length) return res.status(404).json({ error: 'ספק לא נמצא' });
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// הזמנות רכש — רשימה
+app.get('/api/biz/retail/purchase-orders/:groupId', verifyBizOrLegacy, requireModule('sales'), async (req, res) => {
+    try {
+        const groupId = req.bizAuth.groupId || req.params.groupId;
+        if (!groupId) return res.status(400).json({ error: 'groupId נדרש' });
+        const rows = await pool.query(
+            `SELECT po.*, s.name AS supplier_name,
+                    (SELECT COUNT(*) FROM store_purchase_order_items i WHERE i.purchase_order_id=po.id) AS item_count
+             FROM store_purchase_orders po LEFT JOIN store_suppliers s ON s.id = po.supplier_id
+             WHERE po.group_id=$1 ORDER BY po.created_at DESC`, [groupId]);
+        res.json(rows.rows);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// הזמנת רכש בודדת + שורות
+app.get('/api/biz/retail/purchase-orders/item/:id', verifyBizOrLegacy, requireModule('sales'), async (req, res) => {
+    try {
+        const groupId = req.bizAuth.groupId;
+        if (!groupId) return res.status(400).json({ error: 'groupId נדרש' });
+        const po = await pool.query('SELECT po.*, s.name AS supplier_name FROM store_purchase_orders po LEFT JOIN store_suppliers s ON s.id=po.supplier_id WHERE po.id=$1 AND po.group_id=$2', [req.params.id, groupId]);
+        if (!po.rows.length) return res.status(404).json({ error: 'הזמנת רכש לא נמצאה' });
+        const items = await pool.query(
+            `SELECT i.*, sc.name AS product_name, v.variant_name
+             FROM store_purchase_order_items i JOIN store_catalog sc ON sc.id=i.catalog_id
+             LEFT JOIN store_product_variants v ON v.id=i.variant_id
+             WHERE i.purchase_order_id=$1`, [req.params.id]);
+        res.json({ ...po.rows[0], items: items.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// יצירת הזמנת רכש (draft) עם שורות
+app.post('/api/biz/retail/purchase-orders', verifyBizOrLegacy, requireModule('sales'), async (req, res) => {
+    try {
+        const groupId = req.bizAuth.groupId;
+        if (!groupId) return res.status(400).json({ error: 'groupId נדרש' });
+        const { supplierId, expectedDate, notes, items } = req.body;
+        if (!Array.isArray(items) || !items.length) return res.status(400).json({ error: 'יש להוסיף לפחות פריט אחד להזמנת הרכש' });
+        const totalCost = items.reduce((sum, it) => sum + (parseFloat(it.unitCost) || 0) * (parseInt(it.qtyOrdered) || 0), 0);
+        const po = await pool.query(
+            `INSERT INTO store_purchase_orders (group_id, supplier_id, expected_date, total_cost, notes) VALUES ($1,$2,$3,$4,$5) RETURNING *`,
+            [groupId, supplierId || null, expectedDate || null, totalCost, notes || null]);
+        for (const it of items) {
+            await pool.query(
+                `INSERT INTO store_purchase_order_items (purchase_order_id, catalog_id, variant_id, qty_ordered, unit_cost) VALUES ($1,$2,$3,$4,$5)`,
+                [po.rows[0].id, it.catalogId, it.variantId || null, parseInt(it.qtyOrdered) || 0, parseFloat(it.unitCost) || 0]);
+        }
+        res.json({ success: true, purchaseOrder: po.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// קבלת סחורה — מעדכנת מלאי בפועל (כמות שהתקבלה לכל שורה) + יומן תנועות
+app.post('/api/biz/retail/purchase-orders/:id/receive', verifyBizOrLegacy, requireModule('sales'), async (req, res) => {
+    try {
+        const groupId = req.bizAuth.groupId;
+        if (!groupId) return res.status(400).json({ error: 'groupId נדרש' });
+        const po = await pool.query('SELECT id FROM store_purchase_orders WHERE id=$1 AND group_id=$2', [req.params.id, groupId]);
+        if (!po.rows.length) return res.status(404).json({ error: 'הזמנת רכש לא נמצאה' });
+        const { received } = req.body; // [{ itemId, qtyReceived }]
+        if (!Array.isArray(received)) return res.status(400).json({ error: 'רשימת פריטים שהתקבלו נדרשת' });
+        for (const r of received) {
+            const itemRes = await pool.query('SELECT * FROM store_purchase_order_items WHERE id=$1 AND purchase_order_id=$2', [r.itemId, req.params.id]);
+            if (!itemRes.rows.length) continue;
+            const item = itemRes.rows[0];
+            const qty = parseInt(r.qtyReceived) || 0;
+            if (qty <= 0) continue;
+            await pool.query('UPDATE store_purchase_order_items SET qty_received = qty_received + $1 WHERE id=$2', [qty, item.id]);
+            await recordInventoryMovement({ groupId, catalogId: item.catalog_id, variantId: item.variant_id || null, changeQty: qty, reason: 'purchase_receipt', referenceId: parseInt(req.params.id), userId: req.bizAuth.userId || null });
+        }
+        const allItems = await pool.query('SELECT qty_ordered, qty_received FROM store_purchase_order_items WHERE purchase_order_id=$1', [req.params.id]);
+        const fullyReceived = allItems.rows.every(i => i.qty_received >= i.qty_ordered);
+        const anyReceived = allItems.rows.some(i => i.qty_received > 0);
+        const newStatus = fullyReceived ? 'received' : (anyReceived ? 'partially_received' : 'sent');
+        await pool.query('UPDATE store_purchase_orders SET status=$1, received_at=CASE WHEN $1=\'received\' THEN NOW() ELSE received_at END WHERE id=$2', [newStatus, req.params.id]);
+        res.json({ success: true, status: newStatus });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.patch('/api/biz/retail/purchase-orders/:id/status', verifyBizOrLegacy, requireModule('sales'), async (req, res) => {
+    try {
+        const groupId = req.bizAuth.groupId;
+        if (!groupId) return res.status(400).json({ error: 'groupId נדרש' });
+        const { status } = req.body;
+        if (!['draft', 'sent', 'cancelled'].includes(status)) return res.status(400).json({ error: 'סטטוס לא תקין' });
+        const upd = await pool.query('UPDATE store_purchase_orders SET status=$1 WHERE id=$2 AND group_id=$3 RETURNING id', [status, req.params.id, groupId]);
+        if (!upd.rows.length) return res.status(404).json({ error: 'הזמנת רכש לא נמצאה' });
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 app.delete('/api/store/catalog/:id', async (req, res) => {
     // old: DELETE FROM store_catalog WHERE id=$1  (no ownership check)
     try {
