@@ -1004,6 +1004,9 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
     
       try { await client.query(`CREATE TABLE IF NOT EXISTS store_order_items (id SERIAL PRIMARY KEY, order_id INT REFERENCES store_orders(id) ON DELETE CASCADE, catalog_id INT REFERENCES store_catalog(id) ON DELETE SET NULL, item_name VARCHAR(100), quantity DECIMAL(10,2), price_at_order DECIMAL(10,2))`); } catch(e) {}
      try { await client.query(`CREATE TABLE IF NOT EXISTS store_promotions (id SERIAL PRIMARY KEY, group_id INT, title VARCHAR(100), type VARCHAR(20), details JSONB, start_date TIMESTAMP, end_date TIMESTAMP, is_active BOOLEAN DEFAULT TRUE)`); } catch(e) {}
+      // תמיכה במבצע "קנה X קבל Y" (buy_x_get_y) - עמודות תוספתיות, לא פוגעות בסוגי מבצע קיימים
+      try { await client.query(`ALTER TABLE store_promotions ADD COLUMN IF NOT EXISTS buy_qty INT`); } catch(e) {}
+      try { await client.query(`ALTER TABLE store_promotions ADD COLUMN IF NOT EXISTS get_qty INT`); } catch(e) {}
       try { await client.query(`CREATE TABLE IF NOT EXISTS delivery_zones (id SERIAL PRIMARY KEY, group_id INT REFERENCES family_groups(id) ON DELETE CASCADE, name VARCHAR(100) NOT NULL, min_order DECIMAL(10,2) DEFAULT 0, delivery_fee DECIMAL(10,2) DEFAULT 0, sort_order INT DEFAULT 0, created_at TIMESTAMP DEFAULT NOW())`); } catch(e) {}
       try { await client.query(`CREATE TABLE IF NOT EXISTS business_gallery (id SERIAL PRIMARY KEY, group_id INT NOT NULL, image_url TEXT NOT NULL, caption TEXT, sort_order INT DEFAULT 0, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch(e) {}
       // נושא/תגית חופשית לתמונה, לסינון בעמוד הגלריה הציבורי (נפרד מ-caption הישן)
@@ -14174,6 +14177,105 @@ app.get('/api/store/orders/:groupId', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// --- אכיפת מחיר שרתית אמיתית למבצעי store_promotions (מראה את calcPOSPromotions בצד לקוח) ---
+// מחזיר את סכום ההנחה הכולל שחל על סל פריטים נתון, לפי המבצעים הפעילים של העסק.
+// items: [{ catalogId, price, quantity }], catalogCategoryMap: { [catalogId]: category }
+function _isPromoActiveServer(p) {
+    if (p.is_active === false) return false;
+    const now = Date.now();
+    if (p.start_date && new Date(p.start_date).getTime() > now) return false;
+    if (p.end_date) {
+        const ed = new Date(p.end_date);
+        ed.setHours(23, 59, 59, 999);
+        if (ed.getTime() < now) return false;
+    }
+    return true;
+}
+function _promoAppliesServer(promo, category) {
+    if (promo.target_type === 'all') return true;
+    if (promo.target_type === 'category') {
+        let tIds = promo.target_ids;
+        if (typeof tIds === 'string') { try { tIds = JSON.parse(tIds); } catch(e) { tIds = [tIds]; } }
+        if (!Array.isArray(tIds)) tIds = [tIds];
+        return tIds.some(id => String(id).trim() === String(category || 'כללי').trim());
+    }
+    return false;
+}
+async function calcServerStorePromotionsDiscount(groupId, items, catalogCategoryMap) {
+    try {
+        const promoRes = await pool.query('SELECT * FROM store_promotions WHERE group_id=$1', [groupId]);
+        const activePromos = promoRes.rows.filter(_isPromoActiveServer);
+        if (!activePromos.length) return 0;
+
+        // הרחבת items לרשימת "יחידות" בודדות (לכל item לפי quantity) — תואם ל-cartItems בצד לקוח
+        const expandedByCatalog = {};
+        (items || []).forEach(it => {
+            if (!it.catalogId) return;
+            const qty = parseInt(it.quantity) || 1;
+            const price = parseFloat(it.price) || 0;
+            if (!expandedByCatalog[it.catalogId]) expandedByCatalog[it.catalogId] = [];
+            for (let i = 0; i < qty; i++) expandedByCatalog[it.catalogId].push(price);
+        });
+
+        let totalDiscount = 0;
+
+        // אחוז/סכום קבוע — הטוב ביותר לכל פריט
+        Object.keys(expandedByCatalog).forEach(catalogId => {
+            const category = catalogCategoryMap[catalogId];
+            let bestUnitDiscount = 0;
+            activePromos.forEach(promo => {
+                if (!_promoAppliesServer(promo, category)) return;
+                const pType = promo.promo_type;
+                const pVal = parseFloat(promo.promo_value) || 0;
+                let unitPrice = expandedByCatalog[catalogId][0] || 0;
+                let currentDiscount = 0;
+                if (pType === 'discount_pct') currentDiscount = unitPrice * (pVal / 100);
+                else if (pType === 'discount_fixed') currentDiscount = pVal;
+                if (currentDiscount > bestUnitDiscount && currentDiscount <= unitPrice) bestUnitDiscount = currentDiscount;
+            });
+            if (bestUnitDiscount > 0) totalDiscount += bestUnitDiscount * expandedByCatalog[catalogId].length;
+        });
+
+        // BOGO (1+1, יחס 2:1 קשיח)
+        activePromos.filter(p => p.promo_type === 'bogo').forEach(promo => {
+            let eligible = [];
+            Object.keys(expandedByCatalog).forEach(catalogId => {
+                if (_promoAppliesServer(promo, catalogCategoryMap[catalogId])) eligible.push(...expandedByCatalog[catalogId]);
+            });
+            if (eligible.length >= 2) {
+                eligible.sort((a, b) => a - b);
+                const freeCount = Math.floor(eligible.length / 2);
+                const pVal = parseFloat(promo.promo_value) || 999999;
+                let bogoDiscount = 0;
+                for (let i = 0; i < freeCount; i++) bogoDiscount += Math.min(eligible[i], pVal);
+                if (bogoDiscount > totalDiscount) totalDiscount = bogoDiscount;
+            }
+        });
+
+        // קנה X קבל Y
+        activePromos.filter(p => p.promo_type === 'buy_x_get_y').forEach(promo => {
+            const buyQty = parseInt(promo.buy_qty) || 0;
+            const getQty = parseInt(promo.get_qty) || 0;
+            if (buyQty <= 0 || getQty <= 0 || getQty >= buyQty) return;
+            let eligible = [];
+            Object.keys(expandedByCatalog).forEach(catalogId => {
+                if (_promoAppliesServer(promo, catalogCategoryMap[catalogId])) eligible.push(...expandedByCatalog[catalogId]);
+            });
+            if (eligible.length >= buyQty) {
+                eligible.sort((a, b) => a - b);
+                const groups = Math.floor(eligible.length / buyQty);
+                let bxyDiscount = 0;
+                for (let g = 0; g < groups; g++) {
+                    for (let i = 0; i < getQty; i++) bxyDiscount += eligible[g * buyQty + i] || 0;
+                }
+                if (bxyDiscount > totalDiscount) totalDiscount = bxyDiscount;
+            }
+        });
+
+        return totalDiscount;
+    } catch(e) { console.error('[calcServerStorePromotionsDiscount] error:', e.message); return 0; }
+}
+
 // הוספת הזמנה לחנות
 app.post('/api/store/orders', async (req, res) => {
     let dbClient;
@@ -14194,14 +14296,17 @@ app.post('/api/store/orders', async (req, res) => {
 
         // ── SERVER-SIDE PRICE VALIDATION (לפני BEGIN — pool ישיר) ──────
         let catalogMap = {};
+        let catalogCategoryMap = {};
         let settingsRow = null;
         try {
-            const [catRes, settRes] = await Promise.all([
-                pool.query('SELECT id, price FROM store_catalog WHERE group_id=$1 AND is_active=true', [groupId]),
-                pool.query('SELECT delivery_fee, free_delivery_above FROM store_settings WHERE group_id=$1', [groupId])
+            const [catRes, settRes, bizRes] = await Promise.all([
+                pool.query('SELECT id, price, category FROM store_catalog WHERE group_id=$1 AND is_active=true', [groupId]),
+                pool.query('SELECT delivery_fee, free_delivery_above FROM store_settings WHERE group_id=$1', [groupId]),
+                pool.query('SELECT business_type FROM family_groups WHERE id=$1', [groupId])
             ]);
-            catRes.rows.forEach(r => { catalogMap[r.id] = parseFloat(r.price); });
+            catRes.rows.forEach(r => { catalogMap[r.id] = parseFloat(r.price); catalogCategoryMap[r.id] = r.category; });
             settingsRow = settRes.rows[0] || null;
+            var _bizTypeForPromo = bizRes.rows[0]?.business_type || null;
         } catch(e) { /* if catalog/settings unavailable, proceed without validation */ }
 
         // Verify item prices (לפני BEGIN — אין dbClient עדיין)
@@ -14235,6 +14340,21 @@ app.post('/api/store/orders', async (req, res) => {
                 const clientFee = parseFloat(deliveryFee) || 0;
                 actualDeliveryFee = (clientFee >= 0 && clientFee <= baseFee * 2 + 50) ? clientFee : baseFee;
             }
+        }
+
+        // אכיפת מחיר שרתית אמיתית למבצעי store_promotions — מוגבל בכוונה ל-retail/store_only בלבד
+        // (לא לגעת בזרימת הזמנות של סוגי עסק אחרים), ורק בהזמנות לקוח ציבוריות (לא POS/שולחן,
+        // שבהן לצוות יש אפשרות הנחה ידנית דיסקרטית שלא ניתנת לאימות שרתי).
+        const _orderSrcForPromo = req.body.orderSource || 'website';
+        if (['retail', 'store_only'].includes(_bizTypeForPromo) && !['internal', 'table'].includes(_orderSrcForPromo) && Object.keys(catalogMap).length > 0) {
+            try {
+                const promoDiscount = await calcServerStorePromotionsDiscount(groupId, items, catalogCategoryMap);
+                const expectedMinTotal = Math.max(0, serverSubtotal - promoDiscount) + actualDeliveryFee;
+                const clientTotal = parseFloat(totalAmount) || 0;
+                if (clientTotal < expectedMinTotal - 1) {
+                    return res.status(400).json({ error: 'סכום ההזמנה אינו תואם למחירים ולמבצעים הפעילים — אנא טען מחדש את הדף ונסה שנית' });
+                }
+            } catch(e) { /* אם חישוב המבצעים נכשל - לא חוסמים הזמנה לגיטימית */ }
         }
 
         const familyGroupId = req.body.familyGroupId ? parseInt(req.body.familyGroupId) : null;
@@ -16714,10 +16834,10 @@ app.post('/api/store/promotions', verifyBizOrLegacy, requireModule('sales'), asy
     try {
         const groupId = req.bizAuth.groupId || req.body.groupId;
         if (!groupId) return res.status(400).json({ error: 'groupId נדרש' });
-        const { title, promoType, promoValue, targetType, targetIds, startDate, endDate, showInBanner, showInTab, bgColor } = req.body;
+        const { title, promoType, promoValue, targetType, targetIds, startDate, endDate, showInBanner, showInTab, bgColor, buyQty, getQty } = req.body;
         const result = await pool.query(
-            'INSERT INTO store_promotions (group_id, title, promo_type, promo_value, target_type, target_ids, start_date, end_date, show_in_banner, show_in_tab, bg_color) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *',
-            [groupId, title, promoType, promoValue || 0, targetType, JSON.stringify(targetIds || []), startDate || null, endDate || null, showInBanner, showInTab, bgColor]
+            'INSERT INTO store_promotions (group_id, title, promo_type, promo_value, target_type, target_ids, start_date, end_date, show_in_banner, show_in_tab, bg_color, buy_qty, get_qty) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *',
+            [groupId, title, promoType, promoValue || 0, targetType, JSON.stringify(targetIds || []), startDate || null, endDate || null, showInBanner, showInTab, bgColor, buyQty || null, getQty || null]
         );
         res.json({ success: true, promotion: result.rows[0] });
     } catch(e) { res.status(500).json({ error: e.message }); }
@@ -16729,10 +16849,10 @@ app.put('/api/store/promotions/:id', verifyBizOrLegacy, requireModule('sales'), 
         if (!bizGroupId) return res.status(400).json({ error: 'groupId נדרש' });
         const ownerCheck = await pool.query('SELECT id FROM store_promotions WHERE id=$1 AND group_id=$2', [req.params.id, bizGroupId]);
         if (!ownerCheck.rows.length) return res.status(404).json({ error: 'מבצע לא נמצא או אין הרשאה' });
-        const { title, promoType, promoValue, targetType, targetIds, startDate, endDate, showInBanner, showInTab, bgColor } = req.body;
+        const { title, promoType, promoValue, targetType, targetIds, startDate, endDate, showInBanner, showInTab, bgColor, buyQty, getQty } = req.body;
         const result = await pool.query(
-            'UPDATE store_promotions SET title=$1, promo_type=$2, promo_value=$3, target_type=$4, target_ids=$5, start_date=$6, end_date=$7, show_in_banner=$8, show_in_tab=$9, bg_color=$10 WHERE id=$11 RETURNING *',
-            [title, promoType, promoValue || 0, targetType, JSON.stringify(targetIds || []), startDate || null, endDate || null, showInBanner, showInTab, bgColor, req.params.id]
+            'UPDATE store_promotions SET title=$1, promo_type=$2, promo_value=$3, target_type=$4, target_ids=$5, start_date=$6, end_date=$7, show_in_banner=$8, show_in_tab=$9, bg_color=$10, buy_qty=$11, get_qty=$12 WHERE id=$13 RETURNING *',
+            [title, promoType, promoValue || 0, targetType, JSON.stringify(targetIds || []), startDate || null, endDate || null, showInBanner, showInTab, bgColor, buyQty || null, getQty || null, req.params.id]
         );
         res.json({ success: true, promotion: result.rows[0] });
     } catch(e) { res.status(500).json({ error: e.message }); }

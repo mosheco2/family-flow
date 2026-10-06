@@ -28617,8 +28617,12 @@ window.injectMarketingModals = function(force = false) {
                 <div class="flex-1 overflow-y-auto modal-scroll pr-1 space-y-3 pb-2">
                     <div><label class="text-xs font-bold text-slate-500">שם המבצע:</label><input type="text" id="promo-title" class="modern-input py-2 text-sm w-full bg-white font-bold"></div>
                     <div class="grid grid-cols-2 gap-2">
-                        <div><label class="text-xs font-bold text-slate-500">סוג הטבה:</label><select id="promo-type" onchange="window.togglePromoValueInput()" class="modern-input py-2 text-sm w-full bg-white"><option value="discount_pct">אחוז הנחה (%)</option><option value="discount_fixed">מחיר פיקס (₪)</option><option value="bogo">1+1 / מתנה</option></select></div>
-                        <div><label id="promo-value-label" class="text-xs font-bold text-slate-500">ערך:</label><input type="number" id="promo-value" class="modern-input py-2 text-sm text-center dir-ltr w-full bg-white font-bold text-pink-600"></div>
+                        <div><label class="text-xs font-bold text-slate-500">סוג הטבה:</label><select id="promo-type" onchange="window.togglePromoValueInput()" class="modern-input py-2 text-sm w-full bg-white"><option value="discount_pct">אחוז הנחה (%)</option><option value="discount_fixed">מחיר פיקס (₪)</option><option value="bogo">1+1 / מתנה</option><option value="buy_x_get_y">קנה X קבל Y</option></select></div>
+                        <div id="promo-value-container"><label id="promo-value-label" class="text-xs font-bold text-slate-500">ערך:</label><input type="number" id="promo-value" class="modern-input py-2 text-sm text-center dir-ltr w-full bg-white font-bold text-pink-600"></div>
+                        <div id="promo-buyxy-container" class="hidden grid grid-cols-2 gap-2 col-span-2">
+                            <div><label class="text-xs font-bold text-slate-500">קנה (יחידות):</label><input type="number" id="promo-buy-qty" min="1" class="modern-input py-2 text-sm text-center dir-ltr w-full bg-white font-bold text-pink-600" placeholder="2"></div>
+                            <div><label class="text-xs font-bold text-slate-500">קבל בחינם (יחידות):</label><input type="number" id="promo-get-qty" min="1" class="modern-input py-2 text-sm text-center dir-ltr w-full bg-white font-bold text-pink-600" placeholder="1"></div>
+                        </div>
                     </div>
                     <div class="grid grid-cols-2 gap-2">
                         <div><label class="text-xs font-bold text-slate-500">חל על:</label><select id="promo-target-type" onchange="window.togglePromoTargetInput()" class="modern-input py-2 text-sm w-full bg-white"><option value="all">כל החנות</option><option value="category">קטגוריה ספציפית</option></select></div>
@@ -28692,9 +28696,14 @@ window.togglePromoValueInput = function() {
     const type = document.getElementById('promo-type')?.value;
     const label = document.getElementById('promo-value-label');
     const input = document.getElementById('promo-value');
+    const valueContainer = document.getElementById('promo-value-container');
+    const buyXYContainer = document.getElementById('promo-buyxy-container');
+    if (buyXYContainer) buyXYContainer.classList.toggle('hidden', type !== 'buy_x_get_y');
+    if (valueContainer) valueContainer.classList.toggle('hidden', type === 'buy_x_get_y');
     if(!label || !input) return;
-    if (type === 'bogo') { label.innerText = 'שווי ההטבה (מקסימום):'; input.placeholder = 'למשל: 50'; } 
-    else if (type === 'discount_pct') { label.innerText = 'אחוז הנחה (%):'; input.placeholder = 'למשל: 20'; } 
+    if (type === 'bogo') { label.innerText = 'שווי ההטבה (מקסימום):'; input.placeholder = 'למשל: 50'; }
+    else if (type === 'discount_pct') { label.innerText = 'אחוז הנחה (%):'; input.placeholder = 'למשל: 20'; }
+    else if (type === 'buy_x_get_y') { /* ערך לא רלוונטי, מוסתר */ }
     else { label.innerText = 'מחיר מבצע קבוע (₪):'; input.placeholder = 'למשל: 99'; }
 };
 
@@ -31421,7 +31430,7 @@ window.calcPOSPromotions = function(cartTotal, cartItems) {
             let bogoDiscount = 0;
             let pVal = parseFloat(promo.promo_value || promo.promoValue) || 999999;
             for(let i=0; i<freeCount; i++) bogoDiscount += Math.min(eligibleItemsPrices[i], pVal);
-            
+
             if (bogoDiscount > totalDiscount) {
                 totalDiscount = bogoDiscount;
                 appliedPromos.clear();
@@ -31432,7 +31441,38 @@ window.calcPOSPromotions = function(cartTotal, cartItems) {
             }
         }
     });
-    
+
+    // קנה X קבל Y (buy_x_get_y) — כל קבוצת (buyQty) פריטים זכאים מזכה ב-(getQty) מהם חינם (הזולים מביניהם)
+    activePromos.filter(p => (p.promo_type || p.promoType) === 'buy_x_get_y').forEach(promo => {
+        const buyQty = parseInt(promo.buy_qty || promo.buyQty) || 0;
+        const getQty = parseInt(promo.get_qty || promo.getQty) || 0;
+        if (buyQty <= 0 || getQty <= 0 || getQty >= buyQty) return;
+        let eligibleItemsPrices = [];
+        cartItems.forEach(item => {
+            const catItem = storeCatalogCache.find(x => String(x.id) === String(item.real_id));
+            if (catItem && window.checkPromoApplies(promo, catItem.category)) {
+                for(let i=0; i<item.qty; i++) eligibleItemsPrices.push(item.price);
+            }
+        });
+        if (eligibleItemsPrices.length >= buyQty) {
+            eligibleItemsPrices.sort((a,b) => a - b);
+            const groups = Math.floor(eligibleItemsPrices.length / buyQty);
+            let freeIndexes = [];
+            for (let g = 0; g < groups; g++) {
+                for (let i = 0; i < getQty; i++) freeIndexes.push(g * buyQty + i);
+            }
+            let bxyDiscount = freeIndexes.reduce((sum, idx) => sum + (eligibleItemsPrices[idx] || 0), 0);
+            if (bxyDiscount > totalDiscount) {
+                totalDiscount = bxyDiscount;
+                appliedPromos.clear();
+                appliedPromos.add(promo.title);
+            } else if (bxyDiscount > 0 && totalDiscount === 0) {
+                totalDiscount = bxyDiscount;
+                appliedPromos.add(promo.title);
+            }
+        }
+    });
+
     return { amount: totalDiscount, text: Array.from(appliedPromos).join(', ') };
 };
 
@@ -34228,6 +34268,13 @@ window.submitPromotion = async function() {
         const val = document.getElementById('promo-value') ? parseFloat(document.getElementById('promo-value').value) : 0;
         const tType = document.getElementById('promo-target-type').value;
         const tCat = document.getElementById('promo-target-category') ? document.getElementById('promo-target-category').value : '';
+        const buyQty = document.getElementById('promo-buy-qty') ? parseInt(document.getElementById('promo-buy-qty').value) || null : null;
+        const getQty = document.getElementById('promo-get-qty') ? parseInt(document.getElementById('promo-get-qty').value) || null : null;
+        if (type === 'buy_x_get_y' && (!buyQty || !getQty)) {
+            showToast('error', 'יש להזין כמות "קנה" וכמות "קבל" עבור מבצע קנה X קבל Y');
+            if(btn) { btn.disabled = false; btn.innerHTML = 'שמור והפעל'; }
+            return;
+        }
         
         const sdInput = document.getElementById('promo-start-date');
         const edInput = document.getElementById('promo-end-date');
@@ -34262,6 +34309,10 @@ window.submitPromotion = async function() {
             promo_type: type,
             promoValue: val || 0,
             promo_value: val || 0,
+            buyQty: buyQty,
+            buy_qty: buyQty,
+            getQty: getQty,
+            get_qty: getQty,
             targetType: tType,
             target_type: tType,
             targetIds: targetIdsVal,
@@ -34347,7 +34398,9 @@ window.openPromotionModal = function(id = null) {
             if(document.getElementById('promo-value')) {
                 document.getElementById('promo-value').value = promo.promoValue || promo.promo_value || '';
             }
-            
+            if(document.getElementById('promo-buy-qty')) document.getElementById('promo-buy-qty').value = promo.buyQty || promo.buy_qty || '';
+            if(document.getElementById('promo-get-qty')) document.getElementById('promo-get-qty').value = promo.getQty || promo.get_qty || '';
+
             document.getElementById('promo-target-type').value = promo.targetType || promo.target_type || 'all';
             if (typeof window.togglePromoTargetInput === 'function') window.togglePromoTargetInput();
             
@@ -34405,7 +34458,9 @@ window.openPromotionModal = function(id = null) {
         document.getElementById('promo-type').value = 'discount_pct';
         if (typeof window.togglePromoValueInput === 'function') window.togglePromoValueInput();
         if(document.getElementById('promo-value')) document.getElementById('promo-value').value = '';
-        
+        if(document.getElementById('promo-buy-qty')) document.getElementById('promo-buy-qty').value = '';
+        if(document.getElementById('promo-get-qty')) document.getElementById('promo-get-qty').value = '';
+
         document.getElementById('promo-target-type').value = 'all';
         if (typeof window.togglePromoTargetInput === 'function') window.togglePromoTargetInput();
         document.getElementById('promo-target-category').value = '';
