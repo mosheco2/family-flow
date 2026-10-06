@@ -12091,7 +12091,8 @@ window.loadCustomerCollection = async function(name, phone) {
         if (!d.success) throw new Error(d.error);
         const all = d.payments || [];
         const wos = d.workOrders || [];
-        if (!all.length && !wos.length) { listEl.innerHTML = '<p class="text-center text-slate-400 text-xs py-8">אין רשומות גבייה ללקוח זה</p>'; return; }
+        const plainOrders = d.plainOrders || [];
+        if (!all.length && !wos.length && !plainOrders.length) { listEl.innerHTML = '<p class="text-center text-slate-400 text-xs py-8">אין רשומות גבייה ללקוח זה</p>'; return; }
         const pending  = all.filter(p => p.status === 'pending');
         const received = all.filter(p => p.status !== 'pending');
         const METHODS = { cash:'מזומן', card:'כרטיס', transfer:'העברה', check:'שיק', bit:'ביט' };
@@ -12101,10 +12102,11 @@ window.loadCustomerCollection = async function(name, phone) {
             const isOverdue = !isPaid && p.due_date && new Date(p.due_date) < today;
             const dateStr = p.due_date ? new Date(p.due_date).toLocaleDateString('he-IL') : '—';
             const isWo = p.source_type === 'work_order';
-            const onClick = `document.getElementById('customer-modal').classList.add('hidden'); window.${isWo ? 'openWorkOrderModal' : 'showServiceCallModal'}(${p.source_id})`;
+            const isPlainOrder = p.source_type === 'order';
+            const onClick = isPlainOrder ? '' : `onclick="document.getElementById('customer-modal').classList.add('hidden'); window.${isWo ? 'openWorkOrderModal' : 'showServiceCallModal'}(${p.source_id})"`;
             const amtColor = isPaid ? 'text-green-700' : isOverdue ? 'text-red-600' : 'text-amber-700';
             const borderCls = isPaid ? 'border-green-100 bg-green-50/40' : isOverdue ? 'border-red-200 bg-red-50' : 'border-amber-100 bg-white';
-            return `<div class="flex items-center justify-between rounded-xl border ${borderCls} px-3 py-2 gap-2 cursor-pointer hover:shadow-sm transition" onclick="${onClick}">
+            return `<div class="flex items-center justify-between rounded-xl border ${borderCls} px-3 py-2 gap-2 ${isPlainOrder ? '' : 'cursor-pointer hover:shadow-sm transition'}" ${onClick}>
                 <div class="flex-1 min-w-0">
                     <div class="text-[11px] font-bold text-slate-700 truncate">${safeStr(p.source_title)}</div>
                     <div class="text-[10px] text-slate-400">${safeStr(p.milestone_name||'תחנת תשלום')}${p.payment_method ? ' · '+(METHODS[p.payment_method]||p.payment_method) : ''} · ${isPaid ? 'שולם' : 'יעד'}: ${dateStr}</div>
@@ -12114,7 +12116,7 @@ window.loadCustomerCollection = async function(name, phone) {
                     ${isOverdue ? '<div class="text-[9px] text-red-500 font-bold">באיחור ⚠️</div>' : ''}
                     ${isPaid ? '<div class="text-[9px] text-green-600 font-bold">שולם ✓</div>' : ''}
                 </div>
-                <i class="fa-solid fa-chevron-left text-slate-300 text-xs shrink-0"></i>
+                ${isPlainOrder ? '' : '<i class="fa-solid fa-chevron-left text-slate-300 text-xs shrink-0"></i>'}
             </div>`;
         };
         let html = '';
@@ -12141,8 +12143,26 @@ window.loadCustomerCollection = async function(name, phone) {
                 </div>`;
             }).join('');
         }
+        // הזמנות רגילות ללא תחנת תשלום עדיין - אפשרות לסמן כשולם או לפתוח תחנת גבייה חלקית
+        if (plainOrders.length) {
+            html += `<p class="text-[10px] font-bold text-slate-600 ${wos.length ? 'mt-3 ' : ''}mb-1.5"><i class="fa-solid fa-bag-shopping ml-1"></i>הזמנות לגבייה (${plainOrders.length})</p>`;
+            html += plainOrders.map(o => {
+                const amt = parseFloat(o.total_amount || 0);
+                const dateStr = o.created_at ? new Date(o.created_at).toLocaleDateString('he-IL') : '';
+                return `<div class="rounded-xl border border-slate-200 bg-white px-3 py-2">
+                    <div class="flex items-center justify-between gap-2 mb-1.5">
+                        <div class="text-[11px] font-bold text-slate-700">הזמנה #${o.id}${dateStr ? ' · ' + dateStr : ''}</div>
+                        <div class="text-sm font-black text-slate-700 dir-ltr">₪${amt.toFixed(2)}</div>
+                    </div>
+                    <div class="flex gap-1.5">
+                        <button onclick="window.markOrderPaidFull(${o.id})" class="flex-1 py-1.5 rounded-lg bg-green-50 text-green-700 text-[10px] font-bold hover:bg-green-100 transition">✓ סמן כשולם</button>
+                        <button onclick="window.addCollectionCheckpoint(${o.id}, ${amt})" class="flex-1 py-1.5 rounded-lg bg-amber-50 text-amber-700 text-[10px] font-bold hover:bg-amber-100 transition">+ הוסף תחנת גבייה</button>
+                    </div>
+                </div>`;
+            }).join('');
+        }
         if (pending.length) {
-            html += `<p class="text-[10px] font-bold text-amber-600 ${wos.length ? 'mt-3 ' : ''}mb-1.5"><i class="fa-solid fa-clock ml-1"></i>ממתינות לגבייה (${pending.length})</p>`;
+            html += `<p class="text-[10px] font-bold text-amber-600 ${wos.length || plainOrders.length ? 'mt-3 ' : ''}mb-1.5"><i class="fa-solid fa-clock ml-1"></i>ממתינות לגבייה (${pending.length})</p>`;
             html += pending.map(renderRow).join('');
         }
         if (received.length) {
@@ -12151,6 +12171,42 @@ window.loadCustomerCollection = async function(name, phone) {
         }
         listEl.innerHTML = `<div class="space-y-1.5">${html}</div>`;
     } catch(e) { listEl.innerHTML = '<p class="text-center text-red-400 text-xs py-4">שגיאה בטעינה</p>'; }
+};
+
+window.markOrderPaidFull = async function(orderId) {
+    if (!confirm('לסמן את ההזמנה כשולמה במלואה? הסכום יירשם כהכנסה בתזרים.')) return;
+    try {
+        const r = await fetch(`${API}/work-orders/${orderId}/mark-paid-full`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${window._bizToken}` },
+            body: JSON.stringify({})
+        });
+        const d = await r.json();
+        if (!d.success) { showToast('error', d.error || 'שגיאה'); return; }
+        showToast('success', 'ההזמנה סומנה כשולמה');
+        const name  = document.getElementById('cust-name')?.value?.trim();
+        const phone = document.getElementById('cust-phone')?.value?.trim();
+        window.loadCustomerCollection(name, phone);
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
+window.addCollectionCheckpoint = async function(orderId, orderTotal) {
+    const amountStr = prompt(`סכום לתחנת הגבייה (מתוך סה"כ ₪${orderTotal.toFixed(2)}):`, orderTotal.toFixed(2));
+    if (!amountStr) return;
+    const amount = parseFloat(amountStr);
+    if (!amount || amount <= 0) { showToast('error', 'סכום לא תקין'); return; }
+    const milestoneName = prompt('שם תחנת הגבייה (לדוגמה: מקדמה / יתרה):', 'מקדמה') || 'תשלום';
+    try {
+        const r = await fetch(`${API}/work-orders/${orderId}/payments`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${window._bizToken}` },
+            body: JSON.stringify({ milestoneName, amount, totalAmount: orderTotal })
+        });
+        const d = await r.json();
+        if (!d.success) { showToast('error', d.error || 'שגיאה'); return; }
+        showToast('success', 'תחנת הגבייה נוספה');
+        const name  = document.getElementById('cust-name')?.value?.trim();
+        const phone = document.getElementById('cust-phone')?.value?.trim();
+        window.loadCustomerCollection(name, phone);
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
 };
 
 window._custAutoSave = async function() {

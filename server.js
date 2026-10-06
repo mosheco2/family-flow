@@ -28167,7 +28167,9 @@ app.get('/api/work-orders/purchase-orders/group/:groupId', verifyBiz, async (req
 // קבלת תחנות תשלום לפקודה
 app.get('/api/work-orders/:id/payments', verifyBiz, async (req, res) => {
     try {
-        const _wo = await pool.query('SELECT 1 FROM store_orders WHERE id=$1 AND group_id=$2 AND call_type=\'work_order\'', [req.params.id, req.bizAuth.groupId]);
+        // מאפשר גם להזמנות רגילות (לא רק call_type='work_order') - אותו מנגנון תחנות תשלום
+        // משרת כעת גם הזמנות חנות רגילות, לא רק פקודות עבודה/קריאות שירות
+        const _wo = await pool.query('SELECT 1 FROM store_orders WHERE id=$1 AND group_id=$2', [req.params.id, req.bizAuth.groupId]);
         if (!_wo.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
         const r = await pool.query(
             `SELECT * FROM work_order_payments WHERE work_order_id=$1 ORDER BY due_date ASC NULLS LAST, created_at ASC`,
@@ -28181,7 +28183,8 @@ app.post('/api/work-orders/:id/payments', verifyBiz, async (req, res) => {
     try {
         const { milestoneName, amount, dueDate, paymentMethod, totalAmount } = req.body;
         if (!amount || parseFloat(amount) <= 0) return res.status(400).json({ error: 'סכום נדרש' });
-        const _wo = await pool.query('SELECT 1 FROM store_orders WHERE id=$1 AND group_id=$2 AND call_type=\'work_order\'', [req.params.id, req.bizAuth.groupId]);
+        // מאפשר גם להזמנות רגילות (לא רק call_type='work_order')
+        const _wo = await pool.query('SELECT 1 FROM store_orders WHERE id=$1 AND group_id=$2', [req.params.id, req.bizAuth.groupId]);
         if (!_wo.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
 
         // קבע סכום עסקה כוללת — ברירת מחדל = total_amount של הפקודה + סכום הצעות משויכות
@@ -28206,6 +28209,33 @@ app.post('/api/work-orders/:id/payments', verifyBiz, async (req, res) => {
             [req.params.id]
         );
         res.json({ success: true, payment: r.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// סימון הזמנה כשולמה במלואה - פעולה מהירה שמרכיבה את אותה לוגיקת
+// יצירת תחנת תשלום + סימון כהתקבל (ראה שני ה-endpoints למעלה/מטה), בקריאה אחת
+app.post('/api/work-orders/:id/mark-paid-full', verifyBiz, async (req, res) => {
+    try {
+        const orderR = await pool.query(
+            'SELECT * FROM store_orders WHERE id=$1 AND group_id=$2', [req.params.id, req.bizAuth.groupId]);
+        if (!orderR.rows.length) return res.status(403).json({ error: 'אין הרשאה' });
+        const order = orderR.rows[0];
+        const amount = parseFloat(order.total_amount) || 0;
+        if (amount <= 0) return res.status(400).json({ error: 'אין סכום לגביה' });
+        const { paymentMethod } = req.body;
+        const payR = await pool.query(
+            `INSERT INTO work_order_payments (work_order_id, milestone_name, amount, due_date, payment_method, total_amount, status, received_amount, received_at)
+             VALUES ($1, 'תשלום מלא', $2, CURRENT_DATE, $3, $2, 'received', $2, NOW()) RETURNING *`,
+            [req.params.id, amount, paymentMethod || null]
+        );
+        await pool.query(`UPDATE store_orders SET payment_status='paid' WHERE id=$1`, [req.params.id]);
+        const adminU = await pool.query(`SELECT id FROM users WHERE group_id=$1 AND role='ADMIN' LIMIT 1`, [order.group_id]);
+        await pool.query(
+            `INSERT INTO transactions (user_id, group_id, amount, description, category, type, date, is_manual)
+             VALUES ($1, $2, $3, $4, 'sales', 'income', NOW(), FALSE)`,
+            [adminU.rows[0]?.id || null, order.group_id, amount, `גביה הזמנה${order.customer_name ? ' — ' + order.customer_name : ''}`]
+        );
+        res.json({ success: true, payment: payR.rows[0] });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -28808,18 +28838,19 @@ app.get('/api/clients/financial-summary/:groupId', async (req, res) => {
         const nameLike = name ? `%${name}%` : null;
         const phoneParam = phone || null;
 
-        // תחנות תשלום — פקודות עבודה
+        // תחנות תשלום — פקודות עבודה + הזמנות רגילות (אותה טבלה, work_order_id מצביע על כל סוגי store_orders)
         const woQ = await pool.query(
             `SELECT wop.id, wop.milestone_name, wop.amount::numeric,
                     COALESCE(wop.received_amount,0)::numeric AS received_amount,
                     wop.status, wop.due_date, wop.payment_method,
                     so.id AS source_id,
-                    COALESCE(so.quote_title, CONCAT('פקודת עבודה #', so.quote_number), 'פקודת עבודה') AS source_title,
+                    COALESCE(so.quote_title, CONCAT('פקודת עבודה #', so.quote_number),
+                             CASE WHEN so.call_type='work_order' THEN 'פקודת עבודה' ELSE CONCAT('הזמנה #', so.id) END) AS source_title,
                     so.quote_number AS source_number,
-                    'work_order' AS source_type
+                    CASE WHEN so.call_type='work_order' THEN 'work_order' ELSE 'order' END AS source_type
              FROM work_order_payments wop
              JOIN store_orders so ON wop.work_order_id = so.id
-             WHERE so.group_id=$1 AND so.call_type='work_order'
+             WHERE so.group_id=$1
                AND (($2::text IS NOT NULL AND LOWER(so.customer_name) LIKE LOWER($2))
                     OR ($3::text IS NOT NULL AND so.customer_phone=$3))`,
             [groupId, nameLike, phoneParam]
@@ -28841,14 +28872,30 @@ app.get('/api/clients/financial-summary/:groupId', async (req, res) => {
             [groupId, nameLike]
         );
 
-        // הזמנות חנות ישירות (לא פקודות עבודה / הצעות מחיר)
+        // הזמנות חנות ישירות (לא פקודות עבודה / הצעות מחיר) - מוחרגות הזמנות שכבר יש להן
+        // תחנות תשלום (אלו כבר נספרות דרך woQ למעלה, כדי לא לספור פעמיים)
         const storeQ = await pool.query(
             `SELECT COALESCE(SUM(total_amount),0)::numeric AS store_total, COUNT(*)::int AS order_count
-             FROM store_orders
+             FROM store_orders so
              WHERE group_id=$1
                AND status NOT IN ('work_order','quote','cancelled','draft')
+               AND NOT EXISTS (SELECT 1 FROM work_order_payments wop WHERE wop.work_order_id=so.id)
                AND (($2::text IS NOT NULL AND LOWER(customer_name) LIKE LOWER($2))
                     OR ($3::text IS NOT NULL AND customer_phone=$3))`,
+            [groupId, nameLike, phoneParam]
+        );
+
+        // הזמנות רגילות ללא תחנת תשלום עדיין - עבור כפתורי "סמן כשולם"/"הוסף תחנת גבייה"
+        const plainOrdersQ = await pool.query(
+            `SELECT so.id, so.total_amount::numeric AS total_amount, so.created_at, so.payment_status
+             FROM store_orders so
+             WHERE so.group_id=$1
+               AND so.status NOT IN ('work_order','quote','cancelled','draft')
+               AND so.call_type IS DISTINCT FROM 'work_order'
+               AND NOT EXISTS (SELECT 1 FROM work_order_payments wop WHERE wop.work_order_id=so.id)
+               AND (($2::text IS NOT NULL AND LOWER(so.customer_name) LIKE LOWER($2))
+                    OR ($3::text IS NOT NULL AND so.customer_phone=$3))
+             ORDER BY so.created_at DESC LIMIT 50`,
             [groupId, nameLike, phoneParam]
         );
 
@@ -28888,7 +28935,8 @@ app.get('/api/clients/financial-summary/:groupId', async (req, res) => {
             storeTotal, storeOrderCount: storeCount,
             pendingPayments,
             payments: allPayments,
-            workOrders: woSummaryQ.rows
+            workOrders: woSummaryQ.rows,
+            plainOrders: plainOrdersQ.rows
         });
     } catch(e) { res.status(500).json({ success: false, error: e.message }); }
 });
