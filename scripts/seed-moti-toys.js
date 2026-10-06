@@ -261,8 +261,18 @@ let catalogIds = []; // [{id, name, category}]
 
 async function seedCatalog() {
   console.log('\n📦 קטלוג — 5 קטגוריות צעצועים x 5 מוצרים (25 בסה"כ)');
+  // אידמפוטנטיות: /api/store/catalog אין לו הגנת כפילויות, אז בודקים קודם איזה מוצרים
+  // כבר קיימים בקטלוג (לפי שם) ומדלגים עליהם - מונע יצירת כפילויות בהרצה חוזרת
+  const existingRes = await api('GET', `/store/catalog/${GROUP_ID}`, undefined, false);
+  const existingNames = new Set((existingRes.ok && Array.isArray(existingRes.data) ? existingRes.data : []).map(i => i.name.trim()));
   for (const [category, items] of Object.entries(CATEGORIES)) {
     for (const p of items) {
+      if (existingNames.has(p.name.trim())) {
+        const existing = (existingRes.data || []).find(i => i.name.trim() === p.name.trim());
+        log(true, `מוצר [${category}]: ${p.name}`, 'כבר קיים — מדלג');
+        if (existing) catalogIds.push({ id: existing.id, name: p.name, category, price: p.price, variants: p.variants || null });
+        continue;
+      }
       const r = await api('POST', '/store/catalog', {
         name: p.name, description: p.description, longDescription: p.longDescription,
         price: p.price, category, productType: 'retail',
