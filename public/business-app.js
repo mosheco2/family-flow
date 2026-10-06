@@ -3793,17 +3793,17 @@ window.submitPermissions = async function() {
     const btn = getEl('btn-submit-permissions');
     if(btn) { btn.disabled = true; btn.innerText = 'שומר...'; }
     try {
-        const res = await fetch(`${API}/users/${uid}/permissions`, { 
-            method: 'PUT', 
-            headers: {'Content-Type': 'application/json'}, 
-            body: JSON.stringify({ tabs, role }) 
+        const res = await fetch(`${API}/users/${uid}/permissions`, {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${window._bizToken || ''}`},
+            body: JSON.stringify({ tabs, role })
         });
         if(res.ok) {
             const roleTypeRadio = document.querySelector('input[name="perm-role-type"]:checked');
             if (roleTypeRadio !== null) {
                 await fetch(`${API}/users/${uid}/role-type`, {
                     method: 'PATCH',
-                    headers: {'Content-Type': 'application/json'},
+                    headers: {'Content-Type': 'application/json', 'Authorization': `Bearer ${window._bizToken || ''}`},
                     body: JSON.stringify({ employee_role_type: roleTypeRadio.value || null })
                 });
                 const m = membersCache.find(x => x.id == uid);
@@ -8414,7 +8414,7 @@ window.submitChangePassword = async function(e) { 
         btn.disabled = false; btn.innerText = 'עדכון סיסמת גישה'; 
     } 
 };
-async function deleteUser(id, name) { if(!await window._uiConfirm(`האם אתה בטוח שברצונך למחוק את העובד לצמיתות?`, {danger:true, okLabel:'מחק'})) return; try { const res = await fetch(`${API}/users/${id}?adminId=${currentUser.id}`, { method: 'DELETE' }); const data = await res.json(); if(data.success) { showToast('success', 'המשתמש הוסר בהצלחה'); fetchMembers(); fetchData(); } else { showToast('error', data.error || 'שגיאה במחיקה'); } } catch(e) { showToast('error', 'שגיאה בתקשורת'); } }
+async function deleteUser(id, name) { if(!await window._uiConfirm(`האם אתה בטוח שברצונך למחוק את העובד לצמיתות?`, {danger:true, okLabel:'מחק'})) return; try { const res = await fetch(`${API}/users/${id}?adminId=${currentUser.id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${window._bizToken || ''}` } }); const data = await res.json(); if(data.success) { showToast('success', 'המשתמש הוסר בהצלחה'); fetchMembers(); fetchData(); } else { showToast('error', data.error || 'שגיאה במחיקה'); } } catch(e) { showToast('error', 'שגיאה בתקשורת'); } }
 
 async function open360Report(groupId) {
     showToast('info', 'מפיק דוח תמונת מצב, אנא המתן...');
