@@ -647,6 +647,29 @@ async function loginPhoneSendOtp() {
     }
 }
 
+// גיבוי: שליחת הקוד במייל במקום SMS (ללקוחות שה-SMS לא מגיע אליהם בגלל מכשיר/ספקית) —
+// הטלפון נשאר שדה החובה לזיהוי, המייל הוא רק ערוץ נוסף לקבלת אותו קוד
+async function loginPhoneSendOtpByEmail() {
+    _loginPhoneHideMsg();
+    const phone = _loginPhoneState.phone || val('login-phone-num').trim();
+    if (!phone) return _loginPhoneShowMsg('נא להזין מספר טלפון');
+    const email = window.prompt('הזן את כתובת המייל שלך לקבלת הקוד:');
+    if (!email) return;
+    try {
+        const res = await fetch(`${API}/family/login/send-otp`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ phone, channel: 'email', email: email.trim() }) });
+        const data = await res.json();
+        if (!data.success) { _loginPhoneShowMsg(data.error || 'שגיאה בשליחת הקוד במייל'); return; }
+        _loginPhoneState.phone = phone;
+        getEl('login-phone-display').textContent = `${phone} (קוד נשלח למייל ${email.trim()})`;
+        getEl('login-phone-step-phone').classList.add('hidden');
+        getEl('login-phone-step-otp').classList.remove('hidden');
+        getEl('login-phone-otp').value = '';
+        getEl('login-phone-otp').focus();
+    } catch(e) {
+        _loginPhoneShowMsg('שגיאת תקשורת מול השרת');
+    }
+}
+
 async function loginPhoneVerifyOtp() {
     _loginPhoneHideMsg();
     const code = val('login-phone-otp').trim();

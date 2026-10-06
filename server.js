@@ -1945,6 +1945,9 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
           created_at TIMESTAMPTZ DEFAULT NOW()
       )`); } catch(e) {}
       try { await client.query(`CREATE INDEX IF NOT EXISTS idx_sc_otp_phone ON storefront_otp(phone)`); } catch(e) {}
+      // ערוץ חלופי למייל לקוד אימות (גיבוי כש-SMS לא מגיע) - תוספתי, phone נשאר שדה החובה לזיהוי
+      try { await client.query(`ALTER TABLE storefront_otp ADD COLUMN IF NOT EXISTS channel VARCHAR(10) DEFAULT 'sms'`); } catch(e) {}
+      try { await client.query(`ALTER TABLE storefront_otp ADD COLUMN IF NOT EXISTS email VARCHAR(150)`); } catch(e) {}
       try { await client.query(`CREATE TABLE IF NOT EXISTS storefront_sessions (
           id SERIAL PRIMARY KEY,
           token VARCHAR(128) NOT NULL UNIQUE,
@@ -1991,6 +1994,9 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
           created_at TIMESTAMPTZ  NOT NULL DEFAULT NOW()
       )`); } catch(e) {}
       try { await client.query(`CREATE INDEX IF NOT EXISTS idx_business_otp_phone ON business_otp(phone)`); } catch(e) {}
+      // ערוץ חלופי למייל לקוד אימות (גיבוי כש-SMS לא מגיע) - תוספתי, phone נשאר שדה החובה לזיהוי
+      try { await client.query(`ALTER TABLE business_otp ADD COLUMN IF NOT EXISTS channel VARCHAR(10) DEFAULT 'sms'`); } catch(e) {}
+      try { await client.query(`ALTER TABLE business_otp ADD COLUMN IF NOT EXISTS email VARCHAR(150)`); } catch(e) {}
       try { await client.query(`CREATE TABLE IF NOT EXISTS biz_password_resets (
           id         SERIAL PRIMARY KEY,
           phone      VARCHAR(20)  NOT NULL,
@@ -10474,8 +10480,13 @@ setInterval(() => {
 // שלב 1: שליחת קוד SMS לטלפון
 app.post('/api/family/login/send-otp', async (req, res) => {
     try {
-        const { phone } = req.body;
+        const { phone, channel, email } = req.body;
         if (!phone) return res.status(400).json({ success: false, error: 'מספר טלפון חסר' });
+        // טלפון נשאר שדה הזיהוי המחייב בכל מקרה — ערוץ המייל הוא רק אמצעי נוסף לקבלת הקוד, לא תחליף לטלפון
+        const useEmail = channel === 'email';
+        if (useEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || ''))) {
+            return res.status(400).json({ success: false, error: 'כתובת מייל לא תקינה' });
+        }
         const rlRes = await pool.query(
             `SELECT COUNT(*) FROM business_otp WHERE phone=$1 AND purpose='family_login' AND created_at > NOW() - INTERVAL '1 hour'`,
             [phone]);
@@ -10485,10 +10496,17 @@ app.post('/api/family/login/send-otp', async (req, res) => {
         const code = Math.floor(100000 + Math.random() * 900000).toString();
         const codeHash = _bizHashOtp(code);
         const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
-        await pool.query(`INSERT INTO business_otp (phone, code_hash, purpose, expires_at) VALUES ($1, $2, 'family_login', $3)`, [phone, codeHash, expiresAt]);
-        const smsText = `WEFLOWZ\nקוד הכניסה שלך: ${code}\nתקף ל-5 דקות. אין להעביר קוד זה לאחר.`;
-        const e164Phone = phone.startsWith('0') ? '+972' + phone.slice(1) : phone;
-        await sendSMSviaTwilio(e164Phone, smsText);
+        await pool.query(`INSERT INTO business_otp (phone, code_hash, purpose, expires_at, channel, email) VALUES ($1, $2, 'family_login', $3, $4, $5)`,
+            [phone, codeHash, expiresAt, useEmail ? 'email' : 'sms', useEmail ? email : null]);
+        if (useEmail) {
+            const html = `<div style="font-family:Arial;text-align:center;padding:20px"><h2>WEFLOWZ</h2><p>קוד הכניסה שלך:</p><div style="font-size:32px;font-weight:bold;letter-spacing:4px">${code}</div><p style="color:#888;font-size:12px">תקף ל-5 דקות. אין להעביר קוד זה לאחר.</p></div>`;
+            const sent = await sendSystemEmail(email, 'קוד הכניסה שלך ל-WEFLOWZ', html);
+            if (!sent) return res.status(500).json({ success: false, error: 'שליחת המייל נכשלה' });
+        } else {
+            const smsText = `WEFLOWZ\nקוד הכניסה שלך: ${code}\nתקף ל-5 דקות. אין להעביר קוד זה לאחר.`;
+            const e164Phone = phone.startsWith('0') ? '+972' + phone.slice(1) : phone;
+            await sendSMSviaTwilio(e164Phone, smsText);
+        }
         res.json({ success: true });
     } catch(e) { console.error('family login send-otp error:', e); res.status(500).json({ success: false, error: 'שגיאה בשליחת קוד האימות' }); }
 });
@@ -42625,17 +42643,24 @@ async function _scGetCustomerByToken(token) {
     return r.rows[0];
 }
 
-// POST /api/sc-auth/send-otp  { phone, purpose? }
+// POST /api/sc-auth/send-otp  { phone, purpose?, channel?, email? }
 app.post('/api/sc-auth/send-otp', async (req, res) => {
-    const { phone, purpose = 'login' } = req.body;
+    const { phone, purpose = 'login', channel, email } = req.body;
     if (!phone) return res.json({ success: false, error: 'חסר טלפון' });
     const cleanPhone = String(phone).replace(/\D/g, '');
     if (cleanPhone.length < 9 || cleanPhone.length > 15) return res.json({ success: false, error: 'מספר טלפון לא תקין' });
     const e164Phone = cleanPhone.startsWith('972') ? '+' + cleanPhone : cleanPhone.startsWith('0') ? '+972' + cleanPhone.slice(1) : '+' + cleanPhone;
 
     // check if customer exists (for UX hint only)
-    const existing = await pool.query('SELECT id FROM storefront_customers WHERE phone=$1', [cleanPhone]).catch(() => ({ rows: [] }));
+    const existing = await pool.query('SELECT id, email FROM storefront_customers WHERE phone=$1', [cleanPhone]).catch(() => ({ rows: [] }));
     const isNew = existing.rows.length === 0;
+
+    // טלפון נשאר שדה הזיהוי המחייב תמיד — מייל הוא רק ערוץ נוסף לקבלת הקוד (גיבוי כש-SMS לא מגיע)
+    const useEmail = channel === 'email';
+    const targetEmail = useEmail ? (email || existing.rows[0]?.email || null) : null;
+    if (useEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(targetEmail || ''))) {
+        return res.json({ success: false, error: 'כתובת מייל לא תקינה או לא קיימת בתיעוד הלקוח' });
+    }
 
     // rate limit: max 3 OTPs per phone per 10 min
     const recent = await pool.query(
@@ -42647,14 +42672,20 @@ app.post('/api/sc-auth/send-otp', async (req, res) => {
     const code = String(Math.floor(100000 + Math.random() * 900000));
     const codeHash = await bcrypt.hash(code, 8);
     await pool.query(
-        `INSERT INTO storefront_otp (phone, code_hash, expires_at, purpose) VALUES ($1,$2,NOW()+interval '5 minutes',$3)`,
-        [cleanPhone, codeHash, purpose]
+        `INSERT INTO storefront_otp (phone, code_hash, expires_at, purpose, channel, email) VALUES ($1,$2,NOW()+interval '5 minutes',$3,$4,$5)`,
+        [cleanPhone, codeHash, purpose, useEmail ? 'email' : 'sms', useEmail ? targetEmail : null]
     );
 
-    const sent = await sendSMSviaTwilio(e164Phone, `WEFLOWZ\nקוד האימות שלך: ${code} (בתוקף 5 דקות)`);
+    let sent;
+    if (useEmail) {
+        const html = `<div style="font-family:Arial;text-align:center;padding:20px"><h2>WEFLOWZ</h2><p>קוד האימות שלך:</p><div style="font-size:32px;font-weight:bold;letter-spacing:4px">${code}</div><p style="color:#888;font-size:12px">תקף ל-5 דקות.</p></div>`;
+        sent = await sendSystemEmail(targetEmail, 'קוד האימות שלך ל-WEFLOWZ', html);
+    } else {
+        sent = await sendSMSviaTwilio(e164Phone, `WEFLOWZ\nקוד האימות שלך: ${code} (בתוקף 5 דקות)`);
+    }
     if (process.env.NODE_ENV !== 'production') console.log(`[SC-OTP] ${cleanPhone} → ${code}`);
 
-    res.json({ success: true, isNew, smsSent: !!sent });
+    res.json({ success: true, isNew, smsSent: !!sent, channel: useEmail ? 'email' : 'sms' });
 });
 
 // POST /api/sc-auth/verify-otp  { phone, code, purpose? }

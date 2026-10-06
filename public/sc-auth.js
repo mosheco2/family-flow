@@ -123,6 +123,7 @@ const scAuth = window.scAuth = {
                 onkeydown="if(event.key==='Enter')scAuth.verifyOtp('${data.phone}')"/>
               <button onclick="scAuth.verifyOtp('${data.phone}')" style="width:100%;padding:14px;background:#6366f1;color:#fff;border:none;border-radius:14px;font-size:15px;font-weight:700;cursor:pointer">אמת →</button>
               <div id="sc-otp-err" style="color:#ef4444;font-size:13px;text-align:center;margin-top:10px;min-height:18px"></div>
+              <button onclick="scAuth.sendOtpByEmail('${data.phone}')" style="width:100%;margin-top:6px;background:none;border:none;color:#6366f1;font-size:12px;font-weight:700;cursor:pointer">לא קיבלת קוד ב-SMS? שלח במייל במקום</button>
               <button onclick="scAuth._renderStep('phone')" style="width:100%;margin-top:8px;background:none;border:none;color:#94a3b8;font-size:13px;cursor:pointer;text-decoration:underline">שנה מספר טלפון</button>`;
             setTimeout(() => document.getElementById('sc-otp')?.focus(), 100);
         }
@@ -237,6 +238,18 @@ const scAuth = window.scAuth = {
             if (!r.success) { btn.disabled=false; btn.textContent='שלח קוד →'; document.getElementById('sc-phone-err').textContent = r.error||'שגיאה'; return; }
             this._renderStep('otp', { phone });
         } catch(e) { btn.disabled=false; btn.textContent='שלח קוד →'; document.getElementById('sc-phone-err').textContent='שגיאת רשת'; }
+    },
+
+    // גיבוי: שליחת הקוד במייל במקום SMS — הטלפון נשאר שדה הזיהוי החובה, המייל הוא ערוץ נוסף בלבד
+    async sendOtpByEmail(phone) {
+        const email = window.prompt('הזן את כתובת המייל שלך לקבלת הקוד:');
+        if (!email) return;
+        const errEl = document.getElementById('sc-otp-err');
+        try {
+            const r = await fetch('/api/sc-auth/send-otp', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ phone, channel: 'email', email: email.trim() }) }).then(r=>r.json());
+            if (!r.success) { if (errEl) errEl.textContent = r.error || 'שגיאה בשליחת הקוד במייל'; return; }
+            if (errEl) { errEl.style.color = '#10b981'; errEl.textContent = `קוד נשלח למייל ${email.trim()}`; }
+        } catch(e) { if (errEl) errEl.textContent = 'שגיאת רשת'; }
     },
 
     async verifyOtp(phone) {
