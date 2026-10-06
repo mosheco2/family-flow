@@ -484,6 +484,7 @@
     .btc-sport      { background:#fff8ea; }
     .btc-logistics  { background:#eefaf3; }
     .btc-repair     { background:#f4f4fb; }
+    .btc-retail     { background:#fff4e6; }
 
     /* ── sec-account-details ── */
     .acc-row-2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:18px; }
@@ -821,6 +822,10 @@
         <button class="biz-type-card btc-repair" data-biz="maintenance_repair" onclick="selectBizType('maintenance_repair')">
           <span class="btc-icon">🔧</span>
           <span class="btc-label">תיקונים ושירותים</span>
+        </button>
+        <button class="biz-type-card btc-retail" data-biz="retail" onclick="selectBizType('retail')">
+          <span class="btc-icon">🛍️</span>
+          <span class="btc-label">חנות קמעונאית</span>
         </button>
       </div>
       <button class="btn-primary" style="margin-top:28px;" onclick="goToSetupPath()"><span>המשך לשלב הבא</span><span>←</span></button>
