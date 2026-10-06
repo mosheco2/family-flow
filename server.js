@@ -16651,11 +16651,13 @@ app.get('/api/store/coupons/:groupId', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/store/coupons', async (req, res) => {
+app.post('/api/store/coupons', verifyBizOrLegacy, requireModule('sales'), async (req, res) => {
     try {
-        const { groupId, code, discountPct, validUntil } = req.body;
+        const groupId = req.bizAuth.groupId || req.body.groupId;
+        if (!groupId) return res.status(400).json({ error: 'groupId נדרש' });
+        const { code, discountPct, validUntil } = req.body;
         if (!code || !discountPct) return res.status(400).json({ error: 'חסרים נתונים חובה' });
-        
+
         await pool.query('INSERT INTO store_coupons (group_id, code, discount_pct, valid_until) VALUES ($1, $2, $3, $4)', [groupId, code.toUpperCase().trim(), parseFloat(discountPct), validUntil || null]);
         logBizAction(groupId, null, 'מערכת', 'CREATE_COUPON', 'coupon', code, `קופון ${code} נוצר: ${discountPct}% הנחה`, { code, discountPct, validUntil });
         res.json({ success: true });
@@ -16708,9 +16710,11 @@ app.get('/api/store/promotions/:groupId', async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-app.post('/api/store/promotions', async (req, res) => {
+app.post('/api/store/promotions', verifyBizOrLegacy, requireModule('sales'), async (req, res) => {
     try {
-        const { groupId, title, promoType, promoValue, targetType, targetIds, startDate, endDate, showInBanner, showInTab, bgColor } = req.body;
+        const groupId = req.bizAuth.groupId || req.body.groupId;
+        if (!groupId) return res.status(400).json({ error: 'groupId נדרש' });
+        const { title, promoType, promoValue, targetType, targetIds, startDate, endDate, showInBanner, showInTab, bgColor } = req.body;
         const result = await pool.query(
             'INSERT INTO store_promotions (group_id, title, promo_type, promo_value, target_type, target_ids, start_date, end_date, show_in_banner, show_in_tab, bg_color) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *',
             [groupId, title, promoType, promoValue || 0, targetType, JSON.stringify(targetIds || []), startDate || null, endDate || null, showInBanner, showInTab, bgColor]
