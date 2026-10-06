@@ -61975,10 +61975,12 @@ window.initInventoryTab = async function() {
                 <button onclick="window.invSetFilter('out')" id="inv-filter-out" class="text-[11px] font-bold px-3 py-1.5 rounded-lg bg-slate-100 text-slate-600">אזל</button>
             </div>
         </div>
+        <div id="inv-total-value" class="text-[11px] font-bold text-slate-500 bg-slate-50 rounded-lg px-3 py-2 mb-3"></div>
         <div class="flex gap-2 mb-3 px-1">
             <button onclick="window.openStockCountModal()" class="flex-1 bg-indigo-50 text-indigo-700 border border-indigo-200 py-2.5 rounded-xl text-xs font-bold hover:bg-indigo-100 transition"><i class="fa-solid fa-clipboard-list mr-1"></i> ספירת מלאי</button>
             <button onclick="window.openReturnModal()" class="flex-1 bg-amber-50 text-amber-700 border border-amber-200 py-2.5 rounded-xl text-xs font-bold hover:bg-amber-100 transition"><i class="fa-solid fa-rotate-left mr-1"></i> החזרה חדשה</button>
             <button onclick="window.openReturnsHistory()" class="flex-1 bg-slate-50 text-slate-600 border border-slate-200 py-2.5 rounded-xl text-xs font-bold hover:bg-slate-100 transition"><i class="fa-solid fa-clock-rotate-left mr-1"></i> היסטוריית החזרות</button>
+            <button onclick="window.openMovementsLog()" class="flex-1 bg-teal-50 text-teal-700 border border-teal-200 py-2.5 rounded-xl text-xs font-bold hover:bg-teal-100 transition"><i class="fa-solid fa-list mr-1"></i> יומן תנועות</button>
         </div>
         <div id="inv-list" class="space-y-2"><p class="text-center text-slate-400 py-8"><i class="fa-solid fa-spinner fa-spin mr-2"></i> טוען מלאי...</p></div>`;
     await window.fetchInventoryItems();
@@ -61993,6 +61995,16 @@ window.fetchInventoryItems = async function() {
         const lowCount = _invItems.filter(it => _invIsLow(it)).length;
         const badge = document.getElementById('inventory-lowstock-badge');
         if (badge) { if (lowCount > 0) { badge.textContent = lowCount; badge.classList.remove('hidden'); } else badge.classList.add('hidden'); }
+        // דוח שווי מלאי (שלב ה') — חישוב client-side בלבד מהנתונים שכבר הגיעו, ללא endpoint נוסף
+        const valueEl = document.getElementById('inv-total-value');
+        if (valueEl) {
+            const totalValue = _invItems.reduce((sum, it) => {
+                const stock = it.has_variants ? parseFloat(it.variants_total_stock || 0) : parseFloat(it.stock_quantity || 0);
+                const cost = parseFloat(it.cost_price) || 0;
+                return sum + stock * cost;
+            }, 0);
+            valueEl.textContent = `שווי מלאי כולל (לפי מחיר עלות): ₪${totalValue.toLocaleString('he-IL', { maximumFractionDigits: 0 })}`;
+        }
     } catch(e) {
         const list = document.getElementById('inv-list');
         if (list) list.innerHTML = '<p class="text-center text-red-400 py-8">שגיאה בטעינת המלאי</p>';
@@ -62333,6 +62345,42 @@ window.openReturnsHistory = async function() {
             </div>`).join('');
     } catch(e) {
         const el = document.getElementById('returns-history-list');
+        if (el) el.innerHTML = '<p class="text-center text-red-400 py-6">שגיאה בטעינה</p>';
+    }
+};
+
+// ── דוח: יומן תנועות מלאי (שלב ה') — משתמש ב-endpoint הקיים מ-adjust/return/stock-count ──
+window.openMovementsLog = async function() {
+    document.getElementById('movements-log-modal')?.remove();
+    document.body.insertAdjacentHTML('beforeend', `
+    <div id="movements-log-modal" class="fixed inset-0 bg-slate-900/75 backdrop-blur-sm z-[97] flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-lg rounded-[2rem] shadow-2xl flex flex-col max-h-[80vh]">
+            <div class="flex justify-between items-center p-4 border-b border-slate-100 shrink-0">
+                <h3 class="font-black text-slate-800">יומן תנועות מלאי</h3>
+                <button onclick="document.getElementById('movements-log-modal').remove()" class="w-8 h-8 bg-slate-100 rounded-full text-slate-500 flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div id="movements-log-list" class="flex-1 overflow-y-auto modal-scroll p-4 space-y-1.5"><p class="text-center text-slate-400 py-6"><i class="fa-solid fa-spinner fa-spin mr-2"></i> טוען...</p></div>
+        </div>
+    </div>`);
+    try {
+        const res = await fetch(`${API}/biz/retail/inventory/${currentGroup.id}/movements`, { headers: _shukaAuthHeaders() });
+        const list = await res.json();
+        const el = document.getElementById('movements-log-list');
+        if (!el) return;
+        if (!Array.isArray(list) || !list.length) { el.innerHTML = '<p class="text-center text-slate-400 py-6">אין עדיין תנועות מלאי</p>'; return; }
+        const reasonLabels = { sale: 'מכירה', return: 'החזרה', purchase_receipt: 'קבלת סחורה', manual_adjustment: 'תיקון ידני', stock_count: 'ספירת מלאי', cancelled_order: 'ביטול הזמנה' };
+        el.innerHTML = list.map(m => {
+            const positive = parseFloat(m.change_qty) > 0;
+            return `<div class="flex items-center justify-between gap-2 border-b border-slate-50 py-2">
+                <div class="min-w-0">
+                    <div class="text-xs font-bold text-slate-700">${safeStr(m.product_name)}</div>
+                    <div class="text-[10px] text-slate-400">${reasonLabels[m.reason] || m.reason} · ${new Date(m.created_at).toLocaleString('he-IL')}</div>
+                </div>
+                <span class="text-sm font-black ${positive ? 'text-green-600' : 'text-red-600'} shrink-0">${positive ? '+' : ''}${m.change_qty}</span>
+            </div>`;
+        }).join('');
+    } catch(e) {
+        const el = document.getElementById('movements-log-list');
         if (el) el.innerHTML = '<p class="text-center text-red-400 py-6">שגיאה בטעינה</p>';
     }
 };
