@@ -541,6 +541,12 @@ input,select,textarea{font-family:inherit}
       <div class="co-body">
         <div class="co-field"><label class="co-label">שם מלא *</label><input class="co-input" id="co-name" type="text" placeholder="שם ושם משפחה"></div>
         <div class="co-field"><label class="co-label">טלפון *</label><input class="co-input" id="co-phone" type="tel" placeholder="05X-XXXXXXX"></div>
+        <div class="co-field"><label class="co-label">אופן קבלה *</label>
+          <div style="display:flex;gap:8px">
+            <div class="pay-method active" id="ful-delivery" onclick="setFulfilMode(true)" style="flex:1;justify-content:center"><span class="pay-method-icon">🛵</span><span class="pay-method-label">משלוח</span></div>
+            <div class="pay-method" id="ful-pickup" onclick="setFulfilMode(false)" style="flex:1;justify-content:center"><span class="pay-method-icon">🏠</span><span class="pay-method-label">איסוף עצמי</span></div>
+          </div>
+        </div>
         <div class="co-field" id="co-address-wrap"><label class="co-label">כתובת למשלוח</label>
           <input class="co-input" id="co-city" type="text" placeholder="עיר" style="margin-bottom:6px" oninput="geocodeAndCalcZone()">
           <div style="display:flex;gap:8px">
@@ -688,6 +694,15 @@ let storeData = null, catalog = [], groupId = null;
 let cart = {};
 let _cartStep = 'cart';
 let _couponDiscount = 0, _couponCode = '', _couponType = null;
+let _fulfilDelivery = true;
+function setFulfilMode(deliver) {
+  _fulfilDelivery = deliver;
+  document.getElementById('ful-delivery')?.classList.toggle('active', deliver);
+  document.getElementById('ful-pickup')?.classList.toggle('active', !deliver);
+  const addrWrap = document.getElementById('co-address-wrap');
+  if (addrWrap) addrWrap.style.display = deliver ? '' : 'none';
+  renderCartSummary();
+}
 let _activePromos = [];
 let _cxProduct = null, _cxSteps = [], _cxBasePrice = 0, _cxQty = 1, _cxPriceMode = 'per_guest';
 let _payMethod = 0;
@@ -1809,7 +1824,7 @@ function renderCartSummary() {
     couponDisc = Math.min(sub, parseFloat(_couponDiscount.split(':')[1])||0);
   // parseFloat חובה כאן: delivery_fee מגיע מהשרת כמחרוזת (PostgreSQL DECIMAL),
   // ו-"+" על מספר ומחרוזת הוא שרשור טקסט ולא חיבור (למשל 2100 + "0.00" = "21000.00"!)
-  const delivery = parseFloat(storeData?.settings?.delivery_fee) || 0;
+  const delivery = _fulfilDelivery ? (parseFloat(storeData?.settings?.delivery_fee) || 0) : 0;
   const total = Math.max(0, sub - bogoDisc - couponDisc + delivery);
   const cd = storeData?.communityData;
   const commDisc = (cd?.discount_active && cd?.discount_pct > 0 && sub > 0) ? Math.round(sub * cd.discount_pct / 100) : 0;
@@ -1950,7 +1965,8 @@ async function submitOrder() {
   const city = document.getElementById('co-city')?.value.trim() || '';
   const street = document.getElementById('co-street')?.value.trim() || '';
   const house = document.getElementById('co-house')?.value.trim() || '';
-  const isDelivery = !!(city && street);
+  const isDelivery = _fulfilDelivery;
+  if (isDelivery && !(city && street)) { showToast(t('אנא הכנס כתובת למשלוח','Please enter a delivery address')); btn.textContent = t('שלח הזמנה','Place order'); btn.disabled = false; return; }
   // parseFloat חובה: delivery_fee מגיע מהשרת כמחרוזת (PostgreSQL DECIMAL) - "+" עם מספר
   // ומחרוזת הוא שרשור טקסט ולא חיבור (למשל 2100 + "0.00" = "21000.00" ולא 2100.00)
   const delivery = isDelivery ? (parseFloat(storeData?.settings?.delivery_fee) || 0) : 0;
