@@ -61975,6 +61975,11 @@ window.initInventoryTab = async function() {
                 <button onclick="window.invSetFilter('out')" id="inv-filter-out" class="text-[11px] font-bold px-3 py-1.5 rounded-lg bg-slate-100 text-slate-600">אזל</button>
             </div>
         </div>
+        <div class="flex gap-2 mb-3 px-1">
+            <button onclick="window.openStockCountModal()" class="flex-1 bg-indigo-50 text-indigo-700 border border-indigo-200 py-2.5 rounded-xl text-xs font-bold hover:bg-indigo-100 transition"><i class="fa-solid fa-clipboard-list mr-1"></i> ספירת מלאי</button>
+            <button onclick="window.openReturnModal()" class="flex-1 bg-amber-50 text-amber-700 border border-amber-200 py-2.5 rounded-xl text-xs font-bold hover:bg-amber-100 transition"><i class="fa-solid fa-rotate-left mr-1"></i> החזרה חדשה</button>
+            <button onclick="window.openReturnsHistory()" class="flex-1 bg-slate-50 text-slate-600 border border-slate-200 py-2.5 rounded-xl text-xs font-bold hover:bg-slate-100 transition"><i class="fa-solid fa-clock-rotate-left mr-1"></i> היסטוריית החזרות</button>
+        </div>
         <div id="inv-list" class="space-y-2"><p class="text-center text-slate-400 py-8"><i class="fa-solid fa-spinner fa-spin mr-2"></i> טוען מלאי...</p></div>`;
     await window.fetchInventoryItems();
 };
@@ -62185,4 +62190,149 @@ window.adjustVariantStock = async function(variantId) {
         if (!data.success) { showToast('error', data.error || 'שגיאה'); return; }
         window.fetchVariants();
     } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
+// ── ספירת מלאי תקופתית ──
+window.openStockCountModal = function() {
+    document.getElementById('stock-count-modal')?.remove();
+    const items = (_invItems || []).filter(it => !it.has_variants);
+    const rowsHtml = items.map(it => `
+        <div class="flex items-center gap-2 py-2 border-b border-slate-50">
+            <div class="flex-1 min-w-0 text-xs font-bold text-slate-700">${safeStr(it.name)}</div>
+            <div class="text-[10px] text-slate-400 w-16 text-center">מצופה: ${it.stock_quantity ?? 0}</div>
+            <input type="number" data-catalog-id="${it.id}" class="sc-counted-input modern-input py-1.5 text-sm text-center dir-ltr w-20" placeholder="נספר">
+        </div>`).join('');
+    document.body.insertAdjacentHTML('beforeend', `
+    <div id="stock-count-modal" class="fixed inset-0 bg-slate-900/75 backdrop-blur-sm z-[97] flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-lg rounded-[2rem] shadow-2xl flex flex-col max-h-[85vh]">
+            <div class="flex justify-between items-center p-4 border-b border-slate-100 shrink-0">
+                <h3 class="font-black text-slate-800">ספירת מלאי</h3>
+                <button onclick="document.getElementById('stock-count-modal').remove()" class="w-8 h-8 bg-slate-100 rounded-full text-slate-500 flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <p class="text-[11px] text-slate-400 px-4 pt-2">מוצרים עם וריאציות אינם מופיעים כאן כרגע — יש לספור אותם דרך "ניהול וריאציות" בכל מוצר. השאר ריק לפריטים שלא נספרו.</p>
+            <div class="flex-1 overflow-y-auto modal-scroll p-4">${rowsHtml || '<p class="text-center text-slate-400 py-6">אין מוצרים לספירה</p>'}</div>
+            <div class="p-4 border-t border-slate-100 shrink-0">
+                <button onclick="window.submitStockCount()" class="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold">שמור ספירה ויישר מלאי</button>
+            </div>
+        </div>
+    </div>`);
+};
+
+window.submitStockCount = async function() {
+    const inputs = document.querySelectorAll('.sc-counted-input');
+    const items = [];
+    inputs.forEach(inp => {
+        if (inp.value !== '') items.push({ catalogId: parseInt(inp.dataset.catalogId), countedQty: parseInt(inp.value) || 0 });
+    });
+    if (!items.length) { showToast('error', 'יש להזין לפחות ספירה אחת'); return; }
+    try {
+        const res = await fetch(`${API}/biz/retail/stock-counts`, { method: 'POST', headers: _shukaAuthHeaders(), body: JSON.stringify({ items }) });
+        const data = await res.json();
+        if (!data.success) { showToast('error', data.error || 'שגיאה'); return; }
+        document.getElementById('stock-count-modal')?.remove();
+        const diffCount = (data.diffs || []).length;
+        showToast('success', diffCount ? `הספירה נשמרה — ${diffCount} פריטים תוקנו` : 'הספירה נשמרה — אין פערים');
+        window.fetchInventoryItems();
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
+// ── החזרות/זיכויים ──
+window.openReturnModal = function() {
+    document.getElementById('return-modal')?.remove();
+    const items = (_invItems || []).filter(it => !it.has_variants);
+    const optionsHtml = items.map(it => `<option value="${it.id}" data-price="${it.price || 0}">${safeStr(it.name)}</option>`).join('');
+    document.body.insertAdjacentHTML('beforeend', `
+    <div id="return-modal" class="fixed inset-0 bg-slate-900/75 backdrop-blur-sm z-[97] flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-sm rounded-[2rem] shadow-2xl p-5">
+            <h3 class="font-black text-slate-800 mb-4">החזרה חדשה</h3>
+            <label class="text-xs font-bold text-slate-600 block mb-1">מוצר:</label>
+            <select id="ret-catalog" onchange="window._retUpdatePrice()" class="modern-input py-2.5 text-sm w-full bg-white mb-3">${optionsHtml}</select>
+            <div class="grid grid-cols-2 gap-2 mb-3">
+                <div><label class="text-xs font-bold text-slate-600 block mb-1">כמות:</label><input type="number" id="ret-qty" min="1" value="1" class="modern-input py-2.5 text-sm text-center dir-ltr w-full"></div>
+                <div><label class="text-xs font-bold text-slate-600 block mb-1">מחיר יחידה:</label><input type="number" id="ret-price" class="modern-input py-2.5 text-sm text-center dir-ltr w-full"></div>
+            </div>
+            <label class="text-xs font-bold text-slate-600 block mb-1">אופן זיכוי:</label>
+            <select id="ret-refund-method" class="modern-input py-2.5 text-sm w-full bg-white mb-3">
+                <option value="store_credit">יתרת זיכוי בחנות</option>
+                <option value="cash">מזומן</option>
+                <option value="original_payment">זיכוי לאמצעי התשלום המקורי</option>
+            </select>
+            <label class="text-xs font-bold text-slate-600 block mb-1">טלפון לקוח (לזיכוי בחנות):</label>
+            <input type="text" id="ret-customer-phone" class="modern-input py-2.5 text-sm w-full dir-ltr text-left mb-3" placeholder="050-0000000">
+            <label class="text-xs font-bold text-slate-600 block mb-1">סיבה (אופציונלי):</label>
+            <input type="text" id="ret-reason" class="modern-input py-2.5 text-sm w-full mb-3">
+            <label class="flex items-center gap-2 mb-4 cursor-pointer">
+                <input type="checkbox" id="ret-restock" class="w-4 h-4 rounded text-amber-600" checked>
+                <span class="text-xs font-bold text-slate-700">החזר למלאי</span>
+            </label>
+            <div class="flex gap-3">
+                <button onclick="document.getElementById('return-modal').remove()" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-600">ביטול</button>
+                <button onclick="window.submitReturn()" class="flex-1 bg-amber-600 text-white py-3 rounded-xl font-bold">בצע החזרה</button>
+            </div>
+        </div>
+    </div>`);
+    window._retUpdatePrice();
+};
+
+window._retUpdatePrice = function() {
+    const sel = document.getElementById('ret-catalog');
+    const opt = sel?.selectedOptions?.[0];
+    const priceInput = document.getElementById('ret-price');
+    if (opt && priceInput) priceInput.value = opt.dataset.price || 0;
+};
+
+window.submitReturn = async function() {
+    const catalogId = parseInt(document.getElementById('ret-catalog')?.value);
+    const qty = parseInt(document.getElementById('ret-qty')?.value) || 0;
+    const unitPrice = parseFloat(document.getElementById('ret-price')?.value) || 0;
+    const refundMethod = document.getElementById('ret-refund-method')?.value;
+    const customerPhone = document.getElementById('ret-customer-phone')?.value?.trim() || null;
+    const reason = document.getElementById('ret-reason')?.value?.trim() || null;
+    const restock = document.getElementById('ret-restock')?.checked;
+    if (!catalogId || !qty) { showToast('error', 'יש לבחור מוצר וכמות'); return; }
+    if (refundMethod === 'store_credit' && !customerPhone) { showToast('error', 'זיכוי בחנות דורש טלפון לקוח'); return; }
+    try {
+        const res = await fetch(`${API}/biz/retail/returns`, {
+            method: 'POST', headers: _shukaAuthHeaders(),
+            body: JSON.stringify({ items: [{ catalogId, qty, unitPrice }], refundMethod, reason, restock, customerPhone })
+        });
+        const data = await res.json();
+        if (!data.success) { showToast('error', data.error || 'שגיאה'); return; }
+        document.getElementById('return-modal')?.remove();
+        showToast('success', 'ההחזרה בוצעה בהצלחה');
+        window.fetchInventoryItems();
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
+window.openReturnsHistory = async function() {
+    document.getElementById('returns-history-modal')?.remove();
+    document.body.insertAdjacentHTML('beforeend', `
+    <div id="returns-history-modal" class="fixed inset-0 bg-slate-900/75 backdrop-blur-sm z-[97] flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-md rounded-[2rem] shadow-2xl flex flex-col max-h-[80vh]">
+            <div class="flex justify-between items-center p-4 border-b border-slate-100 shrink-0">
+                <h3 class="font-black text-slate-800">היסטוריית החזרות</h3>
+                <button onclick="document.getElementById('returns-history-modal').remove()" class="w-8 h-8 bg-slate-100 rounded-full text-slate-500 flex items-center justify-center"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div id="returns-history-list" class="flex-1 overflow-y-auto modal-scroll p-4 space-y-2"><p class="text-center text-slate-400 py-6"><i class="fa-solid fa-spinner fa-spin mr-2"></i> טוען...</p></div>
+        </div>
+    </div>`);
+    try {
+        const res = await fetch(`${API}/biz/retail/returns/${currentGroup.id}`, { headers: _shukaAuthHeaders() });
+        const list = await res.json();
+        const el = document.getElementById('returns-history-list');
+        if (!el) return;
+        if (!Array.isArray(list) || !list.length) { el.innerHTML = '<p class="text-center text-slate-400 py-6">אין עדיין החזרות</p>'; return; }
+        const methodLabels = { store_credit: 'יתרת זיכוי', cash: 'מזומן', original_payment: 'זיכוי מקורי' };
+        el.innerHTML = list.map(r => `
+            <div class="bg-slate-50 rounded-xl border border-slate-100 px-3 py-2.5">
+                <div class="flex justify-between items-center mb-1">
+                    <span class="text-xs font-black text-slate-800">₪${parseFloat(r.total_refund).toFixed(0)}</span>
+                    <span class="text-[10px] font-bold text-slate-500">${methodLabels[r.refund_method] || r.refund_method}</span>
+                </div>
+                <div class="text-[10px] text-slate-400">${r.item_count} פריטים · ${new Date(r.created_at).toLocaleDateString('he-IL')}${r.reason ? ' · ' + safeStr(r.reason) : ''}</div>
+            </div>`).join('');
+    } catch(e) {
+        const el = document.getElementById('returns-history-list');
+        if (el) el.innerHTML = '<p class="text-center text-red-400 py-6">שגיאה בטעינה</p>';
+    }
 };

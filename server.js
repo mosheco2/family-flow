@@ -1237,6 +1237,8 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
       try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS contact_name VARCHAR(150)`); } catch(e) {}
       try { await client.query(`ALTER TABLE store_customers ADD COLUMN IF NOT EXISTS company_name VARCHAR(255)`); } catch(e) {}
       try { await client.query(`ALTER TABLE store_customers ADD COLUMN IF NOT EXISTS family_group_id INTEGER`); } catch(e) {}
+      // יתרת זיכוי לקוח (store credit) - תוספתי, לשימוש בהחזרות חנות קמעונאית
+      try { await client.query(`ALTER TABLE store_customers ADD COLUMN IF NOT EXISTS credit_balance DECIMAL(10,2) DEFAULT 0`); } catch(e) {}
       // ===== END BUSINESS TYPES & ROLE DASHBOARDS =====
 
       // ===== WORK ORDERS MODULE =====
@@ -13432,6 +13434,105 @@ app.post('/api/biz/retail/variants/:variantId/adjust', verifyBizOrLegacy, requir
         if (!delta) return res.status(400).json({ error: 'יש להזין כמות שינוי שונה מאפס' });
         await recordInventoryMovement({ groupId, catalogId: v.rows[0].catalog_id, variantId: parseInt(req.params.variantId), changeQty: delta, reason: 'manual_adjustment', note: req.body.note || null, userId: req.bizAuth.userId || null });
         res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ═══════════════════════════════════════════════════════════
+//  חנות קמעונאית שלב ד' — החזרות/זיכויים + ספירת מלאי תקופתית
+// ═══════════════════════════════════════════════════════════
+
+// רשימת החזרות
+app.get('/api/biz/retail/returns/:groupId', verifyBizOrLegacy, requireModule('sales'), async (req, res) => {
+    try {
+        const groupId = req.bizAuth.groupId || req.params.groupId;
+        if (!groupId) return res.status(400).json({ error: 'groupId נדרש' });
+        const rows = await pool.query(
+            `SELECT r.*, (SELECT COUNT(*) FROM store_return_items i WHERE i.return_id=r.id) AS item_count
+             FROM store_returns r WHERE r.group_id=$1 ORDER BY r.created_at DESC`, [groupId]);
+        res.json(rows.rows);
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// יצירת החזרה — מבוצעת ע"י העסק, מיידית (אין זרימת אישור נפרדת), עם אפשרות restock + זיכוי כספי
+app.post('/api/biz/retail/returns', verifyBizOrLegacy, requireModule('sales'), async (req, res) => {
+    try {
+        const groupId = req.bizAuth.groupId;
+        if (!groupId) return res.status(400).json({ error: 'groupId נדרש' });
+        const { originalOrderId, items, refundMethod, reason, restock, customerPhone } = req.body;
+        if (!Array.isArray(items) || !items.length) return res.status(400).json({ error: 'יש לבחור לפחות פריט אחד להחזרה' });
+        const totalRefund = items.reduce((sum, it) => sum + (parseFloat(it.unitPrice) || 0) * (parseInt(it.qty) || 0), 0);
+
+        const ret = await pool.query(
+            `INSERT INTO store_returns (group_id, original_order_id, status, refund_method, total_refund, reason, restock, completed_at)
+             VALUES ($1,$2,'completed',$3,$4,$5,$6,NOW()) RETURNING *`,
+            [groupId, originalOrderId || null, refundMethod || 'store_credit', totalRefund, reason || null, restock !== false]);
+
+        for (const it of items) {
+            await pool.query(
+                `INSERT INTO store_return_items (return_id, catalog_id, variant_id, qty, unit_price) VALUES ($1,$2,$3,$4,$5)`,
+                [ret.rows[0].id, it.catalogId, it.variantId || null, parseInt(it.qty) || 0, parseFloat(it.unitPrice) || 0]);
+            if (restock !== false && it.catalogId) {
+                await recordInventoryMovement({ groupId, catalogId: it.catalogId, variantId: it.variantId || null, changeQty: parseInt(it.qty) || 0, reason: 'return', referenceId: ret.rows[0].id, userId: req.bizAuth.userId || null });
+            }
+        }
+
+        if (refundMethod === 'store_credit' && customerPhone) {
+            const cleanPhone = String(customerPhone).replace(/[-\s]/g, '');
+            await pool.query(
+                `UPDATE store_customers SET credit_balance = COALESCE(credit_balance,0) + $1 WHERE group_id=$2 AND phone=$3`,
+                [totalRefund, groupId, cleanPhone]);
+        }
+
+        res.json({ success: true, return: ret.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ספירת מלאי תקופתית — מדווחת את כל השורות בבת אחת, מזהה פערים, ומיישרת את המלאי בפועל
+app.post('/api/biz/retail/stock-counts', verifyBizOrLegacy, requireModule('sales'), async (req, res) => {
+    try {
+        const groupId = req.bizAuth.groupId;
+        if (!groupId) return res.status(400).json({ error: 'groupId נדרש' });
+        const { items } = req.body; // [{ catalogId, variantId?, countedQty }]
+        if (!Array.isArray(items) || !items.length) return res.status(400).json({ error: 'אין פריטים לספירה' });
+
+        const sc = await pool.query(
+            `INSERT INTO store_stock_counts (group_id, status, started_by_user_id, completed_at) VALUES ($1,'completed',$2,NOW()) RETURNING *`,
+            [groupId, req.bizAuth.userId || null]);
+
+        const diffs = [];
+        for (const it of items) {
+            let expectedQty = 0;
+            if (it.variantId) {
+                const vRes = await pool.query('SELECT stock_quantity FROM store_product_variants WHERE id=$1 AND group_id=$2', [it.variantId, groupId]);
+                expectedQty = vRes.rows[0]?.stock_quantity ?? 0;
+            } else {
+                const cRes = await pool.query('SELECT stock_quantity FROM store_catalog WHERE id=$1 AND group_id=$2', [it.catalogId, groupId]);
+                expectedQty = cRes.rows[0]?.stock_quantity ?? 0;
+            }
+            const countedQty = parseInt(it.countedQty) || 0;
+            await pool.query(
+                `INSERT INTO store_stock_count_items (stock_count_id, catalog_id, variant_id, expected_qty, counted_qty) VALUES ($1,$2,$3,$4,$5)`,
+                [sc.rows[0].id, it.catalogId, it.variantId || null, expectedQty, countedQty]);
+            const diff = countedQty - expectedQty;
+            if (diff !== 0) {
+                await recordInventoryMovement({ groupId, catalogId: it.catalogId, variantId: it.variantId || null, changeQty: diff, reason: 'stock_count', referenceId: sc.rows[0].id, userId: req.bizAuth.userId || null });
+                diffs.push({ catalogId: it.catalogId, variantId: it.variantId || null, expectedQty, countedQty, diff });
+            }
+        }
+
+        res.json({ success: true, stockCount: sc.rows[0], diffs });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// היסטוריית ספירות מלאי
+app.get('/api/biz/retail/stock-counts/:groupId', verifyBizOrLegacy, requireModule('sales'), async (req, res) => {
+    try {
+        const groupId = req.bizAuth.groupId || req.params.groupId;
+        if (!groupId) return res.status(400).json({ error: 'groupId נדרש' });
+        const rows = await pool.query(
+            `SELECT sc.*, (SELECT COUNT(*) FROM store_stock_count_items i WHERE i.stock_count_id=sc.id AND i.diff_qty != 0) AS diff_count
+             FROM store_stock_counts sc WHERE sc.group_id=$1 ORDER BY sc.started_at DESC LIMIT 50`, [groupId]);
+        res.json(rows.rows);
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
