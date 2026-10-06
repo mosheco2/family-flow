@@ -538,8 +538,7 @@ input,select,textarea{font-family:inherit}
         <div class="co-title">פרטי הזמנה</div>
       </div>
       <div class="co-body">
-        <div class="co-field"><label class="co-label">שם העסק *</label><input class="co-input" id="co-biz" type="text" placeholder="שם החברה / המכון"></div>
-        <div class="co-field"><label class="co-label">איש קשר *</label><input class="co-input" id="co-name" type="text" placeholder="שם מלא"></div>
+        <div class="co-field"><label class="co-label">שם מלא *</label><input class="co-input" id="co-name" type="text" placeholder="שם ושם משפחה"></div>
         <div class="co-field"><label class="co-label">טלפון *</label><input class="co-input" id="co-phone" type="tel" placeholder="05X-XXXXXXX"></div>
         <div class="co-field" id="co-address-wrap"><label class="co-label">כתובת למשלוח</label>
           <input class="co-input" id="co-city" type="text" placeholder="עיר" style="margin-bottom:6px" oninput="geocodeAndCalcZone()">
@@ -618,7 +617,7 @@ input,select,textarea{font-family:inherit}
     <button id="quote-close-btn" onclick="closeQuote(null,true)">✕</button>
     <div id="quote-title">בקשת הצעת מחיר</div>
     <div id="quote-sub">נחזור אליכם תוך 4 שעות עם הצעה מותאמת אישית</div>
-    <div class="co-field" style="margin-top:4px"><label class="co-label">שם העסק *</label><input class="co-input" id="qf-biz" type="text" placeholder="שם החברה / המכון"></div>
+    <div class="co-field" style="margin-top:4px"><label class="co-label">שם מלא *</label><input class="co-input" id="qf-name" type="text" placeholder="שם ושם משפחה"></div>
     <div class="co-field"><label class="co-label">טלפון / אימייל *</label><input class="co-input" id="qf-contact" type="text" placeholder="05X-XXXXXXX / email@co.il"></div>
     <div class="co-field"><label class="co-label">מה אתם צריכים?</label><textarea class="co-input" id="qf-msg" rows="4" placeholder="פרטו ציוד נדרש, כמויות, תקציב..." style="resize:vertical"></textarea></div>
     <button id="send-quote-btn" onclick="sendQuote()">שלח בקשה</button>
@@ -1103,8 +1102,7 @@ function applyI18n() {
   const sb = document.getElementById('submit-btn'); if(sb) sb.textContent='Place order';
   // Labels / placeholders
   const labels = {
-    'co-biz': ['שם העסק *','Business name *'],
-    'co-name': ['איש קשר *','Contact *'],
+    'co-name': ['שם מלא *','Full name *'],
     'co-phone': ['טלפון *','Phone *'],
   };
   Object.entries(labels).forEach(([id,[,en]]) => {
@@ -1935,7 +1933,6 @@ function goBackToCart() {
   renderCartDock();
 }
 async function submitOrder() {
-  const biz   = document.getElementById('co-biz').value.trim();
   const name  = document.getElementById('co-name').value.trim();
   const phone = document.getElementById('co-phone').value.trim();
   if (!name || !phone) { showToast(t('יש למלא איש קשר וטלפון','Please fill contact and phone')); return; }
@@ -1972,7 +1969,7 @@ async function submitOrder() {
     isDelivery, deliveryFee: delivery,
     deliveryDetails: isDelivery ? { city, street, house } : null,
     familyGroupId: familyId,
-    notes: biz ? `שם עסק/גוף מזמין: ${biz}` : null,
+    notes: null,
     promoCode: _couponCode || null,
     orderSource: 'website'
   };
@@ -2081,16 +2078,23 @@ function closeQuote(e, force) {
     document.getElementById('quote-overlay').style.display = 'none';
 }
 async function sendQuote() {
-  const biz = document.getElementById('qf-biz').value.trim();
+  const name = document.getElementById('qf-name').value.trim();
   const contact = document.getElementById('qf-contact').value.trim();
-  if (!biz || !contact) { showToast('יש למלא שם עסק ופרטי קשר'); return; }
+  if (!name || !contact) { showToast(t('יש למלא שם ופרטי קשר','Please fill in your name and contact details')); return; }
   const btn = document.getElementById('send-quote-btn');
   btn.textContent = 'שולח...'; btn.disabled = true;
   try {
-    await fetch(`${API}/storefront/quote`, {
+    // endpoint אמיתי הקיים במערכת - /api/storefront/quote לא קיים בשרת
+    const r = await fetch(`${API}/store/quotes`, {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({groupId, businessName:biz, contact, message: document.getElementById('qf-msg').value.trim()})
+      body: JSON.stringify({
+        groupId, customerName: name, customerPhone: contact,
+        notes: document.getElementById('qf-msg').value.trim(),
+        items: [], totalAmount: 0
+      })
     });
+    const d = await r.json();
+    if (!d.success) throw new Error(d.error||'quote failed');
     showToast(t('✓ הבקשה נשלחה! נחזור אליכם בהקדם',"✓ Request sent! We'll be in touch soon"));
     closeQuote(null, true);
   } catch(e) { showToast(t('שגיאה, נסו שוב','Error, please try again')); }
