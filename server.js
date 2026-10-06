@@ -13276,7 +13276,8 @@ app.post('/api/store/catalog', verifyBizOrLegacy, requireModule('sales'), async 
             const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
             console.log(`[CATALOG_LEGACY] groupId=${groupId} ip=${ip} ts=${new Date().toISOString()}`);
         }
-        const { name, description, price, category, imageUrl, optionsText, badgeText, badgeColor, productType, longDescription, kitchenStation, isComplimentary, nameEn, descriptionEn, categoryEn } = req.body;
+        const { name, description, price, category, imageUrl, optionsText, badgeText, badgeColor, productType, longDescription, kitchenStation, isComplimentary, nameEn, descriptionEn, categoryEn,
+                barcode, unitType, costPrice, lowStockThreshold, trackInventory, stockQuantity } = req.body;
 
         const countRes = await pool.query('SELECT COUNT(*) FROM store_catalog WHERE group_id=$1', [groupId]);
         const grpPlan = await pool.query('SELECT plan, is_premium FROM family_groups WHERE id=$1', [groupId]);
@@ -13287,8 +13288,14 @@ app.post('/api/store/catalog', verifyBizOrLegacy, requireModule('sales'), async 
         }
 
         const result = await pool.query(
-            'INSERT INTO store_catalog (group_id, name, description, price, category, image_url, options_text, badge_text, badge_color, product_type, long_description, sku, kitchen_station, is_complimentary, name_en, description_en, category_en) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) RETURNING *',
-            [groupId, name, description, parseFloat(price)||0, category, imageUrl, optionsText, badgeText || null, badgeColor || 'red', productType || 'retail', longDescription || '', req.body.sku || '', kitchenStation || 'other', isComplimentary ? true : false, nameEn || '', descriptionEn || '', categoryEn || '']
+            `INSERT INTO store_catalog (group_id, name, description, price, category, image_url, options_text, badge_text, badge_color, product_type, long_description, sku, kitchen_station, is_complimentary, name_en, description_en, category_en,
+                barcode, unit_type, cost_price, low_stock_threshold, track_inventory, stock_quantity)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23) RETURNING *`,
+            [groupId, name, description, parseFloat(price)||0, category, imageUrl, optionsText, badgeText || null, badgeColor || 'red', productType || 'retail', longDescription || '', req.body.sku || '', kitchenStation || 'other', isComplimentary ? true : false, nameEn || '', descriptionEn || '', categoryEn || '',
+             barcode || null, unitType || 'piece', (costPrice !== undefined && costPrice !== null && costPrice !== '') ? parseFloat(costPrice) : null,
+             (lowStockThreshold !== undefined && lowStockThreshold !== null && lowStockThreshold !== '') ? parseInt(lowStockThreshold) : null,
+             (typeof trackInventory === 'boolean') ? trackInventory : true,
+             (stockQuantity !== undefined && stockQuantity !== null && stockQuantity !== '') ? parseInt(stockQuantity) : null]
         );
         res.json({ success: true, item: result.rows[0] });
     } catch(e) { res.status(500).json({ error: e.message }); }

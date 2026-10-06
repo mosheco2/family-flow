@@ -27516,6 +27516,52 @@ window.openStoreProductModal = function(id = null) {
                 <span class="text-xs font-bold text-orange-700">פריט חינמי פנימי (ללא עלות — גלוי למלצרים בלבד, לא בחנות)</span>
             </label>
         </div>`;
+    // ── שדות ייעודיים לחנות קמעונאית (retail/store_only בלבד — לא משפיע על סוגי עסק אחרים) ──
+    const isRetailBiz = bizType === 'retail' || bizType === 'store_only';
+    const retailHtml = !isRetailBiz ? '' : `
+        <div class="bg-emerald-50 p-4 rounded-2xl border border-emerald-100 shadow-sm space-y-3">
+            <label class="text-xs font-bold text-emerald-800 block">🏷️ מלאי וזיהוי (חנות קמעונאית):</label>
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="text-[10px] font-bold text-emerald-700 block mb-1">מק"ט (SKU):</label>
+                    <input type="text" id="sp-sku" class="modern-input py-2 text-sm bg-white dir-ltr text-left" placeholder="ABC-001">
+                </div>
+                <div>
+                    <label class="text-[10px] font-bold text-emerald-700 block mb-1">ברקוד:</label>
+                    <input type="text" id="sp-barcode" class="modern-input py-2 text-sm bg-white dir-ltr text-left" placeholder="7290000000000">
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="text-[10px] font-bold text-emerald-700 block mb-1">יחידת מידה:</label>
+                    <select id="sp-unit-type" class="modern-input py-2 text-sm bg-white">
+                        <option value="piece">יחידה בודדת</option>
+                        <option value="weight_kg">משקל (ק"ג)</option>
+                        <option value="weight_gram">משקל (גרם)</option>
+                        <option value="volume_liter">נפח (ליטר)</option>
+                        <option value="length_meter">אורך (מטר)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-[10px] font-bold text-emerald-700 block mb-1">מחיר עלות (לדוחות, לא מוצג ללקוח):</label>
+                    <input type="number" id="sp-cost-price" class="modern-input py-2 text-sm bg-white dir-ltr text-left" placeholder="0.00">
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="text-[10px] font-bold text-emerald-700 block mb-1">מלאי נוכחי:</label>
+                    <input type="number" id="sp-stock-quantity" class="modern-input py-2 text-sm bg-white dir-ltr text-left" placeholder="0">
+                </div>
+                <div>
+                    <label class="text-[10px] font-bold text-emerald-700 block mb-1">סף התראת מלאי נמוך:</label>
+                    <input type="number" id="sp-low-stock-threshold" class="modern-input py-2 text-sm bg-white dir-ltr text-left" placeholder="לדוגמה: 5">
+                </div>
+            </div>
+            <label class="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" id="sp-track-inventory" class="w-4 h-4 rounded text-emerald-600" checked>
+                <span class="text-xs font-bold text-emerald-700">מעקב מלאי פעיל למוצר זה</span>
+            </label>
+        </div>`;
 
     document.body.insertAdjacentHTML('beforeend', `
     <div id="store-product-modal" class="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[90] flex items-center justify-center p-2 sm:p-4 fade-in">
@@ -27561,6 +27607,7 @@ window.openStoreProductModal = function(id = null) {
                     </select>
                 </div>
                 ${kdsHtml}
+                ${retailHtml}
 
                 <div id="bundle-builder-container" class="hidden border-t border-slate-200 pt-4 mt-2"></div>
                 
@@ -27657,7 +27704,18 @@ window.openStoreProductModal = function(id = null) {
             if(document.getElementById('sp-long-desc')) document.getElementById('sp-long-desc').value = p.long_description || '';
             if(document.getElementById('sp-kitchen-station')) document.getElementById('sp-kitchen-station').value = p.kitchen_station || 'other';
             if(document.getElementById('sp-is-complimentary')) document.getElementById('sp-is-complimentary').checked = !!p.is_complimentary;
-            
+            if(document.getElementById('sp-sku')) document.getElementById('sp-sku').value = p.sku || '';
+            if(document.getElementById('sp-barcode')) document.getElementById('sp-barcode').value = p.barcode || '';
+            if(document.getElementById('sp-unit-type')) document.getElementById('sp-unit-type').value = p.unit_type || 'piece';
+            if(document.getElementById('sp-cost-price')) document.getElementById('sp-cost-price').value = p.cost_price ?? '';
+            if(document.getElementById('sp-stock-quantity')) {
+                document.getElementById('sp-stock-quantity').value = p.stock_quantity ?? '';
+                document.getElementById('sp-stock-quantity').disabled = true;
+                document.getElementById('sp-stock-quantity').title = 'לתיקון מלאי יש להשתמש במסך "מלאי" (שומר יומן תנועות)';
+            }
+            if(document.getElementById('sp-low-stock-threshold')) document.getElementById('sp-low-stock-threshold').value = p.low_stock_threshold ?? '';
+            if(document.getElementById('sp-track-inventory')) document.getElementById('sp-track-inventory').checked = p.track_inventory !== false;
+
             document.getElementById('sp-image-base64').value = p.image_url || '';
             if (p.image_url) { 
                 document.getElementById('sp-image-preview').src = p.image_url; 
@@ -27734,7 +27792,15 @@ window.submitStoreProduct = async function() {
             productType: pType, 
             longDescription: document.getElementById('sp-long-desc') ? document.getElementById('sp-long-desc').value : '',
             kitchenStation: document.getElementById('sp-kitchen-station') ? document.getElementById('sp-kitchen-station').value : 'other',
-            isComplimentary: document.getElementById('sp-is-complimentary') ? document.getElementById('sp-is-complimentary').checked : false
+            isComplimentary: document.getElementById('sp-is-complimentary') ? document.getElementById('sp-is-complimentary').checked : false,
+            sku: document.getElementById('sp-sku') ? document.getElementById('sp-sku').value : '',
+            barcode: document.getElementById('sp-barcode') ? document.getElementById('sp-barcode').value : undefined,
+            unitType: document.getElementById('sp-unit-type') ? document.getElementById('sp-unit-type').value : undefined,
+            costPrice: document.getElementById('sp-cost-price') ? document.getElementById('sp-cost-price').value : undefined,
+            lowStockThreshold: document.getElementById('sp-low-stock-threshold') ? document.getElementById('sp-low-stock-threshold').value : undefined,
+            trackInventory: document.getElementById('sp-track-inventory') ? document.getElementById('sp-track-inventory').checked : undefined,
+            // stockQuantity נשלח רק ביצירת מוצר חדש (id ריק) - בעריכה יש לתקן מלאי דרך מסך "מלאי" כדי לשמר יומן תנועות
+            stockQuantity: (!id && document.getElementById('sp-stock-quantity')) ? document.getElementById('sp-stock-quantity').value : undefined
         };
         const res = await fetch(id ? `${API}/store/catalog/${id}` : `${API}/store/catalog`, { method: id ? 'PUT' : 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
         const data = await res.json();
