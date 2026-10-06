@@ -1947,6 +1947,15 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
       try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS staff_roles JSONB DEFAULT '[]'`); } catch(e) {}
       try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS opening_hours JSONB DEFAULT NULL`); } catch(e) {}
       try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS wizard_completed BOOLEAN DEFAULT FALSE`); } catch(e) {}
+      // תיקון חד-פעמי אידמפוטנטי: עסקים עם is_onboarded=true (הושלמו בפועל דרך אשף הדאשבורד
+      // הקל) אך wizard_completed נשאר false (מעולם לא עברו את אשף ה-biz-onboarding.html המלא) -
+      // אותו תנאי בדיוק שנוסף ב-/api/biz/login, כדי לתקן גם עסקים שלא התחברו עדיין מאז התיקון
+      try {
+          const _wizFix = await client.query(
+              `UPDATE family_groups SET wizard_completed=true WHERE type='BUSINESS' AND is_onboarded=true AND wizard_completed=false RETURNING id`
+          );
+          if (_wizFix.rowCount > 0) console.log(`[wizard-fix] תוקנו ${_wizFix.rowCount} עסקים שהיו תקועים באשף ההקמה למרות שהם פעילים (is_onboarded=true)`);
+      } catch(e) {}
       try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS terms_accepted_at TIMESTAMPTZ DEFAULT NULL`); } catch(e) {}
       // עסק דמו (כניסה ללא הרשמה ללקוחות פוטנציאליים) - טלפון/סיסמה ייעודיים + סימון לאיפוס אוטומטי מחזורי
       try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS is_demo_business BOOLEAN DEFAULT FALSE`); } catch(e) {}
