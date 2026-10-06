@@ -73,7 +73,16 @@ async function resolveGroupIdAndLogin() {
   log(true, 'התחברות עסקית הצליחה', `group_id=${GROUP_ID}`);
 }
 
-// בונה מפה: שם קובץ (ללא סיומת) -> נתיב ציבורי לתמונה
+// מנרמל וריאציות מרכאות/גרש כדי שהתאמה בין שם קובץ לשם מוצר לא תיכשל על הבדלי טיפוגרפיה
+// (למשל ״...״ עברי מול "..." רגיל, או ׳ מול ')
+function normalizeQuotes(s) {
+  return s
+    .replace(/[״“”]/g, '"')  // ״ / “ / ” -> "
+    .replace(/[׳‘’]/g, "'")  // ׳ / ‘ / ’ -> '
+    .trim();
+}
+
+// בונה מפה: שם קובץ מנורמל (ללא סיומת) -> נתיב ציבורי לתמונה
 function buildImageIndex() {
   if (!fs.existsSync(IMAGES_DIR)) {
     throw new Error(`התיקייה ${IMAGES_DIR} לא קיימת. ודא/י שאתה מריץ מתוך שורש הריפו ושהתמונות כבר הועלו.`);
@@ -84,7 +93,7 @@ function buildImageIndex() {
     const ext = path.extname(file).toLowerCase();
     if (!EXTENSIONS.includes(ext)) continue;
     const baseName = path.basename(file, path.extname(file));
-    index.set(baseName.trim(), `${PUBLIC_PATH_PREFIX}/${file}`);
+    index.set(normalizeQuotes(baseName), `${PUBLIC_PATH_PREFIX}/${file}`);
   }
   return index;
 }
@@ -107,7 +116,7 @@ async function main() {
 
     let updated = 0, skipped = 0;
     for (const item of catalog) {
-      const imagePath = imageIndex.get(item.name.trim());
+      const imagePath = imageIndex.get(normalizeQuotes(item.name));
       if (!imagePath) {
         log(false, `אין תמונה תואמת: ${item.name}`, 'מדלג');
         skipped++;
