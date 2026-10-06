@@ -14398,14 +14398,17 @@ app.post('/api/store/orders', async (req, res) => {
         // ── SERVER-SIDE PRICE VALIDATION (לפני BEGIN — pool ישיר) ──────
         let catalogMap = {};
         let catalogCategoryMap = {};
+        let variantPriceMap = {};
         let settingsRow = null;
         try {
-            const [catRes, settRes, bizRes] = await Promise.all([
+            const [catRes, settRes, bizRes, varRes] = await Promise.all([
                 pool.query('SELECT id, price, category FROM store_catalog WHERE group_id=$1 AND is_active=true', [groupId]),
                 pool.query('SELECT delivery_fee, free_delivery_above FROM store_settings WHERE group_id=$1', [groupId]),
-                pool.query('SELECT business_type FROM family_groups WHERE id=$1', [groupId])
+                pool.query('SELECT business_type FROM family_groups WHERE id=$1', [groupId]),
+                pool.query('SELECT id, price_override FROM store_product_variants WHERE group_id=$1 AND is_active=true', [groupId])
             ]);
             catRes.rows.forEach(r => { catalogMap[r.id] = parseFloat(r.price); catalogCategoryMap[r.id] = r.category; });
+            varRes.rows.forEach(r => { if (r.price_override != null) variantPriceMap[r.id] = parseFloat(r.price_override); });
             settingsRow = settRes.rows[0] || null;
             var _bizTypeForPromo = bizRes.rows[0]?.business_type || null;
         } catch(e) { /* if catalog/settings unavailable, proceed without validation */ }
@@ -14415,7 +14418,9 @@ app.post('/api/store/orders', async (req, res) => {
         if (Object.keys(catalogMap).length > 0) {
             for (const item of (items || [])) {
                 if (!item.catalogId || item.catalogId === 0 || item.catalogId === 999999 || item.is_quote_metadata) continue;
-                const catalogPrice = catalogMap[item.catalogId];
+                // וריאציה עם מחיר ייעודי - מאמתים מול מחיר הוריאציה, לא מחיר הקטלוג הבסיסי
+                const variantPrice = item.variantId ? variantPriceMap[item.variantId] : undefined;
+                const catalogPrice = variantPrice !== undefined ? variantPrice : catalogMap[item.catalogId];
                 if (catalogPrice !== undefined) {
                     const clientPrice = parseFloat(item.price) || 0;
                     if (Math.abs(clientPrice - catalogPrice) > catalogPrice * 0.01 + 1) {
@@ -15232,7 +15237,13 @@ app.get('/api/storefront/:code', async (req, res) => {
 
         const [sRes, cRes, commRes, zonesRes, brandingRes] = await Promise.all([
             pool.query('SELECT * FROM store_settings WHERE group_id=$1', [groupId]),
-            pool.query('SELECT id, group_id, name, description, long_description, price, original_price, category, product_type, options_text, badge_text, badge_color, sku, sort_order, (image_url IS NOT NULL AND image_url != \'\') as has_image, name_en, description_en, category_en FROM store_catalog WHERE group_id=$1 AND is_available=TRUE ORDER BY sort_order ASC, category, name', [groupId]),
+            pool.query(
+                `SELECT sc.id, sc.group_id, sc.name, sc.description, sc.long_description, sc.price, sc.original_price, sc.category, sc.product_type, sc.options_text, sc.badge_text, sc.badge_color, sc.sku, sc.sort_order, (sc.image_url IS NOT NULL AND sc.image_url != '') as has_image, sc.name_en, sc.description_en, sc.category_en,
+                        sc.has_variants, sc.unit_type,
+                        (SELECT COALESCE(json_agg(json_build_object('id',v.id,'variant_name',v.variant_name,'attributes',v.attributes,'price_override',v.price_override,'stock_quantity',v.stock_quantity,'sku',v.sku) ORDER BY v.id), '[]')
+                         FROM store_product_variants v WHERE v.catalog_id=sc.id AND v.is_active=TRUE) AS variants
+                 FROM store_catalog sc WHERE sc.group_id=$1 AND sc.is_available=TRUE ORDER BY sc.sort_order ASC, sc.category, sc.name`,
+                [groupId]),
             req.query.communityId
                 ? pool.query(`SELECT c.name, cb.discount_pct, c.min_families,
                                (SELECT COUNT(*) FROM family_communities WHERE community_id = c.id) as family_count
@@ -16853,7 +16864,12 @@ app.get('/api/store/coupons/validate', async (req, res) => {
     try {
         const { code, storeCode } = req.query;
         if (!code || !storeCode) return res.status(400).json({ error: 'חסר קוד או מזהה חנות' });
-        const groupRes = await pool.query(`SELECT group_id FROM store_settings WHERE store_code=$1`, [storeCode]);
+        // storeCode הוא group_code או store_alias (אותו דפוס זיהוי כמו GET /api/storefront/:code) -
+        // store_settings.store_code לא קיימת כלל, זה היה באג סמוי שמנע מבדיקת קופונים לעבוד
+        const groupRes = await pool.query(
+            `SELECT f.id AS group_id FROM family_groups f LEFT JOIN store_settings s ON f.id = s.group_id
+             WHERE f.group_code = $1 OR LOWER(s.store_alias) = LOWER($2)`,
+            [storeCode.toUpperCase(), storeCode.toLowerCase()]);
         if (!groupRes.rows.length) return res.status(404).json({ success: false, error: 'חנות לא נמצאה' });
         const groupId = groupRes.rows[0].group_id;
         const r = await pool.query(

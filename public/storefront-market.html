@@ -711,7 +711,7 @@ const API = '/api';
 let storeData = null, catalog = [], groupId = null;
 let cart = {};
 let _cartStep = 'cart';
-let _couponDiscount = 0, _couponCode = '';
+let _couponDiscount = 0, _couponCode = '', _couponType = null;
 let _activePromos = [];
 let _payMethod = 0;
 let _filterCat = '', _sortMode = 'popular', _priceMax = 10000;
@@ -842,6 +842,7 @@ async function initStore() {
       ? rawPath
       : (params.get('store') || params.get('groupId') || 'demo');
     const communityId = params.get('communityId') || '';
+    window._storeUrlCode = code; window._communityId = communityId;
     let url = `${API}/storefront/${encodeURIComponent(code)}`;
     if (communityId) url += `?communityId=${encodeURIComponent(communityId)}`;
     const res = await fetch(url);
@@ -1550,9 +1551,9 @@ function productCardHtml(p) {
     ${badge}
     <div class="product-card-body">
       <div class="product-card-name">${escHtml(pName)}</div>
-      ${p.sku||p.stock_note ? `<div class="product-card-meta">${p.sku?'SKU: '+escHtml(p.sku):''} ${p.stock_note?escHtml(p.stock_note):''}</div>` : ''}
+      ${p.sku||p.stock_note||p.has_variants ? `<div class="product-card-meta">${p.sku?'SKU: '+escHtml(p.sku):''} ${p.stock_note?escHtml(p.stock_note):''} ${p.has_variants && Array.isArray(p.variants)?t(`${p.variants.length} גרסאות`,`${p.variants.length} variants`):''}</div>` : ''}
       <div class="product-card-price-row">
-        <div class="product-card-price">${fmtPrice(p.price)}</div>
+        <div class="product-card-price">${fmtPrice(p.price)}${(p.unit_type && p.unit_type!=='piece') ? ` / ${UNIT_LABELS[p.unit_type]||''}` : ''}</div>
         ${compare}
       </div>
       ${p.product_type==='complex_builder'
@@ -1571,7 +1572,7 @@ function quickAdd(id, e) {
   const p = catalog.find(x=>x.id==id);
   if (!p) return;
   if (p.product_type === 'complex_builder') { openComplexModal(id); return; }
-  if (hasOptions(p) || p.colors?.length || p.product_type === 'pizza_builder') {
+  if (hasOptions(p) || p.colors?.length || p.product_type === 'pizza_builder' || p.has_variants || (p.unit_type && p.unit_type !== 'piece')) {
     openSheet(id, e);
     return;
   }
@@ -1693,36 +1694,35 @@ async function applyCoupon() {
     renderCartSummary();
     return;
   }
-  // בדיקה ב-API
+  // בדיקה ב-API (אותם endpoints קיימים שכבר בשימוש ב-storefront.html)
   setCouponMsg(t('בודק קוד...','Checking code...'), false);
+  const storeCode = window._storeUrlCode || '';
   try {
-    const r = await fetch(`${API}/storefront/check-coupon`, {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ code, groupId, subtotal: cartTotal() })
-    });
-    const d = await r.json();
-    if (d.success && d.discount) {
-      _couponCode = code;
-      _couponDiscount = d.discount_type === 'pct' ? d.discount / 100 : 'fixed:' + d.discount;
-      setCouponMsg(d.message || `✅ ${d.discount_type==='pct'?d.discount+'%':'₪'+d.discount} הנחה הופעל`);
-      renderCartSummary();
-      return;
+    const r = await fetch(`${API}/store/coupons/validate?code=${encodeURIComponent(code)}&storeCode=${encodeURIComponent(storeCode)}`);
+    if (r.ok) {
+      const d = await r.json();
+      if (d.success && d.coupon) {
+        _couponCode = code; _couponType = 'store_coupon';
+        _couponDiscount = (d.coupon.discount_pct || 0) / 100;
+        setCouponMsg(`✅ ${t('קופון אושר! הנחה של','Coupon approved! Discount of')} ${d.coupon.discount_pct}%`);
+        renderCartSummary();
+        return;
+      }
     }
-    // בדיקת קוד פרומו קהילה
-    const r2 = await fetch(`${API}/storefront/check-promo-code`, {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ code, groupId })
-    });
-    const d2 = await r2.json();
-    if (d2.success && d2.discount) {
-      _couponCode = code;
-      _couponDiscount = d2.discount_type === 'pct' ? d2.discount / 100 : 'fixed:' + d2.discount;
-      setCouponMsg(d2.message || `✅ ${t('קוד קהילה','Community code')} — ${d2.discount}% ${t('הנחה','discount')}`);
-      renderCartSummary();
-      return;
+    // בדיקת קוד פרומו קהילה (רק אם יש communityId בכתובת)
+    if (window._communityId) {
+      const r2 = await fetch(`${API}/community/promotions/validate?code=${encodeURIComponent(code)}&communityId=${encodeURIComponent(window._communityId)}`);
+      const d2 = await r2.json();
+      if (d2.success && d2.promo) {
+        _couponCode = code; _couponType = 'community_promo';
+        _couponDiscount = (d2.promo.discount_pct || 0) / 100;
+        setCouponMsg(`✅ ${t('קוד קהילה','Community code')} — ${d2.promo.discount_pct}% ${t('הנחה','discount')}`);
+        renderCartSummary();
+        return;
+      }
     }
   } catch(e) {}
-  _couponCode = ''; _couponDiscount = 0;
+  _couponCode = ''; _couponDiscount = 0; _couponType = null;
   setCouponMsg(t('קוד לא תקין','Invalid code'), true);
   renderCartSummary();
 }
@@ -1765,7 +1765,7 @@ async function submitOrder() {
   const biz   = document.getElementById('co-biz').value.trim();
   const name  = document.getElementById('co-name').value.trim();
   const phone = document.getElementById('co-phone').value.trim();
-  if (!biz || !name || !phone) { showToast(t('יש למלא שם עסק, איש קשר וטלפון','Please fill in business name, contact and phone')); return; }
+  if (!name || !phone) { showToast(t('יש למלא איש קשר וטלפון','Please fill in contact name and phone')); return; }
   if (window.scAuth && !window.scAuth.requireLogin('submitOrder', t('🔒 כדי להשלים את ההזמנה יש להתחבר או להירשם.', '🔒 Please log in or register to complete your order.'))) return;
   const btn = document.getElementById('submit-btn');
   btn.textContent = t('שולח...','Sending...'); btn.disabled = true;
@@ -1774,23 +1774,53 @@ async function submitOrder() {
   let couponDisc = 0;
   if (typeof _couponDiscount === 'number') couponDisc = Math.round(sub*_couponDiscount);
   else if (typeof _couponDiscount === 'string' && _couponDiscount.startsWith('fixed:')) couponDisc = Math.min(sub, parseFloat(_couponDiscount.split(':')[1])||0);
-  const delivery = storeData?.settings?.delivery_fee || 0;
+  const city = document.getElementById('co-city')?.value.trim() || '';
+  const street = document.getElementById('co-street')?.value.trim() || '';
+  const house = document.getElementById('co-house')?.value.trim() || '';
+  const isDelivery = !!(city && street);
+  const delivery = isDelivery ? (_deliveryZoneFee != null ? _deliveryZoneFee : (parseFloat(storeData?.settings?.delivery_fee) || 0)) : 0;
   const total = Math.max(0, sub - bogoDisc - couponDisc + delivery);
+
+  // מיפוי העגלה לפורמט שהשרת מצפה לו (catalogId/quantity) - תואם ל-storefront.html התקין,
+  // כולל וריאציה (variantId) אם נבחרה
+  const items = Object.values(cart).map(i => ({
+    catalogId: i.id, variantId: i.variantId || null, name: i.name, quantity: i.qty, price: i.price, note: i.note || ''
+  }));
+
+  let familyId = null;
   try {
-    const r = await fetch(`${API}/storefront/order`, {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({
-        groupId, customerName:name, businessName:biz, phone,
-        address: [document.getElementById('co-street')?.value.trim(), document.getElementById('co-house')?.value.trim(), document.getElementById('co-city')?.value.trim()].filter(Boolean).join(' '),
-        payMethod: _payMethod, items: Object.values(cart),
-        couponCode: _couponCode, total
-      })
+    const session = JSON.parse(localStorage.getItem('ofl_session'));
+    if (session?.group?.id && session.group.type === 'FAMILY') familyId = session.group.id;
+  } catch(e) {}
+
+  const payload = {
+    groupId, customerName: name, customerPhone: phone, items, totalAmount: total,
+    isDelivery, deliveryFee: delivery,
+    deliveryDetails: isDelivery ? { city, street, house } : null,
+    familyGroupId: familyId,
+    notes: biz ? `שם עסק/גוף מזמין: ${biz}` : null,
+    communityPromoCode: _couponType === 'community_promo' ? _couponCode : null,
+    promoCode: _couponType === 'store_coupon' ? _couponCode : null,
+    orderSource: 'website'
+  };
+
+  try {
+    const r = await fetch(`${API}/store/orders`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
     });
     const d = await r.json();
-    const orderNo = d.orderNo || d.order_no || ('#' + Math.floor(Math.random()*90000+10000));
-    document.getElementById('done-order-no').textContent = `${t('מספר הזמנה','Order number')}: ${orderNo}`;
+    if (!d.success) {
+      showToast(d.error || t('שגיאה בשליחת ההזמנה, נסו שוב','Error submitting order, please try again'));
+      btn.textContent = t('שלח הזמנה','Place order'); btn.disabled = false;
+      return;
+    }
+    document.getElementById('done-order-no').textContent = `${t('מספר הזמנה','Order number')}: #${d.orderId}`;
+    cart = {}; _couponCode = ''; _couponDiscount = 0; _couponType = null;
     _cartStep = 'done';
     renderCartDock();
+    updateHeaderCart();
+    btn.textContent = t('שלח הזמנה','Place order'); btn.disabled = false;
   } catch(e) {
     showToast(t('שגיאה בשליחת ההזמנה, נסו שוב','Error submitting order, please try again'));
     btn.textContent = t('שלח הזמנה','Place order'); btn.disabled = false;
@@ -1798,7 +1828,7 @@ async function submitOrder() {
 }
 function resetOrder() {
   cart = {}; _cartStep = 'cart';
-  _couponDiscount = 0; _couponCode = '';
+  _couponDiscount = 0; _couponCode = ''; _couponType = null;
   document.getElementById('coupon-input').value = '';
   document.getElementById('coupon-msg').textContent = '';
   renderCartDock(); updateHeaderCart();
@@ -1887,6 +1917,10 @@ async function sendQuote() {
 /* ── Product Sheet — Full (כל סוגי המוצרים) ── */
 let _sheetId = null, _sheetQty = 1, _sheetExtras = {}, _sheetNote = '';
 let _isPizzaProduct = false, _pizzaToppings = [], _pizzaState = {}, _activePizzaTopping = null;
+let _sheetVariant = null; // וריאציה נבחרת (מידה/צבע) למוצר עם has_variants
+const UNIT_LABELS = { weight_kg: 'ק"ג', weight_gram: 'גרם', volume_liter: 'ליטר', length_meter: 'מטר' };
+const UNIT_STEP = { weight_kg: 0.1, weight_gram: 50, volume_liter: 0.1, length_meter: 0.5 };
+const UNIT_DEFAULT = { weight_kg: 1, weight_gram: 100, volume_liter: 1, length_meter: 1 };
 
 function hasOptions(p) {
   try { const o = JSON.parse(p.options_text||'[]'); return Array.isArray(o) && o.length > 0; } catch(e) { return false; }
@@ -1896,19 +1930,38 @@ function openSheet(id, e) {
   if (e) e.stopPropagation();
   const p = catalog.find(x => x.id == id);
   if (!p) return;
-  _sheetId = id; _sheetQty = 1; _sheetExtras = {}; _sheetNote = '';
+  const isWeighted = p.unit_type && p.unit_type !== 'piece';
+  _sheetId = id; _sheetQty = isWeighted ? (UNIT_DEFAULT[p.unit_type] || 1) : 1; _sheetExtras = {}; _sheetNote = ''; _sheetVariant = null;
   const imgEl = document.getElementById('sheet-img-wrap');
   if (imgEl) {
     if (p.has_image) imgEl.innerHTML = `<img src="${API}/store/item-image/${p.id}" alt="${escHtml(p.name)}" style="width:100%;height:100%;object-fit:cover"><button id="sheet-close" onclick="closeSheet()">✕</button>`;
     else imgEl.innerHTML = `<div style="font-size:48px;opacity:.4;display:flex;align-items:center;justify-content:center;height:100%">🛒</div><button id="sheet-close" onclick="closeSheet()">✕</button>`;
   }
   document.getElementById('sheet-name').textContent = p.name || '';
-  document.getElementById('sheet-price').textContent = fmtPrice(p.price);
+  document.getElementById('sheet-price').textContent = fmtPrice(p.price) + (isWeighted ? ` / ${UNIT_LABELS[p.unit_type]}` : '');
   document.getElementById('sheet-desc').textContent = p.description || p.long_description || '';
-  document.getElementById('sheet-qty-val').textContent = '1';
+  document.getElementById('sheet-qty-val').textContent = isWeighted ? _sheetQty : '1';
 
   _isPizzaProduct = false;
   let optHtml = '';
+  if (p.has_variants && Array.isArray(p.variants) && p.variants.length) {
+    optHtml += `<div class="sheet-opt-label">${t('בחרו גרסה','Choose a variant')}</div><div class="sheet-opt-row">${
+      p.variants.map((v, i) => {
+        const outOfStock = (v.stock_quantity || 0) <= 0;
+        const label = v.variant_name || Object.values(v.attributes || {}).join(' / ') || `#${v.id}`;
+        return `<button class="sheet-opt-btn" id="svar-${v.id}" ${outOfStock ? 'disabled style="opacity:.4;cursor:not-allowed"' : ''} onclick="sheetSelectVariant(${v.id})">
+          ${escHtml(label)}${outOfStock ? ` <span style="font-size:10px">(${t('אזל','out of stock')})</span>` : ''}
+        </button>`;
+      }).join('')
+    }</div>`;
+  }
+  if (isWeighted) {
+    optHtml += `<div style="margin-top:12px">
+      <div class="sheet-opt-label">${t('כמות','Quantity')} (${UNIT_LABELS[p.unit_type]})</div>
+      <input type="number" id="sheet-weight-input" value="${_sheetQty}" min="${UNIT_STEP[p.unit_type]}" step="${UNIT_STEP[p.unit_type]}"
+        oninput="sheetWeightChange(this.value)" style="width:100%;border:1px solid var(--border);border-radius:10px;padding:8px;font-size:14px;font-family:inherit;background:var(--sand)">
+    </div>`;
+  }
   try {
     const opts = JSON.parse(p.options_text || '[]');
     if (p.product_type === 'pizza_builder' || (Array.isArray(opts) && opts.length && opts[0].isPizza)) {
@@ -1947,6 +2000,31 @@ function openSheet(id, e) {
 function sheetSelectColor(btn, name) {
   document.querySelectorAll('#sheet-options .sheet-opt-btn').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
+}
+
+function sheetSelectVariant(variantId) {
+  const p = catalog.find(x => x.id == _sheetId);
+  if (!p) return;
+  _sheetVariant = (p.variants || []).find(v => v.id === variantId) || null;
+  (p.variants || []).forEach(v => {
+    const btn = document.getElementById(`svar-${v.id}`);
+    if (btn) btn.classList.toggle('active', v.id === variantId);
+  });
+  updateSheetTotal();
+}
+
+function sheetWeightChange(val) {
+  const p = catalog.find(x => x.id == _sheetId);
+  const step = (p && UNIT_STEP[p.unit_type]) || 0.1;
+  _sheetQty = Math.max(step, parseFloat(val) || step);
+  document.getElementById('sheet-qty-val').textContent = _sheetQty;
+  updateSheetTotal();
+}
+
+// המחיר הבסיסי לפריט הנוכחי בשיט - מחיר הוריאציה הנבחרת אם יש, אחרת מחיר המוצר הרגיל
+function _sheetBasePrice(p) {
+  if (_sheetVariant && _sheetVariant.price_override != null) return parseFloat(_sheetVariant.price_override);
+  return parseFloat(p.price) || 0;
 }
 
 function toggleOpt(gi, oi, type) {
@@ -1990,14 +2068,23 @@ function updateSheetTotal() {
       });
     } catch(e) {}
   }
-  const total = (p.price + extra) * _sheetQty;
+  const basePrice = _sheetBasePrice(p);
+  const total = (basePrice + extra) * _sheetQty;
   document.getElementById('sheet-add-btn').textContent = `${t('הוסף לעגלה','Add to cart')} — ${fmtPrice(total)}`;
-  document.getElementById('sheet-price').textContent = fmtPrice(p.price + extra);
+  document.getElementById('sheet-price').textContent = fmtPrice(basePrice + extra);
 }
 
 function sheetAdd() {
   const p = catalog.find(x => x.id == _sheetId);
   if (!p) return;
+  if (p.has_variants && Array.isArray(p.variants) && p.variants.length && !_sheetVariant) {
+    showToast(t('יש לבחור גרסה לפני ההוספה לעגלה','Please choose a variant before adding to cart'));
+    return;
+  }
+  if (_sheetVariant && (_sheetVariant.stock_quantity || 0) <= 0) {
+    showToast(t('הגרסה שנבחרה אזלה מהמלאי','This variant is out of stock'));
+    return;
+  }
   let extra = 0, noteArr = [];
   if (_isPizzaProduct) {
     const {selections, extraPrice} = getPizzaSelections();
@@ -2012,11 +2099,13 @@ function sheetAdd() {
     } catch(e) {}
   }
   const userNote = document.getElementById('sheet-note-input')?.value.trim() || '';
-  const note = [userNote, ...noteArr].filter(Boolean).join(', ');
-  const key = cartKey(p.id, note);
-  const finalPrice = p.price + extra;
+  const variantLabel = _sheetVariant ? (_sheetVariant.variant_name || Object.values(_sheetVariant.attributes || {}).join(' / ')) : '';
+  const note = [userNote, variantLabel, ...noteArr].filter(Boolean).join(', ');
+  const key = cartKey(p.id, note + (_sheetVariant ? ':' + _sheetVariant.id : ''));
+  const finalPrice = _sheetBasePrice(p) + extra;
+  const itemName = variantLabel ? `${p.name} (${variantLabel})` : p.name;
   if (cart[key]) cart[key].qty += _sheetQty;
-  else cart[key] = {id: p.id, name: p.name, price: finalPrice, qty: _sheetQty, note, colorName: note};
+  else cart[key] = {id: p.id, variantId: _sheetVariant ? _sheetVariant.id : null, name: itemName, price: finalPrice, qty: _sheetQty, note, colorName: note};
   showToast(`✓ ${p.name} ${t('נוסף לעגלה','added to cart')}`);
   closeSheet();
   renderCartDock();
