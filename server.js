@@ -7299,9 +7299,11 @@ async function getOrCreateStorefrontCustomer(phone, { name, email } = {}) {
             // ייתכן שמאוחר יותר נוסף אותו טלפון למשתמש בחשבון משפחה אמיתי וקיים (לא חשבון "קונה" סולו
             // שנוצר אוטומטית), ואז הוא צריך לגבור ולתפוס את מקומו כדי לא להשאיר את הלקוח "תקוע"
             // על חשבון-צל שונה מהחשבון שהוא באמת מחובר אליו.
+            // REGEXP_REPLACE חובה כאן: u.phone לא בהכרח מאוחסן נקי מתווים (עשוי לכלול מקפים/רווחים/
+            // קידומת מדינה) בניגוד ל-cleanPhone שתמיד ספרות בלבד - השוואה גולמית מפספסת משתמשים קיימים
             const betterMatch = await pool.query(
                 `SELECT u.group_id FROM users u JOIN family_groups fg ON fg.id = u.group_id
-                 WHERE u.phone=$1 AND fg.account_status='active' AND fg.type='FAMILY'
+                 WHERE REGEXP_REPLACE(u.phone,'[^0-9]','','g')=$1 AND fg.account_status='active' AND fg.type='FAMILY'
                    AND (fg.member_type IS NULL OR fg.member_type NOT IN ('shopper','member'))
                  ORDER BY u.id LIMIT 1`,
                 [cleanPhone]
@@ -7323,7 +7325,7 @@ async function getOrCreateStorefrontCustomer(phone, { name, email } = {}) {
             const existingUser = await pool.query(
                 `SELECT u.group_id, fg.type FROM users u
                  JOIN family_groups fg ON fg.id = u.group_id
-                 WHERE u.phone=$1 AND fg.account_status='active'
+                 WHERE REGEXP_REPLACE(u.phone,'[^0-9]','','g')=$1 AND fg.account_status='active'
                  ORDER BY CASE WHEN fg.type='FAMILY' THEN 0 WHEN fg.type='BUSINESS' THEN 1 ELSE 2 END
                  LIMIT 1`,
                 [cleanPhone]
@@ -43037,7 +43039,7 @@ app.post('/api/sc-auth/register', async (req, res) => {
         const existingUser = await pool.query(
             `SELECT u.group_id, fg.type FROM users u
              JOIN family_groups fg ON fg.id = u.group_id
-             WHERE u.phone=$1 AND fg.account_status='active'
+             WHERE REGEXP_REPLACE(u.phone,'[^0-9]','','g')=$1 AND fg.account_status='active'
              ORDER BY CASE WHEN fg.type='FAMILY' THEN 0 WHEN fg.type='BUSINESS' THEN 1 ELSE 2 END
              LIMIT 1`,
             [cleanPhone]
@@ -43211,19 +43213,57 @@ app.post('/api/sc-auth/logout', async (req, res) => {
     res.json({ success: true });
 });
 
+// מספר טלפון בדיקות פנימי בלבד (מספר עבודה שעליו רשומות כמה משפחות/חשבונות) - אך ורק
+// עבורו מוצגת בחירת משפחה בכניסה מחנות ציבורית. לכל שאר הלקוחות יש תמיד משפחה אחת בלבד
+// (users.phone-> family_group_id יחיד), ולכן הזרימה הרגילה (בחירה אוטומטית) ממשיכה כרגיל.
+const SC_MULTI_FAMILY_TEST_PHONE = '0526626619';
+
+// GET /api/sc-auth/my-families — רשימת חשבונות משפחה המקושרים לטלפון הלקוח המחובר.
+// עבור כל הלקוחות (חוץ ממספר הבדיקות) מחזיר תמיד רשומה אחת בלבד (ההתנהגות הקיימת).
+app.get('/api/sc-auth/my-families', async (req, res) => {
+    const token = (req.headers.authorization || '').replace('Bearer ', '').trim();
+    const cust = await _scGetCustomerByToken(token);
+    if (!cust) return res.status(401).json({ success: false, error: 'לא מחובר' });
+
+    if (cust.phone !== SC_MULTI_FAMILY_TEST_PHONE) {
+        return res.json({ success: true, families: cust.family_group_id ? [{ id: cust.family_group_id }] : [] });
+    }
+    // מספר הבדיקות בלבד: שליפת כל חשבונות המשפחה הפעילים שבהם הטלפון רשום כמשתמש
+    const r = await pool.query(
+        `SELECT DISTINCT fg.id, fg.name FROM users u
+         JOIN family_groups fg ON fg.id = u.group_id
+         WHERE REGEXP_REPLACE(u.phone,'[^0-9]','','g')=$1 AND fg.account_status='active' AND fg.type='FAMILY'
+         ORDER BY fg.id`,
+        [cust.phone]
+    );
+    res.json({ success: true, families: r.rows });
+});
+
 // GET /api/sc-auth/sso-token  — generate one-time SSO token for OFL
 app.get('/api/sc-auth/sso-token', async (req, res) => {
     const token = (req.headers.authorization || '').replace('Bearer ', '').trim();
     const cust = await _scGetCustomerByToken(token);
     if (!cust) return res.status(401).json({ success: false, error: 'לא מחובר' });
 
+    // familyGroupId נבחר ידנית נתמך רק עבור מספר הבדיקות (ראו my-families) - מאומת מול
+    // users.phone כדי שלא ניתן יהיה "לקפוץ" לחשבון משפחה שרירותי
+    let targetFamilyGroupId = cust.family_group_id;
+    const requestedGroupId = parseInt(req.query.familyGroupId);
+    if (requestedGroupId && cust.phone === SC_MULTI_FAMILY_TEST_PHONE) {
+        const ok = await pool.query(
+            `SELECT 1 FROM users u WHERE u.group_id=$1 AND REGEXP_REPLACE(u.phone,'[^0-9]','','g')=$2`,
+            [requestedGroupId, cust.phone]
+        );
+        if (ok.rows.length) targetFamilyGroupId = requestedGroupId;
+    }
+
     const ssoToken = _scGenToken();
     await pool.query(
         `INSERT INTO storefront_sso_tokens (token, customer_id, family_group_id, expires_at)
          VALUES ($1,$2,$3,NOW()+interval '60 seconds')`,
-        [ssoToken, cust.id, cust.family_group_id]
+        [ssoToken, cust.id, targetFamilyGroupId]
     );
-    res.json({ success: true, ssoToken, familyGroupId: cust.family_group_id });
+    res.json({ success: true, ssoToken, familyGroupId: targetFamilyGroupId });
 });
 
 // POST /api/beauty/:bizId/appointments/:id/cancel-by-customer  — לקוח מבטל תור יופי

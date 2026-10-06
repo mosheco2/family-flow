@@ -958,15 +958,51 @@ const scAuth = window.scAuth = {
         } else { msg.style.color='#ef4444'; msg.textContent=r.error||'שגיאה'; }
     },
 
-    async goToOFL() {
+    async goToOFL(familyGroupId) {
         if (this._token) {
             try {
-                const r = await fetch('/api/sc-auth/sso-token', { headers:{'Authorization':'Bearer '+this._token} }).then(r=>r.json());
+                // אם יש כמה חשבונות משפחה על הטלפון (רק למספר בדיקות פנימי) - מציגים בחירה
+                // לפני הכניסה, במקום להיכנס אוטומטית לראשון שנמצא
+                if (familyGroupId === undefined) {
+                    const fr = await fetch('/api/sc-auth/my-families', { headers:{'Authorization':'Bearer '+this._token} }).then(r=>r.json());
+                    if (fr.success && fr.families && fr.families.length > 1) {
+                        this._showFamilyPicker(fr.families);
+                        return;
+                    }
+                }
+                let url = '/api/sc-auth/sso-token';
+                if (familyGroupId) url += `?familyGroupId=${encodeURIComponent(familyGroupId)}`;
+                const r = await fetch(url, { headers:{'Authorization':'Bearer '+this._token} }).then(r=>r.json());
                 if (r.success && r.ssoToken) { window.open(`/?sso_token=${r.ssoToken}`, '_blank'); return; }
             } catch(e) {}
         }
         // fallback: open family app without SSO (user logs in there separately)
         window.open('/', '_blank');
+    },
+
+    _showFamilyPicker(families) {
+        const ex = document.getElementById('sc-family-picker-overlay');
+        if (ex) ex.remove();
+        const overlay = document.createElement('div');
+        overlay.id = 'sc-family-picker-overlay';
+        overlay.style.cssText = 'position:fixed;inset:0;z-index:10003;background:rgba(0,0,0,0.55);display:flex;align-items:center;justify-content:center;font-family:-apple-system,BlinkMacSystemFont,\'Segoe UI\',sans-serif';
+        overlay.dir = 'rtl';
+        overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+        const card = document.createElement('div');
+        card.style.cssText = 'width:min(360px,90vw);background:#fff;border-radius:18px;padding:20px;box-sizing:border-box';
+        card.innerHTML = '<div style="font-weight:700;font-size:16px;margin-bottom:4px">לאיזו משפחה להיכנס?</div>' +
+            '<div style="font-size:12px;color:#64748b;margin-bottom:14px">נמצאו כמה חשבונות משפחה על מספר הטלפון שלך</div>' +
+            '<div style="display:flex;flex-direction:column;gap:8px"></div>';
+        const list = card.querySelector('div:last-child');
+        families.forEach(f => {
+            const btn = document.createElement('button');
+            btn.style.cssText = 'padding:12px 14px;border:1.5px solid #e2e8f0;border-radius:12px;background:#fff;font-size:14px;font-weight:600;cursor:pointer;text-align:right';
+            btn.textContent = f.name || ('משפחה #' + f.id);
+            btn.addEventListener('click', () => { overlay.remove(); this.goToOFL(f.id); });
+            list.appendChild(btn);
+        });
+        overlay.appendChild(card);
+        document.body.appendChild(overlay);
     },
 
     async logout() {
