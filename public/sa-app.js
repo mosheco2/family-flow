@@ -2468,7 +2468,15 @@ function renderSAGroups() {
     let gHtml = '';
     const term = val('sa-search-group').toLowerCase();
     const filteredGroups = saAllGroups.filter(g => {
-        const matchTerm = (g.name && g.name.toLowerCase().includes(term)) || (g.group_code && g.group_code.toLowerCase().includes(term));
+        const matchTerm = !term
+            || (g.name && g.name.toLowerCase().includes(term))
+            || (g.group_code && g.group_code.toLowerCase().includes(term))
+            // תמיכה גם בחיפוש לפי שם/טלפון של משתמש בודד בתוך הסביבה (לא רק שם הסביבה עצמה)
+            || saAllUsers.some(u => u.group_id === g.id && (
+                (u.nickname && u.nickname.toLowerCase().includes(term))
+                || (fmtUserName(u) && fmtUserName(u).toLowerCase().includes(term))
+                || (u.phone && u.phone.toLowerCase().includes(term))
+            ));
         const matchType = _saGroupTypeFilter === 'all' || g.type === _saGroupTypeFilter;
         return matchTerm && matchType;
     });

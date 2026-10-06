@@ -15820,6 +15820,10 @@ window.openStoreOrderModal = function(orderId) {
     const order = window.storeOrdersCache.find(o => o.id === orderId); 
     if(!order) return;
     
+    // אשר ושלח למטבח רלוונטי רק לעסקי מסעדה - לשאר סוגי עסקים מספיקים כפתורי הסטטוס הרגילים
+    const kitchenBtn = document.getElementById('btn-approve-to-kitchen');
+    if (kitchenBtn) kitchenBtn.style.display = (currentGroup?.business_type === 'restaurant') ? '' : 'none';
+
     document.getElementById('so-modal-id').innerText = order.id;
     document.getElementById('so-modal-date').innerText = new Date(order.created_at).toLocaleString('he-IL');
     document.getElementById('so-modal-total').innerText = order.total_amount;
