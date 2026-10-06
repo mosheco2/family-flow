@@ -155,7 +155,7 @@ fetchXYZ()    // GET /api/path/endpoint?param=X
 |---|---|---|
 | FAMILY | `docs/FAMILY_ENV_SPEC.md` | ✅ הושלם |
 | BIZ | `docs/BIZ_ENV_SPEC.md` | ✅ הושלם |
-| SA | `docs/SA_ENV_SPEC.md` | ⏳ ממתין |
+| SA | `docs/SA_ENV_SPEC.md` | ✅ הושלם |
 | ZM | `docs/ZM_ENV_SPEC.md` | ⏳ ממתין |
 
 ---
