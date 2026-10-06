@@ -154,7 +154,7 @@ fetchXYZ()    // GET /api/path/endpoint?param=X
 | סביבה | קובץ | סטטוס |
 |---|---|---|
 | FAMILY | `docs/FAMILY_ENV_SPEC.md` | ✅ הושלם |
-| BIZ | `docs/BIZ_ENV_SPEC.md` | ⏳ ממתין |
+| BIZ | `docs/BIZ_ENV_SPEC.md` | ✅ הושלם |
 | SA | `docs/SA_ENV_SPEC.md` | ⏳ ממתין |
 | ZM | `docs/ZM_ENV_SPEC.md` | ⏳ ממתין |
 
