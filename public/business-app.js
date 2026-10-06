@@ -927,8 +927,11 @@ window.injectBusinessUI = function() {
                         <button id="btn-sales-gallery" onclick="window.switchSalesTab('gallery')" class="flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition"><i class="fa-solid fa-images text-sm"></i>גלריה</button>
                         <button id="btn-sales-menu-requests" onclick="window.switchSalesTab('menu-requests')" class="flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition relative"><i class="fa-solid fa-bell-concierge text-sm"></i>פניות תפריט<span id="menu-requests-badge" class="hidden absolute -top-1 -right-1 bg-red-500 text-white text-[9px] font-black rounded-full min-w-[16px] h-4 flex items-center justify-center px-1"></span></button>
                         <button id="btn-sales-shuka" onclick="window.switchSalesTab('shuka')" class="flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition"><i class="fa-solid fa-store text-sm"></i>שוקה</button>
+                        <button id="btn-sales-inventory" onclick="window.switchSalesTab('inventory')" class="hidden flex-col items-center justify-center gap-1 py-3 px-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 transition relative"><i class="fa-solid fa-boxes-stacked text-sm"></i>מלאי<span id="inventory-lowstock-badge" class="hidden absolute -top-1 -right-1 bg-red-500 text-white text-[9px] font-black rounded-full min-w-[16px] h-4 flex items-center justify-center px-1"></span></button>
                     </div>
-                    
+
+                    <div id="sales-view-inventory" class="hidden space-y-4"></div>
+
                     <div id="sales-view-orders" class="space-y-4">
                         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-2 px-1">
                             <h4 class="font-bold text-slate-700 text-sm">הזמנות מהלקוחות</h4>
@@ -25453,7 +25456,7 @@ window.switchSalesTab = function(subTab) {
     window._currentBizSubTab = 'sales.' + subTab;
     const menuRelevantTypes = ['restaurant', 'events', 'food_production'];
     const hideMenuStuff = !menuRelevantTypes.includes(currentGroup?.business_type);
-    ['pos', 'orders', 'catalog', 'complex', 'marketing', 'settings', 'quotes', 'analytics', 'reviews', 'work-orders', 'gallery', 'menu-requests', 'shuka'].forEach(t => {
+    ['pos', 'orders', 'catalog', 'complex', 'marketing', 'settings', 'quotes', 'analytics', 'reviews', 'work-orders', 'gallery', 'menu-requests', 'shuka', 'inventory'].forEach(t => {
         const view = document.getElementById(`sales-view-${t}`); if(view) view.classList.add('hidden');
         const btn = document.getElementById(`btn-sales-${t}`);
         if(btn) {
@@ -25472,6 +25475,14 @@ window.switchSalesTab = function(subTab) {
         const workOrderIrrelevantTypes = ['sport', 'retail', 'beauty', 'store_only', 'logistics', 'education', 'healthcare'];
         if (workOrderIrrelevantTypes.includes(currentGroup?.business_type)) { woBtn.classList.add('hidden'); }
         else { woBtn.classList.remove('hidden'); woBtn.classList.add('flex'); }
+    }
+
+    // טאב "מלאי" רלוונטי רק לחנות קמעונאית (retail/store_only)
+    const inventoryBtn = document.getElementById('btn-sales-inventory');
+    if (inventoryBtn) {
+        const isRetailBiz = ['retail', 'store_only'].includes(currentGroup?.business_type);
+        if (isRetailBiz) { inventoryBtn.classList.remove('hidden'); inventoryBtn.classList.add('flex'); }
+        else { inventoryBtn.classList.add('hidden'); inventoryBtn.classList.remove('flex'); }
     }
 
     // Sport business: adapt tab bar and views
@@ -25537,6 +25548,9 @@ window.switchSalesTab = function(subTab) {
     }
     if (subTab === 'shuka') {
         if (typeof window.initShukaTab === 'function') window.initShukaTab();
+    }
+    if (subTab === 'inventory') {
+        if (typeof window.initInventoryTab === 'function') window.initInventoryTab();
     }
     if (subTab === 'analytics') {
         setTimeout(() => { if (typeof window.renderAnalytics === 'function') window.renderAnalytics(); }, 150);
@@ -61883,5 +61897,123 @@ window.shukaSetPrice = async function(campaignId, catalogId, price) {
         const data = await res.json();
         if (!data.success) { showToast('error', data.error || 'שגיאה'); return; }
         showToast('success', 'המחיר עודכן, ממתין לאישור מנהל השוק');
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
+// ═══════════════════════════════════════════════════════════
+//  "מלאי" — ניהול מלאי לחנות קמעונאית (retail/store_only)
+// ═══════════════════════════════════════════════════════════
+let _invItems = [];
+let _invFilter = 'all'; // all | low | out
+
+window.initInventoryTab = async function() {
+    const view = document.getElementById('sales-view-inventory');
+    if (!view) return;
+    view.innerHTML = `
+        <div class="flex items-center justify-between mb-3 px-1">
+            <h4 class="font-bold text-slate-700 text-sm">מלאי מוצרים</h4>
+            <div class="flex gap-1.5">
+                <button onclick="window.invSetFilter('all')" id="inv-filter-all" class="text-[11px] font-bold px-3 py-1.5 rounded-lg bg-slate-800 text-white">הכל</button>
+                <button onclick="window.invSetFilter('low')" id="inv-filter-low" class="text-[11px] font-bold px-3 py-1.5 rounded-lg bg-slate-100 text-slate-600">מלאי נמוך</button>
+                <button onclick="window.invSetFilter('out')" id="inv-filter-out" class="text-[11px] font-bold px-3 py-1.5 rounded-lg bg-slate-100 text-slate-600">אזל</button>
+            </div>
+        </div>
+        <div id="inv-list" class="space-y-2"><p class="text-center text-slate-400 py-8"><i class="fa-solid fa-spinner fa-spin mr-2"></i> טוען מלאי...</p></div>`;
+    await window.fetchInventoryItems();
+};
+
+window.fetchInventoryItems = async function() {
+    try {
+        const res = await fetch(`${API}/biz/retail/inventory/${currentGroup.id}`, { headers: _shukaAuthHeaders() });
+        const data = await res.json();
+        _invItems = Array.isArray(data) ? data : [];
+        window.invRenderList();
+        const lowCount = _invItems.filter(it => _invIsLow(it)).length;
+        const badge = document.getElementById('inventory-lowstock-badge');
+        if (badge) { if (lowCount > 0) { badge.textContent = lowCount; badge.classList.remove('hidden'); } else badge.classList.add('hidden'); }
+    } catch(e) {
+        const list = document.getElementById('inv-list');
+        if (list) list.innerHTML = '<p class="text-center text-red-400 py-8">שגיאה בטעינת המלאי</p>';
+    }
+};
+
+function _invIsLow(it) {
+    const stock = it.has_variants ? parseFloat(it.variants_total_stock || 0) : parseFloat(it.stock_quantity || 0);
+    if (it.low_stock_threshold == null) return false;
+    return stock <= parseFloat(it.low_stock_threshold) && stock > 0;
+}
+function _invIsOut(it) {
+    const stock = it.has_variants ? parseFloat(it.variants_total_stock || 0) : parseFloat(it.stock_quantity || 0);
+    return stock <= 0;
+}
+
+window.invSetFilter = function(f) {
+    _invFilter = f;
+    ['all', 'low', 'out'].forEach(k => {
+        const btn = document.getElementById(`inv-filter-${k}`);
+        if (btn) btn.className = `text-[11px] font-bold px-3 py-1.5 rounded-lg ${k === f ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-600'}`;
+    });
+    window.invRenderList();
+};
+
+window.invRenderList = function() {
+    const list = document.getElementById('inv-list');
+    if (!list) return;
+    let items = _invItems;
+    if (_invFilter === 'low') items = items.filter(it => _invIsLow(it));
+    else if (_invFilter === 'out') items = items.filter(it => _invIsOut(it));
+    if (!items.length) { list.innerHTML = '<p class="text-center text-slate-400 py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200">אין מוצרים להצגה.</p>'; return; }
+    list.innerHTML = items.map(it => {
+        const stock = it.has_variants ? parseFloat(it.variants_total_stock || 0) : parseFloat(it.stock_quantity || 0);
+        const statusTag = _invIsOut(it)
+            ? '<span class="text-[10px] font-black text-red-700 bg-red-100 px-2 py-0.5 rounded-full">אזל</span>'
+            : _invIsLow(it) ? '<span class="text-[10px] font-black text-orange-700 bg-orange-100 px-2 py-0.5 rounded-full">מלאי נמוך</span>'
+            : '<span class="text-[10px] font-black text-green-700 bg-green-100 px-2 py-0.5 rounded-full">תקין</span>';
+        const variantsTag = it.has_variants ? `<span class="text-[10px] text-slate-400">(${it.variant_count} וריאציות)</span>` : '';
+        return `<div class="flex items-center gap-2 bg-white rounded-xl border border-slate-100 shadow-sm px-3 py-2.5">
+            <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-1.5"><span class="text-xs font-bold text-slate-800">${safeStr(it.name)}</span>${variantsTag}</div>
+                <div class="text-[10px] text-slate-400">${it.sku ? 'מק"ט: ' + safeStr(it.sku) : ''}${it.category ? ' · ' + safeStr(it.category) : ''}</div>
+            </div>
+            <div class="text-sm font-black text-slate-700 shrink-0">${stock}</div>
+            ${statusTag}
+            ${!it.has_variants ? `<button onclick="window.invOpenAdjust(${it.id}, '${safeStr(it.name).replace(/'/g, "")}')" class="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2.5 py-1.5 rounded-lg hover:bg-indigo-100 transition shrink-0">תיקון מלאי</button>` : ''}
+        </div>`;
+    }).join('');
+};
+
+window.invOpenAdjust = function(catalogId, name) {
+    document.getElementById('inv-adjust-modal')?.remove();
+    document.body.insertAdjacentHTML('beforeend', `
+    <div id="inv-adjust-modal" class="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-[95] flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-sm rounded-[2rem] shadow-2xl p-5">
+            <h3 class="font-black text-slate-800 mb-1">תיקון מלאי</h3>
+            <p class="text-xs text-slate-400 mb-4">${safeStr(name)}</p>
+            <label class="text-xs font-bold text-slate-600 block mb-1">שינוי כמות (חיובי=הוספה, שלילי=הפחתה):</label>
+            <input type="number" id="inv-adjust-qty" class="modern-input py-2.5 text-base font-bold text-center dir-ltr mb-3" placeholder="לדוגמה: 10 או 5-">
+            <label class="text-xs font-bold text-slate-600 block mb-1">סיבה (אופציונלי):</label>
+            <input type="text" id="inv-adjust-note" class="modern-input py-2.5 text-sm mb-4" placeholder="לדוגמה: ספירת מלאי, נזק, החזרה">
+            <div class="flex gap-3">
+                <button onclick="document.getElementById('inv-adjust-modal').remove()" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-600">ביטול</button>
+                <button onclick="window.invSubmitAdjust(${catalogId})" class="flex-1 bg-indigo-600 text-white py-3 rounded-xl font-bold">שמור</button>
+            </div>
+        </div>
+    </div>`);
+};
+
+window.invSubmitAdjust = async function(catalogId) {
+    const qty = parseInt(document.getElementById('inv-adjust-qty')?.value);
+    const note = document.getElementById('inv-adjust-note')?.value?.trim() || null;
+    if (!qty) { showToast('error', 'יש להזין כמות שינוי שונה מאפס'); return; }
+    try {
+        const res = await fetch(`${API}/biz/retail/inventory/${catalogId}/adjust`, {
+            method: 'POST', headers: _shukaAuthHeaders(),
+            body: JSON.stringify({ changeQty: qty, note })
+        });
+        const data = await res.json();
+        if (!data.success) { showToast('error', data.error || 'שגיאה'); return; }
+        showToast('success', 'המלאי עודכן');
+        document.getElementById('inv-adjust-modal')?.remove();
+        window.fetchInventoryItems();
     } catch(e) { showToast('error', 'שגיאת תקשורת'); }
 };
