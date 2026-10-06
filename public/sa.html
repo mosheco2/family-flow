@@ -2714,7 +2714,7 @@ button[id^="vtnav-"][style*="4f46e5"],button[id^="vtnav-"][style*="79, 70, 229"]
                             return `${d.getDate()}.${pad(d.getMonth()+1)}.${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
                           }
                           function loadMeta(){
-                            fetch('/api/sa/docs/meta',{headers:{'Authorization':localStorage.getItem('ofl_sa_token')||''}})
+                            fetch('/api/sa/docs/meta',{headers:{'Authorization':(typeof saToken!=='undefined'&&saToken)||localStorage.getItem('ofl_sa_token')||''}})
                               .then(r=>r.json()).then(data=>{
                                 if(!data.success) return;
                                 document.querySelectorAll('.doc-mtime').forEach(el=>{

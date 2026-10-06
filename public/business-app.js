@@ -302,14 +302,26 @@ window.onload = async () => {
     const urlParams = new URLSearchParams(window.location.search); const inviteCode = urlParams.get('code'); const inviteRole = urlParams.get('role'); const inviteRoleType = urlParams.get('role_type');
     if (inviteCode) { getEl('join-code').value = inviteCode; if(inviteRole) getEl('join-role').value = inviteRole; if(inviteRoleType) { const rtEl = document.getElementById('join-role-type'); if(rtEl) rtEl.value = inviteRoleType; } clearTimeout(failsafeTimer); hidePreloaderAndShowAuth('join'); return; }
     
+    // תיקון באג השתלטות (impersonation): יש לבדוק קודם אם יש סביבת עסק פעילה (ofl_session) -
+    // אם נבדק קודם ofl_sa_token, טוקן SA שנשאר/חזר (לדוגמה מריצה במקביל של לשונית sa.html שכותבת
+    // ל-localStorage המשותף לאותו origin) היה "חוטף" ומציג את פאנל ה-SA הישן במקום סביבת העסק
+    // שעליה ביצע המנהל השתלטות - גם כש-ofl_session תקין ומכיל עסק אמיתי.
     const savedSAToken = localStorage.getItem('ofl_sa_token');
-    if (savedSAToken) {
+    const savedSessionRaw = localStorage.getItem('ofl_session');
+    let hasValidBusinessSession = false;
+    if (savedSessionRaw) {
+        try {
+            const s = JSON.parse(savedSessionRaw);
+            if (s && s.user && s.group && s.group.type === 'BUSINESS') hasValidBusinessSession = true;
+        } catch(e) {}
+    }
+    if (savedSAToken && !hasValidBusinessSession) {
         saToken = savedSAToken; clearTimeout(failsafeTimer); getEl('auth-container').classList.add('hidden'); getEl('sa-dashboard-container').classList.remove('hidden');
         const preloader = getEl('app-preloader'); if (preloader) { preloader.classList.add('opacity-0', 'pointer-events-none'); setTimeout(() => preloader.classList.add('hidden'), 700); }
         loadSAData(); return;
     }
 
-    const saved = localStorage.getItem('ofl_session'); 
+    const saved = savedSessionRaw;
     if(saved) { 
         try { 
             const session = JSON.parse(saved); 

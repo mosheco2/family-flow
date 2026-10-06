@@ -8264,7 +8264,7 @@ window.loadInternalMessages = async function() {
     const tbody = document.getElementById('sa-internal-msg-list');
     if (!tbody) return;
     try {
-        const res = await fetch(`${API}/messages/broadcast`, { headers: { 'Authorization': saToken } });
+        const res = await fetch(`${API}/messages/broadcast`, { headers: { 'Authorization': saToken || localStorage.getItem('ofl_sa_token') || '' } });
         const data = await res.json();
         if (data.success) {
             if (!data.messages || data.messages.length === 0) {
