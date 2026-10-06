@@ -14398,16 +14398,17 @@ app.post('/api/store/orders', async (req, res) => {
         // ── SERVER-SIDE PRICE VALIDATION (לפני BEGIN — pool ישיר) ──────
         let catalogMap = {};
         let catalogCategoryMap = {};
+        let catalogTypeMap = {};
         let variantPriceMap = {};
         let settingsRow = null;
         try {
             const [catRes, settRes, bizRes, varRes] = await Promise.all([
-                pool.query('SELECT id, price, category FROM store_catalog WHERE group_id=$1 AND is_active=true', [groupId]),
+                pool.query('SELECT id, price, category, product_type FROM store_catalog WHERE group_id=$1 AND is_active=true', [groupId]),
                 pool.query('SELECT delivery_fee, free_delivery_above FROM store_settings WHERE group_id=$1', [groupId]),
                 pool.query('SELECT business_type FROM family_groups WHERE id=$1', [groupId]),
                 pool.query('SELECT id, price_override FROM store_product_variants WHERE group_id=$1 AND is_active=true', [groupId])
             ]);
-            catRes.rows.forEach(r => { catalogMap[r.id] = parseFloat(r.price); catalogCategoryMap[r.id] = r.category; });
+            catRes.rows.forEach(r => { catalogMap[r.id] = parseFloat(r.price); catalogCategoryMap[r.id] = r.category; catalogTypeMap[r.id] = r.product_type; });
             varRes.rows.forEach(r => { if (r.price_override != null) variantPriceMap[r.id] = parseFloat(r.price_override); });
             settingsRow = settRes.rows[0] || null;
             var _bizTypeForPromo = bizRes.rows[0]?.business_type || null;
@@ -14418,6 +14419,12 @@ app.post('/api/store/orders', async (req, res) => {
         if (Object.keys(catalogMap).length > 0) {
             for (const item of (items || [])) {
                 if (!item.catalogId || item.catalogId === 0 || item.catalogId === 999999 || item.is_quote_metadata) continue;
+                // מוצר מורכב (complex_builder/קייטרינג/פרויקט) - המחיר מחושב דינמית בצד הלקוח
+                // מצעדים/תוספות, אין "מחיר קטלוג" קבוע להשוואה - סומכים על מחיר הלקוח כמו הצעת מחיר
+                if (catalogTypeMap[item.catalogId] === 'complex_builder') {
+                    serverSubtotal += (parseFloat(item.price) || 0) * (parseInt(item.qty || item.quantity) || 1);
+                    continue;
+                }
                 // וריאציה עם מחיר ייעודי - מאמתים מול מחיר הוריאציה, לא מחיר הקטלוג הבסיסי
                 const variantPrice = item.variantId ? variantPriceMap[item.variantId] : undefined;
                 const catalogPrice = variantPrice !== undefined ? variantPrice : catalogMap[item.catalogId];

@@ -863,6 +863,7 @@ async function initStore() {
     const _mSiteMode = storeData.settings?.site_mode || ((storeData.businessType || storeData.business_type) === 'professional' ? 'branding' : 'shop');
     if (_mSiteMode === 'branding') _enableBrandingMode(storeData);
     else loadAsync();
+    loadStorePopups();
   } catch(e) {
     document.getElementById('loading-screen').innerHTML = `<div style="text-align:center;color:rgba(255,255,255,.55)">${t('שגיאה בטעינת החנות','Error loading store')}</div>`;
     console.error(e);
@@ -1000,7 +1001,7 @@ function submitComplexProduct() {
   const sub = _cxBasePrice + stepBase + opts;
   const finalPrice = _cxPriceMode === 'per_total' ? sub : sub * _cxQty;
   const key = 'cx_' + Date.now();
-  cart[key] = {id: _cxProduct.id, name: _cxProduct.name, price: finalPrice, qty: _cxQty, note: texts.join(' | '), colorName: '', modifiers: texts.map(t => ({name:t, price:0}))};
+  cart[key] = {id: _cxProduct.id, name: _cxProduct.name, price: finalPrice, qty: _cxQty, note: texts.join(' | '), colorName: '', modifiers: texts.map(t => ({name:t, price:0})), isComplex: true};
   showToast(`✓ ${_cxProduct.name} ${t('נוסף לעגלה','added to cart')}`);
   closeComplexModal();
   renderCartDock();
@@ -1774,10 +1775,13 @@ async function submitOrder() {
   let couponDisc = 0;
   if (typeof _couponDiscount === 'number') couponDisc = Math.round(sub*_couponDiscount);
   else if (typeof _couponDiscount === 'string' && _couponDiscount.startsWith('fixed:')) couponDisc = Math.min(sub, parseFloat(_couponDiscount.split(':')[1])||0);
+  // מוצר מורכב (קייטרינג/פרויקט) בעגלה = בקשת הצעת מחיר, לא הזמנה רגילה עם מחיר סגור -
+  // מדלגים על חישוב/חובת משלוח, בדיוק כמו ב-storefront.html (hasComplexItems)
+  const hasComplexItems = Object.values(cart).some(i => i.isComplex);
   const city = document.getElementById('co-city')?.value.trim() || '';
   const street = document.getElementById('co-street')?.value.trim() || '';
   const house = document.getElementById('co-house')?.value.trim() || '';
-  const isDelivery = !!(city && street);
+  const isDelivery = !hasComplexItems && !!(city && street);
   const delivery = isDelivery ? (_deliveryZoneFee != null ? _deliveryZoneFee : (parseFloat(storeData?.settings?.delivery_fee) || 0)) : 0;
   const total = Math.max(0, sub - bogoDisc - couponDisc + delivery);
 
@@ -1798,7 +1802,7 @@ async function submitOrder() {
     isDelivery, deliveryFee: delivery,
     deliveryDetails: isDelivery ? { city, street, house } : null,
     familyGroupId: familyId,
-    notes: biz ? `שם עסק/גוף מזמין: ${biz}` : null,
+    notes: [hasComplexItems ? '[בקשת הצעת מחיר] - מוצר מורכב (פרויקט/קייטרינג) בעגלה.' : null, biz ? `שם עסק/גוף מזמין: ${biz}` : null].filter(Boolean).join(' ') || null,
     communityPromoCode: _couponType === 'community_promo' ? _couponCode : null,
     promoCode: _couponType === 'store_coupon' ? _couponCode : null,
     orderSource: 'website'
@@ -1815,7 +1819,11 @@ async function submitOrder() {
       btn.textContent = t('שלח הזמנה','Place order'); btn.disabled = false;
       return;
     }
-    document.getElementById('done-order-no').textContent = `${t('מספר הזמנה','Order number')}: #${d.orderId}`;
+    const doneTitleEl = document.querySelector('.done-title');
+    if (doneTitleEl) doneTitleEl.textContent = hasComplexItems ? t('בקשתך התקבלה!','Request received!') : t('ההזמנה נשלחה!','Order sent!');
+    document.getElementById('done-order-no').textContent = hasComplexItems
+      ? `${t('מספר פנייה','Reference number')}: #${d.orderId} — ${t('הצעת מחיר תישלח בהקדם','a quote will be sent shortly')}`
+      : `${t('מספר הזמנה','Order number')}: #${d.orderId}`;
     cart = {}; _couponCode = ''; _couponDiscount = 0; _couponType = null;
     _cartStep = 'done';
     renderCartDock();
@@ -2244,6 +2252,32 @@ function haversine(lat1,lon1,lat2,lon2) {
   const a=Math.sin(dLat/2)**2+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
   return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
 }
+
+/* ── פופ-אפים יזומים לחנות (כמו storefront.html) ── */
+async function loadStorePopups() {
+  if (!storeData || !storeData.groupId) return;
+  try {
+    const res = await fetch(`${API}/public/store-popups/${storeData.groupId}`);
+    const data = await res.json();
+    if (!data.success || !data.popups || !data.popups.length) return;
+    setTimeout(() => window.showStorePopup(data.popups[0]), 1200);
+  } catch(e) {}
+}
+window.showStorePopup = function(popup) {
+  const modal = document.getElementById('store-popup-modal');
+  if (!modal) return;
+  document.getElementById('store-popup-title').textContent = popup.title || '';
+  document.getElementById('store-popup-content').textContent = popup.content || '';
+  const imgWrap = document.getElementById('store-popup-img-wrap');
+  const img = document.getElementById('store-popup-img');
+  if (popup.image_base64) { img.src = popup.image_base64; imgWrap.style.display = ''; }
+  else { imgWrap.style.display = 'none'; }
+  modal.style.display = 'flex';
+};
+window.closeStorePopup = function() {
+  const modal = document.getElementById('store-popup-modal');
+  if (modal) modal.style.display = 'none';
+};
 
 /* ── Flow code / מטבעות ── */
 let _flowDiscount = 0;
