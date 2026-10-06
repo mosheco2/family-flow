@@ -121,8 +121,9 @@ window.onload = async () => {
                     console.warn('[SSO] Blocked redirect to BUSINESS group from storefront SSO');
                     clearTimeout(failsafeTimer); hidePreloaderAndShowAuth('login'); return;
                 }
-                // store family session and set globals
-                const slim = { user: { id: ssoRes.familyGroup.id, nickname: ssoRes.familyGroup.name, role:'MEMBER' }, group: ssoRes.familyGroup };
+                // store family session and set globals - user אמיתי מה-DB (לא מזויף), אחרת
+                // כל קריאת API מאומתת (verifyFamily) נכשלת ב-401 בשקט והדאשבורד נראה ריק
+                const slim = { user: ssoRes.user, group: ssoRes.familyGroup, token: ssoRes.sessionToken };
                 localStorage.setItem('ofl_session', JSON.stringify(slim));
                 localStorage.setItem('ofl_family_token', ssoRes.sessionToken);
                 // clear any existing BIZ/SA session so we don't redirect to business.html

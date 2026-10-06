@@ -43538,15 +43538,22 @@ app.get('/api/family/sso-login', async (req, res) => {
         return res.status(403).json({ success: false, error: 'חשבון עסקי אינו נגיש דרך חנות לקוח' });
     }
 
-    // create a family session token
-    const sessToken = _scGenToken();
-    await pool.query(
-        `INSERT INTO family_sessions (group_id, token, expires_at) VALUES ($1,$2,NOW()+interval '30 days')
-         ON CONFLICT DO NOTHING`,
-        [fgId, sessToken]
-    ).catch(() => {});
+    // משתמש אמיתי בתוך חשבון המשפחה - חובה לצורך session תקין (ראו verifyFamily, שמוודא
+    // group_id+user_id אמיתיים מה-DB). בעבר נוצר כאן טוקן גולמי שלא עבר hash ולא נשמר כראוי
+    // בטבלה (עמודות לא תואמות לסכמה האמיתית) - כל קריאת API מאומתת הייתה נכשלת ב-401 בשקט,
+    // מה שגרם לדאשבורד להיראות ריק לגמרי גם כשהמשפחה שנבחרה הייתה תקינה לחלוטין.
+    const userR = await pool.query(
+        `SELECT id, nickname, role FROM users WHERE group_id=$1 AND status='active'
+         ORDER BY CASE WHEN role='ADMIN' THEN 0 ELSE 1 END, id LIMIT 1`,
+        [fgId]
+    );
+    if (!userR.rows.length) return res.json({ success: false, error: 'לא נמצא משתמש פעיל בחשבון המשפחה' });
+    const familyUser = userR.rows[0];
 
-    res.json({ success: true, familyGroup: fg.rows[0], sessionToken: sessToken });
+    // יצירת family session תקינה - אותה פונקציה בדיוק שמשמשת את שאר זרימות ההתחברות
+    const sessToken = await createFamilySession(fgId, familyUser.id, 'storefront-sso', 'family');
+
+    res.json({ success: true, familyGroup: fg.rows[0], user: familyUser, sessionToken: sessToken });
 });
 
 // ===== END STOREFRONT CUSTOMER AUTH API =====
