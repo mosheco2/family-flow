@@ -1061,6 +1061,7 @@ async function initStore() {
     ? rawPath
     : (params.get('store') || params.get('groupId') || 'demo');
   const communityId = params.get('communityId') || '';
+  window._storeUrlCode = code; window._communityId = communityId;
   if (!code) { showError('לא צוינה חנות'); return; }
   try {
     let url = `${API}/storefront/${encodeURIComponent(code)}`;
@@ -1970,36 +1971,34 @@ async function applyCoupon() {
     renderPanelSummary();
     return;
   }
-  // בדיקה ב-API
+  // בדיקה ב-API (אותם endpoints קיימים שכבר בשימוש ב-storefront.html)
   msg.textContent = t('בודק...', 'Checking...'); msg.style.color = 'var(--muted)';
+  const storeCode = window._storeUrlCode || '';
   try {
-    // בדיקת קופון רגיל
-    const r = await fetch(`${API}/storefront/check-coupon`, {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ code, groupId: storeData.groupId, subtotal: getSubtotal() })
-    });
-    const d = await r.json();
-    if (d.success && d.discount) {
-      _couponCode = code;
-      _couponDiscount = d.discount_type === 'pct' ? d.discount / 100 : 'fixed:' + d.discount;
-      msg.textContent = d.message || `קופון הופעל — ${d.discount_type==='pct'?d.discount+'%':'₪'+d.discount} הנחה`;
-      msg.style.color = '#22c55e';
-      renderPanelSummary();
-      return;
+    const r = await fetch(`${API}/store/coupons/validate?code=${encodeURIComponent(code)}&storeCode=${encodeURIComponent(storeCode)}`);
+    if (r.ok) {
+      const d = await r.json();
+      if (d.success && d.coupon) {
+        _couponCode = code;
+        _couponDiscount = (d.coupon.discount_pct || 0) / 100;
+        msg.textContent = `קופון אושר! הנחה של ${d.coupon.discount_pct}%`;
+        msg.style.color = '#22c55e';
+        renderPanelSummary();
+        return;
+      }
     }
-    // בדיקת קוד פרומו קהילה
-    const r2 = await fetch(`${API}/storefront/check-promo-code`, {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ code, groupId: storeData.groupId })
-    });
-    const d2 = await r2.json();
-    if (d2.success && d2.discount) {
-      _couponCode = code;
-      _couponDiscount = d2.discount_type === 'pct' ? d2.discount / 100 : 'fixed:' + d2.discount;
-      msg.textContent = d2.message || `קוד קהילה הופעל — ${d2.discount}% הנחה`;
-      msg.style.color = '#22c55e';
-      renderPanelSummary();
-      return;
+    // בדיקת קוד פרומו קהילה (רק אם יש communityId בכתובת)
+    if (window._communityId) {
+      const r2 = await fetch(`${API}/community/promotions/validate?code=${encodeURIComponent(code)}&communityId=${encodeURIComponent(window._communityId)}`);
+      const d2 = await r2.json();
+      if (d2.success && d2.promo) {
+        _couponCode = code;
+        _couponDiscount = (d2.promo.discount_pct || 0) / 100;
+        msg.textContent = `קוד קהילה — ${d2.promo.discount_pct}% הנחה`;
+        msg.style.color = '#22c55e';
+        renderPanelSummary();
+        return;
+      }
     }
   } catch(e) {}
   _couponCode = ''; _couponDiscount = 0;

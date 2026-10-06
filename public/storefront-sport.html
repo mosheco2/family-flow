@@ -687,7 +687,7 @@ const API = '/api';
 let storeData = null, catalog = [], groupId = null;
 let cart = {};
 let _cartStep = 'cart';
-let _couponDiscount = 0, _couponCode = '';
+let _couponDiscount = 0, _couponCode = '', _couponType = null;
 let _activePromos = [];
 let _cxProduct = null, _cxSteps = [], _cxBasePrice = 0, _cxQty = 1, _cxPriceMode = 'per_guest';
 let _payMethod = 0;
@@ -819,6 +819,7 @@ async function initStore() {
       ? rawPath
       : (params.get('store') || params.get('groupId') || 'demo');
     const communityId = params.get('communityId') || '';
+    window._storeUrlCode = code; window._communityId = communityId;
     let url = `${API}/storefront/${encodeURIComponent(code)}`;
     if (communityId) url += `?communityId=${encodeURIComponent(communityId)}`;
     const res = await fetch(url);
@@ -1866,33 +1867,32 @@ async function applyCoupon() {
     renderCartSummary();
     return;
   }
-  // בדיקה ב-API
+  // בדיקה ב-API (אותם endpoints קיימים שכבר בשימוש ב-storefront.html)
   setCouponMsg(t('בודק קוד...','Checking...'), false);
+  const storeCode = window._storeUrlCode || '';
   try {
-    const r = await fetch(`${API}/storefront/check-coupon`, {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ code, groupId, subtotal: cartTotal() })
-    });
-    const d = await r.json();
-    if (d.success && d.discount) {
-      _couponCode = code;
-      _couponDiscount = d.discount_type === 'pct' ? d.discount / 100 : 'fixed:' + d.discount;
-      setCouponMsg(d.message || `✅ ${d.discount_type==='pct'?d.discount+'%':'₪'+d.discount} הנחה הופעל`);
-      renderCartSummary();
-      return;
+    const r = await fetch(`${API}/store/coupons/validate?code=${encodeURIComponent(code)}&storeCode=${encodeURIComponent(storeCode)}`);
+    if (r.ok) {
+      const d = await r.json();
+      if (d.success && d.coupon) {
+        _couponCode = code;
+        _couponDiscount = (d.coupon.discount_pct || 0) / 100;
+        setCouponMsg(`✅ קופון אושר! הנחה של ${d.coupon.discount_pct}%`);
+        renderCartSummary();
+        return;
+      }
     }
-    // בדיקת קוד פרומו קהילה
-    const r2 = await fetch(`${API}/storefront/check-promo-code`, {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ code, groupId })
-    });
-    const d2 = await r2.json();
-    if (d2.success && d2.discount) {
-      _couponCode = code;
-      _couponDiscount = d2.discount_type === 'pct' ? d2.discount / 100 : 'fixed:' + d2.discount;
-      setCouponMsg(d2.message || `✅ קוד קהילה — ${d2.discount}% הנחה`);
-      renderCartSummary();
-      return;
+    // בדיקת קוד פרומו קהילה (רק אם יש communityId בכתובת)
+    if (window._communityId) {
+      const r2 = await fetch(`${API}/community/promotions/validate?code=${encodeURIComponent(code)}&communityId=${encodeURIComponent(window._communityId)}`);
+      const d2 = await r2.json();
+      if (d2.success && d2.promo) {
+        _couponCode = code;
+        _couponDiscount = (d2.promo.discount_pct || 0) / 100;
+        setCouponMsg(`✅ קוד קהילה — ${d2.promo.discount_pct}% הנחה`);
+        renderCartSummary();
+        return;
+      }
     }
   } catch(e) {}
   _couponCode = ''; _couponDiscount = 0;
@@ -1938,7 +1938,7 @@ async function submitOrder() {
   const biz   = document.getElementById('co-biz').value.trim();
   const name  = document.getElementById('co-name').value.trim();
   const phone = document.getElementById('co-phone').value.trim();
-  if (!biz || !name || !phone) { showToast(t('יש למלא שם עסק, איש קשר וטלפון','Please fill business name, contact and phone')); return; }
+  if (!name || !phone) { showToast(t('יש למלא איש קשר וטלפון','Please fill contact and phone')); return; }
   if (window.scAuth && !window.scAuth.requireLogin('submitOrder', t('🔒 כדי להשלים את ההזמנה יש להתחבר או להירשם.', '🔒 Please log in or register to complete your order.'))) return;
   const btn = document.getElementById('submit-btn');
   btn.textContent = t('שולח...','Sending...'); btn.disabled = true;
@@ -1947,23 +1947,53 @@ async function submitOrder() {
   let couponDisc = 0;
   if (typeof _couponDiscount === 'number') couponDisc = Math.round(sub*_couponDiscount);
   else if (typeof _couponDiscount === 'string' && _couponDiscount.startsWith('fixed:')) couponDisc = Math.min(sub, parseFloat(_couponDiscount.split(':')[1])||0);
-  const delivery = storeData?.settings?.delivery_fee || 0;
+  const city = document.getElementById('co-city')?.value.trim() || '';
+  const street = document.getElementById('co-street')?.value.trim() || '';
+  const house = document.getElementById('co-house')?.value.trim() || '';
+  const isDelivery = !!(city && street);
+  // parseFloat חובה: delivery_fee מגיע מהשרת כמחרוזת (PostgreSQL DECIMAL) - "+" עם מספר
+  // ומחרוזת הוא שרשור טקסט ולא חיבור (למשל 2100 + "0.00" = "21000.00" ולא 2100.00)
+  const delivery = isDelivery ? (parseFloat(storeData?.settings?.delivery_fee) || 0) : 0;
   const total = Math.max(0, sub - bogoDisc - couponDisc + delivery);
+
+  // מיפוי העגלה לפורמט שהשרת מצפה לו (catalogId/quantity) - תואם ל-storefront.html התקין
+  const items = Object.values(cart).map(i => ({
+    catalogId: i.id, name: i.name, quantity: i.qty, price: i.price, note: i.note || ''
+  }));
+
+  let familyId = null;
   try {
-    const r = await fetch(`${API}/storefront/order`, {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({
-        groupId, customerName:name, businessName:biz, phone,
-        address: [document.getElementById('co-street')?.value.trim(), document.getElementById('co-house')?.value.trim(), document.getElementById('co-city')?.value.trim()].filter(Boolean).join(' '),
-        payMethod: _payMethod, items: Object.values(cart),
-        couponCode: _couponCode, total
-      })
+    const session = JSON.parse(localStorage.getItem('ofl_session'));
+    if (session?.group?.id && session.group.type === 'FAMILY') familyId = session.group.id;
+  } catch(e) {}
+
+  const payload = {
+    groupId, customerName: name, customerPhone: phone, items, totalAmount: total,
+    isDelivery, deliveryFee: delivery,
+    deliveryDetails: isDelivery ? { city, street, house } : null,
+    familyGroupId: familyId,
+    notes: biz ? `שם עסק/גוף מזמין: ${biz}` : null,
+    promoCode: _couponCode || null,
+    orderSource: 'website'
+  };
+
+  try {
+    const r = await fetch(`${API}/store/orders`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
     });
     const d = await r.json();
-    const orderNo = d.orderNo || d.order_no || ('#' + Math.floor(Math.random()*90000+10000));
-    document.getElementById('done-order-no').textContent = `${t('מספר הזמנה','Order no.')}: ${orderNo}`;
+    if (!d.success) {
+      showToast(d.error || t('שגיאה בשליחת ההזמנה, נסו שוב','Failed to send order, please try again'));
+      btn.textContent = t('שלח הזמנה','Place order'); btn.disabled = false;
+      return;
+    }
+    document.getElementById('done-order-no').textContent = `${t('מספר הזמנה','Order no.')}: #${d.orderId}`;
+    cart = {}; _couponCode = ''; _couponDiscount = 0;
     _cartStep = 'done';
     renderCartDock();
+    updateHeaderCart();
+    btn.textContent = t('שלח הזמנה','Place order'); btn.disabled = false;
   } catch(e) {
     showToast(t('שגיאה בשליחת ההזמנה, נסו שוב','Failed to send order, please try again'));
     btn.textContent = t('שלח הזמנה','Place order'); btn.disabled = false;
