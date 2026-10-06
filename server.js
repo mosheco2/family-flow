@@ -5443,11 +5443,22 @@ app.post('/api/sa/ai-create-business', verifySA, async (req, res) => {
             membership_types = [], class_types = [] } = generatedData;
     const isSport = storeType === 'sport';
     const isMaintenance = storeType === 'maintenance_repair';
+    // storeType הוא "ניש" עשיר לצורך גיוון תוכן ה-AI (מכולת/פרחים/ביגוד/הנעלה/צעצועים/סטוק וכו'),
+    // אבל business_type בפועל חייב להיות אחד מהערכים המוכרים ב-BUSINESS_TYPES (business-app.js) -
+    // אחרת העסק לא יקבל את מודולי retail (טאב "מלאי", וריאציות, storefront-market.html וכו').
+    // כל ניש "חנות מוצרים" ממופה ל-retail; מזון/משקה נשאר תחת restaurant; הניש עצמו נשמר
+    // כפי שהוא ב-store_settings.store_type (מטא-דאטה בלבד, לא קובע ניתוב).
+    const NICHE_TO_BUSINESS_TYPE = {
+      sushi: 'restaurant', burger: 'restaurant', cafe: 'restaurant',
+      market: 'retail', flowers: 'retail', clothing: 'retail', shoes: 'retail', toys: 'retail', stock: 'retail',
+      spa: 'beauty'
+    };
+    const bizType = NICHE_TO_BUSINESS_TYPE[storeType] || storeType;
     // Generate unique group code
     const groupCode = 'B' + _bizCrypto.randomBytes(4).toString('hex').toUpperCase().slice(0, 7);
     const gRes = await client.query(
       `INSERT INTO family_groups (name, name_en, type, business_type, is_onboarded, wizard_completed, group_code) VALUES ($1,$2,'BUSINESS',$3,true,true,$4) RETURNING id`,
-      [profile.name, profile.name_en || '', storeType, groupCode]
+      [profile.name, profile.name_en || '', bizType, groupCode]
     );
     const groupId = gRes.rows[0].id;
     const rawAlias = (profile.name_en || profile.name || '').toLowerCase().replace(/[^a-z0-9]/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,'').slice(0,25);
