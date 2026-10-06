@@ -176,12 +176,21 @@
     <script>
       (function(){
         try {
+          // כניסת SSO מחנות ציבורית (כפתור "כניסה" לאזור המשפחה) - תמיד חייבת לעבור דרך
+          // app.js שמטפל ב-sso_token ובונה סשן משפחה טרי. אם יש כבר ofl_session ישן של
+          // BUSINESS בדפדפן (העסק בודק את החנות שלו על אותו מכשיר) - בלי הבדיקה הזו
+          // ה-redirect המיידי הבא היה "תופס" את המשתמש ל-business.html לפני ש-sso_token
+          // בכלל מעובד, ומכניס אותו לניהול העסק במקום לאזור המשפחה שלו.
+          var urlParams = new URLSearchParams(window.location.search);
+          if (urlParams.get('sso_token')) { /* מדלגים על ה-redirect, app.js יטפל */ }
+          else {
           var session = JSON.parse(localStorage.getItem('ofl_session') || 'null');
           if (session && session.group) {
             if (session.group.type === 'BUSINESS') {
               window.location.replace('/business.html');
               return;
             }
+          }
           }
         } catch(e){ localStorage.removeItem('ofl_session'); }
         try {
