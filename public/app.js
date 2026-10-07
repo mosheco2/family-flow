@@ -874,8 +874,8 @@ function switchTab(t) { 
     var wrapper = document.getElementById('main-tabs-wrapper');
     if (wrapper) wrapper.style.paddingBottom = (t === 'marketplace' || t === 'kol-haam') ? '0' : '';
 
-    if (t !== 'shop') { const fab = getEl('fab-container'); if(fab) fab.classList.remove('fab-lifted'); const saf = getEl('shop-add-fab'); if(saf) saf.classList.add('hidden'); }
-    else { const saf = getEl('shop-add-fab'); if(saf) saf.classList.remove('hidden'); try { renderShopList(); } catch(e) {} }
+    if (t !== 'shop') { const fab = getEl('fab-container'); if(fab) { fab.classList.remove('fab-lifted'); fab.classList.remove('hidden'); } const saf = getEl('shop-add-fab'); if(saf) saf.classList.add('hidden'); }
+    else { const fab = getEl('fab-container'); if(fab) fab.classList.add('hidden'); const saf = getEl('shop-add-fab'); if(saf) saf.classList.remove('hidden'); try { renderShopList(); } catch(e) {} }
     
     if (t === 'pantry') try { renderPantry(); } catch(e) {}
     if (t === 'recipes') try { renderRecipePantrySelection(); } catch(e) {}
@@ -4745,13 +4745,10 @@ function renderShopList() {
   <p class="font-bold text-sm">העגלה ריקה</p>
   <p class="text-xs mt-1">הוסף מוצרים מהקטלוג</p>
 </div>`; 
-        const fc = getEl('fab-container'); if(fc) fc.classList.remove('fab-lifted');
         return;
     }
 
     const isChild = currentUser && currentUser.role === 'CHILD';
-    if (isShopTabActive && !isChild) { const fc = getEl('fab-container'); if(fc) fc.classList.add('fab-lifted'); }
-    else { const fc = getEl('fab-container'); if(fc) fc.classList.remove('fab-lifted'); }
     
     const getCatScore = (name, normalized) => {
         const lookups = [normalized, name].filter(Boolean);
