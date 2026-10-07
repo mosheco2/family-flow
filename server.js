@@ -8180,7 +8180,8 @@ app.post('/api/biz/login', async (req, res) => {
              FROM users u
              JOIN family_groups fg ON fg.id = u.group_id
              WHERE REPLACE(REPLACE(u.phone, '-', ''), ' ', '')=$1 AND u.group_id=$2
-               AND (fg.member_type='biz' OR fg.type='BUSINESS') AND UPPER(u.role)='ADMIN' AND u.status='active'`,
+               AND (fg.member_type='biz' OR fg.type='BUSINESS' OR fg.is_demo_business=TRUE)
+               AND UPPER(u.role)='ADMIN' AND u.status='active'`,
             [phone, groupId]
         );
         console.log(`[BIZ LOGIN pass] phone=${phone} gid=${groupId} found=${uRes.rows.length}`);
