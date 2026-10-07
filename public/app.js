@@ -4730,12 +4730,27 @@ async function clearEntireCart() {
 
 function toggleSelectAll() { const allItems = shoppingListCache; const anyPending = allItems.some(i => i.status === 'pending'); const targetStatus = anyPending; document.querySelectorAll('.shop-row').forEach(row => { if(row.classList.contains('missing')) return; const cb = row.querySelector('input[type="checkbox"]'); const inp = row.querySelector('.price-input'); cb.checked = targetStatus; row.classList.toggle('in-cart', targetStatus); inp.disabled = !targetStatus; }); calcRunningTotal(); allItems.forEach(i => { if(i.status !== 'bought') updateRow(i.id, 'check', targetStatus); }); }
 
+let _shopSearchTerm = '';
+function filterShopList(val) {
+    _shopSearchTerm = (val || '').trim().toLowerCase();
+    const clearBtn = getEl('shop-search-clear');
+    if (clearBtn) { if (_shopSearchTerm) clearBtn.classList.remove('hidden'); else clearBtn.classList.add('hidden'); }
+    renderShopList();
+}
+function clearShopSearch() {
+    _shopSearchTerm = '';
+    const inp = getEl('shop-search-input'); if (inp) inp.value = '';
+    const clearBtn = getEl('shop-search-clear'); if (clearBtn) clearBtn.classList.add('hidden');
+    renderShopList();
+}
+
 function renderShopList() {
     if (document.activeElement.classList.contains('price-input')) return;
     const list = getEl('shop-list'); const reqList = getEl('shop-requests-list'); const reqContainer = getEl('shop-requests-container');
     const activeItems = []; const requestedItems = [];
     shoppingListCache.forEach(i => { if(i.status === 'requested') requestedItems.push(i); else activeItems.push(i); });
-    
+    const filteredItems = _shopSearchTerm ? activeItems.filter(i => (i.item_name||'').toLowerCase().includes(_shopSearchTerm) || (i.note||'').toLowerCase().includes(_shopSearchTerm)) : activeItems;
+
     let reqHtml = '';
     if (requestedItems.length > 0) {
         reqContainer.classList.remove('hidden');
@@ -4748,17 +4763,21 @@ function renderShopList() {
 
     const isShopTabActive = getEl('tab-shop') && getEl('tab-shop').classList.contains('tab-active');
 
-    if(activeItems.length === 0) { 
+    if(activeItems.length === 0) {
         list.innerHTML = `<div class="text-center py-12 text-slate-400">
   <i class="fa-solid fa-cart-shopping text-4xl mb-3"></i>
   <p class="font-bold text-sm">העגלה ריקה</p>
   <p class="text-xs mt-1">הוסף מוצרים מהקטלוג</p>
-</div>`; 
+</div>`;
+        return;
+    }
+    if(filteredItems.length === 0) {
+        list.innerHTML = `<div class="text-center py-8 text-slate-400"><i class="fa-solid fa-magnifying-glass text-3xl mb-2"></i><p class="text-sm font-bold">לא נמצאו תוצאות</p></div>`;
         return;
     }
 
     const isChild = currentUser && currentUser.role === 'CHILD';
-    
+
     const getCatScore = (name, normalized) => {
         const lookups = [normalized, name].filter(Boolean);
         // קטגוריה ידנית של המשתמש — עדיפות עליונה
@@ -4772,10 +4791,10 @@ function renderShopList() {
         }
         return 'שונות';
     };
-    activeItems.sort((a,b) => getCatScore(a.item_name, a.normalized_name).localeCompare(getCatScore(b.item_name, b.normalized_name)));
+    filteredItems.sort((a,b) => getCatScore(a.item_name, a.normalized_name).localeCompare(getCatScore(b.item_name, b.normalized_name)));
     const _shopListAd = _adsCache && _adsCache.shop_list;
     let currentCat = ''; let shopHtml = ''; let _shopItemCount = 0;
-    activeItems.forEach(i => {
+    filteredItems.forEach(i => {
         const cat = getCatScore(i.item_name, i.normalized_name); if(cat !== currentCat) { shopHtml += `<div class="category-header">${cat}</div>`; currentCat = cat; }
         _shopItemCount++;
         if(_shopItemCount === 5 && _shopListAd && _shopListAd.active && _shopListAd.img) {
@@ -5114,7 +5133,8 @@ function renderSmBanner(groupData) {
 }
 
 function renderSupermarketList() {
-    const activeItems = shoppingListCache.filter(i => i.status !== 'requested');
+    const allActive = shoppingListCache.filter(i => i.status !== 'requested');
+    const activeItems = _smSearchTerm ? allActive.filter(i => (i.item_name||'').toLowerCase().includes(_smSearchTerm) || (i.note||'').toLowerCase().includes(_smSearchTerm)) : allActive;
     const getCatScore = (name, normalized) => { const ll = [normalized,name].filter(Boolean); for(const n of ll) { if(categoryMapCache[n]) return categoryMapCache[n]; } for(const n of ll) { for(const [cat,items] of Object.entries(PRODUCT_DB)) { if(items.includes(n)) return cat; if(items.some(p => n.includes(p)||(p.split(' ')[0].length>2&&n.includes(p.split(' ')[0])))) return cat; } } return 'שונות'; };
     activeItems.sort((a,b) => getCatScore(a.item_name, a.normalized_name).localeCompare(getCatScore(b.item_name, b.normalized_name)));
     let currentCat = ''; let html = '';
@@ -5126,11 +5146,13 @@ function renderSupermarketList() {
         }
         const isChecked = i.status === 'in_cart';
         const isMissing = i._smMissing;
+        const smNote = i.note ? `<div class="flex items-center gap-1.5 mt-1"><i class="fa-solid fa-note-sticky text-[9px] text-emerald-600 shrink-0"></i><input type="text" id="sm-note-${i.id}" value="${escHtml(i.note || '')}" placeholder="הערה..." maxlength="200" onchange="smUpdateNote(${i.id}, this.value)" class="flex-1 text-[11px] text-emerald-300 bg-transparent outline-none placeholder-emerald-700 border-b border-transparent focus:border-emerald-700 transition min-w-0"></div>` : `<div class="flex items-center gap-1.5 mt-1"><i class="fa-solid fa-note-sticky text-[9px] text-emerald-800 shrink-0"></i><input type="text" id="sm-note-${i.id}" value="" placeholder="הערה..." maxlength="200" onchange="smUpdateNote(${i.id}, this.value)" class="flex-1 text-[11px] text-emerald-300 bg-transparent outline-none placeholder-emerald-800 border-b border-transparent focus:border-emerald-700 transition min-w-0"></div>`;
         html += `<div id="sm-row-${i.id}" class="flex items-center gap-3 p-4 rounded-2xl transition ${isChecked ? 'bg-emerald-800/60' : isMissing ? 'bg-red-900/40 opacity-60' : 'bg-emerald-900/60'} border ${isChecked ? 'border-emerald-500' : isMissing ? 'border-red-700' : 'border-emerald-800'}">
             <button onclick="smToggleItem(${i.id})" class="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center border-2 transition ${isChecked ? 'bg-emerald-400 border-emerald-400 text-emerald-900' : 'border-emerald-600 text-transparent'}">${isChecked ? '<i class="fa-solid fa-check font-bold"></i>' : ''}</button>
             <div class="flex-1 min-w-0">
                 <p class="text-white font-bold text-base truncate">${safeStr(i.item_name)}</p>
                 <p class="text-emerald-400 text-xs">${i.quantity} ${safeStr(i.unit || "יח'")}</p>
+                ${smNote}
             </div>
             <div class="flex flex-col items-end gap-1">
                 <input type="number" id="sm-price-${i.id}" value="${i.estimated_price > 0 ? i.estimated_price : ''}" placeholder="₪מחיר" oninput="smUpdatePrice(${i.id}, this.value)" class="w-20 bg-emerald-950 border border-emerald-700 text-white text-sm text-center rounded-xl px-2 py-1.5 outline-none focus:border-emerald-400 placeholder-emerald-700">
@@ -5138,6 +5160,9 @@ function renderSupermarketList() {
             </div>
         </div>`;
     });
+    if (activeItems.length === 0 && _smSearchTerm) {
+        html += `<div class="text-center py-8 text-emerald-600"><i class="fa-solid fa-magnifying-glass text-3xl mb-2"></i><p class="text-sm font-bold">לא נמצאו תוצאות</p></div>`;
+    }
     getEl('sm-list').innerHTML = html;
     smCalcTotal();
 }
@@ -5286,6 +5311,29 @@ function smUpdatePrice(id, value) {
     window._smPriceTimer = setTimeout(() => {
         communityFetch(`${API}/shopping/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemId: id, estimatedPrice: parseFloat(value) || 0})});
     }, 800);
+}
+
+function smUpdateNote(id, value) {
+    const item = shoppingListCache.find(i => i.id == id);
+    const noteText = String(value).trim();
+    if (item) item.note = noteText;
+    const noteEl = getEl(`note-${id}`);
+    if (noteEl) noteEl.value = noteText;
+    communityFetch(`${API}/shopping/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemId: id, note: noteText})});
+}
+
+let _smSearchTerm = '';
+function filterSupermarketList(val) {
+    _smSearchTerm = (val || '').trim().toLowerCase();
+    const clearBtn = getEl('sm-search-clear');
+    if (clearBtn) { if (_smSearchTerm) clearBtn.classList.remove('hidden'); else clearBtn.classList.add('hidden'); }
+    renderSupermarketList();
+}
+function clearSmSearch() {
+    _smSearchTerm = '';
+    const inp = getEl('sm-search-input'); if (inp) inp.value = '';
+    const clearBtn = getEl('sm-search-clear'); if (clearBtn) clearBtn.classList.add('hidden');
+    renderSupermarketList();
 }
 
 function smCalcTotal() {
