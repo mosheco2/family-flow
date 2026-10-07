@@ -2296,7 +2296,16 @@ async function fetchData() {
             else { renderMyAssignments(bundlesCache); renderKidGames(); }
         } catch(e) {}
         try { renderTasks(allTasks); renderPantry(); renderRecipePantrySelection(); } catch(e) {}
-        try { shoppingListCache = Array.isArray(data.shopping_list) ? data.shopping_list : []; renderShopList(); } catch(e) {}
+        try {
+            shoppingListCache = Array.isArray(data.shopping_list) ? data.shopping_list : [];
+            // טעינת שם הסשן מהשרת (משותף לכל בני הקבוצה)
+            if (data.group && data.group.shop_session_name !== _activeListName) {
+                _activeListName = data.group.shop_session_name || '';
+                _activeListId = data.group.shop_session_list_id || null;
+                _setListUI(_activeListName);
+            }
+            renderShopList();
+        } catch(e) {}
         try { if (data.group) renderSmBanner(data.group); } catch(e) {}
         try { loadCategoryMap(); } catch(e) {}
         try { fetchBudget(); } catch(e) {}
@@ -5316,11 +5325,12 @@ async function loadSavedLists() {
     } catch(e) { showToast('error', 'שגיאה בטעינת הרשימות'); }
 }
 
-// ---- state כותרת ושמירה אוטומטית ----
+// ---- state כותרת ושמירה ----
 let _pendingLoadListId = null;
 let _pendingLoadListName = null;
 let _activeListId = null;    // ID הרשימה הנוכחית
 let _activeListName = '';    // שם הרשימה הנוכחית
+let _sessionSaveTimer = null;
 
 function _setListUI(name) {
     const input = getEl('shop-list-name-input');
@@ -5340,18 +5350,34 @@ function onListNameInput(value) {
     const clearBtn = getEl('shop-clear-name-btn');
     if (saveBtn) saveBtn.classList.toggle('hidden', !_activeListName);
     if (clearBtn) clearBtn.classList.toggle('hidden', !_activeListName);
+    // שמירת שם לשרת (debounce 800ms)
+    if (_sessionSaveTimer) clearTimeout(_sessionSaveTimer);
+    _sessionSaveTimer = setTimeout(_saveSessionToServer, 800);
+}
+
+async function _saveSessionToServer() {
+    if (!currentGroup) return;
+    try {
+        await communityFetch(`${API}/shopping/session`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: _activeListName || null, listId: _activeListId || null })
+        });
+    } catch(e) {}
 }
 
 function setActiveList(listId, listName) {
     _activeListId = listId;
     _activeListName = listName || '';
     _setListUI(_activeListName);
+    _saveSessionToServer();
 }
 
 function clearListName() {
     _activeListId = null;
     _activeListName = '';
     _setListUI('');
+    _saveSessionToServer();
 }
 
 async function manualSaveList() { await _doSaveList(true); }

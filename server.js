@@ -953,6 +953,8 @@ try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS pro
       try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS description_en TEXT`); } catch(err){}
       try { await client.query(`ALTER TABLE store_catalog ADD COLUMN IF NOT EXISTS category_en VARCHAR(50)`); } catch(err){}
       try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS name_en VARCHAR(255)`); } catch(err){}
+      try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS shop_session_name VARCHAR(200) DEFAULT NULL`); } catch(err){}
+      try { await client.query(`ALTER TABLE family_groups ADD COLUMN IF NOT EXISTS shop_session_list_id INTEGER DEFAULT NULL`); } catch(err){}
       try { await client.query(`
           CREATE TABLE IF NOT EXISTS product_ingredients (
               id SERIAL PRIMARY KEY,
@@ -11118,6 +11120,18 @@ app.post('/api/shopping/save', verifyFamilyOrBiz, async (req, res) => {
         if (!name || !items || items.length === 0) return res.status(400).json({ error: 'Missing name or items' });
         const result = await pool.query('INSERT INTO saved_shopping_lists (group_id, name, items) VALUES ($1, $2, $3) RETURNING id', [req.callerAuth.groupId, String(name).trim().substring(0, 200), JSON.stringify(items)]);
         res.json({ success: true, id: result.rows[0].id });
+    } catch(e) { res.status(500).json({ error: 'שגיאה פנימית' }); }
+});
+
+app.patch('/api/shopping/session', verifyFamilyOrBiz, async (req, res) => {
+    try {
+        const { name, listId } = req.body;
+        const groupId = req.callerAuth.groupId;
+        await pool.query(
+            `UPDATE family_groups SET shop_session_name=$1, shop_session_list_id=$2 WHERE id=$3`,
+            [name ? String(name).substring(0, 200) : null, listId || null, groupId]
+        );
+        res.json({ success: true });
     } catch(e) { res.status(500).json({ error: 'שגיאה פנימית' }); }
 });
 
