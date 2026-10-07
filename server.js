@@ -6942,12 +6942,13 @@ async function activateDueRoutineOccurrences() {
                 let linkedTaskId = null, linkedCalendarEventId = null, linkedWorkOrderId = null;
                 let assigneeName = null;
                 if (occ.assignee_user_id) {
-                    const uRes = await pool.query('SELECT name FROM users WHERE id=$1', [occ.assignee_user_id]);
+                    const uRes = await pool.query('SELECT nickname AS name FROM users WHERE id=$1', [occ.assignee_user_id]);
                     assigneeName = uRes.rows[0]?.name || null;
                 }
 
                 if (occ.output_type === 'task' || occ.output_type === 'task_calendar') {
-                    const deadline = occ.scheduled_time ? new Date(`${occ.scheduled_date}T${occ.scheduled_time}`) : new Date(`${occ.scheduled_date}T23:59:59`);
+                    const _dateStr = occ.scheduled_date instanceof Date ? occ.scheduled_date.toISOString().slice(0, 10) : String(occ.scheduled_date).slice(0, 10);
+                    const deadline = occ.scheduled_time ? new Date(`${_dateStr}T${occ.scheduled_time}`) : new Date(`${_dateStr}T23:59:59`);
                     const tRes = await pool.query(
                         `INSERT INTO tasks (group_id, title, reward, assigned_to, deadline, status, is_recurring, recurring_days, created_by, priority)
                          VALUES ($1,$2,0,$3,$4,'pending',FALSE,'',$5,'medium') RETURNING id`,
