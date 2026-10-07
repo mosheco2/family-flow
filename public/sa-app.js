@@ -16550,6 +16550,18 @@ function _saShukaRenderGeneral(body) {
                         <input type="checkbox" id="_sas-open-req" ${c.is_open_for_requests !== false ? 'checked' : ''} style="width:14px;height:14px;accent-color:#4f46e5;">
                         קבלת בקשות הצטרפות</label>
                 </div>
+                <div style="border:1px solid #e2e8f0;border-radius:10px;padding:10px;">
+                    <p style="font-size:11px;font-weight:700;color:#64748b;margin:0 0 6px;"><span style="color:#ec4899;">📅</span> ימי פעילות</p>
+                    <p style="font-size:10px;color:#94a3b8;margin:0 0 8px;">ימים שבהם ניתן לבצע הזמנות. ריק = כל הימים.</p>
+                    <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px;">
+                        ${[["א'",0],["ב'",1],["ג'",2],["ד'",3],["ה'",4],["ו'",5],["ש'",6]].map(([label, val]) => {
+                            const checked = !c.active_days || c.active_days.includes(val);
+                            return `<label style="display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;font-size:11px;font-weight:700;color:#475569;">
+                                <input type="checkbox" name="_sas-active-day" value="${val}" ${checked ? 'checked' : ''} style="width:14px;height:14px;accent-color:#ec4899;">
+                                ${label}</label>`;
+                        }).join('')}
+                    </div>
+                </div>
                 <button onclick="window.saShukaUpdateSettings()" style="background:#4f46e5;color:#fff;border:none;border-radius:10px;padding:10px 20px;font-size:13px;font-weight:700;cursor:pointer;margin-top:4px;">שמור שינויים</button>
             </div>
         </div>
@@ -16694,6 +16706,10 @@ window.saShukaToggleStatus = async function() {
 
 window.saShukaUpdateSettings = async function() {
     const id = _saShuka.campaignId;
+    const activeDaysChecks = document.querySelectorAll('[name="_sas-active-day"]:checked');
+    const activeDays = activeDaysChecks.length === 7 || activeDaysChecks.length === 0
+        ? null
+        : Array.from(activeDaysChecks).map(cb => parseInt(cb.value));
     const body = {
         title: document.getElementById('_sas-title')?.value.trim() || null,
         slogan: document.getElementById('_sas-slogan')?.value.trim() || null,
@@ -16702,6 +16718,7 @@ window.saShukaUpdateSettings = async function() {
         isOpenForRequests: document.getElementById('_sas-open-req')?.checked,
         startAt: document.getElementById('_sas-start')?.value || null,
         endAt: document.getElementById('_sas-end')?.value || null,
+        activeDays,
     };
     try {
         const res = await fetch(`${API}/sa/shuka/campaigns/${id}`, { method: 'PATCH', headers: _saHeaders(), body: JSON.stringify(body) });

@@ -8319,10 +8319,14 @@ async function cmSaveCampaignSettings(campaignId, commId) {
     const hideTitle = !!document.getElementById(`cmc-hide-title-${campaignId}`)?.checked;
     const shareDescription = document.getElementById(`cmc-sharedesc-${campaignId}`)?.value.trim();
     const orderingEnabled = !!document.getElementById(`cmc-ordering-${campaignId}`)?.checked;
+    const activeDaysChecks = document.querySelectorAll(`[name="cmc-active-day-${campaignId}"]:checked`);
+    const activeDays = activeDaysChecks.length === 7 || activeDaysChecks.length === 0
+        ? null
+        : Array.from(activeDaysChecks).map(cb => parseInt(cb.value));
     try {
         const res = await communityFetch(`${API}/community/manager/campaigns/${campaignId}`, {
             method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ title, slogan: slogan || null, logoUrl: logoUrl || null, bannerImageUrl: bannerImageUrl || null, hideTitle, shareDescription: shareDescription || null, orderingEnabled })
+            body: JSON.stringify({ title, slogan: slogan || null, logoUrl: logoUrl || null, bannerImageUrl: bannerImageUrl || null, hideTitle, shareDescription: shareDescription || null, orderingEnabled, activeDays })
         });
         const data = await res.json();
         if (!data.success) return showToast('error', data.error || 'שגיאה');
@@ -8407,6 +8411,19 @@ async function cmOpenCampaignManage(campaignId, commId) {
                         <input type="checkbox" id="cmc-ordering-${campaignId}" ${c.ordering_enabled === false ? '' : 'checked'} class="w-4 h-4 accent-emerald-600">
                     </label>
                     <p class="text-[9px] text-slate-400 mt-1">כשכבוי — העמוד נשאר גלוי, אבל הוספת מוצרים לסל חסומה ומוצגת ללקוח הודעה שהמוצרים יהיו זמינים בקרוב</p>
+                </div>
+                <div class="border border-slate-200 bg-white rounded-lg p-2.5">
+                    <p class="text-xs font-bold text-slate-700 mb-1.5"><i class="fa-solid fa-calendar-days text-pink-500 mr-1"></i>ימי פעילות</p>
+                    <p class="text-[9px] text-slate-400 mb-1.5">סמנו ימים שבהם ניתן להזמין. ריק = כל הימים.</p>
+                    <div class="grid grid-cols-7 gap-1">
+                        ${[['א',0],['ב',1],['ג',2],['ד',3],['ה',4],['ו',5],['ש',6]].map(([label, val]) => {
+                            const checked = !c.active_days || c.active_days.includes(val);
+                            return `<label class="flex flex-col items-center gap-0.5 cursor-pointer">
+                                <input type="checkbox" name="cmc-active-day-${campaignId}" value="${val}" ${checked ? 'checked' : ''} class="w-3.5 h-3.5 accent-pink-600">
+                                <span class="text-[9px] font-bold text-slate-600">${label}'</span>
+                            </label>`;
+                        }).join('')}
+                    </div>
                 </div>
                 <button onclick="cmSaveCampaignSettings(${campaignId}, ${commId})" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-2 rounded-lg text-xs mt-1 transition"><i class="fa-solid fa-floppy-disk ml-1.5"></i>שמור הגדרות</button>
             </div>

@@ -15421,6 +15421,14 @@ app.post('/api/campaign/:code/order', async (req, res) => {
         if (!cRes.rows.length) return res.status(404).json({ error: 'קמפיין לא נמצא' });
         const campaign = cRes.rows[0];
         if (campaign.ordering_enabled === false) return res.status(403).json({ error: 'שמחים שאתם נלהבים כמונו ממוצרי השוק, הם יהיו זמינים בקרוב - ניתן להתעדכן מול רכזת הקהילה' });
+        if (campaign.active_days && Array.isArray(campaign.active_days) && campaign.active_days.length > 0) {
+            const today = new Date().getDay(); // 0=ראשון..6=שבת
+            if (!campaign.active_days.includes(today)) {
+                const dayNames = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
+                const activeDaysList = campaign.active_days.map(d => 'יום ' + dayNames[d]).join(', ');
+                return res.status(403).json({ error: `השוק פעיל רק ב: ${activeDaysList}. ניתן להזמין בימים אלו בלבד.` });
+            }
+        }
 
         // כל הפריטים בעגלה חייבים להיות מאותו עסק בדיוק — נאכף בשרת, לא רק ב-UI
         const businessGroupIds = [...new Set(items.map(i => parseInt(i.businessGroupId)))];
@@ -16463,6 +16471,7 @@ async function initCommunityTables() {
         `ALTER TABLE community_campaigns ADD COLUMN IF NOT EXISTS end_at TIMESTAMP`,
         `ALTER TABLE community_campaigns ADD COLUMN IF NOT EXISTS recurrence VARCHAR(20) DEFAULT 'none'`,
         `ALTER TABLE community_campaigns ADD COLUMN IF NOT EXISTS is_open_for_requests BOOLEAN DEFAULT TRUE`,
+        `ALTER TABLE community_campaigns ADD COLUMN IF NOT EXISTS active_days JSONB DEFAULT NULL`,
         `CREATE TABLE IF NOT EXISTS community_campaign_requests (
             id SERIAL PRIMARY KEY,
             campaign_id INT REFERENCES community_campaigns(id) ON DELETE CASCADE,
@@ -19435,7 +19444,7 @@ app.patch('/api/zone-manager/community-campaigns/:id', verifyZoneManager, async 
         const campaign = await verifyCampaignOwnership(req.params.id, managerId);
         if (!campaign) return res.status(403).json({ error: 'אין הרשאה לקמפיין זה' });
 
-        const { title, description, bannerImageUrl, status, logoUrl, slogan, hideTitle, shareDescription, orderingEnabled } = req.body;
+        const { title, description, bannerImageUrl, status, logoUrl, slogan, hideTitle, shareDescription, orderingEnabled, activeDays } = req.body;
         const upd = await pool.query(
             `UPDATE community_campaigns SET
                 title = COALESCE($1, title),
@@ -19446,9 +19455,11 @@ app.patch('/api/zone-manager/community-campaigns/:id', verifyZoneManager, async 
                 slogan = COALESCE($7, slogan),
                 hide_title = COALESCE($8, hide_title),
                 share_description = COALESCE($9, share_description),
-                ordering_enabled = COALESCE($10, ordering_enabled)
+                ordering_enabled = COALESCE($10, ordering_enabled),
+                active_days = CASE WHEN $11::text IS NOT NULL THEN $11::jsonb ELSE active_days END
              WHERE id=$5 RETURNING *`,
-            [title, description, bannerImageUrl, status, req.params.id, logoUrl, slogan, hideTitle, shareDescription, orderingEnabled]);
+            [title, description, bannerImageUrl, status, req.params.id, logoUrl, slogan, hideTitle, shareDescription, orderingEnabled,
+             activeDays !== undefined ? JSON.stringify(activeDays) : null]);
         res.json({ success: true, campaign: upd.rows[0] });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -19681,7 +19692,7 @@ app.get('/api/sa/shuka/campaigns/:id', verifySA, async (req, res) => {
 
 app.patch('/api/sa/shuka/campaigns/:id', verifySA, async (req, res) => {
     try {
-        const { title, slogan, shareDescription, orderingEnabled, startAt, endAt, isOpenForRequests } = req.body;
+        const { title, slogan, shareDescription, orderingEnabled, startAt, endAt, isOpenForRequests, activeDays } = req.body;
         const upd = await pool.query(
             `UPDATE community_campaigns SET
                 title = COALESCE($1, title),
@@ -19690,11 +19701,13 @@ app.patch('/api/sa/shuka/campaigns/:id', verifySA, async (req, res) => {
                 ordering_enabled = COALESCE($4::boolean, ordering_enabled),
                 start_at = COALESCE($5::timestamp, start_at),
                 end_at = COALESCE($6::timestamp, end_at),
-                is_open_for_requests = COALESCE($7::boolean, is_open_for_requests)
+                is_open_for_requests = COALESCE($7::boolean, is_open_for_requests),
+                active_days = CASE WHEN $9::text IS NOT NULL THEN $9::jsonb ELSE active_days END
              WHERE id=$8 RETURNING *`,
             [title ?? null, slogan ?? null, shareDescription ?? null,
              orderingEnabled ?? null, startAt ?? null, endAt ?? null,
-             isOpenForRequests ?? null, req.params.id]);
+             isOpenForRequests ?? null, req.params.id,
+             activeDays !== undefined ? JSON.stringify(activeDays) : null]);
         if (!upd.rows.length) return res.status(404).json({ error: 'לא נמצא' });
         res.json({ success: true, campaign: upd.rows[0] });
     } catch(e) { res.status(500).json({ error: e.message }); }
@@ -20511,7 +20524,7 @@ app.patch('/api/community/manager/campaigns/:id', verifyFamily, async (req, res)
         if (!campaign) return res.status(403).json({ error: 'אין הרשאה לקמפיין זה' });
         if (await blockIfChildFamilyUser(req, res)) return;
 
-        const { title, description, bannerImageUrl, status, logoUrl, slogan, hideTitle, shareDescription, orderingEnabled } = req.body;
+        const { title, description, bannerImageUrl, status, logoUrl, slogan, hideTitle, shareDescription, orderingEnabled, activeDays } = req.body;
         const upd = await pool.query(
             `UPDATE community_campaigns SET
                 title = COALESCE($1, title),
@@ -20522,9 +20535,11 @@ app.patch('/api/community/manager/campaigns/:id', verifyFamily, async (req, res)
                 slogan = COALESCE($7, slogan),
                 hide_title = COALESCE($8, hide_title),
                 share_description = COALESCE($9, share_description),
-                ordering_enabled = COALESCE($10, ordering_enabled)
+                ordering_enabled = COALESCE($10, ordering_enabled),
+                active_days = CASE WHEN $11::text IS NOT NULL THEN $11::jsonb ELSE active_days END
              WHERE id=$5 RETURNING *`,
-            [title, description, bannerImageUrl, status, req.params.id, logoUrl, slogan, hideTitle, shareDescription, orderingEnabled]);
+            [title, description, bannerImageUrl, status, req.params.id, logoUrl, slogan, hideTitle, shareDescription, orderingEnabled,
+             activeDays !== undefined ? JSON.stringify(activeDays) : null]);
         res.json({ success: true, campaign: upd.rows[0] });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
