@@ -4808,17 +4808,28 @@ async function updateRow(id, type, value) {
 
 function toggleMissingLocal(id) { const row = getEl(`row-${id}`); const btn = getEl(`btn-missing-${id}`); const isMissing = row.classList.contains('missing'); if (!isMissing) { row.classList.add('missing'); row.classList.remove('in-cart'); row.querySelector('input[type="checkbox"]').checked = false; row.querySelector('input[type="checkbox"]').disabled = true; getEl(`price-${id}`).disabled = true; btn.classList.add('bg-orange-100', 'text-orange-500', 'border-orange-200'); btn.innerText = 'מבוטל'; } else { row.classList.remove('missing'); row.querySelector('input[type="checkbox"]').disabled = false; btn.classList.remove('bg-orange-100', 'text-orange-500', 'border-orange-200'); btn.innerText = 'חסר בספק'; } calcRunningTotal(); }
 
-function calcRunningTotal() { 
-    let total = 0; 
-    document.querySelectorAll('.shop-row').forEach(row => { 
-        const isChecked = row.querySelector('input[type="checkbox"]').checked; const isMissing = row.classList.contains('missing'); 
-        if (isChecked && !isMissing) { 
-            const id = row.id.replace('row-', ''); const itemData = shoppingListCache.find(i => i.id == id); 
-            const unitPrice = parseFloat(row.querySelector('.price-input').value) || 0; const qty = itemData ? parseFloat(itemData.quantity) : 1; 
-            total += (unitPrice * qty); 
-        } 
-    }); 
-    getEl('cart-total-display').innerText = `₪${total.toFixed(2)}`; 
+function calcRunningTotal() {
+    let total = 0; let collected = 0; let totalItems = 0;
+    document.querySelectorAll('.shop-row').forEach(row => {
+        const isMissing = row.classList.contains('missing');
+        if (isMissing) return;
+        totalItems++;
+        const isChecked = row.querySelector('input[type="checkbox"]').checked;
+        if (isChecked) {
+            collected++;
+            const id = row.id.replace('row-', ''); const itemData = shoppingListCache.find(i => i.id == id);
+            const unitPrice = parseFloat(row.querySelector('.price-input').value) || 0; const qty = itemData ? parseFloat(itemData.quantity) : 1;
+            total += (unitPrice * qty);
+        }
+    });
+    getEl('cart-total-display').innerText = `₪${total.toFixed(2)}`;
+    const badgeText = totalItems > 0 ? `${collected}/${totalItems}` : '';
+    ['cart-items-badge','cart-items-badge-footer'].forEach(id => {
+        const el = getEl(id);
+        if (!el) return;
+        if (badgeText) { el.textContent = badgeText; el.classList.remove('hidden'); }
+        else el.classList.add('hidden');
+    });
 }
 
 function openCheckoutSummary() { 
@@ -5299,7 +5310,7 @@ async function loadSavedLists() {
                     <p class="font-bold text-slate-700 text-sm truncate">${safeStr(list.name)}</p>
                     <p class="text-xs text-slate-400">${(list.items || []).length} פריטים · ${new Date(list.created_at).toLocaleDateString('he-IL')}</p>
                 </div>
-                <button onclick="loadSavedList(${list.id})" class="bg-emerald-100 text-emerald-700 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-emerald-200 transition">טען</button>
+                <button onclick="loadSavedList(${list.id}, ${JSON.stringify(list.name)})" class="bg-emerald-100 text-emerald-700 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-emerald-200 transition">טען</button>
                 <button onclick="deleteSavedList(${list.id})" class="bg-red-50 text-red-500 w-8 h-8 rounded-lg flex items-center justify-center hover:bg-red-100 transition"><i class="fa-solid fa-trash text-xs"></i></button>
             </div>
         `).join('');
@@ -5319,13 +5330,44 @@ async function saveCurrentList() {
     } catch(e) { showToast('error', 'שגיאת תקשורת'); }
 }
 
-async function loadSavedList(listId) {
-    if (!confirm('לטעון את הרשימה השמורה לרשימת הקניות הנוכחית?')) return;
+let _pendingLoadListId = null;
+let _pendingLoadListName = null;
+
+async function loadSavedList(listId, listName) {
+    _pendingLoadListId = listId;
+    _pendingLoadListName = listName || '';
+    const hasItems = (shoppingListCache || []).filter(i => i.status !== 'requested').length > 0;
+    if (hasItems) {
+        getEl('load-list-confirm-modal').classList.remove('hidden');
+    } else {
+        await doLoadList('replace');
+    }
+}
+
+async function doLoadList(mode) {
+    getEl('load-list-confirm-modal').classList.add('hidden');
+    const listId = _pendingLoadListId;
+    const listName = _pendingLoadListName;
+    if (!listId) return;
     try {
-        const res = await communityFetch(`${API}/shopping/load-saved`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ listId, userId: currentUser.id }) });
+        const res = await communityFetch(`${API}/shopping/load-saved`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ listId, userId: currentUser.id, mode }) });
         const data = await res.json();
-        if (data.success) { getEl('saved-lists-modal').classList.add('hidden'); showToast('success', `${data.count} פריטים נטענו לרשימה!`); fetchData(); } else showToast('error', data.error || 'שגיאה בטעינת הרשימה');
+        if (data.success) {
+            getEl('saved-lists-modal').classList.add('hidden');
+            showToast('success', `${data.count} פריטים נטענו לרשימה!`);
+            if (listName) {
+                const display = getEl('shop-list-name-display');
+                const txt = getEl('shop-list-name-text');
+                if (display && txt) { txt.textContent = listName; display.classList.remove('hidden'); }
+            }
+            fetchData();
+        } else showToast('error', data.error || 'שגיאה בטעינת הרשימה');
     } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+}
+
+function clearLoadedListName() {
+    const display = getEl('shop-list-name-display');
+    if (display) display.classList.add('hidden');
 }
 
 async function deleteSavedList(listId) {

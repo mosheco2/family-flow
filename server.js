@@ -11123,12 +11123,16 @@ app.post('/api/shopping/save', verifyFamilyOrBiz, async (req, res) => {
 
 app.post('/api/shopping/load-saved', verifyFamilyOrBiz, async (req, res) => {
     try {
-        const { listId } = req.body;
+        const { listId, mode } = req.body; // mode: 'replace' | 'append' (default: append)
         const groupId = req.callerAuth.groupId;
         const userId = req.callerAuth.userId;
         const listRes = await pool.query('SELECT * FROM saved_shopping_lists WHERE id=$1 AND group_id=$2', [listId, groupId]);
         if (listRes.rows.length === 0) return res.status(404).json({ error: 'List not found' });
         const items = listRes.rows[0].items;
+        if (mode === 'replace') {
+            // מחיקת פריטים pending קיימים לפני טעינה
+            await pool.query(`DELETE FROM shopping_list WHERE group_id=$1 AND status IN ('pending','in_cart')`, [groupId]);
+        }
         for (let item of items) {
             await pool.query(`INSERT INTO shopping_list (group_id, requester_id, item_name, quantity, unit, estimated_price, units_per_package, status) VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending')`, [groupId, userId, item.item_name, item.quantity || 1, item.unit || "יח'", item.estimated_price || 0, item.units_per_package || 1]);
         }
