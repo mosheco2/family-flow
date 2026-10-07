@@ -5298,44 +5298,120 @@ async function openSavedListsModal() {
     await loadSavedLists();
 }
 
+// map מזהה → שם רשימה (לתיקון onclick bug)
+let _savedListNamesMap = {};
+
 async function loadSavedLists() {
     try {
         const res = await communityFetch(`${API}/shopping/saved?groupId=${currentGroup.id}`);
         const data = await res.json();
         const container = getEl('saved-lists-content');
         if (!data || data.length === 0) { container.innerHTML = '<p class="text-slate-400 text-sm text-center py-4">אין רשימות שמורות עדיין</p>'; return; }
+        _savedListNamesMap = {};
+        data.forEach(list => { _savedListNamesMap[list.id] = list.name; });
         container.innerHTML = data.map(list => `
             <div class="flex items-center gap-2 bg-slate-50 border border-slate-100 rounded-xl p-3">
                 <div class="flex-1 min-w-0">
                     <p class="font-bold text-slate-700 text-sm truncate">${safeStr(list.name)}</p>
                     <p class="text-xs text-slate-400">${(list.items || []).length} פריטים · ${new Date(list.created_at).toLocaleDateString('he-IL')}</p>
                 </div>
-                <button onclick="loadSavedList(${list.id}, ${JSON.stringify(list.name)})" class="bg-emerald-100 text-emerald-700 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-emerald-200 transition">טען</button>
+                <button onclick="loadSavedList(${list.id})" class="bg-emerald-100 text-emerald-700 px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-emerald-200 transition">טען</button>
                 <button onclick="deleteSavedList(${list.id})" class="bg-red-50 text-red-500 w-8 h-8 rounded-lg flex items-center justify-center hover:bg-red-100 transition"><i class="fa-solid fa-trash text-xs"></i></button>
             </div>
         `).join('');
     } catch(e) { showToast('error', 'שגיאה בטעינת הרשימות'); }
 }
 
-async function saveCurrentList() {
-    const name = (getEl('save-list-name').value || '').trim();
-    if (!name) { showToast('error', 'יש לתת שם לרשימה'); return; }
-    const activeItems = shoppingListCache.filter(i => i.status !== 'requested' && i.status !== 'in_cart');
-    if (activeItems.length === 0) { showToast('error', 'אין פריטים ברשימה לשמירה'); return; }
-    const itemsToSave = activeItems.map(i => ({ item_name: i.item_name, quantity: i.quantity, unit: i.unit, estimated_price: i.estimated_price, units_per_package: i.units_per_package }));
-    try {
-        const res = await communityFetch(`${API}/shopping/save`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ groupId: currentGroup.id, name, items: itemsToSave }) });
-        const data = await res.json();
-        if (data.success) { getEl('save-list-name').value = ''; showToast('success', 'הרשימה נשמרה!'); await loadSavedLists(); } else showToast('error', 'שגיאה בשמירת הרשימה');
-    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
-}
-
+// ---- state כותרת ושמירה אוטומטית ----
 let _pendingLoadListId = null;
 let _pendingLoadListName = null;
+let _activeListId = null;    // ID הרשימה הנוכחית לשמירה אוטומטית
+let _activeListName = '';    // שם הרשימה הנוכחית
+let _autoSaveTimer = null;
 
-async function loadSavedList(listId, listName) {
+function _setListUI(name) {
+    const input = getEl('shop-list-name-input');
+    const saveBtn = getEl('shop-save-btn');
+    const clearBtn = getEl('shop-clear-name-btn');
+    const indicator = getEl('shop-autosave-indicator');
+    if (input) input.value = name || '';
+    if (saveBtn) saveBtn.classList.toggle('hidden', !name);
+    if (clearBtn) clearBtn.classList.toggle('hidden', !name);
+    if (indicator) indicator.classList.add('hidden');
+}
+
+function onListNameInput(value) {
+    _activeListName = value.trim();
+    _activeListId = null; // שם חדש = רשימה חדשה
+    const saveBtn = getEl('shop-save-btn');
+    const clearBtn = getEl('shop-clear-name-btn');
+    if (saveBtn) saveBtn.classList.toggle('hidden', !_activeListName);
+    if (clearBtn) clearBtn.classList.toggle('hidden', !_activeListName);
+    if (_activeListName) startAutoSave(); else stopAutoSave();
+}
+
+function setActiveList(listId, listName) {
+    _activeListId = listId;
+    _activeListName = listName || '';
+    _setListUI(_activeListName);
+    if (_activeListName) startAutoSave(); else stopAutoSave();
+}
+
+function clearListName() {
+    stopAutoSave();
+    _activeListId = null;
+    _activeListName = '';
+    _setListUI('');
+}
+
+function startAutoSave() {
+    stopAutoSave();
+    if (!_activeListName) return;
+    _autoSaveTimer = setInterval(autoSaveList, 3 * 60 * 1000); // כל 3 דקות
+}
+
+function stopAutoSave() {
+    if (_autoSaveTimer) { clearInterval(_autoSaveTimer); _autoSaveTimer = null; }
+}
+
+async function autoSaveList() { await _doSaveList(false); }
+async function manualSaveList() { await _doSaveList(true); }
+
+async function _doSaveList(showFeedback) {
+    if (!_activeListName) return;
+    const activeItems = (shoppingListCache || []).filter(i => i.status !== 'requested');
+    if (activeItems.length === 0 && !_activeListId) {
+        if (showFeedback) showToast('error', 'אין פריטים ברשימה לשמירה');
+        return;
+    }
+    const itemsToSave = activeItems.map(i => ({ item_name: i.item_name, quantity: i.quantity, unit: i.unit, estimated_price: i.estimated_price, units_per_package: i.units_per_package }));
+    try {
+        let res, data;
+        if (_activeListId) {
+            res = await communityFetch(`${API}/shopping/saved/${_activeListId}`, {
+                method: 'PUT', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ items: itemsToSave, name: _activeListName })
+            });
+        } else {
+            res = await communityFetch(`${API}/shopping/save`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ groupId: currentGroup.id, name: _activeListName, items: itemsToSave })
+            });
+        }
+        data = await res.json();
+        if (data.success) {
+            if (!_activeListId && data.id) { _activeListId = data.id; startAutoSave(); }
+            const indicator = getEl('shop-autosave-indicator');
+            if (indicator) { indicator.classList.remove('hidden'); setTimeout(() => indicator.classList.add('hidden'), 3000); }
+            if (showFeedback) showToast('success', 'הרשימה נשמרה!');
+        } else if (showFeedback) showToast('error', data.error || 'שגיאה בשמירה');
+    } catch(e) { if (showFeedback) showToast('error', 'שגיאת תקשורת'); }
+}
+
+async function loadSavedList(listId) {
+    const listName = _savedListNamesMap[listId] || '';
     _pendingLoadListId = listId;
-    _pendingLoadListName = listName || '';
+    _pendingLoadListName = listName;
     const hasItems = (shoppingListCache || []).filter(i => i.status !== 'requested').length > 0;
     if (hasItems) {
         getEl('load-list-confirm-modal').classList.remove('hidden');
@@ -5355,20 +5431,13 @@ async function doLoadList(mode) {
         if (data.success) {
             getEl('saved-lists-modal').classList.add('hidden');
             showToast('success', `${data.count} פריטים נטענו לרשימה!`);
-            if (listName) {
-                const display = getEl('shop-list-name-display');
-                const txt = getEl('shop-list-name-text');
-                if (display && txt) { txt.textContent = listName; display.classList.remove('hidden'); }
-            }
+            setActiveList(listId, listName);
             fetchData();
         } else showToast('error', data.error || 'שגיאה בטעינת הרשימה');
     } catch(e) { showToast('error', 'שגיאת תקשורת'); }
 }
 
-function clearLoadedListName() {
-    const display = getEl('shop-list-name-display');
-    if (display) display.classList.add('hidden');
-}
+function clearLoadedListName() { clearListName(); }
 
 async function deleteSavedList(listId) {
     if (!confirm('למחוק רשימה שמורה זו?')) return;

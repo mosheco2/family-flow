@@ -11140,6 +11140,23 @@ app.post('/api/shopping/load-saved', verifyFamilyOrBiz, async (req, res) => {
     } catch(e) { res.status(500).json({ error: 'שגיאה פנימית' }); }
 });
 
+app.put('/api/shopping/saved/:id', verifyFamilyOrBiz, async (req, res) => {
+    try {
+        const { items, name } = req.body;
+        const row = await pool.query('SELECT group_id FROM saved_shopping_lists WHERE id=$1', [req.params.id]);
+        if (row.rows.length === 0) return res.status(404).json({ error: 'לא נמצא' });
+        if (row.rows[0].group_id !== req.callerAuth.groupId) return res.status(403).json({ error: 'אין הרשאה' });
+        const fields = [], params = [];
+        let idx = 1;
+        if (items !== undefined) { fields.push(`items=$${idx++}`); params.push(JSON.stringify(items)); }
+        if (name !== undefined) { fields.push(`name=$${idx++}`); params.push(String(name).trim().substring(0, 200)); }
+        if (fields.length === 0) return res.status(400).json({ error: 'אין מה לעדכן' });
+        params.push(req.params.id);
+        await pool.query(`UPDATE saved_shopping_lists SET ${fields.join(',')} WHERE id=$${idx}`, params);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: 'שגיאה פנימית' }); }
+});
+
 app.delete('/api/shopping/saved/:id', verifyFamilyOrBiz, async (req, res) => {
     try {
         const row = await pool.query('SELECT group_id FROM saved_shopping_lists WHERE id=$1', [req.params.id]);

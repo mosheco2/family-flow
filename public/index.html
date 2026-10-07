@@ -946,13 +946,26 @@
                             </div>
                         </div>
 
-                        <!-- שם רשימה שמורה שנטענה -->
-                        <div id="shop-list-name-display" class="hidden flex items-center gap-2 mb-2 px-2">
-                            <span class="flex items-center gap-1.5 bg-amber-50 border border-amber-200 text-amber-700 rounded-xl px-3 py-1.5 text-xs font-bold flex-1 min-w-0">
-                                <i class="fa-solid fa-bookmark text-amber-500 shrink-0"></i>
-                                <span id="shop-list-name-text" class="truncate"></span>
-                            </span>
-                            <button onclick="clearLoadedListName()" class="text-slate-400 hover:text-slate-600 text-xs px-2 py-1.5 rounded-lg bg-slate-50 border border-slate-100 shrink-0"><i class="fa-solid fa-xmark"></i></button>
+                        <!-- שם / כותרת רשימת קניות + שמירה אוטומטית -->
+                        <div id="shop-list-name-area" class="mb-2 px-2">
+                            <div class="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-3 py-2 shadow-sm">
+                                <i class="fa-solid fa-bookmark text-amber-400 shrink-0 text-sm"></i>
+                                <input type="text" id="shop-list-name-input"
+                                       placeholder="תן שם לרשימה הזאת..."
+                                       class="flex-1 text-sm text-slate-700 font-medium bg-transparent outline-none min-w-0"
+                                       oninput="onListNameInput(this.value)"
+                                       maxlength="80">
+                                <span id="shop-autosave-indicator" class="hidden text-[10px] text-slate-400 font-medium whitespace-nowrap shrink-0">
+                                    <i class="fa-solid fa-circle-check text-emerald-400"></i> נשמר
+                                </span>
+                                <button id="shop-save-btn" onclick="manualSaveList()"
+                                        class="hidden bg-amber-500 text-white text-xs font-bold px-3 py-1.5 rounded-lg hover:bg-amber-600 transition shrink-0">
+                                    שמור
+                                </button>
+                                <button id="shop-clear-name-btn" onclick="clearListName()" class="hidden text-slate-300 hover:text-slate-500 transition shrink-0">
+                                    <i class="fa-solid fa-xmark text-xs"></i>
+                                </button>
+                            </div>
                         </div>
 
                         <div id="shop-supermarket-btns" class="flex flex-col gap-2 mb-3 px-2">
@@ -2460,10 +2473,7 @@
                 <h3 class="text-lg font-bold text-slate-800">📋 רשימות קניות שמורות</h3>
                 <button onclick="document.getElementById('saved-lists-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600 bg-slate-100 w-8 h-8 rounded-full flex items-center justify-center transition"><i class="fa-solid fa-xmark"></i></button>
             </div>
-            <div class="bg-amber-50 border border-amber-100 rounded-xl p-3 mb-4 flex items-center justify-between gap-2">
-                <input type="text" id="save-list-name" class="flex-1 bg-white border border-amber-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-amber-400" placeholder="שם לרשימה הנוכחית...">
-                <button onclick="saveCurrentList()" class="bg-amber-500 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-amber-600 transition flex-shrink-0">שמור</button>
-            </div>
+            <p class="text-xs text-slate-400 mb-3 text-center">בחר רשימה לטעינה לעגלה</p>
             <div id="saved-lists-content" class="space-y-2 flex-1 min-h-[120px]">
                 <p class="text-slate-400 text-sm text-center py-4">אין רשימות שמורות עדיין</p>
             </div>
