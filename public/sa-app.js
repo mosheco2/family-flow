@@ -16562,6 +16562,16 @@ function _saShukaRenderGeneral(body) {
                         }).join('')}
                     </div>
                 </div>
+                <div style="border:1px solid #e2e8f0;border-radius:10px;padding:10px;">
+                    <p style="font-size:11px;font-weight:700;color:#64748b;margin:0 0 4px;"><span style="color:#ec4899;">🕐</span> שעות פעילות</p>
+                    <p style="font-size:10px;color:#94a3b8;margin:0 0 8px;">ריק = כל השעות. הגדר חלון זמן להזמנות.</p>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                        <div><label style="font-size:10px;font-weight:700;color:#94a3b8;display:block;margin-bottom:3px;">שעת פתיחה</label>
+                            <input type="time" id="_sas-ah-start" value="${c.active_hours?.start || ''}" style="width:100%;border:1px solid #e2e8f0;border-radius:8px;padding:6px 10px;font-size:13px;box-sizing:border-box;"></div>
+                        <div><label style="font-size:10px;font-weight:700;color:#94a3b8;display:block;margin-bottom:3px;">שעת סגירה</label>
+                            <input type="time" id="_sas-ah-end" value="${c.active_hours?.end || ''}" style="width:100%;border:1px solid #e2e8f0;border-radius:8px;padding:6px 10px;font-size:13px;box-sizing:border-box;"></div>
+                    </div>
+                </div>
                 <button onclick="window.saShukaUpdateSettings()" style="background:#4f46e5;color:#fff;border:none;border-radius:10px;padding:10px 20px;font-size:13px;font-weight:700;cursor:pointer;margin-top:4px;">שמור שינויים</button>
             </div>
         </div>
@@ -16710,6 +16720,9 @@ window.saShukaUpdateSettings = async function() {
     const activeDays = activeDaysChecks.length === 7 || activeDaysChecks.length === 0
         ? null
         : Array.from(activeDaysChecks).map(cb => parseInt(cb.value));
+    const ahStart = document.getElementById('_sas-ah-start')?.value || null;
+    const ahEnd   = document.getElementById('_sas-ah-end')?.value || null;
+    const activeHours = (ahStart && ahEnd) ? { start: ahStart, end: ahEnd } : null;
     const body = {
         title: document.getElementById('_sas-title')?.value.trim() || null,
         slogan: document.getElementById('_sas-slogan')?.value.trim() || null,
@@ -16719,6 +16732,7 @@ window.saShukaUpdateSettings = async function() {
         startAt: document.getElementById('_sas-start')?.value || null,
         endAt: document.getElementById('_sas-end')?.value || null,
         activeDays,
+        activeHours,
     };
     try {
         const res = await fetch(`${API}/sa/shuka/campaigns/${id}`, { method: 'PATCH', headers: _saHeaders(), body: JSON.stringify(body) });

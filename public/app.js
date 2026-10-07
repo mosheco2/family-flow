@@ -8323,10 +8323,13 @@ async function cmSaveCampaignSettings(campaignId, commId) {
     const activeDays = activeDaysChecks.length === 7 || activeDaysChecks.length === 0
         ? null
         : Array.from(activeDaysChecks).map(cb => parseInt(cb.value));
+    const ahStart = document.getElementById(`cmc-ah-start-${campaignId}`)?.value || null;
+    const ahEnd   = document.getElementById(`cmc-ah-end-${campaignId}`)?.value || null;
+    const activeHours = (ahStart && ahEnd) ? { start: ahStart, end: ahEnd } : null;
     try {
         const res = await communityFetch(`${API}/community/manager/campaigns/${campaignId}`, {
             method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ title, slogan: slogan || null, logoUrl: logoUrl || null, bannerImageUrl: bannerImageUrl || null, hideTitle, shareDescription: shareDescription || null, orderingEnabled, activeDays })
+            body: JSON.stringify({ title, slogan: slogan || null, logoUrl: logoUrl || null, bannerImageUrl: bannerImageUrl || null, hideTitle, shareDescription: shareDescription || null, orderingEnabled, activeDays, activeHours })
         });
         const data = await res.json();
         if (!data.success) return showToast('error', data.error || 'שגיאה');
@@ -8423,6 +8426,20 @@ async function cmOpenCampaignManage(campaignId, commId) {
                                 <span class="text-[9px] font-bold text-slate-600">${label}'</span>
                             </label>`;
                         }).join('')}
+                    </div>
+                </div>
+                <div class="border border-slate-200 bg-white rounded-lg p-2.5">
+                    <p class="text-xs font-bold text-slate-700 mb-1"><i class="fa-solid fa-clock text-pink-500 mr-1"></i>שעות פעילות</p>
+                    <p class="text-[9px] text-slate-400 mb-1.5">ריק = כל השעות. הגדר חלון זמן להזמנות.</p>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="text-[9px] font-bold text-slate-400 block mb-1">פתיחה</label>
+                            <input type="time" id="cmc-ah-start-${campaignId}" value="${c.active_hours?.start || ''}" class="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-xs">
+                        </div>
+                        <div>
+                            <label class="text-[9px] font-bold text-slate-400 block mb-1">סגירה</label>
+                            <input type="time" id="cmc-ah-end-${campaignId}" value="${c.active_hours?.end || ''}" class="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-xs">
+                        </div>
                     </div>
                 </div>
                 <button onclick="cmSaveCampaignSettings(${campaignId}, ${commId})" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-2 rounded-lg text-xs mt-1 transition"><i class="fa-solid fa-floppy-disk ml-1.5"></i>שמור הגדרות</button>

@@ -11,6 +11,47 @@
     let _sheetId = null, _sheetQty = 1, _sheetExtras = {};
 
     function csSafe(s) { return (s == null ? '' : String(s)).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+
+    const _CS_DAY_NAMES = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
+    function _isMarketOpen(c) {
+        if (!c || c.ordering_enabled === false) return false;
+        const now = new Date();
+        const effectiveDays = (c.active_days && c.active_days.length) ? c.active_days : [0,1,2,3,4,5,6];
+        if (!effectiveDays.includes(now.getDay())) return false;
+        if (c.active_hours && c.active_hours.start && c.active_hours.end) {
+            const [sh, sm] = c.active_hours.start.split(':').map(Number);
+            const [eh, em] = c.active_hours.end.split(':').map(Number);
+            const nowMins = now.getHours() * 60 + now.getMinutes();
+            if (nowMins < sh * 60 + sm || nowMins >= eh * 60 + em) return false;
+        }
+        return true;
+    }
+    function _nextOpenText(c) {
+        if (!c || c.ordering_enabled === false) return null;
+        const now = new Date();
+        const effectiveDays = (c.active_days && c.active_days.length) ? c.active_days : [0,1,2,3,4,5,6];
+        const ah = c.active_hours;
+        const [sh, sm] = ah?.start ? ah.start.split(':').map(Number) : [0, 0];
+        const nowMins = now.getHours() * 60 + now.getMinutes();
+        for (let i = 0; i <= 7; i++) {
+            const d = new Date(now); d.setDate(d.getDate() + i);
+            const dow = d.getDay();
+            if (!effectiveDays.includes(dow)) continue;
+            if (i === 0 && nowMins < sh * 60 + sm) return `היום בשעה ${ah?.start || '00:00'}`;
+            if (i === 0) continue; // past closing today
+            return ah?.start ? `יום ${_CS_DAY_NAMES[dow]} בשעה ${ah.start}` : `יום ${_CS_DAY_NAMES[dow]}`;
+        }
+        return null;
+    }
+    function _showMarketClosedMsg(c) {
+        if (c && c.ordering_enabled === false) {
+            csToast('שמחים שאתם נלהבים כמונו ממוצרי השוק, הם יהיו זמינים בקרוב - ניתן להתעדכן מול רכזת הקהילה', 4500);
+            return;
+        }
+        const next = _nextOpenText(c);
+        csToast(next ? `השוק סגור כרגע. הפתיחה הקרובה: ${next}` : 'השוק סגור כרגע. ניתן להתעדכן מול רכזת הקהילה', 4500);
+    }
+
     function csToast(msg, ms) {
         const t = document.getElementById('toast');
         t.textContent = msg;
@@ -339,9 +380,8 @@
     window.openSheet = function(id) {
         const p = findProduct(id);
         if (!p) return;
-        // אותו כלל ברזל — לא ניתן לפתוח מוצר מעסק אחר כשיש כבר עגלה פעילה מעסק שונה
-        if (campaignData?.campaign?.ordering_enabled === false) {
-            csToast('שמחים שאתם נלהבים כמונו ממוצרי השוק, הם יהיו זמינים בקרוב - ניתן להתעדכן מול רכזת הקהילה', 4500);
+        if (!_isMarketOpen(campaignData?.campaign)) {
+            _showMarketClosedMsg(campaignData?.campaign);
             return;
         }
         if (cart.length && String(cart[0].businessGroupId) !== String(p.group_id)) {
@@ -494,8 +534,8 @@
 
     // כלל ברזל: אי אפשר להזמין מוצרים משני עסקים שונים באותה הזמנה — נאכף גם בשרת.
     window.csAddToCart = function(product) {
-        if (campaignData?.campaign?.ordering_enabled === false) {
-            csToast('שמחים שאתם נלהבים כמונו ממוצרי השוק, הם יהיו זמינים בקרוב - ניתן להתעדכן מול רכזת הקהילה', 4500);
+        if (!_isMarketOpen(campaignData?.campaign)) {
+            _showMarketClosedMsg(campaignData?.campaign);
             return;
         }
         if (cart.length && String(cart[0].businessGroupId) !== String(product.group_id)) {
@@ -608,6 +648,10 @@
     };
 
     window.csSubmitOrder = async function() {
+        if (!_isMarketOpen(campaignData?.campaign)) {
+            _showMarketClosedMsg(campaignData?.campaign);
+            return;
+        }
         const btn = document.getElementById('panel-primary-btn');
         btn.disabled = true; btn.textContent = 'שולח...';
         try {
@@ -618,7 +662,14 @@
             });
             const data = await res.json();
             if (!data.success) {
-                csToast(data.error || 'שגיאה בשליחת ההזמנה');
+                if (data.marketClosed) {
+                    const msg = data.nextOpenText
+                        ? `השוק סגור כרגע. הפתיחה הקרובה: ${data.nextOpenText}`
+                        : (data.error || 'השוק סגור כרגע');
+                    csToast(msg, 5000);
+                } else {
+                    csToast(data.error || 'שגיאה בשליחת ההזמנה');
+                }
                 btn.disabled = false; btn.textContent = 'שלח הזמנה';
                 return;
             }
@@ -728,8 +779,8 @@ function _cxEnsureModal() {
 window.openComplexProductModal = function(id) {
     const p = findProduct(id);
     if (!p) return;
-    if (campaignData?.campaign?.ordering_enabled === false) {
-        csToast('שמחים שאתם נלהבים כמונו ממוצרי השוק, הם יהיו זמינים בקרוב - ניתן להתעדכן מול רכזת הקהילה', 4500);
+    if (!_isMarketOpen(campaignData?.campaign)) {
+        _showMarketClosedMsg(campaignData?.campaign);
         return;
     }
     if (cart.length && String(cart[0].businessGroupId) !== String(p.group_id)) {
