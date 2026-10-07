@@ -874,8 +874,8 @@ function switchTab(t) { 
     var wrapper = document.getElementById('main-tabs-wrapper');
     if (wrapper) wrapper.style.paddingBottom = (t === 'marketplace' || t === 'kol-haam') ? '0' : '';
 
-    if (t !== 'shop') { const fab = getEl('fab-container'); if(fab) fab.classList.remove('fab-lifted'); const saf = getEl('shop-add-fab'); if(saf) saf.classList.add('hidden'); } else { const saf = getEl('shop-add-fab'); if(saf) saf.classList.remove('hidden'); }
-    else { try { renderShopList(); } catch(e) {} }
+    if (t !== 'shop') { const fab = getEl('fab-container'); if(fab) fab.classList.remove('fab-lifted'); const saf = getEl('shop-add-fab'); if(saf) saf.classList.add('hidden'); }
+    else { const saf = getEl('shop-add-fab'); if(saf) saf.classList.remove('hidden'); try { renderShopList(); } catch(e) {} }
     
     if (t === 'pantry') try { renderPantry(); } catch(e) {}
     if (t === 'recipes') try { renderRecipePantrySelection(); } catch(e) {}
