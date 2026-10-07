@@ -5325,9 +5325,8 @@ async function loadSavedLists() {
 // ---- state כותרת ושמירה אוטומטית ----
 let _pendingLoadListId = null;
 let _pendingLoadListName = null;
-let _activeListId = null;    // ID הרשימה הנוכחית לשמירה אוטומטית
+let _activeListId = null;    // ID הרשימה הנוכחית
 let _activeListName = '';    // שם הרשימה הנוכחית
-let _autoSaveTimer = null;
 
 function _setListUI(name) {
     const input = getEl('shop-list-name-input');
@@ -5347,34 +5346,20 @@ function onListNameInput(value) {
     const clearBtn = getEl('shop-clear-name-btn');
     if (saveBtn) saveBtn.classList.toggle('hidden', !_activeListName);
     if (clearBtn) clearBtn.classList.toggle('hidden', !_activeListName);
-    if (_activeListName) startAutoSave(); else stopAutoSave();
 }
 
 function setActiveList(listId, listName) {
     _activeListId = listId;
     _activeListName = listName || '';
     _setListUI(_activeListName);
-    if (_activeListName) startAutoSave(); else stopAutoSave();
 }
 
 function clearListName() {
-    stopAutoSave();
     _activeListId = null;
     _activeListName = '';
     _setListUI('');
 }
 
-function startAutoSave() {
-    stopAutoSave();
-    if (!_activeListName) return;
-    _autoSaveTimer = setInterval(autoSaveList, 3 * 60 * 1000); // כל 3 דקות
-}
-
-function stopAutoSave() {
-    if (_autoSaveTimer) { clearInterval(_autoSaveTimer); _autoSaveTimer = null; }
-}
-
-async function autoSaveList() { await _doSaveList(false); }
 async function manualSaveList() { await _doSaveList(true); }
 
 async function _doSaveList(showFeedback) {
