@@ -39503,8 +39503,6 @@ app.get('/api/kol-haam/content/:id', async (req, res) => {
             WHERE ci.id = $1
         `, [req.params.id]);
         if (!r.rows.length) return res.status(404).json({ error: 'לא נמצא' });
-        // update views (non-blocking)
-        pool.query(`UPDATE content_items SET views_count = views_count + 1 WHERE id=$1`, [req.params.id]).catch(()=>{});
         res.json({ success: true, item: r.rows[0] });
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -39527,7 +39525,8 @@ app.get('/api/kol-haam/categories', async (req, res) => {
 
 // ─── זריעת תוכן לדוגמא ───────────────────────────────────────
 app.post('/api/kol-haam/seed-demo', async (req, res) => {
-    if (req.body.secret !== 'SEED_DEMO_2026') return res.status(403).json({ error: 'אסור' });
+    const _seedSecret = process.env.SEED_SECRET || 'SEED_DEMO_2026';
+    if (req.body.secret !== _seedSecret) return res.status(403).json({ error: 'אסור' });
     const log = [];
     try {
         // 1. מצא את קבוצת המשפחה NWP701
@@ -39956,9 +39955,10 @@ app.post('/api/kol-haam/content/:id/collaborators', verifyFamily, async (req, re
 });
 
 // ─── הטיוטות שלי ─────────────────────────────────────────────
-app.get('/api/kol-haam/my-drafts', async (req, res) => {
+app.get('/api/kol-haam/my-drafts', verifyFamily, async (req, res) => {
     try {
-        const { groupId, userId } = req.query;
+        const groupId = req.familyAuth.groupId;
+        const userId  = req.familyAuth.userId;
         const r = await pool.query(`
             SELECT ci.id, ci.title, ci.subtitle, ci.content_type, ci.status, ci.updated_at, ci.created_at,
                    ap.family_group_id as owner_group_id,
@@ -39976,9 +39976,9 @@ app.get('/api/kol-haam/my-drafts', async (req, res) => {
 });
 
 // ─── התוכן שלי ───────────────────────────────────────────────
-app.get('/api/kol-haam/my-content', async (req, res) => {
+app.get('/api/kol-haam/my-content', verifyFamily, async (req, res) => {
     try {
-        const { groupId } = req.query;
+        const groupId = req.familyAuth.groupId;
         const r = await pool.query(`
             SELECT ci.id, ci.title, ci.content_type, ci.status, ci.scope_type,
                    ci.zm_approval_status, ci.zm_rejection_note,
@@ -40075,14 +40075,10 @@ app.post('/api/kol-haam/zm/:id/approve', verifyZoneManager, async (req, res) => 
                 updated_at = NOW()
             WHERE id = $3
         `, [
-            isGlobal ? 'PENDING_SA' : 'PUBLISHED_LOCAL',  // אם גלובלי → כנס לתור SA, אחרת פרסם מקומית
+            isGlobal ? 'PENDING_SA' : 'PUBLISHED_LOCAL',
             isGlobal ? 'PENDING' : 'NOT_APPLICABLE',
             it.id
         ]);
-        // אם גלובלי — published_at נרשם כבר (מקומי), אבל status=PENDING_SA
-        if (isGlobal) {
-            await pool.query(`UPDATE content_items SET status='PENDING_SA', published_at=NOW() WHERE id=$1`, [it.id]);
-        }
         // עדכון last_published_at בפרופיל הכותב
         if (!isGlobal) {
             await pool.query(`UPDATE author_profiles SET last_published_at=NOW() WHERE id=$1`, [it.author_profile_id]);
@@ -40932,9 +40928,8 @@ app.post('/api/kol-haam/content/:id/save', verifyFamily, async (req, res) => {
 });
 
 // GET /api/kol-haam/my-saved
-app.get('/api/kol-haam/my-saved', async (req, res) => {
-    const { user_id } = req.query;
-    if (!user_id) return res.json({ success: false, error: 'missing user_id' });
+app.get('/api/kol-haam/my-saved', verifyFamily, async (req, res) => {
+    const user_id = req.familyAuth.userId;
     try {
         const { rows } = await pool.query(`
             SELECT ci.id, ci.title, ci.subtitle, ci.cover_image_url, ci.content_type, ci.status,
@@ -41474,7 +41469,7 @@ app.post('/api/kol-haam/content/:id/un-quarantine', async (req, res) => {
 app.get('/api/kol-haam/feed/trending', async (req, res) => {
     const { community_id, limit = 8 } = req.query;
     try {
-        let where = `ci.status IN ('PUBLISHED_LOCAL','PUBLISHED_GLOBAL') AND ci.is_quarantined=false`;
+        let where = `ci.status IN ('PUBLISHED_LOCAL','PUBLISHED_GLOBAL') AND COALESCE(ci.is_quarantined,false)=false`;
         const params = [];
         if (community_id) {
             params.push(community_id);
@@ -41482,19 +41477,21 @@ app.get('/api/kol-haam/feed/trending', async (req, res) => {
         }
         const { rows } = await pool.query(`
             SELECT ci.id, ci.title, ci.cover_image_url, ci.content_type, ci.reading_time_minutes,
-                   ci.published_at, cem.current_trending_score,
-                   cem.likes_count, cem.comments_count
+                   ci.published_at, COALESCE(cem.current_trending_score,0) as current_trending_score,
+                   COALESCE(cem.likes_count,0) as likes_count, COALESCE(cem.comments_count,0) as comments_count
             FROM content_items ci
-            JOIN content_engagement_metrics cem ON cem.content_item_id=ci.id
+            LEFT JOIN content_engagement_metrics cem ON cem.content_item_id=ci.id
             WHERE ${where}
-              AND (ci.pinned_until IS NULL OR ci.pinned_until < NOW())
-            ORDER BY cem.current_trending_score DESC
+            ORDER BY COALESCE(cem.current_trending_score,0) DESC
             LIMIT $${params.length+1}
         `, [...params, limit]);
         // pinned hero
         const { rows: pinned } = await pool.query(`
             SELECT ci.id, ci.title, ci.cover_image_url, ci.content_type, ci.reading_time_minutes, ci.published_at
-            FROM content_items ci WHERE ci.status='PUBLISHED_GLOBAL' AND ci.pinned_until >= NOW()
+            FROM content_items ci
+            WHERE ci.status='PUBLISHED_GLOBAL'
+              AND ci.pinned_until >= NOW()
+              AND COALESCE(ci.is_quarantined, false) = false
             ORDER BY ci.pinned_until DESC LIMIT 1
         `);
         res.json({ success: true, items: rows, hero: pinned[0] || null });
@@ -41504,7 +41501,7 @@ app.get('/api/kol-haam/feed/trending', async (req, res) => {
 app.get('/api/kol-haam/feed/hot-comments', async (req, res) => {
     const { community_id, limit = 5 } = req.query;
     try {
-        let where = `ci.status IN ('PUBLISHED_LOCAL','PUBLISHED_GLOBAL') AND ci.is_quarantined=false`;
+        let where = `ci.status IN ('PUBLISHED_LOCAL','PUBLISHED_GLOBAL') AND COALESCE(ci.is_quarantined,false)=false`;
         const params = [];
         if (community_id) {
             params.push(community_id);
@@ -41575,7 +41572,8 @@ app.get('/api/kol-haam/sa/categories', verifySA, async (req, res) => {
 
 // POST /api/kol-haam/seed-version-history — seed content_version_history records for UI demo
 app.post('/api/kol-haam/seed-version-history', async (req, res) => {
-    if (req.body.secret !== 'SEED_DEMO_2026') return res.status(403).json({ error: 'אסור' });
+    const _seedSecret = process.env.SEED_SECRET || 'SEED_DEMO_2026';
+    if (req.body.secret !== _seedSecret) return res.status(403).json({ error: 'אסור' });
     try {
         // Find a sample published content item to attach versions to
         const itemR = await pool.query(`

@@ -30,6 +30,7 @@ const STATE = {
 
 // ── Autosave state ────────────────────────────────────────────
 let _khAutoSaveTimer    = null;
+let _khDisplayTimer     = null;
 let _khCurrentHash      = '';   // מתעדכן בכל הקלדה
 let _khLastSavedHash    = '';   // מתעדכן רק אחרי שמירה מוצלחת
 let _khLastSavedAt      = null; // Date | null
@@ -58,6 +59,7 @@ function _khSetAutosaveStatus(state) {
 
 function teardownEditor() {
     if (_khAutoSaveTimer) { clearInterval(_khAutoSaveTimer); _khAutoSaveTimer = null; }
+    if (_khDisplayTimer)  { clearInterval(_khDisplayTimer);  _khDisplayTimer  = null; }
     window.removeEventListener('beforeunload', _khBeforeUnload);
     _khCurrentHash = '';
     _khLastSavedHash = '';
@@ -318,7 +320,7 @@ const KH = {
             </div>`;
         }).join('');
         return `<div class="feed-strip-wrap">
-            <div class="feed-section-hdr"><h2>${title}</h2><a>לכל הכתבות ←</a></div>
+            <div class="feed-section-hdr"><h2>${title}</h2><a onclick="KH.nav('list',{mode:'all',param:'כל הכתבות'})" style="cursor:pointer">לכל הכתבות ←</a></div>
             <div class="feed-strip-scroll">${cards}</div>
         </div>`;
     },
@@ -375,7 +377,7 @@ const KH = {
         <div class="feed-solutions-hdr">
             <img src="/kol-haam-assets/images/ui/ROBOTAI.webp" alt="" class="feed-solutions-robot">
             <h2 class="feed-solutions-hdr-title">פתרונות מהקהילה</h2>
-            <a>כל הפתרונות ←</a>
+            <a onclick="KH.nav('list',{mode:'all',param:'שאלות ופתרונות'})" style="cursor:pointer">כל הפתרונות ←</a>
         </div>
         <div class="feed-solutions-cards">
             <div class="feed-solutions-card feed-solutions-card-gold">
@@ -443,6 +445,7 @@ const KH = {
         ]);
         if (!data.success) { document.getElementById('content-inner').innerHTML = '<p>שגיאה בטעינה</p>'; return; }
         const it = data.item;
+        STATE.currentContentType = it.content_type;
         const userState = stateData || { reaction: null, saved: false };
         const tags = Array.isArray(it.tags) ? it.tags : (typeof it.tags === 'string' ? JSON.parse(it.tags || '[]') : []);
         const tagsHtml = tags.length ? `<div class="cv-tags"><span class="cv-tag-label">תגיות:</span>${tags.map(t => `<span class="cv-tag" onclick="KH.nav('tag',{tag:'${esc(t).replace(/'/g,'\\\'')}'})"">${esc(t)}</span>`).join('')}</div>` : '';
@@ -527,7 +530,7 @@ const KH = {
                         <img src="/kol-haam-assets/images/ui/ROBOTAI.webp" alt="" style="width:76px;height:76px;object-fit:contain;display:block;margin:0 auto 6px;" onerror="this.style.display='none'">
                         <div class="cv-newsletter-title">שליטה חכמה, זרימה אחת</div>
                         <div class="cv-newsletter-sub">הצטרפו לניוזלטר הקהילתי — כתבה אחת בשבוע.</div>
-                        <button class="cv-newsletter-cta">הרשמה</button>
+                        <button class="cv-newsletter-cta" onclick="toast('הרשמה לניוזלטר — בקרוב!','info')">הרשמה</button>
                     </div>
                     ${seriesAside}
                 </aside>
@@ -657,7 +660,7 @@ const KH = {
         if (r.success) {
             textEl.value = '';
             if (parentId) document.getElementById(`reply-form-${parentId}`)?.classList.add('hidden');
-            KH.loadComments(contentId, null, 'new');
+            KH.loadComments(contentId, STATE.currentContentType || null, 'new');
         } else {
             toast(r.error || 'שגיאה בשליחת תגובה', 'error');
         }
@@ -997,7 +1000,7 @@ const KH = {
         }, 30_000);
 
         // עדכון טקסט "נשמר לפני X" כל דקה
-        setInterval(() => { if (_khLastSavedAt) _khSetAutosaveStatus('saved'); }, 60_000);
+        _khDisplayTimer = setInterval(() => { if (_khLastSavedAt) _khSetAutosaveStatus('saved'); }, 60_000);
     },
 
     selectType(type) {
@@ -1073,6 +1076,15 @@ const KH = {
         KH.renderTagChips();
     },
 
+    addTagFromEl(el) {
+        const tag = el.dataset.tag || '';
+        if (tag) KH.addTag(tag);
+        const inp = document.getElementById('tag-input');
+        if (inp) inp.value = '';
+        const sug = document.getElementById('tags-suggestions');
+        if (sug) sug.style.display = 'none';
+    },
+
     async tagSuggest(q) {
         const sugEl = document.getElementById('tags-suggestions');
         if (!q.trim()) { sugEl.style.display = 'none'; return; }
@@ -1080,7 +1092,7 @@ const KH = {
         const suggestions = (d.tags || []).filter(t => !STATE.tags.includes(t));
         if (!suggestions.length) { sugEl.style.display = 'none'; return; }
         sugEl.style.display = '';
-        sugEl.innerHTML = suggestions.map(t => `<div class="tags-suggestion-item" onclick="KH.addTag('${esc(t)}');document.getElementById('tag-input').value='';document.getElementById('tags-suggestions').style.display='none'">#${esc(t)}</div>`).join('');
+        sugEl.innerHTML = suggestions.map(t => `<div class="tags-suggestion-item" data-tag="${esc(t)}" onclick="KH.addTagFromEl(this)">#${esc(t)}</div>`).join('');
     },
 
     // ── Cover image upload ──────────────────────────────────
