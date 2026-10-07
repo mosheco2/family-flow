@@ -10860,14 +10860,15 @@ app.get('/api/data/:userId', verifyFamilyOrBiz, async (req, res) => {
 
 app.post('/api/shopping/add', verifyFamilyOrBiz, async (req, res) => {
     try {
-        const { itemName, quantity, unit, estimatedPrice, unitsPerPackage } = req.body;
+        const { itemName, quantity, unit, estimatedPrice, unitsPerPackage, note } = req.body;
         const actualGroupId = req.callerAuth.groupId;
         const userId = req.callerAuth.userId;
         const userRole = req.callerAuth.role;
         if (!itemName || !String(itemName).trim()) return res.status(400).json({ success: false, error: 'שם פריט חסר' });
         const safeItemName = String(itemName).trim().substring(0, 200);
+        const safeNote = note ? String(note).trim().substring(0, 500) : null;
         const itemStatus = userRole === 'ADMIN' ? 'pending' : 'requested';
-        await pool.query(`INSERT INTO shopping_list (group_id, requester_id, item_name, quantity, unit, estimated_price, units_per_package, status) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`, [actualGroupId, userId || null, safeItemName, Math.max(0, parseFloat(quantity) || 1), unit || 'יח\'', Math.max(0, parseFloat(estimatedPrice) || 0), Math.max(1, parseInt(unitsPerPackage) || 1), itemStatus]);
+        await pool.query(`INSERT INTO shopping_list (group_id, requester_id, item_name, quantity, unit, estimated_price, units_per_package, status, note) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`, [actualGroupId, userId || null, safeItemName, Math.max(0, parseFloat(quantity) || 1), unit || 'יח\'', Math.max(0, parseFloat(estimatedPrice) || 0), Math.max(1, parseInt(unitsPerPackage) || 1), itemStatus, safeNote]);
         await logActivity(actualGroupId, userId || null, null, 'shopping', 'item_added', `${safeItemName} נוסף לרשימת הקניות`);
         res.json({ success: true, status: itemStatus });
     } catch(e) { res.status(500).json({ success: false, error: 'שגיאה פנימית' }); }

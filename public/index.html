@@ -2345,6 +2345,9 @@
                         <span class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs">כמה יח' בודדות יש במארז?</span>
                     </div>
                 </div>
+                <div class="relative">
+                    <input type="text" id="shop-note" class="modern-input" placeholder="הערה (אופציונלי)" maxlength="200">
+                </div>
             </div>
             <div class="flex gap-3 mt-6"><button onclick="document.getElementById('shop-modal').classList.add('hidden')" class="flex-1 bg-slate-100 py-3 rounded-xl font-bold text-slate-500">ביטול</button><button id="btn-submit-shop" onclick="submitShopItem()" class="flex-1 bg-blue-600 text-white py-3 rounded-xl font-bold">הוסף לרשימה</button></div>
         </div>
@@ -2614,6 +2617,10 @@
                 <div>
                     <label class="text-xs font-bold text-slate-500 block mb-1">קטגוריה</label>
                     <select id="edit-item-category" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-400 bg-white"></select>
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-500 block mb-1">הערה</label>
+                    <input type="text" id="edit-item-note" class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-400" placeholder="הערה (אופציונלי)" maxlength="200">
                 </div>
             </div>
             <div class="flex gap-3 mt-5">

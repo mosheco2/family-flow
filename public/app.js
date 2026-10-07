@@ -4510,27 +4510,27 @@ function filterSuggestions(v) { const list = getEl('suggestions'); list.innerHTM
 
 async function submitShopItem() {
     const itemInput = getEl('shop-item'); const btn = getEl('btn-submit-shop');
-    const item = itemInput.value.trim(); const qty = parseFloat(val('shop-quantity')) || 1; const est = parseFloat(val('shop-est-price')) || 0; const unit = val('shop-unit') || "יח'"; const upp = parseInt(val('shop-upp')) || 1;
+    const item = itemInput.value.trim(); const qty = parseFloat(val('shop-quantity')) || 1; const est = parseFloat(val('shop-est-price')) || 0; const unit = val('shop-unit') || "יח'"; const upp = parseInt(val('shop-upp')) || 1; const note = (val('shop-note') || '').trim();
     if(!item) return; if (btn && btn.disabled) return;
     const isKnown = FLAT_PRODUCTS.some(p => p.name === item) || categoryMapCache[item];
     if (!isKnown) {
-        window._pendingShopItem = { item, qty, est, unit, upp };
+        window._pendingShopItem = { item, qty, est, unit, upp, note };
         getEl('cat-picker-name').innerText = item;
         getEl('cat-picker-modal').classList.remove('hidden');
         return;
     }
-    await _doSubmitShopItem(item, qty, est, unit, upp);
+    await _doSubmitShopItem(item, qty, est, unit, upp, note);
 }
 
-async function _doSubmitShopItem(item, qty, est, unit, upp) {
+async function _doSubmitShopItem(item, qty, est, unit, upp, note) {
     const btn = getEl('btn-submit-shop');
     if (btn) { btn.disabled = true; btn.innerText = 'מוסיף...'; }
     try {
-        const res = await communityFetch(`${API}/shopping/add`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemName: item, quantity: qty, unit: unit, estimatedPrice: est, unitsPerPackage: upp, userId: currentUser.id, groupId: currentGroup.id}) });
+        const res = await communityFetch(`${API}/shopping/add`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({itemName: item, quantity: qty, unit: unit, estimatedPrice: est, unitsPerPackage: upp, note: note || null, userId: currentUser.id, groupId: currentGroup.id}) });
         const data = await res.json();
         if (data.success) {
             const itemInput = getEl('shop-item');
-            getEl('shop-modal').classList.add('hidden'); itemInput.value = ''; getEl('shop-est-price').value = ''; getEl('shop-quantity').value = 1; getEl('shop-unit').value = "יח'"; getEl('shop-upp').value = 1; getEl('suggestions').classList.add('hidden');
+            getEl('shop-modal').classList.add('hidden'); itemInput.value = ''; getEl('shop-est-price').value = ''; getEl('shop-quantity').value = 1; getEl('shop-unit').value = "יח'"; getEl('shop-upp').value = 1; getEl('suggestions').classList.add('hidden'); const noteInp = getEl('shop-note'); if(noteInp) noteInp.value = '';
             if (data.alert && data.id) wisdomCache[data.id] = data.alert.msg;
             showToast('success', data.status === 'requested' ? 'הבקשה נשלחה להורה לאישור ⏳' : 'נוסף לרשימה'); fetchData();
         } else { showToast('error', data.error || 'שגיאת שרת בהוספת פריט לרכש'); }
@@ -4554,7 +4554,7 @@ async function confirmCategoryPick(category) {
     if (p._fromSupermarket) {
         await _doSmQuickAdd(p.item);
     } else {
-        await _doSubmitShopItem(p.item, p.qty, p.est, p.unit, p.upp);
+        await _doSubmitShopItem(p.item, p.qty, p.est, p.unit, p.upp, p.note);
     }
     window._pendingShopItem = null;
 }
@@ -5223,6 +5223,7 @@ function openEditShopItem(id) {
     for (let opt of unitSel.options) { if (opt.value === unitVal) { opt.selected = true; found = true; break; } }
     if (!found) { const opt = new Option(unitVal, unitVal, true, true); unitSel.add(opt); }
     getEl('edit-item-price').value = item.estimated_price > 0 ? item.estimated_price : '';
+    const noteInp = getEl('edit-item-note'); if (noteInp) noteInp.value = item.note || '';
     const catSel = getEl('edit-item-category');
     catSel.innerHTML = '';
     const currentCat = (() => { for(const [cat, items] of Object.entries(PRODUCT_DB)) { if(items.includes(item.item_name)) return cat; } return categoryMapCache[item.item_name] || 'שונות'; })();
@@ -5240,9 +5241,10 @@ async function saveEditShopItem() {
     const unit = getEl('edit-item-unit').value;
     const price = parseFloat(getEl('edit-item-price').value) || 0;
     const category = getEl('edit-item-category').value;
+    const noteInp = getEl('edit-item-note'); const note = noteInp ? noteInp.value.trim() : undefined;
     if (!name) return showToast('error', 'שם הפריט חסר');
     try {
-        const res = await communityFetch(`${API}/shopping/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({itemId: id, itemName: name, quantity: qty, unit, estimatedPrice: price})});
+        const res = await communityFetch(`${API}/shopping/update`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({itemId: id, itemName: name, quantity: qty, unit, estimatedPrice: price, note})});
         const data = await res.json();
         if (data.success) {
             if (category) {
@@ -5250,7 +5252,7 @@ async function saveEditShopItem() {
                 communityFetch(`${API}/shopping/category-map`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({groupId: currentGroup.id, normalizedName: name, category})});
             }
             const cachedItem = shoppingListCache.find(i => i.id == id);
-            if (cachedItem) { cachedItem.item_name = name; cachedItem.normalized_name = name; }
+            if (cachedItem) { cachedItem.item_name = name; cachedItem.normalized_name = name; if (note !== undefined) cachedItem.note = note; }
             getEl('edit-shop-item-modal').classList.add('hidden');
             showToast('success', 'הפריט עודכן');
             fetchData();
