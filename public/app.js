@@ -874,7 +874,7 @@ function switchTab(t) { 
     var wrapper = document.getElementById('main-tabs-wrapper');
     if (wrapper) wrapper.style.paddingBottom = (t === 'marketplace' || t === 'kol-haam') ? '0' : '';
 
-    if (t !== 'shop') { const footer = getEl('cart-footer'); if (footer) footer.classList.add('hidden'); const fab = getEl('fab-container'); if(fab) fab.classList.remove('fab-lifted'); } 
+    if (t !== 'shop') { const fab = getEl('fab-container'); if(fab) fab.classList.remove('fab-lifted'); }
     else { try { renderShopList(); } catch(e) {} }
     
     if (t === 'pantry') try { renderPantry(); } catch(e) {}
@@ -3065,8 +3065,6 @@ function renderChildDashboard() {
         // כפתור "אני בסופר" ורשימות שמורות (השורה ב-shop)
         const shopTopBtns = getEl('shop-supermarket-btns');
         if (shopTopBtns) shopTopBtns.classList.add('hidden');
-        const cartFooter = getEl('cart-footer');
-        if (cartFooter) cartFooter.classList.add('hidden');
     }
 
     // Greeting
@@ -4747,14 +4745,13 @@ function renderShopList() {
   <p class="font-bold text-sm">העגלה ריקה</p>
   <p class="text-xs mt-1">הוסף מוצרים מהקטלוג</p>
 </div>`; 
-        const f = getEl('cart-footer'); if(f) f.classList.add('hidden'); 
-        const fc = getEl('fab-container'); if(fc) fc.classList.remove('fab-lifted'); 
-        return; 
+        const fc = getEl('fab-container'); if(fc) fc.classList.remove('fab-lifted');
+        return;
     }
-    
+
     const isChild = currentUser && currentUser.role === 'CHILD';
-    if (isShopTabActive && !isChild) { const f = getEl('cart-footer'); if(f) f.classList.remove('hidden'); const fc = getEl('fab-container'); if(fc) fc.classList.add('fab-lifted'); }
-    else { const f = getEl('cart-footer'); if(f) f.classList.add('hidden'); const fc = getEl('fab-container'); if(fc) fc.classList.remove('fab-lifted'); }
+    if (isShopTabActive && !isChild) { const fc = getEl('fab-container'); if(fc) fc.classList.add('fab-lifted'); }
+    else { const fc = getEl('fab-container'); if(fc) fc.classList.remove('fab-lifted'); }
     
     const getCatScore = (name, normalized) => {
         const lookups = [normalized, name].filter(Boolean);
@@ -4824,7 +4821,7 @@ function calcRunningTotal() {
     });
     getEl('cart-total-display').innerText = `₪${total.toFixed(2)}`;
     const badgeText = totalItems > 0 ? `${collected}/${totalItems}` : '';
-    ['cart-items-badge','cart-items-badge-footer'].forEach(id => {
+    ['cart-items-badge'].forEach(id => {
         const el = getEl(id);
         if (!el) return;
         if (badgeText) { el.textContent = badgeText; el.classList.remove('hidden'); }
