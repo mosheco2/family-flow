@@ -874,7 +874,7 @@ function switchTab(t) { 
     var wrapper = document.getElementById('main-tabs-wrapper');
     if (wrapper) wrapper.style.paddingBottom = (t === 'marketplace' || t === 'kol-haam') ? '0' : '';
 
-    if (t !== 'shop') { const fab = getEl('fab-container'); if(fab) fab.classList.remove('fab-lifted'); }
+    if (t !== 'shop') { const fab = getEl('fab-container'); if(fab) fab.classList.remove('fab-lifted'); const saf = getEl('shop-add-fab'); if(saf) saf.classList.add('hidden'); } else { const saf = getEl('shop-add-fab'); if(saf) saf.classList.remove('hidden'); }
     else { try { renderShopList(); } catch(e) {} }
     
     if (t === 'pantry') try { renderPantry(); } catch(e) {}
@@ -13682,6 +13682,7 @@ async function renderMemberDashboard() {
     // Hide family containers, show member dashboard
     const dc = getEl('dashboard-container'); if (dc) dc.classList.add('hidden');
     const fab = getEl('fab-container'); if (fab) fab.classList.add('hidden');
+    const safH = getEl('shop-add-fab'); if (safH) safH.classList.add('hidden');
     let el = document.getElementById('member-dashboard-root');
     if (!el) {
         el = document.createElement('div');
