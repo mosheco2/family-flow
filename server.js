@@ -728,6 +728,7 @@ try { await client.query(`ALTER TABLE game_assignments ADD COLUMN IF NOT EXISTS 
       try { await client.query('ALTER TABLE transactions ADD COLUMN IF NOT EXISTS is_manual BOOLEAN DEFAULT TRUE'); } catch(e) {}
       try { await client.query('ALTER TABLE budget_allocations ADD COLUMN IF NOT EXISTS target_user_id INT REFERENCES users(id) ON DELETE CASCADE'); } catch(e) {}
       try { await client.query('ALTER TABLE shopping_list ADD COLUMN IF NOT EXISTS units_per_package INT DEFAULT 1'); } catch(e) {}
+      try { await client.query('ALTER TABLE shopping_list ADD COLUMN IF NOT EXISTS note TEXT'); } catch(e) {}
       try { await client.query('ALTER TABLE shopping_trip_items ADD COLUMN IF NOT EXISTS units_per_package INT DEFAULT 1'); } catch(e) {}
       try { await client.query('ALTER TABLE pantry ADD COLUMN IF NOT EXISTS units_per_package INT DEFAULT 1'); } catch(e) {}
       try { await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS permissions JSONB DEFAULT '{"tabs":["feed"]}'::jsonb`); } catch(e) {}
@@ -10874,7 +10875,7 @@ app.post('/api/shopping/add', verifyFamilyOrBiz, async (req, res) => {
 
 app.post('/api/shopping/update', verifyFamilyOrBiz, async (req, res) => {
     try {
-        const { itemId, status, estimatedPrice, itemName, quantity, unit } = req.body;
+        const { itemId, status, estimatedPrice, itemName, quantity, unit, note } = req.body;
         const groupId = req.callerAuth.groupId;
         const itemRes = await pool.query('SELECT group_id, status AS current_status FROM shopping_list WHERE id=$1', [itemId]);
         if (itemRes.rows.length === 0) return res.status(404).json({ error: 'פריט לא נמצא' });
@@ -10888,6 +10889,7 @@ app.post('/api/shopping/update', verifyFamilyOrBiz, async (req, res) => {
         if (itemName !== undefined) { const safeName = String(itemName).trim().substring(0, 200); await pool.query('UPDATE shopping_list SET item_name=$1, normalized_name=$1 WHERE id=$2', [safeName, itemId]); }
         if (quantity !== undefined) await pool.query('UPDATE shopping_list SET quantity=$1 WHERE id=$2', [Math.max(0, parseFloat(quantity) || 1), itemId]);
         if (unit !== undefined) await pool.query('UPDATE shopping_list SET unit=$1 WHERE id=$2', [unit, itemId]);
+        if (note !== undefined) await pool.query('UPDATE shopping_list SET note=$1 WHERE id=$2', [String(note).substring(0, 500), itemId]);
         res.json({ success: true });
     } catch(e) { res.status(500).json({ error: 'שגיאה פנימית' }); }
 });
