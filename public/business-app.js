@@ -3227,8 +3227,8 @@ async function loadDashboard() {
             }, 1200);
         }
 
-        // הפעלת אשף ההקמה (Onboarding) למנהלים בכניסה הראשונה
-        if (currentUser.role === 'ADMIN' && currentGroup.is_onboarded === false) {
+        // הפעלת אשף ההקמה (Onboarding) למנהלים בכניסה הראשונה — לא בסביבת דמו
+        if (currentUser.role === 'ADMIN' && currentGroup.is_onboarded === false && !currentGroup.is_demo_business) {
             setTimeout(showBusinessTypeWizardV2, 800);
         }
 
