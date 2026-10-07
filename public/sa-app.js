@@ -16374,7 +16374,7 @@ window.renderSAShukaPanel = async function() {
             <div class="bg-orange-50 px-3 py-2.5 rounded-xl border border-orange-100 text-center"><div class="text-[10px] font-bold text-orange-600 mb-1">ממתינים לטיפול</div><div class="text-xl font-black text-orange-900">${pendingTotal}</div></div>`;
     }
 
-    if (!campaigns.length) { tbody.innerHTML = '<tr><td colspan="10" class="text-center text-slate-400 py-6 text-xs">לא נמצאו שווקים</td></tr>'; return; }
+    if (!campaigns.length) { tbody.innerHTML = '<tr><td colspan="11" class="text-center text-slate-400 py-6 text-xs">לא נמצאו שווקים</td></tr>'; return; }
     tbody.innerHTML = campaigns.map(c => {
         const statusTag = c.status === 'active'
             ? '<span class="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg">פעיל</span>'
@@ -16393,6 +16393,9 @@ window.renderSAShukaPanel = async function() {
             <td class="py-2.5 px-2">
                 <button onclick="window.shukaSAToggleStatus(${c.id}, '${c.status === 'active' ? 'suspended' : 'active'}')" class="text-[10px] font-bold ${c.status === 'active' ? 'bg-red-50 text-red-600 border border-red-100' : 'bg-emerald-50 text-emerald-600 border border-emerald-100'} px-2.5 py-1.5 rounded-lg">${c.status === 'active' ? 'השעה' : 'הפעל'}</button>
             </td>
+            <td class="py-2.5 px-2">
+                <button onclick="window.openSAShukaDetail(${c.id})" class="text-[10px] font-bold bg-indigo-50 text-indigo-600 border border-indigo-100 px-2.5 py-1.5 rounded-lg hover:bg-indigo-100 transition">נהל</button>
+            </td>
         </tr>`;
     }).join('');
 };
@@ -16406,6 +16409,392 @@ window.shukaSAToggleStatus = async function(campaignId, newStatus) {
         const data = await res.json();
         if (!data.success) return showToast('error', data.error || 'שגיאה');
         showToast('success', newStatus === 'active' ? 'השוק הופעל' : 'השוק הושעה');
+        window._shukaSALoaded = false;
+        window.renderSAShukaPanel();
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
+// ─── SA: ניהול קמפיין מלא (overlay) ───────────────────────────────────────
+
+const _saShuka = { campaignId: null, data: null, tab: 'general', prodFilter: 'pending', bizInviteFilter: '' };
+
+function _saH(s) { return (s == null ? '' : String(s)).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+function _saHeaders() { return { 'Content-Type': 'application/json', 'Authorization': saToken }; }
+
+function _ensureSAShukaOverlay() {
+    if (document.getElementById('_sa-shuka-overlay')) return;
+    const el = document.createElement('div');
+    el.id = '_sa-shuka-overlay';
+    el.style.cssText = 'position:fixed;inset:0;z-index:99999;display:none;background:rgba(15,23,42,.65);backdrop-filter:blur(3px);direction:rtl;padding:16px;';
+    el.innerHTML = `
+    <div style="background:#fff;border-radius:22px;width:100%;max-width:1000px;height:calc(100vh - 32px);margin:0 auto;display:flex;flex-direction:column;box-shadow:0 24px 80px rgba(0,0,0,.35);overflow:hidden;">
+        <div style="padding:14px 20px;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;gap:12px;">
+            <div style="min-width:0;">
+                <h3 id="_sa-shuka-title" style="font-weight:900;font-size:15px;color:#1e293b;margin:0;"></h3>
+                <p id="_sa-shuka-sub" style="font-size:11px;color:#94a3b8;margin:4px 0 0;"></p>
+            </div>
+            <div style="display:flex;gap:6px;flex-shrink:0;align-items:center;">
+                <button id="_sa-shuka-status-btn" onclick="window.saShukaToggleStatus()" style="font-size:11px;font-weight:700;padding:6px 12px;border-radius:10px;cursor:pointer;"></button>
+                <button onclick="window.saShukaDeleteCampaign()" style="font-size:11px;font-weight:700;padding:6px 12px;border-radius:10px;cursor:pointer;background:#fef2f2;color:#dc2626;border:1px solid #fecaca;">מחק קמפיין</button>
+                <button onclick="window.closeSAShukaDetail()" style="width:30px;height:30px;border-radius:50%;background:#f1f5f9;border:none;cursor:pointer;color:#64748b;font-size:16px;">✕</button>
+            </div>
+        </div>
+        <div id="_sa-shuka-tabs" style="display:flex;gap:4px;padding:10px 20px;border-bottom:1px solid #f1f5f9;flex-shrink:0;"></div>
+        <div id="_sa-shuka-body" style="flex:1;overflow-y:auto;padding:18px 20px;"></div>
+    </div>`;
+    el.addEventListener('click', e => { if (e.target === el) window.closeSAShukaDetail(); });
+    document.body.appendChild(el);
+}
+
+window.closeSAShukaDetail = function() {
+    const el = document.getElementById('_sa-shuka-overlay');
+    if (el) el.style.display = 'none';
+};
+
+window.openSAShukaDetail = async function(campaignId) {
+    _ensureSAShukaOverlay();
+    _saShuka.campaignId = campaignId;
+    _saShuka.tab = 'general';
+    document.getElementById('_sa-shuka-overlay').style.display = 'block';
+    document.getElementById('_sa-shuka-body').innerHTML = '<div style="text-align:center;padding:40px;color:#94a3b8;"><i class="fa-solid fa-spinner fa-spin"></i> טוען...</div>';
+    await _saShukaLoad();
+};
+
+async function _saShukaLoad() {
+    try {
+        const res = await fetch(`${API}/sa/shuka/campaigns/${_saShuka.campaignId}`, { headers: { 'Authorization': saToken } });
+        const data = await res.json();
+        if (!data.success) { document.getElementById('_sa-shuka-body').innerHTML = `<p style="color:#ef4444;text-align:center;padding:40px;">${_saH(data.error || 'שגיאה')}</p>`; return; }
+        _saShuka.data = data;
+        _saShukaRenderHeader();
+        _saShukaRenderTabs();
+        _saShukaRenderTab(_saShuka.tab);
+    } catch(e) { document.getElementById('_sa-shuka-body').innerHTML = '<p style="color:#ef4444;text-align:center;padding:40px;">שגיאת תקשורת</p>'; }
+}
+
+function _saShukaRenderHeader() {
+    const c = _saShuka.data.campaign;
+    document.getElementById('_sa-shuka-title').textContent = c.title || c.code;
+    document.getElementById('_sa-shuka-sub').textContent = `${c.community_name}${c.city ? ' · ' + c.city : ''}${c.zone_name ? ' · ' + c.zone_name : ''} · /campaign/${c.code}`;
+    const btn = document.getElementById('_sa-shuka-status-btn');
+    if (c.status === 'active') {
+        btn.textContent = 'השעה שוק'; btn.style.cssText = 'font-size:11px;font-weight:700;padding:6px 12px;border-radius:10px;cursor:pointer;background:#fef2f2;color:#dc2626;border:1px solid #fecaca;';
+    } else {
+        btn.textContent = 'הפעל שוק'; btn.style.cssText = 'font-size:11px;font-weight:700;padding:6px 12px;border-radius:10px;cursor:pointer;background:#ecfdf5;color:#059669;border:1px solid #a7f3d0;';
+    }
+}
+
+function _saShukaRenderTabs() {
+    const tabs = [
+        ['general', 'כללי'],
+        ['businesses', `עסקים (${_saShuka.data.businesses.length})`],
+        ['products', `מוצרים (${_saShuka.data.products.length})`],
+        ['requests', `בקשות (${_saShuka.data.requests.filter(r => r.status === 'pending').length} ממתינות)`],
+        ['orders', `הזמנות (${_saShuka.data.orders.length})`],
+    ];
+    document.getElementById('_sa-shuka-tabs').innerHTML = tabs.map(([key, label]) => {
+        const active = _saShuka.tab === key;
+        return `<button onclick="window.saShukaSetTab('${key}')" style="padding:7px 14px;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;border:1px solid ${active ? '#4f46e5' : '#e2e8f0'};background:${active ? '#4f46e5' : '#fff'};color:${active ? '#fff' : '#475569'};">${label}</button>`;
+    }).join('');
+}
+
+window.saShukaSetTab = function(tab) { _saShuka.tab = tab; _saShukaRenderTabs(); _saShukaRenderTab(tab); };
+
+function _saShukaRenderTab(tab) {
+    const body = document.getElementById('_sa-shuka-body');
+    if (tab === 'general') _saShukaRenderGeneral(body);
+    else if (tab === 'businesses') _saShukaRenderBusinesses(body);
+    else if (tab === 'products') _saShukaRenderProducts(body);
+    else if (tab === 'requests') _saShukaRenderRequests(body);
+    else if (tab === 'orders') _saShukaRenderOrders(body);
+}
+
+function _saShukaRenderGeneral(body) {
+    const c = _saShuka.data.campaign;
+    const fmtDate = d => d ? new Date(d).toLocaleDateString('he-IL') : '';
+    body.innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;max-width:700px;">
+        <div style="grid-column:1/-1;background:#f8fafc;border-radius:14px;padding:14px;">
+            <p style="font-size:11px;font-weight:700;color:#64748b;margin:0 0 10px;">פרטים נוכחיים</p>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:12px;">
+                <div><span style="color:#94a3b8;">סטטוס:</span> <strong>${c.status === 'active' ? '🟢 פעיל' : '🔴 מושעה'}</strong></div>
+                <div><span style="color:#94a3b8;">קוד:</span> <strong>${_saH(c.code)}</strong></div>
+                <div><span style="color:#94a3b8;">הזמנות פתוחות:</span> <strong>${c.ordering_enabled !== false ? 'כן' : 'לא'}</strong></div>
+                <div><span style="color:#94a3b8;">קבלת בקשות:</span> <strong>${c.is_open_for_requests !== false ? 'פתוח' : 'סגור'}</strong></div>
+                <div><span style="color:#94a3b8;">תאריך פתיחה:</span> <strong>${fmtDate(c.start_at) || '—'}</strong></div>
+                <div><span style="color:#94a3b8;">תאריך סיום:</span> <strong>${fmtDate(c.end_at) || '—'}</strong></div>
+                <div><span style="color:#94a3b8;">חזרתיות:</span> <strong>${c.recurrence === 'weekly' ? 'שבועי' : c.recurrence === 'monthly' ? 'חודשי' : 'ללא'}</strong></div>
+                <div><span style="color:#94a3b8;">נוצר:</span> <strong>${fmtDate(c.created_at)}</strong></div>
+            </div>
+        </div>
+        <div style="grid-column:1/-1;">
+            <p style="font-size:11px;font-weight:700;color:#64748b;margin:0 0 10px;">עריכת הגדרות</p>
+            <div style="display:grid;gap:8px;">
+                <div><label style="font-size:10px;font-weight:700;color:#94a3b8;display:block;margin-bottom:3px;">כותרת</label>
+                    <input id="_sas-title" type="text" value="${_saH(c.title || '')}" style="width:100%;border:1px solid #e2e8f0;border-radius:8px;padding:7px 10px;font-size:13px;box-sizing:border-box;"></div>
+                <div><label style="font-size:10px;font-weight:700;color:#94a3b8;display:block;margin-bottom:3px;">סלוגן</label>
+                    <input id="_sas-slogan" type="text" value="${_saH(c.slogan || '')}" style="width:100%;border:1px solid #e2e8f0;border-radius:8px;padding:7px 10px;font-size:13px;box-sizing:border-box;"></div>
+                <div><label style="font-size:10px;font-weight:700;color:#94a3b8;display:block;margin-bottom:3px;">תיאור לשיתוף (OG/WhatsApp)</label>
+                    <input id="_sas-sharedesc" type="text" value="${_saH(c.share_description || '')}" style="width:100%;border:1px solid #e2e8f0;border-radius:8px;padding:7px 10px;font-size:13px;box-sizing:border-box;"></div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                    <div><label style="font-size:10px;font-weight:700;color:#94a3b8;display:block;margin-bottom:3px;">תאריך פתיחה</label>
+                        <input id="_sas-start" type="date" value="${c.start_at ? c.start_at.slice(0,10) : ''}" style="width:100%;border:1px solid #e2e8f0;border-radius:8px;padding:7px 10px;font-size:12px;box-sizing:border-box;"></div>
+                    <div><label style="font-size:10px;font-weight:700;color:#94a3b8;display:block;margin-bottom:3px;">תאריך סיום</label>
+                        <input id="_sas-end" type="date" value="${c.end_at ? c.end_at.slice(0,10) : ''}" style="width:100%;border:1px solid #e2e8f0;border-radius:8px;padding:7px 10px;font-size:12px;box-sizing:border-box;"></div>
+                </div>
+                <div style="display:flex;gap:16px;">
+                    <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;">
+                        <input type="checkbox" id="_sas-ordering" ${c.ordering_enabled !== false ? 'checked' : ''} style="width:14px;height:14px;accent-color:#4f46e5;">
+                        הזמנות פעילות</label>
+                    <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;">
+                        <input type="checkbox" id="_sas-open-req" ${c.is_open_for_requests !== false ? 'checked' : ''} style="width:14px;height:14px;accent-color:#4f46e5;">
+                        קבלת בקשות הצטרפות</label>
+                </div>
+                <button onclick="window.saShukaUpdateSettings()" style="background:#4f46e5;color:#fff;border:none;border-radius:10px;padding:10px 20px;font-size:13px;font-weight:700;cursor:pointer;margin-top:4px;">שמור שינויים</button>
+            </div>
+        </div>
+    </div>`;
+}
+
+function _saShukaRenderBusinesses(body) {
+    const { businesses } = _saShuka.data;
+    const included = businesses.filter(b => b.included);
+    const notIncluded = businesses.filter(b => !b.included);
+    body.innerHTML = `
+    <div style="margin-bottom:14px;">
+        <p style="font-size:12px;font-weight:700;color:#1e293b;margin:0 0 8px;">עסקים בשוק (${included.length})</p>
+        ${!included.length ? '<p style="font-size:12px;color:#94a3b8;">אין עסקים עדיין.</p>' :
+        included.map(b => `
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 12px;border:1px solid #d1fae5;background:#ecfdf5;border-radius:10px;margin-bottom:6px;">
+            <div>
+                <span style="font-size:13px;font-weight:700;color:#1e293b;">${_saH(b.name)}</span>
+                <span style="font-size:10px;color:#94a3b8;margin-right:6px;">${b.product_count} מוצרים</span>
+            </div>
+            <button onclick="window.saShukaToggleBusiness(${b.group_id}, false)" style="font-size:11px;font-weight:700;padding:5px 10px;border-radius:8px;cursor:pointer;background:#fff;color:#dc2626;border:1px solid #fecaca;">הסר</button>
+        </div>`).join('')}
+    </div>
+    <div>
+        <p style="font-size:12px;font-weight:700;color:#1e293b;margin:0 0 8px;">עסקים בקהילה — לא בשוק (${notIncluded.length})</p>
+        ${!notIncluded.length ? '<p style="font-size:12px;color:#94a3b8;">כל עסקי הקהילה כבר בשוק.</p>' :
+        notIncluded.map(b => `
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 12px;border:1px solid #e2e8f0;background:#fff;border-radius:10px;margin-bottom:6px;">
+            <span style="font-size:13px;font-weight:700;color:#334155;">${_saH(b.name)}</span>
+            <div style="display:flex;gap:6px;">
+                <button onclick="window.saShukaToggleBusiness(${b.group_id}, true)" style="font-size:11px;font-weight:700;padding:5px 10px;border-radius:8px;cursor:pointer;background:#ecfdf5;color:#059669;border:1px solid #a7f3d0;">הוסף ישירות</button>
+                <button onclick="window.saShukaInviteBusiness(${b.group_id})" style="font-size:11px;font-weight:700;padding:5px 10px;border-radius:8px;cursor:pointer;background:#eef2ff;color:#4f46e5;border:1px solid #c7d2fe;">הזמן</button>
+            </div>
+        </div>`).join('')}
+    </div>`;
+}
+
+function _saShukaRenderProducts(body) {
+    const { products } = _saShuka.data;
+    const statusLabel = { pending: 'ממתין', approved: 'אושר', rejected: 'נדחה' };
+    const counts = { all: products.length };
+    ['pending','approved','rejected'].forEach(s => { counts[s] = products.filter(p => p.approval_status === s).length; });
+    const filter = _saShuka.prodFilter;
+    const filtered = filter === 'all' ? products : products.filter(p => p.approval_status === filter);
+    const grouped = new Map();
+    filtered.forEach(p => { if (!grouped.has(p.business_group_id)) grouped.set(p.business_group_id, []); grouped.get(p.business_group_id).push(p); });
+
+    body.innerHTML = `
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;">
+        ${[['pending','ממתינים'],['approved','מאושרים'],['rejected','נדחו'],['all','הכל']].map(([k,l]) =>
+            `<button onclick="window.saShukaSetProdFilter('${k}')" style="padding:6px 14px;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;border:1px solid ${filter===k?'#4f46e5':'#e2e8f0'};background:${filter===k?'#4f46e5':'#fff'};color:${filter===k?'#fff':'#475569'};">${l} (${counts[k]||0})</button>`
+        ).join('')}
+    </div>
+    ${!grouped.size ? '<p style="text-align:center;color:#94a3b8;padding:40px 0;">אין מוצרים.</p>' :
+    [...grouped.entries()].map(([bizId, items]) => `
+    <div style="margin-bottom:18px;">
+        <p style="font-size:12px;font-weight:700;color:#334155;margin:0 0 8px;">${_saH(items[0].business_name)}</p>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:8px;">
+        ${items.map(p => {
+            const brd = p.approval_status==='pending'?'#fde68a':p.approval_status==='approved'?'#a7f3d0':'#fecaca';
+            const bg = p.approval_status==='pending'?'#fffbeb':p.approval_status==='approved'?'#ecfdf5':'#fef2f2';
+            return `<div style="border:1px solid ${brd};background:${bg};border-radius:12px;padding:10px 12px;">
+                <div style="font-size:13px;font-weight:700;color:#334155;">${_saH(p.product_name)}</div>
+                <div style="font-size:10px;color:#94a3b8;margin-top:2px;">מחיר לשוק: ₪${p.price_override != null ? p.price_override : p.base_price}${p.price_override != null ? ` (קטלוג: ₪${p.base_price})` : ''}</div>
+                <div style="font-size:10px;font-weight:700;color:#64748b;margin-top:4px;">${statusLabel[p.approval_status]||p.approval_status}</div>
+                <div style="display:flex;gap:6px;margin-top:8px;">
+                ${p.approval_status === 'pending' ? `
+                    <button onclick="window.saShukaReviewProduct(${p.business_group_id},${p.catalog_id},'approve')" style="flex:1;background:#059669;color:#fff;border:none;border-radius:8px;padding:6px;font-size:11px;font-weight:700;cursor:pointer;">אשר</button>
+                    <button onclick="window.saShukaReviewProduct(${p.business_group_id},${p.catalog_id},'reject')" style="flex:1;background:#fff;color:#64748b;border:1px solid #e2e8f0;border-radius:8px;padding:6px;font-size:11px;font-weight:700;cursor:pointer;">דחה</button>
+                ` : `
+                    <button onclick="window.saShukaRemoveProduct(${p.catalog_id})" style="flex:1;background:#fff;color:#dc2626;border:1px solid #fecaca;border-radius:8px;padding:6px;font-size:11px;font-weight:700;cursor:pointer;">הסר מהשוק</button>
+                `}
+                </div>
+            </div>`;
+        }).join('')}
+        </div>
+    </div>`).join('')}`;
+}
+
+function _saShukaRenderRequests(body) {
+    const { requests } = _saShuka.data;
+    const statusLabel = { pending: 'ממתין', approved: 'אושר', rejected: 'נדחה' };
+    const statusColor = { pending: '#d97706', approved: '#059669', rejected: '#dc2626' };
+    const statusBg = { pending: '#fffbeb', approved: '#ecfdf5', rejected: '#fef2f2' };
+    body.innerHTML = !requests.length ? '<p style="text-align:center;color:#94a3b8;padding:40px 0;">אין בקשות.</p>' :
+    requests.map(r => `
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 14px;border:1px solid #f1f5f9;border-radius:12px;margin-bottom:8px;background:#fff;">
+        <div>
+            <p style="font-size:13px;font-weight:700;color:#1e293b;margin:0;">${_saH(r.business_name)}</p>
+            <p style="font-size:10px;color:#94a3b8;margin:3px 0 0;">${r.direction === 'business_request' ? 'העסק ביקש להצטרף' : 'הוזמן ע"י מנהל'} · ${new Date(r.created_at).toLocaleDateString('he-IL')}</p>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;">
+            <span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:8px;color:${statusColor[r.status]};background:${statusBg[r.status]};">${statusLabel[r.status]||r.status}</span>
+            ${r.status === 'pending' ? `
+            <button onclick="window.saShukaRespondRequest(${r.id},'approve')" style="font-size:11px;font-weight:700;padding:5px 10px;border-radius:8px;cursor:pointer;background:#ecfdf5;color:#059669;border:1px solid #a7f3d0;">אשר</button>
+            <button onclick="window.saShukaRespondRequest(${r.id},'reject')" style="font-size:11px;font-weight:700;padding:5px 10px;border-radius:8px;cursor:pointer;background:#fff;color:#64748b;border:1px solid #e2e8f0;">דחה</button>
+            ` : ''}
+        </div>
+    </div>`).join('');
+}
+
+function _saShukaRenderOrders(body) {
+    const { orders } = _saShuka.data;
+    const orderStatusLabel = { pending_approval:'ממתין לאישור', approved:'אושר', ready:'מוכן', completed:'הושלם', cancelled:'בוטל', quote:'הצעת מחיר' };
+    body.innerHTML = !orders.length ? '<p style="text-align:center;color:#94a3b8;padding:40px 0;">אין הזמנות עדיין.</p>' : `
+    <table style="width:100%;border-collapse:collapse;font-size:12px;">
+        <thead><tr style="background:#f8fafc;">
+            <th style="padding:8px 10px;text-align:right;font-weight:700;color:#64748b;">#</th>
+            <th style="padding:8px 10px;text-align:right;font-weight:700;color:#64748b;">עסק</th>
+            <th style="padding:8px 10px;text-align:right;font-weight:700;color:#64748b;">סכום</th>
+            <th style="padding:8px 10px;text-align:right;font-weight:700;color:#64748b;">סטטוס</th>
+            <th style="padding:8px 10px;text-align:right;font-weight:700;color:#64748b;">תאריך</th>
+        </tr></thead>
+        <tbody>${orders.map(o => `
+        <tr style="border-bottom:1px solid #f1f5f9;">
+            <td style="padding:8px 10px;color:#94a3b8;">${o.id}</td>
+            <td style="padding:8px 10px;font-weight:600;color:#334155;">${_saH(o.business_name)}</td>
+            <td style="padding:8px 10px;font-weight:700;color:#1e293b;" dir="ltr">₪${parseFloat(o.total_amount||0).toLocaleString()}</td>
+            <td style="padding:8px 10px;color:#64748b;">${orderStatusLabel[o.status]||o.status}</td>
+            <td style="padding:8px 10px;color:#94a3b8;">${new Date(o.created_at).toLocaleDateString('he-IL')}</td>
+        </tr>`).join('')}
+        </tbody>
+    </table>`;
+}
+
+// ─── פעולות SA שוקה ────────────────────────────────────────────────────────
+
+window.saShukaToggleStatus = async function() {
+    const c = _saShuka.data.campaign;
+    const newStatus = c.status === 'active' ? 'suspended' : 'active';
+    try {
+        const res = await fetch(`${API}/sa/shuka/campaigns/${c.id}/status`, {
+            method: 'POST', headers: _saHeaders(), body: JSON.stringify({ status: newStatus })
+        });
+        const data = await res.json();
+        if (!data.success) return showToast('error', data.error || 'שגיאה');
+        showToast('success', newStatus === 'active' ? 'השוק הופעל' : 'השוק הושעה');
+        window._shukaSALoaded = false;
+        await _saShukaLoad();
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
+window.saShukaUpdateSettings = async function() {
+    const id = _saShuka.campaignId;
+    const body = {
+        title: document.getElementById('_sas-title')?.value.trim() || null,
+        slogan: document.getElementById('_sas-slogan')?.value.trim() || null,
+        shareDescription: document.getElementById('_sas-sharedesc')?.value.trim() || null,
+        orderingEnabled: document.getElementById('_sas-ordering')?.checked,
+        isOpenForRequests: document.getElementById('_sas-open-req')?.checked,
+        startAt: document.getElementById('_sas-start')?.value || null,
+        endAt: document.getElementById('_sas-end')?.value || null,
+    };
+    try {
+        const res = await fetch(`${API}/sa/shuka/campaigns/${id}`, { method: 'PATCH', headers: _saHeaders(), body: JSON.stringify(body) });
+        const data = await res.json();
+        if (!data.success) return showToast('error', data.error || 'שגיאה');
+        showToast('success', 'ההגדרות עודכנו');
+        await _saShukaLoad();
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
+window.saShukaToggleBusiness = async function(groupId, add) {
+    try {
+        const res = await fetch(`${API}/sa/shuka/campaigns/${_saShuka.campaignId}/businesses`, {
+            method: 'POST', headers: _saHeaders(),
+            body: JSON.stringify({ businessGroupId: groupId, action: add ? 'add' : 'remove' })
+        });
+        const data = await res.json();
+        if (!data.success) return showToast('error', data.error || 'שגיאה');
+        showToast('success', add ? 'העסק נוסף לשוק' : 'העסק הוסר מהשוק');
+        await _saShukaLoad();
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
+window.saShukaInviteBusiness = async function(groupId) {
+    const message = prompt('הודעה להזמנה (אופציונלי):') ?? '';
+    if (message === null) return;
+    try {
+        const res = await fetch(`${API}/sa/shuka/campaigns/${_saShuka.campaignId}/invite`, {
+            method: 'POST', headers: _saHeaders(),
+            body: JSON.stringify({ businessGroupId: groupId, message })
+        });
+        const data = await res.json();
+        if (!data.success) return showToast('error', data.error || 'שגיאה');
+        showToast('success', 'ההזמנה נשלחה לעסק');
+        await _saShukaLoad();
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
+window.saShukaSetProdFilter = function(f) { _saShuka.prodFilter = f; _saShukaRenderProducts(document.getElementById('_sa-shuka-body')); };
+
+window.saShukaReviewProduct = async function(bizGroupId, catalogId, action) {
+    try {
+        const res = await fetch(`${API}/sa/shuka/campaigns/${_saShuka.campaignId}/products/review`, {
+            method: 'POST', headers: _saHeaders(),
+            body: JSON.stringify({ businessGroupId: bizGroupId, catalogId, action })
+        });
+        const data = await res.json();
+        if (!data.success) return showToast('error', data.error || 'שגיאה');
+        showToast('success', action === 'approve' ? 'המוצר אושר' : 'המוצר נדחה');
+        const item = _saShuka.data.products.find(p => p.catalog_id === catalogId && p.business_group_id === bizGroupId);
+        if (item) item.approval_status = action === 'approve' ? 'approved' : 'rejected';
+        _saShukaRenderProducts(document.getElementById('_sa-shuka-body'));
+        _saShukaRenderTabs();
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
+window.saShukaRemoveProduct = async function(catalogId) {
+    try {
+        const res = await fetch(`${API}/sa/shuka/campaigns/${_saShuka.campaignId}/products`, {
+            method: 'POST', headers: _saHeaders(),
+            body: JSON.stringify({ catalogId, action: 'remove' })
+        });
+        const data = await res.json();
+        if (!data.success) return showToast('error', data.error || 'שגיאה');
+        showToast('success', 'המוצר הוסר');
+        _saShuka.data.products = _saShuka.data.products.filter(p => p.catalog_id !== catalogId);
+        _saShukaRenderProducts(document.getElementById('_sa-shuka-body'));
+        _saShukaRenderTabs();
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
+window.saShukaRespondRequest = async function(requestId, action) {
+    try {
+        const res = await fetch(`${API}/sa/shuka/campaigns/${_saShuka.campaignId}/requests/${requestId}/respond`, {
+            method: 'POST', headers: _saHeaders(), body: JSON.stringify({ action })
+        });
+        const data = await res.json();
+        if (!data.success) return showToast('error', data.error || 'שגיאה');
+        showToast('success', action === 'approve' ? 'הבקשה אושרה' : 'הבקשה נדחתה');
+        await _saShukaLoad();
+    } catch(e) { showToast('error', 'שגיאת תקשורת'); }
+};
+
+window.saShukaDeleteCampaign = async function() {
+    const c = _saShuka.data.campaign;
+    const ok = await window._uiConfirm(`למחוק לצמיתות את השוק "${c.title || c.code}"? פעולה זו אינה הפיכה.`, { danger: true, okLabel: 'מחק לצמיתות' });
+    if (!ok) return;
+    try {
+        const res = await fetch(`${API}/sa/shuka/campaigns/${c.id}`, { method: 'DELETE', headers: { 'Authorization': saToken } });
+        const data = await res.json();
+        if (!data.success) return showToast('error', data.error || 'שגיאה');
+        showToast('success', 'הקמפיין נמחק');
+        window.closeSAShukaDetail();
         window._shukaSALoaded = false;
         window.renderSAShukaPanel();
     } catch(e) { showToast('error', 'שגיאת תקשורת'); }

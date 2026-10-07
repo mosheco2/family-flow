@@ -19628,6 +19628,172 @@ app.post('/api/sa/shuka/campaigns/:id/status', verifySA, async (req, res) => {
     } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// ── SA: ניהול קמפיין מלא (פרטים + עסקים + מוצרים + בקשות + הזמנות) ──
+
+app.get('/api/sa/shuka/campaigns/:id', verifySA, async (req, res) => {
+    try {
+        const id = req.params.id;
+        const [campRes, bizRes, prodRes, reqRes, ordRes] = await Promise.all([
+            pool.query(
+                `SELECT cc.*, c.name AS community_name, c.city,
+                        mz.name AS zone_name
+                 FROM community_campaigns cc
+                 JOIN communities c ON c.id = cc.community_id
+                 LEFT JOIN manager_zones mz ON mz.id = c.zone_id
+                 WHERE cc.id=$1`, [id]),
+            pool.query(
+                `SELECT fg.id AS group_id, fg.name, fg.business_type,
+                        (ccb.campaign_id IS NOT NULL) AS included,
+                        (SELECT COUNT(*) FROM community_campaign_products p WHERE p.campaign_id=$1 AND p.business_group_id=fg.id) AS product_count
+                 FROM community_campaigns cc
+                 JOIN communities c ON c.id=cc.community_id
+                 JOIN community_businesses cb ON cb.community_id=c.id AND cb.status='approved'
+                 JOIN family_groups fg ON fg.id=cb.business_id
+                 LEFT JOIN community_campaign_businesses ccb ON ccb.campaign_id=$1 AND ccb.business_group_id=fg.id
+                 WHERE cc.id=$1
+                 ORDER BY fg.name`, [id]),
+            pool.query(
+                `SELECT p.*, sc.name AS product_name, sc.price AS base_price, fg.name AS business_name
+                 FROM community_campaign_products p
+                 JOIN store_catalog sc ON sc.id=p.catalog_id
+                 JOIN family_groups fg ON fg.id=p.business_group_id
+                 WHERE p.campaign_id=$1
+                 ORDER BY p.approval_status='pending' DESC, fg.name, sc.name`, [id]),
+            pool.query(
+                `SELECT cr.*, fg.name AS business_name
+                 FROM community_campaign_requests cr
+                 JOIN family_groups fg ON fg.id=cr.business_group_id
+                 WHERE cr.campaign_id=$1
+                 ORDER BY cr.status='pending' DESC, cr.created_at DESC`, [id]),
+            pool.query(
+                `SELECT so.id, so.status, so.total_amount, so.created_at,
+                        fg.name AS business_name
+                 FROM store_orders so
+                 JOIN family_groups fg ON fg.id=so.group_id
+                 WHERE so.campaign_id=$1
+                 ORDER BY so.created_at DESC LIMIT 100`, [id])
+        ]);
+        if (!campRes.rows.length) return res.status(404).json({ error: 'קמפיין לא נמצא' });
+        res.json({ success: true, campaign: campRes.rows[0], businesses: bizRes.rows,
+            products: prodRes.rows, requests: reqRes.rows, orders: ordRes.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.patch('/api/sa/shuka/campaigns/:id', verifySA, async (req, res) => {
+    try {
+        const { title, slogan, shareDescription, orderingEnabled, startAt, endAt, isOpenForRequests } = req.body;
+        const upd = await pool.query(
+            `UPDATE community_campaigns SET
+                title = COALESCE($1, title),
+                slogan = COALESCE($2, slogan),
+                share_description = COALESCE($3, share_description),
+                ordering_enabled = COALESCE($4::boolean, ordering_enabled),
+                start_at = COALESCE($5::timestamp, start_at),
+                end_at = COALESCE($6::timestamp, end_at),
+                is_open_for_requests = COALESCE($7::boolean, is_open_for_requests)
+             WHERE id=$8 RETURNING *`,
+            [title ?? null, slogan ?? null, shareDescription ?? null,
+             orderingEnabled ?? null, startAt ?? null, endAt ?? null,
+             isOpenForRequests ?? null, req.params.id]);
+        if (!upd.rows.length) return res.status(404).json({ error: 'לא נמצא' });
+        res.json({ success: true, campaign: upd.rows[0] });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/sa/shuka/campaigns/:id/businesses', verifySA, async (req, res) => {
+    try {
+        const { businessGroupId, action } = req.body;
+        if (!businessGroupId || !['add', 'remove'].includes(action))
+            return res.status(400).json({ error: 'שדות לא תקינים' });
+        if (action === 'add') {
+            await pool.query(
+                `INSERT INTO community_campaign_businesses (campaign_id, business_group_id) VALUES ($1,$2) ON CONFLICT DO NOTHING`,
+                [req.params.id, businessGroupId]);
+        } else {
+            await pool.query(`DELETE FROM community_campaign_businesses WHERE campaign_id=$1 AND business_group_id=$2`, [req.params.id, businessGroupId]);
+            await pool.query(`DELETE FROM community_campaign_products WHERE campaign_id=$1 AND business_group_id=$2`, [req.params.id, businessGroupId]);
+        }
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/sa/shuka/campaigns/:id/products', verifySA, async (req, res) => {
+    try {
+        const { catalogId, action } = req.body;
+        if (!catalogId || action !== 'remove')
+            return res.status(400).json({ error: 'ניתן רק להסיר מוצר קיים' });
+        await pool.query(`DELETE FROM community_campaign_products WHERE campaign_id=$1 AND catalog_id=$2`, [req.params.id, catalogId]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/sa/shuka/campaigns/:id/products/review', verifySA, async (req, res) => {
+    try {
+        const { businessGroupId, catalogId, action } = req.body;
+        if (!businessGroupId || !catalogId || !['approve', 'reject'].includes(action))
+            return res.status(400).json({ error: 'שדות לא תקינים' });
+        await pool.query(
+            `UPDATE community_campaign_products SET approval_status=$1, reviewed_at=NOW()
+             WHERE campaign_id=$2 AND catalog_id=$3 AND business_group_id=$4`,
+            [action === 'approve' ? 'approved' : 'rejected', req.params.id, catalogId, businessGroupId]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/sa/shuka/campaigns/:id/requests', verifySA, async (req, res) => {
+    try {
+        const r = await pool.query(
+            `SELECT cr.*, fg.name AS business_name, fg.business_type
+             FROM community_campaign_requests cr
+             JOIN family_groups fg ON fg.id=cr.business_group_id
+             WHERE cr.campaign_id=$1
+             ORDER BY cr.status='pending' DESC, cr.created_at DESC`, [req.params.id]);
+        res.json({ success: true, requests: r.rows });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/sa/shuka/campaigns/:id/requests/:requestId/respond', verifySA, async (req, res) => {
+    try {
+        const { action } = req.body;
+        if (!['approve', 'reject'].includes(action)) return res.status(400).json({ error: 'פעולה לא תקינה' });
+        const reqRow = await pool.query(
+            `UPDATE community_campaign_requests SET status=$1, responded_at=NOW()
+             WHERE id=$2 AND campaign_id=$3 AND status='pending' RETURNING *`,
+            [action === 'approve' ? 'approved' : 'rejected', req.params.requestId, req.params.id]);
+        if (!reqRow.rows.length) return res.status(404).json({ error: 'בקשה לא נמצאה או כבר טופלה' });
+        if (action === 'approve') {
+            await pool.query(
+                `INSERT INTO community_campaign_businesses (campaign_id, business_group_id) VALUES ($1,$2) ON CONFLICT DO NOTHING`,
+                [req.params.id, reqRow.rows[0].business_group_id]);
+        }
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/sa/shuka/campaigns/:id/invite', verifySA, async (req, res) => {
+    try {
+        const { businessGroupId, message } = req.body;
+        if (!businessGroupId) return res.status(400).json({ error: 'חסר businessGroupId' });
+        const existing = await pool.query(
+            `SELECT id FROM community_campaign_requests WHERE campaign_id=$1 AND business_group_id=$2 AND status='pending'`,
+            [req.params.id, businessGroupId]);
+        if (existing.rows.length) return res.status(409).json({ error: 'כבר קיימת הזמנה ממתינה לעסק זה' });
+        await pool.query(
+            `INSERT INTO community_campaign_requests (campaign_id, business_group_id, direction, status, message)
+             VALUES ($1,$2,'manager_invite','pending',$3)`,
+            [req.params.id, businessGroupId, message || null]);
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+app.delete('/api/sa/shuka/campaigns/:id', verifySA, async (req, res) => {
+    try {
+        const del = await pool.query(`DELETE FROM community_campaigns WHERE id=$1 RETURNING id`, [req.params.id]);
+        if (!del.rows.length) return res.status(404).json({ error: 'לא נמצא' });
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 // ── "שוקה": בקשות הצטרפות/הזמנות עסקים לקמפיין (זורם דרך community_campaign_requests) ──
 
 // תור בקשות הצטרפות ממתינות (ביוזמת העסק) לקמפיין
