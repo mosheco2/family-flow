@@ -103,10 +103,22 @@ details{background:var(--card);border:1.5px solid var(--border);border-radius:12
 summary{font-weight:700;cursor:pointer}
 details p{color:var(--fg-muted);margin-top:.5rem}
 
+
+/* desktop screenshots */
+.desk{margin-top:2.5rem}
+.desk-h{font-size:.8rem;font-weight:800;letter-spacing:.06em;color:var(--fg-muted);margin-bottom:.9rem;display:flex;align-items:center;gap:.4rem}
+.desk-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,440px),1fr));gap:1.25rem}
+figure.pc{margin:0}
+figure.pc .frame{border:1.5px solid var(--border);border-radius:12px;overflow:hidden;box-shadow:var(--shadow);background:var(--card)}
+figure.pc .bar{height:22px;background:var(--bg-alt);border-bottom:1px solid var(--border);display:flex;gap:5px;align-items:center;padding-inline:10px}
+figure.pc .bar i{width:8px;height:8px;border-radius:50%;background:var(--border);display:block}
+figure.pc img{width:100%;height:auto;cursor:zoom-in}
+figure.pc figcaption{font-size:.78rem;color:var(--fg-muted);text-align:center;margin-top:.5rem}
+
 /* lightbox */
 #lb{position:fixed;inset:0;background:rgba(10,14,22,.88);display:none;align-items:center;justify-content:center;z-index:50;padding:16px}
 #lb.show{display:flex}
-#lb img{max-height:94vh;width:auto;border-radius:18px}
+#lb img{max-height:94vh;max-width:96vw;width:auto;border-radius:12px}
 
 footer{background:var(--bg-dark);color:rgba(237,233,225,.5);padding-block:2rem;font-size:.82rem;text-align:center}
 </style>
@@ -131,7 +143,7 @@ footer{background:var(--bg-dark);color:rgba(237,233,225,.5);padding-block:2rem;f
       <a href="#ai">עוזר AI</a>
       <a href="#faq">שאלות נפוצות</a>
     </nav>
-    <p class="hero-note">הצילומים נלקחו בסביבת משפחת הדמו במערכת WEFLOWZ, במסך טלפון.</p>
+    <p class="hero-note">הצילומים נלקחו בסביבת משפחת הדמו במערכת WEFLOWZ — בטלפון ובמחשב. לחיצה על צילום מגדילה אותו.</p>
   </div>
 </header>
 
@@ -189,6 +201,7 @@ footer{background:var(--bg-dark);color:rgba(237,233,225,.5);padding-block:2rem;f
         <figure class="phone"><div class="frame"><img loading="lazy" src="kol-haam-assets/images/guide/04-feed-top.jpg" alt="ראש מסך קול העם"></div><figcaption>ראש המסך: מצבי תצוגה, חיפוש, כפתורים ומדורים</figcaption></figure>
       </div>
     </div>
+    <div class="desk"><p class="desk-h">💻 במחשב</p><div class="desk-grid"><figure class="pc"><div class="frame"><div class="bar"><i></i><i></i><i></i></div><img loading="lazy" src="kol-haam-assets/images/guide/d01-feed.jpg" alt="ראש המסך ודף הבית במחשב — המדורים מופיעים גם כשורת קישורים מתחת לחיפוש — מסך מחשב"></div><figcaption>ראש המסך ודף הבית במחשב — המדורים מופיעים גם כשורת קישורים מתחת לחיפוש</figcaption></figure></div></div>
   </div>
 </section>
 
@@ -237,6 +250,7 @@ footer{background:var(--bg-dark);color:rgba(237,233,225,.5);padding-block:2rem;f
       <div class="card"><div class="ic">🏆</div><div class="t">סיפור הצלחה</div><div class="d">השראה ועצות מהשטח — מה עבד אצלכם.</div></div>
       <div class="card"><div class="ic">📖</div><div class="t">מדריך</div><div class="d">מידע שימושי לכולם, שנשאר רלוונטי לאורך זמן.</div></div>
     </div>
+    <div class="desk"><p class="desk-h">💻 במחשב</p><div class="desk-grid"><figure class="pc"><div class="frame"><div class="bar"><i></i><i></i><i></i></div><img loading="lazy" src="kol-haam-assets/images/guide/d02-feed-strips.jpg" alt="„🔥 הכי חמים עכשיו” ו„לפי מדורים” — מסך מחשב"></div><figcaption>„🔥 הכי חמים עכשיו” ו„לפי מדורים”</figcaption></figure><figure class="pc"><div class="frame"><div class="bar"><i></i><i></i><i></i></div><img loading="lazy" src="kol-haam-assets/images/guide/d04-feed-solutions.jpg" alt="„פתרונות מהקהילה” — מסך מחשב"></div><figcaption>„פתרונות מהקהילה”</figcaption></figure></div></div>
   </div>
 </section>
 
@@ -263,6 +277,7 @@ footer{background:var(--bg-dark);color:rgba(237,233,225,.5);padding-block:2rem;f
         <figure class="phone"><div class="frame"><img loading="lazy" src="kol-haam-assets/images/guide/11-list-all.jpg" alt="כל הכתבות"></div><figcaption>„כל הכתבות” — מסננים ומיון</figcaption></figure>
       </div>
     </div>
+    <div class="desk"><p class="desk-h">💻 במחשב</p><div class="desk-grid"><figure class="pc"><div class="frame"><div class="bar"><i></i><i></i><i></i></div><img loading="lazy" src="kol-haam-assets/images/guide/d05-list-all.jpg" alt="„כל הכתבות” עם מסננים ומיון — מסך מחשב"></div><figcaption>„כל הכתבות” עם מסננים ומיון</figcaption></figure></div></div>
   </div>
 </section>
 
@@ -301,6 +316,7 @@ footer{background:var(--bg-dark);color:rgba(237,233,225,.5);padding-block:2rem;f
         <figure class="phone"><div class="frame"><img loading="lazy" src="kol-haam-assets/images/guide/14-content-engagement.jpg" alt="תגיות וסרגל פעולות"></div><figcaption>תגיות, סרגל הפעולות ו„📚 אוסף”</figcaption></figure>
       </div>
     </div>
+    <div class="desk"><p class="desk-h">💻 במחשב</p><div class="desk-grid"><figure class="pc"><div class="frame"><div class="bar"><i></i><i></i><i></i></div><img loading="lazy" src="kol-haam-assets/images/guide/d06-content.jpg" alt="ראש הכתבה — מסך מחשב"></div><figcaption>ראש הכתבה</figcaption></figure><figure class="pc"><div class="frame"><div class="bar"><i></i><i></i><i></i></div><img loading="lazy" src="kol-haam-assets/images/guide/d07-content-body.jpg" alt="הכתבה, תקציר ב־20 שניות וסרגל הפעולות; בצד — ניוזלטר ופרקי הסדרה — מסך מחשב"></div><figcaption>הכתבה, תקציר ב־20 שניות וסרגל הפעולות; בצד — ניוזלטר ופרקי הסדרה</figcaption></figure></div></div>
   </div>
 </section>
 
@@ -349,6 +365,7 @@ footer{background:var(--bg-dark);color:rgba(237,233,225,.5);padding-block:2rem;f
         <figure class="phone"><div class="frame"><img loading="lazy" src="kol-haam-assets/images/guide/16-report-modal.jpg" alt="חלון דיווח על תוכן"></div><figcaption>חלון „⚠️ דיווח על תוכן”</figcaption></figure>
       </div>
     </div>
+    <div class="desk"><p class="desk-h">💻 במחשב</p><div class="desk-grid"><figure class="pc"><div class="frame"><div class="bar"><i></i><i></i><i></i></div><img loading="lazy" src="kol-haam-assets/images/guide/d08-comments.jpg" alt="אזור התגובות — מסך מחשב"></div><figcaption>אזור התגובות</figcaption></figure></div></div>
   </div>
 </section>
 
@@ -374,6 +391,7 @@ footer{background:var(--bg-dark);color:rgba(237,233,225,.5);padding-block:2rem;f
         <figure class="phone"><div class="frame"><img loading="lazy" src="kol-haam-assets/images/guide/19b-author-achievements.jpg" alt="הישגים נעולים"></div><figcaption>הישגים שעדיין נעולים 🔒</figcaption></figure>
       </div>
     </div>
+    <div class="desk"><p class="desk-h">💻 במחשב</p><div class="desk-grid"><figure class="pc"><div class="frame"><div class="bar"><i></i><i></i><i></i></div><img loading="lazy" src="kol-haam-assets/images/guide/d09-author.jpg" alt="פרופיל כותב ומדדים — מסך מחשב"></div><figcaption>פרופיל כותב ומדדים</figcaption></figure></div></div>
   </div>
 </section>
 
@@ -466,6 +484,7 @@ footer{background:var(--bg-dark);color:rgba(237,233,225,.5);padding-block:2rem;f
     </div>
     <div class="callout callout-warn"><span class="ic">↩️</span><div><strong>נדחה?</strong> הכתבה חוזרת אליכם ל„הטיוטות שלי” עם הסבר מהמנהל. מתקנים לפי ההערות ושולחים שוב.</div></div>
     <div class="callout callout-info"><span class="ic">🗑️</span><div>רוצים להוריד כתבה שכבר פורסמה? בתוך הכתבה שלכם מופיע כפתור <span class="ui">בקש מחיקה</span>, והבקשה עוברת לטיפול ההנהלה.</div></div>
+    <div class="desk"><p class="desk-h">💻 במחשב</p><div class="desk-grid"><figure class="pc"><div class="frame"><div class="bar"><i></i><i></i><i></i></div><img loading="lazy" src="kol-haam-assets/images/guide/d10-editor.jpg" alt="עורך הכתיבה — סוג תוכן, כותרת וקטגוריה — מסך מחשב"></div><figcaption>עורך הכתיבה — סוג תוכן, כותרת וקטגוריה</figcaption></figure><figure class="pc"><div class="frame"><div class="bar"><i></i><i></i><i></i></div><img loading="lazy" src="kol-haam-assets/images/guide/d11-editor-bottom.jpg" alt="גוף התוכן, תגיות, סדרה וכפתורי השליחה — מסך מחשב"></div><figcaption>גוף התוכן, תגיות, סדרה וכפתורי השליחה</figcaption></figure></div></div>
   </div>
 </section>
 
@@ -513,7 +532,7 @@ footer{background:var(--bg-dark);color:rgba(237,233,225,.5);padding-block:2rem;f
 <script>
 (function(){
   var lb=document.getElementById('lb'), im=lb.querySelector('img');
-  document.querySelectorAll('figure.phone img').forEach(function(i){
+  document.querySelectorAll('figure.phone img, figure.pc img').forEach(function(i){
     i.addEventListener('click',function(){ im.src=i.src; im.alt=i.alt; lb.classList.add('show'); });
   });
   lb.addEventListener('click',function(){ lb.classList.remove('show'); });
