@@ -121,6 +121,23 @@
             // כאן רק מחליפים את התמונה עצמה כדי לא לדרוס את ההתנהגות הרספונסיבית
             document.getElementById('hero').style.backgroundImage = `linear-gradient(rgba(17,17,19,.55),rgba(17,17,19,.55)), url('${c.banner_image_url}')`;
         }
+        // אינדיקטור פתוח/סגור
+        const statusEl = document.getElementById('cs-market-status');
+        const statusTxt = document.getElementById('cs-market-status-text');
+        if (statusEl && statusTxt) {
+            if (c.ordering_enabled === false) {
+                statusEl.className = 'disabled';
+                statusTxt.textContent = 'זמנית לא זמין להזמנות';
+            } else if (_isMarketOpen(c)) {
+                statusEl.className = 'open';
+                statusTxt.textContent = 'פתוח להזמנות';
+            } else {
+                statusEl.className = 'closed';
+                const next = _nextOpenText(c);
+                statusTxt.textContent = next ? `סגור — יפתח ${next}` : 'סגור כרגע';
+            }
+            statusEl.style.display = 'flex';
+        }
     }
 
     // עסקים עם לפחות מוצר מאושר אחד — עסק בלי אף מוצר מוצג לא מופיע בכלל בסינון

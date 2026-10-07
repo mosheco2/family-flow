@@ -85,8 +85,16 @@ input,button,select,textarea{font-family:inherit}
 #hero-blob2{position:absolute;bottom:-30%;right:-8%;width:46%;height:70%;border-radius:50%;background:#e8a87c;filter:blur(110px);opacity:.2}
 #hero-inner{position:relative;max-width:1280px;margin:0 auto;padding:clamp(28px,4vw,54px) 20px clamp(24px,3vw,40px)}
 #hero-text{animation:rise .5s ease both}
-#hero-badge{display:inline-flex;align-items:center;gap:8px;padding:5px 12px;border-radius:99px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);font-size:12px;font-weight:500;color:rgba(255,255,255,.86);margin-bottom:16px}
+#hero-badge{display:inline-flex;align-items:center;gap:8px;padding:5px 12px;border-radius:99px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);font-size:12px;font-weight:500;color:rgba(255,255,255,.86);margin-bottom:10px}
 #hero-badge-dot{width:7px;height:7px;border-radius:50%;background:#7FB77E;animation:glow 2s ease-in-out infinite}
+#cs-market-status{display:none;align-items:center;gap:7px;padding:5px 13px;border-radius:99px;font-size:12px;font-weight:600;margin-bottom:16px;width:fit-content}
+#cs-market-status.open{background:rgba(127,183,126,.18);border:1px solid rgba(127,183,126,.4);color:#c2f0b8}
+#cs-market-status.closed{background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.35);color:#fca5a5}
+#cs-market-status.disabled{background:rgba(148,163,184,.12);border:1px solid rgba(148,163,184,.28);color:rgba(255,255,255,.55)}
+#cs-market-status .ms-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+#cs-market-status.open .ms-dot{background:#7FB77E;animation:glow 2s ease-in-out infinite}
+#cs-market-status.closed .ms-dot{background:#f87171}
+#cs-market-status.disabled .ms-dot{background:#94a3b8}
 #hero h1{font-family:'Rubik',sans-serif;font-size:clamp(30px,5.4vw,52px);font-weight:800;letter-spacing:-.045em;line-height:1;color:#fff;margin:0 0 13px;text-wrap:balance}
 #hero-slogan{font-size:clamp(15px,1.8vw,18px);font-weight:600;color:var(--accent);margin:0 0 8px}
 #hero-sub{font-size:clamp(13px,1.4vw,15px);font-weight:300;color:rgba(255,255,255,.64);line-height:1.55;margin:0;max-width:52ch}
@@ -237,6 +245,7 @@ input,button,select,textarea{font-family:inherit}
   <div id="hero-inner">
     <div id="hero-text">
       <div id="hero-badge"><span id="hero-badge-dot"></span><span id="cs-community-name">קמפיין קהילה</span></div>
+      <div id="cs-market-status"><span class="ms-dot"></span><span id="cs-market-status-text"></span></div>
       <h1 id="cs-title">טוען...</h1>
       <p id="hero-slogan" style="display:none"></p>
       <p id="hero-sub"></p>
