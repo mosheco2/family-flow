@@ -8176,7 +8176,7 @@ app.post('/api/biz/login', async (req, res) => {
         }
 
         const uRes = await pool.query(
-            `SELECT u.id, u.group_id, u.password_hash, fg.wizard_completed, fg.name AS business_name, fg.is_onboarded
+            `SELECT u.id, u.group_id, u.password_hash, fg.wizard_completed, fg.name AS business_name, fg.is_onboarded, fg.type AS group_type
              FROM users u
              JOIN family_groups fg ON fg.id = u.group_id
              WHERE REPLACE(REPLACE(u.phone, '-', ''), ' ', '')=$1 AND u.group_id=$2
@@ -8208,7 +8208,7 @@ app.post('/api/biz/login', async (req, res) => {
             pool.query(`UPDATE family_groups SET wizard_completed=true WHERE id=$1`, [user.group_id]).catch(() => {});
         }
 
-        res.json({ success: true, token, group_id: user.group_id, user_id: user.id, wizard_completed: wizardDone, business_name: user.business_name });
+        res.json({ success: true, token, group_id: user.group_id, user_id: user.id, wizard_completed: wizardDone, business_name: user.business_name, group_type: user.group_type });
     } catch(e) {
         console.error('biz login error:', e);
         res.status(500).json({ success: false, error: 'שגיאה בהתחברות' });
