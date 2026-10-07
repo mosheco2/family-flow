@@ -1,0 +1,524 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>מדריך קול העם</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700;800;900&display=swap">
+<style>
+:root{
+  --bg:#F6F3EE;--bg-alt:#EDEAE3;--bg-dark:#1A2332;--fg:#1A2332;--fg-muted:#5A6478;
+  --accent:#C85C2D;--accent-soft:#F0DDD4;--teal:#2A8070;--teal-soft:#D1EAE6;
+  --gold:#B08A3A;--gold-soft:#F0E9D6;--border:#D8D3CA;--card:#FFFFFF;
+  --shadow:0 2px 12px rgba(26,35,50,.08);color-scheme:light;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#131B27;--bg-alt:#1A2332;--bg-dark:#0D1420;--fg:#EDE9E1;--fg-muted:#9AA6BB;
+  --accent:#D97044;--accent-soft:#3A2218;--teal:#3A9C8A;--teal-soft:#182E2A;
+  --gold:#C9A254;--gold-soft:#2E2510;--border:#2C3850;--card:#1A2332;--shadow:0 2px 12px rgba(0,0,0,.3);color-scheme:dark;}}
+:root[data-theme="dark"]{
+  --bg:#131B27;--bg-alt:#1A2332;--bg-dark:#0D1420;--fg:#EDE9E1;--fg-muted:#9AA6BB;
+  --accent:#D97044;--accent-soft:#3A2218;--teal:#3A9C8A;--teal-soft:#182E2A;
+  --gold:#C9A254;--gold-soft:#2E2510;--border:#2C3850;--card:#1A2332;--shadow:0 2px 12px rgba(0,0,0,.3);color-scheme:dark;}
+
+*,*::before,*::after{box-sizing:border-box;margin:0}
+body{background:var(--bg);color:var(--fg);font-family:'Heebo',system-ui,sans-serif;font-size:16px;line-height:1.7;direction:rtl;text-align:right}
+img{max-width:100%;display:block}
+h1,h2,h3{line-height:1.2;text-wrap:balance}
+.wrapper{max-width:1000px;margin-inline:auto;padding-inline:16px}
+section{padding-block:56px}
+section.alt{background:var(--bg-alt)}
+
+/* hero */
+.hero{background:var(--bg-dark);color:#F6F3EE;padding-block:64px 56px;position:relative;overflow:hidden}
+.hero::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 70% 60% at 80% 50%,rgba(200,92,45,.2),transparent 70%);pointer-events:none}
+.hero .wrapper{position:relative}
+.badge{display:inline-block;background:rgba(200,92,45,.2);border:1px solid rgba(200,92,45,.45);border-radius:100px;padding:.3rem .9rem;font-size:.8rem;font-weight:600;color:#E8956A;margin-bottom:1.25rem}
+.hero h1{font-size:clamp(2.1rem,6vw,3.6rem);font-weight:900;margin-bottom:1rem;color:#fff}
+.hero h1 span{color:#E07A4A}
+.hero p{font-size:1.1rem;color:rgba(237,233,225,.75);max-width:52ch}
+.hero-note{margin-top:1.5rem;font-size:.85rem;color:rgba(237,233,225,.55)}
+
+/* toc */
+.toc{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:2rem}
+.toc a{color:#F6F3EE;text-decoration:none;font-size:.85rem;font-weight:600;padding:.4rem .85rem;border:1px solid rgba(237,233,225,.25);border-radius:100px;background:rgba(255,255,255,.05)}
+.toc a:hover{background:rgba(255,255,255,.12)}
+
+/* section heads */
+.kicker{font-size:.75rem;font-weight:800;letter-spacing:.1em;color:var(--accent);display:flex;align-items:center;gap:.5rem}
+.num{display:inline-flex;width:1.9rem;height:1.9rem;border-radius:50%;background:var(--accent);color:#fff;align-items:center;justify-content:center;font-size:.8rem;font-weight:800}
+.title{font-size:1.7rem;font-weight:800;margin:.5rem 0 .4rem}
+.lead{color:var(--fg-muted);max-width:60ch;margin-bottom:2rem}
+
+/* step rows: text + phone */
+.step{display:grid;grid-template-columns:1fr 290px;gap:2rem;align-items:start;margin-bottom:3rem}
+.step:last-child{margin-bottom:0}
+.step h3{font-size:1.15rem;font-weight:800;margin-bottom:.5rem}
+.step p{color:var(--fg-muted);margin-bottom:.75rem}
+.step ul,.step ol{padding-right:1.2rem;color:var(--fg-muted);display:flex;flex-direction:column;gap:.3rem;margin-bottom:.75rem}
+.step li strong,.step p strong{color:var(--fg)}
+.phones{display:flex;gap:1rem;justify-content:center;flex-wrap:wrap}
+.step.wide{grid-template-columns:1fr}
+.step.wide .phones{justify-content:flex-start}
+@media (max-width:760px){
+  .step{grid-template-columns:1fr}
+  .phones{justify-content:center}
+  .step.wide .phones{justify-content:center}
+}
+figure.phone{width:270px;max-width:100%;margin:0}
+figure.phone .frame{border-radius:28px;border:8px solid #1A2332;background:#1A2332;overflow:hidden;box-shadow:var(--shadow)}
+figure.phone img{width:100%;height:auto}
+figure.phone figcaption{font-size:.78rem;color:var(--fg-muted);text-align:center;margin-top:.5rem;line-height:1.45}
+figure.phone img{cursor:zoom-in}
+
+/* chips & ui labels */
+.ui{display:inline-block;font-weight:700;color:var(--fg);background:var(--card);border:1px solid var(--border);border-radius:8px;padding:0 .45rem;font-size:.88em;white-space:nowrap}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:1rem}
+.card{background:var(--card);border:1.5px solid var(--border);border-radius:14px;padding:1.1rem 1.1rem}
+.card .ic{font-size:1.6rem;line-height:1;margin-bottom:.5rem}
+.card .t{font-weight:800;margin-bottom:.25rem}
+.card .d{font-size:.85rem;color:var(--fg-muted);line-height:1.55}
+
+.callout{border-radius:12px;padding:1rem 1.15rem;font-size:.9rem;border:1.5px solid;display:flex;gap:.7rem;align-items:flex-start;margin-top:1rem}
+.callout-info{background:var(--teal-soft);border-color:var(--teal)}
+.callout-warn{background:var(--gold-soft);border-color:var(--gold)}
+.callout .ic{font-size:1.1rem;flex-shrink:0}
+
+/* flow */
+.flow{display:flex;flex-wrap:wrap;gap:.6rem;align-items:center}
+.flow .n{background:var(--card);border:2px solid var(--border);border-radius:12px;padding:.55rem .85rem;font-weight:700;font-size:.9rem}
+.flow .n small{display:block;font-weight:500;color:var(--fg-muted);font-size:.75rem}
+.flow .arr{color:var(--fg-muted);font-weight:700}
+.n.draft{border-color:#9AA3B0}.n.pend{border-color:var(--gold)}.n.local{border-color:var(--teal)}.n.global{border-color:var(--accent)}
+
+table{width:100%;border-collapse:collapse;font-size:.88rem}
+th,td{text-align:right;padding:.6rem .75rem;border-bottom:1px solid var(--border);vertical-align:top}
+th{font-weight:800;border-bottom-width:2px}
+td{color:var(--fg-muted)}
+.tbl{overflow-x:auto;background:var(--card);border:1.5px solid var(--border);border-radius:14px}
+
+details{background:var(--card);border:1.5px solid var(--border);border-radius:12px;padding:.85rem 1rem;margin-bottom:.6rem}
+summary{font-weight:700;cursor:pointer}
+details p{color:var(--fg-muted);margin-top:.5rem}
+
+/* lightbox */
+#lb{position:fixed;inset:0;background:rgba(10,14,22,.88);display:none;align-items:center;justify-content:center;z-index:50;padding:16px}
+#lb.show{display:flex}
+#lb img{max-height:94vh;width:auto;border-radius:18px}
+
+footer{background:var(--bg-dark);color:rgba(237,233,225,.5);padding-block:2rem;font-size:.82rem;text-align:center}
+</style>
+</head>
+<body>
+
+<header class="hero" id="top">
+  <div class="wrapper">
+    <span class="badge">✦ מדריך למשתמש משפחה</span>
+    <h1>קול <span>העם</span><br>המגזין הקהילתי שלכם</h1>
+    <p>איך קוראים, מגיבים, שומרים וכותבים בקול העם — שלב אחר שלב, עם צילומי מסך אמיתיים מהמערכת.</p>
+    <nav class="toc" aria-label="תוכן העניינים">
+      <a href="#enter">כניסה</a>
+      <a href="#screen">מבנה המסך</a>
+      <a href="#home">דף הבית</a>
+      <a href="#find">חיפוש וסינון</a>
+      <a href="#read">קריאת כתבה</a>
+      <a href="#comments">תגובות ודיווח</a>
+      <a href="#authors">פרופיל כותב</a>
+      <a href="#mine">האזור האישי</a>
+      <a href="#write">כתיבת כתבה</a>
+      <a href="#ai">עוזר AI</a>
+      <a href="#faq">שאלות נפוצות</a>
+    </nav>
+    <p class="hero-note">הצילומים נלקחו בסביבת משפחת הדמו במערכת WEFLOWZ, במסך טלפון.</p>
+  </div>
+</header>
+
+<!-- 1 ENTER -->
+<section id="enter">
+  <div class="wrapper">
+    <p class="kicker"><span class="num">1</span> כניסה</p>
+    <h2 class="title">איך מגיעים לקול העם?</h2>
+    <p class="lead">קול העם נמצא בתפריט העליון של אפליקציית המשפחה, תחת קבוצת „משפחה”.</p>
+    <div class="step">
+      <div>
+        <ol>
+          <li>במסך הראשי של המשפחה, לחצו בסרגל הכהה העליון על <span class="ui">משפחה</span>.</li>
+          <li>בתפריט שנפתח בחרו <span class="ui">📣 קול העם</span>.</li>
+          <li>קול העם נפתח במסך מלא. כדי לחזור לאפליקציה לחצו על החץ <span class="ui">→</span> בפינה העליונה, ליד הלוגו.</li>
+        </ol>
+        <div class="callout callout-info"><span class="ic">💡</span><div>אין צורך בהרשמה נפרדת — אתם מחוברים לקול העם אוטומטית עם חשבון המשפחה, והתוכן מוצג לפי הקהילה שהמשפחה שלכם שייכת אליה.</div></div>
+      </div>
+      <div class="phones">
+        <figure class="phone"><div class="frame"><img loading="lazy" src="kol-haam-assets/images/guide/02-family-menu.jpg" alt="תפריט משפחה פתוח עם האפשרות קול העם"></div><figcaption>תפריט „משפחה” → „📣 קול העם”</figcaption></figure>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 2 SCREEN -->
+<section class="alt" id="screen">
+  <div class="wrapper">
+    <p class="kicker"><span class="num">2</span> מבנה המסך</p>
+    <h2 class="title">מה יש בראש המסך?</h2>
+    <p class="lead">החלק העליון קבוע בכל מסכי קול העם — ממנו מנווטים לכל מקום.</p>
+    <div class="step">
+      <div>
+        <h3>שלושה מצבי תצוגה</h3>
+        <ul>
+          <li><span class="ui">🏠 הקהילה שלי</span> — תוכן מהקהילה שלכם, וגם כתבות ארציות.</li>
+          <li><span class="ui">🌍 כל הארץ</span> — רק כתבות שאושרו להפצה ארצית, מכל הקהילות.</li>
+          <li><span class="ui">👥 עוקב אחרי</span> — פיד של כותבים שבחרתם לעקוב אחריהם.</li>
+        </ul>
+        <h3>שורת חיפוש</h3>
+        <p><span class="ui">חיפוש בכתבות, קהילות ותגיות</span> — הקלידו ולחצו Enter.</p>
+        <h3>שורת הכפתורים העגולים (מימין לשמאל)</h3>
+        <ul>
+          <li>📝 <strong>הטיוטות שלי</strong></li>
+          <li>☑️ <strong>התוכן שלי</strong></li>
+          <li>⭐ <strong>שמורים שלי</strong></li>
+          <li>👥 <strong>עוקב אחרי</strong></li>
+          <li>🔖 <strong>האוספים שלי</strong></li>
+          <li>➕ (ירוק) <strong>כתוב כתבה חדשה</strong></li>
+        </ul>
+        <h3>שורת המדורים</h3>
+        <p>מתחת לכפתורים — שורת מדורים נגללת (למשל <span class="ui">אירועים קהילתיים</span>, <span class="ui">גינות ופארקים</span>, <span class="ui">פתרונות מהקהילה</span>). לחיצה על מדור מציגה רק את הכתבות שלו.</p>
+      </div>
+      <div class="phones">
+        <figure class="phone"><div class="frame"><img loading="lazy" src="kol-haam-assets/images/guide/04-feed-top.jpg" alt="ראש מסך קול העם"></div><figcaption>ראש המסך: מצבי תצוגה, חיפוש, כפתורים ומדורים</figcaption></figure>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 3 HOME -->
+<section id="home">
+  <div class="wrapper">
+    <p class="kicker"><span class="num">3</span> דף הבית</p>
+    <h2 class="title">דף הבית — מגזין קהילתי</h2>
+    <p class="lead">דף הבית בנוי כמו עיתון: כתבה מובילה, רצועות של הכתבות החמות, מדורים ומקבץ פתרונות.</p>
+
+    <div class="step">
+      <div>
+        <h3>הכתבה המובילה</h3>
+        <p>בראש הדף מופיע כפתור <span class="ui">✍️ כתוב כתבה חדשה</span> ומתחתיו <strong>הכתבה המובילה</strong> — תמונה גדולה, שם הקהילה, כותרת, תקציר, שם הכותב, זמן קריאה, מספר תגובות ולייקים. לחיצה על הכרטיס פותחת את הכתבה.</p>
+        <h3>🔥 הכי חמים עכשיו</h3>
+        <p>רצועה נגללת לצדדים עם הכתבות הפופולריות כרגע. על כל תמונה מוצג מספר הצפיות (👁). הקישור <span class="ui">לכל הכתבות ←</span> פותח את רשימת כל הכתבות.</p>
+        <p>בהמשך מופיעה גם רצועת <strong>💬 התגובות החמות</strong> — כתבות שמעוררות הכי הרבה שיח.</p>
+      </div>
+      <div class="phones">
+        <figure class="phone"><div class="frame"><img loading="lazy" src="kol-haam-assets/images/guide/05-feed-strips.jpg" alt="רצועת הכי חמים עכשיו"></div><figcaption>„🔥 הכי חמים עכשיו” ותחילת „לפי מדורים”</figcaption></figure>
+      </div>
+    </div>
+
+    <div class="step">
+      <div>
+        <h3>לפי מדורים</h3>
+        <p>לכל מדור יש קופסה משלו: כתבה ראשית עם תמונה ועד 3 כתבות נוספות. <span class="ui">עוד ←</span> פותח את כל הכתבות במדור. מדור שעדיין אין בו כתבות יציג „אין כתבות עדיין” — הזדמנות להיות הראשונים לכתוב בו.</p>
+        <h3>פתרונות מהקהילה</h3>
+        <p>מקבץ מיוחד בתחתית הדף, עם שני כרטיסים:</p>
+        <ul>
+          <li><strong>השאלה החמה של היום</strong> — שאלה פתוחה לקהילה, עם כפתור <span class="ui">הצע פתרון</span>.</li>
+          <li><strong>סיפור ההצלחה של השבוע</strong> — עם כפתור <span class="ui">קרא את הסיפור</span>.</li>
+        </ul>
+        <p><span class="ui">כל הפתרונות ←</span> מציג את כל השאלות וסיפורי ההצלחה.</p>
+      </div>
+      <div class="phones">
+        <figure class="phone"><div class="frame"><img loading="lazy" src="kol-haam-assets/images/guide/06-feed-categories.jpg" alt="קופסאות המדורים"></div><figcaption>„לפי מדורים”</figcaption></figure>
+        <figure class="phone"><div class="frame"><img loading="lazy" src="kol-haam-assets/images/guide/07-feed-solutions.jpg" alt="פתרונות מהקהילה"></div><figcaption>„פתרונות מהקהילה”</figcaption></figure>
+      </div>
+    </div>
+
+    <h3 style="font-size:1.15rem;font-weight:800;margin:0 0 1rem">ארבעה סוגי תוכן</h3>
+    <div class="grid">
+      <div class="card"><div class="ic">📰</div><div class="t">כתבה</div><div class="d">חדשות, מאמרים ועדכונים — הפורמט הנפוץ.</div></div>
+      <div class="card"><div class="ic">❓</div><div class="t">שאלה</div><div class="d">שואלים את הקהילה. כותב השאלה יכול לסמן תגובה כ„פתרון”.</div></div>
+      <div class="card"><div class="ic">🏆</div><div class="t">סיפור הצלחה</div><div class="d">השראה ועצות מהשטח — מה עבד אצלכם.</div></div>
+      <div class="card"><div class="ic">📖</div><div class="t">מדריך</div><div class="d">מידע שימושי לכולם, שנשאר רלוונטי לאורך זמן.</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- 4 FIND -->
+<section class="alt" id="find">
+  <div class="wrapper">
+    <p class="kicker"><span class="num">4</span> חיפוש וסינון</p>
+    <h2 class="title">איך מוצאים תוכן?</h2>
+    <p class="lead">ארבע דרכים: מעבר לתצוגה ארצית, בחירת מדור, חיפוש חופשי, ורשימת כל הכתבות עם מסננים.</p>
+
+    <div class="step wide">
+      <div>
+        <ul>
+          <li><strong>🌍 כל הארץ</strong> — לחצו על הכפתור בראש המסך והפיד יתחלף לכתבות הארציות.</li>
+          <li><strong>מדור</strong> — לחיצה על מדור בשורת המדורים (המדור הנבחר מסומן במסגרת סגולה) מציגה כרטיסים של אותו מדור בלבד.</li>
+          <li><strong>חיפוש</strong> — הקלידו מילה (למשל „קיץ”) ולחצו Enter. בראש התוצאות: <span class="ui">תוצאות עבור "…"</span>, מספר התוצאות, ושלושה מסננים: <span class="ui">כל הסוגים</span> <span class="ui">כל הרמות</span> <span class="ui">כל הזמנים</span>. ה-✕ בשורת החיפוש מנקה אותה, ו-<span class="ui">← פיד</span> מחזיר לדף הבית.</li>
+          <li><strong>כל הכתבות</strong> — דרך <span class="ui">לכל הכתבות ←</span>. אפשר לסנן לפי זמן (<span class="ui">היום</span> <span class="ui">השבוע</span> <span class="ui">החודש</span> <span class="ui">השנה</span> <span class="ui">הכל</span>), לפי סוג (<span class="ui">כל הסוגים</span> <span class="ui">כתבת עומק</span> <span class="ui">מדריך</span> <span class="ui">סיפור קהילה</span> <span class="ui">שאלה</span>), לפי היקף (<span class="ui">הכל</span> <span class="ui">מקומי</span> <span class="ui">ארצי</span>), ולמיין לפי <span class="ui">הכי חדשות</span> או <span class="ui">הכי נצפות</span>. יש גם שדה <span class="ui">סינון לפי מילה בכותרת</span> וכפתור <span class="ui">+ עקבו אחרי המדור</span>.</li>
+        </ul>
+      </div>
+      <div class="phones">
+        <figure class="phone"><div class="frame"><img loading="lazy" src="kol-haam-assets/images/guide/08-scope-global.jpg" alt="תצוגת כל הארץ"></div><figcaption>„🌍 כל הארץ” פעיל</figcaption></figure>
+        <figure class="phone"><div class="frame"><img loading="lazy" src="kol-haam-assets/images/guide/09-category-filter.jpg" alt="סינון לפי מדור"></div><figcaption>סינון לפי מדור „פתרונות מהקהילה”</figcaption></figure>
+        <figure class="phone"><div class="frame"><img loading="lazy" src="kol-haam-assets/images/guide/10-search.jpg" alt="תוצאות חיפוש"></div><figcaption>תוצאות חיפוש עם מסננים</figcaption></figure>
+        <figure class="phone"><div class="frame"><img loading="lazy" src="kol-haam-assets/images/guide/11-list-all.jpg" alt="כל הכתבות"></div><figcaption>„כל הכתבות” — מסננים ומיון</figcaption></figure>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 5 READ -->
+<section id="read">
+  <div class="wrapper">
+    <p class="kicker"><span class="num">5</span> קריאת כתבה</p>
+    <h2 class="title">קריאת כתבה</h2>
+    <p class="lead">לחיצה על כל כרטיס פותחת את הכתבה המלאה. <span class="ui">→ חזרה</span> מחזיר למסך הקודם.</p>
+
+    <div class="step wide">
+      <div>
+        <ul>
+          <li><strong>שביל ניווט ותמונת שער</strong> — <span class="ui">בית › קהילה › שם המדור</span>, תגית המדור על התמונה וקרדיט צילום.</li>
+          <li><strong>כותרת ופרטי הכתבה</strong> — שם הכותב (לחיצה פותחת את הפרופיל שלו), תג הכותב (למשל <span class="ui">🏅 מוביל קהילתי</span>), הקהילה, תאריך פרסום וזמן קריאה.</li>
+          <li><strong>תקציר ב־20 שניות</strong> — קופסה ירוקה עם עיקרי הכתבה בנקודות, למי שממהר.</li>
+          <li><strong>תגיות</strong> — בסוף הכתבה. לחיצה על תגית מציגה את כל הכתבות עם אותה תגית.</li>
+        </ul>
+        <h3 style="font-size:1.05rem;font-weight:800;margin:1rem 0 .5rem">סרגל הפעולות</h3>
+        <div class="tbl"><table>
+          <thead><tr><th>כפתור</th><th>מה הוא עושה</th></tr></thead>
+          <tbody>
+            <tr><td><strong>👍 / 👎</strong></td><td>אהבתי / לא אהבתי. אפשר לבחור רק אחד מהשניים.</td></tr>
+            <tr><td><strong>💬</strong></td><td>מספר התגובות — לחיצה גוללת לאזור התגובות.</td></tr>
+            <tr><td><strong>⭐</strong></td><td>שמירה לרשימת „שמורים שלי” לקריאה מאוחר יותר.</td></tr>
+            <tr><td><strong>🖨️</strong></td><td>הדפסת הכתבה.</td></tr>
+            <tr><td><strong>📤 שיתוף</strong></td><td>שיתוף הכתבה (בטלפון נפתח תפריט השיתוף, כולל וואטסאפ).</td></tr>
+            <tr><td><strong>⚠️</strong></td><td>דיווח על תוכן בעייתי (ראו בהמשך).</td></tr>
+            <tr><td><strong>📚 אוסף</strong></td><td>הוספת הכתבה לאחד האוספים שלכם.</td></tr>
+          </tbody>
+        </table></div>
+      </div>
+      <div class="phones">
+        <figure class="phone"><div class="frame"><img loading="lazy" src="kol-haam-assets/images/guide/12-content-top.jpg" alt="ראש כתבה"></div><figcaption>ראש הכתבה ותמונת השער</figcaption></figure>
+        <figure class="phone"><div class="frame"><img loading="lazy" src="kol-haam-assets/images/guide/13-content-body.jpg" alt="פרטי הכותב ותקציר"></div><figcaption>הכותב, התג ו„תקציר ב־20 שניות”</figcaption></figure>
+        <figure class="phone"><div class="frame"><img loading="lazy" src="kol-haam-assets/images/guide/14-content-engagement.jpg" alt="תגיות וסרגל פעולות"></div><figcaption>תגיות, סרגל הפעולות ו„📚 אוסף”</figcaption></figure>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 6 COMMENTS -->
+<section class="alt" id="comments">
+  <div class="wrapper">
+    <p class="kicker"><span class="num">6</span> תגובות ודיווח</p>
+    <h2 class="title">להגיב, לענות ולדווח</h2>
+    <p class="lead">התגובה מתפרסמת בשם הקהילה שלכם — שמרו על שיח מכבד.</p>
+
+    <div class="step">
+      <div>
+        <h3>כתיבת תגובה</h3>
+        <ol>
+          <li>גללו לאזור <strong>תגובות</strong> בתחתית הכתבה.</li>
+          <li>כתבו בתיבה <span class="ui">כתבו תגובה…</span>.</li>
+          <li>לחצו <span class="ui">פרסמו תגובה</span>.</li>
+        </ol>
+        <h3>מיון תגובות</h3>
+        <p><span class="ui">הכי אהובות</span> <span class="ui">חדשות</span> <span class="ui">הכותב</span> <span class="ui">הנהלה</span></p>
+        <h3>פעולות על תגובה</h3>
+        <ul>
+          <li><strong>👍</strong> — לייק לתגובה.</li>
+          <li><strong>↩ תגובה</strong> — תשובה לתגובה (עד 3 רמות שרשור).</li>
+          <li><strong>⚠️</strong> — דיווח על התגובה.</li>
+          <li>בשאלות: כותב השאלה רואה <strong>✓ סמן כפתרון</strong>, ושאר הקוראים יכולים ללחוץ <strong>🔼 הצבע כפתרון</strong> (פעם אחת).</li>
+          <li>תגובה ניתנת לעריכה רק ב־15 הדקות הראשונות אחרי הפרסום.</li>
+        </ul>
+      </div>
+      <div class="phones">
+        <figure class="phone"><div class="frame"><img loading="lazy" src="kol-haam-assets/images/guide/15-comments.jpg" alt="אזור התגובות"></div><figcaption>אזור התגובות: מיון, תיבת כתיבה ותגובות</figcaption></figure>
+      </div>
+    </div>
+
+    <div class="step">
+      <div>
+        <h3>⚠️ דיווח על תוכן</h3>
+        <p>לחיצה על ⚠️ (בכתבה או בתגובה) פותחת את חלון <strong>דיווח על תוכן</strong>. בחרו סיבה:</p>
+        <ul>
+          <li>ספאם</li><li>מידע מטעה</li><li>תוכן פוגעני</li><li>זכויות יוצרים</li><li>פרסום מסחרי</li><li>חשיפת מידע אישי</li>
+        </ul>
+        <p>אפשר להוסיף <span class="ui">הערות נוספות (אופציונלי)</span> וללחוץ <span class="ui">שלח דיווח</span>, או <span class="ui">ביטול</span>.</p>
+        <div class="callout callout-warn"><span class="ic">🔒</span><div>כשכתבה מקבלת 5 דיווחים היא יורדת אוטומטית מהפיד עד שמנהל בודק אותה. תגובה שמקבלת 5 דיווחים מוסתרת (לא נמחקת) עד הבדיקה.</div></div>
+      </div>
+      <div class="phones">
+        <figure class="phone"><div class="frame"><img loading="lazy" src="kol-haam-assets/images/guide/16-report-modal.jpg" alt="חלון דיווח על תוכן"></div><figcaption>חלון „⚠️ דיווח על תוכן”</figcaption></figure>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 7 AUTHORS -->
+<section id="authors">
+  <div class="wrapper">
+    <p class="kicker"><span class="num">7</span> פרופיל כותב</p>
+    <h2 class="title">פרופיל הכותב</h2>
+    <p class="lead">לחיצה על שם כותב (בכתבה או בכרטיס) פותחת את הפרופיל שלו.</p>
+    <div class="step wide">
+      <div>
+        <ul>
+          <li><strong>שם ותג דרגה</strong> — למשל <span class="ui">🏅 כותבת מוסמכת · דרגה 3</span>, הקהילה, ותאריך ההצטרפות.</li>
+          <li><strong>מדורים</strong> שהכותב כותב בהם ותיאור קצר.</li>
+          <li><span class="ui">+ עקוב</span> — עקבו אחרי הכותב, והכתבות שלו יופיעו בפיד <strong>👥 עוקב אחרי</strong>. ✉️ לשליחת הודעה, ולידו מספר העוקבים.</li>
+          <li><strong>מדדים</strong> — סך ציון מוניטין, כתבות שפורסמו, סך צפיות, תגובות, כתבות ראשיות וכתבות ארציות.</li>
+          <li><strong>גלריית הישגים</strong> — 18 הישגים. הישגים שהושגו מוצגים בצבע עם תאריך, והשאר אפורים עם 🔒 „נעול”.</li>
+        </ul>
+      </div>
+      <div class="phones">
+        <figure class="phone"><div class="frame"><img loading="lazy" src="kol-haam-assets/images/guide/18-author.jpg" alt="ראש פרופיל כותב"></div><figcaption>שם, תג, „+ עקוב” ומדדים</figcaption></figure>
+        <figure class="phone"><div class="frame"><img loading="lazy" src="kol-haam-assets/images/guide/19-author-more.jpg" alt="גלריית ההישגים"></div><figcaption>„גלריית הישגים” — הישגים שהושגו</figcaption></figure>
+        <figure class="phone"><div class="frame"><img loading="lazy" src="kol-haam-assets/images/guide/19b-author-achievements.jpg" alt="הישגים נעולים"></div><figcaption>הישגים שעדיין נעולים 🔒</figcaption></figure>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 8 MINE -->
+<section class="alt" id="mine">
+  <div class="wrapper">
+    <p class="kicker"><span class="num">8</span> האזור האישי</p>
+    <h2 class="title">הטיוטות, התוכן, השמורים והאוספים שלי</h2>
+    <p class="lead">כל הכפתורים העגולים בראש המסך מובילים לכאן. בחשבון חדש המסכים ריקים — כך הם נראים לפני שמתחילים.</p>
+    <div class="step wide">
+      <div>
+        <div class="grid">
+          <div class="card"><div class="ic">✍️</div><div class="t">הטיוטות שלי</div><div class="d">טיוטות שעוד לא נשלחו, וכתבות שהוחזרו לתיקון. <span class="ui">+ חדש</span> פותח כתבה חדשה.</div></div>
+          <div class="card"><div class="ic">📚</div><div class="t">התוכן שלי</div><div class="d">כל מה שכתבתם, עם הסטטוס של כל פריט (טיוטה, ממתין, פורסם, נדחה).</div></div>
+          <div class="card"><div class="ic">⭐</div><div class="t">שמורים שלי</div><div class="d">כתבות ששמרתם עם ⭐ לקריאה מאוחר יותר.</div></div>
+          <div class="card"><div class="ic">👥</div><div class="t">עוקב אחרי</div><div class="d">כתבות מכותבים שאתם עוקבים אחריהם.</div></div>
+          <div class="card"><div class="ic">🔖</div><div class="t">האוספים שלי</div><div class="d">רשימות קריאה שאתם יוצרים — פרטיות או ציבוריות עם קישור לשיתוף. <span class="ui">+ חדש</span> יוצר אוסף.</div></div>
+        </div>
+      </div>
+      <div class="phones">
+        <figure class="phone"><div class="frame"><img loading="lazy" src="kol-haam-assets/images/guide/20-my-drafts.jpg" alt="הטיוטות שלי"></div><figcaption>„✍️ הטיוטות שלי”</figcaption></figure>
+        <figure class="phone"><div class="frame"><img loading="lazy" src="kol-haam-assets/images/guide/21-my-content.jpg" alt="התוכן שלי"></div><figcaption>„📚 התוכן שלי”</figcaption></figure>
+        <figure class="phone"><div class="frame"><img loading="lazy" src="kol-haam-assets/images/guide/22-saved.jpg" alt="שמורים שלי"></div><figcaption>„⭐ שמורים שלי”</figcaption></figure>
+        <figure class="phone"><div class="frame"><img loading="lazy" src="kol-haam-assets/images/guide/23-following.jpg" alt="עוקב אחרי"></div><figcaption>„👥 עוקב אחרי”</figcaption></figure>
+        <figure class="phone"><div class="frame"><img loading="lazy" src="kol-haam-assets/images/guide/24-collections.jpg" alt="האוספים שלי"></div><figcaption>„📚 האוספים שלי”</figcaption></figure>
+        <figure class="phone"><div class="frame"><img loading="lazy" src="kol-haam-assets/images/guide/17-add-to-collection.jpg" alt="הוספה לאוסף"></div><figcaption>„📚 הוסף לאוסף” מתוך כתבה</figcaption></figure>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 9 WRITE -->
+<section id="write">
+  <div class="wrapper">
+    <p class="kicker"><span class="num">9</span> כתיבת כתבה</p>
+    <h2 class="title">כותבים כתבה — שלב אחר שלב</h2>
+    <p class="lead">לחצו על ➕ הירוק בראש המסך, או על <span class="ui">✍️ כתוב כתבה חדשה</span> בדף הבית. נפתח מסך <strong>✍️ כתיבה חדשה</strong>.</p>
+
+    <div class="step">
+      <div>
+        <h3>1. סוג, כותרת ותמונה</h3>
+        <ul>
+          <li><strong>סוג תוכן</strong> — בחרו כרטיס: <span class="ui">📰 כתבה</span> <span class="ui">❓ שאלה</span> <span class="ui">🏆 סיפור הצלחה</span> <span class="ui">📖 מדריך</span>.</li>
+          <li><strong>כותרת *</strong> — חובה.</li>
+          <li><strong>תת-כותרת</strong> — תקציר קצר (אופציונלי).</li>
+          <li><strong>תמונת שער</strong> — <span class="ui">לחץ להעלאת תמונת שער</span>.</li>
+          <li><strong>קטגוריה *</strong> — בחרו מדור מהרשימה (<span class="ui">-- בחר קטגוריה --</span>).</li>
+        </ul>
+      </div>
+      <div class="phones">
+        <figure class="phone"><div class="frame"><img loading="lazy" src="kol-haam-assets/images/guide/25-editor.jpg" alt="עורך — סוג תוכן וכותרת"></div><figcaption>סוג תוכן, כותרת, תמונת שער וקטגוריה</figcaption></figure>
+      </div>
+    </div>
+
+    <div class="step">
+      <div>
+        <h3>2. היקף הפצה וגוף הכתבה</h3>
+        <ul>
+          <li><strong>היקף הפצה</strong> — <span class="ui">🏠 מקומי בלבד</span> או <span class="ui">🌍 בקש הפצה ארצית</span>. בבקשה ארצית הכתבה מתפרסמת קודם בקהילה, ואחר כך עוברת לאישור ארצי.</li>
+          <li><strong>גוף התוכן *</strong> — עורך עם כלי עיצוב: <span class="ui">B</span> מודגש, <span class="ui">I</span> נטוי, <span class="ui">U</span> קו תחתון, <span class="ui">H2</span> <span class="ui">H3</span> כותרות, רשימת נקודות, רשימה ממוספרת וניקוי עיצוב.</li>
+        </ul>
+      </div>
+      <div class="phones">
+        <figure class="phone"><div class="frame"><img loading="lazy" src="kol-haam-assets/images/guide/26-editor-body.jpg" alt="עורך — גוף התוכן"></div><figcaption>היקף הפצה וגוף התוכן</figcaption></figure>
+      </div>
+    </div>
+
+    <div class="step">
+      <div>
+        <h3>3. תגיות, תקציר, סדרה — ושליחה</h3>
+        <ul>
+          <li><strong>תגיות (עד 10)</strong> — <span class="ui">הקלד תגית ולחץ Enter...</span>. תוך כדי הקלדה מוצעות תגיות קיימות.</li>
+          <li><strong>תקציר ב־20 שניות</strong> (אופציונלי) — משפט או שניים שיופיעו בקופסת התקציר.</li>
+          <li><strong>חלק מסדרה?</strong> (אופציונלי) — בחרו סדרה קיימת או <span class="ui">+ סדרה חדשה</span>, והזינו <span class="ui">מספר פרק</span>.</li>
+          <li><span class="ui">💾 שמור כטיוטה</span> — שומר בלי לשלוח. בזמן הכתיבה יש גם שמירה אוטומטית כל 30 שניות.</li>
+          <li><span class="ui">✈️ שלח לאישור</span> — שולח את הכתבה לאישור מנהל הקהילה.</li>
+        </ul>
+      </div>
+      <div class="phones">
+        <figure class="phone"><div class="frame"><img loading="lazy" src="kol-haam-assets/images/guide/27-editor-bottom.jpg" alt="עורך — תגיות ושליחה"></div><figcaption>תגיות, תקציר, סדרה, „שמור כטיוטה” ו„שלח לאישור”</figcaption></figure>
+      </div>
+    </div>
+
+    <h3 style="font-size:1.15rem;font-weight:800;margin:0 0 1rem">מה קורה אחרי השליחה?</h3>
+    <div class="flow">
+      <div class="n draft">📝 טיוטה<small>אתם כותבים</small></div><span class="arr">←</span>
+      <div class="n pend">⏳ ממתין לאישור<small>מנהל הקהילה בודק</small></div><span class="arr">←</span>
+      <div class="n local">✅ פורסם בקהילה<small>גלוי לקהילה שלכם</small></div><span class="arr">←</span>
+      <div class="n global">🌍 פורסם ארצית<small>רק אם ביקשתם הפצה ארצית ואושר</small></div>
+    </div>
+    <div class="callout callout-warn"><span class="ic">↩️</span><div><strong>נדחה?</strong> הכתבה חוזרת אליכם ל„הטיוטות שלי” עם הסבר מהמנהל. מתקנים לפי ההערות ושולחים שוב.</div></div>
+    <div class="callout callout-info"><span class="ic">🗑️</span><div>רוצים להוריד כתבה שכבר פורסמה? בתוך הכתבה שלכם מופיע כפתור <span class="ui">בקש מחיקה</span>, והבקשה עוברת לטיפול ההנהלה.</div></div>
+  </div>
+</section>
+
+<!-- 10 AI -->
+<section class="alt" id="ai">
+  <div class="wrapper">
+    <p class="kicker"><span class="num">10</span> עוזר AI</p>
+    <h2 class="title">🤖 עוזר הכתיבה AI</h2>
+    <p class="lead">בתחתית העורך יש פאנל <strong>עוזר הכתיבה AI</strong>. הוא נפתח לשימוש אחרי ששומרים את הכתבה כטיוטה לפחות פעם אחת (עד אז מוצגת ההודעה „שמור קודם כטיוטה כדי להפעיל את עוזר הכתיבה”, כמו בצילום של שלב 3 למעלה).</p>
+    <div class="grid">
+      <div class="card"><div class="ic">✏️</div><div class="t">תיקון דקדוק</div><div class="d">הצעות לתיקוני דקדוק ואיות.</div></div>
+      <div class="card"><div class="ic">💡</div><div class="t">כותרות</div><div class="d">הצעות לכותרת חלופית.</div></div>
+      <div class="card"><div class="ic">📝</div><div class="t">תת-כותרת</div><div class="d">הצעה לתת-כותרת קצרה.</div></div>
+      <div class="card"><div class="ic">📋</div><div class="t">תקציר</div><div class="d">תקציר ב־20 שניות.</div></div>
+      <div class="card"><div class="ic">🏷️</div><div class="t">תגיות</div><div class="d">תגיות מתאימות לתוכן.</div></div>
+      <div class="card"><div class="ic">🔍</div><div class="t">כפילויות</div><div class="d">בדיקה אם כבר נכתבה כתבה דומה.</div></div>
+      <div class="card"><div class="ic">🛡️</div><div class="t">בדיקת בטיחות</div><div class="d">סריקה לאיתור תוכן בעייתי.</div></div>
+      <div class="card"><div class="ic">🖼️</div><div class="t">תמונת שער</div><div class="d">רעיונות לחיפוש תמונת שער.</div></div>
+    </div>
+    <div class="callout callout-info"><span class="ic">▶</span><div>סמנו את הפעולות שאתם רוצים ולחצו <span class="ui">▶ הפעל עוזר</span>. אפשר להשתמש בעוזר עד 10 פעמים ביום.</div></div>
+  </div>
+</section>
+
+<!-- 11 FAQ -->
+<section id="faq">
+  <div class="wrapper">
+    <p class="kicker"><span class="num">11</span> שאלות נפוצות</p>
+    <h2 class="title">שאלות נפוצות</h2>
+    <div style="max-width:720px">
+      <details><summary>מי רואה את מה שאני כותב?</summary><p>כתבה מקומית — חברי הקהילה שלכם. כתבה שאושרה ארצית — כל הקהילות, בתצוגת „🌍 כל הארץ”.</p></details>
+      <details><summary>למה הכתבה שלי לא מופיעה בפיד?</summary><p>כנראה שהיא עדיין ממתינה לאישור. בדקו את הסטטוס ב„התוכן שלי”.</p></details>
+      <details><summary>איך אני ממשיך כתבה שהתחלתי?</summary><p>היכנסו ל„הטיוטות שלי” ולחצו על הטיוטה כדי לפתוח אותה בעורך.</p></details>
+      <details><summary>אפשר לערוך תגובה?</summary><p>כן, אבל רק ב־15 הדקות הראשונות אחרי הפרסום.</p></details>
+      <details><summary>מה ההבדל בין „שמורים” ל„אוספים”?</summary><p>⭐ שמורים היא רשימה אחת מהירה. אוספים הם רשימות עם שם שאתם יוצרים — למשל „רעיונות לחופש” — ואפשר לשתף אותם בקישור.</p></details>
+      <details><summary>איך חוזרים לאפליקציית המשפחה?</summary><p>לחצו על החץ → בפינה העליונה של קול העם, ליד הלוגו.</p></details>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrapper">מדריך קול העם למשתמש משפחה · WEFLOWZ · <a href="#top" style="color:inherit">חזרה למעלה ↑</a></div>
+</footer>
+
+<div id="lb" role="dialog" aria-label="תצוגת צילום מסך"><img alt=""></div>
+<script>
+(function(){
+  var lb=document.getElementById('lb'), im=lb.querySelector('img');
+  document.querySelectorAll('figure.phone img').forEach(function(i){
+    i.addEventListener('click',function(){ im.src=i.src; im.alt=i.alt; lb.classList.add('show'); });
+  });
+  lb.addEventListener('click',function(){ lb.classList.remove('show'); });
+  document.addEventListener('keydown',function(e){ if(e.key==='Escape') lb.classList.remove('show'); });
+})();
+</script>
+</body>
+</html>
