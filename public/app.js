@@ -1798,7 +1798,7 @@ async function loadDashboard() {
     const mw = getEl('main-wrapper'); if (mw) mw.classList.add('hidden');
 
     getEl('dashboard-container').classList.remove('hidden');
-    if (currentUser && currentTab !== 'shop') getEl('fab-container').classList.remove('hidden');
+    if (currentUser && window._currentFamilyTab !== 'shop') getEl('fab-container').classList.remove('hidden');
     const _isMember = currentGroup?.member_type === 'member';
 
     // --- הזרקת באנר השתלטות דינמי ישירות ל-Body (בטוח 100%) ---
